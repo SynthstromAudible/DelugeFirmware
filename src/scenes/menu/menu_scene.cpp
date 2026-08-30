@@ -337,6 +337,46 @@ ParamDescriptor MenuScene::learn_target() const {
 }
 
 // ---------------------------------------------------------------------------------------------
+// MIDI learn: `SoundEditor`'s three delivery members and `unlearnAction`, forwarded to the focused
+// item exactly as legacy's `getCurrentMenuItem()->learnX(...)` did (`sound_editor.cpp:478`,
+// `:1550-1570`). See the warning on the declarations: nothing routes MIDI here yet.
+
+const CustomItem* MenuScene::focused_custom() const {
+	const Node* node = focused();
+	// A `Kind::Custom` node is the only kind that can carry a learn hook, and `Node::custom` is only
+	// ever read for one (`render_oled`, `enter_leaf`, `handle` all guard the same way).
+	return node != nullptr && node->kind == Kind::Custom ? node->custom : nullptr;
+}
+
+bool MenuScene::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) {
+	const CustomItem* item = focused_custom();
+	return item != nullptr && item->learn_note_on(cable, channel, note);
+}
+
+bool MenuScene::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
+	const CustomItem* item = focused_custom();
+	return item != nullptr && item->learn_cc(cable, channel, cc, value);
+}
+
+bool MenuScene::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) {
+	const CustomItem* item = focused_custom();
+	return item != nullptr && item->learn_program_change(cable, channel, program);
+}
+
+void MenuScene::unlearn() {
+	// Unconditional, like legacy's own call: `MenuItem::unlearnAction`'s base is an empty body, so
+	// an item with nothing to forget forgets nothing and no caller has to ask first.
+	if (const CustomItem* item = focused_custom(); item != nullptr) {
+		item->unlearn();
+	}
+}
+
+bool MenuScene::wants_learn_blink() const {
+	const CustomItem* item = focused_custom();
+	return item != nullptr && item->wants_learn_blink();
+}
+
+// ---------------------------------------------------------------------------------------------
 // Tree walking
 
 size_t MenuScene::visible_children(const Node& node, std::span<const Node*> out) const {
@@ -807,6 +847,13 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	}
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
 	            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0});
+	// `SoundEditor::beginScreen`'s tail (`sound_editor.cpp:911-916`): every screen change asks the
+	// item whether it wants the LEARN LED, and blinks or extinguishes it accordingly. Declared on
+	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
+	// state of the LEDs this scene owns, redeclared each time. The period is `kFlashTime`, the same
+	// one `blinkLed`'s default `blinkingType` runs at, hence the shared constant with BACK.
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn),
+	            wants_learn_blink() ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0} : kOff);
 }
 
 // ---------------------------------------------------------------------------------------------

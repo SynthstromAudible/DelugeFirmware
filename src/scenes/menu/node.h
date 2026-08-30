@@ -27,6 +27,12 @@
 #include <span>
 #include <string_view>
 
+/// Forward declared for `CustomItem`'s learn hooks, which only ever take it by reference -- the
+/// same reason `OledFrame` and friends below are declared rather than included. `io/midi/` is
+/// inside this layer's allow-list, but this header is the model-light one and has no need of the
+/// definition.
+class MIDICable;
+
 namespace deluge::ui::oled {
 struct OledFrame;
 } // namespace deluge::ui::oled
@@ -245,6 +251,51 @@ struct CustomItem {
 	/// `ValidateOptions::allow_placeholder_custom`. That keeps "the tree is complete" checkable by
 	/// default and lets an E1 spec say, once and visibly, that it is not yet.
 	virtual bool is_placeholder() const { return false; }
+
+	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.
+	///
+	/// Legacy declares these on `MenuItem` itself (`gui/menu_item/menu_item.h:194-199`:
+	/// `allowsLearnMode`, `shouldBlinkLearnLed`, `learnNoteOn`, `learnProgramChange`, `learnCC`,
+	/// `unlearnAction`), all with do-nothing/false defaults, and `SoundEditor` calls them on
+	/// `getCurrentMenuItem()` without asking what class it is
+	/// (`gui/ui/sound_editor.cpp:478`, `:1550-1570`). The port keeps that shape but puts the hooks
+	/// on `CustomItem` rather than on `Node`: the only ported items that learn anything are
+	/// bespoke ones (the twelve `nodes::MidiCommandItem`s), and a `Kind`'s interpreter has no
+	/// business growing a learn arm none of its nodes use.
+	///
+	/// Every default here is "did nothing, used nothing", so no other `CustomItem` changes.
+	///
+	/// @note Nothing routes MIDI into the scene stack yet. `MenuScene::learn_note_on` and friends
+	///       are the entry points the eventual wiring calls; these are what they forward to.
+	/// @{
+
+	/// @brief Bind a note-on to whatever this item learns.
+	/// @return Whether the message was used (`MenuItem::learnNoteOn`'s own `bool`).
+	virtual bool learn_note_on(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*note*/) const { return false; }
+
+	/// @brief Bind a CC to whatever this item learns.
+	///
+	/// Returns a `bool` where `MenuItem::learnCC` returns `void`, because legacy's caller
+	/// (`SoundEditor::midiCCReceived`) answers "was some use made of the message here" for the whole
+	/// UI and could only ever say `true`; here the focused item answers for itself.
+	virtual bool learn_cc(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*cc*/, int32_t /*value*/) const {
+		return false;
+	}
+
+	/// @brief Bind a program change to whatever this item learns.
+	/// @return Whether the message was used -- including "used, and refused with a popup", which is
+	///         what `SoundEditor::pcReceivedForMidiLearn` reports for legacy's one refusing item.
+	virtual bool learn_program_change(::MIDICable& /*cable*/, int32_t /*channel*/, int32_t /*program*/) const {
+		return false;
+	}
+
+	/// @brief Forget what this item learned -- `MenuItem::unlearnAction` (`sound_editor.cpp:478`).
+	virtual void unlearn() const {}
+
+	/// @brief Does this item want the LEARN LED blinking while it is focused?
+	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:911-916`, `:488-492`).
+	virtual bool wants_learn_blink() const { return false; }
+	/// @}
 };
 
 /// @brief One menu item or submenu, as plain data.

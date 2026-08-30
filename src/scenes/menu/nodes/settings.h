@@ -31,12 +31,14 @@
 ///           leaving them as placeholders; see "12-13. Battery and firmware" below.)
 ///         * **UI navigation.** `cv_selection` / `gate_selection`
 ///           (`cv/selection.h:31-36`, `gate/selection.h:26-38`: `Selection`s whose select press
-///           *navigates* to a page rather than committing a value), the twelve `midi_command_*`
-///           (`midi/command.h`, MIDI-learn items), and `midi_devices`
-///           (`midi/devices.h`, a scrolling device list). (The five `reset_*` items used to be here
-///           too, at `kPending` -- E2 task 7 gave them a real `ResetItem` instead, opening
-///           `context_menu::ContextMenuScene` through `MenuState::pending_scene`; see "1. Actions"
-///           below.)
+///           *navigates* to a page rather than committing a value) and `midi_devices`
+///           (`midi/devices.h`, a scrolling device list). (Two groups used to be here too, at
+///           `kPending`: the five `reset_*` items, which E2 task 7 gave a real `ResetItem` opening
+///           `context_menu::ContextMenuScene` through `MenuState::pending_scene` (see "1. Actions"
+///           below); and the twelve `midi_command_*` (`midi/command.h`, MIDI-learn items), which E2
+///           task 8 gave a real `MidiCommandItem` -- they navigate nowhere, they bind an incoming
+///           MIDI message to a `GlobalMIDICommand`, and the entry points that deliver that message
+///           are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn`.)
 ///         * **Two items with genuinely dynamic state.** `default_tempo`, `default_swing_amount`
 ///           and `default_key` are `IntegerRange` / `KeyRange`, whose `lower`/`upper` live on the
 ///           legacy menu item (`integer_range.h:29`, `key_range.h:26`) and whose editor is spec E
@@ -77,7 +79,8 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/nodes/roots.h" // kThresholdModeNames, and `kPending` through it
+#include "scenes/menu/nodes/midi_command.h" // the twelve `MidiCommandItem`s
+#include "scenes/menu/nodes/roots.h"        // kThresholdModeNames, and `kPending` through it
 #include "scenes/menu/relevance.h"
 
 #include <span>
@@ -529,20 +532,24 @@ inline constexpr uint16_t kMidiTakeoverNames[] = {
 inline constexpr Node midi_takeover =
     enumeration(sid(String::STRING_FOR_TAKEOVER), kMidiTakeoverNames, get_midi_takeover, set_midi_takeover);
 
-/// The twelve `midi::Command` learn items (`menus.cpp:1416-1428`), all E2 placeholders.
+/// The twelve `midi::Command` learn items (`menus.cpp:1416-1428`), each backed by its own
+/// `MidiCommandItem` (E2 task 8, `nodes/midi_command.h`) -- one per learnable `GlobalMIDICommand`.
+/// The order is `midiCommandsMenu`'s own (`menus.cpp:1430-1436`), which is NOT the enum's order.
 /// @{
-inline constexpr Node midi_command_play = custom(sid(String::STRING_FOR_PLAY), &kPending);
-inline constexpr Node midi_command_restart = custom(sid(String::STRING_FOR_RESTART), &kPending);
-inline constexpr Node midi_command_record = custom(sid(String::STRING_FOR_RECORD), &kPending);
-inline constexpr Node midi_command_tap = custom(sid(String::STRING_FOR_TAP_TEMPO), &kPending);
-inline constexpr Node midi_command_undo = custom(sid(String::STRING_FOR_UNDO), &kPending);
-inline constexpr Node midi_command_redo = custom(sid(String::STRING_FOR_REDO), &kPending);
-inline constexpr Node midi_command_loop = custom(sid(String::STRING_FOR_LOOP), &kPending);
-inline constexpr Node midi_command_layering_loop = custom(sid(String::STRING_FOR_LAYERING_LOOP), &kPending);
-inline constexpr Node midi_command_fill = custom(sid(String::STRING_FOR_FILL), &kPending);
-inline constexpr Node midi_command_transpose = custom(sid(String::STRING_FOR_TRANSPOSE), &kPending);
-inline constexpr Node midi_command_next_song = custom(sid(String::STRING_FOR_SONG_LOAD_NEXT), &kPending);
-inline constexpr Node midi_command_shift = custom(sid(String::STRING_FOR_SHIFT), &kPending);
+inline constexpr Node midi_command_play = custom(sid(String::STRING_FOR_PLAY), &kMidiCommandPlayItem);
+inline constexpr Node midi_command_restart = custom(sid(String::STRING_FOR_RESTART), &kMidiCommandRestartItem);
+inline constexpr Node midi_command_record = custom(sid(String::STRING_FOR_RECORD), &kMidiCommandRecordItem);
+inline constexpr Node midi_command_tap = custom(sid(String::STRING_FOR_TAP_TEMPO), &kMidiCommandTapItem);
+inline constexpr Node midi_command_undo = custom(sid(String::STRING_FOR_UNDO), &kMidiCommandUndoItem);
+inline constexpr Node midi_command_redo = custom(sid(String::STRING_FOR_REDO), &kMidiCommandRedoItem);
+inline constexpr Node midi_command_loop = custom(sid(String::STRING_FOR_LOOP), &kMidiCommandLoopItem);
+inline constexpr Node midi_command_layering_loop =
+    custom(sid(String::STRING_FOR_LAYERING_LOOP), &kMidiCommandLayeringLoopItem);
+inline constexpr Node midi_command_fill = custom(sid(String::STRING_FOR_FILL), &kMidiCommandFillItem);
+inline constexpr Node midi_command_transpose = custom(sid(String::STRING_FOR_TRANSPOSE), &kMidiCommandTransposeItem);
+inline constexpr Node midi_command_next_song =
+    custom(sid(String::STRING_FOR_SONG_LOAD_NEXT), &kMidiCommandNextSongItem);
+inline constexpr Node midi_command_shift = custom(sid(String::STRING_FOR_SHIFT), &kMidiCommandShiftItem);
 /// @}
 
 inline constexpr const Node* kMidiCommandsChildren[] = {

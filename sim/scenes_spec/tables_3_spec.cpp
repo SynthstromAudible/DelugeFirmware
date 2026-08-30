@@ -48,6 +48,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
+#include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/menus.h"
@@ -69,6 +70,9 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
+
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_engine.h"
 
 #include "processing/engines/cv_engine.h"
 
@@ -680,6 +684,194 @@ const deluge::ui::shell::BoardProfile& profile_64() {
 	}();
 	return p;
 }
+
+/// @name The twelve MIDI-command learn items' own support.
+///
+/// The port's items are `nodes::MidiCommandItem`s (`menu/nodes/midi_command.h`); the legacy items
+/// they replace are the twelve `midi::Command` globals under `midiCommandsMenu`
+/// (`gui/ui/menus.cpp:1416-1436`), which this spec reaches through `tree()` rather than through an
+/// `extern` -- `menus.h` declares none of them, and reaching them by walking the shipped tree is
+/// what makes "same position, same command" checkable at all.
+/// @{
+
+/// @brief A concrete `MIDICable` to learn against.
+///
+/// `MIDICable` is abstract (`io/midi/midi_device.h:96-167` -- six pure virtuals), and none of the
+/// shipped cable types can be built in a host spec without a USB or DIN backend behind it. Only the
+/// cable's *address* and its display name are ever read by the code under test
+/// (`LearnedMIDI::cable`, and `MidiCommandItem::render`'s device row), so a stub is the whole
+/// requirement.
+struct FakeCable final : ::MIDICable {
+	void writeToFlash(uint8_t*) override {}
+	char const* getDisplayName() override { return "SPEC CABLE"; }
+	void sendMessage(MIDIMessage) override {}
+	void sendSysex(const uint8_t*, int32_t) override {}
+	[[nodiscard]] size_t sendBufferSpace() const override { return 0; }
+
+protected:
+	void writeReferenceAttributesToFile(Serializer&) override {}
+};
+
+FakeCable& fake_cable() {
+	static FakeCable c;
+	return c;
+}
+
+/// @brief Every `midiEngine.globalMIDICommands` entry, saved so a learn example can put them back.
+///
+/// The whole array, not just the slot under test: an item that learned onto the *wrong* command is
+/// exactly the bug the twelve-way mapping has to catch, and a save/restore of one slot would leak
+/// the wrong-slot write into the next example instead of failing this one.
+struct CommandSlots {
+	LearnedMIDI slots[kNumGlobalMIDICommands];
+
+	static CommandSlots capture() {
+		CommandSlots c;
+		for (int32_t i = 0; i < kNumGlobalMIDICommands; i++) {
+			c.slots[i] = midiEngine.globalMIDICommands[i];
+		}
+		return c;
+	}
+	void restore() const {
+		for (int32_t i = 0; i < kNumGlobalMIDICommands; i++) {
+			midiEngine.globalMIDICommands[i] = slots[i];
+		}
+	}
+	static void clear_all() {
+		for (int32_t i = 0; i < kNumGlobalMIDICommands; i++) {
+			midiEngine.globalMIDICommands[i].clear();
+		}
+	}
+	/// @brief The whole array as one comparable string: `index=cable/channelOrZone/noteOrCC`, with
+	///        the empty slots elided. Printing the difference beats thirteen separate expectations.
+	std::string describe() const {
+		std::string out;
+		for (int32_t i = 0; i < kNumGlobalMIDICommands; i++) {
+			const LearnedMIDI& s = slots[i];
+			if (s.channelOrZone == MIDI_CHANNEL_NONE) {
+				continue; // `LearnedMIDI::containsSomething()`, which is not const
+			}
+			out += std::to_string(i) + "=" + (s.cable != nullptr ? s.cable->getDisplayName() : "none") + "/"
+			       + std::to_string(s.channelOrZone) + "/" + std::to_string(s.noteOrCC) + " ";
+		}
+		return out.empty() ? std::string{"(all clear)"} : out;
+	}
+};
+
+/// @brief One of the twelve: the node, its `MidiCommandItem`, and the legacy `midi::Command` the
+///        tree walk found at the very same position.
+struct CommandPair {
+	const Node* node;
+	const nodes::MidiCommandItem* port;
+	legacy::midi::Command* legacy;
+};
+
+/// @brief `nodes::kMidiCommandsChildren` paired with `midiCommandsMenu`'s own children.
+///
+/// Built off `tree()`, so the pairing is positional in the *shipped* trees rather than a second
+/// hand-written list that could drift from either one.
+const std::vector<CommandPair>& command_pairs() {
+	static std::vector<CommandPair> list = [] {
+		std::vector<CommandPair> v;
+		for (const Node* node : nodes::kMidiCommandsChildren) {
+			CommandPair p{node, dynamic_cast<const nodes::MidiCommandItem*>(node->custom), nullptr};
+			for (const Pair& pair : tree().pairs) {
+				if (pair.node == node) {
+					p.legacy = dynamic_cast<legacy::midi::Command*>(pair.item);
+					break;
+				}
+			}
+			v.push_back(p);
+		}
+		return v;
+	}();
+	return list;
+}
+
+/// @brief Records `display->displayPopup(...)`, so the legacy item can be driven at all.
+///
+/// `display` is null in this process (`hid/display/display.cpp:4`; nothing in a host spec boots the
+/// OLED), and two of `midi::Command`'s arms call straight through it: the "LEARNED"/"UNLEARNED"
+/// popup taken when the item is *not* the current menu item (`command.cpp:120-122`, `:100-103`) and
+/// FILL's `CANT_LEARN_PC` refusal (`:107`). Without a display the first is avoidable -- point
+/// `soundEditor`'s navigation record at the item and the `renderUIsForOled()` branch is taken
+/// instead, and that function is one assignment (`gui/ui/ui.cpp:263-265`) -- but the second is not:
+/// legacy pops unconditionally there. So the examples below install this for the scope, which both
+/// keeps the legacy call alive and makes "did legacy refuse?" directly observable.
+struct SpyDisplay final : deluge::hid::Display {
+	std::vector<std::string> popups;
+
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override {
+		popups.emplace_back(text != nullptr ? text : "");
+	}
+	void popupText(char const* text, PopupType) override { popups.emplace_back(text != nullptr ? text : ""); }
+	void popupTextTemporary(char const* text, PopupType) override { popups.emplace_back(text != nullptr ? text : ""); }
+	void cancelPopup() override {}
+	void freezeWithError(char const*) override {}
+	void displayError(Error) override {}
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return !popups.empty(); }
+	bool hasPopupOfType(PopupType) override { return !popups.empty(); }
+	void consoleText(char const*) override {}
+	void timerRoutine() override {}
+};
+
+/// @brief Installs a `SpyDisplay` and points `soundEditor`'s navigation record at @p item, so the
+///        legacy `midi::Command` can be called without dereferencing a null `display`.
+///
+/// Restores both on the way out: `display` is a process global and `menuItemNavigationRecord` is
+/// what `install()` leaves at depth 0, so leaking either would change what a later example sees.
+struct LegacyLearnScope {
+	SpyDisplay spy;
+	deluge::hid::Display* saved_display;
+	::MenuItem* saved_item;
+	uint8_t saved_depth;
+
+	explicit LegacyLearnScope(::MenuItem* item) : saved_display(display) {
+		saved_depth = soundEditor.navigationDepth;
+		saved_item = soundEditor.menuItemNavigationRecord[0];
+		soundEditor.navigationDepth = 0;
+		soundEditor.menuItemNavigationRecord[0] = item;
+		display = &spy;
+	}
+	~LegacyLearnScope() {
+		display = saved_display;
+		soundEditor.menuItemNavigationRecord[0] = saved_item;
+		soundEditor.navigationDepth = saved_depth;
+	}
+	LegacyLearnScope(const LegacyLearnScope&) = delete;
+	LegacyLearnScope& operator=(const LegacyLearnScope&) = delete;
+};
+
+/// @brief Descend `Rig` @p r from the MIDI-commands submenu onto its @p row'th child.
+///
+/// The real descent the reset-item examples use: cursor down @p row times, then the select-encoder
+/// press `enter_child` -> `enter_leaf` runs on.
+void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
+	// Both global queues first. An undrained `Kind::Text` notice -- a `CANT_LEARN_PC` refusal from a
+	// previous iteration, or a stray fact from an earlier describe block in this same process --
+	// becomes a `PopupScene` on this Rig's very first tick, which is not `oled_transparent` for
+	// `Main` and takes the input top with it (`shell/notices.cpp:118-120`). The select press below
+	// would then never reach the menu, and the descent would silently not happen.
+	// `tables_3_reset_items` and `tables_3_pixels` drain for exactly this reason.
+	deluge::notify::dirty().drain();
+	{
+		deluge::notify::Notice stray;
+		while (deluge::notify::notices().pop(stray)) {}
+	}
+	r.open(nodes::midi_commands, ctx);
+	r.shell.tick(0);
+	for (size_t t = 0; t < row; t++) {
+		r.turn(1, static_cast<uint32_t>(10 + t * 10));
+		r.shell.tick(static_cast<uint32_t>(15 + t * 10));
+	}
+	r.button(kSelectEncButtonX, kSelectEncButtonY, true, 200);
+	r.shell.tick(210);
+}
+/// @}
 
 /// @brief Is @p target named by some node's static `children` span, anywhere in `kAllRoots`?
 ///
@@ -1802,6 +1994,243 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 	   });
 });
 
+describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_command_* items", $ {
+	// `midi::Command` (`gui/menu_item/midi/command.{h,cpp}`) is a MIDI *learn* item: focus it, send a
+	// message, and the message is bound to one `GlobalMIDICommand`. The port is one
+	// `nodes::MidiCommandItem` parameterised by that command, and `MenuScene::learn_note_on` /
+	// `learn_cc` / `learn_program_change` / `unlearn` are the entry points
+	// `SoundEditor::noteOnReceivedForMidiLearn` / `midiCCReceived` / `pcReceivedForMidiLearn` /
+	// `unlearnAction()` become (`gui/ui/sound_editor.cpp:478`, `:1550-1570`).
+	//
+	// **What these examples do NOT cover.** Nothing routes MIDI into the scene stack yet -- that
+	// wiring is a later plan's -- so every example below calls the entry points directly, exactly as
+	// the wiring will. The gate legacy puts in front of them (`currentUIMode == UI_MODE_MIDI_LEARN`
+	// and `!Buttons::isShiftButtonPressed()`, `sound_editor.cpp:1550`, `:1562`) is not ported and is
+	// not tested here: it reads UI-mode state a scene may not touch.
+
+	it("binds each node to the same GlobalMIDICommand as the legacy item in the same position", _ {
+		// Positional, off `tree()`: the port's `kMidiCommandsChildren` walked in lockstep with
+		// `midiCommandsMenu`'s own children (`gui/ui/menus.cpp:1430-1436`). A swapped pair of
+		// `MidiCommandItem` arguments fails right here, before any learn runs.
+		expect(command_pairs().size()).to_equal(size_t(12));
+		for (const CommandPair& p : command_pairs()) {
+			expect(p.port != nullptr).to_be_true();   // the node really is a MidiCommandItem now
+			expect(p.legacy != nullptr).to_be_true(); // and legacy's really is a midi::Command
+			if (p.port == nullptr || p.legacy == nullptr) {
+				continue;
+			}
+			expect(static_cast<int>(p.port->command())).to_equal(static_cast<int>(p.legacy->commandNumber));
+		}
+	});
+
+	it("learns a CC onto exactly the slot the legacy item learns it onto, driven through the real "
+	   "descent",
+	   _ {
+		   // The whole `globalMIDICommands` array is compared, not just the slot under test: an item
+		   // that learned onto the wrong command is the failure mode a per-slot check cannot see.
+		   const Root& settings = roots().back();
+		   install(settings.ctx, settings.song);
+		   const CommandSlots saved = CommandSlots::capture();
+
+		   const std::vector<CommandPair>& pairs = command_pairs();
+		   for (size_t i = 0; i < pairs.size(); i++) {
+			   const int32_t cc = static_cast<int32_t>(40 + i);
+
+			   CommandSlots::clear_all();
+			   Rig r;
+			   focus_command_row(r, settings.ctx, i);
+			   expect(menu_scene().focused() == pairs[i].node).to_be_true();
+			   expect(menu_scene().learn_cc(fake_cable(), 3, cc, 127)).to_be_true();
+			   const std::string got = CommandSlots::capture().describe();
+
+			   CommandSlots::clear_all();
+			   {
+				   LegacyLearnScope legacy_scope{pairs[i].legacy};
+				   pairs[i].legacy->learnCC(fake_cable(), 3, cc, 127);
+				   expect(legacy_scope.spy.popups.empty()).to_be_true(); // the current-item branch
+			   }
+			   const std::string want = CommandSlots::capture().describe();
+
+			   expect(got).to_equal(want);
+			   expect(got != std::string{"(all clear)"}).to_be_true(); // a no-op would match vacuously
+		   }
+		   saved.restore();
+	   });
+
+	it("learns a note-on and a program change the way the legacy item does, including FILL's refusal",
+	   _ {
+		   const Root& settings = roots().back();
+		   install(settings.ctx, settings.song);
+		   const CommandSlots saved = CommandSlots::capture();
+
+		   const std::vector<CommandPair>& pairs = command_pairs();
+		   for (size_t i = 0; i < pairs.size(); i++) {
+			   // Note-on: `Command::learnNoteOn` (`command.cpp:113-124`) writes the raw channel.
+			   CommandSlots::clear_all();
+			   Rig note_rig;
+			   focus_command_row(note_rig, settings.ctx, i);
+			   expect(menu_scene().learn_note_on(fake_cable(), 5, static_cast<int32_t>(60 + i))).to_be_true();
+			   const std::string note_got = CommandSlots::capture().describe();
+			   CommandSlots::clear_all();
+			   {
+				   LegacyLearnScope legacy_scope{pairs[i].legacy};
+				   expect(pairs[i].legacy->learnNoteOn(fake_cable(), 5, static_cast<int32_t>(60 + i))).to_be_true();
+			   }
+			   expect(note_got).to_equal(CommandSlots::capture().describe());
+
+			   // Program change: `Command::learnProgramChange` (`command.cpp:105-111`) adds `IS_A_PC`
+			   // to the channel -- except on FILL, which refuses with the `CANT_LEARN_PC` popup and
+			   // writes nothing. `SoundEditor::pcReceivedForMidiLearn` still reports the message as
+			   // used in both cases (`sound_editor.cpp:1550-1556`), and so does the port.
+			   CommandSlots::clear_all();
+			   Rig pc_rig;
+			   focus_command_row(pc_rig, settings.ctx, i);
+			   expect(menu_scene().learn_program_change(fake_cable(), 2, static_cast<int32_t>(7 + i))).to_be_true();
+			   const std::string pc_got = CommandSlots::capture().describe();
+			   // The port's own half of the refusal: `MidiCommandItem::learn_program_change` raises the
+			   // same `CANT_LEARN_PC` string legacy pops, and only on FILL.
+			   size_t refusals = 0;
+			   for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+				   refusals += (n.string_id == uint16_t(String::STRING_FOR_CANT_LEARN_PC)) ? 1 : 0;
+			   }
+			   CommandSlots::clear_all();
+			   const bool is_fill = pairs[i].legacy->commandNumber == GlobalMIDICommand::FILL;
+			   {
+				   LegacyLearnScope legacy_scope{pairs[i].legacy};
+				   pairs[i].legacy->learnProgramChange(fake_cable(), 2, static_cast<int32_t>(7 + i));
+				   // FILL is the one that pops instead of binding, and the popup is the refusal.
+				   expect(legacy_scope.spy.popups.size()).to_equal(size_t(is_fill ? 1 : 0));
+				   if (is_fill) {
+					   expect(legacy_scope.spy.popups[0])
+					       .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_CANT_LEARN_PC)});
+				   }
+			   }
+			   expect(pc_got).to_equal(CommandSlots::capture().describe());
+			   expect(pc_got == std::string{"(all clear)"}).to_equal(is_fill);
+			   expect(refusals).to_equal(size_t(is_fill ? 1 : 0));
+		   }
+		   saved.restore();
+	   });
+
+	it("ignores a zero-valued CC, still reporting the message as used", _ {
+		// `Command::learnCC` (`command.cpp:126-130`): the release half of a momentary controller
+		// binds nothing. Legacy's `SoundEditor::midiCCReceived` returns true for it regardless
+		// (`sound_editor.cpp:1562-1570`), so the port does too.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const CommandSlots saved = CommandSlots::capture();
+		CommandSlots::clear_all();
+
+		Rig r;
+		focus_command_row(r, settings.ctx, 0);
+		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 0)).to_be_true();
+		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
+		saved.restore();
+	});
+
+	it("unlearns exactly the focused item's slot, and clears it on any select-encoder motion", _ {
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const CommandSlots saved = CommandSlots::capture();
+
+		// Row 0 is `midi_command_play`; row 2 is `midi_command_record` (`kMidiCommandsChildren`).
+		CommandSlots::clear_all();
+		{
+			Rig r;
+			focus_command_row(r, settings.ctx, 2);
+			expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+		}
+		const std::string learned = CommandSlots::capture().describe();
+		{
+			Rig r;
+			focus_command_row(r, settings.ctx, 0);
+			expect(menu_scene().learn_cc(fake_cable(), 4, 43, 127)).to_be_true();
+			// `MenuScene::unlearn` -> `Command::unlearnAction` (`command.cpp:96-104`): only the
+			// focused item forgets, so RECORD's binding survives PLAY's unlearn.
+			menu_scene().unlearn();
+		}
+		expect(CommandSlots::capture().describe()).to_equal(learned);
+
+		// `Command::selectEncoderAction` (`command.cpp:88-91`): a detent in either direction clears
+		// the binding. Driven through the real encoder, not by calling the item.
+		{
+			Rig r;
+			focus_command_row(r, settings.ctx, 2);
+			r.turn(-1, 300);
+			r.shell.tick(310);
+		}
+		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
+		saved.restore();
+	});
+
+	it("asks for the learn blink on these twelve and on nothing else, and lights the LEARN LED for "
+	   "them",
+	   _ {
+		   // `MenuItem::shouldBlinkLearnLed` is true only on `midi::Command` (`command.h:34`; the
+		   // base returns false, `menu_item.h:196`), and `SoundEditor::beginScreen` turns that into
+		   // `blinkLed(IndicatorLED::LEARN)` or `setLedState(LEARN, false)` on every screen change
+		   // (`sound_editor.cpp:911-916`). Board LED 7 is LEARN (`shell/profiles/deluge.cpp:39`).
+		   constexpr uint8_t kLearnBoardLed = 7;
+		   const Root& settings = roots().back();
+		   install(settings.ctx, settings.song);
+
+		   for (size_t i = 0; i < command_pairs().size(); i++) {
+			   Rig r;
+			   focus_command_row(r, settings.ctx, i);
+			   expect(menu_scene().wants_learn_blink()).to_be_true();
+			   // A blink is a phase, so sample across more than one half-period (110 ms) before
+			   // concluding the LED never came on.
+			   bool lit = false;
+			   for (uint32_t t = 220; t <= 660; t += 55) {
+				   r.shell.tick(t);
+				   for (const auto& w : r.fake.led_writes) {
+					   lit = lit || (w.first == kLearnBoardLed && w.second);
+				   }
+			   }
+			   expect(lit).to_be_true();
+		   }
+
+		   // A plain value item under the same root: no blink, and the LED is never lit.
+		   Rig plain;
+		   plain.open(nodes::default_pad_brightness, settings.ctx);
+		   plain.shell.tick(0);
+		   expect(menu_scene().wants_learn_blink()).to_be_false();
+		   for (uint32_t t = 55; t <= 660; t += 55) {
+			   plain.shell.tick(t);
+		   }
+		   for (const auto& w : plain.fake.led_writes) {
+			   expect(!(w.first == kLearnBoardLed && w.second)).to_be_true();
+		   }
+
+		   // And the submenu the twelve hang off: `MenuScene::learn_*` has no custom item to forward
+		   // to, so every message is reported unused rather than silently swallowed.
+		   const CommandSlots saved = CommandSlots::capture();
+		   CommandSlots::clear_all();
+		   Rig sub;
+		   sub.open(nodes::midi_commands, settings.ctx);
+		   sub.shell.tick(0);
+		   expect(menu_scene().wants_learn_blink()).to_be_false();
+		   expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_false();
+		   expect(menu_scene().learn_note_on(fake_cable(), 3, 42)).to_be_false();
+		   expect(menu_scene().learn_program_change(fake_cable(), 3, 42)).to_be_false();
+		   menu_scene().unlearn(); // a no-op, not a crash
+		   expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
+		   saved.restore();
+	   });
+
+	it("has no param learn target: this is global-command learn, not param learn", _ {
+		// `bindings::learn_target` is `PatchedParam`/`UnpatchedParam::getLearningThing()` -- "which
+		// automatable parameter would a CC bind to". These twelve bind a whole message to a
+		// transport action instead and carry no `ParamRef`, so the descriptor stays null. The two
+		// learn paths share a name and nothing else.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		Rig r;
+		focus_command_row(r, settings.ctx, 0);
+		expect(menu_scene().learn_target().isNull()).to_be_true();
+	});
+});
+
 describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	// Shared setup, so a pixel test added here later gets it for free rather than needing to
 	// remember to copy it in (review round 1, I4 -- the two tests below used to each inline this).
@@ -1832,6 +2261,37 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		expect_golden(self, "../ui/menu/menu_settings_tree_48.pbm", r.fake.pbm(0));
 	});
 
+	// `midi::Command::drawPixelsForOled` (`gui/menu_item/midi/command.cpp:33-87`) has exactly two
+	// shapes, and both are recorded here: the one-line "COMMAND UNASSIGNED", and the three-line
+	// device / channel / message-kind readout. The rows start at legacy's literal canvas y = 20 --
+	// 15 here, since the frame's origin already carries `OLED_MAIN_TOPMOST_PIXEL` = 5 -- and step by
+	// the row pitch; the number columns are legacy's `kTextSpacingX * 8` (channel) and `* 5` (note).
+	it("renders an unassigned MIDI command item", _ {
+		const Root& settings = roots().back();
+		const CommandSlots saved = CommandSlots::capture();
+		CommandSlots::clear_all();
+		Rig r;
+		focus_command_row(r, settings.ctx, 0);
+		expect(menu_scene().focused() == &nodes::midi_command_play).to_be_true();
+		r.shell.tick(300);
+		expect_golden(self, "../ui/menu/menu_midi_command_unassigned_48.pbm", r.fake.pbm(0));
+		saved.restore();
+	});
+
+	it("renders a MIDI command item with a learned CC", _ {
+		const Root& settings = roots().back();
+		const CommandSlots saved = CommandSlots::capture();
+		CommandSlots::clear_all();
+		Rig r;
+		focus_command_row(r, settings.ctx, 0);
+		// Channel 3 + `IS_A_CC`, CC 42: the readout is the cable's display name, "CHANNEL 4"
+		// (1-based, with the CC band subtracted back off) and "CC 42".
+		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+		r.shell.tick(300);
+		expect_golden(self, "../ui/menu/menu_midi_command_learned_48.pbm", r.fake.pbm(0));
+		saved.restore();
+	});
+
 	it("renders the settings root list on a 64-row panel", _ {
 		const Root& settings = roots().back();
 		Rig r{board_64(), profile_64()};
@@ -1842,11 +2302,11 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 });
 // clang-format on
 
-/// Six `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
+/// Eight `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
 int tables_3_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_chaining,
-	                          tables_3_reset_items, tables_3_pixels)
+	                          tables_3_reset_items, tables_3_midi_commands, tables_3_pixels)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

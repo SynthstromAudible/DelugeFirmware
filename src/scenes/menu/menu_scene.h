@@ -254,7 +254,45 @@ public:
 	/// @brief The node currently on screen (`path[depth]`), or `nullptr` before `open()`.
 	const Node* focused() const;
 	/// @brief The `ParamDescriptor` MIDI/CC learn (E3) binds to the focused node.
+	///
+	/// @note **Param learn, not global-command learn.** This is `PatchedParam`/`UnpatchedParam`'s
+	///       `getLearningThing()` (`bindings.h`'s `learn_target`): "which automatable parameter
+	///       would a CC bind to". The `learn_*` entry points below are the other learn path
+	///       entirely -- `midi::Command`'s, which binds a whole MIDI *message* to a
+	///       `GlobalMIDICommand` transport action and never touches a `ParamDescriptor`. The
+	///       twelve `midi_command_*` nodes have no `bind.param`, so this returns a null descriptor
+	///       for every one of them.
 	ParamDescriptor learn_target() const;
+
+	/// @name MIDI-learn entry points -- the port of `SoundEditor`'s own three delivery members.
+	///
+	/// `SoundEditor::noteOnReceivedForMidiLearn` / `midiCCReceived` / `pcReceivedForMidiLearn`
+	/// (`gui/ui/sound_editor.cpp:1550-1570`) each forward to `getCurrentMenuItem()->learnX(...)`
+	/// and report whether the message was used; `unlearn` is `unlearnAction()` at `:478`. These do
+	/// the same, to `focused()`'s `CustomItem` -- the item decides, exactly as legacy's virtual
+	/// dispatch let it.
+	///
+	/// @warning **Nothing calls these yet.** Routing MIDI into the scene stack belongs to the
+	///          wiring plan; legacy's `currentUIMode == UI_MODE_MIDI_LEARN` gate and its shift
+	///          exclusion (`:1550`, `:1562`) are that plan's, not this layer's -- a scene may not
+	///          read a legacy UI mode. What is here is the half a menu owns: which item the message
+	///          reaches, and what that item does with it.
+	/// @{
+	/// @brief Offer a note-on to the focused item. @return Whether it was used.
+	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note);
+	/// @brief Offer a CC to the focused item. @return Whether it was used.
+	bool learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
+	/// @brief Offer a program change to the focused item. @return Whether it was used.
+	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program);
+	/// @brief Ask the focused item to forget what it learned.
+	void unlearn();
+	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
+	///
+	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail
+	/// (`sound_editor.cpp:911-916`); public because the wiring plan's learn gate asks the same
+	/// question legacy asks at `:488`.
+	bool wants_learn_blink() const;
+	/// @}
 	/// @brief The application's root menus, indexed by `MenuContext::Root`.
 	///
 	/// @note All ten entries are filled in (`menu_scene.cpp`'s `kRoots`, Tasks 6-8): the sound
@@ -275,6 +313,8 @@ private:
 	///        `dynamic_children` first.
 	/// @return How many were written.
 	size_t visible_children(const Node& node, std::span<const Node*> out) const;
+	/// @brief The focused node's `CustomItem`, or `nullptr` when it is not a `Kind::Custom` leaf.
+	const CustomItem* focused_custom() const;
 	/// @brief @p node's @p index'th visible child, or `nullptr`.
 	const Node* child_at(const Node& node, int32_t index) const;
 	/// @brief The child the current layout has focus on, or `nullptr`.

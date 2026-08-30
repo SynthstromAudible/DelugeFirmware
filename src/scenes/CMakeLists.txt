@@ -45,6 +45,7 @@ add_library(deluge_scenes STATIC
     # addresses); these translation units hold the get/set hook bodies and the exported root spans.
     # batch 3 (task 8) is the settings root and the nine other roots `SoundEditor::setup` can open.
     menu/nodes/edit_name.cpp
+    menu/nodes/midi_command.cpp
     menu/nodes/roots.cpp
     menu/nodes/settings.cpp
     menu/nodes/sound_actions.cpp
