@@ -30,6 +30,7 @@
 /// `handle()` are the two places a write may happen.
 
 #include "notify/dirty_set.h"
+#include "scenes/menu/action.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "shell/scene.h"
@@ -264,6 +265,22 @@ struct MenuState {
 	///       by `retarget` along with the rest of the per-visit state.
 	deluge::ui::shell::SceneId pending_scene{};
 
+	/// @brief A root-UI action a focused `CustomItem` asked to have performed, or
+	///        `MenuAction::None` for none -- the **verb** counterpart of `pending_scene`
+	///        (`scenes/menu/action.h`).
+	///
+	/// `pending_scene` works because everything it can name is inside `src/scenes`. The five items
+	/// in `nodes/actions.h` run legacy root-UI behaviour instead -- `openUI(&performanceView)`,
+	/// `audioClipView.setClipLengthEqualToSampleLength()`, `stemExport.startStemExportProcess(...)`
+	/// -- every one of which names a symbol this layer may not include. So the item names an
+	/// *intent* and the application-side wiring performs it.
+	///
+	/// @note Written by a `CustomItem` (from `on_focus` for the four pure verbs, from `render` for
+	///       `PerformEditorItem`), read and cleared by `MenuScene::after_render` into
+	///       `MenuScene::take_action()`, and dropped by `retarget` along with the rest of the
+	///       per-visit state -- exactly `pending_scene`'s lifecycle.
+	MenuActionRequest pending_action{};
+
 	/// @brief Step up one level the next time this scene resumes -- legacy's
 	///        `SoundEditor::shouldGoUpOneLevelOnBegin` (`gui/ui/sound_editor.h:113`).
 	///
@@ -403,6 +420,25 @@ public:
 	/// nothing outside may write it.
 	const MenuState& state() const { return st_; }
 
+	/// @brief Collect the root-UI action a menu item asked for, if any, and clear it.
+	///
+	/// The application-facing half of the action seam (`scenes/menu/action.h`). `after_render`
+	/// drains `MenuState::pending_action` into a one-slot outbox here -- beside where it drains
+	/// `pending_scene` into a `Push`, and for the same reason: an item's hook has no `Result` to put
+	/// anything in. The wiring plan's dispatcher polls this after ticking the shell and performs
+	/// whatever it names.
+	///
+	/// @warning **Nothing in this repository performs these actions.** There is no consumer of this
+	///          function outside the specs; the performing half is the wiring plan's, and until it
+	///          exists a select press on `start_stem_export` exports nothing. That is the seam
+	///          working as designed, not a bug -- but it is a real gap, and it is stated here as
+	///          well as in `action.h` so a caller cannot conclude from a green suite that the five
+	///          items do anything yet.
+	///
+	/// @return The request, or `MenuAction::None` when none was filed since the last call. Reading
+	///         clears it, so a request is delivered exactly once.
+	MenuActionRequest take_action();
+
 private:
 	/// @brief Fill @p out with @p node's children that `relevant` admits, resolving
 	///        `dynamic_children` first.
@@ -443,6 +479,11 @@ private:
 
 	MenuState st_{};
 	MenuContext ctx_{};
+
+	/// @brief The one-slot outbox `take_action()` empties. Not part of `MenuState`: `retarget`
+	///        clears the whole of that on a re-root, and an action already filed must still be
+	///        delivered even if the path moves in the same tick.
+	MenuActionRequest taken_action_{};
 };
 
 } // namespace deluge::scenes::menu

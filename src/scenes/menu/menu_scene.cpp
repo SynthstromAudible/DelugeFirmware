@@ -283,6 +283,11 @@ void MenuScene::retarget(const Node& node) {
 	// re-rooting abandons. Cleared *before* `enter_leaf` below, which is the one call that can
 	// legitimately set it again (landing straight on an `EditNameItem` through `SceneId::arg`).
 	st_.pending_scene = SceneId{};
+	// And the same for the action a custom item asked to have performed -- the verb half of the same
+	// seam, cleared in the same place and for the same reason. `taken_action_` is deliberately NOT
+	// cleared: a request already drained into the outbox has been accepted and must still reach
+	// `take_action()`'s caller, whatever the path does afterwards.
+	st_.pending_action = MenuActionRequest{};
 	st_.go_up_on_resume = false;
 	if (is_leaf(node.kind)) {
 		enter_leaf(node);
@@ -1007,6 +1012,12 @@ void MenuScene::ascend() {
 	} while (st_.path[st_.depth] != nullptr && permission_for(*st_.path[st_.depth], ctx_) == Permission::No);
 }
 
+MenuActionRequest MenuScene::take_action() {
+	const MenuActionRequest taken = taken_action_;
+	taken_action_ = MenuActionRequest{};
+	return taken;
+}
+
 Result MenuScene::after_render() {
 	Result r;
 	const Node* node = focused();
@@ -1137,6 +1148,47 @@ Result MenuScene::after_render() {
 		// Only ever set at depth > 0 (see `render_oled`); at depth 0 the back was never claimed
 		// and `handle()` pops the scene instead.
 		ascend();
+	}
+
+	// The verb half of the `pending_scene` seam (`scenes/menu/action.h`): a `CustomItem` that asked
+	// for a root-UI action. Drained here, beside its noun counterpart below, for the same reason --
+	// an item's hook has no `Result` to put anything in.
+	//
+	// Two things happen, and both are legacy's:
+	//
+	//   * The request goes into the one-slot outbox `take_action()` empties. There is no `Action`
+	//     kind for it and there must not be: the shell knows about scenes, and what these five items
+	//     run is not a scene (`openUI(&performanceView)`, `stemExport.startStemExportProcess(...)`).
+	//     The wiring plan's dispatcher is the consumer.
+	//   * The four `ActionItem`s ascend straight back out. Legacy never descends into them at all --
+	//     `shouldEnterSubmenu()` is false, so `SoundEditor` calls `selectButtonPress()` and stays on
+	//     the parent list (`gui/ui/sound_editor.cpp:382-385`). Ascending on the tick the request is
+	//     filed is what makes the port's descend-then-leave look like legacy's never-descend.
+	//     `PerformEditorItem` is excluded because legacy *does* stay on that page
+	//     (`editing_mode.h:73`, `NO_NAVIGATION`); it files its request from `render`, not `on_focus`,
+	//     which is exactly the discriminator -- see below.
+	//
+	// Placed **above** the repaint check so the ascend is covered by it.
+	if (st_.pending_action.engaged()) {
+		taken_action_ = st_.pending_action;
+		// `on_focus` fires from `enter_leaf`, i.e. before this tick's render; a request filed from
+		// `render` (`PerformEditorItem`) arrives with the item already drawn. The four that ascend
+		// are the four that file from `on_focus`, which is the same set as "legacy never enters
+		// this item" -- so the test is on the action's own identity rather than on a flag, and a
+		// sixth action added without deciding this question fails the `switch`'s coverage warning.
+		switch (st_.pending_action.action) {
+		case MenuAction::StartStemExport:
+		case MenuAction::SetClipLengthToSampleLength:
+		case MenuAction::OpenSongMidiLearn:
+		case MenuAction::OpenSongMacros:
+			ascend();
+			break;
+		case MenuAction::OpenPerformanceView:
+		case MenuAction::None:
+			break;
+		}
+		st_.pending_action = MenuActionRequest{};
+		r.handled = true;
 	}
 
 	// A descend or an ascend replaces the whole screen, but it happened *after* this tick's render

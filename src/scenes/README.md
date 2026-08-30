@@ -148,7 +148,7 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
 * It now counts **nodes that point at a custom item**. The shipped tree has **55** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
   `sim/scenes_spec/shortcuts_spec.cpp`), behind roughly twenty distinct legacy bespoke classes --
-  twenty-seven of them still share the single `kPending` placeholder. (It was 64 until E2 task 11
+  twenty-two of them still share the single `kPending` placeholder. (It was 64 until E2 task 11
   turned nine of the placeholders -- the six pad colours, the play cursor, the dev-sysex setting and
   the shortcuts version -- into ordinary `Kind::Enum` items with get/set hooks; none of the nine
   needed a bespoke item at all once its state was reachable.) The real, distinct exceptions
@@ -156,8 +156,9 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), the five reset
   items (E2 task 7 — one `ResetItem` per `context_menu::DescriptorId`), the twelve MIDI commands
   (E2 task 8 — one `MidiCommandItem` per `GlobalMIDICommand`) and E2 task 9's eight patch-cable /
-  range-picker items, so the distinct-instance count that spelling used to be inert on is now 31,
-  not 1.
+  range-picker items, E2 task 10's three dynamic settings items, and E2 task 11b's five action
+  items (four `ActionItem`s plus `PerformEditorItem`, `menu/nodes/actions.h`), so the
+  distinct-instance count that spelling used to be inert on is now 39, not 1.
 * So the cap is `kMaxCustomNodes == 56`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
@@ -194,7 +195,7 @@ predicate without adding its row is a build failure rather than a dump that sile
 `validate_tree` walks every node reachable from a set of roots and checks: every `Submenu` is
 non-empty under at least one context; every `ParamRef` resolves for its context; every `Enum` has
 `names` or `dynamic_names`; every shortcut cell points at a node; `Custom` count ≤ 60 — counting the *nodes* that point at a
-custom item, not the distinct `CustomItem` instances, since 56 of them share the single
+custom item, not the distinct `CustomItem` instances, since 22 of them share the single
 `nodes::kPending` placeholder today (see "Adding a `Custom`" above and the design spec's
 amendment); no
 `NullCustom`; no `DuplicateName` among siblings that could actually both be on screen at once (a

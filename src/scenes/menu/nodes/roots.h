@@ -72,26 +72,30 @@
 ///           exactly as `sound_actions.h`'s two do for the clip and the track.)
 ///         * `midi_device_linked` -- `Linked::writeCurrentValue` opens
 ///           `loadMidiDeviceDefinitionUI` (`midi/device_definition/linked.h:26-28`).
-///         * `set_clip_length` -- `audioClipView.setClipLengthEqualToSampleLength()`
-///           (`audio_clip/set_clip_length_equal_to_sample_length.h:23`).
+///         * (`set_clip_length` is no longer one -- task 11b. It, `start_stem_export`,
+///           `song_midi_learn` and `configure_song_macros` are `nodes::ActionItem`s that file a
+///           `MenuAction` through `MenuState::pending_action`, the verb counterpart of
+///           `pending_scene` -- see `scenes/menu/action.h`. The action is *filed*, not performed:
+///           performing it is the wiring plan's.)
 ///         * `audio_source_selector` / `specific_output_selector` -- a context menu and a
 ///           `drawPixelsForOled`-driven output picker (`audio_clip/audio_source_selector.h:22-27`,
 ///           `specific_output_source_selector.h:21-45`).
 ///         * `audio_clip_waveform` -- the marker editor (`audio_clip/sample_marker_editor.h:22`).
-///         * `perform_editor` -- `performanceView` (`performance_session_view/editing_mode.h:38-63`).
+///         * (`perform_editor` is no longer one -- task 11b. `nodes::PerformEditorItem` renders the
+///           three-option list and files `MenuAction::OpenPerformanceView`; the mode it shows is
+///           mirrored on this side of the wall by `menu::performance_editing_mode()`, which the
+///           wiring plan owes a sync call, exactly as `menu::shortcuts_version()` does.)
 ///         * `active_scales` -- `ActiveScaleMenu` (`gui/menu_item/active_scales.h`), a whole
 ///           editor of its own.
-///         * `configure_song_macros` / `song_midi_learn` -- two context menus
-///           (`song/configure_macros.h:22-26`, `song/midi_learn.h:22-26`).
-///         * `start_stem_export` -- `soundEditor.exitCompletely()` plus `getRootUI()`
-///           (`stem_export/start.h:22-42`).
 ///
-///       They all point at `nodes::kPending`, so `validate_tree` reports them (one
-///       `PlaceholderCustom` each) unless the caller opts in, and each counts as **one node**
-///       against `kMaxCustomNodes` (fix round 2, I4: the cap counts nodes, not distinct
-///       `CustomItem` instances -- counting instances made it 1 for the whole tree and inert).
+///       The ones still listed point at `nodes::kPending`, so `validate_tree` reports them (one
+///       `PlaceholderCustom` each) unless the caller opts in. Every `Kind::Custom` node -- finished
+///       or pending -- counts as **one node** against `kMaxCustomNodes` (fix round 2, I4: the cap
+///       counts nodes, not distinct `CustomItem` instances -- counting instances made it 1 for the
+///       whole tree and inert), so retiring a placeholder moves no ratchet.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/actions.h" // the five action items (task 11b)
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/edit_name.h" // kEditDrumName
 #include "scenes/menu/nodes/sound_arp.h"
@@ -407,7 +411,7 @@ inline constexpr Node root_gate_drum = submenu(sid(String::STRING_FOR_GATE), kNo
 // The audio-clip root (`soundEditorRootMenuAudioClip`, `:1985`)
 
 inline constexpr Node set_clip_length =
-    custom(sid(String::STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH), &kPending); // E2
+    custom(sid(String::STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH), &kSetClipLengthItem);
 inline constexpr const Node* kAudioClipActionsChildren[] = {&edit_name, &set_clip_length};
 inline constexpr Node audio_clip_actions = submenu(sid(String::STRING_FOR_ACTIONS), kAudioClipActionsChildren);
 
@@ -460,7 +464,7 @@ inline constexpr Node root_audio_clip = submenu(sid(String::STRING_FOR_AUDIO_CLI
 // ---------------------------------------------------------------------------------------------
 // The performance-view root (`soundEditorRootMenuPerformanceView`, `:2006`)
 
-inline constexpr Node perform_editor = custom(sid(String::STRING_FOR_PERFORM_EDITOR), &kPending); // E2
+inline constexpr Node perform_editor = custom(sid(String::STRING_FOR_PERFORM_EDITOR), &kPerformEditorItem);
 
 inline constexpr const Node* kPerformanceRootChildren[] = {&perform_editor, &global_filters, &global_fx};
 inline constexpr Node root_performance = submenu(sid(String::STRING_FOR_PERFORM_FX), kPerformanceRootChildren);
@@ -468,7 +472,7 @@ inline constexpr Node root_performance = submenu(sid(String::STRING_FOR_PERFORM_
 // ---------------------------------------------------------------------------------------------
 // Stem export (`:2016-2067`), shared by the song and kit-global-FX roots
 
-inline constexpr Node start_stem_export = custom(sid(String::STRING_FOR_START_EXPORT), &kPending); // E2
+inline constexpr Node start_stem_export = custom(sid(String::STRING_FOR_START_EXPORT), &kStartStemExportItem);
 inline constexpr Node stem_normalization = toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION),
                                                        get_stem_normalization, set_stem_normalization);
 inline constexpr Node stem_normalization_drums =
@@ -508,9 +512,10 @@ inline constexpr IntRange kSwingIntervalRange{0, NUM_SWING_INTERVALS - 1, 1};
 inline constexpr Node swing_interval = sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), 0, get_swing_interval,
                                                        set_swing_interval, kSwingIntervalRange);
 
-inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kPending);                 // E2
-inline constexpr Node configure_song_macros = custom(sid(String::STRING_FOR_CONFIGURE_SONG_MACROS), &kPending); // E2
-inline constexpr Node song_midi_learn = custom(sid(String::STRING_FOR_MIDI_LEARN), &kPending);                  // E2
+inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kPending); // E2
+inline constexpr Node configure_song_macros =
+    custom(sid(String::STRING_FOR_CONFIGURE_SONG_MACROS), &kConfigureSongMacrosItem);
+inline constexpr Node song_midi_learn = custom(sid(String::STRING_FOR_MIDI_LEARN), &kSongMidiLearnItem);
 
 /// `record::ThresholdMode::getOptions` (`record/threshold_mode.h:44-54`), shared with the settings
 /// root's `defaultThresholdRecordingModeMenu`.
