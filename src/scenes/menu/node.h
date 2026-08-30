@@ -61,15 +61,6 @@ namespace deluge::scenes::menu {
 /// `SyncLevel` was confirmed by the same count (the delay, sidechain, reverb-sidechain and
 /// arpeggiator syncs, the song swing interval, the default swing interval and the record
 /// quantization -- well past three).
-///
-/// @note **`Info`, added by E2 task 2, is a deliberate exception to the >=3 rule above.** It exists
-///       for exactly two legacy items whose whole behaviour is "format a string and draw it
-///       centred" -- `firmware::Version` and `battery::Level` (`nodes/settings.h`'s
-///       `firmware_version`/`battery_level`) -- ported as named items rather than counted first.
-///       The bar above answers "is this kind real, or should these nodes stay `Kind::Custom`
-///       placeholders instead", and two working, non-placeholder implementations already clear
-///       that on their own terms; `sim/scenes_spec/tables_3_spec.cpp`'s "uses every declared Kind
-///       at least three times" check carries the matching exception, with its own reasoning.
 enum class Kind : uint8_t {
 	Submenu,
 	Toggle,
@@ -78,7 +69,6 @@ enum class Kind : uint8_t {
 	Decimal,
 	SyncLevel,
 	Custom,
-	Info,
 };
 
 /// @brief How a `Submenu`'s children lay out: a vertical list, or a horizontal strip of columns.
@@ -130,24 +120,6 @@ using DynamicNamesFn = size_t (*)(const MenuContext&, std::span<std::string_view
 
 struct Node;
 using DynamicChildrenFn = size_t (*)(const MenuContext&, std::span<const Node*> out);
-
-/// @brief Scratch buffer an `InfoFn` formats into. Sized like the other small per-call scratch
-///        buffers this header's callers use for a formatted string (`shell/profile.h`'s
-///        `TextScratch`), with headroom over legacy's own battery buffer (`char buffer[50]` in
-///        `battery::Level::getBatteryString`, `gui/menu_item/battery/level.h:38`) -- the longest
-///        string either of `Kind::Info`'s two callers formats is well under this.
-struct InfoScratch {
-	char chars[48];
-};
-
-/// @brief Format `Kind::Info`'s value into @p scratch and return a view over it: legacy's
-///        `firmware::Version::drawPixelsForOled`'s constant build string, or
-///        `battery::Level::drawPixelsForOled`'s live percentage/voltage read
-///        (`gui/menu_item/firmware/version.h:29-32`, `battery/level.h:36-41`). Stateless by design
-///        -- a plain function of `MenuContext`, called fresh on every render -- so it cannot carry
-///        the kind of history-over-time state legacy's own charging heuristic keeps on the menu
-///        item instance (see `Node::info_repaint_ms`'s doc comment).
-using InfoFn = std::string_view (*)(const MenuContext&, InfoScratch&);
 
 /// @brief The largest window `dynamic_children`/`dynamic_names` may fill on one call, and the
 ///        largest node-id the registry (`node_id.h`) will assign.
@@ -261,22 +233,6 @@ struct Node {
 	RelevantFn relevant = nullptr;
 	DynamicChildrenFn dynamic_children = nullptr;
 	const CustomItem* custom = nullptr;
-	/// @brief `Kind::Info`'s value hook. Meaningful only for that kind; `validate.cpp`'s
-	///        `Issue::Kind::NullInfo` is `NullCustom`'s counterpart for a node that leaves this null.
-	InfoFn info = nullptr;
-	/// @brief How often (in ms) a focused `Kind::Info` leaf should be redrawn with no input, or 0
-	///        for "never" (the default). `MenuScene::info_repaint_ms()` reads this off the focused
-	///        node; the render arm arms `OledFrame::gate()` with it and `next_timer()` folds it into
-	///        the shell's wake schedule, the same two-part shape every other animated widget here
-	///        uses (`menu_scene.cpp`'s `render_grid`, on the shortcut blink).
-	///
-	/// Legacy's `battery::Level` re-renders on a 500 ms UI timer for as long as it is on screen
-	/// (`battery/level.h:50,65-67`) because its value (`batteryMV`, a global) can change with no
-	/// input at all; `firmware::Version`'s string never changes at runtime and arms no timer. A
-	/// per-node field, set through `with_info_repaint()`, rather than baking a fixed cadence into
-	/// every `Kind::Info` node: the field is the honest way to say "this one, not that one" without
-	/// inventing per-node identity checks in the interpreter.
-	uint16_t info_repaint_ms = 0;
 	uint8_t slots = 1;
 
 	/// @brief Does this item edit something that belongs to one `MultiRange` rather than to the
@@ -307,14 +263,6 @@ struct Node {
 /// `static_assert` changes.
 constexpr Node with_range_dependent(Node n) {
 	n.range_dependent = true;
-	return n;
-}
-
-/// @brief `n` with `info_repaint_ms` set -- the post-hoc modifier for the one `Kind::Info` node
-///        (`nodes::battery_level`) that needs a redraw cadence; see `Node::info_repaint_ms`'s doc
-///        comment for why this is a per-node opt-in rather than a property of the kind itself.
-constexpr Node with_info_repaint(Node n, uint16_t ms) {
-	n.info_repaint_ms = ms;
 	return n;
 }
 
@@ -455,19 +403,6 @@ constexpr Node custom(uint16_t name, const CustomItem* item, RelevantFn rel = nu
 	n.kind = Kind::Custom;
 	n.custom = item;
 	n.relevant = rel;
-	return n;
-}
-
-/// @brief A read-only text leaf: legacy's `firmware::Version` / `battery::Level`, whose whole
-///        behaviour is "format a string and draw it centred" (`firmware/version.h:30-32`,
-///        `battery/level.h:36-41`). A `CustomItem` each would be two vtables and two files for
-///        one `drawStringCentredShrinkIfNecessary` apiece.
-constexpr Node info_item(uint16_t name, InfoFn info) {
-	Node n{};
-	n.name = name;
-	n.title = name;
-	n.kind = Kind::Info;
-	n.info = info;
 	return n;
 }
 

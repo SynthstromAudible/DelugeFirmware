@@ -1026,7 +1026,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		}
 	});
 
-	it("uses every declared Kind at least three times, except Info's own named exception", _ {
+	it("uses every declared Kind at least three times", _ {
 		// Spec E §4's rule, applied with the whole tree in hand (this is the task-8 check `node.h`'s
 		// `Kind` comment records the outcome of). A kind below three nodes is speculation, and the
 		// four that were -- `Bipolar`, `Range`, `MultiRange`, `Colour` -- plus `Action`, which no
@@ -1034,7 +1034,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		// Sized from the enum's own last enumerator and swept in full (fix round 1, minor 8): a
 		// hand-written list of kinds would let a future enumerator escape the rule silently, and an
 		// oversized array would report a phantom zero-count kind.
-		constexpr size_t kNumKinds = static_cast<size_t>(menu::Kind::Info) + 1;
+		constexpr size_t kNumKinds = static_cast<size_t>(menu::Kind::Custom) + 1;
 		std::array<size_t, kNumKinds> counts{};
 		std::set<const Node*> seen;
 		for (const Pair& p : tree().pairs) {
@@ -1044,15 +1044,6 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 			counts[static_cast<size_t>(p.node->kind)]++;
 		}
 		for (size_t i = 0; i < counts.size(); i++) {
-			if (i == static_cast<size_t>(menu::Kind::Info)) {
-				// E2 task 2 added this kind for exactly the two legacy items that are pure read-only
-				// centred text (`firmware_version`, `battery_level` -- see `node.h`'s `Kind` doc
-				// comment), named rather than counted first: the >=3 bar above is asking "is this
-				// kind real, or should these nodes be `Kind::Custom` placeholders instead", and two
-				// working, non-placeholder implementations already answer that on their own terms.
-				expect(counts[i] >= size_t(2)).to_be_true();
-				continue;
-			}
 			expect(counts[i] >= size_t(3)).to_be_true();
 		}
 	});

@@ -228,13 +228,6 @@ public:
 
 	/// @brief The node currently on screen (`path[depth]`), or `nullptr` before `open()`.
 	const Node* focused() const;
-	/// @brief The repaint interval (ms) the focused `Kind::Info` leaf asks for, or 0 if none is
-	///        focused, the focused node is not `Kind::Info`, or its `info_repaint_ms` is unset.
-	///        `render_oled`'s `Kind::Info` arm arms `OledFrame::gate()` with this; `next_timer()`
-	///        folds it into the shell's own wake schedule the same way it already does for the
-	///        shortcut blink. See `Node::info_repaint_ms`'s doc comment for why this is a per-node
-	///        field rather than a fixed cadence for the whole kind.
-	uint16_t info_repaint_ms() const;
 	/// @brief The `ParamDescriptor` MIDI/CC learn (E3) binds to the focused node.
 	ParamDescriptor learn_target() const;
 	/// @brief The application's root menus, indexed by `MenuContext::Root`.

@@ -145,11 +145,13 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   and points every one of them at the single shared `nodes::kPending` placeholder, so that count was
   **1** for the whole tree and `TooManyCustom` could never fire — the rule was switched off for
   exactly the phase it was meant to police.
-* It now counts **nodes that point at a custom item**. The shipped tree has **57** of them
+* It now counts **nodes that point at a custom item**. The shipped tree has **59** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
   `sim/scenes_spec/shortcuts_spec.cpp`), behind roughly twenty distinct legacy bespoke classes --
-  59 until E2 task 2 moved `firmware_version`/`battery_level` to the new `Kind::Info` (a read-only
-  text leaf, for the two placeholders that were pure "format a string and draw it centred").
+  fifty-seven of them still share the single `kPending` placeholder; `battery_level` and
+  `firmware_version` (E2 task 2) are the two real, distinct exceptions (`BatteryLevelItem`,
+  `FirmwareVersionItem`), so the distinct-instance count that spelling used to be inert on is now
+  3, not 1.
 * So the cap is `kMaxCustomNodes == 60`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
@@ -189,7 +191,7 @@ non-empty under at least one context; every `ParamRef` resolves for its context;
 custom item, not the distinct `CustomItem` instances, since 57 of them share the single
 `nodes::kPending` placeholder today (see "Adding a `Custom`" above and the design spec's
 amendment); no
-`NullCustom`; no `NullInfo` (the same check for a `Kind::Info` node's `info` hook); no `DuplicateName` among siblings that could actually both be on screen at once (a
+`NullCustom`; no `DuplicateName` among siblings that could actually both be on screen at once (a
 co-visibility qualifier — see the design spec's amendment for the nine blessed `FormattedTitle`
 collisions this exists to allow); `Node::range_dependent` and `Binding::scaling ==
 Scaling::HalfPrecision` are each set on exactly the caller-supplied expected set, no more and no
@@ -286,7 +288,8 @@ Also carried: `Source::getOrCreateFirstRange()`
 on a zero-range sample item; per-node cursor memory across sessions; gold-knob acceleration
 (`calcNextKnobSpeed`); and real implementations behind every `nodes::kPending` placeholder this task
 left in the tree (E2 task 2 closed one general prerequisite for those -- `Kind::Custom` now routes
-input to `CustomItem::handle`, ahead of the scene's own button handling -- and converted two of the
-placeholders, `firmware_version`/`battery_level`, to the new read-only `Kind::Info` rather than
-implementing a `CustomItem` each; the other ~55 still point at `nodes::kPending`). See the design
-spec's "Amendments during implementation" section for the full, cited account of each.
+input to `CustomItem::handle`, ahead of the scene's own button handling -- and gave two of the
+placeholders, `firmware_version`/`battery_level`, their own finished `CustomItem`s (reproducing
+`battery::Level`'s charging heuristic with `mutable` state on the item, the way legacy keeps it on
+the menu item instance); the other ~55 still point at `nodes::kPending`). See the design spec's
+"Amendments during implementation" section for the full, cited account of each.

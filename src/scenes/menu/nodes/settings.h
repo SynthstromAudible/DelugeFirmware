@@ -24,11 +24,11 @@
 ///           `shortcuts_version` (`soundEditor.shortcutsVersion`, `shortcuts/version.h:21-24`), and
 ///           the six `pad_colour_*` (`menu_item::Colour::value`, a member of the legacy menu item
 ///           itself -- `colour.h:38`, which `storage/flash_storage.cpp:576-579` reads and writes
-///           by name). (`battery_level`/`firmware_version` used to be listed here too, but neither
-///           actually reaches behind the `hid/` wall -- `batteryMV` is a plain global set from
-///           `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1403` reads with its own bare
-///           `extern` -- so E2 task 2 gave them real `Kind::Info` implementations instead of
-///           leaving them as placeholders; see that kind's own section below.)
+///           by name). (`battery_level`/`firmware_version` used to point here too, at `kPending`,
+///           but neither actually reaches behind the `hid/` wall -- `batteryMV` is a plain global
+///           set from `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1403` reads with its
+///           own bare `extern` -- so E2 task 2 gave them real, finished `CustomItem`s instead of
+///           leaving them as placeholders; see "12-13. Battery and firmware" below.)
 ///         * **UI navigation.** The five `reset_*` items (`reset_settings/reset.h:23-27`, each
 ///           opening a context menu), `cv_selection` / `gate_selection`
 ///           (`cv/selection.h:31-36`, `gate/selection.h:26-38`: `Selection`s whose select press
@@ -71,7 +71,6 @@
 #include "scenes/menu/relevance.h"
 
 #include <span>
-#include <string_view>
 
 namespace deluge::scenes::menu {
 struct MenuContext;
@@ -845,27 +844,53 @@ inline constexpr Node runtime_features =
 // ---------------------------------------------------------------------------------------------
 // 12-13. Battery and firmware
 //
-// `Kind::Info` (E2 task 2): both are pure read-only centred text -- legacy's `battery::Level` /
-// `firmware::Version` (`gui/menu_item/battery/level.h`, `firmware/version.h`) have no
-// `writeCurrentValue` and no `buttonAction` override, only a `drawPixelsForOled` that formats a
-// string and draws it -- so neither earns a bespoke `CustomItem`.
-//
-// `get_battery_info` omits legacy's charging indicator (`battery::Level::getBatteryString`'s
-// " CHG", `battery/level.h:101-102`): that reads a two-tick voltage history the menu item instance
-// keeps on itself (`lastBatteryMV`/`voltageCheckCounter`), and `InfoFn` is deliberately a stateless
-// function of `MenuContext` (`node.h`'s doc comment on `InfoFn`) with nowhere to keep it. The
-// stateless half of legacy's status suffix -- "FULL" at 99%+ -- needs no history and is kept.
+// Both are `CustomItem`s, not a shared `Kind`: spec E's own rule (design spec line 95, "a kind
+// exists only if >=3 items use it" -- the same rule Task 8 used to delete `Bipolar`/`Range`/
+// `MultiRange`/`Colour`/`Action`) keeps a two-consumer kind out of `node.h`. Legacy's
+// `battery::Level` / `firmware::Version` (`gui/menu_item/battery/level.h`, `firmware/version.h`)
+// have no `writeCurrentValue` and no `buttonAction` override -- only a `drawPixelsForOled` that
+// formats a string and draws it -- but `battery::Level` keeps state across renders (the charging
+// heuristic: `lastBatteryMV`/`voltageCheckCounter`/`isCharging`) that only a stateful `CustomItem`,
+// not a plain function pointer, can reproduce. Bodies (and their citations) in `settings.cpp`.
 
-std::string_view get_battery_info(const MenuContext&, InfoScratch&);
-std::string_view get_firmware_version_info(const MenuContext&, InfoScratch&);
+/// @brief `firmware::Version::drawPixelsForOled` (`gui/menu_item/firmware/version.h:29-32`): a
+///        build-time constant string, no state at all.
+class FirmwareVersionItem final : public CustomItem {
+public:
+	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
+	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
+	                                 MenuState& state) const override;
+};
+inline const FirmwareVersionItem kFirmwareVersionItem{};
+
+/// @brief `battery::Level` (`gui/menu_item/battery/level.h`): the percentage/voltage readout plus
+///        legacy's charging indicator, reproduced with the same kind of state legacy keeps on the
+///        menu item instance -- `mutable` fields on this one shared instance stand in for it.
+class BatteryLevelItem final : public CustomItem {
+public:
+	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
+	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
+	                                 MenuState& state) const override;
+
+private:
+	// `battery::Level::lastBatteryMV`/`voltageCheckCounter`/`isCharging` (`battery/level.h:71-73`),
+	// with the counter's 4-ticks-of-500ms cadence measured directly off elapsed `now_ms()` instead:
+	// `render()` has no separate timer callback to count ticks on, only a clock reading per call.
+	mutable uint16_t last_check_mv_ = 0;
+	mutable uint32_t last_check_ms_ = 0;
+	mutable bool checked_once_ = false;
+	mutable bool charging_ = false;
+};
+inline const BatteryLevelItem kBatteryLevelItem{};
 
 inline constexpr Node battery_level =
-    with_relevant(with_info_repaint(with_title(info_item(sid(String::STRING_FOR_BATTERY_LEVEL), get_battery_info),
-                                               sid(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE)),
-                                    500), // `battery::Level::beginSession`'s UI timer, `level.h:50`
+    with_relevant(with_title(custom(sid(String::STRING_FOR_BATTERY_LEVEL), &kBatteryLevelItem),
+                             sid(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE)),
                   relevance::battery_shown);
 inline constexpr Node firmware_version =
-    with_title(info_item(sid(String::STRING_FOR_FIRMWARE_VERSION), get_firmware_version_info),
+    with_title(custom(sid(String::STRING_FOR_FIRMWARE_VERSION), &kFirmwareVersionItem),
                sid(String::STRING_FOR_FIRMWARE_VER_MENU_TITLE));
 
 // ---------------------------------------------------------------------------------------------

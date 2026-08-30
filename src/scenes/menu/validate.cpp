@@ -42,9 +42,7 @@
 ///     (`validate.h`'s `kMaxCustomNodes`), and no longer at 10 -- see that constant for the
 ///     deviation and the real number.
 ///
-/// plus, beyond §4.4: `MissingTitle`, `NullCustom` and `NullInfo` (a `Kind::Custom`/`Kind::Info`
-/// node that would render nothing -- E2 task 2 added the latter alongside `Kind::Info` itself,
-/// rather than reusing `NullCustom` for a different kind's null field),
+/// plus, beyond §4.4: `MissingTitle` and `NullCustom` (a node that would render nothing),
 /// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
 /// `Binding::updates_reverb_params`),
 /// `PlaceholderCustom` (a node that renders a stand-in for an item E2 still owes -- suppressible,
@@ -294,10 +292,6 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 				last_custom = &n;
 				custom_count++;
 			}
-		}
-
-		if (n.kind == Kind::Info && n.info == nullptr) {
-			add(out, Issue::Kind::NullInfo, &n);
 		}
 
 		if (n.kind == Kind::Submenu) {

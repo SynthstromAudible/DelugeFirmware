@@ -36,10 +36,8 @@
 /// are listed above only so the schema this file approximates is documented in full, as the brief
 /// asks. What this dump actually maps, per the brief:
 ///
-///   * `Kind::Submenu` -> `"submenu"`; every other `Kind` (a leaf, including `Kind::Custom` and
-///     `Kind::Info`, E2 task 2) -> `"basic"`. `firmware_version`/`battery_level` moving from the
-///     former to the latter changes neither: this dump's schema has no `"type"` finer than
-///     "submenu or not", so their committed JSON entries stay byte-identical.
+///   * `Kind::Submenu` -> `"submenu"`; every other `Kind` (a leaf, including `Kind::Custom`) ->
+///     `"basic"`.
 ///   * a node with `Node::relevant` set -> `"available_when"` = `relevance::name_of(fn)` (Task 6's
 ///     registry) -- the *name* of the guarding predicate, not its result in any one context. A
 ///     node with no `relevant` gets no `"available_when"` key at all (`relevance::name_of(nullptr)`

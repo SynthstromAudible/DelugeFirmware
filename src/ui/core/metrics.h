@@ -46,13 +46,14 @@ constexpr int32_t kValueY = 18; // huge-font value baseline (+ visible_top)
 /// because a note-length string ("128TH-NOTES-TPLTS") is far wider than a handful of digits ever
 /// gets, and the huge font would run it off a 128px panel.
 constexpr int32_t kSyncValueY = 20; // big-font value baseline (+ visible_top)
-/// `Kind::Info`'s baseline: `firmware::Version`/`battery::Level::drawPixelsForOled`
+/// The battery/firmware-version readout's baseline (`nodes::battery_level`/`firmware_version`'s
+/// `CustomItem`s, E2 task 2): `firmware::Version`/`battery::Level::drawPixelsForOled`
 /// (`gui/menu_item/firmware/version.h:31`, `battery/level.h:40`) both call
 /// `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)` -- a literal canvas y of 22, NOT
 /// `18 + OLED_MAIN_TOPMOST_PIXEL` the way `kValueY`'s own legacy call spells its baseline
 /// (`integer.cpp:60`). `OLED_MAIN_TOPMOST_PIXEL` is 5 (`board_config.h`), so the "+ visible_top"
 /// value that reproduces canvas y = 22 on the shipped panel is 22 - 5 = 17, not `kValueY`'s 18.
-constexpr int32_t kInfoValueY = 17; // huge-font value baseline (+ visible_top)
+constexpr int32_t kReadoutValueY = 17; // huge-font value baseline (+ visible_top)
 constexpr int32_t kHorizontalBoxHeight = 25;
 
 /// @brief Output type/name label baselines (+ visible_top).

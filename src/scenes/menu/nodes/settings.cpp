@@ -28,6 +28,8 @@
 
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the two CustomItems below
+#include "scenes/profile.h"         // deluge_profile() -- ditto
 
 #include "definitions_cxx.hpp"
 #include "io/midi/midi_device_manager.h"
@@ -42,6 +44,11 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
 #include "storage/flash_storage.h"
+
+#include "shell/scene.h"     // UiEvent/UiContext/Result -- CustomItem::handle's signature
+#include "ui/core/metrics.h" // kReadoutValueY
+#include "ui/oled/frame.h"
+#include "ui/oled/text.h"
 
 #include <version.h> // kFirmwareVersionString
 
@@ -680,12 +687,79 @@ size_t sync_scaling_action_names(const MenuContext&, std::span<std::string_view>
 }
 
 // ---------------------------------------------------------------------------------------------
-// 12-13. Battery and firmware (`Kind::Info`, E2 task 2)
+// 12-13. Battery and firmware (`CustomItem`s, E2 task 2 fix round 1 -- see `settings.h`'s note on
+// why these are not a shared `Kind`)
 
-std::string_view get_battery_info(const MenuContext&, InfoScratch& scratch) {
-	// `battery::Level::getBatteryString` (`gui/menu_item/battery/level.h:81-107`), minus the
-	// charging suffix -- see this node's own declaration comment in `settings.h` for why. 2600 mV /
-	// 4200 mV are legacy's own empty/full endpoints (`level.h:84-85`).
+namespace {
+/// @brief The node currently on screen, so a `CustomItem` -- which is handed no `Node` of its own,
+///        only `MenuState` -- can still draw its own title. Mirrors `PendingCustom::render`
+///        (`nodes/sound_osc.cpp:52`).
+const Node* focused_of(const MenuState& state) {
+	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
+}
+
+void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
+	const Node* node = focused_of(state);
+	deluge::ui::shell::TextScratch scratch;
+	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                           : std::string_view{});
+}
+
+/// @brief Draw @p text centred at the shared battery/firmware baseline (`kReadoutValueY`), in the
+///        huge font -- `firmware::Version`/`battery::Level::drawPixelsForOled`'s shared
+///        `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)` (`ui/core/metrics.h`'s
+///        `kReadoutValueY` doc comment has the full derivation).
+void draw_readout(deluge::ui::oled::OledFrame& f, std::string_view text) {
+	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kReadoutValueY, f.bounds().w,
+	                                   deluge::ui::oled::text_height_for(f.style.big_font)};
+	deluge::ui::oled::text(f, band, text,
+	                       {.font = f.style.big_font, .align = deluge::ui::oled::Align::Centre, .shrink = true});
+}
+} // namespace
+
+void FirmwareVersionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const {
+	draw_title_for(f, state);
+	// `firmware::Version::drawPixelsForOled` (`gui/menu_item/firmware/version.h:29-32`): the build's
+	// own version string, a build-time constant with nothing to format.
+	draw_readout(f, kFirmwareVersionString);
+	// The select press leaves the item, same as every other leaf's arm (`menu_scene.cpp`'s
+	// `render_leaf_sync_level`, for one) -- `Kind::Custom`'s own dispatch draws nothing else, so
+	// this item claims it itself.
+	if (f.select_pressed()) {
+		state.render_resp.entered = true;
+	}
+}
+
+deluge::ui::shell::Result FirmwareVersionItem::handle(const deluge::ui::shell::UiEvent&,
+                                                      const deluge::ui::shell::UiContext&, const MenuContext&,
+                                                      MenuState&) const {
+	return {}; // `firmware::Version` has no `buttonAction` override; nothing to consume here either
+}
+
+void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const {
+	draw_title_for(f, state);
+
+	// Charging heuristic, ported from `battery::Level::timerCallback`
+	// (`gui/menu_item/battery/level.h:53-68`): every 4 timer ticks at 500 ms (= 2000 ms), check
+	// whether the voltage rose by more than 5 mV since the last check. This port has no separate
+	// timer callback to count ticks on -- only a clock reading each time `render()` runs -- so the
+	// same 2000 ms window is measured directly off `now_ms()` instead.
+	constexpr uint32_t kChargeCheckMs = 2000;
+	const uint32_t now = f.now_ms();
+	if (!checked_once_) {
+		last_check_mv_ = ::batteryMV;
+		last_check_ms_ = now;
+		checked_once_ = true;
+	}
+	else if (now - last_check_ms_ >= kChargeCheckMs) {
+		const int32_t diff = static_cast<int32_t>(::batteryMV) - static_cast<int32_t>(last_check_mv_);
+		charging_ = diff > 5; // `level.h:59-60`'s own threshold
+		last_check_mv_ = ::batteryMV;
+		last_check_ms_ = now;
+	}
+
+	// `battery::Level::getBatteryString` (`gui/menu_item/battery/level.h:81-107`). 2600 mV / 4200 mV
+	// are legacy's own empty/full endpoints (`level.h:84-85`).
 	constexpr int32_t kMinMv = 2600;
 	constexpr int32_t kMaxMv = 4200;
 	int32_t percentage = 0;
@@ -694,8 +768,9 @@ std::string_view get_battery_info(const MenuContext&, InfoScratch& scratch) {
 		percentage = std::clamp(percentage, 0, 100);
 	}
 
-	char* out = scratch.chars;
-	char* const end = scratch.chars + sizeof(scratch.chars);
+	char buf[48];
+	char* out = buf;
+	char* const end = buf + sizeof(buf);
 	const auto append = [&](std::string_view s) {
 		const size_t n = std::min(s.size(), static_cast<size_t>(end - out));
 		std::copy_n(s.data(), n, out);
@@ -710,16 +785,32 @@ std::string_view get_battery_info(const MenuContext&, InfoScratch& scratch) {
 	append("% (");
 	append_int(static_cast<int32_t>(::batteryMV));
 	append("mV)");
+	// `level.h:97-102`: FULL takes precedence over CHG -- a battery reading 99%+ is reported full
+	// even if the charging heuristic above still thinks it is rising.
 	if (percentage >= 99) {
-		append(" FULL"); // the one stateless half of legacy's status suffix -- see the doc comment
+		append(" FULL");
 	}
-	return std::string_view{scratch.chars, static_cast<size_t>(out - scratch.chars)};
+	else if (charging_) {
+		append(" CHG");
+	}
+
+	draw_readout(f, std::string_view{buf, static_cast<size_t>(out - buf)});
+
+	// `battery::Level::beginSession`/`timerCallback` re-render every 500 ms for as long as the item
+	// is on screen (`battery/level.h:50,65-67`); this port's equivalent asks the frame's own repaint
+	// gate to wake it up on the same cadence -- the same shape every other animated widget here uses
+	// (`menu_scene.cpp`'s `render_grid`, on the shortcut blink).
+	f.gate().request_repaint_after(500, now);
+
+	if (f.select_pressed()) {
+		state.render_resp.entered = true;
+	}
 }
 
-std::string_view get_firmware_version_info(const MenuContext&, InfoScratch&) {
-	// `firmware::Version::drawPixelsForOled` (`gui/menu_item/firmware/version.h:29-32`): the build's
-	// own version string, no formatting and no scratch buffer needed.
-	return kFirmwareVersionString;
+deluge::ui::shell::Result BatteryLevelItem::handle(const deluge::ui::shell::UiEvent&,
+                                                   const deluge::ui::shell::UiContext&, const MenuContext&,
+                                                   MenuState&) const {
+	return {}; // `battery::Level` has no `buttonAction` override either
 }
 
 // ---------------------------------------------------------------------------------------------

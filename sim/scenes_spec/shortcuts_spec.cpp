@@ -606,8 +606,10 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		distinct_items = items.size();
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
-		// The proof that the old spelling was inert: one placeholder behind all of them.
-		expect(distinct_items).to_equal(size_t(1));
+		// Fifty-seven of the fifty-nine still share the one placeholder; `battery_level` and
+		// `firmware_version` (E2 task 2 fix round 1) are the two real, distinct exceptions --
+		// `nodes::kPending`, `BatteryLevelItem`, `FirmwareVersionItem`.
+		expect(distinct_items).to_equal(size_t(3));
 
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {},
 		                                        menu::ValidateOptions{.allow_placeholder_custom = true});

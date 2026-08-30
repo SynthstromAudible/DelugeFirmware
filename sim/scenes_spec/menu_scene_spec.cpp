@@ -42,6 +42,8 @@
 
 #include "cppspec.hpp"
 
+#include <version.h> // kFirmwareVersionString -- the real firmware_version CustomItem's own draw
+
 #include <array>
 #include <cstdint>
 #include <span>
@@ -64,6 +66,11 @@ using deluge::ui::shell::ShellConfig;
 using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
+
+// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:89`) -- declared bare and at
+// global scope, exactly as `settings.cpp` and `sound_editor.cpp:1403` both do (a declaration
+// inside this file's own anonymous namespace below would name a different, unlinked variable).
+extern uint16_t batteryMV;
 
 namespace {
 
@@ -212,20 +219,6 @@ CountingCustom g_custom_consumes{true};
 CountingCustom g_custom_passes_through{false};
 constexpr Node custom_consumes_leaf = menu::custom(sid(String::STRING_FOR_OK), &g_custom_consumes);
 constexpr Node custom_passes_through_leaf = menu::custom(sid(String::STRING_FOR_OK), &g_custom_passes_through);
-
-/// @brief Two `Kind::Info` leaves for the render/repaint contract, likewise never added to
-///        `settings_children`. `info_static_leaf` never arms a repaint (the `firmware_version`
-///        shape); `info_repaint_leaf` names one (the `battery_level` shape).
-std::string_view info_static_text(const MenuContext&, menu::InfoScratch&) {
-	return "V0.0.0-TEST";
-}
-constexpr Node info_static_leaf = menu::info_item(sid(String::STRING_FOR_FIRMWARE_VERSION), info_static_text);
-
-std::string_view info_repaint_text(const MenuContext&, menu::InfoScratch&) {
-	return "42% (3200mV)";
-}
-constexpr Node info_repaint_leaf =
-    menu::with_info_repaint(menu::info_item(sid(String::STRING_FOR_BATTERY_LEVEL), info_repaint_text), 500);
 
 /// A three-deep chain, so `save_state`/`restore_state` can be round-tripped at the depth the brief
 /// asks for. Appended *last* so the visible window at cursor 0 -- and therefore the recorded root
@@ -428,7 +421,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 	});
 });
 
-describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Info and Kind::Custom input (task 2)", $ {
+describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input, and its two battery/firmware CustomItems (task 2)", $ {
 	it("delivers input to a focused custom item, ahead of the scene's own handling", _ {
 		select_language();
 		deluge::notify::dirty().drain();
@@ -466,12 +459,14 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Info and Kind
 		    .to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Remove));
 	});
 
-	it("renders a Kind::Info leaf as centred text under its title, and asks for no repaint by default", _ {
+	it("firmware_version's real CustomItem draws the build string, centred under its title", _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
-		menu_scene().open(info_static_leaf, ctx);
+		expect(nodes::firmware_version.kind == menu::Kind::Custom).to_be_true();
+		expect(nodes::firmware_version.custom != nullptr).to_be_true();
+		menu_scene().open(nodes::firmware_version, ctx);
 
 		deluge::ui::test::Rig48 rig;
 		rig.begin_tick(0);
@@ -479,45 +474,54 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Info and Kind
 
 		// Legacy: `MenuItem::renderOLED()` (title, then `drawPixelsForOled()`) ->
 		// `firmware::Version::drawPixelsForOled`'s `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)`.
-		rig.reference.draw_screen_title(deluge::l10n::getView(String::STRING_FOR_FIRMWARE_VERSION));
-		rig.reference.draw_string_centred_shrink_if_necessary("V0.0.0-TEST", 22, 18, 20);
+		rig.reference.draw_screen_title(deluge::l10n::getView(String::STRING_FOR_FIRMWARE_VER_MENU_TITLE));
+		rig.reference.draw_string_centred_shrink_if_necessary(kFirmwareVersionString, 22, 18, 20);
 		expect(rig.pbm()).to_equal(rig.reference_pbm());
-
-		expect(rig.ctx.gate.next_deadline().has_value()).to_be_false();
-		expect(menu_scene().info_repaint_ms()).to_equal(uint16_t(0));
 	});
 
-	it("arms a repaint deadline for a Kind::Info leaf that names one", _ {
+	it("battery_level's real CustomItem shows the charging suffix after a voltage rise, and not for "
+	   "a flat reading", _ {
+		// The coordinator's own spec for the reversal: legacy's `isCharging` (`battery/level.h:45,`
+		// `57-61,71-73`) is a voltage-delta held across timer ticks on the menu item instance --
+		// `BatteryLevelItem`'s `mutable` fields reproduce exactly that, which is why this is a
+		// `CustomItem` rather than a stateless `Kind::Info` hook.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
 		const MenuContext ctx = r.open(settings_root);
-		menu_scene().open(info_repaint_leaf, ctx);
-		expect(menu_scene().info_repaint_ms()).to_equal(uint16_t(500));
-		expect(menu_scene().next_timer().has_value()).to_be_true();
-		expect(*menu_scene().next_timer()).to_equal(uint32_t(500));
+		expect(nodes::battery_level.kind == menu::Kind::Custom).to_be_true();
+		expect(nodes::battery_level.custom != nullptr).to_be_true();
+		menu_scene().open(nodes::battery_level, ctx);
 
 		deluge::ui::test::Rig48 rig;
-		rig.begin_tick(1000);
+
+		// Render 1 (t=0): establishes the baseline (`checked_once_` false -> true), no charging
+		// decision made yet.
+		batteryMV = 3700;
+		rig.begin_tick(0);
 		menu_scene().render_oled(SurfaceRole::Main, rig.frame);
-		const std::optional<uint32_t> deadline = rig.ctx.gate.next_deadline();
-		expect(deadline.has_value()).to_be_true();
-		expect(*deadline).to_equal(uint32_t(1500));
-	});
 
-	it("gives the shipped firmware_version/battery_level nodes a working Kind::Info hook", _ {
-		// The real tables (`nodes/settings.h`), not this file's own fake tree: task 2's two
-		// conversions away from `Kind::Custom`/`nodes::kPending`.
-		expect(nodes::firmware_version.kind == menu::Kind::Info).to_be_true();
-		expect(nodes::battery_level.kind == menu::Kind::Info).to_be_true();
-		expect(nodes::firmware_version.info != nullptr).to_be_true();
-		expect(nodes::battery_level.info != nullptr).to_be_true();
+		// Render 2 (t=2500, >= the 2000 ms check window): same voltage -- flat, so no " CHG".
+		// (3700 - 2600) * 100 / (4200 - 2600) = 68.
+		batteryMV = 3700;
+		rig.canvas.clear();
+		rig.begin_tick(2500);
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+		rig.reference.clear();
+		rig.reference.draw_screen_title(deluge::l10n::getView(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE));
+		rig.reference.draw_string_centred_shrink_if_necessary("68% (3700mV)", 22, 18, 20);
+		expect(rig.pbm()).to_equal(rig.reference_pbm());
 
-		const MenuContext ctx{}; // neither hook reads it -- a build string and a global voltage read
-		menu::InfoScratch fw_scratch{};
-		expect(nodes::firmware_version.info(ctx, fw_scratch).empty()).to_be_false();
-		menu::InfoScratch bat_scratch{};
-		expect(nodes::battery_level.info(ctx, bat_scratch).empty()).to_be_false();
+		// Render 3 (t=5000, >= 2000 ms after the last check): +50 mV, well past the 5 mV threshold
+		// -- charging, so " CHG" appears. (3750 - 2600) * 100 / 1600 = 71.
+		batteryMV = 3750;
+		rig.canvas.clear();
+		rig.begin_tick(5000);
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+		rig.reference.clear();
+		rig.reference.draw_screen_title(deluge::l10n::getView(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE));
+		rig.reference.draw_string_centred_shrink_if_necessary("71% (3750mV) CHG", 22, 18, 20);
+		expect(rig.pbm()).to_equal(rig.reference_pbm());
 	});
 });
 
