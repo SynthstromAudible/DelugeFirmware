@@ -258,6 +258,10 @@ GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUO
 
 bool defaultUseSharps = true;
 
+/// The six pad colours (`flash_storage.h`). Zero-initialised here and given real defaults by
+/// `resetSettings`; `gui::menu_item::Colour::value` is a reference onto one of these.
+uint8_t padColours[NUM_PAD_COLOUR_SLOTS] = {};
+
 void resetSettings() {
 
 	cvEngine.setCVVoltsPerOctave(0, 100);
@@ -679,11 +683,15 @@ void readSettings() {
 	else {
 		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[165]);
 	}
+	// `onceColourMenu`, not `fillColourMenu`: byte 166 is the ONCE colour (`writeSettings` below
+	// writes it from `onceColourMenu.value`), and both arms of this branch used to assign it to
+	// `fillColourMenu` -- so the ONCE colour never survived a reboot and the FILL colour was
+	// immediately overwritten by ONCE's byte.
 	if (buffer[166] >= gui::menu_item::kNumPadColours) {
-		gui::menu_item::fillColourMenu.value = gui::menu_item::Colour::MAGENTA;
+		gui::menu_item::onceColourMenu.value = gui::menu_item::Colour::MAGENTA;
 	}
 	else {
-		gui::menu_item::fillColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[166]);
+		gui::menu_item::onceColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[166]);
 	}
 	if (gui::menu_item::fillColourMenu.value == gui::menu_item::Colour::RED
 	    && gui::menu_item::onceColourMenu.value == gui::menu_item::Colour::RED) {

@@ -28,12 +28,13 @@
 /// `(x, y)` of every legacy array and of every port layer and asserts the two agree in both
 /// directions.
 ///
-/// @note **The `SHORTCUTS_VERSION_1` layer is not ported.** `SoundEditor::setShortcutsVersion`
-///       (`sound_editor.cpp:111-137`) *mutates* six cells of `paramShortcutsForSounds` and four of
-///       `paramShortcutsForAudioClips` in place when the user selects the pre-3.0 layout. These
-///       tables are the default (`SHORTCUTS_VERSION_3`) layer, which is what the arrays hold as
-///       written. Restoring the alternate layout is E2's, along with the `shortcuts_version`
-///       setting node that selects it.
+/// @note **Both layers are here.** The tables below are the default (`SHORTCUTS_VERSION_3`) layout,
+///       which is what the legacy arrays hold as written; `kSoundV1Cells`, `kDrumV1Cells` and
+///       `kAudioClipV1Cells` are the pre-3.0 one, and `set_shortcuts_version` selects between them
+///       for every lookup in this file. `nodes::shortcuts_version` is the setting item that calls
+///       it. (E1 recorded this layer as owed and the setting as one that "selects nothing"; both
+///       are now closed. `SoundEditor::setShortcutsVersion` reaches the same layout by *writing*
+///       into the V3 arrays -- see `menu::set_shortcuts_version` for the two ways that differs.)
 
 #include "scenes/menu/shortcuts.h"
 
@@ -225,6 +226,38 @@ static_assert(kMidiOrCvCells[cell_index(11, 5)] == &n::edit_name);
 constexpr Cells kDrumCells = with_drum_name(kSoundCells);
 constexpr Cells kMidiDrumCells = with_drum_name(kMidiOrCvCells);
 
+/// @brief @p base with the cell at (@p x, @p y) replaced -- one of `setShortcutsVersion`'s writes.
+constexpr Cells with_cell(Cells base, uint8_t x, uint8_t y, const Node* node) {
+	base[cell_index(x, y)] = node;
+	return base;
+}
+
+/// @name The `SHORTCUTS_VERSION_1` layers.
+///
+/// `SoundEditor::setShortcutsVersion`'s V1 arm (`gui/ui/sound_editor.cpp:117-137`), as whole tables
+/// rather than as writes into the V3 ones -- see the note on `menu::set_shortcuts_version`, which
+/// also accounts for the six of legacy's ten assignments that produce no difference here.
+///
+/// The `static_assert`s pin what each write is replacing: if a future edit to the V3 table moves
+/// interpolation or the marker editor off these pads, the substitution is landing on the wrong cell
+/// and the build stops rather than silently shipping a wrong V1 layout.
+/// @{
+static_assert(kSoundCells[cell_index(0, 6)] == &n::sample0_interpolation);
+static_assert(kSoundCells[cell_index(1, 6)] == &n::sample1_interpolation);
+constexpr Cells kSoundV1Cells = with_cell(with_cell(kSoundCells, 0, 6, &n::sample0_end), 1, 6, &n::sample1_end);
+constexpr Cells kDrumV1Cells = with_drum_name(kSoundV1Cells);
+
+// `paramShortcutsForAudioClips[0..1][7]` is assigned the marker editor's *start* item and `[0..1][6]`
+// its *end* item (`sound_editor.cpp:119-124`). The port has one node for both, and `(0..1, 7)`
+// already holds it, so only the `y = 6` pair moves.
+static_assert(kAudioClipCells[cell_index(0, 7)] == &n::audio_clip_waveform);
+static_assert(kAudioClipCells[cell_index(1, 7)] == &n::audio_clip_waveform);
+static_assert(kAudioClipCells[cell_index(0, 6)] == &n::audio_clip_interpolation);
+static_assert(kAudioClipCells[cell_index(1, 6)] == &n::audio_clip_interpolation);
+constexpr Cells kAudioClipV1Cells =
+    with_cell(with_cell(kAudioClipCells, 0, 6, &n::audio_clip_waveform), 1, 6, &n::audio_clip_waveform);
+/// @}
+
 /// @brief The four cells the MIDI/CV and non-audio-drum arm resolves that are **not** in any legacy
 ///        table -- `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1282-1302`).
 ///
@@ -300,7 +333,7 @@ struct Layers {
 /// * `Settings` -- nothing, per `updatePadLightsFor`'s `!inSettingsMenu()` guard.
 ///
 /// The three MIDI/CV-and-drum roots additionally carry `kMidiExtraCells` as a resolve-only overlay.
-constexpr Layers kByRoot[static_cast<size_t>(MenuContext::Root::Count)] = {
+constexpr Layers kByRootV3[static_cast<size_t>(MenuContext::Root::Count)] = {
     {&kSoundCells, &kSoundSecondCells},                                          // Sound
     {&kDrumCells, &kSoundSecondCells},                                           // Drum
     {&kMidiOrCvCells, &kMidiOrCvCells, &kMidiExtraCells},                        // MidiOrCv
@@ -313,9 +346,33 @@ constexpr Layers kByRoot[static_cast<size_t>(MenuContext::Root::Count)] = {
     {&kNoCells, &kNoCells},                                                      // Settings
 };
 
+/// @brief The same table under `SHORTCUTS_VERSION_1`.
+///
+/// Three roots differ -- the two that read `paramShortcutsForSounds` and the one that reads
+/// `paramShortcutsForAudioClips`. The rest are the identical layers, not copies of them.
+constexpr Layers kByRootV1[static_cast<size_t>(MenuContext::Root::Count)] = {
+    {&kSoundV1Cells, &kSoundSecondCells},                                        // Sound
+    {&kDrumV1Cells, &kSoundSecondCells},                                         // Drum
+    {&kMidiOrCvCells, &kMidiOrCvCells, &kMidiExtraCells},                        // MidiOrCv
+    {&kMidiDrumCells, &kMidiDrumCells, &kMidiExtraCells},                        // MidiDrum
+    {&kGateDrumCells, &kGateDrumCells, &kMidiExtraCells},                        // GateDrum
+    {&kAudioClipV1Cells, &kAudioClipV1Cells},                                    // AudioClip
+    {&kSongCells, &kSongCells},                                                  // Performance
+    {&kSongCells, &kSongCells},                                                  // Song
+    {&kKitGlobalFxCells, &kKitGlobalFxCells, nullptr, kit_global_fx_press_gate}, // KitGlobalFx
+    {&kNoCells, &kNoCells},                                                      // Settings
+};
+
+/// The layout in force. A file-scope value rather than a `MenuContext` field because it is a global
+/// *setting* -- legacy keeps it on `soundEditor`, one per application, not per open menu.
+ShortcutsVersion g_version = ShortcutsVersion::V3;
+
 const Layers& layers_for(MenuContext::Root root) {
 	const auto i = static_cast<size_t>(root);
-	return i < std::size(kByRoot) ? kByRoot[i] : kByRoot[static_cast<size_t>(MenuContext::Root::Settings)];
+	const Layers* by_root = g_version == ShortcutsVersion::V1 ? kByRootV1 : kByRootV3;
+	return i < static_cast<size_t>(MenuContext::Root::Count)
+	           ? by_root[i]
+	           : by_root[static_cast<size_t>(MenuContext::Root::Settings)];
 }
 
 const Node* cell_of(const Cells& cells, uint8_t x, uint8_t y) {
@@ -384,6 +441,14 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
 		}
 	}
 	return find_in(*l.first, node);
+}
+
+ShortcutsVersion shortcuts_version() {
+	return g_version;
+}
+
+void set_shortcuts_version(ShortcutsVersion version) {
+	g_version = version;
 }
 
 std::span<const ShortcutPos> source_shortcut_pads(MenuContext::Root /*root*/, const Node& /*node*/) {

@@ -92,6 +92,33 @@ extern GlobalMIDICommand defaultLoopRecordingCommand;
 
 extern bool defaultUseSharps;
 
+/// @brief Which of the six pad-colour settings a `padColours` entry holds.
+///
+/// The order is the COLOURS page's own (`gui/ui/menus.cpp:1248-1253`, `colourMenu`), which is also
+/// the order `readSettings`/`writeSettings` lay the first four out in flash (bytes 74..77, plus 165
+/// and 166 for FILL and ONCE -- see `flash_storage.cpp`).
+enum PadColourSlot : uint8_t {
+	PAD_COLOUR_ACTIVE,
+	PAD_COLOUR_STOPPED,
+	PAD_COLOUR_MUTED,
+	PAD_COLOUR_SOLOED,
+	PAD_COLOUR_FILL,
+	PAD_COLOUR_ONCE,
+	NUM_PAD_COLOUR_SLOTS,
+};
+
+/// @brief The six pad colours, each one a `deluge::gui::menu_item::Colour::Option`.
+///
+/// These used to live one-per-object as `menu_item::Colour::value`, a public member of the legacy
+/// menu item itself (`gui/menu_item/colour.h`). They are settings, not menu state -- `readSettings`
+/// and `writeSettings` have always persisted them and `Song::setupDefault`-adjacent code has always
+/// read them -- and a member of a `gui/` class is unreachable from the layers that are not allowed
+/// to name `gui/` at all (`src/scenes`, whose COLOURS page edits exactly these six bytes). So the
+/// bytes live here and `menu_item::Colour::value` is now a reference onto one of them; every legacy
+/// spelling (`activeColourMenu.value`, `Colour::getRGB()`) reads and writes the same storage it did
+/// before.
+extern uint8_t padColours[NUM_PAD_COLOUR_SLOTS];
+
 void readSettings();
 void writeSettings();
 void resetSettings();

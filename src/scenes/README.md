@@ -145,17 +145,20 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   and points every one of them at the single shared `nodes::kPending` placeholder, so that count was
   **1** for the whole tree and `TooManyCustom` could never fire — the rule was switched off for
   exactly the phase it was meant to police.
-* It now counts **nodes that point at a custom item**. The shipped tree has **64** of them
+* It now counts **nodes that point at a custom item**. The shipped tree has **55** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
   `sim/scenes_spec/shortcuts_spec.cpp`), behind roughly twenty distinct legacy bespoke classes --
-  thirty-six of them still share the single `kPending` placeholder. The real, distinct exceptions
+  twenty-seven of them still share the single `kPending` placeholder. (It was 64 until E2 task 11
+  turned nine of the placeholders -- the six pad colours, the play cursor, the dev-sysex setting and
+  the shortcuts version -- into ordinary `Kind::Enum` items with get/set hooks; none of the nine
+  needed a bespoke item at all once its state was reachable.) The real, distinct exceptions
   are `battery_level` and `firmware_version` (E2 task 2 — `BatteryLevelItem`, `FirmwareVersionItem`),
   the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), the five reset
   items (E2 task 7 — one `ResetItem` per `context_menu::DescriptorId`), the twelve MIDI commands
   (E2 task 8 — one `MidiCommandItem` per `GlobalMIDICommand`) and E2 task 9's eight patch-cable /
   range-picker items, so the distinct-instance count that spelling used to be inert on is now 31,
   not 1.
-* So the cap is `kMaxCustomNodes == 65`, one above reality — a ratchet against the escape hatch
+* So the cap is `kMaxCustomNodes == 56`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
   places.

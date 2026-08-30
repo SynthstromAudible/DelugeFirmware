@@ -146,4 +146,39 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node);
 /// @return The pads, viewing storage owned by this translation unit; empty in E1.
 std::span<const ShortcutPos> source_shortcut_pads(MenuContext::Root root, const Node& node);
 
+/// @brief Which of legacy's two shortcut layouts every lookup above resolves.
+///
+/// The enumerator values are legacy's own (`SHORTCUTS_VERSION_1` 0, `SHORTCUTS_VERSION_3` 1,
+/// `gui/ui/sound_editor.h:26-27`) so the settings item's `int32_t` crosses unchanged; the names are
+/// spelled here rather than reached for so this layer names no `gui/` header.
+enum class ShortcutsVersion : uint8_t {
+	V1 = 0, ///< The pre-3.0 layout.
+	V3 = 1, ///< The current one, and the default.
+};
+
+/// @brief The layout in force. `V3` until something sets otherwise.
+ShortcutsVersion shortcuts_version();
+
+/// @brief Select @p version -- the port of `SoundEditor::setShortcutsVersion`
+///        (`gui/ui/sound_editor.cpp:111-143`), and the reason `nodes::shortcuts_version` is a real
+///        item rather than a setting that "selects nothing".
+///
+/// @note **This selects a layer; legacy *mutates* one.** `setShortcutsVersion`'s `V1` arm assigns
+///       ten cells of `paramShortcutsForSounds` / `paramShortcutsForAudioClips` in place
+///       (`:119-135`) and its `V3` arm is a comment reading "Uses defaults" (`:139-141`) -- so on
+///       device, selecting V1 and then V3 again leaves the V1 cells in place until the next reboot.
+///       Here both layouts are `constexpr` tables and this is a pointer swap, so the round trip
+///       restores V3. That difference is deliberate: reproducing a one-way write is not fidelity.
+///
+/// @note **Two of legacy's ten assignments are the layers' only real difference.** Four of them
+///       (`paramShortcutsForSounds[2][6]`, `[3][6]`, `[2][7]`, `[3][7]`, `:128-132`) write the value
+///       the V3 table already holds, so they change nothing. Four more are the audio-clip marker
+///       editor (`:119-124`), where legacy has a *start* and an *end* item and the port has one
+///       `audio_clip_waveform` node standing in for both -- so the V1 audio-clip layer differs from
+///       V3 only in that `(0..1, 6)` also resolves to it. The two that genuinely move are
+///       `paramShortcutsForSounds[0][6]` / `[1][6]`, interpolation in V3 and the sample end point in
+///       V1. `modSourceShortcuts` (`:134-135`) is not in this layer at all -- it is the patching
+///       source column, which `source_shortcut_pads` above explains is not table data here.
+void set_shortcuts_version(ShortcutsVersion version);
+
 } // namespace deluge::scenes::menu

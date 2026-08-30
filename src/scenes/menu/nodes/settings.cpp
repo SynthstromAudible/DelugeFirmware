@@ -30,6 +30,7 @@
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
+#include "scenes/menu/shortcuts.h"  // `shortcuts_version` selects a layer here
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 
 #include "definitions_cxx.hpp"
@@ -65,6 +66,21 @@
 // and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*,
 // unlinked variable rather than referring to the one `deluge.cpp` defines).
 extern uint16_t batteryMV;
+
+// `util/waves.h:7`'s LCG state, behind `getNoise()` -- `DevSysexSetting::readCurrentValue`'s own
+// source of a key (`runtime_feature/devSysexSetting.cpp:38`). Declared bare rather than included
+// because `util/` is not on this layer's allow-list and `util/functions.h`, where `getNoise()`
+// lives, re-exports `gui/colour/colour.h` (`functions.h:22`). Same shape as `attackRateTable`
+// (`nodes/sound_sidechain.cpp`) and `noteCodeToNoteLetter` (`nodes/multi_range.cpp`), two other
+// `util/`-owned globals these tables name without reaching for the header.
+extern uint32_t jcong;
+
+// `PadLEDs::flashCursor` (`hid/led/pad_leds.h:47`), the one byte the play-cursor item edits. Named
+// rather than included for the reason `settings.h` gives: it is a plain namespace-scope `uint8_t`,
+// so a declaration reaches it, and `hid/` is not on this layer's allow-list.
+namespace PadLEDs {
+extern uint8_t flashCursor;
+} // namespace PadLEDs
 
 namespace deluge::scenes::menu::nodes {
 
@@ -686,6 +702,125 @@ size_t sync_scaling_action_names(const MenuContext&, std::span<std::string_view>
 		}
 	}
 	return n;
+}
+
+namespace {
+
+/// @brief `CONG` (`util/waves.h:5`), which is all `getNoise()` is (`util/functions.h:313-315`).
+///
+/// Transcribed rather than called for the reason the `jcong` declaration above gives. Advancing the
+/// same state means the port draws from the same stream legacy does, not a parallel one.
+int32_t next_noise() {
+	jcong = 69069 * jcong + 1234567;
+	return static_cast<int32_t>(jcong);
+}
+
+/// @brief The dev-sysex key that `dev_sysex_names` last displayed and `set_dev_sysex(1)` will write.
+///
+/// Legacy holds this on the menu item (`DevSysexSetting::onValue`,
+/// `runtime_feature/devSysexSetting.h:38`) and re-seeds it in `readCurrentValue` -- which
+/// `SoundEditor` calls once per visit to the item. A `Kind::Enum` node has no per-visit hook and its
+/// `get` runs every tick, so re-seeding there would reroll the displayed key on every frame. Instead
+/// the cache is seeded lazily and only while it is empty: a stored key adopts it (legacy's
+/// `if (rawValue != 0) onValue = rawValue`, `devSysexSetting.cpp:33-35`), and otherwise one draw
+/// fills it (`:36-40`). The observable contract legacy's own code depends on -- the eight hex digits
+/// on screen are the key that gets written -- holds either way; what differs is that turning the
+/// setting off and on again within one boot re-offers the same key rather than a fresh one.
+int32_t g_dev_sysex_on_value = 0;
+
+int32_t dev_sysex_on_value() {
+	const auto raw = static_cast<int32_t>(runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed));
+	if (raw != 0) {
+		g_dev_sysex_on_value = raw; // `devSysexSetting.cpp:33-35`
+	}
+	while (g_dev_sysex_on_value == 0) {
+		g_dev_sysex_on_value = next_noise() & 0x7FFFFFFF; // `:36-40`
+	}
+	return g_dev_sysex_on_value;
+}
+
+} // namespace
+
+int32_t get_dev_sysex(const MenuContext&) {
+	// `DevSysexSetting::readCurrentValue` (`runtime_feature/devSysexSetting.cpp:30-41`):
+	// `setValue(rawValue != 0)`, having refreshed the key it would write.
+	(void)dev_sysex_on_value();
+	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed) != 0 ? 1 : 0;
+}
+
+void set_dev_sysex(const MenuContext&, int32_t value) {
+	// `DevSysexSetting::writeCurrentValue` (`:43-50`).
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed,
+	                           value != 0 ? static_cast<uint32_t>(dev_sysex_on_value()) : 0u);
+}
+
+size_t dev_sysex_names(const MenuContext&, std::span<std::string_view> out) {
+	// `DevSysexSetting::getOptions` (`:52-59`): "OFF", then `on_val`, an `"on - ********"` buffer
+	// whose eight asterisks `intToHex(onValue, &on_val[5])` overwrites (`devSysexSetting.h:39`,
+	// `util/c_string.cpp:25-31`). The buffer is the item's own storage in legacy and this
+	// translation unit's here, because the `std::string_view` handed back must outlive the call.
+	static char on_val[] = "on - ********";
+	static constexpr char kHexDigits[] = "0123456789abcdef";
+	auto key = static_cast<uint32_t>(dev_sysex_on_value());
+	for (int32_t i = 7; i >= 0; i--) {
+		on_val[5 + i] = kHexDigits[key & 15];
+		key >>= 4;
+	}
+	if (!out.empty()) {
+		out[0] = deluge::scenes::text_lookup(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_OFF));
+	}
+	if (out.size() > 1) {
+		out[1] = std::string_view{on_val};
+	}
+	return std::min<size_t>(out.size(), 2);
+}
+
+// ---------------------------------------------------------------------------------------------
+// 8-9. Sample preview and play cursor
+
+int32_t get_flash_status(const MenuContext&) {
+	return PadLEDs::flashCursor; // `flash/status.h:26`
+}
+void set_flash_status(const MenuContext&, int32_t value) {
+	// `flash::Status::writeCurrentValue` (`flash/status.h:27-32`), minus the
+	// `PadLEDs::clearTickSquares()` arm -- see `settings.h`.
+	PadLEDs::flashCursor = static_cast<uint8_t>(value);
+}
+
+// ---------------------------------------------------------------------------------------------
+// 7. Pads
+
+// Both hooks qualify their `menu::` callee: `nodes` already has a `shortcuts_version` (the `Node`)
+// and a `set_shortcuts_version` (this hook), and either name would hide the enclosing namespace's.
+int32_t get_shortcuts_version(const MenuContext&) {
+	return static_cast<int32_t>(menu::shortcuts_version()); // `shortcuts/version.h:26`
+}
+void set_shortcuts_version(const MenuContext&, int32_t value) {
+	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:27`) ->
+	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:111-143`).
+	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
+	                                                                                : ShortcutsVersion::V3);
+}
+
+// The six `pad_colour_*` nodes are six instantiations of `settings.h`'s `get_pad_colour` /
+// `set_pad_colour` over a plain `int`, so that header need not include `storage/flash_storage.h`.
+// Those literals are only correct while `PadColourSlot` keeps its current numbering, so the
+// numbering is pinned here -- the same guard, for the same reason, as the `DescriptorId` asserts
+// below.
+static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_ACTIVE) == 0);
+static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_STOPPED) == 1);
+static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_MUTED) == 2);
+static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_SOLOED) == 3);
+static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_FILL) == 4);
+static_assert(static_cast<int>(FlashStorage::PAD_COLOUR_ONCE) == 5);
+static_assert(static_cast<int>(FlashStorage::NUM_PAD_COLOUR_SLOTS) == 6);
+
+int32_t pad_colour_get(int32_t slot) {
+	return FlashStorage::padColours[slot]; // `menu_item::Colour::readCurrentValue`, `colour.h:43`
+}
+void pad_colour_set(int32_t slot, int32_t value) {
+	// `Colour::writeCurrentValue` (`colour.h:44-47`), minus its `renderingNeededRegardlessOfUI()`.
+	FlashStorage::padColours[slot] = static_cast<uint8_t>(value);
 }
 
 // ---------------------------------------------------------------------------------------------

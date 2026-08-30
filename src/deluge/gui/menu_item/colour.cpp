@@ -21,12 +21,12 @@
 
 namespace deluge::gui::menu_item {
 
-Colour activeColourMenu{l10n::String::STRING_FOR_ACTIVE};
-Colour stoppedColourMenu{l10n::String::STRING_FOR_STOPPED};
-Colour mutedColourMenu{l10n::String::STRING_FOR_MUTED};
-Colour soloColourMenu{l10n::String::STRING_FOR_SOLOED};
-Colour fillColourMenu{l10n::String::STRING_FOR_FILL};
-Colour onceColourMenu{l10n::String::STRING_FOR_ONCE};
+Colour activeColourMenu{l10n::String::STRING_FOR_ACTIVE, FlashStorage::PAD_COLOUR_ACTIVE};
+Colour stoppedColourMenu{l10n::String::STRING_FOR_STOPPED, FlashStorage::PAD_COLOUR_STOPPED};
+Colour mutedColourMenu{l10n::String::STRING_FOR_MUTED, FlashStorage::PAD_COLOUR_MUTED};
+Colour soloColourMenu{l10n::String::STRING_FOR_SOLOED, FlashStorage::PAD_COLOUR_SOLOED};
+Colour fillColourMenu{l10n::String::STRING_FOR_FILL, FlashStorage::PAD_COLOUR_FILL};
+Colour onceColourMenu{l10n::String::STRING_FOR_ONCE, FlashStorage::PAD_COLOUR_ONCE};
 
 RGB Colour::getRGB() const {
 	switch (value) {

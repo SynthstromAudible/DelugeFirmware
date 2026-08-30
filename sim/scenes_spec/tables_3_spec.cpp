@@ -48,6 +48,7 @@
 #include "gui/context_menu/reset_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "gui/menu_item/colour.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/selection.h"
@@ -55,6 +56,7 @@
 #include "gui/ui/menus.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
+#include "hid/led/pad_leds.h"
 
 // The chaining group's legacy headers render through an unqualified `OLED::main`, which resolves
 // inside `gui/ui/menus.cpp` only because that file has a file-scope
@@ -528,6 +530,36 @@ bool legacy_write_needs_ui(const Node& node) {
 	return false;
 }
 
+/// @brief The one node whose value does **not** live in shared storage, so the value comparisons
+///        below have nothing to compare and would fail on the divergence by construction.
+///
+/// `shortcuts_version` is the exception among E2 task 11's nine items. The other eight address a
+/// byte both sides read -- `FlashStorage::padColours` for the six colours, `PadLEDs::flashCursor`
+/// for the play cursor, `runtimeFeatureSettings` for dev sysex -- so the generic loops cross-check
+/// them for free. This one cannot: legacy keeps the setting on `soundEditor`
+/// (`shortcuts/version.h:26-27`) and `src/scenes` may not name `soundEditor`, so the port keeps it
+/// in `menu/shortcuts.cpp` beside the tables it selects. Two independent copies read back
+/// independently, which is exactly what these loops are built to catch, so it is excluded here and
+/// proved on its own terms in the batch-4 group: the round trip, and -- the thing that actually
+/// matters -- that the layer it selects matches the one legacy's `setShortcutsVersion` produces,
+/// cell for cell.
+bool value_is_port_owned(const Node& node) {
+	return &node == &nodes::shortcuts_version;
+}
+
+/// @brief The one `Kind::Enum` whose option list is **not** reproducible: its ON option names a
+///        randomly generated key.
+///
+/// `DevSysexSetting::getOptions` renders `onValue`'s eight hex digits
+/// (`runtime_feature/devSysexSetting.cpp:52-59`), and `onValue` is drawn from `getNoise()` whenever
+/// the setting is off (`:36-40`). The port draws its own from the same LCG, so the two strings
+/// differ by design and comparing them would be comparing two random numbers. The *shape* -- "OFF",
+/// then `"on - "` and eight hex digits that are the key a write installs -- is asserted in the
+/// batch-4 group instead, which is the whole of what the string means.
+bool names_are_random(const Node& node) {
+	return &node == &nodes::feature_dev_sysex;
+}
+
 /// @brief The root fixture named @p name (`roots()`'s own `Root::name`), installed and ready.
 ///
 /// Aborts the example loudly rather than returning null: every caller below names a root this file
@@ -543,6 +575,15 @@ const Root& installed_root(std::string_view name) {
 	return kNone;
 }
 
+/// @brief The legacy item the lockstep walk paired @p node with, or null if it reaches no root.
+///
+/// The pairing is `walk`'s, not a hand-written table: an example that names a legacy global directly
+/// would be asserting against its *own* idea of which item a node replaces, which is the thing under
+/// test. Several of the items the batch-4 group needs (`flashStatusMenu`, `shortcutsVersionMenu`,
+/// `menuDevSysexAllowed`) are file-scope in `menus.cpp` / `runtime_feature/settings.cpp` and named in
+/// no header, so this is also the only way to reach them without a bare `extern` per item.
+::MenuItem* legacy_item_for(const Node& node);
+
 /// @brief Is @p p's node on screen in its root's own context?
 ///
 /// The guard every value comparison below needs, and the one legacy applies for free: `Submenu`
@@ -555,6 +596,15 @@ const Root& installed_root(std::string_view name) {
 /// them is `isRelevant() == false` there.
 bool relevant_here(const Pair& p) {
 	return p.node->relevant == nullptr || p.node->relevant(p.root->ctx);
+}
+
+::MenuItem* legacy_item_for(const Node& node) {
+	for (const Pair& p : tree().pairs) {
+		if (p.node == &node) {
+			return p.item;
+		}
+	}
+	return nullptr;
 }
 
 /// @brief A sentinel value inside @p r that is not @p v, or nothing when the range is a point.
@@ -1064,8 +1114,8 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 	it("reads what the legacy item reads, for every node that holds a value", _ {
 		size_t compared = 0;
 		for (const Pair& p : tree().pairs) {
-			if (p.node->kind == menu::Kind::Custom || !relevant_here(p)) {
-				continue; // an E2 placeholder, or an item this context does not show (see `relevant_here`)
+			if (p.node->kind == menu::Kind::Custom || !relevant_here(p) || value_is_port_owned(*p.node)) {
+				continue; // an E2 placeholder, an item this context does not show, or a port-owned value
 			}
 			install(p.root->ctx, p.root->song);
 			const std::optional<int32_t> want = legacy_value(p.item);
@@ -1082,7 +1132,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 	it("names every enum option exactly as the legacy Selection does", _ {
 		size_t compared = 0;
 		for (const Pair& p : tree().pairs) {
-			if (p.node->kind != menu::Kind::Enum || !relevant_here(p)) {
+			if (p.node->kind != menu::Kind::Enum || !relevant_here(p) || names_are_random(*p.node)) {
 				continue;
 			}
 			// `defaults::Magnitude` is an `Enumeration`, not a `Selection`: it has no option *names*
@@ -1403,7 +1453,8 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		size_t exercised = 0;
 		std::set<const Node*> covered;
 		for (const Pair& p : tree().pairs) {
-			if (p.node->bind.set == nullptr || legacy_write_needs_ui(*p.node) || !relevant_here(p)) {
+			if (p.node->bind.set == nullptr || legacy_write_needs_ui(*p.node) || !relevant_here(p)
+			    || value_is_port_owned(*p.node)) {
 				continue;
 			}
 			install(p.root->ctx, p.root->song);
@@ -2932,11 +2983,242 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 });
 // clang-format on
 
-/// Eight `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
+// clang-format off
+describe tables_4_items("scenes::menu batch-4 items: the last placeholders that were only placeholders", $ {
+	/// The nine E2 task 11 retires. Named once, here, and every example below inserts into `covered`
+	/// so the closing example can assert the set by identity -- a node dropped from a root, or an
+	/// example that quietly stopped driving one, fails rather than shrinking a count with slack in it.
+	static const std::set<const Node*> kBatch4 = {
+	    &nodes::pad_colour_active, &nodes::pad_colour_stopped, &nodes::pad_colour_muted,
+	    &nodes::pad_colour_soloed, &nodes::pad_colour_fill,    &nodes::pad_colour_once,
+	    &nodes::flash_status,      &nodes::feature_dev_sysex,  &nodes::shortcuts_version,
+	};
+	static std::set<const Node*> covered;
+
+	it("gives all six pad colours legacy's own nine options", _ {
+		const Root& settings = installed_root("settings");
+		for (const Node* n : {&nodes::pad_colour_active, &nodes::pad_colour_stopped, &nodes::pad_colour_muted,
+		                      &nodes::pad_colour_soloed, &nodes::pad_colour_fill, &nodes::pad_colour_once}) {
+			std::string_view got[menu::kMaxDynamicNames];
+			deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
+			const size_t count = menu::bindings::names(*n, settings.ctx, got, scratch);
+			expect(count).to_equal(size_t(legacy::kNumPadColours));
+			// `Colour::getOptions` (`gui/menu_item/colour.h:50-58`) -- the same nine for every item,
+			// so one legacy call is the oracle for all six.
+			auto* oracle = dynamic_cast<legacy::Selection*>(legacy_item_for(nodes::pad_colour_active));
+			expect(oracle != nullptr).to_be_true();
+			const auto want = oracle->getOptions(legacy::Selection::OptType::FULL);
+			expect(count).to_equal(want.size());
+			for (size_t i = 0; i < count && i < want.size(); i++) {
+				expect(std::string{got[i]}).to_equal(std::string{want[i]});
+			}
+			// `bindings::range` derives 0..8 from the option count (`bindings.cpp`, `Kind::Enum`),
+			// which is what `Enumeration::selectEncoderAction` clamps against.
+			const menu::IntRange r = menu::bindings::range(*n, settings.ctx);
+			expect(r.min).to_equal(int32_t(0));
+			expect(r.max).to_equal(int32_t(legacy::kNumPadColours - 1));
+		}
+	});
+
+	it("maps each pad colour node onto its own legacy item, and onto no other", _ {
+		// **The mutation proof, run rather than reasoned about.** All six items look alike -- same
+		// nine options, same kind, adjacent template arguments -- so "each one writes something" is
+		// worth nothing. This drives one node at a time from a common base and records *which*
+		// legacy item moved; the observed permutation must be the identity, and the example then
+		// shows that assertion is not vacuous by checking a single transposition of it fails.
+		const Root& settings = installed_root("settings");
+		const Node* nodes_in_order[] = {&nodes::pad_colour_active, &nodes::pad_colour_stopped,
+		                                &nodes::pad_colour_muted,  &nodes::pad_colour_soloed,
+		                                &nodes::pad_colour_fill,   &nodes::pad_colour_once};
+		// `coloursSubmenu`'s order (`gui/ui/menus.cpp:1248-1253`) -- the oracle for the pairing.
+		legacy::Colour* items_in_order[6];
+		for (size_t i = 0; i < 6; i++) {
+			items_in_order[i] = dynamic_cast<legacy::Colour*>(legacy_item_for(*nodes_in_order[i]));
+			expect(items_in_order[i] != nullptr).to_be_true();
+		}
+
+		uint8_t saved[6];
+		for (size_t i = 0; i < 6; i++) {
+			saved[i] = items_in_order[i]->value;
+		}
+
+		std::vector<int32_t> observed;
+		for (size_t i = 0; i < 6; i++) {
+			// A common base that is not the value about to be written, so a hook that stores nothing
+			// is visible (the `sentinel_for` reasoning, applied to a six-way mapping).
+			for (auto* item : items_in_order) {
+				item->value = legacy::Colour::RED;
+			}
+			const auto target = static_cast<int32_t>(legacy::Colour::PINK);
+			menu::bindings::write(*nodes_in_order[i], settings.ctx, target);
+
+			int32_t moved = -1;
+			int32_t moved_count = 0;
+			for (size_t j = 0; j < 6; j++) {
+				if (items_in_order[j]->value != legacy::Colour::RED) {
+					moved = static_cast<int32_t>(j);
+					moved_count++;
+				}
+			}
+			expect(moved_count).to_equal(int32_t(1)); // exactly one item moved, never two, never none
+			expect(items_in_order[moved < 0 ? 0 : moved]->value).to_equal(uint8_t(target));
+			observed.push_back(moved);
+			covered.insert(nodes_in_order[i]);
+
+			// And the reverse direction: the port reads back what legacy's own write left behind, on
+			// the same byte. Driven from a sentinel the value under test is not already at.
+			items_in_order[i]->value = legacy::Colour::RED;
+			items_in_order[i]->setValue(static_cast<int32_t>(legacy::Colour::CYAN));
+			items_in_order[i]->writeCurrentValue();
+			expect(menu::bindings::read(*nodes_in_order[i], settings.ctx))
+			    .to_equal(static_cast<int32_t>(legacy::Colour::CYAN));
+		}
+
+		const std::vector<int32_t> identity{0, 1, 2, 3, 4, 5};
+		expect(observed).to_equal(identity);
+		// The mutation: swapping any two of the six would produce this instead, and it must not
+		// compare equal -- otherwise the line above would pass on a wrongly wired table.
+		const std::vector<int32_t> transposed{1, 0, 2, 3, 4, 5};
+		expect(observed == transposed).to_be_false();
+
+		for (size_t i = 0; i < 6; i++) {
+			items_in_order[i]->value = saved[i];
+		}
+	});
+
+	it("edits PadLEDs::flashCursor, in legacy's own option order", _ {
+		const Root& settings = installed_root("settings");
+		const uint8_t saved = PadLEDs::flashCursor;
+
+		// `flash::Status::getOptions` (`gui/menu_item/flash/status.h:33-42`) is FAST / DISABLED /
+		// SLOW, which is `FLASH_CURSOR_FAST` 0, `_OFF` 1, `_SLOW` 2 (`hid/led/pad_leds.h:25-27`) --
+		// a value order, not a reading order, so getting it wrong would silently mean "off" where
+		// the user asked for "slow". Each option is driven from a sentinel that is not itself.
+		for (int32_t v = 0; v <= 2; v++) {
+			PadLEDs::flashCursor = static_cast<uint8_t>(v == 0 ? 2 : 0);
+			menu::bindings::write(nodes::flash_status, settings.ctx, v);
+			expect(int32_t(PadLEDs::flashCursor)).to_equal(v);
+
+			PadLEDs::flashCursor = static_cast<uint8_t>(v == 0 ? 2 : 0);
+			legacy_write(legacy_item_for(nodes::flash_status), v);
+			expect(menu::bindings::read(nodes::flash_status, settings.ctx)).to_equal(v);
+		}
+		covered.insert(&nodes::flash_status);
+		PadLEDs::flashCursor = saved;
+	});
+
+	it("offers dev sysex as OFF plus the eight-hex-digit key a write installs", _ {
+		const Root& settings = installed_root("settings");
+		const auto saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, 0);
+
+		std::string_view got[menu::kMaxDynamicNames];
+		deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
+		const size_t count = menu::bindings::names(nodes::feature_dev_sysex, settings.ctx, got, scratch);
+		expect(count).to_equal(size_t(2));
+		// Option 0 is the shared OFF string; the legacy item's own list is the oracle for it, and the
+		// only part of that list that is reproducible (`devSysexSetting.cpp:52-59` renders a random
+		// key into option 1).
+		auto* dev_sysex = dynamic_cast<legacy::Selection*>(legacy_item_for(nodes::feature_dev_sysex));
+		expect(dev_sysex != nullptr).to_be_true();
+		const auto want = dev_sysex->getOptions(legacy::Selection::OptType::FULL);
+		expect(want.size()).to_equal(size_t(2));
+		expect(std::string{got[0]}).to_equal(std::string{want[0]});
+
+		const std::string on{got[1]};
+		expect(on.size()).to_equal(size_t(13));
+		expect(on.substr(0, 5)).to_equal(std::string{"on - "});
+		expect(on.find('*') == std::string::npos).to_be_true(); // the template's asterisks are gone
+		for (size_t i = 5; i < on.size(); i++) {
+			expect(std::string{"0123456789abcdef"}.find(on[i]) != std::string::npos).to_be_true();
+		}
+
+		// **Quiet-tick coverage.** The key is drawn once and cached, not redrawn per call: a
+		// `Kind::Enum` node's names hook runs every render, and a fresh draw each time would make the
+		// digits on screen flicker and, worse, disagree with the key the write installs. Ten
+		// resolutions with no input between them must all read the same.
+		for (int32_t i = 0; i < 10; i++) {
+			std::string_view again[menu::kMaxDynamicNames];
+			deluge::ui::shell::TextScratch again_scratch[menu::kMaxDynamicNames];
+			menu::bindings::names(nodes::feature_dev_sysex, settings.ctx, again, again_scratch);
+			expect(std::string{again[1]}).to_equal(on);
+		}
+
+		// ON stores that very key -- read the stored word back and format it the way the option did.
+		expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(0));
+		menu::bindings::write(nodes::feature_dev_sysex, settings.ctx, 1);
+		const auto stored = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
+		expect(stored != 0).to_be_true();
+		char hex[9] = {};
+		for (int32_t i = 7; i >= 0; i--) {
+			hex[i] = "0123456789abcdef"[(stored >> (4 * (7 - i))) & 15];
+		}
+		expect(on.substr(5)).to_equal(std::string{hex});
+		expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(1));
+
+		// OFF stores zero, and the legacy item agrees on both readings of the same stored word.
+		menu::bindings::write(nodes::feature_dev_sysex, settings.ctx, 0);
+		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed)).to_equal(uint32_t(0));
+		expect(legacy_value(dev_sysex)).to_equal(std::optional<int32_t>{0});
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, 1);
+		expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(1));
+		expect(legacy_value(dev_sysex)).to_equal(std::optional<int32_t>{1});
+
+		covered.insert(&nodes::feature_dev_sysex);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, saved);
+	});
+
+	it("round-trips the shortcuts version through the port's own copy", _ {
+		const Root& settings = installed_root("settings");
+		const auto saved = menu::shortcuts_version();
+
+		// Two options, legacy's own (`shortcuts/version.h:28-35`).
+		std::string_view got[menu::kMaxDynamicNames];
+		deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
+		const size_t count = menu::bindings::names(nodes::shortcuts_version, settings.ctx, got, scratch);
+		auto* version_item = dynamic_cast<legacy::Selection*>(legacy_item_for(nodes::shortcuts_version));
+		expect(version_item != nullptr).to_be_true();
+		const auto want = version_item->getOptions(legacy::Selection::OptType::FULL);
+		expect(count).to_equal(want.size());
+		for (size_t i = 0; i < count && i < want.size(); i++) {
+			expect(std::string{got[i]}).to_equal(std::string{want[i]});
+		}
+
+		// The round trip, each direction driven from the other value. This is the node the generic
+		// value comparisons exclude (`value_is_port_owned`) -- the layer it selects is cross-checked
+		// against legacy's mutated arrays in `shortcuts_spec.cpp`, which is where the tables live.
+		menu::set_shortcuts_version(menu::ShortcutsVersion::V3);
+		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 0);
+		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(0));
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+
+		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+		menu::bindings::write(nodes::shortcuts_version, settings.ctx, 1);
+		expect(menu::bindings::read(nodes::shortcuts_version, settings.ctx)).to_equal(int32_t(1));
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
+
+		covered.insert(&nodes::shortcuts_version);
+		menu::set_shortcuts_version(saved);
+	});
+
+	it("has no placeholder left among the nine, and drove every one of them", _ {
+		// By identity, not by count: this is the whole point of `covered`.
+		expect(covered).to_equal(kBatch4);
+		for (const Node* n : kBatch4) {
+			expect(n->kind == menu::Kind::Enum).to_be_true();
+			expect(n->custom == nullptr).to_be_true();
+			expect(n->bind.get != nullptr && n->bind.set != nullptr).to_be_true();
+		}
+	});
+});
+// clang-format on
+
+/// Ten `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
 int tables_3_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_chaining,
-	                          tables_3_reset_items, tables_3_midi_commands, tables_3_dynamic, tables_3_pixels)
+	                          tables_3_reset_items, tables_3_midi_commands, tables_3_dynamic, tables_3_pixels,
+	                          tables_4_items)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

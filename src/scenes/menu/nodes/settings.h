@@ -20,11 +20,25 @@
 /// @note **What is a `Kind::Custom` placeholder here, and why.** Three groups, all of them items
 ///       whose state or whose action is behind the wall this layer may not cross:
 ///
-///         * **`hid/` state.** `flash_status` (`PadLEDs::flashCursor`, `flash/status.h:21-28`),
-///           `shortcuts_version` (`soundEditor.shortcutsVersion`, `shortcuts/version.h:21-24`), and
-///           the six `pad_colour_*` (`menu_item::Colour::value`, a member of the legacy menu item
-///           itself -- `colour.h:38`, which `storage/flash_storage.cpp:576-579` reads and writes
-///           by name). (`battery_level`/`firmware_version` used to point here too, at `kPending`,
+///         * **`hid/` state.** (This group is empty now.) `flash_status` (`PadLEDs::flashCursor`,
+///           `flash/status.h:26-32`), `shortcuts_version` (`soundEditor.shortcutsVersion`,
+///           `shortcuts/version.h:26-27`) and the six `pad_colour_*` (`menu_item::Colour::value`,
+///           `colour.h:66`) were its members until **E2 task 11**, which found that not one of
+///           the three actually needed a bespoke item -- only a reachable byte:
+///             - `flashCursor` is a plain namespace-scope `uint8_t` (`hid/led/pad_leds.h:47`) that
+///               a declaration reaches without including anything from `hid/`, exactly as
+///               `batteryMV` is reached below.
+///             - `Colour::value` genuinely could not be reached -- it was a member of a `gui/`
+///               class -- so task 11 **moved the six bytes** to `FlashStorage::padColours`
+///               (`storage/flash_storage.h`), where the persistence code that has always read and
+///               written them (`storage/flash_storage.cpp:576-579`, `:972-975`) already lived, and
+///               made `Colour::value` a reference onto one of them. No legacy call site changed.
+///             - `shortcutsVersion` selects a shortcut *layer*, and this layer owns its own tables,
+///               so the port keeps the setting in `menu/shortcuts.cpp` beside them
+///               (`menu::set_shortcuts_version`). That is the one item whose value legacy and the
+///               port hold separately; `tables_3_spec.cpp`'s `value_is_port_owned` says so.
+///           All three are ordinary `Kind::Enum` nodes with get/set hooks now, as is
+///           `feature_dev_sysex`. (`battery_level`/`firmware_version` used to point here too, at `kPending`,
 ///           but neither actually reaches behind the `hid/` wall -- `batteryMV` is a plain global
 ///           set from `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1403` reads with its
 ///           own bare `extern` -- so E2 task 2 gave them real, finished `CustomItem`s instead of
@@ -43,13 +57,18 @@
 ///           task 8 gave a real `MidiCommandItem` -- they navigate nowhere, they bind an incoming
 ///           MIDI message to a `GlobalMIDICommand`, and the entry points that deliver that message
 ///           are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn`.)
-///         * **Two items with genuinely dynamic state.** `default_tempo`, `default_swing_amount`
+///         * **Items with genuinely dynamic state.** `default_tempo`, `default_swing_amount`
 ///           and `default_key` are `IntegerRange` / `KeyRange`, whose `lower`/`upper` live on the
-///           legacy menu item (`integer_range.h:29`, `key_range.h:26`) and whose editor is spec E
-///           §4's `Range` kind -- E2's. `dev_sysex_allowed`'s ON option is a **randomly generated**
-///           hex key built at read time (`runtime_feature/devSysexSetting.cpp:24-31`), which no
-///           static option list can express. `default_active_scale` is `ActiveScaleMenu`, an editor
-///           of its own.
+///           legacy menu item (`integer_range.h:24,33`, `key_range.h:23,30`) and whose editor is
+///           spec E §4's `Range` kind -- **still owed**, and the one thing on this list that needs
+///           machinery rather than a reachable byte (a two-edge editor with its own
+///           `RangeEdit::LEFT`/`RIGHT` state, `gui/menu_item/range.h:24-28`).
+///           `default_active_scale` is `ActiveScaleMenu` (`gui/menu_item/active_scales.h:13-31`),
+///           an editor of its own -- also still owed.
+///           (`dev_sysex_allowed` was on this list: its ON option is a **randomly generated** hex
+///           key built at read time, `runtime_feature/devSysexSetting.cpp:30-59`. That needed no
+///           new machinery either -- a `dynamic_enumeration` names its options at render time, and
+///           `feature_dev_sysex` is one. E2 task 11.)
 ///
 /// @note **`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are declared, but not as children of
 ///       anything.** They are not children of `settingsRootMenu` -- legacy reaches them only from
@@ -81,6 +100,12 @@
 ///       `hid/`. The `FlashStorage` / `runtimeFeatureSettings` half of each write IS transcribed,
 ///       so the setting persists; only the immediate apply is missing, and it belongs to whoever
 ///       owns those globals once E2 has moved them.
+///
+///       **Task 11 adds two of exactly the same kind**, and for the same reason:
+///       `flash::Status::writeCurrentValue` also calls `PadLEDs::clearTickSquares()` when the old
+///       value was `FLASH_CURSOR_SLOW` (`flash/status.h:28-30`), and `Colour::writeCurrentValue`
+///       also calls `renderingNeededRegardlessOfUI()` (`colour.h:46`). Both are the immediate
+///       repaint, not the setting; the byte each one stores is written identically.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -270,6 +295,70 @@ void set_runtime_feature(const MenuContext&, int32_t value) {
 ///        its `Buttons::clearShiftSticky()` arm (`hid/`, see the file note).
 void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
 size_t sync_scaling_action_names(const MenuContext& ctx, std::span<std::string_view> out);
+
+/// @brief `runtime_feature::DevSysexSetting`'s read, write and option list
+///        (`runtime_feature/devSysexSetting.cpp:30-59`).
+///
+/// Unlike its 23 plain siblings this one is not a toggle over `{0, 1}`: the stored value is a
+/// **random 31-bit key** and the menu shows off/on, so `get` reports `raw != 0`
+/// (`devSysexSetting.cpp:31-32`) and `set(1)` writes the key `dev_sysex_names` last displayed
+/// (`:44-49`). The key itself is `onValue`, a member of the legacy item, seeded from the stored
+/// value when there is one and from `getNoise()` when there is not (`:33-40`); here it is a
+/// file-scope cache in `settings.cpp`, for the reason spelled out there.
+/// @{
+int32_t get_dev_sysex(const MenuContext& ctx);
+void set_dev_sysex(const MenuContext& ctx, int32_t value);
+size_t dev_sysex_names(const MenuContext& ctx, std::span<std::string_view> out);
+/// @}
+
+/// @brief `flash::Status`'s read and write (`flash/status.h:26-32`) over `PadLEDs::flashCursor`.
+///
+/// The `PadLEDs::clearTickSquares()` arm of `writeCurrentValue` (`flash/status.h:28-30`) does not
+/// come along -- it is `hid/`, and it joins the three "write side effects stay behind" gaps the
+/// file note lists. The *value* does: `flashCursor` is a plain namespace-scope `uint8_t`
+/// (`hid/led/pad_leds.h:47`) that a declaration alone reaches, exactly like `batteryMV`, so
+/// `settings.cpp` names it without including anything from `hid/`.
+/// @{
+int32_t get_flash_status(const MenuContext& ctx);
+void set_flash_status(const MenuContext& ctx, int32_t value);
+/// @}
+
+/// @brief `shortcuts::Version`'s read and write (`shortcuts/version.h:26-27`).
+///
+/// Legacy keeps the setting on `soundEditor` and applies it by *mutating* ten cells of two shortcut
+/// tables in place (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:111-143`). The
+/// port keeps it in `menu/shortcuts.cpp` beside the tables it selects, and selects a whole layer
+/// rather than editing one -- see `menu::set_shortcuts_version`.
+/// @{
+int32_t get_shortcuts_version(const MenuContext& ctx);
+void set_shortcuts_version(const MenuContext& ctx, int32_t value);
+/// @}
+
+/// @brief `menu_item::Colour`'s read and write (`colour.h:43-47`), with the slot as a template
+///        argument rather than an object identity.
+///
+/// The six colour items differ in exactly one thing -- which of `FlashStorage::padColours` they
+/// edit -- so they are six distinct addresses of the two templates below, the shape
+/// `get_runtime_feature`/`set_runtime_feature` above already uses. The `Slot` literals are plain
+/// `int`s so this header need not include `storage/flash_storage.h`; `settings.cpp` pins each one
+/// against `FlashStorage::PadColourSlot` with a `static_assert`, exactly as it pins `ResetItem`'s
+/// `DescriptorId` literals.
+///
+/// `writeCurrentValue`'s `renderingNeededRegardlessOfUI()` (`colour.h:46`) does not come along --
+/// it is the same class of `hid/` immediate-apply the file note lists as a gap. The stored byte,
+/// which is all any renderer reads, is written identically.
+/// @{
+int32_t pad_colour_get(int32_t slot);
+void pad_colour_set(int32_t slot, int32_t value);
+template <int Slot>
+int32_t get_pad_colour(const MenuContext&) {
+	return pad_colour_get(Slot);
+}
+template <int Slot>
+void set_pad_colour(const MenuContext&, int32_t value) {
+	pad_colour_set(Slot, value);
+}
+/// @}
 
 /// @name The CV and gate output pages -- the three legacy reaches only through a chain.
 ///
@@ -820,8 +909,17 @@ inline constexpr Node defaults_settings = submenu(sid(String::STRING_FOR_DEFAULT
 // ---------------------------------------------------------------------------------------------
 // 7. Pads
 
-inline constexpr Node shortcuts_version = with_title(custom(sid(String::STRING_FOR_SHORTCUTS_VERSION), &kPending),
-                                                     sid(String::STRING_FOR_SHORTCUTS_VER_MENU_TITLE)); // E2
+/// `shortcuts::Version::getOptions` (`shortcuts/version.h:28-35`): the pre-3.0 layout and the
+/// current one, in `SHORTCUTS_VERSION_1` 0 / `_3` 1 value order (`gui/ui/sound_editor.h:26-27`,
+/// mirrored as `menu::ShortcutsVersion` so this layer names no `gui/` header).
+inline constexpr uint16_t kShortcutsVersionNames[] = {
+    sid(String::STRING_FOR_SHORTCUTS_VERSION_1),
+    sid(String::STRING_FOR_SHORTCUTS_VERSION_3),
+};
+inline constexpr Node shortcuts_version =
+    with_title(enumeration(sid(String::STRING_FOR_SHORTCUTS_VERSION), kShortcutsVersionNames, get_shortcuts_version,
+                           set_shortcuts_version),
+               sid(String::STRING_FOR_SHORTCUTS_VER_MENU_TITLE));
 
 /// `keyboard::Layout::getOptions` (`keyboard/layout.h:19-26`) -- QWERTY / AZERTY / QWERTZ, three
 /// literals with no l10n ids, so the list is dynamic. It is the *text-entry* keyboard, not the
@@ -831,12 +929,28 @@ inline constexpr Node pads_keyboard_layout =
                                    get_pads_keyboard_layout, set_pads_keyboard_layout),
                sid(String::STRING_FOR_KEY_LAYOUT));
 
-inline constexpr Node pad_colour_active = custom(sid(String::STRING_FOR_ACTIVE), &kPending);   // E2
-inline constexpr Node pad_colour_stopped = custom(sid(String::STRING_FOR_STOPPED), &kPending); // E2
-inline constexpr Node pad_colour_muted = custom(sid(String::STRING_FOR_MUTED), &kPending);     // E2
-inline constexpr Node pad_colour_soloed = custom(sid(String::STRING_FOR_SOLOED), &kPending);   // E2
-inline constexpr Node pad_colour_fill = custom(sid(String::STRING_FOR_FILL), &kPending);       // E2
-inline constexpr Node pad_colour_once = custom(sid(String::STRING_FOR_ONCE), &kPending);       // E2
+/// `menu_item::Colour::getOptions` (`colour.h:48-56`) -- nine names, shared by all six items, in
+/// `Colour::Option` order (`colour.h:27-37`).
+inline constexpr uint16_t kPadColourNames[] = {
+    sid(String::STRING_FOR_RED),    sid(String::STRING_FOR_GREEN), sid(String::STRING_FOR_BLUE),
+    sid(String::STRING_FOR_YELLOW), sid(String::STRING_FOR_CYAN),  sid(String::STRING_FOR_MAGENTA),
+    sid(String::STRING_FOR_AMBER),  sid(String::STRING_FOR_WHITE), sid(String::STRING_FOR_PINK),
+};
+
+/// The six, in `coloursSubmenu`'s own order (`gui/ui/menus.cpp:1248-1253`). The template argument is
+/// `FlashStorage::PadColourSlot`, pinned in `settings.cpp`.
+inline constexpr Node pad_colour_active =
+    enumeration(sid(String::STRING_FOR_ACTIVE), kPadColourNames, get_pad_colour<0>, set_pad_colour<0>);
+inline constexpr Node pad_colour_stopped =
+    enumeration(sid(String::STRING_FOR_STOPPED), kPadColourNames, get_pad_colour<1>, set_pad_colour<1>);
+inline constexpr Node pad_colour_muted =
+    enumeration(sid(String::STRING_FOR_MUTED), kPadColourNames, get_pad_colour<2>, set_pad_colour<2>);
+inline constexpr Node pad_colour_soloed =
+    enumeration(sid(String::STRING_FOR_SOLOED), kPadColourNames, get_pad_colour<3>, set_pad_colour<3>);
+inline constexpr Node pad_colour_fill =
+    enumeration(sid(String::STRING_FOR_FILL), kPadColourNames, get_pad_colour<4>, set_pad_colour<4>);
+inline constexpr Node pad_colour_once =
+    enumeration(sid(String::STRING_FOR_ONCE), kPadColourNames, get_pad_colour<5>, set_pad_colour<5>);
 inline constexpr const Node* kColoursChildren[] = {&pad_colour_active, &pad_colour_stopped, &pad_colour_muted,
                                                    &pad_colour_soloed, &pad_colour_fill,    &pad_colour_once};
 inline constexpr Node pad_colours = submenu(sid(String::STRING_FOR_COLOURS), kColoursChildren);
@@ -857,7 +971,15 @@ inline constexpr Node sample_browser_preview =
     enumeration(sid(String::STRING_FOR_SAMPLE_PREVIEW), kSampleBrowserPreviewNames, get_sample_browser_preview,
                 set_sample_browser_preview);
 
-inline constexpr Node flash_status = custom(sid(String::STRING_FOR_PLAY_CURSOR), &kPending); // E2
+/// `flash::Status::getOptions` (`flash/status.h:33-41`) -- and the order is the *value* order,
+/// `FLASH_CURSOR_FAST` 0 / `_OFF` 1 / `_SLOW` 2 (`hid/led/pad_leds.h:25-27`), not a reading order.
+inline constexpr uint16_t kFlashStatusNames[] = {
+    sid(String::STRING_FOR_FAST),
+    sid(String::STRING_FOR_DISABLED),
+    sid(String::STRING_FOR_SLOW),
+};
+inline constexpr Node flash_status =
+    enumeration(sid(String::STRING_FOR_PLAY_CURSOR), kFlashStatusNames, get_flash_status, set_flash_status);
 
 // ---------------------------------------------------------------------------------------------
 // 10. Recording
@@ -945,8 +1067,11 @@ DELUGE_RUNTIME_TOGGLE(feature_rounded_corners, 22, STRING_FOR_COMMUNITY_FEATURE_
 /// (`runtime_feature/shift_is_sticky.cpp:20-33`).
 inline constexpr Node feature_sticky_shift =
     toggle_item(sid(String::STRING_FOR_COMMUNITY_FEATURE_STICKY_SHIFT), get_runtime_feature<10>, set_shift_is_sticky);
-/// `DevSysexAllowed` (index 6) -- the placeholder the file note explains.
-inline constexpr Node feature_dev_sysex = custom(sid(String::STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX), &kPending);
+/// `DevSysexAllowed` (index 6). A `dynamic_enumeration` rather than a `toggle_item` because its ON
+/// option is not a fixed string: `DevSysexSetting::getOptions` renders the eight hex digits of the
+/// key that would be written (`runtime_feature/devSysexSetting.cpp:52-59`).
+inline constexpr Node feature_dev_sysex = dynamic_enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX),
+                                                              dev_sysex_names, get_dev_sysex, set_dev_sysex);
 /// `SyncScalingAction` (index 7) -- two literal options, not l10n ids.
 inline constexpr Node feature_sync_scaling =
     dynamic_enumeration(sid(String::STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION), sync_scaling_action_names,

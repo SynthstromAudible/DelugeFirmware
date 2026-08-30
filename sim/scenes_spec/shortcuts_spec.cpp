@@ -66,6 +66,10 @@ using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 using deluge::scenes::menu::ShortcutPos;
 
+// `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:65` and named in no header;
+// `LegacyVersion1` below has to restore the two cells the V1 arm writes.
+extern "C++" PatchSource modSourceShortcuts[2][8];
+
 namespace {
 
 namespace nodes = deluge::scenes::menu::nodes;
@@ -254,6 +258,55 @@ std::string diff_column(const char* table, ::MenuItem* legacy[kDisplayHeight], s
 	return out;
 }
 
+/// @brief Select `SHORTCUTS_VERSION_1` on both sides for the scope, and put everything back.
+///
+/// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:111-143`) *writes into* the legacy
+/// arrays -- and its `SHORTCUTS_VERSION_3` arm is a comment, not an undo (`:139-141`), so nothing but
+/// this guard restores them. Twelve cells are snapshotted: the six of `paramShortcutsForSounds` and
+/// four of `paramShortcutsForAudioClips` the V1 arm assigns, plus the two `modSourceShortcuts` ones
+/// (`:134-135`), which is patching-source data the port does not carry but other examples in this
+/// process would still see corrupted.
+struct LegacyVersion1 {
+	::MenuItem* sounds[6];
+	::MenuItem* clips[4];
+	PatchSource sources[2];
+	uint8_t legacy_version;
+	menu::ShortcutsVersion port_version;
+
+	LegacyVersion1() {
+		const std::pair<uint8_t, uint8_t> sound_cells[6] = {{0, 6}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {3, 7}};
+		for (size_t i = 0; i < 6; i++) {
+			sounds[i] = paramShortcutsForSounds[sound_cells[i].first][sound_cells[i].second];
+		}
+		const std::pair<uint8_t, uint8_t> clip_cells[4] = {{0, 7}, {1, 7}, {0, 6}, {1, 6}};
+		for (size_t i = 0; i < 4; i++) {
+			clips[i] = paramShortcutsForAudioClips[clip_cells[i].first][clip_cells[i].second];
+		}
+		sources[0] = modSourceShortcuts[0][7];
+		sources[1] = modSourceShortcuts[1][7];
+		legacy_version = soundEditor.shortcutsVersion;
+		port_version = menu::shortcuts_version();
+
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+		menu::set_shortcuts_version(menu::ShortcutsVersion::V1);
+	}
+
+	~LegacyVersion1() {
+		const std::pair<uint8_t, uint8_t> sound_cells[6] = {{0, 6}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {3, 7}};
+		for (size_t i = 0; i < 6; i++) {
+			paramShortcutsForSounds[sound_cells[i].first][sound_cells[i].second] = sounds[i];
+		}
+		const std::pair<uint8_t, uint8_t> clip_cells[4] = {{0, 7}, {1, 7}, {0, 6}, {1, 6}};
+		for (size_t i = 0; i < 4; i++) {
+			paramShortcutsForAudioClips[clip_cells[i].first][clip_cells[i].second] = clips[i];
+		}
+		modSourceShortcuts[0][7] = sources[0];
+		modSourceShortcuts[1][7] = sources[1];
+		soundEditor.shortcutsVersion = legacy_version;
+		menu::set_shortcuts_version(port_version);
+	}
+};
+
 /// @brief Every root, so a shape rule can be stated once over all of them.
 const std::vector<Root>& all_roots() {
 	static const std::vector<Root> list = [] {
@@ -271,7 +324,7 @@ const std::vector<Root>& all_roots() {
 // clang-format off
 describe shortcuts_transcription("scenes::menu shortcut tables: transcription", $ {
 	it("is transcribed from the default SHORTCUTS_VERSION_3 layout", _ {
-		// `SoundEditor::setShortcutsVersion` (`sound_editor.cpp:111-137`) *mutates* the legacy arrays
+		// `SoundEditor::setShortcutsVersion` (`sound_editor.cpp:111-143`) *mutates* the legacy arrays
 		// in place for the pre-3.0 layout; the port transcribes them as written. If anything in this
 		// process ever selects version 1, every cross-check below would be comparing against a
 		// different table -- so say so here, once, rather than failing ten cells at a time.
@@ -606,7 +659,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		distinct_items = items.size();
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
-		// Thirty-six of the sixty-four still share the one placeholder. The real, distinct items are
+		// Twenty-seven of the fifty-five still share the one placeholder. The real, distinct items are
 		// `battery_level` and `firmware_version` (E2 task 2 fix round 1), E2 task 5's three
 		// `EditNameItem`s -- one per `rename::TargetId`, since the target is the item's only state
 		// (`edit_name.h`) -- E2 task 7's five `ResetItem`s, one per `context_menu::DescriptorId`
@@ -620,7 +673,10 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// two `Fixed` ones (`kVibratoItem`, `kSidechainVolumeItem`), and `kMultiRangeItem` -- so
 		// thirty-one. E2 task 10 adds three more: `kCvSelectionItem`, `kGateSelectionItem` and
 		// `kMidiDevicesItem` (`nodes/dynamic.h`), the last three settings items that were bespoke
-		// `MenuItem` subclasses in legacy -- so thirty-four.
+		// `MenuItem` subclasses in legacy -- so thirty-four. E2 task 11 adds **none**: the nine
+		// placeholders it retires (the six pad colours, the play cursor, the dev-sysex setting and
+		// the shortcuts version) all become ordinary `Kind::Enum` nodes, so the node count falls by
+		// nine while the distinct-instance count is unchanged -- `kPending` still has other users.
 		//
 		// Twelve instances rather than one parameterised by the node, because the command a node
 		// binds has to be a property of the item: `CustomItem::learn_*` is handed `MenuState`, not
@@ -688,10 +744,119 @@ describe shortcuts_profile("shell::BoardProfile without the shortcuts field", $ 
 });
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
+// clang-format off
+describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSION_1 layer", $ {
+	it("matches paramShortcutsForSounds cell for cell once legacy has been switched to it", _ {
+		install_sound_context();
+		const LegacyVersion1 guard;
+		// The same cell-for-cell sweep the V3 group runs, against the array `setShortcutsVersion`
+		// has just rewritten. This is what makes `nodes::shortcuts_version` a setting that selects
+		// something: E1 recorded it as one that "selects nothing", because only the V3 layer existed.
+		expect(diff_table("paramShortcutsForSounds (v1)", paramShortcutsForSounds,
+		                  menu::shortcut_layer(Root::Sound, /*second_layer=*/false)))
+		    .to_equal(std::string{});
+	});
+
+	it("moves exactly the two sound cells that carry a different item under V1", _ {
+		install_sound_context();
+		// Legacy's V1 arm assigns six cells of this table (`sound_editor.cpp:125-132`) but four of
+		// them write the value it already held -- so naming the two that move, and asserting the
+		// other four did not, is the difference between transcribing the *arm* and transcribing its
+		// *effect*. Interpolation gives way to the sample end point; nothing else changes.
+		const Node* before_0_6 = menu::shortcut_node(Root::Sound, false, 0, 6);
+		const Node* before_1_6 = menu::shortcut_node(Root::Sound, false, 1, 6);
+		expect(before_0_6 == &nodes::sample0_interpolation).to_be_true();
+		expect(before_1_6 == &nodes::sample1_interpolation).to_be_true();
+
+		const LegacyVersion1 guard;
+		expect(menu::shortcut_node(Root::Sound, false, 0, 6) == &nodes::sample0_end).to_be_true();
+		expect(menu::shortcut_node(Root::Sound, false, 1, 6) == &nodes::sample1_end).to_be_true();
+		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_true();
+		expect(paramShortcutsForSounds[1][6] == &sample1EndMenu).to_be_true();
+
+		// The four no-op assignments, on both sides.
+		expect(menu::shortcut_node(Root::Sound, false, 2, 6) == &nodes::source0_wave_index).to_be_true();
+		expect(menu::shortcut_node(Root::Sound, false, 3, 6) == &nodes::source1_wave_index).to_be_true();
+		expect(menu::shortcut_node(Root::Sound, false, 2, 7) == &nodes::noise).to_be_true();
+		expect(menu::shortcut_node(Root::Sound, false, 3, 7) == &nodes::osc_sync).to_be_true();
+
+		// And the drum root, which reads the same table through its own name-editor swap.
+		expect(menu::shortcut_node(Root::Drum, false, 0, 6) == &nodes::sample0_end).to_be_true();
+		expect(menu::shortcut_node(Root::Drum, false, 11, 5) == &nodes::drum_name_edit).to_be_true();
+	});
+
+	it("matches paramShortcutsForAudioClips apart from the marker cell the port collapses", _ {
+		install_sound_context();
+		const LegacyVersion1 guard;
+		// V1 puts the marker editor's *start* item at `(0..1, 7)` and its *end* item at `(0..1, 6)`
+		// (`sound_editor.cpp:119-124`). The port has ONE node for the marker editor,
+		// `audio_clip_waveform`, so both pairs resolve to it -- which is right for the end pair and
+		// as close as this table can get for the start pair. `diff_cell` compares by name and
+		// `audioClipSampleMarkerEditorMenuStart` is constructed with `EMPTY_STRING`
+		// (`gui/ui/menus.cpp:1182`), so those two cells are excluded by hand and asserted directly.
+		std::span<const Node* const> layer = menu::shortcut_layer(Root::AudioClip, /*second_layer=*/false);
+		std::string diffs;
+		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+				if (y == 7 && x < 2) {
+					continue; // the start-marker pair, asserted below
+				}
+				const std::string d = diff_cell(layer[static_cast<size_t>(y) * menu::kShortcutCols + x],
+				                                paramShortcutsForAudioClips[x][y], "paramShortcutsForAudioClips (v1)",
+				                                x, y);
+				if (!d.empty()) {
+					diffs += d + "\n";
+				}
+			}
+		}
+		expect(diffs).to_equal(std::string{});
+
+		for (uint8_t x = 0; x < 2; x++) {
+			expect(paramShortcutsForAudioClips[x][7] == &audioClipSampleMarkerEditorMenuStart).to_be_true();
+			expect(paramShortcutsForAudioClips[x][6] == &audioClipSampleMarkerEditorMenuEnd).to_be_true();
+			expect(menu::shortcut_node(Root::AudioClip, false, x, 7) == &nodes::audio_clip_waveform).to_be_true();
+			expect(menu::shortcut_node(Root::AudioClip, false, x, 6) == &nodes::audio_clip_waveform).to_be_true();
+		}
+	});
+
+	it("leaves every other root's layer alone, and restores V3 when the version goes back", _ {
+		install_sound_context();
+		// The version selects a layer here rather than editing one, so the round trip is total --
+		// which is the one place the port deliberately does NOT reproduce legacy, whose V3 arm is a
+		// no-op comment. Recorded on `menu::set_shortcuts_version`.
+		const Node* song_before = menu::shortcut_node(Root::Song, false, 0, 7);
+		const Node* second_before = menu::shortcut_node(Root::Sound, true, 8, 0);
+		{
+			const LegacyVersion1 guard;
+			expect(menu::shortcut_node(Root::Song, false, 0, 7) == song_before).to_be_true();
+			expect(menu::shortcut_node(Root::Sound, true, 8, 0) == second_before).to_be_true();
+			expect(menu::shortcut_node(Root::MidiOrCv, false, 11, 0)
+			       == menu::shortcut_node(Root::MidiOrCv, false, 11, 0))
+			    .to_be_true();
+		}
+		expect(menu::shortcut_node(Root::Sound, false, 0, 6) == &nodes::sample0_interpolation).to_be_true();
+		expect(menu::shortcut_node(Root::AudioClip, false, 0, 6) == &nodes::audio_clip_interpolation).to_be_true();
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
+	});
+
+	it("finds the V1 pad through shortcut_pos too, so the blink follows the version", _ {
+		install_sound_context();
+		const LegacyVersion1 guard;
+		// The reverse lookup reads the same layers, so it must move with them -- otherwise the pad a
+		// press opens and the pad that blinks for the item it opened would disagree.
+		const ShortcutPos pos = menu::shortcut_pos(Root::Sound, nodes::sample0_end);
+		expect(pos.valid).to_be_true();
+		expect(pos.x).to_equal(uint8_t(0));
+		expect(pos.y).to_equal(uint8_t(6));
+	});
+});
+// clang-format on
+
+/// Five `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
 int shortcuts_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile)
+	               .add_specs(shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile,
+	                          shortcuts_version_1)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

@@ -116,22 +116,23 @@ enum class Flag : uint16_t {
 /// switched off for exactly the phase it was meant to police.
 ///
 /// Counting nodes makes it live today, at the cost of no longer being spec E's number: the shipped
-/// tree has **64** `Kind::Custom` nodes reachable from `nodes::kAllRoots` (59 through E2 task 8, plus
-/// the five task 9 declares: the two source pickers, the two cable-strength pages and the range
-/// picker), behind roughly twenty distinct legacy bespoke classes (the file selector, the audio recorder, the sample
+/// tree has **55** `Kind::Custom` nodes reachable from `nodes::kAllRoots` (64 through E2 task 9,
+/// less the nine E2 task 11 turns into ordinary `Kind::Enum` items: the six pad colours, the play
+/// cursor, the dev-sysex setting and the shortcuts version), behind roughly twenty distinct legacy
+/// bespoke classes (the file selector, the audio recorder, the sample
 /// loop points, the name editors, the patch-cable pages, the multi-range picker, the DX browser, active scales, MIDI
 /// devices, the MPE selectors, ...). So the cap is pinned just above that count rather than at 10: it is a ratchet
 /// against the escape hatch growing unnoticed, not a claim that ten was ever achievable.
-/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 64 separately, so a table that adds a custom node has to say
+/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 55 separately, so a table that adds a custom node has to say
 /// so in two places. Recorded in `docs/superpowers/specs/2026-08-26-ui-scenes-menus-design.md`'s amendments and in
 /// `src/scenes/README.md`.
-inline constexpr size_t kMaxCustomNodes = 65;
+inline constexpr size_t kMaxCustomNodes = 56;
 
 /// @brief The number of `Kind::Custom` nodes the shipped tree actually has (`kAllRoots`).
 ///
 /// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
 /// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
-inline constexpr size_t kShippedCustomNodes = 64;
+inline constexpr size_t kShippedCustomNodes = 55;
 
 /// @brief Which of the strict rules the caller is deliberately standing down.
 ///
