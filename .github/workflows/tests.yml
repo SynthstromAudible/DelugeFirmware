@@ -67,6 +67,15 @@ jobs:
           cmake --build build-sim --target deluge_host
           ctest --test-dir build-sim -R ui_app_scripts --output-on-failure
 
+      # Task 10's CI diff net for src/scenes/menu/: the committed
+      # website/src/data/generated/menu-hierarchies.json must never drift from the declarative
+      # Node tables. Reuses the build-sim tree the step above just configured, rather than
+      # reconfiguring. scripts/menu_dump_check.sh fails loudly (non-zero exit, not a silent skip)
+      # if build-sim is missing, if deluge_menu_dump fails to build, if it was not actually
+      # produced, if it prints no output, or if that output no longer matches the committed JSON.
+      - name: Menu tree JSON dump matches committed JSON
+        run: bash scripts/menu_dump_check.sh
+
       # Scoped to this step's own outcome: a bare `if: failure()` also fires when an earlier step
       # in the job failed, at which point build-sim/got does not exist and the upload logs a
       # spurious "no files found".

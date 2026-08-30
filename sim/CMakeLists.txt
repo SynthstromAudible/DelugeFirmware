@@ -530,6 +530,66 @@ set_target_properties(deluge_scenes_spec_support PROPERTIES
 add_subdirectory(scenes_spec)
 
 # ===========================================================================
+# deluge_menu_dump: headless "print the whole declarative menu tree as JSON" utility -- task 10's
+# CI diff net for src/scenes/menu/ (scripts/menu_dump_check.sh). Same host BSP object list as
+# deluge_host, minus host_main.c (this target supplies its own main() via menu_dump_main.cpp),
+# plus the real deluge_scenes so the tool walks the actual Node tables rather than a test double.
+# ===========================================================================
+add_executable(deluge_menu_dump
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_ws.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_script.c
+    ${REPO_ROOT}/src/bsp/host/host_script_tables.c
+    ${REPO_ROOT}/src/bsp/host/host_snapshot.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
+    # host_script.c's UI-script parser needs ui_script_next_due() etc.; deluge_host compiles this
+    # straight in (above) rather than through deluge_scenes_spec's separate support library, and
+    # this target follows deluge_host's shape rather than link deluge_scenes_spec_support just for
+    # this one file.
+    ${REPO_ROOT}/tests/harness/ui_script.cpp
+    ${REPO_ROOT}/src/scenes/menu/menu_dump_main.cpp
+    # Builds the ten `MenuContext`s via sim/scenes_spec/support/song_fixture.h -- kept out of
+    # src/scenes/ entirely (menu_dump_main.cpp's own note, and menu_dump_contexts.h's) so this
+    # target's one non-library source with a "support/..." include never has to satisfy
+    # scripts/check_layer_rules.py's scenes-includes-outside rule.
+    ${REPO_ROOT}/sim/scenes_spec/menu_dump_contexts.cpp
+)
+# host_debug.cpp reaches into deluge_app's reason_check; src/deluge on the path for
+# memory/reason_check.h (mirrors deluge_host above). ${REPO_ROOT}/tests is for host_script.c's
+# <harness/ui_script.h>. sim/scenes_spec is for menu_dump_main.cpp's own
+# #include "support/song_fixture.h" -- the same header the scenes_spec specs use, resolved here via
+# an explicit include dir since this target's own source lives under src/scenes/menu/, not
+# sim/scenes_spec/ (a spec file's quoted include resolves against its own directory instead;
+# create_specs_driver's spec_dir/.. trick does not reach this target either).
+target_include_directories(deluge_menu_dump PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge ${REPO_ROOT}/tests
+                                                     ${REPO_ROOT}/sim/scenes_spec)
+target_link_libraries(deluge_menu_dump PRIVATE deluge_scenes deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(deluge_menu_dump PRIVATE ${RT_LIB})
+endif()
+set_target_properties(deluge_menu_dump PROPERTIES
+    CXX_STANDARD 26
+    CXX_STANDARD_REQUIRED YES
+)
+
+# ctest row: rebuild the tool, run it, and diff its output against the committed
+# website/src/data/generated/menu-hierarchies.json (scripts/menu_dump_check.sh does the actual
+# work; WORKING_DIRECTORY is the repo root regardless of where ctest itself is invoked from, since
+# the script's own relative paths -- build-sim/, website/... -- assume that).
+add_test(
+    NAME menu_dump_matches_committed
+    COMMAND ${REPO_ROOT}/scripts/menu_dump_check.sh
+    WORKING_DIRECTORY ${REPO_ROOT}
+)
+set_tests_properties(menu_dump_matches_committed PROPERTIES TIMEOUT 300)
+
+# ===========================================================================
 # CTests: the DELUGE_HOST_DISPLAYS parser + the blit_oled_n range check.
 # ===========================================================================
 #
