@@ -1185,6 +1185,41 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect_golden(self, "../ui/menu/menu_sync_level_64.pbm", r64.fake.pbm(0));
 		}
 	});
+
+	it("draws a SyncLevel leaf's OFF text centred, on both shipped panel geometries -- the zero "
+	   "branch the non-zero golden above does not exercise", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		g_sync = 0; // the zero/OFF arm: a different l10n string and a different buffer path entirely
+		{
+			Rig r;
+			(void)r.open(settings_root);
+			r.shell.tick(0);
+			for (int i = 0; i < 7; i++) {
+				r.turn(1, static_cast<uint32_t>(10 + i * 10));
+				r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+			}
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.shell.tick(110);
+			expect(menu_scene().focused() == &sync_leaf).to_be_true();
+			r.shell.tick(120); // same "entered leaf draws next tick" rule as the golden above
+			expect_golden(self, "../ui/menu/menu_sync_level_off_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r64{board_64(), profile_64()};
+			(void)r64.open(settings_root);
+			r64.shell.tick(0);
+			for (int i = 0; i < 7; i++) {
+				r64.turn(1, static_cast<uint32_t>(10 + i * 10));
+				r64.shell.tick(static_cast<uint32_t>(15 + i * 10));
+			}
+			r64.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r64.shell.tick(110);
+			expect(menu_scene().focused() == &sync_leaf).to_be_true();
+			r64.shell.tick(120);
+			expect_golden(self, "../ui/menu/menu_sync_level_off_64.pbm", r64.fake.pbm(0));
+		}
+	});
 });
 // clang-format on
 
