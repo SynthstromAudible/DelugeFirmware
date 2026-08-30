@@ -4,7 +4,7 @@
 ///        shortcut pad sits so `MenuScene::render_grid` can blink it.
 ///
 /// The seven legacy tables -- `paramShortcutsForSounds`, `…SecondLayer`, `…ForAudioClips`,
-/// `…ForSongView`, `…ForKitGlobalFX` (`gui/ui/menus.cpp:2172-2273`), `midiOrCVParamShortcuts` and
+/// `…ForSongView`, `…ForKitGlobalFX` (`gui/ui/menus.cpp:2174-2275`), `midiOrCVParamShortcuts` and
 /// `gateDrumParamShortcuts` (`:1200-1220`) -- transcribed cell by cell as `Node` pointers, keyed by
 /// `MenuContext::Root`. `sim/scenes_spec/shortcuts_spec.cpp` cross-checks every cell of every table
 /// against the legacy array it came from, in both directions.

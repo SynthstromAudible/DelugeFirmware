@@ -9,12 +9,12 @@
 ///
 /// | legacy global (`gui/ui/menus.cpp`) | port |
 /// |---|---|
-/// | `patchCablesMenu` (`:1735`) | `nodes::patch_cables` -> `kPatchCablesItem` |
+/// | `patchCablesMenu` (`:1737`) | `nodes::patch_cables` -> `kPatchCablesItem` |
 /// | `source_selection::regularMenu` (`source_selection/regular.cpp:24`) | `nodes::source_selection_regular` |
 /// | `patch_cable_strength::regularMenu` (`patch_cable_strength/regular.cpp:28`) |
 /// `nodes::patch_cable_strength_regular` | | `source_selection::rangeMenu` (`source_selection/range.cpp:24`) |
 /// `nodes::source_selection_range` | | `patch_cable_strength::rangeMenu` (`patch_cable_strength/range.cpp:23`) |
-/// `nodes::patch_cable_strength_range` | | `vibratoMenu` (`:1725`), `sidechainVolumeShortcutMenu` (`:806`) |
+/// `nodes::patch_cable_strength_range` | | `vibratoMenu` (`:1727`), `sidechainVolumeShortcutMenu` (`:806`) |
 /// `nodes::vibrato`, `nodes::sidechain_volume` |
 ///
 /// ## The chain
@@ -194,7 +194,7 @@ inline const SourceSelectionItem kSourceSelectionRegularItem{SourceSelectionItem
 inline const SourceSelectionItem kSourceSelectionRangeItem{SourceSelectionItem::Which::Range};     ///< `rangeMenu`
 inline const PatchCableStrengthItem kPatchCableStrengthRegularItem{PatchCableStrengthItem::Which::Regular};
 inline const PatchCableStrengthItem kPatchCableStrengthRangeItem{PatchCableStrengthItem::Which::Range};
-/// `vibratoMenu` (`menus.cpp:1725-1726`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
+/// `vibratoMenu` (`menus.cpp:1727-1728`): LOCAL_PITCH_ADJUST from LFO_GLOBAL_1.
 inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 /// `sidechainVolumeShortcutMenu` (`menus.cpp:806-807`): GLOBAL_VOLUME_POST_REVERB_SEND from

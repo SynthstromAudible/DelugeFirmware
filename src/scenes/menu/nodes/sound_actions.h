@@ -12,7 +12,7 @@
 /// | `edit_track_name` | `audioOutputNameEditMenu` (`:1127`) | `EditName` (`gui/menu_item/edit_name.h:25`) | Custom (`EditNameItem`) |
 /// | `edit_clip_name` | `audioClipNameEditMenu` (`:1129`) | `EditName` | Custom (`EditNameItem`) |
 /// | `edit_name` | `editNameMenu` (`:1134`) | `Submenu` | Submenu (Vertical) |
-/// | `sound_actions` | `soundEditorRootActionsMenu` (`:1762`) | `Submenu` | Submenu (Vertical) |
+/// | `sound_actions` | `soundEditorRootActionsMenu` (`:1764`) | `Submenu` | Submenu (Vertical) |
 /// | `sequence_direction` | `sequenceDirectionMenu` (`:935`) | `sequence::Direction` (`sequence/direction.h:22`) | Enum (dynamic) |
 /// | `output_midi_channel` | `outputMidiChannelMenu` (`:901`) | `midi::sound::OutputMidiChannel` (`midi/sound/channel.h:21`) | Int |
 /// | `output_midi_note` | `outputMidiNoteForDrumMenu` (`:902`) | `midi::sound::OutputMidiNoteForDrum` (`midi/sound/note_for_drum.h:21`) | Int |

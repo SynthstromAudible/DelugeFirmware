@@ -375,7 +375,7 @@ range-strength page a select press goes back to the range source picker and stra
 which is legacy's `multiRangeMenu.menuItemHeadingTo` substitution (`sound_editor.cpp:1802-1803`).
 
 Still carried from the sweep: `osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc (`osc/type.h:120-125`), which waits on
-`dxMenu` itself — three bespoke DX items (`menus.cpp:1715`) that are E2's browser work, not a page
+`dxMenu` itself — three bespoke DX items (`menus.cpp:1717`) that are E2's browser work, not a page
 this task could declare honestly; and the two other dropped arms the sweep turned up, `Submenu`'s `shouldForwardButtons()`
 forwarding (`submenu.cpp:187-194`) and `Automation::selectButtonPress`'s shift-held automation
 delete (`automation/automation.cpp:37`), which a `Param`/`UnpatchedParam` item inherits directly and

@@ -320,7 +320,7 @@ std::string legacy_pbm(deluge::gui::context_menu::ResetSettingsAction action) {
 // clang-format off
 describe cm_descriptors("scenes::context_menu descriptor table", $ {
 	it("covers exactly the context menus the ported menu tree opens, and no others", _ {
-		// The five `reset_settings::Reset` menu items (`gui/ui/menus.cpp:2106-2115`) and, since E2
+		// The five `reset_settings::Reset` menu items (`gui/ui/menus.cpp:2108-2117`) and, since E2
 		// task 11b, `audio_clip::AudioSourceSelector` -- and nothing else: every other legacy
 		// `ContextMenu` subclass is opened from a view or a browser this plan does not port. See the
 		// note on `DescriptorId`.

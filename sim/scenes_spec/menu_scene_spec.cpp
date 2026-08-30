@@ -281,7 +281,7 @@ constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), s
 constexpr const Node* kRoots[] = {&settings_root, &nodes::sound_root};
 
 /// @brief Two real cells of `paramShortcutsForSounds`, and the second-layer cell that shares one of
-///        their pads (`gui/ui/menus.cpp:2172`, `:2192`).
+///        their pads (`gui/ui/menus.cpp:2174`, `:2194`).
 /// @{
 constexpr uint8_t kLpfFreqX = 8, kLpfFreqY = 7; ///< `&lpfFreqMenu`
 constexpr uint8_t kEnv1RelX = 8, kEnv1RelY = 0; ///< `&env1ReleaseMenu`, second layer `&env3ReleaseMenu`

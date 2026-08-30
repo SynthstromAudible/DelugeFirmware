@@ -112,7 +112,7 @@ void legacy_render_oled(Canvas& c, int32_t panel_w, int32_t panel_h, std::string
 		option++;
 	}
 
-	// `AudioInputSelector::renderOLED`'s tail (`gui/context_menu/audio_input_selector.cpp:279-282`),
+	// `AudioInputSelector::renderOLED`'s tail (`gui/context_menu/audio_input_selector.cpp:233-236`),
 	// which runs *after* the base renderer and is the only legacy subclass that draws past it. Note
 	// the different right clip (`- 26`, not the rows' `- 27`) and the different left origin (22, the
 	// heading's, not the rows' `invertStartX + 1`).
@@ -372,6 +372,42 @@ describe option_window_w("ui::oled::option_window", $ {
 			option_window(r.frame, kAreYouSure, three(), 2, 1, label);
 			expect_golden(self, "../ui/widgets/option_window_scrolled_64.pbm", r.pbm());
 		}
+	});
+
+	it("matches legacy over the two-pixel overlap between the footer and the second option row", _ {
+		// A two-row window, which is the case the shipped descriptor cannot produce -- it forces its
+		// option onto row 0 whenever a footer is up -- so the footer's band and the second row's
+		// really do overlap here. Both sides are the same two `draw_string`s over the same pixels.
+		//
+		// **This does not pin the draw order, and does not claim to.** The glyph blit is `|=`
+		// (`gfx/oled/canvas.cpp:626`), so the union is the same whichever runs first: moving the
+		// footer draw before the rows and re-running this example passes -- checked, in review round
+		// 1. The widget draws it last anyway because legacy does (see popup.h). What this example
+		// *does* pin is that the overlapping case renders identically to legacy at all.
+		uitest::Rig48 r;
+		ScrollText sc;
+		const std::string_view footer = "TRACK 1";
+		option_window(r.frame, kAreYouSure, three(), 0, 0, sc, /*allow_motion=*/true, footer);
+		legacy_render_oled(r.reference, 128, 48, kAreYouSure, three(), 0, 0, /*invert=*/true, footer);
+		expect(below_bezel(r.pbm(), 5)).to_equal(below_bezel(r.reference_pbm(), 5));
+	});
+
+	it("would notice a clear under the footer, which legacy does not do", _ {
+		// The discriminator the overlap example is not. Clearing the footer's band before drawing it
+		// would erase the bottom rows of the option row above; legacy leaves them alone. Asserted on
+		// the shared rows rather than left as prose.
+		uitest::Rig48 r;
+		ScrollText sc;
+		option_window(r.frame, kAreYouSure, three(), 0, 0, sc, /*allow_motion=*/true, "TRACK 1");
+		// windowMinY = 4; the second option row's band starts at 4 + 18 + 9 = 31, the footer's at
+		// 4 + 20 + 9 = 33, so rows 33..39 carry ink from both.
+		bool second_row = false, shared = false;
+		for (int x = 0; x < 128; x++) {
+			second_row = second_row || r.lit(x, 32);
+			shared = shared || r.lit(x, 34);
+		}
+		expect(second_row).to_be_true();
+		expect(shared).to_be_true();
 	});
 
 	it("draws the footer where AudioInputSelector draws it, at both geometries", _ {

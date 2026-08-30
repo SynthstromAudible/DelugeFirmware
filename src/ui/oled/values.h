@@ -182,11 +182,11 @@ enum class RangeEdge : uint8_t { Off = 0, Left = 1, Right = 2 };
 /// Two rules, because legacy has exactly two and they are genuinely different, not two spellings of
 /// one:
 ///
-///   * `Push` -- `IntegerRange::selectEncoderAction` (`gui/menu_item/integer_range.cpp:70-105`):
+///   * `Push` -- `IntegerRange::selectEncoderAction` (`gui/menu_item/integer_range.cpp:33-68`):
 ///     each edge moves freely within `[min, max]` and *drags the other one along* when it would
 ///     pass it (`if (upper < lower) upper = lower;`). The pair can be moved past each other's old
 ///     positions; what it cannot do is invert.
-///   * `Bound` -- `KeyRange::selectEncoderAction` (`gui/menu_item/key_range.cpp:206-236`): each edge
+///   * `Bound` -- `KeyRange::selectEncoderAction` (`gui/menu_item/key_range.cpp:28-58`): each edge
 ///     is clamped *against the other* (`lower = clamp(lower + offset, KEY_MIN, upper)`), so an edge
 ///     stops dead when it reaches its neighbour and the neighbour never moves.
 ///

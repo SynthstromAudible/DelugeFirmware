@@ -445,8 +445,24 @@ public:
 	///          well as in `action.h` so a caller cannot conclude from a green suite that the five
 	///          items do anything yet.
 	///
-	/// @return The request, or `MenuAction::None` when none was filed since the last call. Reading
-	///         clears it, so a request is delivered exactly once.
+	/// @warning **This is a one-slot mailbox with a silent overwrite, not an exactly-once queue.**
+	///          Two requests filed between two polls lose the first, and a request nobody polls for
+	///          is delivered whenever someone finally does -- arbitrarily later, against whatever
+	///          state exists then. `after_render` returns no `Action` announcing that one is
+	///          waiting, so nothing enforces the polling: **poll after every tick, or requests are
+	///          dropped or stale.**
+	///
+	///          That is deliberate. Making it exactly-once would mean either a queue (this layer
+	///          allocates nothing, so a fixed ring with its own overflow policy -- the same problem
+	///          one level down) or a new `Action` kind for the router to carry, which would put a
+	///          concept the shell has no business knowing about (a legacy root-UI call) into
+	///          `shell/scene.h`. An honest mailbox plus this warning was judged better than a
+	///          guarantee that only half holds. Two requests in one tick is not reachable today
+	///          either: the drain runs once per `after_render` and one tick delivers at most one
+	///          select press.
+	///
+	/// @return The request, or `MenuAction::None` when none was filed since the last poll. Reading
+	///         clears the slot.
 	MenuActionRequest take_action();
 
 private:

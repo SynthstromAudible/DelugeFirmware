@@ -95,7 +95,7 @@ constexpr Cells kNoCells{};
 
 // clang-format off
 
-/// `paramShortcutsForSounds` (`gui/ui/menus.cpp:2172`).
+/// `paramShortcutsForSounds` (`gui/ui/menus.cpp:2174`).
 constexpr const Node* kSoundColumns[kShortcutCols][kShortcutRows] = {
     {&n::sample0_repeat   , &n::sample0_reverse     , &n::sample0_time_stretch, &n::sample0_pitch_speed, &n::sample0_recorder     , &n::file0_selector     , &n::sample0_interpolation, &n::sample0_start}, // x=0
     {&n::sample1_repeat   , &n::sample1_reverse     , &n::sample1_time_stretch, &n::sample1_pitch_speed, &n::sample1_recorder     , &n::file1_selector     , &n::sample1_interpolation, &n::sample1_start}, // x=1
@@ -115,7 +115,7 @@ constexpr const Node* kSoundColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , &n::spread_velocity     , &n::randomizer_lock     , &n::note_probability   , nullptr                  , nullptr                , nullptr                  , nullptr}, // x=15
 };
 
-/// `paramShortcutsForSoundsSecondLayer` (`gui/ui/menus.cpp:2192`).
+/// `paramShortcutsForSoundsSecondLayer` (`gui/ui/menus.cpp:2194`).
 constexpr const Node* kSoundSecondColumns[kShortcutCols][kShortcutRows] = {
     {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=0
     {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=1
@@ -135,7 +135,7 @@ constexpr const Node* kSoundSecondColumns[kShortcutCols][kShortcutRows] = {
     {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=15
 };
 
-/// `paramShortcutsForAudioClips` (`gui/ui/menus.cpp:2211`).
+/// `paramShortcutsForAudioClips` (`gui/ui/menus.cpp:2213`).
 ///
 /// `audio_clip_waveform` stands in for `audioClipSampleMarkerEditorMenuEnd`: the port has one
 /// waveform/marker-editor node where legacy has a start and an end item, and only the end one is in
@@ -159,7 +159,7 @@ constexpr const Node* kAudioClipColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , nullptr                 , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                     , nullptr}, // x=15
 };
 
-/// `paramShortcutsForSongView` (`gui/ui/menus.cpp:2230`).
+/// `paramShortcutsForSongView` (`gui/ui/menus.cpp:2232`).
 constexpr const Node* kSongColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=0
     {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=1
@@ -179,7 +179,7 @@ constexpr const Node* kSongColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=15
 };
 
-/// `paramShortcutsForKitGlobalFX` (`gui/ui/menus.cpp:2249`).
+/// `paramShortcutsForKitGlobalFX` (`gui/ui/menus.cpp:2251`).
 constexpr const Node* kKitGlobalFxColumns[kShortcutCols][kShortcutRows] = {
     {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=0
     {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=1

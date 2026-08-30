@@ -124,7 +124,7 @@ extern legacy::unison::CountToStereoSpread numUnisonMenu;
 
 /// @name E2 task 9's own legacy globals: the three items and the four pages they chain through.
 ///
-/// `patchCablesMenu` (`gui/ui/menus.cpp:1735`), `vibratoMenu` (`:1725`) and
+/// `patchCablesMenu` (`gui/ui/menus.cpp:1737`), `vibratoMenu` (`:1727`) and
 /// `sidechainVolumeShortcutMenu` (`:806`) are the three the port replaces outright; the four page
 /// singletons live beside their own classes and are already `extern`-declared by the headers above.
 /// @{
@@ -692,7 +692,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	it("declares the sound-editor root with the legacy child count and order", _ {
 		(void)fixture();
 		// `menus.cpp`'s `soundEditorRootMenu` literal (at `ce4a79de0`, `:1521-1551`; at HEAD,
-		// `:1772-1802`) lists **27** children, not the 28 the task brief's prose says -- the
+		// `:1774-1804`) lists **27** children, not the 28 the task brief's prose says -- the
 		// brief's own enumeration of the names is 27 long, so the count was a miscount and the
 		// literal is the authority. Asserted against the live object, not a copy of the list.
 		const auto& kids = SubmenuPeek::items_of(soundEditorRootMenu);
@@ -1163,7 +1163,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// The two `Fixed` items differ ONLY in their baked-in param and source, so a swapped pair
 		// would be invisible to every check above. This is what makes them distinguishable: each
 		// item's own `on_focus` installs its pair, and the two pairs are the ones `menus.cpp`
-		// constructs the legacy globals with (`:806-807`, `:1725-1726`).
+		// constructs the legacy globals with (`:806-807`, `:1727-1728`).
 		menu::MenuState vib{};
 		nodes::kVibratoItem.on_focus(fixture().ctx, vib);
 		expect(int(vib.patching_param)).to_equal(int(deluge::modulation::params::LOCAL_PITCH_ADJUST));

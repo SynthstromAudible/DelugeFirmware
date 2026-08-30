@@ -5,7 +5,7 @@
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
 /// `gui/ui/menus.cpp`'s `bendMenu` literal (`:795-801`) and the globals it names (`:790-791`,
-/// `:1730`):
+/// `:1732`):
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
@@ -13,7 +13,7 @@
 /// | `bend_range_main` | `mainBendRangeMenu` (`:792`) | `bend_range::Main` (`bend_range/main.h:25`) | Int |
 /// | `bend_range_per_finger` | `perFingerBendRangeMenu` (`:793`) | `bend_range::PerFinger` (`bend_range/per_finger.h:25`) | Int |
 /// | `bend` | `bendMenu` (`:795`) | `submenu::Bend` (`submenu/bend.h:23`) | Submenu (Vertical) |
-/// | `drum_bend_range` | `drumBendRangeMenu` (`:1730`) | `bend_range::PerFinger` | Int |
+/// | `drum_bend_range` | `drumBendRangeMenu` (`:1732`) | `bend_range::PerFinger` | Int |
 // clang-format on
 ///
 /// @note **`bendMenu` and `drumBendRangeMenu` are siblings under the sound root sharing one name**
@@ -76,7 +76,7 @@ inline constexpr Node bend =
     submenu(sid(deluge::l10n::String::STRING_FOR_BEND_RANGE), kBendChildren, Layout::Vertical, relevance::bend_submenu);
 
 /// The same class and hooks as `bend_range_per_finger`, under its own name -- legacy's
-/// "the single option available for Drums" (`menus.cpp:1730`) -- but a **root child**, i.e. shown
+/// "the single option available for Drums" (`menus.cpp:1732`) -- but a **root child**, i.e. shown
 /// at `navigationDepth == 0`, where `per_finger.h:41`'s first arm is false and only `editingKit()`
 /// decides. `with_relevant` is what attaches the predicate to the shared shape.
 inline constexpr Node drum_bend_range =

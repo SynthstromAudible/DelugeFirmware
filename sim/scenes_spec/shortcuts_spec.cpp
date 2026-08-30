@@ -76,7 +76,7 @@ namespace nodes = deluge::scenes::menu::nodes;
 
 using Root = MenuContext::Root;
 
-/// @brief `menus.cpp:2169`'s `comingSoonMenu` sentinel. It is a `#define` local to that translation
+/// @brief `menus.cpp:2171`'s `comingSoonMenu` sentinel. It is a `#define` local to that translation
 ///        unit, so the spec spells the same value: a cell holding it is "not implemented", which
 ///        legacy answers with a popup and no navigation (`sound_editor.cpp:1330-1333`) and the port
 ///        transcribes as `nullptr`.

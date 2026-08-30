@@ -85,7 +85,7 @@ enum class Kind : uint8_t {
 	Decimal,
 	SyncLevel,
 	/// @brief A two-ended `{lower, upper}` editor -- `menu_item::Range` and its two subclasses
-	///        (`gui/menu_item/range.h:30`, `integer_range.h:24`, `key_range.h:24`).
+	///        (`gui/menu_item/range.h:30`, `integer_range.h:25`, `key_range.h:24`).
 	///
 	/// `Binding::get`/`set` are the **lower** edge; `Binding::range_spec` carries the upper edge's
 	/// hooks and the two per-item rules (how the ends spell themselves, and what happens when they
@@ -196,7 +196,7 @@ struct RangeSpec {
 	SetFn set_upper = nullptr;
 
 	/// @brief How one end spells itself -- `Range::getText`'s per-subclass half
-	///        (`integer_range.cpp:107-132`, `key_range.cpp:238-278`).
+	///        (`integer_range.cpp:70-95`, `key_range.cpp:60-100`).
 	deluge::ui::oled::RangeFormatFn format = nullptr;
 
 	/// @brief Which of legacy's two crossing rules this item uses (`ui/oled/values.h`'s
@@ -205,7 +205,7 @@ struct RangeSpec {
 
 	/// @brief Does opening the item land on the LEFT edge when the two ends differ?
 	///
-	/// `IntegerRange::beginSession` (`integer_range.cpp:63-68`) does exactly that;
+	/// `IntegerRange::beginSession` (`integer_range.cpp:26-31`) does exactly that;
 	/// `KeyRange` has no `beginSession` override at all, so it takes `Range::beginSession`'s bare
 	/// `editingRangeEdge = RangeEdit::OFF` (`range.cpp:30-33`). One `bool` rather than a second
 	/// hook, because that is the whole of the difference.
@@ -607,8 +607,8 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 /// @param spec  The upper edge and the two per-item rules. Required: a null one is a
 ///              `validate_tree` issue, not a defaulted-to-something.
 /// @param r     The bounds both ends live inside, and the coarse knob's step --
-///              `IntegerRange::minValue`/`maxValue` (`integer_range.h:35`), or `KeyRange`'s own
-///              `KEY_MIN`/`KEY_MAX` locals (`key_range.cpp:207-208`).
+///              `IntegerRange::minValue`/`maxValue` (`integer_range.h:45`), or `KeyRange`'s own
+///              `KEY_MIN`/`KEY_MAX` locals (`key_range.cpp:29-30`).
 constexpr Node range_item(uint16_t name, uint16_t title, GetFn get_lower, SetFn set_lower, const RangeSpec* spec,
                           IntRange r, RelevantFn rel = nullptr) {
 	Node n{};

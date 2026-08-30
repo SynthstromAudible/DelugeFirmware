@@ -679,7 +679,7 @@ describe values_w("ui::oled::values", $ {
 		expect(resp.focused).to_be_true();
 		expect(resp.changed).to_be_false();
 
-		// getText's mayShowJustOne arm (`integer_range.cpp:116-121`): rightLength 0, so textLength
+		// getText's mayShowJustOne arm (`integer_range.cpp:79-84`): rightLength 0, so textLength
 		// is 3, stringWidth 54, stringStartX (128 - 54) >> 1 == 37.
 		r.reference.draw_string("120", 37, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -816,7 +816,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("pushes the far end with RangeClamp::Push, the IntegerRange rule", _ {
-		// `IntegerRange::selectEncoderAction` (`integer_range.cpp:76-89`): each end moves inside
+		// `IntegerRange::selectEncoderAction` (`integer_range.cpp:39-52`): each end moves inside
 		// [min, max] and drags the other along rather than crossing it.
 		{
 			uitest::Rig48 r;
@@ -854,7 +854,7 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("bounds each end against the other with RangeClamp::Bound, the KeyRange rule", _ {
-		// `KeyRange::selectEncoderAction` (`key_range.cpp:214-221`): the other end IS the bound, so
+		// `KeyRange::selectEncoderAction` (`key_range.cpp:36-43`): the other end IS the bound, so
 		// an end stops dead at its neighbour and the neighbour never moves. This is the example that
 		// separates the two policies: with Push the same detent would give 6-6.
 		{
@@ -892,8 +892,8 @@ describe values_w("ui::oled::values", $ {
 	});
 
 	it("with no edge selected, moves a coincident pair as one and refuses to move a split one", _ {
-		// The one statement both subclasses share (`integer_range.cpp:94-104`,
-		// `key_range.cpp:226-235`), and the reason it matters: a range the user has not opened an
+		// The one statement both subclasses share (`integer_range.cpp:57-67`,
+		// `key_range.cpp:48-57`), and the reason it matters: a range the user has not opened an
 		// edge on behaves exactly like a plain number until it is split.
 		{
 			uitest::Rig48 r;

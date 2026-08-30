@@ -140,8 +140,8 @@ struct DefaultRange {
 /// @brief The three default ranges: tempo, swing amount and key.
 ///
 /// These used to live one pair per object as `menu_item::IntegerRange::lower`/`upper`
-/// (`gui/menu_item/integer_range.h:33`) and `menu_item::KeyRange::lower`/`upper`
-/// (`gui/menu_item/key_range.h:173`) -- public members of the legacy menu items themselves. They
+/// (`gui/menu_item/integer_range.h:42`) and `menu_item::KeyRange::lower`/`upper`
+/// (`gui/menu_item/key_range.h:35`) -- public members of the legacy menu items themselves. They
 /// are settings, not menu state: `readSettings`/`writeSettings` have always persisted them
 /// (bytes 53..58) and `Song::setupDefault` has always read them, both by bare-`extern`ing the
 /// *menu item* (`song.cpp:249-251`, `flash_storage.cpp:45-47`) -- which is exactly the smell that

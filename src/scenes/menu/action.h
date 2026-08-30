@@ -123,13 +123,28 @@ struct MenuActionRequest {
 ///
 /// **What the wiring plan owes, precisely.** The mirror is authoritative for what the menu *shows*
 /// and for what `MenuAction::OpenPerformanceView` carries. It is not authoritative for the view. The
-/// dispatcher must therefore call `set_performance_editing_mode()` whenever the view changes the two
-/// bools behind the menu's back -- `PerformanceView::renderOLED`'s BACK arm
-/// (`gui/views/performance_view.cpp:788-791`), the pad exits at `:855-857` and `:863-864`, and
-/// `PerformanceView::focusRegained`'s `defaultEditingMode = false` (`:189`). Without those calls the
-/// menu will offer a stale mode; with them the mirror and the view agree at every point the menu can
-/// observe. This is the single node excluded from the generic port-vs-legacy value comparison, for
-/// the same reason and with the same name as `shortcuts_version`.
+/// dispatcher must therefore call `set_performance_editing_mode()` at **every** site where the view
+/// moves those two bools behind the menu's back. There are five, and this list is exhaustive as of
+/// `gui/views/performance_view.cpp` today -- an implementation that covers four of them still ships
+/// a stale mirror:
+///
+///   1. `PerformanceView::releaseViewOnExit` (`:1327-1332`, the writes at `:1330-1331`). **This is
+///      the ordinary exit path** -- `:698`, `:884` and `:902` all reach it -- so it is the one that
+///      matters most and the one easiest to miss, because it is a helper rather than a button arm.
+///   2. `buttonAction`'s BACK arm (`:788-791`).
+///   3. `buttonAction`'s shift+KEYBOARD exit (`:855-857`).
+///   4. `buttonAction`'s shift+KEYBOARD *cycle* (`:865-868`; `:863-864` is the block that guards
+///      it, not the writes).
+///   5. `PerformanceView::focusRegained`'s `defaultEditingMode = false` (`:189`).
+///
+/// With all five the mirror and the view agree at every point the menu can observe. This is the
+/// single node excluded from the generic port-vs-legacy value comparison, for the same reason and
+/// with the same name as `shortcuts_version`.
+///
+/// @warning Nothing in this repository can check that list stays complete: a sixth write added to
+///          `PerformanceView` would desync the mirror silently. The durable fix is to move the two
+///          bools out of the view, which is a larger legacy change than this task took on; until
+///          then this comment is the contract.
 /// @{
 
 /// @brief What `EditingMode::readCurrentValue` would report.

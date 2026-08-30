@@ -472,8 +472,8 @@ bool relevance_needs_ui(const Node& node) {
 ///
 /// `osc::AudioRecorder::isRelevant` is `static_cast<Sound*>(modControllable)->getSynthMode()`
 /// (`osc/audio_recorder.h:60-63`) with no null test -- and `soundEditorRootDrumActionsMenu`
-/// (`menus.cpp:1767`), which holds both sample recorders, is a child of **`soundEditorRootMenuMidiDrum`
-/// and `soundEditorRootMenuGateDrum`** (`:1967`, `:1975`), whose `setup()` arm leaves
+/// (`menus.cpp:1769`), which holds both sample recorders, is a child of **`soundEditorRootMenuMidiDrum`
+/// and `soundEditorRootMenuGateDrum`** (`:1969`, `:1977`), whose `setup()` arm leaves
 /// `currentModControllable` null (`sound_editor.cpp:1672-1674`). So opening ACTIONS on a MIDI or
 /// gate drum row dereferences a null `Sound` in the shipping firmware: a legacy bug this port
 /// found, recorded here rather than reproduced. The port's own answer is `relevance::is_subtractive`,
@@ -995,7 +995,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 	});
 
 	it("declares the settings root with the legacy child count", _ {
-		// `menus.cpp`'s `settingsRootMenu` literal (`:2150-2166`) -- thirteen children, asserted
+		// `menus.cpp`'s `settingsRootMenu` literal (`:2152-2168`) -- thirteen children, asserted
 		// against the live object rather than a second copy of the list.
 		const auto& kids = SubmenuPeek::items_of(settingsRootMenu);
 		expect(kids.size()).to_equal(size_t(13));
@@ -1325,7 +1325,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 			(i.kind == menu::Issue::Kind::DuplicateName ? duplicates : others)++;
 		}
 		// Sixteen: `tables_2_spec`'s nine, plus seven the kit-drum root repeats. The rule is per
-		// *parent*, and `soundEditorRootMenuDrum` (`menus.cpp:1805`) is a second parent over the same
+		// *parent*, and `soundEditorRootMenuDrum` (`menus.cpp:1807`) is a second parent over the same
 		// children -- so `env1Menu`..`env4Menu` collide pairwise there too (six) and
 		// `soundEditorRootDrumActionsMenu` holds the same two `FormattedTitle` sample recorders
 		// (one). The shared `source0Menu` / `modulator0Menu` pages are one node visited once, so

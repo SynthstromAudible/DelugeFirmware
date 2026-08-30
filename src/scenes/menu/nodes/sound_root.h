@@ -4,7 +4,7 @@
 ///        6 and 7 declare.
 ///
 /// The transcription of `gui/ui/menus.cpp`'s `soundEditorRootMenu` literal (at `ce4a79de0`,
-/// `:1521-1551`; at HEAD, `:1772-1802`) -- **27** children, in that exact order:
+/// `:1521-1551`; at HEAD, `:1774-1804`) -- **27** children, in that exact order:
 ///
 // clang-format off
 /// |  # | legacy child | node | declared by |
@@ -67,7 +67,7 @@
 
 namespace deluge::scenes::menu::nodes {
 
-// `patchCablesMenu` (`gui/ui/menus.cpp:1735`): the MOD MATRIX list of every existing cable on this
+// `patchCablesMenu` (`gui/ui/menus.cpp:1737`): the MOD MATRIX list of every existing cable on this
 // sound. A select press opens the selected cable's own strength page -- the range one when that
 // cable's destination is itself a cable (`patch_cables.cpp:168-190`).
 inline constexpr Node patch_cables =

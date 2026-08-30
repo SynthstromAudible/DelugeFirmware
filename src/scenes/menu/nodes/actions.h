@@ -7,11 +7,11 @@
 // clang-format off
 /// | node | legacy global | legacy class | emits |
 /// |---|---|---|---|
-/// | `perform_editor` | `performEditorMenu` (`gui/ui/menus.cpp:2003`) | `performance_session_view::EditingMode` (`performance_session_view/editing_mode.h:28`) | `OpenPerformanceView` + mode |
-/// | `start_stem_export` | `startStemExportMenu` (`gui/ui/menus.cpp:2016`) | `stem_export::Start` (`stem_export/start.h:27`) | `StartStemExport` |
+/// | `perform_editor` | `performEditorMenu` (`gui/ui/menus.cpp:2005`) | `performance_session_view::EditingMode` (`performance_session_view/editing_mode.h:28`) | `OpenPerformanceView` + mode |
+/// | `start_stem_export` | `startStemExportMenu` (`gui/ui/menus.cpp:2018`) | `stem_export::Start` (`stem_export/start.h:27`) | `StartStemExport` |
 /// | `set_clip_length` | `setClipLengthMenu` (`gui/ui/menus.cpp:1131-1132`) | `audio_clip::SetClipLengthEqualToSampleLength` (`audio_clip/set_clip_length_equal_to_sample_length.h:22`) | `SetClipLengthToSampleLength` |
-/// | `song_midi_learn` | `midiLearnMenu` (`gui/ui/menus.cpp:2080`) | `song::MidiLearn` (`song/midi_learn.h:23`) | `OpenSongMidiLearn` |
-/// | `configure_song_macros` | `configureSongMacrosMenu` (`gui/ui/menus.cpp:2079`) | `song::ConfigureMacros` (`song/configure_macros.h:23`) | `OpenSongMacros` |
+/// | `song_midi_learn` | `midiLearnMenu` (`gui/ui/menus.cpp:2082`) | `song::MidiLearn` (`song/midi_learn.h:23`) | `OpenSongMidiLearn` |
+/// | `configure_song_macros` | `configureSongMacrosMenu` (`gui/ui/menus.cpp:2081`) | `song::ConfigureMacros` (`song/configure_macros.h:23`) | `OpenSongMacros` |
 // clang-format on
 ///
 /// ## Two shapes, because legacy has two

@@ -539,7 +539,7 @@ void set_default_slice_mode(const MenuContext&, int32_t value) {
 }
 
 int32_t get_default_cpu_indicator(const MenuContext&) {
-	return from_bool(FlashStorage::highCPUUsageIndicator); // `menus.cpp:1663`
+	return from_bool(FlashStorage::highCPUUsageIndicator); // `menus.cpp:1665`
 }
 void set_default_cpu_indicator(const MenuContext&, int32_t value) {
 	FlashStorage::highCPUUsageIndicator = value != 0;
@@ -1100,7 +1100,7 @@ static_assert(FlashStorage::NUM_DEFAULT_RANGE_SLOTS == 3);
 } // namespace
 
 std::string_view format_range_integer(int32_t value, std::span<char> scratch) {
-	// `IntegerRange::getText` (`gui/menu_item/integer_range.cpp:107-132`) spells each end with
+	// `IntegerRange::getText` (`gui/menu_item/integer_range.cpp:70-95`) spells each end with
 	// `intToString(value, buffer)`, i.e. `intToString(value, buffer, 1)` -- at least one digit, and a
 	// leading '-' for a negative one. `int_to_string` is the toolkit's port of exactly that call
 	// (`ui/oled/detail/int_to_string.h`), which `int_value` uses for the same job.
@@ -1108,9 +1108,9 @@ std::string_view format_range_integer(int32_t value, std::span<char> scratch) {
 }
 
 std::string_view format_range_key(int32_t value, std::span<char> scratch) {
-	// `KeyRange::getText` (`gui/menu_item/key_range.cpp:238-278`), one end at a time: the note
+	// `KeyRange::getText` (`gui/menu_item/key_range.cpp:60-100`), one end at a time: the note
 	// letter, then an accidental when the note is a sharp. `defaultUseSharps` picks both the table
-	// and the accidental glyph, exactly as legacy reads it (`:240-241`).
+	// and the accidental glyph, exactly as legacy reads it (`:62-63`).
 	const bool sharps = FlashStorage::defaultUseSharps;
 	const int32_t note = std::clamp<int32_t>(value, 0, 11);
 	size_t len = 0;

@@ -57,7 +57,7 @@
 
 #include "spec/support/spec_main.h"
 
-/// `model/song/song.cpp:4896`. Both sides write it (`audio_input_selector.cpp:239`), so an example
+/// `model/song/song.cpp:4896`. Both sides write it (`audio_input_selector.cpp:193`), so an example
 /// that drives either half has to put it back.
 extern AudioInputChannel defaultAudioOutputInputChannel;
 
@@ -90,7 +90,7 @@ constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
 constexpr const Node* kRoots[] = {&nodes::root_audio_clip};
 
-/// `AudioInputSelector::Value`'s order (`gui/context_menu/audio_input_selector.cpp:76-86`),
+/// `AudioInputSelector::Value`'s order (`gui/context_menu/audio_input_selector.cpp:30-40`),
 /// transcribed here so the spec names rows by meaning rather than by number.
 enum : uint8_t { kOff = 0, kLeft, kRight, kStereo, kBalanced, kMaster, kOutput, kTrack, kOptionCount };
 
@@ -383,7 +383,7 @@ describe audio_source_move("scenes::context_menu the audio-source descriptor: co
 
 			expect(got == want).to_be_true();
 			// The song-wide default is written on every turn, refused ones included -- that is
-			// legacy's shape (`audio_input_selector.cpp:239` is outside every guard), and asserting it
+			// legacy's shape (`audio_input_selector.cpp:193` is outside every guard), and asserting it
 			// is what stops a "tidy" guard being added later.
 			expect(got.song_default == AudioInputChannel::UNSET).to_be_false();
 		}
@@ -399,7 +399,7 @@ describe audio_source_move("scenes::context_menu the audio-source descriptor: co
 		expect(static_cast<int>(cm::context_menu_scene().selection().option)).to_equal(kOutput);
 		r.turn(1, 10);
 		r.shell.tick(15);
-		// `audio_input_selector.cpp:188-191`: `scrollPos = currentOption` on TRACK, so TRACK is the
+		// `audio_input_selector.cpp:142-145`: `scrollPos = currentOption` on TRACK, so TRACK is the
 		// top of the two-row window rather than the bottom the base rule would leave it on.
 		expect(static_cast<int>(cm::context_menu_scene().selection().option)).to_equal(kTrack);
 		expect(static_cast<int>(cm::context_menu_scene().selection().scroll)).to_equal(kTrack);

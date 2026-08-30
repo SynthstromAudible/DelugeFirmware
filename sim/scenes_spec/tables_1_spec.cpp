@@ -458,7 +458,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 
 	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
 		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:360-362`),
-		// and `menuItemHeadingTo` is what `SoundEditor::setup` wrote there (`:1802`). The port's
+		// and `menuItemHeadingTo` is what `SoundEditor::setup` wrote there (`:1804`). The port's
 		// equivalent pair is `MenuState::pending_after_range` and this hook.
 		RangeFixture f{2};
 		menu::MenuState st{};
@@ -489,7 +489,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		expect(f.ctx.range == nullptr).to_be_true();
 
 		expect(menu::ensure_first_range(f.ctx)).to_be_true();
-		// One range now exists, and -- the second half of `:1950-1952`'s `*previouslySelectedRange =
+		// One range now exists, and -- the second half of `:1952-1954`'s `*previouslySelectedRange =
 		// firstRange` -- the context points at it, so a range-dependent item opens rather than
 		// bouncing to a one-row picker.
 		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));

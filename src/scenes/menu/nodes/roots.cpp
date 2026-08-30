@@ -340,7 +340,7 @@ void set_song_threshold_recording(const MenuContext& ctx, int32_t value) {
 // ---------------------------------------------------------------------------------------------
 // Stem export
 //
-// Seven `ToggleBool`s over `stemExport`'s own members (`menus.cpp:2018-2033`); `StemExport` lives
+// Seven `ToggleBool`s over `stemExport`'s own members (`menus.cpp:2020-2035`); `StemExport` lives
 // in `processing/stem_export/`, inside this layer's allow-list, so each is a direct read and write.
 
 #define DELUGE_STEM_TOGGLE(fn, member)                                                                                 \

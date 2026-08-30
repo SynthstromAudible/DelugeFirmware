@@ -940,7 +940,7 @@ void MenuScene::enter_leaf(const Node& node) {
 		break;
 	case Kind::Range: {
 		// `Range::beginSession` (`gui/menu_item/range.cpp:30-33`) is `editingRangeEdge = OFF`, and
-		// `IntegerRange::beginSession` (`integer_range.cpp:63-68`) then takes LEFT when the two ends
+		// `IntegerRange::beginSession` (`integer_range.cpp:26-31`) then takes LEFT when the two ends
 		// differ. `KeyRange` has no override, so it stops at OFF -- which is exactly what
 		// `RangeSpec::focus_left_when_split` says.
 		st_.edit_int = bindings::read(node, ctx_); // the lower edge

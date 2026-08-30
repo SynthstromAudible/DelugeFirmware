@@ -221,51 +221,53 @@ void option_window(OledFrame& f, std::string_view heading, std::span<const std::
 	text(f, Rect{p.x + kOptionHeadingX, p.y + min_y + kOptionHeadingDy, p.w - kOptionHeadingX, line_h}, heading,
 	     TextStyle{.font = font});
 
-	// `AudioInputSelector::renderOLED`'s tail (`audio_input_selector.cpp:279-282`), drawn before the
-	// rows only so the early return below cannot skip it -- legacy calls the base first and then this,
-	// and the two touch different rows (see the `footer` parameter's note in popup.h). Its own left
-	// origin is `kOptionHeadingX`, not the option rows' `invertStartX + 1`.
+	const int32_t n = static_cast<int32_t>(options.size());
+	if (n > 0) {
+		const int32_t cursor = std::clamp<int32_t>(selected, 0, n - 1);
+		// Keep the focused row inside the window, and never start past the end of the list. Legacy's
+		// own `scrollPos` invariant, restated defensively rather than trusted: `selectEncoderAction`
+		// maintains it, but `setupAndCheckAvailability` and a caller restoring saved state both write
+		// the pair directly.
+		const int32_t start =
+		    std::clamp<int32_t>(first, std::max<int32_t>(0, cursor - (kOptionWindowRows - 1)), cursor);
+
+		const int32_t invert_x = p.x + kOptionInvertX;
+		const int32_t invert_w = p.w - kOptionInvertRightInset;
+		// `textPixelX = invertStartX + 1`, plus one character cell in legacy's NO_INVERSION mode.
+		const int32_t text_x = invert_x + 1 + (f.style.invert_highlight ? 0 : spacing_x);
+		const int32_t text_end = p.x + p.w - kOptionTextRightInset;
+
+		for (int32_t o = 0; o < kOptionWindowRows && start + o < n; o++) {
+			const int32_t y = p.y + min_y + kOptionFirstRowDy + o * line_h;
+			const Rect box{text_x, y, text_end - text_x, line_h};
+			if (start + o != cursor) {
+				text(f, box, options[static_cast<size_t>(start + o)], TextStyle{.font = font});
+				continue;
+			}
+			// The focused row: legacy draws the string, then inverts, then arms the side scroller over
+			// the same box. `scroll_text` is the draw and the arming in one call; the inversion is
+			// separate because legacy's is a *different, wider* rectangle than the text box, which
+			// `scroll_text`'s own `highlight` flag cannot express.
+			scroll_text(f, box, options[static_cast<size_t>(cursor)], font, label, allow_motion, /*highlight=*/false);
+			if (f.style.invert_highlight) {
+				f.invert_rounded(Rect{invert_x, y, invert_w, 9});
+			}
+			else {
+				f.vline(invert_x, y, y + 8);
+			}
+		}
+	}
+
+	// `AudioInputSelector::renderOLED` (`audio_input_selector.cpp:222-237`) calls the base renderer
+	// and *then* draws this line, so it is drawn last here too -- ordering, not "different rows", is
+	// what makes it safe, and matching legacy's ordering is what stops that from mattering. It is
+	// not cleared first, exactly as legacy's `drawString` is not. Its left origin is
+	// `kOptionHeadingX`, not the option rows' `invertStartX + 1`, and its right clip is one pixel
+	// wider than theirs.
 	if (!footer.empty()) {
 		const int32_t footer_y = p.y + min_y + kOptionFooterDy + line_h;
 		text(f, Rect{p.x + kOptionHeadingX, footer_y, p.w - kOptionFooterRightInset - kOptionHeadingX, line_h}, footer,
 		     TextStyle{.font = font});
-	}
-
-	const int32_t n = static_cast<int32_t>(options.size());
-	if (n <= 0) {
-		return;
-	}
-	const int32_t cursor = std::clamp<int32_t>(selected, 0, n - 1);
-	// Keep the focused row inside the window, and never start past the end of the list. Legacy's
-	// own `scrollPos` invariant, restated defensively rather than trusted: `selectEncoderAction`
-	// maintains it, but `setupAndCheckAvailability` and a caller restoring saved state both write
-	// the pair directly.
-	const int32_t start = std::clamp<int32_t>(first, std::max<int32_t>(0, cursor - (kOptionWindowRows - 1)), cursor);
-
-	const int32_t invert_x = p.x + kOptionInvertX;
-	const int32_t invert_w = p.w - kOptionInvertRightInset;
-	// `textPixelX = invertStartX + 1`, plus one character cell in legacy's NO_INVERSION mode.
-	const int32_t text_x = invert_x + 1 + (f.style.invert_highlight ? 0 : spacing_x);
-	const int32_t text_end = p.x + p.w - kOptionTextRightInset;
-
-	for (int32_t o = 0; o < kOptionWindowRows && start + o < n; o++) {
-		const int32_t y = p.y + min_y + kOptionFirstRowDy + o * line_h;
-		const Rect box{text_x, y, text_end - text_x, line_h};
-		if (start + o != cursor) {
-			text(f, box, options[static_cast<size_t>(start + o)], TextStyle{.font = font});
-			continue;
-		}
-		// The focused row: legacy draws the string, then inverts, then arms the side scroller over
-		// the same box. `scroll_text` is the draw and the arming in one call; the inversion is
-		// separate because legacy's is a *different, wider* rectangle than the text box, which
-		// `scroll_text`'s own `highlight` flag cannot express.
-		scroll_text(f, box, options[static_cast<size_t>(cursor)], font, label, allow_motion, /*highlight=*/false);
-		if (f.style.invert_highlight) {
-			f.invert_rounded(Rect{invert_x, y, invert_w, 9});
-		}
-		else {
-			f.vline(invert_x, y, y + 8);
-		}
 	}
 }
 

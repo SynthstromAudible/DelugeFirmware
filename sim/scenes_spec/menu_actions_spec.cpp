@@ -63,7 +63,7 @@
 #include "spec/support/spec_main.h"
 
 /// The real `performance_session_view::EditingMode` singleton. Declared bare at global scope
-/// because `gui/ui/menus.cpp:2003` defines it there (that file's `using namespace` lines are what
+/// because `gui/ui/menus.cpp:2005` defines it there (that file's `using namespace` lines are what
 /// make its `menu_item::` spelling work) and `gui/ui/menus.h` does not export it -- the same
 /// situation `tables_3_spec.cpp:589` records for `flashStatusMenu` and friends.
 extern deluge::gui::menu_item::performance_session_view::EditingMode performEditorMenu;
@@ -248,16 +248,20 @@ describe menu_action_seam("scenes::menu action seam", $ {
 		}
 	});
 
-	it("hands a filed request over exactly once", _ {
+	it("empties the outbox on the poll, so one press is not delivered twice", _ {
 		select_language();
 		Rig r;
 		const MenuActionRequest first = press_child(r, nodes::stem_export, nodes::start_stem_export);
 		expect(first.action == MenuAction::StartStemExport).to_be_true();
-		// The outbox is one slot and reading empties it -- a dispatcher that polls every tick must
-		// not see the same export request four times.
+		// Reading empties the slot -- a dispatcher that polls every tick must not see the same export
+		// request four times.
 		expect(scene().take_action().engaged()).to_be_false();
 		r.shell.tick(200);
 		expect(scene().take_action().engaged()).to_be_false();
+		// **This is not an exactly-once guarantee, and the example is not claiming one.**
+		// `take_action()` is a one-slot mailbox with a silent overwrite (see its warning): a caller
+		// that skips a poll gets the request late, and two filed between polls would lose the first.
+		// What is guaranteed, and what is checked here, is that a delivered request is delivered once.
 	});
 
 	it("survives a re-root: a request already accepted is still delivered", _ {

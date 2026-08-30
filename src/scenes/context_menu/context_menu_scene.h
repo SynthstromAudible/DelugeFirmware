@@ -55,14 +55,14 @@ namespace deluge::scenes::context_menu {
 ///
 ///         * It also predicted a dynamic `options_now` hook, "since which inputs are available is a
 ///           runtime question". **It is not.** `AudioInputSelector::getOptions()`
-///           (`audio_input_selector.cpp:123-131`) returns the same eight strings every time and the
+///           (`audio_input_selector.cpp:77-85`) returns the same eight strings every time and the
 ///           class has no `isCurrentOptionAvailable()` override at all. No hook was added, and
 ///           `Descriptor::options`' note on how a dynamic list *would* be spelled still stands
 ///           unused.
 ///         * `padAction` and `getGreyoutColsAndRows` are not descriptor business and no hook is
 ///           offered for them. `getGreyoutColsAndRows` calls
-///           `getRootUI()->getGreyedOutRowsNotRepresentingOutput(audioOutput)` (`:175-178`) and
-///           `padAction` reads `sessionView.getOutputFromPad` (`:245-266`); both are the session
+///           `getRootUI()->getGreyedOutRowsNotRepresentingOutput(audioOutput)` (`:129-132`) and
+///           `padAction` reads `sessionView.getOutputFromPad` (`:199-220`); both are the session
 ///           view's, which this plan does not port. The port greys as the base class does and a pad
 ///           press closes the menu, which is `ContextMenu`'s own behaviour -- the *record-from-this-
 ///           clip's-pad* gesture is the piece that is missing, and it is named here rather than
@@ -126,7 +126,7 @@ struct Descriptor {
 	/// `ContextMenu::setupAndCheckAvailability` walks to the first available option and seeds
 	/// `scrollPos` from it; with availability expressed by compaction that is option 0, which is what
 	/// a null hook means. `AudioInputSelector::setupAndCheckAvailability`
-	/// (`gui/context_menu/audio_input_selector.cpp:133-173`) replaces the walk outright: it maps
+	/// (`gui/context_menu/audio_input_selector.cpp:87-127`) replaces the walk outright: it maps
 	/// `audioOutput->inputChannel` onto its own `Value` enum and puts both `currentOption` and
 	/// `scrollPos` there.
 	///
@@ -136,7 +136,7 @@ struct Descriptor {
 
 	/// @brief Commit-on-turn, or null for a menu that commits only when the accept button is pressed.
 	///
-	/// `AudioInputSelector::selectEncoderAction` (`:180-242`) calls the base and then *writes the
+	/// `AudioInputSelector::selectEncoderAction` (`:134-196`) calls the base and then *writes the
 	/// model* -- `audioOutput->inputChannel`, the recording source, and the
 	/// `defaultAudioOutputInputChannel` global -- so the audio input follows the cursor and backing
 	/// out with BACK leaves the last row you passed through selected. That is legacy's behaviour, not
@@ -144,13 +144,13 @@ struct Descriptor {
 	/// cover.
 	///
 	/// Takes the `Selection` by reference because legacy's override writes `scrollPos` as well
-	/// (`:188-191`: "Keep Track on the first visible row so the selected track name has room below
+	/// (`:142-145`: "Keep Track on the first visible row so the selected track name has room below
 	/// it").
 	void (*on_move)(const menu::MenuContext&, Selection& selection) = nullptr;
 
 	/// @brief An extra line under the option rows, or null for none.
 	///
-	/// `AudioInputSelector::renderOLED` (`:268-283`) draws the base window and then a line naming the
+	/// `AudioInputSelector::renderOLED` (`:222-237`) draws the base window and then a line naming the
 	/// track it is recording from -- only while the channel is `SPECIFIC_OUTPUT`, which is why this
 	/// returns a view rather than being a plain string id: the text is a model object's name, and
 	/// whether there is any at all is a runtime question.
@@ -164,7 +164,7 @@ struct Descriptor {
 /// @brief The scratch a `Descriptor::footer` hook is handed.
 ///
 /// Legacy's own footer is `Output::name.c_str()` or the literal "No track"
-/// (`audio_input_selector.cpp:276-277`), neither of which needs scratch at all; the buffer is here
+/// (`audio_input_selector.cpp:230-231`), neither of which needs scratch at all; the buffer is here
 /// so a later descriptor can format one without this layer allocating. 48 is `notify::Notice`'s own
 /// text slot, the widest single line anything in this stack carries.
 inline constexpr size_t kFooterScratch = 48;

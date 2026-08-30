@@ -1,7 +1,7 @@
 #pragma once
 
 /// @brief The settings root as data (task 8, batch 3) -- `gui/ui/menus.cpp`'s `settingsRootMenu`
-///        literal (`:2150-2166`) and everything under it.
+///        literal (`:2152-2168`) and everything under it.
 ///
 /// Thirteen children, in the literal's own order: the actions page, the CV and gate output
 /// selectors, the trigger-clock page, the MIDI page, the defaults page, the pads page, the sample
@@ -425,7 +425,7 @@ inline constexpr Node cv_transpose = with_title(
     sid(String::STRING_FOR_CV_TRANSPOSE_MENU_TITLE));
 inline constexpr const Node* kCvSubmenuChildren[] = {&cv_volts, &cv_transpose};
 /// `cvSubmenu{STRING_FOR_CV_OUTPUT_N, {&cvVoltsMenu, &cvTransposeMenu}}` (`menus.cpp:1232`). Its
-/// title is a `FormattedTitle` legacy re-formats per output (`setCvNumberForTitle`, `:2314-2316`);
+/// title is a `FormattedTitle` legacy re-formats per output (`setCvNumberForTitle`, `:2316-2318`);
 /// a `Node::title` is one static string id, so the port carries the unformatted "CV OUTPUT N".
 inline constexpr Node cv_submenu = submenu(sid(String::STRING_FOR_CV_OUTPUT_N), kCvSubmenuChildren);
 
@@ -777,15 +777,15 @@ inline constexpr Node default_automation = submenu(sid(String::STRING_FOR_AUTOMA
 /// so the port and legacy edit the same six values.
 ///
 /// The bounds are the constructor arguments and, for the key, `KeyRange::selectEncoderAction`'s own
-/// `KEY_MIN`/`KEY_MAX` locals (`gui/menu_item/key_range.cpp:207-208`) -- `KeyRange` has no
+/// `KEY_MIN`/`KEY_MAX` locals (`gui/menu_item/key_range.cpp:29-30`) -- `KeyRange` has no
 /// `minValue`/`maxValue` members at all.
 /// @{
 inline constexpr IntRange kDefaultTempoRange{60, 240, 1};
 inline constexpr IntRange kDefaultSwingAmountRange{1, 99, 1};
 inline constexpr IntRange kDefaultKeyRange{0, 11, 1};
 
-/// `IntegerRange::getText` (`gui/menu_item/integer_range.cpp:107-132`), which is `intToString` per
-/// end; `KeyRange::getText` (`key_range.cpp:238-278`), the note letter plus an accidental. Bodies in
+/// `IntegerRange::getText` (`gui/menu_item/integer_range.cpp:70-95`), which is `intToString` per
+/// end; `KeyRange::getText` (`key_range.cpp:60-100`), the note letter plus an accidental. Bodies in
 /// the `.cpp`.
 /// @{
 std::string_view format_range_integer(int32_t value, std::span<char> scratch);
@@ -809,7 +809,7 @@ void set_default_key_upper(const MenuContext& ctx, int32_t value);
 /// @}
 
 /// `IntegerRange`: the ends push each other, and opening a split range lands on LEFT
-/// (`gui/menu_item/integer_range.cpp:63-68`, `:76-89`).
+/// (`gui/menu_item/integer_range.cpp:26-31`, `:39-52`).
 inline constexpr RangeSpec kDefaultTempoSpec{.get_upper = get_default_tempo_upper,
                                              .set_upper = set_default_tempo_upper,
                                              .format = format_range_integer,

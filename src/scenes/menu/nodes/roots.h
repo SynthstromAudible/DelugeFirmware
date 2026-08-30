@@ -296,7 +296,7 @@ inline constexpr Node global_sidechain =
     submenu(sid(String::STRING_FOR_SIDECHAIN), kGlobalSidechainChildren, Layout::Horizontal);
 
 // ---------------------------------------------------------------------------------------------
-// The kit-drum root (`soundEditorRootMenuDrum`, `:1805`)
+// The kit-drum root (`soundEditorRootMenuDrum`, `:1807`)
 //
 // Identical to `sound_root` but for its first child: a kit row's actions page renames the *drum*
 // (`drumNameEditMenu`, `:1126`) where a synth's renames the track and the clip.
@@ -323,7 +323,7 @@ inline constexpr const Node* kDrumRootChildren[] = {&drum_actions, &sound_master
 inline constexpr Node root_drum = submenu(sid(String::STRING_FOR_SOUND), kDrumRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The MIDI / CV root (`soundEditorRootMenuMIDIOrCV`, `:1950`)
+// The MIDI / CV root (`soundEditorRootMenuMIDIOrCV`, `:1952`)
 
 inline constexpr const Node* kMidiOrCvActionsChildren[] = {&edit_name};
 inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTIONS), kMidiOrCvActionsChildren);
@@ -353,7 +353,7 @@ inline constexpr Node midi_pgm = with_title(int_item(sid(String::STRING_FOR_PGM)
                                                      kMidiPresetRange, Hint::None, relevance::is_midi_out),
                                             sid(String::STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE));
 inline constexpr const Node* kMidiProgramChildren[] = {&midi_bank, &midi_sub_bank, &midi_pgm};
-/// `midiProgramMenu` (`:1933`) is a `HorizontalMenu` whose name *is* its title
+/// `midiProgramMenu` (`:1935`) is a `HorizontalMenu` whose name *is* its title
 /// (`STRING_FOR_MIDI_PROGRAM_MENU_TITLE`, the only string its constructor is given), FIXED layout
 /// with two slots -- and `Layout::FIXED` has no `Node::Layout` spelling (`sound_fx.h`'s note).
 inline constexpr Node midi_program =
@@ -407,14 +407,14 @@ inline constexpr Node root_cv = submenu(sid(String::STRING_FOR_CV_INSTRUMENT), k
 const Node& midi_or_cv_root(const MenuContext& ctx);
 
 // ---------------------------------------------------------------------------------------------
-// The MIDI-drum and gate-drum roots (`:1967`, `:1975`)
+// The MIDI-drum and gate-drum roots (`:1969`, `:1977`)
 
 inline constexpr const Node* kNonAudioDrumRootChildren[] = {&drum_actions, &arp_midi, &randomizer};
 inline constexpr Node root_midi_drum = submenu(sid(String::STRING_FOR_MIDI), kNonAudioDrumRootChildren);
 inline constexpr Node root_gate_drum = submenu(sid(String::STRING_FOR_GATE), kNonAudioDrumRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The audio-clip root (`soundEditorRootMenuAudioClip`, `:1985`)
+// The audio-clip root (`soundEditorRootMenuAudioClip`, `:1987`)
 
 inline constexpr Node set_clip_length =
     custom(sid(String::STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH), &kSetClipLengthItem);
@@ -468,7 +468,7 @@ inline constexpr const Node* kAudioClipRootChildren[] = {
 inline constexpr Node root_audio_clip = submenu(sid(String::STRING_FOR_AUDIO_CLIP), kAudioClipRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The performance-view root (`soundEditorRootMenuPerformanceView`, `:2006`)
+// The performance-view root (`soundEditorRootMenuPerformanceView`, `:2008`)
 
 inline constexpr Node perform_editor = custom(sid(String::STRING_FOR_PERFORM_EDITOR), &kPerformEditorItem);
 
@@ -476,7 +476,7 @@ inline constexpr const Node* kPerformanceRootChildren[] = {&perform_editor, &glo
 inline constexpr Node root_performance = submenu(sid(String::STRING_FOR_PERFORM_FX), kPerformanceRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// Stem export (`:2016-2067`), shared by the song and kit-global-FX roots
+// Stem export (`:2018-2069`), shared by the song and kit-global-FX roots
 
 inline constexpr Node start_stem_export = custom(sid(String::STRING_FOR_START_EXPORT), &kStartStemExportItem);
 inline constexpr Node stem_normalization = toggle_item(sid(String::STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION),
@@ -510,7 +510,7 @@ inline constexpr const Node* kKitFxStemExportChildren[] = {&start_stem_export, &
 inline constexpr Node kit_fx_stem_export = submenu(sid(String::STRING_FOR_EXPORT_AUDIO), kKitFxStemExportChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The song root (`soundEditorRootMenuSongView`, `:2083`)
+// The song root (`soundEditorRootMenuSongView`, `:2085`)
 
 /// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`swing/interval.h:26`) rather than
 /// `NUM_SYNC_VALUES`, the same kind of override `sidechain::Sync` makes.
@@ -543,7 +543,7 @@ inline constexpr const Node* kSongRootChildren[] = {&song_master,           &glo
 inline constexpr Node root_song = submenu(sid(String::STRING_FOR_SONG), kSongRootChildren);
 
 // ---------------------------------------------------------------------------------------------
-// The kit global-FX root (`soundEditorRootMenuKitGlobalFX`, `:2136`)
+// The kit global-FX root (`soundEditorRootMenuKitGlobalFX`, `:2138`)
 
 inline constexpr const Node* kKitFxActionsChildren[] = {&edit_name, &kit_fx_stem_export};
 inline constexpr Node kit_fx_actions = submenu(sid(String::STRING_FOR_ACTIONS), kKitFxActionsChildren);

@@ -353,33 +353,33 @@ Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Ra
 			switch (edge) {
 			case RangeEdge::Left:
 				if (clamp == RangeClamp::Push) {
-					// `IntegerRange::selectEncoderAction` (`integer_range.cpp:76-81`).
+					// `IntegerRange::selectEncoderAction` (`integer_range.cpp:39-44`).
 					lower = add_clamped(lower, delta, range);
 					if (upper < lower) {
 						upper = lower;
 					}
 				}
 				else {
-					// `KeyRange::selectEncoderAction` (`key_range.cpp:214-217`): the *other end* is
+					// `KeyRange::selectEncoderAction` (`key_range.cpp:36-39`): the *other end* is
 					// the ceiling, so `Range::max` never enters this arm.
 					lower = add_clamped(lower, delta, Range{range.min, upper, range.step});
 				}
 				break;
 			case RangeEdge::Right:
 				if (clamp == RangeClamp::Push) {
-					// `integer_range.cpp:84-89`.
+					// `integer_range.cpp:47-52`.
 					upper = add_clamped(upper, delta, range);
 					if (upper < lower) {
 						lower = upper;
 					}
 				}
 				else {
-					// `key_range.cpp:219-221`.
+					// `key_range.cpp:41-43`.
 					upper = add_clamped(upper, delta, Range{lower, range.max, range.step});
 				}
 				break;
 			case RangeEdge::Off:
-				// `integer_range.cpp:94-104` / `key_range.cpp:226-235`, which are the same statement
+				// `integer_range.cpp:57-67` / `key_range.cpp:48-57`, which are the same statement
 				// in both subclasses: with no edge selected a split range refuses to move at all,
 				// and a coincident one moves as one value.
 				if (lower == upper) {

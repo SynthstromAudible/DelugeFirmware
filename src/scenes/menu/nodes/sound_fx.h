@@ -4,7 +4,7 @@
 ///        mod FX, distortion) plus the noise level, which is task 6's own node.
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
-/// `gui/ui/menus.cpp`'s `soundFXMenu` literal (`:1749-1760`) and the page literals it names.
+/// `gui/ui/menus.cpp`'s `soundFXMenu` literal (`:1751-1762`) and the page literals it names.
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
@@ -51,7 +51,7 @@
 /// | `wavefold` | `foldMenu` (`:887`) | `patched_param::Integer`, `LOCAL_FOLD`, BAR | Int (param) |
 /// | `distortion` | `soundDistortionMenu` (`:890`) | `HorizontalMenu` | Submenu (Horizontal) |
 /// | `noise` | `noiseMenu` | `patched_param::IntegerNonFM` -- **task 6's**, `sound_osc.h` | Int (param) |
-/// | `sound_fx` | `soundFXMenu` (`:1749`) | `Submenu` | Submenu (Vertical) |
+/// | `sound_fx` | `soundFXMenu` (`:1751`) | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
 /// @note **The reverb is engine-wide, not per-clip.** Every `reverb::*` item but the amount reads

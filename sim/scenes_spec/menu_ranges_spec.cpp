@@ -292,14 +292,14 @@ describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 
 	it("takes its bounds from the real legacy objects", _ {
 		// `IntegerRange`'s bounds are constructor arguments and are readable; `KeyRange` has none at
-		// all -- `selectEncoderAction` uses two locals (`key_range.cpp:207-208`) -- so that one is
+		// all -- `selectEncoderAction` uses two locals (`key_range.cpp:29-30`) -- so that one is
 		// transcribed and said to be.
 		expect(nodes::kDefaultTempoRange.min).to_equal(defaultTempoMenu.minValue);
 		expect(nodes::kDefaultTempoRange.max).to_equal(defaultTempoMenu.maxValue);
 		expect(nodes::kDefaultSwingAmountRange.min).to_equal(defaultSwingAmountMenu.minValue);
 		expect(nodes::kDefaultSwingAmountRange.max).to_equal(defaultSwingAmountMenu.maxValue);
-		expect(nodes::kDefaultKeyRange.min).to_equal(0);   // KEY_MIN, `key_range.cpp:207`
-		expect(nodes::kDefaultKeyRange.max).to_equal(11);  // KEY_MAX, `key_range.cpp:208`
+		expect(nodes::kDefaultKeyRange.min).to_equal(0);   // KEY_MIN, `key_range.cpp:29`
+		expect(nodes::kDefaultKeyRange.max).to_equal(11);  // KEY_MAX, `key_range.cpp:30`
 	});
 
 	it("shares its storage with the legacy items, in both directions", _ {
@@ -522,7 +522,7 @@ describe menu_range_edit("scenes::menu Kind::Range -- editing, against legacy", 
 
 	it("seeds the edge on entry exactly as each item's beginSession does", _ {
 		select_language();
-		// `IntegerRange::beginSession` takes LEFT when the ends differ (`integer_range.cpp:63-68`);
+		// `IntegerRange::beginSession` takes LEFT when the ends differ (`integer_range.cpp:26-31`);
 		// `KeyRange` has no override, so `Range::beginSession`'s bare OFF stands (`range.cpp:30-33`).
 		// Both sides driven, per item, for both a split and a coincident pair.
 		struct Seed {
