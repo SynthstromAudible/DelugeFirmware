@@ -1,7 +1,22 @@
 # deluge_scenes -- the first UI layer allowed to include the model (spec E1, ruling Q4).
 # May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, the standard library,
 # and -- being the first model-aware layer -- dsp/**, model/**, modulation/**, playback/**,
-# processing/**, storage/**, io/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise, never hid/.
+# processing/**, storage/**, io/**, gui/l10n/**. Never gui/ otherwise, never hid/.
+#
+# Plus exactly three ROOT-LEVEL app headers, which are named individually because they sit in no
+# allowed subdirectory (E2 task 6 fix round 1, Minor 2):
+#   definitions_cxx.hpp  -- the shared enums/constants every layer below already reads.
+#   deluge.h             -- `Deluge::factoryReset()` only (context_menu/context_menu_scene.cpp).
+#                           A `namespace Deluge` declaration plus C boundary externs; it reaches
+#                           behind no wall this layer may not cross.
+#   version.h            -- `kFirmwareVersionString` (menu/nodes/settings.cpp), a generated header.
+#
+# THIS LIST IS THE AUTHORITY FOR THOSE THREE, and it is enforced by hand. `check_layer_rules.py`'s
+# `scenes-includes-outside` row only matches include paths that contain a `/`, so a root-level
+# header -- allowed or not -- is invisible to it; closing that hole needs a stdlib-vs-project
+# discriminator (`<cstdint>` and `<stdint.h>` are both slash-less) that the checker does not have.
+# A fourth root-level include added here must be justified in this comment or it is a violation
+# nothing will catch.
 # (io/** joined in task 8, for the settings root: `midiEngine`, `MIDIDeviceManager` and
 # `MIDITranspose` -- the state most of the MIDI settings page edits -- live there, and
 # check_layer_rules' own NON_UI glob already counts src/deluge/io/ as non-UI.)

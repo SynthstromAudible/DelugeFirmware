@@ -166,6 +166,13 @@ RULES = [
         # (`processing/source.h`). `menu/context.cpp` cannot resolve `sound->sources[i]`,
         # `source->ranges` or `sound->voicePriority` from a forward declaration, so without this
         # the ported `SoundEditor::setup` could not be written at all.
+        # NOTE (E2 task 6 fix round 1, Minor 2): the pattern's `(?:.*/)` tail means this row only
+        # ever inspects include paths that contain a `/`. A ROOT-LEVEL header -- `definitions_cxx.hpp`,
+        # `deluge.h`, `<version.h>` -- is therefore not gated here at all, whether or not it is
+        # allowed. That is deliberate rather than merely accidental now: dropping the tail would
+        # also flag every standard-library include, and this row has no way to tell `<cstdint>`
+        # from `<stdint.h>`. The authoritative list of root-level headers `src/scenes` may include
+        # is the comment at the top of src/scenes/CMakeLists.txt, enforced by review.
         "scenes-includes-outside",
         "src/scenes/**",
         "include",

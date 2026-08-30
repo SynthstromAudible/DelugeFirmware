@@ -23,9 +23,15 @@
 #include "scenes/profile.h"
 
 #include "ui/core/led_frame.h"
+#include "ui/core/metrics.h"
 #include "ui/oled/popup.h"
 
-#include "deluge.h" // Deluge::factoryReset
+// `Deluge::factoryReset` (`deluge.cpp:219`). `deluge.h` is a ROOT-LEVEL app header, so it is named
+// explicitly in this layer's include allow-list (`src/scenes/CMakeLists.txt`) the way
+// `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. Fix
+// round 1, Minor 2: included rather than re-declared locally, and re-implementing its body here (a
+// notice plus the other four resets) was rejected -- that would fork a legacy composite.
+#include "deluge.h"
 #include "gui/l10n/strings.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
@@ -39,6 +45,7 @@
 namespace deluge::scenes::context_menu {
 
 using deluge::l10n::String;
+using deluge::ui::kFlashTime;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
@@ -98,10 +105,22 @@ constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDesc
     {sid(String::STRING_FOR_ARE_YOU_SURE_QMARK), kConfirmOptions, accept_reset_all},
 }};
 
-/// @brief The back LED's blink period: legacy's `kFlashTime`, the period
-///        `indicator_leds::blinkLed(IndicatorLED::BACK)` (`ContextMenu::focusRegained`) runs at.
-///        The same number `MenuScene::leds` uses, for the same call.
-constexpr uint16_t kBackBlinkMs = 110;
+// Fix round 1, Minor 1. `render_oled` materialises `min(options.size(), kMaxOptions)` views while
+// `step()` walks the descriptor's FULL count, so a descriptor with more options than the render
+// arrays hold would let the cursor reach a row that is never drawn -- an invisible selection, and
+// then an accept on it. The ceiling exists because this layer allocates nothing; this is the check
+// that the ceiling is big enough for the table it guards.
+static_assert(
+    [] {
+	    for (const Descriptor& d : kDescriptors) {
+		    if (d.options.size() > kMaxOptions) {
+			    return false;
+		    }
+	    }
+	    return true;
+    }(),
+    "a descriptor carries more options than kMaxOptions: raise kMaxOptions, or render_oled will "
+    "silently truncate a list step() can still walk");
 
 } // namespace
 
@@ -197,8 +216,13 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 	// `ContextMenu::focusRegained`: `indicator_leds::blinkLed(IndicatorLED::BACK)`, and nothing
 	// else. The saving/loading variants also blink SAVE/LOAD and clear the other of the pair, but
 	// no shipped descriptor is one of those.
+	//
+	// The period is `ui::kFlashTime` (`ui/core/metrics.h`), imported rather than re-spelled as a
+	// literal 110: `indicator_leds::blinkLed` runs at exactly that constant
+	// (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`), and `rename_scene.cpp:44`
+	// already imports it this way. (Fix round 1, Minor 3 -- this was a third hand-written copy.)
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
-	            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0});
+	            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, static_cast<uint16_t>(kFlashTime), 0});
 }
 
 Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {

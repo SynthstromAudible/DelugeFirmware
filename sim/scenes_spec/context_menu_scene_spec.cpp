@@ -3,7 +3,7 @@
 ///        -- driven through a real `Shell` over `uitest::FakeSurfaceSet`, and compared pixel for
 ///        pixel against the *real* `gui::context_menu::resetSettings` instance.
 ///
-/// Three halves, as `rename_scene_spec.cpp` has two: the `Descriptor` table (the five
+/// Four parts: the `Descriptor` table (the five
 /// `reset_settings::Reset` items' `getTitle()`/`getOptions()`/`acceptCurrentOption()` as data), the
 /// scene's behaviour (`selectEncoderAction` / `buttonAction` / `padAction` /
 /// `setupAndCheckAvailability` / `getGreyoutColsAndRows`), and the pixels.
@@ -30,8 +30,10 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "hid/display/oled_canvas/canvas.h"
+#include "io/midi/midi_engine.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 
 #include "support/song_fixture.h"
@@ -43,8 +45,10 @@
 #include "cppspec.hpp"
 
 #include <cstdint>
+#include <cstdlib>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "spec/support/spec_main.h"
 
@@ -193,6 +197,104 @@ std::string below_bezel(const std::string& pbm, int visible_top) {
 		at = pbm.find('\n', at) + 1;
 	}
 	return pbm.substr(at);
+}
+
+/// @brief Detach the SD passthrough root for the duration of a driven reset.
+///
+/// `MidiFollow::factoryReset` starts with `unlink("SETTINGS/MIDIFollow.XML")`
+/// (`midi_follow.cpp:130`) and `MIDIDeviceManager::factoryReset` with the same call for
+/// `MIDIDevices.XML` -- and on the host `deluge_efatfs_unlink` is a real `::unlink` under
+/// `$DELUGE_SD_ROOT` (`src/bsp/host/host_efatfs_passthrough.cpp:652-660`). The aggregate
+/// `scenes_spec` ctest row points that at `tests/fixtures/card`, which **contains a
+/// version-controlled `SETTINGS/MIDIFollow.XML`**: driving the reset with the root attached would
+/// delete a tracked fixture and make the suite non-idempotent. Unset, every filesystem call
+/// returns `DELUGE_ERR_IO` (`:658`), which is the "no such file" path both routines already
+/// document as harmless -- so the resets run exactly their in-memory half, deterministically,
+/// whether or not the row that invoked this spec set the variable.
+struct NoSdRoot {
+	std::string saved;
+	bool had;
+	NoSdRoot() {
+		const char* root = std::getenv("DELUGE_SD_ROOT");
+		had = root != nullptr;
+		if (had) {
+			saved = root;
+		}
+		(void)::unsetenv("DELUGE_SD_ROOT");
+	}
+	~NoSdRoot() {
+		if (had) {
+			(void)::setenv("DELUGE_SD_ROOT", saved.c_str(), 1);
+		}
+	}
+	NoSdRoot(const NoSdRoot&) = delete;
+	NoSdRoot& operator=(const NoSdRoot&) = delete;
+};
+
+/// @brief The globals the five reset actions are told apart by.
+///
+/// One field per subsystem, chosen so that each action moves its own and leaves the others alone:
+///
+///  - `midi_thru` / `analog_in_ppqn` / `use_sharps` -- `FlashStorage::resetSettings`
+///    (`flash_storage.cpp:285,278,371`), and nothing else writes them.
+///  - `follow_root_note` / `follow_display_param` -- `MidiFollow::factoryReset`
+///    (`midi_follow.cpp:135-136`). `resetSettings` does NOT touch either, which is exactly what
+///    makes them a discriminator.
+///  - `drum_randomizer` -- `RuntimeFeatureSettings::factoryReset`.
+///
+/// This is what turns "the five `accept` pointers are distinct" into "each descriptor reaches the
+/// hook it claims": swap two entries in `kDescriptors` and the port's witness stops matching the
+/// legacy object's for both of them.
+struct ResetWitness {
+	bool midi_thru;
+	uint32_t analog_in_ppqn;
+	bool use_sharps;
+	uint8_t follow_root_note;
+	bool follow_display_param;
+	uint32_t drum_randomizer;
+	bool operator==(const ResetWitness&) const = default;
+};
+
+ResetWitness witness() {
+	return ResetWitness{midiEngine.midiThru,
+	                    playbackHandler.analogInTicksPPQN,
+	                    FlashStorage::defaultUseSharps,
+	                    midiEngine.midiFollowKitRootNote,
+	                    midiEngine.midiFollowDisplayParam,
+	                    runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer)};
+}
+
+void restore(const ResetWitness& w) {
+	midiEngine.midiThru = w.midi_thru;
+	playbackHandler.analogInTicksPPQN = w.analog_in_ppqn;
+	FlashStorage::defaultUseSharps = w.use_sharps;
+	midiEngine.midiFollowKitRootNote = w.follow_root_note;
+	midiEngine.midiFollowDisplayParam = w.follow_display_param;
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::DrumRandomizer, w.drum_randomizer);
+}
+
+/// @brief The state every driven reset starts from: every field moved OFF the value its own reset
+///        writes, so "the reset ran" and "the reset did not run" are always distinguishable.
+constexpr ResetWitness kPerturbed{
+    /*midi_thru=*/true,                                                        // resetSettings writes false
+    /*analog_in_ppqn=*/99,                                                     // ...24
+    /*use_sharps=*/false,                                                      // ...true
+    /*follow_root_note=*/99,                                                   // MidiFollow::factoryReset writes 36
+    /*follow_display_param=*/true,                                             // ...false
+    /*drum_randomizer=*/static_cast<uint32_t>(RuntimeFeatureStateToggle::Off), // ...On
+};
+
+/// @brief Run one legacy reset through the shipped `ResetSettings` object.
+///
+/// The half of `reset_settings::Reset::selectButtonPress` that acts: `setAction` then
+/// `acceptCurrentOption()`, which is the virtual `ContextMenu::buttonAction` calls.
+/// @param action Which reset.
+/// @return The witness afterwards.
+ResetWitness run_legacy(deluge::gui::context_menu::ResetSettingsAction action) {
+	restore(kPerturbed);
+	deluge::gui::context_menu::resetSettings.setAction(action);
+	(void)deluge::gui::context_menu::resetSettings.acceptCurrentOption();
+	return witness();
 }
 
 /// @brief The REAL legacy renderer's output for one reset action, as a PBM.
@@ -495,6 +597,160 @@ describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 	});
 });
 
+describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
+	/// @brief Drive @p id through the real input path and report the witness afterwards.
+	///
+	/// The whole `reset_settings::Reset::selectButtonPress` path the port replaces: open the scene
+	/// on the descriptor, press the select encoder, and let `acceptCurrentOption` close it.
+	static const auto run_ported = [](spec::SongFixture& f, DescriptorId id) {
+		restore(kPerturbed);
+		// The legacy half ran first and every reset raises a notice (`FlashStorage::factoryReset`
+		// and friends all call `notify::notice(...)`). Left queued, the shell would push a notice
+		// overlay on this Rig's very first tick and the stack would still be one deep after the
+		// menu removed itself -- which is correct behaviour (and exactly why `close()` spells
+		// `Remove` rather than `Pop`), but it is not what this example is measuring.
+		deluge::notify::Notice discard;
+		while (deluge::notify::notices().pop(discard)) {}
+		Rig r;
+		r.open(context_of(f), id);
+		r.tick(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.tick(100);
+		return std::pair<ResetWitness, size_t>{witness(), r.shell.stack().depth()};
+	};
+
+	it("runs the flash reset, and only the flash reset, exactly as legacy does", _ {
+		reset_globals();
+		NoSdRoot no_card;
+		const ResetWitness entry = witness();
+		spec::SongFixture f = spec::make_synth_song();
+
+		// `FlashStorage::factoryReset` is `resetSettings()` + `writeSettings()`. On the host the
+		// write goes to a memset-0xFF stub / in-memory buffer (`src/bsp/host/host_bsp.c:916-927`,
+		// `src/bsp/rust/src/flash.rs:67`), so no flash is touched at all -- only C++ globals, which
+		// is why this one CAN be driven. Save/restore around it, the idiom `tables_3_spec.cpp`
+		// already uses for these same globals.
+		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::Flash);
+		const auto [ported, depth] = run_ported(f, DescriptorId::ResetFlash);
+
+		expect(depth).to_equal(size_t(0));            // `acceptCurrentOption` returns false -> exit
+		expect(ported == legacy).to_be_true();        // the whole point: same action, same object
+		expect(legacy == kPerturbed).to_be_false();   // ...and it did something
+
+		// Its own subsystem moved and no other did -- what makes a ResetFlash/ResetMidiFollow swap
+		// fail here rather than pass silently and factory-reset the wrong thing on the device.
+		expect(legacy.midi_thru).to_be_false();
+		expect(static_cast<int>(legacy.analog_in_ppqn)).to_equal(24);
+		expect(legacy.use_sharps).to_be_true();
+		expect(static_cast<int>(legacy.follow_root_note)).to_equal(static_cast<int>(kPerturbed.follow_root_note));
+		expect(legacy.follow_display_param).to_equal(kPerturbed.follow_display_param);
+		expect(static_cast<int>(legacy.drum_randomizer)).to_equal(static_cast<int>(kPerturbed.drum_randomizer));
+
+		restore(entry);
+		reset_globals();
+	});
+
+	it("runs the MIDI-follow reset, and only that, exactly as legacy does", _ {
+		reset_globals();
+		NoSdRoot no_card;
+		const ResetWitness entry = witness();
+		spec::SongFixture f = spec::make_synth_song();
+
+		// `MidiFollow::factoryReset` is an `unlink` its own comment calls harmless when the file is
+		// absent (and `NoSdRoot` makes it absent), five in-memory writes, and a re-read that finds
+		// nothing. All observable, all reversible.
+		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::MidiFollow);
+		const auto [ported, depth] = run_ported(f, DescriptorId::ResetMidiFollow);
+
+		expect(depth).to_equal(size_t(0));
+		expect(ported == legacy).to_be_true();
+		expect(legacy == kPerturbed).to_be_false();
+
+		expect(static_cast<int>(legacy.follow_root_note)).to_equal(36);
+		expect(legacy.follow_display_param).to_be_false();
+		expect(legacy.midi_thru).to_equal(kPerturbed.midi_thru);   // flash untouched
+		expect(static_cast<int>(legacy.analog_in_ppqn)).to_equal(static_cast<int>(kPerturbed.analog_in_ppqn));
+		expect(static_cast<int>(legacy.drum_randomizer)).to_equal(static_cast<int>(kPerturbed.drum_randomizer));
+
+		restore(entry);
+		reset_globals();
+	});
+
+	it("runs the community-features reset, and only that, exactly as legacy does", _ {
+		reset_globals();
+		NoSdRoot no_card;
+		const ResetWitness entry = witness();
+		spec::SongFixture f = spec::make_synth_song();
+
+		const ResetWitness legacy =
+		    run_legacy(deluge::gui::context_menu::ResetSettingsAction::CommunityFeatures);
+		const auto [ported, depth] = run_ported(f, DescriptorId::ResetCommunityFeatures);
+
+		expect(depth).to_equal(size_t(0));
+		expect(ported == legacy).to_be_true();
+		expect(legacy == kPerturbed).to_be_false();
+
+		expect(static_cast<int>(legacy.drum_randomizer))
+		    .to_equal(static_cast<int>(RuntimeFeatureStateToggle::On));
+		expect(legacy.midi_thru).to_equal(kPerturbed.midi_thru);
+		expect(static_cast<int>(legacy.follow_root_note)).to_equal(static_cast<int>(kPerturbed.follow_root_note));
+
+		restore(entry);
+		reset_globals();
+	});
+
+	it("runs the MIDI-devices reset, which touches none of the three above", _ {
+		reset_globals();
+		NoSdRoot no_card;
+		const ResetWitness entry = witness();
+		spec::SongFixture f = spec::make_synth_song();
+
+		// This one is driven for what it does NOT do. `MIDIDeviceManager::factoryReset`
+		// (`midi_device_manager.cpp:506-523`) placement-news over the four global MIDI cable
+		// objects and re-reads the card; none of that reaches a witness field. Asserting the
+		// witness is *unchanged* is still a real discriminator, because `Deluge::factoryReset`
+		// (the only other undriven action) calls `FlashStorage::factoryReset` among its four
+		// (`deluge.cpp:219-225`) and would therefore move the flash fields -- so a
+		// ResetMidiDevices/ResetAll swap fails right here.
+		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::MidiDevices);
+		const auto [ported, depth] = run_ported(f, DescriptorId::ResetMidiDevices);
+
+		expect(depth).to_equal(size_t(0));
+		expect(ported == legacy).to_be_true();
+		expect(legacy == kPerturbed).to_be_true(); // nothing in the witness moved
+
+		restore(entry);
+		reset_globals();
+	});
+
+	it("cannot drive the full factory reset, and pins it by elimination instead", _ {
+		// **The one exclusion.** `Deluge::factoryReset()` is the other four actions back to back
+		// (`deluge.cpp:219-225`), so driving it would run `MIDIDeviceManager::factoryReset`'s
+		// placement-new over the global MIDI cables AND `FlashStorage::resetSettings`' ~60 global
+		// writes in one go -- far more than `ResetWitness` restores, and it would leave this
+		// process' MIDI singletons rebuilt underneath every later example. Not driven.
+		//
+		// What pins it anyway: the four examples above identify their hooks behaviourally
+		// (`ResetFlash`/`ResetMidiFollow`/`ResetCommunityFeatures` each move their own subsystem;
+		// `ResetMidiDevices` moves none), and the table's five `accept` pointers are pairwise
+		// distinct ("gives each one a distinct action"). One entry left, one hook left.
+		//
+		// The residual risk is therefore exactly: a `ResetAll` entry pointing at some SIXTH hook
+		// that is not in the table at all. That is what this asserts is not the case.
+		bool matches_a_known_hook = false;
+		for (int i = 0; i < static_cast<int>(DescriptorId::Count); i++) {
+			if (i == static_cast<int>(DescriptorId::ResetAll)) {
+				continue;
+			}
+			matches_a_known_hook = matches_a_known_hook
+			                       || context_menu::descriptor(DescriptorId::ResetAll).accept
+			                              == context_menu::descriptor(static_cast<DescriptorId>(i)).accept;
+		}
+		expect(matches_a_known_hook).to_be_false();
+		expect(context_menu::descriptor(DescriptorId::ResetAll).accept != nullptr).to_be_true();
+	});
+});
+
 describe cm_pixels("scenes::context_menu::ContextMenuScene pixels", $ {
 	it("draws exactly what the real legacy ResetSettings menu draws", _ {
 		reset_globals();
@@ -562,11 +818,11 @@ describe cm_pixels("scenes::context_menu::ContextMenuScene pixels", $ {
 });
 // clang-format on
 
-/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out here
+/// Seven `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out here
 /// with `add_specs` instead -- as `rename_scene_spec.cpp` does.
 int context_menu_scene_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(cm_descriptors, cm_window, cm_composition, cm_open, cm_input, cm_pixels)
+	               .add_specs(cm_descriptors, cm_window, cm_composition, cm_open, cm_input, cm_actions, cm_pixels)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS
