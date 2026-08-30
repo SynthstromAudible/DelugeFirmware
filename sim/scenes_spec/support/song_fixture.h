@@ -31,13 +31,16 @@
 
 #include "definitions_cxx.hpp"
 #include "memory/general_memory_allocator.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/note/note_row.h"
+#include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
@@ -129,6 +132,55 @@ inline SongFixture make_midi_song() {
 
 	detail::attach(f.song, f.clip, midi, params);
 	f.instrument = midi;
+	return f;
+}
+
+/// @brief A song whose one session clip drives a `CVInstrument` -- the `OutputType::CV` arm of
+///        `setup()`'s "else" branch, which resolves the same way the MIDI one does (no `Sound`, the
+///        clip's own param manager and arp settings).
+inline SongFixture make_cv_song() {
+	SongFixture f;
+	f.song = detail::make_bare_song();
+	f.clip = detail::make_session_clip(f.song);
+
+	ParamManagerForTimeline params;
+	params.setupMIDI();
+	// `createNewInstrument` has no CV arm at all -- it falls through to `Kit`
+	// (`storage/storage_manager.cpp:557-560`); `createNewNonAudioInstrument` is the CV/MIDI one
+	// (`:603`), and is what `Song`'s own CV path uses.
+	auto* cv = static_cast<CVInstrument*>(StorageManager::createNewNonAudioInstrument(OutputType::CV, 0, 0));
+	cv->setChannel(both); // `cv_instrument.h:71-82` -- the dual-channel mode `cv2SourceMenu` needs
+
+	detail::attach(f.song, f.clip, cv, params);
+	f.instrument = cv;
+	return f;
+}
+
+/// @brief A song whose one session clip is an `AudioClip` over a new `AudioOutput`.
+///
+/// The audio-clip root's fixture. `Song::createNewAudioOutput` (`model/song/song.cpp:4898`) is the
+/// model's own recipe and already adds the output to the song; the clip is placed and attached the
+/// way `make_session_clip` places an `InstrumentClip`, with the `GlobalEffectableForClip` param set
+/// the audio-clip menus read.
+struct AudioSongFixture {
+	Song* song = nullptr;
+	AudioClip* clip = nullptr;
+	AudioOutput* output = nullptr;
+};
+
+inline AudioSongFixture make_audio_clip_song() {
+	AudioSongFixture f;
+	f.song = detail::make_bare_song();
+
+	f.clip = detail::place<AudioClip>();
+	f.clip->loopLength = kDefaultClipLength << f.song->insideWorldTickMagnitude;
+	f.clip->paramManager.setupUnpatched();
+	GlobalEffectableForClip::initParams(&f.clip->paramManager);
+	(void)f.song->sessionClips.insertClipAt(f.clip, 0);
+
+	f.output = f.song->createNewAudioOutput();
+	f.clip->output = f.output;
+	f.song->setCurrentClip(f.clip);
 	return f;
 }
 

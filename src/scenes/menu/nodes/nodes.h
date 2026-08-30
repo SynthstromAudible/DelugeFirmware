@@ -38,6 +38,8 @@
 /// lists below serve both.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/roots.h"
+#include "scenes/menu/nodes/settings.h"
 #include "scenes/menu/nodes/sound_actions.h"
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_bend.h"
@@ -122,5 +124,18 @@ inline constexpr std::span<const Node* const> kRangeDependentNodes{kRangeDepende
 /// `scaling_for`).
 inline constexpr const Node* kHalfPrecisionArray[] = {&osc0_pulse_width, &osc1_pulse_width, &comp_threshold};
 inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecisionArray};
+
+/// @brief Every root of the whole application menu, in `MenuContext::Root` order, plus the two
+///        that no `Root` enumerator names.
+///
+/// Task 8's list: the ten roots `MenuScene::roots()` is indexed by (`sound_root` is `Root::Sound`),
+/// then `root_cv` -- the MIDI/CV root's CV-titled twin (`roots.h`'s note) -- so that it too gets a
+/// node id and is validated. This is the span `tables_3_spec` hands `validate_tree`, and what Task
+/// 10's dump walks.
+inline constexpr const Node* kAllRootArray[] = {
+    &sound_root,       &root_drum, &root_midi_or_cv,    &root_midi_drum, &root_gate_drum, &root_audio_clip,
+    &root_performance, &root_song, &root_kit_global_fx, &root_settings,  &root_cv,
+};
+inline constexpr std::span<const Node* const> kAllRoots{kAllRootArray};
 
 } // namespace deluge::scenes::menu::nodes

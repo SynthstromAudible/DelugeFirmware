@@ -42,6 +42,8 @@
 ///     (`validate.h`'s `kMaxCustomItems`).
 ///
 /// plus, beyond §4.4: `MissingTitle` and `NullCustom` (a node that would render nothing),
+/// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
+/// `Binding::updates_reverb_params`),
 /// `PlaceholderCustom` (a node that renders a stand-in for an item E2 still owes -- suppressible,
 /// and only ever suppressed by an E1 spec, `ValidateOptions::allow_placeholder_custom`), and the
 /// two `FlagMismatch` audits (task 6's ruling 4).
@@ -142,7 +144,6 @@ bool is_value_kind(Kind k) {
 	case Kind::Enum:
 	case Kind::Int:
 	case Kind::Decimal:
-	case Kind::Bipolar:
 	case Kind::SyncLevel:
 		return true;
 	default:
@@ -271,6 +272,11 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		}
 		else if (is_value_kind(n.kind) && !n.bind.param.valid() && n.bind.get == nullptr) {
 			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
+		}
+
+		// A `set` hook plus `updates_reverb_params` is a silent no-op -- see `Flag::ReverbUpdateWithHook`.
+		if (n.bind.updates_reverb_params && n.bind.set != nullptr) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::ReverbUpdateWithHook));
 		}
 
 		if (n.kind == Kind::Custom) {

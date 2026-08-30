@@ -28,6 +28,8 @@
 
 #include "scenes/menu/menu_scene.h"
 
+#include "scenes/menu/nodes/nodes.h" // `roots()`' table (task 8)
+
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/shortcuts.h"
@@ -248,7 +250,14 @@ std::span<const Node* const> MenuScene::roots() {
 	// One slot per `MenuContext::Root`, all null until Tasks 6-8 write the tables. Declared now so
 	// `on_enter`'s "arg 0 means the root the context chose" rule has somewhere to look, and so
 	// filling it in is a change to this array alone.
-	static const Node* const kRoots[static_cast<size_t>(MenuContext::Root::Count)] = {};
+	// Task 8: one node per `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the
+	// MIDI-titled spelling of that root -- the title `menus.cpp`'s constructor gives it; a caller
+	// on a CV output takes `nodes::midi_or_cv_root(ctx)` instead (`nodes/roots.h`'s note).
+	static const Node* const kRoots[static_cast<size_t>(MenuContext::Root::Count)] = {
+	    &nodes::sound_root,         &nodes::root_drum,       &nodes::root_midi_or_cv,  &nodes::root_midi_drum,
+	    &nodes::root_gate_drum,     &nodes::root_audio_clip, &nodes::root_performance, &nodes::root_song,
+	    &nodes::root_kit_global_fx, &nodes::root_settings,
+	};
 	return kRoots;
 }
 
@@ -769,13 +778,8 @@ void MenuScene::enter_child(const Node& child) {
 		break;
 	}
 
-	if (child.kind == Kind::Action) {
-		// An action runs where it stands; there is nothing to descend into.
-		if (child.bind.set != nullptr) {
-			child.bind.set(ctx_, 0);
-		}
-		return;
-	}
+	// (Task 8 removed `Kind::Action` -- no table declares one, see `node.h`'s `Kind`. The arm that
+	// ran an action in place rather than descending went with it.)
 	if (st_.depth + 1 >= kMenuDepth) {
 		return;
 	}

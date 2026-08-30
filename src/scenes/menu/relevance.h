@@ -260,6 +260,34 @@ bool per_finger_bend(const MenuContext& ctx);
 bool output_midi_note(const MenuContext& ctx);
 /// @}
 
+/// @name Batch-3 predicates -- the settings root and the nine other roots (Task 8)
+/// @{
+
+/// @brief Is the output a MIDI instrument? The override shared by `midi::Preset`
+///        (`gui/menu_item/midi/preset.h:31-33`, i.e. the bank / sub-bank / PGM items),
+///        `midi::MPEYToModWheel` (`midi/y_axis_to_cc1.h:29-33`), `submenu::PolyMonoConversion`
+///        (`submenu/MPE.h:22-26`), `device_definition::DeviceDefinitionSubmenu`
+///        (`midi/device_definition/submenu.h:22-25`), `Linked` (`linked.h:44-47`) and
+///        `HideUnlabeled` (`hide_unlabeled.h:33-36`) -- six items, one test.
+bool is_midi_out(const MenuContext& ctx);
+
+/// @brief Is this a CV output whose channel is `both`? `cv::DualCVSelection::isRelevant`
+///        (`gui/menu_item/cv/cv2Mapping.h:44-48`) -- the CV2 source picker only applies to the
+///        dual-channel CV instrument.
+bool cv2_dual(const MenuContext& ctx);
+
+/// @brief Is the battery readout switched on? `battery::Level::isRelevant`
+///        (`gui/menu_item/battery/level.h:25-27`), i.e.
+///        `runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel)`.
+bool battery_shown(const MenuContext& ctx);
+
+/// @brief Is the audio clip's output recording from one specific track?
+///        `audio_clip::SpecificSourceOutputSelector::isRelevant`
+///        (`gui/menu_item/audio_clip/specific_output_source_selector.h:86-89`):
+///        `AudioOutput::inputChannel == AudioInputChannel::SPECIFIC_OUTPUT`.
+bool audio_source_is_specific(const MenuContext& ctx);
+/// @}
+
 /// @brief One `{predicate, name}` row of the registry `name_of` searches.
 struct NamedPredicate {
 	RelevantFn fn;

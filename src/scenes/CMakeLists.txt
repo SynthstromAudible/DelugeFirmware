@@ -1,7 +1,10 @@
 # deluge_scenes -- the first UI layer allowed to include the model (spec E1, ruling Q4).
 # May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, the standard library,
 # and -- being the first model-aware layer -- dsp/**, model/**, modulation/**, playback/**,
-# processing/**, storage/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise, never hid/.
+# processing/**, storage/**, io/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise, never hid/.
+# (io/** joined in task 8, for the settings root: `midiEngine`, `MIDIDeviceManager` and
+# `MIDITranspose` -- the state most of the MIDI settings page edits -- live there, and
+# check_layer_rules' own NON_UI glob already counts src/deluge/io/ as non-UI.)
 # (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions.
 # dsp/** joined in task 7, for the one type audio_engine.h only forward declares,
 # `deluge::dsp::Reverb`, which menu/relevance.cpp asks `getModel()` of -- see the note on the
@@ -25,6 +28,9 @@ add_library(deluge_scenes STATIC
     # The `Node` literals themselves live in the matching menu/nodes/sound_*.h headers as
     # `inline constexpr` (fix round 1, I3, so Task 9's constexpr shortcut tables can take their
     # addresses); these translation units hold the get/set hook bodies and the exported root spans.
+    # batch 3 (task 8) is the settings root and the nine other roots `SoundEditor::setup` can open.
+    menu/nodes/roots.cpp
+    menu/nodes/settings.cpp
     menu/nodes/sound_actions.cpp
     menu/nodes/sound_arp.cpp
     menu/nodes/sound_bend.cpp

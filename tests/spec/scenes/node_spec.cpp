@@ -93,9 +93,6 @@ constexpr DynamicNamesFn node_spec_dyn_names_fn = +[](const MenuContext&, std::s
 constexpr Node node_spec_dyn_enum = dynamic_enumeration(22, node_spec_dyn_names_fn, node_spec_get, node_spec_set);
 static_assert(node_spec_dyn_enum.bind.dynamic_names == node_spec_dyn_names_fn);
 
-constexpr Node node_spec_action = action(23, node_spec_set);
-static_assert(node_spec_action.bind.set == node_spec_set);
-
 constexpr Node node_spec_custom = custom(24, &node_spec_null_item);
 static_assert(node_spec_custom.custom == &node_spec_null_item);
 
@@ -136,12 +133,9 @@ describe scenes_node("scenes::menu::Node builders", $ {
 		expect(e.bind.dynamic_names == names_fn).to_be_true();
 		expect(e.bind.names.empty()).to_be_true();
 	});
-	it("action fills bind.set only, and custom fills the custom pointer", _ {
-		Node a = action(9, node_spec_set);
-		expect(a.kind == Kind::Action).to_be_true();
-		expect(a.bind.set == node_spec_set).to_be_true();
-		expect(a.bind.get == nullptr).to_be_true();
-
+	it("custom fills the custom pointer", _ {
+		// (`action()` and `Kind::Action` were removed in task 8: no table declares one. See
+		// `node.h`'s `Kind`.)
 		Node c = custom(10, &node_spec_null_item);
 		expect(c.kind == Kind::Custom).to_be_true();
 		expect(c.custom == &node_spec_null_item).to_be_true();

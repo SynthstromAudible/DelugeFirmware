@@ -41,21 +41,33 @@ namespace deluge::scenes::menu {
 
 /// @brief What a `Node` is: which builder made it, and (with `Hint`) which widget renders it.
 ///
-/// A `Kind` exists only if at least 3 items in E1's own tables use it (spec E §4's rule, checked
-/// in Task 8); `Bipolar`/`Range`/`MultiRange`/`Colour` are declared now for the tree shape but
-/// their interpreters land in E2.
+/// A `Kind` exists only if at least 3 items in E1's own tables use it -- spec E §4's rule, and
+/// **Task 8 applied it**: with all eleven roots declared, `sim/scenes_spec/tables_3_spec.cpp`
+/// counts the nodes of each kind across `nodes::kAllRoots` and fails below three.
+///
+/// Five enumerators did not survive that count and were removed rather than left as speculation:
+///
+///   * `Bipolar`, `Range`, `MultiRange`, `Colour` -- zero nodes each, and no interpreter. The
+///     legacy items that would have wanted them are all E2's bespoke ones (`menu_item::Bipolar`,
+///     `IntegerRange`/`KeyRange`, `multi_range.h`, `menu_item::Colour`), and every one of those is
+///     a `Kind::Custom` placeholder in E1 because its state lives behind the `gui/` wall.
+///   * `Action` -- zero nodes. Every legacy `MenuItem` whose select press *does* something rather
+///     than editing a value (the five reset items, stem-export start, the MIDI-learn commands, the
+///     audio-clip length and source pickers, the two song context menus) reaches a UI this layer
+///     may not touch, so all of them are `Kind::Custom` placeholders too. `MenuScene::enter_child`
+///     lost its one-line action arm with it; E2 reintroduces both together if its own items need
+///     them.
+///
+/// `SyncLevel` was confirmed by the same count (the delay, sidechain, reverb-sidechain and
+/// arpeggiator syncs, the song swing interval, the default swing interval and the record
+/// quantization -- well past three).
 enum class Kind : uint8_t {
 	Submenu,
 	Toggle,
 	Enum,
 	Int,
 	Decimal,
-	Bipolar,
-	Range,
-	MultiRange,
-	Colour,
 	SyncLevel,
-	Action,
 	Custom,
 };
 
@@ -380,16 +392,6 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 	n.bind.get = get;
 	n.bind.set = set;
 	n.bind.fixed_range = r;
-	n.relevant = rel;
-	return n;
-}
-
-constexpr Node action(uint16_t name, SetFn run, RelevantFn rel = nullptr) {
-	Node n{};
-	n.name = name;
-	n.title = name;
-	n.kind = Kind::Action;
-	n.bind.set = run;
 	n.relevant = rel;
 	return n;
 }

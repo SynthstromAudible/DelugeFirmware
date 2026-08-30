@@ -37,11 +37,14 @@
 #include "definitions_cxx.hpp"
 #include "dsp/reverb/reverb.hpp" // dsp::Reverb::Model -- audio_engine.h only forward declares it
 #include "model/drum/drum.h"
+#include "model/instrument/cv_instrument.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/output.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "modulation/arpeggiator.h"
+#include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
@@ -464,6 +467,35 @@ bool output_midi_note(const MenuContext& ctx) {
 	return is_kit_row(ctx) && !non_audio_drum_row(ctx);
 }
 
+// --- Batch 3 (Task 8) -------------------------------------------------------------------------
+
+bool is_midi_out(const MenuContext& ctx) {
+	return ctx.output != nullptr && ctx.output->type == OutputType::MIDI_OUT;
+}
+
+bool cv2_dual(const MenuContext& ctx) {
+	// `cv::DualCVSelection::isRelevant` (`gui/menu_item/cv/cv2Mapping.h:44-48`): a CV output whose
+	// `getChannel()` is `both`. `CVInstrument` is `model/instrument/cv_instrument.h`, inside this
+	// layer's allow-list, so the test is the legacy one verbatim.
+	if (ctx.output == nullptr || ctx.output->type != OutputType::CV) {
+		return false;
+	}
+	return static_cast<CVInstrument*>(ctx.output)->getChannel() == both;
+}
+
+bool audio_source_is_specific(const MenuContext& ctx) {
+	if (ctx.output == nullptr || ctx.output->type != OutputType::AUDIO) {
+		return false;
+	}
+	return static_cast<AudioOutput*>(ctx.output)->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT;
+}
+
+bool battery_shown(const MenuContext& /*ctx*/) {
+	// `battery::Level::isRelevant` (`gui/menu_item/battery/level.h:25-27`). A global read rather
+	// than a context one -- the runtime feature settings are device-wide, exactly as legacy has it.
+	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
+}
+
 // ---------------------------------------------------------------------------------------------
 // The registry (Task 10's dump)
 //
@@ -480,7 +512,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 57> kRegistry{
+constexpr std::array<NamedPredicate, 61> kRegistry{
     DELUGE_RELEVANCE_ROW(has_lpf),
     DELUGE_RELEVANCE_ROW(has_hpf),
     DELUGE_RELEVANCE_ROW(is_fm),
@@ -538,13 +570,17 @@ constexpr std::array<NamedPredicate, 57> kRegistry{
     DELUGE_RELEVANCE_ROW(bend_submenu),
     DELUGE_RELEVANCE_ROW(per_finger_bend),
     DELUGE_RELEVANCE_ROW(output_midi_note),
+    DELUGE_RELEVANCE_ROW(is_midi_out),
+    DELUGE_RELEVANCE_ROW(cv2_dual),
+    DELUGE_RELEVANCE_ROW(battery_shown),
+    DELUGE_RELEVANCE_ROW(audio_source_is_specific),
 };
 
 #undef DELUGE_RELEVANCE_ROW
 
 // One row per predicate declared in `relevance.h`: batch 1's seven sound-wide and ten per-source
-// pairs (27), plus batch 2's thirty.
-static_assert(kRegistry.size() == 57);
+// pairs (27), plus batch 2's thirty, plus batch 3's four.
+static_assert(kRegistry.size() == 61);
 
 } // namespace
 

@@ -151,6 +151,13 @@ RULES = [
         # `model/` or `processing/` header completes it, so `menu/relevance.cpp` cannot ask the
         # question at all without this.
         #
+        # `io/**` joined the list in task 8 (spec E1), on that same argument: `check_layer_rules`'s
+        # own NON_UI glob counts `src/deluge/io/` as non-UI, held to the same no-`gui/`, no-`hid/`
+        # rules as `model/`. The settings root is where it became unavoidable -- `midiEngine`
+        # (`io/midi/midi_engine.h`), `MIDIDeviceManager` (`io/midi/midi_device_manager.h`) and
+        # `MIDITranspose` (`io/midi/midi_transpose.h`) hold the state seven of the MIDI page's
+        # items edit, and there is no `model/` spelling of any of them.
+        #
         # `processing/**` joined the list in task 3 (spec E1). It is not a widening of what
         # "model-aware" means -- `check_layer_rules`'s own NON_UI glob above already counts
         # `src/deluge/processing/` as non-UI, held to the same no-`gui/`, no-`hid/` rules as
@@ -162,7 +169,7 @@ RULES = [
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|dsp/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|dsp/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (

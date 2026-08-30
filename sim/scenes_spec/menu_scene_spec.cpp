@@ -349,7 +349,14 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, menu::node_id(int_leaf)})).to_be_true();
 		expect(menu_scene().focused() == &int_leaf).to_be_true();
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 60000})).to_be_false();
-		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0})).to_be_false();
+		// Arg 0 means "the root this context chose". Until task 8 filled `MenuScene::roots()` there
+		// was nothing to choose and this refused; now it lands on the application's own root for the
+		// context the fixture resolved -- a synth clip, so `Root::Sound` -- which is a different node
+		// from this spec's hand-built `settings_root`, and that is the point of the check.
+		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0})).to_be_true();
+		expect(menu_scene().focused() == menu::MenuScene::roots()[size_t(menu::MenuContext::Root::Sound)])
+		    .to_be_true();
+		expect(menu_scene().focused() != &settings_root).to_be_true();
 	});
 });
 
