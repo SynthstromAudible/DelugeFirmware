@@ -873,6 +873,7 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
+	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 
 private:
 	// `battery::Level::lastBatteryMV`/`voltageCheckCounter`/`isCharging` (`battery/level.h:71-73`),

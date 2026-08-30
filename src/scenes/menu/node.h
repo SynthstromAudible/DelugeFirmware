@@ -201,6 +201,22 @@ struct CustomItem {
 	virtual deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
 	                                         const MenuContext&, MenuState&) const = 0;
 
+	/// @brief Called when this item becomes the focused node (`MenuScene::enter_leaf`, on `open()`,
+	///        descending into a child, and restoring saved state into a leaf) -- mirroring legacy's
+	///        `MenuItem::beginSession` (`gui/menu_item/menu_item.h`), which every stateful bespoke
+	///        item overrides to (re-)initialise itself before its first render of a visit.
+	///
+	/// Do-nothing default: most items have no state to initialise (`render`'s own arguments are
+	/// enough). Fires once per focus transition, not once per render -- `render_oled`'s `Kind::Custom`
+	/// arm calls only `render`, every tick; this is the one hook a `CustomItem` gets for "I just
+	/// became the screen", the same distinction `beginSession` draws from `drawPixelsForOled` in
+	/// legacy. Named examples this task's foundation exists for: `battery::Level::beginSession`
+	/// resets its charging-heuristic baseline (`battery/level.h:43-51`, and see
+	/// `nodes::BatteryLevelItem::on_focus`); `midi::Command::beginSession` (twelve items) and
+	/// `midi::Devices::beginSession` (which seeds the initially-selected device) are E2's next
+	/// callers.
+	virtual void on_focus(const MenuContext&, MenuState&) const {}
+
 	/// @brief Is this a stand-in for an item E2 still owes, rather than the real thing?
 	///
 	/// E1's tables have to name every legacy bespoke item so the tree's *shape* is complete, but the

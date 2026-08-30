@@ -813,6 +813,28 @@ deluge::ui::shell::Result BatteryLevelItem::handle(const deluge::ui::shell::UiEv
 	return {}; // `battery::Level` has no `buttonAction` override either
 }
 
+void BatteryLevelItem::on_focus(const MenuContext&, MenuState&) const {
+	// `battery::Level::beginSession` (`gui/menu_item/battery/level.h:43-51`): reset the baseline
+	// every time the item becomes focused, not just once for the whole process -- otherwise
+	// leaving the screen and coming back takes the `now - last_check_ms_ >= kChargeCheckMs` branch
+	// in `render()` immediately against a stale baseline from the previous visit, computing a
+	// delta over an arbitrary real-world gap (a spurious `CHG`, or a missed real one).
+	//
+	// `checked_once_ = false` is the whole reset: `on_focus` has no `OledFrame` and so no `now_ms()`
+	// to stamp a fresh baseline with; the next `render()` call (the first of this new visit) takes
+	// the `!checked_once_` branch and captures `last_check_mv_`/`last_check_ms_` off *that* call's
+	// clock instead, deferring the next real check a full `kChargeCheckMs` from the moment the item
+	// actually became visible again -- exactly what legacy's `voltageCheckCounter = 0` guarantees.
+	//
+	// `charging_` is reset too, unlike legacy's `isCharging` (never touched in `beginSession`,
+	// because legacy's `timerCallback` recomputes it before the ~2 s window is up regardless of
+	// visits). Showing a stale charging indicator left over from a previous, unrelated visit would
+	// be actively misleading on the very first render of this one; nothing here is charging until
+	// the reset baseline says so.
+	checked_once_ = false;
+	charging_ = false;
+}
+
 // ---------------------------------------------------------------------------------------------
 
 namespace {

@@ -199,6 +199,7 @@ constexpr Node transpose_leaf = menu::with_range_dependent(
 /// existing recorded golden.
 struct CountingCustom final : menu::CustomItem {
 	mutable int handled = 0;
+	mutable int focused = 0;
 	bool consumes;
 	explicit CountingCustom(bool consumes_back) : consumes(consumes_back) {}
 	void render(deluge::ui::oled::OledFrame&, const MenuContext&, menu::MenuState&) const override {}
@@ -214,6 +215,9 @@ struct CountingCustom final : menu::CustomItem {
 		}
 		return Result::unhandled();
 	}
+	// `on_focus` (fix round 2): counts focus transitions, so the spec can prove it fires once per
+	// `open()`/descent, not once per `render_oled` tick.
+	void on_focus(const MenuContext&, menu::MenuState&) const override { focused++; }
 };
 CountingCustom g_custom_consumes{true};
 CountingCustom g_custom_passes_through{false};
@@ -521,6 +525,74 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		rig.reference.clear();
 		rig.reference.draw_screen_title(deluge::l10n::getView(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE));
 		rig.reference.draw_string_centred_shrink_if_necessary("71% (3750mV) CHG", 22, 18, 20);
+		expect(rig.pbm()).to_equal(rig.reference_pbm());
+	});
+
+	it("CustomItem::on_focus fires once per focus transition, not once per render (fix round 2)", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		g_custom_consumes.focused = 0;
+
+		menu_scene().open(custom_consumes_leaf, ctx);
+		expect(g_custom_consumes.focused).to_equal(1);
+
+		deluge::ui::test::Rig48 rig;
+		for (int i = 0; i < 3; i++) {
+			rig.begin_tick(static_cast<uint32_t>(i * 100));
+			menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+		}
+		// Three renders of the same focus, still one `on_focus` call.
+		expect(g_custom_consumes.focused).to_equal(1);
+
+		// Leaving and coming back is a fresh focus transition, so it fires again.
+		menu_scene().open(settings_root, ctx);
+		menu_scene().open(custom_consumes_leaf, ctx);
+		expect(g_custom_consumes.focused).to_equal(2);
+	});
+
+	it("battery_level's charging baseline resets on refocus, not just once for the process (fix "
+	   "round 2)", _ {
+		// Without `BatteryLevelItem::on_focus` resetting `checked_once_`, leaving the screen and
+		// returning shortly after takes the *stale* baseline's elapsed-time gate -- `now -
+		// last_check_ms_ < kChargeCheckMs` this soon after the last real check -- so `charging_`
+		// stays at whatever it last was, rather than being re-established fresh for this visit.
+		// This example fails (still shows " CHG") if that reset is removed.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+
+		// Visit 1: baseline, then a rise past the threshold -- CHG registers.
+		menu_scene().open(nodes::battery_level, ctx);
+		deluge::ui::test::Rig48 rig;
+		batteryMV = 3700;
+		rig.begin_tick(0);
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame); // baseline
+		batteryMV = 3750;
+		rig.canvas.clear();
+		rig.begin_tick(3000);
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame); // +50 mV, >= 2000 ms later -> CHG
+		rig.reference.clear();
+		rig.reference.draw_screen_title(deluge::l10n::getView(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE));
+		rig.reference.draw_string_centred_shrink_if_necessary("71% (3750mV) CHG", 22, 18, 20);
+		expect(rig.pbm()).to_equal(rig.reference_pbm());
+
+		// Leave: focus something else entirely.
+		menu_scene().open(settings_root, ctx);
+
+		// Return, only 500 ms after the last real check (t=3000) -- too soon for a *fresh* check to
+		// fire on its own, so the only way this render can show no CHG is if re-focusing itself
+		// re-baselined and cleared the stale flag.
+		menu_scene().open(nodes::battery_level, ctx);
+		batteryMV = 3750; // flat -- unchanged since we left
+		rig.canvas.clear();
+		rig.begin_tick(3500);
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+		rig.reference.clear();
+		rig.reference.draw_screen_title(deluge::l10n::getView(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE));
+		rig.reference.draw_string_centred_shrink_if_necessary("71% (3750mV)", 22, 18, 20); // no CHG
 		expect(rig.pbm()).to_equal(rig.reference_pbm());
 	});
 });

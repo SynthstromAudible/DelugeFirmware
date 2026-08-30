@@ -816,6 +816,14 @@ void MenuScene::enter_leaf(const Node& node) {
 		st_.decimal_pos = 0;
 		st_.cursor_blink = deluge::ui::Blink{};
 		break;
+	case Kind::Custom:
+		// `CustomItem::on_focus` -- legacy's `MenuItem::beginSession`. No `bind` to read either way;
+		// unlike the other kinds, a custom item's own state (if it has any) lives on the item, not
+		// in `MenuState`'s shared edit storage.
+		if (node.custom != nullptr) {
+			node.custom->on_focus(ctx_, st_);
+		}
+		break;
 	default:
 		st_.edit_int = bindings::read(node, ctx_);
 		break;
