@@ -1,0 +1,20 @@
+# Level-2 acceptance (task-11 brief): a real shift+pad shortcut jump (pad (8,7) of
+# paramShortcutsForSounds, &lpfFreqMenu) from the sound root, then the generic recipe on the
+# landed-on node.
+0     snapshot idle
+50    button Shift down
+100   pad 8 7 down 64
+120   pad 8 7 up
+130   button Shift up
+140   snapshot after_shortcut
+200   encoder Select +1
+220   snapshot after_select_turn
+300   button SelectEnc down
+320   button SelectEnc up
+340   snapshot after_select_press
+400   encoder GoldUpper +2
+420   snapshot after_gold_turn
+500   button Back down
+520   button Back up
+540   snapshot after_back
+600   quit

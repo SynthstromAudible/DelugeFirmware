@@ -570,9 +570,16 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 	TextScratch scratch;
 	deluge::ui::oled::title(f, text_of(node.title, scratch));
 
-	const deluge::ui::Response r = deluge::ui::oled::int_value(f, deluge::ui::oled::menu_rect(f), st_.edit_int,
-	                                                           bindings::range(node, ctx_), node.bind.style,
-	                                                           /*focused=*/true);
+	// `f.bounds()`, NOT `menu_rect(f)`: `int_value` places its digits at a rect-relative
+	// `kValueY`, calibrated (per its own doc comment) for `rect == f.bounds()` -- exactly the
+	// same reason `render_leaf_decimal` below takes `f.bounds()` rather than `menu_rect(f)`.
+	// Passing `menu_rect(f)` here added `Style::menu_base_y` (14px on the 48-row panel) on top of
+	// `kValueY`'s own offset and pushed the huge digit glyph low enough to clip off the panel's
+	// bottom edge -- caught by task 11's `menu_int` acceptance script/golden, which is the first
+	// place this screen was ever rendered to a `.pbm` and looked at.
+	const deluge::ui::Response r =
+	    deluge::ui::oled::int_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_), node.bind.style,
+	                                /*focused=*/true);
 	st_.render_resp = r;
 	if (r.changed) {
 		st_.value_changed = true;

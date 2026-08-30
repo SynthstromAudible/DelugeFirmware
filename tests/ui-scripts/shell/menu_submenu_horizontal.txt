@@ -1,0 +1,13 @@
+# Level-2 acceptance (task-11 brief): a horizontal Submenu (nodes::lpf), opened directly.
+0     snapshot idle
+100   encoder Select +1
+120   snapshot after_select_turn
+200   button SelectEnc down
+220   button SelectEnc up
+240   snapshot after_select_press
+300   encoder GoldUpper +2
+320   snapshot after_gold_turn
+400   button Back down
+420   button Back up
+440   snapshot after_back
+500   quit
