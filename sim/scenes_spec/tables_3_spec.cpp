@@ -552,10 +552,16 @@ bool value_is_port_owned(const Node& node) {
 ///
 /// `DevSysexSetting::getOptions` renders `onValue`'s eight hex digits
 /// (`runtime_feature/devSysexSetting.cpp:52-59`), and `onValue` is drawn from `getNoise()` whenever
-/// the setting is off (`:36-40`). The port draws its own from the same LCG, so the two strings
-/// differ by design and comparing them would be comparing two random numbers. The *shape* -- "OFF",
-/// then `"on - "` and eight hex digits that are the key a write installs -- is asserted in the
-/// batch-4 group instead, which is the whole of what the string means.
+/// the setting is off (`:36-40`). The port draws its own from the same LCG, so with nothing stored
+/// the two strings differ by design and comparing them would be comparing two random numbers.
+///
+/// @note **This is an exclusion from the sweep, not from comparison.** Both sides adopt a *stored*
+///       key when there is one (`:33-35`), so the batch-4 group's
+///       `formats the dev sysex key exactly as legacy's own intToHex does` stores one first and then
+///       compares the two option lists byte for byte, over five keys chosen to exercise every branch
+///       of `halfByteToHexChar`. That example is what holds the port's digit table to
+///       `util/c_string.cpp`'s; this predicate only keeps the *unstored* case out of a loop that has
+///       no way to seed it.
 bool names_are_random(const Node& node) {
 	return &node == &nodes::feature_dev_sysex;
 }
@@ -3129,8 +3135,13 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		expect(on.size()).to_equal(size_t(13));
 		expect(on.substr(0, 5)).to_equal(std::string{"on - "});
 		expect(on.find('*') == std::string::npos).to_be_true(); // the template's asterisks are gone
+		// UPPERCASE. `intToHex` goes through `halfByteToHexChar` (`util/c_string.cpp:7-14`), which
+		// returns `55 + n` for a digit at or above ten -- `'A'..'F'`. The case is load-bearing:
+		// `hexCharToHalfByte` (`:16-23`) tests `>= 65` and subtracts 55, so a lowercase `'a'` parses
+		// back as 42, and a key the user cannot type back in is not a key. The example below drives
+		// both formatters over one shared value rather than leaving this as a character-set assertion.
 		for (size_t i = 5; i < on.size(); i++) {
-			expect(std::string{"0123456789abcdef"}.find(on[i]) != std::string::npos).to_be_true();
+			expect(std::string{"0123456789ABCDEF"}.find(on[i]) != std::string::npos).to_be_true();
 		}
 
 		// **Quiet-tick coverage.** The key is drawn once and cached, not redrawn per call: a
@@ -3151,7 +3162,7 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		expect(stored != 0).to_be_true();
 		char hex[9] = {};
 		for (int32_t i = 7; i >= 0; i--) {
-			hex[i] = "0123456789abcdef"[(stored >> (4 * (7 - i))) & 15];
+			hex[i] = "0123456789ABCDEF"[(stored >> (4 * (7 - i))) & 15];
 		}
 		expect(on.substr(5)).to_equal(std::string{hex});
 		expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(1));
@@ -3163,6 +3174,61 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, 1);
 		expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(1));
 		expect(legacy_value(dev_sysex)).to_equal(std::optional<int32_t>{1});
+
+		covered.insert(&nodes::feature_dev_sysex);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, saved);
+	});
+
+	it("formats the dev sysex key exactly as legacy's own intToHex does, over the same key", _ {
+		// Fix round 1, Important 1. The shape assertions above pin the port against *itself*; this
+		// pins it against legacy, which is the only thing that catches a wrong digit table.
+		//
+		// The two sides normally hold different keys -- each rolls its own from `getNoise()` while
+		// the setting is off -- which is why `names_are_random` excludes this node from the generic
+		// option-list comparison. But both adopt a *stored* key when there is one
+		// (`DevSysexSetting::readCurrentValue`, `runtime_feature/devSysexSetting.cpp:33-35`, and
+		// `dev_sysex_on_value` in `nodes/settings.cpp`), so storing a key first makes the comparison
+		// exact: same input, two independent formatters, byte-for-byte equal output or a bug.
+		const Root& settings = installed_root("settings");
+		const auto saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
+		auto* dev_sysex = dynamic_cast<legacy::Selection*>(legacy_item_for(nodes::feature_dev_sysex));
+		expect(dev_sysex != nullptr).to_be_true();
+
+		// Keys chosen to exercise every branch of `halfByteToHexChar` (`util/c_string.cpp:7-14`):
+		// digits below ten, digits at or above it, a leading zero nibble, and the all-`F` extreme.
+		for (const uint32_t key : {uint32_t(0x1A2B3C4D), uint32_t(0xABCDEF01), uint32_t(0x0000000F),
+		                           uint32_t(0x7FFFFFFF), uint32_t(0x12345678)}) {
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, key);
+
+			// Each side is driven through its own read first, which is what adopts the stored key --
+			// legacy in `readCurrentValue` (reached here through `legacy_value`, exactly as every
+			// other comparison in this file reaches it), the port in its `get` hook (reached through
+			// `bindings::read`). Neither is handed the other's string, and neither `getOptions` nor
+			// `names` refreshes the key on its own: `getOptions` formats whatever `onValue` already
+			// holds, so skipping the read compares a stale key and silently passes on nothing.
+			expect(legacy_value(dev_sysex)).to_equal(std::optional<int32_t>{1});
+			expect(menu::bindings::read(nodes::feature_dev_sysex, settings.ctx)).to_equal(int32_t(1));
+
+			const auto want = dev_sysex->getOptions(legacy::Selection::OptType::FULL);
+			std::string_view got[menu::kMaxDynamicNames];
+			deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
+			const size_t count = menu::bindings::names(nodes::feature_dev_sysex, settings.ctx, got, scratch);
+
+			expect(count).to_equal(want.size());
+			expect(count).to_equal(size_t(2));
+			expect(std::string{got[0]}).to_equal(std::string{want[0]});
+			expect(std::string{got[1]}).to_equal(std::string{want[1]}); // the whole "on - XXXXXXXX"
+
+			// And say out loud what that equality is worth, so a future reader does not have to
+			// reconstruct it: the digits are upper case, and they are this key's.
+			char hex[9] = {};
+			uint32_t n = key;
+			for (int32_t i = 7; i >= 0; i--) {
+				hex[i] = "0123456789ABCDEF"[n & 15];
+				n >>= 4;
+			}
+			expect(std::string{got[1]}).to_equal(std::string{"on - "} + hex);
+		}
 
 		covered.insert(&nodes::feature_dev_sysex);
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::DevSysexAllowed, saved);
@@ -3199,6 +3265,61 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 
 		covered.insert(&nodes::shortcuts_version);
 		menu::set_shortcuts_version(saved);
+	});
+
+	it("round-trips all six pad colours through writeSettings and readSettings", _ {
+		// Fix round 1, Important 3. Nothing anywhere exercised `FlashStorage::readSettings` /
+		// `writeSettings`, so the byte-166 bug this task fixed (`flash_storage.cpp`, the ONCE colour
+		// read back into FILL) could be reintroduced in silence. It is exactly the kind of bug a
+		// value comparison cannot see: both the port and legacy read `padColours` correctly, and the
+		// loader between flash and that array was the broken part.
+		//
+		// The host BSP backs the settings region with RAM (`src/bsp/host/host_bsp.c`), so this is a
+		// real program/erase/read cycle rather than a stub.
+		uint8_t saved[FlashStorage::NUM_PAD_COLOUR_SLOTS];
+		for (size_t i = 0; i < FlashStorage::NUM_PAD_COLOUR_SLOTS; i++) {
+			saved[i] = FlashStorage::padColours[i];
+		}
+
+		// Six DISTINCT colours, none of them a slot's own default and none repeated -- so a loader
+		// that crosses two slots, drops one, or leaves one at its default is visible. Avoids RED in
+		// both FILL and ONCE, which would trip the deliberate both-red guard
+		// (`flash_storage.cpp`, immediately below the byte-166 branch) and mask the result.
+		const uint8_t written[FlashStorage::NUM_PAD_COLOUR_SLOTS] = {
+		    legacy::Colour::CYAN,  legacy::Colour::PINK,  legacy::Colour::WHITE,
+		    legacy::Colour::AMBER, legacy::Colour::GREEN, legacy::Colour::BLUE,
+		};
+		for (size_t i = 0; i < FlashStorage::NUM_PAD_COLOUR_SLOTS; i++) {
+			FlashStorage::padColours[i] = written[i];
+		}
+
+		FlashStorage::writeSettings();
+		// Scribble over every slot with a value none of them was written as, so a `readSettings`
+		// that simply fails to touch a slot cannot pass by leaving the pre-write value in place.
+		for (size_t i = 0; i < FlashStorage::NUM_PAD_COLOUR_SLOTS; i++) {
+			FlashStorage::padColours[i] = legacy::Colour::MAGENTA;
+		}
+		FlashStorage::readSettings();
+
+		for (size_t i = 0; i < FlashStorage::NUM_PAD_COLOUR_SLOTS; i++) {
+			expect(FlashStorage::padColours[i]).to_equal(written[i]);
+		}
+		// And name the two the bug was actually about, so a failure reads as itself rather than as
+		// "index 5 differs": byte 165 is FILL and byte 166 is ONCE, and each must come back its own.
+		expect(FlashStorage::padColours[FlashStorage::PAD_COLOUR_FILL]).to_equal(uint8_t(legacy::Colour::GREEN));
+		expect(FlashStorage::padColours[FlashStorage::PAD_COLOUR_ONCE]).to_equal(uint8_t(legacy::Colour::BLUE));
+
+		// The port reads the restored bytes, which is the point of the round trip: a colour the user
+		// set survives a power cycle and the menu shows it again.
+		const Root& settings = installed_root("settings");
+		expect(menu::bindings::read(nodes::pad_colour_fill, settings.ctx))
+		    .to_equal(static_cast<int32_t>(legacy::Colour::GREEN));
+		expect(menu::bindings::read(nodes::pad_colour_once, settings.ctx))
+		    .to_equal(static_cast<int32_t>(legacy::Colour::BLUE));
+
+		for (size_t i = 0; i < FlashStorage::NUM_PAD_COLOUR_SLOTS; i++) {
+			FlashStorage::padColours[i] = saved[i];
+		}
 	});
 
 	it("has no placeholder left among the nine, and drove every one of them", _ {

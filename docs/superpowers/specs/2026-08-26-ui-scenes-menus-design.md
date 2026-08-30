@@ -488,6 +488,33 @@ the port fixes as a side effect of porting the predicate correctly, not one this
 patched in `gui/menu_item/`. Recorded here rather than filed, since spec E1's scope is the port, not
 legacy bug triage.
 
+**A second upstream legacy bug, and this one WAS patched — E2 task 11** — `FlashStorage::readSettings`
+(`storage/flash_storage.cpp`, the `buffer[166]` branch) assigned `gui::menu_item::fillColourMenu.value`
+in **both** arms where it meant `onceColourMenu.value`. `writeSettings` stores FILL at byte 165 and
+ONCE at byte 166, so on every boot the ONCE pad colour was discarded and the FILL colour was
+immediately overwritten by ONCE's stored byte. Two tokens, in the exact routine E2 task 11 was
+porting.
+
+*Why patched rather than recorded, when the `AudioRecorder::isRelevant` deref above was recorded.*
+The distinction is not severity, it is whether the port can stand without the fix:
+
+  * `AudioRecorder::isRelevant` is a **predicate the port replaces**. `relevance::is_subtractive`
+    guards the null, so the ported path is already correct and legacy's copy is dead to this plan —
+    patching it would change a code path no ported item runs.
+  * The colour bytes are **shared state the port now reads and writes through the same storage as
+    legacy** (`FlashStorage::padColours`, task 11). The port's six `pad_colour_*` nodes and legacy's
+    six `Colour` items address the identical byte, so shipping the port on top of a loader that
+    mis-assigns that byte would mean shipping a menu item whose value is silently discarded at every
+    boot. There is no version of "port this item correctly" that leaves it.
+
+*It changes shipping firmware behaviour, and there is a migration consequence.* On flash written by
+the buggy firmware, byte 166 holds whatever `onceColourMenu.value` happened to be at write time —
+which is its static-init value, RED, unless the user edited ONCE during that same boot. After the
+fix that byte is read into ONCE, so an upgraded user can boot with **ONCE = RED**. The both-red
+guard immediately below the branch only fires when FILL is red as well, so it does not catch this
+case. It is self-healing the first time the user sets the ONCE colour, and it is stated in
+`CHANGELOG.md` where a release note will find it.
+
 **`selectButtonPress()` chaining, and this is the whole list** — legacy's "select on
 this leaf opens *that* menu" is a per-item `MenuItem* selectButtonPress()` override returning
 another `MenuItem*`; `SoundEditor` navigates to whatever comes back

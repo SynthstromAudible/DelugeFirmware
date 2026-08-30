@@ -913,17 +913,53 @@ int8_t deluge_encoder_take_edges(uint8_t encoder) {
 // flash.h  [stub — settings persistence; back with a host file later]
 // ===========================================================================
 
+// Backed by RAM rather than a file: the region survives for the life of the process, which is
+// exactly what a spec needs to drive `FlashStorage::writeSettings()` and read the same bytes back
+// through `readSettings()`. It does NOT survive a restart, so every process still boots from erased
+// flash (all 0xFF) and takes `readSettings`' "no settings were previously saved" arm, as the
+// no-op stub this replaces always did. Nothing that only ever reads sees a behaviour change.
+//
+// One sector's worth: `writeSettings` erases at 0 and programs 256 bytes there (`flash_storage.cpp`),
+// and no caller addresses anything past that.
+#define HOST_FLASH_BYTES 256
+static uint8_t host_flash[HOST_FLASH_BYTES] = {0}; // filled with 0xFF on first use, see below
+static bool host_flash_initialised = false;
+
+static void host_flash_init(void) {
+	if (!host_flash_initialised) {
+		memset(host_flash, 0xFF, sizeof host_flash); // erased NOR reads as 0xFF
+		host_flash_initialised = true;
+	}
+}
+
 void deluge_flash_read(uint32_t offset, void* dst, uint32_t len) {
-	(void)offset;
-	memset(dst, 0xFF, len); // erased flash reads as 0xFF
+	host_flash_init();
+	memset(dst, 0xFF, len); // anything past the modelled region reads as erased
+	if (offset < HOST_FLASH_BYTES) {
+		uint32_t n = HOST_FLASH_BYTES - offset;
+		memcpy(dst, host_flash + offset, len < n ? len : n);
+	}
 }
 void deluge_flash_erase(uint32_t offset) {
-	(void)offset;
+	(void)offset; // one sector, and it starts at 0
+	host_flash_initialised = false;
+	host_flash_init();
 }
 void deluge_flash_program(uint32_t offset, const void* src, uint32_t len) {
-	(void)offset;
-	(void)src;
-	(void)len;
+	host_flash_init();
+	if (offset >= HOST_FLASH_BYTES) {
+		return;
+	}
+	uint32_t n = HOST_FLASH_BYTES - offset;
+	if (len > n) {
+		len = n;
+	}
+	// NOR programming can only clear bits; AND rather than assign, so a spec that programs a
+	// sector twice without erasing sees what the hardware would do.
+	const uint8_t* bytes = (const uint8_t*)src;
+	for (uint32_t i = 0; i < len; i++) {
+		host_flash[offset + i] &= bytes[i];
+	}
 }
 
 // ===========================================================================

@@ -34,6 +34,33 @@ class MenuScene;
 ///         does) overwrites this, which is the intended behaviour, not a conflict.
 uint16_t assigned_node_ids();
 
+/// @brief **Boot wiring this layer needs and does not do for itself.** Read this before wiring the
+///        scene stack to `deluge.cpp`; each entry is a real setting that silently stays at its
+///        default until someone makes the call.
+///
+/// `assigned_node_ids` above exists because `menu::assign_node_ids` had no caller outside the specs
+/// and three features no-opped on an unnumbered tree. This note is the same hazard, for state that
+/// cannot be fixed the same way -- a function-local static cannot invent a value that lives in
+/// flash.
+///
+///   * **`menu::set_shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut
+///     layout. Legacy loads it in `FlashStorage::readSettings`, which calls
+///     `soundEditor.setShortcutsVersion(buffer[60])` (`storage/flash_storage.cpp`) -- and that
+///     writes `SoundEditor::shortcutsVersion`, a member of a `gui/` class this layer may not name,
+///     so the port keeps its own copy beside the tables the setting selects. **Nothing calls
+///     `menu::set_shortcuts_version` at boot today**, so a user who chose the pre-3.0 layout gets
+///     the current one back on every power-on; `nodes::shortcuts_version` still works within a
+///     session. Whoever owns boot should pass flash byte 60 through
+///     (`ShortcutsVersion::V1` when it is `SHORTCUTS_VERSION_1`, i.e. 0). It is deliberately not
+///     wired from `storage/` -- that would be a storage-depends-on-scenes edge, the wrong
+///     direction. E2 task 11; the tests that cover the setting are
+///     `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and `shortcuts_spec.cpp`'s
+///     `SHORTCUTS_VERSION_1 layer` group.
+///
+/// Nothing else in `src/scenes` is in this position: every other setting the menu tree edits is read
+/// and written through the same `FlashStorage` / `runtimeFeatureSettings` / `midiEngine` global the
+/// existing loader already populates.
+
 /// @brief The application's one menu interpreter.
 ///
 /// A function-local static rather than a namespace-scope object: it must outlive every `Shell`

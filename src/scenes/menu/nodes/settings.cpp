@@ -759,8 +759,18 @@ size_t dev_sysex_names(const MenuContext&, std::span<std::string_view> out) {
 	// whose eight asterisks `intToHex(onValue, &on_val[5])` overwrites (`devSysexSetting.h:39`,
 	// `util/c_string.cpp:25-31`). The buffer is the item's own storage in legacy and this
 	// translation unit's here, because the `std::string_view` handed back must outlive the call.
+	//
+	// **UPPERCASE, and it is not cosmetic.** `intToHex` formats through `halfByteToHexChar`
+	// (`util/c_string.cpp:7-14`), which returns `48 + n` below ten and `55 + n` at or above it --
+	// i.e. `'A'..'F'`, never `'a'..'f'`. The firmware's own parser is the reason it matters:
+	// `hexCharToHalfByte` (`:16-23`) tests `>= 65` and subtracts 55, so a lowercase `'a'` reads
+	// back as 42 rather than 10. A dev-sysex key shown in lowercase is a key that cannot be typed
+	// back in. Transcribed rather than calling `intToHex` because `util/` is not on this layer's
+	// allow-list (see the `jcong` note above); `dev_sysex_names_agree_with_legacy` in
+	// `sim/scenes_spec/tables_3_spec.cpp` drives BOTH formatters over the same key and compares
+	// them, so this table cannot drift from `halfByteToHexChar` unnoticed.
 	static char on_val[] = "on - ********";
-	static constexpr char kHexDigits[] = "0123456789abcdef";
+	static constexpr char kHexDigits[] = "0123456789ABCDEF";
 	auto key = static_cast<uint32_t>(dev_sysex_on_value());
 	for (int32_t i = 7; i >= 0; i--) {
 		on_val[5 + i] = kHexDigits[key & 15];

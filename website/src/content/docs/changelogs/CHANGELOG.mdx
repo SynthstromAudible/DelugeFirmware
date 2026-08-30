@@ -372,6 +372,11 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - Added battery level display in the `SETTINGS` menu showing current battery voltage and percentage on OLED and percentage on 7SEG.
 
+#### <ins>Pad Colours</ins>
+
+- Fixed the `SETTINGS > PADS > COLOURS > ONCE` colour not being saved. The setting was written to flash correctly but read back into the `FILL` colour instead of `ONCE`, so `ONCE` reverted every time the Deluge was powered on, and `FILL` was overwritten with whatever `ONCE` had been.
+  - If you are updating to <Badge text="c1.3" variant="tip" /> from an earlier firmware, your saved `ONCE` colour is not recoverable — earlier firmware never stored the one you chose. **`ONCE` may come up RED on the first boot after updating.** Set `SETTINGS > PADS > COLOURS > ONCE` once and it will be remembered from then on.
+
 ### Sequencer
 
 #### <ins>Arpeggiator</ins>

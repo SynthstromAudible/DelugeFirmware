@@ -308,13 +308,28 @@ This is the pattern for every other bespoke item that opens a UI (the file selec
 marker editor, the loop points, the DX browser, the audio recorder) — all five set the same legacy
 flag beside the same `openUI` call.
 
+## Boot wiring this layer does not do for itself
+
+One thing, and it is easy to miss because everything around it is automatic. **`menu::set_shortcuts_version()`
+(`menu/shortcuts.h`) has no caller at boot.** The shortcut layout is the one menu setting whose value
+does not live in a global the existing settings loader already populates: legacy keeps it in
+`SoundEditor::shortcutsVersion` and loads it in `FlashStorage::readSettings` via
+`soundEditor.setShortcutsVersion(buffer[60])`, and `SoundEditor` is a `gui/` class this layer may not
+name — so the port keeps its own copy beside the tables the setting selects. Consequence today: a
+user who selects the pre-3.0 layout gets the current one back on the next power-on. Whoever wires the
+scene stack to `deluge.cpp` should pass flash byte 60 through. Wiring it from `storage/` instead
+would be a storage-depends-on-scenes edge and is the wrong direction.
+
+The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
+application has to call — that is the file a boot author is already in.
+
 ## E2+ roadmap
 
 E1 ships the menu tree, its interpreter (`MenuScene`), and the ten root tables — the rest of spec E
 (§2's scene inventory: `SessionScene`, `NoteClipScene`, `BrowserScene`, the overlays, …) is later
 work. Within the menu tree itself, carried to E2: `source_shortcut_pads` (needs patch cables); a
-`Kind::Action` re-introduction with its first real consumer; per-pad blink frequency masks; the
-`SHORTCUTS_VERSION_1` pre-3.0 shortcut layer; two context-dependent blink suppressions;
+`Kind::Action` re-introduction with its first real consumer; per-pad blink frequency masks;
+two context-dependent blink suppressions;
 settings-root shortcut jumps (blocked on `MenuContext` gaining an additive `background_root` field
 so it stops conflating "which root menu is open" with "what view is behind it"); the four
 `hid/`-side write side effects a menu write can trigger that `src/scenes` cannot reach directly (pad
