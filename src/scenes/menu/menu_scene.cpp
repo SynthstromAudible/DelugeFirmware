@@ -75,42 +75,28 @@ constexpr RGB kFlashColour{130, 120, 130};
 ///        (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`).
 constexpr uint16_t kBackBlinkMs = 110;
 
-/// @brief Is a free-running blink lit at @p now_ms?
+/// @brief Where @p now_ms falls in the shortcut blink's 200 ms cycle, in milliseconds from its
+///        start.
 ///
-/// `shell/leds.cpp`'s `led_is_on` `Blink` arm -- `(now / period) & 1` -- written in difference
-/// form against `Blink::until_ms`, which `ui/core/state.h:38` defines as the phase *anchor*
-/// rather than a deadline. With the default anchor of 0 the two are the same expression; the
-/// difference form additionally survives the ~49.7-day `uint32_t` wrap, exactly as
-/// `RepaintGate::needs_frame` does.
+/// The cycle is legacy's `shortcutBlinkCounter` pair, not a square wave: `[0, kSourceBlinkMs)` is
+/// the source-pad phase (legacy's even counter, 20 ms arm) and `[kSourceBlinkMs, kBlinkCycleMs)` is
+/// the focused-param phase (the odd counter, 180 ms arm). Written as a difference against
+/// `Blink::until_ms` -- the phase *anchor* (`ui/core/state.h:38`) rather than a deadline -- so it
+/// survives the ~49.7-day `uint32_t` wrap, exactly as `RepaintGate::needs_frame` does.
 ///
-/// @param b      The blink state (period and phase anchor).
+/// @param b      The blink carrying the cycle's phase anchor (`st_.shortcut_blink`).
 /// @param now_ms The tick's clock.
-/// @return True on the even half of the phase; true for a zero period, which has no phase to be
-///         in.
-bool blink_on(const deluge::ui::Blink& b, uint32_t now_ms) {
-	if (b.period_ms == 0) {
-		return true;
-	}
-	return (((now_ms - b.until_ms) / b.period_ms) & 1u) == 0;
+/// @return Milliseconds into the cycle, in `[0, kBlinkCycleMs)`.
+uint32_t blink_phase(const deluge::ui::Blink& b, uint32_t now_ms) {
+	return (now_ms - b.until_ms) % kBlinkCycleMs;
 }
 
-/// @brief Milliseconds until @p b's next phase flip.
+/// @brief Milliseconds from @p phase to the cycle's next phase boundary.
 ///
-/// The scene's copy of `values.cpp`'s `blink_next_flip_in` (a static there, not exported). What it
-/// is *for* is the important part: a free-running blink has to arm the surface's `RepaintGate`, or
-/// the shell's `needs_frame` never fires between unrelated repaints and the blink is a still
-/// picture. `next_timer()` alone is not enough -- it only feeds `Shell::compute_next_wake`, and on
-/// that wake `had_input_` is false and the gate still says "no frame needed".
-///
-/// @param b      The blink state.
-/// @param now_ms The tick's clock.
-/// @return Milliseconds to the flip; a whole period for an unarmed (zero-period) blink.
-uint32_t ms_to_next_flip(const deluge::ui::Blink& b, uint32_t now_ms) {
-	if (b.period_ms == 0) {
-		return 1;
-	}
-	const uint32_t into_phase = (now_ms - b.until_ms) % b.period_ms;
-	return b.period_ms - into_phase;
+/// One of the two arms legacy sets on `TimerName::SHORTCUT_BLINK`: from inside the source phase
+/// that is the 20 ms arm's remainder, from inside the param phase the 180 ms arm's.
+uint32_t ms_to_phase_change(uint32_t phase) {
+	return phase < kSourceBlinkMs ? (kSourceBlinkMs - phase) : (kBlinkCycleMs - phase);
 }
 
 /// @brief Resolve a `Node`'s l10n id to text through the one sanctioned path
@@ -677,12 +663,17 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	}
 	const uint32_t now = f.now_ms();
 
-	// Two cadences, because legacy alternates them on one counter and one `Blink` carries one
-	// period: the focused param's pad at a 180 ms re-arm (`sound_editor.cpp:985`), the patching
-	// sources at 20 ms (`:996`).
+	// ONE 200 ms cycle with two unequal phases, not two independent blinks: legacy alternates the
+	// param flash and the source flash off `shortcutBlinkCounter & 1` (`sound_editor.cpp:974-1000`)
+	// with a 20 ms arm on the source phase and a 180 ms arm on the param phase, precisely so the
+	// two are never lit at the same instant (`:970-971`). `phase` is where in that cycle this tick
+	// falls; the source pads own `[0, kSourceBlinkMs)` and the focused param's pad owns the rest.
+	const uint32_t phase = blink_phase(st_.shortcut_blink, now);
+	const bool source_phase = phase < kSourceBlinkMs;
+
 	const ShortcutPos pos = shortcut_pos(ctx_.root, *node);
 	if (pos.valid) {
-		if (blink_on(st_.shortcut_blink, now)) {
+		if (!source_phase) {
 			(void)f.pad(pos.x, pos.y, kFlashColour);
 		}
 		// **Arming the gate is what makes the blink move.** `next_timer()` only feeds
@@ -690,16 +681,16 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		// `RepaintGate::needs_frame` still says no, so without this the pad would only ever change
 		// on somebody else's repaint. Same shape every animated widget uses -- `decimal_value`
 		// (`ui/oled/values.cpp:179`), `popup`, `scroll_text`, `grid::gesture`.
-		f.gate().request_repaint_after(ms_to_next_flip(st_.shortcut_blink, now), now);
+		f.gate().request_repaint_after(ms_to_phase_change(phase), now);
 	}
 	const std::span<const ShortcutPos> sources = source_shortcut_pads(ctx_.root, *node);
 	if (!sources.empty()) {
-		if (blink_on(st_.source_blink, now)) {
+		if (source_phase) {
 			for (const ShortcutPos& source : sources) {
 				(void)f.pad(source.x, source.y, kFlashColour);
 			}
 		}
-		f.gate().request_repaint_after(ms_to_next_flip(st_.source_blink, now), now);
+		f.gate().request_repaint_after(ms_to_phase_change(phase), now);
 	}
 }
 
@@ -932,7 +923,17 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// `Buttons::isShiftButtonPressed()` (`sound_editor.cpp:1114`); the auditioning half is a UI
 	// mode this layer may not read, so shift is the whole gate.
 	if (event.kind == UiEvent::Kind::Pad && event.on && ctx.shift) {
-		const Node* target = shortcut_node(ctx_.root, ctx.shift, event.x, event.y);
+		// Legacy's second-layer toggle (`sound_editor.cpp:1309-1324`), which is a *double press of
+		// the focused item's own shortcut pad* -- not shift, which is only the gate above. Pressing
+		// any other pad clears it, and a patch-cable item never arms it.
+		const Node* current = focused();
+		const ShortcutPos here = current != nullptr ? shortcut_pos(ctx_.root, *current) : ShortcutPos{};
+		const bool same_pad = here.valid && here.x == event.x && here.y == event.y;
+		const bool is_patch_cable =
+		    current != nullptr && current->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE;
+		st_.second_layer = (same_pad && !is_patch_cable) ? !st_.second_layer : false;
+
+		const Node* target = shortcut_node(ctx_.root, st_.second_layer, event.x, event.y);
 		// A node the registry never numbered cannot be named in a `SceneId`, and `on_enter` would
 		// refuse the id and roll the move back -- so the jump is simply not offered.
 		const uint16_t id = target != nullptr ? node_id(*target) : 0;

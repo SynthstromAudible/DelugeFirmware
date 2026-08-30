@@ -21,10 +21,9 @@ The board-independent vocabulary a `BoardProfile` is built from:
 | `SurfaceRole` | Which surface a UI event/render call targets (`Main`, `Param0..3`, `Aux`, `None`) |
 | `EncoderKind` | `Detented` or `Accelerating` |
 | `ButtonSet` | A `uint64_t`-backed bitset of `ButtonId`s (`has`/`set`/`any`) |
-| `ShortcutTable` | Pad-index -> param-id tables for a shortcut layer (`layer0`, `layer1`; spec E fills it in) |
 | `TextLookup`, `ErrorLookup` | The shell's l10n bridge -- the shell has no l10n of its own |
 | `TextScratch`, `BoardProfile::text_or_digits`/`error_text_or_digits` | The one place those two hooks are read: a null hook renders the id as digits into the caller's `TextScratch`, never an empty string |
-| `BoardProfile` | The full board description: button matrix, LED map, encoder roles/kinds, OLED surface roles and per-surface `Style`, shortcuts, the l10n bridge, and the matrix dimensions |
+| `BoardProfile` | The full board description: button matrix, LED map, encoder roles/kinds, OLED surface roles and per-surface `Style`, the l10n bridge, and the matrix dimensions |
 | `button_name(ButtonId)` | For `.state` files and diagnostics |
 | `FixedVector<T, N>` (`fixed_vector.h`) | A no-heap, fixed-capacity vector; `push_back` fails soft past `N` |
 
@@ -35,9 +34,8 @@ The board-independent vocabulary a `BoardProfile` is built from:
 Concrete board tables (e.g. the Deluge's own matrix/LED/encoder layout) are a later task; Task 1
 is the vocabulary only.
 
-`deluge_profile()` sets `text`, `error_text` and `shortcuts` to nothing on purpose: the
-`l10n::String` table they resolve against is spec E's and wiring the firmware's copy of it to this
-profile is spec F's. Until then every popup string id and error code shows as its own digits --
+`deluge_profile()` sets `text` and `error_text` to nothing on purpose: the `l10n::String` table
+they resolve against is spec E's and wiring the firmware's copy of it to this profile is spec F's. Until then every popup string id and error code shows as its own digits --
 which is what `text_or_digits`/`error_text_or_digits` do with a null hook, and the reason no call
 site is allowed to test the hook itself.
 

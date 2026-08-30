@@ -345,7 +345,9 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 	}
 
 	// --- Every shortcut cell points at a node the tree reaches --------------------------------
-	for (uint8_t root = 0; root < static_cast<uint8_t>(MenuContext::Root::Count); root++) {
+	// Whole-tree only: see `ValidateOptions::skip_shortcut_sweep`.
+	for (uint8_t root = 0; !options.skip_shortcut_sweep && root < static_cast<uint8_t>(MenuContext::Root::Count);
+	     root++) {
 		for (uint8_t layer = 0; layer < 2; layer++) {
 			for (uint8_t y = 0; y < deluge::gfx::grid::kMaxGridRows; y++) {
 				for (uint8_t x = 0; x < deluge::gfx::grid::kMaxGridCols; x++) {

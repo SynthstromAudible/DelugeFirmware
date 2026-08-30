@@ -16,53 +16,261 @@
  */
 
 /// @file
-/// @brief **Stub body (task-5 ruling 1).** See `shortcuts.h` for what this is and what replaces
-///        it.
+/// @brief The seven legacy shortcut tables, transcribed cell by cell as `Node` pointers.
 ///
-/// Task 5 needs `shortcut_node` to *link*, because `MenuScene::handle` calls it; it cannot need
-/// the real tables, because those are built out of Tasks 6-8's nodes. So the whole of this file
-/// is one installable table plus three lookups over it, and every `MenuContext::Root` resolves
-/// through the same one -- there is nothing here for a root to select between yet.
+/// Each table below is written **column-major, exactly as legacy writes it** -- one braced line per
+/// pad column `x`, eight cells `y = 0..7` -- so a reviewer can diff it line for line against
+/// `gui/ui/menus.cpp`. `from_columns` transposes them once, at compile time, into the row-major
+/// `Cells` the lookups index. A `comingSoonMenu` cell becomes `nullptr` (legacy pops up
+/// "unimplemented" and goes nowhere, `sound_editor.cpp:1330`) and says so in the line comment.
 ///
-/// **Task 9 replaces everything below** with the seven real tables
-/// (`gui/ui/sound_editor.cpp:1111-1250`), deletes `set_shortcut_table_for_test` and its
-/// declaration in the header, and re-asserts Task 5's own spec cases against the real data.
+/// The transcription is not trusted on its own: `sim/scenes_spec/shortcuts_spec.cpp` walks every
+/// `(x, y)` of every legacy array and of every port layer and asserts the two agree in both
+/// directions.
+///
+/// @note **The `SHORTCUTS_VERSION_1` layer is not ported.** `SoundEditor::setShortcutsVersion`
+///       (`sound_editor.cpp:111-137`) *mutates* six cells of `paramShortcutsForSounds` and four of
+///       `paramShortcutsForAudioClips` in place when the user selects the pre-3.0 layout. These
+///       tables are the default (`SHORTCUTS_VERSION_3`) layer, which is what the arrays hold as
+///       written. Restoring the alternate layout is E2's, along with the `shortcuts_version`
+///       setting node that selects it.
 
 #include "scenes/menu/shortcuts.h"
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/nodes.h"
+
+#include <array>
+#include <cstddef>
 
 namespace deluge::scenes::menu {
 
 namespace {
 
-/// The one installed table. A span over caller-owned storage; the only writer is the test hook.
-std::span<const Node* const> g_table{};
-uint8_t g_cols = 0;
-uint8_t g_rows = 0;
+namespace n = nodes;
 
-const Node* cell_at(uint8_t x, uint8_t y) {
-	if (g_cols == 0 || g_rows == 0 || x >= g_cols || y >= g_rows) {
+/// @brief One layer, row-major: `cells[y * kShortcutCols + x]`.
+using Cells = std::array<const Node*, static_cast<size_t>(kShortcutCols) * kShortcutRows>;
+
+constexpr size_t cell_index(uint8_t x, uint8_t y) {
+	return static_cast<size_t>(y) * kShortcutCols + x;
+}
+
+/// @brief Transpose a legacy `[x][y]` table into row-major cells.
+constexpr Cells from_columns(const Node* const (&cols)[kShortcutCols][kShortcutRows]) {
+	Cells out{};
+	for (uint8_t x = 0; x < kShortcutCols; x++) {
+		for (uint8_t y = 0; y < kShortcutRows; y++) {
+			out[cell_index(x, y)] = cols[x][y];
+		}
+	}
+	return out;
+}
+
+/// @brief A legacy one-dimensional table, laid into column 11 -- the column
+///        `potentialShortcutPadAction` (`sound_editor.cpp:1277`) and `updatePadLightsFor`
+///        (`:836`, `:848`) index it at.
+constexpr Cells from_column11(const Node* const (&col)[kShortcutRows]) {
+	Cells out{};
+	for (uint8_t y = 0; y < kShortcutRows; y++) {
+		out[cell_index(11, y)] = col[y];
+	}
+	return out;
+}
+
+/// @brief @p base with the name-editor cell swapped for the drum one.
+///
+/// Legacy does this at lookup time rather than in the table: `potentialShortcutPadAction`
+/// (`sound_editor.cpp:1279-1281`, `:1306-1308`) rewrites `editNameMenu` to `drumNameEditMenu` for a
+/// kit output or a non-audio drum row, and `updatePadLightsFor` (`:843-845`, `:858-861`) does the
+/// same on the way back. Baking it into a per-root layer keeps both directions of the lookup pure
+/// table reads, and keeps `shortcut_layer` honest about what a root's grid actually holds.
+constexpr Cells with_drum_name(Cells base) {
+	base[cell_index(11, 5)] = &n::drum_name_edit;
+	return base;
+}
+
+constexpr Cells kNoCells{};
+
+// clang-format off
+
+/// `paramShortcutsForSounds` (`gui/ui/menus.cpp:2172`).
+constexpr const Node* kSoundColumns[kShortcutCols][kShortcutRows] = {
+    {&n::sample0_repeat   , &n::sample0_reverse     , &n::sample0_time_stretch, &n::sample0_pitch_speed, &n::sample0_recorder     , &n::file0_selector     , &n::sample0_interpolation, &n::sample0_start}, // x=0
+    {&n::sample1_repeat   , &n::sample1_reverse     , &n::sample1_time_stretch, &n::sample1_pitch_speed, &n::sample1_recorder     , &n::file1_selector     , &n::sample1_interpolation, &n::sample1_start}, // x=1
+    {&n::source0_volume   , &n::source0_transpose   , &n::osc0_type           , &n::osc0_pulse_width   , &n::osc0_phase           , &n::source0_feedback   , &n::source0_wave_index   , &n::noise}, // x=2
+    {&n::source1_volume   , &n::source1_transpose   , &n::osc1_type           , &n::osc1_pulse_width   , &n::osc1_phase           , &n::source1_feedback   , &n::source1_wave_index   , &n::osc_sync}, // x=3
+    {&n::modulator0_volume, &n::modulator0_transpose, nullptr                 , nullptr                , &n::modulator0_phase_node, &n::modulator0_feedback, nullptr                  , &n::sequence_direction}, // x=4; comingSoonMenu at y=2,3,6
+    {&n::modulator1_volume, &n::modulator1_transpose, nullptr                 , nullptr                , &n::modulator1_phase_node, &n::modulator1_feedback, &n::modulator_dest       , &n::stutter_rate}, // x=5; comingSoonMenu at y=2,3
+    {&n::master_volume    , &n::master_transpose    , &n::vibrato             , &n::master_pan         , &n::synth_mode           , &n::decimation         , &n::bitcrush             , &n::saturation}, // x=6
+    {&n::portamento       , &n::polyphony           , &n::voice_priority      , &n::unison_detune      , &n::unison_count         , &n::comp_threshold     , nullptr                  , &n::wavefold}, // x=7
+    {&n::env1_release     , &n::env1_sustain        , &n::env1_decay          , &n::env1_attack        , &n::lpf_morph            , &n::lpf_mode           , &n::lpf_res              , &n::lpf_freq}, // x=8
+    {&n::env2_release     , &n::env2_sustain        , &n::env2_decay          , &n::env2_attack        , &n::hpf_morph            , &n::hpf_mode           , &n::hpf_res              , &n::hpf_freq}, // x=9
+    {&n::sidechain_release, &n::sidechain_sync      , &n::sidechain_volume    , &n::sidechain_attack   , &n::sidechain_shape      , &n::sidechain_send     , &n::eq_bass              , &n::eq_bass_freq}, // x=10
+    {&n::arp_rate         , &n::arp_sync            , &n::arp_gate            , &n::arp_octaves        , &n::arp_preset           , &n::edit_name          , &n::eq_treble            , &n::eq_treble_freq}, // x=11
+    {&n::lfo1_rate        , &n::lfo1_sync           , &n::lfo1_type           , &n::mod_fx_type        , &n::mod_fx_offset        , &n::mod_fx_feedback    , &n::mod_fx_depth         , &n::mod_fx_rate}, // x=12
+    {&n::lfo2_rate        , &n::lfo2_sync           , &n::lfo2_type           , &n::reverb_amount      , &n::reverb_pan           , &n::reverb_width       , &n::reverb_damping       , &n::reverb_room_size}, // x=13
+    {&n::delay_rate       , &n::delay_sync          , &n::delay_type          , &n::delay_amount       , &n::delay_ping_pong      , nullptr                , nullptr                  , nullptr}, // x=14
+    {nullptr              , &n::spread_velocity     , &n::randomizer_lock     , &n::note_probability   , nullptr                  , nullptr                , nullptr                  , nullptr}, // x=15
+};
+
+/// `paramShortcutsForSoundsSecondLayer` (`gui/ui/menus.cpp:2192`).
+constexpr const Node* kSoundSecondColumns[kShortcutCols][kShortcutRows] = {
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=0
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=1
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=2
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=3
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=4
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, &n::stutter_direction}, // x=5
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=6
+    {nullptr         , &n::voice_count , nullptr       , nullptr        , &n::unison_spread, &n::comp_ratio, nullptr, nullptr}, // x=7
+    {&n::env3_release, &n::env3_sustain, &n::env3_decay, &n::env3_attack, nullptr          , nullptr       , nullptr, nullptr}, // x=8
+    {&n::env4_release, &n::env4_sustain, &n::env4_decay, &n::env4_attack, nullptr          , nullptr       , nullptr, nullptr}, // x=9
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=10
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=11
+    {&n::lfo3_rate   , &n::lfo3_sync   , &n::lfo3_type , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=12
+    {&n::lfo4_rate   , &n::lfo4_sync   , &n::lfo4_type , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=13
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=14
+    {nullptr         , nullptr         , nullptr       , nullptr        , nullptr          , nullptr       , nullptr, nullptr}, // x=15
+};
+
+/// `paramShortcutsForAudioClips` (`gui/ui/menus.cpp:2211`).
+///
+/// `audio_clip_waveform` stands in for `audioClipSampleMarkerEditorMenuEnd`: the port has one
+/// waveform/marker-editor node where legacy has a start and an end item, and only the end one is in
+/// this table under `SHORTCUTS_VERSION_3`.
+constexpr const Node* kAudioClipColumns[kShortcutCols][kShortcutRows] = {
+    {nullptr              , &n::audio_clip_reverse  , nullptr                    , &n::sample0_pitch_speed , nullptr             , &n::file0_selector , &n::audio_clip_interpolation, &n::audio_clip_waveform}, // x=0
+    {nullptr              , &n::audio_clip_reverse  , nullptr                    , &n::sample0_pitch_speed , nullptr             , &n::file0_selector , &n::audio_clip_interpolation, &n::audio_clip_waveform}, // x=1
+    {nullptr              , &n::audio_clip_transpose, nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                     , nullptr}, // x=2
+    {nullptr              , &n::audio_clip_transpose, nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                     , nullptr}, // x=3
+    {nullptr              , nullptr                 , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                     , nullptr}, // x=4
+    {nullptr              , nullptr                 , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                     , &n::stutter_rate}, // x=5
+    {&n::global_level     , &n::audio_clip_transpose, nullptr                    , &n::global_pan          , nullptr             , &n::decimation     , &n::bitcrush                , &n::saturation}, // x=6
+    {nullptr              , nullptr                 , &n::voice_priority         , nullptr                 , nullptr             , &n::comp_threshold , nullptr                     , nullptr}, // x=7; comingSoonMenu at y=7
+    {nullptr              , nullptr                 , nullptr                    , &n::audio_clip_attack   , &n::global_lpf_morph, &n::lpf_mode       , &n::global_lpf_res          , &n::global_lpf_freq}, // x=8
+    {nullptr              , nullptr                 , nullptr                    , &n::audio_clip_attack   , &n::global_hpf_morph, &n::hpf_mode       , &n::global_hpf_res          , &n::global_hpf_freq}, // x=9
+    {&n::sidechain_release, &n::sidechain_sync      , &n::global_sidechain_volume, &n::sidechain_attack    , &n::sidechain_shape , nullptr            , &n::eq_bass                 , &n::eq_bass_freq}, // x=10
+    {nullptr              , nullptr                 , nullptr                    , nullptr                 , nullptr             , &n::edit_name      , &n::eq_treble               , &n::eq_treble_freq}, // x=11
+    {nullptr              , nullptr                 , nullptr                    , &n::mod_fx_type         , &n::mod_fx_offset   , &n::mod_fx_feedback, &n::global_mod_fx_depth     , &n::global_mod_fx_rate}, // x=12
+    {nullptr              , nullptr                 , nullptr                    , &n::global_reverb_amount, &n::reverb_pan      , &n::reverb_width   , &n::reverb_damping          , &n::reverb_room_size}, // x=13
+    {&n::global_delay_rate, &n::delay_sync          , &n::delay_type             , &n::global_delay_amount , &n::delay_ping_pong , nullptr            , nullptr                     , nullptr}, // x=14
+    {nullptr              , nullptr                 , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                     , nullptr}, // x=15
+};
+
+/// `paramShortcutsForSongView` (`gui/ui/menus.cpp:2230`).
+constexpr const Node* kSongColumns[kShortcutCols][kShortcutRows] = {
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=0
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=1
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=2
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=3
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=4
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , &n::stutter_rate}, // x=5
+    {&n::global_level     , nullptr       , nullptr       , &n::global_pan          , nullptr             , &n::decimation     , &n::bitcrush           , nullptr}, // x=6
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , &n::comp_threshold , nullptr                , nullptr}, // x=7
+    {nullptr              , nullptr       , nullptr       , nullptr                 , &n::global_lpf_morph, &n::lpf_mode       , &n::global_lpf_res     , &n::global_lpf_freq}, // x=8
+    {nullptr              , nullptr       , nullptr       , nullptr                 , &n::global_hpf_morph, &n::hpf_mode       , &n::global_hpf_res     , &n::global_hpf_freq}, // x=9
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , &n::eq_bass            , &n::eq_bass_freq}, // x=10
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , &n::eq_treble          , &n::eq_treble_freq}, // x=11
+    {nullptr              , nullptr       , nullptr       , &n::mod_fx_type         , &n::mod_fx_offset   , &n::mod_fx_feedback, &n::global_mod_fx_depth, &n::global_mod_fx_rate}, // x=12
+    {nullptr              , nullptr       , nullptr       , &n::global_reverb_amount, &n::reverb_pan      , &n::reverb_width   , &n::reverb_damping     , &n::reverb_room_size}, // x=13
+    {&n::global_delay_rate, &n::delay_sync, &n::delay_type, &n::global_delay_amount , &n::delay_ping_pong , nullptr            , nullptr                , nullptr}, // x=14
+    {nullptr              , nullptr       , nullptr       , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=15
+};
+
+/// `paramShortcutsForKitGlobalFX` (`gui/ui/menus.cpp:2249`).
+constexpr const Node* kKitGlobalFxColumns[kShortcutCols][kShortcutRows] = {
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=0
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=1
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=2
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=3
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=4
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , nullptr            , nullptr                , nullptr}, // x=5
+    {&n::global_level     , &n::global_pitch   , nullptr                    , &n::global_pan          , nullptr             , &n::decimation     , &n::bitcrush           , nullptr}, // x=6
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , nullptr             , &n::comp_threshold , nullptr                , nullptr}, // x=7
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , &n::global_lpf_morph, &n::lpf_mode       , &n::global_lpf_res     , &n::global_lpf_freq}, // x=8
+    {nullptr              , nullptr            , nullptr                    , nullptr                 , &n::global_hpf_morph, &n::hpf_mode       , &n::global_hpf_res     , &n::global_hpf_freq}, // x=9
+    {&n::sidechain_release, &n::sidechain_sync , &n::global_sidechain_volume, &n::sidechain_attack    , &n::sidechain_shape , nullptr            , &n::eq_bass            , &n::eq_bass_freq}, // x=10
+    {&n::arp_rate         , &n::arp_sync       , &n::arp_gate               , &n::arp_octaves         , &n::arp_preset      , &n::edit_name      , &n::eq_treble          , &n::eq_treble_freq}, // x=11
+    {nullptr              , nullptr            , nullptr                    , &n::mod_fx_type         , &n::mod_fx_offset   , &n::mod_fx_feedback, &n::global_mod_fx_depth, &n::global_mod_fx_rate}, // x=12
+    {nullptr              , nullptr            , nullptr                    , &n::global_reverb_amount, &n::reverb_pan      , &n::reverb_width   , &n::reverb_damping     , &n::reverb_room_size}, // x=13
+    {&n::global_delay_rate, &n::delay_sync     , &n::delay_type             , &n::global_delay_amount , &n::delay_ping_pong , nullptr            , nullptr                , nullptr}, // x=14
+    {nullptr              , &n::spread_velocity, &n::randomizer_lock        , &n::note_probability    , nullptr             , nullptr            , nullptr                , nullptr}, // x=15
+};
+
+/// `midiOrCVParamShortcuts` (`gui/ui/menus.cpp:1200`) -- one column, `y = 0..7`.
+constexpr const Node* kMidiOrCvColumn[kShortcutRows] = {
+    &n::arp_rate_midi, &n::arp_sync, &n::arp_gate_midi, &n::arp_octaves, &n::arp_preset, &n::edit_name, nullptr, nullptr,
+};
+
+/// `gateDrumParamShortcuts` (`gui/ui/menus.cpp:1211`) -- one column, `y = 0..7`.
+constexpr const Node* kGateDrumColumn[kShortcutRows] = {
+    &n::arp_rate_midi, &n::arp_sync, &n::arp_gate_midi, &n::arp_rhythm_midi, &n::arp_mode, &n::drum_name_edit, nullptr, nullptr,
+};
+
+// clang-format on
+
+constexpr Cells kSoundCells = from_columns(kSoundColumns);
+constexpr Cells kSoundSecondCells = from_columns(kSoundSecondColumns);
+constexpr Cells kAudioClipCells = from_columns(kAudioClipColumns);
+constexpr Cells kSongCells = from_columns(kSongColumns);
+constexpr Cells kKitGlobalFxCells = from_columns(kKitGlobalFxColumns);
+constexpr Cells kMidiOrCvCells = from_column11(kMidiOrCvColumn);
+constexpr Cells kGateDrumCells = from_column11(kGateDrumColumn);
+
+// The two drum variants exist only because of the name-editor swap; if the cell they rewrite ever
+// stops being the name editor, the swap is rewriting the wrong pad and this stops the build.
+static_assert(kSoundCells[cell_index(11, 5)] == &n::edit_name);
+static_assert(kMidiOrCvCells[cell_index(11, 5)] == &n::edit_name);
+constexpr Cells kDrumCells = with_drum_name(kSoundCells);
+constexpr Cells kMidiDrumCells = with_drum_name(kMidiOrCvCells);
+
+/// @brief A root's two layers. `second` is `first` for every root without a second legacy table.
+struct Layers {
+	const Cells* first;
+	const Cells* second;
+};
+
+/// @brief Which table each root reads, i.e. legacy's chain of context tests
+///        (`sound_editor.cpp:1140-1170` for the jump, `:812-848` for the blink) resolved once.
+///
+/// * `Sound` / `Drum` -- `paramShortcutsForSounds`, the `else` arm; `Drum` is the kit-drum output
+///   whose name editor is the drum one. Both carry the second layer.
+/// * `MidiOrCv` / `MidiDrum` -- `midiOrCVParamShortcuts`; `MidiDrum` again swaps the name editor.
+/// * `GateDrum` -- `gateDrumParamShortcuts` (`:1277`'s `editingGateDrumRow()`).
+/// * `AudioClip` -- `paramShortcutsForAudioClips`.
+/// * `Performance` / `Song` -- `paramShortcutsForSongView`, legacy's `!rootUIIsClipMinderScreen()`.
+/// * `KitGlobalFx` -- `paramShortcutsForKitGlobalFX` (`setupKitGlobalFXMenu`).
+/// * `Settings` -- nothing, per `updatePadLightsFor`'s `!inSettingsMenu()` guard.
+constexpr Layers kByRoot[static_cast<size_t>(MenuContext::Root::Count)] = {
+    {&kSoundCells, &kSoundSecondCells},       // Sound
+    {&kDrumCells, &kSoundSecondCells},        // Drum
+    {&kMidiOrCvCells, &kMidiOrCvCells},       // MidiOrCv
+    {&kMidiDrumCells, &kMidiDrumCells},       // MidiDrum
+    {&kGateDrumCells, &kGateDrumCells},       // GateDrum
+    {&kAudioClipCells, &kAudioClipCells},     // AudioClip
+    {&kSongCells, &kSongCells},               // Performance
+    {&kSongCells, &kSongCells},               // Song
+    {&kKitGlobalFxCells, &kKitGlobalFxCells}, // KitGlobalFx
+    {&kNoCells, &kNoCells},                   // Settings
+};
+
+const Layers& layers_for(MenuContext::Root root) {
+	const auto i = static_cast<size_t>(root);
+	return i < std::size(kByRoot) ? kByRoot[i] : kByRoot[static_cast<size_t>(MenuContext::Root::Settings)];
+}
+
+const Node* cell_of(const Cells& cells, uint8_t x, uint8_t y) {
+	if (x >= kShortcutCols || y >= kShortcutRows) {
 		return nullptr;
 	}
-	const size_t i = static_cast<size_t>(y) * g_cols + x;
-	return i < g_table.size() ? g_table[i] : nullptr;
+	return cells[cell_index(x, y)];
 }
 
-} // namespace
-
-const Node* shortcut_node(MenuContext::Root /*root*/, bool /*shift*/, uint8_t x, uint8_t y) {
-	// `root` and `shift` are ignored while the table is a single installed one: Task 9's tables
-	// are per-root, and `shift` is what picks between `ShortcutTable::layer0` and `layer1`
-	// (`shell/profile.h:87`). Both parameters are already in the signature so that adding the
-	// tables is a change to this file alone.
-	return cell_at(x, y);
-}
-
-ShortcutPos shortcut_pos(MenuContext::Root /*root*/, const Node& node) {
-	for (uint8_t y = 0; y < g_rows; y++) {
-		for (uint8_t x = 0; x < g_cols; x++) {
-			if (cell_at(x, y) == &node) {
+ShortcutPos find_in(const Cells& cells, const Node& node) {
+	for (uint8_t y = 0; y < kShortcutRows; y++) {
+		for (uint8_t x = 0; x < kShortcutCols; x++) {
+			if (cells[cell_index(x, y)] == &node) {
 				return ShortcutPos{x, y, true};
 			}
 		}
@@ -70,14 +278,42 @@ ShortcutPos shortcut_pos(MenuContext::Root /*root*/, const Node& node) {
 	return ShortcutPos{};
 }
 
-std::span<const ShortcutPos> source_shortcut_pads(MenuContext::Root /*root*/, const Node& /*node*/) {
-	return {};
+} // namespace
+
+std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_layer) {
+	const Layers& l = layers_for(root);
+	return second_layer ? std::span<const Node* const>{*l.second} : std::span<const Node* const>{*l.first};
 }
 
-void set_shortcut_table_for_test(std::span<const Node* const> table, uint8_t cols, uint8_t rows) {
-	g_table = table;
-	g_cols = cols;
-	g_rows = rows;
+const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, uint8_t y) {
+	const Layers& l = layers_for(root);
+	if (second_layer) {
+		// Legacy's own fallback: the second layer *replaces* the cell only where it has one
+		// (`sound_editor.cpp:1320-1323`), so a second press of a pad with no second-layer item
+		// re-opens the first-layer item rather than nothing.
+		if (const Node* second = cell_of(*l.second, x, y); second != nullptr) {
+			return second;
+		}
+	}
+	return cell_of(*l.first, x, y);
+}
+
+ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
+	const Layers& l = layers_for(root);
+	// Second layer first, the order `updatePadLightsFor` scans in (`sound_editor.cpp:867` before
+	// `:872`) -- an item that is in both layers blinks at the pad it is reached from second.
+	if (l.second != l.first) {
+		if (const ShortcutPos pos = find_in(*l.second, node); pos.valid) {
+			return pos;
+		}
+	}
+	return find_in(*l.first, node);
+}
+
+std::span<const ShortcutPos> source_shortcut_pads(MenuContext::Root /*root*/, const Node& /*node*/) {
+	// Empty in E1 -- see the header's note: which sources blink comes from the live patch matrix,
+	// not from a table, and every patch-cable item is a placeholder until E2.
+	return {};
 }
 
 } // namespace deluge::scenes::menu

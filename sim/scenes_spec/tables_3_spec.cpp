@@ -868,7 +868,6 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 
 describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	it("validates every root but settings clean apart from the nine legacy name collisions", _ {
-		menu::set_shortcut_table_for_test({}, 0, 0);
 		std::vector<MenuContext> contexts;
 		std::vector<const Node*> without_settings;
 		for (const Root& root : roots()) {
@@ -884,9 +883,9 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		// between a MIDI and a CV output (`cv2_source`, `is_midi_out`).
 		contexts.push_back(cv_fixture().ctx);
 		install(roots().front().ctx, roots().front().song);
-		const auto issues = menu::validate_tree(without_settings, contexts, nodes::kRangeDependentNodes,
-		                                        nodes::kHalfPrecisionNodes,
-		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
+		const auto issues = menu::validate_tree(
+		    without_settings, contexts, nodes::kRangeDependentNodes, nodes::kHalfPrecisionNodes,
+		    menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
 		size_t duplicates = 0;
 		size_t others = 0;
 		for (const menu::Issue& i : issues) {
@@ -914,7 +913,6 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		// quantified over *pairs*, so those sixteen alone are 120 reports -- past `validate_tree`'s
 		// own 64-issue cap, which would then hide anything else. So the settings tree is validated
 		// here with that one page held out, and the page itself in the next example.
-		menu::set_shortcut_table_for_test({}, 0, 0);
 		const Root& settings = roots().back();
 		install(settings.ctx, settings.song);
 		std::vector<const Node*> without_follow_channel;
@@ -930,8 +928,9 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		add_children_except(nodes::midi_follow, &nodes::midi_follow_channel);
 
 		const MenuContext contexts[] = {settings.ctx};
-		const auto issues = menu::validate_tree(without_follow_channel, contexts, {}, {},
-		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
+		const auto issues = menu::validate_tree(
+		    without_follow_channel, contexts, {}, {},
+		    menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
 		expect(issues.size()).to_equal(size_t(0));
 
 		// Fix round 1, minor 6: passing those three nodes' *children* as roots leaves the three
@@ -951,13 +950,13 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 	});
 
 	it("reports the follow-channel page's sixteen identically named siblings", _ {
-		menu::set_shortcut_table_for_test({}, 0, 0);
 		const Root& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const Node* page[] = {&nodes::midi_follow_channel};
 		const MenuContext contexts[] = {settings.ctx};
-		const auto issues = menu::validate_tree(page, contexts, {}, {},
-		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
+		const auto issues =
+		    menu::validate_tree(page, contexts, {}, {},
+		                        menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
 		// Every issue is the one collision, on the one name id -- the count itself is the 64 cap
 		// (`validate.h`: "a tree with more than 64 problems does not need an exhaustive list"), not a
 		// number worth asserting. E2's formatted-name field on `Node` is what removes these.

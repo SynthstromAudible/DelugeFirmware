@@ -4,16 +4,19 @@
 /// Pure: no model, no `Song`, no `gui/`. The real tables live behind `deluge_scenes`, which this
 /// host suite deliberately never builds (`tests/spec/CMakeLists.txt`); `validate_tree` over the
 /// real batch-1 roots is `sim/scenes_spec/tables_1_spec.cpp`'s job, where a real `MenuContext` can
-/// be resolved. What is checked here is the rule engine itself -- one fake tree that breaks four
-/// rules at once, and one that breaks none.
+/// be resolved, and the real shortcut tables are cross-checked in
+/// `sim/scenes_spec/shortcuts_spec.cpp`. What is checked here is the rule engine itself -- one fake
+/// tree that breaks four rules at once, and one that breaks none -- with the shortcut lookup the
+/// `ShortcutToNothing` rule sweeps supplied by `support/fake_shortcuts.h`.
 
 #include "modulation/params/param.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
-#include "scenes/menu/shortcuts.h"
 #include "scenes/menu/validate.h"
 #include "shell/scene.h" // ui::shell::Result -- CustomItem::handle returns one by value
+
+#include "support/fake_shortcuts.h"
 
 #include "cppspec.hpp"
 

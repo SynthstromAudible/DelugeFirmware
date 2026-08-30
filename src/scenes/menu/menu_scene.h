@@ -63,15 +63,24 @@ inline constexpr size_t kMaxMenuChildren = kMaxDynamicChildren;
 ///        (`horizontal_menu.cpp:477`'s `preparePaging`).
 inline constexpr size_t kMaxMenuColumns = 16;
 
-/// @brief The blink cadences `render_grid` runs, in milliseconds.
+/// @brief The two phases of `render_grid`'s shortcut-blink cycle, in milliseconds.
 ///
-/// Legacy alternates them on one counter (`sound_editor.cpp:974-1000`): the odd counter re-arms
-/// `TimerName::SHORTCUT_BLINK` at 180 ms and flashes the focused param's pad (`:985`), the even
-/// one re-arms at 20 ms and flashes the patching-source pads (`:996`). One `Blink` carries one
-/// period, so the scene keeps two.
+/// **Not two independent blinks, and not one symmetric period.** Legacy runs *one* alternating
+/// cycle off `shortcutBlinkCounter` (`sound_editor.cpp:974-1000`): `counter & 1` selects the phase,
+/// the param phase flashes the focused item's pad and re-arms `TimerName::SHORTCUT_BLINK` at
+/// **180 ms** (`:981-986`), and the source phase flashes the patching-source pads and re-arms at
+/// **20 ms** (`:989-999`). So the cycle is `kSourceBlinkMs + kShortcutBlinkMs` = 200 ms, of which
+/// the source phase is the short leading slice and the param phase is the rest. The two pads are
+/// deliberately never lit at the same instant -- legacy's own comment at `:971` says why ("blinking
+/// two pads on the same row at same time doesn't work").
+///
+/// `MenuState::shortcut_blink` / `source_blink` carry the phase *anchor* (`Blink::until_ms`) for
+/// this cycle rather than two independent square waves; `blink_cycle_ms` and `in_source_phase`
+/// (`menu_scene.cpp`) are what read them.
 /// @{
 inline constexpr uint16_t kShortcutBlinkMs = 180;
 inline constexpr uint16_t kSourceBlinkMs = 20;
+inline constexpr uint32_t kBlinkCycleMs = uint32_t{kSourceBlinkMs} + kShortcutBlinkMs;
 /// @}
 
 /// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
@@ -114,10 +123,17 @@ struct MenuState {
 	/// `decimal_value`'s OLED cursor blink ONLY (`ui/core/state.h:38`; `until_ms` is a phase
 	/// anchor, not a deadline).
 	deluge::ui::Blink cursor_blink{};
-	/// `render_grid`: the focused param's pad, at legacy's 180 ms arm (`sound_editor.cpp:985`).
+	/// `render_grid`: the focused param's pad -- the long phase of the 200 ms cycle
+	/// (`sound_editor.cpp:985`'s 180 ms arm). `until_ms` is the cycle's phase anchor.
 	deluge::ui::Blink shortcut_blink{kShortcutBlinkMs, 0};
-	/// `render_grid`: the patching-source pads, at legacy's 20 ms arm (`sound_editor.cpp:996`).
+	/// `render_grid`: the patching-source pads -- the short leading phase of the same cycle
+	/// (`sound_editor.cpp:996`'s 20 ms arm), sharing `shortcut_blink`'s anchor.
 	deluge::ui::Blink source_blink{kSourceBlinkMs, 0};
+
+	/// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1309-1316`): pressing the focused
+	/// item's own shortcut pad a second time takes the second shortcut layer, and pressing any
+	/// other pad clears it. `handle()` is the only writer.
+	bool second_layer = false;
 
 	// --- what this tick's render observed, for after_render to act on ---
 	/// The widget `Response` the render pass produced (`changed` / `entered`).

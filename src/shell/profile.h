@@ -80,14 +80,6 @@ struct ButtonSet {
 };
 static_assert(static_cast<int>(ButtonId::Count) <= 64);
 
-/// @brief Pad-index -> parameter-id tables for a shortcut layer.
-///
-/// `layer0`/`layer1` are indexed `y * cols + x` (board-defined `cols`); the value is a param id,
-/// or a sentinel the shortcut consumer defines for "no shortcut here". Spec E fills these in.
-struct ShortcutTable {
-	std::span<const uint16_t> layer0, layer1;
-};
-
 /// @brief The shell's l10n bridge: a string id (as stored on disk / baked into a board profile)
 /// to display text. The shell has no l10n of its own; a board profile supplies this bridge, or
 /// `nullptr` to fall back to rendering the id as digits (`BoardProfile::text_or_digits`).
@@ -128,7 +120,6 @@ struct BoardProfile {
 	/// a board with more than one OLED, or a panel-height-64 second frontend, needs a `Style`
 	/// per surface -- `OledSurface::style` (Task 2) is chosen from here at build time).
 	std::span<const Style* const> style_by_index;
-	ShortcutTable shortcuts;
 	TextLookup text;
 	ErrorLookup error_text;
 	uint8_t button_cols, button_rows;

@@ -31,13 +31,18 @@ add_library(deluge_spec STATIC
 # exercises the same object code the device/sim builds ship, just compiled a second time here, the
 # same way host_script_tables.c/host_snapshot.c above are.
 ../../src/scenes/menu/node_id.cpp
-# The menu-tree validator and the shortcut lookup it sweeps (task 6, spec E1). Both are as
-# dependency-free as node_id.cpp above -- validate.cpp's only model include is
-# modulation/params/param.h (for the parameter-space bounds of the BadParamRef rule) and
-# shortcuts.cpp has none at all -- so tests/spec/scenes/validate_spec.cpp can drive them over fake
-# trees and fake contexts without this host suite ever building the model closure.
+# The menu-tree validator (task 6, spec E1). As dependency-free as node_id.cpp above -- its only
+# model include is modulation/params/param.h (for the parameter-space bounds of the BadParamRef
+# rule) -- so tests/spec/scenes/validate_spec.cpp can drive it over fake trees and fake contexts
+# without this host suite ever building the model closure.
 ../../src/scenes/menu/validate.cpp
-../../src/scenes/menu/shortcuts.cpp
+# ... but validate.cpp calls shortcut_node for its ShortcutToNothing rule, and the real
+# src/scenes/menu/shortcuts.cpp is no longer model-free: task 9 filled it with the seven legacy
+# tables as `Node` pointers, which odr-uses every node in scenes/menu/nodes/ and so pulls in the
+# whole model closure those nodes' hooks live in. The host suite links a fake instead (one
+# installable table, the same three entry points), which is what validate_spec drives the rule
+# through; the real tables are cross-checked against legacy in sim/scenes_spec/shortcuts_spec.cpp.
+scenes/support/fake_shortcuts.cpp
 # UI test harness level 0: script parser + .state formatter (dependency-free; also compiled
 # into the host BSP, so it may not include src/shell -- see tests/harness/README.md).
 ../harness/ui_script.cpp

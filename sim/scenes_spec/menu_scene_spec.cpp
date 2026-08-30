@@ -16,6 +16,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
@@ -64,6 +65,8 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
 namespace {
+
+namespace nodes = deluge::scenes::menu::nodes;
 
 /// @brief Per-example reset of the two process-global things a menu touches.
 ///
@@ -182,12 +185,18 @@ constexpr const Node* settings_children[] = {&lpf_page,    &int_leaf,       &dec
                                              &toggle_leaf, &transpose_leaf, &deep_outer};
 constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), settings_children);
 
-constexpr const Node* kRoots[] = {&settings_root};
+/// The synthetic tree above **and** the real sound root: the shortcut examples below press real
+/// pads on the real `Root::Sound` table (task 9 deleted the installable stub table), and a jump
+/// target has to have been given a node id or `handle()` refuses to offer the jump at all.
+constexpr const Node* kRoots[] = {&settings_root, &nodes::sound_root};
 
-/// @brief The two-cell stub shortcut table (task-5 ruling 1): pad (0, 0) is the LPF page, pad
-///        (1, 0) the `Int` leaf. Task 9 replaces `shortcuts.cpp`'s body with the seven real
-///        tables and deletes the hook this uses.
-constexpr const Node* kShortcutCells[] = {&lpf_page, &int_leaf};
+/// @brief Two real cells of `paramShortcutsForSounds`, and the second-layer cell that shares one of
+///        their pads (`gui/ui/menus.cpp:2172`, `:2192`).
+/// @{
+constexpr uint8_t kLpfFreqX = 8, kLpfFreqY = 7; ///< `&lpfFreqMenu`
+constexpr uint8_t kEnv1RelX = 8, kEnv1RelY = 0; ///< `&env1ReleaseMenu`, second layer `&env3ReleaseMenu`
+constexpr uint8_t kHpfFreqX = 9, kHpfFreqY = 7; ///< `&hpfFreqMenu`
+/// @}
 
 // ---------------------------------------------------------------------------------------------
 
@@ -427,7 +436,6 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		menu::set_shortcut_table_for_test(kShortcutCells, /*cols=*/2, /*rows=*/1);
 		r.shell.tick(0);
 		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(settings_root))) != std::string::npos)
 		    .to_be_true();
@@ -436,22 +444,48 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// router applies it, and `on_enter` re-targets on the way back in -- so `SceneId::arg`, and
 		// therefore `state_lines()`, stay truthful about which node is open.
 		r.button(kShiftX, kShiftY, true, 10);
-		r.pad(1, 0, 64, 20);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
 		r.shell.tick(30);
-		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 		expect(depth_of()).to_equal(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
-		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(int_leaf))) != std::string::npos)
+		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(nodes::lpf_freq)))
+		       != std::string::npos)
 		    .to_be_true();
 
 		// Without shift the pad is not a shortcut (`sound_editor.cpp:1114`'s
 		// `Buttons::isShiftButtonPressed()` gate), and nothing moves.
 		r.button(kShiftX, kShiftY, false, 40);
-		r.pad(0, 0, 64, 50);
+		r.pad(kHpfFreqX, kHpfFreqY, 64, 50);
 		r.shell.tick(60);
-		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+	});
 
-		menu::set_shortcut_table_for_test({}, 0, 0);
+	it("takes the second shortcut layer only on a second press of the focused item's own pad", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+
+		// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1309-1324`) -- and the reason
+		// `shortcut_node`'s second argument is NOT "shift is held": shift is held throughout here.
+		r.button(kShiftX, kShiftY, true, 0);
+		r.pad(kEnv1RelX, kEnv1RelY, 64, 10);
+		r.shell.tick(20);
+		expect(menu_scene().focused() == &nodes::env1_release).to_be_true();
+
+		// Same pad again: the second layer's `&env3ReleaseMenu`.
+		r.pad(kEnv1RelX, kEnv1RelY, 64, 30);
+		r.shell.tick(40);
+		expect(menu_scene().focused() == &nodes::env3_release).to_be_true();
+
+		// A different pad clears the toggle, so the pad after it is first-layer again.
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 50);
+		r.shell.tick(60);
+		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+		r.pad(kEnv1RelX, kEnv1RelY, 64, 70);
+		r.shell.tick(80);
+		expect(menu_scene().focused() == &nodes::env1_release).to_be_true();
 	});
 
 	it("returns one Replace action naming the target's node id", _ {
@@ -459,20 +493,18 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		menu::set_shortcut_table_for_test(kShortcutCells, /*cols=*/2, /*rows=*/1);
 
 		DirectCtx shifted(/*shift=*/true);
 		const Result res = menu_scene().handle(
-		    UiEvent{.kind = UiEvent::Kind::Pad, .x = 1, .y = 0, .velocity = 64, .on = true}, shifted.ctx);
+		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kLpfFreqX, .y = kLpfFreqY, .velocity = 64, .on = true},
+		    shifted.ctx);
 		expect(res.handled).to_be_true();
 		expect(res.actions.size()).to_equal(size_t(1));
 		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Replace));
 		expect(static_cast<int>(res.actions[0].id.kind)).to_equal(static_cast<int>(SceneKind::FirstApp));
-		expect(static_cast<int>(res.actions[0].id.arg)).to_equal(static_cast<int>(menu::node_id(int_leaf)));
+		expect(static_cast<int>(res.actions[0].id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::lpf_freq)));
 		// `handle()` itself moves nothing: the router's Replace does, through `on_enter`.
 		expect(menu_scene().focused() == &settings_root).to_be_true();
-
-		menu::set_shortcut_table_for_test({}, 0, 0);
 	});
 
 	it("a MustSelectRange node is recorded as pending and is not entered", _ {
@@ -747,16 +779,15 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		menu::set_shortcut_table_for_test(kShortcutCells, /*cols=*/2, /*rows=*/1);
-		// Jump to the Int leaf, whose shortcut cell is (1, 0). Through the shell, because the jump
-		// is a `Replace` the router applies -- `handle()` alone moves nothing.
+		// Jump to `lpfFreqMenu`'s real cell, (8, 7) of `paramShortcutsForSounds`. Through the shell,
+		// because the jump is a `Replace` the router applies -- `handle()` alone moves nothing.
 		r.button(kShiftX, kShiftY, true, 0);
-		r.pad(1, 0, 64, 1);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
 		r.shell.tick(2);
-		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 
 		deluge::ui::test::GridRig grid;
-		grid.begin_tick(0); // phase 0 of the 180 ms cadence: lit
+		grid.begin_tick(menu::kSourceBlinkMs); // the param phase of the cycle: lit
 		menu_scene().render_grid(grid.frame);
 
 		int painted = 0;
@@ -765,48 +796,77 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 				const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
 				if (c.r != 0 || c.g != 0 || c.b != 0) {
 					painted++;
-					expect(x).to_equal(1);
-					expect(y).to_equal(0);
+					expect(x).to_equal(int32_t{kLpfFreqX});
+					expect(y).to_equal(int32_t{kLpfFreqY});
 				}
 			}
 		}
 		expect(painted).to_equal(1);
 		expect(grid.ctx.claims.any()).to_be_false();
-
-		menu::set_shortcut_table_for_test({}, 0, 0);
 	});
 
-	it("arms the grid gate so the blink flips across a 180 ms boundary", _ {
+	it("runs legacy's two-phase 200 ms cycle, not a symmetric 180 ms one", _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		menu::set_shortcut_table_for_test(kShortcutCells, /*cols=*/2, /*rows=*/1);
-		// Jump to the Int leaf so its shortcut cell (1, 0) is the focused pad.
 		r.button(kShiftX, kShiftY, true, 0);
-		r.pad(1, 0, 64, 1);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
+		r.shell.tick(2);
+		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+
+		// `SoundEditor::blinkShortcut` (`sound_editor.cpp:974-1000`) alternates on one counter: the
+		// source phase re-arms at 20 ms and the param phase at 180 ms, so the cycle is 200 ms and
+		// the source slice is the short leading one. Rendered directly, at the phase boundaries, so
+		// this asserts the *timings* rather than "it blinks".
+		const auto lit_at = [&](uint32_t at_ms) {
+			deluge::ui::test::GridRig grid;
+			grid.begin_tick(at_ms);
+			menu_scene().render_grid(grid.frame);
+			const RGB& c = grid.grid.at(kLpfFreqX, kLpfFreqY);
+			return c.r != 0 || c.g != 0 || c.b != 0;
+		};
+		expect(uint32_t{menu::kBlinkCycleMs}).to_equal(uint32_t{200});
+		expect(lit_at(0)).to_be_false();   // source phase [0, 20)
+		expect(lit_at(19)).to_be_false();
+		expect(lit_at(20)).to_be_true();   // param phase [20, 200)
+		expect(lit_at(100)).to_be_true();
+		expect(lit_at(199)).to_be_true();
+		expect(lit_at(200)).to_be_false(); // next cycle's source phase
+		expect(lit_at(219)).to_be_false();
+		expect(lit_at(220)).to_be_true();
+		// Not a symmetric 180 ms square wave: that would have been dark here and lit at 200.
+		expect(lit_at(180)).to_be_true();
+	});
+
+	it("arms the grid gate so the blink flips at the next phase boundary", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		// Jump to `lpfFreqMenu` so its shortcut cell (8, 7) is the focused pad.
+		r.button(kShiftX, kShiftY, true, 0);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
 		r.shell.tick(2);
 		r.button(kShiftX, kShiftY, false, 3);
-		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 
-		// Phase 0 of the 180 ms cadence (`sound_editor.cpp:985`): lit.
-		r.shell.tick(10);
-		const RGB lit = r.pad_colour(1, 0);
+		// Inside the param phase: lit.
+		r.shell.tick(30);
+		const RGB lit = r.pad_colour(kLpfFreqX, kLpfFreqY);
 		expect(lit.r != 0 || lit.g != 0 || lit.b != 0).to_be_true();
 
-		// The scene armed the grid gate for the flip, so this tick renders with no input at all --
-		// which is the whole point: `next_timer()` alone would wake the shell without making
-		// `RepaintGate::needs_frame` say yes.
-		r.shell.tick(200);
-		const RGB dark = r.pad_colour(1, 0);
+		// The scene armed the grid gate for the boundary, so this tick renders with no input at all
+		// -- which is the whole point: `next_timer()` alone would wake the shell without making
+		// `RepaintGate::needs_frame` say yes. 200 ms is the start of the next source phase.
+		r.shell.tick(menu::kBlinkCycleMs);
+		const RGB dark = r.pad_colour(kLpfFreqX, kLpfFreqY);
 		expect(dark.r == 0 && dark.g == 0 && dark.b == 0).to_be_true();
 
-		// And back again on the next half-period.
-		r.shell.tick(380);
-		const RGB relit = r.pad_colour(1, 0);
+		// And back again 20 ms later, when the param phase resumes -- not 180.
+		r.shell.tick(menu::kBlinkCycleMs + menu::kSourceBlinkMs);
+		const RGB relit = r.pad_colour(kLpfFreqX, kLpfFreqY);
 		expect(relit.r == lit.r && relit.g == lit.g && relit.b == lit.b).to_be_true();
-
-		menu::set_shortcut_table_for_test({}, 0, 0);
 	});
 
 	it("declares button LEDs only, with the back LED blinking", _ {

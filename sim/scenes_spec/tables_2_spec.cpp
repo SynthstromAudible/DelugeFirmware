@@ -717,11 +717,10 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 	it("validates the sound root clean apart from the nine legacy name collisions", _ {
 		Rigged& f = fixture();
-		menu::set_shortcut_table_for_test({}, 0, 0);
 		const MenuContext contexts[] = {f.ctx};
-		const auto issues = menu::validate_tree(nodes::kSoundRootRoots, contexts, nodes::kRangeDependentNodes,
-		                                        nodes::kHalfPrecisionNodes,
-		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
+		const auto issues = menu::validate_tree(
+		    nodes::kSoundRootRoots, contexts, nodes::kRangeDependentNodes, nodes::kHalfPrecisionNodes,
+		    menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
 		size_t duplicates = 0;
 		size_t others = 0;
 		for (const menu::Issue& i : issues) {
@@ -758,8 +757,9 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 	it("assigns an id to every node in the sound root tree", _ {
 		Rigged& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
-		(void)menu::validate_tree(nodes::kSoundRootRoots, contexts, {}, {},
-		                          menu::ValidateOptions{.allow_placeholder_custom = true});
+		(void)menu::validate_tree(
+		    nodes::kSoundRootRoots, contexts, {}, {},
+		    menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
 		for (const Pair& p : tree().pairs) {
 			expect(menu::node_id(*p.node) != uint16_t(0)).to_be_true();
 		}

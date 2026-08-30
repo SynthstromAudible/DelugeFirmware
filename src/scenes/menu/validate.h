@@ -116,6 +116,16 @@ struct ValidateOptions {
 	/// `custom` is still an outright bug -- but the tree is not finished, and by default
 	/// `validate_tree` says so. E2 deletes both this flag and the rule it suppresses.
 	bool allow_placeholder_custom = false;
+
+	/// @brief Skip the `ShortcutToNothing` sweep entirely.
+	///
+	/// That rule is quantified over *every* `MenuContext::Root`'s shortcut table, so it only means
+	/// anything when @p roots is the whole tree: pointed at a subtree (batch 1's seventeen roots,
+	/// the sound root on its own, the settings root minus one page) it reports every shortcut cell
+	/// in every *other* root's table, which says nothing about the subtree under test. A caller
+	/// validating part of the tree sets this; `sim/scenes_spec/shortcuts_spec.cpp` runs the sweep
+	/// over `nodes::kAllRoots`, where it is a real check.
+	bool skip_shortcut_sweep = false;
 };
 
 /// @brief Check @p roots against every spec E §4.4 rule.

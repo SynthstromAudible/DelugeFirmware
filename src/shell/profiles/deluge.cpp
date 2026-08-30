@@ -134,12 +134,11 @@ const BoardProfile& deluge_profile() {
 	    .encoder_kind = kKinds,
 	    .oled_role_by_index = kRoles,
 	    .style_by_index = kStyles,
-	    // No l10n bridge and no shortcut tables yet, stated rather than left to the defaults: the
-	    // `l10n::String` table these resolve against is spec E's, and wiring the firmware's copy of
-	    // it to this profile is spec F's. Until then every string id and error code shows as its
-	    // own digits, which is what `BoardProfile::text_or_digits`/`error_text_or_digits` do with a
-	    // null hook -- not a blank popup.
-	    .shortcuts = {},
+	    // No l10n bridge yet, stated rather than left to the default: the `l10n::String` table
+	    // these resolve against is spec E's, and wiring the firmware's copy of it to this profile
+	    // is spec F's. Until then every string id and error code shows as its own digits, which is
+	    // what `BoardProfile::text_or_digits`/`error_text_or_digits` do with a null hook -- not a
+	    // blank popup.
 	    .text = nullptr,
 	    .error_text = nullptr,
 	    .button_cols = 9,
