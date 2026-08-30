@@ -280,6 +280,44 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		    .to_equal(std::string{});
 	});
 
+	it("resolves the four inline MIDI/CV cells that are in no legacy table", _ {
+		// `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1282-1302`), in the
+		// arm `editingCVOrMIDIClip() || editingNonAudioDrumRow()` takes -- so all three of the roots
+		// that arm covers, and none of the others.
+		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
+			expect(menu::shortcut_node(root, false, 4, 7) == &nodes::sequence_direction).to_be_true();
+			expect(menu::shortcut_node(root, false, 15, 1) == &nodes::spread_velocity_midi).to_be_true();
+			expect(menu::shortcut_node(root, false, 15, 2) == &nodes::randomizer_lock).to_be_true();
+			expect(menu::shortcut_node(root, false, 15, 3) == &nodes::note_probability_midi).to_be_true();
+			// The second layer is the same layer here, so the toggle must not lose them.
+			expect(menu::shortcut_node(root, true, 4, 7) == &nodes::sequence_direction).to_be_true();
+			// `:1294-1295`'s `default:` -- the randomizer column is y = 1..3 and nothing else.
+			expect(menu::shortcut_node(root, false, 15, 0) == nullptr).to_be_true();
+			expect(menu::shortcut_node(root, false, 15, 4) == nullptr).to_be_true();
+		}
+		// Not the sound roots: (4, 7) there is `paramShortcutsForSounds`' own `sequenceDirectionMenu`
+		// cell, and (15, 1..3) the *non*-MIDI randomizer trio -- both from the table, both blinkable.
+		expect(menu::shortcut_node(Root::Sound, false, 15, 1) == &nodes::spread_velocity).to_be_true();
+		expect(menu::shortcut_node(Root::AudioClip, false, 15, 1) == nullptr).to_be_true();
+	});
+
+	it("keeps those four cells out of the layers, so the blink never reports them", _ {
+		// The asymmetry is the point: `updatePadLightsFor`'s MIDI/CV and gate-drum arms
+		// (`sound_editor.cpp:833-853`) scan column 11 and nothing else, so legacy navigates from
+		// these pads and never lights them. Removing the resolve-only split would fail here.
+		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
+			const auto layer = menu::shortcut_layer(root, false);
+			expect(layer[size_t(7) * menu::kShortcutCols + 4] == nullptr).to_be_true();
+			for (uint8_t y = 1; y <= 3; y++) {
+				expect(layer[size_t(y) * menu::kShortcutCols + 15] == nullptr).to_be_true();
+			}
+			expect(menu::shortcut_pos(root, nodes::sequence_direction).valid).to_be_false();
+			expect(menu::shortcut_pos(root, nodes::spread_velocity_midi).valid).to_be_false();
+			expect(menu::shortcut_pos(root, nodes::randomizer_lock).valid).to_be_false();
+			expect(menu::shortcut_pos(root, nodes::note_probability_midi).valid).to_be_false();
+		}
+	});
+
 	it("swaps the name editor for the drum one on the two drum roots", _ {
 		install_sound_context();
 		// `potentialShortcutPadAction` (`sound_editor.cpp:1279-1281`, `:1306-1308`) rewrites

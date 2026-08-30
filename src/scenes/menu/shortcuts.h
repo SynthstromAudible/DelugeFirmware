@@ -52,10 +52,15 @@ struct ShortcutPos {
 ///
 /// @param root         Which menu root is open.
 /// @param second_layer Legacy's second shortcut layer -- see `shortcut_node`.
+/// @note This is the **transcription only**. Three roots resolve four further pads that legacy
+///       spells inline rather than in a table (see `shortcut_node`'s resolve-only note); those are
+///       deliberately not in any layer, because `shortcut_pos` is built out of the layers and
+///       legacy never blinks them.
+///
 /// @return The cells. Every root resolves to a layer of exactly `kShortcutCols * kShortcutRows`
-///         cells; `Root::Settings` resolves to an all-null one, because legacy never blinks or
-///         jumps a shortcut while the settings menu is open (`updatePadLightsFor`'s
-///         `!inSettingsMenu()` guard, `sound_editor.cpp:812`).
+///         cells; `Root::Settings` resolves to an all-null one, because legacy never blinks a
+///         shortcut while the settings menu is open (`updatePadLightsFor`'s `!inSettingsMenu()`
+///         guard, `sound_editor.cpp:812`).
 std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_layer);
 
 /// @brief The node the shortcut pad at (@p x, @p y) opens, or `nullptr` for a pad with no
@@ -76,6 +81,16 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///                     shortcut. Only `Root::Sound` and `Root::Drum` have a second layer
 ///                     (`paramShortcutsForSoundsSecondLayer`); for every other root both layers
 ///                     are the same cells.
+/// @note **Resolve-only cells.** `Root::MidiOrCv`, `Root::MidiDrum` and `Root::GateDrum` also
+///       resolve four pads that are in no legacy table, because legacy spells them inline in the
+///       very same arm (`sound_editor.cpp:1282-1302`): `(4, 7)` is `sequenceDirectionMenu` and
+///       `(15, 1..3)` the MIDI/CV randomizer trio. They are reachable from here and **not** from
+///       `shortcut_layer` or `shortcut_pos`, which is exactly legacy's asymmetry: the blink side
+///       (`updatePadLightsFor`, `:833-853`) scans column 11 and nothing else, so pressing those
+///       four pads navigates but never lights them. Two further arms of the same `if` stay out
+///       because they are separate mechanisms rather than cells -- the DX7 pad grid (`:1170-1177`)
+///       and the patching-source column, `x` in {14, 15} (`:1180-1268`).
+///
 /// @param x            Absolute pad column.
 /// @param y            Absolute pad row.
 /// @return The node, or `nullptr`.
@@ -88,6 +103,10 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 /// The reverse of `shortcut_node` over the same tables, so `MenuScene` never has to know a table's
 /// shape. The second layer is searched first and the first layer after it, which is the order
 /// `updatePadLightsFor` scans in (`:867` before `:872`).
+///
+/// @note This searches the **transcribed layers only**, so it is deliberately *not* a total inverse
+///       of `shortcut_node`: the four resolve-only cells above are reachable by a press and report
+///       no pad here, because legacy's blink side never scans them either.
 ///
 /// @note Legacy's two context-dependent suppressions are **not** ported: the reverb-sidechain one
 ///       (`:873`, "x == 10 && y < 6 && editingReverbSidechain()") and the odd-column/source-0 one

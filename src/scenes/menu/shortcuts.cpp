@@ -225,10 +225,39 @@ static_assert(kMidiOrCvCells[cell_index(11, 5)] == &n::edit_name);
 constexpr Cells kDrumCells = with_drum_name(kSoundCells);
 constexpr Cells kMidiDrumCells = with_drum_name(kMidiOrCvCells);
 
-/// @brief A root's two layers. `second` is `first` for every root without a second legacy table.
+/// @brief The four cells the MIDI/CV and non-audio-drum arm resolves that are **not** in any legacy
+///        table -- `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1282-1302`).
+///
+/// Legacy spells them inline rather than in a table: `(4, 7)` opens `sequenceDirectionMenu` and
+/// `(15, 1..3)` the MIDI/CV randomizer trio, for `editingCVOrMIDIClip() || editingNonAudioDrumRow()`
+/// -- i.e. `Root::MidiOrCv`, `Root::MidiDrum` and `Root::GateDrum`.
+///
+/// **Resolve-only, and that asymmetry is deliberate.** `updatePadLightsFor`'s MIDI/CV and gate-drum
+/// arms (`sound_editor.cpp:833-853`) scan column 11 and *nothing else*, so legacy never blinks these
+/// four pads even though pressing them navigates. `shortcut_node` therefore consults this overlay;
+/// `shortcut_layer` and `shortcut_pos` do not, so the reverse lookup blinks exactly the pads legacy
+/// blinks and no more.
+///
+/// The other two arms of that same `if` stay out, because neither is a table cell: the DX7 pad
+/// grid (`:1170-1177`, which `dxParam` answers for itself) and the patching-source column
+/// (`x in {14, 15}`, `:1180-1268`, which walks `patchingSourceShortcutPress` up the menu stack).
+constexpr Cells kMidiExtraCells = [] {
+	Cells out{};
+	out[cell_index(4, 7)] = &n::sequence_direction;     // `sound_editor.cpp:1296-1298`
+	out[cell_index(15, 1)] = &n::spread_velocity_midi;  // `:1288-1289`
+	out[cell_index(15, 2)] = &n::randomizer_lock;       // `:1290-1291`
+	out[cell_index(15, 3)] = &n::note_probability_midi; // `:1292-1293`
+	return out;
+}();
+
+/// @brief A root's two layers, plus any resolve-only overlay.
+///
+/// `second` is `first` for every root without a second legacy table. `resolve_only` is null except
+/// on the three roots that carry `kMidiExtraCells`, and is read by `shortcut_node` alone.
 struct Layers {
 	const Cells* first;
 	const Cells* second;
+	const Cells* resolve_only = nullptr;
 };
 
 /// @brief Which table each root reads, i.e. legacy's chain of context tests
@@ -242,17 +271,19 @@ struct Layers {
 /// * `Performance` / `Song` -- `paramShortcutsForSongView`, legacy's `!rootUIIsClipMinderScreen()`.
 /// * `KitGlobalFx` -- `paramShortcutsForKitGlobalFX` (`setupKitGlobalFXMenu`).
 /// * `Settings` -- nothing, per `updatePadLightsFor`'s `!inSettingsMenu()` guard.
+///
+/// The three MIDI/CV-and-drum roots additionally carry `kMidiExtraCells` as a resolve-only overlay.
 constexpr Layers kByRoot[static_cast<size_t>(MenuContext::Root::Count)] = {
-    {&kSoundCells, &kSoundSecondCells},       // Sound
-    {&kDrumCells, &kSoundSecondCells},        // Drum
-    {&kMidiOrCvCells, &kMidiOrCvCells},       // MidiOrCv
-    {&kMidiDrumCells, &kMidiDrumCells},       // MidiDrum
-    {&kGateDrumCells, &kGateDrumCells},       // GateDrum
-    {&kAudioClipCells, &kAudioClipCells},     // AudioClip
-    {&kSongCells, &kSongCells},               // Performance
-    {&kSongCells, &kSongCells},               // Song
-    {&kKitGlobalFxCells, &kKitGlobalFxCells}, // KitGlobalFx
-    {&kNoCells, &kNoCells},                   // Settings
+    {&kSoundCells, &kSoundSecondCells},                   // Sound
+    {&kDrumCells, &kSoundSecondCells},                    // Drum
+    {&kMidiOrCvCells, &kMidiOrCvCells, &kMidiExtraCells}, // MidiOrCv
+    {&kMidiDrumCells, &kMidiDrumCells, &kMidiExtraCells}, // MidiDrum
+    {&kGateDrumCells, &kGateDrumCells, &kMidiExtraCells}, // GateDrum
+    {&kAudioClipCells, &kAudioClipCells},                 // AudioClip
+    {&kSongCells, &kSongCells},                           // Performance
+    {&kSongCells, &kSongCells},                           // Song
+    {&kKitGlobalFxCells, &kKitGlobalFxCells},             // KitGlobalFx
+    {&kNoCells, &kNoCells},                               // Settings
 };
 
 const Layers& layers_for(MenuContext::Root root) {
@@ -295,7 +326,13 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 			return second;
 		}
 	}
-	return cell_of(*l.first, x, y);
+	if (const Node* first = cell_of(*l.first, x, y); first != nullptr) {
+		return first;
+	}
+	// Last: the resolve-only cells legacy spells inline rather than in a table (`kMidiExtraCells`).
+	// They are disjoint from the table's own column, so the order only decides what happens if that
+	// ever stops being true -- and the table has to win, because it is the transcription.
+	return l.resolve_only != nullptr ? cell_of(*l.resolve_only, x, y) : nullptr;
 }
 
 ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node) {
