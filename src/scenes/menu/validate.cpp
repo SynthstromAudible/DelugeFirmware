@@ -45,7 +45,8 @@
 ///     (`validate.h`'s `kMaxCustomNodes`), and no longer at 10 -- see that constant for the
 ///     deviation and the real number.
 ///
-/// plus, beyond §4.4: `MissingTitle` and `NullCustom` (a node that would render nothing),
+/// plus, beyond §4.4: `MissingTitle`, `NullCustom` and `RangeWithoutSpec` (three ways a node would
+/// render nothing),
 /// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
 /// `Binding::updates_reverb_params`) and with `Flag::ChainTargetsMismatch` (a `select_chain` hook
 /// without its static target list, or the reverse),
@@ -161,6 +162,7 @@ bool is_value_kind(Kind k) {
 	case Kind::Int:
 	case Kind::Decimal:
 	case Kind::SyncLevel:
+	case Kind::Range:
 		return true;
 	default:
 		return false;
@@ -300,6 +302,11 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		// `Flag::ChainTargetsMismatch`.
 		if ((n.select_chain != nullptr) != !n.chain_targets.empty()) {
 			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::ChainTargetsMismatch));
+		}
+
+		// A range node's upper edge lives entirely in `range_spec` -- see `Issue::Kind::RangeWithoutSpec`.
+		if (n.kind == Kind::Range && (n.bind.range_spec == nullptr || n.bind.range_spec->format == nullptr)) {
+			add(out, Issue::Kind::RangeWithoutSpec, &n);
 		}
 
 		if (n.kind == Kind::Custom) {

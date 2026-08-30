@@ -322,4 +322,138 @@ Response toggle(OledFrame& f, Rect rect, bool& value, std::string_view off_label
 	return resp;
 }
 
+Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Range range, RangeEdge& edge,
+                     RangeFormatFn format, RangeClamp clamp, bool focused) {
+	Response resp{};
+	resp.focused = focused;
+
+	if (focused) {
+		// `Range::horizontalEncoderAction` (`gui/menu_item/range.cpp:35-84`), with the goto lattice
+		// flattened: a turn *towards* the end already selected switches editing off, any other turn
+		// selects the end it points at. (Legacy's `mayEditRangeEdge` arms have no override that
+		// reaches this widget -- see values.h.)
+		f.claim_horizontal();
+		const int8_t horizontal = f.horizontal();
+		if (horizontal != 0) {
+			const RangeEdge wanted = horizontal < 0 ? RangeEdge::Left : RangeEdge::Right;
+			const RangeEdge next = edge == wanted ? RangeEdge::Off : wanted;
+			if (next != edge) {
+				edge = next;
+				resp.changed = true;
+				f.gate().request_repaint();
+			}
+		}
+
+		f.claim_edit(0);
+		f.claim_edit(1);
+		const int64_t delta = edit_delta(f, coarse_step(range), 1);
+		if (delta != 0) {
+			const int32_t was_lower = lower;
+			const int32_t was_upper = upper;
+			switch (edge) {
+			case RangeEdge::Left:
+				if (clamp == RangeClamp::Push) {
+					// `IntegerRange::selectEncoderAction` (`integer_range.cpp:76-81`).
+					lower = add_clamped(lower, delta, range);
+					if (upper < lower) {
+						upper = lower;
+					}
+				}
+				else {
+					// `KeyRange::selectEncoderAction` (`key_range.cpp:214-217`): the *other end* is
+					// the ceiling, so `Range::max` never enters this arm.
+					lower = add_clamped(lower, delta, Range{range.min, upper, range.step});
+				}
+				break;
+			case RangeEdge::Right:
+				if (clamp == RangeClamp::Push) {
+					// `integer_range.cpp:84-89`.
+					upper = add_clamped(upper, delta, range);
+					if (upper < lower) {
+						lower = upper;
+					}
+				}
+				else {
+					// `key_range.cpp:219-221`.
+					upper = add_clamped(upper, delta, Range{lower, range.max, range.step});
+				}
+				break;
+			case RangeEdge::Off:
+				// `integer_range.cpp:94-104` / `key_range.cpp:226-235`, which are the same statement
+				// in both subclasses: with no edge selected a split range refuses to move at all,
+				// and a coincident one moves as one value.
+				if (lower == upper) {
+					lower = add_clamped(lower, delta, range);
+					upper = lower;
+				}
+				break;
+			}
+			if (lower != was_lower || upper != was_upper) {
+				resp.changed = true;
+				f.gate().request_repaint();
+			}
+		}
+	}
+
+	// `Range::drawPixelsForOled` (`gui/menu_item/range.cpp:97-131`). The frame's origin absorbs the
+	// `OLED_MAIN_TOPMOST_PIXEL` term, exactly as `int_value`'s band does.
+	const gfx::oled::FontId font = f.style.value_font;
+	const int32_t digit_w = spacing_x_for(font);
+	const int32_t digit_h = text_height_for(font);
+	const Rect band{rect.x, rect.y + kValueY, rect.w, digit_h};
+
+	// **Cleared one row taller than it is drawn, top and bottom.** The highlight below inverts
+	// `digit_h + 2` rows -- legacy's own `baseY - 1 .. baseY + digitHeight + 1` (`:122-123`) -- and an
+	// XOR over a row this pass did not clear toggles that row on every frame instead of settling.
+	// Legacy never sees it because `OLED::main` is cleared whole before `drawPixelsForOled`; this
+	// widget clears only what it owns, so what it owns has to be the *inverted* extent, not the glyph
+	// band. Row `kValueY - 1` is 17, five rows below the title rule at `kTitleSeparatorY` (12), so
+	// nothing above is touched. Pinned by the "moves nothing across twenty quiet ticks" example,
+	// which is the one that caught it.
+	f.clear(Rect{rect.x, band.y - 1, rect.w, digit_h + 2});
+
+	// `getText(buffer, &leftLength, &rightLength, editingRangeEdge == RangeEdit::OFF)` (`:102`).
+	std::array<char, kRangeTextMax> left_scratch{};
+	std::array<char, kRangeTextMax> right_scratch{};
+	const std::string_view left = format(lower, std::span{left_scratch});
+	const bool show_just_one = edge == RangeEdge::Off && lower == upper;
+	const std::string_view right = show_just_one ? std::string_view{} : format(upper, std::span{right_scratch});
+
+	const auto left_len = static_cast<int32_t>(left.size());
+	const auto right_len = static_cast<int32_t>(right.size());
+
+	std::array<char, kRangeTextMax * 2 + 1> line{};
+	size_t out = 0;
+	for (const char c : left) {
+		line[out++] = c;
+	}
+	if (right_len != 0) {
+		line[out++] = '-';
+		for (const char c : right) {
+			line[out++] = c;
+		}
+	}
+
+	// `:104-113` -- the *monospaced* width, not `measure()`'s. See values.h.
+	const int32_t text_length = left_len + right_len + (right_len != 0 ? 1 : 0);
+	const int32_t string_w = digit_w * text_length;
+	const int32_t start_x = rect.x + ((rect.w - string_w) >> 1);
+	f.glyphs(std::string_view{line.data(), out}, start_x, band.y, digit_w, digit_h, 0, rect.right());
+
+	// `:115-130` -- one end plus a 1px margin above and below. `invertArea`'s `endY` is inclusive
+	// (`OledFrame::invert` passes `bottom() - 1`), so legacy's `baseY .. baseY + digitHeight + 1`
+	// is a rect `digitHeight + 2` tall starting one row above the band.
+	if (edge != RangeEdge::Off) {
+		int32_t highlight_x = start_x;
+		int32_t highlight_w = digit_w * left_len;
+		if (edge == RangeEdge::Right) {
+			const int32_t string_end_x = rect.x + ((rect.w + string_w) >> 1);
+			highlight_w = digit_w * right_len;
+			highlight_x = string_end_x - highlight_w;
+		}
+		f.invert(Rect{highlight_x, band.y - 1, highlight_w, digit_h + 2});
+	}
+	return resp;
+}
+
 } // namespace deluge::ui::oled

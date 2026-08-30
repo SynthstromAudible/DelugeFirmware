@@ -57,12 +57,12 @@
 ///           task 8 gave a real `MidiCommandItem` -- they navigate nowhere, they bind an incoming
 ///           MIDI message to a `GlobalMIDICommand`, and the entry points that deliver that message
 ///           are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn`.)
-///         * **Items with genuinely dynamic state.** `default_tempo`, `default_swing_amount`
-///           and `default_key` are `IntegerRange` / `KeyRange`, whose `lower`/`upper` live on the
-///           legacy menu item (`integer_range.h:24,33`, `key_range.h:23,30`) and whose editor is
-///           spec E §4's `Range` kind -- **still owed**, and the one thing on this list that needs
-///           machinery rather than a reachable byte (a two-edge editor with its own
-///           `RangeEdit::LEFT`/`RIGHT` state, `gui/menu_item/range.h:24-28`).
+///         * **Items with genuinely dynamic state.** (`default_tempo`, `default_swing_amount` and
+///           `default_key` were on this list. E2 task 11b brought `Kind::Range` back -- they are
+///           exactly the three consumers spec E §4's own threshold asks for -- and moved their
+///           `lower`/`upper` off the legacy menu items into `FlashStorage::defaultRanges`, the same
+///           move `padColours` made, because a member of a `gui/` class has no bare-`extern`
+///           escape. See `kDefaultTempoRange` below and `ui/oled/values.h`'s `range_value`.)
 ///           `default_active_scale` is `ActiveScaleMenu` (`gui/menu_item/active_scales.h:13-31`),
 ///           an editor of its own -- also still owed.
 ///           (`dev_sysex_allowed` was on this list: its ON option is a **randomly generated** hex
@@ -795,12 +795,75 @@ inline constexpr const Node* kDefaultAutomationChildren[] = {&default_automation
                                                              &default_automation_no_audition};
 inline constexpr Node default_automation = submenu(sid(String::STRING_FOR_AUTOMATION), kDefaultAutomationChildren);
 
+/// @name The three `Kind::Range` items -- `Kind::Range`'s entire consumer set (`node.h`).
+///
+/// `defaultTempoMenu` / `defaultSwingAmountMenu` are `IntegerRange`
+/// (`gui/ui/menus.cpp:1645-1648`), `defaultKeyMenu` is `KeyRange` (`:1650`). Their `lower`/`upper`
+/// are now `FlashStorage::defaultRanges[...]` (`storage/flash_storage.h`), which both sides address,
+/// so the port and legacy edit the same six values.
+///
+/// The bounds are the constructor arguments and, for the key, `KeyRange::selectEncoderAction`'s own
+/// `KEY_MIN`/`KEY_MAX` locals (`gui/menu_item/key_range.cpp:207-208`) -- `KeyRange` has no
+/// `minValue`/`maxValue` members at all.
+/// @{
+inline constexpr IntRange kDefaultTempoRange{60, 240, 1};
+inline constexpr IntRange kDefaultSwingAmountRange{1, 99, 1};
+inline constexpr IntRange kDefaultKeyRange{0, 11, 1};
+
+/// `IntegerRange::getText` (`gui/menu_item/integer_range.cpp:107-132`), which is `intToString` per
+/// end; `KeyRange::getText` (`key_range.cpp:238-278`), the note letter plus an accidental. Bodies in
+/// the `.cpp`.
+/// @{
+std::string_view format_range_integer(int32_t value, std::span<char> scratch);
+std::string_view format_range_key(int32_t value, std::span<char> scratch);
+/// @}
+
+/// @name The six edge hooks. Each is one `FlashStorage::defaultRanges` field; bodies in the `.cpp`.
+/// @{
+int32_t get_default_tempo_lower(const MenuContext& ctx);
+void set_default_tempo_lower(const MenuContext& ctx, int32_t value);
+int32_t get_default_tempo_upper(const MenuContext& ctx);
+void set_default_tempo_upper(const MenuContext& ctx, int32_t value);
+int32_t get_default_swing_lower(const MenuContext& ctx);
+void set_default_swing_lower(const MenuContext& ctx, int32_t value);
+int32_t get_default_swing_upper(const MenuContext& ctx);
+void set_default_swing_upper(const MenuContext& ctx, int32_t value);
+int32_t get_default_key_lower(const MenuContext& ctx);
+void set_default_key_lower(const MenuContext& ctx, int32_t value);
+int32_t get_default_key_upper(const MenuContext& ctx);
+void set_default_key_upper(const MenuContext& ctx, int32_t value);
+/// @}
+
+/// `IntegerRange`: the ends push each other, and opening a split range lands on LEFT
+/// (`gui/menu_item/integer_range.cpp:63-68`, `:76-89`).
+inline constexpr RangeSpec kDefaultTempoSpec{.get_upper = get_default_tempo_upper,
+                                             .set_upper = set_default_tempo_upper,
+                                             .format = format_range_integer,
+                                             .clamp = deluge::ui::oled::RangeClamp::Push,
+                                             .focus_left_when_split = true};
+inline constexpr RangeSpec kDefaultSwingSpec{.get_upper = get_default_swing_upper,
+                                             .set_upper = set_default_swing_upper,
+                                             .format = format_range_integer,
+                                             .clamp = deluge::ui::oled::RangeClamp::Push,
+                                             .focus_left_when_split = true};
+/// `KeyRange` clamps each end against the other and has **no** `beginSession` override, so it takes
+/// `Range::beginSession`'s bare OFF (`gui/menu_item/range.cpp:30-33`).
+inline constexpr RangeSpec kDefaultKeySpec{.get_upper = get_default_key_upper,
+                                           .set_upper = set_default_key_upper,
+                                           .format = format_range_key,
+                                           .clamp = deluge::ui::oled::RangeClamp::Bound,
+                                           .focus_left_when_split = false};
+
 inline constexpr Node default_tempo =
-    with_title(custom(sid(String::STRING_FOR_TEMPO), &kPending), sid(String::STRING_FOR_DEFAULT_TEMPO)); // E2
+    range_item(sid(String::STRING_FOR_TEMPO), sid(String::STRING_FOR_DEFAULT_TEMPO), get_default_tempo_lower,
+               set_default_tempo_lower, &kDefaultTempoSpec, kDefaultTempoRange);
 inline constexpr Node default_swing_amount =
-    with_title(custom(sid(String::STRING_FOR_SWING_AMOUNT), &kPending), sid(String::STRING_FOR_DEFAULT_SWING)); // E2
+    range_item(sid(String::STRING_FOR_SWING_AMOUNT), sid(String::STRING_FOR_DEFAULT_SWING), get_default_swing_lower,
+               set_default_swing_lower, &kDefaultSwingSpec, kDefaultSwingAmountRange);
 inline constexpr Node default_key =
-    with_title(custom(sid(String::STRING_FOR_KEY), &kPending), sid(String::STRING_FOR_DEFAULT_KEY)); // E2
+    range_item(sid(String::STRING_FOR_KEY), sid(String::STRING_FOR_DEFAULT_KEY), get_default_key_lower,
+               set_default_key_lower, &kDefaultKeySpec, kDefaultKeyRange);
+/// @}
 
 inline constexpr Node default_swing_interval =
     sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), sid(String::STRING_FOR_DEFAULT_SWING),

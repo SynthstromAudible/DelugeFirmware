@@ -500,6 +500,9 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	case Kind::SyncLevel:
 		render_leaf_sync_level(f, *node);
 		break;
+	case Kind::Range:
+		render_leaf_range(f, *node);
+		break;
 	case Kind::Custom:
 		if (node->custom != nullptr) {
 			node->custom->render(f, ctx_, st_);
@@ -684,6 +687,35 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1067`). This port leaves the editing to
 	// the gold knobs, but the input still belongs to this screen -- left unclaimed it would fall out
 	// of `route_post_render` into whatever service is registered.
+	f.claim_turn();
+}
+
+void MenuScene::render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& node) {
+	TextScratch scratch;
+	deluge::ui::oled::title(f, text_of(node.title, scratch));
+
+	const RangeSpec* spec = node.bind.range_spec;
+	if (spec == nullptr || spec->format == nullptr) {
+		// `validate_tree` reports this (`Issue::Kind::RangeWithoutSpec`); drawing the title and
+		// nothing else is the same fail-visible choice `render_oled`'s null-custom arm makes.
+		return;
+	}
+
+	// `f.bounds()`, NOT `menu_rect(f)`, for `render_leaf_int`'s reason: `range_value` places its
+	// digits at a rect-relative `kValueY` calibrated for the whole panel.
+	const deluge::ui::Response r =
+	    deluge::ui::oled::range_value(f, f.bounds(), st_.edit_int, st_.edit_upper, bindings::range(node, ctx_),
+	                                  st_.edit_edge, spec->format, spec->clamp, /*focused=*/true);
+	st_.render_resp = r;
+	if (r.changed) {
+		st_.value_changed = true;
+		st_.value_node = &node;
+	}
+	// `range_value` owns the gold knobs and the horizontal encoder; the select press that leaves the
+	// item is this scene's, exactly as on a number screen.
+	if (f.select_pressed()) {
+		st_.render_resp.entered = true;
+	}
 	f.claim_turn();
 }
 
@@ -906,6 +938,24 @@ void MenuScene::enter_leaf(const Node& node) {
 		st_.decimal_pos = 0;
 		st_.cursor_blink = deluge::ui::Blink{};
 		break;
+	case Kind::Range: {
+		// `Range::beginSession` (`gui/menu_item/range.cpp:30-33`) is `editingRangeEdge = OFF`, and
+		// `IntegerRange::beginSession` (`integer_range.cpp:63-68`) then takes LEFT when the two ends
+		// differ. `KeyRange` has no override, so it stops at OFF -- which is exactly what
+		// `RangeSpec::focus_left_when_split` says.
+		st_.edit_int = bindings::read(node, ctx_); // the lower edge
+		st_.edit_upper = st_.edit_int;
+		st_.edit_edge = deluge::ui::oled::RangeEdge::Off;
+		if (const RangeSpec* spec = node.bind.range_spec; spec != nullptr) {
+			if (spec->get_upper != nullptr) {
+				st_.edit_upper = spec->get_upper(ctx_);
+			}
+			if (spec->focus_left_when_split && st_.edit_int != st_.edit_upper) {
+				st_.edit_edge = deluge::ui::oled::RangeEdge::Left;
+			}
+		}
+		break;
+	}
 	case Kind::Custom:
 		// `CustomItem::on_focus` -- legacy's `MenuItem::beginSession`. No `bind` to read either way;
 		// unlike the other kinds, a custom item's own state (if it has any) lives on the item, not
@@ -935,6 +985,16 @@ void MenuScene::commit_value(const Node& node) {
 		break;
 	case Kind::Toggle:
 		bindings::write(node, ctx_, st_.edit_bool ? 1 : 0);
+		break;
+	case Kind::Range:
+		// Both ends, every commit. Legacy writes both too -- `IntegerRange`/`KeyRange` edit `lower`
+		// and `upper` in place and have no `writeCurrentValue` at all, because the members *are* the
+		// storage (now `FlashStorage::defaultRanges`, `storage/flash_storage.h`). A commit that wrote
+		// only the moved end would leave the other one behind whenever `RangeClamp::Push` dragged it.
+		bindings::write(node, ctx_, st_.edit_int);
+		if (const RangeSpec* spec = node.bind.range_spec; spec != nullptr && spec->set_upper != nullptr) {
+			spec->set_upper(ctx_, st_.edit_upper);
+		}
 		break;
 	default:
 		bindings::write(node, ctx_, st_.edit_int);

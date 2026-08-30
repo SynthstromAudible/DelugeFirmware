@@ -123,6 +123,16 @@ struct MenuState {
 	deluge::ui::ListState enum_list{};
 	/// ... plus its own `ScrollText` (`ui/oled/values.h:143`).
 	deluge::ui::ScrollText enum_scroll{};
+	/// `Kind::Range`: `range_value` takes two `int32_t&`s -- `edit_int` is the **lower** edge and
+	/// this is the upper (`node.h`'s `RangeSpec`).
+	int32_t edit_upper = 0;
+	/// `Kind::Range`: which end the horizontal encoder has selected.
+	///
+	/// Legacy keeps the same fact in `SoundEditor::editingRangeEdge`, one global shared by every
+	/// range item (`gui/menu_item/range.cpp:32`). One field here for the same reason: only one leaf
+	/// is on screen at a time, and `enter_leaf` re-seeds it per visit exactly where
+	/// `Range::beginSession`/`IntegerRange::beginSession` do.
+	deluge::ui::oled::RangeEdge edit_edge = deluge::ui::oled::RangeEdge::Off;
 	/// `decimal_value`'s in/out cursor position.
 	int8_t decimal_pos = 0;
 	/// `decimal_value`'s OLED cursor blink ONLY (`ui/core/state.h:38`; `until_ms` is a phase
@@ -460,6 +470,7 @@ private:
 	void render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Node& node);
+	void render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& node);
 
 	/// @brief Load @p node's value into the edit storage its kind uses.
 	void enter_leaf(const Node& node);

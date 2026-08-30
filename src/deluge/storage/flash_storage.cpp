@@ -261,6 +261,7 @@ bool defaultUseSharps = true;
 /// The six pad colours (`flash_storage.h`). Zero-initialised here and given real defaults by
 /// `resetSettings`; `gui::menu_item::Colour::value` is a reference onto one of these.
 uint8_t padColours[NUM_PAD_COLOUR_SLOTS] = {};
+DefaultRange defaultRanges[NUM_DEFAULT_RANGE_SLOTS] = {};
 
 void resetSettings() {
 

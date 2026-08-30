@@ -659,7 +659,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		distinct_items = items.size();
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
-		// Twenty-two of the fifty-five still share the one placeholder. The real, distinct items are
+		// Nineteen of the fifty-two still share the one placeholder. The real, distinct items are
 		// `battery_level` and `firmware_version` (E2 task 2 fix round 1), E2 task 5's three
 		// `EditNameItem`s -- one per `rename::TargetId`, since the target is the item's only state
 		// (`edit_name.h`) -- E2 task 7's five `ResetItem`s, one per `context_menu::DescriptorId`
@@ -680,9 +680,11 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// E2 task 11b adds five: the four `ActionItem`s (`kStartStemExportItem`, `kSetClipLengthItem`,
 		// `kSongMidiLearnItem`, `kConfigureSongMacrosItem` -- four instances rather than one, for the
 		// same reason the twelve MIDI-command items are twelve: the action is the item's only state)
-		// and `kPerformEditorItem` (`nodes/actions.h`) -- so **thirty-nine**. The node count does not
-		// move: all five were already `Kind::Custom` nodes pointing at `kPending`, and `kPending`
-		// still has other users.
+		// and `kPerformEditorItem` (`nodes/actions.h`) -- so **thirty-nine**. Those five move no node
+		// count: all were already `Kind::Custom` nodes pointing at `kPending`, and `kPending` still
+		// has other users. The same task takes three nodes *out* of the escape hatch -- `default_tempo`,
+		// `default_swing_amount` and `default_key` become `Kind::Range` (`node.h`) -- so the node count
+		// falls 55 -> **52** while the distinct-instance count stays at thirty-nine.
 		//
 		// Twelve instances rather than one parameterised by the node, because the command a node
 		// binds has to be a property of the item: `CustomItem::learn_*` is handed `MenuState`, not

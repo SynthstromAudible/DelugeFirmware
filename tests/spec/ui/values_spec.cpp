@@ -9,6 +9,10 @@
 #include "cppspec.hpp"
 
 #include "../support/spec_main.h"
+#include <cstddef>
+#include <cstdint>
+#include <span>
+#include <string>
 #include <string_view>
 
 using namespace deluge::ui;
@@ -55,6 +59,48 @@ namespace uitest = deluge::ui::test;
 //    `int_value`/`decimal_value` and `menu_rect(f)` for `enum_value`/`toggle`; every golden below
 //    uses it, and "lays out relative to the rect" pins what a different rect does -- including
 //    `decimal_value`'s y staying canvas-absolute.
+
+namespace {
+
+/// @brief `range_value`'s formatter for a plain integer -- the spec's own `intToString`, written out
+///        rather than borrowed from the port, so a broken `int_to_string` cannot make both sides
+///        agree.
+std::string_view fmt_int(int32_t value, std::span<char> scratch) {
+	char digits[12];
+	size_t d = 0;
+	uint32_t magnitude = value < 0 ? static_cast<uint32_t>(-static_cast<int64_t>(value)) : static_cast<uint32_t>(value);
+	do {
+		digits[d++] = static_cast<char>('0' + (magnitude % 10));
+		magnitude /= 10;
+	} while (magnitude != 0);
+	size_t len = 0;
+	if (value < 0 && len < scratch.size()) {
+		scratch[len++] = '-';
+	}
+	while (d > 0 && len < scratch.size()) {
+		scratch[len++] = digits[--d];
+	}
+	return std::string_view{scratch.data(), len};
+}
+
+/// @brief A note-letter formatter, standing in for `KeyRange::getText`. Deliberately unrelated to
+///        the port's own `format_range_key`: the point of the example that uses it is that the
+///        widget lays out on whatever lengths the *caller's* formatter returns.
+std::string_view fmt_note(int32_t value, std::span<char> scratch) {
+	static constexpr char kLetters[] = "CCDDEFFGGAAB";
+	static constexpr bool kSharp[] = {false, true, false, true, false, false, true, false, true, false, true, false};
+	const int32_t note = value < 0 ? 0 : (value > 11 ? 11 : value);
+	size_t len = 0;
+	if (len < scratch.size()) {
+		scratch[len++] = kLetters[note];
+	}
+	if (kSharp[note] && len < scratch.size()) {
+		scratch[len++] = '#';
+	}
+	return std::string_view{scratch.data(), len};
+}
+
+} // namespace
 
 // clang-format off
 describe values_w("ui::oled::values", $ {
@@ -613,6 +659,302 @@ describe values_w("ui::oled::values", $ {
 		expect(value).to_equal(before);
 		expect(pressed.changed).to_be_false();
 		expect(pressed.entered).to_be_true();   // the scene navigates, as it does for enum_value
+	});
+
+	// ---------------------------------------------------------------- range_value
+
+	// `Range::drawPixelsForOled` (`gui/menu_item/range.cpp:97-131`) is a *different* legacy routine
+	// from `Integer::drawPixelsForOled`, and the difference is load-bearing: it centres on
+	// `kTextHugeSpacingX * character_count` -- a monospaced width -- where Integer centres on
+	// `get_string_width_in_pixels`. For "60" the two agree by luck; for the strings below they do
+	// not, which is why each example replays legacy's own `draw_string(buffer, stringStartX, ...)`
+	// rather than `draw_string_centred`.
+
+	it("draws just the low end when the ends are equal and no edge is selected", _ {
+		uitest::Rig48 r;
+		int32_t lower = 120, upper = 120;
+		RangeEdge edge = RangeEdge::Off;
+		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
+		                                  fmt_int, RangeClamp::Push);
+		expect(resp.focused).to_be_true();
+		expect(resp.changed).to_be_false();
+
+		// getText's mayShowJustOne arm (`integer_range.cpp:116-121`): rightLength 0, so textLength
+		// is 3, stringWidth 54, stringStartX (128 - 54) >> 1 == 37.
+		r.reference.draw_string("120", 37, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+		expect_golden(self, "../ui/widgets/range_value_point_48.pbm", r.pbm());
+
+		uitest::Rig64 r64;
+		int32_t l64 = 120, u64 = 120;
+		RangeEdge e64 = RangeEdge::Off;
+		range_value(r64.frame, r64.frame.bounds(), l64, u64, Range{.min = 60, .max = 240}, e64, fmt_int,
+		            RangeClamp::Push);
+		r64.reference.draw_string("120", 37, 18 + 0, kTextHugeSpacingX, kTextHugeSizeY);
+		expect(r64.pbm()).to_equal(r64.reference_pbm());
+		expect_golden(self, "../ui/widgets/range_value_point_64.pbm", r64.pbm());
+	});
+
+	it("draws both ends with a hyphen once they differ, at both geometries", _ {
+		uitest::Rig48 r;
+		int32_t lower = 90, upper = 150;
+		RangeEdge edge = RangeEdge::Off;
+		range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
+		            RangeClamp::Push);
+		// leftLength 2 + rightLength 3 + 1 for the '-' == 6; stringWidth 108; startX (128-108)>>1 == 10.
+		r.reference.draw_string("90-150", 10, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+		expect_golden(self, "../ui/widgets/range_value_split_48.pbm", r.pbm());
+
+		uitest::Rig64 r64;
+		int32_t l64 = 90, u64 = 150;
+		RangeEdge e64 = RangeEdge::Off;
+		range_value(r64.frame, r64.frame.bounds(), l64, u64, Range{.min = 60, .max = 240}, e64, fmt_int,
+		            RangeClamp::Push);
+		r64.reference.draw_string("90-150", 10, 18 + 0, kTextHugeSpacingX, kTextHugeSizeY);
+		expect(r64.pbm()).to_equal(r64.reference_pbm());
+		expect_golden(self, "../ui/widgets/range_value_split_64.pbm", r64.pbm());
+	});
+
+	it("shows both ends even when they are equal, once an edge is selected", _ {
+		// `mayShowJustOne` is `editingRangeEdge == RangeEdit::OFF` (`range.cpp:102`), so selecting an
+		// edge on a coincident pair reveals the hyphen -- which is how the user sees there are two.
+		uitest::Rig48 r;
+		int32_t lower = 7, upper = 7;
+		RangeEdge edge = RangeEdge::Left;
+		range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 99}, edge, fmt_int,
+		            RangeClamp::Push);
+		// "7-7": textLength 3, stringWidth 54, startX 37. Left highlight is 1 digit wide from 37.
+		r.reference.draw_string("7-7", 37, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
+		r.reference.invert_area(37, kTextHugeSpacingX, 18 + 5 - 1, 18 + 5 - 1 + kTextHugeSizeY + 1);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
+	it("inverts the selected end plus one row above and below, at both geometries", _ {
+		// `range.cpp:117-130`: LEFT inverts from stringStartX for leftLength digits; RIGHT inverts
+		// backwards from stringEndX for rightLength. The band is `baseY .. baseY + digitHeight + 1`
+		// with `baseY` already decremented by one, i.e. digitHeight + 2 rows.
+		uitest::Rig48 left;
+		int32_t l = 90, u = 150;
+		RangeEdge edge = RangeEdge::Left;
+		range_value(left.frame, left.frame.bounds(), l, u, Range{.min = 60, .max = 240}, edge, fmt_int,
+		            RangeClamp::Push);
+		left.reference.draw_string("90-150", 10, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
+		left.reference.invert_area(10, kTextHugeSpacingX * 2, 18 + 5 - 1, 18 + 5 - 1 + kTextHugeSizeY + 1);
+		expect(left.pbm()).to_equal(left.reference_pbm());
+		expect_golden(self, "../ui/widgets/range_value_left_48.pbm", left.pbm());
+
+		uitest::Rig48 right;
+		int32_t l2 = 90, u2 = 150;
+		RangeEdge redge = RangeEdge::Right;
+		range_value(right.frame, right.frame.bounds(), l2, u2, Range{.min = 60, .max = 240}, redge, fmt_int,
+		            RangeClamp::Push);
+		right.reference.draw_string("90-150", 10, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
+		// stringEndX = (128 + 108) >> 1 == 118; the 3-digit right end starts at 118 - 54 == 64.
+		right.reference.invert_area(64, kTextHugeSpacingX * 3, 18 + 5 - 1, 18 + 5 - 1 + kTextHugeSizeY + 1);
+		expect(right.pbm()).to_equal(right.reference_pbm());
+		expect_golden(self, "../ui/widgets/range_value_right_48.pbm", right.pbm());
+
+		uitest::Rig64 r64;
+		int32_t l64 = 90, u64 = 150;
+		RangeEdge e64 = RangeEdge::Right;
+		range_value(r64.frame, r64.frame.bounds(), l64, u64, Range{.min = 60, .max = 240}, e64, fmt_int,
+		            RangeClamp::Push);
+		r64.reference.draw_string("90-150", 10, 18 + 0, kTextHugeSpacingX, kTextHugeSizeY);
+		r64.reference.invert_area(64, kTextHugeSpacingX * 3, 18 + 0 - 1, 18 + 0 - 1 + kTextHugeSizeY + 1);
+		expect(r64.pbm()).to_equal(r64.reference_pbm());
+		expect_golden(self, "../ui/widgets/range_value_right_64.pbm", r64.pbm());
+	});
+
+	it("walks the edge with the horizontal encoder exactly as Range::horizontalEncoderAction does", _ {
+		// `range.cpp:35-84` as a table: a turn towards the end already selected switches editing
+		// off; any other turn selects the end the turn points at.
+		struct Step {
+			RangeEdge from;
+			int8_t horizontal;
+			RangeEdge to;
+		};
+		const Step steps[] = {
+		    {RangeEdge::Off, -1, RangeEdge::Left},    // `:52-53`
+		    {RangeEdge::Off, 1, RangeEdge::Right},    // `:73-74`
+		    {RangeEdge::Left, -1, RangeEdge::Off},    // `:44-46`
+		    {RangeEdge::Left, 1, RangeEdge::Right},   // `:73-74` from LEFT
+		    {RangeEdge::Right, 1, RangeEdge::Off},    // `:67-68`
+		    {RangeEdge::Right, -1, RangeEdge::Left},  // `:52-53` from RIGHT
+		    {RangeEdge::Left, 0, RangeEdge::Left},    // no turn, no move
+		};
+		for (const Step& step : steps) {
+			uitest::Rig48 r;
+			int32_t lower = 90, upper = 150;
+			RangeEdge edge = step.from;
+			r.input.horizontal = step.horizontal;
+			const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240},
+			                                  edge, fmt_int, RangeClamp::Push);
+			expect(static_cast<int>(edge)).to_equal(static_cast<int>(step.to));
+			expect(resp.changed).to_equal(step.from != step.to);
+			expect(lower).to_equal(90);   // the horizontal encoder never moves a value
+			expect(upper).to_equal(150);
+		}
+	});
+
+	it("reads nothing at all when unfocused", _ {
+		uitest::Rig48 r;
+		int32_t lower = 90, upper = 150;
+		RangeEdge edge = RangeEdge::Left;
+		r.input.horizontal = 1;
+		r.input.edit[0] = 3;
+		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
+		                                  fmt_int, RangeClamp::Push, /*focused=*/false);
+		expect(resp.focused).to_be_false();
+		expect(static_cast<int>(edge)).to_equal(static_cast<int>(RangeEdge::Left));
+		expect(lower).to_equal(90);
+		expect(upper).to_equal(150);
+		// ... and it still draws, which is what an unfocused render is for.
+		r.reference.draw_string("90-150", 10, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
+		r.reference.invert_area(10, kTextHugeSpacingX * 2, 18 + 5 - 1, 18 + 5 - 1 + kTextHugeSizeY + 1);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
+	it("pushes the far end with RangeClamp::Push, the IntegerRange rule", _ {
+		// `IntegerRange::selectEncoderAction` (`integer_range.cpp:76-89`): each end moves inside
+		// [min, max] and drags the other along rather than crossing it.
+		{
+			uitest::Rig48 r;
+			int32_t lower = 100, upper = 100;
+			RangeEdge edge = RangeEdge::Left;
+			r.input.edit[0] = 5;
+			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
+			                   RangeClamp::Push)
+			           .changed)
+			    .to_be_true();
+			expect(lower).to_equal(105);
+			expect(upper).to_equal(105);   // dragged
+		}
+		{
+			uitest::Rig48 r;
+			int32_t lower = 100, upper = 100;
+			RangeEdge edge = RangeEdge::Right;
+			r.input.edit[0] = -5;
+			range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
+			            RangeClamp::Push);
+			expect(upper).to_equal(95);
+			expect(lower).to_equal(95);    // dragged the other way
+		}
+		{
+			uitest::Rig48 r;   // and it still clamps at the outer bounds
+			int32_t lower = 60, upper = 240;
+			RangeEdge edge = RangeEdge::Left;
+			r.input.edit[0] = -1;
+			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
+			                   RangeClamp::Push)
+			           .changed)
+			    .to_be_false();
+			expect(lower).to_equal(60);
+		}
+	});
+
+	it("bounds each end against the other with RangeClamp::Bound, the KeyRange rule", _ {
+		// `KeyRange::selectEncoderAction` (`key_range.cpp:214-221`): the other end IS the bound, so
+		// an end stops dead at its neighbour and the neighbour never moves. This is the example that
+		// separates the two policies: with Push the same detent would give 6-6.
+		{
+			uitest::Rig48 r;
+			int32_t lower = 5, upper = 5;
+			RangeEdge edge = RangeEdge::Left;
+			r.input.edit[0] = 1;
+			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 11}, edge, fmt_int,
+			                   RangeClamp::Bound)
+			           .changed)
+			    .to_be_false();
+			expect(lower).to_equal(5);
+			expect(upper).to_equal(5);
+		}
+		{
+			uitest::Rig48 r;
+			int32_t lower = 2, upper = 9;
+			RangeEdge edge = RangeEdge::Left;
+			r.input.edit[0] = 100;   // way past the upper end
+			range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 11}, edge, fmt_int,
+			            RangeClamp::Bound);
+			expect(lower).to_equal(9);
+			expect(upper).to_equal(9);   // untouched: it was already there
+		}
+		{
+			uitest::Rig48 r;
+			int32_t lower = 2, upper = 9;
+			RangeEdge edge = RangeEdge::Right;
+			r.input.edit[0] = -100;
+			range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 11}, edge, fmt_int,
+			            RangeClamp::Bound);
+			expect(upper).to_equal(2);
+			expect(lower).to_equal(2);
+		}
+	});
+
+	it("with no edge selected, moves a coincident pair as one and refuses to move a split one", _ {
+		// The one statement both subclasses share (`integer_range.cpp:94-104`,
+		// `key_range.cpp:226-235`), and the reason it matters: a range the user has not opened an
+		// edge on behaves exactly like a plain number until it is split.
+		{
+			uitest::Rig48 r;
+			int32_t lower = 100, upper = 100;
+			RangeEdge edge = RangeEdge::Off;
+			r.input.edit[1] = 3;   // the fine knob, one unit per detent
+			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
+			                   RangeClamp::Push)
+			           .changed)
+			    .to_be_true();
+			expect(lower).to_equal(103);
+			expect(upper).to_equal(103);
+		}
+		{
+			uitest::Rig48 r;
+			int32_t lower = 90, upper = 150;
+			RangeEdge edge = RangeEdge::Off;
+			r.input.edit[0] = 5;
+			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
+			                   RangeClamp::Push)
+			           .changed)
+			    .to_be_false();
+			expect(lower).to_equal(90);
+			expect(upper).to_equal(150);
+		}
+	});
+
+	it("moves nothing across twenty quiet ticks", _ {
+		// Nothing here is clock-driven -- there is no scroller and no blink -- so the panel must be
+		// byte-identical after twenty input-free ticks, and no repaint may be requested.
+		uitest::Rig48 r;
+		int32_t lower = 90, upper = 150;
+		RangeEdge edge = RangeEdge::Right;
+		range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
+		            RangeClamp::Push);
+		const std::string first = r.pbm();
+		for (uint32_t t = 1; t <= 20; t++) {
+			r.begin_tick(t * 15);
+			const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240},
+			                                  edge, fmt_int, RangeClamp::Push);
+			expect(resp.changed).to_be_false();
+			expect(r.pbm()).to_equal(first);
+		}
+		expect(lower).to_equal(90);
+		expect(upper).to_equal(150);
+		expect(static_cast<int>(edge)).to_equal(static_cast<int>(RangeEdge::Right));
+	});
+
+	it("spells each end with whatever the caller's formatter says", _ {
+		// The `RangeFormatFn` seam: `KeyRange::getText` spells note letters, not digits, and the
+		// widget must lay out on the *formatted* lengths -- a two-character end ("C#") is two digit
+		// cells wide even though nothing about the value says so.
+		uitest::Rig48 r;
+		int32_t lower = 1, upper = 4;   // C# and E, in the sharps table
+		RangeEdge edge = RangeEdge::Off;
+		range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 11}, edge, fmt_note,
+		            RangeClamp::Bound);
+		// "C#-E": textLength 4, stringWidth 72, startX (128 - 72) >> 1 == 28.
+		r.reference.draw_string("C#-E", 28, 18 + 5, kTextHugeSpacingX, kTextHugeSizeY);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+		expect_golden(self, "../ui/widgets/range_value_notes_48.pbm", r.pbm());
 	});
 });
 DELUGE_SPEC(ui_values_spec, values_w)

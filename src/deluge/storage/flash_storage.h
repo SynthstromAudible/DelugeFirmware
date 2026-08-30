@@ -119,6 +119,43 @@ enum PadColourSlot : uint8_t {
 /// before.
 extern uint8_t padColours[NUM_PAD_COLOUR_SLOTS];
 
+/// @brief Which of the three default `{lower, upper}` range settings a `defaultRanges` entry holds.
+///
+/// The order is `soundEditorRootMenuSettings`' own DEFAULTS page (`gui/ui/menus.cpp:1693-1696`),
+/// which is also the order `readSettings`/`writeSettings` lay them out in flash (bytes 53..58).
+enum DefaultRangeSlot : uint8_t {
+	DEFAULT_RANGE_TEMPO,
+	DEFAULT_RANGE_SWING_AMOUNT,
+	DEFAULT_RANGE_KEY,
+	NUM_DEFAULT_RANGE_SLOTS,
+};
+
+/// @brief One default setting that is a *range* rather than a value: a low and a high bound, from
+///        which `Song::setupDefault` draws a random starting point (`model/song/song.cpp:263-265`).
+struct DefaultRange {
+	int32_t lower;
+	int32_t upper;
+};
+
+/// @brief The three default ranges: tempo, swing amount and key.
+///
+/// These used to live one pair per object as `menu_item::IntegerRange::lower`/`upper`
+/// (`gui/menu_item/integer_range.h:33`) and `menu_item::KeyRange::lower`/`upper`
+/// (`gui/menu_item/key_range.h:173`) -- public members of the legacy menu items themselves. They
+/// are settings, not menu state: `readSettings`/`writeSettings` have always persisted them
+/// (bytes 53..58) and `Song::setupDefault` has always read them, both by bare-`extern`ing the
+/// *menu item* (`song.cpp:249-251`, `flash_storage.cpp:45-47`) -- which is exactly the smell that
+/// says the storage is in the wrong place.
+///
+/// A member of a `gui/` class is unreachable from a layer that may not name `gui/` at all
+/// (`src/scenes`, whose DEFAULTS page edits exactly these six values), and there is no
+/// declaration-only escape from a class member the way there is from a namespace-scope global. So
+/// the values live here and `IntegerRange`/`KeyRange`'s `lower`/`upper` are now references onto
+/// one of these slots; every legacy spelling (`defaultTempoMenu.lower`,
+/// `defaultKeyMenu.getRandomValueInRange()`) reads and writes the same storage it did before. The
+/// same move, for the same reason, that `padColours` above is.
+extern DefaultRange defaultRanges[NUM_DEFAULT_RANGE_SLOTS];
+
 void readSettings();
 void writeSettings();
 void resetSettings();

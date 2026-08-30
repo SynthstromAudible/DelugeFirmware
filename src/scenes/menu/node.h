@@ -54,16 +54,25 @@ namespace deluge::scenes::menu {
 ///
 /// Five enumerators did not survive that count and were removed rather than left as speculation:
 ///
-///   * `Bipolar`, `Range`, `MultiRange`, `Colour` -- zero nodes each, and no interpreter. The
-///     legacy items that would have wanted them are all E2's bespoke ones (`menu_item::Bipolar`,
-///     `IntegerRange`/`KeyRange`, `multi_range.h`, `menu_item::Colour`), and every one of those is
-///     a `Kind::Custom` placeholder in E1 because its state lives behind the `gui/` wall.
-///   * `Action` -- zero nodes. Every legacy `MenuItem` whose select press *does* something rather
-///     than editing a value (the five reset items, stem-export start, the MIDI-learn commands, the
-///     audio-clip length and source pickers, the two song context menus) reaches a UI this layer
-///     may not touch, so all of them are `Kind::Custom` placeholders too. `MenuScene::enter_child`
-///     lost its one-line action arm with it; E2 reintroduces both together if its own items need
-///     them.
+///   * `Bipolar`, `MultiRange`, `Colour` -- zero nodes each, and no interpreter. The legacy items
+///     that would have wanted them are all E2's bespoke ones (`menu_item::Bipolar`,
+///     `multi_range.h`, `menu_item::Colour`), and every one of those is a `Kind::Custom`
+///     placeholder in E1 because its state lives behind the `gui/` wall. (`Colour` stayed deleted
+///     even after E2 task 11 made the six pad colours real: they are ordinary `Kind::Enum` nodes.)
+///   * `Range` was deleted with them, on the same count, and **E2 task 11b brought it back** --
+///     under the same rule, run the other way. Spec E §4's threshold is "a kind exists only if at
+///     least 3 items use it", and there are now exactly three: `default_tempo`,
+///     `default_swing_amount` (`IntegerRange`, `gui/ui/menus.cpp:1645-1648`) and `default_key`
+///     (`KeyRange`, `:1650`). Three is the threshold, so the kind is warranted and no more nodes
+///     were invented to pad it out: `MultiRange`'s picker is a different editor
+///     (`nodes/multi_range.h`, a `CustomItem`) and is deliberately not counted here.
+///   * `Action` -- zero nodes, and **still zero after E2 task 11b**, which is the task that
+///     finally made those items real. Every legacy `MenuItem` whose select press *does* something
+///     rather than editing a value reaches a UI this layer may not touch, so what they needed was
+///     not a `Kind` but a way to *name* the action for someone else to run: `MenuAction` and
+///     `MenuState::pending_action` (`scenes/menu/action.h`). A `Kind::Action` would have had to
+///     carry the same intent through a `Binding` that has nowhere to put it, and would still not
+///     have performed anything. `MenuScene::enter_child` keeps no action arm.
 ///
 /// `SyncLevel` was confirmed by the same count (the delay, sidechain, reverb-sidechain and
 /// arpeggiator syncs, the song swing interval, the default swing interval and the record
@@ -75,6 +84,13 @@ enum class Kind : uint8_t {
 	Int,
 	Decimal,
 	SyncLevel,
+	/// @brief A two-ended `{lower, upper}` editor -- `menu_item::Range` and its two subclasses
+	///        (`gui/menu_item/range.h:30`, `integer_range.h:24`, `key_range.h:24`).
+	///
+	/// `Binding::get`/`set` are the **lower** edge; `Binding::range_spec` carries the upper edge's
+	/// hooks and the two per-item rules (how the ends spell themselves, and what happens when they
+	/// would cross). Rendered by `ui::oled::range_value`.
+	Range,
 	Custom,
 };
 
@@ -164,6 +180,38 @@ inline constexpr size_t kMaxNodes = 1024;
 ///       two builders are given, engaged only when `range == nullptr`. Task 6+'s interpreter reads
 ///       in this order: `range(ctx)` if set, else `fixed_range` if engaged, else derive from
 ///       `param` (model code, out of reach here).
+/// @brief The half of a `Kind::Range` binding that a `Kind::Int` one has no room for.
+///
+/// A `Binding` names one value through `get`/`set`; a range is two. Rather than grow four more
+/// fields on a struct every node pays for, the three range nodes point at one of these -- the same
+/// trade `Node::chain_targets`' span makes for the seven chaining nodes.
+///
+/// `get`/`set` on the `Binding` itself stay the **lower** edge, so `bindings::read`/`write` and
+/// `validate_tree`'s "a value node has something to read" rule keep working on a range node without
+/// a special case.
+struct RangeSpec {
+	/// @brief The upper edge. `IntegerRange::upper` / `KeyRange::upper`, which are now references
+	///        onto `FlashStorage::defaultRanges` (`storage/flash_storage.h`).
+	GetFn get_upper = nullptr;
+	SetFn set_upper = nullptr;
+
+	/// @brief How one end spells itself -- `Range::getText`'s per-subclass half
+	///        (`integer_range.cpp:107-132`, `key_range.cpp:238-278`).
+	deluge::ui::oled::RangeFormatFn format = nullptr;
+
+	/// @brief Which of legacy's two crossing rules this item uses (`ui/oled/values.h`'s
+	///        `RangeClamp`): `Push` for `IntegerRange`, `Bound` for `KeyRange`.
+	deluge::ui::oled::RangeClamp clamp = deluge::ui::oled::RangeClamp::Push;
+
+	/// @brief Does opening the item land on the LEFT edge when the two ends differ?
+	///
+	/// `IntegerRange::beginSession` (`integer_range.cpp:63-68`) does exactly that;
+	/// `KeyRange` has no `beginSession` override at all, so it takes `Range::beginSession`'s bare
+	/// `editingRangeEdge = RangeEdit::OFF` (`range.cpp:30-33`). One `bool` rather than a second
+	/// hook, because that is the whole of the difference.
+	bool focus_left_when_split = false;
+};
+
 struct Binding {
 	ParamRef param{};
 	GetFn get = nullptr;
@@ -174,6 +222,10 @@ struct Binding {
 	DynamicNamesFn dynamic_names = nullptr;
 	deluge::ui::oled::ValueStyle style{};
 	uint8_t decimal_places = 0;
+
+	/// @brief `Kind::Range` only: the upper edge and the two per-item rules. Null for every other
+	///        kind, and `validate_tree` reports a `Kind::Range` node without one.
+	const RangeSpec* range_spec = nullptr;
 
 	/// @brief Which value scaling `param` is read and written through (`Scaling` above). Meaningful
 	///        only when `param.valid()`; ignored for a `get`/`set` binding.
@@ -544,6 +596,29 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 	n.bind.get = get;
 	n.bind.set = set;
 	n.bind.fixed_range = r;
+	n.relevant = rel;
+	return n;
+}
+
+/// @brief A `Kind::Range` leaf -- `menu_item::Range` (`gui/menu_item/range.h:30`).
+///
+/// @param get_lower/@param set_lower The lower edge, which is also what `bindings::read`/`write`
+///                                   see (`RangeSpec`).
+/// @param spec  The upper edge and the two per-item rules. Required: a null one is a
+///              `validate_tree` issue, not a defaulted-to-something.
+/// @param r     The bounds both ends live inside, and the coarse knob's step --
+///              `IntegerRange::minValue`/`maxValue` (`integer_range.h:35`), or `KeyRange`'s own
+///              `KEY_MIN`/`KEY_MAX` locals (`key_range.cpp:207-208`).
+constexpr Node range_item(uint16_t name, uint16_t title, GetFn get_lower, SetFn set_lower, const RangeSpec* spec,
+                          IntRange r, RelevantFn rel = nullptr) {
+	Node n{};
+	n.name = name;
+	n.title = title != 0 ? title : name;
+	n.kind = Kind::Range;
+	n.bind.get = get_lower;
+	n.bind.set = set_lower;
+	n.bind.fixed_range = r;
+	n.bind.range_spec = spec;
 	n.relevant = rel;
 	return n;
 }

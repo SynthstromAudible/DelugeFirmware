@@ -547,6 +547,25 @@ bool value_is_port_owned(const Node& node) {
 	return &node == &nodes::shortcuts_version;
 }
 
+/// @brief The three nodes whose value is a **pair**, so the one-`int32_t` loops below have nothing
+///        to compare.
+///
+/// `default_tempo`, `default_swing_amount` and `default_key` are `Kind::Range` (E2 task 11b): their
+/// `lower` and `upper` live in `FlashStorage::defaultRanges` and legacy edits both of them in
+/// `IntegerRange`/`KeyRange::selectEncoderAction`. Neither legacy class has a `writeCurrentValue` at
+/// all -- the members *are* the storage -- so `legacy_value` reads `Value<int32_t>::value_`, a field
+/// nothing on either side ever writes, and `probe_write` drives a legacy path that stores nothing.
+/// Including them here would compare two zeroes and pass whatever the port did.
+///
+/// @note **This is an exclusion from these two loops, not from comparison.**
+///       `sim/scenes_spec/menu_ranges_spec.cpp` compares all three against the real legacy objects
+///       far more thoroughly than a single-value probe could: the spellings over every value in
+///       range, both clamp rules, the edge selection, the `beginSession` seeding and the rendered
+///       pixels -- each with legacy and the port driven independently from the same sentinel.
+bool value_is_two_ended(const Node& node) {
+	return node.kind == menu::Kind::Range;
+}
+
 /// @brief The one `Kind::Enum` whose option list is **not** reproducible: its ON option names a
 ///        randomly generated key.
 ///
@@ -1120,8 +1139,10 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 	it("reads what the legacy item reads, for every node that holds a value", _ {
 		size_t compared = 0;
 		for (const Pair& p : tree().pairs) {
-			if (p.node->kind == menu::Kind::Custom || !relevant_here(p) || value_is_port_owned(*p.node)) {
-				continue; // an E2 placeholder, an item this context does not show, or a port-owned value
+			if (p.node->kind == menu::Kind::Custom || !relevant_here(p) || value_is_port_owned(*p.node)
+			    || value_is_two_ended(*p.node)) {
+				continue; // an E2 placeholder, an item this context does not show, a port-owned value,
+				          // or a two-ended range (see `value_is_two_ended`)
 			}
 			install(p.root->ctx, p.root->song);
 			const std::optional<int32_t> want = legacy_value(p.item);
@@ -1460,7 +1481,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		std::set<const Node*> covered;
 		for (const Pair& p : tree().pairs) {
 			if (p.node->bind.set == nullptr || legacy_write_needs_ui(*p.node) || !relevant_here(p)
-			    || value_is_port_owned(*p.node)) {
+			    || value_is_port_owned(*p.node) || value_is_two_ended(*p.node)) {
 				continue;
 			}
 			install(p.root->ctx, p.root->song);

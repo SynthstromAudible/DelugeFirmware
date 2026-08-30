@@ -48,8 +48,9 @@
 #include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
 #include "storage/flash_storage.h"
 
-#include "shell/scene.h"     // UiEvent/UiContext/Result -- CustomItem::handle's signature
-#include "ui/core/metrics.h" // kReadoutValueY
+#include "shell/scene.h"                  // UiEvent/UiContext/Result -- CustomItem::handle's signature
+#include "ui/core/metrics.h"              // kReadoutValueY
+#include "ui/oled/detail/int_to_string.h" // format_range_integer -- the port of intToString
 #include "ui/oled/frame.h"
 #include "ui/oled/text.h"
 
@@ -81,6 +82,14 @@ extern uint32_t jcong;
 namespace PadLEDs {
 extern uint8_t flashCursor;
 } // namespace PadLEDs
+
+// The three note-name tables `format_range_key` reads. `util/lookuptables/lookuptables.h` is outside
+// this layer's include allowance (`scripts/check_layer_rules.py`'s `scenes-includes-outside`), so
+// they are declared here at the global scope where they are defined
+// (`util/lookuptables/lookuptables.cpp:487-490`) -- the same spelling `multi_range.cpp:43-45` uses.
+extern const uint8_t noteCodeToNoteLetter[];
+extern const uint8_t noteCodeToNoteLetterFlats[];
+extern const bool noteCodeIsSharp[];
 
 namespace deluge::scenes::menu::nodes {
 
@@ -1069,6 +1078,89 @@ void BatteryLevelItem::on_focus(const MenuContext&, MenuState&) const {
 	// the reset baseline says so.
 	checked_once_ = false;
 	charging_ = false;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The three `Kind::Range` items (see `settings.h`)
+//
+// `IntegerRange::lower`/`upper` and `KeyRange::lower`/`upper` are now references onto
+// `FlashStorage::defaultRanges` (`storage/flash_storage.h`), so these twelve hooks and the legacy
+// menu items address the same six values -- which is what lets the specs drive both sides.
+
+namespace {
+
+/// The slot each node's hooks address. Pinned against the enum here, in a translation unit that
+/// sees both, so a reordering of `DefaultRangeSlot` fires instead of silently repointing an item at
+/// the wrong setting -- the same guard `settings.cpp`'s pad-colour slots and `ResetItem`'s
+/// descriptor ids already carry.
+static_assert(FlashStorage::DEFAULT_RANGE_TEMPO == 0);
+static_assert(FlashStorage::DEFAULT_RANGE_SWING_AMOUNT == 1);
+static_assert(FlashStorage::DEFAULT_RANGE_KEY == 2);
+static_assert(FlashStorage::NUM_DEFAULT_RANGE_SLOTS == 3);
+
+} // namespace
+
+std::string_view format_range_integer(int32_t value, std::span<char> scratch) {
+	// `IntegerRange::getText` (`gui/menu_item/integer_range.cpp:107-132`) spells each end with
+	// `intToString(value, buffer)`, i.e. `intToString(value, buffer, 1)` -- at least one digit, and a
+	// leading '-' for a negative one. `int_to_string` is the toolkit's port of exactly that call
+	// (`ui/oled/detail/int_to_string.h`), which `int_value` uses for the same job.
+	return deluge::ui::oled::detail::int_to_string(value, 1, scratch);
+}
+
+std::string_view format_range_key(int32_t value, std::span<char> scratch) {
+	// `KeyRange::getText` (`gui/menu_item/key_range.cpp:238-278`), one end at a time: the note
+	// letter, then an accidental when the note is a sharp. `defaultUseSharps` picks both the table
+	// and the accidental glyph, exactly as legacy reads it (`:240-241`).
+	const bool sharps = FlashStorage::defaultUseSharps;
+	const int32_t note = std::clamp<int32_t>(value, 0, 11);
+	size_t len = 0;
+	if (len < scratch.size()) {
+		scratch[len++] = static_cast<char>(sharps ? noteCodeToNoteLetter[note] : noteCodeToNoteLetterFlats[note]);
+	}
+	if (noteCodeIsSharp[note] && len < scratch.size()) {
+		scratch[len++] = sharps ? '#' : static_cast<char>(FLAT_CHAR);
+	}
+	return std::string_view{scratch.data(), len};
+}
+
+int32_t get_default_tempo_lower(const MenuContext&) {
+	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower;
+}
+void set_default_tempo_lower(const MenuContext&, int32_t value) {
+	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower = value;
+}
+int32_t get_default_tempo_upper(const MenuContext&) {
+	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper;
+}
+void set_default_tempo_upper(const MenuContext&, int32_t value) {
+	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper = value;
+}
+
+int32_t get_default_swing_lower(const MenuContext&) {
+	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_SWING_AMOUNT].lower;
+}
+void set_default_swing_lower(const MenuContext&, int32_t value) {
+	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_SWING_AMOUNT].lower = value;
+}
+int32_t get_default_swing_upper(const MenuContext&) {
+	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_SWING_AMOUNT].upper;
+}
+void set_default_swing_upper(const MenuContext&, int32_t value) {
+	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_SWING_AMOUNT].upper = value;
+}
+
+int32_t get_default_key_lower(const MenuContext&) {
+	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].lower;
+}
+void set_default_key_lower(const MenuContext&, int32_t value) {
+	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].lower = value;
+}
+int32_t get_default_key_upper(const MenuContext&) {
+	return FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].upper;
+}
+void set_default_key_upper(const MenuContext&, int32_t value) {
+	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].upper = value;
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -57,6 +57,15 @@ struct Issue {
 		/// @brief A node whose `title` is 0 (no string id at all -- the builders default `title` to
 		///        `name`, so this means neither was given one).
 		MissingTitle,
+		/// @brief A `Kind::Range` with no `Binding::range_spec`, or one whose `format` is null:
+		///        `render_leaf_range` would draw a title and nothing else.
+		///
+		/// The `Kind::Range` counterpart of `NullCustom`, and it needs to exist for the same reason:
+		/// the pointer is the *only* thing that says how the upper edge is read, written and spelled
+		/// (`node.h`'s `RangeSpec`), and a table that forgot it produces a blank editor rather than a
+		/// crash. `range_item()` takes the spec as a required argument, so this fires only on a node
+		/// assembled by hand.
+		RangeWithoutSpec,
 		/// @brief A `Kind::Custom` whose `custom` pointer is null: nothing would render.
 		NullCustom,
 		/// @brief A `Kind::Custom` pointing at a stand-in rather than the real item
@@ -132,7 +141,7 @@ inline constexpr size_t kMaxCustomNodes = 56;
 ///
 /// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
 /// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
-inline constexpr size_t kShippedCustomNodes = 55;
+inline constexpr size_t kShippedCustomNodes = 52;
 
 /// @brief Which of the strict rules the caller is deliberately standing down.
 ///

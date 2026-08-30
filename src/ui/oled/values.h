@@ -169,4 +169,105 @@ Response enum_value(OledFrame& f, gfx::oled::Rect rect, int32_t& index, std::spa
 Response toggle(OledFrame& f, gfx::oled::Rect rect, bool& value, std::string_view off_label, std::string_view on_label,
                 ScrollText& scroll_label);
 
+/// @brief Which edge of a two-ended range is being edited -- the port of
+///        `deluge::gui::menu_item::RangeEdit` (`gui/menu_item/range.h:24-28`).
+///
+/// Legacy keeps this one enum on `SoundEditor::editingRangeEdge`, a single global shared by every
+/// range item because only one is ever on screen. Here it is a caller-owned in/out parameter, which
+/// is what lets the scene keep it per menu depth beside the rest of the page's state.
+enum class RangeEdge : uint8_t { Off = 0, Left = 1, Right = 2 };
+
+/// @brief What a detent does to the edge that is *not* being edited when the two would cross.
+///
+/// Two rules, because legacy has exactly two and they are genuinely different, not two spellings of
+/// one:
+///
+///   * `Push` -- `IntegerRange::selectEncoderAction` (`gui/menu_item/integer_range.cpp:70-105`):
+///     each edge moves freely within `[min, max]` and *drags the other one along* when it would
+///     pass it (`if (upper < lower) upper = lower;`). The pair can be moved past each other's old
+///     positions; what it cannot do is invert.
+///   * `Bound` -- `KeyRange::selectEncoderAction` (`gui/menu_item/key_range.cpp:206-236`): each edge
+///     is clamped *against the other* (`lower = clamp(lower + offset, KEY_MIN, upper)`), so an edge
+///     stops dead when it reaches its neighbour and the neighbour never moves.
+///
+/// The difference is visible on the very first detent at a coincident pair, so it is a parameter
+/// rather than a simplification: with `Push`, turning the left edge up from `5-5` gives `6-6`; with
+/// `Bound` it gives `5-5` and nothing moves.
+enum class RangeClamp : uint8_t { Push, Bound };
+
+/// @brief How one end of a range is spelled -- the caller's half of `Range::getText`
+///        (`gui/menu_item/range.h:39-40`), which is pure virtual there for the same reason it is a
+///        function pointer here.
+///
+/// A plain function pointer, not a callable object: both shipped spellings are pure functions of the
+/// value (`intToString` for `IntegerRange`, the note-letter table for `KeyRange`), and this library
+/// allocates nothing and stores no closures.
+///
+/// @param value   The end to spell.
+/// @param scratch Storage the returned view may point into; it must outlive the `range_value` call.
+/// @return The spelling. May point at static storage instead of @p scratch.
+using RangeFormatFn = std::string_view (*)(int32_t value, std::span<char> scratch);
+
+/// @brief The most characters one end of a range may spell, and therefore the scratch
+///        `range_value` gives each `RangeFormatFn`.
+///
+/// Legacy formats both ends into one `shortStringBuffer` (`hid/display/display.h`), which is 64
+/// bytes; the widest thing either shipped formatter produces is an `int32_t`'s eleven digits plus a
+/// terminator. Twelve each is that, with the two ends separated so a formatter cannot run into its
+/// neighbour's half.
+inline constexpr size_t kRangeTextMax = 12;
+
+/// @brief Renders and edits a two-ended range as one huge centred `lower-upper`, with the edge being
+///        edited inverted.
+///
+/// The port of `menu_item::Range` (`gui/menu_item/range.cpp`) -- `drawPixelsForOled` (`:97-131`),
+/// `horizontalEncoderAction` (`:35-84`) and, through @p clamp, the two subclasses'
+/// `selectEncoderAction`s.
+///
+/// **Layout is legacy's monospaced arithmetic, not `measure()`'s.** `Range::drawPixelsForOled`
+/// centres on `kTextHugeSpacingX * character_count` and sizes the highlight the same way, so a
+/// narrow glyph does not narrow the box. `int_value` centres on `measure()` because
+/// `Integer::drawPixelsForOled` calls `drawStringCentred`, which does. The two are different legacy
+/// routines and they stay different here; using `text(Align::Centre)` would move these pixels.
+///
+/// A consequence worth expecting rather than being surprised by: glyphs *advance* proportionally
+/// while the highlight is sized monospaced, so on a string of narrow digits the right-hand box sits
+/// a few pixels right of the glyphs it names. That is what the device does today -- the goldens are
+/// byte-identical to a replay of `Range::drawPixelsForOled` -- and it is not corrected here; a port
+/// that quietly tightened it would be a redesign wearing a port's clothes.
+///
+///   - the digits sit in a `text_height_for(f.style.value_font)`-tall band at `rect.y + kValueY`,
+///     the same band `int_value` uses, cleared before drawing;
+///   - the string is `lower`, then `-` and `upper` **unless** @p edge is `Off` and the two ends are
+///     equal, which is `Range::drawPixelsForOled`'s `mayShowJustOne` argument (`:102`);
+///   - the highlight inverts one end plus a 1px margin above and below (`:120-123`), and nothing at
+///     all when @p edge is `Off`.
+///
+/// @note **The encoders are this toolkit's, not legacy's.** Legacy edits the value with the *select*
+///       encoder and picks the edge with the horizontal one. Here the gold knobs edit and the
+///       horizontal encoder picks -- exactly the split `decimal_value` already makes for the same
+///       reason (the select encoder walks lists in this stack). `f.edit(0)` moves by `range.step`,
+///       `f.edit(1)` by one.
+///
+/// @note Legacy's `horizontalEncoderAction` refuses to act while shift is held (`range.cpp:37-39`)
+///       and consults `mayEditRangeEdge` before selecting an edge (`:52`, `:73`). Neither is ported:
+///       shift is the shell's, and `mayEditRangeEdge`'s only override in the whole firmware is
+///       `MultiRange`'s (`gui/menu_item/multi_range.cpp:383`), which is a different editor this
+///       widget does not serve. Adding a pair of `bool` allowances is one `if` each if it ever gains
+///       a second consumer.
+///
+/// @param f       Frame to render into and read input from.
+/// @param rect    Rect the string is laid out relative to and centred across.
+/// @param lower   The low end, in/out.
+/// @param upper   The high end, in/out.
+/// @param range   The bounds both ends live inside, and the coarse knob's step.
+/// @param edge    Which end is being edited, in/out. The horizontal encoder moves it.
+/// @param format  How to spell one end.
+/// @param clamp   Which of legacy's two crossing rules applies (`RangeClamp`).
+/// @param focused Whether this control currently owns the encoders.
+/// @return `changed` when @p lower, @p upper or @p edge actually moved this tick; `focused` echoes
+///         @p focused.
+Response range_value(OledFrame& f, gfx::oled::Rect rect, int32_t& lower, int32_t& upper, Range range, RangeEdge& edge,
+                     RangeFormatFn format, RangeClamp clamp, bool focused = true);
+
 } // namespace deluge::ui::oled
