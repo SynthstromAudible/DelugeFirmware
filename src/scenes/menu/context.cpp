@@ -130,7 +130,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	// `:1631-1640` -- performance / session / arranger: the song's own param manager and global
 	// effectable, read off a song-as-timeline-counter stack.
 	if (session_or_arranger_root) {
-		char stack_memory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* stack = song.setupModelStackWithSongAsTimelineCounter(stack_memory);
 		if (stack != nullptr) {
 			ctx.params = static_cast<ParamManagerForTimeline*>(stack->paramManager);

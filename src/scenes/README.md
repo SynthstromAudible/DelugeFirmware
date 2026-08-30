@@ -1,10 +1,26 @@
 # deluge_scenes
 
 The first UI layer allowed to include the model (spec: `docs/superpowers/specs/2026-08-26-ui-scenes-menus-design.md`,
-spec E of the UI stack redesign). Task 1 is the skeleton only: the library target, the shared
-CppSpec CMake module, the l10n bridge, and `scenes::deluge_profile()`. Menu nodes, bindings,
-context resolution and `MenuScene` are later tasks in the same plan
-(`docs/superpowers/plans/2026-08-27-ui-scenes-menus-1.md`).
+spec E of the UI stack redesign). E1 is complete as of the twelve tasks of
+`docs/superpowers/plans/2026-08-27-ui-scenes-menus-1.md`: the library target and the shared CppSpec
+CMake module, the l10n bridge and `scenes::deluge_profile()`, the declarative `Node` tree with all
+ten root tables, `MenuContext` resolution, `bindings::read`/`write`, the `MenuScene` interpreter,
+the shortcut tables, the validator, the node-id registry and `deluge_menu_dump`.
+
+> **Read this before adding a menu item.** The shipping firmware still runs the *legacy*
+> `SoundEditor` and its ~200 hand-written `MenuItem` classes under `src/deluge/gui/menu_item/`.
+> **Nothing links `deluge_scenes`** — `src/CMakeLists.txt`'s `add_subdirectory(scenes)` builds the
+> library, and its only consumer is its own spec executable (see "Link direction" below). So during
+> the coexistence:
+>
+> * **A menu item users must be able to open goes into `gui/menu_item/` + `gui/ui/menus.cpp`**, the
+>   legacy tree, exactly as before. That is the system the device runs.
+> * **A node added here is a port of a legacy item**, kept in step with it and cross-checked
+>   against it by `sim/scenes_spec/tables_*_spec.cpp`. It changes nothing a user can see until E2
+>   gives `deluge_scenes` a real entry point.
+> * **Adding an item to one tree only silently diverges them.** A new legacy item with no node here
+>   fails no test today; a node here with no legacy item fails the lockstep walk immediately. If you
+>   add to `gui/menu_item/`, add the node too.
 
 Rules:
 1. `src/scenes/**` may include `scenes/**`, `shell/**`, `ui/**`, `gfx/**`, `notify/**`,
@@ -63,9 +79,13 @@ so `src/shell`'s specs don't need the l10n bridge, not because it's the profile 
 mock display/print doubles, which define symbols `deluge_app` also defines. Two spec locations,
 different reasons:
 
-- **`tests/spec/scenes/`** -- pure parts that need no model at all (a later task's node builders,
-  node ids, validator). Built into `tests/`'s `all_specs`, same as every other layer's specs.
-- **`sim/scenes_spec/`** -- model-backed specs (`l10n_bridge_spec.cpp`, `profile_spec.cpp` today),
+- **`tests/spec/scenes/`** -- pure parts that need no model at all: `node_spec.cpp` (the builders),
+  `node_id_spec.cpp` (the id registry) and `validate_spec.cpp` (the rule engine, over fake trees).
+  Built into `tests/`'s `all_specs`, same as every other layer's specs.
+- **`sim/scenes_spec/`** -- model-backed specs, ten files today: `l10n_bridge_spec.cpp`,
+  `profile_spec.cpp`, `context_spec.cpp`, `bindings_spec.cpp`, `menu_scene_spec.cpp`,
+  `menu_scripts_spec.cpp`, `shortcuts_spec.cpp` and the three table cross-checks
+  `tables_1_spec.cpp` / `tables_2_spec.cpp` / `tables_3_spec.cpp` --
   built into their own executable, `deluge_scenes_spec`, in the `sim/` project: the one place a
   spec can link `deluge_app`, the host BSP, and `deluge_scenes` together. `cmake/deluge_specs.cmake`
   (factored out of `tests/spec/CMakeLists.txt` this task, so both projects share one copy) supplies
@@ -117,8 +137,23 @@ for the full account; `Action` returns in E2 with its first real consumer). Befo
 
 ### Adding a `Custom`
 
-`Kind::Custom` is the escape hatch for a bespoke item that fits no `Kind` (spec E §4: at most 10
-across the whole tree, enforced by `validate_tree`'s `TooManyCustom` rule). To add one:
+`Kind::Custom` is the escape hatch for a bespoke item that fits no `Kind`, capped by
+`validate_tree`'s `TooManyCustom` rule. **The cap is not spec E §4's "at most 10", and the rule
+counts nodes, not implementations** (fix round 2, I4; recorded as an amendment in the design spec):
+
+* The rule used to count *distinct `CustomItem` instances*. E1 ships the shape of its bespoke items
+  and points every one of them at the single shared `nodes::kPending` placeholder, so that count was
+  **1** for the whole tree and `TooManyCustom` could never fire — the rule was switched off for
+  exactly the phase it was meant to police.
+* It now counts **nodes that point at a custom item**. The shipped tree has **59** of them
+  (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
+  `sim/scenes_spec/shortcuts_spec.cpp`), behind roughly twenty distinct legacy bespoke classes.
+* So the cap is `kMaxCustomNodes == 60`, one above reality — a ratchet against the escape hatch
+  growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
+  both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
+  places.
+
+To add one:
 
 1. Implement `CustomItem` (`node.h`): `render(OledFrame&, const MenuContext&, MenuState&)` and
    `handle(UiEvent, UiContext, const MenuContext&, MenuState&)`.
@@ -164,7 +199,22 @@ for the `kPending` placeholders above.
 
 `assign_node_ids(roots)` walks the tree depth-first (pre-order) and gives every *statically*
 reachable node an id, 1..n (0 means "no node"); `node_id(n)` and `node_by_id(id)` are the two
-directions of the lookup. This is what lets a menu position cross a scene boundary as a `SceneId`,
+directions of the lookup. **It is called for the application by `scenes::assigned_node_ids()`, from
+`menu_scene()` and `scene_registry()`** (`registry.cpp`) — before this it had no non-spec caller at
+all, which left `MenuScene::save_state`, `restore_state` and the shortcut-pad jump each silently
+no-opping on an unnumbered tree (fix round 2, M1). A spec that re-numbers a subset afterwards
+overwrites that, which is intended.
+
+**Its `.bss` cost, on the record** (rule 3 is "no heap", which makes static footprint the thing to
+watch): two arrays sized by `kMaxNodes == 1024` — a `kMaxNodes * 2`-slot open-addressed table of
+`uint16_t` ids plus the `kMaxNodes`-entry id→node array. On the 32-bit target that is
+`2048 * 2 + 1024 * 4` = **8 KB** to index the 477 nodes the tree actually has
+(`assigned_node_ids()`'s return value, over `MenuScene::roots()`). It was 20 KB until
+fix round 2's M5: each slot used to store `{const Node*, uint16_t}`, 8 bytes after padding, when the
+node is already recoverable as `g_by_id[id - 1]`. Shrinking `kMaxNodes` itself would halve it again
+and is the next lever if the device budget needs it.
+
+The registry exists at all because a menu position has to cross a scene boundary as a `SceneId`,
 which is only 16 bits (spec D §3) and cannot hold a pointer: a shortcut-pad jump
 (`MenuScene::handle`) pushes `Action::Kind::Replace` with `SceneId{SceneKind::FirstApp, node_id}`,
 and `Shell::state_lines()` spells the currently-open node as `app16/<id>` in a `.state` golden line
@@ -209,7 +259,25 @@ work. Within the menu tree itself, carried to E2: `source_shortcut_pads` (needs 
 settings-root shortcut jumps (blocked on `MenuContext` gaining an additive `background_root` field
 so it stops conflating "which root menu is open" with "what view is behind it"); the four
 `hid/`-side write side effects a menu write can trigger that `src/scenes` cannot reach directly (pad
-brightness, screensaver suppression, canvas flags, sticky shift); `Source::getOrCreateFirstRange()`
+brightness, screensaver suppression, canvas flags, sticky shift);
+
+**`selectButtonPress()` chaining** — legacy's "select on *this* leaf opens *that* menu", which needs
+a `Node` field and `MenuScene` support (today `after_render` ascends on any leaf press,
+`menu_scene.cpp:893-897`). The leaves that lose behaviour, each with its legacy citation:
+`arp_preset` → `arpOctaveModeToNoteModeMenu` when the preset is CUSTOM (`arpeggiator/preset_mode.h:110-118`);
+`arp_octave_mode`'s two chaining subclasses → the note mode (`arpeggiator/octave_mode.h:90`, `:99`);
+`unison_count` → `unison::stereoSpreadMenu` (`unison/count.h:79`);
+`polyphony` → `polyphonicVoiceCountMenu` when POLY (`voice/polyphony.h:139-143`);
+`osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc (`osc/type.h:120-125`);
+`cv_selection` → `cvSubmenu` (`cv/selection.h:41-46`);
+`gate_selection` → `gateOffTimeMenu` / `gateModeMenu` (`gate/selection.h:43-54`).
+`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are reachable *only* this way and so are not
+declared in `settings.h` at all — declaring them and implementing chaining are one job. The design
+spec's `selectButtonPress()` amendment carries the complete sweep of every override in
+`gui/menu_item/`, including the two other dropped arms it turned up: `Submenu`'s
+`shouldForwardButtons()` forwarding (`submenu.cpp:187-194`) and `Automation::selectButtonPress`'s
+shift-held automation delete (`automation/automation.cpp:37`), which every param item inherits.
+Also carried: `Source::getOrCreateFirstRange()`
 on a zero-range sample item; per-node cursor memory across sessions; `Kind::Custom` receiving raw
 input (today's placeholder renders but never routes input); gold-knob acceleration
 (`calcNextKnobSpeed`); and real implementations behind every `nodes::kPending` placeholder this task

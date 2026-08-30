@@ -372,17 +372,41 @@ bool legacy_write(::MenuItem* item, int32_t v) {
 	return false;
 }
 
-/// @brief Legacy writes this spec cannot drive, and why.
+/// @brief Nodes whose **legacy** `writeCurrentValue()` this spec cannot drive, and why.
 ///
 /// Every one reaches a UI global that only a booted app has. The point of listing them here rather
-/// than quietly narrowing the loop is that the list is short, named and citable -- and that the
-/// count of what *was* exercised is asserted, so it cannot grow silently.
+/// than quietly narrowing the loop is that the list is short, named and citable.
+///
+/// **It suppresses the legacy call only** (fix round 2, I1). Skipping the pair used to take the
+/// *port's* hook out of the oracle too, and the read comparison does not stand in for it:
+/// `bindings::read(arp_preset)` sees only `arp->preset`, which `set_arp_preset` assigns trivially,
+/// so `updateSettingsFromCurrentPreset()`, `flagForceArpRestart` and the whole
+/// `silence_for_arp_toggle` block (`nodes/sound_arp.cpp:80-149`) had no assertion anywhere in the
+/// suite. The `drives the port hook of every node the legacy write comparison excludes` example
+/// below drives all four port hooks alone and asserts what each persists; its `covered` tally is
+/// what makes a fifth exclusion without coverage a failure.
+constexpr const Node* kLegacyWriteNeedsUi[] = {
+    &nodes::synth_mode,  // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
+    &nodes::arp_mode,    // `allNotesOff` over `soundEditor.getCurrentModelStack` (`mode.h:45-65`)
+    &nodes::arp_preset,  // the same block (`preset_mode.h:50-70`)
+    &nodes::mod_fx_type, // `display->displayError` on failure (`mod_fx/type.h:42,52`)
+};
+
 bool legacy_write_needs_ui(const Node& node) {
-	return &node == &nodes::synth_mode      // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
-	       || &node == &nodes::arp_mode     // `allNotesOff` over `soundEditor.getCurrentModelStack` (`mode.h:45-65`)
-	       || &node == &nodes::arp_preset   // the same block (`preset_mode.h:50-70`)
-	       || &node == &nodes::mod_fx_type; // `display->displayError` on failure (`mod_fx/type.h:42,52`)
+	for (const Node* n : kLegacyWriteNeedsUi) {
+		if (n == &node) {
+			return true;
+		}
+	}
+	return false;
 }
+
+/// @brief Reach `Output::activeClip`, which is `protected` (`model/output.h:235`) and whose only
+///        public setter also re-sends MIDI program changes. The [class.protected] route
+///        `SubmenuPeek` uses, applied to `Output`; never instantiated.
+struct OutputPeek : ::Output {
+	static Clip*& active_clip_of(::Output& out) { return out.*(&OutputPeek::activeClip); }
+};
 
 /// @brief A sentinel value inside @p r that is not @p v, or nothing when the range is a point.
 ///
@@ -808,10 +832,17 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		size_t exercised = 0;
+		// Fix round 2, I2: the assertion is the **set of distinct nodes driven**, derived from the
+		// table itself (every node in the walk with a `set` hook, minus the named exclusions), not a
+		// probe count with slack -- a count of "> 100" could absorb a node dropped from a table or a
+		// relevance predicate going false in this fixture.
+		std::set<const Node*> covered;
+		std::set<const Node*> with_hook;
 		for (const Pair& p : tree().pairs) {
 			if (p.node->bind.set == nullptr || legacy_write_needs_ui(*p.node)) {
 				continue;
 			}
+			with_hook.insert(p.node);
 			const menu::IntRange r = menu::bindings::range(*p.node, f.ctx);
 			for (int32_t v : probe_values(r)) {
 				const std::optional<int32_t> sentinel = sentinel_for(r, v);
@@ -825,10 +856,15 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 				expect(probe.got_port == probe.want_port).to_be_true();
 				expect(probe.got_legacy == probe.want_legacy).to_be_true();
 				exercised++;
+				covered.insert(p.node);
 			}
 		}
-		// ~40 hooks x 3 values. A drop would mean the loop stopped reaching them.
-		expect(exercised > size_t(100)).to_be_true();
+		expect(covered.size()).to_equal(with_hook.size());
+		for (const Node* n : with_hook) {
+			expect(covered.contains(n)).to_be_true();
+		}
+		// ... each driven for all three values its range spans.
+		expect(exercised).to_equal(size_t(3) * with_hook.size());
 	});
 
 	it("round-trips every param node, and raises the reverb flag on exactly the one that should", _ {
@@ -839,10 +875,19 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		size_t exercised = 0;
+		// Fix round 2, I2: the same treatment as the example above -- the distinct set of param
+		// nodes round-tripped, sized from the walk rather than from a hand-written "> 90".
+		std::set<const Node*> covered;
+		std::set<const Node*> param_nodes;
+		// Distinct nodes are what the coverage claim is about; `pair_probes` counts the *tree
+		// positions* they were driven from, since a node reachable from two parents appears twice.
+		size_t pair_probes = 0;
 		for (const Pair& p : tree().pairs) {
 			if (!p.node->bind.param.valid() || p.node->bind.set != nullptr || p.node->kind == menu::Kind::Custom) {
 				continue;
 			}
+			param_nodes.insert(p.node);
+			pair_probes++;
 			const menu::IntRange r = menu::bindings::range(*p.node, f.ctx);
 			for (int32_t v : probe_values(r)) {
 				AudioEngine::mustUpdateReverbParamsBeforeNextRender = false;
@@ -851,9 +896,14 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 				expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender)
 				    .to_equal(p.node->bind.updates_reverb_params);
 				exercised++;
+				covered.insert(p.node);
 			}
 		}
-		expect(exercised > size_t(90)).to_be_true();
+		expect(covered.size()).to_equal(param_nodes.size());
+		for (const Node* n : param_nodes) {
+			expect(covered.contains(n)).to_be_true();
+		}
+		expect(exercised).to_equal(size_t(3) * pair_probes);
 		// Exactly one node in this tree carries the flag; the other `UpdatingReverbParams` item,
 		// `sidechain::GlobalVolume` (`sidechain/volume_global.h:6`), belongs to task 8's roots.
 		size_t flagged = 0;
@@ -886,6 +936,11 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			return out;
 		};
 		size_t swept = 0;
+		// Fix round 2, I2: the distinct set of nodes swept, against the set the fixture makes
+		// sweepable (a `set` hook, not excluded, a range wider than one value, and a legacy item
+		// that holds a value at all), rather than a "> 25" a dropped node could hide inside.
+		std::set<const Node*> swept_nodes;
+		std::set<const Node*> sweepable;
 		for (const Pair& p : tree().pairs) {
 			if (p.node->bind.set == nullptr || legacy_write_needs_ui(*p.node)) {
 				continue;
@@ -895,6 +950,9 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			const std::optional<int32_t> sentinel = sentinel_for(r, v);
 			if (!sentinel.has_value()) {
 				continue; // a one-value range has no state to start from that is not `v`
+			}
+			if (legacy_value(p.item).has_value()) {
+				sweepable.insert(p.node);
 			}
 
 			// Put BOTH drums at the sentinel, one at a time, through **legacy's** single-target
@@ -929,8 +987,13 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			expect(after_port[0] == after_legacy[0]).to_be_true();
 			expect(after_port[1] == after_legacy[1]).to_be_true();
 			swept++;
+			swept_nodes.insert(p.node);
 		}
-		expect(swept > size_t(25)).to_be_true();
+		expect(swept_nodes.size()).to_equal(sweepable.size());
+		for (const Node* n : sweepable) {
+			expect(swept_nodes.contains(n)).to_be_true();
+		}
+		expect(swept).to_equal(sweepable.size());
 		install(fixture().ctx, fixture().song.song);
 	});
 
@@ -998,6 +1061,122 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			expect(static_cast<int32_t>(row->sequenceDirectionMode)).to_equal(want_row);
 		}
 		expect(static_cast<int32_t>(k.song.clip->sequenceDirectionMode)).to_equal(clip_before);
+		install(f.ctx, f.song.song);
+	});
+
+	it("drives the port hook of every node the legacy write comparison excludes", _ {
+		// Fix round 2, I1. `kLegacyWriteNeedsUi` above stands the **legacy** call down; it must not
+		// stand the port's down with it. Each of the four hooks is driven here on its own and its
+		// persisted effect asserted -- including the two arpeggiator ones, whose real work
+		// (`silence_for_arp_toggle`, `updatePresetFromCurrentSettings`,
+		// `updateSettingsFromCurrentPreset`, `flagForceArpRestart`, and the kit-wide sweep over
+		// every `Drum` rather than every `SoundDrum`) is invisible to `bindings::read`.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		size_t covered = 0;
+
+		{ // --- synth_mode --------------------------------------------------------------------
+			const SynthMode before = f.ctx.sound->synthMode;
+			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
+			expect(f.ctx.sound->synthMode == SynthMode::RINGMOD).to_be_true();
+			menu::bindings::write(nodes::synth_mode, f.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
+			expect(f.ctx.sound->synthMode == SynthMode::SUBTRACTIVE).to_be_true();
+			f.ctx.sound->setSynthMode(before, f.ctx.song);
+			covered++;
+		}
+
+		{ // --- mod_fx_type -------------------------------------------------------------------
+			const ModFXType before = f.ctx.mod->modFXType_;
+			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::NONE));
+			expect(f.ctx.mod->modFXType_ == ModFXType::NONE).to_be_true();
+			menu::bindings::write(nodes::mod_fx_type, f.ctx, static_cast<int32_t>(ModFXType::FLANGER));
+			expect(f.ctx.mod->modFXType_ == ModFXType::FLANGER).to_be_true();
+			(void)f.ctx.mod->setModFXType(before);
+			covered++;
+		}
+
+		// `silence_for_arp_toggle` only fires on a clip that is actually sounding
+		// (`sound_arp.cpp:94`, legacy `mode.h:30`), and `song_fixture.h` never makes its clip the
+		// output's active one -- nothing in the fixture plays. Arranged here, and put back.
+		Clip* const saved_active = OutputPeek::active_clip_of(*f.ctx.output);
+		OutputPeek::active_clip_of(*f.ctx.output) = f.ctx.clip;
+		expect(f.ctx.clip->isActiveOnOutput()).to_be_true();
+
+		{ // --- arp_mode: the silence block and the preset re-derivation ----------------------
+			ArpeggiatorSettings* arp = f.ctx.arp;
+			expect(arp != nullptr).to_be_true();
+			arp->mode = ArpMode::OFF;
+			arp->preset = ArpPreset::OFF;
+			arp->octaveMode = ArpOctaveMode::DOWN;
+			arp->noteMode = ArpNoteMode::DOWN;
+			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`): the one effect
+			// of `silence_for_arp_toggle`'s synth arm that lands in readable model state.
+			f.ctx.sound->invertReversed = true;
+
+			menu::bindings::write(nodes::arp_mode, f.ctx, static_cast<int32_t>(ArpMode::ARP));
+
+			expect(arp->mode == ArpMode::ARP).to_be_true();
+			// DOWN/DOWN is `ArpPreset::DOWN` (`arpeggiator.cpp:1936-1938`) -- false unless
+			// `updatePresetFromCurrentSettings()` ran.
+			expect(arp->preset == ArpPreset::DOWN).to_be_true();
+			expect(f.ctx.sound->invertReversed).to_be_false();
+			covered++;
+		}
+
+		{ // --- arp_preset: the settings re-derivation, the restart flag, the silence block ----
+			ArpeggiatorSettings* arp = f.ctx.arp;
+			arp->mode = ArpMode::OFF;
+			arp->preset = ArpPreset::OFF;
+			arp->octaveMode = ArpOctaveMode::RANDOM;
+			arp->noteMode = ArpNoteMode::RANDOM;
+			arp->flagForceArpRestart = false;
+			f.ctx.sound->invertReversed = true;
+
+			menu::bindings::write(nodes::arp_preset, f.ctx, static_cast<int32_t>(ArpPreset::DOWN));
+
+			expect(arp->preset == ArpPreset::DOWN).to_be_true();
+			// `updateSettingsFromCurrentPreset()` (`arpeggiator.cpp:1971-2005`) is the only thing
+			// that moves these three.
+			expect(arp->mode == ArpMode::ARP).to_be_true();
+			expect(arp->octaveMode == ArpOctaveMode::DOWN).to_be_true();
+			expect(arp->noteMode == ArpNoteMode::DOWN).to_be_true();
+			expect(arp->flagForceArpRestart).to_be_true();
+			expect(f.ctx.sound->invertReversed).to_be_false();
+
+			arp->mode = ArpMode::OFF;
+			arp->preset = ArpPreset::OFF;
+			arp->flagForceArpRestart = false;
+			covered++;
+		}
+
+		OutputPeek::active_clip_of(*f.ctx.output) = saved_active;
+		expect(covered).to_equal(std::size(kLegacyWriteNeedsUi));
+
+		// --- and the kit sweep the generic `*_writes` loop cannot reach for these two ----------
+		// `apply_to_arp_settings` (`sound_arp.cpp:56-68`) visits every `Drum`, not every
+		// `SoundDrum` the way `apply_to_targets` does -- so the affect-entire sweep for the arp
+		// items needs its own check. Both drums must come out fully re-derived, not merely with
+		// `preset` stored.
+		KitRig& k = kit_fixture();
+		const MenuContext held = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
+		for (SoundDrum* drum : {k.drum_a, k.drum_b}) {
+			drum->arpSettings.mode = ArpMode::OFF;
+			drum->arpSettings.preset = ArpPreset::OFF;
+			drum->arpSettings.octaveMode = ArpOctaveMode::RANDOM;
+			drum->arpSettings.noteMode = ArpNoteMode::RANDOM;
+			drum->arpSettings.flagForceArpRestart = false;
+		}
+		menu::bindings::write(nodes::arp_preset, held, static_cast<int32_t>(ArpPreset::UP));
+		for (SoundDrum* drum : {k.drum_a, k.drum_b}) {
+			expect(drum->arpSettings.preset == ArpPreset::UP).to_be_true();
+			expect(drum->arpSettings.mode == ArpMode::ARP).to_be_true();
+			expect(drum->arpSettings.octaveMode == ArpOctaveMode::UP).to_be_true();
+			expect(drum->arpSettings.noteMode == ArpNoteMode::UP).to_be_true();
+			expect(drum->arpSettings.flagForceArpRestart).to_be_true();
+			drum->arpSettings.mode = ArpMode::OFF;
+			drum->arpSettings.preset = ArpPreset::OFF;
+			drum->arpSettings.flagForceArpRestart = false;
+		}
 		install(f.ctx, f.song.song);
 	});
 });

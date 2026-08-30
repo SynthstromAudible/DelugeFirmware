@@ -84,8 +84,9 @@
 ///           (`stem_export/start.h:22-42`).
 ///
 ///       They all point at `nodes::kPending`, so `validate_tree` reports them (one
-///       `PlaceholderCustom` each) unless the caller opts in, and they count as **one** distinct
-///       `CustomItem` against `kMaxCustomItems`.
+///       `PlaceholderCustom` each) unless the caller opts in, and each counts as **one node**
+///       against `kMaxCustomNodes` (fix round 2, I4: the cap counts nodes, not distinct
+///       `CustomItem` instances -- counting instances made it 1 for the whole tree and inert).
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"

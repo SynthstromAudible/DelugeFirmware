@@ -46,11 +46,14 @@
 ///
 /// @note **Three legacy `selectButtonPress()` jumps have no `Node` spelling** and are recorded
 ///       here rather than dropped silently: `PresetMode` opens the custom octave-mode page when the
-///       preset is CUSTOM (`preset_mode.h:94-103`), and `OctaveModeToNoteMode` /
-///       `OctaveModeToNoteModeForDrums` chain on to the note mode (`octave_mode.h:74`, `:82`).
+///       preset is CUSTOM (`preset_mode.h:110-118`), and `OctaveModeToNoteMode` /
+///       `OctaveModeToNoteModeForDrums` chain on to the note mode (`octave_mode.h:90`, `:99`).
 ///       Note that `arpPatternMenu` names the *plain* `arpOctaveModeMenu` and `arpNoteModeMenu`,
 ///       not those two chaining subclasses, so only the `PresetMode` jump is reachable from this
-///       tree at all.
+///       tree at all. Chaining is E2's; the **complete** sweep of every `selectButtonPress`
+///       override in `gui/menu_item/` -- this file's three included -- is the design spec's
+///       `selectButtonPress()` amendment, and the leaves are named again in `README.md`'s E2
+///       roadmap and E2 carry list (fix round 2, I5).
 ///
 /// @note **Bespoke renderers with no `Hint`.** `PresetMode` draws an icon per preset
 ///       (`preset_mode.h:109-140`) and both rhythm items draw the pattern as characters

@@ -23,7 +23,8 @@
 /// `sample1RecorderMenu`, already declared by task 6 (`sound_osc.h`'s `sample0_recorder` /
 /// `sample1_recorder`) as the recorder page's columns. They are the *same* legacy objects, so this
 /// file names the same nodes rather than declaring second copies -- which is also what keeps
-/// `validate_tree`'s `TooManyCustom` count honest.
+/// `validate_tree`'s `TooManyCustom` count honest (it counts custom *nodes*, so a second copy of a
+/// node would be a second count).
 ///
 /// @note **Both `EditName` items are E2 placeholders.** `EditName::beginSession` opens `RenameUI`
 ///       (`gui/menu_item/edit_name.cpp`); spec E §4 lists "edit-name" among the bespoke items, and

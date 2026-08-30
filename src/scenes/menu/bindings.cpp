@@ -425,7 +425,9 @@ void write_whole_kit(const Node& node, const MenuContext& ctx, int32_t final_val
 		auto* sound_drum = static_cast<SoundDrum*>(drum); // `:58`
 
 		// Ruling 6: the model-stack scratch is a caller-side buffer in this frame, never a shared
-		// static -- `write()` can be re-entered (a `set` hook is arbitrary code).
+		// static -- `write()` can be re-entered (a `set` hook is arbitrary code). Fix round 2, M4:
+		// every such buffer in this layer is `alignas(ModelStackWithAutoParam)`, uniformly -- see
+		// `model_stack_for`'s note in `context.h` for why.
 		alignas(ModelStackWithAutoParam) char drum_memory[MODEL_STACK_MAX_SIZE]; // `:60`
 		int32_t note_row_index = 0;
 		NoteRow* note_row = instrument_clip->getNoteRowForDrum(sound_drum, &note_row_index);
@@ -781,7 +783,7 @@ bool allows_note_tails(const MenuContext& ctx) {
 	if (ctx.sound == nullptr) {
 		return true; // `:1811` -- the default, kept when there is no sound to ask
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack = model_stack_for(ctx, memory);
 	if (stack == nullptr) {
 		return true;
@@ -794,7 +796,7 @@ bool drum_allows_note_tails(const MenuContext& /*ctx*/, Drum* drum) {
 		return true; // `include_in_kit_arp.h:33` -- the initialiser, left alone for a non-sound drum
 	}
 	auto* sound_drum = static_cast<SoundDrum*>(drum);
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	// `include_in_kit_arp.h:37-40`, verbatim.
 	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, sound_drum)->addSoundFlags();
 	return sound_drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
@@ -837,7 +839,7 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 	if (!has_instrument_clip(ctx)) {
 		return 0;
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithNoteRow* stack = individual_note_row(ctx, memory);
 	if (stack->getNoteRowAllowNull() != nullptr) { // `:57-59`
 		if (from_note_row != nullptr) {
@@ -853,7 +855,7 @@ void write_sequence_direction(const MenuContext& ctx, int32_t value) {
 		return;
 	}
 	const auto mode = static_cast<SequenceDirection>(value);
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithNoteRow* stack = individual_note_row(ctx, memory);
 	if (stack->getNoteRowAllowNull() != nullptr) { // `:71-73`
 		stack->getNoteRow()->setSequenceDirectionMode(stack, mode);

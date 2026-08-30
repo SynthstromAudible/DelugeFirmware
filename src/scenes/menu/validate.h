@@ -51,7 +51,7 @@ struct Issue {
 		/// structural-only check but means a caller passing `{}` will not catch a pair whose two
 		/// different predicates happen always to agree.
 		DuplicateName,
-		/// @brief More than `kMaxCustomItems` distinct `CustomItem` instances in the whole tree.
+		/// @brief More than `kMaxCustomNodes` nodes pointing at a `CustomItem` in the whole tree.
 		///        `detail` is the count found. Reported once, against the last custom node seen.
 		TooManyCustom,
 		/// @brief A node whose `title` is 0 (no string id at all -- the builders default `title` to
@@ -94,13 +94,36 @@ enum class Flag : uint16_t {
 	ReverbUpdateWithHook,
 };
 
-/// @brief Spec E §4's cap on the `Kind::Custom` escape hatch: "at most 10 across the whole tree".
+/// @brief The cap on the `Kind::Custom` escape hatch, counted in **nodes that point at a custom
+///        item**.
 ///
-/// Counted in **distinct `CustomItem` instances**, not in nodes: two oscillator file-selector
-/// nodes that share one `FileSelector` implementation are one bespoke item, which is how spec E
-/// §4's own list of seven ("multi-range editor, patch cables, file selector, edit-name, DX browser
-/// hooks, patch-cable strength, active scales") counts them.
-inline constexpr size_t kMaxCustomItems = 10;
+/// **Deviation from spec E §4** ("at most 10 across the whole tree"), fix round 2, I4. The rule
+/// used to count *distinct `CustomItem` instances*, on the reasoning that two oscillator
+/// file-selector nodes sharing one `FileSelector` implementation are one bespoke item -- which is
+/// how spec E §4's own list of seven counts them. That spelling was inert: E1 ships the *shape* of
+/// its bespoke items and points all 59 of them at the one shared `nodes::kPending` placeholder
+/// (`nodes/sound_osc.h`), so the distinct-instance count of the whole shipped tree is **1** and
+/// `TooManyCustom` could not fire however many custom nodes a table added. It would have started
+/// counting for real only once E2 replaced the placeholders one by one -- i.e. the rule was
+/// switched off for exactly the phase it was meant to police.
+///
+/// Counting nodes makes it live today, at the cost of no longer being spec E's number: the shipped
+/// tree has **59** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, behind roughly twenty
+/// distinct legacy bespoke classes (the file selector, the audio recorder, the sample loop points,
+/// the name editors, the patch-cable pages, the multi-range picker, the DX browser, active scales,
+/// MIDI devices, the MPE selectors, ...). So the cap is pinned just above that count rather than at
+/// 10: it is a ratchet against the escape hatch growing unnoticed, not a claim that ten was ever
+/// achievable. `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 59 separately, so a table
+/// that adds a custom node has to say so in two places. Recorded in
+/// `docs/superpowers/specs/2026-08-26-ui-scenes-menus-design.md`'s amendments and in
+/// `src/scenes/README.md`.
+inline constexpr size_t kMaxCustomNodes = 60;
+
+/// @brief The number of `Kind::Custom` nodes the shipped tree actually has (`kAllRoots`).
+///
+/// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
+/// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
+inline constexpr size_t kShippedCustomNodes = 59;
 
 /// @brief Which of the strict rules the caller is deliberately standing down.
 ///

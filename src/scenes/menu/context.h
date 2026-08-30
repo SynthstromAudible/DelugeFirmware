@@ -171,6 +171,17 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 ///      dereferencing a null `instrument` at `:1989`.
 /// @param memory `MODEL_STACK_MAX_SIZE` bytes supplied by the caller (a `ModelStack` is built in
 ///               place, never allocated -- this library takes no heap).
+///
+/// @note **Declare that buffer `alignas(ModelStackWithAutoParam) char[MODEL_STACK_MAX_SIZE]`.**
+///       Every scratch buffer in `src/scenes` that backs a model stack does (fix round 2, M4);
+///       `bindings.cpp` and `context.cpp` used to be split half and half between the aligned form
+///       and legacy's bare `char[MODEL_STACK_MAX_SIZE]`, which read as a deliberate distinction and
+///       was not one. A `ModelStack*` is placement-constructed into these bytes, and the widest
+///       member of the family is `ModelStackWithAutoParam`; a bare `char[]` has alignment 1, so the
+///       stack objects land at whatever offset the frame happens to give them. x86-64 tolerates
+///       that, the ARM target need not. Legacy uses the bare idiom throughout, so this is not a bug
+///       being fixed here so much as one not being inherited -- but it is uniform in this layer, on
+///       purpose, and a new scratch buffer should copy the aligned spelling.
 /// @return a stack whose `modControllable` is `ctx.mod` and whose `paramManager` is `ctx.params`.
 ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* memory);
 

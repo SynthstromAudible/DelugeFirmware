@@ -10,11 +10,27 @@
 
 #include "shell/scene.h"
 
+#include <cstdint>
+
 namespace deluge::scenes {
 
 namespace menu {
 class MenuScene;
 }
+
+/// @brief Number the application's menu tree, once, and report how many nodes got an id.
+///
+/// Fix round 2, M1. `menu::assign_node_ids` used to have no caller outside the specs, which left
+/// `MenuScene::save_state`, `MenuScene::restore_state` and the shortcut-pad jump each silently
+/// no-opping on an unnumbered tree -- three failures that would only surface as "the menu forgets
+/// where it was" long after whoever wired the scene up had moved on. Both `menu_scene()` and
+/// `scene_registry()` call this, so an application that reaches the menu at all has a numbered
+/// tree; it is idempotent (a function-local static) and safe to call again.
+///
+/// @return The highest id assigned -- i.e. the number of statically reachable nodes. Non-zero for
+///         the real tree; a spec that re-numbers a *subset* afterwards (every `tables_*_spec`
+///         does) overwrites this, which is the intended behaviour, not a conflict.
+uint16_t assigned_node_ids();
 
 /// @brief The application's one menu interpreter.
 ///

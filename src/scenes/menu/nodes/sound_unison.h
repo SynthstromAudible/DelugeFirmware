@@ -15,8 +15,10 @@
 // clang-format on
 ///
 /// @note **Two legacy behaviours have no `Node` spelling and are recorded, not silently dropped.**
-///       `CountToStereoSpread::selectButtonPress()` returns `&stereoSpreadMenu` (`unison/count.h:72`)
-///       -- pressing select on the count jumps to the spread rather than editing in place; and
+///       `CountToStereoSpread::selectButtonPress()` returns `&stereoSpreadMenu` (`unison/count.h:79`)
+///       -- pressing select on the count jumps to the spread rather than editing in place (E2; the
+///       complete chaining sweep is the design spec's `selectButtonPress()` amendment, and
+///       `README.md`'s E2 roadmap names every affected leaf); and
 ///       `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`g_menus.inc:54`), a paging mode
 ///       `Node::Layout` (Vertical / Horizontal) does not carry. Both belong to E2's interpreter work.
 ///

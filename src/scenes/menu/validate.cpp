@@ -38,8 +38,9 @@
 ///     layers.
 ///   * *no duplicate `(name, parent)`* -> `DuplicateName`, among siblings that can be on screen
 ///     together (see `co_visible` for why that qualifier is there).
-///   * *`Custom` <= 10* -> `TooManyCustom`, counting distinct `CustomItem` instances
-///     (`validate.h`'s `kMaxCustomItems`).
+///   * *`Custom` <= 10* -> `TooManyCustom`, counting **nodes that point at a custom item**
+///     (`validate.h`'s `kMaxCustomNodes`), and no longer at 10 -- see that constant for the
+///     deviation and the real number.
 ///
 /// plus, beyond §4.4: `MissingTitle` and `NullCustom` (a node that would render nothing),
 /// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
@@ -252,7 +253,8 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 	}
 
 	// --- Per-node rules -----------------------------------------------------------------------
-	const CustomItem* customs[kMaxCustomItems + 1]{};
+	// Fix round 2, I4: counted in **nodes that point at a custom item**, not in distinct
+	// `CustomItem` instances -- see `kMaxCustomNodes` for why the old spelling could never fire.
 	size_t custom_count = 0;
 	const Node* last_custom = nullptr;
 
@@ -288,10 +290,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 					add(out, Issue::Kind::PlaceholderCustom, &n, n.name);
 				}
 				last_custom = &n;
-				if (std::find(customs, customs + custom_count, n.custom) == customs + custom_count
-				    && custom_count < kMaxCustomItems + 1) {
-					customs[custom_count++] = n.custom;
-				}
+				custom_count++;
 			}
 		}
 
@@ -340,7 +339,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		}
 	}
 
-	if (custom_count > kMaxCustomItems) {
+	if (custom_count > kMaxCustomNodes) {
 		add(out, Issue::Kind::TooManyCustom, last_custom, static_cast<uint16_t>(custom_count));
 	}
 

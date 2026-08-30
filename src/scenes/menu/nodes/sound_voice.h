@@ -24,7 +24,9 @@
 ///       than dropped.
 ///
 /// @note **Two legacy behaviours have no `Node` spelling.** `PolyphonyType::selectButtonPress`
-///       jumps to the voice count when the mode is POLY (`polyphony.h:107-112`), and `voiceMenu` is
+///       jumps to the voice count when the mode is POLY (`polyphony.h:139-143` -- E2; the complete
+///       chaining sweep is the design spec's `selectButtonPress()` amendment, and `README.md`'s E2
+///       roadmap names every affected leaf), and `voiceMenu` is
 ///       built `HorizontalMenu::Layout::FIXED` (`menus.cpp:710`), a paging mode `Node::Layout`
 ///       (Vertical / Horizontal) does not carry -- the same gap `sound_unison.h` records for
 ///       `unisonMenu`.

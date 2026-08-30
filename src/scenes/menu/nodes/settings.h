@@ -43,9 +43,13 @@
 /// @note **`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are not declared.** They are not
 ///       children of `settingsRootMenu` -- legacy reaches them only from
 ///       `cv::Selection::selectButtonPress` / `gate::Selection::selectButtonPress`
-///       (`cv/selection.h:31`, `gate/selection.h:26`), i.e. through navigation, so a table that
-///       declared them would not match the legacy tree the spec walks. They arrive with E2's
-///       navigation work, alongside the two selectors above.
+///       (`cv/selection.h:41-46`, `gate/selection.h:43-54`), i.e. through navigation, so a table
+///       that declared them would not match the legacy tree the spec walks. They arrive with E2's
+///       `selectButtonPress()`-chaining work, alongside the two selectors above -- declaring these
+///       three pages and implementing chaining are one job. The complete sweep of every chaining
+///       override in `gui/menu_item/` is the design spec's `selectButtonPress()` amendment;
+///       `README.md`'s E2 roadmap and the E2 carry list name every affected leaf (fix round 2,
+///       I5).
 ///
 /// @note **Three write side effects stay behind, and are gaps, not omissions.**
 ///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`

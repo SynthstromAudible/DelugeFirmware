@@ -232,9 +232,11 @@ public:
 	ParamDescriptor learn_target() const;
 	/// @brief The application's root menus, indexed by `MenuContext::Root`.
 	///
-	/// @note Every entry is `nullptr` in E1: the tables that fill them are Tasks 6-8's. A caller
-	///       therefore names its root through `open()` until then, and `on_enter(arg == 0)`
-	///       refuses because there is nothing to fall back to.
+	/// @note All ten entries are filled in (`menu_scene.cpp`'s `kRoots`, Tasks 6-8): the sound
+	///       root, the drum/MIDI-drum/gate-drum roots, MIDI-or-CV, the audio-clip, performance,
+	///       song and kit-global-FX roots, and the settings root. `on_enter(arg == 0)` therefore
+	///       resolves a real root from `MenuContext::root`; a caller may still name a node
+	///       directly through `open()` or through `SceneId::arg`.
 	static std::span<const Node* const> roots();
 
 	/// @brief The live interpreter state.

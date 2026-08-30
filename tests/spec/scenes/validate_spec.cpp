@@ -40,8 +40,13 @@ public:
 	}
 };
 
-/// Eleven distinct instances: one more than `kMaxCustomItems`.
-const NullItem kItems[kMaxCustomItems + 1];
+/// @brief The **one** shared `CustomItem` every custom node below points at.
+///
+/// Fix round 2, I4: the cap counts *nodes*, not distinct instances, so the case that must trip it
+/// is exactly the one the old distinct-instance count could not see -- many nodes behind one
+/// implementation, which is what the real tree does with `nodes::kPending`. Sharing one item here
+/// means this example fails if the rule ever goes back to counting instances.
+const NullItem kSharedItem;
 
 bool always(const MenuContext&) {
 	return true;
@@ -81,7 +86,7 @@ constexpr const Node* kGoodRoots[] = {&good_root};
 // The broken tree. One violation of each of four rules and nothing else:
 //   * `EmptySubmenu`  -- `bad_empty` declares a child that no context admits.
 //   * `EnumWithoutNames` -- `bad_enum` has neither `names` nor `dynamic_names`.
-//   * `TooManyCustom` -- eleven distinct `CustomItem`s.
+//   * `TooManyCustom` -- `kMaxCustomNodes + 1` custom *nodes*, all behind one `CustomItem`.
 //   * `ShortcutToNothing` -- a table cell pointing at `stray`, which no root reaches.
 //
 // Everything else is deliberately well formed: distinct names per parent, non-zero titles, a
@@ -93,20 +98,25 @@ constexpr Node bad_empty = submenu(200, kEmptyKids);
 
 constexpr Node bad_enum = enumeration(202, {}, zero, discard);
 
-constexpr Node custom_0 = custom(300, &kItems[0]);
-constexpr Node custom_1 = custom(301, &kItems[1]);
-constexpr Node custom_2 = custom(302, &kItems[2]);
-constexpr Node custom_3 = custom(303, &kItems[3]);
-constexpr Node custom_4 = custom(304, &kItems[4]);
-constexpr Node custom_5 = custom(305, &kItems[5]);
-constexpr Node custom_6 = custom(306, &kItems[6]);
-constexpr Node custom_7 = custom(307, &kItems[7]);
-constexpr Node custom_8 = custom(308, &kItems[8]);
-constexpr Node custom_9 = custom(309, &kItems[9]);
-constexpr Node custom_10 = custom(310, &kItems[10]);
+/// One more custom node than the cap allows, each with its own name (so `DuplicateName` stays
+/// silent) and all sharing `kSharedItem`.
+constexpr auto kCustomNodes = [] {
+	std::array<Node, kMaxCustomNodes + 1> out{};
+	for (size_t i = 0; i < out.size(); i++) {
+		out[i] = custom(static_cast<uint16_t>(300 + i), &kSharedItem);
+	}
+	return out;
+}();
 
-constexpr const Node* kBadKids[] = {&bad_empty, &bad_enum, &custom_0, &custom_1, &custom_2, &custom_3, &custom_4,
-                                    &custom_5,  &custom_6, &custom_7, &custom_8, &custom_9, &custom_10};
+constexpr auto kBadKids = [] {
+	std::array<const Node*, kCustomNodes.size() + 2> out{};
+	out[0] = &bad_empty;
+	out[1] = &bad_enum;
+	for (size_t i = 0; i < kCustomNodes.size(); i++) {
+		out[i + 2] = &kCustomNodes[i];
+	}
+	return out;
+}();
 constexpr Node bad_root = submenu(199, kBadKids);
 constexpr const Node* kBadRoots[] = {&bad_root};
 

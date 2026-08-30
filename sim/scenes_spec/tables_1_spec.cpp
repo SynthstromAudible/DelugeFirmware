@@ -657,10 +657,19 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 		// path directly.
 		Fixture& f = fixture();
 		size_t exercised = 0;
+		// Fix round 2, I2: a probe count with slack ("> 45") cannot tell a node that left the table
+		// from one that never had a hook. What is asserted is the **set of distinct nodes driven**,
+		// against a set derived from the table itself -- every node in the walk carrying a `set`
+		// hook -- so dropping a node, or a relevance predicate going false in the fixture, fails
+		// here rather than being absorbed by the slack. Only `tables_3_spec` pinned a node set
+		// before; batches 1 and 2 now do the same.
+		std::set<const Node*> covered;
+		std::set<const Node*> with_hook;
 		for (const Pair& p : all_pairs()) {
 			if (p.node->bind.set == nullptr) {
 				continue;
 			}
+			with_hook.insert(p.node);
 			const menu::IntRange r = menu::bindings::range(*p.node, f.ctx);
 			for (int32_t v : probe_values(r)) {
 				const std::optional<int32_t> sentinel = sentinel_for(r, v);
@@ -674,10 +683,16 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 				expect(probe.got_port == probe.want_port).to_be_true();
 				expect(probe.got_legacy == probe.want_legacy).to_be_true();
 				exercised++;
+				covered.insert(p.node);
 			}
 		}
-		// ~20 hooks x 3 values.
-		expect(exercised > size_t(45)).to_be_true();
+		// Every batch-1 node with a `set` hook is driven -- no exceptions in this batch.
+		expect(covered.size()).to_equal(with_hook.size());
+		for (const Node* n : with_hook) {
+			expect(covered.contains(n)).to_be_true();
+		}
+		// ... and each was driven for all three values its range spans.
+		expect(exercised).to_equal(size_t(3) * with_hook.size());
 	});
 });
 // clang-format on

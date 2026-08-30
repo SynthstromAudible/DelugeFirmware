@@ -61,8 +61,10 @@
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_manager.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/flash_storage.h"
 
 #include "support/song_fixture.h"
 
@@ -96,6 +98,16 @@ namespace bindings = deluge::scenes::menu::bindings;
 ///        for the same [class.protected] reason.
 struct SubmenuPeek : legacy::Submenu {
 	static const deluge::vector<::MenuItem*>& items_of(legacy::Submenu& menu) { return menu.*(&SubmenuPeek::items); }
+};
+
+/// @brief Reach `Output::activeClip`, which is `protected` (`model/output.h:235`) and whose only
+///        public setter, `Output::setActiveClip`, also re-sends MIDI program changes and wants a
+///        timeline-counter model stack. Same [class.protected] route `SubmenuPeek` uses: the
+///        pointer-to-member is formed inside a class derived from `Output`, and its type is still
+///        `Clip* Output::*`. Never instantiated -- `Output` is abstract and has no default
+///        constructor, which is exactly why this is only ever used to name the member.
+struct OutputPeek : ::Output {
+	static Clip*& active_clip_of(::Output& out) { return out.*(&OutputPeek::activeClip); }
 };
 
 /// @brief Call a legacy item's protected `writeCurrentValue()` -- `tables_2_spec`'s `ValuePeek`.
@@ -421,8 +433,19 @@ bool legacy_relevance_needs_sound(const Pair& p) {
 	return p.root->ctx.sound == nullptr && (p.node == &nodes::sample0_recorder || p.node == &nodes::sample1_recorder);
 }
 
-/// @brief Legacy writes this spec cannot drive, and why. Every one reaches a `gui/` or `hid/` global
-///        that only a booted app has; the port side is still covered by the read comparison.
+/// @brief Nodes whose **legacy** `writeCurrentValue()` this spec cannot drive, and why. Every one
+///        reaches a `gui/` or `hid/` global that only a booted app has.
+///
+/// **This list suppresses the legacy call only** (fix round 2, I1/I3). It used to skip the whole
+/// `(node, item)` pair, which took the *port's* hook out of the oracle along with legacy's -- and
+/// the read comparison does not make up the difference: `bindings::read(arp_mode)` observes only
+/// `arp->mode`, which `set_arp_mode` assigns trivially, so `updatePresetFromCurrentSettings()`,
+/// `updateSettingsFromCurrentPreset()`, `flagForceArpRestart` and the whole
+/// `silence_for_arp_toggle` block (`nodes/sound_arp.cpp:80-149`) were asserted by nothing at all.
+/// Deleting any of them left the suite green. So the `drives the port hook of every node the legacy
+/// write comparison excludes` example below drives **every one of these fourteen port hooks on its
+/// own** and asserts what each actually persists, and the loop over this list is what makes adding a
+/// fifteenth exclusion without covering it a failure rather than a quiet hole.
 ///
 /// Fix round 1, I3: `default_velocity` and `trigger_in_ppqn` were on this list and should not have
 /// been. `defaults::Velocity::writeCurrentValue` (`defaults/velocity.h:13-16`) is `FlashStorage`
@@ -431,21 +454,45 @@ bool legacy_relevance_needs_sound(const Pair& p) {
 /// `currentSong` can be *seen* to agree. `trigger::in::PPQN`'s resync is guarded by
 /// `isExternalClockActive() && usingAnalogClockInput` (`trigger/in/ppqn.h:24-26`), both false in
 /// this fixture. Both are driven now.
+constexpr const Node* kLegacyWriteNeedsUi[] = {
+    &nodes::synth_mode,                // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
+    &nodes::arp_mode,                  // `allNotesOff` over `soundEditor.getCurrentModelStack`
+    &nodes::arp_preset,                // the same block (`preset_mode.h:50-70`)
+    &nodes::mod_fx_type,               // `display->displayError` (`mod_fx/type.h:42,52`)
+    &nodes::audio_clip_reverse,        // `uiNeedsRendering(&audioClipView)` (`reverse.h:52`)
+    &nodes::midi_clock_out,            // `playbackHandler.setMidiOutClockMode` sends real MIDI
+    &nodes::midi_clock_in,             // ... and `setMidiInClockEnabled` re-syncs playback
+    &nodes::trigger_out_ppqn,          // `resyncAnalogOutTicksToInternalTicks` (`out/ppqn.h:24`)
+    &nodes::default_pad_brightness,    // `PadLEDs::setBrightnessLevel` (`pad_brightness.h:26`)
+    &nodes::default_menu_highlighting, // `Canvas::menuHighlightingInverts`
+    &nodes::screensaver_mode,          // `Screensaver::settingsChanged()`
+    &nodes::screensaver_timeout,       // ... and again
+    &nodes::feature_sticky_shift,      // `Buttons::clearShiftSticky()`
+    &nodes::feature_rounded_corners,   // `Canvas::roundedCornersEnabled`
+};
+
 bool legacy_write_needs_ui(const Node& node) {
-	return &node == &nodes::synth_mode                   // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
-	       || &node == &nodes::arp_mode                  // `allNotesOff` over `soundEditor.getCurrentModelStack`
-	       || &node == &nodes::arp_preset                // the same block (`preset_mode.h:50-70`)
-	       || &node == &nodes::mod_fx_type               // `display->displayError` (`mod_fx/type.h:42,52`)
-	       || &node == &nodes::audio_clip_reverse        // `uiNeedsRendering(&audioClipView)` (`reverse.h:52`)
-	       || &node == &nodes::midi_clock_out            // `playbackHandler.setMidiOutClockMode` sends real MIDI
-	       || &node == &nodes::midi_clock_in             // ... and `setMidiInClockEnabled` re-syncs playback
-	       || &node == &nodes::trigger_out_ppqn          // `resyncAnalogOutTicksToInternalTicks` (`out/ppqn.h:24`)
-	       || &node == &nodes::default_pad_brightness    // `PadLEDs::setBrightnessLevel` (`pad_brightness.h:26`)
-	       || &node == &nodes::default_menu_highlighting // `Canvas::menuHighlightingInverts`
-	       || &node == &nodes::screensaver_mode          // `Screensaver::settingsChanged()`
-	       || &node == &nodes::screensaver_timeout       // ... and again
-	       || &node == &nodes::feature_sticky_shift      // `Buttons::clearShiftSticky()`
-	       || &node == &nodes::feature_rounded_corners;  // `Canvas::roundedCornersEnabled`
+	for (const Node* n : kLegacyWriteNeedsUi) {
+		if (n == &node) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// @brief The root fixture named @p name (`roots()`'s own `Root::name`), installed and ready.
+///
+/// Aborts the example loudly rather than returning null: every caller below names a root this file
+/// declares, so a miss is a typo, not a case to handle.
+const Root& installed_root(std::string_view name) {
+	for (const Root& r : roots()) {
+		if (name == r.name) {
+			install(r.ctx, r.song);
+			return r;
+		}
+	}
+	static const Root kNone{"<none>", nullptr, nullptr, {}, nullptr};
+	return kNone;
 }
 
 /// @brief Is @p p's node on screen in its root's own context?
@@ -1072,6 +1119,235 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		// in either number means the loop stopped reaching hooks it used to.
 		expect(exercised > size_t(1000)).to_be_true();
 		expect(covered.size() > size_t(160)).to_be_true();
+	});
+
+	it("drives the port hook of every node the legacy write comparison excludes", _ {
+		// Fix round 2, I1 + I3. `kLegacyWriteNeedsUi` suppresses the **legacy** call only. Every one
+		// of those fourteen port hooks is driven here on its own and its persisted effect asserted
+		// directly -- model state, `playbackHandler`, `FlashStorage`, `runtimeFeatureSettings` --
+		// because the read comparison does not reach any of it. The `covered` tally at the end is
+		// the ratchet: a fifteenth exclusion with no arm here fails this example.
+		//
+		// The four `hid/`-side settings nodes are the ones review round 1's I3 wrongly claimed were
+		// already covered ("the spec asserts the persisted half"); they were on no list but this
+		// one. They are covered now, in the only half `src/scenes` owns: the `FlashStorage` /
+		// `runtimeFeatureSettings` write. Their `hid/` halves stay E2's, as `settings.h` records.
+		size_t covered = 0;
+
+		// --- What this example perturbs, and puts back ------------------------------------------
+		// These four globals are process-wide, and the read comparisons in this file's other groups
+		// observe some of them. Saved and restored so the example is order-independent.
+		const bool saved_midi_out = playbackHandler.midiOutClockEnabled;
+		const bool saved_midi_in = playbackHandler.midiInClockEnabled;
+		const uint32_t saved_ppqn = playbackHandler.analogOutTicksPPQN;
+		const uint8_t saved_brightness = FlashStorage::defaultPadBrightness;
+		const MenuHighlighting saved_highlighting = FlashStorage::accessibilityMenuHighlighting;
+		const ScreensaverMode saved_screensaver = FlashStorage::screensaverMode;
+		const uint8_t saved_timeout = FlashStorage::screensaverTimeoutMinutes;
+		const uint32_t saved_sticky = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
+		const uint32_t saved_light_shift = runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed);
+		const uint32_t saved_corners = runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners);
+
+		{ // --- synth_mode: `Sound::setSynthMode` on the target, not just a stored int ------------
+			const Root& sound = installed_root("sound");
+			const SynthMode before = sound.ctx.sound->synthMode;
+			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::RINGMOD));
+			expect(sound.ctx.sound->synthMode == SynthMode::RINGMOD).to_be_true();
+			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
+			expect(sound.ctx.sound->synthMode == SynthMode::SUBTRACTIVE).to_be_true();
+			sound.ctx.sound->setSynthMode(before, sound.ctx.song);
+			covered++;
+		}
+
+		{ // --- arp_mode: the preset re-derivation AND the silence block --------------------------
+			// `set_arp_mode` (`nodes/sound_arp.cpp:126-135`) is three effects, not one:
+			// `silence_for_arp_toggle`, `arp.mode = mode`, `arp.updatePresetFromCurrentSettings()`.
+			// `bindings::read` sees only the middle one, which is why deleting either of the others
+			// used to leave this suite green.
+			const Root& sound = installed_root("sound");
+			ArpeggiatorSettings* arp = sound.ctx.arp;
+			expect(arp != nullptr).to_be_true();
+			// `silence_for_arp_toggle` only fires on a clip that is actually sounding
+			// (`sound_arp.cpp:94`, legacy `mode.h:30`). `song_fixture.h` builds the clip without
+			// making it its output's active one -- nothing in the fixture plays -- so this is the
+			// one bit of state the example has to arrange for itself.
+			expect(sound.ctx.clip != nullptr).to_be_true();
+			Clip* const saved_active = OutputPeek::active_clip_of(*sound.ctx.output);
+			OutputPeek::active_clip_of(*sound.ctx.output) = sound.ctx.clip;
+			expect(sound.ctx.clip->isActiveOnOutput()).to_be_true();
+
+			arp->mode = ArpMode::OFF;
+			arp->preset = ArpPreset::OFF;
+			arp->octaveMode = ArpOctaveMode::DOWN;
+			arp->noteMode = ArpNoteMode::DOWN;
+			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`) -- the one effect
+			// of `silence_for_arp_toggle`'s synth arm that survives in model state a spec can read.
+			sound.ctx.sound->invertReversed = true;
+
+			menu::bindings::write(nodes::arp_mode, sound.ctx, static_cast<int32_t>(ArpMode::ARP));
+
+			expect(arp->mode == ArpMode::ARP).to_be_true();
+			// DOWN/DOWN maps to `ArpPreset::DOWN` (`arpeggiator.cpp:1936-1938`) -- so this is false
+			// unless `updatePresetFromCurrentSettings()` actually ran.
+			expect(arp->preset == ArpPreset::DOWN).to_be_true();
+			// ... and this is true only if `silence_for_arp_toggle` reached the synth arm.
+			expect(sound.ctx.sound->invertReversed).to_be_false();
+			OutputPeek::active_clip_of(*sound.ctx.output) = saved_active;
+			covered++;
+		}
+
+		{ // --- arp_preset: the settings re-derivation, the restart flag, the silence block -------
+			const Root& sound = installed_root("sound");
+			ArpeggiatorSettings* arp = sound.ctx.arp;
+			Clip* const saved_active = OutputPeek::active_clip_of(*sound.ctx.output);
+			OutputPeek::active_clip_of(*sound.ctx.output) = sound.ctx.clip;
+
+			arp->mode = ArpMode::OFF;
+			arp->preset = ArpPreset::OFF;
+			arp->octaveMode = ArpOctaveMode::RANDOM;
+			arp->noteMode = ArpNoteMode::RANDOM;
+			arp->flagForceArpRestart = false;
+			sound.ctx.sound->invertReversed = true;
+
+			menu::bindings::write(nodes::arp_preset, sound.ctx, static_cast<int32_t>(ArpPreset::DOWN));
+
+			expect(arp->preset == ArpPreset::DOWN).to_be_true();
+			// `updateSettingsFromCurrentPreset()` (`arpeggiator.cpp:1971-2005`) is the only thing
+			// that moves these three; delete its call from `set_arp_preset` and all three fail.
+			expect(arp->mode == ArpMode::ARP).to_be_true();
+			expect(arp->octaveMode == ArpOctaveMode::DOWN).to_be_true();
+			expect(arp->noteMode == ArpNoteMode::DOWN).to_be_true();
+			expect(arp->flagForceArpRestart).to_be_true();
+			expect(sound.ctx.sound->invertReversed).to_be_false();
+
+			arp->mode = ArpMode::OFF;
+			arp->preset = ArpPreset::OFF;
+			arp->flagForceArpRestart = false;
+			OutputPeek::active_clip_of(*sound.ctx.output) = saved_active;
+			covered++;
+		}
+
+		{ // --- mod_fx_type: `ModControllableAudio::setModFXType` on the target -------------------
+			const Root& sound = installed_root("sound");
+			const ModFXType before = sound.ctx.mod->modFXType_;
+			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::NONE));
+			expect(sound.ctx.mod->modFXType_ == ModFXType::NONE).to_be_true();
+			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
+			expect(sound.ctx.mod->modFXType_ == ModFXType::FLANGER).to_be_true();
+			(void)sound.ctx.mod->setModFXType(before);
+			covered++;
+		}
+
+		{ // --- audio_clip_reverse: the clip's own sample controls --------------------------------
+			const Root& audio = installed_root("audio clip");
+			auto* clip = static_cast<AudioClip*>(audio.ctx.clip);
+			expect(clip != nullptr).to_be_true();
+			const bool before = clip->sampleControls.reversed;
+			menu::bindings::write(nodes::audio_clip_reverse, audio.ctx, 1);
+			expect(clip->sampleControls.reversed).to_be_true();
+			menu::bindings::write(nodes::audio_clip_reverse, audio.ctx, 0);
+			expect(clip->sampleControls.reversed).to_be_false();
+			clip->sampleControls.reversed = before;
+			covered++;
+		}
+
+		// --- The four `playbackHandler` / settings-root nodes ------------------------------------
+		// These hooks ignore the context entirely (`settings.cpp`'s signatures take an unnamed
+		// `const MenuContext&`), so the settings root's own context is the honest one to pass.
+		const Root& settings = installed_root("settings");
+
+		{ // midi_clock_out -- `setMidiOutClockMode` (the MIDI send is the part legacy cannot do here)
+			menu::bindings::write(nodes::midi_clock_out, settings.ctx, 1);
+			expect(playbackHandler.midiOutClockEnabled).to_be_true();
+			menu::bindings::write(nodes::midi_clock_out, settings.ctx, 0);
+			expect(playbackHandler.midiOutClockEnabled).to_be_false();
+			covered++;
+		}
+		{ // midi_clock_in
+			menu::bindings::write(nodes::midi_clock_in, settings.ctx, 1);
+			expect(playbackHandler.midiInClockEnabled).to_be_true();
+			menu::bindings::write(nodes::midi_clock_in, settings.ctx, 0);
+			expect(playbackHandler.midiInClockEnabled).to_be_false();
+			covered++;
+		}
+		{ // trigger_out_ppqn
+			menu::bindings::write(nodes::trigger_out_ppqn, settings.ctx, 24);
+			expect(playbackHandler.analogOutTicksPPQN).to_equal(uint32_t(24));
+			menu::bindings::write(nodes::trigger_out_ppqn, settings.ctx, 48);
+			expect(playbackHandler.analogOutTicksPPQN).to_equal(uint32_t(48));
+			covered++;
+		}
+		{ // default_pad_brightness -- the `>> 2` the node's step-of-4 range implies
+			menu::bindings::write(nodes::default_pad_brightness, settings.ctx, 32);
+			expect(FlashStorage::defaultPadBrightness).to_equal(uint8_t(8));
+			menu::bindings::write(nodes::default_pad_brightness, settings.ctx, 64);
+			expect(FlashStorage::defaultPadBrightness).to_equal(uint8_t(16));
+			expect(menu::bindings::read(nodes::default_pad_brightness, settings.ctx)).to_equal(int32_t(64));
+			covered++;
+		}
+		{ // default_menu_highlighting
+			menu::bindings::write(nodes::default_menu_highlighting, settings.ctx,
+			                      static_cast<int32_t>(MenuHighlighting::PARTIAL_INVERSION));
+			expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::PARTIAL_INVERSION).to_be_true();
+			menu::bindings::write(nodes::default_menu_highlighting, settings.ctx,
+			                      static_cast<int32_t>(MenuHighlighting::NO_INVERSION));
+			expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION).to_be_true();
+			covered++;
+		}
+		{ // screensaver_mode
+			menu::bindings::write(nodes::screensaver_mode, settings.ctx, static_cast<int32_t>(ScreensaverMode::OFF));
+			expect(FlashStorage::screensaverMode == ScreensaverMode::OFF).to_be_true();
+			menu::bindings::write(nodes::screensaver_mode, settings.ctx, static_cast<int32_t>(ScreensaverMode::STARSCAPE));
+			expect(FlashStorage::screensaverMode == ScreensaverMode::STARSCAPE).to_be_true();
+			covered++;
+		}
+		{ // screensaver_timeout
+			menu::bindings::write(nodes::screensaver_timeout, settings.ctx, 7);
+			expect(FlashStorage::screensaverTimeoutMinutes).to_equal(uint8_t(7));
+			menu::bindings::write(nodes::screensaver_timeout, settings.ctx, 21);
+			expect(FlashStorage::screensaverTimeoutMinutes).to_equal(uint8_t(21));
+			covered++;
+		}
+		{ // feature_sticky_shift -- plus the LightShiftLed poke `ShiftIsSticky` carries with it
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed,
+			                           util::to_underlying(RuntimeFeatureStateToggle::Off));
+			menu::bindings::write(nodes::feature_sticky_shift, settings.ctx,
+			                      util::to_underlying(RuntimeFeatureStateToggle::On));
+			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky))
+			    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::On));
+			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed))
+			    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::On));
+			menu::bindings::write(nodes::feature_sticky_shift, settings.ctx,
+			                      util::to_underlying(RuntimeFeatureStateToggle::Off));
+			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky))
+			    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
+			covered++;
+		}
+		{ // feature_rounded_corners
+			menu::bindings::write(nodes::feature_rounded_corners, settings.ctx,
+			                      util::to_underlying(RuntimeFeatureStateToggle::On));
+			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners))
+			    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::On));
+			menu::bindings::write(nodes::feature_rounded_corners, settings.ctx,
+			                      util::to_underlying(RuntimeFeatureStateToggle::Off));
+			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners))
+			    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
+			covered++;
+		}
+
+		// The ratchet.
+		expect(covered).to_equal(std::size(kLegacyWriteNeedsUi));
+
+		playbackHandler.midiOutClockEnabled = saved_midi_out;
+		playbackHandler.midiInClockEnabled = saved_midi_in;
+		playbackHandler.analogOutTicksPPQN = saved_ppqn;
+		FlashStorage::defaultPadBrightness = saved_brightness;
+		FlashStorage::accessibilityMenuHighlighting = saved_highlighting;
+		FlashStorage::screensaverMode = saved_screensaver;
+		FlashStorage::screensaverTimeoutMinutes = saved_timeout;
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, saved_sticky);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed, saved_light_shift);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::RoundedCorners, saved_corners);
 	});
 
 	it("round-trips every param node, and raises the reverb flag on exactly the two that should", _ {

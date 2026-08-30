@@ -232,9 +232,9 @@ SceneKind MenuScene::kind() const {
 }
 
 std::span<const Node* const> MenuScene::roots() {
-	// One slot per `MenuContext::Root`, all null until Tasks 6-8 write the tables. Declared now so
-	// `on_enter`'s "arg 0 means the root the context chose" rule has somewhere to look, and so
-	// filling it in is a change to this array alone.
+	// One slot per `MenuContext::Root`, and every one of them filled: Tasks 6-8 wrote the tables.
+	// This array is `on_enter`'s "arg 0 means the root the context chose" lookup, and adding or
+	// re-pointing a root is a change to this array alone.
 	// Task 8: one node per `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the
 	// MIDI-titled spelling of that root -- the title `menus.cpp`'s constructor gives it; a caller
 	// on a CV output takes `nodes::midi_or_cv_root(ctx)` instead (`nodes/roots.h`'s note).
@@ -278,8 +278,8 @@ bool MenuScene::on_enter(const SceneId& id) {
 		target = node_by_id(id.arg);
 	}
 	else {
-		// Arg 0 means "the root this context chose". In E1 `roots()` is all null, so this is the
-		// brief's "refuse arg == 0"; from Task 6 on it is a real fallback.
+		// Arg 0 means "the root this context chose" -- a real fallback since Task 6 filled
+		// `roots()` in. It refuses (returns false below) only if `ctx_.root` is out of range.
 		const std::span<const Node* const> r = roots();
 		const size_t i = static_cast<size_t>(ctx_.root);
 		target = i < r.size() ? r[i] : nullptr;

@@ -24,6 +24,7 @@
 ///       specs run under.
 
 #include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
@@ -579,6 +580,64 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 			}
 		}
 		expect(dangling).to_equal(size_t(0));
+	});
+
+	it("has exactly the custom-node count the cap is sized from, and does not trip the cap", _ {
+		// Fix round 2, I4. `validate_tree`'s `TooManyCustom` rule used to count distinct
+		// `CustomItem` instances; every one of E1's bespoke nodes points at the single shared
+		// `nodes::kPending`, so that count was 1 for the whole tree and the rule could never fire.
+		// It now counts nodes -- and this pins the real number, which `validate.h`'s
+		// `kMaxCustomNodes` is sized just above and `src/scenes/README.md` quotes.
+		//
+		// The whole tree is enumerated through the id registry rather than re-walked here:
+		// `assign_node_ids` numbers exactly the statically reachable set, 1..assigned.
+		select_language();
+		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
+		size_t custom_nodes = 0;
+		size_t distinct_items = 0;
+		std::set<const menu::CustomItem*> items;
+		for (uint16_t id = 1; id <= assigned; id++) {
+			const Node* n = menu::node_by_id(id);
+			if (n != nullptr && n->kind == menu::Kind::Custom && n->custom != nullptr) {
+				custom_nodes++;
+				items.insert(n->custom);
+			}
+		}
+		distinct_items = items.size();
+		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
+		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
+		// The proof that the old spelling was inert: one placeholder behind all of them.
+		expect(distinct_items).to_equal(size_t(1));
+
+		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {},
+		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
+		size_t too_many = 0;
+		for (const menu::Issue& i : issues) {
+			if (i.kind == menu::Issue::Kind::TooManyCustom) {
+				too_many++;
+			}
+		}
+		expect(too_many).to_equal(size_t(0));
+	});
+
+	it("numbers the tree when the application's registry is built, not only when a spec asks", _ {
+		// Fix round 2, M1. `assign_node_ids` had no non-spec caller, so `MenuScene::save_state`,
+		// `restore_state` and the shortcut-pad jump each silently no-opped in an application that
+		// had built its registry and nothing else. `scenes::assigned_node_ids()` is now called from
+		// both `menu_scene()` and `scene_registry()`.
+		//
+		// Written so it does not depend on which spec ran before it: the registry's own count is
+		// compared against a fresh numbering of the very set it numbers, and the roots are then
+		// checked against *that*.
+		const uint16_t at_registry = deluge::scenes::assigned_node_ids();
+		expect(at_registry > uint16_t(0)).to_be_true();
+		expect(menu::assign_node_ids(menu::MenuScene::roots())).to_equal(at_registry);
+		for (const Node* root : menu::MenuScene::roots()) {
+			expect(root != nullptr).to_be_true();
+			if (root != nullptr) {
+				expect(menu::node_id(*root) != uint16_t(0)).to_be_true();
+			}
+		}
 	});
 
 	it("gives every shortcut target a node id, so the pad jump can name it", _ {
