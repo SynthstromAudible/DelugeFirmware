@@ -92,9 +92,11 @@ MIDICable* cable_at(int32_t index);
 /// @brief The cables `Devices::drawPixelsForOled` would draw, in its own order.
 ///
 /// Legacy walks `kLowestDeviceNum .. hostedMIDIDevices.size()` and pushes a row only for a cable
-/// with `connectionFlags` set (`devices.cpp:163-176`: "Disconnected devices aren't drawn, so they
-/// don't take up a row"), so the visible list *is* the connected cables in index order -- which is
-/// also exactly the set `selectEncoderAction` skips its way along (`:86-104`).
+/// with `connectionFlags` set (`Devices::drawPixelsForOled`, `devices.cpp:163-176`); the reason is
+/// spelled out on the same test in `Devices::computeScrollForSelected` -- "Disconnected devices
+/// aren't drawn, so they don't take up a row" (`devices.cpp:70`). So the visible list *is* the
+/// connected cables in index order -- which is also exactly the set
+/// `Devices::selectEncoderAction` skips its way along (`devices.cpp:86-104`).
 /// @return How many were written.
 size_t connected_cables(std::span<MIDICable*> out);
 

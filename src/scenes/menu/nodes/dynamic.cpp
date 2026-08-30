@@ -73,10 +73,16 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 /// `Selection` value member does, and what its `beginSession(navigatedBackwardFrom != nullptr)` arm
 /// reads back (`cv/selection.h:31-39`, `gate/selection.h:33-41`).
 ///
-/// Published every frame rather than only on a move, for the same reason `MultiRangeItem` publishes
-/// `range_choice` every frame: `MenuScene::after_render` applies it to its own `MenuContext` ahead
-/// of the same tick's `select_chain` call, which is where legacy's own assignment sits
-/// (`cv/selection.h:42`, `gate/selection.h:47`).
+/// **Published on the press only, not every frame** (fix round 1, minor 3). Legacy assigns
+/// `soundEditor.currentSourceIndex` in `selectButtonPress` and nowhere else
+/// (`cv/selection.h:42`, `gate/selection.h:47`); walking the cursor and backing out is a read-only
+/// gesture there, so it is one here too. `MultiRangeItem` republishes `range_choice` every frame
+/// because *its* legacy twin does (`multi_range.cpp:230-247` -- the cursor IS the selection); these
+/// two do not, and the difference is legacy's.
+///
+/// `MenuScene::after_render` drains the choice above its own `render_resp.entered` arm, so the
+/// press that publishes it and the `select_chain` call that reads it are the same tick -- which is
+/// exactly the order legacy's single statement has.
 void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state,
                              std::span<const std::string_view> names) {
 	draw_title_for(f, state);
@@ -85,7 +91,7 @@ void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state,
 	int32_t index = state.list[d].cursor;
 	state.render_resp =
 	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), index, names, state.list[d], state.scroll[d]);
-	if (!names.empty()) {
+	if (state.render_resp.entered && !names.empty()) {
 		state.source_choice =
 		    static_cast<int8_t>(std::clamp<int32_t>(index, 0, static_cast<int32_t>(names.size()) - 1));
 	}
@@ -99,11 +105,13 @@ void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state,
 /// `navigatedBackwardFrom == nullptr` test, one hop earlier. So there is no port of the backward arm
 /// (`setValue(soundEditor.currentSourceIndex)`): the cursor this leaves is still in
 /// `state.list[depth]` when the user returns, holding the same value that assignment would restore.
+///
+/// It does **not** publish a `source_choice` either: legacy's `beginSession` moves the item's own
+/// value and leaves `soundEditor.currentSourceIndex` alone, and so does this (fix round 1).
 void focus_output_selection(MenuState& state) {
 	const size_t d = depth_of(state);
 	state.list[d] = deluge::ui::ListState{};
 	state.scroll[d] = deluge::ui::ScrollText{};
-	state.source_choice = 0;
 }
 
 } // namespace
@@ -128,7 +136,9 @@ MIDICable* cable_at(int32_t index) {
 
 size_t connected_cables(std::span<MIDICable*> out) {
 	// `Devices::drawPixelsForOled`'s own walk (`devices.cpp:163-176`), without the viewport limit:
-	// every connected cable, in index order, DIN first.
+	// every connected cable, in index order, DIN first. Legacy states the reason for the
+	// `connectionFlags` test on its twin in `Devices::computeScrollForSelected` -- "Disconnected
+	// devices aren't drawn, so they don't take up a row" (`devices.cpp:70`).
 	size_t n = 0;
 	const auto end = static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size());
 	for (int32_t index = kLowestDeviceNum; index < end && n < out.size(); index++) {
@@ -219,7 +229,14 @@ void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `:55` -- `soundEditor.currentMIDICable = getCable(this->getValue())`. A `CustomItem` gets a
 	// `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it (see
 	// `MenuState::midi_cable_choice`), exactly as `MultiRangeItem` does for the selected range.
-	state.midi_cable_choice = cursor < n ? cables[cursor] : nullptr;
+	//
+	// **Unconditional, like legacy's own statement** (fix round 1, minor 2). With nothing connected
+	// at all -- DIN included -- there is no row to sit on, but legacy still lands on
+	// `getCable(lowestDeviceNum)`, which is the DIN cable whatever its `connectionFlags` say
+	// (`devices.cpp:138-141`; the guard at `:133-136` only rejects indices, not disconnection). So
+	// the empty list resolves to DIN rather than leaving the previous visit's cable in place, which
+	// `nullptr` -- this field's "no choice" sentinel -- would have done.
+	state.midi_cable_choice = cursor < n ? cables[cursor] : cable_at(kLowestDeviceNum);
 }
 
 void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {

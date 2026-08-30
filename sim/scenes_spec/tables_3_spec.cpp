@@ -2574,6 +2574,49 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		expect(int(menu_scene().state().list[1].cursor)).to_equal(2);
 	});
 
+	it("lands on DIN when nothing at all is connected, rather than leaving a stale cable", _ {
+		// Fix round 1, minor 2. `Devices::beginSession` assigns unconditionally (`devices.cpp:55`),
+		// and `getCable(lowestDeviceNum)` is the DIN cable whatever its `connectionFlags` say --
+		// the guard at `:133-136` rejects out-of-range *indices*, not disconnection. So an empty
+		// row list still resolves to DIN; it must not leave `MenuContext::midi_cable` pointing at
+		// the previous visit's cable.
+		//
+		// Read before the first tick on purpose: `MenuScene::open` -> `retarget` -> `enter_leaf`
+		// runs `on_focus`, and `after_render` (which the first tick would run) drains the field.
+		CableFixture cables;
+		cables.set(/*din=*/0, /*up1=*/0, /*up2=*/0, {});
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+
+		MIDICable* none[deluge::scenes::menu::nodes::kMaxDeviceRows];
+		expect(nodes::connected_cables(none)).to_equal(size_t(0));
+
+		MenuContext ctx = settings.ctx;
+		ctx.midi_cable = &MIDIDeviceManager::upstreamUSBMIDICable2; // the stale one
+		Rig r;
+		r.open(nodes::midi_devices, ctx);
+		expect(menu_scene().state().midi_cable_choice == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+	});
+
+	it("does not move the source index just because the selector was opened", _ {
+		// Fix round 1, minor 3. Legacy's `beginSession` moves the *item's* value and leaves
+		// `soundEditor.currentSourceIndex` alone; only `selectButtonPress` writes it
+		// (`cv/selection.h:32-34` vs `:42`, `gate/selection.h:34-36` vs `:47`). So `on_focus`
+		// publishes no `source_choice`, and the sentinel is still -1 after the descent that ran it.
+		//
+		// Read before the first tick, for the same reason as the example above. (The other half of
+		// the same fix -- that *scrolling* publishes nothing either -- has no observable effect
+		// through the scene, because every page that reads `source_index` is reached only through
+		// the press that republishes it; it is a code-shape fix, and this pins the half that shows.)
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		for (const Node* selector : {&nodes::cv_selection, &nodes::gate_selection}) {
+			Rig r;
+			r.open(*selector, settings.ctx);
+			expect(int(menu_scene().state().source_choice)).to_equal(-1);
+		}
+	});
+
 	it("offers cv::Selection's own two options and chains onto the output the cursor names", _ {
 		// The option text is legacy's `getOptions()` (`cv/selection.h:47-54`), read off the live
 		// item; the *mapping* is proved by a sentinel per output, because "CV OUTPUT 1" and
@@ -2698,7 +2741,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		   }
 	   });
 
-	it("renders the device list and the gate selector, on both panel geometries", _ {
+	it("renders the device list and both output selectors, on both panel geometries", _ {
 		// Both geometries, because a row constant that is right on one panel and wrong on the other
 		// is exactly the class of mistake a single golden cannot see. Nothing here hand-computes a
 		// rect: both pages lay out through `ui::oled::menu_rect(f)`, like every other menu screen.
@@ -2737,6 +2780,18 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			r.open(nodes::gate_selection, ctx);
 			r.shell.tick(0);
 			expect_golden(self, "../ui/menu/menu_gate_selection_64.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r;
+			r.open(nodes::cv_selection, ctx);
+			r.shell.tick(0);
+			expect_golden(self, "../ui/menu/menu_cv_selection_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r{board_64(), profile_64()};
+			r.open(nodes::cv_selection, ctx);
+			r.shell.tick(0);
+			expect_golden(self, "../ui/menu/menu_cv_selection_64.pbm", r.fake.pbm(0));
 		}
 	});
 
