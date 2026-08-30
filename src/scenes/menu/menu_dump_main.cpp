@@ -59,7 +59,17 @@
 ///     and exits non-zero. That failure is the deliberate design point where E2 -- whoever adds
 ///     the first real `dynamic_children` node -- has to stop and design this dump's shape against
 ///     an actual case, rather than silently inheriting whatever this file guessed in the
-///     abstract.
+///     abstract. **Fix round 2** removed the last trace of the abandoned attempt: this file used
+///     to build ten `MenuContext`s (Task 8's fixtures, via a real `Song`/`Clip`/`Instrument`) so
+///     the (now-deleted) expansion code would have something to call `dynamic_children(ctx, ...)`
+///     with. Nothing else here ever read a `MenuContext` -- confirmed by testing, not just
+///     reasoning: dropping the whole fixture-building call and keeping only the one line it
+///     happened to also do (`l10n::chosenLanguage = &l10n::built_in::english;`, load-bearing for
+///     `text_of()` below -- the tool segfaults without it) reproduced this dump's output
+///     byte-for-byte. So the fixture builder (`sim/scenes_spec/menu_dump_contexts.{h,cpp}`, and
+///     the `scenes-includes-outside` layer-rule workaround that existed only to let it reach
+///     `sim/scenes_spec/support/song_fixture.h` from outside `src/scenes/`) is gone; this dump
+///     never touches a `MenuContext` at all now, only `Node`'s own static fields.
 ///   * `"id"` = `node_id(n)` on every entry (ruling Q7) -- the lookup key a future `.state` golden
 ///     (`app16/<id>`) resolves against. A node reached only through `dynamic_children` never gets
 ///     an id (`node_id.h`'s own contract: only *static* children are walked), so such an entry
@@ -93,16 +103,16 @@
 /// ## Determinism
 ///
 /// Root order is `kAllRoots`'s own compile-time order; child order is `Node::children`'s own
-/// declaration order (a `std::span` over a `constexpr` array, never reordered); the ten contexts
-/// are visited in `MenuContext::Root` enumerator order. JSON object keys are written in a fixed
-/// alphabetical order (`available_when`, `children`, `id`, `name`, `title`, `type`) baked into
-/// `emit_node`'s own field-by-field writes rather than sorted at runtime -- there is no
-/// hash-map/set iteration anywhere on the emission path, static or dynamic. Two-space indentation,
-/// one trailing newline at end of file. `scripts/menu_dump_check.sh` rebuilds this tool, runs it,
-/// and diffs the result byte-for-byte against the committed
+/// declaration order (a `std::span` over a `constexpr` array, never reordered). JSON object keys
+/// are written in a fixed alphabetical order (`available_when`, `children`, `id`, `name`, `title`,
+/// `type`) baked into `emit_node`'s own field-by-field writes rather than sorted at runtime --
+/// there is no hash-map/set iteration anywhere on the emission path. `text_of` resolves through
+/// `l10n::chosenLanguage`, pinned once in `main` to the built-in English table before the walk
+/// starts, so every run resolves the same language regardless of process environment. Two-space
+/// indentation, one trailing newline at end of file. `scripts/menu_dump_check.sh` rebuilds this
+/// tool, runs it, and diffs the result byte-for-byte against the committed
 /// `website/src/data/generated/menu-hierarchies.json`.
-#include "scenes/menu/context.h"
-#include "scenes/menu/menu_dump_contexts.h" // NamedContext, build_contexts() -- see that header's note
+#include "gui/l10n/l10n.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
@@ -114,12 +124,10 @@
 #include <cstdlib>
 #include <string>
 #include <string_view>
-#include <vector>
 
 namespace menu = deluge::scenes::menu;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace relevance = deluge::scenes::menu::relevance;
-using deluge::scenes::menu_dump::NamedContext;
 
 namespace {
 
@@ -177,13 +185,12 @@ std::string text_of(uint16_t id) {
 	return std::string{deluge::scenes::deluge_profile().text_or_digits(id, scratch)};
 }
 
-void emit_node(std::string& out, const menu::Node& node, int brace_level, const std::vector<NamedContext>& contexts);
+void emit_node(std::string& out, const menu::Node& node, int brace_level);
 
 /// @brief `node`'s static `children` span, as a JSON array at `elem_level` (each element's own
 ///        indent; the closing `]` sits one level up, aligned with the `"children"` key). Skips a
 ///        null child pointer (defensive -- `node_id.cpp`'s own walk does the same).
-void emit_static_children(std::string& out, const menu::Node& node, int elem_level,
-                          const std::vector<NamedContext>& contexts) {
+void emit_static_children(std::string& out, const menu::Node& node, int elem_level) {
 	bool any = false;
 	for (const menu::Node* c : node.children) {
 		if (c != nullptr) {
@@ -206,7 +213,7 @@ void emit_static_children(std::string& out, const menu::Node& node, int elem_lev
 		}
 		first = false;
 		out += spaces(elem_level);
-		emit_node(out, *c, elem_level, contexts);
+		emit_node(out, *c, elem_level);
 	}
 	out += "\n" + spaces(elem_level - 1) + "]";
 }
@@ -234,7 +241,7 @@ void emit_static_children(std::string& out, const menu::Node& node, int elem_lev
 /// @brief One node, as the schema the file header documents -- object keys in fixed alphabetical
 ///        order (`available_when`, `children`, `id`, `name`, `title`, `type`), regardless of which
 ///        optional fields this particular node has.
-void emit_node(std::string& out, const menu::Node& node, int brace_level, const std::vector<NamedContext>& contexts) {
+void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	if (node.dynamic_children != nullptr) {
 		fail_on_dynamic_children(node); // noreturn -- see the file header's "Fix round 1" note
 	}
@@ -252,7 +259,7 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level, const 
 	}
 	if (is_submenu_type) {
 		out += spaces(field_level) + "\"children\": ";
-		emit_static_children(out, node, field_level + 1, contexts);
+		emit_static_children(out, node, field_level + 1);
 		out += ",\n";
 	}
 	out += spaces(field_level) + "\"id\": " + std::to_string(menu::node_id(node)) + ",\n";
@@ -272,7 +279,13 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level, const 
 } // namespace
 
 int main() {
-	std::vector<NamedContext> contexts = deluge::scenes::menu_dump::build_contexts();
+	// Load-bearing (fix round 2 tested this, not just reasoned about it): `text_of` below
+	// resolves every "name"/"title" through `deluge_profile().text_or_digits`, which reads
+	// `l10n::chosenLanguage` -- normally set once at boot by the real app (`OLED()`'s
+	// constructor). Nothing else does that here, so without this line `chosenLanguage` is null
+	// and the tool segfaults on the first node. Pinned to English rather than read from the
+	// environment so a run's language can never silently vary.
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 
 	uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
 	if (assigned == 0) {
@@ -296,7 +309,7 @@ int main() {
 		}
 		first = false;
 		out += spaces(1);
-		emit_node(out, *root, 1, contexts);
+		emit_node(out, *root, 1);
 	}
 	out += "\n]\n";
 

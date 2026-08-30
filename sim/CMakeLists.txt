@@ -554,21 +554,14 @@ add_executable(deluge_menu_dump
     # this one file.
     ${REPO_ROOT}/tests/harness/ui_script.cpp
     ${REPO_ROOT}/src/scenes/menu/menu_dump_main.cpp
-    # Builds the ten `MenuContext`s via sim/scenes_spec/support/song_fixture.h -- kept out of
-    # src/scenes/ entirely (menu_dump_main.cpp's own note, and menu_dump_contexts.h's) so this
-    # target's one non-library source with a "support/..." include never has to satisfy
-    # scripts/check_layer_rules.py's scenes-includes-outside rule.
-    ${REPO_ROOT}/sim/scenes_spec/menu_dump_contexts.cpp
 )
 # host_debug.cpp reaches into deluge_app's reason_check; src/deluge on the path for
 # memory/reason_check.h (mirrors deluge_host above). ${REPO_ROOT}/tests is for host_script.c's
-# <harness/ui_script.h>. sim/scenes_spec is for menu_dump_main.cpp's own
-# #include "support/song_fixture.h" -- the same header the scenes_spec specs use, resolved here via
-# an explicit include dir since this target's own source lives under src/scenes/menu/, not
-# sim/scenes_spec/ (a spec file's quoted include resolves against its own directory instead;
-# create_specs_driver's spec_dir/.. trick does not reach this target either).
-target_include_directories(deluge_menu_dump PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge ${REPO_ROOT}/tests
-                                                     ${REPO_ROOT}/sim/scenes_spec)
+# <harness/ui_script.h>. menu_dump_main.cpp needs no model fixture (fix round 2: it never calls a
+# node's get/set/dynamic_children hook, only reads static Node metadata) so, unlike
+# deluge_scenes_spec, this target needs no sim/scenes_spec include dir and never touches
+# sim/scenes_spec/support/song_fixture.h.
+target_include_directories(deluge_menu_dump PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge ${REPO_ROOT}/tests)
 target_link_libraries(deluge_menu_dump PRIVATE deluge_scenes deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_menu_dump PRIVATE ${RT_LIB})
