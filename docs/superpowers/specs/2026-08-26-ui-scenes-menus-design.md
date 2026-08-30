@@ -498,5 +498,8 @@ the four `hid/`-side write side effects a menu write can trigger (pad brightness
 suppression, canvas flags, sticky shift) that `src/scenes` cannot reach directly;
 `Source::getOrCreateFirstRange()` on a zero-range sample item; per-node cursor memory across
 sessions; `Kind::Custom` receiving raw input (today's `CustomItem` interface renders but the E1
-placeholder behind `DELUGE_SCENES_E1_PARTIAL` never routes input to it); and gold-knob acceleration
+placeholder never routes input to it — the shipped mechanism is `nodes::kPending` /
+`CustomItem::is_placeholder()` / `Issue::Kind::PlaceholderCustom` /
+`ValidateOptions::allow_placeholder_custom`; the `DELUGE_SCENES_E1_PARTIAL` macro the plan
+proposed was never built); and gold-knob acceleration
 (`calcNextKnobSpeed`).

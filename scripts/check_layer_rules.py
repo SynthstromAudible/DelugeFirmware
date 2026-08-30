@@ -234,6 +234,10 @@ RULES = [
         # Menus draw only through widgets: no direct OledFrame primitive calls from the scene
         # layer. The real risk is `f.<primitive>`, not `canvas.` -- OledFrame exposes
         # pixel/hline/rect/glyphs directly (ui/oled/frame.h:165-269).
+        #
+        # A ratchet against drift, not a proof: this only sees the two local names it lists, so a
+        # primitive reached through some other local (`region.pixel(...)`, say) slips past. Same
+        # caveat as ui-widgets-read-input-directly -- the row catches the habit, not every spelling.
         "scenes-no-frame-primitives",
         "src/scenes/menu/**",
         "symbol",
