@@ -1121,22 +1121,29 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 });
 
 describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
+	// Shared setup, so a pixel test added here later gets it for free rather than needing to
+	// remember to copy it in (review round 1, I4 -- the two tests below used to each inline this).
+	// `tables_3_writes` above drives every set hook across the whole tree, including params an
+	// alpha/beta build's `bindings::write` cannot serve in the probe context it uses -- which raises
+	// a real `Kind::Console` "MENU PARAM UNBOUND" notice (`bindings.cpp`'s `notice_unservable_param`).
+	// That notice sat harmlessly undrained in the global queue until `shell/notices.cpp`'s
+	// `Kind::Console` fix (task 11) made a drained Console notice actually composite into whatever
+	// next calls `shell.tick()` -- one of the tests below, in the same process. Drain both global
+	// queues before each `it` here so a stray fact from an earlier describe block, or from the
+	// *other* test in this one, never bleeds into a golden.
+	before_each([] {
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		deluge::notify::dirty().drain();
+		deluge::notify::Notice stray;
+		while (deluge::notify::notices().pop(stray)) {}
+	});
+
 	// The golden names are `menu_settings_tree_*`, not `menu_settings_root_*`: those belong to
 	// `menu_scene_spec`, whose own `settings_root` is a hand-built three-item tree used to exercise
 	// the interpreter. This one is the real thirteen-item settings root.
 	it("renders the settings root list", _ {
 		const Root& settings = roots().back();
-		install(settings.ctx, settings.song);
-		deluge::notify::dirty().drain();
-		// `tables_3_writes` above drives every set hook across the whole tree, including params an
-		// alpha/beta build's `bindings::write` cannot serve in the probe context it uses -- which
-		// raises a real `Kind::Console` "MENU PARAM UNBOUND" notice (`bindings.cpp`'s
-		// `notice_unservable_param`). That notice sat harmlessly undrained in the global queue until
-		// `shell/notices.cpp`'s `Kind::Console` fix (task 11) made a drained Console notice actually
-		// composite into whatever next calls `shell.tick()` -- this test, in the same process. Drain
-		// it here so a stray notice from an earlier describe block never bleeds into this golden.
-		deluge::notify::Notice stray;
-		while (deluge::notify::notices().pop(stray)) {}
 		Rig r;
 		r.open(nodes::root_settings, settings.ctx);
 		r.shell.tick(0);
@@ -1145,11 +1152,6 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 
 	it("renders the settings root list on a 64-row panel", _ {
 		const Root& settings = roots().back();
-		install(settings.ctx, settings.song);
-		deluge::notify::dirty().drain();
-		// Same reason as the 48-row case just above.
-		deluge::notify::Notice stray;
-		while (deluge::notify::notices().pop(stray)) {}
 		Rig r{board_64(), profile_64()};
 		r.open(nodes::root_settings, settings.ctx);
 		r.shell.tick(0);

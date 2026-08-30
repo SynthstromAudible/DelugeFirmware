@@ -152,6 +152,8 @@ struct UiContext {
 /// | `Replace` | `id` | `SceneStack::replace_top(id)` -- the sideways move, **not** the root |
 /// | `ReplaceRoot` | `id` | `SceneStack::replace_root(id)` |
 /// | `Pop` | `pop_to` | `SceneStack::pop(pop_to)`; `SceneKind::Null` means "just the top" |
+/// | `Remove` | `pop_to` | `SceneStack::remove(pop_to)` -- excise that one scene, wherever it sits, and leave
+/// everything else (above and below it) exactly where it was |
 /// | `Popup` | `popup_string`, `popup_type`, `surface` | show a message, resolved through `BoardProfile::text` |
 /// | `Repaint` | `surface` | invalidate that surface for the next tick; `SurfaceRole::None` is a no-op ("no surface,
 /// never matches", `surfaces.h`) | | `RepaintAll` | none | invalidate every surface for the next tick | | `LockInput` |
@@ -160,13 +162,27 @@ struct UiContext {
 /// @note `Replace` is deliberately the short name for the common case (swap the top) and
 ///       `ReplaceRoot` the long one for the rarer whole-stack move, matching the pair of
 ///       `SceneStack` methods rather than the pair of legacy function names.
+///
+/// @note **`Pop` with `pop_to == SceneKind::Null` is a blind "remove whatever is currently on
+///       top"** -- it does not know or care which scene asked for it. That is exactly right for a
+///       scene that really does expect to be the top (the ordinary case), but it is a structural
+///       hazard for any scene that wants to close *itself specifically*: a `Notices`-driven overlay
+///       (`Popup`/`Working`/`Console`) can legitimately be pushed above it between the render that
+///       produced this `Result` and the router applying it, and a blind `Pop` would then remove the
+///       overlay instead. `Remove` (with `pop_to` naming the caller's own kind) is what "close me,
+///       leave whatever else is stacked alone" actually means -- see `MenuScene::handle`'s
+///       root-`Back` case for the ported example (task 11 review round 1: it originally used
+///       `Pop{.pop_to = FirstApp}`, which is wrong for the same reason `Pop{.pop_to = Null}` is --
+///       `pop(kind)` still takes everything ABOVE that kind down with it, tearing down a live
+///       `Working`/`Popup` along with the menu it was shown over).
 struct Action {
 	/// @brief Which action this is; see the table above.
-	enum class Kind : uint8_t { Push, Replace, ReplaceRoot, Pop, Popup, Repaint, RepaintAll, LockInput };
+	enum class Kind : uint8_t { Push, Replace, ReplaceRoot, Pop, Remove, Popup, Repaint, RepaintAll, LockInput };
 
 	Kind kind;
-	SceneId id{};                       ///< `Push`/`Replace`/`ReplaceRoot`: the target.
-	SceneKind pop_to = SceneKind::Null; ///< `Pop`: pop down to and including this kind.
+	SceneId id{}; ///< `Push`/`Replace`/`ReplaceRoot`: the target.
+	SceneKind pop_to =
+	    SceneKind::Null; ///< `Pop`: pop down to and including this kind. `Remove`: the one kind to excise.
 	/// `Popup`/`Repaint`: which surface. For `Repaint`, `SurfaceRole::None` is a no-op --
 	/// it keeps the "no surface, never matches" meaning `surfaces.h` gives that enumerator
 	/// everywhere else in the shell, rather than being overloaded here as an "all surfaces"

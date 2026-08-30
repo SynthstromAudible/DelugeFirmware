@@ -144,6 +144,19 @@ public:
 	/// @param now_ms The tick's wall clock; this line stops drawing at `now_ms + kConsoleLineMs`.
 	void append(std::string_view line, uint32_t now_ms);
 
+	/// @brief Does any line still have time left to show?
+	///
+	/// The mirror of `PopupScene::expired()`/`WorkingScene::armed()`: what `Notices::tick()` polls
+	/// to remove this scene from the stack once every line it was ever shown has expired (review
+	/// round 1, I4 -- `Kind::Console`'s own `drain()` case pushes this scene but, unlike `Popup`
+	/// and `Working`, nothing previously ever removed it again, leaking one stack entry for the rest
+	/// of the process's life the first time any console notice fired). Extracted from
+	/// `render_oled`'s own per-line skip test so `tick()` does not need a frame to ask the same
+	/// question.
+	/// @param now_ms The tick's wall clock.
+	/// @return True if at least one line is `active` and not yet past its `expire_ms`.
+	bool any_active(uint32_t now_ms) const;
+
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Always transparent: the console draws only its own strip and leaves the rest of the
 	///        surface for the scene beneath, which must still be drawn.
@@ -311,15 +324,17 @@ public:
 	/// @param now_ms     The tick's wall clock.
 	void show_popup(std::string_view text, uint8_t popup_type, uint32_t now_ms);
 
-	/// @brief Remove the popup once it has expired, and remove the working scene once it has been
-	///        cleared.
+	/// @brief Remove the popup once it has expired, the working scene once it has been cleared, and
+	///        the console strip once every line it ever showed has expired (`ConsoleScene::any_active`).
 	///
-	/// Both are `SceneStack::remove`, for the same reason `drain()`'s `CancelPopup` case is: a
-	/// popup or working animation is `input_transparent()`, so a scene pushed over either of them is
-	/// there legitimately and must survive the notice's own expiry -- only the notice scene itself is
-	/// excised, wherever it sits.
+	/// All three are `SceneStack::remove`, for the same reason `drain()`'s `CancelPopup` case is: a
+	/// popup, working animation or console strip is `input_transparent()`, so a scene pushed over any
+	/// of them is there legitimately and must survive the notice's own expiry -- only the notice
+	/// scene itself is excised, wherever it sits. The console case is review round 1's addition
+	/// (I4): unlike `Popup`/`Working`, its `drain()` case had a push with no matching removal at all,
+	/// leaking one stack entry, permanently, from the first console notice the process ever raised.
 	/// @param now_ms The tick's wall clock.
-	/// @param dt_ms  Unused: both checks are level tests against the scenes' own state, not
+	/// @param dt_ms  Unused: all three checks are level tests against the scenes' own state, not
 	///               accumulators -- there is nothing to integrate.
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 

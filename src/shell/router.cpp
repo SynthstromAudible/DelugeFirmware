@@ -114,6 +114,9 @@ void Router::apply(const Result& result) {
 		case Action::Kind::Pop:
 			stack_.pop(action.pop_to);
 			break;
+		case Action::Kind::Remove:
+			stack_.remove(action.pop_to);
+			break;
 		case Action::Kind::Popup:
 			popup_string_ = action.popup_string;
 			popup_type_ = action.popup_type;

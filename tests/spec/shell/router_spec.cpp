@@ -167,7 +167,12 @@ describe shell_router("shell::Router", $ {
 		expect(r.stack.depth()).to_equal(size_t(2));
 
 		Action pop;
-		pop.kind = Action::Kind::Pop; // default pop_to (Null) means "just the top"
+		pop.kind = Action::Kind::Pop; // default pop_to (Null) means "just the top" -- a blind pop of
+		// whatever is CURRENTLY topmost. Fine for a scene that really does expect to be the top; a
+		// scene that wants to close ITSELF specifically (an overlay may legitimately have been
+		// pushed above it since it rendered) wants `Action::Kind::Remove` instead, which excises a
+		// named kind wherever it sits and leaves everything else alone -- see `Action`'s own doc
+		// comment and `MenuScene::handle`'s root-`Back` case (task 11 review round 1, I3).
 		Action lock;
 		lock.kind = Action::Kind::LockInput;
 		lock.lock = true;
@@ -202,6 +207,29 @@ describe shell_router("shell::Router", $ {
 
 		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
 		expect(r.stack.depth()).to_equal(size_t(1));
+		expect(r.stack.top().kind() == kB).to_be_true();
+	});
+
+	it("a Remove action excises only the named kind, leaving an overlay above it in place", _ {
+		// The reason `Remove` exists at all (task 11 review round 1, I3): unlike `Pop(kind)`, which
+		// also takes everything ABOVE `kind` down with it, `Remove(kind)` must leave `kB` -- pushed
+		// above `kA` here to stand in for a `Notices` overlay legitimately shown over an app scene --
+		// exactly where it was.
+		Rig r;
+		expect(r.stack.push({kB})).to_be_true();
+		expect(r.stack.depth()).to_equal(size_t(2));
+
+		Action remove;
+		remove.kind = Action::Kind::Remove;
+		remove.pop_to = kA;
+		Result res;
+		res.handled = true;
+		res.actions.push_back(remove);
+		r.scene_b.next_result = res;
+
+		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
+
+		expect(r.stack.depth()).to_equal(size_t(1)); // only kA is gone
 		expect(r.stack.top().kind() == kB).to_be_true();
 	});
 

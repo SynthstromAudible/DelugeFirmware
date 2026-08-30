@@ -973,20 +973,25 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	// (b) Back at the root. `render_oled` deliberately never claimed it at depth 0, so the shell
 	// delivers it post-render and this closes the editor -- `sound_editor.cpp:418`'s BACK case ->
-	// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`. `pop_to = SceneKind::FirstApp`, NOT the
-	// default `SceneKind::Null` ("just the top"): `SceneStack::pop` with `Null` blindly removes
-	// whatever is CURRENTLY topmost, and a `Notices`-driven overlay (`Console` in particular, which
-	// -- unlike `Popup`/`Working` -- is never removed again once shown) can legitimately be pushed
-	// above this scene between the render that produced this `Result` and the router applying it.
-	// `pop_to = SceneKind::FirstApp` makes `SceneStack::pop` find THIS scene's own kind wherever it
-	// sits and pop it (and anything transient above it) instead -- found by task 11's
+	// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`.
+	//
+	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
+	// pops the topmost scene of that kind *and everything above it* (`scene_stack.cpp:48-77`), so
+	// `Pop{.pop_to = FirstApp}` -- this scene's own first, wrong fix for the bug below -- still tore
+	// down a live `Working` animation or `Popup` sitting over the menu along with it. `Remove`
+	// (`SceneStack::remove`) excises just the named scene and leaves everything else exactly where
+	// it was, which is what "close the editor" should mean regardless of which overlay happens to be
+	// up. And it has to name a kind at all rather than defaulting to `Pop{.pop_to = Null}` ("just the
+	// top"): a `Notices`-driven overlay (`Console` in particular, which -- unlike `Popup`/`Working`
+	// -- is never removed again once shown) can legitimately be pushed above this scene between the
+	// render that produced this `Result` and the router applying it -- found by task 11's
 	// `menu_submenu_horizontal` acceptance script once its `Console` notice was made visible
-	// (`shell/notices.cpp`'s `Kind::Console` fix): with the old `Null`, pressing Back while that
-	// notice was still showing closed the console strip and left the menu itself on the stack.
+	// (`shell/notices.cpp`'s `Kind::Console` fix): with `Null`, pressing Back while that notice was
+	// still showing closed the console strip and left the menu itself on the stack.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && event.on && st_.depth == 0) {
 		Result r;
 		r.handled = true;
-		(void)r.actions.push_back(Action{.kind = Action::Kind::Pop, .pop_to = SceneKind::FirstApp});
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
 		return r;
 	}
 

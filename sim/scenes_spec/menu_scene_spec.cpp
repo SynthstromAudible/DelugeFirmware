@@ -407,7 +407,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused() == &settings_root).to_be_true();
 	});
 
-	it("back at the root pops the scene off the stack", _ {
+	it("back at the root removes the scene off the stack", _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -416,19 +416,46 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 
 		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:418` ->
-		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`).
+		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`). `Remove`, not `Pop`: review round 1
+		// (task 11) -- `Pop{.pop_to = kind}` still pops everything ABOVE `kind` too
+		// (`scene_stack.cpp:48-77`), which is wrong for "close just me" the moment a `Notices`
+		// overlay legitimately sits above this scene (see the test right after this one).
 		DirectCtx d;
 		const Result res = menu_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
 		expect(res.handled).to_be_true();
 		expect(res.actions.size()).to_equal(size_t(1));
-		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Pop));
+		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Remove));
+		expect(static_cast<int>(res.actions[0].pop_to)).to_equal(static_cast<int>(SceneKind::FirstApp));
 
 		// And through the shell: the root's back is never claimed, so it reaches `handle()`
 		// post-render and the stack empties.
 		r.button(kBackX, kBackY, true, 10);
 		r.shell.tick(20);
 		expect(r.shell.stack().depth()).to_equal(size_t(0));
+	});
+
+	it("back at the root leaves a live overlay above it untouched", _ {
+		// Review round 1 (task 11), I3: with the old `Pop{.pop_to = FirstApp}`, this scenario tore
+		// the overlay down along with the menu -- `SceneStack::pop(kind)` removes that kind AND
+		// everything above it. `Remove` must excise only the menu, leaving the overlay (wherever it
+		// sits) exactly as it was.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+
+		// A `Notices`-driven overlay legitimately pushed above the menu (the shell's own `Popup`
+		// slot is wired regardless of the application's registry -- `Shell`'s constructor fills
+		// `table_[Popup]` unconditionally).
+		expect(r.shell.stack().push(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::Popup})).to_be_true();
+		expect(r.shell.stack().depth()).to_equal(size_t(2));
+
+		r.button(kBackX, kBackY, true, 10);
+		r.shell.tick(20);
+		expect(r.shell.stack().depth()).to_equal(size_t(1)); // only the menu is gone
+		expect(r.shell.stack().top().kind() == deluge::ui::shell::SceneKind::Popup).to_be_true();
 	});
 
 	it("a shift-held shortcut pad replaces the scene at that node, and state_lines says so", _ {

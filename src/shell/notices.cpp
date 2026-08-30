@@ -129,13 +129,31 @@ void ConsoleScene::append(std::string_view line, uint32_t now_ms) {
 	l.active = true;
 }
 
+bool ConsoleScene::any_active(uint32_t now_ms) const {
+	for (const Line& line : lines_) {
+		// Difference form for the same wrap reason as `render_oled`'s own per-line check and
+		// `PopupScene::expired()`: see either for why an absolute compare would misread a line
+		// appended just before the clock wraps as already gone.
+		if (line.active && static_cast<int32_t>(now_ms - line.expire_ms) < 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main) {
 		return;
 	}
 	// Stack from the bottom of the frame upward, newest line lowest -- legacy's own console
 	// grows the same way (`OLED::setupConsole` places a new item below the existing ones).
-	constexpr int32_t kLineHeight = 7;
+	//
+	// `text_height_for(Apple7)`, NOT a hand-picked 7: `FontId::Apple7` draws at height 9
+	// (`ui/core/metrics.h`'s own note -- the Apple ][ face's "Up" variant, one row lower than its
+	// 7-8 sibling, and 9 is what this `FontId` means). A hard-coded 7 clipped the glyphs' bottom
+	// row inside every `region` below -- caught by task 11's review round 1: with the row gone,
+	// `E` and `F` render pixel-identical, which a set-pixel-count assertion alone cannot catch.
+	const int32_t kLineHeight = ui::oled::text_height_for(gfx::oled::FontId::Apple7);
 	int32_t y = frame.bounds().h;
 	for (const Line& line : lines_) {
 		// Difference form for the same wrap reason as `PopupScene::expired`: a line appended just
@@ -297,18 +315,26 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 
 void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	(void)dt_ms;
-	// Both are `remove(kind)` rather than "pop while it is the top" or "pop by kind": a popup and the
-	// working animation are both `input_transparent()`, so a scene pushed over either of them got
-	// there legitimately and must not be taken down just because the notice beneath it expires or
-	// clears. `remove(kind)` excises only the notice scene and closes the gap. Neither is guarded on
-	// the scene being stacked at all -- `SceneStack::remove` for a kind that is not there touches
-	// nothing and does not flag the stack as changed either, so calling it on every tick costs one
-	// downward scan.
+	// All three are `remove(kind)` rather than "pop while it is the top" or "pop by kind": a popup,
+	// the working animation and the console strip are all `input_transparent()`, so a scene pushed
+	// over any of them got there legitimately and must not be taken down just because the notice
+	// beneath it expires or clears. `remove(kind)` excises only the notice scene and closes the gap.
+	// None of the three is guarded on the scene being stacked at all -- `SceneStack::remove` for a
+	// kind that is not there touches nothing and does not flag the stack as changed either, so
+	// calling it on every tick costs one downward scan.
 	if (popup_.expired(now_ms)) {
 		stack_.remove(SceneKind::Popup);
 	}
 	if (!working_.armed()) {
 		stack_.remove(SceneKind::Working);
+	}
+	// Review round 1, I4: `Kind::Console`'s `drain()` case pushes this scene (self-managing, like
+	// the two above) but had no matching removal at all -- once every line it ever showed had
+	// expired, the entry just sat on the stack forever. `any_active` is content-level (per line),
+	// unlike `popup_.expired()`/`working_.armed()`, so this is the same level test the two above
+	// are, just phrased over three lines instead of one.
+	if (!console_.any_active(now_ms)) {
+		stack_.remove(SceneKind::Console);
 	}
 }
 

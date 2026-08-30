@@ -55,16 +55,33 @@ BoardProfile fixed_lookup_profile() {
 	return p;
 }
 
-/// @brief A registry, stack, the three overlay scenes and a `Notices` wired over them -- the
-///        `Shell`-less assembly the brief asks for. A real `notify::NoticeQueue`, constructed
-///        directly rather than via the process-global `notices()`, is a separate member each spec
-///        pushes into and hands to `drain()`.
+/// @brief A trivial application-shaped scene, standing in for "some scene the application
+///        legitimately pushed" wherever a test needs one above a live notice -- registered at
+///        `SceneKind::Boot`, a kind this Rig otherwise never uses.
+///
+/// Review round 1 (task 11), I4: those tests used to reuse `SceneKind::Console` for this, which
+/// stopped being neutral the moment `Console` gained its own expiry-driven `remove()` (this file's
+/// "glyphs are not clipped" test's sibling fix) -- a `tick()` call now excises a stand-in `Console`
+/// that was never `append()`-ed to (no active lines) exactly as eagerly as a real one that expired,
+/// which is correct for a real console strip and wrong for a scene standing in for something else
+/// entirely.
+class OtherScene final : public Scene {
+public:
+	SceneKind kind() const override { return SceneKind::Boot; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+};
+
+/// @brief A registry, stack, the three overlay scenes, a neutral stand-in scene and a `Notices`
+///        wired over them -- the `Shell`-less assembly the brief asks for. A real
+///        `notify::NoticeQueue`, constructed directly rather than via the process-global
+///        `notices()`, is a separate member each spec pushes into and hands to `drain()`.
 struct Rig {
 	BoardProfile profile;
 	PopupScene popup;
 	ConsoleScene console;
 	WorkingScene working;
-	std::array<Scene*, 4> table{}; // indices 1=Popup, 2=Console, 3=Working (Null is 0, unused)
+	OtherScene other;
+	std::array<Scene*, 5> table{}; // indices 1=Popup, 2=Console, 3=Working, 4=Boot (Null is 0, unused)
 	SceneRegistry reg{};
 	SceneStack stack{reg};
 	Notices notices{stack, profile, popup, console, working};
@@ -77,6 +94,7 @@ struct Rig {
 		table[static_cast<size_t>(SceneKind::Popup)] = &popup;
 		table[static_cast<size_t>(SceneKind::Console)] = &console;
 		table[static_cast<size_t>(SceneKind::Working)] = &working;
+		table[static_cast<size_t>(SceneKind::Boot)] = &other;
 		reg.by_kind = std::span<Scene* const>{table};
 	}
 
@@ -265,13 +283,15 @@ describe shell_notices("shell::Notices", $ {
 		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
 
 		// An application scene, pushed above the live popup -- legitimate, since the popup never took
-		// the input this Push responded to.
-		expect(r.stack.push(SceneId{SceneKind::Console})).to_be_true();
+		// the input this Push responded to. `OtherScene`/`Boot`, not `Console`: `Console` now has its
+		// own expiry-driven removal (I4), so a `Console` pushed here with no active lines would be
+		// removed by the very `tick()` below this test means to check ONLY pops the expired popup.
+		expect(r.stack.push(SceneId{SceneKind::Boot})).to_be_true();
 		expect(r.stack.depth()).to_equal(size_t(3));
 
 		r.notices.tick(r.notices.timeout_for(1) + 1, 0);
 		expect(r.stack.depth()).to_equal(size_t(2));                          // only the popup is gone
-		expect(r.stack.top().kind() == SceneKind::Console).to_be_true();      // the app scene is still on top
+		expect(r.stack.top().kind() == SceneKind::Boot).to_be_true();         // the app scene is still on top
 		expect(r.stack.id_at(0) == SceneId{SceneKind::Working}).to_be_true(); // and the base survived
 	});
 
@@ -281,19 +301,20 @@ describe shell_notices("shell::Notices", $ {
 		r.notices.drain(r.queue, 0);
 		expect(r.stack.depth()).to_equal(size_t(1));
 
-		// An application scene pushed above the live popup.
-		expect(r.stack.push(SceneId{SceneKind::Console})).to_be_true();
+		// An application scene pushed above the live popup. `OtherScene`/`Boot`, not `Console` --
+		// same reason as the test just above.
+		expect(r.stack.push(SceneId{SceneKind::Boot})).to_be_true();
 		expect(r.stack.depth()).to_equal(size_t(2));
-		expect(r.stack.top().kind() == SceneKind::Console).to_be_true();
+		expect(r.stack.top().kind() == SceneKind::Boot).to_be_true();
 
 		// `show_popup_with_timeout` must find the popup by scanning the whole stack, not just `top()`
-		// (which now reads the console scene) -- otherwise this pushes a second `SceneKind::Popup`
+		// (which now reads the stand-in scene) -- otherwise this pushes a second `SceneKind::Popup`
 		// entry pointing at the same `PopupScene` instance.
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SECOND"));
 		r.notices.drain(r.queue, 10);
 
-		expect(r.stack.depth()).to_equal(size_t(2));                     // unchanged: no duplicate push
-		expect(r.stack.top().kind() == SceneKind::Console).to_be_true(); // the scene above is undisturbed
+		expect(r.stack.depth()).to_equal(size_t(2));                  // unchanged: no duplicate push
+		expect(r.stack.top().kind() == SceneKind::Boot).to_be_true(); // the scene above is undisturbed
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SECOND")); // updated in place
 	});
 
@@ -347,6 +368,37 @@ describe shell_notices("shell::Notices", $ {
 
 		r.notices.tick(0, 0);
 		expect(r.stack.top().kind() == SceneKind::Working).to_be_false(); // tick() is what pops it
+	});
+
+	it("a console line's glyphs are not clipped -- E and F must not render identically", _ {
+		// Round-1 review finding: `ConsoleScene::render_oled` drew each line into a `kLineHeight`-tall
+		// region shorter than `FontId::Apple7`'s real height (`text_height_for`, 9 -- `ui/core/metrics.h`'s
+		// own note that this face draws one row lower than its 7-row sibling), which clipped every
+		// glyph's bottom row. `E` and `F` differ ONLY in that bottom bar, so they are the cheapest
+		// possible shape probe: a set-pixel COUNT assertion (the pre-existing "actually drew
+		// something" check above) cannot tell a clipped `E` from a clipped `F` -- both lose the same
+		// row and come out identical -- but a full-frame comparison can, and must.
+		ConsoleScene e;
+		e.append("E", 0);
+		deluge::ui::test::Rig48 e_frame;
+		e.render_oled(SurfaceRole::Main, e_frame.frame);
+
+		ConsoleScene f;
+		f.append("F", 0);
+		deluge::ui::test::Rig48 f_frame;
+		f.render_oled(SurfaceRole::Main, f_frame.frame);
+
+		expect(e_frame.pbm() != f_frame.pbm()).to_be_true();
+
+		// And directly: the glyph's bottom row (the last row of the panel, where `render_oled`
+		// anchors the newest/only line) must carry ink for a character whose bottom row is part of
+		// its shape -- `E`'s closing bar -- not just SOME row above it.
+		const int32_t bottom_row = e_frame.frame.bounds().h - 1;
+		bool bottom_row_lit = false;
+		for (int32_t x = 0; x < e_frame.frame.bounds().w; x++) {
+			bottom_row_lit = bottom_row_lit || e_frame.lit(x, bottom_row);
+		}
+		expect(bottom_row_lit).to_be_true();
 	});
 
 	it("CancelPopup pops only a popup", _ {

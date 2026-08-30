@@ -122,9 +122,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// Q7: the `.state` pins WHICH node is open; it says nothing about its label or value, so
-		// both are asserted here directly.
+		// both are asserted here directly. The name check is against the EXPECTED `l10n::String` id,
+		// not `nodes::saturation.name` -- comparing a node's own field against itself cannot fail
+		// once the pointer-identity check just above already holds (review round 1, I2); this is the
+		// independent value Q7 actually wants pinned.
 		expect(menu_scene().focused() == &nodes::saturation).to_be_true();
-		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(nodes::saturation.name));
+		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_SATURATION)));
 		// GoldUpper +2 detents -> `edges_per_detent`(2) * 2 = 4 raw edges (an Accelerating knob's
 		// magnitude IS the raw edge count -- `script_runner.h`'s uniform detent->edge conversion,
 		// `menu_scene_spec.cpp`'s `Rig::gold` note); `int_value`'s coarse step is `range.step` (1),
@@ -153,11 +156,19 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		expect(menu_scene().focused() == &nodes::source0_transpose).to_be_true();
-		expect(static_cast<uint32_t>(menu_scene().focused()->name))
-		    .to_equal(static_cast<uint32_t>(nodes::source0_transpose.name));
+		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		// `decimal_value`'s coarse amount is `10^edit_pos`, and `edit_pos` starts at 0, so the same
 		// 4-raw-edge GoldUpper turn moves the value by 4 * 1, clamped to `kTransposeRange`.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(std::min(before + 4, 9600));
+		// Review round 1, Minor 6: `after_select_turn`'s pixel diff against `idle` is the cursor's
+		// own time-driven blink (`decimal_value`'s `Blink`), not an effect of the Select turn -- the
+		// script's shared "Select +1" step is claimed-but-unused here (`render_leaf_decimal`'s
+		// `f.claim_turn()`), so that snapshot alone verifies nothing about input. What DOES verify
+		// something: `edit_pos` moves only on the "Horizontal" encoder, which this script never
+		// touches, so it must still be 0 after Select turns, a select press/release and a GoldUpper
+		// turn -- proving Select really is inert for a Decimal screen's cursor, not merely that its
+		// pixels happen to look inert at the two moments a screenshot was taken.
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(0);
 	});
 
 	it("Enum: nodes::lpf_mode renders and edits through the real Shell", _ {
@@ -181,7 +192,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		expect(menu_scene().focused() == &nodes::lpf_mode).to_be_true();
-		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(nodes::lpf_mode.name));
+		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_MODE)));
 		// `enum_value` owns the Select turn itself: one detent moves the option index by one, and it
 		// commits on the same tick (`Response::changed`). The later SelectEnc press/release and
 		// GoldUpper turn (unclaimed by this widget) do not move it again.
@@ -209,7 +220,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		expect(menu_scene().focused() == &nodes::osc_sync).to_be_true();
-		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(nodes::osc_sync.name));
+		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_OSCILLATOR_SYNC)));
 		// `toggle`'s turn selects the row in the turn's direction: one detent toward ON flips it.
 		// The later SelectEnc press reports `entered` and leaves `changed` false (`ui/oled/values.h`),
 		// and GoldUpper is unclaimed by this widget, so the value stays flipped, not flipped twice.
@@ -236,7 +247,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
-		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(nodes::lpf.name));
+		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_LPF)));
 		// The Select detent moves the column focus from MODE (0) to FREQ (1); a select press on a
 		// value column raises the notice popup rather than navigating (`horizontal_menu.cpp:657-661`
 		// port), so GoldUpper's turn still lands on FREQ -- `render_horizontal`'s own coarse step is
@@ -268,7 +279,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in
 		// `menu_scene_spec.cpp`'s own shortcut tests.
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
-		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(nodes::lpf_freq.name));
+		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_FREQUENCY)));
 		expect(bindings::read(nodes::lpf_freq, ctx)).to_equal(std::min(before + 4, 50));
 	});
 
@@ -300,7 +311,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The wrapper itself is still on screen -- `source0_transpose` was never entered.
 		expect(menu_scene().focused() == &range_perm_root).to_be_true();
-		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(range_perm_root.name));
+		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		expect(cursor0()).to_equal(1); // the Select detent landed the cursor on row 1
 		expect(menu_scene().state().range_picker_pending).to_be_true();
 		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
