@@ -1,0 +1,46 @@
+# Level-2 acceptance (E2 task 12): `rename::RenameScene` (E2 tasks 4-5), reached the way a user
+# reaches it -- a select press on nodes::edit_clip_name, whose `nodes::EditNameItem::on_focus` files
+# `MenuState::pending_scene` and `MenuScene::after_render` turns into a `Push`.
+#
+# Pad coordinates are the QWERTY layout's own (`ui/grid/keyboard.cpp:12-20` kKeyboardChars, home row
+# 3, table row = 5 - y, table column = x - 3): 'A' is (3,3), 'B' is (7,2), backspace is (14,5) and
+# enter is (14,3) (`text_keyboard_char_at`, `:51-57`).
+#
+# Two things here need QUIET TICKS, and a single frame per event could not see either:
+#   * the end-of-string cursor bar blinks on a `kFlashTime` (110 ms) half-period
+#     (`rename_scene.cpp:280-292`, legacy's `QwertyUI` blink) -- `idle` and `idle_blinked` are the
+#     same screen 120 ms apart with NO input in between, so a cursor that computed the right phase
+#     and never repainted would show up as two identical frames;
+#   * a held backspace auto-repeats after 500 ms and then every 80 ms
+#     (`rename_scene.h` kBackspaceRepeatDelayMs/kBackspaceRepeatMs, `gui/ui/qwerty_ui.cpp:220,452`).
+0     snapshot menu_idle             # EDIT NAME list, cursor on row 0 (EDIT TRACK NAME)
+100   encoder Select +1
+120   snapshot menu_clip_row         # cursor on EDIT CLIP NAME
+200   button SelectEnc down
+220   button SelectEnc up
+240   snapshot idle                  # the rename box, over the menu; empty name, cursor bar lit
+360   snapshot idle_blinked          # +120 ms of quiet ticks: the bar is in its other phase
+500   pad 3 3 down 64
+520   pad 3 3 up
+540   snapshot typed_a               # "A"
+600   pad 7 2 down 64
+620   pad 7 2 up
+640   snapshot typed_ab              # "AB"
+700   pad 3 3 down 64
+720   pad 3 3 up
+740   snapshot typed_aba             # "ABA" -- three characters, so a repeat has something to eat
+800   pad 14 5 down 64
+820   snapshot backspace_press       # the press itself deletes one: "AB" (qwerty_ui.cpp:219)
+# No snapshot during the arming delay: with the repeat correctly NOT firing, that frame is
+# byte-identical to `backspace_press`. The delay is pinned by `backspace_repeated` below instead --
+# at 1340 ms exactly ONE character has gone, where a delay of zero and an 80 ms cadence would have
+# emptied the buffer six times over.
+1340  snapshot backspace_repeated    # past the 500 ms arming delay: one repeat has fired -> "A"
+# Released before the 80 ms cadence could fire a second time (the next repeat would be due at
+# 1400 ms). `rename_scene_spec.cpp` pins the cadence itself tick by tick; what this script adds is
+# that the repeat fires AT ALL under a real 10 ms tick, which is what E2 task 12 found it did not.
+1360  pad 14 5 up
+1500  pad 14 3 down 64
+1520  pad 14 3 up
+1540  snapshot after_enter           # committed; the rename box is gone and the menu is back
+1600  quit

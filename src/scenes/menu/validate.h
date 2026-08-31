@@ -125,23 +125,47 @@ enum class Flag : uint16_t {
 /// switched off for exactly the phase it was meant to police.
 ///
 /// Counting nodes makes it live today, at the cost of no longer being spec E's number: the shipped
-/// tree has **55** `Kind::Custom` nodes reachable from `nodes::kAllRoots` (64 through E2 task 9,
-/// less the nine E2 task 11 turns into ordinary `Kind::Enum` items: the six pad colours, the play
-/// cursor, the dev-sysex setting and the shortcuts version), behind roughly twenty distinct legacy
-/// bespoke classes (the file selector, the audio recorder, the sample
-/// loop points, the name editors, the patch-cable pages, the multi-range picker, the DX browser, active scales, MIDI
-/// devices, the MPE selectors, ...). So the cap is pinned just above that count rather than at 10: it is a ratchet
-/// against the escape hatch growing unnoticed, not a claim that ten was ever achievable.
-/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 55 separately, so a table that adds a custom node has to say
+/// tree has **52** `Kind::Custom` nodes reachable from `nodes::kAllRoots` -- 64 through E2 task 9,
+/// less the nine E2 task 11 turned into ordinary `Kind::Enum` items (the six pad colours, the play
+/// cursor, the dev-sysex setting and the shortcuts version) and the three E2 task 11b turned into
+/// `Kind::Range` (`default_tempo`, `default_swing_amount`, `default_key`) -- behind 42 distinct
+/// items, of which 41 are real and one is still `nodes::kPending` (see `kPendingCustomNodes`).
+/// So the cap is pinned just above that count rather than at 10: it is a ratchet against the escape
+/// hatch growing unnoticed, not a claim that ten was ever achievable.
+/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 52 separately, so a table that adds a custom node has to say
 /// so in two places. Recorded in `docs/superpowers/specs/2026-08-26-ui-scenes-menus-design.md`'s amendments and in
 /// `src/scenes/README.md`.
-inline constexpr size_t kMaxCustomNodes = 56;
+///
+/// **E2 task 12 ratcheted it from 56 to 53.** The cap was sized against E2 task 9's tree and then
+/// three item tasks took nodes back out of the escape hatch without it following them down; a cap
+/// four above the count is four bespoke items an inattentive table could add for free.
+inline constexpr size_t kMaxCustomNodes = 53;
 
 /// @brief The number of `Kind::Custom` nodes the shipped tree actually has (`kAllRoots`).
 ///
 /// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
 /// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
 inline constexpr size_t kShippedCustomNodes = 52;
+
+/// @brief How many of `kShippedCustomNodes` still point at `nodes::kPending`.
+///
+/// **Eleven, and they are one family.** E2 finished every bespoke item it owned; what is left is the
+/// file/sample group, which belongs to a later plan because all of it needs the card:
+///
+///   * `file0_selector` / `file1_selector` -- `FILE_BROWSER` (`nodes/sound_osc.h`, the `SOURCE_NODES`
+///     macro), legacy's `sample_browser` / `file_selector`;
+///   * `sample0_start` / `sample1_start` and `sample0_end` / `sample1_end` -- `START_POINT` /
+///     `END_POINT` (same macro), legacy's `sample/start.h` and `sample/end.h`;
+///   * `sample0_recorder` / `sample1_recorder` -- `RECORD_TO_SAMPLE` (`nodes/sound_osc.h`), legacy's
+///     `osc/audio_recorder.h`;
+///   * `midi_device_linked` -- `MIDI_DEVICE_DEFINITION_LINKED` (`nodes/roots.h`);
+///   * `specific_output_selector` -- the audio clip's `TRACK` picker (`nodes/roots.h`);
+///   * `audio_clip_waveform` -- the audio clip's `WAVEFORM` view (`nodes/roots.h`).
+///
+/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact **set** by node identity, not just this
+/// count, so the later plan that closes one of them out has to say which -- and adding a twelfth
+/// placeholder to a table fails there rather than hiding inside a number that happened not to move.
+inline constexpr size_t kPendingCustomNodes = 11;
 
 /// @brief Which of the strict rules the caller is deliberately standing down.
 ///
@@ -150,12 +174,16 @@ inline constexpr size_t kShippedCustomNodes = 52;
 struct ValidateOptions {
 	/// @brief Accept `Kind::Custom` nodes pointing at `CustomItem::is_placeholder()` stand-ins.
 	///
-	/// E1 declares the tree's shape, including the ten-odd bespoke items whose implementations
-	/// belong to E2 (the file selector, the audio recorder, the sample loop points, the name
-	/// editors, the patch-cable pages, the multi-range picker). Those nodes carry the shared
-	/// placeholder rather than a null pointer -- `NullCustom` stays a live rule, and a null
-	/// `custom` is still an outright bug -- but the tree is not finished, and by default
-	/// `validate_tree` says so. E2 deletes both this flag and the rule it suppresses.
+	/// E1 declared the tree's shape, including the bespoke items whose implementations belonged to
+	/// E2 (the file selector, the audio recorder, the sample loop points, the name editors, the
+	/// patch-cable pages, the multi-range picker). Those nodes carry the shared placeholder rather
+	/// than a null pointer -- `NullCustom` stays a live rule, and a null `custom` is still an
+	/// outright bug -- but the tree is not finished, and by default `validate_tree` says so.
+	///
+	/// **E2 built all but the file/sample family**, which needs the card and belongs to a later
+	/// plan; `kPendingCustomNodes` above names the eleven nodes that remain and
+	/// `sim/scenes_spec/shortcuts_spec.cpp` pins them by identity. So this flag outlives E2 -- the
+	/// plan that closes those eleven out is the one that deletes it and the rule it suppresses.
 	bool allow_placeholder_custom = false;
 
 	/// @brief Skip the `ShortcutToNothing` sweep entirely.

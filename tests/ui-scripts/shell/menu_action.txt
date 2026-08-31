@@ -1,0 +1,21 @@
+# Level-2 acceptance (E2 task 12): the action seam (E2 task 11b, `scenes/menu/action.h`) -- a
+# `nodes::ActionItem` whose whole body is "file one `MenuAction` and get out of the way".
+#
+# Legacy's four (`stem_export/start.h:51`, `audio_clip/set_clip_length_equal_to_sample_length.h:31`,
+# `song/midi_learn.h:33`, `song/configure_macros.h:33`) all set `shouldEnterSubmenu()` to false, so
+# `SoundEditor` calls `selectButtonPress()` WITHOUT navigating (`gui/ui/sound_editor.cpp:382-385`).
+# The port has no such flag: it descends for one tick, `on_focus` files the request, and
+# `after_render`'s drain ascends straight back out. From the user's side the two are the same
+# gesture, and "the same gesture" is precisely a claim about pixels.
+#
+# So the press deliberately has NO snapshot. There is nothing for one to show: the frame after the
+# press is the parent list, identical to `idle`, and a golden whose entire content repeats the frame
+# before it is worse than no golden (E2 task 9, fix round 1). What the press did is asserted where it
+# is actually visible -- `MenuScene::take_action()` in the spec. What the snapshot after it proves is
+# that the list is still LIVE, not a frozen repaint: the select turn moves its cursor.
+0     snapshot idle                  # EXPORT AUDIO: START EXPORT (row 0), CONFIGURE EXPORT STEMS
+100   button SelectEnc down
+120   button SelectEnc up
+200   encoder Select +1
+220   snapshot after_action_turn     # cursor on row 1 -- the parent list survived the round trip
+300   quit

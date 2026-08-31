@@ -1,0 +1,24 @@
+# Level-2 acceptance (E2 task 12): a `Kind::SyncLevel` leaf (nodes::delay_sync), opened directly.
+#
+# E2 task 1 gave `Kind::SyncLevel` its `MenuScene::render_leaf_sync_level` arm; until then all ten
+# sync nodes fell to `default:` and drew a bare title. This is the only script that renders one.
+#
+# The kind's whole point is that it is an `Enumeration`, not an `Integer` (`gui/menu_item/sync_level.h:27`
+# `SyncLevel`), and `Enumeration::selectEncoderAction` (`enumeration.cpp:19-31`) CLAMPS rather than
+# wraps -- `SyncLevel` does not override `wrapAround()`. All three of those claims are scripted: the
+# select encoder edits, the gold knobs do not, and a turn past the end stops at the end.
+#
+# No Back here. `menu_scene().open()` roots the path ON this leaf, so it sits at depth 0, where Back
+# pops the whole menu and leaves a blank panel -- a frame the seven task-11 scripts already record
+# three times over and which says nothing about `Kind::SyncLevel`.
+0     snapshot idle                  # value 0 -> legacy's literal "OFF" arm (sync_level.cpp:30-38)
+100   encoder Select +3
+120   snapshot after_select_turn     # value 3 -> `syncValueToString`, centred in MetricBold13
+200   encoder GoldUpper +2
+# No snapshot here on purpose. `render_leaf_sync_level` never reads `f.edit()`, so a gold turn
+# CANNOT change this page -- the frame would be byte-identical to `after_select_turn` and would be a
+# golden that records nothing (E2 task 9, fix round 1). The *step* stays: the spec asserts the value
+# did not move, which is the real claim.
+300   encoder Select +40
+320   snapshot after_clamp           # stopped at range.max; an `Enumeration` never wraps back to OFF
+400   quit

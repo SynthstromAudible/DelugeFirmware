@@ -1,0 +1,31 @@
+# Level-2 acceptance (E2 task 12): `nodes::PerformEditorItem` -- the one action item that is a value
+# AND a verb, and the only one of the five with a screen of its own.
+#
+# `performance_session_view::EditingMode` (`gui/menu_item/performance_session_view/editing_mode.h:76-84`
+# getOptions) is a three-option `Selection` whose `selectButtonPress` (`:49-74`) acts on the CHOSEN
+# option: `NO_NAVIGATION` for VALUE/PARAM (the page stays up while the performance view opens over
+# it) and `nullptr` -- go up a level -- for DISABLED. Both arms are scripted, and they are the reason
+# this script descends from the PERFORM FX root rather than opening the item directly: at depth 0 an
+# ascend is a no-op, so the two arms would draw the same frame and neither golden would mean anything.
+#
+# The discriminator in the port is `MenuState::render_resp.entered`: the item CLEARS it on
+# VALUE/PARAM (that is how a `CustomItem` says "I consumed this press", since `enum_value` sets the
+# flag before the item sees it) and leaves it set on DISABLED.
+0     snapshot idle                  # PERFORM FX root list, cursor on row 0 (drawn "EDITING MODE")
+100   button SelectEnc down
+120   button SelectEnc up
+140   snapshot entered               # the mode page, cursor on the view's current mode (DISABLED)
+200   encoder Select +1
+220   snapshot after_select_turn     # EDIT VALUE
+300   button SelectEnc down
+320   button SelectEnc up
+# No snapshot: "the page stayed put" is a frame identical to `after_select_turn`, and a golden whose
+# content repeats its predecessor records nothing. The claim is carried by the NEXT frame instead --
+# a Select turn that still moves the MODE page's cursor, which is only possible if this press did not
+# ascend -- and by `take_action()` in the spec, which is where the filed request is visible at all.
+400   encoder Select -1
+420   snapshot after_turn_back       # DISABLED again -- so the press left us on this page
+500   button SelectEnc down
+520   button SelectEnc up
+540   snapshot after_disabled_press  # the DISABLED arm ascends -- the PERFORM FX root list again
+600   quit

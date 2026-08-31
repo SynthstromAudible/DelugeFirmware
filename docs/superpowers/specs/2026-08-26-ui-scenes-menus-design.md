@@ -656,14 +656,26 @@ many custom nodes a table added — it would have begun counting only once E2 re
 placeholders one by one, i.e. it was switched off for exactly the phase it existed to police.
 Meanwhile `src/scenes/README.md` told the next contributor the cap was enforced. The rule now counts
 **nodes that point at a custom item** (`validate.h`'s `kMaxCustomNodes`, `validate.cpp:343`). The
-real number: the shipped tree has **59** `Kind::Custom` nodes reachable from `nodes::kAllRoots`,
-behind roughly twenty distinct legacy bespoke classes (file selector, audio recorder, sample loop
-points, name editors, patch-cable pages, multi-range picker, DX browser, active scales, MIDI
-devices, the MPE selectors, the context-menu actions, …). So the cap is **60**, one above reality —
-a ratchet against the escape hatch growing unnoticed, not spec E's number and not a claim that ten
-was ever reachable for a faithful port of legacy's tree. `sim/scenes_spec/shortcuts_spec.cpp` pins
-the exact 59 (`kShippedCustomNodes`) separately, so adding a custom node has to be said in two
-places.
+real number: E1's tree had **59** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, and the
+cap was set to **60**, one above reality — a ratchet against the escape hatch growing unnoticed, not
+spec E's number and not a claim that ten was ever reachable for a faithful port of legacy's tree.
+`sim/scenes_spec/shortcuts_spec.cpp` pins the exact count (`kShippedCustomNodes`) separately, so
+adding a custom node has to be said in two places.
+
+*E2 amendment (task 12).* The count is now **52** and the cap **53**. E2 took twelve nodes out of the
+escape hatch rather than implementing them as bespoke items — task 11's nine `Kind::Enum`s (the six
+pad colours, the play cursor, the dev-sysex setting, the shortcuts version) and task 11b's three
+revived `Kind::Range`s (`default_tempo`, `default_swing_amount`, `default_key`) — while the cap
+stayed where E2 task 9 left it, so it drifted to four above reality: four bespoke items a table
+could have added for free. Ratcheted down to follow. The same task added
+`validate.h`'s `kPendingCustomNodes` (**11**) and a by-identity assertion of *which* nodes those
+are: a count alone cannot tell "a placeholder was finished" from "a placeholder was finished and a
+new one appeared somewhere else", which is exactly the drift a number meant to say "E2 is not
+finished" must not be able to hide. The eleven are the file/sample family — both oscillator file
+browsers, the four sample loop points, the two audio recorders — plus `midi_device_linked`,
+`specific_output_selector` and `audio_clip_waveform`. All of them need the card or a view no plan
+so far ports, and they belong to E3; the plan that closes them out edits that list deliberately,
+and deletes `ValidateOptions::allow_placeholder_custom` with the last of them.
 
 **E2's carried work** — behaviour spec E named as belonging to a later phase, still owed once E1's
 ten roots and `MenuScene` ship: `source_shortcut_pads` (needs patch cables); per-pad blink

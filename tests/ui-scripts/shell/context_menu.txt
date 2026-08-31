@@ -1,0 +1,24 @@
+# Level-2 acceptance (E2 task 12): `context_menu::ContextMenuScene` itself -- its window, its
+# option cursor and its footer -- reached the way a user reaches it, through the audio-clip root's
+# AUDIO SOURCE item (`nodes::audio_source_selector`, E2 task 11b).
+#
+# This is the sixth `DescriptorId` and the only one that uses all three hooks task 6's `Descriptor`
+# lacked (`initial`, `on_move`, `footer`), so it is the one worth driving: `initial_audio_source`
+# picks the row from `AudioOutput::inputChannel` (`gui/context_menu/audio_input_selector.cpp:87-127`
+# setupAndCheckAvailability), and `on_move_audio_source` (`:140-195` selectEncoderAction) runs on
+# every turn.
+#
+# `menu_reset.txt` covers the OTHER five descriptors' one-option confirmation and the
+# `go_up_on_resume` ascend; this one covers a multi-option list being walked.
+0     snapshot idle                  # AUDIO CLIP root list, cursor on row 0 (ACTIONS)
+100   encoder Select +1
+120   snapshot after_select_turn     # cursor on AUDIO SOURCE
+200   button SelectEnc down
+220   button SelectEnc up
+240   snapshot after_select_press    # the AUDIO SOURCE window, opened on `initial`'s row
+300   encoder Select +2
+320   snapshot after_option_turn     # two options further down, footer redrawn with it
+400   button Back down
+420   button Back up
+440   snapshot after_back            # dismissed without accepting; the menu ascended one level
+500   quit

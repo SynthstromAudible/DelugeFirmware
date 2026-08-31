@@ -1,0 +1,26 @@
+# Level-2 acceptance (E2 task 12): a `Kind::Range` leaf (nodes::default_tempo), opened directly.
+#
+# E1 task 8 deleted `Kind::Range` for having no consumers; E2 task 11b brought it back with three
+# (`nodes::default_tempo`, `default_swing_amount`, `default_key`). `range_value`
+# (`ui/oled/values.h`) owns BOTH the horizontal encoder (which picks the edge) and the gold knobs
+# (which move the picked edge) -- the split legacy spells as `horizontalEncoderAction` +
+# `selectEncoderAction` (`gui/menu_item/range.cpp:37-39`, `integer_range.cpp:33-68`).
+#
+# `idle` already highlights the LEFT edge, and that is the point of the first frame rather than an
+# accident: `kDefaultTempoSpec.focus_left_when_split` is true, so `enter_leaf` reproduces
+# `IntegerRange::beginSession` (`integer_range.cpp:26-31`) -- a split range opens on LEFT, where
+# `KeyRange`, which has no such override, would open on OFF.
+#
+# Horizontal is signed, not a step: `< 0` selects the LEFT edge and `> 0` the RIGHT one, and
+# re-selecting the edge already picked turns the highlight off (`ui/oled/values.cpp:336-341`). The
+# last two steps are that toggle, which is the arm a script starting from OFF could not reach.
+0     snapshot idle                  # 100-200, the LEFT end inverted with its 1px margin
+100   encoder GoldUpper +2
+120   snapshot after_lower_edit      # the lower end moved by 2 detents * range.step; the upper did not
+200   encoder Horizontal +1
+220   snapshot after_edge_right      # the highlight jumped to the right end
+300   encoder GoldUpper +2
+320   snapshot after_upper_edit      # the upper end moved; the lower one stayed where it was
+400   encoder Horizontal +1
+420   snapshot after_edge_off        # the same edge again -> RangeEdge::Off, no highlight at all
+500   quit

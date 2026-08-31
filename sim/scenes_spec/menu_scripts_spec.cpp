@@ -1,13 +1,41 @@
 /// @file
-/// @brief Task 11: level-2 acceptance scripts, one per menu item kind, driven through the real
-///        `Shell` over `uitest::FakeSurfaceSet` (`tests/spec/shell/support/script_runner.h`) against
-///        the REAL declarative tables (`src/scenes/menu/nodes/`) -- not a synthetic tree.
+/// @brief Level-2 acceptance scripts, driven through the real `Shell` over
+///        `uitest::FakeSurfaceSet` (`tests/spec/shell/support/script_runner.h`) against the REAL
+///        declarative tables (`src/scenes/menu/nodes/`) -- not a synthetic tree.
 ///
-/// Each script (`tests/ui-scripts/shell/menu_*.txt`) runs the same generic recipe -- a Select-encoder
-/// detent, a select-encoder press/release, a GoldUpper detent, a Back press/release, snapshotting
-/// after every step -- against a real node `RunOptions::initial_scene` opens directly
-/// (`SceneId{FirstApp, node_id(target)}`). What that recipe visibly DOES depends entirely on the
-/// target's own `Kind`, which is the point: one interpreter, seven different real screens.
+/// Two generations of script live here.
+///
+/// **E2 task 11's seven** run the same generic recipe -- a Select-encoder detent, a select-encoder
+/// press/release, a GoldUpper detent, a Back press/release, snapshotting after every step -- against
+/// a real node `RunOptions::initial_scene` opens directly (`SceneId{FirstApp, node_id(target)}`).
+/// What that recipe visibly DOES depends entirely on the target's own `Kind`, which is the point:
+/// one interpreter, seven different real screens.
+///
+/// **E2 task 12's twelve** cover what E2 itself added, and each one is shaped by its subject rather
+/// than by a shared recipe, because the subjects are no longer all one kind of leaf:
+///
+// clang-format off
+/// | script | subject | shipped by |
+/// |---|---|---|
+/// | `menu_sync_level` | `Kind::SyncLevel`'s renderer | task 1 |
+/// | `menu_chain` | `Node::select_chain` on a value-leaf target | task 3 |
+/// | `rename` | `nodes::EditNameItem` -> `rename::RenameScene` | tasks 4-5 |
+/// | `menu_reset` | the five reset `nodes::ContextMenuItem`s, and `go_up_on_resume` | tasks 6-7 |
+/// | `context_menu` | `context_menu::ContextMenuScene`'s multi-option descriptor | tasks 6, 11b |
+/// | `menu_midi_learn` | `nodes::MidiCommandItem`, and the LEARN blink in `.state` | task 8 |
+/// | `menu_patch_cables` | `nodes::PatchCablesItem` and the chain into a strength page | task 9 |
+/// | `menu_cv_selection` | `nodes::CvSelectionItem`, a runtime list, and its `source_index` write | task 10 |
+/// | `menu_action` | `nodes::ActionItem`: file a `MenuAction`, ascend straight back out | task 11b |
+/// | `menu_perform_editor` | `nodes::PerformEditorItem`: the action item that is also a page | task 11b |
+/// | `menu_range` | `Kind::Range`'s two-edge editor | task 11b |
+/// | `menu_scales` | `nodes::ActiveScalesItem`, the preset-scale checklist | task 11b |
+// clang-format on
+///
+/// Three of the twelve deliberately carry a script *step* with no snapshot after it. That is not an
+/// omission: the frame would have been byte-identical to the one before it, and a golden whose whole
+/// content repeats its predecessor can never fail for the right reason (E2 task 9, fix round 1 --
+/// which deleted three such frames). Each of those steps is asserted in C++ instead, against the
+/// state the pixels could not have shown anyway; the script files say which and why.
 ///
 /// **Why one node id resolves correctly across every script.** `MenuScene::on_enter` re-targets the
 /// path from `SceneId::arg` (`node_by_id`) but never touches `ctx_` (`menu_scene.cpp:272-292`), so
@@ -28,14 +56,18 @@
 /// submenu naming it as a real child alongside `nodes::lpf_mode` -- the wrapper is synthetic, the
 /// leaf it gates is not.
 
+#include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/menu/action.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/nodes/scales.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "scenes/rename/rename_scene.h"
 
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
@@ -44,8 +76,15 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "io/midi/midi_device.h"
+#include "io/midi/midi_engine.h"
+#include "model/clip/clip.h"
+#include "model/song/song.h"
+#include "modulation/params/param_descriptor.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "storage/flash_storage.h"
 
 #include "support/song_fixture.h"
 
@@ -55,15 +94,19 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <string>
 
 #include "spec/support/spec_main.h"
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
+using deluge::scenes::menu::MenuAction;
+using deluge::scenes::menu::MenuActionRequest;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 namespace bindings = deluge::scenes::menu::bindings;
 namespace nodes = deluge::scenes::menu::nodes;
+namespace context_menu = deluge::scenes::context_menu;
 
 namespace {
 
@@ -96,6 +139,97 @@ constexpr const Node* kRangePermRoots[] = {&range_perm_root};
 int cursor0() {
 	return menu_scene().state().list[0].cursor;
 }
+
+/// @brief The cursor of the row list at whatever depth the menu is currently at.
+///
+/// `cursor0()` is right only while the target sits at depth 0. Task 12's scripts open nodes several
+/// levels down and some of them descend further, so the depth has to be read rather than assumed.
+int cursor_now() {
+	const deluge::scenes::menu::MenuState& st = menu_scene().state();
+	return st.depth < deluge::scenes::menu::kMenuDepth ? st.list[st.depth].cursor : -1;
+}
+
+/// @brief The `RunOptions` every block here shares, pointed at @p node.
+///
+/// Twelve blocks repeating the same five-field aggregate is twelve chances to get the profile or the
+/// board wrong in one of them; this makes the only thing that varies -- which node the run opens on
+/// -- the only thing spelled at the call site.
+/// @param node The node whose `node_id` becomes `SceneId::arg`.
+/// @return The options.
+uitest::RunOptions opts_for(const Node& node) {
+	return uitest::RunOptions{
+	    .tick_ms = 10,
+	    .board = &deluge::ui::shell::kDelugeBoard,
+	    .profile = &deluge::scenes::deluge_profile(),
+	    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)},
+	};
+}
+
+/// @brief A `MIDICable` with a fixed display name, so a learned readout is a stable golden.
+///
+/// The same shape `tables_3_spec.cpp` keeps for the same reason; it is spec-local there and here
+/// because `MIDICable` is abstract and neither file wants to export a test double.
+struct FakeCable final : ::MIDICable {
+	void writeToFlash(uint8_t*) override {}
+	char const* getDisplayName() override { return "SPEC CABLE"; }
+	void sendMessage(MIDIMessage) override {}
+	void sendSysex(const uint8_t*, int32_t) override {}
+	[[nodiscard]] size_t sendBufferSpace() const override { return 0; }
+
+protected:
+	void writeReferenceAttributesToFile(Serializer&) override {}
+};
+
+FakeCable& fake_cable() {
+	static FakeCable c;
+	return c;
+}
+
+/// @brief Save and restore every `midiEngine.globalMIDICommands` slot around the learn script.
+///
+/// The whole array, not the one slot the script touches: an item that cleared the *wrong* command is
+/// exactly what a twelve-way mapping has to catch, and restoring only one slot would carry that
+/// mistake into the next `it` instead of failing here. (`tables_3_spec.cpp` keeps the same helper.)
+struct CommandSlots {
+	LearnedMIDI slots[kNumGlobalMIDICommands];
+
+	static CommandSlots capture() {
+		CommandSlots c;
+		for (int32_t i = 0; i < kNumGlobalMIDICommands; i++) {
+			c.slots[i] = midiEngine.globalMIDICommands[i];
+		}
+		return c;
+	}
+	void restore() const {
+		for (int32_t i = 0; i < kNumGlobalMIDICommands; i++) {
+			midiEngine.globalMIDICommands[i] = slots[i];
+		}
+	}
+	static void clear_all() {
+		for (int32_t i = 0; i < kNumGlobalMIDICommands; i++) {
+			midiEngine.globalMIDICommands[i].clear();
+		}
+	}
+};
+
+/// @brief Save and restore one `FlashStorage::defaultRanges` entry around a `Kind::Range` script.
+///
+/// `nodes::default_tempo` edits process-wide flash-backed state (`nodes/settings.cpp`
+/// `get_default_tempo_lower`), and the script deliberately moves both ends of it. Every other spec in
+/// this executable reads the same array.
+struct SavedRange {
+	int32_t index;
+	int32_t lower;
+	int32_t upper;
+
+	static SavedRange capture(int32_t index) {
+		return SavedRange{index, FlashStorage::defaultRanges[index].lower, FlashStorage::defaultRanges[index].upper};
+	}
+	void restore() const {
+		FlashStorage::defaultRanges[index].lower = lower;
+		FlashStorage::defaultRanges[index].upper = upper;
+	}
+};
 
 } // namespace
 
@@ -335,6 +469,343 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(static_cast<int>(sound->sources[0].defaultRangeI)).to_equal(1);
 		// The leaf itself was never opened, so its model value is untouched.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(before);
+	});
+
+	// -----------------------------------------------------------------------------------------
+	// E2 task 12. One block per thing E2 added; see this file's own table.
+
+	it("SyncLevel: nodes::delay_sync draws legacy's note-length string, and only the SELECT encoder moves it", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::delay_sync, ctx);
+		// Value 0 is legacy's literal "OFF" arm (`gui/menu_item/sync_level.cpp:30-38`
+		// `SyncLevel::drawPixelsForOled`), which is what `idle` records.
+		bindings::write(nodes::delay_sync, ctx, 0);
+
+		const deluge::scenes::menu::IntRange sync_range = bindings::range(nodes::delay_sync, ctx);
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "menu_sync_level", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::delay_sync));
+		expect(result.snapshots).to_equal(uint32_t{3});
+
+		// `SyncLevel` derives from `Enumeration`, not `Integer` (`gui/menu_item/sync_level.h:27`), and
+		// `Enumeration::selectEncoderAction` (`enumeration.cpp:19-31`) clamps rather than wraps. So the
+		// +40 detents stop at the top of the node's own range instead of coming back round to OFF --
+		// and the GoldUpper turn between the two select turns moved nothing at all, which is the step
+		// whose snapshot was dropped for being byte-identical.
+		expect(bindings::read(nodes::delay_sync, ctx)).to_equal(sync_range.max);
+		expect(menu_scene().focused() == &nodes::delay_sync).to_be_true();
+	});
+
+	it("select_chain: a select press on nodes::unison_count opens nodes::unison_spread, and edits it", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::unison_count, ctx);
+
+		const int32_t count_before = bindings::read(nodes::unison_count, ctx);
+		const int32_t spread_before = bindings::read(nodes::unison_spread, ctx);
+		const deluge::scenes::menu::IntRange count_range = bindings::range(nodes::unison_count, ctx);
+		const deluge::scenes::menu::IntRange spread_range = bindings::range(nodes::unison_spread, ctx);
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "menu_chain", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::unison_count));
+		expect(result.snapshots).to_equal(uint32_t{6});
+
+		// `CountToStereoSpread::selectButtonPress` (`gui/menu_item/unison/count.h:76-79`) navigates
+		// *into* the spread, so the press must not have ascended -- and the second gold turn, after
+		// the Back, must have landed on the count again.
+		expect(menu_scene().focused() == &nodes::unison_count).to_be_true();
+		// Two gold turns of +2 detents each reach the count, one reaches the spread. An `Accelerating`
+		// knob's magnitude is its raw edge count (`script_runner.h`), `edges_per_detent` is 2, and
+		// `int_value`'s coarse step is `range.step` -- so +4 per turn, clamped by the node's own range.
+		// The first turn is +2 detents and the second, after the Back, is -2 -- downwards because the
+		// first one already clamped at the top and a second climb would have drawn the identical frame.
+		const int32_t after_first = std::min(count_before + 4, count_range.max);
+		expect(after_first).to_equal(count_range.max); // the clamp really did happen, so -4 is visible
+		expect(bindings::read(nodes::unison_count, ctx)).to_equal(std::max(after_first - 4, count_range.min));
+		expect(bindings::read(nodes::unison_spread, ctx)).to_equal(std::min(spread_before + 4, spread_range.max));
+	});
+
+	it("Range: nodes::default_tempo picks an edge with the horizontal encoder and moves it with the gold one", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, nullptr, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		// Process-wide flash-backed state (`nodes/settings.cpp` `get_default_tempo_lower`), so it is
+		// saved and put back. Set BEFORE `open()`, which is what seeds `MenuState::edit_int` /
+		// `edit_upper` from the model (`MenuScene::enter_leaf`'s `Kind::Range` arm). A split pair well
+		// inside `kDefaultTempoRange{60, 240, 1}`, so the two ends are visibly distinct in `idle`,
+		// neither detent below clamps, and `focus_left_when_split` has a split to act on.
+		const SavedRange saved = SavedRange::capture(FlashStorage::DEFAULT_RANGE_TEMPO);
+		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower = 100;
+		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper = 200;
+		menu_scene().open(nodes::default_tempo, ctx);
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "menu_range", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::default_tempo));
+		expect(result.snapshots).to_equal(uint32_t{5});
+
+		// The page opened already on the LEFT edge (`kDefaultTempoSpec.focus_left_when_split`, legacy's
+		// `IntegerRange::beginSession`), so the first gold turn moved the lower end; Horizontal `+1`
+		// then selected the RIGHT one (`ui/oled/values.cpp:336-341`) and the second moved the upper.
+		// +4 raw edges * `range.step` (1) each. A port that ignored the edge would have moved one end
+		// twice and left the other at its fixture value.
+		expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower).to_equal(int32_t{104});
+		expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper).to_equal(int32_t{204});
+		saved.restore();
+	});
+
+	it("ActiveScales: a select press toggles the row's box and stays on the page", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, nullptr, 0, false, /*session_or_arranger_root=*/true, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		// Entered from the root, not opened directly: at depth 0 an unwanted `ascend()` is a silent
+		// no-op, so "the item consumed the select press" would be indistinguishable from "it did not".
+		menu_scene().open(nodes::root_song, ctx);
+
+		expect(nodes::kSongActiveScalesItem.is_disabled(ctx, 2)).to_be_false();
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "menu_scales", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::root_song));
+		expect(result.snapshots).to_equal(uint32_t{7});
+
+		// Two presses on row 2: disabled, then enabled again. The *pair* is what makes the goldens
+		// mean something -- one press alone could not tell a flip from a one-way write.
+		expect(nodes::kSongActiveScalesItem.is_disabled(ctx, 2)).to_be_false();
+		// Nothing else moved: `commit` writes only the cursor's own bit.
+		expect(nodes::kSongActiveScalesItem.is_disabled(ctx, 0)).to_be_false();
+		expect(nodes::kSongActiveScalesItem.is_disabled(ctx, 3)).to_be_false();
+		// `selectButtonPress` returns NO_NAVIGATION (`gui/menu_item/active_scales.cpp:108-112`), so
+		// the two presses must not have ascended; the Back at the end is what leaves, and it leaves to
+		// the root with its own cursor still on the row the descent came from.
+		expect(menu_scene().focused() == &nodes::root_song).to_be_true();
+		expect(cursor_now()).to_equal(4);
+	});
+
+	it("ContextMenuItem: a reset item pushes the context menu, and the menu goes up a level when it closes", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, nullptr, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::reset_settings, ctx);
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "menu_reset", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::reset_settings));
+		expect(result.snapshots).to_equal(uint32_t{3});
+
+		// Row 0 of `kResetSettingsChildren` is `reset_flash`, so that is the descriptor the push
+		// named. The scene keeps `id_` after it closes, which is what lets this be checked at all.
+		expect(context_menu::context_menu_scene().descriptor_id() == context_menu::DescriptorId::ResetFlash)
+		    .to_be_true();
+		// The Select detent inside the window moved nothing: `ResetSettings::getOptions()` is a single
+		// `STRING_FOR_OK` (task 6's correction -- not a NO/YES pair), and `step()` clamps.
+		expect(static_cast<int>(context_menu::context_menu_scene().selection().option)).to_equal(0);
+		// `shouldGoUpOneLevelOnBegin` (`gui/menu_item/reset_settings/reset.h:29-33`) as
+		// `MenuState::go_up_on_resume`: the resume ascends OUT of the item the press descended into,
+		// so the list is on screen again rather than the item that opened the window. (`reset_settings`
+		// is this run's path root, so that ascend lands back on it -- one level up from `reset_flash`.)
+		expect(menu_scene().focused() == &nodes::reset_settings).to_be_true();
+	});
+
+	it("ContextMenuScene: the audio-source descriptor opens on its own initial row and walks", _ {
+		reset_globals();
+		spec::AudioSongFixture song = spec::make_audio_clip_song();
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::root_audio_clip, ctx);
+
+		const uitest::RunResult result =
+		    uitest::expect_script_goldens(self, "context_menu", scenes::scene_registry(),
+		                                  deluge::ui::shell::Services{}, opts_for(nodes::root_audio_clip));
+		expect(result.snapshots).to_equal(uint32_t{5});
+
+		expect(context_menu::context_menu_scene().descriptor_id() == context_menu::DescriptorId::AudioSource)
+		    .to_be_true();
+		// `initial_audio_source` (`gui/context_menu/audio_input_selector.cpp:87-127`
+		// setupAndCheckAvailability) opened it on the output's own `inputChannel`, and the two Select
+		// detents walked from there -- `step()`'s clamp is at 7, which this does not reach.
+		expect(static_cast<int>(context_menu::context_menu_scene().selection().option)).to_equal(3);
+		// Backed out without accepting, so the menu is back where the press left it.
+		expect(menu_scene().focused() == &nodes::root_audio_clip).to_be_true();
+		expect(cursor_now()).to_equal(1);
+	});
+
+	it("RenameScene: the menu pushes it, the cursor blinks, a held backspace repeats, and enter commits", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::edit_name, ctx);
+		song.clip->name = "";
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "rename", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::edit_name));
+		expect(result.snapshots).to_equal(uint32_t{10});
+
+		// Typed "ABA", then a held backspace: the press itself deletes one (`gui/ui/qwerty_ui.cpp:219`),
+		// and one repeat fires 500 ms later (`:220`, `:452`) before the pad is released at 1400 ms.
+		// The 80 ms cadence would have emptied the buffer by 1000 ms if the arming delay were not
+		// honoured, which is what makes "A" -- not "" and not "AB" -- the discriminating answer.
+		expect(std::string{song.clip->name}).to_equal(std::string{"A"});
+		// The enter pad committed and popped the editor, so the menu owns the screen again -- one level
+		// up from the item that opened it, `EditNameItem` being a `pending_scene` opener like the five
+		// reset items.
+		expect(menu_scene().focused() == &nodes::edit_name).to_be_true();
+	});
+
+	it("MidiCommandItem: the learned readout, the LEARN blink, and a select turn that unlearns", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, nullptr, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		const CommandSlots saved = CommandSlots::capture();
+		CommandSlots::clear_all();
+		// Focus the item to learn onto it -- `MenuScene::learn_cc` forwards to `focused()` -- and then
+		// re-root on the list the script actually walks. The slot itself is
+		// `midiEngine.globalMIDICommands`, a global, so the binding survives the re-rooting.
+		menu_scene().open(nodes::midi_command_play, ctx);
+		// Channel 3 + `IS_A_CC`, CC 42 -- the same binding `tables_3_spec`'s learned-readout golden
+		// uses, so the three-line shape in `entered` is the one that file already pins at unit level.
+		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+		menu_scene().open(nodes::midi_commands, ctx);
+
+		const uitest::RunResult result =
+		    uitest::expect_script_goldens(self, "menu_midi_learn", scenes::scene_registry(),
+		                                  deluge::ui::shell::Services{}, opts_for(nodes::midi_commands));
+		expect(result.snapshots).to_equal(uint32_t{4});
+
+		// `Command::selectEncoderAction` (`gui/menu_item/midi/command.cpp:88-91`) clears on ANY motion.
+		// The script turns once each way; the second turn is the step with no snapshot, and this is
+		// what stands in for it -- the slot is still empty, not re-learned by the opposite direction.
+		expect(midiEngine.globalMIDICommands[static_cast<int32_t>(GlobalMIDICommand::PLAY)].containsSomething())
+		    .to_be_false();
+		// And it cleared the right one of the twelve.
+		expect(midiEngine.globalMIDICommands[static_cast<int32_t>(GlobalMIDICommand::RECORD)].containsSomething())
+		    .to_be_false();
+		expect(menu_scene().focused() == &nodes::midi_commands).to_be_true();
+		saved.restore();
+	});
+
+	it("CvSelectionItem: the picked row becomes MenuContext::source_index before the chain reads it", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, nullptr, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::cv_selection, ctx);
+
+		const uitest::RunResult result =
+		    uitest::expect_script_goldens(self, "menu_cv_selection", scenes::scene_registry(),
+		                                  deluge::ui::shell::Services{}, opts_for(nodes::cv_selection));
+		expect(result.snapshots).to_equal(uint32_t{4});
+
+		// The press navigated (`cv_selection_chain`), so it did not ascend; the Back brought the
+		// selector back with its cursor intact, which is `MenuState::list[depth]` surviving a descend.
+		expect(menu_scene().focused() == &nodes::cv_selection).to_be_true();
+		expect(cursor_now()).to_equal(1);
+	});
+
+	it("PatchCablesItem: the mod matrix opens the selected cable's strength page, and that page edits", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+
+		// A synth fixture already has cables of its own (the golden's NOTE and VELO rows), so the
+		// interesting assertion is not "a cable moved" but "the SELECTED one moved and the others did
+		// not". One more is added here so the list is a real list rather than a pair -- the same cable
+		// `tables_2_spec`'s own mod-matrix goldens install.
+		Song* const previous_song = currentSong;
+		currentSong = song.song;
+		ParamDescriptor plain;
+		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
+		expect(bindings::patch_cable_write(ctx, plain, 1234)).to_be_true();
+		PatchCableSet* const set = ctx.params->getPatchCableSetAllowJibberish();
+		expect(set != nullptr).to_be_true();
+		ParamDescriptor destination;
+		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_LPF_FREQ);
+		const uint8_t added = set->getPatchCableIndex(PatchSource::ENVELOPE_1, destination);
+		expect(added != kNoSelection).to_be_true();
+		expect(added != uint8_t{0}).to_be_true(); // not the row the cursor opens on
+		const int32_t added_before = set->patchCables[added].param.getCurrentValue();
+		// `PatchCablesItem` builds one row per `patchCables` entry in array order, so the cursor's
+		// own row -- the one a select press with no turn before it opens -- is entry 0.
+		const int32_t selected_before = set->patchCables[0].param.getCurrentValue();
+
+		menu_scene().open(nodes::patch_cables, ctx);
+		const uitest::RunResult result =
+		    uitest::expect_script_goldens(self, "menu_patch_cables", scenes::scene_registry(),
+		                                  deluge::ui::shell::Services{}, opts_for(nodes::patch_cables));
+		expect(result.snapshots).to_equal(uint32_t{4});
+
+		// The gold turn on the strength page wrote through to the cable the press selected...
+		expect(set->patchCables[0].param.getCurrentValue() != selected_before).to_be_true();
+		// ...and to that one only, which is what makes `patch_cables_chain` picking the right cable a
+		// tested claim rather than an assumed one.
+		expect(set->patchCables[added].param.getCurrentValue()).to_equal(added_before);
+		expect(menu_scene().focused() == &nodes::patch_cables).to_be_true();
+		currentSong = previous_song;
+	});
+
+	it("ActionItem: the press files a MenuAction and leaves the parent list exactly where it was", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, nullptr, 0, false, /*session_or_arranger_root=*/true, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::stem_export, ctx);
+		(void)menu_scene().take_action(); // drain anything an earlier block left in the one-slot outbox
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "menu_action", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::stem_export));
+		expect(result.snapshots).to_equal(uint32_t{2});
+
+		// The press has no golden -- the frame after it repeats `idle` exactly, which is the whole
+		// point of `shouldEnterSubmenu() == false` (`gui/ui/sound_editor.cpp:382-385`). This is where
+		// it is visible instead.
+		const MenuActionRequest taken = menu_scene().take_action();
+		expect(taken.action == MenuAction::StartStemExport).to_be_true();
+		expect(static_cast<int>(taken.arg)).to_equal(0);
+		// And the ascend was exactly one level: the EXPORT AUDIO list is focused again, not something
+		// above it. (This run's path is rooted on that list, so a second ascend would have been a
+		// visible no-op rather than a wrong page -- which is why the *cursor* is checked too.)
+		expect(menu_scene().focused() == &nodes::stem_export).to_be_true();
+		expect(cursor_now()).to_equal(1);
+	});
+
+	it("PerformEditorItem: VALUE files a request and stays, DISABLED files nothing and ascends", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx =
+		    menu::context_for(*song.song, nullptr, 0, /*performance_view=*/true, /*session_or_arranger_root=*/true, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		// `on_focus` seeds the cursor from this mirror (`nodes/actions.cpp` `performance_editing_mode`),
+		// and the VALUE press writes it -- so it is saved and put back like any other global.
+		const PerformanceEditingMode saved_mode = menu::performance_editing_mode();
+		menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+		// From the root, for `menu_scales`' reason: the DISABLED arm's whole claim is that it ascends,
+		// and at depth 0 an ascend draws the same frame as staying put.
+		menu_scene().open(nodes::root_performance, ctx);
+		(void)menu_scene().take_action();
+
+		const uitest::RunResult result =
+		    uitest::expect_script_goldens(self, "menu_perform_editor", scenes::scene_registry(),
+		                                  deluge::ui::shell::Services{}, opts_for(nodes::root_performance));
+		expect(result.snapshots).to_equal(uint32_t{5});
+
+		// The VALUE press filed `OpenPerformanceView` carrying the chosen mode as its `arg`; the
+		// DISABLED press that follows files nothing (`editing_mode.h:50-52` returns nullptr), so this
+		// one-slot outbox still holds the first one.
+		const MenuActionRequest taken = menu_scene().take_action();
+		expect(taken.action == MenuAction::OpenPerformanceView).to_be_true();
+		expect(static_cast<int>(taken.arg)).to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
+		// The DISABLED arm ascended, which is the half a golden alone could not distinguish from a
+		// page that merely redrew.
+		expect(menu_scene().focused() == &nodes::root_performance).to_be_true();
+		menu::set_performance_editing_mode(saved_mode);
 	});
 });
 // clang-format on

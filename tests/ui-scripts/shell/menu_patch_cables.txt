@@ -1,0 +1,29 @@
+# Level-2 acceptance (E2 task 12): the mod-matrix page (nodes::patch_cables, E2 task 9) and the
+# chain into the cable-strength page it opens.
+#
+# `PatchCables::selectButtonPress` (`gui/menu_item/patch_cables.cpp:164-190`) navigates to the
+# selected cable's own strength page -- the range one when the cable's destination is itself a cable.
+# In the port that is `patch_cables_chain` + `Node::chain_targets`, and the state legacy installed on
+# its way out (`soundEditor.patchingParamSelected`, `source_selection::regularMenu.s`) the port
+# installs on the way IN, from `PatchCableStrengthItem::on_focus`.
+#
+# The fixture's synth already has cables (NOTE and VELO into LPF FREQ); the spec adds a third
+# (ENVELOPE_1 -> LOCAL_LPF_FREQ) so the list is a real list. The script never turns before pressing,
+# so the cable it opens is row 0 -- and the spec asserts that row 0 moved and the added cable did not,
+# which is what makes "the chain picked the right cable" a tested claim.
+0     snapshot idle                  # MOD MATRIX: three rows, each drawn by the routing-diagram widget
+100   button SelectEnc down
+120   button SelectEnc up
+140   snapshot after_select_press    # the regular cable-strength page for that cable
+200   encoder GoldUpper +2
+220   snapshot after_gold_turn       # the strength moved -- the page is live, not just drawn
+# **Look at this frame.** At "11.00" the value is five glyphs wide in the huge face and the last
+# digit is CLIPPED by the panel's right edge. That is not this script's doing: E2 task 9 recorded
+# that the port draws this value in `Style::value_font` where legacy draws it right-aligned in the
+# 13px "Big" face (`patch_cables.h`'s "What did NOT come across" note, and the reviewer ruling that
+# upheld the page as shipped), and no golden until now happened to hold a five-glyph value. Recorded
+# rather than dodged: a five-glyph strength is one detent away on a real device.
+300   button Back down
+320   button Back up
+340   snapshot after_back            # the mod-matrix list again, row 0 showing its new strength
+400   quit

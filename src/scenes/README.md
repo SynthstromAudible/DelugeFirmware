@@ -145,13 +145,16 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   and points every one of them at the single shared `nodes::kPending` placeholder, so that count was
   **1** for the whole tree and `TooManyCustom` could never fire — the rule was switched off for
   exactly the phase it was meant to police.
-* It now counts **nodes that point at a custom item**. The shipped tree has **55** of them
+* It now counts **nodes that point at a custom item**. The shipped tree has **52** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-  `sim/scenes_spec/shortcuts_spec.cpp`), behind roughly twenty distinct legacy bespoke classes --
-  twenty-two of them still share the single `kPending` placeholder. (It was 64 until E2 task 11
-  turned nine of the placeholders -- the six pad colours, the play cursor, the dev-sysex setting and
-  the shortcuts version -- into ordinary `Kind::Enum` items with get/set hooks; none of the nine
-  needed a bespoke item at all once its state was reachable.) The real, distinct exceptions
+  `sim/scenes_spec/shortcuts_spec.cpp`), behind **42** distinct items -- of which **11** still share
+  the single `kPending` placeholder (`validate.h`'s `kPendingCustomNodes`, whose exact set the same
+  spec pins by node identity). The cap `kMaxCustomNodes` is **53**, one above the count. (It was 64
+  until E2 task 11 turned nine of the placeholders -- the six pad colours, the play cursor, the
+  dev-sysex setting and the shortcuts version -- into ordinary `Kind::Enum` items with get/set
+  hooks; none of the nine needed a bespoke item at all once its state was reachable. E2 task 11b
+  took three more out of the hatch entirely by reviving `Kind::Range` for `default_tempo`,
+  `default_swing_amount` and `default_key`, and E2 task 12 ratcheted the cap down to follow.) The real, distinct exceptions
   are `battery_level` and `firmware_version` (E2 task 2 — `BatteryLevelItem`, `FirmwareVersionItem`),
   the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), the context-menu
   openers (E2 task 7 and 11b — one `ContextMenuItem` per `context_menu::DescriptorId`), the twelve MIDI commands
@@ -162,10 +165,12 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   (`menu/nodes/context_menu_items.h` — the class the five reset items became once
   `audio_source_selector` needed the same one), so the distinct-instance count that spelling used to
   be inert on is now 42, not 1.
-* So the cap is `kMaxCustomNodes == 56`, one above reality — a ratchet against the escape hatch
+* So the cap is `kMaxCustomNodes == 53`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
-  places.
+  places. Adding one that is still a *placeholder* means a third: `kPendingCustomNodes` and the
+  by-identity list in `sim/scenes_spec/shortcuts_spec.cpp`, so "what E2 still owes" cannot drift
+  while its count stands still.
 
 To add one:
 
@@ -176,7 +181,8 @@ To add one:
    is no "no-op custom" shorthand.
 3. **If the real implementation is a later task's job** (E1 shipped the *shape* of several bespoke
    items — the file selector, the audio recorder, loop points, patch-cable pages, the
-   multi-range picker — without their real behaviour), point the node at the shared
+   multi-range picker — without their real behaviour; E2 built all but the file/sample family,
+   which needs the card and is the eleven `kPendingCustomNodes` a later plan owns), point the node at the shared
    `nodes::kPending` placeholder (`menu/nodes/sound_osc.{h,cpp}`) instead of a real implementation.
    `kPending` draws the item's title and consumes no input; `CustomItem::is_placeholder()` reports
    `true` for it, so `validate_tree` flags every node pointing there as
@@ -198,7 +204,7 @@ predicate without adding its row is a build failure rather than a dump that sile
 `validate_tree` walks every node reachable from a set of roots and checks: every `Submenu` is
 non-empty under at least one context; every `ParamRef` resolves for its context; every `Enum` has
 `names` or `dynamic_names`; every shortcut cell points at a node; `Custom` count ≤ `kMaxCustomNodes` (`validate.h`) — counting the *nodes* that point at a
-custom item, not the distinct `CustomItem` instances, since 22 of them share the single
+custom item, not the distinct `CustomItem` instances, since 11 of them share the single
 `nodes::kPending` placeholder today (see "Adding a `Custom`" above and the design spec's
 amendment); no
 `NullCustom`; no `DuplicateName` among siblings that could actually both be on screen at once (a
@@ -408,5 +414,7 @@ opens `rename::RenameScene` — the port of legacy's five-class `gui/ui/rename/`
 `MenuState::pending_scene`; E2 task 7 the five reset items and task 8 the twelve MIDI commands; E2
 task 9 the two patch-cable pages, the two source pickers, the mod matrix, the two fixed cables and
 the range picker; E2 task 10 the CV and gate output selectors and the MIDI device list
-(`menu/nodes/dynamic.h`); the other 36 still point at `nodes::kPending`). See the design spec's
+(`menu/nodes/dynamic.h`); E2 task 11b the five action items, the two preset-scale checklists and the
+audio-source selector; **the remaining 11 -- the file/sample family -- still point at
+`nodes::kPending`**, and `validate.h`'s `kPendingCustomNodes` names them). See the design spec's
 "Amendments during implementation" section for the full, cited account of each.

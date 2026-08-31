@@ -52,7 +52,9 @@
 
 #include "cppspec.hpp"
 
+#include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <map>
 #include <set>
 #include <span>
@@ -706,6 +708,76 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 			}
 		}
 		expect(too_many).to_equal(size_t(0));
+	});
+
+	it("still owes exactly the eleven file/sample placeholders, by identity", _ {
+		// E2 task 12. `allow_placeholder_custom` used to be checked only as a count, which is a net
+		// with a hole in it: an item task that finished one placeholder and a table that added
+		// another somewhere else would cancel out, and the number that says "E2 is not done" would
+		// not move. This pins the SET, so the later plan that closes the file/sample family out has
+		// to edit this list -- and adding a twelfth placeholder fails here instead of hiding.
+		//
+		// Named nodes, not string ids: two oscillators declare `FILE_BROWSER` under the same name
+		// (`nodes/sound_osc.h`'s `SOURCE_NODES` macro), so a set keyed on the label could not tell
+		// them apart. The comparison prints `id=name-string-id` pairs in node-id order, so a failure
+		// says which node arrived or left rather than only that a count moved.
+		select_language();
+		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
+
+		const Node* const kExpected[] = {
+		    // The two oscillator file browsers -- legacy's `sample_browser` / `file_selector`.
+		    &nodes::file0_selector, &nodes::file1_selector,
+		    // The four sample loop points -- `sample/start.h`, `sample/end.h`.
+		    &nodes::sample0_start, &nodes::sample1_start, &nodes::sample0_end, &nodes::sample1_end,
+		    // The two audio recorders -- `osc/audio_recorder.h`.
+		    &nodes::sample0_recorder, &nodes::sample1_recorder,
+		    // And the three one-offs that also need the card or a view this plan does not port.
+		    &nodes::midi_device_linked, &nodes::specific_output_selector, &nodes::audio_clip_waveform,
+		};
+		static_assert(std::size(kExpected) == menu::kPendingCustomNodes);
+
+		// Sorted by node id, not by pointer: a `std::set<const Node*>` orders by address, which
+		// varies with link order and would make the two sides of a failure hard to read against each
+		// other.
+		const auto describe = [](const std::set<const Node*>& nodes_in) {
+			std::vector<std::string> parts;
+			parts.reserve(nodes_in.size());
+			for (const Node* n : nodes_in) {
+				const uint16_t id = menu::node_id(*n);
+				std::string entry = std::to_string(id);
+				entry.insert(0, 4 - std::min<size_t>(4, entry.size()), '0'); // fixed width, so the sort is numeric
+				parts.push_back(entry + "=" + std::to_string(n->name));
+			}
+			std::sort(parts.begin(), parts.end());
+			std::string out;
+			for (const std::string& part : parts) {
+				out += part + " ";
+			}
+			return out.empty() ? std::string{"(none)"} : out;
+		};
+		std::set<const Node*> want{std::begin(kExpected), std::end(kExpected)};
+
+		std::set<const Node*> found;
+		for (uint16_t id = 1; id <= assigned; id++) {
+			const Node* n = menu::node_by_id(id);
+			if (n != nullptr && n->kind == menu::Kind::Custom && n->custom != nullptr && n->custom->is_placeholder()) {
+				found.insert(n);
+			}
+		}
+		expect(describe(found)).to_equal(describe(want));
+
+		// And the rule itself agrees with the walk: with the flag DOWN, `validate_tree` reports a
+		// `PlaceholderCustom` against each of exactly those nodes and nothing else. (The shortcut
+		// sweep stays on -- this is `kAllRoots`, the one caller for which it means anything -- and
+		// the issue list is capped at 64, comfortably above eleven.)
+		const auto strict = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});
+		std::set<const Node*> reported;
+		for (const menu::Issue& i : strict) {
+			if (i.kind == menu::Issue::Kind::PlaceholderCustom) {
+				reported.insert(i.node);
+			}
+		}
+		expect(describe(reported)).to_equal(describe(want));
 	});
 
 	it("numbers the tree when the application's registry is built, not only when a spec asks", _ {

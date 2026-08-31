@@ -1,0 +1,26 @@
+# Level-2 acceptance (E2 task 12): a global-MIDI-command learn item (nodes::midi_command_play,
+# E2 task 8), entered from the MIDI COMMANDS list with its slot already learned.
+#
+# `midi::Command` (`gui/menu_item/midi/command.cpp:33-87` drawPixelsForOled) has exactly two shapes,
+# and the interesting transition between them is the select encoder: `Command::selectEncoderAction`
+# (`:88-91`) clears the binding on ANY motion, in either direction, because the item has no value to
+# walk. So one detent takes the three-line device/channel/message readout to the one-line
+# "COMMAND UNASSIGNED".
+#
+# The `.state` half matters as much as the pixels here: `MidiCommandItem::wants_learn_blink` is true
+# on all twelve, so the frames on the item must carry a blinking LEARN led in `.state` -- the port of
+# `shouldBlinkLearnLed` -- and the frames on the list either side of them must not. A single-frame
+# pixel golden could not see that at all, which is why the script leaves and comes back.
+0     snapshot list_idle             # MIDI COMMANDS list, cursor on PLAY; no LEARN blink
+100   button SelectEnc down
+120   button SelectEnc up
+140   snapshot entered               # SPEC CABLE / CHANNEL 4 / CC 42, and LEARN blinking
+200   encoder Select +1
+220   snapshot after_select_turn     # cleared: one line, "COMMAND UNASSIGNED", LEARN still blinking
+300   encoder Select -1
+# No snapshot: the slot is already empty, so clearing it again draws the same frame. The step stays
+# because "either direction clears" is the claim, and the spec asserts the slot is still empty.
+400   button Back down
+420   button Back up
+440   snapshot after_back            # the MIDI COMMANDS list again, and the LEARN blink is gone
+500   quit
