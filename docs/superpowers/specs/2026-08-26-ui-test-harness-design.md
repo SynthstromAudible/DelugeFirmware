@@ -323,3 +323,41 @@ names the change and why it deviates from the draft above.
   dependency-free level-0 pieces a model-backed spec needs (`tests/harness/ui_script.cpp`,
   `snapshot.cpp`), the same split `src/scenes/README.md`'s "Testing: two spec trees" section
   describes.
+
+---
+
+## 11. Amendments from spec E2 (2026-08-30)
+
+**The host BSP's flash is RAM-backed now.** It read `0xFF` and dropped writes, which made
+`FlashStorage::readSettings`/`writeSettings` **untestable rather than untested** — a real byte-level
+loader bug (spec E §11's byte-166 assignment) had no possible regression net. It is now a 256-byte,
+one-sector RAM region. The properties every *other* spec depends on were checked and hold: the region
+boots erased (`memset 0xFF` on first use), reads past it still return erased, and erase resets the
+init flag — so every process still takes `readSettings`' "no settings saved" arm, and nothing that
+only reads changed behaviour.
+
+**A unit spec that drives its own ticks can only see the cadence it creates.** E2 shipped a
+held-backspace auto-repeat with a unit spec that pinned both timing constants from both sides — and
+the feature never fired at the runner's real cadence. The spec was not merely lucky in where it put
+its three ticks: it was **structurally blind**. A `RepaintAll` was in flight after every press,
+arming both repaint gates at 0 ms, so every tick it placed was a grid pass; the disarming tick that
+breaks the hold in the real shell (at the blink half-period, ~110 ms) could not occur inside it.
+
+The rule this makes explicit, for §4's level split:
+
+* **Anything time-driven belongs at level 2, not only at level 1.** The level-2 runner ticks
+  unconditionally every 10 ms, so a script exercises the real interleaving of repaint gates,
+  `after_render` and input — which is exactly what a hand-placed tick sequence cannot.
+* **A quiet tick is the test.** An example that only ever advances time by delivering an input event
+  proves nothing about behaviour that must survive a tick with nothing queued. Where a level-1 spec
+  must cover a timed behaviour, it has to include ticks with an empty event queue and assert the
+  frame *changes* — and a one-shot arm must fail it, so assert the square wave (differs at `T`,
+  matches again at `2T`), not merely that something moved once.
+
+This is what the acceptance layer is for, and it earned its place: level 2 found this bug and the
+`ascend()` re-seed bug, neither of which any level-1 spec covered.
+
+**A golden that records nothing is worse than no golden.** E2 shipped seven frames byte-identical to
+their own `idle` — named for an event they do not show, and therefore unable to fail when that event
+breaks. Deleting such a frame is the correct action, not keeping it for symmetry; three were deleted
+in E2 and seven remain as owed cleanup.

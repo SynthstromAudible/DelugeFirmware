@@ -264,6 +264,50 @@ RULES = [
         r"\bdeluge_clock_|\bstd::chrono\b|\bclock\(\)|\btime\(",
         "2026-08-26-ui-test-harness-design.md",
     ),
+    (
+        # E2 task 11b's action seam, stated as a rule rather than as a convention. Five menu items
+        # perform an action that legacy does by opening or reconfiguring a ROOT UI --
+        # `performanceSessionView`, `sessionView`'s macro editor, the MIDI-learn overlay. The
+        # scenes layer may not do that: it files a `MenuAction` (`menu/action.h`) into
+        # `MenuState`, drained where `pending_scene` drains, and the application-side wiring
+        # performs it. This row is what makes the seam necessary rather than merely tidy.
+        #
+        # It must be a SYMBOL row, not an include row: `scenes-includes-gui` above already
+        # forbids `#include "gui/ui/session_view.h"`, but this library routinely names a legacy
+        # global through a bare `extern` declaration instead of its header (`extern uint32_t
+        # jcong;`, `nodes/settings.cpp:76`) precisely because the include rule forbids the
+        # header -- so an include row alone cannot see the call.
+        #
+        # `getRootUI()`/`getCurrentUI()` are listed alongside the view globals because reading
+        # which root UI is current is the same coupling as calling into it: legacy's
+        # `isRelevant() == (getRootUI() == &sessionView)` predicates (`song/midi_learn.h:34-36`)
+        # are ported as `MenuContext` questions, not as root-UI reads. Task 11b's deferred
+        # session-vs-arranger split is the one place that costs something, and it is recorded in
+        # the spec's E3 carry list rather than papered over here.
+        #
+        # Same ratchet-not-proof caveat as the rows above: it sees these spellings, not every
+        # possible one.
+        "scenes-no-root-ui",
+        "src/scenes/**",
+        "symbol",
+        (
+            r"\b(sessionView|arrangerView|automationView|performanceSessionView|instrumentClipView|"
+            r"audioClipView|renameClipUI|renameOutputUI|renameDrumUI|renameMidiCCUI)\b"
+            r"|\b(openUI|closeUI|changeRootUI|getRootUI|getCurrentUI|swapOutRootUILowLevel)\("
+        ),
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
+    (
+        # The notify seam's half of the same argument. `model-calls-display` above holds the
+        # model layer to this; NON_UI does not cover `src/scenes`, so until now nothing did.
+        # A scene reports to the user through `notify::` and `Action::Kind::Popup` (E2 task 5's
+        # rename-refusal path), never by reaching for the global `display`.
+        "scenes-no-display",
+        "src/scenes/**",
+        "symbol",
+        r"\bdisplay->",
+        "2026-08-26-ui-notifications-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)

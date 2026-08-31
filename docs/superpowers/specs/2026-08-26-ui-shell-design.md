@@ -682,3 +682,31 @@ it is recorded here as planned rather than folded into that commit after the fac
   `Notices`-driven overlay (`Console` in particular, once the previous bullet's fix let it be pushed
   and left up across other scenes) can legitimately sit above `MenuScene` when Back is pressed, and
   removing "the top" would remove the notice instead of the menu.
+
+---
+
+## 14. Amendment from spec E2 (2026-08-30)
+
+**The two surfaces' repaint paths are coupled, and a scene author must know it.** `Shell::tick`
+renders an OLED surface only on `gate.needs_frame`, the shell-wide widgets gate, or
+`router_.repaint_requested`; `after_render` then runs **only for a scene that rendered something on
+either surface** (`rendered_this_tick_`). The two halves are therefore not independent: an OLED
+repaint wake keeps a grid-driven behaviour alive, and losing the OLED wake silently stops the grid
+one.
+
+This was found the hard way in E2. `RenameScene`'s cursor blink and its held-backspace auto-repeat
+are separate features on separate surfaces, and stubbing the *OLED* gate arm broke the *grid*
+cadence examples — because the blink wake was the only thing bringing the scene back on a quiet tick,
+and `after_render` is where the repeat advances. Neither the implementer nor the reviewer had traced
+that before the bite-check showed it.
+
+Two consequences for scene authors, both stated in §5's terms:
+
+* **A render-only widget cannot keep itself alive.** Neither `ui::oled::text_edit` nor
+  `ui::grid::text_keyboard` owns a clock or can arm a `RepaintGate`, so a blink they compute the
+  right phase for will simply never repaint. `Scene::next_timer()` decides when the host is *woken*;
+  `RepaintGate` decides whether a woken tick *redraws*. Both are needed, and only the scene can
+  supply the second.
+* **A single-frame golden cannot see any of this.** A blink that computes correctly and never
+  repaints, or a repeat that fires once and stalls, both pass a golden. Anything time-driven needs a
+  quiet-tick example — see the harness spec's amendment on cadence.

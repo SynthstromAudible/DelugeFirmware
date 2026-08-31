@@ -638,3 +638,33 @@ toolkit was built. Each line names the change and why it deviates from the draft
   layout legacy's table actually has, two action pads with no table entry of their own, a
   brightness range that is 0..256 inclusive in legacy (one past a `uint8_t`), and legacy's own
   mirrored column numbering in `prepareColour`, respectively.
+
+---
+
+## 13. Amendment from spec E2 (2026-08-30): three widgets, and the bar for adding one
+
+E2 added `ui::oled::text_edit` (`QwertyUI::drawTextForOLEDEditing`), `ui::oled::option_window`
+(legacy's `ContextMenu` box) and `ui::oled::routing_chain` + `segmented_switch` (the patch-cable
+strength page's arrow diagram and BI/UNI box).
+
+Each was added instead of relaxing `scenes-no-frame-primitives` for the one page that needed it. The
+bar applied, and worth restating for the next such case: **a new widget must be justified by measured
+differences from the widget it resembles, not by convenience.** `option_window` is the worked example
+— it differs from `ui::oled::list` in label inset (1 vs `style.inset_x` = 6), highlight extent (106
+vs a value derived from the label's own rect, 101), and cursor placement (pinned to the bottom row vs
+`list_window_start`'s centring). Parameterising `list` to cover it would have meant two rects, an
+external window start, and suppressing its `claim_turn`/`claim_select`/`move_cursor` — i.e. disabling
+most of what `list` is.
+
+Two toolkit rules were tested by these and held:
+
+* **Render-only means render-only.** `text_edit` does not read the horizontal encoder; that belongs
+  to the scene, under `frame_context.h`'s reading-is-claiming rule. The consequence is that a
+  render-only widget also cannot arm a `RepaintGate` — see the shell spec's amendment.
+* **A legacy layout choice with no `Style` counterpart is hard-coded at the call site, not modelled.**
+  Legacy's 13 px "Big" face (`kTextBigSizeY`, `gfx/oled/font.h:14`) has no `Style` field because
+  `Style` models no 13 px face and both profiles only ever yield `MetricBold20`. One consumer is
+  premature abstraction; revisit when a profile needs to override it. The same reasoning names
+  `kApple7Height7YAdjust` in `ui/core/metrics.h` rather than folding an unexplained `-1` into a
+  file-local literal — 29 legacy call sites use `kTextSizeYUpdated` across five files and two are
+  still unported, so the next porter would otherwise rediscover it through a one-row-wrong golden.

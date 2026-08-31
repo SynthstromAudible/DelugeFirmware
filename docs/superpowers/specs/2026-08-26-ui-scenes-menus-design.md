@@ -532,7 +532,20 @@ be unnumbered by `assign_node_ids`, unvalidated by `validate_tree` and absent fr
 `deluge_menu_dump` — so `SceneId::arg` could not address a chained page and `MenuScene::on_enter`
 could not restore one. `assign_node_ids`, `validate.cpp`'s `collect` and the dump all follow
 `chain_targets` as a second edge kind; the first two terminate on a cycle by the "already seen"
-test they already had, and the dump fails loudly on one rather than invent a `$ref` shape.
+test they already had.
+
+*The dump's cycle handling changed in E2 task 9, and the earlier "fails loudly" wording is
+superseded.* Task 3 built `fail_on_chain_cycle` to stop on a cycle, on the reasoning that a cyclic
+menu graph would be a porting mistake. It is not: legacy has a genuine 2-cycle — from
+`patch_cable_strength::rangeMenu` a select press opens `source_selection::rangeMenu` and straight
+back again — so the dump would have refused to emit the shipped tree. It now emits a **`"ref"`
+stub** for a back edge: an entry carrying only the id of a node already emitted in full earlier in
+the walk. Verified against the committed JSON as 118 stubs, every one an ancestor on its own path,
+every ref id resolving to a full entry seen earlier, walk terminating, output deterministic. Because
+that removed the net that said "you added a cycle", the ref-producing **edge set** is pinned by a
+spec instead, and it expects exactly **two** entries — both directions of the single legacy loop,
+since the tree reaches each end first from somewhere. An unintended new cycle names the offending
+edge rather than merely moving the JSON.
 
 *(a) Leaf-to-menu chaining whose source node E1 declares — ported by E2 task 3 except the `dxMenu`
 row:*
@@ -700,3 +713,293 @@ placeholder never routes input to it — the shipped mechanism is `nodes::kPendi
 `ValidateOptions::allow_placeholder_custom`; the `DELUGE_SCENES_E1_PARTIAL` macro the plan
 proposed was never built); and gold-knob acceleration
 (`calcNextKnobSpeed`).
+
+---
+
+## 12. Amendments closing E2 (2026-08-30, Tasks 1–13 of `2026-08-30-ui-scenes-menus-2.md`)
+
+E2 finished the item port: every legacy menu item that needs no card access now has a real
+implementation. This section records the rulings that changed the design above, each with what it
+cost and what it would cost to reverse. The E3 carry list is §13.
+
+### 12.1 `Kind`: the ≥3 rule applied in all three directions
+
+§4's line 95 states the rule verbatim: *a kind exists only if ≥3 items use it*. E1 task 8 used it to
+delete five speculative kinds at zero consumers. E2 applied it three more times, and two of those
+went against the plan that proposed them.
+
+**`Kind::Info` was created and deleted inside one task (task 2).** The plan added it to carry the
+two read-only text pages, `firmware_version` and `battery_level`. Two consumers is under the bar —
+so it was under the bar the day it was written into the plan, and the spec, not the plan, is the
+authority. A second reason confirmed the first rather than standing alone: `InfoFn` was a stateless
+function pointer, and legacy's battery item derives "is charging" from a voltage delta held **on the
+item instance** across timer ticks (`gui/menu_item/battery/level.h:57-61`). The first implementation
+therefore dropped legacy's `" CHG"` suffix — design dictating behaviour, the wrong way round for a
+port whose whole premise is legacy parity. Both items are `CustomItem`s, which may hold `mutable`
+state exactly as legacy does, and the suffix came back. *Cost if wrong:* two small `CustomItem`s
+instead of one kind; if a third read-only text item appears in E3 the kind returns with three
+consumers, which is what the rule is for. The custom-input plumbing that task built — the valuable
+half, and what every later item group stands on — is untouched by this.
+
+**`Kind::Range` returned at exactly three (task 11b).** `default_tempo`, `default_swing_amount` and
+`default_key` are legacy's `menu_item::Range` and its two subclasses (`gui/menu_item/range.h:30`,
+`integer_range.h:25`, `key_range.h:24`). Three is the bar, not a near miss, and the same rule that
+deleted `Range` as speculative in E1 is the rule that brought it back. `Binding::get`/`set` are the
+**lower** edge; `Binding::range_spec` carries the upper edge's hooks and the two per-item rules (how
+the ends spell themselves; what happens when they would cross — `Push` drags the other end, `Bound`
+*is* the bound). The consumer set is pinned by node identity in a spec, so a fourth consumer or a
+lost third is a deliberate change rather than drift.
+
+**The six pad colours need no `Kind::Colour` (task 11).** This was expected to be the kind's first
+real consumer. It is not: legacy's `menu_item::Colour` is a plain `Selection` over nine options plus
+a rendering side effect, so the port's six are ordinary `Kind::Enum` nodes with get/set hooks. The
+lesson for §4 is that "there is a legacy class named after it" is not the test — three consumers
+with a shape no existing kind expresses is.
+
+### 12.2 `CustomItem` grew an interface, not just implementations
+
+§4's sketch gives `CustomItem` a render hook and nothing else. E2 added, in the order the item
+families needed them:
+
+* **Input dispatch (task 2).** `handle(UiEvent, UiContext, const MenuContext&, MenuState&)`, called
+  by `MenuScene` **before** the shortcut-pad jump and the root `Back` — the precedence legacy gives
+  a `MenuItem`'s own `buttonAction` over the rest of `SoundEditor::buttonAction`
+  (`gui/ui/sound_editor.cpp:607 buttonAction`). Without this every bespoke item was render-only, so
+  this is the prerequisite the whole rest of E2 stands on.
+* **`on_focus` (task 2, review fix).** The port of `beginSession`. Added because
+  `BatteryLevelItem`'s charging baseline never reset on re-entry: legacy resets
+  `lastBatteryMV`/`voltageCheckCounter` in `beginSession` every time the item is focused, and the
+  port set its flag once for the whole process, so a second visit computed a delta over an arbitrary
+  real-world gap and could show a spurious `CHG`. The ruling was to add the missing lifecycle hook
+  rather than document the deviation, because `beginSession` is a general concept that ~45 ported
+  items use — `midi::Command::beginSession` and `midi::Devices::beginSession` both need it, and
+  bolting it on in a later task would have left every item written in between with no way to
+  initialise. It returns `void`, and must: it is also reached from `retarget()` and
+  `restore_state()`, neither of which has a `Result` to put an `Action` in.
+* **The learn virtuals (task 8).** `learn_note_on`, `learn_cc`, `learn_program_change`, `unlearn`,
+  `wants_learn_blink`, `learn_descriptor`, all with inert defaults, plus the matching
+  `MenuScene::learn_*` entry points (which match `sound_editor.cpp:1550-1570`, including
+  `noteOnReceivedForMidiLearn` having **no** UI-mode gate). **Nothing routes MIDI into the scene
+  stack**, so these are specced at the item level and uncovered at the routing level; that is stated
+  rather than implied away. `bindings::learn_target` is a different path — PARAM learn, not
+  global-command learn — and now says so on its declaration.
+
+### 12.3 The action seam (`menu/action.h`, task 11b)
+
+`MenuState::pending_scene` (task 5) is the **noun** half: an item names a scene, and
+`MenuScene::after_render` — the first hook after `enter_leaf` that has a `Result` — turns it into an
+`Action::Kind::Push`. It works because every scene a menu opens is inside `src/scenes`.
+
+Five items are not like that: `perform_editor`, `start_stem_export`, `set_clip_length`,
+`song_midi_learn` and `configure_song_macros` each run a piece of legacy **root-UI** behaviour.
+Every one names a symbol in `gui/views/`, `gui/ui/` or `gui/context_menu/`, which this layer may not
+reach — and two of the five open legacy `ContextMenu` subclasses this plan has not ported, so even
+`pending_scene` could not spell them. The layer rule is not incidental to the seam, it is its
+justification, and it is now machine-checked: `scenes-no-root-ui` in `scripts/check_layer_rules.py`
+is a **symbol** row rather than an include row, because this library routinely names a legacy global
+through a bare `extern` declaration instead of its header (precisely because the include rule forbids
+the header), which an include row cannot see.
+
+The verb half mirrors the noun half: a closed `MenuAction` enum, a `MenuActionRequest` carrying it
+plus one `uint16_t` payload for the one action whose meaning is not fixed by its identity, a
+`MenuState::pending_action` field, and a drain **where `pending_scene` drains**. Identity is the
+strong part: distinct per item, exhaustively switched at the drain, mapped by identity rather than
+position, so a dispatcher cannot mis-map it and a sixth enumerator breaks the switch loudly.
+
+**`take_action()`'s contract, stated because it is a limit and not an oversight.** It is a
+**one-slot mailbox with a silent overwrite**, and nothing obliges per-tick polling. Two requests
+filed between two polls lose the first. It is sufficient today because a menu item cannot file two
+actions in one tick; it stays sufficient only while the wiring plan's dispatcher polls every tick.
+A dispatcher that wants to be lazy must turn the slot into a queue first. **Nothing performs any of
+these actions** — `menu_actions_spec.cpp` asserts that the right item emits the right identity and
+payload through the real input path, and cannot assert that anything happens as a result.
+
+### 12.4 Three toolkit widgets, and why each was a widget rather than a relaxation
+
+`scenes-no-frame-primitives` forbids scene code from calling `f.rect`/`f.hline`/… directly. Three
+times in E2 a page needed pixels the toolkit had no widget for. Each time the answer was a widget;
+relaxing the rule was considered and rejected each time, because it would reopen the boundary for
+the whole library to serve one page.
+
+* **`ui::oled::text_edit` (task 4)** — `QwertyUI::drawTextForOLEDEditing`. It is render-only: the
+  horizontal encoder belongs to `RenameScene::handle` under `frame_context.h`'s reading-is-claiming
+  rule. Its non-obvious arm is the **invert-to-end** presentation, which is not predictive-text
+  highlighting but the cursor itself whenever the cursor is mid-string (the `atVeryEnd` false arm),
+  with the blinking bar used only at the end. Dropping it would have shown an underline where legacy
+  shows an inverted tail in the ordinary editing case — and it is expressible model-free, since it
+  depends only on cursor, scroll, the rect and `Style::invert_highlight`, which the toolkit already
+  models.
+* **`ui::oled::option_window` (task 6)** — the context-menu box. It is a separate widget from
+  `ui::oled::list` on three measured differences, all verified against legacy: label inset 1 vs
+  `style.inset_x` = 6; highlight extent 106 vs a value derived from the label's own rect (101); and
+  the cursor pinned to the **bottom** row where `list_window_start` centres it. Parameterising
+  `list` would have meant two rects, an external window start, and suppressing its
+  `claim_turn`/`claim_select`/`move_cursor` — i.e. disabling most of what `list` is.
+* **`ui::oled::routing_chain` and `segmented_switch` (task 9)** — the patch-cable strength page's
+  arrow diagram and BI/UNI box. The information was all present without them, so this was not data
+  loss; the argument for adding them is that this is the one page in the tree whose job is making a
+  routing legible at a glance, and arrows carry "A modulates B" pre-verbally where a title line makes
+  the user parse a string.
+
+Two consequences of the third are recorded rather than fixed. The BI/UNI switch sits top-right
+rather than at legacy's absolute canvas row 34, because the port renders the value with the toolkit's
+face where legacy uses a 13 px one, so row 34 would fall under the digits — **upheld**, on the
+grounds that buying pixel fidelity on one page costs the consistency users read across every page,
+and the page's identity, the diagram, is preserved. The *value*, however, was **not** upheld: at the
+toolkit's 20 px face the number clipped its last digit at five glyphs, and the range is ±50.00, so
+every value ≥ 10 clipped and every negative was worse at six. A switch moved five rows is cosmetic; a
+number the user is editing being unreadable is not, so task 12 adopted legacy's own arrangement —
+right-aligned in the 13 px face beneath the switch.
+
+### 12.5 Two new scenes
+
+* **`rename::RenameScene` (task 5)**, `SceneKind::FirstApp + 1`. One scene in place of legacy's
+  five-class `gui/ui/rename/` directory: the four subclasses differ only in `getCurrentName()`,
+  `trySetName()` and `allowEmpty()`/`canRename()`, so those become a `rename::Target` table indexed
+  by `SceneId::arg`. **Three** targets, not four — `renameMidiCCUI`'s only opener is
+  `gui/views/automation_view.cpp:1641` and no `Node` reaches it, so it is deliberately absent rather
+  than shipped untested. Rejection is popup-and-stay-open via `Action::Kind::Popup`, matching legacy,
+  because no `Severity::Warn` path exists (notify's raise helpers take no severity).
+* **`context_menu::ContextMenuScene` (tasks 6, 7, 11b)**, `SceneKind::FirstApp + 2`. §6's sketch is
+  confirmed: one scene plus a `Descriptor` table, `DescriptorId` in `SceneId::arg`. Six descriptors
+  ship — the five `reset_settings::Reset` actions and `audio_clip::AudioSourceSelector`, the last
+  deliberately deferred from task 6 until `Descriptor` grew the three hooks it needs. Corrections to
+  the draft worth carrying: `ResetSettings`' options are `{OK}` under the title "Are you sure?", not
+  `{NO, YES}`; the box is a fixed 100×40 square, not a computed popup rect; the title is a plain left
+  `drawString` at x 22, not `ui::oled::title`.
+
+### 12.6 `dynamic_children` fits none of the runtime-list pages
+
+§4's `Node` sketch carries `size_t (*dynamic_children)(...)` with "DX presets, MIDI devices…" beside
+it, and E1's dump fails closed on any node that sets it. E2 task 10 went looking for the first real
+consumer among the three pages that obviously wanted one — the MIDI device list and the CV and gate
+output selectors — and found that **none of them can be one**. Two independent reasons:
+
+1. **Labelling.** A submenu row is labelled from `Node::name`, one static `uint16_t` l10n id; a
+   device row's label is a runtime `getDisplayName()` string. `dynamic_children` returns *pointers to
+   `Node`s*, so N runtime-labelled rows would need N pieces of `Node` storage varying at runtime, in
+   a `constexpr` table layer that allocates nothing. A name hook does not rescue that.
+2. **Shape.** `midi::Devices` is `class Devices final : public Value<int32_t>` — a **leaf** whose
+   value is an index. `drawPixelsForOled` paints the labels itself and `selectButtonPress` returns
+   *one* destination for every row, so N rows chaining to the same page is structurally wrong for
+   `dynamic_children` before labelling even enters it. CV and gate are hard-coded `Selection`s over
+   compile-time channel counts.
+
+All three are therefore `CustomItem`s (`menu/nodes/dynamic.h`), the dump's fail-closed arm stays, the
+committed JSON is unchanged, and a spec now pins the `dynamic_children` count at **zero** so the arm
+guards a case nothing produces. The shape that *would* work — a static "may-yield" span on `Node`, in
+`chain_targets`' shape — is written where the fail-closed comment sits. A further reason not to force
+it: the dump has no `MenuContext` at all (E1 task 10 removed its fixtures), so expanding dynamic
+children there would make the committed JSON a function of `MIDIDeviceManager`'s globals.
+
+### 12.7 Two edits to legacy source, in a plan whose safety argument is that legacy stays put
+
+This plan's whole comparison method is that `gui/menu_item/**` is an independent oracle. Editing it
+is therefore a thing to justify twice, not once.
+
+**The `Colour::value` move (task 11).** A member of a `gui/` class is unreachable by declaration from
+`src/scenes`, so `menu_item::Colour::value` moved into `FlashStorage::padColours` with `value` left
+as a reference onto it. The risk is that port and legacy now read and write the same storage *by
+construction*, which would hollow out the comparison. It does not: `Option` was already
+`enum Option : uint8_t`, so the type and width are unchanged, there is no aliasing or init-order
+hazard, and every call site is unchanged in meaning. It does make the *value* comparison degenerate —
+both sides write the same byte — but legacy's write is a bare store with no transformation, so
+nothing was being compared away; and the shared byte is used as the **mechanism** for a stronger
+test, which drives one node, requires `moved_count == 1` across the six legacy items, and asserts the
+observed permutation is the identity while a transposition of it is not. Shared storage was already
+the pattern here (`PadLEDs::flashCursor`, `runtimeFeatureSettings`).
+
+**The `readSettings` byte-166 fix** is recorded in §11 above, including why it was patched where
+`AudioRecorder::isRelevant` was only recorded, and its migration consequence (an upgraded user can
+boot with ONCE = RED, self-healing the first time they set the ONCE colour).
+
+### 12.8 The host BSP's flash became RAM-backed
+
+`readSettings`/`writeSettings` turned out to be **untestable, not untested**: the host BSP's flash
+stub read `0xFF` and dropped writes, so no spec could observe a settings round trip and the byte-166
+bug had no regression net. It is now RAM-backed — 256 bytes, one sector. The properties that matter
+for every *other* spec were checked and hold: the region still boots erased (`memset 0xFF` on first
+use), reads past it still return erased, and erase resets the init flag — so every process still
+takes `readSettings`' "no settings saved" arm and nothing that only reads changes behaviour.
+
+### 12.9 `ascend()` re-seeds `beginSession`, and the arm it deliberately omits
+
+`MenuScene::ascend()` never re-ran the equivalent of `beginSession` on the leaf it lands on, unlike
+legacy's `goUpOneLevel` → `beginScreen`. Returning from a chained value page therefore drew and
+edited the **child's** value under the parent's title. Found by E2 task 12's acceptance layer, which
+is what an acceptance layer is for: no unit spec covered a return path.
+
+The fix excludes `Kind::Custom` deliberately — including it broke the CV selector, which a level-2
+script caught. That exclusion is sound only while every chain-source custom item's backward behaviour
+is "keep what `MenuState` already holds", which is true of all of them today (they write disjoint
+`MenuState` fields) and **untested**. It stands in for a missing `CustomItem::on_focus_backward`:
+`on_focus` is the forward arm only. An item needing a different answer on the way back needs
+`CustomItem` to gain that parameter, not this exclusion relaxed. Carried to E3.
+
+### 12.10 The auto-repeat bug, and why its unit spec was structurally blind
+
+Legacy auto-repeats a held backspace (`gui/ui/qwerty_ui.cpp` arms 500 ms, then re-arms at 80 ms), so
+task 5 ported it into `ui::grid::text_keyboard`'s `Response::held_index` and specced it from both
+sides of both constants. **It never fired at a real tick cadence.** The shell runs `after_render` on
+OLED-only ticks where `held_index` is `-1`, which disarmed the hold at the blink half-period (~110
+ms) after every press.
+
+The spec passed not by luck of tick placement but because it was **structurally blind**: a
+`RepaintAll` was in flight after every press, arming both gates at 0 ms, so every tick the spec
+placed was a grid pass. A unit spec that drives its own ticks can only see the cadence it creates.
+The general lesson, and the reason this is an amendment rather than a bug report: **anything
+time-driven needs coverage at the runner's real cadence, not at hand-placed ticks** — the level-2
+runner ticks unconditionally every 10 ms, which is why the fix is phase-independent and why the
+regression now lives there. Two related facts fell out of the same investigation and are worth
+keeping: the two surfaces' repaint paths are **coupled** through `rendered_this_tick_`
+(`after_render` runs only for a scene that rendered on *either* surface), so the OLED blink wake was
+keeping the grid-driven repeat alive; and neither `text_edit` nor `text_keyboard` can arm a
+`RepaintGate` (both are render-only and own no clock), so the *scene* must arm both.
+
+## 13. E3 carry list
+
+Held here so the next plan's author finds it in the spec rather than in a ledger. `src/scenes/README.md`
+carries the same table with pointers into the code.
+
+| carried | why it was not done | size |
+|---|---|---|
+| **The file/sample family** — 11 nodes still `nodes::kPending` | needs the card; every other item family was reachable without it | the largest remaining group. `validate.h`'s `kPendingCustomNodes` names the exact set, pinned by node identity so closing it is a deliberate spec change |
+| **`midiDeviceMenu`'s subtree** (`gui/ui/menus.cpp:1444-1453`) — `midi_devices` has no `select_chain` because its target page is declared by no node | size, and only size. Tasks 3 and 9 each declared a *single* chain-target page; this is several times that | ~8 nodes, 3 bespoke: a new submenu, four leaves needing a binding family scoped to `MenuContext::midi_cable` (per-cable state, unlike every binding shipped), plus `mpe::DirectionSelector` — itself bespoke, with instance state, a runtime `getTitle()` and its own chain onward to `zoneSelectorMenu` |
+| **Splitting session from arranger** — `song_midi_learn` and `configure_song_macros` stay visible in the arranger where legacy hides them | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:265` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
+| **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback`, the three `shouldBlinkPatchingSourceShortcut` overrides and `patchingSourceShortcutPress` | `MenuScene::render_grid` owns one blink cycle keyed off the focused *node*; consulting the focused `CustomItem` needs a hook on `CustomItem` and a second blink source | same shape of change as routing MIDI to `MenuScene::learn_*` |
+| **The row-scrolling path is untested, not missing** — `ui/oled/list.cpp:156` does run `scroll_text` on the focused row with motion allowed | every over-long row in the recorded goldens is *unselected*, which legacy truncates too. (Legacy does **not** side-scroll long *titles*: `draw_screen_title` is a plain clipped `draw_string`, so a truncated title is faithful) | one level-2 script parking the cursor on a long row across quiet ticks |
+| **Seven self-duplicate goldens** — `menu_int/{after_select_press,after_select_turn}`, `menu_enum/{after_select_press,after_gold_turn}`, `menu_toggle/{after_select_press,after_gold_turn}`, `menu_shortcut/after_select_turn` each equal their own `idle` | pre-existing; each is named for an event it does not show | cleanup. E2 task 9 deleted three of exactly this kind, so leaving seven is an inconsistency, not a policy |
+| **`perform_editor`'s owed sync calls** | the displayed mode mirrors two `PerformanceView` bools, because a class member offers no bare-`extern` escape | four calls into `menu::performance_editing_mode()`. Same failure mode as `set_shortcuts_version` |
+| **The action seam's dispatcher** — nothing consumes `MenuScene::take_action()` | it is the half that gets to say `openUI(&performanceView)`, i.e. the wiring plan's | one `switch` over five enumerators, plus per-tick polling — see §12.3's mailbox contract |
+| **`CustomItem::on_focus_backward`** | `ascend()`'s `Kind::Custom` exclusion stands in for it, and is sound today | one virtual, or a parameter on `on_focus` — see §12.9 |
+
+Unchanged from §11's list and still owed: `source_shortcut_pads`; per-pad blink frequency masks;
+two context-dependent blink suppressions; settings-root shortcut jumps (blocked on
+`MenuContext` gaining `background_root`); the four `hid/`-side write side effects; `osc0_type`/
+`osc1_type` → `dxMenu` (waits on the DX browser); `Submenu::shouldForwardButtons()` forwarding;
+`Automation::selectButtonPress`'s shift-held automation delete; per-node cursor memory across
+sessions; and gold-knob acceleration (`calcNextKnobSpeed`).
+
+## 14. Citations into legacy source: the convention
+
+Every claim in `src/scenes/**`, `src/ui/**` and the spec trees is justified by a citation into
+`src/deluge/**`. Those citations **rot**, and this plan is the proof: E2 task 9 corrected **176** in
+one sweep, task 11's review found **92** more resolving inside GPL header blocks across nine files,
+task 11b corrected **125** — and roughly **50 of those were exactly correct when written** and were
+broken by this plan's *own* edit to `gui/ui/menus.cpp`, which wrapped two constructor calls and
+shifted every line below `menus.cpp:1647` by two. Task 13 swept the whole surface again and corrected
+**238** more.
+
+**The convention, applied from task 13 onward: a citation names its SYMBOL as well as its line** —
+`` `command.cpp:115 learnNoteOn` `` or `` `Command::learnNoteOn` (`command.cpp:115`) ``. The symbol
+is the only part of a citation that survives an edit to the file it points at, and this plan edits
+legacy files routinely.
+
+**No checker was built, deliberately.** Verifying that a path exists and a line range is in bounds is
+mechanizable and catches only gross drift — a citation off by four still resolves to real code.
+Verifying that a line *means* what the comment claims is not mechanizable at all. Inventing tooling
+this late buys less than the convention does. What task 13's sweep actually mechanized is the
+**certainly-wrong** set — a citation whose whole range is past EOF, inside a licence block, or
+nothing but `#include`/`namespace`/brace/blank lines, because no claim in these comments refers to
+those — and then resolved each by hand or by symbol anchor. That method's blind spot is stated: drift
+that lands on real code is invisible to it, so the count below is a floor, not a total.

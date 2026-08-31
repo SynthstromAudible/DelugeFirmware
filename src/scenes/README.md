@@ -7,6 +7,15 @@ CMake module, the l10n bridge and `scenes::deluge_profile()`, the declarative `N
 ten root tables, `MenuContext` resolution, `bindings::read`/`write`, the `MenuScene` interpreter,
 the shortcut tables, the validator, the node-id registry and `deluge_menu_dump`.
 
+E2 is complete as of the thirteen tasks of `docs/superpowers/plans/2026-08-30-ui-scenes-menus-2.md`:
+every remaining legacy menu item that needs no card access now has a real implementation behind it.
+That added two scenes (`rename/`, `context_menu/`), three toolkit widgets (`ui::oled::text_edit`,
+`option_window`, `routing_chain`/`segmented_switch`), input dispatch and lifecycle hooks on
+`CustomItem`, `Node::select_chain`/`chain_targets`, `Kind::Range`, and the **action seam**
+(`menu/action.h`). What E2 did *not* do is give the library an entry point — see the box below —
+and the eleven `kPendingCustomNodes` of the file/sample family are E3's, along with the rest of the
+carry list at the end of this file.
+
 > **Read this before adding a menu item.** The shipping firmware still runs the *legacy*
 > `SoundEditor` and its ~200 hand-written `MenuItem` classes under `src/deluge/gui/menu_item/`.
 > **Nothing links `deluge_scenes`** — `src/CMakeLists.txt`'s `add_subdirectory(scenes)` builds the
@@ -16,8 +25,11 @@ the shortcut tables, the validator, the node-id registry and `deluge_menu_dump`.
 > * **A menu item users must be able to open goes into `gui/menu_item/` + `gui/ui/menus.cpp`**, the
 >   legacy tree, exactly as before. That is the system the device runs.
 > * **A node added here is a port of a legacy item**, kept in step with it and cross-checked
->   against it by `sim/scenes_spec/tables_*_spec.cpp`. It changes nothing a user can see until E2
->   gives `deluge_scenes` a real entry point.
+>   against it by `sim/scenes_spec/tables_*_spec.cpp`. It changes nothing a user can see. E2
+>   finished the *items* and did not give `deluge_scenes` an entry point: nothing routes buttons,
+>   pads or MIDI into the scene stack, nothing performs a `MenuAction`, and no boot path calls
+>   `menu::set_shortcuts_version` or `assigned_node_ids`. That is the wiring plan's job, and until
+>   it lands this library is a very well tested tree that no user reaches.
 > * **Adding an item to one tree only silently diverges them.** A new legacy item with no node here
 >   fails no test today; a node here with no legacy item fails the lockstep walk immediately. If you
 >   add to `gui/menu_item/`, add the node too.
@@ -127,13 +139,37 @@ kit, MIDI/CV, song, settings, …), gathered by `MenuScene::roots()`
 
 ### Adding a `Kind`
 
-The shipped `Kind` enum is `{Submenu, Toggle, Enum, Int, Decimal, SyncLevel, Custom}` — narrower
-than spec E's original draft, which also listed `Bipolar`, `Range`, `MultiRange`, `Colour` and
-`Action`. Those five were dropped: zero nodes across all ten roots needed them, failing spec E §4's
-own "a kind exists only if ≥3 items use it" rule at zero (see the design spec's amendments section
-for the full account; `Action` returns in E2 with its first real consumer). Before adding a new
-`Kind`, count actual users the same way — a kind that will not clear three real nodes belongs as a
-`Custom` item instead.
+The shipped `Kind` enum is `{Submenu, Toggle, Enum, Int, Decimal, SyncLevel, Range, Custom}` —
+still narrower than spec E's original draft, which also listed `Bipolar`, `MultiRange`, `Colour`
+and `Action`.
+
+**The rule that decides this is spec E line 95: a kind exists only if ≥3 items use it.** It has now
+been applied in all three directions, and the history is worth reading before you propose a kind:
+
+* **Dropped at zero (E1 task 8).** `Bipolar`, `Range`, `MultiRange`, `Colour` and `Action` had no
+  node at all across the ten roots. Speculative kinds, deleted.
+* **Created and deleted inside one task (E2 task 2).** `Kind::Info` was going to carry the two
+  read-only text pages, `firmware_version` and `battery_level`. Two is under the bar, so it was
+  under the bar the day it was written into the plan — and a second reason confirmed the first:
+  `InfoFn` was a stateless function pointer, and legacy's battery item derives "is charging" from a
+  voltage delta held *on the item instance* across timer ticks (`battery/level.h:57-61`), so the
+  kind's shape was dictating a behaviour loss. Both items are `CustomItem`s, which may hold
+  `mutable` state exactly as legacy does. The custom-input plumbing that task built is what every
+  later item group stands on; the kind is what was wrong.
+* **Returned at exactly three (E2 task 11b).** `Kind::Range` came back for `default_tempo`,
+  `default_swing_amount` and `default_key` — legacy's `menu_item::Range` and its two subclasses
+  (`gui/menu_item/range.h:30`, `integer_range.h:25`, `key_range.h:24`). Three is the bar, and the
+  node set is pinned by a spec so a fourth consumer or a lost third is a deliberate change. The
+  same rule that deleted it as speculative is the rule that brought it back.
+* **Not needed even where it looks obvious (E2 task 11).** The six pad colours were expected to
+  want a `Kind::Colour`. They do not: legacy's `menu_item::Colour` is a plain `Selection` over nine
+  options plus a rendering side effect, so the port's six are ordinary `Kind::Enum` nodes with
+  get/set hooks. "There is a legacy class named after it" is not the test; three consumers with a
+  shape no existing kind expresses is.
+
+Before adding a new `Kind`, count actual users the same way — a kind that will not clear three real
+nodes belongs as a `Custom` item instead. See the design spec's amendments section for the cited
+account of each of the four moves above.
 
 ### Adding a `Custom`
 
@@ -174,8 +210,34 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
 
 To add one:
 
-1. Implement `CustomItem` (`node.h`): `render(OledFrame&, const MenuContext&, MenuState&)` and
-   `handle(UiEvent, UiContext, const MenuContext&, MenuState&)`.
+1. Implement `CustomItem` (`node.h:272`). Two pure virtuals and nine defaulted ones, all added by
+   E2 as the item families needed them — implement only what your item actually has:
+
+   | virtual | added by | legacy counterpart |
+   |---|---|---|
+   | `render(OledFrame&, const MenuContext&, MenuState&) const` | E1 | `drawPixelsForOled` |
+   | `handle(UiEvent, UiContext, const MenuContext&, MenuState&) const` | E2 task 2 | the item's own `buttonAction`/`padAction`/`selectEncoderAction` |
+   | `on_focus(const MenuContext&, MenuState&) const` | E2 task 2 | `beginSession` |
+   | `commit(const MenuContext&, MenuState&) const` | E1 | `writeCurrentValue` |
+   | `is_placeholder() const` | E1 | — (the `kPending` marker) |
+   | `learn_note_on` / `learn_cc` / `learn_program_change` / `unlearn` / `wants_learn_blink` / `learn_descriptor` | E2 task 8 | `MenuItem::learnNoteOn`/`learnCC`/`learnProgramChange`/`unlearnAction`/`shouldBlinkLearnLed`/`getLearningThing` |
+
+   **`handle` runs first.** `MenuScene` gives a focused custom item every event before it looks at
+   the shortcut-pad jump or the root `Back` (`menu_scene.cpp`), which is the precedence legacy gives
+   a `MenuItem`'s own `buttonAction` over the rest of `SoundEditor::buttonAction`
+   (`gui/ui/sound_editor.cpp:607 buttonAction`). Return an unconsumed `Result` and the scene
+   proceeds as usual.
+
+   **`on_focus` is the forward arm only.** It runs when the item becomes focused going *down*, and
+   `MenuScene::ascend()` deliberately does **not** call it when a leaf is reached going *up* —
+   including it broke the CV selector (E2 task 12). What is missing is a backward arm
+   (`on_focus_backward`); until one exists, an item that needs to distinguish the two directions has
+   no way to, and the E3 carry list records it.
+
+   **The learn virtuals are inert without routing.** `MenuScene::learn_note_on`/`learn_cc`/
+   `learn_program_change`/`unlearn` exist and are specced, but nothing in this repository routes
+   MIDI into the scene stack. `bindings::learn_target` is a *different* path — PARAM learn, not
+   global-command learn.
 2. Point the node at a `static`/`inline const` instance via the `custom(name, &item, relevant)`
    builder. A null `custom` pointer is itself a validator error (`Issue::Kind::NullCustom`) — there
    is no "no-op custom" shorthand.
@@ -318,6 +380,75 @@ This is the pattern for every other bespoke item that opens a UI (the file selec
 marker editor, the loop points, the DX browser, the audio recorder) — all five set the same legacy
 flag beside the same `openUI` call.
 
+## The context menu (`context_menu/`, E2 tasks 6, 7 and 11b)
+
+`context_menu::ContextMenuScene` is the port of legacy's `gui/context_menu/` family — a modal
+option window over a greyed-out grid. It is registered at `SceneKind::FirstApp + 2`
+(`context_menu::kContextMenuSceneKind`, `registry.cpp`).
+
+Legacy's `ContextMenu` is a base class with a subclass per menu; the port is **one scene plus a
+descriptor table**. A `Descriptor` (`context_menu_scene.h`) carries the title, the option strings,
+the accept hook and — since task 11b — three more hooks the audio-source selector needed
+(`context_menu_scene.h`). `DescriptorId` indexes it, and `SceneId::arg` carries the id, so opening
+a context menu is `Action::Kind::Push` with an argument and nothing more.
+
+Six descriptors ship: the five `reset_settings::Reset` actions (`gui/menu_item/reset_settings/reset.h:25`)
+and `audio_clip::AudioSourceSelector`. `AudioSourceSelector` was deliberately left out of task 6 and
+added in 11b once `Descriptor` grew the hooks it needs — the header records why rather than
+pretending the shape always fitted.
+
+Two things about the pixels are worth knowing before you add a descriptor:
+
+* The window is `ui::oled::option_window` (`ui/oled/popup.h`), **not** `ui::oled::list`. It is a
+  separate widget on measured grounds, not convenience: legacy insets the label by 1 where `list`
+  uses `style.inset_x` (6), derives the highlight extent as 106 where `list` derives it from the
+  label's own rect (101), and pins the cursor to the **bottom** row where `list_window_start`
+  centres it. Parameterising `list` would mean disabling most of what `list` is.
+* The box is a fixed 100×40 square in `PopupStyle::Permanent`, drawn by `popup_frame`, and the
+  title is a plain left `drawString` at x 22 — *not* `ui::oled::title`. Legacy's own
+  `renderOLED` is the reference; check it before assuming a toolkit widget fits.
+
+## The action seam (`menu/action.h`, E2 task 11b)
+
+`MenuState::pending_scene` is the **noun** half of the seam: an item names a scene, and
+`MenuScene::after_render` — the first hook after `enter_leaf` that has a `Result` — turns the
+request into an `Action::Kind::Push`. It works because every scene a menu wants to open lives in
+`src/scenes`.
+
+Five ported items are not like that: `perform_editor`, `start_stem_export`, `set_clip_length`,
+`song_midi_learn` and `configure_song_macros` each run a piece of legacy **root-UI** behaviour —
+`openUI(&performanceView)`, `audioClipView.setClipLengthEqualToSampleLength()`, and so on. Every one
+of those names a symbol in `gui/views/`, `gui/ui/` or `gui/context_menu/`, which `src/scenes` may
+not reach. That is not an accident of the checker: the `scenes-no-root-ui` and `scenes-includes-gui`
+rows in `scripts/check_layer_rules.py` are what make the seam necessary rather than merely tidy.
+
+So `action.h` adds the **verb** half, in the same shape:
+
+1. `MenuAction` — a *closed* enum of the actions a menu item may request. Closed on purpose: a
+   dispatcher can `switch` over it and a new enumerator breaks that switch loudly.
+2. `MenuActionRequest` — that enumerator plus one `uint16_t` payload, for the one action whose
+   meaning is not fixed by its identity (`OpenPerformanceView` carries the editing mode).
+3. `MenuState::pending_action` — the field an item writes, exactly as it writes `pending_scene`.
+4. `MenuScene::after_render` drains it **where `pending_scene` is drained**, and parks it in
+   `MenuScene::take_action()`.
+
+**`take_action()` is a one-slot mailbox with a silent overwrite, and nothing obliges per-tick
+polling.** Two requests filed between two polls lose the first. That is the contract as it stands,
+not an oversight to be discovered later: a menu item cannot file two actions in one tick, so the
+slot is sufficient *today*, and the wiring plan's dispatcher is the thing that must poll every tick
+for it to stay sufficient. If the dispatcher ever wants to be lazy, the slot has to become a queue
+first.
+
+**Nothing performs any of these actions.** There is no consumer of `take_action()` in this
+repository. `sim/scenes_spec/menu_actions_spec.cpp` asserts that the right item emits the right
+identity and payload, driven through the real input path; it cannot and does not assert that
+anything happens as a result. A green suite here proves intents are emitted, nothing more.
+
+One related debt, the same shape as `set_shortcuts_version`: `nodes::PerformEditorItem` shows a mode
+that is a **mirror** of two `PerformanceView` bools, because a class member offers no bare-`extern`
+escape the way a namespace-scope global does. The wiring plan owes four sync calls into
+`menu::performance_editing_mode()`; until then the displayed mode can be stale.
+
 ## Boot wiring this layer does not do for itself
 
 One thing, and it is easy to miss because everything around it is automatic. **`menu::set_shortcuts_version()`
@@ -333,7 +464,28 @@ would be a storage-depends-on-scenes edge and is the wrong direction.
 The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
 application has to call — that is the file a boot author is already in.
 
-## E2+ roadmap
+## E3 roadmap — what E2 leaves
+
+The short list first; the long prose below it is E1's carry list with E2's answers folded in, kept
+because it names the legacy routines each item has to be checked against.
+
+| carried | where it is recorded | size |
+|---|---|---|
+| **The file/sample family** — 11 nodes still `nodes::kPending` (file selector, audio recorder, loop points, sample browser preview, …). Needs the card, which is why E2 stopped here. | `validate.h`'s `kPendingCustomNodes` names the exact set by identity; `sim/scenes_spec/shortcuts_spec.cpp` pins it | the largest remaining group |
+| **`midiDeviceMenu`'s subtree** — `midi_devices` has no `select_chain` because the per-device page is declared by no node. | `menu/nodes/dynamic.h`, with the legacy citation (`gui/ui/menus.cpp:1444-1453`) | ~8 nodes, 3 bespoke, plus an MPE subtree (`mpe::DirectionSelector` has instance state, a runtime `getTitle()` and its own chain onward) |
+| **Splitting session from arranger** — `song_midi_learn` and `configure_song_macros` stay visible in the arranger where legacy hides them, because `MenuContext` cannot tell the two apart. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView`, and legacy hides these two from all but the first. | `menu/nodes/actions.h` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads (`bindings.cpp:265` must keep meaning "either"), ~62 positional-bool call sites, and a JSON regen since the nodes gain `available_when`. No architectural ripple — which is why deferring is safe |
+| **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback` and the three `shouldBlinkPatchingSourceShortcut` overrides. `MenuScene::render_grid` keys its single blink cycle off the focused *node*; consulting the focused `CustomItem` needs a hook and a second blink source. | detailed below | same shape of change as routing MIDI to `MenuScene::learn_*` |
+| **The row-scrolling path is untested, not missing.** `ui/oled/list.cpp:156` does run `scroll_text` on the focused row with motion allowed, and `MenuScene::render_vertical` hands it `st_.scroll[depth]`. No golden exercises it: every over-long row in the recorded frames is *unselected*, which legacy truncates too. | E2 task 12's record | one level-2 script that parks the cursor on a long row and holds it across quiet ticks |
+| **Seven self-duplicate goldens owed cleanup** — `menu_int/{after_select_press,after_select_turn}`, `menu_enum/{after_select_press,after_gold_turn}`, `menu_toggle/{after_select_press,after_gold_turn}`, `menu_shortcut/after_select_turn` are each byte-identical to their own `idle`, i.e. named for an event they do not show. | E2 task 12's record | E2 task 9 deleted three of exactly this kind, so leaving seven is an inconsistency, not a policy |
+| **`perform_editor`'s owed sync calls** — the displayed mode mirrors two `PerformanceView` bools. | the action seam section above; `menu/nodes/actions.h` | four calls into `menu::performance_editing_mode()` |
+| **The action seam's dispatcher** — nothing consumes `MenuScene::take_action()`. | `menu/action.h`, the action seam section above | one `switch` over five enumerators, plus per-tick polling (the slot is a one-shot mailbox) |
+| **`CustomItem`'s missing backward arm** — `ascend()`'s `Kind::Custom` exclusion stands in for an `on_focus_backward` that does not exist. Sound only while every chain-source custom item's backward behaviour is "keep what `MenuState` already holds" — true of all of them today, and untested. | `menu_scene.cpp`, beside the exclusion | one virtual, or a parameter on `on_focus` |
+
+Beyond the menu tree, the rest of spec E §2's scene inventory (`SessionScene`, `NoteClipScene`,
+`BrowserScene`, the overlays) is still unwritten, and **nothing links `deluge_scenes`** — the wiring
+plan owes the entry point, the MIDI routing, the boot calls and the `MenuAction` dispatcher.
+
+### The carry list in detail
 
 E1 ships the menu tree, its interpreter (`MenuScene`), and the ten root tables — the rest of spec E
 (§2's scene inventory: `SessionScene`, `NoteClipScene`, `BrowserScene`, the overlays, …) is later
