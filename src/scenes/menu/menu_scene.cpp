@@ -1091,6 +1091,16 @@ void MenuScene::ascend() {
 	// `MenuState::list[depth]` alone, which already holds that value. Re-running `on_focus` here
 	// would run the forward arm on a backward navigation and send the CV/gate/device selectors back
 	// to row 0 every time the user stepped out of the page they had just opened.
+	//
+	// **The gap that leaves, named rather than assumed away** (E2 task 12 fix round 1): a
+	// `CustomItem` has no backward arm at all, so this blanket exclusion IS the port's stand-in for
+	// one. That is only sound while every chain-source custom item's backward behaviour is "keep
+	// what `MenuState` already holds" -- true of all of them today (the three `nodes/dynamic.h`
+	// selectors keep `list[depth]`, the patch-cable pages keep `patching_param`/`patch_source`, and
+	// the fields they write are disjoint), and nothing tests it. An item that needs a *different*
+	// answer on the way back -- legacy's `navigatedBackwardFrom != nullptr` arm doing real work --
+	// cannot express it, and would need `CustomItem` to gain that parameter rather than this
+	// exclusion to be relaxed.
 	if (const Node* const landed = st_.path[st_.depth];
 	    landed != nullptr && is_leaf(landed->kind) && landed->kind != Kind::Custom) {
 		enter_leaf(*landed);

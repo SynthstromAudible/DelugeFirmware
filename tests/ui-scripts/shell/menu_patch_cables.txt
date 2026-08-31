@@ -15,15 +15,24 @@
 100   button SelectEnc down
 120   button SelectEnc up
 140   snapshot after_select_press    # the regular cable-strength page for that cable
-200   encoder GoldUpper +2
-220   snapshot after_gold_turn       # the strength moved -- the page is live, not just drawn
-# **Look at this frame.** At "11.00" the value is five glyphs wide in the huge face and the last
-# digit is CLIPPED by the panel's right edge. That is not this script's doing: E2 task 9 recorded
-# that the port draws this value in `Style::value_font` where legacy draws it right-aligned in the
-# 13px "Big" face (`patch_cables.h`'s "What did NOT come across" note, and the reviewer ruling that
-# upheld the page as shipped), and no golden until now happened to hold a five-glyph value. Recorded
-# rather than dodged: a five-glyph strength is one detent away on a real device.
-300   button Back down
-320   button Back up
-340   snapshot after_back            # the mod-matrix list again, row 0 showing its new strength
-400   quit
+200   encoder Horizontal +3
+220   encoder Horizontal -2
+# No snapshot for these two. They pin the digit cursor at the hundreds place (one gold detent =
+# 1.00) instead of inheriting whatever `MenuState::decimal_pos` an earlier page left: `+3` floors it
+# at 0 and `-2` walks it back up two places, and both are saturating, so the end state is the same
+# whatever it started at. `decimal_pos` is asserted in the spec, so this is pinned, not assumed.
+300   encoder GoldUpper +2
+320   snapshot after_gold_turn       # 11.00 -- FIVE glyphs, right-aligned, complete
+400   encoder GoldUpper -32
+420   snapshot after_negative        # clamped at kMinMenuPatchCableValue: "-50.00", the widest
+#                                      string this page can ever draw, and it fits
+# **Look at these two frames.** Before E2 task 12's fix round 1 the value was drawn in the toolkit's
+# default huge face (18px per glyph) and `after_gold_turn` had its last digit CUT by the panel's
+# right edge -- as would every value of magnitude 10 or more, and worse for every negative one, i.e.
+# most of the +/-50.00 range, on the one number this page exists to edit. Legacy draws it in the
+# 13px "Big" face right-aligned 3px off the edge (`patch_cable_strength.cpp:172-177`); the port now
+# does too (`ui/oled/values.h`'s `DecimalLayout`), and both frames are complete.
+500   button Back down
+520   button Back up
+540   snapshot after_back            # the mod-matrix list again, row 0 showing its new strength
+600   quit

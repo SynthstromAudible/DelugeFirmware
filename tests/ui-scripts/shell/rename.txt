@@ -28,19 +28,22 @@
 640   snapshot typed_ab              # "AB"
 700   pad 3 3 down 64
 720   pad 3 3 up
-740   snapshot typed_aba             # "ABA" -- three characters, so a repeat has something to eat
-800   pad 14 5 down 64
-820   snapshot backspace_press       # the press itself deletes one: "AB" (qwerty_ui.cpp:219)
-# No snapshot during the arming delay: with the repeat correctly NOT firing, that frame is
-# byte-identical to `backspace_press`. The delay is pinned by `backspace_repeated` below instead --
-# at 1340 ms exactly ONE character has gone, where a delay of zero and an 80 ms cadence would have
-# emptied the buffer six times over.
-1340  snapshot backspace_repeated    # past the 500 ms arming delay: one repeat has fired -> "A"
-# Released before the 80 ms cadence could fire a second time (the next repeat would be due at
-# 1400 ms). `rename_scene_spec.cpp` pins the cadence itself tick by tick; what this script adds is
-# that the repeat fires AT ALL under a real 10 ms tick, which is what E2 task 12 found it did not.
-1360  pad 14 5 up
-1500  pad 14 3 down 64
-1520  pad 14 3 up
-1540  snapshot after_enter           # committed; the rename box is gone and the menu is back
-1600  quit
+740   snapshot typed_aba             # "ABA"
+800   pad 5 3 down 64
+820   pad 5 3 up
+840   snapshot typed_abad            # "ABAD" -- four characters, so a hold can eat three of them
+900   pad 14 5 down 64
+920   snapshot backspace_press       # the press itself deletes one: "ABA" (qwerty_ui.cpp:219)
+# No snapshot during the arming delay: with the repeat correctly NOT firing that frame is
+# byte-identical to `backspace_press`. The delay is pinned by the two frames below instead.
+1440  snapshot backspace_repeat_1    # 500 ms after the press the first repeat fired -> "AB"
+1520  snapshot backspace_repeat_2    # and 80 ms after THAT, the second -> "A"
+# Fix round 1: one repeat is not the claim. `kBackspaceRepeatMs` -- the 80 ms steady state -- was
+# covered only by `rename_scene_spec.cpp`, whose ticks are hand-placed on grid passes and which was
+# therefore structurally blind to the bug this script found. A regression that fires once and then
+# stalls would have passed both. Two repeats at a real 10 ms cadence is what pins the interval.
+1540  pad 14 5 up                    # before the third repeat would have been due at 1560 ms
+1700  pad 14 3 down 64
+1720  pad 14 3 up
+1740  snapshot after_enter           # committed; the rename box is gone and the menu is back
+1800  quit

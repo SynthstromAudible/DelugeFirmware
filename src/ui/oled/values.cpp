@@ -124,7 +124,7 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 }
 
 Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uint8_t places, int8_t& edit_pos,
-                       Blink& blink, bool focused) {
+                       Blink& blink, bool focused, const DecimalLayout* layout) {
 	Response resp{};
 	resp.focused = focused;
 	const uint32_t now = f.now_ms();
@@ -198,7 +198,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	// "which face are the big numbers", distinct from `value_font` which `int_value` uses. The
 	// static_asserts below enforce that both shipped profiles set the same metrics this layout
 	// assumes.
-	const gfx::oled::FontId big = f.style.big_font;
+	const gfx::oled::FontId big = layout != nullptr ? layout->font : f.style.big_font;
 	static_assert(kDelugeStyle48.big_font == gfx::oled::FontId::MetricBold20
 	              && kDelugeStyle64.big_font == gfx::oled::FontId::MetricBold20);
 	static_assert(text_height_of(gfx::oled::FontId::MetricBold20) == kTextHugeSizeY);
@@ -206,7 +206,11 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	const int32_t digit_width = spacing_x_for(big);
 	const int32_t period_width = digit_width / 2;
 	const int32_t string_width = digit_width * length + (num_decimal_places != 0 ? period_width : 0);
-	int32_t string_start_x = rect.x + ((rect.w - string_width) >> 1); // centred across rect.w
+	// Centred across `rect.w` by default; right-anchored when the caller shares the panel
+	// (`DecimalLayout`), which is `image.drawStringAlignRight(..., OLED_MAIN_WIDTH_PIXELS - 3)`
+	// (`gui/menu_item/patch_cable_strength.cpp:177`).
+	int32_t string_start_x =
+	    layout != nullptr ? rect.right() - layout->right_pad - string_width : rect.x + ((rect.w - string_width) >> 1);
 	int32_t our_digit_start_x = string_start_x + editing_char * digit_width;
 
 	// The digits' band and the cursor's band are cleared before either is drawn: the cursor is an

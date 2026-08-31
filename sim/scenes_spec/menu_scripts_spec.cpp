@@ -492,10 +492,16 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// `SyncLevel` derives from `Enumeration`, not `Integer` (`gui/menu_item/sync_level.h:27`), and
 		// `Enumeration::selectEncoderAction` (`enumeration.cpp:19-31`) clamps rather than wraps. So the
-		// +40 detents stop at the top of the node's own range instead of coming back round to OFF --
-		// and the GoldUpper turn between the two select turns moved nothing at all, which is the step
-		// whose snapshot was dropped for being byte-identical.
+		// +40 detents stop at the top of the node's own range instead of coming back round to OFF.
+		//
+		// **And this is what backs the dropped gold-turn snapshot** (fix round 1). The script's last
+		// step is `GoldUpper -4`, after the clamp: `render_leaf_sync_level` never calls `f.edit()`, so
+		// the value must still be sitting on `range.max`. A gold knob that was live would have dragged
+		// it 8 steps down off the clamp and failed here. (Until fix round 1 the gold step sat between
+		// the two select turns, where the following clamp made this assertion true whatever the gold
+		// turn had done -- the one dropped golden in this file's set that nothing actually backed.)
 		expect(bindings::read(nodes::delay_sync, ctx)).to_equal(sync_range.max);
+		expect(sync_range.max > int32_t{4}).to_be_true(); // the -4 really could have shown, had it acted
 		expect(menu_scene().focused() == &nodes::delay_sync).to_be_true();
 	});
 
@@ -645,12 +651,18 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "rename", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::edit_name));
-		expect(result.snapshots).to_equal(uint32_t{10});
+		expect(result.snapshots).to_equal(uint32_t{12});
 
-		// Typed "ABA", then a held backspace: the press itself deletes one (`gui/ui/qwerty_ui.cpp:219`),
-		// and one repeat fires 500 ms later (`:220`, `:452`) before the pad is released at 1400 ms.
-		// The 80 ms cadence would have emptied the buffer by 1000 ms if the arming delay were not
-		// honoured, which is what makes "A" -- not "" and not "AB" -- the discriminating answer.
+		// Typed "ABAD", then a held backspace: the press itself deletes one
+		// (`gui/ui/qwerty_ui.cpp:219`), the first repeat fires 500 ms later (`:220`) and the second
+		// 80 ms after that (`:452`), before the pad is released at 1540 ms.
+		//
+		// Three deletions, not two (fix round 1). One repeat proves the hold is armed; it says
+		// nothing about `kBackspaceRepeatMs`, the 80 ms steady state -- and that interval's only
+		// other cover is `rename_scene_spec.cpp`, whose hand-placed ticks all land on grid passes and
+		// which was therefore blind to the bug this script found. A regression that fired once and
+		// then stalled would have passed both. "A" is the discriminating answer at both ends: a
+		// missing arming delay would have emptied the buffer, a missing cadence would have left "AB".
 		expect(std::string{song.clip->name}).to_equal(std::string{"A"});
 		// The enter pad committed and popped the editor, so the menu owns the screen again -- one level
 		// up from the item that opened it, `EditNameItem` being a `pending_scene` opener like the five
@@ -740,8 +752,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "menu_patch_cables", scenes::scene_registry(),
 		                                  deluge::ui::shell::Services{}, opts_for(nodes::patch_cables));
-		expect(result.snapshots).to_equal(uint32_t{4});
+		expect(result.snapshots).to_equal(uint32_t{5});
 
+		// The script's two saturating `Horizontal` steps left the digit cursor on the hundreds place
+		// whatever an earlier block's page had left in `MenuState::decimal_pos`, so "one gold detent
+		// is 1.00" is pinned rather than inherited -- and so is the arithmetic behind the two frames
+		// the fix-round-1 font change is judged on.
+		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
 		// The gold turn on the strength page wrote through to the cable the press selected...
 		expect(set->patchCables[0].param.getCurrentValue() != selected_before).to_be_true();
 		// ...and to that one only, which is what makes `patch_cables_chain` picking the right cable a

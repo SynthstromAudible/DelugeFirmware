@@ -663,9 +663,23 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	// `getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`patch_cable_strength.h:36-38`).
 	constexpr IntRange kRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
 	const deluge::gfx::oled::Rect value_rect{kRoutingDiagramWidth, 0, bounds.w - kRoutingDiagramWidth, bounds.h};
-	const deluge::ui::Response r = deluge::ui::oled::decimal_value(f, value_rect, state.edit_int, kRange, /*places=*/2,
-	                                                               state.decimal_pos, state.cursor_blink,
-	                                                               /*focused=*/true);
+	// **The 13px face, right-aligned** -- `PatchCableStrength::renderOLED`'s own
+	// `digitWidth = kTextBigSpacingX`, `digitHeight = kTextBigSizeY`, `rightPadding = 3`,
+	// `drawStringAlignRight(..., OLED_MAIN_WIDTH_PIXELS - rightPadding)`
+	// (`patch_cable_strength.cpp:172-177`).
+	//
+	// E2 task 12 fix round 1. Task 9 left this on the toolkit's default huge face, on the reasoning
+	// that the difference was cosmetic; it is not. At 18px per glyph the string runs off the panel
+	// for **every** value of magnitude 10 or more, and further for every negative one -- most of the
+	// +/-50.00 range (`kMinMenuPatchCableValue`/`kMaxMenuPatchCableValue`), on the single number this
+	// page exists to edit, while the mod-matrix list one level up renders the same value correctly.
+	// At 11px the widest string this range reaches (`-50.00`, five glyphs and a half-width period =
+	// 60px) sits comfortably inside the 70px column left of the diagram.
+	static constexpr deluge::ui::oled::DecimalLayout kValueLayout{.font = deluge::gfx::oled::FontId::MetricBold13,
+	                                                              .right_pad = 3};
+	const deluge::ui::Response r =
+	    deluge::ui::oled::decimal_value(f, value_rect, state.edit_int, kRange, /*places=*/2, state.decimal_pos,
+	                                    state.cursor_blink, /*focused=*/true, &kValueLayout);
 	state.render_resp = r;
 	if (r.changed) {
 		state.value_changed = true;

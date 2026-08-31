@@ -110,10 +110,32 @@ Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range ran
 /// @param edit_pos Digit position the cursor and coarse edit amount are anchored to, in/out.
 /// @param blink    Cursor blink phase state, armed and advanced by this widget.
 /// @param focused  Whether this control currently owns the horizontal and edit encoders.
+/// @param layout   Face and horizontal-anchor overrides, or null for the full-panel default. Only
+///                 the two fields `DecimalLayout` carries change; the rows are the same either way.
 /// @return `Response::changed` set when @p value moved this tick; `Response::focused` echoes
 ///         @p focused.
+/// @brief Overrides for a `decimal_value` that has to share its panel with something else.
+///
+/// The default -- the huge face, centred across @p rect -- is `Integer`/`Decimal`'s own full-panel
+/// layout and is what every menu leaf wants. One page does not: `PatchCableStrength::renderOLED`
+/// puts a routing diagram down the left and the number beside it, and legacy draws THAT number in
+/// the 13px "Big" face, right-aligned three pixels off the panel's right edge
+/// (`gui/menu_item/patch_cable_strength.cpp:172-177`). In the huge face the same string is 18px per
+/// glyph and runs off the panel for every value of magnitude 10 or more -- most of the +/-50.00
+/// range, on the one number the user is there to edit. Hence an option rather than a second widget:
+/// the editing behaviour, the cursor, the blink and the clamp are all identical, and only the face
+/// and the horizontal anchor differ.
+struct DecimalLayout {
+	/// @brief The digit face, in place of `Style::big_font`. `FontId::MetricBold13` is legacy's
+	///        "Big" face (11px advance, 13px height -- `kTextBigSpacingX`/`kTextBigSizeY`).
+	gfx::oled::FontId font;
+	/// @brief Right-align the string so its last glyph's advance ends `right_pad` px before
+	///        `rect.right()`, instead of centring it across `rect.w`. Legacy's own value is 3.
+	int32_t right_pad;
+};
+
 Response decimal_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range range, uint8_t places,
-                       int8_t& edit_pos, Blink& blink, bool focused = true);
+                       int8_t& edit_pos, Blink& blink, bool focused = true, const DecimalLayout* layout = nullptr);
 
 /// @brief Renders and edits a windowed, scrollable name list with a cursor, as one call.
 ///

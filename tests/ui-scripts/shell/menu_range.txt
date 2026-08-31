@@ -14,6 +14,14 @@
 # Horizontal is signed, not a step: `< 0` selects the LEFT edge and `> 0` the RIGHT one, and
 # re-selecting the edge already picked turns the highlight off (`ui/oled/values.cpp:336-341`). The
 # last two steps are that toggle, which is the arm a script starting from OFF could not reach.
+# **The highlight is not registered on the glyphs it names, and the goldens show it.** `range_value`
+# sizes the inversion on MONOSPACED 18px cells while `text()` advances the digits proportionally
+# (that widget's own "a consequence worth expecting rather than being surprised by" note). Measured
+# off `after_lower_edit`: the left box is x 1..54 and the right one x 73..126, so a box edge misses
+# the ink it names by up to ~5px at the left end and more at the right. Legacy does the same thing --
+# the goldens are byte-identical to a replay of `Range::drawPixelsForOled` -- so this is recorded,
+# not corrected. (Fix round 1: the report's first pass called it "a couple of pixels", which
+# understated it.)
 0     snapshot idle                  # 100-200, the LEFT end inverted with its 1px margin
 100   encoder GoldUpper +2
 120   snapshot after_lower_edit      # the lower end moved by 2 detents * range.step; the upper did not
