@@ -194,6 +194,22 @@ private:
 	/// What this tick's `render_grid` observed, for `after_render` to act on -- the same
 	/// render-observes / after_render-acts split `MenuScene` uses.
 	deluge::ui::Response resp_{};
+
+	/// @brief Did `render_grid` actually run this tick?
+	///
+	/// **The shell calls `after_render()` for every scene that drew on ANY surface**
+	/// (`Shell::render_oled` and `Shell::render_grid` both `append_rendered`, and step 7 walks that
+	/// one list -- `shell/shell.cpp`), so an OLED-only tick reaches `after_render` with `resp_`
+	/// default-constructed, i.e. `held_index == -1`. Without this flag `advance_repeat` reads that
+	/// as "the backspace pad is no longer down" and disarms the hold on the very first such tick.
+	///
+	/// E2 task 12 found that with a level-2 script and a 10 ms tick: the OLED repaints on its own
+	/// for the cursor blink (and again for whatever is drawn underneath this overlay), so the
+	/// disarming tick arrives ~10 ms after the press and the auto-repeat task 5's ruling asked for
+	/// never fired ONCE on the real path. `rename_scene_spec.cpp`'s own repeat example missed it
+	/// only because its three hand-placed ticks all happened to land on grid passes -- the exact
+	/// failure a single-frame or sparse-tick test cannot see.
+	bool grid_pass_ = false;
 };
 
 /// @brief The application's one rename editor.

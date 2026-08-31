@@ -1070,6 +1070,31 @@ void MenuScene::ascend() {
 		st_.path[st_.depth] = nullptr;
 		st_.depth--;
 	} while (st_.path[st_.depth] != nullptr && permission_for(*st_.path[st_.depth], ctx_) == Permission::No);
+
+	// `goUpOneLevel` ends with `beginScreen(oldItem)` (`sound_editor.cpp:672-691`), i.e. it re-runs
+	// `beginSession` on the item it lands on -- so a value leaf reached by going *up* re-reads its
+	// value from the model, exactly as one reached by going down does.
+	//
+	// E2 task 12 found the port did not, with the `menu_chain` script. Ascending to a leaf happens
+	// only where a chain descended *from* one (`Node::select_chain`, E2 task 3), and the chain target
+	// is often another value leaf that writes the shared `MenuState::edit_int` on its way through:
+	// `nodes::unison_count` -> `unison_spread` left the count's page redrawing the SPREAD's value and
+	// editing from it, so the first gold detent after a Back jumped the count to a number the user
+	// never chose. Nothing above a leaf needs this (a submenu's cursor is `st_.list[depth]`, which
+	// `ascend` deliberately keeps -- see the note above).
+	//
+	// **`Kind::Custom` is excluded, deliberately.** `CustomItem::on_focus` is `beginSession` with
+	// `navigatedBackwardFrom == nullptr` -- the *forward* arm only -- and the port leans on that:
+	// `nodes/dynamic.cpp`'s `focus_output_selection` reproduces `cv::Selection::beginSession`'s
+	// forward arm (`gui/menu_item/cv/selection.h:31-39`, `setValue(0)`) and stands in for its
+	// backward arm (`setValue(soundEditor.currentSourceIndex)`) by simply leaving
+	// `MenuState::list[depth]` alone, which already holds that value. Re-running `on_focus` here
+	// would run the forward arm on a backward navigation and send the CV/gate/device selectors back
+	// to row 0 every time the user stepped out of the page they had just opened.
+	if (const Node* const landed = st_.path[st_.depth];
+	    landed != nullptr && is_leaf(landed->kind) && landed->kind != Kind::Custom) {
+		enter_leaf(*landed);
+	}
 }
 
 MenuActionRequest MenuScene::take_action() {

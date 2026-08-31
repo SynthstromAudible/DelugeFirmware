@@ -267,6 +267,7 @@ void RenameScene::on_exit() {
 	// of drawing an editor over a stale model.
 	ctx_ = menu::MenuContext{};
 	repeat_armed_ = false;
+	grid_pass_ = false;
 }
 
 void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
@@ -326,6 +327,7 @@ void RenameScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`), already ported. The sidebar is deliberately
 	// untouched -- legacy clears the *main* pads only.
 	resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
+	grid_pass_ = true;
 	// Stamped here as well as in `render_oled`, and for a different reason: the backspace repeat
 	// runs off the grid pass, which is the pass that reports the hold. A tick that repainted only
 	// the pads would otherwise advance the repeat against `render_oled`'s stale clock.
@@ -347,7 +349,14 @@ Result RenameScene::after_render() {
 	// `QwertyUI::timerCallback`'s `UI_MODE_HOLDING_BACKSPACE` arm, ahead of this tick's own key:
 	// legacy's timer and its pad handler are separate entry points and the timer fires on ticks
 	// with no pad event at all, which is exactly the tick this arm exists for.
-	bool changed = advance_repeat(resp.held_index, last_render_ms_);
+	// **Only on a tick the grid pass actually ran.** `resp_` is `render_grid`'s observation, and the
+	// shell calls `after_render()` for every scene that drew on any surface -- so on an OLED-only
+	// tick (the cursor blink's own repaint, or the menu underneath this overlay asking for one)
+	// `resp` is default-constructed and `held_index` is -1. Feeding that to `advance_repeat` reads
+	// as "the pad went up" and disarms the hold; see `RenameScene::grid_pass_`.
+	const bool grid_pass = grid_pass_;
+	grid_pass_ = false;
+	bool changed = grid_pass && advance_repeat(resp.held_index, last_render_ms_);
 
 	if (resp.index >= 0) {
 		const char c = static_cast<char>(resp.index);
