@@ -93,6 +93,50 @@ inline constexpr uint32_t kBlinkCycleMs = uint32_t{kSourceBlinkMs} + kShortcutBl
 ///
 /// **Not** what `save_state` writes -- see `MenuSavedState`. This is a member of `MenuScene` and
 /// is handed to a `CustomItem` by reference, which is why `node.h` forward declares it.
+///
+/// @par The one-shot mailboxes, and the order `after_render` must drain them in
+///
+/// Six fields below are **one-shot mailboxes**: a hook with no `Result` of its own (a
+/// `CustomItem`'s `on_focus`, `handle` or `render`; a widget's response) writes a request, and
+/// `MenuScene::after_render` -- the first hook each tick that owns both a mutable `MenuContext`
+/// and a `Result` -- performs it and clears the slot. They are `range_choice`, `source_choice`,
+/// `midi_cable_choice`, the `value_changed`/`value_node` pair, `pending_action` and
+/// `pending_scene`, and between them they use four "empty" conventions (`-1` for the two signed
+/// indices, `nullptr` for the two pointers, `MenuAction::None` for the request, `SceneKind::Null`
+/// for the scene id) because each field's own type supplies the sentinel. `range_picker_pending`
+/// / `pending_after_range` are *not* mailboxes -- they are a two-tick handshake the picker's
+/// `select_chain` reads, and they outlive a single `after_render`.
+///
+/// **The contract, in one sentence: everything that changes what the *next* navigation step will
+/// see must drain before the navigation arm, and everything that is merely a consequence of this
+/// tick may drain after it.** Concretely, in `after_render`'s own order, with each mailbox's band:
+///
+///   1. **`range_choice`** -- above navigation. `select_range` writes `ctx_`'s multi-range and a
+///      descent decided below reads it; legacy commits it inside `selectButtonPress`
+///      (`gui/ui/sound_editor.cpp:1928-1931 setCurrentMultiRange`).
+///   2. **`source_choice`** -- above navigation, and this is the load-bearing one.
+///      `ctx_.source_index` is what `gate_selection_chain` picks its target from and what
+///      `gate_mode_names` formats, so draining it below navigation chains off the *previous*
+///      output. Legacy assigns `soundEditor.currentSourceIndex` on the way *through*
+///      `selectButtonPress` (`gui/menu_item/gate/selection.h:43-54 selectButtonPress`).
+///   3. **`midi_cable_choice`** -- above navigation, same shape: `ctx_.midi_cable` is read by the
+///      device subtree a descent would enter (`gui/menu_item/midi/devices.cpp:55 beginSession`).
+///   4. **`value_changed` / `value_node`** -- above navigation: the commit must happen before an
+///      ascend leaves the node that owns the value. It also sets `repaint`.
+///   5. **`pending_action`** -- *below* navigation but *above* the repaint check. Four of the five
+///      actions `ascend()` on the tick they are filed, so they are themselves navigation; sitting
+///      above the repaint check is what makes that ascend repaint.
+///   6. **`pending_scene`** -- below the repaint check: a `Push` puts another scene on top, so this
+///      scene's own repaint is decided without it.
+///
+/// So the rule is not "mailboxes drain first". It is: **`ctx_` mutations first, then navigation,
+/// then the repaint decision, then scene pushes** -- and a new mailbox belongs in whichever of
+/// those four bands its effect falls into. The load-bearing case is `source_choice`, and
+/// `sim/scenes_spec/tables_3_spec.cpp`'s `drains the selector's output index BEFORE the navigation
+/// arm, not after` is the spec that fails if it moves -- it opens the gate selector from a context
+/// whose `source_index` names the *other* page, in both directions, so a stale read lands on the
+/// wrong page either way. The other five are ordered by the argument above rather than by a test,
+/// which is why the argument is written down.
 struct MenuState {
 	/// The menu path, root first. `path[depth]` is what is on screen.
 	const Node* path[kMenuDepth] = {};

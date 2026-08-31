@@ -1444,7 +1444,15 @@ deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 }
 
 void MenuScene::save_state(SceneState& state) const {
-	MenuSavedState saved;
+	// Value-initialised, not default-initialised: every member has its own initialiser, but the
+	// `memcpy` at the end of this function copies `sizeof(MenuSavedState)` bytes into a
+	// `SceneState`, and that includes the alignment padding between `depth` and `focus`. Default
+	// initialisation leaves those bytes indeterminate, so two saves of the same menu position
+	// could produce different `SceneState` bytes. `MenuSavedState`'s default constructor is
+	// implicit, so `{}` zero-initialises the whole object -- padding included -- before the member
+	// initialisers run. Unobservable today (nothing compares or hashes `SceneState`), and cheap
+	// enough that it should not have to stay unobservable to be correct.
+	MenuSavedState saved{};
 	if (st_.path[0] != nullptr) {
 		saved.root_node_id = node_id(*st_.path[0]);
 	}

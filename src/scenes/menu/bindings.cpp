@@ -30,7 +30,7 @@
 ///     `audio_compressor::CompParam::readCurrentValue` (`audio_compressor/compressor_params.h:29-32`)
 ///   * patched stack -- `PatchedParam::getModelStack` (`gui/menu_item/patched_param.cpp:84-87`)
 ///   * unpatched stack -- `UnpatchedParam::getModelStack` (`gui/menu_item/unpatched_param.cpp:41-44`)
-///   * write -- `patched_param::Integer::writeCurrentValue` (`integer.cpp:38-77`),
+///   * write -- `patched_param::Integer::writeCurrentValue` (`patched_param/integer.cpp:38-77`),
 ///     `UnpatchedParam::writeCurrentValue` (`unpatched_param.cpp:46-82`)
 ///   * standard scaling -- `computeCurrentValueForStandardMenuItem` / `computeFinalValueForStandardMenuItem`
 ///     (`gui/menu_item/value_scaling.cpp:6-8` / `:22-33`)
@@ -44,11 +44,11 @@
 ///   * enum default -- `Enumeration::selectEncoderAction`'s `[0, numOptions)` clamp
 ///     (`gui/menu_item/enumeration.cpp:28`)
 ///   * toggle default -- `Toggle::selectEncoderAction` (`gui/menu_item/toggle.cpp:14-17`), a `Value<bool>`
-///   * affect-entire loop -- `unpatched_param.cpp:52-67` and its patched sibling `integer.cpp:45-60`;
+///   * affect-entire loop -- `unpatched_param.cpp:52-67` and its patched sibling `patched_param/integer.cpp:45-60`;
 ///     the per-drum stack is `getModelStackFromSoundDrum` (`model/model_stack.cpp:111-117`)
-///   * feedback -- `view.sendMidiFollowFeedback(modelStack, knobPos)` (`integer.cpp:70-71`,
+///   * feedback -- `view.sendMidiFollowFeedback(modelStack, knobPos)` (`patched_param/integer.cpp:70-71`,
 ///     `unpatched_param.cpp:74-75`)
-///   * automation refresh -- `automationView.possiblyRefreshAutomationEditorGrid` (`integer.cpp:73-77`,
+///   * automation refresh -- `automationView.possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73-77`,
 ///     `unpatched_param.cpp:77-81`)
 ///   * patched learn -- `PatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp:51-55`)
 ///   * unpatched learn -- `UnpatchedParam::getLearningThing` (`gui/menu_item/unpatched_param.cpp:88-92`)
@@ -75,11 +75,11 @@
 ///     `synth_mode.h`, `arpeggiator/*`, ...) get no help from `write_whole_kit`: each of those
 ///     becomes a `get`/`set` node in Tasks 6-8 whose `set` hook owns its own loop.
 ///   * `getRootUI() == &automationView` and the `lastSelectedParamID`/`Kind` match inside
-///     `possiblyRefreshAutomationEditorGrid` (`integer.cpp:73`, `automation_view.cpp:611-628`). The
+///     `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73`, `automation_view.cpp:611-628`). The
 ///     notify design replaces "am I in the automation view, and is this the param it is showing?"
 ///     with unconditional facts. See `write()`'s own comment for which two are raised and why one is
 ///     not enough.
-///   * The double write at `integer.cpp:41`. `patched_param::Integer::writeCurrentValue` calls
+///   * The double write at `patched_param/integer.cpp:41`. `patched_param::Integer::writeCurrentValue` calls
 ///     `setCurrentValueInResponseToUserInput` once before its affect-entire branch and again inside
 ///     the `else`, so the ordinary path writes twice and the affect-entire path writes the selected
 ///     drum twice (once at `:41`, once through the loop). Its unpatched sibling
@@ -307,7 +307,7 @@ Serves serves_for(const MenuContext& ctx) {
 /// @brief Does @p params hold the collection a `ParamRef` of @p kind lives in?
 ///
 /// Legacy reaches straight for `soundEditor.currentParamManager->getPatchedParamSet()`
-/// (`integer.cpp:34`) / `getUnpatchedParamSet()` (`unpatched_param.cpp:38`). Those two accessors
+/// (`patched_param/integer.cpp:34`) / `getUnpatchedParamSet()` (`unpatched_param.cpp:38`). Those two accessors
 /// `FREEZE_WITH_ERROR("E410"/"E411")` on a param manager that has no such collection
 /// (`modulation/params/param_manager.h:110-135`) -- and only `#if ALPHA_OR_BETA_VERSION`, so a
 /// release build casts a null pointer and crashes on the next member read. The same is true one
@@ -408,7 +408,7 @@ bool has_model_stack(const MenuContext& ctx) {
 }
 
 /// @brief Set @p node's param to @p final_value on every `SoundDrum` in the kit --
-///        `unpatched_param.cpp:54-66` / `integer.cpp:47-59`.
+///        `unpatched_param.cpp:54-66` / `patched_param/integer.cpp:47-59`.
 ///
 /// The per-drum stack is `getModelStackFromSoundDrum` (`model/model_stack.cpp:111-117`) with
 /// `currentSong` / `getCurrentInstrumentClip()` replaced by @p ctx's own song and clip. Legacy
@@ -472,7 +472,7 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 
 } // namespace
 
-/// Legacy `unpatched_param.cpp:52` / `integer.cpp:45` -- write the whole kit rather than the
+/// Legacy `unpatched_param.cpp:52` / `patched_param/integer.cpp:45` -- write the whole kit rather than the
 /// selected row? `editingKitRow()` (`sound_editor.cpp:169-171`) is `is_kit && !is_kit_global_fx`;
 /// the held-button half arrives as `affect_entire_held` (see the file header). Declared in
 /// `bindings.h` since Task 6 -- a couple of the tables' own `set` hooks branch on it.
@@ -545,7 +545,7 @@ int32_t read(const Node& node, const MenuContext& ctx) {
 		if (set == nullptr) {
 			return 0;
 		}
-		// `integer.cpp:34` / `unpatched_param.cpp:38`: the *stored* value, then the menu scaling.
+		// `patched_param/integer.cpp:34` / `unpatched_param.cpp:38`: the *stored* value, then the menu scaling.
 		return to_menu_units(scaling_for(node), set->getValue(bind.param.index));
 	}
 	return 0;
@@ -581,7 +581,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 		return;
 	}
 
-	// `integer.cpp:39-40` / `unpatched_param.cpp:47-48`, with `soundEditor.getCurrentModelStack`
+	// `patched_param/integer.cpp:39-40` / `unpatched_param.cpp:47-48`, with `soundEditor.getCurrentModelStack`
 	// replaced by `model_stack_for` (context.h:159 -- the one sanctioned route). Ruling 6: the
 	// buffer is this frame's, not a shared static.
 	alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE];
@@ -590,8 +590,8 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 		return;
 	}
 
-	// `integer.cpp:41` / `unpatched_param.cpp:49`, via `getFinalValue()`
-	// (`integer.cpp:79-81` / `unpatched_param.cpp:84-86`, or the `Pan` overrides at
+	// `patched_param/integer.cpp:41` / `unpatched_param.cpp:49`, via `getFinalValue()`
+	// (`patched_param/integer.cpp:79-81` / `unpatched_param.cpp:84-86`, or the `Pan` overrides at
 	// `patched_param/pan.cpp:28-30` / `unpatched_param/pan.cpp:29-31`, or the half-precision ones at
 	// `osc/pulse_width.h:32` / `audio_compressor/compressor_params.h:33`).
 	const int32_t final_value = to_stored_value(scaling_for(node), value);
@@ -600,7 +600,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 		write_whole_kit(node, ctx, final_value);
 	}
 	else {
-		// `unpatched_param.cpp:70` / `integer.cpp:63` -- the normal case of just one sound.
+		// `unpatched_param.cpp:70` / `patched_param/integer.cpp:63` -- the normal case of just one sound.
 		stack->autoParam->setCurrentValueInResponseToUserInput(final_value, stack);
 	}
 
@@ -614,7 +614,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 
-	// `integer.cpp:70-71` / `unpatched_param.cpp:74-75`. `view.sendMidiFollowFeedback` itself is
+	// `patched_param/integer.cpp:70-71` / `unpatched_param.cpp:74-75`. `view.sendMidiFollowFeedback` itself is
 	// behind the `gui/` wall, so the knob position is computed here and handed to the hook.
 	const int32_t knob_pos = stack->paramCollection->paramValueToKnobPos(final_value, stack);
 	if (g_feedback_hook != nullptr) {
@@ -625,7 +625,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 	// gated; over-invalidation, never loss.
 	//
 	//  * `Dirty::ParamAutomation` and `Dirty::ModTarget` -- the OLED half. Legacy reaches it two
-	//    ways: `possiblyRefreshAutomationEditorGrid` (`integer.cpp:73-77` /
+	//    ways: `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73-77` /
 	//    `unpatched_param.cpp:77-81`), and the knob-indicator refresh
 	//    `setCurrentValueInResponseToUserInput` triggers through
 	//    `ParamManager::notifyParamModifiedInSomeWay` -> `view.notifyParamAutomationOccurred`

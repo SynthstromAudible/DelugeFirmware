@@ -252,6 +252,23 @@ To add one:
    `ValidateOptions::allow_placeholder_custom` — which is how a spec says out loud, in one place,
    that the tree is not yet complete rather than have that fact go unchecked.
 
+### `MenuState`'s one-shot mailboxes, and the order `after_render` drains them
+
+A hook that has no `Result` of its own — a `CustomItem`'s `on_focus`, `handle` or `render`, a
+widget's response — asks for things by writing a field on `MenuState`, and `MenuScene::after_render`
+performs the request and clears the slot. There are six such mailboxes (`range_choice`,
+`source_choice`, `midi_cable_choice`, the `value_changed`/`value_node` pair, `pending_action`,
+`pending_scene`), plus the `range_picker_pending`/`pending_after_range` handshake, which is not one.
+
+**The order they drain in is load-bearing, and the contract is written on `MenuState` itself**
+(`menu/menu_scene.h`, "The one-shot mailboxes, and the order `after_render` must drain them in"),
+with a per-band table. The one-line version: `ctx_` mutations first, then navigation, then the
+repaint decision, then scene pushes — because a descent decided by `select_chain` reads the
+`MenuContext` the mailbox above it just wrote. `sim/scenes_spec/tables_3_spec.cpp`'s *drains the
+selector's output index BEFORE the navigation arm, not after* is the spec that fails if
+`source_choice` moves, which is the case where it actually bites; the others are ordered by the
+argument in the header rather than by a test, which is why the argument is written down.
+
 ### The relevance registry (`menu/relevance.h`, `relevance.cpp`)
 
 Every `Node::relevant` predicate is a plain `bool(const MenuContext&)` function pointer — no
@@ -521,7 +538,10 @@ nobody owned and because `SelectChainFn` takes a `const MenuState&` and so canno
 `soundEditor.patchingParamSelected`; the resolution is that the *target* writes it, from
 `SourceSelectionItem::on_focus`, reading the param out of the node the chain came from
 (`path[depth - 1]`). The shift-held automation-delete arm is still not ported — `SelectChainFn` is
-not passed the button state.
+not passed the button state, so no node in the tree can express it. That divergence is also recorded
+as a named exclusion **at the comparison** (`kPatchedParamShiftArmPorted`,
+`sim/scenes_spec/tables_2_spec.cpp`), with a `static_assert` on `SelectChainFn`'s signature so the
+exclusion has to be re-argued if the signature ever grows a way to see shift.
 
 That task also declared the rest of the patch-cable graph — `patch_cable_strength_regular`,
 `source_selection_range`, `patch_cable_strength_range` — plus the range picker `multi_range`, and

@@ -69,7 +69,19 @@ repos:
         entry: python3 scripts/check_layer_rules.py
         language: system
         pass_filenames: false
-        files: ^(src/deluge/|src/notify/|src/gfx/|src/ui/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+        # src/scenes/ is in this list because five of the rules are scoped to `src/scenes/**`
+        # (scenes-includes-gui, scenes-includes-outside, scenes-no-frame-primitives,
+        # scenes-no-root-ui, scenes-no-display) and without it a scenes-only commit never ran them.
+        files: ^(src/deluge/|src/notify/|src/gfx/|src/ui/|src/scenes/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+      - id: check-citations
+        name: legacy citations resolve (warning only)
+        description: warn when a `foo.h:NN` citation points past EOF, into the licence header, or at nothing but braces
+        # Always exits 0 -- see the script's docstring for why a partial predicate must not gate a
+        # commit. `--strict` is the spelling for a deliberate local sweep.
+        entry: python3 scripts/check_citations.py
+        language: system
+        pass_filenames: false
+        files: ^(src/scenes/|src/ui/|sim/scenes_spec/|tests/spec/|src/deluge/|scripts/(check_citations\.py|citation_exceptions\.txt))
 # - repo: local
 
 #   hooks:

@@ -507,13 +507,23 @@ The distinction is not severity, it is whether the port can stand without the fi
     mis-assigns that byte would mean shipping a menu item whose value is silently discarded at every
     boot. There is no version of "port this item correctly" that leaves it.
 
-*It changes shipping firmware behaviour, and there is a migration consequence.* On flash written by
-the buggy firmware, byte 166 holds whatever `onceColourMenu.value` happened to be at write time —
-which is its static-init value, RED, unless the user edited ONCE during that same boot. After the
-fix that byte is read into ONCE, so an upgraded user can boot with **ONCE = RED**. The both-red
-guard immediately below the branch only fires when FILL is red as well, so it does not catch this
-case. It is self-healing the first time the user sets the ONCE colour, and it is stated in
-`CHANGELOG.md` where a release note will find it.
+*It changes shipping firmware behaviour, and there is a migration consequence — for **both**
+colours, not just ONCE* (fix wave, minor 4: the changelog said ONCE and stopped there). Trace the
+buggy loader's steady state, `readSettings` then `writeSettings`:
+
+  * `readSettings` assigned `fillColourMenu.value` from byte 165 and then **again** from byte 166,
+    so FILL ended each boot holding ONCE's stored byte; `onceColourMenu.value` was never assigned
+    at all and kept its static-init RED.
+  * `writeSettings` then stored `buffer[165] = fillColourMenu.value` — i.e. the previous boot's
+    byte 166 — and `buffer[166] = onceColourMenu.value`. So **byte 165 converged onto byte 166**,
+    one boot behind.
+
+After the fix byte 165 is read into FILL and byte 166 into ONCE, so an upgraded user can boot with
+**ONCE = RED** *and* with **FILL showing whatever ONCE last stored**. The both-red guard
+immediately below the branch fires only when the two collide on RED — in which case it resets FILL
+to AMBER and ONCE to MAGENTA, which is a third possible outcome rather than a fix for the first
+two. All of it is self-healing the first time the user sets each colour, and all of it is stated in
+the changelog where a release note will find it.
 
 **`selectButtonPress()` chaining, and this is the whole list** — legacy's "select on
 this leaf opens *that* menu" is a per-item `MenuItem* selectButtonPress()` override returning
@@ -841,15 +851,33 @@ the whole library to serve one page.
   routing legible at a glance, and arrows carry "A modulates B" pre-verbally where a title line makes
   the user parse a string.
 
-Two consequences of the third are recorded rather than fixed. The BI/UNI switch sits top-right
-rather than at legacy's absolute canvas row 34, because the port renders the value with the toolkit's
-face where legacy uses a 13 px one, so row 34 would fall under the digits — **upheld**, on the
-grounds that buying pixel fidelity on one page costs the consistency users read across every page,
-and the page's identity, the diagram, is preserved. The *value*, however, was **not** upheld: at the
-toolkit's 20 px face the number clipped its last digit at five glyphs, and the range is ±50.00, so
-every value ≥ 10 clipped and every negative was worse at six. A switch moved five rows is cosmetic; a
-number the user is editing being unreadable is not, so task 12 adopted legacy's own arrangement —
-right-aligned in the 13 px face beneath the switch.
+Two consequences of the third were recorded rather than fixed, and the fix wave has now closed both.
+
+The *value* went first. At the toolkit's 20 px face the number clipped its last digit at five
+glyphs, and the range is ±50.00, so every value ≥ 10 clipped and every negative was worse at six —
+so task 12 adopted legacy's own 13 px face, right-aligned three pixels off the panel edge.
+
+The *switch position* was upheld at the time, on the grounds that legacy's absolute canvas row 34
+would fall under the port's digits and that buying pixel fidelity on one page costs cross-page
+consistency. **Overturned, and the ruling was already dead when it was upheld**: it rested on the
+premise that legacy's 13 px right-aligned face was unavailable, and task 12 had just adopted exactly
+that face. What the page then had was legacy's face for the number and the toolkit's position for
+the switch — the one arrangement neither argument supported.
+
+The fix wave resolved it by finishing the move. The obstruction was never the switch: it was that
+`decimal_value` hard-coded the **canvas-absolute rows 20 and 41**, which are
+`Decimal::drawPixelsForOled`'s constants for the *full-panel number page* and have nothing to do
+with this one. `patch_cable_strength.cpp` uses its own — `textY = extraY + OLED_MAIN_TOPMOST_PIXEL +
+4` (canvas 10) and the cursor at `textY + digitHeight + 1` (canvas 24) — precisely so the switch
+fits underneath at `startY = 34`. Inheriting row 20 from the wrong page is what pushed the switch
+above the number. `DecimalLayout` now carries the rows as well as the face
+(`ui/oled/values.h`), expressed **relative to the caller's rect** so the page stays frame-local as
+one piece, and the page reproduces legacy's three constants exactly on the reference geometry:
+measured off the re-recorded 48-row golden, the digits occupy canvas rows 10–22 and the switch's
+bracket rule lands on canvas row 32 with its slot band at 34–43. The side effect is that the page's
+two halves no longer follow different coordinate systems — the note that used to record "the gap
+between the diagram and the value differs by five rows between the two geometries" is gone, because
+it no longer does.
 
 ### 12.5 Two new scenes
 
@@ -910,8 +938,10 @@ observed permutation is the identity while a transposition of it is not. Shared 
 the pattern here (`PadLEDs::flashCursor`, `runtimeFeatureSettings`).
 
 **The `readSettings` byte-166 fix** is recorded in §11 above, including why it was patched where
-`AudioRecorder::isRelevant` was only recorded, and its migration consequence (an upgraded user can
-boot with ONCE = RED, self-healing the first time they set the ONCE colour).
+`AudioRecorder::isRelevant` was only recorded, and its migration consequence — which is a *pair* of
+consequences: an upgraded user can boot with ONCE = RED and with FILL showing the colour ONCE used
+to be, because byte 165 converged onto byte 166 under the bug. Self-healing the first time they set
+each colour.
 
 ### 12.8 The host BSP's flash became RAM-backed
 
@@ -995,11 +1025,22 @@ shifted every line below `menus.cpp:1647` by two. Task 13 swept the whole surfac
 is the only part of a citation that survives an edit to the file it points at, and this plan edits
 legacy files routinely.
 
-**No checker was built, deliberately.** Verifying that a path exists and a line range is in bounds is
-mechanizable and catches only gross drift — a citation off by four still resolves to real code.
-Verifying that a line *means* what the comment claims is not mechanizable at all. Inventing tooling
-this late buys less than the convention does. What task 13's sweep actually mechanized is the
-**certainly-wrong** set — a citation whose whole range is past EOF, inside a licence block, or
-nothing but `#include`/`namespace`/brace/blank lines, because no claim in these comments refers to
-those — and then resolved each by hand or by symbol anchor. That method's blind spot is stated: drift
-that lands on real code is invisible to it, so the count below is a floor, not a total.
+**A checker was built after all — warning-only** (`scripts/check_citations.py`, fix wave R2; the
+ruling it reverses is recorded in the amendments below). The original ruling said no checker,
+because verifying that a line *means* what the comment claims is not mechanizable. That is true and
+it argues against a *complete* checker; it does not argue against the partial one task 13 had
+already built and measured. What that sweep mechanized is the **certainly-wrong** set — a citation
+whose whole range is past EOF, inside a licence block, or nothing but
+`#include`/`namespace`/brace/blank lines, because no claim in these comments refers to those — and
+that is exactly the class of breakage this plan inflicted on itself: ~50 of task 11b's 125 were
+correct when written and were broken by the `menus.cpp` edit two paragraphs up. A script catches
+that for free on the commit that causes it; a convention cannot, because the commit that breaks the
+citation does not touch the file the citation is written in.
+
+It runs in CI (`.github/workflows/tests.yml`) and as a pre-commit hook, and it **always exits 0**.
+That is the whole design: its blind spot is the commonest drift there is — a citation four lines low
+still resolves to plausible code, which is the shape of all 176 task 9 found by reading — so a clean
+run is not a clean bill of health, and gating on it would sell one. Known false positives are named
+in `scripts/citation_exceptions.txt` with the reason each is the predicate's fault rather than the
+citation's. The symbol convention above sits on top of it and remains the part that actually
+survives a line shift.

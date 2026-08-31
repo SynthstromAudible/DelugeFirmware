@@ -578,10 +578,21 @@ void readSettings() {
 		defaultVelocity = 64;
 	}
 
-	gui::menu_item::activeColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[74]);
-	gui::menu_item::stoppedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[75]);
-	gui::menu_item::mutedColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[76]);
-	gui::menu_item::soloColourMenu.value = static_cast<gui::menu_item::Colour::Option>(buffer[77]);
+	// Range-guarded the same way bytes 165/166 (FILL and ONCE) are, falling back to each slot's
+	// `resetSettings` default. This was missing: the four bytes were cast straight into
+	// `Colour::Option` however far out of range they were, where the two below have always been
+	// checked. Harmless while `Colour::getRGB()` was the only consumer -- its `switch` has a
+	// `default` arm -- but `src/scenes`' COLOURS page now formats a colour *name* off the same
+	// storage (`menu/nodes/settings.cpp`, `bindings::names` over a nine-entry table), so an
+	// out-of-range byte reaches a second consumer that indexes rather than switches.
+	const auto pad_colour = [](uint8_t stored, gui::menu_item::Colour::Option fallback) {
+		return stored >= gui::menu_item::kNumPadColours ? fallback
+		                                                : static_cast<gui::menu_item::Colour::Option>(stored);
+	};
+	gui::menu_item::activeColourMenu.value = pad_colour(buffer[74], gui::menu_item::Colour::GREEN);
+	gui::menu_item::stoppedColourMenu.value = pad_colour(buffer[75], gui::menu_item::Colour::RED);
+	gui::menu_item::mutedColourMenu.value = pad_colour(buffer[76], gui::menu_item::Colour::YELLOW);
+	gui::menu_item::soloColourMenu.value = pad_colour(buffer[77], gui::menu_item::Colour::BLUE);
 
 	defaultMagnitude = buffer[78];
 

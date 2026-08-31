@@ -99,6 +99,7 @@ using deluge::hid::display::OLED;
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
 
+#include "support/host_flash.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -509,7 +510,7 @@ constexpr const Node* kLegacyWriteNeedsUi[] = {
     &nodes::arp_mode,                  // `allNotesOff` over `soundEditor.getCurrentModelStack`
     &nodes::arp_preset,                // the same block (`preset_mode.h:50-70`)
     &nodes::mod_fx_type,               // `display->displayError` (`mod_fx/type.h:53 writeCurrentValue`, `:59`)
-    &nodes::audio_clip_reverse,        // `uiNeedsRendering(&audioClipView)` (`reverse.h:52`)
+    &nodes::audio_clip_reverse,        // `uiNeedsRendering(&audioClipView)` (`reverse.h:63 writeCurrentValue`)
     &nodes::midi_clock_out,            // `playbackHandler.setMidiOutClockMode` sends real MIDI
     &nodes::midi_clock_in,             // ... and `setMidiInClockEnabled` re-syncs playback
     &nodes::trigger_out_ppqn,          // `resyncAnalogOutTicksToInternalTicks` (`out/ppqn.h:24`)
@@ -2782,6 +2783,57 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		}
 	});
 
+	it("drains the selector's output index BEFORE the navigation arm, not after", _ {
+		// The load-bearing case of `MenuState`'s drain-order contract (`menu_scene.h`, "The
+		// one-shot mailboxes, and the order `after_render` must drain them in"):
+		// `MenuScene::after_render` writes `ctx_.source_index` from `MenuState::source_choice`
+		// *above* the `render_resp.entered` arm, because `gate_selection_chain` picks its target
+		// from `ctx_.source_index` and must see the output the user just picked -- legacy assigns
+		// `soundEditor.currentSourceIndex` on the way through `selectButtonPress`
+		// (`gui/menu_item/gate/selection.h:43-54 selectButtonPress`).
+		//
+		// The example above covers the same write from a context that already holds 0, so its
+		// `which == 0` case passes either way. This one is built so that BOTH directions of the
+		// mapping disagree with the incoming context: it opens the selector with a `source_index`
+		// that names the *other* page, and moves the cursor to the one that names this page. Drain
+		// the mailbox below the navigation arm and the chain reads the stale value, so both halves
+		// land on the wrong page and both assertions fail.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+
+		// Incoming context says "minimum off time"; the cursor is left on output 0, whose page is
+		// the mode page. Fresh value must win.
+		{
+			MenuContext ctx = settings.ctx;
+			ctx.source_index = static_cast<int8_t>(NUM_GATE_CHANNELS);
+			Rig r;
+			r.open(nodes::gate_selection, ctx);
+			r.shell.tick(0);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.shell.tick(110);
+			expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
+			expect(int(menu_scene().state().source_choice)).to_equal(-1); // drained, not merely read
+		}
+
+		// ... and the reverse: incoming context names output 0, the cursor is walked to the
+		// one-past-the-last sentinel, and the off-time page must open.
+		{
+			MenuContext ctx = settings.ctx;
+			ctx.source_index = 0;
+			Rig r;
+			r.open(nodes::gate_selection, ctx);
+			r.shell.tick(0);
+			for (int32_t t = 0; t < NUM_GATE_CHANNELS; t++) {
+				r.turn(1, static_cast<uint32_t>(10 + t * 10));
+				r.shell.tick(static_cast<uint32_t>(15 + t * 10));
+			}
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 300);
+			r.shell.tick(310);
+			expect(menu_scene().focused() == &nodes::gate_off_time).to_be_true();
+			expect(int(menu_scene().state().source_choice)).to_equal(-1);
+		}
+	});
+
 	it("offers CLOCK or RUN SIGNAL only on the outputs that carry them, once a selection has been "
 	   "made through the scene",
 	   _ {
@@ -3296,7 +3348,10 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		// loader between flash and that array was the broken part.
 		//
 		// The host BSP backs the settings region with RAM (`src/bsp/host/host_bsp.c`), so this is a
-		// real program/erase/read cycle rather than a stub.
+		// real program/erase/read cycle rather than a stub -- and the buffer is process-global,
+		// which is why the guard below is here as well as the save/restore of `padColours`. See
+		// `support/host_flash.h`.
+		spec::ErasedFlash flash;
 		uint8_t saved[FlashStorage::NUM_PAD_COLOUR_SLOTS];
 		for (size_t i = 0; i < FlashStorage::NUM_PAD_COLOUR_SLOTS; i++) {
 			saved[i] = FlashStorage::padColours[i];

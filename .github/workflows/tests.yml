@@ -76,6 +76,17 @@ jobs:
       - name: Menu tree JSON dump matches committed JSON
         run: bash scripts/menu_dump_check.sh
 
+      # WARNING-ONLY, and deliberately so: `check_citations.py` always exits 0. It catches one
+      # specific regression -- a legacy line citation whose whole cited range is past EOF, inside
+      # the GPL header, or nothing but includes and braces -- which is what happens when a port
+      # commit edits the legacy file its own comments cite. E2 task 11b's two-line edit to
+      # `gui/ui/menus.cpp` broke about fifty citations from five earlier tasks exactly that way.
+      # It cannot tell whether a line MEANS what the comment claims, and a citation that drifts
+      # onto plausible code is invisible to it, so a clean run is not a clean bill of health and
+      # failing the build on it would buy a false sense of one. Read the output; it is short.
+      - name: Legacy citations still resolve (warning only)
+        run: python3 scripts/check_citations.py
+
       # Scoped to this step's own outcome: a bare `if: failure()` also fires when an earlier step
       # in the job failed, at which point build-sim/got does not exist and the upload logs a
       # spurious "no files found".

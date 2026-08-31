@@ -581,7 +581,7 @@ void set_screensaver_timeout(const MenuContext&, int32_t value) {
 // Pads
 
 int32_t get_pads_keyboard_layout(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::keyboardLayout); // `keyboard/layout.h:11`
+	return static_cast<int32_t>(FlashStorage::keyboardLayout); // `keyboard/layout.h:27 readCurrentValue`
 }
 void set_pads_keyboard_layout(const MenuContext&, int32_t value) {
 	FlashStorage::keyboardLayout = static_cast<KeyboardLayout>(value); // `:12`

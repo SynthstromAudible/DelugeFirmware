@@ -46,6 +46,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/buttons.h"
 #include "hid/display/oled.h"
 
 // The chaining group's legacy headers render through an unqualified `OLED::main`, which resolves
@@ -96,6 +97,7 @@ using deluge::hid::display::OLED;
 #include <set>
 #include <span>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "spec/support/spec_main.h"
@@ -657,6 +659,46 @@ bool chain_targets_contain(const Node& node, const Node* target) {
 	return std::find(node.chain_targets.begin(), node.chain_targets.end(), target) != node.chain_targets.end();
 }
 
+/// @brief The one **arm** of a legacy `selectButtonPress` this comparison does not compare, and
+///        why -- the chaining group's counterpart of `kLegacyWriteNeedsUi` above.
+///
+/// `PatchedParam::selectButtonPress` (`gui/menu_item/patched_param.cpp:33-40 selectButtonPress`) has
+/// **two** arms, not one:
+///
+/// ```
+/// if (Buttons::isShiftButtonPressed()) { return Param::selectButtonPress(); }  // delete automation
+/// soundEditor.patchingParamSelected = this->getP();
+/// return &source_selection::regularMenu;                                        // the source picker
+/// ```
+///
+/// Only the second is ported. Every one of the **53** `PatchedParam` nodes carries
+/// `with_patch_chain` (`nodes/patch_cables.h`) and answers `source_selection_regular`
+/// unconditionally, so on the largest chaining group in the tree the port and legacy agree on the
+/// non-shift press and diverge on the shift press: legacy deletes the param's automation, shows the
+/// `STRING_FOR_AUTOMATION_DELETED` popup and returns `NO_NAVIGATION`
+/// (`gui/menu_item/automation/automation.cpp:38-58 selectButtonPress`), where the port opens the
+/// source picker.
+///
+/// @note **This is an exclusion from comparison, and it is structural.** It is not "not driven
+///       yet": `SelectChainFn` is `const Node* (*)(const MenuContext&, const MenuState&)`
+///       (`scenes/menu/node.h:267`) and is passed no button state at all, so no node in this tree
+///       can express the shift arm however the spec drives it. The `static_assert` below is the
+///       pin: the day `SelectChainFn` grows a parameter that could carry shift, this exclusion has
+///       to be re-argued rather than silently inherited. The divergence is also recorded in the
+///       design spec's carried-sweep row and in `src/scenes/README.md`; this is the copy at the
+///       comparison site, which is where a reader meets the claim that the two answers match.
+///
+/// @note Legacy's shift arm is not merely a different *destination* -- it mutates the song (an
+///       `ActionType::AUTOMATION_DELETE` through `actionLogger`) and calls `display->displayPopup`
+///       and `getRootUI()`. That is a second, independent reason this spec does not drive it: doing
+///       so would delete automation out of the shared fixture and reach three UI globals the sim's
+///       oracle does not stand up.
+constexpr bool kPatchedParamShiftArmPorted = false;
+static_assert(std::is_same_v<menu::SelectChainFn, const Node* (*)(const MenuContext&, const menu::MenuState&)>,
+              "SelectChainFn's signature is the reason kPatchedParamShiftArmPorted is false: a hook "
+              "passed no button state cannot express PatchedParam::selectButtonPress's shift arm. If "
+              "this assert fires, the signature changed -- re-argue the exclusion, do not re-pin it.");
+
 /// @brief Is @p target named by some node's static `children` span, anywhere in the whole tree?
 ///
 /// The point of the chain-only pages is that the answer is *no* for four of them: nothing but a
@@ -1212,10 +1254,19 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 			compared++;
 		}
 		expect(compared).to_equal(std::size(cases));
-		// The 53 `PatchedParam` nodes all take `PatchedParam::selectButtonPress`'s non-shift arm
-		// (`gui/menu_item/patched_param.cpp:32-40`), which is unconditional: always the regular
-		// source picker. Checked against the legacy answer too, through one representative item --
-		// `lpfFreqMenu`, a `patched_param::Integer`.
+		// The 53 `PatchedParam` nodes all answer the regular source picker, which is what
+		// `PatchedParam::selectButtonPress`'s **non-shift** arm answers
+		// (`gui/menu_item/patched_param.cpp:33-40 selectButtonPress`). The shift arm -- delete
+		// automation, `Param::selectButtonPress()` -- is a real divergence, not an absence:
+		// see `kPatchedParamShiftArmPorted` above for what it does and why nothing here compares
+		// it. Legacy is driven below with shift NOT held, which is the state
+		// `Buttons::isShiftButtonPressed()` reports in this fixture, so the comparison is
+		// like-for-like on the arm it covers and silent on the arm it does not.
+		//
+		// Checked against the legacy answer through one representative item -- `lpfFreqMenu`, a
+		// `patched_param::Integer`.
+		static_assert(!kPatchedParamShiftArmPorted);
+		expect(Buttons::isShiftButtonPressed()).to_be_false();
 		::MenuItem* lpf_item = nullptr;
 		for (const Pair& pr : tree().pairs) {
 			if (pr.node == &nodes::lpf_freq) {

@@ -919,6 +919,14 @@ int8_t deluge_encoder_take_edges(uint8_t encoder) {
 // flash (all 0xFF) and takes `readSettings`' "no settings were previously saved" arm, as the
 // no-op stub this replaces always did. Nothing that only ever reads sees a behaviour change.
 //
+// **The lifetime is the process, and a spec binary is many examples.** There is deliberately no
+// per-test reset hook here: this file models a device, and a device does not forget its settings
+// between two things a user does. The isolation belongs to the harness, and it has a name --
+// `spec::ErasedFlash` (`sim/scenes_spec/support/host_flash.h`) is the scoped guard that erases
+// around any example which programs this sector, so those 256 bytes cannot be read by whatever
+// example the runner happens to schedule next. An example that writes settings without it is a
+// test-ordering dependency waiting to be discovered.
+//
 // One sector's worth: `writeSettings` erases at 0 and programs 256 bytes there (`flash_storage.cpp`),
 // and no caller addresses anything past that.
 #define HOST_FLASH_BYTES 256

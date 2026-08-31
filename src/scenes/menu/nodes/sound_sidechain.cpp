@@ -108,7 +108,7 @@ void sidechain_sync_from_menu(SideChain* sc, int32_t menu_value) {
 	}
 	sc->syncType = syncValueToSyncType(menu_value); // `sync.h:44-45`
 	sc->syncLevel = syncValueToSyncLevel(menu_value);
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // `sync.h:48`
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // `sidechain/sync.h:64 writeCurrentValue`
 }
 
 // ---------------------------------------------------------------------------------------------

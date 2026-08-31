@@ -8,6 +8,7 @@ may only shrink: a PR that raises a count, or adds a new (file, rule) pair, fail
   scripts/check_layer_rules.py            # check (exit 1 on regression)
   scripts/check_layer_rules.py --list     # print current counts
   scripts/check_layer_rules.py --update   # rewrite the baseline from the tree
+  scripts/check_layer_rules.py --audit-symbols  # every scenes-no-root-ui name really exists
 """
 
 import argparse
@@ -20,6 +21,61 @@ REPO = Path(__file__).resolve().parent.parent
 BASELINE = REPO / "scripts" / "layer_rules_baseline.txt"
 SUFFIXES = {".c", ".cpp", ".h", ".hpp"}
 NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,sync,util,dsp}/**"
+
+# The `scenes-no-root-ui` row's alternatives, named rather than inlined so `--audit-symbols` can
+# check that each one is a symbol this tree actually has. Every entry below was taken from an
+# `extern <T> <name>;` declaration in `src/deluge/gui/views/*.h` or `src/deluge/gui/ui/**/*.h`
+# whose type is a `UI` subclass -- i.e. from the declarations, not from memory.
+#
+# `view` (`View view`, `gui/views/view.h`) is deliberately NOT here: as a whole-word pattern it
+# would match the English word in prose and any local named `view`, and its false-positive rate
+# would make the row unusable. `soundEditor` is here even though it is not a root UI, because it
+# is the legacy menu driver this whole library replaces; naming it is always a mistake.
+ROOT_UI_GLOBALS = (
+    # the root views (`gui/views/`)
+    "sessionView",
+    "arrangerView",
+    "automationView",
+    "performanceView",
+    "instrumentClipView",
+    "audioClipView",
+    "keyboardScreen",
+    # the legacy menu driver (`gui/ui/sound_editor.h:189`)
+    "soundEditor",
+    # the rename UIs `rename::RenameScene` replaces (`gui/ui/rename/`)
+    "renameClipUI",
+    "renameOutputUI",
+    "renameDrumUI",
+    "renameMidiCCUI",
+    # the browsers, savers and recorders the eleven `kPendingCustomNodes` will want when E3
+    # implements the file/sample family -- listed now so the ratchet is already in place for the
+    # exact group most likely to reach for them (`gui/ui/browser/`, `gui/ui/save/`, `gui/ui/load/`,
+    # `gui/ui/audio_recorder.h`, `gui/ui/sample_marker_editor.h`, `gui/ui/slicer.h`).
+    "sampleBrowser",
+    "audioRecorder",
+    "sampleMarkerEditor",
+    "dxBrowser",
+    "slicer",
+    "loadSongUI",
+    "saveSongUI",
+    "loadInstrumentPresetUI",
+    "saveInstrumentPresetUI",
+    "loadPatternUI",
+    "savePatternUI",
+    "saveKitRowUI",
+    "loadMidiDeviceDefinitionUI",
+    "saveMidiDeviceDefinitionUI",
+)
+# The UI-stack entry points (`gui/ui/ui.h:184-197`), matched with a following `(`.
+UI_STACK_CALLS = (
+    "openUI",
+    "closeUI",
+    "changeRootUI",
+    "getRootUI",
+    "getCurrentUI",
+    "swapOutRootUILowLevel",
+)
+
 RULES = [
     (
         "model-includes-ui",
@@ -267,7 +323,7 @@ RULES = [
     (
         # E2 task 11b's action seam, stated as a rule rather than as a convention. Five menu items
         # perform an action that legacy does by opening or reconfiguring a ROOT UI --
-        # `performanceSessionView`, `sessionView`'s macro editor, the MIDI-learn overlay. The
+        # `performanceView`, `sessionView`'s macro editor, the MIDI-learn overlay. The
         # scenes layer may not do that: it files a `MenuAction` (`menu/action.h`) into
         # `MenuState`, drained where `pending_scene` drains, and the application-side wiring
         # performs it. This row is what makes the seam necessary rather than merely tidy.
@@ -287,14 +343,22 @@ RULES = [
         #
         # Same ratchet-not-proof caveat as the rows above: it sees these spellings, not every
         # possible one.
+        #
+        # The identifier list is `ROOT_UI_GLOBALS` / `UI_STACK_CALLS` below, and `--audit-symbols`
+        # is why: E2 task 13 shipped this row spelling the performance view
+        # `performanceSessionView`, which is the name of no symbol in this tree (the global is
+        # `performanceView`, `gui/views/performance_view.h:207 extern PerformanceView
+        # performanceView`) -- so the very global `menu/action.h`'s mirror apparatus exists to
+        # avoid touching was the one the row could not see. A ratchet listing a name that does not
+        # exist guards nothing while reading as though it does.
         "scenes-no-root-ui",
         "src/scenes/**",
         "symbol",
-        (
-            r"\b(sessionView|arrangerView|automationView|performanceSessionView|instrumentClipView|"
-            r"audioClipView|renameClipUI|renameOutputUI|renameDrumUI|renameMidiCCUI)\b"
-            r"|\b(openUI|closeUI|changeRootUI|getRootUI|getCurrentUI|swapOutRootUILowLevel)\("
-        ),
+        r"\b("
+        + "|".join(ROOT_UI_GLOBALS)
+        + r")\b|\b("
+        + "|".join(UI_STACK_CALLS)
+        + r")\(",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
@@ -383,11 +447,41 @@ def load_baseline() -> dict[tuple[str, str], int]:
     return out
 
 
+def audit_symbols() -> int:
+    """Check every named `scenes-no-root-ui` alternative is a symbol this tree actually declares.
+
+    A ratchet row that lists a name nothing declares reads as protection and provides none --
+    which is exactly what `performanceSessionView` was between E2 task 13 and this fix. The test
+    is deliberately crude (does the identifier appear anywhere under `src/deluge/gui/`?) because
+    the failure it catches is crude: a name invented rather than copied.
+    """
+    haystack = "\n".join(
+        p.read_text(encoding="utf-8", errors="replace")
+        for p in sorted((REPO / "src" / "deluge" / "gui").rglob("*"))
+        if p.suffix in SUFFIXES and p.is_file()
+    )
+    bad = 0
+    for sym in (*ROOT_UI_GLOBALS, *UI_STACK_CALLS):
+        if not re.search(rf"\b{re.escape(sym)}\b", haystack):
+            print(
+                f"scenes-no-root-ui lists '{sym}', which src/deluge/gui declares nowhere"
+            )
+            bad += 1
+    print(
+        f"audited {len(ROOT_UI_GLOBALS) + len(UI_STACK_CALLS)} scenes-no-root-ui symbols, "
+        f"{bad} not found"
+    )
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--update", action="store_true")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--audit-symbols", action="store_true")
     a = ap.parse_args()
+    if a.audit_symbols:
+        return audit_symbols()
     cur = current()
     if a.list:
         for (f, r), n in sorted(cur.items()):

@@ -36,6 +36,7 @@
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
 
+#include "support/host_flash.h"
 #include "support/song_fixture.h"
 
 #include "spec/gfx/support/golden.h"
@@ -630,14 +631,17 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 	it("runs the flash reset, and only the flash reset, exactly as legacy does", _ {
 		reset_globals();
 		NoSdRoot no_card;
+		spec::ErasedFlash flash; // this example programs the settings sector -- see `support/host_flash.h`
 		const ResetWitness entry = witness();
 		spec::SongFixture f = spec::make_synth_song();
 
 		// `FlashStorage::factoryReset` is `resetSettings()` + `writeSettings()`. On the host the
-		// write goes to a memset-0xFF stub / in-memory buffer (`src/bsp/host/host_bsp.c:916-927`,
-		// `src/bsp/rust/src/flash.rs:67`), so no flash is touched at all -- only C++ globals, which
-		// is why this one CAN be driven. Save/restore around it, the idiom `tables_3_spec.cpp`
-		// already uses for these same globals.
+		// write goes to a RAM-backed model of the settings sector
+		// (`src/bsp/host/host_bsp.c`'s `flash.h` stub, `src/bsp/rust/src/flash.rs:67`) rather than
+		// to a device, which is why this one CAN be driven. It is a real program, though, and the
+		// buffer is process-global: `ErasedFlash` above is what keeps those 256 bytes from being
+		// readable by every example that runs after this one. The C++ globals are saved and
+		// restored separately, the idiom `tables_3_spec.cpp` already uses for these same globals.
 		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::Flash);
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetFlash);
 

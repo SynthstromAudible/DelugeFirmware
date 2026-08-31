@@ -375,7 +375,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 #### <ins>Pad Colours</ins>
 
 - Fixed the `SETTINGS > PADS > COLOURS > ONCE` colour not being saved. The setting was written to flash correctly but read back into the `FILL` colour instead of `ONCE`, so `ONCE` reverted every time the Deluge was powered on, and `FILL` was overwritten with whatever `ONCE` had been.
-  - If you are updating to <Badge text="c1.3" variant="tip" /> from an earlier firmware, your saved `ONCE` colour is not recoverable — earlier firmware never stored the one you chose. **`ONCE` may come up RED on the first boot after updating.** Set `SETTINGS > PADS > COLOURS > ONCE` once and it will be remembered from then on.
+  - If you are updating to <Badge text="c1.3" variant="tip" /> from an earlier firmware, **both `FILL` and `ONCE` may come up wrong on the first boot after updating.** Neither saved colour is recoverable: earlier firmware never loaded the one you chose for `ONCE`, and it kept overwriting `FILL` with `ONCE`'s stored byte and then saving that back — so the byte that `FILL` now reads from holds whatever `ONCE` used to be. Depending on what was last saved you may see `ONCE` come up RED, `FILL` come up as your old `ONCE` colour, or — when those two collide on RED — both fall back to their defaults, AMBER for `FILL` and MAGENTA for `ONCE`. Set `SETTINGS > PADS > COLOURS > FILL` and `> ONCE` once each and both will be remembered from then on.
 
 ### Sequencer
 

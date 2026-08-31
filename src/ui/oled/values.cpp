@@ -179,10 +179,13 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	f.gate().request_repaint_after(blink_next_flip_in(blink, now), now);
 
 	// The x arithmetic is relative to `rect`, which at f.bounds() on the root frame spans the
-	// whole panel width; the two y constants stay canvas-absolute and are converted to
-	// frame-local by subtracting the frame's origin -- see the canvas-absolute note in values.h.
-	const int32_t local_y = 20 - f.origin.y;  // canvas-absolute row, converted to frame-local
-	const int32_t cursor_y = 41 - f.origin.y; // canvas-absolute row, converted to frame-local
+	// whole panel width. Without a `DecimalLayout` the two y constants stay canvas-absolute and are
+	// converted to frame-local by subtracting the frame's origin -- see the canvas-absolute note in
+	// values.h. WITH one they are `rect`-relative instead, because a page that supplies a layout is
+	// not the full-panel `Decimal` page these constants come from and has its own rows (see
+	// `DecimalLayout::text_dy`).
+	const int32_t local_y = layout != nullptr ? rect.y + layout->text_dy : 20 - f.origin.y;
+	const int32_t cursor_y = layout != nullptr ? rect.y + layout->cursor_dy : 41 - f.origin.y;
 	const int32_t local_end_x = rect.right();
 
 	std::array<char, 13> buf{};

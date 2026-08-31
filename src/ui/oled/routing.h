@@ -68,12 +68,21 @@ void routing_chain(OledFrame& f, gfx::oled::Rect rect, std::span<const std::stri
 /// in", and the no-polarity arm (`:151-156`) is the same box with one full-width label and nothing
 /// inverted.
 ///
-/// **The bracket is drawn in the two rows *above* @p area**, and one column outside it on each
-/// side. Legacy's frame is three lines and two corner pixels -- verticals at `startX - 2` and
+/// @warning **@p area is the slot band, NOT the widget's bounds: this widget inks outside the
+///          rectangle it is handed, by two rows above and two columns on each side.** That breaks
+///          the convention every other widget in this toolkit keeps -- a rect is what the widget
+///          may touch -- and it is deliberate, because it is what legacy does. Stated here rather
+///          than left to be discovered from a golden, since the caller is the one that has to
+///          leave the room, and `f.region(...)` around this widget would clip the bracket away
+///          entirely on all three edges without any error.
+///
+/// Legacy's frame is three lines and two corner pixels -- verticals at `startX - 2` and
 /// `endX + 2` spanning the slot band, a horizontal at `startY - 2` across it, and single pixels at
 /// `(startX - 1, startY - 1)` / `(endX + 1, startY - 1)` that round the two top corners
-/// (`:135-139`). So the widget inks rows `area.y - 2 .. area.y + area.h` and columns
-/// `area.x - 2 .. area.x + sum(widths) + 1`; a caller must leave that room.
+/// (`:135-139`). With `endX == startX + sum(widths) - 1`, the inked extent is therefore rows
+/// `area.y - 2 .. area.y + area.h` and columns `area.x - 2 .. area.x + sum(widths) + 1` -- two
+/// columns clear of the band on the left (`x - 2` for the vertical, `x - 1` for the corner pixel)
+/// and two on the right, and two rows clear above it. Nothing is drawn below `area.y + area.h`.
 ///
 /// @note **The slots' text boxes and their inversion boxes are offset by one column**, for every
 ///       slot but the first. Legacy draws slot *i*'s label at `startX + sum(widths[0..i)) + 1`

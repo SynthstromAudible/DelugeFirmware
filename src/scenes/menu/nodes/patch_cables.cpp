@@ -590,25 +590,58 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	state.cursor_blink = deluge::ui::Blink{};
 }
 
+/// @name This page's layout, which is legacy's own -- all of it, in one place.
+///
+/// **The whole page is frame-local**, i.e. every row below is measured from the top of the visible
+/// panel, which is what `f.origin.y` carries. On the reference geometry (`OLED_MAIN_TOPMOST_PIXEL`
+/// is 5) each of them lands on exactly the canvas row `PatchCableStrength::renderOLED` names, and
+/// on the taller panel the page hugs the visible top as one piece instead of splitting in half.
+///
+/// That last part is the fix for E2 task 12's re-ruling. The page used to be laid out two ways at
+/// once: the diagram and the switch frame-local, but the number on `decimal_value`'s
+/// **canvas-absolute** rows 20/41 -- which are `Decimal::drawPixelsForOled`'s constants for the
+/// *full-panel* number page, not this page's. Those rows sit 10 rows below legacy's number, which
+/// left no room under it, which is why the switch had been pushed to the top of the frame, above
+/// the number, where legacy puts it below. So the page had legacy's *face* for the number (task 12)
+/// and the toolkit's *position* for the switch -- an arrangement neither argument supported.
+/// `DecimalLayout` now carries the rows as well as the face (`ui/oled/values.h`), the number goes
+/// where `patch_cable_strength.cpp` puts it, and the switch follows it down to legacy's `startY`.
+///
+/// Legacy's four constants, and what each becomes here:
+///
+///   * the diagram's first row, `extraY + OLED_MAIN_TOPMOST_PIXEL` (`:87`) -- canvas 6; here the
+///     rect's own y of 0, plus `routing_chain`'s internal `+1`;
+///   * the number's top, `textY = extraY + OLED_MAIN_TOPMOST_PIXEL + 4` (`:175`) -- canvas 10;
+///     here `kValueTextY` = 5;
+///   * the cursor, `textY + digitHeight + 1` (`:180`) -- canvas 24; here `kValueCursorY` = 19;
+///   * the switch's slot band, `startY = 34` (`:131`) -- canvas 34; here `kPolaritySwitchY` = 29.
+///
+/// @{
+
 /// @brief How many columns of the page the routing diagram owns.
 ///
 /// Everything left of this is the diagram's; everything right of it is the value's. Legacy needs no
-/// such split because its own number is `kTextBigSizeY` (13) tall and right-aligned at the very top
-/// (`patch_cable_strength.cpp:172-188`), well clear of a diagram that runs down the left; this port
-/// draws the value with `decimal_value`, whose face is the 20px one and whose digits are centred
-/// across the rect they are given. Handing it the right-hand rect is how the two stay apart -- and
-/// `decimal_value` honours a rect horizontally only (`ui/oled/values.h:115`), which is exactly the
-/// knob this needs.
-///
-/// The same mismatch is why the polarity switch sits at the top of the frame rather than on legacy's
-/// absolute canvas row 34: that row is under this port's digits. Note the consequence, which is
-/// pre-existing toolkit behaviour rather than anything this page introduces: the diagram and the
-/// switch are laid out **frame-local** (they follow `f.origin`, so they hug the visible top on both
-/// panels) while `decimal_value`'s rows are **canvas-absolute** (`ui/oled/values.cpp:182-185` --
-/// `20 - f.origin.y`, `41 - f.origin.y`). So the gap between the diagram and the value differs by
-/// five rows between the two geometries, and on a 64-row panel -- where `visible_top` is 0 -- the
-/// switch's bracket rule lands flush on canvas row 0. Both goldens show it.
+/// such split because its own number is right-aligned at the panel's edge, well clear of a diagram
+/// that runs down the left; `decimal_value` anchors horizontally within the rect it is handed, so
+/// handing it the right-hand rect is how the two stay apart.
 constexpr int32_t kRoutingDiagramWidth = 58;
+
+/// @brief The number's top row and its cursor's, frame-local -- `textY` and
+///        `textY + digitHeight + 1` (`patch_cable_strength.cpp:175`, `:180 renderOLED`), with
+///        `digitHeight = kTextBigSizeY` (13).
+/// @{
+constexpr int32_t kValueTextY = 5;
+constexpr int32_t kValueCursorY = kValueTextY + deluge::gfx::oled::kTextBigSizeY + 1;
+/// @}
+
+/// @brief The polarity switch's slot band, frame-local -- legacy's `startY = 34`
+///        (`patch_cable_strength.cpp:131 renderOLED`).
+///
+/// `segmented_switch` inks two rows *above* this one for its bracket (`ui/oled/routing.h`), so the
+/// page's real ink starts at 27; the number's cursor ends at `kValueCursorY + 1` = 20. Six clear
+/// rows between them, which is legacy's own gap.
+constexpr int32_t kPolaritySwitchY = 29;
+/// @}
 
 /// @brief The polarity switch's two slot widths -- `biSlotWidth` / `uniSlotWidth`
 ///        (`patch_cable_strength.cpp:128-129`).
@@ -645,9 +678,9 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 
 	// `renderOLED`'s polarity switcher (`:125-157`), through `segmented_switch`. The band's left
 	// edge is `bounds.w - 55`, which is legacy's own `startX` of 73 on a 128-column panel, and its
-	// row is the top of the frame rather than legacy's absolute canvas 34 -- the one deliberate
-	// placement change, forced by this port's taller value face (see `kRoutingDiagramWidth`).
-	const deluge::gfx::oled::Rect switch_area{bounds.w - 55, 2, 53, deluge::gfx::oled::kTextSpacingY};
+	// row is `kPolaritySwitchY` -- legacy's `startY` of 34, expressed frame-local (see
+	// `kRoutingDiagramWidth`). Below the number, which is where legacy puts it.
+	const deluge::gfx::oled::Rect switch_area{bounds.w - 55, kPolaritySwitchY, 53, deluge::gfx::oled::kTextSpacingY};
 	if (PatchCable::hasPolarity(source)) {
 		static constexpr std::array<std::string_view, 2> kPolarityLabels{{"BI", "UNI"}}; // `:143-145`
 		deluge::ui::oled::segmented_switch(f, switch_area, kPolarityLabels, kPolarityWidths,
@@ -676,7 +709,9 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	// At 11px the widest string this range reaches (`-50.00`, five glyphs and a half-width period =
 	// 60px) sits comfortably inside the 70px column left of the diagram.
 	static constexpr deluge::ui::oled::DecimalLayout kValueLayout{.font = deluge::gfx::oled::FontId::MetricBold13,
-	                                                              .right_pad = 3};
+	                                                              .right_pad = 3,
+	                                                              .text_dy = kValueTextY,
+	                                                              .cursor_dy = kValueCursorY};
 	const deluge::ui::Response r =
 	    deluge::ui::oled::decimal_value(f, value_rect, state.edit_int, kRange, /*places=*/2, state.decimal_pos,
 	                                    state.cursor_blink, /*focused=*/true, &kValueLayout);
