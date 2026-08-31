@@ -95,7 +95,7 @@
 /// @note **Three write side effects stay behind, and are gaps, not omissions.**
 ///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`
 ///       (`defaults/pad_brightness.h:26`), `ScreensaverModeMenu`/`ScreensaverTimeout` also call
-///       `hid::display::Screensaver::settingsChanged()` (`defaults/screensaver.h:27,58`), the
+///       `hid::display::Screensaver::settingsChanged()` (`defaults/screensaver.h:34,58`), the
 ///       accessibility highlighting item also pokes `Canvas::menuHighlightingInverts`
 ///       (`accessibility_menu_highlighting.h:14-15`), and `ShiftIsSticky` also calls
 ///       `Buttons::clearShiftSticky()` (`runtime_feature/shift_is_sticky.cpp:23`). All four are
@@ -435,7 +435,7 @@ inline constexpr Node cv_submenu = submenu(sid(String::STRING_FOR_CV_OUTPUT_N), 
 /// `MenuContext::source_index` rather than mutable state on the item.
 ///
 /// Legacy's `gateModeMenu` is default-constructed (`menus.cpp:1223`), so it has **no name at all**
-/// -- only a `FormattedTitle` (`gate/mode.h:26-27`). A `Node::name` of 0 would trip
+/// -- only a `FormattedTitle` (`gate/mode.h:36`). A `Node::name` of 0 would trip
 /// `validate_tree`'s `MissingTitle` (the builders default `title` to `name`), so the port uses the
 /// title for both, as it does for `gate_off_time` just below.
 inline constexpr Node gate_mode = with_title(
@@ -658,7 +658,7 @@ inline constexpr const Node* kDefaultAccessibilityChildren[] = {&default_accessi
 inline constexpr Node default_accessibility =
     submenu(sid(String::STRING_FOR_DEFAULT_ACCESSIBILITY), kDefaultAccessibilityChildren);
 
-/// `SessionLayout::getOptions` (`defaults/session_layout.h:19-24`).
+/// `SessionLayout::getOptions` (`defaults/session_layout.h:30-34`).
 inline constexpr uint16_t kSessionLayoutNames[] = {
     sid(String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
     sid(String::STRING_FOR_DEFAULT_UI_GRID),
@@ -734,7 +734,7 @@ inline constexpr const Node* kDefaultUiKeyboardChildren[] = {&default_keyboard_l
 inline constexpr Node default_ui_keyboard =
     submenu(sid(String::STRING_FOR_DEFAULT_UI_KEYBOARD), kDefaultUiKeyboardChildren);
 
-/// `DefaultNewClipType::getOptions` (`defaults/ui/clip_type/default_new_clip_type.h:19-25`) returns
+/// `DefaultNewClipType::getOptions` (`defaults/ui/clip_type/default_new_clip_type.h:31-37`) returns
 /// five **literal** strings rather than l10n ids -- there is no `STRING_FOR_SYNTH` / `_KIT` /
 /// `_AUDIO` to name -- so the list is dynamic here too, and is the same five literals.
 inline constexpr Node default_new_clip_type =
@@ -867,7 +867,7 @@ inline constexpr Node default_metronome_volume =
                         IntRange{kMinMenuMetronomeVolumeValue, kMaxMenuMetronomeVolumeValue, 1}),
                sid(String::STRING_FOR_DEFAULT_METRO_MENU_TITLE));
 
-/// `PatchCablePolarity::getOptions` (`defaults/patch_cable_polarity.h:19-22`) is
+/// `PatchCablePolarity::getOptions` (`defaults/patch_cable_polarity.h:30-33`) is
 /// `polarityToString(...)` (`modulation/patch/patch_cable.cpp:33-41`) for the two polarities --
 /// literals again, so a dynamic list.
 inline constexpr Node default_patch_cable_polarity =

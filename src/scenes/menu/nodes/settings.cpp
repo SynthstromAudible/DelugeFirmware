@@ -123,7 +123,7 @@ void set_trigger_in_auto_start(const MenuContext&, int32_t value) {
 }
 
 int32_t get_trigger_out_ppqn(const MenuContext&) {
-	return static_cast<int32_t>(playbackHandler.analogOutTicksPPQN); // `trigger/out/ppqn.h:22`
+	return static_cast<int32_t>(playbackHandler.analogOutTicksPPQN); // `trigger/out/ppqn.h:26 readCurrentValue`
 }
 void set_trigger_out_ppqn(const MenuContext&, int32_t value) {
 	playbackHandler.analogOutTicksPPQN = value; // `trigger/out/ppqn.h:23-25`
@@ -161,18 +161,19 @@ int32_t follow_channel_get(int32_t which) {
 	return midiEngine.midiFollowChannelType[which].channelOrZone; // `midi/follow/follow_channel.h:29`
 }
 void follow_channel_set(int32_t which, int32_t value) {
-	midiEngine.midiFollowChannelType[which].channelOrZone = value; // `follow_channel.h:30`
+	midiEngine.midiFollowChannelType[which].channelOrZone = value; // `follow_channel.h:36 writeCurrentValue`
 }
 
 int32_t get_follow_kit_root_note(const MenuContext&) {
-	return midiEngine.midiFollowKitRootNote; // `midi/follow/follow_kit_root_note.h:23`
+	return midiEngine.midiFollowKitRootNote; // `midi/follow/follow_kit_root_note.h:28 readCurrentValue`
 }
 void set_follow_kit_root_note(const MenuContext&, int32_t value) {
-	midiEngine.midiFollowKitRootNote = static_cast<uint8_t>(value); // `follow_kit_root_note.h:24`
+	midiEngine.midiFollowKitRootNote = static_cast<uint8_t>(value); // `follow_kit_root_note.h:29 writeCurrentValue`
 }
 
 int32_t get_follow_feedback_channel(const MenuContext&) {
-	return static_cast<int32_t>(midiEngine.midiFollowFeedbackChannelType); // `follow_feedback_channel_type.h:22`
+	// `follow_feedback_channel_type.h:32 readCurrentValue`
+	return static_cast<int32_t>(midiEngine.midiFollowFeedbackChannelType);
 }
 void set_follow_feedback_channel(const MenuContext&, int32_t value) {
 	midiEngine.midiFollowFeedbackChannelType = static_cast<MIDIFollowFeedbackChannelType>(value); // `:23-25`
@@ -223,7 +224,8 @@ size_t follow_feedback_channel_names(const MenuContext&, std::span<std::string_v
 }
 
 int32_t get_follow_feedback_automation(const MenuContext&) {
-	return static_cast<int32_t>(midiEngine.midiFollowFeedbackAutomation); // `follow_feedback_automation.h:21`
+	// `follow_feedback_automation.h:30 readCurrentValue`
+	return static_cast<int32_t>(midiEngine.midiFollowFeedbackAutomation);
 }
 void set_follow_feedback_automation(const MenuContext&, int32_t value) {
 	midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(value); // `:22-24`
@@ -261,17 +263,18 @@ void set_midi_thru(const MenuContext&, int32_t value) {
 }
 
 int32_t get_midi_transpose_method(const MenuContext&) {
-	return static_cast<int32_t>(MIDITranspose::controlMethod); // `midi/transpose.h:21`
+	return static_cast<int32_t>(MIDITranspose::controlMethod); // `midi/transpose.h:27 readCurrentValue`
 }
 void set_midi_transpose_method(const MenuContext&, int32_t value) {
-	MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(value); // `midi/transpose.h:22`
+	// `midi/transpose.h:28 writeCurrentValue`
+	MIDITranspose::controlMethod = static_cast<MIDITransposeControlMethod>(value);
 }
 
 int32_t get_midi_takeover(const MenuContext&) {
-	return static_cast<int32_t>(midiEngine.midiTakeover); // `midi/takeover.h:21`
+	return static_cast<int32_t>(midiEngine.midiTakeover); // `midi/takeover.h:27 readCurrentValue`
 }
 void set_midi_takeover(const MenuContext&, int32_t value) {
-	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(value); // `midi/takeover.h:22`
+	midiEngine.midiTakeover = static_cast<MIDITakeoverMode>(value); // `midi/takeover.h:28 writeCurrentValue`
 }
 
 int32_t get_midi_input_differentiation(const MenuContext&) {
@@ -300,14 +303,15 @@ void set_default_menu_highlighting(const MenuContext&, int32_t value) {
 }
 
 int32_t get_default_session_layout(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::defaultSessionLayout); // `defaults/session_layout.h:11`
+	return static_cast<int32_t>(FlashStorage::defaultSessionLayout); // `defaults/session_layout.h:28 readCurrentValue`
 }
 void set_default_session_layout(const MenuContext&, int32_t value) {
 	FlashStorage::defaultSessionLayout = static_cast<SessionLayoutType>(value); // `:12`
 }
 
 int32_t get_default_grid_active_mode(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::defaultGridActiveMode); // `defaults/grid_default_active_mode.h:11`
+	// `defaults/grid_default_active_mode.h:28 readCurrentValue`
+	return static_cast<int32_t>(FlashStorage::defaultGridActiveMode);
 }
 void set_default_grid_active_mode(const MenuContext&, int32_t value) {
 	FlashStorage::defaultGridActiveMode = static_cast<GridDefaultActiveMode>(value); // `:12`
@@ -335,7 +339,8 @@ void set_default_grid_pads_create_rec(const MenuContext&, int32_t value) {
 }
 
 int32_t get_default_keyboard_layout(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::defaultKeyboardLayout); // `defaults/keyboard_layout.h:11`
+	// `defaults/keyboard_layout.h:28 readCurrentValue`
+	return static_cast<int32_t>(FlashStorage::defaultKeyboardLayout);
 }
 void set_default_keyboard_layout(const MenuContext&, int32_t value) {
 	FlashStorage::defaultKeyboardLayout = static_cast<KeyboardLayoutType>(value); // `:12`
@@ -356,14 +361,16 @@ void set_default_kb_modwheel_glide(const MenuContext&, int32_t value) {
 }
 
 int32_t get_default_favourites_layout(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::defaultFavouritesLayout); // `defaults/favourites_layout.h:11`
+	// `defaults/favourites_layout.h:28 readCurrentValue`
+	return static_cast<int32_t>(FlashStorage::defaultFavouritesLayout);
 }
 void set_default_favourites_layout(const MenuContext&, int32_t value) {
 	FlashStorage::defaultFavouritesLayout = static_cast<FavouritesDefaultLayout>(value); // `:12-14`
 }
 
 int32_t get_default_new_clip_type(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::defaultNewClipType); // `defaults/ui/clip_type/default_new_clip_type.h:12`
+	// `defaults/ui/clip_type/default_new_clip_type.h:29 readCurrentValue`
+	return static_cast<int32_t>(FlashStorage::defaultNewClipType);
 }
 void set_default_new_clip_type(const MenuContext&, int32_t value) {
 	FlashStorage::defaultNewClipType = static_cast<OutputType>(value); // `:13`
@@ -421,21 +428,21 @@ void set_default_automation_no_audition(const MenuContext&, int32_t value) {
 // Defaults: the rest
 
 int32_t get_default_swing_interval(const MenuContext&) {
-	return FlashStorage::defaultSwingInterval; // `defaults/swing_interval.h:12`
+	return FlashStorage::defaultSwingInterval; // `defaults/swing_interval.h:28 readCurrentValue`
 }
 void set_default_swing_interval(const MenuContext&, int32_t value) {
 	FlashStorage::defaultSwingInterval = static_cast<uint8_t>(value); // `:13-18`
 }
 
 int32_t get_default_scale(const MenuContext&) {
-	// `defaults::DefaultScale::readCurrentValue` (`defaults/scale.h:13-15`) with its own
+	// `defaults::DefaultScale::readCurrentValue` (`defaults/scale.h:27-29`) with its own
 	// `scaleToOptionIndex` (`:41-47`): USER_SCALE is not offerable as a default, so the option index
 	// is the scale index with that one slot removed.
 	const Scale scale = flashStorageCodeToScale(FlashStorage::defaultScale);
 	return scale >= USER_SCALE ? static_cast<int32_t>(scale) - 1 : static_cast<int32_t>(scale);
 }
 void set_default_scale(const MenuContext&, int32_t value) {
-	int32_t index = value; // `scale.h:17-19` over `optionIndexToScale` (`:35-40`)
+	int32_t index = value; // `scale.h:32 writeCurrentValue` over `optionIndexToScale` (`:35-40`)
 	if (index >= USER_SCALE) {
 		index += 1;
 	}
@@ -452,20 +459,20 @@ size_t default_scale_names(const MenuContext&, std::span<std::string_view> out) 
 }
 
 int32_t get_default_velocity(const MenuContext&) {
-	return FlashStorage::defaultVelocity; // `defaults/velocity.h:12`
+	return FlashStorage::defaultVelocity; // `defaults/velocity.h:28 readCurrentValue`
 }
 void set_default_velocity(const MenuContext& ctx, int32_t value) {
-	FlashStorage::defaultVelocity = static_cast<uint8_t>(value); // `defaults/velocity.h:13-16`
+	FlashStorage::defaultVelocity = static_cast<uint8_t>(value); // `defaults/velocity.h:29-32 writeCurrentValue`
 	if (ctx.song != nullptr) {
 		ctx.song->setDefaultVelocityForAllInstruments(FlashStorage::defaultVelocity);
 	}
 }
 
 int32_t get_default_magnitude(const MenuContext&) {
-	return FlashStorage::defaultMagnitude; // `defaults/magnitude.h:12`
+	return FlashStorage::defaultMagnitude; // `defaults/magnitude.h:29 readCurrentValue`
 }
 void set_default_magnitude(const MenuContext&, int32_t value) {
-	// `defaults/magnitude.h:13-20`: the swing interval is nudged by the same delta so its musical
+	// `defaults/magnitude.h:33-36 writeCurrentValue`: the swing interval is nudged by the same delta so its musical
 	// meaning survives the resolution change.
 	const int32_t old_magnitude = FlashStorage::defaultMagnitude;
 	FlashStorage::defaultMagnitude = static_cast<int8_t>(value);
@@ -495,14 +502,14 @@ size_t default_magnitude_names(const MenuContext&, std::span<std::string_view> o
 }
 
 int32_t get_default_bend_range(const MenuContext&) {
-	return FlashStorage::defaultBendRange[BEND_RANGE_MAIN]; // `defaults/bend_range.h:8`
+	return FlashStorage::defaultBendRange[BEND_RANGE_MAIN]; // `defaults/bend_range.h:26 readCurrentValue`
 }
 void set_default_bend_range(const MenuContext&, int32_t value) {
 	FlashStorage::defaultBendRange[BEND_RANGE_MAIN] = static_cast<uint8_t>(value); // `:9`
 }
 
 int32_t get_default_metronome_volume(const MenuContext&) {
-	return FlashStorage::defaultMetronomeVolume; // `defaults/metronome_volume.h:12`
+	return FlashStorage::defaultMetronomeVolume; // `defaults/metronome_volume.h:30 readCurrentValue`
 }
 void set_default_metronome_volume(const MenuContext&, int32_t value) {
 	FlashStorage::defaultMetronomeVolume = static_cast<uint8_t>(value); // `:13-16`
@@ -510,14 +517,16 @@ void set_default_metronome_volume(const MenuContext&, int32_t value) {
 }
 
 int32_t get_default_patch_cable_polarity(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::defaultPatchCablePolarity); // `defaults/patch_cable_polarity.h:11`
+	// `defaults/patch_cable_polarity.h:28 readCurrentValue`
+	return static_cast<int32_t>(FlashStorage::defaultPatchCablePolarity);
 }
 void set_default_patch_cable_polarity(const MenuContext&, int32_t value) {
 	FlashStorage::defaultPatchCablePolarity = static_cast<Polarity>(value); // `:12`
 }
 
 int32_t get_default_startup_song(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::defaultStartupSongMode); // `defaults/startup_song_mode.h:11`
+	// `defaults/startup_song_mode.h:28 readCurrentValue`
+	return static_cast<int32_t>(FlashStorage::defaultStartupSongMode);
 }
 void set_default_startup_song(const MenuContext&, int32_t value) {
 	FlashStorage::defaultStartupSongMode = static_cast<StartupSongMode>(value); // `:12`
@@ -532,7 +541,7 @@ void set_default_pad_brightness(const MenuContext&, int32_t value) {
 }
 
 int32_t get_default_slice_mode(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::defaultSliceMode); // `defaults/slice_mode.h:11`
+	return static_cast<int32_t>(FlashStorage::defaultSliceMode); // `defaults/slice_mode.h:28 readCurrentValue`
 }
 void set_default_slice_mode(const MenuContext&, int32_t value) {
 	FlashStorage::defaultSliceMode = static_cast<SampleRepeatMode>(value); // `:12`
@@ -546,7 +555,7 @@ void set_default_cpu_indicator(const MenuContext&, int32_t value) {
 }
 
 int32_t get_default_hold_time(const MenuContext&) {
-	return FlashStorage::defaultHoldTime; // `defaults/hold_time.h:12`
+	return FlashStorage::defaultHoldTime; // `defaults/hold_time.h:29`
 }
 void set_default_hold_time(const MenuContext&, int32_t value) {
 	FlashStorage::defaultHoldTime = static_cast<uint8_t>(value); // `:13-16`
@@ -554,7 +563,7 @@ void set_default_hold_time(const MenuContext&, int32_t value) {
 }
 
 int32_t get_screensaver_mode(const MenuContext&) {
-	return static_cast<int32_t>(FlashStorage::screensaverMode); // `defaults/screensaver.h:24`
+	return static_cast<int32_t>(FlashStorage::screensaverMode); // `defaults/screensaver.h:37 readCurrentValue`
 }
 void set_screensaver_mode(const MenuContext&, int32_t value) {
 	// `:25-28`. `Screensaver::settingsChanged()` is `hid/` -- see `settings.h`'s note.
@@ -589,7 +598,7 @@ size_t pads_keyboard_layout_names(const MenuContext&, std::span<std::string_view
 }
 
 int32_t get_sample_browser_preview(const MenuContext&) {
-	return FlashStorage::sampleBrowserPreviewMode; // `sample/browser_preview/mode.h:11`
+	return FlashStorage::sampleBrowserPreviewMode; // `sample/browser_preview/mode.h:25 readCurrentValue`
 }
 void set_sample_browser_preview(const MenuContext&, int32_t value) {
 	FlashStorage::sampleBrowserPreviewMode = static_cast<uint8_t>(value); // `:12`
@@ -599,7 +608,7 @@ void set_sample_browser_preview(const MenuContext&, int32_t value) {
 // Recording
 
 int32_t get_record_count_in(const MenuContext&) {
-	return playbackHandler.countInBars; // `record/countin.h:11`
+	return playbackHandler.countInBars; // `record/countin.h:25 readCurrentValue`
 }
 void set_record_count_in(const MenuContext&, int32_t value) {
 	playbackHandler.countInBars = static_cast<uint8_t>(value); // `:12`
@@ -620,7 +629,7 @@ void set_record_margins(const MenuContext&, int32_t value) {
 }
 
 int32_t get_monitor_mode(const MenuContext&) {
-	return static_cast<int32_t>(AudioEngine::inputMonitoringMode); // `monitor/mode.h:12`
+	return static_cast<int32_t>(AudioEngine::inputMonitoringMode); // `monitor/mode.h:28 readCurrentValue`
 }
 void set_monitor_mode(const MenuContext&, int32_t value) {
 	AudioEngine::inputMonitoringMode = static_cast<InputMonitoringMode>(value); // `:13`
@@ -676,7 +685,7 @@ void set_shift_is_sticky(const MenuContext&, int32_t value) {
 }
 
 size_t new_clip_type_names(const MenuContext&, std::span<std::string_view> out) {
-	// `DefaultNewClipType::getOptions` (`defaults/ui/clip_type/default_new_clip_type.h:19-25`).
+	// `DefaultNewClipType::getOptions` (`defaults/ui/clip_type/default_new_clip_type.h:31-37`).
 	static constexpr std::string_view kNames[] = {"SYNTH", "KIT", "MIDI", "CV", "AUDIO"};
 	size_t n = 0;
 	for (std::string_view name : kNames) {
@@ -688,7 +697,7 @@ size_t new_clip_type_names(const MenuContext&, std::span<std::string_view> out) 
 }
 
 size_t polarity_names(const MenuContext&, std::span<std::string_view> out) {
-	// `PatchCablePolarity::getOptions` (`defaults/patch_cable_polarity.h:19-22`).
+	// `PatchCablePolarity::getOptions` (`defaults/patch_cable_polarity.h:30-33`).
 	size_t n = 0;
 	if (n < out.size()) {
 		out[n++] = polarityToString(Polarity::UNIPOLAR);

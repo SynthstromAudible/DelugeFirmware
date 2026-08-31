@@ -203,7 +203,7 @@ inline SongFixture make_kit_song() {
 }
 
 /// @brief Give a kit fixture one drum with a note row, and select it -- the model half of
-///        `InstrumentClipView::createDrumForAuditionedNoteRow` (`instrument_clip_view.cpp:5524`).
+///        `InstrumentClipView::createDrumForAuditionedNoteRow` (`instrument_clip_view.cpp:957`).
 ///
 /// `T` is `SoundDrum`, `MIDIDrum` or `GateDrum`. Returns the drum, already `kit->selectedDrum`.
 template <typename T>

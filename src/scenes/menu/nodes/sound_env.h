@@ -5,8 +5,8 @@
 /// `inline constexpr` for the reason `sound_filters.h` explains (fix round 1, I3). From
 /// `gui/menu_item/generate/dmenus/envelope/{envelope,__init__}.py` and
 /// `generate/g_menus.inc:159-202` (at `ce4a79de0`). Every leaf is an `envelope::Segment`
-/// (`gui/menu_item/envelope/segment.h:23`), which is a `source::PatchedParam` -- a patched param
-/// whose index is `p + source_id_` (`gui/menu_item/source/patched_param.h:29`), with the envelope
+/// (`gui/menu_item/envelope/segment.h:24`), which is a `source::PatchedParam` -- a patched param
+/// whose index is `p + source_id_` (`gui/menu_item/source/patched_param.h:21`), with the envelope
 /// number playing the part of the source id. The generator therefore emits
 /// `params::LOCAL_ENV_0_ATTACK` with an envelope index of 0..3 and the four attack params come out
 /// consecutive (`modulation/params/param.h:112-115`), which is exactly what a `ParamRef` carries
@@ -42,7 +42,7 @@ namespace deluge::scenes::menu::nodes {
 /// @brief One segment of envelope @p index.
 ///
 /// `params::LOCAL_ENV_0_*` + @p index is `source::PatchedParam::getP()`
-/// (`gui/menu_item/source/patched_param.h:29`) written out: the four envelopes' copies of each
+/// (`gui/menu_item/source/patched_param.h:28`) written out: the four envelopes' copies of each
 /// parameter are consecutive enumerators (`modulation/params/param.h:86-89,112-123`).
 constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_param, uint8_t index) {
 	return with_patch_chain(

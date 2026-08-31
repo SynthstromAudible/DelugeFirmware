@@ -114,7 +114,7 @@ bool output_write(const menu::MenuContext& ctx, std::string_view name) {
 	return true;
 }
 
-// --- Drum: `RenameDrumUI` (`gui/ui/rename/rename_drum_ui.cpp:31-58`) ---
+// --- Drum: `RenameDrumUI` (`gui/ui/rename/rename_drum_ui.cpp:30`) ---
 
 bool drum_can(const menu::MenuContext& ctx) {
 	// `RenameDrumUI` has no `canRename` override either; instead `getCurrentName` and `trySetName`
@@ -141,12 +141,12 @@ bool drum_write(const menu::MenuContext& ctx, std::string_view name) {
 }
 
 constexpr std::array<Target, static_cast<size_t>(TargetId::Count)> kTargets{{
-    // `RenameClipUI renameClipUI{"Clip Name"}` (`rename_clip_ui.cpp:27`).
+    // `RenameClipUI renameClipUI{"Clip Name"}` (`rename_clip_ui.cpp:28`).
     {sid(String::STRING_FOR_CLIP_NAME), clip_can, clip_read, clip_write, /*allow_empty=*/true},
-    // `RenameOutputUI renameOutputUI{"Track name"}` (`rename_output_ui.cpp:29`).
+    // `RenameOutputUI renameOutputUI{"Track name"}` (`rename_output_ui.cpp:28`).
     {sid(String::STRING_FOR_TRACK_NAME), output_can, output_read, output_write, /*allow_empty=*/true},
     // `RenameDrumUI renameDrumUI{"Drum Name"}` (`rename_drum_ui.cpp:32`), and the one
-    // `allowEmpty() = false` in the family (`rename_drum_ui.h:33`).
+    // `allowEmpty() = false` in the family (`rename_drum_ui.h:32 allowEmpty`).
     {sid(String::STRING_FOR_DRUM_NAME), drum_can, drum_read, drum_write, /*allow_empty=*/false},
 }};
 
@@ -231,7 +231,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	}
 
 	// `QwertyUI::opened` (`qwerty_ui.cpp:54-55`) zeroes the edit position, and `RenameUI`'s
-	// constructor zeroes the scroll (`rename_ui.cpp:28`); the cursor therefore starts at 0 with the
+	// constructor zeroes the scroll (`rename_ui.cpp:29`); the cursor therefore starts at 0 with the
 	// *whole* existing name to its right, which is what makes typing a character that matches the
 	// one under the cursor simply step over it (see `type_char`).
 	const std::string_view current = t.read(ctx_);
@@ -453,7 +453,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Pad:
-		// `RenameUI::padAction` (`rename_ui.cpp:136-152`): a main pad goes to the keyboard --
+		// `RenameUI::padAction` (`rename_ui.cpp:123-139`): a main pad goes to the keyboard --
 		// which, in this stack, already claimed it while `render_grid` painted it, so anything
 		// arriving here is by definition outside the keyboard's columns. "Otherwise, exit."
 		if (event.on && event.x >= deluge::ui::grid::kTextKeyboardCols) {
@@ -483,7 +483,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Vertical) {
-			// `RenameUI::verticalEncoderAction` (`rename_ui.cpp:154-156`): swallowed, so a turn
+			// `RenameUI::verticalEncoderAction` (`rename_ui.cpp:141-143`): swallowed, so a turn
 			// does not scroll whatever view is showing underneath.
 			Result r;
 			r.handled = true;

@@ -302,7 +302,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.mark_press_used_up(ButtonId::Record);
 		expect(in.press_used_up(ButtonId::Record)).to_be_true();
 		in.on_board_event(button_ev(8, 2, false), 2);
-		expect(in.press_used_up(ButtonId::Record)).to_be_true();  // buttons.cpp:171: cleared on press
+		expect(in.press_used_up(ButtonId::Record)).to_be_true();  // buttons.cpp:172 buttonAction: cleared on press
 		in.on_board_event(button_ev(8, 2, true), 3);
 		expect(in.press_used_up(ButtonId::Record)).to_be_false();
 	});

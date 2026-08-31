@@ -51,7 +51,7 @@ namespace deluge::scenes::menu::nodes {
 class MidiCommandItem final : public CustomItem {
 public:
 	/// @param command Which slot of `midiEngine.globalMIDICommands` this item binds -- legacy's
-	///                `Command::commandNumber` (`midi/command.h:41`), spelled as the real enum
+	///                `Command::commandNumber` (`midi/command.h:30`), spelled as the real enum
 	///                rather than as a number so a swapped pair is a type-checked mistake rather
 	///                than a silent one.
 	explicit constexpr MidiCommandItem(GlobalMIDICommand command) : command_{command} {}

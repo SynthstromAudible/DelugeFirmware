@@ -78,7 +78,7 @@ void sidechain_attack_from_menu(SideChain* sc, int32_t menu_value) {
 		return;
 	}
 	sc->attack = attackRateTable[menu_value] << 2;              // `attack.h:39`
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // `attack.h:60`
+	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true; // `attack.h:61 writeCurrentValue`
 }
 
 int32_t sidechain_release_to_menu(const SideChain* sc) {
@@ -129,7 +129,7 @@ void set_sidechain_sync(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_sidechain_send(const MenuContext& ctx) {
-	// `sidechain::Send::readCurrentValue` (`sidechain/send.h:23-25`).
+	// `sidechain::Send::readCurrentValue` (`sidechain/send.h:32-34`).
 	if (ctx.sound == nullptr) {
 		return 0;
 	}

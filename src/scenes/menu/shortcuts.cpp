@@ -22,7 +22,7 @@
 /// pad column `x`, eight cells `y = 0..7` -- so a reviewer can diff it line for line against
 /// `gui/ui/menus.cpp`. `from_columns` transposes them once, at compile time, into the row-major
 /// `Cells` the lookups index. A `comingSoonMenu` cell becomes `nullptr` (legacy pops up
-/// "unimplemented" and goes nowhere, `sound_editor.cpp:1330`) and says so in the line comment.
+/// "unimplemented" and goes nowhere, `sound_editor.cpp:1326`) and says so in the line comment.
 ///
 /// The transcription is not trusted on its own: `sim/scenes_spec/shortcuts_spec.cpp` walks every
 /// `(x, y)` of every legacy array and of every port layer and asserts the two agree in both

@@ -155,13 +155,13 @@ bool osc1_interpolation(const MenuContext& ctx);
 ///        (`gui/menu_item/synth_mode.h:69-73`): both sources' `oscType` are ring-moddable.
 bool ringmod_allowed(const MenuContext& ctx);
 
-/// @brief Is a kit being edited? `sidechain::Send::isRelevant` (`sidechain/send.h:56`), i.e.
+/// @brief Is a kit being edited? `sidechain::Send::isRelevant` (`sidechain/send.h:65`), i.e.
 ///        `SoundEditor::editingKit()` (`sound_editor.cpp:161-163`).
 bool is_kit(const MenuContext& ctx);
 /// @brief Is a kit *row* being edited? `IncludeInKitArp::isRelevant` (`include_in_kit_arp.h:65-67`),
 ///        i.e. `editingKitRow()` (`sound_editor.cpp:169-171`).
 bool is_kit_row(const MenuContext& ctx);
-/// @brief The negation, `arpeggiator::NoteMode::isRelevant` (`arpeggiator/note_mode.h:21-23`).
+/// @brief The negation, `arpeggiator::NoteMode::isRelevant` (`arpeggiator/note_mode.h:37-39`).
 bool not_kit_row(const MenuContext& ctx);
 /// @brief A kit row that is not a gate drum. `arpeggiator::ChordType::isRelevant`
 ///        (`arpeggiator/chord_type.h:46-48`) and `NoteModeForDrums` (`note_mode_for_drums.h:43-45`).
@@ -175,17 +175,17 @@ bool not_gate_drum_row(const MenuContext& ctx);
 bool not_gate_drum_or_kit_fx(const MenuContext& ctx);
 
 /// @brief A sound (not MIDI/CV, not a non-audio drum row). `ArpUnpatchedParam::isRelevant`
-///        (`arpeggiator/arp_unpatched_param.h:13-15`).
+///        (`arpeggiator/arp_unpatched_param.h:29-31`).
 bool arp_sound_only(const MenuContext& ctx);
 /// @brief The same, and not the kit's global-FX page. `arpeggiator::Rate::isRelevant`
-///        (`arpeggiator/rate.h:10-13`).
+///        (`arpeggiator/rate.h:26-29`).
 bool arp_rate_sound(const MenuContext& ctx);
 /// @brief The complement: a MIDI/CV clip or a non-audio drum row.
-///        `arpeggiator::midi_cv::ArpNonSoundInteger::isRelevant` (`midi_cv/arp_integer.h:11-13`),
+///        `arpeggiator::midi_cv::ArpNonSoundInteger::isRelevant` (`midi_cv/arp_integer.h:27-29`),
 ///        and `randomizer::midi_cv::NoteProbability` (`midi_cv/note_probability.h:32-34`), which
 ///        spells the same test.
 bool arp_non_sound(const MenuContext& ctx);
-/// @brief A kit's global-FX page. `arpeggiator::KitRate::isRelevant` (`arpeggiator/rate.h:19-21`),
+/// @brief A kit's global-FX page. `arpeggiator::KitRate::isRelevant` (`arpeggiator/rate.h:26-29`),
 ///        i.e. `editingKitAffectEntire()` (`sound_editor.cpp:165-167`). Declared for Task 8's kit
 ///        root; batch 2 reaches it through no node.
 bool is_kit_global_fx(const MenuContext& ctx);
@@ -203,7 +203,7 @@ bool randomizer_sound_only(const MenuContext& ctx);
 /// @brief `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:52-55`).
 bool randomizer_non_kit(const MenuContext& ctx);
 /// @brief `randomizer::midi_cv::RandomizerNonSoundInteger::isRelevant`
-///        (`randomizer/midi_cv/randomizer_integer.h:11-14`).
+///        (`randomizer/midi_cv/randomizer_integer.h:27-30`).
 bool randomizer_non_sound(const MenuContext& ctx);
 /// @brief A MIDI/CV clip or a MIDI drum row, with the arpeggiator on -- the override shared by
 ///        `midi_cv::SpreadOctave` (`spread_octave.h:32-35`), `SwapProbability`
@@ -217,7 +217,7 @@ bool is_cv_midi_or_midi_drum(const MenuContext& ctx);
 ///        (`chord_polyphony.h:31-33`) and `ChordProbability` (`chord_probability.h:32-34`).
 bool cv_midi_clip_arp_on(const MenuContext& ctx);
 
-/// @brief Is a mod-FX type selected at all? `mod_fx::Rate::isRelevant` (`mod_fx/rate.h:11-13`).
+/// @brief Is a mod-FX type selected at all? `mod_fx::Rate::isRelevant` (`mod_fx/rate.h:27-29`).
 bool mod_fx_on(const MenuContext& ctx);
 /// @brief Does the selected mod-FX type have a depth? `mod_fx::Depth_Patched::isRelevant`
 ///        (`mod_fx/depth_patched.h:24-28`).
@@ -255,7 +255,7 @@ bool bend_submenu(const MenuContext& ctx);
 /// `sound_bend.h`'s two notes (review round 1, I1).
 bool per_finger_bend(const MenuContext& ctx);
 
-/// @brief `midi::sound::OutputMidiNoteForDrum::isRelevant` (`midi/sound/note_for_drum.h:23-25`):
+/// @brief `midi::sound::OutputMidiNoteForDrum::isRelevant` (`midi/sound/note_for_drum.h:34-36`):
 ///        a kit row that is not a non-audio drum.
 bool output_midi_note(const MenuContext& ctx);
 /// @}
@@ -267,7 +267,7 @@ bool output_midi_note(const MenuContext& ctx);
 ///        (`gui/menu_item/midi/preset.h:31-33`, i.e. the bank / sub-bank / PGM items),
 ///        `midi::MPEYToModWheel` (`midi/y_axis_to_cc1.h:29-33`), `submenu::PolyMonoConversion`
 ///        (`submenu/MPE.h:22-26`), `device_definition::DeviceDefinitionSubmenu`
-///        (`midi/device_definition/submenu.h:22-25`), `Linked` (`linked.h:44-47`) and
+///        (`midi/device_definition/submenu.h:26-34`), `Linked` (`linked.h:44-47`) and
 ///        `HideUnlabeled` (`hide_unlabeled.h:33-36`) -- six items, one test.
 bool is_midi_out(const MenuContext& ctx);
 

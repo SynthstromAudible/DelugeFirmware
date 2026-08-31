@@ -214,7 +214,7 @@ uint32_t menu_to_unsigned(int32_t menu_value);
 ///
 /// Legacy caches it once per menu entry (`sound_editor.cpp:1811-1816`: true when there is no sound,
 /// else `Sound::allowNoteTails(stack, /*disregardSampleLoop=*/true)`), and
-/// `arpeggiator::IncludeInKitArp` reads the cached copy (`include_in_kit_arp.h:16-21,50-52`). It
+/// `arpeggiator::IncludeInKitArp` reads the cached copy (`include_in_kit_arp.h:28-33,50-52`). It
 /// lives here rather than on `MenuContext` because computing it needs a `ModelStackWithSoundFlags`,
 /// and `model/model_stack.h` may be included by `context.cpp` and this file only.
 bool allows_note_tails(const MenuContext& ctx);

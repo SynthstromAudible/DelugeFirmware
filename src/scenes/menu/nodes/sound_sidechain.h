@@ -10,11 +10,11 @@
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
 /// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:806`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:21`) | **Custom, E2** |
-/// | `sidechain_sync` | `sidechainSyncMenu` (`:808`) | `sidechain::Sync` (`sidechain/sync.h:20`) | SyncLevel, 10 options |
+/// | `sidechain_sync` | `sidechainSyncMenu` (`:808`) | `sidechain::Sync` (`sidechain/sync.h:28`) | SyncLevel, 10 options |
 /// | `sidechain_shape` | `sidechainShapeMenu` (`:811`) | `sidechain::Shape` (`sidechain/shape.h:6`) | Int (param, `updates_reverb_params`) |
-/// | `sidechain_send` | `sidechainSendMenu` (`:805`) | `sidechain::Send` (`sidechain/send.h:20`) | Int |
-/// | `sidechain_attack` | `sidechainAttackMenu` (`:809`) | `sidechain::Attack` (`sidechain/attack.h:20`) | Int |
-/// | `sidechain_release` | `sidechainReleaseMenu` (`:810`) | `sidechain::Release` (`sidechain/release.h:20`) | Int |
+/// | `sidechain_send` | `sidechainSendMenu` (`:805`) | `sidechain::Send` (`sidechain/send.h:28`) | Int |
+/// | `sidechain_attack` | `sidechainAttackMenu` (`:809`) | `sidechain::Attack` (`sidechain/attack.h:28`) | Int |
+/// | `sidechain_release` | `sidechainReleaseMenu` (`:810`) | `sidechain::Release` (`sidechain/release.h:28`) | Int |
 /// | `sidechain` | `sidechainMenu` (`:814`) | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
@@ -24,7 +24,7 @@
 ///       §4 lists patch-cable strength among the bespoke items E2 owns. Same treatment as
 ///       `sound_master.h`'s `vibrato`.
 ///
-/// @note **`sidechain::Sync` overrides `size()` to 10** (`sidechain/sync.h:24`), not
+/// @note **`sidechain::Sync` overrides `size()` to 10** (`sidechain/sync.h:33`), not
 ///       `NUM_SYNC_VALUES`, which is why `sync_level_item` takes its range as an argument.
 ///
 /// @note **Attack and release are lookup-table indices, not values.** Legacy stores a rate and
@@ -75,10 +75,10 @@ int32_t get_sidechain_release(const MenuContext& ctx);
 void set_sidechain_release(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()` (`sidechain/sync.h:24`).
+/// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()` (`sidechain/sync.h:33`).
 inline constexpr IntRange kSidechainSyncRange{0, 9, 1};
 
-/// @brief `Attack::getMaxValue` / `Release::getMaxValue` (`sidechain/attack.h:50`, `release.h:50`):
+/// @brief `Attack::getMaxValue` / `Release::getMaxValue` (`sidechain/attack.h:63`, `release.h:63`):
 ///        an index into a 51-entry rate table.
 inline constexpr IntRange kSidechainRateRange{0, 50, 1};
 

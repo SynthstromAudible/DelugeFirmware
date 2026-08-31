@@ -71,7 +71,7 @@
 ///           `rename::TargetId::Drum` -- legacy's `EditName::Target::DRUM` -> `renameDrumUI` --
 ///           exactly as `sound_actions.h`'s two do for the clip and the track.)
 ///         * `midi_device_linked` -- `Linked::writeCurrentValue` opens
-///           `loadMidiDeviceDefinitionUI` (`midi/device_definition/linked.h:26-28`).
+///           `loadMidiDeviceDefinitionUI` (`midi/device_definition/linked.h:42`).
 ///         * (`set_clip_length` is no longer one -- task 11b. It, `start_stem_export`,
 ///           `song_midi_learn` and `configure_song_macros` are `nodes::ActionItem`s that file a
 ///           `MenuAction` through `MenuState::pending_action`, the verb counterpart of
@@ -82,7 +82,7 @@
 ///           descriptor, which is what the three `Descriptor` hooks task 6 anticipated were for.)
 ///         * `specific_output_selector` -- a `drawPixelsForOled`-driven output picker
 ///           (`audio_clip/specific_output_source_selector.h:21-45`).
-///         * `audio_clip_waveform` -- the marker editor (`audio_clip/sample_marker_editor.h:22`).
+///         * `audio_clip_waveform` -- the marker editor (`audio_clip/sample_marker_editor.h:26`).
 ///         * (`perform_editor` is no longer one -- task 11b. `nodes::PerformEditorItem` renders the
 ///           three-option list and files `MenuAction::OpenPerformanceView`; the mode it shows is
 ///           mirrored on this side of the wall by `menu::performance_editing_mode()`, which the
@@ -512,7 +512,7 @@ inline constexpr Node kit_fx_stem_export = submenu(sid(String::STRING_FOR_EXPORT
 // ---------------------------------------------------------------------------------------------
 // The song root (`soundEditorRootMenuSongView`, `:2085`)
 
-/// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`swing/interval.h:26`) rather than
+/// `swing::Interval::size()` is `NUM_SWING_INTERVALS` (`swing/interval.h:30`) rather than
 /// `NUM_SYNC_VALUES`, the same kind of override `sidechain::Sync` makes.
 inline constexpr IntRange kSwingIntervalRange{0, NUM_SWING_INTERVALS - 1, 1};
 inline constexpr Node swing_interval = sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), 0, get_swing_interval,

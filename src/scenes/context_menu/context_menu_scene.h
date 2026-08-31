@@ -82,7 +82,7 @@ enum class DescriptorId : uint16_t {
 };
 
 /// @brief The cursor and the scroll window, as one value: legacy's `currentOption` / `scrollPos`
-///        pair (`context_menu.h:47,51`).
+///        pair (`context_menu.h:48,51`).
 struct Selection {
 	uint8_t option = 0;
 	uint8_t scroll = 0;
@@ -110,7 +110,7 @@ struct Descriptor {
 	std::span<const uint16_t> options;
 
 	/// @brief `ContextMenu::acceptCurrentOption()`. **False closes the menu**, which is legacy's
-	///        own convention ("If returns false, will cause UI to exit", `context_menu.h:41`) and
+	///        own convention ("If returns false, will cause UI to exit", `context_menu.h:38`) and
 	///        is what every `ResetSettings` action returns after doing its work.
 	///
 	/// @note Both parameters are ignored by all five hooks below -- the five factory resets are
@@ -234,7 +234,7 @@ public:
 	///        never halves every pad. Same split `MenuScene` and `RenameScene` make.
 	bool dims_grid() const override { return false; }
 	/// @brief True: `ContextMenu`'s constructor sets `oledShowsUIUnderneath = true`
-	///        (`context_menu.h:26`), and `renderOLED` then clears only its own window.
+	///        (`context_menu.h:27`), and `renderOLED` then clears only its own window.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
 	/// @brief `ContextMenu::getGreyoutColsAndRows` (`context_menu.cpp`): `*cols = 0xFFFFFFFF`,
 	///        `*rows` left at the caller's zero (`gui/ui/ui.cpp:74-83`) -- every column, no rows.

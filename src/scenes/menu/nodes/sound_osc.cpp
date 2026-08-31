@@ -172,7 +172,7 @@ size_t osc_type_names(const MenuContext& ctx, std::span<std::string_view> out, u
 
 // ---------------------------------------------------------------------------------------------
 // `sample::Transpose` (`gui/menu_item/sample/transpose.h:31-175`) -- "this is actually the
-// Oscillator transpose" (`sample/transpose.h:29`).
+// Oscillator transpose" (`sample/transpose.h:31`).
 
 /// @brief `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp:64-66`).
 constexpr int32_t transpose_to_menu(int32_t transpose, int32_t cents) {

@@ -9,26 +9,26 @@
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `arp_mode` | `arpModeMenu` (`:501`) | `arpeggiator::Mode` (`arpeggiator/mode.h:14`) | Enum (toggle) |
-/// | `arp_preset` | `arpPresetModeMenu` (`:499`) | `arpeggiator::PresetMode` (`preset_mode.h:18`) | Enum |
+/// | `arp_mode` | `arpModeMenu` (`:501`) | `arpeggiator::Mode` (`arpeggiator/mode.h:30`) | Enum (toggle) |
+/// | `arp_preset` | `arpPresetModeMenu` (`:499`) | `arpeggiator::PresetMode` (`preset_mode.h:34`) | Enum |
 /// | `arp_gate` | `arpGateMenu` (`:527`) | `arpeggiator::ArpUnpatchedParam`, `UNPATCHED_ARP_GATE` | Int (param) |
-/// | `arp_sync` | `arpSyncMenu` (`:502`) | `arpeggiator::Sync` (`arpeggiator/sync.h:10`) | SyncLevel |
-/// | `arp_rate` | `arpRateMenu` (`:503`) | `arpeggiator::Rate` (`arpeggiator/rate.h:7`), `GLOBAL_ARP_RATE` | Int (param) |
+/// | `arp_sync` | `arpSyncMenu` (`:502`) | `arpeggiator::Sync` (`arpeggiator/sync.h:26`) | SyncLevel |
+/// | `arp_rate` | `arpRateMenu` (`:503`) | `arpeggiator::Rate` (`arpeggiator/rate.h:23`), `GLOBAL_ARP_RATE` | Int (param) |
 /// | `arp_basic` | `arpBasicMenu` (`:626`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `arp_octaves` | `arpOctavesMenu` (`:508`) | `arpeggiator::Octaves` (`octaves.h:10`) | Int |
-/// | `arp_step_repeat` | `arpStepRepeatMenu` (`:524`) | `arpeggiator::StepRepeat` (`step_repeat.h:10`) | Int |
-/// | `arp_octave_mode` | `arpOctaveModeMenu` (`:509`) | `arpeggiator::OctaveMode` (`octave_mode.h:13`) | Enum |
-/// | `arp_note_mode` | `arpNoteModeMenu` (`:515`) | `arpeggiator::NoteMode` (`note_mode.h:9`) | Enum |
-/// | `arp_note_mode_drums` | `arpNoteModeMenuForDrums` (`:516`) | `arpeggiator::NoteModeForDrums` (`note_mode_for_drums.h:12`) | Enum |
-/// | `arp_chord_simulator` | `arpChordSimulatorMenuKit` (`:522`) | `arpeggiator::ChordType` (`chord_type.h:14`) | Enum |
-/// | `arp_rhythm` | `arpRhythmMenu` (`:530`) | `arpeggiator::Rhythm` (`rhythm.h:12`), `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
-/// | `arp_rhythm_midi` | `arpRhythmMenuMIDIOrCV` (`:532`) | `arpeggiator::midi_cv::Rhythm` (`midi_cv/rhythm.h:14`) | Int, 2 slots |
-/// | `arp_sequence_length` | `arpSequenceLengthMenu` (`:534`) | `arpeggiator::SequenceLength` (`sequence_length.h:5`) | Int (param) |
-/// | `arp_sequence_length_midi` | `arpSequenceLengthMenuMIDIOrCV` (`:536`) | `midi_cv::SequenceLength` (`midi_cv/sequence_length.h:9`) | Int |
+/// | `arp_octaves` | `arpOctavesMenu` (`:508`) | `arpeggiator::Octaves` (`octaves.h:26`) | Int |
+/// | `arp_step_repeat` | `arpStepRepeatMenu` (`:524`) | `arpeggiator::StepRepeat` (`step_repeat.h:26`) | Int |
+/// | `arp_octave_mode` | `arpOctaveModeMenu` (`:509`) | `arpeggiator::OctaveMode` (`octave_mode.h:29`) | Enum |
+/// | `arp_note_mode` | `arpNoteModeMenu` (`:515`) | `arpeggiator::NoteMode` (`note_mode.h:25`) | Enum |
+/// | `arp_note_mode_drums` | `arpNoteModeMenuForDrums` (`:516`) | `arpeggiator::NoteModeForDrums` (`note_mode_for_drums.h:28`) | Enum |
+/// | `arp_chord_simulator` | `arpChordSimulatorMenuKit` (`:522`) | `arpeggiator::ChordType` (`chord_type.h:30`) | Enum |
+/// | `arp_rhythm` | `arpRhythmMenu` (`:530`) | `arpeggiator::Rhythm` (`rhythm.h:28`), `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
+/// | `arp_rhythm_midi` | `arpRhythmMenuMIDIOrCV` (`:532`) | `arpeggiator::midi_cv::Rhythm` (`midi_cv/rhythm.h:30`) | Int, 2 slots |
+/// | `arp_sequence_length` | `arpSequenceLengthMenu` (`:534`) | `arpeggiator::SequenceLength` (`sequence_length.h:25`) | Int (param) |
+/// | `arp_sequence_length_midi` | `arpSequenceLengthMenuMIDIOrCV` (`:536`) | `midi_cv::SequenceLength` (`midi_cv/sequence_length.h:25`) | Int |
 /// | `arp_pattern` | `arpPatternMenu` (`:637`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `arp_mpe_velocity` | `arpMpeVelocityMenu` (`:651`) | `arpeggiator::ArpMpeVelocity` (`mpe_velocity.h:10`) | Enum |
-/// | `arp_mpe` | `arpMpeMenu` (`:652`) | `submenu::ArpMpeSubmenu` (`submenu/arp_mpe_submenu.h:5`) | Submenu (Vertical) |
-/// | `arp_include_in_kit_arp` | `arpIncludeInKitArpMenu` (`:539`) | `arpeggiator::IncludeInKitArp` (`include_in_kit_arp.h:12`) | Enum (toggle) |
+/// | `arp_mpe_velocity` | `arpMpeVelocityMenu` (`:651`) | `arpeggiator::ArpMpeVelocity` (`mpe_velocity.h:26`) | Enum |
+/// | `arp_mpe` | `arpMpeMenu` (`:652`) | `submenu::ArpMpeSubmenu` (`submenu/arp_mpe_submenu.h:21`) | Submenu (Vertical) |
+/// | `arp_include_in_kit_arp` | `arpIncludeInKitArpMenu` (`:539`) | `arpeggiator::IncludeInKitArp` (`include_in_kit_arp.h:28`) | Enum (toggle) |
 /// | `arp` | `arpMenu` (`:654`) | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
@@ -37,7 +37,7 @@
 /// `SoundEditor::setup` did (`context.cpp:176`, `:195`, `:201`, `:225`).
 ///
 /// @note **`isToggle()` is not a `Kind`.** `arpeggiator::Mode` and `IncludeInKitArp` are
-///       `Selection`s with two options that legacy draws as a checkbox (`mode.h:83-84`,
+///       `Selection`s with two options that legacy draws as a checkbox (`mode.h:100`,
 ///       `include_in_kit_arp.h:71-72`) and refuses to open as a submenu
 ///       (`shouldEnterSubmenu()`, `:87`/`:75`). `Kind::Enum` keeps the option list -- which is what
 ///       the spec compares against `Selection::getOptions` -- and the checkbox rendering is a
@@ -57,7 +57,7 @@
 /// @note **Bespoke renderers with no `Hint`.** `PresetMode` draws an icon per preset
 ///       (`preset_mode.h:109-140`) and both rhythm items draw the pattern as characters
 ///       (`rhythm.h:26-45`, `midi_cv/rhythm.h:39-55`); `SequenceLength` draws "OFF" at zero
-///       (`sequence_length.h:11-19`). All four take `Hint::None`, which is the honest answer for
+///       (`sequence_length.h:25-33`). All four take `Hint::None`, which is the honest answer for
 ///       art the toolkit has no meter for.
 
 #include "scenes/menu/node.h"
@@ -256,7 +256,7 @@ inline constexpr Node arp_basic =
 // --- the pattern page ------------------------------------------------------------------------
 
 // `Octaves::getMinValue`/`getMaxValue` (`octaves.h:37-38`) and `StepRepeat`'s (`step_repeat.h:36-37`);
-// both render a plain NUMBER (`octaves.h:44`, `step_repeat.h:45`), hence `Hint::None`.
+// both render a plain NUMBER (`octaves.h:53`, `step_repeat.h:53`), hence `Hint::None`.
 inline constexpr Node arp_octaves =
     with_title(int_item(sid(deluge::l10n::String::STRING_FOR_NUMBER_OF_OCTAVES), get_arp_octaves, set_arp_octaves,
                         IntRange{1, 8, 1}, Hint::None, relevance::not_gate_drum_or_kit_fx),
@@ -282,7 +282,7 @@ inline constexpr Node arp_chord_simulator =
                            get_arp_chord_simulator, set_arp_chord_simulator, relevance::kit_row_not_gate),
                sid(deluge::l10n::String::STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE));
 // `Rhythm::getOccupiedSlots()` is 2 (`rhythm.h:51-52`), as is its MIDI/CV twin's
-// (`midi_cv/rhythm.h:56-57`); the range is `{0, kMaxPresetArpRhythm}` (`rhythm.h:16-17`), and
+// (`midi_cv/rhythm.h:70`); the range is `{0, kMaxPresetArpRhythm}` (`rhythm.h:70`), and
 // `kMaxPresetArpRhythm == kMaxMenuValue` (`modulation/arpeggiator_rhythms.h:28`), which is the
 // param default -- so no `with_range` is needed on either.
 inline constexpr Node arp_rhythm = with_slots(

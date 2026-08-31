@@ -13,9 +13,9 @@
 /// | `edit_clip_name` | `audioClipNameEditMenu` (`:1129`) | `EditName` | Custom (`EditNameItem`) |
 /// | `edit_name` | `editNameMenu` (`:1134`) | `Submenu` | Submenu (Vertical) |
 /// | `sound_actions` | `soundEditorRootActionsMenu` (`:1764`) | `Submenu` | Submenu (Vertical) |
-/// | `sequence_direction` | `sequenceDirectionMenu` (`:935`) | `sequence::Direction` (`sequence/direction.h:22`) | Enum (dynamic) |
-/// | `output_midi_channel` | `outputMidiChannelMenu` (`:901`) | `midi::sound::OutputMidiChannel` (`midi/sound/channel.h:21`) | Int |
-/// | `output_midi_note` | `outputMidiNoteForDrumMenu` (`:902`) | `midi::sound::OutputMidiNoteForDrum` (`midi/sound/note_for_drum.h:21`) | Int |
+/// | `sequence_direction` | `sequenceDirectionMenu` (`:935`) | `sequence::Direction` (`sequence/direction.h:30`) | Enum (dynamic) |
+/// | `output_midi_channel` | `outputMidiChannelMenu` (`:901`) | `midi::sound::OutputMidiChannel` (`midi/sound/channel.h:30`) | Int |
+/// | `output_midi_note` | `outputMidiNoteForDrumMenu` (`:902`) | `midi::sound::OutputMidiNoteForDrum` (`midi/sound/note_for_drum.h:29`) | Int |
 /// | `output_midi` | `outputMidiSubmenu` (`:903`) | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
@@ -86,8 +86,8 @@ inline constexpr Node sequence_direction =
     dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_PLAY_DIRECTION), sequence_direction_names,
                         get_sequence_direction, set_sequence_direction);
 
-// `OutputMidiChannel::getMinValue`/`getMaxValue` (`midi/sound/channel.h:22-23`) and
-// `OutputMidiNoteForDrum`'s (`note_for_drum.h:22-23`). Both render a plain number
+// `OutputMidiChannel::getMinValue`/`getMaxValue` (`midi/sound/channel.h:34`) and
+// `OutputMidiNoteForDrum`'s (`note_for_drum.h:29-30`). Both render a plain number
 // (`Integer::drawInteger`), so `Hint::None`.
 inline constexpr Node output_midi_channel =
     int_item(sid(deluge::l10n::String::STRING_FOR_CHANNEL), get_output_midi_channel, set_output_midi_channel,

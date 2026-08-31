@@ -42,7 +42,7 @@ using deluge::l10n::String;
 namespace {
 
 /// @brief The four float-backed reverb settings share one shape: `round(x * kMaxMenuValue)` on the
-///        way out, `value / kMaxMenuValue` on the way back (`reverb/room_size.h:22-23` and
+///        way out, `value / kMaxMenuValue` on the way back (`reverb/room_size.h:28 readCurrentValue` and
 ///        siblings).
 int32_t reverb_float_to_menu(float value) {
 	return static_cast<int32_t>(std::lround(value * kMaxMenuValue));
@@ -51,10 +51,10 @@ float menu_to_reverb_float(int32_t value) {
 	return static_cast<float>(value) / kMaxMenuValue;
 }
 
-/// @brief `stutter::StutterDirection`'s own enumerators (`stutter/direction.h:22`).
+/// @brief `stutter::StutterDirection`'s own enumerators (`stutter/direction.h:29`).
 enum StutterOption : uint8_t { kUseSong = 0, kForward, kReversed, kForwardPingPong, kReversedPingPong };
 
-/// @brief `StutterDirection::showUseSongOption()` (`stutter/direction.h:99`): the song's own
+/// @brief `StutterDirection::showUseSongOption()` (`stutter/direction.h:105`): the song's own
 ///        stutter config has nothing to inherit from, so it does not offer "use song".
 bool show_use_song(const MenuContext& ctx) {
 	return ctx.mod != nullptr && !ctx.mod->isSong();
@@ -66,7 +66,7 @@ bool show_use_song(const MenuContext& ctx) {
 // Delay
 
 int32_t get_delay_ping_pong(const MenuContext& ctx) {
-	return (ctx.mod != nullptr && ctx.mod->delay.pingPong) ? 1 : 0; // `delay/ping_pong.h:24`
+	return (ctx.mod != nullptr && ctx.mod->delay.pingPong) ? 1 : 0; // `delay/ping_pong.h:31 readCurrentValue`
 }
 void set_delay_ping_pong(const MenuContext& ctx, int32_t value) {
 	bindings::apply_to_targets(ctx, value, 0,
@@ -81,7 +81,7 @@ int32_t get_delay_sync(const MenuContext& ctx) {
 	if (ctx.mod == nullptr) {
 		return 0;
 	}
-	// `delay::Sync::readCurrentValue` (`delay/sync.h:23-26`).
+	// `delay::Sync::readCurrentValue` (`delay/sync.h:31-34`).
 	const auto& delay = ctx.mod->delay;
 	return static_cast<int32_t>(delay.syncType)
 	       + (static_cast<int32_t>(delay.syncLevel) - (delay.syncType != SYNC_TYPE_EVEN ? 1 : 0));
@@ -97,13 +97,13 @@ void set_delay_sync(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_delay_type(const MenuContext& ctx) {
-	return (ctx.mod != nullptr && ctx.mod->delay.analog) ? 1 : 0; // `delay/analog.h:22`
+	return (ctx.mod != nullptr && ctx.mod->delay.analog) ? 1 : 0; // `delay/analog.h:30 readCurrentValue`
 }
 void set_delay_type(const MenuContext& ctx, int32_t value) {
 	bindings::apply_to_targets(ctx, value, 0,
 	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
 		                           if (t.mod != nullptr) {
-			                           t.mod->delay.analog = v != 0; // `analog.h:34`, `:40`
+			                           t.mod->delay.analog = v != 0; // `analog.h:32 writeCurrentValue`, `:40`
 		                           }
 	                           });
 }
@@ -112,21 +112,21 @@ void set_delay_type(const MenuContext& ctx, int32_t value) {
 // Reverb -- engine-wide, so none of these reads the context (see `sound_fx.h`'s note)
 
 int32_t get_reverb_room_size(const MenuContext& /*ctx*/) {
-	return reverb_float_to_menu(AudioEngine::reverb.getRoomSize()); // `reverb/room_size.h:22`
+	return reverb_float_to_menu(AudioEngine::reverb.getRoomSize()); // `reverb/room_size.h:28 readCurrentValue`
 }
 void set_reverb_room_size(const MenuContext& /*ctx*/, int32_t value) {
 	AudioEngine::reverb.setRoomSize(menu_to_reverb_float(value)); // `:23`
 }
 
 int32_t get_reverb_damping(const MenuContext& /*ctx*/) {
-	return reverb_float_to_menu(AudioEngine::reverb.getDamping()); // `reverb/damping.h:22`
+	return reverb_float_to_menu(AudioEngine::reverb.getDamping()); // `reverb/damping.h:27 readCurrentValue`
 }
 void set_reverb_damping(const MenuContext& /*ctx*/, int32_t value) {
 	AudioEngine::reverb.setDamping(menu_to_reverb_float(value));
 }
 
 int32_t get_reverb_width(const MenuContext& /*ctx*/) {
-	return reverb_float_to_menu(AudioEngine::reverb.getWidth()); // `reverb/width.h:22`
+	return reverb_float_to_menu(AudioEngine::reverb.getWidth()); // `reverb/width.h:28 readCurrentValue`
 }
 void set_reverb_width(const MenuContext& /*ctx*/, int32_t value) {
 	AudioEngine::reverb.setWidth(menu_to_reverb_float(value));
@@ -147,21 +147,21 @@ void set_reverb_pan(const MenuContext& /*ctx*/, int32_t value) {
 }
 
 int32_t get_reverb_hpf(const MenuContext& /*ctx*/) {
-	return reverb_float_to_menu(AudioEngine::reverb.getHPF()); // `reverb/hpf.h:22`
+	return reverb_float_to_menu(AudioEngine::reverb.getHPF()); // `reverb/hpf.h:30 readCurrentValue`
 }
 void set_reverb_hpf(const MenuContext& /*ctx*/, int32_t value) {
 	AudioEngine::reverb.setHPF(menu_to_reverb_float(value));
 }
 
 int32_t get_reverb_lpf(const MenuContext& /*ctx*/) {
-	return reverb_float_to_menu(AudioEngine::reverb.getLPF()); // `reverb/lpf.h:22`
+	return reverb_float_to_menu(AudioEngine::reverb.getLPF()); // `reverb/lpf.h:29 readCurrentValue`
 }
 void set_reverb_lpf(const MenuContext& /*ctx*/, int32_t value) {
 	AudioEngine::reverb.setLPF(menu_to_reverb_float(value));
 }
 
 int32_t get_reverb_sidechain_volume(const MenuContext& /*ctx*/) {
-	return AudioEngine::reverbSidechainVolume / 21474836; // `reverb/sidechain/volume.h:22`
+	return AudioEngine::reverbSidechainVolume / 21474836; // `reverb/sidechain/volume.h:27 readCurrentValue`
 }
 void set_reverb_sidechain_volume(const MenuContext& /*ctx*/, int32_t value) {
 	AudioEngine::reverbSidechainVolume = value * 21474836; // `:24-25`
@@ -169,7 +169,7 @@ void set_reverb_sidechain_volume(const MenuContext& /*ctx*/, int32_t value) {
 }
 
 int32_t get_reverb_sidechain_shape(const MenuContext& /*ctx*/) {
-	// `reverb::sidechain::Shape::readCurrentValue` (`reverb/sidechain/shape.h:22-24`) -- the same
+	// `reverb::sidechain::Shape::readCurrentValue` (`reverb/sidechain/shape.h:28-30`) -- the same
 	// arithmetic as the standard scaling.
 	return bindings::standard_to_menu(AudioEngine::reverbSidechainShape);
 }
@@ -272,7 +272,8 @@ void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_stutter_quantize(const MenuContext& ctx) {
-	return (ctx.mod != nullptr && ctx.mod->stutterConfig.quantized) ? 1 : 0; // `stutter/quantized.h:22`
+	// `stutter/quantized.h:32 readCurrentValue`
+	return (ctx.mod != nullptr && ctx.mod->stutterConfig.quantized) ? 1 : 0;
 }
 void set_stutter_quantize(const MenuContext& ctx, int32_t value) {
 	// `QuantizedStutter::writeCurrentValue` (`stutter/quantized.h:24-42`). The affect-entire sweep
@@ -310,7 +311,7 @@ size_t mod_fx_type_names(const MenuContext& /*ctx*/, std::span<std::string_view>
 }
 
 int32_t get_mod_fx_type(const MenuContext& ctx) {
-	return ctx.mod != nullptr ? static_cast<int32_t>(ctx.mod->modFXType_) : 0; // `mod_fx/type.h:22`
+	return ctx.mod != nullptr ? static_cast<int32_t>(ctx.mod->modFXType_) : 0; // `mod_fx/type.h:34 readCurrentValue`
 }
 void set_mod_fx_type(const MenuContext& ctx, int32_t value) {
 	// `Type::writeCurrentValue` (`mod_fx/type.h:24-56`). Legacy raises `Error::INSUFFICIENT_RAM`
@@ -331,13 +332,14 @@ void set_mod_fx_type(const MenuContext& ctx, int32_t value) {
 // Distortion
 
 int32_t get_saturation(const MenuContext& ctx) {
-	return ctx.mod != nullptr ? ctx.mod->clippingAmount : 0; // `fx/clipping.h:22`
+	return ctx.mod != nullptr ? ctx.mod->clippingAmount : 0; // `fx/clipping.h:33 readCurrentValue`
 }
 void set_saturation(const MenuContext& ctx, int32_t value) {
 	bindings::apply_to_targets(ctx, value, 0,
 	                           [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
 		                           if (t.mod != nullptr) {
-			                           t.mod->clippingAmount = static_cast<uint8_t>(v); // `clipping.h:36`, `:42`
+			                           // `clipping.h:46 writeCurrentValue`, `:52`
+			                           t.mod->clippingAmount = static_cast<uint8_t>(v);
 		                           }
 	                           });
 }

@@ -36,7 +36,7 @@
 namespace deluge::scenes::menu::nodes {
 
 int32_t get_randomizer_lock(const MenuContext& ctx) {
-	return (ctx.arp != nullptr && ctx.arp->randomizerLock) ? 1 : 0; // `randomizer_lock.h:13`
+	return (ctx.arp != nullptr && ctx.arp->randomizerLock) ? 1 : 0; // `randomizer_lock.h:29 readCurrentValue`
 }
 
 void set_randomizer_lock(const MenuContext& ctx, int32_t value) {

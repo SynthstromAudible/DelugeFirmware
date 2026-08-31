@@ -85,7 +85,7 @@ void silence_for_arp_toggle(const MenuContext& ctx, bool becoming_off) {
 	if (ctx.arp == nullptr) {
 		return;
 	}
-	// `mode.h:29`, `:43` -- only when the arpeggiator was already off or is being switched off.
+	// `mode.h:45`, `:59` -- only when the arpeggiator was already off or is being switched off.
 	if (ctx.arp->mode != ArpMode::OFF && !becoming_off) {
 		return;
 	}
@@ -125,25 +125,25 @@ void silence_for_arp_toggle(const MenuContext& ctx, bool becoming_off) {
 // Mode and preset
 
 int32_t get_arp_mode(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->mode) : 0; // `mode.h:17`
+	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->mode) : 0; // `mode.h:33`
 }
 void set_arp_mode(const MenuContext& ctx, int32_t value) {
 	const auto mode = static_cast<ArpMode>(value);
 	silence_for_arp_toggle(ctx, mode == ArpMode::OFF);
 	apply_to_arp_settings(ctx, /*filter_gate_drums=*/false, [mode](ArpeggiatorSettings& arp) {
-		arp.mode = mode;                       // `mode.h:36`, `:69`
-		arp.updatePresetFromCurrentSettings(); // `mode.h:37`, `:70`
+		arp.mode = mode;                       // `mode.h:52`, `:85`
+		arp.updatePresetFromCurrentSettings(); // `mode.h:53 writeCurrentValue`, `:86`
 	});
 }
 
 int32_t get_arp_preset(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->preset) : 0; // `preset_mode.h:21`
+	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->preset) : 0; // `preset_mode.h:37 readCurrentValue`
 }
 void set_arp_preset(const MenuContext& ctx, int32_t value) {
 	const auto preset = static_cast<ArpPreset>(value);
 	silence_for_arp_toggle(ctx, preset == ArpPreset::OFF);
 	apply_to_arp_settings(ctx, /*filter_gate_drums=*/false, [preset](ArpeggiatorSettings& arp) {
-		arp.preset = preset;                   // `preset_mode.h:40`, `:74`
+		arp.preset = preset;                   // `preset_mode.h:56 writeCurrentValue`, `:90`
 		arp.updateSettingsFromCurrentPreset(); // `:41`, `:75`
 		arp.flagForceArpRestart = true;        // `:42`, `:76`
 	});
@@ -156,7 +156,7 @@ int32_t get_arp_sync(const MenuContext& ctx) {
 	if (ctx.arp == nullptr) {
 		return 0;
 	}
-	// `arpeggiator::Sync::readCurrentValue` (`arpeggiator/sync.h:12-15`) via
+	// `arpeggiator::Sync::readCurrentValue` (`arpeggiator/sync.h:29-32`) via
 	// `SyncLevel::syncTypeAndLevelToMenuOption` (`gui/menu_item/sync_level.cpp:79-81`), transcribed
 	// the same way `sound_lfo.cpp` transcribes it.
 	return static_cast<int32_t>(ctx.arp->syncType)
@@ -173,7 +173,7 @@ void set_arp_sync(const MenuContext& ctx, int32_t value) {
 // The pattern page
 
 int32_t get_arp_octaves(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? ctx.arp->numOctaves : 1; // `octaves.h:13`
+	return ctx.arp != nullptr ? ctx.arp->numOctaves : 1; // `octaves.h:29 readCurrentValue`
 }
 void set_arp_octaves(const MenuContext& ctx, int32_t value) {
 	apply_to_arp_settings(ctx, /*filter_gate_drums=*/true,
@@ -181,7 +181,7 @@ void set_arp_octaves(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_arp_step_repeat(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? ctx.arp->numStepRepeats : 1; // `step_repeat.h:13`
+	return ctx.arp != nullptr ? ctx.arp->numStepRepeats : 1; // `step_repeat.h:29 readCurrentValue`
 }
 void set_arp_step_repeat(const MenuContext& ctx, int32_t value) {
 	apply_to_arp_settings(ctx, /*filter_gate_drums=*/true,
@@ -189,7 +189,7 @@ void set_arp_step_repeat(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_arp_octave_mode(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->octaveMode) : 0; // `octave_mode.h:16`
+	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->octaveMode) : 0; // `octave_mode.h:32 readCurrentValue`
 }
 void set_arp_octave_mode(const MenuContext& ctx, int32_t value) {
 	const auto mode = static_cast<ArpOctaveMode>(value);
@@ -201,10 +201,10 @@ void set_arp_octave_mode(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_arp_note_mode(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->noteMode) : 0; // `note_mode.h:12`
+	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->noteMode) : 0; // `note_mode.h:28 readCurrentValue`
 }
 void set_arp_note_mode(const MenuContext& ctx, int32_t value) {
-	// `NoteMode::writeCurrentValue` (`note_mode.h:13-20`) has NO affect-entire branch -- the class
+	// `NoteMode::writeCurrentValue` (`note_mode.h:29-36`) has NO affect-entire branch -- the class
 	// does not override `usesAffectEntire()` -- so this writes the selected settings only, and it is
 	// the one arp item that regenerates the note pattern.
 	if (ctx.arp == nullptr) {
@@ -219,7 +219,8 @@ void set_arp_note_mode(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_arp_note_mode_drums(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->noteMode) : 0; // `note_mode_for_drums.h:15`
+	// `note_mode_for_drums.h:31 readCurrentValue`
+	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->noteMode) : 0;
 }
 void set_arp_note_mode_drums(const MenuContext& ctx, int32_t value) {
 	const auto mode = static_cast<ArpNoteMode>(value);
@@ -231,14 +232,14 @@ void set_arp_note_mode_drums(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_arp_chord_simulator(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? ctx.arp->chordTypeIndex : 0; // `chord_type.h:17`
+	return ctx.arp != nullptr ? ctx.arp->chordTypeIndex : 0; // `chord_type.h:33 readCurrentValue`
 }
 void set_arp_chord_simulator(const MenuContext& ctx, int32_t value) {
 	if (value < 0 || value >= MAX_CHORD_TYPES) {
-		return; // `chord_type.h:22-24`
+		return; // `chord_type.h:38-40`
 	}
 	apply_to_arp_settings(ctx, /*filter_gate_drums=*/true, [value](ArpeggiatorSettings& arp) {
-		arp.chordTypeIndex = static_cast<uint8_t>(value); // `chord_type.h:34`, `:41`
+		arp.chordTypeIndex = static_cast<uint8_t>(value); // `chord_type.h:50 writeCurrentValue`, `:57`
 		arp.flagForceArpRestart = true;                   // `:35`, `:42`
 	});
 }
@@ -267,7 +268,7 @@ void set_arp_sequence_length_midi(const MenuContext& ctx, int32_t value) {
 // The MPE page, and the kit-arp toggle
 
 int32_t get_arp_mpe_velocity(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->mpeVelocity) : 0; // `mpe_velocity.h:13`
+	return ctx.arp != nullptr ? static_cast<int32_t>(ctx.arp->mpeVelocity) : 0; // `mpe_velocity.h:29 readCurrentValue`
 }
 void set_arp_mpe_velocity(const MenuContext& ctx, int32_t value) {
 	const auto source = static_cast<ArpMpeModSource>(value);
@@ -276,7 +277,7 @@ void set_arp_mpe_velocity(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_arp_include_in_kit(const MenuContext& ctx) {
-	// `IncludeInKitArp::readCurrentValue` (`include_in_kit_arp.h:15-22`): a sound that cannot hold a
+	// `IncludeInKitArp::readCurrentValue` (`include_in_kit_arp.h:31-38`): a sound that cannot hold a
 	// note tail always reads OFF.
 	if (ctx.arp == nullptr || !bindings::allows_note_tails(ctx)) {
 		return 0;

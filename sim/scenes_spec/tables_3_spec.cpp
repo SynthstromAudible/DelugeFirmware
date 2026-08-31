@@ -498,7 +498,7 @@ bool legacy_relevance_needs_sound(const Pair& p) {
 /// fifteenth exclusion without covering it a failure rather than a quiet hole.
 ///
 /// Fix round 1, I3: `default_velocity` and `trigger_in_ppqn` were on this list and should not have
-/// been. `defaults::Velocity::writeCurrentValue` (`defaults/velocity.h:13-16`) is `FlashStorage`
+/// been. `defaults::Velocity::writeCurrentValue` (`defaults/velocity.h:29-32`) is `FlashStorage`
 /// plus `currentSong->setDefaultVelocityForAllInstruments` -- pure model, over the very song
 /// `install()` points `currentSong` at, and the one place the port's `ctx.song` and legacy's
 /// `currentSong` can be *seen* to agree. `trigger::in::PPQN`'s resync is guarded by
@@ -508,7 +508,7 @@ constexpr const Node* kLegacyWriteNeedsUi[] = {
     &nodes::synth_mode,                // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
     &nodes::arp_mode,                  // `allNotesOff` over `soundEditor.getCurrentModelStack`
     &nodes::arp_preset,                // the same block (`preset_mode.h:50-70`)
-    &nodes::mod_fx_type,               // `display->displayError` (`mod_fx/type.h:42,52`)
+    &nodes::mod_fx_type,               // `display->displayError` (`mod_fx/type.h:53 writeCurrentValue`, `:59`)
     &nodes::audio_clip_reverse,        // `uiNeedsRendering(&audioClipView)` (`reverse.h:52`)
     &nodes::midi_clock_out,            // `playbackHandler.setMidiOutClockMode` sends real MIDI
     &nodes::midi_clock_in,             // ... and `setMidiInClockEnabled` re-syncs playback

@@ -436,7 +436,7 @@ constexpr const Node* kLegacyWriteNeedsUi[] = {
     &nodes::synth_mode,  // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
     &nodes::arp_mode,    // `allNotesOff` over `soundEditor.getCurrentModelStack` (`mode.h:45-65`)
     &nodes::arp_preset,  // the same block (`preset_mode.h:50-70`)
-    &nodes::mod_fx_type, // `display->displayError` on failure (`mod_fx/type.h:42,52`)
+    &nodes::mod_fx_type, // `display->displayError` on failure (`mod_fx/type.h:53 writeCurrentValue`, `:59`)
 };
 
 bool legacy_write_needs_ui(const Node& node) {
@@ -775,8 +775,8 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 		(void)fixture();
 		// `MenuItem::getOccupiedSlots()` is protected, so the overridden counts are asserted
 		// against the values their sources state: `mod_fx::Type` draws the whole four-slot page
-		// (`mod_fx/type.h:60-63`), and both rhythm items take two
-		// (`arpeggiator/rhythm.h:51-52`, `arpeggiator/midi_cv/rhythm.h:56-57`).
+		// (`mod_fx/type.h:69-72`), and both rhythm items take two
+		// (`arpeggiator/rhythm.h:51-52`, `arpeggiator/midi_cv/rhythm.h:70`).
 		expect(int(nodes::mod_fx_type.slots)).to_equal(4);
 		expect(int(nodes::arp_rhythm.slots)).to_equal(2);
 		expect(int(nodes::arp_rhythm_midi.slots)).to_equal(2);
@@ -942,8 +942,8 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 		// render time by substituting an index, which one `uint16_t Node::name` cannot express:
 		//
 		//   * the three pairs `tables_1_spec` blesses -- `sample0/1RecorderMenu`
-		//     (`STRING_FOR_RECORD_TO_SAMPLE`, `osc/audio_recorder.h:35`), `source0/1VolumeMenu`
-		//     (`STRING_FOR_OSC_LEVEL_MENU_TITLE`, `osc/source/volume.h:28`) and
+		//     (`STRING_FOR_RECORD_TO_SAMPLE`, `osc/audio_recorder.h:30-31`), `source0/1VolumeMenu`
+		//     (`STRING_FOR_OSC_LEVEL_MENU_TITLE`, `osc/source/volume.h:26-27`) and
 		//     `modulator0/1Volume` (`STRING_FOR_FM_MOD_LEVEL_MENU_TITLE`, `modulator_level.h:27-28`);
 		//   * six more that only appear once the root itself is declared: `env1Menu` .. `env4Menu`
 		//     are four *siblings* of `soundEditorRootMenu`, all named

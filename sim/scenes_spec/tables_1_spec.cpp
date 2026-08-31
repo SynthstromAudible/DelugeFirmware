@@ -167,8 +167,8 @@ std::string text_of(uint16_t id) {
 ///   * `submenu::ActualSource` -> "OSC1"/"OSC2" via `asterixToInt` (`submenu/actual_source.h:26-38`);
 ///   * `envelope::EnvelopeMenu`, `osc::source::Volume`, `source::patched_param::ModulatorLevel`,
 ///     `osc::AudioRecorder` -> a `FormattedTitle` with the index substituted in
-///     (`envelope/envelope_menu.h:31`, `osc/source/volume.h:28`, `modulator_level.h:27-28`,
-///     `osc/audio_recorder.h:35`).
+///     (`envelope/envelope_menu.h:31`, `osc/source/volume.h:27`, `modulator_level.h:27-28`,
+///     `osc/audio_recorder.h:28`).
 bool has_dynamic_name(const Node& node) {
 	switch (node.name) {
 	case static_cast<uint16_t>(String::STRING_FOR_LPF_MORPH):

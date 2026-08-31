@@ -9,8 +9,8 @@
 /// | node | legacy global | legacy class |
 /// |---|---|---|
 /// | `unison_count` | `numUnisonMenu` (`:303`) | `unison::CountToStereoSpread` (`unison/count.h:69`) |
-/// | `unison_detune` | `unisonDetuneMenu` (`:304`) | `unison::Detune` (`unison/detune.h:26`) |
-/// | `unison_spread` | `unison::stereoSpreadMenu` (`:48`) | `unison::StereoSpread` (`unison/stereoSpread.h:26`) |
+/// | `unison_detune` | `unisonDetuneMenu` (`:304`) | `unison::Detune` (`unison/detune.h:27`) |
+/// | `unison_spread` | `unison::stereoSpreadMenu` (`:48`) | `unison::StereoSpread` (`unison/stereoSpread.h:27`) |
 /// | `unison` | `unisonMenu` (`:311`) | `HorizontalMenu`, `Layout::FIXED` |
 // clang-format on
 ///
@@ -20,7 +20,7 @@
 ///       here too; it is now ported -- see `unison_count`'s `select_chain` below.)
 ///
 /// @note **Hints.** `Count` and `Detune` both override `renderInHorizontalMenu` with bespoke art -- a
-///       big centred integer (`unison/count.h:57-62`) and three splayed lines (`unison/detune.h:64-108`)
+///       big centred integer (`unison/count.h:57-62`) and three splayed lines (`unison/detune.h:63-104`)
 ///       -- neither of which is a `ui::oled::Hint`, so they take `Hint::None`. `StereoSpread` does not
 ///       override it and so keeps `Number`'s default knob (`gui/menu_item/number.h:48`).
 

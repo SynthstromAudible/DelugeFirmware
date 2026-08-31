@@ -70,7 +70,7 @@ struct Target {
 	bool (*write)(const menu::MenuContext&, std::string_view);
 
 	/// @brief `RenameUI::allowEmpty()` -- true for every target but the drum
-	///        (`rename_drum_ui.h:33`).
+	///        (`rename_drum_ui.h:32`).
 	bool allow_empty;
 };
 

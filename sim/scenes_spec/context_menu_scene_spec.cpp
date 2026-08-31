@@ -423,7 +423,7 @@ describe cm_composition("scenes::context_menu::ContextMenuScene composition", $ 
 		    .to_equal(static_cast<int>(SceneKind::FirstApp) + 2);
 
 		const deluge::ui::shell::Scene& s = context_menu_scene();
-		// `ContextMenu`'s constructor sets `oledShowsUIUnderneath = true` (`context_menu.h:26`).
+		// `ContextMenu`'s constructor sets `oledShowsUIUnderneath = true` (`context_menu.h:27`).
 		expect(s.oled_transparent(SurfaceRole::Main)).to_be_true();
 		expect(s.is_grid_overlay()).to_be_true();
 		expect(s.occludes_grid()).to_be_false();

@@ -23,7 +23,7 @@
 /// it. Two things legacy does that no hook here can are recorded rather than silently dropped:
 ///
 ///   * **The UI side effects.** `audio_clip::Reverse::writeCurrentValue` ends in
-///     `uiNeedsRendering(&audioClipView, ...)` (`audio_clip/reverse.h:52`) and the MIDI-instrument
+///     `uiNeedsRendering(&audioClipView, ...)` (`audio_clip/reverse.h:37`) and the MIDI-instrument
 ///     toggles end in `getCurrentInstrument()->editedByUser = true` -- the latter IS model state
 ///     and is transcribed; the former is a `hid/`-side repaint that `bindings::write` already
 ///     replaces with `notify::Dirty::Oled` plus, for a param, `GridMain`. A `set` hook that wants
@@ -109,7 +109,7 @@ const Node& midi_or_cv_root(const MenuContext& ctx) {
 }
 
 int32_t get_midi_hide_unlabeled(const MenuContext& ctx) {
-	// `device_definition::HideUnlabeled::readCurrentValue` (`midi/device_definition/hide_unlabeled.h:22-25`).
+	// `device_definition::HideUnlabeled::readCurrentValue` (`midi/device_definition/hide_unlabeled.h:32-35`).
 	MIDIInstrument* instrument = midi_instrument(ctx);
 	return instrument != nullptr && instrument->hideUnlabeledCC ? 1 : 0;
 }
@@ -188,7 +188,7 @@ void set_mpe_y_to_mod_wheel(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_aftertouch_to_mono(const MenuContext& ctx) {
-	MIDIInstrument* instrument = midi_instrument(ctx); // `midi/after_touch_to_mono.h:23`
+	MIDIInstrument* instrument = midi_instrument(ctx); // `midi/after_touch_to_mono.h:29`
 	return instrument != nullptr && instrument->collapseAftertouch ? 1 : 0;
 }
 void set_aftertouch_to_mono(const MenuContext& ctx, int32_t value) {
@@ -199,7 +199,7 @@ void set_aftertouch_to_mono(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_mpe_to_mono(const MenuContext& ctx) {
-	MIDIInstrument* instrument = midi_instrument(ctx); // `midi/mpe_to_mono.h:23`
+	MIDIInstrument* instrument = midi_instrument(ctx); // `midi/mpe_to_mono.h:29`
 	return instrument != nullptr && instrument->collapseMPE ? 1 : 0;
 }
 void set_mpe_to_mono(const MenuContext& ctx, int32_t value) {
@@ -218,7 +218,7 @@ void set_mpe_to_mono(const MenuContext& ctx, int32_t value) {
 // `apply_to_arp_settings` sweeps.
 
 int32_t get_arp_gate_midi(const MenuContext& ctx) {
-	return ctx.arp != nullptr ? bindings::standard_to_menu(ctx.arp->gate) : 0; // `midi_cv/gate.h:24-26`
+	return ctx.arp != nullptr ? bindings::standard_to_menu(ctx.arp->gate) : 0; // `midi_cv/gate.h:30-32`
 }
 void set_arp_gate_midi(const MenuContext& ctx, int32_t value) {
 	if (ctx.arp != nullptr) {
@@ -239,7 +239,7 @@ void set_arp_rate_midi(const MenuContext& ctx, int32_t value) {
 // The audio clip
 
 int32_t get_audio_clip_transpose(const MenuContext& ctx) {
-	// `audio_clip::Transpose::readCurrentValue` (`audio_clip/transpose.h:21-24`), over
+	// `audio_clip::Transpose::readCurrentValue` (`audio_clip/transpose.h:28-31`), over
 	// `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp:64-66`) -- the same
 	// packing `sound_osc.cpp` transcribes for the four oscillator/modulator transposes.
 	AudioClip* clip = audio_clip(ctx);
@@ -262,7 +262,7 @@ void set_audio_clip_transpose(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_audio_clip_reverse(const MenuContext& ctx) {
-	AudioClip* clip = audio_clip(ctx); // `audio_clip/reverse.h:26`
+	AudioClip* clip = audio_clip(ctx); // `audio_clip/reverse.h:36`
 	return clip != nullptr && clip->sampleControls.reversed ? 1 : 0;
 }
 void set_audio_clip_reverse(const MenuContext& ctx, int32_t value) {
@@ -319,7 +319,7 @@ void set_audio_clip_attack(const MenuContext& ctx, int32_t value) {
 // The song root
 
 int32_t get_swing_interval(const MenuContext& ctx) {
-	return ctx.song != nullptr ? ctx.song->swingInterval : 0; // `swing/interval.h:22`
+	return ctx.song != nullptr ? ctx.song->swingInterval : 0; // `swing/interval.h:27 readCurrentValue`
 }
 void set_swing_interval(const MenuContext& ctx, int32_t value) {
 	if (ctx.song != nullptr) {
@@ -332,7 +332,7 @@ int32_t get_song_threshold_recording(const MenuContext& ctx) {
 	return ctx.song != nullptr ? static_cast<int32_t>(ctx.song->thresholdRecordingMode) : 0;
 }
 void set_song_threshold_recording(const MenuContext& ctx, int32_t value) {
-	if (ctx.song != nullptr) { // `threshold_mode.h:39-41`
+	if (ctx.song != nullptr) { // `threshold_mode.h:46-48`
 		ctx.song->thresholdRecordingMode = static_cast<ThresholdRecordingMode>(value);
 	}
 }

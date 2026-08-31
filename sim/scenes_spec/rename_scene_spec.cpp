@@ -270,7 +270,7 @@ describe rename_targets("scenes::rename target table", $ {
 	});
 
 	it("carries each subclass's own allowEmpty()", _ {
-		// Only `RenameDrumUI` overrides it (`rename_drum_ui.h:33`).
+		// Only `RenameDrumUI` overrides it (`rename_drum_ui.h:25`).
 		expect(rename::target(TargetId::Clip).allow_empty).to_be_true();
 		expect(rename::target(TargetId::Output).allow_empty).to_be_true();
 		expect(rename::target(TargetId::Drum).allow_empty).to_be_false();

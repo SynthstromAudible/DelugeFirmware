@@ -121,7 +121,7 @@ using IntRange = deluge::ui::oled::Range;
 ///     `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:29-33`).
 ///   * `Pan` -- INT32 range <-> -25..25, and a -25..25 range rather than 0..50:
 ///     `patched_param::Pan` (`patched_param/pan.cpp:28-34`, `pan.h:26-27`) and
-///     `unpatched_param::Pan` (`unpatched_param/pan.cpp:63-70`, `pan.h:28-29`).
+///     `unpatched_param::Pan` (`unpatched_param/pan.cpp:29-36`, `pan.h:28-29`).
 enum class Scaling : uint8_t { Standard, HalfPrecision, Pan };
 
 /// @brief Which model parameter a `Binding` reads and writes through `ModelStack`, or an invalid
@@ -584,7 +584,7 @@ constexpr Node dynamic_submenu(uint16_t name, DynamicChildrenFn children, Releva
 ///
 /// @param r The option range. Normally `{0, NUM_SYNC_VALUES - 1, 1}` (`sync_level.h:31` over
 ///          `model/sync.h:37`), but `sidechain::Sync` overrides `size()` to 10
-///          (`gui/menu_item/sidechain/sync.h:24`), so the bounds are an argument rather than baked
+///          (`gui/menu_item/sidechain/sync.h:28`), so the bounds are an argument rather than baked
 ///          in -- and baking them in would drag `model/sync.h` into this deliberately model-light
 ///          header.
 constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn set, IntRange r,

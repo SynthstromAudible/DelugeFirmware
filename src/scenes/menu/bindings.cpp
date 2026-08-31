@@ -25,7 +25,7 @@
 ///   * patched read -- `patched_param::Integer::readCurrentValue` (`gui/menu_item/patched_param/integer.cpp:33-36`)
 ///   * unpatched read -- `UnpatchedParam::readCurrentValue` (`gui/menu_item/unpatched_param.cpp:36-39`)
 ///   * pan read -- `patched_param::Pan::readCurrentValue` (`patched_param/pan.cpp:32-34`),
-///     `unpatched_param::Pan::readCurrentValue` (`unpatched_param/pan.cpp:67-70`)
+///     `unpatched_param::Pan::readCurrentValue` (`unpatched_param/pan.cpp:33-36`)
 ///   * half-precision read -- `osc::PulseWidth::readCurrentValue` (`osc/pulse_width.h:34-37`),
 ///     `audio_compressor::CompParam::readCurrentValue` (`audio_compressor/compressor_params.h:29-32`)
 ///   * patched stack -- `PatchedParam::getModelStack` (`gui/menu_item/patched_param.cpp:84-87`)
@@ -295,7 +295,7 @@ bool holds_unpatched_params(const MenuContext& ctx) {
 /// @brief What @p ctx's own param manager serves.
 ///
 /// The patched half is `ctx.sound != nullptr`, and that is the *whole* test: a `PatchedParamSet`
-/// exists only after `ParamManager::setupWithPatching()` (`param_manager.cpp:84-...`), which only a
+/// exists only after `ParamManager::setupWithPatching()` (`param_manager.cpp:85-...`), which only a
 /// `Sound`'s manager ever gets -- a `SoundInstrument`'s clip manager, or a `SoundDrum`'s note-row
 /// manager -- and `context_for` resolves `ctx.sound` in exactly those two cases and leaves it null
 /// everywhere else (the kit's global-FX page, an audio clip, the song, a MIDI or CV clip, a
@@ -592,7 +592,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 
 	// `integer.cpp:41` / `unpatched_param.cpp:49`, via `getFinalValue()`
 	// (`integer.cpp:79-81` / `unpatched_param.cpp:84-86`, or the `Pan` overrides at
-	// `patched_param/pan.cpp:28-30` / `unpatched_param/pan.cpp:63-65`, or the half-precision ones at
+	// `patched_param/pan.cpp:28-30` / `unpatched_param/pan.cpp:29-31`, or the half-precision ones at
 	// `osc/pulse_width.h:32` / `audio_compressor/compressor_params.h:33`).
 	const int32_t final_value = to_stored_value(scaling_for(node), value);
 
@@ -600,7 +600,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 		write_whole_kit(node, ctx, final_value);
 	}
 	else {
-		// `unpatched_param.cpp:70` / `integer.cpp:64` -- the normal case of just one sound.
+		// `unpatched_param.cpp:70` / `integer.cpp:63` -- the normal case of just one sound.
 		stack->autoParam->setCurrentValueInResponseToUserInput(final_value, stack);
 	}
 

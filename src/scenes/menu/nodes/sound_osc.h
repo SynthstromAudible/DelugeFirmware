@@ -14,26 +14,26 @@
 /// | `sample<i>_recorder` | `sample<i>RecorderMenu` (`:55-56`) | `osc::AudioRecorder` (`osc/audio_recorder.h:28`) |
 /// | `recorder` | `recorderMenu` (`:318`) | `HorizontalMenu` |
 /// | `osc<i>_type` | `osc<i>TypeMenu` (`:62`, `:93`) | `osc::Type` (`osc/type.h:34`) |
-/// | `file<i>_selector` | `file<i>SelectorMenu` (`:63`, `:94`) | `FileSelector` (`file_selector.h:25`) |
+/// | `file<i>_selector` | `file<i>SelectorMenu` (`:63`, `:94`) | `FileSelector` (`file_selector.h:26`) |
 /// | `source<i>_transpose` | `source<i>TransposeMenu` (`:64`, `:95`) | `sample::Transpose` (`sample/transpose.h:31`) |
 /// | `source<i>_wave_index` | `source<i>WaveIndexMenu` (`:65`, `:96`) | `osc::source::WaveIndex` (`osc/source/wave_index.h:23`) |
 /// | `osc<i>_pulse_width` | `osc<i>PulseWidthMenu` (`:66`, `:97`) | `osc::PulseWidth` (`osc/pulse_width.h:25`) |
 /// | `source<i>_feedback` | `source<i>FeedbackMenu` (`:67`, `:98`) | `osc::source::Feedback` (`osc/source/feedback.h:23`) |
-/// | `osc<i>_phase` | `osc<i>PhaseMenu` (`:68`, `:99`) | `osc::RetriggerPhase` (`osc/retrigger_phase.h:25`) |
+/// | `osc<i>_phase` | `osc<i>PhaseMenu` (`:68`, `:99`) | `osc::RetriggerPhase` (`osc/retrigger_phase.h:26`) |
 /// | `sample<i>_reverse` | `sample<i>ReverseMenu` (`:69`, `:100`) | `sample::Reverse` (`sample/reverse.h:27`) |
 /// | `sample<i>_repeat` | `sample<i>RepeatMenu` (`:70`, `:101`) | `sample::Repeat` (`sample/repeat.h:33`) |
 /// | `sample<i>_time_stretch` | `sample<i>TimeStretchMenu` (`:71`, `:102`) | `sample::TimeStretch` (`sample/time_stretch.h:27`) |
 /// | `sample<i>_pitch_speed` | `sample<i>PitchSpeedMenu` (`:72`, `:103`) | `sample::PitchSpeed` (`sample/pitch_speed.h:29`) |
 /// | `sample<i>_interpolation` | `sample<i>InterpolationMenu` (`:73`, `:104`) | `sample::Interpolation` (`sample/interpolation.h:26`) |
-/// | `sample<i>_start` / `_end` | `sample<i>StartMenu` / `EndMenu` (`:74-75`, `:105-106`) | `sample::Start` / `End` over `LoopPoint` (`sample/loop_point.h:24`) |
-/// | `source<i>` | `source<i>Menu` (`:92`, `:123`) | `submenu::ActualSource` (`submenu/actual_source.h:22`) |
-/// | `modulator<i>_transpose` | `modulator<i>TransposeMenu` (`:124`, `:133`) | `modulator::Transpose` (`modulator/transpose.h:27`) |
-/// | `modulator<i>_feedback` | `modulator<i>FeedbackMenu` (`:125`, `:134`) | `source::patched_param::ModulatorFeedback` (`modulator_feedback.h:22`) |
+/// | `sample<i>_start` / `_end` | `sample<i>StartMenu` / `EndMenu` (`:74-75`, `:105-106`) | `sample::Start` / `End` over `LoopPoint` (`sample/loop_point.h:25`) |
+/// | `source<i>` | `source<i>Menu` (`:92`, `:123`) | `submenu::ActualSource` (`submenu/actual_source.h:23`) |
+/// | `modulator<i>_transpose` | `modulator<i>TransposeMenu` (`:124`, `:133`) | `modulator::Transpose` (`modulator/transpose.h:28`) |
+/// | `modulator<i>_feedback` | `modulator<i>FeedbackMenu` (`:125`, `:134`) | `source::patched_param::ModulatorFeedback` (`modulator_feedback.h:23`) |
 /// | `modulator<i>_phase_node` | `modulator<i>PhaseMenu` (`:126`, `:135`) | `osc::RetriggerPhase`, `for_modulator` |
 /// | `modulator_dest` | `modulatorDestMenu` (`:393`) | `modulator::Destination` (`modulator/destination.h:28`) |
 /// | `modulator<i>` | `modulator<i>Menu` (`:132`, `:143`) | `submenu::Modulator` (`submenu/modulator.h:21`) |
 /// | `source<i>_volume` | `source<i>VolumeMenu` (`:144-145`) | `osc::source::Volume` (`osc/source/volume.h:24`) |
-/// | `modulator<i>_volume` | `modulator<i>Volume` (`:146-147`) | `source::patched_param::ModulatorLevel` (`modulator_level.h:22`) |
+/// | `modulator<i>_volume` | `modulator<i>Volume` (`:146-147`) | `source::patched_param::ModulatorLevel` (`modulator_level.h:23`) |
 /// | `noise` | `noiseMenu` (`:405`) | `patched_param::IntegerNonFM` (`patched_param/integer_non_fm.h:22`) |
 /// | `osc_sync` | `oscSyncMenu` (`:406`) | `osc::Sync` (`osc/sync.h:26`) |
 /// | `osc_mixer` | `oscMixerMenu` (`:415`) | `HorizontalMenu` |
@@ -69,7 +69,7 @@
 ///       *and* a `PatchedParam` and re-exports the whole learning surface -- `getParamIndex()`
 ///       (`transpose.h:37`), `getLearningThing()` -> `setToHaveParamOnly(getP())`
 ///       (`source/transpose.h:28-32`), `unlearnAction`/`allowsLearnMode`/`learnKnob`
-///       (`transpose.h:47-51`). Without the reference, MIDI/CC learn on
+///       (`transpose.h:28-32`). Without the reference, MIDI/CC learn on
 ///       `LOCAL_OSC_A/B_PITCH_ADJUST` and `LOCAL_MODULATOR_0/1_PITCH_ADJUST` would silently vanish
 ///       (fix round 1, I1). `node.h`'s `Binding` precedence note explains why declaring both is safe.
 ///
@@ -143,7 +143,7 @@ inline constexpr uint16_t kPitchSpeedNames[] = {
     sid(deluge::l10n::String::STRING_FOR_LINKED),
     sid(deluge::l10n::String::STRING_FOR_INDEPENDENT),
 };
-/// `AudioInterpolation::getOptions` (`gui/menu_item/audio_interpolation.h:41-44`).
+/// `AudioInterpolation::getOptions` (`gui/menu_item/audio_interpolation.h:25-28`).
 inline constexpr uint16_t kInterpolationNames[] = {
     sid(deluge::l10n::String::STRING_FOR_LINEAR),
     sid(deluge::l10n::String::STRING_FOR_SINC),

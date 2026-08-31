@@ -9,10 +9,10 @@
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `voice_priority` | `priorityMenu` (`:705`) | `voice::Priority` (`voice/priority.h:20`) | Enum |
+/// | `voice_priority` | `priorityMenu` (`:705`) | `voice::Priority` (`voice/priority.h:29`) | Enum |
 /// | `polyphony` | `polyphonyMenu` (`:702`) | `voice::PolyphonyType` (`voice/polyphony.h:90`) | Enum (dynamic) |
-/// | `voice_count` | `voice::polyphonicVoiceCountMenu` (`:703`) | `voice::VoiceCount` (`voice/polyphony.h:22`) | Int |
-/// | `portamento` | `portaMenu` (`:704`) | `voice::Portamento` (`voice/portamento.h:20`), `UNPATCHED_PORTAMENTO` | Int (param) |
+/// | `voice_count` | `voice::polyphonicVoiceCountMenu` (`:703`) | `voice::VoiceCount` (`voice/polyphony.h:31`) | Int |
+/// | `portamento` | `portaMenu` (`:704`) | `voice::Portamento` (`voice/portamento.h:24`), `UNPATCHED_PORTAMENTO` | Int (param) |
 /// | `unison` | `unisonMenu` | `HorizontalMenu` -- **task 6's**, `sound_unison.h` | Submenu (Horizontal) |
 /// | `voice` | `voiceMenu` (`:707`) | `HorizontalMenu`, `Layout::FIXED` | Submenu (Horizontal) |
 // clang-format on
