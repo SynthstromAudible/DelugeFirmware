@@ -32,6 +32,9 @@ const size_t blockBufferMax = 1024;
 const size_t sysexBufferMax = blockBufferMax + 256;
 uint8_t* writeBlockBuffer = nullptr;
 uint8_t* readBlockBuffer = nullptr;
+// Advertised as "pipe" in the ^session grant: max concurrent requests whose replies fit in the USB
+// send ring (a full-block ^read reply spans ~410 of its 1024 events).
+const uint32_t kMaxPipelinedRequests = 2;
 const uint32_t MAX_OPEN_FILES = 4;
 
 struct FILdata {
@@ -744,6 +747,7 @@ void smSysex::assignSession(MIDICable& cable, JsonDeserializer& reader) {
 	jWriter.writeAttribute("midBase", sessionNum << SYSEX_SESSION_SHIFT);
 	jWriter.writeAttribute("midMin", (sessionNum << SYSEX_SESSION_SHIFT) + 1);
 	jWriter.writeAttribute("midMax", (sessionNum << SYSEX_SESSION_SHIFT) + SYSEX_MSGID_MAX);
+	jWriter.writeAttribute("pipe", kMaxPipelinedRequests);
 	jWriter.closeTag(true);
 	sendMsg(cable, jWriter);
 }
