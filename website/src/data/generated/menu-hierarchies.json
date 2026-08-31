@@ -1087,6 +1087,29 @@
                         }
                       ],
                       "tag": "c1.3"
+                    },
+                    {
+                      "varName": "device_send_thru_menu",
+                      "token": "STRING_FOR_MIDI_THRU",
+                      "oled": "MIDI-Thru",
+                      "code": "THRU",
+                      "children": [
+                        {
+                          "varName": "virtualToggle_device_send_thru_menu_0",
+                          "token": "STRING_FOR_DISABLED",
+                          "oled": "Disabled",
+                          "code": "OFF",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualToggle_device_send_thru_menu_1",
+                          "token": "STRING_FOR_ENABLED",
+                          "oled": "Enabled",
+                          "code": "ON",
+                          "children": []
+                        }
+                      ],
+                      "tag": "c1.3"
                     }
                   ]
                 }
@@ -30300,5 +30323,5 @@
     "noteRowEditorMenu": "noteRowEditorRootMenu",
     "songClipSettingsMenu": "songClipSettingsMenu"
   },
-  "generatedAt": "2026-08-23T20:32:27.975Z"
+  "generatedAt": "2026-08-26T00:26:56.931Z"
 }
