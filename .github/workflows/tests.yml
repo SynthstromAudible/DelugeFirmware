@@ -76,6 +76,15 @@ jobs:
       - name: Menu tree JSON dump matches committed JSON
         run: bash scripts/menu_dump_check.sh
 
+      # BLOCKING, and the only CI gate the UI layer rules have. `scripts/check_layer_rules.py`
+      # ran in no workflow at all until now: `.pre-commit-config.yaml` was its sole enforcement,
+      # and that hook's `files:` regex did not list `src/scenes/` until late in plan E2 -- so 38
+      # commits that touched only that library ran none of its five rules. A ratchet nothing runs
+      # is a ratchet nobody notices breaking, which is the failure this step exists to prevent.
+      # Baselines may only shrink; the script prints the row and count for any that grew.
+      - name: UI layer-rule ratchet
+        run: python3 scripts/check_layer_rules.py
+
       # WARNING-ONLY, and deliberately so: `check_citations.py` always exits 0. It catches one
       # specific regression -- a legacy line citation whose whole cited range is past EOF, inside
       # the GPL header, or nothing but includes and braces -- which is what happens when a port
