@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-using deluge::drum::countDistinctChokeGroups;
+using deluge::drum::countBundlingChokeGroups;
 using deluge::drum::readChokeGroupFromFile;
 using deluge::drum::shouldChoke;
 using deluge::drum::writeChokeGroupToFile;
@@ -125,52 +125,120 @@ TEST(ChokeGroup, xmlOutOfRangeValuesFallBackToDefaultGroup) {
 	}
 }
 
-// countDistinctChokeGroups() backs choke-group stem export: it's what turns "these drums have these
-// effective choke groups" into "this many WAV files get produced." Tested here against a fake
-// predicate (a lookup into a plain std::vector standing in for a kit's eligible drums) rather than
-// real NoteRow/InstrumentClip/Kit objects, the same host-testable approach the XML round-trip tests
-// above use for the (de)serializer - see stem_export.cpp's disarmAllChokeGroupsForStemExport() and
-// currentKitSpansMultipleChokeGroups() for the real, firmware-side callers of this same function.
+// countBundlingChokeGroups() backs choke-group stem export: it's what turns "these drums belong to
+// these choke groups" into "which drums get rendered together, and how many files that comes to."
+// Tested here against a fake predicate (counting into a plain std::vector standing in for a kit's
+// exportable drums) rather than real NoteRow/InstrumentClip/Kit objects, the same host-testable
+// approach the XML round-trip tests above use for the (de)serializer - see stem_export.cpp's
+// exportChokeGroupStems() and currentKitHasBundlingChokeGroup() for the real callers.
+//
+// The vector is one entry per exportable drum, holding the group that drum belongs to FOR EXPORT
+// PURPOSES - which is 0 for any drum not in CHOKE mode, however its chokeGroup field happens to
+// read. That distinction is the whole point: every drum carries a chokeGroup, defaulting to 1, so
+// keying on the stored number alone would put the entire non-choke half of a kit into group 1.
+// stem_export.cpp's exportChokeGroupOf() is what collapses that to 0.
 namespace {
-uint8_t countGroupsPresentIn(const std::vector<uint8_t>& presentGroups) {
-	return countDistinctChokeGroups([&](uint8_t group) {
-		return std::find(presentGroups.begin(), presentGroups.end(), group) != presentGroups.end();
-	});
+uint8_t countBundlesIn(const std::vector<uint8_t>& drumGroups) {
+	return countBundlingChokeGroups(
+	    [&](uint8_t group) { return (int32_t)std::count(drumGroups.begin(), drumGroups.end(), group); });
+}
+
+/// Total files a kit of these drums produces: one per bundling group, plus one for every drum not
+/// in one. Mirrors what disarmAllChokeGroupsForStemExport() computes for the progress display.
+int32_t filesProducedBy(const std::vector<uint8_t>& drumGroups) {
+	int32_t files = 0;
+	int32_t drumsInBundles = 0;
+	for (uint8_t group = 1; group <= 8; group++) {
+		auto members = (int32_t)std::count(drumGroups.begin(), drumGroups.end(), group);
+		if (members > 1) {
+			files++;
+			drumsInBundles += members;
+		}
+	}
+	return files + ((int32_t)drumGroups.size() - drumsInBundles);
 }
 } // namespace
 
 TEST_GROUP(ChokeGroupExport){};
 
-TEST(ChokeGroupExport, noEligibleDrumsYieldsZeroGroups) {
-	// An empty kit, or one where every drum is muted/empty/non-CHOKE, produces no stems at all.
-	CHECK_EQUAL(0, countGroupsPresentIn({}));
+TEST(ChokeGroupExport, emptyKitBundlesNothing) {
+	CHECK_EQUAL(0, countBundlesIn({}));
+	CHECK_EQUAL(0, filesProducedBy({}));
 }
 
-TEST(ChokeGroupExport, allDrumsInOneGroupYieldsOneStem) {
-	// Every drum still defaulted to (or explicitly set to) group 1 - the common case for kits that
-	// never touched the CHOKE GROUP menu - produces exactly one file, same as a plain whole-kit
-	// export. This is also the exact condition currentKitSpansMultipleChokeGroups() checks for to
-	// decide whether the choke-group export option is worth surfacing in the UI at all.
-	CHECK_EQUAL(1, countGroupsPresentIn({1, 1, 1, 1}));
+TEST(ChokeGroupExport, aGroupOfOneIsNotABundle) {
+	// One drum alone in a group has nothing to choke it, so rendering it "as a group" would produce
+	// exactly the same audio as rendering it on its own, under a more confusing name. It is not a
+	// bundle, and its file is named after the drum.
+	CHECK_EQUAL(0, countBundlesIn({3}));
+	CHECK_EQUAL(1, filesProducedBy({3}));
+
+	CHECK_EQUAL(0, countBundlesIn({1, 2, 3, 4}));
+	CHECK_EQUAL(4, filesProducedBy({1, 2, 3, 4}));
 }
 
-TEST(ChokeGroupExport, drumsSpanningMultipleGroupsAreCountedSeparately) {
-	CHECK_EQUAL(3, countGroupsPresentIn({1, 1, 3, 3, 3, 5}));
+TEST(ChokeGroupExport, twoDrumsSharingAGroupAreOneBundle) {
+	CHECK_EQUAL(1, countBundlesIn({1, 1}));
+	CHECK_EQUAL(1, filesProducedBy({1, 1}));
 }
 
-TEST(ChokeGroupExport, duplicateGroupValuesAreNotDoubleCounted) {
-	// Ten drums all sharing group 7 must still yield exactly one stem, not ten.
-	CHECK_EQUAL(1, countGroupsPresentIn({7, 7, 7, 7, 7, 7, 7, 7, 7, 7}));
+TEST(ChokeGroupExport, nonChokeDrumsAreNeverBundled) {
+	// The bug this design replaced. A kit of a hi-hat pair on choke group 1 plus three Poly drums -
+	// which carry the default chokeGroup of 1 without being in any group at all - used to produce a
+	// single "ChokeGroup1" file containing all five. With non-choke drums reported as group 0, the
+	// hats bundle and the three Poly drums each get their own file: four files, not one.
+	CHECK_EQUAL(1, countBundlesIn({1, 1, 0, 0, 0}));
+	CHECK_EQUAL(4, filesProducedBy({1, 1, 0, 0, 0}));
+
+	// And a kit with no choke drums at all is just a per-drum export.
+	CHECK_EQUAL(0, countBundlesIn({0, 0, 0, 0}));
+	CHECK_EQUAL(4, filesProducedBy({0, 0, 0, 0}));
 }
 
-TEST(ChokeGroupExport, allEightGroupsPresentYieldsEightStems) {
-	CHECK_EQUAL(8, countGroupsPresentIn({1, 2, 3, 4, 5, 6, 7, 8}));
+TEST(ChokeGroupExport, theMixedKit) {
+	// Kick and snare on Poly, closed and open hat on choke group 1, crash alone on choke group 3.
+	// Files: kick, snare, ChokeGroup1 (both hats), crash = 4.
+	CHECK_EQUAL(1, countBundlesIn({0, 0, 1, 1, 3}));
+	CHECK_EQUAL(4, filesProducedBy({0, 0, 1, 1, 3}));
 }
 
-TEST(ChokeGroupExport, spansMultipleGroupsMatchesGreaterThanOneCount) {
-	// currentKitSpansMultipleChokeGroups() is implemented as countDistinctChokeGroups(...) > 1;
-	// verify that composition directly rather than just trusting the individual counts above.
-	CHECK_FALSE(countGroupsPresentIn({}) > 1);
-	CHECK_FALSE(countGroupsPresentIn({4, 4, 4}) > 1);
-	CHECK_TRUE(countGroupsPresentIn({4, 4, 6}) > 1);
+TEST(ChokeGroupExport, everyDrumInItsOwnGroupIsAPlainDrumExport) {
+	// Eight choke drums, eight groups: nothing bundles, so this is the same division of the kit a
+	// plain per-drum export makes.
+	CHECK_EQUAL(0, countBundlesIn({1, 2, 3, 4, 5, 6, 7, 8}));
+	CHECK_EQUAL(8, filesProducedBy({1, 2, 3, 4, 5, 6, 7, 8}));
+}
+
+TEST(ChokeGroupExport, allEightGroupsCanBundleAtOnce) {
+	std::vector<uint8_t> kit;
+	for (uint8_t group = 1; group <= 8; group++) {
+		kit.push_back(group);
+		kit.push_back(group);
+	}
+	CHECK_EQUAL(8, countBundlesIn(kit));
+	CHECK_EQUAL(8, filesProducedBy(kit));
+}
+
+TEST(ChokeGroupExport, tenDrumsInOneGroupAreStillOneFile) {
+	CHECK_EQUAL(1, countBundlesIn({7, 7, 7, 7, 7, 7, 7, 7, 7, 7}));
+	CHECK_EQUAL(1, filesProducedBy({7, 7, 7, 7, 7, 7, 7, 7, 7, 7}));
+}
+
+TEST(ChokeGroupExport, groupZeroIsNeverCountedAsAGroup) {
+	// countBundlingChokeGroups() only ever asks about groups 1-8, so the ungrouped drums can never
+	// bundle with each other no matter how many of them there are.
+	CHECK_EQUAL(0, countBundlesIn({0, 0, 0, 0, 0, 0, 0, 0, 0, 0}));
+	CHECK_EQUAL(10, filesProducedBy({0, 0, 0, 0, 0, 0, 0, 0, 0, 0}));
+}
+
+TEST(ChokeGroupExport, offeringTheOptionMatchesWhetherAnythingBundles) {
+	// currentKitHasBundlingChokeGroup() is countBundlingChokeGroups(...) > 0. Turning the toggle on
+	// changes the output only when something actually bundles, so that is exactly when the menu
+	// item is worth showing.
+	CHECK_FALSE(countBundlesIn({}) > 0);
+	CHECK_FALSE(countBundlesIn({4}) > 0);
+	CHECK_FALSE(countBundlesIn({0, 0, 0}) > 0);
+	CHECK_FALSE(countBundlesIn({1, 2, 3}) > 0);
+	CHECK_TRUE(countBundlesIn({4, 4}) > 0);
+	CHECK_TRUE(countBundlesIn({0, 0, 3, 3}) > 0);
 }
