@@ -19,8 +19,10 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/strings.h"
+#include "model/drum/choke_group.h"
 #include "processing/sound/sound_drum.h"
 #include "util/d_string.h"
+#include <array>
 #include <cstdint>
 
 class Output;
@@ -80,14 +82,28 @@ public:
 	// export choke groups
 	int32_t disarmAllChokeGroupsForStemExport();
 	int32_t exportChokeGroupStems(StemExportType stemExportType);
-	bool armChokeGroupRows(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group, int32_t* groupLoopLength);
-	void muteChokeGroupRows(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group);
-	bool recordOneChokeGroupStem(StemExportType stemExportType, InstrumentClip* clip, Output* output, uint8_t group,
-	                             int32_t fileIndex, int32_t groupLoopLength);
+	static uint8_t findBundlingChokeGroups(InstrumentClip* clip, int32_t totalNumNoteRows,
+	                                       std::array<bool, deluge::drum::kMaxChokeGroup + 1>& groupBundles);
+	static bool chokeGroupIsBundled(const std::array<bool, deluge::drum::kMaxChokeGroup + 1>& groupBundles,
+	                                uint8_t chokeGroup);
+	static bool armChokeGroupRows(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group,
+	                              int32_t* groupLoopLength);
+	static void muteChokeGroupRows(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group);
+	static int32_t noteRowLoopLength(InstrumentClip* clip, NoteRow* noteRow);
+	bool recordOneChokeGroupStem(StemExportType stemExportType, InstrumentClip* clip, Output* output, SoundDrum* drum,
+	                             uint8_t chokeGroup, int32_t fileIndex, int32_t loopLength);
+	int32_t exportBundledChokeGroups(StemExportType stemExportType, InstrumentClip* clip, Output* output,
+	                                 int32_t totalNumNoteRows,
+	                                 const std::array<bool, deluge::drum::kMaxChokeGroup + 1>& groupBundles,
+	                                 int32_t fileIndex);
+	int32_t exportUngroupedDrums(StemExportType stemExportType, InstrumentClip* clip, Output* output,
+	                             int32_t totalNumNoteRows,
+	                             const std::array<bool, deluge::drum::kMaxChokeGroup + 1>& groupBundles,
+	                             int32_t fileIndex);
 	/// read-only check for whether choke-group export would actually produce more than one file for
 	/// the kit clip currently open - used to decide whether to surface the option in the UI at all.
 	/// Unlike disarmAllChokeGroupsForStemExport(), this does not touch NoteRow mute state.
-	bool currentKitSpansMultipleChokeGroups();
+	bool currentKitHasBundlingChokeGroup();
 
 	// start exporting
 	/// chokeGroup is only meaningful for StemExportType::CHOKE_GROUP, where it names the group in the
