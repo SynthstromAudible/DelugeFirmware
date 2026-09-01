@@ -68,18 +68,27 @@ uint8_t readChokeGroupFromFile(DeserializerT& reader) {
 	return (uint8_t)chokeGroup;
 }
 
-/// Counts how many of the 8 possible choke groups have at least one eligible drum in them - i.e.
-/// how many separate files choke-group stem export would produce for a kit. Templated on a
-/// predicate rather than taking a collection directly, so the caller doesn't need to materialize a
-/// list of every drum's group into a buffer first: stem_export.cpp instead passes a closure that
-/// scans its own NoteRows for a given group number. This also means the counting algorithm itself -
-/// "the new grouping logic" - can be unit-tested on the host with a trivial fake predicate, without
-/// needing a live Kit/InstrumentClip/NoteRow - see tests/unit/choke_group_tests.cpp.
-template <typename HasEligibleDrumInGroupFn>
-uint8_t countDistinctChokeGroups(HasEligibleDrumInGroupFn hasEligibleDrumInGroup) {
+/// Counts how many of the 8 groups actually bundle drums together - hold more than one exportable
+/// drum. Only those are worth rendering as a single stem: a group of one has nothing to choke it,
+/// so its drum is exported on its own like any other, and rendering it "as a group" would produce
+/// exactly the same audio under a more confusing name.
+///
+/// This is the count that decides both whether choke-group export is worth offering at all and how
+/// the kit is divided up when it runs. Note what the caller's predicate has to count: only drums
+/// actually in CHOKE mode belong to a group. Every drum carries a chokeGroup, defaulting to 1
+/// whether or not it is in CHOKE mode, so counting stored numbers alone would sweep every Poly,
+/// Mono and Auto drum in the kit into group 1.
+///
+/// Templated on a counting predicate rather than taking a collection directly, so the caller
+/// doesn't need to materialize a list of every drum's group into a buffer first: stem_export.cpp
+/// passes a closure that scans its own NoteRows for a given group number. This also keeps the
+/// counting itself host-testable with a trivial fake, without needing a live
+/// Kit/InstrumentClip/NoteRow - see tests/unit/choke_group_tests.cpp.
+template <typename CountDrumsInGroupFn>
+uint8_t countBundlingChokeGroups(CountDrumsInGroupFn countDrumsInGroup) {
 	uint8_t count = 0;
 	for (uint8_t group = kMinChokeGroup; group <= kMaxChokeGroup; group++) {
-		if (hasEligibleDrumInGroup(group)) {
+		if (countDrumsInGroup(group) > 1) {
 			count++;
 		}
 	}

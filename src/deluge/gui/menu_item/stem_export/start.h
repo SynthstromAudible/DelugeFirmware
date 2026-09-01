@@ -49,7 +49,7 @@ public:
 			// export, the same way the CHOKE GROUP voice menu item itself re-checks it in
 			// PolyphonyType::selectButtonPress() rather than only hiding the toggle that leads here
 			if (stemExport.exportChokeGroups && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)
-			    && stemExport.currentKitSpansMultipleChokeGroups()) {
+			    && stemExport.currentKitHasBundlingChokeGroup()) {
 				stemExport.startStemExportProcess(StemExportType::CHOKE_GROUP);
 			}
 			else {
@@ -62,19 +62,19 @@ public:
 	bool shouldEnterSubmenu() override { return false; }
 };
 
-/// Toggle in the Kit's Configure Export submenu that switches the kit-context export granularity
-/// between DRUM (one file per pad, the default) and CHOKE_GROUP (one file per numbered choke group)
-/// - see Start::selectButtonPress() above for where this is actually consulted.
+/// Toggle in the Kit's Configure Export submenu. Off, a kit exports one file per pad. On, pads that
+/// share a choke group are rendered together into one file instead, and every other pad is still
+/// exported on its own - see Start::selectButtonPress() above for where this is actually consulted.
 class ExportChokeGroups final : public ToggleBool {
 public:
 	using ToggleBool::ToggleBool;
 
-	// Only offer the choice when the community feature is on AND it would actually produce more
-	// than one file - if every eligible drum shares a single choke group, CHOKE_GROUP export
-	// degenerates to the same single-file output as leaving this off, so there's nothing to choose.
+	// Only offer the choice when the community feature is on AND turning it on would change the
+	// output - that is, when some choke group holds more than one exportable drum. If no group
+	// does, every drum is rendered on its own either way and there is nothing to choose.
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)
-		       && stemExport.currentKitSpansMultipleChokeGroups();
+		       && stemExport.currentKitHasBundlingChokeGroup();
 	}
 };
 } // namespace deluge::gui::menu_item::stem_export

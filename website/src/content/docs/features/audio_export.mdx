@@ -40,7 +40,7 @@ Automatically export your clips in Session View, tracks in Arranger View, and dr
 
 Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SESSION VIEW`, `TRACK's` while in `ARRANGER VIEW`, and `DRUM's` (<Badge text="c1.3" variant="tip" />) while in `KIT INSTRUMENT CLIP VIEW`. Press :key[SAVE] + :key[RECORD] to start exporting.
 
-In `KIT INSTRUMENT CLIP VIEW`, if the [Numbered Choke Groups](/features/community_features#338---numbered-choke-groups) community feature is on and the kit's drums span more than one choke group, you can instead export `CHOKE GROUP's` - one file per numbered choke group, mixing together every drum that shares a group - by enabling `EXPORT CHOKE GROUPS` (see below).
+In `KIT INSTRUMENT CLIP VIEW`, if the [Numbered Choke Groups](/features/community_features#338---numbered-choke-groups) community feature is on and any choke group in the kit holds more than one drum, you can enable `EXPORT CHOKE GROUPS` (see below). Drums that share a choke group are then rendered together into one file, because they have to sound together for the choking between them to happen at all; every other drum is still exported on its own.
 
 Now with one quick action you can start an export job, walk away from your Deluge and come back to a collection of renders from all your clips, arranger tracks, and kit drums.
 
@@ -68,6 +68,7 @@ SYNTH_TRACK_PRESETNAME_###BPM_Root Note-Scale Name_000.WAV
 MIXDOWN_###BPM_Root Note-Scale Name.WAV
 KIT_DRUM_KITNAME_DRUMNAME_Root Note-Scale Name_000.WAV
 KIT_CHOKE_GROUP_KITNAME_ChokeGroupN_###BPM_Root Note-Scale Name_000.WAV
+KIT_CHOKE_GROUP_KITNAME_DRUMNAME_###BPM_Root Note-Scale Name_001.WAV
 ```
 
 ## Shortcuts to Start/Stop Exporting
@@ -81,7 +82,7 @@ KIT_CHOKE_GROUP_KITNAME_ChokeGroupN_###BPM_Root Note-Scale Name_000.WAV
 - Note 3: Tracks, Clips and Drums that are `EMPTY` (e.g. they have no Notes or Audio Files) are excluded from the export
 - Note 4: In Arranger View, any Tracks that are `MUTED` are excluded from the export
 - Note 5: In Kit Instrument Clip View, any Drums that are `MUTED` are excluded from the export
-- Note 6: When exporting Choke Groups, a group is only exported if it contains at least one eligible (unmuted, non-empty) Drum
+- Note 6: `EXPORT CHOKE GROUPS` changes how the kit is divided up, not which Drums are eligible. Every eligible (unmuted, non-empty) Drum still appears in exactly one file
 
 - You can also start the export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Session and Arranger Views and in the `KIT FX/ACTIONS` menu accessible in Kit Instrument Clip View when Affect Entire is enabled.
   - In Session and Arranger Views, start the export by entering the `SONG/EXPORT AUDIO/` menu and pressing :key[Select] on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
@@ -101,7 +102,7 @@ KIT_CHOKE_GROUP_KITNAME_ChokeGroupN_###BPM_Root Note-Scale Name_000.WAV
   - In Arranger, a track is played until the end of the arrangement's length is reached.
   - In Session, a clip is played until the end of the longest note row with notes in it is reached.
   - In Kit Instrument Clip View, a drum is played until the end of the drum row is reached.
-  - When exporting Choke Groups, all drums in a group are played together until the end of the longest drum row in that group is reached.
+  - When exporting Choke Groups, the drums sharing a group are played together until the end of the longest drum row in that group is reached. Drums not sharing a group with another drum are played on their own, as normal.
   - If `EXPORT TO SILENCE` is enabled, tails will be allowed to ring out and recording will continue past the track, clip or drum length until silence is reached (see below).
 
 ### Silence
@@ -150,8 +151,12 @@ KIT_CHOKE_GROUP_KITNAME_ChokeGroupN_###BPM_Root Note-Scale Name_000.WAV
 ### Export Choke Groups
 
 - This is only applicable when exporting from Kit Instrument Clip View, and only when the [Numbered Choke Groups](/features/community_features#338---numbered-choke-groups) community feature is turned on
-- Exporting one file per numbered choke group instead of one file per drum is disabled by default
-- The option to enable it is only shown at all when the current kit's drums actually span more than one distinct choke group - if every drum shares a single group, choke group export would just reproduce the same single file a normal kit export produces, so there's nothing to choose
+- Disabled by default, in which case a kit exports one file per drum as usual
+- When enabled, drums that share a choke group are rendered together into a single file, and every other drum is still exported on its own. Exporting a choke group's drums separately would silently lose the choking between them - each drum is soloed in turn, so nothing is left to cut it off - which is exactly the problem this solves
+- Every eligible drum appears in exactly one file either way, so the exported files still account for the whole kit
+- A drum sitting alone in a choke group has nothing to choke it, so it is exported on its own and its file is named after the drum, not the group
+- Drums that are not in `Choke` mode are never part of a group, whatever choke group number they happen to carry, and are always exported individually
+- The option to enable it is only shown when at least one choke group holds more than one drum - otherwise every drum would be exported on its own either way, so there is nothing to choose
 - This can be enabled in the export configuration menu located at: `KIT FX/ACTIONS/EXPORT AUDIO/CONFIGURE EXPORT/EXPORT CHOKE GROUPS`
 - If the Numbered Choke Groups community feature is turned off after enabling this, exports fall back to one file per drum, the same as if this had never been enabled
 
