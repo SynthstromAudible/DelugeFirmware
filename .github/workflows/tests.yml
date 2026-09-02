@@ -67,6 +67,18 @@ jobs:
           cmake --build build-sim --target deluge_host
           ctest --test-dir build-sim -R ui_app_scripts --output-on-failure
 
+      # The legacy-vs-port oracle, and until now it ran nowhere. Plans E1, E2 and E3 rest on one
+      # claim -- "the ported menu matches legacy, proven by specs that drive both on the same
+      # fixture" -- and those specs live in `deluge_scenes_spec`, which no workflow built. The step
+      # above builds only `deluge_host` and runs only `ui_app_scripts`, so all 24 other sim tests
+      # (every table comparison, every scene, the file catalogue) were local-only for three plans.
+      # Reuses the build-sim tree configured above. `-E ui_app_scripts` because that row already
+      # ran there, and it is the slow one.
+      - name: Scenes specs (legacy-vs-port comparisons)
+        run: |
+          cmake --build build-sim --target deluge_scenes_spec
+          ctest --test-dir build-sim -E ui_app_scripts --output-on-failure
+
       # Task 10's CI diff net for src/scenes/menu/: the committed
       # website/src/data/generated/menu-hierarchies.json must never drift from the declarative
       # Node tables. Reuses the build-sim tree the step above just configured, rather than
