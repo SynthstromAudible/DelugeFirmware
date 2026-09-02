@@ -245,10 +245,14 @@ void midi_device_start_at(const menu::MenuContext& ctx, std::string& dir, std::s
 	}
 	dir = path.substr(0, slash);
 	name = path.substr(slash + 1);
-	// Legacy appends ".XML" to the *base* name it split out; the remembered path already carries
-	// the extension, so appending again would search for "FOO.XML.XML". `searchFileItems` compares
-	// against `FileItem::displayName()`, which is the filename with its extension, so the name as
-	// split is already the search key legacy meant.
+	// **A behaviour change, not a port.** Legacy appends ".XML" unconditionally
+	// (`load_midi_device_definition_ui.cpp:122-124`) to a name it split out of a path that already
+	// carries the extension, so it searches for "DEVICE1.XML.XML" and never finds the file --
+	// `searchFileItems` compares against `FileItem::displayName()`, which is the filename WITH its
+	// extension. The effect on the device is that reopening the browser on a remembered definition
+	// lands on the first entry in the folder rather than on the remembered one. Fixed here rather
+	// than reproduced, because reproducing it would mean shipping a search key that is known never
+	// to match; the append is kept for a remembered name that somehow lacks the extension.
 	if (name.size() < 4 || !case_prefix_equal(name.substr(name.size() - 4), ".XML", 4)) {
 		name += ".XML";
 	}
@@ -390,7 +394,8 @@ void BrowserScene::on_exit() {
 	// descriptor's `can`, and `on_enter` refuses.
 	ctx_ = menu::MenuContext{};
 	grid_pass_ = false;
-	locked_ = false;
+	searching_ = false;
+	select_after_listing_.clear();
 }
 
 std::string_view BrowserScene::current_dir() const {
@@ -466,10 +471,16 @@ Result BrowserScene::apply(const ListingResult& out) {
 	// later: the folder has been re-read around the typed text, so run the search again.
 	if (searching_) {
 		searching_ = false;
-		if (search_for_entered_text() != SearchOutcome::Found && file_index_ >= 0) {
+		if (search_for_entered_text() != SearchOutcome::Found) {
 			// `notFound` with `mayDefaultToBrandNewNameOnEntry` false (`:842-846`): put the selected
-			// file's name back.
-			set_entered_text_from_current_filename();
+			// file's name back, and undo the cursor advance the keystroke made
+			// (`qwerty_ui.cpp:357-359`). This is the same pair `run_search_after_typing` applies on
+			// the synchronous miss; the only difference is that the cursor had to be carried across
+			// the re-read in `search_revert_cursor_`.
+			if (file_index_ >= 0) {
+				set_entered_text_from_current_filename();
+			}
+			edit_.cursor = static_cast<int16_t>(search_revert_cursor_);
 		}
 		clamp(visible_rows_);
 		return repaint_all();
@@ -483,6 +494,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 			index = (reload_direction_ == CATALOG_SEARCH_LEFT) ? count - 1 : 0;
 		}
 		else {
+			FileCatalogue::repinComparator();
 			index = FileCatalogue::searchFileItems(std::string{entered_text()}.c_str()) + reload_offset_;
 		}
 		finish_select(index, reload_offset_);
@@ -514,6 +526,7 @@ Result BrowserScene::apply(const ListingResult& out) {
 	file_index_ = 0;
 	if (!name.empty()) {
 		bool exact = false;
+		FileCatalogue::repinComparator();
 		const int32_t i = FileCatalogue::searchFileItems(name.c_str(), &exact);
 		if (exact) {
 			file_index_ = i;
@@ -600,12 +613,14 @@ BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
 	// (enteredTextEditPos)`), which is what makes typing over a prediction search for the prefix
 	// rather than for the prediction.
 	//
-	// @note The comparator's globals (`shouldInterpretNoteNames`, `octaveStartsFromA`) are NOT
-	//       re-pinned here the way legacy re-pins them at `:785-786`: they live in
-	//       `util/name_compare.h`, which is outside this layer's include allowance
-	//       (`scenes-includes-outside`), and the listing whose entries are being searched pinned
-	//       them itself when it sorted (`FileCatalogue::sortFileItems`, called from
-	//       `Listing::list_current_dir`). Same values, set one step earlier.
+	// Re-pin the name comparator before searching, exactly as legacy does at `:785-786`, through
+	// `FileCatalogue::repinComparator` rather than by naming `util/name_compare.h`'s globals --
+	// `util/**` is outside this layer's include allowance (`scenes-includes-outside`). It restores
+	// what the last `sortFileItems` set, which is the only pinning under which `fileItems`' order is
+	// meaningful. Fix round 1, Important 4: this used to be a comment saying the sort had already
+	// pinned them and nothing else would touch them in between, which is a convention rather than a
+	// mechanism.
+	FileCatalogue::repinComparator();
 	const size_t n = static_cast<size_t>(std::max<int32_t>(edit_.cursor, 0));
 	const std::string search{entered_, std::min<size_t>(n, entered_len_)};
 	const int32_t count = static_cast<int32_t>(FileCatalogue::fileItems.size());
@@ -658,6 +673,15 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 		// Legacy loops synchronously (`:826-837`); the seam cannot, so the read is dispatched and
 		// the search runs again when it lands. `CATALOG_SEARCH_BOTH` around the search string is
 		// legacy's own direction for this read (`:830`).
+		//
+		// The cursor to fall back to travels with the request. Legacy decrements
+		// `enteredTextEditPos` whenever `predictExtendedText()` answers false
+		// (`qwerty_ui.cpp:357-359`) -- and that includes the `doNewRead -> doSearch -> notFound`
+		// route, which here lands a whole tick later. Without carrying it, a typed character that
+		// needs a re-read and then still finds nothing would leave the cursor one column past
+		// legacy's: the prediction highlight starts a column late and the NEXT keystroke truncates
+		// at the wrong index (fix round 1, Important 3).
+		search_revert_cursor_ = revert_cursor_to;
 		ListingRequest req = make_request(ListingAction::Reload);
 		req.filename_to_start_at = std::string{entered_, entered_len_};
 		req.search_direction = CATALOG_SEARCH_BOTH;
@@ -745,6 +769,7 @@ void BrowserScene::step_selection(int32_t offset) {
 		if (count == 0) {
 			return;
 		}
+		FileCatalogue::repinComparator();
 		index = FileCatalogue::searchFileItems(std::string{entered_text()}.c_str());
 		if (offset < 0) {
 			index--;
@@ -838,7 +863,7 @@ Result BrowserScene::enter_key_press() {
 		return repaint_all();
 	}
 
-	// `getCurrentFilePath()` (`sample_browser.h:125 getCurrentFilePath`, `load_midi_device_definition_ui.cpp:213-217`):
+	// `getCurrentFilePath()` (`sample_browser.h:125 getCurrentFilePath`, `load_midi_device_definition_ui.cpp:214-218`):
 	// the directory, a separator, and the entry's own filename with its extension.
 	std::string path{current_dir()};
 	if (!path.empty()) {
@@ -1019,15 +1044,11 @@ Result BrowserScene::after_render() {
 
 	Result r;
 
-	// 1. The input lock. `Action::Kind::LockInput` is the port of legacy's
-	//    `waitingForSDRoutineToEnd` gate; filed on the edges only, so a lock is taken once and
-	//    released once.
-	const bool busy = listing_.in_flight();
-	if (busy != locked_) {
-		locked_ = busy;
-		r.handled = true;
-		(void)r.actions.push_back(Action{.kind = Action::Kind::LockInput, .lock = busy});
-	}
+	// 1. **No input lock, deliberately -- see `handle()`.** This is where `Action::Kind::LockInput`
+	//    used to be filed while `in_flight()`, and it was a whole-device failure waiting for an
+	//    external `Pop`: `on_exit()` returns `void`, so the release could never be filed from the
+	//    one path that needs it. The scene swallows input in `handle()` instead, which is all the
+	//    lock was buying here.
 
 	// 2. Collect a landed listing. **Every tick** -- `listing.h`'s `@warning`: a seam left in
 	//    `Ready` refuses every later request, and the natural home for the poll is here.
@@ -1090,16 +1111,20 @@ Result BrowserScene::after_render() {
 Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	(void)ctx;
 
-	// The second line of defence behind the input lock, and legacy's own first: `padAction`
-	// (`browser.cpp:1187`), `mainButtonAction` (`:1251`), `backButtonAction` (`:1284`) and
-	// `selectEncoderAction` (`:550`) each open with `if (listingInProgress_) return;`. Swallowed
-	// rather than passed down: this scene is the input top and the listing is about to redraw
-	// everything underneath the press.
+	// **The only thing that keeps input out while a listing runs**, and legacy's own first line:
+	// `padAction` (`browser.cpp:1187`), `mainButtonAction` (`:1251`), `backButtonAction`
+	// (`:1284`) and `selectEncoderAction` (`:550`) each open with
+	// `if (listingInProgress_) return;`. Swallowed rather than passed down: this scene is
+	// `SceneStack::input_top()` (`input_transparent()` is false), so nothing beneath it would see
+	// the event either, and the listing is about to redraw everything underneath the press.
 	//
-	// `has_result()` as well as `in_flight()`: post-render input (step 8) arrives after
-	// `after_render` has already run for the tick, so an op that landed in between would leave a
-	// result uncollected with `fileItems` already replaced. Acting on that would move the selection
-	// over a window the scene has not reconciled.
+	// This scene deliberately does **not** take `Action::Kind::LockInput` -- see the warning on
+	// `Action` (`shell/scene.h`). Three reasons, in order of severity: a scene cannot release that
+	// lock from `on_exit()` (which returns `void`), so an external `Pop` mid-listing would deafen
+	// the whole device; the lock *drops* events rather than deferring them, which is the
+	// stem-export/song-load bracket rather than legacy's `waitingForSDRoutineToEnd` (that one is
+	// `InputLowering::set_sd_busy`, which has no `Action` at all); and it buys this scene nothing
+	// the line below does not already buy, because every event routes here first.
 	if (seam_busy()) {
 		Result r;
 		r.handled = true;

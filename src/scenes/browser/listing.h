@@ -74,10 +74,22 @@
 ///          natural home is the scene's `after_render()`, beside where `MenuScene` drains its own
 ///          mailboxes.
 ///
-/// @note A scene should also hold the shell's input lock (`Action::Kind::LockInput`,
-///       `shell/scene.h`, legacy's `waitingForSDRoutineToEnd` gate) while `in_flight()` is true, so
-///       a second press cannot even reach the refusal. The refusal is the backstop, not the
-///       policy.
+/// @note A scene should refuse input of its own accord while `in_flight()` is true, so a second
+///       press cannot even reach the refusal above -- the refusal is the backstop, not the policy.
+///       The scene's own `handle()` is where that belongs: `SceneStack::input_top()` routes every
+///       event to the topmost non-input-transparent scene, so swallowing them there is a complete
+///       gate.
+///
+/// @warning **This note used to say "hold the shell's input lock (`Action::Kind::LockInput`,
+///          legacy's `waitingForSDRoutineToEnd` gate)", and both halves of that were wrong.**
+///          `BrowserScene` followed it and shipped a whole-device failure (E3 task 3 fix round 1):
+///          a scene cannot release that lock from `on_exit()`, which returns `void`, so an external
+///          `Pop` while a listing was in flight left the entire UI deaf. And `LockInput` is not
+///          `waitingForSDRoutineToEnd` -- it is the stem-export/song-load bracket, which **drops**
+///          events (encoder edges included, `shell/input_lowering.cpp:159`) where the legacy gate
+///          defers and retries. The port of the legacy gate is `InputLowering::set_sd_busy`, which
+///          deliberately has no `Action` behind it. See the warning on `Action` in
+///          `shell/scene.h`.
 ///
 /// @par What this seam does NOT do
 ///

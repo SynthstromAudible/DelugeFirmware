@@ -43,12 +43,18 @@
 ///      `notify::Notice::Kind::Working` and completion raises `ClearWorking`; E1's `Notices` turns
 ///      those into pushing and removing `SceneKind::Working` over this scene. Nothing here draws a
 ///      spinner.
-///   2. **Input is locked while a listing is in flight**, via `Action::Kind::LockInput` -- the port
-///      of legacy's `waitingForSDRoutineToEnd` gate and of the `if (listingInProgress_) return;`
-///      guard at the top of `padAction` (`browser.cpp:1187`), `mainButtonAction` (`:1251`),
-///      `backButtonAction` (`:1284`) and `selectEncoderAction` (`:550`). `handle()` swallows
-///      everything in that state as a second line of defence, so a press that slipped past the lock
-///      still cannot start a second listing (which `Listing` would refuse as `Busy` anyway).
+///   2. **`handle()` swallows every input while a listing is outstanding** -- the port of the
+///      `if (listingInProgress_) return;` guard at the top of `padAction` (`browser.cpp:1187`),
+///      `mainButtonAction` (`:1251`), `backButtonAction` (`:1284`) and `selectEncoderAction`
+///      (`:550`). This scene is `SceneStack::input_top()`, so that is the whole gate: nothing
+///      beneath it sees the event either.
+///
+///      **It deliberately does not take `Action::Kind::LockInput`**, which is what the seam's own
+///      `@note` suggests and what this scene did until fix round 1. A scene cannot release that
+///      lock from `on_exit()` (which returns `void`) and the lock is one bare global bool with no
+///      owner, so an external `Pop` mid-listing left the entire device deaf. It is also the wrong
+///      lock: it *drops* events where legacy's `waitingForSDRoutineToEnd` defers and retries. See
+///      the warning on `Action` in `shell/scene.h`.
 ///   3. **A refused dispatch is retried, not lost.** `Listing::request` can answer `Dropped` (the
 ///      owner's queue was full) or `Busy` (something else holds the catalogue -- another seam, or a
 ///      legacy `Browser` mid-listing, since the claim now lives on `FileCatalogue`). The scene keeps
@@ -216,10 +222,20 @@ struct BrowserChoice {
 
 /// @brief The longest name or path this scene will build.
 ///
-/// The edited text is a fixed buffer for the reason `RenameScene::kMaxNameChars` is one: this layer
-/// does not allocate in a render or an input path. 128 covers a FAT long name (255 is the
-/// filesystem ceiling, but nothing in a shipped card comes close) with room for the extension the
-/// search string carries; past it a keypress simply types nothing.
+/// The edited text is a fixed buffer, so the string this scene draws every frame is never a heap
+/// object. 128 covers a FAT long name (255 is the filesystem ceiling, but nothing in a shipped card
+/// comes close) with room for the extension the search string carries; past it a keypress simply
+/// types nothing.
+///
+/// @note **This scene is not allocation-free, unlike `RenameScene` and `ContextMenuScene`, and the
+///       buffer should not be read as claiming otherwise** (fix round 1, Minor). It sits on
+///       `browser::Listing`, whose `ListingRequest` carries three owning `std::string`s by
+///       construction (`listing.h`: on Embassy the caller's buffers are gone by the time the op
+///       runs), and over `FileCatalogue`, whose `currentDir` and `FileItem::filename` are
+///       `std::string`s. `step_selection`, `request_reload` and `search_for_entered_text` each
+///       build a NUL-terminated copy of the edited text for `searchFileItems`, which takes a
+///       `char const*`. What the fixed buffer does buy is that the *render* path allocates nothing.
+
 inline constexpr size_t kMaxEnteredChars = 128;
 
 /// @brief `SceneKind` this scene is registered under: `FirstApp + 3` (`registry.h`).
@@ -405,9 +421,20 @@ private:
 	deluge::ui::shell::Result back();
 	/// @brief `Browser::close()`, as an `Action`.
 	static deluge::ui::shell::Result close();
-	/// @brief Is the seam holding the catalogue -- running a listing, or owing a collect?
-	/// @return True when nothing outside `after_render` may touch `FileCatalogue`.
-	bool seam_busy() const { return listing_.in_flight() || listing_.has_result(); }
+	/// @brief Is a listing outstanding in any sense -- running, owing a collect, or waiting to be
+	///        re-filed?
+	///
+	/// All three, and the third is the one that bites (fix round 1, Critical 2). `pending_` is a
+	/// single slot, so an input that files a second listing over a parked one **loses** the first:
+	/// a BACK press would replace a parked `Open` with an `UpLevel`, and the browser would then
+	/// list a directory derived from whatever `currentDir` the *foreign* holder of the catalogue
+	/// claim left behind. And `pending_` is created in exactly the case the other two miss -- a
+	/// `Busy` refusal, where nothing is in flight and no result is owed. `after_render` already got
+	/// this right (its retry step returns before the keyboard arm); this is the post-render
+	/// `handle()` path, which did not.
+	/// @return True when nothing outside `after_render` may touch `FileCatalogue` or file a
+	///         listing.
+	bool seam_busy() const { return listing_.in_flight() || listing_.has_result() || pending_.has_value(); }
 
 	menu::MenuContext ctx_{};
 	BrowserId id_ = BrowserId::Sample;
@@ -430,8 +457,10 @@ private:
 	/// True while a listing was dispatched to widen the search window: `search_for_entered_text`
 	/// runs again when it lands. Legacy's `doneNewRead` (`browser.cpp:799`), one tick later.
 	bool searching_ = false;
-	/// True while this scene holds the shell's input lock, so the release is filed exactly once.
-	bool locked_ = false;
+	/// Where the cursor goes if that second search also finds nothing -- legacy's
+	/// `enteredTextEditPos--` on a false `predictExtendedText()` (`qwerty_ui.cpp:357-359`), which
+	/// has to survive the tick boundary the re-read introduces. Only read while `searching_`.
+	int32_t search_revert_cursor_ = 0;
 
 	char entered_[kMaxEnteredChars] = {};
 	uint16_t entered_len_ = 0;

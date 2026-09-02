@@ -164,7 +164,7 @@ struct BrowserDisplay final : deluge::hid::Display {
 /// @brief `Browser`'s protected statics, reachable.
 ///
 /// `fileIndexSelected` / `scrollPosVertical` (`browser.h:228,230`) and `enteredTextEditPos` /
-/// `scrollPosHorizontal` (`qwerty_ui.h:62-63`) are protected **statics**, so a derived class can
+/// `scrollPosHorizontal` (`qwerty_ui.h:63-64`) are protected **statics**, so a derived class can
 /// write them and the shipped `sampleBrowser` object then renders from them -- they are the same
 /// objects, not copies. `SampleBrowser` itself is `final`, which is why this derives from `Browser`.
 class SpecBrowser : public Browser {
@@ -247,9 +247,16 @@ struct CleanBrowser {
 /// ```
 /// SAMPLES/CLAP.WAV  SAMPLES/SNARE.WAV  SAMPLES/TOM.WAV
 /// SAMPLES/KICKS/KICK1.WAV
-/// SAMPLES/CLIPS/TEMP/.keep            (the folder SampleBrowser refuses to enter)
+/// SAMPLES/CLIPS/TEMP/            (the folder SampleBrowser refuses to enter)
+/// SAMPLES/CLIPS/{A3,C3,C4}.WAV   (note names -- see below)
 /// MIDI_DEVICES/DEFINITION/DEVICE1.XML
 /// ```
+///
+/// The three note-named files live one level down, in `CLIPS`, on purpose: the sample descriptor
+/// interprets note names, so their order is the one thing on this card that **differs between the
+/// two comparator pinnings** (`A3, C3, C4` with note names off; `C3, A3, C4` with them on, octave
+/// from C), which is what the `repinComparator` example needs. Putting them at the top level would
+/// have changed every recorded golden for a fixture detail.
 struct ScratchCard {
 	std::filesystem::path dir;
 	SdRoot root;
@@ -265,6 +272,9 @@ struct ScratchCard {
 		}
 		std::ofstream(d / "SAMPLES" / "KICKS" / "KICK1.WAV") << "RIFF";
 		std::ofstream(d / "SAMPLES" / "CLIPS" / "TEMP" / "KEEP.WAV") << "RIFF";
+		for (const char* name : {"A3.WAV", "C3.WAV", "C4.WAV"}) {
+			std::ofstream(d / "SAMPLES" / "CLIPS" / name) << "RIFF";
+		}
 		// The shape `StorageManager::openMidiDeviceDefinitionFile` demands (root tag `midiDevice`,
 		// `storage_manager.cpp:371`) with one tag `MIDIInstrument::readDeviceDefinitionFile` accepts
 		// -- `hideUnlabeledCC` is the cheapest, and it is what turns `Error::FILE_UNREADABLE` into
@@ -544,7 +554,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 	it("gives each browser its own row icon, and only the MIDI one a second piece", _ {
 		// `SampleBrowser`'s `fileIcon = OLED::waveIcon` (`sample_browser.cpp:88`);
 		// `LoadMidiDeviceDefinitionUI`'s `fileIcon = OLED::midiIcon` plus `fileIconPt2 =
-		// OLED::midiIconPt2` at width 1 (`load_midi_device_definition_ui.cpp:86-88`).
+		// OLED::midiIconPt2` at width 1 (`load_midi_device_definition_ui.cpp:87-90`).
 		const browser::Descriptor& sample = browser::descriptor(BrowserId::Sample);
 		const browser::Descriptor& midi = browser::descriptor(BrowserId::MidiDeviceDefinition);
 		expect(sample.file_icon == &deluge::gfx::oled::icons::browserWave).to_be_true();
@@ -606,7 +616,7 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		r.open_and_land(context_of(f), BrowserId::Sample);
 
 		// `SampleBrowser::opened` with a blank holder path defaults to the SAMPLES folder
-		// (`sample_browser.cpp:145-149`).
+		// (`sample_browser.cpp:141-143`).
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES"});
 		// Three files and two folders, sorted. `CLIPS` and `KICKS` are directories.
 		expect(catalogue_order()).to_equal(std::string("CLAP.WAV,CLIPS,KICKS,SNARE.WAV,TOM.WAV"));
@@ -701,6 +711,79 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		expect(browser_scene().listing_in_flight()).to_be_false();
 		expect(r.working_shown()).to_be_false();
 		expect(static_cast<int>(FileCatalogue::fileItems.size())).to_equal(5);
+	});
+
+	it("never takes the shell's input lock, and leaves it clear across a whole listing", _ {
+		// **Fix round 1, Critical 1.** This scene used to file `Action::Kind::LockInput{true}` while
+		// `in_flight()` and clear its own flag in `on_exit()` -- which returns `void`, so the
+		// matching release could never be filed on the one path that needs it. `set_input_lock` is
+		// one bare global bool with no owner (`shell/router.cpp:139` ->
+		// `shell/input_lowering.h:293`), so an external `Pop` mid-listing left the ENTIRE device
+		// deaf until something else happened to clear it. It is also the wrong lock: it *drops*
+		// events, including encoder edges (`shell/input_lowering.cpp:159`), where legacy's
+		// `waitingForSDRoutineToEnd` defers and retries.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+
+		expect(r.shell.lowering().input_locked()).to_be_false();
+		r.open(context_of(f), BrowserId::Sample);
+		r.tick(0);
+		expect(browser_scene().listing_in_flight()).to_be_true();
+		// In flight, and the lock is still clear.
+		expect(r.shell.lowering().input_locked()).to_be_false();
+
+		// The removal that used to strand it: the scene leaves the stack with a listing dispatched
+		// and no `Result` of its own. Nothing can have been leaked, because nothing was taken.
+		browser_scene().on_exit();
+		expect(r.shell.lowering().input_locked()).to_be_false();
+
+		// And the op still lands harmlessly -- `on_exit` collected nothing because nothing had
+		// landed, so the seam is left holding the catalogue until the next collect, which is the
+		// documented jam rather than a corrupted vector (`browser_scene.cpp`'s `on_exit`).
+		Deferred::run();
+		expect(r.shell.lowering().input_locked()).to_be_false();
+	});
+
+	it("refuses input while a refused request is still parked, so it cannot be overwritten", _ {
+		// **Fix round 1, Critical 2.** `pending_` is a single slot, and it is created in exactly the
+		// state the other two busy tests miss: a `Busy` refusal leaves nothing in flight and no
+		// result owed. With an `Open` parked, a BACK press used to reach `back()` and file an
+		// `UpLevel` straight over it -- losing the `Open` and then listing a directory derived from
+		// the FOREIGN holder's `currentDir`.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+
+		// Someone else holds the catalogue, and has left `currentDir` somewhere of their own.
+		int other = 0;
+		expect(FileCatalogue::claim(&other)).to_be_true();
+		FileCatalogue::currentDir = "MIDI_DEVICES/DEFINITION";
+
+		Rig r;
+		r.open(context_of(f), BrowserId::Sample);
+		r.tick(0);
+		expect(browser_scene().listing_in_flight()).to_be_false();
+
+		// BACK, and the select-encoder release: both are swallowed, and neither files a listing.
+		DirectCtx d(r.clock);
+		const Result back_result = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
+		expect(back_result.handled).to_be_true();
+		expect(back_result.actions.empty()).to_be_true();
+		const Result enter_result = browser_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::SelectEnc}, d.ctx);
+		expect(enter_result.handled).to_be_true();
+		expect(enter_result.actions.empty()).to_be_true();
+
+		// The parked `Open` survives, and when the claim frees it lists what it always meant to.
+		FileCatalogue::release(&other);
+		r.step();
+		expect(browser_scene().listing_in_flight()).to_be_true();
+		r.land();
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES"});
+		expect(catalogue_order()).to_equal(std::string("CLAP.WAV,CLIPS,KICKS,SNARE.WAV,TOM.WAV"));
 	});
 
 	it("collects a listing that lands on a tick with NO input at all", _ {
@@ -849,7 +932,16 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		r.enter();
 		r.land();
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/CLIPS"});
-		expect(catalogue_order()).to_equal(std::string("TEMP"));
+		// Note-name order, because the sample descriptor sets `interpret_note_names`: C3 before A3
+		// before C4 (`file_catalogue_spec.cpp` characterises the same comparator).
+		expect(catalogue_order()).to_equal(std::string("C3.WAV,A3.WAV,C4.WAV,TEMP"));
+		// ...and TEMP is the last of the four, so walk onto it.
+		expect(browser_scene().file_index()).to_equal(0);
+		for (int i = 0; i < 3; i++) {
+			r.turn(1, r.clock + 10);
+			r.settle();
+		}
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"TEMP"});
 
 		// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:345-350`): the popup
 		// is raised, the directory does not change, and no listing is dispatched.
@@ -969,6 +1061,80 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICKS"});
 		expect(browser_scene().file_index()).to_equal(2);
 		expect(browser_scene().cursor()).to_equal(1);
+	});
+
+	it("reverts the cursor when a search that needed a re-read still finds nothing", _ {
+		// **Fix round 1, Important 3.** Legacy decrements `enteredTextEditPos` whenever
+		// `predictExtendedText()` answers false (`qwerty_ui.cpp:357-359`), and that includes the
+		// `doNewRead -> doSearch -> notFound` route. Here the re-read lands a whole tick later, so
+		// the cursor to fall back to has to travel with the request; without that the cursor ends
+		// one column past legacy's, the prediction highlight starts a column late, and the next
+		// keystroke truncates at the wrong index.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		expect(browser_scene().cursor()).to_equal(0);
+
+		// 'Z' sorts past every entry, so the cached-window search runs off the right-hand end
+		// (`browser.cpp:822`) and the scene dispatches a re-read rather than answering.
+		r.type('Z');
+		expect(browser_scene().listing_in_flight()).to_be_true();
+		r.land();
+
+		// The re-read finds nothing either. Legacy's `notFound` arm puts the selected file's name
+		// back AND undoes the cursor advance -- both, not just the first.
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"CLAP"});
+		expect(browser_scene().cursor()).to_equal(0);
+		expect(browser_scene().file_index()).to_equal(0);
+
+		// Proof that it matters rather than just differs: with the cursor back at 0, the next
+		// keystroke is a first character again and truncates from 0, as legacy's would.
+		r.type('S');
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"SNARE"});
+		expect(browser_scene().cursor()).to_equal(1);
+	});
+
+	it("searches under the comparator the listing sorted with, not whatever is pinned now", _ {
+		// **Fix round 1, Important 4.** The sample descriptor interprets note names, so the listing
+		// leaves `CLIPS` ordered C3, A3, C4 -- and `searchFileItems` is a binary search over exactly
+		// that order. The comparator's globals live in `util/name_compare.h`, which this layer may
+		// not include, so the scene calls `FileCatalogue::repinComparator()` before every search
+		// instead of relying on nothing having disturbed them since the sort.
+		//
+		// The window is real, not hypothetical: the op runs on the storage owner and the result is
+		// collected a tick later, so anything else sharing these globals in between -- a legacy
+		// browser, a save UI's default-name search -- re-pins them under the scene. The deferred
+		// dispatcher lets that window be entered exactly.
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		// `SampleBrowser::opened`'s first arm: the holder's path decides where the browser opens and
+		// which entry it lands on (`sample_browser.cpp:131`).
+		f.clip->sampleHolder.filePath = "SAMPLES/CLIPS/A3.WAV";
+
+		Rig r;
+		r.open(context_of(f), BrowserId::Sample);
+		r.tick(0);
+		Deferred::run(); // the listing has now read and sorted, pinning note names on
+
+		bool sorted_with = false;
+		expect(FileCatalogue::sortedComparator(sorted_with)).to_be_true();
+		expect(sorted_with).to_be_true();
+		expect(catalogue_order()).to_equal(std::string("C3.WAV,A3.WAV,C4.WAV,TEMP"));
+
+		// Something else re-pins the comparator in the window before the collect.
+		shouldInterpretNoteNames = false;
+		octaveStartsFromA = false;
+
+		// The collect searches for "A3.WAV". Under the order the folder was actually sorted into it
+		// is at index 1; under the plain comparator the search stops at index 0 (C3) instead, which
+		// is what this example fails with if the re-pin is removed.
+		r.step();
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/CLIPS"});
+		expect(browser_scene().file_index()).to_equal(1);
+		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"A3"});
 	});
 
 	it("refuses a non-alphanumeric first character", _ {

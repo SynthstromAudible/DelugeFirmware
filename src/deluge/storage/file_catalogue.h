@@ -80,7 +80,39 @@ public:
 
 	/// Mirrors CStringArray::search(): binary search by displayName using strcmpspecial; returns the matching
 	/// index, or the insertion point if not found. Set shouldInterpretNoteNames and octaveStartsFromA first.
+	///
+	/// @warning **The name comparator's globals must say the same thing they said when
+	///          `sortFileItems` last ran**, or this binary-searches a vector ordered under a
+	///          different comparator and can return an index for an entry that does not match. Every
+	///          legacy caller re-pins them by hand first (`Browser::predictExtendedText`,
+	///          `browser.cpp:785-786`; `Browser::selectEncoderAction`, `:560-561`); a caller that
+	///          cannot name `util/name_compare.h` -- `src/scenes` may not include `util/**` --
+	///          calls `repinComparator()` below instead. This is deliberately **not** asserted here:
+	///          sorting through this class is not a precondition of searching (`fileItems` is public
+	///          and may be ordered by hand), so the pairing is a caller's obligation rather than an
+	///          invariant of this class. See the note at the head of `searchFileItems`' body.
 	static int32_t searchFileItems(char const* searchString, bool* foundExact = nullptr);
+
+	/// @brief Restore the name comparator's globals to whatever the last `sortFileItems` pinned.
+	///
+	/// The mechanism behind `searchFileItems`' warning, for the callers that cannot spell
+	/// `shouldInterpretNoteNames = ...; octaveStartsFromA = false;` themselves because
+	/// `util/name_compare.h` is outside their include allowance (`scripts/check_layer_rules.py`,
+	/// `scenes-includes-outside`). `deluge::scenes::browser::BrowserScene` is the caller this exists
+	/// for: it searches the catalogue on every keystroke and on every encoder detent, one or more
+	/// ticks after the listing that sorted it.
+	///
+	/// A no-op before the first `sortFileItems` of the process -- there is nothing to restore, and
+	/// an empty or unsorted catalogue has no order to be wrong about.
+	static void repinComparator();
+
+	/// @brief What the last `sortFileItems` pinned: `interpretNoteNames`, and whether any sort has
+	///        happened at all.
+	///
+	/// Exposed so the pairing can be asserted in a spec rather than only in a Debug abort.
+	/// @param interpretNoteNames Out: the flag the last sort used. Untouched if none has run.
+	/// @return True if `sortFileItems` has ever run in this process.
+	static bool sortedComparator(bool& interpretNoteNames);
 
 	/// @brief Append one entry, culling first if the catalogue is at its cap.
 	/// @return The new entry, or nullptr if even culling could not make room.

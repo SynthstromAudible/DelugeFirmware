@@ -364,9 +364,41 @@ deleteThisItem: // Just skip it; it'll be overwritten by compaction or erased be
 	}
 }
 
+namespace {
+/// @brief What the last `sortFileItems` pinned into `util/name_compare.h`'s globals.
+///
+/// `fileItems`' order is only meaningful under the comparator that produced it, and
+/// `searchFileItems` is a binary search over that order -- so the two have to agree. Recording the
+/// pinning here is what lets `repinComparator()` restore it for a caller that cannot name those
+/// globals, and what lets the assert in `searchFileItems` catch a caller that forgot.
+/// @{
+bool sortedInterpretNoteNames = false;
+bool sortedOctaveStartsFromA = false;
+bool everSorted = false;
+/// @}
+} // namespace
+
+void FileCatalogue::repinComparator() {
+	if (!everSorted) {
+		return; // nothing sorted yet, so no order to be wrong about
+	}
+	shouldInterpretNoteNames = sortedInterpretNoteNames;
+	octaveStartsFromA = sortedOctaveStartsFromA;
+}
+
+bool FileCatalogue::sortedComparator(bool& interpretNoteNames) {
+	if (everSorted) {
+		interpretNoteNames = sortedInterpretNoteNames;
+	}
+	return everSorted;
+}
+
 void FileCatalogue::sortFileItems(bool interpretNoteNames) {
 	shouldInterpretNoteNames = interpretNoteNames;
 	octaveStartsFromA = false;
+	sortedInterpretNoteNames = shouldInterpretNoteNames;
+	sortedOctaveStartsFromA = octaveStartsFromA;
+	everSorted = true;
 
 	std::sort(fileItems.begin(), fileItems.end(), [](FileItem const& a, FileItem const& b) {
 		return strcmpspecial(a.displayName().c_str(), b.displayName().c_str()) < 0;
@@ -374,6 +406,16 @@ void FileCatalogue::sortFileItems(bool interpretNoteNames) {
 }
 
 int32_t FileCatalogue::searchFileItems(char const* searchString, bool* foundExact) {
+	// NO ASSERT HERE that the comparator's globals still match what `sortFileItems` pinned, and the
+	// reason is worth writing down because it is the obvious thing to add (E3 task 3 fix round 1
+	// proposed exactly that, and it was tried): **sorting through this class is not a precondition
+	// of searching.** This function's contract is "set the globals first", and `fileItems` is a
+	// public vector anything may order by hand -- `sim/scenes_spec/file_catalogue_spec.cpp`'s
+	// `sort_under` does, precisely because `sortFileItems` forces `octaveStartsFromA = false` and
+	// the octave-from-A characterisation needs a list sorted under the comparator it will then
+	// search. An assert would have failed that legitimate, legacy-characterising pattern. What is
+	// enforceable is the *mechanism* rather than the check: `repinComparator()` above, for the
+	// callers that cannot spell the globals themselves.
 	// Project each item to a plain C string so the comparator is symmetric in its argument types, as
 	// ranges::lower_bound requires of a strict weak order. The projected pointer never outlives the call.
 	auto it = std::ranges::lower_bound(

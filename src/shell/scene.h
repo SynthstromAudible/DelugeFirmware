@@ -157,7 +157,29 @@ struct UiContext {
 /// | `Popup` | `popup_string`, `popup_type`, `surface` | show a message, resolved through `BoardProfile::text` |
 /// | `Repaint` | `surface` | invalidate that surface for the next tick; `SurfaceRole::None` is a no-op ("no surface,
 /// never matches", `surfaces.h`) | | `RepaintAll` | none | invalidate every surface for the next tick | | `LockInput` |
-/// `lock` | take or release the input lock (the legacy `waitingForSDRoutineToEnd` gate) |
+/// `lock` | take or release the input lock (the stem-export / song-load gate -- read the warning below
+/// before using it) |
+///
+/// @warning **`LockInput` is not scene-scoped, and a scene cannot release it from `on_exit`.**
+///          It sets one bare global bool (`InputLowering::set_input_lock`, `input_lowering.h`) with
+///          no owner and no refcount, and while it is set every event except
+///          `DELUGE_EVENT_NO_PRESSES` is **dropped** -- encoder edges included
+///          (`input_lowering.cpp:159`). `on_exit()` returns `void`, so a scene that took the lock
+///          and is then removed by anything other than its own `Result` -- an external `Pop`, a
+///          `replace_root`, a song load -- physically cannot give it back, and the whole device
+///          goes deaf until something else happens to clear it.
+///
+///          So a scene may only take it across a window it *itself* closes, and even then it is
+///          rarely the right tool: it is the stem-export / song-load bracket
+///          (`Shell::song_loading` is its only other raiser, and `Shell::describe` records it as
+///          "one lock, one reason"), not legacy's `waitingForSDRoutineToEnd`. That gate **defers
+///          and retries** where this one drops, and its port is `InputLowering::set_sd_busy`,
+///          which deliberately has no `Action` behind it. A scene that merely wants to ignore
+///          input for a while should just ignore it: `SceneStack::input_top()` routes every event
+///          to the topmost non-input-transparent scene's own `handle()`, which is free to swallow
+///          them (`scenes/browser/browser_scene.cpp`'s `after_render` note records that choice and
+///          why). E3 task 3 fix round 1: `BrowserScene` took this lock while a directory listing
+///          was in flight and leaked it on exactly the external-removal path above.
 ///
 /// @note `Replace` is deliberately the short name for the common case (swap the top) and
 ///       `ReplaceRoot` the long one for the rarer whole-stack move, matching the pair of
