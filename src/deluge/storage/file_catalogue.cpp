@@ -370,7 +370,9 @@ namespace {
 /// `fileItems`' order is only meaningful under the comparator that produced it, and
 /// `searchFileItems` is a binary search over that order -- so the two have to agree. Recording the
 /// pinning here is what lets `repinComparator()` restore it for a caller that cannot name those
-/// globals, and what lets the assert in `searchFileItems` catch a caller that forgot.
+/// globals, and what lets a spec assert the pairing through `sortedComparator()`. Deliberately NOT
+/// an assert inside `searchFileItems`: see the note below -- sorting through this class is not a
+/// precondition of searching, and a caller may legitimately search an order this class never made.
 /// @{
 bool sortedInterpretNoteNames = false;
 bool sortedOctaveStartsFromA = false;

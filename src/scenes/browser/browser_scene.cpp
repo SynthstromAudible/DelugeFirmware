@@ -380,9 +380,13 @@ void BrowserScene::on_exit() {
 	// listing -- this layer's or a legacy browser's -- for the life of the process.
 	//
 	// A listing that is still *in flight* cannot be collected and is deliberately not waited for:
-	// the seam has no cancel. Nothing the user can do reaches here in that state (the scene holds
-	// the shell's input lock and `handle()` swallows everything while `in_flight()`), so the only
-	// way in is an external `Pop`; the seam then lands, sits `Ready`, and the next `on_enter`'s
+	// the seam has no cancel. Nothing the user can do reaches here in that state -- `handle()`
+	// swallows button and encoder events while `seam_busy()`, and the keyboard's pad events are
+	// gated by `after_render`'s own early returns -- so the only way in is an external `Pop` or
+	// `Remove`. (This scene deliberately does not raise the shell's input lock: that lock *drops*
+	// events where legacy's SD-busy gate defers them, and it cannot be released from `on_exit`
+	// anyway. See the warning on `Action` in `shell/scene.h`.) The seam then lands, sits `Ready`,
+	// and the next `on_enter`'s
 	// `request_open` is refused as `ResultPending` until `after_render` drains it -- a visible jam
 	// rather than a corrupted vector, which is the trade `listing.h` documents.
 	(void)listing_.take_result();
@@ -1111,7 +1115,8 @@ Result BrowserScene::after_render() {
 Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	(void)ctx;
 
-	// **The only thing that keeps input out while a listing runs**, and legacy's own first line:
+	// **What keeps button and encoder input out while a listing runs** (pad events are gated by
+	// `after_render` instead -- see the class docstring), and legacy's own first line:
 	// `padAction` (`browser.cpp:1187`), `mainButtonAction` (`:1251`), `backButtonAction`
 	// (`:1284`) and `selectEncoderAction` (`:550`) each open with
 	// `if (listingInProgress_) return;`. Swallowed rather than passed down: this scene is

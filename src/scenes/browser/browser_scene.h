@@ -43,11 +43,18 @@
 ///      `notify::Notice::Kind::Working` and completion raises `ClearWorking`; E1's `Notices` turns
 ///      those into pushing and removing `SceneKind::Working` over this scene. Nothing here draws a
 ///      spinner.
-///   2. **`handle()` swallows every input while a listing is outstanding** -- the port of the
-///      `if (listingInProgress_) return;` guard at the top of `padAction` (`browser.cpp:1187`),
-///      `mainButtonAction` (`:1251`), `backButtonAction` (`:1284`) and `selectEncoderAction`
-///      (`:550`). This scene is `SceneStack::input_top()`, so that is the whole gate: nothing
-///      beneath it sees the event either.
+///   2. **`handle()` swallows every *button and encoder* input while a listing is outstanding**
+///      -- the port of the `if (listingInProgress_) return;` guard at the top of `padAction`
+///      (`browser.cpp:1187`), `mainButtonAction` (`:1251`), `backButtonAction` (`:1284`) and
+///      `selectEncoderAction` (`:550`). This scene is `SceneStack::input_top()`, so nothing
+///      beneath it sees those events either.
+///
+///      **Pad events do not come this way.** They are claimed by the keyboard widget during
+///      `render_grid` and consumed in `after_render`, whose three early returns (`has_result`,
+///      a parked `pending_` with nothing in flight, and `in_flight`) are exactly the union
+///      `seam_busy()` computes. So the gate is these two together, not `handle()` alone --
+///      which matters, because removing the input lock in fix round 1 left `after_render`'s
+///      returns as the only thing standing between a held pad and a second listing.
 ///
 ///      **It deliberately does not take `Action::Kind::LockInput`**, which is what the seam's own
 ///      `@note` suggests and what this scene did until fix round 1. A scene cannot release that
@@ -235,7 +242,6 @@ struct BrowserChoice {
 ///       `std::string`s. `step_selection`, `request_reload` and `search_for_entered_text` each
 ///       build a NUL-terminated copy of the edited text for `searchFileItems`, which takes a
 ///       `char const*`. What the fixed buffer does buy is that the *render* path allocates nothing.
-
 inline constexpr size_t kMaxEnteredChars = 128;
 
 /// @brief `SceneKind` this scene is registered under: `FirstApp + 3` (`registry.h`).
