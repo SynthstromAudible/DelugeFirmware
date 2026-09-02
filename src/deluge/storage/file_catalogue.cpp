@@ -27,6 +27,7 @@
 #include "util/functions.h"
 #include "util/try.h"
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <utility>
 
@@ -43,6 +44,32 @@ int32_t FileCatalogue::numFileItemsDeletedAtEnd;
 std::string FileCatalogue::firstFileItemRemaining;
 std::string FileCatalogue::lastFileItemRemaining;
 char const* FileCatalogue::filenameToStartSearchAt;
+
+namespace {
+/// Who currently owns the catalogue; see `FileCatalogue::claim`. Atomic because the claim is
+/// released from the storage owner's context on one of the two dispatch paths (the scenes seam's
+/// op) and read from the UI tick on both.
+std::atomic<const void*> g_claimant{nullptr};
+} // namespace
+
+bool FileCatalogue::claim(const void* owner) {
+	const void* expected = nullptr;
+	// A single RMW from nullptr: there is no partial claim on failure, and no window in which two
+	// callers both believe they took it.
+	return g_claimant.compare_exchange_strong(expected, owner, std::memory_order_acq_rel, std::memory_order_acquire);
+}
+
+void FileCatalogue::release(const void* owner) {
+	const void* expected = owner;
+	// Only the owner may release, so a caller that never claimed (or already released) can call
+	// this unconditionally -- which is what lets `Listing`'s destructor hand the claim back without
+	// first working out whether it was ever holding it.
+	(void)g_claimant.compare_exchange_strong(expected, nullptr, std::memory_order_acq_rel, std::memory_order_relaxed);
+}
+
+const void* FileCatalogue::claimant() {
+	return g_claimant.load(std::memory_order_acquire);
+}
 
 } // namespace deluge::storage
 

@@ -37,6 +37,7 @@
 /// (`support/host_flash.h`).
 
 #include "gui/ui/browser/browser.h"
+#include "scenes/browser/listing.h"
 
 #include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
@@ -60,7 +61,7 @@
 #include "support/card_access.h"
 
 // The two file-scope globals `readFileItemsForFolder` sets and `getNewFileItem`/`cullSomeFileItems`
-// read (`storage/file_catalogue.cpp:53 maxNumFileItemsNow`, `:54 catalogSearchDirection`; they were
+// read (`storage/file_catalogue.cpp:80 maxNumFileItemsNow`, `:81 catalogSearchDirection`; they were
 // `browser.cpp`'s before the extraction). They
 // have external linkage but no header declares them -- the same situation `menu_ranges_spec.cpp`
 // records for the file-scope menu globals -- so this spec declares them to drive a cull directly,
@@ -106,6 +107,9 @@ struct CleanCatalogue {
 		Browser::lastFileItemRemaining.clear();
 		Browser::filenameToStartSearchAt = nullptr;
 		Browser::currentDir.clear();
+		// The catalogue's single-flight claim is process-global too, and a leaked one would refuse
+		// every listing in every later example rather than failing this one.
+		deluge::storage::FileCatalogue::release(deluge::storage::FileCatalogue::claimant());
 		shouldInterpretNoteNames = false;
 		octaveStartsFromA = false;
 	}
@@ -128,6 +132,16 @@ public:
 	UIType getUIType() override { return UIType::LOAD_SONG; }
 	void enterKeyPress() override {}
 	void interpretNoteNames(bool on) { shouldInterpretNoteNamesForThisBrowser = on; }
+
+	/// @brief `Browser::beginListing` (protected), for the shared-claim examples.
+	///
+	/// Only ever called below on a path that is refused *at the claim*, which `beginListing` tests
+	/// before it touches anything else -- `display` is null in this process
+	/// (`hid/display/display.cpp:4`), so the accepted path's `displayLoadingAnimationText` would
+	/// dereference null. That ordering is not incidental to the test; it is the property that lets
+	/// a refused listing leave the UI untouched.
+	/// @return What `beginListing` returned.
+	bool tryBeginOpenListing() { return beginListing({.action = ListingAction::Open, .direction = 0}); }
 };
 
 /// @brief The catalogue's contents as one comma-joined string, so an order mismatch prints as an
@@ -158,7 +172,7 @@ void seed(const std::vector<std::string>& names, bool folders = false) {
 /// @brief Sort the catalogue with `strcmpspecial` under the caller's own note-name flags.
 ///
 /// `Browser::sortFileItems()` forces `octaveStartsFromA = false`
-/// (`file_catalogue.cpp:340 sortFileItems`), so the
+/// (`file_catalogue.cpp:367 sortFileItems`), so the
 /// `octaveStartsFromA = true` search example -- which needs a list sorted by the comparator it will
 /// then binary-search under -- has to sort here instead. Same comparator, same projection as
 /// `sortFileItems()`.
@@ -263,7 +277,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 		browser.sortFileItems();
 
 		// Five directories; the `.keep` placeholders each holds are skipped by the dot-entry rule
-		// (`file_catalogue.cpp:175 readFileItemsForFolder`, the `entry->name[0] == '.'` continue).
+		// (`file_catalogue.cpp:202 readFileItemsForFolder`, the `entry->name[0] == '.'` continue).
 		expect(static_cast<int32_t>(Browser::fileItems.size())).to_equal(5);
 		expect(catalogue_order()).to_equal(std::string("KITS,SAMPLES,SETTINGS,SONGS,SYNTHS"));
 		expect(Browser::fileItems[0].isFolder).to_be_true();
@@ -603,6 +617,87 @@ describe file_catalogue("the browser's file catalogue", $ {
 		expect(catalogue_order()).to_equal(std::string("KEYS.XML,PADS.XML"));
 	});
 
+	// ---- the single-flight claim: legacy and the scenes seam over one catalogue ---------------
+	//
+	// Added in task 2 of this plan. `Browser::listingInProgress_` only ever guarded Browser against
+	// Browser; `deluge::scenes::browser::Listing` drives these same statics from outside the class,
+	// so for as long as the legacy UI and the scenes stack coexist the two were mutually invisible
+	// over one `fileItems`. The guard now lives on the catalogue and both dispatch paths claim it.
+
+	it("admits exactly one claimant, and only the claimant can release", _ {
+		CleanCatalogue clean;
+		const int a = 0;
+		const int b = 0;
+
+		expect(deluge::storage::FileCatalogue::claim(&a)).to_be_true();
+		expect(deluge::storage::FileCatalogue::claimant() == &a).to_be_true();
+		// A second claim from anyone -- including `a` itself -- fails, with no partial claim.
+		expect(deluge::storage::FileCatalogue::claim(&b)).to_be_false();
+		expect(deluge::storage::FileCatalogue::claim(&a)).to_be_false();
+		expect(deluge::storage::FileCatalogue::claimant() == &a).to_be_true();
+
+		// A non-claimant's release is a no-op, which is what lets a caller release
+		// unconditionally without first working out whether it was holding anything.
+		deluge::storage::FileCatalogue::release(&b);
+		expect(deluge::storage::FileCatalogue::claimant() == &a).to_be_true();
+
+		deluge::storage::FileCatalogue::release(&a);
+		expect(deluge::storage::FileCatalogue::claimant() == nullptr).to_be_true();
+		expect(deluge::storage::FileCatalogue::claim(&b)).to_be_true();
+		deluge::storage::FileCatalogue::release(&b);
+	});
+
+	it("refuses a legacy browser listing while the scenes seam still holds the catalogue", _ {
+		CleanCatalogue clean;
+		SdRoot root(kFixtureCard);
+		SpecBrowser browser;
+
+		// The shipped dispatcher, deliberately: on the host `Owner::run` is inline
+		// (`storage/owner.h:55-59`), so this listing has already RUN by the time `request()`
+		// returns -- and the claim is still held, because the seam releases on collect, not on
+		// completion. That window is exactly the one legacy's own completion-release would not
+		// have covered, and it is where the entries the seam's caller has not read yet live.
+		deluge::scenes::browser::Listing seam;
+		expect(static_cast<int>(seam.request({.action = deluge::scenes::browser::ListingAction::Open})))
+		    .to_equal(static_cast<int>(deluge::scenes::browser::RequestOutcome::Accepted));
+		expect(seam.has_result()).to_be_true();
+		expect(deluge::storage::FileCatalogue::claimant() == &seam).to_be_true();
+
+		// THE CROSS-SIDE CASE. Before the shared claim this returned true and the legacy listing
+		// went on to re-read the folder into the same vector the seam's caller was about to read.
+		expect(browser.tryBeginOpenListing()).to_be_false();
+		expect(Browser::isListingInProgress()).to_be_false();
+		// Refused before it touched anything: the catalogue still holds the seam's listing.
+		expect(static_cast<int32_t>(Browser::fileItems.size())).to_equal(5);
+
+		auto result = seam.take_result();
+		expect(result.has_value()).to_be_true();
+		expect(deluge::storage::FileCatalogue::claimant() == nullptr).to_be_true();
+	});
+
+	it("refuses the scenes seam while a legacy listing holds the catalogue", _ {
+		CleanCatalogue clean;
+		SdRoot root(kFixtureCard);
+
+		// The other direction. A legacy listing's claim token is the `Browser*` itself
+		// (`browser.cpp:106`), and on this host `Owner::run` is inline, so a real legacy listing
+		// never survives across a statement boundary here to be observed mid-flight -- the claim
+		// below stands in for it, and is indistinguishable to the seam, which only ever asks
+		// whether the catalogue is free.
+		SpecBrowser browser;
+		expect(deluge::storage::FileCatalogue::claim(&browser)).to_be_true();
+
+		deluge::scenes::browser::Listing seam;
+		expect(static_cast<int>(seam.request({.action = deluge::scenes::browser::ListingAction::Open})))
+		    .to_equal(static_cast<int>(deluge::scenes::browser::RequestOutcome::Busy));
+		expect(seam.has_result()).to_be_false();
+
+		deluge::storage::FileCatalogue::release(&browser);
+		expect(static_cast<int>(seam.request({.action = deluge::scenes::browser::ListingAction::Open})))
+		    .to_equal(static_cast<int>(deluge::scenes::browser::RequestOutcome::Accepted));
+		expect(seam.take_result().has_value()).to_be_true();
+	});
+
 	it("also trims one entry from each end that a cull had already made unsafe", _ {
 		CleanCatalogue clean;
 		SpecBrowser browser;
@@ -613,7 +708,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 
 		Browser::deleteFolderAndDuplicateItems();
 		// Nothing here is a duplicate, so the only losses are the two edge entries the cull
-		// boundaries make untrustworthy (`file_catalogue.cpp:258 deleteFolderAndDuplicateItems`, tail).
+		// boundaries make untrustworthy (`file_catalogue.cpp:285 deleteFolderAndDuplicateItems`, tail).
 		expect(catalogue_order()).to_equal(std::string("B.XML,C.XML"));
 	});
 });

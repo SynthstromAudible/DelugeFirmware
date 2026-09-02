@@ -8,7 +8,7 @@
 /// that fiber: `Browser::beginListing` (`gui/ui/browser/browser.cpp:97 beginListing`) stores a
 /// request, sets `listingInProgress_`, shows a loading animation and calls
 /// `deluge::storage::Owner::run` (`storage/owner.h:43 run`); `Browser::runPendingListing`
-/// (`browser.cpp:114 runPendingListing`) then switches on a `ListingAction` -- Open, IntoFolder,
+/// (`browser.cpp:126 runPendingListing`) then switches on a `ListingAction` -- Open, IntoFolder,
 /// UpLevel, ByPath, Reload -- and calls the UI back from inside the op. The new shell is
 /// immediate-mode and tick-driven, so a scene cannot sit inside that call: it has to render
 /// something while the listing is in flight and repaint when it lands.
@@ -23,7 +23,7 @@
 /// and completion raises `Kind::ClearWorking`; the shell's `Notices` (`shell/notices.cpp:260-269`)
 /// turns those into pushing and removing `SceneKind::Working`. A failed listing raises
 /// `notice_error_code`, which `Notices` turns into the same popup legacy's
-/// `Browser::onListingFailed` (`browser.cpp:147 onListingFailed`) shows via `display->displayError`.
+/// `Browser::onListingFailed` (`browser.cpp:166 onListingFailed`) shows via `display->displayError`.
 /// This file therefore reaches nothing in `shell/` directly -- only `notify/`.
 ///
 /// @warning **`ClearWorking` is global and unrefcounted, and that is already live.**
@@ -81,19 +81,19 @@
 ///
 /// @par What this seam does NOT do
 ///
-/// It performs the **SD half** of legacy's `Browser::arrivedInNewFolder` (`browser.cpp:348`) --
+/// It performs the **SD half** of legacy's `Browser::arrivedInNewFolder` (`browser.cpp:367`) --
 /// `FileCatalogue::readFileItemsForFolder`, the default-directory retry, `sortFileItems`,
 /// `deleteFolderAndDuplicateItems` -- and stops there. Three things legacy does around it are
 /// deliberately absent:
 ///
 /// 1. **The in-memory instrument merge.** `readFileItemsFromFolderAndMemory` calls
-///    `song->addInstrumentsToFileItems(outputType)` (`browser.cpp:305`). That needs a `Song`, and
+///    `song->addInstrumentsToFileItems(outputType)` (`browser.cpp:324`). That needs a `Song`, and
 ///    `src/scenes` may not name `currentSong` (`scripts/check_layer_rules.py`,
 ///    `scenes-currentSong`). The scene that owns a `MenuContext` has a `Song&` and can do the merge
 ///    itself between `take_result()` and its next render; the seam takes no `Song` so it cannot be
 ///    the place that quietly reintroduces the global.
 /// 2. **Creating the default directory.** Legacy `mkdir`s `defaultDirToAlsoTry` when it does not
-///    exist (`browser.cpp:289`). A *listing* that writes to the card is a surprise; the seam only
+///    exist (`browser.cpp:308`). A *listing* that writes to the card is a surprise; the seam only
 ///    falls back to an existing default directory and reports the card's own error otherwise.
 ///    (The fallback itself has one deliberate divergence from legacy's condition, because legacy's
 ///    is dead code today -- see `Listing::list_current_dir` in listing.cpp.)
@@ -136,17 +136,17 @@ namespace deluge::scenes::browser {
 /// @brief The five listings a scene can ask for -- legacy's `Browser::ListingAction`
 ///        (`gui/ui/browser/browser.h:160`), one for one.
 enum class ListingAction : uint8_t {
-	/// Legacy `openListingImpl` (`browser.cpp:330`): list `path` (or the current directory when
+	/// Legacy `openListingImpl` (`browser.cpp:349`): list `path` (or the current directory when
 	/// `path` is empty), optionally starting at `filename_to_start_at`.
 	Open,
-	/// Legacy `goIntoFolderImpl` (`browser.cpp:1320`): append `path` as one folder name.
+	/// Legacy `goIntoFolderImpl` (`browser.cpp:1339`): append `path` as one folder name.
 	IntoFolder,
-	/// Legacy `goUpOneDirectoryLevelImpl` (`browser.cpp:1360`): drop the last segment.
+	/// Legacy `goUpOneDirectoryLevelImpl` (`browser.cpp:1379`): drop the last segment.
 	UpLevel,
-	/// Legacy `setFileByFullPathImpl` (`browser.cpp:216`): split `path`, list its directory, and
+	/// Legacy `setFileByFullPathImpl` (`browser.cpp:235`): split `path`, list its directory, and
 	/// find the file in the result.
 	ByPath,
-	/// Legacy `reloadImpl` (`browser.cpp:716`): re-read the current directory in place.
+	/// Legacy `reloadImpl` (`browser.cpp:735`): re-read the current directory in place.
 	Reload,
 };
 
@@ -155,7 +155,7 @@ enum class ListingAction : uint8_t {
 ///
 /// Legacy derives it per listing rather than storing it: `arrivedInNewFolder` uses
 /// `CATALOG_SEARCH_BOTH` when there is a name to start at and `CATALOG_SEARCH_RIGHT` when there is
-/// not (`browser.cpp:361`). Only `Reload`'s search-from-end arm overrides it, which is exactly what
+/// not (`browser.cpp:379`). Only `Reload`'s search-from-end arm overrides it, which is exactly what
 /// legacy's separate `pendingReloadCatalogSearchDirection_` field is for (`browser.h:178`).
 inline constexpr int32_t kDeriveSearchDirection = -1;
 
@@ -178,7 +178,7 @@ struct ListingRequest {
 	/// named by the path), so a caller need not.
 	std::string filename_to_start_at;
 
-	/// Legacy's `defaultDirToAlsoTry` (`browser.cpp:275`): where to look when `path` does not
+	/// Legacy's `defaultDirToAlsoTry` (`browser.cpp:264`): where to look when `path` does not
 	/// exist. Tried at most once, and never created -- see the file docstring.
 	std::string default_dir;
 
@@ -188,7 +188,7 @@ struct ListingRequest {
 	/// Whether directory entries are listed at all (legacy's `allowFolders` argument).
 	bool allow_folders = true;
 
-	/// Legacy's `Browser::allowFoldersSharingNameWithFile` (`browser.cpp:317`): when false, a
+	/// Legacy's `Browser::allowFoldersSharingNameWithFile` (`browser.cpp:336`): when false, a
 	/// folder shadowed by a same-named file is dropped after the sort.
 	bool allow_folders_sharing_name_with_file = false;
 
@@ -217,7 +217,7 @@ struct ListingResult {
 	/// `FileCatalogue::currentDir` as the listing left it.
 	std::string dir;
 	/// `UpLevel`: the segment that was dropped -- legacy assigns it to `enteredText`
-	/// (`browser.cpp:1369`). `ByPath`: the filename part of the path (`browser.cpp:231`). Empty
+	/// (`browser.cpp:1388`). `ByPath`: the filename part of the path (`browser.cpp:250`). Empty
 	/// otherwise.
 	std::string entered_text;
 	/// `ByPath`: `searchFileItems`' answer for `entered_text`; -1 for every other action.
@@ -225,12 +225,12 @@ struct ListingResult {
 	/// @warning **In range only when `found_exact` is true.** `searchFileItems` returns the match
 	///          index *or the insertion point*, and an insertion point may equal `count` -- one
 	///          past the last entry. The bound check on the `ByPath` path is legacy's, and legacy's
-	///          is `>` rather than `>=` (`browser.cpp:245`), so an index of exactly `count` comes
+	///          is `>` rather than `>=` (`browser.cpp:264`), so an index of exactly `count` comes
 	///          back with `Error::NONE`. Kept as legacy has it (this port does not silently
 	///          re-decide legacy's comparisons), and recorded here because the consequence lands on
 	///          the caller: **index `FileCatalogue::fileItems` with this only after checking
 	///          `found_exact`.** Legacy gets away with it because `clampFileSelectionAndScroll`
-	///          (`browser.cpp:990 clampFileSelectionAndScroll`) reins `fileIndexSelected` in before
+	///          (`browser.cpp:1009 clampFileSelectionAndScroll`) reins `fileIndexSelected` in before
 	///          anything dereferences it; a scene that skips that step has no such net.
 	int32_t file_index = -1;
 	/// `ByPath`: whether that search matched exactly rather than returning an insertion point.
@@ -251,26 +251,37 @@ enum class RequestOutcome : uint8_t {
 	ResultPending,
 	/// The owner dropped the dispatch (its queue was full, `storage/owner.h:43`). Nothing will
 	/// run and nothing was left in flight -- the seam is `Idle` again, so an immediate retry is
-	/// legitimate. Legacy handles the same return the same way (`browser.cpp:101-106`).
+	/// legitimate. Legacy handles the same return the same way (`browser.cpp:113-117`).
 	Dropped,
 };
 
 /// @brief The request/poll seam itself. One per scene that lists files.
 ///
-/// @par Single flight is PROCESS-WIDE, not per instance
+/// @par Single flight lives on the RESOURCE, not on this class
 ///
-/// Tasks 3, 4 and 5 of this plan give one of these to the file browser, the sample marker editor
-/// and the audio recorder, so several exist at once. They share the one `FileCatalogue`, so the
-/// guard cannot be a member: `s_catalogue_owner_` below is **static**, exactly as legacy's
-/// `listingInProgress_` is static on `Browser` (`gui/ui/browser/browser.h:170`). While any instance
-/// owns the catalogue, every other instance's `request()` is refused with `Busy` -- the refusal is
-/// about the resource, not about the object.
+/// The guard is `FileCatalogue::claim`/`release` (`storage/file_catalogue.h`), not a member and not
+/// even a static of this class. Two reasons, and the second is the one that made it move:
 ///
-/// The owner is released when the result is **collected**, not when the op finishes. That is
-/// deliberate and is the whole point: `ListingResult` does not copy the entries, it counts them --
-/// the entries are in `FileCatalogue::fileItems`, and the collector still has to read them. Letting
-/// a second instance dispatch in that window would replace the vector under a caller that had been
-/// told its listing had landed.
+/// 1. Tasks 3, 4 and 5 of this plan give one of these to the file browser, the sample marker editor
+///    and the audio recorder, so several `Listing`s exist at once over one catalogue.
+/// 2. **Legacy claims through the same call.** `Browser::beginListing`
+///    (`gui/ui/browser/browser.cpp:97`) used to guard with its own static `listingInProgress_`
+///    (`browser.h:170`), which only ever guarded `Browser` against `Browser`. For as long as the
+///    legacy UI and the scenes stack coexist -- the whole point of this branch stack -- a legacy
+///    browser listing and a scenes listing were mutually invisible over one shared `fileItems`.
+///    Both now claim the catalogue itself, so the invariant is structural rather than a convention
+///    two files have to keep agreeing on.
+///
+/// So a `request()` is refused with `Busy` while *anything* holds the catalogue: this seam, another
+/// seam, or a legacy browser mid-listing.
+///
+/// The claim is released when the result is **collected**, not when the op finishes. That is
+/// deliberate: `ListingResult` does not copy the entries, it counts them -- the entries are in
+/// `FileCatalogue::fileItems`, and the collector still has to read them. Anything allowed to
+/// dispatch in that window would replace the vector under a caller that had just been told its
+/// listing had landed. Legacy releases at the end of its op (`browser.cpp:163`) and that is the
+/// *same* contract rather than a looser one -- hold it until the consumer has read, and legacy's
+/// consumer reads inside the op. `FileCatalogue::claim` states the shared contract in one place.
 ///
 /// @par Lifetime -- READ THIS BEFORE PUTTING ONE ANYWHERE BUT A SCENE MEMBER
 ///
@@ -288,7 +299,7 @@ enum class RequestOutcome : uint8_t {
 ///
 /// `~Listing` asserts that the state is not `InFlight`, so a Debug build says which object it was
 /// rather than corrupting a heap. In a release build the destructor deliberately does **not**
-/// release the static owner in that case: a jammed browser is a better outcome than a second
+/// release the catalogue claim in that case: a jammed browser is a better outcome than a second
 /// listing racing a fiber that still holds a freed `this`.
 ///
 /// (The alternative -- a heap-owned op context, so the fiber cannot outlive its target -- was
@@ -318,10 +329,11 @@ public:
 
 	Listing() = default;
 	/// @brief Asserts the seam is not `InFlight` (see the lifetime rule above) and, if it is not,
-	///        gives up the static catalogue owner so a later instance is not refused forever.
+	///        gives the catalogue claim back so a later listing is not refused forever.
 	~Listing();
 	/// @brief Construct with a dispatcher other than `storage::Owner::run`.
-	/// @param dispatch The dispatcher; must eventually call the op exactly once, or never.
+	/// @param dispatch The dispatcher; must run the op exactly once when it returns true and never
+	///                 when it returns false -- see the `Dispatch` warning above.
 	explicit Listing(Dispatch dispatch) : dispatch_(dispatch) {}
 
 	Listing(const Listing&) = delete;
@@ -354,12 +366,12 @@ private:
 	/// @brief Runs on the owner: perform the request, fill `result_`, raise the completion
 	///        notices, and publish `Ready`.
 	void perform();
-	/// @brief The action switch -- legacy's `runPendingListing` (`browser.cpp:114`) without the UI
+	/// @brief The action switch -- legacy's `runPendingListing` (`browser.cpp:126`) without the UI
 	///        callbacks.
 	/// @param out The result being filled in; the per-action fields are written here.
 	/// @return The listing's error.
 	Error run_action(ListingResult& out);
-	/// @brief The SD half of `arrivedInNewFolder` (`browser.cpp:348`): read, retry in
+	/// @brief The SD half of `arrivedInNewFolder` (`browser.cpp:367`): read, retry in
 	///        `default_dir`, sort, de-duplicate.
 	/// @param filename_to_start_at The name a `CATALOG_SEARCH_BOTH` cull centres on; may be null.
 	/// @return The listing's error.
@@ -372,16 +384,6 @@ private:
 	/// the poller, so a caller that sees `Ready` sees `result_` and the catalogue the op left
 	/// behind. Never observed doing that on the host -- see the file docstring.
 	std::atomic<State> state_{State::Idle};
-
-	/// @brief Which `Listing`, if any, currently owns `FileCatalogue` -- the process-wide
-	///        single-flight guard, and legacy's static `listingInProgress_` with an identity
-	///        attached.
-	///
-	/// Claimed by an accepted `request()`, released by `take_result()` (not by the op finishing --
-	/// see the class docstring), by a dropped dispatch, and by `~Listing` when the seam is not
-	/// in flight. Non-null means *some* instance is mid-listing or holding an uncollected result,
-	/// and every other instance's `request()` is refused.
-	static std::atomic<Listing*> s_catalogue_owner_;
 };
 
 } // namespace deluge::scenes::browser

@@ -175,7 +175,7 @@ struct CleanListing {
 ///
 /// The committed fixture is flat (`KITS`, `SAMPLES`, `SETTINGS`, `SONGS`, `SYNTHS`, one file), and
 /// `UpLevel` needs a directory with a parent that is not the root -- legacy refuses to ascend when
-/// `currentDir` has no `/` in it at all (`browser.cpp:1363`). Under the host temp directory,
+/// `currentDir` has no `/` in it at all (`browser.cpp:1382`). Under the host temp directory,
 /// removed on the way out, so nothing is left behind and the committed fixture is untouched.
 ///
 /// Layout: `OUTER/A.XML`, `OUTER/INNER/B.XML`.
@@ -379,7 +379,7 @@ describe listing("the async listing seam", $ {
 
 		expect(outcome_of(listing.request(open_request()))).to_equal(kDropped);
 		// Nothing is in flight and nothing is owed: legacy clears its own flag on this return
-		// (`browser.cpp:101-106`), so the next event may simply retry.
+		// (`browser.cpp:113-117`), so the next event may simply retry.
 		expect(state_of(listing)).to_equal(kIdle);
 		expect(listing.has_result()).to_be_false();
 
@@ -402,7 +402,7 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		expect(outcome_of(listing.request(open_request()))).to_equal(kAccepted);
-		// Legacy shows its loading animation here (`browser.cpp:100
+		// Legacy shows its loading animation here (`browser.cpp:111
 		// displayLoadingAnimationText("Working")`); the port raises the notice `Notices::drain`
 		// turns into a pushed `SceneKind::Working` (`shell/notices.cpp:260-265`).
 		NoticeTally after_request = drain_notices();
@@ -433,10 +433,10 @@ describe listing("the async listing seam", $ {
 		// `DELUGE_ERR_NOT_FOUND`, which `delugeStatusToError` maps to `Error::FILE_NOT_FOUND`
 		// (`util/functions.cpp:1879-1880`); nothing on a listing path can produce
 		// `Error::FOLDER_DOESNT_EXIST` any more, which is why legacy's default-directory fallback
-		// (`browser.cpp:274`) is dead and this port's fallback accepts both codes.
+		// (`browser.cpp:293`) is dead and this port's fallback accepts both codes.
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FILE_NOT_FOUND));
 		// The seam did not hang: it is idle, the animation is down, and the failure was announced
-		// the way `Browser::onListingFailed` announces it (`browser.cpp:147-148`, displayError).
+		// the way `Browser::onListingFailed` announces it (`browser.cpp:166-167`, displayError).
 		expect(state_of(listing)).to_equal(kIdle);
 		NoticeTally tally = drain_notices();
 		expect(tally.clear_working).to_equal(1);
@@ -450,7 +450,7 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		// `reloadImpl` swallows its read failure and returns Error::NONE so the browser neither
-		// pops up nor closes (`browser.cpp:728-734`). The port keeps the silence but still reports
+		// pops up nor closes (`browser.cpp:747-753`). The port keeps the silence but still reports
 		// the error in the result, so a caller that wants the popup has the fact.
 		FileCatalogue::currentDir = "NO_SUCH_FOLDER";
 		ListingRequest req;
@@ -492,7 +492,7 @@ describe listing("the async listing seam", $ {
 		Listing listing(&Deferred::dispatch);
 
 		// `goUpOneDirectoryLevelImpl` tests for a `/` in `currentDir`, not for emptiness
-		// (`browser.cpp:1363`), so "SETTINGS" is already the top as far as it is concerned.
+		// (`browser.cpp:1382`), so "SETTINGS" is already the top as far as it is concerned.
 		FileCatalogue::currentDir = "SETTINGS";
 		ListingRequest req;
 		req.action = ListingAction::UpLevel;
@@ -527,7 +527,7 @@ describe listing("the async listing seam", $ {
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("OUTER"));
 		// Legacy assigns the dropped segment to `enteredText` and lists starting at it
-		// (`browser.cpp:1369`), so the folder just left is what the browser lands on.
+		// (`browser.cpp:1388`), so the folder just left is what the browser lands on.
 		expect(result->entered_text).to_equal(std::string("INNER"));
 		expect(catalogue_order()).to_equal(std::string("A.XML,INNER"));
 	});
@@ -591,7 +591,7 @@ describe listing("the async listing seam", $ {
 		SdRoot root(kFixtureCard);
 		Listing listing(&Deferred::dispatch);
 
-		// Legacy's `defaultDirToAlsoTry` retry (`browser.cpp:274-281`), once. The third arm --
+		// Legacy's `defaultDirToAlsoTry` retry (`browser.cpp:293-300`), once. The third arm --
 		// mkdir the default directory -- is deliberately not ported (see listing.h), so a default
 		// directory that does not exist either simply fails.
 		//

@@ -95,12 +95,24 @@ Browser::Browser() {
 // --- async-listing base machinery ---
 
 bool Browser::beginListing(ListingRequest req) {
+	// Claim the CATALOGUE, not just this class's own flag. listingInProgress_ only ever guarded
+	// Browser against Browser; the scenes layer's tick-driven seam
+	// (deluge::scenes::browser::Listing) drives the same FileCatalogue statics from outside this
+	// class, and while the legacy UI and the scenes stack coexist the two would otherwise be
+	// mutually invisible over one shared fileItems vector. The claim lives with the resource
+	// (storage/file_catalogue.h) so neither side has to know about the other.
+	//
+	// Before the display call, so a refused listing touches nothing.
+	if (!FileCatalogue::claim(this)) {
+		return false;
+	}
 	pendingListing_ = std::move(req);
 	listingInProgress_ = true;
 	display->displayLoadingAnimationText("Working", /*delayed=*/true);
 	if (!deluge::storage::Owner::run(&Browser::runListingTrampoline, this)) {
 		// Owner queue full → op won't run; clear so the next HID event retries.
 		listingInProgress_ = false;
+		FileCatalogue::release(this);
 		display->removeLoadingAnimation();
 		return false;
 	}
@@ -142,6 +154,13 @@ void Browser::runPendingListing() {
 		onListingFailed(error);
 	}
 	listingInProgress_ = false;
+	// Released HERE, at the end of the op, and that is the contract rather than an accident of
+	// where the flag happened to be cleared: the catalogue claim is held until the CONSUMER has
+	// finished reading fileItems, and legacy's consumer reads inside the op -- arrivedInNewFolder,
+	// the selection search, folderContentsReady() and the render have all already run by this
+	// line. The scenes seam holds its claim longer (until take_result()) for exactly the same
+	// reason: its consumer runs on a later tick. See FileCatalogue::claim.
+	FileCatalogue::release(this);
 }
 
 void Browser::onListingFailed(Error error) {

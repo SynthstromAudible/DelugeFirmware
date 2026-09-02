@@ -62,7 +62,7 @@ struct SdRoot {
 /// @warning **Without this, a spec that drives a listing does not fail -- it segfaults.**
 ///
 /// `emptyFileItems()` and `deleteSomeFileItems()` pump `AudioEngine::routineWithClusterLoading()`
-/// between chunks (`storage/file_catalogue.cpp:58 emptyFileItems`, `:74 deleteSomeFileItems`) --
+/// between chunks (`storage/file_catalogue.cpp:85 emptyFileItems`, `:101 deleteSomeFileItems`) --
 /// they can be erasing thousands of entries, and the audio must keep running. A spec process never
 /// boots the audio engine: `AudioEngine::init()` (`processing/engines/audio_engine.cpp:226`) builds
 /// a preview `SoundDrum` off `currentSong` and only then sets `inputRingPos` (`:246`), so an
