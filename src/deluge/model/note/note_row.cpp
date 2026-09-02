@@ -42,6 +42,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "model/iterance/iterance_migration.h"
 #include <new>
 #include <string.h>
 
@@ -3395,7 +3396,7 @@ doReadNoteData:
 				}
 				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
 					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
+					iterance = iteranceFromLegacyPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
 					probability = hexToIntFixedLength(&hexChars[20], 2);
 					lift = hexToIntFixedLength(&hexChars[18], 2);
 					if (lift == 0 || lift > 127) {
@@ -3418,7 +3419,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
@@ -3446,7 +3447,7 @@ doReadNoteData:
 					else if (probability > kNumProbabilityValues
 					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
 						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+						iterance = iteranceFromLegacyProbabilityByte(probability);
 						probability = kNumProbabilityValues; // 100% probability
 					}
 					else {
