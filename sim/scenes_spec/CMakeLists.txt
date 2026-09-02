@@ -54,7 +54,12 @@ endif()
 # change here either. Needs `sh` on the COMMAND line (unlike the rest of this file, which calls
 # `${CMAKE_COMMAND} -E env` directly) -- fine on this project's Linux/macOS-only host-sim today;
 # revisit if a Windows host-sim configuration is ever added.
-file(GLOB_RECURSE _scenes_spec_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
+# CONFIGURE_DEPENDS: without it a stale build-sim silently omits a spec added since the last
+# configure -- it neither compiles into the driver nor appears in this chained row, so `ctest` goes
+# green having run less than it did before. Adding a spec should not require remembering to
+# reconfigure.
+file(GLOB_RECURSE _scenes_spec_sources CONFIGURE_DEPENDS
+     RELATIVE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 set(_scenes_spec_chain "")
 foreach(_scenes_spec IN LISTS _scenes_spec_sources)
     cmake_path(REMOVE_EXTENSION _scenes_spec OUTPUT_VARIABLE _scenes_spec_id)

@@ -15,8 +15,10 @@ FetchContent_Declare(CppSpec
 FetchContent_MakeAvailable(CppSpec)
 
 function(create_specs_driver driver_name spec_dir)
-  # Discover Specs
-  file(GLOB_RECURSE spec_sources RELATIVE ${spec_dir} ${spec_dir}/*_spec.cpp)
+  # Discover Specs. CONFIGURE_DEPENDS so a spec added since the last configure is picked up:
+  # without it the driver is rebuilt from a stale list and ctest passes having run one spec fewer
+  # than the tree contains, which is the worst way for a suite to shrink.
+  file(GLOB_RECURSE spec_sources CONFIGURE_DEPENDS RELATIVE ${spec_dir} ${spec_dir}/*_spec.cpp)
 
   create_test_sourcelist(specs ${driver_name}.cpp ${spec_sources})
   add_executable(${driver_name} ${specs})

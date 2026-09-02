@@ -20,6 +20,14 @@
 /// browser statics over a real filesystem has exactly one home. Its `*_spec.cpp` glob picks this
 /// file up with no CMake change.
 ///
+/// **Known gap.** The listing->cull composite is covered only in its narrowest deterministic form
+/// (three files, a cap of two, one cull, and an assertion that survives any `readdir` order -- see
+/// "lists under the browser's note-name flag when the folder overflows mid-read"). What is NOT
+/// covered is a large folder culled repeatedly mid-read, where the surviving window depends on the
+/// order the host's `readdir` hands entries over and so cannot be asserted as a set at all. Tasks 2
+/// and 3 drive real folders through the file browser and are where that shows up; closing it needs
+/// a listing source with a fixed enumeration order, not another example here.
+///
 /// **Card hygiene.** Nothing here writes to the card. The two listing examples point
 /// `$DELUGE_SD_ROOT` at the committed fixture (`tests/fixtures/card`) explicitly rather than
 /// relying on the aggregate `scenes_spec` ctest row's env -- the per-spec row
@@ -38,9 +46,14 @@
 #include "cppspec.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "spec/support/spec_main.h"
@@ -110,11 +123,19 @@ struct QuietAudio {
 	QuietAudio& operator=(const QuietAudio&) = delete;
 };
 
-/// @brief Leaves the catalogue empty and its window counters zeroed on both sides of an example.
+/// @brief Leaves the catalogue empty, its window counters zeroed and the name comparator's flags
+///        back at their defaults, on both sides of an example.
 ///
 /// The catalogue is process-global static state (that is exactly the shape this plan is moving),
 /// and one spec binary runs many examples in one process, so an example that left entries behind
 /// would decide the next one's result by link order.
+///
+/// `shouldInterpretNoteNames` and `octaveStartsFromA` (`util/name_compare.cpp:85`, `:87`) are
+/// process-global for the same reason and leak the same way -- and worse, silently: they change
+/// what `strcmpspecial` *means*, so a stale `true` turns a later example's expected sort order into
+/// a different one rather than into an obvious crash. Nearly every example here moves them (every
+/// `sortFileItems` and every `CATALOG_SEARCH_BOTH` cull writes them), so they belong in the
+/// fixture, not in an ad-hoc restore at the bottom of whichever example happened to notice.
 struct CleanCatalogue {
 	/// Declared first, so it is latched before this guard's own body erases anything and released
 	/// only after the body has run on the way out.
@@ -130,6 +151,8 @@ struct CleanCatalogue {
 		Browser::lastFileItemRemaining.clear();
 		Browser::filenameToStartSearchAt = nullptr;
 		Browser::currentDir.clear();
+		shouldInterpretNoteNames = false;
+		octaveStartsFromA = false;
 	}
 	CleanCatalogue(const CleanCatalogue&) = delete;
 	CleanCatalogue& operator=(const CleanCatalogue&) = delete;
@@ -207,6 +230,64 @@ std::vector<std::string> twenty() {
 }
 
 const std::string kFixtureCard = std::string(DELUGE_REPO_ROOT) + "/tests/fixtures/card";
+
+/// @name Pinning the one parameter the extraction invented.
+///
+/// `interpretNoteNames` is new: in `Browser` the listing read the per-browser
+/// `shouldInterpretNoteNamesForThisBrowser` directly, and on `FileCatalogue` each of the four
+/// operations that needs it takes it as an argument. Four `Browser` members now have to *thread* it
+/// (`browser.cpp`: `readFileItemsForFolder`, `sortFileItems`, `getNewFileItem`,
+/// `cullSomeFileItems`), and a delegate that passed a hardcoded `false` -- or the wrong browser's
+/// flag -- would be a silent behaviour change on a real card full of note-named samples. So every
+/// one of the four is driven with the flag set BOTH ways, over inputs whose two answers differ.
+/// @{
+
+/// Eight note names whose plain order and whose note-number order disagree from the fifth entry on,
+/// so a cull that keeps the back half keeps a different half under each flag value.
+///
+///  - plain:       `A3, A4, B3, C3, C4, D3, F3, G3`
+///  - note number: `C3, D3, F3, G3, A3, B3, C4, A4`
+const std::vector<std::string> kEightNotes{"G3.WAV", "C4.WAV", "A3.WAV", "F3.WAV",
+                                           "C3.WAV", "B3.WAV", "D3.WAV", "A4.WAV"};
+
+/// @brief Three note names whose two orders are exact reverses of one another.
+///
+///  - plain:       `A4.XML < B3.XML < C3.XML`
+///  - note number: `C3.XML (108) < B3.XML (126) < A4.XML (159)`
+///
+/// `.XML` rather than `.WAV` because these are read through a real listing, and
+/// `allowedFileExtensionsXML` is what that listing filters on.
+///
+/// Exact reversal is what makes the mid-listing cull example below assert something the host's
+/// `readdir` order cannot perturb: *whichever* two of the three are in hand when the cull fires,
+/// the entry it keeps under one flag value is the one it drops under the other.
+const std::array<const char*, 3> kReversingTrio{"A4.XML", "B3.XML", "C3.XML"};
+
+/// @brief A scratch card root holding `kReversingTrio`, created and removed with the guard.
+///
+/// Not `tests/fixtures/card`: that fixture is version-controlled and this needs to *write* files.
+/// Under the host's temp directory, removed on the way out, so `git status --porcelain
+/// tests/fixtures` stays clean and nothing is left behind for the next example.
+struct TrioCard {
+	std::filesystem::path dir;
+	SdRoot root;
+
+	static std::filesystem::path make() {
+		std::filesystem::path d = std::filesystem::temp_directory_path() / "deluge_file_catalogue_spec";
+		std::filesystem::remove_all(d);
+		std::filesystem::create_directories(d);
+		for (const char* name : kReversingTrio) {
+			std::ofstream(d / name) << "<x/>";
+		}
+		return d;
+	}
+
+	TrioCard() : dir(make()), root(dir.string()) {}
+	~TrioCard() { std::filesystem::remove_all(dir); }
+	TrioCard(const TrioCard&) = delete;
+	TrioCard& operator=(const TrioCard&) = delete;
+};
+/// @}
 
 } // namespace
 
@@ -332,10 +413,7 @@ describe file_catalogue("the browser's file catalogue", $ {
 
 		expect(Browser::searchFileItems("E3.WAV", &found)).to_equal(4); // between D3 and F3
 		expect(found).to_be_false();
-
-		// Restore the process-wide comparator flags this example moved.
-		shouldInterpretNoteNames = false;
-		octaveStartsFromA = false;
+		// The comparator flags this example moved are restored by CleanCatalogue, not here.
 	});
 
 	// ---- culling ------------------------------------------------------------------------------
@@ -373,6 +451,137 @@ describe file_catalogue("the browser's file catalogue", $ {
 		expect(Browser::firstFileItemRemaining).to_equal(std::string("A10.XML"));
 		expect(Browser::lastFileItemRemaining).to_equal(std::string("A14.XML"));
 		expect(catalogue_order()).to_equal(std::string("A10.XML,A11.XML,A12.XML,A13.XML,A14.XML"));
+	});
+
+	// ---- the interpretNoteNames parameter, on each of the four paths that thread it ------------
+
+	it("culls under the browser's note-name flag, not a hardcoded one", _ {
+		// Browser::cullSomeFileItems -> FileCatalogue::cullSomeFileItems(interpretNoteNames).
+		// A left cull keeps the back half of the SORTED list, and the two flag values sort these
+		// eight differently from the fifth entry on, so they keep different halves.
+		auto cull_left = [](bool interpretNoteNames) {
+			SpecBrowser browser;
+			browser.interpretNoteNames(interpretNoteNames);
+			seed(kEightNotes);
+			catalogSearchDirection = CATALOG_SEARCH_LEFT;
+			maxNumFileItemsNow = 8;
+			browser.cullSomeFileItems();
+			return std::pair{catalogue_order(), Browser::firstFileItemRemaining};
+		};
+
+		CleanCatalogue clean;
+		auto plain = cull_left(false);
+		CleanCatalogue::reset();
+		auto notes = cull_left(true);
+
+		expect(plain.first).to_equal(std::string("C4.WAV,D3.WAV,F3.WAV,G3.WAV"));
+		expect(plain.second).to_equal(std::string("C4.WAV"));
+		expect(notes.first).to_equal(std::string("A3.WAV,B3.WAV,C4.WAV,A4.WAV"));
+		expect(notes.second).to_equal(std::string("A3.WAV"));
+	});
+
+	it("picks the cull's side from the search term under the browser's note-name flag", _ {
+		// The CATALOG_SEARCH_BOTH arm reads the flag a second time, for the searchFileItems() call
+		// that decides WHICH END to cull. Same eight entries, same search term: with note names off
+		// "A3.WAV" sorts first, so the cull takes the right-hand half; with them on it sorts into
+		// the middle, so the cull takes a slice off the left instead. A hardcoded flag cannot
+		// produce both.
+		auto cull_both = [](bool interpretNoteNames) {
+			SpecBrowser browser;
+			browser.interpretNoteNames(interpretNoteNames);
+			seed(kEightNotes);
+			catalogSearchDirection = CATALOG_SEARCH_BOTH;
+			maxNumFileItemsNow = 8;
+			Browser::filenameToStartSearchAt = "A3.WAV";
+			browser.cullSomeFileItems();
+			return std::tuple{catalogue_order(), Browser::numFileItemsDeletedAtStart,
+			                  Browser::numFileItemsDeletedAtEnd};
+		};
+
+		CleanCatalogue clean;
+		auto plain = cull_both(false);
+		CleanCatalogue::reset();
+		auto notes = cull_both(true);
+
+		// Plain: "A3.WAV" is at index 0, so the cull works from the right.
+		expect(std::get<0>(plain)).to_equal(std::string("A3.WAV,A4.WAV,B3.WAV,C3.WAV"));
+		expect(std::get<1>(plain)).to_equal(0);
+		expect(std::get<2>(plain)).to_equal(4);
+
+		// Note names: "A3.WAV" is at index 4, so the cull works from the left, and takes half of
+		// what lies left of it (4 >> 1 == 2) rather than the full four.
+		expect(std::get<0>(notes)).to_equal(std::string("F3.WAV,G3.WAV,A3.WAV,B3.WAV,C4.WAV,A4.WAV"));
+		expect(std::get<1>(notes)).to_equal(2);
+		expect(std::get<2>(notes)).to_equal(0);
+	});
+
+	it("makes room for a new entry under the browser's note-name flag", _ {
+		// Browser::getNewFileItem -> FileCatalogue::getNewFileItem(interpretNoteNames), which
+		// forwards it to the cull it runs when the catalogue is already at its cap.
+		auto grow_at_cap = [](bool interpretNoteNames) {
+			SpecBrowser browser;
+			browser.interpretNoteNames(interpretNoteNames);
+			seed(kEightNotes);
+			catalogSearchDirection = CATALOG_SEARCH_LEFT;
+			maxNumFileItemsNow = 8;
+			FileItem* fresh = browser.getNewFileItem();
+			return std::pair{fresh != nullptr, Browser::firstFileItemRemaining};
+		};
+
+		CleanCatalogue clean;
+		auto plain = grow_at_cap(false);
+		CleanCatalogue::reset();
+		auto notes = grow_at_cap(true);
+
+		expect(plain.first).to_be_true();
+		expect(notes.first).to_be_true();
+		// Four survivors plus the empty entry getNewFileItem appended.
+		expect(plain.second).to_equal(std::string("C4.WAV"));
+		expect(notes.second).to_equal(std::string("A3.WAV"));
+	});
+
+	it("lists under the browser's note-name flag when the folder overflows mid-read", _ {
+		// Browser::readFileItemsForFolder -> FileCatalogue::readFileItemsForFolder(...,
+		// interpretNoteNames), whose only route to an observable difference is the cull
+		// getNewFileItem runs on the entry that first exceeds the cap. Three files, a cap of two:
+		// the third read triggers exactly one left cull, which drops one of the two entries in
+		// hand.
+		//
+		// The host's readdir decides WHICH two are in hand, so nothing here asserts the final set.
+		// It does not have to: kReversingTrio's two orders are exact reverses, so for any pair the
+		// cull keeps the alphabetically LATER one with note names off and the EARLIER one with them
+		// on. That relation holds for all six readdir permutations, and a hardcoded flag collapses
+		// it -- both runs would then name the same survivor.
+		auto list_over_cap = [](bool interpretNoteNames) {
+			SpecBrowser browser;
+			browser.interpretNoteNames(interpretNoteNames);
+			Browser::currentDir.clear();
+			Error error = browser.readFileItemsForFolder(nullptr, /*allowFolders=*/false, allowedFileExtensionsXML,
+			                                             /*filenameToStartAt=*/"", /*newMaxNumFileItems=*/2,
+			                                             CATALOG_SEARCH_LEFT);
+			return std::tuple{error, Browser::firstFileItemRemaining, static_cast<int32_t>(Browser::fileItems.size()),
+			                  Browser::numFileItemsDeletedAtStart};
+		};
+
+		CleanCatalogue clean;
+		TrioCard card;
+		auto plain = list_over_cap(false);
+		CleanCatalogue::reset();
+		auto notes = list_over_cap(true);
+
+		expect(static_cast<int32_t>(std::get<0>(plain))).to_equal(static_cast<int32_t>(Error::NONE));
+		expect(static_cast<int32_t>(std::get<0>(notes))).to_equal(static_cast<int32_t>(Error::NONE));
+		// Exactly one cull, of exactly one entry, on each run: 2 - (2 >> 1) == 1.
+		expect(std::get<3>(plain)).to_equal(1);
+		expect(std::get<3>(notes)).to_equal(1);
+		expect(std::get<2>(plain)).to_equal(2);
+		expect(std::get<2>(notes)).to_equal(2);
+
+		// The survivor the cull named. Plain keeps the alphabetically later of the pair it held,
+		// note names the earlier -- so the two runs never agree, whatever readdir handed over.
+		expect(std::get<1>(plain).empty()).to_be_false();
+		expect(std::get<1>(notes).empty()).to_be_false();
+		expect(std::get<1>(notes) < std::get<1>(plain)).to_be_true();
 	});
 
 	it("culls towards the search term when searching both directions", _ {
