@@ -24,28 +24,28 @@
 extern const std::array<Iterance, kNumIterancePresets> iterancePresets;
 
 Iterance iteranceFromLegacyProbabilityByte(int32_t probability) {
-    // The old preset index (1-based) is encoded as probability - kNumProbabilityValues.
-    // FIRST and LAST were prepended to iterancePresets[], so the old index N now sits at
-    // array position N+1 (i.e. +2 for the prepend, -1 for 0-based indexing = net +1).
-    int32_t idx = probability - kNumProbabilityValues + 1;
-    // Defensive guard: idx should be 2..36 for any valid C1.2 file (old kNumIterancePresets=35).
-    if (idx < 2 || idx >= kNumIterancePresets) {
-        return kDefaultIteranceValue;
-    }
-    return iterancePresets[idx];
+	// The old preset index (1-based) is encoded as probability - kNumProbabilityValues.
+	// FIRST and LAST were prepended to iterancePresets[], so the old index N now sits at
+	// array position N+1 (i.e. +2 for the prepend, -1 for 0-based indexing = net +1).
+	int32_t idx = probability - kNumProbabilityValues + 1;
+	// Defensive guard: idx should be 2..36 for any valid C1.2 file (old kNumIterancePresets=35).
+	if (idx < 2 || idx >= kNumIterancePresets) {
+		return kDefaultIteranceValue;
+	}
+	return iterancePresets[idx];
 }
 
 Iterance iteranceFromLegacyPresetIndex(int32_t presetIndex) {
-    // Shift all non-zero indices by +2 to skip the newly prepended FIRST and LAST.
-    if (presetIndex == 0) {
-        return kDefaultIteranceValue;
-    }
-    int32_t newIndex = presetIndex + 2;
-    if (newIndex <= kNumIterancePresets) {
-        return iterancePresets[newIndex - 1];
-    }
-    if (newIndex == kCustomIterancePreset) {
-        return kCustomIteranceValue;
-    }
-    return kDefaultIteranceValue;
+	// Shift all non-zero indices by +2 to skip the newly prepended FIRST and LAST.
+	if (presetIndex == 0) {
+		return kDefaultIteranceValue;
+	}
+	int32_t newIndex = presetIndex + 2;
+	if (newIndex <= kNumIterancePresets) {
+		return iterancePresets[newIndex - 1];
+	}
+	if (newIndex == kCustomIterancePreset) {
+		return kCustomIteranceValue;
+	}
+	return kDefaultIteranceValue;
 }

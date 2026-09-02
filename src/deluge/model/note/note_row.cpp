@@ -29,6 +29,7 @@
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
 #include "model/instrument/kit.h"
+#include "model/iterance/iterance_migration.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -42,7 +43,6 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
-#include "model/iterance/iterance_migration.h"
 #include <new>
 #include <string.h>
 
