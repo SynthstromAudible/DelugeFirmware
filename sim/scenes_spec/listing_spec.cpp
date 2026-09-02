@@ -23,6 +23,13 @@
 /// cover, and it took a level-2 acceptance script to find it. A green run of this file means the
 /// state machine and the five actions behave; it does not mean the seam is race-free on device.
 ///
+/// One further gap, of a different kind: **the destroy-while-in-flight rule is asserted, not
+/// tested.** `~Listing` `assert`s that the seam is not `InFlight` (the dispatched op holds `this`),
+/// and an assert firing aborts the process -- there is no death-test facility in this driver, so no
+/// example provokes it. The examples below cover the *other* half of that rule, which is
+/// observable: a seam destroyed while holding an uncollected result hands the static catalogue
+/// guard back rather than jamming every later seam.
+///
 /// @par Card hygiene
 ///
 /// Nothing here writes to `tests/fixtures/card`: the fixture examples only `opendir`/`readdir` it,
@@ -308,6 +315,60 @@ describe listing("the async listing seam", $ {
 		auto result = listing.take_result();
 		expect(result.has_value()).to_be_true();
 		expect(result->dir).to_equal(std::string("SETTINGS"));
+	});
+
+	it("guards the catalogue across INSTANCES, not just within one", _ {
+		CleanListing clean;
+		SdRoot root(kFixtureCard);
+		// Tasks 3-5 of this plan give one of these to the browser, the marker editor and the
+		// recorder, so several exist in one process and they share the one `FileCatalogue`.
+		Listing browser_seam(&Deferred::dispatch);
+		Listing marker_seam(&Deferred::dispatch);
+
+		expect(outcome_of(browser_seam.request(open_request()))).to_equal(kAccepted);
+
+		// A freshly constructed second seam is `Idle` by its own reckoning and is refused anyway:
+		// the guard is on the resource (legacy's *static* `listingInProgress_`, `browser.h:170`),
+		// not on the object.
+		expect(state_of(marker_seam)).to_equal(kIdle);
+		expect(outcome_of(marker_seam.request(open_request("SETTINGS")))).to_equal(kBusy);
+
+		Deferred::run();
+
+		// Still refused after the op finishes: `ListingResult` counts the entries rather than
+		// copying them, so the first seam's caller has not read `fileItems` yet and a second
+		// listing here would replace the vector underneath it.
+		expect(outcome_of(marker_seam.request(open_request("SETTINGS")))).to_equal(kBusy);
+
+		auto first = browser_seam.take_result();
+		expect(first.has_value()).to_be_true();
+		expect(static_cast<int>(first->count)).to_equal(5);
+
+		// Collected -- and only now is the catalogue handed on.
+		expect(outcome_of(marker_seam.request(open_request("SETTINGS")))).to_equal(kAccepted);
+		Deferred::run();
+		auto second = marker_seam.take_result();
+		expect(second.has_value()).to_be_true();
+		expect(second->dir).to_equal(std::string("SETTINGS"));
+	});
+
+	it("hands the catalogue back when a seam is destroyed holding an uncollected result", _ {
+		CleanListing clean;
+		SdRoot root(kFixtureCard);
+		{
+			// A scene torn down between the landing and the poll. Not a use-after-free (nothing is
+			// in flight), but without the destructor's release the static guard would stay claimed
+			// by a dead object and every later seam would be refused for the life of the process.
+			Listing abandoned(&Deferred::dispatch);
+			expect(outcome_of(abandoned.request(open_request()))).to_equal(kAccepted);
+			Deferred::run();
+			expect(abandoned.has_result()).to_be_true();
+		}
+
+		Listing next(&Deferred::dispatch);
+		expect(outcome_of(next.request(open_request("SETTINGS")))).to_equal(kAccepted);
+		Deferred::run();
+		expect(next.take_result().has_value()).to_be_true();
 	});
 
 	it("leaves the seam idle when the owner drops the dispatch", _ {

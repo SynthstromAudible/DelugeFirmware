@@ -20,6 +20,7 @@
 #include "notify/notice_queue.h"
 #include "storage/storage_manager.h"
 
+#include <cassert>
 #include <cctype>
 #include <utility>
 
@@ -65,14 +66,47 @@ bool announces_errors(ListingAction action) {
 
 } // namespace
 
+std::atomic<Listing*> Listing::s_catalogue_owner_{nullptr};
+
+Listing::~Listing() {
+	const State state = state_.load(std::memory_order_acquire);
+
+	// The lifetime rule, enforced where it can be seen. A dispatched op holds `this` and cannot be
+	// withdrawn, so destroying an in-flight seam hands the storage fiber a dangling pointer to
+	// write `result_` and `state_` through. See the class docstring for why the answer is a rule
+	// plus this assert rather than a heap-owned op context.
+	assert(state != State::InFlight
+	       && "a Listing was destroyed with a listing in flight -- the dispatched owner op still "
+	          "holds `this`; own a Listing as a scene member, never on a stack frame");
+
+	if (state != State::InFlight) {
+		// Not in flight: if this instance was holding the catalogue (an uncollected `Ready`),
+		// hand it back, or every later instance is refused forever.
+		Listing* self = this;
+		(void)s_catalogue_owner_.compare_exchange_strong(self, nullptr, std::memory_order_acq_rel,
+		                                                 std::memory_order_relaxed);
+	}
+	// In flight and past the assert (a release build): the owner is deliberately NOT released. A
+	// jammed browser is a better outcome than letting a second listing race a fiber that is still
+	// writing through a freed `this`.
+}
+
 RequestOutcome Listing::request(ListingRequest req) {
-	switch (state_.load(std::memory_order_acquire)) {
-	case State::InFlight:
-		return RequestOutcome::Busy;
-	case State::Ready:
+	// This instance's own state first: an uncollected result is a more specific answer than "the
+	// catalogue is busy", and it is the one the caller can actually act on.
+	if (state_.load(std::memory_order_acquire) == State::Ready) {
 		return RequestOutcome::ResultPending;
-	case State::Idle:
-		break;
+	}
+
+	// Then the process-wide guard. Claiming it is what makes single flight a property of the
+	// shared `FileCatalogue` rather than of this object -- legacy's `listingInProgress_` is static
+	// on `Browser` (`browser.h:170`) for the same reason, and tasks 3-5 of this plan put three of
+	// these seams in the same process. A non-null owner is either this instance (already in
+	// flight) or another one; both are `Busy`.
+	Listing* expected = nullptr;
+	if (!s_catalogue_owner_.compare_exchange_strong(expected, this, std::memory_order_acq_rel,
+	                                                std::memory_order_acquire)) {
+		return RequestOutcome::Busy;
 	}
 
 	request_ = std::move(req);
@@ -90,6 +124,7 @@ RequestOutcome Listing::request(ListingRequest req) {
 		// did -- exactly what legacy does on the same return (`browser.cpp:101-106`: clear the
 		// flag, remove the loading animation, return false).
 		state_.store(State::Idle, std::memory_order_release);
+		s_catalogue_owner_.store(nullptr, std::memory_order_release);
 		notify::notice_kind(notify::Notice::Kind::ClearWorking);
 		return RequestOutcome::Dropped;
 	}
@@ -103,6 +138,11 @@ std::optional<ListingResult> Listing::take_result() {
 	ListingResult out = std::move(result_);
 	result_ = {};
 	state_.store(State::Idle, std::memory_order_release);
+	// The catalogue is released HERE, not when the op finished. `ListingResult` counts the entries
+	// rather than copying them -- they are still in `FileCatalogue::fileItems`, and this caller has
+	// not read them yet. A second seam allowed to dispatch in that window would replace the vector
+	// underneath a caller that had just been told its listing had landed.
+	s_catalogue_owner_.store(nullptr, std::memory_order_release);
 	return out;
 }
 
@@ -208,6 +248,15 @@ Error Listing::run_action(ListingResult& out) {
 		// back empty the sort did not run, but the search then has nothing to compare against and
 		// returns 0 regardless -- which is why this file never touches `util/name_compare`'s flags.
 		out.file_index = FileCatalogue::searchFileItems(out.entered_text.c_str(), &out.found_exact);
+		// `>` and not `>=`, copied from legacy (`browser.cpp:245`) rather than corrected. The
+		// consequence is real and is NOT a divergence hidden by omission: `searchFileItems` returns
+		// the match index *or the insertion point*, and an insertion point may be exactly
+		// `fileItems.size()`, one past the end -- which this check lets through with `Error::NONE`.
+		// Legacy survives it because `clampFileSelectionAndScroll` (`browser.cpp:990`) reins
+		// `fileIndexSelected` in before anything dereferences it. This port does not silently
+		// re-decide legacy's comparisons, so the check stays and the hazard is pushed to the
+		// caller, spelled out on `ListingResult::file_index`: index the catalogue with it only
+		// after checking `found_exact`.
 		if (out.file_index > static_cast<int32_t>(FileCatalogue::fileItems.size())) {
 			return Error::FILE_NOT_FOUND;
 		}

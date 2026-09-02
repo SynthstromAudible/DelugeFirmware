@@ -10,6 +10,13 @@
 /// that segfaults a spec process rather than failing it**, and the next three specs in this plan
 /// all have to step over it. A guard that has to be re-derived from a task report is a guard that
 /// will eventually be re-derived wrong; one `#include` is not.
+///
+/// @warning **Include this BEFORE `<cppspec.hpp>`.** CppSpec `#define`s `it` (its own DSL keyword),
+///          and this header pulls in `processing/engines/audio_engine.h`, whose include closure
+///          reaches `util/container/ordered_pos_vector.h` -- which has locals named `it`. Included
+///          after CppSpec, those locals expand to `self.it` and the translation unit fails to
+///          compile with a wall of errors that name neither file. Put it with the project includes
+///          at the top, not with `spec/support/spec_main.h` at the bottom.
 
 #include "processing/engines/audio_engine.h"
 

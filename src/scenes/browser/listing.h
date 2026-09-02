@@ -26,6 +26,17 @@
 /// `Browser::onListingFailed` (`browser.cpp:147 onListingFailed`) shows via `display->displayError`.
 /// This file therefore reaches nothing in `shell/` directly -- only `notify/`.
 ///
+/// @warning **`ClearWorking` is global and unrefcounted, and that is already live.**
+///          `Notices::drain`'s `Kind::ClearWorking` case calls `working_.clear()` unconditionally
+///          (`shell/notices.cpp:266-269`) -- there is one `WorkingScene` and no count of who armed
+///          it. So if a listing overlaps with any other `Kind::Working` raiser, whichever finishes
+///          first takes the other's animation down. This is not a hypothetical future collision:
+///          `PlaybackHandler::doSongSwap` raises one today through the same queue
+///          (`playback/playback_handler.cpp:1564`, via `notice_working`, `util/notify.h:52`), and a
+///          song swap can be in progress while a browser lists. The seam does not fix it -- a fix
+///          is a refcount or an owner token on `WorkingScene`, which is E1's to make -- but nothing
+///          here should be read as assuming the animation it raised is the animation it clears.
+///
 /// @par Delivery contract (read this before using the seam)
 ///
 /// This is **not** the one-slot mailbox with a silent overwrite that `MenuScene::take_action()`
@@ -44,6 +55,10 @@
 /// | `Idle` | dispatches; -> `InFlight` (or stays `Idle` on a dropped dispatch) | `nullopt` |
 /// | `InFlight` | **refused**, `Busy` -- the running listing is untouched | `nullopt` |
 /// | `Ready` | **refused**, `ResultPending` | hands the result over; -> `Idle` |
+///
+/// ...and the `Idle` row has one more condition on it: **the guard is process-wide, not per
+/// instance.** An `Idle` seam is still refused (`Busy`) while any *other* `Listing` owns the
+/// catalogue. See "Single flight is PROCESS-WIDE" on the class below for why that has to be so.
 ///
 /// **The second-request case, stated plainly: it is refused, and nothing is lost.** The caller is
 /// told which of the two reasons applies (`Busy` vs. `ResultPending`) and can retry on a later
@@ -94,10 +109,17 @@
 /// observes `InFlight`. `sim/scenes_spec/listing_spec.cpp` therefore installs its own deferring
 /// dispatcher (see `Dispatch` below) to exercise the state machine's ordering: dispatch returns,
 /// the caller polls, the op runs later. That models the *ordering* an Embassy fiber gives, and
-/// nothing else. **No spec in this repository exercises real fiber concurrency across this seam:
-/// not preemption, not memory visibility between two contexts, not an owner queue under contention.
-/// A green suite is not evidence that this is race-free on Embassy.** The `std::atomic` state below
-/// is written for that case regardless; it has never been observed doing its job.
+/// nothing else. **No spec exercises real fiber concurrency across this seam: not preemption, not
+/// memory visibility between two contexts, not an owner queue under contention. A green suite is
+/// not evidence that this is race-free on Embassy.** The `std::atomic` state below is written for
+/// that case regardless; it has never been observed doing its job.
+///
+/// The repository is not *entirely* without such coverage, and the distinction matters to whoever
+/// closes this gap: `src/bsp/rust/tests/owner_host.rs` drives the real `deluge_worker_run` seam on
+/// a host, and shares its exercise with a ThreadSanitizer entry point
+/// (`src/bsp/rust/examples/owner_host_tsan.rs`, via `tests/support/owner_host_exercise.rs`). That
+/// is where concurrency coverage for the owner lives and where coverage *of this seam under a real
+/// worker* would have to be built -- not in a CppSpec that links the inline host `Owner`.
 
 #include "definitions_cxx.hpp"
 #include "storage/file_catalogue.h"
@@ -199,6 +221,17 @@ struct ListingResult {
 	/// otherwise.
 	std::string entered_text;
 	/// `ByPath`: `searchFileItems`' answer for `entered_text`; -1 for every other action.
+	///
+	/// @warning **In range only when `found_exact` is true.** `searchFileItems` returns the match
+	///          index *or the insertion point*, and an insertion point may equal `count` -- one
+	///          past the last entry. The bound check on the `ByPath` path is legacy's, and legacy's
+	///          is `>` rather than `>=` (`browser.cpp:245`), so an index of exactly `count` comes
+	///          back with `Error::NONE`. Kept as legacy has it (this port does not silently
+	///          re-decide legacy's comparisons), and recorded here because the consequence lands on
+	///          the caller: **index `FileCatalogue::fileItems` with this only after checking
+	///          `found_exact`.** Legacy gets away with it because `clampFileSelectionAndScroll`
+	///          (`browser.cpp:990 clampFileSelectionAndScroll`) reins `fileIndexSelected` in before
+	///          anything dereferences it; a scene that skips that step has no such net.
 	int32_t file_index = -1;
 	/// `ByPath`: whether that search matched exactly rather than returning an insertion point.
 	bool found_exact = false;
@@ -210,7 +243,9 @@ struct ListingResult {
 enum class RequestOutcome : uint8_t {
 	/// Dispatched onto the owner. Exactly one `ListingResult` will follow.
 	Accepted,
-	/// Refused: a listing is already in flight. The running one is untouched; retry later.
+	/// Refused: a listing is already in flight -- **this seam's or another `Listing`'s**, since the
+	/// guard is on the shared `FileCatalogue` rather than on the object. The running one is
+	/// untouched; retry later.
 	Busy,
 	/// Refused: a completed result has not been collected. Call `take_result()` first.
 	ResultPending,
@@ -220,8 +255,47 @@ enum class RequestOutcome : uint8_t {
 	Dropped,
 };
 
-/// @brief The request/poll seam itself. One per scene that lists files; they must not overlap in
-///        time, because they share the one `FileCatalogue`.
+/// @brief The request/poll seam itself. One per scene that lists files.
+///
+/// @par Single flight is PROCESS-WIDE, not per instance
+///
+/// Tasks 3, 4 and 5 of this plan give one of these to the file browser, the sample marker editor
+/// and the audio recorder, so several exist at once. They share the one `FileCatalogue`, so the
+/// guard cannot be a member: `s_catalogue_owner_` below is **static**, exactly as legacy's
+/// `listingInProgress_` is static on `Browser` (`gui/ui/browser/browser.h:170`). While any instance
+/// owns the catalogue, every other instance's `request()` is refused with `Busy` -- the refusal is
+/// about the resource, not about the object.
+///
+/// The owner is released when the result is **collected**, not when the op finishes. That is
+/// deliberate and is the whole point: `ListingResult` does not copy the entries, it counts them --
+/// the entries are in `FileCatalogue::fileItems`, and the collector still has to read them. Letting
+/// a second instance dispatch in that window would replace the vector under a caller that had been
+/// told its listing had landed.
+///
+/// @par Lifetime -- READ THIS BEFORE PUTTING ONE ANYWHERE BUT A SCENE MEMBER
+///
+/// **A `Listing` must outlive every dispatch it makes.** On Embassy the queued op holds `this`; it
+/// writes `result_`, raises notices and stores `Ready` when it eventually runs. A `Listing`
+/// destroyed while `in_flight()` therefore hands the storage fiber a dangling pointer, and there is
+/// **no cancel**: an op already handed to the owner cannot be withdrawn.
+///
+/// The rule that makes this satisfiable rather than merely stated: **own a `Listing` as a member of
+/// a scene, and nothing else.** Scenes are long-lived singletons owned by the application and are
+/// never destroyed while the shell is running (`shell/scene.h`); a scene being *popped* does not
+/// destroy it, so a listing outliving its scene's time on the stack is fine. A `Listing` on a
+/// stack frame, in a container that reallocates, or owned by anything with a scene's lifetime but
+/// not a scene's storage, is the hazard.
+///
+/// `~Listing` asserts that the state is not `InFlight`, so a Debug build says which object it was
+/// rather than corrupting a heap. In a release build the destructor deliberately does **not**
+/// release the static owner in that case: a jammed browser is a better outcome than a second
+/// listing racing a fiber that still holds a freed `this`.
+///
+/// (The alternative -- a heap-owned op context, so the fiber cannot outlive its target -- was
+/// rejected. It buys safety for an ownership pattern this layer forbids anyway, at the cost of an
+/// allocation per listing in a layer whose whole discipline is that it does not allocate, plus a
+/// new failure mode when that allocation fails mid-navigation. The rule plus the assert is the
+/// cheaper answer to the same question.)
 class Listing {
 public:
 	/// @brief Where a listing is dispatched: `storage::Owner::run`'s exact shape.
@@ -230,12 +304,22 @@ public:
 	/// *defers* the op -- the only way, on a host where `Owner::run` is inline, to observe the
 	/// in-flight state at all. See the honesty note in the file docstring for what that does and
 	/// does not model.
+	///
+	/// @warning **The contract is exactly-once-on-true, never-on-false** -- what `Owner::run`
+	///          promises (`storage/owner.h:43`: it ran, or it was queued and will run; false means
+	///          the dispatch was dropped and the op will NOT run). A dispatcher that returns true
+	///          and then never runs the op strands the seam in `InFlight` **forever**: there is no
+	///          cancel, no timeout and no escape, and a scene holding `LockInput` for the duration
+	///          would take the input lock down with it.
 	using Dispatch = bool (*)(void (*)(void*), void*);
 
 	/// @brief Which of the three states the seam is in; see the table in the file docstring.
 	enum class State : uint8_t { Idle, InFlight, Ready };
 
 	Listing() = default;
+	/// @brief Asserts the seam is not `InFlight` (see the lifetime rule above) and, if it is not,
+	///        gives up the static catalogue owner so a later instance is not refused forever.
+	~Listing();
 	/// @brief Construct with a dispatcher other than `storage::Owner::run`.
 	/// @param dispatch The dispatcher; must eventually call the op exactly once, or never.
 	explicit Listing(Dispatch dispatch) : dispatch_(dispatch) {}
@@ -288,6 +372,16 @@ private:
 	/// the poller, so a caller that sees `Ready` sees `result_` and the catalogue the op left
 	/// behind. Never observed doing that on the host -- see the file docstring.
 	std::atomic<State> state_{State::Idle};
+
+	/// @brief Which `Listing`, if any, currently owns `FileCatalogue` -- the process-wide
+	///        single-flight guard, and legacy's static `listingInProgress_` with an identity
+	///        attached.
+	///
+	/// Claimed by an accepted `request()`, released by `take_result()` (not by the op finishing --
+	/// see the class docstring), by a dropped dispatch, and by `~Listing` when the seam is not
+	/// in flight. Non-null means *some* instance is mid-listing or holding an uncollected result,
+	/// and every other instance's `request()` is refused.
+	static std::atomic<Listing*> s_catalogue_owner_;
 };
 
 } // namespace deluge::scenes::browser

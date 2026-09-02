@@ -266,6 +266,17 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 		case notify::Notice::Kind::ClearWorking:
 			// Does not pop here: Notices::tick is what pops the working scene, once armed()
 			// reports false -- see that method's doc.
+			//
+			// KNOWN LIMITATION, and it is already live: this clear is unconditional and
+			// unrefcounted. There is one WorkingScene and no record of who armed it, so when two
+			// subsystems have a Kind::Working up at once, whichever raises ClearWorking first takes
+			// the other's animation down and leaves it working with no indicator. Two raisers
+			// exist today: `PlaybackHandler::doSongSwap` (`playback/playback_handler.cpp:1564`, via
+			// `notice_working`, `util/notify.h:52`) and the scenes layer's async listing seam
+			// (`scenes/browser/listing.cpp`), and a song swap can overlap a directory listing.
+			// Closing it means a refcount, or an owner token on the arm/clear pair, so a clear from
+			// a subsystem that did not arm the current animation is ignored -- deliberately not
+			// done as a drive-by here, because it changes the meaning of every existing raise.
 			working_.clear();
 			break;
 		case notify::Notice::Kind::CancelPopup:
