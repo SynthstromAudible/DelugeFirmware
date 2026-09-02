@@ -16,11 +16,12 @@
  */
 
 #include "usb_common.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays, readability-identifier-naming) - matches the USB driver's definition
-extern uint8_t anyUSBSendingStillHappening[];
+extern uint8_t anyUSBSendingStillHappening[USB_NUM_USBIP];
 
 void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
