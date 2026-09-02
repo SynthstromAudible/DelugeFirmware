@@ -72,7 +72,10 @@ add_library(deluge_scenes STATIC
     # E2 task 5: the one scene that replaces legacy's five-class `gui/ui/rename/` directory.
     rename/rename_scene.cpp
     # E2 task 6: the one scene that replaces legacy's `gui::ContextMenu` hierarchy.
-    context_menu/context_menu_scene.cpp)
+    context_menu/context_menu_scene.cpp
+    # E3 task 2: the async listing seam. Not a scene -- a request/poll object a scene owns, sitting
+    # between the tick-driven shell and `storage::Owner`/`storage::FileCatalogue`.
+    browser/listing.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

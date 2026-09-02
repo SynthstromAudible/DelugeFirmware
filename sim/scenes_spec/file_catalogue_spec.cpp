@@ -57,6 +57,7 @@
 #include <vector>
 
 #include "spec/support/spec_main.h"
+#include "support/card_access.h"
 
 // The two file-scope globals `readFileItemsForFolder` sets and `getNewFileItem`/`cullSomeFileItems`
 // read (`storage/file_catalogue.cpp:53 maxNumFileItemsNow`, `:54 catalogSearchDirection`; they were
@@ -70,58 +71,12 @@ extern int32_t catalogSearchDirection;
 
 namespace {
 
-/// @brief Point `$DELUGE_SD_ROOT` at a directory for the scope, and restore whatever was there.
-///
-/// The host BSP resolves every filesystem call against `$DELUGE_SD_ROOT` on each call
-/// (`src/bsp/host/host_efatfs_passthrough.cpp:164 resolve_root_relative`,
-/// `:547 deluge_efatfs_dir_open`), so switching it mid-process is enough to aim a listing.
-struct SdRoot {
-	std::string saved;
-	bool had;
-	explicit SdRoot(const std::string& root) {
-		const char* prev = std::getenv("DELUGE_SD_ROOT");
-		had = prev != nullptr;
-		if (had) {
-			saved = prev;
-		}
-		(void)::setenv("DELUGE_SD_ROOT", root.c_str(), 1);
-	}
-	~SdRoot() {
-		if (had) {
-			(void)::setenv("DELUGE_SD_ROOT", saved.c_str(), 1);
-		}
-		else {
-			(void)::unsetenv("DELUGE_SD_ROOT");
-		}
-	}
-	SdRoot(const SdRoot&) = delete;
-	SdRoot& operator=(const SdRoot&) = delete;
-};
-
-/// @brief Hold `AudioEngine`'s own re-entrancy latch for the scope, so the catalogue's yield points
-///        are no-ops.
-///
-/// `emptyFileItems()` and `deleteSomeFileItems()` pump `AudioEngine::routineWithClusterLoading()`
-/// between chunks (`file_catalogue.cpp:58 emptyFileItems`, `:74 deleteSomeFileItems`) -- they can be
-/// erasing thousands of entries, and the
-/// audio must keep running. This spec process never boots the audio engine: `AudioEngine::init()`
-/// (`processing/engines/audio_engine.cpp:226`) builds a preview `SoundDrum` off `currentSong` and
-/// only then sets `inputRingPos` (`:246`), so an un-booted process walks into `fillInputRing`
-/// (`:179`) with a cursor of 0 and segfaults on the first non-empty erase.
-///
-/// `audioRoutineLocked` is the engine's *own* answer to "do not run the routine right now"
-/// (`:1122` -- `routine()` returns immediately while it is set, and `runRoutine()` reaches
-/// `routine()` directly here because no scheduler task is registered). Holding it makes every pump
-/// call a documented no-op. It changes nothing about the catalogue: the pump is a yield point, not
-/// part of the listing, sort, search or cull contract, and none of the state asserted below is
-/// touched by it.
-struct QuietAudio {
-	bool saved = AudioEngine::audioRoutineLocked;
-	QuietAudio() { AudioEngine::audioRoutineLocked = true; }
-	~QuietAudio() { AudioEngine::audioRoutineLocked = saved; }
-	QuietAudio(const QuietAudio&) = delete;
-	QuietAudio& operator=(const QuietAudio&) = delete;
-};
+/// `SdRoot` and `QuietAudio` moved to `support/card_access.h` in task 2 of this plan: `QuietAudio`
+/// in particular is the disarm for a landmine that *segfaults* an un-booted spec process rather
+/// than failing it, and every later spec in this plan drives a listing too. Their documentation --
+/// including why the shipped seam must NOT hold that latch -- moved with them, unchanged.
+using deluge::scenes::spec::QuietAudio;
+using deluge::scenes::spec::SdRoot;
 
 /// @brief Leaves the catalogue empty, its window counters zeroed and the name comparator's flags
 ///        back at their defaults, on both sides of an example.
