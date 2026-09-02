@@ -64,6 +64,7 @@
 #include "model/note/note_row.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "model/sample/waveform_scan.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -4514,8 +4515,8 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 			    ->getScrollAndZoomInSamples(currentSong->xScroll[NAVIGATION_CLIP], currentSong->xZoom[NAVIGATION_CLIP],
 			                                &xScrollSamples, &xZoomSamples);
 
-			waveformRenderer.findPeaksPerCol((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
-			                                 xZoomSamples, &((AudioClip*)clip)->renderData);
+			deluge::sample::find_peaks_per_col((Sample*)((AudioClip*)clip)->sampleHolder.audioFile, xScrollSamples,
+			                                   xZoomSamples, &((AudioClip*)clip)->renderData);
 
 			PadLEDs::setupAudioClipCollapseOrExplodeAnimation((AudioClip*)clip);
 		}

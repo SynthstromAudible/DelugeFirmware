@@ -1,6 +1,6 @@
 #include "CppUTest/TestHarness.h"
 
-#include "gui/waveform/waveform_peak_math.h"
+#include "model/sample/waveform_peak_math.h"
 #include <cstdint>
 #include <vector>
 

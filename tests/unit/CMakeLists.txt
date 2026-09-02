@@ -65,7 +65,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/util/name_compare.cpp
         ../../src/deluge/gui/ui/browser/default_name.cpp
         # For waveform peak math tests
-        ../../src/deluge/gui/waveform/waveform_peak_math.cpp
+        ../../src/deluge/model/sample/waveform_peak_math.cpp
 )
 
 add_executable(UnitTests

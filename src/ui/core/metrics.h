@@ -35,7 +35,10 @@ constexpr int32_t kMenuBaseY64 = 15;
 ///       panel height. The two coincide on the shipped 48-row panel and diverge by one row on a
 ///       64-row one; `columns` follows this constant, `list`/`menu_rect` the pair above.
 constexpr int32_t kHorizontalMenuBaseY = 14;
-constexpr int32_t kTitleY = 1;           // title baseline offset (+ visible_top)
+constexpr int32_t kTitleY = 1; // title baseline offset (+ visible_top)
+/// Top row of a `title_badge` icon -- `OLED_MAIN_TOPMOST_PIXEL + 1` (`sample_marker_editor.cpp:1131`),
+/// i.e. the same row the title's own glyphs start on.
+constexpr int32_t kTitleBadgeY = 1;
 constexpr int32_t kTitleSeparatorY = 12; // (+ visible_top)
 constexpr int32_t kPopupMargin = 12;     // legacy doubleMargin
 constexpr int32_t kPopupMaxCharsPerLine = 19;

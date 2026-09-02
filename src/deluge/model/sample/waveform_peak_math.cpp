@@ -1,4 +1,4 @@
-#include "gui/waveform/waveform_peak_math.h"
+#include "model/sample/waveform_peak_math.h"
 
 #include <algorithm>
 #include <limits>

@@ -20,7 +20,6 @@
 #include "extern.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
-#include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"
@@ -33,6 +32,7 @@
 #include "libdeluge/system.h" // deluge_in_interrupt
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
+#include "model/sample/waveform_scan.h"
 #include "util/notify.h"
 
 #include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
@@ -1028,7 +1028,7 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 		}
 
 		// Advance this sample by a small budget. If there was real work to do, stop here for this call.
-		if (waveformRenderer.advanceOverviewScan(sample, kOverviewScanClustersPerCall)) {
+		if (deluge::sample::advance_overview_scan(sample, kOverviewScanClustersPerCall)) {
 			return;
 		}
 	}

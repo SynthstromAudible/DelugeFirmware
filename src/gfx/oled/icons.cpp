@@ -932,4 +932,19 @@ DEFINE_ICON(browserMidiEdge, 1, //<
 );
 /// @}
 
+/// @{
+/// @name Sample-marker editor
+/// Legacy `OLED::lockIcon`. Only eight of its nine rows fit in a byte; `ui::oled::title_badge`
+/// draws the ninth.
+DEFINE_ICON(markerLock, 1, //<
+            0b11111000,    //<
+            0b11111110,    //<
+            0b00001001,    //<
+            0b01111001,    //<
+            0b01111001,    //<
+            0b11111110,    //<
+            0b11111000,    //<
+);
+/// @}
+
 } // namespace deluge::gfx::oled::icons

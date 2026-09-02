@@ -1,6 +1,7 @@
 #pragma once
 #include "gfx/oled/font.h"
 #include "gfx/oled/geometry.h"
+#include "gfx/oled/icon.h"
 #include "ui/oled/frame.h"
 #include <cstdint>
 #include <string_view>
@@ -88,5 +89,24 @@ void text(OledFrame& f, gfx::oled::Rect rect, std::string_view s, TextStyle ts);
 /// @param s         the title text
 /// @param underline draw the separator rule under the title
 void title(OledFrame& f, std::string_view s, bool underline = true);
+
+/// @brief Draw a small icon in the title band's right-hand end, with the ninth row legacy's icons
+///        cannot hold filled in for it.
+///
+/// `SampleMarkerEditor::renderOLED`'s loop-lock badge (`gui/ui/sample_marker_editor.cpp:1130-1133`):
+/// `drawGraphicMultiLine(OLED::lockIcon, OLED_MAIN_WIDTH_PIXELS - 10, OLED_MAIN_TOPMOST_PIXEL + 1, 7)`
+/// followed by `invertArea(OLED_MAIN_WIDTH_PIXELS - 10, 7, ..._PIXEL + 9, ..._PIXEL + 9)`.
+///
+/// The `invertArea` is not a highlight: `OLED::lockIcon` is **nine** pixels tall and a byte holds
+/// eight, and legacy's own comment at `hid/display/oled_icons.cpp:118` says "remember to draw a
+/// rectangle under it so it looks correct". Inverting the (blank) row one below the icon is how it
+/// draws that rectangle, and doing it here means no caller has to remember.
+///
+/// Right-aligned by the frame's own width rather than `OLED_MAIN_WIDTH_PIXELS`, so a wider panel
+/// puts the badge at its own right edge; the 10-pixel inset and the row offsets are legacy's.
+///
+/// @param f the frame to draw into
+/// @param i the icon; its `height` decides how many rows the filled row sits below the top
+void title_badge(OledFrame& f, const gfx::oled::Icon& i);
 
 } // namespace deluge::ui::oled

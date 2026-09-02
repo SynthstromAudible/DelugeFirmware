@@ -68,7 +68,8 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 | widget / helper | file |
 |---|---|
 | `OledFrame` (`pixel`, `hline`, `vline`, `line`, `rect`, `rect_rounded`, `invert`, `invert_rounded`, `clear`, `glyphs`, `glyph`, `graphic`, `icon`, `icon_centered`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_frame(canvas, style, ctx, mask = InputMask::all())` | `oled/frame.h` |
-| `Align`, `TextStyle`, `text_height_for`, `spacing_x_for`, `measure`, `text`, `title` | `oled/text.h` |
+| `Align`, `TextStyle`, `text_height_for`, `spacing_x_for`, `measure`, `text`, `title`, `title_badge` | `oled/text.h` |
+| `kSamplePositionLineGap`, `sample_position` | `oled/sample_position.h` |
 | `scroll_text` | `oled/scroll_text.h` |
 | `ListRow`, `menu_rect`, `list_visible_rows`, `list_window_start`, `list`, `scrollbar` | `oled/list.h` |
 | `Range`, `ValueStyle`, `int_value`, `decimal_value`, `enum_value`, `toggle` | `oled/values.h` |
@@ -96,6 +97,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 | `vu_max_row`, `vu_row_colour`, `vu_meter` | `grid/columns.h` |
 | `TickColour`, `TickSquare`, `tick_colour`, `tick_squares` | `grid/columns.h` |
 | `PeakCol`, `waveform_col_colour`, `waveform_row`, `waveform_full` | `grid/waveform.h` |
+| `kMaxMarkers`, `MarkerStack`, `marker_tint`, `marker_column` | `grid/markers.h` |
 | `KeyboardLayoutKind`, `TextKeyboardState`, `text_keyboard_char_at`, `text_keyboard_key_colour`, `text_keyboard_is_shift_pad`, `text_keyboard` | `grid/keyboard.h` |
 | `LegacyImage`, `copy_legacy_image`, `copy_legacy_column`, `keyboard<Layout>`, `control_column<Column>` (legacy-bridge templates, removed in phase 6) | `grid/keyboard.h` |
 | `GreyoutMask`, `greyout` | `grid/effects.h` |
