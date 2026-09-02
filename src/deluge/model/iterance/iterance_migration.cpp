@@ -41,7 +41,7 @@ Iterance iteranceFromLegacyPresetIndex(int32_t presetIndex) {
         return kDefaultIteranceValue;
     }
     int32_t newIndex = presetIndex + 2;
-    if (newIndex > 0 && newIndex <= kNumIterancePresets) {
+    if (newIndex <= kNumIterancePresets) {
         return iterancePresets[newIndex - 1];
     }
     if (newIndex == kCustomIterancePreset) {

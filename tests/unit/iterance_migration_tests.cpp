@@ -6,8 +6,9 @@
  * before that commit encode iterance using the old (pre-shift) indices.  The migration
  * helpers must apply the +2 correction so those files load correctly.
  *
- * This file also provides a stub definition of iterancePresets so that
- * iterance_migration.cpp can be linked without pulling in all of lookuptables.cpp.
+ * These tests exercise the real iterancePresets[] from lookuptables.cpp (already
+ * pulled into the UnitTests binary for other suites), not a local copy, so they
+ * can't drift out of sync with production data.
  */
 
 #include "CppUTest/TestHarness.h"
@@ -15,27 +16,6 @@
 #include "model/iterance/iterance.h"
 #include "model/iterance/iterance_migration.h"
 #include <array>
-
-// ---------------------------------------------------------------------------
-// Stub: mirrors the real definition in lookuptables.cpp exactly.
-// Keep in sync with src/deluge/util/lookuptables/lookuptables.cpp.
-// ---------------------------------------------------------------------------
-const std::array<Iterance, kNumIterancePresets> iterancePresets = {
-    Iterance{0, 1}, // FIRST  (index 0)
-    Iterance{0, 2}, // LAST   (index 1)
-    // 1of2 … 8of8 (indices 2-36)
-    Iterance{2, 0b1},        Iterance{2, 0b10},
-    Iterance{3, 0b1},        Iterance{3, 0b10},        Iterance{3, 0b100},
-    Iterance{4, 0b1},        Iterance{4, 0b10},        Iterance{4, 0b100},        Iterance{4, 0b1000},
-    Iterance{5, 0b1},        Iterance{5, 0b10},        Iterance{5, 0b100},        Iterance{5, 0b1000},
-    Iterance{5, 0b10000},
-    Iterance{6, 0b1},        Iterance{6, 0b10},        Iterance{6, 0b100},        Iterance{6, 0b1000},
-    Iterance{6, 0b10000},    Iterance{6, 0b100000},
-    Iterance{7, 0b1},        Iterance{7, 0b10},        Iterance{7, 0b100},        Iterance{7, 0b1000},
-    Iterance{7, 0b10000},    Iterance{7, 0b100000},    Iterance{7, 0b1000000},
-    Iterance{8, 0b1},        Iterance{8, 0b10},        Iterance{8, 0b100},        Iterance{8, 0b1000},
-    Iterance{8, 0b10000},    Iterance{8, 0b100000},    Iterance{8, 0b1000000},    Iterance{8, 0b10000000},
-};
 
 // ---------------------------------------------------------------------------
 // iteranceFromLegacyProbabilityByte — C1.2 / pre-lift noteHexLength==22 path
@@ -84,6 +64,21 @@ TEST(IteranceLegacyProbability, result_is_never_LAST) {
         Iterance result = iteranceFromLegacyProbabilityByte(prob);
         CHECK_FALSE_TEXT(result == kLastIteranceValue, "legacy byte mapped to LAST");
     }
+}
+
+TEST(IteranceLegacyProbability, byte20_below_range_decodes_to_off) {
+    // probability 20 = kNumProbabilityValues(20) + 0: below the legacy iterance
+    // range (which starts at legacyPresetIndex 1), should fall back to default.
+    Iterance result = iteranceFromLegacyProbabilityByte(20);
+    CHECK(result == kDefaultIteranceValue);
+}
+
+TEST(IteranceLegacyProbability, byte56_above_range_decodes_to_off) {
+    // probability 56 = kNumProbabilityValues(20) + 36: one past the last legacy
+    // preset (35 = "8 of 8"), should fall back to default rather than reading
+    // out of bounds.
+    Iterance result = iteranceFromLegacyProbabilityByte(56);
+    CHECK(result == kDefaultIteranceValue);
 }
 
 // ---------------------------------------------------------------------------

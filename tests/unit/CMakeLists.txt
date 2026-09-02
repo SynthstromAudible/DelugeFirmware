@@ -64,7 +64,8 @@ file(GLOB_RECURSE deluge_SOURCES
         # For name comparison / default naming tests
         ../../src/deluge/util/name_compare.cpp
         ../../src/deluge/gui/ui/browser/default_name.cpp
-        # For iterance migration tests (iterancePresets stub is in iterance_migration_tests.cpp)
+        # For iterance migration tests (links against the real iterancePresets[]
+        # from lookuptables.cpp, already included above)
         ../../src/deluge/model/iterance/iterance_migration.cpp
 )
 
