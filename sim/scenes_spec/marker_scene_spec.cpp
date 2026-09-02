@@ -491,7 +491,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		expect(static_cast<int32_t>(marker_scene().blink_phase())).to_equal(0);
 	});
 
-	it("paints the blink: a solid column on phase 1, the marker gone on phase 3", _ {
+	it("paints the blink: phases 0, 1 and 2 alike, the selected marker gone on phase 3", _ {
 		// The visible half of the blink, and the half `timerCallback` (`sample_marker_editor.cpp:806-862`)
 		// disagrees with `renderMainPads` about -- see `marker_scene.h`. Phases 0 and 2 must look the
 		// same as each other; 1 and 3 must each look different from them and from one another.

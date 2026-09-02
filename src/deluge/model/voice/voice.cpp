@@ -23,7 +23,6 @@
 #include "dsp/oscillators/sine_osc.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
-#include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stack_guard.h"

@@ -19,6 +19,12 @@
 #include "clip.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
+// The one `gui/` include this file still needs after the scan/navigator moved down to
+// `model/sample/` (E3 task 4): `AudioClip::renderAsSingleRow` below really does call
+// `waveformRenderer.renderAsSingleRow`, which writes into an `RGB*` and so stayed on the `gui/`
+// side. The inversion is this method, not the include -- a `model/` class that renders. Its
+// extracted form is `ui::grid::waveform_row`, which takes a `GridFrame` that `model/` cannot
+// build, so closing this belongs to whoever moves clip-row rendering into the scene layer.
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"

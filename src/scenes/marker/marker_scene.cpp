@@ -117,6 +117,15 @@ bool MarkerScene::loop_locked() const {
 
 MarkerType MarkerScene::reverse_remap(MarkerType type) const {
 	// `SampleMarkerEditor::reverseRemap` (`:83`).
+	//
+	// DIVERGENCE, small but labelled like the rest: legacy's `getCurrentSampleControls()` (`:71`)
+	// dereferences `soundEditor.currentSource` with no null test, so a context that resolved no
+	// source would crash there. `context_for` leaves `sample_controls` null on exactly the contexts
+	// this scene cannot open on anyway (`can()` refuses them first), so the guard is unreachable
+	// today; it reads `false` -- "not reversed" -- rather than crashing if that ever stops being
+	// true, which is the same survivable-spelling choice `Descriptor::can` made in `BrowserScene`.
+	// The same guard appears at `write_value`'s `claimClusterReasons` call and in
+	// `allow_extra_scroll_right`, for the same reason.
 	const bool reversed = ctx_.sample_controls != nullptr && ctx_.sample_controls->reversed;
 	if (!reversed) {
 		return type;

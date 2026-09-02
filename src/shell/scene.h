@@ -377,6 +377,30 @@ public:
 	/// @}
 
 	/// @brief When this scene next needs a `tick()` even with no input.
+	///
+	/// @warning **A timer does NOT dirty any surface.** All this does is bring the shell back for
+	///          another `tick()`; whether that tick draws anything is decided separately, by
+	///          `RepaintGate::needs_frame` on each surface. So a scene whose timer exists to drive
+	///          **visible motion** -- a blink, a scroll, a countdown -- must ALSO arm that surface's
+	///          gate from inside its own `render_*`:
+	///
+	///          ```
+	///          f.gate().request_repaint_after(period_ms, f.now_ms());
+	///          ```
+	///
+	///          Without it the scene's state advances on every tick and the framebuffer never
+	///          changes, which reads as "the animation is dead" rather than as any kind of error.
+	///          **This has now bitten three separate scenes** -- E2's menu cursor blink, E3 task 3's
+	///          `BrowserScene` (whose first quiet-tick example passed with the arm deleted, because
+	///          an unrelated repaint covered for it), and E3 task 4's `MarkerScene` (whose four
+	///          blink phases all rendered byte-identically until the gate was armed). If you are
+	///          writing a `next_timer()` override, assume you need the gate arm too, and write the
+	///          test that would notice if you did not.
+	///
+	/// @note A timer with no visible consequence -- state a later input will read, a deadline that
+	///       only matters once something else happens -- correctly needs no gate arm. That is the
+	///       only case this warning does not cover.
+	///
 	/// @return Milliseconds from now, or `std::nullopt` for "no timer".
 	virtual std::optional<uint32_t> next_timer() const { return std::nullopt; }
 };

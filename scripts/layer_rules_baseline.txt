@@ -16,10 +16,10 @@ src/deluge/model/action/action_logger.cpp	model-calls-ui	54
 src/deluge/model/action/action_logger.cpp	model-includes-ui	10
 src/deluge/model/action/action_logger.h	model-includes-ui	1
 src/deluge/model/clip/audio_clip.cpp	model-includes-ui	1
-src/deluge/model/clip/audio_clip.h	model-includes-ui	2
+src/deluge/model/clip/audio_clip.h	model-includes-ui	1
 src/deluge/model/clip/clip.cpp	model-calls-ui	2
 src/deluge/model/clip/clip.cpp	model-includes-ui	4
-src/deluge/model/clip/clip.h	model-includes-ui	3
+src/deluge/model/clip/clip.h	model-includes-ui	2
 src/deluge/model/clip/clip_instance.h	model-includes-ui	1
 src/deluge/model/clip/clip_minder.cpp	model-includes-ui	2
 src/deluge/model/clip/clip_minder.h	model-includes-ui	1
@@ -72,7 +72,6 @@ src/deluge/model/song/song.cpp	model-calls-ui	13
 src/deluge/model/song/song.cpp	model-includes-ui	16
 src/deluge/model/song/song.h	model-includes-ui	1
 src/deluge/model/sync.cpp	model-includes-ui	1
-src/deluge/model/voice/voice.cpp	model-includes-ui	1
 src/deluge/modulation/arpeggiator.cpp	model-includes-ui	1
 src/deluge/modulation/automation/auto_param.cpp	model-calls-ui	1
 src/deluge/modulation/automation/auto_param.cpp	model-includes-ui	5
@@ -107,7 +106,7 @@ src/deluge/storage/Deserializer.cpp	model-includes-ui	3
 src/deluge/storage/JSONSerializer.cpp	model-includes-ui	3
 src/deluge/storage/JsonDeserializer.cpp	model-includes-ui	3
 src/deluge/storage/Serializer.cpp	model-includes-ui	3
-src/deluge/storage/audio/audio_file_manager.cpp	model-includes-ui	3
+src/deluge/storage/audio/audio_file_manager.cpp	model-includes-ui	2
 src/deluge/storage/file_item.cpp	model-includes-ui	1
 src/deluge/storage/flash_storage.cpp	model-calls-ui	3
 src/deluge/storage/flash_storage.cpp	model-includes-ui	7
