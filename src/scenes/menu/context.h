@@ -185,6 +185,23 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 /// @return a stack whose `modControllable` is `ctx.mod` and whose `paramManager` is `ctx.params`.
 ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* memory);
 
+/// @brief Tell the model that a sample marker moved -- the tail of `SampleMarkerEditor::writeValue`
+///        (`gui/ui/sample_marker_editor.cpp:203-215`).
+///
+/// Lives here, beside `model_stack_for`, for the reason the `scenes-model-stack-outside-context`
+/// rule exists: both arms need a `ModelStack` they can call a member on
+/// (`ModelStackWithTimelineCounter::resumePlayback`'s argument, and `addSoundFlags()`), and
+/// `model_stack_for`'s return type is only forward declared everywhere else in `src/scenes`. The
+/// alternative was a third file on that rule's allow-list.
+///
+/// @param ctx                What the marker was written to.
+/// @param marker             Which marker moved -- `Sound::sampleZoneChanged`'s first argument.
+/// @param resume_audio_clip  Only meaningful on an audio clip: was the clip playing a voice sample
+///                           before the write, so playback should be resumed after it? Legacy
+///                           computes this *before* `unassignVoiceSample` and passes it down the
+///                           same way (`:155-161`, `:203-209`).
+void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio_clip);
+
 /// @brief May a session begin on @p node in @p ctx? Spec E §4.1's one rule in place of the
 ///        per-item `checkPermissionToBeginSession` overrides.
 enum class Permission : uint8_t {

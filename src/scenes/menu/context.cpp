@@ -64,6 +64,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/drum/non_audio_drum.h"
+#include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h" // ruling 6: this file and bindings.cpp only
@@ -458,6 +459,32 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	}
 
 	return Permission::MustSelectRange; // `:1959`
+}
+
+void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio_clip) {
+	char memory[MODEL_STACK_MAX_SIZE];
+
+	if (ctx.is_audio_clip) {
+		// `sample_marker_editor.cpp:203-209`. Legacy builds the stack from
+		// `currentSong->setupModelStackWithCurrentClip`; the context names both the song and the
+		// clip, so this builds the same stack without reading the global (`scenes-currentSong`).
+		if (resume_audio_clip) {
+			ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, ctx.song, ctx.clip);
+			ctx.clip->resumePlayback(stack, true);
+		}
+		return;
+	}
+
+	// `:210-215`.
+	if (ctx.sound != nullptr) {
+		ModelStackWithThreeMainThings* stack = model_stack_for(ctx, memory);
+		ctx.sound->sampleZoneChanged(marker, ctx.source_index, stack->addSoundFlags());
+	}
+	if (ctx.output != nullptr) {
+		// `getCurrentInstrument()->beenEdited(true)`. This arm is the non-audio-clip one, so the
+		// output really is an `Instrument` -- the same cast legacy's `getCurrentInstrument()` makes.
+		static_cast<Instrument*>(ctx.output)->beenEdited(true);
+	}
 }
 
 } // namespace deluge::scenes::menu

@@ -9,7 +9,8 @@
 /// from `SceneKind::FirstApp` (== 16) upwards: `FirstApp` is the menu interpreter, `FirstApp + 1`
 /// the rename editor (`rename::kRenameSceneKind`), `FirstApp + 2` the context menu
 /// (`context_menu::kContextMenuSceneKind`), `FirstApp + 3` the file browser
-/// (`browser::kBrowserSceneKind`).
+/// (`browser::kBrowserSceneKind`), `FirstApp + 4` the sample marker editor
+/// (`marker::kMarkerSceneKind`).
 
 #include "shell/scene.h"
 
@@ -80,7 +81,8 @@ menu::MenuScene& menu_scene();
 /// @return A registry whose `by_kind[SceneKind::FirstApp]` is `&menu_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 1]` is `&rename_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 2]` is `&context_menu_scene()`, whose
-///         `by_kind[SceneKind::FirstApp + 3]` is `&browser_scene()`, and whose every other slot is
+///         `by_kind[SceneKind::FirstApp + 3]` is `&browser_scene()`, whose
+///         `by_kind[SceneKind::FirstApp + 4]` is `&marker_scene()`, and whose every other slot is
 ///         null.
 deluge::ui::shell::SceneRegistry scene_registry();
 

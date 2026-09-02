@@ -78,7 +78,9 @@ add_library(deluge_scenes STATIC
     browser/listing.cpp
     # E3 task 3: the one scene that replaces the two `gui/ui/browser/` subclasses the menu tree
     # reaches -- `SampleBrowser` and `LoadMidiDeviceDefinitionUI` -- over the seam above.
-    browser/browser_scene.cpp)
+    browser/browser_scene.cpp
+    # E3 task 4: the sample marker editor.
+    marker/marker_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include
