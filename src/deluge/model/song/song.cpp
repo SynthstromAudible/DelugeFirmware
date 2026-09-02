@@ -5566,11 +5566,15 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
-int32_t Song::countAudioClips() const {
+int32_t Song::countAudioVoices() const {
 	int32_t i = 0;
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
-			if (output->getActiveClip()) {
+			// this checks whether the audio output is skipping rendering
+			// to be rendering, the audio output must have:
+			// a) an active clip; and
+			// b) is monitoring and/or has a voice sample assigned
+			if (!(AudioOutput*)output->isSkippingRendering()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				// this seems to be the only way to find whether the voice is sounding
 				if (isClipActive(clip)) {
