@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "io/debug/log.h"
 #include "model/favourite/favourite_manager.h"
+#include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "util/containers.h"
 
@@ -41,14 +42,9 @@ struct Slot {
 	int8_t subSlot;
 };
 
-#define CATALOG_SEARCH_LEFT 0
-#define CATALOG_SEARCH_RIGHT 1
-#define CATALOG_SEARCH_BOTH 2
-
-#define FILE_ITEMS_MAX_NUM_ELEMENTS 20
-#define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
-
-extern char const* allowedFileExtensionsXML[];
+// CATALOG_SEARCH_*, FILE_ITEMS_MAX_NUM_ELEMENTS* and allowedFileExtensionsXML moved to
+// storage/file_catalogue.h with the listing itself, and reach every existing call site through the
+// include above.
 
 class Browser : public QwertyUI {
 public:
@@ -65,36 +61,64 @@ public:
 	Error createFoldersRecursiveIfNotExists(const char* path);
 	void selectEncoderAction(int8_t offset) override;
 	static FileItem* getCurrentFileItem();
+	Error setFileByFullPath(OutputType outputType, char const* fullPath);
+	Error getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName);
+	bool opened() override;
+
+	/// @name The file catalogue.
+	///
+	/// The listing itself lives in `deluge::storage::FileCatalogue` (`storage/file_catalogue.h`) --
+	/// the scenes layer may include `storage/` and may not include `gui/`, and the file browser,
+	/// sample marker editor and audio recorder all need a listing. What is left here is delegation
+	/// and nothing else: the members below are references to and one-line forwards onto that class,
+	/// so `Browser::fileItems` and `FileCatalogue::fileItems` name the same object rather than two
+	/// that agree. Every `gui/` call site is unchanged.
+	///
+	/// The four instance members stay instance members only to supply
+	/// `shouldInterpretNoteNamesForThisBrowser`, which is the one piece of per-browser state the
+	/// listing ever read.
+	///
+	/// New code that only needs a listing should call `FileCatalogue` directly. Anything added
+	/// below that is more than a forward belongs on `FileCatalogue`, and
+	/// `sim/scenes_spec/file_catalogue_spec.cpp` is what says so.
+	/// @{
 	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
 	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
 	                             int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
-	Error setFileByFullPath(OutputType outputType, char const* fullPath);
 	void sortFileItems();
 	FileItem* getNewFileItem();
+	void cullSomeFileItems();
 	static void emptyFileItems();
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
-	Error getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName);
-	bool opened() override;
-	void cullSomeFileItems();
+	/// @}
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-	static std::string currentDir;
-	static deluge::vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
+	/// @name The catalogue's state, by reference.
+	///
+	/// Aliases for `deluge::storage::FileCatalogue`'s statics of the same names, bound once in
+	/// browser.cpp. They are references so that reading, assigning or taking the address of
+	/// `Browser::currentDir` reaches the one catalogue -- a copy would let the two drift, which for
+	/// `firstFileItemRemaining`/`lastFileItemRemaining` is exactly the class of bug their ownership
+	/// comment records.
+	/// @{
+	static std::string& currentDir;
+	static deluge::vector<FileItem>& fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
 	/// Mirrors CStringArray::search(): binary search by displayName using strcmpspecial; returns the matching
 	/// index, or the insertion point if not found. Set shouldInterpretNoteNames and octaveStartsFromA first.
 	static int32_t searchFileItems(char const* searchString, bool* foundExact = nullptr);
-	static int32_t numFileItemsDeletedAtStart;
-	static int32_t numFileItemsDeletedAtEnd;
+	static int32_t& numFileItemsDeletedAtStart;
+	static int32_t& numFileItemsDeletedAtEnd;
 	/// Names of the entries that bracket the culled window, remembered ACROSS the cull that erases them.
 	/// Owning copies, deliberately: these used to be `char const*` aliases into FileItem::filename, i.e.
 	/// pointers into vector elements this very code then erased.
-	static std::string firstFileItemRemaining;
-	static std::string lastFileItemRemaining;
+	static std::string& firstFileItemRemaining;
+	static std::string& lastFileItemRemaining;
+	static char const*& filenameToStartSearchAt;
+	/// @}
 
 	static OutputType outputTypeToLoad;
-	static char const* filenameToStartSearchAt;
 
 	/// @brief True while an async listing (beginListing()'s dispatch onto the storage-owner fiber)
 	///        is in flight.
