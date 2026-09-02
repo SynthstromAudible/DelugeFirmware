@@ -360,6 +360,19 @@ public:
 	/// @return The result, or `std::nullopt` when none has landed.
 	std::optional<ListingResult> take_result();
 
+	/// @brief Swap the dispatcher on a seam that already exists.
+	///
+	/// The constructor overload above is enough for a `Listing` a spec creates itself; a `Listing`
+	/// that is a **member of an application scene singleton** is constructed before any spec can
+	/// reach it, and on the host `Owner::run` is inline (see the honesty note above), so without
+	/// this there is no way to observe that scene's in-flight behaviour at all.
+	///
+	/// @warning Asserts the seam is `Idle`: swapping the dispatcher under a listing that is in
+	///          flight, or over an uncollected result, would leave the seam waiting on an op the
+	///          new dispatcher never received.
+	/// @param dispatch The new dispatcher; same contract as the constructor's.
+	void set_dispatch(Dispatch dispatch);
+
 private:
 	/// @brief The `Owner::run` C-ABI entry point; `self` is the `Listing`.
 	static void trampoline(void* self);

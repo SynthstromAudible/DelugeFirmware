@@ -58,4 +58,20 @@ extern const Icon submenuArrowBold;
 extern const Icon arrowDown;
 extern const Icon arrowRight;
 /// @}
+
+/// @{
+/// @name File-browser row icons (`scenes/browser/browser_scene.h`)
+///
+/// 8 columns wide -- exactly the `iconWidth` `Browser::renderOLED` blits them at
+/// (`gui/ui/browser/browser.cpp:973`) -- except `browserMidiEdge`, which is the MIDI plug's ninth
+/// column drawn on its own.
+/// @note Legacy icon `OLED::folderIcon`.
+extern const Icon browserFolder;
+/// @note Legacy icon `OLED::waveIcon`, `SampleBrowser`'s `fileIcon`.
+extern const Icon browserWave;
+/// @note Legacy icon `OLED::midiIcon`, `LoadMidiDeviceDefinitionUI`'s `fileIcon`.
+extern const Icon browserMidi;
+/// @note Legacy icon `OLED::midiIconPt2`, its `fileIconPt2` -- one column, see icons.cpp.
+extern const Icon browserMidiEdge;
+/// @}
 } // namespace deluge::gfx::oled::icons

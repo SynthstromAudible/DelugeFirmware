@@ -145,6 +145,15 @@ std::optional<ListingResult> Listing::take_result() {
 	return out;
 }
 
+void Listing::set_dispatch(Dispatch dispatch) {
+	// Idle only: an `InFlight` seam is waiting for an op the old dispatcher holds, and a `Ready`
+	// one owes its caller a collect. Neither survives having the dispatcher changed underneath it.
+	assert(state_.load(std::memory_order_acquire) == State::Idle
+	       && "Listing::set_dispatch on a seam that is not Idle -- the pending op belongs to the old "
+	          "dispatcher");
+	dispatch_ = dispatch;
+}
+
 void Listing::trampoline(void* self) {
 	static_cast<Listing*>(self)->perform();
 }

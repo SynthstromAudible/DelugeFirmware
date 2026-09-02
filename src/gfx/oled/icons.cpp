@@ -881,4 +881,55 @@ DEFINE_ICON(arrowRight, 1, //<
 );
 /// @}
 
+/// @{
+/// @name File-browser row icons
+///
+/// The four bitmaps `Browser::renderOLED` blits at the left of every row
+/// (`gui/ui/browser/browser.cpp:974-978`), where they are `OLED::folderIcon` / `OLED::waveIcon` /
+/// `OLED::midiIcon` / `OLED::midiIconPt2` (`hid/display/oled_icons.cpp:23,34,82,91`) drawn with
+/// `drawGraphicMultiLine(graphic, x, y, iconWidth)` at width 8 -- which is exactly their own column
+/// count, so an `Icon` of this shape draws the same pixels.
+DEFINE_ICON(browserFolder, 1, //<
+            0b11111000,       //<
+            0b10001000,       //<
+            0b10001100,       //<
+            0b10001010,       //<
+            0b10000110,       //<
+            0b10000010,       //<
+            0b10000010,       //<
+            0b11111100,       //<
+);
+
+DEFINE_ICON(browserWave, 1, //<
+            0b00010000,     //<
+            0b11111110,     //<
+            0b00111000,     //<
+            0b00010000,     //<
+            0b00111000,     //<
+            0b01111100,     //<
+            0b00111000,     //<
+            0b00010000,     //<
+);
+
+DEFINE_ICON(browserMidi, 1, //<
+            0b01111100,     //<
+            0b10000010,     //<
+            0b00101001,     //<
+            0b10000001,     //<
+            0b10000101,     //<
+            0b10000001,     //<
+            0b00101001,     //<
+            0b10000010,     //<
+);
+
+/// The MIDI icon's ninth column. Legacy keeps it as a whole second 8-byte bitmap and blits only its
+/// first column (`fileIconPt2Width = 1`, `load_midi_device_definition_ui.cpp:88`), because the
+/// browser's icon slot is eight wide and the DIN plug is nine; the other seven bytes of
+/// `OLED::midiIconPt2` are zero and were never drawn. One column here, so the `Icon`'s own width is
+/// the truth rather than a caller-supplied override.
+DEFINE_ICON(browserMidiEdge, 1, //<
+            0b01111100,         //<
+);
+/// @}
+
 } // namespace deluge::gfx::oled::icons

@@ -75,7 +75,10 @@ add_library(deluge_scenes STATIC
     context_menu/context_menu_scene.cpp
     # E3 task 2: the async listing seam. Not a scene -- a request/poll object a scene owns, sitting
     # between the tick-driven shell and `storage::Owner`/`storage::FileCatalogue`.
-    browser/listing.cpp)
+    browser/listing.cpp
+    # E3 task 3: the one scene that replaces the two `gui/ui/browser/` subclasses the menu tree
+    # reaches -- `SampleBrowser` and `LoadMidiDeviceDefinitionUI` -- over the seam above.
+    browser/browser_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include
