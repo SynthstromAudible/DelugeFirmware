@@ -383,6 +383,16 @@ void Shell::tick(uint32_t now_ms) {
 			s.gate.request_repaint_after(0, now_ms);
 		}
 	}
+	// And the grid, for the identical reason. Not folded into the loop above because the grid has
+	// no `SurfaceRole` to look up (`shell/profile.h:60`) -- `RepaintAll` is the only action that
+	// reaches it, through `grid_repaint_requested()`. Without this line the flag is read by the
+	// next tick's step 6 but nothing makes that tick happen any sooner: today `RepaintAll` always
+	// sets the OLED flags as well, so the loop above arms a wake and the grid comes along with it,
+	// which is exactly the kind of accident a profile with no OLED surfaces would end (fix round 1,
+	// minor).
+	if (router_.grid_repaint_requested()) {
+		surfaces_.grid().gate.request_repaint_after(0, now_ms);
+	}
 	// 8b. A scene timer is a repaint request, not merely a wake.
 	//
 	// `Scene::next_timer` used to feed `compute_next_wake` and nothing else, so a scene that wanted

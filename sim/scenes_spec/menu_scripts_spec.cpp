@@ -87,6 +87,17 @@
 ///     debounce. Every script written before this task turns a gold knob before t=500 and so is
 ///     inside that window from the shell's own zero; `menu_midi_device` edits at t=800 and has to
 ///     spend a detent arming it. Found by recording the frame and looking at it.
+///
+/// **And the second of those has a consequence for the whole directory, which no test covers.**
+/// `last_turn_ms_` starts at 0 and `now_ms` is a script's own clock here, but on the device it is
+/// uptime -- so on real hardware the debounce is *never* pre-armed and **the first gold turn after
+/// boot, and after every 500 ms pause, is always swallowed**. Every gold-turn golden in this
+/// directory therefore depicts the armed arm, which is the second detent of a gesture, and none of
+/// them depicts the arm a user actually meets first. The goldens are not vacuous -- each records a
+/// real edit and fails if that edit breaks -- but "one detent moves the value" is not what the
+/// device does from cold, and nothing at any level asserts what it does instead. Recorded here
+/// rather than papered over; closing it means a script whose clock starts past `short_press_ms`,
+/// which `RunOptions` has no way to express today.
 
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
@@ -285,15 +296,24 @@ struct SavedRange {
 // ---------------------------------------------------------------------------------------------
 // E3 task 11's four scripts, and the fixtures they need.
 //
-// All three card-and-model scenes -- the browser, the marker editor and the recorder -- are reached
-// here through the **shortcut-pad jump**, not through a select press. That is not a shortcut in the
-// convenience sense: every one of the nine `nodes/sample.h` items is declared on a
-// `Layout::Horizontal` page (`source0`, `audio_clip_sample`, `recorder`), and a horizontal page's
-// `columns` widget claims `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`), so
-// no select press in the committed tree descends into one. The shortcut table does
+// The browser and the marker editor are reached here through the **shortcut-pad jump**, and that is
+// not a shortcut in the convenience sense: `file0_selector` and `sample0_start` are declared only on
+// `Layout::Horizontal` pages (`source0`, `audio_clip_sample`), and a horizontal page's `columns`
+// widget claims `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so no select
+// press in the committed tree descends into either. The shortcut table does
 // (`menu/shortcuts.cpp:100`, legacy's own `paramShortcutsForSounds` cells), which makes it the only
-// door a user has -- the same Custom-column navigation gap `menu_range_permission`'s synthetic
+// door those two have -- the same Custom-column navigation gap `menu_range_permission`'s synthetic
 // wrapper already records one level up, met here with a real path instead of a synthetic one.
+//
+// **The recorder is the exception, and fix round 1 corrected this comment for it.**
+// `sample0_recorder` is also a child of the *vertical* `sound_actions` (`nodes/sound_actions.h:82`)
+// and `drum_actions` (`nodes/roots.h:315`), and `ui::oled::list` sets `entered` for any selectable
+// row (`ui/oled/list.cpp:121`) -- so SOUND -> ACTIONS -> RECORD TO SAMPLE is two ordinary select
+// presses. `recorder.txt` drives that door first and the shortcut second, in one run, because the
+// two do not end the same way: the ordinary route leaves the item at depth 2 where
+// `MenuState::go_up_on_resume` can ascend, and the jump re-roots onto the item at depth 0 where
+// `ascend()` is a no-op. The dead end the other two scripts end on is manufactured by the door they
+// had to use, and this script is what shows that.
 
 /// @brief The minimum `Display` the model reaches for.
 ///
@@ -1206,7 +1226,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(marker::marker_scene().holding_marker()).to_be_false();
 	});
 
-	it("RecorderScene: a shortcut jump arms a real recorder, and BACK asks it to stop", _ {
+	it("RecorderScene: both doors arm a real recorder, and only one of them closes tidily", _ {
 		reset_globals();
 		install_display();
 		spec::QuietAudio quiet;
@@ -1226,9 +1246,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "recorder", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
-		expect(result.snapshots).to_equal(uint32_t{3});
+		expect(result.snapshots).to_equal(uint32_t{7});
 
-		// The recorder was armed for real and is gone again. With nothing captured,
+		// Armed for real TWICE -- once through SOUND -> ACTIONS -> RECORD TO SAMPLE, once through the
+		// shortcut pad -- and gone again both times. The second entry is itself an assertion: it
+		// could only succeed because the first close ran `finish_recording()` in full, since
+		// `on_enter` refuses on a leftover `recorder_` and `can()` refuses on a leftover published
+		// recording. With nothing captured,
 		// `endSyncedRecording` takes its `numSamplesCaptured == 0` abort arm
 		// (`model/sample/sample_recorder.cpp:1243-1246`), `after_render`'s completion arm sees
 		// `status >= COMPLETE` and `finish_recording()` unpublishes and discards -- so this pair says
@@ -1248,8 +1272,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// unconditionally would have hung `recorder_->sample` -- a `Sample` with no captured frames
 		// and a file that `abort()` deletes -- on the oscillator.
 		expect(range->sampleHolder.audioFile == nullptr).to_be_true();
-		// The scene closed itself, so the menu owns the screen again -- on the item the jump landed on.
+		// The scene closed itself both times. Where that leaves the menu is what the two closes
+		// differ in, and the run ends on the second: the shortcut jump re-rooted the path onto the
+		// item, so the ascend `go_up_on_resume` asks for happens at depth 0 and does nothing
+		// (`menu_scene.cpp:1091-1093`). `after_stop`, seven hundred milliseconds earlier, is the
+		// other outcome -- the ACTIONS list, cursor still on the row the descent came from.
 		expect(menu_scene().focused() == &nodes::sample0_recorder).to_be_true();
+		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);
 	});
 });
 // clang-format on

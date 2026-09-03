@@ -1089,6 +1089,15 @@ void MenuScene::ascend() {
 	// permission has since become `No`. The cursor each level is restored to is the one
 	// `st_.list[depth]` has been holding all along, which is what legacy's `focusChild`
 	// (`submenu.cpp:21`) reconstructs from the item it navigated backward from.
+	//
+	// **One divergence, named rather than inherited (E3 task 11 fix round 1).** Legacy's depth-0 arm
+	// is `exitCompletely(); return;` (`:672-678`) -- going up from the root closes the editor. This
+	// returns instead, so an ascend at depth 0 is a silent no-op. That is invisible for anything
+	// reached by descending, but a *re-rooted* path can put a leaf at depth 0 (the shortcut-pad jump
+	// does exactly that, `handle`'s `Replace` arm) -- and then `MenuState::go_up_on_resume`, the arm
+	// that steps back out of a scene-opening item, has nowhere to go and leaves the user on that
+	// item's bare title screen. Carried, with the shape of the fix, in `src/scenes/README.md`; not
+	// changed here because it moves goldens well outside the task that found it.
 	do {
 		if (st_.depth == 0) {
 			return;

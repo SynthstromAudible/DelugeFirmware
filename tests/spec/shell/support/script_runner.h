@@ -506,6 +506,23 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	// strange. Popping unconditionally, not "if something looks wrong" -- the same
 	// assert-then-clear-free teardown `recorder_scene_spec.cpp`'s `~Rig` and E3 task 10's rollout
 	// use one layer up, for the same reason and with the same argument.
+	//
+	// @warning **This runs BEFORE the caller's post-run assertions, and `on_exit` is allowed to
+	//          clear the very state those assertions read.** Five shipped scenes do:
+	//          `MarkerScene::on_exit` drops the held-marker gesture, `BrowserScene::on_exit` zeroes
+	//          `ctx_`, resets `searching_`/`pending_` and takes the listing result,
+	//          `RecorderScene::on_exit` aborts a live recorder and unpublishes the foreground
+	//          recording, and `RenameScene`/`ContextMenuScene` zero their own `ctx_`. What makes
+	//          this guard safe today is narrower than "nothing clears anything" (fix round 1, which
+	//          is what the first version of this comment implied): **every committed script either
+	//          ends with nothing but `MenuScene` on the stack -- and `MenuScene` overrides no
+	//          `on_exit` at all -- or closes its own scene before `quit`, so that scene's `on_exit`
+	//          has already run inside the run and the caller is asserting about a scene it can see
+	//          was shut down.** `browser.txt`, `marker.txt` and `recorder.txt` all end on a BACK
+	//          that closes the scene, and their goldens show the menu underneath again, which is
+	//          the evidence. A future script that ends with a state-clearing scene still up would
+	//          have its post-run assertions read the cleared state, not the state the last frame
+	//          showed; assert against the golden, or make the script close the scene.
 	struct StackTeardown {
 		Shell& shell;
 		~StackTeardown() {
