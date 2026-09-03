@@ -75,12 +75,25 @@
 /// (`zone_num_member_channels.cpp:29-31`) and its read/write branch on
 /// `zoneSelectorMenu.whichZone` (`:38`, `:58`, `:68`). That is precisely the shape
 /// `MenuState::patching_param` / `patch_source` / `patch_range_source` already have
-/// (`menu_scene.h`: legacy's `source_selection::regularMenu.s`, read by four pages), and the
-/// mapping rule those three establish is the one applied here: a **`soundEditor.current*` member**
-/// becomes a `MenuContext` field, a **menu-item member read by another page** becomes `MenuState`.
-/// So `MenuState::mpe_direction` / `mpe_zone` are the port, `retarget` drops them with the rest of
-/// the walk's state, and the three items are `CustomItem`s -- a data node's `get`/`set` is handed
-/// only a `const MenuContext&` and could not see either.
+/// (`menu_scene.h`: legacy's `source_selection::regularMenu.s`, read by four pages).
+///
+/// **The rule is two questions, not "where did legacy keep it".** "Legacy stores it on a menu item,
+/// so it is `MenuState`" is only a proxy, and `MenuContext::midi_cable` is the counterexample that
+/// breaks it: a `soundEditor.current*` member -- so context -- that is nonetheless *written* by a
+/// menu item, through `MenuState::midi_cable_choice` and `MenuScene::after_render`. What actually
+/// decides is:
+///
+///   1. **Does a `Binding::get`/`set` -- handed only a `const MenuContext&` -- ever need to see
+///      it?** If yes it must be a `MenuContext` field, whatever legacy called it and whoever writes
+///      it. `midi_cable` answers yes (this page's four data nodes read it), `source_index` answers
+///      yes (`gate_mode`'s hooks read it).
+///   2. **Does it die when the walk is re-rooted?** If yes it is `MenuState`, and `retarget` clears
+///      it with the rest of the walk.
+///
+/// `mpe_direction` / `mpe_zone` answer *no* to (1) -- the only readers are `CustomItem`s, which get
+/// `MenuState` too -- and *yes* to (2). So they are `MenuState`, `retarget` drops them, and the
+/// three items are `CustomItem`s. A future port of a menu-item member that a **data** node has to
+/// read fails (1) and belongs in `MenuContext` with a mailbox, exactly as `midi_cable` does.
 ///
 /// ## What did not survive
 ///
@@ -88,11 +101,17 @@
 ///     `soundEditor.currentMIDICable->getDisplayName()` (`gui/menu_item/midi/device.h:8`), a
 ///     device-supplied string with no l10n id; `Node::title` is one static `uint16_t` and
 ///     `MenuScene::render_vertical` draws it directly, so the page carries "MIDI DEVICES" instead
-///     of the device's own name. Exactly the class of gap `nodes/dynamic.h` already records for
-///     `setCvNumberForTitle` -- and the same one, for the same reason: a submenu has no
-///     `CustomItem` to compute a title from. (Legacy's `name` is `EMPTY_STRING`, which
-///     `validate_tree` reports as `MissingTitle`, so the port names it too -- the resolution
-///     `gate_off_time` already uses, `settings.h`.)
+///     of the device's own name -- **the same string its parent row shows**, so on the device
+///     nothing on this screen says which cable is being edited.
+///
+///     This is not an isolate. It is the same root cause as `cv::Selection`'s / `gate::Selection`'s
+///     unnumbered "CV OUTPUT N" titles (`nodes/dynamic.h`'s "What is still owed"), and the fix is
+///     one framework hook rather than three local workarounds: a `CustomItem` can already draw any
+///     title it likes (`MpeDirectionItem` does exactly that), but a `Kind::Submenu` has no
+///     `CustomItem` at all. **Filed as an E3 carry-list item** in `src/scenes/README.md` -- "A
+///     `Node` cannot compute its own title" -- with the shape it wants; do not solve it here.
+///     (Legacy's `name` is `EMPTY_STRING`, which `validate_tree` reports as `MissingTitle`, so the
+///     port names it too -- the resolution `gate_off_time` already uses, `settings.h`.)
 ///   * **`zoneSelectorMenu`'s empty name.** `ZoneSelector` is default-constructed
 ///     (`zone_selector.cpp:23`), so both its name and title are `EMPTY_STRING` and legacy draws a
 ///     blank title bar over it. `MissingTitle` again, so the port names it `STRING_FOR_MPE` --

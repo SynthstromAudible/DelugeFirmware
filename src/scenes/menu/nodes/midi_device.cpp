@@ -93,9 +93,20 @@ uint8_t chosen(const MenuState& state, int32_t count) {
 ///
 /// `DirectionSelector::beginSession` (`mpe/direction_selector.cpp:24-29`) and
 /// `ZoneSelector::beginSession` (`mpe/zone_selector.cpp:25-30`) assign their member only when
-/// `navigatedBackwardFrom == nullptr`; `CustomItem::on_focus` fires only on a descent
-/// (`src/scenes/README.md`, "`on_focus` is the forward arm only"), which is that condition one hop
-/// earlier. Both legacy zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` and
+/// `navigatedBackwardFrom == nullptr`, and `MenuScene::ascend()` never runs `on_focus` at all
+/// (`src/scenes/README.md`, "`on_focus` is the forward arm only"). That is the same condition one
+/// hop earlier for the path that matters here -- the walk back up from the page this item chained
+/// to keeps the cursor rather than resetting it.
+///
+/// **Not "only on a descent", though** (fix round 1, minor 1): `enter_leaf` also runs `on_focus`
+/// for `FocusCause::Restored` -- `open()`, a `SceneId` deep link, the shortcut-pad jump,
+/// `restore_state` rebuilding a saved path -- for any item whose `on_focus_is_press()` is false, as
+/// these two are. Only the *ascend* path is excluded. That is right here and needs no
+/// `on_focus_is_press`: legacy runs `beginSession` on all of those too
+/// (`SoundEditor::focusRegained` -> `beginScreen`), and this hook writes no model state, only a
+/// cursor and a `MenuState` selection.
+///
+/// Both legacy zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` and
 /// `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`io/midi/midi_device.h:33`, `:36`).
 void focus_selection(MenuState& state) {
 	const size_t d = depth_of(state);

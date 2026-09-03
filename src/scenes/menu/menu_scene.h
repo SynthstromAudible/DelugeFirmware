@@ -314,9 +314,16 @@ struct MenuState {
 	/// `zoneSelectorMenu.whichZone` (`:38`, `:58`, `:68`).
 	///
 	/// Exactly the shape `patching_param`/`patch_source` above have, and placed here by the same
-	/// rule: a `soundEditor.current*` member becomes a `MenuContext` field, a **menu-item member
-	/// another page reads** becomes `MenuState` navigation state. They are why the three MPE items
-	/// are `CustomItem`s -- a `Binding::get`/`set` sees only a `const MenuContext&`.
+	/// two-part test (`nodes/midi_device.h` argues it in full, and says why "legacy kept it on a
+	/// menu item" is only a proxy -- `MenuContext::midi_cable` is a `soundEditor.current*` member
+	/// that a menu item nonetheless writes):
+	///
+	///   1. Could a `Binding::get`/`set`, handed only a `const MenuContext&`, ever need to see it?
+	///      If yes it must be a `MenuContext` field. These two: **no** -- their only readers are
+	///      `CustomItem`s, which are handed `MenuState` as well.
+	///   2. Does it die when the walk is re-rooted? If yes it belongs here. These two: **yes**.
+	///
+	/// Which is also why the three MPE items are `CustomItem`s rather than data nodes.
 	///
 	/// @note Both zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` and
 	///       `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`io/midi/midi_device.h:33`, `:36`) -- which is also

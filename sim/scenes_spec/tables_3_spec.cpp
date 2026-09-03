@@ -1972,7 +1972,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		// (`midi::Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp:154-156`), and the
 		// two MPE selectors under it chain onward -- `mpe_direction` -> `mpe_zone`
 		// (`mpe/direction_selector.cpp:31-33`) -> `mpe_zone_num_member_channels`
-		// (`mpe/zone_selector.cpp:31-33`). All three are unconditional, so all three are swept here
+		// (`mpe/zone_selector.cpp:32-34`). All three are unconditional, so all three are swept here
 		// under every context and every one lands inside its own one-element span.
 		expect(chaining_nodes).to_equal(size_t(71));
 		expect(answers > size_t(0)).to_be_true();

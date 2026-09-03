@@ -514,13 +514,18 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 		MenuContext on_b = f.ctx;
 		on_b.midi_cable = f.b.get();
 
+		// Each write is deliberately a **no-op on the cable it addresses** and would be a *change*
+		// on the other one, because `baseline()` gives the two cables opposite values (fix round 1,
+		// minor 4: the first cut wrote the value the neighbour already held, so half of it passed
+		// whichever cable the hook reached). The four assertions below can therefore only hold if
+		// the write landed where it was addressed.
 		baseline(*f.a, *f.b);
-		bindings::write(nodes::device_is_relative, on_a, 1);
-		bindings::write(nodes::device_send_clock, on_b, 1);
-		expect(f.a->is_relative).to_be_true();
-		expect(f.b->is_relative).to_be_true(); // the baseline's own value, untouched
-		expect(f.a->sendClock).to_be_true();   // ditto
-		expect(f.b->sendClock).to_be_true();
+		bindings::write(nodes::device_is_relative, on_a, 0); // A is already false, B is true
+		bindings::write(nodes::device_send_clock, on_b, 0);  // B is already false, A is true
+		expect(f.a->is_relative).to_be_false();
+		expect(f.b->is_relative).to_be_true(); // a write that reached B would have cleared it
+		expect(f.b->sendClock).to_be_false();
+		expect(f.a->sendClock).to_be_true(); // a write that reached A would have cleared it
 
 		baseline(*f.a, *f.b);
 		bindings::write(nodes::device_send_clock, on_b, 1);
@@ -705,9 +710,16 @@ describe midi_device_mpe("scenes::menu E3 task 8: the MPE direction, zone and me
 
 	it("titles the direction page from its own value, as DirectionSelector::getTitle does", _ {
 		// `direction_selector.h:40-43` -- the runtime title. `Node::title` is one static id, which is
-		// half of why this item is bespoke; the check is that the *text the item would draw* tracks
-		// the value and matches legacy's answer for the same value. (That it really reaches the
-		// panel is the pair of goldens below.)
+		// half of why this item is bespoke.
+		//
+		// **What this pins, and what it does not** (fix round 1, minor 3). Both sides spell the same
+		// l10n mapping -- legacy's `getTitle()` picks MPE OUTPUT on a non-zero `whichDirection`, and
+		// the expectation below restates that -- so this is a *transcription* check on the mapping,
+		// not an independent comparison: swap the two ids inside `MpeDirectionItem::render` and this
+		// example still passes. What catches that swap is the pair of goldens in
+		// `midi_device_pixels` below, which render the item itself one detent apart. The same is
+		// true of the options example that follows: it pins legacy's own option order, not the
+		// port's copy of it.
 		select_language();
 		for (uint8_t direction = 0; direction < 2; direction++) {
 			legacy::mpe::directionSelectorMenu.whichDirection = direction;

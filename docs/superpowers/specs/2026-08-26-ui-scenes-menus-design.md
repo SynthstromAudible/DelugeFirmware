@@ -819,7 +819,28 @@ count are both **55** and the cap is **56**, still exactly one above. Unlike eve
 before it, these are new `Kind::Custom` *nodes*, not placeholders re-pointed at a real item: the
 page did not exist. All three are bespoke for one reason — their value is `MenuState` navigation
 state (`mpe_direction`/`mpe_zone`, legacy's two menu-item members that a third page reads), which a
-`Binding`'s `get`/`set` hook, handed only a `const MenuContext&`, cannot see. The direction selector
+`Binding`'s `get`/`set` hook, handed only a `const MenuContext&`, cannot see.
+
+*The `MenuState` vs `MenuContext` rule, stated operationally (task-8 review, Important 1).* It is
+tempting to summarise the placement as "legacy stored it on a menu item, so it is `MenuState`", and
+that is **wrong as a rule** — it is only a proxy that happens to agree here.
+`MenuContext::midi_cable` is the counterexample: a `soundEditor.current*` member, so context, that is
+nonetheless *written* by a menu item (`midi::Devices`) through a one-shot mailbox
+(`MenuState::midi_cable_choice` → `MenuScene::after_render`). Who writes a value says nothing about
+where it lives. Two questions decide it, in this order:
+
+1. **Can a `Binding::get`/`set` — handed only a `const MenuContext&` — ever need to see it?** If
+   yes it must be a `MenuContext` field, whatever legacy called it and whoever writes it; a menu
+   item that has to set it does so through a mailbox. `midi_cable` answers yes (the per-device
+   page's four *data* nodes read it); `source_index` answers yes (`gate_mode`'s hooks read it).
+2. **Does it die when the walk is re-rooted?** If yes it is `MenuState`, and `retarget` clears it
+   along with the rest of the walk.
+
+`mpe_direction`/`mpe_zone` answer **no** to (1) — their only readers are `CustomItem`s, which are
+handed `MenuState` too — and **yes** to (2), so `MenuState` is right and the three items are
+necessarily bespoke. A later port of a menu-item member that a **data** node must read fails (1) and
+belongs in `MenuContext` with a mailbox, exactly as `midi_cable` does. Recorded because the
+one-line proxy would give that port the wrong answer. The direction selector
 is additionally bespoke because `DirectionSelector::getTitle()` is computed from that value
 (`gui/menu_item/mpe/direction_selector.h:40-43`) and a `Node::title` is one static id. The page's
 other four children are ordinary data nodes over a `get`/`set` family scoped to
