@@ -710,7 +710,16 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// binds has to be a property of the item: `CustomItem::learn_*` is handed `MenuState`, not
 		// its own `Node`, so an item that shared one instance across the twelve could not tell which
 		// of the twelve slots it was being asked to learn onto.
-		expect(distinct_items).to_equal(size_t(52));
+		//
+		// E3 task 8 adds **three**, and they are the first additions that are also *new nodes*
+		// rather than retired placeholders: `kMpeDirectionItem`, `kMpeZoneItem` and
+		// `kMpeZoneChannelsItem` (`nodes/midi_device.h`), the three pages of the MPE arm under the
+		// per-device MIDI page `midi_devices` now chains to. All three are bespoke because their
+		// value is `MenuState` navigation state (`mpe_direction`/`mpe_zone`) that a
+		// `Binding::get`/`set` -- handed only a `const MenuContext&` -- cannot see, and the
+		// direction selector additionally computes its title from that value. The other four
+		// children of that page are ordinary data nodes. So the count goes 52 -> **55**.
+		expect(distinct_items).to_equal(size_t(55));
 		expect(distinct_items).to_equal(menu::kShippedCustomNodes); // one item per node, nothing shared
 
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});

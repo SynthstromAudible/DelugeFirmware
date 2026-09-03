@@ -812,7 +812,24 @@ suppressing option since E3 task 7; the `DELUGE_SCENES_E1_PARTIAL` macro the pla
 proposed was never built); and gold-knob acceleration
 (`calcNextKnobSpeed`).
 
+*E3 amendment (task 8) — the count moves for the first time by* addition. The per-device MIDI page
+(`menu/nodes/midi_device.h`, the carry-list row below) adds **three** bespoke items —
+`MpeDirectionItem`, `MpeZoneItem`, `MpeZoneChannelsItem` — so the node count and the distinct-item
+count are both **55** and the cap is **56**, still exactly one above. Unlike every E3 addition
+before it, these are new `Kind::Custom` *nodes*, not placeholders re-pointed at a real item: the
+page did not exist. All three are bespoke for one reason — their value is `MenuState` navigation
+state (`mpe_direction`/`mpe_zone`, legacy's two menu-item members that a third page reads), which a
+`Binding`'s `get`/`set` hook, handed only a `const MenuContext&`, cannot see. The direction selector
+is additionally bespoke because `DirectionSelector::getTitle()` is computed from that value
+(`gui/menu_item/mpe/direction_selector.h:40-43`) and a `Node::title` is one static id. The page's
+other four children are ordinary data nodes over a `get`/`set` family scoped to
+`MenuContext::midi_cable`. Three rows of the `selectButtonPress()` sweep's group (b) above are
+ported with it: `midi::Devices` → `midiDeviceMenu`, `mpe::DirectionSelector` → `zoneSelectorMenu`
+and `mpe::ZoneSelector` → `zoneNumMemberChannelsMenu`.
+
 ---
+
+
 
 ## 12. Amendments closing E2 (2026-08-30, Tasks 1–13 of `2026-08-30-ui-scenes-menus-2.md`)
 
@@ -1082,7 +1099,7 @@ carries the same table with pointers into the code.
 | carried | why it was not done | size |
 |---|---|---|
 | ~~**The file/sample family** — 11 nodes still `nodes::kPending`~~ **CLOSED by E3 tasks 6 and 7.** (Accurate as E2 history: at the close of E2 these eleven were still placeholders. `kPendingCustomNodes` is now **0** — see the E3 amendments in §11.) | needed the card; every other item family was reachable without it | was the largest remaining group. `validate.h`'s `kPendingCustomNodes` names the exact set, pinned by node identity so closing it was a deliberate spec change |
-| **`midiDeviceMenu`'s subtree** (`gui/ui/menus.cpp:1444-1453`) — `midi_devices` has no `select_chain` because its target page is declared by no node | size, and only size. Tasks 3 and 9 each declared a *single* chain-target page; this is several times that | ~8 nodes, 3 bespoke: a new submenu, four leaves needing a binding family scoped to `MenuContext::midi_cable` (per-cable state, unlike every binding shipped), plus `mpe::DirectionSelector` — itself bespoke, with instance state, a runtime `getTitle()` and its own chain onward to `zoneSelectorMenu` |
+| ~~**`midiDeviceMenu`'s subtree** (`gui/ui/menus.cpp:1444-1453`)~~ — **CLOSED by E3 task 8** (`menu/nodes/midi_device.{h,cpp}`): eight nodes, the four-hook per-cable family over `MenuContext::midi_cable`, the three-item MPE arm with its two onward chains, and `midi_devices`' own `select_chain`. | was size, and only size. Tasks 3 and 9 each declared a *single* chain-target page; this was several times that | landed as ~8 nodes, 3 bespoke, exactly as estimated. `whichDirection`/`whichZone` went to `MenuState` (not `MenuContext`) by the mapping rule the patch-cable trio set: a `soundEditor.current*` member is context, a menu-item member another page reads is scene state |
 | **Splitting session from arranger** — `song_midi_learn` and `configure_song_macros` stay visible in the arranger where legacy hides them | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:265` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
 | **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback`, the three `shouldBlinkPatchingSourceShortcut` overrides and `patchingSourceShortcutPress` | `MenuScene::render_grid` owns one blink cycle keyed off the focused *node*; consulting the focused `CustomItem` needs a hook on `CustomItem` and a second blink source | same shape of change as routing MIDI to `MenuScene::learn_*` |
 | **The row-scrolling path is untested, not missing** — `ui/oled/list.cpp:156` does run `scroll_text` on the focused row with motion allowed | every over-long row in the recorded goldens is *unselected*, which legacy truncates too. (Legacy does **not** side-scroll long *titles*: `draw_screen_title` is a plain clipped `draw_string`, so a truncated title is faithful) | one level-2 script parking the cursor on a long row across quiet ticks |

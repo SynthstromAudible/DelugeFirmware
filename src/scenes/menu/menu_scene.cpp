@@ -279,6 +279,11 @@ void MenuScene::retarget(const Node& node) {
 	st_.patching_param = 255;
 	st_.patch_source = PatchSource::NOT_AVAILABLE;
 	st_.patch_range_source = PatchSource::NOT_AVAILABLE;
+	// And the same for the MPE pages' direction and zone: they belong to the walk that reached the
+	// device page, not to the tree, and each selector's own `beginSession` forward arm assigns
+	// exactly these two values anyway (`mpe/direction_selector.cpp:25-27`, `mpe/zone_selector.cpp:26-28`).
+	st_.mpe_direction = 0;
+	st_.mpe_zone = 0;
 	// Same reasoning for the scene a custom item asked to open: it belongs to the item this
 	// re-rooting abandons. Cleared *before* `enter_leaf` below, which is the one call that can
 	// legitimately set it again (landing straight on an `EditNameItem` through `SceneId::arg`).

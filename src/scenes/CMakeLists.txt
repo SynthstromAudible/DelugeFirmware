@@ -49,6 +49,7 @@ add_library(deluge_scenes STATIC
     menu/nodes/dynamic.cpp
     menu/nodes/edit_name.cpp
     menu/nodes/midi_command.cpp
+    menu/nodes/midi_device.cpp
     menu/nodes/multi_range.cpp
     menu/nodes/output_items.cpp
     menu/nodes/patch_cables.cpp

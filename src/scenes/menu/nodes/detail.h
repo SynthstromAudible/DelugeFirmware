@@ -64,6 +64,17 @@ constexpr Node with_range(Node n, IntRange r) {
 	return n;
 }
 
+/// @brief @p n with an explicit `Binding::style` -- the unit suffix, or "OFF" in place of 0.
+///
+/// `int_value`/`decimal_value` take a `ValueStyle` (`ui/oled/values.h:23-28`) and
+/// `MenuScene::render_leaf_int` hands it `node.bind.style`, but no builder has an argument for one.
+/// The port of legacy's presentation *subclasses* of `Integer`: `IntegerWithOff` draws 0 as "OFF"
+/// (`gui/menu_item/integer.cpp:41-50`), which is `off_at_zero`.
+constexpr Node with_value_style(Node n, deluge::ui::oled::ValueStyle style) {
+	n.bind.style = style;
+	return n;
+}
+
 /// @brief @p n with a relevance predicate, for a builder whose signature has no room for one.
 ///
 /// `sync_level_item()` and the `with_*` chain cover most cases; this exists for the few nodes built

@@ -132,30 +132,34 @@ enum class Flag : uint16_t {
 /// switched off for exactly the phase it was meant to police.
 ///
 /// Counting nodes makes it live today, at the cost of no longer being spec E's number: the shipped
-/// tree has **52** `Kind::Custom` nodes reachable from `nodes::kAllRoots` -- 64 through E2 task 9,
+/// tree has **55** `Kind::Custom` nodes reachable from `nodes::kAllRoots` -- 64 through E2 task 9,
 /// less the nine E2 task 11 turned into ordinary `Kind::Enum` items (the six pad colours, the play
 /// cursor, the dev-sysex setting and the shortcuts version) and the three E2 task 11b turned into
-/// `Kind::Range` (`default_tempo`, `default_swing_amount`, `default_key`) -- behind **52 distinct
+/// `Kind::Range` (`default_tempo`, `default_swing_amount`, `default_key`) -- behind **55 distinct
 /// items, every one of them real**. E3 task 6 added nine, one per (item, source) pair
 /// (`nodes/sample.h`), and E3 task 7 the last two (`nodes/output_items.h`); the shared
 /// `nodes::kPending` placeholder left the set with them, which is why 51 became 52 rather than 53.
-/// Node count and distinct-item count are now equal: no two nodes share an item.
+/// **E3 task 8 added the last three**: the MPE direction and zone selectors and the member-channel
+/// editor (`nodes/midi_device.h`), which are bespoke because their value is `MenuState` navigation
+/// state a `Binding::get`/`set` cannot see. Node count and distinct-item count are still equal: no
+/// two nodes share an item.
 /// So the cap is pinned just above that count rather than at 10: it is a ratchet against the escape
 /// hatch growing unnoticed, not a claim that ten was ever achievable.
-/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 52 separately, so a table that adds a custom node has to say
+/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 55 separately, so a table that adds a custom node has to say
 /// so in two places. Recorded in `docs/superpowers/specs/2026-08-26-ui-scenes-menus-design.md`'s amendments and in
 /// `src/scenes/README.md`.
 ///
-/// **E2 task 12 ratcheted it from 56 to 53.** The cap was sized against E2 task 9's tree and then
-/// three item tasks took nodes back out of the escape hatch without it following them down; a cap
-/// four above the count is four bespoke items an inattentive table could add for free.
-inline constexpr size_t kMaxCustomNodes = 53;
+/// **E2 task 12 ratcheted it from 56 to 53**, and E3 task 8 moved it back to 56 -- still exactly
+/// one above the count, which is the standing rule. The cap was once sized against E2 task 9's
+/// tree and then three item tasks took nodes back out of the escape hatch without it following them
+/// down; a cap four above the count is four bespoke items an inattentive table could add for free.
+inline constexpr size_t kMaxCustomNodes = 56;
 
 /// @brief The number of `Kind::Custom` nodes the shipped tree actually has (`kAllRoots`).
 ///
 /// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
 /// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
-inline constexpr size_t kShippedCustomNodes = 52;
+inline constexpr size_t kShippedCustomNodes = 55;
 
 /// @brief How many of `kShippedCustomNodes` still point at `nodes::kPending`.
 ///

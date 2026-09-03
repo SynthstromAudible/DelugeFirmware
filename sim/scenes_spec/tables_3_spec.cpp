@@ -689,6 +689,9 @@ std::array<int32_t, 3> probe_values(const menu::IntRange& r) {
 /// spec in this suite uses.
 constexpr uint8_t kSelectEncoderIndex = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+/// The BACK button's matrix position, the same pair `context_menu_scene_spec.cpp:124` and
+/// `rename_scene_spec.cpp:110` use.
+constexpr uint8_t kBackX = 7, kBackY = 1;
 
 /// @brief Detaches `$DELUGE_SD_ROOT` for the scope, and restores it after.
 ///
@@ -1964,7 +1967,14 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		// pages (`source_selection_{regular,range}`, `patch_cable_strength_{regular,range}`), the
 		// three items that open one (`patch_cables`, `vibrato`, `sidechain_volume`), and the range
 		// picker. 7 + 53 + 4 + 3 + 1 = 68.
-		expect(chaining_nodes).to_equal(size_t(68));
+		//
+		// **71 after E3 task 8**: `midi_devices` gains the chain to the per-device page
+		// (`midi::Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp:154-156`), and the
+		// two MPE selectors under it chain onward -- `mpe_direction` -> `mpe_zone`
+		// (`mpe/direction_selector.cpp:31-33`) -> `mpe_zone_num_member_channels`
+		// (`mpe/zone_selector.cpp:31-33`). All three are unconditional, so all three are swept here
+		// under every context and every one lands inside its own one-element span.
+		expect(chaining_nodes).to_equal(size_t(71));
 		expect(answers > size_t(0)).to_be_true();
 	});
 
@@ -2640,12 +2650,30 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		at += 10;
 		expect(int(menu_scene().state().list[1].cursor)).to_equal(2);
 
+		// E3 task 8: this press no longer ascends. `midi_devices` chains to the per-device page
+		// (`Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp:154-156`), so the way back
+		// up to the MIDI page is now two BACK presses rather than one select press -- which is a
+		// *stronger* round trip for what this example is about, because `MenuScene::ascend` never
+		// runs `on_focus` and only the re-descent below can put the cursor back.
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
-		r.shell.tick(at + 5); // a leaf's select press with no chain goes up
+		r.shell.tick(at + 5);
 		at += 10;
-		expect(menu_scene().focused() == &nodes::midi_settings).to_be_true();
+		expect(menu_scene().focused() == &nodes::midi_device).to_be_true();
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
 		at += 10;
+		r.button(kBackX, kBackY, true, at);
+		r.shell.tick(at + 5);
+		at += 10;
+		r.button(kBackX, kBackY, false, at);
+		at += 10;
+		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();
+		r.button(kBackX, kBackY, true, at);
+		r.shell.tick(at + 5);
+		at += 10;
+		r.button(kBackX, kBackY, false, at);
+		at += 10;
+		expect(menu_scene().focused() == &nodes::midi_settings).to_be_true();
+
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
 		r.shell.tick(at + 5);
 		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();

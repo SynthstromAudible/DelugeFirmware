@@ -89,8 +89,9 @@
 ///       call, the shape `MultiRangeItem`/`range_choice` established. (2) `cv_selection` and
 ///       `gate_selection` are real `CustomItem`s now (`nodes/dynamic.h`), so their renderers do
 ///       report a select press and the interpreter does fire the hooks. What is still owed is
-///       narrower and is listed in `nodes/dynamic.h`: the formatted "CV OUTPUT 3" titles, and the
-///       per-device page `midi_devices` would chain to.
+///       narrower and is listed in `nodes/dynamic.h`: the formatted "CV OUTPUT 3" titles. (The
+///       third chain, `midi_devices` -> the per-device page, was owed until **E3 task 8** and is
+///       declared just below; the page itself is `nodes/midi_device.h`.)
 ///
 /// @note **Three write side effects stay behind, and are gaps, not omissions.**
 ///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`
@@ -114,6 +115,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
 #include "scenes/menu/nodes/midi_command.h" // the twelve `MidiCommandItem`s
+#include "scenes/menu/nodes/midi_device.h"  // the per-device page `midi_devices` chains to
 #include "scenes/menu/nodes/roots.h"        // kThresholdModeNames, and `kPending` through it
 #include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem (task 11b)
 #include "scenes/menu/relevance.h"
@@ -630,8 +632,14 @@ inline constexpr Node midi_commands = submenu(sid(String::STRING_FOR_COMMANDS), 
 
 inline constexpr Node midi_input_differentiation = toggle_item(
     sid(String::STRING_FOR_DIFFERENTIATE_INPUTS), get_midi_input_differentiation, set_midi_input_differentiation);
-inline constexpr Node midi_devices =
-    with_title(custom(sid(String::STRING_FOR_DEVICES), &kMidiDevicesItem), sid(String::STRING_FOR_MIDI_DEVICES));
+/// The device list, and the per-device page a select press on it opens --
+/// `Devices::selectButtonPress` returns `&midiDeviceMenu` unconditionally
+/// (`gui/menu_item/midi/devices.cpp:154-156`). The page and its chain hook are `nodes/midi_device.h`;
+/// this is the edge that makes them reachable, numbered, validated and dumped (E3 task 8, the debt
+/// `nodes/dynamic.h` recorded).
+inline constexpr Node midi_devices = with_select_chain(
+    with_title(custom(sid(String::STRING_FOR_DEVICES), &kMidiDevicesItem), sid(String::STRING_FOR_MIDI_DEVICES)),
+    midi_devices_chain, kMidiDevicesChain);
 
 inline constexpr const Node* kMidiChildren[] = {
     &midi_clock,    &midi_follow,   &midi_select_kit_row,        &midi_thru,   &midi_transpose_method,

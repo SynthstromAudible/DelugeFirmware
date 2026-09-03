@@ -304,6 +304,31 @@ struct MenuState {
 	Polarity patch_polarity = Polarity{1}; // Polarity::BIPOLAR
 	/// @}
 
+	/// @name The MPE pages' shared selection -- legacy's two menu-item members, as scene state.
+	///
+	/// `mpe::DirectionSelector::whichDirection` (`gui/menu_item/mpe/direction_selector.h:39`) and
+	/// `mpe::ZoneSelector::whichZone` (`mpe/zone_selector.h:41`) are members of two singleton menu
+	/// items that a **third** page reads: `ZoneNumMemberChannels::getPort()` indexes
+	/// `currentMIDICable->ports[directionSelectorMenu.whichDirection]`
+	/// (`mpe/zone_num_member_channels.cpp:29-31`) and its read/write/bounds all branch on
+	/// `zoneSelectorMenu.whichZone` (`:38`, `:58`, `:68`).
+	///
+	/// Exactly the shape `patching_param`/`patch_source` above have, and placed here by the same
+	/// rule: a `soundEditor.current*` member becomes a `MenuContext` field, a **menu-item member
+	/// another page reads** becomes `MenuState` navigation state. They are why the three MPE items
+	/// are `CustomItem`s -- a `Binding::get`/`set` sees only a `const MenuContext&`.
+	///
+	/// @note Both zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` and
+	///       `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`io/midi/midi_device.h:33`, `:36`) -- which is also
+	///       what each selector's `beginSession` forward arm assigns, so the initialiser here and
+	///       `retarget`'s reset say the same thing legacy's own entry does.
+	/// @{
+	/// `directionSelectorMenu.whichDirection`: 0 = into the Deluge, 1 = out of it.
+	uint8_t mpe_direction = 0;
+	/// `zoneSelectorMenu.whichZone`: 0 = the lower zone, 1 = the upper.
+	uint8_t mpe_zone = 0;
+	/// @}
+
 	/// @brief A scene a focused `CustomItem` asked the shell to push, or `SceneKind::Null` for
 	///        none.
 	///

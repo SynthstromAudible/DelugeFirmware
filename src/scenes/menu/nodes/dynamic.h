@@ -46,11 +46,14 @@
 ///
 /// ## What is still owed
 ///
-///   * **The per-device page.** `Devices::selectButtonPress` returns `&midiDeviceMenu`
-///     (`devices.cpp:154-156`), the five-child submenu at `gui/ui/menus.cpp:1444-1453` (MPE
-///     direction selector, default velocity, clock out, clock in, is-relative). No node in this
-///     tree declares it, so `midi_devices` has no `select_chain` and a press ascends. The page is
-///     a subtree of its own and belongs to whoever ports `mpe::DirectionSelector`.
+///   * ~~**The per-device page.**~~ **Paid, E3 task 8** (`nodes/midi_device.h`).
+///     `Devices::selectButtonPress` returns `&midiDeviceMenu` (`devices.cpp:154-156`), the
+///     five-child submenu at `gui/ui/menus.cpp:1444-1453` (MPE direction selector, default
+///     velocity, clock out, clock in, is-relative); all five are declared now, `midi_devices`
+///     carries the `select_chain` that reaches them (`settings.h`), and the MPE arm's two further
+///     chained pages come with it. What that page still owes is one thing only, and it is the same
+///     thing as the next bullet: `midi::Device::getTitle()` is the device's own display name
+///     (`gui/menu_item/midi/device.h:8`) and a `Node::title` is one static id.
 ///   * **The formatted titles.** `setCvNumberForTitle` / `gateModeMenu.format(value + 1)`
 ///     (`cv/selection.h:43`, `gate/selection.h:50`) put the output number into the *destination*
 ///     page's title; a `Node::title` is one static string id, so the port carries the unformatted
