@@ -31,10 +31,12 @@
 ///       `browser_scene_spec.cpp` and `marker_scene_spec.cpp` run under.
 
 #include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 
+#include "shell/leds.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/core/led_frame.h"
@@ -46,6 +48,7 @@
 #include "hid/display/oled.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/audio/audio_file_holder.h"
@@ -180,6 +183,19 @@ struct Rig {
 		shell.init(SceneId{kRecorderSceneKind, 0});
 	}
 
+	/// @brief Open the recorder ON TOP of the sound menu, which is where a node actually opens it.
+	///
+	/// The stack the LED example needs: `LedCompose::compose` runs bottom to top and the last
+	/// writer wins, so "the recorder's SYNTH/KIT answer beats the menu's" is only a claim about a
+	/// stack with both scenes on it.
+	void open_over_menu() {
+		const MenuContext c = ctx();
+		menu_scene().open(*menu::MenuScene::roots()[static_cast<size_t>(MenuContext::Root::Sound)], c);
+		shell.init(SceneId{deluge::ui::shell::SceneKind::FirstApp, 0});
+		recorder_scene().open(c);
+		(void)shell.stack().push(SceneId{kRecorderSceneKind, 0});
+	}
+
 	void tick(uint32_t at_ms) { shell.tick(at_ms); }
 
 	/// @brief Press a button down. `ButtonId` -> board matrix coordinate, so the shell's own
@@ -271,6 +287,9 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		deluge::notify::Notice discard;
 		while (deluge::notify::notices().pop(discard)) {}
 		deluge::notify::dirty().drain();
+		// The foreground-recording publication is a PROCESS global too, and `can()` now reads it
+		// (fix round 1). An example that ended with it set would make the next one refuse to open.
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
 	});
 
 	// --- arming -------------------------------------------------------------------------------
@@ -515,6 +534,13 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().recording()).to_be_false();
 		expect(static_cast<int32_t>(rec->status.load())).to_equal(static_cast<int32_t>(RecorderStatus::ABORTED));
 		expect(rec->pointerHeldElsewhere).to_be_false();
+		// ...and the foreground-recording publication is cleared, so the nine subsystems that gate
+		// on it do not keep seeing a recording that is over. Without this the leak is invisible:
+		// `before_each` clears the pair defensively, so the next example would not notice either
+		// (fix round 1, mutant F5 -- which survived until this assertion was added).
+		expect(static_cast<int32_t>(audioRecorder.recordingSource))
+		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
+		expect(audioRecorder.recorder == nullptr).to_be_true();
 		// Nothing was attached on the way out.
 		expect(r.range->getAudioFileHolder()->audioFile == nullptr).to_be_true();
 	});
@@ -533,11 +559,16 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		deluge::scenes::spec::QuietAudio quiet;
 		deluge::scenes::spec::SdRoot root{scratch_root()};
 		Rig r;
-		r.open();
+		r.open_over_menu();
 		r.tick(0);
+		expect(menu_scene().focused() != nullptr).to_be_true(); // else the menu declares nothing
 
+		// Composed over the REAL stack -- `MenuScene` beneath, recorder on top -- rather than by
+		// calling `leds()` directly, because the SYNTH/KIT claim is precisely that this scene's
+		// declaration outranks the menu's (fix round 1, Minor 1). `MenuScene::leds` declares both
+		// OFF, mirroring `SoundEditor::setLedStates` (`sound_editor.cpp:306-307`).
 		deluge::ui::LedFrame f;
-		recorder_scene().leds(f);
+		deluge::ui::shell::LedCompose::compose(f, {}, r.shell.stack().scenes());
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Record)))
 		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Blink));
 		expect(static_cast<int32_t>(led_period(f, ButtonId::Record))).to_equal(60); // kFastFlashTime
@@ -551,6 +582,119 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Off));
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Scale)))
 		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Off));
+	});
+
+	// --- the foreground-recording publication ---------------------------------------------------
+
+	it("publishes the recording where the nine subsystems that gate on it can see it", _ {
+		// **Fix round 1's critical finding.** `opened()` sets `AudioRecorder::recordingSource` and
+		// `::recorder` (`audio_recorder.cpp:135-138`), and those are not private bookkeeping: nine
+		// subsystems read them. The port publishes them through
+		// `AudioEngine::setForegroundRecording`, which writes the same storage -- so this example
+		// reads the LEGACY members, which is the path all nine readers take.
+		deluge::scenes::spec::QuietAudio quiet;
+		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+
+		// Nothing plugged in, so `opened()`'s stereo test is false and the channel is LEFT
+		// (`audio_recorder.cpp:92-95`).
+		expect(static_cast<int32_t>(audioRecorder.recordingSource))
+		    .to_equal(static_cast<int32_t>(AudioInputChannel::LEFT));
+		expect(audioRecorder.recorder == rec).to_be_true();
+
+		// ...and cleared once the recording is over.
+		rec->status = RecorderStatus::COMPLETE;
+		rec->hadCardError = true; // refuse the attach; this example is about the publication
+		r.tick(10);
+		expect(static_cast<int32_t>(audioRecorder.recordingSource))
+		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
+		expect(audioRecorder.recorder == nullptr).to_be_true();
+	});
+
+	it("keeps input monitoring alive for the whole recording", _ {
+		// The consequence the state assertion above exists for, asserted as BEHAVIOUR:
+		// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`) enables `doMonitoring`
+		// only for `STEREO`/`LEFT` and double-checks the recorder pointer. A port that armed a
+		// recorder without publishing it records correctly and leaves the user hearing nothing.
+		deluge::scenes::spec::QuietAudio quiet;
+		deluge::scenes::spec::SdRoot root{scratch_root()};
+		const InputMonitoringMode saved = AudioEngine::inputMonitoringMode;
+		AudioEngine::inputMonitoringMode = InputMonitoringMode::ON;
+
+		AudioEngine::setMonitoringMode();
+		expect(AudioEngine::doMonitoring).to_be_false(); // nothing armed yet
+
+		Rig r;
+		r.open();
+		r.tick(0);
+		AudioEngine::setMonitoringMode();
+		expect(AudioEngine::doMonitoring).to_be_true();
+
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->status = RecorderStatus::COMPLETE;
+		rec->hadCardError = true;
+		r.tick(10);
+		AudioEngine::setMonitoringMode();
+		expect(AudioEngine::doMonitoring).to_be_false(); // ...and off again once it is over
+
+		AudioEngine::inputMonitoringMode = saved;
+	});
+
+	it("refuses to open while any foreground recording is already live", _ {
+		// `opened()`'s first refusal (`:69-71`), which is `recordingSource > NONE` -- and which
+		// covers an OUTPUT recording (resampling, stem export) as well as this UI's own.
+		deluge::scenes::spec::QuietAudio quiet;
+		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Rig r;
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT);
+		expect(RecorderScene::can(r.ctx())).to_be_false();
+		r.open();
+		r.tick(0);
+		expect(r.on_stack()).to_be_false();
+		expect(recorder_scene().recording()).to_be_false();
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
+	});
+
+	// --- the popup stall ------------------------------------------------------------------------
+
+	it("does not notice completion while its own clipping popup is up, and does as soon as it goes", _ {
+		// `PopupScene` is not `oled_transparent`, so `Shell::render_oled`'s walk stops at it
+		// (`shell/shell.cpp:485-488`) and this scene is neither rendered nor given an
+		// `after_render()` -- which is where the completion poll lives. A bounded stall, accepted
+		// and documented on `RecorderScene`; this pins both halves of it.
+		deluge::scenes::spec::QuietAudio quiet;
+		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		rec->numSamplesCaptured = 1024;
+		rec->recordingClippedRecently = true;
+		r.tick(10);  // files the popup
+		r.tick(20);  // Notices drains it and pushes SceneKind::Popup
+
+		bool popup_up = false;
+		for (const deluge::ui::shell::Scene* s : r.shell.stack().scenes()) {
+			popup_up = popup_up || s->kind() == deluge::ui::shell::SceneKind::Popup;
+		}
+		expect(popup_up).to_be_true();
+
+		// The recording finishes underneath it, and is NOT noticed.
+		rec->status = RecorderStatus::COMPLETE;
+		rec->hadCardError = true; // refuse the attach; this example is about the stall
+		r.tick(30);
+		r.tick(40);
+		expect(recorder_scene().recording()).to_be_true();
+		expect(r.on_stack()).to_be_true();
+
+		// Past the popup's 800 ms timeout (`shell/notices.cpp:31`) it is noticed, with no input.
+		r.tick(900);
+		r.tick(910);
+		expect(recorder_scene().recording()).to_be_false();
+		expect(r.on_stack()).to_be_false();
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

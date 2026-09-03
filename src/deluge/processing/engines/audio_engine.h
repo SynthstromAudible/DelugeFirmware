@@ -241,6 +241,53 @@ extern AbsValueFollower envelopeFollower;
 extern TaskID routine_task_id;
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
+/// @name The foreground recording
+///
+/// `AudioRecorder::recordingSource` and `AudioRecorder::recorder` (`gui/ui/audio_recorder.h:40-42`)
+/// are not that class's private bookkeeping: **nine subsystems read them** as "a foreground
+/// recording is live". `setMonitoringMode()` below enables input monitoring only for the two
+/// channels the recorder UI arms; `hid/buttons.cpp:147,180` gate shift+RECORD on them;
+/// `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
+/// `playback/playback_handler.cpp:2503`, `playback/mode/arrangement.cpp:328`,
+/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:353,5435` and
+/// `gui/ui/browser/sample_browser.cpp:456` all test one of them.
+///
+/// These two functions are that pair's write and read seam, for a UI that is **not**
+/// `AudioRecorder` -- `deluge::scenes::recorder::RecorderScene`, which may not name a `gui/` global
+/// (`scripts/check_layer_rules.py`, `scenes-no-root-ui`) and would otherwise arm a recording nine
+/// subsystems cannot see. They live here rather than in a new `processing/` file because
+/// `audio_engine.cpp` **already** names `audioRecorder` (`setMonitoringMode` does), so this adds no
+/// layer edge that was not there; a new file would add a `model-includes-ui` baseline row.
+///
+/// @note Not a replacement for `AudioRecorder`'s own writes: `setupRecordingToFile` and
+///       `finishRecording` still assign the members directly, and this is an additional writer of
+///       the same storage.
+/// @{
+/// @brief Publish (or clear) the foreground recording.
+///
+/// The assignment order is legacy's own, in both directions: `setupRecordingToFile` assigns
+/// `recorder` before `recordingSource` under the comment "This sets recording to begin happening
+/// even as the file is created" (`gui/ui/audio_recorder.cpp:135-138`), and `finishRecording` clears
+/// them in the same order (`:250-251`). The audio routine tests `recordingSource` and then
+/// dereferences `recorder`, so the pointer must become visible first and stop being visible last.
+///
+/// @param recorder The armed recorder, or null to clear.
+/// @param source   The channel it captures from, or `AudioInputChannel::NONE` to clear.
+void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source);
+/// @brief The foreground recording's channel -- `AudioRecorder::recordingSource`.
+/// @return `AudioInputChannel::NONE` when nothing is recording.
+AudioInputChannel foregroundRecordingSource();
+/// @}
+
+/// @brief Re-derive `doMonitoring` and `monitoringAction` from the foreground recording.
+///
+/// Called from `routine()` on every render window, so a UI that arms a recording never has to call
+/// it; declared here (it was a file-local forward declaration) so a spec can pin the *behaviour*
+/// the seam above exists to preserve rather than only the two values it writes.
+void setMonitoringMode();
+/// @brief Is live input being monitored through to the output? Set by `setMonitoringMode()`.
+extern bool doMonitoring;
+
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
 } // namespace AudioEngine

@@ -68,10 +68,15 @@ bool RecorderScene::can(const menu::MenuContext& ctx) {
 	if (ctx.sound == nullptr || ctx.source == nullptr || ctx.range == nullptr) {
 		return false;
 	}
-	// `opened()`'s "If we're already recording (probably the output) then no!" (`:69-71`). See the
-	// class docstring: `recordingSource` is a member of the legacy object this layer may not name,
-	// and every external writer of it goes through `beginOutputRecording`, i.e. an internal channel.
-	return !AudioEngine::isAnyInternalRecordingHappening();
+	// `opened()`'s "If we're already recording (probably the output) then no!" (`:69-71`), which is
+	// exactly `recordingSource > AudioInputChannel::NONE`. `recordingSource` is a member of a
+	// `gui/` global this layer may not name (`scenes-no-root-ui`), so it is read through
+	// `AudioEngine::foregroundRecordingSource()` -- the same storage, not a proxy for it.
+	//
+	// Fix round 1: this used to be `AudioEngine::isAnyInternalRecordingHappening()`, which is NOT
+	// the same predicate -- it misses an external (mic/line) recording entirely, and, far worse,
+	// the port that went with it never *published* one either. See the class docstring.
+	return AudioEngine::foregroundRecordingSource() <= AudioInputChannel::NONE;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -124,6 +129,15 @@ bool RecorderScene::setup_recording() {
 	recorder_->allowFileAlterationAfter = true;
 	// `shouldNormalize` defaults true and `opened()` does not pass it (`:94`).
 	recorder_->allowNormalization = true;
+
+	// `recordingSource = newMode` (`:138`, "This sets recording to begin happening even as the file
+	// is created"). **This is not bookkeeping.** Nine subsystems read the pair
+	// (`recorder`, `recordingSource`) as "a foreground recording is live" -- most consequentially
+	// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`), which enables input
+	// monitoring ONLY for `STEREO`/`stereo`-or-`LEFT`, i.e. exactly the two channels this line
+	// arms, and derives `monitoringAction` from the recorder pointer. A port that skipped it would
+	// record correctly and leave the user hearing nothing while they did it.
+	AudioEngine::setForegroundRecording(recorder_, mode);
 	return true;
 }
 
@@ -168,6 +182,9 @@ void RecorderScene::on_exit() {
 	// already run `finish_recording()`.
 	if (recorder_ != nullptr) {
 		recorder_->pointerHeldElsewhere = false;
+		// Unpublished before the abort, for `finish_recording`'s reason: nine subsystems read the
+		// pair, and none of them wants to see an aborted recording still described as live.
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
 		recorder_->abort();
 		recorder_ = nullptr;
 		notify::notice_kind(notify::Notice::Kind::ClearWorking);
@@ -200,6 +217,11 @@ void RecorderScene::attach_sample() {
 	ctx_.source->setOscType(OscType::SAMPLE);
 	AudioFileHolder* holder = ctx_.range->getAudioFileHolder();
 	if (holder == nullptr) {
+		// DIVERGENCE, labelled like the one in `name_drum`: legacy dereferences
+		// `getAudioFileHolder()` unchecked (`:215-216`). Every `MultiRange` subclass returns a
+		// non-null holder, so this is unreachable today; it drops the sample rather than crashing
+		// if that stops being true. The recording is still finished and closed by the caller --
+		// the file is on the card either way, and only the *attach* is skipped.
 		return;
 	}
 	holder->filePath = recorder_->sample->filePath;
@@ -216,6 +238,13 @@ void RecorderScene::finish_recording() {
 	// the same sense: the shell's tick, not a card routine. The guard belongs to the
 	// output-recording reaper, which is not this scene's (see the class docstring).
 	recorder_->pointerHeldElsewhere = false;
+	// DIVERGENCE, deliberate and narrow: legacy clears the published pair *after*
+	// `discardRecorder` (`:248-251`), so for the length of that call `audioRecorder.recorder` names
+	// a freed object while `recordingSource` still says a recording is live -- and
+	// `setMonitoringMode`, which dereferences that pointer, runs from the audio routine. Clearing
+	// first closes the window and changes nothing else: no reader wants either value *during* the
+	// discard.
+	AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
 	AudioEngine::discardRecorder(recorder_);
 	recorder_ = nullptr;
 	stopping_ = false;

@@ -61,14 +61,34 @@
 /// `opened()`, `process()`, `renderOLED`, `buttonAction`, `endRecordingSoon`, `finishRecording` and
 /// `getGreyoutColsAndRows`.
 ///
-/// That split is also why `can()` asks `AudioEngine::isAnyInternalRecordingHappening()` rather than
-/// legacy's `recordingSource > AudioInputChannel::NONE` (`:69-71`): `recordingSource` lives on
-/// `audioRecorder`, which this layer may not name (`check_layer_rules.py`,
-/// `scenes-no-root-ui`), and every way it is set from outside this UI goes through
-/// `beginOutputRecording`, i.e. an *internal* channel (`AudioInputChannel::OUTPUT` and
-/// `OFFLINE_OUTPUT` both sort at or above `AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION`,
-/// `definitions_cxx.hpp:865`). The other half of legacy's guard -- "the recorder UI is already
-/// open" -- is `recorder_ != nullptr` here.
+/// @par `recordingSource` is not bookkeeping, and this scene publishes it (fix round 1)
+///
+/// `AudioRecorder::recordingSource` and `::recorder` (`audio_recorder.h:40-42`) are read by **nine
+/// subsystems** as "a foreground recording is live". Most consequentially
+/// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`) enables input monitoring only
+/// when `recordingSource` is `STEREO` or `LEFT` -- exactly the two values `opened()` sets -- and
+/// derives `monitoringAction` (differential / no-right-channel) from the recorder pointer. The
+/// other eight are `hid/buttons.cpp:147,180` (shift+RECORD must not start an *output* recording on
+/// top of a live mic one), `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
+/// `playback/playback_handler.cpp:2503` (the RECORD LED), `playback/mode/arrangement.cpp:328`,
+/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:353,5435` and
+/// `gui/ui/browser/sample_browser.cpp:456`.
+///
+/// This layer may not name `audioRecorder` (`check_layer_rules.py`, `scenes-no-root-ui`), so both
+/// directions go through `AudioEngine::setForegroundRecording` /
+/// `AudioEngine::foregroundRecordingSource` (`processing/engines/audio_engine.h`) -- **the same
+/// storage, not a proxy for it**. `setup_recording` publishes, `finish_recording` and `on_exit`
+/// clear, and `can()` reads it for legacy's own `recordingSource > NONE` refusal (`:69-71`).
+///
+/// The first version of this scene did none of that: it guessed at legacy's refusal with
+/// `AudioEngine::isAnyInternalRecordingHappening()` (which does not see an external recording at
+/// all) and published nothing, so **input monitoring was dead for the entire recording** -- the
+/// user would have heard silence while recording from mic or line -- and shift+RECORD could have
+/// started an output recording over the top. The split line above ("output recording is not a UI")
+/// was right; the guard's respelling was not.
+///
+/// `recorder_ != nullptr` remains as a second, scene-local test in `on_enter`: it is the same fact
+/// once the publication exists, kept because it is the one this scene can assert about *itself*.
 ///
 /// @par What is deliberately not ported
 ///
@@ -88,6 +108,25 @@
 ///     unreachable from the menu: `isRelevant` and the ported `relevance::is_subtractive` on
 ///     `nodes::sample0_recorder` hide the item in FM mode in the first place, so the popup only
 ///     ever fired on legacy's shortcut-pad path, which `MenuScene` owns.
+///
+/// @par The completion poll stalls under this scene's own popup (fix round 1)
+///
+/// `PopupScene` is not `oled_transparent` (`shell/notices.h`), so `Shell::render_oled`'s
+/// transparency walk stops at it (`shell/shell.cpp:485-488`): while a popup is up this scene is not
+/// rendered, does not enter `rendered_this_tick_`, and therefore gets **no `after_render()` call**
+/// -- which is where the completion poll lives. So a recording that finishes while the clipping
+/// popup this scene itself raises is on screen is not noticed until the popup expires
+/// (`kPopupTimeoutMs`, 800 ms; its removal requests a repaint on every OLED gate, which restarts
+/// the poll).
+///
+/// **A bounded stall, not a hang, and it is accepted rather than worked around.** The alternatives
+/// are worse: making the scene `oled_transparent` would let the recorder's word show through the
+/// popup box, and moving the poll out of `after_render` means it can no longer file the `Remove`
+/// that closes the scene. The user-visible consequence is that a clip in the last second of a
+/// recording delays the "recording finished" transition by up to 800 ms; nothing is lost, because
+/// the recorder's own card routine keeps draining throughout. `recorder_scene_spec` covers it
+/// explicitly -- "does not notice completion while its own clipping popup is up, and does as soon
+/// as it goes".
 ///
 /// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning
 ///          on `Action` in `shell/scene.h`. Legacy's own gate here is

@@ -1055,6 +1055,20 @@ void setMonitoringMode() { // Monitoring setup
 		}
 	}
 }
+
+// The foreground-recording seam. See the doc comment on these two in audio_engine.h: they exist so
+// a recorder UI that is not `AudioRecorder` can publish the pair `setMonitoringMode()` above -- and
+// eight other subsystems -- read. They live in this file because this file already names
+// `audioRecorder`; a new one would add a `model-includes-ui` row to the layer baseline.
+void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) {
+	audioRecorder.recorder = recorder;
+	audioRecorder.recordingSource = source;
+}
+
+AudioInputChannel foregroundRecordingSource() {
+	return audioRecorder.recordingSource;
+}
+
 void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWhichMIDIOrGateOccurs) {
 	bool anyGateOutputPending = cvEngine.isAnythingPending();
 
