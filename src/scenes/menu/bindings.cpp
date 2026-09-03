@@ -262,8 +262,10 @@ struct Serves {
 ///
 /// So the answer comes from what the menu is *editing*, which `context_for` already resolved:
 ///
-///   * no output at all -- the session / arranger arm (`context.cpp`'s `session_or_arranger_root`)
-///     took the song's own param manager, which is `setupUnpatched`'d
+///   * no output at all -- the session / arranger arm (`context.cpp`'s `session_or_arranger_root`,
+///     the WIDE root-UI bool: session, arranger, song automation and performance alike, never the
+///     narrower `session_view_root` E3 task 9 added beside it) took the song's own param manager,
+///     which is `setupUnpatched`'d
 ///     (`deluge.cpp`'s `setupBlankSong`); the settings root has no param manager at all and is
 ///     caught by the null test in `serves_param` instead;
 ///   * `SYNTH` -- `SoundInstrument`, `setupWithPatching`'d (unpatched **and** patched);

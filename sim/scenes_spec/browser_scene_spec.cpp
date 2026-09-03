@@ -440,11 +440,11 @@ struct Rig {
 };
 
 MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 }
 
 MenuContext context_of(spec::AudioSongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 }
 
 /// @brief The catalogue's contents as one comma-joined string, so an order mismatch prints as an

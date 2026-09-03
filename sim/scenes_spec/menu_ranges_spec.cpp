@@ -138,7 +138,8 @@ struct Rig {
 	    : profile(p), fake(board, p) {}
 
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx =
+		    menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});

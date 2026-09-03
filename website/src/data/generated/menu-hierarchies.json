@@ -10466,12 +10466,14 @@
         "type": "submenu"
       },
       {
+        "available_when": "is_session_view",
         "id": 303,
         "name": "Configure Macros",
         "title": "Configure Macros",
         "type": "basic"
       },
       {
+        "available_when": "is_session_view",
         "id": 304,
         "name": "Midi Learn",
         "title": "Midi Learn",

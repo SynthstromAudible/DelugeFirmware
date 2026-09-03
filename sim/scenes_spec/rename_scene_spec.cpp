@@ -241,7 +241,7 @@ spec::SongFixture kit_fixture() {
 }
 
 MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 }
 
 Kit* kit_of(spec::SongFixture& f) {

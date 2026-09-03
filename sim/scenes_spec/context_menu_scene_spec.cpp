@@ -178,7 +178,7 @@ bool has_action(const Result& r, ShellAction::Kind k) {
 }
 
 MenuContext context_of(spec::SongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 }
 
 /// @brief Drop the rows the faceplate hides from a PBM.

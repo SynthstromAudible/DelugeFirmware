@@ -55,6 +55,11 @@
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h" // setRootUILowLevel / nullifyUIs / getRootUI -- the one legacy UI global this spec drives
+#include "gui/views/arranger_view.h"
+#include "gui/views/automation_view.h"
+#include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 
@@ -111,11 +116,13 @@ using deluge::hid::display::OLED;
 #include <cstdint>
 #include <cstdlib>
 #include <initializer_list>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <set>
 #include <span>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -205,6 +212,18 @@ struct Root {
 	const Node* node;
 	MenuContext ctx;
 	Song* song;
+
+	/// @brief The root UI `SoundEditor::setup` would have been opened over, for the one legacy
+	///        `isRelevant` family that reads `getRootUI()` -- `song::MidiLearn` and
+	///        `song::ConfigureMacros` (`gui/menu_item/song/midi_learn.h:35-37`,
+	///        `song/configure_macros.h:35-37`).
+	///
+	/// Set on exactly the two roots that have no clip and therefore a root UI worth naming; null
+	/// everywhere else, which is the state this spec has always run in and which `getRootUI()`
+	/// answers as `nullptr`. Nothing else in the tree reads a UI global, so a null here is not a
+	/// gap: the `agrees with the legacy isRelevant` loop drives this field only when it is set, and
+	/// only around the one legacy call that could read it.
+	UI* root_ui = nullptr;
 };
 
 /// @brief Every root batch 3 declares, plus the sound root batch 2 did (so the `Kind` count and the
@@ -227,61 +246,67 @@ std::vector<Root>& roots() {
 		{ // sound (batch 2's root, re-checked here as part of the whole tree)
 			static spec::SongFixture synth = spec::make_synth_song();
 			r.push_back({"sound", &soundEditorRootMenu, &nodes::sound_root,
-			             menu::context_for(*synth.song, synth.clip, 0, false, false, false), synth.song});
+			             menu::context_for(*synth.song, synth.clip, 0, false, false, false, false), synth.song});
 		}
 		{ // kit row with a SoundDrum
 			static spec::SongFixture kit = spec::make_kit_song();
 			static SoundDrum* drum = spec::add_drum<SoundDrum>(kit);
 			static_cast<Kit*>(kit.instrument)->selectedDrum = drum;
 			r.push_back({"drum", &soundEditorRootMenuDrum, &nodes::root_drum,
-			             menu::context_for(*kit.song, kit.clip, 0, false, false, false), kit.song});
+			             menu::context_for(*kit.song, kit.clip, 0, false, false, false, false), kit.song});
 		}
 		{ // MIDI clip
 			static spec::SongFixture midi = spec::make_midi_song();
 			r.push_back({"midi/cv", &soundEditorRootMenuMIDIOrCV, &nodes::root_midi_or_cv,
-			             menu::context_for(*midi.song, midi.clip, 0, false, false, false), midi.song});
+			             menu::context_for(*midi.song, midi.clip, 0, false, false, false, false), midi.song});
 		}
 		{ // kit row with a MIDIDrum, and one with a GateDrum
 			static spec::SongFixture midi_kit = spec::make_kit_song();
 			static MIDIDrum* midi_drum = spec::add_drum<MIDIDrum>(midi_kit);
 			static_cast<Kit*>(midi_kit.instrument)->selectedDrum = midi_drum;
 			r.push_back({"midi drum", &soundEditorRootMenuMidiDrum, &nodes::root_midi_drum,
-			             menu::context_for(*midi_kit.song, midi_kit.clip, 0, false, false, false), midi_kit.song});
+			             menu::context_for(*midi_kit.song, midi_kit.clip, 0, false, false, false, false),
+			             midi_kit.song});
 
 			static spec::SongFixture gate_kit = spec::make_kit_song();
 			static GateDrum* gate_drum = spec::add_drum<GateDrum>(gate_kit);
 			static_cast<Kit*>(gate_kit.instrument)->selectedDrum = gate_drum;
 			r.push_back({"gate drum", &soundEditorRootMenuGateDrum, &nodes::root_gate_drum,
-			             menu::context_for(*gate_kit.song, gate_kit.clip, 0, false, false, false), gate_kit.song});
+			             menu::context_for(*gate_kit.song, gate_kit.clip, 0, false, false, false, false),
+			             gate_kit.song});
 		}
 		{ // audio clip
 			static spec::AudioSongFixture audio = spec::make_audio_clip_song();
 			r.push_back({"audio clip", &soundEditorRootMenuAudioClip, &nodes::root_audio_clip,
-			             menu::context_for(*audio.song, audio.clip, 0, false, false, false), audio.song});
+			             menu::context_for(*audio.song, audio.clip, 0, false, false, false, false), audio.song});
 		}
 		{ // performance view and the session/arranger root: no clip
 			static spec::SongFixture song_view = spec::make_synth_song();
 			r.push_back({"performance", &soundEditorRootMenuPerformanceView, &nodes::root_performance,
 			             menu::context_for(*song_view.song, nullptr, 0, /*performance_view=*/true,
-			                               /*session_or_arranger_root=*/true, false),
-			             song_view.song});
-			r.push_back(
-			    {"song", &soundEditorRootMenuSongView, &nodes::root_song,
-			     menu::context_for(*song_view.song, nullptr, 0, false, /*session_or_arranger_root=*/true, false),
-			     song_view.song});
+			                               /*session_or_arranger_root=*/true, /*session_view_root=*/false, false),
+			             song_view.song, &performanceView});
+			// The song root as the SESSION view -- one of the three root UIs `:1764-1767` funnels
+			// into it, and the only one where `song_midi_learn` / `configure_song_macros` are shown.
+			// The arranger and song-automation readings of this same root are the dedicated example
+			// below, which drives all three from one table.
+			r.push_back({"song", &soundEditorRootMenuSongView, &nodes::root_song,
+			             menu::context_for(*song_view.song, nullptr, 0, false, /*session_or_arranger_root=*/true,
+			                               /*session_view_root=*/true, false),
+			             song_view.song, &sessionView});
 		}
 		{ // a kit on affect-entire
 			static spec::SongFixture kit_fx = spec::make_kit_song();
 			(void)spec::add_drum<SoundDrum>(kit_fx);
 			kit_fx.clip->affectEntire = true;
 			r.push_back({"kit global fx", &soundEditorRootMenuKitGlobalFX, &nodes::root_kit_global_fx,
-			             menu::context_for(*kit_fx.song, kit_fx.clip, 0, false, false, /*kit_global_fx=*/true),
+			             menu::context_for(*kit_fx.song, kit_fx.clip, 0, false, false, false, /*kit_global_fx=*/true),
 			             kit_fx.song});
 		}
 		{ // settings: no clip, not a session root
 			static spec::SongFixture settings = spec::make_synth_song();
 			r.push_back({"settings", &settingsRootMenu, &nodes::root_settings,
-			             menu::context_for(*settings.song, nullptr, 0, false, false, false), settings.song});
+			             menu::context_for(*settings.song, nullptr, 0, false, false, false, false), settings.song});
 		}
 		return r;
 	}();
@@ -298,7 +323,7 @@ CvRig& cv_fixture() {
 	static CvRig c = [] {
 		CvRig k;
 		k.song = spec::make_cv_song();
-		k.ctx = menu::context_for(*k.song.song, k.song.clip, 0, false, false, false);
+		k.ctx = menu::context_for(*k.song.song, k.song.clip, 0, false, false, false, false);
 		return k;
 	}();
 	return c;
@@ -459,13 +484,21 @@ bool has_dynamic_name(const Node& node) {
 	return kDynamic.contains(&node);
 }
 
-/// @brief Legacy `isRelevant` overrides that read UI globals this spec does not stand up, so the
-///        port deliberately answers differently.
+/// @brief The two nodes whose relevance is a **root-UI** fact rather than a model one:
+///        `song::ConfigureMacros` and `song::MidiLearn`, both `return (getRootUI() == &sessionView);`
+///        (`gui/menu_item/song/configure_macros.h:35-37`, `song/midi_learn.h:35-37`).
 ///
-///   * `song::ConfigureMacros` and `song::MidiLearn` are `getRootUI() == &sessionView`
-///     (`song/configure_macros.h:24-26`, `song/midi_learn.h:24-26`) -- a root-UI read, which task-3
-///     ruling 2 keeps out of `src/scenes` entirely. Both nodes are E2 placeholders anyway.
-bool relevance_needs_ui(const Node& node) {
+/// This used to be an exclusion list -- the comparison below skipped both, because task-3 ruling 2
+/// keeps `getRootUI()` out of `src/scenes` and `MenuContext` carried no field that could stand in
+/// for it. E3 task 9 added one (`MenuContext::is_session_view`, `context_for`'s `session_view_root`
+/// argument) and `relevance::is_session_view` to spend it, so both nodes are now compared like every
+/// other -- with legacy's own read driven from the root's `root_ui` sentinel while the port's is
+/// driven from the context field.
+///
+/// It stays a by-identity predicate rather than a count so that a third node acquiring
+/// `relevance::is_session_view` is a *visible* edit here: `the only nodes guarded by
+/// relevance::is_session_view` below asserts this set IS the set, in both directions.
+bool relevance_reads_root_ui(const Node& node) {
 	return &node == &nodes::configure_song_macros || &node == &nodes::song_midi_learn;
 }
 
@@ -1190,10 +1223,8 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 
 	it("agrees with the legacy isRelevant in every root's own context", _ {
 		size_t ever_true = 0;
+		size_t root_ui_driven = 0;
 		for (const Pair& p : tree().pairs) {
-			if (relevance_needs_ui(*p.node)) {
-				continue;
-			}
 			if (legacy_relevance_needs_sound(p)) {
 				// See `legacy_relevance_needs_sound`: legacy would crash here, the port answers false.
 				expect(p.node->relevant != nullptr && !p.node->relevant(p.root->ctx)).to_be_true();
@@ -1201,7 +1232,22 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			}
 			install(p.root->ctx, p.root->song);
 			soundEditor.navigationDepth = p.navigation_depth();
+			// Legacy's `getRootUI()` reads a `static` array inside `gui/ui/ui.cpp`; `setRootUILowLevel`
+			// is the only door to it that does not run a view's `opened()`. Set it, ASSERT it took,
+			// use it, clear it, assert THAT took -- a silent no-op here would turn the one comparison
+			// this whole field exists for into a tautology. Driven only where a root names a UI, so
+			// the other ~1200 pairs run in exactly the world they always did.
+			const bool drive_ui = p.root->root_ui != nullptr;
+			if (drive_ui) {
+				setRootUILowLevel(p.root->root_ui);
+				expect(static_cast<UI*>(getRootUI()) == p.root->root_ui).to_be_true();
+				root_ui_driven++;
+			}
 			const bool want = p.item->isRelevant(p.root->ctx.mod, p.root->ctx.source_index);
+			if (drive_ui) {
+				nullifyUIs();
+				expect(getRootUI() == nullptr).to_be_true();
+			}
 			const bool got = p.node->relevant == nullptr || p.node->relevant(p.root->ctx);
 			expect(got == want).to_be_true();
 			if (got) {
@@ -1209,7 +1255,95 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 			}
 		}
 		soundEditor.navigationDepth = 0;
-		expect(ever_true > size_t(700)).to_be_true(); // 843 today -- the loop cannot go vacuous
+		expect(ever_true > size_t(700)).to_be_true(); // 845 today -- the loop cannot go vacuous
+		// The song and performance roots between them; if this went to zero the two root-UI nodes
+		// would be compared against a null `getRootUI()` and pass for the wrong reason.
+		expect(root_ui_driven > size_t(0)).to_be_true();
+	});
+
+	it("hides the song root's two session-only items in the arranger and the automation view", _ {
+		// `sound_editor.cpp:1764-1767` opens ONE root (`soundEditorRootMenuSongView`) for
+		// `sessionView`, `arrangerView` and `automationView` alike, and `song::MidiLearn` /
+		// `song::ConfigureMacros` are the only items in it that tell the three apart:
+		// `return (getRootUI() == &sessionView);` (`song/midi_learn.h:35-37`,
+		// `song/configure_macros.h:35-37`).
+		//
+		// Each side is driven from its OWN sentinel -- legacy from the root-UI global, the port from
+		// `context_for`'s `session_view_root` argument -- and the expected answer is stated a third
+		// time, so the example still fails if the two sides are made to agree wrongly.
+		struct Case {
+			const char* name;
+			UI* root_ui;
+			bool session_view_root;
+			bool expected;
+		};
+		static spec::SongFixture song = spec::make_synth_song();
+		const Case cases[] = {
+		    {"session", &sessionView, true, true},
+		    {"arranger", &arrangerView, false, false},
+		    {"automation", &automationView, false, false},
+		};
+		// The legacy pair comes out of the walk rather than being named: `configureSongMacrosMenu` /
+		// `midiLearnMenu` are defined in `gui/ui/menus.cpp` with no declaration in `menus.h`, and the
+		// pairing this example is about is the one the tree already asserts elsewhere.
+		const Node* const guarded[] = {&nodes::configure_song_macros, &nodes::song_midi_learn};
+		::MenuItem* legacy[std::size(guarded)] = {};
+		for (const Pair& p : tree().pairs) {
+			for (size_t i = 0; i < std::size(guarded); i++) {
+				if (p.node == guarded[i]) {
+					legacy[i] = p.item;
+				}
+			}
+		}
+		for (::MenuItem* item : legacy) {
+			expect(item != nullptr).to_be_true();
+		}
+
+		for (const Case& c : cases) {
+			const MenuContext ctx = menu::context_for(*song.song, nullptr, 0, /*performance_view=*/false,
+			                                          /*session_or_arranger_root=*/true, c.session_view_root, false);
+			// All three views take the same root: the port must differ on relevance, not on routing.
+			expect(static_cast<int>(ctx.root)).to_equal(static_cast<int>(MenuContext::Root::Song));
+			expect(ctx.is_song_view).to_be_true();
+			expect(ctx.is_session_view == c.session_view_root).to_be_true();
+
+			install(ctx, song.song);
+			setRootUILowLevel(c.root_ui);
+			expect(static_cast<UI*>(getRootUI()) == c.root_ui).to_be_true();
+			for (size_t i = 0; i < std::size(guarded); i++) {
+				const bool want = legacy[i]->isRelevant(ctx.mod, ctx.source_index);
+				const bool got = guarded[i]->relevant != nullptr && guarded[i]->relevant(ctx);
+				expect(want == c.expected).to_be_true();
+				expect(got == c.expected).to_be_true();
+			}
+			nullifyUIs();
+			expect(getRootUI() == nullptr).to_be_true();
+		}
+	});
+
+	it("names relevance::is_session_view as the only nodes guarded by it, by identity", _ {
+		// By identity in BOTH directions: the two nodes carry the predicate, and no third node
+		// anywhere in the tree does. A count would pass while the pair silently drifted.
+		for (const Node* n : {&nodes::configure_song_macros, &nodes::song_midi_learn}) {
+			expect(n->relevant == &menu::relevance::is_session_view).to_be_true();
+			expect(menu::relevance::name_of(n->relevant) == std::string_view{"is_session_view"}).to_be_true();
+		}
+		size_t others = 0;
+		for (const Pair& p : tree().pairs) {
+			if (p.node->relevant == &menu::relevance::is_session_view && !relevance_reads_root_ui(*p.node)) {
+				others++;
+			}
+		}
+		expect(others).to_equal(size_t(0));
+		// ... and the pair is actually reached by the walk, so the zero above is not vacuous.
+		size_t reached = 0;
+		for (const Pair& p : tree().pairs) {
+			if (relevance_reads_root_ui(*p.node)) {
+				reached++;
+				expect(p.root->node == &nodes::root_song).to_be_true();
+			}
+		}
+		expect(reached).to_equal(size_t(2));
 	});
 
 	it("refuses an unpatched param on a MIDI clip rather than reinterpreting its collection", _ {

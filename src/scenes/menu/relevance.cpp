@@ -496,6 +496,15 @@ bool battery_shown(const MenuContext& /*ctx*/) {
 	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
 }
 
+bool is_session_view(const MenuContext& ctx) {
+	// `song::MidiLearn::isRelevant` (`gui/menu_item/song/midi_learn.h:35-37`) and
+	// `song::ConfigureMacros::isRelevant` (`gui/menu_item/song/configure_macros.h:35-37`), both
+	// `return (getRootUI() == &sessionView);`. `is_session_view`, NOT `is_song_view`: the latter is
+	// `!rootUIIsClipMinderScreen()` (`sound_editor.cpp:1632`) and stays true in the arranger and the
+	// song automation view, the two places this test is what hides both items.
+	return ctx.is_session_view;
+}
+
 // ---------------------------------------------------------------------------------------------
 // The registry (Task 10's dump)
 //
@@ -512,7 +521,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 61> kRegistry{
+constexpr std::array<NamedPredicate, 62> kRegistry{
     DELUGE_RELEVANCE_ROW(has_lpf),
     DELUGE_RELEVANCE_ROW(has_hpf),
     DELUGE_RELEVANCE_ROW(is_fm),
@@ -574,13 +583,14 @@ constexpr std::array<NamedPredicate, 61> kRegistry{
     DELUGE_RELEVANCE_ROW(cv2_dual),
     DELUGE_RELEVANCE_ROW(battery_shown),
     DELUGE_RELEVANCE_ROW(audio_source_is_specific),
+    DELUGE_RELEVANCE_ROW(is_session_view),
 };
 
 #undef DELUGE_RELEVANCE_ROW
 
 // One row per predicate declared in `relevance.h`: batch 1's seven sound-wide and ten per-source
-// pairs (27), plus batch 2's thirty, plus batch 3's four.
-static_assert(kRegistry.size() == 61);
+// pairs (27), plus batch 2's thirty, plus batch 3's four, plus Task 9's `is_session_view`.
+static_assert(kRegistry.size() == 62);
 
 } // namespace
 

@@ -315,7 +315,9 @@ struct ClipRig {
 		return m;
 	}
 
-	MenuContext ctx() { return menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false); }
+	MenuContext ctx() {
+		return menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	}
 };
 
 /// @brief A MIDI clip, for `midi_device_linked`.
@@ -327,7 +329,9 @@ struct MidiRig {
 	MidiRig() = default;
 
 	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }
-	MenuContext ctx() { return menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false); }
+	MenuContext ctx() {
+		return menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	}
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -823,7 +827,7 @@ describe specific_output_item("scenes::menu specific_output_selector", $ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		f.output->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 		f.output->setOutputRecordingFrom(nullptr);
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 
 		Rig r;
 		press_child(r, nodes::root_audio_clip, nodes::specific_output_selector, ctx);

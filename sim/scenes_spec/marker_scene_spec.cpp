@@ -204,7 +204,7 @@ struct Rig {
 	}
 
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		// `context_for` resolves the range only when the source has exactly one; it does here, so
 		// this is an assertion about the fixture rather than an override.
 		c.range = range;

@@ -135,7 +135,7 @@ struct Fixture {
 
 	Fixture() {
 		select_language();
-		ctx = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		soundEditor.currentSound = ctx.sound;
 		soundEditor.currentModControllable = ctx.mod;
 		soundEditor.currentParamManager = ctx.params;
@@ -399,7 +399,7 @@ struct RangeFixture {
 		for (int32_t i = 0; i < n; i++) {
 			(void)sound->sources[0].ranges.insertMultiRange(i);
 		}
-		ctx = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		currentSong = song.song;
 		song.song->setCurrentClip(song.clip);
 		soundEditor.currentSound = ctx.sound;
@@ -691,9 +691,10 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 		// that no row is null, and that no two rows share a name or a function.
 		const auto registry = menu::relevance::registry();
 		// Batch 1's own 27, plus the 30 Task 7 added for the rest of the sound-editor root, plus the
-		// four Task 8 added for the settings root and the nine others (`relevance.cpp`'s
-		// `static_assert` is the authority; this asserts the count is deliberate).
-		expect(registry.size()).to_equal(size_t(61));
+		// four Task 8 added for the settings root and the nine others, plus E3 task 9's
+		// `is_session_view` (`relevance.cpp`'s `static_assert` is the authority; this asserts the
+		// count is deliberate).
+		expect(registry.size()).to_equal(size_t(62));
 		for (size_t i = 0; i < registry.size(); i++) {
 			expect(registry[i].fn != nullptr).to_be_true();
 			expect(registry[i].name.empty()).to_be_false();

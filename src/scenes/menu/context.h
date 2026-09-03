@@ -15,8 +15,8 @@
 ///       `rootUIIsClipMinderScreen()`, `Buttons::isShiftButtonPressed()` and its own
 ///       `setupKitGlobalFXMenu` member. None of that is reachable from `src/scenes` -- the caller
 ///       reduces it to `context_for`'s `performance_view` / `session_or_arranger_root` /
-///       `kit_global_fx` arguments. See `context.cpp` for the branch-by-branch mapping and for
-///       what stayed behind.
+///       `session_view_root` / `kit_global_fx` arguments. See `context.cpp` for the branch-by-branch
+///       mapping and for what stayed behind.
 ///
 /// @note **`model/model_stack.h` is included by `context.cpp` only** (task-3 ruling 6) -- and, from
 ///       Task 4, by `bindings.cpp`. `model_stack_for()` below is the single entry point the rest of
@@ -120,6 +120,25 @@ struct MenuContext {
 	bool is_drum = false;
 	bool is_audio_clip = false;
 	bool is_song_view = false;
+
+	/// @brief Is the root UI the **session view specifically** -- legacy's `getRootUI() == &sessionView`
+	///        (`gui/menu_item/song/midi_learn.h:35-37`,
+	///        `gui/menu_item/song/configure_macros.h:35-37`)?
+	///
+	/// `is_song_view` above is the *other* legacy expression, `!rootUIIsClipMinderScreen()`
+	/// (`sound_editor.cpp:1632`), and one song root serves three views: `setup()` picks
+	/// `soundEditorRootMenuSongView` for `sessionView`, `arrangerView` **and** `automationView`
+	/// alike (`sound_editor.cpp:1764-1767`). Only two items in that root care which of the three it
+	/// is, and they are the two `getRootUI()` reads above; `relevance::is_session_view` is what
+	/// spends this field. So the pair is a two-bit encoding of a three-way fact -- deliberately, and
+	/// deliberately no finer: nothing in the port distinguishes the arranger from the song
+	/// automation view, because no legacy `isRelevant` does either.
+	///
+	/// `is_song_view` is implied by this one (`sessionView` is not a clip minder), never the
+	/// reverse. `context_for` does not enforce that: it transcribes its arguments, exactly as it
+	/// does for `performance_view`, and a caller that passes the pair inconsistently gets the same
+	/// nonsense legacy would from an impossible UI stack.
+	bool is_session_view = false;
 	bool is_performance = false;
 	bool is_kit_global_fx = false;
 
@@ -150,6 +169,12 @@ struct MenuContext {
 ///                                performance view. Also stands in for `:1764`'s
 ///                                `currentUI == &sessionView || &arrangerView || &automationView`
 ///                                with shift not held.
+/// @param session_view_root       `getRootUI() == &sessionView` -- the *narrower* fact
+///                                `session_or_arranger_root` cannot carry, and the only thing that
+///                                separates the three views `:1764-1767` funnels into one song root.
+///                                See `MenuContext::is_session_view`. Implies
+///                                `session_or_arranger_root`; passing it true with that false is a
+///                                caller bug this function does not police.
 /// @param kit_global_fx           `setup()`'s `setupKitGlobalFXMenu` member (`:1654`). True to edit
 ///                                the kit's own global FX, false to edit the selected row. Callers
 ///                                normally pass the clip's `affectEntire`, which is exactly what
@@ -160,7 +185,7 @@ struct MenuContext {
 ///                                false with affect-entire on, and it is why this is an argument
 ///                                rather than a re-read of the clip.
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
-                        bool session_or_arranger_root, bool kit_global_fx);
+                        bool session_or_arranger_root, bool session_view_root, bool kit_global_fx);
 
 /// @brief Build the model stack a binding reads and writes through -- the port of
 ///        `SoundEditor::getCurrentModelStack` (`sound_editor.cpp:1982-2005`).

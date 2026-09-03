@@ -128,7 +128,7 @@ void clear_dirty() {
 }
 
 MenuContext synth_context(spec::SongFixture& f) {
-	return menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+	return menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 }
 
 int32_t patched_raw(const MenuContext& ctx, params::ParamType p) {
@@ -195,7 +195,7 @@ describe menu_bindings_value("scenes::menu::bindings read/write", $ {
 	it("round-trips an unpatched global param on a kit's own param manager", _ {
 		auto f = spec::make_kit_song();
 		f.clip->affectEntire = true;
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/true);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/true);
 
 		bindings::write(global_volume_node, ctx, 41);
 
@@ -318,7 +318,7 @@ describe menu_bindings_guards("scenes::menu::bindings guards", $ {
 		// casts null otherwise (`param_manager.h:128-135`); `getPatchedAutoParamFromId` dereferences
 		// the same null summary (`model_stack.cpp:245-256`).
 		auto f = spec::make_midi_song();
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		expect(ctx.params == &f.clip->paramManager).to_be_true();
 		clear_dirty();
 
@@ -355,7 +355,7 @@ describe menu_bindings_guards("scenes::menu::bindings guards", $ {
 		int32_t row_index = 0;
 		expect(f.clip->getNoteRowForDrum(orphan, &row_index) == nullptr).to_be_true();
 
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		ctx.affect_entire_held = true;
 
 		bindings::write(lpf_freq_node, ctx, 33); // must not crash on the row-less drum
@@ -443,7 +443,7 @@ describe menu_bindings_affect_entire("scenes::menu::bindings kit affect-entire",
 		// The kit-row context (`kit_global_fx=false`), with the affect-entire button held --
 		// legacy `unpatched_param.cpp:52`'s
 		// `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()`.
-		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		ctx.affect_entire_held = true;
 
 		bindings::write(lpf_freq_node, ctx, 33);
@@ -467,7 +467,7 @@ describe menu_bindings_affect_entire("scenes::menu::bindings kit affect-entire",
 		spec::add_drum<SoundDrum>(f);
 		SoundDrum* second = spec::add_drum<SoundDrum>(f); // add_drum leaves the last one selected
 
-		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		expect(ctx.sound == static_cast<Sound*>(second)).to_be_true();
 
 		auto* kit = static_cast<Kit*>(f.instrument);

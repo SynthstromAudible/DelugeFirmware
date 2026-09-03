@@ -311,7 +311,7 @@ struct SoundRig {
 	///        point: nothing re-resolves it on the way into source 1's page, so an item that opens a
 	///        scene over source 1 has to say so itself.
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		c.source = source[0];
 		c.range = range[0];
 		c.sample_controls = &source[0]->sampleControls;
@@ -354,7 +354,9 @@ struct ClipRig {
 		song.clip->sampleHolder.waveformViewScroll = 0;
 	}
 
-	MenuContext ctx() { return menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false); }
+	MenuContext ctx() {
+		return menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+	}
 
 	void focus(const Node& node) { focus_in(shell, ctx(), node); }
 
@@ -755,7 +757,7 @@ describe sample_items_relevance("scenes::menu the sample items: relevance agains
 				// --- port, same sentinel written again, through its own context
 				seed(c, which);
 				const MenuContext ctx =
-				    menu::context_for(*song.song, song.clip, static_cast<int8_t>(which), false, false, false);
+				    menu::context_for(*song.song, song.clip, static_cast<int8_t>(which), false, false, false, false);
 				const bool port_file = (which == 0 ? menu::relevance::osc0_file_selector
 				                                   : menu::relevance::osc1_file_selector)(ctx);
 				const bool port_sample =

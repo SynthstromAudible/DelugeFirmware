@@ -115,7 +115,15 @@ struct Rig {
 	    : profile(p), fake(board, p) {}
 
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		// The song root is opened from a root UI, not over a clip -- and since E3 task 9 that matters:
+		// `song_midi_learn` and `configure_song_macros` carry `relevance::is_session_view`, so a clip
+		// context would list neither of the two rows this spec presses. `sound_editor.cpp:1764-1767`
+		// is the arm being stood in for; `sessionView` of its three views, because that is the one
+		// where both items are shown.
+		const bool song_root = &root == &nodes::root_song;
+		const MenuContext ctx = menu::context_for(*song.song, song_root ? nullptr : song.clip, 0, false,
+		                                          /*session_or_arranger_root=*/song_root,
+		                                          /*session_view_root=*/song_root, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});

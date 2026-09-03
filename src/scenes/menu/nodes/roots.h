@@ -538,9 +538,16 @@ inline constexpr Node swing_interval = sync_level_item(sid(String::STRING_FOR_SW
                                                        set_swing_interval, kSwingIntervalRange);
 
 inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem);
+/// The song root's two session-only items: `song::ConfigureMacros::isRelevant`
+/// (`gui/menu_item/song/configure_macros.h:35-37`) and `song::MidiLearn::isRelevant`
+/// (`gui/menu_item/song/midi_learn.h:35-37`) are both `getRootUI() == &sessionView`, so both are
+/// hidden in the arranger and the song automation view even though `setup()` (`sound_editor.cpp:1764-1767`)
+/// opens this same root there. They are the only two nodes in the whole tree that spend
+/// `MenuContext::is_session_view`.
 inline constexpr Node configure_song_macros =
-    custom(sid(String::STRING_FOR_CONFIGURE_SONG_MACROS), &kConfigureSongMacrosItem);
-inline constexpr Node song_midi_learn = custom(sid(String::STRING_FOR_MIDI_LEARN), &kSongMidiLearnItem);
+    custom(sid(String::STRING_FOR_CONFIGURE_SONG_MACROS), &kConfigureSongMacrosItem, relevance::is_session_view);
+inline constexpr Node song_midi_learn =
+    custom(sid(String::STRING_FOR_MIDI_LEARN), &kSongMidiLearnItem, relevance::is_session_view);
 
 /// `record::ThresholdMode::getOptions` (`record/threshold_mode.h:44-54`), shared with the settings
 /// root's `defaultThresholdRecordingModeMenu`.

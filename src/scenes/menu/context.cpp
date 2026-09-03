@@ -165,12 +165,17 @@ void select_source(MenuContext& ctx, int8_t index) {
 }
 
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
-                        bool session_or_arranger_root, bool kit_global_fx) {
+                        bool session_or_arranger_root, bool session_view_root, bool kit_global_fx) {
 	MenuContext ctx{};
 	ctx.song = &song;
 	ctx.clip = clip;
 	ctx.source_index = source_index;
 	ctx.is_song_view = session_or_arranger_root;
+	// The second, narrower root-UI fact -- `getRootUI() == &sessionView` rather than
+	// `!rootUIIsClipMinderScreen()`. It steers no branch in this function: `:1764-1767` funnels the
+	// session, arranger and song-automation views into one root, and only `relevance::is_session_view`
+	// (the two `song::` items' `isRelevant`) ever asks which of the three it was.
+	ctx.is_session_view = session_view_root;
 	ctx.is_performance = performance_view;
 	ctx.resolved = true;
 
@@ -353,7 +358,9 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		if (performance_view) { // `:1761-1763`
 			ctx.root = MenuContext::Root::Performance;
 		}
-		else if (session_or_arranger_root) { // `:1764-1767`
+		// `:1764-1767` -- the WIDE bool on purpose: legacy's three views share one root menu, and
+		// `session_view_root` only narrows what is *relevant* inside it, never which root is picked.
+		else if (session_or_arranger_root) {
 			ctx.root = MenuContext::Root::Song;
 		}
 		else { // `:1768-1770`

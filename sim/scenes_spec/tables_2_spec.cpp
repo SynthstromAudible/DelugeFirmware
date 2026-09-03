@@ -212,7 +212,7 @@ Rigged& fixture() {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 		Rigged r;
 		r.song = spec::make_synth_song();
-		r.ctx = menu::context_for(*r.song.song, r.song.clip, 0, false, false, /*kit_global_fx=*/false);
+		r.ctx = menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		return r;
 	}();
 	install(f.ctx, f.song.song);
@@ -239,7 +239,7 @@ KitRig& kit_fixture() {
 		r.drum_a = spec::add_drum<SoundDrum>(r.song);
 		r.drum_b = spec::add_drum<SoundDrum>(r.song);
 		static_cast<Kit*>(r.song.instrument)->selectedDrum = r.drum_a;
-		r.ctx = menu::context_for(*r.song.song, r.song.clip, 0, false, false, /*kit_global_fx=*/false);
+		r.ctx = menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		return r;
 	}();
 	return k;
@@ -248,7 +248,7 @@ KitRig& kit_fixture() {
 /// @brief Re-resolve the kit context with @p drum selected, and install it.
 MenuContext select_drum(KitRig& k, Drum* drum, bool affect_entire_held = false) {
 	static_cast<Kit*>(k.song.instrument)->selectedDrum = drum;
-	MenuContext ctx = menu::context_for(*k.song.song, k.song.clip, 0, false, false, /*kit_global_fx=*/false);
+	MenuContext ctx = menu::context_for(*k.song.song, k.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 	ctx.affect_entire_held = affect_entire_held;
 	install(ctx, k.song.song);
 	return ctx;

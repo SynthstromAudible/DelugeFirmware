@@ -171,7 +171,7 @@ struct Rig {
 	}
 
 	MenuContext ctx() {
-		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		MenuContext c = menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		c.range = range;
 		c.source = source;
 		c.sample_controls = &source->sampleControls;

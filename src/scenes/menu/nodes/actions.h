@@ -48,13 +48,16 @@
 ///     the export starts. `MenuAction::StartStemExport`'s dispatcher owes it; the scene cannot pop
 ///     itself out from under a request it has not yet handed over. The port's own ascend is a no-op
 ///     once the dispatcher pops the scene.
-///   * **`isRelevant() == (getRootUI() == &sessionView)`** on `song::MidiLearn` (`song/midi_learn.h:35-37`)
-///     and `song::ConfigureMacros` (`song/configure_macros.h:35-37`) hides both items in the
-///     *arranger*. `MenuContext::is_song_view` is `context_for`'s `session_or_arranger_root`
-///     argument (`context.cpp:142`) and is true for both views, so the distinction is not
-///     expressible here; the two nodes keep the no-predicate shape task 8 declared, and this is the
-///     gap. Adding a `relevant` hook that answered "session or arranger" would be *less* faithful
-///     than none, and would move the dump JSON for a predicate that is wrong.
+///   * (**`isRelevant() == (getRootUI() == &sessionView)`** on `song::MidiLearn` (`song/midi_learn.h:35-37`)
+///     and `song::ConfigureMacros` (`song/configure_macros.h:35-37`) is no longer a divergence --
+///     E3 task 9. It used to be one because `MenuContext::is_song_view` is `context_for`'s
+///     `session_or_arranger_root` argument, i.e. `!rootUIIsClipMinderScreen()`, which is true in the
+///     arranger and the song automation view as well; `setup()` (`sound_editor.cpp:1764-1767`) opens
+///     one song root for all three. `context_for` now takes the narrower `session_view_root` too and
+///     reports it as `MenuContext::is_session_view`, and both nodes carry
+///     `relevance::is_session_view`. The two bools are a deliberately coarse encoding of that
+///     three-way fact: nothing tells the arranger from the automation view, because no legacy
+///     `isRelevant` does.)
 ///   * **`ConfigureMacros`/`MidiLearn` open legacy `ContextMenu` subclasses this plan has not
 ///     ported.** The intent names the action, not a `context_menu::DescriptorId`; when those two
 ///     menus are ported the dispatcher is where the two spellings meet.

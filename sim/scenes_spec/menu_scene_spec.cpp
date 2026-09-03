@@ -338,7 +338,8 @@ struct Rig {
 
 	/// @brief Resolve a `MenuContext` from the fixture's synth clip and open @p root on it.
 	MenuContext open(const Node& root) {
-		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		const MenuContext ctx =
+		    menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
@@ -905,7 +906,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		deluge::ui::shell::SceneState saved{};
 		menu_scene().save_state(saved);
 
-		menu_scene().open(settings_root, menu::context_for(*r.song.song, r.song.clip, 0, false, false, false));
+		menu_scene().open(settings_root, menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, false));
 		expect(depth_of()).to_equal(0);
 
 		menu_scene().restore_state(saved);

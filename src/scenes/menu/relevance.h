@@ -288,6 +288,22 @@ bool battery_shown(const MenuContext& ctx);
 bool audio_source_is_specific(const MenuContext& ctx);
 /// @}
 
+/// @name Task 9's predicate -- the song root's two session-only items
+/// @{
+
+/// @brief Is the root UI the session view? `song::MidiLearn::isRelevant`
+///        (`gui/menu_item/song/midi_learn.h:35-37`) and `song::ConfigureMacros::isRelevant`
+///        (`gui/menu_item/song/configure_macros.h:35-37`) -- both are `getRootUI() == &sessionView`,
+///        verbatim, and nothing else in the tree spells it.
+///
+/// This is the one predicate that reads a *UI* fact rather than a model one, and it is only able to
+/// because `MenuContext::is_session_view` carries it: task-3 ruling 2 keeps `getRootUI()` itself out
+/// of `src/scenes`, so the caller reduces the read to `context_for`'s `session_view_root` argument
+/// exactly as it does the other three. The wider `is_song_view` would be the wrong field -- it is
+/// true in the arranger and the song automation view too, where legacy hides both items.
+bool is_session_view(const MenuContext& ctx);
+/// @}
+
 /// @brief One `{predicate, name}` row of the registry `name_of` searches.
 struct NamedPredicate {
 	RelevantFn fn;
