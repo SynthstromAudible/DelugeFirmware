@@ -76,10 +76,19 @@ Rules:
 2. `snake_case` functions/variables, `PascalCase` types, `k` constants; namespace
    `deluge::scenes`.
 3. No heap in library code; no wall clock — `Scene::next_timer()` is how a blink stays alive, and
-   since E3 task 10 that is all it takes: `Shell::tick`'s step 8b arms every surface the scene is
-   drawn on at the deadline the hook names, so a scene no longer has to remember a matching
-   `RepaintGate::request_repaint_after` from inside its own `render_*` (several still make one,
-   more tightly, and `Scene::timer_repaints()` is the opt-out for a timer nothing on screen follows).
+   since E3 task 10 that is nearly all it takes: `Shell::tick`'s step 8b arms the surfaces the
+   scene's `Scene::timer_repaints()` mask names at the deadline the hook returns, so a scene no
+   longer has to remember a matching `RepaintGate::request_repaint_after` from inside its own
+   `render_*`. Several still make one, more tightly, where the scene's single interval is coarser
+   than the phase actually being drawn.
+
+   **The mask is per surface (`{oled, grid}`), not a boolean opt-out**, and the reason is a real
+   cost rather than tidiness: the grid's flush diffs against `last_sent` and blits nothing when a
+   repaint changed no pixel, while the OLED flush blits unconditionally once it has rendered. So
+   arming a surface you do not need is free on the grid and a permanent blit on the OLED —
+   `MenuScene` masks the OLED off because its timer is purely the shortcut/source pad blink, and
+   arming both turned "sitting on a patched-param leaf" into 50 Hz on both panels forever. See
+   "The repaint fold" below, and the shell design spec's §15.1.
 
 ## Link direction (ruling Q4)
 
