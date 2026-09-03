@@ -383,32 +383,46 @@ void Shell::tick(uint32_t now_ms) {
 	// its blink to move had to arm the gate itself from inside `render_*` as well -- and four scenes
 	// in a row shipped or nearly shipped without doing so (the history is on `Scene::next_timer`).
 	// Folding the two together here makes the *default* correct: overriding `next_timer()` is now
-	// enough, and `Scene::timer_repaints()` is the explicit, per-scene opt-out for a timer with no
-	// visible consequence.
+	// enough, and `Scene::timer_repaints()` is the explicit, per-scene declaration of which surfaces
+	// (if any) that deadline actually has a visible consequence on.
 	//
 	// Same shape as the router arming just above -- `request_repaint_after`, not `request_repaint`:
 	// the deadline is what `compute_next_wake` reads, so this both fires the gate when the moment
 	// comes and tells a sleeping scheduler when that is.
 	//
-	// **Deliberately every surface, not a guess at which one.** A `Scene` declares no surface set:
-	// `render_oled` is called for it on every OLED surface in the pass and `render_grid` on the
-	// grid, so "the surfaces this scene renders" is, by construction, all of them. Narrowing it to
-	// the surfaces the scene happened to paint *this* tick would be exactly wrong: the tick a timer
-	// exists to rescue is the quiet one where the scene painted nothing, and a scene that armed
-	// nothing could never paint again. Over-arming costs a repaint of an unchanged frame; the
-	// opt-out is how a scene declines to pay it.
+	// **Per surface KIND, not a guess at which surface this tick happened to paint.** A `Scene`
+	// declares no per-tick surface set: `render_oled` is called for it on every OLED surface in the
+	// pass and `render_grid` on the grid, so narrowing the arm to whatever the scene painted *this*
+	// tick would be exactly wrong -- the tick a timer exists to rescue is the quiet one where the
+	// scene painted nothing, and a scene that armed nothing could never paint again.
+	// `timer_repaints()` is a static claim instead ("my timer matters to the grid", "to the OLED
+	// panels", or both), not a per-tick one.
+	//
+	// **Why the OLED half is not free to over-arm the way the grid half is** (E3 task 10 fix round
+	// 1): the grid's own `Shell::flush` diffs against `last_sent` and blits nothing when a repaint
+	// changed no pixel, so arming it needlessly costs a repaint, not a blit. The OLED panels have no
+	// such diff -- `flush` blits an OLED surface unconditionally once it has rendered -- so arming
+	// them from a timer that never touches OLED content (`MenuScene`'s shortcut/source pad blink
+	// cadence, purely a grid concern) turned into both panels blitting unconditionally at that
+	// cadence, forever, with no pixel ever changing. `Scene::timer_repaints()`'s doc has the full
+	// account; `MenuScene::timer_repaints()` is the fix.
 	for (Scene* scene : stack_.scenes()) {
-		if (!scene->timer_repaints()) {
+		const Scene::RepaintSurfaces surfaces = scene->timer_repaints();
+		if (!surfaces.any()) {
 			continue;
 		}
 		const std::optional<uint32_t> in = scene->next_timer();
 		if (!in.has_value()) {
 			continue;
 		}
-		for (OledSurface& s : surfaces_.oled()) {
-			s.gate.request_repaint_after(*in, now_ms);
+		if (surfaces.oled) {
+			for (OledSurface& s : surfaces_.oled()) {
+				s.gate.request_repaint_after(*in, now_ms);
+			}
 		}
-		surfaces_.grid().gate.request_repaint_after(*in, now_ms);
+		if (surfaces.grid) {
+			surfaces_.grid().gate.request_repaint_after(*in, now_ms);
+		}
 	}
 	// 9. LEDs, every tick.
 	derive_leds(now_ms);
@@ -879,11 +893,13 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	consider(lowering_.ctx().gate.next_deadline());
 	consider(mirror_.next_deadline());
 	for (Scene* scene : stack_.scenes()) {
-		// Only the opt-outs. A scene whose timer repaints had `tick`'s step 8b arm its surfaces at
-		// exactly this deadline, and the gate loop above has already read it -- restating it here
-		// would compute the same number twice. A `timer_repaints() == false` scene arms nothing, so
-		// this loop is the only thing that keeps its wake.
-		if (scene->timer_repaints()) {
+		// Only the full opt-outs (`RepaintSurfaces::any() == false`). Any scene whose timer arms at
+		// least one surface had `tick`'s step 8b arm it at exactly this deadline already, and the
+		// gate loops above have already read it -- restating it here would compute the same number
+		// twice. A scene arming only the grid (say) still has its deadline read by the grid-gate
+		// loop above, so it needs no entry here either; this loop exists only for the timer that
+		// arms nothing at all, which is the one case with no gate deadline to fall back on.
+		if (scene->timer_repaints().any()) {
 			continue;
 		}
 		if (const std::optional<uint32_t> in = scene->next_timer(); in.has_value()) {

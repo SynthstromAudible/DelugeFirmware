@@ -134,7 +134,7 @@ public:
 	void tick(uint32_t) override { ticks++; }
 	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
 	std::optional<uint32_t> next_timer() const override { return timer; }
-	bool timer_repaints() const override { return timer_repaints_; }
+	Scene::RepaintSurfaces timer_repaints() const override { return timer_repaints_; }
 
 	/// The local row `render_oled` draws its Main rule on.
 	static constexpr int32_t kMainLineY = 10;
@@ -155,8 +155,8 @@ public:
 	bool emit_repaint_from_handle = false;
 	UiEvent::Kind last_event_kind = UiEvent::Kind::AllReleased;
 	std::optional<uint32_t> timer;
-	/// What `timer_repaints()` answers -- true, as the base class's own default is.
-	bool timer_repaints_ = true;
+	/// What `timer_repaints()` answers -- `{true, true}`, the base class's own default.
+	Scene::RepaintSurfaces timer_repaints_{};
 };
 
 /// @brief The scene stacked on top: a grid overlay by default, with every composition hook
@@ -474,7 +474,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		const int grid_after_first = r.base.grid_renders;
 
 		r.base.timer = 20;
-		r.base.timer_repaints_ = false;
+		r.base.timer_repaints_ = Scene::RepaintSurfaces{.oled = false, .grid = false};
 		r.shell.tick(20);
 		expect(r.shell.next_wake().has_value()).to_be_true();
 		expect(*r.shell.next_wake()).to_equal(uint32_t(40)); // the wake is kept...
@@ -482,6 +482,36 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.base.ticks).to_be_greater_than(0);
 		expect(r.base.oled_renders).to_equal(oled_after_first); // ...and nothing was drawn for it
 		expect(r.base.grid_renders).to_equal(grid_after_first);
+	});
+
+	it("timer_repaints() can name the grid alone, and the OLED gates are never armed (fix round 1)", _ {
+		// The regression the first cut of the fold introduced: `Shell::flush` diffs the grid
+		// against `last_sent` and blits nothing when a repaint changed no pixel, but it blits an
+		// OLED surface unconditionally once it has rendered. `MenuScene::timer_repaints()` returns
+		// `{.oled = false, .grid = true}` for exactly this reason -- its timer is the shortcut/
+		// source pad blink cadence, a grid-only concern -- and this pins the mechanism directly:
+		// a scene that names only the grid must see its OLED render count stay flat forever, no
+		// matter how many quiet ticks land on the timer's cadence, while the grid keeps repainting.
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		const int oled_after_first = r.base.oled_renders;
+		const int grid_after_first = r.base.grid_renders;
+
+		r.base.timer = 20;
+		r.base.timer_repaints_ = Scene::RepaintSurfaces{.oled = false, .grid = true};
+		r.shell.tick(20);
+		r.shell.tick(40);
+		expect(r.base.grid_renders).to_equal(grid_after_first + 1);
+		expect(r.base.oled_renders).to_equal(oled_after_first); // still flat
+
+		// Several more cycles of the same cadence: the grid keeps moving, the OLED panels never do.
+		r.shell.tick(60);
+		r.shell.tick(80);
+		r.shell.tick(100);
+		expect(r.base.grid_renders).to_equal(grid_after_first + 4);
+		expect(r.base.oled_renders).to_equal(oled_after_first);
 	});
 
 	it("renders each OLED surface with its own role and geometry", _ {

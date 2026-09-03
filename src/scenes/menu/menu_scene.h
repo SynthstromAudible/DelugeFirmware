@@ -453,6 +453,12 @@ public:
 	void save_state(deluge::ui::shell::SceneState& state) const override;
 	void restore_state(const deluge::ui::shell::SceneState& state) override;
 	std::optional<uint32_t> next_timer() const override;
+	/// @brief Grid only (E3 task 10 fix round 1): `next_timer()`'s deadline here is purely the
+	///        shortcut/source pad blink cadence -- a grid concern -- and the submenu's OLED content
+	///        never depends on it. Arming the OLED gates from it too (the fold's original default)
+	///        cost nothing in pixels but blitted both panels unconditionally, forever, whenever the
+	///        focused node had shortcut or source pads. See `Scene::timer_repaints()`'s own doc.
+	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override { return {.oled = false, .grid = true}; }
 
 	/// @brief The node currently on screen (`path[depth]`), or `nullptr` before `open()`.
 	const Node* focused() const;

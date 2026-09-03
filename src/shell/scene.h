@@ -378,9 +378,10 @@ public:
 
 	/// @brief When this scene next needs a `tick()` even with no input.
 	///
-	/// **"Wake me later" means "repaint me later".** `Shell::tick`'s step 8b arms every surface this
-	/// scene is drawn on at exactly this deadline, so a timer *is* an animation request and a scene
-	/// that overrides this hook gets its blink, scroll or countdown without arming anything itself.
+	/// **"Wake me later" means "repaint me later".** `Shell::tick`'s step 8b arms the surfaces
+	/// `timer_repaints()` names at exactly this deadline, so a timer *is* an animation request and a
+	/// scene that overrides this hook gets its blink, scroll or countdown without arming anything
+	/// itself.
 	///
 	/// It did not always mean that, and the history is why the two were folded together. A timer
 	/// used only to feed `Shell::compute_next_wake`, and whether the woken tick drew anything was
@@ -400,24 +401,42 @@ public:
 	/// are refinements on top of step 8b, not a substitute for it.
 	///
 	/// @return Milliseconds from now, or `std::nullopt` for "no timer".
-	/// @see timer_repaints, for the scene whose timer really does change nothing on screen.
+	/// @see timer_repaints, for which surfaces (if any) that deadline arms.
 	virtual std::optional<uint32_t> next_timer() const { return std::nullopt; }
 
-	/// @brief Does this scene's `next_timer()` deadline want a repaint, or only a `tick()`?
+	/// @brief Which of this scene's own surfaces `next_timer()`'s deadline should repaint.
 	///
-	/// True by default, which is what makes `next_timer()` mean "repaint me later" (see it). Return
-	/// false for a timer with no visible consequence -- state a later input will read, a deadline
-	/// that only matters once something else happens -- and `Shell::tick` will wake the shell for
-	/// it without dirtying a surface.
+	/// Both true by default, which is what makes `next_timer()` mean "repaint me later" (see it).
 	///
-	/// The default is deliberately the expensive one. Getting it wrong in this direction costs a
-	/// repaint of an unchanged frame; getting it wrong in the other direction is the silent dead
-	/// animation this hook's opt-in exists to stop being the default. Overriding it is therefore a
-	/// visible, reviewable claim about a specific scene rather than a cost paid quietly by every
-	/// scene that forgot something.
+	/// **Per-surface, not all-or-nothing -- E3 task 10 fix round 1.** The fold's first cut armed
+	/// every surface a scene is drawn on from one shared deadline, on the reasoning that
+	/// over-arming only costs a repaint of an unchanged frame. That reasoning held for the grid,
+	/// whose `Shell::flush` diffs against `last_sent` and blits nothing when a repaint changed no
+	/// pixel -- but the OLED panels have no such diff: `flush` blits an OLED surface unconditionally
+	/// once it has rendered. `MenuScene::next_timer()` returns a constant interval whenever the
+	/// focused node has shortcut or source pads (`menu_scene.cpp`), which is purely a GRID
+	/// concern -- the submenu's OLED content never depends on that blink -- so arming the OLED
+	/// gates from it too turned "sitting on a patched-param leaf" into both panels blitting
+	/// unconditionally, forever, at the timer's own cadence. No golden or pixel comparison can see
+	/// this: the content blitted is byte-identical every time, which is exactly why it is a battery
+	/// cost rather than a correctness bug, and exactly why it needed a name rather than a note.
 	///
-	/// @return True (the default) to arm the scene's surfaces at the timer's deadline.
-	virtual bool timer_repaints() const { return true; }
+	/// Override this (`MenuScene` does, `{.oled = false, .grid = true}`) when a scene's timer has a
+	/// visible consequence on only one kind of surface. A scene that needs both -- `RecorderScene`'s
+	/// poll updates the OLED word AND, through the grid, keeps running under its own popup
+	/// (`recorder_scene.h`'s class note) -- takes the default and pays for both, correctly.
+	///
+	/// @return `{true, true}` (the default) to arm both kinds of surface at the timer's deadline;
+	///         `{false, false}` for a timer with no visible consequence at all -- state a later
+	///         input will read, a deadline that only matters once something else happens -- which
+	///         makes `Shell::tick` wake the shell for it without dirtying either.
+	struct RepaintSurfaces {
+		bool oled = true;
+		bool grid = true;
+		/// @brief Whether this asks for anything at all -- `compute_next_wake`'s own opt-out test.
+		constexpr bool any() const { return oled || grid; }
+	};
+	virtual RepaintSurfaces timer_repaints() const { return {}; }
 };
 
 /// @brief The application's scene table: one pointer per `SceneKind`, indexed by the kind itself.

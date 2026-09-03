@@ -1501,6 +1501,66 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(relit.r == lit.r && relit.g == lit.g && relit.b == lit.b).to_be_true();
 	});
 
+	it("the source-pad blink cadence never blits the OLED panels (E3 task 10 fix round 1)", _ {
+		// The regression the fold's first cut introduced: `MenuScene::next_timer()` returns
+		// `kSourceBlinkMs` whenever the focused node has source shortcut pads -- `lpf_freq` does,
+		// which is exactly the previous test's fixture -- and that timer is purely a GRID concern
+		// (the submenu's OLED content never depends on it). Before `timer_repaints()` could name a
+		// surface, step 8b armed BOTH kinds of surface from every scene timer; the grid's own
+		// `flush` diffs against `last_sent` and blits nothing when a repaint changed no pixel, but
+		// the OLED panels have no such diff -- `Shell::flush` blits one unconditionally once it has
+		// rendered. So sitting on `lpf_freq` blitted both OLED panels, unconditionally, forever, at
+		// 50 Hz -- with no pixel ever changing, which is why no golden or pixel comparison could see
+		// it.
+		//
+		// Two other, unrelated reasons an OLED blit can legitimately happen here, both excluded by
+		// construction rather than by luck:
+		//   * `decimal_value` (`lpf_freq` is a Decimal leaf) owns its own edit-cursor blink
+		//     (`kFlashTime` = 110 ms half-period, `ui/oled/values.cpp`), armed once from the tick
+		//     that first draws it and not again until that half-period elapses -- settled below,
+		//     before the measured window opens.
+		//   * `MenuScene::render_grid`'s OWN tighter blink arm (`ms_to_phase_change`, the previous
+		//     test's own subject) shares `FrameInput::gate()` with the OLED widgets -- `OledFrame`
+		//     and `GridFrame` both resolve `gate()` to the same `FrameContext::gate`
+		//     (`ui/core/frame_context.h`) -- so it also fires an OLED render at every PHASE
+		//     boundary (`kSourceBlinkMs`/`kBlinkCycleMs` apart), independent of `timer_repaints()`
+		//     entirely: that hook governs `Shell::tick` step 8b alone, not a scene's own `render_*`
+		//     arms. This is real, pre-existing, and outside this fix's scope -- but it fires only
+		//     AT a boundary, not on every tick inside a phase, so the window below stays strictly
+		//     inside one phase (the long 180 ms "shortcut" phase) to avoid crossing it.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.button(kShiftX, kShiftY, true, 0);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
+		r.shell.tick(2);
+		r.button(kShiftX, kShiftY, false, 3);
+		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
+
+		// Settle past both confounds: the "entered leaf draws next tick" one-shot repaint, the
+		// decimal cursor's own first arm, AND the source -> shortcut phase boundary at
+		// `kSourceBlinkMs` -- all landing inside the shortcut phase before the measured window
+		// opens.
+		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
+		r.shell.tick(anchor + menu::kSourceBlinkMs + 5);
+		const size_t blits_before = r.fake.blits.size();
+
+		// Eight cycles of the (fixed) source-pad cadence, no input at all, entirely inside the
+		// shortcut phase (`kSourceBlinkMs` = 20 to `kBlinkCycleMs` = 200, relative to `anchor`) --
+		// no phase boundary crossed, so `ms_to_phase_change`'s own arm stays quiet throughout and
+		// the only remaining candidate is the bug this fix removes. (Not asserting the grid kept
+		// moving here: the pad it paints is genuinely static for the length of one phase, same as
+		// the OLED content -- that half of the mechanism is what the shell-level `tick_spec.cpp`
+		// example proves instead, with a synthetic scene whose grid content really does change on
+		// the same cadence.)
+		for (int i = 1; i <= 8; i++) {
+			r.shell.tick(anchor + menu::kSourceBlinkMs + 5 + static_cast<uint32_t>(i) * menu::kSourceBlinkMs);
+		}
+
+		expect(r.fake.blits.size()).to_equal(blits_before); // zero OLED blits, the whole time
+	});
+
 	it("declares button LEDs only, with the back LED blinking", _ {
 		select_language();
 		deluge::notify::dirty().drain();
