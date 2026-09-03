@@ -1805,8 +1805,12 @@ errorAfterAllocation:
 // the libdeluge C-ABI -- exporting it is the correct future fix, not a new export sneaked in here. Until
 // then, treat a busy signal at this call site as informative, not as proof this recorder is the one
 // suspended -- log it rather than freeze a beta build on what may be an unrelated FS operation.
+bool sdRoutineBusy() {
+	return isSDRoutineActive() || deluge::sync::sd_busy();
+}
+
 void discardRecorder(SampleRecorder* recorder) {
-	if (ALPHA_OR_BETA_VERSION && (isSDRoutineActive() || deluge::sync::sd_busy())) {
+	if (ALPHA_OR_BETA_VERSION && sdRoutineBusy()) {
 		D_PRINTLN("discardRecorder: isSDRoutineActive()/sd_busy() was true on entry (see sd_busy_audit.md)");
 	}
 

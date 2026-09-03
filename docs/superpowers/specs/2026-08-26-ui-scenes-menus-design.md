@@ -1400,6 +1400,34 @@ dispatcher and its two owed pieces, mod-matrix pad blinking, `perform_editor`'s 
 action seam's dispatcher, `model/clip/audio_clip.cpp`'s surviving renderer include, and the
 `ascend()`-at-depth-0 divergence from `goUpOneLevel`'s `exitCompletely()`.
 
+### 15.10 The final-review fix wave (Part A)
+
+The whole-branch review returned CHANGES REQUESTED. What it changed, and why, one entry per finding
+that moved code.
+
+**A1 — `RecorderScene::after_render` frees the recorder from inside the card routine.**
+`finish_recording()` reaches `AudioEngine::discardRecorder`, which frees. Legacy states the hazard on
+its *other* caller, `AudioRecorder::slowRoutine` (`gui/ui/audio_recorder.cpp:168-176`): a recorder
+suspended part-way through its own `cardRoutine()` is left running on freed memory and then freed a
+second time. That caller is registered `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:570-572`)
+**and** carries the explicit `isSDRoutineActive() || deluge::sync::sd_busy()` test; `after_render()`
+runs from `Shell::tick` and has neither.
+
+The port's original note argued the guard did not apply because `AudioRecorder::process()` calls
+`finishRecording` unguarded. **That argument was wrong**: `process()` pumps
+`AudioEngine::routineWithClusterLoading()` as the first statement of its own loop (`:195`), so it is
+the outermost thing on the stack and cannot be re-entered inside a suspended card routine. The
+completion arm is now guarded in full — the attach as well as the free, because legacy does both in
+one step — and `next_timer()`'s 10 ms re-poll makes the deferral cost exactly one tick.
+
+The condition is read through a new seam, `AudioEngine::sdRoutineBusy()`, a sibling of
+`setForegroundRecording` and there for the same reason: `src/scenes` may include neither
+`OSLikeStuff/scheduler_api.h` nor `sync/sd_access.h`, and `audio_engine.cpp` already reaches both.
+`discardRecorder`'s own ALPHA_OR_BETA diagnostic now reads it too, so the precondition has one
+spelling. The spec drives the **real** flag rather than a stub: `recorder_scene_spec`'s
+`in_sd_routine` runs the poll tick inside `yieldingRoutineForSD`, the BSP's own card busy-wait hook
+and the only thing anywhere that makes `isSDRoutineActive()` true.
+
 ## 14. Citations into legacy source: the convention
 
 Every claim in `src/scenes/**`, `src/ui/**` and the spec trees is justified by a citation into

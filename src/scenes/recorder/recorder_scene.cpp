@@ -232,11 +232,8 @@ void RecorderScene::finish_recording() {
 	// `AudioRecorder::finishRecording` (`:245-253`). `recordingSource = NONE` is `recorder_ =
 	// nullptr` here; `display->removeLoadingAnimation()` is the `ClearWorking` notice.
 	//
-	// Legacy's own note on `slowRoutine` (`:168-175`) says `discardRecorder` must not run from
-	// inside the SD routine -- and `process()`, which is the path this arm ports, calls it
-	// unguarded from the main loop for exactly that reason. `after_render()` is the same place in
-	// the same sense: the shell's tick, not a card routine. The guard belongs to the
-	// output-recording reaper, which is not this scene's (see the class docstring).
+	// **The caller must have checked `AudioEngine::sdRoutineBusy()` first** -- this frees, and
+	// `after_render()` is the one call site. See the guard there for why.
 	recorder_->pointerHeldElsewhere = false;
 	// DIVERGENCE, deliberate and narrow: legacy clears the published pair *after*
 	// `discardRecorder` (`:248-251`), so for the length of that call `audioRecorder.recorder` names
@@ -259,6 +256,29 @@ Result RecorderScene::after_render() {
 
 	// `process()`'s completion arm (`:207-223`).
 	if (recorder_->status >= RecorderStatus::COMPLETE || recorder_->hadCardError) {
+		// **Not from inside the card routine.** `finish_recording()` below frees the recorder
+		// through `AudioEngine::discardRecorder`, and legacy states the hazard on its *other*
+		// caller, `AudioRecorder::slowRoutine` (`:168-176`): the recorder may be suspended part-way
+		// through its own `cardRoutine()`, so freeing it there leaves that `cardRoutine()` running
+		// on freed memory and then frees it a second time. `slowRoutine` is registered
+		// `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:570-572`) *and* carries this same
+		// explicit test, for the one call path that bypasses the scheduler.
+		//
+		// `process()` (`:194-243`) is NOT a precedent for going unguarded, though it calls
+		// `finishRecording` with no test: it pumps `AudioEngine::routineWithClusterLoading()`
+		// itself (`:195`) as the first statement of its own loop, so it is the outermost thing on
+		// the stack and can never be re-entered while a card routine is suspended part-way.
+		// `after_render()` has neither property -- it runs from `Shell::tick`, which has no
+		// scheduler registration of its own and which UI code demonstrably reaches while
+		// `isSDRoutineActive()` is true (that is why UI code across `gui/` consults it at all).
+		//
+		// Deferring costs nothing: `next_timer()` re-polls at `kRecorderPollMs`, so the completion
+		// arm runs on the next tick instead. The whole arm is deferred, not just the free, because
+		// `attach_sample()` publishes a sample the recorder still owns -- legacy does both in one
+		// step and so does this.
+		if (AudioEngine::sdRoutineBusy()) {
+			return r;
+		}
 		// The `if (status == ABORTED || hadCardError) {}` empty arm at `:209` is legacy's way of
 		// saying "attach nothing"; spelled as the condition on the attach instead.
 		if (recorder_->status != RecorderStatus::ABORTED && !recorder_->hadCardError) {

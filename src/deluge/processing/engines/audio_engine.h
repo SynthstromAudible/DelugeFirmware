@@ -287,6 +287,23 @@ void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source);
 /// @brief The foreground recording's channel -- `AudioRecorder::recordingSource`.
 /// @return `AudioInputChannel::NONE` when nothing is recording.
 AudioInputChannel foregroundRecordingSource();
+/// @brief Is it unsafe to free a `SampleRecorder` right now?
+///
+/// `discardRecorder` destroys and frees the object, and that must not happen from inside the SD
+/// routine: the recorder may be suspended part-way through its own `cardRoutine()`, so freeing it
+/// there leaves that `cardRoutine()` running on freed memory and then frees it a second time.
+/// `AudioRecorder::slowRoutine` (`gui/ui/audio_recorder.cpp:168-176`) is where legacy states that,
+/// and its guard is `isSDRoutineActive() || deluge::sync::sd_busy()` -- exactly this condition.
+/// `discardRecorder`'s own ALPHA_OR_BETA diagnostic now reads this function too, so the precondition
+/// has one spelling rather than two.
+///
+/// A sibling of the seam above, and here for the same reason: the other caller that has to ask is
+/// `deluge::scenes::recorder::RecorderScene`, and `src/scenes` may include neither
+/// `OSLikeStuff/scheduler_api.h` nor `sync/sd_access.h` (`scripts/check_layer_rules.py`,
+/// `scenes-includes-outside`). `audio_engine.cpp` already reaches both.
+///
+/// @return True while a caller must **defer and retry** rather than free.
+bool sdRoutineBusy();
 /// @}
 
 /// @brief Re-derive `doMonitoring` and `monitoringAction` from the foreground recording.

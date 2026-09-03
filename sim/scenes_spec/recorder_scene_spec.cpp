@@ -57,6 +57,9 @@
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 
+#include "libdeluge/storage_wait.h"
+#include "scheduler_api.h"
+
 #include "support/song_fixture.h"
 
 // Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
@@ -72,7 +75,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <string>
+#include <utility>
 
 #include "spec/support/spec_main.h"
 
@@ -372,6 +377,44 @@ struct Guards {
 	NoForegroundRecording publication;
 };
 
+/// @brief The body `run_sd_routine_body` is currently running. `RunCondition` is a bare function
+///        pointer (`OSLikeStuff/scheduler_api.h:36`), so the closure has to be parked here.
+std::function<void()> g_sd_routine_body;
+
+bool run_sd_routine_body() {
+	if (g_sd_routine_body) {
+		const std::function<void()> body = std::move(g_sd_routine_body);
+		g_sd_routine_body = nullptr;
+		body();
+	}
+	// "The thing we were waiting on has happened" -- so the yield loop makes exactly one pass and
+	// `yieldingRoutineForSD` returns, clearing the flag on the way out.
+	return true;
+}
+
+/// @brief Run @p body with `isSDRoutineActive()` genuinely true.
+///
+/// **Not a stub and not a fake flag.** `yieldingRoutineForSD`
+/// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:165-183`) is the hook the BSP calls while
+/// it busy-waits on the card, and setting `sdRoutineActive` around its yield is the only thing
+/// anywhere that makes `isSDRoutineActive()` true -- so this is the real relationship the guard
+/// exists for: UI work reached from inside a suspended card routine. The condition passed in
+/// returns true on its first evaluation, which is where @p body runs, so the scheduler makes one
+/// pass and unwinds.
+void in_sd_routine(std::function<void()> body) {
+	// `TaskManager::yield` accounts the *yielding* task before it runs the loop, and a spec process
+	// has registered none -- `list[currentID]` is the zeroed slot, whose `name` is null and whose
+	// `lastCallTime` is 0, so the "took too long before yielding" `D_PRINTLN` formats `%s` from a
+	// null pointer and the process dies inside `printf.c`. `ignoreForStats()`
+	// (`OSLikeStuff/scheduler_api.h`, `TaskManager::countThisTask`) is the scheduler's own "do not
+	// account this" switch and skips that whole block. It stays off afterwards -- only `runTask`
+	// turns it back on -- which costs a spec process with no tasks nothing.
+	ignoreForStats();
+	g_sd_routine_body = std::move(body);
+	yieldingRoutineForSD(run_sd_routine_body);
+	g_sd_routine_body = nullptr;
+}
+
 } // namespace
 
 // clang-format off
@@ -547,6 +590,39 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(holder->filePath).to_equal(std::string("SAMPLES/RECORD/REC000.WAV"));
 		// `finishRecording()` (`:245-253`), and `close()` (`:221`).
 		expect(recorder_scene().recording()).to_be_false();
+		expect(r.on_stack()).to_be_false();
+	});
+
+	it("defers the whole completion arm while the SD routine is running", _ {
+		// `AudioRecorder::slowRoutine`'s guard (`:168-176`), which `after_render()` needs for the
+		// same reason: `finish_recording()` frees the recorder, and freeing one that is suspended
+		// part-way through its own `cardRoutine()` leaves that routine running on freed memory.
+		Guards g;
+		Rig r;
+		r.open();
+		r.tick(0);
+		SampleRecorder* rec = recorder_scene().recorder();
+		Sample* captured = rec->sample;
+		captured->filePath = "SAMPLES/RECORD/REC000.WAV";
+		captured->lengthInSamples = 44100;
+		captured->audioDataLengthBytes = 44100 * 3;
+		rec->numSamplesCaptured = 44100;
+		rec->status = RecorderStatus::COMPLETE;
+
+		// The poll tick that would finish it, run from inside a real card routine.
+		in_sd_routine([&r] { r.tick(10); });
+
+		// Nothing freed, nothing attached, nothing closed.
+		expect(recorder_scene().recording()).to_be_true();
+		expect(recorder_scene().recorder() == rec).to_be_true();
+		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SQUARE));
+		expect(r.on_stack()).to_be_true();
+
+		// And the cost of the deferral is exactly one poll: the next tick, outside the routine,
+		// runs the completion arm in full.
+		r.tick(20);
+		expect(recorder_scene().recording()).to_be_false();
+		expect(static_cast<int32_t>(r.source->oscType)).to_equal(static_cast<int32_t>(OscType::SAMPLE));
 		expect(r.on_stack()).to_be_false();
 	});
 
