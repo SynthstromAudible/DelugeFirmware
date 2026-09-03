@@ -530,9 +530,11 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		expect(ids(found)).to_equal(ids(want));
 	});
 
-	it("retires nine placeholders and leaves exactly two", _ {
+	it("retires nine placeholders, none of which came back", _ {
 		// The count `validate.h` carries, checked from the other end: none of the nine is a
-		// placeholder any more, and the two that are named there still are.
+		// placeholder any more. E3 task 7 then closed out the last two the tree had
+		// (`nodes/output_items.h`), so `kPendingCustomNodes` is 0 -- `output_items_spec.cpp` is
+		// where that milestone is asserted; this only re-checks task 6's own nine.
 		for (const Node* n : {&nodes::file0_selector, &nodes::file1_selector, &nodes::sample0_start,
 		                      &nodes::sample1_start, &nodes::sample0_end, &nodes::sample1_end,
 		                      &nodes::audio_clip_waveform, &nodes::sample0_recorder, &nodes::sample1_recorder}) {
@@ -541,9 +543,7 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 			expect(n->custom != nullptr).to_be_true();
 			expect(n->custom != nullptr && n->custom->is_placeholder()).to_be_false();
 		}
-		expect(nodes::midi_device_linked.custom->is_placeholder()).to_be_true();
-		expect(nodes::specific_output_selector.custom->is_placeholder()).to_be_true();
-		expect(menu::kPendingCustomNodes).to_equal(size_t(2));
+		expect(menu::kPendingCustomNodes).to_equal(size_t(0));
 	});
 });
 

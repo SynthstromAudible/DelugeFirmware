@@ -109,9 +109,11 @@ namespace deluge::scenes::menu::nodes {
 
 /// @brief The shared placeholder for a node whose real item is still owed.
 ///
-/// **Nothing in this file points here any more** (E3 task 6 -- see the file note); it lives here for
-/// its history and because the two nodes still owed one are declared in `nodes/roots.h`, which
-/// includes this header. `validate.h`'s `kPendingCustomNodes` names them.
+/// **Nothing anywhere points here any more** -- E3 task 6 retired this file's own eight users and
+/// E3 task 7 the last two, in `nodes/roots.h` (`validate.h`'s `kPendingCustomNodes` is 0). It stays
+/// for its history *and as a live mechanism*: a table that has to declare a node's shape before its
+/// item exists still points here, and `validate_tree` now reports that with nothing able to
+/// suppress it -- the option that could was deleted with the last user.
 ///
 /// Both members are defined in `sound_osc.cpp`: declaring them here keeps this header free of the
 /// oled toolkit's and the shell's dependency closures, exactly as `node.h` keeps `CustomItem` free

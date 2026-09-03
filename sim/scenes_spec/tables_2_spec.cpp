@@ -969,7 +969,7 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 		const MenuContext contexts[] = {f.ctx};
 		const auto issues = menu::validate_tree(
 		    nodes::kSoundRootRoots, contexts, nodes::kRangeDependentNodes, nodes::kHalfPrecisionNodes,
-		    menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		    menu::ValidateOptions{.skip_shortcut_sweep = true});
 		size_t duplicates = 0;
 		size_t others = 0;
 		for (const menu::Issue& i : issues) {
@@ -1008,7 +1008,7 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 		const MenuContext contexts[] = {f.ctx};
 		(void)menu::validate_tree(
 		    nodes::kSoundRootRoots, contexts, {}, {},
-		    menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		    menu::ValidateOptions{.skip_shortcut_sweep = true});
 		for (const Pair& p : tree().pairs) {
 			expect(menu::node_id(*p.node) != uint16_t(0)).to_be_true();
 		}
@@ -1170,7 +1170,7 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 		const MenuContext contexts[] = {f.ctx};
 		const auto issues =
 		    menu::validate_tree(nodes::kAllRoots, contexts, {}, {},
-		                        menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		                        menu::ValidateOptions{.skip_shortcut_sweep = true});
 		size_t mismatches = 0;
 		for (const menu::Issue& i : issues) {
 			if (i.kind == menu::Issue::Kind::FlagMismatch

@@ -710,10 +710,49 @@ Nine instances rather than three, for `MidiCommandItem`'s reason: `on_focus` is 
 `MenuContext` and a `MenuState`, never its own `Node`, so an item shared across the two oscillators
 could not tell which source it was being focused as.
 
-The **two** that remain are `midi_device_linked` (whose `BrowserScene` descriptor already ships —
-`BrowserId::MidiDeviceDefinition`, E3 task 3 — so only the item is owed) and
-`specific_output_selector` (an output picker, not a browser). E3 task 7 closes both out, and
-deletes `ValidateOptions::allow_placeholder_custom` with the last of them.
+The **two** that remained were `midi_device_linked` (whose `BrowserScene` descriptor already
+shipped — `BrowserId::MidiDeviceDefinition`, E3 task 3 — so only the item was owed) and
+`specific_output_selector` (an output picker, not a browser).
+
+*E3 amendment (task 7) — the tree has no placeholders left.* `kPendingCustomNodes` is **0** and the
+distinct-item count is **52**, which is also the node count (`kShippedCustomNodes`) and the cap is
+unchanged at **53**: two nodes were re-pointed, not added, and the shared `nodes::kPending` left the
+distinct-item set with them, so 51 became 52 rather than 53. Every `Kind::Custom` node in the tree
+now has an item of its own and no two share one. The two items are in `menu/nodes/output_items.h`,
+grouped because both are about the clip's `Output` rather than its sound:
+
+* **`MidiDeviceLinkedItem`** — `midi::device_definition::Linked`
+  (`gui/menu_item/midi/device_definition/linked.h:29`), which is a **`menu_item::Toggle`**, not a
+  plain opener: its value is "is a definition file linked" (`readCurrentValue`, `:33-36`) and
+  `writeCurrentValue` (`:37-49`) has two arms — ON opens `loadMidiDeviceDefinitionUI` (`:42`), OFF
+  clears `MIDIInstrument::deviceDefinitionFileName` (`:45-48`). Both are ported. `Toggle` overrides
+  `shouldEnterSubmenu()` to false (`gui/menu_item/toggle.h:19`), so the port takes
+  `nodes::ActionItem`'s shape for that legacy shape: descend for one tick, act in `on_focus`, and
+  leave again — via `pending_scene` + `go_up_on_resume` on the ON arm, and via `render` reporting
+  `entered` on the OFF arm.
+* **`SpecificOutputItem`** — `audio_clip::SpecificSourceOutputSelector`
+  (`gui/menu_item/audio_clip/specific_output_source_selector.h:26`), a page rather than a browser:
+  the song's output list walked with the select encoder, skipping every output the audio track
+  cannot record from (`AudioOutput::canRecordFrom`, `processing/audio_output.h:109-111`, which
+  excludes itself, MIDI and CV). Its cursor lives in `MenuState::list[depth]` for
+  `SourceSelectionItem`'s reason, and the `setOutputRecordingFrom` write goes through
+  `CustomItem::commit`, since a render may not write the model.
+
+`ValidateOptions::allow_placeholder_custom` is **deleted**, in this task rather than in the plan's
+accounting task: with `kPendingCustomNodes` at 0 it could never suppress anything again, and a
+permanently-satisfiable opt-out is the shape that hides the *next* regression rather than
+documenting this one. `Issue::Kind::PlaceholderCustom` is therefore unconditional, and
+`nodes::kPending` stays as a live mechanism with no users —
+`sim/scenes_spec/output_items_spec.cpp` asserts the zero three ways (the constant, a strict
+`validate_tree` over `kAllRoots`, and a walk of every reachable `Kind::Custom` node).
+
+Two divergences are recorded rather than closed: a `Kind::Custom` node cannot draw a row icon in its
+parent's list, so `midi_device_linked` loses `Linked::renderSubmenuItemTypeForOled`'s checkbox and
+file name (`:56-78`) — it must stay `Kind::Custom` because the dump JSON carries the node's type,
+and closing it needs a `CustomItem` hook `MenuScene::render_oled`'s `row_icon` can ask; and
+`on_focus` doing the toggle means a `restore_state` onto the item toggles too, which
+`Toggle::beginSession` does not, the same hazard the four `ActionItem`s and `EditNameItem` already
+ship.
 
 **E2's carried work** — behaviour spec E named as belonging to a later phase, still owed once E1's
 ten roots and `MenuScene` ship: `source_shortcut_pads` (needs patch cables); per-pad blink
@@ -734,8 +773,8 @@ delete — see the `selectButtonPress()` amendment above;
 `Source::getOrCreateFirstRange()` on a zero-range sample item; per-node cursor memory across
 sessions; `Kind::Custom` receiving raw input (today's `CustomItem` interface renders but the E1
 placeholder never routes input to it — the shipped mechanism is `nodes::kPending` /
-`CustomItem::is_placeholder()` / `Issue::Kind::PlaceholderCustom` /
-`ValidateOptions::allow_placeholder_custom`; the `DELUGE_SCENES_E1_PARTIAL` macro the plan
+`CustomItem::is_placeholder()` / `Issue::Kind::PlaceholderCustom`, the last of these with no
+suppressing option since E3 task 7; the `DELUGE_SCENES_E1_PARTIAL` macro the plan
 proposed was never built); and gold-knob acceleration
 (`calcNextKnobSpeed`).
 
@@ -1008,7 +1047,7 @@ carries the same table with pointers into the code.
 
 | carried | why it was not done | size |
 |---|---|---|
-| **The file/sample family** — 11 nodes still `nodes::kPending` | needs the card; every other item family was reachable without it | the largest remaining group. `validate.h`'s `kPendingCustomNodes` names the exact set, pinned by node identity so closing it is a deliberate spec change |
+| ~~**The file/sample family** — 11 nodes still `nodes::kPending`~~ **CLOSED by E3 tasks 6 and 7.** (Accurate as E2 history: at the close of E2 these eleven were still placeholders. `kPendingCustomNodes` is now **0** — see the E3 amendments in §11.) | needed the card; every other item family was reachable without it | was the largest remaining group. `validate.h`'s `kPendingCustomNodes` names the exact set, pinned by node identity so closing it was a deliberate spec change |
 | **`midiDeviceMenu`'s subtree** (`gui/ui/menus.cpp:1444-1453`) — `midi_devices` has no `select_chain` because its target page is declared by no node | size, and only size. Tasks 3 and 9 each declared a *single* chain-target page; this is several times that | ~8 nodes, 3 bespoke: a new submenu, four leaves needing a binding family scoped to `MenuContext::midi_cable` (per-cable state, unlike every binding shipped), plus `mpe::DirectionSelector` — itself bespoke, with instance state, a runtime `getTitle()` and its own chain onward to `zoneSelectorMenu` |
 | **Splitting session from arranger** — `song_midi_learn` and `configure_song_macros` stay visible in the arranger where legacy hides them | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:265` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
 | **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback`, the three `shouldBlinkPatchingSourceShortcut` overrides and `patchingSourceShortcutPress` | `MenuScene::render_grid` owns one blink cycle keyed off the focused *node*; consulting the focused `CustomItem` needs a hook on `CustomItem` and a second blink source | same shape of change as routing MIDI to `MenuScene::learn_*` |

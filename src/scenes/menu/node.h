@@ -308,14 +308,19 @@ struct CustomItem {
 	///
 	/// E1's tables have to name every legacy bespoke item so the tree's *shape* is complete, but the
 	/// implementations of the file selector, the audio recorder, the loop points, the name editors,
-	/// the patch-cable pages and the multi-range picker all belong to E2. Those nodes point at a
-	/// shared placeholder (`nodes::kPending`) that draws the item's title and consumes nothing.
+	/// the patch-cable pages and the multi-range picker all belonged to E2 and E3. Such a node
+	/// points at a shared placeholder (`nodes::kPending`) that draws the item's title and consumes
+	/// nothing.
 	///
 	/// A null `custom` would be worse -- nothing would render, and `validate.h`'s `NullCustom` rule
 	/// exists precisely to catch that -- but a placeholder is still not a finished item, so
-	/// `validate_tree` reports one (`Issue::Kind::PlaceholderCustom`) unless the caller opts in via
-	/// `ValidateOptions::allow_placeholder_custom`. That keeps "the tree is complete" checkable by
-	/// default and lets an E1 spec say, once and visibly, that it is not yet.
+	/// `validate_tree` reports one (`Issue::Kind::PlaceholderCustom`).
+	///
+	/// @note **No node in the shipped tree answers true any more** (E3 task 7,
+	///       `validate.h`'s `kPendingCustomNodes`), and the option that used to suppress the rule
+	///       is gone with them. This hook and `nodes::kPending` stay: they are what a *future*
+	///       table declaring a shape before its item exists reaches for, and the rule now reports
+	///       such a node with nothing able to turn it off.
 	virtual bool is_placeholder() const { return false; }
 
 	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.

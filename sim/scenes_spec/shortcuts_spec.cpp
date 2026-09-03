@@ -627,7 +627,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// other caller validates a *subset* of the tree and stands the sweep down, because a cell in
 		// another root's table says nothing about the subtree under test).
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {},
-		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
+		                                        menu::ValidateOptions{});
 		size_t dangling = 0;
 		for (const menu::Issue& i : issues) {
 			if (i.kind == menu::Issue::Kind::ShortcutToNothing) {
@@ -698,17 +698,22 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// three, for the reason the twelve MIDI-command items are twelve: `on_focus` is handed a
 		// `MenuContext` and a `MenuState`, never its own `Node`, so an item shared across the two
 		// oscillators could not tell which source it was being focused as. They move no node count
-		// either: all nine were already `Kind::Custom` nodes pointing at `kPending`, and `kPending`
-		// still has two users (`midi_device_linked`, `specific_output_selector`).
+		// either: all nine were already `Kind::Custom` nodes pointing at `kPending`.
+		//
+		// E3 task 7 adds the last two -- `kMidiDeviceLinked` and `kSpecificOutputSelector`
+		// (`nodes/output_items.h`) -- and **`nodes::kPending` leaves the set with them**, because
+		// nothing points at it any more. So the count goes 51 -> **52**, not 53, and it is now
+		// exactly `kShippedCustomNodes`: every custom node has an item of its own, and no two nodes
+		// share one. `output_items_spec.cpp` asserts the placeholder-free claim directly.
 		//
 		// Twelve instances rather than one parameterised by the node, because the command a node
 		// binds has to be a property of the item: `CustomItem::learn_*` is handed `MenuState`, not
 		// its own `Node`, so an item that shared one instance across the twelve could not tell which
 		// of the twelve slots it was being asked to learn onto.
-		expect(distinct_items).to_equal(size_t(51));
+		expect(distinct_items).to_equal(size_t(52));
+		expect(distinct_items).to_equal(menu::kShippedCustomNodes); // one item per node, nothing shared
 
-		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {},
-		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
+		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});
 		size_t too_many = 0;
 		for (const menu::Issue& i : issues) {
 			if (i.kind == menu::Issue::Kind::TooManyCustom) {
@@ -718,35 +723,24 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		expect(too_many).to_equal(size_t(0));
 	});
 
-	it("still owes exactly the two remaining placeholders, by identity", _ {
-		// E2 task 12. `allow_placeholder_custom` used to be checked only as a count, which is a net
-		// with a hole in it: an item task that finished one placeholder and a table that added
-		// another somewhere else would cancel out, and the number that says "the tree is not done"
-		// would not move. This pins the SET, so the task that closes the last two out has to edit
-		// this list -- and adding a third placeholder fails here instead of hiding.
+	it("owes no placeholder at all, and says so by identity rather than by a count", _ {
+		// E2 task 12 made this a SET rather than a count, because a count is a net with a hole in
+		// it: an item task that finished one placeholder and a table that added another somewhere
+		// else would cancel out, and the number that says "the tree is not done" would not move.
 		//
-		// **E3 task 6 removed nine rows from this list**, which is the whole file/sample family
-		// except the two one-offs: `file0_selector`/`file1_selector` now point at
-		// `nodes::kFile0Selector`/`kFile1Selector`, the four loop points and `audio_clip_waveform`
-		// at the five `nodes::MarkerItem`s, and the two recorders at the two
-		// `nodes::AudioRecorderItem`s (`nodes/sample.h`). `sample_items_spec.cpp` is where the
-		// item-to-scene mapping itself is pinned; this only says which nodes are still stubs.
+		// **E3 tasks 6 and 7 emptied the set.** Task 6 took nine rows out (the file/sample family:
+		// `nodes/sample.h`) and task 7 the last two -- `midi_device_linked` and
+		// `specific_output_selector`, now `nodes::kMidiDeviceLinked` and
+		// `nodes::kSpecificOutputSelector` (`nodes/output_items.h`). The example is kept, empty,
+		// rather than deleted: this is the assertion a table that adds a *new* placeholder fails,
+		// and it is the only one that names which node arrived.
 		//
 		// Named nodes, not string ids: two oscillators declare `FILE_BROWSER` under the same name
 		// (`nodes/sound_osc.h`'s `SOURCE_NODES` macro), so a set keyed on the label could not tell
 		// them apart. The comparison prints `id=name-string-id` pairs in node-id order, so a failure
-		// says which node arrived or left rather than only that a count moved.
+		// says which node arrived rather than only that a count moved.
 		select_language();
 		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
-
-		const Node* const kExpected[] = {
-		    // The MIDI device-definition load. `browser::BrowserId::MidiDeviceDefinition` already
-		    // ships (task 3); only the item is owed.
-		    &nodes::midi_device_linked,
-		    // The audio clip's `TRACK` picker -- an output list, not a file browser.
-		    &nodes::specific_output_selector,
-		};
-		static_assert(std::size(kExpected) == menu::kPendingCustomNodes);
 
 		// Sorted by node id, not by pointer: a `std::set<const Node*>` orders by address, which
 		// varies with link order and would make the two sides of a failure hard to read against each
@@ -767,7 +761,8 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 			}
 			return out.empty() ? std::string{"(none)"} : out;
 		};
-		std::set<const Node*> want{std::begin(kExpected), std::end(kExpected)};
+		const std::set<const Node*> want{}; // `menu::kPendingCustomNodes` is 0
+		static_assert(menu::kPendingCustomNodes == 0);
 
 		std::set<const Node*> found;
 		for (uint16_t id = 1; id <= assigned; id++) {
@@ -778,10 +773,11 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		}
 		expect(describe(found)).to_equal(describe(want));
 
-		// And the rule itself agrees with the walk: with the flag DOWN, `validate_tree` reports a
-		// `PlaceholderCustom` against each of exactly those nodes and nothing else. (The shortcut
-		// sweep stays on -- this is `kAllRoots`, the one caller for which it means anything -- and
-		// the issue list is capped at 64, comfortably above two.)
+		// And the rule itself agrees with the walk. There is no flag to put down any more: the
+		// option that used to suppress `PlaceholderCustom` was deleted with the last placeholder
+		// (`validate.h`), so a default-constructed `ValidateOptions` IS the strict one. (The
+		// shortcut sweep stays on -- this is `kAllRoots`, the one caller for which it means
+		// anything.)
 		const auto strict = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});
 		std::set<const Node*> reported;
 		for (const menu::Issue& i : strict) {

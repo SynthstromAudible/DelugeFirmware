@@ -50,9 +50,9 @@
 /// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
 /// `Binding::updates_reverb_params`) and with `Flag::ChainTargetsMismatch` (a `select_chain` hook
 /// without its static target list, or the reverse),
-/// `PlaceholderCustom` (a node that renders a stand-in for an item E2 still owes -- suppressible,
-/// and only ever suppressed by an E1 spec, `ValidateOptions::allow_placeholder_custom`), and the
-/// two `FlagMismatch` audits (task 6's ruling 4).
+/// `PlaceholderCustom` (a node that renders a stand-in rather than a real item -- unconditional
+/// since E3 task 7 retired the last two stand-ins and with them the option that suppressed this,
+/// see `validate.h`'s `kPendingCustomNodes`), and the two `FlagMismatch` audits (task 6's ruling 4).
 ///
 /// **No heap, no model.** The walk uses two fixed `kMaxNodes`-wide arrays of node pointers -- the
 /// reachable set and `collect`'s explicit work stack -- so the frame is `2 * kMaxNodes *
@@ -314,7 +314,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 				add(out, Issue::Kind::NullCustom, &n);
 			}
 			else {
-				if (n.custom->is_placeholder() && !options.allow_placeholder_custom) {
+				if (n.custom->is_placeholder()) {
 					add(out, Issue::Kind::PlaceholderCustom, &n, n.name);
 				}
 				last_custom = &n;

@@ -709,15 +709,15 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 	it("validates clean apart from the three FormattedTitle name collisions legacy has", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
-		// `allow_placeholder_custom`: the four bespoke oscillator items point at `kPending` until E2
-		// lands the real implementations, and `validate_tree` is strict about that by default
-		// (task-7 ruling 3). Standing the rule down here rather than everywhere is the point --
-		// the next example asserts strict mode still reports exactly those four.
+		// Only the shortcut sweep is stood down, and only because this is a *subtree*: the rule is
+		// quantified over every root's table, so pointed at batch 1 it would report every cell in
+		// every other root's (`validate.h`'s `skip_shortcut_sweep`). Nothing else is: this example
+		// used to also pass `allow_placeholder_custom`, for the eight bespoke oscillator items that
+		// pointed at `kPending`; E3 tasks 6 and 7 gave every node in the tree a real item and the
+		// option no longer exists.
 		const auto issues =
 		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
-		                        nodes::kHalfPrecisionNodes,
-		                        menu::ValidateOptions{.allow_placeholder_custom = true,
-		                                              .skip_shortcut_sweep = true});
+		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.skip_shortcut_sweep = true});
 		size_t duplicates = 0;
 		size_t others = 0;
 		for (const menu::Issue& i : issues) {
@@ -755,9 +755,9 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		// at `kPending`: both file selectors, the four sample loop points and both audio recorders.
 		// E3 task 6 gave all eight a real item (`nodes/sample.h`), so the batch-1 tree is now clean
 		// under the default (strict) options and the number is zero rather than smaller.
-		// `sim/scenes_spec/sample_items_spec.cpp` pins which item each of those nodes got;
-		// `shortcuts_spec.cpp` pins the two placeholders left anywhere in the whole tree, neither of
-		// which is reachable from a batch-1 root.
+		// `sim/scenes_spec/sample_items_spec.cpp` pins which item each of those nodes got, and E3
+		// task 7 closed out the last two anywhere in the tree -- so this is now the same claim
+		// `output_items_spec.cpp` makes over `kAllRoots`, made here over batch 1.
 		const auto issues =
 		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
 		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.skip_shortcut_sweep = true});

@@ -47,10 +47,11 @@ ROOT_UI_GLOBALS = (
     "renameOutputUI",
     "renameDrumUI",
     "renameMidiCCUI",
-    # the browsers, savers and recorders the eleven `kPendingCustomNodes` will want when E3
-    # implements the file/sample family -- listed now so the ratchet is already in place for the
+    # the browsers, savers and recorders the eleven `kPendingCustomNodes` wanted when E3 implemented
+    # the file/sample family -- listed ahead of that work so the ratchet was already in place for the
     # exact group most likely to reach for them (`gui/ui/browser/`, `gui/ui/save/`, `gui/ui/load/`,
-    # `gui/ui/audio_recorder.h`, `gui/ui/sample_marker_editor.h`, `gui/ui/slicer.h`).
+    # `gui/ui/audio_recorder.h`, `gui/ui/sample_marker_editor.h`, `gui/ui/slicer.h`). It worked:
+    # E3 tasks 3-7 landed all eleven and named none of these.
     "sampleBrowser",
     "audioRecorder",
     "sampleMarkerEditor",

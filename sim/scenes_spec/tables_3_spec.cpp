@@ -1319,7 +1319,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		install(roots().front().ctx, roots().front().song);
 		const auto issues = menu::validate_tree(
 		    without_settings, contexts, nodes::kRangeDependentNodes, nodes::kHalfPrecisionNodes,
-		    menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		    menu::ValidateOptions{.skip_shortcut_sweep = true});
 		size_t duplicates = 0;
 		size_t others = 0;
 		for (const menu::Issue& i : issues) {
@@ -1364,7 +1364,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		const MenuContext contexts[] = {settings.ctx};
 		const auto issues = menu::validate_tree(
 		    without_follow_channel, contexts, {}, {},
-		    menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		    menu::ValidateOptions{.skip_shortcut_sweep = true});
 		expect(issues.size()).to_equal(size_t(0));
 
 		// Fix round 1, minor 6: passing those three nodes' *children* as roots leaves the three
@@ -1390,7 +1390,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		const MenuContext contexts[] = {settings.ctx};
 		const auto issues =
 		    menu::validate_tree(page, contexts, {}, {},
-		                        menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		                        menu::ValidateOptions{.skip_shortcut_sweep = true});
 		// Every issue is the one collision, on the one name id -- the count itself is the 64 cap
 		// (`validate.h`: "a tree with more than 64 problems does not need an exhaustive list"), not a
 		// number worth asserting. E2's formatted-name field on `Node` is what removes these.
@@ -1407,7 +1407,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 			contexts.push_back(root.ctx);
 		}
 		(void)menu::validate_tree(nodes::kAllRoots, contexts, {}, {},
-		                          menu::ValidateOptions{.allow_placeholder_custom = true});
+		                          menu::ValidateOptions{});
 		for (const Pair& p : tree().pairs) {
 			expect(menu::node_id(*p.node) != uint16_t(0)).to_be_true();
 		}
@@ -2056,7 +2056,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		const MenuContext contexts[] = {settings.ctx};
 		const auto issues =
 		    menu::validate_tree(subtree, contexts, {}, {},
-		                        menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		                        menu::ValidateOptions{.skip_shortcut_sweep = true});
 		expect(issues.size()).to_equal(size_t(0));
 	});
 });

@@ -70,8 +70,11 @@
 ///           `nodes::EditNameItem` (`edit_name.h`) that opens `rename::RenameScene` on
 ///           `rename::TargetId::Drum` -- legacy's `EditName::Target::DRUM` -> `renameDrumUI` --
 ///           exactly as `sound_actions.h`'s two do for the clip and the track.)
-///         * `midi_device_linked` -- `Linked::writeCurrentValue` opens
-///           `loadMidiDeviceDefinitionUI` (`midi/device_definition/linked.h:42`).
+///         * (`midi_device_linked` is no longer one -- E3 task 7. `nodes::MidiDeviceLinkedItem`
+///           (`nodes/output_items.h`) ports the whole `Toggle`: the ON arm opens
+///           `browser::BrowserScene` on `BrowserId::MidiDeviceDefinition`
+///           (`midi/device_definition/linked.h:42`) and the OFF arm clears the linked file name
+///           (`:45-48`).)
 ///         * (`set_clip_length` is no longer one -- task 11b. It, `start_stem_export`,
 ///           `song_midi_learn` and `configure_song_macros` are `nodes::ActionItem`s that file a
 ///           `MenuAction` through `MenuState::pending_action`, the verb counterpart of
@@ -80,8 +83,10 @@
 ///         * (`audio_source_selector` is no longer one -- task 11b. It is a
 ///           `nodes::ContextMenuItem` on `context_menu::DescriptorId::AudioSource`, the sixth
 ///           descriptor, which is what the three `Descriptor` hooks task 6 anticipated were for.)
-///         * `specific_output_selector` -- a `drawPixelsForOled`-driven output picker
-///           (`audio_clip/specific_output_source_selector.h:21-45`).
+///         * (`specific_output_selector` is no longer one -- E3 task 7.
+///           `nodes::SpecificOutputItem` (`nodes/output_items.h`) is the real page: the song's
+///           output list walked with the select encoder, skipping every output the audio track
+///           cannot record from (`audio_clip/specific_output_source_selector.h:26`).)
 ///         * `audio_clip_waveform` -- the marker editor (`audio_clip/sample_marker_editor.h:26`).
 ///         * (`perform_editor` is no longer one -- task 11b. `nodes::PerformEditorItem` renders the
 ///           three-option list and files `MenuAction::OpenPerformanceView`; the mode it shows is
@@ -92,19 +97,22 @@
 ///           `ui::oled::list`, which already ports the renderer legacy's own
 ///           `drawSubmenuItemsForOled` was adapted from.)
 ///
-///       The ones still listed point at `nodes::kPending`, so `validate_tree` reports them (one
-///       `PlaceholderCustom` each) unless the caller opts in. Every `Kind::Custom` node -- finished
-///       or pending -- counts as **one node** against `kMaxCustomNodes` (fix round 2, I4: the cap
-///       counts nodes, not distinct `CustomItem` instances -- counting instances made it 1 for the
-///       whole tree and inert), so retiring a placeholder moves no ratchet.
+///       **Nothing is still listed.** E3 task 7 retired the last two, so no node anywhere in the
+///       tree points at `nodes::kPending` and `validate_tree` reports no `PlaceholderCustom` at all
+///       (`validate.h`'s `kPendingCustomNodes`, now 0, and the option that used to suppress the
+///       rule is gone with them). Every `Kind::Custom` node counts as **one node** against
+///       `kMaxCustomNodes` (fix round 2, I4: the cap counts nodes, not distinct `CustomItem`
+///       instances -- counting instances made it 1 for the whole tree and inert), so retiring a
+///       placeholder moved no ratchet.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/actions.h"            // the five action items (task 11b)
 #include "scenes/menu/nodes/context_menu_items.h" // kAudioSourceItem (task 11b)
 #include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/nodes/edit_name.h" // kEditDrumName
-#include "scenes/menu/nodes/sample.h"    // kAudioClipWaveform
-#include "scenes/menu/nodes/scales.h"    // kSongActiveScalesItem (task 11b)
+#include "scenes/menu/nodes/edit_name.h"    // kEditDrumName
+#include "scenes/menu/nodes/output_items.h" // kMidiDeviceLinked, kSpecificOutputSelector (task 7)
+#include "scenes/menu/nodes/sample.h"       // kAudioClipWaveform
+#include "scenes/menu/nodes/scales.h"       // kSongActiveScalesItem (task 11b)
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_bend.h"
 #include "scenes/menu/nodes/sound_compressor.h"
@@ -329,9 +337,11 @@ inline constexpr Node root_drum = submenu(sid(String::STRING_FOR_SOUND), kDrumRo
 inline constexpr const Node* kMidiOrCvActionsChildren[] = {&edit_name};
 inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTIONS), kMidiOrCvActionsChildren);
 
-inline constexpr Node midi_device_linked =
-    with_relevant(custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kPending), // E2
-                  relevance::is_midi_out);
+/// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp:905`), a `midi::device_definition::Linked` -- a
+/// `Toggle` whose ON arm opens `loadMidiDeviceDefinitionUI` and whose OFF arm clears the linked
+/// file name (`midi/device_definition/linked.h:37-49`). Both arms are `nodes::kMidiDeviceLinked`.
+inline constexpr Node midi_device_linked = with_relevant(
+    custom(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED), &kMidiDeviceLinked), relevance::is_midi_out);
 inline constexpr Node midi_hide_unlabeled =
     toggle_item(sid(String::STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE), get_midi_hide_unlabeled, set_midi_hide_unlabeled,
                 relevance::is_midi_out);
@@ -423,8 +433,11 @@ inline constexpr const Node* kAudioClipActionsChildren[] = {&edit_name, &set_cli
 inline constexpr Node audio_clip_actions = submenu(sid(String::STRING_FOR_ACTIONS), kAudioClipActionsChildren);
 
 inline constexpr Node audio_source_selector = custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem);
+/// `specificOutputSelectorMenu` (`gui/ui/menus.cpp:1151`), an
+/// `audio_clip::SpecificSourceOutputSelector` -- the picker for which track this audio track
+/// records from, **not** a browser (`nodes/output_items.h`).
 inline constexpr Node specific_output_selector =
-    custom(sid(String::STRING_FOR_TRACK), &kPending, relevance::audio_source_is_specific); // E2
+    custom(sid(String::STRING_FOR_TRACK), &kSpecificOutputSelector, relevance::audio_source_is_specific);
 // `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`), the only one of the two
 // `audio_clip::SampleMarkerEditor` globals any submenu names (`:1193`). No relevance predicate,
 // because the legacy item overrides none -- its refusal is `checkPermissionToBeginSession`'s null

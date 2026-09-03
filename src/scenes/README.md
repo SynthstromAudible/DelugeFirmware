@@ -14,10 +14,12 @@ That added two scenes (`rename/`, `context_menu/`), three toolkit widgets (`ui::
 `CustomItem`, `Node::select_chain`/`chain_targets`, `Kind::Range`, and the **action seam**
 (`menu/action.h`). What E2 did *not* do is give the library an entry point — see the box below —
 and the eleven `kPendingCustomNodes` of the file/sample family are E3's, along with the rest of the
-carry list at the end of this file. **E3 task 6 has since closed nine of those eleven**
-(`menu/nodes/sample.h`: the two file browsers, the four loop points, the audio clip's waveform view
-and the two record-to-sample items); `midi_device_linked` and `specific_output_selector` are the two
-left.
+carry list at the end of this file. **E3 tasks 6 and 7 have since closed all eleven**: task 6 the
+nine of the file/sample family (`menu/nodes/sample.h`: the two file browsers, the four loop points,
+the audio clip's waveform view and the two record-to-sample items) and task 7 the last two,
+`midi_device_linked` and `specific_output_selector` (`menu/nodes/output_items.h`). **The menu tree
+has no `Kind::Custom` placeholders left**; `kPendingCustomNodes` is 0 and
+`ValidateOptions::allow_placeholder_custom` is gone with them.
 
 > **Read this before adding a menu item.** The shipping firmware still runs the *legacy*
 > `SoundEditor` and its ~200 hand-written `MenuItem` classes under `src/deluge/gui/menu_item/`.
@@ -186,9 +188,11 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   exactly the phase it was meant to police.
 * It now counts **nodes that point at a custom item**. The shipped tree has **52** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-  `sim/scenes_spec/shortcuts_spec.cpp`), behind **51** distinct items -- of which **2** still share
-  the single `kPending` placeholder (`validate.h`'s `kPendingCustomNodes`, whose exact set the same
-  spec pins by node identity). The cap `kMaxCustomNodes` is **53**, one above the count. (It was 64
+  `sim/scenes_spec/shortcuts_spec.cpp`), behind **52** distinct items -- **every one of them real**,
+  so node count and item count are now equal and no two nodes share an item
+  (`validate.h`'s `kPendingCustomNodes` is 0, pinned three ways by
+  `sim/scenes_spec/output_items_spec.cpp`). The cap `kMaxCustomNodes` is **53**, one above the
+  count. (It was 64
   until E2 task 11 turned nine of the placeholders -- the six pad colours, the play cursor, the
   dev-sysex setting and the shortcuts version -- into ordinary `Kind::Enum` items with get/set
   hooks; none of the nine needed a bespoke item at all once its state was reachable. E2 task 11b
@@ -205,14 +209,17 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   `audio_source_selector` needed the same one), and E3 task 6's nine sample items (two
   `FileBrowserItem`s, five `MarkerItem`s, two `AudioRecorderItem`s — `menu/nodes/sample.h`; nine
   instances rather than three because `on_focus` is handed a `MenuContext` and never its own `Node`,
-  so one shared instance could not tell which source it was focused as), so the distinct-instance
-  count that spelling used to be inert on is now 51, not 1.
+  so one shared instance could not tell which source it was focused as), and E3 task 7's two output
+  items (`MidiDeviceLinkedItem`, `SpecificOutputItem` — `menu/nodes/output_items.h`), whose arrival
+  took the shared `kPending` *out* of the set: the distinct-instance count that spelling used to be
+  inert on is now 52, not 1.
 * So the cap is `kMaxCustomNodes == 53`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
-  places. Adding one that is still a *placeholder* means a third: `kPendingCustomNodes` and the
-  by-identity list in `sim/scenes_spec/shortcuts_spec.cpp`, so "what E2 still owes" cannot drift
-  while its count stands still.
+  places. Adding one that is still a *placeholder* means a third: `kPendingCustomNodes` (now **0**)
+  and the by-identity list in `sim/scenes_spec/shortcuts_spec.cpp` (now empty), so "what is still
+  owed" cannot drift while its count stands still. There is no longer any option that suppresses
+  the report — see rule 3 below.
 
 To add one:
 
@@ -250,14 +257,19 @@ To add one:
 3. **If the real implementation is a later task's job** (E1 shipped the *shape* of several bespoke
    items — the file selector, the audio recorder, loop points, patch-cable pages, the
    multi-range picker — without their real behaviour; E2 built all but the file/sample family,
-   which needs the card, and E3 task 6 built nine of that family's eleven, leaving the two
-   `kPendingCustomNodes` `validate.h` names), point the node at the shared
-   `nodes::kPending` placeholder (`menu/nodes/sound_osc.{h,cpp}`) instead of a real implementation.
-   `kPending` draws the item's title and consumes no input; `CustomItem::is_placeholder()` reports
-   `true` for it, so `validate_tree` flags every node pointing there as
-   `Issue::Kind::PlaceholderCustom` **unless** the caller opts in via
-   `ValidateOptions::allow_placeholder_custom` — which is how a spec says out loud, in one place,
-   that the tree is not yet complete rather than have that fact go unchecked.
+   which needs the card, and E3 tasks 6 and 7 built the whole of that family), point the node at the
+   shared `nodes::kPending` placeholder (`menu/nodes/sound_osc.{h,cpp}`) instead of a real
+   implementation. `kPending` draws the item's title and consumes no input;
+   `CustomItem::is_placeholder()` reports `true` for it, so `validate_tree` flags every node
+   pointing there as `Issue::Kind::PlaceholderCustom`.
+
+   **That report can no longer be turned off.** `ValidateOptions::allow_placeholder_custom` existed
+   so an E1/E2 spec could say out loud, in one place, that the tree was not yet complete; with
+   `kPendingCustomNodes` at 0 it could never suppress anything again, and a permanently-satisfiable
+   opt-out is the shape that hides the *next* regression rather than documenting this one, so E3
+   task 7 deleted it. The placeholder mechanism itself stays — a table that declares a shape before
+   its item exists still gets `kPending`; it just cannot ask for silence, and the spec run says so
+   until the item lands.
 
 ### `MenuState`'s one-shot mailboxes, and the order `after_render` drains them
 
@@ -301,8 +313,9 @@ less (`ValidateOptions::expected_range_dependent`, `expected_half_precision`); a
 `Binding::updates_reverb_params` never coexists with a `set` hook on the same node
 (`Issue::Kind::FlagMismatch`, detail `Flag::ReverbUpdateWithHook` — a `set` hook runs and returns
 before the reverb-update branch is ever reached, so the flag would silently never fire). Every
-`Issue` names its node and a `Kind`; `ValidateOptions::allow_placeholder_custom` is the one opt-out,
-for the `kPending` placeholders above.
+`Issue` names its node and a `Kind`. `ValidateOptions` has one opt-out left, `skip_shortcut_sweep`,
+for a caller validating a *subtree*; `allow_placeholder_custom` was deleted with the last
+placeholder (E3 task 7), so `Issue::Kind::PlaceholderCustom` is unconditional.
 
 ### The node-id registry (`menu/node_id.h`, `node_id.cpp`)
 
@@ -495,8 +508,8 @@ because it names the legacy routines each item has to be checked against.
 
 | carried | where it is recorded | size |
 |---|---|---|
-| **Two nodes still `nodes::kPending`** — `midi_device_linked` (whose `BrowserScene` descriptor already ships) and `specific_output_selector` (an output picker, not a browser). The other nine of E2's file/sample family became `menu/nodes/sample.h` in E3 task 6. | `validate.h`'s `kPendingCustomNodes` names the exact set by identity; `sim/scenes_spec/shortcuts_spec.cpp` pins it, and `sim/scenes_spec/sample_items_spec.cpp` pins what the nine that went now open | 2 nodes |
 | **The browser/recorder "heading to" return path** — legacy re-roots the navigation record onto the oscillator's horizontal page when a file is accepted or a recording finishes, so the user does not land back on the item that opened the scene. `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2018`) writes the pair; `SampleBrowser::claimCurrentFile` (`gui/ui/browser/sample_browser.cpp:1075-1086`) and `osc::AudioRecorder::beginSession` (`osc/audio_recorder.h:40-48`) read it back. The port's equivalent record is `MenuState::path`/`depth`, which only `MenuScene` may write. | `browser/browser_scene.h`'s `Descriptor::accept` note (the `take_choice()` dispatcher owns it) and `menu/nodes/sample.cpp`'s two `on_focus` bodies | one `MenuScene` entry point; costs one extra BACK press until then |
+| **A `Kind::Custom` node cannot draw a row icon in its parent's list.** `MenuScene::render_oled`'s `row_icon` gives a checkbox to `Kind::Toggle` nodes only, so `midi_device_linked` — legacy's `Linked`, a `Toggle` whose `renderSubmenuItemTypeForOled` (`gui/menu_item/midi/device_definition/linked.h:56-78`) draws a checked/unchecked box and, when checked, the linked file's base name — shows a bare label. The node must stay `Kind::Custom`: its ON arm opens a browser, and the committed dump JSON carries the node's type. Consequence on device: the toggle is write-only from the user's side. | `menu/nodes/output_items.h`'s divergence list, and `menu_scene.cpp`'s `row_icon` | one `CustomItem` hook `row_icon` can ask, plus the second text row |
 | **`midiDeviceMenu`'s subtree** — `midi_devices` has no `select_chain` because the per-device page is declared by no node. | `menu/nodes/dynamic.h`, with the legacy citation (`gui/ui/menus.cpp:1444-1453`) | ~8 nodes, 3 bespoke, plus an MPE subtree (`mpe::DirectionSelector` has instance state, a runtime `getTitle()` and its own chain onward) |
 | **Splitting session from arranger** — `song_midi_learn` and `configure_song_macros` stay visible in the arranger where legacy hides them, because `MenuContext` cannot tell the two apart. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView`, and legacy hides these two from all but the first. | `menu/nodes/actions.h` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads (`bindings.cpp:265` must keep meaning "either"), ~62 positional-bool call sites, and a JSON regen since the nodes gain `available_when`. No architectural ripple — which is why deferring is safe |
 | **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback` and the three `shouldBlinkPatchingSourceShortcut` overrides. `MenuScene::render_grid` keys its single blink cycle off the focused *node*; consulting the focused `CustomItem` needs a hook and a second blink source. | detailed below | same shape of change as routing MIDI to `MenuScene::learn_*` |
@@ -596,7 +609,7 @@ task 9 the two patch-cable pages, the two source pickers, the mod matrix, the tw
 the range picker; E2 task 10 the CV and gate output selectors and the MIDI device list
 (`menu/nodes/dynamic.h`); E2 task 11b the five action items, the two preset-scale checklists and the
 audio-source selector; E3 task 6 the two file browsers, the five marker items and the two
-record-to-sample items (`menu/nodes/sample.h`); **the remaining 2 -- `midi_device_linked` and
-`specific_output_selector` -- still point at `nodes::kPending`**, and `validate.h`'s
-`kPendingCustomNodes` names them). See the design spec's
+record-to-sample items (`menu/nodes/sample.h`); and E3 task 7 the last two, `midi_device_linked`
+and `specific_output_selector` (`menu/nodes/output_items.h`), **so none is left**). See the design
+spec's
 "Amendments during implementation" section for the full, cited account of each.
