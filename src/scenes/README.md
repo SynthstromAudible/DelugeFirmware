@@ -49,8 +49,11 @@ Rules:
    the single entry point everything else uses to reach a `ModelStack` (task-3 ruling 6).
 2. `snake_case` functions/variables, `PascalCase` types, `k` constants; namespace
    `deluge::scenes`.
-3. No heap in library code; no wall clock (later tasks: `Scene::next_timer()` and
-   `RepaintGate::request_repaint_after` are how a blink stays alive).
+3. No heap in library code; no wall clock — `Scene::next_timer()` is how a blink stays alive, and
+   since E3 task 10 that is all it takes: `Shell::tick`'s step 8b arms every surface the scene is
+   drawn on at the deadline the hook names, so a scene no longer has to remember a matching
+   `RepaintGate::request_repaint_after` from inside its own `render_*` (several still make one,
+   more tightly, and `Scene::timer_repaints()` is the opt-out for a timer nothing on screen follows).
 
 ## Link direction (ruling Q4)
 

@@ -40,10 +40,17 @@
 ///
 /// `after_render()` is the hook the poll has to live in, for `BrowserScene`'s reason: it is the only
 /// one that can file an `Action`, and the shell calls it only for a scene that actually *drew* this
-/// tick (`shell/shell.cpp:360-364`). So `render_oled` arms the panel's repaint gate for as long as a
-/// recorder exists, and `next_timer()` asks the shell back. **A timer alone would not do it** --
-/// see the `@warning` on `Scene::next_timer` -- and here the consequence is not a dead animation but
-/// a recording that never notices it has finished.
+/// tick (`shell/shell.cpp:360-364`). So `next_timer()` asks the shell back at `kRecorderPollMs`, and
+/// `Shell::tick`'s step 8b turns that answer into a repaint of every surface this scene is drawn on
+/// -- which is what makes the woken tick actually render, and therefore call `after_render()`.
+///
+/// `render_oled` **also** arms the panel's gate itself, at the same interval. That arm predates the
+/// step-8b fold and is now a refinement rather than the load-bearing part; it is kept because it is
+/// the tighter statement (the panel is armed from the moment the frame is drawn rather than from the
+/// bottom of the tick) and because it is what a reader of this scene alone can see. When the fold
+/// landed, this scene was the fourth in a row whose timer had been written without the arm at least
+/// once -- and the only one where the consequence was not a dead animation but a recording that
+/// never noticed it had finished. See `Scene::next_timer` for that history.
 ///
 /// `updatedRecordingStatus` (`audio_recorder.h:48`) has no member here. Legacy needs it because
 /// `process()` paints imperatively and must not repaint every pass; it is set exactly when
@@ -109,24 +116,28 @@
 ///     `nodes::sample0_recorder` hide the item in FM mode in the first place, so the popup only
 ///     ever fired on legacy's shortcut-pad path, which `MenuScene` owns.
 ///
-/// @par The completion poll stalls under this scene's own popup (fix round 1)
+/// @par The completion poll used to stall under this scene's own popup, and no longer does
 ///
 /// `PopupScene` is not `oled_transparent` (`shell/notices.h`), so `Shell::render_oled`'s
-/// transparency walk stops at it (`shell/shell.cpp:485-488`): while a popup is up this scene is not
-/// rendered, does not enter `rendered_this_tick_`, and therefore gets **no `after_render()` call**
-/// -- which is where the completion poll lives. So a recording that finishes while the clipping
-/// popup this scene itself raises is on screen is not noticed until the popup expires
-/// (`kPopupTimeoutMs`, 800 ms; its removal requests a repaint on every OLED gate, which restarts
-/// the poll).
+/// transparency walk stops at it (`shell/shell.cpp:485-488`): while a popup is up **this scene is
+/// still not drawn on the OLED**. That much is unchanged, and it is why the `render_oled` gate arm
+/// above cannot be the poll's only lifeline -- a recording that finished while this scene's own
+/// clipping popup was on screen went unnoticed until the popup expired (`kPopupTimeoutMs`, 800 ms),
+/// which E3 task 5 recorded here as a bounded, accepted stall.
 ///
-/// **A bounded stall, not a hang, and it is accepted rather than worked around.** The alternatives
-/// are worse: making the scene `oled_transparent` would let the recorder's word show through the
-/// popup box, and moving the poll out of `after_render` means it can no longer file the `Remove`
-/// that closes the scene. The user-visible consequence is that a clip in the last second of a
-/// recording delays the "recording finished" transition by up to 800 ms; nothing is lost, because
-/// the recorder's own card routine keeps draining throughout. `recorder_scene_spec` covers it
-/// explicitly -- "does not notice completion while its own clipping popup is up, and does as soon
-/// as it goes".
+/// E3 task 10's step-8b fold ended it, and did so through the *grid* rather than the panel.
+/// `PopupScene` is a grid overlay that composites nothing (`is_grid_overlay()` true, `dims_grid()`
+/// false), so this scene remains the grid **base** underneath it; `Shell::render_grid` draws and
+/// `append_rendered`s the base on every tick the grid gate fires. Step 8b arms *every* surface a
+/// scene is on at its `next_timer()` deadline -- deliberately, and stated as such at the site -- so
+/// the grid gate now fires at `kRecorderPollMs`, this scene enters `rendered_this_tick_`, and
+/// `after_render()` runs on schedule with the popup still up. Nothing about the OLED walk had to
+/// change, and neither of the two alternatives the stall's note rejected (making the scene
+/// `oled_transparent`, or moving the poll out of `after_render` where it could no longer file the
+/// `Remove`) was needed.
+///
+/// `recorder_scene_spec` pins the new behaviour where it used to pin the stall -- "notices
+/// completion while its own clipping popup is up, through the grid pass".
 ///
 /// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning
 ///          on `Action` in `shell/scene.h`. Legacy's own gate here is
@@ -157,8 +168,10 @@ inline constexpr deluge::ui::shell::SceneKind kRecorderSceneKind =
 /// completion is a fact only a poll can discover -- nothing publishes it, and no input arrives while
 /// the user is holding a microphone -- and `after_render()` is the only hook that may file the
 /// `Remove` that closes the scene. The shell calls `after_render()` only for a scene that rendered
-/// this tick, so `render_oled` arms the panel's repaint gate at this interval *and* `next_timer()`
-/// asks for the tick. Either one alone is a scene that arms a recording it can never finish.
+/// this tick, so `next_timer()` asks for the tick at this interval and `Shell::tick`'s step 8b turns
+/// that answer into the repaint that makes the woken tick draw (`render_oled` arms the panel itself
+/// as well, more tightly -- see the class note). Before the fold, `next_timer()` alone was a scene
+/// that armed a recording it could never finish.
 ///
 /// 10 ms is one tick of the shipped UI loop, i.e. "next tick", spelled as a duration because that is
 /// what both APIs take. The same number and the same argument as `browser::kListingPollMs`.

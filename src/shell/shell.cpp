@@ -377,6 +377,39 @@ void Shell::tick(uint32_t now_ms) {
 			s.gate.request_repaint_after(0, now_ms);
 		}
 	}
+	// 8b. A scene timer is a repaint request, not merely a wake.
+	//
+	// `Scene::next_timer` used to feed `compute_next_wake` and nothing else, so a scene that wanted
+	// its blink to move had to arm the gate itself from inside `render_*` as well -- and four scenes
+	// in a row shipped or nearly shipped without doing so (the history is on `Scene::next_timer`).
+	// Folding the two together here makes the *default* correct: overriding `next_timer()` is now
+	// enough, and `Scene::timer_repaints()` is the explicit, per-scene opt-out for a timer with no
+	// visible consequence.
+	//
+	// Same shape as the router arming just above -- `request_repaint_after`, not `request_repaint`:
+	// the deadline is what `compute_next_wake` reads, so this both fires the gate when the moment
+	// comes and tells a sleeping scheduler when that is.
+	//
+	// **Deliberately every surface, not a guess at which one.** A `Scene` declares no surface set:
+	// `render_oled` is called for it on every OLED surface in the pass and `render_grid` on the
+	// grid, so "the surfaces this scene renders" is, by construction, all of them. Narrowing it to
+	// the surfaces the scene happened to paint *this* tick would be exactly wrong: the tick a timer
+	// exists to rescue is the quiet one where the scene painted nothing, and a scene that armed
+	// nothing could never paint again. Over-arming costs a repaint of an unchanged frame; the
+	// opt-out is how a scene declines to pay it.
+	for (Scene* scene : stack_.scenes()) {
+		if (!scene->timer_repaints()) {
+			continue;
+		}
+		const std::optional<uint32_t> in = scene->next_timer();
+		if (!in.has_value()) {
+			continue;
+		}
+		for (OledSurface& s : surfaces_.oled()) {
+			s.gate.request_repaint_after(*in, now_ms);
+		}
+		surfaces_.grid().gate.request_repaint_after(*in, now_ms);
+	}
 	// 9. LEDs, every tick.
 	derive_leds(now_ms);
 	flush(now_ms); // Task 8
@@ -846,6 +879,13 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	consider(lowering_.ctx().gate.next_deadline());
 	consider(mirror_.next_deadline());
 	for (Scene* scene : stack_.scenes()) {
+		// Only the opt-outs. A scene whose timer repaints had `tick`'s step 8b arm its surfaces at
+		// exactly this deadline, and the gate loop above has already read it -- restating it here
+		// would compute the same number twice. A `timer_repaints() == false` scene arms nothing, so
+		// this loop is the only thing that keeps its wake.
+		if (scene->timer_repaints()) {
+			continue;
+		}
 		if (const std::optional<uint32_t> in = scene->next_timer(); in.has_value()) {
 			consider(now_ms + *in);
 		}

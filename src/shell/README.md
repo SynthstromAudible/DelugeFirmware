@@ -180,6 +180,14 @@ today: `Action::Repaint` names a `SurfaceRole` and there is no grid role, so the
 `notify::Dirty` instead.
 7. `after_render()` on every scene rendered this tick, applied through the router.
 8. `deliver_post_render_input` — the held-back, widget-owned shapes, each gated on `ctx().claims`.
+8b. **Every stacked scene's `next_timer()`, armed as a repaint deadline on every surface that scene
+   is drawn on.** "Wake me later" and "repaint me later" are one thing, not two: a timer used to feed
+   `next_wake()` only, so an animated scene *also* had to call `request_repaint_after` from its own
+   `render_*` — and four scenes in a row shipped or nearly shipped without doing so (E2's menu cursor
+   blink, `BrowserScene`, `MarkerScene`, `RecorderScene`, where the cost was a recording that never
+   noticed it had finished). `Scene::timer_repaints()` is the explicit opt-out for a timer with no
+   visible consequence, and it is the *only* thing `compute_next_wake`'s scene loop still exists for:
+   every other scene timer reaches `next_wake()` as the gate deadline armed here.
 9. `derive_leds`, then `flush` (Task 8).
 
 **Repaint requests are cleared between 6 and 7, not at the bottom of the tick.**

@@ -343,12 +343,14 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 	                       capturing() ? kRecording : kWaiting,
 	                       {.font = deluge::gfx::oled::FontId::MetricBold13, .align = deluge::ui::oled::Align::Centre});
 
-	// **And this arm is what makes the recording finish at all.** It is not only about the
-	// `Waiting` -> `Recording` flip: `after_render()` runs only for a scene that drew this tick, so
-	// without it the completion poll stops the moment the last input arrives, and the scene sits on
-	// "Waiting" over a recorder that finished minutes ago. `next_timer()` alone wakes the shell; it
-	// does not mark the panel dirty (`RepaintGate::needs_frame`). Legacy has no equivalent because
-	// `process()` is a busy loop with `OLED::sendMainImage()` inside it.
+	// This arm is not only about the `Waiting` -> `Recording` flip: `after_render()` runs only for a
+	// scene that drew this tick, so without a repaint the completion poll stops the moment the last
+	// input arrives, and the scene sits on "Waiting" over a recorder that finished minutes ago.
+	// Until E3 task 10 this line was the only thing that stopped that happening -- `next_timer()`
+	// woke the shell without marking the panel dirty (`RepaintGate::needs_frame`) -- and it is now
+	// the tighter half of a pair, `Shell::tick`'s step 8b arming every surface from `next_timer()`
+	// itself. Legacy has no equivalent either way, because `process()` is a busy loop with
+	// `OLED::sendMainImage()` inside it.
 	if (recorder_ != nullptr) {
 		f.gate().request_repaint_after(kRecorderPollMs, now);
 	}

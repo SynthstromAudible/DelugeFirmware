@@ -288,8 +288,11 @@ inline constexpr int32_t kRowIconX = 1;
 /// the only hook that can file an `Action` is `after_render()` -- which the shell calls only for
 /// scenes that actually *drew* this tick (`shell/shell.cpp:360-364`). With no input arriving and
 /// nothing else asking for a frame, the browser would neither render nor poll, and the listing would
-/// land into silence. So while a request is in flight or waiting to be retried, `render_oled` arms
-/// the panel's repaint gate and `next_timer()` asks the shell to come back -- both at this interval.
+/// land into silence. So while a request is in flight or waiting to be retried, `next_timer()` asks
+/// the shell to come back at this interval, and `Shell::tick`'s step 8b turns that answer into the
+/// repaint that makes the woken tick draw. `render_oled` arms the panel's own gate at the same
+/// interval as well; that arm predates the step-8b fold (before which `next_timer()` alone was a
+/// listing that landed into silence) and is kept as the statement a reader of this scene can see.
 ///
 /// 10 ms is one tick of the shipped UI loop, i.e. "next tick", spelled as a duration because that is
 /// what both APIs take.

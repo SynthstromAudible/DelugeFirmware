@@ -880,11 +880,14 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		if (!source_phase) {
 			(void)f.pad(pos.x, pos.y, kFlashColour);
 		}
-		// **Arming the gate is what makes the blink move.** `next_timer()` only feeds
-		// `Shell::compute_next_wake`; on that wake `had_input_` is false and
-		// `RepaintGate::needs_frame` still says no, so without this the pad would only ever change
-		// on somebody else's repaint. Same shape every animated widget uses -- `decimal_value`
-		// (`ui/oled/values.cpp:179`), `popup`, `scroll_text`, `grid::gesture`.
+		// Arming the gate is what makes the blink land *on its own phase edges*. Since E3 task 10
+		// the shell arms this gate too, from `next_timer()` (`Shell::tick` step 8b), so the blink is
+		// no longer dead without this line -- but `next_timer()` answers one fixed interval for the
+		// whole scene (20 or 180 ms, `MenuScene::next_timer`) while `ms_to_phase_change` names the
+		// milliseconds to the *next* edge of an unequal 20/180 cycle. A frame drawn at phase 190
+		// wants 10 ms, not 180. The shell's arm is the safety net; this one is the timing.
+		// Same shape every animated widget uses -- `decimal_value` (`ui/oled/values.cpp:179`),
+		// `popup`, `scroll_text`, `grid::gesture`.
 		f.gate().request_repaint_after(ms_to_phase_change(phase), now);
 	}
 	const std::span<const ShortcutPos> sources = source_shortcut_pads(ctx_.root, *node);

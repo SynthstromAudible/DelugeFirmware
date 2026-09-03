@@ -134,6 +134,7 @@ public:
 	void tick(uint32_t) override { ticks++; }
 	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
 	std::optional<uint32_t> next_timer() const override { return timer; }
+	bool timer_repaints() const override { return timer_repaints_; }
 
 	/// The local row `render_oled` draws its Main rule on.
 	static constexpr int32_t kMainLineY = 10;
@@ -154,6 +155,8 @@ public:
 	bool emit_repaint_from_handle = false;
 	UiEvent::Kind last_event_kind = UiEvent::Kind::AllReleased;
 	std::optional<uint32_t> timer;
+	/// What `timer_repaints()` answers -- true, as the base class's own default is.
+	bool timer_repaints_ = true;
 };
 
 /// @brief The scene stacked on top: a grid overlay by default, with every composition hook
@@ -417,6 +420,68 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.base.timer = 2;
 		r.shell.tick(20);
 		expect(*r.shell.next_wake()).to_equal(uint32_t(22));
+	});
+
+	it("a scene timer repaints every surface the scene is on, with no gate arm of its own", _ {
+		// `BaseScene` arms nothing from `render_*`. Before E3 task 10 that made `next_timer()` a
+		// bare wake: the shell came back, `RepaintGate::needs_frame` said no on every surface, and
+		// the scene's state advanced against a framebuffer that never changed. Four scenes shipped
+		// or nearly shipped that way (`Scene::next_timer`'s history), so step 8b of `Shell::tick`
+		// now folds the two together.
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0); // the first frame every gate gives away
+		const int oled_after_first = r.base.oled_renders;
+		const int grid_after_first = r.base.grid_renders;
+
+		// No timer: quiet ticks draw nothing at all. This is the control -- without it the
+		// assertion below could pass on a shell that simply renders every tick.
+		r.shell.tick(10);
+		r.shell.tick(20);
+		expect(r.base.oled_renders).to_equal(oled_after_first);
+		expect(r.base.grid_renders).to_equal(grid_after_first);
+
+		// A 20 ms timer, and the frames follow it: nothing at 30 (the deadline armed at 20 is 40),
+		// both surfaces at 40. Two OLED renders per frame, because this rig has two panels.
+		r.base.timer = 20;
+		r.shell.tick(20);
+		r.shell.tick(30);
+		expect(r.base.oled_renders).to_equal(oled_after_first);
+		expect(r.base.grid_renders).to_equal(grid_after_first);
+		r.shell.tick(40);
+		expect(r.base.oled_renders).to_equal(oled_after_first + 2);
+		expect(r.base.grid_renders).to_equal(grid_after_first + 1);
+
+		// And it keeps going: the arm is re-filed at the bottom of every tick, so the frame at 40
+		// arms 60, not a one-shot that stops there.
+		r.shell.tick(50);
+		expect(r.base.grid_renders).to_equal(grid_after_first + 1);
+		r.shell.tick(60);
+		expect(r.base.oled_renders).to_equal(oled_after_first + 4);
+		expect(r.base.grid_renders).to_equal(grid_after_first + 2);
+	});
+
+	it("timer_repaints() false is a wake with no repaint, and still reaches next_wake", _ {
+		// The opt-out: a timer whose consequence is not on screen. It must still wake the shell --
+		// `compute_next_wake`'s scene loop exists for exactly these scenes, every other timer being
+		// represented by the gate deadline step 8b armed -- and it must not dirty anything.
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		const int oled_after_first = r.base.oled_renders;
+		const int grid_after_first = r.base.grid_renders;
+
+		r.base.timer = 20;
+		r.base.timer_repaints_ = false;
+		r.shell.tick(20);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(40)); // the wake is kept...
+		r.shell.tick(40);
+		expect(r.base.ticks).to_be_greater_than(0);
+		expect(r.base.oled_renders).to_equal(oled_after_first); // ...and nothing was drawn for it
+		expect(r.base.grid_renders).to_equal(grid_after_first);
 	});
 
 	it("renders each OLED surface with its own role and geometry", _ {

@@ -956,12 +956,15 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		// marker is actually inside the display.
 		marker_on_screen_ = selected_col >= 0 && selected_col < main_cols;
 		if (marker_on_screen_) {
-			// **And this arm is what makes the blink visible at all.** `tick()` advancing
+			// This arm is what *used* to make the blink visible at all: `tick()` advancing
 			// `blink_phase_` changes nothing anyone can see unless the surface is asked for another
-			// frame; `next_timer()` alone only wakes the shell, it does not mark the pads dirty
-			// (`RepaintGate::needs_frame`). Legacy has no equivalent because its `timerCallback`
-			// paints straight into `PadLEDs::image` itself. Found by writing the blink's render
-			// example and watching all four phases come back byte-identical.
+			// frame, and until E3 task 10 `next_timer()` only woke the shell without marking the
+			// pads dirty (`RepaintGate::needs_frame`). Found by writing the blink's render example
+			// and watching all four phases come back byte-identical. `Shell::tick`'s step 8b now
+			// arms this same gate from `next_timer()` itself, so the blink no longer depends on
+			// this line -- it is kept as the tighter statement (armed from the frame being drawn,
+			// and only while the marker is on screen). Legacy has no equivalent either way, because
+			// its `timerCallback` paints straight into `PadLEDs::image` itself.
 			f.gate().request_repaint_after(kBlinkPhaseMs, f.now_ms());
 		}
 	});

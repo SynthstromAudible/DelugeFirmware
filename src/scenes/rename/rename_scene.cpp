@@ -283,12 +283,13 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 		cursor_blink_.until_ms = now - static_cast<uint32_t>(kFlashTime);
 	}
 	edit_.cursor_lit = blink_lit(cursor_blink_, now);
-	// Arm the panel's own gate, not just `next_timer()`. `next_timer()` decides when the *host* is
-	// woken; `RepaintGate` decides whether a woken tick actually redraws this surface -- and
-	// `text_edit` cannot arm it itself, because it takes no clock and owns no state
-	// (`ui/oled/text_edit.h`: "Render-only"). Without this the bar would be computed correctly and
-	// never repainted. Only while the bar exists at all: mid-string `cursor_lit` gates nothing, so
-	// waking the panel every 110 ms would be a battery cost with no pixels behind it.
+	// Arm the panel's own gate at the cursor's *next flip*, which is what `next_timer()` cannot
+	// name: it answers one interval for the scene, this names the edge. `text_edit` cannot arm it
+	// itself either, because it takes no clock and owns no state (`ui/oled/text_edit.h`:
+	// "Render-only"). Before E3 task 10 this was also the only thing that repainted at all --
+	// `next_timer()` woke the host and `RepaintGate` still said no -- and the bar would have been
+	// computed correctly and never drawn; `Shell::tick`'s step 8b now covers that half. Only while
+	// the bar exists at all: mid-string `cursor_lit` gates nothing.
 	if (edit_.cursor == static_cast<int16_t>(len_)) {
 		f.gate().request_repaint_after(blink_next_flip_in(cursor_blink_, now), now);
 	}

@@ -734,13 +734,20 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(recorder_scene().recording()).to_be_false();
 	});
 
-	// --- the popup stall ------------------------------------------------------------------------
+	// --- completion under this scene's own popup --------------------------------------------------
 
-	it("does not notice completion while its own clipping popup is up, and does as soon as it goes", _ {
+	it("notices completion while its own clipping popup is up, through the grid pass", _ {
 		// `PopupScene` is not `oled_transparent`, so `Shell::render_oled`'s walk stops at it
-		// (`shell/shell.cpp:485-488`) and this scene is neither rendered nor given an
-		// `after_render()` -- which is where the completion poll lives. A bounded stall, accepted
-		// and documented on `RecorderScene`; this pins both halves of it.
+		// (`shell/shell.cpp:485-488`) and this scene is still not drawn on the panel. It is,
+		// however, the grid **base** under a popup -- an overlay that composites nothing -- and
+		// `Shell::tick`'s step 8b arms EVERY surface a scene is on at its `next_timer()` deadline,
+		// so the grid gate fires at `kRecorderPollMs`, `render_grid` appends this scene to
+		// `rendered_this_tick_`, and `after_render()`'s completion poll runs with the popup up.
+		//
+		// E3 task 5 recorded the opposite as an accepted, bounded stall (up to `kPopupTimeoutMs`,
+		// 800 ms) and this example asserted it; E3 task 10's fold ended it. **This example is the
+		// mutation guard on that fold**: delete step 8b and completion goes unnoticed at 30 ms
+		// again, exactly as it used to be.
 		Guards g;
 		Rig r;
 		r.open();
@@ -751,25 +758,25 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(10);  // files the popup
 		r.tick(20);  // Notices drains it and pushes SceneKind::Popup
 
-		bool popup_up = false;
-		for (const deluge::ui::shell::Scene* s : r.shell.stack().scenes()) {
-			popup_up = popup_up || s->kind() == deluge::ui::shell::SceneKind::Popup;
-		}
-		expect(popup_up).to_be_true();
+		const auto popup_on_stack = [&r] {
+			bool up = false;
+			for (const deluge::ui::shell::Scene* s : r.shell.stack().scenes()) {
+				up = up || s->kind() == deluge::ui::shell::SceneKind::Popup;
+			}
+			return up;
+		};
+		expect(popup_on_stack()).to_be_true();
 
-		// The recording finishes underneath it, and is NOT noticed.
+		// The recording finishes underneath it, and IS noticed -- on the very next poll tick, not
+		// 800 ms later.
 		rec->status = RecorderStatus::COMPLETE;
-		rec->hadCardError = true; // refuse the attach; this example is about the stall
+		rec->hadCardError = true; // refuse the attach; this example is about the poll, not the sample
 		r.tick(30);
-		r.tick(40);
-		expect(recorder_scene().recording()).to_be_true();
-		expect(r.on_stack()).to_be_true();
-
-		// Past the popup's 800 ms timeout (`shell/notices.cpp:31`) it is noticed, with no input.
-		r.tick(900);
-		r.tick(910);
 		expect(recorder_scene().recording()).to_be_false();
 		expect(r.on_stack()).to_be_false();
+		// And it really was noticed *under* the popup: the popup is what `Shell::render_oled` still
+		// stops at, and it is still on the stack now, with 770 ms of its timeout left to run.
+		expect(popup_on_stack()).to_be_true();
 	});
 
 	// --- goldens ------------------------------------------------------------------------------

@@ -227,8 +227,10 @@ public:
 	/// @brief When the shell next has something to do with no input at all.
 	/// @return The absolute deadline in milliseconds, or `std::nullopt` when nothing is armed --
 	///         the scheduler may then sleep until the next input. Recomputed at the end of every
-	///         `tick()` from the surface gates, the widgets' gate, and every stacked scene's and
-	///         service's `next_timer()`.
+	///         `tick()` from the surface gates, the widgets' gate, every service's `next_timer()`,
+	///         and the `next_timer()` of every stacked scene that opts out of `timer_repaints()` --
+	///         every other scene timer is already one of the surface-gate deadlines, because
+	///         `tick()`'s step 8b armed it there.
 	std::optional<uint32_t> next_wake() const { return next_wake_; }
 
 	/// @name Inspection

@@ -707,6 +707,18 @@ Two consequences for scene authors, both stated in §5's terms:
   right phase for will simply never repaint. `Scene::next_timer()` decides when the host is *woken*;
   `RepaintGate` decides whether a woken tick *redraws*. Both are needed, and only the scene can
   supply the second.
+
+  **Amended, E3 task 10: the scene no longer has to supply the second separately.** The split above
+  is still the mechanism, but it is no longer the scene author's problem, because four scenes in a
+  row shipped or nearly shipped with the wake and without the redraw (E2's menu cursor blink,
+  `BrowserScene`, `MarkerScene`, `RecorderScene` — the last of which lost a *recording*, not an
+  animation). `Shell::tick` gained step 8b: at the bottom of every tick, each stacked scene's
+  `next_timer()` value is armed with `request_repaint_after` on every surface that scene is drawn
+  on. Overriding `next_timer()` is now sufficient for a blink; `Scene::timer_repaints()` (default
+  true) is the explicit opt-out for a timer with no visible consequence, and is the only case
+  `Shell::compute_next_wake`'s scene loop still exists for. Scenes may still arm a gate from their
+  own `render_*` and several do — an arm computed from the phase being drawn is tighter than one
+  per-scene interval — but that is now a refinement rather than the load-bearing part.
 * **A single-frame golden cannot see any of this.** A blink that computes correctly and never
   repaints, or a repeat that fires once and stalls, both pass a golden. Anything time-driven needs a
   quiet-tick example — see the harness spec's amendment on cadence.

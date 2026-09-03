@@ -378,31 +378,46 @@ public:
 
 	/// @brief When this scene next needs a `tick()` even with no input.
 	///
-	/// @warning **A timer does NOT dirty any surface.** All this does is bring the shell back for
-	///          another `tick()`; whether that tick draws anything is decided separately, by
-	///          `RepaintGate::needs_frame` on each surface. So a scene whose timer exists to drive
-	///          **visible motion** -- a blink, a scroll, a countdown -- must ALSO arm that surface's
-	///          gate from inside its own `render_*`:
+	/// **"Wake me later" means "repaint me later".** `Shell::tick`'s step 8b arms every surface this
+	/// scene is drawn on at exactly this deadline, so a timer *is* an animation request and a scene
+	/// that overrides this hook gets its blink, scroll or countdown without arming anything itself.
 	///
-	///          ```
-	///          f.gate().request_repaint_after(period_ms, f.now_ms());
-	///          ```
+	/// It did not always mean that, and the history is why the two were folded together. A timer
+	/// used only to feed `Shell::compute_next_wake`, and whether the woken tick drew anything was
+	/// decided separately by `RepaintGate::needs_frame` -- so every animated scene had to *also*
+	/// call `f.gate().request_repaint_after(period_ms, f.now_ms())` from inside its own `render_*`,
+	/// and **four scenes in a row shipped or nearly shipped without it**: E2's menu cursor blink,
+	/// E3 task 3's `BrowserScene` (whose first quiet-tick example passed with the arm deleted,
+	/// because an unrelated repaint covered for it), E3 task 4's `MarkerScene` (whose four blink
+	/// phases all rendered byte-identically), and E3 task 5's `RecorderScene` -- where the cost was
+	/// not cosmetic at all, because without the arm the completion poll never ran and a finished
+	/// recording was never noticed. A defect shape that recurs at that rate is a missing default,
+	/// not four mistakes.
 	///
-	///          Without it the scene's state advances on every tick and the framebuffer never
-	///          changes, which reads as "the animation is dead" rather than as any kind of error.
-	///          **This has now bitten three separate scenes** -- E2's menu cursor blink, E3 task 3's
-	///          `BrowserScene` (whose first quiet-tick example passed with the arm deleted, because
-	///          an unrelated repaint covered for it), and E3 task 4's `MarkerScene` (whose four
-	///          blink phases all rendered byte-identically until the gate was armed). If you are
-	///          writing a `next_timer()` override, assume you need the gate arm too, and write the
-	///          test that would notice if you did not.
-	///
-	/// @note A timer with no visible consequence -- state a later input will read, a deadline that
-	///       only matters once something else happens -- correctly needs no gate arm. That is the
-	///       only case this warning does not cover.
+	/// A scene may still arm a gate from its own `render_*`, and several do: an arm computed from
+	/// the phase actually being drawn (`MenuScene::render_grid`'s `ms_to_phase_change`) is tighter
+	/// than this hook's single per-scene answer, and a *widget* has no other way to ask. Those arms
+	/// are refinements on top of step 8b, not a substitute for it.
 	///
 	/// @return Milliseconds from now, or `std::nullopt` for "no timer".
+	/// @see timer_repaints, for the scene whose timer really does change nothing on screen.
 	virtual std::optional<uint32_t> next_timer() const { return std::nullopt; }
+
+	/// @brief Does this scene's `next_timer()` deadline want a repaint, or only a `tick()`?
+	///
+	/// True by default, which is what makes `next_timer()` mean "repaint me later" (see it). Return
+	/// false for a timer with no visible consequence -- state a later input will read, a deadline
+	/// that only matters once something else happens -- and `Shell::tick` will wake the shell for
+	/// it without dirtying a surface.
+	///
+	/// The default is deliberately the expensive one. Getting it wrong in this direction costs a
+	/// repaint of an unchanged frame; getting it wrong in the other direction is the silent dead
+	/// animation this hook's opt-in exists to stop being the default. Overriding it is therefore a
+	/// visible, reviewable claim about a specific scene rather than a cost paid quietly by every
+	/// scene that forgot something.
+	///
+	/// @return True (the default) to arm the scene's surfaces at the timer's deadline.
+	virtual bool timer_repaints() const { return true; }
 };
 
 /// @brief The application's scene table: one pointer per `SceneKind`, indexed by the kind itself.
