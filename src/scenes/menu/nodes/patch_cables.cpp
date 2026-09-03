@@ -304,7 +304,11 @@ void PatchCablesItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) con
 	// entry and is restored from `savedVal` on the way back. The port needs no `savedVal`: coming
 	// *back* from a chained page runs `MenuScene::ascend`, which does not call `on_focus` at all, so
 	// `list[depth]` still holds the cursor the user left. This hook is therefore the forward-entry
-	// arm alone.
+	// arm alone, and `on_focus_backward` (E3 task 10's port of the `savedVal` restore) is left on
+	// its do-nothing default -- deliberately, not by omission: `list[depth]` already holding the
+	// value `savedVal` would restore is exactly what makes the default correct here, unlike
+	// `GateSelectionItem`'s (`nodes/dynamic.cpp`), which needs the hook because its own cursor is
+	// not what legacy restores.
 	state.list[depth_of(state)] = deluge::ui::ListState{};
 	state.scroll[depth_of(state)] = deluge::ui::ScrollText{};
 }

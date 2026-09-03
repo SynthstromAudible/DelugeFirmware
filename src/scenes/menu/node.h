@@ -291,6 +291,34 @@ struct CustomItem {
 	/// callers.
 	virtual void on_focus(const MenuContext&, MenuState&) const {}
 
+	/// @brief Called when this item becomes the focused node again because a page it opened was
+	///        left -- legacy's `beginSession(navigatedBackwardFrom != nullptr)` arm.
+	///
+	/// `on_focus` above is the **forward** arm only: `MenuScene::ascend` runs this instead of it, so
+	/// the two never both fire for one transition. That is legacy's own shape --
+	/// `SoundEditor::goUpOneLevel` ends in `beginScreen(oldItem)` with a non-null `oldItem`
+	/// (`gui/ui/sound_editor.cpp:672-690`), where every other entry passes `nullptr`
+	/// (`:263`, `:292`) -- expressed as two hooks rather than one hook and a discriminator, because
+	/// the two arms of every legacy override that has both share no code at all.
+	///
+	/// Do-nothing default, and that is the *right* answer for almost every item: an item whose
+	/// legacy backward arm restores a cursor gets it for free, because the cursor lives in
+	/// `MenuState::list[depth]` and `ascend` deliberately leaves that alone. `PatchCablesItem`
+	/// (legacy's `currentValue = savedVal`, `patch_cables.cpp:16-26`) and `SourceSelectionItem`
+	/// (legacy's "walk back to the source `s`", `source_selection.cpp:110-116`) are both exactly
+	/// that case and both stay on the default; each says so at its own `on_focus`.
+	///
+	/// **E3 task 10 added this hook because "leave `MenuState` alone" is not always the backward
+	/// arm.** Until then `ascend` skipped `Kind::Custom` outright and the skip *was* the stand-in --
+	/// recorded at that site as sound only while every chain-source custom item's backward behaviour
+	/// happened to be "keep what `MenuState` already holds", with nothing testing it. It is not:
+	/// `gate::Selection`'s backward arm is `setValue(soundEditor.currentSourceIndex)`
+	/// (`gui/menu_item/gate/selection.h:33-41`) and its `selectButtonPress` does **not** write
+	/// `currentSourceIndex` on the minimum-off-time row (`:45-47`), so legacy puts the cursor back on
+	/// the last *output* the user chose and "keep the cursor" puts it back on MINIMUM OFF TIME. See
+	/// `nodes::GateSelectionItem::on_focus_backward`.
+	virtual void on_focus_backward(const MenuContext&, MenuState&) const {}
+
 	/// @brief Commit whatever this item has been editing -- `MenuItem::writeCurrentValue`, for a
 	///        bespoke item whose value does not live in a `Binding`.
 	///

@@ -252,6 +252,23 @@ struct MenuState {
 	/// `MenuContext::source_index`, *before* the same tick's select press consults `select_chain`.
 	int8_t source_choice = -1;
 
+	/// @brief `GateSelectionItem`'s own copy of `soundEditor.currentSourceIndex`, restricted to the
+	///        four physical outputs -- NOT a mailbox, and deliberately not the same field as
+	///        `source_choice` above (task 10).
+	///
+	/// `source_choice`/`ctx.source_index` legitimately becomes `NUM_GATE_CHANNELS` -- the
+	/// minimum-off-time sentinel -- for the one tick `gate_selection_chain` routes off it
+	/// (`nodes/settings.cpp`), and that value must survive to be read there. But `GateSelectionItem`
+	/// ALSO needs "the last real output chosen" once the user has navigated away and come back,
+	/// for its `on_focus_backward` -- legacy's own `setValue(soundEditor.currentSourceIndex)`
+	/// backward arm, which only ever sees a real output because `selectButtonPress` never writes
+	/// `currentSourceIndex` on the off-time branch (`gate/selection.h:44-47`). One field cannot mean
+	/// both "whatever was just routed on" and "the last real output, off-time excluded" at once, so
+	/// this is the second one: `nodes::dynamic.cpp`'s `render_output_selection` updates it on every
+	/// real-output press and nothing else, and `GateSelectionItem::on_focus_backward` is its only
+	/// reader.
+	int8_t gate_last_real_output = 0;
+
 	/// @brief A MIDI cable the focused device list chose this tick, or null for none.
 	///
 	/// `midi::Devices` assigns `soundEditor.currentMIDICable` from both `beginSession` and

@@ -630,6 +630,65 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		rig.reference.draw_string_centred_shrink_if_necessary("71% (3750mV)", 22, 18, 20); // no CHG
 		expect(rig.pbm()).to_equal(rig.reference_pbm());
 	});
+
+	it("GateSelectionItem's backward arm snaps the cursor to the last REAL output, not to the "
+	   "off-time row it just left (task 10)", _ {
+		// `gate::Selection::beginSession` restores `soundEditor.currentSourceIndex` on the way back
+		// (`gate/selection.h:33-41`), and `selectButtonPress` never writes that field for the
+		// minimum-off-time row -- it returns `&gateOffTimeMenu` before the assignment
+		// (`gate/selection.h:44-47`). So legacy's cursor SNAPS to the last real output chosen,
+		// discarding the off-time row, on every backward navigation out of it. `ascend()`'s old
+		// blanket `Kind::Custom` exclusion -- "leave `MenuState::list[depth]` alone" -- gives the
+		// WRONG answer here: it keeps the cursor on the off-time row itself, because nothing ever
+		// moved it. `GateSelectionItem::on_focus_backward` (`nodes/dynamic.cpp`) is what fixes it,
+		// and this is the case E3 task 10's `node.h` doc names as the reason a backward arm is
+		// needed at all: the forward arm alone (`CustomItem::on_focus`) never fires on the way up.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = menu::context_for(*r.song.song, nullptr, 0, false, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree: `gate_selection` lives there,
+		                                               // not in this file's synthetic `settings_root`.
+		menu_scene().open(nodes::gate_selection, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::gate_selection)});
+		r.shell.tick(0);
+		expect(cursor_of(0)).to_equal(0); // `setValue(0)`'s forward arm -- GATE OUTPUT 1.
+
+		// GATE OUTPUT 3 (row 2), a real output: select descends to `gate_mode`.
+		r.turn(2, 10);
+		r.shell.tick(20);
+		expect(cursor_of(0)).to_equal(2);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 30);
+		r.shell.tick(40);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
+
+		// Back out: no divergence yet -- row 2 is exactly what `currentSourceIndex` now holds too,
+		// so "keep the cursor" and "restore from `currentSourceIndex`" agree.
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 50);
+		r.button(kBackX, kBackY, true, 60);
+		r.shell.tick(70);
+		expect(depth_of()).to_equal(0);
+		expect(cursor_of(0)).to_equal(2);
+
+		// Walk to MINIMUM OFF TIME (row 4) and select: routes to `gate_off_time`, the one page
+		// `gate::Selection`'s own commit never touches.
+		r.button(kBackX, kBackY, false, 80);
+		r.turn(2, 90);
+		r.shell.tick(100);
+		expect(cursor_of(0)).to_equal(4);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 110);
+		r.shell.tick(120);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &nodes::gate_off_time).to_be_true();
+
+		// Back out: the cursor snaps to 2 -- the last REAL output -- not to 4, the row just left.
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
+		r.button(kBackX, kBackY, true, 140);
+		r.shell.tick(150);
+		expect(depth_of()).to_equal(0);
+		expect(cursor_of(0)).to_equal(2);
+	});
 });
 
 describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {

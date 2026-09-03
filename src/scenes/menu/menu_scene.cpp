@@ -1109,29 +1109,30 @@ void MenuScene::ascend() {
 	// never chose. Nothing above a leaf needs this (a submenu's cursor is `st_.list[depth]`, which
 	// `ascend` deliberately keeps -- see the note above).
 	//
-	// **`Kind::Custom` is excluded, deliberately.** `CustomItem::on_focus` is `beginSession` with
-	// `navigatedBackwardFrom == nullptr` -- the *forward* arm only -- and the port leans on that:
-	// `nodes/dynamic.cpp`'s `focus_output_selection` reproduces `cv::Selection::beginSession`'s
-	// forward arm (`gui/menu_item/cv/selection.h:31-39`, `setValue(0)`) and stands in for its
-	// backward arm (`setValue(soundEditor.currentSourceIndex)`) by simply leaving
-	// `MenuState::list[depth]` alone, which already holds that value. Re-running `on_focus` here
-	// would run the forward arm on a backward navigation and send the CV/gate/device selectors back
-	// to row 0 every time the user stepped out of the page they had just opened.
+	// **`Kind::Custom` gets its own arm, not `enter_leaf`.** `CustomItem::on_focus` is `beginSession`
+	// with `navigatedBackwardFrom == nullptr` -- the *forward* arm only -- so re-running it here
+	// would fire the forward arm on a backward navigation and send the CV/gate/device selectors back
+	// to row 0 every time the user stepped out of the page they had just opened. (E3 task 7 narrowed
+	// the *other* direction rather than this one: `enter_leaf` now takes a `FocusCause`, and every
+	// call site below passes `Restored` -- which is what it always meant.)
 	//
-	// **The gap that leaves, named rather than assumed away** (E2 task 12 fix round 1): a
-	// `CustomItem` has no backward arm at all, so this blanket exclusion IS the port's stand-in for
-	// one. (E3 task 7 narrowed the *other* direction rather than this one: `enter_leaf` now takes a
-	// `FocusCause`, and this call site passes `Restored` -- which is what it always meant -- so a
-	// press-shaped item would not fire here even if the exclusion above were lifted.) That is only sound while every
-	// chain-source custom item's backward behaviour is "keep what `MenuState` already holds" -- true of all of them
-	// today (the three `nodes/dynamic.h` selectors keep `list[depth]`, the patch-cable pages keep
-	// `patching_param`/`patch_source`, and the fields they write are disjoint), and nothing tests it. An item that
-	// needs a *different* answer on the way back -- legacy's `navigatedBackwardFrom != nullptr` arm doing real work --
-	// cannot express it, and would need `CustomItem` to gain that parameter rather than this
-	// exclusion to be relaxed.
-	if (const Node* const landed = st_.path[st_.depth];
-	    landed != nullptr && is_leaf(landed->kind) && landed->kind != Kind::Custom) {
-		enter_leaf(*landed, FocusCause::Restored);
+	// E2 task 12 fix round 1 named the gap this left: with no backward arm at all, the exclusion
+	// itself had to stand in for one -- "leave `MenuState::list[depth]` alone" -- and that is sound
+	// only while every chain-source item's backward behaviour happens to be exactly that. It is not:
+	// `GateSelectionItem::on_focus_backward` (`nodes/dynamic.cpp`) is the case where it is not,
+	// found while writing this arm's own test (E3 task 10). `CustomItem::on_focus_backward`
+	// (`node.h`) is the real hook now; its do-nothing default gives every other chain-source item
+	// (`CvSelectionItem`, `MidiDevicesItem`, `PatchCablesItem`, `SourceSelectionItem`) exactly the
+	// "keep the cursor" answer this comment used to hard-code for all of them.
+	if (const Node* const landed = st_.path[st_.depth]; landed != nullptr && is_leaf(landed->kind)) {
+		if (landed->kind == Kind::Custom) {
+			if (landed->custom != nullptr) {
+				landed->custom->on_focus_backward(ctx_, st_);
+			}
+		}
+		else {
+			enter_leaf(*landed, FocusCause::Restored);
+		}
 	}
 }
 

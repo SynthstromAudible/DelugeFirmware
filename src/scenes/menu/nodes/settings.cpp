@@ -936,6 +936,13 @@ const Node* gate_selection_chain(const MenuContext& ctx, const MenuState&) {
 	// physical output is the minimum-off-time page; every other option is that output's mode page.
 	// Unclamped on purpose -- the equality is against the exact sentinel legacy tests, and
 	// `output_index` clamps at the point of use inside the mode hooks.
+	//
+	// Reads `ctx.source_index`, not `state`'s own cursor: `menu_scene.h`'s mailbox note names this
+	// the *load-bearing* drain-order case, and `tables_3_spec.cpp`'s "drains the selector's output
+	// index BEFORE the navigation arm, not after" pins exactly this read. `GateSelectionItem`'s
+	// backward arm (`nodes/dynamic.cpp`) needs a DIFFERENT value on the way back -- "the last real
+	// output", which `source_index` is not once this branch has been taken -- and gets it from its
+	// own `MenuState::gate_last_real_output` rather than by disturbing this read.
 	return ctx.source_index == NUM_GATE_CHANNELS ? &gate_off_time : &gate_mode;
 }
 

@@ -251,9 +251,12 @@ To add one:
 
    **`on_focus` is the forward arm only.** It runs when the item becomes focused going *down*, and
    `MenuScene::ascend()` deliberately does **not** call it when a leaf is reached going *up* —
-   including it broke the CV selector (E2 task 12). What is missing is a backward arm
-   (`on_focus_backward`); until one exists, an item that needs to distinguish the two directions has
-   no way to, and the E3 carry list records it.
+   including it broke the CV selector (E2 task 12). **E3 task 10** gave `CustomItem` the backward arm
+   this note used to say was missing — `on_focus_backward` (`node.h`), which `ascend()` calls instead
+   of its old blanket `Kind::Custom` exclusion. Do-nothing default; `GateSelectionItem`
+   (`nodes/dynamic.cpp`) is the one item that overrides it, because "leave `MenuState` alone" (what
+   the old exclusion gave every `Kind::Custom` item for free) is wrong for it specifically — see the
+   item's own doc for why.
 
    **The learn virtuals are inert without routing.** `MenuScene::learn_note_on`/`learn_cc`/
    `learn_program_change`/`unlearn` exist and are specced, but nothing in this repository routes
@@ -559,7 +562,7 @@ because it names the legacy routines each item has to be checked against.
 | **Seven self-duplicate goldens owed cleanup** — `menu_int/{after_select_press,after_select_turn}`, `menu_enum/{after_select_press,after_gold_turn}`, `menu_toggle/{after_select_press,after_gold_turn}`, `menu_shortcut/after_select_turn` are each byte-identical to their own `idle`, i.e. named for an event they do not show. | E2 task 12's record | E2 task 9 deleted three of exactly this kind, so leaving seven is an inconsistency, not a policy |
 | **`perform_editor`'s owed sync calls** — the displayed mode mirrors two `PerformanceView` bools. | the action seam section above; `menu/nodes/actions.h` | four calls into `menu::performance_editing_mode()` |
 | **The action seam's dispatcher** — nothing consumes `MenuScene::take_action()`. | `menu/action.h`, the action seam section above | one `switch` over five enumerators, plus per-tick polling (the slot is a one-shot mailbox) |
-| **`CustomItem`'s missing backward arm** — `ascend()`'s `Kind::Custom` exclusion stands in for an `on_focus_backward` that does not exist. Sound only while every chain-source custom item's backward behaviour is "keep what `MenuState` already holds" — true of all of them today, and untested. | `menu_scene.cpp`, beside the exclusion | one virtual, or a parameter on `on_focus` |
+| ~~**`CustomItem`'s missing backward arm**~~ — **done, E3 task 10.** `CustomItem::on_focus_backward` (`node.h`) is what `ascend()` calls now, instead of the old blanket `Kind::Custom` exclusion; do-nothing default, so every item the exclusion used to cover for free (`CvSelectionItem`, `MidiDevicesItem`, `PatchCablesItem`, `SourceSelectionItem`) is unchanged. `GateSelectionItem` (`nodes/dynamic.cpp`) is the one real override, and the reason it needs one: `gate::Selection`'s own backward arm restores `soundEditor.currentSourceIndex`, which `selectButtonPress` never writes for the minimum-off-time row (`gate/selection.h:44-47`) — so "keep the cursor" leaves it on that row, where legacy snaps back to the last real output. Pinned by `menu_scene_spec.cpp`'s task-10 example, which fails on the old exclusion. | `menu/node.h`, `menu/nodes/dynamic.{h,cpp}`, `menu_scene.cpp`'s `ascend()` | — |
 
 Beyond the menu tree, the rest of spec E §2's scene inventory (`SessionScene`, `NoteClipScene`,
 `BrowserScene`, the overlays) is still unwritten, and **nothing links `deluge_scenes`** — the wiring

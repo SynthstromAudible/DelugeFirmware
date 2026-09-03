@@ -40,6 +40,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <string_view>
 
 namespace deluge::scenes::menu::nodes {
@@ -82,9 +83,23 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 ///
 /// `MenuScene::after_render` drains the choice above its own `render_resp.entered` arm, so the
 /// press that publishes it and the `select_chain` call that reads it are the same tick -- which is
-/// exactly the order legacy's single statement has.
-void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state,
-                             std::span<const std::string_view> names) {
+/// exactly the order legacy's single statement has. `menu_scene.h`'s mailbox note names this the
+/// *load-bearing* drain-order case, and `tables_3_spec.cpp`'s "drains the selector's output index
+/// BEFORE the navigation arm, not after" pins it: `source_choice` is published on every entered
+/// press, unconditionally, exactly as before task 10 -- **including** the row past the last real
+/// output (`gate::Selection`'s minimum-off-time row), because `gate_selection_chain`
+/// (`nodes/settings.cpp`) routes off that same value the same tick.
+///
+/// @param real_output_limit How many leading @p names rows are real outputs -- `names.size()` for
+///        `cv::Selection` (both rows are), `NUM_GATE_CHANNELS` for `gate::Selection` (row 4 is the
+///        minimum-off-time page). Only used to keep `state.gate_last_real_output` -- see
+///        `GateSelectionItem::on_focus_backward` for why `source_choice`/`ctx.source_index` cannot
+///        serve that hook: routing needs the value this function just published to include the
+///        off-time row, but restoring the cursor on the way back must NOT, and legacy keeps the two
+///        apart by never writing `currentSourceIndex` on that branch at all
+///        (`gate/selection.h:44-47`).
+void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state, std::span<const std::string_view> names,
+                             size_t real_output_limit) {
 	draw_title_for(f, state);
 
 	const size_t d = depth_of(state);
@@ -94,6 +109,9 @@ void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state,
 	if (state.render_resp.entered && !names.empty()) {
 		state.source_choice =
 		    static_cast<int8_t>(std::clamp<int32_t>(index, 0, static_cast<int32_t>(names.size()) - 1));
+		if (index >= 0 && static_cast<size_t>(index) < real_output_limit) {
+			state.gate_last_real_output = static_cast<int8_t>(index);
+		}
 	}
 }
 
@@ -102,9 +120,9 @@ void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state,
 ///
 /// `CustomItem::on_focus` fires only on a *descent* into the item (`MenuScene::descend_to` ->
 /// `enter_leaf`), never on the way back up from the page it opened -- which is precisely legacy's
-/// `navigatedBackwardFrom == nullptr` test, one hop earlier. So there is no port of the backward arm
-/// (`setValue(soundEditor.currentSourceIndex)`): the cursor this leaves is still in
-/// `state.list[depth]` when the user returns, holding the same value that assignment would restore.
+/// `navigatedBackwardFrom == nullptr` test, one hop earlier. `CustomItem::on_focus_backward` is
+/// E3 task 10's port of that arm (`setValue(soundEditor.currentSourceIndex)`); see
+/// `GateSelectionItem::on_focus_backward` for the one of these two that needs it.
 ///
 /// It does **not** publish a `source_choice` either: legacy's `beginSession` moves the item's own
 /// value and leaves `soundEditor.currentSourceIndex` alone, and so does this (fix round 1).
@@ -164,7 +182,7 @@ void CvSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_CV_OUTPUT_1)),
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_CV_OUTPUT_2)),
 	};
-	render_output_selection(f, state, names);
+	render_output_selection(f, state, names, std::size(names)); // both rows are real outputs
 }
 
 deluge::ui::shell::Result CvSelectionItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
@@ -178,6 +196,35 @@ deluge::ui::shell::Result CvSelectionItem::handle(const deluge::ui::shell::UiEve
 
 void GateSelectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_output_selection(state); // `gate/selection.h:33-41 beginSession`
+	// `setValue(0)`'s forward arm lands the cursor on a real output (row 0), so the backward arm's
+	// own fallback does too -- consistent should the very first descent this visit be straight into
+	// the off-time row, before `render` below has ever recorded a real one.
+	state.gate_last_real_output = 0;
+}
+
+/// @brief `beginSession`'s backward arm: `setValue(soundEditor.currentSourceIndex)`
+///        (`gate/selection.h:33-41`).
+///
+/// The one of these two selectors that needs the hook. `focus_output_selection`'s "leave the
+/// cursor where it is" answer is right for a real output row -- nothing else has touched it -- but
+/// wrong for the minimum-off-time row: legacy's cursor SNAPS to the last real output chosen,
+/// discarding the off-time row, because `gate::Selection::selectButtonPress` never writes
+/// `currentSourceIndex` on that branch (`gate/selection.h:44-47`) and `beginSession`'s backward arm
+/// unconditionally restores from it anyway.
+///
+/// Restored from `MenuState::gate_last_real_output`, not from `ctx.source_index` /
+/// `MenuContext::source_index`: that field IS the port's `currentSourceIndex`, but
+/// `gate_selection_chain` (`nodes/settings.cpp`) legitimately reads it as `NUM_GATE_CHANNELS` while
+/// routing to the off-time page this same tick (`menu_scene.h`'s mailbox note calls that drain
+/// order load-bearing, and `tables_3_spec.cpp` pins it) -- so by the time this hook runs on the way
+/// back out, `ctx.source_index` may still be sitting on the very sentinel legacy never lets
+/// `currentSourceIndex` become. `gate_last_real_output` is the value with the OTHER field's job:
+/// updated by `render` below on every real-output press and nothing else, so it always holds what
+/// legacy's `currentSourceIndex` actually would.
+void GateSelectionItem::on_focus_backward(const MenuContext& /*ctx*/, MenuState& state) const {
+	const size_t d = depth_of(state);
+	state.list[d].cursor = static_cast<int16_t>(
+	    std::clamp<int32_t>(state.gate_last_real_output, 0, static_cast<int32_t>(NUM_GATE_CHANNELS) - 1));
 }
 
 void GateSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -191,7 +238,11 @@ void GateSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_GATE_OUTPUT_4)),
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_MINIMUM_OFF_TIME)),
 	};
-	render_output_selection(f, state, names);
+	// `NUM_GATE_CHANNELS` (4), not `names.size()` (5): row 4 is the minimum-off-time page, not a
+	// real output, so a press on it must not become `gate_last_real_output` -- see
+	// `on_focus_backward` and `render_output_selection`'s own note. `source_choice` still publishes
+	// unconditionally either way; only the second field this call adds is limited.
+	render_output_selection(f, state, names, NUM_GATE_CHANNELS);
 }
 
 deluge::ui::shell::Result GateSelectionItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
