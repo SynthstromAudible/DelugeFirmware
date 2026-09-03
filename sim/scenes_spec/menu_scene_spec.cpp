@@ -689,6 +689,47 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		expect(depth_of()).to_equal(0);
 		expect(cursor_of(0)).to_equal(2);
 	});
+
+	it("a SELECTED over-long row scrolls, held across quiet ticks (task 10)", _ {
+		// `ui/oled/list.cpp:156` -- the selected row's label runs through `scroll_text`, which
+		// self-arms the panel's own gate (`ui/oled/scroll_text.cpp:68`) whenever the label overflows
+		// its row; `tests/spec/ui/list_spec.cpp`'s "scrolls a selected label..." already pins that
+		// mechanics directly. What was untested is the OTHER half: does `MenuScene::render_vertical`
+		// actually reach it with a real, focused, over-long node? Every over-long row E2 task 12's
+		// goldens ever recorded was unselected -- legacy truncates that case too, so nothing was
+		// missing there -- and nothing exercised the selected one through the real scene.
+		//
+		// `nodes::feature_alt_delay_params`'s label is "Alternative Golden Knob Delay Params" (36
+		// characters): comfortably past a 48-panel row, the same margin `list_spec.cpp`'s own
+		// 41-character fixture uses. It sits at row 5 of `kRuntimeFeatureChildren`
+		// (`menu/nodes/settings.h`: drum_randomizer, fine_tempo, quantize, catch_notes,
+		// delete_unused_kit_rows, *alt_delay_params*, ...) -- `focused()` cannot confirm the cursor
+		// landed on it (it names the node ON SCREEN, `st_.path[depth]`, which a turn never moves;
+		// only a descent would), so this is deliberately self-checking instead: if a future reorder
+		// ever puts a short label at row 5, the label will not overflow its row and `offset` will
+		// stay 0, failing loudly rather than silently checking the wrong row.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = menu::context_for(*r.song.song, nullptr, 0, false, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree, not this file's synthetic one
+		menu_scene().open(nodes::runtime_features, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::runtime_features)});
+		r.shell.tick(0);
+
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		expect(cursor_of(0)).to_equal(5);
+
+		// Held across quiet ticks -- no input at all -- past `kScrollTime` (400 ms) plus one step
+		// (`kScrollStepForwardMs`, 15 ms): the offset must have moved off zero on its own.
+		expect(menu_scene().state().scroll[0].offset).to_equal(int16_t(0)); // not yet -- the pause
+		r.shell.tick(460);
+		r.shell.tick(475);
+		expect(menu_scene().state().scroll[0].offset > 0).to_be_true();
+	});
 });
 
 describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
