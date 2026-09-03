@@ -234,7 +234,13 @@ struct CleanScenes {
 
 private:
 	static void check(const char* what) {
-		if (browser::browser_scene().listing_in_flight() || recorder::recorder_scene().recording()) {
+		// One per scene, and all three, because all three are singletons this file opens. The
+		// marker editor has no allocation to leak, but it does have per-visit gesture state that
+		// `on_exit` clears (`MarkerScene::on_exit`: legacy's `UI_MODE_HOLDING_SAMPLE_MARKER`), and a
+		// leaked hold would make the next example's pad input behave differently for no visible
+		// reason -- the same class of cross-contamination, one layer smaller.
+		if (browser::browser_scene().listing_in_flight() || recorder::recorder_scene().recording()
+		    || marker::marker_scene().holding_marker()) {
 			spec_bail(what);
 		}
 	}
@@ -313,10 +319,8 @@ struct SoundRig {
 		return c;
 	}
 
-	/// @brief Focus @p node in the menu and let the shell apply whatever it asked for.
-	///
-	/// Two ticks: `MenuScene::after_render` files the `Push` at the end of the tick that rendered
-	/// the item, so the tick that *opens* the scene is not the tick that draws it.
+	/// @brief Focus @p node in the menu and let the shell apply whatever it asked for
+	///        (`focus_in`, which says how many ticks and why).
 	void focus(const Node& node) { focus_in(shell, ctx(), node); }
 
 	bool on_stack(SceneKind kind) { return scene_on_stack(shell, kind); }
@@ -477,12 +481,17 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		// crossed over, so a deliberately crossed copy is asserted NOT to match. (The real proof is
 		// the source mutation recorded in the task report; this is the guard that keeps the
 		// assertion itself honest if someone later relaxes it.)
-		std::vector<Wiring> swapped = observed_wiring();
-		std::swap(swapped[2], swapped[3]); // sample0_start <-> sample1_start
-		expect(format_wiring(swapped) == format_wiring(expected_wiring())).to_be_false();
-		std::vector<Wiring> markers_crossed = observed_wiring();
-		std::swap(markers_crossed[2], markers_crossed[4]); // sample0_start <-> sample0_end
-		expect(format_wiring(markers_crossed) == format_wiring(expected_wiring())).to_be_false();
+		//
+		// The crossing swaps the *payload* fields only and leaves each row's node name where it is,
+		// because that is the shape a real miswiring has: `sample0_start` still called
+		// `sample0_start`, carrying source 1's item. Swapping whole rows -- name included -- would
+		// only have shown that the table notices a reordering, which nothing can cause.
+		std::vector<Wiring> crossed_sources = observed_wiring();
+		std::swap(crossed_sources[2].source, crossed_sources[3].source); // sample0_start <-> sample1_start
+		expect(format_wiring(crossed_sources) == format_wiring(expected_wiring())).to_be_false();
+		std::vector<Wiring> crossed_markers = observed_wiring();
+		std::swap(crossed_markers[2].marker, crossed_markers[4].marker); // sample0_start <-> sample0_end
+		expect(format_wiring(crossed_markers) == format_wiring(expected_wiring())).to_be_false();
 	});
 
 	it("puts these items on those nine nodes and on nothing else in the tree", _ {
@@ -527,6 +536,9 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 		for (const Node* n : {&nodes::file0_selector, &nodes::file1_selector, &nodes::sample0_start,
 		                      &nodes::sample1_start, &nodes::sample0_end, &nodes::sample1_end,
 		                      &nodes::audio_clip_waveform, &nodes::sample0_recorder, &nodes::sample1_recorder}) {
+			// Two assertions, not one: `custom != nullptr && is_placeholder()` is also false for a
+			// null `custom`, which is a worse bug than a placeholder (`validate.h`'s `NullCustom`).
+			expect(n->custom != nullptr).to_be_true();
 			expect(n->custom != nullptr && n->custom->is_placeholder()).to_be_false();
 		}
 		expect(nodes::midi_device_linked.custom->is_placeholder()).to_be_true();

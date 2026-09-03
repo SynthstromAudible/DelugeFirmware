@@ -204,6 +204,27 @@ struct Descriptor {
 	///       -- `StorageManager::loadMidiDeviceDefinitionFile` is in `storage/`, which this layer
 	///       may include, so its accept hook really loads the file.
 	///
+	/// @note **The `Defer` dispatcher owes one more thing than `claimCurrentFile()`, and this is the
+	///       only place it is written down.** Legacy pairs the browser with a *return* affordance:
+	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2018 maybeGetParentMenu`,
+	///       file-selector arm at `:2034-2039`) writes `sampleBrowser.menuItemHeadingTo` and
+	///       `parentMenuHeadingTo` on the way *in*, and `claimCurrentFile` reads them back
+	///       (`gui/ui/browser/sample_browser.cpp:1075-1086`) to re-root
+	///       `soundEditor.menuItemNavigationRecord` onto the oscillator's horizontal page with the
+	///       file selector focused. So accepting a file lands the user on the source page, not back
+	///       on the item that opened the browser.
+	///
+	///       `nodes::FileBrowserItem` deliberately does **not** port it (`nodes/sample.cpp`): both
+	///       members live on a `gui/` object this layer may not name, and the port's equivalent of
+	///       `menuItemNavigationRecord` is `MenuState::path`/`depth`, which only `MenuScene` may
+	///       write -- an item writing the menu's own navigation state is what `MenuState`'s mailbox
+	///       contract (`scenes/menu/menu_scene.h`) exists to prevent. Whoever performs
+	///       `claimCurrentFile` against `take_choice()` is therefore the owner of the re-rooting
+	///       too, and will need a `MenuScene` entry point for it. Until then the cost is one extra
+	///       BACK press after a file is accepted. `osc::AudioRecorder` carries the identical pair
+	///       (`gui/ui/sound_editor.cpp:2042-2047`, consumed by `osc/audio_recorder.h:40-48`) with
+	///       the same disposal, recorded on `nodes::AudioRecorderItem::on_focus`.
+	///
 	/// @param ctx   What the browser was opened over.
 	/// @param path  The chosen file's full path (`currentDir` + "/" + the filename).
 	/// @param error Out: what to announce when the answer is `Stay`.

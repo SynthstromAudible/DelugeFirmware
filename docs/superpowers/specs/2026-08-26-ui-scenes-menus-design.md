@@ -691,14 +691,29 @@ pad colours, the play cursor, the dev-sysex setting, the shortcuts version) and 
 revived `Kind::Range`s (`default_tempo`, `default_swing_amount`, `default_key`) — while the cap
 stayed where E2 task 9 left it, so it drifted to four above reality: four bespoke items a table
 could have added for free. Ratcheted down to follow. The same task added
-`validate.h`'s `kPendingCustomNodes` (**11**) and a by-identity assertion of *which* nodes those
-are: a count alone cannot tell "a placeholder was finished" from "a placeholder was finished and a
-new one appeared somewhere else", which is exactly the drift a number meant to say "E2 is not
-finished" must not be able to hide. The eleven are the file/sample family — both oscillator file
-browsers, the four sample loop points, the two audio recorders — plus `midi_device_linked`,
-`specific_output_selector` and `audio_clip_waveform`. All of them need the card or a view no plan
-so far ports, and they belong to E3; the plan that closes them out edits that list deliberately,
-and deletes `ValidateOptions::allow_placeholder_custom` with the last of them.
+`validate.h`'s `kPendingCustomNodes` (**11** at the time) and a by-identity assertion of *which*
+nodes those are: a count alone cannot tell "a placeholder was finished" from "a placeholder was
+finished and a new one appeared somewhere else", which is exactly the drift a number meant to say
+"E2 is not finished" must not be able to hide. The eleven were the file/sample family — both
+oscillator file browsers, the four sample loop points, the two audio recorders — plus
+`midi_device_linked`, `specific_output_selector` and `audio_clip_waveform`. All of them need the
+card or a view no plan before E3 ports.
+
+*E3 amendment (task 6).* `kPendingCustomNodes` is now **2**, and the distinct-item count is **51**
+(the node count and the cap are unchanged at 52 and 53 — nine nodes were re-pointed, not added).
+Task 6 gave nine of the eleven real items in `menu/nodes/sample.h`: `FileBrowserItem` over
+`browser::BrowserScene` (`BrowserId::Sample`) for the two file selectors, `MarkerItem` over
+`marker::MarkerScene` for the four loop points **and** `audio_clip_waveform` (which is the
+`MarkerType::END` spelling — `gui/ui/menus.cpp:1183` is the global `audioClipSampleMenu:1193`
+names), and `AudioRecorderItem` over `recorder::RecorderScene` for the two record-to-sample items.
+Nine instances rather than three, for `MidiCommandItem`'s reason: `on_focus` is handed a
+`MenuContext` and a `MenuState`, never its own `Node`, so an item shared across the two oscillators
+could not tell which source it was being focused as.
+
+The **two** that remain are `midi_device_linked` (whose `BrowserScene` descriptor already ships —
+`BrowserId::MidiDeviceDefinition`, E3 task 3 — so only the item is owed) and
+`specific_output_selector` (an output picker, not a browser). E3 task 7 closes both out, and
+deletes `ValidateOptions::allow_placeholder_custom` with the last of them.
 
 **E2's carried work** — behaviour spec E named as belonging to a later phase, still owed once E1's
 ten roots and `MenuScene` ship: `source_shortcut_pads` (needs patch cables); per-pad blink

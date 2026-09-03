@@ -142,6 +142,15 @@ void select_source(MenuContext& ctx, int8_t index) {
 	// legacy changes source index mid-menu. A range remembered for the *other* source names a
 	// different sample entirely, and every caller of this is about to hand the context to a scene
 	// that dereferences `ctx.range`.
+	//
+	// NARROWED, deliberately: legacy's condition is a disjunction, and only the second half is
+	// ported. The first -- `currentUI != &soundEditor && currentUI != &sampleMarkerEditor` -- drops
+	// the remembered range whenever the menu is being *entered* rather than navigated within, which
+	// it has to do because `currentMultiRange` is a `SoundEditor` member that outlives every visit.
+	// `MenuContext` is not: `context_for` builds a fresh one per entry and resolves `range` from
+	// scratch (`:1832-1836`'s arm below), so there is no stale range for that half to clear. It is
+	// also a UI read this layer may not make (`scenes-no-root-ui`). The surviving half is the one
+	// that fires *inside* a session, which is exactly what this function is for.
 	if (ctx.source_index != index) {
 		ctx.range = nullptr;
 		ctx.range_index = -1;

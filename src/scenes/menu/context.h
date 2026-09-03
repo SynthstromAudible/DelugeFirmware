@@ -286,7 +286,8 @@ void select_range(MenuContext& ctx, int32_t index);
 ///   * `:209-211` -- adopt the source's first range when none is selected yet;
 ///   * `setup()`'s `:1786-1788`, which drops a remembered range whenever the source index moves.
 ///     Without it, an item on source 1 could open a scene over source **0**'s `MultiRange` -- the
-///     one `context_for` resolved -- and edit the wrong sample's markers.
+///     one `context_for` resolved -- and edit the wrong sample's markers. Only the source-index
+///     half of that condition is ported; the `.cpp` says why the UI half has nothing to clear here.
 ///
 /// @param ctx   The context to re-point. A context with no `sound` (an audio clip, the settings
 ///              root) is left exactly as it is: there is no source to select, which is precisely

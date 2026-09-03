@@ -186,7 +186,7 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   exactly the phase it was meant to police.
 * It now counts **nodes that point at a custom item**. The shipped tree has **52** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
-  `sim/scenes_spec/shortcuts_spec.cpp`), behind **42** distinct items -- of which **11** still share
+  `sim/scenes_spec/shortcuts_spec.cpp`), behind **51** distinct items -- of which **2** still share
   the single `kPending` placeholder (`validate.h`'s `kPendingCustomNodes`, whose exact set the same
   spec pins by node identity). The cap `kMaxCustomNodes` is **53**, one above the count. (It was 64
   until E2 task 11 turned nine of the placeholders -- the six pad colours, the play cursor, the
@@ -202,8 +202,11 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   items (four `ActionItem`s plus `PerformEditorItem`, `menu/nodes/actions.h`) and its two
   `ActiveScalesItem`s (`menu/nodes/scales.h`) and the sixth `ContextMenuItem`
   (`menu/nodes/context_menu_items.h` — the class the five reset items became once
-  `audio_source_selector` needed the same one), so the distinct-instance count that spelling used to
-  be inert on is now 42, not 1.
+  `audio_source_selector` needed the same one), and E3 task 6's nine sample items (two
+  `FileBrowserItem`s, five `MarkerItem`s, two `AudioRecorderItem`s — `menu/nodes/sample.h`; nine
+  instances rather than three because `on_focus` is handed a `MenuContext` and never its own `Node`,
+  so one shared instance could not tell which source it was focused as), so the distinct-instance
+  count that spelling used to be inert on is now 51, not 1.
 * So the cap is `kMaxCustomNodes == 53`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
@@ -493,6 +496,7 @@ because it names the legacy routines each item has to be checked against.
 | carried | where it is recorded | size |
 |---|---|---|
 | **Two nodes still `nodes::kPending`** — `midi_device_linked` (whose `BrowserScene` descriptor already ships) and `specific_output_selector` (an output picker, not a browser). The other nine of E2's file/sample family became `menu/nodes/sample.h` in E3 task 6. | `validate.h`'s `kPendingCustomNodes` names the exact set by identity; `sim/scenes_spec/shortcuts_spec.cpp` pins it, and `sim/scenes_spec/sample_items_spec.cpp` pins what the nine that went now open | 2 nodes |
+| **The browser/recorder "heading to" return path** — legacy re-roots the navigation record onto the oscillator's horizontal page when a file is accepted or a recording finishes, so the user does not land back on the item that opened the scene. `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2018`) writes the pair; `SampleBrowser::claimCurrentFile` (`gui/ui/browser/sample_browser.cpp:1075-1086`) and `osc::AudioRecorder::beginSession` (`osc/audio_recorder.h:40-48`) read it back. The port's equivalent record is `MenuState::path`/`depth`, which only `MenuScene` may write. | `browser/browser_scene.h`'s `Descriptor::accept` note (the `take_choice()` dispatcher owns it) and `menu/nodes/sample.cpp`'s two `on_focus` bodies | one `MenuScene` entry point; costs one extra BACK press until then |
 | **`midiDeviceMenu`'s subtree** — `midi_devices` has no `select_chain` because the per-device page is declared by no node. | `menu/nodes/dynamic.h`, with the legacy citation (`gui/ui/menus.cpp:1444-1453`) | ~8 nodes, 3 bespoke, plus an MPE subtree (`mpe::DirectionSelector` has instance state, a runtime `getTitle()` and its own chain onward) |
 | **Splitting session from arranger** — `song_midi_learn` and `configure_song_macros` stay visible in the arranger where legacy hides them, because `MenuContext` cannot tell the two apart. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView`, and legacy hides these two from all but the first. | `menu/nodes/actions.h` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads (`bindings.cpp:265` must keep meaning "either"), ~62 positional-bool call sites, and a JSON regen since the nodes gain `available_when`. No architectural ripple — which is why deferring is safe |
 | **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback` and the three `shouldBlinkPatchingSourceShortcut` overrides. `MenuScene::render_grid` keys its single blink cycle off the focused *node*; consulting the focused `CustomItem` needs a hook and a second blink source. | detailed below | same shape of change as routing MIDI to `MenuScene::learn_*` |

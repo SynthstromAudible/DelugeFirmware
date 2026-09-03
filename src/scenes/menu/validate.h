@@ -128,8 +128,10 @@ enum class Flag : uint16_t {
 /// tree has **52** `Kind::Custom` nodes reachable from `nodes::kAllRoots` -- 64 through E2 task 9,
 /// less the nine E2 task 11 turned into ordinary `Kind::Enum` items (the six pad colours, the play
 /// cursor, the dev-sysex setting and the shortcuts version) and the three E2 task 11b turned into
-/// `Kind::Range` (`default_tempo`, `default_swing_amount`, `default_key`) -- behind 42 distinct
-/// items, of which 41 are real and one is still `nodes::kPending` (see `kPendingCustomNodes`).
+/// `Kind::Range` (`default_tempo`, `default_swing_amount`, `default_key`) -- behind 51 distinct
+/// items, of which 50 are real and one is still `nodes::kPending` (see `kPendingCustomNodes`,
+/// whose two nodes share that single placeholder). E3 task 6 added the last nine of the 51, one per
+/// (item, source) pair, without moving the node count: `nodes/sample.h`.
 /// So the cap is pinned just above that count rather than at 10: it is a ratchet against the escape
 /// hatch growing unnoticed, not a claim that ten was ever achievable.
 /// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 52 separately, so a table that adds a custom node has to say
