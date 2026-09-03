@@ -693,11 +693,19 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// `ResetItem`s became when a second kind of context-menu opener appeared
 		// (`nodes/context_menu_items.h`) -- so **forty-two**.
 		//
+		// E3 task 6 adds **nine**: two `FileBrowserItem`s, five `MarkerItem`s and two
+		// `AudioRecorderItem`s (`nodes/sample.h`) -- so **fifty-one**. Nine instances rather than
+		// three, for the reason the twelve MIDI-command items are twelve: `on_focus` is handed a
+		// `MenuContext` and a `MenuState`, never its own `Node`, so an item shared across the two
+		// oscillators could not tell which source it was being focused as. They move no node count
+		// either: all nine were already `Kind::Custom` nodes pointing at `kPending`, and `kPending`
+		// still has two users (`midi_device_linked`, `specific_output_selector`).
+		//
 		// Twelve instances rather than one parameterised by the node, because the command a node
 		// binds has to be a property of the item: `CustomItem::learn_*` is handed `MenuState`, not
 		// its own `Node`, so an item that shared one instance across the twelve could not tell which
 		// of the twelve slots it was being asked to learn onto.
-		expect(distinct_items).to_equal(size_t(42));
+		expect(distinct_items).to_equal(size_t(51));
 
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {},
 		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
@@ -710,12 +718,19 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		expect(too_many).to_equal(size_t(0));
 	});
 
-	it("still owes exactly the eleven file/sample placeholders, by identity", _ {
+	it("still owes exactly the two remaining placeholders, by identity", _ {
 		// E2 task 12. `allow_placeholder_custom` used to be checked only as a count, which is a net
 		// with a hole in it: an item task that finished one placeholder and a table that added
-		// another somewhere else would cancel out, and the number that says "E2 is not done" would
-		// not move. This pins the SET, so the later plan that closes the file/sample family out has
-		// to edit this list -- and adding a twelfth placeholder fails here instead of hiding.
+		// another somewhere else would cancel out, and the number that says "the tree is not done"
+		// would not move. This pins the SET, so the task that closes the last two out has to edit
+		// this list -- and adding a third placeholder fails here instead of hiding.
+		//
+		// **E3 task 6 removed nine rows from this list**, which is the whole file/sample family
+		// except the two one-offs: `file0_selector`/`file1_selector` now point at
+		// `nodes::kFile0Selector`/`kFile1Selector`, the four loop points and `audio_clip_waveform`
+		// at the five `nodes::MarkerItem`s, and the two recorders at the two
+		// `nodes::AudioRecorderItem`s (`nodes/sample.h`). `sample_items_spec.cpp` is where the
+		// item-to-scene mapping itself is pinned; this only says which nodes are still stubs.
 		//
 		// Named nodes, not string ids: two oscillators declare `FILE_BROWSER` under the same name
 		// (`nodes/sound_osc.h`'s `SOURCE_NODES` macro), so a set keyed on the label could not tell
@@ -725,14 +740,11 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
 
 		const Node* const kExpected[] = {
-		    // The two oscillator file browsers -- legacy's `sample_browser` / `file_selector`.
-		    &nodes::file0_selector, &nodes::file1_selector,
-		    // The four sample loop points -- `sample/start.h`, `sample/end.h`.
-		    &nodes::sample0_start, &nodes::sample1_start, &nodes::sample0_end, &nodes::sample1_end,
-		    // The two audio recorders -- `osc/audio_recorder.h`.
-		    &nodes::sample0_recorder, &nodes::sample1_recorder,
-		    // And the three one-offs that also need the card or a view this plan does not port.
-		    &nodes::midi_device_linked, &nodes::specific_output_selector, &nodes::audio_clip_waveform,
+		    // The MIDI device-definition load. `browser::BrowserId::MidiDeviceDefinition` already
+		    // ships (task 3); only the item is owed.
+		    &nodes::midi_device_linked,
+		    // The audio clip's `TRACK` picker -- an output list, not a file browser.
+		    &nodes::specific_output_selector,
 		};
 		static_assert(std::size(kExpected) == menu::kPendingCustomNodes);
 
@@ -769,7 +781,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// And the rule itself agrees with the walk: with the flag DOWN, `validate_tree` reports a
 		// `PlaceholderCustom` against each of exactly those nodes and nothing else. (The shortcut
 		// sweep stays on -- this is `kAllRoots`, the one caller for which it means anything -- and
-		// the issue list is capped at 64, comfortably above eleven.)
+		// the issue list is capped at 64, comfortably above two.)
 		const auto strict = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});
 		std::set<const Node*> reported;
 		for (const menu::Issue& i : strict) {

@@ -39,19 +39,23 @@
 /// | `osc_mixer` | `oscMixerMenu` (`:415`) | `HorizontalMenu` |
 // clang-format on
 ///
-/// @note **The four bespoke items.** `FileSelector`, `osc::AudioRecorder` and the two `LoopPoint`s
-///       do not edit a value at all -- each `beginSession`s straight into another whole UI (the
-///       sample browser, the audio recorder, the sample marker editor). Spec E §4 calls those
-///       `Kind::Custom` and names "file selector" among the seven it expects. The real
-///       implementations are E2's `BrowserScene` / `AudioRecorderScene` / `SampleMarkerScene`; until
-///       then each points at `kPending`, a placeholder that draws the item's title and consumes
-///       nothing, so the node is honest data (the validator's `NullCustom` rule refuses a
-///       `Kind::Custom` with no implementation) and a *vertical* page renders the item rather than
-///       stale pixels. **In a horizontal page it does not run at all**: `MenuScene::render_columns`
+/// @note **The four bespoke items, and they are real now.** `FileSelector`, `osc::AudioRecorder` and
+///       the two `LoopPoint`s do not edit a value at all -- each `beginSession`s straight into
+///       another whole UI (the sample browser, the audio recorder, the sample marker editor). Spec
+///       E §4 calls those `Kind::Custom` and names "file selector" among the seven it expects.
+///       E1 and E2 pointed all eight nodes at `kPending`; **E3 task 6 gave them
+///       `nodes/sample.h`'s three item classes** -- `FileBrowserItem` over `browser::BrowserScene`,
+///       `MarkerItem` over `marker::MarkerScene` and `AudioRecorderItem` over
+///       `recorder::RecorderScene` -- as six distinct instances, one per (item, source) pair, so
+///       spec E §4's budget of ten now counts 3 classes / 6 instances here rather than 1.
+///
+///       **In a horizontal page the item still does not run**: `MenuScene::render_columns`
 ///       dispatches on `Kind` and `Custom` falls to its `default:` arm -> `meter_column`
-///       (`menu_scene.cpp:542-553`), so these eight columns draw empty bars until E2. All eight
-///       nodes share one `CustomItem` instance, so spec E §4's budget of ten counts 1 here -- which
-///       is optimistic as a *measurement*: it will read 4 once the real implementations land.
+///       (`menu_scene.cpp:542-553`), so these eight columns draw empty bars. Legacy renders each of
+///       them itself (`FileSelector::renderInHorizontalMenu`, `file_selector.cpp:88-91`;
+///       `LoopPoint::renderInHorizontalMenu`, `sample/loop_point.cpp:75-90`;
+///       `osc::AudioRecorder::renderInHorizontalMenu`, `osc/audio_recorder.h:81-114`), which `Node`
+///       has no field for and which is a `Hint`/widget question rather than a wiring one.
 ///
 /// @note **`range_dependent`.** Four legacy classes in this subtree override
 ///       `checkPermissionToBeginSession` to route through
@@ -89,6 +93,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
+#include "scenes/menu/nodes/sample.h"       // the six bespoke items this subtree's nodes point at
 #include "scenes/menu/relevance.h"
 
 #include <cstddef>
@@ -102,7 +107,11 @@ struct MenuState;
 
 namespace deluge::scenes::menu::nodes {
 
-/// @brief The placeholder the four bespoke items point at. See the file note.
+/// @brief The shared placeholder for a node whose real item is still owed.
+///
+/// **Nothing in this file points here any more** (E3 task 6 -- see the file note); it lives here for
+/// its history and because the two nodes still owed one are declared in `nodes/roots.h`, which
+/// includes this header. `validate.h`'s `kPendingCustomNodes` names them.
 ///
 /// Both members are defined in `sound_osc.cpp`: declaring them here keeps this header free of the
 /// oled toolkit's and the shell's dependency closures, exactly as `node.h` keeps `CustomItem` free
@@ -191,8 +200,8 @@ inline constexpr IntRange kTimeStretchRange{-48, 48, 1};
 	    with_title(dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_TYPE), osc##i##_type_names,                \
 	                                   get_osc##i##_type, set_osc##i##_type, relevance::not_fm),                       \
 	               sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE));                                         \
-	inline constexpr Node file##i##_selector = with_range_dependent(                                                   \
-	    custom(sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER), &kPending, relevance::osc##i##_file_selector));     \
+	inline constexpr Node file##i##_selector = with_range_dependent(custom(                                            \
+	    sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER), &kFile##i##Selector, relevance::osc##i##_file_selector));  \
 	inline constexpr Node source##i##_transpose = with_patch_chain(with_range_dependent(with_learn_param(              \
 	    with_title(decimal_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), get_source##i##_transpose,            \
 	                            set_source##i##_transpose, kTransposeRange, 2, relevance::osc##i##_transpose),         \
@@ -241,9 +250,9 @@ inline constexpr IntRange kTimeStretchRange{-48, 48, 1};
 	                           get_sample##i##_interp, set_sample##i##_interp, relevance::osc##i##_interpolation),     \
 	               sid(deluge::l10n::String::STRING_FOR_SAMP_INTERP_MENU_TITLE));                                      \
 	inline constexpr Node sample##i##_start = with_range_dependent(                                                    \
-	    custom(sid(deluge::l10n::String::STRING_FOR_START_POINT), &kPending, relevance::osc##i##_is_sample));          \
+	    custom(sid(deluge::l10n::String::STRING_FOR_START_POINT), &kSample##i##Start, relevance::osc##i##_is_sample)); \
 	inline constexpr Node sample##i##_end = with_range_dependent(                                                      \
-	    custom(sid(deluge::l10n::String::STRING_FOR_END_POINT), &kPending, relevance::osc##i##_is_sample));            \
+	    custom(sid(deluge::l10n::String::STRING_FOR_END_POINT), &kSample##i##End, relevance::osc##i##_is_sample));     \
 	inline constexpr const Node* kSource##i##Children[] = {                                                            \
 	    &osc##i##_type,        &file##i##_selector,       &source##i##_transpose,   &source##i##_wave_index,           \
 	    &osc##i##_pulse_width, &source##i##_feedback,     &osc##i##_phase,          &sample##i##_reverse,              \
@@ -300,11 +309,11 @@ inline constexpr Node modulator1 = submenu(sid(deluge::l10n::String::STRING_FOR_
 // The recorder page (`g_menus.inc:55-61`). Two slots wide each --
 // `AudioRecorder::getOccupiedSlots()` (`osc/audio_recorder.h:77`).
 inline constexpr Node sample0_recorder =
-    with_slots(with_range_dependent(custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kPending,
+    with_slots(with_range_dependent(custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kSample0Recorder,
                                            relevance::is_subtractive)),
                2);
 inline constexpr Node sample1_recorder =
-    with_slots(with_range_dependent(custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kPending,
+    with_slots(with_range_dependent(custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kSample1Recorder,
                                            relevance::is_subtractive)),
                2);
 inline constexpr const Node* kRecorderChildren[] = {&sample0_recorder, &sample1_recorder};

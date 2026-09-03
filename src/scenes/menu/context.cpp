@@ -134,6 +134,27 @@ void select_range(MenuContext& ctx, int32_t index) {
 	ctx.source->defaultRangeI = index;
 }
 
+void select_source(MenuContext& ctx, int8_t index) {
+	if (ctx.sound == nullptr || index < 0 || index >= kNumSources) {
+		return;
+	}
+	// `SoundEditor::setup`'s `:1786-1788`, folded in here because this is the port of the one place
+	// legacy changes source index mid-menu. A range remembered for the *other* source names a
+	// different sample entirely, and every caller of this is about to hand the context to a scene
+	// that dereferences `ctx.range`.
+	if (ctx.source_index != index) {
+		ctx.range = nullptr;
+		ctx.range_index = -1;
+	}
+	ctx.source_index = index;
+	ctx.source = &ctx.sound->sources[index];                   // `:205`
+	ctx.sample_controls = &ctx.source->sampleControls;         // `:207`
+	if (ctx.range == nullptr && !ctx.source->ranges.empty()) { // `:209-211`
+		ctx.range = static_cast<MultiRange*>(ctx.source->ranges.getElement(0));
+		ctx.range_index = 0;
+	}
+}
+
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool kit_global_fx) {
 	MenuContext ctx{};

@@ -267,4 +267,33 @@ bool ensure_first_range(MenuContext& ctx);
 /// unchecked, and every caller here has already clamped against `range_count`.
 void select_range(MenuContext& ctx, int32_t index);
 
+/// @brief Point @p ctx at oscillator source @p index -- `SoundEditor::setCurrentSource`
+///        (`sound_editor.cpp:204-212 setCurrentSource`), plus the range reset `SoundEditor::setup`
+///        performs alongside it (`:1786-1788`).
+///
+/// Legacy's per-source bespoke items each hold their own `source_id_` and open with
+/// `soundEditor.setCurrentSource(sourceId_)` -- `FileSelector::beginSession`
+/// (`gui/menu_item/file_selector.cpp:38`), `sample::LoopPoint::beginSession`
+/// (`gui/menu_item/sample/loop_point.cpp:68`), `osc::AudioRecorder::beginSession`
+/// (`gui/menu_item/osc/audio_recorder.h:38`). Nothing in the port re-resolves the context on the
+/// way into `source1`'s page (see `relevance.h`'s note on why the per-source predicates are named
+/// rather than context-driven), so this is where an item that is *about* to hand a context to
+/// another scene makes it name its own source.
+///
+/// Three statements of legacy's, plus one of `setup()`'s:
+///
+///   * `currentSource` / `currentSourceIndex` / `currentSampleControls` (`:205-207`);
+///   * `:209-211` -- adopt the source's first range when none is selected yet;
+///   * `setup()`'s `:1786-1788`, which drops a remembered range whenever the source index moves.
+///     Without it, an item on source 1 could open a scene over source **0**'s `MultiRange` -- the
+///     one `context_for` resolved -- and edit the wrong sample's markers.
+///
+/// @param ctx   The context to re-point. A context with no `sound` (an audio clip, the settings
+///              root) is left exactly as it is: there is no source to select, which is precisely
+///              why `audio_clip::SampleMarkerEditor::beginSession`
+///              (`gui/menu_item/audio_clip/sample_marker_editor.cpp:43-51`) has no such call.
+/// @param index Which of `Sound::sources`. Negative, or past the last source, is a no-op --
+///              `nodes::MarkerItem` spells "the audio-clip opener, which selects no source" as -1.
+void select_source(MenuContext& ctx, int8_t index);
+
 } // namespace deluge::scenes::menu

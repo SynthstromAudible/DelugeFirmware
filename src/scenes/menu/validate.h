@@ -149,23 +149,22 @@ inline constexpr size_t kShippedCustomNodes = 52;
 
 /// @brief How many of `kShippedCustomNodes` still point at `nodes::kPending`.
 ///
-/// **Eleven, and they are one family.** E2 finished every bespoke item it owned; what is left is the
-/// file/sample group, which belongs to a later plan because all of it needs the card:
+/// **Two.** E2 finished every bespoke item it owned and left eleven -- the file/sample family, all
+/// of which needed the card. E3 task 6 closed nine of those out (`nodes/sample.h`): the two
+/// oscillator file browsers onto `browser::BrowserScene`, the four loop points and the audio clip's
+/// waveform view onto `marker::MarkerScene`, and the two record-to-sample items onto
+/// `recorder::RecorderScene`. What is left is not a family at all -- it is the two one-offs that
+/// open something neither a browser descriptor nor a sample scene:
 ///
-///   * `file0_selector` / `file1_selector` -- `FILE_BROWSER` (`nodes/sound_osc.h`, the `SOURCE_NODES`
-///     macro), legacy's `sample_browser` / `file_selector`;
-///   * `sample0_start` / `sample1_start` and `sample0_end` / `sample1_end` -- `START_POINT` /
-///     `END_POINT` (same macro), legacy's `sample/start.h` and `sample/end.h`;
-///   * `sample0_recorder` / `sample1_recorder` -- `RECORD_TO_SAMPLE` (`nodes/sound_osc.h`), legacy's
-///     `osc/audio_recorder.h`;
-///   * `midi_device_linked` -- `MIDI_DEVICE_DEFINITION_LINKED` (`nodes/roots.h`);
-///   * `specific_output_selector` -- the audio clip's `TRACK` picker (`nodes/roots.h`);
-///   * `audio_clip_waveform` -- the audio clip's `WAVEFORM` view (`nodes/roots.h`).
+///   * `midi_device_linked` -- `MIDI_DEVICE_DEFINITION_LINKED` (`nodes/roots.h`). The scene and its
+///     descriptor already ship (`browser::BrowserId::MidiDeviceDefinition`); only the item is owed.
+///   * `specific_output_selector` -- the audio clip's `TRACK` picker (`nodes/roots.h`), which is an
+///     output list rather than a file browser.
 ///
 /// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact **set** by node identity, not just this
-/// count, so the later plan that closes one of them out has to say which -- and adding a twelfth
+/// count, so the task that closes one of them out has to say which -- and adding a third
 /// placeholder to a table fails there rather than hiding inside a number that happened not to move.
-inline constexpr size_t kPendingCustomNodes = 11;
+inline constexpr size_t kPendingCustomNodes = 2;
 
 /// @brief Which of the strict rules the caller is deliberately standing down.
 ///
@@ -180,10 +179,10 @@ struct ValidateOptions {
 	/// than a null pointer -- `NullCustom` stays a live rule, and a null `custom` is still an
 	/// outright bug -- but the tree is not finished, and by default `validate_tree` says so.
 	///
-	/// **E2 built all but the file/sample family**, which needs the card and belongs to a later
-	/// plan; `kPendingCustomNodes` above names the eleven nodes that remain and
-	/// `sim/scenes_spec/shortcuts_spec.cpp` pins them by identity. So this flag outlives E2 -- the
-	/// plan that closes those eleven out is the one that deletes it and the rule it suppresses.
+	/// **E2 built all but the file/sample family**, which needs the card, and **E3 task 6 built nine
+	/// of those eleven** (`nodes/sample.h`); `kPendingCustomNodes` above names the two that remain
+	/// and `sim/scenes_spec/shortcuts_spec.cpp` pins them by identity. So this flag outlives E2 --
+	/// the task that closes the last two out is the one that deletes it and the rule it suppresses.
 	bool allow_placeholder_custom = false;
 
 	/// @brief Skip the `ShortcutToNothing` sweep entirely.

@@ -14,7 +14,10 @@ That added two scenes (`rename/`, `context_menu/`), three toolkit widgets (`ui::
 `CustomItem`, `Node::select_chain`/`chain_targets`, `Kind::Range`, and the **action seam**
 (`menu/action.h`). What E2 did *not* do is give the library an entry point — see the box below —
 and the eleven `kPendingCustomNodes` of the file/sample family are E3's, along with the rest of the
-carry list at the end of this file.
+carry list at the end of this file. **E3 task 6 has since closed nine of those eleven**
+(`menu/nodes/sample.h`: the two file browsers, the four loop points, the audio clip's waveform view
+and the two record-to-sample items); `midi_device_linked` and `specific_output_selector` are the two
+left.
 
 > **Read this before adding a menu item.** The shipping firmware still runs the *legacy*
 > `SoundEditor` and its ~200 hand-written `MenuItem` classes under `src/deluge/gui/menu_item/`.
@@ -244,7 +247,8 @@ To add one:
 3. **If the real implementation is a later task's job** (E1 shipped the *shape* of several bespoke
    items — the file selector, the audio recorder, loop points, patch-cable pages, the
    multi-range picker — without their real behaviour; E2 built all but the file/sample family,
-   which needs the card and is the eleven `kPendingCustomNodes` a later plan owns), point the node at the shared
+   which needs the card, and E3 task 6 built nine of that family's eleven, leaving the two
+   `kPendingCustomNodes` `validate.h` names), point the node at the shared
    `nodes::kPending` placeholder (`menu/nodes/sound_osc.{h,cpp}`) instead of a real implementation.
    `kPending` draws the item's title and consumes no input; `CustomItem::is_placeholder()` reports
    `true` for it, so `validate_tree` flags every node pointing there as
@@ -488,7 +492,7 @@ because it names the legacy routines each item has to be checked against.
 
 | carried | where it is recorded | size |
 |---|---|---|
-| **The file/sample family** — 11 nodes still `nodes::kPending` (file selector, audio recorder, loop points, sample browser preview, …). Needs the card, which is why E2 stopped here. | `validate.h`'s `kPendingCustomNodes` names the exact set by identity; `sim/scenes_spec/shortcuts_spec.cpp` pins it | the largest remaining group |
+| **Two nodes still `nodes::kPending`** — `midi_device_linked` (whose `BrowserScene` descriptor already ships) and `specific_output_selector` (an output picker, not a browser). The other nine of E2's file/sample family became `menu/nodes/sample.h` in E3 task 6. | `validate.h`'s `kPendingCustomNodes` names the exact set by identity; `sim/scenes_spec/shortcuts_spec.cpp` pins it, and `sim/scenes_spec/sample_items_spec.cpp` pins what the nine that went now open | 2 nodes |
 | **`midiDeviceMenu`'s subtree** — `midi_devices` has no `select_chain` because the per-device page is declared by no node. | `menu/nodes/dynamic.h`, with the legacy citation (`gui/ui/menus.cpp:1444-1453`) | ~8 nodes, 3 bespoke, plus an MPE subtree (`mpe::DirectionSelector` has instance state, a runtime `getTitle()` and its own chain onward) |
 | **Splitting session from arranger** — `song_midi_learn` and `configure_song_macros` stay visible in the arranger where legacy hides them, because `MenuContext` cannot tell the two apart. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView`, and legacy hides these two from all but the first. | `menu/nodes/actions.h` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads (`bindings.cpp:265` must keep meaning "either"), ~62 positional-bool call sites, and a JSON regen since the nodes gain `available_when`. No architectural ripple — which is why deferring is safe |
 | **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback` and the three `shouldBlinkPatchingSourceShortcut` overrides. `MenuScene::render_grid` keys its single blink cycle off the focused *node*; consulting the focused `CustomItem` needs a hook and a second blink source. | detailed below | same shape of change as routing MIDI to `MenuScene::learn_*` |
@@ -587,6 +591,8 @@ opens `rename::RenameScene` — the port of legacy's five-class `gui/ui/rename/`
 task 9 the two patch-cable pages, the two source pickers, the mod matrix, the two fixed cables and
 the range picker; E2 task 10 the CV and gate output selectors and the MIDI device list
 (`menu/nodes/dynamic.h`); E2 task 11b the five action items, the two preset-scale checklists and the
-audio-source selector; **the remaining 11 -- the file/sample family -- still point at
-`nodes::kPending`**, and `validate.h`'s `kPendingCustomNodes` names them). See the design spec's
+audio-source selector; E3 task 6 the two file browsers, the five marker items and the two
+record-to-sample items (`menu/nodes/sample.h`); **the remaining 2 -- `midi_device_linked` and
+`specific_output_selector` -- still point at `nodes::kPending`**, and `validate.h`'s
+`kPendingCustomNodes` names them). See the design spec's
 "Amendments during implementation" section for the full, cited account of each.

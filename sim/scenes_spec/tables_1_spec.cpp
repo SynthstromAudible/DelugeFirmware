@@ -748,13 +748,16 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		expect(others).to_equal(size_t(0));
 	});
 
-	it("reports the four E2 placeholders when strict", _ {
+	it("reports no placeholder at all any more, even when strict", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
-		// Default `ValidateOptions` is strict, so the same tree now reports one
-		// `PlaceholderCustom` per node pointing at `kPending`: both audio recorders, both file
-		// selectors and the four sample loop points -- eight nodes over one shared instance
-		// (`sound_osc.h`'s note; the *item* budget still counts 1).
+		// This example used to expect **eight** -- one `PlaceholderCustom` per batch-1 node pointing
+		// at `kPending`: both file selectors, the four sample loop points and both audio recorders.
+		// E3 task 6 gave all eight a real item (`nodes/sample.h`), so the batch-1 tree is now clean
+		// under the default (strict) options and the number is zero rather than smaller.
+		// `sim/scenes_spec/sample_items_spec.cpp` pins which item each of those nodes got;
+		// `shortcuts_spec.cpp` pins the two placeholders left anywhere in the whole tree, neither of
+		// which is reachable from a batch-1 root.
 		const auto issues =
 		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
 		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.skip_shortcut_sweep = true});
@@ -765,7 +768,7 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 			}
 			expect(i.kind != menu::Issue::Kind::NullCustom).to_be_true();
 		}
-		expect(placeholders).to_equal(size_t(8));
+		expect(placeholders).to_equal(size_t(0));
 	});
 
 	it("assigns an id to every node in the batch-1 tree", _ {

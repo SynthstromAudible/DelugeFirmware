@@ -52,6 +52,7 @@ add_library(deluge_scenes STATIC
     menu/nodes/multi_range.cpp
     menu/nodes/patch_cables.cpp
     menu/nodes/roots.cpp
+    menu/nodes/sample.cpp
     menu/nodes/scales.cpp
     menu/nodes/settings.cpp
     menu/nodes/sound_actions.cpp

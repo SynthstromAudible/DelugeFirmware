@@ -103,6 +103,7 @@
 #include "scenes/menu/nodes/context_menu_items.h" // kAudioSourceItem (task 11b)
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/edit_name.h" // kEditDrumName
+#include "scenes/menu/nodes/sample.h"    // kAudioClipWaveform
 #include "scenes/menu/nodes/scales.h"    // kSongActiveScalesItem (task 11b)
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_bend.h"
@@ -423,8 +424,13 @@ inline constexpr Node audio_clip_actions = submenu(sid(String::STRING_FOR_ACTION
 
 inline constexpr Node audio_source_selector = custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem);
 inline constexpr Node specific_output_selector =
-    custom(sid(String::STRING_FOR_TRACK), &kPending, relevance::audio_source_is_specific);       // E2
-inline constexpr Node audio_clip_waveform = custom(sid(String::STRING_FOR_WAVEFORM), &kPending); // E2
+    custom(sid(String::STRING_FOR_TRACK), &kPending, relevance::audio_source_is_specific); // E2
+// `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`), the only one of the two
+// `audio_clip::SampleMarkerEditor` globals any submenu names (`:1193`). No relevance predicate,
+// because the legacy item overrides none -- its refusal is `checkPermissionToBeginSession`'s null
+// `sampleHolder.audioFile` test (`audio_clip/sample_marker_editor.cpp:35-38`), which is
+// `marker::MarkerScene::can`'s audio-clip arm.
+inline constexpr Node audio_clip_waveform = custom(sid(String::STRING_FOR_WAVEFORM), &kAudioClipWaveform);
 
 inline constexpr const Node* kAudioClipDistortionChildren[] = {&saturation, &bitcrush, &decimation};
 inline constexpr Node audio_clip_distortion =
