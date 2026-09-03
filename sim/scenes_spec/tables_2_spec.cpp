@@ -518,6 +518,21 @@ struct Rig {
 
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
+
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	///
+	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
+	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
+	/// `on_enter` see stale state instead of a fresh one, the cross-contamination
+	/// `recorder_scene_spec.cpp`'s `~Rig` was written to stop (a leaked recorder there made the next
+	/// `on_enter` refuse outright and killed 13 of 16 examples on one mutant's first run). Popping
+	/// unconditionally means every example starts from the same place whatever the one before it did.
+	~Rig() {
+		while (shell.stack().depth() > 0) {
+			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
+		}
+	}
+
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
 	             const deluge::ui::shell::BoardProfile& p = deluge_profile())
 	    : profile(p), fake(board, p) {}
