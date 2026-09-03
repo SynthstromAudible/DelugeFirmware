@@ -87,7 +87,8 @@ public:
 	/// `Push`/`Replace`/`ReplaceRoot`/`Pop` reach `SceneStack`; `Popup` stores its string and type
 	/// for `pending_popup_string()`/`pending_popup_type()`; `Repaint` sets the named surface's
 	/// flag (a `surface` of `SurfaceRole::None` is a no-op -- see `repaint_requested()`);
-	/// `RepaintAll` sets every surface's flag; `LockInput` calls `InputLowering::set_input_lock`.
+	/// `RepaintAll` sets every surface's flag **and the grid's** (`grid_repaint_requested()`);
+	/// `LockInput` calls `InputLowering::set_input_lock`.
 	/// @param result The result to apply.
 	void apply(const Result& result);
 
@@ -97,7 +98,23 @@ public:
 	/// @return True if requested; false for `SurfaceRole::None`, which keeps its "no surface,
 	///         never matches" meaning here (`surfaces.h`) and is never itself a requestable slot.
 	bool repaint_requested(SurfaceRole role) const;
-	/// @brief Clear every surface's repaint flag.
+	/// @brief Has a `RepaintAll` action requested the **grid** since the last
+	///        `clear_repaint_requests()`?
+	///
+	/// Separate from `repaint_requested()` because `SurfaceRole` names OLED panels only
+	/// (`shell/profile.h:60`) -- there is no role a `Repaint` action could give the grid, so
+	/// `RepaintAll` is the one action that reaches it and this is the one way to ask.
+	///
+	/// **Added by E3 task 11**, whose `marker.txt` script recorded the hole: `Action::Kind::
+	/// RepaintAll` is documented as "invalidate every surface for the next tick" (`shell/scene.h`),
+	/// but `Shell::tick`'s grid step consulted only the grid's own gate, so a scene that changed
+	/// what the *pads* show in response to post-render input -- `MarkerScene::handle`'s select turn,
+	/// `BrowserScene::handle`'s -- redrew the OLED immediately and left the grid showing the
+	/// previous frame until something else happened to repaint it. In the marker editor's case that
+	/// was the blink timer, up to one 200 ms phase later.
+	/// @return True if a `RepaintAll` has been applied since the last clear.
+	bool grid_repaint_requested() const { return grid_repaint_; }
+	/// @brief Clear every surface's repaint flag, the grid's included.
 	///
 	/// Consumed once a tick, after the shell has read `repaint_requested()` for every surface it
 	/// owns.
@@ -144,6 +161,8 @@ private:
 	InputLowering& lowering_;
 
 	bool repaint_[kSurfaceCount]{};
+	/// `RepaintAll`'s grid half -- see `grid_repaint_requested()`.
+	bool grid_repaint_ = false;
 	uint16_t popup_string_ = 0;
 	uint8_t popup_type_ = 0;
 	uint32_t dropped_ = 0;

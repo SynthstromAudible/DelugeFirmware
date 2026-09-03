@@ -1,0 +1,51 @@
+# Level-2 acceptance (E3 task 11): the per-device MIDI page (E3 task 8, `menu/nodes/midi_device.h`)
+# and the MPE arm hanging off it, walked end to end through the real `Shell`.
+#
+# The whole point of this script is that four *selections* made on four different pages have to
+# still be true when the fifth page finally writes a byte:
+#
+#   * which CABLE  -- `MidiDevicesItem` publishes `MenuState::midi_cable_choice`, and
+#     `MenuScene::after_render` copies it into `MenuContext::midi_cable` (mailbox 3);
+#   * which DIRECTION -- `MpeDirectionItem` republishes `MenuState::mpe_direction` every frame
+#     (`midi_device.cpp`, legacy's `DirectionSelector::writeCurrentValue`);
+#   * which ZONE -- `MpeZoneItem` does the same for `MenuState::mpe_zone`;
+#   * which VALUE -- `MpeZoneChannelsItem::commit` turns all three into one `MIDIPort` field
+#     (`mpe/zone_num_member_channels.cpp:66-85`).
+#
+# The script picks the SECOND cable, the OUT direction and the UPPER zone -- the non-default arm of
+# every one of the three -- so a port that dropped any selection writes a different byte on a
+# different port of a different cable, and the spec's own final assertions say which.
+0     snapshot idle                  # MIDI DEVICES: the two connected cables, cursor on DIN
+100   encoder Select +1
+120   snapshot after_select_turn     # cursor on UPSTREAM USB 1
+200   button SelectEnc down
+220   button SelectEnc up
+240   snapshot after_device_press    # the per-device page: MPE / VELOCITY / CLOCK OUT / CLOCK IN / IS RELATIVE
+300   button SelectEnc down
+320   button SelectEnc up
+340   snapshot after_mpe_press       # the direction selector, titled MPE INPUT by its own value
+400   encoder Select +1
+420   snapshot after_direction_turn  # OUT selected -- and the TITLE recomputed to MPE OUTPUT with it
+500   button SelectEnc down
+520   button SelectEnc up
+540   snapshot after_zone_press      # the zone selector: LOWER ZONE / UPPER ZONE
+600   encoder Select +1
+620   snapshot after_zone_turn       # UPPER ZONE
+700   button SelectEnc down
+720   button SelectEnc up
+740   snapshot after_channels_press  # the member-channel count for out/upper: 15-15 = 0, drawn OFF
+# **Two gold steps, and the first one is meant to do nothing.** An `EncoderKind::Accelerating`
+# encoder is swallowed on its first turn after `LoweringConfig::short_press_ms` (500 ms) of
+# stillness -- the wiggle debounce, `InputLowering::action_gold_turn`, a faithful restoration of
+# `interpretEncoders`' mod-knob block as it stood before the encoder overhaul
+# (`hid/encoders.cpp:242-292` at `e460593c8^`). Every other script in this directory turns a gold
+# knob before t=500 and is therefore inside that window from the shell's own zero, which is why none
+# of them ever had to say this. This one edits at t=800 and would have recorded a screen that never
+# moved -- found by recording it and looking at the frame.
+800   encoder GoldUpper +2           # swallowed: the debounce only remembers the direction
+820   encoder GoldUpper +2
+840   snapshot after_channels_edit   # `int_value` owns the gold knobs: 0 -> 4, the second turn only
+900   button Back down
+920   button Back up
+940   snapshot after_back            # the zone selector again, still on UPPER ZONE
+1000  quit

@@ -134,6 +134,9 @@ void Router::apply(const Result& result) {
 			for (bool& flag : repaint_) {
 				flag = true;
 			}
+			// The grid too. `SurfaceRole` names OLED panels only, so this is the only action that
+			// can reach the pads at all -- see `grid_repaint_requested()`.
+			grid_repaint_ = true;
 			break;
 		case Action::Kind::LockInput:
 			lowering_.set_input_lock(action.lock);
@@ -151,6 +154,7 @@ void Router::clear_repaint_requests() {
 	for (bool& flag : repaint_) {
 		flag = false;
 	}
+	grid_repaint_ = false;
 }
 
 } // namespace deluge::ui::shell

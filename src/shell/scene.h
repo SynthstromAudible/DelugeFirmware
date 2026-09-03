@@ -156,7 +156,9 @@ struct UiContext {
 /// everything else (above and below it) exactly where it was |
 /// | `Popup` | `popup_string`, `popup_type`, `surface` | show a message, resolved through `BoardProfile::text` |
 /// | `Repaint` | `surface` | invalidate that surface for the next tick; `SurfaceRole::None` is a no-op ("no surface,
-/// never matches", `surfaces.h`) | | `RepaintAll` | none | invalidate every surface for the next tick | | `LockInput` |
+/// never matches", `surfaces.h`) | | `RepaintAll` | none | invalidate every surface for the next tick, **the grid
+/// included** (`Router::grid_repaint_requested()` -- and that is the only way to reach the grid, since `SurfaceRole`
+/// names OLED panels only) | | `LockInput` |
 /// `lock` | take or release the input lock (the stem-export / song-load gate -- read the warning below
 /// before using it) |
 ///

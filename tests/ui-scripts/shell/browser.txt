@@ -1,0 +1,43 @@
+# Level-2 acceptance (E3 task 11): `browser::BrowserScene` (E3 tasks 2-3), reached the way a user
+# actually reaches it -- a real shift+pad shortcut jump onto `nodes::file0_selector`, whose
+# `nodes::FileBrowserItem::on_focus` files `MenuState::pending_scene` and `MenuScene::after_render`
+# turns into a `Push`.
+#
+# **The shortcut pad is not a convenience here, it is the only door.** `file0_selector` lives on
+# `nodes::source0`, a `Layout::Horizontal` page, and a horizontal page's `columns` widget claims
+# `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so no select press anywhere
+# in the committed tree descends into it. The shortcut table does: `kSoundCells` puts it at (0,5)
+# (`menu/shortcuts.cpp:100`), which is legacy's own `paramShortcutsForSounds` cell.
+#
+# Every listing is asynchronous even on the host, because the collect happens in a LATER tick's
+# `after_render` (`browser_scene.h`, "the listing is asynchronous"). So each of the three listings
+# below -- open, descend, ascend -- is given quiet ticks before its snapshot.
+#
+# The scratch card holds `SAMPLES/{CLAP.WAV, SNARE.WAV, TOM.WAV}` and `SAMPLES/KICKS/{KICK1.WAV,
+# KICK2.WAV, SUB.WAV}`; the folder sorts first, which is what makes one Select detent land on it.
+0     snapshot menu_idle             # the SOUND root, before the jump
+50    button Shift down
+100   pad 0 5 down 64
+120   pad 0 5 up
+130   button Shift up
+200   snapshot after_shortcut        # "Audio files": SAMPLES/ listed, cursor on CLAP, and the
+                                     # QWERTY keyboard on the pads with CLAP's own letters lit
+300   encoder Select +1
+320   snapshot after_select_turn     # cursor on the KICKS folder, and its folder icon
+400   button SelectEnc down
+420   button SelectEnc up
+500   snapshot after_enter_folder    # SelectEnc RELEASE is `enterKeyPress` (browser.cpp:1250-1279);
+                                     # on a FOLDER row that descends, and the second listing landed
+600   pad 4 3 down 64
+620   pad 4 3 up
+700   snapshot after_typed_s         # 'S' at the QWERTY home row (keyboard.cpp:12-20): the in-memory
+                                     # `predictExtendedText` search jumps to SUB
+800   button Back down
+820   button Back up
+900   snapshot after_back            # `backButtonAction` -> up a level; the third listing landed,
+                                     # and the folder we came out of is selected again
+1000  button Back down
+1020  button Back up
+1100  snapshot after_close           # BACK at the top of the tree closes the browser: the menu owns
+                                     # the screen again, showing the item the jump landed on
+1200  quit

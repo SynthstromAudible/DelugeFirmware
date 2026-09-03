@@ -1,0 +1,52 @@
+# Level-2 acceptance (E3 task 11): `marker::MarkerScene` (E3 task 8), reached by a real shift+pad
+# shortcut jump onto `nodes::sample0_start` -- `nodes::MarkerItem::on_focus` files
+# `MenuState::pending_scene` carrying `MarkerType::START` in `SceneId::arg`.
+#
+# (0,7) of `kSoundCells` (`menu/shortcuts.cpp:100`) is legacy's own `paramShortcutsForSounds` cell
+# for `sampleStartMenu`, and it is the only door: `sample0_start` sits on `nodes::source0`, a
+# `Layout::Horizontal` page, whose `columns` widget claims `entered` only for a `Kind::Submenu`
+# column (`ui/oled/columns.cpp`).
+#
+# **The blink needs quiet ticks and nothing else, and it is invisible in the `.pbm`.**
+# `MarkerScene::tick` advances a four-phase counter every `kBlinkPhaseMs` (200 ms,
+# `definitions_cxx.hpp:161` `kSampleMarkerBlinkTime`) and phase 3 SUPPRESSES the selected marker's
+# column (`timerCallback`, `sample_marker_editor.cpp:806` -- not `renderMainPads`' phase >= 1 rule;
+# the class docstring says which of the two legacy disagreements this port follows). The OLED draws
+# no waveform at all, so the two blink frames below are byte-identical `.pbm`s that differ only in
+# their `.state` pad lines -- which is exactly why both halves of a snapshot are compared.
+# E3 task 10's step-8b fold is what makes them happen: `next_timer()` now arms the surfaces
+# `timer_repaints()` names, and this scene names both, so a tick with no input still repaints.
+#
+# The counter starts when the first `render_grid` sees a marker on screen, which is the tick the
+# push lands on (~150 ms), so phase 3 covers roughly [750, 950) and phase 0 [950, 1150). The frames
+# after the blink pair are all in phase 0: `select_encoder` and `pad_action` both reset the counter
+# (`sample_marker_editor.cpp:1400-1403`), so with the blink held still the only thing that can move
+# between them is the marker itself.
+#
+# **`after_select_turn` is the frame that found a bug.** `MarkerScene::handle` files
+# `Action::Kind::RepaintAll` for the turn, which `shell/scene.h` documents as "invalidate every
+# surface" -- but `Shell::tick`'s grid step consulted only the grid's own gate, so this frame first
+# recorded the marker one column further along on the OLED and still in column 0 on the pads, and
+# stayed that way until the blink timer fired up to 200 ms later. `Router::grid_repaint_requested()`
+# is the fix; without it this golden is the two halves of one frame disagreeing.
+0     snapshot menu_idle             # the SOUND root, before the jump
+50    button Shift down
+100   pad 0 7 down 64
+120   pad 0 7 up
+130   button Shift up
+200   snapshot idle                  # "Start point" at 0.00 MSEC; the waveform on the pads with
+                                     # START lit in column 0 (phase 0)
+# +600 ms of quiet ticks, no input at all.
+800   snapshot blink_suppressed      # phase 3: the selected marker's column is gone from the pads
+1000  snapshot blink_shown           # phase 0 again -- the pad lines are `idle`'s again
+1010  encoder Select +1
+1040  snapshot after_select_turn     # `selectEncoderAction` (:268) walks START one COLUMN right --
+                                     # 32768 samples at this zoom -- on the OLED and on the pads
+1050  pad 6 3 down 64
+1070  pad 6 3 up
+1100  snapshot after_pad             # a main-pad press puts START at that column's first sample:
+                                     # 6 * xZoom = 196608
+1200  button Back down
+1220  button Back up
+1300  snapshot after_back            # BACK closed the editor; the menu owns the screen again
+1400  quit

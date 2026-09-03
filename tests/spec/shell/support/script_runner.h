@@ -490,6 +490,30 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	ShellConfig config;
 	config.seed = 0;
 	Shell shell{fake, *opts.profile, registry, services, config};
+	// **Every scene this run pushes gets its `on_exit` before the run returns.** A `Shell` is
+	// per-call but the scenes it drives are process-wide singletons, so a script that ends
+	// mid-navigation -- which every one of them does, that being what a script is -- leaves the top
+	// scene believing it is still open. That was carried as latent in `src/scenes/README.md` for as
+	// long as every scriptable scene refused on `SceneId::arg` or model state alone; E3 task 11's
+	// `recorder.txt` ended it. `RecorderScene::on_enter` refuses outright on its own leaked
+	// `recorder_` (`recorder_scene.cpp:149`) and `setup_recording` publishes a live foreground
+	// recording that nine other subsystems read (`AudioEngine::setForegroundRecording`), so without
+	// this the *next* script in the process opened onto a refusal and every spec after it saw the
+	// device as recording.
+	//
+	// A destructor rather than a line before each `return`: there are eight of those, three of them
+	// error paths, and an error path is exactly when the stack is most likely to be somewhere
+	// strange. Popping unconditionally, not "if something looks wrong" -- the same
+	// assert-then-clear-free teardown `recorder_scene_spec.cpp`'s `~Rig` and E3 task 10's rollout
+	// use one layer up, for the same reason and with the same argument.
+	struct StackTeardown {
+		Shell& shell;
+		~StackTeardown() {
+			while (shell.stack().depth() > 0) {
+				shell.stack().pop(deluge::ui::shell::SceneKind::Null);
+			}
+		}
+	} teardown{shell};
 	if (opts.initial_scene) {
 		shell.init(*opts.initial_scene);
 	}

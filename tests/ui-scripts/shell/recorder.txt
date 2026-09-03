@@ -1,0 +1,45 @@
+# Level-2 acceptance (E3 task 11): `recorder::RecorderScene` (E3 task 5), reached by a real
+# shift+pad shortcut jump onto `nodes::sample0_recorder` -- `nodes::AudioRecorderItem::on_focus`
+# files `MenuState::pending_scene` and `MenuScene::after_render` turns it into a `Push`.
+#
+# (0,4) of `kSoundCells` (`menu/shortcuts.cpp:100`) is legacy's own `paramShortcutsForSounds` cell
+# for `sample0RecorderMenu`, and it is the only door: the item's declared home is `nodes::recorder`,
+# a `Layout::Horizontal` page whose `columns` widget never claims `entered` for a `Kind::Custom`
+# column (`ui/oled/columns.cpp`).
+#
+# **The recorder here is real.** `on_enter` allocates a genuine `SampleRecorder` through
+# `AudioEngine::getNewRecorder` and publishes it with `AudioEngine::setForegroundRecording`, exactly
+# as on the device; nothing is stubbed. What a spec process has no way to do is *capture* into it --
+# nothing pumps the audio thread -- so `numSamplesCaptured` stays 0, and that is what shapes the
+# second half of this script.
+#
+# What the two frames are for:
+#
+#   * `idle` is `AudioRecorder::renderOLED`'s one word ("Waiting" until the first sample lands,
+#     `audio_recorder.cpp:116-119`) plus `opened()`'s LED tail (`:100-106`): BACK at the 110 ms
+#     blink, RECORD at the 60 ms one, SYNTH lit because the context is not a kit. And there are
+#     **no pad lines at all** -- the menu underneath is still drawing its shortcut flash (it is in
+#     `after_stop` below), but `getGreyoutColsAndRows`' `*cols = 0xFFFFFFFF` (`:58-61`) has taken it
+#     all the way to black. The greyout is legible here as an absence.
+#   * `after_stop` is the whole close path in one press. BACK -> `endRecordingSoon` (`:159-166`) ->
+#     `SampleRecorder::endSyncedRecording`, whose `numSamplesCaptured == 0` arm **aborts**
+#     (`model/sample/sample_recorder.cpp:1243-1246`); `after_render`'s completion arm then sees
+#     `status >= COMPLETE`, attaches nothing (the `ABORTED` guard), runs `finish_recording()` and
+#     files the `Remove` that closes the scene. So the frame is the menu again, the LEDs are the
+#     menu's, and the shortcut pad is back at full brightness -- which is the greyout being lifted.
+#
+# There is deliberately NO quiet-tick frame between the two. `next_timer()` does fire every 10 ms
+# here -- it is what replaces legacy's `while (true)` -- but a poll that finds nothing draws exactly
+# the same panel, the same LEDs and the same (empty) pad set, so the golden would repeat its
+# predecessor. The poll is covered instead by `recorder_scene_spec.cpp`, which can move
+# `numSamplesCaptured` under it.
+0     snapshot menu_idle             # the SOUND root, before the jump
+50    button Shift down
+100   pad 0 4 down 64
+120   pad 0 4 up
+130   button Shift up
+200   snapshot idle                  # "Waiting"; RECORD and BACK blinking, SYNTH lit; no pads
+300   button Back down
+320   button Back up
+400   snapshot after_stop            # the recorder aborted and closed itself; the menu is back
+500   quit

@@ -3,7 +3,7 @@
 ///        `uitest::FakeSurfaceSet` (`tests/spec/shell/support/script_runner.h`) against the REAL
 ///        declarative tables (`src/scenes/menu/nodes/`) -- not a synthetic tree.
 ///
-/// Two generations of script live here.
+/// Three generations of script live here.
 ///
 /// **E2 task 11's seven** run the same generic recipe -- a Select-encoder detent, a select-encoder
 /// press/release, a GoldUpper detent, a Back press/release, snapshotting after every step -- against
@@ -55,8 +55,42 @@
 /// REAL `source0_transpose` node's permission gate, this file declares one small vertical wrapper
 /// submenu naming it as a real child alongside `nodes::lpf_mode` -- the wrapper is synthetic, the
 /// leaf it gates is not.
+///
+/// **E3 task 11's four** cover what E3 shipped -- and three of the four are the *sequel to that
+/// last paragraph*, because the same Custom-column gap governs them:
+///
+// clang-format off
+/// | script | subject | shipped by |
+/// |---|---|---|
+/// | `menu_midi_device` | the per-device MIDI page and its MPE chain (`nodes/midi_device.h`) | task 8 |
+/// | `browser` | `browser::BrowserScene` over a real card: list, descend, search, ascend, close | tasks 2-3, 6 |
+/// | `marker` | `marker::MarkerScene`: the pad waveform, the four-phase blink, the two ways to move a marker | tasks 4, 6 |
+/// | `recorder` | `recorder::RecorderScene`: a real `SampleRecorder` armed, and the whole close path | tasks 5-6 |
+// clang-format on
+///
+/// **How the three scene scripts get in, and why it is not a workaround.** Every one of the nine
+/// `nodes/sample.h` items is declared on a `Layout::Horizontal` page (`source0`, `audio_clip_sample`,
+/// `recorder`), so the paragraph above applies to them verbatim: no select press in the committed
+/// tree descends into any of them. Unlike `source0_transpose`, though, these three DO have a real
+/// door -- the shortcut-pad jump, whose table names all of them (`menu/shortcuts.cpp:100`, legacy's
+/// own `paramShortcutsForSounds` cells). So these scripts use a real shift+pad press rather than a
+/// synthetic wrapper submenu, and what they exercise is the path a user actually has.
+///
+/// Two consequences worth knowing before reading their goldens:
+///
+///   * the jump re-roots `MenuState::path` **onto the item itself** (`MenuScene::handle`'s
+///     `Replace`), so the item is at depth 0 and `go_up_on_resume`'s ascend out of it is a no-op.
+///     Each script's last frame is therefore the item's own bare title screen
+///     (`SampleSceneItem::render`) rather than the page it was declared on -- see the task report;
+///   * a gold-knob turn is **swallowed** unless another gold turn happened within
+///     `LoweringConfig::short_press_ms` (500 ms) -- `InputLowering::action_gold_turn`'s wiggle
+///     debounce. Every script written before this task turns a gold knob before t=500 and so is
+///     inside that window from the shell's own zero; `menu_midi_device` edits at t=800 and has to
+///     spend a detent arming it. Found by recording the frame and looking at it.
 
+#include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/marker/marker_scene.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -66,6 +100,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/scales.h"
 #include "scenes/profile.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/registry.h"
 #include "scenes/rename/rename_scene.h"
 
@@ -76,17 +111,28 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "hid/display/display.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "model/clip/clip.h"
+#include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "processing/sound/sound.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
+#include "storage/multi_range/multisample_range.h"
 
 #include "support/song_fixture.h"
+
+// Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
+// headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`). Same placement
+// rule `browser_scene_spec.cpp`, `marker_scene_spec.cpp` and `recorder_scene_spec.cpp` run under.
+#include "support/card_access.h"
 
 #include "spec/shell/support/script_runner.h"
 
@@ -94,6 +140,8 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include "spec/support/spec_main.h"
@@ -107,6 +155,9 @@ using deluge::scenes::menu::Node;
 namespace bindings = deluge::scenes::menu::bindings;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace context_menu = deluge::scenes::context_menu;
+namespace browser = deluge::scenes::browser;
+namespace marker = deluge::scenes::marker;
+namespace recorder = deluge::scenes::recorder;
 
 namespace {
 
@@ -228,6 +279,192 @@ struct SavedRange {
 	void restore() const {
 		FlashStorage::defaultRanges[index].lower = lower;
 		FlashStorage::defaultRanges[index].upper = upper;
+	}
+};
+
+// ---------------------------------------------------------------------------------------------
+// E3 task 11's four scripts, and the fixtures they need.
+//
+// All three card-and-model scenes -- the browser, the marker editor and the recorder -- are reached
+// here through the **shortcut-pad jump**, not through a select press. That is not a shortcut in the
+// convenience sense: every one of the nine `nodes/sample.h` items is declared on a
+// `Layout::Horizontal` page (`source0`, `audio_clip_sample`, `recorder`), and a horizontal page's
+// `columns` widget claims `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`), so
+// no select press in the committed tree descends into one. The shortcut table does
+// (`menu/shortcuts.cpp:100`, legacy's own `paramShortcutsForSounds` cells), which makes it the only
+// door a user has -- the same Custom-column navigation gap `menu_range_permission`'s synthetic
+// wrapper already records one level up, met here with a real path instead of a synthetic one.
+
+/// @brief The minimum `Display` the model reaches for.
+///
+/// `display` is null in a spec process (`hid/display/display.cpp:4`), and both
+/// `AudioEngine::getNewRecorder`'s failure paths and `Kit::makeDrumNameUnique` go through it.
+/// `recorder_scene_spec.cpp` and `marker_scene_spec.cpp` each keep the identical stub for the same
+/// reason; it is spec-local in all three because `hid::Display` is abstract.
+struct ScriptDisplay final : deluge::hid::Display {
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const*, int8_t, bool, uint8_t, int32_t, PopupType) override {}
+	void popupText(char const*, PopupType) override {}
+	void popupTextTemporary(char const*, PopupType) override {}
+	void cancelPopup() override {}
+	void freezeWithError(char const*) override {}
+	void displayError(Error) override {}
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return false; }
+	bool hasPopupOfType(PopupType) override { return false; }
+	void consoleText(char const*) override {}
+	void timerRoutine() override {}
+};
+
+/// @brief Install `ScriptDisplay` once, for the scripts that need one.
+void install_display() {
+	static ScriptDisplay d;
+	if (display == nullptr) {
+		display = &d;
+	}
+}
+
+/// @name The sample fixture, lifted from `marker_scene_spec.cpp` for its reason.
+///
+/// `deluge::sample::find_peaks_per_col` reads clusters, and a spec process has no mounted card
+/// holding the file this `Sample` claims to be. It does not have to: the scan's whole-cluster arm
+/// reuses the sample's own overview cache when a column spans two or more clusters
+/// (`waveform_scan.cpp`), so the fixture is exactly `kDisplayWidth` clusters' worth of frames with
+/// every overview entry pre-marked investigated. Halving the length turns the whole waveform black.
+/// @{
+constexpr size_t kClusterSize = 32768;
+constexpr int32_t kBytesPerFrame = 2; // 16-bit mono
+constexpr uint64_t kSampleLength = static_cast<uint64_t>(kClusterSize) * 32 / kBytesPerFrame;
+constexpr int32_t kNumClusters = 32;
+
+/// The per-cluster peak: a widening shape, so the golden shows something recognisable rather than a
+/// flat band.
+int8_t cluster_peak(int32_t i) {
+	return static_cast<int8_t>(16 + 3 * i);
+}
+
+Sample* make_sample() {
+	Cluster::set_size(kClusterSize);
+	// Placed in the deluge heap and never freed -- `song_fixture.h`'s own rule, and for its reason.
+	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
+	auto* s = new (memory) Sample();
+	s->byteDepth = 2;
+	s->numChannels = 1;
+	s->sampleRate = 44100;
+	s->audioDataStartPosBytes = 0;
+	s->audioDataLengthBytes = kSampleLength * kBytesPerFrame;
+	s->lengthInSamples = kSampleLength;
+	s->maxValueFound = 127 << 24;
+	s->minValueFound = -128 << 24;
+	s->resizeOverviewCache(kNumClusters);
+	for (int32_t i = 0; i < kNumClusters; i++) {
+		OverviewCacheEntry& e = s->overviewCacheEntry(static_cast<uint32_t>(i));
+		e.min = static_cast<int8_t>(-cluster_peak(i));
+		e.max = cluster_peak(i);
+		e.investigated = true;
+	}
+	return s;
+}
+/// @}
+
+/// @brief Point @p song's source 0 at a sample source with exactly one `MultisampleRange`.
+///
+/// **Exactly one** matters twice: `context_for` resolves `MenuContext::range` only for a
+/// single-range source (`menu/context.cpp`), and `permission_for` answers `MustSelectRange` for a
+/// range-dependent item on a multi-range source with nothing selected -- which every one of these
+/// three items is. One range is what makes the shortcut jump land on the item rather than on the
+/// range picker.
+/// @param song   The fixture.
+/// @param sample The sample to hang on the range, or null to leave the holder empty.
+/// @return The range, so a caller can read the marker positions back.
+MultisampleRange* install_sample_source(spec::SongFixture& song, Sample* sample) {
+	auto* sound = static_cast<Sound*>(static_cast<ModControllableAudio*>(song.instrument->toModControllable()));
+	Source& source = sound->sources[0];
+	source.oscType = OscType::SAMPLE;
+	source.repeatMode = SampleRepeatMode::ONCE;
+	source.sampleControls.reversed = false;
+	auto* range = static_cast<MultisampleRange*>(source.getOrCreateFirstRange());
+	if (sample != nullptr) {
+		range->sampleHolder.audioFile = sample;
+		range->sampleHolder.startPos = 0;
+		range->sampleHolder.endPos = kSampleLength;
+		range->sampleHolder.loopStartPos = 0;
+		range->sampleHolder.loopEndPos = 0;
+		range->sampleHolder.loopLocked = false;
+		range->sampleHolder.waveformViewZoom = 0; // no remembered view -- open zoomed out
+		range->sampleHolder.waveformViewScroll = 0;
+	}
+	return range;
+}
+
+/// @brief A card under the host temp directory, built and removed around the browser script.
+///
+/// `browser_scene_spec.cpp`'s `ScratchCard`, minus the MIDI-definition half this script never
+/// lists. The committed `tests/fixtures/card` cannot serve: its `SAMPLES` folder holds one `.keep`
+/// file and no subdirectory, so the script could neither descend nor search. `git status
+/// --porcelain tests/fixtures` stays clean because nothing here goes near it.
+struct ScratchCard {
+	std::filesystem::path dir;
+	spec::SdRoot root;
+
+	static std::filesystem::path make() {
+		std::filesystem::path d = std::filesystem::temp_directory_path() / "deluge_menu_scripts_spec";
+		std::filesystem::remove_all(d);
+		std::filesystem::create_directories(d / "SAMPLES" / "KICKS");
+		for (const char* name : {"CLAP.WAV", "SNARE.WAV", "TOM.WAV"}) {
+			std::ofstream(d / "SAMPLES" / name) << "RIFF";
+		}
+		for (const char* name : {"KICK1.WAV", "KICK2.WAV", "SUB.WAV"}) {
+			std::ofstream(d / "SAMPLES" / "KICKS" / name) << "RIFF";
+		}
+		return d;
+	}
+
+	ScratchCard() : dir{make()}, root{dir.string()} {}
+	~ScratchCard() {
+		std::error_code ec;
+		std::filesystem::remove_all(dir, ec);
+	}
+	ScratchCard(const ScratchCard&) = delete;
+	ScratchCard& operator=(const ScratchCard&) = delete;
+};
+
+/// @brief Save and restore everything the MIDI-device script touches on the two shipped cables.
+///
+/// Both are process-global objects (`MIDIDeviceManager::dinMIDIPorts`,
+/// `::upstreamUSBMIDICable1`), and the script deliberately *writes* one of them -- so the whole
+/// observable surface is captured, not just the field the script means to move. `midi_device_spec`
+/// keeps the same shape for the same reason: a hook wired to the wrong port or the wrong cable has
+/// to be caught here rather than carried into the next block.
+struct SavedCables {
+	struct One {
+		uint8_t flags;
+		uint8_t lower[2];
+		uint8_t upper[2];
+	};
+	One a;
+	One b;
+
+	static One of(const MIDICable& c) {
+		return One{c.connectionFlags,
+		           {c.ports[0].mpeLowerZoneLastMemberChannel, c.ports[1].mpeLowerZoneLastMemberChannel},
+		           {c.ports[0].mpeUpperZoneLastMemberChannel, c.ports[1].mpeUpperZoneLastMemberChannel}};
+	}
+	static void put(MIDICable& c, const One& s) {
+		c.connectionFlags = s.flags;
+		for (int32_t p = 0; p < 2; p++) {
+			c.ports[p].mpeLowerZoneLastMemberChannel = s.lower[p];
+			c.ports[p].mpeUpperZoneLastMemberChannel = s.upper[p];
+		}
+	}
+	static SavedCables capture() {
+		return SavedCables{of(MIDIDeviceManager::dinMIDIPorts), of(MIDIDeviceManager::upstreamUSBMIDICable1)};
+	}
+	void restore() const {
+		put(MIDIDeviceManager::dinMIDIPorts, a);
+		put(MIDIDeviceManager::upstreamUSBMIDICable1, b);
 	}
 };
 
@@ -845,6 +1082,174 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// page that merely redrew.
 		expect(menu_scene().focused() == &nodes::root_performance).to_be_true();
 		menu::set_performance_editing_mode(saved_mode);
+	});
+
+	// -----------------------------------------------------------------------------------------
+	// E3 task 11. The four scenes/pages this plan shipped; see the block above `ScriptDisplay`
+	// for why three of the four are entered through the shortcut-pad jump.
+
+	it("the per-device MIDI page: the cable, the direction and the zone all survive to the write", _ {
+		reset_globals();
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, nullptr, 0, false, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+
+		const SavedCables saved = SavedCables::capture();
+		// `connected_cables` walks `kLowestDeviceNum..hostedMIDIDevices.size()` and keeps every cable
+		// whose `connectionFlags` is non-zero (`nodes/dynamic.cpp:155-169`). With no hosted devices
+		// the walk is the three built-in cables, so lighting two of them is a two-row list -- and two
+		// is the number that matters: a page that read a *global* cable rather than
+		// `MenuContext::midi_cable` would pass a one-row list.
+		MIDICable& din = MIDIDeviceManager::dinMIDIPorts;
+		MIDICable& usb = MIDIDeviceManager::upstreamUSBMIDICable1;
+		din.connectionFlags = 1;
+		usb.connectionFlags = 1;
+		MIDIDeviceManager::upstreamUSBMIDICable2.connectionFlags = 0;
+		for (MIDICable* c : {&din, &usb}) {
+			for (int32_t p = 0; p < 2; p++) {
+				c->ports[p].mpeLowerZoneLastMemberChannel = 0;
+				c->ports[p].mpeUpperZoneLastMemberChannel = 15; // 15 means "off" (`midi_device.h:62`)
+			}
+		}
+		menu_scene().open(nodes::midi_devices, ctx);
+
+		const uitest::RunResult result =
+		    uitest::expect_script_goldens(self, "menu_midi_device", scenes::scene_registry(),
+		                                  deluge::ui::shell::Services{}, opts_for(nodes::midi_devices));
+		expect(result.snapshots).to_equal(uint32_t{10});
+
+		// The script picked the SECOND row, the OUT direction and the UPPER zone -- the non-default
+		// arm of all three -- and then turned the gold knob twice. Exactly ONE of those two turns
+		// acts: the first is eaten by `InputLowering::action_gold_turn`'s wiggle debounce, which the
+		// script's own note explains. `int_value`'s coarse step is `range.step` (1) and an
+		// `Accelerating` knob's magnitude is its raw edge count (4 for +2 detents), so the edited
+		// value is 4 and not 8 -- a debounce that stopped swallowing would show up here as `7`
+		// rather than as a frame nobody could read. `commit` then writes `15 - 4` into the UPPER
+		// zone's field (`mpe/zone_num_member_channels.cpp:66-77`).
+		expect(static_cast<int>(usb.ports[1].mpeUpperZoneLastMemberChannel)).to_equal(11);
+		// And to that one field only. Every other one of the eight is still at its fixture value, so
+		// a hook that reached for the wrong port, the wrong zone or the wrong cable fails here rather
+		// than round-tripping through itself.
+		expect(static_cast<int>(usb.ports[0].mpeUpperZoneLastMemberChannel)).to_equal(15);
+		expect(static_cast<int>(usb.ports[0].mpeLowerZoneLastMemberChannel)).to_equal(0);
+		expect(static_cast<int>(usb.ports[1].mpeLowerZoneLastMemberChannel)).to_equal(0);
+		expect(static_cast<int>(din.ports[0].mpeUpperZoneLastMemberChannel)).to_equal(15);
+		expect(static_cast<int>(din.ports[1].mpeUpperZoneLastMemberChannel)).to_equal(15);
+		// The `MenuState` selections the four frames above were drawn from are still the ones the
+		// write used: `mpe_direction` OUT and `mpe_zone` UPPER (`io/midi/midi_device.h:33-36`).
+		expect(static_cast<int>(menu_scene().state().mpe_direction)).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().mpe_zone)).to_equal(1);
+		// The Back at the end left the zone selector, not the device list: the chain descended twice
+		// and only one level came back.
+		expect(menu_scene().focused() == &nodes::mpe_zone).to_be_true();
+		saved.restore();
+	});
+
+	it("BrowserScene: a shortcut jump opens the sample browser, which lists, descends and ascends", _ {
+		reset_globals();
+		install_display();
+		ScratchCard card;
+		spec::QuietAudio quiet;
+		spec::SongFixture song = spec::make_synth_song();
+		(void)install_sample_source(song, nullptr); // an empty holder -> the descriptor's default dir
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::sound_root, ctx);
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "browser", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
+		expect(result.snapshots).to_equal(uint32_t{7});
+
+		// The script descended into KICKS, typed one character there, and came back out -- so the
+		// scene really did run all three listings, and the last BACK (`Browser::backButtonAction`'s
+		// top-of-tree arm, `browser.cpp:1283`) closed it. The menu owns the screen again, on the item
+		// the shortcut jump re-rooted the path onto; `MenuState::go_up_on_resume` (`nodes/sample.h`,
+		// legacy's `shouldGoUpOneLevelOnBegin`) ascends out of it, which at depth 0 is a no-op.
+		expect(menu_scene().focused() == &nodes::file0_selector).to_be_true();
+		expect(browser::browser_scene().browser_id() == browser::BrowserId::Sample).to_be_true();
+		// `on_exit` -> `FileCatalogue::emptyFileItems()` really ran. `browser_scene.h`'s own note
+		// says an uncollected result holds the catalogue's claim and refuses every later listing --
+		// this layer's or a legacy `Browser`'s -- for the life of the process, so this is the one
+		// assertion the NEXT spec in this executable depends on.
+		expect(browser::browser_scene().listing_in_flight()).to_be_false();
+	});
+
+	it("MarkerScene: a shortcut jump opens the marker editor, whose blink runs on quiet ticks", _ {
+		reset_globals();
+		install_display();
+		spec::QuietAudio quiet;
+		spec::SongFixture song = spec::make_synth_song();
+		MultisampleRange* range = install_sample_source(song, make_sample());
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::sound_root, ctx);
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "marker", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
+		expect(result.snapshots).to_equal(uint32_t{7});
+
+		// The pad press moved the START marker to column 6's first sample. At the opening zoom
+		// (`WaveformNav::opened` with no remembered view: scroll 0, zoom = max) that is
+		// `6 * xZoom` -- computed from the fixture rather than restated, so the assertion is about
+		// the marker landing where the pad was and not about the arithmetic.
+		const int64_t zoom = static_cast<int64_t>(((kSampleLength - 1) >> 4) + 1);
+		expect(static_cast<int32_t>(range->sampleHolder.startPos)).to_equal(static_cast<int32_t>(6 * zoom));
+		// The three frames after the blink pair were all drawn in the same blink phase, which is what
+		// makes "the only difference is the marker" true of them. Pinned here rather than left to the
+		// script's arithmetic: a change to `kBlinkPhaseMs` or to when the counter starts would move
+		// those frames into another phase and silently turn three careful goldens into three
+		// screenshots of a blink.
+		expect(static_cast<int>(marker::marker_scene().blink_phase())).to_equal(0);
+		// BACK closed the editor, so the menu owns the screen again, on the item the jump landed on.
+		expect(menu_scene().focused() == &nodes::sample0_start).to_be_true();
+		// The held-marker gesture did not survive `on_exit` (`marker_scene.cpp:197-205`).
+		expect(marker::marker_scene().holding_marker()).to_be_false();
+	});
+
+	it("RecorderScene: a shortcut jump arms a real recorder, and BACK asks it to stop", _ {
+		reset_globals();
+		install_display();
+		spec::QuietAudio quiet;
+		spec::SdRoot scratch{(std::filesystem::temp_directory_path() / "deluge_menu_scripts_rec").string()};
+		spec::SongFixture song = spec::make_synth_song();
+		MultisampleRange* range = install_sample_source(song, nullptr);
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::sound_root, ctx);
+		// `RecorderScene::can` refuses while a foreground recording is live, and this is the storage
+		// nine subsystems read (`recorder_scene.h`). Asserted rather than cleared: if an earlier
+		// block left one armed, that is the bug this task was told to look for, not something to
+		// paper over.
+		expect(static_cast<int>(AudioEngine::foregroundRecordingSource())).to_equal(
+		    static_cast<int>(AudioInputChannel::NONE));
+		expect(recorder::recorder_scene().recording()).to_be_false();
+
+		const uitest::RunResult result = uitest::expect_script_goldens(
+		    self, "recorder", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::sound_root));
+		expect(result.snapshots).to_equal(uint32_t{3});
+
+		// The recorder was armed for real and is gone again. With nothing captured,
+		// `endSyncedRecording` takes its `numSamplesCaptured == 0` abort arm
+		// (`model/sample/sample_recorder.cpp:1243-1246`), `after_render`'s completion arm sees
+		// `status >= COMPLETE` and `finish_recording()` unpublishes and discards -- so this pair says
+		// the whole close path ran, not merely that nothing is left over.
+		expect(recorder::recorder_scene().recording()).to_be_false();
+		expect(recorder::recorder_scene().stopping()).to_be_false();
+		// **This is the assertion that made `script_runner.h`'s carried gap stop being latent.**
+		// `RecorderScene::on_enter` refuses on its own leaked `recorder_` (`recorder_scene.cpp:149`)
+		// and `setup_recording` publishes a live foreground recording nine other subsystems read, so
+		// a run that ended with the scene still on the stack would leave both behind for every later
+		// spec in the process. `run_script` tears its stack down now, which is what makes this hold
+		// on the paths where the scene does NOT close itself.
+		expect(static_cast<int>(AudioEngine::foregroundRecordingSource())).to_equal(
+		    static_cast<int>(AudioInputChannel::NONE));
+		// An aborted recording attaches nothing: `after_render`'s guard skips `attach_sample()` for
+		// `RecorderStatus::ABORTED`, so the range's holder is still empty. A port that attached
+		// unconditionally would have hung `recorder_->sample` -- a `Sample` with no captured frames
+		// and a file that `abort()` deletes -- on the oscillator.
+		expect(range->sampleHolder.audioFile == nullptr).to_be_true();
+		// The scene closed itself, so the menu owns the screen again -- on the item the jump landed on.
+		expect(menu_scene().focused() == &nodes::sample0_recorder).to_be_true();
 	});
 });
 // clang-format on

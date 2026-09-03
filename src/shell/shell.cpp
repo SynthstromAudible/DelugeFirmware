@@ -344,7 +344,13 @@ void Shell::tick(uint32_t now_ms) {
 	}
 	// 6. Grid.
 	GridSurface& g = surfaces_.grid();
-	if (g.gate.needs_frame(now_ms, had_input_, false) || widgets_want_frame) {
+	// `router_.grid_repaint_requested()` is the grid's half of `Action::Kind::RepaintAll`, and it
+	// belongs here for the same reason `repaint_requested(s.role)` belongs one step up: a scene that
+	// changed what the pads show in response to *post-render* input has no other way to say so. Its
+	// own gate is not one -- `render_grid` is what arms that, and the whole problem is that the
+	// render already happened this tick. E3 task 11's `marker.txt` is where the hole showed: a
+	// select turn moved the marker on the OLED and left the pads a whole blink phase behind.
+	if (g.gate.needs_frame(now_ms, had_input_, false) || widgets_want_frame || router_.grid_repaint_requested()) {
 		render_grid(now_ms);
 		g.dirty = true;
 	}
