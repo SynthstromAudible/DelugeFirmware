@@ -74,6 +74,21 @@ struct LoweringConfig {
 /// `modEncoderInitialTurnDirection` test unreachable (`hid/encoder_input.cpp:178-205`). A swallowed
 /// turn produces no `UiEvent` and contributes nothing to the snapshot, but still counts as input.
 ///
+/// @warning **The first gold turn after boot is always swallowed on device, and every committed
+///          script depicts the other arm.** `last_turn_ms_` starts at 0 and the test is
+///          `(now_ms - last_turn_ms_[i]) < short_press_ms` (`input_lowering.cpp` `action_gold_turn`),
+///          so "has it been still for 500 ms" answers *no* for the first 500 ms of the clock and
+///          *yes* ever after. On device `now_ms` is uptime, which is long past 500 by the time a
+///          user reaches a knob -- so the very first turn of a session takes the `!turned_recently`
+///          arm and is recorded-but-swallowed. In a script the clock starts at 0, so a gold turn
+///          before `t = 500` takes the *acted-on* arm; all 22 pre-existing scripts turn gold inside
+///          that window, by luck rather than design, and their goldens therefore show behaviour the
+///          device never presents first (found by E3 task 11's review). `was_short_press` above
+///          carries a deliberate guard against exactly this shape ("false for a button that has
+///          never been pressed"); this function has none. Deciding whether that is a defect to fix
+///          or legacy behaviour to keep needs a device, so it is recorded rather than changed --
+///          see `src/scenes/README.md`, "Defects this port found in shipping firmware".
+///
 /// # What is dropped
 ///
 /// A matrix cell mapped to `ButtonId::None`, a matrix coordinate at or past

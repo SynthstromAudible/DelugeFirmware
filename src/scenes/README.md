@@ -13,13 +13,24 @@ That added two scenes (`rename/`, `context_menu/`), three toolkit widgets (`ui::
 `option_window`, `routing_chain`/`segmented_switch`), input dispatch and lifecycle hooks on
 `CustomItem`, `Node::select_chain`/`chain_targets`, `Kind::Range`, and the **action seam**
 (`menu/action.h`). What E2 did *not* do is give the library an entry point — see the box below —
-and the eleven `kPendingCustomNodes` of the file/sample family are E3's, along with the rest of the
-carry list at the end of this file. **E3 tasks 6 and 7 have since closed all eleven**: task 6 the
-nine of the file/sample family (`menu/nodes/sample.h`: the two file browsers, the four loop points,
-the audio clip's waveform view and the two record-to-sample items) and task 7 the last two,
-`midi_device_linked` and `specific_output_selector` (`menu/nodes/output_items.h`). **The menu tree
-has no `Kind::Custom` placeholders left**; `kPendingCustomNodes` is 0 and
-`ValidateOptions::allow_placeholder_custom` is gone with them.
+and the eleven `kPendingCustomNodes` of the file/sample family were E3's.
+
+E3 is complete as of the twelve tasks of `docs/superpowers/plans/2026-09-02-ui-scenes-menus-3.md`,
+and it is the plan that **closed the menu tree**. It added three scenes — `browser/`, `marker/` and
+`recorder/` — the **async listing seam** (`browser/listing.h` over `storage::FileCatalogue`), two
+extractions out of `gui/` (`storage/file_catalogue.*` and `model/sample/waveform_*`), three toolkit
+pieces (`ui::grid::markers`, `ui::oled::sample_position`, `ui::oled::text`'s additions), the MIDI
+per-device page, `CustomItem::on_focus_backward` / `on_focus_is_press()`, and `Shell::tick`'s
+repaint fold with `Scene::timer_repaints()`. Its tasks 6 and 7 closed all eleven remaining
+placeholders: task 6 the nine of the file/sample family (`menu/nodes/sample.h`: the two file
+browsers, the four loop points, the audio clip's waveform view and the two record-to-sample items)
+and task 7 the last two, `midi_device_linked` and `specific_output_selector`
+(`menu/nodes/output_items.h`). **The menu tree has no `Kind::Custom` placeholders left**;
+`kPendingCustomNodes` is 0 and `ValidateOptions::allow_placeholder_custom` is gone with them.
+
+What is left is not menu items. It is spec F's wiring, and the **load/save family** — the song,
+preset, pattern and kit-row browsers, which are reached from root UIs rather than from menu items —
+which is E4's. See "E4 roadmap" at the end of this file.
 
 > **Read this before adding a menu item.** The shipping firmware still runs the *legacy*
 > `SoundEditor` and its ~200 hand-written `MenuItem` classes under `src/deluge/gui/menu_item/`.
@@ -30,11 +41,14 @@ has no `Kind::Custom` placeholders left**; `kPendingCustomNodes` is 0 and
 > * **A menu item users must be able to open goes into `gui/menu_item/` + `gui/ui/menus.cpp`**, the
 >   legacy tree, exactly as before. That is the system the device runs.
 > * **A node added here is a port of a legacy item**, kept in step with it and cross-checked
->   against it by `sim/scenes_spec/tables_*_spec.cpp`. It changes nothing a user can see. E2
->   finished the *items* and did not give `deluge_scenes` an entry point: nothing routes buttons,
->   pads or MIDI into the scene stack, nothing performs a `MenuAction`, and no boot path calls
->   `menu::set_shortcuts_version` or `assigned_node_ids`. That is the wiring plan's job, and until
->   it lands this library is a very well tested tree that no user reaches.
+>   against it by `sim/scenes_spec/tables_*_spec.cpp`. It changes nothing a user can see. E2 and E3
+>   between them finished the *items* — the tree is complete and placeholder-free — and neither gave
+>   `deluge_scenes` an entry point: nothing routes buttons, pads or MIDI into the scene stack,
+>   nothing performs a `MenuAction`, and no boot path calls `menu::set_shortcuts_version` or
+>   `assigned_node_ids`. That is the wiring plan's job (spec F), and until it lands this library is a
+>   very well tested tree that no user reaches. **A complete tree is not a reachable one**, and the
+>   deletion of `gui/menu_item/**` waits on the wiring, not on the tree —
+>   `docs/superpowers/specs/2026-08-26-ui-migration-design.md`'s deletion schedule is the record.
 > * **Adding an item to one tree only silently diverges them.** A new legacy item with no node here
 >   fails no test today; a node here with no legacy item fails the lockstep walk immediately. If you
 >   add to `gui/menu_item/`, add the node too.
@@ -47,6 +61,18 @@ Rules:
    Never `gui/` otherwise, never `hid/`. `model/model_stack.h` is narrower still: only
    `menu/context.cpp` and `menu/bindings.cpp` may include it, and `menu::model_stack_for()` is
    the single entry point everything else uses to reach a `ModelStack` (task-3 ruling 6).
+   Two more narrow rows, both added by E3 task 12 and both with a zero baseline:
+   **`scenes-listing-through-the-seam`** confines `FileCatalogue`'s six *dispatching* entry points
+   (`readFileItemsForFolder`, `sortFileItems`, `cullSomeFileItems`, `deleteSomeFileItems`,
+   `deleteFolderAndDuplicateItems`, `getNewFileItem`) to `browser/listing.{h,cpp}`, because that is
+   the only thing in this layer that holds the catalogue's claim while it dispatches — the read-only
+   spellings a landed result needs (`fileItems`, `currentDir`, `searchFileItems`, `repinComparator`,
+   `emptyFileItems`) are deliberately not in the row; and **`scenes-no-legacy-waveform`** (two rows,
+   `src/scenes/**` and `src/ui/**`) forbids naming `waveformRenderer` or `waveformBasicNavigator`,
+   which is what keeps E3 task 4's arithmetic-down/drawing-up split split. Both are symbol rows for
+   the reason `scenes-no-root-ui` is: the include rows already forbid the header, so a regression
+   would be spelled as a bare `extern`. `--audit-symbols` checks every name in all three lists is a
+   symbol this tree really declares.
 2. `snake_case` functions/variables, `PascalCase` types, `k` constants; namespace
    `deluge::scenes`.
 3. No heap in library code; no wall clock — `Scene::next_timer()` is how a blink stays alive, and
@@ -102,10 +128,13 @@ different reasons:
 - **`tests/spec/scenes/`** -- pure parts that need no model at all: `node_spec.cpp` (the builders),
   `node_id_spec.cpp` (the id registry) and `validate_spec.cpp` (the rule engine, over fake trees).
   Built into `tests/`'s `all_specs`, same as every other layer's specs.
-- **`sim/scenes_spec/`** -- model-backed specs, ten files today: `l10n_bridge_spec.cpp`,
-  `profile_spec.cpp`, `context_spec.cpp`, `bindings_spec.cpp`, `menu_scene_spec.cpp`,
-  `menu_scripts_spec.cpp`, `shortcuts_spec.cpp` and the three table cross-checks
-  `tables_1_spec.cpp` / `tables_2_spec.cpp` / `tables_3_spec.cpp` --
+- **`sim/scenes_spec/`** -- model-backed specs, twenty-four files as of E3: the E1 set
+  (`l10n_bridge_spec.cpp`, `profile_spec.cpp`, `context_spec.cpp`, `bindings_spec.cpp`,
+  `menu_scene_spec.cpp`, `menu_scripts_spec.cpp`, `shortcuts_spec.cpp` and the three table
+  cross-checks `tables_1_spec.cpp` / `tables_2_spec.cpp` / `tables_3_spec.cpp`), E2's item-family
+  specs, and E3's `file_catalogue_spec.cpp`, `listing_spec.cpp`, `browser_scene_spec.cpp`,
+  `marker_scene_spec.cpp`, `recorder_scene_spec.cpp`, `sample_items_spec.cpp`,
+  `output_items_spec.cpp` and `midi_device_spec.cpp` --
   built into their own executable, `deluge_scenes_spec`, in the `sim/` project: the one place a
   spec can link `deluge_app`, the host BSP, and `deluge_scenes` together. `cmake/deluge_specs.cmake`
   (factored out of `tests/spec/CMakeLists.txt` this task, so both projects share one copy) supplies
@@ -320,9 +349,11 @@ outside this library. See the session-vs-arranger note below.
 `validate_tree` walks every node reachable from a set of roots and checks: every `Submenu` is
 non-empty under at least one context; every `ParamRef` resolves for its context; every `Enum` has
 `names` or `dynamic_names`; every shortcut cell points at a node; `Custom` count ≤ `kMaxCustomNodes` (`validate.h`) — counting the *nodes* that point at a
-custom item, not the distinct `CustomItem` instances, since 11 of them share the single
-`nodes::kPending` placeholder today (see "Adding a `Custom`" above and the design spec's
-amendment); no
+custom item, not the distinct `CustomItem` instances — a distinction that mattered while eleven
+nodes shared the single `nodes::kPending` placeholder and made the instance count 1 for the whole
+tree; since E3 task 7 there are no placeholders and the two counts are equal, but the rule still
+counts nodes because that is the thing the cap is about (see "Adding a `Custom`" above and the
+design spec's amendment); no
 `NullCustom`; no `DuplicateName` among siblings that could actually both be on screen at once (a
 co-visibility qualifier — see the design spec's amendment for the nine blessed `FormattedTitle`
 collisions this exists to allow); `Node::range_dependent` and `Binding::scaling ==
@@ -488,6 +519,175 @@ Two things about the pixels are worth knowing before you add a descriptor:
   title is a plain left `drawString` at x 22 — *not* `ui::oled::title`. Legacy's own
   `renderOLED` is the reference; check it before assuming a toolkit widget fits.
 
+## The file browser (`browser/`, E3 tasks 1-3)
+
+`browser::BrowserScene` is **one** file browser in place of legacy's `Browser` base class plus a
+subclass per browser, registered at `SceneKind::FirstApp + 3` (`browser::kBrowserSceneKind`). It is
+the same table-not-hierarchy shape as `rename::Target` and `context_menu::Descriptor`: everything
+two browsers differ in — title, extensions, where the listing starts, which icon a row draws, what
+accepting a file does — is a `Descriptor`, and `SceneId::arg` carries a `BrowserId`.
+
+**Two descriptors ship, and they are the two the *menu tree* reaches**: `BrowserId::Sample`
+(`sampleBrowser`, opened by the sample-file items) and `BrowserId::MidiDeviceDefinition`
+(`loadMidiDeviceDefinitionUI`, opened by `midi_device_linked`). The load/save family — songs,
+presets, patterns, kit rows — is **not** here and is not an oversight; see "E4 roadmap" below.
+
+Two things a new descriptor author should know before writing one:
+
+* **`accept` has three outcomes, not two.** `Close` and `Stay` are legacy's own; `Defer` exists
+  because exactly one thing a browser does cannot be done from this layer —
+  `SampleBrowser::claimCurrentFile` reaches into the sound and the audio-file manager through paths
+  `src/scenes` may not name. A deferring descriptor parks the choice in `take_choice()` and closes,
+  and the dispatcher that drains it owes two more things legacy does at the same moment: the
+  `claimCurrentFile` work itself, and the `maybeGetParentMenu` re-rooting that lands the user on the
+  source page rather than back on the item that opened the browser. Both are stated on
+  `Descriptor::accept` and both are carried below.
+* **`SampleBrowser::lastFilePathLoaded` is dropped, not mirrored.** It is written *inside*
+  `claimCurrentFile()`, which this layer cannot perform, so a mirror would be stale from the first
+  load. Named at the site.
+
+### The async listing seam (`browser/listing.h`, E3 task 2), and `FileCatalogue::claim`
+
+The SD half of legacy `Browser` is not in the scene. Legacy reads a directory **synchronously**, from
+inside the UI's own call stack; a scene may not block a tick, so the read became a seam:
+
+* `storage::FileCatalogue` (`storage/file_catalogue.{h,cpp}`, E3 task 1) is legacy's listing code
+  **moved verbatim** out of `gui/ui/browser/browser.cpp`. It had to move: `src/scenes` may not
+  include `gui/`, so the code was simply unreachable where it was. It went to `storage/` rather than
+  anywhere else because that is what it is — the file catalogue — and because `check_layer_rules`'s
+  own `NON_UI` glob already counts `src/deluge/storage/` as non-UI, so the extraction inherited the
+  no-`gui/`, no-`hid/` rules for free. Legacy `Browser` now delegates into it; the equivalence is
+  pinned by `sim/scenes_spec/file_catalogue_spec.cpp`, a characterisation spec written against
+  **legacy** and re-run unchanged after the move.
+* `browser::Listing` is the request/poll seam over it: `request()`, then `poll()` on later ticks,
+  then `take_result()`. A scene owns one as a member and drives it from `after_render`.
+
+**The refusal contract is the part to read before adding a second one.** Delivery is exactly-once
+over a three-state machine (`Idle` / `InFlight` / `Ready`), and a request is **refused** rather than
+overwritten — `Busy` if anyone holds the catalogue claim, `ResultPending` if a landed result has not
+been collected. That is deliberately *not* the one-slot silent-overwrite mailbox `take_action()` is:
+there is one `FileCatalogue::fileItems` vector, so an overwrite would interleave two directory reads
+over one buffer. The trade is stated as **"a jam, not a loss"**, and it is mitigated by polling every
+tick. There is **no cancel**, and `~Listing` asserts it is not in flight — so own one as a scene
+member and nothing else. (Being *popped* does not destroy a scene: scenes are function-local statics
+and the stack stores `SceneId` values, so `on_exit` is the only thing that runs.)
+
+**The single-flight guard lives on the resource, not on the seam.** `FileCatalogue::claim(owner)` /
+`release(owner)` is a CAS from `nullptr` with an owner-checked release, and **both** dispatch paths
+claim through it — `browser::Listing::request` *and* legacy `Browser::beginListing`, whose own
+`static listingInProgress_` was deleted in favour of it. A member guard would not have worked: the
+resource is process-global, and during the coexistence a legacy browser listing and a scenes listing
+are otherwise mutually invisible over one shared vector. The contract, stated once on `claim()`: hold
+from dispatch until **the consumer has finished reading `fileItems`**, not until the read ends —
+which is why the two sides release at different moments. Legacy consumes *inside* the op, so it
+releases on completion; the seam counts entries rather than copying them, so it releases on
+`take_result()`, one or more ticks later. `scripts/check_layer_rules.py`'s
+`scenes-listing-through-the-seam` row is what keeps a scene from dispatching around the claim.
+
+Two honest limits: `emptyFileItems` and friends do **not** check the claim — several legacy paths
+call them directly and enforcing would break every one of them, so the claim binds the two *dispatch*
+paths and nothing else. And the claim covers a **listing**, not a browsing *session*: the leaf calls
+(`predictExtendedText`, `getUnusedSlot`, the save UIs' default-name search) do not claim at all.
+Closing that means claim-on-open/release-on-close and a change to `Browser`'s lifecycle — E4's, with
+the load/save family.
+
+> `Owner::run` is inline on the host (`storage/owner.h`), so **no spec in this layer exercises real
+> fiber concurrency across this seam**: a request lands before `request()` returns, and the specs
+> drive the state machine rather than a race. `src/bsp/rust/tests/owner_host.rs` and the TSan entry
+> point are where the real `deluge_worker_run` seam is driven.
+
+## The sample marker editor (`marker/`, E3 task 4)
+
+`marker::MarkerScene` is the port of `gui/ui/sample_marker_editor.{h,cpp}` — the start/end/loop
+marker editor the four loop-point items and the audio clip's waveform item open. Registered at
+`SceneKind::FirstApp + 4`; `SceneId::arg` is the `MarkerType` to start on.
+
+**There is no OLED waveform.** The plan asserted one and was wrong: legacy's `renderOLED` draws a
+title, a lock badge, a duration and a sample count — the waveform is grid-only. So the scene's OLED
+half is `ui::oled::sample_position` (text and badges) and its grid half is `ui::grid::markers` over
+the extracted scan.
+
+That extraction is the second one this plan needed, and for the same reason as the first: the peak
+scan and the scroll/zoom navigator lived in `gui/waveform/`, which neither `src/scenes` nor `src/ui`
+may include. They moved verbatim to `model/sample/waveform_scan.h` and
+`model/sample/waveform_navigator.h`, with the split line **arithmetic down, `PadLEDs` up**: legacy's
+`WaveformBasicNavigator` now derives from `deluge::sample::WaveformNav` and keeps only the `PadLEDs`
+zoom transition. The *drawing* stayed in `gui/waveform/waveform_renderer.h`, which is why
+`scenes-no-legacy-waveform` exists. `model/clip/audio_clip.cpp` still includes the legacy renderer and
+legitimately so — `AudioClip::renderAsSingleRow` writes into an `RGB*`, i.e. a `model/` class that
+renders — and closing that means moving clip-row rendering into `SessionScene`, recorded at the
+include site and carried below.
+
+Deliberately not ported, stated at the sites rather than silently dropped: the collapse animation
+(its only caller is `PadLEDs::renderExplodeAnimation`, driven by session/arranger, so it is
+unreachable from here), the zoom transition, and the playhead. One legacy render bug is **fixed in
+the replacement and recorded, not patched in legacy**: `renderOLED` draws the h/m unit letters at a
+fixed `x = 6`, over their own digits, past a minute. `ui/oled/sample_position.cpp` pins both
+behaviours with a `fix_unit_letter_x` flag.
+
+## The audio recorder (`recorder/`, E3 task 5)
+
+`recorder::RecorderScene` is the port of `gui/ui/audio_recorder.{h,cpp}`'s **UI** half — the
+record-to-sample flow the two `record_to_sample` items open. Registered at `SceneKind::FirstApp + 5`.
+The output-recording half (resampling, stem export) is not a UI and stays on the legacy object.
+
+The interesting part is what replaced `AudioRecorder::process()`: **an infinite loop in the menu
+item's own stack frame**. That became the shell's tick plus a poll in `after_render`, woken by
+`next_timer()`. The cadence drops from as-fast-as-the-CPU-allows to 10 ms, which is accepted; the SD
+side keeps turning because `doRecorderCardRoutines` is reached from `AudioEngine::routine`/
+`slowRoutine`, not from `process()`.
+
+**`AudioEngine::recordingSource` is published, not re-derived, and that distinction is the whole
+lesson of the task.** `AudioRecorder::opened()` sets `recordingSource` and **nine** subsystems read
+it as "the mic/line recorder UI is live" — most consequentially `setMonitoringMode`, which enables
+`doMonitoring` only for the channels `opened()` sets. The port's first attempt respelled the
+*condition* at one reader and left the other eight broken: input monitoring was dead for the whole
+ported recording, so the user heard nothing while recording. The fix writes **the same storage all
+nine observe**, through `AudioEngine::setForegroundRecording`/`foregroundRecordingSource`, in
+legacy's own assignment order — no layer edge and no baseline row added, because `audio_engine.cpp`
+already names `audioRecorder`. Writing it is also what turned up the use-after-free recorded below.
+
+## Repaint and the timer fold (`Shell::tick` step 8b, E3 tasks 10-11)
+
+Two shell-level corrections this plan made, both of which change how a scene asks to be redrawn:
+
+* **A timer now dirties the surfaces it names.** `Scene::next_timer()` used to mean only "wake me
+  then" — it did not dirty anything, so a scene that ticked an animation forward had to *also*
+  remember a matching `RepaintGate::request_repaint_after` from inside its own `render_*`. Three
+  scenes shipped with that bug (E2's cursor blink, then the marker blink, then the recorder's
+  completion poll, where it costs more than an animation: without the arm `after_render` never runs
+  on a quiet tick and the recording never notices it finished). `Shell::tick` step 8b now folds the
+  two together, arming every surface a stacked scene is drawn on at its own `next_timer()` deadline.
+* **The fold is per-surface, and all-or-nothing was wrong.** `Scene::timer_repaints()` returns
+  `RepaintSurfaces{oled, grid}`, defaulting to both. It has to, because **the two flushes are not
+  alike**: the grid's diffs against `last_sent` and sends nothing when a repaint changed no pixel,
+  while the OLED's blits unconditionally once rendered. So over-arming is *free* on the grid and a
+  permanent cost on the OLED — and `MenuScene::next_timer` returns a constant 20 ms whenever the
+  focused node has source shortcut pads, which under a blanket fold meant sitting on a patched-param
+  leaf blitted **both panels at 50 Hz forever** on a battery device. `MenuScene` overrides
+  `{oled = false, grid = true}`: its timer is the shortcut-pad blink cadence, a grid concern whose
+  OLED content never depends on it. No test could see the regression, which is exactly why it was
+  fixed rather than recorded.
+* **`Action::Kind::RepaintAll` never reached the grid at all.** `shell/scene.h` documented it as
+  "invalidate every surface", but `SurfaceRole` names OLED panels only and `Shell::tick`'s grid step
+  consulted the grid's own gate and nothing else — and that gate is armed by `render_grid`, which has
+  already happened by the time post-render input arrives. So a scene that changed what the *pads*
+  show in response to a post-render event had no way to say so: `MarkerScene`'s select turn moved the
+  marker on the OLED and left the pads up to a 200 ms blink phase behind. `Router::grid_repaint_requested()`
+  is the fix; `BrowserScene::handle` had the identical latency.
+
+## Defects this port found in shipping firmware
+
+Three, none of them introduced by the port, none of them fixed by it, and all three recorded at
+their own site as well as here. They are listed together because a ledger is not where a release
+note looks.
+
+| defect | severity | where it is recorded |
+|---|---|---|
+| **Use-after-free in `AudioRecorder::finishRecording`.** It frees through the member (`discardRecorder` → `~SampleRecorder` + `delugeDealloc`) and only *then* clears `recorder` and `recordingSource`. In that window the pointer dangles while the channel still says LEFT/STEREO — and `AudioEngine::setMonitoringMode`, reached from `renderAudio` on the **priority-0 audio task**, tests that pair and dereferences `audioRecorder.recorder`. The Rust scheduler routes priority 0 onto the **preemptive** SGI executor, so the interrupt can land on any instruction inside `discardRecorder`; the `recorder != nullptr` double-check does not help, because the pointer is non-null and freed for the whole window. `audio_engine.cpp`'s output/stem-recording paths read the same member the same way. The port takes the correct order (channel first, then pointer, then free, with a compiler barrier between the two stores) and does **not** patch legacy, because those members are written from five other legacy sites this port is not entitled to re-order. | **crash / memory corruption** | `gui/ui/audio_recorder.cpp`'s `finishRecording` @warning; `AudioEngine::setForegroundRecording`'s header contract |
+| **`Browser`'s default-directory fallback is dead**, and so is `LoadInstrumentPresetUI`'s. Both test `Error::FOLDER_DOESNT_EXIST`, but the read path they take reports a missing directory as `Error::FILE_NOT_FOUND` — `FOLDER_DOESNT_EXIST` is produced in exactly one place in the tree, `storage_manager.cpp`'s file-*open* path, which neither call reaches. So the fallback, and `browser.cpp`'s mkdir arm behind it, cannot run. The port accepts **both** codes as a documented divergence rather than patching, because which folder a user should land in when one is missing is a product decision. | user-visible, not a crash | `gui/ui/load/load_instrument_preset_ui.cpp`'s @warning; `src/scenes/browser/listing.cpp`'s divergence note, which carries the full trace. Deliberately **not** annotated in `browser.cpp` itself: inserting lines there would shift ~100 legacy citations from this stack, and the port-side record is complete |
+| **The first gold-knob turn after boot is always swallowed.** `InputLowering::action_gold_turn`'s wiggle debounce asks "has this knob been still for `short_press_ms`", comparing against a `last_turn_ms_` that starts at 0 — so on device, where `now_ms` is uptime, the answer is always *yes* by the time a user reaches a knob, and the first turn of every session takes the recorded-but-swallowed arm. `was_short_press` carries a deliberate guard against exactly this shape; this function has none. It also means **all 22 pre-existing UI scripts** turn gold before `t = 500` — inside the window, by luck — so every committed golden depicts the arm the device never presents first. Recorded rather than changed: whether this is a defect or legacy behaviour worth keeping needs a device. | user-visible, not a crash | `src/shell/input_lowering.h`'s gold-knob debounce @warning; `tests/ui-scripts/`'s own docstring |
+
 ## The action seam (`menu/action.h`, E2 task 11b)
 
 `MenuState::pending_scene` is the **noun** half of the seam: an item names a scene, and
@@ -544,10 +744,26 @@ would be a storage-depends-on-scenes edge and is the wrong direction.
 The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
 application has to call — that is the file a boot author is already in.
 
-## E3 roadmap — what E2 leaves
+## E4 roadmap — what E3 leaves
 
-The short list first; the long prose below it is E1's carry list with E2's answers folded in, kept
-because it names the legacy routines each item has to be checked against.
+**The menu tree is done.** Nothing below is a menu item, and nothing below blocks the deletion of
+`gui/menu_item/**` — that waits on spec F's wiring alone
+(`docs/superpowers/specs/2026-08-26-ui-migration-design.md`'s deletion schedule).
+
+**E4's own scope is the load/save family**, and it is deliberately not in this plan. Spec E §7 step 3
+promised "BrowserScene family — nine UIs → one"; E3 ported the **two the menu tree reaches**
+(`BrowserId::Sample`, `BrowserId::MidiDeviceDefinition`) and left the other seven —
+`gui/ui/load/load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui` and all of `gui/ui/save/`
+(songs, presets, patterns, kit rows) — for E4. Two reasons, both structural rather than budgetary:
+those UIs are opened **from root UIs, not from menu items**, so this stack's legacy-vs-port oracle
+(`tables_*_spec.cpp`, which walks the menu tree) cannot exercise them at all; and they carry a second
+axis `BrowserScene` has none of — `SlotBrowser`'s brand-new-name machinery
+(`mayDefaultToBrandNewNameOnEntry`, `getUnusedSlot`), which is a *saving* concern rather than a
+browsing one. E4 also inherits the two seam limits named above: the leaf calls that do not claim the
+catalogue at all, and the claim covering a listing rather than a session.
+
+The short list first; the long prose below it is E1's carry list with E2's and E3's answers folded
+in, kept because it names the legacy routines each item has to be checked against.
 
 | carried | where it is recorded | size |
 |---|---|---|
@@ -566,10 +782,16 @@ because it names the legacy routines each item has to be checked against.
 | ~~**`Action::Kind::RepaintAll` never reached the grid**~~ — **found and fixed, E3 task 11.** `shell/scene.h` documents it as "invalidate every surface for the next tick", but `SurfaceRole` names OLED panels only (`shell/profile.h:60`) and `Shell::tick`'s grid step consulted the grid's own gate and nothing else — so a scene that changed what the *pads* show in response to **post-render** input had no way to say so. Its own gate is not one: `render_grid` is what arms that, and the render has already happened by the time the event arrives (`Shell::tick` step 8). `MarkerScene::handle`'s select turn is the case that showed it: the marker moved a column on the OLED and stayed put on the pads until the blink timer fired, up to a full 200 ms phase later. `Router::grid_repaint_requested()` is the fix, and `marker.txt`'s `after_select_turn` golden is where it is pinned — the one frame in the whole suite whose two halves used to disagree. `BrowserScene::handle` files the same action and had the same latency; nothing else in the shipped scenes does. | `shell/router.{h,cpp}`, `shell/shell.cpp`'s grid step | — |
 | **`MenuScene::ascend()` at depth 0 is a silent no-op where legacy exits the editor.** `SoundEditor::goUpOneLevel` at `navigationDepth == 0` calls `exitCompletely()` and returns (`gui/ui/sound_editor.cpp:672-678`); `ascend()`'s loop does a bare `return;` (`menu_scene.cpp:1091-1093`) and its own comment cites that legacy routine without acknowledging the difference. Invisible for as long as everything that ascends is reached by descending — a menu path always has a level to go back to. It becomes visible the moment a path is *re-rooted* on a leaf: the shortcut-pad jump does that (`MenuScene::handle`'s `Replace`), so a jump onto one of the nine `nodes/sample.h` items puts it at depth 0, and `MenuState::go_up_on_resume` — the thing that steps back out of the item when the scene it opened closes — ascends from 0 and does nothing. The user is left on the item's own bare title screen (`SampleSceneItem::render`, whose doc says it is drawn "for at most the one tick": true on the menu path, false on this one) where the only working input is BACK, which closes the menu. All three of E3 task 11's scene scripts end on that screen and their last golden IS it. **Not the `claimCurrentFile` re-rooting** — fix round 1 corrected that mis-diagnosis; this is a three-line divergence from a named routine, deliberately not taken in task 11 because closing it moves goldens well outside that task's subject. | `menu/menu_scene.cpp`'s `ascend()` | an `exitCompletely()` equivalent at depth 0 (`Remove{FirstApp}`, which `handle`'s root-`Back` arm already files), plus re-recording whatever goldens depend on the no-op |
 | ~~**`CustomItem`'s missing backward arm**~~ — **done, E3 task 10.** `CustomItem::on_focus_backward` (`node.h`) is what `ascend()` calls now, instead of the old blanket `Kind::Custom` exclusion; do-nothing default, so every item the exclusion used to cover for free (`CvSelectionItem`, `MidiDevicesItem`, `PatchCablesItem`, `SourceSelectionItem`) is unchanged. `GateSelectionItem` (`nodes/dynamic.cpp`) is the one real override, and the reason it needs one: `gate::Selection`'s own backward arm restores `soundEditor.currentSourceIndex`, which `selectButtonPress` never writes for the minimum-off-time row (`gate/selection.h:44-47`) — so "keep the cursor" leaves it on that row, where legacy snaps back to the last real output. Pinned by `menu_scene_spec.cpp`'s task-10 example, which fails on the old exclusion. | `menu/node.h`, `menu/nodes/dynamic.{h,cpp}`, `menu_scene.cpp`'s `ascend()` | — |
+| **The load/save browser family** — seven legacy UIs (`load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui`, and all of `gui/ui/save/`) that `BrowserScene` was shaped for but does not yet carry, because they are reached from root UIs rather than menu items and carry `SlotBrowser`'s brand-new-name axis. | this section's preamble; `browser/browser_scene.h`'s scope note | E4's main body of work: new `Descriptor`s or a second scene, plus a `SlotBrowser` equivalent, plus an oracle that is not the menu walk |
+| **`FileCatalogue`'s claim covers a listing, not a session.** The leaf calls — `predictExtendedText`, `getUnusedSlot`, the save UIs' default-name search — do not claim at all, so a listing dispatched elsewhere can still replace `fileItems` under one of them. This is exactly the exposure legacy always had; closing it means claim-on-open/release-on-close and a change to `Browser`'s lifecycle. | `storage/file_catalogue.h`'s `claim` contract | belongs with whoever wires the browser up for real — i.e. E4 |
+| **`take_choice()` has no dispatcher, and it owes two things.** `Descriptor::accept`'s `Defer` outcome parks the chosen file and closes; the dispatcher that drains it must perform `SampleBrowser::claimCurrentFile` (which reaches the sound and the audio-file manager through paths `src/scenes` may not name) **and** legacy's `maybeGetParentMenu` re-rooting, which lands the user on the source page rather than back on the item that opened the browser. The recorder carries the identical pair. | `browser/browser_scene.h`'s two `Descriptor::accept` notes; `menu/nodes/sample.cpp`'s two `on_focus` bodies | one dispatcher, in the wiring layer; costs one extra BACK press until then |
+| **`model/clip/audio_clip.cpp` still includes `gui/waveform/waveform_renderer.h`** — the one surviving `model-includes-ui` row of the waveform split, and it is the *method* that is inverted, not the include: `AudioClip::renderAsSingleRow` is a `model/` class that draws into an `RGB*`. Its extracted form takes a `GridFrame` that `model/` cannot build, so closing it means moving clip-row rendering into the scene layer. | the include site itself; `scripts/layer_rules_baseline.txt` | `SessionScene`'s job |
+| **Three firmware defects, recorded not fixed** — the `AudioRecorder::finishRecording` use-after-free, the dead `FOLDER_DOESNT_EXIST` fallbacks, and the swallowed first gold turn. | "Defects this port found in shipping firmware" above, and each defect's own site | each needs a device to validate; none is this stack's to change |
 
-Beyond the menu tree, the rest of spec E §2's scene inventory (`SessionScene`, `NoteClipScene`,
-`BrowserScene`, the overlays) is still unwritten, and **nothing links `deluge_scenes`** — the wiring
-plan owes the entry point, the MIDI routing, the boot calls and the `MenuAction` dispatcher.
+Beyond the menu tree, the rest of spec E §2's scene inventory (`SessionScene`, `NoteClipScene`, the
+overlays, and the load/save half of the browser family) is still unwritten, and **nothing links
+`deluge_scenes`** — the wiring plan owes the entry point, the MIDI routing, the boot calls and the
+`MenuAction` dispatcher.
 
 ### The carry list in detail
 

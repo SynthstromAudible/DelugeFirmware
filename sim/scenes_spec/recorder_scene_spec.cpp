@@ -203,7 +203,7 @@ struct Rig {
 	///        lowering runs rather than a synthesised `UiEvent`.
 	///
 	/// Press only, no release: `AudioRecorder::buttonAction` acts on the press and refuses the
-	/// release outright (`audio_recorder.cpp:258-264`).
+	/// release outright (`audio_recorder.cpp:279-285 buttonAction`).
 	void press(ButtonId b, uint32_t at_ms) {
 		const std::span<const ButtonId> matrix = profile.button_by_matrix;
 		for (size_t i = 0; i < matrix.size(); i++) {

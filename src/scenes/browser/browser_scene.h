@@ -107,9 +107,13 @@ enum class BrowserId : uint16_t {
 	/// `midi::device_definition::Linked::writeCurrentValue` opens
 	/// (`gui/menu_item/midi/device_definition/linked.h:42`).
 	///
-	/// @note **Shipped here, wired later.** The node `midi_device_linked` still points at
-	///       `nodes::kPending`; giving it a `nodes::BrowserItem` on this descriptor is the wiring
-	///       task's, and it must not re-derive the descriptor.
+	/// @note **Shipped by task 3, wired by task 7** -- which reused this descriptor unchanged, as
+	///       task 3 intended. What task 7 found is that `midi_device_linked` is not a plain browser
+	///       opener but a `Toggle`: `linked.h:42` is only the ON arm of `writeCurrentValue`, and the
+	///       OFF arm clears the linked file name. `nodes::MidiDeviceLinkedItem`
+	///       (`menu/nodes/output_items.h`) carries both, and is one of the two items that set
+	///       `CustomItem::on_focus_is_press()` -- because a restore replaying the ON arm would
+	///       silently clear a user's setting.
 	MidiDeviceDefinition = 1,
 	Count,
 };

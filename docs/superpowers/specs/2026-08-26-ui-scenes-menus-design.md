@@ -190,6 +190,12 @@ every `ParamRef` resolves for its `MenuContext`; every `Enum` has `names` or
 `dynamic_names`; every shortcut cell points at a node; no duplicate `(name, parent)`;
 `Custom` count ≤ 10.
 
+*Amended through E1–E3.* The cap counts **nodes that point at a custom item**, not distinct
+`CustomItem` instances (§11), and it is `kMaxCustomNodes == 56` rather than 10 — see §11's account of
+why 10 was never achievable. The duplicate-name rule gained a co-visibility qualifier (§11). As of
+**E3 task 7 the walk over `kAllRoots` with default options reports zero `PlaceholderCustom`**, and
+the option that used to suppress that report is deleted — §15.1.
+
 ## 5. Splitting the god-views
 
 Files split by concern; `automation/editor_layout/` is the template and moves in as-is.
@@ -239,7 +245,12 @@ shell per spec F:
 1. `MenuScene` + the settings / sound-editor tables — retires `gui/menu_item/` (24k lines);
    per-kind goldens against the legacy renderers before each kind's tables ship.
 2. Overlays (popup, console, working, count-in, context menu) — retires `OLED::` compositing.
-3. `BrowserScene` family — nine UIs → one.
+3. `BrowserScene` family — nine UIs → one. *Amended, E3: this splits.* E3 ports the **two the menu
+   tree reaches** (the sample browser and the MIDI device-definition loader) as
+   `browser::BrowserScene` plus a `Descriptor` table; the other seven — the load/save family for
+   songs, presets, patterns and kit rows — are E4's, because they are reached from **root UIs rather
+   than menu items** (so the menu tree's legacy-vs-port oracle cannot exercise them) and because they
+   carry `SlotBrowser`'s brand-new-name axis this scene has none of. See §15.7.
 4. `KeyboardScene`, `PerformanceScene`, `AudioClipScene`, `SlicerScene`, `SampleMarkerScene`,
    `AudioRecorderScene`.
 5. `SessionScene`, `ArrangerScene`, `AutomationScene`.
@@ -1121,13 +1132,13 @@ carries the same table with pointers into the code.
 |---|---|---|
 | ~~**The file/sample family** — 11 nodes still `nodes::kPending`~~ **CLOSED by E3 tasks 6 and 7.** (Accurate as E2 history: at the close of E2 these eleven were still placeholders. `kPendingCustomNodes` is now **0** — see the E3 amendments in §11.) | needed the card; every other item family was reachable without it | was the largest remaining group. `validate.h`'s `kPendingCustomNodes` names the exact set, pinned by node identity so closing it was a deliberate spec change |
 | ~~**`midiDeviceMenu`'s subtree** (`gui/ui/menus.cpp:1444-1453`)~~ — **CLOSED by E3 task 8** (`menu/nodes/midi_device.{h,cpp}`): eight nodes, the four-hook per-cable family over `MenuContext::midi_cable`, the three-item MPE arm with its two onward chains, and `midi_devices`' own `select_chain`. | was size, and only size. Tasks 3 and 9 each declared a *single* chain-target page; this was several times that | landed as ~8 nodes, 3 bespoke, exactly as estimated. `whichDirection`/`whichZone` went to `MenuState` (not `MenuContext`) by the mapping rule the patch-cable trio set: a `soundEditor.current*` member is context, a menu-item member another page reads is scene state |
-| **Splitting session from arranger** — `song_midi_learn` and `configure_song_macros` stay visible in the arranger where legacy hides them | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:265` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
+| ~~**Splitting session from arranger**~~ — **CLOSED by E3 task 9**, and the costing was wrong twice: it needed **two** bools, not three (nothing distinguishes the arranger from song automation, because no legacy `isRelevant` does), and the call sites were **85**, not ~62. See §15.6. | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:265` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
 | **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback`, the three `shouldBlinkPatchingSourceShortcut` overrides and `patchingSourceShortcutPress` | `MenuScene::render_grid` owns one blink cycle keyed off the focused *node*; consulting the focused `CustomItem` needs a hook on `CustomItem` and a second blink source | same shape of change as routing MIDI to `MenuScene::learn_*` |
-| **The row-scrolling path is untested, not missing** — `ui/oled/list.cpp:156` does run `scroll_text` on the focused row with motion allowed | every over-long row in the recorded goldens is *unselected*, which legacy truncates too. (Legacy does **not** side-scroll long *titles*: `draw_screen_title` is a plain clipped `draw_string`, so a truncated title is faithful) | one level-2 script parking the cursor on a long row across quiet ticks |
-| **Seven self-duplicate goldens** — `menu_int/{after_select_press,after_select_turn}`, `menu_enum/{after_select_press,after_gold_turn}`, `menu_toggle/{after_select_press,after_gold_turn}`, `menu_shortcut/after_select_turn` each equal their own `idle` | pre-existing; each is named for an event it does not show | cleanup. E2 task 9 deleted three of exactly this kind, so leaving seven is an inconsistency, not a policy |
+| ~~**The row-scrolling path is untested, not missing**~~ — **CLOSED by E3 task 10**: a real focused over-long node driven through `MenuScene` itself, mutation-checked against `list.cpp`'s selected-row draw. | every over-long row in the recorded goldens is *unselected*, which legacy truncates too. (Legacy does **not** side-scroll long *titles*: `draw_screen_title` is a plain clipped `draw_string`, so a truncated title is faithful) | one level-2 script parking the cursor on a long row across quiet ticks |
+| ~~**Seven self-duplicate goldens**~~ — **CLOSED by E3 task 10**, with a correction: only **five** are duplicates of both halves. `menu_int`'s two match `idle`'s `.pbm` but not its `.state`, so they did record a fact (the shortcut blink appearing) that the kept `after_gold_turn` also carries. Original row: — `menu_int/{after_select_press,after_select_turn}`, `menu_enum/{after_select_press,after_gold_turn}`, `menu_toggle/{after_select_press,after_gold_turn}`, `menu_shortcut/after_select_turn` each equal their own `idle` | pre-existing; each is named for an event it does not show | cleanup. E2 task 9 deleted three of exactly this kind, so leaving seven is an inconsistency, not a policy |
 | **`perform_editor`'s owed sync calls** | the displayed mode mirrors two `PerformanceView` bools, because a class member offers no bare-`extern` escape | four calls into `menu::performance_editing_mode()`. Same failure mode as `set_shortcuts_version` |
 | **The action seam's dispatcher** — nothing consumes `MenuScene::take_action()` | it is the half that gets to say `openUI(&performanceView)`, i.e. the wiring plan's | one `switch` over five enumerators, plus per-tick polling — see §12.3's mailbox contract |
-| **`CustomItem::on_focus_backward`** | `ascend()`'s `Kind::Custom` exclusion stands in for it, and is sound today | one virtual, or a parameter on `on_focus` — see §12.9 |
+| ~~**`CustomItem::on_focus_backward`**~~ — **CLOSED by E3 task 10, and "sound today" was false.** The blanket exclusion's "leave `MenuState` alone" is wrong for `gate::Selection`, whose backward arm restores the last real output where the exclusion leaves the cursor on the minimum-off-time row. E3 task 7 added the *other* focus discriminator too, `on_focus_is_press()`, after finding a restore silently clearing a user's linked device-definition file. | it was not sound; see §15.4 | one virtual plus a `FocusCause`, and a second field on `GateSelectionItem` |
 
 Unchanged from §11's list and still owed: `source_shortcut_pads`; per-pad blink frequency masks;
 two context-dependent blink suppressions; settings-root shortcut jumps (blocked on
@@ -1135,6 +1146,259 @@ two context-dependent blink suppressions; settings-root shortcut jumps (blocked 
 `osc1_type` → `dxMenu` (waits on the DX browser); `Submenu::shouldForwardButtons()` forwarding;
 `Automation::selectButtonPress`'s shift-held automation delete; per-node cursor memory across
 sessions; and gold-knob acceleration (`calcNextKnobSpeed`).
+
+## 15. Amendments closing E3 (2026-09-02, Tasks 1–12 of `2026-09-02-ui-scenes-menus-3.md`)
+
+E3 closed the menu tree. Every amendment below is an *outcome*, and several correct a premise this
+spec or the plan asserted.
+
+### 15.1 §4.4 validation reaches zero, and the opt-out is deleted
+
+`validate_tree` over `kAllRoots`, with default options, reports **zero** `Issue::Kind::PlaceholderCustom`.
+`kPendingCustomNodes` is `0`; there is no `&kPending` binder in any node table; the shipped custom
+node count is **55**, behind **55** distinct items, so node count and item count are equal for the
+first time.
+
+`ValidateOptions::allow_placeholder_custom` is **gone**, and this is the amendment rather than the
+count. It existed so an E1/E2 spec could say out loud, in one place, that the tree was not yet
+complete. Once the count is 0 it can never suppress anything again — and a permanently-satisfiable
+opt-out is precisely the shape that hides the *next* regression while reading as documentation of
+this one. It had **eleven** call sites, not the three a stale grep suggested; all eleven were
+removed with it. The `kPending` placeholder *mechanism* survives, so a table may still declare a
+shape before its item exists; what it can no longer do is ask for silence.
+
+### 15.2 Two extractions out of `gui/`, and why they were not optional
+
+Both of E3's structural moves came from the same fact: **`src/scenes` may not include `gui/`**, so
+code the port needed was not merely inconvenient where it sat, it was *unreachable*.
+
+* **`storage::FileCatalogue`** (`storage/file_catalogue.{h,cpp}`, task 1) is legacy `Browser`'s
+  listing machinery moved **verbatim** — `emptyFileItems`, `deleteSomeFileItems`, `getNewFileItem`,
+  `cullSomeFileItems`, `readFileItemsForFolder`, `deleteFolderAndDuplicateItems`, `sortFileItems`,
+  `searchFileItems`. It went to `storage/` and not, say, to a new directory, for two reasons: it *is*
+  the file catalogue, and `check_layer_rules`'s own `NON_UI` glob already counts
+  `src/deluge/storage/` as non-UI, so the extraction inherited the no-`gui/`, no-`hid/` rules
+  without a new rule row. Legacy `Browser` now delegates into it. The only textual difference across
+  every moved body is an `interpretNoteNames` parameter replacing
+  `shouldInterpretNoteNamesForThisBrowser`, verified by normalised diff against the pre-move commit.
+* **`deluge::sample::WaveformScan` / `WaveformNav`** (`model/sample/`, task 4) is the same move for
+  `gui/waveform/`, split **arithmetic down, `PadLEDs` up**: the peak scan and the scroll/zoom
+  navigator moved (`findPeaksPerCol` 243 lines for 243, `investigateWholeCluster` 73 for 73, and so
+  on), `WaveformBasicNavigator` now derives from `WaveformNav` and keeps only the `PadLEDs` zoom
+  transition, and the *drawing* stays behind in `gui/waveform/waveform_renderer.h`.
+
+**Nothing enforces that a delegation stays thin.** The layer checkers constrain `src/scenes`,
+`src/ui`, `src/gfx`, `src/notify`, `src/shell` and the platform boundary — none of them constrains
+`gui/`, so listing logic drifting back into `Browser` would trip no ratchet. The characterisation
+spec (`sim/scenes_spec/file_catalogue_spec.cpp`, written against **legacy** and re-run unchanged
+after the move) is the only guard, and it is a guard on the *semantics*, not on the location. Two
+new rows do guard the scenes side: `scenes-listing-through-the-seam` confines the six *dispatching*
+entry points to `browser/listing.{h,cpp}`, and `scenes-no-legacy-waveform` (two rows,
+`src/scenes/**` and `src/ui/**`) keeps the waveform split split. Both have a **zero** baseline.
+
+### 15.3 The async listing seam: refusal, not overwrite — and the guard belongs to the resource
+
+§6 assumed a browser reads a directory the way legacy does: synchronously, inside the UI's own call
+stack. A scene may not block a tick, so `browser::Listing` is the seam, and two of its decisions
+amend precedent set earlier in this stack.
+
+**Delivery is exactly-once with an explicit refusal, deliberately *not* E2's `take_action()` mailbox.**
+`take_action()` is a one-slot mailbox with a silent overwrite, which E2 accepted only because it was
+documented. That contract is wrong here, because there is exactly one `FileCatalogue::fileItems`
+vector: an overwrite would interleave two directory reads over one buffer. So the seam is a
+three-state machine (`Idle` / `InFlight` / `Ready`); a second request while one is in flight is
+refused (`Busy`), and a request over an uncollected result is refused too (`ResultPending`). The
+trade is stated as **"a jam, not a loss"** and mitigated by polling every tick. There is **no
+cancel**: `~Listing` asserts it is not in flight, the ownership rule is "own one as a scene member
+and nothing else", and the destructor releases the claim when *not* in flight but deliberately not
+when it is — a jam beats racing a fiber that holds a freed `this`.
+
+**The single-flight guard is `FileCatalogue::claim`, on the resource, not on the seam.** It began as
+a `Listing` member and that was a defect scheduled by this plan's own later tasks: the resource is
+process-global, so two `Listing` objects are each `Idle` and both dispatch. Making it a `Listing`
+static fixed that and surfaced the larger version — legacy `Browser` had its **own** `static
+listingInProgress_` over the same vector, so during the coexistence a legacy listing and a scenes
+listing were mutually invisible. The guard therefore moved onto the thing it guards: a CAS from
+`nullptr` with an owner-checked release, claimed by **both** dispatch paths (`Listing::request` and
+`Browser::beginListing`, whose static was deleted).
+
+The contract, stated once on `claim()`: **hold from dispatch until the consumer has finished reading
+`fileItems`**, not until the read ends. The two sides release at different moments because their
+consumers differ — legacy consumes *inside* the op (`arrivedInNewFolder`, the selection search, the
+render), so it releases on completion; the seam counts entries rather than copying them, so it
+releases on `take_result()`, a tick or more later. Legacy's completion-release is therefore **not** a
+second bug: it is correct given where legacy consumes, and it never had to survive a tick boundary.
+
+Two limits recorded rather than closed: the mutating helpers do **not** check the claim (several
+legacy paths call them directly and enforcing would break all of them, so the claim binds the two
+*dispatch* paths); and the claim covers a **listing**, not a browsing *session* — the leaf calls
+(`predictExtendedText`, `getUnusedSlot`, the save UIs' default-name search) do not claim at all.
+Closing that means claim-on-open/release-on-close and a change to `Browser`'s lifecycle, which is
+E4's with the load/save family.
+
+**Honesty about coverage.** `Owner::run` is inline on the host, so no spec in this layer exercises
+real fiber concurrency across this seam; the specs drive the state machine, not a race. The real
+`deluge_worker_run` seam is driven by `src/bsp/rust/tests/owner_host.rs` and the TSan entry point.
+
+### 15.4 `CustomItem` grew a backward arm and a press discriminator
+
+§12.9 recorded that `ascend()` deliberately does **not** re-run `on_focus` when a leaf is reached
+going up, and that the blanket `Kind::Custom` exclusion standing in for a backward arm "is sound
+today". **It was not.** Both halves of that are now amended, by two different legacy cases.
+
+* **`CustomItem::on_focus_backward` (task 10).** The exclusion gave every `Kind::Custom` item
+  "leave `MenuState` alone" for free, and that is wrong for `gate::Selection`: its backward arm is
+  `setValue(soundEditor.currentSourceIndex)`, and `selectButtonPress` never writes
+  `currentSourceIndex` on the minimum-off-time row — so legacy restores the last **output** the user
+  chose where "keep the cursor" leaves the cursor on MINIMUM OFF TIME. The hook has a do-nothing
+  default, so the four items the exclusion used to cover are unchanged; `GateSelectionItem` is the
+  one real override. It needed a **second field** (`real_output_choice`) because legacy holds two
+  values the port had collapsed into one — the item's own `getValue`, which may be the non-output
+  row, and `currentSourceIndex`, which never is.
+* **`CustomItem::on_focus_is_press()` (task 7).** `on_focus` is `beginSession`, and `MenuScene` runs
+  it on every focus transition — descent, deep link, shortcut jump, and `restore_state` rebuilding a
+  saved path. For an item whose legacy body is `beginSession` that matches. For an item whose legacy
+  body is `selectButtonPress` it does not, because legacy never navigates into such an item at all,
+  so the port descends for one tick and acts from `on_focus`. That is right for a press and wrong
+  for every other way in, and it was **live**: restoring a menu parked on `midi_device_linked`
+  replayed the toggle and **cleared the user's linked definition file**, with no user action; a
+  depth-0 deep link onto `start_stem_export` re-fired the export.
+
+  The E2 ruling this looks like — that restoring a menu parked on a scene-opening item and
+  reopening the scene is probably desired — does **not** extend to it, and legacy is the reason:
+  `Toggle::beginSession` does not toggle, and `Toggle::selectButtonPress` carries a targeted guard
+  ("if the current menu item is this one, return") whose condition **is** the restore case. The port
+  had removed legacy's defence and kept the write.
+
+  The mechanism is two pieces, and both are needed: a `FocusCause` on `enter_leaf` (`Descended` from
+  `descend_to`; `Restored` from `retarget`, `restore_state` and `ascend`) **scoped by**
+  `on_focus_is_press()`. A blanket skip on `Restored` would regress the shipped, specced ruling that
+  `EditNameItem` reopens its editor on restore; a flag with no cause can only ever mean "never act".
+  **The line is "does it act without a press", not "does it do anything"**: opening a scene the user
+  can back out of keeps the flag false; writing the model or firing a one-shot verb sets it.
+  `SpecificOutputItem` stays false deliberately, because its repair write *is* legacy's own
+  `beginSession`.
+
+### 15.5 The `MenuState` vs `MenuContext` test, restated as the rule that governs later ports
+
+§11's task-8 amendment already states this; it is repeated here because it is the one framework rule
+E4 is most likely to apply from memory, and the memorable one-line version is **wrong**. "Legacy
+stored it on a menu item, so it is `MenuState`" is a proxy that happens to agree in the MPE case and
+disagrees in the counterexample sitting next to it: `MenuContext::midi_cable` is a
+`soundEditor.current*` member (so context) that is nonetheless *written* by a menu item through a
+mailbox. Who writes a value says nothing about where it lives. The operative test is two questions,
+in order:
+
+1. **Can a `Binding::get`/`set` — handed only a `const MenuContext&` — ever need to see it?** If yes
+   it is a `MenuContext` field, whatever legacy called it and whoever writes it; a menu item that
+   must set it does so through a one-shot mailbox.
+2. **Does it die when the walk is re-rooted?** If yes it is `MenuState`, cleared by `retarget` with
+   the rest of the walk.
+
+`mpe_direction`/`mpe_zone` answer no to (1) and yes to (2), so `MenuState` is right — and that is
+*why* the three MPE items are necessarily bespoke. A later port of a menu-item member that a **data**
+node must read fails (1) and belongs in `MenuContext` with a mailbox.
+
+### 15.6 The session/arranger split needed **two** bools, not three
+
+§13's carry row costed this as a three-way conflation: `sound_editor.cpp`'s `setup` selects the song
+root for `sessionView`, `arrangerView` **and** `automationView`, and legacy hides `song_midi_learn`
+and `configure_song_macros` from all but the first. Three states, so the estimate assumed the port
+needed to distinguish three.
+
+It does not, and the reason is worth keeping: **nothing distinguishes the arranger from the song
+automation view, because no legacy `isRelevant` does.** Legacy is
+`getRootUI() == &sessionView` verbatim in both items. So `context_for` takes `session_view_root`
+beside the existing `session_or_arranger_root` — two bools — `MenuContext::is_session_view` reports
+it, and `relevance::is_session_view` guards both nodes.
+
+Two corrections to that row's other numbers, recorded because they are the kind an estimate gets
+wrong in the same direction every time: the positional-bool call sites were **85**, not the ~62
+estimated; and of the nine `is_song_view` occurrences the row asked to audit, only **three** are
+behavioural reads (the fourth the row named, `bindings.cpp:265`, is a comment) and all three
+correctly stay wide, because legacy's `getCurrentModelStack` is verbatim the wide expression — so
+narrowing them would have *been* the regression. The gain is real: `tables_3_spec`'s
+`relevance_needs_ui` exclusion is gone, and both nodes now compare against legacy directly.
+
+### 15.7 Three new scenes, and the browser family's split down the middle
+
+`SceneKind::FirstApp + 3` `browser::BrowserScene`, `+ 4` `marker::MarkerScene`, `+ 5`
+`recorder::RecorderScene`, joining E2's rename (`+ 1`) and context menu (`+ 2`).
+
+**§7 step 3's "BrowserScene family — nine UIs → one" is amended to a split, not a shortfall.** E3
+ports the **two the menu tree reaches** — `BrowserId::Sample` and `BrowserId::MidiDeviceDefinition` —
+and leaves the other seven (`load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui`, all of
+`gui/ui/save/`) to E4. Two structural reasons, neither of them budget: those UIs are opened **from
+root UIs, not from menu items**, so this stack's legacy-vs-port oracle — the table specs, which walk
+the menu tree — cannot exercise them at all; and they carry a second axis `BrowserScene` has none of,
+`SlotBrowser`'s brand-new-name machinery (`mayDefaultToBrandNewNameOnEntry`, `getUnusedSlot`), which
+is a *saving* concern rather than a browsing one.
+
+Three premises this spec or the plan asserted and E3 disproved, listed together because the pattern
+matters more than any one of them:
+
+* **There is no OLED waveform.** `SampleMarkerEditor::renderOLED` draws a title, a lock badge, a
+  duration and a sample count; the waveform is grid-only. No OLED waveform widget was invented.
+* **`midi_device_linked` is a `Toggle`, not a browser opener.** The browser is one arm of
+  `writeCurrentValue`; the OFF arm clears the linked file name. Both are ported.
+* **`dynamic_children` fits no runtime-list page** (§12.6, E2) — a third premise of the same shape,
+  and the reason this list is here rather than in three separate places.
+
+`AudioRecorder`'s port carries one more general lesson. `opened()` sets
+`AudioEngine::recordingSource`, which **nine** subsystems read as "the mic/line recorder UI is
+live". Respelling the *condition* at the one reader the port happened to look at left the other
+eight broken — input monitoring was dead for the whole ported recording, so the user heard nothing.
+The fix publishes to the **same storage all nine observe**
+(`AudioEngine::setForegroundRecording`/`foregroundRecordingSource`), in legacy's assignment order.
+**Where a legacy flag has many readers, port the publication, not the predicate.**
+
+### 15.8 Three defects in shipping firmware, found by porting
+
+None introduced by the port, none fixed by it, all three recorded at their own site as well as in
+`src/scenes/README.md`'s "Defects this port found in shipping firmware" — because a spec amendment
+is not where a release note looks either.
+
+1. **Use-after-free in `AudioRecorder::finishRecording`** (a crash/corruption bug). It frees through
+   the member and only then clears `recorder` and `recordingSource`, so the pointer dangles while
+   the channel still says LEFT/STEREO. `AudioEngine::setMonitoringMode`, reached from `renderAudio`
+   on the **priority-0** audio task, tests that pair and dereferences `audioRecorder.recorder`; the
+   Rust scheduler routes priority 0 onto the **preemptive** SGI executor, so the interrupt can land
+   on any instruction inside `discardRecorder`. The `recorder != nullptr` double-check does not help:
+   the pointer is non-null and freed for the whole window. `audio_engine.cpp`'s output/stem paths
+   read the same member the same way. The port takes the correct order — channel first, then
+   pointer, then free, with a **compiler** barrier between the two stores (no `dmb`: the reader is a
+   handler on the same core, and a PE observes its own accesses in program order with exception
+   entry as a context-synchronisation point, so a hardware barrier would order against observers
+   that do not exist).
+2. **`Browser`'s default-directory fallback is dead, and so is `LoadInstrumentPresetUI`'s.** Both
+   test `Error::FOLDER_DOESNT_EXIST`; the read path reports a missing directory as
+   `Error::FILE_NOT_FOUND`, and `FOLDER_DOESNT_EXIST` is produced only on `storage_manager.cpp`'s
+   file-*open* path, which neither call reaches. `browser.cpp`'s mkdir arm behind it is dead too.
+   The port accepts both codes as a documented divergence rather than patching — which folder a user
+   lands in when one is missing is a product decision.
+3. **The first gold-knob turn after boot is always swallowed.** `InputLowering::action_gold_turn`'s
+   wiggle debounce compares `now_ms` against a `last_turn_ms_` that starts at 0, so on device — where
+   `now_ms` is uptime — "has it been still for 500 ms" is always *yes* by the time a user reaches a
+   knob. Consequence for this stack's own evidence: **all 22 pre-existing UI scripts turn gold before
+   `t = 500`**, inside the window by luck, so every committed golden depicts the arm the device never
+   presents first.
+
+The disposal rule this stack has used throughout, restated because all three were decided by it:
+**patch when both sides read through the same storage; record when the port replaces the predicate
+outright.** All three replace a predicate or a renderer, so all three are recorded. (The
+counter-example is `FileCatalogue::claim` in §15.3, where legacy and the port *do* read one vector —
+and that one was patched.)
+
+### 15.9 §13's carry list is closed; the E4 list is in `src/scenes/README.md`
+
+Every row of §13 is now either done or restated in the README's "E4 roadmap", which is the live
+version. Done: the file/sample family (tasks 6–7), `midiDeviceMenu`'s subtree (task 8), the
+session/arranger split (task 9, §15.6), the row-scrolling test and the seven self-duplicate goldens
+(task 10), and `CustomItem::on_focus_backward` (task 10, §15.4). Still carried, with E4's own
+additions: the load/save browser family, the claim-covers-a-listing limit, the `take_choice()`
+dispatcher and its two owed pieces, mod-matrix pad blinking, `perform_editor`'s sync calls, the
+action seam's dispatcher, `model/clip/audio_clip.cpp`'s surviving renderer include, and the
+`ascend()`-at-depth-0 divergence from `goUpOneLevel`'s `exitCompletely()`.
 
 ## 14. Citations into legacy source: the convention
 

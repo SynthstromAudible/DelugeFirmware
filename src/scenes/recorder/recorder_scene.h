@@ -142,7 +142,7 @@
 /// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning
 ///          on `Action` in `shell/scene.h`. Legacy's own gate here is
 ///          `buttonAction`'s `inCardRoutine` -> `REMIND_ME_OUTSIDE_CARD_ROUTINE`
-///          (`audio_recorder.cpp:270-272`), which **defers and retries**; its port is
+///          (`audio_recorder.cpp:291-293 buttonAction`), which **defers and retries**; its port is
 ///          `InputLowering::set_sd_busy`, which is deliberately not an `Action` and is not this
 ///          scene's to file. `LockInput` would *drop* those presses instead, and could not be
 ///          released from `on_exit()`.

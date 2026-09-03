@@ -1382,6 +1382,17 @@ doReadFiles:
 
 	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
 
+	// WARNING -- DEAD ARM, live in shipping firmware. `readFileItemsFromFolderAndMemory` reaches the
+	// card through `readFileItemsForFolder` -> `io::Directory::open`, which reports a missing
+	// directory as `DELUGE_ERR_NOT_FOUND` -> `Error::FILE_NOT_FOUND`. `Error::FOLDER_DOESNT_EXIST`
+	// is produced in exactly one place in the tree, `storage_manager.cpp`'s file-OPEN path, which
+	// this call never takes -- so this branch cannot run and `justGetAnyPreset()` is never reached
+	// from here. `browser.cpp`'s default-directory fallback and its mkdir arm are dead for the same
+	// reason (recorded on the port side at `src/scenes/browser/listing.cpp`, whose replacement
+	// deliberately accepts BOTH codes). Found by the E3 scenes port (2026-09) and recorded rather
+	// than patched: which folder the user should land in when one is missing is a product decision,
+	// not a transcription. See `src/scenes/README.md`, "Defects this port found in shipping
+	// firmware".
 	if (error == Error::FOLDER_DOESNT_EXIST) {
 		justGetAnyPreset();
 	}

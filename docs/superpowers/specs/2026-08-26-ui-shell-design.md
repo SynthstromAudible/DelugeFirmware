@@ -500,8 +500,8 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   starved of a repaint a widget genuinely requested. Found in the pre-flight scan across Tasks 4
   and 7 (`InputLowering` owns the shared `FrameContext` input side, `Shell::tick` owns the surface
   loop that reads it), before either task had been dispatched: `InputLowering` instead owns one
-  `RepaintGate widgets_gate_` (`input_lowering.h:405`, exposed as `widgets_gate()`, referenced by
-  the one shared `FrameContext` at `:406`), and `Shell::tick` calls `needs_frame()` on it **exactly
+  `RepaintGate widgets_gate_` (`input_lowering.h:420 widgets_gate_`, exposed as `widgets_gate()`,
+  referenced by the one shared `FrameContext` at `:421`), and `Shell::tick` calls `needs_frame()` on it **exactly
   once per tick**, into a local (`widgets_want_frame`, `shell.cpp:331`), OR'd into every surface's
   own decision (`shell.cpp:328-344`; `README.md`'s "The widgets' gate is evaluated once per tick"
   line). The rejected alternative — cache the bool across ticks instead of re-deriving it fresh
@@ -714,11 +714,68 @@ Two consequences for scene authors, both stated in §5's terms:
   `BrowserScene`, `MarkerScene`, `RecorderScene` — the last of which lost a *recording*, not an
   animation). `Shell::tick` gained step 8b: at the bottom of every tick, each stacked scene's
   `next_timer()` value is armed with `request_repaint_after` on every surface that scene is drawn
-  on. Overriding `next_timer()` is now sufficient for a blink; `Scene::timer_repaints()` (default
-  true) is the explicit opt-out for a timer with no visible consequence, and is the only case
-  `Shell::compute_next_wake`'s scene loop still exists for. Scenes may still arm a gate from their
+  on. Overriding `next_timer()` is now sufficient for a blink; `Scene::timer_repaints()` is the
+  per-surface mask (see §15, which corrects this from the bool it shipped as), and a scene that
+  names no surface at all is the explicit opt-out for a timer with no visible consequence — the only
+  case `Shell::compute_next_wake`'s scene loop still exists for. Scenes may still arm a gate from their
   own `render_*` and several do — an arm computed from the phase being drawn is tighter than one
   per-scene interval — but that is now a refinement rather than the load-bearing part.
 * **A single-frame golden cannot see any of this.** A blink that computes correctly and never
   repaints, or a repeat that fires once and stalls, both pass a golden. Anything time-driven needs a
   quiet-tick example — see the harness spec's amendment on cadence.
+
+## 15. Amendments closing E3 (2026-09-02, `2026-09-02-ui-scenes-menus-3.md`)
+
+### 15.1 The timer fold is **per-surface**, and all-or-nothing was a regression
+
+§14 records step 8b as arming "every surface that scene is drawn on" from one boolean opt-out. That
+shipped, and it was wrong — not as a design preference but as a measurable cost on a battery device,
+found by review after it had already been approved here.
+
+**The two flushes are not alike, and that asymmetry is the whole argument.** `Shell::flush` sends the
+grid only when the rendered frame differs from `last_sent` — a repaint that changed no pixel costs a
+render and sends nothing. The OLED flush blits **unconditionally** once the surface has rendered;
+there is no content diff. So arming too widely is *free* on the grid and a permanent cost on the
+OLED.
+
+That is not hypothetical. `MenuScene::next_timer()` returns a constant 20 ms whenever the focused
+node has source shortcut pads — a blink cadence that exists purely for the *pads*. Under a blanket
+fold, step 8b armed the OLED gates from it too, so **sitting on a patched-param leaf rendered and
+blitted both panels at 50 Hz, forever**. Before the fold, `MenuScene` armed only the grid and the
+diff swallowed it.
+
+`Scene::timer_repaints()` therefore returns `RepaintSurfaces{bool oled, bool grid}`, defaulting to
+`{true, true}`, and `MenuScene` overrides `{oled = false, grid = true}`. A scene whose timer drives
+both takes the default and pays for both, correctly — `RecorderScene`'s completion poll is the
+example. `{false, false}` is the wake-without-redraw opt-out §14 described.
+
+**No test could see the regression**, which is the reason it was fixed here rather than recorded as a
+cost. It is now covered at both levels: reverting the mask-honouring code in `Shell::tick` fails a
+synthetic-scene example in `tick_spec`, and removing `MenuScene`'s override fails a real-fixture
+example counting OLED blits across eight cycles of the fixed cadence.
+
+The general rule, worth stating once: **a repaint request should name the surfaces it can actually
+change.** Over-arming is only free where the flush diffs.
+
+### 15.2 `Action::Kind::RepaintAll` never reached the grid
+
+`shell/scene.h` documented `Action::Kind::RepaintAll` as "invalidate every surface for the next
+tick". It did not, and could not: `SurfaceRole` is `{Main, Param0-3, Aux, None}` — **OLED panels
+only, with no grid role** — so `Repaint` could never name the grid, and `Shell::tick`'s grid step
+consulted the grid's own `RepaintGate` and nothing else.
+
+The grid's own gate is not a substitute. `render_grid` is what arms it, and by the time post-render
+input arrives (`Shell::tick` step 8) the render has already happened. So a scene that changed what
+the **pads** show in response to a post-render event had no way to say so at all. `MarkerScene`'s
+select turn is the case that exposed it: the marker moved a column on the OLED and stayed put on the
+pads until the blink timer fired, up to a full 200 ms later — the one frame in the suite whose two
+halves disagreed. `BrowserScene::handle` files the same action and had the same latency.
+
+`Router::grid_repaint_requested()` is the fix: `RepaintAll` now sets a grid flag alongside the
+per-role OLED flags, `Shell::tick`'s grid step ORs it into `needs_frame`, and the grid wake is armed
+after step 8a so the flag is not read a tick late. Blast radius verified as zero pre-existing
+goldens.
+
+Recorded because the defect was **a doc claim the type system could not support** — a `SurfaceRole`
+enum with no grid member, under a comment promising every surface. A reader had no way to find that
+out except by tracing `tick`.

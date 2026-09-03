@@ -130,7 +130,7 @@ same shrink-only discipline, the same pre-commit hook and CI step:
 |---|---|
 | 2 (gfx) | nothing — façades only |
 | 3 (toolkit) | nothing |
-| 4 (guest + `MenuScene`) | `gui/menu_item/**`, `gui/ui/menus.*`, `gui/ui/sound_editor.*`, `gui/menu_item/generate/**` |
+| 4 (guest + `MenuScene`) | `gui/menu_item/**`, `gui/ui/menus.*`, `gui/ui/sound_editor.*`, `gui/menu_item/generate/**` — **but not on this row's own authority; see §10** |
 | 5 (host) | `gui/ui/ui.cpp` internals, `hid/buttons.cpp` routing, `hid/matrix/`, `hid/encoder_input.cpp`, `View view`, `OLED::` compositing and static canvases, `indicator_leds` command API, `hid/led/pad_leds.cpp` flush/animations, `currentUIMode` |
 | 6 (per scene) | that scene's legacy UI, its adapter instance, its façade rows |
 | 7 | `LegacySceneAdapter`, `ShellHostUI`, `uiTimerManager` shim, all façades, `hid/display/`, `hid/led/`, `gui/` |
@@ -161,3 +161,89 @@ same shrink-only discipline, the same pre-commit hook and CI step:
 2. `getRootUI()` returning `nullptr` for a new root scene: the 69 external callers are
    being removed by spec C's burn-down; any that remain at phase 5 need the null check they
    should already have.
+
+## 10. Amendment: what the phase-4 deletion actually waits on (2026-09-02, closing spec E3)
+
+§7's phase-4 row has always been the schedule's most-quoted line and its least precise. It names
+what goes; it never named the precondition. Two corrections, in order.
+
+### 10.1 The precondition E2 stated, and the fact that it is now met
+
+The E2 plan corrected the precondition to: **`validate_tree` reports zero
+`Issue::Kind::PlaceholderCustom` over `kAllRoots` with the allowance off.** (That correction was
+written into the E2 plan's step list but never landed in this spec — it is being written down here,
+one plan late, which is itself the argument for putting preconditions in the spec rather than in a
+plan step.)
+
+**As of E3 task 7, that precondition is met.** `kPendingCustomNodes` is 0, no node table binds
+`&kPending`, the `PlaceholderCustom` arm is unconditional, and
+`ValidateOptions::allow_placeholder_custom` — the option that could have hidden a regression here —
+is deleted along with its eleven call sites. The ported menu tree is complete: 477 nodes, 55 custom
+nodes behind 55 distinct real items, zero placeholders.
+
+### 10.2 What still blocks the deletion — and it is not the menu tree
+
+**Nothing from the menu tree remains.** As far as spec E knows, the only blocker is **spec F's own
+wiring**, which is this document. Concretely, and each of these is a thing that does not exist today
+rather than a thing that is half-done:
+
+1. **Nothing links `deluge_scenes`.** `src/CMakeLists.txt` builds the library; its only consumer is
+   its own spec executable. Until an application target links it, deleting the legacy tree deletes
+   the only menu the firmware has.
+2. **No entry point.** Nothing routes buttons, pads, encoders or MIDI into the scene stack — §2.1's
+   `ShellHostUI` or §2.2's host inversion is what supplies it. `openUI(&soundEditor)` has no
+   replacement call site yet.
+3. **No `MenuAction` dispatcher.** Five ported items request root-UI behaviour
+   (`openUI(&performanceView)`, `setClipLengthEqualToSampleLength()`, the MIDI-learn overlay, the two
+   song verbs) through `MenuScene::take_action()`, which nothing consumes. That mailbox is a one-slot
+   silent overwrite, so the dispatcher must poll every tick.
+4. **No `take_choice()` dispatcher.** `BrowserScene`'s deferring descriptor parks a chosen file and
+   closes; performing `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting
+   is the wiring layer's.
+5. **Two boot calls.** `menu::set_shortcuts_version()` (flash byte 60 — the one menu setting whose
+   value does not live in a global the settings loader already populates) and
+   `scenes::assigned_node_ids()`.
+6. **`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
+   `PerformanceView` class member offers no bare-`extern` escape.
+
+### 10.3 Two consequences of the deletion that are not preconditions but must be planned for
+
+* **Deleting `gui/ui/sound_editor.*` and `gui/ui/menus.*` deletes the oracle.** Sixteen files under
+  `sim/scenes_spec/` drive the *legacy* menu objects side by side with the port — that comparison is
+  this stack's central safety claim, and it is the only reason the port is believed faithful. The
+  deletion PR must decide what replaces it: goldens alone are weaker, so the honest options are to
+  delete the legacy tree *after* a device-validated release rather than at the moment the port
+  compiles, or to keep `menus.cpp`'s object definitions alive behind a spec-only target for one more
+  phase. This is a schedule question, not a technical blocker, and it is the one §7's row hides.
+* **`soundEditor` has ~30 namers outside `gui/menu_item/`.** Views, browsers, the keyboard, MIDI
+  follow, `flash_storage`, `action_logger` and `source.cpp` all reference it. Most are
+  `openUI(&soundEditor)` or a `getCurrentMenuItem()` read and become shims or scene pushes, but they
+  are the deletion's real edit surface and none of them is a menu item. `gui/ui/menus.*` also holds
+  the `MenuItem` globals several of those files reach directly.
+
+### 10.4 What spec E leaves that is *not* a phase-4 blocker
+
+Recorded so a reader of §7 does not mistake E4's scope for a precondition. **E4 is the load/save
+browser family** — `gui/ui/load/load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui` and all
+of `gui/ui/save/` (songs, presets, patterns, kit rows). E3 ported the two browsers the *menu tree*
+reaches and stopped there deliberately: the other seven are opened **from root UIs rather than from
+menu items**, so the menu tree's legacy-vs-port oracle cannot exercise them, and they carry
+`SlotBrowser`'s brand-new-name axis (`mayDefaultToBrandNewNameOnEntry`, `getUnusedSlot`) that
+`BrowserScene` has none of. Those files are on §7's **phase 6** row (per-scene), not phase 4.
+
+Also carried, all of them recorded with pointers in `src/scenes/README.md`'s "E4 roadmap": the
+`FileCatalogue` claim covering a listing rather than a browsing session; mod-matrix pad blinking;
+`model/clip/audio_clip.cpp`'s surviving `gui/waveform/waveform_renderer.h` include (a `model/` class
+that renders — `SessionScene`'s to close); `MenuScene::ascend()`'s silent no-op at depth 0 where
+legacy's `goUpOneLevel` calls `exitCompletely()`; a `CustomItem::title` hook for the three pages that
+want a runtime title; and three `IntegerWithOff` nodes that draw "0" where legacy draws "OFF".
+
+### 10.5 Three defects in shipping firmware, found by the port and not fixed by it
+
+They belong in a release note, not only in a spec, and are written up in full in
+`src/scenes/README.md`'s "Defects this port found in shipping firmware" with a `@warning` at each
+site: a **use-after-free** in `AudioRecorder::finishRecording` (freed pointer still advertised to a
+reader on the preemptive audio interrupt); `Browser`'s and `LoadInstrumentPresetUI`'s
+**default-directory fallbacks are dead** (they test `FOLDER_DOESNT_EXIST` where the read path
+returns `FILE_NOT_FOUND`); and **the first gold-knob turn after boot is always swallowed**, which
+also means every committed UI-script golden depicts an arm the device never presents first.

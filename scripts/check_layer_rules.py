@@ -8,7 +8,7 @@ may only shrink: a PR that raises a count, or adds a new (file, rule) pair, fail
   scripts/check_layer_rules.py            # check (exit 1 on regression)
   scripts/check_layer_rules.py --list     # print current counts
   scripts/check_layer_rules.py --update   # rewrite the baseline from the tree
-  scripts/check_layer_rules.py --audit-symbols  # every scenes-no-root-ui name really exists
+  scripts/check_layer_rules.py --audit-symbols  # every named row's identifiers really exist
 """
 
 import argparse
@@ -66,6 +66,37 @@ ROOT_UI_GLOBALS = (
     "saveKitRowUI",
     "loadMidiDeviceDefinitionUI",
     "saveMidiDeviceDefinitionUI",
+)
+# The `scenes-no-legacy-waveform` row's alternatives, named here for the same reason
+# `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global this tree really declares.
+# Both were taken from their `extern` declarations, not from memory:
+# `gui/waveform/waveform_renderer.h:65 extern WaveformRenderer waveformRenderer` and
+# `gui/waveform/waveform_basic_navigator.h:64 extern WaveformBasicNavigator waveformBasicNavigator`.
+#
+# E3 task 4 split `gui/waveform/` in two: the *arithmetic* (peak scanning, the scroll/zoom
+# navigator) moved verbatim to `model/sample/waveform_scan.h` and
+# `model/sample/waveform_navigator.h`, where `src/scenes` may reach it, while the *drawing* stayed
+# behind in `gui/waveform/waveform_renderer.h`, which the scenes layer draws for itself through
+# `ui/grid/markers.h`. This row is what keeps the split split. It is a SYMBOL row for the same
+# reason `scenes-no-root-ui` is: `scenes-includes-gui` already forbids the header, so the way a
+# regression would actually be spelled is a bare `extern WaveformRenderer waveformRenderer;`.
+LEGACY_WAVEFORM_GLOBALS = (
+    "waveformRenderer",
+    "waveformBasicNavigator",
+)
+# The `FileCatalogue` entry points that DISPATCH a listing -- they read the card, refill or
+# re-order the single shared `FileCatalogue::fileItems`, and so may only be called while the
+# catalogue's single-flight claim is held (`storage/file_catalogue.h`, `claim`/`release`). The
+# read-only and per-item spellings (`fileItems`, `currentDir`, `searchFileItems`,
+# `repinComparator`, `emptyFileItems`) are deliberately NOT here: `BrowserScene` calls those on
+# a landed result and must keep being able to.
+CATALOGUE_DISPATCH_CALLS = (
+    "readFileItemsForFolder",
+    "sortFileItems",
+    "cullSomeFileItems",
+    "deleteSomeFileItems",
+    "deleteFolderAndDuplicateItems",
+    "getNewFileItem",
 )
 # The UI-stack entry points (`gui/ui/ui.h:184-197`), matched with a following `(`.
 UI_STACK_CALLS = (
@@ -373,6 +404,54 @@ RULES = [
         r"\bdisplay->",
         "2026-08-26-ui-notifications-design.md",
     ),
+    (
+        # E3's async listing seam, stated as a rule. `storage::FileCatalogue` holds ONE shared
+        # `fileItems` vector and ONE single-flight claim, and the claim is what stops a scenes
+        # listing and a legacy `Browser` listing from interleaving over it (task 2 fix round 2 moved
+        # the guard off `Browser` and onto the resource so both dispatch paths claim through the
+        # same object). `browser::Listing` is the only thing in this layer that claims, so it must
+        # be the only thing in this layer that dispatches -- a scene calling
+        # `FileCatalogue::readFileItemsForFolder` for itself would refill the vector with no claim
+        # held, exactly the exposure the guard exists to close.
+        #
+        # It is deliberately a SYMBOL row rather than an include row: `browser_scene.cpp` already
+        # includes `storage/file_catalogue.h` legitimately (it renders `fileItems` and searches
+        # them on a landed result), so gating the include would gate the wrong thing. The
+        # alternatives are `CATALOGUE_DISPATCH_CALLS` above, which records why the read-only
+        # spellings are excluded.
+        #
+        # Same ratchet-not-proof caveat as the rows above: a dispatch reached through some other
+        # spelling (a member function pointer, say) slips past. It catches the habit.
+        "scenes-listing-through-the-seam",
+        (
+            "src/scenes/**",
+            "src/scenes/browser/listing.cpp",
+            "src/scenes/browser/listing.h",
+        ),
+        "symbol",
+        r"\b(" + "|".join(CATALOGUE_DISPATCH_CALLS) + r")\b",
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
+    (
+        # E3 task 4's waveform split, scenes side. See `LEGACY_WAVEFORM_GLOBALS` above for why the
+        # split exists and why this must be a symbol row.
+        "scenes-no-legacy-waveform",
+        "src/scenes/**",
+        "symbol",
+        r"\b(" + "|".join(LEGACY_WAVEFORM_GLOBALS) + r")\b",
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
+    (
+        # Same rule, `src/ui/**` side -- one glob per row, as `shell-no-clock` is three rows. The
+        # toolkit is where the shortcut would be most tempting: `ui/grid/markers.cpp` and
+        # `ui/oled/sample_position.cpp` draw exactly what `WaveformRenderer` draws, and calling the
+        # legacy renderer instead would be both a layer violation and a silent un-porting.
+        "scenes-no-legacy-waveform",
+        "src/ui/**",
+        "symbol",
+        r"\b(" + "|".join(LEGACY_WAVEFORM_GLOBALS) + r")\b",
+        "2026-08-26-ui-toolkit-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
@@ -448,30 +527,38 @@ def load_baseline() -> dict[tuple[str, str], int]:
     return out
 
 
+# Every named-identifier row, as (rule name, names, the directory whose declarations they came
+# from). `--audit-symbols` reads each directory and checks each name really appears there.
+AUDITED_SYMBOLS = (
+    ("scenes-no-root-ui", (*ROOT_UI_GLOBALS, *UI_STACK_CALLS), "src/deluge/gui"),
+    ("scenes-no-legacy-waveform", LEGACY_WAVEFORM_GLOBALS, "src/deluge/gui/waveform"),
+    ("scenes-listing-through-the-seam", CATALOGUE_DISPATCH_CALLS, "src/deluge/storage"),
+)
+
+
 def audit_symbols() -> int:
-    """Check every named `scenes-no-root-ui` alternative is a symbol this tree actually declares.
+    """Check every named row's alternatives are symbols this tree actually declares.
 
     A ratchet row that lists a name nothing declares reads as protection and provides none --
-    which is exactly what `performanceSessionView` was between E2 task 13 and this fix. The test
-    is deliberately crude (does the identifier appear anywhere under `src/deluge/gui/`?) because
-    the failure it catches is crude: a name invented rather than copied.
+    which is exactly what `performanceSessionView` was between E2 task 13 and its fix, and what a
+    mistyped `readFileItemsForFolder` would silently be here. The test is deliberately crude (does
+    the identifier appear anywhere under the directory it was copied from?) because the failure it
+    catches is crude: a name invented rather than copied.
     """
-    haystack = "\n".join(
-        p.read_text(encoding="utf-8", errors="replace")
-        for p in sorted((REPO / "src" / "deluge" / "gui").rglob("*"))
-        if p.suffix in SUFFIXES and p.is_file()
-    )
     bad = 0
-    for sym in (*ROOT_UI_GLOBALS, *UI_STACK_CALLS):
-        if not re.search(rf"\b{re.escape(sym)}\b", haystack):
-            print(
-                f"scenes-no-root-ui lists '{sym}', which src/deluge/gui declares nowhere"
-            )
-            bad += 1
-    print(
-        f"audited {len(ROOT_UI_GLOBALS) + len(UI_STACK_CALLS)} scenes-no-root-ui symbols, "
-        f"{bad} not found"
-    )
+    total = 0
+    for rule, names, root in AUDITED_SYMBOLS:
+        haystack = "\n".join(
+            p.read_text(encoding="utf-8", errors="replace")
+            for p in sorted((REPO / root).rglob("*"))
+            if p.suffix in SUFFIXES and p.is_file()
+        )
+        for sym in names:
+            total += 1
+            if not re.search(rf"\b{re.escape(sym)}\b", haystack):
+                print(f"{rule} lists '{sym}', which {root} declares nowhere")
+                bad += 1
+    print(f"audited {total} named ratchet symbols, {bad} not found")
     return 1 if bad else 0
 
 
@@ -500,7 +587,13 @@ def main() -> int:
     for key, n in cur.items():
         if n > base.get(key, 0):
             f, r = key
-            spec = next(s for name, *_, s in RULES if name == r)
+            # By (name, scope), not by name alone: a rule that needs more than one glob is spelled
+            # as several rows sharing a name (`shell-no-clock` is three, `scenes-no-legacy-waveform`
+            # two), and those rows may cite different specs. Matching on the name alone always
+            # reports the FIRST row's spec, which is wrong for every later row.
+            spec = next(
+                s for name, frm, *_, s in RULES if name == r and rule_covers(f, frm)
+            )
             print(
                 f"{f}: rule '{r}' count {n} > baseline {base.get(key, 0)} (see docs/superpowers/specs/{spec})"
             )

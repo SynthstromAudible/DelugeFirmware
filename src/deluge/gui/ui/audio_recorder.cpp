@@ -242,6 +242,27 @@ void AudioRecorder::process() {
 }
 
 // Returns error code
+//
+// WARNING -- USE-AFTER-FREE, live in shipping firmware. Found by the E3 scenes port (2026-09), which
+// takes the correct order in its own replacement but deliberately does not patch this copy; recorded
+// here and in `src/scenes/README.md`, "Defects this port found in shipping firmware".
+//
+// `discardRecorder` destroys and frees the object (`~SampleRecorder` + `delugeDealloc`) and only
+// THEN do the two members stop advertising it. In that window `recorder` is dangling while
+// `recordingSource` still says LEFT/STEREO -- and `AudioEngine::setMonitoringMode`, reached from
+// `renderAudio`, tests exactly that pair and dereferences `audioRecorder.recorder`
+// (`processing/engines/audio_engine.cpp` `setMonitoringMode`). The audio task is priority 0
+// (`deluge.cpp` `main`), which the Rust scheduler routes onto the PREEMPTIVE SGI executor
+// (`src/bsp/rust/.../scheduler.rs`), so the interrupt can land on any instruction inside
+// `discardRecorder`. `audio_engine.cpp`'s output/stem-recording paths read the same member the same
+// way. The `recorder != nullptr` double-check in `setMonitoringMode` does not help: the pointer is
+// non-null and freed for the whole window.
+//
+// The fix is the order the port uses -- clear `recordingSource` FIRST, then `recorder`, then free --
+// so the pointer's visible window strictly contains the channel's, with a compiler barrier between
+// the two stores (`AudioEngine::setForegroundRecording`, whose header states that invariant). It is
+// not applied here because these members are written from five other legacy sites this port is not
+// entitled to re-order; doing it properly is a small, separate, device-tested change.
 void AudioRecorder::finishRecording() {
 	recorder->pointerHeldElsewhere = false;
 
