@@ -1316,6 +1316,16 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 				expect(want == c.expected).to_be_true();
 				expect(got == c.expected).to_be_true();
 			}
+			// `nullifyUIs()` clears `numUIsOpen`, which is all `getRootUI()` reads -- but it also sets
+			// `lastUIBeforeNullifying`, so `getCurrentUI()` is left pointing at this case's view and,
+			// after the last iteration, at `&automationView`. That is DELIBERATE, not an oversight to
+			// inherit: `lastUIBeforeNullifying` is defined at `gui/ui/ui.cpp:66` with no declaration in
+			// `ui.h`, so resetting it is not available from here. It is benign because `getRootUI()`
+			// answers null on `numUIsOpen == 0` regardless; because `currentUIIsClipMinderScreen()` --
+			// the only consumer of the `toClipMinder()` difference that makes `automationView` the
+			// interesting residue -- has no callers in `src/deluge`; and because the residue only turns
+			// null into non-null, so any path it could flip was already running and answering false.
+			// An example added below that needs a null `getCurrentUI()` must say so itself.
 			nullifyUIs();
 			expect(getRootUI() == nullptr).to_be_true();
 		}
