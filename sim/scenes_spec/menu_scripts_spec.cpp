@@ -253,7 +253,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "menu_int", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		expect(result.snapshots).to_equal(uint32_t{5});
+		// Three, not five: E3 task 10 dropped the Select-turn and Select-press snapshots -- both were
+		// byte-identical to `idle`, for two different reasons the script file's own comments name
+		// (`render_leaf_int` claims-and-ignores the turn; the press's `ascend()` is a no-op at
+		// depth 0). The two *steps* stay, because the assertions below are about them.
+		expect(result.snapshots).to_equal(uint32_t{3});
 
 		// Q7: the `.state` pins WHICH node is open; it says nothing about its label or value, so
 		// both are asserted here directly. The name check is against the EXPECTED `l10n::String` id,
@@ -266,6 +270,9 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// magnitude IS the raw edge count -- `script_runner.h`'s uniform detent->edge conversion,
 		// `menu_scene_spec.cpp`'s `Rig::gold` note); `int_value`'s coarse step is `range.step` (1),
 		// so the value should have moved by exactly 4, clamped to the node's own `IntRange{0,15,1}`.
+		// The exact `+4` (not `+8` or anything else) is also the dropped snapshots' own proof, same
+		// shape as the `menu_shortcut` script below: had the Select turn or press moved it too, this
+		// total would not match.
 		expect(bindings::read(nodes::saturation, ctx)).to_equal(std::min(before + 4, 15));
 	});
 
@@ -330,7 +337,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "menu_enum", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		expect(result.snapshots).to_equal(uint32_t{5});
+		// Three, not five: E3 task 10 dropped the Select-press and GoldUpper-turn snapshots -- both
+		// were byte-identical to `after_select_turn`, for the two reasons the script file's own
+		// comments name. The steps stay; the final assertion below (`before + 1`, not `+2`) is their
+		// proof: either one moving the value too would show up in that total.
+		expect(result.snapshots).to_equal(uint32_t{3});
 
 		expect(menu_scene().focused() == &nodes::lpf_mode).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_MODE)));
@@ -358,7 +369,10 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_toggle", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		expect(result.snapshots).to_equal(uint32_t{5});
+		// Three, not five: E3 task 10 dropped the Select-press and GoldUpper-turn snapshots, for the
+		// same two reasons as `menu_enum` above. The steps stay; the final assertion below (flipped
+		// exactly once, not twice) is their proof.
+		expect(result.snapshots).to_equal(uint32_t{3});
 
 		expect(menu_scene().focused() == &nodes::osc_sync).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_OSCILLATOR_SYNC)));
@@ -415,10 +429,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_shortcut", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		// Six: `lpf_freq` is a `PatchedParam` node too, so the script gained a second GoldUpper turn
-		// after the Back -- and lost the first one's empty snapshot. See `menu_decimal` above and the
-		// script file's own note.
-		expect(result.snapshots).to_equal(uint32_t{6});
+		// Five: `lpf_freq` is a `PatchedParam` node too, so the script gained a second GoldUpper turn
+		// after the Back -- and lost the first one's empty snapshot, same as `menu_decimal` above. E3
+		// task 10 dropped a second one, `after_select_turn` (byte-identical to `after_shortcut`, for
+		// the reason `render_leaf_decimal` claims-and-ignores the select encoder) -- see the script
+		// file's own notes for both.
+		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in
 		// `menu_scene_spec.cpp`'s own shortcut tests.

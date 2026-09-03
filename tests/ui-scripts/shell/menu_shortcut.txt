@@ -8,7 +8,9 @@
 130   button Shift up
 140   snapshot after_shortcut
 200   encoder Select +1
-220   snapshot after_select_turn
+# E3 task 10: `lpf_freq` renders through `render_leaf_decimal`, which claims-and-ignores the select
+# encoder for the same reason `render_leaf_int` does (menu_int.txt's own note) -- so this snapshot
+# was byte-identical to `after_shortcut`. The step stays; the snapshot does not.
 300   button SelectEnc down
 320   button SelectEnc up
 340   snapshot after_select_press

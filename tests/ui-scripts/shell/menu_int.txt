@@ -2,10 +2,15 @@
 # The generic recipe every menu_* script drives; the C++ spec pins the node and the model asserts.
 0     snapshot idle
 100   encoder Select +1
-120   snapshot after_select_turn
+# E3 task 10: `render_leaf_int` claims the select encoder and does nothing with it
+# (`menu_scene.cpp`'s `render_leaf_int`, "This port leaves the editing to the gold knobs"), so this
+# snapshot was byte-identical to `idle` -- a golden that records nothing. The step stays (the spec
+# asserts the value did NOT move here); the snapshot does not.
 200   button SelectEnc down
 220   button SelectEnc up
-240   snapshot after_select_press
+# E3 task 10: a leaf's select press ascends (`MenuScene::ascend`), and this scene was opened
+# directly at depth 0 -- `ascend`'s own `if (st_.depth == 0) return;` makes the press a pure no-op,
+# so this snapshot was byte-identical to `idle` too, for a different reason than the turn above.
 300   encoder GoldUpper +2
 320   snapshot after_gold_turn
 400   button Back down

@@ -4,9 +4,13 @@
 120   snapshot after_select_turn
 200   button SelectEnc down
 220   button SelectEnc up
-240   snapshot after_select_press
+# E3 task 10: `enum_value` owns the select press itself and reports `entered` with `changed` false
+# (`ui/oled/values.h`'s toggle/enum convention -- the value already committed on the turn above), so
+# this snapshot was byte-identical to `after_select_turn`. The step stays; the snapshot does not.
 300   encoder GoldUpper +2
-320   snapshot after_gold_turn
+# E3 task 10: `enum_value` does not claim the gold knobs at all (`render_leaf_enum`,
+# `menu_scene.cpp`), so this turn is unclaimed input that moves nothing on this screen -- this
+# snapshot was byte-identical to `after_select_turn` too, for a different reason than the one above.
 400   button Back down
 420   button Back up
 440   snapshot after_back
