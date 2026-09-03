@@ -120,7 +120,7 @@ Learns an external MIDI note to mute individual kit instruments / rows.
 #COMMUNITY #MIDI
 
 ```shortcut
-hold(SHIFT) + hold(LEARN)
+hold(SHIFT) + press(LEARN)
 ```
 
 Unlearns a MIDI Follow channel or device from the current MIDI Follow submenu.
