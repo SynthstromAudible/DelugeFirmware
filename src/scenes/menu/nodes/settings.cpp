@@ -942,7 +942,7 @@ const Node* gate_selection_chain(const MenuContext& ctx, const MenuState&) {
 	// index BEFORE the navigation arm, not after" pins exactly this read. `GateSelectionItem`'s
 	// backward arm (`nodes/dynamic.cpp`) needs a DIFFERENT value on the way back -- "the last real
 	// output", which `source_index` is not once this branch has been taken -- and gets it from its
-	// own `MenuState::gate_last_real_output` rather than by disturbing this read.
+	// own `MenuState::real_output_choice` rather than by disturbing this read.
 	return ctx.source_index == NUM_GATE_CHANNELS ? &gate_off_time : &gate_mode;
 }
 

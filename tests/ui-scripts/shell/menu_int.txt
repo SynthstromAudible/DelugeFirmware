@@ -4,13 +4,18 @@
 100   encoder Select +1
 # E3 task 10: `render_leaf_int` claims the select encoder and does nothing with it
 # (`menu_scene.cpp`'s `render_leaf_int`, "This port leaves the editing to the gold knobs"), so this
-# snapshot was byte-identical to `idle` -- a golden that records nothing. The step stays (the spec
-# asserts the value did NOT move here); the snapshot does not.
+# snapshot's `.pbm` was byte-identical to `idle` -- a golden that records nothing there. (Its
+# `.state` was NOT identical to `idle`'s -- it had gained a `pad` line, the shortcut/source blink
+# lighting up shortly after the screen opens, unrelated to this step; the kept `after_gold_turn`
+# snapshot below carries the identical line, so nothing about it goes untested. Fix round 1
+# corrected this file's own earlier "byte-identical to idle" claim, which was true only of the
+# pixels.) The step stays (the spec asserts the value did NOT move here); the snapshot does not.
 200   button SelectEnc down
 220   button SelectEnc up
 # E3 task 10: a leaf's select press ascends (`MenuScene::ascend`), and this scene was opened
 # directly at depth 0 -- `ascend`'s own `if (st_.depth == 0) return;` makes the press a pure no-op,
-# so this snapshot was byte-identical to `idle` too, for a different reason than the turn above.
+# so this snapshot's `.pbm` was byte-identical to `idle` too, for a different reason than the turn
+# above (its `.state` has the same gained line as the turn's, and the same non-issue).
 300   encoder GoldUpper +2
 320   snapshot after_gold_turn
 400   button Back down

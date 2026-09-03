@@ -253,10 +253,14 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "menu_int", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		// Three, not five: E3 task 10 dropped the Select-turn and Select-press snapshots -- both were
-		// byte-identical to `idle`, for two different reasons the script file's own comments name
-		// (`render_leaf_int` claims-and-ignores the turn; the press's `ascend()` is a no-op at
-		// depth 0). The two *steps* stay, because the assertions below are about them.
+		// Three, not five: E3 task 10 dropped the Select-turn and Select-press snapshots. Their
+		// `.pbm` halves were byte-identical to `idle`, for two different reasons the script file's
+		// own comments name (`render_leaf_int` claims-and-ignores the turn; the press's `ascend()`
+		// is a no-op at depth 0) -- but their `.state` halves were NOT identical to `idle`'s: both
+		// had gained a `pad` line (the shortcut/source blink lighting up shortly after the screen
+		// opens), fix round 1 found on review. That line is not lost: the kept `after_gold_turn`
+		// snapshot carries the identical line, so nothing about it went untested. The two *steps*
+		// stay, because the assertions below are about them.
 		expect(result.snapshots).to_equal(uint32_t{3});
 
 		// Q7: the `.state` pins WHICH node is open; it says nothing about its label or value, so

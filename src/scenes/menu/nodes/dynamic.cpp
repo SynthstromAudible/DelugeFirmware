@@ -92,7 +92,7 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 ///
 /// @param real_output_limit How many leading @p names rows are real outputs -- `names.size()` for
 ///        `cv::Selection` (both rows are), `NUM_GATE_CHANNELS` for `gate::Selection` (row 4 is the
-///        minimum-off-time page). Only used to keep `state.gate_last_real_output` -- see
+///        minimum-off-time page). Only used to keep `state.real_output_choice` -- see
 ///        `GateSelectionItem::on_focus_backward` for why `source_choice`/`ctx.source_index` cannot
 ///        serve that hook: routing needs the value this function just published to include the
 ///        off-time row, but restoring the cursor on the way back must NOT, and legacy keeps the two
@@ -110,7 +110,7 @@ void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state, s
 		state.source_choice =
 		    static_cast<int8_t>(std::clamp<int32_t>(index, 0, static_cast<int32_t>(names.size()) - 1));
 		if (index >= 0 && static_cast<size_t>(index) < real_output_limit) {
-			state.gate_last_real_output = static_cast<int8_t>(index);
+			state.real_output_choice = static_cast<int8_t>(index);
 		}
 	}
 }
@@ -199,7 +199,7 @@ void GateSelectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) c
 	// `setValue(0)`'s forward arm lands the cursor on a real output (row 0), so the backward arm's
 	// own fallback does too -- consistent should the very first descent this visit be straight into
 	// the off-time row, before `render` below has ever recorded a real one.
-	state.gate_last_real_output = 0;
+	state.real_output_choice = 0;
 }
 
 /// @brief `beginSession`'s backward arm: `setValue(soundEditor.currentSourceIndex)`
@@ -212,19 +212,18 @@ void GateSelectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) c
 /// `currentSourceIndex` on that branch (`gate/selection.h:44-47`) and `beginSession`'s backward arm
 /// unconditionally restores from it anyway.
 ///
-/// Restored from `MenuState::gate_last_real_output`, not from `ctx.source_index` /
-/// `MenuContext::source_index`: that field IS the port's `currentSourceIndex`, but
-/// `gate_selection_chain` (`nodes/settings.cpp`) legitimately reads it as `NUM_GATE_CHANNELS` while
-/// routing to the off-time page this same tick (`menu_scene.h`'s mailbox note calls that drain
-/// order load-bearing, and `tables_3_spec.cpp` pins it) -- so by the time this hook runs on the way
-/// back out, `ctx.source_index` may still be sitting on the very sentinel legacy never lets
-/// `currentSourceIndex` become. `gate_last_real_output` is the value with the OTHER field's job:
-/// updated by `render` below on every real-output press and nothing else, so it always holds what
-/// legacy's `currentSourceIndex` actually would.
+/// Restored from `MenuState::real_output_choice`, not from `ctx.source_index` /
+/// `MenuContext::source_index` -- see that field's own doc (`menu_scene.h`) for why the two cannot
+/// be merged: `gate_selection_chain` (`nodes/settings.cpp`) legitimately reads `ctx.source_index` as
+/// `NUM_GATE_CHANNELS` while routing to the off-time page this same tick (`menu_scene.h`'s mailbox
+/// note calls that drain order load-bearing, and `tables_3_spec.cpp` pins it), so by the time this
+/// hook runs on the way back out, `ctx.source_index` may still be sitting on that sentinel.
+/// `real_output_choice` never does -- `render` below updates it on every real-output press and
+/// nothing else.
 void GateSelectionItem::on_focus_backward(const MenuContext& /*ctx*/, MenuState& state) const {
 	const size_t d = depth_of(state);
 	state.list[d].cursor = static_cast<int16_t>(
-	    std::clamp<int32_t>(state.gate_last_real_output, 0, static_cast<int32_t>(NUM_GATE_CHANNELS) - 1));
+	    std::clamp<int32_t>(state.real_output_choice, 0, static_cast<int32_t>(NUM_GATE_CHANNELS) - 1));
 }
 
 void GateSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -239,7 +238,7 @@ void GateSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 	    deluge::scenes::text_lookup(sid(String::STRING_FOR_MINIMUM_OFF_TIME)),
 	};
 	// `NUM_GATE_CHANNELS` (4), not `names.size()` (5): row 4 is the minimum-off-time page, not a
-	// real output, so a press on it must not become `gate_last_real_output` -- see
+	// real output, so a press on it must not become `real_output_choice` -- see
 	// `on_focus_backward` and `render_output_selection`'s own note. `source_choice` still publishes
 	// unconditionally either way; only the second field this call adds is limited.
 	render_output_selection(f, state, names, NUM_GATE_CHANNELS);
