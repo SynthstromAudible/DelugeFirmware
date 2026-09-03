@@ -115,6 +115,19 @@ public:
 	/// `relevance::is_midi_out` on the node.
 	static bool linked(const MenuContext& ctx);
 
+	/// @brief Yes -- `on_focus` here is `Toggle::selectButtonPress` -> `toggleValue()`
+	///        (`gui/menu_item/toggle.h:33-44`), not `beginSession`.
+	///
+	/// Without this, a focus with no press behind it -- `MenuScene::restore_state` rebuilding a
+	/// saved path onto this leaf (which `SceneStack::replace_root` produces whenever the browser
+	/// this item opened is sitting above the menu), or a `SceneId` deep link -- ran the toggle, and
+	/// on the linked arm **cleared the user's definition file with no user action**. Legacy guards
+	/// exactly this case and no other: `Toggle::selectButtonPress` returns without toggling when
+	/// `soundEditor.getCurrentMenuItem() == this` (`toggle.h:35-37`), i.e. when the item was
+	/// reached without a press on its row. `MenuScene::enter_leaf`'s `FocusCause` is the port of
+	/// that test.
+	bool on_focus_is_press() const override { return true; }
+
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,

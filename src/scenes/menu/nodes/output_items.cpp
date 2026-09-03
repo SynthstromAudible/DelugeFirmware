@@ -236,9 +236,15 @@ void MidiDeviceLinkedItem::render(deluge::ui::oled::OledFrame& f, const MenuCont
 
 	// `Toggle::selectButtonPress` returns `NO_NAVIGATION` (`toggle.h:42`): the user is left on the
 	// parent list. `after_render`'s leaf arm turns `entered` into `ascend()`, which is how a
-	// `CustomItem` that legacy never entered leaves again. At depth 0 -- this node opened as a root
-	// through `SceneId::arg` -- `ascend()` is a no-op and the title is simply the screen, exactly as
-	// for the four `ActionItem`s.
+	// `CustomItem` that legacy never entered leaves again. Legacy never draws this item at all, so
+	// the port's one frame of its own title before it leaves is a difference -- the same one
+	// `ResetItem` already ships, and stated for the same reason.
+	//
+	// Set unconditionally rather than once, which matters only at **depth 0** -- this node opened as
+	// a root through `SceneId::arg` or `open()`. There `on_focus` was skipped entirely
+	// (`FocusCause::Restored` plus `on_focus_is_press`, see the class note), the title is simply the
+	// screen, and this drives a no-op `ascend()` every frame: `ascend` returns immediately at depth
+	// 0 (`menu_scene.cpp`). Harmless and cheap, but not accidental.
 	state.render_resp.entered = true;
 }
 

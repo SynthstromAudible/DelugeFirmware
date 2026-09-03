@@ -749,10 +749,44 @@ documenting this one. `Issue::Kind::PlaceholderCustom` is therefore unconditiona
 Two divergences are recorded rather than closed: a `Kind::Custom` node cannot draw a row icon in its
 parent's list, so `midi_device_linked` loses `Linked::renderSubmenuItemTypeForOled`'s checkbox and
 file name (`:56-78`) — it must stay `Kind::Custom` because the dump JSON carries the node's type,
-and closing it needs a `CustomItem` hook `MenuScene::render_oled`'s `row_icon` can ask; and
-`on_focus` doing the toggle means a `restore_state` onto the item toggles too, which
-`Toggle::beginSession` does not, the same hazard the four `ActionItem`s and `EditNameItem` already
-ship.
+and closing it needs a `CustomItem` hook `MenuScene::render_oled`'s `row_icon` can ask.
+
+*E3 amendment (task 7, fix round 1) — `CustomItem::on_focus_is_press` and `enter_leaf`'s
+`FocusCause`.* The first cut of this task recorded, rather than fixed, that `on_focus` doing the
+toggle meant a `restore_state` onto the item toggled too. That was wrong: it is a defect, not a
+divergence, and the `ActionItem` analogy that justified it does not hold. The E2 ruling that blesses
+re-firing `on_focus` on a restore is about a *scene-opening* item and cites legacy **agreeing**
+(`EditName::beginSession` opens `RenameUI` unconditionally); here legacy **disagrees deliberately** —
+`Toggle::beginSession` does not toggle, and `Toggle::selectButtonPress` carries a targeted guard,
+`if (soundEditor.getCurrentMenuItem() == this) return nullptr;` (`gui/menu_item/toggle.h:35-37`),
+whose condition *is* "we are already focused on this item", i.e. precisely the restore case. Both
+paths are live: `SceneStack::replace_root` saves the menu parked on this leaf while `BrowserScene`
+sits above it (`MenuSavedState` does not carry `go_up_on_resume`, so the restore lands on the leaf),
+and `retarget`'s depth-0 deep link does the same.
+
+The lost distinction is legacy's own: `selectButtonPress()` *acts*, `beginSession()` only
+(re-)initialises, and the port collapsed both onto `on_focus`. It is restored in two pieces, because
+neither works alone:
+
+* **`MenuScene::enter_leaf(node, FocusCause)`** — `Descended` from `descend_to` (the one path with a
+  select press behind it), `Restored` from `retarget`, `restore_state` and `ascend`.
+* **`CustomItem::on_focus_is_press()`** — the scope. A blanket skip on `Restored` would regress the
+  shipped, specced ruling above; a flag with no cause could not tell a press from a rebuild. The
+  line is "does it act without a press", not "does it do anything": `EditNameItem`,
+  `ContextMenuItem` and the nine `nodes/sample.h` items keep it false because their act is opening a
+  scene the user can back out of, and their legacy classes do it in `beginSession`.
+
+`enter_leaf` runs `on_focus` unless the cause is `Restored` **and** the item declares itself a press.
+Two items declare it: `MidiDeviceLinkedItem` and `ActionItem`.
+
+**This also closes a pre-existing exposure the fix was not originally about.** At depth ≥ 1 the
+action drain ascends inside the same `after_render`, so a save can never capture an `ActionItem` as
+the parked leaf — but the depth-0 deep link could, and re-filed `StartStemExport` /
+`SetClipLengthToSampleLength` / the two song verbs with nothing pressed. `menu_actions_spec.cpp`'s
+"opened as a root, files its action" example asserted that behaviour and is **reversed**: a deep link
+onto one of these now shows the item's title and does nothing. `PerformEditorItem` is untouched — it
+files from `render`, on a press it observes itself, which is the same discriminator `after_render`'s
+ascend arm already used to tell the two shapes apart.
 
 **E2's carried work** — behaviour spec E named as belonging to a later phase, still owed once E1's
 ten roots and `MenuScene` ship: `source_shortcut_pads` (needs patch cables); per-pad blink

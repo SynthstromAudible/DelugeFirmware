@@ -87,6 +87,18 @@ public:
 	///        by identity rather than by re-deriving it.
 	MenuAction action() const { return action_; }
 
+	/// @brief Yes -- `on_focus` here IS `selectButtonPress` (see the class note above), so it must
+	///        not run for a focus with no press behind it (`node.h`'s `CustomItem::on_focus_is_press`).
+	///
+	/// E3 task 7. The exposure this closes is the `SceneId::arg` deep link and `restore_state`:
+	/// at depth >= 1 the action drain ascends inside the same `after_render`, so a save can never
+	/// capture one of these as the parked leaf -- but a menu opened *on* the item, or restored onto
+	/// it, re-filed `StartStemExport` / `SetClipLengthToSampleLength` / the two song verbs with the
+	/// user having pressed nothing. `PerformEditorItem` does **not** need this: it files from
+	/// `render`, on a press it observes itself, which is the same discriminator `after_render`'s
+	/// ascend arm already uses to tell the two apart.
+	bool on_focus_is_press() const override { return true; }
+
 private:
 	MenuAction action_;
 };

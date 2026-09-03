@@ -532,8 +532,31 @@ private:
 	void render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& node);
 
+	/// @brief Why a leaf is being focused -- the discriminator legacy spells as
+	///        `soundEditor.getCurrentMenuItem() == this` (`gui/menu_item/toggle.h:35-37`).
+	///
+	/// Legacy reaches a bespoke item's work by two routes and treats them differently:
+	/// `selectButtonPress()` (a press on the parent's row) *acts*, while `beginSession()` -- which
+	/// `focusRegained` -> `beginScreen` also runs on every re-entry, `sound_editor.cpp:292`,
+	/// `:1015` -- only (re-)initialises. `CustomItem::on_focus` is `beginSession`, so a port that
+	/// ran it on every focus transition ran *both* meanings, and an item whose `on_focus` stands in
+	/// for a press fired without one. This is that lost distinction, restored.
+	enum class FocusCause : uint8_t {
+		/// The user navigated in: `enter_child` -> `descend_to`, i.e. a select press on the row.
+		/// Legacy's `selectButtonPress` path.
+		Descended,
+		/// The path was re-rooted or rebuilt with no press behind it: `retarget` (a `SceneId` deep
+		/// link, the shortcut-pad jump, `open()`), `restore_state`'s rebuild, and `ascend`'s
+		/// re-seed. Legacy's `beginScreen`/`focusRegained` path, and exactly the case
+		/// `Toggle::selectButtonPress`'s guard exists for.
+		Restored,
+	};
+
 	/// @brief Load @p node's value into the edit storage its kind uses.
-	void enter_leaf(const Node& node);
+	/// @param cause Why this focus is happening -- see `FocusCause`. A `Kind::Custom` node whose
+	///              item answers `CustomItem::on_focus_is_press()` is **not** given `on_focus` for
+	///              `FocusCause::Restored`.
+	void enter_leaf(const Node& node, FocusCause cause);
 	/// @brief Commit the edit storage for @p node through `bindings::write`.
 	void commit_value(const Node& node);
 	/// @brief Descend into @p child if its permission allows, opening the range picker for

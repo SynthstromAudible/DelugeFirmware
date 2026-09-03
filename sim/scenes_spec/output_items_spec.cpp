@@ -605,6 +605,69 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		expect(std::string{browser::browser_scene().current_dir()}).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
 	});
 
+	it("does not toggle when the menu is restored onto it -- the browser's own load survives", _ {
+		// **The defect fix round 1 closes.** `SceneStack::replace_root` saves every scene, and this
+		// menu is parked on the leaf while `BrowserScene` sits above it -- `MenuSavedState` does not
+		// carry `go_up_on_resume`, so the restore lands back on the leaf. `restore_state` ->
+		// `enter_leaf` -> `on_focus` then replayed the *press*, and on the linked arm cleared the
+		// definition file the browser had just loaded, with no user action. Legacy cannot: its
+		// `beginSession` does not toggle, and `Toggle::selectButtonPress` guards this exact case
+		// (`gui/menu_item/toggle.h:35-37`).
+		CleanScenes clean;
+		spec::QuietAudio quiet;
+		ScratchCard card;
+		MidiRig rig;
+		rig.instrument()->deviceDefinitionFileName.clear();
+
+		Rig r;
+		press_child(r, nodes::midi_device_definition, nodes::midi_device_linked, rig.ctx());
+		expect(menu_scene().focused() == &nodes::midi_device_linked).to_be_true();
+
+		// What `BrowserScene`'s own `accept` does when the user picks a file
+		// (`midi_device_accept`, `browser/browser_scene.cpp`).
+		const std::string loaded = "MIDI_DEVICES/DEFINITION/DEVICE1.XML";
+		rig.instrument()->deviceDefinitionFileName = loaded;
+
+		// The state `replace_root` would carry across, taken while the menu is parked on the item.
+		deluge::ui::shell::SceneState saved{};
+		menu_scene().save_state(saved);
+		menu_scene().restore_state(saved);
+
+		expect(menu_scene().focused() == &nodes::midi_device_linked).to_be_true(); // it did land here
+		expect(std::string{rig.instrument()->deviceDefinitionFileName}).to_equal(loaded);
+	});
+
+	it("does not toggle when opened as a root through a SceneId, in either direction", _ {
+		// The other entry point into `FocusCause::Restored`: `retarget`, which is `open()`, a
+		// `SceneId::arg` deep link and the shortcut-pad jump. Both arms are checked, because each
+		// would do something different and both are wrong without a press: the linked arm would
+		// clear the file, the unlinked arm would open a browser nobody asked for.
+		CleanScenes clean;
+		spec::QuietAudio quiet;
+		ScratchCard card;
+		MidiRig rig;
+		const std::string loaded = "MIDI_DEVICES/DEFINITION/DEVICE1.XML";
+		rig.instrument()->deviceDefinitionFileName = loaded;
+
+		{
+			Rig r;
+			r.open(nodes::midi_device_linked, rig.ctx());
+			r.tick(0);
+			r.step();
+			expect(std::string{rig.instrument()->deviceDefinitionFileName}).to_equal(loaded);
+			expect(r.on_stack(browser::kBrowserSceneKind)).to_be_false();
+		}
+		{
+			rig.instrument()->deviceDefinitionFileName.clear();
+			Rig r;
+			r.open(nodes::midi_device_linked, rig.ctx());
+			r.tick(0);
+			r.step();
+			r.step();
+			expect(r.on_stack(browser::kBrowserSceneKind)).to_be_false();
+		}
+	});
+
 	it("clears the linked file and opens nothing when one is already linked", _ {
 		CleanScenes clean;
 		MidiRig rig;

@@ -290,7 +290,9 @@ void MenuScene::retarget(const Node& node) {
 	st_.pending_action = MenuActionRequest{};
 	st_.go_up_on_resume = false;
 	if (is_leaf(node.kind)) {
-		enter_leaf(node);
+		// `Restored`: re-rooting is `open()`, a `SceneId` deep link or the shortcut-pad jump, none
+		// of which is a press on this node's row.
+		enter_leaf(node, FocusCause::Restored);
 	}
 }
 
@@ -922,7 +924,7 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 // ---------------------------------------------------------------------------------------------
 // Navigation and commits: the one place the render pass's observations touch the model.
 
-void MenuScene::enter_leaf(const Node& node) {
+void MenuScene::enter_leaf(const Node& node, FocusCause cause) {
 	switch (node.kind) {
 	case Kind::Enum:
 		st_.enum_index = bindings::read(node, ctx_);
@@ -960,7 +962,23 @@ void MenuScene::enter_leaf(const Node& node) {
 		// `CustomItem::on_focus` -- legacy's `MenuItem::beginSession`. No `bind` to read either way;
 		// unlike the other kinds, a custom item's own state (if it has any) lives on the item, not
 		// in `MenuState`'s shared edit storage.
-		if (node.custom != nullptr) {
+		//
+		// **Except for an item whose `on_focus` is really `selectButtonPress`** (`node.h`'s
+		// `CustomItem::on_focus_is_press`). Legacy never navigates into such an item at all
+		// (`shouldEnterSubmenu() == false`); the port descends for one tick and acts from
+		// `on_focus`, which is right for a press and wrong for every other way in. A `Restored`
+		// focus has no press behind it -- `restore_state` rebuilding a saved path, a `SceneId` deep
+		// link, the shortcut-pad jump -- and running the press there fired
+		// `MidiDeviceLinkedItem`'s unlink arm (clearing a linked definition file the user never
+		// touched) and re-filed an `ActionItem`'s verb. Legacy's own guard is the same test spelled
+		// against its own state: `Toggle::selectButtonPress` returns without toggling when
+		// `soundEditor.getCurrentMenuItem() == this` (`gui/menu_item/toggle.h:35-37`).
+		//
+		// Scoped by the item rather than applied to every `Kind::Custom`, because a blanket skip
+		// would regress a shipped, specced ruling: `EditNameItem` and the nine `nodes/sample.h`
+		// items *must* re-open their scene on a restore -- see `restore_state` below, which argues
+		// it with legacy agreeing (`EditName::beginSession` opens `RenameUI` unconditionally).
+		if (node.custom != nullptr && (cause == FocusCause::Descended || !node.custom->on_focus_is_press())) {
 			node.custom->on_focus(ctx_, st_);
 		}
 		break;
@@ -1014,7 +1032,7 @@ void MenuScene::descend_to(const Node& child) {
 	st_.columns[st_.depth] = deluge::ui::ColumnsState{};
 	st_.scroll[st_.depth] = deluge::ui::ScrollText{};
 	if (is_leaf(child.kind)) {
-		enter_leaf(child);
+		enter_leaf(child, FocusCause::Descended); // the one path with a select press behind it
 	}
 }
 
@@ -1094,16 +1112,18 @@ void MenuScene::ascend() {
 	//
 	// **The gap that leaves, named rather than assumed away** (E2 task 12 fix round 1): a
 	// `CustomItem` has no backward arm at all, so this blanket exclusion IS the port's stand-in for
-	// one. That is only sound while every chain-source custom item's backward behaviour is "keep
-	// what `MenuState` already holds" -- true of all of them today (the three `nodes/dynamic.h`
-	// selectors keep `list[depth]`, the patch-cable pages keep `patching_param`/`patch_source`, and
-	// the fields they write are disjoint), and nothing tests it. An item that needs a *different*
-	// answer on the way back -- legacy's `navigatedBackwardFrom != nullptr` arm doing real work --
+	// one. (E3 task 7 narrowed the *other* direction rather than this one: `enter_leaf` now takes a
+	// `FocusCause`, and this call site passes `Restored` -- which is what it always meant -- so a
+	// press-shaped item would not fire here even if the exclusion above were lifted.) That is only sound while every
+	// chain-source custom item's backward behaviour is "keep what `MenuState` already holds" -- true of all of them
+	// today (the three `nodes/dynamic.h` selectors keep `list[depth]`, the patch-cable pages keep
+	// `patching_param`/`patch_source`, and the fields they write are disjoint), and nothing tests it. An item that
+	// needs a *different* answer on the way back -- legacy's `navigatedBackwardFrom != nullptr` arm doing real work --
 	// cannot express it, and would need `CustomItem` to gain that parameter rather than this
 	// exclusion to be relaxed.
 	if (const Node* const landed = st_.path[st_.depth];
 	    landed != nullptr && is_leaf(landed->kind) && landed->kind != Kind::Custom) {
-		enter_leaf(*landed);
+		enter_leaf(*landed, FocusCause::Restored);
 	}
 }
 
@@ -1521,7 +1541,15 @@ void MenuScene::restore_state(const SceneState& state) {
 			// title and does nothing until the user backs out and re-enters it. Specced by
 			// `rename_scene_spec.cpp`'s "reopens the editor when a menu parked on the item is
 			// restored".
-			enter_leaf(*child);
+			//
+			// **It is deliberate only for an item whose legacy body is `beginSession`.** E3 task 7
+			// found the other half: an item whose `on_focus` stands in for `selectButtonPress` --
+			// `nodes::MidiDeviceLinkedItem`, the four `nodes::ActionItem`s -- was having its
+			// *press* replayed here, so restoring a menu parked on the MIDI device-definition
+			// toggle cleared the linked file with no user action, and restoring one parked on
+			// `start_stem_export` re-filed the export. `enter_leaf`'s `FocusCause` is the
+			// discriminator and `CustomItem::on_focus_is_press` is the scope; see both.
+			enter_leaf(*child, FocusCause::Restored);
 		}
 	}
 

@@ -323,6 +323,34 @@ struct CustomItem {
 	///       such a node with nothing able to turn it off.
 	virtual bool is_placeholder() const { return false; }
 
+	/// @brief Does this item's `on_focus` stand in for a **press** rather than for `beginSession`?
+	///
+	/// `on_focus` is `beginSession`, and `MenuScene` runs it on every focus transition -- a descent
+	/// from the parent list, a `SceneId` deep link, the shortcut-pad jump, and `restore_state`
+	/// rebuilding a saved path. Legacy runs `beginSession` on all of those too
+	/// (`SoundEditor::focusRegained` -> `beginScreen`, `gui/ui/sound_editor.cpp:292`, `:1015`), so
+	/// for an item that *initialises* itself there the port matches and this stays false.
+	///
+	/// **It must be true for an item whose `on_focus` is really `selectButtonPress`.** Legacy has
+	/// items whose entire body is a press handler and which `SoundEditor` therefore never navigates
+	/// into (`shouldEnterSubmenu() == false`, `gui/ui/sound_editor.cpp:382-385`); the port has no
+	/// equivalent of that flag, so it descends for one tick and acts from `on_focus`
+	/// (`nodes/actions.h`). That works for a press and is wrong for everything else: a restore or a
+	/// deep link would run the press with no press behind it. Legacy guards the same case
+	/// explicitly -- `Toggle::selectButtonPress` returns without toggling when the item is already
+	/// the current one (`gui/menu_item/toggle.h:35-37`), which is precisely "we got here without a
+	/// press on our row". With this true, `MenuScene::enter_leaf` skips `on_focus` for
+	/// `FocusCause::Restored`.
+	///
+	/// @note The line is **"does it act without a press"**, not "does it do anything". The items
+	///       that open a scene -- `EditNameItem`, `ContextMenuItem`, the nine in `nodes/sample.h` --
+	///       keep this false on purpose: their legacy classes do their work in `beginSession` and
+	///       legacy re-fires them on a re-entry too, which is the shipped ruling
+	///       `MenuScene::restore_state` argues at its own site and `rename_scene_spec.cpp` pins.
+	///       Opening a scene the user can back out of is not the same as writing the model or
+	///       firing a one-shot verb.
+	virtual bool on_focus_is_press() const { return false; }
+
 	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.
 	///
 	/// Legacy declares these on `MenuItem` itself (`gui/menu_item/menu_item.h:194-199`:

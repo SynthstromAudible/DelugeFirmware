@@ -417,6 +417,31 @@ This is the pattern for every other bespoke item that opens a UI (the file selec
 marker editor, the loop points, the DX browser, the audio recorder) — all five set the same legacy
 flag beside the same `openUI` call.
 
+#### …and how an item says its `on_focus` is really a *press*
+
+`on_focus` is `beginSession`, and `MenuScene` runs it on **every** focus transition: a descent from
+the parent list, a `SceneId` deep link, the shortcut-pad jump, and `restore_state` rebuilding a saved
+path. Legacy runs `beginSession` on all of those too (`SoundEditor::focusRegained` → `beginScreen`,
+`sound_editor.cpp:292`, `:1015`), so for the items above the port matches and there is nothing to do.
+
+It does **not** match for an item whose legacy body is `selectButtonPress` rather than
+`beginSession` — legacy never navigates into such an item at all (`shouldEnterSubmenu() == false`),
+so the port descends for one tick and acts from `on_focus` instead (`menu/nodes/actions.h`). That is
+right for a press and wrong for every other way in. E3 task 7 found it live: restoring a menu parked
+on `midi_device_linked` replayed the toggle and **cleared the user's linked definition file**, and a
+deep link onto `start_stem_export` re-filed the export. Legacy guards exactly this —
+`Toggle::selectButtonPress` returns without toggling when `soundEditor.getCurrentMenuItem() == this`
+(`gui/menu_item/toggle.h:35-37`), i.e. when it was reached without a press on its row.
+
+The port of that guard is two pieces: `MenuScene::enter_leaf` takes a `FocusCause`
+(`Descended` from `descend_to`, `Restored` from `retarget`, `restore_state` and `ascend`), and
+`CustomItem::on_focus_is_press()` says which items it applies to. Both are needed — a blanket skip on
+restore would regress the shipped ruling above (`EditNameItem` *must* reopen its editor), and a flag
+with no cause cannot tell a press from a rebuild. **The line is "does it act without a press", not
+"does it do anything":** opening a scene the user can back out of keeps the flag false; writing the
+model or firing a one-shot verb sets it. Two items set it today, `MidiDeviceLinkedItem` and
+`ActionItem`.
+
 ## The context menu (`context_menu/`, E2 tasks 6, 7 and 11b)
 
 `context_menu::ContextMenuScene` is the port of legacy's `gui/context_menu/` family — a modal

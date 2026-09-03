@@ -289,24 +289,44 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 		}
 	});
 
-	it("opened as a root, files its action and has nowhere to ascend to", _ {
-		// The `SceneId::arg` deep-link case: at depth 0 `ascend()` is a no-op, so the item is the
-		// screen and `ActionItem::render` is the one path that draws it. Pinned because it is the
-		// only way that renderer is reached at all -- on the normal path the item is focused for
-		// zero renders (`nodes/actions.cpp`).
+	it("opened as a root, files NOTHING -- there was no press", _ {
+		// **E3 task 7 fix round 1 reversed this example, and the reversal is the point.** It used to
+		// assert that a `SceneId::arg` deep link onto one of these items filed its action; that was
+		// the port firing `selectButtonPress` with no press behind it. Legacy cannot: it never
+		// navigates into these items at all (`shouldEnterSubmenu() == false`,
+		// `gui/ui/sound_editor.cpp:382-385`), so the only way to reach the body is a press on the
+		// parent's row, and `Toggle` -- the same shape -- guards the other way in explicitly
+		// (`gui/menu_item/toggle.h:35-37`). `MenuScene::enter_leaf`'s `FocusCause` is that
+		// discriminator and `CustomItem::on_focus_is_press` is its scope.
+		//
+		// A deep link onto one of these therefore shows the item's own title and does nothing --
+		// which is still the one path `ActionItem::render` is reached by, so it is still pinned
+		// here. Starting a stem export because a scene id was restored is not a defensible reading
+		// of "put the user back where they were".
 		select_language();
 		Rig r;
 		(void)r.open(nodes::start_stem_export);
 		r.shell.tick(10);
-		const MenuActionRequest got = scene().take_action();
-		expect(got.action == MenuAction::StartStemExport).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
 		expect(scene().focused() == &nodes::start_stem_export).to_be_true();
 		expect(static_cast<int>(scene().state().depth)).to_equal(0);
-		// And it does not re-file on every subsequent tick: `on_focus` runs once per focus
-		// transition, not once per render.
+		// And it stays quiet: nothing re-fires on later ticks either.
 		for (uint32_t t = 0; t < 5; t++) {
 			r.shell.tick(20 + t * 10);
 			expect(scene().take_action().engaged()).to_be_false();
+		}
+	});
+
+	it("still files on a real press, so the guard is narrow rather than a mute button", _ {
+		// The other side of the same discriminator, over all four items: a descent from the parent
+		// list is `FocusCause::Descended` and still acts. Without this the example above could be
+		// satisfied by an item that never fires at all.
+		select_language();
+		for (const Pairing& p : kVerbs) {
+			Rig r;
+			const MenuActionRequest got = press_child(r, *p.parent, *p.node);
+			expect(got.engaged()).to_be_true();
+			expect(static_cast<int>(got.action)).to_equal(static_cast<int>(p.action));
 		}
 	});
 
