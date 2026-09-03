@@ -70,6 +70,7 @@
 #include "cppspec.hpp"
 
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <string>
 
@@ -259,6 +260,98 @@ uint16_t led_period(const deluge::ui::LedFrame& f, ButtonId b) {
 	return 0;
 }
 
+// --- process-global guards -----------------------------------------------------------------
+//
+// **Every process global this spec touches is held in an RAII guard, and the guards REFUSE rather
+// than repair.** `QuietAudio` (`support/card_access.h:82-88`) is the shape; the addition here is
+// the refusal, and it is not fastidiousness -- a silently-repairing reset has propped up a broken
+// assertion three times in this branch stack: task 3's quiet-tick example (covered for by an
+// unrelated repaint), fix round 1's `~Rig` cross-contamination, and fix round 1's mutant F5, which
+// survived because `before_each` cleared the very publication the missing code should have cleared.
+//
+// `before_each`/`after_each` take a `std::function<void()>` with no `self`
+// (`cppspec/description.hpp:23,95-97`), so `expect` is not available in them. A named reason on
+// stderr plus `std::abort()` is what "loudly" can mean there, and it fails the suite non-zero.
+
+[[noreturn]] void spec_bail(const char* what) {
+	std::fprintf(stderr, "recorder_scene_spec: %s\n", what);
+	std::abort();
+}
+
+/// @brief Hold the foreground-recording publication clear for the scope -- and refuse to run, or to
+///        finish, if it is not.
+///
+/// The guard fix round 1's F5 needed. `AudioRecorder::recordingSource`/`::recorder` are process
+/// globals nine subsystems read, so an example that leaks one poisons the next; clearing it
+/// silently is what hid the leak in the first place.
+struct NoForegroundRecording {
+	NoForegroundRecording() { check("a foreground recording was already published when an example started"); }
+	~NoForegroundRecording() { check("an example finished with a foreground recording still published"); }
+	NoForegroundRecording(const NoForegroundRecording&) = delete;
+	NoForegroundRecording& operator=(const NoForegroundRecording&) = delete;
+	static void check(const char* what) {
+		if (audioRecorder.recordingSource != AudioInputChannel::NONE || audioRecorder.recorder != nullptr) {
+			spec_bail(what);
+		}
+	}
+};
+
+/// @brief Publish an OUTPUT recording (a resample, as far as every reader is concerned) for the
+///        scope, and take it away again.
+///
+/// So the one example that needs a live foreground recording cannot leave one behind by forgetting
+/// a line: `NoForegroundRecording` above would abort, but only after the damage was already in the
+/// habit.
+struct PublishedOutputRecording {
+	PublishedOutputRecording() { AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT); }
+	~PublishedOutputRecording() { AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE); }
+	PublishedOutputRecording(const PublishedOutputRecording&) = delete;
+	PublishedOutputRecording& operator=(const PublishedOutputRecording&) = delete;
+};
+
+/// @brief Force input monitoring ON for the scope, and put `inputMonitoringMode` back.
+///
+/// The exposure the fix-round-2 review named: this was a hand-written save/restore pair inside one
+/// example, which is the one shape that stops being a save/restore the moment an assertion between
+/// them fails.
+struct MonitoringOn {
+	InputMonitoringMode saved = AudioEngine::inputMonitoringMode;
+	MonitoringOn() { AudioEngine::inputMonitoringMode = InputMonitoringMode::ON; }
+	~MonitoringOn() { AudioEngine::inputMonitoringMode = saved; }
+	MonitoringOn(const MonitoringOn&) = delete;
+	MonitoringOn& operator=(const MonitoringOn&) = delete;
+};
+
+/// @brief Empty the notice queue and the dirty set on the way in.
+///
+/// @note **Deliberately not symmetric, and this is the convention rather than an oversight.** The
+///       queue cannot be asserted empty on the way out: `~Rig` pops the stack, `RecorderScene::on_exit`
+///       legitimately raises `ClearWorking`, and that notice is still queued when the example ends.
+///       Draining on entry is isolation (it decides what the NEXT example starts from); asserting on
+///       exit would be asserting something untrue.
+struct DrainedNotices {
+	DrainedNotices() {
+		deluge::notify::Notice discard;
+		while (deluge::notify::notices().pop(discard)) {}
+		deluge::notify::dirty().drain();
+	}
+	~DrainedNotices() = default;
+	DrainedNotices(const DrainedNotices&) = delete;
+	DrainedNotices& operator=(const DrainedNotices&) = delete;
+};
+
+/// @brief Select the built-in English strings for the scope, and put the pointer back.
+///
+/// `Action::Kind::Popup` resolves through `scenes::text_lookup` -> `l10n::getView`, which
+/// dereferences `chosenLanguage` unguarded (`gui/l10n/l10n.cpp:9`); a spec process leaves it null.
+struct EnglishL10n {
+	const deluge::l10n::Language* saved = deluge::l10n::chosenLanguage;
+	EnglishL10n() { deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english; }
+	~EnglishL10n() { deluge::l10n::chosenLanguage = saved; }
+	EnglishL10n(const EnglishL10n&) = delete;
+	EnglishL10n& operator=(const EnglishL10n&) = delete;
+};
+
 /// @brief Point the process at a scratch directory for the scope. See the file docstring: nothing
 ///        here writes a file, and this is the belt to that argument's braces.
 std::string scratch_root() {
@@ -266,37 +359,39 @@ std::string scratch_root() {
 	return std::string(base != nullptr ? base : "/tmp") + "/deluge_recorder_spec";
 }
 
+/// @brief Every guard an example needs, in one declaration.
+///
+/// Declare it FIRST in an example, before the `Rig`: members are destroyed in reverse declaration
+/// order and the `Rig` (declared after) tears the scene stack down, so `RecorderScene::on_exit` has
+/// already run by the time `NoForegroundRecording` checks.
+struct Guards {
+	deluge::scenes::spec::QuietAudio quiet;
+	deluge::scenes::spec::SdRoot root{scratch_root()};
+	DrainedNotices notices;
+	EnglishL10n l10n;
+	NoForegroundRecording publication;
+};
+
 } // namespace
 
 // clang-format off
 describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
+	// The ONLY thing left in `before_each`: installing a `Display`, which is a one-time static and
+	// has nothing to leak. Every process global this spec touches is held by `Guards` instead --
+	// see the comment above `spec_bail`. `before_each` cannot `expect`, so a defensive reset here
+	// could only ever repair silently, which is precisely the habit that hid mutant F5.
 	before_each([] {
 		static RecorderDisplay d;
 		if (display == nullptr) {
 			display = &d;
 		}
-		// `Action::Kind::Popup` is resolved through `scenes::text_lookup` -> `l10n::getView`, which
-		// dereferences `chosenLanguage` unguarded (`gui/l10n/l10n.cpp:9`); a spec process leaves it
-		// null. `browser_scene_spec.cpp` sets it for the same reason.
-		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
-		// The notice queue is a PROCESS global and this scene raises `Working`/`ClearWorking` on
-		// every stop, so an example that ends mid-stop would otherwise push a `SceneKind::Working`
-		// over the *next* example's shell -- and that scene's own repaint would mask a missing
-		// repaint-gate arm, which is the one thing these examples must be able to see.
-		deluge::notify::Notice discard;
-		while (deluge::notify::notices().pop(discard)) {}
-		deluge::notify::dirty().drain();
-		// The foreground-recording publication is a PROCESS global too, and `can()` now reads it
-		// (fix round 1). An example that ended with it set would make the next one refuse to open.
-		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
 	});
 
 	// --- arming -------------------------------------------------------------------------------
 
 	it("arms a recorder when it opens, and reports it as waiting", _ {
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -313,8 +408,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// The port's own gate: `process()`'s success arm dereferences the range with no null test
 		// (`:215-217`), and legacy is saved from that by
 		// `checkPermissionToBeginSessionForRangeSpecificParam` refusing first.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		MenuContext c = r.ctx();
 		c.range = nullptr;
@@ -329,8 +423,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	// --- the screen, against legacy -------------------------------------------------------------
 
 	it("draws exactly what AudioRecorder::renderOLED draws, in both of its states", _ {
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -355,8 +448,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `next_timer()` wakes the shell, but only `request_repaint_after` marks the panel dirty
 		// (`RepaintGate::needs_frame`). Delete the arm in `render_oled` and this example fails,
 		// because the second frame is byte-identical to the first. Nothing here presses anything.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -374,8 +466,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("asks to be woken while a recorder is armed, and stops asking once it is gone", _ {
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -396,8 +487,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `AudioRecorder::buttonAction` (`:268-274`): the three buttons that mean "stop".
 		const ButtonId kStopButtons[] = {ButtonId::Back, ButtonId::SelectEnc, ButtonId::Record};
 		for (ButtonId b : kStopButtons) {
-			deluge::scenes::spec::QuietAudio quiet;
-			deluge::scenes::spec::SdRoot root{scratch_root()};
+			Guards g;
 			Rig r;
 			r.open();
 			r.tick(0);
@@ -417,8 +507,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("leaves every other button to whatever is beneath", _ {
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -437,8 +526,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	// --- the sample reaching the model ----------------------------------------------------------
 
 	it("hands the finished sample to the source and closes", _ {
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -464,8 +552,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("attaches nothing when the recording aborted, but still closes", _ {
 		// `process()`'s empty `if (status == ABORTED || hadCardError) {}` arm (`:209`).
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -481,8 +568,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	it("attaches nothing when the card errored, even though the status says complete", _ {
 		// The other half of the same condition: `hadCardError` alone is enough to refuse the
 		// attach, and it is also enough on its own to end the recording (`:207`).
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -498,8 +584,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	it("clears the clipping flag when it reports it, so one clip is one popup", _ {
 		// `process()`'s clipping arm (`:227-233`). The popup itself is a `Notices` matter; what
 		// this scene owns is the flag, which legacy clears before showing anything.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -521,8 +606,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	it("throws an armed recorder away when it is removed from outside", _ {
 		// The divergence `on_exit` exists for: legacy's `process()` blocks until it has closed
 		// itself, so legacy never reaches this. A scene can be popped by a song load.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -556,8 +640,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// interesting pair: `SoundEditor::setLedStates` turns BOTH off (`sound_editor.cpp:306-307`)
 		// and this UI lights exactly one, so a scene that left them to `MenuScene` beneath would
 		// show neither.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open_over_menu();
 		r.tick(0);
@@ -592,8 +675,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// subsystems read them. The port publishes them through
 		// `AudioEngine::setForegroundRecording`, which writes the same storage -- so this example
 		// reads the LEGACY members, which is the path all nine readers take.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -619,10 +701,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`) enables `doMonitoring`
 		// only for `STEREO`/`LEFT` and double-checks the recorder pointer. A port that armed a
 		// recorder without publishing it records correctly and leaves the user hearing nothing.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
-		const InputMonitoringMode saved = AudioEngine::inputMonitoringMode;
-		AudioEngine::inputMonitoringMode = InputMonitoringMode::ON;
+		Guards g;
+		MonitoringOn monitoring;
 
 		AudioEngine::setMonitoringMode();
 		expect(AudioEngine::doMonitoring).to_be_false(); // nothing armed yet
@@ -639,23 +719,19 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		r.tick(10);
 		AudioEngine::setMonitoringMode();
 		expect(AudioEngine::doMonitoring).to_be_false(); // ...and off again once it is over
-
-		AudioEngine::inputMonitoringMode = saved;
 	});
 
 	it("refuses to open while any foreground recording is already live", _ {
 		// `opened()`'s first refusal (`:69-71`), which is `recordingSource > NONE` -- and which
 		// covers an OUTPUT recording (resampling, stem export) as well as this UI's own.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
-		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::OUTPUT);
+		PublishedOutputRecording resampling;
 		expect(RecorderScene::can(r.ctx())).to_be_false();
 		r.open();
 		r.tick(0);
 		expect(r.on_stack()).to_be_false();
 		expect(recorder_scene().recording()).to_be_false();
-		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
 	});
 
 	// --- the popup stall ------------------------------------------------------------------------
@@ -665,8 +741,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// (`shell/shell.cpp:485-488`) and this scene is neither rendered nor given an
 		// `after_render()` -- which is where the completion poll lives. A bounded stall, accepted
 		// and documented on `RecorderScene`; this pins both halves of it.
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -700,8 +775,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	// --- goldens ------------------------------------------------------------------------------
 
 	it("draws the waiting screen on a 48-row panel", _ {
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -709,8 +783,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("draws the recording screen on a 48-row panel", _ {
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r;
 		r.open();
 		r.tick(0);
@@ -721,8 +794,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 	});
 
 	it("draws the recording screen on a 64-row panel", _ {
-		deluge::scenes::spec::QuietAudio quiet;
-		deluge::scenes::spec::SdRoot root{scratch_root()};
+		Guards g;
 		Rig r64{board_64(), profile_64()};
 		r64.open();
 		r64.tick(0);

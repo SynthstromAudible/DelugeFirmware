@@ -265,11 +265,21 @@ void feedReverbBackdoorForGrain(int index, q31_t value);
 /// @{
 /// @brief Publish (or clear) the foreground recording.
 ///
-/// The assignment order is legacy's own, in both directions: `setupRecordingToFile` assigns
-/// `recorder` before `recordingSource` under the comment "This sets recording to begin happening
-/// even as the file is created" (`gui/ui/audio_recorder.cpp:135-138`), and `finishRecording` clears
-/// them in the same order (`:250-251`). The audio routine tests `recordingSource` and then
-/// dereferences `recorder`, so the pointer must become visible first and stop being visible last.
+/// **The pointer's visible window strictly contains the channel's**, which is why the two stores are
+/// ordered *differently* in the two directions: publishing writes `recorder` first (legacy's own
+/// order, under the comment "This sets recording to begin happening even as the file is created",
+/// `gui/ui/audio_recorder.cpp:135-138`) and clearing writes `recordingSource` first. So a reader
+/// that finds the channel naming a live capture has always been able to see a non-null pointer.
+///
+/// Legacy clears in the opposite order (`:250-251`) -- it nulls the pointer while the channel still
+/// says `LEFT`/`STEREO`, and worse, `finishRecording` frees through the member *before* either store
+/// (`:248`). It survives only on `setMonitoringMode`'s `&& audioRecorder.recorder` double-check
+/// (`audio_engine.cpp:1037`), which is a guard against the wrong thing: the reader runs on the
+/// preemptive audio interrupt-executor, so it can land mid-`discardRecorder` with the pointer freed
+/// and still non-null. This seam does not inherit that ordering.
+///
+/// The two stores are separated by a `std::atomic_signal_fence` -- a compiler barrier, no
+/// instructions. See the call site for why that is the right tool and a `dmb` is not.
 ///
 /// @param recorder The armed recorder, or null to clear.
 /// @param source   The channel it captures from, or `AudioInputChannel::NONE` to clear.

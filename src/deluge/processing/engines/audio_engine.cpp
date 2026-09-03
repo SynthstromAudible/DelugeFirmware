@@ -552,7 +552,8 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 }
 
 void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWhichMIDIOrGateOccurs);
-void setMonitoringMode();
+// `setMonitoringMode()` used to be forward-declared here; it is declared in audio_engine.h now,
+// which this file includes.
 void renderSongFX(size_t numSamples);
 void renderSamplePreview(size_t numSamples);
 void renderReverb(size_t numSamples);
@@ -1061,8 +1062,38 @@ void setMonitoringMode() { // Monitoring setup
 // eight other subsystems -- read. They live in this file because this file already names
 // `audioRecorder`; a new one would add a `model-includes-ui` row to the layer baseline.
 void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) {
-	audioRecorder.recorder = recorder;
-	audioRecorder.recordingSource = source;
+	// The invariant, and the two fences that hold it: **the pointer's visible window strictly
+	// contains the channel's.** Publishing writes the pointer first; clearing writes the channel
+	// first. Either way a reader that finds `recordingSource` naming a live capture has already
+	// been able to see a non-null `recorder`, so `setMonitoringMode`'s branch (`:1037`) can never
+	// dereference a pointer that is about to be freed. Legacy nulls the pointer first in
+	// `finishRecording` (`gui/ui/audio_recorder.cpp:250-251`) and gets away with it only because of
+	// that line's `&& audioRecorder.recorder` double-check; this seam does not lean on it.
+	//
+	// `std::atomic_signal_fence` and not `atomic_thread_fence`, and no `dmb`: the reader is
+	// `setMonitoringMode()` called from `renderAudio`, i.e. the priority-0 audio task, which
+	// `registerTask` routes onto the preemptive SGI interrupt-executor
+	// (`src/bsp/rust/src/scheduler.rs:536-548`, `deluge.cpp:538`) -- a handler on the SAME core.
+	// A PE observes its own memory accesses in program order and exception entry is a context
+	// synchronisation point, so no hardware barrier is needed; what can reorder two plain,
+	// dependency-free stores is the COMPILER, and a signal fence is exactly the "ordered against a
+	// handler that interrupts this thread" tool. It emits no instructions.
+	//
+	// The house convention for state genuinely shared with the audio side is `std::atomic`
+	// (`SampleRecorder::status`, `AudioEngine::cull_alert_pending`, both with their reasoning at
+	// the declaration). These two are `AudioRecorder` members written from five other places in
+	// legacy, so retyping them is a change this seam is not entitled to make; the fences give the
+	// seam the ordering it needs without touching the type.
+	if (source > AudioInputChannel::NONE) {
+		audioRecorder.recorder = recorder;
+		std::atomic_signal_fence(std::memory_order_release);
+		audioRecorder.recordingSource = source;
+	}
+	else {
+		audioRecorder.recordingSource = source;
+		std::atomic_signal_fence(std::memory_order_release);
+		audioRecorder.recorder = recorder;
+	}
 }
 
 AudioInputChannel foregroundRecordingSource() {
