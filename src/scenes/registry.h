@@ -10,7 +10,8 @@
 /// the rename editor (`rename::kRenameSceneKind`), `FirstApp + 2` the context menu
 /// (`context_menu::kContextMenuSceneKind`), `FirstApp + 3` the file browser
 /// (`browser::kBrowserSceneKind`), `FirstApp + 4` the sample marker editor
-/// (`marker::kMarkerSceneKind`).
+/// (`marker::kMarkerSceneKind`), `FirstApp + 5` the audio recorder
+/// (`recorder::kRecorderSceneKind`).
 
 #include "shell/scene.h"
 
@@ -82,7 +83,8 @@ menu::MenuScene& menu_scene();
 ///         `by_kind[SceneKind::FirstApp + 1]` is `&rename_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 2]` is `&context_menu_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 3]` is `&browser_scene()`, whose
-///         `by_kind[SceneKind::FirstApp + 4]` is `&marker_scene()`, and whose every other slot is
+///         `by_kind[SceneKind::FirstApp + 4]` is `&marker_scene()`, whose
+///         `by_kind[SceneKind::FirstApp + 5]` is `&recorder_scene()`, and whose every other slot is
 ///         null.
 deluge::ui::shell::SceneRegistry scene_registry();
 

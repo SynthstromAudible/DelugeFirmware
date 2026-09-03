@@ -80,7 +80,10 @@ add_library(deluge_scenes STATIC
     # reaches -- `SampleBrowser` and `LoadMidiDeviceDefinitionUI` -- over the seam above.
     browser/browser_scene.cpp
     # E3 task 4: the sample marker editor.
-    marker/marker_scene.cpp)
+    marker/marker_scene.cpp
+    # E3 task 5: the audio recorder -- the one scene that replaces `gui/ui/audio_recorder.cpp`'s
+    # menu-driven half (its output-recording half stays on the legacy object; see the header).
+    recorder/recorder_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

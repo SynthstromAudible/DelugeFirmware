@@ -25,6 +25,7 @@
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/recorder/recorder_scene.h"
 #include "scenes/rename/rename_scene.h"
 
 #include <array>
@@ -68,6 +69,8 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 		table[static_cast<size_t>(browser::kBrowserSceneKind)] = &browser::browser_scene();
 		// `FirstApp + 4`, likewise.
 		table[static_cast<size_t>(marker::kMarkerSceneKind)] = &marker::marker_scene();
+		// `FirstApp + 5`, likewise.
+		table[static_cast<size_t>(recorder::kRecorderSceneKind)] = &recorder::recorder_scene();
 		// M1: numbered here as well as in `menu_scene()`, so building the table is enough on its
 		// own -- `menu_scene()` already ran above, this is the belt to that braces and costs one
 		// load of an initialised static.
