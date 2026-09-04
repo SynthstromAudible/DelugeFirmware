@@ -159,7 +159,7 @@ PLACE_SDRAM_RODATA constexpr RGB mono_mod_shortcut_colours [][kDisplayHeight] = 
 //clang-format on
 
 void SoundEditor::renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWidth],
-                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth])
+                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) const
 {
 	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
 	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
@@ -167,8 +167,11 @@ void SoundEditor::renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWi
 	{
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++)
 		{
-			image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
-			occupancyMask[yDisplay][xDisplay] = 64;
+			if (const auto *menuitem = check_basic_shortcut_for_press(xDisplay, yDisplay); menuitem->isRelevant(currentSound, 0))
+			{
+				image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
+				occupancyMask[yDisplay][xDisplay] = 64;
+			}
 		}
 	}
 }
@@ -176,7 +179,8 @@ void SoundEditor::renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWi
 bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea)
 {
-	if (not Buttons::isShiftButtonPressed())
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)
+		|| !Buttons::isShiftButtonPressed())
 	{
 		D_PRINTLN("shift not pressed");
 		return false;

@@ -251,7 +251,7 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
-	if (b == SHIFT) {
+	if (b == SHIFT && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)) {
 		uiNeedsRendering(this);
 	}
 
@@ -7328,8 +7328,8 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 		return true;
 	}
 
-	if (Buttons::isShiftButtonPressed()) {
-		SoundEditor::renderMainShortcutsOnly(image, occupancyMask);
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay) && Buttons::isShiftButtonPressed()) {
+		soundEditor.renderMainShortcutsOnly(image, occupancyMask);
 		return true;
 	}
 
