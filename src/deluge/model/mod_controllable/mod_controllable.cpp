@@ -19,6 +19,11 @@
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/params/param_manager.h"
+
+ParamManagerType ModControllable::required_param_manager_type() const {
+	return ParamManagerType::UNPATCHED;
+}
 
 // modelStack->autoParam will be NULL in this rare case!!
 int32_t ModControllable::getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack) {

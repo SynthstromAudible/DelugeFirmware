@@ -42,6 +42,11 @@ class ParamCollectionSummary;
 
 #define PARAM_COLLECTIONS_STORAGE_NUM 5
 
+enum class ParamManagerType : uint8_t {
+	UNPATCHED,
+	PATCHED,
+};
+
 class ParamManager {
 public:
 	ParamManager();
@@ -49,6 +54,14 @@ public:
 
 	// Not including MPE params
 	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
+	inline bool containsPatchedParamCollections() {
+		return summaries[1].paramCollection && summaries[2].paramCollection;
+	}
+	inline bool matches_type(ParamManagerType type) {
+		return type == ParamManagerType::PATCHED
+		           ? containsPatchedParamCollections()
+		           : containsAnyMainParamCollections() && !containsPatchedParamCollections();
+	}
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
 

@@ -32,6 +32,7 @@ class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
 class MIDIKnob;
 class ModelStackWithSoundFlags;
+enum class ParamManagerType : uint8_t;
 
 /// Base class for things that the internal modulation engine knows how to control.
 ///
@@ -41,6 +42,7 @@ class ModControllable {
 public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
+	virtual ParamManagerType required_param_manager_type() const;
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 		return false;
 	} // Returns whether Instrument was changed

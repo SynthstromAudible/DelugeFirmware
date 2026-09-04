@@ -70,6 +70,7 @@ struct ParamLPF {
 
 class Sound : public ModControllableAudio, public virtual Voiced {
 public:
+	ParamManagerType required_param_manager_type() const override { return ParamManagerType::PATCHED; }
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
 
 	Sound();

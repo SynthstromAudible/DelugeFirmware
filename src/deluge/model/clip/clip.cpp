@@ -915,15 +915,22 @@ yesMakeItActive:
 
 // Obviously don't call this for MIDI clips!
 Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip* favourClipForCloningParamManager) {
+	ParamManagerType required_param_manager_type = output->toModControllable()->required_param_manager_type();
 
 	// Occasionally, like for AudioClips changing their Output, they will actually have a paramManager already, so
 	// everything's fine and we can return
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (paramManager.matches_type(required_param_manager_type)) {
 		return Error::NONE;
+	}
+	if (paramManager.containsAnyMainParamCollections()) {
+		paramManager.destructAndForgetParamCollections();
 	}
 
 	if (newParamManager) {
 		paramManager.stealParamCollectionsFrom(newParamManager, true);
+		if (!paramManager.matches_type(required_param_manager_type)) {
+			paramManager.destructAndForgetParamCollections();
+		}
 	}
 
 	if (!paramManager.containsAnyMainParamCollections()) {
@@ -937,6 +944,10 @@ Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip*
 			// just have. If so, great, we're done.
 			if (song->getBackedUpParamManagerForExactClip((ModControllableAudio*)modControllable, this,
 			                                              &paramManager)) {
+				if (!paramManager.matches_type(required_param_manager_type)) {
+					paramManager.destructAndForgetParamCollections();
+					goto cloneParamManager;
+				}
 trimFoundParamManager:
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -948,7 +959,15 @@ trimFoundParamManager:
 			}
 
 			// Ok, still here, let's do that cloning
-			paramManager.cloneParamCollectionsFrom(&favourClipForCloningParamManager->paramManager, false, true);
+cloneParamManager:
+			Error error =
+			    paramManager.cloneParamCollectionsFrom(&favourClipForCloningParamManager->paramManager, false, true);
+			if (error != Error::NONE) {
+				return error;
+			}
+			if (!paramManager.matches_type(required_param_manager_type)) {
+				paramManager.destructAndForgetParamCollections();
+			}
 			// That might not work if there was insufficient RAM - very unlikely - but we'll still try the other options
 			// below
 		}
@@ -960,10 +979,15 @@ trimFoundParamManager:
 			                                                               &paramManager);
 
 			if (success) {
+				if (!paramManager.matches_type(required_param_manager_type)) {
+					paramManager.destructAndForgetParamCollections();
+					goto cloneFromOtherClip;
+				}
 				goto trimFoundParamManager;
 			}
 
 			// Still no ParamManager, so copy it from another Clip
+cloneFromOtherClip:
 			Clip* otherClip = song->getClipWithOutput(output, false, this); // Exclude self
 			if (otherClip) {
 
@@ -973,6 +997,9 @@ trimFoundParamManager:
 					FREEZE_WITH_ERROR("E050");
 					return error;
 				}
+				if (!paramManager.matches_type(required_param_manager_type)) {
+					paramManager.destructAndForgetParamCollections();
+				}
 			}
 			// Unless I've done something wrong, there *has* to be another Clip if the Output didn't have a backed-up
 			// ParamManager. But, just in case
@@ -981,6 +1008,10 @@ trimFoundParamManager:
 				return Error::UNSPECIFIED;
 			}
 		}
+	}
+	if (!paramManager.matches_type(required_param_manager_type)) {
+		FREEZE_WITH_ERROR("E051");
+		return Error::UNSPECIFIED;
 	}
 
 	return Error::NONE;

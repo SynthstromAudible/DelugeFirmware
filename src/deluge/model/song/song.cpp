@@ -2648,7 +2648,10 @@ traverseClips:
 		}
 
 		NoteRow* noteRow = instrumentClip->getNoteRowForDrum(drum);
-		if (noteRow) {
+		ModControllable* mod_controllable = drum->toModControllable();
+		if (noteRow
+		    && (!mod_controllable
+		        || noteRow->paramManager.matches_type(mod_controllable->required_param_manager_type()))) {
 			return noteRow;
 		}
 	}
@@ -3782,6 +3785,9 @@ ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* mo
 
 	BackedUpParamManager* elementCorrectClip =
 	    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
+	if (!elementCorrectClip->paramManager.matches_type(modControllable->required_param_manager_type())) {
+		return nullptr;
+	}
 
 	if (stealInto) {
 		stealInto->stealParamCollectionsFrom(
@@ -3811,23 +3817,29 @@ ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAud
 		return nullptr; // If nothing with even the correct modControllable at all, get out
 	}
 
-	int32_t iCorrectClip;
-	BackedUpParamManager* elementCorrectClip;
+	int32_t iCorrectClip = -1;
+	BackedUpParamManager* elementCorrectClip = nullptr;
 
-	if (!clip || elementAnyClip->clip == clip) {
-returnFirstForModControllableEvenIfNotRightClip:
-		iCorrectClip = iAnyClip;
-		elementCorrectClip = elementAnyClip;
-	}
-	else {
-		uint32_t keyWords[2];
-		keyWords[0] = (uint32_t)modControllable;
-		keyWords[1] = (uint32_t)clip;
-		iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords, nullptr, iAnyClip + 1);
-		if (iCorrectClip == -1) {
-			goto returnFirstForModControllableEvenIfNotRightClip;
+	for (int32_t i = iAnyClip; i < backedUpParamManagers.getNumElements(); i++) {
+		BackedUpParamManager* element = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
+		if (element->modControllable != modControllable) {
+			break;
 		}
-		elementCorrectClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
+		if (!element->paramManager.matches_type(modControllable->required_param_manager_type())) {
+			continue;
+		}
+		if (!elementCorrectClip || !elementCorrectClip->clip) {
+			iCorrectClip = i;
+			elementCorrectClip = element;
+		}
+		if (clip && element->clip == clip) {
+			iCorrectClip = i;
+			elementCorrectClip = element;
+			break;
+		}
+	}
+	if (!elementCorrectClip) {
+		return nullptr;
 	}
 
 	if (stealInto) {
@@ -4352,10 +4364,9 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum,
-					                                               NULL)) { // If no backedUpParamManager...
-						if (!findParamManagerForDrum(kit,
-						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
+					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) { // If no backedUpParamManager...
+						if (!findParamManagerForDrum(
+						        kit, soundDrum)) { // If no patched ParamManager with a NoteRow somewhere...
 							FREEZE_WITH_ERROR("E102");
 						}
 					}

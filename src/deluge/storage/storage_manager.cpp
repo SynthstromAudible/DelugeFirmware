@@ -368,8 +368,9 @@ deleteInstrumentAndGetOut:
 	}
 
 	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
-	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     nullptr)) {
+	bool hasInstrumentParamManager = song->getBackedUpParamManagerPreferablyWithClip(
+	    (ModControllableAudio*)newInstrument->toModControllable(), nullptr);
+	if (!hasInstrumentParamManager) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.

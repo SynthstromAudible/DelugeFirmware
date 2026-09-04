@@ -3750,17 +3750,17 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 		SoundDrum* soundDrum = (SoundDrum*)newDrum;
 
-		if (!paramManager.containsAnyMainParamCollections()) {
+		if (!paramManager.containsPatchedParamCollections()) {
 			if (favourClipForCloningParamManager) {
 				NoteRow* noteRow = favourClipForCloningParamManager->getNoteRowForDrum(soundDrum);
-				if (noteRow) {
+				if (noteRow && noteRow->paramManager.containsPatchedParamCollections()) {
 					paramManager.cloneParamCollectionsFrom(&noteRow->paramManager, false, true);
 					// That might not work if there was insufficient RAM, but we'll still try the other options
 					// below
 				}
 			}
 
-			if (!paramManager.containsAnyMainParamCollections()) {
+			if (!paramManager.containsPatchedParamCollections()) {
 
 				drum = soundDrum; // Better set this temporarily for this call. See comment above for why we
 				                  // can't set it permanently yet
@@ -3772,7 +3772,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 				drum = nullptr;
 
 				// If there still isn't one, grab from another NoteRow
-				if (!paramManager.containsAnyMainParamCollections()) {
+				if (!paramManager.containsPatchedParamCollections()) {
 
 					ParamManagerForTimeline* paramManagerForDrum =
 					    modelStack->song->findParamManagerForDrum(kit, soundDrum);
@@ -3781,7 +3781,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 						paramManager.cloneParamCollectionsFrom(paramManagerForDrum, false, true);
 
 						// If there also was no RAM...
-						if (!paramManager.containsAnyMainParamCollections()) {
+						if (!paramManager.containsPatchedParamCollections()) {
 							FREEZE_WITH_ERROR("E101");
 						}
 					}

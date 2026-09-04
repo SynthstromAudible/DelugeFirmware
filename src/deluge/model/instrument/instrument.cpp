@@ -158,7 +158,12 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
 
-		Error error = newParamManager.cloneParamCollectionsFrom(getParamManager(modelStack->song), false, true);
+		ParamManager* sourceParamManager = getParamManager(modelStack->song);
+		if (!sourceParamManager->matches_type(toModControllable()->required_param_manager_type())) {
+			FREEZE_WITH_ERROR("E411");
+			return nullptr;
+		}
+		Error error = newParamManager.cloneParamCollectionsFrom(sourceParamManager, false, true);
 
 		if (error != Error::NONE) {
 			delugeDealloc(clipMemory);
