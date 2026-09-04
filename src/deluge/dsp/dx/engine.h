@@ -60,7 +60,7 @@ public:
 	FmCore engineModern;
 
 	gsl::owner<DxVoice*> solicitDxVoice();
-	void dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice);
+	static void dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice);
 	DxPatch* newPatch();
 };
 

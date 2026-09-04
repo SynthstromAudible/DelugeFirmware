@@ -32,6 +32,7 @@ class DxVoice;
 class VoiceUnisonPartSource {
 public:
 	VoiceUnisonPartSource() = default;
+	~VoiceUnisonPartSource();
 	bool noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t samplesLate,
 	            uint32_t oscPhase, bool resetEverything, SynthMode synthMode, uint8_t velocity);
 	void unassign(bool deletingSong);
