@@ -236,7 +236,7 @@ public:
 	/// leaves `qwertyVisible` false (`sample_browser.cpp:113`) and the layout defaults to
 	/// `FavouritesDefaultLayoutOff`; the override is what makes them *reachable*, not what makes them
 	/// false. The favourites row itself has no port counterpart -- see the coverage note in
-	/// `docs/superpowers/specs/2026-08-26-ui-migration.md` §10.4.
+	/// `docs/superpowers/specs/2026-08-26-ui-migration-design.md` §10.6.
 	bool isFavouritesVisible() override { return false; }
 	bool isBanksVisible() override { return false; }
 

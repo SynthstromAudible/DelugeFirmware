@@ -247,3 +247,96 @@ reader on the preemptive audio interrupt); `Browser`'s and `LoadInstrumentPreset
 **default-directory fallbacks are dead** (they test `FOLDER_DOESNT_EXIST` where the read path
 returns `FILE_NOT_FOUND`); and **the first gold-knob turn after boot is always swallowed**, which
 also means every committed UI-script golden depicts an arm the device never presents first.
+
+### 10.6 What the oracle actually covers for the three new scenes (2026-09-04, closing E3's final review)
+
+§10.3's first bullet says deleting the legacy tree deletes the oracle. **Read the deletion schedule
+against this number, not against the headline "the port matches legacy, proven by specs that run
+both".** For the *menu tree* that headline is close to true — sixteen specs drive the legacy
+`MenuItem` objects. For the three genuinely new UIs — `BrowserScene`, `MarkerScene`,
+`RecorderScene` — it was locally false until E3's final review, and even now the honest count is
+smaller than the file count suggests.
+
+**Covered** means: the spec drives the legacy entry point from *its own* inputs, on a model or
+catalogue reset to what the port started from, and compares the two answers. A comparison whose
+reference is computed from the port's own state proves nothing and is not counted; neither is a
+comparison against a transcription of legacy's body held in the spec file. Both existed on this
+branch and both are gone (the review's B1 and B2).
+
+**26 legacy entry points, across 27 comparison sites.**
+
+| scene | entry points driven from their own sentinel | comparison sites | spec |
+|---|---|---|---|
+| Browser | 14 | 6 | `sim/scenes_spec/browser_scene_spec.cpp` |
+| Marker | 11 | 18 | `sim/scenes_spec/marker_scene_spec.cpp` |
+| Recorder | 1 | 3 | `sim/scenes_spec/recorder_scene_spec.cpp` |
+
+**Browser** (`gui/ui/browser/browser.cpp` unless stated). `beginListing` (`:97`) and
+`runPendingListing` (`:126`); `openListingImpl` (`:349`); `arrivedInNewFolder` (`:367`);
+`readFileItemsFromFolderAndMemory` (`:280`); `selectEncoderAction` (`:549`), both its plain arm and
+its `newFileIndex < 0` wrap; `finishSelectEncoderAction` (`:702`); `clampFileSelectionAndScroll`
+(`:1009`); `setEnteredTextFromCurrentFilename` (`:1316`); `predictExtendedText` (`:782`);
+`Browser::padAction` (`:1186`) and `QwertyUI::padAction` (`gui/ui/qwerty_ui.cpp:202`);
+`goIntoFolder`/`goIntoFolderImpl` (`:1334`/`:1339`); `goUpOneDirectoryLevel`/`Impl` (`:1359`/`:1379`);
+`renderOLED` (`:925`), compared over the **full** 128x48 panel including the title rows. Each site
+compares `fileIndexSelected`, `scrollPosVertical`, `enteredText`, `enteredTextEditPos`,
+`scrollPosHorizontal` and the panel.
+
+**Marker** (`gui/ui/sample_marker_editor.cpp`). `selectEncoderAction` (`:268`); `padAction` (`:339`)
+main-column arms — move, select-and-hold, loop-start add, loop-start remove, loop-end remove,
+loop-lock toggle; `writeValue` (`:148`); `getColsOnScreen` (`:236`) with its four column helpers;
+`horizontalEncoderAction` (`:687`), zoom and scroll; `renderMainPads` (`:1362`) and, through it, the
+private `renderColumn` (`:1268`) and `renderMarkerInCol` (`:1058`) over four marker layouts and every
+blink phase; `renderOLED` (`:1098`); `reverseRemap` (`:83`); `loopLock`/`loopUnlock`;
+`WaveformNav::opened` as `SampleMarkerEditor::opened` calls it (`:126`).
+
+**Recorder** (`gui/ui/audio_recorder.cpp`). `renderOLED` (`:116`) and nothing else.
+
+**Pinned only to literals, with the reason each one is not drivable.** These are what a deletion
+loses outright.
+
+* Browser's cull-and-reload arms — `reloadImpl` (`:735`) and `selectEncoderAction`'s four reload
+  dispatches (`:637`, `:648`, `:665`, `:676`). They need `numFileItemsDeletedAtStart`/`AtEnd`
+  non-zero, i.e. a folder past `FILE_ITEMS_MAX_NUM_ELEMENTS`; no fixture builds one. **This is the
+  largest single gap** — it is the part of the browser most likely to be wrong and least likely to
+  be noticed.
+* `SampleBrowser::opened`'s configuration (`gui/ui/browser/sample_browser.cpp:96-172`) and
+  `SampleBrowser::enterKeyPress`'s folder arm (`:333-360`) are **transcribed** into the spec's
+  `SpecBrowser`, seven flags and one branch, each cited. `SampleBrowser` is `final` and `opened()`
+  dereferences `soundEditor.getCurrentAudioFileHolder()` and drives `actionLogger`,
+  `favouritesManager` and `instrumentClipView`, so it cannot run in a spec process. Everything past
+  the configuration — the listing, the search, the clamp, the prediction — is `Browser`'s own code,
+  executed.
+* The whole of `LoadMidiDeviceDefinitionUI`. `opened()` (`:45-47`) tests
+  `getRootUI()->toClipMinder()`, and `getRootUI()` indexes an empty UI stack in a spec process. The
+  MIDI browser is pinned by its descriptor table and its `start_at` against cited lines only.
+* `AudioRecorder`'s entire behaviour: `opened` (`:63`), `process` (`:194`), `buttonAction` (`:280`),
+  `slowRoutine` (`:168`), `finishRecording` (`:260`), `updateStatus`, `padAction`,
+  `getGreyoutColsAndRows` (`:58`). `process()` is an unbounded blocking loop that pumps
+  `AudioEngine::routineWithClusterLoading`, `deluge_display_service` and `readButtonsAndPads`;
+  `opened()` starts a real `SampleRecorder` on the audio engine through `setupRecordingToFile` and
+  drives `soundEditor`/`PadLEDs`/`indicator_leds`/`instrumentClipView`; `buttonAction`'s release arm
+  calls `getRootUI()->buttonAction` on a null root. **Of the three new scenes the recorder is the
+  one the oracle barely touches.**
+* `SampleMarkerEditor::timerCallback` (`:771`), which renders straight into `PadLEDs::image`. The
+  scene's blink is compared against `renderMainPads` instead, with the one place the two legacy
+  render paths disagree (phase 2) asserted in both directions.
+* A second consecutive zoom detent. A successful `WaveformBasicNavigator::zoom` leaves
+  `UI_MODE_HORIZONTAL_ZOOM` set until the `PadLEDs` transition completes, and nothing completes it
+  in a spec process, so legacy refuses the next detent where the port takes it. One detent is
+  compared; the mode is asserted.
+
+**No legacy counterpart at all** (not a gap, and not counted either way): the browser's favourites
+and banks rows and `setFileByFullPath` (`:230`); `createFolder`, `getUnusedSlot`,
+`currentFileDeleted`, `goIntoDeleteFileContextMenu`; `SampleBrowser`'s sample preview
+(`currentFileChanged`/`folderContentsReady`) and `claimCurrentFile` (`:398`), which the port defers;
+`SampleMarkerEditor::renderSidebar`, `verticalEncoderAction`, and `padAction`'s audition-column and
+mute-column arms.
+
+**What this means for §7 and §10.3.** The menu tree can be deleted against its own oracle. The three
+new scenes cannot be treated the same way: browser reload-under-cull and the audio recorder are
+carried by literals and by citations, not by a comparison, and no amount of golden recording
+strengthens that — a golden pins the port to itself. Either device-validate those two areas before
+the legacy files go, or keep `browser.cpp`, `sample_marker_editor.cpp` and `audio_recorder.cpp`
+alive behind a spec-only target for one more phase, which is the same choice §10.3 offers for
+`menus.cpp` and should be made once for both.

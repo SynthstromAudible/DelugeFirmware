@@ -730,7 +730,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	// `verticalEncoderAction`, which falls through to the UI beneath. The audition-column and
 	// mute-column arms of `padAction` (`sample_marker_editor.cpp:353-365`) reach
 	// `instrumentClipView` and `exitUI()`, neither of which this layer performs. Those are recorded
-	// as uncovered in `docs/superpowers/specs/2026-08-26-ui-migration.md` §10.4, not counted here.
+	// as uncovered in `docs/superpowers/specs/2026-08-26-ui-migration-design.md` §10.6, not counted here.
 
 	it("draws the same pads as SampleMarkerEditor::renderMainPads, four markers apart", _ {
 		Rig r;
