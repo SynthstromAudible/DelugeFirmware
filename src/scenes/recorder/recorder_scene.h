@@ -41,8 +41,9 @@
 /// `after_render()` is the hook the poll has to live in, for `BrowserScene`'s reason: it is the only
 /// one that can file an `Action`, and the shell calls it only for a scene that actually *drew* this
 /// tick (`shell/shell.cpp:360-364`). So `next_timer()` asks the shell back at `kRecorderPollMs`, and
-/// `Shell::tick`'s step 8b turns that answer into a repaint of every surface this scene is drawn on
-/// -- which is what makes the woken tick actually render, and therefore call `after_render()`.
+/// `Shell::tick`'s step 8b turns that answer into a repaint of every surface this scene both claims
+/// and is not covered on -- which is what makes the woken tick actually render, and therefore call
+/// `after_render()`.
 ///
 /// `render_oled` **also** arms the panel's gate itself, at the same interval. That arm predates the
 /// step-8b fold and is now a refinement rather than the load-bearing part; it is kept because it is
@@ -128,13 +129,14 @@
 /// E3 task 10's step-8b fold ended it, and did so through the *grid* rather than the panel.
 /// `PopupScene` is a grid overlay that composites nothing (`is_grid_overlay()` true, `dims_grid()`
 /// false), so this scene remains the grid **base** underneath it; `Shell::render_grid` draws and
-/// `append_rendered`s the base on every tick the grid gate fires. Step 8b arms *every* surface a
-/// scene is on at its `next_timer()` deadline -- deliberately, and stated as such at the site -- so
-/// the grid gate now fires at `kRecorderPollMs`, this scene enters `rendered_this_tick_`, and
-/// `after_render()` runs on schedule with the popup still up. Nothing about the OLED walk had to
-/// change, and neither of the two alternatives the stall's note rejected (making the scene
-/// `oled_transparent`, or moving the poll out of `after_render` where it could no longer file the
-/// `Remove`) was needed.
+/// `append_rendered`s the base on every tick the grid gate fires. Step 8b arms each surface this
+/// scene claims and is not covered on -- the grid, here, and (since the final review's A2) *not*
+/// the OLED panels the opaque popup covers -- so the grid gate fires at `kRecorderPollMs`, this
+/// scene enters `rendered_this_tick_`, and `after_render()` runs on schedule with the popup still
+/// up. The OLED half of that arm was pure cost: `flush` blits an OLED surface unconditionally once
+/// rendered, so it was a 100 Hz two-panel blit of a frame this scene was not even in. Nothing about the OLED walk had
+/// to change, and neither of the two alternatives the stall's note rejected (making the scene `oled_transparent`, or
+/// moving the poll out of `after_render` where it could no longer file the `Remove`) was needed.
 ///
 /// `recorder_scene_spec` pins the new behaviour where it used to pin the stall -- "notices
 /// completion while its own clipping popup is up, through the grid pass".

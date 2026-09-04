@@ -228,9 +228,11 @@ public:
 	/// @return The absolute deadline in milliseconds, or `std::nullopt` when nothing is armed --
 	///         the scheduler may then sleep until the next input. Recomputed at the end of every
 	///         `tick()` from the surface gates, the widgets' gate, every service's `next_timer()`,
-	///         and the `next_timer()` of every stacked scene whose `timer_repaints()` names no
-	///         surface at all -- a scene that names at least one already has its deadline read from
-	///         that surface's own gate, because `tick()`'s step 8b armed it there.
+	///         and the `next_timer()` of every stacked scene for which step 8b armed no gate at all
+	///         (`timer_arms_a_gate`) -- a scene whose timer did reach a gate already has its
+	///         deadline read from that gate. The three that reach the scene loop are the full
+	///         opt-out, a scene covered on every surface it claims, and an OLED-only claim on a
+	///         profile with no OLED surfaces.
 	std::optional<uint32_t> next_wake() const { return next_wake_; }
 
 	/// @name Inspection
@@ -289,6 +291,37 @@ private:
 	/// @param now_ms The tick's wall clock.
 	/// @param dt_ms  Milliseconds since the previous tick.
 	void tick_stack(uint32_t now_ms, uint32_t dt_ms);
+	/// @brief The lowest scene an OLED surface with role \p role actually draws.
+	///
+	/// Walk down from the top while each scene lets the one below show through
+	/// (`Scene::oled_transparent`); the scene that stops the walk is the lowest one that has to be
+	/// drawn. **Per role**, because transparency is declared per role.
+	///
+	/// Factored out of `render_oled` so step 8b's timer arming can ask the same question the render
+	/// answers -- a scene below this index cannot paint this surface, so arming its gate is a
+	/// repaint and a blit that nothing can see (E3 final review, A2).
+	///
+	/// @param role The surface's role.
+	/// @return The index into `stack_.scenes()`, or 0 for an empty stack.
+	size_t oled_lowest(SurfaceRole role) const;
+	/// @brief Would step 8b arm any gate for the scene at \p index?
+	///
+	/// The one-bool form of what step 8b does: a claimed surface only counts when this scene sits at
+	/// or above that surface's base, and the OLED half only counts when the profile has an OLED
+	/// surface at all. `compute_next_wake` asks it, because a scene that armed nothing has no gate
+	/// deadline standing in for its timer.
+	///
+	/// @param index    The scene's index into `stack_.scenes()`.
+	/// @param surfaces The scene's `timer_repaints()` claim.
+	/// @return True when at least one gate would be armed.
+	bool timer_arms_a_gate(size_t index, Scene::RepaintSurfaces surfaces);
+	/// @brief The lowest scene the pad grid actually draws: the topmost non-overlay scene.
+	///
+	/// Everything above it is a grid overlay by construction. A stack of nothing but overlays has no
+	/// base and starts at the root. Factored out of `render_grid` for the reason `oled_lowest` is.
+	///
+	/// @return The index into `stack_.scenes()`, or 0 for an empty stack.
+	size_t grid_base() const;
 	/// @brief Draw one OLED surface: the topmost opaque scene for its role, and everything above.
 	/// @param s The surface.
 	/// @return False when the surface could not be drawn (no `Style`), so the caller does not mark

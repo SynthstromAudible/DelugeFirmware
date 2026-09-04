@@ -422,7 +422,26 @@ void Shell::tick(uint32_t now_ms) {
 	// cadence, purely a grid concern) turned into both panels blitting unconditionally at that
 	// cadence, forever, with no pixel ever changing. `Scene::timer_repaints()`'s doc has the full
 	// account; `MenuScene::timer_repaints()` is the fix.
-	for (Scene* scene : stack_.scenes()) {
+	//
+	// **And only from where the scene can actually paint** (E3 final review, A2). A claim is a
+	// claim about surfaces, not about visibility, and the render functions draw from a base up:
+	// `render_grid` from `grid_base()`, `render_oled` from `oled_lowest(role)`, per role. A scene
+	// below that base is covered, so arming its gate buys a repaint it can never appear in --
+	// which on the OLED is a blit, since that flush has no diff. Two live cases, both regressions
+	// the fold itself introduced: a covered `MenuScene` with source pads on its focused node
+	// (exactly the node that opens Browser/Marker/Recorder) kept the grid gate at 20 ms for the
+	// whole life of the scene above it, where pre-fold that arm lived inside `MenuScene::render_grid`
+	// and simply stopped being called; and `RecorderScene`, whose own opaque clipping `PopupScene`
+	// covers it on the OLED, armed every OLED gate every 10 ms for the popup's lifetime -- a 100 Hz
+	// two-panel blit with no pixel changing. The per-surface mask cannot see either one: the surface
+	// is the right surface, the scene is just not the drawn one.
+	//
+	// `Shell::timer_arms_a_gate` is the same question asked as one bool, and `compute_next_wake`
+	// asks it -- a scene that armed nothing here has no gate deadline standing in for its timer.
+	const std::span<Scene* const> timer_scenes = stack_.scenes();
+	const size_t base = grid_base();
+	for (size_t k = 0; k < timer_scenes.size(); k++) {
+		Scene* const scene = timer_scenes[k];
 		const Scene::RepaintSurfaces surfaces = scene->timer_repaints();
 		if (!surfaces.any()) {
 			continue;
@@ -433,10 +452,12 @@ void Shell::tick(uint32_t now_ms) {
 		}
 		if (surfaces.oled) {
 			for (OledSurface& s : surfaces_.oled()) {
-				s.gate.request_repaint_after(*in, now_ms);
+				if (k >= oled_lowest(s.role)) {
+					s.gate.request_repaint_after(*in, now_ms);
+				}
 			}
 		}
-		if (surfaces.grid) {
+		if (surfaces.grid && k >= base) {
 			surfaces_.grid().gate.request_repaint_after(*in, now_ms);
 		}
 	}
@@ -528,6 +549,45 @@ void Shell::append_rendered(Scene* scene) {
 	(void)rendered_this_tick_.push_back(scene);
 }
 
+size_t Shell::oled_lowest(SurfaceRole role) const {
+	const std::span<Scene* const> scenes = stack_.scenes();
+	if (scenes.empty()) {
+		return 0;
+	}
+	// The port of `OLED::sendMainImage`'s if-chain (`hid/display/oled.cpp:364-376`), which asked the
+	// same question with two hard-coded layers (console over main, popup over that) and a
+	// `copyBackgroundAroundForeground` blit per layer; here it is a property each scene declares.
+	size_t lowest = scenes.size() - 1;
+	while (lowest > 0 && scenes[lowest]->oled_transparent(role)) {
+		lowest--;
+	}
+	return lowest;
+}
+
+bool Shell::timer_arms_a_gate(size_t index, Scene::RepaintSurfaces surfaces) {
+	if (surfaces.grid && index >= grid_base()) {
+		return true;
+	}
+	if (surfaces.oled) {
+		for (OledSurface& s : surfaces_.oled()) {
+			if (index >= oled_lowest(s.role)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+size_t Shell::grid_base() const {
+	const std::span<Scene* const> scenes = stack_.scenes();
+	for (size_t k = scenes.size(); k-- > 0;) {
+		if (!scenes[k]->is_grid_overlay()) {
+			return k;
+		}
+	}
+	return 0;
+}
+
 bool Shell::render_oled(OledSurface& s) {
 	// A surface with no style cannot be drawn (`surfaces.h`: "such a surface must not be
 	// rendered"), and a board profile that leaves one null is a profile bug, not a frame to guess
@@ -540,15 +600,9 @@ bool Shell::render_oled(OledSurface& s) {
 	if (scenes.empty()) {
 		return true;
 	}
-	// Walk down from the top while each scene lets the one below show through; the scene that
-	// stops the walk is the lowest one that has to be drawn. This is the port of
-	// `OLED::sendMainImage`'s if-chain (`hid/display/oled.cpp:364-376`), which asked the same
-	// question with two hard-coded layers (console over main, popup over that) and a
-	// `copyBackgroundAroundForeground` blit per layer; here it is a property each scene declares.
-	size_t lowest = scenes.size() - 1;
-	while (lowest > 0 && scenes[lowest]->oled_transparent(s.role)) {
-		lowest--;
-	}
+	// The lowest scene that has to be drawn -- the same walk step 8b's arming reads, so there is one
+	// copy of it (`Shell::oled_lowest`).
+	const size_t lowest = oled_lowest(s.role);
 	Scene* const focus = &stack_.input_top();
 	for (size_t k = lowest; k < scenes.size(); k++) {
 		// Exactly one scene per pass owns the tick's input, and it is the same one the router hands
@@ -592,15 +646,9 @@ void Shell::render_grid(uint32_t now_ms) {
 	if (scenes.empty()) {
 		return;
 	}
-	// The base is the topmost scene that is not a grid overlay; everything above it is one, by
-	// construction. A stack of nothing but overlays has no base and starts at the root.
-	size_t base = 0;
-	for (size_t k = scenes.size(); k-- > 0;) {
-		if (!scenes[k]->is_grid_overlay()) {
-			base = k;
-			break;
-		}
-	}
+	// The topmost scene that is not a grid overlay -- the same walk step 8b's arming reads, so there
+	// is one copy of it (`Shell::grid_base`).
+	const size_t base = grid_base();
 	const bool has_overlay = scenes.size() > base + 1;
 	// Spec D §7 dims "if any overlay is above", but an overlay that composites nothing may opt out
 	// (`Scene::dims_grid`) -- a popup must not halve the brightness of a grid it never touches.
@@ -908,17 +956,24 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	consider(surfaces_.grid().gate.next_deadline());
 	consider(lowering_.ctx().gate.next_deadline());
 	consider(mirror_.next_deadline());
-	for (Scene* scene : stack_.scenes()) {
-		// Only the full opt-outs (`RepaintSurfaces::any() == false`). Any scene whose timer arms at
-		// least one surface had `tick`'s step 8b arm it at exactly this deadline already, and the
-		// gate loops above have already read it -- restating it here would compute the same number
-		// twice. A scene arming only the grid (say) still has its deadline read by the grid-gate
-		// loop above, so it needs no entry here either; this loop exists only for the timer that
-		// arms nothing at all, which is the one case with no gate deadline to fall back on.
-		if (scene->timer_repaints().any()) {
+	// Every scene whose timer did NOT reach a gate. The skip is on the *arm having happened*, not on
+	// the mask being non-empty (E3 final review, A3): step 8b arms a scene's claimed surfaces only
+	// where that scene can actually paint, so three cases reach this loop with no gate deadline
+	// standing in for them -- the full opt-out (`RepaintSurfaces::any() == false`), a scene covered
+	// on every surface it claims, and an OLED-only claim on a profile with no OLED surfaces. The
+	// mask-only test missed the last of those even before A2.
+	//
+	// A covered scene still needs the wake, which is why this is not "a scene that can paint nothing
+	// needs no wake": `Shell::tick_stack` calls `Scene::tick(dt)` on every scene down to the first
+	// `occludes_grid()`, whatever the render pass decides, so a covered scene's clock still advances
+	// and the moment it asked to be woken at is still the moment it wants to be ticked at. (What it
+	// does *not* get while covered is `after_render()`, which runs only for `rendered_this_tick_`.)
+	const std::span<Scene* const> scenes = stack_.scenes();
+	for (size_t k = 0; k < scenes.size(); k++) {
+		if (timer_arms_a_gate(k, scenes[k]->timer_repaints())) {
 			continue;
 		}
-		if (const std::optional<uint32_t> in = scene->next_timer(); in.has_value()) {
+		if (const std::optional<uint32_t> in = scenes[k]->next_timer(); in.has_value()) {
 			consider(now_ms + *in);
 		}
 	}

@@ -368,9 +368,9 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 	// input arrives, and the scene sits on "Waiting" over a recorder that finished minutes ago.
 	// Until E3 task 10 this line was the only thing that stopped that happening -- `next_timer()`
 	// woke the shell without marking the panel dirty (`RepaintGate::needs_frame`) -- and it is now
-	// the tighter half of a pair, `Shell::tick`'s step 8b arming every surface from `next_timer()`
-	// itself. Legacy has no equivalent either way, because `process()` is a busy loop with
-	// `OLED::sendMainImage()` inside it.
+	// the tighter half of a pair, `Shell::tick`'s step 8b arming from `next_timer()` itself every
+	// surface this scene claims and is not covered on. Legacy has no equivalent either way, because `process()` is a
+	// busy loop with `OLED::sendMainImage()` inside it.
 	if (recorder_ != nullptr) {
 		f.gate().request_repaint_after(kRecorderPollMs, now);
 	}

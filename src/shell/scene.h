@@ -428,6 +428,14 @@ public:
 	/// poll updates the OLED word AND, through the grid, keeps running under its own popup
 	/// (`recorder_scene.h`'s class note) -- takes the default and pays for both, correctly.
 	///
+	/// **A claim, not a prediction -- and only honoured where the scene can paint** (E3 final
+	/// review, A2). The render functions draw from a base up: `Shell::render_grid` from
+	/// `Shell::grid_base()`, `Shell::render_oled` from `Shell::oled_lowest(role)`, per role. Step 8b
+	/// arms a claimed surface only for a scene at or above that surface's base, because a covered
+	/// scene arming a gate buys a repaint it can never appear in -- and on the OLED that is a blit.
+	/// A covered scene loses nothing else: `compute_next_wake` still wakes the shell at its
+	/// deadline, and `Shell::tick_stack` still calls `tick(dt)` on it.
+	///
 	/// @return `{true, true}` (the default) to arm both kinds of surface at the timer's deadline;
 	///         `{false, false}` for a timer with no visible consequence at all -- state a later
 	///         input will read, a deadline that only matters once something else happens -- which
@@ -435,7 +443,10 @@ public:
 	struct RepaintSurfaces {
 		bool oled = true;
 		bool grid = true;
-		/// @brief Whether this asks for anything at all -- `compute_next_wake`'s own opt-out test.
+		/// @brief Whether this asks for anything at all -- the full opt-out. **Not** the test
+		///        `compute_next_wake` skips on: that one is `Shell::timer_arms_a_gate`, which also
+		///        answers false for a covered scene and for an OLED-only claim on a profile with no
+		///        OLED surfaces.
 		constexpr bool any() const { return oled || grid; }
 	};
 	virtual RepaintSurfaces timer_repaints() const { return {}; }

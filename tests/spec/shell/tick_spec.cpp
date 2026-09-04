@@ -514,6 +514,77 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.base.oled_renders).to_equal(oled_after_first);
 	});
 
+	it("a covered scene arms no grid gate, however loudly its timer claims one", _ {
+		// E3 final review, A2 -- and a regression the fold itself introduced. `Shell::render_grid`
+		// draws from the grid BASE up, so a scene underneath a non-overlay scene cannot paint the
+		// grid at all; step 8b nevertheless armed from every stacked scene. Live consequence: a
+		// covered `MenuScene` whose focused node has source pads -- exactly the node that opens
+		// Browser/Marker/Recorder -- kept the grid gate firing at 20 ms for the whole life of the
+		// scene above it. Pre-fold that arm lived inside `MenuScene::render_grid`, which simply
+		// stops being called when covered.
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.overlay.overlay = false;    // NOT a grid overlay, so it becomes the grid base itself
+		r.overlay.transparent = true; // the OLED is not what this example is about
+		r.shell.init({kBase, 0});
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		r.base.timer = 20;
+		r.base.timer_repaints_ = Scene::RepaintSurfaces{.oled = false, .grid = true};
+		r.shell.tick(0);
+		const int grid_after_first = r.base.grid_renders;
+		expect(grid_after_first).to_equal(0); // covered: it never drew the grid at all
+
+		// The gate itself, not a proxy for it: nothing armed a deadline on a surface this scene
+		// cannot appear on. (`request_repaint()` from the stack change sets a flag, not a deadline.)
+		expect(r.fake.grid().gate.next_deadline().has_value()).to_be_false();
+
+		// It still gets its wake, and its `tick(dt)` with it -- `Shell::tick_stack` advances every
+		// scene down to the first `occludes_grid()` whatever the render pass decides, so the
+		// deadline moves to `compute_next_wake`'s own loop rather than disappearing (A3).
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(20));
+		const int ticks_after_first = r.base.ticks;
+		r.shell.tick(20);
+		r.shell.tick(40);
+		r.shell.tick(60);
+		expect(r.base.ticks).to_equal(ticks_after_first + 3);
+		expect(r.base.grid_renders).to_equal(grid_after_first);
+		expect(r.fake.grid().gate.next_deadline().has_value()).to_be_false();
+	});
+
+	it("a covered OLED timer under an opaque popup arms no panel gate and costs no blit", _ {
+		// E3 final review, A2: task 10 fix round 1's blit regression, one level up. `RecorderScene`
+		// takes the default `{oled, grid}` claim with a 10 ms poll, and its own clipping
+		// `PopupScene` is opaque on the OLED -- so while that popup was up, step 8b armed every
+		// OLED gate every 10 ms and `flush` blits an OLED surface unconditionally once rendered:
+		// a 100 Hz two-panel blit for the popup's lifetime, with no pixel ever changing. The
+		// per-surface mask cannot catch this one -- the surface is the right surface, the scene is
+		// just not the drawn one.
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.overlay.overlay = true;      // a grid overlay, as `PopupScene` is
+		r.overlay.transparent = false; // and opaque on the OLED, as `PopupScene` is
+		r.shell.init({kBase, 0});
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		r.base.timer = 10;
+		r.base.timer_repaints_ = Scene::RepaintSurfaces{.oled = true, .grid = false};
+		r.shell.tick(0);
+		const size_t blits_after_first = r.fake.blits.size();
+		expect(r.base.oled_renders).to_equal(0); // covered on both panels
+
+		expect(r.fake.oled()[0].gate.next_deadline().has_value()).to_be_false();
+		expect(r.fake.oled()[1].gate.next_deadline().has_value()).to_be_false();
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(10)); // the wake survives (A3)
+
+		// Ten poll periods of the popup's lifetime: not one blit, not one render.
+		for (uint32_t t = 10; t <= 100; t += 10) {
+			r.shell.tick(t);
+		}
+		expect(r.fake.blits.size()).to_equal(blits_after_first);
+		expect(r.base.oled_renders).to_equal(0);
+	});
+
 	it("renders each OLED surface with its own role and geometry", _ {
 		deluge::notify::dirty().drain();
 		Rig r;

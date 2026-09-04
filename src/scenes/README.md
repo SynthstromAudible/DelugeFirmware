@@ -77,10 +77,12 @@ Rules:
    `deluge::scenes`.
 3. No heap in library code; no wall clock — `Scene::next_timer()` is how a blink stays alive, and
    since E3 task 10 that is nearly all it takes: `Shell::tick`'s step 8b arms the surfaces the
-   scene's `Scene::timer_repaints()` mask names at the deadline the hook returns, so a scene no
-   longer has to remember a matching `RepaintGate::request_repaint_after` from inside its own
-   `render_*`. Several still make one, more tightly, where the scene's single interval is coarser
-   than the phase actually being drawn.
+   scene's `Scene::timer_repaints()` mask names — **of those it is not covered on** — at the
+   deadline the hook returns, so a scene no longer has to remember a matching
+   `RepaintGate::request_repaint_after` from inside its own `render_*`. Several still make one, more
+   tightly, where the scene's single interval is coarser than the phase actually being drawn. A
+   covered scene arms nothing and is woken by `compute_next_wake` instead, so its `tick(dt)` still
+   lands on its own cadence.
 
    **The mask is per surface (`{oled, grid}`), not a boolean opt-out**, and the reason is a real
    cost rather than tidiness: the grid's flush diffs against `last_sent` and blits nothing when a
@@ -666,7 +668,19 @@ Two shell-level corrections this plan made, both of which change how a scene ask
   scenes shipped with that bug (E2's cursor blink, then the marker blink, then the recorder's
   completion poll, where it costs more than an animation: without the arm `after_render` never runs
   on a quiet tick and the recording never notices it finished). `Shell::tick` step 8b now folds the
-  two together, arming every surface a stacked scene is drawn on at its own `next_timer()` deadline.
+  two together, arming, at a scene's own `next_timer()` deadline, the surfaces it claims **and can
+  actually paint**.
+* **"Can actually paint" is the whole of the third correction** (final review, A2). The first cut
+  armed from every stacked scene, but the render functions draw from a base up — `render_grid` from
+  the grid base (`Shell::grid_base`), `render_oled` from that role's lowest opaque scene
+  (`Shell::oled_lowest`) — so a *covered* scene armed a gate it could never appear in. Two live
+  costs: a covered `MenuScene` with source pads on its focused node kept the grid gate at 20 ms for
+  the whole life of the scene above it, and `RecorderScene` under its own opaque clipping popup
+  armed both OLED panels every 10 ms, which is a 100 Hz two-panel blit with no pixel changing. The
+  per-surface mask below cannot catch either: the surface is the right surface, the scene is just
+  not the drawn one. Step 8b and the render functions now ask the same two helpers, and
+  `compute_next_wake` skips a scene only when an arm **actually happened** — a covered scene still
+  needs its wake, because `tick_stack` advances its clock whatever the render pass decides.
 * **The fold is per-surface, and all-or-nothing was wrong.** `Scene::timer_repaints()` returns
   `RepaintSurfaces{oled, grid}`, defaulting to both. It has to, because **the two flushes are not
   alike**: the grid's diffs against `last_sent` and sends nothing when a repaint changed no pixel,

@@ -779,3 +779,41 @@ goldens.
 Recorded because the defect was **a doc claim the type system could not support** — a `SurfaceRole`
 enum with no grid member, under a comment promising every surface. A reader had no way to find that
 out except by tracing `tick`.
+
+### 15.3 Step 8b arms only where the scene can paint, and `compute_next_wake` skips only a real arm
+
+§15.1 fixed *which surfaces* a timer claims. It left *whose* timer claims them unexamined, and the
+final review found that half wrong too.
+
+**The render functions draw from a base up.** `Shell::render_grid` draws only from the grid base —
+the topmost non-overlay scene — and `Shell::render_oled` only from `lowest`, found by walking down
+while `oled_transparent(role)` and computed **per surface role**. Step 8b iterated
+`stack_.scenes()` unconditionally, so a covered scene armed a gate it structurally could not paint
+through. Two live consequences, both introduced by the fold itself:
+
+* A covered `MenuScene` whose focused node has source pads — exactly the node that opens
+  Browser/Marker/Recorder — kept arming the grid gate at 20 ms for the whole life of the scene above
+  it. Pre-fold that arm lived inside `MenuScene::render_grid`, which stops being called when covered.
+* `RecorderScene` takes the `{oled, grid}` default with a 10 ms poll, and its own clipping
+  `PopupScene` is opaque, so while that popup is up step 8b armed every OLED gate every 10 ms and
+  `flush` blits unconditionally: a **100 Hz two-panel blit** for the popup's lifetime. This is
+  §15.1's regression one level up, and the per-surface mask cannot see it — the surface is the right
+  surface, the scene is not the drawn one.
+
+The two base computations are now `Shell::grid_base()` and `Shell::oled_lowest(SurfaceRole)`, called
+by both the render functions and step 8b, so there is one copy of each walk. `tick_spec` covers both
+consequences directly on the gate and on the blit count: reverting either arm test fails them (the
+OLED one goes from 2 blits to 22 over ten poll periods).
+
+**`compute_next_wake`'s skip is now conditional on the arm, not on the mask.** It skipped any scene
+whose `timer_repaints().any()`, on the premise that step 8b had already armed a gate carrying that
+deadline. After the change that premise is false for a covered scene — and it was already false, even
+before it, for an OLED-only claim on a profile with no OLED surfaces. `Shell::timer_arms_a_gate` is
+the same predicate step 8b applies, asked as one bool.
+
+The answer is *not* "a scene that can paint nothing needs no wake". `Shell::tick_stack` calls
+`Scene::tick(dt)` on every scene down to the first `occludes_grid()`, whatever the render pass
+decides, so a covered scene's clock still advances and the moment it asked to be woken at is still
+the moment it wants to be ticked at. (What a covered scene does not get is `after_render()`, which
+runs only for `rendered_this_tick_` — which is why `RecorderScene` survives its own popup through the
+*grid* pass, where `PopupScene` is an overlay and the recorder is still the base.)

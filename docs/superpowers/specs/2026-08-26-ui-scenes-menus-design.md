@@ -1428,6 +1428,15 @@ spelling. The spec drives the **real** flag rather than a stub: `recorder_scene_
 `in_sd_routine` runs the poll tick inside `yieldingRoutineForSD`, the BSP's own card busy-wait hook
 and the only thing anywhere that makes `isSDRoutineActive()` true.
 
+**A2/A3 — step 8b armed from scenes that structurally cannot paint.** A covered `MenuScene` with
+source pads kept the grid gate at 20 ms, and `RecorderScene` under its own opaque clipping popup
+armed both OLED panels every 10 ms. Both are shell-side; the full account is the shell design spec's
+§15.3, and `src/scenes/README.md`'s "Repaint and the timer fold" carries the contributor-facing
+version. What matters here is the rule a scene author now relies on: **a timer arms the surfaces the
+scene claims and is not covered on, and a covered scene is still woken** — `Shell::tick_stack`
+advances every scene's clock whatever the render pass decides, so `next_timer()` remains a promise
+about `tick(dt)` even when nothing is drawn for it.
+
 ## 14. Citations into legacy source: the convention
 
 Every claim in `src/scenes/**`, `src/ui/**` and the spec trees is justified by a citation into
