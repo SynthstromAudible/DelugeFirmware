@@ -158,8 +158,8 @@ PLACE_SDRAM_RODATA constexpr RGB mono_mod_shortcut_colours [][kDisplayHeight] = 
 
 //clang-format on
 
-void SoundEditor::renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWidth],
-                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) const
+void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB image[][kDisplayWidth + kSideBarWidth],
+								 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth])
 {
 	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
 	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
@@ -168,13 +168,15 @@ void SoundEditor::renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWi
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++)
 		{
 			auto [menuitem, _] = get_basic_shortcut_action(xDisplay, yDisplay);
-			D_PRINTLN("x: %d y: %d item: %x", xDisplay, yDisplay, menuitem);
-
-			if ( menuitem)
+			if (menuitem && (menuitem != comingSoonMenu))
 			{
-				image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
-				occupancyMask[yDisplay][xDisplay] = 64;
+				if (forThing && menuitem->isRelevant(forThing, 0))
+				{
+					image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
+					occupancyMask[yDisplay][xDisplay] = 64;
+				}
 			}
+			D_PRINTLN("done");
 		}
 	}
 }
@@ -197,7 +199,7 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	D_PRINTLN("rendering pad colours");
 
-	renderMainShortcutsOnly(image, occupancyMask);
+	renderMainShortcutsOnly(currentSound, image, occupancyMask);
 
 
 	MenuItem* item = getCurrentMenuItem();
@@ -1246,7 +1248,7 @@ void SoundEditor::markInstrumentAsEdited() {
 	}
 }
 
-std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, int32_t y) const
+std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, int32_t y)
 {
 	MenuItem* item = nullptr;
 	bool do_sound_checks = false;
@@ -1257,7 +1259,7 @@ std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, in
 	}
 
 	// For Kit Instrument Clip with Affect Entire Enabled
-	else if (setupKitGlobalFXMenu) {
+	else if (getCurrentInstrumentClip()->affectEntire) {
 		// only handle the shortcut for velocity in the mod sources column
 		if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
 			item = paramShortcutsForKitGlobalFX[x][y];
