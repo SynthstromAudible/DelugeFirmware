@@ -67,7 +67,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return 16; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->polyphonic == PolyphonyMode::POLY);
 	}

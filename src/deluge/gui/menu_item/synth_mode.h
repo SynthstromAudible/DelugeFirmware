@@ -66,7 +66,7 @@ public:
 		};
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->sources[0].oscType <= kLastRingmoddableOscType
 		        && sound->sources[1].oscType <= kLastRingmoddableOscType);

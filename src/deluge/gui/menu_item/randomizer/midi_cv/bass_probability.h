@@ -32,7 +32,7 @@ public:
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
 		soundEditor.currentArpSettings->bassProbability = value;
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingMidiDrumRow())
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}

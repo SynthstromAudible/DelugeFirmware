@@ -59,8 +59,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 
 - Pull requests that change how users can interact with the device or massively alter system performance (> 3% permanent
   cycle load) require either:
-  - A runtime configuration setting that allows users to enable or disable the feature/change in behavior. See
-    documentation on adding optional feature settings (Pull request #56).
+  - A runtime configuration setting that allows users to enable or disable the feature/change in behavior. (See steps below for adding a runtime feature setting).
   - Or if a runtime setting is not possible, a preprocessor switch that allows creating firmware without the change.
 - Changes that massively increase image size (> 5% of total memory) also require a preprocessor switch starting with "
   FEATURE\_" so they can be enabled or disabled.
@@ -75,6 +74,18 @@ The following requirements must be fulfilled for a Pull request to be mergable t
   the [CommunityFeatures.md](/features/community_features) file needs to be created in the preexisting style describing the
   feature and its options as a small manual to users. This includes all runtime and compile time flags which shall be
   named in respective sections.
+
+#### Adding a Runtime Feature Setting (Community Feature)
+
+To add a new runtime feature setting:
+1. **Declare the setting**: In `src/deluge/model/settings/runtime_feature_settings.h`, add an enum value to `enum RuntimeFeatureSettingType` before `MaxElement`.
+2. **Add localization**:
+   - `src/deluge/gui/l10n/strings.h`: Add `STRING_FOR_COMMUNITY_FEATURE_...` to `enum class String`.
+   - `src/deluge/gui/l10n/english.json`: Add the string entry with the display name for OLED.
+   - `src/deluge/gui/l10n/seven_segment.json`: Add the 4-letter abbreviation for 7-segment displays (if applicable).
+3. **Initialize the setting**: In `src/deluge/model/settings/runtime_feature_settings.cpp`, inside `RuntimeFeatureSettings::init()`, call `SetupOnOffSetting(...)` with the enum, localized string, XML tag name, and default value.
+4. **Add to the settings menu**: In `src/deluge/gui/menu_item/runtime_feature/settings.cpp`, create a `SettingToggle` instance and add its pointer to `subMenuEntries`.
+5. **Guard the feature logic**: In your code, check `runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::...)` or `runtimeFeatureSettings.get(...)`.
 
 </details>
 <details><summary>UI Changes</summary>

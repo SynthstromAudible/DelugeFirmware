@@ -25,7 +25,7 @@ public:
 	PatchedParam(l10n::String newName, l10n::String title, int32_t newP, uint8_t source_id)
 	    : Integer(newName, title, newP), source_id_(source_id) {}
 
-	uint8_t getP() override { return menu_item::PatchedParam::getP() + source_id_; }
+	uint8_t getP() const override { return menu_item::PatchedParam::getP() + source_id_; }
 
 protected:
 	uint8_t source_id_;

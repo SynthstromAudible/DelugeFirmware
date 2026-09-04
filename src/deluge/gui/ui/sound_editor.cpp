@@ -167,10 +167,10 @@ void SoundEditor::renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWi
 	{
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++)
 		{
-			const auto* menuitem = check_basic_shortcut_for_press(xDisplay, yDisplay);
-			if (menuitem == nullptr)
-			if ( menuitem and menuitem->
-				isRelevant(currentSound, 0))
+			auto [menuitem, _] = get_basic_shortcut_action(xDisplay, yDisplay);
+			D_PRINTLN("x: %d y: %d item: %x", xDisplay, yDisplay, menuitem);
+
+			if ( menuitem)
 			{
 				image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
 				occupancyMask[yDisplay][xDisplay] = 64;
@@ -201,32 +201,34 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 
 	MenuItem* item = getCurrentMenuItem();
-
-	auto param = item->getParamIndex();
-
-	auto patchable = item->getParamKind() == params::Kind::PATCHED;
-
-	if (patchable)
+	if (item)
 	{
-		// canary - if the local lfo (lfo 2 to users) can't patch then it's a global patched param
-		if (currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param, soundEditor.currentParamManager)
-			== PatchCableAcceptance::DISALLOWED)
+		auto param = item->getParamIndex();
+
+		auto patchable = item->getParamKind() == params::Kind::PATCHED;
+
+		if (patchable)
 		{
-			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+			// canary - if the local lfo (lfo 2 to users) can't patch then it's a global patched param
+			if (currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param, soundEditor.currentParamManager)
+				== PatchCableAcceptance::DISALLOWED)
 			{
-				for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
 				{
-					image[yDisplay][xDisplay] = mono_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+					for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+					{
+						image[yDisplay][xDisplay] = mono_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+					}
 				}
 			}
-		}
-		else
-		{
-			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+			else
 			{
-				for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
 				{
-					image[yDisplay][xDisplay] = poly_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+					for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+					{
+						image[yDisplay][xDisplay] = poly_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+					}
 				}
 			}
 		}
@@ -1244,6 +1246,40 @@ void SoundEditor::markInstrumentAsEdited() {
 	}
 }
 
+std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, int32_t y) const
+{
+	MenuItem* item = nullptr;
+	bool do_sound_checks = false;
+	if (!rootUIIsClipMinderScreen()) {
+		if (x <= (kDisplayWidth - 2)) {
+			item = paramShortcutsForSongView[x][y];
+		}
+	}
+
+	// For Kit Instrument Clip with Affect Entire Enabled
+	else if (setupKitGlobalFXMenu) {
+		// only handle the shortcut for velocity in the mod sources column
+		if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
+			item = paramShortcutsForKitGlobalFX[x][y];
+		}
+
+	}
+
+	// AudioClips - there are just a few shortcuts
+	else if (getCurrentClip()->type == ClipType::AUDIO) {
+
+		if (x <= 14) {
+			item = paramShortcutsForAudioClips[x][y];
+		}
+	}
+	else
+	{
+		item = paramShortcutsForSounds[x][y];
+		do_sound_checks = true;
+	}
+	return {item, do_sound_checks};
+}
+
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
@@ -1273,39 +1309,13 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		const MenuItem* item = nullptr;
 
 		// session views (arranger, song, performance)
-		if (!rootUIIsClipMinderScreen()) {
-			if (x <= (kDisplayWidth - 2)) {
-				item = paramShortcutsForSongView[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		// For Kit Instrument Clip with Affect Entire Enabled
-		else if (setupKitGlobalFXMenu) {
-			// only handle the shortcut for velocity in the mod sources column
-			if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
-				item = paramShortcutsForKitGlobalFX[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		// AudioClips - there are just a few shortcuts
-		else if (getCurrentClip()->type == ClipType::AUDIO) {
-
-			if (x <= 14) {
-				item = paramShortcutsForAudioClips[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		else {
+		auto [potential_item, do_sound_checks] = get_basic_shortcut_action(x, y);
+		item = potential_item;
+		if (do_sound_checks) {
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
 			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
 			           == RuntimeFeatureStateToggle::On) {

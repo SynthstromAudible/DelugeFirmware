@@ -140,6 +140,8 @@ public:
 	bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) override;
 	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void markInstrumentAsEdited();
+	/// Checks ONLY the basic top level shortcut. Does not handle layers or whether patch cables are possible
+	std::tuple<MenuItem*, bool> get_basic_shortcut_action(int32_t x, int32_t y) const;
 	bool editingCVOrMIDIClip();
 	bool editingNonAudioDrumRow();
 	bool editingMidiDrumRow();

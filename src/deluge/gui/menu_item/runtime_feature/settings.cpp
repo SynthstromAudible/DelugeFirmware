@@ -33,7 +33,7 @@ namespace deluge::gui::menu_item::runtime_feature {
 class OledOnlySettingToggle : public SettingToggle {
 public:
 	using SettingToggle::SettingToggle;
-	bool isRelevant(ModControllableAudio*, int32_t) override { return display->haveOLED(); }
+	bool isRelevant(ModControllableAudio*, int32_t) const override { return display->haveOLED(); }
 };
 
 // The RoundedCorners toggle additionally pushes its value into the Canvas drawing flag,
