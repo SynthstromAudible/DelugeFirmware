@@ -109,7 +109,7 @@ bool LoadPatternUI::opened() {
 	std::string searchFilename = setupForLoadingPattern(); // Sets currentDir.
 	// The listing happens async: dispatch it and return optimistically. Failure goes through the
 	// base Browser::onListingFailed() (displayError + close()) once the listing completes.
-	beginListing(
+	beginListingOrRetryLater(
 	    {.action = ListingAction::Open, .direction = 0, .filenameToStartAt = searchFilename, .defaultDir = defaultDir});
 
 	return true;

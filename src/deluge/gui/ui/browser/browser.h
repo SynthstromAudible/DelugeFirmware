@@ -183,10 +183,50 @@ protected:
 	/// flag (retried on the next HID event).
 	/// @param req The listing to run.
 	/// @return True if the listing was actually dispatched (queued or run inline), false if the
-	///         dispatch was dropped (owner queue full) — callers that mutate state before calling
-	///         this that only a completed listing would reconcile must check the return and revert
-	///         on false.
+	///         dispatch was refused — either the catalogue claim was already held, or the owner
+	///         queue was full. Callers that mutate state before calling this that only a completed
+	///         listing would reconcile must check the return and revert on false; the callers that
+	///         deliberately do not are spelled `beginListingOrRetryLater`, whose doc is where the
+	///         reasoning lives.
 	bool beginListing(ListingRequest req);
+	/// @brief `beginListing`, at a call site that deliberately does not act on a refused dispatch.
+	///
+	/// **The refusal is real; ignoring it is a decision, and this name is what makes the decision
+	/// visible at the site** (E3 final review, A4 — every one of these sites used to be a bare
+	/// discarded `bool`). There are exactly two ways to be refused:
+	///
+	/// * **The catalogue claim was already held** (`FileCatalogue::claim`). Every legacy HID entry
+	///   point that can reach a listing is already gated on `listingInProgress_`
+	///   (`Browser::selectEncoderAction`, `Browser::padAction`, `Browser::mainButtonAction`,
+	///   `Browser::backButtonAction`), so a browser cannot collide with its own in-flight listing,
+	///   and only one browser is on the UI stack at a time. The only other claimant this tree has is
+	///   `deluge::scenes::browser::Listing`, and **nothing links `deluge_scenes`** — so today this
+	///   arm cannot be taken at all.
+	///
+	///   That, and only that, is what makes ignoring the result behaviour-preserving, and **the
+	///   claim is conditional on the wiring**. A scenes seam in shipping firmware holds its claim
+	///   across ticks by design (until `take_result()`), so it really could refuse one of these
+	///   dispatches. What would have to change then: each site would have to retry on the next tick
+	///   or tell the user, and `setFileByFullPath`, `goIntoFolder` and `goUpOneDirectoryLevel` would
+	///   have to stop returning `Error::NONE` unconditionally — their `Error` is a claim about the
+	///   *dispatch*, since every listing outcome is reported from `runPendingListing` on the fiber
+	///   (`onListingFailed`) and never through those returns.
+	/// * **The storage owner's queue was full** (`deluge::storage::Owner::run`). Reachable today on
+	///   the BSP that queues rather than running the op inline. `beginListing` has already undone
+	///   everything it did before that point — the flag, the claim, the loading animation — so the
+	///   browser is exactly as it was and the user's next event re-dispatches.
+	///
+	/// The one piece of state a refused dispatch leaves behind is `scrollPosVertical`, which
+	/// `Browser::selectEncoderAction`'s four reload arms set before dispatching.
+	/// `Browser::clampFileSelectionAndScroll` re-derives it from `fileIndexSelected`, which those
+	/// arms have not moved, so it reconciles at the next selection change or listing rather than
+	/// persisting. `pendingReloadSearchFromEnd_` and `pendingReloadCatalogSearchDirection_` are read
+	/// only by `Browser::reloadImpl`, which only a dispatched listing reaches, and every arm that
+	/// sets the former sets the latter alongside it.
+	///
+	/// @param req The listing to run. Moved on with a cast rather than `std::move` so this header
+	///            need not gain an `<utility>` include, which would shift every citation into it.
+	void beginListingOrRetryLater(ListingRequest req) { (void)beginListing(static_cast<ListingRequest&&>(req)); }
 	/// @brief Owner-op entry point dispatched to run the pending listing.
 	/// @param self The active Browser* the listing was dispatched from.
 	static void runListingTrampoline(void* self);

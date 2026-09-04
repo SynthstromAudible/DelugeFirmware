@@ -126,10 +126,10 @@ bool LoadInstrumentPresetUI::opened() {
 	// The listing (and its post-listing tail, in onBrowserOpened()) happens async: dispatch it and
 	// return optimistically. Failure goes through the base Browser::onListingFailed() (displayError
 	// + close()) once the listing completes.
-	beginListing({.action = ListingAction::Open,
-	              .direction = 0,
-	              .filenameToStartAt = searchFilename,
-	              .defaultDir = getInstrumentFolder(outputTypeToLoad)});
+	beginListingOrRetryLater({.action = ListingAction::Open,
+	                          .direction = 0,
+	                          .filenameToStartAt = searchFilename,
+	                          .defaultDir = getInstrumentFolder(outputTypeToLoad)});
 
 	return true;
 }

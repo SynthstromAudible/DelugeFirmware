@@ -64,10 +64,10 @@ bool LoadMidiDeviceDefinitionUI::opened() {
 	std::string searchFilename = setupForLoadingMidiDeviceDefinition(); // Sets currentDir.
 	// The listing happens async: dispatch it and return optimistically. Failure goes through the
 	// base Browser::onListingFailed() (displayError + close()) once the listing completes.
-	beginListing({.action = ListingAction::Open,
-	              .direction = 0,
-	              .filenameToStartAt = searchFilename,
-	              .defaultDir = MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER});
+	beginListingOrRetryLater({.action = ListingAction::Open,
+	                          .direction = 0,
+	                          .filenameToStartAt = searchFilename,
+	                          .defaultDir = MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER});
 
 	return true;
 }

@@ -1428,6 +1428,22 @@ spelling. The spec drives the **real** flag rather than a stub: `recorder_scene_
 `in_sd_routine` runs the poll tick inside `yieldingRoutineForSD`, the BSP's own card busy-wait hook
 and the only thing anywhere that makes `isSDRoutineActive()` true.
 
+**A4 — `Browser::beginListing`'s refusal was discarded at nineteen call sites.** The `bool` return
+this branch added to a legacy function was ignored everywhere but one site
+(`LoadInstrumentPresetUI`'s output-type reload), and three of the ignoring callers
+(`setFileByFullPath`, `goIntoFolder`, `goUpOneDirectoryLevel`) returned `Error::NONE` regardless.
+The branch's "behaviour-preserving" claim for that edit is **conditional** — it holds only because
+the sole other claimant of `FileCatalogue` is `deluge::scenes::browser::Listing` and nothing links
+`deluge_scenes` — and nothing at those sites said so.
+
+Every deliberately-ignoring site now calls `Browser::beginListingOrRetryLater`, a one-line inline
+wrapper whose doc carries the whole account: the two ways a dispatch can be refused, why each is
+inert today, what state a refused dispatch leaves behind and how it reconciles, and — the part that
+matters for E4 — exactly what would have to change if a scenes seam ever holds the claim in shipping
+firmware, since it holds until `take_result()` by design. The name is the record at the site; the
+doc is the reasoning. **Not one line was added to `browser.cpp`**: 158 citations in this tree
+resolve into that file by line, and the rename is length-neutral.
+
 **A5 — the `setMonitoringMode` read side was unfenced.** Task 5 fix round 2 ruled "a compiler
 barrier and nothing more" and fenced the **writer** only. The reader — `setMonitoringMode`, running
 from `renderAudio` on the priority-0 audio task, i.e. the preemptive SGI executor — still performed

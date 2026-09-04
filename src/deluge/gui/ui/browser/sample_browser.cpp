@@ -167,10 +167,10 @@ dissectionDone:
 	// The listing (and its post-listing tail, in onBrowserOpened()) happens async: dispatch it and
 	// return optimistically. Failure goes through the base Browser::onListingFailed() (displayError
 	// + close(), not goBackToSoundEditor(), which would left-scroll) once the listing completes.
-	beginListing({.action = ListingAction::Open,
-	              .direction = 1,
-	              .filenameToStartAt = searchFilename ? searchFilename : "",
-	              .defaultDir = "SAMPLES"});
+	beginListingOrRetryLater({.action = ListingAction::Open,
+	                          .direction = 1,
+	                          .filenameToStartAt = searchFilename ? searchFilename : "",
+	                          .defaultDir = "SAMPLES"});
 
 	return true;
 }

@@ -104,7 +104,7 @@ bool LoadSongUI::opened() {
 
 	// The listing happens async: dispatch it and return optimistically. Failure goes through the
 	// base Browser::onListingFailed() (displayError + close()) once the listing completes.
-	beginListing(
+	beginListingOrRetryLater(
 	    {.action = ListingAction::Open, .direction = 0, .filenameToStartAt = searchFilename, .defaultDir = "SONGS"});
 
 	return true;

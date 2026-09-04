@@ -84,7 +84,8 @@ bool DxSyxBrowser::opened() {
 	// TODO: fill in last used name!
 	// The listing now happens async: dispatch it and return optimistically. Failure goes through
 	// the base Browser::onListingFailed() (displayError + close()) once the listing completes.
-	beginListing({.action = ListingAction::Open, .direction = 1, .filenameToStartAt = "", .defaultDir = "DX7"});
+	beginListingOrRetryLater(
+	    {.action = ListingAction::Open, .direction = 1, .filenameToStartAt = "", .defaultDir = "DX7"});
 
 	return true;
 }

@@ -204,7 +204,7 @@ struct ListingRequest {
 	/// folder shadowed by a same-named file is dropped after the sort.
 	bool allow_folders_sharing_name_with_file = false;
 
-	/// Legacy's `shouldInterpretNoteNamesForThisBrowser` (`browser.h:250`), threaded explicitly --
+	/// Legacy's `shouldInterpretNoteNamesForThisBrowser` (`browser.h:290`), threaded explicitly --
 	/// see `FileCatalogue`'s own note on why these are parameters now.
 	bool interpret_note_names = false;
 

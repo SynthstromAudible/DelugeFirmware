@@ -158,7 +158,7 @@ struct Descriptor {
 	/// @brief `Browser::fileIconPt2`, or null. Only the MIDI plug has one (its ninth column).
 	const gfx::oled::Icon* file_icon_pt2;
 
-	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`browser.h:250`), threaded through
+	/// @brief `Browser::shouldInterpretNoteNamesForThisBrowser` (`browser.h:290`), threaded through
 	///        the listing rather than read off a browser -- see `FileCatalogue`'s own note.
 	bool interpret_note_names;
 
@@ -499,7 +499,7 @@ private:
 	char entered_[kMaxEnteredChars] = {};
 	uint16_t entered_len_ = 0;
 
-	/// `Browser::fileIndexSelected` / `scrollPosVertical` (`browser.h:228,230`).
+	/// `Browser::fileIndexSelected` / `scrollPosVertical` (`browser.h:268,270`).
 	/// @{
 	int32_t file_index_ = -1;
 	int32_t scroll_ = 0;

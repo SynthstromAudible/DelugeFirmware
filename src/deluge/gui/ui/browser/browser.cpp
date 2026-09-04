@@ -228,7 +228,7 @@ void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityR
 }
 
 Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
-	beginListing({.action = ListingAction::ByPath, .direction = 0, .folderOrPath = fullPath});
+	beginListingOrRetryLater({.action = ListingAction::ByPath, .direction = 0, .folderOrPath = fullPath});
 	return Error::NONE;
 }
 
@@ -644,7 +644,7 @@ nonNumeric:
 			scrollPosVertical = 9999;
 			D_PRINTLN("reloading");
 			pendingReloadSearchFromEnd_ = false;
-			beginListing({.action = ListingAction::Reload, .direction = offset});
+			beginListingOrRetryLater({.action = ListingAction::Reload, .direction = offset});
 			return;
 		}
 
@@ -655,7 +655,7 @@ nonNumeric:
 				D_PRINTLN("reloading and wrap");
 				pendingReloadSearchFromEnd_ = true;
 				pendingReloadCatalogSearchDirection_ = CATALOG_SEARCH_LEFT;
-				beginListing({.action = ListingAction::Reload, .direction = offset});
+				beginListingOrRetryLater({.action = ListingAction::Reload, .direction = offset});
 				return;
 			}
 			else {
@@ -670,7 +670,7 @@ nonNumeric:
 			scrollPosVertical = 0;
 			D_PRINTLN("reloading");
 			pendingReloadSearchFromEnd_ = false;
-			beginListing({.action = ListingAction::Reload, .direction = offset});
+			beginListingOrRetryLater({.action = ListingAction::Reload, .direction = offset});
 			return;
 		}
 
@@ -681,7 +681,7 @@ nonNumeric:
 				D_PRINTLN("reloading and wrap");
 				pendingReloadSearchFromEnd_ = true;
 				pendingReloadCatalogSearchDirection_ = CATALOG_SEARCH_RIGHT;
-				beginListing({.action = ListingAction::Reload, .direction = offset});
+				beginListingOrRetryLater({.action = ListingAction::Reload, .direction = offset});
 				return;
 			}
 			else {
@@ -1332,7 +1332,7 @@ Error Browser::setEnteredTextFromCurrentFilename() {
 }
 
 Error Browser::goIntoFolder(char const* folderName) {
-	beginListing({.action = ListingAction::IntoFolder, .direction = 1, .folderOrPath = folderName});
+	beginListingOrRetryLater({.action = ListingAction::IntoFolder, .direction = 1, .folderOrPath = folderName});
 	return Error::NONE;
 }
 
@@ -1367,7 +1367,7 @@ Error Browser::goUpOneDirectoryLevel() {
 		return Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP;
 	}
 
-	beginListing({.action = ListingAction::UpLevel, .direction = -1});
+	beginListingOrRetryLater({.action = ListingAction::UpLevel, .direction = -1});
 	return Error::NONE;
 }
 
