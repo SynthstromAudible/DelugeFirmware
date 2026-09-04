@@ -693,8 +693,16 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 	PIC::update7SEG(segments);
 }
 
+// Error codes are namespaced by prefix so each area gets its own index space instead of sharing one global counter.
 // Highest error code used, main branch: E455
 // Highest error code used, fix branch: i041
+//
+// Param manager errors use PM<group><index>, where index runs 0-9 then A-Z. Groups:
+//   PM0x  ParamManager's own layout invariants (param_manager.h/.cpp). Highest used: PM0F
+//   PM1x  The Song's backed-up ParamManager store. Highest used: PM18
+//   PM2x  Attaching/detaching a ParamManager to a Clip or Output. Highest used: PM2B
+//   PM3x  NoteRow and Drum ParamManagers. Highest used: PM3B
+//   PM4x  Song-load and whole-song consistency. Highest used: PM43
 
 void SevenSegment::freezeWithError(char const* text) {
 	setTextVeryBasicA1(text);

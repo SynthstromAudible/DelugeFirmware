@@ -796,7 +796,9 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 				p = params::GLOBAL_DELAY_FEEDBACK;
 doReadPatchedParam:
 				if (paramManager) {
-					if (!paramManager->containsAnyMainParamCollections()) {
+					// Only Sound ever passes a non-null paramManager here (GlobalEffectable passes NULL), so this is
+					// always a Sound - required_param_manager_type() will resolve to SOUND.
+					if (!paramManager->matches_type(required_param_manager_type())) {
 						Error error = Sound::createParamManagerForLoading(paramManager);
 						if (error != Error::NONE) {
 							return error;

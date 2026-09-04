@@ -1356,7 +1356,7 @@ ModelStackWithAutoParam* MIDIInstrument::getModelStackWithParam(ModelStackWithTi
 	if (modelStackWithThreeMainThings) {
 		ParamManager* paramManager = modelStackWithThreeMainThings->paramManager;
 
-		if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+		if (paramManager && paramManager->matches_type(required_param_manager_type())) {
 
 			modelStackWithParam = getParamToControlFromInputMIDIChannel(paramID, modelStackWithThreeMainThings);
 		}

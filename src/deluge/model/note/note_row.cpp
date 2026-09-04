@@ -2673,7 +2673,8 @@ void NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Ac
 // Action may be NULL
 void NoteRow::trimToLength(uint32_t newLength, ModelStackWithNoteRow* modelStack, Action* action) {
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// ANY - just need something here to trim, regardless of shape.
+	if (paramManager.matches_type(ParamManagerType::ANY)) {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 		paramManager.trimToLength(newLength, modelStackWithThreeMainThings, action);
@@ -3670,13 +3671,21 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	if (drum) {
 		writer.writeAttribute("drumIndex", drumIndex);
 
-		if (paramManager.containsAnyMainParamCollections()) {
-			writer.writeOpeningTagEnd();
-			closedOurTagYet = true;
+		if (drum->type == DrumType::SOUND) {
+#if ALPHA_OR_BETA_VERSION
+			// Saving would silently drop this NoteRow's params, so catch the bad layout instead.
+			if (!paramManager.matches_type(drum->toModControllable()->required_param_manager_type())) {
+				FREEZE_WITH_ERROR("PM32");
+			}
+#endif
+			if (paramManager.matches_type(drum->toModControllable()->required_param_manager_type())) {
+				writer.writeOpeningTagEnd();
+				closedOurTagYet = true;
 
-			writer.writeOpeningTagBeginning("soundParams");
-			Sound::writeParamsToFile(writer, &paramManager, true);
-			writer.writeClosingTag("soundParams", true);
+				writer.writeOpeningTagBeginning("soundParams");
+				Sound::writeParamsToFile(writer, &paramManager, true);
+				writer.writeClosingTag("soundParams", true);
+			}
 		}
 	}
 
@@ -3723,19 +3732,30 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
                       InstrumentClip* favourClipForCloningParamManager, ParamManager* newParamManager,
                       bool backupOldParamManager) {
 
-	if (backupOldParamManager && paramManager.containsAnyMainParamCollections()) {
+	if (backupOldParamManager && drum && drum->type == DrumType::SOUND
+	    && paramManager.matches_type(drum->toModControllable()->required_param_manager_type())) {
 		modelStack->song->backUpParamManager(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
 	}
-	paramManager.forgetParamCollections();
+	if (backupOldParamManager) {
+		// A compatible manager was transferred above; dispose of any incompatible main collections.
+		paramManager.destructMainParamCollections();
+	}
+	else {
+		// The caller has retained ownership of the old main collections.
+		paramManager.forgetParamCollections();
+	}
 
 	drum = (SoundDrum*)newDrum; // Better set this temporarily for this call. See comment above for why we can't
 	                            // set it permanently yet
 
-	if (newParamManager) {
+	if (newParamManager && newDrum
+	    && (newParamManager->matches_type(newDrum->toModControllable()->required_param_manager_type())
+	        || newParamManager->matches_type(ParamManagerType::NONE))) {
 		paramManager.stealParamCollectionsFrom(newParamManager, true);
-		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		// ANY - just need something here to trim, regardless of shape.
+		if (paramManager.matches_type(ParamManagerType::ANY)) {
 			trimParamManager(modelStack);
 		}
 	}
@@ -3750,17 +3770,19 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 		SoundDrum* soundDrum = (SoundDrum*)newDrum;
 
-		if (!paramManager.containsAnyMainParamCollections()) {
+		if (!paramManager.matches_type(soundDrum->toModControllable()->required_param_manager_type())) {
 			if (favourClipForCloningParamManager) {
 				NoteRow* noteRow = favourClipForCloningParamManager->getNoteRowForDrum(soundDrum);
-				if (noteRow) {
+				if (noteRow
+				    && noteRow->paramManager.matches_type(
+				        soundDrum->toModControllable()->required_param_manager_type())) {
 					paramManager.cloneParamCollectionsFrom(&noteRow->paramManager, false, true);
 					// That might not work if there was insufficient RAM, but we'll still try the other options
 					// below
 				}
 			}
 
-			if (!paramManager.containsAnyMainParamCollections()) {
+			if (!paramManager.matches_type(soundDrum->toModControllable()->required_param_manager_type())) {
 
 				drum = soundDrum; // Better set this temporarily for this call. See comment above for why we
 				                  // can't set it permanently yet
@@ -3772,7 +3794,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 				drum = nullptr;
 
 				// If there still isn't one, grab from another NoteRow
-				if (!paramManager.containsAnyMainParamCollections()) {
+				if (!paramManager.matches_type(soundDrum->toModControllable()->required_param_manager_type())) {
 
 					ParamManagerForTimeline* paramManagerForDrum =
 					    modelStack->song->findParamManagerForDrum(kit, soundDrum);
@@ -3781,8 +3803,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 						paramManager.cloneParamCollectionsFrom(paramManagerForDrum, false, true);
 
 						// If there also was no RAM...
-						if (!paramManager.containsAnyMainParamCollections()) {
-							FREEZE_WITH_ERROR("E101");
+						if (!paramManager.matches_type(soundDrum->toModControllable()->required_param_manager_type())) {
+							FREEZE_WITH_ERROR("PM30"); // was E101
 						}
 					}
 
@@ -3796,7 +3818,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// This is at least not ideal, so we'd better tell the user
 						if (ALPHA_OR_BETA_VERSION) {
-							display->displayPopup("E073");
+							display->displayPopup("PM31"); // was E073
 						}
 					}
 				}
@@ -3962,7 +3984,8 @@ void NoteRow::shiftHorizontally(int32_t amount, ModelStackWithNoteRow* modelStac
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// ANY - just need something here to iterate over, regardless of shape.
+	if (paramManager.matches_type(ParamManagerType::ANY)) {
 		ParamCollectionSummary* summary = paramManager.summaries;
 
 		int32_t i = 0;
@@ -4004,7 +4027,8 @@ void NoteRow::clear(Action* action, ModelStackWithNoteRow* modelStack, bool clea
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow();
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// ANY - just need something here to iterate over, regardless of shape.
+	if (paramManager.matches_type(ParamManagerType::ANY)) {
 		ParamCollectionSummary* summary = paramManager.summaries;
 
 		int32_t i = 0;
@@ -4151,8 +4175,22 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 	bool reversingNow = (effectiveSequenceDirectionMode == SequenceDirection::REVERSE
 	                     || (pingpongingGenerally && (whichRepeatThisIs & 1)));
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()
-	    && otherNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// Require the SAME shape on both sides, not just ANY (non-empty) - appendParamManager() walks both managers'
+	// collections in lockstep by index, so a mismatched shape (e.g. mismatched Drum types at this NoteRow index)
+	// would misalign collection kinds instead of just failing to merge.
+	ParamManagerType required_type =
+	    drum ? drum->toModControllable()->required_param_manager_type() : ParamManagerType::NONE;
+	bool param_managers_compatible =
+	    paramManager.matches_type(required_type) && otherNoteRow->paramManager.matches_type(required_type);
+	bool param_managers_non_empty = paramManager.matches_type(ParamManagerType::ANY)
+	                                && otherNoteRow->paramManager.matches_type(ParamManagerType::ANY);
+#if ALPHA_OR_BETA_VERSION
+	if (!param_managers_compatible && param_managers_non_empty) {
+		FREEZE_WITH_ERROR("PM3B");
+	}
+#endif
+	// CV and non-audio rows can have compatible but empty managers; append requires both to be non-empty.
+	if (param_managers_compatible && param_managers_non_empty) {
 		int32_t reverseThisRepeatWithLength = reversingNow ? otherNoteRowLength : 0;
 
 		paramManager.appendParamManager(thisModelStack->addOtherTwoThingsAutomaticallyGivenNoteRow(),

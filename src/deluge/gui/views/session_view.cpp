@@ -1837,7 +1837,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 
 void SessionView::removeClip(Clip* clip) {
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager(
-	    "E373", "H373"); // Trying to narrow down H067 that Leo got, below.
+	    "PM17", "PM18"); // was E373 / H373. Trying to narrow down PM16 (was H067) that Leo got, below.
 
 	if (!clip) {
 		return;
@@ -1869,7 +1869,8 @@ void SessionView::removeClip(Clip* clip) {
 
 	redrawClipsOnScreen();
 
-	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E067", "H067"); // Leo got a H067!!!!
+	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("PM15",
+	                                                                 "PM16"); // was E067 / H067. Leo got a H067!!!!
 }
 
 Clip* SessionView::getClipOnScreen(int32_t yDisplay) {

@@ -146,6 +146,8 @@ public:
 		return old_value >> 25 != new_value >> 25;
 	}
 
+	ParamManagerType required_param_manager_type() const override { return ParamManagerType::MIDI; }
+
 protected:
 	void polyphonicExpressionEventPostArpeggiator(int32_t newValue, int32_t noteCodeAfterArpeggiation,
 	                                              int32_t expressionDimension, ArpNote* arpNote,

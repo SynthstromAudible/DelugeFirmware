@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "modulation/params/param_collection.h"
 #include "modulation/params/param_collection_summary.h"
 #include <cstdint>
 
@@ -42,15 +43,104 @@ class ParamCollectionSummary;
 
 #define PARAM_COLLECTIONS_STORAGE_NUM 5
 
+enum class ParamManagerType : uint8_t {
+	ANY_MAIN,
+	ANY,
+	SOUND,
+	GLOBAL,
+	MIDI,
+	CV,
+	NONE,
+};
+
 class ParamManager {
 public:
 	ParamManager();
 	~ParamManager();
 
+private:
 	// Not including MPE params
-	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
+	// Main param collections start at offset 0, expression can start at 1 or 3 depending on the type (MIDI or Sound
+	// respectively)
+	inline bool containsAnyMainParamCollections() const {
+		return expressionParamSetOffset && summaries[0].paramCollection != nullptr;
+	}
 
-	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
+	// If there are no main param collections then expression could be stored at offset 0
+	inline bool containsAnyParamCollectionsIncludingExpression() const {
+		return summaries[0].paramCollection != nullptr;
+	}
+
+	inline deluge::modulation::params::Kind param_kind_at_offset(int32_t offset) const {
+		return summaries[offset].paramCollection != nullptr ? summaries[offset].paramCollection->getParamKind()
+		                                                    : deluge::modulation::params::Kind::NONE;
+	}
+
+	// Expression is optional. The following slot must terminate the collection list.
+	inline bool has_optional_expression_at(int32_t offset) const {
+		if (summaries[offset].paramCollection
+		    && param_kind_at_offset(offset) != deluge::modulation::params::Kind::EXPRESSION) {
+			return false;
+		}
+		for (int32_t i = offset + 1; i < PARAM_COLLECTIONS_STORAGE_NUM; ++i) {
+			if (summaries[i].paramCollection) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	inline bool is_valid_for_sound() const {
+		return expressionParamSetOffset == 3
+		       && param_kind_at_offset(0) == deluge::modulation::params::Kind::UNPATCHED_SOUND
+		       && param_kind_at_offset(1) == deluge::modulation::params::Kind::PATCHED
+		       && param_kind_at_offset(2) == deluge::modulation::params::Kind::PATCH_CABLE
+		       && has_optional_expression_at(3);
+	}
+
+	inline bool is_valid_for_global() const {
+		return expressionParamSetOffset == 1
+		       && param_kind_at_offset(0) == deluge::modulation::params::Kind::UNPATCHED_GLOBAL
+		       && has_optional_expression_at(1);
+	}
+
+	inline bool is_valid_for_midi() const {
+		return expressionParamSetOffset == 1 && param_kind_at_offset(0) == deluge::modulation::params::Kind::MIDI
+		       && has_optional_expression_at(1);
+	}
+
+	inline bool has_no_main_collections() const {
+		return expressionParamSetOffset == 0 && has_optional_expression_at(0);
+	}
+
+public:
+	// Presence queries (ANY / ANY_MAIN) are not layout validation. Use this for operations
+	// which accept any complete layout, including an empty or expression-only manager.
+	inline bool has_valid_layout() const {
+		return is_valid_for_sound() || is_valid_for_global() || is_valid_for_midi() || has_no_main_collections();
+	}
+
+	inline bool matches_type(ParamManagerType type) const {
+		switch (type) {
+		case ParamManagerType::ANY_MAIN:
+			return containsAnyMainParamCollections();
+		case ParamManagerType::ANY:
+			return containsAnyParamCollectionsIncludingExpression();
+		case ParamManagerType::SOUND: // synth, sound drum
+			return is_valid_for_sound();
+		case ParamManagerType::GLOBAL: // song, audio clip, kit affect entire
+			return is_valid_for_global();
+		case ParamManagerType::MIDI: // midi clip
+			return is_valid_for_midi();
+		case ParamManagerType::CV: // cv clip
+			return has_no_main_collections();
+		case ParamManagerType::NONE: // MIDI / GATE drums may retain expression, but have no main collections.
+			return has_no_main_collections();
+		default:
+			break;
+		}
+		return false;
+	}
 
 	Error setupWithPatching();
 	Error setupUnpatched();
@@ -62,6 +152,7 @@ public:
 	Error beenCloned(int32_t reverseDirectionWithLength = 0); // Will clone Collections
 	void forgetParamCollections();
 	void destructAndForgetParamCollections();
+	void destructMainParamCollections(); // Preserve expression values, automation and bend ranges.
 	bool ensureExpressionParamSetExists(bool forDrum = false);
 
 	inline int32_t getExpressionParamSetOffset() { return expressionParamSetOffset; }
@@ -69,6 +160,13 @@ public:
 	ExpressionParamSet* getOrCreateExpressionParamSet(bool forDrum = false); // Will return NULL if can't create
 
 	inline ParamCollectionSummary* getExpressionParamSetSummary() { // Will return one containing NULL if didn't exist
+#if ALPHA_OR_BETA_VERSION
+		if ((expressionParamSetOffset != 0 && expressionParamSetOffset != 1 && expressionParamSetOffset != 3)
+		    || (summaries[expressionParamSetOffset].paramCollection
+		        && param_kind_at_offset(expressionParamSetOffset) != deluge::modulation::params::Kind::EXPRESSION)) {
+			FREEZE_WITH_ERROR("PM0D");
+		}
+#endif
 		return &summaries[getExpressionParamSetOffset()];
 	}
 
@@ -78,8 +176,8 @@ public:
 
 	inline MIDIParamCollection* getMIDIParamCollection() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection) {
-			FREEZE_WITH_ERROR("E409");
+		if (param_kind_at_offset(0) != deluge::modulation::params::Kind::MIDI) {
+			FREEZE_WITH_ERROR("PM00"); // was E409
 		}
 #endif
 		return (MIDIParamCollection*)summaries[0].paramCollection;
@@ -87,8 +185,8 @@ public:
 
 	inline ParamCollectionSummary* getMIDIParamCollectionSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection) {
-			FREEZE_WITH_ERROR("E409");
+		if (param_kind_at_offset(0) != deluge::modulation::params::Kind::MIDI) {
+			FREEZE_WITH_ERROR("PM01"); // was E409
 		}
 #endif
 		return &summaries[0];
@@ -96,8 +194,9 @@ public:
 
 	inline UnpatchedParamSet* getUnpatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection) {
-			FREEZE_WITH_ERROR("E410");
+		if (param_kind_at_offset(0) != deluge::modulation::params::Kind::UNPATCHED_SOUND
+		    && param_kind_at_offset(0) != deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
+			FREEZE_WITH_ERROR("PM02"); // was E410
 		}
 #endif
 		return (UnpatchedParamSet*)summaries[0].paramCollection;
@@ -105,8 +204,9 @@ public:
 
 	inline ParamCollectionSummary* getUnpatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[0].paramCollection) {
-			FREEZE_WITH_ERROR("E410");
+		if (param_kind_at_offset(0) != deluge::modulation::params::Kind::UNPATCHED_SOUND
+		    && param_kind_at_offset(0) != deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
+			FREEZE_WITH_ERROR("PM03"); // was E410
 		}
 #endif
 		return &summaries[0];
@@ -114,8 +214,8 @@ public:
 
 	inline PatchedParamSet* getPatchedParamSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[1].paramCollection) {
-			FREEZE_WITH_ERROR("E411");
+		if (param_kind_at_offset(1) != deluge::modulation::params::Kind::PATCHED) {
+			FREEZE_WITH_ERROR("PM04"); // was E411
 		}
 #endif
 		return (PatchedParamSet*)summaries[1].paramCollection;
@@ -123,8 +223,8 @@ public:
 
 	inline ParamCollectionSummary* getPatchedParamSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[1].paramCollection) {
-			FREEZE_WITH_ERROR("E411");
+		if (param_kind_at_offset(1) != deluge::modulation::params::Kind::PATCHED) {
+			FREEZE_WITH_ERROR("PM05"); // was E411
 		}
 #endif
 		return &summaries[1];
@@ -132,8 +232,8 @@ public:
 
 	inline ParamCollectionSummary* getPatchCableSetSummary() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[2].paramCollection) {
-			FREEZE_WITH_ERROR("E412");
+		if (param_kind_at_offset(2) != deluge::modulation::params::Kind::PATCH_CABLE) {
+			FREEZE_WITH_ERROR("PM06"); // was E412
 		}
 #endif
 		return &summaries[2];
@@ -141,8 +241,8 @@ public:
 
 	inline PatchCableSet* getPatchCableSet() {
 #if ALPHA_OR_BETA_VERSION
-		if (!summaries[2].paramCollection) {
-			FREEZE_WITH_ERROR("E412");
+		if (param_kind_at_offset(2) != deluge::modulation::params::Kind::PATCH_CABLE) {
+			FREEZE_WITH_ERROR("PM07"); // was E412
 		}
 #endif
 		return (PatchCableSet*)summaries[2].paramCollection;
