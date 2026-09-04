@@ -44,25 +44,7 @@ static void init_engine(void) {
 	Env::init_sr(44100);
 }
 
-DxEngine::DxEngine() {
-#ifdef DX_PREALLOC
-	firstUnassignedDxVoice = &dxVoices[0];
-
-	for (int i = 0; i < kNumVoiceSamplesStatic - 1; i++) {
-		dxVoices[i].nextUnassigned = &dxVoices[i + 1];
-	}
-#endif
-}
-
 gsl::owner<DxVoice*> DxEngine::solicitDxVoice() {
-#ifdef DX_PREALLOC
-	if (dxEngine && dxEngine->firstUnassignedDxVoice) {
-		DxVoice* toReturn = dxEngine->firstUnassignedDxVoice;
-		dxEngine->firstUnassignedDxVoice = dxEngine->firstUnassignedDxVoice->nextUnassigned;
-		toReturn->preallocated = true;
-		return toReturn;
-	}
-#endif
 	try {
 		return DxVoicePool::get().acquire().release();
 	} catch (deluge::exception e) {
@@ -71,13 +53,6 @@ gsl::owner<DxVoice*> DxEngine::solicitDxVoice() {
 }
 
 void DxEngine::dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice) {
-#ifdef DX_PREALLOC
-	if (dxVoice->preallocated) {
-		dxVoice->nextUnassigned = dxEngine->firstUnassignedDxVoice;
-		dxEngine->firstUnassignedDxVoice = dxVoice;
-		return;
-	}
-#endif
 	DxVoicePool::recycle(dxVoice);
 }
 

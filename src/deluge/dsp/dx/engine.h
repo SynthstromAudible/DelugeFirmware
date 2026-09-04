@@ -22,12 +22,9 @@
 #include "dx7note.h"
 #include <gsl/gsl>
 
-// seems to cause crashes... maybe YAGNI
-// #define DX_PREALLOC
-
 class DxEngine {
 public:
-	DxEngine();
+	DxEngine() = default;
 #define EXP2_LG_N_SAMPLES 10
 #define EXP2_N_SAMPLES (1 << EXP2_LG_N_SAMPLES)
 	int32_t exp2tab[EXP2_N_SAMPLES << 1];
@@ -50,11 +47,6 @@ public:
 #define FREQ_LG_N_SAMPLES 10
 #define FREQ_N_SAMPLES (1 << FREQ_LG_N_SAMPLES)
 	int32_t freq_lut[FREQ_N_SAMPLES + 1];
-
-#ifdef DX_PREALLOC
-	DxVoice dxVoices[kNumVoiceSamplesStatic];
-	DxVoice* firstUnassignedDxVoice;
-#endif
 
 	EngineMkI engineMkI;
 	FmCore engineModern;
