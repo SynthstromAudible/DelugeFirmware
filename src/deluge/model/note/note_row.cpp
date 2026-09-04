@@ -3723,7 +3723,8 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
                       InstrumentClip* favourClipForCloningParamManager, ParamManager* newParamManager,
                       bool backupOldParamManager) {
 
-	if (backupOldParamManager && paramManager.containsAnyMainParamCollections()) {
+	if (backupOldParamManager && drum && drum->type == DrumType::SOUND
+	    && paramManager.contains_all_main_param_collections()) {
 		modelStack->song->backUpParamManager(
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
