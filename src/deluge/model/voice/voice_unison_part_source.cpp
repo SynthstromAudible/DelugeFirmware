@@ -29,6 +29,10 @@
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
 
+VoiceUnisonPartSource::~VoiceUnisonPartSource() {
+	unassign(false);
+}
+
 bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
                                    uint32_t oscRetriggerPhase, bool resetEverything, SynthMode synthMode,
                                    uint8_t velocity) {
