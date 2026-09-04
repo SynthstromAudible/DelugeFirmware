@@ -88,6 +88,9 @@ public:
 	uint32_t extendRightAsMuchAsEasilyPossible(void* address);
 	void test();
 	uint32_t getAllocatedSize(void* address);
+#if ALPHA_OR_BETA_VERSION
+	void debugPrintMemoryUsage(char const* label);
+#endif
 	void checkStack(char const* caller);
 	void testShorten(int32_t i);
 	int32_t getRegion(void* address);

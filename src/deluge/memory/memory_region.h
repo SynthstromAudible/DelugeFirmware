@@ -48,6 +48,11 @@ public:
 	           CacheManager* cacheManager);
 	void* alloc(uint32_t requiredSize, bool makeStealable, void* thingNotToStealFrom);
 	size_t nallocx(size_t size) { return padSize(size); }
+#if ALPHA_OR_BETA_VERSION
+	uint32_t getFreeBytes();
+	uint32_t getAllocatedBytes();
+	uint32_t getAllocationCount();
+#endif
 	uint32_t shortenRight(void* address, uint32_t newSize);
 	uint32_t shortenLeft(void* address, uint32_t amountToShorten, uint32_t numBytesToMoveRightIfSuccessful = 0);
 	void extend(void* address, uint32_t minAmountToExtend, uint32_t idealAmountToExtend,

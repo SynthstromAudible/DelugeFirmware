@@ -3562,6 +3562,10 @@ void Song::clearRecordingFromReferencesTo(Output* output) {
 }
 
 void Song::deleteOutput(Output* output) {
+#if ALPHA_OR_BETA_VERSION
+	D_PRINTLN("Song::deleteOutput type=%d output=%x", output->type, output);
+	GeneralMemoryAllocator::get().debugPrintMemoryUsage("before Song::deleteOutput");
+#endif
 	clearRecordingFromReferencesTo(output);
 	for (int y = 0; y < 8; y++) {
 		auto& m = sessionMacros[y];
@@ -3574,9 +3578,16 @@ void Song::deleteOutput(Output* output) {
 	void* toDealloc = dynamic_cast<void*>(output);
 	output->~Output();
 	delugeDealloc(toDealloc);
+#if ALPHA_OR_BETA_VERSION
+	GeneralMemoryAllocator::get().debugPrintMemoryUsage("after Song::deleteOutput");
+#endif
 }
 
 void Song::moveInstrumentToHibernationList(Instrument* instrument) {
+#if ALPHA_OR_BETA_VERSION
+	D_PRINTLN("Song::moveInstrumentToHibernationList type=%d instrument=%x", instrument->type, instrument);
+	GeneralMemoryAllocator::get().debugPrintMemoryUsage("moving instrument to hibernation");
+#endif
 
 	// Hibernated instruments stay allocated but leave the active output list, so audio tracks must stop targeting them.
 	clearRecordingFromReferencesTo(instrument);

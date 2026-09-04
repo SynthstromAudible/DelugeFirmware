@@ -219,6 +219,21 @@ uint32_t GeneralMemoryAllocator::getAllocatedSize(void* address) {
 	return (*header & SPACE_SIZE_MASK);
 }
 
+#if ALPHA_OR_BETA_VERSION
+void GeneralMemoryAllocator::debugPrintMemoryUsage(char const* label) {
+	MemoryRegion& internal = regions[MEMORY_REGION_INTERNAL];
+	MemoryRegion& internal_small = regions[MEMORY_REGION_INTERNAL_SMALL];
+	MemoryRegion& external = regions[MEMORY_REGION_EXTERNAL];
+	MemoryRegion& external_small = regions[MEMORY_REGION_EXTERNAL_SMALL];
+	D_PRINTLN("%s: internal alloc=%u free=%u count=%u | small internal alloc=%u free=%u count=%u", label,
+	          internal.getAllocatedBytes(), internal.getFreeBytes(), internal.getAllocationCount(),
+	          internal_small.getAllocatedBytes(), internal_small.getFreeBytes(), internal_small.getAllocationCount());
+	D_PRINTLN("%s: external alloc=%u free=%u count=%u | small external alloc=%u free=%u count=%u", label,
+	          external.getAllocatedBytes(), external.getFreeBytes(), external.getAllocationCount(),
+	          external_small.getAllocatedBytes(), external_small.getFreeBytes(), external_small.getAllocationCount());
+}
+#endif
+
 int32_t GeneralMemoryAllocator::getRegion(void* address) {
 	uint32_t value = (uint32_t)address;
 	if (value >= regions[MEMORY_REGION_INTERNAL].start && value < regions[MEMORY_REGION_INTERNAL].end) {

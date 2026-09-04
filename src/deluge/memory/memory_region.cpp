@@ -78,6 +78,45 @@ uint32_t MemoryRegion::padSize(uint32_t requiredSize) {
 	return requiredSize - 8;
 }
 
+#if ALPHA_OR_BETA_VERSION
+uint32_t MemoryRegion::getFreeBytes() {
+	uint32_t total = 0;
+	for (int32_t i = 0; i < emptySpaces.getNumElements(); i++) {
+		EmptySpaceRecord* emptySpaceRecord = (EmptySpaceRecord*)emptySpaces.getElementAddress(i);
+		total += emptySpaceRecord->length;
+	}
+	return total;
+}
+
+uint32_t MemoryRegion::getAllocatedBytes() {
+	uint32_t total = 0;
+	uint32_t address = start + 8;
+	while (address < end) {
+		uint32_t header = *(uint32_t*)(address - 4);
+		uint32_t space_size = header & SPACE_SIZE_MASK;
+		if ((header & SPACE_TYPE_MASK) != SPACE_HEADER_EMPTY) {
+			total += space_size;
+		}
+		address += space_size + 8;
+	}
+	return total;
+}
+
+uint32_t MemoryRegion::getAllocationCount() {
+	uint32_t total = 0;
+	uint32_t address = start + 8;
+	while (address < end) {
+		uint32_t header = *(uint32_t*)(address - 4);
+		uint32_t space_size = header & SPACE_SIZE_MASK;
+		if ((header & SPACE_TYPE_MASK) != SPACE_HEADER_EMPTY) {
+			total++;
+		}
+		address += space_size + 8;
+	}
+	return total;
+}
+#endif
+
 bool seenYet = false;
 
 void MemoryRegion::sanityCheck() {
