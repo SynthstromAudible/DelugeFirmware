@@ -54,13 +54,13 @@ public:
 
 	// Not including MPE params
 	inline bool containsAnyMainParamCollections() { return expressionParamSetOffset; }
-	inline bool containsPatchedParamCollections() {
-		return summaries[1].paramCollection && summaries[2].paramCollection;
+	inline bool contains_all_main_param_collections() {
+		return summaries[0].paramCollection && summaries[1].paramCollection && summaries[2].paramCollection;
 	}
 	inline bool matches_type(ParamManagerType type) {
 		return type == ParamManagerType::PATCHED
-		           ? containsPatchedParamCollections()
-		           : containsAnyMainParamCollections() && !containsPatchedParamCollections();
+		           ? contains_all_main_param_collections()
+		           : summaries[0].paramCollection && !summaries[1].paramCollection && !summaries[2].paramCollection;
 	}
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }

@@ -42,7 +42,6 @@ class ModControllable {
 public:
 	ModControllable() = default;
 	virtual ~ModControllable() = default;
-	virtual ParamManagerType required_param_manager_type() const;
 	virtual bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 		return false;
 	} // Returns whether Instrument was changed
@@ -74,6 +73,8 @@ public:
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {}
+
+	virtual ParamManagerType required_param_manager_type() const;
 
 protected:
 	/// What kind of unpatched parameters this ModControllable uses.
