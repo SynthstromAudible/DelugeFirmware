@@ -17,19 +17,42 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
 namespace deluge::gui::browser {
 
-/// Read-only view over the browser's file list, so name derivation can be tested without a card, a display, or the
-/// browser's static state. Implemented over Browser::fileItems in the firmware, and over a vector in tests.
+/// @brief Read-only view over the files on the card, so name derivation can be tested without a card, a display, or
+///        the browser's static state.
+///
+/// Implemented over the Browser in the firmware, and over a vector in tests. Both queries ask about a whole family
+/// of related names at once rather than about one candidate name.
+///
+/// @warning Both must answer for the *entire* folder. Browser::fileItems - the browser's own listing - holds at most
+///          FILE_ITEMS_MAX_NUM_ELEMENTS entries around the file being saved, culled to about half of that as a
+///          folder is read, so on its own it cannot answer either query on a folder of any size: it reports names
+///          missing that are really present, and the caller hands back a name that already exists on the card.
 class FileListView {
 public:
 	virtual ~FileListView() = default;
-	/// True if the list holds this exact name. The name includes its extension, matching FileItem::displayName (the
-	/// CStringArray sort key).
-	virtual bool contains(char const* nameWithExtension) const = 0;
+
+	/// @brief Finds the highest-numbered member of the "<prefix><digits>" name family.
+	///
+	/// "Greatest" is by the browser's ordering, in which digit runs compare numerically, so "MYTRACK 11.XML" beats
+	/// "MYTRACK 9.XML".
+	///
+	/// @param prefix The family's common leading text, including any delimiter ("MYTRACK ").
+	/// @return The greatest matching name, extension included, or empty when the folder holds no member.
+	virtual std::string highestNumberedName(char const* prefix) const = 0;
+
+	/// @brief Reports which single-letter variations of a name already exist.
+	///
+	/// Names differing only in case or in extension (.XML / .Json) are the same variation.
+	///
+	/// @param stem The name the letter is appended to ("SONG185").
+	/// @return A bitmask of the taken letters: bit 0 is 'A', through bit 25 for 'Z'.
+	virtual uint32_t takenLetterSuffixes(char const* stem) const = 0;
 };
 
 /// The delimiter used when giving a name its first numeric suffix ("MYTRACK" -> "MYTRACK 2").
@@ -46,21 +69,25 @@ inline constexpr char kNumericSuffixDelimiter = ' ';
 /// slot navigation dies for those songs.
 char const* numberPartOf(char const* name, char const* filePrefix);
 
-/// Derives the default name for the next variation of `currentName`.
-///
-/// `currentName` and the result are real on-card names: no extension, and no display-specific mangling (always
-/// "SONG185", never "185").
-///
-/// `slotPrefix` is the prefix that earns letter-suffix treatment - "SONG" for songs, and empty for everything else.
-/// Presets deliberately do NOT get letter suffixes: that would change current OLED preset behaviour. Pass "" and they
-/// take the numeric path.
+/// @brief Derives the default name for the next variation of a name being saved over.
 ///
 /// Two forms:
-///   <slotPrefix><digits>[letter]  -> next unused letter:  SONG185 -> SONG185A -> SONG185B
-///   anything else                 -> next unused number:  MYTRACK -> "MYTRACK 2"
-///                                                         TRACK_1 -> TRACK_2 (an existing delimiter is reused)
+///   <slotPrefix><digits>[letter]  -> next unused letter:   SONG185 -> SONG185A -> SONG185B
+///   anything else                 -> highest number plus 1: MYTRACK -> "MYTRACK 2"
+///                                                          TRACK_1 -> TRACK_2 (an existing delimiter is reused)
 ///
-/// Returns `currentName` unchanged when no free variation exists (letters exhausted past Z).
+/// The numeric form counts up from the highest-numbered member of the family rather than filling the lowest gap, so
+/// deleting "MYTRACK 3" does not make the next save reuse that name.
+///
+/// @note Presets deliberately do NOT get letter suffixes - that would change OLED preset behaviour. They pass an
+///       empty @p slotPrefix and take the numeric path.
+///
+/// @param currentName The name being saved over, in real on-card form: no extension, and no display-specific
+///                    mangling (always "SONG185", never "185"). The result takes the same form.
+/// @param slotPrefix  The prefix that earns letter-suffix treatment - "SONG" for songs, empty for everything else.
+/// @param files       View over the folder being saved into.
+/// @return The next variation, or @p currentName unchanged when no free one exists: letters exhausted past Z, or
+///         numbers past 9999.
 std::string nextDefaultName(std::string_view currentName, std::string_view slotPrefix, FileListView const& files);
 
 } // namespace deluge::gui::browser
