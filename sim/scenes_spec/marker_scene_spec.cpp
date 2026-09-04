@@ -1003,6 +1003,15 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// refusal. Measured: port 8192, legacy 16384. The animation is the one part of
 		// `WaveformBasicNavigator::zoom` the port deliberately does not carry
 		// (`waveform_basic_navigator.h`), so this is the divergence working as recorded, not a bug.
+		//
+		// **And clearing the mode by hand does not buy the second detent.** That is the obvious next
+		// move -- the mode is what the gate reads, and the device clears it a few tens of
+		// milliseconds later anyway -- and it was tried, with `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`
+		// put back between legacy's two calls so the second turn still reads as a zoom. It gets past
+		// the gate and then hangs: the second `WaveformBasicNavigator::zoom` blocks on the `PadLEDs`
+		// transition state the first one left behind, which is the very thing a spec process cannot
+		// finish. The suite ran 6 seconds; that probe was killed at 600. The ceiling is the
+		// animation, not the gate.
 		expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_true();
 		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, false, false);
 		currentUIMode = UI_MODE_NONE;
