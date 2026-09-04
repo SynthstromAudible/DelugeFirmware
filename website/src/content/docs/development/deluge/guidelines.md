@@ -78,6 +78,7 @@ The following requirements must be fulfilled for a Pull request to be mergable t
 #### Adding a Runtime Feature Setting (Community Feature)
 
 To add a new runtime feature setting:
+
 1. **Declare the setting**: In `src/deluge/model/settings/runtime_feature_settings.h`, add an enum value to `enum RuntimeFeatureSettingType` before `MaxElement`.
 2. **Add localization**:
    - `src/deluge/gui/l10n/strings.h`: Add `STRING_FOR_COMMUNITY_FEATURE_...` to `enum class String`.
