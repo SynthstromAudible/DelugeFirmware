@@ -27,16 +27,15 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include <algorithm>
 #include <new>
 
 ParamManager::ParamManager() {
 	summaries[0] = {0};
-#if ALPHA_OR_BETA_VERSION
 	summaries[1] = {0};
 	summaries[2] = {0};
 	summaries[3] = {0};
 	summaries[4] = {0};
-#endif
 	expressionParamSetOffset = 0;
 
 	resonanceBackwardsCompatibilityProcessed = false;
@@ -48,7 +47,7 @@ ParamManager::~ParamManager() {
 
 #if ALPHA_OR_BETA_VERSION
 ParamManagerForTimeline* ParamManager::toForTimeline() {
-	FREEZE_WITH_ERROR("E407");
+	FREEZE_WITH_ERROR("PM09"); // was E407
 	return nullptr;
 }
 
@@ -63,9 +62,12 @@ Error ParamManager::setupMIDI() {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	summaries[1] = summaries[0]; // Potentially shuffle the expression params over.
+	destructMainParamCollections();
+	summaries[1] = summaries[0]; // Preserve expression while installing the MIDI collection.
 	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
 	summaries[2] = {0};
+	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
@@ -76,8 +78,15 @@ Error ParamManager::setupUnpatched() {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
-	summaries[1] = {0};
+	destructMainParamCollections();
+	// Expression belongs to the clip and survives instrument-type changes.
+	summaries[1] = summaries[0];
+	auto* unpatched = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
+	summaries[0].paramCollection = unpatched;
+	unpatched->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+	summaries[2] = {0};
+	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
@@ -101,10 +110,14 @@ ramError2:
 		goto ramError2;
 	}
 
-	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
+	destructMainParamCollections();
+	summaries[3] = summaries[0];
+	auto* unpatched = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
+	summaries[0].paramCollection = unpatched;
+	unpatched->kind = deluge::modulation::params::Kind::UNPATCHED_SOUND;
 	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
 	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
-	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 3;
 	return Error::NONE;
 }
@@ -113,10 +126,18 @@ ramError2:
 void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams) {
 #if ALPHA_OR_BETA_VERSION
 	if (!other) {
-		FREEZE_WITH_ERROR("E413");
+		FREEZE_WITH_ERROR("PM0B"); // was E413
 	}
 #endif
 
+#if ALPHA_OR_BETA_VERSION
+	if (other == this || !other->has_valid_layout() || !has_valid_layout()) {
+		FREEZE_WITH_ERROR("PM0E");
+	}
+#endif
+
+	// Populated-destination regressions caught overwritten main collections leaking here.
+	destructMainParamCollections();
 	int32_t mpeParamsOffsetOther = other->getExpressionParamSetOffset();
 	int32_t mpeParamsOffsetHere = getExpressionParamSetOffset();
 	int32_t stopAtOther = mpeParamsOffsetOther;
@@ -145,24 +166,30 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	}
 
 	summaries[stopAtOther] = hereMpeParamsOrNull; // Could the expression params, or NULL
-	if (hereMpeParamsOrNull.paramCollection) {
-		summaries[stopAtOther + 1] = {0}; // If that was expression params, write the actual terminating NULL here
+	// Anything past the terminator would be left over from our previous, longer layout, and would make the layout
+	// predicates reject us.
+	for (int32_t j = stopAtOther + (hereMpeParamsOrNull.paramCollection ? 1 : 0); j < PARAM_COLLECTIONS_STORAGE_NUM;
+	     j++) {
+		summaries[j] = {0};
 	}
-	// - but not otherwise, cos we could have overflowed past the array's size!
 	expressionParamSetOffset = mpeParamsOffsetOther;
 
 	other->summaries[0] = other->summaries[stopAtOther];
 	other->summaries[1] = {0};
-#if ALPHA_OR_BETA_VERSION
 	other->summaries[2] = {0};
 	other->summaries[3] = {0};
 	other->summaries[4] = {0};
-#endif
 	other->expressionParamSetOffset = 0;
 }
 
 Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,
                                               bool cloneExpressionParams, int32_t reverseDirectionWithLength) {
+
+#if ALPHA_OR_BETA_VERSION
+	if (!other || !other->has_valid_layout() || !has_valid_layout()) {
+		FREEZE_WITH_ERROR("PM0F");
+	}
+#endif
 
 	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
 	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params
@@ -199,9 +226,15 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 				delugeDealloc(newSummary->paramCollection);
 			}
 
-			// Mark that there's nothing here
-			summaries[0] = mpeParamsOrNullHere;
-			summaries[1] = {0};
+			if (this == other) {
+				// beenCloned() operates on a shallow copy of a NoteRow. None of these pointers,
+				// including expression, belong to the new row until cloning succeeds.
+				for (auto& summary : summaries) {
+					summary = {0};
+				}
+				expressionParamSetOffset = 0;
+			}
+			// For a distinct source, leave our existing collections and expression untouched.
 			return Error::INSUFFICIENT_RAM;
 		}
 
@@ -238,6 +271,10 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		}
 	}
 
+	// Commit only after allocation succeeds; self-cloning owns none of the original pointers.
+	if (this != other) {
+		destructMainParamCollections();
+	}
 	// And finally, copy the pointers and flags from newSummaries to our permanent summaries array.
 	newSummary = newSummaries;
 	ParamCollectionSummary* destSummaries = summaries;
@@ -248,6 +285,12 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		}
 		destSummaries++;
 		newSummary++;
+	}
+	// Wipe anything left over from a previous, longer layout, so the layout predicates don't see a stale pointer
+	// past the terminator.
+	for (ParamCollectionSummary* stale = destSummaries + 1; stale != &summaries[PARAM_COLLECTIONS_STORAGE_NUM];
+	     stale++) {
+		*stale = {0};
 	}
 
 	expressionParamSetOffset = other->expressionParamSetOffset;
@@ -262,32 +305,72 @@ Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
 
 // Does *not* forget MPE params
 void ParamManager::forgetParamCollections() {
-	summaries[0].paramCollection = getExpressionParamSet();
+	summaries[0] = *getExpressionParamSetSummary();
 	summaries[1] = {0};
-	expressionParamSetOffset = 0;
-#if ALPHA_OR_BETA_VERSION
 	summaries[2] = {0};
 	summaries[3] = {0};
 	summaries[4] = {0};
+	expressionParamSetOffset = 0;
+}
+
+// Main collections belong to the sound/output; expression belongs to the clip or note row. Also disposes of a
+// non-expression collection sitting in the expression slot, which an incompatible manager can have.
+void ParamManager::destructMainParamCollections() {
+	if (expressionParamSetOffset != 0 && expressionParamSetOffset != 1 && expressionParamSetOffset != 3) {
+#if ALPHA_OR_BETA_VERSION
+		FREEZE_WITH_ERROR("PM0C");
 #endif
+		// The expression slot cannot be trusted. Do not pass this offset to either accessor below.
+		destructAndForgetParamCollections();
+		return;
+	}
+	// An incompatible manager may also have the wrong collection in the expression slot.
+	ParamCollectionSummary expression = summaries[expressionParamSetOffset];
+	if (expression.paramCollection
+	    && expression.paramCollection->getParamKind() == deluge::modulation::params::Kind::EXPRESSION) {
+		// Detach every alias before cleanup so a malformed layout cannot free the expression we retain.
+		for (auto& summary : summaries) {
+			if (summary.paramCollection == expression.paramCollection) {
+				summary = {0};
+			}
+		}
+	}
+	else {
+		expression = {0};
+	}
+	destructAndForgetParamCollections();
+	summaries[0] = expression;
 }
 
 // This one deletes MPE params too
 void ParamManager::destructAndForgetParamCollections() {
-	ParamCollectionSummary* summary = summaries;
-	while (summary->paramCollection) {
-		summary->paramCollection->~ParamCollection();
-		delugeDealloc(summary->paramCollection);
-		summary++;
+	// Cleanup regressions exposed leaks after null slots. Scan all storage, including malformed layout tails.
+	for (auto& summary : summaries) {
+		auto* collection = summary.paramCollection;
+		if (collection) {
+			// Clear duplicate entries before freeing to avoid double destruction of an aliased collection.
+			for (auto& alias : summaries) {
+				if (alias.paramCollection == collection) {
+					alias = {0};
+				}
+			}
+			collection->~ParamCollection();
+			delugeDealloc(collection);
+		}
 	}
 
 	summaries[0] = {0};
+	summaries[1] = {0};
+	summaries[2] = {0};
+	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 0;
 }
 
 // Returns whether there is one / one could be created.
 bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int32_t offset = getExpressionParamSetOffset();
+	getExpressionParamSetSummary(); // Validate the offset and optional collection before indexing or allocating.
 	if (!summaries[offset].paramCollection) {
 
 		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ExpressionParamSet));
@@ -311,8 +394,8 @@ ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
 
 ModelStackWithParamCollection* ParamManager::getPatchCableSet(ModelStackWithThreeMainThings const* modelStack) {
 #if ALPHA_OR_BETA_VERSION
-	if (!summaries[2].paramCollection) {
-		FREEZE_WITH_ERROR("E412");
+	if (param_kind_at_offset(2) != deluge::modulation::params::Kind::PATCH_CABLE) {
+		FREEZE_WITH_ERROR("PM08"); // was E412
 	}
 #endif
 	return modelStack->addParamCollection(summaries[2].paramCollection, &summaries[2]);
@@ -326,8 +409,8 @@ ParamManagerForTimeline::ParamManagerForTimeline() {
 // Even if it's just expression params.
 void ParamManagerForTimeline::ensureSomeParamCollections() {
 #if ALPHA_OR_BETA_VERSION
-	if (!summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E408");
+	if (!matches_type(ParamManagerType::ANY) || !has_valid_layout()) {
+		FREEZE_WITH_ERROR("PM0A"); // was E408
 	}
 #endif
 }

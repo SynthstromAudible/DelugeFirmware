@@ -66,6 +66,7 @@ public:
 	CompParam currentCompParam;
 
 	ModFXType getModFXType() override;
+	ParamManagerType required_param_manager_type() const override { return ParamManagerType::GLOBAL; }
 
 protected:
 	int maxCompParam = 0;

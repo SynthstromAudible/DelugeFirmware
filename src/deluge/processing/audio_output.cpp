@@ -366,7 +366,7 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 		}
 	}
 
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (paramManager.matches_type(required_param_manager_type())) {
 		song->backUpParamManager(this, NULL, &paramManager);
 	}
 
@@ -390,7 +390,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E422"); // Trying to diversify Leo's E410
+		FREEZE_WITH_ERROR("PM2A"); // was E422. Trying to diversify Leo's PM02 (was E410)
 	}
 #endif
 
@@ -435,7 +435,11 @@ ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimel
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
 
-	if (modelStackWithThreeMainThings) {
+	// Require UNPATCHED_GLOBAL and a valid GLOBAL manager, preventing another parameter kind from resolving to an
+	// unrelated global parameter.
+	if (paramKind == params::Kind::UNPATCHED_GLOBAL && modelStackWithThreeMainThings
+	    && modelStackWithThreeMainThings->paramManager
+	    && modelStackWithThreeMainThings->paramManager->matches_type(required_param_manager_type())) {
 		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 	}
 
