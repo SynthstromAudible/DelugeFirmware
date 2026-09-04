@@ -7330,6 +7330,7 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 
 	if (Buttons::isShiftButtonPressed()) {
 		SoundEditor::renderMainShortcutsOnly(image, occupancyMask);
+		return true;
 	}
 
 	PadLEDs::renderingLock = true;
