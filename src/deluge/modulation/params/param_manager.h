@@ -52,6 +52,11 @@ public:
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }
 
+	/// True only if this ParamManager was set up with patching (i.e. it belongs to a Sound) and therefore actually
+	/// has a patched param set and a patch cable set. setupWithPatching() sets expressionParamSetOffset to 3;
+	/// setupUnpatched() and setupMIDI() set it to 1, and a manager whose collections were stolen/forgotten sits at 0.
+	inline bool containsPatchedParamCollections() { return expressionParamSetOffset >= 3; }
+
 	Error setupWithPatching();
 	Error setupUnpatched();
 	Error setupMIDI();
