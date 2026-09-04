@@ -16,7 +16,12 @@
  */
 
 #include "usb_common.h"
+#include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
+#include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays, readability-identifier-naming) - matches the USB driver's definition
+extern uint8_t anyUSBSendingStillHappening[USB_NUM_USBIP];
 
 void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
@@ -93,6 +98,19 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 
 	if (!connectedDevice) {
 		return;
+	}
+
+	// Reserve room for the whole message (one event per 3 bytes, plus one for the 0x7D header below):
+	// dropping individual events mid-message would leave a well-framed but corrupt SysEx.
+	int32_t eventsNeeded = ((len + 2) / 3) + 1;
+	if (connectedDevice->sendBufferSpace() < eventsNeeded * 3) {
+		if (anyUSBSendingStillHappening[0] == 0) {
+			midiEngine.flushUSBMIDIOutput();
+		}
+		if (connectedDevice->sendBufferSpace() < eventsNeeded * 3) {
+			D_PRINTLN("sendSysex: send ring full, dropping %d byte message", len);
+			return;
+		}
 	}
 
 	int32_t pos = 0;
