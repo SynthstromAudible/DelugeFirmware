@@ -56,6 +56,7 @@
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_audio_stream.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
@@ -129,6 +130,7 @@ OutputType getCurrentOutputType() {
 }
 
 using namespace deluge;
+using namespace deluge::processing::engines;
 
 Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	outputClipInstanceListIsCurrentlyInvalid = false;
@@ -2487,6 +2489,16 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
+	// AUX MASTER, once per window and before the loop -- it is the song's own level, so it does
+	// not belong inside a per-Output pass, and this keeps the read out of the interrupts-disabled
+	// window below. Reading it here rather than in the pump also puts it somewhere `this` is
+	// certainly the song being rendered.
+	if (cvOutputsAvailable()) {
+		UnpatchedParamSet* const songUnpatched = paramManager.getUnpatchedParamSet();
+		cvSetMasterFromParams(songUnpatched->getValue(params::UNPATCHED_CV1_MASTER),
+		                      songUnpatched->getValue(params::UNPATCHED_CV2_MASTER));
+	}
+
 	AudioEngine::logAction("Start output render");
 	for (Output* output = firstOutput; output; output = output->next) {
 		if (!output->inValidState) {
@@ -2497,8 +2509,84 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 		    (output->getActiveClip() && isClipActive(output->getActiveClip()->getClipBeingRecordedFrom()));
 		ENTER_CRITICAL_SECTION();
 		if (output->shouldRenderInSong()) {
+			// Routing lives on the Clip, so read it from whichever one is playing.
+			// A track with nothing playing has no routing, and behaves as before.
+			Clip* const routingClip = output->getActiveClip();
+			const uint8_t routing = (routingClip && cvOutputsAvailable()) ? routingClip->cvRouting : ClipRoute::DEFAULT;
+
+			// Send amounts are real params, so they come from the playing Clip's param
+			// manager. For a Kit that store is the kit-wide one -- each Drum keeps its own
+			// copy of every shared param, but the capture below can only isolate a whole
+			// track, so the per-Drum copies are deliberately not the ones read here.
+			// MIDI and CV tracks reach this line with no unpatched params at all.
+			int32_t sendGain[2] = {0, 0};
+			if (routingClip != nullptr && cvOutputsAvailable()
+			    && routingClip->paramManager.containsAnyMainParamCollections()) {
+				UnpatchedParamSet* const unpatched = routingClip->paramManager.getUnpatchedParamSet();
+
+				// A song written before sends existed expressed routing as bits, which meant
+				// "on, at full". Convert them here, at the first render after load, because
+				// this is the first point at which the param manager is certainly set up --
+				// the attribute and the params are not ordered against each other on load.
+				if (routingClip->cvRoutingLegacyBits != 0) {
+					if (routingClip->cvRoutingLegacyBits & ClipRoute::CV1) {
+						unpatched->params[params::UNPATCHED_CV1_SEND].setCurrentValueBasicForSetup(params::kCvSendFull);
+					}
+					if (routingClip->cvRoutingLegacyBits & ClipRoute::CV2) {
+						unpatched->params[params::UNPATCHED_CV2_SEND].setCurrentValueBasicForSetup(params::kCvSendFull);
+					}
+					routingClip->cvRoutingLegacyBits = 0;
+				}
+
+				sendGain[0] = cvSendParamToGain(unpatched->getValue(params::UNPATCHED_CV1_SEND));
+				// With the pair patched as one stereo destination there is one send, not two:
+				// the sockets carry left and right of the same thing, so one level drives both.
+				sendGain[1] = cvGetStereoSplit() ? sendGain[0]
+				                                 : cvSendParamToGain(unpatched->getValue(params::UNPATCHED_CV2_SEND));
+			}
+
+			// Snapshot the mix before this track renders and take the difference
+			// afterwards. That isolates its contribution without changing how
+			// anything is rendered, and the same difference serves both jobs
+			// below. Failure mode is silence, not a damaged mix.
+			const uint32_t numSamples = (uint32_t)outputBuffer.size();
+			const uint32_t numMono = numSamples * 2;
+			const bool fitsScratch = numMono <= 512;
+			// A send above zero *is* what "routed to that socket" means now -- there are no
+			// routing toggles any more. The CV bits in `routing` survive only for reading old
+			// song files, and have already been converted above.
+			const bool toCV = (sendGain[0] > 0 || sendGain[1] > 0) && fitsScratch;
+			const bool removeFromMain = !(routing & ClipRoute::MAIN) && fitsScratch;
+			const bool capture = toCV || removeFromMain;
+
+			int32_t* const mixRaw = (int32_t*)outputBuffer.data();
+			if (capture) {
+				memcpy(cvStreamCaptureScratch(), mixRaw, numMono * sizeof(int32_t));
+			}
+
 			output->renderOutput(modelStack, outputBuffer, reverbBuffer, volumePostFX >> 1, sideChainHitPending,
 			                     !isClipActiveNow, isClipActiveNow);
+
+			if (capture) {
+				int32_t* const scratch = cvStreamCaptureScratch();
+				// The difference against the snapshot is taken inside the accumulate loop
+				// rather than in a pass of its own here -- that pass walked every sample
+				// only to hand them straight to a loop that was about to walk them again.
+				if (toCV) {
+					cvStreamCapture((uint32_t)routingClip, mixRaw, scratch, numSamples, sendGain,
+					                routingClip->cvSendGainLast);
+				}
+				// With MAIN off, take the track back out of the mix it was just
+				// added to. Subtracting the contribution and restoring the snapshot are
+				// the same thing -- mix minus (mix minus snapshot) is the snapshot -- so
+				// this is a copy, and it must follow the capture above, which reads the
+				// post-render mix. Note this cannot undo its reverb send, which was
+				// written into the shared reverb buffer during renderOutput -- so
+				// the reverb tail of a CV-only track still reaches the main outputs.
+				if (removeFromMain) {
+					memcpy(mixRaw, scratch, numMono * sizeof(int32_t));
+				}
+			}
 		}
 		EXIT_CRITICAL_SECTION();
 #if DO_AUDIO_LOG
@@ -2508,6 +2596,9 @@ void Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuff
 #endif
 	}
 	AudioEngine::logAction("done rendering outputs");
+	// The full set of Clips feeding each CV socket is now known for this window.
+	cvStreamRenderComplete();
+
 	// If recording the "MIX", this is the place where we want to grab it - before any master FX or volume applied
 	// Go through each SampleRecorder, feeding them audio
 	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder; recorder = recorder->next) {

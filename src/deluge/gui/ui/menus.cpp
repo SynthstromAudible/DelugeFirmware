@@ -38,6 +38,7 @@
 #include "gui/menu_item/cv/submenu.h"
 #include "gui/menu_item/cv/transpose.h"
 #include "gui/menu_item/cv/volts.h"
+#include "gui/menu_item/cv_output/routing.h"
 #include "gui/menu_item/defaults/accessibility_menu_highlighting.h"
 #include "gui/menu_item/defaults/bend_range.h"
 #include "gui/menu_item/defaults/favourites_layout.h"
@@ -651,6 +652,48 @@ PLACE_SDRAM_BSS HorizontalMenu soundDistortionMenu{
 PLACE_SDRAM_BSS midi::sound::OutputMidiChannel outputMidiChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL};
 PLACE_SDRAM_BSS midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STRING_FOR_NOTE, STRING_FOR_NOTE};
 PLACE_SDRAM_BSS Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
+// CV aux sends -------------------------------------------------------------------------
+
+// The per-Clip send amounts. Real params, so they are automatable, LEARN-able and
+// assignable to a gold knob, and they live wherever the Clip's other params do. Hidden on
+// OLED with the rest of the CV audio feature.
+//
+// The menu changes shape with SPLT, because the rig does. One stereo destination gets one
+// level and takes its placement from the clip's own pan; two mono destinations are two
+// separate aux buses and get a level each. Either way it is two knob-able controls, plus
+// MAIN, which is a toggle and never competes for a knob.
+PLACE_SDRAM_BSS cv_output::MainToggle cvMainMenu{STRING_FOR_CLIP_OUTPUT_MAIN, STRING_FOR_CLIP_OUTPUT_MAIN};
+PLACE_SDRAM_BSS cv_output::SendWhenSplit cvSendMenu{STRING_FOR_CV_SEND, STRING_FOR_CV_SEND, params::UNPATCHED_CV1_SEND};
+PLACE_SDRAM_BSS cv_output::SendWhenNotSplit cv1SendMenu{STRING_FOR_CV1_SEND, STRING_FOR_CV1_SEND,
+                                                        params::UNPATCHED_CV1_SEND};
+PLACE_SDRAM_BSS cv_output::SendWhenNotSplit cv2SendMenu{STRING_FOR_CV2_SEND, STRING_FOR_CV2_SEND,
+                                                        params::UNPATCHED_CV2_SEND};
+
+// Two instances over the same items, differing only in where they may show. auxSendsMenu
+// goes on the Kit-global and Audio Clip roots, where the params resolve to the track-wide
+// store the capture can actually isolate. auxSendsSoundMenu goes on the Sound root, which
+// doubles as the Drum editor, and hides itself there.
+PLACE_SDRAM_BSS cv_output::LevelSubmenu auxSendsMenu{
+    STRING_FOR_AUX,
+    STRING_FOR_AUX,
+    {
+        &cvSendMenu,
+        &cv1SendMenu,
+        &cv2SendMenu,
+        &cvMainMenu,
+    },
+};
+
+PLACE_SDRAM_BSS cv_output::SendsSubmenu auxSendsSoundMenu{
+    STRING_FOR_AUX,
+    STRING_FOR_AUX,
+    {
+        &cvSendMenu,
+        &cv1SendMenu,
+        &cv2SendMenu,
+        &cvMainMenu,
+    },
+};
 
 // MIDIInstrument menu ----------------------------------------------------------------------
 PLACE_SDRAM_BSS midi::device_definition::Linked midiDeviceLinkedMenu{
@@ -1547,6 +1590,7 @@ PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
         &patchCablesMenu,
         &sequenceDirectionMenu,
         &outputMidiSubmenu,
+        &auxSendsSoundMenu,
     },
 };
 
@@ -1744,6 +1788,7 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuAudioClip{
         &audioClipSampleMenu,
         &audioClipAttackMenu,
         &priorityMenu,
+        &auxSendsMenu,
     },
 };
 
@@ -1891,16 +1936,45 @@ PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuKitGlobalFX{
         &globalFiltersMenu,
         &globalFXMenu,
         &globalSidechainMenu,
+        // Kit-wide, the only level the capture can isolate. The per-Drum copies of the same
+        // shared params exist but are hidden -- see SendsSubmenu.
+        &auxSendsMenu,
     },
 };
 
 // Root Menu
+// CV audio outputs ------------------------------------------------------------
+// Routing is no longer a menu of its own: the sends in AUX decide where a Clip's audio
+// goes, and MAIN sits beside them. targetClip survives only because the header still
+// exposes it.
+namespace deluge::gui::menu_item::cv_output {
+Clip* targetClip = nullptr;
+}
+
+// SETTINGS > AUX. The socket levels and the split are global, and deliberately not inside
+// SETTINGS > CV, which is about pitch voltages and would be confusing to mix with this.
+PLACE_SDRAM_BSS cv_output::Level cvOutputLevel1Menu{STRING_FOR_OUTPUT_LEVEL_CV1, STRING_FOR_OUTPUT_LEVEL_CV1, 0};
+PLACE_SDRAM_BSS cv_output::Level cvOutputLevel2Menu{STRING_FOR_OUTPUT_LEVEL_CV2, STRING_FOR_OUTPUT_LEVEL_CV2, 1};
+PLACE_SDRAM_BSS cv_output::SplitToggle cvStereoSplitMenu{STRING_FOR_CLIP_OUTPUT_STEREO_SPLIT,
+                                                         STRING_FOR_CLIP_OUTPUT_STEREO_SPLIT};
+
+PLACE_SDRAM_BSS cv_output::LevelSubmenu outputLevelMenu{
+    STRING_FOR_AUX,
+    STRING_FOR_AUX,
+    {
+        &cvOutputLevel1Menu,
+        &cvOutputLevel2Menu,
+        &cvStereoSplitMenu,
+    },
+};
+
 PLACE_SDRAM_BSS Submenu settingsRootMenu{
     STRING_FOR_SETTINGS,
     {
         &settingsActionsSubmenu,
         &cvSelectionMenu,
         &gateSelectionMenu,
+        &outputLevelMenu,
         &triggerClockMenu,
         &midiMenu,
         &defaultsSubmenu,
