@@ -56,9 +56,9 @@ DxEngine::DxEngine() {
 
 gsl::owner<DxVoice*> DxEngine::solicitDxVoice() {
 #ifdef DX_PREALLOC
-	if (firstUnassignedDxVoice) {
-		DxVoice* toReturn = firstUnassignedDxVoice;
-		firstUnassignedDxVoice = firstUnassignedDxVoice->nextUnassigned;
+	if (dxEngine && dxEngine->firstUnassignedDxVoice) {
+		DxVoice* toReturn = dxEngine->firstUnassignedDxVoice;
+		dxEngine->firstUnassignedDxVoice = dxEngine->firstUnassignedDxVoice->nextUnassigned;
 		toReturn->preallocated = true;
 		return toReturn;
 	}
