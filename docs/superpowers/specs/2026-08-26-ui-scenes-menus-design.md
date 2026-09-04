@@ -1428,6 +1428,14 @@ spelling. The spec drives the **real** flag rather than a stub: `recorder_scene_
 `in_sd_routine` runs the poll tick inside `yieldingRoutineForSD`, the BSP's own card busy-wait hook
 and the only thing anywhere that makes `isSDRoutineActive()` true.
 
+**A8 — `check_layer_rules.py` skipped only `//` lines.** A Doxygen block-comment continuation
+(` * waveformRenderer`) would have counted against the symbol rows task 12 added. The skip now
+covers block-comment continuations and closes as well, and is deliberately *not* a general comment
+stripper: a `/*`...`*/` state machine, or removing trailing `// ...` text, would change what the
+existing baseline counts, and this checker's baseline may only shrink. Verified both ways — the
+baseline is byte-identical after the change (no count added, removed or moved), and a probe file
+carrying the mention inside a block comment counts 1 under the old skip and 0 under the new one.
+
 **A6/A7 — the focus discriminator said "Restored" for a press, and there are two mechanisms for one
 apparent question.** `FocusCause`'s values were `Descended`/`Restored`, and a shortcut-pad jump —
 which *is* a press, just not one on the focused node's row — took the `Restored` arm. The behaviour

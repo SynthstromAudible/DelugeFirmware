@@ -487,6 +487,25 @@ def rule_covers(rel: str, frm) -> bool:
     return glob_match(rel, frm)
 
 
+def is_comment_line(line: str) -> bool:
+    """Is this line nothing but comment text, for the purposes of a SYMBOL rule?
+
+    `//` and `///` cover the line-comment spellings. ` * ` and ` */` cover a C/Doxygen block
+    comment's continuation and close, which the first cut of this skip missed: a
+    `/** ... * waveformRenderer ... */` block would have counted against the symbol rows E3 task 12
+    added (found by the E3 final review, A8; every such mention in the tree happens to use `///`
+    today, so no count moved when this was fixed).
+
+    Deliberately NOT a general comment stripper. A `/*`...`*/` state machine, or removing the
+    trailing text of a `code(); // mentions waveformRenderer` line, would change what the *existing*
+    baseline counts -- and this checker's baseline may only shrink, so a change that moves a count
+    is a change that has to be argued separately. `*` is matched only when the line is bare `*` or
+    the star is followed by a space or a slash, so a dereference (`*prevPointer = ...`) stays code.
+    """
+    s = line.lstrip()
+    return s == "*" or s.startswith(("//", "/*", "*/", "* "))
+
+
 def count_file(path: Path) -> dict[str, int]:
     rel = str(path.relative_to(REPO))
     counts: dict[str, int] = {}
@@ -501,7 +520,7 @@ def count_file(path: Path) -> dict[str, int]:
                 m = INCLUDE_RE.match(line)
                 if m and r.search(m.group(1)):
                     n += 1
-            elif r.search(line) and not line.lstrip().startswith("//"):
+            elif r.search(line) and not is_comment_line(line):
                 n += 1
         if n:
             counts[name] = n
