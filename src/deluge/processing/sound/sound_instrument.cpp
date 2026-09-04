@@ -291,7 +291,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	ParamManager* paramManager =
 	    modelStackWithTimelineCounter->song->getBackedUpParamManagerPreferablyWithClip(this, NULL);
 	if (!paramManager) {
-		FREEZE_WITH_ERROR("E173");
+		FREEZE_WITH_ERROR("PM43"); // was E173
 	}
 	patcher.performInitialPatching(*this, *paramManager);
 

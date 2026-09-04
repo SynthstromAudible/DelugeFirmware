@@ -21,3 +21,5 @@ endif ()
 add_subdirectory(spec)
 add_subdirectory(unit)
 
+
+add_subdirectory(param_manager)

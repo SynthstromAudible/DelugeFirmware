@@ -55,6 +55,7 @@ public:
 	virtual void noteOffPostArp(int32_t noteCodePostArp) { state_ = false; };
 
 	void writeArpeggiatorToFile(Serializer& writer);
+	ParamManagerType required_param_manager_type() const override { return ParamManagerType::NONE; }
 
 protected:
 	void modChange(ModelStackWithThreeMainThings* modelStack, int32_t offset, int8_t* encoderOffset, uint8_t* value,

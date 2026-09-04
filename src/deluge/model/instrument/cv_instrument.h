@@ -78,6 +78,8 @@ public:
 
 	void setCV2Mode(CVMode mode);
 
+	ParamManagerType required_param_manager_type() const override { return ParamManagerType::CV; }
+
 private:
 	void updatePitchBendOutput(bool outputToo = true);
 	// returns -1 if  no pitch

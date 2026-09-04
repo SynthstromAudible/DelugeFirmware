@@ -324,8 +324,21 @@ playingForwardNow:
 
 Error Clip::appendClip(ModelStackWithTimelineCounter* thisModelStack, ModelStackWithTimelineCounter* otherModelStack) {
 	Clip* otherClip = (Clip*)otherModelStack->getTimelineCounter();
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()
-	    && otherClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// Require the SAME shape on both sides, not just ANY (non-empty) - appendParamManager() walks both managers'
+	// collections in lockstep by index, so a mismatched shape (e.g. otherClip's Instrument changed type mid-recording)
+	// would misalign collection kinds instead of just failing to merge.
+	ParamManagerType required_type = output->toModControllable()->required_param_manager_type();
+	bool param_managers_compatible =
+	    paramManager.matches_type(required_type) && otherClip->paramManager.matches_type(required_type);
+	bool param_managers_non_empty =
+	    paramManager.matches_type(ParamManagerType::ANY) && otherClip->paramManager.matches_type(ParamManagerType::ANY);
+#if ALPHA_OR_BETA_VERSION
+	if (!param_managers_compatible && param_managers_non_empty) {
+		FREEZE_WITH_ERROR("PM2B");
+	}
+#endif
+	// CV and non-audio rows can have compatible but empty managers; append requires both to be non-empty.
+	if (param_managers_compatible && param_managers_non_empty) {
 
 		bool pingpongingGenerally = (otherClip->sequenceDirectionMode == SequenceDirection::PINGPONG);
 
@@ -446,7 +459,8 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 void Clip::setPosForParamManagers(ModelStackWithTimelineCounter* modelStack, bool useLivePos) {
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// ANY - just need something here to set a play position on, regardless of shape.
+	if (paramManager.matches_type(ParamManagerType::ANY)) {
 		uint32_t pos = useLivePos ? getLivePos() : lastProcessedPos;
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
@@ -471,7 +485,8 @@ void Clip::reGetParameterAutomation(ModelStackWithTimelineCounter* modelStack) {
 		return; // Definitely don't do this if we're not an active Clip!
 	}
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// ANY - just need something here to grab automation from, regardless of shape.
+	if (paramManager.matches_type(ParamManagerType::ANY)) {
 		uint32_t actualPos = getLivePos();
 
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -847,7 +862,8 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 void Clip::lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action) {
 
 	if (loopLength < oldLength) {
-		if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+		// ANY - just need something here to trim, regardless of shape.
+		if (paramManager.matches_type(ParamManagerType::ANY)) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 			paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, action);
@@ -918,72 +934,68 @@ Error Clip::solicitParamManager(Song* song, ParamManager* newParamManager, Clip*
 
 	// Occasionally, like for AudioClips changing their Output, they will actually have a paramManager already, so
 	// everything's fine and we can return
-	if (paramManager.containsAnyMainParamCollections()) {
+
+	auto* mod_controllable = output->toModControllable();
+	const auto required_type = mod_controllable->required_param_manager_type();
+	if (paramManager.matches_type(required_type)) {
 		return Error::NONE;
 	}
 
-	if (newParamManager) {
+	// Keep this clip's expression while replacing incompatible main collections.
+	paramManager.destructMainParamCollections();
+	if (newParamManager
+	    && (newParamManager->matches_type(required_type) || newParamManager->matches_type(ParamManagerType::NONE))) {
 		paramManager.stealParamCollectionsFrom(newParamManager, true);
-	}
-
-	if (!paramManager.containsAnyMainParamCollections()) {
-
-		ModControllable* modControllable = output->toModControllable();
-
-		// If they're offering a Clip to just clone the ParamManager from...
-		if (favourClipForCloningParamManager) {
-
-			// Let's first just see if there already was a *perfect* backed-up one for this *exact* Clip, that we could
-			// just have. If so, great, we're done.
-			if (song->getBackedUpParamManagerForExactClip((ModControllableAudio*)modControllable, this,
-			                                              &paramManager)) {
-trimFoundParamManager:
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
-				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-				    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, modControllable, this,
-				                                                   &paramManager);
-				paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, nullptr,
-				                          false); // oldLength actually has no consequence anyway
-				return Error::NONE;
-			}
-
-			// Ok, still here, let's do that cloning
-			paramManager.cloneParamCollectionsFrom(&favourClipForCloningParamManager->paramManager, false, true);
-			// That might not work if there was insufficient RAM - very unlikely - but we'll still try the other options
-			// below
-		}
-
-		// If there wasn't one...
-		if (!paramManager.containsAnyMainParamCollections()) {
-
-			bool success = song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)modControllable, this,
-			                                                               &paramManager);
-
-			if (success) {
-				goto trimFoundParamManager;
-			}
-
-			// Still no ParamManager, so copy it from another Clip
-			Clip* otherClip = song->getClipWithOutput(output, false, this); // Exclude self
-			if (otherClip) {
-
-				Error error = paramManager.cloneParamCollectionsFrom(&otherClip->paramManager, false, true);
-
-				if (error != Error::NONE) {
-					FREEZE_WITH_ERROR("E050");
-					return error;
-				}
-			}
-			// Unless I've done something wrong, there *has* to be another Clip if the Output didn't have a backed-up
-			// ParamManager. But, just in case
-			else {
-				FREEZE_WITH_ERROR("E051");
-				return Error::UNSPECIFIED;
-			}
+		if (paramManager.matches_type(required_type)) {
+			return Error::NONE;
 		}
 	}
 
-	return Error::NONE;
+	auto trim_restored_params = [&]() {
+		char model_stack_memory[MODEL_STACK_MAX_SIZE];
+		auto* model_stack = setupModelStackWithThreeMainThingsButNoNoteRow(model_stack_memory, song, mod_controllable,
+		                                                                   this, &paramManager);
+		paramManager.trimToLength(loopLength, model_stack, nullptr, false);
+	};
+	auto* mod_controllable_audio = static_cast<ModControllableAudio*>(mod_controllable);
+	// If they're offering a Clip to just clone the ParamManager from...
+	if (favourClipForCloningParamManager) {
+		// Let's first just see if there already was a *perfect* backed-up one for this *exact* Clip, that we could
+		// just have. If so, great, we're done.
+		if (song->getBackedUpParamManagerForExactClip(mod_controllable_audio, this, &paramManager)) {
+			trim_restored_params();
+			return Error::NONE;
+		}
+		// Ok, still here, let's do that cloning
+		auto* source = &favourClipForCloningParamManager->paramManager;
+		if (source->matches_type(required_type)
+		    && paramManager.cloneParamCollectionsFrom(source, false, true) == Error::NONE) {
+			return Error::NONE;
+		}
+		// That might not work if there was insufficient RAM - very unlikely - but we'll still try the other options
+		// below
+		// A failed allocation can still be recovered by stealing a backup below.
+	}
+
+	if (song->getBackedUpParamManagerPreferablyWithClip(mod_controllable_audio, this, &paramManager)) {
+		trim_restored_params();
+		return Error::NONE;
+	}
+
+	// Still no ParamManager, so copy it from another Clip
+	Clip* other_clip = song->getClipWithOutput(output, false, this, true); // Exclude self
+	if (!other_clip) {
+		// Unless I've done something wrong, there *has* to be another Clip if the Output didn't have a backed-up
+		// ParamManager. But, just in case
+		FREEZE_WITH_ERROR("PM21"); // was E051
+		return Error::UNSPECIFIED;
+	}
+
+	Error error = paramManager.cloneParamCollectionsFrom(&other_clip->paramManager, false, true);
+	if (error != Error::NONE) {
+		FREEZE_WITH_ERROR("PM20"); // was E050
+	}
+	return error;
 }
 
 void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
@@ -994,7 +1006,8 @@ void Clip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// ANY - just need something here to iterate over, regardless of shape.
+	if (paramManager.matches_type(ParamManagerType::ANY)) {
 		ParamCollectionSummary* summary = paramManager.summaries;
 
 		int32_t i = 0;

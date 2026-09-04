@@ -75,7 +75,7 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == ClipType::AUDIO && !clip->paramManager.summaries[0].paramCollection) {
-			FREEZE_WITH_ERROR("E419"); // Trying to diversify Leo's E410
+			FREEZE_WITH_ERROR("PM27"); // was E419. Trying to diversify Leo's PM02 (was E410)
 		}
 #endif
 
@@ -153,7 +153,7 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 
 #if ALPHA_OR_BETA_VERSION
 		if (clip->type == ClipType::AUDIO && !clip->paramManager.summaries[0].paramCollection) {
-			FREEZE_WITH_ERROR("E420"); // Trying to diversify Leo's E410
+			FREEZE_WITH_ERROR("PM28"); // was E420. Trying to diversify Leo's PM02 (was E410)
 		}
 #endif
 

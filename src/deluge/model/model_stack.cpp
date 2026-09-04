@@ -33,8 +33,9 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
                                                                                       NoteRow* newNoteRow) const {
 
 #if ALPHA_OR_BETA_VERSION
-	if (!newNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-		FREEZE_WITH_ERROR("E389");
+	// ANY, not a specific shape - this just needs some paramManager, whatever type the owning Clip/Drum requires.
+	if (!newNoteRow->paramManager.matches_type(ParamManagerType::ANY)) {
+		FREEZE_WITH_ERROR("PM35"); // was E389
 	}
 #endif
 
@@ -231,7 +232,9 @@ void copyModelStack(void* newMemory, void const* oldMemory, int32_t size) {
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+	if (paramManager
+	    && (paramManager->matches_type(ParamManagerType::GLOBAL)
+	        || paramManager->matches_type(ParamManagerType::SOUND))) {
 		ParamCollectionSummary* summary = paramManager->getUnpatchedParamSetSummary();
 
 		ModelStackWithParamId* modelStackWithParamId =
@@ -244,7 +247,7 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getUnpatchedAutoParamFro
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+	if (paramManager && paramManager->matches_type(ParamManagerType::SOUND)) {
 		ParamCollectionSummary* summary = paramManager->getPatchedParamSetSummary();
 
 		ModelStackWithParamId* modelStackWithParamId =
@@ -257,7 +260,7 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromI
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFromId(int32_t newParamId) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
+	if (paramManager && paramManager->matches_type(ParamManagerType::SOUND)) {
 		ParamCollectionSummary* summary = paramManager->getPatchCableSetSummary();
 
 		ModelStackWithParamId* modelStackWithParamId =
@@ -269,11 +272,15 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFr
 }
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getExpressionAutoParamFromID(int32_t newParamId) {
-	if (newParamId >= kNumExpressionDimensions) {
+	// Reject malformed manager layouts and negative IDs; return a null autoParam when expression allocation fails.
+	if (!paramManager || !paramManager->has_valid_layout() || newParamId < 0
+	    || newParamId >= kNumExpressionDimensions) {
 		return addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
-	paramManager->ensureExpressionParamSetExists(); // Allowed to fail
+	if (!paramManager->ensureExpressionParamSetExists()) {
+		return addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr);
+	}
 	ParamCollectionSummary* summary = paramManager->getExpressionParamSetSummary();
 	ModelStackWithParamId* modelStackWithParamId =
 	    addParamCollectionAndId(summary->paramCollection, summary, newParamId);

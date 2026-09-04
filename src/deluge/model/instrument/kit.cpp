@@ -332,7 +332,7 @@ doReadDrum:
 		selectedDrum = getDrumFromIndex(selectedDrumIndex);
 	}
 
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (paramManager.matches_type(required_param_manager_type())) {
 		compensateInstrumentVolumeForResonance(&paramManager, song);
 		song->backUpParamManager(this, clip, &paramManager, true);
 	}
@@ -1535,8 +1535,9 @@ goingToRecordNoteOnEarly:
 			// get updated by the subsequent MPE that will come in. Or does that not matter?
 
 			if (thisNoteRow && thisDrum->type == DrumType::SOUND
-			    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
-				FREEZE_WITH_ERROR("E326"); // Trying to catch an E313 that Vinz got
+			    && !thisNoteRow->paramManager.matches_type(
+			        thisDrum->toModControllable()->required_param_manager_type())) {
+				FREEZE_WITH_ERROR("PM37"); // was E326. Trying to catch a PM36 that Vinz got
 			}
 
 			beginAuditioningforDrum(modelStackWithNoteRow, thisDrum, velocity, mpeValues, channel);
@@ -1927,8 +1928,9 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 		}
 
 		paramManagerForDrum = &noteRow->paramManager;
-		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DrumType::SOUND) {
-			FREEZE_WITH_ERROR("E313"); // Vinz got this!
+		if (drum->type == DrumType::SOUND
+		    && !paramManagerForDrum->matches_type(drum->toModControllable()->required_param_manager_type())) {
+			FREEZE_WITH_ERROR("PM36"); // Vinz got this (as E313)!
 		}
 	}
 	else {
@@ -1936,7 +1938,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 			paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
 			if (!paramManagerForDrum) {
 				// Ron got this, June 2020, while "dragging" a row vertically in arranger
-				FREEZE_WITH_ERROR("E314");
+				FREEZE_WITH_ERROR("PM38"); // was E314
 			}
 		}
 	}
@@ -2027,7 +2029,11 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 		    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
 	}
 
-	if (modelStackWithThreeMainThings) {
+	// Require UNPATCHED_GLOBAL and a valid GLOBAL manager. Previously another parameter kind could resolve to a global
+	// parameter with the same numeric ID.
+	if (paramKind == params::Kind::UNPATCHED_GLOBAL && modelStackWithThreeMainThings
+	    && modelStackWithThreeMainThings->paramManager
+	    && modelStackWithThreeMainThings->paramManager->matches_type(required_param_manager_type())) {
 		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
 	}
 
@@ -2056,7 +2062,11 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
 			}
 
-			if (modelStackWithThreeMainThings) {
+			// Require a valid SOUND manager, including when using sound-editor context, preventing lookup through an
+			// incompatible manager.
+			if (modelStackWithThreeMainThings && modelStackWithThreeMainThings->paramManager
+			    && modelStackWithThreeMainThings->paramManager->matches_type(
+			        selectedDrum->toModControllable()->required_param_manager_type())) {
 				if (paramKind == deluge::modulation::params::Kind::PATCHED) {
 					modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
 				}

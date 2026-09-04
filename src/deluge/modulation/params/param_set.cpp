@@ -365,6 +365,10 @@ void ParamSet::backUpParamToAction(int32_t p, Action* action, ModelStackWithPara
 }
 
 ModelStackWithAutoParam* ParamSet::getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation) {
+	// Reject negative IDs and IDs ≥ numParams_, returning a null autoParam instead of an out-of-bounds pointer.
+	if (modelStack->paramId < 0 || modelStack->paramId >= numParams_) {
+		return modelStack->addAutoParam(nullptr);
+	}
 	return modelStack->addAutoParam(&params[modelStack->paramId]);
 }
 
