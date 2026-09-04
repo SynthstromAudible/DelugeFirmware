@@ -1023,9 +1023,33 @@ void renderSongFX(size_t numSamples) { // LPF and stutter for song (must happen 
 	}
 }
 void setMonitoringMode() { // Monitoring setup
+	// **The read half of the foreground-recording seam, and the fence below is the other end of
+	// `setForegroundRecording`'s** (`audio_engine.h`, and the writer a few lines down). This
+	// function runs from `renderAudio` on the priority-0 audio task, which the Rust scheduler routes
+	// onto the preemptive SGI interrupt-executor -- so it can land between the writer's two stores,
+	// and it must not re-read either member afterwards. Both are loaded exactly once, channel first,
+	// with an `acquire` signal fence pairing the writer's `release`:
+	//
+	//   publish: recorder = r; [release]; recordingSource = src;
+	//   clear:   recordingSource = NONE; [release]; recorder = nullptr;
+	//   read:    src = recordingSource; [acquire]; rec = recorder;
+	//
+	// so a reader that saw the channel naming a live capture has already been able to see the
+	// pointer that was published before it, and a reader that sees the cleared channel never
+	// dereferences the pointer at all. Fencing only the writer -- which is what shipped first --
+	// left the invariant enforced in one direction: the compiler was still free to reload
+	// `audioRecorder.recorder` after the `doMonitoring &&` branch below had already tested it, which
+	// is precisely the dereference the "double-check" exists to prevent.
+	//
+	// `std::atomic_signal_fence`, not `atomic_thread_fence`, and no `dmb`, for the writer's reason:
+	// the two contexts are a handler and a thread on the SAME core, so what can reorder these
+	// dependency-free loads is the compiler. It emits no instructions.
+	const AudioInputChannel recordingSource = audioRecorder.recordingSource;
+	std::atomic_signal_fence(std::memory_order_acquire);
+	SampleRecorder* const recorder = audioRecorder.recorder;
+
 	doMonitoring = false;
-	if (audioRecorder.recordingSource == AudioInputChannel::STEREO
-	    || audioRecorder.recordingSource == AudioInputChannel::LEFT) {
+	if (recordingSource == AudioInputChannel::STEREO || recordingSource == AudioInputChannel::LEFT) {
 		if (inputMonitoringMode == InputMonitoringMode::SMART) {
 			doMonitoring = (lineInPluggedIn || headphonesPluggedIn);
 		}
@@ -1035,18 +1059,18 @@ void setMonitoringMode() { // Monitoring setup
 	}
 
 	monitoringAction = MonitoringAction::NONE;
-	if (doMonitoring && audioRecorder.recorder) { // Double-check
-		if (lineInPluggedIn) {                    // Line input
-			if (audioRecorder.recorder->inputLooksDifferential()) {
+	if (doMonitoring && recorder != nullptr) { // Double-check, now over the local
+		if (lineInPluggedIn) {                 // Line input
+			if (recorder->inputLooksDifferential()) {
 				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
 			}
-			else if (audioRecorder.recorder->inputHasNoRightChannel()) {
+			else if (recorder->inputHasNoRightChannel()) {
 				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 		}
 
 		else if (micPluggedIn) { // External mic
-			if (audioRecorder.recorder->inputHasNoRightChannel()) {
+			if (recorder->inputHasNoRightChannel()) {
 				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
 			}
 		}

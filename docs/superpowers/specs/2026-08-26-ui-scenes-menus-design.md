@@ -1428,6 +1428,17 @@ spelling. The spec drives the **real** flag rather than a stub: `recorder_scene_
 `in_sd_routine` runs the poll tick inside `yieldingRoutineForSD`, the BSP's own card busy-wait hook
 and the only thing anywhere that makes `isSDRoutineActive()` true.
 
+**A5 — the `setMonitoringMode` read side was unfenced.** Task 5 fix round 2 ruled "a compiler
+barrier and nothing more" and fenced the **writer** only. The reader — `setMonitoringMode`, running
+from `renderAudio` on the priority-0 audio task, i.e. the preemptive SGI executor — still performed
+two plain loads of `audioRecorder.recordingSource` and `audioRecorder.recorder`, so the compiler was
+free to reload the pointer *after* the `doMonitoring &&` branch had already tested it. That is
+exactly the dereference the double-check exists to prevent, and shipping half the pairing made the
+invariant look enforced when it held in one direction only. The reader now loads the pair once,
+channel first, under an `acquire` `std::atomic_signal_fence` pairing the writer's `release`, and
+uses the locals throughout. The reasoning for a signal fence rather than a `dmb` is the writer's and
+is unchanged: handler and thread on the same core, so the reordering risk is the compiler's.
+
 **A2/A3 — step 8b armed from scenes that structurally cannot paint.** A covered `MenuScene` with
 source pads kept the grid gate at 20 ms, and `RecorderScene` under its own opaque clipping popup
 armed both OLED panels every 10 ms. Both are shell-side; the full account is the shell design spec's

@@ -281,6 +281,12 @@ void feedReverbBackdoorForGrain(int index, q31_t value);
 /// The two stores are separated by a `std::atomic_signal_fence` -- a compiler barrier, no
 /// instructions. See the call site for why that is the right tool and a `dmb` is not.
 ///
+/// **The read side is fenced to match** (E3 final review, A5). `setMonitoringMode` loads the pair
+/// exactly once, channel first, under an `acquire` signal fence, and uses the locals for the rest of
+/// the function -- so its `&& recorder` double-check really does guard the dereferences below it.
+/// Fencing only the writer left the invariant enforced in one direction: the compiler was still free
+/// to reload `audioRecorder.recorder` after that branch had tested it.
+///
 /// @param recorder The armed recorder, or null to clear.
 /// @param source   The channel it captures from, or `AudioInputChannel::NONE` to clear.
 void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source);
