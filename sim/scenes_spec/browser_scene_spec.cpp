@@ -266,6 +266,13 @@ public:
 		beginListing({.action = ListingAction::Open, .direction = 1, .filenameToStartAt = "", .defaultDir = "SAMPLES"});
 	}
 
+	/// @brief `Browser::backButtonAction`'s ascend (`browser.cpp:1283-1300`).
+	///
+	/// The two gates that arm wraps -- `listingInProgress_` and `isSDRoutineActive()` -- are both
+	/// false here (the host runs the listing inline), and `exitAction()` on the root-level refusal
+	/// is `close()`, which the ascend example never reaches.
+	void back() { (void)goUpOneDirectoryLevel(); }
+
 	static int32_t index() { return fileIndexSelected; }
 	static int32_t scroll() { return scrollPosVertical; }
 	static int32_t cursor() { return enteredTextEditPos; }
@@ -1503,6 +1510,41 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 			b.padAction(p.x, p.y, 64);
 			b.padAction(p.x, p.y, 0);
 		}));
+	});
+
+	it("ascends the same way as Browser::goUpOneDirectoryLevelImpl, landing on the folder it left", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		expect(blank_start_path(f)).to_be_true();
+
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		for (int i = 0; i < 2; i++) {
+			r.turn(1, r.clock + 10);
+			r.step();
+		}
+		r.enter();
+		r.land();
+		r.button(kBackX, kBackY, true, r.clock + 10);
+		r.step();
+		r.button(kBackX, kBackY, false, r.clock + 10);
+		r.land();
+		const BrowserState port = port_state(r);
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES"});
+		// `goUpOneDirectoryLevelImpl` assigns the segment it dropped to `enteredText` and lists
+		// starting at it (`browser.cpp:1385-1392`), so the folder just left is the selection.
+		expect(port.text).to_equal(std::string{"KICKS"});
+
+		const Pad enter_pad = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		expect_same(self, port, legacy_run([enter_pad](SpecBrowser& b) {
+			b.selectEncoderAction(1);
+			b.selectEncoderAction(1);
+			b.padAction(enter_pad.x, enter_pad.y, 64);
+			b.padAction(enter_pad.x, enter_pad.y, 0);
+			b.back();
+		}));
+		expect(FileCatalogue::currentDir).to_equal(std::string{"SAMPLES"});
 	});
 
 	it("descends into a folder the same way as Browser::goIntoFolderImpl", _ {
