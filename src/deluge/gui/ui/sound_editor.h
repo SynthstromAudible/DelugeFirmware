@@ -86,6 +86,12 @@ public:
 	bool editingKitRow();
 	void setCurrentSource(int32_t sourceIndex);
 
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	                    bool drawUndefinedArea = false) override;
+	void renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWidth],
+	                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) const;
+
 	ActionResult timerCallback() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut);
@@ -134,6 +140,8 @@ public:
 	bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) override;
 	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void markInstrumentAsEdited();
+	/// Checks ONLY the basic top level shortcut. Does not handle layers or whether patch cables are possible
+	std::tuple<MenuItem*, bool> get_basic_shortcut_action(int32_t x, int32_t y) const;
 	bool editingCVOrMIDIClip();
 	bool editingNonAudioDrumRow();
 	bool editingMidiDrumRow();

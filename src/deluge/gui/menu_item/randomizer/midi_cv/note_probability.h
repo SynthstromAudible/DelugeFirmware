@@ -31,7 +31,7 @@ public:
 		int32_t value = computeFinalValueForUnsignedMenuItem(this->getValue());
 		soundEditor.currentArpSettings->noteProbability = value;
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow();
 	}
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PERCENT; }

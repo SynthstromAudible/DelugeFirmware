@@ -50,7 +50,7 @@ MenuItem* FileSelector::selectButtonPress() {
 	return NO_NAVIGATION;
 }
 
-bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return true;
 	}

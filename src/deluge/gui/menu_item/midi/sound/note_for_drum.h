@@ -31,7 +31,7 @@ public:
 	using Integer::Integer;
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMIDIValue; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingKitRow() && !soundEditor.editingNonAudioDrumRow();
 	}
 	void readCurrentValue() override {

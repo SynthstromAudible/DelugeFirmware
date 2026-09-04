@@ -22,7 +22,7 @@ class Modulator final : public HorizontalMenu {
 public:
 	using HorizontalMenu::HorizontalMenu;
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->synthMode == SynthMode::FM);
 	}

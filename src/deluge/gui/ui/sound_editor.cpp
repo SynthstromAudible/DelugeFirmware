@@ -107,6 +107,136 @@ PatchSource modSourceShortcutsSecondLayer[2][8] = {
     },
 };
 
+constexpr RGB sample_colour = colours::green;
+constexpr RGB main_osc_colour = colours::blue;
+constexpr RGB fm_osc_colour = colours::purple;
+constexpr RGB synth_global_colour = colours::amber;
+constexpr RGB waveshape_colour = colours::red;
+constexpr RGB noise_colour = colours::darkblue;
+constexpr RGB env_colour = colours::green;
+constexpr RGB lfo_colour = colours::pastel::green;
+constexpr RGB arp_colour = colours::pastel::blue;
+constexpr RGB sidechain_colour = colours::yellow_orange;
+constexpr RGB filter_colour = colours::red_orange;
+constexpr RGB eq_colour = colours::magenta;
+constexpr RGB fx_colour = colours::orange;
+constexpr RGB reverb_colour = colours::red;
+constexpr RGB delay_colour = colours::cyan;
+constexpr RGB mod_source_colour = colours::blue;
+constexpr RGB none_colour = colours::black;
+constexpr RGB meta_colour = colours::white;
+// clang-format off
+PLACE_SDRAM_RODATA constexpr RGB shortcut_colours [][kDisplayHeight] = {
+  // Post V3
+    {sample_colour,			sample_colour,			sample_colour,			sample_colour,			sample_colour,			sample_colour,		sample_colour,		sample_colour		},
+	{sample_colour,			sample_colour,			sample_colour,			sample_colour,			sample_colour,			sample_colour,		sample_colour,		sample_colour		},
+	{main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,	main_osc_colour,	noise_colour		},
+	{main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,	main_osc_colour,	main_osc_colour		},
+    {fm_osc_colour,			fm_osc_colour,			none_colour,			none_colour,			fm_osc_colour,			fm_osc_colour,		none_colour,		meta_colour },
+    {fm_osc_colour,			fm_osc_colour,			none_colour,			none_colour,			fm_osc_colour,			fm_osc_colour,		fm_osc_colour,		synth_global_colour },
+    {synth_global_colour,	synth_global_colour,	synth_global_colour,    synth_global_colour,     synth_global_colour,	waveshape_colour,	waveshape_colour,	waveshape_colour    },
+    {synth_global_colour,	synth_global_colour,	synth_global_colour,    synth_global_colour,     synth_global_colour,	waveshape_colour,	waveshape_colour,	waveshape_colour    },
+    {env_colour,				env_colour,				env_colour,				env_colour,				filter_colour,			filter_colour,		filter_colour,		filter_colour       },
+    {env_colour,				env_colour,				env_colour,				env_colour,				filter_colour,			filter_colour,		filter_colour,		filter_colour       },
+    {sidechain_colour,		sidechain_colour,		sidechain_colour,		sidechain_colour,       sidechain_colour,		sidechain_colour,	eq_colour,			eq_colour			},
+	{arp_colour,				arp_colour,				arp_colour,             arp_colour,             arp_colour,				meta_colour,		eq_colour,			eq_colour			},
+    {lfo_colour,				lfo_colour,				lfo_colour,             fx_colour,              fx_colour,				fx_colour,			fx_colour,			fx_colour           },
+    {lfo_colour,				lfo_colour,				lfo_colour,             reverb_colour,          reverb_colour,			reverb_colour,		reverb_colour,		reverb_colour       },
+	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			none_colour,		none_colour,		none_colour   },
+	{none_colour,			synth_global_colour,	synth_global_colour,    synth_global_colour,    none_colour,			none_colour,		none_colour,		none_colour   },
+};
+
+PLACE_SDRAM_RODATA constexpr RGB poly_mod_shortcut_colours [][kDisplayHeight] = {
+	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			mod_source_colour,	mod_source_colour,	mod_source_colour   },
+	{mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,	mod_source_colour,	mod_source_colour   },
+};
+
+PLACE_SDRAM_RODATA constexpr RGB mono_mod_shortcut_colours [][kDisplayHeight] = {
+	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			mod_source_colour,	none_colour,	none_colour   },
+	{none_colour,			synth_global_colour,	synth_global_colour,	synth_global_colour,	mod_source_colour,		none_colour,		none_colour,	none_colour   },
+};
+
+//clang-format on
+
+void SoundEditor::renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWidth],
+                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) const
+{
+	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
+	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+	{
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++)
+		{
+			auto [menuitem, _] = get_basic_shortcut_action(xDisplay, yDisplay);
+			D_PRINTLN("x: %d y: %d item: %x", xDisplay, yDisplay, menuitem);
+
+			if ( menuitem)
+			{
+				image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
+				occupancyMask[yDisplay][xDisplay] = 64;
+			}
+		}
+	}
+}
+
+bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea)
+{
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)
+		|| !Buttons::isShiftButtonPressed())
+	{
+		D_PRINTLN("shift not pressed");
+		return false;
+	}
+
+	if (!image) {
+		D_PRINTLN("no image");
+
+		return true;
+	}
+
+	D_PRINTLN("rendering pad colours");
+
+	renderMainShortcutsOnly(image, occupancyMask);
+
+
+	MenuItem* item = getCurrentMenuItem();
+	if (item)
+	{
+		auto param = item->getParamIndex();
+
+		auto patchable = item->getParamKind() == params::Kind::PATCHED;
+
+		if (patchable)
+		{
+			// canary - if the local lfo (lfo 2 to users) can't patch then it's a global patched param
+			if (currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param, soundEditor.currentParamManager)
+				== PatchCableAcceptance::DISALLOWED)
+			{
+				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+				{
+					for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+					{
+						image[yDisplay][xDisplay] = mono_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+					}
+				}
+			}
+			else
+			{
+				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+				{
+					for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+					{
+						image[yDisplay][xDisplay] = poly_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+					}
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
 void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
@@ -266,6 +396,7 @@ bool SoundEditor::opened() {
 		             // exited if there was a problem
 	}
 
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	setLedStates();
 
 	return true;
@@ -344,6 +475,10 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	// Encoder button
+	if (b == SHIFT)
+	{
+		uiNeedsRendering(this, 0xFFFFFFFF,0xFFFFFFFF);
+	}
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
 		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
@@ -1111,6 +1246,40 @@ void SoundEditor::markInstrumentAsEdited() {
 	}
 }
 
+std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, int32_t y) const
+{
+	MenuItem* item = nullptr;
+	bool do_sound_checks = false;
+	if (!rootUIIsClipMinderScreen()) {
+		if (x <= (kDisplayWidth - 2)) {
+			item = paramShortcutsForSongView[x][y];
+		}
+	}
+
+	// For Kit Instrument Clip with Affect Entire Enabled
+	else if (setupKitGlobalFXMenu) {
+		// only handle the shortcut for velocity in the mod sources column
+		if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
+			item = paramShortcutsForKitGlobalFX[x][y];
+		}
+
+	}
+
+	// AudioClips - there are just a few shortcuts
+	else if (getCurrentClip()->type == ClipType::AUDIO) {
+
+		if (x <= 14) {
+			item = paramShortcutsForAudioClips[x][y];
+		}
+	}
+	else
+	{
+		item = paramShortcutsForSounds[x][y];
+		do_sound_checks = true;
+	}
+	return {item, do_sound_checks};
+}
+
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
@@ -1140,39 +1309,13 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		const MenuItem* item = nullptr;
 
 		// session views (arranger, song, performance)
-		if (!rootUIIsClipMinderScreen()) {
-			if (x <= (kDisplayWidth - 2)) {
-				item = paramShortcutsForSongView[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		// For Kit Instrument Clip with Affect Entire Enabled
-		else if (setupKitGlobalFXMenu) {
-			// only handle the shortcut for velocity in the mod sources column
-			if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
-				item = paramShortcutsForKitGlobalFX[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		// AudioClips - there are just a few shortcuts
-		else if (getCurrentClip()->type == ClipType::AUDIO) {
-
-			if (x <= 14) {
-				item = paramShortcutsForAudioClips[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		else {
+		auto [potential_item, do_sound_checks] = get_basic_shortcut_action(x, y);
+		item = potential_item;
+		if (do_sound_checks) {
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
 			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
 			           == RuntimeFeatureStateToggle::On) {
