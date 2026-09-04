@@ -20,6 +20,7 @@
 #include "EngineMkI.h"
 #include "definitions_cxx.hpp"
 #include "dx7note.h"
+#include <gsl/gsl>
 
 // seems to cause crashes... maybe YAGNI
 // #define DX_PREALLOC
@@ -58,8 +59,8 @@ public:
 	EngineMkI engineMkI;
 	FmCore engineModern;
 
-	DxVoice* solicitDxVoice();
-	void dxVoiceUnassigned(DxVoice* dxVoice);
+	gsl::owner<DxVoice*> solicitDxVoice();
+	void dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice);
 	DxPatch* newPatch();
 };
 

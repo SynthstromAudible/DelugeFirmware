@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
+#include <gsl/gsl>
 
 class TimeStretcher;
 class VoiceSamplePlaybackGuide;
@@ -45,5 +46,5 @@ public:
 	bool active;
 	VoiceSample* voiceSample = nullptr;
 	LivePitchShifter* livePitchShifter = nullptr;
-	DxVoice* dxVoice = nullptr;
+	gsl::owner<DxVoice*> dxVoice = nullptr;
 };

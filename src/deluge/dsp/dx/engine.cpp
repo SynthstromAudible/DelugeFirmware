@@ -54,7 +54,7 @@ DxEngine::DxEngine() {
 #endif
 }
 
-DxVoice* DxEngine::solicitDxVoice() {
+gsl::owner<DxVoice*> DxEngine::solicitDxVoice() {
 #ifdef DX_PREALLOC
 	if (firstUnassignedDxVoice) {
 		DxVoice* toReturn = firstUnassignedDxVoice;
@@ -70,7 +70,7 @@ DxVoice* DxEngine::solicitDxVoice() {
 	}
 }
 
-void DxEngine::dxVoiceUnassigned(DxVoice* dxVoice) {
+void DxEngine::dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice) {
 #ifdef DX_PREALLOC
 	if (dxVoice->preallocated) {
 		dxVoice->nextUnassigned = firstUnassignedDxVoice;
