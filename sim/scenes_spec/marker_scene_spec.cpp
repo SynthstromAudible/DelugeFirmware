@@ -18,11 +18,26 @@
 ///
 /// @par The legacy oracle
 ///
-/// Four examples compare the port against **`SampleMarkerEditor` itself**, driven from its own
-/// state: `waveformBasicNavigator` is pointed at the same `Sample`, `soundEditor`'s
-/// `currentMultiRange`/`currentSource`/`currentSourceIndex` are set, and the legacy object is asked
-/// for the same answer. Each mirrors the state across immediately before it asks, so no comparison
-/// can read anything stale.
+/// The "against the real legacy editor" group compares the port against **`SampleMarkerEditor`
+/// itself**, driven from its own inputs. Each example runs the same gesture twice: once through the
+/// shell into `MarkerScene`, then -- on a model `restore()`d to exactly what the port started from
+/// -- through legacy's own public entry points (`selectEncoderAction`, `padAction`,
+/// `horizontalEncoderAction`, `renderMainPads`, `renderOLED`). `open_legacy` calls
+/// `waveformBasicNavigator.opened(&holder)`, which is `SampleMarkerEditor::opened`'s own line, so
+/// even the scroll and zoom legacy renders from are ones IT derived; nothing the port computed
+/// reaches the oracle. This replaced a `mirror_to_legacy` that handed legacy the port's own view
+/// (E3 final review, B3).
+///
+/// The pad overlay in particular is compared against the real `renderColumn`/`renderMarkerInCol`,
+/// reached through the public `renderMainPads` because both are private
+/// (`sample_marker_editor.h:90-94`). That comparison used to be a transcription of those two bodies
+/// living in `tests/spec/ui/markers_grid_spec.cpp`, whose host target cannot link `deluge_app`
+/// (E3 final review, B2).
+///
+/// Two divergences are **measured** here rather than only written down: `renderMainPads`'
+/// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`), and
+/// legacy's zoom transition holding `UI_MODE_HORIZONTAL_ZOOM` across a second detent. Both are
+/// asserted in both directions at their examples.
 ///
 /// @note The spec may include `gui/` (for the legacy editor); the library may not. Same rule
 ///       `browser_scene_spec.cpp` runs under.
@@ -37,7 +52,9 @@
 #include "ui/core/metrics.h"
 
 #include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/ui.h"
 #include "gui/waveform/waveform_basic_navigator.h"
+#include "hid/button.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "model/sample/sample.h"
@@ -246,22 +263,134 @@ struct Rig {
 		                                      static_cast<int16_t>(on ? 255 : 0)},
 		                     at_ms);
 	}
+	/// @brief Press or release the horizontal encoder's own button, at matrix (0, 1)
+	///        (`shell/profiles/deluge.cpp`). Legacy's `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`.
+	void x_enc_button(bool on, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 0, 1, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
+	}
+	/// @brief One detent of the (detented) horizontal encoder, index 1 (`shell/profiles/deluge.cpp`).
+	void turn_horizontal(int32_t detents, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 1, 0, static_cast<int16_t>(detents * 2)}, at_ms);
+	}
 
 	std::string oled() { return fake.pbm(0); }
 	std::string grid() { return fake.state(); }
 };
 
-/// @brief Point the LEGACY editor at the same sample and range, so it can be asked the same
-///        question. Mirrored immediately before each comparison, never once at the top.
-void mirror_to_legacy(Rig& r, MarkerType marker, int64_t x_scroll, int64_t x_zoom) {
+/// @brief Everything about the holder either side can move, so a legacy run can start from exactly
+///        the model the port started from rather than from the model the port left behind.
+struct HolderState {
+	uint64_t start{};
+	uint64_t end{};
+	uint32_t loop_start{};
+	uint32_t loop_end{};
+	bool locked{};
+	int32_t view_scroll{};
+	int32_t view_zoom{};
+};
+
+HolderState snapshot(Rig& r) {
+	const SampleHolderForVoice& h = r.range->sampleHolder;
+	return HolderState{h.startPos,           h.endPos,          h.loopStartPos, h.loopEndPos, h.loopLocked,
+	                   h.waveformViewScroll, h.waveformViewZoom};
+}
+
+void restore(Rig& r, const HolderState& s) {
+	SampleHolderForVoice& h = r.range->sampleHolder;
+	h.startPos = s.start;
+	h.endPos = s.end;
+	h.loopStartPos = s.loop_start;
+	h.loopEndPos = s.loop_end;
+	h.loopLocked = s.locked;
+	h.waveformViewScroll = s.view_scroll;
+	h.waveformViewZoom = s.view_zoom;
+}
+
+/// @brief Open the LEGACY editor on the same model, letting it derive its OWN view.
+///
+/// Not a mirror of the port's scroll and zoom: `waveformBasicNavigator.opened(&holder)` is
+/// `SampleMarkerEditor::opened`'s own line (`sample_marker_editor.cpp:119-128`), so the view legacy
+/// navigates and renders from is the one IT computes from the holder. The caller `restore()`s the
+/// holder first, so not even the remembered-view fields carry the port's answer across (E3 final
+/// review, B1/B3: each side from its own sentinel).
+void open_legacy(Rig& r, MarkerType marker) {
 	soundEditor.currentMultiRange = r.range;
 	soundEditor.currentSource = r.source;
 	soundEditor.currentSourceIndex = 0;
 	soundEditor.currentSound = r.sound;
-	waveformBasicNavigator.sample = r.sample;
-	waveformBasicNavigator.xScroll = x_scroll;
-	waveformBasicNavigator.xZoom = x_zoom;
+	waveformBasicNavigator.sample = static_cast<Sample*>(r.range->sampleHolder.audioFile); // `:119`
+	waveformBasicNavigator.opened(&r.range->sampleHolder);                                 // `:126`
 	sampleMarkerEditor.markerType = marker;
+	sampleMarkerEditor.blinkPhase = 0; // `:128`
+	currentUIMode = UI_MODE_NONE;
+}
+
+/// @brief The pad image `SampleMarkerEditor::renderMainPads` writes, in legacy's own shape.
+struct LegacyPads {
+	RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+};
+
+/// @brief Ask the REAL `SampleMarkerEditor::renderMainPads` (`sample_marker_editor.cpp:1362`) for
+///        its pads, over the model legacy has just opened on.
+///
+/// This is the whole overlay -- `renderColumn` (`:1268`) and `renderMarkerInCol` (`:1058`), which
+/// are private and so unreachable except through this public entry -- on top of
+/// `waveformRenderer.renderFullScreen`. It replaces the transcription of those two bodies that used
+/// to live in `tests/spec/ui/markers_grid_spec.cpp`, which the host target cannot link
+/// `deluge_app` to reach (E3 final review, B2).
+/// @param blink_phase `SampleMarkerEditor::blinkPhase`, which decides the suppression mask.
+LegacyPads legacy_pads(int8_t blink_phase) {
+	sampleMarkerEditor.blinkPhase = blink_phase;
+	LegacyPads out;
+	sampleMarkerEditor.renderMainPads(0xFFFFFFFFu, out.image, nullptr, true);
+	return out;
+}
+
+/// @brief Where the port's main pads first differ from a legacy image, and how many differ.
+///
+/// Main columns only: the sidebar is `renderSidebar`'s, which this scene does not port (see the
+/// class docstring), so legacy's two sidebar columns have no counterpart to compare.
+struct PadDiff {
+	int32_t count = 0;
+	int32_t first_x = -1;
+	int32_t first_y = -1;
+};
+
+PadDiff pad_diff(Rig& r, const LegacyPads& legacy) {
+	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	PadDiff d;
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			if (!(g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == legacy.image[y][x])) {
+				if (d.count == 0) {
+					d.first_x = x;
+					d.first_y = y;
+				}
+				d.count++;
+			}
+		}
+	}
+	return d;
+}
+
+/// @brief Assert the port's main pads are the legacy image, pad for pad.
+/// @param self The enclosing `it(...)` block's lambda parameter -- `expect` expands to `self.expect`.
+template <typename Self>
+void expect_pads_match(Self& self, Rig& r, const LegacyPads& legacy) {
+	const PadDiff d = pad_diff(r, legacy);
+	// The coordinates first, so a failure names a pad rather than only a count.
+	expect(d.first_x).to_equal(-1);
+	expect(d.first_y).to_equal(-1);
+	expect(d.count).to_equal(0);
+}
+
+/// @brief The 128x48 canvas `SampleMarkerEditor::renderOLED` (`sample_marker_editor.cpp:1098`)
+///        would have shown, as a PBM.
+std::string legacy_oled() {
+	static deluge::hid::display::oled_canvas::Canvas canvas;
+	canvas.clear();
+	sampleMarkerEditor.renderOLED(canvas);
+	return page_major_to_pbm(canvas.bytes().data(), 128, 48);
 }
 
 } // namespace
@@ -332,6 +461,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 
 	it("writes the same position legacy's selectEncoderAction writes, for the same turns", _ {
 		Rig r;
+		const HolderState before = snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 
@@ -342,10 +472,10 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.tick(20);
 		const uint64_t ported = r.range->sampleHolder.startPos;
 
-		// Reset the model and drive LEGACY over the same fixture, from its own state, mirrored
-		// immediately before the turns.
-		r.range->sampleHolder.startPos = 0;
-		mirror_to_legacy(r, MarkerType::START, 0, kZoomMax);
+		// Put the model back exactly as the port found it and drive LEGACY over it, letting the
+		// legacy navigator derive its own scroll and zoom.
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
 		sampleMarkerEditor.selectEncoderAction(1);
 		sampleMarkerEditor.selectEncoderAction(1);
 		const uint64_t legacy = r.range->sampleHolder.startPos;
@@ -361,14 +491,15 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		// (`sample_marker_editor.cpp:281-288`) refuses it outright.
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 6 * kZoomMax;
+		const HolderState before = snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
 		const uint64_t ported = r.range->sampleHolder.startPos;
 
-		r.range->sampleHolder.startPos = 4 * kZoomMax;
-		mirror_to_legacy(r, MarkerType::START, 0, kZoomMax);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
 		sampleMarkerEditor.selectEncoderAction(1);
 		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(r.range->sampleHolder.startPos));
 		expect(static_cast<int32_t>(ported)).to_equal(4 * kZoomMax);
@@ -380,14 +511,15 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		Rig r;
 		r.range->sampleHolder.startPos = 4 * kZoomMax;
 		r.range->sampleHolder.endPos = 8 * kZoomMax; // END now at column 7
+		const HolderState before = snapshot(r);
 		r.open(MarkerType::START);
 		r.tick(0);
 		r.turn_select(1, 10);
 		r.tick(10);
 		const uint64_t ported = r.range->sampleHolder.startPos;
 
-		r.range->sampleHolder.startPos = 4 * kZoomMax;
-		mirror_to_legacy(r, MarkerType::START, 0, kZoomMax);
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
 		sampleMarkerEditor.selectEncoderAction(1);
 		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(r.range->sampleHolder.startPos));
 		expect(static_cast<int32_t>(ported)).to_equal(5 * kZoomMax);
@@ -584,6 +716,371 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 		r.open(MarkerType::END);
 		r.tick(20);
 		expect(reversed).to_equal(r.oled());
+	});
+
+	// --- against the real legacy editor -------------------------------------------------------
+	//
+	// Every example below runs the same gesture twice: once through the shell into `MarkerScene`,
+	// and once through `SampleMarkerEditor`'s own public entry points over a model `restore()`d to
+	// what the port started from, with `waveformBasicNavigator.opened()` deriving legacy's view for
+	// itself. Neither side reads anything the other computed.
+	//
+	// **Uncovered, and deliberately so.** `SampleMarkerEditor::renderSidebar` has no counterpart --
+	// the scene does not port the sidebar (see the class docstring) -- and neither does
+	// `verticalEncoderAction`, which falls through to the UI beneath. The audition-column and
+	// mute-column arms of `padAction` (`sample_marker_editor.cpp:353-365`) reach
+	// `instrumentClipView` and `exitUI()`, neither of which this layer performs. Those are recorded
+	// as uncovered in `docs/superpowers/specs/2026-08-26-ui-migration.md` §10.4, not counted here.
+
+	it("draws the same pads as SampleMarkerEditor::renderMainPads, four markers apart", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 10 * kZoomMax;
+		r.range->sampleHolder.endPos = 14 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_START);
+		// `renderMainPads` is the only public way into `renderColumn` and `renderMarkerInCol`, which
+		// are private (`sample_marker_editor.h:90-94`) -- and it draws the waveform underneath them
+		// too, so this compares the blend rather than the overlay on black.
+		expect_pads_match(self, r, legacy_pads(0));
+	});
+
+	it("stacks a shared column the same way SampleMarkerEditor::renderColumn does", _ {
+		// All four markers land on column 4: START floors `pos / zoom`, the two end-ish markers floor
+		// `(pos - 1) / zoom`, so 4z, 4z+1, 4z+2 and 4z+3 are one column between them. This is the
+		// stacking arithmetic -- `numMarkers`, `baseIncrement`/`selectedIncrement`, and the mirror
+		// about the middle row -- which a column with one marker on it cannot exercise at all.
+		Rig r;
+		r.range->sampleHolder.startPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
+		r.range->sampleHolder.loopEndPos = 4 * kZoomMax + 2;
+		r.range->sampleHolder.endPos = 4 * kZoomMax + 3;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::LOOP_END);
+		r.tick(0);
+
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_END);
+		expect_pads_match(self, r, legacy_pads(0));
+	});
+
+	it("gives the selected marker the wider slice when three share a column, as legacy does", _ {
+		// `numMarkers == 3` is the ONE case where `baseIncrement` (1) and `selectedIncrement` (2)
+		// differ (`sample_marker_editor.cpp:1310-1313`); with two or four sharing they are equal and
+		// swapping them changes nothing. Without this example a port that swapped the two passes.
+		Rig r;
+		r.range->sampleHolder.startPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
+		r.range->sampleHolder.loopEndPos = 4 * kZoomMax + 2;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_START);
+		expect_pads_match(self, r, legacy_pads(0));
+	});
+
+	it("suppresses the same markers as renderMainPads does at every blink phase", _ {
+		// The suppression mask is `blinkPhase >= 1` and the phase-1 flood is `blinkPhase == 1`
+		// (`sample_marker_editor.cpp:1376-1398`). With the selected marker SHARING a column the two
+		// are distinguishable, which is exactly what the port-only blink example above says a
+		// one-marker column cannot show.
+		Rig r;
+		r.range->sampleHolder.startPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax + 1;
+		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
+		r.range->sampleHolder.endPos = 13 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::LOOP_START);
+		for (int32_t phase = 0; phase < 4; phase++) {
+			r.tick(static_cast<uint32_t>(phase) * marker::kBlinkPhaseMs);
+			expect(static_cast<int32_t>(marker_scene().blink_phase())).to_equal(phase);
+			restore(r, before);
+			open_legacy(r, MarkerType::LOOP_START);
+			// **Phase 2 is the documented divergence, and this is where it is measured rather than
+			// merely asserted.** Legacy renders the blink two ways: `timerCallback` (`:771`) draws
+			// phases 0 and 2 normally, while `renderMainPads` (`:1362`) suppresses whenever
+			// `blinkPhase >= 1`. The scene follows `timerCallback` on purpose (`marker_scene.h`), so
+			// at phase 2 it must match `renderMainPads`' PHASE-0 output and must not match its
+			// phase-2 output. Both halves are asserted, so a port that quietly started following
+			// `renderMainPads` would fail here.
+			expect_pads_match(self, r, legacy_pads(static_cast<int8_t>(phase == 2 ? 0 : phase)));
+			if (phase == 2) {
+				expect(pad_diff(r, legacy_pads(2)).count > 0).to_be_true();
+			}
+		}
+	});
+
+	it("moves the marker to the column legacy's padAction moves it to", _ {
+		Rig r;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(6, 3, true, 10);
+		r.tick(10);
+		const uint64_t ported = r.range->sampleHolder.startPos;
+
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.padAction(6, 3, 127);
+		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(r.range->sampleHolder.startPos));
+		expect(static_cast<int32_t>(ported)).to_equal(6 * kZoomMax);
+	});
+
+	it("selects the marker legacy's padAction selects, and holds it the same way", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 10 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(9, 3, true, 10); // column 9 is END's
+		r.tick(10);
+		const MarkerType ported = marker_scene().marker_type();
+		const bool ported_holding = marker_scene().holding_marker();
+
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.padAction(9, 3, 127);
+		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(sampleMarkerEditor.markerType));
+		expect(static_cast<int32_t>(ported)).to_equal(static_cast<int32_t>(MarkerType::END));
+		// `UI_MODE_HOLDING_SAMPLE_MARKER` (`:536`) is what the scene's `holding_marker()` replaces.
+		expect(ported_holding).to_equal(isUIModeActive(UI_MODE_HOLDING_SAMPLE_MARKER));
+		expect(ported_holding).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("adds the loop start where legacy's hold-and-tap adds it", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.pad(2, 3, true, 10); // hold START's own column
+		r.tick(10);
+		r.pad(6, 3, true, 20); // tap column 6
+		r.tick(20);
+		const uint32_t ported_loop = r.range->sampleHolder.loopStartPos;
+		const MarkerType ported_marker = marker_scene().marker_type();
+
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.padAction(2, 3, 127);
+		sampleMarkerEditor.padAction(6, 3, 127);
+		expect(static_cast<int32_t>(ported_loop))
+		    .to_equal(static_cast<int32_t>(r.range->sampleHolder.loopStartPos));
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(sampleMarkerEditor.markerType));
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::LOOP_START));
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("removes the loop start where legacy's hold-and-tap removes it", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 6 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+		r.pad(6, 3, true, 10); // hold LOOP_START
+		r.tick(10);
+		r.pad(2, 3, true, 20); // tap START
+		r.tick(20);
+		const uint32_t ported_loop = r.range->sampleHolder.loopStartPos;
+		const MarkerType ported_marker = marker_scene().marker_type();
+
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_START);
+		sampleMarkerEditor.padAction(6, 3, 127);
+		sampleMarkerEditor.padAction(2, 3, 127);
+		expect(static_cast<int32_t>(ported_loop))
+		    .to_equal(static_cast<int32_t>(r.range->sampleHolder.loopStartPos));
+		expect(static_cast<int32_t>(ported_loop)).to_equal(0);
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(sampleMarkerEditor.markerType));
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::START));
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("removes the loop end where legacy's hold-and-tap removes it", _ {
+		// The LOOP_END arm (`sample_marker_editor.cpp:509-522`), which the LOOP_START one above does
+		// not reach: a different marker held, a different column tapped, and a different write.
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::LOOP_END);
+		r.tick(0);
+		r.pad(7, 3, true, 10); // hold LOOP_END (`(pos - 1) / zoom` floors to 7)
+		r.tick(10);
+		r.pad(11, 3, true, 20); // tap END's own column
+		r.tick(20);
+		const uint32_t ported_loop = r.range->sampleHolder.loopEndPos;
+		const MarkerType ported_marker = marker_scene().marker_type();
+
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_END);
+		sampleMarkerEditor.padAction(7, 3, 127);
+		sampleMarkerEditor.padAction(11, 3, 127);
+		expect(static_cast<int32_t>(ported_loop)).to_equal(static_cast<int32_t>(r.range->sampleHolder.loopEndPos));
+		expect(static_cast<int32_t>(ported_loop)).to_equal(0);
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(sampleMarkerEditor.markerType));
+		expect(static_cast<int32_t>(ported_marker)).to_equal(static_cast<int32_t>(MarkerType::END));
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("toggles the loop lock where legacy's hold-and-tap toggles it", _ {
+		// `markerHeld == LOOP_START && markerPressed == LOOP_END` (`:480-489`).
+		Rig r;
+		r.range->sampleHolder.startPos = 2 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 4 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 8 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::LOOP_START);
+		r.tick(0);
+		r.pad(4, 3, true, 10); // hold LOOP_START
+		r.tick(10);
+		r.pad(7, 3, true, 20); // tap LOOP_END
+		r.tick(20);
+		const bool ported_locked = r.range->sampleHolder.loopLocked;
+
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_START);
+		sampleMarkerEditor.padAction(4, 3, 127);
+		sampleMarkerEditor.padAction(7, 3, 127);
+		expect(ported_locked).to_equal(r.range->sampleHolder.loopLocked);
+		expect(ported_locked).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("zooms to the same scroll and zoom legacy's horizontalEncoderAction reaches", _ {
+		// Legacy zooms only while the horizontal encoder's BUTTON is held
+		// (`UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`, `sample_marker_editor.cpp:661-671`), and
+		// both sides are driven through that gate rather than around it.
+		// `WaveformBasicNavigator::zoom` runs `PadLEDs::renderZoom()` on success
+		// (`waveform_basic_navigator.cpp:67`) -- the transition animation the port deliberately does
+		// not carry -- and that pumps `AudioEngine::routineWithClusterLoading()`, which segfaults in
+		// a spec process on the input ring. `QuietAudio` is the disarm (`support/card_access.h`);
+		// without it this example does not fail, it takes the process down.
+		spec::QuietAudio quiet;
+		Rig r;
+		r.range->sampleHolder.startPos = 4 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.x_enc_button(true, 10);
+		r.tick(10);
+		r.turn_horizontal(1, 20);
+		r.tick(20);
+		const int32_t ported_zoom = static_cast<int32_t>(marker_scene().x_zoom());
+		const int32_t ported_scroll = static_cast<int32_t>(marker_scene().x_scroll());
+
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, true, false);
+		sampleMarkerEditor.horizontalEncoderAction(1);
+		expect(ported_zoom).to_equal(static_cast<int32_t>(waveformBasicNavigator.xZoom));
+		expect(ported_scroll).to_equal(static_cast<int32_t>(waveformBasicNavigator.xScroll));
+		// ...and it really did zoom, so a port that refused the turn could not pass this.
+		expect(ported_zoom).to_equal(kZoomMax / 2);
+
+		// **One detent, and that is the ceiling, not an oversight.** A successful legacy zoom leaves
+		// `currentUIMode == UI_MODE_HORIZONTAL_ZOOM` until the `PadLEDs` transition finishes, and
+		// `horizontalEncoderAction`'s `isUIModeWithinRange(zoomUIModes)` gate then refuses the next
+		// detent (`sample_marker_editor.cpp:745-752`). Nothing runs that animation to completion in
+		// a spec process, so a second detent compares the port's second zoom against legacy's
+		// refusal. Measured: port 8192, legacy 16384. The animation is the one part of
+		// `WaveformBasicNavigator::zoom` the port deliberately does not carry
+		// (`waveform_basic_navigator.h`), so this is the divergence working as recorded, not a bug.
+		expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_true();
+		sampleMarkerEditor.buttonAction(deluge::hid::button::X_ENC, false, false);
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("scrolls to the same position legacy's horizontalEncoderAction scrolls to", _ {
+		// The same entry point's OTHER arm: no button held, so `waveformBasicNavigator.scroll`.
+		Rig r;
+		r.range->sampleHolder.startPos = 0;
+		r.range->sampleHolder.endPos = kSampleLength;
+		r.range->sampleHolder.waveformViewZoom = kZoomMax / 4;
+		r.range->sampleHolder.waveformViewScroll = 8 * (kZoomMax / 4);
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		r.turn_horizontal(1, 10);
+		r.tick(10);
+		const int32_t ported_scroll = static_cast<int32_t>(marker_scene().x_scroll());
+
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		sampleMarkerEditor.horizontalEncoderAction(1);
+		expect(ported_scroll).to_equal(static_cast<int32_t>(waveformBasicNavigator.xScroll));
+		expect(ported_scroll).to_equal(9 * (kZoomMax / 4));
+	});
+
+	it("draws the same OLED page as SampleMarkerEditor::renderOLED", _ {
+		Rig r;
+		r.range->sampleHolder.startPos = 3 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		const std::string ported = r.oled();
+
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		// The full 128x48 panel, title rows included: `OLED_MAIN_TOPMOST_PIXEL` is 5
+		// (`board_config.h:64`) and legacy offsets its own drawing by it, so the faceplate rows are
+		// blank on both sides and there is nothing to normalise away.
+		expect(ported).to_equal(legacy_oled());
+	});
+
+	it("draws the same OLED page for a locked loop, badge and all", _ {
+		// The loop-lock badge and the position readout's other units -- `renderOLED`'s arms the
+		// START page never reaches.
+		Rig r;
+		r.range->sampleHolder.startPos = 0;
+		r.range->sampleHolder.endPos = 14 * kZoomMax;
+		r.range->sampleHolder.loopStartPos = 5 * kZoomMax;
+		r.range->sampleHolder.loopEndPos = 9 * kZoomMax;
+		r.range->sampleHolder.loopLocked = true;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::LOOP_END);
+		r.tick(0);
+		const std::string ported = r.oled();
+
+		restore(r, before);
+		open_legacy(r, MarkerType::LOOP_END);
+		expect(ported).to_equal(legacy_oled());
+	});
+
+	it("labels a reversed sample's marker the same way reverseRemap does", _ {
+		// `reverseRemap` (`sample_marker_editor.cpp:83-104`) is read by BOTH renderers; with the
+		// sample reversed, START must draw legacy's "End point" page.
+		Rig r;
+		r.source->sampleControls.reversed = true;
+		r.range->sampleHolder.startPos = 3 * kZoomMax;
+		r.range->sampleHolder.endPos = 12 * kZoomMax;
+		const HolderState before = snapshot(r);
+		r.open(MarkerType::START);
+		r.tick(0);
+		const std::string ported = r.oled();
+
+		restore(r, before);
+		open_legacy(r, MarkerType::START);
+		expect(ported).to_equal(legacy_oled());
+		r.source->sampleControls.reversed = false;
 	});
 
 	// --- goldens ------------------------------------------------------------------------------
