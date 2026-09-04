@@ -4,7 +4,9 @@
 ///        against a real card.
 ///
 /// Three halves: the `Descriptor` table (what each browser is for, as data), the scene's behaviour
-/// over the async listing seam, and its pixels compared **against the legacy renderer itself**.
+/// over the async listing seam, and its navigation and pixels compared **against the legacy
+/// `Browser` itself, driven from its own inputs** -- see `SpecBrowser` and the
+/// `browser_legacy_pixels` group.
 ///
 /// @par Why every example installs a deferring dispatcher
 ///
@@ -95,6 +97,11 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
+/// The shipped audio-extension list itself (`sample_browser.cpp:85`), which has no header. Declared
+/// here at global scope -- where its definition lives -- rather than re-spelled, so `SpecBrowser`
+/// lists through the same array `SampleBrowser::opened` installs (`sample_browser.cpp:110`).
+extern char const* allowedFileExtensionsAudio[];
+
 namespace {
 
 /// `Action` unqualified is the model's own undo `Action` (`model/action/action.h`, pulled in through
@@ -161,30 +168,118 @@ struct BrowserDisplay final : deluge::hid::Display {
 	void timerRoutine() override {}
 };
 
-/// @brief `Browser`'s protected statics, reachable.
+/// @brief The legacy sample browser, **driven from its own inputs**.
 ///
-/// `fileIndexSelected` / `scrollPosVertical` (`browser.h:228,230`) and `enteredTextEditPos` /
-/// `scrollPosHorizontal` (`qwerty_ui.h:63-64`) are protected **statics**, so a derived class can
-/// write them and the shipped `sampleBrowser` object then renders from them -- they are the same
-/// objects, not copies. `SampleBrowser` itself is `final`, which is why this derives from `Browser`.
+/// @par What this is for
+///
+/// This used to be a `mirror()` that copied the scene's `file_index`/`scroll`/`enteredText`/cursor
+/// onto legacy's statics before rendering. That validated the renderer and nothing else: legacy's
+/// navigation -- `Browser::clampFileSelectionAndScroll` (`browser.cpp:1009`),
+/// `Browser::selectEncoderAction` (`:549`), `Browser::finishSelectEncoderAction` (`:702`),
+/// `Browser::predictExtendedText` (`:782`), `Browser::arrivedInNewFolder` (`:367`) -- never ran, so
+/// a port that navigated wrongly still matched, because the oracle was being handed the port's
+/// answer (E3 final review, B1; the same defect E2 found in the write comparisons). Now legacy gets
+/// the *inputs* -- the same encoder detents and the same pad coordinates -- computes its own
+/// selection, scroll, text and cursor, and both sides' answers are compared.
+///
+/// @par Why a subclass and not `sampleBrowser` itself
+///
+/// `SampleBrowser` is `final`, and `SampleBrowser::opened()` cannot run in a spec process: it
+/// dereferences `soundEditor.getCurrentAudioFileHolder()` (`sample_browser.cpp:131`) and drives
+/// `actionLogger`, `favouritesManager` and `instrumentClipView` (`:105-122`). So this derives from
+/// `Browser` and `open_samples()` performs `SampleBrowser::opened`'s **configuration** assignments,
+/// each cited. Everything past that point -- the listing, the search, the clamp, the prediction --
+/// is `Browser`'s own unmodified code, and the state it computes lives in `Browser`/`QwertyUI`
+/// statics, which is why the shipped `sampleBrowser` object can still be the thing that renders it
+/// (`legacy_pbm()`). The configuration transcription is seven flags; the behaviour under test is
+/// not transcribed at all.
 class SpecBrowser : public Browser {
 public:
-	std::string getCurrentFilePath() override { return {}; }
-	UIType getUIType() override { return UIType::LOAD_SONG; }
-	void enterKeyPress() override {}
+	SpecBrowser() {
+		// `SampleBrowser::SampleBrowser` (`sample_browser.cpp:87-94`), minus the two members
+		// `legacy_pbm()` renders through `sampleBrowser` instead (`fileIcon`, `title`).
+		shouldWrapFolderContents = false;
+		qwertyAlwaysVisible = false;
+		shouldInterpretNoteNamesForThisBrowser = true;
+		// `Browser::Browser` already leaves `mayDefaultToBrandNewNameOnEntry = false` and
+		// `filePrefix = NULL` (`browser.cpp:88,91`), which is what `SampleBrowser` inherits.
+	}
 
-	/// @brief Point the legacy renderer at exactly what the scene is showing.
-	/// @param index  The selected row.
-	/// @param scroll The top visible row.
-	/// @param text   `QwertyUI::enteredText`.
-	/// @param cursor `QwertyUI::enteredTextEditPos`.
-	/// @param hscroll `QwertyUI::scrollPosHorizontal`.
-	static void mirror(int32_t index, int32_t scroll, std::string_view text, int32_t cursor, int32_t hscroll) {
-		fileIndexSelected = index;
-		scrollPosVertical = scroll;
-		QwertyUI::enteredText = std::string{text};
-		enteredTextEditPos = static_cast<int16_t>(cursor);
-		scrollPosHorizontal = hscroll;
+	std::string getCurrentFilePath() override { return {}; }
+	UIType getUIType() override { return UIType::SAMPLE_BROWSER; }
+
+	/// @brief `SampleBrowser::enterKeyPress`'s folder arm (`sample_browser.cpp:333-360`).
+	///
+	/// Two things from that body are deliberately absent. `AudioEngine::stopAnyPreviewing()` (`:342`)
+	/// tears down a preview only `SampleBrowser::currentFileChanged` ever starts, and `Browser`'s
+	/// hook is empty -- there is nothing to stop. The file arm, `claimCurrentFile()` (`:398`), names
+	/// `soundEditor`, `slicer`, `PadLEDs` and `instrumentClipView`; the port cannot perform it either
+	/// and parks the path instead (`sample_accept`), so it has no counterpart to compare against and
+	/// is recorded as uncovered.
+	void enterKeyPress() override {
+		FileItem* item = getCurrentFileItem();
+		if (item == nullptr) {
+			return;
+		}
+		if (item->isFolder) {
+			if (deluge::string::caselessEquals(item->filename, "TEMP")
+			    && deluge::string::caselessEquals(currentDir, "SAMPLES/CLIPS")) {
+				return; // `:347-352`
+			}
+			goIntoFolder(item->filename.c_str());
+		}
+	}
+
+	/// `Browser::isFavouritesVisible` (`browser.cpp:1462`) opens with `getCurrentUI()`, which indexes
+	/// `uiNavigationHierarchy[numUIsOpen - 1]` with `numUIsOpen == 0` in a spec process. Both answers
+	/// are false in legacy too through every state this spec drives, because `SampleBrowser::opened`
+	/// leaves `qwertyVisible` false (`sample_browser.cpp:113`) and the layout defaults to
+	/// `FavouritesDefaultLayoutOff`; the override is what makes them *reachable*, not what makes them
+	/// false. The favourites row itself has no port counterpart -- see the coverage note in
+	/// `docs/superpowers/specs/2026-08-26-ui-migration.md` §10.4.
+	bool isFavouritesVisible() override { return false; }
+	bool isBanksVisible() override { return false; }
+
+	/// @brief `SampleBrowser::opened`'s configuration and its listing, on an empty catalogue.
+	///
+	/// `Browser::opened()` (`browser.cpp:178-188`) runs for real -- it is what resets
+	/// `numCharsInPrefix`, `arrivedAtFileByTyping`, `numberEditPos` and (through `QwertyUI::opened`,
+	/// `qwerty_ui.cpp:51-73`) `enteredText`/`enteredTextEditPos`. The assignments after it are
+	/// `SampleBrowser::opened`'s own, cited line by line.
+	///
+	/// The `currentDir`/`filenameToStartAt` pair is the *blank-path* arm of that function's
+	/// dissection (`sample_browser.cpp:135-146`): with the holder's `filePath` empty and
+	/// `lastFilePathLoaded` empty, legacy takes `currentDir = "SAMPLES"` and a null search filename.
+	/// `expects_blank_start_path()` below is what holds the fixture to that arm, so the arm is
+	/// chosen by the fixture rather than assumed.
+	void open_samples() {
+		Browser::opened();
+		allowedFileExtensions = allowedFileExtensionsAudio; // `sample_browser.cpp:110`
+		allowFoldersSharingNameWithFile = true;             // `:111`
+		outputTypeToLoad = OutputType::NONE;                // `:112`
+		qwertyVisible = false;                              // `:113`
+		fileIndexSelected = 0;                              // `:119`
+		currentDir = "SAMPLES";                             // `:145`
+		// `sample_browser.cpp:165-170`. `Owner::run` is inline on the host (`storage/owner.h:55-59`),
+		// so this listing has completed by the time the call returns -- legacy has no in-flight
+		// state to observe, which is exactly the asymmetry the file docstring records for the port.
+		beginListing({.action = ListingAction::Open, .direction = 1, .filenameToStartAt = "", .defaultDir = "SAMPLES"});
+	}
+
+	static int32_t index() { return fileIndexSelected; }
+	static int32_t scroll() { return scrollPosVertical; }
+	static int32_t cursor() { return enteredTextEditPos; }
+	static int32_t text_scroll() { return scrollPosHorizontal; }
+	static std::string text() { return QwertyUI::enteredText; }
+
+	/// @brief Poison every static this spec compares, so a legacy run that silently did nothing
+	///        fails loudly instead of agreeing with whatever ran before it.
+	static void poison() {
+		fileIndexSelected = -99;
+		scrollPosVertical = -99;
+		QwertyUI::enteredText = "<<never-listed>>";
+		enteredTextEditPos = -99;
+		scrollPosHorizontal = -99;
 	}
 };
 
@@ -474,37 +569,93 @@ std::string catalogue_order() {
 	return out;
 }
 
-/// @brief Drop the rows the faceplate hides from a PBM.
-///
-/// The port's root frame has origin `(0, visible_top)` and cannot ink above it; legacy draws into a
-/// raw canvas with no such bound. Comparing below the bezel is comparing exactly the rows that reach
-/// the glass -- the same normalisation `context_menu_scene_spec.cpp` makes for the same reason.
-/// @param pbm         A P1 PBM as `page_major_to_pbm` writes it.
-/// @param visible_top How many leading pixel rows the faceplate hides.
-/// @return The same PBM with those rows removed from the body.
-std::string below_bezel(const std::string& pbm, int visible_top) {
-	size_t at = 0;
-	for (int i = 0; i < 2 + visible_top; i++) {
-		at = pbm.find('\n', at) + 1;
-	}
-	return pbm.substr(at);
+/// @brief One side's answer: the four navigation numbers, the text, and the panel.
+struct BrowserState {
+	int32_t index = 0;
+	int32_t scroll = 0;
+	int32_t cursor = 0;
+	int32_t text_scroll = 0;
+	std::string text;
+	std::string pbm;
+};
+
+/// @brief What the scene currently holds, and what it currently shows.
+BrowserState port_state(Rig& r) {
+	const BrowserScene& s = browser_scene();
+	return BrowserState{s.file_index(), s.scroll(), s.cursor(), s.text_scroll(), std::string{s.entered_text()},
+	                    r.fake.pbm(0)};
 }
 
-/// @brief The REAL legacy renderer's output for whatever the scene is currently showing.
+/// @brief Wipe the catalogue, so the legacy run below lists it for itself.
 ///
-/// Not a transcription: `sampleBrowser` is the shipped object (its constructor set `fileIcon` to
-/// `OLED::waveIcon` and `title` to "Audio files", `sample_browser.cpp:88-89`), the catalogue it reads
-/// is the same `FileCatalogue::fileItems` the scene just listed, and the selection is mirrored onto
-/// legacy's own statics first. This is `Browser::renderOLED` (`browser.cpp:925`) itself.
+/// The port's listing left `FileCatalogue::fileItems` populated and its bookkeeping set. Legacy's
+/// `readFileItemsForFolder` would re-read the folder anyway, but starting from the port's leftovers
+/// is precisely the shape B1 exists to remove: emptied here so the only thing the two runs share is
+/// the card.
+void clear_catalogue() {
+	FileCatalogue::emptyFileItems();
+	FileCatalogue::numFileItemsDeletedAtStart = 0;
+	FileCatalogue::numFileItemsDeletedAtEnd = 0;
+	FileCatalogue::firstFileItemRemaining.clear();
+	FileCatalogue::lastFileItemRemaining.clear();
+	FileCatalogue::filenameToStartSearchAt = nullptr;
+	FileCatalogue::currentDir.clear();
+}
+
+/// @brief Open the legacy sample browser on an empty catalogue, run @p drive, and read its answer.
 ///
-/// @return The 128x48 canvas legacy would have shown, as a PBM.
-std::string legacy_pbm() {
-	const BrowserScene& s = browser_scene();
-	SpecBrowser::mirror(s.file_index(), s.scroll(), s.entered_text(), s.cursor(), s.text_scroll());
+/// @param drive The same input sequence the scene was given, spelled in legacy's own entry points.
+/// @return Legacy's own selection, scroll, text, cursor and rendered panel.
+template <typename Drive>
+BrowserState legacy_run(Drive&& drive) {
+	clear_catalogue();
+	SpecBrowser::poison();
+	SpecBrowser browser;
+	browser.open_samples();
+	drive(browser);
+
+	// `sampleBrowser` is the shipped object -- its constructor set `fileIcon` to `OLED::waveIcon` and
+	// `title` to "Audio files" (`sample_browser.cpp:88-89`) -- and every number it renders from is a
+	// `Browser`/`QwertyUI` static that the `SpecBrowser` run above computed. This is
+	// `Browser::renderOLED` (`browser.cpp:925`) itself, over legacy's own state.
 	static deluge::hid::display::oled_canvas::Canvas canvas;
 	canvas.clear();
 	sampleBrowser.renderOLED(canvas);
-	return page_major_to_pbm(canvas.bytes().data(), 128, 48);
+	return BrowserState{SpecBrowser::index(),  SpecBrowser::scroll(),
+	                    SpecBrowser::cursor(), SpecBrowser::text_scroll(),
+	                    SpecBrowser::text(),   page_major_to_pbm(canvas.bytes().data(), 128, 48)};
+}
+
+/// @brief Assert the two sides agree, numbers first so a navigation divergence prints as a number.
+///
+/// Pixels last and deliberately: a frame diff is unreadable next to "index 4 vs index 3".
+/// @param self The enclosing `it(...)` block's own lambda parameter -- `expect(...)` expands to
+///             `self.expect(...)`, exactly as `expect_golden` documents.
+template <typename Self>
+void expect_same(Self& self, const BrowserState& port, const BrowserState& legacy) {
+	expect(port.index).to_equal(legacy.index);
+	expect(port.scroll).to_equal(legacy.scroll);
+	expect(port.text).to_equal(legacy.text);
+	expect(port.cursor).to_equal(legacy.cursor);
+	expect(port.text_scroll).to_equal(legacy.text_scroll);
+	// The FULL 128x48 panel, title rows included. The old comparison trimmed the top five rows on the
+	// grounds that the port's root frame has origin `(0, visible_top)` and legacy's canvas does not
+	// -- but `OLED_MAIN_TOPMOST_PIXEL` is 5 (`board_config.h:64`) and legacy offsets its own drawing
+	// by it (`Browser::renderOLED`, `browser.cpp:938`; `Canvas::draw_screen_title`), so rows 0-4 are
+	// blank on both sides and the trim was hiding `drawScreenTitle` rather than normalising anything.
+	// Compared, and they match (E3 final review, B1).
+	expect(port.pbm).to_equal(legacy.pbm);
+}
+
+/// @brief Hold the fixture to the arm of `SampleBrowser::opened`'s dissection that `open_samples()`
+///        spells (`sample_browser.cpp:135-146`).
+///
+/// If a future fixture gave the audio clip a real sample path, legacy would enter on that file's
+/// folder and the transcription in `open_samples()` would silently stop matching. This fails first.
+/// Read off the model, not off either side's dissection of it -- `SoundEditor::getCurrentAudioFileHolder`
+/// resolves an audio clip to its own `sampleHolder` (`sound_editor.cpp:1971-1980`).
+bool blank_start_path(spec::AudioSongFixture& f) {
+	return f.clip->sampleHolder.filePath.empty();
 }
 
 /// @brief The first action of kind @p k in @p r, or null.
@@ -1247,54 +1398,143 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 	});
 });
 
-describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy renderer", $ {
-	it("draws the same rows as Browser::renderOLED on the same catalogue", _ {
+/// @par Each side from its own sentinel
+///
+/// Every example here runs the SAME inputs twice: once through the shell into `BrowserScene`, and
+/// once through `Browser`'s own entry points on a freshly emptied catalogue (`legacy_run`). Neither
+/// run reads anything the other computed -- the only thing they share is the card on disk. Then both
+/// answers are compared: `fileIndexSelected`, `scrollPosVertical`, `enteredText`,
+/// `enteredTextEditPos`, `scrollPosHorizontal`, and the 128x48 panel.
+///
+/// That is what makes `Browser::arrivedInNewFolder` (`browser.cpp:367`),
+/// `Browser::selectEncoderAction` (`:549`), `Browser::finishSelectEncoderAction` (`:702`),
+/// `Browser::clampFileSelectionAndScroll` (`:1009`), `Browser::goIntoFolderImpl` (`:1339`) and
+/// `Browser::predictExtendedText` (`:782`) part of the oracle rather than dead code beside it. Both
+/// mutation directions were checked when this was written: an off-by-one in the port's clamp
+/// (`browser_scene.cpp`'s `clamp_selection_and_scroll`) fails these, and an off-by-one in
+/// `Browser::clampFileSelectionAndScroll` fails them too.
+describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy browser", $ {
+	it("lists and selects the same entry as Browser::arrivedInNewFolder", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		expect(blank_start_path(f)).to_be_true();
+
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
-		expect(browser_scene().file_index()).to_equal(0);
+		const BrowserState port = port_state(r);
+		expect(port.index).to_equal(0);
 
-		// The oracle runs SECOND and from its own state, mirrored across just before it draws --
-		// E2's lesson: a comparison that reads state the port left behind can pass with the port
-		// wrong. Here the shared thing is `FileCatalogue::fileItems`, which is the *input* to both
-		// renderers rather than either one's output.
-		expect(below_bezel(r.fake.pbm(0), 5)).to_equal(below_bezel(legacy_pbm(), 5));
+		// No input to replay: opening IS the input. Legacy lists the same folder for itself.
+		expect_same(self, port, legacy_run([](SpecBrowser&) {}));
 	});
 
-	it("draws the same rows after the viewport has scrolled", _ {
+	it("scrolls the same way as four turns of Browser::selectEncoderAction", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		expect(blank_start_path(f)).to_be_true();
+
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		for (int i = 0; i < 4; i++) {
 			r.turn(1, r.clock + 10);
 			r.step();
 		}
+		r.settle();
+		const BrowserState port = port_state(r);
 		// A different window (rows 2..4) and a different selected row, so the comparison is not
 		// re-asserting the first example's frame.
-		expect(browser_scene().scroll()).to_equal(2);
-		expect(browser_scene().file_index()).to_equal(4);
-		r.settle();
-		expect(below_bezel(r.fake.pbm(0), 5)).to_equal(below_bezel(legacy_pbm(), 5));
+		expect(port.scroll).to_equal(2);
+		expect(port.index).to_equal(4);
+
+		// Four detents, four `selectEncoderAction(+1)` calls -- the shell lowers one detent to one
+		// select-encoder step, which is the mapping this comparison is also pinning.
+		expect_same(self, port, legacy_run([](SpecBrowser& b) {
+			for (int i = 0; i < 4; i++) {
+				b.selectEncoderAction(1);
+			}
+		}));
 	});
 
-	it("draws the same prediction highlight after typing", _ {
+	it("wraps the same way as Browser::selectEncoderAction past the ends", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		expect(blank_start_path(f)).to_be_true();
+
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		// One detent backwards from row 0: `selectEncoderAction`'s `newFileIndex < 0` arm
+		// (`browser.cpp:637-660`). With nothing culled at either end it wraps to the last entry and
+		// `clampFileSelectionAndScroll` re-derives the window -- the arm neither example above
+		// reaches.
+		r.turn(-1, r.clock + 10);
+		r.step();
+		r.settle();
+		const BrowserState port = port_state(r);
+		expect(port.index).to_equal(4);
+
+		expect_same(self, port, legacy_run([](SpecBrowser& b) { b.selectEncoderAction(-1); }));
+	});
+
+	it("predicts the same text as Browser::predictExtendedText after typing", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		expect(blank_start_path(f)).to_be_true();
+
 		Rig r;
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		r.type('S');
 		r.settle();
+		const BrowserState port = port_state(r);
 		// Cursor mid-string is `drawTextForOLEDEditing`'s OTHER arm -- the inversion from the cursor
 		// to the panel's right edge (`qwerty_ui.cpp:156-170`) -- so this compares a code path the
-		// two examples above do not reach.
-		expect(browser_scene().cursor()).to_equal(1);
-		expect(static_cast<int>(browser_scene().entered_text().size())).to_equal(5);
-		expect(below_bezel(r.fake.pbm(0), 5)).to_equal(below_bezel(legacy_pbm(), 5));
+		// examples above do not reach.
+		expect(port.cursor).to_equal(1);
+		expect(static_cast<int>(port.text.size())).to_equal(5);
+
+		// The SAME pad, by coordinate. Legacy maps it through `keyboardChars`
+		// (`qwerty_ui.cpp:267-268`) and the port through `text_keyboard_char_at`; feeding both the
+		// coordinate rather than the character is what puts that mapping under the comparison too.
+		const Pad p = pad_for('S');
+		expect_same(self, port, legacy_run([p](SpecBrowser& b) {
+			b.padAction(p.x, p.y, 64);
+			b.padAction(p.x, p.y, 0);
+		}));
+	});
+
+	it("descends into a folder the same way as Browser::goIntoFolderImpl", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		expect(blank_start_path(f)).to_be_true();
+
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		// Row 2 is KICKS/ (CLAP.WAV, CLIPS, KICKS, SNARE.WAV, TOM.WAV): two detents, then the enter
+		// pad. Neither side is told the folder's name -- each reads it off its own selection.
+		for (int i = 0; i < 2; i++) {
+			r.turn(1, r.clock + 10);
+			r.step();
+		}
+		r.enter();
+		r.land();
+		const BrowserState port = port_state(r);
+		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
+		expect(port.text).to_equal(std::string{"KICK1"});
+
+		const Pad enter_pad = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		expect_same(self, port, legacy_run([enter_pad](SpecBrowser& b) {
+			b.selectEncoderAction(1);
+			b.selectEncoderAction(1);
+			b.padAction(enter_pad.x, enter_pad.y, 64);
+			b.padAction(enter_pad.x, enter_pad.y, 0);
+		}));
+		// Legacy walked into the same folder for itself, through `Browser::goIntoFolderImpl`
+		// (`browser.cpp:1339`) rather than through a name this spec supplied.
+		expect(FileCatalogue::currentDir).to_equal(std::string{"SAMPLES/KICKS"});
 	});
 });
 
