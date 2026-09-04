@@ -439,7 +439,6 @@ void Shell::tick(uint32_t now_ms) {
 	// `Shell::timer_arms_a_gate` is the same question asked as one bool, and `compute_next_wake`
 	// asks it -- a scene that armed nothing here has no gate deadline standing in for its timer.
 	const std::span<Scene* const> timer_scenes = stack_.scenes();
-	const size_t base = grid_base();
 	for (size_t k = 0; k < timer_scenes.size(); k++) {
 		Scene* const scene = timer_scenes[k];
 		const Scene::RepaintSurfaces surfaces = scene->timer_repaints();
@@ -452,12 +451,12 @@ void Shell::tick(uint32_t now_ms) {
 		}
 		if (surfaces.oled) {
 			for (OledSurface& s : surfaces_.oled()) {
-				if (k >= oled_lowest(s.role)) {
+				if (oled_paintable(s, k)) {
 					s.gate.request_repaint_after(*in, now_ms);
 				}
 			}
 		}
-		if (surfaces.grid && k >= base) {
+		if (surfaces.grid && grid_paintable(k)) {
 			surfaces_.grid().gate.request_repaint_after(*in, now_ms);
 		}
 	}
@@ -564,13 +563,29 @@ size_t Shell::oled_lowest(SurfaceRole role) const {
 	return lowest;
 }
 
+bool Shell::grid_paintable(size_t index) {
+	// `render_grid` gives up before it walks the stack at all on a profile whose grid surface has
+	// no storage, so on such a profile *no* scene paints the grid, at any index. That is the same
+	// shape as an OLED claim on a profile with no OLED panels, which `oled_paintable`'s callers get
+	// for free by having nothing to iterate -- but the grid is a single surface reached directly,
+	// so it needs saying (E3 final review residual 2: without this the predicate returned true for
+	// a gate no render could ever service, and its name was false there).
+	return surfaces_.grid().grid_storage.has_value() && index >= grid_base();
+}
+
+bool Shell::oled_paintable(const OledSurface& s, size_t index) {
+	// `render_oled` refuses a surface with no `Style` before it draws anything ("such a surface must
+	// not be rendered"), so it is not a surface any scene can paint either.
+	return s.style != nullptr && index >= oled_lowest(s.role);
+}
+
 bool Shell::timer_arms_a_gate(size_t index, Scene::RepaintSurfaces surfaces) {
-	if (surfaces.grid && index >= grid_base()) {
+	if (surfaces.grid && grid_paintable(index)) {
 		return true;
 	}
 	if (surfaces.oled) {
 		for (OledSurface& s : surfaces_.oled()) {
-			if (index >= oled_lowest(s.role)) {
+			if (oled_paintable(s, index)) {
 				return true;
 			}
 		}

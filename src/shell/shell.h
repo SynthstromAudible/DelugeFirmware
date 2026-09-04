@@ -304,6 +304,23 @@ private:
 	/// @param role The surface's role.
 	/// @return The index into `stack_.scenes()`, or 0 for an empty stack.
 	size_t oled_lowest(SurfaceRole role) const;
+	/// @brief Can the scene at \p index paint the pad grid at all?
+	///
+	/// Two conditions, and the second is easy to forget: the scene has to sit at or above
+	/// `grid_base()`, *and* the profile's grid surface has to have storage -- `render_grid` returns
+	/// before the stack walk without it, so on such a profile the answer is no for every scene.
+	///
+	/// @param index The scene's index into `stack_.scenes()`.
+	/// @return True when a grid repaint armed for this scene could reach the panel.
+	bool grid_paintable(size_t index);
+	/// @brief Can the scene at \p index paint OLED surface \p s at all?
+	///
+	/// The `oled_lowest` test, plus the `Style` `render_oled` itself demands.
+	///
+	/// @param s     The surface.
+	/// @param index The scene's index into `stack_.scenes()`.
+	/// @return True when an OLED repaint armed for this scene could reach that panel.
+	bool oled_paintable(const OledSurface& s, size_t index);
 	/// @brief Would step 8b arm any gate for the scene at \p index?
 	///
 	/// The one-bool form of what step 8b does: a claimed surface only counts when this scene sits at

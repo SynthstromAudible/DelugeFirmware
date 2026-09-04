@@ -503,7 +503,16 @@ def is_comment_line(line: str) -> bool:
     the star is followed by a space or a slash, so a dereference (`*prevPointer = ...`) stays code.
     """
     s = line.lstrip()
-    return s == "*" or s.startswith(("//", "/*", "*/", "* "))
+    if s.startswith("//"):
+        return True
+    if s.startswith("/*"):
+        # A `/*` that closes on the same line is a comment *and*, possibly, code after it:
+        # `/* why */ waveformRenderer.render(...)` mentions the symbol in a call. Only a line that
+        # leaves the comment open is certainly comment all the way to its end. (E3 final review
+        # residual 1; `*/ code()` has the same shape and is left counted, which is the safe
+        # direction -- this predicate may only ever skip *less* than it did.)
+        return "*/" not in s[2:]
+    return s == "*" or s.startswith(("*/", "* "))
 
 
 def count_file(path: Path) -> dict[str, int]:
