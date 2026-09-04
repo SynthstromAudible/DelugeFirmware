@@ -2738,7 +2738,7 @@ traverseClips:
 				    instrumentClip->output; // The "if" check at the start should be unnecessary... but just in case.
 			}
 
-			if (noteRow->paramManager.containsAnyMainParamCollections()) {
+			if (noteRow->paramManager.contains_all_main_param_collections()) {
 
 				ModelStackWithParamCollection* modelStackWithParamCollection = noteRow->paramManager.getPatchCableSet(
 				    modelStackWithNoteRow->addOtherTwoThings(drum, &noteRow->paramManager));
@@ -3863,6 +3863,11 @@ void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip,
 	if (!paramManager->containsAnyMainParamCollections()) {
 		return;
 	}
+#if ALPHA_OR_BETA_VERSION
+	if (!paramManager->matches_type(modControllable->required_param_manager_type())) {
+		FREEZE_WITH_ERROR("E417");
+	}
+#endif
 
 	uint32_t keyWords[2];
 	keyWords[0] = (uint32_t)modControllable;

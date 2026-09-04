@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "modulation/params/param_collection.h"
 #include "modulation/params/param_collection_summary.h"
 #include <cstdint>
 
@@ -57,10 +58,14 @@ public:
 	inline bool contains_all_main_param_collections() {
 		return summaries[0].paramCollection && summaries[1].paramCollection && summaries[2].paramCollection;
 	}
+	inline bool contains_only_unpatched_main_param_collection() {
+		return summaries[0].paramCollection && expressionParamSetOffset == 1 && !summaries[2].paramCollection
+		       && (!summaries[1].paramCollection
+		           || summaries[1].paramCollection->getParamKind() == deluge::modulation::params::Kind::EXPRESSION);
+	}
 	inline bool matches_type(ParamManagerType type) {
-		return type == ParamManagerType::PATCHED
-		           ? contains_all_main_param_collections()
-		           : summaries[0].paramCollection && !summaries[1].paramCollection && !summaries[2].paramCollection;
+		return type == ParamManagerType::PATCHED ? contains_all_main_param_collections()
+		                                         : contains_only_unpatched_main_param_collection();
 	}
 
 	inline bool containsAnyParamCollectionsIncludingExpression() { return summaries[0].paramCollection; }

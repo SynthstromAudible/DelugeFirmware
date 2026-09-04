@@ -3670,7 +3670,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	if (drum) {
 		writer.writeAttribute("drumIndex", drumIndex);
 
-		if (paramManager.containsAnyMainParamCollections()) {
+		if (drum && drum->type == DrumType::SOUND && paramManager.contains_all_main_param_collections()) {
 			writer.writeOpeningTagEnd();
 			closedOurTagYet = true;
 

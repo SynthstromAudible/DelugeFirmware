@@ -1059,8 +1059,8 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowForDrumName(ModelStackWithTimel
 
 	for (i = 0; i < noteRows.getNumElements(); i++) {
 		thisNoteRow = noteRows.getElement(i);
-		if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyMainParamCollections()
-		    && thisNoteRow->drum->type == DrumType::SOUND) {
+		if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND
+		    && thisNoteRow->paramManager.contains_all_main_param_collections()) {
 			SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
 
 			if (deluge::string::caselessEquals(thisDrum->drumName, name)) {
@@ -1623,7 +1623,7 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 		ModelStackWithModControllable* modelStack =
 		    setupModelStackWithModControllable(modelStackMemory, song, this, newInstrument->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStack);
-		if (!paramManager.containsAnyMainParamCollections()) {
+		if (!paramManager.contains_only_unpatched_main_param_collection()) {
 			Error error = paramManager.setupMIDI();
 			if (error != Error::NONE) {
 				if (ALPHA_OR_BETA_VERSION) {
@@ -2149,7 +2149,7 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 			// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove
 			// link to) the paramManager
 			if (shouldRetainLinksToSounds) {
-				if (thisNoteRow->paramManager.containsAnyMainParamCollections()) {
+				if (thisNoteRow->paramManager.contains_all_main_param_collections()) {
 					modelStack->song->backUpParamManager((SoundDrum*)thisNoteRow->drum, this,
 					                                     &thisNoteRow->paramManager, shouldBackUpExpressionParamsToo);
 				}
@@ -2205,7 +2205,8 @@ void InstrumentClip::setBackedUpParamManagerMIDI(ParamManagerForTimeline* newOne
 }
 
 void InstrumentClip::restoreBackedUpParamManagerMIDI(ModelStackWithModControllable* modelStack) {
-	if (!backedUpParamManagerMIDI.containsAnyMainParamCollections()) {
+	if (!backedUpParamManagerMIDI.contains_only_unpatched_main_param_collection()) {
+		backedUpParamManagerMIDI.destructAndForgetParamCollections();
 		return;
 	}
 
@@ -2231,9 +2232,7 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	if (output->type == OutputType::MIDI_OUT) {
-		if (paramManager.containsAnyMainParamCollections()) { // Wouldn't this always be? Or is there some case where we
-			                                                  // might be calling this just after it's been created, and
-			                                                  // no paramManager yet?
+		if (paramManager.contains_only_unpatched_main_param_collection()) {
 			setBackedUpParamManagerMIDI(&paramManager);
 		}
 	}
@@ -2273,7 +2272,7 @@ Error InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* mo
 		    modelStack->addModControllableButNoNoteRow(output->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStackWithModControllable);
 
-		if (!paramManager.containsAnyMainParamCollections()) {
+		if (!paramManager.contains_only_unpatched_main_param_collection()) {
 			if (ALPHA_OR_BETA_VERSION) {
 				FREEZE_WITH_ERROR("E230");
 			}
@@ -2939,7 +2938,7 @@ doReadBendRange:
 		if (output->type != OutputType::MIDI_OUT && output->type != OutputType::CV) {
 
 			// If we didn't get a paramManager (means pre-September-2016 song)
-			if (!paramManager.containsAnyMainParamCollections()) {
+			if (!paramManager.matches_type(output->toModControllable()->required_param_manager_type())) {
 
 				// Try grabbing the Instrument's "backed up" one
 				ModControllable* modControllable = output->toModControllable();
@@ -2972,8 +2971,8 @@ doReadBendRange:
 
 					else {
 						if (!instrumentWasLoadedByReferenceFromClip
-						    || !instrumentWasLoadedByReferenceFromClip->paramManager
-						            .containsAnyMainParamCollections()) {
+						    || !instrumentWasLoadedByReferenceFromClip->paramManager.matches_type(
+						        output->toModControllable()->required_param_manager_type())) {
 							error = Error::FILE_CORRUPTED;
 							goto someError;
 						}
@@ -3630,7 +3629,7 @@ void InstrumentClip::compensateVolumeForResonance(ModelStackWithTimelineCounter*
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
-			if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyMainParamCollections()
+			if (thisNoteRow->drum && thisNoteRow->paramManager.contains_all_main_param_collections()
 			    && thisNoteRow->drum->type == DrumType::SOUND) {
 				SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
@@ -3995,7 +3994,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 				// If we didn't get a paramManager (means pre-September-2016 song). TODO: this whole section would lead
 				// to an ugly mess if the right stuff wasn't in the file. Or if not enough RAM
-				if (!thisNoteRow->paramManager.containsAnyMainParamCollections()
+				if (!thisNoteRow->paramManager.contains_all_main_param_collections()
 				    && thisNoteRow->drum->type == DrumType::SOUND) {
 
 					modelStackWithNoteRow = modelStack->addNoteRow(i, thisNoteRow);
@@ -4086,7 +4085,8 @@ haveNoDrum:
 
 		// And...
 		if (output->type == OutputType::MIDI_OUT) {
-			if (!paramManager.containsAnyMainParamCollections()) {
+			if (!paramManager.contains_only_unpatched_main_param_collection()) {
+				paramManager.destructAndForgetParamCollections();
 				Error error = paramManager.setupMIDI();
 				if (error != Error::NONE) {
 					return error;

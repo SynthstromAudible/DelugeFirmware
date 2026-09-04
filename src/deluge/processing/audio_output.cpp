@@ -366,7 +366,7 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 		}
 	}
 
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (paramManager.contains_only_unpatched_main_param_collection()) {
 		song->backUpParamManager(this, NULL, &paramManager);
 	}
 

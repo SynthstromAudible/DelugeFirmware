@@ -332,7 +332,7 @@ doReadDrum:
 		selectedDrum = getDrumFromIndex(selectedDrumIndex);
 	}
 
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (paramManager.contains_only_unpatched_main_param_collection()) {
 		compensateInstrumentVolumeForResonance(&paramManager, song);
 		song->backUpParamManager(this, clip, &paramManager, true);
 	}
@@ -1535,7 +1535,7 @@ goingToRecordNoteOnEarly:
 			// get updated by the subsequent MPE that will come in. Or does that not matter?
 
 			if (thisNoteRow && thisDrum->type == DrumType::SOUND
-			    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
+			    && !thisNoteRow->paramManager.contains_all_main_param_collections()) {
 				FREEZE_WITH_ERROR("E326"); // Trying to catch an E313 that Vinz got
 			}
 
@@ -1927,7 +1927,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 		}
 
 		paramManagerForDrum = &noteRow->paramManager;
-		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DrumType::SOUND) {
+		if (!paramManagerForDrum->contains_all_main_param_collections() && drum->type == DrumType::SOUND) {
 			FREEZE_WITH_ERROR("E313"); // Vinz got this!
 		}
 	}

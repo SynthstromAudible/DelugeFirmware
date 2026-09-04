@@ -395,7 +395,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 }
 
 #define ENSURE_PARAM_MANAGER_EXISTS                                                                                    \
-	if (!paramManager->containsAnyMainParamCollections()) {                                                            \
+	if (!paramManager->contains_all_main_param_collections()) {                                                        \
+		paramManager->destructAndForgetParamCollections();                                                             \
 		Error error = createParamManagerForLoading(paramManager);                                                      \
 		if (error != Error::NONE)                                                                                      \
 			return error;                                                                                              \
@@ -3241,7 +3242,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	}
 
 	// If we actually got a paramManager, we can do resonance compensation on it
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (paramManager.contains_all_main_param_collections()) {
 		if (song_firmware_version < FirmwareVersion::official({1, 2, 0})) {
 			compensateVolumeForResonance(modelStack->addParamManager(&paramManager));
 		}

@@ -1048,7 +1048,8 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 	// else
 	if (paramManager && !strcmp(tagName, "defaultParams")) {
 
-		if (!paramManager->containsAnyMainParamCollections()) {
+		if (!paramManager->contains_only_unpatched_main_param_collection()) {
+			paramManager->destructAndForgetParamCollections();
 			Error error = paramManager->setupUnpatched();
 			if (error != Error::NONE) {
 				return error;

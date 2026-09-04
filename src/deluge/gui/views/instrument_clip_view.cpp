@@ -4717,7 +4717,7 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 
 				if (on) {
 					if (drum->type == DrumType::SOUND
-					    && !modelStackWithNoteRow->getNoteRow()->paramManager.containsAnyMainParamCollections()) {
+					    && !modelStackWithNoteRow->getNoteRow()->paramManager.contains_all_main_param_collections()) {
 						FREEZE_WITH_ERROR("E325"); // Trying to catch an E313 that Vinz got
 					}
 					((Kit*)instrument)->beginAuditioningforDrum(modelStackWithNoteRow, drum, velocity, zeroMPEValues);
