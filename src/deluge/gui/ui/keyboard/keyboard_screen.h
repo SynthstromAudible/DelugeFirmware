@@ -95,6 +95,12 @@ private:
 	NotesState lastNotesState;
 	NotesState currentNotesState;
 
+	// Step record: per held note, the tick position it was placed at and whether its advance was consumed by a tie.
+	int32_t stepRecordNotePos[kHighestKeyboardNote]{};
+	bool stepRecordNoteTied[kHighestKeyboardNote]{};
+
+	void stepRecordTieHeldNotes();
+
 	bool keyboardButtonActive = false;
 	bool keyboardButtonUsed = false;
 	bool yEncoderActive = false;
