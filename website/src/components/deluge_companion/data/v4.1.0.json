@@ -194,11 +194,11 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 4
           },
           {
-            "action": 0,
+            "action": 1,
             "control": 9
           },
           {
@@ -220,7 +220,7 @@
         ]
       }
     ],
-    "description": "Press the Shift button, press the Learn / Input button, press the Affect Entire button."
+    "description": "Hold the Shift button, hold the Learn / Input button, press the Affect Entire button."
   },
   {
     "name": "Undo",
@@ -414,7 +414,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 34
           },
           {
@@ -447,7 +447,7 @@
         ]
       }
     ],
-    "description": "Press the Select (Settings) encoder, turn the Select (Settings) encoder. Hold the Shift button, turn the Select (Settings) encoder."
+    "description": "Hold the Select (Settings) encoder, turn the Select (Settings) encoder. Hold the Shift button, turn the Select (Settings) encoder."
   },
   {
     "name": "Check current zoom level",
@@ -1342,7 +1342,7 @@
             "control": 4
           },
           {
-            "action": 1,
+            "action": 0,
             "control": 9
           }
         ]
@@ -1359,7 +1359,7 @@
         ]
       }
     ],
-    "description": "Hold the Shift button, hold the Learn / Input button."
+    "description": "Hold the Shift button, press the Learn / Input button."
   },
   {
     "name": "New song",
@@ -3289,7 +3289,7 @@
     "description": "Press the Cross-screen button."
   },
   {
-    "name": "Create clip (empty row)",
+    "name": "Create clip (empty row / grid pad)",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -3301,8 +3301,8 @@
         "control": 37
       }
     ],
-    "views": [3],
-    "firmware": [0],
+    "views": [2, 3, 4],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -3315,7 +3315,7 @@
     "description": "Press the Unlit grid pad."
   },
   {
-    "name": "Enter clip (non-empty row)",
+    "name": "Enter clip (non-empty row / grid pad)",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -3324,10 +3324,46 @@
     "steps": [
       {
         "action": 0,
-        "control": 36
+        "control": 38
       }
     ],
-    "views": [2],
+    "views": [2, 3, 4],
+    "firmware": [0, 1],
+    "paragraphs": [],
+    "description": "Press the Lit grid pad."
+  },
+  {
+    "name": "Select clip (non-empty row / grid pad)",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 10
+      }
+    ],
+    "views": [2, 3, 4],
+    "firmware": [0, 1],
+    "paragraphs": [],
+    "description": "Press the Clip button."
+  },
+  {
+    "name": "Enter last selected clip",
+    "capability": "02-playback_session",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Session)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 10
+      }
+    ],
+    "views": [2, 3, 4, 0],
     "firmware": [0],
     "paragraphs": [
       {
@@ -3338,7 +3374,7 @@
         ]
       }
     ],
-    "description": "Press the Grid pad (lit or unlit)."
+    "description": "Press the Clip button."
   },
   {
     "name": "Launch clip - queue",
@@ -4090,7 +4126,7 @@
     "subCapabilityOrder": 1,
     "steps": [
       {
-        "action": 0,
+        "action": 1,
         "control": 36
       },
       {
@@ -4110,7 +4146,7 @@
         ]
       }
     ],
-    "description": "Press the Grid pad (lit or unlit). Turn the Select (Settings) encoder."
+    "description": "Hold the Grid pad (lit or unlit). Turn the Select (Settings) encoder."
   },
   {
     "name": "Create new audio track in arranger view",
@@ -4358,7 +4394,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 33
           },
           {
@@ -4380,7 +4416,7 @@
         ]
       }
     ],
-    "description": "Press the Vertical (Up/Down) encoder, press the Horizontal (Left/Right) encoder."
+    "description": "Hold the Vertical (Up/Down) encoder, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Adjust audio clip length without timestretching",
@@ -5207,7 +5243,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 6
           },
           {
@@ -5228,7 +5264,7 @@
         ]
       }
     ],
-    "description": "Press the Save (Delete) button, press the MIDI button."
+    "description": "Hold the Save (Delete) button, press the MIDI button."
   },
   {
     "name": "Save MIDI CC Labels to File",
@@ -7397,7 +7433,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 33
           },
           {
@@ -7418,7 +7454,7 @@
         ]
       }
     ],
-    "description": "Press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
+    "description": "Hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Clear Selected Note Row",
