@@ -16,9 +16,19 @@ or corrupts silently (events excised mid-message, reply still well-framed).
 This script tells the two apart, and measures the throughput gain pipelining
 gives when it works (roughly +45% at window 2 vs serial).
 
+It also exercises the firmware's own logging on the same USB cable: it
+attaches the sysex debug console, floods the device with Pong messages (each
+one is a D_PRINTLN in a Debug build) so the send ring overflows while the
+firmware is trying to log, and then repeats the window-2 reads with the
+console attached and a Pong riding along with every request. A Release build
+logs nothing, so the console phases report themselves as NOT EXERCISED - run
+this against a Debug build (`./dbt build debug`) too before calling the send
+path safe; the #4886 -> #4900 revert was a crash only a Debug build shows.
+
 Usage:
     python3 smsysex_pipeline_stress.py [--size KB] [--reps-w2 N] [--reps-w3 N]
                                        [--read-timeout S] [--max-retries N]
+                                       [--flood N] [--no-console]
 
 The write phase uses 600-byte chunks to stay under the macOS CoreMIDI
 ~752-byte inbound sysex limit; reads use 1024-byte blocks (device->host is
@@ -38,6 +48,11 @@ HEADER = [0xF0, 0x00, 0x21, 0x7B, 0x01]
 TESTFILE = "PIPESTRS.TMP"
 READ_BLOCK = 1024  # device->host is not affected by the macOS 752-byte cliff
 WRITE_BLOCK = 600  # host->device must stay under the macOS cliff
+PING = HEADER + [0x00, 0x00, 0xF7]
+PONG = HEADER + [0x7F, 0x00, 0xF7]  # a Debug build logs "Pong" for each of these
+CONSOLE_ON = HEADER + [0x03, 0x00, 0x01, 0xF7]
+CONSOLE_OFF = HEADER + [0x03, 0x00, 0x00, 0xF7]
+CONSOLE_HDR = bytes(HEADER + [0x03, 0x40, 0x00])
 
 
 def pack(data: bytes) -> bytes:
@@ -60,16 +75,53 @@ def unpack(data: bytes) -> bytes:
 
 
 class Deluge:
-    def __init__(self):
+    def __init__(self, port="DELUGE"):
         self.out, self.inp = rtmidi.MidiOut(), rtmidi.MidiIn()
-        outs = [i for i, p in enumerate(self.out.get_ports()) if "DELUGE" in p.upper()]
-        ins = [i for i, p in enumerate(self.inp.get_ports()) if "DELUGE" in p.upper()]
+        outs = [
+            i for i, p in enumerate(self.out.get_ports()) if port.upper() in p.upper()
+        ]
+        ins = [
+            i for i, p in enumerate(self.inp.get_ports()) if port.upper() in p.upper()
+        ]
         if not outs or not ins:
-            sys.exit("no Deluge MIDI port")
+            sys.exit(f"no MIDI port matching {port!r}")
+        print(f"using MIDI port {self.out.get_ports()[outs[-1]]!r}", flush=True)
         self.out.open_port(outs[-1])
         self.inp.open_port(ins[-1])
         self.inp.ignore_types(False, True, True)
         self.seq = 1
+
+    def collect(self, seconds):
+        """Drain incoming frames for `seconds`; returns them (console frames included)."""
+        frames = []
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            r = self.inp.get_message()
+            if r:
+                frames.append(bytes(r[0]))
+            else:
+                time.sleep(0.002)
+        return frames
+
+    @staticmethod
+    def console_lines(frames):
+        return [
+            f[len(CONSOLE_HDR) : -1].decode("ascii", "replace").rstrip("\n")
+            for f in frames
+            if f.startswith(CONSOLE_HDR)
+        ]
+
+    def ping(self, tries=10, wait=0.5):
+        """True if the device still answers a sysex ping."""
+        for _ in range(tries):
+            self.out.send_message(PING)
+            if any(f[:6] == bytes(PONG[:6]) for f in self.collect(wait)):
+                return True
+        return False
+
+    def console(self, on):
+        self.out.send_message(CONSOLE_ON if on else CONSOLE_OFF)
+        self.collect(0.3)
 
     def request(self, obj, payload=b"", timeout=6.0, retries=2):
         """Serial request/reply; used for setup (open/write/close/delete)."""
@@ -115,7 +167,9 @@ class Pipeliner:
         self.d = d
         self.stats = {"timeouts": 0, "malformed": 0, "unmatched": 0}
 
-    def _send(self, obj, busy=()):
+    def _send(self, obj, busy=(), chatter=False):
+        if chatter:  # one log line's worth of console traffic per request
+            self.d.out.send_message(PONG)
         seq = self.d.seq
         self.d.seq = (self.d.seq + 1) & 0x7F or 1
         while seq in busy:  # never reuse a seq that is still in flight
@@ -150,7 +204,15 @@ class Pipeliner:
             self.stats["malformed"] += 1
             return None
 
-    def read_file(self, fid, total, window, per_request_timeout=4.0, max_retries=200):
+    def read_file(
+        self,
+        fid,
+        total,
+        window,
+        per_request_timeout=4.0,
+        max_retries=200,
+        chatter=False,
+    ):
         """Pipelined read of `total` bytes; returns (bytes, elapsed, retries)."""
         needed = list(range(0, total, READ_BLOCK))
         chunks = {}  # addr -> bytes
@@ -167,6 +229,7 @@ class Pipeliner:
                 seq = self._send(
                     {"read": {"fid": fid, "addr": addr, "size": READ_BLOCK}},
                     busy=pending,
+                    chatter=chatter,
                 )
                 pending[seq] = (addr, time.monotonic() + per_request_timeout)
             got = self._poll()
@@ -211,6 +274,43 @@ class Pipeliner:
         return bytes(out[:total]), elapsed, retries
 
 
+def log_flood_phase(d, count):
+    """Attach the debug console and make the firmware log faster than USB drains.
+
+    Returns True if the console is live and the device survived, False if the
+    device stopped answering, None if the build does not log (Release).
+    """
+    d.console(True)
+    lines = []
+    for _ in range(3):  # a few probes: any console frame at all proves the build logs
+        d.out.send_message(PONG)
+        lines += d.console_lines(d.collect(0.7))
+        if lines:
+            break
+    if not lines:
+        print(
+            "debug console: silent (Release build) - log-path phases NOT EXERCISED; "
+            "rerun against a Debug build",
+            flush=True,
+        )
+        d.console(False)
+        return None
+    print(f"debug console: live ({lines[-1]!r})", flush=True)
+    print(f"  flooding {count} Pongs (one log line each)...", flush=True)
+    t0 = time.monotonic()
+    for _ in range(count):
+        d.out.send_message(PONG)
+    sent = time.monotonic() - t0
+    delivered = len(d.console_lines(d.collect(3.0)))
+    alive = d.ping()
+    print(
+        f"  sent in {sent:.2f}s, {delivered}/{count} log lines delivered, "
+        f"device {'ALIVE' if alive else 'DEAD'}",
+        flush=True,
+    )
+    return alive
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--size", type=int, default=256, help="test file size in KB")
@@ -218,10 +318,19 @@ def main():
     ap.add_argument("--reps-w3", type=int, default=3)
     ap.add_argument("--read-timeout", type=float, default=4.0)
     ap.add_argument("--max-retries", type=int, default=200)
+    ap.add_argument(
+        "--flood", type=int, default=3000, help="Pongs in the log-flood phase"
+    )
+    ap.add_argument(
+        "--no-console", action="store_true", help="skip the debug-console phases"
+    )
+    ap.add_argument(
+        "--port", default="DELUGE", help="MIDI port name substring (last match wins)"
+    )
     args = ap.parse_args()
 
     data = os.urandom(args.size * 1024)
-    d = Deluge()
+    d = Deluge(args.port)
     p = Pipeliner(d)
 
     print(f"writing {len(data)} bytes to {TESTFILE} (serial)...", flush=True)
@@ -244,9 +353,23 @@ def main():
         f"  wrote at {len(data) / (time.monotonic() - t0) / 1024:.1f} KB/s", flush=True
     )
 
+    console_live = None
+    if not args.no_console:
+        console_live = log_flood_phase(d, args.flood)
+        if console_live is False:
+            sys.exit(
+                "FAIL: device stopped answering after the log flood "
+                "(power-cycle it). A drop path that logs re-enters the send path."
+            )
+
     results = []
-    plan = [(1, 2), (2, args.reps_w2), (3, args.reps_w3)]
-    for window, reps in plan:
+    plan = [(1, 2, False), (2, args.reps_w2, False), (3, args.reps_w3, False)]
+    if console_live:
+        # Same reads with the console attached and a log line per request, so
+        # firmware logging competes with replies for the send ring.
+        plan.append((2, args.reps_w2, True))
+    for window, reps, chatter in plan:
+        label = f"w={window}{'+log' if chatter else ''}"
         for rep in range(reps):
             reply, _ = d.request({"open": {"path": TESTFILE, "write": 0}})
             if reply["^open"].get("err", -1) != 0 or reply["^open"].get("fid", 0) == 0:
@@ -254,7 +377,7 @@ def main():
             fid = reply["^open"]["fid"]
             try:
                 got, elapsed, retries = p.read_file(
-                    fid, len(data), window, args.read_timeout, args.max_retries
+                    fid, len(data), window, args.read_timeout, args.max_retries, chatter
                 )
                 ok = got == data
                 if not ok:
@@ -268,36 +391,42 @@ def main():
                 else:
                     detail = ""
                 rate = len(data) / elapsed / 1024
-                results.append((window, rep, ok, rate, retries, detail))
+                results.append((label, rep, ok, rate, retries, detail))
                 print(
-                    f"w={window} rep={rep}: {'OK ' if ok else 'CORRUPT'} "
+                    f"{label} rep={rep}: {'OK ' if ok else 'CORRUPT'} "
                     f"{rate:6.1f} KB/s retries={retries} {detail}",
                     flush=True,
                 )
             except RuntimeError as e:
-                results.append((window, rep, False, 0.0, -1, str(e)))
-                print(f"w={window} rep={rep}: ABORT {e}", flush=True)
+                results.append((label, rep, False, 0.0, -1, str(e)))
+                print(f"{label} rep={rep}: ABORT {e}", flush=True)
             finally:
                 try:
                     d.request({"close": {"fid": fid}})
                 except TimeoutError:
                     print("  (close timed out)", flush=True)
 
+    if console_live:
+        d.console(False)
+        alive = d.ping()
+        print(f"\ndevice after console phases: {'ALIVE' if alive else 'DEAD'}")
     d.request({"delete": {"path": TESTFILE}})
     print(f"\nframe stats: {p.stats}")
     print("\nsummary:")
-    for window in (1, 2, 3):
-        rows = [r for r in results if r[0] == window]
-        if not rows:
-            continue
+    if console_live is None and not args.no_console:
+        print("  debug-console phases: NOT EXERCISED (Release build)")
+    for label in dict.fromkeys(r[0] for r in results):
+        rows = [r for r in results if r[0] == label]
         okc = sum(1 for r in rows if r[2])
         rates = [r[3] for r in rows if r[2]]
         avg = sum(rates) / len(rates) if rates else 0.0
         retr = sum(max(r[4], 0) for r in rows)
         print(
-            f"  w={window}: {okc}/{len(rows)} verified, avg {avg:.1f} KB/s, "
+            f"  {label}: {okc}/{len(rows)} verified, avg {avg:.1f} KB/s, "
             f"total retries {retr}"
         )
+    if any(not r[2] for r in results):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

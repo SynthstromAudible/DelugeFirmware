@@ -682,7 +682,7 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 	}
 	// At queued == MIDI_SEND_BUFFER_LEN_RING the ring is full; writing would corrupt the oldest unsent event.
 	if (queued >= MIDI_SEND_BUFFER_LEN_RING) {
-		D_PRINTLN("MIDI send ring overflow, dropping event");
+		// Drop silently: logging from inside the USB send path re-enters it via the sysex debug console.
 		return;
 	}
 

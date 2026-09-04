@@ -108,7 +108,8 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 			midiEngine.flushUSBMIDIOutput();
 		}
 		if (connectedDevice->sendBufferSpace() < eventsNeeded * 3) {
-			D_PRINTLN("sendSysex: send ring full, dropping %d byte message", len);
+			// Drop silently: a log here would re-enter this function via the sysex debug console
+			// with the ring still full, and recurse until the stack is gone.
 			return;
 		}
 	}
