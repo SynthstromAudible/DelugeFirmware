@@ -242,7 +242,7 @@ void MidiDeviceLinkedItem::render(deluge::ui::oled::OledFrame& f, const MenuCont
 	//
 	// Set unconditionally rather than once, which matters only at **depth 0** -- this node opened as
 	// a root through `SceneId::arg` or `open()`. There `on_focus` was skipped entirely
-	// (`FocusCause::Restored` plus `on_focus_is_press`, see the class note), the title is simply the
+	// (`FocusCause::NoRowPress` plus `on_focus_is_press`, see the class note), the title is simply the
 	// screen, and this drives a no-op `ascend()` every frame: `ascend` returns immediately at depth
 	// 0 (`menu_scene.cpp`). Harmless and cheap, but not accidental.
 	state.render_resp.entered = true;

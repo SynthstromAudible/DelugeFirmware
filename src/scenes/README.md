@@ -494,13 +494,22 @@ deep link onto `start_stem_export` re-filed the export. Legacy guards exactly th
 (`gui/menu_item/toggle.h:35-37`), i.e. when it was reached without a press on its row.
 
 The port of that guard is two pieces: `MenuScene::enter_leaf` takes a `FocusCause`
-(`Descended` from `descend_to`, `Restored` from `retarget`, `restore_state` and `ascend`), and
+(`RowPress` from `descend_to`, `NoRowPress` from `retarget`, `restore_state` and `ascend` — the
+values are named for the question they answer, "a select press on **this node's own row**?", because
+a shortcut-pad jump is a real press and the old `Restored` said otherwise), and
 `CustomItem::on_focus_is_press()` says which items it applies to. Both are needed — a blanket skip on
 restore would regress the shipped ruling above (`EditNameItem` *must* reopen its editor), and a flag
 with no cause cannot tell a press from a rebuild. **The line is "does it act without a press", not
 "does it do anything":** opening a scene the user can back out of keeps the flag false; writing the
 model or firing a one-shot verb sets it. Two items set it today, `MidiDeviceLinkedItem` and
 `ActionItem`.
+
+**Three names, two questions** — `on_focus`, `on_focus_backward` and `FocusCause` are easy to
+mistake for three spellings of one mechanism. `CustomItem`'s doc in `menu/node.h` has the table a
+contributor needs: the two virtuals answer *which direction focus arrived from* (and legacy's own
+`beginSession` arms share no code, which is why they are two hooks rather than one hook and an
+argument), while `FocusCause` answers *was there a press on this row* — a question whose answer is
+never "run a different body", only "run the body you have, or don't".
 
 ## The context menu (`context_menu/`, E2 tasks 6, 7 and 11b)
 

@@ -275,6 +275,35 @@ struct CustomItem {
 	virtual deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
 	                                         const MenuContext&, MenuState&) const = 0;
 
+	/// @par The focus hooks: three names, two questions
+	///
+	/// **`on_focus`, `on_focus_backward` and `MenuScene::FocusCause` look like three spellings of one
+	/// thing, and a contributor has to learn all of them. They are not one thing** (E3 final review,
+	/// A7). What each answers, and when it fires:
+	///
+	/// * **Which direction did focus arrive from?** -- answered by *two virtuals*: `on_focus`
+	///   (forward) and `on_focus_backward` (returning from a page this item itself opened). Exactly
+	///   one of the two fires per focus transition; `MenuScene::ascend` runs the backward one
+	///   *instead of* the forward one.
+	/// * **Was there a select press on this node's own row?** -- answered by *one discriminator*,
+	///   `MenuScene::FocusCause`, scoped per item by `on_focus_is_press()`. It is consulted before
+	///   `on_focus`, and decides whether it runs at all.
+	///
+	/// **Why they are not one mechanism**, in each direction:
+	///
+	/// * Direction is *two virtuals* rather than one virtual plus a cause because the two arms share
+	///   no code in legacy either: `beginSession(navigatedBackwardFrom)` is a body with two disjoint
+	///   halves, and every override that has both writes them separately. Two hooks let an item
+	///   implement only the arm it has, and the do-nothing default is the right answer for the rest.
+	///   One hook plus a cause would make every such item open with a branch on an argument.
+	/// * The press question is *a discriminator* rather than a third virtual because no item wants a
+	///   **different body** for a shortcut jump or a restore -- it wants the body it already has
+	///   **suppressed**. A virtual would force every press-shaped item to write an empty second
+	///   override, and the empty one is exactly what a later contributor would fill in by mistake.
+	///
+	/// Rule of thumb: override a hook when the item **does something different**; consult the cause
+	/// when the scene must decide whether the item should act **at all**.
+
 	/// @brief Called when this item becomes the focused node (`MenuScene::enter_leaf`, on `open()`,
 	///        descending into a child, and restoring saved state into a leaf) -- mirroring legacy's
 	///        `MenuItem::beginSession` (`gui/menu_item/menu_item.h`), which every stateful bespoke
@@ -363,12 +392,13 @@ struct CustomItem {
 	/// items whose entire body is a press handler and which `SoundEditor` therefore never navigates
 	/// into (`shouldEnterSubmenu() == false`, `gui/ui/sound_editor.cpp:382-385`); the port has no
 	/// equivalent of that flag, so it descends for one tick and acts from `on_focus`
-	/// (`nodes/actions.h`). That works for a press and is wrong for everything else: a restore or a
-	/// deep link would run the press with no press behind it. Legacy guards the same case
-	/// explicitly -- `Toggle::selectButtonPress` returns without toggling when the item is already
-	/// the current one (`gui/menu_item/toggle.h:35-37`), which is precisely "we got here without a
-	/// press on our row". With this true, `MenuScene::enter_leaf` skips `on_focus` for
-	/// `FocusCause::Restored`.
+	/// (`nodes/actions.h`). That works for a press on this item's own row and is wrong for every
+	/// other way in: a restore, a deep link **or a shortcut-pad jump** would run the press with no
+	/// press on that row behind it -- the jump is a press, but on a grid pad. Legacy guards the same
+	/// case explicitly -- `Toggle::selectButtonPress` returns without toggling when the item is
+	/// already the current one (`gui/menu_item/toggle.h:35-37`), which is precisely "we got here
+	/// without a press on our row". With this true, `MenuScene::enter_leaf` runs `on_focus` only for
+	/// `FocusCause::RowPress`, whose two values are named for exactly this question.
 	///
 	/// @note The line is **"does it act without a press"**, not "does it do anything". The items
 	///       that open a scene -- `EditNameItem`, `ContextMenuItem`, the nine in `nodes/sample.h` --

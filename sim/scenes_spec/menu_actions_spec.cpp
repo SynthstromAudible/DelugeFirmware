@@ -341,7 +341,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 
 	it("still files on a real press, so the guard is narrow rather than a mute button", _ {
 		// The other side of the same discriminator, over all four items: a descent from the parent
-		// list is `FocusCause::Descended` and still acts. Without this the example above could be
+		// list is `FocusCause::RowPress` and still acts. Without this the example above could be
 		// satisfied by an item that never fires at all.
 		select_language();
 		for (const Pairing& p : kVerbs) {

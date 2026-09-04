@@ -597,21 +597,31 @@ private:
 	/// `:1015` -- only (re-)initialises. `CustomItem::on_focus` is `beginSession`, so a port that
 	/// ran it on every focus transition ran *both* meanings, and an item whose `on_focus` stands in
 	/// for a press fired without one. This is that lost distinction, restored.
+	/// **The question is "a select press on THIS node's own row?", not "a press at all"** (E3 final
+	/// review, A6). The values used to be `Descended`/`Restored`, and `Restored` was a lie for one
+	/// of the routes it covers: a **shortcut-pad jump is a real press**, just not one on this node's
+	/// row. The behaviour was right -- legacy reaches a shortcut jump through `beginSession`, never
+	/// `selectButtonPress` -- so the names moved to say what the two values have always meant,
+	/// rather than a third cause being invented for a distinction nothing acts on.
+	/// `CustomItem::on_focus_is_press()`'s whole contract is then readable from this enum alone:
+	/// such an item is given `on_focus` for `RowPress` and withheld it for `NoRowPress`.
 	enum class FocusCause : uint8_t {
-		/// The user navigated in: `enter_child` -> `descend_to`, i.e. a select press on the row.
-		/// Legacy's `selectButtonPress` path.
-		Descended,
-		/// The path was re-rooted or rebuilt with no press behind it: `retarget` (a `SceneId` deep
-		/// link, the shortcut-pad jump, `open()`), `restore_state`'s rebuild, and `ascend`'s
-		/// re-seed. Legacy's `beginScreen`/`focusRegained` path, and exactly the case
-		/// `Toggle::selectButtonPress`'s guard exists for.
-		Restored,
+		/// A select press on this node's own row in its parent's list: `enter_child` ->
+		/// `descend_to`, the one path with a press behind it. Legacy's `selectButtonPress` path.
+		RowPress,
+		/// Focus reached this node by any other route, so nothing pressed its row: `retarget` (a
+		/// `SceneId` deep link, the shortcut-pad jump, `open()`), `restore_state`'s rebuild, and
+		/// `ascend`'s re-seed. Legacy's `beginScreen`/`focusRegained` path, and exactly the case
+		/// `Toggle::selectButtonPress`'s guard exists for. A shortcut jump belongs here **because
+		/// its press was on a grid pad, not on this row** -- it is not a "restore", which is what
+		/// the old name claimed.
+		NoRowPress,
 	};
 
 	/// @brief Load @p node's value into the edit storage its kind uses.
 	/// @param cause Why this focus is happening -- see `FocusCause`. A `Kind::Custom` node whose
-	///              item answers `CustomItem::on_focus_is_press()` is **not** given `on_focus` for
-	///              `FocusCause::Restored`.
+	///              item answers `CustomItem::on_focus_is_press()` is given `on_focus` only for
+	///              `FocusCause::RowPress`.
 	void enter_leaf(const Node& node, FocusCause cause);
 	/// @brief Commit the edit storage for @p node through `bindings::write`.
 	void commit_value(const Node& node);

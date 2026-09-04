@@ -779,15 +779,15 @@ The lost distinction is legacy's own: `selectButtonPress()` *acts*, `beginSessio
 (re-)initialises, and the port collapsed both onto `on_focus`. It is restored in two pieces, because
 neither works alone:
 
-* **`MenuScene::enter_leaf(node, FocusCause)`** — `Descended` from `descend_to` (the one path with a
-  select press behind it), `Restored` from `retarget`, `restore_state` and `ascend`.
-* **`CustomItem::on_focus_is_press()`** — the scope. A blanket skip on `Restored` would regress the
+* **`MenuScene::enter_leaf(node, FocusCause)`** — `RowPress` from `descend_to` (the one path with a
+  select press behind it), `NoRowPress` from `retarget`, `restore_state` and `ascend`.
+* **`CustomItem::on_focus_is_press()`** — the scope. A blanket skip on `NoRowPress` would regress the
   shipped, specced ruling above; a flag with no cause could not tell a press from a rebuild. The
   line is "does it act without a press", not "does it do anything": `EditNameItem`,
   `ContextMenuItem` and the nine `nodes/sample.h` items keep it false because their act is opening a
   scene the user can back out of, and their legacy classes do it in `beginSession`.
 
-`enter_leaf` runs `on_focus` unless the cause is `Restored` **and** the item declares itself a press.
+`enter_leaf` runs `on_focus` unless the cause is `NoRowPress` **and** the item declares itself a press.
 Two items declare it: `MidiDeviceLinkedItem` and `ActionItem`.
 
 **This also closes a pre-existing exposure the fix was not originally about.** At depth ≥ 1 the
@@ -1270,9 +1270,9 @@ today". **It was not.** Both halves of that are now amended, by two different le
   ("if the current menu item is this one, return") whose condition **is** the restore case. The port
   had removed legacy's defence and kept the write.
 
-  The mechanism is two pieces, and both are needed: a `FocusCause` on `enter_leaf` (`Descended` from
-  `descend_to`; `Restored` from `retarget`, `restore_state` and `ascend`) **scoped by**
-  `on_focus_is_press()`. A blanket skip on `Restored` would regress the shipped, specced ruling that
+  The mechanism is two pieces, and both are needed: a `FocusCause` on `enter_leaf` (`RowPress` from
+  `descend_to`; `NoRowPress` from `retarget`, `restore_state` and `ascend`) **scoped by**
+  `on_focus_is_press()`. A blanket skip on `NoRowPress` would regress the shipped, specced ruling that
   `EditNameItem` reopens its editor on restore; a flag with no cause can only ever mean "never act".
   **The line is "does it act without a press", not "does it do anything"**: opening a scene the user
   can back out of keeps the flag false; writing the model or firing a one-shot verb sets it.
@@ -1427,6 +1427,22 @@ The condition is read through a new seam, `AudioEngine::sdRoutineBusy()`, a sibl
 spelling. The spec drives the **real** flag rather than a stub: `recorder_scene_spec`'s
 `in_sd_routine` runs the poll tick inside `yieldingRoutineForSD`, the BSP's own card busy-wait hook
 and the only thing anywhere that makes `isSDRoutineActive()` true.
+
+**A6/A7 — the focus discriminator said "Restored" for a press, and there are two mechanisms for one
+apparent question.** `FocusCause`'s values were `Descended`/`Restored`, and a shortcut-pad jump —
+which *is* a press, just not one on the focused node's row — took the `Restored` arm. The behaviour
+was right (legacy reaches a shortcut jump through `beginSession`, never `selectButtonPress`), so the
+fix is the names, not a third cause: `RowPress` / `NoRowPress`, which state the question
+`on_focus_is_press()` actually asks and make its contract readable from the enum alone. `Node`'s doc
+follows.
+
+A7 is documentation by design: `CustomItem::on_focus_backward` is a separate virtual while
+`FocusCause` is a discriminator, and a contributor has to learn both. `CustomItem`'s doc in
+`menu/node.h` now carries the table — direction is two virtuals because legacy's own `beginSession`
+arms share no code, so an item writes only the arm it has; the press question is a discriminator
+because its answer is never "run a different body", only "run the body you have, or don't". A third
+virtual would make every press-shaped item write an empty override, which is exactly the thing a
+later contributor fills in by mistake.
 
 **A4 — `Browser::beginListing`'s refusal was discarded at nineteen call sites.** The `bool` return
 this branch added to a legacy function was ignored everywhere but one site

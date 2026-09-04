@@ -642,7 +642,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 	});
 
 	it("does not toggle when opened as a root through a SceneId, in either direction", _ {
-		// The other entry point into `FocusCause::Restored`: `retarget`, which is `open()`, a
+		// The other entry point into `FocusCause::NoRowPress`: `retarget`, which is `open()`, a
 		// `SceneId::arg` deep link and the shortcut-pad jump. Both arms are checked, because each
 		// would do something different and both are wrong without a press: the linked arm would
 		// clear the file, the unlinked arm would open a browser nobody asked for.

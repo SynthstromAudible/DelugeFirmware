@@ -295,9 +295,10 @@ void MenuScene::retarget(const Node& node) {
 	st_.pending_action = MenuActionRequest{};
 	st_.go_up_on_resume = false;
 	if (is_leaf(node.kind)) {
-		// `Restored`: re-rooting is `open()`, a `SceneId` deep link or the shortcut-pad jump, none
-		// of which is a press on this node's row.
-		enter_leaf(node, FocusCause::Restored);
+		// `NoRowPress`: re-rooting is `open()`, a `SceneId` deep link or the shortcut-pad jump. The
+		// jump IS a press -- on a grid pad, not on this node's row -- which is the distinction the
+		// value's name carries and the old `Restored` did not (final review, A6).
+		enter_leaf(node, FocusCause::NoRowPress);
 	}
 }
 
@@ -974,8 +975,8 @@ void MenuScene::enter_leaf(const Node& node, FocusCause cause) {
 		// **Except for an item whose `on_focus` is really `selectButtonPress`** (`node.h`'s
 		// `CustomItem::on_focus_is_press`). Legacy never navigates into such an item at all
 		// (`shouldEnterSubmenu() == false`); the port descends for one tick and acts from
-		// `on_focus`, which is right for a press and wrong for every other way in. A `Restored`
-		// focus has no press behind it -- `restore_state` rebuilding a saved path, a `SceneId` deep
+		// `on_focus`, which is right for a press on this row and wrong for every other way in. A
+		// `NoRowPress` focus has none -- `restore_state` rebuilding a saved path, a `SceneId` deep
 		// link, the shortcut-pad jump -- and running the press there fired
 		// `MidiDeviceLinkedItem`'s unlink arm (clearing a linked definition file the user never
 		// touched) and re-filed an `ActionItem`'s verb. Legacy's own guard is the same test spelled
@@ -986,7 +987,7 @@ void MenuScene::enter_leaf(const Node& node, FocusCause cause) {
 		// would regress a shipped, specced ruling: `EditNameItem` and the nine `nodes/sample.h`
 		// items *must* re-open their scene on a restore -- see `restore_state` below, which argues
 		// it with legacy agreeing (`EditName::beginSession` opens `RenameUI` unconditionally).
-		if (node.custom != nullptr && (cause == FocusCause::Descended || !node.custom->on_focus_is_press())) {
+		if (node.custom != nullptr && (cause == FocusCause::RowPress || !node.custom->on_focus_is_press())) {
 			node.custom->on_focus(ctx_, st_);
 		}
 		break;
@@ -1040,7 +1041,7 @@ void MenuScene::descend_to(const Node& child) {
 	st_.columns[st_.depth] = deluge::ui::ColumnsState{};
 	st_.scroll[st_.depth] = deluge::ui::ScrollText{};
 	if (is_leaf(child.kind)) {
-		enter_leaf(child, FocusCause::Descended); // the one path with a select press behind it
+		enter_leaf(child, FocusCause::RowPress); // the one path with a select press behind it
 	}
 }
 
@@ -1123,7 +1124,7 @@ void MenuScene::ascend() {
 	// would fire the forward arm on a backward navigation and send the CV/gate/device selectors back
 	// to row 0 every time the user stepped out of the page they had just opened. (E3 task 7 narrowed
 	// the *other* direction rather than this one: `enter_leaf` now takes a `FocusCause`, and every
-	// call site below passes `Restored` -- which is what it always meant.)
+	// call site below passes `NoRowPress` -- which is what it always meant.)
 	//
 	// E2 task 12 fix round 1 named the gap this left: with no backward arm at all, the exclusion
 	// itself had to stand in for one -- "leave `MenuState::list[depth]` alone" -- and that is sound
@@ -1140,7 +1141,7 @@ void MenuScene::ascend() {
 			}
 		}
 		else {
-			enter_leaf(*landed, FocusCause::Restored);
+			enter_leaf(*landed, FocusCause::NoRowPress);
 		}
 	}
 }
@@ -1567,7 +1568,7 @@ void MenuScene::restore_state(const SceneState& state) {
 			// toggle cleared the linked file with no user action, and restoring one parked on
 			// `start_stem_export` re-filed the export. `enter_leaf`'s `FocusCause` is the
 			// discriminator and `CustomItem::on_focus_is_press` is the scope; see both.
-			enter_leaf(*child, FocusCause::Restored);
+			enter_leaf(*child, FocusCause::NoRowPress);
 		}
 	}
 

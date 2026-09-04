@@ -99,7 +99,7 @@ uint8_t chosen(const MenuState& state, int32_t count) {
 /// to keeps the cursor rather than resetting it.
 ///
 /// **Not "only on a descent", though** (fix round 1, minor 1): `enter_leaf` also runs `on_focus`
-/// for `FocusCause::Restored` -- `open()`, a `SceneId` deep link, the shortcut-pad jump,
+/// for `FocusCause::NoRowPress` -- `open()`, a `SceneId` deep link, the shortcut-pad jump,
 /// `restore_state` rebuilding a saved path -- for any item whose `on_focus_is_press()` is false, as
 /// these two are. Only the *ascend* path is excluded. That is right here and needs no
 /// `on_focus_is_press`: legacy runs `beginSession` on all of those too
