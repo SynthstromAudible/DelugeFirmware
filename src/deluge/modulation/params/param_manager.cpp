@@ -31,12 +31,10 @@
 
 ParamManager::ParamManager() {
 	summaries[0] = {0};
-#if ALPHA_OR_BETA_VERSION
 	summaries[1] = {0};
 	summaries[2] = {0};
 	summaries[3] = {0};
 	summaries[4] = {0};
-#endif
 	expressionParamSetOffset = 0;
 
 	resonanceBackwardsCompatibilityProcessed = false;
@@ -66,6 +64,8 @@ Error ParamManager::setupMIDI() {
 	summaries[1] = summaries[0]; // Potentially shuffle the expression params over.
 	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
 	summaries[2] = {0};
+	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
@@ -78,6 +78,9 @@ Error ParamManager::setupUnpatched() {
 
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[1] = {0};
+	summaries[2] = {0};
+	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
@@ -105,6 +108,7 @@ ramError2:
 	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
 	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
 	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 3;
 	return Error::NONE;
 }
@@ -153,11 +157,9 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 
 	other->summaries[0] = other->summaries[stopAtOther];
 	other->summaries[1] = {0};
-#if ALPHA_OR_BETA_VERSION
 	other->summaries[2] = {0};
 	other->summaries[3] = {0};
 	other->summaries[4] = {0};
-#endif
 	other->expressionParamSetOffset = 0;
 }
 
@@ -282,6 +284,10 @@ void ParamManager::destructAndForgetParamCollections() {
 	}
 
 	summaries[0] = {0};
+	summaries[1] = {0};
+	summaries[2] = {0};
+	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 0;
 }
 
