@@ -158,6 +158,21 @@ PLACE_SDRAM_RODATA constexpr RGB mono_mod_shortcut_colours [][kDisplayHeight] = 
 
 //clang-format on
 
+void SoundEditor::renderMainShortcutsOnly(RGB image[][kDisplayWidth + kSideBarWidth],
+                                          uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth])
+{
+	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
+	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+	{
+		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++)
+		{
+			image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
+			occupancyMask[yDisplay][xDisplay] = 64;
+		}
+	}
+}
+
 bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea)
 {
@@ -175,14 +190,8 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	D_PRINTLN("rendering pad colours");
 
-	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
-	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-			image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
-			occupancyMask[yDisplay][xDisplay] = 64;
-		}
-	}
+	renderMainShortcutsOnly(image, occupancyMask);
+
 
 	MenuItem* item = getCurrentMenuItem();
 
