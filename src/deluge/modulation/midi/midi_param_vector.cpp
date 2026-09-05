@@ -19,7 +19,9 @@
 #include "modulation/midi/midi_param.h"
 #include <new>
 
-MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 8) {
+// 32-bit key (over the int32_t MIDIParam::cc at offset 0) so macro-lane pseudo-CCs 128-131 sort/search
+// correctly; an 8-bit key would sign-extend them to negatives and never find them.
+MIDIParamVector::MIDIParamVector() : OrderedResizeableArray(sizeof(MIDIParam), 32) {
 }
 
 MIDIParam* MIDIParamVector::getParamFromCC(int32_t cc) {
