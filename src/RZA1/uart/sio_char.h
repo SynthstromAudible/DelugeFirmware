@@ -73,7 +73,7 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
 extern uint8_t picTxBuffer[];
 extern char midiTxBuffer[];
 
-// These are not thread safe! Do not call in ISRs.
+// Not thread safe! Do not call in ISRs.
 #define bufferPICUart(charToSend)                                                                                      \
     do                                                                                                                 \
     {                                                                                                                  \
@@ -84,15 +84,18 @@ extern char midiTxBuffer[];
         uartItems[UART_ITEM_PIC].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                         \
     } while (0)
 
-#define bufferMIDIUart(charToSend)                                                                                     \
-    do                                                                                                                 \
-    {                                                                                                                  \
-        intptr_t writePos = uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET;                       \
-        *(((volatile char*)(&midiTxBuffer[0])) + writePos) = charToSend;                                               \
-                                                                                                                       \
-        uartItems[UART_ITEM_MIDI].txBufferWritePos += 1;                                                               \
-        uartItems[UART_ITEM_MIDI].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                        \
-    } while (0)
+/// @brief Stages one byte in the MIDI UART transmit ring.
+///
+/// A function rather than a macro so it is one substitutable symbol: the host test build supplies its own
+/// definition to capture what the MIDI queue manager sends, which a header-expanded macro cannot allow.
+/// Release builds use -flto=auto, so this still inlines to the same code the macro produced. It is also
+/// far too cold to care - DIN runs at 31250 baud, about 3125 bytes per second.
+///
+/// @note Safe to call from either mainline code or an ISR: the write-position update is guarded.
+///       flushMIDI() drains DIN from mainline and from the midiAndGateOutput timer interrupt, so both
+///       reach this.
+/// @param charToSend Byte to enqueue onto the MIDI UART transmit ring.
+void bufferMIDIUart(char charToSend);
 
 /* SIO_CHAR_H */
 #endif

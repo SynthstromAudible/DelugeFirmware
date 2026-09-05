@@ -1388,7 +1388,8 @@ void MidiFollow::sendCCForMidiFollowFeedback(MIDIFollowChannelType feedbackChann
 
 	int32_t midiOutputFilter = midiInput.channelOrZone;
 
-	midiEngine.sendCC(this, channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter);
+	// Knob-position feedback: high rate, and only the latest position matters.
+	midiEngine.sendCC(this, channel, ccNumber, knobPos + kKnobPosOffset, midiOutputFilter, MIDIIntent::Continuous);
 
 	timeLastCCSent[ccNumber] = AudioEngine::audioSampleTimer;
 }
