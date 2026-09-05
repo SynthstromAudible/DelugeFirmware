@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/sample.h"
+#include <gsl/gsl>
 
 class TimeStretcher;
 class VoiceSamplePlaybackGuide;
@@ -31,6 +32,7 @@ class DxVoice;
 class VoiceUnisonPartSource {
 public:
 	VoiceUnisonPartSource() = default;
+	~VoiceUnisonPartSource();
 	bool noteOn(Voice* voice, Source* source, VoiceSamplePlaybackGuide* voiceSource, uint32_t samplesLate,
 	            uint32_t oscPhase, bool resetEverything, SynthMode synthMode, uint8_t velocity);
 	void unassign(bool deletingSong);
@@ -45,5 +47,5 @@ public:
 	bool active;
 	VoiceSample* voiceSample = nullptr;
 	LivePitchShifter* livePitchShifter = nullptr;
-	DxVoice* dxVoice = nullptr;
+	gsl::owner<DxVoice*> dxVoice = nullptr;
 };
