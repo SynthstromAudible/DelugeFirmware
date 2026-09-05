@@ -17,10 +17,14 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
 #include "model/sample/sample_holder.h"
 #include "util/phase_increment_fine_tuner.h"
 
 class Source;
+
+/// Unity gain for SampleHolderForVoice::volume - the same 0-50 scale the menus use everywhere else.
+constexpr uint8_t kVariantVolumeUnity = kMaxMenuValue;
 
 class SampleHolderForVoice final : public SampleHolder {
 public:
@@ -43,6 +47,11 @@ public:
 
 	int16_t transpose;
 	int8_t cents;
+	/// Per-sample level trim, 0-50, where kVariantVolumeUnity (50) is unity gain and 0 is silence.
+	/// Lives here rather than on the zone so it sits alongside transpose/cents - the other per-slot
+	/// tweaks - and so the render path can read it straight off the holder it already resolved.
+	/// Attenuation only: a boost would have to fight the amplitude headroom limits in Voice::render.
+	uint8_t volume;
 	/// Whether the loop length should be kept constant when updating the start/end position.
 	bool loopLocked;
 	PhaseIncrementFineTuner fineTuner;

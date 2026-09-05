@@ -31,6 +31,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
@@ -110,7 +111,7 @@ uint32_t lastSoundOrder = 0;
 bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
                    int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
                    int32_t ticksLate, uint32_t samplesLate, bool resetEnvelopes, int32_t newFromMIDIChannel,
-                   const int16_t* mpeValues) {
+                   const int16_t* mpeValues, bool noteMightBeConstant) {
 
 	GeneralMemoryAllocator::get().checkStack("Voice::noteOn");
 
@@ -217,6 +218,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		// Various stuff in this block is only relevant for OscType::SAMPLE, but no real harm in it just happening in
 		// other cases.
 		guides[s].audioFileHolder = nullptr;
+		guides[s].isRoundRobinAlternate = false;
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
 		if (sourceEverActive) [[likely]] {
@@ -234,6 +236,31 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 				}
 
 				AudioFileHolder* holder = range->getAudioFileHolder();
+				// hasMultisampleRanges(), not oscType: setOscType() only re-types the ranges array when
+				// moving to or from SAMPLE/WAVETABLE, so the mode can say SAMPLE while the array still
+				// holds elements of the other shape - and rrCount/alternates overlap the wavetable
+				// holder, so reading them off the wrong type gives garbage. Every other site that
+				// touches round-robin fields already checks this way.
+				if (sound.sources[s].hasMultisampleRanges()
+				    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
+					MultisampleRange* sampleRange = (MultisampleRange*)range;
+					SampleHolderForVoice* resolvedHolder;
+					if (noteMightBeConstant && sampleRange->rrCount > 0) {
+						// Don't advance the round-robin index for note continuations (drone-note wraps,
+						// resume retriggers). Use whatever slot was last resolved.
+						resolvedHolder = sampleRange->getVariantHolder(sampleRange->lastResolvedSlotIndex);
+						if (resolvedHolder == nullptr) {
+							resolvedHolder = &sampleRange->sampleHolder;
+						}
+					}
+					else {
+						resolvedHolder = sampleRange->resolveVariant();
+					}
+					// Compare the holder rather than the slot index: resolveVariant() reports the slot
+					// it picked even when it falls back to the primary because that slot is empty.
+					guides[s].isRoundRobinAlternate = (resolvedHolder != &sampleRange->sampleHolder);
+					holder = static_cast<AudioFileHolder*>(resolvedHolder);
+				}
 				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
 				// VoiceSource's range definitely has a sample
 				if (!holder || !holder->audioFile) {
@@ -1052,6 +1079,28 @@ skipAutoRelease: {}
 			}
 		}
 
+		// Apply each sample's own level trim, so round-robin takes recorded at different levels can be
+		// balanced against each other. The variant is resolved once at note-on and fixed for the note,
+		// so this is a constant scale folded in here - once per source per render block - rather than
+		// anything per-sample. Attenuation only, so it can't push the amplitude past the headroom the
+		// limits above are protecting.
+		//
+		// Gated on the community feature like every other part of this: with it off the VOL menu is
+		// hidden, so a trim left over from when it was on would keep attenuating with no way for the
+		// user to see or undo it. Turning the feature off must leave playback exactly as it was before
+		// the feature existed. The stored value is untouched, so turning it back on restores the trim.
+		if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
+			for (int32_t s = 0; s < kNumSources; s++) {
+				if (sound.sources[s].oscType != OscType::SAMPLE || guides[s].audioFileHolder == nullptr) {
+					continue;
+				}
+				uint8_t trim = static_cast<SampleHolderForVoice*>(guides[s].audioFileHolder)->volume;
+				if (trim < kVariantVolumeUnity) {
+					sourceAmplitudes[s] = (int32_t)(((int64_t)sourceAmplitudes[s] * trim) / kVariantVolumeUnity);
+				}
+			}
+		}
+
 		bool shouldAvoidIncrementing = doneFirstRender ? (filterGainLastTime != filterGain)
 		                                               : (paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632);
 
@@ -1864,7 +1913,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
-			uint32_t sum = (uint32_t)*(fmSample++) + (uint32_t)feedback;
+			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
 
 			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);

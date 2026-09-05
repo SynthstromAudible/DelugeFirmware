@@ -1213,6 +1213,15 @@ For a detailed description of this feature, please refer to the feature document
   In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
   having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
 
+### 4.5.11 - Round-Robin Sample Variants
+
+- Each oscillator sample zone in Synth and Kit sound sources can now hold up to 4 sample variants: the primary
+  sample plus up to 3 alternates, played in rotation each time the zone is triggered - the classic
+  multi-sample-per-pad workflow known from MPC-style samplers, useful for removing the "machine gun" effect on
+  repeated drum hits.
+- For a detailed description of this feature, please refer to the feature documentation:
+  [Round-Robin Sample Variants Documentation](/features/round_robin_sample_variants)
+
 ## 4.6 - Instrument Clip View - Kit Clip Features
 
 ### 4.6.1 - Keyboard View
@@ -1390,6 +1399,11 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
   - When On, the ability to trim from the start of an audio clip without needing to reverse it is enabled.
 - `Show Battery Level (BATT)` <Badge text="c1.3" variant="tip" />
   - When On, displays battery level information in the System menu. Shows voltage and percentage on OLED displays, percentage on 7-segment displays.
+- `Round-Robin Sample Variants (VARI)`
+  - When On, enables the `VARIANTS` menu under `OSC1`/`OSC2` for sample-mode oscillators, letting you load up to 3
+    alternate samples per zone that play in rotation. See [Round-Robin Sample Variants Documentation](/features/round_robin_sample_variants).
+    When Off, the menu is hidden and playback always uses the primary sample; variant data already saved in songs is
+    preserved either way.
 
 ## 6. Sysex Handling
 

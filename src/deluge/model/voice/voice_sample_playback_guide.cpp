@@ -23,6 +23,7 @@
 #include "storage/multi_range/multisample_range.h"
 
 VoiceSamplePlaybackGuide::VoiceSamplePlaybackGuide() {
+	isRoundRobinAlternate = false;
 }
 
 void VoiceSamplePlaybackGuide::setupPlaybackBounds(bool reversed) {
@@ -96,6 +97,14 @@ int32_t VoiceSamplePlaybackGuide::getBytePosToEndOrLoopPlayback() {
 LoopType VoiceSamplePlaybackGuide::getLoopingType(const Source& source) const {
 	if (loopEndPlaybackAtByte) {
 		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
+	}
+	// An alternate inherits the oscillator's shared repeatMode without ever having had it inferred
+	// for its own file, so a stray loop-start point in an alternate must not activate a loop the
+	// user never asked for. Deliberately scoped to alternates: for the primary - and so for every
+	// sample that predates this feature - a loop-start point with no loop-end point is the normal
+	// shape of a sustaining sample, and it must still loop back to that point under LOOP.
+	if (isRoundRobinAlternate && ((SampleHolderForVoice*)audioFileHolder)->loopStartPos) {
+		return LoopType::NONE;
 	}
 	return (source.repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;
 }

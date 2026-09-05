@@ -26,20 +26,21 @@ class LoopPoint : public MenuItem {
 public:
 	LoopPoint(l10n::String newName, uint8_t sourceId) : MenuItem(newName), sourceId_{sourceId} {}
 
-	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) final;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) final;
+	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override;
 	bool isRangeDependent() final { return true; }
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
-	                                             ::MultiRange** currentRange) final;
+	                                             ::MultiRange** currentRange) override;
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getColumnLabel(StringBuf& label) override;
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
 
 	int32_t xZoom{0};
 	int32_t xScroll{0};
 	int32_t editPos{0};
 	MarkerType markerType{MarkerType::NONE};
 
-private:
+protected:
 	uint8_t sourceId_;
 };
 

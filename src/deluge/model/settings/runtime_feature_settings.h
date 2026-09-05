@@ -66,6 +66,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	HorizontalMenus,
 	TrimFromStartOfAudioClip,
 	ShowBatteryLevel,
+	RoundRobinSampleVariants,
 	RoundedCorners,
 	MaxElement // Keep as boundary
 };
