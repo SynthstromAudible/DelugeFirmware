@@ -30,6 +30,7 @@
 #include "scenes/overlay/screensaver_scene.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/rename/rename_scene.h"
+#include "scenes/slicing/slicer_scene.h"
 
 #include <array>
 
@@ -78,6 +79,8 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 		table[static_cast<size_t>(overlay::kParamPopupSceneKind)] = &overlay::param_popup_scene();
 		// `FirstApp + 7`, likewise.
 		table[static_cast<size_t>(overlay::kCountInSceneKind)] = &overlay::count_in_scene();
+		// `FirstApp + 8`, likewise.
+		table[static_cast<size_t>(slicing::kSlicerSceneKind)] = &slicing::slicer_scene();
 		// `SceneKind::Screensaver` -- one of the SHELL's own kinds, not `FirstApp + N`, because
 		// `shell::Screensaver` pushes it by name (`shell/screensaver.cpp:45`). The shell overwrites
 		// the `Popup`/`Console`/`Working`/`Loading` slots with its own instances but deliberately

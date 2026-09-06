@@ -113,7 +113,10 @@ add_library(deluge_scenes STATIC
     # arithmetic half of legacy's `TimelineView` -> `ClipNavigationTimelineView` -> `ClipView`
     # chain. Not a scene: a plain struct the root scenes own. See `timeline/timeline.h` for the
     # symbol-by-symbol split between this file, the scene, and the dropped `PadLEDs` animation.
-    timeline/timeline.cpp)
+    timeline/timeline.cpp
+    # E4 task 9: the slicer -- state, render and the three encoder arms. NOT a root scene: legacy's
+    # `Slicer` is a plain `UI` opened over the sample browser. See `slicer/slicer_scene.h`.
+    slicing/slicer_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

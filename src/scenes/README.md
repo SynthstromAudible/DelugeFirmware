@@ -729,6 +729,56 @@ Four things about it are worth finding from here rather than from the header.
   review caught it; without it a manual scroll during an auto-extending linear recording keeps a
   stale restore point and yanks the scroll back when recording stops.
 
+## The slicer (`slicing/`, E4 task 9)
+
+`slicing::SlicerScene` is the port of `Slicer` (`gui/ui/slicer.{h,cpp}`) -- the page the sample
+browser opens once a sample has been chosen, where a kit is cut into equal regions or into slices
+placed by hand. Task 9 is its state, its two renders and its three encoder arms; `padAction`, the
+rest of `buttonAction`, the audition preview and the slice commit are task 10's.
+
+Four things are worth finding from here rather than from the header.
+
+* **It is not a root scene, and it does not use `TimelineState`.** The plan's prose calls
+  `SlicerScene` and `AudioClipScene` "the first two root scenes"; only the second is one.
+  `class Slicer final : public UI` (`gui/ui/slicer.h:33`) -- a plain `UI`, opened over the sample
+  browser, and `grep "public RootUI"` finds exactly two classes in the tree (`shell/scene.h:385`).
+  So `is_root()` is false, `services::GlobalControls` correctly withholds the `View::buttonAction`
+  group of global button arms from it (they are unreachable in legacy too, because
+  `UI::buttonAction`'s base returns `NOT_DEALT_WITH` without forwarding to `view`,
+  `gui/ui/ui.h:98-100`), and the scroll/zoom it navigates is a *sample's*, through its own
+  `deluge::sample::WaveformNav`, not a timeline's.
+* **`occludes_grid()` is false, not true.** The scene paints every MAIN pad -- so it is an overlay
+  and not the grid base -- but `Slicer` overrides `renderMainPads` only. It has no `renderSidebar`,
+  and `UI::renderSidebar`'s base returns false (`gui/ui/ui.h:148-151`), so the sidebar beneath keeps
+  painting, exactly as it does under `MarkerScene`. `occludes_grid()`'s one consumer is
+  `Shell::tick_stack`, which stops advancing clocks beneath a scene that claims it
+  (`shell/shell.cpp:553-567`); claiming it here would stop the scene that owns the sidebar.
+* **The directory and namespace are `slicing`, not `slicer`.** `scenes-no-root-ui` lists the legacy
+  global `slicer` as a whole word, and `#include "scenes/slicer/slicer_scene.h"` contains that whole
+  word -- so the directory name the plan asked for is a ratchet violation in every file that
+  includes the header, whatever the namespace is called. Global Constraint 10 wins. The file names
+  are the plan's, and `SlicerScene` / `kSlicerSceneKind` / `slicer_scene()` are unaffected, because
+  `\bslicer\b` does not match a name that continues into another word character.
+* **The playhead is not ported, and the scene therefore has no timer.**
+  `Slicer::graphicsRoutine` (`gui/ui/slicer.cpp:156-203`) is a per-tick redraw driven by audio, not
+  a deadline: it walks the current kit's first drum for a sounding `VoiceSample` and hands rows 4-7
+  to `PadLEDs::setTickSquares`. The *paint* half now exists in the toolkit
+  (`ui::grid::tick_squares`), which closes the gap `MarkerScene` recorded for the same routine; the
+  *walk* needs a live voice, which needs a running `AudioEngine`, and `sim/scenes_spec`'s fixtures
+  build a `Song` by direct construction with none. Shipping the column arithmetic would mean
+  shipping every branch of it unmeasured, so `next_timer()` stays `std::nullopt` and
+  `timer_repaints()` is left at its default rather than claiming surfaces nothing repaints.
+
+One transcription this port deliberately does **not** make, and it is the only one:
+`renderMainPads`' MANUAL slice mark is `image[4][x]` with
+`x = startPos / lengthInSamples * 16` (`slicer.cpp:123-128`), which is **16** -- the first sidebar
+column -- once `horizontalEncoderAction`'s clamp (`:220-221`) has driven a slice to the end of the
+sample. Legacy composes the grid top-down (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`), so
+the sidebar UI beneath overwrites that pad later in the same pass; the shell composes bottom-up
+(`Shell::render_grid`, `shell/shell.cpp:682-798`), so reproducing the write would leave a stray pad
+visible where legacy's is not. The port paints the marks inside the main-column region, which clips
+it: behaviour preserved by clipping rather than by transcription.
+
 ## Repaint and the timer fold (`Shell::tick` step 8b, E3 tasks 10-11)
 
 Two shell-level corrections this plan made, both of which change how a scene asks to be redrawn:
@@ -796,17 +846,19 @@ the hook.
 
 ## Defects this port found in shipping firmware
 
-Six, none of them introduced by the port, none of them fixed by it, and all six recorded at their
-own site as well as here. They are listed together because a ledger is not where a release note
+Eight, none of them introduced by the port, none of them fixed by it, and all eight recorded at
+their own site as well as here. They are listed together because a ledger is not where a release note
 looks.
 
-Two of the six are in `gui/views/view.cpp`, and neither is annotated in that file, for the reason
+Two of the eight are in `gui/views/view.cpp`, and neither is annotated in that file, for the reason
 the `browser.cpp` row below already gives: `view.cpp` is cited by line from `src/scenes/services/`,
 `src/scenes/menu/context.cpp` and `sim/scenes_spec/` more than a hundred times, and inserting a
 comment there would shift every one of them. Their port-side `@warning`s are complete.
 
 | defect | severity | where it is recorded |
 |---|---|---|
+| **`Slicer::renderMainPads` never checks that it was given an image.** `UI`'s own header says every override must (*"These \*must\* check whether image has been supplied - if not, just return"*, `gui/ui/ui.h:141-142`) and its sibling `SampleMarkerEditor::renderMainPads` does (`gui/ui/sample_marker_editor.cpp:1362-1366`). `closeUI` quizzes every UI from the top down to and including the one being closed with the **no-argument** form (`gui/ui/ui.cpp:184-192`, `redrawMainPads \|= thisUI->renderMainPads()`), so `image` is null; nothing between that call and the write guards it. Closing the slicer takes that path on every exit -- `buttonAction`'s BACK arm calls `close()` (`slicer.cpp:391`), and so does the commit, through `sampleBrowser.exitAndNeverDeleteDrum()`. In REGION mode the null reaches `WaveformRenderer::renderFullScreen`'s clear (`gui/waveform/waveform_renderer.cpp:57-59`), which memsets 48 bytes at eight addresses from 0 to 432; in MANUAL mode it reaches the squash loop, the slice-mark loop and the slot-grid loop directly (`slicer.cpp:117-149`), and the squash loop additionally reads `myImage` uninitialised whenever the scan returned early (`waveform_renderer.cpp:52-54`, before its own clear). **Established by reading the enclosing braces**, not reproduced on a device; whether address 0 faults on an RZ/A1 depends on the boot-time memory map, which is why it has survived. The port has no equivalent -- `render_grid` is always handed a real frame -- and does not patch legacy. | **memory corruption / undefined behaviour, on every exit from the slicer** | `src/scenes/slicing/slicer_scene.h`'s "Two legacy defects" section |
+| **`Slicer::selectEncoderAction`'s slice-count wrap only fires on an exact hit.** The REGION arm is `numClips += offset; if (numClips == 257) numClips = 2; else if (numClips == 1) numClips = 256;` (`gui/ui/slicer.cpp:249-257`) -- equality, not a range -- and `offset` is whole detents, so a fast turn delivers more than one at a time and steps straight over both ends. 255 + 2 is 257 and wraps; 256 + 2 is 258 and does not. Downward it is worse: from the opening 16, a single -20 turn lands on **-4**, and the page then reads "-4"; nothing between there and `doSlice(sliceCount)` re-checks the sign. Reachable with an ordinary flick of the select encoder. The port reproduces it exactly, including the `int16_t` width the wrap is written against, and `sim/scenes_spec/slicer_scene_spec.cpp` asserts both halves against legacy's own `selectEncoderAction` -- a one-sided fix would be a silent divergence, which is what every other example there exists to catch. | user-visible, not a crash | `src/scenes/slicing/slicer_scene.cpp`'s `select_encoder` comments; the "steps past the wrap" and "drive the REGION count negative" examples in `sim/scenes_spec/slicer_scene_spec.cpp` |
 | **Use-after-free in `AudioRecorder::finishRecording`.** It frees through the member (`discardRecorder` → `~SampleRecorder` + `delugeDealloc`) and only *then* clears `recorder` and `recordingSource`. In that window the pointer dangles while the channel still says LEFT/STEREO — and `AudioEngine::setMonitoringMode`, reached from `renderAudio` on the **priority-0 audio task**, tests that pair and dereferences `audioRecorder.recorder`. The Rust scheduler routes priority 0 onto the **preemptive** SGI executor, so the interrupt can land on any instruction inside `discardRecorder`; the `recorder != nullptr` double-check does not help, because the pointer is non-null and freed for the whole window. `audio_engine.cpp`'s output/stem-recording paths read the same member the same way. The port takes the correct order (channel first, then pointer, then free, with a compiler barrier between the two stores) and does **not** patch legacy, because those members are written from five other legacy sites this port is not entitled to re-order. | **crash / memory corruption** | `gui/ui/audio_recorder.cpp`'s `finishRecording` @warning; `AudioEngine::setForegroundRecording`'s header contract |
 | **`Browser`'s default-directory fallback is dead**, and so is `LoadInstrumentPresetUI`'s. Both test `Error::FOLDER_DOESNT_EXIST`, but the read path they take reports a missing directory as `Error::FILE_NOT_FOUND` — `FOLDER_DOESNT_EXIST` is produced in exactly one place in the tree, `storage_manager.cpp`'s file-*open* path, which neither call reaches. So the fallback, and `browser.cpp`'s mkdir arm behind it, cannot run. The port accepts **both** codes as a documented divergence rather than patching, because which folder a user should land in when one is missing is a product decision. | user-visible, not a crash | `gui/ui/load/load_instrument_preset_ui.cpp`'s @warning; `src/scenes/browser/listing.cpp`'s divergence note, which carries the full trace. Deliberately **not** annotated in `browser.cpp` itself: inserting lines there would shift ~100 legacy citations from this stack, and the port-side record is complete |
 | **`View::modButtonAction` dereferences a pointer its own sibling null-checks — twice.** `ModControllable::getModKnobMode()` returns `nullptr` for anything that does not support mod-knob banks (`model/mod_controllable/mod_controllable.cpp:47-49`, whose declaration at `mod_controllable.h:55` says so in a comment: *"Return NULL if different modes not supported"*). `View::getModKnobMode` (`gui/views/view.cpp:1680-1689`) tests it before dereferencing. `View::modButtonAction` does not, at **`view.cpp:1517`** (a read, inside the `!rootUIIsClipMinderScreen()` arm) and again at **`:1532`** (a *write*, outside `!rootUIIsClipMinderScreen()` and therefore reached on a press in a clip-minder view, where `:1517` is not). Both are inside `if (…modControllable)` (`:1510`), `if (on)` (`:1511`) and the `isUIModeWithinRange(modButtonUIModes) \|\| rootUI == &performanceView` gate (`:1512`), past the automation-editor early return at `:1501-1505`, so a release and a press during any other UI mode reach neither. Six classes override the default — `GlobalEffectableForSong`, `SoundInstrument`, `SoundDrum`, `Kit`, `AudioOutput`, `MIDIInstrument` — and the one class in the tree that can be an active mod controllable and does **not** is `CVInstrument` (`model/instrument/cv_instrument.h:31`, a `NonAudioInstrument` whose `toModControllable()` returns `this`, `non_audio_instrument.h:57`). So the mechanism is: mod button pressed while a CV clip's knobs are the active target. **Established by reading, not reproduced** — no device here, and no fixture in `sim/` builds a CV clip. The port guards both sites; the guard can only differ from legacy in the case legacy faults in. | **crash (null dereference), if reachable as read** | `src/scenes/services/mod_knobs.cpp`'s `mod_button_action` @warning |
