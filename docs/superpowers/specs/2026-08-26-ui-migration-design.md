@@ -238,7 +238,7 @@ that renders — `SessionScene`'s to close); `MenuScene::ascend()`'s silent no-o
 legacy's `goUpOneLevel` calls `exitCompletely()`; a `CustomItem::title` hook for the three pages that
 want a runtime title; and three `IntegerWithOff` nodes that draw "0" where legacy draws "OFF".
 
-### 10.5 Three defects in shipping firmware, found by the port and not fixed by it
+### 10.5 Five defects in shipping firmware, found by the port and not fixed by it
 
 They belong in a release note, not only in a spec, and are written up in full in
 `src/scenes/README.md`'s "Defects this port found in shipping firmware" with a `@warning` at each
@@ -247,6 +247,15 @@ reader on the preemptive audio interrupt); `Browser`'s and `LoadInstrumentPreset
 **default-directory fallbacks are dead** (they test `FOLDER_DOESNT_EXIST` where the read path
 returns `FILE_NOT_FOUND`); and **the first gold-knob turn after boot is always swallowed**, which
 also means every committed UI-script golden depicts an arm the device never presents first.
+
+E4 task 3 added two more, both in `View`'s mod-knob half and both found by porting it:
+**`View::modButtonAction` dereferences `ModControllable::getModKnobMode()` unguarded** at
+`gui/views/view.cpp:1517` and `:1532`, where `View::getModKnobMode` (`:1680-1689`) null-checks the
+same pointer and the base implementation genuinely returns null
+(`model/mod_controllable/mod_controllable.cpp:47-49`); and **`View::setKnobIndicatorLevel` reads an
+uninitialised `int32_t knobPos`** (declared `:1410`, consumed `:1468`) on the one of its four paths
+that assigns nothing. Neither is annotated in `view.cpp` itself — the same reason the browser row
+gives, one order of magnitude worse: this stack cites `view.cpp` by line more than a hundred times.
 
 ### 10.6 What the oracle actually covers for the three new scenes (2026-09-04, closing E3's final review)
 

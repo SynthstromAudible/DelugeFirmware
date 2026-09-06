@@ -472,6 +472,20 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   input as `mod_knobs`-first, which would have run a scene's `modEncoderButtonAction` handling one
   step later than legacy does — cost if wrong, per that review, is one case spec E's `ModKnobs`
   service would have to re-map.
+
+  > **SUPERSEDED by §15.5 (E4 task 3, 2026-09-06). The sentence above — "only `Mod0..Mod7` and the
+  > gold-knob *turns* go to `mod_knobs`" — is now false, and the ruling attached to it was right
+  > about legacy and wrong about the conclusion.** Shipped `Router::is_mod_or_gold`
+  > (`src/shell/router.cpp`) returns true for `ButtonId::ModEnc0`/`ModEnc1`. The observation
+  > survives exactly as written; what changed underneath it is the *chain*. While `mod_knobs` ran
+  > **before** the top scene, "legacy reaches the push only after the current UI" and "the push is
+  > not a `mod_knobs` event" were the same statement, and excluding the two pushes was the only way
+  > to spell the first. §15.4 corrected the chain to scene-first; from that point the two statements
+  > come apart, and the exclusion started saying something legacy does not — because the tail's own
+  > line is `getCurrentUI()->modEncoderButtonAction(0, on)` (`hid/buttons.cpp:227`, `:230`), and
+  > `UI::modEncoderButtonAction` (`gui/ui/ui.cpp:43-45`) is a bare forward to `view`, overridden by
+  > five UIs. It is the **third** base-class-fallback hook, not an exception to the pattern. See
+  > §15.5 for the full evidence and for what the exclusion would have cost.
 - The **held-back stash** (`held_back()`/`held_back_dropped()`) for the six widget-owned shapes
   lives on **`InputLowering`**, not on `Shell` as a first reading of the draft's §7 pseudocode
   might suggest (`shell.h`'s own earlier revisions carried a `held_back_` member before this was
@@ -882,3 +896,55 @@ and mod_knobs never sees it"* and *"a gold-knob turn the scene declines falls th
 before global_controls"*. Both directions are needed: a service-first router still lets a *declining*
 service fall through to the scene, so the "scene wins" half alone does not distinguish the two
 orderings, and a router that never consults the service at all passes the "scene wins" half too.
+
+### 15.5 …and it excluded the gold knobs' own pushes, which are the same hook again (found in E4)
+
+§15.4's sibling, and the reason it needs its own section: fixing the chain made a *second*,
+previously-correct decision wrong. This section supersedes the "Routing order correction" bullet in
+§4's spec-E ruling list, which still described the old behaviour.
+
+**What §4 said.** "`ModEnc0`/`ModEnc1`'s own button presses are **not** `mod_knobs` events… only
+`Mod0..Mod7` and the gold-knob *turns* go to `mod_knobs` first", ruled during plan D's Task 5 review
+as a spec FAIL against a brief that had grouped all mod-encoder input as `mod_knobs`-first.
+
+**Why it was right then.** With the chain running `mod_knobs` → scene → `global_controls`, sending a
+push to `mod_knobs` would have given `View`'s handling of it *priority over the scene's* — the exact
+inversion the reviewer caught. Excluding the two pushes from `is_mod_or_gold` was the only way to
+express "legacy reaches this only after the current UI" in a chain that asked the service first.
+
+**Why it is wrong now.** The push is the **third** hook with the base-class-fallback shape, and the
+evidence is the same shape as §15.4's:
+
+* `Buttons::buttonAction`'s tail runs `getCurrentUI()->modEncoderButtonAction(0, on)` and
+  `…(1, on)` (`hid/buttons.cpp:227`, `:230`), after the `getCurrentUI()->buttonAction` call at
+  `:134` and before `dealtWith:` at `:232`.
+* `UI::modEncoderButtonAction` (`gui/ui/ui.cpp:43-45`) is the base-class implementation, and its
+  entire body is `view.modEncoderButtonAction(whichModEncoder, on)`.
+* **Five** UIs override it: `InstrumentClipView` (`gui/views/instrument_clip_view.h:199`),
+  `SoundEditor` (`gui/ui/sound_editor.h:81`), `SessionView` (`gui/views/session_view.h:80`),
+  `PerformanceView` (`gui/views/performance_view.h:97`), `AutomationView`
+  (`gui/views/automation_view.h:117`).
+
+So "scene first, `View` second" describes the push exactly as it describes a mod button and a
+gold-knob turn. Once the chain is scene-first, *excluding* the push no longer expresses "after the
+UI" — it expresses "never", which legacy does not say.
+
+**What it would have cost.** `View::modEncoderButtonAction` (`gui/views/view.cpp:1332-1350`) is E4
+task 3's own citation: it is the delete-automation gesture (shift + push) and the
+`ModControllable::modEncoderButtonAction` dispatch. Ported in E4 task 3, it would have been
+unreachable dead code — `ModKnobs::handle`'s `EncoderButton` arm has no other route to it.
+
+**The fix.** `Router::is_mod_or_gold` gained a `UiEvent::Kind::EncoderButton` case matching
+`ButtonId::ModEnc0`/`ModEnc1`. `EncoderButton{SelectEnc}` is deliberately **not** included: legacy's
+tail handles the select press itself and that hook has no `view` fallback at all, so it must keep
+going scene → `global_controls`.
+
+**Coverage.** `tests/spec/shell/router_spec.cpp`'s "ButtonId::ModEnc0/ModEnc1 presses reach the
+scene first and mod_knobs second, like every other View fallback" drives all four cases — the
+declining scene (log reads `scene, mod, global`), the claiming scene (log reads `scene` alone), the
+other knob, and `SelectEnc` still bypassing `mod_knobs` entirely.
+
+**A fixture error the same change exposed.** Plan D's and E4 task 2's specs built the two pushes as
+`UiEvent::Kind::Button`. `InputLowering` emits `Kind::EncoderButton` for them
+(`is_encoder_button`, `src/shell/input_lowering.cpp:42-53`, applied at `:298`), so those examples
+were asserting about a shape the lowering never produces. Corrected in both specs.

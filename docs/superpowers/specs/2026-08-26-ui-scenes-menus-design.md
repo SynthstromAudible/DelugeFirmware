@@ -1358,6 +1358,10 @@ None introduced by the port, none fixed by it, all three recorded at their own s
 `src/scenes/README.md`'s "Defects this port found in shipping firmware" — because a spec amendment
 is not where a release note looks either.
 
+> **These three are E3's, not the running total.** E4 task 3 added two more, both in
+> `View`'s mod-knob half; see `src/scenes/README.md`'s ledger (now five rows) and
+> `2026-08-26-ui-migration-design.md` §10.5.
+
 1. **Use-after-free in `AudioRecorder::finishRecording`** (a crash/corruption bug). It frees through
    the member and only then clears `recorder` and `recordingSource`, so the pointer dangles while
    the channel still says LEFT/STEREO. `AudioEngine::setMonitoringMode`, reached from `renderAudio`
