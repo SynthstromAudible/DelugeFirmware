@@ -24,6 +24,14 @@
 ///   * **`PopupContext::stuttering`**. Nothing in the port owns the stutter gesture yet, so no
 ///     caller can set it true and legacy's `isUIModeActive(UI_MODE_STUTTERING)` half of the
 ///     rate-bucket guard is never exercised from this side.
+///   * **`PopupContext::midi_instrument`, the MIDI-clip CC/expression naming arm**
+///     (`view.cpp:1122-1147`). Reachable now -- widening `show()` is what made it so -- but not
+///     driven: a bare MIDI fixture's gold knobs resolve through
+///     `MIDIInstrument::getParamFromModEncoder` (`model/instrument/midi_instrument.cpp:156-169`),
+///     whose default CC assignment yields no `autoParam`, so `mod_encoder_turn` takes the
+///     non-existent-param arm and no popup is shown at all. Covering it needs a fixture that
+///     assigns a mod-knob CC, which is more MIDI-clip setup than this task owns. The
+///     `ModControllableAudio*` half of the same widening IS driven, below.
 ///   * **`ModKnobs::notify_param_automation_occurred`'s `DISPLAY_AUTOMATION` consumer.** Legacy's
 ///     timer callback is `automationView.displayAutomation()` / `view.displayAutomation()`
 ///     (`gui/ui_timer_manager.cpp:157-171`), both view-side and not ported; only the *arming* is
@@ -633,12 +641,76 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(port_unnamed == port_named).to_be_false();
 	});
 
+	it("agrees with View::isClipContext on every reachable target shape", _ {
+		// Fix round 1, Important 1: the port's predicate dropped legacy's outer
+		// `if (activeModControllableModelStack.modControllable)` (`view.cpp:1734`), so a target with
+		// a clip counter but no resolved mod controllable read as a clip context here and not in
+		// legacy -- which makes `target_changed` send a MIDI CC legacy would never send. Shape 4 is
+		// the one that fails without the guard.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(f.instrument);
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+
+		// 1. No counter, no controllable.
+		view.setActiveModControllableTimelineCounter(nullptr, false);
+		rig.knobs.set_target_with_timeline(nullptr, false);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_false();
+
+		// 2. No counter, a controllable.
+		view.setActiveModControllableWithoutTimelineCounter(sound, &f.clip->paramManager);
+		rig.knobs.set_target_without_timeline(sound, &f.clip->paramManager);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_false();
+
+		// 3. A clip counter and a controllable -- the only true case.
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_true();
+
+		// 4. A clip counter and NO controllable. Each side is dropped into that shape through its
+		//    own state -- legacy's public stack member, the port's own `ModTarget` -- because no
+		//    entry point on either side reaches it directly on this fixture.
+		view.activeModControllableModelStack.modControllable = nullptr;
+		deluge::scenes::services::ModTarget no_controllable = rig.knobs.target();
+		no_controllable.mod_controllable = nullptr;
+		expect(deluge::scenes::services::is_clip_context(no_controllable)).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_false();
+
+		// 5. The SONG as the counter, with a controllable: set, but not a clip. `affectEntire` is
+		//    what makes `Song::getActiveModControllable` resolve one at all (`song.cpp:5537-5544`);
+		//    without it the song resolves nothing and this shape would collapse into shape 1.
+		f.song->affectEntire = true;
+		view.setActiveModControllableTimelineCounter(f.song, false);
+		rig.knobs.set_target_with_timeline(f.song, false);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_equal(view.isClipContext());
+		expect(view.isClipContext()).to_be_false();
+		// ...and it really is pointed at something, so shape 5 is not shape 1 in disguise.
+		expect(rig.knobs.target().timeline_counter != nullptr).to_be_true();
+		expect(rig.knobs.target().mod_controllable != nullptr).to_be_true();
+	});
+
 	it("routes a gold-knob turn to the service first and a gold-knob push to the scene first", _ {
-		// Step 5's ordering, which is legacy's: `interpretEncoders` hands a gold *turn* straight to
-		// the mod-knob path (`hid/encoder_input.cpp:196`), while `MOD_ENCODER_0`/`MOD_ENCODER_1` are
-		// handled in `Buttons::buttonAction`'s TAIL, after `getCurrentUI()->buttonAction`
-		// (`hid/buttons.cpp:225-231`) -- so the scene sees the push first and the service never
-		// sees it at all.
+		// Step 5's subject is the PUSH, and that half is legacy's exactly:
+		// `MOD_ENCODER_0`/`MOD_ENCODER_1` are handled in `Buttons::buttonAction`'s TAIL, after
+		// `getCurrentUI()->buttonAction` (`hid/buttons.cpp:225-231`), so the scene sees the push
+		// first and the service never sees it at all. That is what this example is here to pin.
+		//
+		// The turn and the mod button are pinned here as they are ROUTED TODAY, which is NOT
+		// legacy's order: `interpretEncoders` calls `getCurrentUI()->modEncoderAction`
+		// (`hid/encoder_input.cpp:196`) and the mod-button loop calls
+		// `getCurrentUI()->modButtonAction` (`hid/buttons.cpp:104`), with `UI`'s own base
+		// implementations forwarding to `view` as the fallback (`gui/ui/ui.cpp:35-41`) -- so both
+		// should reach the top scene first and `mod_knobs` second. E4 task 2 found that; the
+		// controller ruled the chain becomes top scene -> mod_knobs -> global_controls, implemented
+		// as E4 task 3's first steps with its own spec. **These two `expect`s change with that
+		// fix**; the `ModEnc0`/`ModEnc1` ones do not.
 		RouteRig r;
 
 		r.router.route(gold_turn(EncoderRole::GoldLower, 1), r.ctx());
