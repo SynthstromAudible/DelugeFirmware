@@ -1145,7 +1145,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			install(p.root->ctx, p.root->song);
 			// `audio_clip::Transpose` carries a **learn-only** `ParamRef` (`with_learn_param`): it is a
 			// `Decimal`, so legacy's `getParamIndex()` is the base's invalid one and only
-			// `getLearningThing()` (`audio_clip/transpose.h:41-45`) names the param. Compared there
+			// `getLearningThing()` (`audio_clip/transpose.h:52-56`) names the param. Compared there
 			// instead, exactly as `tables_2_spec` compares the four `menu_item::Transpose` nodes.
 			if (p.node->bind.get != nullptr) {
 				auto* learner = dynamic_cast<::MenuItemWithCCLearning*>(p.item);
@@ -2017,7 +2017,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 			gateModeMenu.readCurrentValue();
 			expect(bindings::read(nodes::gate_mode, ctx)).to_equal(gateModeMenu.getValue());
 
-			// `gate::Mode::updateOptions` (`gate/mode.h:53-72`): the two trigger polarities always,
+			// `gate::Mode::updateOptions` (`gate/mode.h:53-71`): the two trigger polarities always,
 			// plus CLOCK or RUN SIGNAL on the two outputs that carry them.
 			gateModeMenu.updateOptions(which);
 			const auto legacy_options = gateModeMenu.getOptions(legacy::Selection::OptType::FULL);
@@ -3025,7 +3025,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	   "made through the scene",
 	   _ {
 		   // `gateModeMenu.updateOptions(value)` on the way through `selectButtonPress`
-		   // (`gate/selection.h:52`, `gate/mode.h:53-72`). The port's counterpart is
+		   // (`gate/selection.h:52`, `gate/mode.h:53-71`). The port's counterpart is
 		   // `gate_mode_names` reading `MenuContext::source_index`, so this is the second, independent
 		   // proof that the selector's cursor really reached the context -- a different mechanism from
 		   // the `enum_index` check above, on the same write.
@@ -3269,7 +3269,7 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 			deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
 			const size_t count = menu::bindings::names(*n, settings.ctx, got, scratch);
 			expect(count).to_equal(size_t(legacy::kNumPadColours));
-			// `Colour::getOptions` (`gui/menu_item/colour.h:50-58`) -- the same nine for every item,
+			// `Colour::getOptions` (`gui/menu_item/colour.h:48-56`) -- the same nine for every item,
 			// so one legacy call is the oracle for all six.
 			auto* oracle = dynamic_cast<legacy::Selection*>(legacy_item_for(nodes::pad_colour_active));
 			expect(oracle != nullptr).to_be_true();

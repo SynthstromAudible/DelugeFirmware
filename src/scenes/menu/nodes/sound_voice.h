@@ -10,7 +10,7 @@
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
 /// | `voice_priority` | `priorityMenu` (`:705`) | `voice::Priority` (`voice/priority.h:29`) | Enum |
-/// | `polyphony` | `polyphonyMenu` (`:702`) | `voice::PolyphonyType` (`voice/polyphony.h:90`) | Enum (dynamic) |
+/// | `polyphony` | `polyphonyMenu` (`:702`) | `voice::PolyphonyType` (`voice/polyphony.h:99`) | Enum (dynamic) |
 /// | `voice_count` | `voice::polyphonicVoiceCountMenu` (`:703`) | `voice::VoiceCount` (`voice/polyphony.h:31`) | Int |
 /// | `portamento` | `portaMenu` (`:704`) | `voice::Portamento` (`voice/portamento.h:24`), `UNPATCHED_PORTAMENTO` | Int (param) |
 /// | `unison` | `unisonMenu` | `HorizontalMenu` -- **task 6's**, `sound_unison.h` | Submenu (Horizontal) |
@@ -59,7 +59,7 @@ int32_t get_voice_count(const MenuContext& ctx);
 void set_voice_count(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// `voice::Priority::getOptions` (`voice/priority.h:39-46`), FULL spelling.
+/// `voice::Priority::getOptions` (`voice/priority.h:54-61`), FULL spelling.
 inline constexpr uint16_t kVoicePriorityNames[] = {
     sid(deluge::l10n::String::STRING_FOR_LOW),
     sid(deluge::l10n::String::STRING_FOR_MEDIUM),

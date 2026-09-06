@@ -474,7 +474,7 @@ bool is_midi_out(const MenuContext& ctx) {
 }
 
 bool cv2_dual(const MenuContext& ctx) {
-	// `cv::DualCVSelection::isRelevant` (`gui/menu_item/cv/cv2Mapping.h:44-48`): a CV output whose
+	// `cv::DualCVSelection::isRelevant` (`gui/menu_item/cv/cv2Mapping.h:59-63`): a CV output whose
 	// `getChannel()` is `both`. `CVInstrument` is `model/instrument/cv_instrument.h`, inside this
 	// layer's allow-list, so the test is the legacy one verbatim.
 	if (ctx.output == nullptr || ctx.output->type != OutputType::CV) {

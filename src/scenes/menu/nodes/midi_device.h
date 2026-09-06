@@ -139,7 +139,7 @@ namespace deluge::scenes::menu::nodes {
 /// the file note.
 /// @{
 
-/// `midi::DefaultVelocityToLevel::readCurrentValue` (`midi/default_velocity_to_level.h:29-32`).
+/// `midi::DefaultVelocityToLevel::readCurrentValue` (`midi/default_velocity_to_level.h:29-31`).
 int32_t get_device_velocity_to_level(const MenuContext& ctx);
 /// `midi::DefaultVelocityToLevel::writeCurrentValue` (`:33-37`).
 void set_device_velocity_to_level(const MenuContext& ctx, int32_t value);

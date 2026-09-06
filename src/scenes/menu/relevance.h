@@ -158,7 +158,7 @@ bool ringmod_allowed(const MenuContext& ctx);
 /// @brief Is a kit being edited? `sidechain::Send::isRelevant` (`sidechain/send.h:65`), i.e.
 ///        `SoundEditor::editingKit()` (`sound_editor.cpp:161-163`).
 bool is_kit(const MenuContext& ctx);
-/// @brief Is a kit *row* being edited? `IncludeInKitArp::isRelevant` (`include_in_kit_arp.h:65-67`),
+/// @brief Is a kit *row* being edited? `IncludeInKitArp::isRelevant` (`include_in_kit_arp.h:81-84`),
 ///        i.e. `editingKitRow()` (`sound_editor.cpp:169-171`).
 bool is_kit_row(const MenuContext& ctx);
 /// @brief The negation, `arpeggiator::NoteMode::isRelevant` (`arpeggiator/note_mode.h:37-39`).
@@ -228,7 +228,7 @@ bool mod_fx_has_feedback(const MenuContext& ctx);
 bool mod_fx_has_offset(const MenuContext& ctx);
 
 /// @brief Does the selected reverb model have filters? `reverb::HPF::isRelevant`
-///        (`reverb/hpf.h:26-29`) and `LPF` (`reverb/lpf.h:26-29`): MUTABLE or DIGITAL.
+///        (`reverb/hpf.h:36-39`) and `LPF` (`reverb/lpf.h:26-29`): MUTABLE or DIGITAL.
 bool reverb_filters(const MenuContext& ctx);
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
 ///        (`reverb/sidechain/shape.h:37-39`), `sidechain::Attack` / `Release` / `Sync` in their
@@ -272,7 +272,7 @@ bool output_midi_note(const MenuContext& ctx);
 bool is_midi_out(const MenuContext& ctx);
 
 /// @brief Is this a CV output whose channel is `both`? `cv::DualCVSelection::isRelevant`
-///        (`gui/menu_item/cv/cv2Mapping.h:44-48`) -- the CV2 source picker only applies to the
+///        (`gui/menu_item/cv/cv2Mapping.h:59-63`) -- the CV2 source picker only applies to the
 ///        dual-channel CV instrument.
 bool cv2_dual(const MenuContext& ctx);
 
@@ -283,7 +283,7 @@ bool battery_shown(const MenuContext& ctx);
 
 /// @brief Is the audio clip's output recording from one specific track?
 ///        `audio_clip::SpecificSourceOutputSelector::isRelevant`
-///        (`gui/menu_item/audio_clip/specific_output_source_selector.h:86-89`):
+///        (`gui/menu_item/audio_clip/specific_output_source_selector.h:102-106`):
 ///        `AudioOutput::inputChannel == AudioInputChannel::SPECIFIC_OUTPUT`.
 bool audio_source_is_specific(const MenuContext& ctx);
 /// @}

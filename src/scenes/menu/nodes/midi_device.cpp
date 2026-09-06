@@ -163,7 +163,7 @@ int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state) 
 // see `midi_device.h` on why a null one reads 0 and writes nothing.
 
 int32_t get_device_velocity_to_level(const MenuContext& ctx) {
-	// `DefaultVelocityToLevel::readCurrentValue` (`midi/default_velocity_to_level.h:29-32`).
+	// `DefaultVelocityToLevel::readCurrentValue` (`midi/default_velocity_to_level.h:29-31`).
 	if (ctx.midi_cable == nullptr) {
 		return 0;
 	}

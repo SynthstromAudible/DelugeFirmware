@@ -142,12 +142,12 @@ int32_t get_saturation(const MenuContext& ctx);
 void set_saturation(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// `delay::Analog::getOptions` (`delay/analog.h:31-35`), FULL spelling.
+/// `delay::Analog::getOptions` (`delay/analog.h:52-56`), FULL spelling.
 inline constexpr uint16_t kDelayTypeNames[] = {
     sid(deluge::l10n::String::STRING_FOR_DIGITAL),
     sid(deluge::l10n::String::STRING_FOR_ANALOG),
 };
-/// `delay::PingPong::getOptions` (`delay/ping_pong.h:34-41`).
+/// `delay::PingPong::getOptions` (`delay/ping_pong.h:54-62`).
 inline constexpr uint16_t kDelayPingPongNames[] = {
     sid(deluge::l10n::String::STRING_FOR_OFF),
     sid(deluge::l10n::String::STRING_FOR_ON),

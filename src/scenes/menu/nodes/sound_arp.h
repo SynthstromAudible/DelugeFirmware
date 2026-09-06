@@ -106,7 +106,7 @@ int32_t get_arp_include_in_kit(const MenuContext& ctx);
 void set_arp_include_in_kit(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// `arpeggiator::Mode::getOptions` (`arpeggiator/mode.h:74-81`), and `IncludeInKitArp`'s
+/// `arpeggiator::Mode::getOptions` (`arpeggiator/mode.h:90-98`), and `IncludeInKitArp`'s
 /// (`include_in_kit_arp.h:56-63`) -- the same two strings.
 inline constexpr uint16_t kOffOnNames[] = {
     sid(deluge::l10n::String::STRING_FOR_OFF),
@@ -155,7 +155,7 @@ inline constexpr uint16_t kArpChordNames[] = {
     sid(deluge::l10n::String::STRING_FOR_MAJOR7),
 };
 
-/// `arpeggiator::ArpMpeVelocity::getOptions` (`mpe_velocity.h:41-49`).
+/// `arpeggiator::ArpMpeVelocity::getOptions` (`mpe_velocity.h:57-65`).
 inline constexpr uint16_t kArpMpeNames[] = {
     sid(deluge::l10n::String::STRING_FOR_DISABLED),
     sid(deluge::l10n::String::STRING_FOR_PATCH_SOURCE_AFTERTOUCH),

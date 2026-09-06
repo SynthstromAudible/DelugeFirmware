@@ -70,7 +70,7 @@ int32_t lookup_index(int32_t value, const int32_t* table, int32_t max_index) {
 // The shared `SideChain` conversions
 
 int32_t sidechain_attack_to_menu(const SideChain* sc) {
-	// `sidechain::Attack::readCurrentValue` (`sidechain/attack.h:34-37`).
+	// `sidechain::Attack::readCurrentValue` (`sidechain/attack.h:33-36`).
 	return sc != nullptr ? lookup_index(sc->attack >> 2, attackRateTable, 50) : 0;
 }
 void sidechain_attack_from_menu(SideChain* sc, int32_t menu_value) {
@@ -82,7 +82,7 @@ void sidechain_attack_from_menu(SideChain* sc, int32_t menu_value) {
 }
 
 int32_t sidechain_release_to_menu(const SideChain* sc) {
-	// `sidechain::Release::readCurrentValue` (`sidechain/release.h:34-37`).
+	// `sidechain::Release::readCurrentValue` (`sidechain/release.h:33-36`).
 	return sc != nullptr ? lookup_index(sc->release >> 3, releaseRateTable, 50) : 0;
 }
 void sidechain_release_from_menu(SideChain* sc, int32_t menu_value) {

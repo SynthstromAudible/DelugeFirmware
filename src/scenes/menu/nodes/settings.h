@@ -916,7 +916,7 @@ inline constexpr Node default_cpu_indicator = toggle_item(sid(String::STRING_FOR
 inline constexpr Node default_hold_time =
     int_item(sid(String::STRING_FOR_HOLD_TIME), get_default_hold_time, set_default_hold_time, IntRange{1, 20, 1});
 
-/// `ScreensaverModeMenu::getOptions` (`defaults/screensaver.h:29-36`).
+/// `ScreensaverModeMenu::getOptions` (`defaults/screensaver.h:44-50`).
 inline constexpr uint16_t kScreensaverModeNames[] = {
     sid(String::STRING_FOR_OFF),
     sid(String::STRING_FOR_SCREENSAVER_MODE_BLANK),
@@ -1074,7 +1074,7 @@ inline constexpr Node record_settings = submenu(sid(String::STRING_FOR_RECORDING
 //
 // `runtime_feature::Settings` is a `Submenu` over `subMenuEntries`
 // (`runtime_feature/settings.cpp:56-80`), 23 items in that array's order. Twenty-one of them are
-// `SettingToggle`s -- `Selection`s flagged `isToggle()` (`runtime_feature/setting.h:26`) -- which is
+// `SettingToggle`s -- `Selection`s flagged `isToggle()` (`runtime_feature/setting.h:45`) -- which is
 // `Kind::Toggle` here; `SyncScalingAction` is a plain two-option `Setting`; `DevSysexAllowed` is the
 // E2 placeholder the file note explains.
 

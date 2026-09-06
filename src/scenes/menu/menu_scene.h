@@ -272,8 +272,8 @@ struct MenuState {
 
 	/// @brief A MIDI cable the focused device list chose this tick, or null for none.
 	///
-	/// `midi::Devices` assigns `soundEditor.currentMIDICable` from both `beginSession` and
-	/// `selectEncoderAction` (`devices.cpp:55`, `:102`); the port's counterpart is
+	/// `midi::Devices` assigns `soundEditor.currentMIDICable` from both `beginSession`
+	/// (`devices.cpp:55`) and `selectEncoderAction` (`devices.cpp:102`); the port's counterpart is
 	/// `MenuContext::midi_cable`, written by `after_render` from what `MidiDevicesItem` records
 	/// here. A pointer rather than an index because that is what the context field is, and because
 	/// legacy's own index space (`lowestDeviceNum`.. , `devices.cpp:36`) is not the row order the

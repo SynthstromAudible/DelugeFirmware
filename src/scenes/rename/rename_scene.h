@@ -10,8 +10,9 @@
 ///
 /// **Ports.** `RenameUI::opened` / `renderOLED` / `enterKeyPress` / `buttonAction` / `padAction` /
 /// `verticalEncoderAction` / `getGreyoutColsAndRows` (`gui/ui/rename/rename_ui.cpp`), and the
-/// input half of `QwertyUI`: `padAction`'s typing rules, `processBackspace` and
-/// `horizontalEncoderAction` (`gui/ui/qwerty_ui.cpp:202-372,408-447`). The *pixels* are already
+/// input half of `QwertyUI` -- its typing rules: `padAction` (`gui/ui/qwerty_ui.cpp:202-373`),
+/// `processBackspace` (`gui/ui/qwerty_ui.cpp:408-419`) and `horizontalEncoderAction`
+/// (`gui/ui/qwerty_ui.cpp:420-448`). The *pixels* are already
 /// ported and are not re-implemented here: `ui::grid::text_keyboard` is `QwertyUI::drawKeys` and
 /// `ui::oled::text_edit` is `QwertyUI::drawTextForOLEDEditing`.
 ///
@@ -136,9 +137,9 @@ public:
 	///        never halves every pad.
 	bool dims_grid() const override { return false; }
 	/// @brief True: `RenameUI`'s constructor sets `oledShowsUIUnderneath = true`
-	///        (`rename_ui.cpp:29`), and `renderOLED` then clears only its own window.
+	///        (`rename_ui.cpp:26`), and `renderOLED` then clears only its own window.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
-	/// @brief `RenameUI::getGreyoutColsAndRows` (`rename_ui.cpp:71-74`): `*cols = 0b11`.
+	/// @brief `RenameUI::getGreyoutColsAndRows` (`rename_ui.cpp:58-61`): `*cols = 0b11`.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0b11, 0}; }
 
 	/// @brief The name being edited. Exposed for specs and for whoever needs to see the in-flight
@@ -161,7 +162,7 @@ private:
 	/// @param now       This tick's clock.
 	/// @return True if a character was deleted, so the caller can ask for a repaint.
 	bool advance_repeat(int16_t held_char, uint32_t now);
-	/// @brief `RenameUI::enterKeyPress` (`rename_ui.cpp:55-62`).
+	/// @brief `RenameUI::enterKeyPress` (`rename_ui.cpp:45-52`).
 	deluge::ui::shell::Result enter_key_press();
 	/// @brief `RenameUI::exitUI` -> `close()` (`rename_ui.cpp:99-102`), as an `Action`.
 	static deluge::ui::shell::Result close();

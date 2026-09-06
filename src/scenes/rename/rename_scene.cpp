@@ -187,7 +187,7 @@ uint32_t blink_next_flip_in(const deluge::ui::Blink& b, uint32_t now) {
 	return b.period_ms - ((now - b.until_ms) % b.period_ms);
 }
 
-// `RenameUI::renderOLED` (`rename_ui.cpp:76-97`), as named constants.
+// `RenameUI::renderOLED` (`rename_ui.cpp:63-87`), as named constants.
 constexpr int32_t kWindowW = 120;
 constexpr int32_t kWindowH = 40;
 /// `maxNumChars`, legacy's own literal: "'RENAME INSTRUMENT' should be the longest title string".
@@ -224,14 +224,14 @@ bool RenameScene::on_enter(const SceneId& id) {
 	target_ = static_cast<TargetId>(id.arg);
 	const Target& t = target(target_);
 
-	// `RenameUI::opened` (`rename_ui.cpp:36-50`): refuse outright when the target says it cannot
+	// `RenameUI::opened` (`rename_ui.cpp:29-43`): refuse outright when the target says it cannot
 	// be renamed, then seed the editor with the current name.
 	if (!t.can(ctx_)) {
 		return false;
 	}
 
 	// `QwertyUI::opened` (`qwerty_ui.cpp:54-55`) zeroes the edit position, and `RenameUI`'s
-	// constructor zeroes the scroll (`rename_ui.cpp:29`); the cursor therefore starts at 0 with the
+	// constructor zeroes the scroll (`rename_ui.cpp:25`); the cursor therefore starts at 0 with the
 	// *whole* existing name to its right, which is what makes typing a character that matches the
 	// one under the cursor simply step over it (see `type_char`).
 	const std::string_view current = t.read(ctx_);
@@ -433,7 +433,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 	switch (event.kind) {
 	case UiEvent::Kind::Button:
 	case UiEvent::Kind::EncoderButton:
-		// `RenameUI::buttonAction` (`rename_ui.cpp:104-134`). BACK exits without writing; the
+		// `RenameUI::buttonAction` (`rename_ui.cpp:93-121`). BACK exits without writing; the
 		// select-encoder press commits. Both arms are `on`-only and both are gated on
 		// `!currentUIMode`, which this scene has no equivalent of -- the modes legacy tests for
 		// (`UI_MODE_HOLDING_BACKSPACE`, the prediction modes) are all QwertyUI's own and none of
@@ -546,7 +546,7 @@ void RenameScene::backspace() {
 }
 
 Result RenameScene::enter_key_press() {
-	// `RenameUI::enterKeyPress` (`rename_ui.cpp:55-62`).
+	// `RenameUI::enterKeyPress` (`rename_ui.cpp:45-52`).
 	const Target& t = target(target_);
 	Result r;
 	r.handled = true;

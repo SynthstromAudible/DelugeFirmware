@@ -23,7 +23,7 @@
 // clang-format on
 ///
 /// @note **Two known gaps, both `envelope::EnvelopeMenu`'s.** It overrides `renderMenuItems`
-///       (`envelope_menu.h:37-104`) to draw one ADSR curve across the whole page instead of four
+///       (`envelope_menu.h:37-97`) to draw one ADSR curve across the whole page instead of four
 ///       column meters -- a page-level renderer `Node` has no field for, so the four columns fall
 ///       back to their own hints (`Number`'s default knob: `Segment` overrides no
 ///       `getRenderingStyle`). And its name and title are a `FormattedTitle`

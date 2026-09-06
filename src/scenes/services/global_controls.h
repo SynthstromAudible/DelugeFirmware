@@ -184,7 +184,8 @@
 /// `next_timer`, and the task brief asked for "a quiet-tick example proving the Play LED changes
 /// with no input at all". **`flashPlayRoutine` does not touch the Play LED.** It toggles
 /// `View::clipArmFlashOn` (`view.cpp:2755`) -- the phase armed clips blink at on the *pads*, read
-/// by `SessionView::renderRow` (`session_view.cpp:3255`, `:4804`), `View::drawClipPad`-adjacent
+/// by `SessionView::gridRenderClipColor` (`session_view.cpp:3255`) and `gridPulseSelectedClip`
+/// (`session_view.cpp:4804`), `View::drawClipPad`-adjacent
 /// code (`view.cpp:2623`) and `View::renderMacros` (`:2795`, `:2808`) -- and then asks for a
 /// render. The only time-driven thing in legacy that *does* set `IndicatorLED::PLAY` is
 /// `View::midiLearnFlash` (`view.cpp:806`), which is E4 task 5's. So what this service owns is the

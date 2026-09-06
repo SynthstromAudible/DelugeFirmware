@@ -388,7 +388,7 @@ inline constexpr const Node* kArpMidiChildren[] = {&arp_mode, &arp_basic_midi, &
                                                    &arp_include_in_kit_arp};
 inline constexpr Node arp_midi = submenu(sid(String::STRING_FOR_ARPEGGIATOR), kArpMidiChildren);
 
-/// `cv::DualCVSelection::getOptions` (`cv/cv2Mapping.h:31-41`).
+/// `cv::DualCVSelection::getOptions` (`cv/cv2Mapping.h:49-58`).
 inline constexpr uint16_t kCv2SourceNames[] = {
     sid(String::STRING_FOR_OFF),
     sid(String::STRING_FOR_PATCH_SOURCE_Y),
