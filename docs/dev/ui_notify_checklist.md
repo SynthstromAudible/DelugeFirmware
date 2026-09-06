@@ -16,8 +16,16 @@ development (`.superpowers/sdd/2026-08-26-ui-notifications/task-5-report.md`,
 
 ## Playback / count-in
 
-- [ ] Record with count-in: the popup shows **4, 3, 2, 1** (right-aligned, blinking at speed
-      2), then clears when the count-in ends; recording starts.
+- [ ] Record with count-in: the popup shows **4, 3, 2, 1** (centred, not blinking), then clears
+      when the count-in ends; recording starts.
+
+      This line used to say "right-aligned, blinking at speed 2", which asked a tester to confirm
+      behaviour the firmware cannot produce. `Display::displayPopup`'s `alignRight` and
+      `blinkSpeed` are a retired-7SEG interface: `OLED` is the only surviving `Display`, and
+      `OLED::displayPopup` (`hid/display/oled.h:154-157`) takes both parameters unnamed and passes
+      neither on -- `OLED::popupText` (`oled.cpp:605-644`) centres every line and, for the
+      persistent popup this call site asks for, sets no blink timer at all. Found while porting
+      the count-in to `scenes::overlay::CountInScene` (E4 task 6).
 - [ ] After the count-in ends, the UI is out of `UI_MODE_RECORD_COUNT_IN` — auditioning still
       works and buttons respond (exercises the masked `currentUIMode` clear).
 - [ ] Hold an audition pad (or use the keyboard) through a record count-in, then play notes
