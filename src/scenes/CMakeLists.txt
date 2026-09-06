@@ -96,7 +96,11 @@ add_library(deluge_scenes STATIC
     # E4 task 4: the transport-and-global half of legacy's `View`, plus the tail of
     # `Buttons::buttonAction`. Here for the same reason `mod_knobs.cpp` is. See
     # `services/global_controls.h`.
-    services/global_controls.cpp)
+    services/global_controls.cpp
+    # E4 task 5: the MIDI-learn half of legacy's `View` -- the mode, the held thing, the learn
+    # commit and the flash phase. Here for the same reason the other two services are: learning
+    # writes the model. See `services/midi_learn.h`.
+    services/midi_learn.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include
