@@ -898,8 +898,18 @@ of change as routing MIDI to `MenuScene::learn_*`. The three
 put it in `menu::ensure_first_range` (`menu/context.h`), which `MenuScene::enter_child` runs ahead of
 the permission question for every `range_dependent` descent — exactly where
 `checkPermissionToBeginSessionForRangeSpecificParam:1938` runs it. Also carried: per-node cursor
-memory across sessions; gold-knob acceleration
-(`calcNextKnobSpeed`); and real implementations behind every `nodes::kPending` placeholder this task
+memory across sessions; **gold-knob acceleration
+(`calcNextKnobSpeed`) — no longer carried: E4 task 2 closed it.** The arithmetic had been ported per
+encoder role in plan D as `InputLowering::calc_next_knob_speed` (`shell/input_lowering.h`, pinned by
+`tests/spec/shell/input_lowering_spec.cpp` against `hid/encoders.cpp:46-77`); what was missing was a
+caller, since legacy applies it one line before `modEncoderAction`
+(`hid/encoder_input.cpp:192`, `offset * encoder.calcNextKnobSpeed(offset)`).
+`services::ModKnobs::handle` is `modEncoderAction`, so it is that caller
+(`scenes/services/mod_knobs.h`, "Acceleration: the carry item this closes"), and
+`sim/scenes_spec/mod_knobs_spec.cpp` drives a fast repeat and a slow one and reads the difference
+out of the model. Menu-side acceleration (`HorizontalMenu::calcNextKnobSpeed`,
+`gui/menu_item/horizontal_menu.cpp:630`) is a separate copy of the same arithmetic and is **not**
+closed by this. Still carried: real implementations behind every `nodes::kPending` placeholder this task
 left in the tree (E2 task 2 closed one general prerequisite for those -- `Kind::Custom` now routes
 input to `CustomItem::handle`, ahead of the scene's own button handling -- and gave two of the
 placeholders, `firmware_version`/`battery_level`, their own finished `CustomItem`s (reproducing

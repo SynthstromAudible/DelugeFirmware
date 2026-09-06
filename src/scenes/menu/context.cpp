@@ -524,4 +524,197 @@ void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio
 	}
 }
 
+// -- The gold-knob model boundary (`services::ModKnobs`, E4 task 2) ---------------------------
+//
+// See `context.h`'s `@name` block for why these four live here and not beside the service that
+// calls them: they need `model/model_stack.h`, and this file is one of the two the
+// `scenes-model-stack-outside-context` ratchet lets include it. Everything that is *policy* rather
+// than a model transaction -- `calculateKnobPosForModEncoderTurn`, the popup, the MIDI-follow
+// feedback, the indicator blink, the repaint, every UI read legacy makes -- is deliberately absent
+// here and lives in `services/mod_knobs.cpp`.
+
+namespace {
+
+/// @brief Rebuild `View::activeModControllableModelStack` (`view.h:120-121`) over @p memory from
+///        the pointers `ModTarget` keeps.
+/// @param t      The target.
+/// @param memory `MODEL_STACK_MAX_SIZE` bytes.
+/// @return The rebuilt stack.
+ModelStackWithThreeMainThings* stack_for(const services::ModTarget& t, void* memory) {
+	// Spelled out rather than through `setupModelStackWithThreeMainThingsIncludingNoteRow`
+	// (`model_stack.h:335-343`), whose param-manager argument is a `ParamManagerForTimeline*`:
+	// `ModelStackWithThreeMainThings::paramManager` is a plain `ParamManager*`, and so is the one
+	// `View::setActiveModControllableWithoutTimelineCounter` puts there (`view.cpp:1900-1901`), via
+	// `addOtherTwoThingsButNoNoteRow`'s `ParamManager*` overload (`model_stack.h:369-373`).
+	return setupModelStackWithSong(memory, t.song)
+	    ->addTimelineCounter(t.timeline_counter)
+	    ->addNoteRow(t.note_row_id, t.note_row)
+	    ->addOtherTwoThings(t.mod_controllable, t.param_manager);
+}
+
+/// @brief Copy a stack's five resolved fields back into @p t.
+///
+/// Legacy needs no equivalent: its stack *is* the member, so anything that rewrites it (the
+/// arrangement-recording clone at `view.cpp:992-1000`, `getActiveModControllable` at `:1876`) has
+/// already updated the state. This port's stacks are scratch, so the write-back is explicit.
+/// @param t The target to update.
+/// @param s The stack to read.
+void store(services::ModTarget& t, const ModelStackWithThreeMainThings* s) {
+	t.timeline_counter = s->getTimelineCounterAllowNull();
+	t.note_row = s->getNoteRowAllowNull();
+	t.note_row_id = s->noteRowId;
+	t.mod_controllable = s->modControllable;
+	t.param_manager = s->paramManager;
+}
+
+/// @brief `View::getModelStackWithParam` (`view.cpp:971-1010`), over an already-built @p active.
+/// @param target                  Updated in place if the clone replaced what is being edited.
+/// @param active                  The rebuilt active stack; **overwritten in place** by the return
+///                                value, exactly as legacy's member is.
+/// @param which_encoder           0 (lower gold) or 1 (upper).
+/// @param note_tails_allowed_before Out: `:988-989`'s reading, taken before the clone.
+/// @return The param stack, or null.
+ModelStackWithAutoParam* param_stack(services::ModTarget& target, ModelStackWithThreeMainThings* active,
+                                     int32_t which_encoder, bool& note_tails_allowed_before) {
+	if (active->timelineCounterIsSet()) { // `:979`
+		alignas(ModelStackWithAutoParam) char temp_memory[MODEL_STACK_MAX_SIZE];
+		copyModelStack(temp_memory, active, sizeof(ModelStackWithThreeMainThings));
+		auto* temp = reinterpret_cast<ModelStackWithThreeMainThings*>(temp_memory);
+
+		note_tails_allowed_before = active->modControllable->allowNoteTails(temp->addSoundFlags()); // `:989-990`
+
+		auto* with_counter = static_cast<ModelStackWithTimelineCounter*>(static_cast<void*>(active));
+		if (active->getTimelineCounter()->possiblyCloneForArrangementRecording(with_counter)) { // `:992-994`
+			// `:996-1000` -- get back the NoteRow, ParamManager and whatever else.
+			active->getTimelineCounter()->getActiveModControllable(with_counter);
+		}
+	}
+	store(target, active);
+	return active->modControllable->getParamFromModEncoder(which_encoder, active); // `:1004-1005`
+}
+
+} // namespace
+
+void mod_target_from_timeline(services::ModTarget& target, Song& song, TimelineCounter* counter) {
+	if (counter != nullptr) {
+		counter = counter->getTimelineCounterToRecordTo(); // `:1868-1870`
+	}
+
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* stack = setupModelStackWithSong(memory, &song)->addTimelineCounter(counter);
+
+	if (counter != nullptr) {
+		counter->getActiveModControllable(stack); // `:1876-1878`
+	}
+	else {
+		stack->addOtherTwoThingsButNoNoteRow(nullptr, nullptr); // `:1880-1882`
+	}
+
+	// Both arms leave a `ModelStackWithThreeMainThings` in the same bytes -- every `add*` in this
+	// family reinterpret-casts `this` rather than building anywhere new (`model_stack.h:347-372`),
+	// which is exactly why legacy can keep reading its member as one afterwards.
+	target.song = &song;
+	store(target, reinterpret_cast<const ModelStackWithThreeMainThings*>(memory));
+}
+
+services::ModTurn mod_encoder_turn(services::ModTarget& target, int32_t which_encoder, int32_t offset,
+                                   services::NextKnobPosFn next_knob_pos) {
+	services::ModTurn out{};
+	if (target.mod_controllable == nullptr) {
+		return out; // `:824` -- the whole of `modEncoderAction`'s body is inside this test.
+	}
+	out.has_controllable = true;
+
+	alignas(ModelStackWithAutoParam) char active_memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* active = stack_for(target, active_memory);
+
+	bool note_tails_allowed_before = false;
+	ModelStackWithAutoParam* param = param_stack(target, active, which_encoder, note_tails_allowed_before);
+
+	if (param == nullptr || param->autoParam == nullptr) {
+		// `modEncoderAction_nonExistentParam` (`:843-852`). Note legacy passes the (possibly null)
+		// param stack straight through, so the `ModControllable` sees the same argument it would.
+		const ActionResult result =
+		    target.mod_controllable->modEncoderActionForNonExistentParam(offset, which_encoder, param);
+		out.caused_change = (result == ActionResult::ACTIONED_AND_CAUSED_CHANGE); // `:848`
+		return out;
+	}
+	out.param_exists = true;
+
+	// `modEncoderAction_existentParam` (`:853-948`).
+	alignas(ModelStackWithAutoParam) char temp_memory[MODEL_STACK_MAX_SIZE];
+	copyModelStack(temp_memory, param, sizeof(ModelStackWithThreeMainThings)); // `:855-858`
+	auto* temp = reinterpret_cast<ModelStackWithThreeMainThings*>(temp_memory);
+
+	const deluge::modulation::params::Kind kind = param->paramCollection->getParamKind(); // `:859`
+	const int32_t value = param->autoParam->getValuePossiblyAtPos(target.mod_pos, param); // `:861`
+	const int32_t knob_pos = param->paramCollection->paramValueToKnobPos(value, param);   // `:862`
+	const int32_t new_knob_pos = next_knob_pos(kind, knob_pos, offset);                   // `:863`
+
+	out.kind = kind;
+	out.param_id = param->paramId;
+	out.old_knob_pos = knob_pos;
+	out.new_knob_pos = new_knob_pos;
+
+	if (new_knob_pos == knob_pos) {
+		return out; // `:902-904`, which in legacy is reached *after* the popup -- see `context.h`.
+	}
+	out.value_changed = true;
+
+	// `:911-918` -- the "stutter can't be automated" hack: drop the timeline counter for the write
+	// only, on a copy, so the automation write becomes a plain value write.
+	alignas(ModelStackWithAutoParam) char write_memory[MODEL_STACK_MAX_SIZE];
+	if (param->timelineCounterIsSet() && !param->paramCollection->doesParamIdAllowAutomation(param)) {
+		copyModelStack(write_memory, param, sizeof(ModelStackWithAutoParam));
+		param = reinterpret_cast<ModelStackWithAutoParam*>(write_memory);
+		param->setTimelineCounter(nullptr);
+	}
+
+	const int32_t new_value = param->paramCollection->knobPosToParamValue(new_knob_pos, param); // `:920`
+	// `:923` -- THE model write. Deleting this line must turn `mod_knobs_spec` red; see the task
+	// report's mutation table (the E2 blindness check).
+	param->autoParam->setValuePossiblyForRegion(new_value, param, target.mod_pos, target.mod_length);
+
+	if (target.timeline_counter_set()) { // `:925`
+		const bool note_tails_allowed_after = param->modControllable->allowNoteTails(temp->addSoundFlags());
+		out.note_tails_changed = (note_tails_allowed_before != note_tails_allowed_after); // `:929`
+	}
+
+	// `potentiallyMakeItHarderToTurnKnob`'s one model read (`:1068-1069`); the blink decision it
+	// feeds is `ModKnobs`'.
+	out.should_indicate_middle_value = param->paramCollection->shouldParamIndicateMiddleValue(param);
+	return out;
+}
+
+services::ModParamInfo mod_param_info(services::ModTarget& target, int32_t which_encoder) {
+	services::ModParamInfo out{};
+	if (target.mod_controllable == nullptr) {
+		return out; // `:974` -- `getModelStackWithParam`'s own guard.
+	}
+
+	alignas(ModelStackWithAutoParam) char active_memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* active = stack_for(target, active_memory);
+
+	bool note_tails_allowed_before = false;
+	ModelStackWithAutoParam* param = param_stack(target, active, which_encoder, note_tails_allowed_before);
+	if (param == nullptr || param->autoParam == nullptr) {
+		return out; // `:1015`
+	}
+	out.param_exists = true;
+	out.kind = param->paramCollection->getParamKind(); // `:1016`
+	out.param_id = param->paramId;
+	return out;
+}
+
+void mod_region_grab_values(const services::ModTarget& target) {
+	if (target.mod_controllable == nullptr || target.param_manager == nullptr) {
+		return; // `:1930-1931`
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* active = stack_for(target, memory);
+	// `:1937-1938`. The comment there: "activeModControllable might not be a Sound, but in that
+	// case, the pointer's not going to get used".
+	target.param_manager->toForTimeline()->grabValuesFromPos(target.mod_pos, active);
+}
+
 } // namespace deluge::scenes::menu

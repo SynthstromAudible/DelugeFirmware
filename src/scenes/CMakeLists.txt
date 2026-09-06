@@ -89,7 +89,10 @@ add_library(deluge_scenes STATIC
     recorder/recorder_scene.cpp
     # E4 task 1: the mod-encoder value popup -- the first of the three overlay scenes spec E named
     # and no earlier plan built.
-    overlay/param_popup_scene.cpp)
+    overlay/param_popup_scene.cpp
+    # E4 task 2: the gold-knob half of legacy's `View`, as a `shell::Service` that lives here
+    # (not in `src/shell`) because it is entirely about the model. See `services/mod_knobs.h`.
+    services/mod_knobs.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include
