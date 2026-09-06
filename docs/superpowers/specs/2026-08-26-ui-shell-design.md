@@ -948,3 +948,57 @@ other knob, and `SelectEnc` still bypassing `mod_knobs` entirely.
 `UiEvent::Kind::Button`. `InputLowering` emits `Kind::EncoderButton` for them
 (`is_encoder_button`, `src/shell/input_lowering.cpp:42-53`, applied at `:298`), so those examples
 were asserting about a shape the lowering never produces. Corrected in both specs.
+
+### 15.6 The chain's fourth step, and the `Service` half of the timer fold (E4 task 5)
+
+Two changes, both made by E4 task 5 when `services::MidiLearn` became the first real occupant of
+`Services::midi_learn`. Neither is a defect found in shipped behaviour; both are the shell growing
+the seam a service that was only ever a slot now needs.
+
+**`Router::run_chain` gained a fourth step.** The chain is now **top scene → `mod_knobs` →
+`global_controls` → `midi_learn` → drop**. `midi_learn` is last, and the position is argued from
+legacy rather than from the slot's ordinal:
+
+* `View` is the fallback *after* the current UI in both of legacy's MIDI-learn dispatchers.
+  `PlaybackHandler::noteMessageReceived` asks `getCurrentUI()->noteOnReceivedForMidiLearn` and falls
+  through to `view.noteOnReceivedForMidiLearn` (`src/deluge/playback/playback_handler.cpp:2968-2971`);
+  `PlaybackHandler::midiCCReceived` gives `soundEditor` first dibs and falls through to
+  `view.ccReceivedForMIDILearn` (`:3128-3136`). Same shape as §15.4's argument for the other two.
+* The four `View::buttonAction` arms `MidiLearn` owns — the `TAP_TEMPO` learn branch
+  (`gui/views/view.cpp:148-166`), `LEARN` (`:185-196`), and `PLAY`/`RECORD` under learn (`:199-212`,
+  `:215-228`) — sit in the **same `if`/`else if` chain** as the arms `GlobalControls` owns, so their
+  relative order is unobservable *given* that `GlobalControls` abstains from exactly those four
+  (`ViewArm::LearnOwns`) and suppresses its own tail for them, which reproduces `view.cpp:469`'s
+  `DEALT_WITH`. Routing `midi_learn` last is what keeps that abstention live rather than dead.
+* **LED composition requires last.** `LedCompose::compose` runs services in `Shell`'s own order
+  (`src/shell/shell.cpp`'s `all[]`: `mod_knobs`, `global_controls`, `midi_learn`, notices,
+  screensaver) and the last writer wins. `View::midiLearnFlash` (`view.cpp:804-815`) *overwrites*
+  the PLAY, RECORD and TAP_TEMPO LEDs that `PlaybackHandler::setLedStates`
+  (`playback/playback_handler.cpp:2499-2512`, i.e. `GlobalControls::leds`) had just declared, and
+  `View::endMIDILearn` hands them back by calling `setLedStates` again (`view.cpp:498`). A
+  `MidiLearn` composed before `GlobalControls` could never flash them.
+
+Covered by `tests/spec/shell/router_spec.cpp`'s "midi_learn is the LAST step…", which drives the
+drop case, the `global_controls`-claims case, and the `midi_learn`-claims case.
+
+**`Service::timer_repaints()` is new, and its default is the opposite of `Scene`'s.** §15.1 folded
+"a scene timer is a repaint request" into `Shell::tick` step 8b; the service half was never folded,
+so a `Service::next_timer()` fed `compute_next_wake` and dirtied nothing. `MidiLearn`'s flash is the
+first timer for which that is wrong: legacy's `View::midiLearnFlash` toggles `midiLearnFlashOn` and
+then asks the **root UI** to repaint (`view.cpp:797-802`), and every reader of that bit is a pad
+renderer. Step 8c is the service loop.
+
+Three deliberate asymmetries with the scene loop, each for a stated reason:
+
+1. **The default is `{false, false}`**, not `{true, true}`. Four services predate the hook
+   (`ModKnobs`, `GlobalControls`, `Notices`, `Screensaver`) and none asked to dirty anything; a
+   both-true default would have started arming two gates for all four as a side effect.
+2. **No paintability narrowing.** §15.3's `oled_paintable`/`grid_paintable` answer "is this scene at
+   or above the surface's base"; a service has no stack position and paints nothing itself, so its
+   claim is honoured unconditionally.
+3. **Because of (2), the OLED half is the dangerous half** — §15.1's asymmetry, one level up: the
+   grid's flush diffs and sends nothing for an unchanged frame, an OLED surface is blitted
+   unconditionally once rendered. `MidiLearn` claims `{.oled = false, .grid = true}`.
+
+Covered by `tests/spec/shell/flush_spec.cpp`'s "a service timer arms only the surfaces it claims",
+which drives claim-nothing, claim-grid and no-timer against a real `Shell`.

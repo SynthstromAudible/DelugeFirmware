@@ -152,6 +152,37 @@ struct Rig {
 	Rig() = default;
 };
 
+/// @brief A `Service` with a timer and a per-surface repaint claim -- what E4 task 5 added
+///        `Service::timer_repaints()` for.
+///
+/// `services::MidiLearn`'s flash is the real case: `View::midiLearnFlash` toggles
+/// `midiLearnFlashOn` and then asks the ROOT UI to repaint
+/// (`src/deluge/gui/views/view.cpp:797-802`, `getRootUI()->midiLearnFlash()`), and every reader of
+/// that bit in legacy is a pad renderer. Before the fold a service timer fed `compute_next_wake`
+/// and nothing else, so the phase advanced on the wake and no surface was ever dirtied.
+struct TimerService final : Service {
+	std::optional<uint32_t> next_timer() const override { return timer; }
+	Scene::RepaintSurfaces timer_repaints() const override { return claim; }
+
+	std::optional<uint32_t> timer{};
+	Scene::RepaintSurfaces claim{.oled = false, .grid = false};
+};
+
+/// @brief `Rig`, with one service occupying the `midi_learn` slot.
+struct ServiceRig {
+	BoardProfile profile = flush_profile();
+	FlushScene base;
+	TimerService service;
+	std::array<Scene*, 18> table = table_for(base);
+	SceneRegistry reg{std::span<Scene* const>{table}};
+	uitest::FakeSurfaceSet fake{uitest::kBoard2, profile};
+	Shell shell{fake, profile, reg, Services{.midi_learn = &service}, ShellConfig{}};
+
+	ServiceRig(const ServiceRig&) = delete;
+	ServiceRig& operator=(const ServiceRig&) = delete;
+	ServiceRig() = default;
+};
+
 /// One recorded call to the mirror sink under test.
 struct MirrorCall {
 	size_t byte_count;
@@ -480,6 +511,67 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(*r.shell.next_wake()).to_equal(uint32_t(250)); // the deadline beats the 330 boundary
 		r.shell.tick(250);
 		expect(r.shell.next_wake().has_value()).to_be_false();
+	});
+
+	it("a service timer arms only the surfaces it claims -- grid yes, OLED never", _ {
+		// E4 task 5. `Service::timer_repaints()` defaults to `{false, false}` so nothing that
+		// existed before this fold changed behaviour, and `services::MidiLearn` claims
+		// `{.oled = false, .grid = true}` because the MIDI-learn flash is a pad concern
+		// (`gui/views/view.cpp:797-802` asks the ROOT UI to repaint, and every reader of
+		// `midiLearnFlashOn` is a pad renderer).
+		//
+		// **The OLED half is the one that matters.** The grid's `flush` diffs against `last_sent`,
+		// so an unneeded grid arm costs a repaint and no bytes; an OLED surface is blitted
+		// unconditionally once it has rendered, so an unneeded OLED arm is a permanent blit at the
+		// timer's cadence for as long as the service asks (see `Scene::timer_repaints`).
+		deluge::notify::dirty().drain();
+		ServiceRig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+
+		// --- Claiming nothing: the timer is a wake and only a wake ---------------------------
+		r.service.timer = 60;
+		r.shell.tick(1);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(61));
+		r.fake.blits.clear();
+		r.fake.columns_sent.clear();
+		r.shell.tick(61);
+		expect(r.fake.blits.empty()).to_be_true();        // no OLED surface armed
+		expect(r.fake.columns_sent.empty()).to_be_true(); // and no grid pair either
+
+		// --- Claiming the grid: the gate really fires at the deadline -------------------------
+		r.service.claim = Scene::RepaintSurfaces{.oled = false, .grid = true};
+		// A colour the grid has never sent, so the repaint the arm buys is observable through the
+		// diff rather than through a count -- the grid's flush sends nothing for an unchanged
+		// frame, which is exactly why over-arming it is cheap.
+		r.base.colour = RGB{99, 88, 77};
+		r.shell.tick(100);
+		r.fake.blits.clear();
+		r.fake.columns_sent.clear();
+		r.base.colour = RGB{1, 2, 3};
+		r.shell.tick(160); // 100 + the 60 ms the service asked for
+		expect(r.fake.columns_sent.empty()).to_be_false(); // the grid repainted and the diff sent
+		expect(r.fake.blits.empty()).to_be_true();         // and the OLED panels stayed asleep
+
+		// --- And a service with no timer arms nothing, however it claims ---------------------
+		//
+		// A FRESH rig, deliberately: the tick above still had a timer, so it armed the gate for
+		// 220 before this half could clear it, and asserting on the same rig would be asserting
+		// against that standing deadline rather than against the claim. (Found by writing it the
+		// other way first and watching it fail.)
+		deluge::notify::dirty().drain();
+		ServiceRig quiet;
+		quiet.service.claim = Scene::RepaintSurfaces{.oled = false, .grid = true};
+		quiet.shell.init({kBase, 0});
+		quiet.shell.tick(0);
+		quiet.fake.blits.clear();
+		quiet.fake.columns_sent.clear();
+		quiet.base.colour = RGB{4, 5, 6};
+		quiet.shell.tick(500);
+		expect(quiet.fake.columns_sent.empty()).to_be_true();
+		expect(quiet.fake.blits.empty()).to_be_true();
+		expect(quiet.shell.next_wake().has_value()).to_be_false();
 	});
 
 	it("next_wake sees a running tween's step cadence", _ {

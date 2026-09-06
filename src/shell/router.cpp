@@ -103,6 +103,20 @@ void Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 		return;
 	}
 
+	// `midi_learn` last, added by E4 task 5. The four `View::buttonAction` arms it owns
+	// (`gui/views/view.cpp:148-166`, `:185-196`, `:199-212`, `:215-228`) sit in the SAME
+	// `if`/`else if` chain as the arms `global_controls` owns, so their relative order is only
+	// observable if both could claim one event -- and `GlobalControls::view_button_action` answers
+	// `ViewArm::LearnOwns` for exactly those four, reporting them unhandled and suppressing its own
+	// tail for them. Last is what keeps that abstention live, and it matches the order the two
+	// legacy MIDI dispatchers use for the rest of this service's surface: current UI first, `view`
+	// as the fallback (`playback/playback_handler.cpp:2968-2971`, `:3128-3136`).
+	Result learn_result = services_.midi_learn->handle(event, ctx);
+	apply(learn_result);
+	if (learn_result.handled) {
+		return;
+	}
+
 	dropped_++;
 }
 

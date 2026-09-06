@@ -118,6 +118,35 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 };
 
+/// @brief `Rig` with the third slot filled too -- the chain E4 task 5 completed.
+///
+/// A separate struct rather than a field on `Rig`: every example above was written against a chain
+/// whose fourth step contributes nothing, and `Services::midi_learn` defaulting to
+/// `null_service()` is a real configuration (it is what an application without a MIDI-learn service
+/// builds). Adding a fourth logged step to `Rig` would rewrite a dozen `log.size()` assertions that
+/// are about a different question.
+struct FullRig {
+	std::vector<std::string> log;
+	RecordingScene scene_a{kA, &log, "scene"};
+	std::array<Scene*, 18> table{};
+	SceneRegistry reg{};
+	SceneStack stack{reg};
+	RecordingService mod_knobs{&log, "mod"};
+	RecordingService global_controls{&log, "global"};
+	RecordingService midi_learn{&log, "learn"};
+	InputLowering lowering{uitest::test_profile_input(), {}};
+	Router router{stack, Services{&mod_knobs, &global_controls, &midi_learn}, lowering};
+
+	FullRig() {
+		table[16] = &scene_a;
+		reg.by_kind = std::span<Scene* const>{table};
+		stack.push({kA});
+	}
+
+	FullRig(const FullRig&) = delete;
+	FullRig& operator=(const FullRig&) = delete;
+};
+
 } // namespace
 
 // clang-format off
@@ -210,6 +239,53 @@ describe shell_router("shell::Router", $ {
 		expect(r.log[0] == "scene").to_be_true();
 		expect(r.log[1] == "mod").to_be_true();
 		expect(r.log[2] == "global").to_be_true();
+		expect(r.router.dropped_events()).to_equal(uint32_t(1));
+	});
+
+	it("midi_learn is the LAST step, after global_controls, and only for events nothing else took", _ {
+		// E4 task 5's routing claim, and the three legacy facts behind it are on
+		// `scenes/services/midi_learn.h`:
+		//
+		//   1. `View` is the fallback AFTER the current UI in both MIDI-learn dispatchers --
+		//      `PlaybackHandler::noteMessageReceived` asks `getCurrentUI()->noteOnReceivedForMidiLearn`
+		//      first and falls through to `view.` (`src/deluge/playback/playback_handler.cpp:2968-2971`),
+		//      and `midiCCReceived` gives `soundEditor` first dibs and falls through to `view.`
+		//      (`:3128-3136`).
+		//   2. The four `View::buttonAction` arms `MidiLearn` owns sit in the SAME `if`/`else if`
+		//      chain as the ones `GlobalControls` owns (`src/deluge/gui/views/view.cpp:139-470`),
+		//      so their relative order is unobservable given that `GlobalControls` abstains from
+		//      exactly those four (`ViewArm::LearnOwns`) and suppresses its own tail for them.
+		//   3. LED composition REQUIRES last: `View::midiLearnFlash` (`view.cpp:804-815`)
+		//      overwrites the PLAY/RECORD/TAP_TEMPO LEDs `PlaybackHandler::setLedStates` had just
+		//      set, and `LedCompose::compose` runs services in `Shell`'s own order, last writer
+		//      winning.
+		FullRig r;
+
+		r.router.route(button_event(ButtonId::Play, true), make_ctx(r.lowering));
+		expect(r.log.size()).to_equal(size_t(3));
+		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[1] == "global").to_be_true();
+		expect(r.log[2] == "learn").to_be_true();
+		expect(r.mod_knobs.calls).to_equal(0); // Play is not a mod/gold-knob event
+		expect(r.router.dropped_events()).to_equal(uint32_t(1));
+
+		// `global_controls` claiming it means `midi_learn` never sees it -- which is what makes
+		// `GlobalControls`'s abstention load-bearing rather than decorative.
+		r.log.clear();
+		r.global_controls.next_result = handled_no_actions();
+		r.router.route(button_event(ButtonId::Play, true), make_ctx(r.lowering));
+		expect(r.log.size()).to_equal(size_t(2));
+		expect(r.log[1] == "global").to_be_true();
+		expect(r.midi_learn.calls).to_equal(1); // still just the first route's call
+		expect(r.router.dropped_events()).to_equal(uint32_t(1));
+
+		// And when it does reach `midi_learn` and is claimed there, nothing is dropped.
+		r.log.clear();
+		r.global_controls.next_result = Result::unhandled();
+		r.midi_learn.next_result = handled_no_actions();
+		r.router.route(button_event(ButtonId::Learn, true), make_ctx(r.lowering));
+		expect(r.log.size()).to_equal(size_t(3));
+		expect(r.log[2] == "learn").to_be_true();
 		expect(r.router.dropped_events()).to_equal(uint32_t(1));
 	});
 

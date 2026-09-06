@@ -15,8 +15,8 @@ namespace deluge::ui::shell {
 ///
 /// Each slot defaults to `null_service()`, so a `Router` built with `Services{}` -- or with only
 /// the slots a caller cares about set -- runs the full legacy chain shape with the unfilled
-/// slots contributing nothing. Spec E supplies the real `mod_knobs`/`global_controls`; `midi_learn`
-/// is carried here for a later task and is not yet called from `Router::route`.
+/// slots contributing nothing. Spec E supplies all three: `mod_knobs` and `global_controls` from
+/// E4 tasks 2-4, `midi_learn` from E4 task 5, which is when `Router::route` gained its step.
 struct Services {
 	Service* mod_knobs = &null_service();
 	Service* global_controls = &null_service();
@@ -24,7 +24,7 @@ struct Services {
 };
 
 /// @brief The shell's routing chain: the top scene, then the mod-knob bar, then the global
-///        controls.
+///        controls, then MIDI learn.
 ///
 /// The tail half is `Buttons::buttonAction`'s shape exactly -- `getCurrentUI()->buttonAction` at
 /// `hid/buttons.cpp:134`, then the `:143-231` tail. The `mod_knobs` step sits between them because
@@ -55,7 +55,7 @@ public:
 	    : stack_(stack), services_(services), lowering_(lowering) {}
 
 	/// @brief Route one event through the full chain: top scene -> `mod_knobs` ->
-	///        `global_controls` -> drop.
+	///        `global_controls` -> `midi_learn` -> drop.
 	///
 	/// `services.mod_knobs->handle` is only consulted when \p event is a mod button, a gold-knob
 	/// turn or a gold-knob push (`ButtonId::Mod0..Mod7`, `EncoderRole::GoldUpper/GoldLower`,

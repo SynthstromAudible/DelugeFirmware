@@ -458,6 +458,37 @@ void Shell::tick(uint32_t now_ms) {
 			surfaces_.grid().gate.request_repaint_after(*in, now_ms);
 		}
 	}
+	// 8c. And the same fold for the SERVICES, added by E4 task 5.
+	//
+	// A service draws nothing, so what its timer arms is the repaint of whichever scene reads the
+	// state that timer advances. `MidiLearn`'s flash is the case that needed it: legacy's
+	// `View::midiLearnFlash` toggles `midiLearnFlashOn` and then asks the ROOT UI to repaint
+	// (`gui/views/view.cpp:797-802`, `getRootUI()->midiLearnFlash()`), and every reader of that bit
+	// in the tree is a pad renderer. Without this loop the phase advanced on the wake
+	// `compute_next_wake` already granted and nothing ever repainted with it.
+	//
+	// No `oled_paintable`/`grid_paintable` narrowing: those answer "is this scene at or above the
+	// surface's base", and a service has no stack index. See `Service::timer_repaints`, whose
+	// default is `{false, false}` precisely so this loop changes nothing for the services that
+	// existed before it.
+	for (Service* service : service_list_) {
+		const Scene::RepaintSurfaces surfaces = service->timer_repaints();
+		if (!surfaces.any()) {
+			continue;
+		}
+		const std::optional<uint32_t> in = service->next_timer();
+		if (!in.has_value()) {
+			continue;
+		}
+		if (surfaces.oled) {
+			for (OledSurface& s : surfaces_.oled()) {
+				s.gate.request_repaint_after(*in, now_ms);
+			}
+		}
+		if (surfaces.grid) {
+			surfaces_.grid().gate.request_repaint_after(*in, now_ms);
+		}
+	}
 	// 9. LEDs, every tick.
 	derive_leds(now_ms);
 	flush(now_ms); // Task 8

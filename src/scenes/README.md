@@ -708,6 +708,30 @@ Two shell-level corrections this plan made, both of which change how a scene ask
   marker on the OLED and left the pads up to a 200 ms blink phase behind. `Router::grid_repaint_requested()`
   is the fix; `BrowserScene::handle` had the identical latency.
 
+### The `Service` half of the same fold (E4 task 5)
+
+`Service::timer_repaints()` exists for the same reason `Scene::timer_repaints()` does, and it
+**defaults the other way round** — `{false, false}`, arming nothing. Until E4 task 5, a service's
+`next_timer()` fed `Shell::compute_next_wake` and nothing else; every service written before then
+(`ModKnobs`, `GlobalControls`, `Notices`, `Screensaver`) was written on that understanding, so a
+`{true, true}` default would have silently started arming both gates for four objects that never
+asked. `Shell::tick` step 8c is the service loop, right after the scene loop.
+
+`services::MidiLearn` is the one claimer, and it claims `{.oled = false, .grid = true}`. Legacy's
+`View::midiLearnFlash` toggles `midiLearnFlashOn` and then asks the **root UI** to repaint
+(`gui/views/view.cpp:797-802`, `getRootUI()->midiLearnFlash()`), and every reader of that bit in the
+tree is a pad renderer — `gui/views/session_view.cpp:1530`, `:2532`, `:3219`,
+`gui/views/instrument_clip_view.cpp:5964`, `:6008`, `gui/views/arranger_view.cpp:660`,
+`gui/views/view.cpp:2619`. Arming an OLED surface at that 60 ms cadence would be a permanent
+two-panel blit with no pixel changing, exactly as `MenuScene`'s blink was before its own override.
+
+**One thing the service loop cannot do that the scene loop does:** narrow the arm to a participant
+that can actually paint. `oled_paintable`/`grid_paintable` answer "is this scene at or above the
+surface's base", and a service has no stack position — it draws nothing at all, and what its timer
+arms is the repaint of whichever *scene* reads its state. So a service's claim is honoured
+unconditionally, which is why the OLED half of it is the dangerous half and is documented as such on
+the hook.
+
 ## Defects this port found in shipping firmware
 
 Five, none of them introduced by the port, none of them fixed by it, and all five recorded at their

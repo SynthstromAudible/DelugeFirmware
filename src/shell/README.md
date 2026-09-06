@@ -78,7 +78,7 @@ onto the `ui::InputSnapshot` every widget's frame reads. Six shapes -- five enco
 bookkeeping and reach the snapshot every tick, but are held back from routing into `held_back()`
 rather than delivered during `pump_input`, because whether a widget wants them is only knowable
 once render has happened. `Router::route` delivers everything else immediately, in the legacy
-order mod-knobs -> top scene -> global controls -> dropped; `Router::route_post_render` delivers
+order top scene -> mod-knobs -> global controls -> MIDI learn -> dropped; `Router::route_post_render` delivers
 the held-back six the same way, once per tick, after render, skipping any input `ctx().claims`
 shows a widget already took. Neither step ever touches `SceneStack` directly -- both apply the
 `Result`'s `Action`s through the router, which is what keeps a scene's `handle()` from ever
@@ -118,14 +118,16 @@ false and 0.
 ## Services (`service.h`, Task 5) -- the seam for spec E
 
 A `Service` is a scene-shaped participant in the routing chain that is not itself pushed or
-popped and has no render surface: `handle()`, `leds()`, `tick()`, `next_timer()`, all defaulting
+popped and has no render surface: `handle()`, `leds()`, `tick()`, `next_timer()`, `timer_repaints()`, all defaulting
 to nothing. `Services{mod_knobs, global_controls, midi_learn}` is what a `Shell` is built with;
-every unfilled slot defaults to `null_service()`, so the full legacy chain shape (mod-knobs bar,
-then the scene, then global transport/shift/record handling) runs today with the unfilled slots
-contributing nothing. `Notices` and `Screensaver` are the two services this task actually
-implements, because they need nothing from the model; `ModKnobs`, `GlobalControls` and `MidiLearn`
-are the seam spec E fills in once it exists -- the model-owned `ModTarget`, transport state and
-MIDI-learn table -- without the shell changing. Nothing in `src/shell` depends on their being real:
+every unfilled slot defaults to `null_service()`, so the full legacy chain shape (the scene, then
+the mod-knobs bar, then global transport/shift/record handling, then MIDI learn) runs with the
+unfilled slots contributing nothing. `Notices` and `Screensaver` are the two services this task
+actually implemented, because they need nothing from the model; `ModKnobs`, `GlobalControls` and
+`MidiLearn` are the seam spec E filled in (E4 tasks 2-5) -- the model-owned `ModTarget`, transport
+state and MIDI-learn table -- with the shell changing only twice: `Scene::is_root()` for the
+`View`-arm reachability gate, and `Service::timer_repaints()` so a service timer can arm a gate the
+way a scene timer does. Nothing in `src/shell` depends on their being real:
 a `Service` is the whole contract, and a `NullService` satisfies it completely.
 
 `Screensaver` pushes `SceneKind::Screensaver` but ships no scene of that kind — the animation is

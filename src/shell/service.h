@@ -36,7 +36,30 @@ public:
 	virtual void tick(uint32_t now_ms, uint32_t dt_ms) {}
 	/// @brief When this service next needs a `tick()` even with no input.
 	/// @return Milliseconds from now, or `std::nullopt` for "no timer".
+	/// @see timer_repaints, for which surfaces (if any) that deadline arms.
 	virtual std::optional<uint32_t> next_timer() const { return std::nullopt; }
+
+	/// @brief Which surfaces `next_timer()`'s deadline should repaint.
+	///
+	/// The `Service` half of `Scene::timer_repaints`, and it defaults the other way round --
+	/// `{false, false}`, arming nothing -- because until E4 task 5 a service timer was *only* a
+	/// wake for `Shell::compute_next_wake` and every existing service was written on that
+	/// understanding. Defaulting to `{true, true}` here would have silently started arming both
+	/// gates for `ModKnobs`, `GlobalControls`, `Notices` and `Screensaver`, which is a behaviour
+	/// change none of them asked for.
+	///
+	/// **A service has no stack position, so there is no "can it paint" narrowing.**
+	/// `Shell::tick`'s step 8b skips a *scene* whose surface is covered
+	/// (`Shell::oled_paintable`/`grid_paintable`), because a covered scene arming a gate buys a
+	/// repaint it can never appear in. A service draws nothing at all -- what it arms is the
+	/// repaint of whichever scene reads its state -- so the claim is honoured unconditionally.
+	/// That makes the OLED half the dangerous one, exactly as it is for a scene: the grid's flush
+	/// diffs against `last_sent` and blits nothing when a repaint changed no pixel, while an OLED
+	/// surface is blitted unconditionally once it has rendered. Claim `oled` only for a timer
+	/// whose deadline really does change OLED content.
+	///
+	/// @return `{false, false}` by default: the timer is a wake and nothing more.
+	virtual Scene::RepaintSurfaces timer_repaints() const { return {.oled = false, .grid = false}; }
 };
 
 /// @brief The "does nothing, claims nothing" `Service` -- the default for every unfilled slot in
