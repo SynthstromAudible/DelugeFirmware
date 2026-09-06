@@ -29,7 +29,8 @@
 ///   * **Everything behind `audioRecorder`** -- `beginOutputRecording` (`hid/buttons.cpp:161`,
 ///     `:182`), `isCurrentlyResampling` (`:195`) and `endRecordingSoon` (`:196`). Not ported (see
 ///     `global_controls.h`), so there is nothing on the port side to compare; the *decisions* that
-///     reach them are covered through `GlobalControls::unported_opens()`.
+///     reach them are covered through `GlobalControls::unported_opens(UnportedOpen)`, which is a
+///     tally per SITE so an assertion about one arm cannot be satisfied by another.
 ///   * **`openUI(&saveSongUI)` / `openUI(&loadSongUI)` / `context_menu::clearSong`**
 ///     (`view.cpp:261`, `:313`, `:290-293`). Same shape: the arm's decision is compared, the open
 ///     is counted.
@@ -91,6 +92,7 @@
 
 #include "cppspec.hpp"
 
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -107,6 +109,7 @@ using deluge::ui::shell::ButtonSet;
 using deluge::ui::shell::deluge_profile;
 using deluge::ui::shell::InputLowering;
 using deluge::ui::shell::Result;
+using deluge::ui::shell::Scene;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::SceneRegistry;
 using deluge::ui::shell::SceneStack;
@@ -191,13 +194,16 @@ StubDisplay& stub_display() {
 ///          (`gui/ui/ui.h:98-100`) -- it does **not** forward to `view`. `View::buttonAction` has
 ///          exactly two callers in the whole tree: `TimelineView::buttonAction`'s final `else`
 ///          (`gui/views/timeline_view.cpp:119-121`) and `KeyboardScreen::buttonAction`
-///          (`gui/ui/keyboard/keyboard_screen.cpp:591`). `TimelineView` is the base of every root
-///          view, so in practice the arms fire under any root view -- and under nothing else.
-///          `SoundEditor::buttonAction` returns `NOT_DEALT_WITH` (`gui/ui/sound_editor.cpp:1506`)
-///          without forwarding, so with a menu open legacy runs the tail and skips every
-///          `View::buttonAction` arm. This stub therefore reproduces the root-view case, which is
-///          the case the port's last-in-chain service corresponds to; the divergence for a
-///          non-root UI is recorded in `global_controls.h` and in the task-4 report.
+///          (`gui/ui/keyboard/keyboard_screen.cpp:591`) -- and `grep "public RootUI"` finds exactly
+///          those two classes (`gui/views/timeline_view.h:27`,
+///          `gui/ui/keyboard/keyboard_screen.h:35`), so "the current UI is the root UI" IS the
+///          reachability rule rather than an approximation of it. With a menu open,
+///          `SoundEditor::buttonAction` (`gui/ui/sound_editor.cpp:333`) ends by delegating to
+///          `currentMenuItem->buttonAction` (`:595-628`), whose base
+///          (`gui/menu_item/menu_item.h:78-80`) returns `NOT_DEALT_WITH`, and nothing on that path
+///          names `view` -- so legacy runs the tail and skips every `View::buttonAction` arm. The
+///          port gates the same way, on `Scene::is_root()`; `RootScene` below is the spec-local
+///          scene that declares it.
 class StubUI final : public UI {
 public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override {
@@ -244,6 +250,23 @@ deluge::hid::Button legacy_button(ButtonId b) {
 	return deluge::hid::button::fromXY(x, y);
 }
 
+/// @brief The port-side counterpart of `StubUI`: a scene that declares itself a **root** and claims
+///        nothing, so `GlobalControls`'s `View`-arm gate lets those arms through.
+///
+/// Spec-local rather than a registry scene, and that is the whole reason `Scene::is_root()` is a
+/// virtual rather than a stack-position rule: `scene_registry()`'s scenes are process singletons
+/// (`menu_scene()` and friends), so a rig that had to push one to satisfy a position rule would
+/// leak it into the next example -- E3 task 10's cross-contamination lesson. `root` is a plain
+/// member so one example can flip it and drive the non-root case.
+class RootScene final : public Scene {
+public:
+	SceneKind kind() const override { return SceneKind::FirstApp; }
+	bool is_root() const override { return root; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+
+	bool root = true;
+};
+
 /// @brief A `LearnMode` a spec can switch on and off.
 class FakeLearn final : public LearnMode {
 public:
@@ -254,20 +277,27 @@ public:
 /// @brief A live `GlobalControls` over a real (empty) scene stack and a real `InputLowering`,
 ///        driven the way the shell drives it.
 struct GcRig {
-	SceneRegistry reg = scene_registry();
+	RootScene root;
+	std::array<Scene*, 17> table{};
+	SceneRegistry reg{};
 	SceneStack stack{reg};
 	InputLowering lowering{deluge_profile(), {}};
 	FakeLearn learn;
 	GlobalControls gc{stack, lowering, learn};
 	uint32_t now_ms = 0;
 
-	GcRig() = default;
+	/// A registry of exactly one rig-local scene, at `SceneKind::FirstApp` (== 16). Nothing here
+	/// touches `scene_registry()`'s singletons -- `handle_settings_menu`'s `Action::Kind::Push` is
+	/// returned and inspected, never applied, because this rig drives `handle()` directly rather
+	/// than through a `Router`.
+	GcRig() {
+		table[16] = &root;
+		reg.by_kind = std::span<Scene* const>{table};
+		(void)stack.push({SceneKind::FirstApp});
+	}
 	GcRig(const GcRig&) = delete;
 	GcRig& operator=(const GcRig&) = delete;
 
-	/// The scenes in the registry are process singletons (`menu_scene()` and friends), so a scene
-	/// this rig pushed must not survive into the next example -- E3 task 10's cross-contamination
-	/// lesson, the same teardown `mod_knobs_spec.cpp`'s `KnobRig` uses.
 	~GcRig() {
 		while (stack.depth() > 0) {
 			stack.pop(SceneKind::Null);
@@ -454,8 +484,11 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		// And the arm really did reach the one statement that is not ported --
 		// `audioRecorder.beginOutputRecording()` at `:161`, guarded by
 		// `playbackHandler.playbackState` -- or did not, depending on whether PLAY started
-		// playback. Either way `unported_opens()` must not have run away.
-		expect(rig.gc.unported_opens() <= uint32_t(1)).to_be_true();
+		// playback. Whichever it was, no OTHER site may have fired.
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::OutputRecordFromPlay)
+		       == rig.gc.unported_opens_total())
+		    .to_be_true();
+		expect(rig.gc.unported_opens_total() <= uint32_t(1)).to_be_true();
 	});
 
 	it("transport tail: does not toggle recording on a LONG press, both sides", _ {
@@ -526,6 +559,65 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.lowering.shift()).to_be_true();
 		rig.press(ButtonId::Shift, false, 6'010);
 		expect(rig.lowering.shift()).to_be_false();
+	});
+
+	it("the root gate: View's arms need a root scene, and the Buttons tail never does", _ {
+		// The two fallbacks have two reachability rules, and the service holds both --
+		// `Scene::is_root()`'s doc has the proof. `View::buttonAction` is reached only from a
+		// `RootUI` (`gui/views/timeline_view.cpp:119-121`,
+		// `gui/ui/keyboard/keyboard_screen.cpp:591`, and those two classes are the entire result of
+		// `grep "public RootUI"`); `Buttons::buttonAction`'s tail runs for any current UI that
+		// returned `NOT_DEALT_WITH` (`hid/buttons.cpp:139-141`), root or not.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		currentSong = fixture.song;
+		release_all_legacy_buttons();
+		GcRig rig;
+		rig.gc.set_song(fixture.song);
+		expect(reset_transport(100'000)).to_be_true();
+		expect(rig.stack.input_top().is_root()).to_be_true();
+
+		// Baseline, root: the SAVE arm holds.
+		rig.press(ButtonId::Save, true, 40'000);
+		expect(rig.gc.holding_save()).to_be_true();
+		rig.press(ButtonId::Save, false, 40'000 + GlobalControls::kShortPressMs);
+		expect(rig.gc.holding_save()).to_be_false();
+
+		// Non-root -- a menu, a browser, the marker editor. Every `View::buttonAction` arm goes
+		// quiet, and the arm is no longer claimed either: legacy's non-root UI declines and the
+		// tail, which names no SAVE, declines too.
+		rig.root.root = false;
+		expect(rig.stack.input_top().is_root()).to_be_false();
+		const Result save_off_root = rig.press(ButtonId::Save, true, 41'000);
+		expect(save_off_root.handled).to_be_false();
+		expect(rig.gc.holding_save()).to_be_false();
+		rig.press(ButtonId::Save, false, 41'010);
+
+		// And BACK, which is the arm that made the pre-gate divergence live: it is claimed
+		// unconditionally by `view.cpp:404-421`, so an ungated service would fire undo/redo from
+		// inside any non-root scene that does not claim BACK for itself.
+		//
+		// @warning The only thing that masked that before the gate was
+		//          `ActionLogger::allowedToDoReversion` (`model/action/action_logger.cpp:854`)
+		//          testing `getCurrentUI() == getRootUI()` for itself -- an undocumented legacy
+		//          global read that goes stale the moment the shell drives the device. This example
+		//          therefore drives the case where legacy WOULD allow reversion (the stub root UI
+		//          is installed, so `allowedToDoReversion()` is true) and asserts the PORT's own
+		//          gate is what refuses.
+		expect(actionLogger.allowedToDoReversion()).to_be_true();
+		constexpr int32_t kPoison = 0x5EED;
+		pending_global_midi_clusters() = kPoison;
+		const Result back_off_root = rig.press(ButtonId::Back, true, 42'000);
+		expect(back_off_root.handled).to_be_false();
+		expect(pending_global_midi_clusters() == kPoison).to_be_true(); // `view.cpp:416` never ran
+		rig.press(ButtonId::Back, false, 42'010);
+
+		// The tail is NOT gated: a RECORD tap from the same non-root scene still toggles recording,
+		// exactly as `hid/buttons.cpp:173-203` does under a menu.
+		expect(playbackHandler.recording == RecordingMode::OFF).to_be_true();
+		const Result record_off_root = rig.press(ButtonId::Record, true, 43'000);
+		expect(record_off_root.handled).to_be_true();
+		rig.press(ButtonId::Record, false, 43'010);
+		expect(playbackHandler.recording == RecordingMode::NORMAL).to_be_true();
 	});
 
 	it("tap tempo / tempo encoder: toggles the metronome on shift+TAP_TEMPO, both sides", _ {
@@ -655,11 +747,12 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.press(ButtonId::Save, true, 10'000).handled).to_be_true();
 		expect(rig.gc.holding_save()).to_be_true(); // `:240`
 		expect(rig.gc.effective_ui_mode() == GlobalControls::UiMode::HoldingSave).to_be_true();
-		expect(rig.gc.unported_opens() == uint32_t(0)).to_be_true();
+		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
 
 		rig.press(ButtonId::Save, false, 10'000 + GlobalControls::kShortPressMs - 1);
-		expect(rig.gc.holding_save()).to_be_false();       // `:253`
-		expect(rig.gc.unported_opens() == uint32_t(1)).to_be_true(); // `:261`
+		expect(rig.gc.holding_save()).to_be_false(); // `:253`
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong) == uint32_t(1)).to_be_true(); // `:261`
+		expect(rig.gc.unported_opens_total() == uint32_t(1)).to_be_true();
 	});
 
 	it("SAVE/LOAD decision: does not open on a long press, and does not hold with shift or a type button", _ {
@@ -673,7 +766,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Save, true, 11'000);
 		rig.press(ButtonId::Save, false, 11'000 + GlobalControls::kShortPressMs);
 		expect(rig.gc.holding_save()).to_be_false();
-		expect(rig.gc.unported_opens() == uint32_t(0)).to_be_true();
+		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
 
 		// Shift: `:239`'s `&& !Buttons::isShiftButtonPressed()`.
 		rig.press(ButtonId::Shift, true, 12'000);
@@ -681,7 +774,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_save()).to_be_false();
 		rig.press(ButtonId::Save, false, 12'010);
 		rig.press(ButtonId::Shift, false, 12'015);
-		expect(rig.gc.unported_opens() == uint32_t(0)).to_be_true();
+		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
 
 		// SYNTH held: `:233`'s four-button guard suppresses the whole body -- but the arm is
 		// still reported handled, because legacy still falls through to `:469`.
@@ -690,7 +783,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_save()).to_be_false();
 		rig.press(ButtonId::Save, false, 13'010);
 		rig.press(ButtonId::Synth, false, 13'015);
-		expect(rig.gc.unported_opens() == uint32_t(0)).to_be_true();
+		expect(rig.gc.unported_opens_total() == uint32_t(0)).to_be_true();
 	});
 
 	it("SAVE/LOAD decision: refuses to save while overdubs are pending, with legacy's own popup string", _ {
@@ -706,7 +799,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Save, true, 14'000);
 		const Result plain = rig.press(ButtonId::Save, false, 14'010);
 		expect(plain.actions.size() == size_t(0)).to_be_true();
-		expect(rig.gc.unported_opens() == uint32_t(1)).to_be_true();
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::SaveSong) == uint32_t(1)).to_be_true();
 	});
 
 	it("SAVE/LOAD decision: takes the clear-song branch on shift+LOAD and the hold branch otherwise", _ {
@@ -720,7 +813,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Shift, true, 15'000);
 		expect(rig.press(ButtonId::Load, true, 15'005).handled).to_be_true();
 		expect(rig.gc.holding_load()).to_be_false();                // `:286` took the other branch
-		expect(rig.gc.unported_opens() == uint32_t(1)).to_be_true(); // `:292`
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::ClearSong) == uint32_t(1)).to_be_true(); // `:292`
 		rig.press(ButtonId::Load, false, 15'010);
 		rig.press(ButtonId::Shift, false, 15'015);
 
@@ -728,7 +821,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.holding_load()).to_be_true(); // `:297`
 		rig.press(ButtonId::Load, false, 16'010);
 		expect(rig.gc.holding_load()).to_be_false();                // `:310`
-		expect(rig.gc.unported_opens() == uint32_t(2)).to_be_true(); // `:313`
+		expect(rig.gc.unported_opens(GlobalControls::UnportedOpen::LoadSong) == uint32_t(1)).to_be_true(); // `:313`
+		expect(rig.gc.unported_opens_total() == uint32_t(2)).to_be_true();
 	});
 
 	it("sync scaling: sets and clears the song's sync-scaling clip exactly as legacy does", _ {
@@ -1014,8 +1108,32 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	});
 
 	it("LEDs: blinks the CLIP_VIEW LED for the sync-scaling alert, then folds back to off", _ {
-		// `view.cpp:373-376`'s `indicateAlertOnLed`, which is `blinkLed(led, 3, 1)` --
-		// `hid/led/indicator_leds.cpp:160-162`, six half-periods of `kFastFlashTime`.
+		// `view.cpp:373-376`'s `indicateAlertOnLed`, which is `blinkLed(led, 3, 1)`
+		// (`hid/led/indicator_leds.cpp:160-162`).
+		//
+		// **The duration is pinned against legacy's own countdown, not derived on paper** (fix
+		// round 1, minor 3: it was 360 ms, and nothing checked it). `blinkLed` sets
+		// `blinksLeft = numBlinks * 2` == 6 (`:75`) and then runs `updateBlinkingLedStates` once at
+		// arm time (`:79`), which decrements it (`:123`) -- so the fold-back at `:126-129` comes
+		// after FIVE further `kFastFlashTime` timeouts, not six. Driven here by stepping legacy's
+		// `ledBlinkTimeout` until the blinker deactivates and counting the steps.
+		indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+		expect(indicator_leds::getLedBlinkerIndex(IndicatorLED::CLIP_VIEW) == 255).to_be_true();
+		indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW);
+		expect(indicator_leds::getLedBlinkerIndex(IndicatorLED::CLIP_VIEW) != 255).to_be_true();
+		int32_t legacy_timeouts = 0;
+		while (indicator_leds::getLedBlinkerIndex(IndicatorLED::CLIP_VIEW) != 255 && legacy_timeouts < 20) {
+			indicator_leds::ledBlinkTimeout(/*blinkingType=*/1);
+			legacy_timeouts++;
+		}
+		expect(legacy_timeouts).to_equal(5);
+		expect(GlobalControls::kAlertMs
+		       == static_cast<uint32_t>(legacy_timeouts) * GlobalControls::kClipArmFlashMs)
+		    .to_be_true();
+		// And it really did fold back to the state it was armed from (`:128`), which is what makes
+		// the port's explicit `Off` declaration the right fold-back rather than `until_ms`'s `On`.
+		expect(indicator_leds::ledStates[static_cast<uint8_t>(IndicatorLED::CLIP_VIEW)]).to_be_false();
+
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();

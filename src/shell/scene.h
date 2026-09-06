@@ -362,6 +362,42 @@ public:
 	/// @brief Which pad rows and columns this scene wants greyed out.
 	/// @return The mask; all-zero (the default) greys nothing.
 	virtual grid::GreyoutMask greyout_mask() const { return {}; }
+	/// @brief Is this scene a **root view** -- one of the things legacy calls a `RootUI`?
+	///
+	/// Not a composition question like the rest of this group, but it lives here because it is a
+	/// property of what the scene *is* rather than of what it does, and there is exactly one
+	/// consumer today.
+	///
+	/// @par Why the shell needs this at all
+	///
+	/// Legacy has two dispatch fallbacks with **two different reachability rules**, and a service
+	/// routed at the end of the chain has to honour both:
+	///
+	///   * `Buttons::buttonAction`'s tail (`hid/buttons.cpp:143-231`) runs for **any** current UI
+	///     that returned `NOT_DEALT_WITH` from `getCurrentUI()->buttonAction` at `:134`, root or
+	///     not. That group needs no gate.
+	///   * `View::buttonAction` (`gui/views/view.cpp:139-470`) is reached only from a **root view**.
+	///     `UI::buttonAction`'s base implementation is `return ActionResult::NOT_DEALT_WITH`
+	///     (`gui/ui/ui.h:98-100`) -- it does *not* forward to `view`, unlike the three mod hooks
+	///     (`gui/ui/ui.cpp:35-45`). `grep "public RootUI"` finds exactly two classes in the tree,
+	///     `TimelineView` (`gui/views/timeline_view.h:27`) and `KeyboardScreen`
+	///     (`gui/ui/keyboard/keyboard_screen.h:35`), and **both** forward to `View::buttonAction`
+	///     (`gui/views/timeline_view.cpp:119-121`, `gui/ui/keyboard/keyboard_screen.cpp:591`). So
+	///     "is the current UI the root UI" is not an approximation of that reachability rule -- it
+	///     **is** the rule, exactly.
+	///
+	/// `services::GlobalControls` ports both groups and gates only the second on
+	/// `SceneStack::input_top().is_root()`.
+	///
+	/// @note A `Scene` virtual rather than a stack-position rule (`input_top() == scenes()[0]`)
+	///       deliberately. A position rule cannot be driven from a spec that holds no real scene:
+	///       registry scenes are process singletons, so a rig would have to push one and leak it
+	///       into the next example. A predicate a spec-local scene can override keeps the gated
+	///       arms live and testable with no shared state.
+	///
+	/// @return True for a root view; false (the default) for every overlay, menu, browser and
+	///         editor.
+	virtual bool is_root() const { return false; }
 	/// @}
 
 	/// @name Saved state

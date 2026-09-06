@@ -30,25 +30,36 @@
 /// runs the tail at `:143-231`. So a scene gets first refusal and this service is the last word,
 /// which is what "routed last" means.
 ///
-/// @warning **`View::buttonAction` is the ROOT VIEW's fallback, not every UI's, and the port
-///          widens that.** `UI::buttonAction`'s base implementation is `return
-///          ActionResult::NOT_DEALT_WITH` (`gui/ui/ui.h:98-100`) -- it does **not** forward to
-///          `view`, unlike `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction`
-///          (`gui/ui/ui.cpp:35-45`), which do and which is why `ModKnobs` really is a base-class
-///          fallback. `View::buttonAction` has exactly two callers in the tree:
-///          `TimelineView::buttonAction`'s final `else` (`gui/views/timeline_view.cpp:119-121`) and
-///          `KeyboardScreen::buttonAction` (`gui/ui/keyboard/keyboard_screen.cpp:591`).
-///          `TimelineView` is the base of every root view (`gui/views/timeline_view.h:27`, and the
-///          six subclasses), so on the device these arms fire under any root view -- and under
-///          nothing else. With a menu open, `SoundEditor::buttonAction` returns `NOT_DEALT_WITH`
-///          (`gui/ui/sound_editor.cpp:1506`) without forwarding, so legacy runs the tail and skips
-///          every `View::buttonAction` arm; this service, being last in the chain, runs them
-///          anyway. **Consequence: SAVE/LOAD/SYNC_SCALING/TAP_TEMPO/BACK/shift+SELECT_ENC act from
-///          inside a menu here where legacy ignores them**, unless the scene on top claims the
-///          button first (which it gets to do -- it is routed first). The fix would be a "the
-///          input-top scene is the root scene" gate, which needs a notion of a root scene the
-///          shell does not have and no scene in this tree is yet; raised for a ruling in the E4
-///          task-4 report rather than invented here.
+/// @par Two legacy fallbacks, two reachability rules, and only one of them is gated
+///
+/// The tail runs for **any** current UI that declined the event. `View::buttonAction` runs only for
+/// a **root view**: `UI::buttonAction`'s base implementation is `return
+/// ActionResult::NOT_DEALT_WITH` (`gui/ui/ui.h:98-100`) and does **not** forward to `view`, unlike
+/// `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction` (`gui/ui/ui.cpp:35-45`), which
+/// do and which is why `ModKnobs` really is a base-class fallback. `View::buttonAction` has exactly
+/// two callers, `TimelineView::buttonAction`'s final `else` (`gui/views/timeline_view.cpp:119-121`)
+/// and `KeyboardScreen::buttonAction` (`gui/ui/keyboard/keyboard_screen.cpp:591`) -- and
+/// `grep "public RootUI"` finds exactly those two classes (`gui/views/timeline_view.h:27`,
+/// `gui/ui/keyboard/keyboard_screen.h:35`). So "the current UI is the root UI" is not an
+/// approximation of the rule; it **is** the rule.
+///
+/// Hence `handle()` gates the `View`-arm group on `stack_.input_top().is_root()`
+/// (`shell/scene.h`'s `Scene::is_root`, added for this) and leaves the tail ungated. With a
+/// non-root scene on top -- a menu, a browser, the marker editor -- `SAVE`, `LOAD`,
+/// `SYNC_SCALING`, `TAP_TEMPO`, `BACK` and shift+`SELECT_ENC` do nothing here, exactly as they do
+/// nothing in legacy: `SoundEditor::buttonAction` (`gui/ui/sound_editor.cpp:333`) ends by
+/// delegating to `currentMenuItem->buttonAction` (`:595-628`), whose base
+/// (`gui/menu_item/menu_item.h:78-80`) returns `NOT_DEALT_WITH`, and nothing on that path names
+/// `view`.
+///
+/// @warning **Before the gate, the divergence was live and its only protection was an accident.**
+///          `ButtonId::Back` is claimed unconditionally by the `BACK` arm, so an ungated service
+///          would fire undo/redo from inside any non-root scene that does not claim `Back` itself.
+///          What masked it was `ActionLogger::allowedToDoReversion` (`model/action/action_logger.cpp:854`),
+///          which *itself* tests `getCurrentUI() == getRootUI()` -- an undocumented legacy-global
+///          read that goes stale the moment the shell drives the device and `numUIsOpen` stops
+///          tracking the scene stack. The gate is what makes the port's own answer load-bearing;
+///          do not remove it on the grounds that "the action logger refuses anyway".
 ///
 /// @note The chain ran the other way round (`mod_knobs` before the scene) from plan D until E4
 ///       task 3 corrected it; the defect, the evidence and the fix are recorded as amendments
@@ -367,14 +378,46 @@ public:
 	/// @brief Is the LOAD button being held down? `UI_MODE_HOLDING_LOAD_BUTTON` (`view.cpp:297`,
 	///        cleared at `:310`).
 	bool holding_load() const { return holding_load_; }
-	/// @brief How many times an unported open was reached -- the load/save browser, the clear-song
-	///        context menu, and output recording.
+	/// @brief The five call sites this port reaches but cannot make -- see the class doc's
+	///        "deliberately NOT ported".
 	///
-	/// Not a mailbox and not an outbox: nothing consumes it and nothing may. It is a counter, so a
-	/// spec can prove that the arm's *decision* reached the point legacy opens a UI at, which is
-	/// the only part of those arms this port can assert. See the class doc's "deliberately NOT
-	/// ported".
-	uint32_t unported_opens() const { return unported_opens_; }
+	/// One enumerator per *site*, not one per kind of thing: `beginOutputRecording` is reached from
+	/// two different arms with two different conditions, and a single total cannot tell them apart.
+	/// Fix round 1, minor 5: a spec asserting `unported_opens() == 1` after a SAVE gesture could be
+	/// satisfied by a PLAY+RECORD combo instead, which would make the counter's only claim -- "the
+	/// arm's decision reached the point legacy opens a UI at" -- unfalsifiable.
+	///
+	/// @note The doc for each enumerator is on its own line above it, not trailing: a trailing
+	///       `///<` shares a line with code, and `scripts/check_layer_rules.py`'s `is_comment_line`
+	///       skips only a line that is *nothing but* comment -- so the forbidden global names these
+	///       docs necessarily quote would have counted as `scenes-no-root-ui` violations.
+	enum class UnportedOpen : uint8_t {
+		/// The song saver's open (`view.cpp:261`).
+		SaveSong,
+		/// The song loader's open (`view.cpp:313`).
+		LoadSong,
+		/// The clear-song context menu's open (`view.cpp:292`).
+		ClearSong,
+		/// Output recording begun from the PLAY arm (`hid/buttons.cpp:161`).
+		OutputRecordFromPlay,
+		/// Output recording begun from shift+RECORD (`hid/buttons.cpp:182`).
+		OutputRecordFromShift,
+		Count,
+	};
+
+	/// @brief How many times @p which was reached.
+	///
+	/// Not a mailbox and not an outbox: nothing consumes these and nothing may. They are counters,
+	/// so a spec can prove an arm's *decision* reached the point legacy opens a UI at, which is the
+	/// only part of those arms this port can assert.
+	/// @param which The site.
+	uint32_t unported_opens(UnportedOpen which) const {
+		const size_t i = static_cast<size_t>(which);
+		return i < static_cast<size_t>(UnportedOpen::Count) ? unported_opens_[i] : 0;
+	}
+	/// @brief Every site's count added up -- for a "nothing ran away" assertion, never for
+	///        identifying which arm fired.
+	uint32_t unported_opens_total() const;
 	/// @}
 
 	/// @brief `kShortPressTime` (`definitions_cxx.hpp:1028`, `kSampleRate / 2`) in milliseconds.
@@ -385,10 +428,15 @@ public:
 	static constexpr uint32_t kShortPressMs = 500;
 	/// @brief `kFastFlashTime` (`definitions_cxx.hpp:160`) -- the clip-arm flash's half-period.
 	static constexpr uint32_t kClipArmFlashMs = 60;
-	/// @brief How long `indicator_leds::indicateAlertOnLed` blinks for -- `blinkLed(led, 3, 1)`
-	///        (`hid/led/indicator_leds.cpp:160-162`), i.e. `3 * 2` half-periods of
-	///        `kFastFlashTime` (`:74-75`, `:106-112`).
-	static constexpr uint32_t kAlertMs = 3 * 2 * kClipArmFlashMs;
+	/// @brief How long `indicator_leds::indicateAlertOnLed` blinks for.
+	///
+	/// `indicateAlertOnLed` is `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`), which
+	/// sets `blinksLeft = numBlinks * 2` == 6 (`:75`) and then calls `updateBlinkingLedStates`
+	/// **once, at arm time** (`:79`), which decrements it to 5 (`:123`). The fold-back at `:126-129`
+	/// therefore happens after **five** further `kFastFlashTime` timeouts (`:106-112`), not six:
+	/// 300 ms, not 360. Pinned against legacy's own countdown in `global_controls_spec.cpp`
+	/// (fix round 1, minor 3 -- it was 360 and nothing checked it).
+	static constexpr uint32_t kAlertMs = (3 * 2 - 1) * kClipArmFlashMs;
 
 private:
 	/// @brief What `View::buttonAction` did with a button, in the three shapes that matter here.
@@ -445,6 +493,10 @@ private:
 	/// @param result Where the refusal popup or the push is appended.
 	void handle_settings_menu(const deluge::ui::shell::UiContext& ctx, deluge::ui::shell::Result& result);
 
+	/// @brief Bump @p which's counter -- see `unported_opens()`.
+	/// @param which The site that was reached.
+	void count_unported(UnportedOpen which);
+
 	/// @brief Is the SYNC_SCALING LED in `View::setTimeBaseScaleLedState`'s blink arm
 	///        (`view.cpp:504-506`) right now?
 	///
@@ -481,7 +533,7 @@ private:
 	uint32_t now_ms_ = 0;
 
 	/// See `unported_opens()`.
-	uint32_t unported_opens_ = 0;
+	uint32_t unported_opens_[static_cast<size_t>(UnportedOpen::Count)]{};
 };
 
 // (No singleton accessor, deliberately -- the same reason `ModKnobs` has none: this service

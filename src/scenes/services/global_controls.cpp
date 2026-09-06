@@ -108,6 +108,21 @@ void popup(Result& r, String s) {
 
 // -- The single UI mode -------------------------------------------------------------------------
 
+void GlobalControls::count_unported(UnportedOpen which) {
+	const size_t i = static_cast<size_t>(which);
+	if (i < static_cast<size_t>(UnportedOpen::Count)) {
+		unported_opens_[i]++;
+	}
+}
+
+uint32_t GlobalControls::unported_opens_total() const {
+	uint32_t total = 0;
+	for (const uint32_t n : unported_opens_) {
+		total += n;
+	}
+	return total;
+}
+
 GlobalControls::UiMode GlobalControls::effective_ui_mode() const {
 	// Legacy has one `currentUIMode`; this reassembles it from its three owners. `MidiLearn` first
 	// because that is the value `View::buttonAction`'s own arms test first (`view.cpp:148`), and
@@ -179,7 +194,7 @@ void GlobalControls::handle_save(bool on, const UiContext& ctx, Result& result) 
 	//          overdub refusal -- is the arm's decision and it is ported and specced; this is the
 	//          one statement that is missing. Counted rather than mailed: see `unported_opens()`
 	//          and the class doc's ruling on why a second outbox is not the answer.
-	unported_opens_++;
+	count_unported(UnportedOpen::SaveSong);
 }
 
 void GlobalControls::handle_load(bool on, const UiContext& ctx) {
@@ -198,7 +213,7 @@ void GlobalControls::handle_load(bool on, const UiContext& ctx) {
 			// @warning **Not ported.** `ContextMenuScene` exists, but the clear-song menu is not
 			//          among the context menus E2 task 6 ported and its availability check is a
 			//          `gui/` call. Decision ported (shift+LOAD from a clean mode), open missing.
-			unported_opens_++;
+			count_unported(UnportedOpen::ClearSong);
 			return;
 		}
 		holding_load_ = true;          // `:297` `currentUIMode = UI_MODE_HOLDING_LOAD_BUTTON`
@@ -223,7 +238,7 @@ void GlobalControls::handle_load(bool on, const UiContext& ctx) {
 	// @warning **Not ported**, for the same reason as `openUI(&saveSongUI)` above. Legacy's
 	//          `if (!success)` tail at `:317-320` is an empty block with two commented-out lines,
 	//          so there is nothing behind the open to port either.
-	unported_opens_++;
+	count_unported(UnportedOpen::LoadSong);
 }
 
 void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& result) {
@@ -454,7 +469,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 				//          name and the output recorder deliberately stayed on it (see the class
 				//          doc). The *decision* is ported: this is the RECORD-held-while-PLAY
 				//          combo, and its other, observable half -- the used-up bit below -- is.
-				unported_opens_++;
+				count_unported(UnportedOpen::OutputRecordFromPlay);
 			}
 		}
 		// `:165` `recordButtonPressUsedUp = true`, INSIDE `if (on)` and OUTSIDE the if/else above
@@ -484,7 +499,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 				if (ctx.shift) {                                                       // `:181`
 					// `:182` `audioRecorder.beginOutputRecording()` -- @warning not ported, as
 					// above.
-					unported_opens_++;
+					count_unported(UnportedOpen::OutputRecordFromShift);
 					lowering_.mark_press_used_up(ButtonId::Record); // `:183`
 				}
 			}
@@ -552,8 +567,18 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 
 	// `View::buttonAction` first, because `Buttons::buttonAction` calls it first (at
 	// `hid/buttons.cpp:134`) and skips the tail when it dealt with the event (`:139-141`).
+	//
+	// **Gated on the input-taking scene being a ROOT scene**, because `View::buttonAction` is the
+	// root view's fallback and only the root view's -- see `Scene::is_root`'s doc for the two-line
+	// proof (`grep "public RootUI"` finds exactly `TimelineView` and `KeyboardScreen`, and both
+	// forward). A non-root current UI returns `NOT_DEALT_WITH` from its own `buttonAction` and
+	// legacy goes straight to the tail, which is what `ViewArm::NotAnArm` means here. The tail
+	// itself is deliberately **not** gated: `hid/buttons.cpp:139-141` runs it for any current UI
+	// that declined, root or not.
 	Result r;
-	switch (view_button_action(event.button, event.on, ctx, r)) {
+	const ViewArm arm =
+	    stack_.input_top().is_root() ? view_button_action(event.button, event.on, ctx, r) : ViewArm::NotAnArm;
+	switch (arm) {
 	case ViewArm::Handled:
 		r.handled = true;
 		return r;
@@ -615,8 +640,9 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	(void)frame.set(led(ButtonId::Load), holding_load_ ? kOn : kOff);
 
 	// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)` (`view.cpp:374`) =
-	// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`): six half-periods of
-	// `kFastFlashTime`, then `setLedState(led, returnToState)` (`:128`). `returnToState` is the
+	// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`): FIVE half-periods of
+	// `kFastFlashTime` -- see `kAlertMs`, and the spec pins it against legacy's own countdown --
+	// then `setLedState(led, returnToState)` (`:128`). `returnToState` is the
 	// LED's state when the alert began, and this arm only fires when the current UI is NOT a clip
 	// minder -- where CLIP_VIEW is off -- so Off is the fold-back, declared explicitly rather than
 	// through `LedState::until_ms` (whose fold-back is *On*, `shell/leds.h`). A root scene that
