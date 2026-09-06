@@ -694,6 +694,32 @@ stem-export inhibitors (and with them the 1000 ms blank re-check that exists onl
 `ScreensaverMode::OFF` (ported as the service's `idle_ms == 0`), and the `consumeFrameDirty` blit
 protocol (whose port is the shell's `RepaintGate`).
 
+## The shared timeline state (`timeline/timeline.h`, E4 task 8)
+
+`timeline::TimelineState` is the port of the **state and the pure arithmetic** in legacy's
+three-class clip-view chain — `TimelineView` -> `ClipNavigationTimelineView` -> `ClipView`. It is
+not a scene: it is a plain aggregate that a root scene owns, and `timeline.h` carries the
+symbol-by-symbol table of what moved into it, what stayed with the scene, and what is dropped.
+
+Three things about it are worth finding from here rather than from the header.
+
+* **Only `AudioClipScene` consumes it.** The plan's prose calls it "the shared state every clip view
+  needs", and it is — for the *clip views*. Legacy's `Slicer` is a plain `UI`
+  (`gui/ui/slicer.h:33 class Slicer final : public UI`), not a `TimelineView`, so `SlicerScene`
+  (E4 tasks 9-10) has no scroll or zoom to share. The header's table is the authority on who uses
+  what.
+* **`getNavSysId()` has no port.** Legacy keeps two navigation slots on `Song` (`xScroll[2]`,
+  `xZoom[2]`) and every helper indexes them by a virtual. One `TimelineState` *is* one slot, so the
+  virtual disappears; `adopt`/`publish` are the only two functions in this layer that spell
+  `NAVIGATION_CLIP`, and they exist because `scenes-currentSong` forbids reaching for the song
+  directly.
+* **The `PadLEDs` scroll and zoom transitions are not carried**, the same call E3 made for the
+  marker editor. `initiateXScroll`/`initiateXZoom` each set the scroll or zoom *and* start an
+  animation; only the first half is here. That imposes a one-detent ceiling on the legacy oracle,
+  which `sim/scenes_spec/timeline_spec.cpp` measures instead of working around — and measures a
+  difference from E3's finding: clearing `UI_MODE_HORIZONTAL_ZOOM` by hand **does** buy a second
+  detent here, where `WaveformBasicNavigator::zoom` blocked.
+
 ## Repaint and the timer fold (`Shell::tick` step 8b, E3 tasks 10-11)
 
 Two shell-level corrections this plan made, both of which change how a scene asks to be redrawn:

@@ -108,7 +108,12 @@ add_library(deluge_scenes STATIC
     # E4 task 5: the MIDI-learn half of legacy's `View` -- the mode, the held thing, the learn
     # commit and the flash phase. Here for the same reason the other two services are: learning
     # writes the model. See `services/midi_learn.h`.
-    services/midi_learn.cpp)
+    services/midi_learn.cpp
+    # E4 task 8: the horizontal scroll and zoom every clip view shares -- the state and pure
+    # arithmetic half of legacy's `TimelineView` -> `ClipNavigationTimelineView` -> `ClipView`
+    # chain. Not a scene: a plain struct the root scenes own. See `timeline/timeline.h` for the
+    # symbol-by-symbol split between this file, the scene, and the dropped `PadLEDs` animation.
+    timeline/timeline.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include
