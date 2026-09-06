@@ -43,6 +43,16 @@
 ///     screensaver here reports no timer at all rather than waking the shell every second to do
 ///     nothing. Recorded as a gap; a `shell::Screensaver` that learns about the notices would
 ///     restore it.
+///
+///     **That re-arm costs one more thing than the inhibitor check**, and it is the only place the
+///     port's observable timing differs from legacy's: legacy's 1000 ms tick also re-reads the mode
+///     (`:140` and `:162`), so a `BLANK` -> `STARSCAPE`/`DELUGE` change made while the screensaver
+///     is showing starts animating within a second, where this scene -- reporting no timer -- stays
+///     blank for ever. It is unreachable in practice rather than merely unlikely: the only way to
+///     change the setting is the menu (`gui/menu_item/defaults/screensaver.h:34-41`), reaching it
+///     needs physical input, and input runs `shell::Screensaver::note_activity` first, which pops
+///     this scene (`shell/screensaver.cpp:9-17`) -- so the mode cannot change while it is up. The
+///     next push re-reads the mode and scatters the right field.
 ///   * **`ScreensaverMode::OFF`** (`screensaver.cpp:92-94,102-104,171-174`): the port of "off" is
 ///     `shell::Screensaver`'s `idle_ms == 0` (that service's own class note), decided by whatever
 ///     wires the shell up. If this scene is nonetheless pushed with the mode at `OFF` it draws

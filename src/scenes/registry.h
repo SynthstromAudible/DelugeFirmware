@@ -67,6 +67,25 @@ uint16_t assigned_node_ids();
 ///     `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and `shortcuts_spec.cpp`'s
 ///     `SHORTCUTS_VERSION_1 layer` group.
 ///
+///   * **`ShellConfig::screensaver_idle_ms` (`shell/shell.h:30-40`).** The screensaver's timeout,
+///     and its off switch. Legacy asks `FlashStorage` for both on every arm and every tick --
+///     `screensaverTimeoutMinutes * 60000` (`hid/display/screensaver.cpp:79-81`) and
+///     `screensaverMode == ScreensaverMode::OFF` (`:92-94,102-104,171-174`) -- but `shell::Screensaver`
+///     may not read `storage/` at all (`check_layer_rules.py`'s `shell-includes-outside` row), so
+///     the port takes one number at construction and spells "off" as `idle_ms == 0`
+///     (`shell/screensaver.h`'s class note). **Nothing computes that number today.** `ShellConfig`
+///     defaults it to 0, and `FlashStorage::screensaverTimeoutMinutes` has exactly two readers in
+///     `src/` -- `menu/nodes/settings.cpp:574,577`, the menu item that edits it -- so a shell built
+///     from the default never shows the screensaver at all, however the two settings are set.
+///     Whoever owns boot should pass
+///     `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`, and pass
+///     it again whenever either setting changes -- which is also the missing port of legacy's
+///     `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:165-177`), recorded as a gap
+///     at `overlay/screensaver_scene.h`. As with `set_shortcuts_version` above, it is deliberately
+///     not wired from `storage/`. E4 task 7; the scene itself is covered by
+///     `sim/scenes_spec/screensaver_scene_spec.cpp`, whose service example builds the
+///     `ShellConfig` by hand for exactly this reason.
+///
 /// Nothing else in `src/scenes` is in this position: every other setting the menu tree edits is read
 /// and written through the same `FlashStorage` / `runtimeFeatureSettings` / `midiEngine` global the
 /// existing loader already populates.

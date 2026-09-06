@@ -27,7 +27,16 @@ namespace deluge::ui::shell {
 struct ShellConfig {
 	/// Passed straight through to the `InputLowering` the shell owns.
 	LoweringConfig lowering;
-	/// How long the shell may sit with no input before the screensaver scene is pushed; 0 is off.
+	/// @brief How long the shell may sit with no input before the screensaver scene is pushed; 0 is
+	///        off.
+	///
+	/// @warning **Nothing computes this at boot yet**, so it stays 0 and the screensaver never
+	///          shows. Legacy's number is
+	///          `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
+	///          -- both live in `FlashStorage`, which `src/shell` may not read -- and it has to be
+	///          re-supplied whenever either setting changes, which is also the missing port of
+	///          `Screensaver::settingsChanged()`. Recorded, with the rest of the boot wiring this
+	///          stack does not do for itself, at `scenes/registry.h`'s boot-wiring note.
 	uint32_t screensaver_idle_ms = 0;
 	/// The seed the screensaver's animation is started from; passed through to the pushed
 	/// scene's `SceneId::arg` (see `Screensaver`).

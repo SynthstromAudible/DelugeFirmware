@@ -150,6 +150,17 @@ std::string legacy_canvas_pbm() {
 /// expectation per drop: the loops below run 8000 frames x 34 drops, and one CppSpec expectation
 /// object per comparison exhausts the sim's allocation-guard table long before the comparison ends.
 /// The caller records the FIRST frame that disagreed, so a failure still names where.
+///
+/// @warning **What this cannot see, and where that coverage comes from instead.** Both loops here
+///          are bounded by the PORT's `kNumDrops` / `kNumStars` / `kLogoCells`, so a divergence in
+///          one of those three counts is invisible to the runtime comparison: an oracle with MORE
+///          drops than the port passes silently, and one with FEWER aborts on an out-of-range read
+///          rather than failing an expectation (which is exactly what the rejected `kNumDrops`
+///          34 -> 33 mutation did). The two evidences are complementary, not redundant: those three
+///          constants are covered by the *textual* half of the argument -- the reverse-mapped diff
+///          of `src/ui/oled/{rainfall,starfield}.{h,cpp}` against
+///          `c758fbca5:src/deluge/hid/display/…`, recorded in the task report -- which shows every
+///          constant unmodified. Do not read the 8000-frame run as covering them.
 bool same_field(const Rainfall& a, const screensaver_oracle::Rainfall& b) {
 	for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
 		if (a.length_of(drop) != b.lengthOf(drop) || a.speed_of(drop) != b.speedOf(drop)) {

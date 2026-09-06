@@ -33,7 +33,7 @@ namespace deluge::ui::shell {
 ///       `push_refused() == 0` end to end through a real `Shell`. The behaviour above is kept
 ///       exactly as it was, because it is still the correct answer for a **profile or spec that
 ///       registers nothing** at that slot: the `SceneRegistry` is the application's, the shell does
-///       not fill this kind in for it (`shell.cpp:177-183`), and several shell specs build a
+///       not fill this kind in for it (`shell.cpp:177-184`), and several shell specs build a
 ///       registry with the slot empty on purpose. `push_refused()` is therefore now a real
 ///       diagnostic for a wiring mistake rather than a description of the default.
 class Screensaver final : public Service {
