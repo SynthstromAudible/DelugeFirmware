@@ -11,27 +11,30 @@
 /// yet, so this scene is driven directly by its own `show()` in every spec here, exactly the way a
 /// future `ModKnobs::mod_encoder_action` will drive it.
 ///
-/// @par What the interface cannot reach
+/// @par The context `show()` carries, and why
 ///
 /// Legacy's function reads `view.activeModControllableModelStack.modControllable` (a
-/// `ModControllableAudio*`) for two things this scene's `show()` has no way to supply, because its
-/// argument list is exactly legacy's five value-conversion parameters plus `now_ms` -- no context
-/// object:
+/// `ModControllableAudio*`) and the current clip/output for three of its arms. E4 task 1 shipped
+/// `show()` with legacy's five value-conversion parameters only, which left those three arms
+/// permanently unreachable; task 2 -- `services::ModKnobs`, the first real caller, and the class
+/// that *has* that context -- widened the signature rather than leave them uncovered, on the
+/// reasoning that this is cheap with one caller and expensive with three. The extra argument is
+/// `PopupContext`, defaulted so a caller with no context still gets exactly task 1's behaviour:
 ///
-///   * **The LPF/HPF-morph-aware patched-param name** (`getPatchedParamShortName`/
-///     `getParamDisplayName`'s two-argument overloads) and **the stutter-quantization check**
-///     (`isParamQuantizedStutter`, which has no context-free overload at all). Both null-check
-///     their `ModControllableAudio*` internally and fall back to the mode-agnostic name / "not
-///     quantized" -- exactly what passing `nullptr` here produces -- so this is a graceful
-///     degradation, not a crash, but it means the LPF/HPF rename and the stutter-rate-bucket text
-///     ("4ths"/"8ths"/...) can never appear from this scene as specified.
-///   * **The MIDI-clip CC/expression-axis naming** (`isClipContext() && getCurrentOutputType() ==
-///     OutputType::MIDI_OUT`), which needs the current clip/output -- also absent from `show()`'s
-///     arguments. Falls through to the ordinary `getParamDisplayName` path instead.
-///
-/// Both are counted as uncovered branches in every spec here (the oracle discipline: "say so at
-/// the spec site"), not silently dropped -- see `param_popup_spec.cpp`'s own note. If a future
-/// task needs either, `show()`'s signature is the place to widen, not this scene's internals.
+///   * `PopupContext::mod` reaches `getPatchedParamShortName`/`getParamDisplayName`'s
+///     two-argument overloads (the LPF/HPF-morph-aware name) and `isParamQuantizedStutter` (the
+///     "4ths"/"8ths"/... rate-bucket text). All three null-check it and fall back, so a default
+///     `PopupContext` is the old behaviour exactly.
+///   * `PopupContext::midi_instrument` is legacy's `isClipContext() && getCurrentOutputType() ==
+///     OutputType::MIDI_OUT` **and** its `(MIDIInstrument*)getCurrentOutput()` in one pointer: the
+///     caller resolves the two-part test and hands over the instrument, or null. It selects the
+///     MIDI-clip naming arm (Pitch Bend / Channel Pressure / Mod Wheel for `Kind::EXPRESSION`,
+///     else the CC's own name or `"CC <n>"`).
+///   * `PopupContext::stuttering` is legacy's `!isUIModeActive(UI_MODE_STUTTERING)`, negated to a
+///     positive. **No caller can set it true yet** -- nothing in the port owns the stutter gesture
+///     -- so the rate-bucket text is currently always shown when the param qualifies, which is
+///     what legacy does whenever a stutter is *not* in progress. Recorded here rather than
+///     silently assumed.
 ///
 /// @par What is deliberately not ported
 ///
@@ -97,11 +100,32 @@
 #include <optional>
 #include <string_view>
 
+class MIDIInstrument;
+class ModControllableAudio;
+
 namespace deluge::scenes::overlay {
 
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 6` (`registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kParamPopupSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 6);
+
+/// @brief The model context legacy's popup reads off `View` and `getCurrentOutput()`, as three
+///        plain values a caller supplies.
+///
+/// Default-constructed, this is exactly "no context": every arm it unlocks null-checks its own
+/// field and falls back to the context-free path, which is what E4 task 1 shipped. See the class
+/// doc above for the per-field mapping and its citations.
+struct PopupContext {
+	/// `view.activeModControllableModelStack.modControllable`, cast to `ModControllableAudio*`
+	/// exactly as legacy casts it (`view.cpp:1119`, `:1149-1150`, `:1160-1161`).
+	ModControllableAudio* mod = nullptr;
+	/// Non-null iff legacy's `isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`
+	/// (`view.cpp:1122`), in which case it is `(MIDIInstrument*)getCurrentOutput()` (`:1123`).
+	MIDIInstrument* midi_instrument = nullptr;
+	/// `isUIModeActive(UI_MODE_STUTTERING)` (`view.cpp:1161`). Nothing in the port owns the stutter
+	/// gesture yet, so no caller sets this true; see the class doc.
+	bool stuttering = false;
+};
 
 /// @brief The mod-encoder value popup. One instance for the whole application (`registry.h`).
 class ParamPopupScene final : public deluge::ui::shell::Scene {
@@ -116,8 +140,11 @@ public:
 	/// @param source1  The first patch source, for `Kind::PATCH_CABLE`.
 	/// @param source2  The second patch source (a double patch cable), or `PatchSource::NONE`.
 	/// @param now_ms   The tick's wall clock, exactly as `UiContext::now_ms` reaches `handle()`.
+	/// @param context  The model context legacy reads off `View` and the current output; see
+	///                 `PopupContext` and the class doc. Defaulted to "none", which reproduces the
+	///                 context-free naming and value paths exactly.
 	void show(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
-	          PatchSource source2, uint32_t now_ms);
+	          PatchSource source2, uint32_t now_ms, PopupContext context = {});
 
 	deluge::ui::shell::SceneKind kind() const override { return kParamPopupSceneKind; }
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
@@ -169,7 +196,7 @@ private:
 	///        notification" block (`view.cpp:1197-1287`), shared by `show()` and the flush path in
 	///        `tick()`.
 	void attempt_display(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
-	                     PatchSource source2, uint32_t now_ms);
+	                     PatchSource source2, uint32_t now_ms, PopupContext context);
 
 	static constexpr size_t kTextCap = 40; // `etl::string<40>` (view.cpp:1107-1108).
 	char name_[kTextCap + 1] = {};
@@ -205,6 +232,9 @@ private:
 	int32_t pending_knob_pos_ = 0;
 	PatchSource pending_source1_ = PatchSource::NONE;
 	PatchSource pending_source2_ = PatchSource::NONE;
+	/// Cached alongside the rest of the deferred call: legacy's pending replay re-reads the same
+	/// `View` state the original call did, so the port must replay the same context too.
+	PopupContext pending_context_{};
 	uint32_t pending_flush_remaining_ms_ = 0;
 };
 

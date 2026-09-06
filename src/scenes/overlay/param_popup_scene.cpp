@@ -7,6 +7,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "model/instrument/midi_instrument.h" // `PopupContext::midi_instrument`'s `getNameFromCC`
 #include "modulation/arpeggiator_rhythms.h"
 
 #include <algorithm>
@@ -121,19 +122,19 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 
 /// @brief The parameter-name half of `displayModEncoderValuePopup` (`view.cpp:1110-1155`).
 ///
-/// **Two arms this scene cannot reach**, both because `show()`'s argument list carries no context
-/// object (see the header's "what the interface cannot reach" note): the `isClipContext() &&
-/// getCurrentOutputType() == OutputType::MIDI_OUT` branch (CC-number/pitch-bend/pressure/mod-wheel
-/// naming for a MIDI clip) is dropped entirely, falling through to the ordinary
-/// `getParamDisplayName` path every time; and the `ModControllableAudio*` this would otherwise
-/// pass to `getPatchedParamShortName`/`getParamDisplayName` (the LPF/HPF-morph-aware name) is
-/// always `nullptr`, which both overloads null-check and fall back on.
+/// All three of legacy's arms, with `PopupContext` supplying what `View` supplied there: the
+/// patch-cable form (`:1114-1121`), the MIDI-clip CC/expression form (`:1122-1147`) and the plain
+/// form (`:1148-1155`). A default `PopupContext` selects the plain form's context-free overload
+/// and skips the MIDI arm entirely -- which is what E4 task 1 shipped, and still exactly what a
+/// context-free caller gets.
 /// @param kind     The param's kind.
 /// @param param_id The param id within @p kind.
 /// @param source1  The first patch source, for `Kind::PATCH_CABLE`.
 /// @param source2  The second patch source, or `PatchSource::NONE`.
+/// @param context  The model context; see `PopupContext`.
 /// @param out      Filled in with the formatted name.
-void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource source2, FixedAppend& out) {
+void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource source2, const PopupContext& context,
+                 FixedAppend& out) {
 	if (kind == Kind::PATCH_CABLE) {
 		out.append(source_short_name(source1));
 		out.append("->");
@@ -142,10 +143,36 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 			out.append("->");
 		}
 		out.append(deluge::modulation::params::getPatchedParamShortName(
-		    static_cast<deluge::modulation::params::ParamType>(param_id), nullptr));
+		    static_cast<deluge::modulation::params::ParamType>(param_id), context.mod));
+	}
+	else if (context.midi_instrument != nullptr) {
+		// `:1122-1147`. The caller has already resolved `isClipContext() && getCurrentOutputType()
+		// == OutputType::MIDI_OUT`; a non-null instrument *is* that test having passed.
+		if (kind == Kind::EXPRESSION) {
+			if (param_id == X_PITCH_BEND) {
+				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+			}
+			else if (param_id == Z_PRESSURE) {
+				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+			}
+			else if (param_id == Y_SLIDE_TIMBRE) {
+				// In mono expression this is the mod wheel; the y axis is not directly controllable.
+				out.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+			}
+		}
+		else if (param_id >= 0 && param_id < kNumRealCCNumbers) {
+			const std::string_view name = context.midi_instrument->getNameFromCC(param_id);
+			if (!name.empty()) {
+				out.append(name);
+			}
+			else {
+				out.append("CC ");
+				out.append_int(param_id);
+			}
+		}
 	}
 	else {
-		const char* name = deluge::modulation::params::getParamDisplayName(kind, param_id, nullptr);
+		const char* name = deluge::modulation::params::getParamDisplayName(kind, param_id, context.mod);
 		if (name != deluge::l10n::get(deluge::l10n::String::STRING_FOR_NONE)) {
 			out.append(name);
 		}
@@ -154,21 +181,19 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 
 /// @brief The value half of `displayModEncoderValuePopup` (`view.cpp:1156-1195`).
 ///
-/// The stutter-quantization arm (`isParamQuantizedStutter`) can never fire here for the same
-/// reason `format_name`'s patch-cable arm degrades: it has no context-free overload, and this
-/// scene always passes `nullptr`, which the check treats as "not quantized". Kept, rather than
-/// dropped, so the structure still matches the citation; see the header's note. Legacy's
-/// `!isUIModeActive(UI_MODE_STUTTERING)` half of the same guard reads a `gui/`-only UI mode this
-/// layer may not name at all, so it is omitted -- harmlessly, since the first half already never
-/// passes.
+/// The stutter-quantization arm needs both halves of legacy's guard: `isParamQuantizedStutter`,
+/// which has no context-free overload (a null `ModControllableAudio*` reads as "not quantized"),
+/// and `!isUIModeActive(UI_MODE_STUTTERING)`, which no port caller can answer true yet --
+/// `PopupContext` carries both, see the header.
 /// @param kind          The param's kind.
 /// @param param_id      The param id within @p kind.
 /// @param knob_pos      The raw knob position (pre-`kKnobPosOffset`).
+/// @param context       The model context; see `PopupContext`.
 /// @param out            Filled in with the formatted value text.
 /// @return The value used for the arbitration's change-detection (legacy's
 ///         `current_display_value`).
-int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, FixedAppend& out) {
-	if (deluge::modulation::params::isParamQuantizedStutter(kind, param_id, nullptr)) {
+int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupContext& context, FixedAppend& out) {
+	if (deluge::modulation::params::isParamQuantizedStutter(kind, param_id, context.mod) && !context.stuttering) {
 		int32_t display_value;
 		const char* text;
 		if (knob_pos < -39) {
@@ -212,22 +237,22 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, FixedAppend&
 } // namespace
 
 void ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1, PatchSource source2,
-                           uint32_t now_ms) {
-	attempt_display(kind, param_id, knob_pos, source1, source2, now_ms);
+                           uint32_t now_ms, PopupContext context) {
+	attempt_display(kind, param_id, knob_pos, source1, source2, now_ms, context);
 }
 
 void ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
-                                      PatchSource source2, uint32_t now_ms) {
+                                      PatchSource source2, uint32_t now_ms, PopupContext context) {
 	// `displayModEncoderValuePopup`'s formatting half (view.cpp:1108-1196): always recomputed,
 	// whether or not the arbitration below ends up using it -- legacy does the same work on every
 	// call, including the flushed replay.
 	char name_buf[kTextCap + 1];
 	FixedAppend name{name_buf, kTextCap};
-	format_name(kind, param_id, source1, source2, name);
+	format_name(kind, param_id, source1, source2, context, name);
 
 	char value_buf[kTextCap + 1];
 	FixedAppend value{value_buf, kTextCap};
-	const int32_t display_value = format_value(kind, param_id, knob_pos, value);
+	const int32_t display_value = format_value(kind, param_id, knob_pos, context, value);
 
 	// `displayModEncoderValuePopup`'s arbitration half (view.cpp:1197-1287), against this scene's
 	// own `remaining_ms_ > 0` standing in for `display->hasPopupOfType(PopupType::NOTIFICATION)`.
@@ -295,6 +320,7 @@ void ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 		pending_knob_pos_ = knob_pos;
 		pending_source1_ = source1;
 		pending_source2_ = source2;
+		pending_context_ = context;
 		const uint32_t time_since_last_actual_display = now_ms - last_actual_display_ms_;
 		pending_flush_remaining_ms_ = kMinUpdateIntervalMs - time_since_last_actual_display;
 	}
@@ -329,7 +355,7 @@ void ParamPopupScene::tick(uint32_t dt_ms) {
 			const uint32_t flush_now_ms = last_actual_display_ms_ + kMinUpdateIntervalMs;
 			has_pending_ = false;
 			attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_, pending_source2_,
-			                flush_now_ms);
+			                flush_now_ms, pending_context_);
 		}
 		else {
 			pending_flush_remaining_ms_ -= dt_ms;
