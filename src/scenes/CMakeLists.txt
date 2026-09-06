@@ -92,7 +92,11 @@ add_library(deluge_scenes STATIC
     overlay/param_popup_scene.cpp
     # E4 task 2: the gold-knob half of legacy's `View`, as a `shell::Service` that lives here
     # (not in `src/shell`) because it is entirely about the model. See `services/mod_knobs.h`.
-    services/mod_knobs.cpp)
+    services/mod_knobs.cpp
+    # E4 task 4: the transport-and-global half of legacy's `View`, plus the tail of
+    # `Buttons::buttonAction`. Here for the same reason `mod_knobs.cpp` is. See
+    # `services/global_controls.h`.
+    services/global_controls.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include
