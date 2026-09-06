@@ -18,10 +18,11 @@
 /// learn. `GlobalControls` owns the rest and asks `active()` before running the transport arms
 /// those two share a button with.
 ///
-/// @note Task 5 implements this on `MidiLearn`; the plan's own interface for that class already
-///       names `bool active() const`, which is why that is the name here. Task 5 must not
-///       re-litigate the split -- it is recorded in the E4 task-4 report, arm by arm, with a
-///       citation each.
+/// @note `services::MidiLearn` implements this (E4 task 5, `services/midi_learn.h`); the plan's
+///       own interface for that class already named `bool active() const`, which is why that is
+///       the name here. The split is not to be re-litigated -- it is recorded in the E4 task-4
+///       report, arm by arm, with a citation each, and `MidiLearn` is routed one step after
+///       `GlobalControls` so that the arms this service declines are claimed rather than dropped.
 
 namespace deluge::scenes::services {
 
@@ -46,7 +47,7 @@ public:
 	bool active() const override { return false; }
 };
 
-/// @brief The single shared `NoLearnMode`, for a `GlobalControls` built before task 5 exists.
+/// @brief The single shared `NoLearnMode`, for a `GlobalControls` built without a real one.
 ///
 /// A function-local static for the same reason `shell::null_service()` is one: one instance across
 /// every translation unit, with no static-initialisation order to get wrong.

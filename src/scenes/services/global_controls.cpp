@@ -585,8 +585,10 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 	case ViewArm::LearnOwns:
 		// Legacy's arm returned `DEALT_WITH`, so the tail is skipped -- but the work is
 		// `MidiLearn`'s and this service did none of it, so the event is reported **unhandled**
-		// and falls off the chain (`Router::dropped_events`) until E4 task 5 is routed. See the
-		// class doc's @warning.
+		// and continues down the chain. `services::MidiLearn` is routed one step further on
+		// (E4 task 5; `shell/router.cpp`'s `run_chain`, which ends
+		// `global_controls` -> `midi_learn` -> drop) and claims exactly these four buttons, so
+		// what this returns is a hand-off, not a drop. See the class doc's @warning.
 		return Result::unhandled();
 	case ViewArm::NotAnArm:
 		break;

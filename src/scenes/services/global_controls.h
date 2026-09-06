@@ -86,13 +86,16 @@
 /// it.** This service asks, through `LearnMode::active()` (`services/learn_mode.h`) -- one
 /// virtual call, no second copy of the mode.
 ///
-/// @warning **`MidiLearn` does not exist yet and is not in the router's chain**
-///          (`shell/router.h`'s `Services::midi_learn`, "carried here for a later task and is not
-///          yet called from `Router::route`"). So the four arms above are returned **unhandled**
-///          from here rather than swallowed: swallowing them would look like a working port and
-///          would also stop a future `MidiLearn` routed *after* this service from ever seeing
-///          them. Until task 5 lands, a `LEARN` press does nothing and `Router::dropped_events()`
-///          counts it. That is the gap being visible, which is the point.
+/// @warning **The four arms above are returned `unhandled` rather than swallowed, and that is
+///          load-bearing.** Swallowing them would look like a working port *and* would stop
+///          `MidiLearn` -- routed one step further on -- from ever seeing them. E4 task 5 built
+///          it and put it there: `Router::run_chain` is top scene -> `mod_knobs` ->
+///          `global_controls` -> `midi_learn` -> drop (`shell/router.cpp`), and `MidiLearn::handle`
+///          claims exactly `LEARN`, and `PLAY`/`RECORD`/`TAP_TEMPO` while its own mode is on. So a
+///          `ViewArm::LearnOwns` result is a **hand-off, not a drop** -- do not read it as one, and
+///          in particular do not conclude from it that the chain wants re-ordering. (Before task 5
+///          landed these events really did fall off the end and `Router::dropped_events()` counted
+///          them, which is what this warning used to say.)
 ///
 /// @par What is deliberately NOT ported, and why -- read this before adding to it
 ///
@@ -188,7 +191,8 @@
 /// (`session_view.cpp:4804`), `View::drawClipPad`-adjacent
 /// code (`view.cpp:2623`) and `View::renderMacros` (`:2795`, `:2808`) -- and then asks for a
 /// render. The only time-driven thing in legacy that *does* set `IndicatorLED::PLAY` is
-/// `View::midiLearnFlash` (`view.cpp:806`), which is E4 task 5's. So what this service owns is the
+/// `View::midiLearnFlash` (`view.cpp:806`), which is `services::MidiLearn`'s
+/// (`services/midi_learn.h`). So what this service owns is the
 /// clip-arm phase and its 60 ms (`kFastFlashTime`, `definitions_cxx.hpp:160`) deadline;
 /// `clip_arm_flash_on()` is the fact, and the scenes that paint armed clips (E5's `SessionScene`)
 /// are its consumers. Reported as an error in the task's brief.
@@ -282,8 +286,10 @@ public:
 	///                 (`view.cpp:461-462`).
 	/// @param lowering The input lowering it reads and writes the used-up bit and the press clock
 	///                 on.
-	/// @param learn    MIDI learn, asked before the `PLAY`/`RECORD`/`TAP_TEMPO` arms. Defaults to
-	///                 `no_learn_mode()` until E4 task 5 exists.
+	/// @param learn    MIDI learn, asked before the `PLAY`/`RECORD`/`TAP_TEMPO` arms. A real
+	///                 application passes the `services::MidiLearn` it also puts in
+	///                 `Services::midi_learn`; the `no_learn_mode()` default is for a caller that
+	///                 has none (and for a spec that wants a switchable one).
 	///
 	/// @note `lowering` is a **non-const** reference and `UiContext::lowering` is a `const`
 	///       pointer (`shell/scene.h`), so the context cannot serve: `buttons.cpp:165` and `:183`
@@ -449,9 +455,11 @@ private:
 	/// unhandled to the router. Collapsing the two would either run the transport tail under MIDI
 	/// learn (wrong) or claim an event nothing acted on (invisible).
 	enum class ViewArm : uint8_t {
-		NotAnArm,  ///< `view.cpp:465-467` -- run the tail.
-		Handled,   ///< `view.cpp:469` -- skip the tail, report handled.
-		LearnOwns, ///< `view.cpp:469` for an arm that is E4 task 5's -- skip the tail, report unhandled.
+		NotAnArm, ///< `view.cpp:465-467` -- run the tail.
+		Handled,  ///< `view.cpp:469` -- skip the tail, report handled.
+		/// `view.cpp:469` for an arm `services::MidiLearn` owns: skip the tail, report unhandled,
+		/// and let the next step in the chain claim it.
+		LearnOwns,
 	};
 
 	/// @brief `View::buttonAction`'s arms (`gui/views/view.cpp:139-470`).

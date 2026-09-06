@@ -554,6 +554,32 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(r.fake.columns_sent.empty()).to_be_false(); // the grid repainted and the diff sent
 		expect(r.fake.blits.empty()).to_be_true();         // and the OLED panels stayed asleep
 
+		// --- Claiming the OLED: the other branch, and the one that had only a docstring -------
+		//
+		// **This leg exists because the first cut of this example was a mutation survivor**
+		// (task-5 fix round 1). It set only `{false, false}` and `{false, true}`, so deleting the
+		// whole `if (surfaces.oled)` block from `Shell::tick` step 8c left all 98 host tests green
+		// -- on the exact branch whose scene-side twin shipped a 50 Hz and then a 100 Hz two-panel
+		// blit in E3. The scene fold at least has `oled_paintable()` standing behind it; the
+		// service fold has no narrowing at all, so its only machine check is this.
+		r.service.claim = Scene::RepaintSurfaces{.oled = true, .grid = false};
+		// Distinct content on BOTH surfaces, so "the OLED repainted" and "the grid did not" are
+		// each observable rather than inferred: the OLED blits whatever it rendered, and the grid
+		// sends only what its diff finds changed.
+		r.base.colour = RGB{200, 150, 100};
+		r.shell.tick(300);
+		r.fake.blits.clear();
+		r.fake.columns_sent.clear();
+		r.base.oled_renders = 0;
+		r.base.colour = RGB{7, 8, 9};
+		r.shell.tick(360); // 300 + the 60 ms the service asked for
+		expect(r.base.oled_renders > 0).to_be_true();      // the OLED gate fired and the scene drew
+		expect(r.fake.blits.empty()).to_be_false();        // …and the panels were blitted
+		expect(r.fake.columns_sent.empty()).to_be_true();  // the grid gate was NOT armed
+		// Both panels, not just the first: the loop arms every OLED surface a service claims,
+		// because a service has no stack position to narrow by.
+		expect(r.fake.blits.size()).to_equal(r.fake.oled().size());
+
 		// --- And a service with no timer arms nothing, however it claims ---------------------
 		//
 		// A FRESH rig, deliberately: the tick above still had a timer, so it armed the gate for
