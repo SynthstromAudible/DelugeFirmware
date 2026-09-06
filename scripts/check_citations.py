@@ -44,28 +44,74 @@ is one of those, not a convenience.
     does not claim to BE `renderOLED`; only `` `Sym` (`file:a-b`) `` does. Requiring the gap to be
     exactly "` (" took a first run from 493 hits to 255, nearly all of the difference being correct
     interior citations;
+  * one of a slash-separated pair of aliases immediately before a citation that is itself two
+    ranges, `` `computeCurrentValueForStandardMenuItem` / `computeFinalValueForStandardMenuItem`
+    (`value_scaling.cpp:6-8` / `:22-33`) ``. The house convention pairs them positionally -- first
+    name with the first range, second with the continuation -- but this predicate finds a symbol by
+    taking whichever backticked token sits immediately to the left, which is always the *second*
+    name, and would check it against the *first* range. Measured, not guessed: doing that against
+    the first run found seven places where it paired the wrong name with the wrong range, one of
+    them (`bindings.cpp:36`) checking `computeFinalValueForStandardMenuItem`, a function 14 lines
+    below, against the citation that actually names `computeCurrentValueForStandardMenuItem`. Rather
+    than build positional pairing for a shape this rare, both names of such a pair are skipped;
   * an identifier of fewer than `MIN_SYMBOL_LEN` characters -- `on`, `kind`, `set` occur everywhere
     and would agree with any range by luck;
   * an identifier that appears **nowhere** in the cited file (the port-symbol case above, and a
     symbol legacy has since deleted -- which is real rot, but rot the "past EOF" and boilerplate
     predicates are the right net for);
+  * a symbol whose every occurrence in the cited file is a mention, not a definition -- a pure
+    declaration in a header, a macro, a forward declaration, a call site. Concretely, an occurrence
+    counts as a definition only in one of three shapes: the name immediately followed by its own
+    parameter list (brace/paren nesting tracked so a call's arguments cannot fool this) and that list
+    in turn followed -- past any `const`/`override`/`noexcept`, a trailing return type, or a
+    constructor's `: base(...), member(...)` initializer list -- by a `{` before any top-level `;`;
+    the name immediately preceded by `class` or `struct` (a class/struct declaration, that keyword
+    occurring nowhere but there); or the name immediately followed by `::method(` (an out-of-line
+    member function -- `` `SoundEditor::buttonAction` `` is as much a definition of `SoundEditor` as
+    it is of `buttonAction`, since qualifying a name with its class is what makes it one). A name
+    with none of those three has no brace body this can brace-match, so there is nothing to check it
+    against; skipped, not failed;
   * a citation into anything but `src/deluge`, as before.
 
-**And two narrowings, which are not skips but do bound what it can see. Both are here because the
-"deliberately skips" list above omitted them once, and a list that omits its own largest holes is
-the false comfort this docstring exists to prevent.**
+**The range is judged against the symbol's actual body, brace-matched, not against a direction.**
+Earlier rounds narrowed this to a range ending ABOVE its symbol, on the grounds that a range starting
+below is indistinguishable, line-for-line, from a legitimate body citation. That reasoning was sound
+about what a *line number alone* can tell you, but the checker does not have to stop at the line
+number: braces are physically in the file. So: first, if the cited range contains a line the symbol's
+own name is written on (its declaration line, a one-line accessor, a split signature), that is always
+sound regardless of any brace body and ends the check. Otherwise, for every occurrence of the symbol
+that is a definition (previous bullet), this brace-matches from that definition line to the line of
+its matching closing brace, giving that definition's extent `[def_line, body_end]`, extended through
+any blank line separating it from the next declaration -- the house convention cites through that gap,
+not just to the brace (`view.cpp:1548-1679` for `setModLedStates`, whose brace closes at `:1678`, is
+exactly this shape, as is roughly a third of the tree's full-function citations). A citation is judged
+clean if its whole range falls inside **any** one of a symbol's extents -- there can be more than one,
+because the same name may be defined more than once in a file (overloads, or two classes' same-named
+method in one file), and the convention never disambiguates which overload a citation means, so this
+does not either. That "any" cannot manufacture a false positive: it only ever adds another interval a
+range is allowed to fall inside, so it can turn a flag into a pass but never the reverse; the only
+thing it can hide is a citation that drifted into the *wrong* overload's body, which is exactly as
+invisible to the "symbol occurs somewhere in the cited range" check this predicate has always been. A
+range that falls inside none of a symbol's extents has drifted, in whichever direction: above every
+definition, below every one, or straddling a boundary. This retires `DRIFT_WINDOW` along with the
+direction narrowing -- a distance-based fudge factor has nothing to add once the real extent is known
+exactly.
 
-  * **Direction.** It judges only a range that ends ABOVE its symbol, never one that starts below
-    it. A range starting below is `` `readCurrentValue` (`attack.h:34-36`) `` citing a function's
-    *body* -- legitimate, and line-for-line indistinguishable from a citation that drifted
-    downwards. A range wholly above its symbol is not ambiguous: nothing is ever the body of a
-    function that begins after it. **Measured, not assumed**: a direction-agnostic variant run over
-    the tree gave 35 upward and 47 downward; every one of the 35 was real drift, every one of the
-    47 was a body citation, and the restriction missed none of the 37 defects the strict run had
-    already found. Drift *downwards* past a symbol is therefore invisible here.
-  * **`DRIFT_WINDOW`.** A symbol further than that many lines below the range is read as an
-    unrelated later occurrence of a common name rather than as this range's symbol, and skipped. A
-    citation that has slid further than the window is invisible too.
+**Measured, not assumed.** Run tree-wide, the extent test raised the number of citations this
+predicate can render a verdict on from 1149 to 1287 of 3151 resolved (36.5% -> 40.8%; 976 to 1073 of
+2317 in `src/scenes/**`, 42.1% -> 46.3%). Newly judged, it found 33 citations whose cited range fell
+outside their named symbol's real extent, all in shapes braces alone cannot get wrong: a citation
+copy-pasted between two near-identical sibling files with different real line numbers
+(`sidechain/attack.h`/`release.h`), a comma-joined multi-symbol citation where only the first segment
+was checked and against the wrong name (`bindings.cpp`'s `computeCurrentValueForStandardMenuItem` /
+`computeFinalValueForStandardMenuItem` pairs, which is what bullet two pages up now skips instead),
+an entire wrong function name standing in for the real caller (`PadLEDs::renderExplodeAnimation`
+where the real, single caller of each helper was `renderAudioClipCollapseAnimation` /
+`renderAudioClipExplodeAnimation`), and about two dozen `getOptions`/`isRelevant`/`readCurrentValue`
+overrides cited at another method's lines entirely. All 33 were hand-verified against the file they
+name and fixed; none was silenced. Two deliberate mutations -- a citation slid up past its symbol and
+one slid down past it into a different function -- were both caught by `--strict`, named by file and
+line, and reverted.
 
 It still does **not** check that the cited line *means* what the comment claims -- that is not
 mechanizable -- and a citation four lines low that still lands inside its own symbol passes. Task 9
@@ -126,6 +172,13 @@ LEFT_SYMBOL_RE = re.compile(r"`([^`]+)`\s*\(\s*`?$")
 # this one after nothing but the comment lead-in.
 LEFT_SYMBOL_PREV_RE = re.compile(r"`([^`]+)`\s*$")
 LEAD_IN_RE = re.compile(r"^\s*(?:///|//|\*|)\s*\(\s*`?$")
+# `` `Sym1` / `Sym2` `` immediately before the citation -- a slash-separated pair of aliases, each
+# meant for one of two ranges the citation goes on to give. Distinct from a comment's own leading
+# `//` or `///`, which also ends in a bare `/` but is not preceded by a backtick-quoted token.
+SIBLING_ALIAS_RE = re.compile(r"`[^`]+`\s*/\s*$")
+# Nothing but a comment's own lead-in before a candidate -- the same emptiness `LEAD_IN_RE` accepts,
+# without requiring what follows it to be a citation's opening.
+ONLY_LEAD_IN_RE = re.compile(r"^\s*(?:///|//|\*|)\s*$")
 RIGHT_SYMBOL_RE = re.compile(r"\s+([A-Za-z_][A-Za-z0-9_:]*)")
 # A plain, possibly-qualified identifier, optionally with an empty or filled argument list. Anything
 # else -- an expression, a phrase, an operator -- is not a symbol this can check.
@@ -134,10 +187,10 @@ SYMBOL_RE = re.compile(
 )
 # Below this length an identifier agrees with almost any range by accident.
 MIN_SYMBOL_LEN = 4
-# How far a named symbol may sit from its cited range before this is read as an interior citation
-# rather than as drift. A line-shift edit moves a citation by a handful of lines; an interior range
-# naming its enclosing function is usually tens of lines below the signature.
-DRIFT_WINDOW = 6
+# How far past a candidate definition's own parameter list this will scan looking for the `{` that
+# opens its body (past qualifiers, a trailing return type, or an initializer list) before giving up
+# on that occurrence as unreadable rather than trusting a `{` found who knows how far downstream.
+MAX_SIGNATURE_SCAN = 4000
 
 BOILERPLATE_RE = re.compile(
     r"^\s*(?:"
@@ -251,6 +304,180 @@ def symbol_lines(rel: str, symbol: str) -> list[int]:
     return per_file[symbol]
 
 
+_FILE_TEXT: dict[str, str] = {}
+_FILE_MASKED: dict[str, str] = {}
+
+
+def file_text(rel: str) -> str:
+    if rel not in _FILE_TEXT:
+        _FILE_TEXT[rel] = (REPO / rel).read_text(encoding="utf-8", errors="replace")
+    return _FILE_TEXT[rel]
+
+
+_FILE_LINES: dict[str, list[str]] = {}
+
+
+def lines_of(rel: str) -> list[str]:
+    if rel not in _FILE_LINES:
+        _FILE_LINES[rel] = file_text(rel).splitlines()
+    return _FILE_LINES[rel]
+
+
+def masked_text(rel: str) -> str:
+    """`file_text(rel)`, but with every comment and string/char literal blanked to spaces (newlines
+    kept, so line numbers computed from an offset into this are the same as into the original).
+
+    Brace- and paren-matching below has to trust every `{`, `}`, `(`, `)`, and `;` it sees; one that
+    is actually inside a comment or a string literal would misdirect it. `"quote " + ")"` and
+    `// note: unbalanced (` are both real code in this tree.
+    """
+    if rel in _FILE_MASKED:
+        return _FILE_MASKED[rel]
+    text = file_text(rel)
+    out = []
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if text.startswith("//", i):
+            j = text.find("\n", i)
+            j = n if j == -1 else j
+            out.append(" " * (j - i))
+            i = j
+        elif text.startswith("/*", i):
+            j = text.find("*/", i + 2)
+            j = n if j == -1 else j + 2
+            out.append("".join(ch if ch == "\n" else " " for ch in text[i:j]))
+            i = j
+        elif c in "\"'":
+            j = i + 1
+            while j < n and text[j] != c:
+                j += 2 if text[j] == "\\" and j + 1 < n else 1
+            j = min(j + 1, n)
+            out.append("".join(ch if ch == "\n" else " " for ch in text[i:j]))
+            i = j
+        else:
+            out.append(c)
+            i += 1
+    masked = "".join(out)
+    _FILE_MASKED[rel] = masked
+    return masked
+
+
+_FILE_EXTENTS: dict[str, dict[str, list[tuple[int, int]]]] = {}
+
+
+_CLASS_KEYWORD_RE = re.compile(r"\b(?:class|struct)\s*$")
+# `Symbol::method(` right after the match -- an out-of-line member function definition. It is
+# unambiguously part of `Symbol`'s own definition (that is exactly what qualifying a name with its
+# class means), so its body counts as one of `Symbol`'s extents even though `Symbol` itself is not
+# what has the parameter list.
+_QUALIFIED_METHOD_RE = re.compile(r"\s*::\s*[A-Za-z_]\w*\s*\(")
+
+
+def _scan_for_body_open(masked: str, i: int, limit: int) -> int | None:
+    """From offset `i`, the position of the `{` that opens a body, or None if a top-level `;` (a
+    declaration) is reached first, or nothing recognisable turns up within `limit` characters.
+    Tracks paren depth only, so a base-clause's `Base(args)`, a constructor's initializer list, a
+    trailing return type, `final`, `override`, or template arguments all pass through harmlessly --
+    none of them can contain a top-level `{` or `;` of their own.
+    """
+    depth = 0
+    n = min(len(masked), limit)
+    for j in range(i, n):
+        c = masked[j]
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+        elif depth == 0 and c == "{":
+            return j
+        elif depth == 0 and c == ";":
+            return None
+    return None
+
+
+def definition_extents(rel: str, symbol: str) -> list[tuple[int, int]]:
+    """Brace-matched `[definition_line, body_end_line]` for every place `rel` actually DEFINES
+    `symbol` -- every occurrence that is EITHER:
+
+      * immediately followed by its own parameter list, then, past any qualifiers, a trailing return
+        type, or a constructor's initializer list, a `{` reached before any top-level `;` (a function
+        or method definition; a call's own arguments cannot fool this, since only what follows the
+        matching `)` decides it); OR
+      * immediately preceded by the keyword `class` or `struct` (a class or struct declaration; that
+        keyword occurs nowhere but there, so this cannot mistake a variable of the type, a return
+        type, or any other mention for the declaration itself), with the same `{`-before-`;` test
+        applied to what follows the name.
+
+    A pure declaration, a macro, a forward declaration (`;` before `{`, either shape), or a call site
+    (whose own parameter list is followed by more expression, not a `{`) contributes nothing here.
+
+    More than one entry means the name is defined more than once in this file -- overloads, or two
+    classes' same-named method sharing a file. Nothing here decides which one a citation means; see
+    the module docstring for why "any of them contains the range" cannot manufacture a false positive.
+    """
+    per_file = _FILE_EXTENTS.setdefault(rel, {})
+    if symbol in per_file:
+        return per_file[symbol]
+    text = file_text(rel)
+    masked = masked_text(rel)
+    n = len(masked)
+    pattern = re.compile(r"\b" + re.escape(symbol) + r"\b")
+    extents: list[tuple[int, int]] = []
+    for m in pattern.finditer(masked):
+        i = m.end()
+        if _CLASS_KEYWORD_RE.search(masked[: m.start()]):
+            # `class Foo final : public Bar { ... };` -- straight to the base-clause/body scan, no
+            # parameter list of its own to walk first.
+            pass
+        else:
+            qm = _QUALIFIED_METHOD_RE.match(masked, i)
+            if qm is not None:
+                i = qm.end() - 1  # at the method's own opening "(", to be walked below
+            else:
+                while i < n and masked[i].isspace():
+                    i += 1
+                if i >= n or masked[i] != "(":
+                    continue  # not a call, a def, a class/struct name, or Symbol::method -- a mention
+            # Walk the parameter list (the symbol's own, or `Symbol::method`'s) so a call's arguments
+            # (which may themselves contain `(`, `)`, even a stray `{}` default) cannot be mistaken
+            # for what follows it.
+            depth, i = 1, i + 1
+            while i < n and depth > 0:
+                if masked[i] == "(":
+                    depth += 1
+                elif masked[i] == ")":
+                    depth -= 1
+                i += 1
+            if depth != 0:
+                continue  # ran off the end of the file unbalanced -- not a shape this can trust
+        body_open = _scan_for_body_open(masked, i, min(n, i + MAX_SIGNATURE_SCAN))
+        if body_open is None:
+            continue  # a declaration (`;` first), or nothing recognisable within the scan window
+        def_line = text.count("\n", 0, m.start()) + 1
+        depth, j = 1, body_open + 1
+        while j < n and depth > 0:
+            if masked[j] == "{":
+                depth += 1
+            elif masked[j] == "}":
+                depth -= 1
+            j += 1
+        if depth != 0:
+            continue  # unbalanced to EOF -- do not trust it
+        body_end_line = text.count("\n", 0, j - 1) + 1
+        # The house convention cites through the blank line separating a function from the next
+        # declaration, not just to its closing brace -- the docstring's own canonical example,
+        # `view.cpp:1548-1679` for `setModLedStates`, whose brace closes at :1678, is exactly this
+        # shape, as is roughly a third of the tree's citations to a function's full extent. Absorb
+        # it into the extent rather than flagging every one of them.
+        file_lines = lines_of(rel)
+        while body_end_line < len(file_lines) and not file_lines[body_end_line].strip():
+            body_end_line += 1
+        extents.append((def_line, body_end_line))
+    per_file[symbol] = extents
+    return extents
+
+
 def adjacent_symbol(line: str, prev_line: str, start: int, end: int) -> str | None:
     """The identifier written next to the citation spanning [start, end), or None to skip.
 
@@ -267,10 +494,21 @@ def adjacent_symbol(line: str, prev_line: str, start: int, end: int) -> str | No
         before = line[:start]
         m = LEFT_SYMBOL_RE.search(before)
         if m is not None:
+            lead = before[: m.start()]
+            # The sibling's own trailing `/` is on THIS line before the candidate, or -- when the
+            # candidate is the first thing on its line -- dangling off the end of the previous one:
+            # `computeCurrentValueForHalfPrecisionMenuItem` /\n    `computeFinalValueForHalfPrecisionMenuItem`
+            # (`value_scaling.cpp:10-12` / `:35-46`).
+            if SIBLING_ALIAS_RE.search(lead) or (
+                ONLY_LEAD_IN_RE.match(lead) and SIBLING_ALIAS_RE.search(prev_line)
+            ):
+                return None  # `Sym1` / `Sym2` (`file:A` / `:B`) -- see the docstring
             candidate = m.group(1)
         elif LEAD_IN_RE.match(before):
             m = LEFT_SYMBOL_PREV_RE.search(prev_line)
             if m is not None:
+                if SIBLING_ALIAS_RE.search(prev_line[: m.start()]):
+                    return None
                 candidate = m.group(1)
     if candidate is None:
         return None
@@ -289,22 +527,32 @@ def symbol_drifted(rel: str, symbol: str, start: int, end: int) -> str | None:
         # symbol legacy has deleted. Nothing to compare -- see the docstring.
         return None
     if any(start <= n <= end for n in lines):
+        # The range contains a line the symbol's own name is written on -- a class's own
+        # declaration line, an one-line accessor, a signature split across the cited range. This is
+        # always sound regardless of any brace body: the symbol is right there.
         return None
-    # Only a range that ends ABOVE the symbol is judged. A range that starts below it is the
-    # commonest legitimate shape in this tree -- `` `readCurrentValue` (`attack.h:34-36`) `` cites
-    # the *body* of a function whose signature is at :33 -- and is indistinguishable, line by line,
-    # from a citation that drifted downwards. A range wholly above its symbol is not: nothing is
-    # ever "the body of" a function that starts after it, so the range has slid up off its
-    # signature. That is the direction an insertion above the symbol produces, which is exactly the
-    # regression `menus.cpp`'s two-line edit caused.
-    later = [n for n in lines if n > end]
-    if not later:
+    extents = definition_extents(rel, symbol)
+    if not extents:
+        # Every occurrence is a mention, not a definition: a declaration-only header, a macro, a
+        # forward declaration. No brace body to brace-match -- see the docstring's skip list.
         return None
-    nearest = min(later)
-    if nearest - end > DRIFT_WINDOW:
-        # Far below: an unrelated later occurrence of a common name, not this range's symbol.
-        return None
-    return f"`{symbol}` is at :{nearest}, {nearest - end} line(s) below the end of the cited range"
+    if any(d <= start and end <= b for d, b in extents):
+        return None  # inside SOME definition's body -- see the docstring for why "any" is sound
+
+    # Report against whichever extent the range is closest to straddling, so the message points at
+    # the definition a reader would actually suspect.
+    def _gap(e: tuple[int, int]) -> int:
+        d, b = e
+        return (d - end) if end < d else (start - b) if start > b else 0
+
+    d, b = min(extents, key=_gap)
+    if end < d:
+        return f"`{symbol}` is defined at :{d}-{b}, {d - end} line(s) above the cited range"
+    if start > b:
+        return f"`{symbol}` is defined at :{d}-{b}, {start - b} line(s) below the end of the cited range"
+    return (
+        f"`{symbol}` is defined at :{d}-{b}, which the cited range only partly overlaps"
+    )
 
 
 def load_exceptions() -> set[str]:
