@@ -250,8 +250,9 @@ also means every committed UI-script golden depicts an arm the device never pres
 
 E4 task 3 added two more, both in `View`'s mod-knob half and both found by porting it:
 **`View::modButtonAction` dereferences `ModControllable::getModKnobMode()` unguarded** at
-`gui/views/view.cpp:1517` and `:1532`, where `View::getModKnobMode` (`:1680-1689`) null-checks the
-same pointer and the base implementation genuinely returns null
+`gui/views/view.cpp:1517` (a read) and `:1532` (a write, reached on a press in a clip-minder view
+where `:1517` is not), both inside the `:1510`/`:1511`/`:1512` guards, where `View::getModKnobMode`
+(`:1680-1689`) null-checks the same pointer and the base implementation genuinely returns null
 (`model/mod_controllable/mod_controllable.cpp:47-49`); and **`View::setKnobIndicatorLevel` reads an
 uninitialised `int32_t knobPos`** (declared `:1410`, consumed `:1468`) on the one of its four paths
 that assigns nothing. Neither is annotated in `view.cpp` itself — the same reason the browser row

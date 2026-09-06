@@ -472,8 +472,13 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 		// @warning **Legacy defect (4 of 5), recorded in `src/scenes/README.md`'s "Defects this port
 		//          found in shipping firmware".** `View::modButtonAction` dereferences
 		//          `getModKnobMode()` **unguarded**, here at `view.cpp:1517` (a read) and again at
-		//          `:1532` (a *write*, outside every guard, so it runs on every mod-button press in
-		//          every view) -- while `View::getModKnobMode` (`:1680-1689`) null-checks the very
+		//          `:1532` (a *write*). Both sit inside `if (…modControllable)` (`:1510`),
+		//          `if (on)` (`:1511`) and the UI-mode/performance-view gate (`:1512`), past the
+		//          automation-editor early return at `:1501-1505` -- so a release, or a press during
+		//          a UI mode outside `modButtonUIModes`, reaches neither. What makes `:1532` the
+		//          wider of the two is that it is **outside `!rootUIIsClipMinderScreen()`**
+		//          (`:1515`): it runs on a press in a clip-minder view, where `:1517` does not.
+		//          Meanwhile `View::getModKnobMode` (`:1680-1689`) null-checks the very
 		//          same pointer at `:1684`, and `ModControllable::getModKnobMode`
 		//          (`model/mod_controllable/mod_controllable.cpp:47-49`) really does return null for
 		//          anything without mod-knob banks. Six classes override it; the one that can be an
