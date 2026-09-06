@@ -602,7 +602,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 
 	// Legacy's fourth case: no `autoParam`, `paramId != 255`, and it *is* just a param. `knobPos`
 	// was never assigned and is passed to `indicator_leds::setKnobIndicatorLevel` uninitialised
-	// (`view.cpp:1412`, `:1470`). There is no behaviour to preserve, so nothing is declared and the
+	// (`view.cpp:1410`, `:1468`). There is no behaviour to preserve, so nothing is declared and the
 	// knob keeps whatever it was last showing -- which is the shell's rule for an undeclared
 	// indicator (`Shell::flush`) and the only defined thing to do here.
 	return out;

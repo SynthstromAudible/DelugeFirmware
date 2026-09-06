@@ -854,7 +854,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// Defence in depth behind the routing example above: what `ModKnobs::handle` reports
 		// `handled` for, called directly. Legacy consumes all three unconditionally -- the mod
 		// button and the push both end in `Buttons::buttonAction`'s `dealtWith`
-		// (`hid/buttons.cpp:105`, `:233`) and the turn is the last thing `interpretEncoders` does
+		// (`hid/buttons.cpp:105`, `:232`) and the turn is the last thing `interpretEncoders` does
 		// with it -- so `handled` is true even on the arms that do nothing.
 		spec::SongFixture f = spec::make_synth_song();
 		KnobRig rig;
