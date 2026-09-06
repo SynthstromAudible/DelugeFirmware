@@ -10,18 +10,24 @@
 ///
 /// @par What this spec counts as uncovered (oracle discipline)
 ///
-/// Two of legacy's naming arms have no counterpart reachable from `show()`'s argument list --
-/// see `param_popup_scene.h`'s own note. Exercising them would need a
-/// `View::activeModControllableModelStack` this scene's interface has no way to receive, which is
-/// exactly the gap being recorded, not worked around:
+/// Three of legacy's arms need model context, and this spec drives none of them: it calls `show()`
+/// with a default `PopupContext`, which is the "no context" case those arms fall back from --
 ///
 ///   * the `ModControllableAudio*`-aware LPF/HPF-morph name and the stutter-quantization bucket
 ///     text (`isParamQuantizedStutter` has no context-free overload at all); and
 ///   * the MIDI-clip CC/expression-axis naming (`isClipContext() && getCurrentOutputType() ==
 ///     OutputType::MIDI_OUT`).
 ///
-/// Both fall back to the ordinary, context-free naming path in this port -- `format_name`'s own
-/// doc records the fallback -- and neither is driven here.
+/// They are no longer *unreachable*, which is what this note said when E4 task 1 wrote it: task 2
+/// widened `show()` with `overlay::PopupContext` precisely so the class that has the context --
+/// `services::ModKnobs`, the popup's first real caller -- can fire them. The arm that is now
+/// covered is covered where that context lives, in `sim/scenes_spec/mod_knobs_spec.cpp`'s
+/// "gives the popup the model context legacy reads off View" example, which drives the LPF-morph
+/// rename against the real `View::displayModEncoderValuePopup` on a real `Sound`. What stays
+/// uncovered is `PopupContext::stuttering` (nothing in the port owns the stutter gesture, so no
+/// caller can set it true) and the MIDI-clip naming arm (reachable, but not yet driven: a MIDI
+/// clip's mod knobs resolve through `MIDIInstrument::getParamFromModEncoder`, whose default CC
+/// assignment on a bare fixture takes the non-existent-param arm before any popup is shown).
 ///
 /// No `SongFixture` (unlike every other file in this directory): every code path this spec
 /// reaches is one `View::activeModControllableModelStack` never touches for it -- its
