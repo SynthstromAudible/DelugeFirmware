@@ -3,33 +3,16 @@
 #include "ui/core/state.h"
 
 #include <cstdint>
-#include <string_view>
 
 namespace deluge::ui::shell {
 
-/// @brief Shown from power-on until the application pushes its own root scene: the toolkit title
-///        "DELUGE" plus the firmware version string `Shell::boot()` was given.
-///
-/// Ports the presentation half of legacy's boot sequence -- `renderUIsForOled` marking the OLED
-/// dirty at boot (`deluge.cpp:120,133,371`, now `raise(Dirty::Oled)`, which is `Shell::boot()`'s
-/// own repaint request rather than this scene's concern) -- with an actual splash where legacy had
-/// none: the pre-root window used to simply be whatever `sessionView`/the last-opened UI drew as
-/// soon as it existed. Takes no input; the application's own root replaces it via `init()`/`boot()`
-/// callers moving the stack on, not through anything this scene returns.
-class BootScene final : public Scene {
-public:
-	SceneKind kind() const override { return SceneKind::Boot; }
-
-	/// @brief Set the version string drawn under the title.
-	/// @param version Firmware version text; copied into a 24-byte buffer, truncated if longer.
-	void set_firmware_version(std::string_view version);
-
-	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
-	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
-
-private:
-	char version_[24] = {};
-};
+// This file once held a `BootScene` too -- a "DELUGE" + firmware-version splash the shell put up
+// from power-on until the application pushed its root. It was removed because the port must not
+// add UI the instrument did not have: legacy's firmware draws nothing before its first root
+// frame, and the logo a player sees at power-on comes from the BOOTLOADER
+// (`hid/display/rainfall.cpp` transcribes its `logoPixels` for the screensaver, which is the only
+// thing in this firmware that draws it). The name stays because `LoadingScene` is still a boot- and
+// lifecycle-time scene and renaming the file would rot every citation that names it.
 
 /// @brief Shown while a song is being read from disk: the "busy" corner animation, and nothing
 ///        else. Input is locked while it is up -- by the shell's song-swap protocol

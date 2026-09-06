@@ -135,14 +135,17 @@ public:
 	/// @param initial What to push.
 	void init(SceneId initial);
 
-	/// @brief Show the boot splash: the shell's own `BootScene`, carrying \p firmware_version.
+	/// @brief Prepare the surfaces for the first frame, with nothing on the stack.
 	///
-	/// Ports the presentation half of legacy's boot sequence (`renderUIsForOled`,
-	/// `deluge.cpp:120,133,371`, now `raise(Dirty::Oled)`): equivalent to `init({SceneKind::Boot})`
-	/// plus configuring the splash's text, plus requesting a repaint on every surface so the
-	/// first `tick()` after this call draws it regardless of any gate's prior state.
-	/// @param firmware_version The version string to draw under the "DELUGE" title.
-	void boot(std::string_view firmware_version);
+	/// Ports legacy's boot sequence, which is only `renderUIsForOled` marking the OLED dirty
+	/// (`deluge.cpp:120,133,371`, now `raise(Dirty::Oled)`): a repaint requested on every surface,
+	/// so the first `tick()` after this call draws regardless of any gate's prior state.
+	///
+	/// **It pushes no scene, deliberately.** The stack stays empty until the application pushes its
+	/// own root, and an empty stack draws nothing -- which is what legacy's firmware does before its
+	/// first root frame. (The logo a player sees at power-on is the bootloader's, not this
+	/// firmware's; see `boot_scenes.h` for the splash that used to be here and why it went.)
+	void boot();
 
 	/// @brief Wire (or clear) the hooks the shell asks for the application's song root through,
 	///        on `song_loading(false)` and on a bare `Dirty::SongSwapped` (see `apply_dirty`).
@@ -390,10 +393,9 @@ private:
 	/// The shell's own boot splash and song-loading scenes, installed into `table_` alongside
 	/// `popup_`/`console_`/`working_` above -- unlike `SceneKind::Screensaver`, which names no
 	/// shell-owned scene at all (see `screensaver_`'s own doc).
-	BootScene boot_;
 	LoadingScene loading_;
 	/// Pushes/pops `SceneKind::Screensaver` after idle. Deliberately does *not* own a scene
-	/// instance the way `popup_`/`console_`/`working_`/`boot_`/`loading_` do: the real animation
+	/// instance the way `popup_`/`console_`/`working_`/`loading_` do: the real animation
 	/// is spec E3's, registered by the application (or a spec's stand-in) like any other scene, so
 	/// `table_[Screensaver]` is left exactly as `registry.find()` reported it.
 	Screensaver screensaver_;

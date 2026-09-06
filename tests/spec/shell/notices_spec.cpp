@@ -57,7 +57,7 @@ BoardProfile fixed_lookup_profile() {
 
 /// @brief A trivial application-shaped scene, standing in for "some scene the application
 ///        legitimately pushed" wherever a test needs one above a live notice -- registered at
-///        `SceneKind::Boot`, a kind this Rig otherwise never uses.
+///        `SceneKind::FirstApp`, a kind this Rig otherwise never uses.
 ///
 /// Review round 1 (task 11), I4: those tests used to reuse `SceneKind::Console` for this, which
 /// stopped being neutral the moment `Console` gained its own expiry-driven `remove()` (this file's
@@ -65,9 +65,13 @@ BoardProfile fixed_lookup_profile() {
 /// that was never `append()`-ed to (no active lines) exactly as eagerly as a real one that expired,
 /// which is correct for a real console strip and wrong for a scene standing in for something else
 /// entirely.
+///
+/// It stood at `SceneKind::FirstApp` until that kind was removed with the boot splash (`boot_scenes.h`).
+/// `FirstApp` is the better home anyway: the point of this scene is that an *application* pushed
+/// it, and `FirstApp` is the first kind an application may register.
 class OtherScene final : public Scene {
 public:
-	SceneKind kind() const override { return SceneKind::Boot; }
+	SceneKind kind() const override { return SceneKind::FirstApp; }
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
 };
 
@@ -81,7 +85,10 @@ struct Rig {
 	ConsoleScene console;
 	WorkingScene working;
 	OtherScene other;
-	std::array<Scene*, 5> table{}; // indices 1=Popup, 2=Console, 3=Working, 4=Boot (Null is 0, unused)
+	/// Indices 1=Popup, 2=Console, 3=Working (Null is 0, unused) and `FirstApp` for the stand-in.
+	/// Full length rather than "just the slots used": `FirstApp` is 16, and a shorter array made
+	/// the stand-in's registration an out-of-bounds write the moment it moved off `Boot`.
+	std::array<Scene*, deluge::ui::shell::kMaxSceneKinds> table{};
 	SceneRegistry reg{};
 	SceneStack stack{reg};
 	Notices notices{stack, profile, popup, console, working};
@@ -94,7 +101,7 @@ struct Rig {
 		table[static_cast<size_t>(SceneKind::Popup)] = &popup;
 		table[static_cast<size_t>(SceneKind::Console)] = &console;
 		table[static_cast<size_t>(SceneKind::Working)] = &working;
-		table[static_cast<size_t>(SceneKind::Boot)] = &other;
+		table[static_cast<size_t>(SceneKind::FirstApp)] = &other;
 		reg.by_kind = std::span<Scene* const>{table};
 	}
 
@@ -286,12 +293,12 @@ describe shell_notices("shell::Notices", $ {
 		// the input this Push responded to. `OtherScene`/`Boot`, not `Console`: `Console` now has its
 		// own expiry-driven removal (I4), so a `Console` pushed here with no active lines would be
 		// removed by the very `tick()` below this test means to check ONLY pops the expired popup.
-		expect(r.stack.push(SceneId{SceneKind::Boot})).to_be_true();
+		expect(r.stack.push(SceneId{SceneKind::FirstApp})).to_be_true();
 		expect(r.stack.depth()).to_equal(size_t(3));
 
 		r.notices.tick(r.notices.timeout_for(1) + 1, 0);
 		expect(r.stack.depth()).to_equal(size_t(2));                          // only the popup is gone
-		expect(r.stack.top().kind() == SceneKind::Boot).to_be_true();         // the app scene is still on top
+		expect(r.stack.top().kind() == SceneKind::FirstApp).to_be_true();         // the app scene is still on top
 		expect(r.stack.id_at(0) == SceneId{SceneKind::Working}).to_be_true(); // and the base survived
 	});
 
@@ -303,9 +310,9 @@ describe shell_notices("shell::Notices", $ {
 
 		// An application scene pushed above the live popup. `OtherScene`/`Boot`, not `Console` --
 		// same reason as the test just above.
-		expect(r.stack.push(SceneId{SceneKind::Boot})).to_be_true();
+		expect(r.stack.push(SceneId{SceneKind::FirstApp})).to_be_true();
 		expect(r.stack.depth()).to_equal(size_t(2));
-		expect(r.stack.top().kind() == SceneKind::Boot).to_be_true();
+		expect(r.stack.top().kind() == SceneKind::FirstApp).to_be_true();
 
 		// `show_popup_with_timeout` must find the popup by scanning the whole stack, not just `top()`
 		// (which now reads the stand-in scene) -- otherwise this pushes a second `SceneKind::Popup`
@@ -314,7 +321,7 @@ describe shell_notices("shell::Notices", $ {
 		r.notices.drain(r.queue, 10);
 
 		expect(r.stack.depth()).to_equal(size_t(2));                  // unchanged: no duplicate push
-		expect(r.stack.top().kind() == SceneKind::Boot).to_be_true(); // the scene above is undisturbed
+		expect(r.stack.top().kind() == SceneKind::FirstApp).to_be_true(); // the scene above is undisturbed
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SECOND")); // updated in place
 	});
 

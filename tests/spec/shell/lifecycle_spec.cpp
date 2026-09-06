@@ -118,11 +118,15 @@ SceneId root_for_song(void*) {
 
 // clang-format off
 describe shell_lifecycle("shell::Shell lifecycle", $ {
-	it("init pushes Boot and the first tick blits every surface", _ {
+	it("boot pushes nothing and the first tick still blits every surface", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
-		r.shell.boot("v1.2.3");
-		expect(r.shell.stack().top().kind() == SceneKind::Boot).to_be_true();
+		r.shell.boot();
+		// **Nothing on the stack, deliberately.** `boot()` used to push a "DELUGE" + version splash;
+		// the port must not add UI the instrument did not have, and legacy's firmware draws nothing
+		// before its first root frame (`boot_scenes.h`). An empty stack reports the `Null` scene.
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
+		expect(r.shell.stack().top().kind() == SceneKind::Null).to_be_true();
 
 		r.shell.tick(0);
 		// `boot()` requested a repaint on every surface, so the very first tick draws and blits

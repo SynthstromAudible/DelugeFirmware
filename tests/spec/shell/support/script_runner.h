@@ -62,7 +62,8 @@ struct RunOptions {
 	/// through, and which the shell is built with.
 	const BoardProfile* profile = &deluge::ui::shell::deluge_profile();
 	/// What to put on the stack before the first tick: `Shell::init(*initial_scene)` when set,
-	/// otherwise `Shell::boot("test")` -- the default boot path, ending on the `Boot` splash.
+	/// otherwise `Shell::boot()` -- the default boot path, which pushes nothing and leaves the
+	/// panel blank until a script's own steps put something up.
 	std::optional<SceneId> initial_scene;
 	/// Spec G §6's migration acceptance hook. When set, `expect_script_goldens` runs the script
 	/// TWICE -- once against `registry` (its own parameter), once against `*second_registry` --
@@ -535,7 +536,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 		shell.init(*opts.initial_scene);
 	}
 	else {
-		shell.boot("test");
+		shell.boot();
 	}
 
 	uint32_t last_ms = 0;

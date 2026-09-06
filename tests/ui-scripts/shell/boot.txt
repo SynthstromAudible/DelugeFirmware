@@ -1,3 +1,8 @@
-# Level 2: the shell's own boot splash, with nothing registered on top of it.
+# Level 2: what the shell shows before the application pushes a root -- nothing.
+#
+# `Shell::boot()` requests a repaint on every surface and pushes NO scene, so the stack is empty
+# and both panels stay blank. This used to be the shell's own "DELUGE" + version splash; it was
+# removed because the port must not add UI the instrument did not have (`shell/boot_scenes.h`).
+# The golden is the blank panel, and it is the point: a player powering on sees the bootloader's
+# logo and then the application's first frame, with nothing of the shell's own in between.
 0     snapshot boot
-100   snapshot boot-again          # identical, still written

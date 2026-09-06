@@ -156,8 +156,6 @@ const char* scene_kind_name(SceneKind k) {
 		return "Console";
 	case SceneKind::Working:
 		return "Working";
-	case SceneKind::Boot:
-		return "Boot";
 	case SceneKind::Loading:
 		return "Loading";
 	case SceneKind::Screensaver:
@@ -176,14 +174,13 @@ Shell::Shell(SurfaceSet& surfaces, const BoardProfile& profile, const SceneRegis
 	for (size_t i = 0; i < table_.size(); i++) {
 		table_[i] = registry.find(static_cast<SceneKind>(i));
 	}
-	// The shell owns these kinds outright: `Notices` drives the first three instances directly,
-	// and `boot()`/`song_loading()` drive the next two, so a scene an application registered in
-	// one of those slots could never be told anything. `SceneKind::Screensaver` is deliberately
+	// The shell owns these kinds outright: `Notices` drives the first three instances directly and
+	// `song_loading()` drives `Loading`, so a scene an application registered in one of those slots
+	// could never be told anything. `SceneKind::Screensaver` is deliberately
 	// absent from this list -- see `screensaver_`'s own doc.
 	table_[static_cast<size_t>(SceneKind::Popup)] = &popup_;
 	table_[static_cast<size_t>(SceneKind::Console)] = &console_;
 	table_[static_cast<size_t>(SceneKind::Working)] = &working_;
-	table_[static_cast<size_t>(SceneKind::Boot)] = &boot_;
 	table_[static_cast<size_t>(SceneKind::Loading)] = &loading_;
 
 	// The services are fixed at construction, so the deduplicated list is built once rather than
@@ -210,9 +207,10 @@ void Shell::init(SceneId initial) {
 	stack_.push(initial);
 }
 
-void Shell::boot(std::string_view firmware_version) {
-	boot_.set_firmware_version(firmware_version);
-	init(SceneId{SceneKind::Boot, 0});
+void Shell::boot() {
+	// No `init()` call: nothing goes on the stack here, so the panel stays blank until the
+	// application pushes its own root. See the header, and `boot_scenes.h` for the splash this
+	// call used to put up and why it was removed.
 	for (OledSurface& s : surfaces_.oled()) {
 		s.gate.request_repaint();
 	}

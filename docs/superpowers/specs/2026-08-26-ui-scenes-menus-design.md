@@ -30,7 +30,7 @@ views, gesture code split by concern, a table-driven menu, one browser, one cont
 | Roots | `SessionScene` (rows + grid modes edit/launch/macros), `ArrangerScene`, `NoteClipScene`, `AudioClipScene`, `AutomationScene`, `KeyboardScene`, `PerformanceScene` | 7 root UIs, ~20k lines | state struct + `GridView` + `OledView` (+ `ParamOledView` where the board has `Param` surfaces) |
 | Editors | `MenuScene` (one, table-driven), `SampleMarkerScene`, `SlicerScene`, `AudioRecorderScene` | `SoundEditor` + 269 items, marker editor, slicer, recorder | |
 | Browsers | `BrowserScene` parameterised by `BrowserKind{Song, InstrumentPreset, Sample, Pattern, MidiDeviceDef, DxSyx, KitRow}` × `Mode{Load, Save}`; `RenameScene` | `Browser`, `SlotBrowser`, 9 `LoadUI`/`SaveUI`, `QwertyUI`, `RenameUI`, `DxSyxBrowser` | one scene, one file-list view, one QWERTY component, per-kind hook rows |
-| Overlays | `PopupScene`, `ConsoleScene`, `WorkingScene`, `CountInScene`, `ParamPopupScene`, `ContextMenuScene`, `ScreensaverScene`, `BootScene`, `LoadingScene` | `OLED::popup/console`, loading animation, count-in popup, 16 `ContextMenu` subclasses, screensaver | `ContextMenuScene` takes a table; the 16 subclasses become tables + callbacks |
+| Overlays | `PopupScene`, `ConsoleScene`, `WorkingScene`, `CountInScene`, `ParamPopupScene`, `ContextMenuScene`, `ScreensaverScene`, `LoadingScene` | `OLED::popup/console`, loading animation, count-in popup, 16 `ContextMenu` subclasses, screensaver | `ContextMenuScene` takes a table; the 16 subclasses become tables + callbacks |
 | Misfiled | `ClipMinderMixin` | `model/clip/clip_minder.cpp`, `instrument_clip_minder.cpp` | UI mixins under `model/`; move here |
 
 The base chain dissolves: `TimelineView`/`ClipNavigationTimelineView`/`ClipView` become a
@@ -234,7 +234,7 @@ until the final phase.
 - **Overlays**: `PopupScene{text, popup_type, until_ms}`, `ConsoleScene{ring of lines}`,
   `WorkingScene{word, Blink}`, `CountInScene` (reads `playback.count_in_bars_remaining`),
   `ParamPopupScene` (from `ModKnobs`), `ScreensaverScene` (rainfall/starfield, shell-provided
-  seed), `BootScene`, `LoadingScene`. Each draws a `popup_frame` region and reports
+  seed), `LoadingScene`. Each draws a `popup_frame` region and reports
   `oled_transparent(Main) == true` so the scene beneath shows around it.
 
 ## 7. Migration order and acceptance

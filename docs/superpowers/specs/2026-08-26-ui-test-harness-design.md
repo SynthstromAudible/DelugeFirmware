@@ -183,7 +183,9 @@ names the change and why it deviates from the draft above.
 **§4.1 Level 2 — boot path, LED lines, run errors**
 - `RunOptions` gained **`std::optional<SceneId> initial_scene`**: `Shell` has `init(SceneId)` and
   `boot(std::string_view)`, not the single `init("test")` an earlier draft assumed. Unset ->
-  `shell.boot("test")` (the default path, ending on the `Boot` splash); set -> `shell.init(*id)`.
+  `shell.boot()` (the default path, which pushes nothing and leaves the panels blank — the
+  `Boot` splash it used to end on was removed, see the shell spec's §9 amendment); set ->
+  `shell.init(*id)`.
 - Level 2's `led` lines are read from `LedSurface::frame`'s **declared** `(LedId, LedState)` pairs
   (`Shell::derive_leds`'s composed state, before it is flattened to a resolved boolean), not from
   `FakeSurfaceSet`'s `set_led` shadow. The shadow only ever sees the boolean `led_is_on(state,

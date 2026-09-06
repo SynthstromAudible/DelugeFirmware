@@ -33,7 +33,6 @@ enum class SceneKind : uint8_t {
 	Popup,         ///< A transient message over whatever is beneath.
 	Console,       ///< The scrolling log surface.
 	Working,       ///< The "busy, please wait" indicator.
-	Boot,          ///< Shown from power-on until the application's root scene is pushed.
 	Loading,       ///< Shown while a song is being read.
 	Screensaver,   ///< The idle animation.
 	FirstApp = 16, ///< The first kind an application may register; application kinds run upwards.

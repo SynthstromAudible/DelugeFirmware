@@ -324,8 +324,9 @@ void Shell::tick(uint32_t now_ms) {
 
 ## 9. Boot and song swap
 
-- `Shell::init(board, profile)` builds surfaces and pushes `BootScene`; the load path
-  pushes `SessionScene` as root when the song is ready.
+- `Shell::init(board, profile)` builds surfaces and pushes nothing; the load path
+  pushes `SessionScene` as root when the song is ready. (This section originally said "pushes
+  `BootScene`" — see §15's §9 amendment for why there is no such scene.)
 - Song swap: `reset()` then `push(LoadingScene)`; input is locked by `song.load_state`;
   `Dirty::SongSwapped` → the shell replaces the root with the new song's scene.
 
@@ -556,13 +557,26 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   it, belongs.
 
 **§9 Boot and song swap**
-- `Shell` gained **`boot(std::string_view firmware_version)`** alongside `init(SceneId)`, not
-  instead of it: `init()` (built in Task 7, before boot/song-swap existed) already covers "push an
-  arbitrary first scene" for the unit specs' two-scene test registries, and `boot()` is the
-  application's actual entry point — construct the shell's own `BootScene` carrying the version
-  string, `init({SceneKind::Boot})`, and request a repaint on every surface so the first `tick()`
-  after boot draws regardless of any gate's prior state. Keeping both avoids a rename the draft
-  never specified either way.
+- `Shell` gained **`boot()`** alongside `init(SceneId)`, not instead of it: `init()` (built in
+  Task 7, before boot/song-swap existed) already covers "push an arbitrary first scene" for the
+  unit specs' two-scene test registries, and `boot()` is the application's actual entry point —
+  request a repaint on every surface so the first `tick()` after boot draws regardless of any
+  gate's prior state. Keeping both avoids a rename the draft never specified either way.
+- **`BootScene` and `SceneKind::Boot` were removed (2026-09-06), and this section is where they
+  came from.** §9 above said `init` "pushes `BootScene`", and Task 9 built one: a "DELUGE" title
+  plus the firmware version, shown from power-on until the application pushed its root. Nothing in
+  legacy does that. The firmware draws nothing before its first root frame, and the logo a player
+  sees at power-on belongs to the **bootloader** — `hid/display/rainfall.cpp` transcribes its
+  `logoPixels` for the screensaver, which is the only thing in this firmware that draws it. So the
+  splash was UI this redesign invented, on a stack whose whole claim is that it is
+  behaviour-preserving and proven so by specs that drive legacy and port side by side; an invented
+  screen has no legacy side and cannot be proven at all. `boot()` keeps its other half (the
+  repaint request on every surface, which is the real port of `renderUIsForOled` marking the OLED
+  dirty at `deluge.cpp:120,133,371`) and pushes nothing, so the stack is empty and the panels stay
+  blank until the application's root arrives. `tests/ui-scripts/shell/boot.txt`'s golden is that
+  blank panel, and it is the point rather than an absence of one. **The rule this came from, which
+  binds the rest of the port: do not add scenes, UI or UX the instrument did not already have —
+  whatever a spec section, this one included, happens to say.**
 - The shell's half of the song-load protocol is **`Shell::song_loading(bool loading)`**, matching
   the draft's §9 prose ("`reset()` then `push(LoadingScene)`... `Dirty::SongSwapped` → the shell
   replaces the root") but naming it as one bracketing call the firmware makes around a song read,
@@ -574,7 +588,7 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   Named during Task 9 to give the bracketing pattern one call the firmware's load path (spec F
   wires it) can call at both ends.
 - `Screensaver` (§5's service) pushes **`SceneKind::Screensaver`**, but ships **no scene instance**
-  of its own kind — unlike the shell's other four owned kinds (`Popup`/`Console`/`Working`/`Boot`/
+  of its own kind — unlike the shell's other three owned kinds (`Popup`/`Console`/`Working`/
   `Loading`), `table_[Screensaver]` is left exactly as the application's `SceneRegistry` reports
   it. `ScreensaverScene` itself (the `rainfall`/`starfield` animations) is spec E3's to write; this
   task's registry entry is a stand-in only, per the pre-ruling carried into Task 9's brief.

@@ -440,7 +440,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		const deluge::ui::shell::SceneRegistry reg = scene_registry();
 		expect(reg.find(SceneKind::FirstApp) == &menu_scene()).to_be_true();
 		expect(reg.find(SceneKind::Popup) == nullptr).to_be_true();
-		expect(reg.find(SceneKind::Boot) == nullptr).to_be_true();
+		expect(reg.find(SceneKind::Loading) == nullptr).to_be_true();
 	});
 
 	it("greys the whole main grid for a clip-minder context, sparing the sidebar", _ {

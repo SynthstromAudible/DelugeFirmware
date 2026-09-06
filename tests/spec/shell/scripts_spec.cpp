@@ -265,12 +265,12 @@ std::string read_text(const std::string& path) {
 
 // clang-format off
 describe shell_scripts("shell script harness (level 2)", $ {
-	it("boots to the splash and snapshots it twice", _ {
+	it("boots to a blank panel, because the shell puts nothing up of its own", _ {
 		DemoRegistry r;
-		// No `initial_scene`: the default boot path, `Shell::boot("test")`, which is what puts the
-		// shell's own `Boot` splash up.
+		// No `initial_scene`: the default boot path, `Shell::boot()`, which requests a repaint
+		// everywhere and pushes nothing. The golden is the blank panel -- see the script.
 		const uitest::RunResult result = uitest::expect_script_goldens(self, "boot", r.reg, Services{});
-		expect(result.snapshots).to_equal(uint32_t(2));
+		expect(result.snapshots).to_equal(uint32_t(1));
 	});
 
 	it("navigates, shows a popup and lets it expire", _ {
