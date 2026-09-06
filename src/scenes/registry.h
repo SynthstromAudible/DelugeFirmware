@@ -3,7 +3,7 @@
 /// @brief The application's scene table -- what `Shell` is constructed with.
 ///
 /// One `SceneRegistry` for the whole application, holding **application scenes only**. The shell
-/// installs its own `Popup`/`Console`/`Working`/`Boot`/`Loading` instances over whatever the
+/// installs its own `Popup`/`Console`/`Working`/`Loading` instances over whatever the
 /// registry reported (`shell/shell.h:120-126,330-342`), and `SceneKind::Screensaver` names no
 /// shell-owned scene at all, so an entry in any of those slots would simply be ignored. Kinds run
 /// from `SceneKind::FirstApp` (== 16) upwards: `FirstApp` is the menu interpreter, `FirstApp + 1`
