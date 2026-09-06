@@ -208,9 +208,9 @@ void Shell::init(SceneId initial) {
 }
 
 void Shell::boot() {
-	// No `init()` call: nothing goes on the stack here, so the panel stays blank until the
-	// application pushes its own root. See the header, and `boot_scenes.h` for the splash this
-	// call used to put up and why it was removed.
+	// No `init()` call: nothing goes on the stack here, so the panels stay blank until the
+	// application pushes its own root. See the header for the splash this call used to put up and
+	// why it was removed.
 	for (OledSurface& s : surfaces_.oled()) {
 		s.gate.request_repaint();
 	}

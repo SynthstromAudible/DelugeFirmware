@@ -66,7 +66,7 @@ BoardProfile fixed_lookup_profile() {
 /// which is correct for a real console strip and wrong for a scene standing in for something else
 /// entirely.
 ///
-/// It stood at `SceneKind::FirstApp` until that kind was removed with the boot splash (`boot_scenes.h`).
+/// It stood at `SceneKind::Boot` until that kind was removed along with the boot splash.
 /// `FirstApp` is the better home anyway: the point of this scene is that an *application* pushed
 /// it, and `FirstApp` is the first kind an application may register.
 class OtherScene final : public Scene {

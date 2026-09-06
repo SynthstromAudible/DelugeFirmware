@@ -124,7 +124,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r.shell.boot();
 		// **Nothing on the stack, deliberately.** `boot()` used to push a "DELUGE" + version splash;
 		// the port must not add UI the instrument did not have, and legacy's firmware draws nothing
-		// before its first root frame (`boot_scenes.h`). An empty stack reports the `Null` scene.
+		// before its first root frame (`Shell::boot`'s doc). An empty stack reports the `Null` scene.
 		expect(r.shell.stack().depth()).to_equal(size_t(0));
 		expect(r.shell.stack().top().kind() == SceneKind::Null).to_be_true();
 

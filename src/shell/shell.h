@@ -1,9 +1,9 @@
 #pragma once
 #include "notify/dirty_set.h"
-#include "shell/boot_scenes.h"
 #include "shell/fixed_vector.h"
 #include "shell/input_lowering.h"
 #include "shell/leds.h"
+#include "shell/loading_scene.h"
 #include "shell/mirror.h"
 #include "shell/notices.h"
 #include "shell/profile.h"
@@ -143,8 +143,13 @@ public:
 	///
 	/// **It pushes no scene, deliberately.** The stack stays empty until the application pushes its
 	/// own root, and an empty stack draws nothing -- which is what legacy's firmware does before its
-	/// first root frame. (The logo a player sees at power-on is the bootloader's, not this
-	/// firmware's; see `boot_scenes.h` for the splash that used to be here and why it went.)
+	/// first root frame. The logo a player sees at power-on is the *bootloader's*, not this
+	/// firmware's: `hid/display/rainfall.cpp` transcribes its `logoPixels` for the screensaver, and
+	/// that is the only thing here that draws it.
+	///
+	/// This call used to push a `BootScene` -- a "DELUGE" title over the firmware version -- which
+	/// was removed because the port must not add UI the instrument did not have. The shell design
+	/// spec's section 9 amendment has the full account.
 	void boot();
 
 	/// @brief Wire (or clear) the hooks the shell asks for the application's song root through,

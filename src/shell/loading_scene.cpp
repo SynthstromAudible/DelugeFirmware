@@ -1,4 +1,4 @@
-#include "shell/boot_scenes.h"
+#include "shell/loading_scene.h"
 
 #include "ui/oled/popup.h"
 

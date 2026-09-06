@@ -6,14 +6,6 @@
 
 namespace deluge::ui::shell {
 
-// This file once held a `BootScene` too -- a "DELUGE" + firmware-version splash the shell put up
-// from power-on until the application pushed its root. It was removed because the port must not
-// add UI the instrument did not have: legacy's firmware draws nothing before its first root
-// frame, and the logo a player sees at power-on comes from the BOOTLOADER
-// (`hid/display/rainfall.cpp` transcribes its `logoPixels` for the screensaver, which is the only
-// thing in this firmware that draws it). The name stays because `LoadingScene` is still a boot- and
-// lifecycle-time scene and renaming the file would rot every citation that names it.
-
 /// @brief Shown while a song is being read from disk: the "busy" corner animation, and nothing
 ///        else. Input is locked while it is up -- by the shell's song-swap protocol
 ///        (`Shell::song_loading`), not by this scene -- so it never has to refuse anything itself.
