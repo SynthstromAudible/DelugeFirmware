@@ -38,12 +38,28 @@
 ///
 /// @par What the router sends here, and what it does not
 ///
-/// `Router::route` consults `services.mod_knobs` **before** the top scene, and only for a mod
-/// button (`ButtonId::Mod0..Mod7`) or a gold-knob turn (`EncoderRole::GoldUpper`/`GoldLower`) --
-/// `shell/router.h:55-65`. That is legacy's own shape: `Buttons::buttonAction` runs its mod-button
-/// loop before `getCurrentUI()->buttonAction` (`hid/buttons.cpp:100-107`, `:134`), and
-/// `interpretEncoders` calls `getCurrentUI()->modEncoderAction` directly
-/// (`hid/encoder_input.cpp:196`).
+/// `Router::route` consults `services.mod_knobs` only for a mod button (`ButtonId::Mod0..Mod7`) or a
+/// gold-knob turn (`EncoderRole::GoldUpper`/`GoldLower`) -- `shell/router.h:55-65`.
+///
+/// @warning **It consults it BEFORE the top scene, and that is not legacy's order.** Legacy sends
+///          both to the *current UI* first, with `View` reached only as the base-class fallback:
+///          `interpretEncoders` calls `getCurrentUI()->modEncoderAction`
+///          (`hid/encoder_input.cpp:196`) and `Buttons::buttonAction`'s mod-button loop calls
+///          `getCurrentUI()->modButtonAction` (`hid/buttons.cpp:104`), and it is `UI`'s own base
+///          implementations that forward to `view` (`gui/ui/ui.cpp:35-41`). Six UIs override
+///          `modEncoderAction` -- `automation_view.h:116`, `performance_view.h:96`,
+///          `arranger_view.h:49`, `instrument_clip_view.h:215`, `session_view.h:100`,
+///          `sound_editor.h:80` -- and two override `modButtonAction`
+///          (`session_view.h:81`, `performance_view.h:98`). So the chain should be
+///          top scene -> `mod_knobs` -> `global_controls`, and it is not yet.
+///
+///          Found and reported by E4 task 2 (its report's finding 1); **ruled on by the
+///          controller and implemented as E4 task 3's first steps**, with its own spec. Nothing
+///          regresses in the meantime -- no scene ported so far overrides either hook -- but
+///          `SoundEditor`'s port is `MenuScene`, and `SoundEditor::modEncoderAction`
+///          (`gui/ui/sound_editor.cpp:1583-1607`) has a real MIDI-learn arm, so E4 task 5 depends
+///          on the fix. This class is unaffected by which way round it goes: it claims a gold turn
+///          (nothing else in legacy sees one once the chain finishes) and claims nothing else.
 ///
 /// A gold knob's own **push** is deliberately not this service's event. Legacy routes
 /// `MOD_ENCODER_0`/`MOD_ENCODER_1` from `buttonAction`'s *tail*, after the current UI's own
@@ -59,7 +75,29 @@
 /// as `InputLowering::calc_next_knob_speed` (plan D); what was missing was a caller, exactly as
 /// `input_lowering.cpp:187-189` says ("acceleration is applied by whoever consumes it"). Legacy's
 /// consumer is `hid/encoder_input.cpp:192`, `offset * encoder.calcNextKnobSpeed(offset)`, one line
-/// before `modEncoderAction` -- so this class, which is `modEncoderAction`, is that consumer.
+/// before `modEncoderAction` -- so this class, which is `modEncoderAction`, is that consumer. The
+/// curve is legacy's exactly (the six constants of `hid/encoders.cpp:54-59`) and so is the
+/// narrowing back to `int8_t` (`encoder_input.cpp:192`, truncation toward zero, not rounding).
+///
+/// **Two things the port does not reproduce, both plan D's shape rather than this task's, written
+/// down here because this is the task that closes the carry** (fix round 1, Minor 4):
+///
+///   1. **Legacy's ramp is shared by both gold knobs; the port's is per encoder role.**
+///      `calcNextKnobSpeed`'s `last_offset` and `last_encoder_time` are function-local `static`s
+///      (`hid/encoders.cpp:62-63`) on a method both `mod0` and `mod1` call, so on the device,
+///      alternating the two knobs resets the ramp -- each turn sees the *other* knob's direction
+///      and timestamp. `InputLowering` keeps a set per `EncoderRole`
+///      (`input_lowering.h:385-388`), so here the two knobs accelerate independently. Only
+///      `currentKnobSpeed` is genuinely per-encoder in legacy (`ContinuousEncoder`'s member);
+///      the other two are not, and that looks far more like an oversight in legacy than a design,
+///      which is presumably why plan D split them.
+///   2. **Legacy's clock is sub-millisecond and the port's is not.** Legacy divides by
+///      `getSystemTime()` deltas as a `double` (`hid/encoders.cpp:72`); the port's clock is whole
+///      milliseconds and reads a zero interval as 1 ms
+///      (`InputLowering::calc_next_knob_speed`'s `smallest_interval`). The acceleration term
+///      `1.0 / dt * 0.1` is therefore capped at 100 per turn here where legacy has no cap, so a
+///      very fast flick reaches the 3.0 ceiling in the same small number of detents but by a
+///      slightly flatter path.
 ///
 /// @par What is deliberately still owed
 ///
@@ -70,14 +108,26 @@
 ///     `blink_indicator_bipolar()` hold `potentiallyMakeItHarderToTurnKnob`'s decision, and
 ///     `automation_display_pending()` holds `notifyParamAutomationOccurred`'s.
 ///   * **`View::getParameterNameFromModEncoder`** (`view.cpp:1012-1057`). Cited by this task's
-///     brief but deferred to task 3, deliberately: its only two legacy callers are
-///     `View::modButtonAction` (`:1497-1547`) and `View::setModLedStates` (`:1548-1679`), which
-///     are task 3's citations, so nothing here would call it and no spec could drive it against a
-///     caller. It also needs `getSourceDisplayName` (`util/functions.cpp:315-368`), whose only
-///     in-layer transcription today is private to `menu/nodes/patch_cables.cpp` -- and whose
-///     *sibling* transcription of `sourceToStringShort` there disagrees with legacy (see the
-///     task-2 report). Consolidating those belongs with the task that owns the naming half.
-///     `menu::mod_param_info` -- the model half it needs -- is already built and specced.
+///     brief but deferred to task 3, deliberately. Its only two callers anywhere are
+///     `ModControllableAudio::displayOtherModKnobSettings`
+///     (`model/mod_controllable/mod_controllable_audio.cpp:1672` and `:1687`), which builds the
+///     two-line popup a held mod button shows -- and `modButtonAction` (`view.cpp:1497-1547`), the
+///     thing that *reaches* that method, is task 3's citation. So nothing here would call it and no
+///     spec could drive it against a caller. It also needs `getSourceDisplayName`
+///     (`util/functions.cpp:315-368`), whose only in-layer transcription today is private to
+///     `menu/nodes/patch_cables.cpp` -- and whose *sibling* transcription of `sourceToStringShort`
+///     there disagrees with legacy (see the task-2 report). Consolidating those belongs with the
+///     task that owns the naming half. `menu::mod_param_info` -- the model half it needs -- is
+///     already built and specced.
+///
+///     @note **Those two call sites are a back-reference the port will have to break.** They are
+///           *model* code (`model/mod_controllable/`) calling into a `gui/` singleton, and the same
+///           function reaches `view.isClipContext()` at `:1677` and `display->popupText` at
+///           `:1694`. `src/scenes` may include `model/**` but the reverse edge does not exist and
+///           must not be created, so whoever ports `displayOtherModKnobSettings` has to invert it
+///           -- the mod-button popup is built by the UI from what the model reports, not by the
+///           model calling the UI. Recorded here because nothing else records it (fix round 1,
+///           Important 3).
 ///   * **The popup's three suppression tests** (`view.cpp:868-886`) -- see `popup_suppressed()`.
 ///   * **The VU-meter sidebar invalidation** at `:1889-1891`/`:1912-1914`. `View::renderedVUMeter`
 ///     is a render flag of the views E5/E6 port, not of the knobs; nothing here can read it.

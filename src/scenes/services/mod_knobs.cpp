@@ -50,7 +50,6 @@ using deluge::ui::EncoderRole;
 using deluge::ui::shell::Action;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SceneId;
-using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::UiEvent;
 
 namespace {
@@ -69,10 +68,16 @@ EncoderRole role_of(int32_t which_encoder) {
 } // namespace
 
 bool is_clip_context(const ModTarget& target) {
-	// `View::isClipContext` (`view.cpp:1732-1740`): the timeline counter is set *and* is not the
-	// song. Legacy compares against `currentSong`; the target carries its own song for the reason
-	// `ModTarget::song` records.
-	return target.timeline_counter != nullptr
+	// `View::isClipContext` (`view.cpp:1732-1739`), all three clauses. The mod-controllable guard is
+	// legacy's outer `if` (`:1734`) and is load-bearing, not decoration: a target whose timeline
+	// counter resolved no mod controllable is not a clip context, and treating it as one makes
+	// `target_changed` send a `sendCCWithoutModelStackForMidiFollowFeedback` legacy would never
+	// send (fix round 1, Important 1 -- it was missing here, and `mod_knobs_spec.cpp`'s
+	// "agrees with View::isClipContext" example now compares all five target shapes).
+	//
+	// Legacy compares the counter against `currentSong`; the target carries its own song for the
+	// reason `ModTarget::song` records.
+	return target.mod_controllable != nullptr && target.timeline_counter != nullptr
 	       && target.timeline_counter != static_cast<const TimelineCounter*>(target.song);
 }
 
@@ -293,20 +298,25 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 	instrument_been_edited(); // `:840` -- outside the `modControllable` test, so it always runs.
 
 	// Legacy consumes a gold-knob turn unconditionally: `interpretEncoders` calls
-	// `getCurrentUI()->modEncoderAction` and nothing else ever sees the turn
-	// (`hid/encoder_input.cpp:196`).
+	// `getCurrentUI()->modEncoderAction` (`hid/encoder_input.cpp:196`) and nothing else ever sees the
+	// turn afterwards. What that call reaches FIRST is the current UI's own override, with
+	// `UI::modEncoderAction` (`gui/ui/ui.cpp:35-37`) forwarding to `view` as the fallback -- so this
+	// `handled` is the fallback's, and it belongs after the scene, not before it. See the class
+	// doc's routing warning; the router fix is E4 task 3's.
 	result.handled = true;
 	return result;
 }
 
 bool ModKnobs::popup_suppressed(const ModTurn& turn) const {
 	// `:876-882` -- "let's see if we're editing the same param in the menu, if so, don't show
-	// pop-up". `SoundEditor`'s port is `MenuScene`, and `MenuScene::kind()` is `FirstApp`
-	// (`menu/menu_scene.cpp:233-235`).
+	// pop-up". `SoundEditor`'s port is `MenuScene`, so legacy's `getCurrentUI() == &soundEditor` is
+	// this identity test against the one menu interpreter (`scenes/registry.h`'s `menu_scene()`) --
+	// not a `kind()` comparison, which would only *infer* that the scene on top is that object
+	// (fix round 1, Minor 6).
 	//
 	// The other two arms (`:869-874` performance view, `:885` the song browser) have no scene to
 	// ask yet; the header records both as uncovered rather than guessed at.
-	if (stack_.input_top().kind() != SceneKind::FirstApp) {
+	if (&stack_.input_top() != static_cast<const deluge::ui::shell::Scene*>(&menu_scene())) {
 		return false;
 	}
 	const menu::Node* focused = menu_scene().focused();

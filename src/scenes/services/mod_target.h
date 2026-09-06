@@ -67,8 +67,17 @@ struct ModTarget {
 	bool timeline_counter_set() const { return timeline_counter != nullptr; }
 };
 
-/// @brief `View::isClipContext()` (`view.cpp:1732-1740`): a timeline counter that is set and is not
-///        the song itself.
+/// @brief `View::isClipContext()` (`view.cpp:1732-1739`): a **mod controllable is resolved**, and the
+///        timeline counter is set, and it is not the song itself.
+///
+/// All three clauses, deliberately. Legacy's outer `if (activeModControllableModelStack
+/// .modControllable)` (`:1734`) is not decoration: with a timeline counter but no mod controllable
+/// -- the state `setActiveModControllableTimelineCounter` leaves behind when the counter resolves
+/// none -- legacy answers false, and the port answering true makes `ModKnobs::target_changed` emit
+/// a `sendCCWithoutModelStackForMidiFollowFeedback` legacy would never emit. Fix round 1,
+/// Important 1: the guard was missing here, and the port is now compared against
+/// `View::isClipContext` over all five reachable target shapes
+/// (`sim/scenes_spec/mod_knobs_spec.cpp`).
 ///
 /// A free function rather than a `ModTarget` member because the comparison needs `Song` to be a
 /// complete type (it is the `TimelineCounter` being compared against) and this header deliberately

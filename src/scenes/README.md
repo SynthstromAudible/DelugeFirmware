@@ -907,7 +907,12 @@ caller, since legacy applies it one line before `modEncoderAction`
 `services::ModKnobs::handle` is `modEncoderAction`, so it is that caller
 (`scenes/services/mod_knobs.h`, "Acceleration: the carry item this closes"), and
 `sim/scenes_spec/mod_knobs_spec.cpp` drives a fast repeat and a slow one and reads the difference
-out of the model. Menu-side acceleration (`HorizontalMenu::calcNextKnobSpeed`,
+out of the model. Two divergences from legacy survive, both plan D's shape and both named at
+`scenes/services/mod_knobs.h`'s acceleration section: legacy's `last_offset`/`last_encoder_time` are
+function-local statics **shared by both gold knobs** while `InputLowering` keeps them per encoder
+role (so alternating the knobs resets the ramp on the device and not here), and legacy's
+sub-millisecond `getSystemTime()` versus the port's whole-millisecond clock caps the acceleration
+term. Menu-side acceleration (`HorizontalMenu::calcNextKnobSpeed`,
 `gui/menu_item/horizontal_menu.cpp:630`) is a separate copy of the same arithmetic and is **not**
 closed by this. Still carried: real implementations behind every `nodes::kPending` placeholder this task
 left in the tree (E2 task 2 closed one general prerequisite for those -- `Kind::Custom` now routes
