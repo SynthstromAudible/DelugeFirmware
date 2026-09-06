@@ -319,6 +319,63 @@ void working(OledFrame& f, Rect rect, std::string_view word, Blink& blink) {
 	}
 }
 
+namespace {
+/// `etl::string<25>` -- `OLED::displayNotification`'s own `titleBuf` capacity (`oled.cpp:745`).
+constexpr size_t kNotificationTitleCap = 25;
+} // namespace
+
+void notification(OledFrame& f, std::string_view title, std::string_view value) {
+	const gfx::oled::FontId font = f.style.row_font;
+	const int32_t line_h = text_height_for(font);  // kTextSpacingY
+	const int32_t spacing_x = spacing_x_for(font); // kTextSpacingX
+
+	constexpr int32_t padding_left = 4;
+	const int32_t start_x = 0;
+	const int32_t start_y = 0; // OLED_MAIN_TOPMOST_PIXEL, frame-local (see the note on title()).
+	const int32_t end_y = start_y + line_h + 1;
+	const int32_t panel_w = f.bounds().w;
+	const int32_t end_x = panel_w - 1;
+	const int32_t width = end_x - start_x + 1; // == panel_w
+	const int32_t height = end_y - start_y;
+
+	// `titleBuf`: param_title copied and capped to 25 characters (`etl::string<25>`).
+	std::string_view title_buf = title.substr(0, std::min(title.size(), kNotificationTitleCap));
+
+	// Measured from the *uncapped* title, matching legacy's own order (see the doc note).
+	int32_t title_width = measure(title, font).w;
+	const int32_t value_width = value.empty() ? 0 : measure(value, font).w;
+
+	if (value_width > 0) {
+		while (title_width + padding_left + value_width > panel_w - 7 && !title_buf.empty()) {
+			title_buf.remove_suffix(1);
+			title_width = measure(title_buf, font).w;
+		}
+	}
+
+	popup_frame(f, Rect{start_x, start_y, width - 1, height}, PopupStyle::Notification);
+
+	const bool no_inversion = !f.style.invert_highlight;
+	const int32_t title_start_x = padding_left;
+	const int32_t title_start_y = no_inversion ? start_y : start_y + 1;
+	f.glyphs(title_buf, title_start_x, title_start_y, spacing_x, line_h);
+
+	if (value_width > 0) {
+		f.glyph(':', title_start_x + title_width, title_start_y, spacing_x, line_h);
+		f.glyphs(value, title_start_x + title_width + 8, title_start_y, spacing_x, line_h);
+	}
+
+	if (no_inversion) {
+		for (int32_t x = start_x + 1; x < end_x; x += 2) {
+			f.pixel(x, end_y);
+		}
+	}
+	else {
+		f.invert_rounded(Rect{start_x, start_y, width, end_y - start_y + 1});
+		f.pixel(start_x, start_y);
+		f.pixel(end_x, start_y);
+	}
+}
+
 void progress(OledFrame& f, Rect rect, int32_t num, int32_t den) {
 	if (rect.w <= 0 || rect.h <= 0) {
 		return;

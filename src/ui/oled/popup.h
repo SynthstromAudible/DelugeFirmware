@@ -236,4 +236,38 @@ void option_window(OledFrame& f, std::string_view heading, std::span<const std::
 /// @param den  Denominator; zero or less draws the empty outline.
 void progress(OledFrame& f, gfx::oled::Rect rect, int32_t num, int32_t den);
 
+/// @brief Ports legacy `OLED::displayNotification` (`hid/display/oled.cpp:744-794`): the one-line
+///        "title: value" strip pinned to the top of the panel -- the mod-encoder value popup and
+///        every other plain text/value notification.
+///
+/// Unlike every other popup in this file, this one is **not centred** -- it is pinned to the
+/// panel's top-left corner, spanning the full width, exactly as legacy's own `start_x = 0`,
+/// `start_y = OLED_MAIN_TOPMOST_PIXEL` are frame-local zero once the frame's `origin` has already
+/// absorbed `visible_top` (the same convention `title()`/`title_badge()` use, not
+/// `popup_rect_for`'s canvas-absolute one -- see `panel_of`'s note on that split).
+///
+/// @note **Truncates the title, not the value**, and measures the *first* width against the
+///       untruncated @p title -- legacy's own quirk: `title_width` is measured from `param_title`
+///       before `titleBuf` (which is already capped to `kNotificationTitleCap` characters) is
+///       ever touched, so the truncation loop's starting point can be wider than the 25-character
+///       buffer it is about to shrink. Reproduced rather than fixed, since it only differs from
+///       "measure the capped buffer instead" when @p title exceeds 25 characters, which no shipped
+///       caller's parameter/patch-source name ever does.
+/// @note **One guard legacy does not need**: `titleBuf.resize(titleBuf.size() - 1)` on an
+///       already-empty `etl::string` is legacy's own well-defined no-op; the equivalent
+///       `std::string_view::remove_suffix(1)` on an empty view is undefined behaviour, so the
+///       truncation loop here stops at an empty title instead. No shipped caller's title/value
+///       pair is long enough to reach it either way.
+/// @note The inversion-vs-dotted-rule split follows `f.style.invert_highlight`, exactly as
+///       `option_window`/`list`/`text_edit` already port the same legacy accessibility branch
+///       (`FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION`).
+///
+/// @param f     Target frame.
+/// @param title The parameter/patch name; truncated from the end if @p value does not fit
+///              alongside it.
+/// @param value The value string, or empty for a title-only notification (legacy's
+///              `param_value` with no `has_value()`) -- no colon, no value text, title drawn in
+///              full.
+void notification(OledFrame& f, std::string_view title, std::string_view value);
+
 } // namespace deluge::ui::oled
