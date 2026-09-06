@@ -11,7 +11,8 @@
 /// (`context_menu::kContextMenuSceneKind`), `FirstApp + 3` the file browser
 /// (`browser::kBrowserSceneKind`), `FirstApp + 4` the sample marker editor
 /// (`marker::kMarkerSceneKind`), `FirstApp + 5` the audio recorder
-/// (`recorder::kRecorderSceneKind`).
+/// (`recorder::kRecorderSceneKind`), `FirstApp + 6` the mod-encoder value popup
+/// (`overlay::kParamPopupSceneKind`).
 
 #include "shell/scene.h"
 
@@ -84,8 +85,9 @@ menu::MenuScene& menu_scene();
 ///         `by_kind[SceneKind::FirstApp + 2]` is `&context_menu_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 3]` is `&browser_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 4]` is `&marker_scene()`, whose
-///         `by_kind[SceneKind::FirstApp + 5]` is `&recorder_scene()`, and whose every other slot is
-///         null.
+///         `by_kind[SceneKind::FirstApp + 5]` is `&recorder_scene()`, whose
+///         `by_kind[SceneKind::FirstApp + 6]` is `&overlay::param_popup_scene()`, and whose every
+///         other slot is null.
 deluge::ui::shell::SceneRegistry scene_registry();
 
 } // namespace deluge::scenes

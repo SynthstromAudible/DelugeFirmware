@@ -86,7 +86,10 @@ add_library(deluge_scenes STATIC
     marker/marker_scene.cpp
     # E3 task 5: the audio recorder -- the one scene that replaces `gui/ui/audio_recorder.cpp`'s
     # menu-driven half (its output-recording half stays on the legacy object; see the header).
-    recorder/recorder_scene.cpp)
+    recorder/recorder_scene.cpp
+    # E4 task 1: the mod-encoder value popup -- the first of the three overlay scenes spec E named
+    # and no earlier plan built.
+    overlay/param_popup_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include
