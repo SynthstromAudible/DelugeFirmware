@@ -61,6 +61,14 @@ namespace {
 
 /// @brief `sourceToStringShort` (`util/functions.cpp:381-431`) -- "all should be four chars, to fit
 ///        a fixed column layout", which is what the mod-matrix list's columns assume.
+///
+/// @note Three of the sixteen arms shipped wrong from E2 task 9 and were corrected by E4 task 3:
+///       `PatchSource::X` said "modx" for legacy's "mpeX", `PatchSource::Y` said "mody" for
+///       "mpeY", and the default said "none" for "----". All three are displayed text, so all
+///       three were user-visible divergences. `menu_patch_cables_64.pbm` records the `Y` row and
+///       moved with the fix. The sibling transcription in
+///       `scenes/overlay/param_popup_scene.cpp` always had all sixteen right; the two are checked
+///       against each other as well as against legacy.
 std::string_view source_short_name(PatchSource source) {
 	switch (source) {
 	case PatchSource::LFO_GLOBAL_1:
@@ -90,11 +98,11 @@ std::string_view source_short_name(PatchSource source) {
 	case PatchSource::AFTERTOUCH:
 		return "pres";
 	case PatchSource::X:
-		return "modx";
+		return "mpeX";
 	case PatchSource::Y:
-		return "mody";
+		return "mpeY";
 	default:
-		return "none";
+		return "----";
 	}
 }
 

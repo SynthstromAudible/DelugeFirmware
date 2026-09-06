@@ -59,7 +59,7 @@ struct FixedAppend {
 	}
 };
 
-/// @brief `sourceToStringShort` (`util/functions.cpp:381-427`), transcribed: `src/scenes` may not
+/// @brief `sourceToStringShort` (`util/functions.cpp:381-431`), transcribed: `src/scenes` may not
 ///        include `util/functions.h` (`scenes/menu/nodes/output_items.cpp` documents the same
 ///        boundary for the same file).
 /// @param source The patch source.
