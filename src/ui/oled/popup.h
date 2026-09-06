@@ -214,6 +214,36 @@ inline constexpr int32_t kOptionWindowRows = 2;
 void option_window(OledFrame& f, std::string_view heading, std::span<const std::string_view> options, int32_t selected,
                    int32_t first, ScrollText& label, bool allow_motion = true, std::string_view footer = {});
 
+/// @brief Ports legacy `Slicer::renderOLED` (`gui/ui/slicer.cpp:74-98`): a framed 100x31 window
+///        with a left-aligned heading, a rule under it, and one value centred below the rule.
+///
+/// A member of the popup family for the same reason `option_window` is: every coordinate legacy
+/// computes here is against `OLED_MAIN_WIDTH_PIXELS` / `OLED_MAIN_HEIGHT_PIXELS` -- the *panel*,
+/// hidden bezel rows included -- so the layout is done in `panel_of(f)` and lands in frame
+/// coordinates for free. It is `option_window`'s window with three constants changed, not a
+/// composition of it: the box is 31 rows rather than 40, it is nudged right by 6 and down by 2,
+/// and there is one centred value instead of two option rows.
+///
+/// @note **The two shifts are the whole reason this cannot reuse `option_window`'s geometry.**
+///       Legacy adds `horizontalShift` (6) to `windowMinX` *and* to the value's centre position
+///       (`(OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift`), but **not** to the rule, which spans
+///       a fixed `26 .. panel width - 22`. So the rule is inset 6 from the box on the left and 14
+///       on the right -- asymmetric, and reproduced rather than tidied.
+///
+/// @note The box is `PopupStyle::Permanent` because legacy's `drawRectangle` is the *square*
+///       primitive. Legacy clears only the interior (`clearAreaExact(minX + 1, minY + 1,
+///       maxX - 1, maxY - 1)`) and then inks the border ring on top; `popup_frame` clears the ring
+///       as well and then inks it, which is the same result.
+///
+/// @note Nothing here is claimed: render-only, exactly as `option_window` is. The encoder turns
+///       that change @p value belong to the scene.
+///
+/// @param f       Target frame.
+/// @param heading The window's label, drawn left-aligned at panel x 30 in `style.row_font` --
+///                legacy's plain `drawString`, **not** `drawScreenTitle`.
+/// @param value   The value, centred on panel x `(width >> 1) + 6`, one line below the rule.
+void count_window(OledFrame& f, std::string_view heading, std::string_view value);
+
 /// @brief A progress bar filling \p rect left to right at \p num / \p den.
 ///
 /// @note Legacy has no progress bar as such. The closest legacy pixels are

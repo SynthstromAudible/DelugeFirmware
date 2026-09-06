@@ -194,6 +194,20 @@ constexpr int32_t kOptionTextRightInset = 27;   // `drawString(..., OLED_MAIN_WI
 constexpr int32_t kOptionFooterDy = 20;         // `textPixelY = windowMinY + 20 + kTextSpacingY`
 constexpr int32_t kOptionFooterRightInset = 26; // `drawString(..., OLED_MAIN_WIDTH_PIXELS - 26)`
 
+// `Slicer::renderOLED`'s literals (`gui/ui/slicer.cpp:76-97`). Same treatment as the option-window
+// block above: the one "inset" number is `OLED_MAIN_WIDTH_PIXELS - n` in legacy and is applied to
+// the panel width here.
+constexpr int32_t kCountWindowW = 100;       // `windowWidth = 100`
+constexpr int32_t kCountWindowH = 31;        // `windowHeight = 31`
+constexpr int32_t kCountWindowShiftX = 6;    // `horizontalShift`, added to `windowMinX`
+constexpr int32_t kCountWindowShiftY = 2;    // `windowMinY += 2`
+constexpr int32_t kCountHeadingX = 30;       // `drawString("Num. slices", 30, ...)`
+constexpr int32_t kCountHeadingDy = 6;       // `windowMinY + 6`
+constexpr int32_t kCountRuleDy = 15;         // `drawHorizontalLine(windowMinY + 15, ...)`
+constexpr int32_t kCountRuleX = 26;          // that line's `startX`, NOT the window's left edge
+constexpr int32_t kCountRuleRightInset = 22; // `OLED_MAIN_WIDTH_PIXELS - 22`, inclusive end
+constexpr int32_t kCountValueDy = 18;        // `drawStringCentred(buffer, windowMinY + 18, ...)`
+
 } // namespace
 
 void option_window(OledFrame& f, std::string_view heading, std::span<const std::string_view> options, int32_t selected,
@@ -374,6 +388,41 @@ void notification(OledFrame& f, std::string_view title, std::string_view value) 
 		f.pixel(start_x, start_y);
 		f.pixel(end_x, start_y);
 	}
+}
+
+void count_window(OledFrame& f, std::string_view heading, std::string_view value) {
+	const Rect p = panel_of(f);
+	const gfx::oled::FontId font = f.style.row_font;
+	const int32_t line_h = text_height_for(font); // kTextSpacingY
+
+	// `windowMinX = ((OLED_MAIN_WIDTH_PIXELS - windowWidth) >> 1) + horizontalShift` and
+	// `windowMinY = ((OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1) + 2`, verbatim. The rect
+	// carries legacy's width/height, which `popup_frame` treats as inclusive maxima -- so the
+	// outline it draws is `drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY)` exactly
+	// (see popup_rect_for). `Permanent` because legacy's `drawRectangle` is the square primitive.
+	const int32_t min_x = ((p.w - kCountWindowW) >> 1) + kCountWindowShiftX;
+	const int32_t min_y = ((p.h - kCountWindowH) >> 1) + kCountWindowShiftY;
+	popup_frame(f, Rect{p.x + min_x, p.y + min_y, kCountWindowW, kCountWindowH}, PopupStyle::Permanent);
+
+	// `drawHorizontalLine(windowMinY + 15, 26, OLED_MAIN_WIDTH_PIXELS - 22)`. Note that neither
+	// endpoint is derived from the window: the rule is inset 6 from the box on the left and 14 on
+	// the right, because `horizontalShift` moved the box and not this line. See the header.
+	f.hline(p.y + min_y + kCountRuleDy, p.x + kCountRuleX, p.x + p.w - kCountRuleRightInset);
+
+	// `drawString("Num. slices", 30, windowMinY + 6, kTextSpacingX, kTextSpacingY)` -- left-aligned
+	// in the row font, with legacy's default (panel-edge) right clip.
+	text(f, Rect{p.x + kCountHeadingX, p.y + min_y + kCountHeadingDy, p.w - kCountHeadingX, line_h}, heading,
+	     TextStyle{.font = font});
+
+	// `drawStringCentred(buffer, windowMinY + 18, kTextSpacingX, kTextSpacingY,
+	//                    (OLED_MAIN_WIDTH_PIXELS >> 1) + horizontalShift)`.
+	// `Align::Centre` is `rect.x + rect.w / 2 - (width >> 1)` and legacy's is
+	// `centrePos - (stringWidth >> 1)`, so the rect is built to put its own centre exactly on
+	// `centrePos`: origin at the panel's left edge, width twice the centre. `rect.w` is even, so
+	// the halving is exact.
+	const int32_t centre = (p.w >> 1) + kCountWindowShiftX;
+	text(f, Rect{p.x, p.y + min_y + kCountValueDy, centre * 2, line_h}, value,
+	     TextStyle{.font = font, .align = Align::Centre});
 }
 
 void progress(OledFrame& f, Rect rect, int32_t num, int32_t den) {
