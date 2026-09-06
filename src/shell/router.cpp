@@ -5,14 +5,21 @@ namespace deluge::ui::shell {
 namespace {
 
 /// @brief Is \p e a mod button or a gold-knob turn -- the events `services.mod_knobs->handle` is
-///        consulted for before the top scene sees them?
+///        consulted for, *after* the top scene has had them and declined?
+///
+/// `mod_knobs` is the port of `View`, and `View` is what `UI`'s **base-class** implementations of
+/// `modEncoderAction`/`modButtonAction` forward to (`gui/ui/ui.cpp:35-41`). The dispatchers call
+/// the current UI, never `view` directly -- `interpretEncoders` at `hid/encoder_input.cpp:194`,
+/// `Buttons::buttonAction`'s mod-button loop at `hid/buttons.cpp:104` -- so a UI that overrides
+/// the hook wins and one that does not falls through to `View`. Hence: scene first, service
+/// second. See `Router::route`'s doc for the override census.
 ///
 /// @note A gold knob's own push (`ButtonId::ModEnc0`/`ModEnc1`) is deliberately **not** included:
 ///       legacy routes it to `getCurrentUI()->modEncoderButtonAction` from the tail block, after
 ///       the scene's own `buttonAction` has already run and declined to handle it
 ///       (`hid/buttons.cpp:225-231`, reached only past the `buttonAction` call at `:134`) -- so it
-///       goes through the ordinary chain (scene, then `global_controls`) like any other plain
-///       button, never straight to `mod_knobs`.
+///       reaches `global_controls` after the scene, like any other plain button, and never
+///       `mod_knobs` at all.
 bool is_mod_or_gold(const UiEvent& e) {
 	switch (e.kind) {
 	case UiEvent::Kind::Button:
@@ -61,14 +68,6 @@ bool already_claimed(const UiEvent& e, const InputClaims& claims) {
 } // namespace
 
 void Router::run_chain(const UiEvent& event, const UiContext& ctx) {
-	if (is_mod_or_gold(event)) {
-		Result mod_result = services_.mod_knobs->handle(event, ctx);
-		apply(mod_result);
-		if (mod_result.handled) {
-			return;
-		}
-	}
-
 	// `input_top()`, not `top()`: a popup, a console line or the working animation sits on the
 	// stack without ever taking the input of the scene it is drawn over (`Scene::input_transparent`,
 	// and legacy's own popups, which are composited into the OLED image and route nothing --
@@ -77,6 +76,16 @@ void Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	apply(scene_result);
 	if (scene_result.handled) {
 		return;
+	}
+
+	// `mod_knobs` is `View`, and `View` is the *base-class fallback* the current UI drops through
+	// to -- so it is consulted only once the scene has declined. See `is_mod_or_gold`.
+	if (is_mod_or_gold(event)) {
+		Result mod_result = services_.mod_knobs->handle(event, ctx);
+		apply(mod_result);
+		if (mod_result.handled) {
+			return;
+		}
 	}
 
 	Result global_result = services_.global_controls->handle(event, ctx);

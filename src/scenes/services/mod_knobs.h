@@ -39,27 +39,28 @@
 /// @par What the router sends here, and what it does not
 ///
 /// `Router::route` consults `services.mod_knobs` only for a mod button (`ButtonId::Mod0..Mod7`) or a
-/// gold-knob turn (`EncoderRole::GoldUpper`/`GoldLower`) -- `shell/router.h:55-65`.
+/// gold-knob turn (`EncoderRole::GoldUpper`/`GoldLower`), and only **after the top scene has
+/// declined it** -- `shell/router.h`'s `route()`.
 ///
-/// @warning **It consults it BEFORE the top scene, and that is not legacy's order.** Legacy sends
-///          both to the *current UI* first, with `View` reached only as the base-class fallback:
-///          `interpretEncoders` calls `getCurrentUI()->modEncoderAction`
-///          (`hid/encoder_input.cpp:194`) and `Buttons::buttonAction`'s mod-button loop calls
-///          `getCurrentUI()->modButtonAction` (`hid/buttons.cpp:104`), and it is `UI`'s own base
-///          implementations that forward to `view` (`gui/ui/ui.cpp:35-41`). Six UIs override
-///          `modEncoderAction` -- `automation_view.h:116`, `performance_view.h:96`,
-///          `arranger_view.h:49`, `instrument_clip_view.h:215`, `session_view.h:100`,
-///          `sound_editor.h:80` -- and two override `modButtonAction`
-///          (`session_view.h:81`, `performance_view.h:98`). So the chain should be
-///          top scene -> `mod_knobs` -> `global_controls`, and it is not yet.
+/// That ordering is the whole point of this class's place in the chain: it is the port of `View`,
+/// and `View` is what `UI`'s **base-class** `modEncoderAction`/`modButtonAction`
+/// (`gui/ui/ui.cpp:35-41`) forward to. The dispatchers call the current UI, never `view` --
+/// `interpretEncoders` at `hid/encoder_input.cpp:194`, `Buttons::buttonAction`'s mod-button loop at
+/// `hid/buttons.cpp:104` -- so a UI that overrides the hook wins and one that does not drops
+/// through to `View`. Six UIs override `modEncoderAction` (`sound_editor.h:80`,
+/// `arranger_view.h:49`, `automation_view.h:116`, `performance_view.h:96`, `session_view.h:100`,
+/// `instrument_clip_view.h:215`) and two override `modButtonAction` (`session_view.h:81`,
+/// `performance_view.h:98`).
 ///
-///          Found and reported by E4 task 2 (its report's finding 1); **ruled on by the
-///          controller and implemented as E4 task 3's first steps**, with its own spec. Nothing
-///          regresses in the meantime -- no scene ported so far overrides either hook -- but
-///          `SoundEditor`'s port is `MenuScene`, and `SoundEditor::modEncoderAction`
-///          (`gui/ui/sound_editor.cpp:1583-1607`) has a real MIDI-learn arm, so E4 task 5 depends
-///          on the fix. This class is unaffected by which way round it goes: it claims a gold turn
-///          (nothing else in legacy sees one once the chain finishes) and claims nothing else.
+/// @note The chain ran the other way round (`mod_knobs` first) from plan D until E4 task 3, which
+///       fixed it. Found and reported by E4 task 2 (its report's finding 1), ruled on by the
+///       controller, recorded as amendment §15.4 of
+///       `docs/superpowers/specs/2026-08-26-ui-shell-design.md`, and specced in
+///       `tests/spec/shell/router_spec.cpp`. It was invisible for three plans because the slot
+///       held a `NullService`; what it would have cost is `SoundEditor::modEncoderAction`'s
+///       MIDI-learn arm (`gui/ui/sound_editor.cpp:1583-1607`), whose port is `MenuScene`, never
+///       firing. This class needed no change for it: it claims a gold turn and a mod button and
+///       nothing else, which *is* the base-class-fallback contract.
 ///
 /// A gold knob's own **push** is deliberately not this service's event. Legacy routes
 /// `MOD_ENCODER_0`/`MOD_ENCODER_1` from `buttonAction`'s *tail*, after the current UI's own

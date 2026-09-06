@@ -23,11 +23,14 @@ struct Services {
 	Service* midi_learn = &null_service();
 };
 
-/// @brief The shell's routing chain: the mod-knob bar, then the top scene, then the global
-///        controls, in the order `Buttons::buttonAction` tried them (`hid/buttons.cpp:100-107`
-///        for the mod-button loop, `:134` for the scene, `:143-231` for the tail -- which is where
-///        `MOD_ENCODER_0`/`MOD_ENCODER_1` (`ButtonId::ModEnc0/1`) actually live, at `:225-231`,
-///        reached only after the scene has already had a look).
+/// @brief The shell's routing chain: the top scene, then the mod-knob bar, then the global
+///        controls.
+///
+/// The tail half is `Buttons::buttonAction`'s shape exactly -- `getCurrentUI()->buttonAction` at
+/// `hid/buttons.cpp:134`, then the `:143-231` tail, which is where `MOD_ENCODER_0`/`MOD_ENCODER_1`
+/// (`ButtonId::ModEnc0/1`) actually live, at `:225-231`, reached only after the scene has already
+/// had a look. The `mod_knobs` step sits between them because `mod_knobs` is the port of `View`,
+/// and `View` is what `UI`'s **base-class** hooks forward to; see `route()`.
 ///
 /// The scene step is `SceneStack::input_top()` -- the topmost scene that is not
 /// `Scene::input_transparent()` -- rather than `top()`, so a passive overlay (popup, console,
@@ -52,12 +55,37 @@ public:
 	Router(SceneStack& stack, Services services, InputLowering& lowering)
 	    : stack_(stack), services_(services), lowering_(lowering) {}
 
-	/// @brief Route one event through the full chain: `mod_knobs` -> top scene ->
+	/// @brief Route one event through the full chain: top scene -> `mod_knobs` ->
 	///        `global_controls` -> drop.
 	///
 	/// `services.mod_knobs->handle` is only consulted when \p event is a mod button or a gold-knob
-	/// turn (`ButtonId::Mod0..Mod7`, `EncoderRole::GoldUpper/GoldLower`); anything else goes
-	/// straight to the top scene. In particular, a gold knob's own push
+	/// turn (`ButtonId::Mod0..Mod7`, `EncoderRole::GoldUpper/GoldLower`), and then only once the
+	/// top scene has declined it; anything else goes from the scene straight to `global_controls`.
+	///
+	/// @par Why the scene comes first
+	///
+	/// `mod_knobs` is the port of `View`, and legacy never dispatches to `view` directly for
+	/// either of these two event shapes. `interpretEncoders` calls
+	/// `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
+	/// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp:194`) and `Buttons::buttonAction`'s
+	/// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp:104`).
+	/// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the
+	/// **base-class** implementations, and both do nothing but forward to `view` -- so the current
+	/// UI gets first refusal and `View` is the fallback. Six UIs override the first
+	/// (`SoundEditor`, `gui/ui/sound_editor.h:80`; `ArrangerView`, `gui/views/arranger_view.h:49`;
+	/// `AutomationView`, `gui/views/automation_view.h:116`; `PerformanceView`,
+	/// `gui/views/performance_view.h:96`; `SessionView`, `gui/views/session_view.h:100`;
+	/// `InstrumentClipView`, `gui/views/instrument_clip_view.h:215`) and two override the second
+	/// (`SessionView`, `gui/views/session_view.h:81`; `PerformanceView`,
+	/// `gui/views/performance_view.h:98`).
+	///
+	/// **This was inverted from plan D until E4 task 3.** It was invisible for three plans because
+	/// the slot held a `NullService`; the concrete cost was that `SoundEditor::modEncoderAction`'s
+	/// MIDI-learn arm (`gui/ui/sound_editor.cpp:1583-1607`), whose port is `MenuScene`, could never
+	/// have fired -- the service would have claimed the turn first. Recorded as amendment §15.4 of
+	/// `docs/superpowers/specs/2026-08-26-ui-shell-design.md`.
+	///
+	/// In particular, a gold knob's own push
 	/// (`ButtonId::ModEnc0`/`ModEnc1`) is **not** a `mod_knobs` event: legacy routes it to
 	/// `getCurrentUI()->modEncoderButtonAction` from the tail, after the scene's own `buttonAction`
 	/// has already run (`hid/buttons.cpp:225-231`), so it reaches the scene first here too, exactly
@@ -71,8 +99,8 @@ public:
 	///        claimed it this tick.
 	///
 	/// Shares `route()`'s exact chain and `apply()` call, and differs only in being skipped
-	/// outright -- not even reaching `mod_knobs` -- when \p claims shows the bit this event maps to
-	/// is set: `Encoder{Select}` -> `turn`, `Encoder{GoldUpper}` -> `edit0`,
+	/// outright -- not even reaching the top scene -- when \p claims shows the bit this event maps
+	/// to is set: `Encoder{Select}` -> `turn`, `Encoder{GoldUpper}` -> `edit0`,
 	/// `Encoder{GoldLower}` -> `edit1`, `Encoder{Horizontal}` -> `horizontal`,
 	/// `Encoder{Vertical}` -> `vertical`, `EncoderButton{SelectEnc}` -> `select`,
 	/// `Button{Back}` -> `back`. A claimed event is neither routed nor counted by
@@ -141,8 +169,8 @@ public:
 	uint32_t dropped_events() const { return dropped_; }
 
 private:
-	/// @brief The shared chain body: modifiers -> `mod_knobs` -> top scene -> `global_controls` ->
-	///        drop, `apply()`d at every step. Used by both `route()` and `route_post_render()`
+	/// @brief The shared chain body: top scene -> `mod_knobs` -> `global_controls` -> drop,
+	///        `apply()`d at every step. Used by both `route()` and `route_post_render()`
 	///        (the latter only once the claim gate has let the event through).
 	void run_chain(const UiEvent& event, const UiContext& ctx);
 

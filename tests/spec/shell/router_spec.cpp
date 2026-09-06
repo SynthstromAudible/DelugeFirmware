@@ -131,12 +131,86 @@ describe shell_router("shell::Router", $ {
 
 		r.router.route(mod_event, make_ctx(r.lowering));
 
-		expect(r.log.size()).to_equal(size_t(2));
-		expect(r.log[0] == "mod").to_be_true();
-		expect(r.log[1] == "scene").to_be_true();
-		expect(r.mod_knobs.calls).to_equal(1);
+		expect(r.log.size()).to_equal(size_t(1));
+		expect(r.log[0] == "scene").to_be_true();
 		expect(r.scene_a.calls).to_equal(1);
-		expect(r.global_controls.calls).to_equal(0);   // never reached: the scene already handled it
+		expect(r.mod_knobs.calls).to_equal(0);        // never reached: the scene already handled it
+		expect(r.global_controls.calls).to_equal(0);  // nor this
+	});
+
+	// The two examples below are the proof of E4 task 3's part A, the fix to a plan-D defect: the
+	// chain used to consult `mod_knobs` BEFORE the top scene. Legacy is unambiguous the other way.
+	// `interpretEncoders` calls `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
+	// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp:194`) and `Buttons::buttonAction`'s
+	// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp:104`);
+	// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the BASE-class
+	// implementations, whose whole body is a forward to `view`. So the current UI gets first
+	// refusal and `View` -- which is what `services.mod_knobs` ports -- is the fallback. Six UIs
+	// override the first (`gui/ui/sound_editor.h:80`, `gui/views/arranger_view.h:49`,
+	// `gui/views/automation_view.h:116`, `gui/views/performance_view.h:96`,
+	// `gui/views/session_view.h:100`, `gui/views/instrument_clip_view.h:215`) and two override the
+	// second (`gui/views/session_view.h:81`, `gui/views/performance_view.h:98`).
+	//
+	// It has to be proved BOTH ways round, because either half alone passes on a broken chain: a
+	// service-first router still lets a declining service fall through to the scene, and a router
+	// that never consults the service at all still shows the scene winning.
+
+	it("a scene that claims a gold-knob turn gets it, and mod_knobs never sees it", _ {
+		Rig r;
+		r.scene_a.next_result = handled_no_actions();   // the `SoundEditor::modEncoderAction` case
+		UiEvent turn{};
+		turn.kind = UiEvent::Kind::Encoder;
+		turn.encoder = EncoderRole::GoldLower;
+		turn.delta = 1;
+
+		r.router.route(turn, make_ctx(r.lowering));
+
+		expect(r.log.size()).to_equal(size_t(1));
+		expect(r.log[0] == "scene").to_be_true();
+		expect(r.mod_knobs.calls).to_equal(0);
+		expect(r.global_controls.calls).to_equal(0);
+
+		// The same for a mod BUTTON, legacy's other base-class-fallback hook.
+		r.log.clear();
+		r.router.route(button_event(ButtonId::Mod3, true), make_ctx(r.lowering));
+		expect(r.log.size()).to_equal(size_t(1));
+		expect(r.log[0] == "scene").to_be_true();
+		expect(r.mod_knobs.calls).to_equal(0);
+	});
+
+	it("a gold-knob turn the scene declines falls through to mod_knobs, before global_controls", _ {
+		Rig r;
+		// The scene declines, exactly as a UI that does not override `modEncoderAction` does by
+		// inheriting `UI`'s forward-to-`view` body.
+		r.mod_knobs.next_result = handled_no_actions();
+		UiEvent turn{};
+		turn.kind = UiEvent::Kind::Encoder;
+		turn.encoder = EncoderRole::GoldUpper;
+		turn.delta = -1;
+
+		r.router.route(turn, make_ctx(r.lowering));
+
+		expect(r.log.size()).to_equal(size_t(2));
+		expect(r.log[0] == "scene").to_be_true();      // asked first
+		expect(r.log[1] == "mod").to_be_true();        // and only then the View fallback
+		expect(r.global_controls.calls).to_equal(0);   // mod_knobs claimed it
+
+		// Mod button, same order.
+		r.log.clear();
+		r.router.route(button_event(ButtonId::Mod7, true), make_ctx(r.lowering));
+		expect(r.log.size()).to_equal(size_t(2));
+		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[1] == "mod").to_be_true();
+
+		// And when nothing claims it, `global_controls` is still last and the event still drops.
+		r.log.clear();
+		r.mod_knobs.next_result = Result::unhandled();
+		r.router.route(turn, make_ctx(r.lowering));
+		expect(r.log.size()).to_equal(size_t(3));
+		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[1] == "mod").to_be_true();
+		expect(r.log[2] == "global").to_be_true();
+		expect(r.router.dropped_events()).to_equal(uint32_t(1));
 	});
 
 	it("skips mod_knobs entirely for a plain button, and applies actions from unhandled steps too", _ {

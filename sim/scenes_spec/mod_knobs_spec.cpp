@@ -233,7 +233,12 @@ UiEvent button_event(ButtonId b, bool on) {
 	return e;
 }
 
-/// @brief A scene that counts what it was handed and claims everything.
+/// @brief A scene that counts what it was handed and claims everything, unless told not to.
+///
+/// `claim` is what makes this rig able to stand in for both sides of legacy's dispatch: a UI that
+/// *overrides* `modEncoderAction`/`modButtonAction` (claim = true) and one that inherits `UI`'s
+/// base implementation and so drops through to `view` (claim = false, the router's `mod_knobs`
+/// step).
 class RecordingScene final : public Scene {
 public:
 	SceneKind kind() const override { return SceneKind::FirstApp; }
@@ -241,9 +246,10 @@ public:
 		calls++;
 		last = event;
 		Result r;
-		r.handled = true;
+		r.handled = claim;
 		return r;
 	}
+	bool claim = true;
 	int calls = 0;
 	UiEvent last{};
 };
@@ -696,40 +702,56 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.target().mod_controllable != nullptr).to_be_true();
 	});
 
-	it("routes a gold-knob turn to the service first and a gold-knob push to the scene first", _ {
-		// Step 5's subject is the PUSH, and that half is legacy's exactly:
-		// `MOD_ENCODER_0`/`MOD_ENCODER_1` are handled in `Buttons::buttonAction`'s TAIL, after
-		// `getCurrentUI()->buttonAction` (`hid/buttons.cpp:225-231`), so the scene sees the push
-		// first and the service never sees it at all. That is what this example is here to pin.
+	it("routes a gold-knob turn through the service and a gold-knob push past it", _ {
+		// Step 5's subject is the PUSH: `MOD_ENCODER_0`/`MOD_ENCODER_1` are handled in
+		// `Buttons::buttonAction`'s TAIL, after `getCurrentUI()->buttonAction`
+		// (`hid/buttons.cpp:225-231`), so the scene sees the push first and the service never sees
+		// it at all. That is what this example is here to pin.
 		//
-		// The turn and the mod button are pinned here as they are ROUTED TODAY, which is NOT
-		// legacy's order: `interpretEncoders` calls `getCurrentUI()->modEncoderAction`
-		// (`hid/encoder_input.cpp:194`) and the mod-button loop calls
-		// `getCurrentUI()->modButtonAction` (`hid/buttons.cpp:104`), with `UI`'s own base
-		// implementations forwarding to `view` as the fallback (`gui/ui/ui.cpp:35-41`) -- so both
-		// should reach the top scene first and `mod_knobs` second. E4 task 2 found that; the
-		// controller ruled the chain becomes top scene -> mod_knobs -> global_controls, implemented
-		// as E4 task 3's first steps with its own spec. **These two `expect`s change with that
-		// fix**; the `ModEnc0`/`ModEnc1` ones do not.
+		// The turn and the mod button reach `mod_knobs` too, but only as the *fallback* a scene
+		// that declines drops through to -- `getCurrentUI()->modEncoderAction`
+		// (`hid/encoder_input.cpp:194`) and `getCurrentUI()->modButtonAction`
+		// (`hid/buttons.cpp:104`), with `UI`'s base implementations forwarding to `view`
+		// (`gui/ui/ui.cpp:35-41`). E4 task 2 found the chain inverted (service first); E4 task 3
+		// part A fixed it, and `tests/spec/shell/router_spec.cpp` holds the ordering proof with a
+		// shared call log. What this example adds is the same claim against the *real* service
+		// event set.
 		RouteRig r;
 
+		// A scene that claims the turn -- the six UIs that override `modEncoderAction` -- is the
+		// end of the line. `View` never sees it.
 		r.router.route(gold_turn(EncoderRole::GoldLower, 1), r.ctx());
-		expect(r.mod_knobs.calls).to_equal(1);
-		expect(r.scene.calls).to_equal(1); // the recording service claims nothing, so it falls through
+		expect(r.scene.calls).to_equal(1);
+		expect(r.mod_knobs.calls).to_equal(0);
 
 		r.router.route(button_event(ButtonId::ModEnc0, true), r.ctx());
-		expect(r.mod_knobs.calls).to_equal(1); // unchanged: a knob PUSH is not a mod_knobs event
+		expect(r.mod_knobs.calls).to_equal(0); // a knob PUSH is not a mod_knobs event at all
 		expect(r.scene.calls).to_equal(2);
 		expect(r.scene.last.button == ButtonId::ModEnc0).to_be_true();
 
 		r.router.route(button_event(ButtonId::ModEnc1, true), r.ctx());
-		expect(r.mod_knobs.calls).to_equal(1);
+		expect(r.mod_knobs.calls).to_equal(0);
 		expect(r.scene.calls).to_equal(3);
 
-		// A mod BUTTON, by contrast, does reach the service first -- `hid/buttons.cpp:100-107`.
 		r.router.route(button_event(ButtonId::Mod0, true), r.ctx());
-		expect(r.mod_knobs.calls).to_equal(2);
+		expect(r.mod_knobs.calls).to_equal(0);
 		expect(r.scene.calls).to_equal(4);
+
+		// A scene that declines -- a UI inheriting `UI::modEncoderAction`'s forward to `view` --
+		// drops the turn and the mod button through to the service, and nothing else.
+		r.scene.claim = false;
+		r.router.route(gold_turn(EncoderRole::GoldLower, 1), r.ctx());
+		expect(r.scene.calls).to_equal(5);
+		expect(r.mod_knobs.calls).to_equal(1);
+
+		r.router.route(button_event(ButtonId::Mod0, true), r.ctx());
+		expect(r.scene.calls).to_equal(6);
+		expect(r.mod_knobs.calls).to_equal(2);
+		expect(r.mod_knobs.last.button == ButtonId::Mod0).to_be_true();
+
+		r.router.route(button_event(ButtonId::ModEnc0, true), r.ctx());
+		expect(r.scene.calls).to_equal(7);
+		expect(r.mod_knobs.calls).to_equal(2); // still not a mod_knobs event, declined or not
 	});
 
 	it("ignores a knob push handed to it directly, so ordering is the only thing keeping them apart", _ {

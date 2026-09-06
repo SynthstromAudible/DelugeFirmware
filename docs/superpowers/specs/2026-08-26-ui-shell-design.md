@@ -831,3 +831,54 @@ decides, so a covered scene's clock still advances and the moment it asked to be
 the moment it wants to be ticked at. (What a covered scene does not get is `after_render()`, which
 runs only for `rendered_this_tick_` — which is why `RecorderScene` survives its own popup through the
 *grid* pass, where `PopupScene` is an overlay and the recorder is still the base.)
+
+### 15.4 The routing chain had `mod_knobs` and the top scene the wrong way round (found in E4)
+
+Filed here rather than in a new section because it is the same class of defect as §15.2: a shipped
+`Router` behaviour that no spec could catch, because the slot involved was empty.
+
+**The defect.** `Router::route` (`src/shell/router.h`, `src/shell/router.cpp`'s `run_chain`) ran
+`services.mod_knobs` → top scene → `services.global_controls`, and both the header doc and E4's plan
+preamble stated that ordering as legacy's. It is not legacy's ordering for either of the two event
+shapes `mod_knobs` is consulted for.
+
+**The evidence.** `services.mod_knobs` is the port of `View`. Legacy never dispatches a mod button or
+a gold-knob turn to `view` directly:
+
+* `Encoders::interpretEncoders` calls `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
+  (`hid/encoder_input.cpp:194`).
+* `Buttons::buttonAction`'s mod-button loop calls `getCurrentUI()->modButtonAction(i, on)`
+  (`hid/buttons.cpp:104`), then `goto dealtWith` — so a mod button never reaches the `:143-231`
+  tail either.
+* `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the **base-class**
+  implementations, and each one's entire body is a forward to `view`.
+
+So the current UI gets first refusal and `View` is the fallback — uniformly, for mod buttons exactly
+as for gold-knob turns. Six UIs override the first (`SoundEditor`, `gui/ui/sound_editor.h:80`;
+`ArrangerView`, `gui/views/arranger_view.h:49`; `AutomationView`, `gui/views/automation_view.h:116`;
+`PerformanceView`, `gui/views/performance_view.h:96`; `SessionView`, `gui/views/session_view.h:100`;
+`InstrumentClipView`, `gui/views/instrument_clip_view.h:215`). Two override the second
+(`SessionView`, `gui/views/session_view.h:81`; `PerformanceView`, `gui/views/performance_view.h:98`).
+
+**Why it stayed invisible for three plans.** The `mod_knobs` slot held a `NullService` until E4 task
+2, and a null service declines everything, so the chain behaved identically either way round. E4
+task 2 found it by reading `hid/`, not by a failing spec.
+
+**What it would have cost.** `SoundEditor::modEncoderAction` (`gui/ui/sound_editor.cpp:1583-1607`)
+intercepts a gold turn while MIDI learn is active and learns the knob to the current menu param,
+falling through to `UI::modEncoderAction` otherwise. `MenuScene` is that UI's port. With the service
+claiming the turn first, that arm could never fire, and no spec in E4 would have caught it — nothing
+in the plan drives a service and a scene competing for one event.
+
+**The fix.** The chain is **top scene → `mod_knobs` → `global_controls`**. `Router::route_post_render`
+shares `run_chain` and therefore changed with it; its claim gate is unaffected (a claimed event is
+still skipped outright, now before the scene rather than before the service).
+
+Nothing in `ModKnobs` made this harder: `ModKnobs::handle` returns handled for a gold turn and
+unhandled for everything else, which *is* the base-class-fallback contract.
+
+**Coverage.** `tests/spec/shell/router_spec.cpp`'s *"a scene that claims a gold-knob turn gets it,
+and mod_knobs never sees it"* and *"a gold-knob turn the scene declines falls through to mod_knobs,
+before global_controls"*. Both directions are needed: a service-first router still lets a *declining*
+service fall through to the scene, so the "scene wins" half alone does not distinguish the two
+orderings, and a router that never consults the service at all passes the "scene wins" half too.
