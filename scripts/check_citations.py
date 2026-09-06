@@ -30,13 +30,20 @@ A citation is very often written as `port symbol` (`legacy file:lines`) --
 names *this* layer and the citation names legacy. Those pair a name with a file that has never
 contained it, so there is nothing to compare and they are skipped, not failed.
 
-**Shapes this predicate deliberately skips** (skipped, not weakened -- a shape it cannot judge
-soundly must produce no verdict):
+**Shapes this predicate deliberately skips or narrows.** This list is complete: a shape that is not
+here is judged. A shape it cannot judge soundly must produce no verdict, and every exemption below
+is one of those, not a convenience.
 
   * a citation with no backticked token adjacent to it (`` (`:1517`) `` on its own) -- there is no
-    symbol to check;
+    symbol to check. This is the biggest hole and it is structural: the bare continuation form
+    carries no name, so nothing here can see drift in one. Most of E4 task 3's own drift was of
+    exactly this shape;
   * a token that is not a plain identifier: an expression (`` `*getModKnobMode() == whichButton` ``),
     a phrase, an operator. Digging an identifier out of an expression is guesswork;
+  * prose between the symbol and the citation. `` `renderOLED`'s polarity switcher (`:125-157`) ``
+    does not claim to BE `renderOLED`; only `` `Sym` (`file:a-b`) `` does. Requiring the gap to be
+    exactly "` (" took a first run from 493 hits to 255, nearly all of the difference being correct
+    interior citations;
   * an identifier of fewer than `MIN_SYMBOL_LEN` characters -- `on`, `kind`, `set` occur everywhere
     and would agree with any range by luck;
   * an identifier that appears **nowhere** in the cited file (the port-symbol case above, and a
@@ -44,14 +51,32 @@ soundly must produce no verdict):
     predicates are the right net for);
   * a citation into anything but `src/deluge`, as before.
 
+**And two narrowings, which are not skips but do bound what it can see. Both are here because the
+"deliberately skips" list above omitted them once, and a list that omits its own largest holes is
+the false comfort this docstring exists to prevent.**
+
+  * **Direction.** It judges only a range that ends ABOVE its symbol, never one that starts below
+    it. A range starting below is `` `readCurrentValue` (`attack.h:34-36`) `` citing a function's
+    *body* -- legitimate, and line-for-line indistinguishable from a citation that drifted
+    downwards. A range wholly above its symbol is not ambiguous: nothing is ever the body of a
+    function that begins after it. **Measured, not assumed**: a direction-agnostic variant run over
+    the tree gave 35 upward and 47 downward; every one of the 35 was real drift, every one of the
+    47 was a body citation, and the restriction missed none of the 37 defects the strict run had
+    already found. Drift *downwards* past a symbol is therefore invisible here.
+  * **`DRIFT_WINDOW`.** A symbol further than that many lines below the range is read as an
+    unrelated later occurrence of a common name rather than as this range's symbol, and skipped. A
+    citation that has slid further than the window is invisible too.
+
 It still does **not** check that the cited line *means* what the comment claims -- that is not
 mechanizable -- and a citation four lines low that still lands inside its own symbol passes. Task 9
-found 176 of that shape by reading, and no predicate would have. So a clean run here is not a clean
-bill of health, which is why this stays **warning-only**: it always exits 0 and it is a net under
-two specific regressions, not a proof.
+found 176 of that shape by reading, and no predicate would have. So a clean run is not a clean bill
+of health. It is a net under two specific regressions, and since E4 task 3 fix round 2 it is a
+**blocking** one in CI (`--strict`), on the argument that a warning nobody fails on is what let
+three consecutive rounds of drift ship: the cost of a false positive is one named line in the skip
+list above, and the cost of a false negative has been measured three times.
 
-  scripts/check_citations.py             # warn (always exit 0)
-  scripts/check_citations.py --strict    # exit 1 on any unexcepted hit, for a local sweep
+  scripts/check_citations.py             # warn (always exit 0), for a quick local look
+  scripts/check_citations.py --strict    # exit 1 on any unexcepted hit -- what CI runs
   scripts/check_citations.py --list-all  # ignore the exception list
 
 Known false positives live in `scripts/citation_exceptions.txt`, one per line, in the
@@ -258,11 +283,6 @@ def adjacent_symbol(line: str, prev_line: str, start: int, end: int) -> str | No
 
 def symbol_drifted(rel: str, symbol: str, start: int, end: int) -> str | None:
     """Why `symbol` says the range has drifted, or None if it does not say so."""
-    if start == end:
-        # A single-line citation next to a symbol overwhelmingly means "this line, inside that
-        # symbol" -- `` `renderOLED` (`patch_cable_strength.cpp:79`) `` -- not "this symbol". Only
-        # a RANGE makes the whole-symbol claim this predicate is able to check.
-        return None
     lines = symbol_lines(rel, symbol)
     if not lines:
         # The symbol is not in this file at all: a port symbol paired with a legacy citation, or a
