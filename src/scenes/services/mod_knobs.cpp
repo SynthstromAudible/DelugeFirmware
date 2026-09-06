@@ -180,7 +180,7 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 }
 
 int32_t ModKnobs::mode() const {
-	// `View::getModKnobMode` (`view.cpp:1680-1690`).
+	// `View::getModKnobMode` (`view.cpp:1680-1689`).
 	if (target_.mod_controllable != nullptr) {
 		const uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode();
 		if (mode_pointer != nullptr) {
@@ -437,7 +437,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 // -- The buttons -------------------------------------------------------------------------------
 
 void ModKnobs::mod_button_action(int32_t which_button, bool on) {
-	// `View::modButtonAction` (`view.cpp:1497-1547`).
+	// `View::modButtonAction` (`view.cpp:1497-1546`).
 
 	// `:1500-1506` -- ignore the mod button in the automation editor, except mod button 0 on
 	// arranger automation view, which is how the VU meter stays toggleable there.
@@ -467,10 +467,22 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 	// `:1513-1529` -- "only displaying VU meter in session view, arranger view, performance view
 	// and arranger automation view".
 	if (!view_.root_is_clip_minder) {
-		// `:1517-1524`. Legacy dereferences `getModKnobMode()` here **unguarded**, where
-		// `View::getModKnobMode` (`:1683-1686`) null-checks the very same pointer -- so a
-		// `ModControllable` with no modes would fault at `:1517` and not at `:1684`. Guarded here;
-		// the guard can only change behaviour in the case legacy crashes in.
+		// `:1517-1523`.
+		//
+		// @warning **Legacy defect (4 of 5), recorded in `src/scenes/README.md`'s "Defects this port
+		//          found in shipping firmware".** `View::modButtonAction` dereferences
+		//          `getModKnobMode()` **unguarded**, here at `view.cpp:1517` (a read) and again at
+		//          `:1532` (a *write*, outside every guard, so it runs on every mod-button press in
+		//          every view) -- while `View::getModKnobMode` (`:1680-1689`) null-checks the very
+		//          same pointer at `:1684`, and `ModControllable::getModKnobMode`
+		//          (`model/mod_controllable/mod_controllable.cpp:47-49`) really does return null for
+		//          anything without mod-knob banks. Six classes override it; the one that can be an
+		//          active mod controllable and does not is `CVInstrument`
+		//          (`model/instrument/cv_instrument.h:31`). Established by reading, not reproduced:
+		//          no device here, and no `sim/` fixture builds a CV clip. Both sites are guarded in
+		//          this port, and the guard can only differ from legacy in the case legacy faults
+		//          in. Not annotated in `view.cpp` itself -- this stack cites that file by line more
+		//          than a hundred times.
 		const uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode();
 		if (mode_pointer != nullptr && *mode_pointer == which_button && which_button == 0) {
 			display_vu_meter_ = !display_vu_meter_;
@@ -480,8 +492,9 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 		// class doc), and nothing here can read it.
 	}
 
-	// `:1531-1532` -- change the selection *before* calling the mod-button action, so that action
-	// sees the new mod-button parameter context.
+	// `:1530-1532` -- change the selection *before* calling the mod-button action, so that action
+	// sees the new mod-button parameter context. Legacy's `:1532` is the *unguarded write* half of
+	// the defect the @warning above describes.
 	if (uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode(); mode_pointer != nullptr) {
 		*mode_pointer = static_cast<uint8_t>(which_button);
 	}
@@ -496,7 +509,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 }
 
 Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool shift, bool learn) {
-	// `View::modEncoderButtonAction` (`view.cpp:1332-1350`).
+	// `View::modEncoderButtonAction` (`view.cpp:1332-1349`).
 	Result result;
 	// Legacy's tail always reaches `dealtWith` (`hid/buttons.cpp:225-233`), so the push is consumed
 	// on every arm below, the two early returns included.
@@ -513,7 +526,7 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 
 	if (shift && on) { // `:1342-1344`
 		if (menu::mod_delete_automation(target_, which_encoder)) {
-			// `:1358` `display->displayPopup(STRING_FOR_AUTOMATION_DELETED)`, as the action a scene
+			// `:1359` `display->displayPopup(STRING_FOR_AUTOMATION_DELETED)`, as the action a scene
 			// or service spells a popup with (`shell/scene.h`).
 			(void)result.actions.push_back(
 			    Action{.kind = Action::Kind::Popup,
@@ -523,7 +536,7 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 		return result;
 	}
 
-	// `modEncoderButtonAction_changeModControllable` (`:1363-1378`).
+	// `modEncoderButtonAction_changeModControllable` (`:1363-1377`).
 	if (menu::mod_encoder_button(target_, which_encoder, on)) { // `:1368-1370`
 		instrument_been_edited();                               // `:1371`
 	}
@@ -546,18 +559,18 @@ ParamManagerForTimeline* ModKnobs::param_manager_for_timeline() const {
 // -- The LEDs and the indicators -----------------------------------------------------------------
 
 ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info, bool stuttering) {
-	// `View::setKnobIndicatorLevel`'s arithmetic (`view.cpp:1412-1470`), over reads
+	// `View::setKnobIndicatorLevel`'s arithmetic (`view.cpp:1413-1468`), over reads
 	// `menu::mod_indicator_info` already made.
 	IndicatorLevel out{};
 
 	if (info.has_auto_param) {
 		int32_t knob_pos = info.knob_pos;
-		// `:1421-1428` -- the same "never drag a position that is already below the limit up"
+		// `:1419-1427` -- the same "never drag a position that is already below the limit up"
 		// clamp `calculateKnobPosForModEncoderTurn` uses, with the same two limits.
 		const int32_t lower_limit = info.kind == Kind::PATCH_CABLE ? std::min(-192, knob_pos) : std::min(-64, knob_pos);
 		knob_pos = std::clamp(knob_pos, lower_limit, 64);
 
-		if (info.quantized_stutter && !stuttering) { // `:1429-1449`
+		if (info.quantized_stutter && !stuttering) { // `:1428-1446`
 			// The five stutter rate buckets, each snapped to the position that lights that many of
 			// the four segments: 4ths none, 8ths one, 16ths two, 32nds three, 64ths all four.
 			if (knob_pos < -39) {
@@ -576,9 +589,9 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 				knob_pos = 64;
 			}
 		}
-		knob_pos += kKnobPosOffset; // `:1450`
+		knob_pos += kKnobPosOffset; // `:1447`
 
-		if (info.kind == Kind::PATCH_CABLE) { // `:1452-1454`
+		if (info.kind == Kind::PATCH_CABLE) { // `:1449-1451`
 			knob_pos = convert_patch_cable_knob_pos_to_indicator_level(knob_pos);
 		}
 		out.declared = true;
@@ -587,24 +600,31 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		return out;
 	}
 
-	if (info.non_existent_param) { // `:1457-1461`
+	if (info.non_existent_param) { // `:1454-1458`
 		out.declared = true;
 		out.level = static_cast<uint8_t>(info.non_existent_knob_pos + kKnobPosOffset);
 		out.bipolar = false;
 		return out;
 	}
-	if (info.patch_cable_default) { // `:1463-1468`
+	if (info.patch_cable_default) { // `:1460-1465`
 		out.declared = true;
 		out.level = 64; // "equals 0 (midpoint) in -128 to +128 range"
 		out.bipolar = true;
 		return out;
 	}
 
-	// Legacy's fourth case: no `autoParam`, `paramId != 255`, and it *is* just a param. `knobPos`
-	// was never assigned and is passed to `indicator_leds::setKnobIndicatorLevel` uninitialised
-	// (`view.cpp:1410`, `:1468`). There is no behaviour to preserve, so nothing is declared and the
-	// knob keeps whatever it was last showing -- which is the shell's rule for an undeclared
-	// indicator (`Shell::flush`) and the only defined thing to do here.
+	// Legacy's fourth case: no `autoParam`, `paramId != 255`, and it *is* just a param.
+	//
+	// @warning **Legacy defect (5 of 5), recorded in `src/scenes/README.md`'s "Defects this port
+	//          found in shipping firmware".** `View::setKnobIndicatorLevel` declares
+	//          `int32_t knobPos;` with no initialiser (`view.cpp:1410`) and assigns it on three of
+	//          its four paths -- `:1413`, `:1454`, `:1460` -- leaving it **uninitialised** on this
+	//          one. It is then passed to `indicator_leds::setKnobIndicatorLevel` at `:1468`, which
+	//          truncates it to `uint8_t` and lights the gold knob's four-segment column from it:
+	//          undefined behaviour with a visible symptom. There is no behaviour to preserve, so
+	//          nothing is declared here and the knob keeps whatever it was last showing -- the
+	//          shell's own rule for an undeclared indicator (`Shell::flush`) and the only defined
+	//          thing to do. Not annotated in `view.cpp` itself; see the sibling @warning above.
 	return out;
 }
 
@@ -616,14 +636,14 @@ bool ModKnobs::indicator_blinking(int32_t which_encoder) const {
 }
 
 void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
-	// `View::setKnobIndicatorLevels` (`view.cpp:1379-1402`).
-	// `:1381-1383` -- legacy returns early when there is no root UI, under a comment that reads, in
+	// `View::setKnobIndicatorLevels` (`view.cpp:1379-1401`).
+	// `:1380-1382` -- legacy returns early when there is no root UI, under a comment that reads, in
 	// full, "What's this?". An empty scene stack is this port's "no root UI".
 	if (stack_.depth() == 0) {
 		return;
 	}
 	if (view_.in_automation_editor) {
-		// `:1385-1389` -- "don't update knob indicator levels when you're in automation editor".
+		// `:1385-1388` -- "don't update knob indicator levels when you're in automation editor".
 		// Legacy calls `automationView.displayAutomation()` instead, which is a view-side redraw
 		// and not ported; declaring nothing leaves both columns exactly as they were, which is what
 		// legacy's early return does too.
@@ -639,9 +659,9 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 		return;
 	}
 
-	for (int32_t k = 0; k < kKnobCount; k++) { // `:1391-1396`
+	for (int32_t k = 0; k < kKnobCount; k++) { // `:1390-1396`
 		if (indicator_blinking(k)) {
-			// `:1393` skips a blinking knob so legacy's own blink timer keeps driving it; here that
+			// `:1392` skips a blinking knob so legacy's own blink timer keeps driving it; here that
 			// timer is a phase, so the blink frame is declared instead of nothing.
 			(void)frame.indicator(
 			    static_cast<deluge::ui::IndicatorId>(k),
@@ -657,29 +677,32 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 }
 
 void ModKnobs::leds(deluge::ui::LedFrame& frame) {
-	// `View::setModLedStates`' final block, "Sort out actual mod LEDs" (`view.cpp:1656-1678`). The
+	// `View::setModLedStates`' final block, "Sort out actual mod LEDs" (`view.cpp:1659-1678`). The
 	// three LED groups above it (AFFECT_ENTIRE, CLIP_VIEW, SESSION_VIEW) are root-view questions
 	// and are not this service's -- see the class doc.
-	const bool its_the_song = !is_clip_context(target_); // `:1558`
-	const int32_t mod_knob_mode = mode();                // `:1657`
+	const bool its_the_song = !is_clip_context(target_); // `:1559`
+	const int32_t mod_knob_mode = mode();                // `:1660`
 
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
 	// `indicator_leds::blinkLed(led)`'s defaults: `numBlinks` 255 (i.e. forever) and
-	// `blinkingType` 0, whose period is `kFlashTime` (`definitions_cxx.hpp:159`).
-	constexpr deluge::ui::LedState kBlink{deluge::ui::LedState::Kind::Blink, kFlashTimeMs, 0};
+	// `blinkingType` 0, whose period is `kFlashTime` (`definitions_cxx.hpp:159`) -- already carried
+	// by the toolkit as `deluge::ui::kFlashTime` (`ui/core/metrics.h:25`), which is the same
+	// constant `MenuScene::leds` blinks BACK and LEARN at.
+	constexpr deluge::ui::LedState kBlink{deluge::ui::LedState::Kind::Blink,
+	                                      static_cast<uint16_t>(deluge::ui::kFlashTime), 0};
 
-	for (int32_t i = 0; i < kNumModButtons; i++) { // `:1659`
-		const bool on = (i == mod_knob_mode);      // `:1660`
+	for (int32_t i = 0; i < kNumModButtons; i++) { // `:1662`
+		const bool on = (i == mod_knob_mode);      // `:1663`
 		deluge::ui::LedState state = kOff;
 		if (its_the_song && on && mod_knob_mode == 0 && display_vu_meter_) {
-			state = kBlink; // `:1663-1664` -- the volume mod LED blinks while the VU meter is up
+			state = kBlink; // `:1666-1667` -- the volume mod LED blinks while the VU meter is up
 		}
 		else if (view_.in_automation_editor) {
-			state = kOff; // `:1666-1669` -- every mod LED off in the automation editor
+			state = kOff; // `:1670-1671` -- every mod LED off in the automation editor
 		}
 		else {
-			state = on ? kOn : kOff; // `:1671-1674`
+			state = on ? kOn : kOff; // `:1674-1675`
 		}
 		(void)frame.set(static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i), state);
 	}

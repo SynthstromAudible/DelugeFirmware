@@ -283,7 +283,7 @@ services::ModParamInfo mod_param_info(services::ModTarget& target, int32_t which
 void mod_region_grab_values(const services::ModTarget& target);
 
 /// @brief Read what a gold knob's indicator column should show -- the model half of
-///        `View::setKnobIndicatorLevel` (`gui/views/view.cpp:1403-1472`).
+///        `View::setKnobIndicatorLevel` (`gui/views/view.cpp:1403-1468`).
 ///
 /// Resolves the param stack with `getParamFromModEncoder(whichModEncoder, …, false)` -- legacy's
 /// own third argument at `:1407-1408`, which is why this is **not** `mod_param_info`: that one goes
@@ -296,7 +296,7 @@ void mod_region_grab_values(const services::ModTarget& target);
 services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target, int32_t which_encoder);
 
 /// @brief Press or release a gold knob -- the model half of
-///        `View::modEncoderButtonAction_changeModControllable` (`view.cpp:1363-1378`).
+///        `View::modEncoderButtonAction_changeModControllable` (`view.cpp:1363-1377`).
 ///
 /// `:1364-1366`'s stack copy and `:1368-1369`'s
 /// `ModControllable::modEncoderButtonAction(whichModEncoder, on, modelStack)`. The
@@ -309,14 +309,14 @@ services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target,
 bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder, bool on);
 
 /// @brief Delete a gold knob's param automation -- `View::modEncoderButtonAction_deleteAutomation`
-///        (`view.cpp:1351-1362`).
+///        (`view.cpp:1351-1361`).
 ///
-/// Includes the `ActionType::AUTOMATION_DELETE` action-log entry (`:1356`) and the
-/// `AutoParam::deleteAutomation` call (`:1357`); the "Automation deleted" popup is `ModKnobs`',
+/// Includes the `ActionType::AUTOMATION_DELETE` action-log entry (`:1357`) and the
+/// `AutoParam::deleteAutomation` call (`:1358`); the "Automation deleted" popup is `ModKnobs`',
 /// raised as an `Action::Kind::Popup` rather than by calling `display` from the model layer.
 /// @param target        What is being edited.
 /// @param which_encoder 0 for the lower gold knob, 1 for the upper.
-/// @return True when there was an `autoParam` and its automation was deleted -- legacy's `:1355`
+/// @return True when there was an `autoParam` and its automation was deleted -- legacy's `:1356`
 ///         test, and therefore whether the popup is shown.
 bool mod_delete_automation(const services::ModTarget& target, int32_t which_encoder);
 /// @}

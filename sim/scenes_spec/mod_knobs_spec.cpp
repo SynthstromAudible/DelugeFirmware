@@ -799,7 +799,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// Legacy dispatches every one of them through `getCurrentUI()` and reaches `view` only
 		// through `UI`'s own forwarding bodies: `modEncoderAction` (`hid/encoder_input.cpp:194`,
 		// `gui/ui/ui.cpp:35-37`), `modButtonAction` (`hid/buttons.cpp:104`, `ui.cpp:39-41`) and
-		// `modEncoderButtonAction` (`hid/buttons.cpp:225-231`, `ui.cpp:43-45`). E4 task 2 found the
+		// `modEncoderButtonAction` (`hid/buttons.cpp:227`, `:230`, `ui.cpp:43-45`). E4 task 2 found the
 		// chain inverted (service first); E4 task 3 part A fixed it and added the two pushes, which
 		// plan D had excluded outright. `tests/spec/shell/router_spec.cpp` holds the ordering proof
 		// with a shared call log; this example pins WHICH events reach the service at all.
@@ -930,11 +930,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("blinks the volume mod LED when the VU meter is on, and only in the song context", _ {
-		// `view.cpp:1662-1664` -- the one row of the table that is not "on iff selected", and the
+		// `view.cpp:1666-1667` -- the one row of the table that is not "on iff selected", and the
 		// only reason `displayVUMeter` is ported at all. It needs three things at once: the song
 		// context, mod button 0 selected, and the meter on. Each side toggles the meter through its
 		// own `modButtonAction` -- pressing the already-selected button 0 outside a clip minder
-		// (`:1517-1524`) -- so this drives the toggle as well as the LED it feeds.
+		// (`:1517-1523`) -- so this drives the toggle as well as the LED it feeds.
 		StubDisplay stub;
 		display = &stub;
 
@@ -1019,7 +1019,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("turns every mod LED off in the automation editor, and declares no indicator there", _ {
-		// `view.cpp:1666-1669` and `:1385-1389`. Legacy's condition is
+		// `view.cpp:1670-1671` and `:1385-1388`. Legacy's condition is
 		// `(getRootUI() == &automationView) && automationView.inAutomationEditor()`, which no spec
 		// process can produce -- there is no root UI here at all -- so this arm is driven through
 		// the injected `ViewState` the port carries in its place, and it is the ONE row of the
@@ -1054,13 +1054,13 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 			for (int32_t i = 0; i < 8; i++) {
 				expect(port_mod_led(frame, i).value() == LegacyLed{false, false}).to_be_true();
 			}
-			// `:1387`'s early return: legacy leaves both columns exactly as they were, which here
+			// `:1386-1387`'s early return: legacy leaves both columns exactly as they were, which here
 			// is "declares nothing".
 			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
 			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
 		}
 
-		// `:1501-1506` -- and the mod button itself is ignored, so the mode does not move.
+		// `:1501-1505` -- and the mod button itself is ignored, so the mode does not move.
 		rig.knobs.mod_button_action(5, true);
 		expect(rig.knobs.mode()).to_equal(3);
 		// ...except mod button 0 on arranger automation view (`:1503`).
@@ -1167,7 +1167,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("declares no indicator at all with an empty scene stack, as legacy declares none with no root UI", _ {
-		// `view.cpp:1381-1383`. The mod LEDs are unaffected -- that block is below the early return
+		// `view.cpp:1380-1382`. The mod LEDs are unaffected -- that block is below the early return
 		// in legacy and outside `declare_indicators` here -- so this also pins that the two halves
 		// of `leds()` are gated separately.
 		spec::SongFixture f = spec::make_synth_song();
@@ -1186,7 +1186,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("handles a gold-knob push the way View::modEncoderButtonAction does", _ {
-		// `view.cpp:1332-1350` and its two helpers. The push arrives as an `EncoderButton` event,
+		// `view.cpp:1332-1349` and its two helpers. The push arrives as an `EncoderButton` event,
 		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
 		// (`shell/input_lowering.cpp:42-53`, `:298`) -- and which the router now routes here, after
 		// the scene (E4 task 3 part A; `tests/spec/shell/router_spec.cpp`).
@@ -1207,14 +1207,14 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		push.on = true;
 
 		// Claimed unconditionally: legacy's tail always reaches `dealtWith`
-		// (`hid/buttons.cpp:225-233`).
+		// (`hid/buttons.cpp:225-232`).
 		DirectCtx plain{0};
 		const Result r = rig.knobs.handle(push, plain.ctx);
 		expect(r.handled).to_be_true();
 		expect(r.actions.size()).to_equal(size_t(0)); // no shift: no "automation deleted" popup
 
 		// Shift + push deletes the param's automation and raises the popup legacy raises at
-		// `:1358`. `menu::mod_delete_automation` reports whether there was an `autoParam` to delete,
+		// `:1359`. `menu::mod_delete_automation` reports whether there was an `autoParam` to delete,
 		// and on this fixture there is, so the action must be there.
 		struct ShiftCtx {
 			deluge::ui::shell::ButtonSet held{};

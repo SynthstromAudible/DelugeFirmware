@@ -721,7 +721,7 @@ void mod_region_grab_values(const services::ModTarget& target) {
 services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target, int32_t which_encoder) {
 	services::ModIndicatorInfo out{};
 	if (target.mod_controllable == nullptr) {
-		// `View::setKnobIndicatorLevels` (`:1391`) only calls this with a mod controllable resolved;
+		// `View::setKnobIndicatorLevels` (`:1390`) only calls this with a mod controllable resolved;
 		// guarded here anyway, because `setKnobIndicatorLevel` itself dereferences it unchecked.
 		return out;
 	}
@@ -732,38 +732,38 @@ services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target,
 	// levelling an indicator is a read, and must not fork a clip.
 	ModelStackWithAutoParam* param = target.mod_controllable->getParamFromModEncoder(which_encoder, active, false);
 	if (param == nullptr) {
-		// Legacy dereferences the result unchecked (`:1414`); returning "nothing to declare" is the
+		// Legacy dereferences the result unchecked (`:1413`); returning "nothing to declare" is the
 		// port's answer to a null it cannot prove impossible.
 		return out;
 	}
 	out.param_id = param->paramId;
 
-	if (param->autoParam != nullptr) { // `:1414`
+	if (param->autoParam != nullptr) { // `:1413`
 		out.has_auto_param = true;
-		const int32_t value = param->autoParam->getValuePossiblyAtPos(target.mod_pos, param); // `:1415`
-		ParamCollection* collection = param->paramCollection;                                 // `:1416`
-		out.kind = collection->getParamKind();                                                // `:1417`
-		out.bipolar = deluge::modulation::params::isParamBipolar(out.kind, param->paramId);   // `:1419`
-		out.knob_pos = collection->paramValueToKnobPos(value, param);                         // `:1420`
+		const int32_t value = param->autoParam->getValuePossiblyAtPos(target.mod_pos, param); // `:1414`
+		ParamCollection* collection = param->paramCollection;                                 // `:1415`
+		out.kind = collection->getParamKind();                                                // `:1416`
+		out.bipolar = deluge::modulation::params::isParamBipolar(out.kind, param->paramId);   // `:1417`
+		out.knob_pos = collection->paramValueToKnobPos(value, param);                         // `:1418`
 		out.quantized_stutter = deluge::modulation::params::isParamQuantizedStutter(
-		    out.kind, param->paramId, static_cast<ModControllableAudio*>(param->modControllable)); // `:1429-1430`
+		    out.kind, param->paramId, static_cast<ModControllableAudio*>(param->modControllable)); // `:1428-1429`
 		return out;
 	}
 
-	if (param->paramId == 255) { // `:1451`
+	if (param->paramId == 255) { // `:1454`
 		out.non_existent_param = true;
 		out.non_existent_knob_pos =
-		    param->modControllable->getKnobPosForNonExistentParam(which_encoder, param); // `:1452-1453`
+		    param->modControllable->getKnobPosForNonExistentParam(which_encoder, param); // `:1455-1456`
 		return out;
 	}
-	// `:1457` -- "is it not just a param? then its a patch cable".
+	// `:1460` -- "is it not just a param? then its a patch cable".
 	out.patch_cable_default = ((param->paramId & 0x0000FF00) != 0x0000FF00);
 	return out;
 }
 
 bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder, bool on) {
 	if (target.mod_controllable == nullptr) {
-		return false; // `:1341` -- `modEncoderButtonAction`'s own guard.
+		return false; // `:1340` -- `modEncoderButtonAction`'s own guard.
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* active = stack_for(target, memory);
@@ -779,13 +779,14 @@ bool mod_delete_automation(const services::ModTarget& target, int32_t which_enco
 	}
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* active = stack_for(target, memory);
-	ModelStackWithAutoParam* param = target.mod_controllable->getParamFromModEncoder(which_encoder, active); // `:1353`
+	ModelStackWithAutoParam* param =
+	    target.mod_controllable->getParamFromModEncoder(which_encoder, active); // `:1352-1354`
 	if (param == nullptr || param->autoParam == nullptr) {
-		return false; // `:1355`
+		return false; // `:1356`
 	}
-	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED); // `:1356`
-	param->autoParam->deleteAutomation(action, param);                                                      // `:1357`
-	return true; // `:1358`'s popup is the caller's, as an `Action::Kind::Popup`.
+	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED); // `:1357`
+	param->autoParam->deleteAutomation(action, param);                                                      // `:1358`
+	return true; // `:1359`'s popup is the caller's, as an `Action::Kind::Popup`.
 }
 
 } // namespace deluge::scenes::menu

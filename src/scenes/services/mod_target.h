@@ -132,41 +132,44 @@ struct ModTurn {
 	bool should_indicate_middle_value = false;
 };
 
-/// @brief The model reads `View::setKnobIndicatorLevel` (`view.cpp:1403-1472`) makes, before any
+/// @brief The model reads `View::setKnobIndicatorLevel` (`view.cpp:1403-1468`) makes, before any
 ///        of the arithmetic it then does with them.
 ///
 /// Split exactly as `ModTurn` is: the transaction resolves the param stack and reads it, and every
 /// clamp, bucket and offset stays in `mod_knobs.cpp` where a spec can mutate it as a pure function.
 ///
 /// The three booleans below are legacy's own three-way branch, and they are not exclusive by
-/// accident: `has_auto_param` is `:1414`, and when it is false legacy tests `paramId == 255`
-/// (`:1451`) and then `!((paramId & 0x0000FF00) == 0x0000FF00)` (`:1457`). **When neither of those
-/// holds, legacy reads an uninitialised `int32_t knobPos` and passes it to
-/// `indicator_leds::setKnobIndicatorLevel`** (`:1470`); see `ModKnobs::leds`, which declares
-/// nothing for that knob rather than inventing a value.
+/// accident: `has_auto_param` is `:1413`, and when it is false legacy tests `paramId == 255`
+/// (`:1454`) and then `!((paramId & 0x0000FF00) == 0x0000FF00)` (`:1460`).
+///
+/// @warning **When none of those three holds, legacy reads an uninitialised `int32_t knobPos`**
+///          (declared `view.cpp:1410`, consumed `:1468`) and lights a gold knob's indicator column
+///          from it. Legacy defect 5 of 5 in `src/scenes/README.md`'s "Defects this port found in
+///          shipping firmware"; `ModKnobs::indicator_level` carries the full note and declares
+///          nothing for that knob rather than inventing a value.
 struct ModIndicatorInfo {
-	/// `modelStackWithParam->autoParam` is non-null (`view.cpp:1414`).
+	/// `modelStackWithParam->autoParam` is non-null (`view.cpp:1413`).
 	bool has_auto_param = false;
-	/// `paramCollection->getParamKind()` (`:1418`).
+	/// `paramCollection->getParamKind()` (`:1416`).
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
-	/// `modelStackWithParam->paramId` (`:1419`).
+	/// `modelStackWithParam->paramId` (`:1417`).
 	int32_t param_id = 0;
 	/// `paramCollection->paramValueToKnobPos(autoParam->getValuePossiblyAtPos(modPos, …), …)`
-	/// (`:1415-1420`).
+	/// (`:1414-1418`).
 	int32_t knob_pos = 0;
-	/// `isParamBipolar(kind, paramId)` (`:1419`).
+	/// `isParamBipolar(kind, paramId)` (`:1417`).
 	bool bipolar = false;
-	/// `isParamQuantizedStutter(kind, paramId, (ModControllableAudio*)modControllable)` (`:1429`).
+	/// `isParamQuantizedStutter(kind, paramId, (ModControllableAudio*)modControllable)` (`:1428-1429`).
 	/// Legacy ands this with `!isUIModeActive(UI_MODE_STUTTERING)`, which is a UI read this layer
 	/// cannot make; only the model half is reported.
 	bool quantized_stutter = false;
 
-	/// The no-`autoParam` arm's `paramId == 255` (`:1451`).
+	/// The no-`autoParam` arm's `paramId == 255` (`:1454`).
 	bool non_existent_param = false;
-	/// `modControllable->getKnobPosForNonExistentParam(whichModEncoder, …)` (`:1452-1453`), valid
+	/// `modControllable->getKnobPosForNonExistentParam(whichModEncoder, …)` (`:1455-1456`), valid
 	/// iff `non_existent_param`.
 	int32_t non_existent_knob_pos = 0;
-	/// The no-`autoParam` arm's `!((paramId & 0x0000FF00) == 0x0000FF00)` (`:1457`) -- "not just a
+	/// The no-`autoParam` arm's `!((paramId & 0x0000FF00) == 0x0000FF00)` (`:1460`) -- "not just a
 	/// param, so it is a patch cable", which legacy shows at its 0 midpoint.
 	bool patch_cable_default = false;
 };
