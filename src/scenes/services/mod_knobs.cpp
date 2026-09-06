@@ -298,7 +298,7 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 	instrument_been_edited(); // `:840` -- outside the `modControllable` test, so it always runs.
 
 	// Legacy consumes a gold-knob turn unconditionally: `interpretEncoders` calls
-	// `getCurrentUI()->modEncoderAction` (`hid/encoder_input.cpp:196`) and nothing else ever sees the
+	// `getCurrentUI()->modEncoderAction` (`hid/encoder_input.cpp:194`) and nothing else ever sees the
 	// turn afterwards. What that call reaches FIRST is the current UI's own override, with
 	// `UI::modEncoderAction` (`gui/ui/ui.cpp:35-37`) forwarding to `view` as the fallback -- so this
 	// `handled` is the fallback's, and it belongs after the scene, not before it. See the class

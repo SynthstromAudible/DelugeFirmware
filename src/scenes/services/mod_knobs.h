@@ -44,7 +44,7 @@
 /// @warning **It consults it BEFORE the top scene, and that is not legacy's order.** Legacy sends
 ///          both to the *current UI* first, with `View` reached only as the base-class fallback:
 ///          `interpretEncoders` calls `getCurrentUI()->modEncoderAction`
-///          (`hid/encoder_input.cpp:196`) and `Buttons::buttonAction`'s mod-button loop calls
+///          (`hid/encoder_input.cpp:194`) and `Buttons::buttonAction`'s mod-button loop calls
 ///          `getCurrentUI()->modButtonAction` (`hid/buttons.cpp:104`), and it is `UI`'s own base
 ///          implementations that forward to `view` (`gui/ui/ui.cpp:35-41`). Six UIs override
 ///          `modEncoderAction` -- `automation_view.h:116`, `performance_view.h:96`,

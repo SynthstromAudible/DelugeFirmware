@@ -25,7 +25,7 @@
 ///     caller can set it true and legacy's `isUIModeActive(UI_MODE_STUTTERING)` half of the
 ///     rate-bucket guard is never exercised from this side.
 ///   * **`PopupContext::midi_instrument`, the MIDI-clip CC/expression naming arm**
-///     (`view.cpp:1122-1147`). Reachable now -- widening `show()` is what made it so -- but not
+///     (`view.cpp:1122-1146`). Reachable now -- widening `show()` is what made it so -- but not
 ///     driven: a bare MIDI fixture's gold knobs resolve through
 ///     `MIDIInstrument::getParamFromModEncoder` (`model/instrument/midi_instrument.cpp:156-169`),
 ///     whose default CC assignment yields no `autoParam`, so `mod_encoder_turn` takes the
@@ -704,7 +704,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		//
 		// The turn and the mod button are pinned here as they are ROUTED TODAY, which is NOT
 		// legacy's order: `interpretEncoders` calls `getCurrentUI()->modEncoderAction`
-		// (`hid/encoder_input.cpp:196`) and the mod-button loop calls
+		// (`hid/encoder_input.cpp:194`) and the mod-button loop calls
 		// `getCurrentUI()->modButtonAction` (`hid/buttons.cpp:104`), with `UI`'s own base
 		// implementations forwarding to `view` as the fallback (`gui/ui/ui.cpp:35-41`) -- so both
 		// should reach the top scene first and `mod_knobs` second. E4 task 2 found that; the
