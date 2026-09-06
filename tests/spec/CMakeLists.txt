@@ -15,8 +15,8 @@ add_library(deluge_spec STATIC
 ../../src/foundation/string_format.c
 ../../src/deluge/util/c_string.cpp
 ../../src/deluge/util/lookuptables/lookuptables.cpp
-../../src/deluge/hid/display/starfield.cpp
-../../src/deluge/hid/display/rainfall.cpp
+# (starfield.cpp / rainfall.cpp used to be compiled here directly. E4 task 7 moved both to
+# src/ui/oled/, which deluge_ui_oled below already builds and this library already links.)
 ../../src/deluge/hid/display/oled_canvas/canvas.cpp
 ../../src/deluge/gui/ui/notify_drain_mapping.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp

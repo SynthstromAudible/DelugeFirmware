@@ -28,20 +28,20 @@ namespace deluge::hid::display {
 bool Screensaver::active_ = false;
 bool Screensaver::frameDirty_ = false;
 oled_canvas::Canvas Screensaver::canvas_;
-Starfield Screensaver::starfield_;
-Rainfall Screensaver::rainfall_;
+ui::oled::Starfield Screensaver::starfield_;
+ui::oled::Rainfall Screensaver::rainfall_;
 
 // Rainfall repeats the panel dimensions, and Starfield derives its projection centre from them,
 // rather than including cpu_specific.h -- it is target-only and would break the host specs. This
 // file does see the real macros, so it is where the two are held to them.
-static_assert(Rainfall::kWidth == OLED_MAIN_WIDTH_PIXELS);
-static_assert(Rainfall::kHeight == OLED_MAIN_HEIGHT_PIXELS);
-static_assert(Rainfall::kTopmost == OLED_MAIN_TOPMOST_PIXEL);
+static_assert(ui::oled::Rainfall::kWidth == OLED_MAIN_WIDTH_PIXELS);
+static_assert(ui::oled::Rainfall::kHeight == OLED_MAIN_HEIGHT_PIXELS);
+static_assert(ui::oled::Rainfall::kTopmost == OLED_MAIN_TOPMOST_PIXEL);
 
 // kCentreY is deliberately the truncated integer division (26.0f), not the true centre (26.5) --
 // project() truncates float positions the same way, so this matches what actually renders.
-static_assert(Starfield::kCentreX == OLED_MAIN_WIDTH_PIXELS / 2.0f);
-static_assert(Starfield::kCentreY == (OLED_MAIN_TOPMOST_PIXEL + OLED_MAIN_HEIGHT_PIXELS) / 2);
+static_assert(ui::oled::Starfield::kCentreX == OLED_MAIN_WIDTH_PIXELS / 2.0f);
+static_assert(ui::oled::Starfield::kCentreY == (OLED_MAIN_TOPMOST_PIXEL + OLED_MAIN_HEIGHT_PIXELS) / 2);
 
 /// Frame interval for the animated modes (STARSCAPE, DELUGE). For comparison, scrolling text
 /// re-arms at 15ms and 5ms (see OLED::scrollingAndBlinkingTimerEvent), so this is the lighter load.
@@ -193,25 +193,25 @@ void Screensaver::render() {
 }
 
 void Screensaver::renderStarfield() {
-	for (size_t i = 0; i < Starfield::kNumStars; i++) {
-		const Starfield::Projected star = starfield_.project(i);
+	for (size_t i = 0; i < ui::oled::Starfield::kNumStars; i++) {
+		const ui::oled::Starfield::Projected star = starfield_.project(i);
 		drawBlock(canvas_, star.x, star.y, star.size);
 	}
 }
 
 void Screensaver::renderRainfall() {
-	for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
-		for (size_t cell = 0; cell < rainfall_.lengthOf(drop); cell++) {
-			const Rainfall::Block block = rainfall_.cellAt(drop, cell);
+	for (size_t drop = 0; drop < ui::oled::Rainfall::kNumDrops; drop++) {
+		for (size_t cell = 0; cell < rainfall_.length_of(drop); cell++) {
+			const ui::oled::Rainfall::Block block = rainfall_.cell_at(drop, cell);
 			drawBlock(canvas_, block.x, block.y, block.size);
 		}
 	}
 
 	// Every few minutes a whole logo falls through the field. It draws through the same clipped
 	// block helper as the rain, because it is built from the same shapes.
-	if (rainfall_.logoActive()) {
-		for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
-			const Rainfall::Block block = rainfall_.logoCellAt(cell);
+	if (rainfall_.logo_active()) {
+		for (size_t cell = 0; cell < ui::oled::Rainfall::kLogoCells; cell++) {
+			const ui::oled::Rainfall::Block block = rainfall_.logo_cell_at(cell);
 			drawBlock(canvas_, block.x, block.y, block.size);
 		}
 	}

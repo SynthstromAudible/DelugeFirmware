@@ -24,6 +24,12 @@ target_sources(deluge_scenes_spec PRIVATE
     ${REPO_ROOT}/src/bsp/host/host_snapshot.c
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
+    # E4 task 7's move oracle: the PRE-MOVE hid/display/rainfall+starfield sources, transcribed by
+    # the sed recorded at the top of each file (namespace + include path only), compiled under
+    # `namespace screensaver_oracle` so screensaver_scene_spec.cpp can run them beside the moved
+    # deluge::ui::oled classes frame by frame. NOT globbed as specs -- only *_spec.cpp is.
+    support/oracle_rainfall.cpp
+    support/oracle_starfield.cpp
 )
 # host_debug.cpp reaches into deluge_app's reason_check; src/deluge on the path for
 # memory/reason_check.h (mirrors deluge_host/deluge_loadcheck above). ${REPO_ROOT}/tests is for

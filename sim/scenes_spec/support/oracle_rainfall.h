@@ -1,3 +1,14 @@
+// GENERATED from the PRE-MOVE legacy source, by exactly this command (run from the repo root):
+//
+//   git show c758fbca5:src/deluge/hid/display/rainfall.h \
+//     | sed -e 's/namespace deluge::hid::display/namespace screensaver_oracle/' \
+//           -e 's|} // namespace deluge::hid::display|} // namespace screensaver_oracle|' \
+//           -e 's|#include "hid/display/rainfall.h"|#include "oracle_rainfall.h"|'
+//
+// Nothing else is edited. This is the ORACLE the moved src/ui/oled/rainfall.{h,cpp} is compared
+// against, frame by frame, in screensaver_scene_spec.cpp -- so it must stay a mechanical
+// transcription of the code as it stood before the move, never a copy of the moved code.
+
 /*
  * Copyright © 2026 Synthstrom Audible Limited
  *
@@ -21,7 +32,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace deluge::hid::display {
+namespace screensaver_oracle {
 
 /// @brief A field of falling diagonal rain streaks, in the visual grammar of the Deluge logo.
 ///
@@ -296,4 +307,4 @@ private:
 	uint32_t rngState_{0x1EAF7A11};
 };
 
-} // namespace deluge::hid::display
+} // namespace screensaver_oracle

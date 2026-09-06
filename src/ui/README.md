@@ -78,6 +78,8 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 | `Column`, `Paging`, `paging_of`, `columns`, `title_paged`, `MeterColumn`/`meter_column`, `TextColumn`/`text_column`, `submenu_column`, `ToggleColumn`/`toggle_column` | `oled/columns.h` |
 | `PopupStyle`, `popup_rect_for`, `popup_frame`, `popup_text`, `working`, `progress` | `oled/popup.h` |
 | `OutputNameData`, `output_name`, `segment_digits`, `vu`, `envelope`, `graphic`, `icon` | `oled/misc.h` |
+| `Rainfall`, `draw_block`, `draw_rainfall` | `oled/rainfall.h` (moved out of `hid/display/` by E4 task 7 — see that file's own doc) |
+| `Starfield`, `draw_starfield` | `oled/starfield.h` (moved with it) |
 | `detail::int_to_string` | `oled/detail/int_to_string.h` (internal helper, not a widget — used by `values.h`/`meters.h`/`misc.h`'s number rendering; not listed as a catalogue entry) |
 
 `waveform` on OLED is deferred to spec E's sample-view scene: its data shape depends on

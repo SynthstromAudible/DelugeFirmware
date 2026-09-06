@@ -8,11 +8,11 @@
 ///
 /// Usage: ./tests/build/spec/StarfieldPreview [numFrames]
 
-#include "hid/display/starfield.h"
+#include "ui/oled/starfield.h"
 #include <cstdio>
 #include <cstdlib>
 
-using deluge::hid::display::Starfield;
+using deluge::ui::oled::Starfield;
 
 // Mirrors OLED_MAIN_WIDTH_PIXELS / OLED_MAIN_HEIGHT_PIXELS / OLED_MAIN_TOPMOST_PIXEL from
 // src/RZA1/cpu_specific.h (128 / 48 / 5). Hardcoded rather than included, because that header

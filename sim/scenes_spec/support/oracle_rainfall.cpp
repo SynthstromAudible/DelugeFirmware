@@ -1,3 +1,14 @@
+// GENERATED from the PRE-MOVE legacy source, by exactly this command (run from the repo root):
+//
+//   git show c758fbca5:src/deluge/hid/display/rainfall.cpp \
+//     | sed -e 's/namespace deluge::hid::display/namespace screensaver_oracle/' \
+//           -e 's|} // namespace deluge::hid::display|} // namespace screensaver_oracle|' \
+//           -e 's|#include "hid/display/rainfall.h"|#include "oracle_rainfall.h"|'
+//
+// Nothing else is edited. This is the ORACLE the moved src/ui/oled/rainfall.{h,cpp} is compared
+// against, frame by frame, in screensaver_scene_spec.cpp -- so it must stay a mechanical
+// transcription of the code as it stood before the move, never a copy of the moved code.
+
 /*
  * Copyright © 2026 Synthstrom Audible Limited
  *
@@ -15,12 +26,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "hid/display/rainfall.h"
+#include "oracle_rainfall.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
 
-namespace deluge::hid::display {
+namespace screensaver_oracle {
 
 namespace {
 // Extent a streak occupies along its direction of travel, in the doubled u = x + y axis. Cell i
@@ -284,4 +295,4 @@ Rainfall::Block Rainfall::cellAt(size_t drop, size_t cell) const {
 	};
 }
 
-} // namespace deluge::hid::display
+} // namespace screensaver_oracle

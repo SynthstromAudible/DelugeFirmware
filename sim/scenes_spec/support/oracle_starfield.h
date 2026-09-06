@@ -1,3 +1,14 @@
+// GENERATED from the PRE-MOVE legacy source, by exactly this command (run from the repo root):
+//
+//   git show c758fbca5:src/deluge/hid/display/starfield.h \
+//     | sed -e 's/namespace deluge::hid::display/namespace screensaver_oracle/' \
+//           -e 's|} // namespace deluge::hid::display|} // namespace screensaver_oracle|' \
+//           -e 's|#include "hid/display/starfield.h"|#include "oracle_starfield.h"|'
+//
+// Nothing else is edited. This is the ORACLE the moved src/ui/oled/starfield.{h,cpp} is compared
+// against, frame by frame, in screensaver_scene_spec.cpp -- so it must stay a mechanical
+// transcription of the code as it stood before the move, never a copy of the moved code.
+
 /*
  * Copyright © 2026 Synthstrom Audible Limited
  *
@@ -21,7 +32,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace deluge::hid::display {
+namespace screensaver_oracle {
 
 /// @brief Perspective-projection starfield.
 ///
@@ -123,4 +134,4 @@ private:
 	uint32_t rngState_{0xCAFE5678};
 };
 
-} // namespace deluge::hid::display
+} // namespace screensaver_oracle
