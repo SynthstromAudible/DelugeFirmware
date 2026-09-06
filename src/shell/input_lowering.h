@@ -342,7 +342,35 @@ public:
 	/// @return A multiplier in [1.0, 3.0].
 	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
 
+	/// @brief Backdate \p role's "last turned" clock so the next turn counts as the first after a
+	///        pause -- `View::pretendModKnobsUntouchedForAWhile` (`gui/views/view.cpp:1951-1955`).
+	///
+	/// The state it writes is `last_turn_ms_`, which is `timeModEncoderLastTurned`
+	/// (`hid/encoder_input.cpp:40`) and is read by `action_gold_turn`'s `turned_recently` test
+	/// alone. Backdating it makes that test false, so the next detent is remembered as the
+	/// gesture's initial direction rather than actioned -- which is exactly what "harder to turn"
+	/// means, and what legacy spends it on in `View::potentiallyMakeItHarderToTurnKnob`
+	/// (`view.cpp:1077`) and at the three `setActiveModControllable*`/`setModRegion` entry points.
+	///
+	/// @note **In current legacy this write is inert**, and here it is not. The encoder overhaul
+	///       dropped the `turnedRecently` branch that used to read `timeModEncoderLastTurned`
+	///       (`hid/encoder_input.cpp:178-205` has no such test left), so legacy's four callers now
+	///       write a field nothing reads; `action_gold_turn` deliberately restored the working
+	///       shape (see its own comment), which makes this setter live again. That restoration is
+	///       the shell's, made in plan D, not a behaviour change decided here.
+	/// @param role   Which encoder to backdate; anything but `GoldUpper`/`GoldLower` is still
+	///               accepted (the array is per role) but only the gold pair is ever consulted.
+	/// @param now_ms The wall clock to backdate from.
+	void pretend_knob_untouched(EncoderRole role, uint32_t now_ms);
+
 private:
+	/// @brief How far `pretend_knob_untouched` backdates: legacy subtracts a whole `kSampleRate`
+	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1952-1954`).
+	///
+	/// Only has to exceed `LoweringConfig::short_press_ms`, which is what `turned_recently`
+	/// compares against; one second is legacy's own number and clears it by a wide margin.
+	static constexpr uint32_t kPretendUntouchedMs = 1000;
+
 	/// @brief One board event waiting out the SD routine, with the clock it arrived at.
 	struct DeferredEvent {
 		DelugeInputEvent ev{};
