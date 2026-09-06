@@ -667,6 +667,33 @@ nine observe**, through `AudioEngine::setForegroundRecording`/`foregroundRecordi
 legacy's own assignment order — no layer edge and no baseline row added, because `audio_engine.cpp`
 already names `audioRecorder`. Writing it is also what turned up the use-after-free recorded below.
 
+## The screensaver (`overlay/screensaver_scene.h`, E4 task 7)
+
+`overlay::ScreensaverScene` is the port of the **drawing** half of `hid::display::Screensaver`; the
+policy half (idle deadline, wake on input) shipped earlier as `shell::Screensaver`
+(`src/shell/screensaver.h`). Two things make it unlike the other two overlay scenes:
+
+* **It registers at `SceneKind::Screensaver`, one of the shell's own kinds, not at
+  `FirstApp + N`** — because the service pushes it by name (`shell/screensaver.cpp:45`). The shell
+  overwrites the registry's `Popup`/`Console`/`Working`/`Loading` slots with its own instances and
+  deliberately leaves this one alone (`shell/shell.cpp:177-184`). Registering it is what stops
+  `shell::Screensaver`'s documented "a refused push latches the service off" ever firing on the
+  shipped application; that behaviour is kept, because it is still right for a profile or spec that
+  registers nothing there.
+* **It is the only task in E4 that moved code out of `hid/`.** `Rainfall` and `Starfield` are now
+  `ui/oled/rainfall.h` and `ui/oled/starfield.h`, because `src/scenes/**` may include neither `gui/`
+  nor `hid/`. The move is E3 §15.2's pattern: legacy's `Screensaver` still draws the same two
+  objects through the moved symbols, and the safety argument is a frame-by-frame comparison against
+  a mechanical transcription of the pre-move source
+  (`sim/scenes_spec/support/oracle_rainfall.{h,cpp}`, `oracle_starfield.{h,cpp}`), plus a pixel-for-
+  pixel comparison of the assembled scene against the real legacy `Screensaver`'s own canvas.
+
+Four legacy behaviours have no port and are recorded as gaps at the scene's own doc, all four being
+policy rather than drawing: `settingsChanged()`, the permanent-popup / working-animation /
+stem-export inhibitors (and with them the 1000 ms blank re-check that exists only to run them),
+`ScreensaverMode::OFF` (ported as the service's `idle_ms == 0`), and the `consumeFrameDirty` blit
+protocol (whose port is the shell's `RepaintGate`).
+
 ## Repaint and the timer fold (`Shell::tick` step 8b, E3 tasks 10-11)
 
 Two shell-level corrections this plan made, both of which change how a scene asks to be redrawn:

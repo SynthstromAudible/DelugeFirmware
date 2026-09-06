@@ -94,6 +94,10 @@ add_library(deluge_scenes STATIC
     # a `View`/UI method; the popup lifecycle lives in `gui/ui/notify_drain.cpp`'s drain, and the
     # count itself moves in `playback::PlaybackHandler`. See `overlay/count_in_scene.h`.
     overlay/count_in_scene.cpp
+    # E4 task 7: the idle animation -- the third overlay scene, and the only one registered under a
+    # kind of the SHELL's own (`SceneKind::Screensaver`), because `shell::Screensaver` pushes it by
+    # name. The two animations it draws moved out of `hid/display/` to `ui/oled/` in the same task.
+    overlay/screensaver_scene.cpp
     # E4 task 2: the gold-knob half of legacy's `View`, as a `shell::Service` that lives here
     # (not in `src/shell`) because it is entirely about the model. See `services/mod_knobs.h`.
     services/mod_knobs.cpp

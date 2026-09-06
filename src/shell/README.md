@@ -131,8 +131,10 @@ way a scene timer does. Nothing in `src/shell` depends on their being real:
 a `Service` is the whole contract, and a `NullService` satisfies it completely.
 
 `Screensaver` pushes `SceneKind::Screensaver` but ships no scene of that kind — the animation is
-spec E3's, registered by the application like any other scene. Until it exists the push is refused,
-and **the first refusal latches the service off for good**: `active()` stays false, `next_timer()`
+`deluge::scenes::overlay::ScreensaverScene` (E4 task 7), registered by the application like any
+other scene, and since that task the shipped registry does register it, so the push succeeds. Where
+nothing is registered at that kind — a profile or a spec that fills the slot in with nothing — the
+push is refused, and **the first refusal latches the service off for good**: `active()` stays false, `next_timer()`
 reports nothing, no further push is attempted, and `Shell::screensaver_push_refused()` counts it.
 Without the latch the idle deadline stays past for ever, so every subsequent tick retried the push
 — which, with a `SceneStack` that flagged even a refused push as a change, re-queried the greyout

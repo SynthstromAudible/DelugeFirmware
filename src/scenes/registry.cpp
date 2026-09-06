@@ -27,6 +27,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
+#include "scenes/overlay/screensaver_scene.h"
 #include "scenes/recorder/recorder_scene.h"
 #include "scenes/rename/rename_scene.h"
 
@@ -77,6 +78,12 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 		table[static_cast<size_t>(overlay::kParamPopupSceneKind)] = &overlay::param_popup_scene();
 		// `FirstApp + 7`, likewise.
 		table[static_cast<size_t>(overlay::kCountInSceneKind)] = &overlay::count_in_scene();
+		// `SceneKind::Screensaver` -- one of the SHELL's own kinds, not `FirstApp + N`, because
+		// `shell::Screensaver` pushes it by name (`shell/screensaver.cpp:45`). The shell overwrites
+		// the `Popup`/`Console`/`Working`/`Loading` slots with its own instances but deliberately
+		// leaves this one alone (`shell/shell.cpp:177-184`), so this entry is the one that makes
+		// that service's push succeed.
+		table[static_cast<size_t>(overlay::kScreensaverSceneKind)] = &overlay::screensaver_scene();
 		// M1: numbered here as well as in `menu_scene()`, so building the table is enough on its
 		// own -- `menu_scene()` already ran above, this is the belt to that braces and costs one
 		// load of an initialised static.

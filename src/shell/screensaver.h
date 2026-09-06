@@ -11,8 +11,8 @@ namespace deluge::ui::shell {
 ///
 /// Ports the *policy* half of legacy's `hid::display::Screensaver`
 /// (`hid/display/screensaver.h:35-106`): when to show and hide the screensaver, not what it
-/// draws. The real animation (`rainfall`/`starfield`) is spec E3's `ScreensaverScene`, registered
-/// by the application under `SceneKind::Screensaver` exactly like any other scene; this service
+/// draws. The real animation is `deluge::scenes::overlay::ScreensaverScene` (E4 task 7), which the
+/// application registers under `SceneKind::Screensaver` exactly like any other scene; this service
 /// only knows the kind and pushes/pops it by name, so it neither owns nor constructs one -- a spec
 /// short of the real scene supplies its own stand-in at that slot.
 ///
@@ -21,12 +21,21 @@ namespace deluge::ui::shell {
 ///       never re-arms the deadline.
 ///
 /// @note **A refused push disables the service for good.** `SceneStack::push` returns false when
-///       `SceneKind::Screensaver` names no registered scene -- which is this branch's documented
-///       default until spec E3 lands the real one -- and the idle deadline stays past for ever
-///       afterwards, so retrying is an unbounded loop rather than a recoverable state. The first
-///       refusal therefore latches the service off: `active()` stays false, `next_timer()` reports
-///       `std::nullopt` (so `Shell::next_wake()` is not pinned to now), no further push is
+///       `SceneKind::Screensaver` names no registered scene, and the idle deadline stays past for
+///       ever afterwards, so retrying is an unbounded loop rather than a recoverable state. The
+///       first refusal therefore latches the service off: `active()` stays false, `next_timer()`
+///       reports `std::nullopt` (so `Shell::next_wake()` is not pinned to now), no further push is
 ///       attempted, and `push_refused()` counts the refusal for diagnostics.
+///
+///       **This is no longer what the shipped application does** (E4 task 7). `scenes::registry`
+///       now registers `overlay::screensaver_scene()` at that kind, so the push succeeds and the
+///       latch never fires -- `sim/scenes_spec/screensaver_scene_spec.cpp` asserts
+///       `push_refused() == 0` end to end through a real `Shell`. The behaviour above is kept
+///       exactly as it was, because it is still the correct answer for a **profile or spec that
+///       registers nothing** at that slot: the `SceneRegistry` is the application's, the shell does
+///       not fill this kind in for it (`shell.cpp:177-183`), and several shell specs build a
+///       registry with the slot empty on purpose. `push_refused()` is therefore now a real
+///       diagnostic for a wiring mistake rather than a description of the default.
 class Screensaver final : public Service {
 public:
 	/// @param stack   The stack this service pushes/pops `SceneKind::Screensaver` on.

@@ -2,10 +2,15 @@
 
 /// @brief The application's scene table -- what `Shell` is constructed with.
 ///
-/// One `SceneRegistry` for the whole application, holding **application scenes only**. The shell
-/// installs its own `Popup`/`Console`/`Working`/`Loading` instances over whatever the
-/// registry reported (`shell/shell.h:120-126,330-342`), and `SceneKind::Screensaver` names no
-/// shell-owned scene at all, so an entry in any of those slots would simply be ignored. Kinds run
+/// One `SceneRegistry` for the whole application. The shell installs its own
+/// `Popup`/`Console`/`Working`/`Loading` instances over whatever the registry reported
+/// (`shell/shell.h:120-126,330-342`), so an entry in one of those four slots is simply ignored.
+///
+/// `SceneKind::Screensaver` is the exception among the shell's own kinds, and the one entry here
+/// that is not an application kind: the shell owns no screensaver *scene* -- `shell::Screensaver`
+/// is a `Service` that pushes the kind by name (`shell/screensaver.cpp:45`) and deliberately does
+/// not overwrite the slot (`shell/shell.cpp:177-184`) -- so `overlay::screensaver_scene()` is
+/// registered there, by `overlay::kScreensaverSceneKind`. Every other kind runs
 /// from `SceneKind::FirstApp` (== 16) upwards: `FirstApp` is the menu interpreter, `FirstApp + 1`
 /// the rename editor (`rename::kRenameSceneKind`), `FirstApp + 2` the context menu
 /// (`context_menu::kContextMenuSceneKind`), `FirstApp + 3` the file browser
@@ -88,8 +93,10 @@ menu::MenuScene& menu_scene();
 ///         `by_kind[SceneKind::FirstApp + 4]` is `&marker_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 5]` is `&recorder_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 6]` is `&overlay::param_popup_scene()`, whose
-///         `by_kind[SceneKind::FirstApp + 7]` is `&overlay::count_in_scene()`, and whose every
-///         other slot is null.
+///         `by_kind[SceneKind::FirstApp + 7]` is `&overlay::count_in_scene()`, whose
+///         `by_kind[SceneKind::Screensaver]` is `&overlay::screensaver_scene()` (the one
+///         shell-owned kind an application fills in -- see the note above), and whose every other
+///         slot is null.
 deluge::ui::shell::SceneRegistry scene_registry();
 
 } // namespace deluge::scenes

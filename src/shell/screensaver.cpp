@@ -44,8 +44,9 @@ void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 		// the scene with the same instantiation argument every time.
 		active_ = stack_.push(SceneId{SceneKind::Screensaver, static_cast<uint16_t>(seed_ & 0xffffu)});
 		if (!active_) {
-			// The stack refused it -- on this branch, because `SceneKind::Screensaver` names no
-			// registered scene (spec E3 writes the real one). Latch off rather than retrying: the
+			// The stack refused it -- because `SceneKind::Screensaver` names no registered scene
+			// (the shipped registry does register one; a profile or spec need not). Latch off
+			// rather than retrying: the
 			// deadline is still past on the next tick, so an unlatched retry is an unbounded loop
 			// that pushes, fails, and (before the `SceneStack::push` fix above it) invalidated
 			// every gate, once per tick, for ever. See this class's own doc.
