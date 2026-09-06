@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 
 namespace deluge::ui::shell {
@@ -30,6 +31,25 @@ namespace deluge::ui::shell {
 ///         non-zero `until_ms`, otherwise the even half of the `period_ms` phase. A `Blink` with a
 ///         zero `period_ms` has no phase to be in and reads as lit, rather than dividing by zero.
 bool led_is_on(const LedState& s, uint32_t now_ms);
+
+/// @brief When will `led_is_on(s, …)` next answer differently?
+///
+/// **A declared blink is a wake source, and until E4 task 4 nothing treated it as one.**
+/// `led_is_on` derives a blink's phase from `now_ms` alone, and `Shell::compute_next_wake`
+/// considered gate deadlines, scene timers and service timers -- so on an otherwise idle system a
+/// declared `Kind::Blink` simply froze at whatever phase the last tick left it in. That was live:
+/// `MenuScene::leds` declares `Back` and `Learn` as `Blink(kFlashTime)` unconditionally
+/// (`scenes/menu/menu_scene.cpp:929`, `:936`) while `MenuScene::next_timer`
+/// (`scenes/menu/menu_scene.cpp:1591-1605`) returns `std::nullopt` for any focused node with
+/// neither source pads nor a shortcut position -- which is most of the tree. `Shell::tick`'s
+/// wake loop now asks this for every entry in the composed frame, so the phase moves on its own.
+///
+/// @param s      The declared state.
+/// @param now_ms The tick's wall clock.
+/// @return Milliseconds from now until the answer flips, or `std::nullopt` for a state that never
+///         changes on its own (`On`, `Off`, a zero-period blink, and a blink whose `until_ms` has
+///         already latched it solid).
+std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms);
 
 /// @brief Composes one tick's LED declarations from the services and the scene stack.
 ///

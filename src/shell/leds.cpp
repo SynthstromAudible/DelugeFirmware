@@ -32,6 +32,32 @@ bool led_is_on(const LedState& s, uint32_t now_ms) {
 	return false;
 }
 
+std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms) {
+	if (s.kind != LedState::Kind::Blink) {
+		return std::nullopt; // `On` and `Off` never change on their own.
+	}
+	// Already latched solid by the alert deadline, or a period with no phase to be in -- both read
+	// lit for ever after, so there is nothing to wake for. Same difference form as `led_is_on`.
+	if (s.until_ms != 0 && static_cast<int32_t>(now_ms - s.until_ms) >= 0) {
+		return std::nullopt;
+	}
+	if (s.period_ms == 0) {
+		return std::nullopt;
+	}
+	// The next half-period boundary. `now_ms % period` is 0 exactly on a boundary, which makes this
+	// a full period rather than zero -- correct, because the flip at `now_ms` has already been
+	// rendered by the caller that asked.
+	uint32_t next = s.period_ms - (now_ms % s.period_ms);
+	// The alert deadline is a change too: at it the LED goes solid on, whatever phase it was in.
+	if (s.until_ms != 0) {
+		const uint32_t to_deadline = s.until_ms - now_ms;
+		if (to_deadline < next) {
+			next = to_deadline;
+		}
+	}
+	return next;
+}
+
 void LedCompose::compose(LedFrame& out, std::span<Service* const> services,
                          std::span<Scene* const> stack_bottom_to_top) {
 	for (Service* service : services) {

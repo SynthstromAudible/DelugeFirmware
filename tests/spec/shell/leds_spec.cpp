@@ -128,6 +128,38 @@ describe shell_leds("shell::LedCompose", $ {
 		expect(led_is_on(off(), 0)).to_be_false();
 	});
 
+	it("led_next_change reports exactly when a blink flips, and nothing for a state that cannot", _ {
+		// The wake source `Shell::compute_next_wake` grew in E4 task 4 fix round 1. Every value
+		// here is the moment `led_is_on` above answers differently, asserted against `led_is_on`
+		// itself rather than restated -- so the two cannot drift apart.
+		const LedState forever = blink(200);
+		expect(led_next_change(forever, 0).has_value()).to_be_true();
+		expect(*led_next_change(forever, 0)).to_equal(uint32_t(200));
+		expect(*led_next_change(forever, 1)).to_equal(uint32_t(199));
+		expect(*led_next_change(forever, 199)).to_equal(uint32_t(1));
+		// On a boundary the answer is a full period, not zero: the flip AT `now_ms` is the one the
+		// caller has already rendered.
+		expect(*led_next_change(forever, 200)).to_equal(uint32_t(200));
+		expect(led_is_on(forever, 199) != led_is_on(forever, 199 + *led_next_change(forever, 199))).to_be_true();
+
+		// A bounded blink wakes at whichever comes first, its boundary or its deadline...
+		const LedState alert = blink(200, 350);
+		expect(*led_next_change(alert, 300)).to_equal(uint32_t(50)); // deadline 350 beats boundary 400
+		expect(*led_next_change(alert, 100)).to_equal(uint32_t(100)); // boundary 200 beats deadline 350
+		// ...and stops asking once it has latched solid on.
+		expect(led_next_change(alert, 350).has_value()).to_be_false();
+		expect(led_next_change(alert, 1000).has_value()).to_be_false();
+		expect(led_is_on(alert, 350)).to_be_true();
+
+		// Nothing else ever changes on its own.
+		expect(led_next_change(on(), 0).has_value()).to_be_false();
+		expect(led_next_change(off(), 0).has_value()).to_be_false();
+		// A zero-period blink reads lit for ever (`led_is_on`'s divide-by-zero guard), so it has no
+		// flip to wake for either.
+		expect(led_next_change(blink(0), 0).has_value()).to_be_false();
+		expect(led_is_on(blink(0), 0)).to_be_true();
+	});
+
 	it("writes only changes to the sink", _ {
 		LedSurface s;
 		const size_t play = static_cast<size_t>(static_cast<uint8_t>(kPlay));

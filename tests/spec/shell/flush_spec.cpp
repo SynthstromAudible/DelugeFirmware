@@ -96,9 +96,9 @@ public:
 	}
 
 	void leds(deluge::ui::LedFrame& frame) override {
-		(void)frame.set(
-		    kPlayLed,
-		    deluge::ui::LedState{play_on ? deluge::ui::LedState::Kind::On : deluge::ui::LedState::Kind::Off, 0, 0});
+		(void)frame.set(kPlayLed,
+		                play_override.value_or(deluge::ui::LedState{
+		                    play_on ? deluge::ui::LedState::Kind::On : deluge::ui::LedState::Kind::Off, 0, 0}));
 		if (declare_indicator) {
 			(void)frame.indicator(deluge::ui::IndicatorId::Upper, indicator);
 		}
@@ -114,6 +114,9 @@ public:
 	std::vector<RGB> row_colours;
 	deluge::ui::grid::GreyoutMask mask{};
 	bool play_on = true;
+	/// When set, `leds()` declares `kPlayLed` with this state instead of the plain on/off pair --
+	/// the blink-wake example below is the only user.
+	std::optional<deluge::ui::LedState> play_override;
 	bool declare_indicator = true;
 	deluge::ui::KnobIndicator indicator{{1, 2, 3, 4}};
 	int oled_renders = 0;
@@ -433,6 +436,50 @@ describe shell_flush("shell::Shell::flush", $ {
 		// snap (`pad_leds.cpp:984-987`), matching the ordinary static pass that resumes right after.
 		r.shell.tick(250);
 		expect(r.fake.grid().grid().at(0, 0) == full_grey).to_be_true();
+	});
+
+	it("next_wake sees a declared blink, so the phase moves with no input at all", _ {
+		// **A declared blink is a wake source** (E4 task 4 fix round 1). `led_is_on` derives a
+		// blink's phase from `now_ms` alone (`shell/leds.cpp`), and every other source
+		// `compute_next_wake` consults is something a scene or service asked for -- so before this
+		// fix a declared `Kind::Blink` froze at whatever phase the last tick left it in on an
+		// otherwise idle system. Live rather than theoretical: `MenuScene::leds` declares BACK and
+		// LEARN as `Blink(kFlashTime)` unconditionally (`scenes/menu/menu_scene.cpp:929`, `:936`)
+		// while `MenuScene::next_timer` (`:1591-1605`) answers `nullopt` for any focused node with
+		// neither source pads nor a shortcut position.
+		//
+		// `FlushScene` has no `next_timer()` of its own and this rig arms no gate past the first
+		// tick, so the blink is the ONLY thing that could produce a wake here -- which is what
+		// makes the example fail without the fix rather than pass by accident.
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.play_override = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 110, 0};
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(110));
+
+		// And the LED really does change on that schedule, with no input: phase 0 is lit, phase 1
+		// is not, and the shell sends the difference.
+		r.fake.led_writes.clear();
+		r.shell.tick(110);
+		expect(r.fake.led_writes.size()).to_equal(size_t(1));
+		expect(r.fake.led_writes[0].first).to_equal(kPlayBoardLed);
+		expect(r.fake.led_writes[0].second).to_be_false();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(220));
+
+		r.fake.led_writes.clear();
+		r.shell.tick(220);
+		expect(r.fake.led_writes.size()).to_equal(size_t(1));
+		expect(r.fake.led_writes[0].second).to_be_true();
+
+		// A bounded blink wakes at its own deadline too, and stops asking once it has latched
+		// solid -- `led_is_on`'s `until_ms` arm.
+		r.base.play_override = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 110, 250};
+		r.shell.tick(230);
+		expect(*r.shell.next_wake()).to_equal(uint32_t(250)); // the deadline beats the 330 boundary
+		r.shell.tick(250);
+		expect(r.shell.next_wake().has_value()).to_be_false();
 	});
 
 	it("next_wake sees a running tween's step cadence", _ {

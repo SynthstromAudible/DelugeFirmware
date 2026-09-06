@@ -995,6 +995,29 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 			consider(now_ms + *in);
 		}
 	}
+	// **A declared blink is a wake source too** (E4 task 4 fix round 1). Every source above is
+	// something a scene or service *asked* for; a `LedState::Kind::Blink` asks for nothing, because
+	// `led_is_on` derives its phase from `now_ms` alone (`shell/leds.cpp`). So without this loop a
+	// declared blink froze at whatever phase the last tick left it in for as long as nothing else
+	// happened -- and that was live rather than theoretical: `MenuScene::leds` declares BACK and
+	// LEARN as `Blink(kFlashTime)` unconditionally (`scenes/menu/menu_scene.cpp:929`, `:936`) while
+	// `MenuScene::next_timer` (`:1591-1605`) answers `nullopt` for any focused node with neither
+	// source pads nor a shortcut position.
+	//
+	// Read from the frame `derive_leds` composed a few lines earlier in `tick()`, so this is the
+	// same declaration `flush` is about to send. `start_tween`'s out-of-band call sees the previous
+	// tick's frame, which is the right answer for a blink that is still declared and a harmless
+	// early wake for one that is not.
+	//
+	// It also removes an aliasing hazard rather than merely a freeze: a scene whose own timer
+	// happens to be armed at some unrelated cadence (`MenuScene`'s 180 ms pad blink) does not
+	// divide the LED's 110 ms period, so even an "armed" system rendered the blink at beat
+	// frequencies. The wake now lands on the LED's own boundaries.
+	for (const auto& [id, state] : surfaces_.leds().frame.entries()) {
+		if (const std::optional<uint32_t> in = led_next_change(state, now_ms); in.has_value()) {
+			consider(now_ms + *in);
+		}
+	}
 	return best;
 }
 
