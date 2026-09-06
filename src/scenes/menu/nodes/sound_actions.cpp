@@ -36,7 +36,7 @@ using deluge::l10n::String;
 // Play direction
 
 size_t sequence_direction_names(const MenuContext& ctx, std::span<std::string_view> out) {
-	// `sequence::Direction::getOptions` (`gui/menu_item/sequence/direction.h:79-89`): three fixed
+	// `sequence::Direction::getOptions` (`gui/menu_item/sequence/direction.h:92-108`): three fixed
 	// options, plus NONE (obey-parent) only when an individual note row was resolved.
 	static constexpr String kBase[] = {
 	    String::STRING_FOR_FORWARD,
@@ -90,7 +90,7 @@ void set_output_midi_channel(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_output_midi_note(const MenuContext& ctx) {
-	// `OutputMidiNoteForDrum::readCurrentValue` (`midi/sound/note_for_drum.h:27-33`).
+	// `OutputMidiNoteForDrum::readCurrentValue` (`midi/sound/note_for_drum.h:37-43`).
 	if (ctx.sound == nullptr) {
 		return kNoteForDrum;
 	}

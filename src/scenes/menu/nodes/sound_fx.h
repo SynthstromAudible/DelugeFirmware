@@ -62,7 +62,7 @@
 ///
 /// @note **Three dynamic names, one dynamic option list.** `mod_fx::Depth_Patched`, `Feedback` and
 ///       `Offset` take their `getName()` from `modfx::getParamName(type, ...)`
-///       (`mod_fx/depth_patched.h:29-31`), and `reverb::RoomSize` / `Width` read "TIME" /
+///       (`mod_fx/depth_patched.h:34-36`), and `reverb::RoomSize` / `Width` read "TIME" /
 ///       "DIFFUSION" on the two newer models (`room_size.h:29-38`). A `Node::name` is one static id,
 ///       so all five carry the base string and `tables_2_spec` exempts them by name, exactly as it
 ///       does batch 1's `FormattedTitle` items. `mod_fx::Type`'s and `StutterDirection`'s option

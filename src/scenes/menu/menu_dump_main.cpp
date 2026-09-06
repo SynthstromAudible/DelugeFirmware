@@ -246,7 +246,7 @@ void emit_static_children(std::string& out, const menu::Node& node, int elem_lev
 /// spelling, and inventing one (a `$ref`-style stub, say) without a real case to design against is
 /// the mistake fix round 1 caught for `dynamic_children`". E2 task 9 supplies the case, and it is
 /// legacy's, not the port's: `patch_cable_strength::rangeMenu`'s select press opens
-/// `source_selection::rangeMenu` (`patch_cable_strength.cpp:302-306`) and that page's select press
+/// `source_selection::rangeMenu` (`patch_cable_strength.cpp:302-309`) and that page's select press
 /// opens the strength page straight back (`source_selection/range.cpp:30-32`). A two-hop loop, on
 /// purpose -- it is how the user toggles between "which source modulates this cable's depth" and
 /// "by how much".

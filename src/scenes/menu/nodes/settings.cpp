@@ -648,7 +648,7 @@ void set_default_threshold_recording(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_loop_command(const MenuContext&) {
-	// `record::LoopCommand::readCurrentValue` (`record/loop_command.h:21-26`): the stored global MIDI
+	// `record::LoopCommand::readCurrentValue` (`record/loop_command.h:29-34`): the stored global MIDI
 	// command becomes one of two overdub types.
 	return FlashStorage::defaultLoopRecordingCommand == GlobalMIDICommand::LOOP
 	           ? static_cast<int32_t>(OverDubType::Normal)

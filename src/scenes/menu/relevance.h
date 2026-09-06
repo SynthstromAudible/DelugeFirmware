@@ -191,7 +191,7 @@ bool arp_non_sound(const MenuContext& ctx);
 bool is_kit_global_fx(const MenuContext& ctx);
 
 /// @brief A sound randomizer parameter that is off when the arpeggiator is.
-///        `RandomizerUnpatchedParam::isRelevant` (`randomizer/randomizer_unpatched_param.h:14-25`)
+///        `RandomizerUnpatchedParam::isRelevant` (`randomizer/randomizer_unpatched_param.h:31-42`)
 ///        on a *non*-global parameter id.
 bool randomizer_param(const MenuContext& ctx);
 /// @brief The same override on one of its three global ids (`UNPATCHED_SPREAD_VELOCITY`,
@@ -214,24 +214,24 @@ bool randomizer_midi_target(const MenuContext& ctx);
 ///        (`spread_velocity.h:32-34`).
 bool is_cv_midi_or_midi_drum(const MenuContext& ctx);
 /// @brief A MIDI/CV *clip* with the arpeggiator on. `midi_cv::ChordPolyphony::isRelevant`
-///        (`chord_polyphony.h:31-33`) and `ChordProbability` (`chord_probability.h:32-34`).
+///        (`chord_polyphony.h:34-36`) and `ChordProbability` (`chord_probability.h:32-34`).
 bool cv_midi_clip_arp_on(const MenuContext& ctx);
 
 /// @brief Is a mod-FX type selected at all? `mod_fx::Rate::isRelevant` (`mod_fx/rate.h:27-29`).
 bool mod_fx_on(const MenuContext& ctx);
 /// @brief Does the selected mod-FX type have a depth? `mod_fx::Depth_Patched::isRelevant`
-///        (`mod_fx/depth_patched.h:24-28`).
+///        (`mod_fx/depth_patched.h:29-33`).
 bool mod_fx_has_depth(const MenuContext& ctx);
-/// @brief ... a feedback? `mod_fx::Feedback::isRelevant` (`mod_fx/feedback.h:22-25`).
+/// @brief ... a feedback? `mod_fx::Feedback::isRelevant` (`mod_fx/feedback.h:28-31`).
 bool mod_fx_has_feedback(const MenuContext& ctx);
-/// @brief ... an offset? `mod_fx::Offset::isRelevant` (`mod_fx/offset.h:23-27`).
+/// @brief ... an offset? `mod_fx::Offset::isRelevant` (`mod_fx/offset.h:29-33`).
 bool mod_fx_has_offset(const MenuContext& ctx);
 
 /// @brief Does the selected reverb model have filters? `reverb::HPF::isRelevant`
 ///        (`reverb/hpf.h:26-29`) and `LPF` (`reverb/lpf.h:26-29`): MUTABLE or DIGITAL.
 bool reverb_filters(const MenuContext& ctx);
 /// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
-///        (`reverb/sidechain/shape.h:31-33`), `sidechain::Attack` / `Release` / `Sync` in their
+///        (`reverb/sidechain/shape.h:37-39`), `sidechain::Attack` / `Release` / `Sync` in their
 ///        reverb spelling (`sidechain/attack.h:57-59`, `release.h:57-59`, `sync.h:56-58`).
 bool reverb_sidechain_on(const MenuContext& ctx);
 
@@ -239,7 +239,7 @@ bool reverb_sidechain_on(const MenuContext& ctx);
 ///        (`stutter/quantized.h:44-47`).
 bool stutter_quantize_allowed(const MenuContext& ctx);
 
-/// @brief Is the sound polyphonic? `voice::VoiceCount::isRelevant` (`voice/polyphony.h:62-65`).
+/// @brief Is the sound polyphonic? `voice::VoiceCount::isRelevant` (`voice/polyphony.h:70-73`).
 bool is_polyphonic(const MenuContext& ctx);
 
 /// @brief Does this output get the two-item bend-range submenu? `submenu::Bend::isRelevant`
@@ -277,7 +277,7 @@ bool is_midi_out(const MenuContext& ctx);
 bool cv2_dual(const MenuContext& ctx);
 
 /// @brief Is the battery readout switched on? `battery::Level::isRelevant`
-///        (`gui/menu_item/battery/level.h:25-27`), i.e.
+///        (`gui/menu_item/battery/level.h:33-35`), i.e.
 ///        `runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel)`.
 bool battery_shown(const MenuContext& ctx);
 

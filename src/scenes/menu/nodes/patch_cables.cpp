@@ -566,7 +566,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 		state.patch_source = source_;
 	}
 	else if (which_ == Which::Regular && state.patching_param == params::GLOBAL_VOLUME_POST_FX) {
-		// `Regular::checkPermissionToBeginSession` (`patch_cable_strength/regular.cpp:51-62`): the
+		// `Regular::checkPermissionToBeginSession` (`patch_cable_strength/regular.cpp:46-65`): the
 		// three volume params are one destination to the user, so a source that cannot reach POST_FX
 		// is retried against POST_REVERB_SEND and then LOCAL_VOLUME before the page gives up.
 		auto* param_manager = static_cast<ParamManagerForTimeline*>(ctx.params);

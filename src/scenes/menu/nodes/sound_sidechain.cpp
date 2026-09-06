@@ -97,7 +97,7 @@ int32_t sidechain_sync_to_menu(const SideChain* sc) {
 	if (sc == nullptr) {
 		return 0;
 	}
-	// `sidechain::Sync::readCurrentValue` (`sidechain/sync.h:26-29`) via
+	// `sidechain::Sync::readCurrentValue` (`sidechain/sync.h:34-37`) via
 	// `SyncLevel::syncTypeAndLevelToMenuOption` (`gui/menu_item/sync_level.cpp:79-81`).
 	return static_cast<int32_t>(sc->syncType)
 	       + (static_cast<int32_t>(sc->syncLevel) - (sc->syncType != SYNC_TYPE_EVEN ? 1 : 0));

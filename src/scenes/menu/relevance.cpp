@@ -491,7 +491,7 @@ bool audio_source_is_specific(const MenuContext& ctx) {
 }
 
 bool battery_shown(const MenuContext& /*ctx*/) {
-	// `battery::Level::isRelevant` (`gui/menu_item/battery/level.h:25-27`). A global read rather
+	// `battery::Level::isRelevant` (`gui/menu_item/battery/level.h:33-35`). A global read rather
 	// than a context one -- the runtime feature settings are device-wide, exactly as legacy has it.
 	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
 }

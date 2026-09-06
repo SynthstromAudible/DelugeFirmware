@@ -768,7 +768,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{3});
 
 		// `SyncLevel` derives from `Enumeration`, not `Integer` (`gui/menu_item/sync_level.h:27`), and
-		// `Enumeration::selectEncoderAction` (`enumeration.cpp:19-31`) clamps rather than wraps. So the
+		// `Enumeration::selectEncoderAction` (`enumeration.cpp:18-36`) clamps rather than wraps. So the
 		// +40 detents stop at the top of the node's own range instead of coming back round to OFF.
 		//
 		// **And this is what backs the dropped gold-turn snapshot** (fix round 1). The script's last

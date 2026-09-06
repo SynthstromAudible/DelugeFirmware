@@ -156,7 +156,7 @@ void set_midi_pgm(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_cv2_source(const MenuContext& ctx) {
-	// `cv::DualCVSelection::readCurrentValue` (`cv/cv2Mapping.h:21-29`): the stored `CVMode` with
+	// `cv::DualCVSelection::readCurrentValue` (`cv/cv2Mapping.h:30-38`): the stored `CVMode` with
 	// `pitch` skipped, "until duophony works".
 	if (ctx.output == nullptr || ctx.output->type != OutputType::CV) {
 		return 0;
@@ -176,7 +176,7 @@ void set_cv2_source(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_mpe_y_to_mod_wheel(const MenuContext& ctx) {
-	// `midi::MPEYToModWheel::readCurrentValue` (`midi/y_axis_to_cc1.h:24-27`).
+	// `midi::MPEYToModWheel::readCurrentValue` (`midi/y_axis_to_cc1.h:30-33`).
 	MIDIInstrument* instrument = midi_instrument(ctx);
 	return instrument != nullptr && instrument->outputMPEY == CC_EXTERNAL_MOD_WHEEL ? 1 : 0;
 }

@@ -113,7 +113,7 @@ inline constexpr uint16_t kOffOnNames[] = {
     sid(deluge::l10n::String::STRING_FOR_ON),
 };
 
-/// `arpeggiator::PresetMode::getOptions` (`preset_mode.h:80-92`).
+/// `arpeggiator::PresetMode::getOptions` (`preset_mode.h:96-108`).
 inline constexpr uint16_t kArpPresetNames[] = {
     sid(deluge::l10n::String::STRING_FOR_OFF),    sid(deluge::l10n::String::STRING_FOR_UP),
     sid(deluge::l10n::String::STRING_FOR_DOWN),   sid(deluge::l10n::String::STRING_FOR_BOTH),
@@ -137,7 +137,7 @@ inline constexpr uint16_t kArpNoteModeNames[] = {
     sid(deluge::l10n::String::STRING_FOR_PATTERN),
 };
 
-/// `arpeggiator::NoteModeForDrums::getOptions` (`note_mode_for_drums.h:48-60`) -- the same list
+/// `arpeggiator::NoteModeForDrums::getOptions` (`note_mode_for_drums.h:64-76`) -- the same list
 /// without AS PLAYED and PATTERN, which a drum's single note cannot express.
 inline constexpr uint16_t kArpNoteModeDrumNames[] = {
     sid(deluge::l10n::String::STRING_FOR_UP),      sid(deluge::l10n::String::STRING_FOR_DOWN),
@@ -146,7 +146,7 @@ inline constexpr uint16_t kArpNoteModeDrumNames[] = {
     sid(deluge::l10n::String::STRING_FOR_WALK3),
 };
 
-/// `arpeggiator::ChordType::getOptions` (`chord_type.h:51-65`).
+/// `arpeggiator::ChordType::getOptions` (`chord_type.h:67-81`).
 inline constexpr uint16_t kArpChordNames[] = {
     sid(deluge::l10n::String::STRING_FOR_NONE),   sid(deluge::l10n::String::STRING_FOR_FIFTH),
     sid(deluge::l10n::String::STRING_FOR_SUS2),   sid(deluge::l10n::String::STRING_FOR_MINOR),

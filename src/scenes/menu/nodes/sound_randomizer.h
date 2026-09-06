@@ -99,7 +99,7 @@ inline constexpr Node randomizer_lock = with_title(enumeration(sid(deluge::l10n:
                                                                kOffOnNames, get_randomizer_lock, set_randomizer_lock),
                                                    sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE));
 
-// `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:14-25`) -- the non-global
+// `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:31-42`) -- the non-global
 // ids need the arpeggiator on, the three global ones do not.
 DELUGE_RANDOMIZER_PARAM(spread_gate, STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
                         UNPATCHED_ARP_SPREAD_GATE, relevance::randomizer_param, Hint::Bar);

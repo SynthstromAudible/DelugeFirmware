@@ -279,7 +279,7 @@ AcceptOutcome midi_device_accept(const menu::MenuContext& ctx, std::string_view 
 }
 
 const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors{{
-    // `SampleBrowser::SampleBrowser` (`sample_browser.cpp:88-94`) plus `SampleBrowser::opened`
+    // `SampleBrowser::SampleBrowser` (`sample_browser.cpp:87-94`) plus `SampleBrowser::opened`
     // (`:110-113`): the wave icon, "Audio files", the audio extensions, note names interpreted, and
     // folders allowed to share a name with a file.
     {

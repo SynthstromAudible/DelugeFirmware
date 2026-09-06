@@ -1839,7 +1839,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 
 	it("writes the play direction to the note row on a kit row and to the clip otherwise", _ {
 		// Review round 1, I4 / ruling 4. `sequence::Direction::writeCurrentValue`
-		// (`sequence/direction.h:71-76`) writes the *resolved* note row when there is one and the
+		// (`sequence/direction.h:78-90`) writes the *resolved* note row when there is one and the
 		// clip when there is not; `bindings::individual_note_row` resolves the kit row's.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);

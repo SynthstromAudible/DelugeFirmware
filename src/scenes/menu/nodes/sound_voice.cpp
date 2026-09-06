@@ -92,7 +92,7 @@ void set_polyphony(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_voice_count(const MenuContext& ctx) {
-	// `VoiceCount::readCurrentValue` (`voice/polyphony.h:25-31`): anything above the menu maximum --
+	// `VoiceCount::readCurrentValue` (`voice/polyphony.h:34-40`): anything above the menu maximum --
 	// legacy stores 127 for "unlimited" -- shows as 0, which the item draws as an infinity icon.
 	if (ctx.sound == nullptr) {
 		return 0;

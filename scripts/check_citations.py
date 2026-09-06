@@ -18,13 +18,37 @@ audit, which is where the predicate and its measurements come from:
   * the range lies entirely inside the file's leading GPL header block;
   * the range is nothing but `#include` / `#pragma` / `namespace` / brace / blank lines.
 
-It does **not** check that the cited line *means* what the comment claims -- that is not
-mechanizable -- and it is blind to the commonest drift of all: a citation four lines low still
-lands on plausible code. Task 9 found 176 of exactly that shape by reading, and no predicate would
-have. So a clean run here is not a clean bill of health, which is the whole reason this is
-**warning-only**: it always exits 0, it is a net under one specific regression, and the convention
-that a citation names its SYMBOL as well as its line (`selection.h:43-54 selectButtonPress`) stays
-on top of it as the thing that actually survives a line shift.
+There is a **second** predicate, added by E4 task 3 and just as mechanical. The convention is that
+a citation names its SYMBOL as well as its line -- `` `View::setModLedStates` (`view.cpp:1548-1679`) ``
+-- and that is exactly the thing a line shift breaks while leaving the citation resolvable. So:
+when a citation has a symbol written next to it, and that symbol **does occur in the cited file**,
+it must occur **inside the cited range**. If it occurs only outside, the range has drifted off it.
+
+That "does occur in the cited file" clause is what keeps the check sound rather than merely strict.
+A citation is very often written as `port symbol` (`legacy file:lines`) --
+`` `ModKnobs::calculate_knob_pos_for_mod_encoder_turn` … (`view.cpp:949-970`) `` -- where the symbol
+names *this* layer and the citation names legacy. Those pair a name with a file that has never
+contained it, so there is nothing to compare and they are skipped, not failed.
+
+**Shapes this predicate deliberately skips** (skipped, not weakened -- a shape it cannot judge
+soundly must produce no verdict):
+
+  * a citation with no backticked token adjacent to it (`` (`:1517`) `` on its own) -- there is no
+    symbol to check;
+  * a token that is not a plain identifier: an expression (`` `*getModKnobMode() == whichButton` ``),
+    a phrase, an operator. Digging an identifier out of an expression is guesswork;
+  * an identifier of fewer than `MIN_SYMBOL_LEN` characters -- `on`, `kind`, `set` occur everywhere
+    and would agree with any range by luck;
+  * an identifier that appears **nowhere** in the cited file (the port-symbol case above, and a
+    symbol legacy has since deleted -- which is real rot, but rot the "past EOF" and boilerplate
+    predicates are the right net for);
+  * a citation into anything but `src/deluge`, as before.
+
+It still does **not** check that the cited line *means* what the comment claims -- that is not
+mechanizable -- and a citation four lines low that still lands inside its own symbol passes. Task 9
+found 176 of that shape by reading, and no predicate would have. So a clean run here is not a clean
+bill of health, which is why this stays **warning-only**: it always exits 0 and it is a net under
+two specific regressions, not a proof.
 
   scripts/check_citations.py             # warn (always exit 0)
   scripts/check_citations.py --strict    # exit 1 on any unexcepted hit, for a local sweep
@@ -61,6 +85,34 @@ CITATION_RE = re.compile(
 # on the same line. Task 11b reported 19 citations its own sweep could not match for exactly this
 # reason, so they are captured here rather than silently skipped.
 CONTINUATION_RE = re.compile(r"`:(\d+)(?:-(\d+))?`")
+
+# The symbol written next to a citation, in either of the two house forms:
+#   `View::setModLedStates` (`view.cpp:1548-1679`)   -- symbol to the LEFT, its own backticks
+#   `gate/selection.h:43-54 selectButtonPress`       -- symbol to the RIGHT, same backticks
+# The left form is the common one and is allowed to sit on the *previous* line, because a long
+# symbol and its citation are routinely split across two comment lines.
+# The left form, and *only* when the citation claims to BE that symbol: the symbol's closing
+# backtick, then nothing but " (" before the citation. `` `renderOLED`'s polarity switcher
+# (`patch_cable_strength.cpp:125-157`) `` does not claim to be `renderOLED` -- it names a block
+# inside it -- and matching it would flag every interior citation in the tree. The trailing
+# `` ` `` is the citation's own opening backtick.
+LEFT_SYMBOL_RE = re.compile(r"`([^`]+)`\s*\(\s*`?$")
+# The same, split across two comment lines: the symbol ends the line above and the citation opens
+# this one after nothing but the comment lead-in.
+LEFT_SYMBOL_PREV_RE = re.compile(r"`([^`]+)`\s*$")
+LEAD_IN_RE = re.compile(r"^\s*(?:///|//|\*|)\s*\(\s*`?$")
+RIGHT_SYMBOL_RE = re.compile(r"\s+([A-Za-z_][A-Za-z0-9_:]*)")
+# A plain, possibly-qualified identifier, optionally with an empty or filled argument list. Anything
+# else -- an expression, a phrase, an operator -- is not a symbol this can check.
+SYMBOL_RE = re.compile(
+    r"^(?:[A-Za-z_][A-Za-z0-9_]*::)*([A-Za-z_][A-Za-z0-9_]*)(?:\s*\(.*\))?$"
+)
+# Below this length an identifier agrees with almost any range by accident.
+MIN_SYMBOL_LEN = 4
+# How far a named symbol may sit from its cited range before this is read as an interior citation
+# rather than as drift. A line-shift edit moves a citation by a handful of lines; an interior range
+# naming its enclosing function is usually tens of lines below the signature.
+DRIFT_WINDOW = 6
 
 BOILERPLATE_RE = re.compile(
     r"^\s*(?:"
@@ -155,6 +207,86 @@ def certainly_wrong(path: Path, start: int, end: int) -> str | None:
     return None
 
 
+_FILE_SYMBOL_LINES: dict[str, dict[str, list[int]]] = {}
+
+
+def symbol_lines(rel: str, symbol: str) -> list[int]:
+    """1-based lines of `rel` on which `symbol` appears as a whole word."""
+    per_file = _FILE_SYMBOL_LINES.setdefault(rel, {})
+    if symbol not in per_file:
+        pattern = re.compile(r"\b" + re.escape(symbol) + r"\b")
+        per_file[symbol] = [
+            n
+            for n, line in enumerate(
+                (REPO / rel).read_text(encoding="utf-8", errors="replace").splitlines(),
+                1,
+            )
+            if pattern.search(line)
+        ]
+    return per_file[symbol]
+
+
+def adjacent_symbol(line: str, prev_line: str, start: int, end: int) -> str | None:
+    """The identifier written next to the citation spanning [start, end), or None to skip.
+
+    Returns the *last* segment of a qualified name -- `View::setModLedStates` is checked as
+    `setModLedStates`, because that is what appears at the definition. See the module docstring for
+    the shapes that deliberately yield None.
+    """
+    candidate: str | None = None
+    # Right form: `path:43-54 selectButtonPress`, the symbol trailing inside the same backticks.
+    m = RIGHT_SYMBOL_RE.match(line[end:])
+    if m is not None:
+        candidate = m.group(1)
+    else:
+        before = line[:start]
+        m = LEFT_SYMBOL_RE.search(before)
+        if m is not None:
+            candidate = m.group(1)
+        elif LEAD_IN_RE.match(before):
+            m = LEFT_SYMBOL_PREV_RE.search(prev_line)
+            if m is not None:
+                candidate = m.group(1)
+    if candidate is None:
+        return None
+    m = SYMBOL_RE.match(candidate.strip())
+    if m is None:
+        return None
+    name = m.group(1)
+    return name if len(name) >= MIN_SYMBOL_LEN else None
+
+
+def symbol_drifted(rel: str, symbol: str, start: int, end: int) -> str | None:
+    """Why `symbol` says the range has drifted, or None if it does not say so."""
+    if start == end:
+        # A single-line citation next to a symbol overwhelmingly means "this line, inside that
+        # symbol" -- `` `renderOLED` (`patch_cable_strength.cpp:79`) `` -- not "this symbol". Only
+        # a RANGE makes the whole-symbol claim this predicate is able to check.
+        return None
+    lines = symbol_lines(rel, symbol)
+    if not lines:
+        # The symbol is not in this file at all: a port symbol paired with a legacy citation, or a
+        # symbol legacy has deleted. Nothing to compare -- see the docstring.
+        return None
+    if any(start <= n <= end for n in lines):
+        return None
+    # Only a range that ends ABOVE the symbol is judged. A range that starts below it is the
+    # commonest legitimate shape in this tree -- `` `readCurrentValue` (`attack.h:34-36`) `` cites
+    # the *body* of a function whose signature is at :33 -- and is indistinguishable, line by line,
+    # from a citation that drifted downwards. A range wholly above its symbol is not: nothing is
+    # ever "the body of" a function that starts after it, so the range has slid up off its
+    # signature. That is the direction an insertion above the symbol produces, which is exactly the
+    # regression `menus.cpp`'s two-line edit caused.
+    later = [n for n in lines if n > end]
+    if not later:
+        return None
+    nearest = min(later)
+    if nearest - end > DRIFT_WINDOW:
+        # Far below: an unrelated later occurrence of a common name, not this range's symbol.
+        return None
+    return f"`{symbol}` is at :{nearest}, {nearest - end} line(s) below the end of the cited range"
+
+
 def load_exceptions() -> set[str]:
     if not EXCEPTIONS.exists():
         return set()
@@ -175,10 +307,11 @@ def scan() -> list[tuple[str, int, str, str, str]]:
                 continue
             rel = str(p.relative_to(REPO))
             recent_dirs: list[str] = []
+            prev_line = ""
             for lineno, line in enumerate(
                 p.read_text(encoding="utf-8", errors="replace").splitlines(), 1
             ):
-                spans: list[tuple[str, int, int, str]] = []
+                spans: list[tuple[str, int, int, str, str | None]] = []
                 # Where each full citation ends, so a bare `` `:N` `` continuation can inherit the
                 # path of the citation that precedes it **on the same line and to its left**.
                 # Deliberately not "the last citation anywhere on the line": the table style used
@@ -199,17 +332,30 @@ def scan() -> list[tuple[str, int, str, str, str]]:
                         continue
                     recent_dirs.append(str(Path(resolved).parent) + "/")
                     anchors.append((m.end(), resolved))
-                    spans.append((resolved, s, e, f"{token}:{m.group(2)}"))
+                    spans.append(
+                        (
+                            resolved,
+                            s,
+                            e,
+                            f"{token}:{m.group(2)}",
+                            adjacent_symbol(line, prev_line, m.start(), m.end()),
+                        )
+                    )
                 for m in CONTINUATION_RE.finditer(line):
                     prior = [path for end, path in anchors if end <= m.start()]
                     if not prior:
                         continue
                     s, e = int(m.group(1)), int(m.group(2) or m.group(1))
-                    spans.append((prior[-1], s, e, f":{m.group(1)}"))
-                for resolved, s, e, token in spans:
+                    # A bare continuation carries no symbol of its own: the backticked token to its
+                    # left is the citation it inherits from, not a name for these lines.
+                    spans.append((prior[-1], s, e, f":{m.group(1)}", None))
+                for resolved, s, e, token, symbol in spans:
                     why = certainly_wrong(REPO / resolved, s, e)
+                    if why is None and symbol is not None:
+                        why = symbol_drifted(resolved, symbol, s, e)
                     if why is not None:
                         out.append((rel, lineno, token, resolved, why))
+                prev_line = line
     return out
 
 

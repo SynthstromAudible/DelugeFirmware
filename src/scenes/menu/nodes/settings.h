@@ -414,7 +414,7 @@ inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS)
 // here, ahead of the two selectors, because a chain hook needs their addresses;
 // `Node::chain_targets` is what puts them in the reachability walk so they get node ids.
 
-/// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`cv/volts.h:31-33`). Legacy draws
+/// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`cv/volts.h:32-34`). Legacy draws
 /// "Hz/V" instead of a number at zero and refuses the horizontal encoder there (`:42-56`) -- a
 /// bespoke render this generation's `Decimal` interpreter has no field for, recorded not dropped.
 inline constexpr Node cv_volts = with_title(
@@ -478,7 +478,7 @@ inline constexpr Node gate_selection = with_select_chain(
 // ---------------------------------------------------------------------------------------------
 // 4. Trigger clock
 
-/// `menu_item::PPQN::getMinValue`/`getMaxValue` (`gui/menu_item/ppqn.h:21-22`).
+/// `menu_item::PPQN::getMinValue`/`getMaxValue` (`gui/menu_item/ppqn.h:24-25`).
 inline constexpr IntRange kPpqnRange{1, 192, 1};
 
 inline constexpr Node trigger_in_ppqn =
@@ -671,7 +671,7 @@ inline constexpr uint16_t kSessionLayoutNames[] = {
     sid(String::STRING_FOR_DEFAULT_UI_SONG_LAYOUT_ROWS),
     sid(String::STRING_FOR_DEFAULT_UI_GRID),
 };
-/// `DefaultGridDefaultActiveMode::getOptions` (`defaults/grid_default_active_mode.h:19-26`).
+/// `DefaultGridDefaultActiveMode::getOptions` (`defaults/grid_default_active_mode.h:30-37`).
 inline constexpr uint16_t kGridActiveModeNames[] = {
     sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE_SELECTION),
     sid(String::STRING_FOR_GREEN),
@@ -705,13 +705,13 @@ inline constexpr Node default_session_layout =
 inline constexpr const Node* kDefaultUiSessionChildren[] = {&default_session_layout, &default_session_grid};
 inline constexpr Node default_ui_session = submenu(sid(String::STRING_FOR_DEFAULT_UI_SONG), kDefaultUiSessionChildren);
 
-/// `defaults::KeyboardLayout::getOptions` (`defaults/keyboard_layout.h:19-26`).
+/// `defaults::KeyboardLayout::getOptions` (`defaults/keyboard_layout.h:30-37`).
 inline constexpr uint16_t kDefaultKeyboardLayoutNames[] = {
     sid(String::STRING_FOR_KEYBOARD_LAYOUT_ISOMORPHIC),
     sid(String::STRING_FOR_KEYBOARD_LAYOUT_IN_KEY),
     sid(String::STRING_FOR_KEYBOARD_LAYOUT_PIANO),
 };
-/// `DefaultFavouritesLayout::getOptions` (`defaults/favourites_layout.h:19-26`).
+/// `DefaultFavouritesLayout::getOptions` (`defaults/favourites_layout.h:32-39`).
 inline constexpr uint16_t kFavouritesLayoutNames[] = {
     sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES),
     sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_FAVOURITES_LAYOUT_FAVOURITES_AND_BANKS),
@@ -882,7 +882,7 @@ inline constexpr Node default_patch_cable_polarity =
     dynamic_enumeration(sid(String::STRING_FOR_DEFAULT_POLARITY), polarity_names, get_default_patch_cable_polarity,
                         set_default_patch_cable_polarity);
 
-/// `StartupSongModeMenu::getOptions` (`defaults/startup_song_mode.h:19-25`).
+/// `StartupSongModeMenu::getOptions` (`defaults/startup_song_mode.h:30-36`).
 inline constexpr uint16_t kStartupSongNames[] = {
     sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_BLANK),
     sid(String::STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE_TEMPLATE),
@@ -900,7 +900,7 @@ inline constexpr Node default_pad_brightness =
                         set_default_pad_brightness, IntRange{kMinLedBrightness << 2, kMaxLedBrightness << 2, 4}),
                sid(String::STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE));
 
-/// `SliceMode::getOptions` (`defaults/slice_mode.h:19-28`).
+/// `SliceMode::getOptions` (`defaults/slice_mode.h:30-39`).
 inline constexpr uint16_t kSliceModeNames[] = {
     sid(String::STRING_FOR_CUT),
     sid(String::STRING_FOR_ONCE),
@@ -1040,7 +1040,7 @@ inline constexpr Node record_quantize = sync_level_item(sid(String::STRING_FOR_Q
 inline constexpr Node record_margins =
     toggle_item(sid(String::STRING_FOR_LOOP_MARGINS), get_record_margins, set_record_margins);
 
-/// `monitor::Mode::getOptions` (`monitor/mode.h:21-29`).
+/// `monitor::Mode::getOptions` (`monitor/mode.h:30-38`).
 inline constexpr uint16_t kMonitorModeNames[] = {
     sid(String::STRING_FOR_CONDITIONAL),
     sid(String::STRING_FOR_ENABLED),
@@ -1057,7 +1057,7 @@ inline constexpr const Node* kDefaultThresholdRecordingChildren[] = {&default_th
 inline constexpr Node default_threshold_recording =
     submenu(sid(String::STRING_FOR_THRESHOLD_RECORDING), kDefaultThresholdRecordingChildren);
 
-/// `record::LoopCommand::getOptions` (`record/loop_command.h:30-36`).
+/// `record::LoopCommand::getOptions` (`record/loop_command.h:40-46`).
 inline constexpr uint16_t kLoopCommandNames[] = {
     sid(String::STRING_FOR_LOOP),
     sid(String::STRING_FOR_LAYERING_LOOP),
