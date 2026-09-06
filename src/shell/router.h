@@ -27,10 +27,9 @@ struct Services {
 ///        controls.
 ///
 /// The tail half is `Buttons::buttonAction`'s shape exactly -- `getCurrentUI()->buttonAction` at
-/// `hid/buttons.cpp:134`, then the `:143-231` tail, which is where `MOD_ENCODER_0`/`MOD_ENCODER_1`
-/// (`ButtonId::ModEnc0/1`) actually live, at `:225-231`, reached only after the scene has already
-/// had a look. The `mod_knobs` step sits between them because `mod_knobs` is the port of `View`,
-/// and `View` is what `UI`'s **base-class** hooks forward to; see `route()`.
+/// `hid/buttons.cpp:134`, then the `:143-231` tail. The `mod_knobs` step sits between them because
+/// `mod_knobs` is the port of `View`, and `View` is what `UI`'s **base-class** hooks forward to;
+/// see `route()`.
 ///
 /// The scene step is `SceneStack::input_top()` -- the topmost scene that is not
 /// `Scene::input_transparent()` -- rather than `top()`, so a passive overlay (popup, console,
@@ -58,9 +57,10 @@ public:
 	/// @brief Route one event through the full chain: top scene -> `mod_knobs` ->
 	///        `global_controls` -> drop.
 	///
-	/// `services.mod_knobs->handle` is only consulted when \p event is a mod button or a gold-knob
-	/// turn (`ButtonId::Mod0..Mod7`, `EncoderRole::GoldUpper/GoldLower`), and then only once the
-	/// top scene has declined it; anything else goes from the scene straight to `global_controls`.
+	/// `services.mod_knobs->handle` is only consulted when \p event is a mod button, a gold-knob
+	/// turn or a gold-knob push (`ButtonId::Mod0..Mod7`, `EncoderRole::GoldUpper/GoldLower`,
+	/// `ButtonId::ModEnc0/ModEnc1`), and then only once the top scene has declined it; anything
+	/// else goes from the scene straight to `global_controls`.
 	///
 	/// @par Why the scene comes first
 	///
@@ -85,11 +85,15 @@ public:
 	/// have fired -- the service would have claimed the turn first. Recorded as amendment §15.4 of
 	/// `docs/superpowers/specs/2026-08-26-ui-shell-design.md`.
 	///
-	/// In particular, a gold knob's own push
-	/// (`ButtonId::ModEnc0`/`ModEnc1`) is **not** a `mod_knobs` event: legacy routes it to
-	/// `getCurrentUI()->modEncoderButtonAction` from the tail, after the scene's own `buttonAction`
-	/// has already run (`hid/buttons.cpp:225-231`), so it reaches the scene first here too, exactly
-	/// as any other plain button would. Every `Result` along the way is `apply()`d immediately,
+	/// A gold knob's own push (`ButtonId::ModEnc0`/`ButtonId::ModEnc1`) is a `mod_knobs` event too,
+	/// reached from the same dispatcher one step lower: `Buttons::buttonAction` handles
+	/// `MOD_ENCODER_0`/`MOD_ENCODER_1` in the tail (`hid/buttons.cpp:225-231`), after the scene's
+	/// own `buttonAction` at `:134`, and what it runs there is
+	/// `getCurrentUI()->modEncoderButtonAction(n, on)` -- `UI::modEncoderButtonAction`
+	/// (`gui/ui/ui.cpp:43-45`) being another bare forward to `view`, overridden by five UIs
+	/// (`gui/views/instrument_clip_view.h:199`, `gui/ui/sound_editor.h:81`,
+	/// `gui/views/session_view.h:80`, `gui/views/performance_view.h:97`,
+	/// `gui/views/automation_view.h:117`). Every `Result` along the way is `apply()`d immediately,
 	/// whether or not it reports `handled`, and routing stops at the first `handled` step.
 	/// @param event The event to route.
 	/// @param ctx   The world around it.

@@ -59,6 +59,7 @@
 
 #include "scenes/menu/node.h"
 
+#include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
@@ -715,6 +716,76 @@ void mod_region_grab_values(const services::ModTarget& target) {
 	// `:1937-1938`. The comment there: "activeModControllable might not be a Sound, but in that
 	// case, the pointer's not going to get used".
 	target.param_manager->toForTimeline()->grabValuesFromPos(target.mod_pos, active);
+}
+
+services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target, int32_t which_encoder) {
+	services::ModIndicatorInfo out{};
+	if (target.mod_controllable == nullptr) {
+		// `View::setKnobIndicatorLevels` (`:1391`) only calls this with a mod controllable resolved;
+		// guarded here anyway, because `setKnobIndicatorLevel` itself dereferences it unchecked.
+		return out;
+	}
+
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* active = stack_for(target, memory);
+	// `:1407-1408`. The third argument is legacy's own `false`: no arrangement-recording clone --
+	// levelling an indicator is a read, and must not fork a clip.
+	ModelStackWithAutoParam* param = target.mod_controllable->getParamFromModEncoder(which_encoder, active, false);
+	if (param == nullptr) {
+		// Legacy dereferences the result unchecked (`:1414`); returning "nothing to declare" is the
+		// port's answer to a null it cannot prove impossible.
+		return out;
+	}
+	out.param_id = param->paramId;
+
+	if (param->autoParam != nullptr) { // `:1414`
+		out.has_auto_param = true;
+		const int32_t value = param->autoParam->getValuePossiblyAtPos(target.mod_pos, param); // `:1415`
+		ParamCollection* collection = param->paramCollection;                                 // `:1416`
+		out.kind = collection->getParamKind();                                                // `:1417`
+		out.bipolar = deluge::modulation::params::isParamBipolar(out.kind, param->paramId);   // `:1419`
+		out.knob_pos = collection->paramValueToKnobPos(value, param);                         // `:1420`
+		out.quantized_stutter = deluge::modulation::params::isParamQuantizedStutter(
+		    out.kind, param->paramId, static_cast<ModControllableAudio*>(param->modControllable)); // `:1429-1430`
+		return out;
+	}
+
+	if (param->paramId == 255) { // `:1451`
+		out.non_existent_param = true;
+		out.non_existent_knob_pos =
+		    param->modControllable->getKnobPosForNonExistentParam(which_encoder, param); // `:1452-1453`
+		return out;
+	}
+	// `:1457` -- "is it not just a param? then its a patch cable".
+	out.patch_cable_default = ((param->paramId & 0x0000FF00) != 0x0000FF00);
+	return out;
+}
+
+bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder, bool on) {
+	if (target.mod_controllable == nullptr) {
+		return false; // `:1341` -- `modEncoderButtonAction`'s own guard.
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* active = stack_for(target, memory);
+	// `:1364-1366` copies the stack before handing it over, because `ModControllable`
+	// implementations write to it; here `active` is already a scratch copy, so it is handed over
+	// directly.
+	return target.mod_controllable->modEncoderButtonAction(which_encoder, on, active); // `:1368-1369`
+}
+
+bool mod_delete_automation(const services::ModTarget& target, int32_t which_encoder) {
+	if (target.mod_controllable == nullptr) {
+		return false;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* active = stack_for(target, memory);
+	ModelStackWithAutoParam* param = target.mod_controllable->getParamFromModEncoder(which_encoder, active); // `:1353`
+	if (param == nullptr || param->autoParam == nullptr) {
+		return false; // `:1355`
+	}
+	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED); // `:1356`
+	param->autoParam->deleteAutomation(action, param);                                                      // `:1357`
+	return true; // `:1358`'s popup is the caller's, as an `Action::Kind::Popup`.
 }
 
 } // namespace deluge::scenes::menu

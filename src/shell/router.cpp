@@ -14,17 +14,26 @@ namespace {
 /// the hook wins and one that does not falls through to `View`. Hence: scene first, service
 /// second. See `Router::route`'s doc for the override census.
 ///
-/// @note A gold knob's own push (`ButtonId::ModEnc0`/`ModEnc1`) is deliberately **not** included:
-///       legacy routes it to `getCurrentUI()->modEncoderButtonAction` from the tail block, after
-///       the scene's own `buttonAction` has already run and declined to handle it
-///       (`hid/buttons.cpp:225-231`, reached only past the `buttonAction` call at `:134`) -- so it
-///       reaches `global_controls` after the scene, like any other plain button, and never
-///       `mod_knobs` at all.
+/// A gold knob's own push (`ButtonId::ModEnc0`/`ModEnc1`) is included too, from one step further
+/// down the same dispatcher: `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its
+/// *tail* (`hid/buttons.cpp:225-231`, reached only past the `getCurrentUI()->buttonAction` call at
+/// `:134`), and the line it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)` -- again a
+/// hook whose base implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is a bare
+/// forward to `view`, and which five UIs override (`gui/views/instrument_clip_view.h:199`,
+/// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
+/// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`). Scene first, then here.
+///
+/// @note Plan D excluded the two pushes on the correct observation that legacy reaches them only
+///       *after* the current UI. Under the inverted chain that meant "never a `mod_knobs` event",
+///       which left `View::modEncoderButtonAction` (`gui/views/view.cpp:1332-1350`) unreachable in
+///       the port. E4 task 3, which ports it, put them back once the chain was scene-first.
 bool is_mod_or_gold(const UiEvent& e) {
 	switch (e.kind) {
 	case UiEvent::Kind::Button:
 		return static_cast<uint8_t>(e.button) >= static_cast<uint8_t>(ButtonId::Mod0)
 		       && static_cast<uint8_t>(e.button) <= static_cast<uint8_t>(ButtonId::Mod7);
+	case UiEvent::Kind::EncoderButton:
+		return e.button == ButtonId::ModEnc0 || e.button == ButtonId::ModEnc1;
 	case UiEvent::Kind::Encoder:
 		return e.encoder == EncoderRole::GoldUpper || e.encoder == EncoderRole::GoldLower;
 	default:

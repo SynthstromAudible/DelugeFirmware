@@ -281,6 +281,44 @@ services::ModParamInfo mod_param_info(services::ModTarget& target, int32_t which
 /// @param target What is being edited. A no-op unless it has both a mod controllable and a param
 ///               manager with main param collections.
 void mod_region_grab_values(const services::ModTarget& target);
+
+/// @brief Read what a gold knob's indicator column should show -- the model half of
+///        `View::setKnobIndicatorLevel` (`gui/views/view.cpp:1403-1472`).
+///
+/// Resolves the param stack with `getParamFromModEncoder(whichModEncoder, …, false)` -- legacy's
+/// own third argument at `:1407-1408`, which is why this is **not** `mod_param_info`: that one goes
+/// through `getModelStackWithParam` and runs the arrangement-recording clone, and levelling an
+/// indicator must not. Every clamp, stutter bucket, offset and patch-cable fold legacy then applies
+/// stays in `mod_knobs.cpp`.
+/// @param target        What is being edited. Not modified: no clone runs.
+/// @param which_encoder 0 for the lower gold knob, 1 for the upper.
+/// @return The reads, or a default-constructed value when there is no mod controllable.
+services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target, int32_t which_encoder);
+
+/// @brief Press or release a gold knob -- the model half of
+///        `View::modEncoderButtonAction_changeModControllable` (`view.cpp:1363-1378`).
+///
+/// `:1364-1366`'s stack copy and `:1368-1369`'s
+/// `ModControllable::modEncoderButtonAction(whichModEncoder, on, modelStack)`. The
+/// `instrumentBeenEdited()` that follows it, the indicator re-level and the sound-editor
+/// `readValueAgain()` are all `ModKnobs`'.
+/// @param target        What is being edited.
+/// @param which_encoder 0 for the lower gold knob, 1 for the upper.
+/// @param on            Press (true) or release (false).
+/// @return Legacy's `anyEditingDone` (`:1370`).
+bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder, bool on);
+
+/// @brief Delete a gold knob's param automation -- `View::modEncoderButtonAction_deleteAutomation`
+///        (`view.cpp:1351-1362`).
+///
+/// Includes the `ActionType::AUTOMATION_DELETE` action-log entry (`:1356`) and the
+/// `AutoParam::deleteAutomation` call (`:1357`); the "Automation deleted" popup is `ModKnobs`',
+/// raised as an `Action::Kind::Popup` rather than by calling `display` from the model layer.
+/// @param target        What is being edited.
+/// @param which_encoder 0 for the lower gold knob, 1 for the upper.
+/// @return True when there was an `autoParam` and its automation was deleted -- legacy's `:1355`
+///         test, and therefore whether the popup is shown.
+bool mod_delete_automation(const services::ModTarget& target, int32_t which_encoder);
 /// @}
 
 /// @brief Tell the model that a sample marker moved -- the tail of `SampleMarkerEditor::writeValue`

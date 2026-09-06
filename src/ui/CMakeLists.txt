@@ -3,6 +3,7 @@
 add_library(deluge_ui_core STATIC
   core/repaint_gate.cpp
   core/led_frame.cpp
+  core/knob_indicator.cpp
   core/text_wrap.cpp
 )
 target_include_directories(deluge_ui_core PUBLIC ${SHARED_INCLUDE})

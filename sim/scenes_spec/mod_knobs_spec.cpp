@@ -50,6 +50,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "model/clip/instrument_clip.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -67,6 +68,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -207,6 +209,86 @@ void seed_params(ParamManagerForTimeline& pm, int32_t value) {
 	}
 }
 
+/// @name The legacy LED/indicator oracle
+///
+/// `indicator_leds` is the *only* thing legacy's `setModLedStates`/`setKnobIndicatorLevel` produce
+/// output through, and in the host BSP both sinks keep a shadow of what they were last handed
+/// (`src/bsp/host/host_bsp.c:747-750`, written by `deluge_control_set_led` at `:782-790` and
+/// `deluge_control_set_indicator` at `:791-805`). That shadow is this spec's oracle: it is what
+/// legacy actually put on the hardware, not a re-derivation of what it meant to.
+///
+/// Declared rather than included: `host_script.h` lives under `src/bsp/host`, which is on this
+/// target's link line but not on its include path, and two `extern "C"` lines are cheaper -- and
+/// more explicit about the dependency -- than another include directory.
+/// @{
+extern "C" const uint8_t* host_script_led_shadow(void);
+extern "C" const uint8_t* host_script_ring_shadow(uint8_t which);
+/// @}
+
+/// @brief What legacy's LED layer is currently saying about one mod button's LED.
+///
+/// Two facts, because `LedState` distinguishes three cases and the shadow only distinguishes two:
+/// `indicator_leds::blinkLed` (`hid/led/indicator_leds.cpp:54-95`) both registers a blinker *and*
+/// drives the shadow to its `initialState`, so "lit" alone cannot tell a steady LED from a
+/// blinking one. `getLedBlinkerIndex` (`:150-157`) is the other half.
+struct LegacyLed {
+	bool lit = false;
+	bool blinking = false;
+	bool operator==(const LegacyLed&) const = default;
+};
+
+/// @brief Read mod button @p i's LED out of legacy's own output.
+/// @param i 0..7.
+LegacyLed legacy_mod_led(int32_t i) {
+	const IndicatorLED led = indicator_leds::modLed[i];
+	return LegacyLed{host_script_led_shadow()[static_cast<uint8_t>(led)] != 0,
+	                 indicator_leds::getLedBlinkerIndex(led) != 255};
+}
+
+/// @brief The same two facts, read out of a port `LedFrame`'s declaration for mod button @p i.
+///
+/// By identity: the entry must be *present* (a missing declaration is a defect, not an "off"), and
+/// its `LedState::Kind` is compared against legacy's lit/blinking pair rather than against a count.
+/// @param frame The composed frame.
+/// @param i     0..7.
+/// @return The port's answer, or `std::nullopt` when nothing declared that LED.
+std::optional<LegacyLed> port_mod_led(const deluge::ui::LedFrame& frame, int32_t i) {
+	const auto want = static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i);
+	for (const auto& [id, state] : frame.entries()) {
+		if (id != want) {
+			continue;
+		}
+		switch (state.kind) {
+		case deluge::ui::LedState::Kind::Off:
+			return LegacyLed{false, false};
+		case deluge::ui::LedState::Kind::On:
+			return LegacyLed{true, false};
+		case deluge::ui::LedState::Kind::Blink:
+			// `blinkLed`'s default `initialState` is true (`indicator_leds.h:86`), and
+			// `shell/leds.h`'s `led_is_on` reads phase 0 of a blink as lit too, so a freshly
+			// declared blink is lit on both sides.
+			return LegacyLed{true, true};
+		}
+	}
+	return std::nullopt;
+}
+
+/// @brief The four segment brightnesses legacy last sent for knob @p which, or `nullptr`.
+const uint8_t* legacy_indicator(int32_t which) {
+	return host_script_ring_shadow(static_cast<uint8_t>(which));
+}
+
+/// @brief Force legacy's indicator cache to miss, so the next real level is actually sent.
+///
+/// `indicator_leds::actuallySetKnobIndicatorLevel` returns early when the level *and* the polarity
+/// both match what it last sent (`indicator_leds.cpp:186-189`). A comparison that ran twice with
+/// the same value would still be reading the right bytes, but a comparison run after this one is
+/// only meaningful if the shadow was written for *this* call -- so each side is preceded by a poke
+/// with a level no fixture here produces.
+void poke_legacy_indicator(int32_t which) {
+	indicator_leds::actuallySetKnobIndicatorLevel(static_cast<uint8_t>(which), 251, false);
+}
+
 /// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
 struct DirectCtx {
 	deluge::ui::shell::ButtonSet held{};
@@ -221,6 +303,16 @@ UiEvent gold_turn(EncoderRole role, int8_t delta) {
 	e.kind = UiEvent::Kind::Encoder;
 	e.encoder = role;
 	e.delta = delta;
+	return e;
+}
+
+/// An encoder-button event -- the shape `InputLowering` emits for `ButtonId::ModEnc0`/`ModEnc1`
+/// and `SelectEnc` (`shell/input_lowering.cpp:42-53`, `:298`).
+UiEvent encoder_button_event(ButtonId b, bool on) {
+	UiEvent e{};
+	e.kind = UiEvent::Kind::EncoderButton;
+	e.button = b;
+	e.on = on;
 	return e;
 }
 
@@ -702,69 +794,457 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.target().mod_controllable != nullptr).to_be_true();
 	});
 
-	it("routes a gold-knob turn through the service and a gold-knob push past it", _ {
-		// Step 5's subject is the PUSH: `MOD_ENCODER_0`/`MOD_ENCODER_1` are handled in
-		// `Buttons::buttonAction`'s TAIL, after `getCurrentUI()->buttonAction`
-		// (`hid/buttons.cpp:225-231`), so the scene sees the push first and the service never sees
-		// it at all. That is what this example is here to pin.
+	it("takes a gold turn, a mod button and a gold push only after the scene declines them", _ {
+		// All three of `View`'s base-class-fallback hooks, against the real service event set.
+		// Legacy dispatches every one of them through `getCurrentUI()` and reaches `view` only
+		// through `UI`'s own forwarding bodies: `modEncoderAction` (`hid/encoder_input.cpp:194`,
+		// `gui/ui/ui.cpp:35-37`), `modButtonAction` (`hid/buttons.cpp:104`, `ui.cpp:39-41`) and
+		// `modEncoderButtonAction` (`hid/buttons.cpp:225-231`, `ui.cpp:43-45`). E4 task 2 found the
+		// chain inverted (service first); E4 task 3 part A fixed it and added the two pushes, which
+		// plan D had excluded outright. `tests/spec/shell/router_spec.cpp` holds the ordering proof
+		// with a shared call log; this example pins WHICH events reach the service at all.
 		//
-		// The turn and the mod button reach `mod_knobs` too, but only as the *fallback* a scene
-		// that declines drops through to -- `getCurrentUI()->modEncoderAction`
-		// (`hid/encoder_input.cpp:194`) and `getCurrentUI()->modButtonAction`
-		// (`hid/buttons.cpp:104`), with `UI`'s base implementations forwarding to `view`
-		// (`gui/ui/ui.cpp:35-41`). E4 task 2 found the chain inverted (service first); E4 task 3
-		// part A fixed it, and `tests/spec/shell/router_spec.cpp` holds the ordering proof with a
-		// shared call log. What this example adds is the same claim against the *real* service
-		// event set.
+		// The pushes are built as `UiEvent::Kind::EncoderButton`, which is what `InputLowering`
+		// actually emits for `ButtonId::ModEnc0`/`ModEnc1` (`shell/input_lowering.cpp:42-53` and
+		// `:298`). Building them as plain `Kind::Button`, as this example did before, tested a
+		// shape the lowering never produces.
 		RouteRig r;
 
-		// A scene that claims the turn -- the six UIs that override `modEncoderAction` -- is the
-		// end of the line. `View` never sees it.
+		// A scene that claims -- one of the six/two/five overriding UIs -- is the end of the line
+		// for all three shapes.
 		r.router.route(gold_turn(EncoderRole::GoldLower, 1), r.ctx());
 		expect(r.scene.calls).to_equal(1);
 		expect(r.mod_knobs.calls).to_equal(0);
 
-		r.router.route(button_event(ButtonId::ModEnc0, true), r.ctx());
-		expect(r.mod_knobs.calls).to_equal(0); // a knob PUSH is not a mod_knobs event at all
+		r.router.route(encoder_button_event(ButtonId::ModEnc0, true), r.ctx());
 		expect(r.scene.calls).to_equal(2);
+		expect(r.mod_knobs.calls).to_equal(0);
 		expect(r.scene.last.button == ButtonId::ModEnc0).to_be_true();
 
-		r.router.route(button_event(ButtonId::ModEnc1, true), r.ctx());
-		expect(r.mod_knobs.calls).to_equal(0);
-		expect(r.scene.calls).to_equal(3);
-
 		r.router.route(button_event(ButtonId::Mod0, true), r.ctx());
+		expect(r.scene.calls).to_equal(3);
 		expect(r.mod_knobs.calls).to_equal(0);
-		expect(r.scene.calls).to_equal(4);
 
-		// A scene that declines -- a UI inheriting `UI::modEncoderAction`'s forward to `view` --
-		// drops the turn and the mod button through to the service, and nothing else.
+		// A scene that declines -- a UI inheriting `UI`'s forward-to-`view` body -- drops all three
+		// through to the service.
 		r.scene.claim = false;
 		r.router.route(gold_turn(EncoderRole::GoldLower, 1), r.ctx());
-		expect(r.scene.calls).to_equal(5);
+		expect(r.scene.calls).to_equal(4);
 		expect(r.mod_knobs.calls).to_equal(1);
 
 		r.router.route(button_event(ButtonId::Mod0, true), r.ctx());
-		expect(r.scene.calls).to_equal(6);
+		expect(r.scene.calls).to_equal(5);
 		expect(r.mod_knobs.calls).to_equal(2);
 		expect(r.mod_knobs.last.button == ButtonId::Mod0).to_be_true();
 
-		r.router.route(button_event(ButtonId::ModEnc0, true), r.ctx());
+		r.router.route(encoder_button_event(ButtonId::ModEnc1, true), r.ctx());
+		expect(r.scene.calls).to_equal(6);
+		expect(r.mod_knobs.calls).to_equal(3);
+		expect(r.mod_knobs.last.button == ButtonId::ModEnc1).to_be_true();
+
+		// And the SELECT encoder's push is still not one of these: legacy's tail handles it itself
+		// and its hook has no `view` fallback, so it must reach the scene and then `global_controls`,
+		// never `mod_knobs`.
+		r.router.route(encoder_button_event(ButtonId::SelectEnc, true), r.ctx());
 		expect(r.scene.calls).to_equal(7);
-		expect(r.mod_knobs.calls).to_equal(2); // still not a mod_knobs event, declined or not
+		expect(r.mod_knobs.calls).to_equal(3);
 	});
 
-	it("ignores a knob push handed to it directly, so ordering is the only thing keeping them apart", _ {
-		// Defence in depth behind the routing example above: even called directly, `ModKnobs` has
-		// nothing to say about `ButtonId::ModEnc0` -- `View::modEncoderButtonAction`
-		// (`view.cpp:1332-1350`) is E4 task 3's citation, not this task's.
+	it("claims exactly the events it is the View fallback for, and nothing else", _ {
+		// Defence in depth behind the routing example above: what `ModKnobs::handle` reports
+		// `handled` for, called directly. Legacy consumes all three unconditionally -- the mod
+		// button and the push both end in `Buttons::buttonAction`'s `dealtWith`
+		// (`hid/buttons.cpp:105`, `:233`) and the turn is the last thing `interpretEncoders` does
+		// with it -- so `handled` is true even on the arms that do nothing.
 		spec::SongFixture f = spec::make_synth_song();
 		KnobRig rig;
 		rig.knobs.set_song(f.song);
 		DirectCtx c{0};
-		expect(rig.knobs.handle(button_event(ButtonId::ModEnc0, true), c.ctx).handled).to_be_false();
+		expect(rig.knobs.handle(encoder_button_event(ButtonId::ModEnc0, true), c.ctx).handled).to_be_true();
+		expect(rig.knobs.handle(button_event(ButtonId::Mod4, true), c.ctx).handled).to_be_true();
+		// ...and not the rest.
+		expect(rig.knobs.handle(encoder_button_event(ButtonId::SelectEnc, true), c.ctx).handled).to_be_false();
+		expect(rig.knobs.handle(button_event(ButtonId::Back, true), c.ctx).handled).to_be_false();
 		expect(rig.knobs.handle(gold_turn(EncoderRole::Select, 1), c.ctx).handled).to_be_false();
 		expect(rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 0), c.ctx).handled).to_be_false();
+	});
+
+	// --- E4 task 3: the buttons, the mode, the LEDs and the indicators -------------------------
+
+	it("declares the eight mod LEDs exactly as View::setModLedStates writes them, in every mode", _ {
+		// The mode -> LED table, asserted BY IDENTITY: all eight declarations, on every one of the
+		// eight modes, with each side driven into that mode through its own `modButtonAction` and
+		// each side's answer read from its own output -- legacy's from the LED shadow the host BSP
+		// keeps of `deluge_control_set_led` plus `getLedBlinkerIndex`, the port's from the
+		// `LedFrame` it declared into. Nothing here counts lit LEDs; a table with the right number
+		// of entries and the wrong ones set fails on the first mode.
+		//
+		// The two sides run on two different clips, so neither can read the other's mod knob mode.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* port_clip = add_synth_clip(f.song, "MODLED");
+		currentSong = f.song;
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(port_clip, false);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		// The stack must be non-empty for `declare_indicators` (legacy's `if (!getRootUI()) return`);
+		// the LED half below does not depend on it, but leaving it empty would silently skip the
+		// indicator declarations the next example checks.
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+
+		for (int32_t mode = 0; mode < 8; mode++) {
+			view.modButtonAction(static_cast<uint8_t>(mode), true);
+			view.modButtonAction(static_cast<uint8_t>(mode), false);
+			rig.knobs.mod_button_action(mode, true);
+			rig.knobs.mod_button_action(mode, false);
+
+			// Both sides really did change mode -- otherwise every row below would compare two
+			// unchanged tables and pass on a port that ignores the button entirely.
+			expect(rig.knobs.mode()).to_equal(mode);
+			expect(view.getModKnobMode()).to_equal(mode);
+
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			for (int32_t i = 0; i < 8; i++) {
+				const std::optional<LegacyLed> port = port_mod_led(frame, i);
+				const std::string where = "mode=" + std::to_string(mode) + " led=" + std::to_string(i);
+				if (!port.has_value()) {
+					expect(where + " undeclared").to_equal(where);
+					continue;
+				}
+				const LegacyLed legacy = legacy_mod_led(i);
+				if (*port != legacy) {
+					expect(where + " port{lit=" + std::to_string(port->lit) + ",blink="
+					       + std::to_string(port->blinking) + "} legacy{lit=" + std::to_string(legacy.lit)
+					       + ",blink=" + std::to_string(legacy.blinking) + "}")
+					    .to_equal(where);
+				}
+			}
+		}
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("blinks the volume mod LED when the VU meter is on, and only in the song context", _ {
+		// `view.cpp:1662-1664` -- the one row of the table that is not "on iff selected", and the
+		// only reason `displayVUMeter` is ported at all. It needs three things at once: the song
+		// context, mod button 0 selected, and the meter on. Each side toggles the meter through its
+		// own `modButtonAction` -- pressing the already-selected button 0 outside a clip minder
+		// (`:1517-1524`) -- so this drives the toggle as well as the LED it feeds.
+		StubDisplay stub;
+		display = &stub;
+
+		// TWO songs, not two clips: `itsTheSong` requires each side to point at a *song*, and a
+		// song's mod-knob mode lives on its one `GlobalEffectable`. Sharing one song here would
+		// have the two sides writing the same `modKnobMode` and reading each other's selection --
+		// which is exactly what the first draft of this example did, and it made the port toggle the
+		// VU meter on a press legacy treated as a plain selection.
+		spec::SongFixture f = spec::make_synth_song();
+		spec::SongFixture pf = spec::make_synth_song();
+		currentSong = f.song;
+		f.song->affectEntire = true;  // so the SONG resolves a mod controllable (`song.cpp:5537-5544`)
+		pf.song->affectEntire = true;
+
+		KnobRig rig;
+		rig.knobs.set_song(pf.song);
+		rig.knobs.set_target_with_timeline(pf.song, false); // the song, so `itsTheSong` is true
+		view.setActiveModControllableTimelineCounter(f.song, false);
+
+		// `View::displayVUMeter` is a process-global `View` member and an earlier example in this
+		// file has already toggled it; `ModKnobs::display_vu_meter_` is fresh with each `KnobRig`.
+		// Putting the legacy side into the port's known start state is aligning the two sentinels,
+		// not deriving one from the other -- everything compared below is produced afterwards, by
+		// each side's own `modButtonAction`.
+		view.displayVUMeter = false;
+		expect(rig.knobs.display_vu_meter()).to_be_false();
+
+		// Select a different mod button first, so the press that follows is a *selection* and not
+		// already the toggle.
+		view.modButtonAction(1, true);
+		rig.knobs.mod_button_action(1, true);
+		expect(rig.knobs.mode()).to_equal(1);
+
+		// First press of 0 selects it; it was not already selected, so no toggle.
+		view.modButtonAction(0, true);
+		rig.knobs.mod_button_action(0, true);
+		expect(rig.knobs.display_vu_meter()).to_equal(view.displayVUMeter);
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			expect(port_mod_led(frame, 0).value() == legacy_mod_led(0)).to_be_true();
+		}
+
+		// Second press: already selected, button 0, not a clip minder -> the meter turns on, and
+		// mod LED 0 goes from steady to blinking on both sides.
+		view.modButtonAction(0, true);
+		rig.knobs.mod_button_action(0, true);
+		expect(view.displayVUMeter).to_be_true();
+		expect(rig.knobs.display_vu_meter()).to_be_true();
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			const LegacyLed port = port_mod_led(frame, 0).value();
+			expect(port.blinking).to_be_true();
+			expect(port == legacy_mod_led(0)).to_be_true();
+			// And every other mod LED is still plain off -- by identity, not "at least one on".
+			for (int32_t i = 1; i < 8; i++) {
+				expect(port_mod_led(frame, i).value() == LegacyLed{false, false}).to_be_true();
+			}
+		}
+
+		// Point the knobs at a CLIP instead: same meter flag, but `itsTheSong` is false, so the
+		// blink arm's first clause fails and the LED is merely on.
+		rig.knobs.set_target_with_timeline(pf.clip, false);
+		expect(deluge::scenes::services::is_clip_context(rig.knobs.target())).to_be_true();
+		// The clip's `SoundInstrument` carries its own mod-knob mode, which is not the song's, so
+		// select button 0 on it. It was not already selected, so this is a plain selection and the
+		// meter flag -- the thing under test -- is untouched.
+		rig.knobs.mod_button_action(0, true);
+		rig.knobs.mod_button_action(0, false);
+		expect(rig.knobs.mode()).to_equal(0);
+		expect(rig.knobs.display_vu_meter()).to_be_true();
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			const LegacyLed port = port_mod_led(frame, 0).value();
+			expect(port.lit).to_be_true();
+			expect(port.blinking).to_be_false(); // `itsTheSong` is false, so the blink arm cannot fire
+		}
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("turns every mod LED off in the automation editor, and declares no indicator there", _ {
+		// `view.cpp:1666-1669` and `:1385-1389`. Legacy's condition is
+		// `(getRootUI() == &automationView) && automationView.inAutomationEditor()`, which no spec
+		// process can produce -- there is no root UI here at all -- so this arm is driven through
+		// the injected `ViewState` the port carries in its place, and it is the ONE row of the
+		// table whose legacy side is asserted from the source rather than from a live comparison.
+		// Named here rather than left implicit.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		rig.knobs.mod_button_action(3, true);
+		rig.knobs.mod_button_action(3, false);
+		expect(rig.knobs.mode()).to_equal(3);
+
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			expect(port_mod_led(frame, 3).value() == LegacyLed{true, false}).to_be_true();
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) != nullptr).to_be_true();
+		}
+
+		ModKnobs::ViewState state;
+		state.in_automation_editor = true;
+		rig.knobs.set_view_state(state);
+		{
+			deluge::ui::LedFrame frame;
+			rig.knobs.leds(frame);
+			for (int32_t i = 0; i < 8; i++) {
+				expect(port_mod_led(frame, i).value() == LegacyLed{false, false}).to_be_true();
+			}
+			// `:1387`'s early return: legacy leaves both columns exactly as they were, which here
+			// is "declares nothing".
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
+			expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
+		}
+
+		// `:1501-1506` -- and the mod button itself is ignored, so the mode does not move.
+		rig.knobs.mod_button_action(5, true);
+		expect(rig.knobs.mode()).to_equal(3);
+		// ...except mod button 0 on arranger automation view (`:1503`).
+		state.automation_on_arranger = true;
+		rig.knobs.set_view_state(state);
+		rig.knobs.mod_button_action(0, true);
+		expect(rig.knobs.mode()).to_equal(0);
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("levels both knob indicators exactly as View::setKnobIndicatorLevel does", _ {
+		// The indicator half, by identity: all four segment brightnesses of both columns, compared
+		// against what legacy actually handed `deluge_control_set_indicator`. That covers the whole
+		// chain on both sides -- the param read, the clamp, the `kKnobPosOffset` shift, the
+		// patch-cable fold, and `indicator_leds`' own brightness arithmetic, which the port
+		// re-implements as `ui::knob_indicator_levels`.
+		//
+		// Driven across all eight mod-knob modes because the mode is what decides WHICH param each
+		// gold knob addresses, and across a turn on each knob so the levels are not all the fixture
+		// default.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* port_clip = add_synth_clip(f.song, "MODIND");
+		currentSong = f.song;
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(port_clip, false);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+
+		int32_t compared = 0;
+		for (int32_t mode = 0; mode < 8; mode++) {
+			view.modButtonAction(static_cast<uint8_t>(mode), true);
+			view.modButtonAction(static_cast<uint8_t>(mode), false);
+			rig.knobs.mod_button_action(mode, true);
+			rig.knobs.mod_button_action(mode, false);
+
+			for (int32_t offset : {0, 7, -13}) {
+				if (offset != 0) {
+					view.modEncoderAction(0, offset);
+					view.modEncoderAction(1, -offset);
+					DirectCtx c{0};
+					(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, static_cast<int8_t>(offset)), c.ctx);
+					(void)rig.knobs.handle(gold_turn(EncoderRole::GoldUpper, static_cast<int8_t>(-offset)), c.ctx);
+				}
+
+				deluge::ui::LedFrame frame;
+				rig.knobs.leds(frame);
+				for (int32_t k = 0; k < 2; k++) {
+					poke_legacy_indicator(k);
+					view.setKnobIndicatorLevel(static_cast<uint8_t>(k));
+					const uint8_t* legacy = legacy_indicator(k);
+					const deluge::ui::KnobIndicator* port =
+					    frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+					const std::string where =
+					    "mode=" + std::to_string(mode) + " offset=" + std::to_string(offset) + " knob="
+					    + std::to_string(k);
+					if (legacy == nullptr || port == nullptr) {
+						expect(where + (legacy == nullptr ? " legacy-null" : " port-null")).to_equal(where);
+						continue;
+					}
+					for (int32_t seg = 0; seg < 4; seg++) {
+						if (port->levels[seg] != legacy[seg]) {
+							expect(where + " seg=" + std::to_string(seg) + " port="
+							       + std::to_string(port->levels[seg]) + " legacy=" + std::to_string(legacy[seg]))
+							    .to_equal(where);
+						}
+					}
+					compared++;
+				}
+			}
+		}
+		// The loop really ran: 8 modes x 3 offsets x 2 knobs.
+		expect(compared).to_equal(48);
+		display = nullptr;
+		currentSong = nullptr;
+	});
+
+	it("clears both indicator columns when the knobs point at nothing, as clearKnobIndicatorLevels does", _ {
+		// `view.cpp:1398-1400`. `indicator_leds::clearKnobIndicatorLevels`
+		// (`hid/led/indicator_leds.cpp:318-322`) is `setKnobIndicatorLevel(i, 0)` for both, so the
+		// legacy side is driven through exactly that and read back from the same shadow.
+		KnobRig rig;
+		expect(rig.stack.push({deluge::scenes::overlay::kParamPopupSceneKind})).to_be_true();
+		expect(rig.knobs.target().mod_controllable == nullptr).to_be_true();
+
+		indicator_leds::clearKnobIndicatorLevels();
+
+		deluge::ui::LedFrame frame;
+		rig.knobs.leds(frame);
+		for (int32_t k = 0; k < 2; k++) {
+			const uint8_t* legacy = legacy_indicator(k);
+			const deluge::ui::KnobIndicator* port = frame.indicator_or_null(static_cast<deluge::ui::IndicatorId>(k));
+			expect(legacy != nullptr).to_be_true();
+			expect(port != nullptr).to_be_true();
+			for (int32_t seg = 0; seg < 4; seg++) {
+				expect(static_cast<int32_t>(port->levels[seg])).to_equal(static_cast<int32_t>(legacy[seg]));
+			}
+		}
+	});
+
+	it("declares no indicator at all with an empty scene stack, as legacy declares none with no root UI", _ {
+		// `view.cpp:1381-1383`. The mod LEDs are unaffected -- that block is below the early return
+		// in legacy and outside `declare_indicators` here -- so this also pins that the two halves
+		// of `leds()` are gated separately.
+		spec::SongFixture f = spec::make_synth_song();
+		currentSong = f.song;
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		expect(rig.stack.depth()).to_equal(size_t(0));
+
+		deluge::ui::LedFrame frame;
+		rig.knobs.leds(frame);
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
+		expect(port_mod_led(frame, 0).has_value()).to_be_true();
+		currentSong = nullptr;
+	});
+
+	it("handles a gold-knob push the way View::modEncoderButtonAction does", _ {
+		// `view.cpp:1332-1350` and its two helpers. The push arrives as an `EncoderButton` event,
+		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
+		// (`shell/input_lowering.cpp:42-53`, `:298`) -- and which the router now routes here, after
+		// the scene (E4 task 3 part A; `tests/spec/shell/router_spec.cpp`).
+		StubDisplay stub;
+		display = &stub;
+		spec::SongFixture f = spec::make_synth_song();
+		InstrumentClip* port_clip = add_synth_clip(f.song, "MODPUSH");
+		currentSong = f.song;
+
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(port_clip, false);
+		view.setActiveModControllableTimelineCounter(f.clip, false);
+
+		UiEvent push{};
+		push.kind = UiEvent::Kind::EncoderButton;
+		push.button = ButtonId::ModEnc0;
+		push.on = true;
+
+		// Claimed unconditionally: legacy's tail always reaches `dealtWith`
+		// (`hid/buttons.cpp:225-233`).
+		DirectCtx plain{0};
+		const Result r = rig.knobs.handle(push, plain.ctx);
+		expect(r.handled).to_be_true();
+		expect(r.actions.size()).to_equal(size_t(0)); // no shift: no "automation deleted" popup
+
+		// Shift + push deletes the param's automation and raises the popup legacy raises at
+		// `:1358`. `menu::mod_delete_automation` reports whether there was an `autoParam` to delete,
+		// and on this fixture there is, so the action must be there.
+		struct ShiftCtx {
+			deluge::ui::shell::ButtonSet held{};
+			deluge::ui::PadMask pads{};
+			UiContext ctx;
+			ShiftCtx() : ctx{held, pads, true, false, 0, deluge_profile()} {}
+		} shifted;
+		const Result deleted = rig.knobs.handle(push, shifted.ctx);
+		expect(deleted.handled).to_be_true();
+		expect(deleted.actions.size()).to_equal(size_t(1));
+		expect(deleted.actions[0].kind == ShellAction::Kind::Popup).to_be_true();
+		expect(deleted.actions[0].popup_string)
+		    .to_equal(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
+
+		// LEARN held: legacy returns immediately (`:1336-1338`) and still counts as dealt with.
+		struct LearnCtx {
+			deluge::ui::shell::ButtonSet held = learn_held();
+			deluge::ui::PadMask pads{};
+			UiContext ctx{held, pads, true, false, 0, deluge_profile()};
+			static deluge::ui::shell::ButtonSet learn_held() {
+				deluge::ui::shell::ButtonSet b{};
+				b.set(ButtonId::Learn, true);
+				return b;
+			}
+		} learning;
+		const Result learn = rig.knobs.handle(push, learning.ctx);
+		expect(learn.handled).to_be_true();
+		expect(learn.actions.size()).to_equal(size_t(0)); // no popup: the shift arm never ran
+		display = nullptr;
+		currentSong = nullptr;
 	});
 
 	it("arms notifyParamAutomationOccurred's two timers exactly when legacy does", _ {

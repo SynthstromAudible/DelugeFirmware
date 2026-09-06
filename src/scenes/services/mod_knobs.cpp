@@ -28,6 +28,7 @@
 
 #include "shell/input_lowering.h"
 
+#include "gui/l10n/strings.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "model/clip/clip.h"
@@ -48,6 +49,7 @@ namespace deluge::scenes::services {
 using deluge::modulation::params::Kind;
 using deluge::ui::EncoderRole;
 using deluge::ui::shell::Action;
+using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::UiEvent;
@@ -227,6 +229,31 @@ void ModKnobs::notify_param_automation_occurred(ParamManager* params, bool updat
 Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::ui::shell::UiContext& ctx) {
 	now_ms_ = ctx.now_ms;
 
+	// A mod button: `Buttons::buttonAction`'s pre-UI loop, `getCurrentUI()->modButtonAction(i, on)`
+	// (`hid/buttons.cpp:100-107`), reached here as `View`'s base-class fallback. Legacy's loop ends
+	// in `goto dealtWith`, so a mod button never reaches the tail whatever anyone does with it --
+	// which is why this claims one unconditionally.
+	if (event.kind == UiEvent::Kind::Button) {
+		const int32_t which = static_cast<int32_t>(event.button) - static_cast<int32_t>(ButtonId::Mod0);
+		if (which >= 0 && which < kNumModButtons) {
+			mod_button_action(which, event.on);
+			Result r;
+			r.handled = true;
+			return r;
+		}
+		return Result::unhandled();
+	}
+
+	// A gold knob's push: `buttonAction`'s tail, `getCurrentUI()->modEncoderButtonAction(n, on)`
+	// (`hid/buttons.cpp:225-231`), again as the base-class fallback (`gui/ui/ui.cpp:43-45`).
+	if (event.kind == UiEvent::Kind::EncoderButton) {
+		if (event.button == ButtonId::ModEnc0 || event.button == ButtonId::ModEnc1) {
+			return mod_encoder_button_action(event.button == ButtonId::ModEnc0 ? 0 : 1, event.on, ctx.shift,
+			                                 ctx.held.has(ButtonId::Learn));
+		}
+		return Result::unhandled();
+	}
+
 	if (event.kind != UiEvent::Kind::Encoder || event.delta == 0) {
 		return Result::unhandled();
 	}
@@ -301,8 +328,8 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 	// `getCurrentUI()->modEncoderAction` (`hid/encoder_input.cpp:194`) and nothing else ever sees the
 	// turn afterwards. What that call reaches FIRST is the current UI's own override, with
 	// `UI::modEncoderAction` (`gui/ui/ui.cpp:35-37`) forwarding to `view` as the fallback -- so this
-	// `handled` is the fallback's, and it belongs after the scene, not before it. See the class
-	// doc's routing warning; the router fix is E4 task 3's.
+	// `handled` is the *fallback's*, which is exactly why the router asks the scene first
+	// (E4 task 3 part A; `shell/router.h`'s `route()`).
 	result.handled = true;
 	return result;
 }
@@ -388,6 +415,10 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		blink_indicator_[which_encoder] = true;
 		blink_indicator_bipolar_[which_encoder] =
 		    deluge::modulation::params::isParamBipolar(turn.kind, turn.param_id); // `:1072`
+		// `blinkKnobIndicator` restarts the flash from the top on every qualifying turn
+		// (`indicator_leds.cpp:290-294` re-seeds `levelIndicatorBlinksLeft`), so the phase origin
+		// moves with it.
+		blink_indicator_start_ms_[which_encoder] = now_ms_;
 		// `:1074` `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)` -- recorded here,
 		// declared by task 3's `leds()`.
 		//
@@ -399,7 +430,261 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	}
 	else {
 		blink_indicator_[which_encoder] = false; // `:1080` `stopBlinkingKnobIndicator`
+		blink_indicator_start_ms_[which_encoder] = 0;
 	}
+}
+
+// -- The buttons -------------------------------------------------------------------------------
+
+void ModKnobs::mod_button_action(int32_t which_button, bool on) {
+	// `View::modButtonAction` (`view.cpp:1497-1547`).
+
+	// `:1500-1506` -- ignore the mod button in the automation editor, except mod button 0 on
+	// arranger automation view, which is how the VU meter stays toggleable there.
+	if (view_.in_automation_editor && !(view_.automation_on_arranger && which_button == 0)) {
+		return;
+	}
+
+	pretend_knobs_untouched(); // `:1508`
+
+	if (target_.mod_controllable == nullptr) { // `:1510`
+		return;
+	}
+
+	if (!on) {
+		// `:1541-1544` -- a release goes straight through, with none of the guards above it.
+		target_.mod_controllable->modButtonAction(static_cast<uint8_t>(which_button), false,
+		                                          param_manager_for_timeline());
+		return;
+	}
+
+	// `:1512`. `isUIModeWithinRange(modButtonUIModes)` is `ViewState::mod_button_ui_mode_in_range`;
+	// see its doc for what the default cannot answer.
+	if (!view_.mod_button_ui_mode_in_range && !view_.root_is_performance) {
+		return;
+	}
+
+	// `:1513-1529` -- "only displaying VU meter in session view, arranger view, performance view
+	// and arranger automation view".
+	if (!view_.root_is_clip_minder) {
+		// `:1517-1524`. Legacy dereferences `getModKnobMode()` here **unguarded**, where
+		// `View::getModKnobMode` (`:1683-1686`) null-checks the very same pointer -- so a
+		// `ModControllable` with no modes would fault at `:1517` and not at `:1684`. Guarded here;
+		// the guard can only change behaviour in the case legacy crashes in.
+		const uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode();
+		if (mode_pointer != nullptr && *mode_pointer == which_button && which_button == 0) {
+			display_vu_meter_ = !display_vu_meter_;
+		}
+		// `:1526-1528` -- `if (renderedVUMeter) uiNeedsRendering(rootUI, 0)`, the sidebar refresh.
+		// Not ported: `View::renderedVUMeter` is a render flag of the views E5/E6 port (see the
+		// class doc), and nothing here can read it.
+	}
+
+	// `:1531-1532` -- change the selection *before* calling the mod-button action, so that action
+	// sees the new mod-button parameter context.
+	if (uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode(); mode_pointer != nullptr) {
+		*mode_pointer = static_cast<uint8_t>(which_button);
+	}
+
+	// `:1534-1535`. This is the call that reaches `ModControllableAudio::displayOtherModKnobSettings`
+	// (`model/mod_controllable/mod_controllable_audio.cpp:1651-1701`) and, through it, legacy's own
+	// `view`/`display` singletons -- the back-reference the class doc's naming bullet describes.
+	target_.mod_controllable->modButtonAction(static_cast<uint8_t>(which_button), true, param_manager_for_timeline());
+
+	// `:1537-1538` `setKnobIndicatorLevels()` + `setModLedStates()`: both are `leds()`, recomputed
+	// from `target()` every tick, so there is nothing to invalidate.
+}
+
+Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool shift, bool learn) {
+	// `View::modEncoderButtonAction` (`view.cpp:1332-1350`).
+	Result result;
+	// Legacy's tail always reaches `dealtWith` (`hid/buttons.cpp:225-233`), so the push is consumed
+	// on every arm below, the two early returns included.
+	result.handled = true;
+
+	if (learn) {
+		// `:1336-1338` -- "the user is trying to copy or paste, and the fact that we've ended up
+		// here means they can't".
+		return result;
+	}
+	if (target_.mod_controllable == nullptr) { // `:1340`
+		return result;
+	}
+
+	if (shift && on) { // `:1342-1344`
+		if (menu::mod_delete_automation(target_, which_encoder)) {
+			// `:1358` `display->displayPopup(STRING_FOR_AUTOMATION_DELETED)`, as the action a scene
+			// or service spells a popup with (`shell/scene.h`).
+			(void)result.actions.push_back(
+			    Action{.kind = Action::Kind::Popup,
+			           .surface = deluge::ui::shell::SurfaceRole::Main,
+			           .popup_string = static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED)});
+		}
+		return result;
+	}
+
+	// `modEncoderButtonAction_changeModControllable` (`:1363-1378`).
+	if (menu::mod_encoder_button(target_, which_encoder, on)) { // `:1368-1370`
+		instrument_been_edited();                               // `:1371`
+	}
+	// `:1373` `setKnobIndicatorLevels()` -- `leds()` recomputes it, as everywhere else here.
+	if (&stack_.input_top() == static_cast<const deluge::ui::shell::Scene*>(&menu_scene())) {
+		// `:1374-1376` `soundEditor.getCurrentMenuItem()->readValueAgain()`. Same identity test as
+		// `popup_suppressed`: `MenuScene` is `SoundEditor`'s port.
+		menu_scene().read_value_again();
+	}
+	return result;
+}
+
+ParamManagerForTimeline* ModKnobs::param_manager_for_timeline() const {
+	// Legacy's `(ParamManagerForTimeline*)activeModControllableModelStack.paramManager`
+	// (`view.cpp:1535`, `:1543`) -- a C cast on a possibly-null pointer, spelled here as the
+	// downcast helper `ParamManager` already provides, with the null kept null.
+	return target_.param_manager != nullptr ? target_.param_manager->toForTimeline() : nullptr;
+}
+
+// -- The LEDs and the indicators -----------------------------------------------------------------
+
+ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info, bool stuttering) {
+	// `View::setKnobIndicatorLevel`'s arithmetic (`view.cpp:1412-1470`), over reads
+	// `menu::mod_indicator_info` already made.
+	IndicatorLevel out{};
+
+	if (info.has_auto_param) {
+		int32_t knob_pos = info.knob_pos;
+		// `:1421-1428` -- the same "never drag a position that is already below the limit up"
+		// clamp `calculateKnobPosForModEncoderTurn` uses, with the same two limits.
+		const int32_t lower_limit = info.kind == Kind::PATCH_CABLE ? std::min(-192, knob_pos) : std::min(-64, knob_pos);
+		knob_pos = std::clamp(knob_pos, lower_limit, 64);
+
+		if (info.quantized_stutter && !stuttering) { // `:1429-1449`
+			// The five stutter rate buckets, each snapped to the position that lights that many of
+			// the four segments: 4ths none, 8ths one, 16ths two, 32nds three, 64ths all four.
+			if (knob_pos < -39) {
+				knob_pos = -64;
+			}
+			else if (knob_pos < -14) {
+				knob_pos = -32;
+			}
+			else if (knob_pos < 14) {
+				knob_pos = 0;
+			}
+			else if (knob_pos < 39) {
+				knob_pos = 32;
+			}
+			else {
+				knob_pos = 64;
+			}
+		}
+		knob_pos += kKnobPosOffset; // `:1450`
+
+		if (info.kind == Kind::PATCH_CABLE) { // `:1452-1454`
+			knob_pos = convert_patch_cable_knob_pos_to_indicator_level(knob_pos);
+		}
+		out.declared = true;
+		out.level = static_cast<uint8_t>(knob_pos);
+		out.bipolar = info.bipolar;
+		return out;
+	}
+
+	if (info.non_existent_param) { // `:1457-1461`
+		out.declared = true;
+		out.level = static_cast<uint8_t>(info.non_existent_knob_pos + kKnobPosOffset);
+		out.bipolar = false;
+		return out;
+	}
+	if (info.patch_cable_default) { // `:1463-1468`
+		out.declared = true;
+		out.level = 64; // "equals 0 (midpoint) in -128 to +128 range"
+		out.bipolar = true;
+		return out;
+	}
+
+	// Legacy's fourth case: no `autoParam`, `paramId != 255`, and it *is* just a param. `knobPos`
+	// was never assigned and is passed to `indicator_leds::setKnobIndicatorLevel` uninitialised
+	// (`view.cpp:1412`, `:1470`). There is no behaviour to preserve, so nothing is declared and the
+	// knob keeps whatever it was last showing -- which is the shell's rule for an undeclared
+	// indicator (`Shell::flush`) and the only defined thing to do here.
+	return out;
+}
+
+bool ModKnobs::indicator_blinking(int32_t which_encoder) const {
+	if (which_encoder < 0 || which_encoder >= kKnobCount || !blink_indicator_[which_encoder]) {
+		return false;
+	}
+	return (now_ms_ - blink_indicator_start_ms_[which_encoder]) < deluge::ui::kKnobIndicatorBlinkMs;
+}
+
+void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
+	// `View::setKnobIndicatorLevels` (`view.cpp:1379-1402`).
+	// `:1381-1383` -- legacy returns early when there is no root UI, under a comment that reads, in
+	// full, "What's this?". An empty scene stack is this port's "no root UI".
+	if (stack_.depth() == 0) {
+		return;
+	}
+	if (view_.in_automation_editor) {
+		// `:1385-1389` -- "don't update knob indicator levels when you're in automation editor".
+		// Legacy calls `automationView.displayAutomation()` instead, which is a view-side redraw
+		// and not ported; declaring nothing leaves both columns exactly as they were, which is what
+		// legacy's early return does too.
+		return;
+	}
+
+	if (target_.mod_controllable == nullptr) {
+		// `:1398-1400` `indicator_leds::clearKnobIndicatorLevels()`, which is
+		// `setKnobIndicatorLevel(i, 0)` for both (`indicator_leds.cpp:318-322`).
+		for (int32_t k = 0; k < kKnobCount; k++) {
+			(void)frame.indicator(static_cast<deluge::ui::IndicatorId>(k), deluge::ui::knob_indicator_levels(0, false));
+		}
+		return;
+	}
+
+	for (int32_t k = 0; k < kKnobCount; k++) { // `:1391-1396`
+		if (indicator_blinking(k)) {
+			// `:1393` skips a blinking knob so legacy's own blink timer keeps driving it; here that
+			// timer is a phase, so the blink frame is declared instead of nothing.
+			(void)frame.indicator(
+			    static_cast<deluge::ui::IndicatorId>(k),
+			    deluge::ui::knob_indicator_blink(now_ms_ - blink_indicator_start_ms_[k], blink_indicator_bipolar_[k]));
+			continue;
+		}
+		const IndicatorLevel level = indicator_level(menu::mod_indicator_info(target_, k), /*stuttering=*/false);
+		if (level.declared) {
+			(void)frame.indicator(static_cast<deluge::ui::IndicatorId>(k),
+			                      deluge::ui::knob_indicator_levels(level.level, level.bipolar));
+		}
+	}
+}
+
+void ModKnobs::leds(deluge::ui::LedFrame& frame) {
+	// `View::setModLedStates`' final block, "Sort out actual mod LEDs" (`view.cpp:1656-1678`). The
+	// three LED groups above it (AFFECT_ENTIRE, CLIP_VIEW, SESSION_VIEW) are root-view questions
+	// and are not this service's -- see the class doc.
+	const bool its_the_song = !is_clip_context(target_); // `:1558`
+	const int32_t mod_knob_mode = mode();                // `:1657`
+
+	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
+	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+	// `indicator_leds::blinkLed(led)`'s defaults: `numBlinks` 255 (i.e. forever) and
+	// `blinkingType` 0, whose period is `kFlashTime` (`definitions_cxx.hpp:159`).
+	constexpr deluge::ui::LedState kBlink{deluge::ui::LedState::Kind::Blink, kFlashTimeMs, 0};
+
+	for (int32_t i = 0; i < kNumModButtons; i++) { // `:1659`
+		const bool on = (i == mod_knob_mode);      // `:1660`
+		deluge::ui::LedState state = kOff;
+		if (its_the_song && on && mod_knob_mode == 0 && display_vu_meter_) {
+			state = kBlink; // `:1663-1664` -- the volume mod LED blinks while the VU meter is up
+		}
+		else if (view_.in_automation_editor) {
+			state = kOff; // `:1666-1669` -- every mod LED off in the automation editor
+		}
+		else {
+			state = on ? kOn : kOff; // `:1671-1674`
+		}
+		(void)frame.set(static_cast<deluge::ui::LedId>(static_cast<uint8_t>(ButtonId::Mod0) + i), state);
+	}
+
+	declare_indicators(frame);
 }
 
 void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t knob_pos, bool have_param,
@@ -462,6 +747,18 @@ std::optional<uint32_t> ModKnobs::next_timer() const {
 	};
 	consider(automation_display_ms_);
 	consider(automation_feedback_ms_);
+	// A blinking indicator needs a frame every half-period, and one more when the flash ends and
+	// the ordinary level comes back (`indicator_leds.cpp:304-312`'s 20 ms re-arm).
+	for (int32_t k = 0; k < kKnobCount; k++) {
+		if (indicator_blinking(k)) {
+			const uint32_t elapsed = now_ms_ - blink_indicator_start_ms_[k];
+			const uint32_t to_next_half =
+			    deluge::ui::kKnobIndicatorBlinkHalfMs - (elapsed % deluge::ui::kKnobIndicatorBlinkHalfMs);
+			if (!next.has_value() || to_next_half < *next) {
+				next = to_next_half;
+			}
+		}
+	}
 	return next;
 }
 

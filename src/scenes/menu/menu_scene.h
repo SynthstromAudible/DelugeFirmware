@@ -463,6 +463,20 @@ public:
 
 	/// @brief The node currently on screen (`path[depth]`), or `nullptr` before `open()`.
 	const Node* focused() const;
+
+	/// @brief Re-read the focused node's value from the model -- `MenuItem::readValueAgain`.
+	///
+	/// The port of the one call legacy makes to it from outside the menu:
+	/// `View::modEncoderButtonAction_changeModControllable`'s
+	/// `soundEditor.getCurrentMenuItem()->readValueAgain()` (`gui/views/view.cpp:1374-1376`), run
+	/// after a gold-knob **push** has changed a `ModControllable` param behind the menu's back. The
+	/// edit storage this scene keeps (`MenuState::edit_int`, `enum_index`, …) is loaded on focus,
+	/// so without this the menu would keep showing the value it read on the way in.
+	///
+	/// Spelled as `enter_leaf(node, FocusCause::NoRowPress)` because that is exactly what
+	/// `readValueAgain` is -- reload the storage, with nothing pressed on this row (legacy's
+	/// `beginScreen`/`focusRegained` shape). A no-op when nothing is focused.
+	void read_value_again();
 	/// @brief The `ParamDescriptor` MIDI/CC learn (E3) binds to the focused node.
 	///
 	/// @note **Param learn, not global-command learn.** This is `PatchedParam`/`UnpatchedParam`'s

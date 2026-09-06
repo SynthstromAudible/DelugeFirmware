@@ -62,11 +62,23 @@
 ///       firing. This class needed no change for it: it claims a gold turn and a mod button and
 ///       nothing else, which *is* the base-class-fallback contract.
 ///
-/// A gold knob's own **push** is deliberately not this service's event. Legacy routes
-/// `MOD_ENCODER_0`/`MOD_ENCODER_1` from `buttonAction`'s *tail*, after the current UI's own
-/// `buttonAction` has already had it (`hid/buttons.cpp:225-231`), so it reaches the scene first
-/// here too, exactly as any other plain button does. `mod_knobs_spec.cpp` pins that ordering.
-/// `View::modEncoderButtonAction` (`view.cpp:1332-1350`) is therefore E4 task 3's, not this one's.
+/// A gold knob's own **push** (`ButtonId::ModEnc0`/`ModEnc1`) reaches this service too, and by the
+/// same rule, only from further down legacy's dispatcher: `Buttons::buttonAction` handles
+/// `MOD_ENCODER_0`/`MOD_ENCODER_1` in its *tail*, after `getCurrentUI()->buttonAction` has already
+/// run (`hid/buttons.cpp:225-231`, past the `:134` call), and the tail's own line is
+/// `getCurrentUI()->modEncoderButtonAction(0, on)` -- again a hook whose base implementation
+/// (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is a bare forward to `view`, and which
+/// **five** UIs override (`gui/views/instrument_clip_view.h:199`, `gui/ui/sound_editor.h:81`,
+/// `gui/views/session_view.h:80`, `gui/views/performance_view.h:97`,
+/// `gui/views/automation_view.h:117`). So: scene first, `View` (this) second, exactly as for a
+/// turn and a mod button.
+///
+/// @note E4 task 3 had to widen `Router`'s `is_mod_or_gold` to include the two pushes. Plan D
+///       excluded them on the correct observation that legacy reaches them only after the current
+///       UI -- but under the *inverted* chain that meant "not a `mod_knobs` event at all", which
+///       left `View::modEncoderButtonAction` (`view.cpp:1332-1350`) with no way to be reached and
+///       would have made this task's port of it dead code. Once the chain is scene-first the
+///       observation and the routing agree.
 ///
 /// @par Acceleration: the carry item this closes
 ///
@@ -102,33 +114,58 @@
 ///
 /// @par What is deliberately still owed
 ///
-///   * **The LED and indicator half** -- `setModLedStates`, `setKnobIndicatorLevels`,
-///     `setKnobIndicatorLevel`, `convertPatchCableKnobPosToIndicatorLevel`, `modButtonAction`,
-///     `modEncoderButtonAction*`. Those are E4 task 3's citations, not this task's. What this
-///     class does do is *record* what they will spend: `blink_indicator()` and
-///     `blink_indicator_bipolar()` hold `potentiallyMakeItHarderToTurnKnob`'s decision, and
-///     `automation_display_pending()` holds `notifyParamAutomationOccurred`'s.
-///   * **`View::getParameterNameFromModEncoder`** (`view.cpp:1012-1057`). Cited by this task's
-///     brief but deferred to task 3, deliberately. Its only two callers anywhere are
-///     `ModControllableAudio::displayOtherModKnobSettings`
-///     (`model/mod_controllable/mod_controllable_audio.cpp:1672` and `:1687`), which builds the
-///     two-line popup a held mod button shows -- and `modButtonAction` (`view.cpp:1497-1547`), the
-///     thing that *reaches* that method, is task 3's citation. So nothing here would call it and no
-///     spec could drive it against a caller. It also needs `getSourceDisplayName`
-///     (`util/functions.cpp:315-368`), whose only in-layer transcription today is private to
-///     `menu/nodes/patch_cables.cpp` -- and whose *sibling* transcription of `sourceToStringShort`
-///     there disagrees with legacy (see the task-2 report). Consolidating those belongs with the
-///     task that owns the naming half. `menu::mod_param_info` -- the model half it needs -- is
-///     already built and specced.
+///   * **Everything in `setModLedStates` above its "Sort out actual mod LEDs" block** --
+///     `IndicatorLED::AFFECT_ENTIRE` (`view.cpp:1560-1573`), `CLIP_VIEW` (`:1575-1630`) and
+///     `SESSION_VIEW` (`:1632-1654`). Every one of those arms is a question about *which view is on
+///     screen* -- `getRootUI()->getUIType()`, `sessionView.getClipForLayout()`,
+///     `arrangerView.outputsOnScreen[...]`, `playbackHandler.recording` -- and not about the gold
+///     knobs at all. They belong to the root scenes E5/E6 port, which are the things that know
+///     which view they are. `leds()` here declares the eight mod LEDs and the two knob indicators,
+///     and nothing else.
+///   * **`View::getParameterNameFromModEncoder`** (`view.cpp:1012-1057`), and with it the
+///     held-mod-button popup. **Still not ported after E4 task 3, and this is the decision that
+///     task was asked to make and record.**
 ///
-///     @note **Those two call sites are a back-reference the port will have to break.** They are
-///           *model* code (`model/mod_controllable/`) calling into a `gui/` singleton, and the same
-///           function reaches `view.isClipContext()` at `:1677` and `display->popupText` at
-///           `:1694`. `src/scenes` may include `model/**` but the reverse edge does not exist and
-///           must not be created, so whoever ports `displayOtherModKnobSettings` has to invert it
-///           -- the mod-button popup is built by the UI from what the model reports, not by the
-///           model calling the UI. Recorded here because nothing else records it (fix round 1,
-///           Important 3).
+///     The whole of that popup is `ModControllableAudio::displayOtherModKnobSettings`
+///     (`model/mod_controllable/mod_controllable_audio.cpp:1651-1701`) -- the *only* caller of
+///     `getParameterNameFromModEncoder` anywhere, at `:1672` and `:1687`. It is reached from
+///     `Sound::modButtonAction` (`processing/sound/sound.cpp:4369`) and
+///     `GlobalEffectable::modButtonAction` (`model/global_effectable/global_effectable.cpp:130`),
+///     which is to say from the one line `ModKnobs::mod_button_action` calls at `view.cpp:1534`.
+///     So **the popup still happens, and it still happens through legacy**: this port drives the
+///     same `ModControllable::modButtonAction` legacy drives, and that model code calls
+///     `view.getParameterNameFromModEncoder`, `view.isClipContext()` (`:1677`) and
+///     `display->popupText` (`:1694`) for itself.
+///
+///     @warning **That is a back-reference the port must eventually break, and it cannot be broken
+///              from here.** It is *model* code (`model/mod_controllable/`) calling a `gui/`
+///              singleton. `src/scenes` may include `model/**`; the reverse edge does not exist and
+///              must not be created. Breaking it means editing `src/deluge/model/**`, which this
+///              plan touches by default not at all (its "Legacy touched: none by default", and E3
+///              §15.2's move-and-prove pattern is the only sanctioned way).
+///
+///     **The inversion, for whoever does it.** `displayOtherModKnobSettings` decomposes into three
+///     things the port already has or trivially can:
+///
+///       1. *What each knob is pointed at* -- `menu::mod_param_info(target, whichModEncoder)`,
+///          built and specced by E4 task 2. That is `getParameterNameFromModEncoder`'s first three
+///          lines.
+///       2. *What that param is called* -- pure text over a `Kind` + `paramId` + the mod
+///          controllable: `getParamDisplayName`, or for a patch cable the
+///          `source -> source -> param` chain out of `getSourceDisplayName`
+///          (`util/functions.cpp:315-373`), `sourceToStringShort` (`:381-431`) and
+///          `params::getPatchedParamShortName`. The first two are already transcribed in this layer
+///          (`scenes/overlay/param_popup_scene.cpp`, and `scenes/menu/nodes/patch_cables.cpp` --
+///          whose copy E4 task 3 had to correct against legacy); consolidating them into one
+///          `src/ui` or `src/scenes` table is that task's first job.
+///       3. *Showing it* -- an `Action::Kind::Popup` from `ModKnobs::mod_button_action` on press
+///          and its cancellation on release, in place of `display->popupText`/`cancelPopup`. The
+///          "bottom knob of mod button 6 has no param in the song context" special case (`:1676`)
+///          is `!is_clip_context(target())`, which this class already answers.
+///
+///     Doing 3 *before* `displayOtherModKnobSettings` stops calling `display` would show the popup
+///     twice, which is why nothing here raises one today. Nothing regresses in the meantime: the
+///     legacy path is intact and, in the sim, observable.
 ///   * **The popup's three suppression tests** (`view.cpp:868-886`) -- see `popup_suppressed()`.
 ///   * **The VU-meter sidebar invalidation** at `:1889-1891`/`:1912-1914`. `View::renderedVUMeter`
 ///     is a render flag of the views E5/E6 port, not of the knobs; nothing here can read it.
@@ -141,6 +178,9 @@
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/mod_target.h"
 
+#include "ui/core/knob_indicator.h"
+#include "ui/core/led_frame.h"
+
 #include "shell/scene_stack.h"
 #include "shell/service.h"
 
@@ -149,6 +189,7 @@
 
 class ModControllable;
 class ParamManager;
+class ParamManagerForTimeline;
 class Song;
 class TimelineCounter;
 
@@ -221,6 +262,80 @@ public:
 	///         (`ModControllable::getModKnobMode` returns null).
 	int32_t mode() const;
 
+	/// @}
+
+	/// @name The view context this service cannot read for itself
+	/// @{
+
+	/// @brief The four root-UI questions `View::modButtonAction`, `View::setKnobIndicatorLevels`
+	///        and `View::setModLedStates` ask, injected because `src/scenes` may not include
+	///        `gui/`.
+	///
+	/// Every field is a legacy read this layer has no way to make, inverted the same way
+	/// `ModKnobs::set_song` inverts `currentSong`: whoever knows the answer tells the service,
+	/// rather than the service reaching up into the view layer. **Nothing sets this yet** -- the
+	/// root scenes that would (`SessionScene`, `ArrangerScene`, `AutomationScene`,
+	/// `PerformanceScene`) are E5/E6's, so today the defaults hold and the spec is the only
+	/// caller. The defaults are chosen to be the state of a plain, non-automation, non-performance
+	/// root view, which is what every scene ported so far actually is.
+	struct ViewState {
+		/// `(getRootUI() == &automationView) && automationView.inAutomationEditor()` --
+		/// `view.cpp:1501`, `:1385`, `:1670`. Suppresses the mod button entirely, suppresses the
+		/// indicator refresh, and forces every mod LED off.
+		bool in_automation_editor = false;
+		/// `automationView.onArrangerView` (`view.cpp:1503`) -- the one exception that lets mod
+		/// button 0 through while the automation editor is up, so the VU meter can still be
+		/// toggled.
+		bool automation_on_arranger = false;
+		/// `getRootUI() == &performanceView` (`view.cpp:1512`) -- performance view takes a mod
+		/// button whatever UI mode is active.
+		bool root_is_performance = false;
+		/// `rootUIIsClipMinderScreen()` (`gui/ui/ui.cpp:157-160`), negated at `view.cpp:1515`: the
+		/// VU meter is only offered in session, arranger, performance and arranger-automation
+		/// views.
+		///
+		/// @warning Not the same question as `is_clip_context(target())`. In session view with a
+		///          clip pressed, the knobs point at the clip (so `is_clip_context` is true) while
+		///          the root UI is still not a clip minder -- exactly the case
+		///          `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW` names in `modButtonUIModes`
+		///          (`view.cpp:1488-1496`). Using the target as a proxy would silently drop the VU
+		///          toggle there, which is why this is injected instead.
+		bool root_is_clip_minder = false;
+		/// `isUIModeWithinRange(modButtonUIModes)` (`view.cpp:1512`, table at `:1488-1496`).
+		///
+		/// Defaults to **true**, which is legacy's own answer whenever no UI mode is active:
+		/// `isUIModeWithinRange` (`gui/ui/ui.cpp:417-436`) walks a null-terminated list and returns
+		/// true when `currentUIMode` is 0, and `UI_MODE_NONE` *is* 0 (`gui/ui/ui.h:34`). What the
+		/// default cannot reproduce is a mode **outside** the list -- `UI_MODE_STUTTERING`,
+		/// `UI_MODE_HOLDING_SAMPLE_MARKER` and the rest -- during which legacy ignores a mod-button
+		/// press and this port would not. `src/scenes` has no `currentUIMode`, so this is the seam
+		/// for a scene that does hold such a mode to say so.
+		bool mod_button_ui_mode_in_range = true;
+	};
+
+	/// @brief Tell this service what the root view is -- see `ViewState`.
+	/// @param state The view's answers.
+	void set_view_state(const ViewState& state) { view_ = state; }
+	/// @brief What was last passed to `set_view_state`.
+	const ViewState& view_state() const { return view_; }
+
+	/// @brief One mod button pressed or released -- `View::modButtonAction` (`view.cpp:1497-1547`).
+	///
+	/// Reached from `handle()` for `ButtonId::Mod0..Mod7`; public so a spec (and, later, a root
+	/// scene that wants to drive one directly) can call it without synthesising an event.
+	/// @param which_button 0..7.
+	/// @param on           Press or release.
+	void mod_button_action(int32_t which_button, bool on);
+
+	/// @brief Is the VU meter being shown? -- `View::displayVUMeter` (`gui/views/view.h`).
+	///
+	/// Owned here because `modButtonAction` is the only thing that *changes* it
+	/// (`view.cpp:1519-1524`: pressing the already-selected mod button 0, outside a clip minder,
+	/// toggles it). What legacy then does with it -- rendering the meter into the sidebar -- is
+	/// the views' and is not ported; what *is* ported is its one effect on the LEDs, the blinking
+	/// volume mod LED at `:1662-1664`.
+	bool display_vu_meter() const { return display_vu_meter_; }
+
 	/// @brief Backdate both knobs' "last turned" clocks --
 	///        `View::pretendModKnobsUntouchedForAWhile` (`view.cpp:1951-1955`).
 	///
@@ -261,6 +376,19 @@ public:
 	/// @{
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
+	/// @brief Declare the eight mod LEDs and the two gold-knob indicator columns.
+	///
+	/// `View::setModLedStates`' final block (`view.cpp:1656-1678`) plus
+	/// `View::setKnobIndicatorLevels` (`:1379-1402`) and `View::setKnobIndicatorLevel`
+	/// (`:1403-1472`). The three LED groups above that block are not this service's -- see the
+	/// class doc's "deliberately still owed".
+	///
+	/// Legacy calls these two functions from wherever something changed; here they are recomputed
+	/// from `target()` on every tick, which is what an `LedFrame` is. That is also why every
+	/// `setKnobIndicatorLevels()` call site in the turn and target paths is a comment rather than a
+	/// call.
+	/// @param frame The tick's declarations.
+	void leds(deluge::ui::LedFrame& frame) override;
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 	std::optional<uint32_t> next_timer() const override;
 	/// @}
@@ -308,6 +436,30 @@ public:
 	/// @return The indicator-range position.
 	static int32_t convert_patch_cable_knob_pos_to_indicator_level(int32_t knob_pos);
 
+	/// @brief What one knob's indicator column should be levelled to -- the arithmetic half of
+	///        `View::setKnobIndicatorLevel` (`view.cpp:1412-1470`), over reads
+	///        `menu::mod_indicator_info` already made.
+	///
+	/// Static and pure, for the same reason `calculate_knob_pos_for_mod_encoder_turn` is: it is
+	/// what a spec drives and mutates.
+	struct IndicatorLevel {
+		/// False only in legacy's fourth, unwritten case -- see `declared`'s note on
+		/// `ModIndicatorInfo`.
+		bool declared = false;
+		/// The `uint8_t level` legacy hands `indicator_leds::setKnobIndicatorLevel`
+		/// (`indicator_leds.h:85`), truncated at exactly the same point legacy truncates it.
+		uint8_t level = 0;
+		/// Legacy's `isBipolar`.
+		bool bipolar = false;
+	};
+	/// @param info       What the model said.
+	/// @param stuttering `isUIModeActive(UI_MODE_STUTTERING)` (`view.cpp:1430`). **Always false
+	///                   here**: no scene owns the stutter gesture yet, exactly as
+	///                   `overlay::PopupContext::stuttering` records for the popup's own copy of
+	///                   this test. Correct whenever a stutter is not in progress.
+	/// @return The level, or `declared == false`.
+	static IndicatorLevel indicator_level(const ModIndicatorInfo& info, bool stuttering);
+
 private:
 	/// @brief One gold-knob turn -- `View::modEncoderAction` (`view.cpp:818-842`).
 	/// @param which_encoder 0 (lower) or 1 (upper).
@@ -344,6 +496,38 @@ private:
 	/// @param turn          What the turn resolved to.
 	void potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn);
 
+	/// @brief One gold-knob push -- `View::modEncoderButtonAction` (`view.cpp:1332-1350`) and the
+	///        two helpers it forks into (`_deleteAutomation` `:1351-1362`,
+	///        `_changeModControllable` `:1363-1378`).
+	/// @param which_encoder 0 (lower) or 1 (upper).
+	/// @param on            Press or release.
+	/// @param shift         `Buttons::isShiftButtonPressed()` (`:1342`), from `UiContext::shift`.
+	/// @param learn         `Buttons::isButtonPressed(LEARN)` (`:1336`), from `UiContext::held`.
+	/// @return What the shell should do about it; always `handled`.
+	deluge::ui::shell::Result mod_encoder_button_action(int32_t which_encoder, bool on, bool shift, bool learn);
+
+	/// @brief Declare both knob indicator columns -- `View::setKnobIndicatorLevels`
+	///        (`view.cpp:1379-1402`).
+	/// @param frame The tick's declarations.
+	void declare_indicators(deluge::ui::LedFrame& frame);
+
+	/// @brief Is knob @p which_encoder inside `blinkKnobIndicator`'s flash right now? --
+	///        `indicator_leds::isKnobIndicatorBlinking` (`hid/led/indicator_leds.cpp:314-316`).
+	///
+	/// @note Legacy can only blink **one** indicator at a time: `whichLevelIndicatorBlinking` and
+	///       `levelIndicatorBlinksLeft` are single globals (`indicator_leds.cpp:34-38`), so
+	///       starting a blink on one knob silently re-levels the other (`:283-288`). The port keeps
+	///       a phase per knob, so both can blink at once. That is a deliberate widening of a legacy
+	///       limitation, not a port of it, and it is only reachable by centring both gold knobs
+	///       within half a second of each other.
+	/// @param which_encoder 0 (lower) or 1 (upper).
+	bool indicator_blinking(int32_t which_encoder) const;
+
+	/// @brief `target().param_manager` as the `ParamManagerForTimeline*` legacy's
+	///        `ModControllable::modButtonAction` takes (`view.cpp:1535`, `:1543`).
+	/// @return The downcast pointer, or null when there is no param manager.
+	ParamManagerForTimeline* param_manager_for_timeline() const;
+
 	/// @brief `View::sendMidiFollowFeedback` (`view.cpp:1713-1731`).
 	/// @param kind          The param's kind; ignored when @p have_param is false.
 	/// @param param_id      The param id.
@@ -371,6 +555,16 @@ private:
 	/// `indicator_leds::blinkKnobIndicator`'s state, per knob (`view.cpp:1074`, `:1080`).
 	bool blink_indicator_[kKnobCount]{};
 	bool blink_indicator_bipolar_[kKnobCount]{};
+	/// When each knob's blink began, so `leds()` can compute its phase -- legacy's
+	/// `TimerName::LEVEL_INDICATOR_BLINK` re-arm (`indicator_leds.cpp:304-312`) as a deadline,
+	/// per `shell-no-clock`.
+	uint32_t blink_indicator_start_ms_[kKnobCount]{};
+
+	/// `View::displayVUMeter` -- see `display_vu_meter()`.
+	bool display_vu_meter_ = false;
+
+	/// What the root view is; see `ViewState`.
+	ViewState view_{};
 
 	/// `TimerName::DISPLAY_AUTOMATION`'s deadline, and its `pendingParamAutomationUpdatesModLevels`
 	/// payload (`view.cpp:1696-1705`).
@@ -381,6 +575,9 @@ private:
 
 	/// Both of `notifyParamAutomationOccurred`'s timers are 25 ms (`view.cpp:1698`, `:1708`).
 	static constexpr uint32_t kAutomationTimerMs = 25;
+	/// `kFlashTime` (`definitions_cxx.hpp:159`) -- `indicator_leds::blinkLed`'s default blinking
+	/// type 0 period, and the same one `MenuScene::leds` uses for its BACK/LEARN blinks.
+	static constexpr uint16_t kFlashTimeMs = 110;
 };
 
 // (No singleton accessor here, deliberately. Unlike `menu_scene()` / `param_popup_scene()`, this

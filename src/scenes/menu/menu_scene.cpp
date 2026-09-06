@@ -356,6 +356,13 @@ const Node* MenuScene::focused() const {
 	return st_.depth < kMenuDepth ? st_.path[st_.depth] : nullptr;
 }
 
+void MenuScene::read_value_again() {
+	const Node* node = focused();
+	if (node != nullptr) {
+		enter_leaf(*node, FocusCause::NoRowPress);
+	}
+}
+
 ParamDescriptor MenuScene::learn_target() const {
 	const Node* node = focused();
 	if (node == nullptr) {

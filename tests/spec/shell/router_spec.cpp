@@ -341,8 +341,22 @@ describe shell_router("shell::Router", $ {
 		expect(r.router.repaint_requested(SurfaceRole::None)).to_be_false();
 	});
 
-	it("ButtonId::ModEnc0/ModEnc1 presses are not mod_knobs events -- they reach the scene "
-	   "first, exactly like any other button", _ {
+	it("ButtonId::ModEnc0/ModEnc1 presses reach the scene first and mod_knobs second, "
+	   "like every other View fallback", _ {
+		// The gold-knob PUSH is the third hook with this shape, and the last one E4 task 3 had to
+		// put back. `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its TAIL
+		// (`hid/buttons.cpp:225-231`), i.e. after `getCurrentUI()->buttonAction` at `:134` -- and
+		// what it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)`, whose base
+		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is another bare
+		// forward to `view`, overridden by five UIs (`gui/views/instrument_clip_view.h:199`,
+		// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
+		// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`).
+		//
+		// Plan D excluded these two from `mod_knobs` on the correct observation that legacy reaches
+		// them only after the current UI -- but with the chain inverted, "after the UI" and "not a
+		// `mod_knobs` event" were the same statement. Once the scene goes first they are not, and
+		// excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp:1332-1350`)
+		// with no route to it at all.
 		Rig r;
 		UiEvent mod_enc_event{};
 		mod_enc_event.kind = UiEvent::Kind::EncoderButton;
@@ -351,20 +365,42 @@ describe shell_router("shell::Router", $ {
 
 		r.router.route(mod_enc_event, make_ctx(r.lowering));
 
-		expect(r.mod_knobs.calls).to_equal(0);          // never reached: not a mod_knobs event
-		expect(r.log.size()).to_equal(size_t(2));
+		expect(r.log.size()).to_equal(size_t(3));
 		expect(r.log[0] == "scene").to_be_true();       // the scene sees it first
-		expect(r.log[1] == "global").to_be_true();      // and, unhandled, it falls to global_controls
+		expect(r.log[1] == "mod").to_be_true();         // then View's port
+		expect(r.log[2] == "global").to_be_true();      // and, unhandled by both, the tail
+
+		// A scene that claims it -- one of the five overriding UIs -- ends the chain there.
+		r.log.clear();
+		r.scene_a.next_result = handled_no_actions();
+		r.router.route(mod_enc_event, make_ctx(r.lowering));
+		expect(r.log.size()).to_equal(size_t(1));
+		expect(r.log[0] == "scene").to_be_true();
+		expect(r.mod_knobs.calls).to_equal(1);          // still just the one call, from before
 
 		// ModEnc1 (the other gold knob's push) follows the same rule.
 		r.log.clear();
+		r.scene_a.next_result = Result::unhandled();
 		UiEvent mod_enc1_event{};
 		mod_enc1_event.kind = UiEvent::Kind::EncoderButton;
 		mod_enc1_event.button = ButtonId::ModEnc1;
 		mod_enc1_event.on = true;
 		r.router.route(mod_enc1_event, make_ctx(r.lowering));
-		expect(r.mod_knobs.calls).to_equal(0);
+		expect(r.log.size()).to_equal(size_t(3));
 		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[1] == "mod").to_be_true();
+
+		// `EncoderButton{SelectEnc}` is NOT one of these: legacy's tail handles it itself, and its
+		// hook has no `view` fallback at all. It must still go scene -> global_controls.
+		r.log.clear();
+		UiEvent select_press{};
+		select_press.kind = UiEvent::Kind::EncoderButton;
+		select_press.button = ButtonId::SelectEnc;
+		select_press.on = true;
+		r.router.route(select_press, make_ctx(r.lowering));
+		expect(r.log.size()).to_equal(size_t(2));
+		expect(r.log[0] == "scene").to_be_true();
+		expect(r.log[1] == "global").to_be_true();
 	});
 
 	it("Popup actions store both popup_string and popup_type, cleared together", _ {

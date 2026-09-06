@@ -56,6 +56,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 | `EncoderRole`, `PadEvent`, `PadMask`, `InputSnapshot` | `core/input.h` |
 | `InputMask`, `InputClaims`, `FrameContext` (+ `begin_tick`), `FrameInput` (the accessors/claims both frames inherit, and the input-consumption contract) | `core/frame_context.h` |
 | `LedId`, `IndicatorId`, `LedState`, `KnobIndicator`, `LedFrame` | `core/led_frame.h` |
+| `knob_indicator_levels`, `knob_indicator_blink` (a gold knob's 4-segment column) | `core/knob_indicator.h` |
 | text/geometry constants (`kMenuBaseY48/64`, `kHorizontalMenuBaseY`, `kScrollTime`, …), `text_height_of` | `core/metrics.h` |
 | `RepaintGate` | `core/repaint_gate.h` |
 | `Response` | `core/response.h` |
