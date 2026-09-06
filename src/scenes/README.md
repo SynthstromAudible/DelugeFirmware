@@ -701,7 +701,7 @@ three-class clip-view chain — `TimelineView` -> `ClipNavigationTimelineView` -
 not a scene: it is a plain aggregate that a root scene owns, and `timeline.h` carries the
 symbol-by-symbol table of what moved into it, what stayed with the scene, and what is dropped.
 
-Three things about it are worth finding from here rather than from the header.
+Four things about it are worth finding from here rather than from the header.
 
 * **Only `AudioClipScene` consumes it.** The plan's prose calls it "the shared state every clip view
   needs", and it is — for the *clip views*. Legacy's `Slicer` is a plain `UI`
@@ -716,9 +716,18 @@ Three things about it are worth finding from here rather than from the header.
 * **The `PadLEDs` scroll and zoom transitions are not carried**, the same call E3 made for the
   marker editor. `initiateXScroll`/`initiateXZoom` each set the scroll or zoom *and* start an
   animation; only the first half is here. That imposes a one-detent ceiling on the legacy oracle,
-  which `sim/scenes_spec/timeline_spec.cpp` measures instead of working around — and measures a
-  difference from E3's finding: clearing `UI_MODE_HORIZONTAL_ZOOM` by hand **does** buy a second
-  detent here, where `WaveformBasicNavigator::zoom` blocked.
+  which `sim/scenes_spec/timeline_spec.cpp` measures instead of working around — and **measures a
+  difference from E3's outcome**: clearing `UI_MODE_HORIZONTAL_ZOOM` by hand buys the next detent
+  here, proven by the scroll example landing on page two. No claim is made about *why* E3 saw
+  otherwise; `WaveformBasicNavigator::zoom`'s tail
+  (`gui/waveform/waveform_basic_navigator.cpp:64-69`) is the same three statements `initiateXZoom`
+  ends in and contains no wait of its own.
+* **Every horizontal turn clears the linear-recording restore point**, and that is easy to miss:
+  `ClipNavigationTimelineView::horizontalEncoderAction` is two statements
+  (`clip_navigation_timeline_view.cpp:30-34`), and the first one is the clear. `zoom()` and
+  `scroll()` both call `stop_following()` because of it. Task 8's first round omitted it and the
+  review caught it; without it a manual scroll during an auto-extending linear recording keeps a
+  stale restore point and yanks the scroll back when recording stops.
 
 ## Repaint and the timer fold (`Shell::tick` step 8b, E3 tasks 10-11)
 
@@ -787,11 +796,11 @@ the hook.
 
 ## Defects this port found in shipping firmware
 
-Five, none of them introduced by the port, none of them fixed by it, and all five recorded at their
+Six, none of them introduced by the port, none of them fixed by it, and all six recorded at their
 own site as well as here. They are listed together because a ledger is not where a release note
 looks.
 
-Two of the five are in `gui/views/view.cpp`, and neither is annotated in that file, for the reason
+Two of the six are in `gui/views/view.cpp`, and neither is annotated in that file, for the reason
 the `browser.cpp` row below already gives: `view.cpp` is cited by line from `src/scenes/services/`,
 `src/scenes/menu/context.cpp` and `sim/scenes_spec/` more than a hundred times, and inserting a
 comment there would shift every one of them. Their port-side `@warning`s are complete.
@@ -802,6 +811,7 @@ comment there would shift every one of them. Their port-side `@warning`s are com
 | **`Browser`'s default-directory fallback is dead**, and so is `LoadInstrumentPresetUI`'s. Both test `Error::FOLDER_DOESNT_EXIST`, but the read path they take reports a missing directory as `Error::FILE_NOT_FOUND` — `FOLDER_DOESNT_EXIST` is produced in exactly one place in the tree, `storage_manager.cpp`'s file-*open* path, which neither call reaches. So the fallback, and `browser.cpp`'s mkdir arm behind it, cannot run. The port accepts **both** codes as a documented divergence rather than patching, because which folder a user should land in when one is missing is a product decision. | user-visible, not a crash | `gui/ui/load/load_instrument_preset_ui.cpp`'s @warning; `src/scenes/browser/listing.cpp`'s divergence note, which carries the full trace. Deliberately **not** annotated in `browser.cpp` itself: inserting lines there would shift ~100 legacy citations from this stack, and the port-side record is complete |
 | **`View::modButtonAction` dereferences a pointer its own sibling null-checks — twice.** `ModControllable::getModKnobMode()` returns `nullptr` for anything that does not support mod-knob banks (`model/mod_controllable/mod_controllable.cpp:47-49`, whose declaration at `mod_controllable.h:55` says so in a comment: *"Return NULL if different modes not supported"*). `View::getModKnobMode` (`gui/views/view.cpp:1680-1689`) tests it before dereferencing. `View::modButtonAction` does not, at **`view.cpp:1517`** (a read, inside the `!rootUIIsClipMinderScreen()` arm) and again at **`:1532`** (a *write*, outside `!rootUIIsClipMinderScreen()` and therefore reached on a press in a clip-minder view, where `:1517` is not). Both are inside `if (…modControllable)` (`:1510`), `if (on)` (`:1511`) and the `isUIModeWithinRange(modButtonUIModes) \|\| rootUI == &performanceView` gate (`:1512`), past the automation-editor early return at `:1501-1505`, so a release and a press during any other UI mode reach neither. Six classes override the default — `GlobalEffectableForSong`, `SoundInstrument`, `SoundDrum`, `Kit`, `AudioOutput`, `MIDIInstrument` — and the one class in the tree that can be an active mod controllable and does **not** is `CVInstrument` (`model/instrument/cv_instrument.h:31`, a `NonAudioInstrument` whose `toModControllable()` returns `this`, `non_audio_instrument.h:57`). So the mechanism is: mod button pressed while a CV clip's knobs are the active target. **Established by reading, not reproduced** — no device here, and no fixture in `sim/` builds a CV clip. The port guards both sites; the guard can only differ from legacy in the case legacy faults in. | **crash (null dereference), if reachable as read** | `src/scenes/services/mod_knobs.cpp`'s `mod_button_action` @warning |
 | **`View::setKnobIndicatorLevel` reads an uninitialised `int32_t`.** `gui/views/view.cpp:1410` declares `int32_t knobPos;` with no initialiser. Its three-way branch assigns it when the param has an `autoParam` (`:1413`), when `paramId == 255` (`:1454`), and when the descriptor is not just a param (`:1460`) — and leaves it **unassigned** on the fourth path, a param with no `autoParam`, a `paramId != 255`, and `(paramId & 0x0000FF00) == 0x0000FF00`. The value is then passed to `indicator_leds::setKnobIndicatorLevel` at `:1468`, which truncates it to `uint8_t` and lights the gold knob's four-segment column from it. Undefined behaviour with a visible symptom: an indicator column showing whatever was on the stack. The port declares **nothing** for that knob instead, which leaves the column as it was — the shell's own rule for an undeclared indicator (`Shell::flush`). | undefined behaviour; user-visible as a wrong indicator | `src/scenes/services/mod_knobs.cpp`'s `indicator_level` @warning; `src/scenes/services/mod_target.h`'s `ModIndicatorInfo` @warning |
+| **`ClipView::getTickSquare` compares a scroll against the zoom.** The arm that stops following an auto-extending linear recording and restores the scroll it started from reads `if (newXScroll != currentSong->xZoom[NAVIGATION_CLIP])` (`gui/views/clip_view.cpp:382`). The value on the left is a **scroll**: it came from `xScrollBeforeFollowingAutoExtendingLinearRecording` (`:379`), which the follow arm eleven lines up filled from `currentSong->xScroll[NAVIGATION_CLIP]` (`:366`). Comparing it against `xZoom` is a comparison between two unrelated quantities, and the guard's evident purpose — skip a restore that would move nothing — needs `xScroll`. Two consequences, both live: the restore is **skipped** whenever the remembered scroll happens to equal the current zoom, leaving the view wherever the follow pushed it instead of back where the user was; and it is **performed** in the case the guard exists to skip, `newXScroll == xScroll`, costing a redraw (and, when no popup is up, a scroll-position popup) for a move of zero. Reached whenever a linear recording auto-extends past the right edge and then stops — the ordinary case for recording a clip longer than one screen. **Established by reading, and by driving legacy's own `getTickSquare` from both sides**; not reproduced on a device. The port reproduces it rather than fixing it, because every other example in `sim/scenes_spec/timeline_spec.cpp` asserts that the port and legacy agree, and a one-sided fix would be a silent divergence. | user-visible, not a crash | `src/scenes/timeline/timeline.h`'s `tick_square` @warning; `src/scenes/timeline/timeline.cpp`'s file comment; the two-sided assertion in `sim/scenes_spec/timeline_spec.cpp`. Deliberately **not** annotated in `clip_view.cpp` itself: this task's three files alone cite it by line 35 times, and inserting a comment would shift every one |
 | **The first gold-knob turn after boot is always swallowed.** `InputLowering::action_gold_turn`'s wiggle debounce asks "has this knob been still for `short_press_ms`", comparing against a `last_turn_ms_` that starts at 0 — so on device, where `now_ms` is uptime, the answer is always *yes* by the time a user reaches a knob, and the first turn of every session takes the recorded-but-swallowed arm. `was_short_press` carries a deliberate guard against exactly this shape; this function has none. It also means **all 22 pre-existing UI scripts** turn gold before `t = 500` — inside the window, by luck — so every committed golden depicts the arm the device never presents first. Recorded rather than changed: whether this is a defect or legacy behaviour worth keeping needs a device. | user-visible, not a crash | `src/shell/input_lowering.h`'s gold-knob debounce @warning; `tests/ui-scripts/`'s own docstring |
 
 ## The action seam (`menu/action.h`, E2 task 11b)

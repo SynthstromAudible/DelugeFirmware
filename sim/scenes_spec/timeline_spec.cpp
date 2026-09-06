@@ -24,23 +24,24 @@
 /// `isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)` (`:164`) gate and does
 /// nothing. E3 recorded the same ceiling for the marker editor
 /// (`sim/scenes_spec/marker_scene_spec.cpp`'s zoom example) and found that clearing the mode by
-/// hand did **not** buy a second detent there, because `WaveformBasicNavigator::zoom` blocked on
-/// the transition state.
+/// hand did **not** buy a second detent there.
 ///
-/// **Here it does.** `initiateXZoom` has no such block -- `PadLEDs::recordTransitionBegin` +
-/// `renderZoom()` (`:326-327`) render one frame from a zero-progress transition and return -- so
-/// the examples below clear `UI_MODE_HORIZONTAL_ZOOM` between detents and get a real second
-/// comparison out of legacy, which is what makes the max-zoom *delay* (`:171-186`) observable at
-/// all. That difference from E3's finding is measured, not assumed: the multi-detent examples
-/// below would hang rather than fail if it were wrong.
+/// **Here clearing it does buy the next detent, and that is measured, not argued.** The evidence is
+/// "scrolls a second page when the transition mode is cleared": it asserts
+/// `UI_MODE_HORIZONTAL_SCROLL` set after the first detent, clears it, takes a second, and lands on
+/// **page two** -- which is impossible if the second turn did nothing. The zoom examples then use
+/// the same move to reach legacy's max-zoom *delay* (`:171-186`), which is otherwise unobservable
+/// because the mode gate would refuse first.
+///
+/// No claim is made here about **why** E3 saw the opposite. `WaveformBasicNavigator::zoom`'s tail
+/// (`gui/waveform/waveform_basic_navigator.cpp:64-69`) is the same three statements `initiateXZoom`
+/// ends in (`timeline_view.cpp:325-327`) and contains no wait of its own; the only structural
+/// difference is the `waveformRenderer.renderFullScreen` at `:59`, which `initiateXZoom` has no
+/// analogue for. Task 8's first round asserted a blocking transition as the cause and that was
+/// wrong -- the conclusion stood on the scroll example all along.
 ///
 /// @par What this spec does not cover
 ///
-///   * **`TimelineState::take_tick_square`.** Its legacy is `AudioClipView::graphicsRoutine`'s
-///     latch (`audio_clip_view.cpp:296-309`), which is reachable only through `graphicsRoutine`
-///     itself -- and that runs `PadLEDs::setTickSquares` and reads `playbackHandler.playbackState`,
-///     `currentPlaybackMode` and `PadLEDs::flashCursor` before it ever gets to the latch. It is
-///     E4 task 11's to drive, from the scene that owns it; the two examples here are direct.
 ///   * **`TimelineState::tick_square`'s auto-scroll arm.** `ClipView::getTickSquare` is protected
 ///     (`clip_view.h:38`) and its follow arm is gated on `getCurrentlyRecordingLinearly()` and
 ///     `getCurrentUI() == this` -- a live recorder and a real root UI, neither of which this
@@ -164,7 +165,20 @@ struct Rig {
 	}
 
 	/// @brief Put @p s into the `Song`, which is what BOTH sides read from.
+	///
+	/// It also expires any max-zoom delay a *previous* example armed. That latch
+	/// (`TimelineView::delayHorizontalZoomUntil`, `timeline_view.h:78`) is a member of the
+	/// `audioClipView` **singleton**, and it is compared against `AudioEngine::audioSampleTimer`
+	/// (`timeline_view.cpp:172`), which a spec process never advances -- so once armed it stays
+	/// armed for the rest of the process and silently refuses every later zoom in that direction.
+	/// Not hypothetical: the three "forgets the restore point" examples below were written after
+	/// the delay example and legacy sat at zoom 12 while the port zoomed to 6, until this line
+	/// existed. Advancing the timer past `kShortPressTime` is **legacy's own expiry**
+	/// (`:175-179` clears the latch), not a reach into private state, and it is safe here because
+	/// every `PadLEDs::recordTransitionBegin` in this file happens *after* the last `seed()` of its
+	/// example, so no transition is ever handed a jumped clock.
 	void seed(const Sentinel& s) const {
+		AudioEngine::audioSampleTimer += 2 * kShortPressTime;
 		f.song->xScroll[NAVIGATION_CLIP] = s.x_scroll;
 		f.song->xZoom[NAVIGATION_CLIP] = s.x_zoom;
 		f.song->tripletsOn = s.triplets_on;
@@ -594,8 +608,17 @@ describe timeline_spec_body(
 		        r.seed(s);
 		        Rig::hold_x_enc(true);
 		        audioClipView.horizontalEncoderAction(1);
+		        // Legacy ends at 48 whether the second detent was dropped by the delay latch (`:175`),
+		        // by the `isUIModeActiveExclusively` gate (`:164`), or because `initiateXZoom` never
+		        // armed the mode at all -- so the example pins WHICH. The first detent really did
+		        // reach `initiateXZoom` (`:325`)...
+		        expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_true();
 		        Rig::clear_zoom_transition();
+		        // ...and with that cleared, the mode gate at `:164` passes, so the only thing left that
+		        // can stop the second detent is the delay latch. Its `goto getOut` at `:176` returns
+		        // before `initiateXZoom`, so the mode must still be clear afterwards.
 		        audioClipView.horizontalEncoderAction(1);
+		        expect((currentUIMode & UI_MODE_HORIZONTAL_ZOOM) != 0).to_be_false();
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
 		        expect(first == ZoomOutcome::Zoomed).to_be_true();
 		        expect(second == ZoomOutcome::Delayed).to_be_true();
@@ -631,6 +654,87 @@ describe timeline_spec_body(
 		        expect(port.zoom(1, r.max_zoom(), 1000) == ZoomOutcome::Zoomed).to_be_true();
 		        expect(port.zoom(-1, r.max_zoom(), 1000) == ZoomOutcome::Zoomed).to_be_true();
 		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(96);
+	        });
+
+	    // ---- the linear-recording restore point every horizontal turn clears ----------------------
+
+	    it(
+	        "forgets the linear-recording restore point on a manual scroll, as legacy does", _ {
+		        // `ClipNavigationTimelineView::horizontalEncoderAction` is two statements
+		        // (`clip_navigation_timeline_view.cpp:30-34`): clear
+		        // `xScrollBeforeFollowingAutoExtendingLinearRecording` (`:32`), then delegate (`:33`).
+		        // A port that skipped the clear would keep a stale restore point and yank the scroll
+		        // back when the recording stopped -- `getTickSquare`'s restore arm
+		        // (`clip_view.cpp:376-386`) reads exactly this field.
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        const Sentinel s{.x_scroll = 0, .x_zoom = 6};
+
+		        r.seed(s);
+		        TimelineState port = r.port();
+		        port.scroll_before_following = 480;
+		        (void)port.scroll(1, r.max_length());
+
+		        r.seed(s);
+		        TickProbe::set_remembered_scroll(480);
+		        audioClipView.horizontalEncoderAction(1);
+		        expect(port.scroll_before_following).to_equal(TickProbe::remembered_scroll());
+		        expect(port.scroll_before_following).to_equal(-1);
+		        // ...and the scroll really did happen, so this is not passing because nothing ran.
+		        expect(port.x_scroll).to_equal(r.song_scroll());
+		        expect(port.x_scroll).to_equal(6 * kDisplayWidth);
+		        currentUIMode = UI_MODE_NONE;
+	        });
+
+	    it(
+	        "forgets it on a manual zoom too", _ {
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        const Sentinel s{.x_scroll = 0, .x_zoom = 12};
+
+		        r.seed(s);
+		        TimelineState port = r.port();
+		        port.scroll_before_following = 480;
+		        (void)port.zoom(1, r.max_zoom(), 1000);
+
+		        r.seed(s);
+		        TickProbe::set_remembered_scroll(480);
+		        Rig::hold_x_enc(true);
+		        audioClipView.horizontalEncoderAction(1);
+		        expect(port.scroll_before_following).to_equal(TickProbe::remembered_scroll());
+		        expect(port.scroll_before_following).to_equal(-1);
+		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
+		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(6);
+		        Rig::hold_x_enc(false);
+		        currentUIMode = UI_MODE_NONE;
+	        });
+
+	    it(
+	        "forgets it even when the zoom limit then refuses the turn", _ {
+		        // The clear is legacy's FIRST statement, above every gate `TimelineView` applies
+		        // (`timeline_view.cpp:137-151`, `:161`, `:164`, `:189-192`), so a refused turn still
+		        // wipes the restore point. At zoom 3 the floor refuses, and both sides must still have
+		        // forgotten.
+		        spec_fixture::QuietAudio quiet;
+		        Rig r;
+		        const Sentinel s{.x_scroll = 0, .x_zoom = 3};
+
+		        r.seed(s);
+		        TimelineState port = r.port();
+		        port.scroll_before_following = 480;
+		        const ZoomOutcome outcome = port.zoom(1, r.max_zoom(), 1000);
+
+		        r.seed(s);
+		        TickProbe::set_remembered_scroll(480);
+		        Rig::hold_x_enc(true);
+		        audioClipView.horizontalEncoderAction(1);
+		        expect(outcome == ZoomOutcome::Refused).to_be_true();
+		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(static_cast<int32_t>(r.song_zoom()));
+		        expect(static_cast<int32_t>(port.x_zoom)).to_equal(3);
+		        expect(port.scroll_before_following).to_equal(TickProbe::remembered_scroll());
+		        expect(port.scroll_before_following).to_equal(-1);
+		        Rig::hold_x_enc(false);
+		        currentUIMode = UI_MODE_NONE;
 	        });
 
 	    // ---- the scroll helpers the length edits use -----------------------------------------------
@@ -844,19 +948,6 @@ describe timeline_spec_body(
 		        expect(suppressed.x_scroll).to_equal(480);
 		        expect(suppressed.scroll_before_following).to_equal(TickProbe::remembered_scroll());
 		        currentUIMode = UI_MODE_NONE;
-	        });
-
-	    it(
-	        "latches the tick square the way AudioClipView::graphicsRoutine does", _ {
-		        TimelineState port;
-		        port.last_tick_square = 0;
-		        port.must_redraw_tick_squares = false;
-		        expect(port.take_tick_square(0)).to_be_false();
-		        expect(port.take_tick_square(1)).to_be_true();
-		        expect(port.take_tick_square(1)).to_be_false();
-		        port.must_redraw_tick_squares = true;
-		        expect(port.take_tick_square(1)).to_be_true();
-		        expect(port.must_redraw_tick_squares).to_be_false();
 	        });
 
 	    // ---- the Song seam -------------------------------------------------------------------------

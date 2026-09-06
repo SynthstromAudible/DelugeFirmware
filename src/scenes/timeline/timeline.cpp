@@ -34,8 +34,11 @@
 /// `xZoom`. The effect is that the restore is skipped exactly when the remembered scroll happens to
 /// equal the current zoom, and performed when it equals the current scroll (where legacy plainly
 /// meant to skip it). `tick_square` reproduces it, because a port whose job is to agree with legacy
-/// cannot quietly disagree with it; it is called out in this task's report so the fix can be made
-/// against both sides at once.
+/// cannot quietly disagree with it. It is the sixth entry in `src/scenes/README.md`'s "Defects this
+/// port found in shipping firmware" and in
+/// `docs/superpowers/specs/2026-08-26-ui-migration-design.md` §10.5, and carries a `@warning` on
+/// `TimelineState::tick_square` in `timeline.h`. Fixing it means one change against both sides and
+/// both spec expectations at once.
 
 #include "scenes/timeline/timeline.h"
 
@@ -237,6 +240,13 @@ BarsBeats TimelineState::bars_and_beats(uint32_t number, uint32_t one_bar, bool 
 
 // --- gestures ---------------------------------------------------------------------------------
 
+void TimelineState::stop_following() {
+	// `ClipNavigationTimelineView::horizontalEncoderAction`'s first statement
+	// (`clip_navigation_timeline_view.cpp:32`), which runs on every horizontal turn before the
+	// delegate at `:33`.
+	scroll_before_following = kNotFollowing;
+}
+
 void TimelineState::focus_regained() {
 	// `ClipNavigationTimelineView::focusRegained` (`clip_navigation_timeline_view.cpp:26-28`), whose
 	// whole body is this one line. `ClipView::focusRegained` (`clip_view.cpp:43-45`) is a straight
@@ -249,6 +259,10 @@ ZoomOutcome TimelineState::zoom(int32_t offset, uint32_t max_zoom, uint32_t now_
 	// enclosing gates -- `isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)` (`:161`) and
 	// `isUIModeActiveExclusively(...) || inNoteRowEditor` (`:164`) -- are the scene's, as is the
 	// `currentlyScrollableAndZoomable()` refusal one level up (`clip_view.cpp:256-258`).
+	//
+	// `:32` runs before all of that, on every horizontal turn, and is unconditional.
+	stop_following();
+
 	int32_t oldXZoom = x_zoom;
 	int32_t zoomMagnitude = -offset;
 	uint32_t newZoom = zoomMagnitude == -1 ? oldXZoom >> 1 : oldXZoom << 1;
@@ -294,6 +308,10 @@ bool TimelineState::scroll(int32_t offset, uint32_t max_length) {
 	// `TimelineView::horizontalEncoderAction`'s scroll arm (`timeline_view.cpp:206-222`). The gates
 	// at `:203` and `:206` are the scene's, and so is `displayScrollPos()` at `:221` -- which sits
 	// outside the `if` at `:216`, so legacy shows the position even when nothing moved.
+	//
+	// `:32` runs before all of that, on every horizontal turn, and is unconditional.
+	stop_following();
+
 	int32_t newXScroll = x_scroll + offset * x_zoom * kDisplayWidth;
 
 	// Make sure we don't scroll too far left
@@ -350,8 +368,10 @@ bool TimelineState::scroll_for_linear_recording(int32_t new_scroll, uint32_t max
 	// `ClipNavigationTimelineView::horizontalScrollForLinearRecording`
 	// (`clip_navigation_timeline_view.cpp:36-51`). Both of legacy's arms (`:41` and `:44-45`) store
 	// the same scroll; only the animation and the redraw request differ, and neither is this
-	// layer's. The `if (!display->hasPopup()) displayScrollPos();` at `:47-49` is inside the length
-	// guard and outside the arm choice, so it fires whenever this returns true.
+	// layer's. The `displayScrollPos()` at `:48` is inside the length guard and outside the arm
+	// choice -- but it is ALSO inside `if (!display->hasPopup())` (`:47`), so a true return means
+	// "legacy would have CONSIDERED showing the scroll position", not "legacy showed it". A caller
+	// that shows one unconditionally will show a popup legacy suppresses.
 	if (new_scroll < max_length) {
 		x_scroll = new_scroll;
 		return true;
@@ -404,18 +424,6 @@ TimelineState::TickSquare TimelineState::tick_square(int32_t live_pos, const Tic
 	}
 
 	return out;
-}
-
-bool TimelineState::take_tick_square(int32_t new_square) {
-	// `AudioClipView::graphicsRoutine`'s latch (`audio_clip_view.cpp:296-309`), minus its
-	// `PadLEDs::flashCursor != FLASH_CURSOR_OFF` conjunct -- that is a global display setting the
-	// scene reads, not timeline state -- and minus the `PadLEDs::setTickSquares` call itself.
-	if (new_square == last_tick_square && !must_redraw_tick_squares) {
-		return false;
-	}
-	last_tick_square = new_square;
-	must_redraw_tick_squares = false;
-	return true;
 }
 
 } // namespace deluge::scenes::timeline

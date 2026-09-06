@@ -238,7 +238,7 @@ that renders — `SessionScene`'s to close); `MenuScene::ascend()`'s silent no-o
 legacy's `goUpOneLevel` calls `exitCompletely()`; a `CustomItem::title` hook for the three pages that
 want a runtime title; and three `IntegerWithOff` nodes that draw "0" where legacy draws "OFF".
 
-### 10.5 Five defects in shipping firmware, found by the port and not fixed by it
+### 10.5 Six defects in shipping firmware, found by the port and not fixed by it
 
 They belong in a release note, not only in a spec, and are written up in full in
 `src/scenes/README.md`'s "Defects this port found in shipping firmware" with a `@warning` at each
@@ -257,6 +257,19 @@ where `:1517` is not), both inside the `:1510`/`:1511`/`:1512` guards, where `Vi
 uninitialised `int32_t knobPos`** (declared `:1410`, consumed `:1468`) on the one of its four paths
 that assigns nothing. Neither is annotated in `view.cpp` itself — the same reason the browser row
 gives, one order of magnitude worse: this stack cites `view.cpp` by line more than a hundred times.
+
+E4 task 8 added a sixth, found by porting the clip views' scroll and zoom:
+**`ClipView::getTickSquare` compares a scroll against the zoom.** The arm that stops following an
+auto-extending linear recording reads `if (newXScroll != currentSong->xZoom[NAVIGATION_CLIP])`
+(`gui/views/clip_view.cpp:382`), where `newXScroll` came from
+`xScrollBeforeFollowingAutoExtendingLinearRecording` (`:379`), which the follow arm filled from
+`currentSong->xScroll[NAVIGATION_CLIP]` (`:366`). So the restore is skipped whenever the remembered
+scroll happens to equal the current zoom — leaving the view where the follow pushed it rather than
+where the user was — and performed in the one case the guard exists to skip. Reached by recording a
+clip longer than one screen. Established by reading and by driving legacy's own `getTickSquare`
+from both sides (`sim/scenes_spec/timeline_spec.cpp`); the port reproduces it rather than fixing
+it, for the reason every row here gives, and it is annotated at
+`src/scenes/timeline/timeline.h`'s `tick_square` rather than in `clip_view.cpp`.
 
 ### 10.6 What the oracle actually covers for the three new scenes (2026-09-04, closing E3's final review)
 
