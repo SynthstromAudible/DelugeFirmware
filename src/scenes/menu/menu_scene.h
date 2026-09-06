@@ -13,7 +13,7 @@
 /// **Ports.** `MenuItem::drawItemsForOled` (`gui/menu_item/menu_item.cpp:47`),
 /// `Submenu::drawSubmenuItemsForOled` / `focusChild` (`gui/menu_item/submenu.cpp:99`, `:21`),
 /// `HorizontalMenu::renderOLED` / `renderMenuItems` / `switchVisiblePage` / `selectMenuItem` /
-/// `preparePaging` (`gui/menu_item/horizontal_menu.cpp:109,203,345,444,477`) -- all four already
+/// `preparePaging` (`gui/menu_item/horizontal_menu.cpp:477`, called at `:114` and `:378`) -- all four already
 /// pinned by the `list` / `columns` widgets, which this scene composes rather than re-implements;
 /// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1034`), `buttonAction` (`:333`,
 /// back -> `goUpOneLevel` `:672`, which exits at depth 0 via `exitCompletely` `:678`),
@@ -189,7 +189,7 @@ struct MenuState {
 	/// which is precisely the shape this cycle is not.
 	///
 	/// Re-anchored whenever `blink_node` changes, which is legacy's `shortcutBlinkCounter = 0` in
-	/// `setupShortcutBlink` (`sound_editor.cpp:964`) -- reached from `updatePadLightsFor` on every
+	/// `setupShortcutBlink` (`sound_editor.cpp:959-966`) -- reached from `updatePadLightsFor` on every
 	/// screen change (`:806`, via `beginScreen` `:1015`). Without it the port would free-run from
 	/// t = 0 and a newly focused pad could light mid-cycle.
 	uint32_t blink_anchor_ms = 0;
@@ -343,8 +343,8 @@ struct MenuState {
 	///
 	/// Which is also why the three MPE items are `CustomItem`s rather than data nodes.
 	///
-	/// @note Both zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` and
-	///       `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`io/midi/midi_device.h:33`, `:36`) -- which is also
+	/// @note Both zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE`
+	///       (`io/midi/midi_device.h:33`) and `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`:36`) -- which is also
 	///       what each selector's `beginSession` forward arm assigns, so the initialiser here and
 	///       `retarget`'s reset say the same thing legacy's own entry does.
 	/// @{

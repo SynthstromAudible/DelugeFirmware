@@ -86,7 +86,7 @@ using deluge::scenes::spec::SdRoot;
 /// and one spec binary runs many examples in one process, so an example that left entries behind
 /// would decide the next one's result by link order.
 ///
-/// `shouldInterpretNoteNames` and `octaveStartsFromA` (`util/name_compare.cpp:85`, `:87`) are
+/// `shouldInterpretNoteNames` (`util/name_compare.cpp:85`) and `octaveStartsFromA` (`:87`) are
 /// process-global for the same reason and leak the same way -- and worse, silently: they change
 /// what `strcmpspecial` *means*, so a stale `true` turns a later example's expected sort order into
 /// a different one rather than into an obvious crash. Nearly every example here moves them (every
@@ -172,7 +172,7 @@ void seed(const std::vector<std::string>& names, bool folders = false) {
 /// @brief Sort the catalogue with `strcmpspecial` under the caller's own note-name flags.
 ///
 /// `Browser::sortFileItems()` forces `octaveStartsFromA = false`
-/// (`file_catalogue.cpp:367 sortFileItems`), so the
+/// (`file_catalogue.cpp:398 sortFileItems`), so the
 /// `octaveStartsFromA = true` search example -- which needs a list sorted by the comparator it will
 /// then binary-search under -- has to sort here instead. Same comparator, same projection as
 /// `sortFileItems()`.

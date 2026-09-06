@@ -546,7 +546,7 @@ constexpr const Node* kLegacyWriteNeedsUi[] = {
     &nodes::audio_clip_reverse,        // `uiNeedsRendering(&audioClipView)` (`reverse.h:63 writeCurrentValue`)
     &nodes::midi_clock_out,            // `playbackHandler.setMidiOutClockMode` sends real MIDI
     &nodes::midi_clock_in,             // ... and `setMidiInClockEnabled` re-syncs playback
-    &nodes::trigger_out_ppqn,          // `resyncAnalogOutTicksToInternalTicks` (`out/ppqn.h:24`)
+    &nodes::trigger_out_ppqn,          // `resyncAnalogOutTicksToInternalTicks` (`out/ppqn.h:29`)
     &nodes::default_pad_brightness,    // `PadLEDs::setBrightnessLevel` (`pad_brightness.h:26`)
     &nodes::default_menu_highlighting, // `Canvas::menuHighlightingInverts`
     &nodes::screensaver_mode,          // `Screensaver::settingsChanged()`

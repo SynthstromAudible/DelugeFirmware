@@ -21,7 +21,7 @@
 /// | `arp_note_mode` | `arpNoteModeMenu` (`:515`) | `arpeggiator::NoteMode` (`note_mode.h:25`) | Enum |
 /// | `arp_note_mode_drums` | `arpNoteModeMenuForDrums` (`:516`) | `arpeggiator::NoteModeForDrums` (`note_mode_for_drums.h:28`) | Enum |
 /// | `arp_chord_simulator` | `arpChordSimulatorMenuKit` (`:522`) | `arpeggiator::ChordType` (`chord_type.h:30`) | Enum |
-/// | `arp_rhythm` | `arpRhythmMenu` (`:530`) | `arpeggiator::Rhythm` (`rhythm.h:28`), `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
+/// | `arp_rhythm` | `arpRhythmMenu` (`:530`) | `arpeggiator::Rhythm` (`rhythm.h:30`), `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
 /// | `arp_rhythm_midi` | `arpRhythmMenuMIDIOrCV` (`:532`) | `arpeggiator::midi_cv::Rhythm` (`midi_cv/rhythm.h:30`) | Int, 2 slots |
 /// | `arp_sequence_length` | `arpSequenceLengthMenu` (`:534`) | `arpeggiator::SequenceLength` (`sequence_length.h:25`) | Int (param) |
 /// | `arp_sequence_length_midi` | `arpSequenceLengthMenuMIDIOrCV` (`:536`) | `midi_cv::SequenceLength` (`midi_cv/sequence_length.h:25`) | Int |

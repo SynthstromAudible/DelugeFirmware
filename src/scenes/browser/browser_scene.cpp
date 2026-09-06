@@ -1026,7 +1026,7 @@ void BrowserScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	//       horizontal scroll transition and the marker editor -- none of it reachable from here,
 	//       and the marker editor is its own task in this plan. The keyboard is therefore always
 	//       drawn, which is `LoadMidiDeviceDefinitionUI`'s own behaviour
-	//       (`load_midi_device_definition_ui.cpp:129 drawKeys`) and the base `Browser`'s
+	//       (`load_midi_device_definition_ui.cpp:129-134 onBrowserOpened`) and the base `Browser`'s
 	//       (`qwertyAlwaysVisible = true`, `browser.cpp:89`).
 	resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
 	grid_pass_ = true;

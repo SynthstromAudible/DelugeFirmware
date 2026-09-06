@@ -21,10 +21,10 @@
 /// | `source<i>_feedback` | `source<i>FeedbackMenu` (`:67`, `:98`) | `osc::source::Feedback` (`osc/source/feedback.h:23`) |
 /// | `osc<i>_phase` | `osc<i>PhaseMenu` (`:68`, `:99`) | `osc::RetriggerPhase` (`osc/retrigger_phase.h:26`) |
 /// | `sample<i>_reverse` | `sample<i>ReverseMenu` (`:69`, `:100`) | `sample::Reverse` (`sample/reverse.h:27`) |
-/// | `sample<i>_repeat` | `sample<i>RepeatMenu` (`:70`, `:101`) | `sample::Repeat` (`sample/repeat.h:33`) |
+/// | `sample<i>_repeat` | `sample<i>RepeatMenu` (`:70`, `:101`) | `sample::Repeat` (`sample/repeat.h:32`) |
 /// | `sample<i>_time_stretch` | `sample<i>TimeStretchMenu` (`:71`, `:102`) | `sample::TimeStretch` (`sample/time_stretch.h:27`) |
 /// | `sample<i>_pitch_speed` | `sample<i>PitchSpeedMenu` (`:72`, `:103`) | `sample::PitchSpeed` (`sample/pitch_speed.h:29`) |
-/// | `sample<i>_interpolation` | `sample<i>InterpolationMenu` (`:73`, `:104`) | `sample::Interpolation` (`sample/interpolation.h:26`) |
+/// | `sample<i>_interpolation` | `sample<i>InterpolationMenu` (`:73`, `:104`) | `sample::Interpolation` (`sample/interpolation.h:25`) |
 /// | `sample<i>_start` / `_end` | `sample<i>StartMenu` / `EndMenu` (`:74-75`, `:105-106`) | `sample::Start` / `End` over `LoopPoint` (`sample/loop_point.h:25`) |
 /// | `source<i>` | `source<i>Menu` (`:92`, `:123`) | `submenu::ActualSource` (`submenu/actual_source.h:23`) |
 /// | `modulator<i>_transpose` | `modulator<i>TransposeMenu` (`:124`, `:133`) | `modulator::Transpose` (`modulator/transpose.h:28`) |

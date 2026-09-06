@@ -252,7 +252,7 @@ Error Listing::run_action(ListingResult& out) {
 		}
 
 		// `searchFileItems` reads the name comparator's globals, which `sortFileItems` has just
-		// pinned for this listing (`file_catalogue.cpp:367 sortFileItems`). When the catalogue came
+		// pinned for this listing (`file_catalogue.cpp:398 sortFileItems`). When the catalogue came
 		// back empty the sort did not run, but the search then has nothing to compare against and
 		// returns 0 regardless -- which is why this file never touches `util/name_compare`'s flags.
 		out.file_index = FileCatalogue::searchFileItems(out.entered_text.c_str(), &out.found_exact);

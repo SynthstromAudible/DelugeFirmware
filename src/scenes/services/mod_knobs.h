@@ -400,8 +400,8 @@ public:
 	/// @return What the knobs currently point at.
 	const ModTarget& target() const { return target_; }
 	/// @brief Should knob @p which_encoder's indicator be blinking? --
-	///        `indicator_leds::blinkKnobIndicator` / `stopBlinkingKnobIndicator`
-	///        (`view.cpp:1074`, `:1080`).
+	///        `indicator_leds::blinkKnobIndicator` (`view.cpp:1074`) /
+	///        `stopBlinkingKnobIndicator` (`:1080`).
 	/// @param which_encoder 0 (lower) or 1 (upper).
 	bool blink_indicator(int32_t which_encoder) const;
 	/// @brief Was the last blink decision for a bipolar param? -- `isParamBipolar` (`view.cpp:1072`),
@@ -448,7 +448,7 @@ public:
 		/// `ModIndicatorInfo`.
 		bool declared = false;
 		/// The `uint8_t level` legacy hands `indicator_leds::setKnobIndicatorLevel`
-		/// (`indicator_leds.h:85`), truncated at exactly the same point legacy truncates it.
+		/// (`indicator_leds.h:86`), truncated at exactly the same point legacy truncates it.
 		uint8_t level = 0;
 		/// Legacy's `isBipolar`.
 		bool bipolar = false;

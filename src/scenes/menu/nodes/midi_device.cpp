@@ -106,8 +106,8 @@ uint8_t chosen(const MenuState& state, int32_t count) {
 /// (`SoundEditor::focusRegained` -> `beginScreen`), and this hook writes no model state, only a
 /// cursor and a `MenuState` selection.
 ///
-/// Both legacy zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` and
-/// `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`io/midi/midi_device.h:33`, `:36`).
+/// Both legacy zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE` (`io/midi/midi_device.h:33`)
+/// and `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`:36`).
 void focus_selection(MenuState& state) {
 	const size_t d = depth_of(state);
 	state.list[d] = deluge::ui::ListState{};

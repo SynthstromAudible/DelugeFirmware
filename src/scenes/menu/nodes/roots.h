@@ -337,7 +337,7 @@ inline constexpr Node root_drum = submenu(sid(String::STRING_FOR_SOUND), kDrumRo
 inline constexpr const Node* kMidiOrCvActionsChildren[] = {&edit_name};
 inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTIONS), kMidiOrCvActionsChildren);
 
-/// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp:905`), a `midi::device_definition::Linked` -- a
+/// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp:906`), a `midi::device_definition::Linked` -- a
 /// `Toggle` whose ON arm opens `loadMidiDeviceDefinitionUI` and whose OFF arm clears the linked
 /// file name (`midi/device_definition/linked.h:37-49`). Both arms are `nodes::kMidiDeviceLinked`.
 inline constexpr Node midi_device_linked = with_relevant(

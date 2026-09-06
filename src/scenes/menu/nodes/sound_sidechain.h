@@ -9,7 +9,7 @@
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:806`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:21`) | **Custom, E2** |
+/// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:806`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:23`) | **Custom, E2** |
 /// | `sidechain_sync` | `sidechainSyncMenu` (`:808`) | `sidechain::Sync` (`sidechain/sync.h:28`) | SyncLevel, 10 options |
 /// | `sidechain_shape` | `sidechainShapeMenu` (`:811`) | `sidechain::Shape` (`sidechain/shape.h:6`) | Int (param, `updates_reverb_params`) |
 /// | `sidechain_send` | `sidechainSendMenu` (`:805`) | `sidechain::Send` (`sidechain/send.h:28`) | Int |

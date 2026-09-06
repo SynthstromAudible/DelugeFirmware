@@ -916,7 +916,7 @@ size_t gate_mode_names(const MenuContext& ctx, std::span<std::string_view> out) 
 	return n;
 }
 int32_t get_gate_mode(const MenuContext& ctx) {
-	// `gate::Mode::readCurrentValue` (`gate/mode.h:37`).
+	// `gate::Mode::readCurrentValue` (`gate/mode.h:39`).
 	return static_cast<int32_t>(cvEngine.gateChannels[output_index(ctx, NUM_GATE_CHANNELS)].mode);
 }
 void set_gate_mode(const MenuContext& ctx, int32_t value) {
@@ -925,7 +925,7 @@ void set_gate_mode(const MenuContext& ctx, int32_t value) {
 }
 
 int32_t get_gate_off_time(const MenuContext&) {
-	return cvEngine.minGateOffTime; // `gate::OffTime::readCurrentValue` (`gate/off_time.h:28`)
+	return cvEngine.minGateOffTime; // `gate::OffTime::readCurrentValue` (`gate/off_time.h:29`)
 }
 void set_gate_off_time(const MenuContext&, int32_t value) {
 	cvEngine.minGateOffTime = static_cast<uint8_t>(value); // `:29`

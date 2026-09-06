@@ -8,7 +8,7 @@
 // clang-format off
 /// | node | legacy item | legacy `beginSession` opens | scene |
 /// |---|---|---|---|
-/// | `file0_selector` / `file1_selector` | `menu_item::FileSelector` (`gui/menu_item/file_selector.h:26`) | `sampleBrowser` (`file_selector.cpp:44 beginSession`) | `browser::BrowserScene`, `BrowserId::Sample` |
+/// | `file0_selector` / `file1_selector` | `menu_item::FileSelector` (`gui/menu_item/file_selector.h:26`) | `sampleBrowser` (`file_selector.cpp:36-47 beginSession`) | `browser::BrowserScene`, `BrowserId::Sample` |
 /// | `sample0_start` / `sample1_start` | `sample::Start` (`gui/menu_item/sample/start.h:21`) | `sampleMarkerEditor`, `markerType = START` (`sample/loop_point.cpp:69 beginSession`) | `marker::MarkerScene`, `MarkerType::START` |
 /// | `sample0_end` / `sample1_end` | `sample::End` (`gui/menu_item/sample/end.h:21`) | `sampleMarkerEditor`, `markerType = END` (same line) | `marker::MarkerScene`, `MarkerType::END` |
 /// | `audio_clip_waveform` | `audio_clip::SampleMarkerEditor` (`gui/menu_item/audio_clip/sample_marker_editor.h:26`) | `sampleMarkerEditor`, `markerType = whichMarker` (`audio_clip/sample_marker_editor.cpp:46 beginSession`) | `marker::MarkerScene`, `MarkerType::END` |

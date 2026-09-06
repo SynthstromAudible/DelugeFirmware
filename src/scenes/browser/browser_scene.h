@@ -499,7 +499,7 @@ private:
 	char entered_[kMaxEnteredChars] = {};
 	uint16_t entered_len_ = 0;
 
-	/// `Browser::fileIndexSelected` / `scrollPosVertical` (`browser.h:268,270`).
+	/// `Browser::fileIndexSelected` (`browser.h:268`) / `scrollPosVertical` (`:270`).
 	/// @{
 	int32_t file_index_ = -1;
 	int32_t scroll_ = 0;

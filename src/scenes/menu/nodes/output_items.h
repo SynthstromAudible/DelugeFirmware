@@ -6,7 +6,7 @@
 // clang-format off
 /// | node | legacy global | legacy class | what it is |
 /// |---|---|---|---|
-/// | `midi_device_linked` | `midiDeviceLinkedMenu` (`gui/ui/menus.cpp:905`) | `midi::device_definition::Linked` (`midi/device_definition/linked.h:29`) | a **toggle**: on opens the definition browser, off clears the linked file |
+/// | `midi_device_linked` | `midiDeviceLinkedMenu` (`gui/ui/menus.cpp:906`) | `midi::device_definition::Linked` (`midi/device_definition/linked.h:29`) | a **toggle**: on opens the definition browser, off clears the linked file |
 /// | `specific_output_selector` | `specificOutputSelectorMenu` (`gui/ui/menus.cpp:1151`) | `audio_clip::SpecificSourceOutputSelector` (`audio_clip/specific_output_source_selector.h:26`) | an **output picker**: which track an audio track records from |
 // clang-format on
 ///

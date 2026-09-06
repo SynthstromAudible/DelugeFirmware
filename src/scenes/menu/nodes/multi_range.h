@@ -112,7 +112,7 @@ inline constexpr const Node* kMultiRangeChainArray[] = {
 };
 inline constexpr std::span<const Node* const> kMultiRangeChain{kMultiRangeChainArray};
 
-/// @brief The picker's node -- title `STRING_FOR_NOTE_RANGE` (`multi_range.h:42`).
+/// @brief The picker's node -- title `STRING_FOR_NOTE_RANGE` (`multi_range.h:43`).
 inline constexpr Node multi_range = with_select_chain(
     custom(sid(deluge::l10n::String::STRING_FOR_NOTE_RANGE), &kMultiRangeItem), &multi_range_chain, kMultiRangeChain);
 

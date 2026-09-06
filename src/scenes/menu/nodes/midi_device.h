@@ -260,7 +260,7 @@ inline const Node* mpe_direction_chain(const MenuContext&, const MenuState&) {
 inline constexpr Node mpe_direction = with_select_chain(
     custom(sid(deluge::l10n::String::STRING_FOR_MPE), &kMpeDirectionItem), mpe_direction_chain, kMpeDirectionChain);
 
-/// `DefaultVelocityToLevel::getMaxValue` is `kMaxMenuValue` (`default_velocity_to_level.h:28`);
+/// `DefaultVelocityToLevel::getMaxValue` is `kMaxMenuValue` (`default_velocity_to_level.h:27`);
 /// `IntegerWithOff` draws 0 as "OFF" (`gui/menu_item/integer.cpp:41-50`), which is
 /// `ValueStyle::off_at_zero`.
 inline constexpr Node device_default_velocity_to_level =

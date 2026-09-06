@@ -384,7 +384,7 @@ ParamSet* param_set_for(const Node& node, const MenuContext& ctx) {
 }
 
 /// @brief Add @p node's param to @p stack -- `PatchedParam::getModelStack` (`patched_param.cpp:86`)
-///        / `UnpatchedParam::getModelStack` (`unpatched_param.cpp:43`), minus the `soundEditor`
+///        / `UnpatchedParam::getModelStack` (`unpatched_param.cpp:41-44`), minus the `soundEditor`
 ///        singleton the caller has already replaced with `model_stack_for`.
 /// @return The stack, or null when the param manager holds no such collection (both getters already
 ///         return null for that -- `model/model_stack.cpp:232-256`).

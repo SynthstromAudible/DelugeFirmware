@@ -173,9 +173,9 @@ bool MarkerScene::on_enter(const SceneId& id) {
 	}
 
 	// `SceneId::arg` is the `MarkerType` to start on. Legacy's two openers set
-	// `sampleMarkerEditor.markerType` immediately before `openUI` (`sample/loop_point.cpp:69`,
-	// `audio_clip/sample_marker_editor.cpp`); here it travels with the id instead of through a
-	// member the caller has to remember to write.
+	// `sampleMarkerEditor.markerType` (`sample/loop_point.cpp:69`) immediately before `openUI`
+	// (`:71`; and `audio_clip/sample_marker_editor.cpp` does the same); here it travels with the id instead of through
+	// a member the caller has to remember to write.
 	const auto requested = static_cast<MarkerType>(static_cast<int16_t>(id.arg));
 	marker_type_ = (requested == MarkerType::START || requested == MarkerType::LOOP_START
 	                || requested == MarkerType::LOOP_END || requested == MarkerType::END)

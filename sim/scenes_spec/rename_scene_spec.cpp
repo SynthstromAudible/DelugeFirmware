@@ -581,7 +581,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.open_rename(context_of(f), TargetId::Drum);
 		r.tick(0);
 
-		// `setupBlink(..., shouldBlinkImmediately = true)` (`qwerty_ui.cpp:151`): the bar is lit on
+		// `setupBlink(..., shouldBlinkImmediately = true)` (`qwerty_ui.cpp:153`): the bar is lit on
 		// the frame the editor opens, and `kFlashTime` (110 ms) later it is dark.
 		// The cursor starts at 0 -- mid-string -- where `text_edit` draws the inversion instead and
 		// there is nothing to flash, so nothing to wake for.

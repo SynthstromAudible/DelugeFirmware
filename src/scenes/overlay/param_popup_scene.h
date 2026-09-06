@@ -122,7 +122,7 @@ struct PopupContext {
 	/// Non-null iff legacy's `isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`
 	/// (`view.cpp:1122`), in which case it is `(MIDIInstrument*)getCurrentOutput()` (`:1123`).
 	MIDIInstrument* midi_instrument = nullptr;
-	/// `isUIModeActive(UI_MODE_STUTTERING)` (`view.cpp:1161`). Nothing in the port owns the stutter
+	/// `isUIModeActive(UI_MODE_STUTTERING)` (`view.cpp:1162`). Nothing in the port owns the stutter
 	/// gesture yet, so no caller sets this true; see the class doc.
 	bool stuttering = false;
 };

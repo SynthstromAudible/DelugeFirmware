@@ -245,7 +245,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
 	// Unarm the blink: the first render arms it against that tick's clock, so the cursor is lit on
 	// the frame the editor opens -- `setupBlink(..., shouldBlinkImmediately = true)`
-	// (`qwerty_ui.cpp:151`, `hid/display/oled.cpp:844-846`).
+	// (`qwerty_ui.cpp:153`, `hid/display/oled.cpp:844-846`).
 	cursor_blink_ = deluge::ui::Blink{.period_ms = 0, .until_ms = 0};
 	repeat_armed_ = false;
 	repeat_at_ms_ = 0;

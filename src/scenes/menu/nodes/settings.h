@@ -96,10 +96,10 @@
 /// @note **Three write side effects stay behind, and are gaps, not omissions.**
 ///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`
 ///       (`defaults/pad_brightness.h:26`), `ScreensaverModeMenu`/`ScreensaverTimeout` also call
-///       `hid::display::Screensaver::settingsChanged()` (`defaults/screensaver.h:34,58`), the
+///       `hid::display::Screensaver::settingsChanged()` (`defaults/screensaver.h:40,62`), the
 ///       accessibility highlighting item also pokes `Canvas::menuHighlightingInverts`
 ///       (`accessibility_menu_highlighting.h:14-15`), and `ShiftIsSticky` also calls
-///       `Buttons::clearShiftSticky()` (`runtime_feature/shift_is_sticky.cpp:23`). All four are
+///       `Buttons::clearShiftSticky()` (`runtime_feature/shift_is_sticky.cpp:26`). All four are
 ///       `hid/`. The `FlashStorage` / `runtimeFeatureSettings` half of each write IS transcribed,
 ///       so the setting persists; only the immediate apply is missing, and it belongs to whoever
 ///       owns those globals once E2 has moved them.
@@ -517,7 +517,7 @@ inline constexpr const Node* kMidiClockChildren[] = {&midi_clock_out, &midi_cloc
 inline constexpr Node midi_clock = submenu(sid(String::STRING_FOR_CLOCK), kMidiClockChildren, Layout::Vertical, nullptr,
                                            sid(String::STRING_FOR_MIDI_CLOCK));
 
-// `FollowChannel::getMaxValue` is `NUM_CHANNELS` (`follow_channel.h:32`) -- one past the last real
+// `FollowChannel::getMaxValue` is `NUM_CHANNELS` (`follow_channel.h:37`) -- one past the last real
 // channel, which the item draws as "unassigned".
 inline constexpr IntRange kFollowChannelRange{0, NUM_CHANNELS, 1};
 

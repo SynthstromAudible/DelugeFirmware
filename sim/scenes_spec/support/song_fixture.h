@@ -4,7 +4,7 @@
 ///        directly on the host -- no `deluge_main()`, no UI, no SD card.
 ///
 /// **Why direct construction and not the loadcheck shape** (task-3 ruling 1): the legacy bring-up
-/// that precedes a song, `deluge_boot()` (`src/deluge/deluge.cpp:634`), is almost entirely device
+/// that precedes a song, `deluge_boot()` (`src/deluge/deluge.cpp:635`), is almost entirely device
 /// bring-up -- OLED probe, control surface, CV DAC, USB host/peripheral, PIC boot info -- and it
 /// ends by calling `setupBlankSong()` (`:371`), whose song is built out of `Song`'s own members
 /// plus `Song::ensureAtLeastOneSessionClip()` (`model/song/song.cpp:337`). Only two things in that
