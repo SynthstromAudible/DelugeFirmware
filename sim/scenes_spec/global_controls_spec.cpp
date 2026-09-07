@@ -473,7 +473,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Record, true, 2'000);
 		rig.press(ButtonId::Play, true, 2'005);
 		// `InputLowering::press_used_up` is the port's `recordButtonPressUsedUp`
-		// (`shell/input_lowering.h:227`), and `GlobalControls` marks it for RECORD, not for
+		// (`shell/input_lowering.h:247`), and `GlobalControls` marks it for RECORD, not for
 		// PLAY (`hid/buttons.cpp:165`'s bit suppresses the RECORD release).
 		expect(rig.lowering.press_used_up(ButtonId::Record)).to_be_true();
 		rig.press(ButtonId::Record, false, 2'010);

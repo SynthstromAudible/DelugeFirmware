@@ -571,7 +571,7 @@ bool legacy_write_needs_ui(const Node& node) {
 /// byte both sides read -- `FlashStorage::padColours` for the six colours, `PadLEDs::flashCursor`
 /// for the play cursor, `runtimeFeatureSettings` for dev sysex -- so the generic loops cross-check
 /// them for free. This one cannot: legacy keeps the setting on `soundEditor`
-/// (`shortcuts/version.h:26-27`) and `src/scenes` may not name `soundEditor`, so the port keeps it
+/// (`shortcuts/version.h:27-35`) and `src/scenes` may not name `soundEditor`, so the port keeps it
 /// in `menu/shortcuts.cpp` beside the tables it selects. Two independent copies read back
 /// independently, which is exactly what these loops are built to catch, so it is excluded here and
 /// proved on its own terms in the batch-4 group: the round trip, and -- the thing that actually
@@ -3513,7 +3513,7 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 		const Root& settings = installed_root("settings");
 		const auto saved = menu::shortcuts_version();
 
-		// Two options, legacy's own (`shortcuts/version.h:28-35`).
+		// Two options, legacy's own (`shortcuts/version.h:36-43`).
 		std::string_view got[menu::kMaxDynamicNames];
 		deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
 		const size_t count = menu::bindings::names(nodes::shortcuts_version, settings.ctx, got, scratch);

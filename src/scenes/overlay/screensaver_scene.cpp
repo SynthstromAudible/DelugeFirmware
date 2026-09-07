@@ -11,13 +11,13 @@ using deluge::ui::shell::Result;
 using deluge::ui::shell::SurfaceRole;
 
 bool ScreensaverScene::animated(::ScreensaverMode mode) {
-	// `hid/display/screensaver.cpp:58-61`, expression for expression.
+	// `hid/display/screensaver.cpp:59-62`, expression for expression.
 	return mode == ::ScreensaverMode::STARSCAPE || mode == ::ScreensaverMode::DELUGE;
 }
 
 ::ScreensaverMode ScreensaverScene::mode() const {
 	// The one global legacy reads, read the same way legacy reads it -- live, per question
-	// (`hid/display/screensaver.cpp:102,127,140,162,183`). See the class doc.
+	// (`hid/display/screensaver.cpp:103,128,141,163,213`). See the class doc.
 	return FlashStorage::screensaverMode;
 }
 
@@ -29,7 +29,7 @@ bool ScreensaverScene::on_enter(const deluge::ui::shell::SceneId& id) {
 		rainfall_.reseed(id.arg);
 		starfield_.reseed(id.arg);
 	}
-	// `Screensaver::timerEvent`'s `if (!active_)` arm, `hid/display/screensaver.cpp:125-137`.
+	// `Screensaver::timerEvent`'s `if (!active_)` arm, `hid/display/screensaver.cpp:126-138`.
 	switch (mode()) {
 	case ::ScreensaverMode::STARSCAPE:
 		starfield_.scatter();
@@ -47,7 +47,7 @@ void ScreensaverScene::tick(uint32_t dt_ms) {
 	const ::ScreensaverMode m = mode();
 	if (!animated(m)) {
 		// `BLANK` while already showing: "nothing changed, this tick is only an inhibitor
-		// re-check" (`hid/display/screensaver.cpp:149-152`) -- and the inhibitor re-check has no
+		// re-check" (`hid/display/screensaver.cpp:150-153`) -- and the inhibitor re-check has no
 		// port, so there is nothing left to do. `OFF` falls here too.
 		return;
 	}
@@ -58,7 +58,7 @@ void ScreensaverScene::tick(uint32_t dt_ms) {
 	// Reset, not subtract: legacy re-arms its 50 ms timer at `:161-162` from the moment the timer
 	// fired, so a tick that arrives late advances one frame, never several.
 	since_frame_ms_ = 0;
-	// `Screensaver::timerEvent`'s `else` arm, `hid/display/screensaver.cpp:140-153`.
+	// `Screensaver::timerEvent`'s `else` arm, `hid/display/screensaver.cpp:141-154`.
 	switch (m) {
 	case ::ScreensaverMode::STARSCAPE:
 		starfield_.advance();
@@ -77,7 +77,7 @@ void ScreensaverScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 		// (`hid/display/oled.cpp:342-348`); `oled_transparent` reports the same split.
 		return;
 	}
-	// `Screensaver::render`, `hid/display/screensaver.cpp:183-192`. The `default` arm is legacy's
+	// `Screensaver::render`, `hid/display/screensaver.cpp:213-222`. The `default` arm is legacy's
 	// own: "BLANK: a cleared canvas is the whole picture" (`:188`), and the shell has already
 	// cleared it (`shell.cpp:642`).
 	switch (mode()) {

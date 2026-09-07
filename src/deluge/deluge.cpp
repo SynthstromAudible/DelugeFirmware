@@ -21,6 +21,7 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/shell_guest_services.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -62,6 +63,7 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "scenes/registry.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
@@ -763,7 +765,39 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
 
-	// Settings have been read and the UI is up: start the idle countdown.
+	// ---- Boot wiring for the ported UI (`src/scenes/registry.h`'s boot-wiring note) -------------
+	//
+	// Three settings the ported tree and the guest's `Shell` cannot read for themselves. Two of them
+	// are not here, and that is F1 task 8's finding rather than an omission:
+	//
+	//   * **The screensaver timeout** is pushed from `Screensaver::settingsChanged()`
+	//     (`hid/display/screensaver.cpp`), which is where all three of its writers already funnel --
+	//     including the call immediately below, which was already here. A call at this point would
+	//     have covered boot and gone stale the moment the user changed either setting.
+
+	// Number the ported menu tree. Idempotent (a function-local static) and, in this binary, already
+	// done: `shellHostUI`'s own construction calls `scenes::scene_registry()`, which calls this. It
+	// is spelled out anyway because that is a static-initialisation accident rather than a
+	// guarantee, and three features silently no-op on an unnumbered tree -- `MenuScene::save_state`,
+	// `restore_state` and the shortcut-pad jump (`src/scenes/registry.h`'s `assigned_node_ids`).
+	(void)deluge::scenes::assigned_node_ids();
+
+	// Flash byte 60's shortcut layout, which `FlashStorage::readSettings()` above has just loaded
+	// into `soundEditor.shortcutsVersion`. The ported tree keeps its own copy beside the two layers
+	// it selects between; the other two callers of this are the settings item and the reset-settings
+	// context menu (see the function's own doc for why it is not one call inside
+	// `SoundEditor::setShortcutsVersion`).
+	deluge::gui::ui::applyShellGuestShortcutsVersion();
+
+	// Build the three real services over the guest's own `Shell` and install them -- migration
+	// §10.2 item 7's boot half, and the first call `Shell::set_services` has ever had outside a
+	// spec. After `setupBlankSong()` above, deliberately: all three take `currentSong`, and
+	// `ModKnobs` also mirrors `View`'s active mod controllable, neither of which exists earlier.
+	// `ShellHostUI::opened()` calls it again on every open, to re-read both.
+	deluge::gui::ui::wireShellGuestServices();
+
+	// Settings have been read and the UI is up: start the idle countdown. This is also what supplies
+	// the ported screensaver service's timeout for the first time (see `settingsChanged` itself).
 	deluge::hid::display::Screensaver::settingsChanged();
 
 	D_PRINTLN("going into main loop");

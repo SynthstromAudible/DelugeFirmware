@@ -26,7 +26,7 @@
 #include "ui/core/metrics.h"
 #include "ui/oled/popup.h"
 
-// `Deluge::factoryReset` (`deluge.cpp:219`). `deluge.h` is a ROOT-LEVEL app header, so it is named
+// `Deluge::factoryReset` (`deluge.cpp:221`). `deluge.h` is a ROOT-LEVEL app header, so it is named
 // explicitly in this layer's include allow-list (`src/scenes/CMakeLists.txt`) the way
 // `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. Fix
 // round 1, Minor 2: included rather than re-declared locally, and re-implementing its body here (a
@@ -72,7 +72,7 @@ constexpr uint16_t sid(String s) {
 
 // ---------------------------------------------------------------------------------------------
 // The five descriptors. Each is one `ResetSettingsAction` arm of
-// `ResetSettings::acceptCurrentOption` (`gui/context_menu/reset_settings.cpp:44-63`), with the
+// `ResetSettings::acceptCurrentOption` (`gui/context_menu/reset_settings.cpp:44-72`), with the
 // heading and the option list that class's `getTitle()` / `getOptions()` return for all five.
 
 /// `ResetSettings::getOptions()`: a single `STRING_FOR_OK`. **Not a NO/YES pair** -- legacy's

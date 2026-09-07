@@ -1097,7 +1097,7 @@ void setForegroundRecording(SampleRecorder* recorder, AudioInputChannel source) 
 	// `std::atomic_signal_fence` and not `atomic_thread_fence`, and no `dmb`: the reader is
 	// `setMonitoringMode()` called from `renderAudio`, i.e. the priority-0 audio task, which
 	// `registerTask` routes onto the preemptive SGI interrupt-executor
-	// (`src/bsp/rust/src/scheduler.rs:536-548`, `deluge.cpp:538`) -- a handler on the SAME core.
+	// (`src/bsp/rust/src/scheduler.rs:536-548`, `deluge.cpp:540`) -- a handler on the SAME core.
 	// A PE observes its own memory accesses in program order and exception entry is a context
 	// synchronisation point, so no hardware barrier is needed; what can reorder two plain,
 	// dependency-free stores is the COMPILER, and a signal fence is exactly the "ordered against a

@@ -125,7 +125,7 @@
 ///      that press from inside a card routine -- `if (inCardRoutine) return
 ///      ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;` (`slicer.cpp:335-337`), and the BACK arm
 ///      repeats it at `:372-374`. That is the **defer-and-retry** gate whose port is
-///      `InputLowering::set_sd_busy` (`shell/input_lowering.h:298`), deliberately not an `Action`
+///      `InputLowering::set_sd_busy` (`shell/input_lowering.h:318`), deliberately not an `Action`
 ///      and deliberately not a scene's business -- the same ruling `RecorderScene::handle`,
 ///      `MarkerScene` and `BrowserScene` all record.
 ///   3. **The hazard `doSlice` does have is a different one, and legacy names it itself.** The

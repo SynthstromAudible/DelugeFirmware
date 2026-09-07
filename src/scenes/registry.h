@@ -4,11 +4,11 @@
 ///
 /// One `SceneRegistry` for the whole application. The shell installs its own
 /// `Popup`/`Console`/`Working`/`Loading` instances over whatever the registry reported
-/// (`shell/shell.h:130-133`), so an entry in one of those four slots is simply ignored.
+/// (`shell/shell.h:133-136`), so an entry in one of those four slots is simply ignored.
 ///
 /// `SceneKind::Screensaver` is the exception among the shell's own kinds, and the one entry here
 /// that is not an application kind: the shell owns no screensaver *scene* -- `shell::Screensaver`
-/// is a `Service` that pushes the kind by name (`shell/screensaver.cpp:45`) and deliberately does
+/// is a `Service` that pushes the kind by name (`shell/screensaver.cpp:60`) and deliberately does
 /// not overwrite the slot (`shell/shell.cpp:177-184`) -- so `overlay::screensaver_scene()` is
 /// registered there, by `overlay::kScreensaverSceneKind`. Every other kind runs
 /// from `SceneKind::FirstApp` (== 16) upwards: `FirstApp` is the menu interpreter, `FirstApp + 1`
@@ -46,69 +46,62 @@ class MenuScene;
 ///         does) overwrites this, which is the intended behaviour, not a conflict.
 uint16_t assigned_node_ids();
 
-/// @brief **Boot wiring this layer needs and does not do for itself.** Read this before wiring the
-///        scene stack to `deluge.cpp`; each entry is a real setting that silently stays at its
-///        default until someone makes the call.
+/// @brief **Boot wiring this layer needs and does not do for itself -- now done, and here is
+///        where.**
 ///
-/// `assigned_node_ids` above exists because `menu::assign_node_ids` had no caller outside the specs
-/// and three features no-opped on an unnumbered tree. This note is the same hazard, for state that
-/// cannot be fixed the same way -- a function-local static cannot invent a value that lives in
-/// flash.
+/// This note used to be a list of three settings that silently stayed at their defaults because
+/// nothing called them. **F1 task 8 closed all three**, and the list is replaced by this record
+/// rather than deleted: the calls are in `src/deluge`, none of them is anywhere a reader of this
+/// layer would look, and the *reason* each lives where it does is the part that has to survive.
+///
+/// The rule the three share is that none of them is wired from `storage/` -- that would be a
+/// storage-depends-on-scenes edge, the wrong direction -- and none of them can be a one-off call at
+/// the top of `main` either, because two of the three are settings the user can change while the
+/// firmware is running.
 ///
 ///   * **`menu::set_shortcuts_version()` (`menu/shortcuts.h`).** The pre-3.0 / current shortcut
-///     layout. Legacy loads it in `FlashStorage::readSettings`, which calls
-///     `soundEditor.setShortcutsVersion(buffer[60])` (`storage/flash_storage.cpp`) -- and that
-///     writes `SoundEditor::shortcutsVersion`, a member of a `gui/` class this layer may not name,
-///     so the port keeps its own copy beside the tables the setting selects. **Nothing calls
-///     `menu::set_shortcuts_version` at boot today**, so a user who chose the pre-3.0 layout gets
-///     the current one back on every power-on; `nodes::shortcuts_version` still works within a
-///     session. Whoever owns boot should pass flash byte 60 through
-///     (`ShortcutsVersion::V1` when it is `SHORTCUTS_VERSION_1`, i.e. 0). It is deliberately not
-///     wired from `storage/` -- that would be a storage-depends-on-scenes edge, the wrong
-///     direction. E2 task 11; the tests that cover the setting are
-///     `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and `shortcuts_spec.cpp`'s
-///     `SHORTCUTS_VERSION_1 layer` group.
+///     layout, flash byte 60. Pushed from `SoundEditor::setShortcutsVersion`
+///     (`gui/ui/sound_editor.cpp`), which is the sole writer of `SoundEditor::shortcutsVersion` --
+///     the `gui/` member this layer may not name and keeps its own copy beside the tables the
+///     setting selects -- and which is already called from all three places the value can come
+///     from: `FlashStorage::readSettings` at boot (`storage/flash_storage.cpp:568`, from byte 60),
+///     `FlashStorage::resetSettings` (`:311`) and the settings item
+///     (`gui/menu_item/shortcuts/version.h:28-35`). Covered by `sim/scenes_spec/boot_wiring_spec.cpp`;
+///     the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and
+///     `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
 ///
-///   * **`ShellConfig::screensaver_idle_ms` (`shell/shell.h:30-40`).** The screensaver's timeout,
-///     and its off switch. Legacy asks `FlashStorage` for both on every arm and every tick --
-///     `screensaverTimeoutMinutes * 60000` (`hid/display/screensaver.cpp:79-81`) and
-///     `screensaverMode == ScreensaverMode::OFF` (`:92-94,102-104,171-174`) -- but `shell::Screensaver`
-///     may not read `storage/` at all (`check_layer_rules.py`'s `shell-includes-outside` row), so
-///     the port takes one number at construction and spells "off" as `idle_ms == 0`
-///     (`shell/screensaver.h`'s class note). **Nothing computes that number today.** `ShellConfig`
-///     defaults it to 0, and `FlashStorage::screensaverTimeoutMinutes` has exactly two readers in
-///     `src/` -- `menu/nodes/settings.cpp:574,577`, the menu item that edits it -- so a shell built
-///     from the default never shows the screensaver at all, however the two settings are set.
-///     Whoever owns boot should pass
-///     `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`, and pass
-///     it again whenever either setting changes -- which is also the missing port of legacy's
-///     `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:165-177`), recorded as a gap
-///     at `overlay/screensaver_scene.h`. As with `set_shortcuts_version` above, it is deliberately
-///     not wired from `storage/`. E4 task 7; the scene itself is covered by
-///     `sim/scenes_spec/screensaver_scene_spec.cpp`, whose service example builds the
-///     `ShellConfig` by hand for exactly this reason.
+///   * **`ShellConfig::screensaver_idle_ms` (`shell/shell.h`).** The screensaver's timeout and its
+///     off switch, `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
+///     -- both live in `FlashStorage`, which `shell::Screensaver` may not read at all
+///     (`check_layer_rules.py`'s `shell-includes-outside` row), so the port takes one number and
+///     spells "off" as `idle_ms == 0`. Pushed from `Screensaver::settingsChanged()`
+///     (`hid/display/screensaver.cpp`), through `Shell::set_screensaver_idle_ms` --
+///     which is also the **port of `settingsChanged()` itself** (`shell::Screensaver::set_idle_ms`),
+///     the gap `overlay/screensaver_scene.h` recorded. That function is where the three writers
+///     funnel: `deluge_boot`, and the two settings items
+///     (`gui/menu_item/defaults/screensaver.h`). **Still open:** the *ported* tree's own two setters
+///     (`menu/nodes/settings.cpp`) write the two globals directly and cannot call it -- this layer
+///     may not include `hid/` -- so a change made from the ported screensaver menu notifies
+///     neither screensaver until the next boot. Closing that needs a `menu::Action` kind and the
+///     dispatcher `menu/action.h` records as not existing yet.
 ///
-///   * **The three services still have to be installed** -- `services::ModKnobs`,
-///     `services::GlobalControls`, `services::MidiLearn`. Each is constructed from a `SceneStack&`
-///     (the first two also from an `InputLowering&`) and each *uses* it: `ModKnobs::show_popup`
-///     pushes `overlay::ParamPopupScene` onto that stack (`services/mod_knobs.cpp:413`) and
+///   * **The three services are installed** -- `services::ModKnobs`, `services::GlobalControls`,
+///     `services::MidiLearn`. Each is constructed from a `SceneStack&` (the first two also from an
+///     `InputLowering&`) and each *uses* it: `ModKnobs::show_popup` pushes
+///     `overlay::ParamPopupScene` onto that stack (`services/mod_knobs.cpp:413`) and
 ///     `ModKnobs::popup_suppressed` (`:351`) and `ModKnobs::mod_encoder_button_action` (`:564`)
 ///     read `stack_.input_top()`; `GlobalControls::handle` gates its whole `View::buttonAction`
 ///     group on `stack_.input_top().is_root()` (`services/global_controls.cpp:580`);
 ///     `MidiLearn::handle` reads the same (`services/midi_learn.cpp:466`). The only `SceneStack`
 ///     and `InputLowering` in an application are the ones the **`Shell` owns**, so a real service
-///     cannot be built before the shell it serves.
-///
-///     Until F1 task 2 it could not be installed *after* it either -- `Services` was passed by
-///     value into the constructor and fixed there -- so **an application that built a `Shell` could
-///     only pass `Services{}`**, and no gold-knob turn, transport button or MIDI-learn press
-///     reached anything outside the scene stack. `Shell::set_services` (`shell/shell.h`) is the
-///     fix: build the shell with `Services{}`, construct the three over `shell.stack()` and
-///     `shell.lowering()`, then install them. It re-seats all three things that hold the slots --
-///     `services_`, the `Router`'s own copy, and the deduplicated `service_list_`. What remains
-///     here is boot calling it, which is the rest of this note's business, not a missing
-///     mechanism. E4 task 13 found the gap; `sim/scenes_spec/scene_scripts_spec.cpp` is where it
-///     was reported and is now the level-2 demonstration of the setter.
+///     cannot be built before the shell it serves, and until F1 task 2's `Shell::set_services` it
+///     could not be installed after it either -- `Services` was passed by value into the
+///     constructor and fixed there. `gui/ui/shell_guest_services.cpp` is the application half:
+///     it owns the three, seats them over `shellHostUI`'s own shell, and re-seeds what they borrow
+///     from legacy (`currentSong`, `View`'s active mod controllable and mod region, and the two
+///     `ViewState` blocks) at boot and on every guest open. E4 task 13 found the gap;
+///     `sim/scenes_spec/scene_scripts_spec.cpp` is the level-2 demonstration of the setter and
+///     `sim/scenes_spec/boot_wiring_spec.cpp` asserts the real installation.
 ///
 /// Nothing else in `src/scenes` is in this position: every other setting the menu tree edits is read
 /// and written through the same `FlashStorage` / `runtimeFeatureSettings` / `midiEngine` global the

@@ -18,6 +18,7 @@
 #include "gui/context_menu/reset_settings.h"
 #include "deluge.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/shell_guest_services.h"
 #include "hid/display/display.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
@@ -58,6 +59,14 @@ bool ResetSettings::acceptCurrentOption() {
 		Deluge::factoryReset();
 		break;
 	}
+
+	// Two of those five arms reach `FlashStorage::resetSettings` (`Flash` directly,
+	// `All` through `Deluge::factoryReset`), which puts the shortcut layout back to V3 by calling
+	// `soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3)` (`storage/flash_storage.cpp:311`). The
+	// ported menu keeps its own copy of that setting and would otherwise keep resolving the
+	// pre-reset layer until the next boot. Called unconditionally rather than in the two arms: it is
+	// a comparison and a pointer store, and a reader adding a sixth arm should not have to know.
+	deluge::gui::ui::applyShellGuestShortcutsVersion();
 
 	return false;
 }

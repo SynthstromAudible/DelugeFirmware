@@ -19,7 +19,7 @@
 
 // For the panel band `drawBlock` clips to, which lives on `Rainfall` because that is where it
 // lived before the move. Legacy has exactly one `drawBlock`, shared by both animations
-// (`hid/display/screensaver.cpp:63-76`), so both draw calls share one clip here too.
+// (`hid/display/screensaver.cpp:64-77`), so both draw calls share one clip here too.
 #include "ui/oled/frame.h"
 #include "ui/oled/rainfall.h"
 
@@ -74,7 +74,7 @@ Starfield::Projected Starfield::project(size_t i) const {
 }
 
 void draw_starfield(OledFrame& f, const Starfield& field) {
-	// `Screensaver::renderStarfield`, `hid/display/screensaver.cpp:195-200`. Same band and same
+	// `Screensaver::renderStarfield`, `hid/display/screensaver.cpp:225-230`. Same band and same
 	// block helper as `draw_rainfall`; see its `band_of` for why the band is the animation's own
 	// and not the frame's panel.
 	const gfx::oled::Rect band{-f.origin.x, -f.origin.y + Rainfall::kTopmost, Rainfall::kWidth,

@@ -58,8 +58,21 @@
 ///       `docs/superpowers/specs/2026-08-26-ui-shell-design.md`, and specced in
 ///       `tests/spec/shell/router_spec.cpp`. It was invisible for three plans because the slot
 ///       held a `NullService`; what it would have cost is `SoundEditor::modEncoderAction`'s
-///       MIDI-learn arm (`gui/ui/sound_editor.cpp:1583-1607`), whose port is `MenuScene`, never
-///       firing. This class needed no change for it: it claims a gold turn and a mod button and
+///       MIDI-learn arm (`gui/ui/sound_editor.cpp:1583-1607`) never firing.
+///
+/// @warning **That sentence used to say "whose port is `MenuScene`", and F1 task 8 found it is not
+///          true yet.** The arm calls `getCurrentMenuItem()->learnKnob(...)` (`:1589-1601`), and
+///          `MenuItem::learnKnob` (`gui/menu_item/menu_item.h:181`) has **no port**:
+///          `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` carries `learn_note_on`,
+///          `learn_cc` and `learn_program_change` -- `SoundEditor`'s three MIDI-*message* members
+///          (`sound_editor.cpp:1550-1570`) -- and the knob arm is a fourth that was never
+///          transcribed. So installing this service and routing a gold turn to it, which is what
+///          F1 task 8 was expected to need, would still not restore MIDI-learning a menu parameter
+///          to a gold knob under the toggle. Closing it is a `CustomItem` hook plus a port of
+///          `soundEditor.currentModControllable`, i.e. scenes-layer work; recorded as a divergence
+///          at `gui/ui/shell_host_ui.h`'s `@par What leaving the mod hooks on the base costs`.
+///
+///       This class needed no change for the reordering: it claims a gold turn and a mod button and
 ///       nothing else, which *is* the base-class-fallback contract.
 ///
 /// A gold knob's own **push** (`ButtonId::ModEnc0`/`ModEnc1`) reaches this service too, and by the
@@ -100,7 +113,7 @@
 ///      (`hid/encoders.cpp:62-63`) on a method both `mod0` and `mod1` call, so on the device,
 ///      alternating the two knobs resets the ramp -- each turn sees the *other* knob's direction
 ///      and timestamp. `InputLowering` keeps a set per `EncoderRole`
-///      (`input_lowering.h:385-388`), so here the two knobs accelerate independently. Only
+///      (`input_lowering.h:405-408`), so here the two knobs accelerate independently. Only
 ///      `currentKnobSpeed` is genuinely per-encoder in legacy (`ContinuousEncoder`'s member);
 ///      the other two are not, and that looks far more like an oversight in legacy than a design,
 ///      which is presumably why plan D split them.

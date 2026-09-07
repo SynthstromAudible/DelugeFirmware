@@ -200,6 +200,73 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		expect(r.shell.next_wake().has_value()).to_be_false();
 	});
 
+	it("set_screensaver_idle_ms is the port of settingsChanged: it arms, re-arms and switches off", _ {
+		deluge::notify::dirty().drain();
+		// **The state an application actually starts in**, and the reason this setter exists: a host
+		// built at static-init cannot read flash, so its `ShellConfig` carries the 0 default and the
+		// screensaver can never show however the two settings are set (`shell/shell.h`'s
+		// `screensaver_idle_ms`). Driven from that state rather than from a rig already armed, so
+		// the arm below cannot be one the constructor made.
+		Rig r{ShellConfig{.seed = 7}};
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		r.shell.tick(100000); // a hundred seconds of idle at "off"
+		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.screensaver.enters).to_equal(0);
+		expect(r.shell.next_wake().has_value()).to_be_false();
+
+		// `Screensaver::settingsChanged`'s `arm()` arm (`hid/display/screensaver.cpp`): the deadline
+		// is re-armed from *now*, which for this layer is the last tick's clock -- 100000, not 0.
+		// Asserted through `next_wake()` before the push, so the example is about the arm and not
+		// only about the eventual appearance.
+		r.shell.set_screensaver_idle_ms(1000);
+		expect(r.shell.screensaver_idle_ms()).to_equal(uint32_t(1000));
+		r.shell.tick(100010);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(101000));
+
+		r.shell.tick(101000);
+		expect(r.shell.stack().top().kind() == SceneKind::Screensaver).to_be_true();
+		expect(r.screensaver.enters).to_equal(1);
+
+		// The OFF arm (`:171-174`'s `unsetTimer`), and legacy's ordering: the wake is unconditional
+		// and happens *before* the OFF test, so switching the screensaver off while it is showing
+		// takes it down rather than stranding the panel.
+		r.shell.set_screensaver_idle_ms(0);
+		expect(r.shell.screensaver_idle_ms()).to_equal(uint32_t(0));
+		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.screensaver.exits).to_equal(1);
+		r.shell.tick(101010);
+		expect(r.shell.next_wake().has_value()).to_be_false();
+		r.shell.tick(999999);
+		expect(r.screensaver.enters).to_equal(1);
+	});
+
+	it("a re-supplied timeout takes effect at the new period, not the old one", _ {
+		deluge::notify::dirty().drain();
+		// The half of the settings change a "did it arm?" example cannot see: the *value* has to be
+		// the new one. Two rigs, same script, only the second number varied -- so an implementation
+		// that re-armed at whatever it already held passes neither.
+		const auto pushes_at = [](uint32_t first_ms, uint32_t second_ms) {
+			Rig r{ShellConfig{.screensaver_idle_ms = first_ms, .seed = 7}};
+			r.shell.init(SceneId{kRoot, 0});
+			r.shell.tick(0);
+			r.shell.set_screensaver_idle_ms(second_ms);
+			for (uint32_t t = 100; t <= 20000; t += 100) {
+				r.shell.tick(t);
+				if (r.shell.stack().top().kind() == SceneKind::Screensaver) {
+					return t;
+				}
+			}
+			return uint32_t(0);
+		};
+		expect(pushes_at(1000, 5000)).to_equal(uint32_t(5000));
+		expect(pushes_at(1000, 15000)).to_equal(uint32_t(15000));
+		// And the first number really was different, so "it pushed at the second" is not "it pushed
+		// at the only one there ever was".
+		expect(pushes_at(1000, 1000)).to_equal(uint32_t(1000));
+	});
+
 	it("the screensaver idle deadline survives the uint32 clock wrap", _ {
 		deluge::notify::dirty().drain();
 		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};

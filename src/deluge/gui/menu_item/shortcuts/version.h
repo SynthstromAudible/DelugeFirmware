@@ -17,6 +17,7 @@
 #pragma once
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
+#include "gui/ui/shell_guest_services.h"
 #include "gui/ui/sound_editor.h"
 
 namespace deluge::gui::menu_item::shortcuts {
@@ -24,7 +25,14 @@ class Version final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(soundEditor.shortcutsVersion); }
-	void writeCurrentValue() override { soundEditor.setShortcutsVersion(this->getValue()); }
+	void writeCurrentValue() override {
+		soundEditor.setShortcutsVersion(this->getValue());
+		// The ported menu keeps its own copy of this setting beside the two `constexpr` layers it
+		// selects between, and nothing else would tell it the user just changed layouts -- so it
+		// would keep resolving the old one until the next boot. See
+		// `deluge::gui::ui::applyShellGuestShortcutsVersion`.
+		deluge::gui::ui::applyShellGuestShortcutsVersion();
+	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		using enum l10n::String;

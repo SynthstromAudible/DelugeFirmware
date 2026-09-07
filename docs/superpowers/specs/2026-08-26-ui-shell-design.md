@@ -608,7 +608,7 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   behaviour-preserving and proven so by specs that drive legacy and port side by side; an invented
   screen has no legacy side and cannot be proven at all. `boot()` keeps its other half (the
   repaint request on every surface, which is the real port of `renderUIsForOled` marking the OLED
-  dirty at `deluge.cpp:120,133,371`) and pushes nothing, so the stack is empty and the panels stay
+  dirty at `deluge.cpp:122,135,373`) and pushes nothing, so the stack is empty and the panels stay
   blank until the application's root arrives. `tests/ui-scripts/shell/boot.txt`'s golden is that
   blank panel, and it is the point rather than an absence of one. **The rule this came from, which
   binds the rest of the port: do not add scenes, UI or UX the instrument did not already have —

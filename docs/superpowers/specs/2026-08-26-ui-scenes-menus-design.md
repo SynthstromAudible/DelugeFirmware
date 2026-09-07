@@ -1413,7 +1413,7 @@ that moved code.
 `finish_recording()` reaches `AudioEngine::discardRecorder`, which frees. Legacy states the hazard on
 its *other* caller, `AudioRecorder::slowRoutine` (`gui/ui/audio_recorder.cpp:168-176`): a recorder
 suspended part-way through its own `cardRoutine()` is left running on freed memory and then freed a
-second time. That caller is registered `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:570-572`)
+second time. That caller is registered `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:572-574`)
 **and** carries the explicit `isSDRoutineActive() || deluge::sync::sd_busy()` test; `after_render()`
 runs from `Shell::tick` and has neither.
 

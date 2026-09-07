@@ -17,12 +17,15 @@
 
 #include "gui/ui/shell_host_ui.h"
 
+#include "gui/ui/shell_guest_services.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
+#include "hid/led/indicator_leds.h"
 #include "libdeluge/scheduler.h" // isSDRoutineActive(), getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
+#include "storage/flash_storage.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -41,15 +44,25 @@ using deluge::ui::shell::SurfaceRole;
 ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board,
                          const deluge::ui::shell::BoardProfile& profile)
     : surfaces_(board, profile), shell_(surfaces_, profile, registry, Services{}, config_) {
-	// `Services{}` and a default `ShellConfig` on purpose: the three real services each take this
-	// shell's own `SceneStack&`, so they cannot exist before it. F1 task 8 builds them over
-	// `shell()` and installs them through `Shell::set_services` (`shell/shell.h:143-175`), which is
-	// the whole reason that setter exists.
+	// `Services{}` and a default `ShellConfig` on purpose, and both stay that way.
+	//
+	// The three real services each take this shell's own `SceneStack&`, so they cannot exist before
+	// it. F1 task 8 builds them over `shell()` and installs them through `Shell::set_services`
+	// (`shell/shell.h`), which is the whole reason that setter exists -- from
+	// `wireShellGuestServices()`, called at boot and from `opened()` below. This object is a
+	// static-init global, so the constructor is not a place a real service (or a real setting) can
+	// be reached from at all.
+	//
+	// **The default `ShellConfig` is a placeholder, and the two fields that are settings are seated
+	// afterwards**: `screensaver_idle_ms` through `Shell::set_screensaver_idle_ms`, pushed from
+	// `Screensaver::settingsChanged()`, and `lowering.hold_time_ms` through
+	// `InputLowering::set_hold_time_ms` in `opened()`. Neither could be read here -- flash has not
+	// been read when this runs.
 	//
 	// `config_` rather than a `ShellConfig{}` temporary, so `feedDetents` can read
-	// `edges_per_detent` back out of the same object the shell was built from. `Shell` copies it,
-	// so the two are only equal by construction -- which is why F1 task 8, when it seats a real
-	// config, has to set `config_` and construct from it rather than reach into the shell.
+	// `edges_per_detent` back out of the same object the shell was built from. `Shell` copies it, so
+	// the two are only equal by construction; `edges_per_detent` is a board fact rather than a
+	// setting, so nothing moves it and they stay equal.
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -100,6 +113,23 @@ bool ShellHostUI::opened() {
 	shell_.lowering().set_shift_is_sticky(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)
 	                                      == RuntimeFeatureStateToggle::On);
 
+	// **And the threshold that setting is measured against.** `LoweringConfig::hold_time_ms` is the
+	// other half of the same divergence, and F1 task 6 left it open because no setter existed for
+	// it; `InputLowering::set_hold_time_ms` (`shell/input_lowering.h`) is F1 task 8's, written for
+	// this line. Legacy's `FlashStorage::holdTime` is in **audio samples** -- `defaultHoldTime *
+	// kSampleRate / 20` (`storage/flash_storage.cpp:733`), read live on every shift release
+	// (`hid/buttons.cpp:264`) -- and the lowering's field is in milliseconds, so the conversion is
+	// `* 1000 / kSampleRate`. The default 2 gives 4410 samples and 100 ms, which is exactly what
+	// `LoweringConfig`'s own default documents; the range the settings item allows is 1..20
+	// (`gui/menu_item/defaults/hold_time.h:26-27`, re-clamped on read at
+	// `storage/flash_storage.cpp:730-732`), i.e. 50..1000 ms, so the `uint16_t` cannot overflow.
+	//
+	// Seeded here rather than mirrored at the settings item, unlike the shortcut layout and the
+	// screensaver: a guest that is not open cannot be observing the threshold, and `opened()` is
+	// where the shell's other flash-backed input setting is already read.
+	shell_.lowering().set_hold_time_ms(
+	    static_cast<uint16_t>(static_cast<uint32_t>(FlashStorage::holdTime) * 1000u / kSampleRate));
+
 	// **No `Shell::boot()` here, and its absence is deliberate.** The first version of this function
 	// called it, on the reasoning that the panels want a repaint on the way in. They do, and they
 	// get one without it: `SceneStack::reset` sets `changed_` unconditionally
@@ -125,6 +155,22 @@ bool ShellHostUI::opened() {
 		return false;
 	}
 
+	// **Install the three services, and re-seed everything they borrow from legacy.** They are not
+	// members of this class -- see `gui/ui/shell_guest_services.h` for why the host spec suite
+	// forbids that -- but they are installed into *this* shell, over its own `SceneStack` and
+	// `InputLowering`. Called here as well as at boot because `currentSong` and `View`'s active mod
+	// controllable can both have moved since the last open, and an unseeded `ModKnobs` does not
+	// merely do nothing: it declares every mod LED off and both knob indicators at zero, on every
+	// tick the guest runs.
+	//
+	// **After the refusal check**, like the arm below and for a weaker version of the same reason:
+	// a refused open is rolled back to the previous UI (`gui/ui/ui.cpp:237-242`), so there is no
+	// guest to serve and re-seating slots on a shell nothing is about to tick is work with no
+	// reader. The two lowering seeds above are deliberately not moved with it -- they are pure
+	// writes to this object's own state and reading flash twice is cheaper than the reader having
+	// to check where the boundary is.
+	wireShellGuestServices();
+
 	// **The first tick, and the only reason anything inside the guest ever runs.** Nothing above
 	// armed a deadline: `Shell::init` is a bare `push` and `Shell::boot` calls `request_repaint()`,
 	// which fires a gate without giving it a deadline (`shell/shell.cpp:230-239`), so
@@ -137,6 +183,7 @@ bool ShellHostUI::opened() {
 	// refused open would therefore deliver this guest's `timerCallback` to whichever UI is current
 	// instead -- `UITimerManager::routine` dispatches to `getCurrentUI()`, not to the arming object
 	// (`gui/ui_timer_manager.cpp:143`).
+
 	armTickSoon();
 	return true;
 }
@@ -401,7 +448,7 @@ ActionResult ShellHostUI::timerCallback() {
 	//
 	// This line is what makes the SD release *time*-driven. F1 task 6 wired `set_sd_busy` into the
 	// five input hooks only, and recorded the gap that leaves: legacy retries from the poll loop
-	// the moment `isSDRoutineActive()` goes false (`deluge.cpp:295-305`), whereas a guest that only
+	// the moment `isSDRoutineActive()` goes false (`deluge.cpp:297-307`), whereas a guest that only
 	// asks on input strands a deferred press until the user touches something else. `rearmTimer`
 	// below is the other half -- it keeps the timer armed for exactly as long as the lock is held.
 	shell_.set_sd_busy(isSDRoutineActive());
@@ -430,7 +477,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 		// Except one, which no scene can express as a deadline: a press held back by the SD-routine
 		// lock is waiting on a fact outside the shell entirely. Poll for it. At `kMinRearmMs` that
 		// is slower than legacy's own retry, which runs from `readButtonsAndPads` on every pass of
-		// the main loop (`deluge.cpp:295-305`), so it is not a new cost -- and it only runs while
+		// the main loop (`deluge.cpp:297-307`), so it is not a new cost -- and it only runs while
 		// the lock is actually held.
 		if (shell_.lowering().sd_busy()) {
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kMinRearmMs);
@@ -461,7 +508,7 @@ void ShellHostUI::armTickSoon() {
 // answer is `ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE`: `SoundEditor::padAction` opens with it
 // (`gui/ui/sound_editor.cpp:1405-1408`) and `dispatchInputEvent` stashes the offending event in
 // `heldInputEvent`, sets `waitingForSDRoutineToEnd`, and re-dispatches it at the top of the next
-// `readButtonsAndPads` once the routine has ended (`deluge.cpp:235-279`, the stash at `:245-248`
+// `readButtonsAndPads` once the routine has ended (`deluge.cpp:237-281`, the stash at `:245-248`
 // and `:256-259`, the replay at `:295-305`). One event deep. The port of that is
 // `InputLowering::set_sd_busy`, which queues up to `kDeferredCapacity` (8) events and replays them
 // in arrival order, each with the clock it arrived at, when the lock is released
@@ -473,7 +520,7 @@ void ShellHostUI::armTickSoon() {
 // `InputLowering::sd_busy()` holds -- so a deferred press waits for the routine to end rather than
 // for the user to touch something else. That closes the divergence task 6 recorded here; what
 // remains is only that the poll is at `kMinRearmMs` where legacy's is at the main loop's rate
-// (`deluge.cpp:295-305`), i.e. the guest is at worst a millisecond behind.
+// (`deluge.cpp:297-307`), i.e. the guest is at worst a millisecond behind.
 // ---------------------------------------------------------------------------------------------
 
 uint32_t ShellHostUI::nowMs() const {
@@ -548,11 +595,38 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	// The parameter, not `isSDRoutineActive()`: it is the caller's own answer, computed once at
-	// `deluge.cpp:254` for the event being dispatched, and `Buttons::noPressesHappening` passes its
+	// `deluge.cpp:256` for the event being dispatched, and `Buttons::noPressesHappening` passes its
 	// own (`hid/buttons.cpp:315-323`).
 	shell_.set_sd_busy(inCardRoutine);
 
-	// The exact inverse of `deluge.cpp:253`'s `deluge::hid::button::fromXY(ev.x, ev.y)`: a
+	// **The two gold-knob pushes are deliberately not fed, and F1 task 8 is what made that
+	// necessary.** `Buttons::buttonAction` delivers MOD_ENCODER_0/1 **twice**: once here at
+	// `hid/buttons.cpp:134`, like any other button, and once through its tail's
+	// `getCurrentUI()->modEncoderButtonAction(0, on)` / `(1, on)` (`:226-231`), whose base
+	// implementation is a bare forward to `view` (`gui/ui/ui.cpp:43-45`) that this class keeps.
+	// `Router::is_mod_or_gold` routes `EncoderButton{ModEnc0}`/`{ModEnc1}` to `mod_knobs` (shell
+	// spec §15.5), and `ModKnobs::mod_encoder_button_action` is the port of the very function
+	// `view` is about to run (`gui/views/view.cpp:1332-1349`). So with `ModKnobs` installed and its
+	// target seeded, feeding the press would perform the gesture **twice** -- two
+	// delete-automations, or two `ModControllable::modEncoderButtonAction` toggles -- where
+	// `SoundEditor` performs it once. Task 6 recorded the double delivery as inert and left the
+	// ordering to this task; it stopped being inert the moment the service got a non-null target.
+	//
+	// Dropping the feed rather than overriding `modEncoderButtonAction` is the conservative half of
+	// that choice: it leaves the gesture running **legacy's own code**, which is parity by
+	// construction (global constraint 1), where routing it to the port would make parity depend on
+	// the port's fidelity for no tenant that wants it -- `MenuScene` claims neither id
+	// (`grep -rn ModEnc src/scenes/menu` is empty). What it costs is one line legacy runs and this
+	// path does not: `View::modEncoderButtonAction_changeModControllable`'s value refresh is
+	// guarded on `getCurrentUI() == &soundEditor` (`view.cpp:1373-1375`), which is false while the
+	// guest is what is open, so the ported menu's displayed value goes stale after a gold-knob
+	// push. Recorded as a divergence for F1 task 9/11 rather than papered over here.
+	if (b == deluge::hid::button::MOD_ENCODER_0 || b == deluge::hid::button::MOD_ENCODER_1) {
+		armTickSoon();
+		return ActionResult::NOT_DEALT_WITH;
+	}
+
+	// The exact inverse of `deluge.cpp:255`'s `deluge::hid::button::fromXY(ev.x, ev.y)`: a
 	// `hid::Button` is `9 * (y + kDisplayHeight * 2) + x` and `toXY` undoes it
 	// (`hid/button.h:9-15`, `hid/button.cpp:8-13`). Feeding matrix coordinates rather than a
 	// `ButtonId` is deliberate -- `InputLowering::on_matrix` is what owns the matrix-to-`ButtonId`
@@ -746,6 +820,35 @@ ActionResult ShellHostUI::exitUI() {
 		armTickSoon();
 		return ActionResult::DEALT_WITH;
 	}
+	// **Hand the two knob indicator rings back to legacy, coherently.** F1 task 4 recorded, and
+	// task 7 re-measured, that `GuestSurfaceSet::set_indicator` writes the hardware through
+	// `deluge_control_set_indicator` without touching legacy's `knobIndicatorLevels[]` shadow --
+	// there is no scalar at that seam to hand `actuallySetKnobIndicatorLevel`, because a
+	// `KnobIndicator` is already the four segment levels. So after the guest has driven a ring,
+	// legacy's shadow describes a frame the hardware is no longer showing, and
+	// `actuallySetKnobIndicatorLevel`'s early-out (`hid/led/indicator_leds.cpp:186-191`) then
+	// **suppresses** the write that would put it right. Task 7 named this fix and named F1 task 8's
+	// installation of `ModKnobs` as the condition that makes it live; that condition is now met --
+	// `ModKnobs` is the one declarer of `frame.indicator(...)` in `src/scenes`
+	// (`services/mod_knobs.cpp:687`, `:696`, `:703`).
+	//
+	// `clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`) is `setKnobIndicatorLevel(i, 0)`
+	// for both (`:317-321`), which puts shadow and hardware back in step at zero, and it must run
+	// **before** `close()`: `closeUI` hands focus to the UI beneath on the same call
+	// (`gui/ui/ui.cpp:199`), and that is what re-fills the rings -- every root view's
+	// `focusRegained` reaches `view.setActiveModControllableTimelineCounter(...)`
+	// (`gui/views/session_view.cpp:183-185`, `gui/views/arranger_view.cpp:549-551`,
+	// `model/clip/instrument_clip_minder.cpp:286-289`), whose tail is `setKnobIndicatorLevels()`
+	// (`gui/views/view.cpp:1885`). Clearing after the close would blank rings nothing then
+	// refreshes.
+	//
+	// **Two residuals, both legacy's own.** `SessionView` and `ArrangerView` skip that refresh
+	// while `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW` / `UI_MODE_HOLDING_ARRANGEMENT_ROW` is active, so a
+	// guest closed during either leaves the rings dark until the next thing that sets levels; and
+	// this is the only close path the guest owns -- a `closeUI(&shellHostUI)` from elsewhere (F1
+	// task 9's exits) has no hook here to run it from, since `UI` declares none.
+	indicator_leds::clearKnobIndicatorLevels();
+
 	// No arm on the close path: `close()` is `closeUI(this)` (`gui/ui/ui.cpp:57-59`), which unsets
 	// `TimerName::UI_SPECIFIC` itself (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath
 	// (`:199`). Arming here would either be undone one line later or, worse, deliver this guest's

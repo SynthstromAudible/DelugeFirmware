@@ -124,7 +124,7 @@ the hook it belongs to.
 
 - **`modEncoderAction` must NOT be forwarded into `InputLowering`, and neither may the other two mod
   hooks.** The shell's encoder entry points take **raw A-pin edges** (`Shell::on_encoder_edges`,
-  `shell/shell.h:268`), while legacy has already turned a gold knob's edges into an accelerated
+  `shell/shell.h:294`), while legacy has already turned a gold knob's edges into an accelerated
   magnitude before it calls: `interpretEncoders` passes `offset * encoder.calcNextKnobSpeed(offset)`
   (`hid/encoder_input.cpp:192-194`) where `calcNextKnobSpeed` returns `clamp(speed, 1.0, 3.0)`
   (`hid/encoders.cpp:76`). **The lowering does not re-accelerate it — `ModKnobs` does.** The
@@ -151,7 +151,7 @@ the hook it belongs to.
   working.** Not closable in task 6: both arms ask about `currentUIMode` and
   `getCurrentMenuItem()` — `SoundEditor`'s own navigation record, stale while the guest is what is
   open. The port's answer is the routed-to-`MenuScene` path `ModKnobs` already names as the thing
-  its service ordering exists to protect (`scenes/services/mod_knobs.h:55-64`), which needs the
+  its service ordering exists to protect (`scenes/services/mod_knobs.h:55-77`), which needs the
   service installed *and* the gold turn routed: both halves of task 8. Recorded as a divergence with
   that condition, not claimed as parity.
 - **"legacy `Buttons::` state is *read* into `UiContext`, not duplicated" is not implementable.**
@@ -168,7 +168,7 @@ the hook it belongs to.
      deferred it to task 8 for a reason that was false.** `InputLowering::set_shift_is_sticky` exists
      (`shell/input_lowering.cpp:334-341`) precisely because "the settings menu toggles it live"
      (`shell/input_lowering.h:29-30`), and `Shell::lowering()` is public and non-const
-     (`shell/shell.h:332`) — so nothing about `LoweringConfig` being construction-time applies to
+     (`shell/shell.h:358`) — so nothing about `LoweringConfig` being construction-time applies to
      *this* field. `ShellHostUI::opened()` now seeds it from
      `runtimeFeatureSettings.get(ShiftIsSticky)`, and `ShiftIsSticky::writeCurrentValue`
      (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`) mirrors it live, alongside the
@@ -180,7 +180,7 @@ the hook it belongs to.
      `FlashStorage::holdTime` in legacy and a fixed 100 ms in the shell (`shell/input_lowering.h:24-25`), and nothing can
      change it after construction — `set_shift_is_sticky` (`:221`) is the only mutator `InputLowering`
      exposes for any `LoweringConfig` field — so this one does wait for a config seated where the shell is constructed — the same gap, and the same home,
-     as `ShellConfig::screensaver_idle_ms`'s own warning (`shell/shell.h:30-40`).
+     as `ShellConfig::screensaver_idle_ms`'s own warning (`shell/shell.h:30-43`).
   3. Legacy clears `considerShiftReleaseForSticky` on *every* button press including the eight mod
      buttons (`hid/buttons.cpp:88-95`), but `Buttons::buttonAction` intercepts those and never calls
      the current UI (`:99-107`), so the shell never sees `ButtonId::Mod0`..`Mod7` at all.
@@ -197,7 +197,7 @@ the hook it belongs to.
   returns, correcting a claim `ShellHostUI` used to carry.
 - **The `int8_t` edge ceiling is real and the guest saturates at it.** `Shell::on_encoder_edges` takes
   an `int8_t`, so at the Deluge's two edges per detent a turn of more than 63 detents wraps negative
-  (`shell/input_lowering.h:387-410`). The guest *can* be handed more: legacy's `detentDelta`
+  (`shell/input_lowering.h:407-430`). The guest *can* be handed more: legacy's `detentDelta`
   accumulates in `DetentedEncoder::pos` across every pass `interpretEncoders` skips during the SD
   routine (`hid/encoder_input.cpp:96-106`) or a stem export (`:66-68`). So the guest clamps to
   ±(127 / `edges_per_detent`) **before** multiplying — legacy's own choice for tempo and select
@@ -232,7 +232,7 @@ at the code.
 
 - **`next_wake_` is an absolute deadline; `setTimer` takes a duration.** The row does not say which,
   and the two are different units. `Shell::next_wake()` returns `std::optional<uint32_t>`, an
-  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:327`,
+  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:353`,
   `shell/shell.cpp:515`); `UITimerManager::setTimer(which, ms)` is a duration and converts it with
   `ms * 44` into audio samples (`gui/ui_timer_manager.cpp:253-255`). The guest converts with the
   wrap-safe difference `(int32_t)(deadline - now)` — the form `compute_next_wake` and `RepaintGate`
@@ -270,7 +270,7 @@ at the code.
   all five input hooks — and deliberately **not** from `exitUI()`'s close path, where `closeUI` is
   about to unset it and where an arm would deliver this guest's callback to the UI beneath.
 - **There is no `LedSink`.** `grep -rn LedSink src/` has no hits. `derive_leds` is a private member
-  of `Shell` (`shell/shell.h:450`), not of the guest, and it does not write anything: it composes the
+  of `Shell` (`shell/shell.h:482`), not of the guest, and it does not write anything: it composes the
   frame and fills the `desired_*` shadows (`shell/shell.cpp:838-857`), and `Shell::flush` is what
   calls `SurfaceSet::set_led` (`shell/shell.cpp:966-992`). The `indicator_leds` half of the sentence
   is right and was already built by F1 task 4 (`GuestSurfaceSet::set_led`). What task 7 adds is the
@@ -508,7 +508,7 @@ rather than a thing that is half-done:
    `scenes::assigned_node_ids()`, and — added by E4 task 7 — a value for
    `ShellConfig::screensaver_idle_ms`, which is
    `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
-   (`hid/display/screensaver.cpp:79-81`, `:92-94`) and must be re-supplied on every settings change,
+   (`hid/display/screensaver.cpp:80-82`, `:92-94`) and must be re-supplied on every settings change,
    since `Screensaver::settingsChanged()` has no port. Until it is, `ShellConfig` defaults it to 0
    and **the screensaver can never activate**, however the two settings are set.
 6. **`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
@@ -991,7 +991,7 @@ what a deletion loses outright.
   `currentUIMode` lives in `gui/ui/ui.h`, which this layer may never include, so there is no port to
   compare against at all.
 * **Four `ScreensaverScene` behaviours, all of them policy rather than drawing and all of them
-  `shell::Screensaver`'s half**: `settingsChanged()` (`hid/display/screensaver.cpp:165-177`), the
+  `shell::Screensaver`'s half**: `settingsChanged()` (`hid/display/screensaver.cpp:166-207`), the
   permanent-popup / working-animation / stem-export inhibitors (`:106-118`) and with them the
   1000 ms re-check that exists only to run them, the `ScreensaverMode::OFF` early-outs, and the
   `consumeFrameDirty` blit protocol.

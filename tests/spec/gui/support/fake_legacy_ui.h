@@ -81,6 +81,21 @@ extern double system_time_s;
 extern bool sd_routine_active;
 /// @}
 
+/// @name What the guest calls out to, on the two paths this suite cannot build
+/// @{
+/// How many times `indicator_leds::clearKnobIndicatorLevels()` was called -- the guest's close-path
+/// hand-back of the two gold-knob rings.
+extern int knob_indicator_clears;
+/// Whether `closeUI` had already run when `clearKnobIndicatorLevels()` was called. Must be false:
+/// the clear is only useful *before* the close, because `closeUI` runs the `focusRegained` that
+/// re-fills the rings.
+extern bool knob_clear_saw_close;
+/// How many times `deluge::gui::ui::wireShellGuestServices()` was called. The real one lives in the
+/// `deluge_scenes` closure this suite never builds; see its own header for why the seam is a free
+/// function rather than three members.
+extern int service_wirings;
+/// @}
+
 /// @brief Clear every recorder, and put the clock and the SD lock back to 0 / false.
 void reset();
 

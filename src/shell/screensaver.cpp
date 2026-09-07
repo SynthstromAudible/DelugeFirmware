@@ -9,7 +9,7 @@ Screensaver::Screensaver(SceneStack& stack, uint32_t idle_ms, uint32_t seed)
 void Screensaver::note_activity(uint32_t now_ms) {
 	if (active_) {
 		// Legacy never restores anything on wake either: the screensaver never wrote to the scene
-		// beneath it, so waking it is simply "stop showing" (`screensaver.cpp:86-89`). Popping by
+		// beneath it, so waking it is simply "stop showing" (`screensaver.cpp:87-90`). Popping by
 		// kind rather than a bare "pop the top" also takes down anything a caller pushed above the
 		// screensaver while it was up.
 		stack_.pop(SceneKind::Screensaver);
@@ -19,6 +19,21 @@ void Screensaver::note_activity(uint32_t now_ms) {
 		return; // The `ScreensaverMode::OFF` equivalent: never re-armed.
 	}
 	deadline_ms_ = now_ms + idle_ms_;
+	armed_ = true;
+}
+
+void Screensaver::set_idle_ms(uint32_t idle_ms) {
+	// `Screensaver::settingsChanged` (`hid/display/screensaver.cpp:166-207`), step for step.
+	idle_ms_ = idle_ms;
+	if (active_) { // `:166-169` -- unconditional, and before the OFF test.
+		stack_.pop(SceneKind::Screensaver);
+		active_ = false;
+	}
+	if (idle_ms_ == 0) { // `:171-174` `unsetTimer(TimerName::SCREENSAVER)`.
+		armed_ = false;
+		return;
+	}
+	deadline_ms_ = now_ms_ + idle_ms_; // `:176` `arm()`.
 	armed_ = true;
 }
 

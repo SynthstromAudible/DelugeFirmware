@@ -17,7 +17,7 @@ namespace deluge::ui::shell {
 /// short of the real scene supplies its own stand-in at that slot.
 ///
 /// @note `idle_ms == 0` disables the service outright, the port of legacy's `ScreensaverMode::OFF`
-///       (`screensaver.cpp:92-94,102-104,171-174`): `tick()` never pushes and `note_activity()`
+///       (`screensaver.cpp:93-95,103-105,201-204`): `tick()` never pushes and `note_activity()`
 ///       never re-arms the deadline.
 ///
 /// @note **A refused push disables the service for good.** `SceneStack::push` returns false when
@@ -49,7 +49,7 @@ public:
 	/// @brief Register that a physical control was touched: wake the screensaver if it is
 	///        showing, and re-arm the idle deadline either way.
 	///
-	/// Ported from `Screensaver::noteActivity` (`hid/display/screensaver.cpp:83-97`): the wake
+	/// Ported from `Screensaver::noteActivity` (`hid/display/screensaver.cpp:84-98`): the wake
 	/// check runs first and unconditionally, exactly as legacy's own comment on that ordering
 	/// warns ("sits on the input hot path... so a mode that somehow reached OFF... can never
 	/// strand the panel"), and the deadline is re-armed afterwards regardless of whether the
@@ -58,10 +58,38 @@ public:
 	/// `Shell::on_board_event`/`on_encoder_edges` call this before lowering the event, never
 	/// instead of it: legacy's `dispatchInputEvent` calls `noteActivity()` first and then
 	/// unconditionally continues into `padAction`/`buttonAction` for the very same event
-	/// (`deluge.cpp:238,252`; the encoder path is the same shape, `hid/encoder_input.cpp:208`), so
+	/// (`deluge.cpp:240,254`; the encoder path is the same shape, `hid/encoder_input.cpp:208`), so
 	/// the press that wakes the screensaver is never swallowed by waking it.
 	/// @param now_ms The wall clock the input arrived at.
 	void note_activity(uint32_t now_ms);
+
+	/// @brief Re-supply the timeout after a settings change -- the port of
+	///        `Screensaver::settingsChanged` (`hid/display/screensaver.cpp:166-207`).
+	///
+	/// Legacy re-reads `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` on every arm
+	/// and every tick, so a settings change takes effect by itself; this service is handed one
+	/// number at construction instead (the layer may not read `storage/`), so the change has to be
+	/// pushed in. `Shell::set_screensaver_idle_ms` is the shell-level entry point and
+	/// `scenes/registry.h`'s boot-wiring note carries the formula the host computes.
+	///
+	/// Legacy's three steps, in legacy's order: wake if showing, then either disable (its
+	/// `unsetTimer`) or re-arm from now (its `arm()`). Waking is unconditional and comes first, for
+	/// the reason legacy's own comment gives at `note_activity` above -- a mode that reached OFF
+	/// while the screensaver was up must not strand the panel.
+	///
+	/// @note The clock is `now_ms_`, the last `tick()`'s -- this layer has no wall clock
+	///       (`shell-no-clock`), the same reason `next_timer()` measures from it. Before the first
+	///       tick that is 0, which arms the deadline at `idle_ms` from the shell's origin: exactly
+	///       what a boot-time supply should mean.
+	/// @note A latched refusal is **not** cleared. `refused_` means the application registered no
+	///       `SceneKind::Screensaver` scene, which a settings change cannot fix; retrying would
+	///       restore the unbounded push-fail loop the latch exists to stop.
+	/// @param idle_ms The new idle period; 0 disables the service, the port of
+	///                `ScreensaverMode::OFF`.
+	void set_idle_ms(uint32_t idle_ms);
+
+	/// @brief The idle period in force; 0 while the service is disabled.
+	uint32_t idle_ms() const { return idle_ms_; }
 
 	/// @brief Push the screensaver once idle and not already showing.
 	/// @param now_ms The tick's wall clock.

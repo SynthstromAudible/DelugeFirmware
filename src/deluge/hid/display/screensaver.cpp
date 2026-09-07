@@ -17,6 +17,7 @@
 
 #include "hid/display/screensaver.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -163,6 +164,35 @@ void Screensaver::timerEvent() {
 }
 
 void Screensaver::settingsChanged() {
+	// **Re-supply the ported screensaver's copy of the same two settings.**
+	// `deluge::ui::shell::Screensaver` is the policy half of this class, ported as a `Service`
+	// (`shell/screensaver.h`), and `src/shell` may not read `storage/` -- so it holds one number
+	// where this class re-reads `FlashStorage` on every arm and every tick, and something has to
+	// push a change in. That is what `scenes/registry.h`'s boot-wiring note asked whoever owns boot
+	// to do, and this function is the better home than a boot call: it is already the one place a
+	// change to either setting funnels through, from all three writers --
+	// `deluge_boot` (`deluge.cpp`, after `FlashStorage::readSettings()`),
+	// `ScreensaverModeMenu::writeCurrentValue` and `ScreensaverTimeout::writeCurrentValue`
+	// (`gui/menu_item/defaults/screensaver.h:38-40`, `:60-62`). A boot call would have covered only
+	// the first and the port would go stale the moment the user changed either.
+	//
+	// The formula is legacy's own two reads, spelled as one number: `arm()`'s
+	// `screensaverTimeoutMinutes * kMillisecondsPerMinute` (`:79-81`) and the `ScreensaverMode::OFF`
+	// early-outs the port spells as `idle_ms == 0` (`:92-94`, `:102-104`, `:171-174`).
+	//
+	// **Not covered from here: the ported menu's own two setters.**
+	// `scenes/menu/nodes/settings.cpp:570` and `:577` write the same two `FlashStorage` globals
+	// directly and cannot call this -- `src/scenes` may not include `hid/`. So under the toggle,
+	// changing either setting from the *ported* screensaver menu leaves both this class and the
+	// service armed at the old value until the next boot or the next change made from the legacy
+	// menu. A pre-existing hole in the ported tree (it does not notify this class either), recorded
+	// by F1 task 8 rather than closed: closing it needs a `menu::Action` kind and the dispatcher
+	// that performs one, which `scenes/menu/action.h` records as not existing yet.
+	shellHostUI.shell().set_screensaver_idle_ms(FlashStorage::screensaverMode == ScreensaverMode::OFF
+	                                                ? 0u
+	                                                : static_cast<uint32_t>(FlashStorage::screensaverTimeoutMinutes)
+	                                                      * kMillisecondsPerMinute);
+
 	if (active_) {
 		active_ = false;
 		OLED::markChanged();

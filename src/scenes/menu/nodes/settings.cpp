@@ -62,7 +62,7 @@
 
 // `battery::Level::isRelevant` reads `runtimeFeatureSettings` (`relevance::battery_shown`, this
 // file's own relevance.cpp); the value itself is `batteryMV`, a plain global the main loop sets
-// (`deluge.cpp:89,146`) -- declared bare and at global scope, exactly as `sound_editor.cpp:1403`
+// (`deluge.cpp:91,148`) -- declared bare and at global scope, exactly as `sound_editor.cpp:1403`
 // and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*,
 // unlinked variable rather than referring to the one `deluge.cpp` defines).
 extern uint16_t batteryMV;
@@ -820,10 +820,10 @@ void set_flash_status(const MenuContext&, int32_t value) {
 // Both hooks qualify their `menu::` callee: `nodes` already has a `shortcuts_version` (the `Node`)
 // and a `set_shortcuts_version` (this hook), and either name would hide the enclosing namespace's.
 int32_t get_shortcuts_version(const MenuContext&) {
-	return static_cast<int32_t>(menu::shortcuts_version()); // `shortcuts/version.h:26`
+	return static_cast<int32_t>(menu::shortcuts_version()); // `shortcuts/version.h:27`
 }
 void set_shortcuts_version(const MenuContext&, int32_t value) {
-	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:27`) ->
+	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:28-35`) ->
 	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:111-143`).
 	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
 	                                                                                : ShortcutsVersion::V3);

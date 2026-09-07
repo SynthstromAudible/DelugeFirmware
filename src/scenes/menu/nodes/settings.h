@@ -22,7 +22,7 @@
 ///
 ///         * **`hid/` state.** (This group is empty now.) `flash_status` (`PadLEDs::flashCursor`,
 ///           `flash/status.h:26-32`), `shortcuts_version` (`soundEditor.shortcutsVersion`,
-///           `shortcuts/version.h:26-27`) and the six `pad_colour_*` (`menu_item::Colour::value`,
+///           `shortcuts/version.h:27-35`) and the six `pad_colour_*` (`menu_item::Colour::value`,
 ///           `colour.h:66`) were its members until **E2 task 11**, which found that not one of
 ///           the three actually needed a bespoke item -- only a reachable byte:
 ///             - `flashCursor` is a plain namespace-scope `uint8_t` (`hid/led/pad_leds.h:47`) that
@@ -329,7 +329,7 @@ int32_t get_flash_status(const MenuContext& ctx);
 void set_flash_status(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// @brief `shortcuts::Version`'s read and write (`shortcuts/version.h:26-27`).
+/// @brief `shortcuts::Version`'s read and write (`shortcuts/version.h:27-35`).
 ///
 /// Legacy keeps the setting on `soundEditor` and applies it by *mutating* ten cells of two shortcut
 /// tables in place (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:111-143`). The
@@ -954,7 +954,7 @@ inline constexpr Node defaults_settings = submenu(sid(String::STRING_FOR_DEFAULT
 // ---------------------------------------------------------------------------------------------
 // 7. Pads
 
-/// `shortcuts::Version::getOptions` (`shortcuts/version.h:28-35`): the pre-3.0 layout and the
+/// `shortcuts::Version::getOptions` (`shortcuts/version.h:36-43`): the pre-3.0 layout and the
 /// current one, in `SHORTCUTS_VERSION_1` 0 / `_3` 1 value order (`gui/ui/sound_editor.h:26-27`,
 /// mirrored as `menu::ShortcutsVersion` so this layer names no `gui/` header).
 inline constexpr uint16_t kShortcutsVersionNames[] = {

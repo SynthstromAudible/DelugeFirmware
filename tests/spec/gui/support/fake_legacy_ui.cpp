@@ -1,5 +1,6 @@
 #include "fake_legacy_ui.h"
 
+#include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "memory/heaps.h"
@@ -16,6 +17,9 @@ int mod_encoder_button_actions = 0;
 int graphics_routines = 0;
 double system_time_s = 0.0;
 bool sd_routine_active = false;
+int knob_indicator_clears = 0;
+bool knob_clear_saw_close = false;
+int service_wirings = 0;
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
 
@@ -40,6 +44,9 @@ void reset() {
 	graphics_routines = 0;
 	system_time_s = 0.0;
 	sd_routine_active = false;
+	knob_indicator_clears = 0;
+	knob_clear_saw_close = false;
+	service_wirings = 0;
 	timer_arms.clear();
 	timer_unsets.clear();
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
@@ -208,3 +215,49 @@ void dealloc(void* ptr) {
 	::operator delete(ptr);
 }
 } // namespace deluge::memory
+
+// ---------------------------------------------------------------------------
+// storage/flash_storage.cpp's share: the one setting `ShellHostUI::opened()`
+// reads out of it. `FlashStorage::holdTime` is the tap threshold in AUDIO
+// SAMPLES, which the guest converts to the milliseconds `LoweringConfig` wants;
+// the real translation unit is the whole settings reader and writer, which this
+// suite does not build. `fakelegacyui::reset()` puts it back to legacy's own
+// default -- `defaultHoldTime (2) * kSampleRate / 20`
+// (`storage/flash_storage.cpp:354-355`), i.e. 4410 samples and 100 ms.
+// ---------------------------------------------------------------------------
+namespace FlashStorage {
+int32_t holdTime = (2 * kSampleRate) / 20;
+} // namespace FlashStorage
+
+// ---------------------------------------------------------------------------
+// hid/led/indicator_leds.cpp's share of the guest's close path. The real file is
+// the whole LED driver plus its blink timers; `clearKnobIndicatorLevels` is the
+// one symbol `ShellHostUI::exitUI` names, and what a spec is about is that it
+// was called, once, before `close()`.
+// ---------------------------------------------------------------------------
+namespace indicator_leds {
+void clearKnobIndicatorLevels() {
+	fakelegacyui::knob_indicator_clears++;
+	// The **order** matters and is what this records: `closeUI` hands focus to the UI beneath on the
+	// same call (`gui/ui/ui.cpp:199`) and that is what re-fills the rings, so a clear made after the
+	// close blanks rings nothing then refreshes. True here means the close had already happened.
+	fakelegacyui::knob_clear_saw_close = !fakelegacyui::closed.empty();
+}
+} // namespace indicator_leds
+
+// ---------------------------------------------------------------------------
+// gui/ui/shell_guest_services.cpp's share: the one function, recorded rather
+// than performed. The real one constructs `services::ModKnobs`,
+// `services::GlobalControls` and `services::MidiLearn` -- concrete classes over
+// `model/` from the `deluge_scenes` closure this suite deliberately never builds
+// (`tests/spec/CMakeLists.txt`'s note, and `gui/ui/shell_guest_services.h`'s own
+// "why this is its own translation unit"). What a guest spec can say about it is
+// that `opened()` calls it, which is what the counter is for; that the services
+// it installs are the right ones is `sim/scenes_spec/boot_wiring_spec.cpp`'s,
+// where the real closure exists.
+// ---------------------------------------------------------------------------
+namespace deluge::gui::ui {
+void wireShellGuestServices() {
+	fakelegacyui::service_wirings++;
+}
+} // namespace deluge::gui::ui

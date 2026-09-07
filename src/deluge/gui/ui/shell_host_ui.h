@@ -63,7 +63,7 @@ namespace deluge::gui::ui {
 /// | `~UI` | `ui.h:94` | Defaulted. This class owns its members by value; the implicit destructor is correct. |
 /// | `modEncoderAction` | `ui.h:104` | **The three gold-knob hooks stay with `view`, and F1 task 6 decided that deliberately against its own brief -- see `@par The gold knobs` below.** The base forwards to `view` (`ui.cpp:35-37`), legacy's own mod-knob path, which is where `SoundEditor::modEncoderAction` ends up **only from its innermost `else`** (`gui/ui/sound_editor.cpp:1604`) -- so this is *not* parity, and what it drops is in `@par What leaving the mod hooks on the base costs`. Task 8's, with `ModKnobs`. |
 /// | `modButtonAction` | `ui.h:105` | Base forwards to `view` (`ui.cpp:39-41`); `SoundEditor` does not override it at all, so this row -- alone of the three -- really is legacy's behaviour unchanged. Legacy never routes a mod button to `buttonAction` either -- `Buttons::buttonAction` intercepts the eight of them and `goto dealtWith`s (`hid/buttons.cpp:99-107`) -- so **the shell never sees `ButtonId::Mod0`..`Mod7` under the guest at all.** Recorded as a gap, not a decision, and it has a second-order cost: see `@par Shift`. |
-/// | `modEncoderButtonAction` | `ui.h:106` | Base forwards to `view` (`ui.cpp:43-45`), which is where `SoundEditor` lands only from its own `else` (`gui/ui/sound_editor.cpp:1609-1616`), losing its `automationView` redirect -- see the same `@par`. Shell spec §15.5 has the scene-then-service order it has to land in; that lands with Task 8. Note the dispatch is *gated on this class's `buttonAction`*: `Buttons` only reaches it when the current UI returned `NOT_DEALT_WITH` (`hid/buttons.cpp:134-141`, the arms at `:226-231`), which is one more reason `buttonAction` below returns that value. |
+/// | `modEncoderButtonAction` | `ui.h:106` | Base forwards to `view` (`ui.cpp:43-45`), which is where `SoundEditor` lands only from its own `else` (`gui/ui/sound_editor.cpp:1609-1616`), losing its `automationView` redirect -- see the same `@par`. **F1 task 8 settled the ordering shell spec §15.5 asks about, and settled it the other way: `view` keeps the push and the shell never sees it.** With `ModKnobs` installed and its target seeded, feeding the press as well would run the same gesture twice -- `ModKnobs::mod_encoder_button_action` is the port of the `view` function this row forwards to -- so `buttonAction` below drops `ButtonId::ModEnc0`/`ModEnc1` instead. What that costs is one line: `View::modEncoderButtonAction_changeModControllable`'s value refresh is guarded on `getCurrentUI() == &soundEditor` (`gui/views/view.cpp:1373-1375`), false under the guest, so the ported menu's displayed value goes stale after a gold-knob push. Note the dispatch is *gated on this class's `buttonAction`*: `Buttons` only reaches it when the current UI returned `NOT_DEALT_WITH` (`hid/buttons.cpp:134-141`, the arms at `:226-231`), which is one more reason `buttonAction` below returns that value. |
 /// | `graphicsRoutine` | `ui.h:108` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:47-51`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
 /// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
 /// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
@@ -108,7 +108,7 @@ namespace deluge::gui::ui {
 ///
 /// @par The unit mismatch: an absolute deadline against a duration
 ///
-/// `Shell::next_wake()` is an **absolute** millisecond deadline (`shell/shell.h:327`), recomputed at
+/// `Shell::next_wake()` is an **absolute** millisecond deadline (`shell/shell.h:353`), recomputed at
 /// the bottom of every tick (`shell/shell.cpp:515`). `UITimerManager::setTimer` takes a **duration**
 /// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:253-255`). The
 /// conversion is therefore `in = (int32_t)(deadline - now)`, in the wrap-safe difference form
@@ -168,7 +168,7 @@ namespace deluge::gui::ui {
 ///
 /// **There is no `LedSink`, and this class implements no LED sink.** Spec F §2.1 says "the guest's
 /// `derive_leds` writes through an `indicator_leds` `LedSink`"; `grep -rn LedSink src/` has no hits,
-/// `derive_leds` is a private member of `Shell` (`shell/shell.h:450`) rather than of the guest, and
+/// `derive_leds` is a private member of `Shell` (`shell/shell.h:482`) rather than of the guest, and
 /// the writing is done by `Shell::flush`, not by `derive_leds` (`shell/shell.cpp:966-992`). The seam
 /// that actually exists is `SurfaceSet::set_led`/`set_indicator`, implemented for the guest by F1
 /// task 4 (`gui/ui/shell_guest_surfaces.cpp:175`, `:189`). What this task adds is the *tick* that
@@ -192,14 +192,16 @@ namespace deluge::gui::ui {
 ///    the four segment levels and there is no scalar to hand `actuallySetKnobIndicatorLevel` -- so
 ///    `knobIndicatorLevels[]` goes stale, and that function's early-out then suppresses a later
 ///    legacy write of the level the shadow still holds (`hid/led/indicator_leds.cpp:187-191`).
-///    **Not live in this plan, and that is measured rather than assumed:** `grep -rn "frame.indicator("
-///    src/scenes` finds exactly one declarer, `scenes/services/mod_knobs.cpp:687`/`:696`/`:703`, and
-///    `Shell::flush` calls `set_indicator` only for an indicator declared this tick
-///    (`shell/shell.cpp:996-1008`). This guest is constructed with `Services{}`, so no tick can
-///    reach `set_indicator` at all. The condition that makes it live is **F1 task 8** installing
-///    `ModKnobs`; the fix that belongs with it is `indicator_leds::clearKnobIndicatorLevels()`
-///    (`hid/led/indicator_leds.h:88`) on the guest's close path, which puts shadow and hardware back
-///    in step at level 0.
+///    **This went live with F1 task 8, which is what task 7 said would make it live.** The one
+///    declarer is `services::ModKnobs` (`grep -rn "frame.indicator(" src/scenes` --
+///    `scenes/services/mod_knobs.cpp:687`, `:696`, `:703`), `Shell::flush` calls `set_indicator`
+///    only for an indicator declared this tick (`shell/shell.cpp:996-1008`), and the guest now has a
+///    `ModKnobs` in its `Services`. The fix task 7 named is in: `exitUI`'s close path calls
+///    `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`) *before*
+///    `close()`, which puts shadow and hardware back in step at level 0 in time for the
+///    `focusRegained` that `closeUI` runs on the same call -- every root view's reaches
+///    `view.setActiveModControllableTimelineCounter(...)` and so `setKnobIndicatorLevels()`. See
+///    that function for the two residual cases.
 ///
 /// @par The gold knobs: why `modEncoderAction` is NOT wired, against the brief
 ///
@@ -207,7 +209,7 @@ namespace deluge::gui::ui {
 /// into the shell's `InputLowering`". Doing that would corrupt the value, arithmetically:
 ///
 ///  - The shell's only encoder entry points take **raw A-pin edges**
-///    (`Shell::on_encoder_edges`, `shell/shell.h:268`; `DELUGE_EVENT_ENCODER`'s `value`,
+///    (`Shell::on_encoder_edges`, `shell/shell.h:294`; `DELUGE_EVENT_ENCODER`'s `value`,
 ///    `shell/input_lowering.h:133-138`), and legacy has already turned a gold knob's edges into an
 ///    accelerated magnitude before it calls: `interpretEncoders` hands over
 ///    `offset * encoder.calcNextKnobSpeed(offset)` (`hid/encoder_input.cpp:192-194`), where
@@ -217,7 +219,7 @@ namespace deluge::gui::ui {
 ///    acceleration is applied by whoever consumes it, through `calc_next_knob_speed`"
 ///    (`shell/input_lowering.cpp:187-193`). The one consumer is F1 task 8's service
 ///    (`scenes/services/mod_knobs.cpp:274`), which multiplies by
-///    `InputLowering::calc_next_knob_speed` (`shell/input_lowering.h:346`). So the second
+///    `InputLowering::calc_next_knob_speed` (`shell/input_lowering.h:366`). So the second
 ///    multiplication is real but lands one layer further down than a reading of the lowering alone
 ///    would suggest.
 ///  - **The factor is ~18x, not 9x, because the Accelerating branch does not divide by
@@ -250,15 +252,21 @@ namespace deluge::gui::ui {
 /// `modEncoderButtonAction` has the same shape, minus the learn arm (`:1609-1616`).
 /// `modButtonAction` really is untouched by `SoundEditor`, so that one row *is* parity.
 ///
-/// **Not closable here, and the condition that ends it is F1 task 8.** Both missing arms are
-/// questions about legacy `SoundEditor` state the guest cannot answer -- `currentUIMode` and
-/// `getCurrentMenuItem()`, which is `SoundEditor`'s own navigation record and is stale while the
-/// guest is what is open. The port's answer is the routed-to-`MenuScene` path that
-/// `ModKnobs`'s own note names as the thing the service ordering exists to protect
-/// (`scenes/services/mod_knobs.h:55-64`, "what it would have cost is
-/// `SoundEditor::modEncoderAction`'s MIDI-learn arm ... whose port is `MenuScene`"). That needs the
-/// service installed *and* the gold turn routed, i.e. both halves of task 8. Recorded as a
-/// divergence rather than claimed as parity.
+/// **Still not closable, and F1 task 8 -- which was named as the task that would close it -- found
+/// out why.** Task 6 recorded that the port's answer was "the routed-to-`MenuScene` path", after
+/// `ModKnobs`'s own note (`scenes/services/mod_knobs.h`: *"what it would have cost is
+/// `SoundEditor::modEncoderAction`'s MIDI-learn arm ... whose port is `MenuScene`"*), and that it
+/// needed the service installed **and** the gold turn routed. The service is now installed. The
+/// other half does not help, because **there is no destination**: legacy's arm calls
+/// `getCurrentMenuItem()->learnKnob(...)` (`gui/ui/sound_editor.cpp:1589-1601`), and
+/// `MenuItem::learnKnob` (`gui/menu_item/menu_item.h:181`, implemented by
+/// `MenuItemWithCCLearning::learnKnob`, `gui/menu_item/menu_item_with_cc_learning.cpp:43-57`) has
+/// **no port at all** -- `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` has the *other*
+/// three learn entry points (`learn_note_on`, `learn_cc`, `learn_program_change`,
+/// `scenes/menu/menu_scene.h`), which are `SoundEditor`'s three MIDI-message members; the knob arm
+/// is a fourth and was never ported. Adding it is a `CustomItem` hook plus a port of
+/// `soundEditor.currentModControllable`, i.e. scenes-layer work, not wiring. Recorded as a
+/// divergence with the real condition on it, and the claim in `mod_knobs.h` corrected.
 ///
 /// @par Shift: two state machines, and what actually keeps them in step
 ///
@@ -284,9 +292,14 @@ namespace deluge::gui::ui {
 ///     and it belongs with the boot wiring: `LoweringConfig` is construction-time
 ///     (`shell/shell.h:27-29`) and this object is a static-init global that cannot read flash.
 ///     Same class of gap, same home, as `ShellConfig::screensaver_idle_ms`'s own warning
-///     (`shell/shell.h:30-40`).
-///  2. **`hold_time_ms` is a constant here and a setting there.** The tap threshold is
-///     `FlashStorage::holdTime` in legacy, `LoweringConfig::hold_time_ms` (100) in the shell.
+///     (`shell/shell.h:30-43`).
+///  2. ~~`hold_time_ms` is a constant here and a setting there.~~ **Closed by F1 task 8.** The tap
+///     threshold is `FlashStorage::holdTime` (audio samples) in legacy and
+///     `LoweringConfig::hold_time_ms` in the shell; `opened()` now converts and seats it through
+///     `InputLowering::set_hold_time_ms`, beside the sticky-shift seed. Task 6 deferred it because
+///     no `LoweringConfig` mutator existed for it; task 8 added the one, on the same argument that
+///     justified `set_shift_is_sticky` -- these two fields are settings, and the other two
+///     (`short_press_ms`, `edges_per_detent`) are a constant and a board fact.
 ///  3. **Mod buttons.** Legacy clears `considerShiftReleaseForSticky` on *every* button press
 ///     including the eight mod buttons (`hid/buttons.cpp:88-95`, above the mod-button interception
 ///     at `:99-107`); the shell never sees them (the `modButtonAction` row above), so
@@ -420,9 +433,9 @@ private:
 	/// multiplies back up. Feeding the detent count straight through would halve every turn.
 	///
 	/// @warning **The `int8_t` ceiling, and why this saturates instead of wrapping.**
-	///          `Shell::on_encoder_edges` takes an `int8_t` (`shell/shell.h:268`), so the product
+	///          `Shell::on_encoder_edges` takes an `int8_t` (`shell/shell.h:294`), so the product
 	///          must fit in -128..127; the lowering's own warning records what happens when it does
-	///          not (`shell/input_lowering.h:387-410`). **The guest can exceed it.** Legacy's
+	///          not (`shell/input_lowering.h:407-430`). **The guest can exceed it.** Legacy's
 	///          `detentDelta` is an `int32_t` accumulated in `DetentedEncoder::pos` across however
 	///          many `applyEdges` calls happen before a `take()`, and `interpretEncoders` skips the
 	///          `take()` entirely while the SD routine is yielding (`hid/encoder_input.cpp:96-106`,
@@ -478,7 +491,7 @@ private:
 	/// @brief The config `shell_` was built with, kept so `feedDetents` can read
 	///        `edges_per_detent` back.
 	///
-	/// `InputLowering` exposes `profile()` (`shell/input_lowering.h:258`) and `shift_is_sticky()`
+	/// `InputLowering` exposes `profile()` (`shell/input_lowering.h:278`) and `shift_is_sticky()`
 	/// (`:223`) but not the edge ratio, and a literal `2` here would silently go stale the day
 	/// F1 task 8 seats a real config. Declared before `shell_` so it is alive when the constructor
 	/// hands it over.

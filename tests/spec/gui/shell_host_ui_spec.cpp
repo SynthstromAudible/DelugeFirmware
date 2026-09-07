@@ -9,6 +9,7 @@
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "shell/profiles/deluge.h"
+#include "storage/flash_storage.h"
 #include "ui/core/style.h"
 
 #include "cppspec.hpp"
@@ -897,7 +898,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// Legacy's answer here is `REMIND_ME_OUTSIDE_CARD_ROUTINE`
 		// (`gui/ui/sound_editor.cpp:1405-1408`), which `dispatchInputEvent` turns into one stashed
-		// event replayed after the routine (`deluge.cpp:245-248`, `:295-305`). The port is
+		// event replayed after the routine (`deluge.cpp:247-250`, `:295-305`). The port is
 		// `InputLowering::set_sd_busy`, so the press must be **deferred, not dropped**.
 		fakelegacyui::sd_routine_active = true;
 		(void)r.guest.padAction(4, 2, 255);
@@ -925,7 +926,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.seen.clear();
 
 		// `buttonAction` takes `inCardRoutine` rather than reading the scheduler, because that is
-		// the caller's own answer (`deluge.cpp:254`). So the *parameter* is what must gate this,
+		// the caller's own answer (`deluge.cpp:256`). So the *parameter* is what must gate this,
 		// and `sd_routine_active` is left false to prove the parameter is being read.
 		expect(fakelegacyui::sd_routine_active).to_be_false();
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, true);
@@ -1036,6 +1037,151 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(unlatched->shift).to_be_false();
 	});
 
+	it("seeds hold_time_ms from FlashStorage::holdTime, converted out of audio samples", _ {
+		// The other half of the sticky-shift divergence, and the one F1 task 6 could not close: the
+		// threshold a tap is measured against is `FlashStorage::holdTime` in legacy
+		// (`hid/buttons.cpp:264`) and a fixed 100 ms in the shell. `holdTime` is in **samples**, so
+		// the seed is a unit conversion as well as a copy -- a seed that forwarded the number
+		// unchanged would give 4410 ms for legacy's default.
+		Rig defaults;
+		expect(defaults.open()).to_be_true();
+		expect(defaults.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(100));
+
+		// Both ends of the settings item's range (`gui/menu_item/defaults/hold_time.h:26-27`:
+		// `defaultHoldTime` 1..20). Three values, so "always 100" and "always whatever flash says in
+		// samples" both fail.
+		Rig slow;
+		FlashStorage::holdTime = (20 * kSampleRate) / 20; // the maximum: 1 s
+		expect(slow.open()).to_be_true();
+		expect(slow.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(1000));
+
+		Rig fast;
+		FlashStorage::holdTime = (1 * kSampleRate) / 20; // the minimum: 50 ms
+		expect(fast.open()).to_be_true();
+		expect(fast.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(50));
+		FlashStorage::holdTime = (2 * kSampleRate) / 20; // back to the default for later examples
+	});
+
+	it("a tap that legacy would latch latches here too, once the threshold is seeded", _ {
+		// The seed made visible where it matters, rather than read back out of the setter: the same
+		// 200 ms shift tap, with only `FlashStorage::holdTime` varied, must reach a scene as a latch
+		// on one setting and not on the other. With the shell's fixed 100 ms this gesture could
+		// never latch at all, which is what the divergence cost a user who had raised the setting.
+		const auto latches_with = [](int32_t hold_samples) {
+			FlashStorage::holdTime = hold_samples;
+			Rig r;
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
+			(void)r.open();
+			fakelegacyui::system_time_s = 1.000;
+			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+			fakelegacyui::system_time_s = 1.200; // a 200 ms tap, the same every time
+			(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+			r.guest.shell().tick(200);
+			r.base.seen.clear();
+			(void)r.guest.padAction(3, 3, 255);
+			r.guest.shell().tick(210);
+			const PatternScene::Seen* pad = first_of(r.base, UiEvent::Kind::Pad);
+			return pad != nullptr && pad->sticky;
+		};
+		expect(latches_with((2 * kSampleRate) / 20)).to_be_false();  // 100 ms: 200 is a hold
+		expect(latches_with((10 * kSampleRate) / 20)).to_be_true();  // 500 ms: 200 is a tap
+		expect(latches_with((20 * kSampleRate) / 20)).to_be_true();  // 1 s
+		expect(latches_with((1 * kSampleRate) / 20)).to_be_false();  // 50 ms
+		FlashStorage::holdTime = (2 * kSampleRate) / 20;
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
+	});
+
+	it("installs the three services on every open, not only the first", _ {
+		// `wireShellGuestServices()` is what `Shell::set_services` is finally called from
+		// (migration §10.2 item 7's boot half). This suite never builds the `deluge_scenes` closure,
+		// so what it can assert is that `opened()` calls it -- **again on every open**, because the
+		// song and `View`'s mod target can both have moved since the last one, and an unseeded
+		// `ModKnobs` blanks the mod LEDs and both knob indicator rings rather than doing nothing.
+		// What the three installed objects actually are is asserted where they can be built:
+		// `sim/scenes_spec/boot_wiring_spec.cpp`.
+		Rig r;
+		expect(fakelegacyui::service_wirings).to_equal(0);
+		expect(r.open()).to_be_true();
+		expect(fakelegacyui::service_wirings).to_equal(1);
+		(void)r.guest.exitUI();
+		expect(r.open()).to_be_true();
+		expect(fakelegacyui::service_wirings).to_equal(2);
+
+		// A refused open does not wire: `openUI` rolls the hierarchy back on `false`
+		// (`gui/ui/ui.cpp:237-242`), so there is no guest to serve.
+		Rig refused;
+		expect(fakelegacyui::service_wirings).to_equal(0); // the Rig ctor reset the counter
+		refused.guest.setInitialScene(SceneId{SceneKind::Null, 0});
+		expect(refused.guest.opened()).to_be_false();
+		expect(fakelegacyui::service_wirings).to_equal(0);
+	});
+
+	it("hands the knob indicator rings back on the close path, and only on the close path", _ {
+		// `GuestSurfaceSet::set_indicator` writes the hardware without legacy's
+		// `knobIndicatorLevels[]` shadow, so `actuallySetKnobIndicatorLevel`'s early-out
+		// (`hid/led/indicator_leds.cpp:186-191`) would otherwise suppress the write that puts the
+		// rings right when the guest goes away. F1 task 7 named this fix and named task 8's
+		// installation of `ModKnobs` -- the one `frame.indicator(...)` declarer in `src/scenes` --
+		// as the condition that makes it live.
+		Rig r;
+		expect(r.open(kBase)).to_be_true();
+		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+
+		// The survive path: a UI did not exit, so nothing is handed back.
+		expect(r.guest.exitUI() == ActionResult::DEALT_WITH).to_be_true();
+		expect(fakelegacyui::knob_indicator_clears).to_equal(0);
+		expect(fakelegacyui::closed.empty()).to_be_true();
+
+		// The close path: cleared, exactly once, and **before** `close()` -- `closeUI` hands focus
+		// to the UI beneath on the same call (`gui/ui/ui.cpp:199`) and that is what re-fills the
+		// rings, so a clear after it would blank rings nothing then refreshes.
+		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(fakelegacyui::knob_indicator_clears).to_equal(1);
+		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+		expect(fakelegacyui::knob_clear_saw_close).to_be_false();
+	});
+
+	it("does not feed the two gold-knob pushes, which legacy delivers twice", _ {
+		// `Buttons::buttonAction` calls this hook for MOD_ENCODER_0/1 at `hid/buttons.cpp:134` and
+		// then calls `modEncoderButtonAction` for the same press in its tail (`:226-231`), whose
+		// base forwards to `view` -- the very function `ModKnobs::mod_encoder_button_action` ports.
+		// Feeding the press as well would perform the gesture twice once task 8's `ModKnobs` has a
+		// target. Varying the button rather than the guest: SAVE (a button no arm in that tail
+		// names) goes through on the same rig, so this is about these two ids and not about
+		// `buttonAction` having stopped feeding.
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		// Clear what `opened()` armed, so the arm asserted below can only be this hook's. Legacy
+		// does the same thing to the guest all the time -- `openUI`/`closeUI` unset `UI_SPECIFIC`
+		// before handing control on (`gui/ui/ui.cpp:197`, `:233`).
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+		fakelegacyui::timer_arms.clear();
+
+		// `NOT_DEALT_WITH` is load-bearing on this arm too, and for a reason the drop makes sharper:
+		// `DEALT_WITH` would `goto dealtWith` (`hid/buttons.cpp:139-141`) and skip the tail at
+		// `:226-231`, so `view` would never see the push either and the gesture would be lost
+		// outright rather than handed to legacy.
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true, false)
+		       == ActionResult::NOT_DEALT_WITH)
+		    .to_be_true();
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, true, false)
+		       == ActionResult::NOT_DEALT_WITH)
+		    .to_be_true();
+		r.guest.shell().tick(10);
+		expect(r.base.seen.empty()).to_be_true();
+
+		// **A dropped press is still a re-arm**, and this is asserted before anything else arms the
+		// timer: `set_sd_busy(inCardRoutine)` ran above it and may have released a lock, which
+		// replays the deferred queue into the ordinary one -- so the guest must still ask for a tick
+		// even though it fed nothing itself.
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+
+		(void)r.guest.buttonAction(deluge::hid::button::SAVE, true, false);
+		r.guest.shell().tick(20);
+		expect(r.base.seen.size()).to_equal(size_t(1));
+	});
+
 	it("reads shift out of the events it feeds, in both directions", _ {
 		Rig r;
 		expect(r.open()).to_be_true();
@@ -1114,7 +1260,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		// The ceiling, with the arithmetic: `Shell::on_encoder_edges` takes an `int8_t`
-		// (`shell/shell.h:268`) and the Deluge is two edges per detent, so 63 detents (126 edges)
+		// (`shell/shell.h:294`) and the Deluge is two edges per detent, so 63 detents (126 edges)
 		// is the largest that fits and 64 (128 edges) narrows to -128, i.e. **-64 detents**.
 		// The guest can be handed more than 63: legacy's `detentDelta` accumulates in
 		// `DetentedEncoder::pos` across every pass `interpretEncoders` skips during the SD routine

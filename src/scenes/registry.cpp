@@ -87,7 +87,7 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 		// `View::buttonAction` group reachable at all (`services/global_controls.cpp:580`).
 		table[static_cast<size_t>(audio_clip::kAudioClipSceneKind)] = &audio_clip::audio_clip_scene();
 		// `SceneKind::Screensaver` -- one of the SHELL's own kinds, not `FirstApp + N`, because
-		// `shell::Screensaver` pushes it by name (`shell/screensaver.cpp:45`). The shell overwrites
+		// `shell::Screensaver` pushes it by name (`shell/screensaver.cpp:60`). The shell overwrites
 		// the `Popup`/`Console`/`Working`/`Loading` slots with its own instances but deliberately
 		// leaves this one alone (`shell/shell.cpp:177-184`), so this entry is the one that makes
 		// that service's push succeed.

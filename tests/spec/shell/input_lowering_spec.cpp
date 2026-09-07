@@ -103,6 +103,36 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(off.sticky()).to_be_false();
 	});
 
+	it("set_hold_time_ms moves the tap threshold, and the same gesture lands either side of it", _ {
+		// `FlashStorage::holdTime` is a *setting* -- `defaultHoldTime` 1..20 times `kSampleRate/20`
+		// (`storage/flash_storage.cpp:730-733`), i.e. 50 ms to 1 s -- and `LoweringConfig` is
+		// construction-time, so a host built at static-init has no way to seat the user's value.
+		// This is the setter that lets it; the assertion is about the *threshold*, so the gesture is
+		// held fixed and only the threshold varies. A single-threshold example would pass on an
+		// implementation that ignored the setter.
+		const auto sticks_with_threshold = [](uint16_t ms) {
+			InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+			in.set_hold_time_ms(ms);
+			in.begin_tick(0);
+			in.on_board_event(button_ev(8, 0, true), 0);
+			in.on_board_event(button_ev(8, 0, false), 200); // the same 200 ms tap every time
+			return in.sticky();
+		};
+		expect(sticks_with_threshold(100)).to_be_false(); // the `LoweringConfig` default: 200 > 100
+		expect(sticks_with_threshold(1000)).to_be_true(); // the settings item's maximum: 200 < 1000
+		expect(sticks_with_threshold(50)).to_be_false();  // and its minimum
+
+		// The value is readable back, so a host can assert what it seated rather than infer it from
+		// a gesture.
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.hold_time_ms()).to_equal(uint16_t(100)); // `LoweringConfig`'s documented default
+		in.set_hold_time_ms(250);
+		expect(in.hold_time_ms()).to_equal(uint16_t(250));
+		// It touches nothing else on the config: the sticky flag is the only other settable field
+		// and it is unmoved.
+		expect(in.shift_is_sticky()).to_be_false();
+	});
+
 	it("two edges make one detent; accelerating encoders pass edges through", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(5);

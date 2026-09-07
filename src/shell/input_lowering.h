@@ -132,7 +132,7 @@ public:
 	///
 	/// `DELUGE_EVENT_PAD`, `DELUGE_EVENT_BUTTON` and `DELUGE_EVENT_NO_PRESSES` are the device's
 	/// three shapes. `DELUGE_EVENT_ENCODER` never arrives on this channel on the Deluge
-	/// (`deluge.cpp:276`) but the host injector uses it; its `x` is the encoder index and its
+	/// (`deluge.cpp:278`) but the host injector uses it; its `x` is the encoder index and its
 	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_edges`
 	/// reports, so it is handed straight to the encoder path.
 	/// @param ev     The event.
@@ -221,6 +221,26 @@ public:
 	void set_shift_is_sticky(bool sticky);
 	/// @brief Is the sticky-shift feature enabled?
 	bool shift_is_sticky() const { return cfg_.shift_is_sticky; }
+	/// @brief Set the tap threshold at runtime, in milliseconds.
+	///
+	/// The port of `FlashStorage::holdTime` (`storage/flash_storage.h:70`), which legacy reads
+	/// live on every shift release (`hid/buttons.cpp:264`) and which the settings menu writes
+	/// (`gui/menu_item/defaults/hold_time.h:30-31`). `LoweringConfig::hold_time_ms` is otherwise a
+	/// construction-time field, and a host that is a static-init global cannot read flash at
+	/// construction -- so without this the shell's threshold is stuck at its 100 ms default while
+	/// the user's is anywhere from 50 ms to 1 s, and a sticky-shift tap that legacy latches this
+	/// one does not. F1 task 8; the sibling of `set_shift_is_sticky` above and the same argument.
+	///
+	/// @note Not a `LoweringConfig` setter in general. These two fields are settings; the other
+	///       two are not -- `short_press_ms` is legacy's `kShortPressTime` constant
+	///       (`definitions_cxx.hpp:1028`) and `edges_per_detent` is a board fact.
+	/// @param ms The new threshold. Legacy's own range is 50..1000 ms
+	///           (`defaultHoldTime` 1..20, clamped at `storage/flash_storage.cpp:730-732`, times
+	///           `kSampleRate / 20` samples); nothing here enforces it, since a host converting
+	///           from samples is the only caller.
+	void set_hold_time_ms(uint16_t ms) { cfg_.hold_time_ms = ms; }
+	/// @brief The tap threshold in force.
+	uint16_t hold_time_ms() const { return cfg_.hold_time_ms; }
 	/// @brief Has \p b's current press already been consumed?
 	///
 	/// The generalisation of the legacy `recordButtonPressUsedUp` / `selectButtonPressUsedUp`
@@ -291,7 +311,7 @@ public:
 	/// While set, `on_board_event` queues instead of lowering; releasing it replays the queue in
 	/// arrival order, each event with the clock it arrived at. `DELUGE_EVENT_NO_PRESSES` is
 	/// deferred like everything else rather than dropped -- dropping it strands whatever the
-	/// firmware still believes is held (issue #3168, `deluge.cpp:262-271`).
+	/// firmware still believes is held (issue #3168, `deluge.cpp:264-273`).
 	///
 	/// @note Dropping the oldest can separate a press from its release, so a scene that pairs the
 	///       two may see a release for a button it never saw pressed. `held()` stays correct

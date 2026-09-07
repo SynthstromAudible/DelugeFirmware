@@ -178,7 +178,7 @@ defaults moved from `true` to `false`, so a designated initializer arms only the
 
 `Shell` is the whole UI once per tick, replacing the legacy `doAnyPendingUIRendering` /
 `uiTimerManager.routine` / UI half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet
-(`deluge.cpp:592-624`). It owns the stack, the lowering, the router, the three overlay scenes and
+(`deluge.cpp:594-626`). It owns the stack, the lowering, the router, the three overlay scenes and
 `Notices`; it borrows the `SurfaceSet` and the board profile, and allocates nothing.
 
 `tick(now_ms)` runs spec D §7's order exactly:

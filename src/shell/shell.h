@@ -30,13 +30,16 @@ struct ShellConfig {
 	/// @brief How long the shell may sit with no input before the screensaver scene is pushed; 0 is
 	///        off.
 	///
-	/// @warning **Nothing computes this at boot yet**, so it stays 0 and the screensaver never
-	///          shows. Legacy's number is
-	///          `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
-	///          -- both live in `FlashStorage`, which `src/shell` may not read -- and it has to be
-	///          re-supplied whenever either setting changes, which is also the missing port of
-	///          `Screensaver::settingsChanged()`. Recorded, with the rest of the boot wiring this
-	///          stack does not do for itself, at `scenes/registry.h`'s boot-wiring note.
+	/// @note **This is the value at construction; after that the number lives in the service.**
+	///       Legacy's is
+	///       `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
+	///       -- both live in `FlashStorage`, which `src/shell` may not read -- and legacy re-reads
+	///       them on every arm and every tick, so the port has to be *told* when they change.
+	///       `Shell::set_screensaver_idle_ms` is that entry point and the port of
+	///       `Screensaver::settingsChanged()`; a host built at static-init cannot supply a real
+	///       number here at all, so for such a host this default of 0 is only ever a placeholder.
+	///       F1 task 8 wired the firmware's: `hid/display/screensaver.cpp`'s `settingsChanged()`
+	///       computes the formula and pushes it, which covers boot and both settings items.
 	uint32_t screensaver_idle_ms = 0;
 	/// The seed the screensaver's animation is started from; passed through to the pushed
 	/// scene's `SceneId::arg` (see `Screensaver`).
@@ -68,7 +71,7 @@ const char* scene_kind_name(SceneKind k);
 ///        stack, render every surface that needs a frame, and derive the LEDs.
 ///
 /// One object replacing the legacy `doAnyPendingUIRendering` / `uiTimerManager.routine` / the UI
-/// half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet (`deluge.cpp:592-624`). It owns
+/// half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet (`deluge.cpp:594-626`). It owns
 /// the scene stack, the input lowering, the router, the three overlay scenes and the `Notices`
 /// service that drives them; it *borrows* the `SurfaceSet` (the only hardware seam) and the board
 /// profile. Nothing here is global, and nothing on the tick path allocates -- `state_lines()`,
@@ -181,7 +184,7 @@ public:
 	/// @brief Prepare the surfaces for the first frame, with nothing on the stack.
 	///
 	/// Ports legacy's boot sequence, which is only `renderUIsForOled` marking the OLED dirty
-	/// (`deluge.cpp:120,133,371`, now `raise(Dirty::Oled)`): a repaint requested on every surface,
+	/// (`deluge.cpp:119,132,370`, now `raise(Dirty::Oled)`): a repaint requested on every surface,
 	/// so the first `tick()` after this call draws regardless of any gate's prior state.
 	///
 	/// **It pushes no scene, deliberately.** The stack stays empty until the application pushes its
@@ -200,6 +203,29 @@ public:
 	/// @param hooks The hooks; a default-constructed `SongHooks` (`root_for_song == nullptr`)
 	///              makes both paths a no-op -- see their own docs.
 	void set_song_hooks(SongHooks hooks) { song_hooks_ = hooks; }
+
+	/// @brief Re-supply `ShellConfig::screensaver_idle_ms` after the settings behind it changed.
+	///
+	/// The shell-level half of `Screensaver::set_idle_ms`, which is the port of legacy's
+	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:166-207`). The number is
+	/// `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`, computed
+	/// by the host -- `src/shell` may not read `storage/` (`check_layer_rules.py`'s
+	/// `shell-includes-outside` row) -- and it has to be re-supplied on every change, because the
+	/// service holds a copy where legacy re-read the globals on every arm and every tick.
+	///
+	/// **This is why the field is not construction-only.** A host that is a static-init global
+	/// cannot read flash when it builds its `Shell`, so without this the value stays at its
+	/// `ShellConfig` default of 0 and the screensaver can never activate however the two settings
+	/// are set. `scenes/registry.h`'s boot-wiring note is the in-tree record; F1 task 8 is the
+	/// caller.
+	/// @param idle_ms The new idle period in milliseconds; 0 is off.
+	void set_screensaver_idle_ms(uint32_t idle_ms) {
+		// `config_` is kept in step so it stays the description of the shell it is a member of;
+		// nothing else reads this field after construction, and a copy that disagreed with the
+		// service would be the next reader's trap.
+		config_.screensaver_idle_ms = idle_ms;
+		screensaver_.set_idle_ms(idle_ms);
+	}
 
 	/// @brief The shell's half of the song-load protocol (spec D §9): what the firmware calls from
 	///        the load path (spec F wires it) to bracket a song read.
@@ -331,6 +357,9 @@ public:
 	SceneStack& stack() { return stack_; }
 	InputLowering& lowering() { return lowering_; }
 	Notices& notices() { return notices_; }
+	/// @brief The slots `set_services` last installed, for a host or a spec that wants to say which
+	///        objects are wired in without owning them itself.
+	const Services& services() const { return services_; }
 	const SurfaceSet& surfaces() const { return surfaces_; }
 	/// @brief The union of every stacked scene's `greyout_mask()`, as re-queried on the last tick
 	///        the stack changed.
@@ -344,6 +373,9 @@ public:
 	///         `screensaver_idle_ms > 0` does on an application that has not registered a
 	///         screensaver scene.
 	uint32_t screensaver_push_refused() const { return screensaver_.push_refused(); }
+	/// @brief The idle period the screensaver service is running on; 0 while it is switched off.
+	///        What `set_screensaver_idle_ms` last installed, or `ShellConfig`'s value if nothing has.
+	uint32_t screensaver_idle_ms() const { return screensaver_.idle_ms(); }
 	/// @}
 
 	/// @brief The shell's half of the UI test harness's `.state` snapshot (spec G §3).
@@ -528,7 +560,7 @@ private:
 	uint32_t last_ms_ = 0;
 	/// Whether the lowering accepted anything this tick -- `RepaintGate::needs_frame`'s
 	/// `had_input`, and the place Task 4 parked "set where legacy sets `anything`"
-	/// (`deluge.cpp:609-612`).
+	/// (`deluge.cpp:611-614`).
 	bool had_input_ = false;
 	/// Whether the lowering's tick window is open; see the class note on the tick window.
 	bool tick_open_ = false;

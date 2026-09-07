@@ -67,7 +67,7 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:89`) -- declared bare and at
+// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:91`) -- declared bare and at
 // global scope, exactly as `settings.cpp` and `sound_editor.cpp:1403` both do (a declaration
 // inside this file's own anonymous namespace below would name a different, unlinked variable).
 extern uint16_t batteryMV;
