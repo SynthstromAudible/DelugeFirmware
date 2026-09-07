@@ -890,7 +890,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		// `in_flight()` and clear its own flag in `on_exit()` -- which returns `void`, so the
 		// matching release could never be filed on the one path that needs it. `set_input_lock` is
 		// one bare global bool with no owner (`shell/router.cpp:139` ->
-		// `shell/input_lowering.h:308 set_input_lock`), so an external `Pop` mid-listing left the ENTIRE device
+		// `shell/input_lowering.h:311 set_input_lock`), so an external `Pop` mid-listing left the ENTIRE device
 		// deaf until something else happened to clear it. It is also the wrong lock: it *drops*
 		// events, including encoder edges (`shell/input_lowering.cpp:159`), where legacy's
 		// `waitingForSDRoutineToEnd` defers and retries.

@@ -69,10 +69,13 @@ struct LoweringConfig {
 /// been still for `LoweringConfig::short_press_ms` is recorded but swallowed, and a turn that
 /// exactly cancels the recorded one is written off as an accidental wiggle and swallowed too; only
 /// a turn that carries on past the recorded direction is lowered. Ported from the mod-knob block
-/// of `interpretEncoders` as it stood before the encoder overhaul (`hid/encoders.cpp:242-292` at
-/// `e460593c8^`) -- the overhaul dropped the `turnedRecently` half and left the surviving
-/// `modEncoderInitialTurnDirection` test unreachable (`hid/encoder_input.cpp:178-205`). A swallowed
-/// turn produces no `UiEvent` and contributes nothing to the snapshot, but still counts as input.
+/// of `interpretEncoders` as it stood before the encoder overhaul (`hid/encoders.cpp` lines
+/// 242-292 as of `e460593c8^` -- pinned to that revision and therefore deliberately NOT written in
+/// the live `file:line` form, since `check_citations.py` resolves against the current tree, where
+/// that file is 107 lines) -- the overhaul dropped the `turnedRecently` half and left the
+/// surviving `modEncoderInitialTurnDirection` test unreachable (`hid/encoder_input.cpp:178-205`).
+/// A swallowed turn produces no `UiEvent` and contributes nothing to the snapshot, but still
+/// counts as input.
 ///
 /// @warning **The first gold turn after boot is always swallowed on device, and every committed
 ///          script depicts the other arm.** `last_turn_ms_` starts at 0 and the test is

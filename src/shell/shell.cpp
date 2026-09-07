@@ -767,7 +767,7 @@ void Shell::render_grid(uint32_t now_ms) {
 		if (elapsed >= tw.duration_ms) {
 			if (greyout_tween_active && (greyout_.cols != 0 || greyout_.rows != 0)) {
 				// The ramp has reached its target; settle at full strength once, matching legacy's
-				// `amountDone > 1` snap to `setGreyoutAmount(1)` (`pad_leds.cpp:984-987`) -- the
+				// `amountDone > 1` snap to `setGreyoutAmount(1)` (`pad_leds.cpp:986-988`) -- the
 				// static pass above was skipped this tick precisely because this tween was still
 				// live when that check ran.
 				ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());

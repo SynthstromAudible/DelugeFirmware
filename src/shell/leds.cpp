@@ -10,7 +10,7 @@ bool led_is_on(const LedState& s, uint32_t now_ms) {
 		return false;
 	case LedState::Kind::Blink:
 		// The alert deadline wins: legacy's `blinksLeft` countdown ended with
-		// `setLedState(led, returnToState)` (`indicator_leds.cpp:122-126`), and every caller that
+		// `setLedState(led, returnToState)` (`indicator_leds.cpp:122-128`), and every caller that
 		// used it passed an LED that was meant to be *on* afterwards -- `indicateAlertOnLed`
 		// blinks and leaves it lit. `until_ms == 0` is "blink for ever", which is what a plain
 		// `blinkLed(led)` (`numBlinks = 255`) did.

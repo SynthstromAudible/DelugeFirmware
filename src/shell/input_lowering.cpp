@@ -205,7 +205,9 @@ void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t no
 
 bool InputLowering::action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms) {
 	// The mod-knob block of `interpretEncoders` as it stood before the encoder overhaul
-	// (`hid/encoders.cpp:242-292` at `e460593c8^`). The overhaul kept the
+	// (`hid/encoders.cpp` lines 242-292 as of `e460593c8^` -- pinned to that revision and
+	// therefore deliberately NOT written in the live `file:line` form, since `check_citations.py`
+	// resolves against the current tree, where that file is 107 lines). The overhaul kept the
 	// `modEncoderInitialTurnDirection` test but dropped the `turnedRecently` branch that is the
 	// only thing that ever sets the field, so the surviving code can no longer reach its own
 	// wiggle case (`hid/encoder_input.cpp:178-205`); this restores the working shape.

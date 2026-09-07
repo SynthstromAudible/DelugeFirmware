@@ -307,7 +307,7 @@ UiEvent gold_turn(EncoderRole role, int8_t delta) {
 }
 
 /// An encoder-button event -- the shape `InputLowering` emits for `ButtonId::ModEnc0`/`ModEnc1`
-/// and `SelectEnc` (`shell/input_lowering.cpp:42-53`, `:298`).
+/// and `SelectEnc` (`shell/input_lowering.cpp:42-53`, `:300`).
 UiEvent encoder_button_event(ButtonId b, bool on) {
 	UiEvent e{};
 	e.kind = UiEvent::Kind::EncoderButton;
@@ -1251,7 +1251,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("handles a gold-knob push the way View::modEncoderButtonAction does", _ {
 		// `view.cpp:1332-1349` and its two helpers. The push arrives as an `EncoderButton` event,
 		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
-		// (`shell/input_lowering.cpp:42-53`, `:298`) -- and which the router now routes here, after
+		// (`shell/input_lowering.cpp:42-53`, `:300`) -- and which the router now routes here, after
 		// the scene (E4 task 3 part A; `tests/spec/shell/router_spec.cpp`).
 		StubDisplay stub;
 		display = &stub;

@@ -214,33 +214,59 @@ SCAN_ROOTS = (
     "sim/scenes_spec",
     "tests/spec",
     "tests/ui-scripts",
+    "src/shell",
+    "src/deluge/gui/ui",
 )
 SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt"}
 
-# UNCHECKED, AND MEASURED RATHER THAN SUSPECTED (F1 task 4 review, 2026-09-07). `SCAN_ROOTS` above
-# does not contain `src/deluge` or `src/shell`, so a citation written *in* either tree is never read
-# by this script -- only citations written in the five roots above are. That is a hole in the gate
-# and it is maximally live right now, because spec F's guest (`ShellHostUI` and friends) is written
-# inside `src/deluge/gui/ui/` by design: F1 task 4's two deliverable files carry **45** citations
-# (12 in the header, 33 in the .cpp), every one of them into `src/deluge`, `src/shell`, `src/gfx` or
-# `src/ui`, and this script read none of them. They were hand-verified instead and all 45 resolve --
-# which is the point: the gate reported "0 certainly-wrong citations" over a task whose citations it
+# WIDENED, AND MEASURED FIRST (F1 task 5, 2026-09-07). Before this round, `SCAN_ROOTS` contained
+# neither `src/deluge` nor `src/shell`, so a citation written *in* either tree was never read by this
+# script -- only citations written in the five roots above were. That hole was maximally live at the
+# time it was found: spec F's guest (`ShellHostUI` and friends) is written inside `src/deluge/gui/ui/`
+# by design, and F1 task 4's two deliverable files (`gui/ui/shell_guest_surfaces.{h,cpp}`) carried
+# **45** citations the gate had never read. They were hand-verified instead and all 45 resolved --
+# which was the point: the gate reported "0 certainly-wrong citations" over a task whose citations it
 # had not looked at.
 #
-# What widening would find, measured by temporarily adding `src/deluge/gui/ui` and `src/shell` to
-# `SCAN_ROOTS` and running `--strict`: **four** certainly-wrong citations, all pre-existing, none in
-# task 4's own files --
+# THE SCOPE CHOSEN, AND WHY NOT MORE. `src/deluge` whole is ~227k lines across 1043 files -- the
+# entire legacy application, most of it commented long before this stack's citation convention
+# existed. Widening to all of it, measured the same way, resolves 248 more citations and flags
+# **16** (2 already-known `sidechain/shape.h:6` resolver artefacts aside), scattered across files no
+# task in this plan touches -- `gui/l10n/strings.h`, `model/sample/waveform_navigator.h`,
+# `model/sample/waveform_scan.h`, `processing/engines/audio_engine.cpp` -- none of them owned by the
+# work that motivated this round. Fixing those is a legitimate future sweep but not this one's: this
+# round widens to `src/shell` (this stack's own code, where all four originally-measured flags live)
+# plus `src/deluge/gui/ui` specifically (the one legacy subdirectory this plan writes guest code
+# into), and leaves the rest of `src/deluge` for a round scoped to it on its own terms.
 #
-#   src/shell/input_lowering.cpp:208  `hid/encoders.cpp:242`      past EOF
-#   src/shell/input_lowering.h:72     `hid/encoders.cpp:242`      past EOF
-#   src/shell/leds.cpp:13             `indicator_leds.cpp:122`    `setLedState` is 69 lines above
-#   src/shell/shell.cpp:770           `pad_leds.cpp:984`          `setGreyoutAmount` is 195 lines above
+# What that scope found, measured by temporarily adding `src/shell` and `src/deluge/gui/ui` to
+# `SCAN_ROOTS` and running `--strict`: the same **four** certainly-wrong citations found in the
+# original survey, all pre-existing, none in task 4's own files. Two were genuine line drift and
+# were corrected in place: `src/shell/leds.cpp:13`'s `indicator_leds.cpp:122-126` for `setLedState`
+# was two lines short of the call it actually names (`:128`, inside the `blinksLeft` zero-check),
+# fixed to `:122-128`; `src/shell/shell.cpp:770`'s `pad_leds.cpp:984-987` for the `amountDone > 1`
+# snap to `setGreyoutAmount(1)` likewise stopped one line short of that call (`:988`), fixed to
+# `:986-988`. The other two, `src/shell/input_lowering.cpp:208` and `input_lowering.h:72`, are the
+# same citation in both places (`hid/encoders.cpp:242-292` at `e460593c8^`) and are not drift at
+# all: they cite the file as it stood at a past revision, before an encoder overhaul cut it to 107
+# lines, exactly the shape already worked out for `tests/ui-scripts/shell/menu_midi_device.txt` --
+# reworded out of the live `file:line` form rather than excepted, since the citation is correct at
+# the revision it names and the tree it is read against is not that revision.
 #
-# Not widened here, and deliberately not: adding a root changes what the blocking gate rejects for
-# every subsequent commit, those four have to be fixed in the same change, and `src/deluge` is a far
-# larger scan than the five current roots put together. It is scheduled as its own measured round
-# before F1 task 5, the way `PORT_CITED_ROOTS` was in task 3 -- the four hits above are the list that
-# round starts from.
+# Fixing input_lowering.cpp/.h's wording changed their line counts (+2 net each), which shifted three
+# *other* citations that were already being checked before this widening (`src/shell` was already in
+# `PORT_CITED_ROOTS`, so `sim/scenes_spec` citing into it was already live) -- `set_input_lock` moved
+# from :308 to :311, and two `:298` continuations naming the encoder-button event constructor moved
+# to :300. Both are exactly task 11b's regression, caught for free by re-running the measurement
+# after the fix rather than trusting the first pass; all three were corrected in the same round.
+#
+# Resolved citations rose from 4252 to 4500 (+248: 10 into `src/deluge/gui/ui`'s own citations of
+# itself do not count here, since those are legacy-into-legacy; the rest split across `src/shell`
+# gaining new resolvable targets now that its own files are indexable and `src/deluge` gaining the
+# `gui/ui` subtree). Symbol-verdict-eligible citations rose from 1662 to 1732 (+70). After the fixes
+# above, `--strict` over the scoped `SCAN_ROOTS` (temporarily widened for the measurement) reports
+# 0 shown, 2 known exceptions suppressed -- the same two pre-existing `sidechain/shape.h:6` resolver
+# artefacts as before, unrelated to this round.
 
 # What a citation may point INTO. The legacy tree, always: it rots relative to these comments and
 # nothing in this repo can stop it.
