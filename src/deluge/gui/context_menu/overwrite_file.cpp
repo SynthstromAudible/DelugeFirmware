@@ -17,6 +17,7 @@
 
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/browser/browser.h"
 #include "gui/ui/save/save_ui.h"
 #include "hid/display/display.h"
 
@@ -35,9 +36,18 @@ std::span<char const*> OverwriteFile::getOptions() {
 }
 
 bool OverwriteFile::acceptCurrentOption() {
-	bool dealtWith = currentSaveUI->performSave(true);
-
-	return dealtWith;
+	// Return "accepted" so this menu stays put; SaveUI::runSaveCompletion() closes it, on success via
+	// performSave()'s own close() and on failure via the OverwriteAccept arm. A refusal (a save
+	// already in flight) returns false and closes the menu, which is what the synchronous path did
+	// when nothing was written.
+	return currentSaveUI->dispatchSave({
+	    .consumer = deluge::storage::SaveConsumer::OverwriteAccept,
+	    .mayOverwrite = true,
+	    .collectingSamples = currentSaveUI->collectingSamplesForDispatch(),
+	    .filePath = currentSaveUI->getCurrentFilePath(),
+	    .enteredText = Browser::enteredText,
+	    .dirPath = Browser::currentDir,
+	});
 }
 ActionResult OverwriteFile::padAction(int32_t x, int32_t y, int32_t on) {
 	// enter key press. Overwrite is only relevant in places where a qwerty keyboard is showing so no need to check
@@ -45,7 +55,14 @@ ActionResult OverwriteFile::padAction(int32_t x, int32_t y, int32_t on) {
 		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		currentSaveUI->performSave(true);
+		(void)currentSaveUI->dispatchSave({
+		    .consumer = deluge::storage::SaveConsumer::OverwritePad,
+		    .mayOverwrite = true,
+		    .collectingSamples = currentSaveUI->collectingSamplesForDispatch(),
+		    .filePath = currentSaveUI->getCurrentFilePath(),
+		    .enteredText = Browser::enteredText,
+		    .dirPath = Browser::currentDir,
+		});
 		// even if that fails we've still handled the press
 		return ActionResult::DEALT_WITH;
 	}

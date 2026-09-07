@@ -29,6 +29,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/existence_policy.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
@@ -154,24 +155,30 @@ gotError:
 		return false;
 	}
 
-	// TODO(conflation-batch-2): unknown is being treated as absent here; the save batch gives this
-	// site its real ruling.
-	bool fileAlreadyExisted = StorageManager::fileExists(filePath.c_str()).value_or(false);
-
-	if (!mayOverwrite && fileAlreadyExisted) {
+	// `fileAlreadyExisted` still drives the unlink-and-rename tail below, so it is derived from the
+	// same check rather than deleted: Occupied and a confirmed overwrite both mean a file is there.
+	bool fileAlreadyExisted = false;
+	switch (deluge::storage::save_action(StorageManager::fileExists(filePath.c_str()), mayOverwrite)) {
+	case deluge::storage::SaveAction::Refuse:
+		// The card did not answer. Writing here would overwrite a file whose absence was never
+		// confirmed -- see existence_policy.h. Write nothing.
+		error = Error::SD_CARD;
+		goto gotError;
+	case deluge::storage::SaveAction::Occupied:
+		fileAlreadyExisted = true;
 		context_menu::overwriteFile.currentSaveUI = this;
-
-		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
-
-		if (available) { // Always true.
-			display->removeWorkingAnimation();
-			openUI(&context_menu::overwriteFile);
-			return true;
-		}
-		else {
+		if (!context_menu::overwriteFile.setupAndCheckAvailability()) { // Always available.
 			error = Error::UNSPECIFIED;
 			goto gotError;
 		}
+		display->removeWorkingAnimation();
+		openUI(&context_menu::overwriteFile);
+		return true;
+	case deluge::storage::SaveAction::Write:
+		// Write covers both "nothing there" and "the user confirmed an overwrite"; only the latter
+		// has a file to unlink afterwards.
+		fileAlreadyExisted = mayOverwrite;
+		break;
 	}
 
 	// We might want to copy some samples around - either because we're "collecting" them to a folder, or because they
@@ -444,9 +451,20 @@ gotError:
 				goto gotError;
 			}
 
-			// TODO(conflation-batch-2): unknown is being treated as absent here; the save batch gives
-			// this site its real ruling.
-			if (!StorageManager::fileExists(filePathDuringWrite.c_str()).value_or(false)) {
+			// Same rule as the overwrite check above. `Refuse` must NOT fall into the "this name is
+			// free" branch: picking a temp name we could not see would write over whatever is there.
+			bool nameIsFree = false;
+			switch (deluge::storage::save_action(StorageManager::fileExists(filePathDuringWrite.c_str()), false)) {
+			case deluge::storage::SaveAction::Write:
+				nameIsFree = true;
+				break;
+			case deluge::storage::SaveAction::Occupied:
+				break; // taken; try tempFileNumber + 1
+			case deluge::storage::SaveAction::Refuse:
+				error = Error::SD_CARD;
+				goto gotError;
+			}
+			if (nameIsFree) {
 				break;
 			}
 

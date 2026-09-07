@@ -17,6 +17,7 @@
 
 #include "gui/ui/save/save_ui.h"
 #include "definitions_cxx.hpp"
+#include "gui/context_menu/overwrite_file.h"
 #include "gui/context_menu/save_song_or_instrument.h"
 #include "gui/ui/ui.h"
 #include "hid/buttons.h"
@@ -81,7 +82,17 @@ void SaveUI::enterKeyPress() {
 	else if (enteredText.empty()) {} // Previously had &&currentFolderIsEmpty ... why?
 
 	else {
-		performSave(false);
+		// Reads and writes the card, so it runs on the storage owner. Nothing followed this call:
+		// performSave() closes the UI itself on success and displays its own error otherwise, so
+		// runSaveCompletion()'s EnterKey arm has no tail to run.
+		(void)dispatchSave({
+		    .consumer = deluge::storage::SaveConsumer::EnterKey,
+		    .mayOverwrite = false,
+		    .collectingSamples = collectingSamplesForDispatch(),
+		    .filePath = getCurrentFilePath(),
+		    .enteredText = enteredText,
+		    .dirPath = currentDir,
+		});
 	}
 }
 
@@ -168,9 +179,22 @@ void SaveUI::runSaveCompletion(const deluge::storage::SaveRequest& request, bool
 	using deluge::storage::SaveConsumer;
 	switch (request.consumer) {
 	case SaveConsumer::EnterKey:
+		// Nothing followed the call at enterKeyPress(): performSave() closed the UI on success and
+		// displayed its own error otherwise.
+		break;
 	case SaveConsumer::OverwriteAccept:
 	case SaveConsumer::OverwritePad:
+		// The synchronous path returned false on failure, which made context_menu.cpp's SELECT_ENC
+		// handler take `goto getOut` -- that label is just close(). The bool now means "accepted"
+		// and cannot carry the outcome, so the dismissal happens here instead.
+		if (!succeeded) {
+			deluge::gui::context_menu::overwriteFile.close();
+		}
+		break;
 	case SaveConsumer::SaveSongOrInstrumentAccept:
-		break; // wired in the conversion task
+		if (!succeeded) {
+			deluge::gui::context_menu::saveSongOrInstrument.close();
+		}
+		break;
 	}
 }
