@@ -102,7 +102,7 @@ uint32_t ms_to_phase_change(uint32_t phase) {
 }
 
 /// @brief Resolve a `Node`'s l10n id to text through the one sanctioned path
-///        (`shell/profile.h:156`, which already implements the digits fallback).
+///        (`shell/profile.h:147`, which already implements the digits fallback).
 std::string_view text_of(uint16_t string_id, TextScratch& scratch) {
 	return scenes::deluge_profile().text_or_digits(string_id, scratch);
 }
@@ -831,7 +831,7 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
 	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's
 	// `SyncLevel::drawPixelsForOled` does not clear its band either -- `Shell::render_oled` already
-	// clears the whole canvas before any scene draws (`shell/shell.cpp:475`), which is what makes
+	// clears the whole canvas before any scene draws (`shell/shell.cpp:662`), which is what makes
 	// that safe for a full-panel screen like this one.
 	constexpr deluge::gfx::oled::FontId kFont = deluge::gfx::oled::FontId::MetricBold13;
 	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,

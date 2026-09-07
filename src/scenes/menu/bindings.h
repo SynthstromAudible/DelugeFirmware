@@ -94,7 +94,7 @@ IntRange range(const Node& node, const MenuContext& ctx);
 /// @brief Fill @p out with @p node's `Kind::Enum` option names.
 ///
 /// Static `bind.names` ids are resolved through `scenes::deluge_profile().text_or_digits(id,
-/// scratch[i])` -- the one sanctioned text path (`shell/profile.h:156`), which already implements
+/// scratch[i])` -- the one sanctioned text path (`shell/profile.h:147`), which already implements
 /// the digits fallback for an unresolvable id. A `bind.dynamic_names` hook fills `out` itself and
 /// never touches @p scratch.
 ///

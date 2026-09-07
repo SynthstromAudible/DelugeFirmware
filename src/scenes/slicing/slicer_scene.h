@@ -44,7 +44,7 @@
 ///     `doAnyPendingGridRendering`'s top-down walk (`gui/ui/ui.cpp:305-349`) keeps going and the
 ///     sidebar beneath paints -- exactly `MarkerScene`'s situation. The predicate's own definition
 ///     is "covers the grid COMPLETELY, so scenes beneath need not render" (`shell/scene.h`), and its
-///     one consumer is `Shell::tick_stack` (`shell/shell.cpp:553-567`), which stops advancing clocks
+///     one consumer is `Shell::tick_stack` (`shell/shell.cpp:573-587`), which stops advancing clocks
 ///     beneath a scene that claims it; claiming it here would stop the clock of the scene that owns
 ///     the sidebar.
 ///   * **`dims_grid() -> false`** -- the fifth, and the one that is easy to miss, because its

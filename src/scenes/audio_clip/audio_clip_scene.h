@@ -429,7 +429,7 @@ public:
 	///        (`gui/ui/ui.cpp:321-348`) stops as soon as both instruction words are used up -- so
 	///        nothing below this in the hierarchy renders.
 	///
-	/// @note Its one consumer is `Shell::tick_stack` (`shell/shell.cpp:553-567`), which stops
+	/// @note Its one consumer is `Shell::tick_stack` (`shell/shell.cpp:573-587`), which stops
 	///       advancing clocks *beneath* a scene that claims it. A root scene sits at the bottom of
 	///       the stack, so today this changes nothing either way; it is declared from legacy's
 	///       answer rather than from that observation, because the observation is about the stack

@@ -412,7 +412,7 @@ struct MenuSavedState {
 	int16_t focus = 0;
 };
 static_assert(sizeof(MenuSavedState) <= 32);
-static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:50 -- 256
+static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:49 -- 256
 
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).

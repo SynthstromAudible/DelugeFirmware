@@ -715,7 +715,7 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 	}
 
 	// Ruling 2: ids resolve through the profile's `text_or_digits`, never `text_lookup` directly --
-	// `shell/profile.h:156` already implements the digits fallback for an id with no entry.
+	// `shell/profile.h:147` already implements the digits fallback for an id with no entry.
 	const deluge::ui::shell::BoardProfile& profile = scenes::deluge_profile();
 	const size_t count = std::min(node.bind.names.size(), limit);
 	for (size_t i = 0; i < count; ++i) {
