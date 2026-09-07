@@ -1002,3 +1002,76 @@ Three deliberate asymmetries with the scene loop, each for a stated reason:
 
 Covered by `tests/spec/shell/flush_spec.cpp`'s "a service timer arms only the surfaces it claims",
 which drives claim-nothing, claim-grid and no-timer against a real `Shell`.
+
+### 15.7 `SceneStack` both over- and under-notified `on_resume` (found in E4 task 10)
+
+Found by measurement, not by review, and by a scene rather than by a shell spec. E4 task 9 mapped
+`SlicerScene::on_resume()` onto `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), which is a
+faithful reading of `closeUI`: it calls `newUI->focusRegained()` on whatever it leaves on top
+(`gui/ui/ui.cpp:194-199`). Task 10 then gave the slicer its own timed popups — `Slicer` raises them
+from four of its own arms — and forty hand-placed slices disappeared 800 ms after a pad tap.
+
+**The premise the mapping rested on does not survive the port.** In legacy a popup is a display
+overlay (`OLED::popupText`), drawn into the OLED image on its way out and never a `UI` on
+`uiNavigationHierarchy`, so it can never reach `closeUI` and `focusRegained` never runs for one. In
+the shell a popup **is a scene**: `Notices::show_popup_with_timeout` pushes `SceneKind::Popup`
+(`shell/notices.cpp:301-325`) and `Notices::tick` removes it once `kPopupTimeoutMs` — 800 ms
+(`notices.cpp:31`) — has elapsed (`notices.cpp:327-350`). Every scene spec was green throughout,
+because no example had a popup and a stateful `on_resume` in the same run.
+
+Three separate defects, of which two are fixed here.
+
+1. **Over-notification.** `pop()` and `remove()` called `on_resume()` unconditionally, including
+   when the scene that left was `input_transparent()`. `SceneStack::input_top()` skips those scenes,
+   so a scene under a popup never lost the top, never stopped receiving input and was never exited —
+   the notification asserted a transition the shell itself can prove did not happen.
+2. **Under-notification, symmetrically.** Both arms resumed `stack_[n_ - 1]`, the *raw* top. In
+   `[A, popup, B]`, removing `B` notified the **popup**, while `A` — which genuinely regains the
+   input top — was told nothing.
+3. **`Scene` has no dual.** There is no `on_pause`/`on_suspend`: `push()` notifies the covered scene
+   of nothing. This is **left as it is, deliberately**, and is now written down on
+   `Scene::on_resume` rather than left as an open asymmetry. Nothing needs the dual — a scene taking
+   the top runs `on_enter`, and no ported `focusRegained` counterpart reads a "you are being
+   covered" edge — and adding one would put a hook on every scene to serve no caller. If one is ever
+   added it must fire on exactly the same condition as `on_resume`, or the pair stops being a pair.
+
+**The fix.** `push`'s rollback, `pop` and `remove` snapshot `&input_top()` immediately before their
+mutation and compare it with `&input_top()` immediately after, resuming only when the two differ
+(`SceneStack::resume_new_input_top`). No new predicate was needed: `input_transparent()` is already
+the shell's own statement that a scene does not hold the input top. The `NullScene` is excluded,
+because an empty stack — or one left holding nothing but transparent layers — has no input top to
+resume.
+
+`replace_top`'s rollback is the deliberate exception and stays unconditional. Its edge is *paired*:
+`previous->on_exit()` really ran, so `on_resume` is that call's dual rather than a claim about the
+top, and suppressing it for a transparent `previous` would leave a scene that had been told it left
+the stack with no notice that it is back. `changeUIAtLevel`'s own failure path does the same thing
+(`gui/ui/ui.cpp:96-101`).
+
+**What it cost in shipped code.** `SlicerScene` is the scene that paid: its `on_resume` was emptied
+for one task and is now restored. `MenuScene` was taking the spurious edge too — it raises
+`Notice::Kind::Console` itself (`menu_scene.cpp:1256`, `menu/bindings.cpp:372`), `ConsoleScene` is
+`input_transparent()`, and `MenuScene::on_resume`'s `go_up_on_resume` flag guards only the `ascend()`
+(`:332-335`) while the tail resets `render_resp`, `value_changed`, `value_node`, `back_claimed` and
+`column_press` unconditionally (`:337-341`). **It cost nothing**, and the reason is the tick order:
+`Notices` is a `Service`, so `Notices::tick` runs at `Shell::tick` step 4 (`shell/shell.cpp:304-305`),
+before step 5's OLED render and step 7's `after_render`. All five fields are per-tick observations
+written during render, read by `after_render` and drained at its tail (`:1358-1362`), with
+`render_oled` re-zeroing two of them at its own head (`:482-483`) — so every one of them was already
+at its default at the instant the spurious `on_resume` arrived. It was a latent bug, not a shipped
+one, and it is closed either way.
+
+**A limitation, stated rather than fixed.** The comparison is scene identity, and the registry holds
+one `Scene` per kind — so a kind stacked *twice* is one object at two indices, and popping the upper
+one reads as "no transition" even though that object was exited. Nothing in the shell builds such a
+stack and no lifecycle hook is coherent under one (the scene takes `on_enter` twice with no
+`on_exit` between, and both indices share a single `SceneState` slot). Refusing it in `push` is the
+real fix and is not taken here.
+
+Covered by five rows in `tests/spec/shell/scene_stack_spec.cpp` — removing a transparent scene
+notifies nobody; removing a scene from above one resumes the input top rather than the raw top (and
+the `pop()` twin of the same); removing the real top from under a transparent scene notifies nobody;
+a refused push resumes only when the refused scene held the input top; and a refused `replace_top`
+resumes the scene it exited whatever the input top is — plus, from the scene side,
+`sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table when a popup it raised itself
+expires" and "resets its state when a real scene above it closes".
