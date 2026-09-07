@@ -47,6 +47,48 @@ phase 5; the guest's `Notices` service is idle in phase 4.
 First tenant: `MenuScene`, entered from every place `soundEditor` is entered today
 (`openUI(&soundEditor)` → `openUI(&shell_host_ui)` + `push(Menu{node})`).
 
+**Corrections (F1 task 5, 2026-09-07): four rows of the table above are wrong, and two of them would
+have shipped a visible regression.** `ShellHostUI` is now written; each correction is at the code, in
+the hook it belongs to.
+
+- **`canSeeViewUnderneath()` is not `oled_transparent(Main)`** — and §2.2's `LegacySceneAdapter` row,
+  which states the same equivalence in the other direction, is wrong for the same reason. Legacy keeps
+  OLED transparency in a *data member*, `UI::oledShowsUIUnderneath` (`gui/ui/ui.h:158`), set false by
+  `UI::UI` (`gui/ui/ui.cpp:31-33`) and read by `doAnyPendingOLEDRendering` to decide how far down the
+  stack to start drawing (`gui/ui/ui.cpp:353-356`). `canSeeViewUnderneath()` gates something else
+  entirely: whether the **root view** is still live underneath — `UI::graphicsRoutine` runs the root's
+  per-frame animation only when it is true (`gui/ui/ui.cpp:47-51`), and `Session::armingChanged` re-arms
+  the play flash through it (`playback/mode/session.cpp:1295`). `Slicer` holds the two at opposite
+  values on one object — `oledShowsUIUnderneath = true` at `gui/ui/slicer.h:35`,
+  `canSeeViewUnderneath() { return false; }` at `:38` — which is proof in the shipped tree that they are
+  independent questions. The guest maps it to `!top().occludes_grid()` (`shell/scene.h:338-339`).
+  **The regression the wrong mapping would have shipped:** `MenuScene::oled_transparent` is false
+  (`scenes/menu/menu_scene.h:449`) where `SoundEditor::canSeeViewUnderneath` is true
+  (`gui/ui/sound_editor.h:121`), so the clip view under an open menu would have stopped animating.
+- **`exitUI()`'s return value pops nothing.** The row says it returns `NOT_DEALT_WITH` on an empty
+  shell stack "so `closeUI` pops the guest". Nothing reads it that way: `exitUI` has exactly one caller
+  in `src/`, `TimerName::BACK_MENU_EXIT` in `gui/ui_timer_manager.cpp:149-155`, which stores the result
+  and tests it against `REMIND_ME_OUTSIDE_CARD_ROUTINE` alone. There is no `closeUI` in that path. Every
+  legacy implementation closes *itself* — `RenameUI::exitUI` (`gui/ui/rename/rename_ui.cpp:88-91`),
+  `SampleMarkerEditor::exitUI` (`gui/ui/sample_marker_editor.cpp:680-683`), and
+  `SoundEditor::exitCompletely`'s `close()` at `gui/ui/sound_editor.cpp:723`. The guest therefore calls
+  `close()` when the pop empties its stack and returns `NOT_DEALT_WITH`; a guest that only returned the
+  value would trap the user inside itself.
+- **`opened()` is `Shell::init(SceneId)`, not `Shell::push(initial)`.** There is no `Shell::push`;
+  `init` is `stack_.push(initial)` with the result dropped (`shell/shell.cpp:226-228`), which is why the
+  guest checks the depth afterwards rather than trusting the call.
+- **"aliases" is "serves", in both render rows**, following F1 task 4's §3 correction: the guest copies
+  the shell's Main surface into the canvas legacy hands `renderOLED`, and copies the shell's grid rows
+  into `image`. §3's amendment has the evidence.
+
+The rows that held up unchanged: `renderMainPads`/`renderSidebar` really do return the top scene's
+opacity, and §2.2's dual for it (`is_grid_overlay()` is `!renderMainPads()`) is the mapping the guest
+implements; `focusRegained` really is `on_resume`, with the one refinement that it goes to
+`SceneStack::input_top()` rather than `top()`, because that is what `Scene::on_resume`'s own contract
+says (`shell/scene.h:311-326`) and what the stack itself does (`shell/scene_stack.h:38-46`);
+`getGreyoutColsAndRows` really is the top scene's `greyout_mask()`, with `doGreyout == false` spelled
+as an all-zero mask (`scenes/menu/menu_scene.cpp:1458-1490`).
+
 ### 2.2 Phase 5 — shell as host
 
 The scheduler task is `Shell::tick`. `deluge.cpp`'s `dispatchInputEvent`,
@@ -62,7 +104,8 @@ The scheduler task is `Shell::tick`. `deluge.cpp`'s `dispatchInputEvent`,
 | `leds(LedFrame&)` | read-only bridge of `indicator_leds`' shadow state |
 | `on_enter` / `on_resume` / `on_exit` | `opened()` / `focusRegained()` / nothing |
 | `is_grid_overlay()` | `!renderMainPads()` (today's opacity query) |
-| `oled_transparent(Main)` | `canSeeViewUnderneath()` |
+| `oled_transparent(Main)` | ~~`canSeeViewUnderneath()`~~ → `oledShowsUIUnderneath` (F1 task 5; see §2.1's corrections) |
+| `occludes_grid()` | `!canSeeViewUnderneath()` (F1 task 5; the row above used to claim this one's source) |
 | `greyout_mask()` | `getGreyoutColsAndRows()` |
 | `tick(dt)` | drives the adapter's `Timer` for `UI_SPECIFIC` → `timerCallback()` |
 
