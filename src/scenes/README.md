@@ -1086,7 +1086,7 @@ escape the way a namespace-scope global does. The wiring plan owes four sync cal
 
 ## Boot wiring this layer does not do for itself
 
-One thing, and it is easy to miss because everything around it is automatic. **`menu::set_shortcuts_version()`
+Three things. The first is easy to miss because everything around it is automatic. **`menu::set_shortcuts_version()`
 (`menu/shortcuts.h`) has no caller at boot.** The shortcut layout is the one menu setting whose value
 does not live in a global the existing settings loader already populates: legacy keeps it in
 `SoundEditor::shortcutsVersion` and loads it in `FlashStorage::readSettings` via
@@ -1104,6 +1104,30 @@ from. The scene keeps its own copy, defaulting to `FlashCursor::Slow`, which is 
 default (`flash_storage.cpp:287`) and the only one of the three modes that reaches a pixel at all
 (`ui/grid/columns.h`'s `tick_colour` warning). Consequence today: a user who turns the play cursor
 off still sees it in the audio clip view. Whoever wires boot should pass flash byte 36 through.
+
+**And a third, and it is the one that stops boot rather than degrading it: there is no way to install
+the three services at all.** `services::ModKnobs`, `services::GlobalControls` and
+`services::MidiLearn` are each constructed from a `SceneStack&` (and the first two from an
+`InputLowering&`), and they *use* them — `ModKnobs` pushes `overlay::ParamPopupScene` onto that stack
+(`services/mod_knobs.cpp`'s `show_popup`) and reads `stack_.input_top()`; `GlobalControls` gates its
+whole `View::buttonAction` group on `stack_.input_top().is_root()`
+(`services/global_controls.cpp:580`); `MidiLearn` reads the same. The only `SceneStack` and
+`InputLowering` in an application are the ones the **`Shell` owns** (`shell/shell.h`'s `stack_`,
+`lowering_`), and `Services` is passed **by value into the `Shell`'s constructor** and fixed there —
+`Shell::Shell` says so itself (`shell/shell.cpp:186-189`, "the services are fixed at construction",
+where the deduplicated `service_list_` is also built once). So a real service cannot be constructed
+before the shell it serves and cannot be installed after it, and an application that builds a `Shell`
+today can only pass `Services{}`: no gold-knob turn reaches `ModKnobs`, no transport button reaches
+`GlobalControls`, and `SceneKind::Screensaver` aside, nothing outside the scene stack ever runs.
+
+Consequence today: none, because nothing wires a `Shell` yet — which is exactly why this has to be
+written down here rather than discovered by whoever does. Whoever wires boot needs **`Shell::set_services`**
+(setting `services_`, re-seating `Router`'s copy and rebuilding `service_list_`), or service
+constructors that take their stack and lowering later. `sim/scenes_spec/scene_scripts_spec.cpp` gets
+around it for a spec with a forwarding `LateService` shim installed from
+`uitest::RunOptions::after_construct`; that is a test-only shape and is not the answer for the
+application. Found by E4 task 13, the first thing in the tree that ever tried to hold all three
+services and a `Shell` at the same time.
 
 The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
 application has to call — that is the file a boot author is already in.
