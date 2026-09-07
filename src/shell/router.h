@@ -54,6 +54,17 @@ public:
 	Router(SceneStack& stack, Services services, InputLowering& lowering)
 	    : stack_(stack), services_(services), lowering_(lowering) {}
 
+	/// @brief Replace the services this router consults, after construction.
+	///
+	/// A `Router` holds `Services` **by value** (`services_` below), so re-seating a `Shell`'s
+	/// services is not one assignment but three: the shell's own copy, this one, and the
+	/// deduplicated `Shell::service_list_` the per-tick hooks run over. `Shell::set_services` is
+	/// the only caller and does all three; see its doc for why a service cannot be installed at
+	/// construction in the first place.
+	/// @param services The new slots; unfilled ones default to `null_service()`, as at
+	///                 construction.
+	void set_services(Services services) { services_ = services; }
+
 	/// @brief Route one event through the full chain: top scene -> `mod_knobs` ->
 	///        `global_controls` -> `midi_learn` -> drop.
 	///

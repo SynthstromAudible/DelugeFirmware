@@ -183,10 +183,30 @@ Shell::Shell(SurfaceSet& surfaces, const BoardProfile& profile, const SceneRegis
 	table_[static_cast<size_t>(SceneKind::Working)] = &working_;
 	table_[static_cast<size_t>(SceneKind::Loading)] = &loading_;
 
-	// The services are fixed at construction, so the deduplicated list is built once rather than
-	// three times a tick. The three `Services` slots default to the one shared `null_service()`,
-	// and nothing stops an application putting one object in two of them; a service must be ticked,
-	// asked for LEDs and asked for its timer exactly once.
+	rebuild_service_list();
+}
+
+void Shell::set_services(Services services) {
+	// Three things hold the slots and all three must move together: this shell's own copy, the
+	// `Router`'s by-value copy (which is what routing actually reads -- `Router::route` consults
+	// `services_.mod_knobs` etc., not `service_list_`), and the deduplicated per-tick list. A
+	// change that updated two of the three would leave a shell that either ticks services it never
+	// routes to or routes to services it never ticks, and each half passes the other's tests.
+	services_ = services;
+	router_.set_services(services);
+	rebuild_service_list();
+}
+
+void Shell::rebuild_service_list() {
+	// The slots change only when an application installs them, so the deduplicated list is built
+	// here rather than three times a tick. The three `Services` slots default to the one shared
+	// `null_service()`, and nothing stops an application putting one object in two of them; a
+	// service must be ticked, asked for LEDs and asked for its timer exactly once.
+	//
+	// The clear is what makes a *re*-install correct: rebuilt from scratch, so a service installed
+	// by an earlier call is not left behind, and installing the same set twice cannot double an
+	// entry (which would double-tick it and ask it for LEDs twice in one frame).
+	service_list_.clear();
 	Service* const all[] = {services_.mod_knobs, services_.global_controls, services_.midi_learn, &notices_,
 	                        &screensaver_};
 	for (Service* service : all) {

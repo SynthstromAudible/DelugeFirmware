@@ -140,6 +140,40 @@ public:
 	Shell(const Shell&) = delete;
 	Shell& operator=(const Shell&) = delete;
 
+	/// @brief Install (or replace) the three services, after construction.
+	///
+	/// **This is how an application installs a service at all.** The constructor takes `Services`
+	/// by value, but `services::ModKnobs`, `services::GlobalControls` and `services::MidiLearn`
+	/// are each built from a `SceneStack&` -- and the first two also from an `InputLowering&` --
+	/// and the only instances of either in an application are the ones this shell **owns**
+	/// (`stack_`, `lowering_`, reachable through `stack()`/`lowering()`). Each of the three really
+	/// uses what it is handed: `ModKnobs::show_popup` pushes the param popup onto that stack
+	/// (`scenes/services/mod_knobs.cpp:413`), and `ModKnobs::popup_suppressed` (`:351`) and
+	/// `ModKnobs::mod_encoder_button_action` (`:564`) both read `stack_.input_top()`;
+	/// `GlobalControls::handle` gates its `View::buttonAction` group on
+	/// `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
+	/// `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:466`). So a real
+	/// service cannot be constructed before the shell it serves, and before this existed it could
+	/// not be installed after it either -- an application could only ever pass `Services{}`, and
+	/// no gold-knob turn, transport button or MIDI-learn press reached anything outside the scene
+	/// stack. Migration spec §10.2's blocker 7; the shell spec's §15.9 has the account.
+	///
+	/// Build the shell with `Services{}`, construct the services over `stack()`/`lowering()`, then
+	/// call this. Three things move together and this call is what keeps them in step: `services_`
+	/// (the slots), `Router`'s own by-value copy (what routing reads), and `service_list_` (the
+	/// deduplicated per-tick list). Installing twice, or over a live set, is well defined: the
+	/// list is rebuilt from scratch, so a service installed earlier is not left in it and a
+	/// re-install does not double-tick anything.
+	///
+	/// @note The dedup rule the constructor has always had holds afterwards, unchanged: a service
+	///       occupying two slots is ticked, asked for LEDs and asked for its timer exactly once
+	///       per tick. It is still *routed to* once per slot -- `Router::route` reads the slots,
+	///       not the list, and the chain's shape is not what the dedup is about.
+	/// @param services The new slots; an unfilled one defaults to `null_service()`, and a slot set
+	///                 to `nullptr` is skipped by the list (but must not be routed to -- see
+	///                 `Services`).
+	void set_services(Services services);
+
 	/// @brief Push the first scene.
 	/// @param initial What to push.
 	void init(SceneId initial);
@@ -409,6 +443,14 @@ private:
 	/// @brief The earliest deadline any gate, scene or service is waiting on.
 	/// @param now_ms The tick's wall clock, which the scenes' relative timers are measured from.
 	std::optional<uint32_t> compute_next_wake(uint32_t now_ms);
+	/// @brief Rebuild `service_list_` from `services_` plus the shell's own `notices_` and
+	///        `screensaver_`, each listed once.
+	///
+	/// Clears first, so it is idempotent and leaves nothing from a previous `services_` behind.
+	/// Called from the constructor and from `set_services`, and it is deliberately the only
+	/// writer of `service_list_`: the two callers sharing one body is what keeps the re-install
+	/// path's dedup identical to the constructor's rather than a second copy of it that can drift.
+	void rebuild_service_list();
 
 	SurfaceSet& surfaces_;
 	BoardProfile profile_;
@@ -434,7 +476,9 @@ private:
 	Screensaver screensaver_;
 	Notices notices_;
 	/// `mod_knobs`, `global_controls`, `midi_learn`, `Notices` and `Screensaver`, each listed
-	/// once; built in the constructor, since `Services` is fixed there.
+	/// once. Built by `rebuild_service_list()` -- from the constructor, and again from every
+	/// `set_services()` call -- rather than once per tick, since the slots change only when an
+	/// application says so.
 	FixedVector<Service*, 5> service_list_;
 	/// The hooks `song_loading(false)` and a bare `Dirty::SongSwapped` ask for the application's
 	/// song root through; unset (`root_for_song == nullptr`) until `set_song_hooks` is called.
