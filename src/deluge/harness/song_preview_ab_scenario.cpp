@@ -30,6 +30,7 @@
 #include "gui/views/view.h"             // the `view` global driving View's two acquisition gestures
 #include "hid/button.h"                 // the SYNTH/CV buttons the Grid output-type gesture is pressed with
 #include "hid/led/pad_leds.h"           // the image both backings render into
+#include "hid/matrix/matrix_driver.h"   // padStates, which the audition-pad completion asks about
 #include "io/file.hpp"                  // the card swap's unlink + rename
 #include "libdeluge/file_directory.h"   // deluge_file_directory_async_active
 #include "libdeluge/file_prefix.h"      // deluge_file_prefix_async_active
@@ -227,6 +228,34 @@ public:
 	static void beginNewInstrumentAcquisition(int32_t yPressed) {
 		arrangerView.beginNewInstrumentAcquisition(yPressed);
 	}
+	/// Drives the arranger's audition-pad press through the handler MatrixDriver::padAction() actually
+	/// reaches (ArrangerView::handleAuditionPadAction), one level ABOVE
+	/// beginNewInstrumentAcquisition().
+	///
+	/// That distinction is the whole point: the gesture entry point above covers the card READ, but the
+	/// press has a tail of its own -- audition sub-mode, output name, note, mod-controllable -- and
+	/// since the acquisition became a dispatch the handler returns before any of it can run. Nothing
+	/// covered that tail, and on the Embassy backing all of it silently stopped happening.
+	///
+	/// `padStates` is written first, exactly as MatrixDriver::padAction() does before handing the press
+	/// to the UI. The completion asks the matrix whether the finger is still down before it starts a
+	/// note; a headless driver that skipped this would look like an instantly-released pad and the
+	/// audition half would correctly refuse to run, covering nothing.
+	static void pressArrangerAuditionPad(int32_t y, bool on) {
+		matrixDriver.padStates[kDisplayWidth + 1][y] = on;
+		(void)arrangerView.handleAuditionPadAction(y, on ? 1 : 0, &arrangerView);
+	}
+	/// The first arranger row with no Output on it, or -1. The press has to land on an empty row for
+	/// the new-instrument branch to be the one taken, and by this point in the stage most rows are
+	/// occupied by earlier gestures.
+	static int32_t firstEmptyArrangerRow() {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			if (arrangerView.outputsOnScreen[y] == nullptr) {
+				return y;
+			}
+		}
+		return -1;
+	}
 	/// Drives ArrangerView's REAL output-type gesture, rather than calling
 	/// Song::getNonAudioInstrumentToSwitchTo directly: that helper isn't what changeOutputType()
 	/// calls for MIDI/CV, so a probe built on it would prove nothing about ArrangerView's own
@@ -262,8 +291,8 @@ public:
 	}
 
 	/// Drives InstrumentClipView's REAL shift/FM "create a brand-new instrument" gesture -- the one
-	/// LoadInstrumentPresetUI reader NEVER covers (Browser::getUnusedSlot(), not one of the three
-	/// PresetQuery readers) and the one rung 5 task 6's fix round found still reaching the directory
+	/// LoadInstrumentPresetUI reader NEVER covers (Browser::getUnusedSlot(), not one of that class's
+	/// three readers) and the one rung 5 task 6's fix round found still reaching the directory
 	/// channel from the interaction tier. Reads getCurrentInstrumentClip() live, exactly as the real
 	/// gesture (handleInstrumentChange() -> createNewInstrument()) does -- no clip parameter, to keep
 	/// this a faithful call of the production entry point rather than a reimplementation of it.
@@ -1796,6 +1825,10 @@ enum class AcquireStep : uint8_t {
 	SessionNewTrackEnterCheck,
 	ViewNewInstrument,
 	ViewNewInstrumentCheck,
+	ArrangerAuditionPad,
+	ArrangerAuditionPadCheck,
+	ArrangerAuditionRelease,
+	ArrangerAuditionReleaseCheck,
 	Finished
 };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
@@ -1811,10 +1844,11 @@ constexpr const char* kAcqSubDir = "SYNTHS/NESTED";
 // level is provably empty by the time Nested and Coalesce run.
 constexpr int32_t kAcqTopLevelCount = 1;
 // One for AcquireStep::Nested's proof, three more for Coalesce's three gestures, one each for the
-// four dispatching View/Session gestures further down, plus spares -- none of those assert identity,
-// but running the folder dry would make their gestures fail silently instead of exercising the walk,
-// and a silent failure is exactly what their outcome assertions are there to catch.
-constexpr int32_t kAcqNestedCount = 12;
+// four dispatching View/Session gestures further down, one for the audition-pad press that closes
+// the stage, plus spares -- none of those assert identity, but running the folder dry would make
+// their gestures fail silently instead of exercising the walk, and a silent failure is exactly what
+// their outcome assertions are there to catch.
+constexpr int32_t kAcqNestedCount = 14;
 // buildPresetFixture() names files "<prefix><NN>.XML"; kAcqTopLevelCount == 1 makes this the only
 // top-level name there is, so it can be asserted absolutely rather than merely checked non-empty.
 constexpr const char* kAcqTopLevelName = "PRESET00";
@@ -1865,6 +1899,12 @@ Clip* g_acqNewTrackClip = nullptr;
 // the gesture creates its own track, so nothing has to already be at these coordinates.
 constexpr int32_t kAcqEnterX = 1;
 constexpr int32_t kAcqEnterY = kGridHeight - 1;
+
+// The arranger row AcquireStep::ArrangerAuditionPad presses on. Chosen at run time rather than pinned:
+// by the time that step runs, every gesture above has placed an Output on some row, and which rows are
+// left empty depends on arrangementYScroll. -1 means none were, which that step reports as a failure
+// rather than skipping quietly.
+int32_t g_acqAuditionRow = -1;
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
 /// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
@@ -2429,6 +2469,122 @@ void runAcquireTick() {
 			       "instrument -- ViewNewInstrument's switch arm may not be wired, or "
 			       "Browser::getUnusedSlot() never ran\n");
 			g_failures++;
+		}
+		g_acquireStep = AcquireStep::ArrangerAuditionPad;
+		break;
+	}
+	case AcquireStep::ArrangerAuditionPad: {
+		// The arranger's new-instrument PAD PRESS, driven through ArrangerView::handleAuditionPadAction()
+		// -- the handler MatrixDriver::padAction() reaches -- rather than through
+		// beginNewInstrumentAcquisition(), which every step above uses. Those steps cover the card read;
+		// this covers what the press does with the result, and that is where the deferral actually broke
+		// something: the handler used to read outputsOnScreen back immediately after the call and fall
+		// through to the audition sub-mode, the output name, the note and the mod-controllable. Once the
+		// acquisition became a dispatch, that read-back is null on every deferring backing and the entire
+		// tail stopped running -- invisibly, because the synchronous backing still ran it inline.
+		//
+		// currentUIMode is forced to NONE for the same reason the View probes do it: earlier steps in
+		// this stage leave it wherever their own gestures left it (SessionNewTrackEnter leaves a clip
+		// held), and auditionPadAction() only takes the new-press branch from UI_MODE_NONE.
+		currentUIMode = UI_MODE_NONE;
+		g_acqAuditionRow = BrowserListingAbProbe::firstEmptyArrangerRow();
+		if (g_acqAuditionRow < 0) {
+			printf("SP-ACQUIRE FAIL no empty arranger row left to press -- the new-instrument branch is "
+			       "unreachable, so this step would pass without covering it\n");
+			g_failures++;
+			g_acquireStep = AcquireStep::Finished;
+			break;
+		}
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::pressArrangerAuditionPad(g_acqAuditionRow, /*on=*/true);
+		// The press must NOT have entered the audition mode yet: on this backing the Output does not
+		// exist, so anything the handler did with it here would be acting on a row it has not filled.
+		if (currentUIMode != UI_MODE_NONE) {
+			printf("SP-ACQUIRE FAIL the audition pad entered mode %d synchronously; the Instrument it "
+			       "auditions has not been acquired yet\n",
+			       static_cast<int>(currentUIMode));
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::ArrangerAuditionPadCheck;
+		break;
+	}
+	case AcquireStep::ArrangerAuditionPadCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		const std::string name = currentAcquiredName();
+		printf("SP-ACQUIRE arranger-audition-pad row=%d dispatches=%d name=%s uiMode=%d\n", g_acqAuditionRow,
+		       dispatched, name.c_str(), static_cast<int>(currentUIMode));
+		if (dispatched != 1) {
+			printf("SP-ACQUIRE FAIL the audition pad press ran %d op(s), expected 1\n", dispatched);
+			g_failures++;
+		}
+		if (name.empty()) {
+			printf("SP-ACQUIRE FAIL the audition pad press left the row empty -- no Instrument was placed\n");
+			g_failures++;
+		}
+		// The finding this step exists for. completeNewInstrument() used to restore only the row and its
+		// repaint, so the press ended with the arranger in UI_MODE_NONE and no note sounding -- the whole
+		// point of holding an audition pad. A row-only check would pass either way.
+		if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+			printf("SP-ACQUIRE FAIL the audition pad press did not enter the audition mode -- "
+			       "completeNewInstrument() is missing the rest of the press's tail\n");
+			g_failures++;
+		}
+		// Release it, and require the release to land: exitSubModeWithoutAction() only fires when the
+		// released row matches yPressedActual, so this also proves the completion left that member
+		// pointing at the pad that was actually pressed rather than at whatever an earlier gesture left
+		// there. Without it the stage would also walk away leaving a note sounding.
+		BrowserListingAbProbe::pressArrangerAuditionPad(g_acqAuditionRow, /*on=*/false);
+		if (currentUIMode != UI_MODE_NONE) {
+			printf("SP-ACQUIRE FAIL releasing the audition pad left mode %d -- the completion's "
+			       "yPressedActual does not match the pad that was pressed\n",
+			       static_cast<int>(currentUIMode));
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::ArrangerAuditionRelease;
+		break;
+	}
+	case AcquireStep::ArrangerAuditionRelease: {
+		// The other half of the same guard: the finger comes UP while the acquisition is still in
+		// flight. This is the window the deferral opened and nothing else closes -- the press never
+		// entered UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, so exitSubModeWithoutAction() finds nothing
+		// to exit and the release leaves no trace at all. A completion that started a note anyway would
+		// start one nobody can ever end.
+		//
+		// Both edges are delivered in THIS tick, before the op runs: the dispatched op only executes
+		// during the queue drain after this function returns (see the doc above AcquireStep), which is
+		// exactly the ordering a real fast tap produces.
+		currentUIMode = UI_MODE_NONE;
+		g_acqAuditionRow = BrowserListingAbProbe::firstEmptyArrangerRow();
+		if (g_acqAuditionRow < 0) {
+			printf("SP-ACQUIRE FAIL no empty arranger row left for the release-during-flight press\n");
+			g_failures++;
+			g_acquireStep = AcquireStep::Finished;
+			break;
+		}
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::pressArrangerAuditionPad(g_acqAuditionRow, /*on=*/true);
+		BrowserListingAbProbe::pressArrangerAuditionPad(g_acqAuditionRow, /*on=*/false);
+		g_acquireStep = AcquireStep::ArrangerAuditionReleaseCheck;
+		break;
+	}
+	case AcquireStep::ArrangerAuditionReleaseCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		const std::string name = currentAcquiredName();
+		printf("SP-ACQUIRE arranger-audition-release row=%d dispatches=%d name=%s uiMode=%d\n", g_acqAuditionRow,
+		       dispatched, name.c_str(), static_cast<int>(currentUIMode));
+		// The acquisition still has to happen -- the row is filled either way, which is what the
+		// synchronous version did too. Only the audition is conditional.
+		if (dispatched != 1 || name.empty()) {
+			printf("SP-ACQUIRE FAIL a released press still has to acquire: ran %d op(s), row name=%s\n", dispatched,
+			       name.c_str());
+			g_failures++;
+		}
+		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
+			printf("SP-ACQUIRE FAIL the completion auditioned a pad that was already released -- "
+			       "that note has nothing left to end it\n");
+			g_failures++;
+			// Do not leave it sounding for the rest of the process.
+			currentUIMode = UI_MODE_NONE;
 		}
 		g_acquireStep = AcquireStep::Finished;
 		break;
