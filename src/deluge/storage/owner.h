@@ -58,6 +58,20 @@ struct Owner {
 	/// @return true iff on the storage worker context.
 	static bool on_owner();
 
+	/// @brief True iff the owner has run at least once - i.e. an owner exists to be `on_owner()`
+	/// of at all. False only during the narrow pre-owner boot window (the synchronous
+	/// `deluge_boot()` call chain, before the worker pump's first poll); true for the rest of the
+	/// process's life on Embassy. Always false on cooperative/host, where there is no separate
+	/// owner to have started (see `deluge_worker_started()`'s doc).
+	///
+	/// Exists for the one legal exception to "every reader that reaches the owner must be
+	/// `on_owner()`": `Song::ensureAtLeastOneSessionClip()` calls straight into
+	/// `LoadInstrumentPresetUI`'s readers before any interaction tier - or owner - exists yet, so
+	/// `on_owner()` alone would wrongly indict it. A caller asserts
+	/// `on_owner() || !started()` rather than `on_owner()` alone.
+	/// @return true iff the storage owner has run at least once.
+	static bool started();
+
 	/// @brief Run `fn(ctx)` on the worker, but inline if already on_owner() (or on a
 	/// cooperative/host BSP). For dual-context callers: the leaf work runs on the
 	/// worker exactly once, whether reached from a UI handler (dispatched) or from

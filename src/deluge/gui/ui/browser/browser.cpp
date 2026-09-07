@@ -181,21 +181,17 @@ static Error directoryOpenError(DelugeStatus status) {
 }
 
 bool Browser::usingDirectoryChannel() {
-	// Either CONVERTED caller — a listing, or a typing prediction. Both can suspend and both are
-	// resumed by graphicsRoutine(); everything else that reaches readFileItemsForFolder cannot.
-	// `LoadInstrumentPresetUI`'s three readers still call in from outside Browser with nowhere to put
-	// a deferral, and handing one of them LISTING_DEFERRED would report a load failure for a folder
-	// that is perfectly readable. They are rung 5.
-	const bool inConvertedCaller = listing_.active || prediction_.active;
-
-	// And `inConvertedCaller` alone does NOT exclude them, because both flags are globals meaning
-	// "SOMETHING is in flight", not "I am inside it". An owner op running while a listing is
-	// suspended would otherwise take the async arm, be handed a deferral it treats as a failure, AND
-	// replace the suspended listing's outstanding request with its own.
+	// Every caller that reaches readFileItemsForFolder from the interaction tier can now suspend:
+	// listings and typing predictions resume from graphicsRoutine(), and instrument acquisition runs
+	// on the storage owner instead (rung 5), where the on_owner() term below already excludes it --
+	// a recursive subfolder descent cannot be split across deferrals at all (rung 5 spec, section
+	// 2b), so it must never reach the channel. `inConvertedCaller` used to gate this to just the
+	// listing/prediction pair, because those three readers had nowhere to put a deferral; now that
+	// they run on the owner instead, the gate is deletable rather than needing a replacement.
 	//
 	// The selector is last because with the channel absent the weak collect answers UNKNOWN forever,
 	// so a caller that consulted it would defer every tick and never read anything.
-	return inConvertedCaller && !deluge::storage::Owner::on_owner() && deluge_file_directory_async_active();
+	return !deluge::storage::Owner::on_owner() && deluge_file_directory_async_active();
 }
 
 std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path, bool createIfMissing) {

@@ -70,6 +70,19 @@ bool deluge_worker_run_sd_routine(void (*fn)(void*), void* ctx);
 ///         false on the cooperative/host build).
 bool deluge_worker_on_worker(void);
 
+/// @brief Whether the worker has ever run — i.e. whether an owner exists to be on at all.
+///
+/// Embassy: latched true the first time the worker pump runs (`app_task`/`host_app_task`'s first
+/// poll); false only during the narrow pre-owner boot window, the synchronous `deluge_boot()` call
+/// chain that runs before that pump starts. This is the same distinction `sd.rs`'s diskio asserts
+/// draw (`on_fiber() || !worker_started()`) to tell the boot-time FatFS mount apart from a genuine
+/// off-owner transfer at runtime — surfaced here so a C++ caller can draw it too, e.g. an assertion
+/// that a recursive reader never runs off the owner except during that one legal boot exception.
+/// Cooperative/host: always false, matching `deluge_worker_on_worker`'s own cooperative default —
+/// there is no separate worker to have "started" and no caller needs to branch on this.
+/// @return true iff the worker has run at least once (Embassy only; always false cooperative/host).
+bool deluge_worker_started(void);
+
 #ifdef __cplusplus
 }
 #endif

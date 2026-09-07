@@ -38,3 +38,10 @@ extern "C" bool deluge_worker_run_sd_routine(void (*fn)(void*), void* ctx) {
 extern "C" bool deluge_worker_on_worker(void) {
 	return false;
 }
+
+// Host stand-in: same as the cooperative default (task_scheduler_c_api.cpp) — there is no
+// separate worker to have "started", so always false. The Embassy BSP's fiber.rs supplies the
+// real WORKER_STARTED-backed predicate.
+extern "C" bool deluge_worker_started(void) {
+	return false;
+}

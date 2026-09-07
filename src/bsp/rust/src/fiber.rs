@@ -602,6 +602,14 @@ pub extern "C" fn deluge_worker_on_worker() -> bool {
     on_fiber()
 }
 
+/// C-ABI: has the worker pump run at least once yet? Backs `include/libdeluge/worker.h`'s
+/// `deluge_worker_started` -- a C++ caller's way to draw the same "boot-time, before the owner
+/// exists" vs. "runtime, after it does" distinction `worker_started()` already gives `sd.rs`.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_worker_started() -> bool {
+    worker_started()
+}
+
 /// Dequeue the next op to run: the oldest (lowest-sequence) queued job — plain
 /// FIFO. `QUEUE_CAP` is small (4), so a linear scan per dequeue is cheap and
 /// keeps the ring itself a plain fixed array.

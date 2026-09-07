@@ -120,6 +120,16 @@ bool deluge_worker_on_worker(void) {
 	return false;
 }
 
+// Cooperative/host default: there is no separate worker to have "started" - the inline caller has
+// been standing in for the owner since process start. Matches deluge_worker_on_worker's own
+// cooperative default of false, so a caller asserting `on_worker() || !worker_started()` (the
+// Embassy boot-exception idiom - see fiber.rs's WORKER_STARTED) is trivially satisfied here rather
+// than tripping on a distinction this BSP doesn't have. The Embassy BSP supplies its own definition
+// (fiber.rs) that wins at link time.
+bool deluge_worker_started(void) {
+	return false;
+}
+
 // libdeluge/storage_owner.h — cooperative/host default: FatFS runs inline on the
 // caller, so the caller is always the owner. Embassy overrides (fiber-only).
 bool deluge_storage_on_owner(void) {

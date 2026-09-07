@@ -33,6 +33,10 @@ bool Owner::on_owner() {
 	return deluge_worker_on_worker();
 }
 
+bool Owner::started() {
+	return deluge_worker_started();
+}
+
 bool Owner::run_or_inline(void (*fn)(void*), void* ctx) {
 	if (on_owner()) {
 		fn(ctx);

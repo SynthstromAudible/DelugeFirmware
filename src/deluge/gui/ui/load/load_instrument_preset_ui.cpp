@@ -41,10 +41,13 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
+#include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/string.h"
 #include "util/try.h"
+
+#include <cassert>
 
 using namespace deluge;
 namespace encoders = deluge::hid::encoders;
@@ -1342,6 +1345,12 @@ bool LoadInstrumentPresetUI::showingAuditionPads() {
 std::expected<FileItem*, Error>
 LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
                                                                         Availability availabilityRequirement) {
+	// Rung 5: this reader recurses over subfolders with backtracking, so its walk cannot be split
+	// across a deferral and must run start-to-finish on the storage owner. Boot is the one legal
+	// exception -- Song::ensureAtLeastOneSessionClip() calls straight in here before any interaction
+	// tier, or owner, exists yet (deluge.cpp's setupBlankSong() path) -- so permit that instead of
+	// audioEngineStarted, which is already true by then (AudioEngine::init() runs earlier in boot).
+	assert(deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started());
 
 	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
 	allowedFileExtensions = allowedFileExtensionsXML;
@@ -1460,6 +1469,11 @@ doThisFolder:
 std::expected<FileItem*, Error>
 LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
                                                          Availability availabilityRequirement) {
+	// Rung 5: calls findAnUnlaunchedPresetIncludingWithinSubfolders() below, so it inherits the same
+	// can't-defer-mid-walk constraint and must never run on the interaction tier. Boot is the one
+	// legal exception -- see the sibling assertion in findAnUnlaunchedPresetIncludingWithinSubfolders.
+	assert(deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started());
+
 	std::string searchNameLocalCopy;
 	searchNameLocalCopy = *searchName; // Can't fail.
 	bool shouldJustGrabLeftmost = false;
@@ -1545,6 +1559,12 @@ needToGrabLeftmostButHaveToReadFirst:
 /// Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
                                                                   Availability availabilityRequirement, bool doBlink) {
+	// Rung 5: this reader loops over readFileItemsForFolder() with its own goto-based backtracking
+	// (readAgain/moveAgain/reachedEnd below) to walk the catalog in either direction, so like its two
+	// siblings its walk cannot be split across a deferral and must run start-to-finish on the storage
+	// owner. Boot is the one legal exception -- see the sibling assertion in
+	// findAnUnlaunchedPresetIncludingWithinSubfolders.
+	assert(deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started());
 
 	AudioEngine::logAction("doPresetNavigation");
 
