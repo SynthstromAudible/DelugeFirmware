@@ -200,11 +200,35 @@ rather than a thing that is half-done:
 4. **No `take_choice()` dispatcher.** `BrowserScene`'s deferring descriptor parks a chosen file and
    closes; performing `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting
    is the wiring layer's.
-5. **Two boot calls.** `menu::set_shortcuts_version()` (flash byte 60 — the one menu setting whose
-   value does not live in a global the settings loader already populates) and
-   `scenes::assigned_node_ids()`.
+5. **Three boot calls.** `menu::set_shortcuts_version()` (flash byte 60 — the one menu setting whose
+   value does not live in a global the settings loader already populates),
+   `scenes::assigned_node_ids()`, and — added by E4 task 7 — a value for
+   `ShellConfig::screensaver_idle_ms`, which is
+   `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
+   (`hid/display/screensaver.cpp:79-81`, `:92-94`) and must be re-supplied on every settings change,
+   since `Screensaver::settingsChanged()` has no port. Until it is, `ShellConfig` defaults it to 0
+   and **the screensaver can never activate**, however the two settings are set.
 6. **`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
    `PerformanceView` class member offers no bare-`extern` escape.
+7. **No application can install a service** — added by E4 task 13, the first thing in the tree that
+   ever tried to hold all three services and a `Shell` at once. `services::ModKnobs`,
+   `services::GlobalControls` and `services::MidiLearn` each take the `Shell`'s own `SceneStack&`
+   (two of them its `InputLowering&`) and each *uses* it, `Services` is taken **by value into the
+   `Shell`'s constructor** and `service_list_` is built once there
+   (`src/shell/shell.cpp:186-190`, "the services are fixed at construction"). So a real service
+   cannot be constructed before the shell it serves and cannot be installed after it: an application
+   that builds a `Shell` today can only pass `Services{}`, and **no gold-knob turn, transport button
+   or MIDI-learn press reaches anything outside the scene stack.** Unlike 5, this is not a setting
+   that degrades — it is a whole routing tier that is unreachable. Whoever wires boot needs
+   `Shell::set_services` (setting `services_`, re-seating `Router`'s copy and rebuilding
+   `service_list_`) or late-bound service constructors;
+   `sim/scenes_spec/scene_scripts_spec.cpp`'s forwarding `LateService` shim is a test-only shape.
+   Recorded in code at `src/scenes/registry.h`'s boot-wiring list and `src/scenes/README.md`.
+8. **No producer for three of `MidiLearn`'s four entry points.** `note_on_received`, `cc_received`
+   and `thing_pressed` have zero callers in `src/` — there is no MIDI `UiEvent` kind for the router
+   to carry, and the scenes that would call `thing_pressed` from `learnable_at(pad)`
+   (`SessionScene`, `NoteClipScene`, `ArrangerScene`) are E5's and E6's. The four button arms
+   *are* live through `Router`.
 
 ### 10.3 Two consequences of the deletion that are not preconditions but must be planned for
 
@@ -223,22 +247,59 @@ rather than a thing that is half-done:
 
 ### 10.4 What spec E leaves that is *not* a phase-4 blocker
 
-Recorded so a reader of §7 does not mistake E4's scope for a precondition. **E4 is the load/save
-browser family** — `gui/ui/load/load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui` and all
+Recorded so a reader of §7 does not mistake E4's scope for a precondition.
+
+> **Correction, 2026-09-07, closing E4.** This section was written expecting E4 to be the load/save
+> browser family. **It was not.** E4 (`2026-09-06-ui-scenes-services-and-roots-4.md`) built the
+> three model-aware shell services, the three missing overlay scenes, the shared `TimelineState` and
+> the first two application scenes (`SlicerScene`, `AudioClipScene`). The reordering was structural
+> rather than opportunistic: `GlobalControls`' and `MidiLearn`'s `View`-arm groups are gated on
+> `stack_.input_top().is_root()`, so until a root scene existed those arms were unreachable and
+> untestable, and `AudioClipScene` is what made them live. Everything the paragraph below says about
+> the load/save family still holds — it is **E5's or E6's** rather than E4's. E4's own coverage
+> number is §10.7.
+
+The family in question is `gui/ui/load/load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui` and all
 of `gui/ui/save/` (songs, presets, patterns, kit rows). E3 ported the two browsers the *menu tree*
 reaches and stopped there deliberately: the other seven are opened **from root UIs rather than from
 menu items**, so the menu tree's legacy-vs-port oracle cannot exercise them, and they carry
 `SlotBrowser`'s brand-new-name axis (`mayDefaultToBrandNewNameOnEntry`, `getUnusedSlot`) that
 `BrowserScene` has none of. Those files are on §7's **phase 6** row (per-scene), not phase 4.
 
-Also carried, all of them recorded with pointers in `src/scenes/README.md`'s "E4 roadmap": the
-`FileCatalogue` claim covering a listing rather than a browsing session; mod-matrix pad blinking;
-`model/clip/audio_clip.cpp`'s surviving `gui/waveform/waveform_renderer.h` include (a `model/` class
-that renders — `SessionScene`'s to close); `MenuScene::ascend()`'s silent no-op at depth 0 where
-legacy's `goUpOneLevel` calls `exitCompletely()`; a `CustomItem::title` hook for the three pages that
-want a runtime title; and three `IntegerWithOff` nodes that draw "0" where legacy draws "OFF".
+Also carried, all of them recorded with pointers in `src/scenes/README.md`'s roadmap section (which
+the same correction retitles): the `FileCatalogue` claim covering a listing rather than a browsing
+session; mod-matrix pad blinking; `model/clip/audio_clip.cpp`'s surviving
+`gui/waveform/waveform_renderer.h` include (a `model/` class that renders — `SessionScene`'s to
+close); `MenuScene::ascend()`'s silent no-op at depth 0 where legacy's `goUpOneLevel` calls
+`exitCompletely()`; a `CustomItem::title` hook for the three pages that want a runtime title; and
+three `IntegerWithOff` nodes that draw "0" where legacy draws "OFF".
 
-### 10.5 Six defects in shipping firmware, found by the port and not fixed by it
+**E4 adds four rows to that list**, none of them a phase-4 blocker either:
+
+* **`slicing::SliceOps` has no implementation.** Six virtuals with no-op defaults, wired by nobody —
+  the whole audio/model/card half of the slicer. `Slicer` reaches that work through four `gui/`
+  globals the ratchet forbids (`sampleBrowser`, `soundEditor`, `instrumentClipView`, `PadLEDs`), so
+  the port names the calls at a boundary and keeps the state, the guards, the coalescer, the
+  dispatch and the gate. Until a wiring layer implements it the slicer selects, deletes, renders and
+  snapshots correctly and **makes no sound and no kit**. `SliceOps::play_position` is the third
+  consumer of the voice walk no spec can drive, so the fixture that unblocks it — a `Song` with a
+  booted `AudioEngine` and one sounding voice — unblocks all three.
+* **`ClipView`'s `Y_ENC` shift arm is a silent no-op for a real gesture, and must not survive E5.**
+  `AudioClipScene` *claims* the `Y_ENC` (and `X_ENC`-held + CLIP) chord exactly as legacy does
+  (`gui/views/clip_view.cpp:249`) and then does nothing: two of the three arguments
+  `Clip::shiftHorizontally` takes are decided by `getCurrentUI() == &automationView` (`:203`,
+  `:206`) — a question with no answer while no `AutomationScene` exists — and the undo consequence
+  `alloc_sdram`s (`:240`). On the device this gesture shifts the clip's contents. **Whoever writes
+  `AutomationScene` ports this arm in the same change.** Recorded at the arm itself, in
+  `src/scenes/README.md`'s carry table, and here.
+* **`AudioClipScene::clip_resynced` is written from a citation and driven by nothing.** A `@warning`
+  on its declaration says so.
+* **Six doc-comment tables mangled by clang-format's comment reflow** — `menu/nodes/midi_device.h`,
+  `menu/nodes/patch_cables.h`, `recorder/recorder_scene.h`, `shell/scene.h`, `shell/scene_stack.h`,
+  `shell/shell.h`. Rewriting one as a bulleted list fixes it, and the citations in it have to be
+  re-verified line by line while doing so (E4 tasks 9 and 14 each fixed one this way).
+
+### 10.5 Ten defects in shipping firmware, found by the port and not fixed by it
 
 They belong in a release note, not only in a spec, and are written up in full in
 `src/scenes/README.md`'s "Defects this port found in shipping firmware" with a `@warning` at each
@@ -270,6 +331,42 @@ clip longer than one screen. Established by reading and by driving legacy's own 
 from both sides (`sim/scenes_spec/timeline_spec.cpp`); the port reproduces it rather than fixing
 it, for the reason every row here gives, and it is annotated at
 `src/scenes/timeline/timeline.h`'s `tick_square` rather than in `clip_view.cpp`.
+
+E4 tasks 9, 10 and 12 added the last four, three of them in the slicer and one in `ClipView`:
+
+* **`Slicer::renderMainPads` never checks that it was given an image**, although `UI`'s own header
+  requires every override to (*"These \*must\* check whether image has been supplied"*,
+  `gui/ui/ui.h:141-142`) and `SampleMarkerEditor::renderMainPads` does
+  (`gui/ui/sample_marker_editor.cpp:1362-1366`). `closeUI` quizzes every UI down to the one being
+  closed with the **no-argument** form (`gui/ui/ui.cpp:184-192`), so `image` is null, and closing
+  the slicer takes that path on every exit. REGION mode reaches `WaveformRenderer::renderFullScreen`'s
+  memset; MANUAL mode writes `image[yy + 4][xx]` directly. **Memory corruption**, established by
+  reading the enclosing braces rather than reproduced — whether address 0 faults on an RZ/A1 depends
+  on the boot-time memory map, which is why it has survived.
+* **`Slicer` declares 432 bytes of stack it never touches, twice** (`gui/ui/slicer.cpp:107`, `:376`).
+  Cosmetic; recorded because a reader comparing the three render arms will otherwise assume the two
+  dead arrays matter.
+* **`Slicer::selectEncoderAction`'s slice-count wrap only fires on an exact hit** — equality, not a
+  range (`gui/ui/slicer.cpp:249-257`) — while `offset` is whole detents, so a fast turn steps over
+  both ends and a single -20 turn from the opening 16 lands on **-4**, which the page then displays.
+  Reachable with an ordinary flick of the select encoder. The port reproduces it exactly and asserts
+  both halves against legacy's own `selectEncoderAction`.
+* **`ClipView::lengthenClip` and `shortenClip` dereference `actionLogger.firstAction[BEFORE]`
+  without a null check** — `gui/views/clip_view.cpp:98` and `:129`. The nearest null-guarded read of
+  that pointer is `lengthenClip`'s `undoing` test **eighteen lines up, in a different `if` whose
+  result is not carried down**, and `shortenClip` has no earlier test at all, which is what makes it
+  easy to miss rather than an obvious oversight. It survives on the device because an `Action`
+  almost always exists by then; the window is a fresh boot (or an `actionLogger.deleteAllLogs()`,
+  which `SoundEditor::setup` does on every menu open) followed immediately by a length edit.
+  **Established by driving it**: `sim/scenes_spec/audio_clip_scene_spec.cpp` exited 139 rather than
+  failing, which is why its `Rig::reseed` seeds one inert `ActionType::MISC` action. The port guards
+  it and is deliberately **not** a faithful reproduction — a port cannot faithfully reproduce a
+  segfault.
+
+Four of the ten are in `gui/views/view.cpp` and `gui/views/clip_view.cpp` and **none of the four is
+annotated in the legacy file**: this stack cites those two by line more than 130 times, and
+inserting a comment would shift every citation. Every port-side `@warning` is complete, and
+`src/scenes/README.md`'s "Defects this port found in shipping firmware" is the full table.
 
 ### 10.6 What the oracle actually covers for the three new scenes (2026-09-04, closing E3's final review)
 
@@ -363,3 +460,200 @@ strengthens that — a golden pins the port to itself. Either device-validate th
 the legacy files go, or keep `browser.cpp`, `sample_marker_editor.cpp` and `audio_recorder.cpp`
 alive behind a spec-only target for one more phase, which is the same choice §10.3 offers for
 `menus.cpp` and should be made once for both.
+
+### 10.7 What the oracle actually covers for E4's nine subjects (2026-09-07, closing E4)
+
+The same question §10.6 asks, for the three services, the three overlay scenes, the shared timeline
+state and the two application scenes E4 built. **Read the deletion schedule against this number**,
+which is what §10.3's first bullet says it must be read against.
+
+**Covered** means what §10.6 established: the spec drives the legacy entry point from *its own*
+inputs, on a model or fixture reset to what the port started from, and compares the two answers. A
+comparison whose reference is computed from the port's own state is not counted; neither is a
+comparison against a transcription of legacy's body held in the spec file.
+
+**64 legacy entry points, across 121 comparison sites.**
+
+| subject | entry points driven from their own sentinel | comparison sites | spec (`sim/scenes_spec/`) |
+|---|---|---|---|
+| `ModKnobs` | 11 | 13 | `mod_knobs_spec.cpp` |
+| `GlobalControls` | 2 | 7 | `global_controls_spec.cpp` |
+| `MidiLearn` | 11 | 15 | `midi_learn_spec.cpp` |
+| `ParamPopupScene` | 2 | 3 | `param_popup_spec.cpp` |
+| `CountInScene` | 1 | 1 | `count_in_spec.cpp` |
+| `ScreensaverScene` | 2 | 2 | `screensaver_scene_spec.cpp` |
+| `TimelineState` | 14 | 29 | `timeline_spec.cpp` |
+| `SlicerScene` | 7 | 21 | `slicer_scene_spec.cpp` |
+| `AudioClipScene` | 14 | 30 | `audio_clip_scene_spec.cpp` |
+
+**How "comparison sites" is counted here, and why it differs from §10.6.** A site is **one example
+(`it(...)`) that calls a legacy entry point with spec-chosen inputs and asserts**. That rule is
+stated because it is reproducible — count the `it(` blocks in a spec that contain both a legacy call
+and an `expect` — and §10.6's own site numbers are not: they were a hand count, and re-deriving them
+mechanically from the files gives 6 and 3 for the browser and the recorder (matching) but 5 for the
+marker against a recorded 18. The entry-point column is the substantive one either way, and every
+entry point in it is enumerated below by name.
+
+**`ModKnobs`** (`gui/views/view.cpp`). `modEncoderAction`; `modButtonAction`;
+`displayModEncoderValuePopup`; `calculateKnobPosForModEncoderTurn`;
+`convertPatchCableKnobPosToIndicatorLevel`; `setKnobIndicatorLevel`; `isClipContext`, over all five
+reachable target shapes; `getModKnobMode`; and legacy's own three target setters —
+`setActiveModControllableTimelineCounter`, `setActiveModControllableWithoutTimelineCounter`,
+`setModRegion` — which are driven as legacy's side of the sentinel and whose resulting
+`activeModControllableModelStack` is compared field by field. The central example runs the two sides
+on **two different clips**, each with its own `SoundInstrument` and `ParamManager`, each seeded by
+its own explicit write, and reads the resulting `ParamManager` back by identity rather than asking
+the port what it did.
+
+**`GlobalControls`** (`hid/buttons.cpp`, `gui/views/view.cpp`). `Buttons::buttonAction`, driven at
+15 call sites, and `View::buttonAction` reached through it — a stub **root** UI forwards, because
+`UI::buttonAction`'s base returns `NOT_DEALT_WITH` and does not. Two entry points is a small number
+for a 24-example spec, and it is the honest one: transport is a **process singleton** (one
+`PlaybackHandler`, one `Buttons`, one `AudioEngine::audioSampleTimer`), so no fixture can give
+legacy and the port one each. The discipline is applied in the shape available and stated at the
+file: each side establishes its own starting state and asserts the reset took; legacy's answer is
+captured into a local and the model is then **poisoned** with a value neither transition can produce
+(`RecordingMode::ARRANGEMENT`, `false` for a metronome legacy just turned on, `0x5EED` for the BACK
+arm's cluster counter); both sides are asserted to have moved.
+
+**`MidiLearn`** (`gui/views/view.cpp`). `startMIDILearn`; `endMIDILearn`; `buttonAction`;
+`midiLearnFlash`; `noteOnReceivedForMidiLearn`; `ccReceivedForMIDILearn`; and the five learn-pad
+entry points — `sectionMidiLearnPadPressed`, `instrumentMidiLearnPadPressed`,
+`clipStatusMidiLearnPadPressed`, `noteRowMuteMidiLearnPadPressed`, `drumMidiLearnPadPressed`. The
+`LearnedMIDI` objects are per-fixture where legacy allows and process singletons where it does not
+(`midiEngine.globalMIDICommands`); the poison step is what makes the singleton case honest.
+
+**`ParamPopupScene`** (`gui/views/view.cpp`). `displayModEncoderValuePopup` and
+`flushPendingModEncoderValuePopup`, compared as **the assembled scene's own pixels** through a real
+`deluge::hid::display::OLED` and a real `Shell`, not as the widget in isolation.
+
+**`CountInScene`** (`gui/ui/notify_drain.cpp`'s count-in block, `:92-113`). One entry point: legacy's
+own `display->displayPopup(buffer, 0, true, 255, 2)` call at `:100`, with `buffer` formatted from
+`playbackHandler.currentVisualCountForCountIn` — the same public sentinel the port reads for itself
+through `count_in_visual()`. Neither side is computed from the other's.
+
+**`ScreensaverScene`** (`hid/display/screensaver.cpp`). `Screensaver::timerEvent` and
+`Screensaver::noteActivity`, observed through `isActive()` and `getCanvas()`, with the two 128x48
+panels compared **pixel for pixel on every frame** in both animated modes. What is *not* counted
+here is the move's own proof: `Rainfall` and `Starfield` are compared against
+`sim/scenes_spec/support/oracle_{rainfall,starfield}` — a transcription of the pre-move source, and
+§10.6's rule excludes transcriptions. It is a strong transcription (produced by a recorded
+three-substitution `sed`, reproduced byte-identically by the reviewer against
+`git show`, and corroborated by an independent reverse-mapped diff showing only comment-column
+realignment), but it is a transcription, and this table counts what the rule counts.
+
+**`TimelineState`** (`gui/views/timeline_view.cpp`, `clip_navigation_timeline_view.cpp`,
+`clip_view.cpp`, `audio_clip_view.cpp`). Fourteen functions, driven on **two** concrete views
+(`audioClipView` and `instrumentClipView`, 18 view×function pairs): `horizontalEncoderAction`,
+`buttonAction`, `zoomToMax`, `scrollRightToEndOfLengthIfNecessary`, `scrollLeftIfTooFarRight`,
+`isSquareDefined`, `getSquareFromPos`, `getSquareEndFromPos`, `getPosFromSquare`,
+`getLengthExtendAmount`, `getLengthChopAmount`, `displayNumberOfBarsAndBeats`,
+`tripletsButtonPressed`, and `ClipView::getTickSquare` through a pointer-to-member (it is
+`protected`).
+
+**`SlicerScene`** (`gui/ui/slicer.cpp`). `selectEncoderAction`; `horizontalEncoderAction`;
+`verticalEncoderAction`; `buttonAction`; `renderMainPads`; `renderOLED`; `focusRegained`. Several
+arms need a slice table with more than one entry and neither side can build one from its own
+`padAction` (legacy's adder is behind the undriveable voice walk), so the spec **tells both sides the
+same table**, each through its own front door — the port through its own ported adder, legacy
+through its own public members — and asserts the two agree before the gesture under test runs.
+
+**`AudioClipScene`** (`gui/views/audio_clip_view.cpp` and its bases). `padAction`; `buttonAction`;
+`horizontalEncoderAction`; `verticalEncoderAction`; `selectEncoderAction`; `timerCallback`;
+`graphicsRoutine`; `renderMainPads`; `renderSidebar`; `renderOLED`; `getMaxLength`; `getMaxZoom`;
+`clipNeedsReRendering`; `setClipLengthEqualToSampleLength`.
+
+**Pinned only to literals or to a counter, with the reason each one is not drivable.** These are
+what a deletion loses outright.
+
+* **`AudioRecorder`-shaped: everything behind `audioRecorder` in `GlobalControls`** —
+  `beginOutputRecording` (`hid/buttons.cpp:161`, `:182`), `isCurrentlyResampling` (`:195`),
+  `endRecordingSoon` (`:196`). Not ported at all, so there is nothing on the port side to compare;
+  the *decisions* that reach them are covered through
+  `GlobalControls::unported_opens(UnportedOpen)`, a tally **per site**, so an assertion about one
+  arm cannot be satisfied by another. `openUI(&saveSongUI)` / `openUI(&loadSongUI)` /
+  `context_menu::clearSong` (`view.cpp:261`, `:313`, `:290-293`) have the same shape.
+* **`slicing::SliceOps` has no implementation.** Six virtuals with no-op defaults — the whole
+  audio/model/card half of the slicer. `Slicer::doSlice` (`gui/ui/slicer.cpp:596-751`) itself is not
+  driven: it calls `sampleBrowser.claimAudioFileForInstrument`, reads `soundEditor.currentSource` /
+  `currentSound`, calls `instrumentClipView.recalculateColours` and ends in
+  `sampleBrowser.exitAndNeverDeleteDrum()` — four `gui/` globals this layer may never name, plus a
+  card read. The spec drives a fake and compares everything **around** the commit: the snapshot, the
+  gate, the dispatch and the release. This is the largest single gap in E4, and it is the direct
+  analogue of E3's `AudioRecorder` gap.
+* **The voice walk, which three separate things need.** `Slicer::graphicsRoutine`
+  (`slicer.cpp:156-203`), `Slicer::padAction`'s do-slice branch (`:508-534`) and
+  `SliceOps::play_position` all need `Sound::voices()` to report a live voice, which needs a running
+  `AudioEngine`. `support/song_fixture.h` builds a `Song` by direct construction and never calls
+  `AudioEngine::init()`, so the only branch a spec can reach is "no voices, no tick square", which
+  asserts nothing. One fixture — a `Song` with a booted `AudioEngine` and one sounding voice —
+  unblocks all three.
+* **`AudioClipScene::clip_resynced` is written from a citation and driven by nothing**, and says so
+  on its declaration.
+* **`TimelineState::tick_square`'s auto-scroll arm.** `ClipView::getTickSquare`'s follow arm is
+  gated on `getCurrentlyRecordingLinearly()` and `getCurrentUI() == this` — a live recorder and a
+  real root UI, neither of which the fixture has. The arms reachable from a non-recording clip are
+  compared; the recording ones are not.
+* **`ModKnobs`' popup suppression arms** for the performance view and the song browser
+  (`view.cpp:869-874`, `:885`) — no `PerformanceScene` exists and the song browser is not among the
+  legacy UIs `BrowserScene` carries, so no port-side state can make either fire. **`PopupContext::stuttering`**
+  — nothing in the port owns the stutter gesture. **The MIDI-clip CC/expression naming arm**
+  (`view.cpp:1122-1146`) — reachable since task 2 widened `show()`, but a bare MIDI fixture's gold
+  knobs resolve through `MIDIInstrument::getParamFromModEncoder` to no `autoParam`, so no popup is
+  shown at all; covering it needs a fixture that assigns a mod-knob CC.
+* **`ModKnobs::notify_param_automation_occurred`'s `DISPLAY_AUTOMATION` consumer** — the timer
+  callback is `automationView.displayAutomation()` / `view.displayAutomation()`, both view-side and
+  unported. Only the *arming* is compared.
+* **`MidiLearn`'s `clearMelodicInstrumentMonoExpressionIfPossible`** (`view.cpp:745-765`),
+  **`iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)`** (`:620`) and
+  **`FlashStorage::writeSettings()`** (`:485`): the first is unported (it needs
+  `model/model_stack.h`, which `scenes-model-stack-outside-context` confines to two files) and is
+  counted through `MidiLearn::unported_calls`; the second likewise; the third is skipped on **both**
+  sides, because `spec::QuietAudio` holds `AudioEngine::audioRoutineLocked` for the whole process,
+  so what is asserted is the `shouldSaveSettingsAfterMidiLearn` decision rather than the write.
+* **`GlobalControls`' `THRESHOLD_RECORDING_MODE` popup arm** (`hid/buttons.cpp:190-192`), the
+  **`SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:339-353`, which need `soundEditor` and
+  `instrumentClipView`), the **dedicated undo/redo buttons** (`view.cpp:423-446`, dead code behind
+  `#ifdef undoButtonX`, defined nowhere in the tree), and the **UNDO-vs-REDO choice** at `:414-415`
+  (`playbackHandler.slowRoutine()` consumes the pending command inside the same call and a spec
+  cannot make `deluge::sync::sd_busy()` true, so both spellings read `NONE` by the time control
+  returns — the arm's *body running* is covered, which of the two it chose is not).
+* **`CountInScene`'s masked `UI_MODE_RECORD_COUNT_IN` clear** (`notify_drain.cpp:104-111`):
+  `currentUIMode` lives in `gui/ui/ui.h`, which this layer may never include, so there is no port to
+  compare against at all.
+* **Four `ScreensaverScene` behaviours, all of them policy rather than drawing and all of them
+  `shell::Screensaver`'s half**: `settingsChanged()` (`hid/display/screensaver.cpp:165-177`), the
+  permanent-popup / working-animation / stem-export inhibitors (`:106-118`) and with them the
+  1000 ms re-check that exists only to run them, the `ScreensaverMode::OFF` early-outs, and the
+  `consumeFrameDirty` blit protocol.
+* **`AudioClipScene`'s `UI_MODE_HOLDING_SONG_BUTTON` macro arm of `renderSidebar`** (`:247-249`) and
+  **the four `PadLEDs` transition modes** — the port carries no transitions at all, so those early
+  returns have no counterpart.
+* **`View::setModLedStates` is not driven.** The eight-mode × eight-LED table is asserted by
+  identity against a transcription of `view.cpp:1662-1676` read row by row, which is the shape §10.6
+  excludes. It is a table rather than a body, and the assertion fails on an undeclared LED id, but
+  it is not a comparison against running legacy and is not counted above.
+
+**Anything with no legacy counterpart at all** (not a gap, and not counted either way):
+`Slicer::redraw` (`slicer.cpp:100-101`, an empty 7SEG-only hook); **`AudioClipView::renderOLED` at
+64 rows** and `CountInScene` at 64 rows, because `OLED_MAIN_HEIGHT_PIXELS` is a compile-time 48 and
+there is no 64-row legacy singleton to ask — both are goldens at that geometry, exactly as
+`marker_scene_spec`'s and `browser_scene_spec`'s are; and the `Y_ENC` shift arm and
+`changeRootUI(&automationView)` arm of `ClipView`, which have no port to compare (§10.4).
+
+**Three of `MidiLearn`'s four entry points have no producer in `src/` at all.**
+`note_on_received`, `cc_received` and `thing_pressed` have zero callers outside the spec: there is
+no MIDI `UiEvent` kind for the router to carry, and the scenes that would call `thing_pressed` from
+`learnable_at(pad)` are E5's and E6's. So its coverage reads as "the service's behaviour is pinned;
+three of its four entry points have no producer yet", and §10.2 item 8 owes them.
+
+**What this means for §7 and §10.3.** Two of E4's nine subjects are carried by literals in the way
+`AudioRecorder` is: the slicer's **commit path** (`SliceOps`, `doSlice`) and everything the **voice
+walk** feeds. Both are unblocked by the same fixture, which is the cheapest single thing anyone
+could build to raise this number. Everything else is comparison-covered on the arms a spec process
+can reach, and the two services whose gaps are largest — `GlobalControls`' recorder arms and
+`MidiLearn`'s absent producers — are gaps in the **wiring**, not in the port: they close when spec F
+supplies the callers, not when someone writes more spec. As in §10.6, the honest answer is either
+device-validate the slicer's commit before `slicer.cpp` goes, or keep it alive behind a spec-only
+target for one more phase — the same choice §10.3 offers for `menus.cpp`, `browser.cpp`,
+`sample_marker_editor.cpp` and `audio_recorder.cpp`, and it should be made once for all of them.

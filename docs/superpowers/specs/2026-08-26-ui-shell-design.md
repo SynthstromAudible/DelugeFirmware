@@ -221,6 +221,26 @@ one is still routed through the same 2→3→4 chain, just after render instead 
 Members of the shell, not globals. Each has `handle()`, `leds()`, `tick()` like a scene but
 never renders OLED/grid.
 
+> **Three of these six rows are now real classes, and they are not in this library.** E4
+> (`2026-09-06-ui-scenes-services-and-roots-4.md`, tasks 1–5) built `GlobalControls`, `ModKnobs` and
+> `MidiLearn` as `deluge::scenes::services::{GlobalControls,ModKnobs,MidiLearn}` in
+> **`src/scenes/services/`**, not `src/shell/`. That is not a filing decision: all three touch the
+> model — a `Song`, a `ParamManager`, a `Clip`, a `LearnedMIDI` — and `check_layer_rules.py`'s
+> `shell-includes-outside` row forbids `src/shell/**` from including `model/**`. The row exists so
+> the shell stays driveable by a fake surface set in a host process with no model linked at all
+> (`tests/spec/shell/`), and that property is worth more than co-location. So `Service`
+> (`src/shell/service.h`) is the **interface**, and a model-aware implementation lives one library
+> up, exactly as `Scene` does. `Notices`, `Screensaver` and `Mirror` stay in `src/shell/` because
+> none of them reads the model.
+>
+> Read the three rows below as the contract each class implements, not as an inventory of
+> `src/shell/`. What each actually ports, with the LED sets, is in `src/scenes/README.md`'s
+> "The three services". Two facts from building them that the table cannot show: the routing order
+> is **top scene → `mod_knobs` → `global_controls` → `midi_learn`** and was reversed until E4 task 3
+> (§15.4, §15.5); and **no application can install any of them yet**, because `Services` is fixed at
+> the `Shell`'s construction and there is no `Shell::set_services` — the third spec-F wiring blocker
+> (migration spec §10.2, `src/scenes/registry.h`'s boot-wiring list).
+
 | Service | Owns | Replaces |
 |---|---|---|
 | `GlobalControls` | transport buttons, record combos, tempo encoder/button, tap tempo, sync scaling, triplets, back long-press, affect-entire popup cancel, select combos; LEDs for `Play`/`Record`/`Tap`/`SyncScaling`/`Triplets`/time-base | `Buttons::buttonAction` tail, `View::buttonAction`, `View::setLedStates`, `flashPlay*`, `encoder_input.cpp` special cases |

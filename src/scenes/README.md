@@ -780,7 +780,7 @@ policy half (idle deadline, wake on input) shipped earlier as `shell::Screensave
 * **It registers at `SceneKind::Screensaver`, one of the shell's own kinds, not at
   `FirstApp + N`** — because the service pushes it by name (`shell/screensaver.cpp:45`). The shell
   overwrites the registry's `Popup`/`Console`/`Working`/`Loading` slots with its own instances and
-  deliberately leaves this one alone (`shell/shell.cpp:177-184`). Registering it is what stops
+  deliberately leaves this one alone (`shell/shell.cpp:176-183`). Registering it is what stops
   `shell::Screensaver`'s documented "a refused push latches the service off" ever firing on the
   shipped application; that behaviour is kept, because it is still right for a profile or spec that
   registers nothing there.

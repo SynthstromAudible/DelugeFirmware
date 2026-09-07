@@ -1492,6 +1492,244 @@ scene claims and is not covered on, and a covered scene is still woken** — `Sh
 advances every scene's clock whatever the render pass decides, so `next_timer()` remains a promise
 about `tick(dt)` even when nothing is drawn for it.
 
+## 16. Amendments closing E4 (2026-09-07, Tasks 1–14 of `2026-09-06-ui-scenes-services-and-roots-4.md`)
+
+E4 is the plan that **broke up `View`**. It shipped three `shell::Service` implementations
+(`services::ModKnobs`, `services::GlobalControls`, `services::MidiLearn`), the three missing overlay
+scenes (`overlay::ParamPopupScene`, `overlay::CountInScene`, `overlay::ScreensaverScene`), the
+shared `timeline::TimelineState`, and the first two application scenes that own the grid
+(`slicing::SlicerScene`, `audio_clip::AudioClipScene`). Its coverage number — what the legacy
+deletion can be scheduled against — is the migration spec's §10.7, in the shape §10.6 established
+for E3.
+
+This section records **every ruling the plan made and every divergence it found**, including the
+ones that contradict the plan's own prose. The plan is committed history and is not being rewritten;
+this is where the true account goes.
+
+### 16.1 Two things the plan's prose asserts that are false
+
+**"The first two root scenes."** The plan's title, goal paragraph and Architecture paragraph all
+call `SlicerScene` and `AudioClipScene` "the first two root scenes". **The slicer is not a root view
+at all**: `class Slicer final : public UI` (`gui/ui/slicer.h:33`), `oledShowsUIUnderneath = true`
+(`:35`), opened by `openUI(&slicer)` from `sample_browser.cpp:378` and
+`context_menu/sample_browser/kit.cpp:77` — i.e. it is pushed *over* whichever root is beneath.
+`shell/scene.h` already recorded that only `TimelineView` and `KeyboardScreen` are `RootUI`. Found
+by task 8's implementer, verified in full by its review. The plan's task TABLE was right (it lists
+`TimelineState` under task 11 only, since only `AudioClipScene` consumes it); only the prose was
+wrong. `AudioClipScene` is the **first and only** `is_root() == true` scene in the library.
+
+**"`View::buttonAction`'s arms are every UI's fallback."** Task 4's table said so. `UI::buttonAction`'s
+base returns `NOT_DEALT_WITH` (`gui/ui/ui.h:98-100`) and forwards nothing; only the three MOD hooks
+forward to `view`. `View::buttonAction` has exactly two callers in the tree —
+`TimelineView::buttonAction`'s final `else` (`gui/views/timeline_view.cpp:120`) and
+`keyboard_screen.cpp:591` — and `grep "public RootUI"` returns exactly two classes,
+`TimelineView` (`timeline_view.h:27`) and `KeyboardScreen` (`keyboard_screen.h:35`), **both of which
+forward**. So `getCurrentUI() == getRootUI()` is not an approximation of the reachability rule, it
+*is* the rule, exactly. That is what `Scene::is_root()` exists for (§16.3).
+
+### 16.2 Three defects in the shell's own contracts, each invisible until a consumer existed
+
+All three were latent for three plans, and all three were found by building the first thing that
+would have exercised them. That is the argument for building the services before more scenes, and
+also the argument against trusting a contract no consumer has ever used.
+
+1. **The routing chain was inverted.** Plan D put `mod_knobs` before the top scene. Legacy is
+   uniformly *current UI first, `View` as the base-class fallback*: `UI::modEncoderAction`
+   (`gui/ui/ui.cpp:35-37`), `UI::modButtonAction` (`:39-41`) and `UI::modEncoderButtonAction`
+   (`:43-45`) are bare forwards to `view`, overridden by six, two and five UIs respectively. The
+   concrete loss was `SoundEditor::modEncoderAction`'s MIDI-learn interception, which
+   `MenuScene` is the port of and which could never have fired. Corrected to **top scene →
+   `mod_knobs` → `global_controls`**, then extended by task 5 with `midi_learn` last on
+   LED-composition grounds (`midiLearnFlash` overwrites three LEDs `GlobalControls` declares). Shell
+   spec §15.4.
+2. **Plan D also excluded `ModEnc0`/`ModEnc1` from `is_mod_or_gold` entirely**, which sounds right
+   under the inverted chain and is wrong under the corrected one — it would have left task 3's port
+   of `modEncoderButtonAction` unreachable dead code. Found by the implementer reading the same file
+   the controller's ruling had only half-read. Shell spec §15.5.
+3. **A declared LED blink was not a wake source.** `compute_next_wake` had no blink input and the
+   phase comes from `now_ms`, so a scene whose `next_timer()` returns `nullopt` — `MenuScene` on a
+   node with neither source pads nor a shortcut position — froze its own `Blink(110ms)` Back and
+   Learn LEDs on a quiet system. A shipped bug from plan D/E1, fixed in task 4 fix round 1.
+4. **A service timer could not repaint anything.** `Service` had four virtuals and no
+   `timer_repaints()`; `Shell::tick`'s fold iterated `stack_.scenes()` only, so a service's
+   `next_timer()` reached `compute_next_wake` and nothing else. `MidiLearn`'s flash phase would have
+   advanced on schedule with no pad ever repainting. `Service::timer_repaints()` + `Shell::tick`
+   step 8c, defaulting `{false, false}` so no existing service changed. Shell spec §15.6.
+
+A fifth, found in task 10 and fixed as its own interlude: **`SceneStack` both over- and
+under-notified `on_resume`** — a popup expiring over a scene fired `on_resume()` on it (in legacy an
+OLED popup is not a UI at all, so `closeUI`'s `focusRegained` never fires for one), which wiped
+forty hand-placed slices 800 ms after a pad tap; and `pop`/`remove` resumed the RAW top rather than
+the input top, so a scene that genuinely regained the input top got nothing. Now fires only when
+`&input_top()` differs across the mutation. Shell spec §15.7.
+
+### 16.3 Rulings this plan made, with what each cost
+
+* **`Scene::is_root()`**, a virtual with a `false` default, gating **only** the `View`-arm group of
+  `GlobalControls` and the whole of `MidiLearn`'s `handle`. The `Buttons`-tail group (PLAY, RECORD,
+  TEMPO_ENC) stays ungated, because `hid/buttons.cpp:134-141` runs the tail for any current UI that
+  returns `NOT_DEALT_WITH`, root or not. Two legacy things, two reachability rules, one service. It
+  had to be a `Scene` virtual rather than a stack-position rule so a spec-local scene can override
+  it — registry scenes are process singletons and a rig's stack may be empty.
+* **The MIDI-learn button boundary belongs to `MidiLearn`**, and `GlobalControls` consults
+  `LearnMode::active()`. The rule is "the service that owns the MODE owns the arm, and the other
+  asks it"; the alternative, duplicating the mode test in both, is how `View` got to 2,908 lines.
+* **`GlobalControls`' SAVE/LOAD arms are a documented no-op with a `@warning`, not a second
+  outbox.** A mailbox with no consumer is exactly the shape migration §10.2 already lists as a
+  blocker; adding a second before the first has a consumer doubles the wiring plan's surface for no
+  gain. The *decisions* are counted through `GlobalControls::unported_opens(UnportedOpen)`, a tally
+  per site, so an assertion about one arm cannot be satisfied by another.
+* **Scene kinds are `FirstApp + 6`** (param popup), **`+ 7`** (count-in), **`+ 8`** (slicer),
+  **`+ 9`** (audio clip); `ScreensaverScene` registers at the shell's own `SceneKind::Screensaver`,
+  because the service pushes it by name and `shell/shell.cpp:176-183` deliberately leaves that slot alone.
+* **`SlicerScene`'s five predicates**, which took two corrections: `is_root()` false,
+  `is_grid_overlay()` true, `occludes_grid()` **false**, `oled_transparent(Main)` true,
+  `dims_grid()` **overridden** to false. The `occludes_grid()` ruling was `true` twice before it was
+  read properly: `Slicer` overrides `renderMainPads` only, `UI::renderSidebar`'s base returns false
+  (`gui/ui/ui.h:148-151`), and `doAnyPendingGridRendering` keeps walking, so the sidebar beneath
+  paints. `Shell::tick_stack`'s own comment defines the predicate as "covers the grid COMPLETELY".
+  `dims_grid()` needed the override because its default is `is_grid_overlay()`, which would have
+  halved a sidebar legacy never greys (`Slicer` has no `getGreyoutColsAndRows`).
+* **The directory is `slicing/`, not the plan's mandated `slicer/`** — because
+  `scenes-no-root-ui` matches `slicer` as a whole word and the include path tripped it. Ratified in
+  task 9 and unchanged; task 14 then removed the underlying cause (§16.5).
+* **`TimelineState` keeps `adopt`/`publish` and the triplet arithmetic; `take_tick_square` moved
+  out** to `AudioClipScene`, on the rule that a symbol belonging to one consumer but living in a
+  shared header never gets moved later.
+* **The four inventions the 2026-09-06 audit found** (`Shell::dim_grid`'s overlay dim,
+  `GestureEvent::Hold`, the widened `SecondPad`) **and the two legacy bug-fixes are out of scope for
+  every task here.** They are Kate's call and stay recorded.
+* **`Services{}` for every pre-existing level-2 script.** Only task 13's own ten scripts get the
+  real services. E1–E3's goldens were recorded against null services and are the regression baseline
+  for three plans; re-recording 47+ goldens as a side effect of adding a service is a change nobody
+  could review.
+
+### 16.4 Two divergences the port ships deliberately, both recorded at the site
+
+* **`ClipView`'s `Y_ENC` shift arm is a silent no-op for a gesture that really shifts the clip on
+  the device.** It is *claimed*, because legacy claims it (`clip_view.cpp:249`) and letting it fall
+  through would hand a `Y_ENC` turn to `GlobalControls`, which legacy never does — and then it does
+  nothing, because two of the three arguments `Clip::shiftHorizontally` takes are decided by
+  `getCurrentUI() == &automationView` (`:203-206`), a `scenes-no-root-ui` read with no answer while
+  no `AutomationScene` exists, and its undo consequence `alloc_sdram`s
+  (`:240-245`). **It must not survive E5 in that state**: whoever writes `AutomationScene` ports
+  this arm in the same change. Recorded at the arm, in `src/scenes/README.md`'s carry table, and in
+  migration §10.4 — three places, because a fact recorded only in a task report is a fact this plan
+  lost three times.
+* **`AudioClipScene`'s `clip_resynced` is written from a citation and driven by nothing.** It
+  carries a `@warning` saying so on its declaration.
+
+### 16.5 The citation checker, measured four times rather than argued
+
+Task 3's review found ~20 wrong line numbers in one task, the **third round running**, and
+`check_citations.py` reported 0 because the lines resolved. What followed was four changes, each
+one measured on the live tree before it was kept, and each measurement is the reason the change
+stands:
+
+1. **A symbol predicate**: a citation naming its symbol beside its line must have that symbol inside
+   the cited range. Found 36 more, tree-wide, on its first run.
+2. **Single-line citations judged.** The skip had been hiding 534 citations carrying a checkable
+   symbol; coverage went 25.8% → 44.1% tree-wide. Of the 30 hits, 22 were plain range corrections
+   and 8 were a *shape* rather than a defect, rewritten so every symbol sits beside its own citation.
+3. **`--strict` in CI.** The premise correction that made this necessary: the checker was
+   warning-only and `main()` returned 0 without `--strict`, which CI did not pass. That is why three
+   rounds of drift shipped past it.
+4. **A brace-matched body-extent test replacing the direction narrowing.** The narrowing was
+   *vindicated by measurement* for the drift it could find (0 of 37 missed, all upward) and then
+   defeated by a concrete case it declined to judge — a citation 1,173 lines BELOW its symbol, which
+   looks line-for-line like a legitimate body citation. The extent test found **33 real defects,
+   zero false positives**, including a class nothing else could catch: citations naming **the wrong
+   function entirely**, which read perfectly (`marker_scene.h` attributed two `WaveformRenderer`
+   helpers to `PadLEDs::renderExplodeAnimation` when their real single callers were
+   `renderAudioClipCollapseAnimation` / `renderAudioClipExplodeAnimation`).
+
+Task 14 added a fifth: **`SCAN_ROOTS` now covers `tests/ui-scripts`**, which had been invisible to a
+blocking gate — task 13 found two wrong citations there by hand. Measured before it was done, since
+it sweeps 27 pre-existing scripts nothing had ever checked: 90 citations, 50 resolvable, 12 carrying
+a symbol, **one flag**, which was a citation pinned to a past revision and was reworded at its site
+rather than excepted. `src/scenes/README.md` and the three design specs are still outside, and the
+comment says so rather than leaving it to be rediscovered.
+
+### 16.6 Four ratchet rows and one narrowing (task 14)
+
+All zero-baseline, each probed separately — the violation made, the checker confirmed to exit 1
+naming the right file and rule, then reverted. A row recorded as "probe-verified" whose probe tested
+a different alternative is worse than no row; that happened in E2.
+
+* **`scenes-no-legacy-hid-drivers`** (`src/scenes/**`, `src/ui/**`): the five legacy output-driver
+  spellings `uiNeedsRendering(`, `renderUIsForOled(`, `indicator_leds::`, `PadLEDs::`,
+  `uiTimerManager.`. This is `model-calls-ui`'s list minus everything `scenes-no-display` and
+  `scenes-no-root-ui` already cover, and it matters here because the three services are the port of
+  `View`, which is *the* legacy caller of all five. `PadLEDs::flashCursor` is excluded by name (a
+  persisted setting byte, not a driver call); `currentUIMode`/`isUIModeActive(` are excluded because
+  trailing citation comments would have given the row a non-zero baseline.
+* **`scenes-no-input-lock`** (`src/scenes/**`): Global Constraint 5, asserted in prose by three
+  plans and by six `@warning`s, with no mechanism until now.
+* **`services-no-oled-timer-claim`** (`src/scenes/services/**`): `.oled = true`. A service has no
+  stack position, so `Shell::tick` step 8c cannot narrow its claim the way step 8b narrows a
+  scene's, and an OLED surface blits unconditionally once it has rendered — so the claim *is* the
+  blit rate. A ratchet, not a ban.
+* **A symbol row no longer counts `#include` lines.** The row that made the case is
+  `scenes-no-root-ui` and the cost was real: it is why the slicer's directory is `slicing/`.
+  Nothing is lost — every symbol row is scoped to a directory an include row already gates, so a
+  real `#include "gui/ui/slicer.h"` still fails under `scenes-includes-gui`, which names the actual
+  violation. Zero of the baseline's 120 counts moved.
+
+The plan's own two suggested rows were **already enforced** and were not added: services naming
+`getCurrentUI`/`soundEditor`/a view global is `scenes-no-root-ui`, whose glob is `src/scenes/**`;
+new scenes naming `waveformRenderer`/`waveformBasicNavigator` is `scenes-no-legacy-waveform`, whose
+globs are `src/scenes/**` and `src/ui/**`. Both already covered `services/` and the four new scene
+directories on the day they were created.
+
+### 16.7 The two failure modes this plan kept repeating
+
+Recorded because they are process findings, not code findings, and the next plan will have both.
+
+**A claim broader than its mechanism.** Task 11 shipped "every render example is guarded" in three
+places — spec, README and report — when four of twelve `expect_pads_match` calls had no guard, and
+the three unguarded ones that mattered were exactly the cases where both sides legitimately go
+black. Demonstrated rather than argued: forcing a failed waveform scan made a guarded example fail
+on its guard and left the unguarded count-in example **27/27 passing on two black grids**. The fix
+that stuck was structural rather than a fourth copy of the guard — `expect_pads_match` now takes a
+`PadExpectation` with no default constructor, no default argument and no "nothing" value, applied
+before the comparison so a failure names the vacuity — because round one's fix was still a
+discipline, and task 12 was about to add more examples to the same file.
+
+**A fact recorded only in a task report when it needed to be in code.** Three times. The sharpest
+was the screensaver's boot wiring: nothing maps `ScreensaverMode::OFF` or
+`FlashStorage::screensaverTimeoutMinutes` onto `ShellConfig::screensaver_idle_ms`, so as shipped the
+value stays 0 and **the screensaver can never activate** — a scene the shell had been pushing at
+nothing for three plans would have gone on never being pushed. It is now an entry in
+`registry.h`'s boot-wiring list carrying legacy's actual formula, why `shell::Screensaver` cannot
+compute it itself, and that it must be re-supplied on every settings change. A task report is not a
+living document.
+
+A third, worth naming for the next controller: **a true finding about one symbol generalised into a
+premise about a class of symbols**, arriving in the next brief with the authority of something
+established. Four instances — E3's zoom ceiling carried into task 8's brief where `initiateXZoom`
+has no such wait; the count-in checklist's "right-aligned, blinking at speed 2" carried from a
+tester-facing document into task 6's brief, describing behaviour the firmware cannot produce; task
+9's voice-walk finding about `Slicer::graphicsRoutine` carried into task 11's brief about a
+different class's function of the same name; and task 8's accurate "legacy clears above its SD,
+rendering-lock and UI-mode gates" widened into "above every gate", which would have cleared the
+restore point on three gestures legacy leaves alone. The countermeasure is one line: **re-read the
+cited code in the new context before restating it, and prefer quoting the original sentence to
+paraphrasing it.**
+
+### 16.8 Ten firmware defects, and where the count now lives
+
+E3 left three. E4 added seven, all found by porting and none fixed: `View::modButtonAction`'s two
+unguarded `getModKnobMode()` dereferences (`view.cpp:1517`, `:1532`),
+`View::setKnobIndicatorLevel`'s uninitialised `knobPos`, `ClipView::getTickSquare` comparing a
+scroll against the zoom (`clip_view.cpp:382`), `ClipView::lengthenClip`/`shortenClip`'s unguarded
+`actionLogger.firstAction[BEFORE]` (`:98`, `:129` — established by a spec *segfaulting*),
+`Slicer::renderMainPads`' missing image null-check, `Slicer`'s 432 bytes of dead stack declared
+twice, and `Slicer::selectEncoderAction`'s equality-only count wrap. Full write-ups with severities
+are in `src/scenes/README.md`'s "Defects this port found in shipping firmware"; migration §10.5 is
+the release-note pointer. **None of the four in `view.cpp`/`clip_view.cpp` is annotated in the legacy
+file**, because this stack cites those two files by line more than 130 times and inserting a comment
+would shift every citation.
+
 ## 14. Citations into legacy source: the convention
 
 Every claim in `src/scenes/**`, `src/ui/**` and the spec trees is justified by a citation into
