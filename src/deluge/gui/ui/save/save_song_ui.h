@@ -29,6 +29,7 @@ public:
 	// void selectEncoderAction(int8_t offset);
 	bool performSave(bool mayOverwrite = false) override;
 	bool collectingSamples{};
+	[[nodiscard]] bool collectingSamplesForDispatch() const override { return collectingSamples; }
 	// ui
 	UIType getUIType() override { return UIType::SAVE_SONG; }
 

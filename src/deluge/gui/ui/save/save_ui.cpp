@@ -130,3 +130,47 @@ void SaveUI::noteSaveTier() {
 		interactionTierSaves_++;
 	}
 }
+
+bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
+	// Single-flight by REFUSAL, not by superseding (see dispatchSave()'s doc). The caller treats
+	// false exactly as it treats a full owner queue: nothing was written, and nothing was promised.
+	if (saveInFlight_) {
+		return false;
+	}
+	saveInFlight_ = true;
+	inFlightRequest_ = request;
+	if (!deluge::storage::Owner::run_or_inline(&SaveUI::runSaveOp, this)) {
+		saveInFlight_ = false; // the op never ran; release, or every later save is refused forever
+		return false;
+	}
+	return true;
+}
+
+void SaveUI::runSaveOp(void* self) {
+	auto* ui = static_cast<SaveUI*>(self);
+	// By value: the completion still needs the request after the guard below is released, and a
+	// later dispatch may overwrite the slot a reference would point into.
+	const deluge::storage::SaveRequest request = inFlightRequest_;
+
+	const bool succeeded = ui->performSave(request.mayOverwrite);
+
+	// Release BEFORE the completion: a completion may legitimately start another save (confirming
+	// the overwrite prompt is one), and it must not be refused by this op's own guard.
+	saveInFlight_ = false;
+
+	ui->runSaveCompletion(request, succeeded);
+}
+
+// Runs the follow-up for whichever caller dispatched this save. Every arm runs ON THE OWNER, which
+// matches the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
+// close(), both on the owner.
+void SaveUI::runSaveCompletion(const deluge::storage::SaveRequest& request, bool succeeded) {
+	using deluge::storage::SaveConsumer;
+	switch (request.consumer) {
+	case SaveConsumer::EnterKey:
+	case SaveConsumer::OverwriteAccept:
+	case SaveConsumer::OverwritePad:
+	case SaveConsumer::SaveSongOrInstrumentAccept:
+		break; // wired in the conversion task
+	}
+}
