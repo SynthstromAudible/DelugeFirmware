@@ -483,7 +483,7 @@ void Shell::tick(uint32_t now_ms) {
 	// A service draws nothing, so what its timer arms is the repaint of whichever scene reads the
 	// state that timer advances. `MidiLearn`'s flash is the case that needed it: legacy's
 	// `View::midiLearnFlash` toggles `midiLearnFlashOn` and then asks the ROOT UI to repaint
-	// (`gui/views/view.cpp:797-802`, `getRootUI()->midiLearnFlash()`), and every reader of that bit
+	// (`gui/views/view.cpp:814-819`, `getRootUI()->midiLearnFlash()`), and every reader of that bit
 	// in the tree is a pad renderer. Without this loop the phase advanced on the wake
 	// `compute_next_wake` already granted and nothing ever repainted with it.
 	//

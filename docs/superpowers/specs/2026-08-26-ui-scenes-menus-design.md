@@ -1022,7 +1022,7 @@ it no longer does.
   five-class `gui/ui/rename/` directory: the four subclasses differ only in `getCurrentName()`,
   `trySetName()` and `allowEmpty()`/`canRename()`, so those become a `rename::Target` table indexed
   by `SceneId::arg`. **Three** targets, not four — `renameMidiCCUI`'s only opener is
-  `gui/views/automation_view.cpp:1641` and no `Node` reaches it, so it is deliberately absent rather
+  `gui/views/automation_view.cpp:1663` and no `Node` reaches it, so it is deliberately absent rather
   than shipped untested. Rejection is popup-and-stay-open via `Action::Kind::Popup`, matching legacy,
   because no `Severity::Warn` path exists (notify's raise helpers take no severity).
 * **`context_menu::ContextMenuScene` (tasks 6, 7, 11b)**, `SceneKind::FirstApp + 2`. §6's sketch is
@@ -1722,7 +1722,7 @@ paraphrasing it.**
 ### 16.8 Ten firmware defects, and where the count now lives
 
 E3 left three. E4 added seven, all found by porting and none fixed: `View::modButtonAction`'s two
-unguarded `getModKnobMode()` dereferences (`view.cpp:1517`, `:1532`),
+unguarded `getModKnobMode()` dereferences (`view.cpp:1534`, `:1549`),
 `View::setKnobIndicatorLevel`'s uninitialised `knobPos`, `ClipView::getTickSquare` comparing a
 scroll against the zoom (`clip_view.cpp:382`), `ClipView::lengthenClip`/`shortenClip`'s unguarded
 `actionLogger.firstAction[BEFORE]` (`:98`, `:129` — established by a spec *segfaulting*),

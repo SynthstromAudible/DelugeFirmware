@@ -70,7 +70,7 @@ EncoderRole role_of(int32_t which_encoder) {
 } // namespace
 
 bool is_clip_context(const ModTarget& target) {
-	// `View::isClipContext` (`view.cpp:1732-1739`), all three clauses. The mod-controllable guard is
+	// `View::isClipContext` (`view.cpp:1749-1756`), all three clauses. The mod-controllable guard is
 	// legacy's outer `if` (`:1734`) and is load-bearing, not decoration: a target whose timeline
 	// counter resolved no mod controllable is not a clip context, and treating it as one makes
 	// `target_changed` send a `sendCCWithoutModelStackForMidiFollowFeedback` legacy would never
@@ -86,7 +86,7 @@ bool is_clip_context(const ModTarget& target) {
 // -- Pure arithmetic ---------------------------------------------------------------------------
 
 int32_t ModKnobs::calculate_knob_pos_for_mod_encoder_turn(Kind kind, int32_t knob_pos, int32_t offset) {
-	// `View::calculateKnobPosForModEncoderTurn` (`view.cpp:949-970`), transcribed.
+	// `View::calculateKnobPosForModEncoderTurn` (`view.cpp:966-987`), transcribed.
 	int32_t lower_limit = 0;
 	int32_t upper_limit = 64;
 
@@ -103,7 +103,7 @@ int32_t ModKnobs::calculate_knob_pos_for_mod_encoder_turn(Kind kind, int32_t kno
 }
 
 int32_t ModKnobs::convert_patch_cable_knob_pos_to_indicator_level(int32_t knob_pos) {
-	// `View::convertPatchCableKnobPosToIndicatorLevel` (`view.cpp:1473-1486`), transcribed,
+	// `View::convertPatchCableKnobPosToIndicatorLevel` (`view.cpp:1490-1503`), transcribed,
 	// including the "so it only returns 64 once" adjustment and its comment's reasoning: the
 	// indicator is centred on 64, and without this a position of both 0 and something just past it
 	// would map to 64 and blink twice.
@@ -180,7 +180,7 @@ void ModKnobs::set_mod_region(uint32_t pos, uint32_t length, int32_t note_row_id
 }
 
 int32_t ModKnobs::mode() const {
-	// `View::getModKnobMode` (`view.cpp:1680-1689`).
+	// `View::getModKnobMode` (`view.cpp:1697-1706`).
 	if (target_.mod_controllable != nullptr) {
 		const uint8_t* mode_pointer = target_.mod_controllable->getModKnobMode();
 		if (mode_pointer != nullptr) {
@@ -191,20 +191,20 @@ int32_t ModKnobs::mode() const {
 }
 
 void ModKnobs::pretend_knobs_untouched() {
-	// `View::pretendModKnobsUntouchedForAWhile` (`view.cpp:1951-1955`), both knobs at once.
+	// `View::pretendModKnobsUntouchedForAWhile` (`view.cpp:1968-1972`), both knobs at once.
 	lowering_.pretend_knob_untouched(EncoderRole::GoldLower, now_ms_);
 	lowering_.pretend_knob_untouched(EncoderRole::GoldUpper, now_ms_);
 }
 
 void ModKnobs::instrument_been_edited() {
-	// `View::instrumentBeenEdited` (`view.cpp:1326-1331`).
+	// `View::instrumentBeenEdited` (`view.cpp:1343-1348`).
 	if (target_.timeline_counter_set()) {
 		target_.timeline_counter->instrumentBeenEdited();
 	}
 }
 
 void ModKnobs::notify_param_automation_occurred(ParamManager* params, bool update_mod_levels) {
-	// `View::notifyParamAutomationOccurred` (`view.cpp:1691-1712`). Legacy's second disjunct --
+	// `View::notifyParamAutomationOccurred` (`view.cpp:1708-1729`). Legacy's second disjunct --
 	// `getCurrentUI() == &soundEditor && paramManager == soundEditor.currentParamManager`
 	// (`:1692-1693`) -- is a UI read this layer cannot make; see the header.
 	if (params != target_.param_manager) {
@@ -280,7 +280,7 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint32_t now_ms) {
 	Result result;
 
-	// `View::modEncoderAction` (`view.cpp:818-842`). The model half is one transaction; see
+	// `View::modEncoderAction` (`view.cpp:835-859`). The model half is one transaction; see
 	// `menu::mod_encoder_turn` for why it is one call and not three.
 	const ModTurn turn =
 	    menu::mod_encoder_turn(target_, which_encoder, offset, &ModKnobs::calculate_knob_pos_for_mod_encoder_turn);
@@ -373,7 +373,7 @@ bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 
 	// The context E4 task 1 could not receive and this class can -- see `overlay::PopupContext`.
 	overlay::PopupContext context;
-	// `view.cpp:1119`'s own cast, spelled as the downcast it is. Every `ModControllable` a mod
+	// `view.cpp:1136`'s own cast, spelled as the downcast it is. Every `ModControllable` a mod
 	// target can hold is a `ModControllableAudio` (`Sound`, `GlobalEffectable`); the three
 	// consumers null-check it anyway.
 	context.mod = static_cast<ModControllableAudio*>(target_.mod_controllable);
@@ -415,7 +415,7 @@ bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 }
 
 void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn) {
-	// `View::potentiallyMakeItHarderToTurnKnob` (`view.cpp:1058-1083`).
+	// `View::potentiallyMakeItHarderToTurnKnob` (`view.cpp:1075-1100`).
 	if (which_encoder < 0 || which_encoder >= kKnobCount) {
 		return;
 	}
@@ -452,7 +452,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 // -- The buttons -------------------------------------------------------------------------------
 
 void ModKnobs::mod_button_action(int32_t which_button, bool on) {
-	// `View::modButtonAction` (`view.cpp:1497-1546`).
+	// `View::modButtonAction` (`view.cpp:1514-1563`).
 
 	// `:1500-1506` -- ignore the mod button in the automation editor, except mod button 0 on
 	// arranger automation view, which is how the VU meter stays toggleable there.
@@ -486,7 +486,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 		//
 		// @warning **Legacy defect (4 of 5), recorded in `src/scenes/README.md`'s "Defects this port
 		//          found in shipping firmware".** `View::modButtonAction` dereferences
-		//          `getModKnobMode()` **unguarded**, here at `view.cpp:1517` (a read) and again at
+		//          `getModKnobMode()` **unguarded**, here at `view.cpp:1534` (a read) and again at
 		//          `:1532` (a *write*). Both sit inside `if (…modControllable)` (`:1510`),
 		//          `if (on)` (`:1511`) and the UI-mode/performance-view gate (`:1512`), past the
 		//          automation-editor early return at `:1501-1505` -- so a release, or a press during
@@ -529,7 +529,7 @@ void ModKnobs::mod_button_action(int32_t which_button, bool on) {
 }
 
 Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool shift, bool learn) {
-	// `View::modEncoderButtonAction` (`view.cpp:1332-1349`).
+	// `View::modEncoderButtonAction` (`view.cpp:1349-1366`).
 	Result result;
 	// Legacy's tail always reaches `dealtWith` (`hid/buttons.cpp:225-233`), so the push is consumed
 	// on every arm below, the two early returns included.
@@ -571,7 +571,7 @@ Result ModKnobs::mod_encoder_button_action(int32_t which_encoder, bool on, bool 
 
 ParamManagerForTimeline* ModKnobs::param_manager_for_timeline() const {
 	// Legacy's `(ParamManagerForTimeline*)activeModControllableModelStack.paramManager`
-	// (`view.cpp:1535`, `:1543`) -- a C cast on a possibly-null pointer, spelled here as the
+	// (`view.cpp:1552`, `:1560`) -- a C cast on a possibly-null pointer, spelled here as the
 	// downcast helper `ParamManager` already provides, with the null kept null.
 	return target_.param_manager != nullptr ? target_.param_manager->toForTimeline() : nullptr;
 }
@@ -579,7 +579,7 @@ ParamManagerForTimeline* ModKnobs::param_manager_for_timeline() const {
 // -- The LEDs and the indicators -----------------------------------------------------------------
 
 ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info, bool stuttering) {
-	// `View::setKnobIndicatorLevel`'s arithmetic (`view.cpp:1413-1468`), over reads
+	// `View::setKnobIndicatorLevel`'s arithmetic (`view.cpp:1430-1485`), over reads
 	// `menu::mod_indicator_info` already made.
 	IndicatorLevel out{};
 
@@ -619,7 +619,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 		// review asked for the argument at the code rather than only on `IndicatorLevel::level`.
 		// `View::setKnobIndicatorLevel` carries `int32_t knobPos` right to its last line and hands
 		// it to `indicator_leds::setKnobIndicatorLevel(uint8_t whichKnob, uint8_t level, bool)`
-		// (`gui/views/view.cpp:1468` calling `hid/led/indicator_leds.h:86`), so the value is
+		// (`gui/views/view.cpp:1485` calling `hid/led/indicator_leds.h:86`), so the value is
 		// truncated by an implicit conversion at exactly this point. The `>> 5` and `& 31` the
 		// review cites (`hid/led/indicator_leds.cpp:196-206`) run on that already-truncated
 		// parameter, not on the `int32_t` -- there is no wider legacy arithmetic to be faithful to.
@@ -631,7 +631,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 
 	if (info.non_existent_param) { // `:1454-1458`
 		out.declared = true;
-		// Same implicit-narrowing point as above (`view.cpp:1468`).
+		// Same implicit-narrowing point as above (`view.cpp:1485`).
 		out.level = static_cast<uint8_t>(info.non_existent_knob_pos + kKnobPosOffset);
 		out.bipolar = false;
 		return out;
@@ -647,7 +647,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 	//
 	// @warning **Legacy defect (5 of 5), recorded in `src/scenes/README.md`'s "Defects this port
 	//          found in shipping firmware".** `View::setKnobIndicatorLevel` declares
-	//          `int32_t knobPos;` with no initialiser (`view.cpp:1410`) and assigns it on three of
+	//          `int32_t knobPos;` with no initialiser (`view.cpp:1427`) and assigns it on three of
 	//          its four paths -- `:1413`, `:1454`, `:1460` -- leaving it **uninitialised** on this
 	//          one. It is then passed to `indicator_leds::setKnobIndicatorLevel` at `:1468`, which
 	//          truncates it to `uint8_t` and lights the gold knob's four-segment column from it:
@@ -666,7 +666,7 @@ bool ModKnobs::indicator_blinking(int32_t which_encoder) const {
 }
 
 void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
-	// `View::setKnobIndicatorLevels` (`view.cpp:1379-1401`).
+	// `View::setKnobIndicatorLevels` (`view.cpp:1396-1418`).
 	// `:1380-1382` -- legacy returns early when there is no root UI, under a comment that reads, in
 	// full, "What's this?". An empty scene stack is this port's "no root UI".
 	if (stack_.depth() == 0) {
@@ -707,7 +707,7 @@ void ModKnobs::declare_indicators(deluge::ui::LedFrame& frame) {
 }
 
 void ModKnobs::leds(deluge::ui::LedFrame& frame) {
-	// `View::setModLedStates`' final block, "Sort out actual mod LEDs" (`view.cpp:1659-1678`). The
+	// `View::setModLedStates`' final block, "Sort out actual mod LEDs" (`view.cpp:1676-1695`). The
 	// three LED groups above it (AFFECT_ENTIRE, CLIP_VIEW, SESSION_VIEW) are root-view questions
 	// and are not this service's -- see the class doc.
 	const bool its_the_song = !is_clip_context(target_); // `:1559`
@@ -742,7 +742,7 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 
 void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t knob_pos, bool have_param,
                                          bool is_automation) {
-	// `View::sendMidiFollowFeedback` (`view.cpp:1713-1731`).
+	// `View::sendMidiFollowFeedback` (`view.cpp:1730-1748`).
 	if (!midiFollow.isFeedbackEnabled()) {
 		return;
 	}

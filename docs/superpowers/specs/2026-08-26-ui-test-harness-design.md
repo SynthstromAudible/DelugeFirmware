@@ -216,7 +216,7 @@ names the change and why it deviates from the draft above.
   earlier pass had: index 0/1 **is** the `which` argument `SurfaceSet::set_indicator` takes, which
   `BoardSurfaceSet` passes straight through to `deluge_control_set_indicator`, and on the wire that
   is legacy's mod-encoder number — mod encoder 0 being `mod0`, the **lower** gold encoder
-  (`gui/views/view.cpp:1403-1468` -> `hid/led/indicator_leds.cpp:241`, `hid/encoders.h:80-81`).
+  (`gui/views/view.cpp:1420-1485` -> `hid/led/indicator_leds.cpp:241`, `hid/encoders.h:80-81`).
   Getting this wrong sends every knob-indicator write to the physically wrong knob on hardware, a
   swap neither index would otherwise catch (both are in range and accept the same data) — pinned by
   a dedicated `static_assert`-plus-spec pair in `tests/spec/shell/surfaces_spec.cpp`.

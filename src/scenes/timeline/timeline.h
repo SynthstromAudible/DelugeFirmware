@@ -39,8 +39,8 @@
 /// | `ClipNavigationTimelineView::horizontalEncoderAction`'s first statement (`:32`) | here (`stop_following`, called by both gestures) | it clears that same field on every horizontal turn, so a manual scroll or zoom during an auto-extending linear recording forgets the restore point. Missed by the first round of this port; see the ordering note on `stop_following` |
 /// | `ClipNavigationTimelineView::horizontalScrollForLinearRecording` (`:36-51`) | **splits** | the length guard and the scroll write are here; the animate-or-not choice, `uiNeedsRendering` and the popup are the scene's |
 /// | `ClipView::getTickSquare` (`clip_view.cpp:354-389`) | **splits** | the square and the follow arithmetic are here; `getCurrentlyRecordingLinearly()`, `currentUIMode`, `getCurrentUI() == this` and `armState` are the scene's, and arrive as `TickSquareGates` |
-/// | `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`audio_clip_view.cpp:296-309`) | the scene (E4 task 11) | the plan's file table said "tick squares" here, and that was a plan error corrected in task 8's review: the two fields are `AudioClipView`-**private** (`audio_clip_view.h:68-69`), have no counterpart anywhere in the timeline chain, and have exactly one consumer. `ClipView::getTickSquare` below is the genuinely shared half |
-/// | `TimelineView::getMaxZoom` / `getMaxLength` (pure virtual, `timeline_view.h:35`, `:38`) | the scene | model questions whose answer differs per view (`ClipView`'s two at `clip_view.cpp:35-37`/`:39-41`, `AudioClipView`'s at `audio_clip_view.cpp:857-862`/`:864-870`); they arrive here as arguments |
+/// | `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`audio_clip_view.cpp:297-310`) | the scene (E4 task 11) | the plan's file table said "tick squares" here, and that was a plan error corrected in task 8's review: the two fields are `AudioClipView`-**private** (`audio_clip_view.h:68-69`), have no counterpart anywhere in the timeline chain, and have exactly one consumer. `ClipView::getTickSquare` below is the genuinely shared half |
+/// | `TimelineView::getMaxZoom` / `getMaxLength` (pure virtual, `timeline_view.h:35`, `:38`) | the scene | model questions whose answer differs per view (`ClipView`'s two at `clip_view.cpp:35-37`/`:39-41`, `AudioClipView`'s at `audio_clip_view.cpp:875-880`/`:882-888`); they arrive here as arguments |
 /// | `TimelineView::setupScroll` (`:44-50`), `calculateZoomPinSquares` (`:52-63`), `tellMatrixDriverWhichRowsContainSomethingZoomable` (`:65-67`), `scrollFinished` (`:36-41`) | **dropped** | they are the `PadLEDs` zoom/scroll transition, which the port does not carry (see below) |
 /// | `TimelineView::displayZoomLevel` (`:126-131`), `displayScrollPos` (`:230-239`), `setTripletsLEDState` (`:365-367`), `midiLearnFlash` (`:511-513`) | the scene | they draw, blink an LED, or ask for a redraw |
 /// | `TimelineView::buttonAction` (`:69-124`), `ClipView::buttonAction` (`clip_view.cpp:47-70`) | the scene / `GlobalControls` | button routing; the tail is `view.buttonAction`, which is `services/global_controls.h` |
@@ -364,7 +364,7 @@ struct TimelineState {
 	/// @brief What one `getTickSquare` produced.
 	struct TickSquare {
 		/// The column the play position is in. May be negative or >= `kDisplayWidth`; legacy's
-		/// callers are the ones that turn that into 255 (`audio_clip_view.cpp:291-293`).
+		/// callers are the ones that turn that into 255 (`audio_clip_view.cpp:292-294`).
 		int32_t square = 0;
 		/// True if the auto-extending-linear-recording follow moved `x_scroll`, so the caller can
 		/// redraw and show the scroll position (`clip_navigation_timeline_view.cpp:45-49`).
@@ -392,7 +392,7 @@ struct TimelineState {
 	TickSquare tick_square(int32_t live_pos, const TickSquareGates& gates);
 
 	/// @note `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch
-	///       (`audio_clip_view.cpp:296-309`) is **not** here. It is private to that one view, has
+	///       (`audio_clip_view.cpp:297-310`) is **not** here. It is private to that one view, has
 	///       no counterpart in the timeline chain, and has one consumer; it belongs to
 	///       `AudioClipScene` (E4 task 11). See the table at the top of this file.
 	/// @}

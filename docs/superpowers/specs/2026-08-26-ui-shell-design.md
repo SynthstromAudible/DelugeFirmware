@@ -952,7 +952,7 @@ So "scene first, `View` second" describes the push exactly as it describes a mod
 gold-knob turn. Once the chain is scene-first, *excluding* the push no longer expresses "after the
 UI" — it expresses "never", which legacy does not say.
 
-**What it would have cost.** `View::modEncoderButtonAction` (`gui/views/view.cpp:1332-1350`) is E4
+**What it would have cost.** `View::modEncoderButtonAction` (`gui/views/view.cpp:1349-1367`) is E4
 task 3's own citation: it is the delete-automation gesture (shift + push) and the
 `ModControllable::modEncoderButtonAction` dispatch. Ported in E4 task 3, it would have been
 unreachable dead code — `ModKnobs::handle`'s `EncoderButton` arm has no other route to it.
@@ -988,17 +988,17 @@ legacy rather than from the slot's ordinal:
   `PlaybackHandler::midiCCReceived` gives `soundEditor` first dibs and falls through to
   `view.ccReceivedForMIDILearn` (`:3128-3136`). Same shape as §15.4's argument for the other two.
 * The four `View::buttonAction` arms `MidiLearn` owns — the `TAP_TEMPO` learn branch
-  (`gui/views/view.cpp:148-166`), `LEARN` (`:185-196`), and `PLAY`/`RECORD` under learn (`:199-212`,
+  (`gui/views/view.cpp:149-167`), `LEARN` (`:186-197`), and `PLAY`/`RECORD` under learn (`:200-213`,
   `:215-228`) — sit in the **same `if`/`else if` chain** as the arms `GlobalControls` owns, so their
   relative order is unobservable *given* that `GlobalControls` abstains from exactly those four
-  (`ViewArm::LearnOwns`) and suppresses its own tail for them, which reproduces `view.cpp:469`'s
+  (`ViewArm::LearnOwns`) and suppresses its own tail for them, which reproduces `view.cpp:486`'s
   `DEALT_WITH`. Routing `midi_learn` last is what keeps that abstention live rather than dead.
 * **LED composition requires last.** `LedCompose::compose` runs services in `Shell`'s own order
   (`src/shell/shell.cpp`'s `all[]`: `mod_knobs`, `global_controls`, `midi_learn`, notices,
-  screensaver) and the last writer wins. `View::midiLearnFlash` (`view.cpp:804-815`) *overwrites*
+  screensaver) and the last writer wins. `View::midiLearnFlash` (`view.cpp:821-832`) *overwrites*
   the PLAY, RECORD and TAP_TEMPO LEDs that `PlaybackHandler::setLedStates`
   (`playback/playback_handler.cpp:2499-2512`, i.e. `GlobalControls::leds`) had just declared, and
-  `View::endMIDILearn` hands them back by calling `setLedStates` again (`view.cpp:498`). A
+  `View::endMIDILearn` hands them back by calling `setLedStates` again (`view.cpp:515`). A
   `MidiLearn` composed before `GlobalControls` could never flash them.
 
 Covered by `tests/spec/shell/router_spec.cpp`'s "midi_learn is the LAST step…", which drives the
@@ -1008,7 +1008,7 @@ drop case, the `global_controls`-claims case, and the `midi_learn`-claims case.
 "a scene timer is a repaint request" into `Shell::tick` step 8b; the service half was never folded,
 so a `Service::next_timer()` fed `compute_next_wake` and dirtied nothing. `MidiLearn`'s flash is the
 first timer for which that is wrong: legacy's `View::midiLearnFlash` toggles `midiLearnFlashOn` and
-then asks the **root UI** to repaint (`view.cpp:797-802`), and every reader of that bit is a pad
+then asks the **root UI** to repaint (`view.cpp:814-819`), and every reader of that bit is a pad
 renderer. Step 8c is the service loop.
 
 Three deliberate asymmetries with the scene loop, each for a stated reason:

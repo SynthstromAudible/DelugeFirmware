@@ -157,7 +157,7 @@ struct Rig {
 ///
 /// `services::MidiLearn`'s flash is the real case: `View::midiLearnFlash` toggles
 /// `midiLearnFlashOn` and then asks the ROOT UI to repaint
-/// (`src/deluge/gui/views/view.cpp:797-802`, `getRootUI()->midiLearnFlash()`), and every reader of
+/// (`src/deluge/gui/views/view.cpp:814-819`, `getRootUI()->midiLearnFlash()`), and every reader of
 /// that bit in legacy is a pad renderer. Before the fold a service timer fed `compute_next_wake`
 /// and nothing else, so the phase advanced on the wake and no surface was ever dirtied.
 struct TimerService final : Service {
@@ -551,7 +551,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		// E4 task 5. `Service::timer_repaints()` defaults to `{false, false}` so nothing that
 		// existed before this fold changed behaviour, and `services::MidiLearn` claims
 		// `{.oled = false, .grid = true}` because the MIDI-learn flash is a pad concern
-		// (`gui/views/view.cpp:797-802` asks the ROOT UI to repaint, and every reader of
+		// (`gui/views/view.cpp:814-819` asks the ROOT UI to repaint, and every reader of
 		// `midiLearnFlashOn` is a pad renderer).
 		//
 		// **The OLED half is the one that matters.** The grid's `flush` diffs against `last_sent`,

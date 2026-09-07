@@ -37,12 +37,12 @@ namespace deluge::scenes::services {
 /// needed. See the task-2 report's state table for the per-field citation.
 struct ModTarget {
 	/// `setupModelStackWithSong(&activeModControllableModelStack, currentSong)`'s song
-	/// (`view.cpp:1873`, `:1905`). Held rather than read from the `currentSong` global, which the
+	/// (`view.cpp:1890`, `:1922`). Held rather than read from the `currentSong` global, which the
 	/// `scenes-currentSong` ratchet forbids this layer -- `ModKnobs::set_song` is what fills it.
 	Song* song = nullptr;
 	/// `ModelStackWithTimelineCounter::timelineCounter` (`model_stack.h:145`, `timelineCounterIsSet`
 	/// is exactly `timelineCounter != nullptr`). Null for
-	/// `setActiveModControllableWithoutTimelineCounter` (`view.cpp:1900-1922`).
+	/// `setActiveModControllableWithoutTimelineCounter` (`view.cpp:1917-1939`).
 	TimelineCounter* timeline_counter = nullptr;
 	/// `ModelStackWithNoteRow::noteRow` (`model_stack.h:222`); very often null.
 	NoteRow* note_row = nullptr;
@@ -50,7 +50,7 @@ struct ModTarget {
 	int32_t note_row_id = 0;
 	/// `ModelStackWithModControllable::modControllable` (`model_stack.h:227`). Null means "no target
 	/// at all": `View::modEncoderAction`'s entire body is inside `if (…modControllable)`
-	/// (`view.cpp:824`).
+	/// (`view.cpp:841`).
 	ModControllable* mod_controllable = nullptr;
 	/// `ModelStackWithThreeMainThings::paramManager` (`model_stack.h:233`).
 	ParamManager* param_manager = nullptr;
@@ -67,7 +67,7 @@ struct ModTarget {
 	bool timeline_counter_set() const { return timeline_counter != nullptr; }
 };
 
-/// @brief `View::isClipContext()` (`view.cpp:1732-1739`): a **mod controllable is resolved**, and the
+/// @brief `View::isClipContext()` (`view.cpp:1749-1756`): a **mod controllable is resolved**, and the
 ///        timeline counter is set, and it is not the song itself.
 ///
 /// All three clauses, deliberately. Legacy's outer `if (activeModControllableModelStack
@@ -91,48 +91,48 @@ bool is_clip_context(const ModTarget& target);
 ///
 /// A plain function pointer so the whole model transaction stays one call (legacy resolves the
 /// param stack exactly once, and `possiblyCloneForArrangementRecording` must not run twice) while
-/// `View::calculateKnobPosForModEncoderTurn` (`view.cpp:949-970`) stays in `mod_knobs.cpp`, where
+/// `View::calculateKnobPosForModEncoderTurn` (`view.cpp:966-987`) stays in `mod_knobs.cpp`, where
 /// it is a pure function a spec can mutate on its own.
 using NextKnobPosFn = int32_t (*)(deluge::modulation::params::Kind kind, int32_t knob_pos, int32_t offset);
 
 /// @brief Everything one gold-knob turn did to the model, and everything the caller needs to
 ///        finish the turn (the popup, the MIDI feedback, the indicator blink, the repaint).
 ///
-/// The port of `View::modEncoderAction` (`view.cpp:818-842`) and its two arms
+/// The port of `View::modEncoderAction` (`view.cpp:835-859`) and its two arms
 /// (`modEncoderAction_nonExistentParam`, `:843-852`; `modEncoderAction_existentParam`, `:853-948`)
 /// with every UI read and every side effect that is not a model write lifted out to `ModKnobs`.
 struct ModTurn {
-	/// False when `ModTarget::mod_controllable` is null: `view.cpp:824`'s test, which skips the
+	/// False when `ModTarget::mod_controllable` is null: `view.cpp:841`'s test, which skips the
 	/// whole body (but not `instrumentBeenEdited()`, which is outside it at `:840`).
 	bool has_controllable = false;
 	/// True on the `modEncoderAction_existentParam` arm -- the param stack resolved *and* has an
-	/// `autoParam` (`view.cpp:830`, negated).
+	/// `autoParam` (`view.cpp:847`, negated).
 	bool param_exists = false;
-	/// The non-existent-param arm's `ActionResult::ACTIONED_AND_CAUSED_CHANGE` (`view.cpp:848`),
+	/// The non-existent-param arm's `ActionResult::ACTIONED_AND_CAUSED_CHANGE` (`view.cpp:865`),
 	/// which is what re-levels that knob's indicator.
 	bool caused_change = false;
 
-	/// `modelStackWithParam->paramCollection->getParamKind()` (`view.cpp:859`).
+	/// `modelStackWithParam->paramCollection->getParamKind()` (`view.cpp:876`).
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
-	/// `modelStackWithParam->paramId` (`view.cpp:893`).
+	/// `modelStackWithParam->paramId` (`view.cpp:910`).
 	int32_t param_id = 0;
-	/// The knob position before the turn (`view.cpp:862`).
+	/// The knob position before the turn (`view.cpp:879`).
 	int32_t old_knob_pos = 0;
-	/// `calculateKnobPosForModEncoderTurn`'s output (`view.cpp:863`) -- what the popup shows, and
+	/// `calculateKnobPosForModEncoderTurn`'s output (`view.cpp:880`) -- what the popup shows, and
 	/// what was written, whether or not it differed.
 	int32_t new_knob_pos = 0;
 	/// `new_knob_pos != old_knob_pos` -- legacy's `:902` early return, which happens *after* the
 	/// popup and before everything else.
 	bool value_changed = false;
 
-	/// `noteTailsAllowedBefore != noteTailsAllowedAfter` (`view.cpp:929`) -- the pad re-render.
+	/// `noteTailsAllowedBefore != noteTailsAllowedAfter` (`view.cpp:946`) -- the pad re-render.
 	bool note_tails_changed = false;
-	/// `paramCollection->shouldParamIndicateMiddleValue(…)` (`view.cpp:1068-1069`), for
+	/// `paramCollection->shouldParamIndicateMiddleValue(…)` (`view.cpp:1085-1086`), for
 	/// `potentiallyMakeItHarderToTurnKnob`.
 	bool should_indicate_middle_value = false;
 };
 
-/// @brief The model reads `View::setKnobIndicatorLevel` (`view.cpp:1403-1468`) makes, before any
+/// @brief The model reads `View::setKnobIndicatorLevel` (`view.cpp:1420-1485`) makes, before any
 ///        of the arithmetic it then does with them.
 ///
 /// Split exactly as `ModTurn` is: the transaction resolves the param stack and reads it, and every
@@ -143,12 +143,12 @@ struct ModTurn {
 /// (`:1454`) and then `!((paramId & 0x0000FF00) == 0x0000FF00)` (`:1460`).
 ///
 /// @warning **When none of those three holds, legacy reads an uninitialised `int32_t knobPos`**
-///          (declared `view.cpp:1410`, consumed `:1468`) and lights a gold knob's indicator column
+///          (declared `view.cpp:1427`, consumed `:1485`) and lights a gold knob's indicator column
 ///          from it. Legacy defect 5 of 5 in `src/scenes/README.md`'s "Defects this port found in
 ///          shipping firmware"; `ModKnobs::indicator_level` carries the full note and declares
 ///          nothing for that knob rather than inventing a value.
 struct ModIndicatorInfo {
-	/// `modelStackWithParam->autoParam` is non-null (`view.cpp:1413`).
+	/// `modelStackWithParam->autoParam` is non-null (`view.cpp:1430`).
 	bool has_auto_param = false;
 	/// `paramCollection->getParamKind()` (`:1416`).
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
@@ -176,7 +176,7 @@ struct ModIndicatorInfo {
 
 /// @brief What param a gold knob addresses right now, without turning it.
 ///
-/// `View::getParameterNameFromModEncoder`'s first three lines (`view.cpp:1013-1016`); the name
+/// `View::getParameterNameFromModEncoder`'s first three lines (`view.cpp:1030-1033`); the name
 /// building itself is pure and stays in `mod_knobs.cpp`.
 struct ModParamInfo {
 	bool param_exists = false;

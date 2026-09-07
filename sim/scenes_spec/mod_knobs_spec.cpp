@@ -17,7 +17,7 @@
 ///
 /// @par What this spec counts as uncovered (oracle discipline)
 ///
-///   * **The popup's performance-view and song-browser suppression arms** (`view.cpp:869-874`,
+///   * **The popup's performance-view and song-browser suppression arms** (`view.cpp:886-891`,
 ///     `:885`). `PerformanceScene` does not exist and the song browser is not among the legacy UIs
 ///     `BrowserScene` carries, so there is no port-side state that could make either fire. See
 ///     `ModKnobs::popup_suppressed`.
@@ -25,7 +25,7 @@
 ///     caller can set it true and legacy's `isUIModeActive(UI_MODE_STUTTERING)` half of the
 ///     rate-bucket guard is never exercised from this side.
 ///   * **`PopupContext::midi_instrument`, the MIDI-clip CC/expression naming arm**
-///     (`view.cpp:1122-1146`). Reachable now -- widening `show()` is what made it so -- but not
+///     (`view.cpp:1139-1163`). Reachable now -- widening `show()` is what made it so -- but not
 ///     driven: a bare MIDI fixture's gold knobs resolve through
 ///     `MIDIInstrument::getParamFromModEncoder` (`model/instrument/midi_instrument.cpp:156-169`),
 ///     whose default CC assignment yields no `autoParam`, so `mod_encoder_turn` takes the
@@ -517,7 +517,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 		// A `Sound` in mod-knob mode 0 has a real param on both knobs, so the way to reach the
 		// non-existent arm without inventing a `ModControllable` is the target with no controllable
-		// at all -- `view.cpp:824`'s test, which skips the whole body on both sides.
+		// at all -- `view.cpp:841`'s test, which skips the whole body on both sides.
 		view.setActiveModControllableTimelineCounter(nullptr, false);
 		view.modEncoderAction(0, 5);
 
@@ -693,7 +693,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("files an OLED repaint for every COMMITTED popup update, not only the first", _ {
 		// **The defect E4 task 13's level-2 golden found, pinned at the unit level.**
 		// `ParamPopupScene::show` writes the popup's text; legacy's counterpart,
-		// `display->displayNotification(...)` at `view.cpp:1245`, writes AND blits. The scene has no
+		// `display->displayNotification(...)` at `view.cpp:1262`, writes AND blits. The scene has no
 		// `Result` of its own to file a repaint in (`show()` is not a `Scene::handle`) and its
 		// `next_timer()` while showing is the popup's whole 2000 ms lifetime -- so without this
 		// action the panel keeps the value it had when the popup opened, and the next OLED frame is
@@ -804,7 +804,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 	it("agrees with View::isClipContext on every reachable target shape", _ {
 		// Fix round 1, Important 1: the port's predicate dropped legacy's outer
-		// `if (activeModControllableModelStack.modControllable)` (`view.cpp:1734`), so a target with
+		// `if (activeModControllableModelStack.modControllable)` (`view.cpp:1751`), so a target with
 		// a clip counter but no resolved mod controllable read as a clip context here and not in
 		// legacy -- which makes `target_changed` send a MIDI CC legacy would never send. Shape 4 is
 		// the one that fails without the guard.
@@ -993,7 +993,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("blinks the volume mod LED when the VU meter is on, and only in the song context", _ {
-		// `view.cpp:1666-1667` -- the one row of the table that is not "on iff selected", and the
+		// `view.cpp:1683-1684` -- the one row of the table that is not "on iff selected", and the
 		// only reason `displayVUMeter` is ported at all. It needs three things at once: the song
 		// context, mod button 0 selected, and the meter on. Each side toggles the meter through its
 		// own `modButtonAction` -- pressing the already-selected button 0 outside a clip minder
@@ -1082,7 +1082,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("turns every mod LED off in the automation editor, and declares no indicator there", _ {
-		// `view.cpp:1670-1671` and `:1385-1388`. Legacy's condition is
+		// `view.cpp:1687-1688` and `:1402-1405`. Legacy's condition is
 		// `(getRootUI() == &automationView) && automationView.inAutomationEditor()`, which no spec
 		// process can produce -- there is no root UI here at all -- so this arm is driven through
 		// the injected `ViewState` the port carries in its place, and it is the ONE row of the
@@ -1207,7 +1207,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("clears both indicator columns when the knobs point at nothing, as clearKnobIndicatorLevels does", _ {
-		// `view.cpp:1398-1400`. `indicator_leds::clearKnobIndicatorLevels`
+		// `view.cpp:1415-1417`. `indicator_leds::clearKnobIndicatorLevels`
 		// (`hid/led/indicator_leds.cpp:318-322`) is `setKnobIndicatorLevel(i, 0)` for both, so the
 		// legacy side is driven through exactly that and read back from the same shadow.
 		KnobRig rig;
@@ -1230,7 +1230,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("declares no indicator at all with an empty scene stack, as legacy declares none with no root UI", _ {
-		// `view.cpp:1380-1382`. The mod LEDs are unaffected -- that block is below the early return
+		// `view.cpp:1397-1399`. The mod LEDs are unaffected -- that block is below the early return
 		// in legacy and outside `declare_indicators` here -- so this also pins that the two halves
 		// of `leds()` are gated separately.
 		spec::SongFixture f = spec::make_synth_song();
@@ -1249,7 +1249,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("handles a gold-knob push the way View::modEncoderButtonAction does", _ {
-		// `view.cpp:1332-1349` and its two helpers. The push arrives as an `EncoderButton` event,
+		// `view.cpp:1349-1366` and its two helpers. The push arrives as an `EncoderButton` event,
 		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
 		// (`shell/input_lowering.cpp:42-53`, `:300`) -- and which the router now routes here, after
 		// the scene (E4 task 3 part A; `tests/spec/shell/router_spec.cpp`).
@@ -1320,7 +1320,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.knobs.set_target_with_timeline(f.clip, false);
 		rig.knobs.tick(5000, 0);
 
-		// A param manager the knobs are NOT pointed at arms nothing (`view.cpp:1692`).
+		// A param manager the knobs are NOT pointed at arms nothing (`view.cpp:1709`).
 		ParamManagerForTimeline other;
 		rig.knobs.notify_param_automation_occurred(&other, true);
 		expect(rig.knobs.automation_display_pending()).to_be_false();

@@ -36,7 +36,7 @@
 ///
 /// Four legacy behaviours have no port and so no comparison here; all four are policy, and all four
 /// are `shell::Screensaver`'s half rather than the scene's. They are enumerated with citations in
-/// `screensaver_scene.h`'s class doc: `settingsChanged()` (`hid/display/screensaver.cpp:188-229`),
+/// `screensaver_scene.h`'s class doc: `settingsChanged()` (`hid/display/screensaver.cpp:200-241`),
 /// the permanent-popup / working-animation / stem-export inhibitors (`:106-118`) and with them the
 /// 1000 ms `kInhibitRecheckMS` re-arm that exists only to run them (`:56-58`), the
 /// `ScreensaverMode::OFF` early-outs (`:92-94,102-104,171-174`, ported as the service's
@@ -138,7 +138,7 @@ struct Rig {
 /// `Screensaver::getCanvas()` is legacy's real drawing surface -- the one `OLED::sendMainImage`
 /// substitutes for `main` (`hid/display/oled.cpp:342-348`) -- so this is legacy's own pixels, drawn
 /// by legacy's own `render`/`renderRainfall`/`renderStarfield`/`drawBlock`
-/// (`hid/display/screensaver.cpp:64-77,231-270`), not a transcription of them.
+/// (`hid/display/screensaver.cpp:65-78,243-282`), not a transcription of them.
 std::string legacy_canvas_pbm() {
 	return page_major_to_pbm(LegacyScreensaver::getCanvas().bytes().data(), 128, 48);
 }
@@ -252,7 +252,7 @@ std::string rows(const std::string& pbm, int width, int first, int count) {
 /// @brief Set the one setting both sides read (`FlashStorage::screensaverMode`,
 ///        `storage/flash_storage.h:82`) and leave the legacy screensaver deactivated.
 void set_mode(::ScreensaverMode mode) {
-	LegacyScreensaver::noteActivity(); // `hid/display/screensaver.cpp:84-98`: deactivate if showing.
+	LegacyScreensaver::noteActivity(); // `hid/display/screensaver.cpp:85-99`: deactivate if showing.
 	FlashStorage::screensaverMode = mode;
 }
 
@@ -469,7 +469,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expect(same_field(scene.rainfall(), expected)).to_be_true();
 
 		// A tick 200 ms late is still ONE frame: legacy re-arms its 50 ms timer from the moment it
-		// fired, so a late timer event advances once (`hid/display/screensaver.cpp:162-185`).
+		// fired, so a late timer event advances once (`hid/display/screensaver.cpp:174-197`).
 		r.tick(2 * kFrameIntervalMs - 1 + 200);
 		expected.advance();
 		expect(same_field(scene.rainfall(), expected)).to_be_true();
@@ -485,7 +485,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expect(scene.next_timer().has_value()).to_be_true();
 		expect(*scene.next_timer()).to_equal(kFrameIntervalMs);
 
-		// `isAnimated` (`hid/display/screensaver.cpp:59-62`): STARSCAPE and DELUGE only.
+		// `isAnimated` (`hid/display/screensaver.cpp:60-63`): STARSCAPE and DELUGE only.
 		FlashStorage::screensaverMode = ::ScreensaverMode::STARSCAPE;
 		expect(scene.next_timer().has_value()).to_be_true();
 		FlashStorage::screensaverMode = ::ScreensaverMode::BLANK;
@@ -503,7 +503,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		r.tick(0);
 
 		// Legacy's BLANK: "a cleared canvas is the whole picture"
-		// (`hid/display/screensaver.cpp:243`).
+		// (`hid/display/screensaver.cpp:255`).
 		expect(any_pixel(r.fake.pbm(0))).to_be_false();
 
 		// Opaque on Main and nowhere else: legacy substitutes its canvas for `main` alone

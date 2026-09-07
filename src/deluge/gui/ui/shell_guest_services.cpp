@@ -69,7 +69,7 @@ GuestServices& guestServices() {
 /// Legacy's gold-knob state is a live `ModelStackWithThreeMainThings` on `View` (`gui/views/view.h:120`),
 /// set by whichever root view is open -- `InstrumentClipMinder::focusRegained` calls
 /// `view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip())`
-/// (`model/clip/instrument_clip_minder.cpp:286-290`), and the other views their own equivalents.
+/// (`model/clip/instrument_clip_minder.cpp:295-299`), and the other views their own equivalents.
 /// `ModKnobs` keeps the same six pointers as POD (`scenes/services/mod_target.h`) and nothing sets
 /// them for it, so an installed-but-unseeded `ModKnobs` reports `mode() == -1` and
 /// `target_.mod_controllable == nullptr` -- which makes its `leds()` declare **all eight mod LEDs
@@ -80,7 +80,7 @@ GuestServices& guestServices() {
 /// `SoundEditor`'s (plan F1, global constraint 1), not a nicety.
 ///
 /// The mirror uses legacy's own two entry-point shapes rather than a field copy, because those are
-/// what `View` itself distinguishes: `setActiveModControllableTimelineCounter` (`view.cpp:1867-1899`)
+/// what `View` itself distinguishes: `setActiveModControllableTimelineCounter` (`view.cpp:1884-1916`)
 /// resolves the controllable and param manager *from* a counter, and
 /// `setActiveModControllableWithoutTimelineCounter` (`:1900-1922`) is handed them directly and
 /// leaves the counter null. `ModelStackWithTimelineCounter::timelineCounterIsSet()`
@@ -95,7 +95,7 @@ void seedModTarget(deluge::scenes::services::ModKnobs& knobs) {
 	ModelStackWithThreeMainThings& stack = view.activeModControllableModelStack;
 	if (stack.timelineCounterIsSet()) {
 		// `send_midi_feedback` false: legacy sends it when the target *changes*
-		// (`view.cpp:1896`), and this call is re-asserting a target legacy already set. Passing
+		// (`view.cpp:1913`), and this call is re-asserting a target legacy already set. Passing
 		// true would emit a `sendCCWithoutModelStackForMidiFollowFeedback` burst on every guest
 		// open that legacy has no counterpart for.
 		knobs.set_target_with_timeline(stack.getTimelineCounter(), /*send_midi_feedback=*/false);
@@ -104,7 +104,7 @@ void seedModTarget(deluge::scenes::services::ModKnobs& knobs) {
 		knobs.set_target_without_timeline(stack.modControllable, stack.paramManager);
 	}
 	// `View::modPos` / `modLength` / `modNoteRowId` (`gui/views/view.h:130-135`), the three globals
-	// `View::setModRegion` writes (`view.cpp:1923-1950`) and every automation read/write uses.
+	// `View::setModRegion` writes (`view.cpp:1940-1967`) and every automation read/write uses.
 	knobs.set_mod_region(view.modPos, view.modLength, view.modNoteRowId);
 }
 
@@ -132,7 +132,7 @@ void wireShellGuestServices() {
 	knobView.root_is_performance = getRootUI() == &performanceView;
 	knobView.root_is_clip_minder = rootUIIsClipMinderScreen();
 	// `mod_button_ui_mode_in_range` is left at its default **true**, and that is a gap rather than
-	// an answer: legacy's `isUIModeWithinRange(modButtonUIModes)` (`gui/views/view.cpp:1512`) reads
+	// an answer: legacy's `isUIModeWithinRange(modButtonUIModes)` (`gui/views/view.cpp:1529`) reads
 	// a table that is `static` inside `view.cpp` (`:1487-1495`) and so cannot be evaluated here.
 	// True is legacy's answer whenever `currentUIMode` is `UI_MODE_NONE`, which is what it is while
 	// a menu is open; what it cannot reproduce is a mode outside the list. Inert for this plan --
@@ -143,7 +143,7 @@ void wireShellGuestServices() {
 
 	deluge::scenes::services::GlobalControls::ViewState controlView;
 	// `currentUIIsClipMinderScreen()` (`gui/ui/ui.cpp:152-155`) rather than the bare
-	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp:504`: it is
+	// `getCurrentUI()->toClipMinder()` the field's doc quotes from `gui/views/view.cpp:521`: it is
 	// the same question with legacy's own null guard on it, and `getCurrentUI()` really can be null
 	// -- it answers `lastUIBeforeNullifying` while nothing is open (`ui.cpp:136-141`), which is the
 	// state during a song swap and the state a spec that opens no UI is in. Found by this call

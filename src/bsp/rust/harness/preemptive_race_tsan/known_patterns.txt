@@ -234,7 +234,7 @@ src/deluge/memory/heaps\.cpp
 #     catalog after the ancestor-absorption bug in commit 4a42871dd) ---
 #
 #   5. View UI-touch/mod-knob state during a live song swap: View::
-#      pretendModKnobsUntouchedForAWhile() (view.cpp:1930), written on the UI/fiber
+#      pretendModKnobsUntouchedForAWhile() (view.cpp:1947), written on the UI/fiber
 #      thread via LoadSongUI::performLoad() -> setUIForLoadedSong() -> ArrangerView::
 #      opened()/focusRegained() -> View::setActiveModControllableTimelineCounter(),
 #      racing the audio thread's read of the SAME state directly inside
@@ -242,7 +242,7 @@ src/deluge/memory/heaps\.cpp
 #      The SAME "song swap isn't preemption-safe" architectural gap as class 3 above,
 #      just touching a `gui/views/` UI-state file (view.cpp) that wasn't yet in that
 #      pattern list. Pinned to the ONE verified file rather than the whole `gui/views/`
-#      directory: only view.cpp:1930 was backtrace-verified to this song-swap class, and
+#      directory: only view.cpp:1947 was backtrace-verified to this song-swap class, and
 #      other views (e.g. ArrangerView::graphicsRoutine) DO appear as call-graph-root
 #      ancestors of unrelated business-logic races (playback_handler.cpp sites in
 #      logs/run_4.log) -- a directory-wide pattern would silently classify a genuinely

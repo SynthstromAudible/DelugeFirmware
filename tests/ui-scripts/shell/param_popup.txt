@@ -17,7 +17,7 @@
 # **The turn at 100 ms is SWALLOWED, and that is the port working, not the script failing.**
 # `ModKnobs::set_target_with_timeline` opens with `pretend_knobs_untouched()`
 # (`services/mod_knobs.cpp:120`, legacy's `View::pretendModKnobsUntouchedForAWhile`,
-# `view.cpp:1951-1955`), which backdates `InputLowering::last_turn_ms_` by a second -- so the next
+# `view.cpp:1968-1972`), which backdates `InputLowering::last_turn_ms_` by a second -- so the next
 # gold turn is not "recent" and `InputLowering::action_gold_turn` writes it off as the opening half
 # of a possible wiggle (`input_lowering.cpp:206-231`). Every gold gesture on the device therefore
 # costs a detent to arm, and the fixture sets the mod target before the run exactly as
@@ -40,7 +40,7 @@
 # `{.oled = true}`, so a FAST turn repainted itself and only a slow one did not.
 # `ParamPopupScene::show` now reports whether it committed and `ModKnobs::show_popup` passes that up
 # to `mod_encoder_action`, which files `Action::Kind::Repaint` on `SurfaceRole::Main` --
-# legacy's `display->displayNotification(...)` at `view.cpp:1245` being a write AND a blit. Deleting
+# legacy's `display->displayNotification(...)` at `view.cpp:1262` being a write AND a blit. Deleting
 # that action turns this frame back into a copy of `popup_shown`.
 0     snapshot idle              # the audio clip view, no popup -- `.state` has one `scene` line
 100   encoder GoldUpper +1       # armed, not acted on: see above

@@ -75,7 +75,7 @@
 ///     `synth_mode.h`, `arpeggiator/*`, ...) get no help from `write_whole_kit`: each of those
 ///     becomes a `get`/`set` node in Tasks 6-8 whose `set` hook owns its own loop.
 ///   * `getRootUI() == &automationView` and the `lastSelectedParamID`/`Kind` match inside
-///     `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73`, `automation_view.cpp:611-628`). The
+///     `possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73`, `automation_view.cpp:612-629`). The
 ///     notify design replaces "am I in the automation view, and is this the param it is showing?"
 ///     with unconditional facts. See `write()`'s own comment for which two are raised and why one is
 ///     not enough.
@@ -631,13 +631,13 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 	//    `unpatched_param.cpp:77-81`), and the knob-indicator refresh
 	//    `setCurrentValueInResponseToUserInput` triggers through
 	//    `ParamManager::notifyParamModifiedInSomeWay` -> `view.notifyParamAutomationOccurred`
-	//    (`auto_param.cpp:1161`, `view.cpp:1691-1711`), whose deferred `displayAutomation()` calls
-	//    `setKnobIndicatorLevels()` (`view.cpp:1741-1744`). `legacy_redraw_for` lists both
+	//    (`auto_param.cpp:1161`, `view.cpp:1708-1728`), whose deferred `displayAutomation()` calls
+	//    `setKnobIndicatorLevels()` (`view.cpp:1758-1761`). `legacy_redraw_for` lists both
 	//    enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp:20`).
 	//
 	//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough (fix round 1,
 	//    Important 1). `possiblyRefreshAutomationEditorGrid` ends in
-	//    `uiNeedsRendering(&automationView)` (`automation_view.cpp:624`), i.e. a main-pad re-render
+	//    `uiNeedsRendering(&automationView)` (`automation_view.cpp:625`), i.e. a main-pad re-render
 	//    (`AutomationView::renderMainPads`, `:633`) -- and `ParamAutomation`/`ModTarget` appear
 	//    *only* in `r.oled`, never in `r.main_rows` (`notify_drain_mapping.cpp:13-14`). Without this
 	//    third raise, editing the param the automation view is showing would stop repainting its
@@ -645,7 +645,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 	//    `r.main_rows` carries for exactly this; the mapping file itself is left alone.
 	//
 	//    Coarser than legacy on purpose: `possiblyRefreshAutomationEditorGrid` repaints only when the
-	//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`automation_view.cpp:611-622`),
+	//    edited param *is* the view's `lastSelectedParamID`/`Kind` (`automation_view.cpp:612-623`),
 	//    a comparison this layer cannot make -- it may not read `automationView` or the root UI. So
 	//    every param write asks for one grid repaint the drain already coalesces, rather than
 	//    silently dropping the one that mattered.

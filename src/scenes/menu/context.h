@@ -182,8 +182,8 @@ struct MenuContext {
 ///                                the kit's own global FX, false to edit the selected row. Callers
 ///                                normally pass the clip's `affectEntire`, which is exactly what
 ///                                both writers of that member set it from
-///                                (`model/clip/instrument_clip_minder.cpp:388-390`,
-///                                `gui/views/automation_view.cpp:1601-1603`); the kit-row grid
+///                                (`model/clip/instrument_clip_minder.cpp:397-421`,
+///                                `gui/views/automation_view.cpp:1622-1624`); the kit-row grid
 ///                                shortcut (`sound_editor.cpp:1188-1196`) is the caller that passes
 ///                                false with affect-entire on, and it is why this is an argument
 ///                                rather than a re-read of the clip.
@@ -226,7 +226,7 @@ ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* mem
 /// @{
 
 /// @brief Point @p target at what @p counter's active mod controllable is -- the stack half of
-///        `View::setActiveModControllableTimelineCounter` (`gui/views/view.cpp:1867-1899`).
+///        `View::setActiveModControllableTimelineCounter` (`gui/views/view.cpp:1884-1916`).
 ///
 /// `:1868-1870`'s `getTimelineCounterToRecordTo()` redirection, `:1872-1873`'s stack setup, and the
 /// `getActiveModControllable` / `addOtherTwoThingsButNoNoteRow` fork at `:1875-1881`. Everything
@@ -240,7 +240,7 @@ ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* mem
 /// @param counter The timeline counter to point at, or null for "no timeline".
 void mod_target_from_timeline(services::ModTarget& target, Song& song, TimelineCounter* counter);
 
-/// @brief Turn one gold knob against the model -- `View::modEncoderAction` (`view.cpp:818-842`),
+/// @brief Turn one gold knob against the model -- `View::modEncoderAction` (`view.cpp:835-859`),
 ///        `modEncoderAction_nonExistentParam` (`:843-852`) and `modEncoderAction_existentParam`
 ///        (`:853-948`), minus the popup and minus every UI read.
 ///
@@ -266,7 +266,7 @@ services::ModTurn mod_encoder_turn(services::ModTarget& target, int32_t which_en
                                    services::NextKnobPosFn next_knob_pos);
 
 /// @brief What param a gold knob addresses right now -- `View::getModelStackWithParam`
-///        (`view.cpp:971-1010`) as `View::getParameterNameFromModEncoder` (`:1012-1016`) calls it.
+///        (`view.cpp:988-1027`) as `View::getParameterNameFromModEncoder` (`:1029-1033`) calls it.
 ///
 /// @warning Runs `getModelStackWithParam`'s side effects, clone included, exactly as legacy's own
 ///          naming path does. It is not a free observation.
@@ -276,7 +276,7 @@ services::ModTurn mod_encoder_turn(services::ModTarget& target, int32_t which_en
 services::ModParamInfo mod_param_info(services::ModTarget& target, int32_t which_encoder);
 
 /// @brief Permanently grab automation values from @p target's `mod_pos` -- `View::setModRegion`'s
-///        held-note branch (`view.cpp:1928-1938`).
+///        held-note branch (`view.cpp:1945-1955`).
 ///
 /// The caller has already checked everything `:1928-1932` tests except the last clause; this runs
 /// `ParamManagerForTimeline::grabValuesFromPos` (`:1937-1938`), which needs the stack.
@@ -285,7 +285,7 @@ services::ModParamInfo mod_param_info(services::ModTarget& target, int32_t which
 void mod_region_grab_values(const services::ModTarget& target);
 
 /// @brief Read what a gold knob's indicator column should show -- the model half of
-///        `View::setKnobIndicatorLevel` (`gui/views/view.cpp:1403-1468`).
+///        `View::setKnobIndicatorLevel` (`gui/views/view.cpp:1420-1485`).
 ///
 /// Resolves the param stack with `getParamFromModEncoder(whichModEncoder, …, false)` -- legacy's
 /// own third argument at `:1407-1408`, which is why this is **not** `mod_param_info`: that one goes
@@ -298,7 +298,7 @@ void mod_region_grab_values(const services::ModTarget& target);
 services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target, int32_t which_encoder);
 
 /// @brief Press or release a gold knob -- the model half of
-///        `View::modEncoderButtonAction_changeModControllable` (`view.cpp:1363-1377`).
+///        `View::modEncoderButtonAction_changeModControllable` (`view.cpp:1380-1394`).
 ///
 /// `:1364-1366`'s stack copy and `:1368-1369`'s
 /// `ModControllable::modEncoderButtonAction(whichModEncoder, on, modelStack)`. The
@@ -311,7 +311,7 @@ services::ModIndicatorInfo mod_indicator_info(const services::ModTarget& target,
 bool mod_encoder_button(const services::ModTarget& target, int32_t which_encoder, bool on);
 
 /// @brief Delete a gold knob's param automation -- `View::modEncoderButtonAction_deleteAutomation`
-///        (`view.cpp:1351-1361`).
+///        (`view.cpp:1368-1378`).
 ///
 /// Includes the `ActionType::AUTOMATION_DELETE` action-log entry (`:1357`) and the
 /// `AutoParam::deleteAutomation` call (`:1358`); the "Automation deleted" popup is `ModKnobs`',
@@ -341,12 +341,12 @@ bool mod_delete_automation(const services::ModTarget& target, int32_t which_enco
 void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio_clip);
 
 /// @brief Clear an audio clip -- the model half of `AudioClipView::buttonAction`'s `BACK` arm
-///        (`gui/views/audio_clip_view.cpp:424-430`).
+///        (`gui/views/audio_clip_view.cpp:442-448`).
 ///
 /// Here for exactly the reason `marker_written` above is, and it is the only reason: `Clip::clear`
 /// takes a `ModelStackWithTimelineCounter*` (`model/clip/clip.h:124`), legacy builds one with
 /// `setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip())`
-/// (`audio_clip_view.cpp:427-428`), and `model/model_stack.h` may be included only by this file and
+/// (`audio_clip_view.cpp:445-446`), and `model/model_stack.h` may be included only by this file and
 /// `bindings.cpp` (`scenes-model-stack-outside-context`). Everything else about that arm -- the
 /// `actionLogger` transaction, the `FlashStorage::automationClear` read that decides the two
 /// arguments and the popup, the marker latch and the redraw -- stays with the scene, which is where

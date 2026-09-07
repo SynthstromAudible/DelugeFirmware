@@ -10,7 +10,7 @@
 /// the **`Song`** twice: once before the port runs (which reaches it through `TimelineState::adopt`)
 /// and once again before legacy runs (which reads `currentSong->xScroll[NAVIGATION_CLIP]` itself).
 /// Neither side is ever handed the other's numbers. The limits legacy asks its own virtuals for
-/// (`AudioClipView::getMaxZoom`/`getMaxLength`, `audio_clip_view.cpp:857-862`/`:864-870`) reach the port as
+/// (`AudioClipView::getMaxZoom`/`getMaxLength`, `audio_clip_view.cpp:875-880`/`:882-888`) reach the port as
 /// `Clip::getMaxZoom()`/`Clip::getMaxLength()` (`model/clip/clip.cpp:142-149`, `:1066-1068`) --
 /// the same model question, asked of the model rather than of legacy's answer.
 ///
@@ -134,7 +134,7 @@ struct TickProbe : ClipView {
 	///
 	/// Setting it to -1 is `ClipNavigationTimelineView::focusRegained`'s entire body
 	/// (`clip_navigation_timeline_view.cpp:26-28`); the real `focusRegained` is not called because
-	/// `AudioClipView`'s (`audio_clip_view.cpp:78-89`) also drags in `view.focusRegained()` and
+	/// `AudioClipView`'s (`audio_clip_view.cpp:79-90`) also drags in `view.focusRegained()` and
 	/// `setActiveModControllableTimelineCounter`, neither of which this comparison is about.
 	/// @{
 	static void set_remembered_scroll(int32_t value) { xScrollBeforeFollowingAutoExtendingLinearRecording = value; }

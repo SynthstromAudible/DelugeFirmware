@@ -411,7 +411,7 @@ public:
 	///   * `Buttons::buttonAction`'s tail (`hid/buttons.cpp:143-231`) runs for **any** current UI
 	///     that returned `NOT_DEALT_WITH` from `getCurrentUI()->buttonAction` at `:134`, root or
 	///     not. That group needs no gate.
-	///   * `View::buttonAction` (`gui/views/view.cpp:139-470`) is reached only from a **root view**.
+	///   * `View::buttonAction` (`gui/views/view.cpp:140-487`) is reached only from a **root view**.
 	///     `UI::buttonAction`'s base implementation is `return ActionResult::NOT_DEALT_WITH`
 	///     (`gui/ui/ui.h:98-100`) -- it does *not* forward to `view`, unlike the three mod hooks
 	///     (`gui/ui/ui.cpp:35-45`). `grep "public RootUI"` finds exactly two classes in the tree,

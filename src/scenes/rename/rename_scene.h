@@ -41,7 +41,7 @@ namespace deluge::scenes::rename {
 /// **Three, not legacy's four.** `renameClipUI`, `renameOutputUI` and `renameDrumUI` are all
 /// reachable from the ported menu tree (`nodes::edit_clip_name`, `nodes::edit_track_name`,
 /// `nodes::drum_name_edit`, all three `EditName` items in `gui/ui/menus.cpp:1125-1129`).
-/// `renameMidiCCUI` is **not**: its only opener is `AutomationView::…` (`gui/views/automation_view.cpp:1641`),
+/// `renameMidiCCUI` is **not**: its only opener is `AutomationView::…` (`gui/views/automation_view.cpp:1663`),
 /// a view no part of this plan ports, and no `Node` in `nodes::kAllRoots` reaches it. Adding a
 /// fourth entry now would be an untested, unreachable code path, so it is deliberately absent --
 /// whoever ports the automation view adds `MidiCc` here, with `read`/`write` transcribed from

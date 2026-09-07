@@ -527,7 +527,7 @@ rather than a thing that is half-done:
    `scenes::assigned_node_ids()` is called from `deluge_boot`, and was already reached through
    `scene_registry()` at static init. `ShellConfig::screensaver_idle_ms` is
    `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
-   (`hid/display/screensaver.cpp:80-82`, `:92-94`), pushed from `Screensaver::settingsChanged()` —
+   (`hid/display/screensaver.cpp:81-83`, `:93-95`), pushed from `Screensaver::settingsChanged()` —
    which **now has a port**, `shell::Screensaver::set_idle_ms` plus
    `Shell::set_screensaver_idle_ms`. **What remains open** is the ported tree's own two screensaver
    setters (`scenes/menu/nodes/settings.cpp`), which write the same globals and cannot call `hid/`,
@@ -679,7 +679,7 @@ also means every committed UI-script golden depicts an arm the device never pres
 
 E4 task 3 added two more, both in `View`'s mod-knob half and both found by porting it:
 **`View::modButtonAction` dereferences `ModControllable::getModKnobMode()` unguarded** at
-`gui/views/view.cpp:1517` (a read) and `:1532` (a write, reached on a press in a clip-minder view
+`gui/views/view.cpp:1534` (a read) and `:1549` (a write, reached on a press in a clip-minder view
 where `:1517` is not), both inside the `:1510`/`:1511`/`:1512` guards, where `View::getModKnobMode`
 (`:1680-1689`) null-checks the same pointer and the base implementation genuinely returns null
 (`model/mod_controllable/mod_controllable.cpp:47-49`); and **`View::setKnobIndicatorLevel` reads an
@@ -981,7 +981,7 @@ what a deletion loses outright.
   the *decisions* that reach them are covered through
   `GlobalControls::unported_opens(UnportedOpen)`, a tally **per site**, so an assertion about one
   arm cannot be satisfied by another. `openUI(&saveSongUI)` / `openUI(&loadSongUI)` /
-  `context_menu::clearSong` (`view.cpp:261`, `:313`, `:290-293`) have the same shape.
+  `context_menu::clearSong` (`view.cpp:262`, `:314`, `:291-294`) have the same shape.
 * **`slicing::SliceOps` has no implementation.** Six virtuals with no-op defaults — the whole
   audio/model/card half of the slicer. `Slicer::doSlice` (`gui/ui/slicer.cpp:596-751`) itself is not
   driven: it calls `sampleBrowser.claimAudioFileForInstrument`, reads `soundEditor.currentSource` /
@@ -1004,16 +1004,16 @@ what a deletion loses outright.
   real root UI, neither of which the fixture has. The arms reachable from a non-recording clip are
   compared; the recording ones are not.
 * **`ModKnobs`' popup suppression arms** for the performance view and the song browser
-  (`view.cpp:869-874`, `:885`) — no `PerformanceScene` exists and the song browser is not among the
+  (`view.cpp:886-891`, `:902`) — no `PerformanceScene` exists and the song browser is not among the
   legacy UIs `BrowserScene` carries, so no port-side state can make either fire. **`PopupContext::stuttering`**
   — nothing in the port owns the stutter gesture. **The MIDI-clip CC/expression naming arm**
-  (`view.cpp:1122-1146`) — reachable since task 2 widened `show()`, but a bare MIDI fixture's gold
+  (`view.cpp:1139-1163`) — reachable since task 2 widened `show()`, but a bare MIDI fixture's gold
   knobs resolve through `MIDIInstrument::getParamFromModEncoder` to no `autoParam`, so no popup is
   shown at all; covering it needs a fixture that assigns a mod-knob CC.
 * **`ModKnobs::notify_param_automation_occurred`'s `DISPLAY_AUTOMATION` consumer** — the timer
   callback is `automationView.displayAutomation()` / `view.displayAutomation()`, both view-side and
   unported. Only the *arming* is compared.
-* **`MidiLearn`'s `clearMelodicInstrumentMonoExpressionIfPossible`** (`view.cpp:745-765`),
+* **`MidiLearn`'s `clearMelodicInstrumentMonoExpressionIfPossible`** (`view.cpp:762-782`),
   **`iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)`** (`:620`) and
   **`FlashStorage::writeSettings()`** (`:485`): the first is unported (it needs
   `model/model_stack.h`, which `scenes-model-stack-outside-context` confines to two files) and is
@@ -1021,8 +1021,8 @@ what a deletion loses outright.
   sides, because `spec::QuietAudio` holds `AudioEngine::audioRoutineLocked` for the whole process,
   so what is asserted is the `shouldSaveSettingsAfterMidiLearn` decision rather than the write.
 * **`GlobalControls`' `THRESHOLD_RECORDING_MODE` popup arm** (`hid/buttons.cpp:190-192`), the
-  **`SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:339-353`, which need `soundEditor` and
-  `instrumentClipView`), the **dedicated undo/redo buttons** (`view.cpp:423-446`, dead code behind
+  **`SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`, which need `soundEditor` and
+  `instrumentClipView`), the **dedicated undo/redo buttons** (`view.cpp:424-447`, dead code behind
   `#ifdef undoButtonX`, defined nowhere in the tree), and the **UNDO-vs-REDO choice** at `:414-415`
   (`playbackHandler.slowRoutine()` consumes the pending command inside the same call and a spec
   cannot make `deluge::sync::sd_busy()` true, so both spellings read `NONE` by the time control
@@ -1031,7 +1031,7 @@ what a deletion loses outright.
   `currentUIMode` lives in `gui/ui/ui.h`, which this layer may never include, so there is no port to
   compare against at all.
 * **Four `ScreensaverScene` behaviours, all of them policy rather than drawing and all of them
-  `shell::Screensaver`'s half**: `settingsChanged()` (`hid/display/screensaver.cpp:188-229`), the
+  `shell::Screensaver`'s half**: `settingsChanged()` (`hid/display/screensaver.cpp:200-241`), the
   permanent-popup / working-animation / stem-export inhibitors (`:106-118`) and with them the
   1000 ms re-check that exists only to run them, the `ScreensaverMode::OFF` early-outs, and the
   `consumeFrameDirty` blit protocol.
@@ -1039,7 +1039,7 @@ what a deletion loses outright.
   **the four `PadLEDs` transition modes** — the port carries no transitions at all, so those early
   returns have no counterpart.
 * **`View::setModLedStates` is not driven.** The eight-mode × eight-LED table is asserted by
-  identity against a transcription of `view.cpp:1662-1676` read row by row, which is the shape §10.6
+  identity against a transcription of `view.cpp:1679-1693` read row by row, which is the shape §10.6
   excludes. It is a table rather than a body, and the assertion fails on an undeclared LED id, but
   it is not a comparison against running legacy and is not counted above.
 

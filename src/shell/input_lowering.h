@@ -366,14 +366,14 @@ public:
 	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
 
 	/// @brief Backdate \p role's "last turned" clock so the next turn counts as the first after a
-	///        pause -- `View::pretendModKnobsUntouchedForAWhile` (`gui/views/view.cpp:1951-1955`).
+	///        pause -- `View::pretendModKnobsUntouchedForAWhile` (`gui/views/view.cpp:1968-1972`).
 	///
 	/// The state it writes is `last_turn_ms_`, which is `timeModEncoderLastTurned`
 	/// (`hid/encoder_input.cpp:40`) and is read by `action_gold_turn`'s `turned_recently` test
 	/// alone. Backdating it makes that test false, so the next detent is remembered as the
 	/// gesture's initial direction rather than actioned -- which is exactly what "harder to turn"
 	/// means, and what legacy spends it on in `View::potentiallyMakeItHarderToTurnKnob`
-	/// (`view.cpp:1077`) and at the three `setActiveModControllable*`/`setModRegion` entry points.
+	/// (`view.cpp:1094`) and at the three `setActiveModControllable*`/`setModRegion` entry points.
 	///
 	/// @note **In current legacy this write is inert**, and here it is not. The encoder overhaul
 	///       dropped the `turnedRecently` branch that used to read `timeModEncoderLastTurned`
@@ -388,7 +388,7 @@ public:
 
 private:
 	/// @brief How far `pretend_knob_untouched` backdates: legacy subtracts a whole `kSampleRate`
-	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1952-1954`).
+	///        worth of `audioSampleTimer` ticks, i.e. one second (`view.cpp:1969-1971`).
 	///
 	/// Only has to exceed `LoweringConfig::short_press_ms`, which is what `turned_recently`
 	/// compares against; one second is legacy's own number and clears it by a wide margin.

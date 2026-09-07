@@ -30,7 +30,7 @@
                                  # the pads, and the service LEDs/indicators in `.state`
 # `end_square` is `(loopLength - xScroll - 1) / xZoom` = (768 - 0 - 1) / 48 = 15
 # (`AudioClipScene::pad_action`, `audio_clip_scene.cpp:533`; legacy's `AudioClipView::padAction`,
-# `audio_clip_view.cpp:502-507`).
+# `audio_clip_view.cpp:520-525`).
 100   pad 15 3 down 64
 120   pad 15 3 up
 200   snapshot end_marker        # `:548-555`: the end column, tapped with no marker up, raises the
@@ -93,11 +93,11 @@
 2100  button XEnc down
 2150  button Back down
 2170  button Back up
-2250  snapshot after_clear       # `audio_clip_view.cpp:417-447`: BACK while the horizontal encoder
+2250  snapshot after_clear       # `audio_clip_view.cpp:435-465`: BACK while the horizontal encoder
                                  # is held clears the clip -- the sample is detached, so the pads go
                                  # dark -- and files the CLEARED popup
 # Snapshotted BEFORE the X-encoder is released, deliberately: the release arm takes the popup down
-# again (`audio_clip_view.cpp:85-87`'s `display->cancelPopup()`, ported as a `CancelPopup` notice),
+# again (`audio_clip_view.cpp:86-88`'s `display->cancelPopup()`, ported as a `CancelPopup` notice),
 # so a frame taken after it records the clear with no popup and says nothing about the popup at all.
 # Written the other way round first, and the golden is what showed it.
 2300  button XEnc up

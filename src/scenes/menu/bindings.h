@@ -264,7 +264,7 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nu
 void write_sequence_direction(const MenuContext& ctx, int32_t value);
 
 /// @brief What `write()` calls after a `ParamRef` write, in place of legacy's
-///        `view.sendMidiFollowFeedback(modelStack, knobPos)` (`gui/views/view.cpp:1713`).
+///        `view.sendMidiFollowFeedback(modelStack, knobPos)` (`gui/views/view.cpp:1730`).
 ///
 /// `src/scenes` may not include `gui/views/`, so the call is inverted into a hook the application
 /// installs.

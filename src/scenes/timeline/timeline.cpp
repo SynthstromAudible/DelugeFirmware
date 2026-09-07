@@ -22,8 +22,8 @@
 ///   * `displayNumberOfBarsAndBeats` (`:241-265`) declares `quantization` and `tooLongText` and
 ///     **reads neither** -- the body uses `Song::getBarLength()` for the quantum and never mentions
 ///     the "too long" text. Every one of its five call sites passes both
-///     (`:238`, `clip_view.cpp:175`, `audio_clip_view.cpp:780`, `:830`,
-///     `arranger_view.cpp:2955`). `bars_and_beats` takes
+///     (`:238`, `clip_view.cpp:175`, `audio_clip_view.cpp:798`, `:848`,
+///     `arranger_view.cpp:2970`). `bars_and_beats` takes
 ///     neither; the caller keeps `Song::getBarLength()`, which is the one input that mattered.
 ///
 /// @par A legacy bug, ported rather than fixed

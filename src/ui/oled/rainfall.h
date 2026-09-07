@@ -331,7 +331,7 @@ private:
 
 /// @brief Draw one filled square block, clipped to whatever @p f allows.
 ///
-/// The port of legacy's `drawBlock` (`hid/display/screensaver.cpp:64-77`), which is a file-local
+/// The port of legacy's `drawBlock` (`hid/display/screensaver.cpp:65-78`), which is a file-local
 /// helper *shared* by both animations there -- so it is shared here too, and lives with `Rainfall`
 /// because the panel bounds it clips to are `Rainfall`'s constants. The bounds test itself is not
 /// reproduced: the caller narrows @p f to that band first (see `draw_rainfall`), and a frame clips
@@ -343,7 +343,7 @@ void draw_block(OledFrame& f, const Rainfall::Block& block);
 
 /// @brief Paint one frame of @p field onto @p f, clipped exactly as legacy clips it.
 ///
-/// Ports `Screensaver::renderRainfall` (`hid/display/screensaver.cpp:254-270`) and the `drawBlock`
+/// Ports `Screensaver::renderRainfall` (`hid/display/screensaver.cpp:266-282`) and the `drawBlock`
 /// helper it draws through (`:63-76`). `drawBlock`'s clip is `x` in `[0, OLED_MAIN_WIDTH_PIXELS)`
 /// and `y` in `[OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS)`, i.e. this class's own
 /// `kWidth`/`kTopmost`/`kHeight` -- so the clip is taken from those, not from the frame's panel.

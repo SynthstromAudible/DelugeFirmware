@@ -252,10 +252,10 @@ describe shell_router("shell::Router", $ {
 		//      and `midiCCReceived` gives `soundEditor` first dibs and falls through to `view.`
 		//      (`:3128-3136`).
 		//   2. The four `View::buttonAction` arms `MidiLearn` owns sit in the SAME `if`/`else if`
-		//      chain as the ones `GlobalControls` owns (`src/deluge/gui/views/view.cpp:139-470`),
+		//      chain as the ones `GlobalControls` owns (`src/deluge/gui/views/view.cpp:140-487`),
 		//      so their relative order is unobservable given that `GlobalControls` abstains from
 		//      exactly those four (`ViewArm::LearnOwns`) and suppresses its own tail for them.
-		//   3. LED composition REQUIRES last: `View::midiLearnFlash` (`view.cpp:804-815`)
+		//   3. LED composition REQUIRES last: `View::midiLearnFlash` (`view.cpp:821-832`)
 		//      overwrites the PLAY/RECORD/TAP_TEMPO LEDs `PlaybackHandler::setLedStates` had just
 		//      set, and `LedCompose::compose` runs services in `Shell`'s own order, last writer
 		//      winning.
@@ -431,7 +431,7 @@ describe shell_router("shell::Router", $ {
 		// Plan D excluded these two from `mod_knobs` on the correct observation that legacy reaches
 		// them only after the current UI -- but with the chain inverted, "after the UI" and "not a
 		// `mod_knobs` event" were the same statement. Once the scene goes first they are not, and
-		// excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp:1332-1350`)
+		// excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp:1349-1367`)
 		// with no route to it at all.
 		Rig r;
 		UiEvent mod_enc_event{};

@@ -21,7 +21,7 @@
 /// @par The pad comparison composes legacy the way the DEVICE does, not the way `renderMainPads` does
 ///
 /// `AudioClipView` paints the playhead nowhere near `renderMainPads`: `graphicsRoutine`
-/// (`gui/views/audio_clip_view.cpp:262-310`) hands a column to `PadLEDs::setTickSquares`, and the
+/// (`gui/views/audio_clip_view.cpp:263-311`) hands a column to `PadLEDs::setTickSquares`, and the
 /// **driver** substitutes the cursor colour on its way out, in `PadLEDs::prepareColour`
 /// (`hid/led/pad_leds.cpp:283-298`, called per pad from `sortLedsForCol`, `:260-275`). So the image
 /// a pad actually shows is `prepareColour(x, y, image[y][x])`, and that -- not the bare
@@ -247,7 +247,7 @@ void ensure_display() {
 	}
 	// `l10n::chosenLanguage` is null until the app constructs its `Display` (`gui/l10n/l10n.cpp:6`),
 	// and legacy's clip-clear arm calls `deluge::l10n::get(...)` unconditionally
-	// (`audio_clip_view.cpp:438`, `:441`) -- which dereferences it. Every other scenes spec that
+	// (`audio_clip_view.cpp:456`, `:459`) -- which dereferences it. Every other scenes spec that
 	// drives a legacy popup sets it the same way (`context_menu_scene_spec.cpp:91`).
 	if (deluge::l10n::chosenLanguage == nullptr) {
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -333,7 +333,7 @@ struct Rig {
 		// fixture attaches the sample by hand, so it is set by hand too. `kMaxSampleValue` is the
 		// identity: `getLengthInSamplesAtSystemSampleRate` returns the raw duration for it and
 		// divides by it otherwise (`sample_holder.cpp:94-101`) -- a **SIGFPE** at zero, which is what
-		// `setClipLengthEqualToSampleLength` walks into (`audio_clip_view.cpp:745`).
+		// `setClipLengthEqualToSampleLength` walks into (`audio_clip_view.cpp:763`).
 		f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
 		f.clip->sampleControls.reversed = false;
 		f.clip->recorder = nullptr;
@@ -434,7 +434,7 @@ struct Rig {
 	/// The input examples drive `Scene::handle` directly (see `Input` below) and compare the model,
 	/// so there is no frame to render and no gate to arm; `open()`'s `shell.init` would only add a
 	/// scene push to tear down again. **`on_enter` is still called**, because that is where the port
-	/// puts `AudioClipView::opened`'s `focusRegained()` (`audio_clip_view.cpp:74`, `:80-81`) and
+	/// puts `AudioClipView::opened`'s `focusRegained()` (`audio_clip_view.cpp:75`, `:81-82`) and
 	/// therefore where the two marker latches are reset -- and `AudioClipScene` is a process
 	/// singleton, so an example that leaves a marker up otherwise poisons the next one. Found
 	/// exactly that way: the end-marker drag example left `end_marker_visible_` true and the
@@ -454,7 +454,7 @@ struct Rig {
 
 // --- the legacy oracle ------------------------------------------------------------------------
 
-/// @brief The legacy global (`AudioClipView audioClipView`, `gui/views/audio_clip_view.cpp:58`),
+/// @brief The legacy global (`AudioClipView audioClipView`, `gui/views/audio_clip_view.cpp:59`),
 ///        aliased so every oracle call below says out loud which side it is driving.
 AudioClipView& legacy_view = ::audioClipView;
 
@@ -479,11 +479,11 @@ LegacyPads legacy_pads() {
 	return out;
 }
 
-/// @brief The 128x48 canvas `AudioClipView::renderOLED` (`audio_clip_view.cpp:91-93`) would have
+/// @brief The 128x48 canvas `AudioClipView::renderOLED` (`audio_clip_view.cpp:92-94`) would have
 ///        shown, as a PBM.
 ///
 /// `renderOLED`'s one call, `view.displayOutputName`, ignores the canvas it is handed and writes
-/// into `hid::display::OLED::main` (`gui/views/view.cpp:2088-2098`), so that is what is read back.
+/// into `hid::display::OLED::main` (`gui/views/view.cpp:2105-2115`), so that is what is read back.
 std::string legacy_oled() {
 	deluge::hid::display::OLED::clearMainImage();
 	legacy_view.renderOLED(deluge::hid::display::OLED::main);
@@ -593,7 +593,7 @@ public:
 	///
 	/// What the two halves of the blink example are actually about: the end column is
 	/// `colours::red` on the bright phase and `colours::red_dull` on the dim one
-	/// (`audio_clip_view.cpp:164-170`). Without it either half would pass on any pair of agreeing
+	/// (`audio_clip_view.cpp:165-171`). Without it either half would pass on any pair of agreeing
 	/// images.
 	/// @param x      The column.
 	/// @param colour The colour every row of it must be.
@@ -860,14 +860,14 @@ struct NavProbe : ClipNavigationTimelineView {
 /// `AudioClipView::endMarkerVisible` is **private** and the class is `final`, so there is no probe
 /// subclass to reach it with (the trick `timeline_spec.cpp`'s `TickProbe` uses for
 /// `ClipView::getTickSquare` needs a protected member). What there IS is `padAction`
-/// (`audio_clip_view.cpp:548-556`), which sets it, and `getMaxLength` (`:857-862`), which is
+/// (`audio_clip_view.cpp:566-574`), which sets it, and `getMaxLength` (`:875-880`), which is
 /// **public** and returns `loopLength + 1` if and only if it is set. So the flag is raised by
 /// legacy's own gesture and read back through legacy's own accessor; the caller asserts on the
 /// return.
 /// @param r The rig.
 /// @return True if `endMarkerVisible` is now set.
 /// @brief The display column the clip's end falls in, computed from the SENTINEL's own scroll,
-///        zoom and length -- `padAction`'s `endSquareDisplay` (`audio_clip_view.cpp:502-504`).
+///        zoom and length -- `padAction`'s `endSquareDisplay` (`audio_clip_view.cpp:520-522`).
 ///
 /// Neither side's answer: it is the number both sides are expected to agree on, so an example that
 /// taps this column is tapping the same place on both.
@@ -900,9 +900,9 @@ void lower_legacy_end_marker(Rig& r) {
 ///        gestures, and confirm it from legacy's own accessor.
 ///
 /// `AudioClipView` is a process singleton, `endMarkerVisible`/`startMarkerVisible` are private and
-/// the class is `final`, and **`focusRegained()` -- legacy's own reset (`audio_clip_view.cpp:80-81`)
+/// the class is `final`, and **`focusRegained()` -- legacy's own reset (`audio_clip_view.cpp:81-82`)
 /// -- cannot be called here**: it goes on to `view.focusRegained()`, which segfaults in a spec
-/// process (`gui/views/view.cpp:122`). Found by calling it.
+/// process (`gui/views/view.cpp:123`). Found by calling it.
 ///
 /// So the reset is legacy's own `padAction`: one tap on the end column lowers whichever marker was
 /// up (`:512` and `:531` both name that column) or raises the end marker if neither was, and
@@ -1039,7 +1039,7 @@ describe audio_clip_scene_spec_body(
 	        "draws the same waveform and grey region as legacy when the clip is scrolled", _ {
 		        // Four columns' worth of scroll. The clip's end lands at column 11
 		        // (`(768 - 192 - 1) / 48`), so columns 12..15 are the grey "past the end" region --
-		        // the arm at `audio_clip_view.cpp:173-180` -- and columns 0..11 are the scrolled waveform.
+		        // the arm at `audio_clip_view.cpp:174-181` -- and columns 0..11 are the scrolled waveform.
 		        Rig r;
 		        r.seed(Sentinel{.x_scroll = 192});
 		        r.open();
@@ -1078,7 +1078,7 @@ describe audio_clip_scene_spec_body(
 
 		        // Both sides raise the marker through their own front door, BEFORE the first tick:
 		        // `set_end_marker_visible` is a state write, not an event, so it dirties no repaint gate --
-		        // legacy's own `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`audio_clip_view.cpp:555`) is the
+		        // legacy's own `uiNeedsRendering(this, 0xFFFFFFFF, 0)` (`audio_clip_view.cpp:573`) is the
 		        // half of that arm the shell owns rather than the scene. Found by writing the tick after
 		        // the setter and watching the port render the frame from before it.
 		        // `raise_legacy_end_marker` asserts legacy's flag took, by reading legacy's own
@@ -1086,11 +1086,11 @@ describe audio_clip_scene_spec_body(
 		        expect(raise_legacy_end_marker(r)).to_be_true();
 		        r.scene().set_end_marker_visible(true);
 		        // Both start on the bright half: legacy's `padAction` sets `blinkOn = true`
-		        // (`audio_clip_view.cpp:553`), the port's setter does the same.
+		        // (`audio_clip_view.cpp:571`), the port's setter does the same.
 		        expect(r.scene().blink_on()).to_be_true();
 		        r.tick(0);
 		        // The end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15, and on
-		        // the bright phase it is `colours::red` (`audio_clip_view.cpp:164-167`).
+		        // the bright phase it is `colours::red` (`audio_clip_view.cpp:165-168`).
 		        expect_pads_match(self, r, legacy_pads(),
 		                          PadExpectation::waveform(16).and_column(15, deluge::gui::colours::red));
 
@@ -1101,7 +1101,7 @@ describe audio_clip_scene_spec_body(
 		        r.tick(deluge::scenes::audio_clip::kMarkerBlinkMs);
 		        expect(r.scene().blink_on()).to_be_false();
 		        // The subject of this half: on the dim phase the end column is `colours::red_dull`
-		        // (`audio_clip_view.cpp:168-170`), where the bright phase drew `colours::red`. The
+		        // (`audio_clip_view.cpp:169-171`), where the bright phase drew `colours::red`. The
 		        // end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15.
 		        expect_pads_match(self, r, legacy_pads(),
 		                          PadExpectation::waveform(16).and_column(15, deluge::gui::colours::red_dull));
@@ -1117,7 +1117,7 @@ describe audio_clip_scene_spec_body(
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
-		        // `graphicsRoutine`'s first arm (`audio_clip_view.cpp:269-273`) -> 255.
+		        // `graphicsRoutine`'s first arm (`audio_clip_view.cpp:270-274`) -> 255.
 		        expect(r.scene().last_tick_square()).to_equal(255);
 		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
 	        });
@@ -1380,7 +1380,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "does NOT enter that mode when shift is held, which is what frees the length-edit chord", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // `audio_clip_view.cpp:392-396`: with shift down and Y_ENC up, the X_ENC arm matches
+		        // `audio_clip_view.cpp:393-397`: with shift down and Y_ENC up, the X_ENC arm matches
 		        // neither branch, does nothing, and -- the part that matters -- never delegates to
 		        // `ClipView`, so the mode is never entered. That is exactly what leaves
 		        // `horizontalEncoderAction`'s `isNoUIModeActive()` first arm (`:789`) reachable.
@@ -1636,7 +1636,7 @@ describe audio_clip_scene_spec_body(
 	        "writes the same start marker as legacy when the start marker is dragged", _ {
 		        spec_fixture::QuietAudio quiet;
 		        // The start-marker gesture is behind `RuntimeFeatureSettingType::TrimFromStartOfAudioClip`
-		        // (`audio_clip_view.cpp:560`), which is off by default; both sides read the same global,
+		        // (`audio_clip_view.cpp:578`), which is off by default; both sides read the same global,
 		        // so it is turned on once, for both, and put back.
 		        const uint32_t saved = runtimeFeatureSettings.get(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 		        runtimeFeatureSettings.set(RuntimeFeatureSettingType::TrimFromStartOfAudioClip,
@@ -1664,7 +1664,7 @@ describe audio_clip_scene_spec_body(
 		        const ModelSnapshot port = snapshot(r);
 
 		        expect_edit_matches(self, legacy, port, seeded);
-		        // `oldEndTick - newStartTicks` = `768 - 192` (`audio_clip_view.cpp:652-653`).
+		        // `oldEndTick - newStartTicks` = `768 - 192` (`audio_clip_view.cpp:670-671`).
 		        expect(port.loop_length).to_equal(576);
 
 		        // Legacy's start latch is private and nothing else puts it down; every example that
@@ -1678,7 +1678,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "writes the same length and end marker as legacy for a REVERSED sample", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // The other arm of `changeUnderlyingSampleLength` (`audio_clip_view.cpp:601-607`),
+		        // The other arm of `changeUnderlyingSampleLength` (`audio_clip_view.cpp:619-625`),
 		        // which moves `startPos` rather than `endPos` and can clamp it at zero.
 		        Rig r;
 		        Input in;
@@ -1712,7 +1712,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "edits the clip length without timestretching exactly as legacy does, both directions", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // `AudioClipView::editClipLengthWithoutTimestretching` (`audio_clip_view.cpp:798-835`),
+		        // `AudioClipView::editClipLengthWithoutTimestretching` (`audio_clip_view.cpp:816-853`),
 		        // a DISTINCT arm from `adjustLoopLength`: it moves the sample's marker with the clip.
 		        // Reached by shift + the horizontal encoder's own button, which -- per the UI-mode
 		        // example above -- deliberately enters no mode.
@@ -1780,7 +1780,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "reaches setClipLengthEqualToSampleLength from the X_ENC + Y_ENC chord, as legacy does", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // The other caller (`audio_clip_view.cpp:383-390`), and the one this library can
+		        // The other caller (`audio_clip_view.cpp:384-391`), and the one this library can
 		        // actually reach today. Same model comparison, driven through the buttons.
 		        Rig r;
 		        Input in;
@@ -1811,7 +1811,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "scrolls the audio output's mode on a select turn, exactly as legacy does", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // `AudioClipView::selectEncoderAction`'s non-shift arm (`audio_clip_view.cpp:735-736`).
+		        // `AudioClipView::selectEncoderAction`'s non-shift arm (`audio_clip_view.cpp:753-754`).
 		        Rig r;
 		        Input in;
 		        r.reseed(Sentinel{});
@@ -1833,7 +1833,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "shifts the clip's colour on shift + a vertical turn, exactly as legacy does", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // `AudioClipView::verticalEncoderAction` (`audio_clip_view.cpp:837-848`).
+		        // `AudioClipView::verticalEncoderAction` (`audio_clip_view.cpp:855-866`).
 		        Rig r;
 		        Input in;
 		        r.reseed(Sentinel{});
@@ -1898,7 +1898,7 @@ describe audio_clip_scene_spec_body(
 	    it(
 	        "scrolls back to the left when a clip-content change leaves the view past the end", _ {
 		        spec_fixture::QuietAudio quiet;
-		        // `clipNeedsReRendering`'s own half (`audio_clip_view.cpp:711-713`), which legacy's
+		        // `clipNeedsReRendering`'s own half (`audio_clip_view.cpp:729-731`), which legacy's
 		        // comment calls "a bit hacky that I put this in this function". The redraw half is the
 		        // shell's (`Shell::apply_dirty`), so this is all that is left for the scene.
 		        Rig r;

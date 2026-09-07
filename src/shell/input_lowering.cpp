@@ -449,7 +449,7 @@ double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint3
 }
 
 void InputLowering::pretend_knob_untouched(EncoderRole role, uint32_t now_ms) {
-	// `View::pretendModKnobsUntouchedForAWhile` (`gui/views/view.cpp:1951-1955`):
+	// `View::pretendModKnobsUntouchedForAWhile` (`gui/views/view.cpp:1968-1972`):
 	// `timeModEncoderLastTurned[i] = AudioEngine::audioSampleTimer - kSampleRate`. Unsigned wrap is
 	// the same wrap `turned_recently`'s own `now_ms - last_turn_ms_` does, so backdating past zero
 	// is well defined and still reads as "a second ago".

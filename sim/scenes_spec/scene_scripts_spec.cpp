@@ -714,7 +714,7 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		// resolves to `{.oled = true}`, so a *fast* turn repainted itself and only a slow one did
 		// not. `ParamPopupScene::show` now returns whether it committed and
 		// `ModKnobs::mod_encoder_action` files `Action::Kind::Repaint` on `SurfaceRole::Main` when
-		// it did (legacy's `display->displayNotification(...)`, `view.cpp:1245`, being a write AND
+		// it did (legacy's `display->displayNotification(...)`, `view.cpp:1262`, being a write AND
 		// a blit). Mutation-proved from both ends: deleting that `Repaint` turns `popup_moved` back
 		// into a copy of `popup_shown` and this script fails, and `mod_knobs_spec.cpp`'s
 		// "files an OLED repaint for every committed popup update" example fails with it.

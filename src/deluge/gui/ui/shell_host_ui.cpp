@@ -616,7 +616,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// implementation is a bare forward to `view` (`gui/ui/ui.cpp:43-45`) that this class keeps.
 	// `Router::is_mod_or_gold` routes `EncoderButton{ModEnc0}`/`{ModEnc1}` to `mod_knobs` (shell
 	// spec §15.5), and `ModKnobs::mod_encoder_button_action` is the port of the very function
-	// `view` is about to run (`gui/views/view.cpp:1332-1349`). So with `ModKnobs` installed and its
+	// `view` is about to run (`gui/views/view.cpp:1349-1366`). So with `ModKnobs` installed and its
 	// target seeded, feeding the press would perform the gesture **twice** -- two
 	// delete-automations, or two `ModControllable::modEncoderButtonAction` toggles -- where
 	// `SoundEditor` performs it once. Task 6 recorded the double delivery as inert and left the
@@ -628,7 +628,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// the port's fidelity for no tenant that wants it -- `MenuScene` claims neither id
 	// (`grep -rn ModEnc src/scenes/menu` is empty). What it costs is one line legacy runs and this
 	// path does not: `View::modEncoderButtonAction_changeModControllable`'s value refresh is
-	// guarded on `getCurrentUI() == &soundEditor` (`view.cpp:1373-1375`), which is false while the
+	// guarded on `getCurrentUI() == &soundEditor` (`view.cpp:1390-1392`), which is false while the
 	// guest is what is open, so the ported menu's displayed value goes stale after a gold-knob
 	// push. Recorded as a divergence for F1 task 9/11 rather than papered over here.
 	if (b == deluge::hid::button::MOD_ENCODER_0 || b == deluge::hid::button::MOD_ENCODER_1) {
@@ -847,9 +847,9 @@ ActionResult ShellHostUI::exitUI() {
 	// **before** `close()`: `closeUI` hands focus to the UI beneath on the same call
 	// (`gui/ui/ui.cpp:199`), and that is what re-fills the rings -- every root view's
 	// `focusRegained` reaches `view.setActiveModControllableTimelineCounter(...)`
-	// (`gui/views/session_view.cpp:183-185`, `gui/views/arranger_view.cpp:549-551`,
-	// `model/clip/instrument_clip_minder.cpp:286-289`), whose tail is `setKnobIndicatorLevels()`
-	// (`gui/views/view.cpp:1885`). Clearing after the close would blank rings nothing then
+	// (`gui/views/session_view.cpp:184-186`, `gui/views/arranger_view.cpp:564-566`,
+	// `model/clip/instrument_clip_minder.cpp:295-298`), whose tail is `setKnobIndicatorLevels()`
+	// (`gui/views/view.cpp:1902`). Clearing after the close would blank rings nothing then
 	// refreshes.
 	//
 	// **Two residuals, both legacy's own.** `SessionView` and `ArrangerView` skip that refresh

@@ -196,7 +196,7 @@ std::string legacy_popup_pbm() {
 /// @brief Set the *real* legacy clock `View::displayModEncoderValuePopup` reads.
 ///
 /// Legacy takes no `now_ms` parameter at all -- it reads `AudioEngine::audioSampleTimer` directly
-/// (`view.cpp:1103`), so this is the only way to drive its arbitration deterministically in a spec
+/// (`view.cpp:1120`), so this is the only way to drive its arbitration deterministically in a spec
 /// process where nothing else advances that clock. `kSampleRate` (44100) converts the same
 /// millisecond timeline `ParamPopupScene::show()` takes explicitly.
 /// @param ms The port-side millisecond timeline this spec is otherwise using.

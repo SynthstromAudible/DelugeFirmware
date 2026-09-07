@@ -5,7 +5,7 @@
 ///        to the top of the OLED whenever a gold knob (or `ModKnobs`' other callers) turns a
 ///        parameter.
 ///
-/// The port of `View::displayModEncoderValuePopup` (`gui/views/view.cpp:1084-1288`),
+/// The port of `View::displayModEncoderValuePopup` (`gui/views/view.cpp:1101-1305`),
 /// `View::flushPendingModEncoderValuePopup` (`:1290-1301`) and `View::calculateKnobPosForDisplay`
 /// (`:1302-1325`). `ModKnobs` (E4 task 2) is the caller this scene exists for -- it does not exist
 /// yet, so this scene is driven directly by its own `show()` in every spec here, exactly the way a
@@ -117,12 +117,12 @@ inline constexpr deluge::ui::shell::SceneKind kParamPopupSceneKind =
 /// doc above for the per-field mapping and its citations.
 struct PopupContext {
 	/// `view.activeModControllableModelStack.modControllable`, cast to `ModControllableAudio*`
-	/// exactly as legacy casts it (`view.cpp:1119`, `:1149-1150`, `:1160-1161`).
+	/// exactly as legacy casts it (`view.cpp:1136`, `:1166-1167`, `:1177-1178`).
 	ModControllableAudio* mod = nullptr;
 	/// Non-null iff legacy's `isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT`
-	/// (`view.cpp:1122`), in which case it is `(MIDIInstrument*)getCurrentOutput()` (`:1123`).
+	/// (`view.cpp:1139`), in which case it is `(MIDIInstrument*)getCurrentOutput()` (`:1140`).
 	MIDIInstrument* midi_instrument = nullptr;
-	/// `isUIModeActive(UI_MODE_STUTTERING)` (`view.cpp:1162`). Nothing in the port owns the stutter
+	/// `isUIModeActive(UI_MODE_STUTTERING)` (`view.cpp:1179`). Nothing in the port owns the stutter
 	/// gesture yet, so no caller sets this true; see the class doc.
 	bool stuttering = false;
 };
@@ -130,7 +130,7 @@ struct PopupContext {
 /// @brief The mod-encoder value popup. One instance for the whole application (`registry.h`).
 class ParamPopupScene final : public deluge::ui::shell::Scene {
 public:
-	/// @brief `View::displayModEncoderValuePopup` (`view.cpp:1084-1288`): format @p kind/@p
+	/// @brief `View::displayModEncoderValuePopup` (`view.cpp:1101-1305`): format @p kind/@p
 	///        param_id/@p knob_pos/@p source1/@p source2 and run the display-ownership
 	///        arbitration, updating the shown text (and re-arming the popup's lifetime) only when
 	///        the arbitration says this call may.
@@ -145,7 +145,7 @@ public:
 	///                 context-free naming and value paths exactly.
 	///
 	/// @return **True when this call actually changed what is on the panel** -- i.e. the arbitration
-	///         took its commit arm (`view.cpp:1243-1245`, whose body is
+	///         took its commit arm (`view.cpp:1260-1262`, whose body is
 	///         `display->displayNotification(...)`, a write AND a blit). False on the throttled arm
 	///         (which arms its own flush timer and therefore repaints itself), on the
 	///         same-param-refresh arm, and on legacy's implicit fourth arm, all of which leave the
@@ -209,13 +209,13 @@ public:
 
 private:
 	/// @brief The arbitration core: `displayModEncoderValuePopup`'s "Check if we need to update the
-	///        notification" block (`view.cpp:1197-1287`), shared by `show()` and the flush path in
+	///        notification" block (`view.cpp:1214-1304`), shared by `show()` and the flush path in
 	///        `tick()`.
 	/// @return True when the commit arm ran; see `show()`.
 	bool attempt_display(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
 	                     PatchSource source2, uint32_t now_ms, PopupContext context);
 
-	static constexpr size_t kTextCap = 40; // `etl::string<40>` (view.cpp:1107-1108).
+	static constexpr size_t kTextCap = 40; // `etl::string<40>` (view.cpp:1124-1125).
 	char name_[kTextCap + 1] = {};
 	size_t name_len_ = 0;
 	char value_[kTextCap + 1] = {};
@@ -225,7 +225,7 @@ private:
 	bool was_showing_ = false;  // Set true whenever remaining_ms_ becomes nonzero; after_render's
 	                            // "just expired" edge.
 
-	// `last_param_*`/`last_display_value_`: legacy's change-detection statics (view.cpp:1088-1092).
+	// `last_param_*`/`last_display_value_`: legacy's change-detection statics (view.cpp:1105-1109).
 	deluge::modulation::params::Kind last_param_kind_ = deluge::modulation::params::Kind::NONE;
 	int32_t last_param_id_ = -1;
 	int32_t last_display_value_ = INT32_MIN;
@@ -233,7 +233,7 @@ private:
 	PatchSource last_source2_ = PatchSource::NONE;
 
 	// `display_owner_*`/`display_ownership_start_time`/`last_display_update_time`/
-	// `last_actual_display_time`: the arbitration ("juggling ball") statics (view.cpp:1095-1101).
+	// `last_actual_display_time`: the arbitration ("juggling ball") statics (view.cpp:1112-1118).
 	deluge::modulation::params::Kind display_owner_kind_ = deluge::modulation::params::Kind::NONE;
 	int32_t display_owner_param_id_ = -1;
 	PatchSource display_owner_source1_ = PatchSource::NONE;

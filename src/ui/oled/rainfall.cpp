@@ -291,9 +291,9 @@ namespace {
 
 /// @brief The band legacy's `drawBlock` clips to, in @p f's own coordinates.
 ///
-/// `drawBlock` (`hid/display/screensaver.cpp:64-77`) admits `x` in
+/// `drawBlock` (`hid/display/screensaver.cpp:65-78`) admits `x` in
 /// `[0, OLED_MAIN_WIDTH_PIXELS)` and `y` in
-/// `[OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS)`, which `hid/display/screensaver.cpp:38-40`
+/// `[OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS)`, which `hid/display/screensaver.cpp:39-41`
 /// static_asserts to be exactly `Rainfall::kWidth`, `kTopmost` and `kHeight`. A frame's origin is
 /// the *visible* top of its own panel, so canvas `(0, 0)` sits at local `(-origin.x, -origin.y)` --
 /// the conversion `popup.cpp`'s `panel_of` makes, and the reason it is needed here too: every
@@ -308,7 +308,7 @@ gfx::oled::Rect band_of(const OledFrame& f) {
 } // namespace
 
 void draw_block(OledFrame& f, const Rainfall::Block& block) {
-	// The `size x size` filled square of `drawBlock` (`hid/display/screensaver.cpp:68-76`), as
+	// The `size x size` filled square of `drawBlock` (`hid/display/screensaver.cpp:69-77`), as
 	// `size` spans rather than `size * size` pixels: `Canvas::drawHorizontalLine` sets exactly the
 	// same pixels `drawPixel` would, one page-masked byte at a time. Clipping is the frame's --
 	// `band_of` has already narrowed it to the band legacy's own bounds test admits, on all four
@@ -324,7 +324,7 @@ void draw_rainfall(OledFrame& f, const Rainfall& field) {
 	// including a block that straddles an edge -- which is what `drawBlock`'s own per-pixel test
 	// did.
 	f.region(band_of(f), InputMask::none(), [&](OledFrame& g) {
-		// `Screensaver::renderRainfall`, `hid/display/screensaver.cpp:254-260`.
+		// `Screensaver::renderRainfall`, `hid/display/screensaver.cpp:266-272`.
 		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
 			for (size_t cell = 0; cell < field.length_of(drop); cell++) {
 				Rainfall::Block block = field.cell_at(drop, cell);
@@ -333,7 +333,7 @@ void draw_rainfall(OledFrame& f, const Rainfall& field) {
 			}
 		}
 
-		// The logo, `hid/display/screensaver.cpp:262-269`: every few minutes a whole logo falls
+		// The logo, `hid/display/screensaver.cpp:274-281`: every few minutes a whole logo falls
 		// through the field, drawn through the same clipped block helper as the rain.
 		if (field.logo_active()) {
 			for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {

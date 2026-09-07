@@ -88,7 +88,7 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 	// `IndicatorId`'s *values* are the `which` index `SurfaceSet::set_indicator` takes, and
 	// `BoardSurfaceSet` passes that index straight to `deluge_control_set_indicator`, where it is
 	// legacy's `whichKnob` -- the mod encoder number. Mod encoder 0 is `mod0`, the LOWER gold
-	// encoder (src/deluge/hid/encoders.h:80-81, via gui/views/view.cpp:1403-1468 ->
+	// encoder (src/deluge/hid/encoders.h:80-81, via gui/views/view.cpp:1420-1485 ->
 	// hid/led/indicator_leds.cpp:241). So `Lower` must be 0. Numbered the other way, every knob
 	// indicator the shell drives would land on the wrong knob on real hardware -- a swap no other
 	// spec here would notice, because both indices are in range and both accept the same data.

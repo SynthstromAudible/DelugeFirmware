@@ -41,7 +41,7 @@
 ///     `deluge_control_set_led` on a timer, so the BSP sees a resolved boolean and cannot tell a
 ///     lit LED from a blinking one caught in its on phase.
 ///   - `indicator lower|upper …` uses the meaning of `which` at the boundary: 0 = mod encoder 0 =
-///     the lower gold knob (`gui/views/view.cpp:1403-1468` -> `indicator_leds.cpp:241`, with
+///     the lower gold knob (`gui/views/view.cpp:1420-1485` -> `indicator_leds.cpp:241`, with
 ///     `hid/encoders.h:80-81` for which knob `mod0` is). The new shell's `IndicatorId` is numbered
 ///     `{Lower = 0, Upper = 1}` to match, so both levels name the same physical knob the same way.
 ///   - no `lock` / `notice` lines: neither fact reaches the BSP.

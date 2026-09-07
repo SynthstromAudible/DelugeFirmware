@@ -43,17 +43,17 @@
 /// @name The two pending-command globals the `BACK` arm writes
 ///
 /// Declared here rather than included, exactly as `View::buttonAction` itself declares them
-/// (`gui/views/view.cpp:100`, `:137`): they are defined in `playback/playback_handler.cpp:94-95`
+/// (`gui/views/view.cpp:101`, `:138`): they are defined in `playback/playback_handler.cpp:94-95`
 /// with no declaration in `playback_handler.h`, so a bare `extern` is the only spelling either
 /// side has. (`nodes/settings.cpp`'s `extern uint32_t jcong;` is the same pattern, and
 /// `scripts/check_layer_rules.py`'s `scenes-no-root-ui` comment names it as the expected shape.)
 ///
-/// @warning The second one is declared `extern GlobalMIDICommand` at `view.cpp:137` and **defined
+/// @warning The second one is declared `extern GlobalMIDICommand` at `view.cpp:138` and **defined
 ///          `int32_t`** at `playback_handler.cpp:95` -- a type mismatch across translation units.
 ///          It is benign only because `GlobalMIDICommand` has a negative enumerator (`NONE = -1`,
 ///          `definitions_cxx.hpp:584`) and so takes `int` as its underlying type, making the two
 ///          spellings the same size and the one value written (`GlobalMIDICommand::PLAYBACK_RESTART`
-///          == 0, `view.cpp:416`) the same bits as the `0` the dead-code twin writes at `:435`.
+///          == 0, `view.cpp:417`) the same bits as the `0` the dead-code twin writes at `:436`.
 ///          Declared with the *defining* type here, and 0 written, rather than reproducing the pun.
 /// @{
 extern GlobalMIDICommand pendingGlobalMIDICommand;
@@ -125,7 +125,7 @@ uint32_t GlobalControls::unported_opens_total() const {
 
 GlobalControls::UiMode GlobalControls::effective_ui_mode() const {
 	// Legacy has one `currentUIMode`; this reassembles it from its three owners. `MidiLearn` first
-	// because that is the value `View::buttonAction`'s own arms test first (`view.cpp:148`), and
+	// because that is the value `View::buttonAction`'s own arms test first (`view.cpp:149`), and
 	// because `View::startMIDILearn` (`:473`) only enters the mode from `UI_MODE_NONE` or from
 	// itself -- so a learn-active mode can never be one of the others.
 	if (learn_.active()) {
@@ -140,10 +140,10 @@ GlobalControls::UiMode GlobalControls::effective_ui_mode() const {
 	return view_.ui_mode;
 }
 
-// -- `View::buttonAction` (`gui/views/view.cpp:139-470`) -----------------------------------------
+// -- `View::buttonAction` (`gui/views/view.cpp:140-487`) -----------------------------------------
 
 bool GlobalControls::load_save_allowed(const UiContext& ctx) const {
-	// `view.cpp:233-236` and its identical twin at `:278-281`. Note the guard wraps the WHOLE arm
+	// `view.cpp:234-237` and its identical twin at `:279-282`. Note the guard wraps the WHOLE arm
 	// body: when it fails, legacy does nothing at all and still falls through to `:469`'s
 	// `return ActionResult::DEALT_WITH`, so the caller reports handled either way.
 	if (ctx.held.has(ButtonId::Synth) || ctx.held.has(ButtonId::Kit) || ctx.held.has(ButtonId::Midi)
@@ -322,7 +322,7 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// this call always takes the `else` at `sound_editor.cpp:1798`, and both of that branch's
 	// view tests are `&& !Buttons::isShiftButtonPressed()` (`:1761`, `:1764`) -- which is false
 	// here by construction, because this arm's own condition is `b == SELECT_ENC &&
-	// Buttons::isShiftButtonPressed()` (`view.cpp:449`). So the root is `settingsRootMenu`
+	// Buttons::isShiftButtonPressed()` (`view.cpp:450`). So the root is `settingsRootMenu`
 	// (`:1769`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
 	const menu::MenuContext menu_ctx = menu::context_for(*song_, /*clip=*/nullptr, /*source_index=*/0,
@@ -342,7 +342,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 	const UiMode mode = effective_ui_mode();
 
 	switch (button) {
-	case ButtonId::TapTempo: { // `view.cpp:146-182`
+	case ButtonId::TapTempo: { // `view.cpp:147-183`
 		if (mode == UiMode::MidiLearn) {
 			// `:148-166` is learn work end to end -- `deleteMidiCommandOnRelease`,
 			// `endMidiLearnPressSession`, `learnedThing`. E4 task 5's; see the class doc's
@@ -400,7 +400,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 		if (on) {
 #ifndef undoButtonX
 			// `:407`'s `#ifndef undoButtonX`, and `undoButtonX` is defined nowhere in this tree --
-			// see the class doc. This is the live undo/redo; `view.cpp:423-446`'s dedicated undo
+			// see the class doc. This is the live undo/redo; `view.cpp:424-447`'s dedicated undo
 			// and redo buttons are dead code.
 			if (actionLogger.allowedToDoReversion()) { // `:409`
 				// `:411-417` -- legacy pends the command rather than performing it, reusing the
@@ -409,7 +409,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 				pendingGlobalMIDICommand = ctx.shift ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO; // `:414-415`
 				// `:416` writes `GlobalMIDICommand::PLAYBACK_RESTART` (== 0) into a variable
 				// `playback_handler.cpp:95` defines as `int32_t`, through a mismatched `extern
-				// GlobalMIDICommand` declaration at `view.cpp:137`. The value is 0 either way (and
+				// GlobalMIDICommand` declaration at `view.cpp:138`. The value is 0 either way (and
 				// `:435`, the dead-code twin, simply writes `0`), so this writes 0. Recorded in the
 				// task report as a legacy oddity rather than reproduced as a type pun.
 				pendingGlobalMIDICommandNumClustersWritten = 0;
@@ -614,7 +614,7 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	// class doc.
 	(void)frame.set(led(ButtonId::TapTempo), playbackHandler.metronomeOn ? kOn : kOff); // `:2511`
 
-	// `View::setTimeBaseScaleLedState` (`view.cpp:502-512`), which is the whole of
+	// `View::setTimeBaseScaleLedState` (`view.cpp:519-529`), which is the whole of
 	// `View::setLedStates` (`:514-516`).
 	Clip* const sync_clip = song_ != nullptr ? song_->getSyncScalingClip() : nullptr;
 	if (view_.current_ui_is_clip_minder && song_ != nullptr && song_->getCurrentClip() == sync_clip
@@ -636,12 +636,12 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 		(void)frame.set(led(ButtonId::SyncScaling), sync_clip != nullptr ? kOn : kOff); // `:510`
 	}
 
-	// `View::buttonAction`'s own two LEDs: SAVE on while held (`view.cpp:242`), off otherwise
+	// `View::buttonAction`'s own two LEDs: SAVE on while held (`view.cpp:243`), off otherwise
 	// (`:265`, `:269`); LOAD the same (`:299`, `:323`, `:327`).
 	(void)frame.set(led(ButtonId::Save), holding_save_ ? kOn : kOff);
 	(void)frame.set(led(ButtonId::Load), holding_load_ ? kOn : kOff);
 
-	// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)` (`view.cpp:374`) =
+	// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)` (`view.cpp:375`) =
 	// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`): FIVE half-periods of
 	// `kFastFlashTime` -- see `kAlertMs`, and the spec pins it against legacy's own countdown --
 	// then `setLedState(led, returnToState)` (`:128`). `returnToState` is the
@@ -660,12 +660,12 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 // -- Time ------------------------------------------------------------------------------------------
 
 void GlobalControls::flash_play_enable(uint32_t now_ms) {
-	// `View::flashPlayEnable` (`view.cpp:2766-2768`): `setTimer(PLAY_ENABLE_FLASH, kFastFlashTime)`.
+	// `View::flashPlayEnable` (`view.cpp:2783-2785`): `setTimer(PLAY_ENABLE_FLASH, kFastFlashTime)`.
 	clip_arm_flash_deadline_ms_ = now_ms + kClipArmFlashMs;
 }
 
 void GlobalControls::flash_play_disable() {
-	// `View::flashPlayDisable` (`view.cpp:2770-2783`): clear the phase and unset the timer. The
+	// `View::flashPlayDisable` (`view.cpp:2787-2800`): clear the phase and unset the timer. The
 	// render requests at `:2774-2782` are view-side and not ported.
 	clip_arm_flash_on_ = false;
 	clip_arm_flash_deadline_ms_.reset();
@@ -675,8 +675,8 @@ void GlobalControls::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	now_ms_ = now_ms;
 
 	if (clip_arm_flash_deadline_ms_.has_value() && static_cast<int32_t>(now_ms - *clip_arm_flash_deadline_ms_) >= 0) {
-		// `View::flashPlayRoutine` (`view.cpp:2754-2764`): toggle the phase, then ask for a render.
-		// The re-arm is `SessionView::flashPlayRoutine`'s (`gui/views/session_view.cpp:2423-2424`,
+		// `View::flashPlayRoutine` (`view.cpp:2771-2781`): toggle the phase, then ask for a render.
+		// The re-arm is `SessionView::flashPlayRoutine`'s (`gui/views/session_view.cpp:2441-2442`,
 		// `:2441-2444`) and is view-side, so this fires once per `flash_play_enable()`.
 		clip_arm_flash_on_ = !clip_arm_flash_on_;
 		clip_arm_flash_deadline_ms_.reset();

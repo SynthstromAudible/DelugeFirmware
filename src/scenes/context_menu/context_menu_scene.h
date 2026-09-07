@@ -37,7 +37,7 @@ namespace deluge::scenes::context_menu {
 /// opens: the five `reset_settings::Reset` items (`gui/menu_item/reset_settings/reset.h:29-33`,
 /// `nodes::reset_flash` .. `nodes::reset_all`) and `audio_clip::AudioSourceSelector`
 /// (`nodes::audio_source_selector`). Every other legacy subclass is opened from a view or a browser
-/// this plan does not port -- `clearSong` from `view.cpp:290`, `clipSettings` / `newClipType` from
+/// this plan does not port -- `clearSong` from `view.cpp:291`, `clipSettings` / `newClipType` from
 /// `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` / `deleteFile` /
 /// `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport` from the
 /// three view files -- so adding an entry for one now would be an untested, unreachable code path.

@@ -32,12 +32,12 @@ inline constexpr uint32_t kDisplayTimeoutMs = 250;       // kSampleRate / 4
 inline constexpr uint32_t kMinUpdateIntervalMs = 45;     // kSampleRate / 22, ~45ms
 
 /// `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` -- `View::displayModEncoderValuePopup`'s
-/// refresh-only arm (`view.cpp:1284`) and `OLED::displayNotification`'s own arm (`oled.cpp:793`,
+/// refresh-only arm (`view.cpp:1301`) and `OLED::displayNotification`'s own arm (`oled.cpp:793`,
 /// reached whenever this scene's arbitration actually commits a redraw).
 inline constexpr uint32_t kPopupLifetimeMs = 2000;
 
 /// @brief A bounded, no-allocation append target -- `etl::string<40>`'s append-and-truncate
-///        behaviour (`view.cpp:1107-1108`'s `parameter_name`/`parameter_value`), without the
+///        behaviour (`view.cpp:1124-1125`'s `parameter_name`/`parameter_value`), without the
 ///        dependency.
 struct FixedAppend {
 	char* buf;
@@ -101,7 +101,7 @@ const char* source_short_name(PatchSource source) {
 	}
 }
 
-/// @brief `View::calculateKnobPosForDisplay` (`view.cpp:1302-1325`), transcribed. The unused
+/// @brief `View::calculateKnobPosForDisplay` (`view.cpp:1319-1342`), transcribed. The unused
 ///        `knobPosOffsetFloat` local and the dead `returnValue:` label legacy carries are not
 ///        reproduced -- neither has any effect on the value returned.
 /// @param kind     The param's kind; `Kind::MIDI` passes @p knob_pos through unchanged.
@@ -120,7 +120,7 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 	return static_cast<int32_t>(std::round(v));
 }
 
-/// @brief The parameter-name half of `displayModEncoderValuePopup` (`view.cpp:1110-1155`).
+/// @brief The parameter-name half of `displayModEncoderValuePopup` (`view.cpp:1127-1172`).
 ///
 /// All three of legacy's arms, with `PopupContext` supplying what `View` supplied there: the
 /// patch-cable form (`:1114-1121`), the MIDI-clip CC/expression form (`:1122-1147`) and the plain
@@ -179,7 +179,7 @@ void format_name(Kind kind, int32_t param_id, PatchSource source1, PatchSource s
 	}
 }
 
-/// @brief The value half of `displayModEncoderValuePopup` (`view.cpp:1156-1195`).
+/// @brief The value half of `displayModEncoderValuePopup` (`view.cpp:1173-1212`).
 ///
 /// The stutter-quantization arm needs both halves of legacy's guard: `isParamQuantizedStutter`,
 /// which has no context-free overload (a null `ModControllableAudio*` reads as "not quantized"),
@@ -243,7 +243,7 @@ bool ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchS
 
 bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
                                       PatchSource source2, uint32_t now_ms, PopupContext context) {
-	// `displayModEncoderValuePopup`'s formatting half (view.cpp:1108-1196): always recomputed,
+	// `displayModEncoderValuePopup`'s formatting half (view.cpp:1125-1213): always recomputed,
 	// whether or not the arbitration below ends up using it -- legacy does the same work on every
 	// call, including the flushed replay.
 	char name_buf[kTextCap + 1];
@@ -254,7 +254,7 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 	FixedAppend value{value_buf, kTextCap};
 	const int32_t display_value = format_value(kind, param_id, knob_pos, context, value);
 
-	// `displayModEncoderValuePopup`'s arbitration half (view.cpp:1197-1287), against this scene's
+	// `displayModEncoderValuePopup`'s arbitration half (view.cpp:1214-1304), against this scene's
 	// own `remaining_ms_ > 0` standing in for `display->hasPopupOfType(PopupType::NOTIFICATION)`.
 	const bool notification_active = remaining_ms_ > 0;
 
@@ -357,7 +357,7 @@ void ParamPopupScene::tick(uint32_t dt_ms) {
 	}
 	if (has_pending_) {
 		if (dt_ms >= pending_flush_remaining_ms_) {
-			// `flushPendingModEncoderValuePopup` (`view.cpp:1290-1301`): replay the cached call
+			// `flushPendingModEncoderValuePopup` (`view.cpp:1307-1318`): replay the cached call
 			// through the same arbitration core, using the deadline's own target time as "now" --
 			// exact by construction, since that is the instant this flush was scheduled to fire.
 			const uint32_t flush_now_ms = last_actual_display_ms_ + kMinUpdateIntervalMs;

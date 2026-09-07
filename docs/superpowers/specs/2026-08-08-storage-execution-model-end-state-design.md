@@ -52,7 +52,7 @@ worth checking rather than assuming:
 
 > **`yield_until` must never be reached while the FS mutex is held.**
 
-Its three call sites are UI-level waits (`load_song_ui.cpp:517`, `session_view.cpp:3575`,
+Its three call sites are UI-level waits (`load_song_ui.cpp:517`, `session_view.cpp:3593`,
 `stem_export.cpp:229`), none of which is inside an FS operation — so the property holds today. It
 should be an explicit review item for Phase 2 and an assertion where cheap, because it is the single
 thing that would reintroduce the deadlock class.

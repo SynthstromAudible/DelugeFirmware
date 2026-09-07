@@ -25,7 +25,7 @@
 # **The first gold detent is swallowed, and that is the port working.** `RealServices::installer`
 # calls `ModKnobs::set_target_with_timeline`, which opens with `pretend_knobs_untouched()`
 # (`services/mod_knobs.cpp:120`, legacy's `View::pretendModKnobsUntouchedForAWhile`,
-# `view.cpp:1951-1955`) -- so `InputLowering::action_gold_turn` writes the next turn off as the
+# `view.cpp:1968-1972`) -- so `InputLowering::action_gold_turn` writes the next turn off as the
 # opening half of a possible wiggle. `param_popup.txt` carries the same note and the same two-turn
 # opening for the same reason.
 0     snapshot idle              # the SATURATION leaf reading 0

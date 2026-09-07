@@ -235,8 +235,8 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 				// UI fact `context_for` takes as an argument. It is NOT the same as the clip's
 				// `affectEntire`: the member is only ever set true (from
 				// `outputType == KIT && instrumentClip->affectEntire` --
-				// `model/clip/instrument_clip_minder.cpp:388-390`,
-				// `gui/views/automation_view.cpp:1601-1603`) and is cleared on menu exit
+				// `model/clip/instrument_clip_minder.cpp:397-421`,
+				// `gui/views/automation_view.cpp:1622-1624`) and is cleared on menu exit
 				// (`sound_editor.cpp:189`, `:768`), so the kit-row grid-shortcut path
 				// (`sound_editor.cpp:1188-1196`) enters with it false while `affectEntire` is true,
 				// and legacy edits the row's params rather than the kit's. Deriving the branch from
@@ -528,7 +528,7 @@ void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio
 }
 
 void clip_cleared(Song& song, Clip& clip, ::Action* action, bool clear_automation, bool clear_sequence_and_mpe) {
-	// `audio_clip_view.cpp:426-430`. Legacy builds the stack from `currentSong` and
+	// `audio_clip_view.cpp:444-448`. Legacy builds the stack from `currentSong` and
 	// `getCurrentClip()`; the caller names both, so this builds the same stack without reading the
 	// global (`scenes-currentSong`). `Clip::clear` is virtual, so the `AudioClip` override
 	// (`model/clip/audio_clip.cpp`) is what runs -- there is no cast here and none in legacy either
@@ -567,7 +567,7 @@ ModelStackWithThreeMainThings* stack_for(const services::ModTarget& t, void* mem
 	// Spelled out rather than through `setupModelStackWithThreeMainThingsIncludingNoteRow`
 	// (`model_stack.h:335-343`), whose param-manager argument is a `ParamManagerForTimeline*`:
 	// `ModelStackWithThreeMainThings::paramManager` is a plain `ParamManager*`, and so is the one
-	// `View::setActiveModControllableWithoutTimelineCounter` puts there (`view.cpp:1900-1901`), via
+	// `View::setActiveModControllableWithoutTimelineCounter` puts there (`view.cpp:1917-1918`), via
 	// `addOtherTwoThingsButNoNoteRow`'s `ParamManager*` overload (`model_stack.h:369-373`).
 	return setupModelStackWithSong(memory, t.song)
 	    ->addTimelineCounter(t.timeline_counter)
@@ -578,7 +578,7 @@ ModelStackWithThreeMainThings* stack_for(const services::ModTarget& t, void* mem
 /// @brief Copy a stack's five resolved fields back into @p t.
 ///
 /// Legacy needs no equivalent: its stack *is* the member, so anything that rewrites it (the
-/// arrangement-recording clone at `view.cpp:992-1000`, `getActiveModControllable` at `:1876`) has
+/// arrangement-recording clone at `view.cpp:1009-1017`, `getActiveModControllable` at `:1893`) has
 /// already updated the state. This port's stacks are scratch, so the write-back is explicit.
 /// @param t The target to update.
 /// @param s The stack to read.
@@ -590,7 +590,7 @@ void store(services::ModTarget& t, const ModelStackWithThreeMainThings* s) {
 	t.param_manager = s->paramManager;
 }
 
-/// @brief `View::getModelStackWithParam` (`view.cpp:971-1010`), over an already-built @p active.
+/// @brief `View::getModelStackWithParam` (`view.cpp:988-1027`), over an already-built @p active.
 /// @param target                  Updated in place if the clone replaced what is being edited.
 /// @param active                  The rebuilt active stack; **overwritten in place** by the return
 ///                                value, exactly as legacy's member is.

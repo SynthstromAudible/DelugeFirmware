@@ -40,7 +40,7 @@
 ///     `...ZoomedOut` have exactly one caller each: `PadLEDs::renderAudioClipCollapseAnimation`
 ///     (`hid/led/pad_leds.cpp:551`) and `PadLEDs::renderAudioClipExplodeAnimation` (`:629`), driven
 ///     by `sessionView`/`arrangerView` setting `collapseAnimationToWhichRow`
-///     (`gui/views/session_view.cpp:2704` and three others). **`SampleMarkerEditor` never reaches
+///     (`gui/views/session_view.cpp:2722` and three others). **`SampleMarkerEditor` never reaches
 ///     either**, so this is not this scene's to port -- not a judgement call, a call-graph fact.
 ///   * **The zoom transition animation.** `WaveformBasicNavigator::zoom` follows its arithmetic with
 ///     a `PadLEDs` zoom transition (`waveform_basic_navigator.cpp:44-67` after the split). The shell

@@ -17,7 +17,7 @@ namespace deluge::ui::shell {
 /// short of the real scene supplies its own stand-in at that slot.
 ///
 /// @note `idle_ms == 0` disables the service outright, the port of legacy's `ScreensaverMode::OFF`
-///       (`screensaver.cpp:93-95,125-127,223-226`): `tick()` never pushes and `note_activity()`
+///       (`screensaver.cpp:94-96,104-106,235-238`): `tick()` never pushes and `note_activity()`
 ///       never re-arms the deadline.
 ///
 /// @note **A refused push disables the service for good.** `SceneStack::push` returns false when
@@ -49,7 +49,7 @@ public:
 	/// @brief Register that a physical control was touched: wake the screensaver if it is
 	///        showing, and re-arm the idle deadline either way.
 	///
-	/// Ported from `Screensaver::noteActivity` (`hid/display/screensaver.cpp:84-98`): the wake
+	/// Ported from `Screensaver::noteActivity` (`hid/display/screensaver.cpp:85-99`): the wake
 	/// check runs first and unconditionally, exactly as legacy's own comment on that ordering
 	/// warns ("sits on the input hot path... so a mode that somehow reached OFF... can never
 	/// strand the panel"), and the deadline is re-armed afterwards regardless of whether the
@@ -64,7 +64,7 @@ public:
 	void note_activity(uint32_t now_ms);
 
 	/// @brief Re-supply the timeout after a settings change -- the port of
-	///        `Screensaver::settingsChanged` (`hid/display/screensaver.cpp:188-229`).
+	///        `Screensaver::settingsChanged` (`hid/display/screensaver.cpp:200-241`).
 	///
 	/// Legacy re-reads `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` on every arm
 	/// and every tick, so a settings change takes effect by itself; this service is handed one
