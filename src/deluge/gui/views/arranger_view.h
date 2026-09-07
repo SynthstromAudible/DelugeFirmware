@@ -78,6 +78,15 @@ public:
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
 	void playbackEnded() override;
 	void clipNeedsReRendering(Clip* clip) override;
+
+	/// @brief The new-instrument pad gesture's follow-up, run on the storage owner.
+	/// @param yPressed yPressedEffective captured at dispatch (see PresetRequest).
+	void completeNewInstrument(int32_t yPressed);
+	/// @brief changeOutputType()'s follow-up: on the storage owner for Synth/Kit, inline for
+	///        MIDI/CV, which read no card.
+	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed);
+	/// @brief navigateThroughPresets()'s follow-up; see completeChangeOutputType() for the tier split.
+	void completeNavigateThroughPresets(int32_t offset, Output* output, int32_t yPressed);
 	void exitSubModeWithoutAction(UI* ui = nullptr);
 	bool transitionToArrangementEditor();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
@@ -153,14 +162,17 @@ private:
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
 	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
-	/// @brief The new-instrument acquisition gesture: create a SYNTH Instrument for the empty row
-	///        at `yPressed` and place it on screen.
+	/// @brief The new-instrument acquisition gesture: dispatch onto the storage owner a request to
+	///        create a SYNTH Instrument for the empty row at `yPressed` and place it on screen (see
+	///        completeNewInstrument(), which runs the dispatched request).
 	///
 	/// Extracted verbatim from the pad-press handler's `if (!output)` branch (auditionPadAction) so
 	/// the song-preview A/B harness's BrowserListingAbProbe can drive the SAME gesture entry point a
 	/// pad press uses, rather than restating it. `yPressedEffective` is always written (the clamp
-	/// runs before acquisition can fail); `outputsOnScreen[yPressedEffective]` is left untouched on
-	/// failure, mirroring the caller's `if (!output) { return; }`.
+	/// runs before dispatch) and captured into the request as `yPressed` -- the completion must not
+	/// read the member back (spec section 6). `outputsOnScreen[yPressedEffective]` is left untouched
+	/// by this call; it is only written once (if ever) by completeNewInstrument(), mirroring the
+	/// caller's `if (!output) { return; }`.
 	/// @param yPressed The row the gesture was pressed on, before clamping.
 	void beginNewInstrumentAcquisition(int32_t yPressed);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,

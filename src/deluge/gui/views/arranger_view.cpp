@@ -857,6 +857,9 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 }
 
 // Extracted verbatim from auditionPadAction()'s `if (!output)` branch -- see the header doc.
+// The acquisition reads the card, so it runs on the storage owner; everything that used to follow
+// this call now runs in completeNewInstrument(). Snapshot yPressedEffective here -- the op must not
+// read it back (spec section 6).
 void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed) {
 
 	int32_t minY = -currentSong->arrangementYScroll - 1;
@@ -865,6 +868,20 @@ void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed) {
 	yPressedEffective = std::max((int32_t)yPressed, minY);
 	yPressedEffective = std::min((int32_t)yPressedEffective, maxY);
 
+	deluge::storage::PresetRequest request{
+	    .query = deluge::storage::PresetQuery::AnyUnlaunched,
+	    .consumer = deluge::storage::PresetConsumer::ArrangerNewInstrument,
+	    .outputType = OutputType::SYNTH,
+	    .availability = Availability::INSTRUMENT_UNUSED,
+	    .yPressed = yPressedEffective,
+	    .dirPath = getInstrumentFolder(OutputType::SYNTH),
+	};
+	loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Runs on the storage owner, dispatched by the new-instrument pad gesture. createNewInstrument()
+// itself is unchanged and blocks here, which is legal on this tier.
+void ArrangerView::completeNewInstrument(int32_t yPressed) {
 	bool instrumentAlreadyInSong; // Will always end up false
 
 	Output* output = createNewInstrument(OutputType::SYNTH, &instrumentAlreadyInSong);
@@ -873,12 +890,10 @@ void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed) {
 	}
 
 	if (!instrumentAlreadyInSong) {
-		currentSong->addOutput(
-		    output,
-		    (yPressedEffective == -currentSong->arrangementYScroll - 1)); // This should always be triggered
+		currentSong->addOutput(output, (yPressed == -currentSong->arrangementYScroll - 1));
 	}
 
-	outputsOnScreen[yPressedEffective] = output;
+	outputsOnScreen[yPressed] = output;
 }
 
 void ArrangerView::auditionPadAction(bool on, int32_t y, UI* ui) {
@@ -2591,9 +2606,33 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 	endAudition(output);
 
+	// Song::navigateThroughPresetsForInstrument() branches internally: MIDI/CV just re-channels the
+	// existing Instrument and reads no card, so it stays synchronous (spec section 2c).
+	if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+		completeNavigateThroughPresets(offset, output, yPressedEffective);
+		return;
+	}
+
+	deluge::storage::PresetRequest request{
+	    .query = deluge::storage::PresetQuery::Navigate,
+	    .consumer = deluge::storage::PresetConsumer::ArrangerNavigate,
+	    .outputType = output->type,
+	    .availability = Availability::INSTRUMENT_UNUSED,
+	    .offset = offset,
+	    .doBlink = true,
+	    .yPressed = yPressedEffective,
+	    .dirPath = ((Instrument*)output)->dirPath,
+	    .oldInstrument = (Instrument*)output,
+	};
+	loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for
+// the tier split.
+void ArrangerView::completeNavigateThroughPresets(int32_t offset, Output* output, int32_t yPressed) {
 	output = currentSong->navigateThroughPresetsForInstrument(output, offset);
 
-	outputsOnScreen[yPressedEffective] = output;
+	outputsOnScreen[yPressed] = output;
 
 	view.setActiveModControllableTimelineCounter(output->getActiveClip());
 
@@ -2616,12 +2655,35 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 
 	endAudition(oldInstrument);
 
+	// MIDI and CV allocate a non-audio instrument and read no card, so they stay synchronous --
+	// dispatching them would defer this gesture behind a storage round-trip for nothing
+	// (spec section 2c). Only Synth/Kit reaches the directory.
+	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
+		completeChangeOutputType(newOutputType, oldInstrument, yPressedEffective);
+		return;
+	}
+
+	deluge::storage::PresetRequest request{
+	    .query = deluge::storage::PresetQuery::AnyUnlaunched,
+	    .consumer = deluge::storage::PresetConsumer::ArrangerChangeType,
+	    .outputType = newOutputType,
+	    .availability = Availability::INSTRUMENT_UNUSED,
+	    .yPressed = yPressedEffective,
+	    .dirPath = getInstrumentFolder(newOutputType),
+	    .oldInstrument = oldInstrument,
+	};
+	loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. Song::changeOutputType() is
+// unchanged and does its own branch on output type.
+void ArrangerView::completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed) {
 	Instrument* newInstrument = currentSong->changeOutputType(oldInstrument, newOutputType);
 	if (!newInstrument) {
 		return;
 	}
 
-	outputsOnScreen[yPressedEffective] = newInstrument;
+	outputsOnScreen[yPressed] = newInstrument;
 
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);

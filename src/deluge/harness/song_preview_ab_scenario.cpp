@@ -215,11 +215,16 @@ public:
 	static int32_t selectedIndex() { return Browser::fileIndexSelected; }
 
 	/// Drives ArrangerView's REAL new-instrument pad gesture, rather than restating its callee
-	/// (createNewInstrument) directly: a later task converts this gesture's CALLER, not the callee,
-	/// and a probe that skipped it would keep testing the unconverted path forever.
+	/// (createNewInstrument) directly. Dispatches onto the storage owner (rung 5, task 3); see
+	/// runAcquireTick()'s *Check states for why the result isn't readable until a later tick.
 	static void beginNewInstrumentAcquisition(int32_t yPressed) {
 		arrangerView.beginNewInstrumentAcquisition(yPressed);
 	}
+	/// Drives ArrangerView's REAL output-type gesture, rather than calling
+	/// Song::getNonAudioInstrumentToSwitchTo directly: that helper isn't what changeOutputType()
+	/// calls for MIDI/CV, so a probe built on it would prove nothing about ArrangerView's own
+	/// synchronous/dispatch split (AcquireStep::NonAudio, rung 5 task 3).
+	static void changeOutputType(OutputType newOutputType) { arrangerView.changeOutputType(newOutputType); }
 };
 
 namespace {
@@ -1616,20 +1621,36 @@ bool buildPresetFixture(const char* dir, const char* namePrefix, int32_t count) 
 // Drives the REAL gesture entry point that acquires an instrument -- ArrangerView::
 // beginNewInstrumentAcquisition(), extracted verbatim from the pad-press handler -- which is the
 // only thing that exercises findAnUnlaunchedPresetIncludingWithinSubfolders' recursive descent (see
-// the rung 5 spec, section 2b). Every leg runs it synchronously today; a later task converts the
-// PAD-PRESS CALLER, not this method, onto the storage channel -- so driving this entry point (rather
-// than createNewInstrument() directly) is what keeps this gate covering the converted path once that
-// happens.
+// the rung 5 spec, section 2b). Since rung 5 task 3, this gesture DISPATCHES onto the storage owner
+// (Owner::run_or_inline enqueues rather than running inline -- this Embassy host harness's
+// on_owner() is false while a tick is running, since the tick itself runs on the UI tier, not the
+// worker fiber). The op only runs during the queue-drain wait AFTER dispatch_step() returns (see
+// that function's marker-op comment), so every step that reads a dispatched gesture's result is
+// split into a dispatching state and a `*Check` state one tick later -- reading in the SAME tick as
+// the dispatch would see the pre-dispatch state, not a race so much as a guarantee that the op has
+// not run yet.
 //
 // The recursive descent (load_instrument_preset_ui.cpp:1291-1296 vs :1317) is only reached once the
 // TOP LEVEL is exhausted -- a preset sitting at the top level is always returned first, however many
 // subfolders sit alongside it. So the fixture keeps exactly ONE top-level preset: Reference acquires
 // and releases it (still top-level), Converted acquires it again and keeps it (top-level now
 // permanently empty), and every acquisition from AcquireStep::Nested onward MUST descend into
-// SYNTHS/NESTED to find anything at all. `AcquireStep::Nested` asserts the acquired name is a nested
-// one, which is the only way to prove the walk actually descended rather than merely that some
-// acquisition happened to succeed.
-enum class AcquireStep : uint8_t { Fixture, Reference, Converted, Nested, Coalesce, NonAudio, Finished };
+// SYNTHS/NESTED to find anything at all. `AcquireStep::NestedCheck` asserts the acquired name is a
+// nested one, which is the only way to prove the walk actually descended rather than merely that
+// some acquisition happened to succeed.
+enum class AcquireStep : uint8_t {
+	Fixture,
+	Reference,
+	ReferenceCheck,
+	Converted,
+	ConvertedCheck,
+	Nested,
+	NestedCheck,
+	Coalesce,
+	CoalesceCheck,
+	NonAudio,
+	Finished
+};
 AcquireStep g_acquireStep = AcquireStep::Fixture;
 
 // The INSTRUMENT folder, not a song folder: findAnUnlaunchedPresetIncludingWithinSubfolders reads
@@ -1662,14 +1683,13 @@ constexpr const char* kAcqNestedFirstName = "NESTED00";
 // `arrangerView.yPressedEffective`, not this constant, for exactly that reason.
 constexpr int32_t kAcqRow = 0;
 // Read from the production counter (LoadInstrumentPresetUI::presetAcquisitionsRun()): it counts ops
-// that actually RUN, not dispatch attempts. Nothing calls dispatchPresetAcquisition() yet -- a later
-// task wires a real gesture through it -- which is why the NonAudio and Coalesce checks below are
-// inert until then.
+// that actually RUN, not dispatch attempts.
 int32_t acqDispatches() {
 	return LoadInstrumentPresetUI::presetAcquisitionsRun();
 }
-int32_t g_acqLoads = 0;         // acquisition gestures that actually ran
-std::string g_acqReferenceName; // the instrument the synchronous leg settled on
+int32_t g_acqLoads = 0;          // acquisition gestures that actually ran
+std::string g_acqReferenceName;  // the instrument the reference gesture settled on
+int32_t g_acqCoalesceBefore = 0; // presetAcquisitionsRun() sampled before Coalesce's 3 gestures
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
 /// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
@@ -1677,11 +1697,16 @@ std::string acquiredName(Output* output) {
 	return (output != nullptr) ? output->name : std::string{};
 }
 
-/// Run the acquisition gesture on row `kAcqRow` and report the name it settled on. Reads back
-/// through `arrangerView.yPressedEffective` (see `kAcqRow`'s doc) -- exactly what the real pad
-/// handler does immediately after this same call (arranger_view.cpp).
-std::string runAcquisitionGesture() {
+/// Dispatch the acquisition gesture on row `kAcqRow`. Does NOT read back the result -- the op it
+/// dispatches has not run by the time this returns (see the doc above AcquireStep). Callers read the
+/// outcome via currentAcquiredName() from their step's own `*Check` state, one tick later.
+void dispatchAcquisitionGesture() {
 	BrowserListingAbProbe::beginNewInstrumentAcquisition(kAcqRow);
+}
+
+/// The row's current Output name, or "" if none. Reads back through `arrangerView.yPressedEffective`
+/// (see `kAcqRow`'s doc) -- exactly what the real pad handler reads after a completed acquisition.
+std::string currentAcquiredName() {
 	return acquiredName(arrangerView.outputsOnScreen[arrangerView.yPressedEffective]);
 }
 
@@ -1723,7 +1748,12 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::Reference: {
-		g_acqReferenceName = runAcquisitionGesture();
+		dispatchAcquisitionGesture();
+		g_acquireStep = AcquireStep::ReferenceCheck;
+		break;
+	}
+	case AcquireStep::ReferenceCheck: {
+		g_acqReferenceName = currentAcquiredName();
 		printf("SP-ACQUIRE reference name=%s\n", g_acqReferenceName.c_str());
 		if (g_acqReferenceName.empty()) {
 			printf("SP-ACQUIRE FAIL reference acquired nothing -- the stage would compare two failures\n");
@@ -1752,8 +1782,13 @@ void runAcquireTick() {
 		// this pair alone proves nothing about a channel conversion. The one check that spans
 		// backings is the shell's file-vs-dir comparison of this exact "converted" line
 		// (song_preview_ab.sh, the acquisition-agreement loop).
-		const std::string name = runAcquisitionGesture();
+		dispatchAcquisitionGesture();
 		g_acqLoads++;
+		g_acquireStep = AcquireStep::ConvertedCheck;
+		break;
+	}
+	case AcquireStep::ConvertedCheck: {
+		const std::string name = currentAcquiredName();
 		printf("SP-ACQUIRE converted name=%s dispatches=%d\n", name.c_str(), acqDispatches());
 		if (name != g_acqReferenceName) {
 			printf("SP-ACQUIRE FAIL converted acquired %s, reference acquired %s\n", name.c_str(),
@@ -1769,10 +1804,16 @@ void runAcquireTick() {
 		// The top level is now empty (Reference released, but Converted kept, the one preset there
 		// ever was), so findAnUnlaunchedPresetIncludingWithinSubfolders MUST reach its subfolder loop
 		// (load_instrument_preset_ui.cpp:1317) to find anything -- the recursive descent this whole
-		// stage exists to cover. Asserting the exact nested name is what proves the walk actually
-		// descended, rather than merely that some acquisition happened to succeed.
-		const std::string name = runAcquisitionGesture();
+		// stage exists to cover.
+		dispatchAcquisitionGesture();
 		g_acqLoads++;
+		g_acquireStep = AcquireStep::NestedCheck;
+		break;
+	}
+	case AcquireStep::NestedCheck: {
+		// Asserting the exact nested name is what proves the walk actually descended, rather than
+		// merely that some acquisition happened to succeed.
+		const std::string name = currentAcquiredName();
 		printf("SP-ACQUIRE nested name=%s\n", name.c_str());
 		if (name != kAcqNestedFirstName) {
 			printf("SP-ACQUIRE FAIL acquisition did not descend into the subfolder: got %s, expected %s\n",
@@ -1783,24 +1824,26 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::Coalesce: {
-		// Three gestures with no owner tick between them. Coalescing would produce fewer preset LOADS
-		// than gestures pressed; "loads" here is read from the production dispatch counter, not
-		// merely counted per gesture -- counting gestures would make this always equal the loop
-		// bound by construction and could never fail, whatever the production code did.
-		//
-		// NOTE: inert until Task 3 -- runPresetAcquisitionOp() (Task 2) increments
-		// presetAcquisitionsRun_ once per op that actually runs, but nothing calls
-		// dispatchPresetAcquisition() until the arranger's caller is converted, so
-		// `loads` reads 0 and `0 >= kCoalesceGestures` is always false here. Written as a real
-		// assertion now (not a stub) so it arms itself the moment the counter starts counting, the
-		// same shape as AcquireStep::NonAudio below.
+		// Three gestures with no owner tick between them: presetCoalescer_ (a LatestWins) is
+		// single-flight, so the second and third `request()`s land while the first op is still
+		// in-flight and only update its latest-wins slot rather than dispatching a NEW op --
+		// coalescing them onto (at most) one actual run. "loads" is read from the production
+		// counter (LoadInstrumentPresetUI::presetAcquisitionsRun()) on CoalesceCheck, one tick after
+		// this dispatches all three -- reading it here, in the same tick, would always see a delta of
+		// 0 (none of the three has run yet regardless of whether coalescing happened), which would
+		// make this check pass vacuously rather than for the reason it names.
+		g_acqCoalesceBefore = acqDispatches();
 		constexpr int32_t kCoalesceGestures = 3;
-		const int32_t dispatchesBefore = acqDispatches();
 		for (int32_t i = 0; i < kCoalesceGestures; ++i) {
-			(void)runAcquisitionGesture();
+			dispatchAcquisitionGesture();
 			g_acqLoads++;
 		}
-		const int32_t loads = acqDispatches() - dispatchesBefore;
+		g_acquireStep = AcquireStep::CoalesceCheck;
+		break;
+	}
+	case AcquireStep::CoalesceCheck: {
+		constexpr int32_t kCoalesceGestures = 3;
+		const int32_t loads = acqDispatches() - g_acqCoalesceBefore;
 		printf("SP-ACQUIRE coalesce gestures=%d loads=%d\n", kCoalesceGestures, loads);
 		if (loads >= kCoalesceGestures) {
 			printf("SP-ACQUIRE FAIL coalescing produced %d load(s) for %d gesture(s) -- expected fewer\n", loads,
@@ -1811,14 +1854,15 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::NonAudio: {
-		// The MIDI/CV fast path (spec section 2c): no card, and so no dispatch at all.
-		// NOTE: inert until Task 3 -- presetAcquisitionsRun() is 0 before anything calls
-		// dispatchPresetAcquisition(), so this passes trivially here. It becomes a real check once
-		// a real gesture starts dispatching.
+		// The MIDI/CV fast path (spec section 2c): changeOutputType() must call
+		// completeChangeOutputType() INLINE for CV/MIDI rather than dispatching, so no card is read
+		// and no storage op runs at all. Drives the REAL ArrangerView gesture on the row Coalesce
+		// just left a SYNTH Output on -- not Song::getNonAudioInstrumentToSwitchTo() directly, which
+		// changeOutputType() never calls, and so would prove nothing about this split. No `*Check`
+		// state needed: unlike the SYNTH/KIT arm, this path is synchronous by design, so the result
+		// is genuinely readable in the same tick.
 		const int32_t before = acqDispatches();
-		bool alreadyInSong = false;
-		(void)currentSong->getNonAudioInstrumentToSwitchTo(OutputType::CV, Availability::INSTRUMENT_UNUSED, 0, -1,
-		                                                   &alreadyInSong);
+		BrowserListingAbProbe::changeOutputType(OutputType::CV);
 		printf("SP-ACQUIRE nonaudio dispatches=%d\n", acqDispatches() - before);
 		if (acqDispatches() != before) {
 			printf("SP-ACQUIRE FAIL a CV switch dispatched a storage op; it reads no card\n");

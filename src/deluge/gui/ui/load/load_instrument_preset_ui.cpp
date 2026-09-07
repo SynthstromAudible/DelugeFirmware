@@ -458,8 +458,14 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 	using deluge::storage::PresetConsumer;
 	switch (request.consumer) {
 	case PresetConsumer::ArrangerNewInstrument:
+		arrangerView.completeNewInstrument(request.yPressed);
+		break;
 	case PresetConsumer::ArrangerChangeType:
+		arrangerView.completeChangeOutputType(request.outputType, request.oldInstrument, request.yPressed);
+		break;
 	case PresetConsumer::ArrangerNavigate:
+		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed);
+		break;
 	case PresetConsumer::SessionChangeType:
 	case PresetConsumer::SessionNavigate:
 	case PresetConsumer::SessionNewTrack:
