@@ -792,8 +792,9 @@ fold, step 8b armed the OLED gates from it too, so **sitting on a patched-param 
 blitted both panels at 50 Hz, forever**. Before the fold, `MenuScene` armed only the grid and the
 diff swallowed it.
 
-`Scene::timer_repaints()` therefore returns `RepaintSurfaces{bool oled, bool grid}`, defaulting to
-`{true, true}`, and `MenuScene` overrides `{oled = false, grid = true}`. A scene whose timer drives
+`Scene::timer_repaints()` therefore returns `RepaintSurfaces{bool oled, bool grid}`, and its
+un-overridden **body** returns `{true, true}` — the *type*'s members are `false`, which is a
+distinction §15.8 had to be written to fix — and `MenuScene` overrides `{oled = false, grid = true}`. A scene whose timer drives
 both takes the default and pays for both, correctly — `RecorderScene`'s completion poll is the
 example. `{false, false}` is the wake-without-redraw opt-out §14 described.
 
@@ -1010,9 +1011,12 @@ renderer. Step 8c is the service loop.
 
 Three deliberate asymmetries with the scene loop, each for a stated reason:
 
-1. **The default is `{false, false}`**, not `{true, true}`. Four services predate the hook
-   (`ModKnobs`, `GlobalControls`, `Notices`, `Screensaver`) and none asked to dirty anything; a
-   both-true default would have started arming two gates for all four as a side effect.
+1. **This body returns `{false, false}`**, where `Scene`'s returns `{true, true}`. Four services
+   predate the hook (`ModKnobs`, `GlobalControls`, `Notices`, `Screensaver`) and none asked to
+   dirty anything; a both-true body would have started arming two gates for all four as a side
+   effect. The asymmetry is between the two **bodies** and not between two types: both hooks return
+   the same `RepaintSurfaces`, whose members are `false` (§15.8 — when this section was written
+   they were `true`, which made this paragraph true of the body and false of the struct).
 2. **No paintability narrowing.** §15.3's `oled_paintable`/`grid_paintable` answer "is this scene at
    or above the surface's base"; a service has no stack position and paints nothing itself, so its
    claim is honoured unconditionally.
@@ -1021,7 +1025,8 @@ Three deliberate asymmetries with the scene loop, each for a stated reason:
    unconditionally once rendered. `MidiLearn` claims `{.oled = false, .grid = true}`.
 
 Covered by `tests/spec/shell/flush_spec.cpp`'s "a service timer arms only the surfaces it claims",
-which drives claim-nothing, claim-grid and no-timer against a real `Shell`.
+which drives claim-nothing, claim-grid, claim-OLED and no-timer against a real `Shell`, and by "a
+service claiming `{.grid = true}` arms no OLED gate" (§15.8).
 
 ### 15.7 `SceneStack` both over- and under-notified `on_resume` (found in E4 task 10)
 
@@ -1095,3 +1100,63 @@ a refused push resumes only when the refused scene held the input top; and a ref
 resumes the scene it exited whatever the input top is — plus, from the scene side,
 `sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table when a popup it raised itself
 expires" and "resets its state when a real scene above it closes".
+
+### 15.8 `RepaintSurfaces`' member defaults armed what the author did not name (found in E4's final review)
+
+`Scene::RepaintSurfaces` was declared `struct { bool oled = true; bool grid = true; }`, so the
+"arm both" default lived in the **type** and not in `Scene::timer_repaints()`'s body. A designated
+initializer leaves an unnamed member at its member default, so the override an author naturally
+writes —
+
+```cpp
+Scene::RepaintSurfaces timer_repaints() const override { return {.grid = true}; }
+```
+
+— arrived with `oled == true`. On a `Scene` that is §15.1's regression; on a `Service` it is worse,
+because §15.6's asymmetry 2 means there is no `oled_paintable` narrowing behind it: an unconditional
+per-timer blit on **every** OLED panel, for as long as the service asks. That is the exact shape
+that shipped twice in E3 — 50 Hz on `MenuScene`, then 100 Hz on `RecorderScene`, both two-panel.
+
+Nothing in the tree was broken by it. All eight in-tree overrides spell both fields, which is also
+why it survived: the dangerous spelling had never been written, so no spec, golden or checker had
+ever seen it. `Service::timer_repaints`'s own docstring said the default was `{false, false}`, which
+was true of that body and false of the struct it returns, and the ratchet row written to stand
+behind that sentence (`services-no-oled-timer-claim`) matched only `\.oled\s*=\s*true` and could not
+see `{.grid = true}` at all.
+
+**The fix is the type, not the regex.** The members are `false`; `Scene::timer_repaints()`'s base
+body returns `{true, true}` explicitly; `Service::timer_repaints()`'s returns `{false, false}` as
+before. Naming one surface can now only arm that surface, and the two "defaults" are each stated
+where they are true. Three namespace-scope `static_assert`s in `shell/scene.h` pin the property at
+compile time.
+
+Every construction site was audited before the change (`grep -rn
+"RepaintSurfaces\|timer_repaints" src/ tests/ sim/`). One site genuinely relied on the old member
+defaults: `tests/spec/shell/tick_spec.cpp`'s `TimerScene::timer_repaints_`, a test double whose own
+comment said it was standing in for the base class's answer. It is now spelled `{true, true}`.
+
+Two mechanisms stand behind it, in this order:
+
+* `tests/spec/shell/flush_spec.cpp`'s "a service claiming `{.grid = true}` arms no OLED gate — the
+  unnamed member is not a claim", written in the dangerous spelling itself (`GridOnlyTimerService`
+  returns a literal `{.grid = true}`). It asserts the type property, then drives a real `Shell` to
+  the deadline and asserts the grid repainted, the OLED never rendered and no panel was blitted; it
+  also pins the other half, that a scene overriding nothing still arms both and a service overriding
+  nothing still arms nothing. With the member defaults put back it fails on six type-level
+  assertions and on `oled_renders == 2`.
+* `services-no-oled-timer-claim`, re-scoped to `src/{shell,scenes/services}/**` (less
+  `src/shell/scene.h`) because `Notices` and `Screensaver` are services in `src/shell/` and were
+  outside the row entirely, and re-written to match `.oled =` anything not literally `false` plus a
+  positional `{true, …}`. `check_layer_rules.py`'s new `audit_service_scope()` fails the checker if
+  a `Service` is ever declared where the row cannot see it — the glob rotting is the failure that
+  actually happened.
+
+**Should the two hooks return distinct types?** The review's other suggestion, and no: taken up, it
+would be a synonym rather than a new invariant. Both hooks answer the same question about the same
+two surfaces, `Shell::timer_arms_a_gate` takes one of them for both loops, and steps 8b and 8c read
+the same two fields — so a `Service::RepaintSurfaces` would duplicate the type, the `static_assert`s
+and the doc while forbidding nothing the shared one allows. What distinct types would genuinely have
+bought is a *syntactically* distinguishable service claim for the checker to key on; the re-scoped
+glob buys that more cheaply and without a second type. The defaults fix is sufficient because the
+defect was never about which hook was being overridden — it was that `{.grid = true}` did not mean
+`{.grid = true}`, and now it does, for both.

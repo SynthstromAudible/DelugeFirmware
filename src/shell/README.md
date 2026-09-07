@@ -125,10 +125,8 @@ the mod-knobs bar, then global transport/shift/record handling, then MIDI learn)
 unfilled slots contributing nothing. `Notices` and `Screensaver` are the two services this task
 actually implemented, because they need nothing from the model; `ModKnobs`, `GlobalControls` and
 `MidiLearn` are the seam spec E filled in (E4 tasks 2-5) -- the model-owned `ModTarget`, transport
-state and MIDI-learn table -- with the shell changing only twice: `Scene::is_root()` for the
-`View`-arm reachability gate, and `Service::timer_repaints()` so a service timer can arm a gate the
-way a scene timer does. Nothing in `src/shell` depends on their being real:
-a `Service` is the whole contract, and a `NullService` satisfies it completely.
+state and MIDI-learn table. Nothing in `src/shell` depends on their being real: a `Service` is the
+whole contract, and a `NullService` satisfies it completely.
 
 `Screensaver` pushes `SceneKind::Screensaver` but ships no scene of that kind — the animation is
 `deluge::scenes::overlay::ScreensaverScene` (E4 task 7), registered by the application like any
@@ -149,6 +147,30 @@ choice of the earliest deadline. The clock is a `uint32_t` millisecond counter t
 days of uptime, and an absolute compare across that wrap reads a freshly armed (wrapped, therefore
 small) deadline as long past. This is the form `RepaintGate`, `Mirror::due` and `InputLowering`'s
 hold/press comparisons already use.
+
+### What E4's scene tasks changed in here
+
+The Services section above used to claim the shell changed "only twice" while spec E filled that
+seam. It changed **seven times**, and the count matters more than it looks: every one of these is a
+shell contract that no consumer had ever exercised, and four were defects rather than extensions —
+the inverted routing chain (`is_mod_or_gold` is that same hook a third time), the declared LED blink
+that was not a wake source, the service timer that dirtied nothing, and `on_resume`. If a scenes
+task makes you change something in `src/shell`, add it here: a shell contributor reads this file
+before the headers, and under half of what this branch moved was described in it.
+
+| what changed | why a scene task needed it |
+|---|---|
+| `Scene::is_root()` (task 4) | `View::buttonAction` is reachable only from a legacy `RootUI`, while `Buttons::buttonAction`'s tail runs for any current UI. `GlobalControls` gates one group on it and `MidiLearn` gates all of `handle()`; see the hook's own doc. |
+| `Service::timer_repaints()` + `Shell::tick`'s step 8c (task 5) | A service's `next_timer()` reached `compute_next_wake` and dirtied nothing, so `MidiLearn`'s flash phase advanced on schedule with no pad ever repainting. Step 8c is the service half of the timer fold. |
+| `led_next_change()` + `compute_next_wake`'s blink loop (task 4) | A *declared* LED blink was not a wake source, so a blinking transport LED froze between unrelated wakes — and worse, an unrelated scene timer that did not divide the blink period rendered it at a beat frequency. |
+| `SceneStack::resume_new_input_top()` (task 10) | `pop`/`remove` notified `on_resume` unconditionally and on the *raw* top, so a slicer under its own expiring popup was told it had regained the top and reset forty hand-placed slices. Shell spec §15.7. |
+| `InputLowering::pretend_knob_untouched()` (task 2) | Legacy's gold-knob popup path backdates the knob's last-turned clock; the clock is private and `UiContext::lowering` is const, so a service had no way to reach it. |
+| `Router::run_chain`'s reorder (task 3) | The chain ran `mod_knobs` *before* the top scene, which inverts legacy: `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction` are base-class hooks that forward to `view`, so `View` is the fallback and six UIs override it. Shell spec §15.4. |
+| `is_mod_or_gold`'s widening to `ModEnc0`/`ModEnc1` (task 3) | The same hook a third time: a gold knob's own *push* also forwards to `View`, and excluding it left `ModKnobs`' port of `modEncoderButtonAction` unreachable. Shell spec §15.5. |
+
+An eighth change came from E4's final review rather than from a task: `Scene::RepaintSurfaces`' member
+defaults moved from `true` to `false`, so a designated initializer arms only the surfaces it names
+(shell spec §15.8).
 
 ## The tick (`shell.h`, Task 7)
 

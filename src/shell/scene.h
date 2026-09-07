@@ -379,8 +379,29 @@ public:
 	/// @brief Is this scene a **root view** -- one of the things legacy calls a `RootUI`?
 	///
 	/// Not a composition question like the rest of this group, but it lives here because it is a
-	/// property of what the scene *is* rather than of what it does, and there is exactly one
-	/// consumer today.
+	/// property of what the scene *is* rather than of what it does.
+	///
+	/// @par Who reads it, and what each one gates
+	///
+	/// Two services, and they gate different amounts:
+	///
+	///   * `services::GlobalControls` gates **one group** of arms -- its port of
+	///     `View::buttonAction` (`global_controls.cpp:580`, the `view_button_action` call). Its
+	///     other group, the port of `Buttons::buttonAction`'s tail, is deliberately *ungated*,
+	///     because legacy runs that tail for any current UI. The two reachability rules below are
+	///     why one call is gated and the other is not.
+	///   * `services::MidiLearn` gates its **entire** `handle()` (`midi_learn.cpp:466`), which is
+	///     the stronger use: it has only `View` arms, so there is nothing left to run when the
+	///     input top is not a root. It is also the one that made the gate load-bearing, because
+	///     `MidiLearn` is routed last and therefore sees a `LEARN` press under a non-root scene
+	///     where legacy hands it to `SoundEditor::buttonAction`'s own arm.
+	///
+	/// @warning **This list is owned by whoever adds the next consumer.** It said "there is
+	///          exactly one consumer today" and named only `GlobalControls` for the whole of E4,
+	///          having been written one task before `MidiLearn` became the second — the same way
+	///          `Router`'s mod-knob ordering note stayed false for three plans because nobody
+	///          re-read it when the consumer changed. If you add a third reader, add it here, with
+	///          what it gates.
 	///
 	/// @par Why the shell needs this at all
 	///
@@ -401,7 +422,8 @@ public:
 	///     **is** the rule, exactly.
 	///
 	/// `services::GlobalControls` ports both groups and gates only the second on
-	/// `SceneStack::input_top().is_root()`.
+	/// `SceneStack::input_top().is_root()`. `services::MidiLearn` ports only arms of the second
+	/// kind, which is why its gate covers everything it does.
 	///
 	/// @note A `Scene` virtual rather than a stack-position rule (`input_top() == scenes()[0]`)
 	///       deliberately. A position rule cannot be driven from a spec that holds no real scene:
