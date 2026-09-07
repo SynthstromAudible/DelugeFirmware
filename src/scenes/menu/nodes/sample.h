@@ -47,8 +47,9 @@
 ///       audioFile` (`audio_clip/sample_marker_editor.cpp:35-38`), `AudioRecorder`'s
 ///       "already recording" (`gui/ui/audio_recorder.cpp:69-71`) -- is each scene's own `can()`,
 ///       consulted by its `on_enter`. A refused push is not a lost frame: `SceneStack::push`
-///       (`shell/scene_stack.cpp:31-44`) unwinds and calls `on_resume()` on the menu, which is where
-///       `go_up_on_resume` steps back out of the item -- the same place legacy's failed `openUI`
+///       (`shell/scene_stack.cpp:44-59`) unwinds and resumes the input top, which is the menu
+///       whenever the refused scene is an opaque one (all of these are) -- and that is where
+///       `go_up_on_resume` steps back out of the item, the same place legacy's failed `openUI`
 ///       leaves it. This is `EditNameItem`'s shipped behaviour, not a new rule.
 
 #include "scenes/menu/node.h"

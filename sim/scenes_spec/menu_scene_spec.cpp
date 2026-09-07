@@ -795,7 +795,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:418` ->
 		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`). `Remove`, not `Pop`: review round 1
 		// (task 11) -- `Pop{.pop_to = kind}` still pops everything ABOVE `kind` too
-		// (`scene_stack.cpp:48-77`), which is wrong for "close just me" the moment a `Notices`
+		// (`scene_stack.cpp:63-95`), which is wrong for "close just me" the moment a `Notices`
 		// overlay legitimately sits above this scene (see the test right after this one).
 		DirectCtx d;
 		const Result res = menu_scene().handle(

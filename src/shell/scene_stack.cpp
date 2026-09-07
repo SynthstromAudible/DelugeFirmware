@@ -2,6 +2,19 @@
 
 namespace deluge::ui::shell {
 
+void SceneStack::resume_new_input_top(Scene* before) {
+	Scene* const after = &input_top();
+	if (after == before || after == &null_) {
+		// Same scene on both sides of the mutation: nothing changed hands, so there is no
+		// transition to announce. This is the whole of the E4 task 10 fix -- see the header's
+		// contract table and design spec §15.7. `null_` is excluded because an empty stack, or one
+		// left holding nothing but `input_transparent()` layers, has no input top to resume: the
+		// `NullScene` is what `input_top()` reports for "nobody", not a scene that took over.
+		return;
+	}
+	after->on_resume();
+}
+
 void SceneStack::save_slot(Scene& scene) {
 	const size_t k = static_cast<size_t>(scene.kind());
 	if (k >= kMaxSceneKinds) {
@@ -29,14 +42,16 @@ bool SceneStack::push(SceneId id) {
 	ids_[n_] = id;
 	n_++;
 	if (!scene->on_enter(id)) {
+		// Snapshotted with the refused scene still installed, because that is what it held while
+		// `on_enter` ran. `openUI`'s rollback resumes `getCurrentUI()` unconditionally
+		// (`gui/ui/ui.cpp:236-241`) and is right to for legacy, where every UI on
+		// `uiNavigationHierarchy` takes input; here a refused `input_transparent()` push covered
+		// nobody, so it hands nothing back.
+		Scene* const before = &input_top();
 		n_--;
 		stack_[n_] = nullptr;
 		ids_[n_] = SceneId{};
-		if (n_ > 0) {
-			// The previous top was never told it lost focus, but it is told it got it back --
-			// this is the legacy `openUI` rollback, which resumes unconditionally.
-			stack_[n_ - 1]->on_resume();
-		}
+		resume_new_input_top(before);
 		// `changed_` deliberately stays set here, unlike the refusal above: `on_enter` and
 		// `on_resume` both ran, so a scene may have moved its greyout mask even though the stack
 		// composition ended up where it started.
@@ -65,6 +80,7 @@ void SceneStack::pop(SceneKind to) {
 	}
 
 	changed_ = true;
+	Scene* const before = &input_top();
 	while (n_ > target) {
 		n_--;
 		Scene* scene = stack_[n_];
@@ -72,9 +88,10 @@ void SceneStack::pop(SceneKind to) {
 		ids_[n_] = SceneId{};
 		scene->on_exit();
 	}
-	if (n_ > 0) {
-		stack_[n_ - 1]->on_resume();
-	}
+	// The *input* top, not `stack_[n_ - 1]`: popping the top of `[A, popup, B]` leaves the popup
+	// as the raw top and `A` as the scene that actually takes input again, so `A` is what legacy's
+	// `closeUI` -> `focusRegained` (`gui/ui/ui.cpp:194-199`) corresponds to here.
+	resume_new_input_top(before);
 }
 
 bool SceneStack::remove(SceneKind kind) {
@@ -88,9 +105,9 @@ bool SceneStack::remove(SceneKind kind) {
 		return false; // no scene of that kind is on the stack; remove nothing, flag nothing
 	}
 	const size_t idx = i - 1;
-	const bool was_top = idx == n_ - 1;
 
 	changed_ = true;
+	Scene* const before = &input_top();
 	Scene* scene = stack_[idx];
 	save_slot(*scene);
 	scene->on_exit();
@@ -105,12 +122,16 @@ bool SceneStack::remove(SceneKind kind) {
 	stack_[n_] = nullptr;
 	ids_[n_] = SceneId{};
 
-	if (was_top && n_ > 0) {
-		// The removed scene was the top, so the scene now exposed needs the same "you're back on
-		// top" notice `pop()` gives it. A scene that was already below something else, above the
-		// removed one, never lost or regained the top and gets no lifecycle call at all.
-		stack_[n_ - 1]->on_resume();
-	}
+	// Whether the *input* top changed hands, which is not the same question as "was the removed
+	// scene the raw top". Both directions matter and both were wrong before E4 task 10:
+	//
+	//   * Removing an `input_transparent()` layer -- the case this method exists for -- changes
+	//     nothing, even though the layer was the raw top. `Notices::tick` retiring an 800 ms popup
+	//     used to fire `on_resume` on the scene beneath, and `SlicerScene::on_resume` is
+	//     `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), which clears the slice table.
+	//   * Removing the top of `[A, popup, B]` hands the input top to `A`, not to the popup, so the
+	//     old `stack_[n_ - 1]` notified the one scene that had not changed state.
+	resume_new_input_top(before);
 	return true;
 }
 
@@ -159,8 +180,16 @@ bool SceneStack::replace_top(SceneId id) {
 	stack_[n_ - 1] = scene;
 	ids_[n_ - 1] = id;
 	if (!scene->on_enter(id)) {
-		// Same rollback shape as `push`: put the previous scene back and resume it. It has already
-		// been exited, so `on_resume` is the only notification it gets that it is top again.
+		// Put the previous scene back and resume it -- **unconditionally**, which is the one arm
+		// E4 task 10 deliberately left alone.
+		//
+		// The rest of the class fires `on_resume` only when the input top actually changed hands,
+		// because an unpaired edge cannot mean anything stronger. Here the edge *is* paired:
+		// `previous->on_exit()` above really ran, so `on_resume` is that call's dual and not a
+		// claim about the top at all. Suppressing it for an `input_transparent()` `previous` would
+		// leave a scene that had been told it left the stack with no notice that it is back.
+		// `changeUIAtLevel`'s own failure path does the same thing for the same reason
+		// (`gui/ui/ui.cpp:96-101`, `oldUI->focusRegained()` after restoring the hierarchy).
 		stack_[n_ - 1] = previous;
 		ids_[n_ - 1] = previous_id;
 		previous->on_resume();

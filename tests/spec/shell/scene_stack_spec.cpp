@@ -18,6 +18,16 @@ namespace {
 /// starts numbering, so a spec that borrowed a shell kind would collide with a real scene later.
 constexpr SceneKind kA = SceneKind::FirstApp;
 constexpr SceneKind kB = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 1);
+/// A third opaque kind, so a spec that wants three distinct layers does not have to stack one kind
+/// twice. The registry holds one `Scene` per kind, so `[kA, kB, kA]` is the *same object* at two
+/// indices -- a configuration nothing in the shell builds and none of the lifecycle hooks is
+/// coherent under (it takes `on_enter` twice with no `on_exit` between, and both indices share one
+/// state slot).
+constexpr SceneKind kC = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 2);
+/// The passive layer: a stand-in for the three shipped `input_transparent()` overlays (popup,
+/// console line, working animation), which is what makes a spec able to state the difference
+/// between the raw top and the input top.
+constexpr SceneKind kT = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 3);
 /// A kind inside `kMaxSceneKinds` but past the end of the rig's registry span.
 constexpr SceneKind kUnregistered = static_cast<SceneKind>(40);
 
@@ -83,14 +93,53 @@ public:
 	mutable int saves = 0;
 };
 
-/// @brief The two scenes, an 18-entry registry table over them, and a stack bound to it.
+/// @brief A third counting scene, for a spec that needs three distinct opaque layers.
+class SceneC final : public Scene {
+public:
+	SceneKind kind() const override { return kC; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+
+	void on_exit() override { exits++; }
+	void on_resume() override { resumes++; }
+
+	int exits = 0, resumes = 0;
+};
+
+/// @brief An `input_transparent()` scene: drawn over whatever is beneath and never taking its
+///        input, exactly as `PopupScene`, `ConsoleScene` and `WorkingScene` are.
 ///
-/// 18 entries is `FirstApp + 2`: every shell kind is left unregistered (null), `kA` sits at 16 and
-/// `kB` at 17, which is also what makes `kUnregistered` (40) an index past the end of the span.
+/// It counts `on_resume` for the same reason the other two do -- a spec that asserts "nobody was
+/// notified" has to be able to see this one not being notified either.
+class SceneT final : public Scene {
+public:
+	SceneKind kind() const override { return kT; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+	bool input_transparent() const override { return true; }
+
+	bool on_enter(const SceneId& id) override {
+		if (id.arg == 99) {
+			return false;
+		}
+		enters++;
+		return true;
+	}
+	void on_exit() override { exits++; }
+	void on_resume() override { resumes++; }
+
+	int enters = 0, exits = 0, resumes = 0;
+};
+
+/// @brief The four scenes, a 20-entry registry table over them, and a stack bound to it.
+///
+/// 20 entries is `FirstApp + 4`: every shell kind is left unregistered (null), `kA` sits at 16,
+/// `kB` at 17, `kC` at 18 and `kT` at 19, which still makes `kUnregistered` (40) an index past the
+/// end of the span.
 struct Rig {
 	SceneA a;
 	SceneB b;
-	std::array<Scene*, 18> table{};
+	SceneC c;
+	SceneT t;
+	std::array<Scene*, 20> table{};
 	SceneRegistry reg{};
 	SceneStack st{reg};
 	int seq = 0;
@@ -98,6 +147,8 @@ struct Rig {
 	Rig() {
 		table[16] = &a;
 		table[17] = &b;
+		table[18] = &c;
+		table[19] = &t;
 		reg.by_kind = std::span<Scene* const>{table};
 		a.seq = &seq;
 		b.seq = &seq;
@@ -132,16 +183,21 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	});
 
 	it("pop(kind) pops down to and including that kind", _ {
+		// Three *distinct* kinds. This used to stack `kA` twice for want of a third scene, which
+		// with one `Scene` per kind put the same object at indices 0 and 2 -- so "the root resumed"
+		// and "the popped copy was told it left" were the same counter, and neither claim below was
+		// actually being made.
 		Rig r;
 		expect(r.st.push({kA})).to_be_true();
 		expect(r.st.push({kB})).to_be_true();
-		expect(r.st.push({kA, 2})).to_be_true();
+		expect(r.st.push({kC})).to_be_true();
 		expect(r.st.depth()).to_equal(size_t(3));
 		r.st.pop(kB);
 		expect(r.st.depth()).to_equal(size_t(1));
 		expect(r.st.top().kind() == kA).to_be_true();
 		expect(r.b.exits).to_equal(1);
-		expect(r.a.exits).to_equal(1);                               // the kA above kB, not the root
+		expect(r.c.exits).to_equal(1);                               // the kC above kB, and it alone
+		expect(r.a.exits).to_equal(0);                               // never the root
 		expect(r.a.resumes).to_equal(1);                             // the root resumed
 	});
 
@@ -182,6 +238,103 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.b.exits).to_equal(1);
 		expect(r.a.resumes).to_equal(1);                             // the newly-exposed top is resumed
 		expect(r.st.top().kind() == kA).to_be_true();
+	});
+
+	// --- the input top is what `on_resume` is about ------------------------------------------
+	//
+	// The four rows below are the shell defect E4 task 10 measured: `SceneKind::Popup` is a scene
+	// here where legacy's popup is a display overlay, so `remove`ing one used to fire `on_resume`
+	// on the scene beneath -- and `SlicerScene::on_resume` is `Slicer::focusRegained`
+	// (`gui/ui/slicer.cpp:59-72`), which wipes the slice table. See §15.7 of the shell design spec.
+
+	it("removing an input-transparent scene notifies nobody", _ {
+		Rig r;
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kT})).to_be_true();
+		expect(&r.st.input_top() == &r.a).to_be_true();              // it never took the input top
+		expect(r.st.remove(kT)).to_be_true();
+		expect(r.t.exits).to_equal(1);
+		expect(r.st.depth()).to_equal(size_t(1));
+		// The scene beneath never lost the input top, so it never regained it. `input_transparent()`
+		// is the shell's own statement that no transition happened.
+		expect(r.a.resumes).to_equal(0);
+
+		// Same answer with something real between the two: `kB` is the input top throughout.
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.push({kT})).to_be_true();
+		expect(r.st.remove(kT)).to_be_true();
+		expect(r.b.resumes).to_equal(0);
+		expect(r.a.resumes).to_equal(0);
+	});
+
+	it("removing a scene from above a transparent one resumes the input top, not the raw top", _ {
+		Rig r;
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kT})).to_be_true();
+		expect(r.st.push({kB})).to_be_true();                        // [kA, kT, kB]
+		expect(r.st.remove(kB)).to_be_true();
+		expect(r.st.top().kind() == kT).to_be_true();                // the raw top is the overlay
+		expect(&r.st.input_top() == &r.a).to_be_true();              // the input top is kA
+		expect(r.a.resumes).to_equal(1);                             // and kA is what gets told
+		expect(r.t.resumes).to_equal(0);                             // never the passive layer
+
+		// `pop()` is the same question asked the other way round, and gets the same answer.
+		Rig p;
+		expect(p.st.push({kA})).to_be_true();
+		expect(p.st.push({kT})).to_be_true();
+		expect(p.st.push({kB})).to_be_true();
+		p.st.pop();
+		expect(p.a.resumes).to_equal(1);
+		expect(p.t.resumes).to_equal(0);
+	});
+
+	it("removing the real top from under a transparent scene notifies nobody", _ {
+		// A stack of nothing but input-transparent scenes has no input top (`input_top`'s own
+		// note), so there is nothing to resume -- and the overlay left standing must not be told it
+		// is now taking input, because it is not.
+		Rig r;
+		expect(r.st.push({kT})).to_be_true();
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.remove(kA)).to_be_true();
+		expect(r.st.top().kind() == kT).to_be_true();
+		expect(r.st.input_top().kind() == SceneKind::Null).to_be_true();
+		expect(r.t.resumes).to_equal(0);
+	});
+
+	it("a refused push resumes the input top only when the refused scene held it", _ {
+		// The refused scene is installed before `on_enter` runs (so it can see itself as the top),
+		// so what it held while it was there is what the rollback has to hand back.
+		Rig r;
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kT, 99})).to_be_false();                   // transparent, and it refused
+		expect(r.st.depth()).to_equal(size_t(1));
+		expect(r.a.resumes).to_equal(0);                             // kA never lost the input top
+
+		// An opaque refusal over a transparent layer resumes the scene two down, not the layer.
+		Rig o;
+		expect(o.st.push({kB})).to_be_true();
+		expect(o.st.push({kT})).to_be_true();                        // [kB, kT]
+		expect(o.st.push({kA, 99})).to_be_false();
+		expect(o.st.depth()).to_equal(size_t(2));
+		expect(o.b.resumes).to_equal(1);                             // the input top comes back
+		expect(o.t.resumes).to_equal(0);
+	});
+
+	it("a refused replace_top resumes the scene it exited, whatever the input top is", _ {
+		// `replace_top`'s rollback is the one arm that is *not* an input-top question.
+		// `changeUIAtLevel`'s failure path calls `oldUI->focusRegained()` unconditionally
+		// (`gui/ui/ui.cpp:96-101`), and it is right to: the previous scene really was exited, so
+		// `on_resume` is the paired notification for an `on_exit` that ran, not a claim about the
+		// top. Here the restored scene is the passive layer, and it is still the one told.
+		Rig r;
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.push({kT})).to_be_true();
+		expect(r.st.replace_top({kA, 99})).to_be_false();
+		expect(r.st.depth()).to_equal(size_t(2));
+		expect(r.st.top().kind() == kT).to_be_true();
+		expect(r.t.exits).to_equal(1);
+		expect(r.t.resumes).to_equal(1);                             // the exited scene is told
+		expect(r.b.resumes).to_equal(0);                             // and nothing else is
 	});
 
 	it("replace_root saves and restores POD state by SceneId", _ {

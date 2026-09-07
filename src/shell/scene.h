@@ -308,7 +308,21 @@ public:
 	virtual bool on_enter(const SceneId& id) { return true; }
 	/// @brief Called when this scene leaves the stack.
 	virtual void on_exit() {}
-	/// @brief Called when this scene becomes the top again because something above it left.
+	/// @brief Called when this scene becomes the **input** top again because something above it
+	///        left.
+	///
+	/// The port of `closeUI`'s `newUI->focusRegained()` (`gui/ui/ui.cpp:194-199`), and it means the
+	/// same thing: input reaches this scene again after reaching something else. The stack fires it
+	/// only when `SceneStack::input_top()` genuinely changed hands, so a passive
+	/// `input_transparent()` layer -- a popup, a console line, the working animation -- appearing
+	/// over this scene and going away again is **not** an edge, in either direction. Legacy agrees:
+	/// its popup is an OLED overlay (`OLED::popupText`), never a `UI` on `uiNavigationHierarchy`,
+	/// so it never reaches `closeUI` either.
+	///
+	/// @note There is deliberately no `on_pause` dual. Nothing needs one yet -- `on_enter` already
+	///       runs on the scene taking the top -- and adding one would put a hook on all thirty-odd
+	///       scenes to serve no caller. If one is ever added it must be fired on exactly the same
+	///       condition as this, or the pair stops being a pair; see design spec §15.7.
 	virtual void on_resume() {}
 	/// @}
 

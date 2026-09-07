@@ -1430,7 +1430,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`.
 	//
 	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
-	// pops the topmost scene of that kind *and everything above it* (`scene_stack.cpp:48-77`), so
+	// pops the topmost scene of that kind *and everything above it* (`scene_stack.cpp:63-95`), so
 	// `Pop{.pop_to = FirstApp}` -- this scene's own first, wrong fix for the bug below -- still tore
 	// down a live `Working` animation or `Popup` sitting over the menu along with it. `Remove`
 	// (`SceneStack::remove`) excises just the named scene and leaves everything else exactly where

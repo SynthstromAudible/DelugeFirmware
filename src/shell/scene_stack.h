@@ -27,12 +27,23 @@ public:
 ///
 /// | operation | lifecycle, in order |
 /// |---|---|
-/// | `push(id)` | `on_enter(id)`; a refusal rolls back and resumes the previous top |
-/// | `pop(kind)` | `on_exit()` top-down through `kind`, then `on_resume()` on the new top |
+/// | `push(id)` | `on_enter(id)`; a refusal rolls back and resumes the new input top, if it moved |
+/// | `pop(kind)` | `on_exit()` top-down through `kind`, then `on_resume()` on the new input top, if it moved |
 /// | `remove(kind)` | `save_state()` then `on_exit()` on that scene alone, wherever it sits; `on_resume()` on the new
-/// top only if it was the top being removed | | `replace_root(id)` | per scene, top first: `save_state()` then
-/// `on_exit()`; `push(id)`; `restore_state()` | | `replace_top(id)` | `on_exit()` on the top, `on_enter(id)` on the
-/// replacement; no state save | | `reset()` | `on_exit()` on every scene, top first |
+/// input top, if it moved | | `replace_root(id)` | per scene, top first: `save_state()` then `on_exit()`; `push(id)`;
+/// `restore_state()` | | `replace_top(id)` | `on_exit()` on the top, `on_enter(id)` on the replacement; no state save;
+/// a refusal restores and unconditionally resumes the scene it exited | | `reset()` | `on_exit()` on every scene, top
+/// first |
+///
+/// @par What "if it moved" means
+///
+/// `on_resume()` asserts that this scene is the one input reaches again, so the three arms above
+/// fire it only when `input_top()` -- not `top()` -- is a different scene after the mutation than
+/// it was before. Two consequences, and both were defects until E4 task 10 (design spec §15.7):
+/// removing an `input_transparent()` layer notifies **nobody**, because `input_top()` already
+/// skipped it (`SceneStack::input_top`); and removing the top of `[A, popup, B]` notifies `A`, the
+/// scene that genuinely takes input again, rather than the popup that happens to sit highest.
+/// `replace_top`'s refusal path is the deliberate exception -- see the note at that call site.
 ///
 /// @warning Not reentrant. A lifecycle hook must not call back into the stack; scenes ask for
 ///          navigation by returning `Action`s, which the shell applies between calls.
@@ -50,8 +61,9 @@ public:
 	/// @brief Push \p id on top of the stack.
 	/// @param id What to push; `id.kind` is looked up in the registry.
 	/// @return False when the kind is unregistered, the stack is already `kStackDepth` deep, or
-	///         the scene's `on_enter` refused -- in which case the push is rolled back and the
-	///         previous top is resumed, leaving the stack exactly as it was.
+	///         the scene's `on_enter` refused -- in which case the push is rolled back, leaving the
+	///         stack exactly as it was, and the input top is resumed if the refused scene had taken
+	///         it (it is installed before `on_enter` runs, so an opaque one had).
 	bool push(SceneId id);
 
 	/// @brief Pop scenes off the top.
@@ -74,10 +86,15 @@ public:
 	/// popup itself is done.
 	///
 	/// Only the target scene's lifecycle runs: `save_state()` then `on_exit()`, in that order, on
-	/// that scene alone -- every scene above and below keeps its place, and none of them is exited,
-	/// entered or resumed by this call, except that the new top is resumed if \p kind's scene was
-	/// itself the top being removed (nothing above it to preserve, so this degenerates to exactly
-	/// what `pop(kind)` would have done for that one scene).
+	/// that scene alone -- every scene above and below keeps its place, and none of them is exited
+	/// or entered by this call. The one other hook that can fire is `on_resume()`, on the new
+	/// `input_top()` and only when removing \p kind's scene changed which scene that is. Removing
+	/// a passive layer therefore notifies nobody at all, which is the case this method exists for:
+	/// the layer never held the input top, so nothing beneath it lost or regained anything.
+	/// @note This is stricter than "was it the top". `remove` used to resume `stack_[n_ - 1]`
+	///       whenever the removed scene sat highest, which both fired on a popup's own timeout --
+	///       wiping the slicer's slice table 800 ms after a pad tap -- and, for `[A, popup, B]`,
+	///       notified the popup instead of `A`. See design spec §15.7.
 	/// @param kind The kind to remove the topmost instance of.
 	/// @return False, touching nothing, if no scene of \p kind is on the stack.
 	bool remove(SceneKind kind);
@@ -111,7 +128,8 @@ public:
 	/// The sideways move between peer scenes. On an empty stack this is a plain `push`.
 	/// @param id The replacement.
 	/// @return False when the kind is unregistered (the stack is untouched) or the replacement's
-	///         `on_enter` refused -- in which case the previous top is put back and resumed.
+	///         `on_enter` refused -- in which case the previous top is put back and resumed,
+	///         unconditionally, because it is the one scene here that was actually exited.
 	bool replace_top(SceneId id);
 
 	/// @brief Exit every scene, top first, and empty the stack.
@@ -171,6 +189,23 @@ public:
 private:
 	/// @brief Save \p scene's state into its kind's slot and mark the slot valid.
 	void save_slot(Scene& scene);
+
+	/// @brief Resume the current `input_top()`, but only if it is not \p before.
+	///
+	/// The one place `on_resume` is decided for `push`'s rollback, `pop` and `remove`. A caller
+	/// snapshots `&input_top()` immediately before its mutation and hands it here immediately
+	/// after; the call happens only when the two differ, and never on the `NullScene`, which is
+	/// what `input_top()` reports for "no scene takes input" rather than a scene that took over.
+	///
+	/// @note The comparison is scene identity, not stack position, and the registry holds one
+	///       `Scene` per kind -- so a kind stacked *twice* is one object at two indices, and
+	///       popping the upper one reads as "no transition" even though that object was exited.
+	///       Nothing in the shell builds such a stack, and no lifecycle hook is coherent under one
+	///       (the scene takes `on_enter` twice with no `on_exit` between, and both indices share a
+	///       single `SceneState` slot); refusing it in `push` would be the fix, and is not this
+	///       method's business.
+	/// @param before The input top as it was before the mutation.
+	void resume_new_input_top(Scene* before);
 
 	const SceneRegistry& reg_;
 	std::array<Scene*, kStackDepth> stack_{};
