@@ -72,9 +72,10 @@ bool GuestSurfaceSet::oled_busy(uint8_t index) {
 	// no file under `src/deluge/` calls `deluge_display_busy` or `deluge_display_busy_n` at all
 	// (grepped repo-wide; the only callers are the BSPs that define them and `board_surfaces.cpp`).
 	// A guest that consulted it would be inventing a policy legacy does not have. `Shell::flush`'s
-	// own comment at `shell/shell.cpp:887-889` describes "the `deluge_display_busy` skip around
-	// `OLED::sendMainImage`"; there is no such skip in `OLED::sendMainImage`
-	// (`hid/display/oled.cpp:335-385`) -- see the task-4 report.
+	// own comment used to describe "the `deluge_display_busy` skip around `OLED::sendMainImage`";
+	// there is no such skip in `OLED::sendMainImage` (`hid/display/oled.cpp:335-385`), which gates
+	// only on its own `needsSending` flag. Corrected at `shell/shell.cpp:887` and recorded as shell
+	// spec §15.10.
 	(void)index;
 	return deluge_control_pad_output_space()
 	       <= static_cast<uint32_t>((kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2);
@@ -180,7 +181,7 @@ void GuestSurfaceSet::flush() {
 	// which is also what `sortLedsForCol`'s own comment at `:259` asks its callers to do, under
 	// that call's older name.
 	// `Shell::flush` calls this at most once per tick, and only when something was actually sent
-	// (`shell/shell.cpp:1000-1002`).
+	// (`shell/shell.cpp:1010-1012`).
 	deluge_control_flush();
 }
 

@@ -51,7 +51,7 @@ namespace deluge::gui::ui {
 ///    `clearMainImage()` across `src/deluge`, less its declaration and its definition), including
 ///    `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp:351-371`), which clears it immediately before
 ///    asking each open UI to re-render. The shell is retained-mode: `Shell::flush`
-///    (`shell/shell.cpp:884-1003`) blits only a surface whose `blit_pending` a repaint raised. An
+///    (`shell/shell.cpp:884-1013`) blits only a surface whose `blit_pending` a repaint raised. An
 ///    aliased buffer that legacy zeroed between two shell renders would go blank with nothing to
 ///    tell the shell to paint it again.
 ///
@@ -81,7 +81,7 @@ public:
 	/// 20 ms shortcut-blink gate (`shell/shell.cpp:444-455`, a 50 Hz regression), so the worst case
 	/// is 432 B x 50/s = 21.6 kB/s -- and only for pairs whose colours actually changed, because
 	/// `Shell::flush` diffs each pair against `last_sent` before calling `send_columns` at all
-	/// (`shell/shell.cpp:931-947`). Legacy's own `sortLedsForCol` (`hid/led/pad_leds.cpp:260-275`)
+	/// (`shell/shell.cpp:941-957`). Legacy's own `sortLedsForCol` (`hid/led/pad_leds.cpp:260-275`)
 	/// already copies these same 16 colours into a `doubleColumn` for every pair it sends, so the
 	/// guest adds one copy of that same size per pair, not a new order of cost.
 	static constexpr uint32_t kGridCopyBytesPerFullFlush =
