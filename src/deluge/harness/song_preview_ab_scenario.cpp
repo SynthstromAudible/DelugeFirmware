@@ -20,7 +20,7 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/load/load_instrument_preset_ui.h" // presetDispatches(), the acquire stage's inert counter
+#include "gui/ui/load/load_instrument_preset_ui.h" // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h" // the converted caller, driven end to end below
 #include "gui/views/arranger_view.h"  // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
@@ -1661,11 +1661,12 @@ constexpr const char* kAcqNestedFirstName = "NESTED00";
 // gestures in this same stage), so the row actually written can differ from this one. Read back via
 // `arrangerView.yPressedEffective`, not this constant, for exactly that reason.
 constexpr int32_t kAcqRow = 0;
-// Read from the production counter this commit adds (LoadInstrumentPresetUI::presetDispatches());
-// nothing increments it yet -- a later task wires dispatchPresetAcquisition() to it -- which is why
-// the NonAudio and Coalesce checks below are inert until then.
+// Read from the production counter (LoadInstrumentPresetUI::presetAcquisitionsRun()): it counts ops
+// that actually RUN, not dispatch attempts. Nothing calls dispatchPresetAcquisition() yet -- a later
+// task wires a real gesture through it -- which is why the NonAudio and Coalesce checks below are
+// inert until then.
 int32_t acqDispatches() {
-	return LoadInstrumentPresetUI::presetDispatches();
+	return LoadInstrumentPresetUI::presetAcquisitionsRun();
 }
 int32_t g_acqLoads = 0;         // acquisition gestures that actually ran
 std::string g_acqReferenceName; // the instrument the synchronous leg settled on
@@ -1787,8 +1788,9 @@ void runAcquireTick() {
 		// merely counted per gesture -- counting gestures would make this always equal the loop
 		// bound by construction and could never fail, whatever the production code did.
 		//
-		// NOTE: inert until Task 3 -- dispatchPresetAcquisition() (Task 2) increments
-		// presetDispatches_, but nothing calls it until the arranger's caller is converted, so
+		// NOTE: inert until Task 3 -- runPresetAcquisitionOp() (Task 2) increments
+		// presetAcquisitionsRun_ once per op that actually runs, but nothing calls
+		// dispatchPresetAcquisition() until the arranger's caller is converted, so
 		// `loads` reads 0 and `0 >= kCoalesceGestures` is always false here. Written as a real
 		// assertion now (not a stub) so it arms itself the moment the counter starts counting, the
 		// same shape as AcquireStep::NonAudio below.
@@ -1810,9 +1812,9 @@ void runAcquireTick() {
 	}
 	case AcquireStep::NonAudio: {
 		// The MIDI/CV fast path (spec section 2c): no card, and so no dispatch at all.
-		// NOTE: inert until Task 3 -- presetDispatches() is 0 before the op exists, so
-		// this passes trivially here. It becomes a real check when dispatchPresetAcquisition()
-		// starts counting.
+		// NOTE: inert until Task 3 -- presetAcquisitionsRun() is 0 before anything calls
+		// dispatchPresetAcquisition(), so this passes trivially here. It becomes a real check once
+		// a real gesture starts dispatching.
 		const int32_t before = acqDispatches();
 		bool alreadyInSong = false;
 		(void)currentSong->getNonAudioInstrumentToSwitchTo(OutputType::CV, Availability::INSTRUMENT_UNUSED, 0, -1,

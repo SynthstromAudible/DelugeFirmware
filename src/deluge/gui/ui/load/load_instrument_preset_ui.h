@@ -128,12 +128,16 @@ public:
 	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
 	bool canDisplayFavourites() override { return true; }
 
-	/// @brief How many preset-acquisition dispatches have run since boot.
+	/// @brief How many preset-acquisition ops have actually RUN since boot.
 	///
-	/// Nothing increments this yet -- a later task wires it to dispatchPresetAcquisition(). Read by
-	/// the song-preview A/B harness's acquisition stage, which is inert until that dispatch exists.
-	/// @return The running dispatch count.
-	[[nodiscard]] static int32_t presetDispatches() { return presetDispatches_; }
+	/// Incremented once per runPresetAcquisitionOp() execution -- not once per
+	/// dispatchPresetAcquisition() call, so a superseded or dropped dispatch is never counted. Read
+	/// by the song-preview A/B harness's acquisition stage to tell a coalesced gesture from a
+	/// dropped one, and to prove a CV switch dispatches NOTHING. Nothing calls
+	/// dispatchPresetAcquisition() yet, so this stays 0 until a later task wires a real gesture
+	/// through it.
+	/// @return The running acquisition-run count.
+	[[nodiscard]] static int32_t presetAcquisitionsRun() { return presetAcquisitionsRun_; }
 
 	/// @brief Dispatch one instrument acquisition onto the storage owner.
 	///
@@ -180,15 +184,19 @@ private:
 	/// @param self The LoadInstrumentPresetUI instance.
 	static void runCommitOp(void* self);
 
-	/// @brief The dispatched acquisition op: runs the query named by presetCoalescer_.current(),
-	///        loads the preset if it is not already resident, then runs that consumer's follow-up.
+	/// @brief The dispatched acquisition op: counts itself in presetAcquisitionsRun(), takes the
+	///        snapshot off presetCoalescer_, sets Browser::currentDir from it, and runs that
+	///        request's consumer follow-up. Does not yet run `request.query` or load a preset --
+	///        later tasks extend the op to do both; today it only threads the snapshot through to
+	///        runAcquisitionFollowUp() and re-dispatches the latest-wins target if a newer gesture
+	///        arrived while it ran.
 	///
-	/// Runs on the storage owner (inline on legacy/host), which is what makes the reader's
-	/// recursive subfolder descent legal: the walk never crosses the seam (spec section 2b).
+	/// Runs on the storage owner (inline on legacy/host).
 	/// @param self The LoadInstrumentPresetUI instance.
 	static void runPresetAcquisitionOp(void* self);
 
 	/// @brief Runs one acquisition's consumer follow-up, on the owner. See runPresetAcquisitionOp().
+	/// @param request The snapshot the acquisition was dispatched with; see PresetRequest.
 	void runAcquisitionFollowUp(const deluge::storage::PresetRequest& request);
 
 	// Tells changeOutputType()'s Open listing apart from opened()'s in the shared onBrowserOpened()/
@@ -226,8 +234,10 @@ private:
 	std::string initialName{};
 	std::string initialDirPath{};
 
-	/// @brief Backing counter for presetDispatches(). Nothing increments it yet.
-	static inline int32_t presetDispatches_{};
+	/// @brief Backing counter for presetAcquisitionsRun(). Incremented once per
+	///        runPresetAcquisitionOp() execution (see its doc), not once per
+	///        dispatchPresetAcquisition() call.
+	static inline int32_t presetAcquisitionsRun_{};
 };
 
 extern LoadInstrumentPresetUI loadInstrumentPresetUI;

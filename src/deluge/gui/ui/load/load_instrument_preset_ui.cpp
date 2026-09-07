@@ -409,7 +409,6 @@ void LoadInstrumentPresetUI::runCommitOp(void* self) {
 }
 
 bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::PresetRequest& request) {
-	presetDispatches_++;
 	if (!presetCoalescer_.request(request)) {
 		return true; // superseded an in-flight op; that op will pick this up via complete()
 	}
@@ -424,6 +423,11 @@ bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::Pr
 
 void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
 	auto* ui = static_cast<LoadInstrumentPresetUI*>(self);
+	// Counts ops that actually RUN, not dispatch attempts: a superseded request() (dispatchPresetAcquisition
+	// returning early) or a dropped run_or_inline()/run() never reach here, so this must live here and
+	// not in dispatchPresetAcquisition() for presetAcquisitionsRun() to measure what its callers need
+	// (the Coalesce/NonAudio checks in the song-preview A/B harness).
+	ui->presetAcquisitionsRun_++;
 	// By value, not by reference: complete() below overwrites presetCoalescer_'s current_ in place,
 	// so a reference into it would dangle once complete() runs while runAcquisitionFollowUp() still
 	// needs `request` (contrast runScrollLoadOp(), which is done with its target before calling
@@ -446,8 +450,9 @@ void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
 }
 
 // Runs the follow-up for whichever gesture dispatched this acquisition. Every arm runs ON THE
-// OWNER, which is what makes the blocking read below it legal. Mutating UI state from here matches
-// the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
+// OWNER; every arm is empty today (wired in Tasks 3-5), but once filled in that's what will make a
+// blocking read inside one legal, and mutating UI state from here will match the established
+// pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
 // recalculateColours()/close(), both on the owner.
 void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request) {
 	using deluge::storage::PresetConsumer;
