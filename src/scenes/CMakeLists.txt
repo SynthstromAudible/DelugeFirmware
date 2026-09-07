@@ -115,7 +115,7 @@ add_library(deluge_scenes STATIC
     # symbol-by-symbol split between this file, the scene, and the dropped `PadLEDs` animation.
     timeline/timeline.cpp
     # E4 task 9: the slicer -- state, render and the three encoder arms. NOT a root scene: legacy's
-    # `Slicer` is a plain `UI` opened over the sample browser. See `slicer/slicer_scene.h`.
+    # `Slicer` is a plain `UI` opened over the sample browser. See `slicing/slicer_scene.h`.
     slicing/slicer_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}

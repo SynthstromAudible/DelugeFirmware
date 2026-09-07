@@ -110,7 +110,7 @@ bool SlicerScene::on_enter(const SceneId& id) {
 
 void SlicerScene::on_resume() {
 	// `focusRegained` is not only an opening hook: `closeUI` calls it on whatever is left on top
-	// after something above closes (`gui/ui/ui.cpp:200`), and `UI::opened()` calls it on the way in
+	// after something above closes (`gui/ui/ui.cpp:199`), and `UI::opened()` calls it on the way in
 	// (`gui/ui/ui.h:111-113`). So a menu or context menu opened over the slicer and then dismissed
 	// wipes the manual slices back to one at the origin, on the device as here. Reproduced, not
 	// tidied: it is one call in legacy and `on_resume` is exactly the edge it fires on.
@@ -289,11 +289,21 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		return;
 	}
 
-	const int32_t main_cols = std::min<int32_t>(f.bounds().w, kDisplayWidth);
-	const int32_t rows = std::min<int32_t>(f.bounds().h, kDisplayHeight);
-	if (main_cols <= 0 || rows <= 0) {
-		return;
-	}
+	// **The region is legacy's fixed 16x8, not the frame's own extent, and there is no clamp.**
+	// Every coordinate this scene draws at is a hard-coded constant in `renderMainPads`: the
+	// squashed waveform goes to rows 4..7 (`slicer.cpp:117-121`), the slice marks to row 4
+	// (`:122-129`), and the 64-slot grid is four pages of 4x4 laid out by `(i % 4) + (i / 16) * 4`
+	// and `(i / 4) % 4` (`:131-149`), which has no meaning at any other size. `drawColBar` centres
+	// its bars on `kDisplayHeight >> 1` too (`WaveformRenderer::drawColBar`,
+	// `gui/waveform/waveform_renderer.cpp:208-239`), not on whatever height it was handed -- so
+	// asking for exactly `kDisplayHeight` is what makes `ui::grid::waveform_full`, which centres on
+	// `f.bounds().h >> 1`, agree with it.
+	//
+	// A frame that cannot grant all of that is handled by `GridFrame` itself: `pad()` outside
+	// `visible()` paints nothing and `peek()` returns black, which is exactly what a clipped write
+	// would have left behind. An earlier cut of this function clamped both axes and then used
+	// legacy's constants anyway, which made the clamp decorative -- the review caught it, and the
+	// answer was to delete it rather than to spread it through arithmetic that is transcribed.
 
 	// `renderFullScreen`'s scan (`gui/waveform/waveform_renderer.cpp:51-54`), and its early return:
 	// a scan that could not load every cluster leaves the image **untouched** -- it returns before
@@ -308,7 +318,7 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	std::array<deluge::ui::grid::PeakCol, kDisplayWidth> peaks{};
 	const int32_t centre = nav_.sample->getFoundValueCentrePoint();
 	const int32_t span = nav_.sample->getValueSpan();
-	for (int32_t x = 0; x < main_cols; x++) {
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		if (nav_.renderData.colStatus[x] != COL_STATUS_INVESTIGATED) {
 			continue;
 		}
@@ -318,10 +328,10 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		peaks[static_cast<size_t>(x)] = {.min24 = min24, .max24 = max24, .valid = true};
 	}
 
-	f.region(deluge::gfx::grid::Rect{0, 0, main_cols, rows}, [&](deluge::ui::grid::GridFrame& main) {
+	f.region(deluge::gfx::grid::Rect{0, 0, kDisplayWidth, kDisplayHeight}, [&](deluge::ui::grid::GridFrame& main) {
 		// `renderOneCol`'s monochrome arm -- `rgb` is `nullopt` on both of legacy's calls, so
-		// `brightness` is 128 (`waveform_renderer.cpp:186`). `waveform_full`'s precondition,
-		// honoured.
+		// `brightness` is 128 (`WaveformRenderer::renderOneCol`,
+		// `gui/waveform/waveform_renderer.cpp:243-246`). `waveform_full`'s precondition, honoured.
 		deluge::ui::grid::waveform_full(main, peaks, deluge::ui::grid::kWaveformBarBrightnessMono, std::nullopt);
 
 		if (mode_ == Mode::Region) {
@@ -333,13 +343,13 @@ void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		// averages row pairs into the top half, so every read is of the untouched full-height
 		// render. Done in place that would be wrong -- row 6 reads rows 4 and 5, which rows 0 and 1
 		// have already overwritten -- so the full-height render is snapshotted first.
-		RGB src[kDisplayHeight][kDisplayWidth];
-		for (int32_t y = 0; y < rows; y++) {
-			for (int32_t x = 0; x < main_cols; x++) {
+		RGB src[kDisplayHeight][kDisplayWidth]{};
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			for (int32_t x = 0; x < kDisplayWidth; x++) {
 				src[y][x] = main.peek(x, y);
 			}
 		}
-		for (int32_t x = 0; x < main_cols; x++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
 			for (int32_t yy = 0; yy < kDisplayHeight / 2; yy++) {
 				(void)main.pad(x, yy + kWaveformRowBase, RGB::average(src[yy * 2][x], src[yy * 2 + 1][x]));
 			}

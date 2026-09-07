@@ -379,6 +379,35 @@ private:
 
 	void dispatch(const DelugeInputEvent& ev, uint32_t now_ms);
 	void defer(const DelugeInputEvent& ev, uint32_t now_ms);
+	/// @brief Turn one board encoder event's edge count into detents and emit a `UiEvent`.
+	///
+	/// @warning **`edges` is an `int8_t` and `dispatch` narrows into it with no clamp** --
+	///          `apply_encoder_edges(ev.x, static_cast<int8_t>(ev.value), now_ms)`
+	///          (`input_lowering.cpp:116`), where `DelugeInputEvent::value` is an `int16_t`. A
+	///          `DetentedEncoder` reports `edges_per_detent` (2) edges per click, so **an event
+	///          carrying more than 63 detents wraps negative**: 120 detents is 240 edges, which
+	///          narrows to -16. Measured, not predicted -- it is how
+	///          `sim/scenes_spec/slicer_scene_spec.cpp` first failed (a slice count of 136 became 0,
+	///          and a 100-detent vertical turn arrived as -28), and why every multi-turn gesture
+	///          there is split into <= 63-detent turns.
+	///
+	///          **Legacy saturates where this wraps, and does so on the far side of the detent
+	///          division.** `interpretEncoders` takes whole detents from the encoder
+	///          (`hid/encoder_input.cpp:112`, `int32_t detentDelta = fe.take()`) and then makes two
+	///          different choices, in a comment that says so: tempo and select get
+	///          `static_cast<int8_t>(std::clamp(detentDelta, -128, 127))` (`:117`), while
+	///          horizontal and vertical are handed the **full `int32_t`** (`:124`, `:140`) "for
+	///          natural acceleration". So legacy's worst case is a saturated turn; this one's is a
+	///          reversed turn, and its `UiEvent::delta` cannot express more than 127 detents at all.
+	///
+	///          Not widened here, because widening it is not local: it touches the board-event
+	///          boundary (`DelugeInputEvent`), `saturating_add` above (`:37`, which already caps
+	///          `tick_delta_` at `int8_t` -- the file's existing answer to this class of problem),
+	///          and `UiEvent::delta`. Reachable on hardware only by a spin fast enough to deliver 64
+	///          detents between two dispatches.
+	/// @param index  The board's encoder index, resolved through `BoardProfile::encoder_by_index`.
+	/// @param edges  Signed quadrature edges since the last event; see the warning.
+	/// @param now_ms The tick's clock.
 	void apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
 	void on_pad(uint8_t x, uint8_t y, uint8_t velocity);
 	void on_matrix(uint8_t x, uint8_t y, bool on, uint32_t now_ms);

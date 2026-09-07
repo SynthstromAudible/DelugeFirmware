@@ -755,10 +755,15 @@ Four things are worth finding from here rather than from the header.
   (`shell/shell.cpp:553-567`); claiming it here would stop the scene that owns the sidebar.
 * **The directory and namespace are `slicing`, not `slicer`.** `scenes-no-root-ui` lists the legacy
   global `slicer` as a whole word, and `#include "scenes/slicer/slicer_scene.h"` contains that whole
-  word -- so the directory name the plan asked for is a ratchet violation in every file that
-  includes the header, whatever the namespace is called. Global Constraint 10 wins. The file names
-  are the plan's, and `SlicerScene` / `kSlicerSceneKind` / `slicer_scene()` are unaffected, because
-  `\bslicer\b` does not match a name that continues into another word character.
+  word. Measured with the path put back and the namespace left alone: **two violations, in two
+  files, one line each** — this scene's own include and `registry.cpp`'s. (`count_file` skips
+  comment-only lines, `check_layer_rules.py:490-532`, so the prose mentions never counted.) Two real
+  include lines is not "the path is impossible"; it is "the row as written flags this path, and
+  narrowing it to skip `#include` would preserve its stated purpose exactly". That narrowing is a
+  change to a shared checker, so it is an open question for E4 task 14 and the local fix stands,
+  ratified: Global Constraint 10 (the baseline may only shrink) against a plan file path, with the
+  file names still the plan's. `SlicerScene` / `kSlicerSceneKind` / `slicer_scene()` are unaffected,
+  because `\bslicer\b` does not match a name that continues into another word character.
 * **The playhead is not ported, and the scene therefore has no timer.**
   `Slicer::graphicsRoutine` (`gui/ui/slicer.cpp:156-203`) is a per-tick redraw driven by audio, not
   a deadline: it walks the current kit's first drum for a sounding `VoiceSample` and hands rows 4-7

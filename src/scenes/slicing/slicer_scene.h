@@ -22,18 +22,41 @@
 /// It does not consume `scenes::timeline::TimelineState` either: legacy's slicer navigates a
 /// *sample*, through `waveformBasicNavigator`, not a timeline.
 ///
-/// @par The four composition predicates
+/// @par The composition predicates -- five, not the four the brief named
 ///
-/// | predicate | value | legacy |
-/// |---|---|---|
-/// | `is_root()` | false | `class Slicer final : public UI` (`slicer.h:33`) |
-/// | `oled_transparent(role)` | true | `Slicer()` sets `oledShowsUIUnderneath = true` (`slicer.h:35`), and `renderOLED`
-/// then clears only its own window | | `is_grid_overlay()` | true | `renderMainPads` (`slicer.cpp:103-152`) returns
-/// true, so it is drawn over whatever root is beneath and is not the grid base | | `occludes_grid()` | **false** |
-/// `Slicer` overrides `renderMainPads` only. It has no `renderSidebar`, and `UI::renderSidebar`'s base returns false
-/// (`gui/ui/ui.h:148-151`), so the sidebar beneath keeps painting -- exactly `MarkerScene`'s situation | |
-/// `dims_grid()` | false | legacy never halves what is beneath; `Slicer` has no `getGreyoutColsAndRows` either, so
-/// `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp:73-83`) walks past it to the browser below |
+///   * **`is_root()` -> false.** `class Slicer final : public UI` (`gui/ui/slicer.h:33`).
+///   * **`oled_transparent(role) -> true`.** `Slicer()` sets `oledShowsUIUnderneath = true`
+///     (`gui/ui/slicer.h:35`), and `renderOLED` then clears only its own window.
+///   * **`is_grid_overlay() -> true`.** `renderMainPads` (`gui/ui/slicer.cpp:103-152`) returns true
+///     unconditionally, so this is drawn over whatever root is beneath and is not the grid base.
+///   * **`occludes_grid() -> false.`** `Slicer` overrides `renderMainPads` only. It has no
+///     `renderSidebar`, and `UI::renderSidebar`'s base returns false (`gui/ui/ui.h:148-151`), so
+///     `doAnyPendingGridRendering`'s top-down walk (`gui/ui/ui.cpp:305-349`) keeps going and the
+///     sidebar beneath paints -- exactly `MarkerScene`'s situation. The predicate's own definition
+///     is "covers the grid COMPLETELY, so scenes beneath need not render" (`shell/scene.h`), and its
+///     one consumer is `Shell::tick_stack` (`shell/shell.cpp:553-567`), which stops advancing clocks
+///     beneath a scene that claims it; claiming it here would stop the clock of the scene that owns
+///     the sidebar.
+///   * **`dims_grid() -> false`** -- the fifth, and the one that is easy to miss, because its
+///     default is `is_grid_overlay()` and that is true here. Legacy never halves what is beneath the
+///     slicer: `Slicer` has no `getGreyoutColsAndRows` either, so `getUIGreyoutColsAndRows`
+///     (`gui/ui/ui.cpp:73-83`) walks past it to the browser below. Taking the default would halve a
+///     sidebar legacy never greys.
+///
+/// @par The one legacy predicate that points the other way, and why it does not change the answer
+///
+/// `Slicer::canSeeViewUnderneath()` returns **false** (`gui/ui/slicer.h:38`) -- the only legacy
+/// predicate on this class that says "do not run the layer beneath". It has two consumers in the
+/// tree and neither is about grid composition:
+///
+///   * `UI::graphicsRoutine` (`gui/ui/ui.cpp:47-51`), which forwards the per-tick redraw to the root
+///     UI only when it is true. Moot for `Slicer`, which overrides `graphicsRoutine` itself.
+///   * `Session::armingChanged` (`playback/mode/session.cpp:1295`), which uses it to decide whether
+///     an arming change should raise `Dirty::Oled` and flash the play LED. That is an OLED question
+///     -- with the slicer's own page up, the session view's OLED content is not on screen -- and
+///     false is right for it. It says nothing about which pads get painted.
+///
+/// Neither is `renderSidebar`, and `renderSidebar` is what the grid walk actually consults.
 ///
 /// @par What draws what
 ///
@@ -41,12 +64,12 @@
 /// `scenes-no-frame-primitives`), and nothing names `waveformRenderer` or `waveformBasicNavigator`
 /// (`scenes-no-legacy-waveform`):
 ///
-/// | legacy | here |
-/// |---|---|
-/// | `renderOLED`'s window, rule, label and centred count (`slicer.cpp:74-98`) | `ui::oled::count_window` |
-/// | `renderMainPads`' `waveformRenderer.renderFullScreen` (`:108`, `:114`) | `deluge::sample::find_peaks_per_col` +
-/// `ui::grid::waveform_full` | | the MANUAL slice grid and slice marks (`:117-149`) | `GridFrame::pad` through the
-/// region, with the colours resolved here |
+///   * `renderOLED`'s window, rule, label and centred count (`gui/ui/slicer.cpp:74-98`) ->
+///     `ui::oled::count_window`.
+///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls (`:108`, `:114`) ->
+///     `deluge::sample::find_peaks_per_col` + `ui::grid::waveform_full`.
+///   * the MANUAL slice grid and slice marks (`:117-149`) -> `GridFrame::pad` through the region,
+///     with the colours resolved here.
 ///
 /// @par `graphicsRoutine` -- the playhead -- is deliberately not ported
 ///
@@ -90,15 +113,21 @@
 ///
 /// @par Why the directory and namespace are `slicing/` and not `slicer/`
 ///
-/// The plan asks for `src/scenes/slicer/slicer_scene.{h,cpp}`, and that path cannot exist. The
-/// `scenes-no-root-ui` ratchet (`scripts/check_layer_rules.py`'s `ROOT_UI_GLOBALS`) lists the
-/// legacy global `slicer` (`gui/ui/slicer.cpp:55`) among the names `src/scenes/**` may never spell,
-/// as a whole-word pattern -- and `#include "scenes/slicer/slicer_scene.h"` contains that whole
-/// word, so the directory name alone is a violation on every file that includes this header,
-/// whatever the namespace is called. Global Constraint 10 (the baseline may only shrink) is the
-/// stronger of the two requirements, so the directory and the namespace are `slicing` and the file
-/// names are the plan's. `SlicerScene`, `kSlicerSceneKind` and `slicer_scene()` are all unaffected:
-/// `\bslicer\b` does not match a name that continues into another word character.
+/// The plan asks for `src/scenes/slicer/slicer_scene.{h,cpp}`. The `scenes-no-root-ui` ratchet
+/// (`scripts/check_layer_rules.py`'s `ROOT_UI_GLOBALS`) lists the legacy global `slicer`
+/// (`gui/ui/slicer.cpp:55`) among the names `src/scenes/**` may never spell, as a whole-word
+/// pattern -- and `#include "scenes/slicer/slicer_scene.h"` contains that whole word. **Measured,
+/// with the path put back and the namespace left alone: two violations, in two files, one line
+/// each** -- this file's own include and `registry.cpp`'s. `count_file` skips comment-only lines
+/// (`check_layer_rules.py:490-532`), so the docstring mentions above never counted.
+///
+/// Two real include lines is not "the path is impossible"; it is "the row as written flags this
+/// path, and narrowing it to skip `#include` would preserve its stated purpose exactly". That
+/// narrowing is a change to a shared checker, so it went up as an open question for E4 task 14
+/// rather than being made here, and the local fix stands: the directory and the namespace are
+/// `slicing`, ratified by the controller, and the file names are the plan's. `SlicerScene`,
+/// `kSlicerSceneKind` and `slicer_scene()` are all unaffected -- `\bslicer\b` does not match a name
+/// that continues into another word character.
 ///
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
 ///          `Action` in `shell/scene.h`.
