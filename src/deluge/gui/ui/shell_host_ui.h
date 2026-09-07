@@ -99,14 +99,16 @@ namespace deluge::gui::ui {
 ///
 /// `TimerName::UI_SPECIFIC` is the timer, dispatched to `getCurrentUI()` by
 /// `UITimerManager::routine` (`gui/ui_timer_manager.cpp:142-148`). Legacy clears it out from under
-/// its owner at four places -- `changeUIAtLevel` (`gui/ui/ui.cpp:92`), `changeRootUI` (`:113`),
+/// its owner at four places -- `changeUIAtLevel` (`gui/ui/ui.cpp:92`), `changeRootUI` (`:112-114`,
+/// the only conditional one: it clears only while `currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW`),
 /// `closeUI` (`:197`) and `openUI` (`:233`) -- all of them *before* the `opened()`/`focusRegained()`
 /// that follows, so arming from those two hooks is safe and is the only thing that makes the guest
-/// survive a UI opening and closing over it.
+/// survive a UI opening and closing over it. The guest arms unconditionally, so the one conditional
+/// clear costs it nothing; it is named because a reader counting clears would otherwise miscount.
 ///
 /// @par The unit mismatch: an absolute deadline against a duration
 ///
-/// `Shell::next_wake()` is an **absolute** millisecond deadline (`shell/shell.h:306`), recomputed at
+/// `Shell::next_wake()` is an **absolute** millisecond deadline (`shell/shell.h:327`), recomputed at
 /// the bottom of every tick (`shell/shell.cpp:515`). `UITimerManager::setTimer` takes a **duration**
 /// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:253-255`). The
 /// conversion is therefore `in = (int32_t)(deadline - now)`, in the wrap-safe difference form
@@ -125,19 +127,28 @@ namespace deluge::gui::ui {
 /// @par Why the floor is 1 ms and not 0 -- the busy loop this shell has shipped before
 ///
 /// `Scene::next_timer()` may legally return **0**, meaning "next tick"
-/// (`shell/scene.h:452-494`), and `AudioClipScene::next_timer()` returns it for the whole of
+/// (`shell/scene.h:452-504`), and `AudioClipScene::next_timer()` returns it for the whole of
 /// playback (`scenes/audio_clip/audio_clip_scene.cpp:1187-1193`). `Shell::next_wake()`'s own
 /// `@warning` records that a host cannot tell that apart from "wake once, immediately", and that the
 /// shell "only ticks when its host asks it to" -- **this class is that host**, so the answer is here.
 ///
 /// `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at exactly `AudioEngine::audioSampleTimer`
-/// (`gui/ui_timer_manager.cpp:257-266`) and `timeNextEvent` with it, which defeats
-/// `UITimerManager::routine`'s own early return (`gui/ui_timer_manager.cpp:54-57`): the whole
-/// 29-timer sweep would then run on **every** call of the main loop, for as long as the guest kept
-/// re-arming at zero. That is the busy loop, and it is a property of legacy's manager rather than of
-/// the shell. `kMinRearmMs` (1 ms = 44 samples) is the smallest duration `setTimer`'s `ms * 44` can
-/// express that leaves `triggerTime` strictly in the future, so the fast path keeps working and the
-/// tick still lands on the next opportunity.
+/// (`gui/ui_timer_manager.cpp:257-266`) and `timeNextEvent` with it. **`kMinRearmMs` (1 ms = 44
+/// samples) is the smallest duration `setTimer`'s `ms * 44` can express that leaves `triggerTime`
+/// strictly in the future**, and that is the whole of the argument: with zero, `triggerTime` is
+/// already behind the audio sample timer by the time `UITimerManager::routine` is next called at all
+/// -- audio advances at 44.1 kHz, far faster than the main loop the routine is called from -- so
+/// `timeNextEvent` is past, the early return at `gui/ui_timer_manager.cpp:54-57` does not fire, and
+/// the timer's own test at `:64-65` is true. The whole 29-timer sweep and the shell's whole tick
+/// would then run on **every** pass of the main loop, for as long as the guest kept re-arming at
+/// zero. With 44 samples they run at most once a millisecond.
+///
+/// @note Precisely at the instant of arming, `timeNextEvent - audioSampleTimer` is **0**, and
+///       `routine`'s guard is `>= 0`, so the early return *is* taken and the timer does not fire
+///       that instant -- it becomes due one audio sample (~22.7 us) later. An earlier draft of this
+///       paragraph said a zero arm "defeats the early return"; it does not, and the distinction is
+///       recorded because the conclusion rests on the sample timer advancing between two calls of
+///       `routine`, not on the guard being wrong.
 ///
 /// @warning **1 ms is not legacy's animation cadence, and a future tenant will want the difference.**
 ///          Legacy's per-frame hook is `graphicsRoutine`, whose one external driver is
@@ -157,7 +168,7 @@ namespace deluge::gui::ui {
 ///
 /// **There is no `LedSink`, and this class implements no LED sink.** Spec F §2.1 says "the guest's
 /// `derive_leds` writes through an `indicator_leds` `LedSink`"; `grep -rn LedSink src/` has no hits,
-/// `derive_leds` is a private member of `Shell` (`shell/shell.h:429`) rather than of the guest, and
+/// `derive_leds` is a private member of `Shell` (`shell/shell.h:450`) rather than of the guest, and
 /// the writing is done by `Shell::flush`, not by `derive_leds` (`shell/shell.cpp:966-992`). The seam
 /// that actually exists is `SurfaceSet::set_led`/`set_indicator`, implemented for the guest by F1
 /// task 4 (`gui/ui/shell_guest_surfaces.cpp:175`, `:189`). What this task adds is the *tick* that

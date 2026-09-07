@@ -298,9 +298,27 @@ public:
 	///          every tick, for ever, which is indistinguishable from the busy loop the screensaver
 	///          service shipped before its refusal latch (see `Screensaver`'s note below).
 	///
-	///          It is not a bug today and it is not costing anything: the shell only ticks when its
-	///          host asks it to, and the grid's flush diffs against `last_sent`, so a repaint that
-	///          changed no pixel sends nothing. It is **owed** as an expressiveness gap, and it is
+	///          `0u` is still the right answer for a scene: zero means "next tick", and the *rate* is
+	///          the host's decision rather than the scene's. `AudioClipScene` claims
+	///          `{.oled = false, .grid = true}`, so there is no per-tick OLED blit, and the grid's
+	///          flush diffs against `last_sent`, so a tick on which the column did not move sends
+	///          nothing.
+	///
+	///          **What is no longer true is "free", and F1 task 7 is what made it untrue.** This
+	///          paragraph used to say "it is not costing anything: the shell only ticks when its host
+	///          asks it to". There is now a host -- `ShellHostUI` (`gui/ui/shell_host_ui.h`) -- and
+	///          it converts this hook's answer into a `TimerName::UI_SPECIFIC` duration with a floor
+	///          of 1 ms, because zero would leave `triggerTime` at the current audio sample and fire
+	///          the timer on every pass of the main loop. So while a zero-`next_timer()` scene is
+	///          stacked under that host the cost is paid twice: the scene's grid gate is re-armed at
+	///          `now` on every tick, which is a full grid *render* at up to 1 kHz, and the guest
+	///          re-arms `UI_SPECIFIC` at 1 ms, which runs legacy's whole 29-timer sweep at up to
+	///          1 kHz where `graphicsRoutine` -- the thing this is faithful to -- runs at ~66 Hz
+	///          (`gui/ui_timer_manager.cpp:213-218`). Latent rather than live: the guest's only
+	///          tenant today is `MenuScene`, whose `next_timer()` answers `std::nullopt` for most of
+	///          the tree. It stops being latent the moment `AudioClipScene` becomes a guest tenant.
+	///
+	///          It is **owed** as an expressiveness gap, and it is
 	///          recorded here rather than at `next_timer()` because the host author scheduling on
 	///          this value is the one who needs it. Whoever closes it wants a third answer -- a
 	///          per-frame cadence, or a distinct "every tick" sentinel -- not a change to what zero

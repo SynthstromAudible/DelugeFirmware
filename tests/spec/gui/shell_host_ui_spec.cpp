@@ -290,6 +290,21 @@ const PatternScene::Seen* first_of(const PatternScene& scene, UiEvent::Kind kind
 	return nullptr;
 }
 
+/// @brief A `Service` that declares one knob indicator, standing in for `ModKnobs`.
+///
+/// `Shell::flush` calls `SurfaceSet::set_indicator` only for an indicator declared this tick
+/// (`shell/shell.cpp:996-1008`), and the only declarer in the shipped tree is
+/// `scenes::services::ModKnobs` (`scenes/services/mod_knobs.cpp:687`) -- a *service*, which F1 task 8
+/// installs and this guest does not have. This is the smallest thing that stands where `ModKnobs`
+/// will stand, so "the guest writes no indicator" can be shown to be about the declaration rather
+/// than about the guest.
+class IndicatorService final : public Service {
+public:
+	void leds(deluge::ui::LedFrame& frame) override {
+		(void)frame.indicator(deluge::ui::IndicatorId::Lower, deluge::ui::KnobIndicator{{0x11, 0x22, 0x5A, 0x77}});
+	}
+};
+
 /// @brief Put the guest's clock at \p ms.
 ///
 /// `ShellHostUI::nowMs()` is `getSystemTime() * 1000` truncated to an integer, and `getSystemTime()`
@@ -1271,7 +1286,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("arms the floor -- not zero -- for a deadline that is already now, and does not wedge there", _ {
 		Rig r;
 		// `Scene::next_timer()` may legally answer 0, meaning "next tick"
-		// (`shell/scene.h:452-494`); `AudioClipScene` answers it for the whole of playback
+		// (`shell/scene.h:452-504`); `AudioClipScene` answers it for the whole of playback
 		// (`scenes/audio_clip/audio_clip_scene.cpp:1187-1193`). `next_wake()` is then `now_ms` on
 		// every tick, for ever.
 		r.base.timer = 0;
@@ -1284,10 +1299,12 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.guest.shell().next_wake().value_or(0)).to_equal(uint32_t(500));
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 
-		// `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at exactly the audio sample timer and
-		// defeat `UITimerManager::routine`'s early return (`gui/ui_timer_manager.cpp:54-57`), so the
-		// whole timer sweep would run on every pass of the main loop for as long as this scene is
-		// stacked. The floor is what stops that; the chain must still make progress.
+		// `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at exactly the audio sample timer, which
+		// the audio engine leaves behind before `UITimerManager::routine` is next called at all -- so
+		// the whole timer sweep, and the shell's whole tick, would run on every pass of the main loop
+		// for as long as this scene is stacked. 1 ms is the smallest duration `setTimer`'s `ms * 44`
+		// can express that leaves `triggerTime` strictly in the future. The floor is what stops that;
+		// the chain must still make progress.
 		uint32_t now = 500;
 		const std::vector<uint32_t> fired = run_quiet(r.guest, now, 4);
 		expect(fired.size()).to_equal(size_t(4));
@@ -1504,18 +1521,26 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		}
 		expect(led_history(static_cast<uint8_t>(IndicatorLED::PLAY)).empty()).to_be_true();
 
-		// **And the other direction: an LED the scene stops declaring goes back to legacy.** The
-		// blink phase keeps flipping -- `led_is_on` is a pure function of the clock -- so a guest
-		// that kept writing it would be caught here rather than merely be idle.
+		// **And the other direction: an LED the scene stops declaring goes back to legacy.** Only the
+		// declaration is varied -- same scene, same clock, same blink. The arm the fifth tick left
+		// standing is the blink's own next boundary (640 = 512 + 128), so the next tick lands exactly
+		// where a guest that still thought it owned the LED would write the flip. Nothing is re-armed
+		// by hand here: that the chain continues at all is part of what is being asserted.
 		const size_t before = fakelegacy::led_writes.size();
 		r.base.led_declared = false;
-		r.guest.shell().stack().top(); // no state change; only the declaration is varied
-		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 128);
-		(void)run_quiet(r.guest, now, 4);
+		const std::vector<uint32_t> after = run_quiet(r.guest, now, 4);
+
+		// **Exactly ONE further tick runs, and that is the mechanism rather than a limitation.** With
+		// nothing declared the composed `LedFrame` is empty, so `compute_next_wake`'s blink loop
+		// (`shell/shell.cpp:1077-1081`) has no source, `next_wake()` is `std::nullopt` and the chain
+		// ends -- which is itself the ownership rule showing through the wake computation. One tick
+		// is all this assertion needs: it is the tick on which the flip would have been written.
+		expect(after.size()).to_equal(size_t(1));
+		expect(nth_or(after, 0, uint32_t(0))).to_equal(uint32_t(640)); // 512 + 128, a phase boundary
 		expect(fakelegacy::led_writes.size()).to_equal(before);
 	});
 
-	it("declares no knob indicator, so it writes none -- the shadow cannot go stale yet", _ {
+	it("writes a knob indicator only when something declares one -- which nothing does in phase 4", _ {
 		Rig r;
 		r.base.led_declared = true;
 		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
@@ -1533,6 +1558,31 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// reading of the code: the LED writes above prove the tick ran.
 		expect(fakelegacy::indicator_writes.empty()).to_be_true();
 		expect(fakelegacy::led_writes.empty()).to_be_false();
+
+		// **And the other half, so the claim is about the declaration and not about the guest never
+		// writing indicators at all.** Installing a service that declares one -- which is exactly
+		// what F1 task 8 does with `ModKnobs`, through the `Shell::set_services` F1 task 2 built for
+		// it -- makes the very next tick write it. That write is the moment legacy's
+		// `knobIndicatorLevels[]` shadow starts diverging from the hardware, and
+		// `GuestSurfaceSet::set_indicator` cannot update it, so the guest's close path will need
+		// `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`).
+		//
+		// This example cannot fail when task 8 lands -- it builds its own `Services` and the real
+		// installation happens in `deluge.cpp` -- so it is a demonstration of the mechanism and the
+		// hand-over, not a guard. The guard belongs in task 8's own spec, and this is the shape it
+		// has to cover.
+		IndicatorService svc;
+		r.guest.shell().set_services(Services{.mod_knobs = &svc});
+		expect(run_quiet(r.guest, now, 1).size()).to_equal(size_t(1));
+		expect(fakelegacy::indicator_writes.size()).to_equal(size_t(1));
+		// Read through a fallback for the same reason as `nth_or` above: a mutation that stops the
+		// chain leaves this vector empty, and an out-of-range read is undefined behaviour rather than
+		// a failed expectation.
+		const fakelegacy::IndicatorWrite got =
+		    fakelegacy::indicator_writes.empty() ? fakelegacy::IndicatorWrite{} : fakelegacy::indicator_writes[0];
+		expect(got.which).to_equal(uint8_t(0)); // IndicatorId::Lower
+		expect(got.count).to_equal(uint8_t(4));
+		expect(got.levels[2]).to_equal(uint8_t(0x5A));
 	});
 
 });

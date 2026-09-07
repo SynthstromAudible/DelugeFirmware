@@ -396,7 +396,7 @@ ActionResult ShellHostUI::timerCallback() {
 
 	// **Before the tick, not after**, and it is the same ordering every input hook below uses:
 	// `InputLowering::set_sd_busy(false)` replays the deferred queue into the ordinary one
-	// (`shell/input_lowering.cpp:134-160`), and `Shell::tick`'s step 3 is what drains that
+	// (`shell/input_lowering.cpp:134-156`), and `Shell::tick`'s step 3 is what drains that
 	// (`shell/shell.cpp:311`). Released after the tick, a press would wait a whole extra tick.
 	//
 	// This line is what makes the SD release *time*-driven. F1 task 6 wired `set_sd_busy` into the
@@ -465,7 +465,7 @@ void ShellHostUI::armTickSoon() {
 // and `:256-259`, the replay at `:295-305`). One event deep. The port of that is
 // `InputLowering::set_sd_busy`, which queues up to `kDeferredCapacity` (8) events and replays them
 // in arrival order, each with the clock it arrived at, when the lock is released
-// (`shell/input_lowering.cpp:134-160`). So the guest **defers rather than drops**, and it never
+// (`shell/input_lowering.cpp:134-156`). So the guest **defers rather than drops**, and it never
 // returns `REMIND_ME_OUTSIDE_CARD_ROUTINE`.
 //
 // **The release is time-driven, as of F1 task 7.** The hooks below still ask on every input, but

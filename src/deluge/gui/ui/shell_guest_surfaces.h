@@ -71,7 +71,7 @@ public:
 	/// possible"), so there is no millisecond floor to quote. The fastest *fixed* cadence in the
 	/// tree that arms an OLED gate is `RecorderScene`'s `kRecorderPollMs = 10`
 	/// (`src/scenes/recorder/recorder_scene.h:180`), which takes `Scene::timer_repaints()`'s
-	/// `{.oled = true, .grid = true}` default (`shell/scene.h:561`) because it does not override it
+	/// `{.oled = true, .grid = true}` default (`shell/scene.h:571`) because it does not override it
 	/// -- 768 B x 100/s = 76.8 kB/s on one panel, and a floor rather than a ceiling.
 	///
 	/// For scale, legacy already memcpys up to this whole image per frame in
@@ -93,7 +93,7 @@ public:
 	/// version of this note quoted a 20 ms ceiling that two shipped scenes already exceed).
 	/// `AudioClipScene::next_timer()` returns `0u` for as long as the playhead is live
 	/// (`src/scenes/audio_clip/audio_clip_scene.cpp:1193`) with `{.oled = false, .grid = true}`
-	/// (`audio_clip_scene.h:474`), so the grid gate arms on **every tick** and there is no
+	/// (`audio_clip_scene.h:477`), so the grid gate arms on **every tick** and there is no
 	/// millisecond ceiling to name. What makes that free is that `Shell::flush` diffs each pair
 	/// against `last_sent` before calling `send_columns` at all (`shell/shell.cpp:941-957`): a tick
 	/// in which no pad changed colour costs zero bytes however fast the ticks come, and the 432 B

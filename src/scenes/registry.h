@@ -4,7 +4,7 @@
 ///
 /// One `SceneRegistry` for the whole application. The shell installs its own
 /// `Popup`/`Console`/`Working`/`Loading` instances over whatever the registry reported
-/// (`shell/shell.h:120-126,330-342`), so an entry in one of those four slots is simply ignored.
+/// (`shell/shell.h:130-133`), so an entry in one of those four slots is simply ignored.
 ///
 /// `SceneKind::Screensaver` is the exception among the shell's own kinds, and the one entry here
 /// that is not an application kind: the shell owns no screensaver *scene* -- `shell::Screensaver`

@@ -168,7 +168,7 @@ the hook it belongs to.
      deferred it to task 8 for a reason that was false.** `InputLowering::set_shift_is_sticky` exists
      (`shell/input_lowering.cpp:334-341`) precisely because "the settings menu toggles it live"
      (`shell/input_lowering.h:29-30`), and `Shell::lowering()` is public and non-const
-     (`shell/shell.h:311`) — so nothing about `LoweringConfig` being construction-time applies to
+     (`shell/shell.h:332`) — so nothing about `LoweringConfig` being construction-time applies to
      *this* field. `ShellHostUI::opened()` now seeds it from
      `runtimeFeatureSettings.get(ShiftIsSticky)`, and `ShiftIsSticky::writeCurrentValue`
      (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`) mirrors it live, alongside the
@@ -232,7 +232,7 @@ at the code.
 
 - **`next_wake_` is an absolute deadline; `setTimer` takes a duration.** The row does not say which,
   and the two are different units. `Shell::next_wake()` returns `std::optional<uint32_t>`, an
-  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:306`,
+  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:327`,
   `shell/shell.cpp:515`); `UITimerManager::setTimer(which, ms)` is a duration and converts it with
   `ms * 44` into audio samples (`gui/ui_timer_manager.cpp:253-255`). The guest converts with the
   wrap-safe difference `(int32_t)(deadline - now)` — the form `compute_next_wake` and `RepaintGate`
@@ -243,11 +243,15 @@ at the code.
 - **A deadline of `now_ms` must not arm zero.** `Scene::next_timer()` may answer 0, meaning "next
   tick" (`shell/scene.h`), and `AudioClipScene::next_timer()` answers it for the whole of playback
   (`scenes/audio_clip/audio_clip_scene.cpp:1187-1193`), so `next_wake()` reports `now_ms` on every
-  tick for as long as that scene is stacked. `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at
-  exactly `AudioEngine::audioSampleTimer` (`gui/ui_timer_manager.cpp:257-266`) and `timeNextEvent`
-  with it, defeating `UITimerManager::routine`'s own early return (`:54-57`) — the whole 29-timer
-  sweep would then run on every pass of the main loop, for ever. The floor of 1 ms is the smallest
-  duration `setTimer` can express that leaves `triggerTime` strictly in the future.
+  tick for as long as that scene is stacked. **The floor of 1 ms is the smallest duration `setTimer`
+  can express that leaves `triggerTime` strictly in the future** (`ms * 44`, so 44 samples), and that
+  is the whole argument: `setTimer(UI_SPECIFIC, 0)` puts `triggerTime` at exactly
+  `AudioEngine::audioSampleTimer` (`gui/ui_timer_manager.cpp:257-266`), which the audio engine leaves
+  behind before `UITimerManager::routine` is next called at all, so the whole 29-timer sweep and the
+  shell's whole tick would run on every pass of the main loop, for ever. (Precisely at the instant of
+  arming the difference is 0 and `routine`'s `>= 0` guard *does* return early, `:54-57`; the argument
+  rests on the sample timer advancing between two calls, not on that guard failing. An earlier draft
+  of this bullet said a zero arm "defeats" it, which is false at exactly the boundary it is about.)
 - **Legacy's per-frame cadence is 15 ms, not the main loop's rate**, and three docs in this stack
   said otherwise (`shell/scene.h`'s `next_timer`, `shell/shell.h`'s `next_wake`,
   `scenes/audio_clip/audio_clip_scene.h`'s `next_timer`, all corrected in place).
@@ -257,15 +261,16 @@ at the code.
   15 ms floor would put 15 ms of latency on the repaint after *every* press — which legacy does not
   have, since `doAnyPendingUIRendering` runs from the main loop (`gui/ui/ui.cpp:375-396`).
 - **The row omits that legacy disarms `UI_SPECIFIC` from under its owner**, at
-  `changeUIAtLevel` (`gui/ui/ui.cpp:92`), `changeRootUI` (`:113`), `closeUI` (`:197`) and `openUI`
-  (`:233`) — each of them immediately before the `opened()`/`focusRegained()` that follows. Since
+  `changeUIAtLevel` (`gui/ui/ui.cpp:92`), `changeRootUI` (`:112-114` — the one conditional clear, on
+  `currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW`), `closeUI` (`:197`) and `openUI` (`:233`) —
+  each of them immediately before the `opened()`/`focusRegained()` that follows. Since
   nothing inside the guest runs except `Shell::tick`, a guest that armed only in `opened()` would
   freeze the moment any UI opened over it and closed again. The guest therefore arms from `opened()`
   (success path only), `focusRegained()`, `displayOrLanguageChanged()`, `exitUI()`'s survive path and
   all five input hooks — and deliberately **not** from `exitUI()`'s close path, where `closeUI` is
   about to unset it and where an arm would deliver this guest's callback to the UI beneath.
 - **There is no `LedSink`.** `grep -rn LedSink src/` has no hits. `derive_leds` is a private member
-  of `Shell` (`shell/shell.h:429`), not of the guest, and it does not write anything: it composes the
+  of `Shell` (`shell/shell.h:450`), not of the guest, and it does not write anything: it composes the
   frame and fills the `desired_*` shadows (`shell/shell.cpp:838-857`), and `Shell::flush` is what
   calls `SurfaceSet::set_led` (`shell/shell.cpp:966-992`). The `indicator_leds` half of the sentence
   is right and was already built by F1 task 4 (`GuestSurfaceSet::set_led`). What task 7 adds is the
@@ -360,10 +365,10 @@ correction is the interesting part.** The first version of this paragraph quoted
 fastest grid gate, 20 ms". There is no such ceiling, and two shipped scenes already exceed it:
 `RecorderScene` polls at `kRecorderPollMs = 10` (`src/scenes/recorder/recorder_scene.h:180`) and does
 not override `timer_repaints()`, so it takes `Scene`'s `{.oled = true, .grid = true}` default
-(`src/shell/scene.h:561`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
+(`src/shell/scene.h:571`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
 returns `0u` for as long as the playhead is live
 (`src/scenes/audio_clip/audio_clip_scene.cpp:1193`) with `{.grid = true}`
-(`audio_clip_scene.h:474`), so the grid gate arms every tick and no millisecond figure bounds it at
+(`audio_clip_scene.h:477`), so the grid gate arms every tick and no millisecond figure bounds it at
 all. Sweeping the tree (14 `next_timer()` overrides against 6 `timer_repaints()` overrides) there is
 no cadence ceiling to quote for either surface.
 
