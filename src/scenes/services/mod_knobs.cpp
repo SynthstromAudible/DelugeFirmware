@@ -294,8 +294,13 @@ Result ModKnobs::mod_encoder_action(int32_t which_encoder, int32_t offset, uint3
 		}
 		else {
 			// `:868-899` -- the popup, and the three tests that suppress it.
-			if (!popup_suppressed(turn)) {
-				show_popup(turn, now_ms);
+			if (!popup_suppressed(turn) && show_popup(turn, now_ms)) {
+				// `:1245` again: legacy's notification write blits. Here the write is the scene's
+				// and the blit is this action. `Repaint` and not `RepaintAll` -- the popup is
+				// OLED-only (`ParamPopupScene::dims_grid()` is false and it draws no grid), so
+				// arming the grid would buy a diff of nothing.
+				(void)result.actions.push_back(
+				    Action{.kind = Action::Kind::Repaint, .surface = deluge::ui::shell::SurfaceRole::Main});
 			}
 
 			if (turn.value_changed) { // `:902-904`, negated
@@ -353,7 +358,7 @@ bool ModKnobs::popup_suppressed(const ModTurn& turn) const {
 	return focused->bind.param.kind == turn.kind && static_cast<int32_t>(focused->bind.param.index) == turn.param_id;
 }
 
-void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
+bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 	// `:887-899` -- the two patch sources, then the popup itself.
 	PatchSource source1 = PatchSource::NONE;
 	PatchSource source2 = PatchSource::NONE;
@@ -386,17 +391,27 @@ void ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 	// `context.stuttering` stays false: nothing in the port owns the stutter gesture yet, so
 	// `isUIModeActive(UI_MODE_STUTTERING)` has no answer here. See `overlay::PopupContext`.
 
-	popup_.show(turn.kind, turn.param_id, turn.new_knob_pos, source1, source2, now_ms, context);
+	// **The return value is load-bearing, and E4 task 13 is why.** `:1245`'s
+	// `display->displayNotification(...)` is a write *and* a blit; `ParamPopupScene::show` can only
+	// do the write, so it reports back whether the arbitration committed a redraw and this function
+	// hands that to `mod_encoder_action`, which files the `Repaint`. Without it, a second detent on
+	// an already-open popup moved the scene's text and nothing repainted the panel -- the push below
+	// arms the gate for the FIRST turn only, and the scene's own `next_timer()` while showing is the
+	// popup's whole `kPopupLifetimeMs`, so the next OLED frame was the one that drew the popup
+	// disappearing. Found by recording a level-2 golden and looking at it
+	// (`tests/ui-scripts/shell/param_popup.txt`).
+	const bool committed = popup_.show(turn.kind, turn.param_id, turn.new_knob_pos, source1, source2, now_ms, context);
 
 	// The popup is a scene, so it has to be *on* the stack to be drawn. `SceneStack::push` only,
 	// and only when it is not already stacked: it is `input_transparent()`, so a scene may
 	// legitimately sit above it, and pushing a second copy would leak a stack entry per turn.
 	for (const deluge::ui::shell::Scene* scene : stack_.scenes()) {
 		if (scene->kind() == overlay::kParamPopupSceneKind) {
-			return;
+			return committed;
 		}
 	}
 	(void)stack_.push(SceneId{.kind = overlay::kParamPopupSceneKind});
+	return committed;
 }
 
 void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, const ModTurn& turn) {

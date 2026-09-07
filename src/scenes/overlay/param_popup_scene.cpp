@@ -236,12 +236,12 @@ int32_t format_value(Kind kind, int32_t param_id, int32_t knob_pos, const PopupC
 
 } // namespace
 
-void ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1, PatchSource source2,
+bool ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1, PatchSource source2,
                            uint32_t now_ms, PopupContext context) {
-	attempt_display(kind, param_id, knob_pos, source1, source2, now_ms, context);
+	return attempt_display(kind, param_id, knob_pos, source1, source2, now_ms, context);
 }
 
-void ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
+bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
                                       PatchSource source2, uint32_t now_ms, PopupContext context) {
 	// `displayModEncoderValuePopup`'s formatting half (view.cpp:1108-1196): always recomputed,
 	// whether or not the arbitration below ends up using it -- legacy does the same work on every
@@ -312,6 +312,9 @@ void ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 		last_actual_display_ms_ = now_ms;
 		has_pending_ = false;
 		pending_flush_remaining_ms_ = 0;
+		// `:1245`'s `display->displayNotification(...)` is a write AND a blit. This scene can only
+		// do the write, so it reports the blit back to its caller -- see `show()`'s `@return`.
+		return true;
 	}
 	else if (has_param_info_changed && can_take_display_ownership && !has_min_time_elapsed) {
 		has_pending_ = true;
@@ -323,12 +326,17 @@ void ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 		pending_context_ = context;
 		const uint32_t time_since_last_actual_display = now_ms - last_actual_display_ms_;
 		pending_flush_remaining_ms_ = kMinUpdateIntervalMs - time_since_last_actual_display;
+		// No repaint asked for here, and none needed: `pending_flush_remaining_ms_` is what
+		// `next_timer()` reports, and `timer_repaints()` names `{.oled = true}` -- so this arm arms
+		// its own frame. That asymmetry is why a *fast* gold turn always updated the panel and a
+		// slow one never did (E4 task 13).
 	}
 	else if (current_param_owns_display && notification_active) {
 		remaining_ms_ = kPopupLifetimeMs;
 		last_display_update_ms_ = now_ms;
 	}
 	// Else: none of the above -- exactly legacy's implicit fourth arm, nothing changes.
+	return false;
 }
 
 void ParamPopupScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) {
@@ -354,8 +362,8 @@ void ParamPopupScene::tick(uint32_t dt_ms) {
 			// exact by construction, since that is the instant this flush was scheduled to fire.
 			const uint32_t flush_now_ms = last_actual_display_ms_ + kMinUpdateIntervalMs;
 			has_pending_ = false;
-			attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_, pending_source2_,
-			                flush_now_ms, pending_context_);
+			(void)attempt_display(pending_kind_, pending_param_id_, pending_knob_pos_, pending_source1_,
+			                      pending_source2_, flush_now_ms, pending_context_);
 		}
 		else {
 			pending_flush_remaining_ms_ -= dt_ms;

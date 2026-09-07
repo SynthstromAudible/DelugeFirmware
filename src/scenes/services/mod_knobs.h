@@ -472,7 +472,12 @@ private:
 	/// @brief Show the value popup for a turn -- `view.cpp:899`, plus its three suppression tests.
 	/// @param turn   What the turn resolved to.
 	/// @param now_ms The tick's wall clock.
-	void show_popup(const ModTurn& turn, uint32_t now_ms);
+	/// @brief Hand @p turn to `overlay::ParamPopupScene` and push it if it is not stacked yet.
+	/// @param turn   The committed turn.
+	/// @param now_ms The tick's wall clock.
+	/// @return True when the popup's arbitration actually redrew, i.e. when the caller owes it an
+	///         `Action::Kind::Repaint` on `SurfaceRole::Main`. See `ParamPopupScene::show`.
+	bool show_popup(const ModTurn& turn, uint32_t now_ms);
 
 	/// @brief Should the popup be suppressed for this param? -- `view.cpp:868-886`.
 	///

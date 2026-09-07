@@ -690,6 +690,69 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
 	});
 
+	it("files an OLED repaint for every COMMITTED popup update, not only the first", _ {
+		// **The defect E4 task 13's level-2 golden found, pinned at the unit level.**
+		// `ParamPopupScene::show` writes the popup's text; legacy's counterpart,
+		// `display->displayNotification(...)` at `view.cpp:1245`, writes AND blits. The scene has no
+		// `Result` of its own to file a repaint in (`show()` is not a `Scene::handle`) and its
+		// `next_timer()` while showing is the popup's whole 2000 ms lifetime -- so without this
+		// action the panel keeps the value it had when the popup opened, and the next OLED frame is
+		// the one that draws the popup disappearing. A gold knob turned slowly showed a stale value
+		// for two seconds; the *fast* path did not, because the throttled arm arms
+		// `pending_flush_remaining_ms_` and `timer_repaints()` names `{.oled = true}`. So it was the
+		// immediate-commit arm alone.
+		StubDisplay stub;
+		display = &stub;
+
+		spec::SongFixture f = spec::make_synth_song();
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+
+		// **`ParamPopupScene` is a process singleton and the example above legitimately left it
+		// showing.** Driven to its own expiry through its own `tick()` rather than by reaching into
+		// its fields, so this example starts from the state a fresh boot has: nothing showing, and
+		// therefore an arbitration that cannot refuse the first commit. Without it the leftover
+		// `last_display_value_` can make the first turn take the same-param-refresh arm and this
+		// example asserts about the previous one's state.
+		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
+		overlay::param_popup_scene().tick(3000);
+		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
+
+		const auto repaints_main = [](const Result& r) {
+			int32_t n = 0;
+			for (const ShellAction& a : r.actions) {
+				if (a.kind == ShellAction::Kind::Repaint && a.surface == deluge::ui::shell::SurfaceRole::Main) {
+					n++;
+				}
+			}
+			return n;
+		};
+
+		// The first turn commits (nothing is showing, so the arbitration cannot refuse) and pushes.
+		DirectCtx first{2000};
+		const Result r1 = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), first.ctx);
+		expect(repaints_main(r1)).to_equal(int32_t{1});
+
+		// A LATER turn, far enough apart that `kMinUpdateIntervalMs` (45 ms) has elapsed, so this
+		// takes the immediate-commit arm too -- the arm that used to file nothing. `kMinDisplayOwnership`
+		// does not bite: it is the same param, so `current_param_owns_display` is true.
+		DirectCtx second{2500};
+		const Result r2 = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), second.ctx);
+		expect(repaints_main(r2)).to_equal(int32_t{1});
+		// It really was a commit and not a refresh: the shown value moved.
+		const std::string moved{overlay::param_popup_scene().shown_value()};
+
+		// And a turn that changes NOTHING files nothing: `has_param_info_changed` is false, the
+		// arbitration takes its same-param-refresh arm, no pixel changes, no repaint is owed. This is
+		// the half that makes the assertion above a mapping rather than "always file one".
+		DirectCtx third{3000};
+		const Result r3 = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 0), third.ctx);
+		expect(repaints_main(r3)).to_equal(int32_t{0});
+		expect(std::string(overlay::param_popup_scene().shown_value())).to_equal(moved);
+	});
+
 	it("gives the popup the model context legacy reads off View, so its filter-morph name can fire", _ {
 		// The interface decision this task made, and the example that spends it. E4 task 1 shipped
 		// `ParamPopupScene::show()` with legacy's five value-conversion arguments only, so three of

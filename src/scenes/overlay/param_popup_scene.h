@@ -143,7 +143,23 @@ public:
 	/// @param context  The model context legacy reads off `View` and the current output; see
 	///                 `PopupContext` and the class doc. Defaulted to "none", which reproduces the
 	///                 context-free naming and value paths exactly.
-	void show(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
+	///
+	/// @return **True when this call actually changed what is on the panel** -- i.e. the arbitration
+	///         took its commit arm (`view.cpp:1243-1245`, whose body is
+	///         `display->displayNotification(...)`, a write AND a blit). False on the throttled arm
+	///         (which arms its own flush timer and therefore repaints itself), on the
+	///         same-param-refresh arm, and on legacy's implicit fourth arm, all of which leave the
+	///         pixels alone.
+	///
+	///         **A caller must file `Action::Kind::Repaint` on `SurfaceRole::Main` when this is
+	///         true, and `services::ModKnobs` does** (`services/mod_knobs.cpp`'s `show_popup`).
+	///         This scene has no `Result` of its own to file one in -- `show()` is not a
+	///         `Scene::handle` -- and its `next_timer()` while showing is the popup's whole
+	///         `kPopupLifetimeMs`, so without the caller's repaint the next OLED frame is the one
+	///         that draws the popup *disappearing*. E4 task 13 found exactly that by looking at a
+	///         golden: a second gold-knob detent moved this scene's text from "26" to "45" and the
+	///         panel kept showing "26" until the popup expired.
+	bool show(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
 	          PatchSource source2, uint32_t now_ms, PopupContext context = {});
 
 	deluge::ui::shell::SceneKind kind() const override { return kParamPopupSceneKind; }
@@ -195,7 +211,8 @@ private:
 	/// @brief The arbitration core: `displayModEncoderValuePopup`'s "Check if we need to update the
 	///        notification" block (`view.cpp:1197-1287`), shared by `show()` and the flush path in
 	///        `tick()`.
-	void attempt_display(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
+	/// @return True when the commit arm ran; see `show()`.
+	bool attempt_display(deluge::modulation::params::Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1,
 	                     PatchSource source2, uint32_t now_ms, PopupContext context);
 
 	static constexpr size_t kTextCap = 40; // `etl::string<40>` (view.cpp:1107-1108).
