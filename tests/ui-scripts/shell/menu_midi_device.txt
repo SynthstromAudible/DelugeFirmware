@@ -38,7 +38,9 @@
 # encoder is swallowed on its first turn after `LoweringConfig::short_press_ms` (500 ms) of
 # stillness -- the wiggle debounce, `InputLowering::action_gold_turn`, a faithful restoration of
 # `interpretEncoders`' mod-knob block as it stood before the encoder overhaul
-# (`hid/encoders.cpp:242-292` at `e460593c8^`). Every other script in this directory turns a gold
+# (`hid/encoders.cpp` lines 242-292 as of `e460593c8^` -- pinned to that revision and therefore
+# deliberately NOT written in the live `file:line` form, since `check_citations.py` resolves
+# against the current tree, where that file is 107 lines). Every other script in this directory turns a gold
 # knob before t=500 and is therefore inside that window from the shell's own zero, which is why none
 # of them ever had to say this. This one edits at t=800 and would have recorded a screen that never
 # moved -- found by recording it and looking at the frame.

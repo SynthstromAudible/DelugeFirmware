@@ -139,8 +139,33 @@ EXCEPTIONS = REPO / "scripts" / "citation_exceptions.txt"
 
 # Where citations are written. These are the layers of the UI redesign, which is where the
 # legacy-citation convention is practised; the rest of the repo does not cite this way.
-SCAN_ROOTS = ("src/scenes", "src/ui", "sim/scenes_spec", "tests/spec")
-SCAN_SUFFIXES = {".h", ".hpp", ".cpp"}
+#
+# `tests/ui-scripts` joined in E4 task 14, and it was a real hole rather than a tidy-up: the
+# level-2 scripts carry `#` comment blocks in exactly the house citation style, and E4 task 13
+# found two wrong ones there BY HAND -- one landing on a closing brace, one naming a 51-line file
+# for line 221 -- while this gate, which CI runs with `--strict`, could not see the directory at
+# all. Widening it was a SWEEP over 27 pre-existing scripts nothing had ever checked, so it was
+# measured before it was done: 90 citations, 50 of them resolvable, 12 carrying an adjacent
+# symbol, and exactly ONE flag -- a citation pinned to a past revision, which was reworded at its
+# site rather than excepted (see `tests/ui-scripts/shell/menu_midi_device.txt`).
+#
+# `.txt` is what the scripts are. It also pulls in the four `CMakeLists.txt` under the other scan
+# roots, which is a gain rather than a side effect (`src/scenes/CMakeLists.txt`'s header block
+# cites legacy) and which flags nothing today.
+#
+# STILL OUTSIDE, and named rather than left to be rediscovered: `src/scenes/README.md` and the
+# three design specs under `docs/superpowers/specs/` are the densest citation sites in the repo
+# and no suffix here matches them. Prose citations there differ in kind -- they routinely cite a
+# range across two functions, or a file with no line at all -- so widening to `.md` is its own
+# measured decision, not a suffix to add in passing.
+SCAN_ROOTS = (
+    "src/scenes",
+    "src/ui",
+    "sim/scenes_spec",
+    "tests/spec",
+    "tests/ui-scripts",
+)
+SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt"}
 
 # What a citation may point INTO. Only the legacy tree rots relative to these comments; a
 # citation into `src/ui` or `src/scenes` is a citation into a file the same commit can fix.
