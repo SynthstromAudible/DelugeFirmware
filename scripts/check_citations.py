@@ -71,44 +71,48 @@ is one of those, not a convenience.
     it is of `buttonAction`, since qualifying a name with its class is what makes it one). A name
     with none of those three has no brace body this can brace-match, so there is nothing to check it
     against; skipped, not failed;
-  * a citation into anything but `src/deluge`, as before (`CITED_ROOT`).
+  * a citation into a file **inside the citing file's own layer** -- see `PORT_CITED_ROOTS` for the
+    four layers this applies to and for how a reader decides what "inside" means. Until F1 task 3
+    this bullet read "a citation into anything but `src/deluge`", full stop, and that was the
+    biggest hole in the list, ahead of the bare-continuation one above.
 
-    OWED, WITH EVIDENCE AND A MEASUREMENT (F1 task 2, 2026-09-07). **This exemption is now the
-    biggest hole, ahead of the bare-continuation one above.** Its stated rationale is below at
-    `CITED_ROOT`: "only the legacy tree rots relative to these comments; a citation into `src/ui` or
-    `src/scenes` is a citation into a file the same commit can fix." That is true of a citation made
-    *from inside* the port. It is false of one made from `sim/scenes_spec`, `tests/ui-scripts` or
-    `docs/` into `src/scenes` -- and those are scanned (see `SCAN_ROOTS`), so the citations are read
-    and then dropped for pointing at the wrong tree. Five such citations, all naming
-    `src/scenes/services/mod_knobs.cpp`, had drifted onto neighbouring *comment* lines and `--strict`
-    read clean over every one:
+    WHY IT WAS NARROWED, AND WHAT THAT COST (F1 task 3, 2026-09-07). The old rule's rationale --
+    "only the legacy tree rots relative to these comments; a citation into `src/ui` or `src/scenes`
+    is a citation into a file the same commit can fix" -- is right about a citation written from
+    inside the port and wrong about one written from `sim/scenes_spec`, `tests/ui-scripts` or
+    `tests/spec`, which are scanned (`SCAN_ROOTS`) and which no commit to `src/scenes` touches.
+    Five such citations, all naming `src/scenes/services/mod_knobs.cpp`, had drifted onto
+    neighbouring *comment* lines -- one off by fourteen -- and `--strict` read clean over every one
+    through a full task review. That was proved by experiment before anything was changed: putting
+    `` `show_popup` (`services/mod_knobs.cpp:99999`) `` into `param_popup.txt` -- symbol-adjacent,
+    tens of thousands of lines past EOF -- gave "0 certainly-wrong citation(s)", exit 0, while the
+    same line written as `` `displayPopup` (`hid/display/oled.cpp:99999`) `` was caught immediately.
+    So the file was scanned and the predicates worked; the cited-root test alone hid all five.
 
-      - `ModKnobs::show_popup`'s push, cited `services/mod_knobs.cpp:399` in
-        `sim/scenes_spec/scene_scripts_spec.cpp:15` (a table cell), `:41` (the file header) and
-        `tests/ui-scripts/shell/param_popup.txt:9`. `:394-402` is a comment block about the return
-        value; the `stack_.push` is `:413` -- off by fourteen lines;
-      - `ModKnobs`' two `stack_.input_top()` reads, cited `:346` and `:549` in that same header; the
-        reads are `:351` (`popup_suppressed`) and `:564` (`mod_encoder_button_action`);
-      - `show_popup`'s already-stacked guard, cited `mod_knobs.cpp:394-398` in
-        `tests/ui-scripts/shell/param_popup.txt:55`; the `for (const Scene* scene : stack_.scenes())`
-        loop is `:408-412`.
+    **Measured before it was kept**, the way both prior extensions were. Tree-wide, the widening
+    raised resolved citations from **4034 to 4242** (+208: 117 into `src/shell`, 49 into
+    `src/scenes`, 35 into `src/ui`, 7 into `src/gfx`), each of which is now subject to the three
+    range predicates, and raised the ones the *symbol* predicate can render a verdict on from
+    **1580 to 1620** of those (39.2% -> 38.2% of a larger denominator; the port layers are newer and
+    carry proportionally more bare-continuation and prose-gap shapes, which is why the ratio dips
+    while the absolute count rises). It flagged **8** citations, all of them from `src/scenes` into
+    `src/shell`. All 8 were hand-verified against the file they name, all 8 were real drift, **zero**
+    false positives, and all 8 were fixed rather than excepted: two copies of `Shell::tick_stack`
+    cited `:553-567` when the function is `:573-587` (20 lines, landing inside `Shell::make_context`);
+    `deliver_post_render_input` cited `:367` when `Shell::tick`'s step 8 calls it at `:390-391`;
+    three copies of `shell/profile.h:156` for `text_or_digits`, which is declared at `:147` (`:156`
+    is the blank line after the class's closing brace); `Shell::render_oled`'s `s.canvas.clear()`
+    cited `:475` when it is `:662`; and `kSceneStateBytes` cited `scene.h:50` when it is `:49`.
 
-    **Measured, not reasoned.** Putting `` `show_popup` (`services/mod_knobs.cpp:99999`) `` into
-    `param_popup.txt:9` -- symbol-adjacent, tens of thousands of lines past EOF -- and running
-    `--strict` gives "0 certainly-wrong citation(s)", exit 0. The same line written as
-    `` `displayPopup` (`hid/display/oled.cpp:99999`) `` is caught immediately ("past EOF", exit 1).
-    So the file is scanned, the predicates work, and `CITED_ROOT` alone is what hid all five. The
-    adjacency and "prose between symbol and citation" skips above are contributing holes for some of
-    the five, but they are not the decisive one.
+    The five `mod_knobs.cpp` citations that motivated this are not among the 8 because they were
+    corrected by hand first (`939cb2c2b`); the point of the widening is that the gate would now
+    catch the next five, and the probes below confirm it does.
 
-    The candidate fix is to widen `CITED_ROOT` to the port layers a spec or script may cite --
-    `src/scenes`, `src/shell`, `src/ui`, `src/gfx` -- for citations made from a file that is *not*
-    itself inside the cited layer, which preserves the original rationale exactly. **It is not bolted
-    on here, deliberately:** this is a blocking CI gate and both prior extensions were measured
-    before they were kept (the naive symbol predicate flagged 493 candidates and reached 39 real ones
-    only after three named skips; the body-extent test was kept because 33 flags were hand-verified
-    with zero false positives). Same treatment owed -- run it tree-wide, count the flags,
-    hand-verify a sample, keep it only if the measurement justifies it. Scheduled as its own work.
+    **What it deliberately does not reach.** The port index is consulted only when the legacy index
+    has no candidate at all -- see `scan` for why -- so a citation naming one of the 24 basenames
+    that exist in both trees (`sample.cpp`, `midi_device.h`, `canvas.h`, ...) still resolves to
+    legacy and stays invisible if it meant the port file. Under-reporting, chosen over the chance of
+    moving a citation that is correct today onto a file it never meant.
 
 **The range is judged against the symbol's actual body, brace-matched, not against a direction.**
 Earlier rounds narrowed this to a range ending ABOVE its symbol, on the grounds that a range starting
@@ -213,9 +217,34 @@ SCAN_ROOTS = (
 )
 SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt"}
 
-# What a citation may point INTO. Only the legacy tree rots relative to these comments; a
-# citation into `src/ui` or `src/scenes` is a citation into a file the same commit can fix.
+# What a citation may point INTO. The legacy tree, always: it rots relative to these comments and
+# nothing in this repo can stop it.
 CITED_ROOT = "src/deluge"
+
+# And the port's own layers, but only for a citation made from OUTSIDE the layer it names -- see
+# `citing_file_is_inside`. The original rule was legacy-only, on the rationale that "a citation into
+# `src/ui` or `src/scenes` is a citation into a file the same commit can fix". That rationale is
+# exactly right about a citation written *inside* the port -- `src/scenes/menu/bindings.cpp` naming
+# `src/scenes/services/mod_knobs.cpp` moves with it under any reasonable edit, and judging it would
+# be noise -- and exactly wrong about one written from `sim/scenes_spec`, `tests/ui-scripts` or a
+# spec, which no commit to `src/scenes` touches. Those are scanned (`SCAN_ROOTS`), so before F1
+# task 3 they were read and then dropped for pointing at the wrong tree, and five of them, all
+# naming `src/scenes/services/mod_knobs.cpp`, had drifted onto neighbouring comment lines while
+# `--strict` read clean over every one through a full task review. So the exemption is kept and
+# narrowed rather than deleted: same layer, still exempt; across the boundary, judged.
+#
+# HOW A READER DECIDES WHAT COUNTS AS "INSIDE". Purely by repo path prefix, with the layer roots
+# below as the units -- the citing file is inside the cited layer when its repo-relative path is
+# that layer's root or begins with it plus a `/`. Nothing about include graphs, build targets or
+# CMake libraries enters into it, because the property the rationale rests on is "one commit
+# plausibly edits both", and a directory is what a commit is scoped to in practice. Two consequences
+# worth stating, since both look like omissions otherwise: the layers do NOT nest for this purpose,
+# so `src/ui` citing `src/scenes` is judged (they are separate layers with separate owners, and
+# `src/ui` is no better placed to notice `src/scenes` drift than `sim/` is); and `src/deluge` is not
+# in this list because it is never exempt -- a citation from inside legacy into legacy is still
+# judged, as it always has been.
+PORT_CITED_ROOTS = ("src/scenes", "src/shell", "src/ui", "src/gfx")
+
 CITED_SUFFIXES = {".h", ".hpp", ".cpp", ".c"}
 
 # `path.ext:N` or `path.ext:N-M`. The path may be any suffix of the real one (`gate/selection.h`),
@@ -274,18 +303,39 @@ BOILERPLATE_RE = re.compile(
 )
 
 
-def cited_index() -> dict[str, list[str]]:
-    """Every legacy path, indexed by every suffix of itself."""
+def cited_index(*roots: str) -> dict[str, list[str]]:
+    """Every path under `roots`, indexed by every suffix of itself."""
     index: dict[str, list[str]] = {}
-    root = REPO / CITED_ROOT
-    for p in sorted(root.rglob("*")):
-        if not p.is_file() or p.suffix not in CITED_SUFFIXES:
-            continue
-        rel = str(p.relative_to(REPO))
-        parts = p.relative_to(REPO).parts
-        for i in range(len(parts)):
-            index.setdefault("/".join(parts[i:]), []).append(rel)
+    for root in roots:
+        for p in sorted((REPO / root).rglob("*")):
+            if not p.is_file() or p.suffix not in CITED_SUFFIXES:
+                continue
+            rel = str(p.relative_to(REPO))
+            parts = p.relative_to(REPO).parts
+            for i in range(len(parts)):
+                index.setdefault("/".join(parts[i:]), []).append(rel)
     return index
+
+
+def cited_layer_of(rel: str) -> str | None:
+    """Which of `PORT_CITED_ROOTS` a resolved path lies in, or None for the legacy tree."""
+    for root in PORT_CITED_ROOTS:
+        if rel == root or rel.startswith(root + "/"):
+            return root
+    return None
+
+
+def citing_file_is_inside(citing: str, cited: str) -> bool:
+    """Is the file writing the citation inside the port layer the citation names?
+
+    Path prefix, nothing cleverer -- see `PORT_CITED_ROOTS` for why that is the right test and
+    what it deliberately does not do. Always False for a citation into legacy, which is never
+    exempt on these grounds.
+    """
+    layer = cited_layer_of(cited)
+    if layer is None:
+        return False
+    return citing == layer or citing.startswith(layer + "/")
 
 
 _LINE_COUNTS: dict[str, int] = {}
@@ -638,7 +688,20 @@ def load_exceptions() -> set[str]:
 
 def scan() -> list[tuple[str, int, str, str, str]]:
     """Every certainly-wrong citation as `(citing file, line, token, resolved path, why)`."""
-    index = cited_index()
+    index = cited_index(CITED_ROOT)
+    # The port layers are a SEPARATE index, consulted only when the legacy one has no candidate at
+    # all, and with its own `recent_dirs`. Both halves of that are deliberate. 24 basenames exist in
+    # both trees (`sample.cpp`, `midi_device.h`, `canvas.h`, ...), so a single merged index would
+    # re-resolve existing legacy citations against new candidates and could move a citation that is
+    # correct today onto a port file it never meant -- a false positive in a blocking gate, which is
+    # the one outcome this must not buy. Legacy-first makes the widening strictly ADDITIVE: every
+    # citation that resolves today resolves to exactly the same file, and the only ones that change
+    # are those that resolved to nothing. The cost is that a citation genuinely naming, say,
+    # `src/gfx/oled/canvas.h` by a basename legacy also has stays invisible; that is the same shape
+    # as the resolver artefacts already named in `citation_exceptions.txt`, and under-reporting is
+    # the correct failure for this gate. Qualifying the path (`gfx/oled/canvas.h:12`) is the fix at
+    # the citation site, and is what the exception file's own header already recommends.
+    port_index = cited_index(*PORT_CITED_ROOTS)
     out = []
     for root in SCAN_ROOTS:
         for p in sorted((REPO / root).rglob("*")):
@@ -646,6 +709,7 @@ def scan() -> list[tuple[str, int, str, str, str]]:
                 continue
             rel = str(p.relative_to(REPO))
             recent_dirs: list[str] = []
+            recent_port_dirs: list[str] = []
             prev_line = ""
             for lineno, line in enumerate(
                 p.read_text(encoding="utf-8", errors="replace").splitlines(), 1
@@ -667,9 +731,17 @@ def scan() -> list[tuple[str, int, str, str, str]]:
                         int(m.group(3) or m.group(2)),
                     )
                     resolved = resolve(token, index, recent_dirs, e)
-                    if resolved is None:
-                        continue
-                    recent_dirs.append(str(Path(resolved).parent) + "/")
+                    if resolved is not None:
+                        recent_dirs.append(str(Path(resolved).parent) + "/")
+                    else:
+                        resolved = resolve(token, port_index, recent_port_dirs, e)
+                        if resolved is None or citing_file_is_inside(rel, resolved):
+                            # No such file anywhere, or a citation a file makes into its own layer,
+                            # which stays exempt. Skipping it here also stops a bare `` `:N` ``
+                            # continuation from inheriting the path, which is right: the
+                            # continuation is as exempt as the citation it continues.
+                            continue
+                        recent_port_dirs.append(str(Path(resolved).parent) + "/")
                     anchors.append((m.end(), resolved))
                     spans.append(
                         (
