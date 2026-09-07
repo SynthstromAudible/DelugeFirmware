@@ -28,9 +28,27 @@ and task 7 the last two, `midi_device_linked` and `specific_output_selector`
 (`menu/nodes/output_items.h`). **The menu tree has no `Kind::Custom` placeholders left**;
 `kPendingCustomNodes` is 0 and `ValidateOptions::allow_placeholder_custom` is gone with them.
 
-What is left is not menu items. It is spec F's wiring, and the **load/save family** — the song,
-preset, pattern and kit-row browsers, which are reached from root UIs rather than from menu items —
-which is E4's. See "E4 roadmap" at the end of this file.
+E4 is complete as of the fourteen tasks of
+`docs/superpowers/plans/2026-09-06-ui-scenes-services-and-roots-4.md`, and it is the plan that
+**broke up `View`**. `gui/views/view.cpp` is 2,908 lines and holds at least three unrelated
+concerns; E4 ported three of them as `shell::Service` implementations that live *here* rather than
+in `src/shell/` — `services::ModKnobs`, `services::GlobalControls` and `services::MidiLearn`
+(see "The three services" below for why the directory is this one). It added the three missing
+overlay scenes — `overlay::ParamPopupScene`, `overlay::CountInScene`, `overlay::ScreensaverScene` —
+the shared `timeline::TimelineState` every clip view needs, and the first two application scenes
+that own the grid: `slicing::SlicerScene` and `audio_clip::AudioClipScene`, the latter being the
+**first scene in this library with `is_root() == true`**. It moved `Rainfall` and `Starfield` out of
+`hid/display/` into `src/ui/oled/`, the only extraction out of `hid/` in the plan. And it found
+**three defects in the shell's own contracts** — an inverted router chain, a declared LED blink that
+was never a wake source, and a service timer that could not repaint anything — each invisible for
+three plans because the thing that would have exercised it did not exist yet.
+
+What is left is not menu items, and it is no longer the load/save family either: E4's scope moved
+(spec E §7's row 4 came first, since a root scene is what makes a service's root-gated arms
+reachable at all). What is left is spec F's wiring, the **load/save family** — the song, preset,
+pattern and kit-row browsers, which are reached from root UIs rather than from menu items — and the
+remaining root scenes, `KeyboardScene` (5,252 lines) and `PerformanceScene` (2,249). See "E4
+roadmap" at the end of this file, which is now E5's list.
 
 > **Read this before adding a menu item.** The shipping firmware still runs the *legacy*
 > `SoundEditor` and its ~200 hand-written `MenuItem` classes under `src/deluge/gui/menu_item/`.
@@ -73,6 +91,29 @@ Rules:
    the reason `scenes-no-root-ui` is: the include rows already forbid the header, so a regression
    would be spelled as a bare `extern`. `--audit-symbols` checks every name in all three lists is a
    symbol this tree really declares.
+
+   E4 task 14 added three more, all zero-baseline and each probed on its own.
+   **`scenes-no-legacy-hid-drivers`** (two rows, `src/scenes/**` and `src/ui/**`) forbids the five
+   legacy output-driver spellings — `uiNeedsRendering(`, `renderUIsForOled(`, `indicator_leds::`,
+   `PadLEDs::`, `uiTimerManager.` — which is `model-calls-ui`'s alternative list minus everything
+   `scenes-no-display` and `scenes-no-root-ui` already hold this layer to. It matters here because
+   the three services are the port of `View`, which is *the* legacy caller of all five; the port
+   declares LEDs through `shell::Leds`, files `Action::Kind::Repaint` and returns a deadline from
+   `Service::next_timer()`. `PadLEDs::flashCursor` is excluded by name — it is the persisted setting
+   byte `flash::Status` edits, not a driver call — and `currentUIMode`/`isUIModeActive(` are
+   excluded because trailing citation comments in `services/global_controls.cpp` would otherwise
+   give the row a non-zero baseline. **`scenes-no-input-lock`** forbids `Action::Kind::LockInput`
+   from this library, which Global Constraint 5 has asserted in prose since E2 and six `@warning`s
+   repeat with no mechanism behind them; and **`services-no-oled-timer-claim`** forbids
+   `.oled = true` in `src/scenes/services/**`, for the reason in "The three services" above.
+
+   Also E4 task 14: **a symbol row no longer counts `#include` lines.** The row that made the case
+   is `scenes-no-root-ui`, which lists `slicer` as a whole word and so flagged the plan's own
+   mandated path `src/scenes/slicer/slicer_scene.h` from its two include lines — which is why the
+   directory is `slicing/`. Nothing is lost, and that is checked rather than argued: every symbol
+   row is scoped to a directory an include row already gates, so a real
+   `#include "gui/ui/slicer.h"` still fails, under `scenes-includes-gui`, which names the actual
+   violation. Zero of the baseline's 120 counts moved.
 2. `snake_case` functions/variables, `PascalCase` types, `k` constants; namespace
    `deluge::scenes`.
 3. No heap in library code; no wall clock — `Scene::next_timer()` is how a blink stays alive, and
@@ -667,6 +708,69 @@ nine observe**, through `AudioEngine::setForegroundRecording`/`foregroundRecordi
 legacy's own assignment order — no layer edge and no baseline row added, because `audio_engine.cpp`
 already names `audioRecorder`. Writing it is also what turned up the use-after-free recorded below.
 
+## The three services (`services/`, E4 tasks 1–5) — and why they are not in `src/shell/`
+
+`services::ModKnobs`, `services::GlobalControls` and `services::MidiLearn` implement
+`ui::shell::Service` (`src/shell/service.h`) and are the port of three of `View`'s concerns
+(`gui/views/view.cpp`, 2,908 lines). A **service** is the shell's word for something that handles
+routed events, declares LEDs and holds a timer but is never pushed and draws nothing — legacy's
+`View` is exactly that shape, since `Buttons::buttonAction` runs a pre-UI section, then
+`getCurrentUI()->buttonAction`, then a tail (`hid/buttons.cpp:75-235`).
+
+| service | what it ports | LEDs it declares |
+|---|---|---|
+| `services::ModKnobs` | the `ModTarget`, gold-knob turns and their acceleration, mod-button mode, knob indicators (`View::modEncoderAction`, `modButtonAction`, `modEncoderButtonAction`, `setModLedStates`, `setKnobIndicatorLevel`) | the eight mod LEDs, both knob indicators |
+| `services::GlobalControls` | transport buttons, the record combo, tempo encoder and button, tap tempo, sync scaling, the BACK long-press, undo/redo (`Buttons::buttonAction`'s tail plus `View::buttonAction`'s global arms) | Play, Record, TapTempo, SyncScaling, Save, Load, Clip |
+| `services::MidiLearn` | learn mode, the pressed thing, the flash phase (`View::startMIDILearn`/`endMIDILearn`, the six `*MidiLearnPadPressed`, `noteOnReceivedForMidiLearn`, `ccReceivedForMIDILearn`, `midiLearnFlash`) | Learn, and it **overwrites** three LEDs `GlobalControls` declares |
+
+**Why they are here and not in `src/shell/`, which is the architectural fact a contributor will
+otherwise get wrong.** All three touch the model — a `Song`, a `ParamManager`, a `Clip`, a
+`LearnedMIDI` — and `check_layer_rules.py`'s **`shell-includes-outside`** row forbids `src/shell/**`
+from including anything but `shell/`, `ui/`, `gfx/`, `notify/` and `libdeluge/`. That row is not a
+convention: it is what keeps the shell driveable by a fake surface set in a host process with no
+model linked at all (`tests/spec/shell/`, 98 examples, none of which links `deluge_app`). So the
+`Service` *interface* lives in the shell and every model-aware *implementation* lives here, exactly
+as `Scene` does. There is no version of this where a service that reads a `Song` compiles under
+`src/shell/`.
+
+Three consequences worth knowing before adding a fourth service:
+
+* **The router's order is top scene → `mod_knobs` → `global_controls` → `midi_learn`**
+  (`shell/router.h`), and it was **reversed** until E4 task 3. Plan D put `mod_knobs` first; legacy
+  is uniformly *current UI first, `View` as the base-class fallback* — `UI::modEncoderAction`,
+  `UI::modButtonAction` and `UI::modEncoderButtonAction` are bare forwards to `view`
+  (`gui/ui/ui.cpp:35-45`) that six, two and five UIs respectively override. With the service first,
+  `SoundEditor::modEncoderAction`'s MIDI-learn interception could never have fired, which is a hole
+  no spec in this library would have caught, because no spec drives a service and a scene competing
+  for one event. `MidiLearn` is last on LED-composition grounds: `midiLearnFlash` overwrites three
+  LEDs `GlobalControls` declares, so it must compose after them.
+* **A service has no stack position**, so `Shell::tick`'s step 8c cannot narrow a service's repaint
+  claim the way step 8b narrows a scene's (`Shell::oled_paintable`). Claiming `oled` from a service
+  therefore arms *every* OLED panel every period, and an OLED surface blits unconditionally once it
+  has rendered. `check_layer_rules.py`'s **`services-no-oled-timer-claim`** row is the tripwire; see
+  "The `Service` half of the same fold" below.
+* **No application can install one.** All three take the `Shell`'s own `SceneStack&` (and two of
+  them its `InputLowering&`), `Services` is taken by value into the constructor and `service_list_`
+  is built once — so a service cannot be built before the shell it serves and cannot be installed
+  after it. This is the third spec-F wiring blocker and it is written up under "Boot wiring this
+  layer does not do for itself".
+
+## The four scene kinds E4 added
+
+`FirstApp + 6` `overlay::ParamPopupScene`, `+ 7` `overlay::CountInScene`, `+ 8`
+`slicing::SlicerScene`, `+ 9` `audio_clip::AudioClipScene`; plus `overlay::ScreensaverScene`, which
+registers at the shell's own `SceneKind::Screensaver` rather than at an application kind (below).
+The full numbered list, which is the authority, is `registry.h`'s file docstring.
+
+The two overlays are the shell-owned `PopupScene`'s shape — `is_grid_overlay()` true and
+`dims_grid()` false — and neither is a root. `SlicerScene` is the interesting predicate set and it
+took two corrections to get right: `is_root()` **false** (`class Slicer final : public UI`, opened
+*over* the sample browser), `is_grid_overlay()` true, `occludes_grid()` **false** (it overrides
+`renderMainPads` only, so the sidebar beneath keeps painting), `oled_transparent(Main)` true, and
+`dims_grid()` overridden to false because its default is `is_grid_overlay()` and that would have
+halved a sidebar legacy never greys. `AudioClipScene` is the first `is_root() == true` scene in the
+library, which is what finally makes `GlobalControls`' root-gated arms reachable.
+
 ## The screensaver (`overlay/screensaver_scene.h`, E4 task 7)
 
 `overlay::ScreensaverScene` is the port of the **drawing** half of `hid::display::Screensaver`; the
@@ -1025,10 +1129,12 @@ Ten, none of them introduced by the port, none of them fixed by it, and all ten 
 their own site as well as here. They are listed together because a ledger is not where a release note
 looks.
 
-Two of the nine are in `gui/views/view.cpp`, and neither is annotated in that file, for the reason
-the `browser.cpp` row below already gives: `view.cpp` is cited by line from `src/scenes/services/`,
-`src/scenes/menu/context.cpp` and `sim/scenes_spec/` more than a hundred times, and inserting a
-comment there would shift every one of them. Their port-side `@warning`s are complete.
+Four of the ten are in the two files this stack cites most and **none of the four is annotated in
+the legacy file**, for the reason the `browser.cpp` row below already gives. Two are in
+`gui/views/view.cpp`, which is cited by line from `src/scenes/services/`,
+`src/scenes/menu/context.cpp` and `sim/scenes_spec/` more than a hundred times; two are in
+`gui/views/clip_view.cpp`, which E4 task 12's three files alone cite 35 times. Inserting a comment
+in either would shift every one of those citations. Their port-side `@warning`s are complete.
 
 | defect | severity | where it is recorded |
 |---|---|---|
@@ -1132,23 +1238,35 @@ services and a `Shell` at the same time.
 The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
 application has to call — that is the file a boot author is already in.
 
-## E4 roadmap — what E3 leaves
+## Roadmap — what E3 and E4 leave
 
 **The menu tree is done.** Nothing below is a menu item, and nothing below blocks the deletion of
 `gui/menu_item/**` — that waits on spec F's wiring alone
 (`docs/superpowers/specs/2026-08-26-ui-migration-design.md`'s deletion schedule).
 
-**E4's own scope is the load/save family**, and it is deliberately not in this plan. Spec E §7 step 3
-promised "BrowserScene family — nine UIs → one"; E3 ported the **two the menu tree reaches**
-(`BrowserId::Sample`, `BrowserId::MidiDeviceDefinition`) and left the other seven —
+**This section was written as "the E4 roadmap" and E4 went somewhere else**, which is worth stating
+rather than quietly rewriting. It said E4's scope was the load/save family; E4 built the three
+services, the three overlays, the shared timeline state and the first two application scenes. The
+reordering was right and the reason is structural: `GlobalControls`' and `MidiLearn`'s `View`-arm
+groups are gated on `stack_.input_top().is_root()`, so until a root scene existed those arms were
+unreachable and untestable — `audio_clip::AudioClipScene` is what made them live. The load/save
+family is unchanged in every other respect and is **E5's or E6's**.
+
+Spec E §7 step 3 promised "BrowserScene family — nine UIs → one"; E3 ported the **two the menu tree
+reaches** (`BrowserId::Sample`, `BrowserId::MidiDeviceDefinition`) and the other seven —
 `gui/ui/load/load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui` and all of `gui/ui/save/`
-(songs, presets, patterns, kit rows) — for E4. Two reasons, both structural rather than budgetary:
-those UIs are opened **from root UIs, not from menu items**, so this stack's legacy-vs-port oracle
-(`tables_*_spec.cpp`, which walks the menu tree) cannot exercise them at all; and they carry a second
-axis `BrowserScene` has none of — `SlotBrowser`'s brand-new-name machinery
+(songs, presets, patterns, kit rows) — are still open. Two reasons they were left, both structural
+rather than budgetary: those UIs are opened **from root UIs, not from menu items**, so this stack's
+legacy-vs-port oracle (`tables_*_spec.cpp`, which walks the menu tree) cannot exercise them at all;
+and they carry a second axis `BrowserScene` has none of — `SlotBrowser`'s brand-new-name machinery
 (`mayDefaultToBrandNewNameOnEntry`, `getUnusedSlot`), which is a *saving* concern rather than a
-browsing one. E4 also inherits the two seam limits named above: the leaf calls that do not claim the
-catalogue at all, and the claim covering a listing rather than a session.
+browsing one. Whoever takes them also inherits the two seam limits named above: the leaf calls that
+do not claim the catalogue at all, and the claim covering a listing rather than a session.
+
+**The two remaining root scenes** are `KeyboardScene` (`gui/ui/keyboard/`, 5,252 lines) and
+`PerformanceScene` (`gui/views/performance_view.cpp`, 2,249), both deliberately out of E4. Both are
+named in `scenes-no-root-ui`'s alternative list already, so the ratchet is in place ahead of the
+work, exactly as it was for the eleven file/sample nodes E3 landed.
 
 The short list first; the long prose below it is E1's carry list with E2's and E3's answers folded
 in, kept because it names the legacy routines each item has to be checked against.
@@ -1161,7 +1279,7 @@ in, kept because it names the legacy routines each item has to be checked agains
 | **A `Node` cannot compute its own title** — three shipped pages want a runtime one and get a static id instead. `midi::Device::getTitle()` is the selected cable's display name (`gui/menu_item/midi/device.h:8`), so the per-device page's title bar reads "MIDI DEVICES" — the *same string as its parent row*, so a user cannot tell which cable they are editing; `cv::Selection`'s `setCvNumberForTitle` and `gate::Selection`'s `gateModeMenu.format(value + 1)` (`cv/selection.h:43`, `gate/selection.h:50`) put the output number into the destination page's title, so those two read "CV OUTPUT N" unnumbered. A `CustomItem` can already draw whatever title it likes (`MpeDirectionItem` does); what has no way to is a **`Kind::Submenu`** or any node `MenuScene::render_vertical`/`render_leaf_*` titles from `node.title`. | `menu/nodes/midi_device.h`'s "What did not survive" and `menu/nodes/dynamic.h`'s "What is still owed", both of which point here | one hook — `CustomItem::title(const MenuContext&, const MenuState&)` returning an optional `string_view`, consulted by the four `render_*` title draws, plus a `Node::custom` on the two submenus that want one. Moves no JSON (the dump prints `Node::title`, which stays) |
 | **Three `IntegerWithOff` nodes draw "0" where legacy draws "OFF"** — `record_count_in`, `saturation`, `voice_count`. `Binding::style.off_at_zero` and `nodes::with_value_style` exist (E3 task 8) and the two nodes that task ported use them; these three predate the modifier. `voice_count` additionally needs an *icon* (`OLED::infinityIcon` in the horizontal menu, `voice/polyphony.h:88-94`), which `ValueStyle` cannot express. | `menu/nodes/detail.h`'s `with_value_style` note, which names all five legacy subclasses | a family sweep with a golden re-record per node, not three incidental edits — which is why E3 task 8 did not fold it in |
 | ~~**Splitting session from arranger**~~ — **done, E3 task 9.** `song_midi_learn` and `configure_song_macros` used to stay visible in the arranger because `MenuContext` could not tell the two apart. The conflation was three-way — `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView`, and legacy hides these two from all but the first — and is now carried by two bools rather than three: `context_for` takes `session_view_root` (`getRootUI() == &sessionView`) beside the existing `session_or_arranger_root` (`!rootUIIsClipMinderScreen()`), `MenuContext::is_session_view` reports it, and `relevance::is_session_view` guards both nodes. Nothing distinguishes the arranger from the song automation view, because no legacy `isRelevant` does. Cost as built: the one parameter, one field and one predicate the estimate named, plus **85** positional-bool call sites (not ~62 — the estimate undercounted) and two `available_when` keys in the dump JSON, which moved no node id. | `menu/nodes/actions.h`, `menu/context.h`'s `is_session_view` | — |
-| **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback` and the three `shouldBlinkPatchingSourceShortcut` overrides. `MenuScene::render_grid` keys its single blink cycle off the focused *node*; consulting the focused `CustomItem` needs a hook and a second blink source. | detailed below | same shape of change as routing MIDI to `MenuScene::learn_*` |
+| **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback` and the three `shouldBlinkPatchingSourceShortcut` overrides. `MenuScene::render_grid` keys its single blink cycle off the focused *node*; consulting the focused `CustomItem` needs a hook and a second blink source. **Still open after E4, and moved to E5/E6 rather than closed** — no task here touched it. What E4 *did* close is a different blink defect that would have broken this one too: a declared `LedState::Kind::Blink` was not a wake source, so `compute_next_wake` (`shell/shell.cpp`) never woke for it and any blink on a quiet system froze mid-phase (E4 task 4 fix round 1; `MenuScene`'s own Back and Learn blinks were affected). A blink hook added on top of a shell that could not wake for it would have shipped frozen. | detailed below | same shape of change as routing MIDI to `MenuScene::learn_*` |
 | ~~**The row-scrolling path is untested, not missing.**~~ — **done, E3 task 10.** `ui/oled/list.cpp:156` does run `scroll_text` on the focused row with motion allowed, and `MenuScene::render_vertical` hands it `st_.scroll[depth]`. `tests/spec/ui/list_spec.cpp`'s "scrolls a selected label..." already pinned the widget's own mechanics; what was missing was the OTHER half, a real focused over-long node driven through `MenuScene` itself. `menu_scene_spec.cpp`'s "a SELECTED over-long row scrolls, held across quiet ticks" opens the real `nodes::runtime_features` page, parks the cursor on `feature_alt_delay_params` ("Alternative Golden Knob Delay Params"), and holds across quiet ticks past `kScrollTime` -- mutation-checked by reverting `list.cpp`'s selected-row draw to plain `text()`, which fails it. | E2 task 12's record; `menu_scene_spec.cpp` | — |
 | ~~**Seven self-duplicate goldens owed cleanup**~~ — **done, E3 task 10, corrected fix round 1.** Five were exact duplicates of both halves of the frame right before them: `menu_enum`/`menu_toggle`'s `{after_select_press,after_gold_turn}` (four) duplicate `after_select_turn`, and `menu_shortcut/after_select_turn` duplicates `after_shortcut`. The other two, `menu_int/{after_select_press,after_select_turn}`, are NOT full duplicates of anything and this row's first pass wrongly said they were: their `.pbm` is byte-identical to `idle`'s, but their `.state` gained a `pad` line `idle`'s does not have (the shortcut/source blink lighting up shortly after the screen opens) -- harmless, because the kept `after_gold_turn` snapshot carries the identical line, so no distinct fact went untested, but not the same claim as the other five. Each script's `.txt` drops the `snapshot` line and keeps the input step, with a comment naming why the frame added nothing (a `claim_turn()`-and-ignore leaf, a `changed`-false select press, an unclaimed gold turn, or -- for the two `menu_int` steps -- naming the `.pbm`/`.state` split explicitly); the matching spec in `menu_scripts_spec.cpp` lowers its `result.snapshots` count and leans on the surviving final-state assertion as the dropped step's own proof, same shape `menu_decimal`/`menu_shortcut` already used for the three E2 task 9 deleted. | E2 task 12's record | E2 task 9 deleted three of exactly this kind, so leaving seven was an inconsistency, not a policy |
 | **`perform_editor`'s owed sync calls** — the displayed mode mirrors two `PerformanceView` bools. | the action seam section above; `menu/nodes/actions.h` | four calls into `menu::performance_editing_mode()` |
@@ -1170,17 +1288,25 @@ in, kept because it names the legacy routines each item has to be checked agains
 | ~~**`Action::Kind::RepaintAll` never reached the grid**~~ — **found and fixed, E3 task 11.** `shell/scene.h` documents it as "invalidate every surface for the next tick", but `SurfaceRole` names OLED panels only (`shell/profile.h:60`) and `Shell::tick`'s grid step consulted the grid's own gate and nothing else — so a scene that changed what the *pads* show in response to **post-render** input had no way to say so. Its own gate is not one: `render_grid` is what arms that, and the render has already happened by the time the event arrives (`Shell::tick` step 8). `MarkerScene::handle`'s select turn is the case that showed it: the marker moved a column on the OLED and stayed put on the pads until the blink timer fired, up to a full 200 ms phase later. `Router::grid_repaint_requested()` is the fix, and `marker.txt`'s `after_select_turn` golden is where it is pinned — the one frame in the whole suite whose two halves used to disagree. `BrowserScene::handle` files the same action and had the same latency; nothing else in the shipped scenes does. | `shell/router.{h,cpp}`, `shell/shell.cpp`'s grid step | — |
 | **`MenuScene::ascend()` at depth 0 is a silent no-op where legacy exits the editor.** `SoundEditor::goUpOneLevel` at `navigationDepth == 0` calls `exitCompletely()` and returns (`gui/ui/sound_editor.cpp:672-678`); `ascend()`'s loop does a bare `return;` (`menu_scene.cpp:1091-1093`) and its own comment cites that legacy routine without acknowledging the difference. Invisible for as long as everything that ascends is reached by descending — a menu path always has a level to go back to. It becomes visible the moment a path is *re-rooted* on a leaf: the shortcut-pad jump does that (`MenuScene::handle`'s `Replace`), so a jump onto one of the nine `nodes/sample.h` items puts it at depth 0, and `MenuState::go_up_on_resume` — the thing that steps back out of the item when the scene it opened closes — ascends from 0 and does nothing. The user is left on the item's own bare title screen (`SampleSceneItem::render`, whose doc says it is drawn "for at most the one tick": true on the menu path, false on this one) where the only working input is BACK, which closes the menu. All three of E3 task 11's scene scripts end on that screen and their last golden IS it. **Not the `claimCurrentFile` re-rooting** — fix round 1 corrected that mis-diagnosis; this is a three-line divergence from a named routine, deliberately not taken in task 11 because closing it moves goldens well outside that task's subject. | `menu/menu_scene.cpp`'s `ascend()` | an `exitCompletely()` equivalent at depth 0 (`Remove{FirstApp}`, which `handle`'s root-`Back` arm already files), plus re-recording whatever goldens depend on the no-op |
 | ~~**`CustomItem`'s missing backward arm**~~ — **done, E3 task 10.** `CustomItem::on_focus_backward` (`node.h`) is what `ascend()` calls now, instead of the old blanket `Kind::Custom` exclusion; do-nothing default, so every item the exclusion used to cover for free (`CvSelectionItem`, `MidiDevicesItem`, `PatchCablesItem`, `SourceSelectionItem`) is unchanged. `GateSelectionItem` (`nodes/dynamic.cpp`) is the one real override, and the reason it needs one: `gate::Selection`'s own backward arm restores `soundEditor.currentSourceIndex`, which `selectButtonPress` never writes for the minimum-off-time row (`gate/selection.h:44-47`) — so "keep the cursor" leaves it on that row, where legacy snaps back to the last real output. Pinned by `menu_scene_spec.cpp`'s task-10 example, which fails on the old exclusion. | `menu/node.h`, `menu/nodes/dynamic.{h,cpp}`, `menu_scene.cpp`'s `ascend()` | — |
-| **The load/save browser family** — seven legacy UIs (`load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui`, and all of `gui/ui/save/`) that `BrowserScene` was shaped for but does not yet carry, because they are reached from root UIs rather than menu items and carry `SlotBrowser`'s brand-new-name axis. | this section's preamble; `browser/browser_scene.h`'s scope note | E4's main body of work: new `Descriptor`s or a second scene, plus a `SlotBrowser` equivalent, plus an oracle that is not the menu walk |
+| **The load/save browser family** — seven legacy UIs (`load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui`, and all of `gui/ui/save/`) that `BrowserScene` was shaped for but does not yet carry, because they are reached from root UIs rather than menu items and carry `SlotBrowser`'s brand-new-name axis. **Was billed as E4's main body of work; E4 did the services and the first root scenes instead**, so this is E5's or E6's. | this section's preamble; `browser/browser_scene.h`'s scope note | new `Descriptor`s or a second scene, plus a `SlotBrowser` equivalent, plus an oracle that is not the menu walk |
 | **`FileCatalogue`'s claim covers a listing, not a session.** The leaf calls — `predictExtendedText`, `getUnusedSlot`, the save UIs' default-name search — do not claim at all, so a listing dispatched elsewhere can still replace `fileItems` under one of them. This is exactly the exposure legacy always had; closing it means claim-on-open/release-on-close and a change to `Browser`'s lifecycle. | `storage/file_catalogue.h`'s `claim` contract | belongs with whoever wires the browser up for real — i.e. E4 |
 | **`take_choice()` has no dispatcher, and it owes two things.** `Descriptor::accept`'s `Defer` outcome parks the chosen file and closes; the dispatcher that drains it must perform `SampleBrowser::claimCurrentFile` (which reaches the sound and the audio-file manager through paths `src/scenes` may not name) **and** legacy's `maybeGetParentMenu` re-rooting, which lands the user on the source page rather than back on the item that opened the browser. The recorder carries the identical pair. | `browser/browser_scene.h`'s two `Descriptor::accept` notes; `menu/nodes/sample.cpp`'s two `on_focus` bodies | one dispatcher, in the wiring layer; costs one extra BACK press until then |
 | **`model/clip/audio_clip.cpp` still includes `gui/waveform/waveform_renderer.h`** — the one surviving `model-includes-ui` row of the waveform split, and it is the *method* that is inverted, not the include: `AudioClip::renderAsSingleRow` is a `model/` class that draws into an `RGB*`. Its extracted form takes a `GridFrame` that `model/` cannot build, so closing it means moving clip-row rendering into the scene layer. | the include site itself; `scripts/layer_rules_baseline.txt` | `SessionScene`'s job |
 | **`slicing::SliceOps` has no implementation.** Six virtuals, no-op defaults, wired by nobody — the whole audio/model/card half of the slicer. `Slicer` reaches that work through four `gui/` globals `scenes-no-root-ui`/`scenes-includes-gui` forbid (`sampleBrowser` `:600`/`:749`, `soundEditor` `:452`/`:612-614`/`:634`, `instrumentClipView` `:481`/`:747`, `PadLEDs` `:378`), so the port names the calls at a boundary and keeps the state, the guards, the coalescer, the dispatch and the gate. Until a wiring layer implements it the slicer selects, deletes, renders and snapshots correctly and makes no sound and no kit. `SliceOps::play_position` is the **third** consumer of the voice walk no spec can drive — `Slicer::graphicsRoutine` and `AudioClipScene`'s playhead are the other two — so the fixture that unblocks it (a `Song` with a booted `AudioEngine` and one sounding voice) unblocks all three. | `slicing/slicer_scene.h`'s `SliceOps`; the slicer section above | six virtuals over ~195 lines of legacy (`Slicer::previewForTarget` 40, `Slicer::doSlice` 155) plus the oracle neither has today — a task, not a wiring detail |
-| **Three firmware defects, recorded not fixed** — the `AudioRecorder::finishRecording` use-after-free, the dead `FOLDER_DOESNT_EXIST` fallbacks, and the swallowed first gold turn. | "Defects this port found in shipping firmware" above, and each defect's own site | each needs a device to validate; none is this stack's to change |
+| **Ten firmware defects, recorded not fixed** — three from E3 (the `AudioRecorder::finishRecording` use-after-free, the dead `FOLDER_DOESNT_EXIST` fallbacks, the swallowed first gold turn) and **seven more from E4**: `View::modButtonAction`'s two unguarded `getModKnobMode()` dereferences, `View::setKnobIndicatorLevel`'s uninitialised `knobPos`, `ClipView::getTickSquare` comparing a scroll against the zoom, `ClipView::lengthenClip`/`shortenClip`'s unguarded `actionLogger.firstAction[BEFORE]`, `Slicer::renderMainPads`' missing image null-check, `Slicer`'s 432 bytes of dead stack declared twice, and `Slicer::selectEncoderAction`'s equality-only count wrap. | "Defects this port found in shipping firmware" above, and each defect's own site | each needs a device to validate; none is this stack's to change |
+| **`ClipView`'s `Y_ENC` shift arm is a silent no-op for a real gesture, and must not survive E5.** `AudioClipScene`'s horizontal-encoder arm CLAIMS the Y_ENC (and `X_ENC`-held + CLIP) chord exactly as legacy does (`gui/views/clip_view.cpp:249`) and then does nothing, because two of the three arguments `Clip::shiftHorizontally` takes are decided by `getCurrentUI() == &automationView` (`:203-206`) — a `scenes-no-root-ui` read this layer may not make, and with no `AutomationScene` a question with no answer — and its undo consequence `alloc_sdram`s a `ConsequenceClipHorizontalShift` (`:240-245`), which Global Constraint 6 forbids from library code. Claiming it is right (letting it fall through would hand a Y_ENC turn to `GlobalControls`, which legacy never does); leaving it empty once an `AutomationScene` exists is not. **The instruction to whoever writes that scene: port this arm in the same change.** | the `@warning` at `audio_clip/audio_clip_scene.cpp`'s Y_ENC arm, this row, and migration spec §10.4 | one arm plus its consequence, once `AutomationScene` can answer the question |
+| **Six doc-comment tables are mangled by clang-format's comment reflow** and do not render: `menu/nodes/midi_device.h`, `menu/nodes/patch_cables.h`, `recorder/recorder_scene.h`, `shell/scene.h`, `shell/scene_stack.h`, `shell/shell.h`. Rows merge mid-line into ` | | ` runs, so a reader gets one unreadable paragraph where a table was intended. E4 task 9 fixed `slicing/slicer_scene.h`'s two and task 14 fixed `marker/marker_scene.h`'s one, both by rewriting the table as a bulleted list, which survives the reflow (verified by re-running `clang-format` on it). Find them with `grep -rn "| |" --include='*.h' src/`. Not swept here because each one's citations have to be re-verified as it is rewritten — `marker_scene.h`'s five all resolved, but that was checked line by line, not assumed. | this row | six files, a list rewrite and a citation check each |
 
-Beyond the menu tree, the rest of spec E §2's scene inventory (`SessionScene`, `NoteClipScene`, the
-overlays, and the load/save half of the browser family) is still unwritten, and **nothing links
-`deluge_scenes`** — the wiring plan owes the entry point, the MIDI routing, the boot calls and the
-`MenuAction` dispatcher.
+Beyond the menu tree, the remainder of spec E §2's scene inventory is `SessionScene`,
+`NoteClipScene`, `ArrangerScene`, `KeyboardScene`, `PerformanceScene`, `AutomationScene` and the
+load/save half of the browser family — **the overlays are done** (E4 tasks 1, 6 and 7 landed the
+last three). And **nothing links `deluge_scenes`**: the wiring plan owes the entry point, the MIDI
+routing, the boot calls, the `MenuAction` dispatcher and — new in E4 — a way to install a service at
+all (`Shell::set_services`; see "Boot wiring this layer does not do for itself"). Three of
+`MidiLearn`'s four entry points have **no producer in `src/` today**: `note_on_received`,
+`cc_received` and `thing_pressed` have zero callers outside the spec, because there is no MIDI
+`UiEvent` kind for the router to carry and the scenes that would call `thing_pressed` from
+`learnable_at(pad)` are E5's and E6's. The wiring plan owes those producers too.
 
 ### The carry list in detail
 

@@ -13,13 +13,14 @@
 /// **What draws what.** Nothing here calls an `OledFrame` or `GridFrame` primitive
 /// (`check_layer_rules.py`, `scenes-no-frame-primitives`):
 ///
-/// | legacy | here |
-/// |---|---|
-/// | `renderMainPads`' `waveformRenderer.renderFullScreen` (`:1369`) | `deluge::sample::find_peaks_per_col` +
-/// `ui::grid::waveform_full` | | `renderColumn` / `renderMarkerInCol` (`:1268`, `:1058`) | `ui::grid::marker_column` /
-/// `marker_tint` | | `renderOLED`'s `drawScreenTitle` (`:1128`) | `ui::oled::title` | | its lock icon + `invertArea`
-/// (`:1130-1133`) | `ui::oled::title_badge` | | its time and sample-count lines (`:1135-1222`) |
-/// `ui::oled::sample_position` |
+///   * `renderMainPads`' `waveformRenderer.renderFullScreen`
+///     (`gui/ui/sample_marker_editor.cpp:1369`) -> `deluge::sample::find_peaks_per_col` +
+///     `ui::grid::waveform_full`.
+///   * `renderColumn` / `renderMarkerInCol` (`:1268`, `:1058`) -> `ui::grid::marker_column` /
+///     `marker_tint`.
+///   * `renderOLED`'s `drawScreenTitle` (`:1128`) -> `ui::oled::title`.
+///   * its lock icon + `invertArea` (`:1130-1133`) -> `ui::oled::title_badge`.
+///   * its time and sample-count lines (`:1135-1222`) -> `ui::oled::sample_position`.
 ///
 /// The scan and the navigation are not widgets -- they read `Sample`, `SampleHolder` and the card,
 /// so they live one layer down in `model/sample/waveform_scan.h` and
