@@ -47,8 +47,6 @@
 #include "util/string.h"
 #include "util/try.h"
 
-#include <cassert>
-
 using namespace deluge;
 namespace encoders = deluge::hid::encoders;
 
@@ -413,6 +411,18 @@ void LoadInstrumentPresetUI::runCommitOp(void* self) {
 }
 
 bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::PresetRequest& request) {
+	// One coalescer serves every consumer, and LatestWins supersedes what is queued. That is the
+	// point for a navigate or an output-type mash -- only where the user settled matters -- but a
+	// creation gesture is not a destination: superseding the middle of three rapid new-track presses
+	// loses a clip, and because the coalescer is shared, a single encoder turn can be what overwrites
+	// a queued create. So refuse instead of overwriting. Refusing (rather than growing a real queue)
+	// is deliberate: it puts the caller on the path it already has for a full owner queue, and the
+	// gesture that is kept is the one the user made FIRST, which is the one whose UI tail their next
+	// press is already reacting to.
+	if (const auto& queued = presetCoalescer_.queued();
+	    queued.has_value() && deluge::storage::isCreationConsumer(queued->consumer)) {
+		return false;
+	}
 	if (!presetCoalescer_.request(request)) {
 		return true; // superseded an in-flight op; that op will pick this up via complete()
 	}
@@ -469,7 +479,7 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 	}
 	switch (request.consumer) {
 	case PresetConsumer::ArrangerNewInstrument:
-		arrangerView.completeNewInstrument(request.yPressed);
+		arrangerView.completeNewInstrument(request.yPressed, request.yPressedRaw, request.renderUi);
 		break;
 	case PresetConsumer::ArrangerChangeType:
 		arrangerView.completeChangeOutputType(request.outputType, request.oldInstrument, request.yPressed);
@@ -480,7 +490,8 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 	case PresetConsumer::ViewChangeType:
 	case PresetConsumer::ViewChangeTypeMinder:
 	case PresetConsumer::SessionRowsChangeType:
-		// All three route through the same per-consumer completion changeOutputType()'s synchronous
+	case PresetConsumer::KeyboardChangeType:
+		// All four route through the same per-consumer completion changeOutputType()'s synchronous
 		// MIDI/CV arm also uses, so each caller's redraw/LED tail runs from exactly one place either
 		// way -- see View::completeChangeOutputTypeFor()'s doc.
 		(void)view.completeChangeOutputTypeFor(request.consumer, request.outputType, request.clip, request.doBlink);
@@ -495,7 +506,8 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		sessionView.completeNavigate(request.offset, request.oldInstrument);
 		break;
 	case PresetConsumer::SessionNewTrack:
-		sessionView.completeNewTrack(request.outputType, request.xPressed, request.yPressed, request.clipIndex);
+		sessionView.completeNewTrack(request.outputType, request.xPressed, request.yPressed, request.clipIndex,
+		                             request.shiftHeld);
 		break;
 	case PresetConsumer::SessionNewTrackEnter:
 		sessionView.completeNewTrackGridEnter(request.outputType, request.packedXY, request.padStillPressed);
@@ -532,7 +544,7 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		// what's current now is what makes the write itself safe, not just the pointer.
 		if (instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx)
 		    && getCurrentInstrumentClip() == request.clip) {
-			keyboardScreen.completeNewInstrumentLayoutRefresh();
+			keyboardScreen.completeLayoutRefresh();
 		}
 		break;
 	}
@@ -1379,7 +1391,14 @@ LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* so
 	// exception -- Song::ensureAtLeastOneSessionClip() calls straight in here before any interaction
 	// tier, or owner, exists yet (deluge.cpp's setupBlankSong() path) -- so permit that instead of
 	// audioEngineStarted, which is already true by then (AudioEngine::init() runs earlier in boot).
-	assert(deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started());
+	//
+	// FREEZE_WITH_ERROR, not assert(): a bare assert() is compiled out of the shipping build, and on
+	// the Rust BSP abort() ends the process with nothing on the display. This is a tier invariant
+	// whose violation corrupts Browser::fileItems across two tiers, so it must be visible on the
+	// device it breaks.
+	if (ALPHA_OR_BETA_VERSION && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
+		FREEZE_WITH_ERROR("TIR1");
+	}
 
 	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
 	allowedFileExtensions = allowedFileExtensionsXML;
@@ -1500,8 +1519,11 @@ LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, 
                                                          Availability availabilityRequirement) {
 	// Rung 5: calls findAnUnlaunchedPresetIncludingWithinSubfolders() below, so it inherits the same
 	// can't-defer-mid-walk constraint and must never run on the interaction tier. Boot is the one
-	// legal exception -- see the sibling assertion in findAnUnlaunchedPresetIncludingWithinSubfolders.
-	assert(deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started());
+	// legal exception -- see the sibling check in findAnUnlaunchedPresetIncludingWithinSubfolders,
+	// which also explains why this is a freeze rather than a bare assert().
+	if (ALPHA_OR_BETA_VERSION && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
+		FREEZE_WITH_ERROR("TIR2");
+	}
 
 	std::string searchNameLocalCopy;
 	searchNameLocalCopy = *searchName; // Can't fail.
@@ -1591,9 +1613,12 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 	// Rung 5: this reader loops over readFileItemsForFolder() with its own goto-based backtracking
 	// (readAgain/moveAgain/reachedEnd below) to walk the catalog in either direction, so like its two
 	// siblings its walk cannot be split across a deferral and must run start-to-finish on the storage
-	// owner. Boot is the one legal exception -- see the sibling assertion in
-	// findAnUnlaunchedPresetIncludingWithinSubfolders.
-	assert(deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started());
+	// owner. Boot is the one legal exception -- see the sibling check in
+	// findAnUnlaunchedPresetIncludingWithinSubfolders, which also explains why this is a freeze rather
+	// than a bare assert().
+	if (ALPHA_OR_BETA_VERSION && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
+		FREEZE_WITH_ERROR("TIR3");
+	}
 
 	AudioEngine::logAction("doPresetNavigation");
 

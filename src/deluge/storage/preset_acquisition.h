@@ -24,26 +24,22 @@
 class Clip;
 class Instrument;
 class InstrumentClip;
+class UI;
 
 namespace deluge::storage {
-
-/// @brief Which directory query an acquisition runs.
-///
-/// Each maps to one existing LoadInstrumentPresetUI reader, whose body is unchanged: the query
-/// selects which one the op calls, it does not reimplement them.
-enum class PresetQuery : uint8_t {
-	AnyUnlaunched, ///< findAnUnlaunchedPresetIncludingWithinSubfolders()
-	ConfirmOrNext, ///< confirmPresetOrNextUnlaunchedOne()
-	Navigate,      ///< doPresetNavigation()
-	UnusedSlot,    ///< Browser::getUnusedSlot() -- not a LoadInstrumentPresetUI reader, but the same
-	               ///< shape: it names a brand-new preset slot by reading the folder.
-};
 
 /// @brief Which gesture's follow-up the completion runs.
 ///
 /// The op has no caller waiting on a return value, so it must be told what the acquisition was
 /// FOR. Same device as `changingOutputType_`, which tells one Open listing's follow-up from
 /// another's in the shared onBrowserOpened() hook.
+///
+/// This is also the ONLY thing that selects which directory reader the op runs: the follow-up calls
+/// its own existing reader (findAnUnlaunchedPresetIncludingWithinSubfolders(),
+/// confirmPresetOrNextUnlaunchedOne(), doPresetNavigation() or Browser::getUnusedSlot()) down its own
+/// unchanged call chain. There is deliberately no separate "which query" field: one existed, was set
+/// at all eleven dispatch sites and read nowhere, and implied the op dispatched on the query rather
+/// than on the consumer.
 enum class PresetConsumer : uint8_t {
 	ArrangerNewInstrument,  ///< the arranger's new-instrument pad
 	ArrangerChangeType,     ///< ArrangerView::changeOutputType()
@@ -93,7 +89,52 @@ enum class PresetConsumer : uint8_t {
 	                        ///< synchronous return, which this rung's dispatch removed; a shared
 	                        ///< ViewNewInstrument arm has no KeyboardScreen instance to call it on, so
 	                        ///< this exists to give the layout refresh somewhere correct to run.
+	KeyboardChangeType,     ///< View::changeOutputType(), reached via InstrumentClipView::changeOutputType()
+	                        ///< from KeyboardScreen's own KIT/SYNTH buttons when NEITHER shift nor FM is
+	                        ///< held. Runs ViewChangeType's exact tail, PLUS KeyboardScreen::selectLayout()
+	                        ///< -- the exact counterpart of KeyboardNewInstrument, and it exists for the
+	                        ///< same reason: keyboard_screen.cpp gated that layout refresh on
+	                        ///< changeOutputType()'s return, which for Synth/Kit now means "dispatched",
+	                        ///< so the refresh ran against the PRE-swap instrument and the keyboard was
+	                        ///< left on the wrong layout for good.
 };
+
+/// @brief Whether `consumer`'s gesture CREATES something (a clip, a track, an instrument).
+///
+/// The coalescer is latest-wins, which is right for a gesture that names a destination -- a held
+/// navigation encoder or a mashed output-type button only ever wanted where the user settled. It is
+/// wrong for a gesture that makes a new thing: superseding the middle of three rapid presses does
+/// not converge on anything, it loses a clip. `dispatchPresetAcquisition()` uses this to refuse a
+/// gesture rather than overwrite a queued creation.
+///
+/// Exhaustive with no `default:`, so -Werror=switch makes a future PresetConsumer state which side
+/// it is on rather than silently defaulting to "coalesceable".
+/// @param consumer The gesture's consumer.
+/// @return true if superseding this gesture would lose work the user asked to be created.
+constexpr bool isCreationConsumer(PresetConsumer consumer) {
+	switch (consumer) {
+	case PresetConsumer::ArrangerNewInstrument:
+	case PresetConsumer::SessionNewTrack:
+	case PresetConsumer::SessionNewTrackEnter:
+	case PresetConsumer::SessionNewTrackSelect:
+	case PresetConsumer::SessionNewTrackClone:
+	case PresetConsumer::MinderNewInstrument:
+	case PresetConsumer::ViewNewInstrument:
+	case PresetConsumer::KeyboardNewInstrument:
+		return true;
+	case PresetConsumer::ArrangerChangeType:
+	case PresetConsumer::ArrangerNavigate:
+	case PresetConsumer::SessionChangeType:
+	case PresetConsumer::SessionNavigate:
+	case PresetConsumer::ViewChangeType:
+	case PresetConsumer::ViewNavigateClipPreset:
+	case PresetConsumer::SessionRowsChangeType:
+	case PresetConsumer::ViewChangeTypeMinder:
+	case PresetConsumer::KeyboardChangeType:
+		return false;
+	}
+	return false;
+}
 
 /// @brief Everything an acquisition needs, captured at dispatch time.
 ///
@@ -102,7 +143,6 @@ enum class PresetConsumer : uint8_t {
 ///       mutate or free while the op is yielded. `oldInstrument` is safe because it is Song-owned;
 ///       a FileItem* would not be. See the rung 5 spec, section 6.
 struct PresetRequest {
-	PresetQuery query{PresetQuery::AnyUnlaunched};
 	PresetConsumer consumer{PresetConsumer::ArrangerNewInstrument};
 	OutputType outputType{OutputType::SYNTH};
 	Availability availability{Availability::ANY};
@@ -112,6 +152,12 @@ struct PresetRequest {
 	                    ///< should blink.
 	int32_t yPressed{}; ///< The view row the gesture was made on, captured before any yield.
 	int32_t xPressed{}; ///< SessionNewTrack only: the pad column the gesture was made on.
+	/// @brief ArrangerNewInstrument only: the audition-pad row the press physically landed on, BEFORE
+	///        `yPressed`'s clamp into the visible output range.
+	/// @note Carried separately from `yPressed` because it is what the completion asks the pad matrix
+	///       about (`matrixDriver.isPadPressed(kDisplayWidth + 1, ...)`) to decide whether the finger
+	///       is still down. The clamped row is a screen row, not a pad.
+	int32_t yPressedRaw{};
 	/// @brief SessionNewTrack only: `yDisplay + songViewYScroll` as it read when the pad went down.
 	/// @note Snapshotted rather than re-derived, because the completion's own insertAndResyncNewClip()
 	///       can advance songViewYScroll before the value is used.
@@ -127,13 +173,22 @@ struct PresetRequest {
 	///       the live gridFirstPressedX/Y would always conclude "released" and take a different branch
 	///       than the synchronous path did.
 	bool padStillPressed{};
+	/// @brief SessionNewTrack only: whether SHIFT was held when the pad went down.
+	/// @note Snapshotted like every other input. The completion uses it for `clipWasSelectedWithShift`
+	///       (a colour choice); reading Buttons::isShiftButtonPressed() live from there was faithful to
+	///       the old ordering only while the gap was zero, and the gap is now a storage round-trip.
+	bool shiftHeld{};
 	uint32_t targetSection{}; ///< SessionNewTrackClone only: the section the copy is dropped into.
 	/// @brief MinderNewInstrument/ViewNewInstrument/KeyboardNewInstrument only: whether the new Synth
 	///        should be FM (DX7).
 	bool isDx{};
 
-	std::string searchName; ///< ConfirmOrNext only: the preset name to confirm.
-	std::string dirPath;    ///< Browser::currentDir at dispatch -- the op sets currentDir from THIS.
+	/// @brief Browser::currentDir at dispatch -- the op sets currentDir from THIS, unconditionally.
+	/// @note Most readers immediately overwrite it as they descend (doPresetNavigation() from
+	///       oldInstrument->dirPath, createNewInstrument() from getInstrumentFolder()), and that is
+	///       their business. This is the FLOOR: without it the op would inherit whatever the UI task
+	///       last happened to leave in that static, which is the one thing between the two tiers here.
+	std::string dirPath;
 
 	/// @brief The instrument navigated away from, or being replaced. Song-owned, so it stays valid
 	///        across the op's yields.
@@ -144,8 +199,18 @@ struct PresetRequest {
 	///        `oldInstrument` gets no liveness check on the clip itself.
 	InstrumentClip* clip{};
 	/// @brief SessionNewTrackClone only: the clip being copied. Song-owned, so it survives the op's
-	///        yields -- but, like `clip`, it gets no liveness re-check: only `oldInstrument` does.
+	///        yields, and its liveness IS re-checked: that consumer sets `oldInstrument` to
+	///        `sourceClip->output` for exactly that reason, so a clip deleted mid-flight takes its
+	///        Instrument out of the Song's output list with it and the completion is skipped.
 	Clip* sourceClip{};
+
+	/// @brief ArrangerNewInstrument only: the UI whose rows the completion repaints.
+	/// @note The arranger's audition pads are driven from three different UIs (ArrangerView itself,
+	///       AutomationView and PerformanceView), and uiNeedsRendering() only marks rows for a UI that
+	///       is actually in the navigation hierarchy -- passing the wrong one silently repaints
+	///       nothing. Every UI is a statically allocated singleton, so this pointer is at least as
+	///       stable across the op's yields as a Song-owned one.
+	UI* renderUi{};
 };
 
 } // namespace deluge::storage

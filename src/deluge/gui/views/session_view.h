@@ -128,7 +128,10 @@ public:
 	/// @param xDisplay  The pad column the gesture was made on.
 	/// @param yDisplay  The pad row the gesture was made on.
 	/// @param clipIndex `yDisplay + songViewYScroll` as it read when the pad went down.
-	void completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex);
+	/// @param shiftHeld Whether SHIFT was down when the pad went down; drives the new clip's colour
+	///        (`clipWasSelectedWithShift`). Snapshotted at dispatch rather than read live here,
+	///        because "here" is now on the far side of a card read.
+	void completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex, bool shiftHeld);
 
 	/// @brief The grid new-track gesture's ENTER follow-up, on the storage owner.
 	/// @param type            The clip type chosen in the picker.

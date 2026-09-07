@@ -860,7 +860,7 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 // The acquisition reads the card, so it runs on the storage owner; everything that used to follow
 // this call now runs in completeNewInstrument(). Snapshot yPressedEffective here -- the op must not
 // read it back (spec section 6).
-void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed) {
+void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed, UI* ui) {
 
 	int32_t minY = -currentSong->arrangementYScroll - 1;
 	int32_t maxY = -currentSong->arrangementYScroll + currentSong->getNumOutputs();
@@ -869,19 +869,25 @@ void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed) {
 	yPressedEffective = std::min((int32_t)yPressedEffective, maxY);
 
 	deluge::storage::PresetRequest request{
-	    .query = deluge::storage::PresetQuery::AnyUnlaunched,
 	    .consumer = deluge::storage::PresetConsumer::ArrangerNewInstrument,
 	    .outputType = OutputType::SYNTH,
 	    .availability = Availability::INSTRUMENT_UNUSED,
 	    .yPressed = yPressedEffective,
+	    .yPressedRaw = yPressed,
 	    .dirPath = getInstrumentFolder(OutputType::SYNTH),
+	    .renderUi = (ui != nullptr) ? ui : this,
 	};
-	loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+	// Nothing here can act on a dropped gesture: the press is over either way, and the row simply
+	// stays empty, which is what it already showed. See dispatchPresetAcquisition()'s doc.
+	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
 // Runs on the storage owner, dispatched by the new-instrument pad gesture. createNewInstrument()
 // itself is unchanged and blocks here, which is legal on this tier.
-void ArrangerView::completeNewInstrument(int32_t yPressed) {
+void ArrangerView::completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui) {
+	if (ui == nullptr) {
+		ui = this;
+	}
 	bool instrumentAlreadyInSong; // Will always end up false
 
 	Output* output = createNewInstrument(OutputType::SYNTH, &instrumentAlreadyInSong);
@@ -895,11 +901,45 @@ void ArrangerView::completeNewInstrument(int32_t yPressed) {
 
 	outputsOnScreen[yPressed] = output;
 
-	// The pad handler's early return (auditionPadAction(), the `if (!output) { return; }` right
-	// after dispatch) skips the uiNeedsRendering() call that used to sit at the end of its shared
-	// tail, so the row this just populated would otherwise stay unpainted until something unrelated
-	// dirtied it.
-	uiNeedsRendering(this, 0, 1 << yPressed);
+	// Everything from here down is the rest of the pad press (auditionPadAction()'s shared tail),
+	// which the handler cannot run itself: it returns the moment it dispatches, and on the Embassy
+	// backing the row is still empty at that point.
+	//
+	// Starting a note needs a stronger guard than its two sibling completions use. Those dispatch
+	// FROM UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, so a release in between runs
+	// exitSubModeWithoutAction() and clears the mode, and testing currentUIMode sees it. This gesture
+	// never entered that mode -- there was no Output to audition yet -- so a release leaves no trace
+	// at all: exitSubModeWithoutAction() finds nothing to exit and returns silently. The pad itself is
+	// the only witness, and an unguarded deferred beginAudition() here is a note nothing will ever end.
+	// currentUIMode is still checked as well, so a gesture that took the UI somewhere else meanwhile
+	// does not get an audition dropped underneath it.
+	const bool stillHeld = currentUIMode == UI_MODE_NONE && matrixDriver.isPadPressed(kDisplayWidth + 1, yPressedRaw);
+	if (!stillHeld) {
+		// The row was still populated, so it still has to be repainted -- just without the audition.
+		uiNeedsRendering(ui, 0, 1 << yPressed);
+		return;
+	}
+
+	// Re-asserted, not assumed: the guard above established that this gesture is the live one, and a
+	// superseded earlier gesture may have left these pointing at its own row.
+	yPressedEffective = yPressed;
+	yPressedActual = yPressedRaw;
+
+	currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
+
+	view.displayOutputName(output);
+
+	beginAudition(output);
+
+	if (output->getActiveClip()) {
+		view.setActiveModControllableTimelineCounter(output->getActiveClip());
+	}
+	else {
+		view.setActiveModControllableWithoutTimelineCounter(output->toModControllable(),
+		                                                    output->getParamManager(currentSong));
+	}
+
+	uiNeedsRendering(ui, 0, 1 << yPressed);
 }
 
 void ArrangerView::auditionPadAction(bool on, int32_t y, UI* ui) {
@@ -932,13 +972,14 @@ doNewPress:
 			yPressedEffective = y;
 			yPressedActual = y;
 
-			// If nothing on this row yet, we'll add a brand new Instrument
+			// If nothing on this row yet, we'll add a brand new Instrument. That reads the card, so the
+			// gesture dispatches and the WHOLE remainder of this press -- audition mode, name, note,
+			// mod-controllable, repaint -- runs from completeNewInstrument() once the Instrument exists.
+			// Reading outputsOnScreen back here and falling through would be reading the row before the
+			// op that fills it has run: null on every backing that actually defers.
 			if (!output) {
-				beginNewInstrumentAcquisition(yPressedEffective);
-				output = outputsOnScreen[yPressedEffective];
-				if (!output) {
-					return;
-				}
+				beginNewInstrumentAcquisition(y, ui);
+				return;
 			}
 
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
@@ -2620,7 +2661,6 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 	}
 
 	deluge::storage::PresetRequest request{
-	    .query = deluge::storage::PresetQuery::Navigate,
 	    .consumer = deluge::storage::PresetConsumer::ArrangerNavigate,
 	    .outputType = output->type,
 	    .availability = Availability::INSTRUMENT_UNUSED,
@@ -2630,7 +2670,9 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 	    .dirPath = ((Instrument*)output)->dirPath,
 	    .oldInstrument = (Instrument*)output,
 	};
-	loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+	// A dropped gesture leaves the row on the preset it already had; nothing to undo, and the next
+	// encoder tick dispatches again. See dispatchPresetAcquisition()'s doc.
+	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
 // Runs on the storage owner for Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for
@@ -2677,7 +2719,6 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	}
 
 	deluge::storage::PresetRequest request{
-	    .query = deluge::storage::PresetQuery::AnyUnlaunched,
 	    .consumer = deluge::storage::PresetConsumer::ArrangerChangeType,
 	    .outputType = newOutputType,
 	    .availability = Availability::INSTRUMENT_UNUSED,
@@ -2685,7 +2726,9 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	    .dirPath = getInstrumentFolder(newOutputType),
 	    .oldInstrument = oldInstrument,
 	};
-	loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+	// A dropped gesture leaves the row on its existing Instrument -- endAudition() above already ran,
+	// which is what a released pad would have done anyway. See dispatchPresetAcquisition()'s doc.
+	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
 // Runs on the storage owner for Synth/Kit, inline for MIDI/CV. Song::changeOutputType() is

@@ -505,25 +505,27 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Kit button
 	//
-	// The shift/FM branch (createNewInstrument()) always returns false and refreshes the layout from
-	// its own completion instead (PresetConsumer::KeyboardNewInstrument, passed explicitly here) --
-	// see InstrumentClipView::createNewInstrument()'s doc. The changeOutputType() branch (no shift/FM
-	// held) is unaffected by that parameter and still gates this eager call on its own return.
+	// NEITHER branch of handleInstrumentChange() may gate the layout refresh on its return any more.
+	// For Synth/Kit both are dispatches, and the return means "gesture accepted", not "instrument
+	// swapped" -- calling selectLayout(0) here would run it against the PRE-swap instrument and leave
+	// the keyboard on the wrong layout for good, since nothing would refresh it afterwards. So both
+	// consumers are passed explicitly and both completions carry the refresh:
+	// PresetConsumer::KeyboardNewInstrument for the shift/FM branch, PresetConsumer::KeyboardChangeType
+	// for the plain one. The MIDI/CV buttons below are the exception, and stay eager: they read no card
+	// and really do run to completion inside the call.
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			if (instrumentClipView.handleInstrumentChange(OutputType::KIT,
-			                                              deluge::storage::PresetConsumer::KeyboardNewInstrument)) {
-				selectLayout(0);
-			}
+			(void)instrumentClipView.handleInstrumentChange(OutputType::KIT,
+			                                                deluge::storage::PresetConsumer::KeyboardNewInstrument,
+			                                                deluge::storage::PresetConsumer::KeyboardChangeType);
 		}
 	}
 
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			if (instrumentClipView.handleInstrumentChange(OutputType::SYNTH,
-			                                              deluge::storage::PresetConsumer::KeyboardNewInstrument)) {
-				selectLayout(0);
-			}
+			(void)instrumentClipView.handleInstrumentChange(OutputType::SYNTH,
+			                                                deluge::storage::PresetConsumer::KeyboardNewInstrument,
+			                                                deluge::storage::PresetConsumer::KeyboardChangeType);
 		}
 	}
 

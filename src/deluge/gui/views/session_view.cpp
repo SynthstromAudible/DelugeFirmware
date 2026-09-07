@@ -648,14 +648,16 @@ doActualSimpleChange:
 							}
 							else {
 								deluge::storage::PresetRequest request{
-								    .query = deluge::storage::PresetQuery::AnyUnlaunched,
 								    .consumer = deluge::storage::PresetConsumer::SessionChangeType,
 								    .outputType = newOutputType,
 								    .availability = Availability::INSTRUMENT_UNUSED,
 								    .dirPath = getInstrumentFolder(newOutputType),
 								    .oldInstrument = instrument,
 								};
-								loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+								// A dropped gesture leaves the clip on its existing Instrument and the row
+								// showing it; the next button press dispatches again. See
+								// dispatchPresetAcquisition()'s doc.
+								(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 							}
 							break;
 						}
@@ -904,19 +906,25 @@ removePendingOverdub:
 					newTrackPressHeld_ = true;
 					if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
 						deluge::storage::PresetRequest request{
-						    .query = deluge::storage::PresetQuery::AnyUnlaunched,
 						    .consumer = deluge::storage::PresetConsumer::SessionNewTrack,
 						    .outputType = toCreate,
 						    .availability = Availability::INSTRUMENT_UNUSED,
 						    .yPressed = yDisplay,
 						    .xPressed = xDisplay,
 						    .clipIndex = clipIndex,
+						    // Snapshotted here, where the old synchronous ordering read it: the completion
+						    // used to follow within the same press, and now follows a card read.
+						    .shiftHeld = Buttons::isShiftButtonPressed(),
 						    .dirPath = getInstrumentFolder(toCreate),
 						};
-						loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+						// A dropped gesture creates nothing, which is what the pad already showed. The held
+						// marker outliving it is harmless: only completeNewTrack() reads it, and the next
+						// new-track press sets it afresh before dispatching. See
+						// dispatchPresetAcquisition()'s doc.
+						(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 						return ActionResult::DEALT_WITH;
 					}
-					completeNewTrack(toCreate, xDisplay, yDisplay, clipIndex);
+					completeNewTrack(toCreate, xDisplay, yDisplay, clipIndex, Buttons::isShiftButtonPressed());
 					return ActionResult::DEALT_WITH;
 				}
 			}
@@ -1354,7 +1362,6 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 				break;
 			}
 			deluge::storage::PresetRequest request{
-			    .query = deluge::storage::PresetQuery::Navigate,
 			    .consumer = deluge::storage::PresetConsumer::SessionNavigate,
 			    .outputType = oldOutput->type,
 			    .availability = Availability::INSTRUMENT_UNUSED,
@@ -1363,7 +1370,9 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 			    .dirPath = ((Instrument*)oldOutput)->dirPath,
 			    .oldInstrument = (Instrument*)oldOutput,
 			};
-			loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+			// A dropped gesture leaves the clip on the preset it already had; nothing to undo, and the
+			// next encoder tick dispatches again. See dispatchPresetAcquisition()'s doc.
+			(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 			break;
 		}
 		// explicit fallthrough cases
@@ -1767,7 +1776,8 @@ void SessionView::beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yD
 // Runs on the storage owner for Synth/Kit, inline for MIDI. createNewInstrumentClip() itself is
 // unchanged and blocks here, which is legal on this tier -- and so its three abandon paths, and the
 // bool createNewTrackForInstrumentClip() answers them with, are untouched.
-void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex) {
+void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex,
+                                   bool shiftHeld) {
 	Clip* clip = createNewInstrumentClip(type, yDisplay);
 	if (!clip) {
 		// The gesture is over: nothing was created, so nothing will be held.
@@ -1786,8 +1796,10 @@ void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yD
 		clipIndex = numClips - 1;
 	}
 
-	// This is only interresting for changing colour
-	clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
+	// This is only interresting for changing colour. Taken from the dispatch-time snapshot, not read
+	// live: the synchronous path read it a few instructions after the press, and the dispatched one
+	// gets here a whole card read later, by which time SHIFT may have been pressed or released.
+	clipWasSelectedWithShift = shiftHeld;
 	selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
 	requestRendering(this, 0, 1 << selectedClipYDisplay);
 
@@ -3814,15 +3826,21 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	if (targetOutput == nullptr && sourceClip->type == ClipType::INSTRUMENT
 	    && (sourceClip->output->type == OutputType::SYNTH || sourceClip->output->type == OutputType::KIT)) {
 		deluge::storage::PresetRequest request{
-		    .query = deluge::storage::PresetQuery::AnyUnlaunched,
 		    .consumer = deluge::storage::PresetConsumer::SessionNewTrackClone,
 		    .outputType = sourceClip->output->type,
 		    .availability = Availability::INSTRUMENT_UNUSED,
 		    .targetSection = targetSection,
 		    .dirPath = getInstrumentFolder(sourceClip->output->type),
+		    // Set purely so `sourceClip` gets a liveness re-check: runAcquisitionFollowUp() gates every
+		    // follow-up on isRequestInstrumentStillLive(oldInstrument), and without this the completion
+		    // could dereference a source clip deleted while the acquisition was in flight. The type test
+		    // above already established this Output is a SYNTH or KIT Instrument.
+		    .oldInstrument = (Instrument*)sourceClip->output,
 		    .sourceClip = sourceClip,
 		};
-		loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+		// A dropped gesture copies nothing and shows no "COPIED" -- the target column stays empty, which
+		// is what it already showed. See dispatchPresetAcquisition()'s doc.
+		(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 		return;
 	}
 
@@ -3891,7 +3909,6 @@ void SessionView::finishGridNewTrackClip() {
 	// (gridNewTrackClipEntered() vs gridNewTrackClipSelected()) are different functions.
 	if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
 		deluge::storage::PresetRequest request{
-		    .query = deluge::storage::PresetQuery::AnyUnlaunched,
 		    .consumer = (which == PendingGridClip::ENTER) ? deluge::storage::PresetConsumer::SessionNewTrackEnter
 		                                                  : deluge::storage::PresetConsumer::SessionNewTrackSelect,
 		    .outputType = toCreate,
@@ -3900,7 +3917,9 @@ void SessionView::finishGridNewTrackClip() {
 		    .padStillPressed = padStillPressed,
 		    .dirPath = getInstrumentFolder(toCreate),
 		};
-		loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+		// A dropped gesture creates nothing; the picker is already closed and the press already ended,
+		// so there is nothing left half-applied. See dispatchPresetAcquisition()'s doc.
+		(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 		return;
 	}
 

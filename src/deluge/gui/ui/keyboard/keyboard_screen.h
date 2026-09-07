@@ -65,11 +65,15 @@ public:
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 	void checkNewInstrument(Instrument* newInstrument);
 
-	/// @brief PresetConsumer::KeyboardNewInstrument's layout-refresh tail. selectLayout() itself is
-	///        private; this is the seam LoadInstrumentPresetUI's completion calls through, on the
-	///        storage owner, once InstrumentClipView::completeNewInstrument() has actually created the
-	///        new instrument -- see that PresetConsumer's doc.
-	void completeNewInstrumentLayoutRefresh() { selectLayout(0); }
+	/// @brief The layout-refresh tail shared by KeyboardScreen's two acquisition consumers.
+	///
+	/// selectLayout() itself is private; this is the seam LoadInstrumentPresetUI's completions call
+	/// through, on the storage owner, once the instrument has actually been created
+	/// (PresetConsumer::KeyboardNewInstrument) or swapped (PresetConsumer::KeyboardChangeType). Each of
+	/// those has its OWN completion and its own currency guard -- this is only the leaf they share, the
+	/// single line keyboard_screen.cpp used to run eagerly off a return that no longer means what it
+	/// used to.
+	void completeLayoutRefresh() { selectLayout(0); }
 
 private:
 	bool opened() override;

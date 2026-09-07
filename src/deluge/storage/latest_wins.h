@@ -87,6 +87,15 @@ public:
 	[[nodiscard]] bool in_flight() const { return in_flight_; }
 	[[nodiscard]] const T& current() const { return current_; }
 
+	/// @brief The target a further request() would OVERWRITE, if any.
+	///
+	/// Latest-wins supersession is only correct while every target names the same kind of thing (a
+	/// destination to converge on). A caller whose targets are not all of that kind can look here
+	/// first and decline the new request instead, keeping what is queued -- which is what
+	/// `LoadInstrumentPresetUI::dispatchPresetAcquisition()` does for creation gestures.
+	/// @return The queued target, or nullopt when nothing is queued (always so while idle).
+	[[nodiscard]] const std::optional<T>& queued() const { return queued_; }
+
 private:
 	bool in_flight_ = false;
 	T current_{};

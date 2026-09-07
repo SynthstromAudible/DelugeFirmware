@@ -81,12 +81,16 @@ public:
 	// Used to reveal Session macros only after the Session button has passed the long-press threshold.
 	ActionResult timerCallback() override;
 	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
-	/// @param consumer Threaded through to createNewInstrument() for the shift/FM branch only -- the
-	///        changeOutputType() branch (no shift/FM held) always uses `ViewChangeType`, unaffected by
-	///        this parameter. KeyboardScreen passes `KeyboardNewInstrument`; every other caller keeps
-	///        the default.
-	bool handleInstrumentChange(OutputType outputType, deluge::storage::PresetConsumer consumer =
-	                                                       deluge::storage::PresetConsumer::ViewNewInstrument);
+	/// This routes to one of TWO different acquisitions depending on whether shift/FM is held, and
+	/// they need separate consumers: each caller's tail runs from its own completion, and the two
+	/// branches have different ones. KeyboardScreen is the caller that has a tail for both (its layout
+	/// refresh), so it overrides both; every other caller keeps the defaults.
+	/// @param newInstrumentConsumer Which completion the shift/FM createNewInstrument() branch runs.
+	/// @param changeTypeConsumer Which completion the plain changeOutputType() branch runs.
+	bool handleInstrumentChange(
+	    OutputType outputType,
+	    deluge::storage::PresetConsumer newInstrumentConsumer = deluge::storage::PresetConsumer::ViewNewInstrument,
+	    deluge::storage::PresetConsumer changeTypeConsumer = deluge::storage::PresetConsumer::ViewChangeType);
 
 	// PAD ACTION pad press / release handling
 
@@ -259,9 +263,16 @@ public:
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
 	/// @return Whether an instrument was actually created.
 	bool completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx);
-	bool changeOutputType(OutputType newOutputType);
+	/// @brief Change the current clip's output type through this class's fuller tail.
+	/// @param newOutputType The type to switch to.
+	/// @param consumer Which completion runs the tail. Defaults to `ViewChangeType`, this class's own;
+	///        KeyboardScreen passes `KeyboardChangeType`, which is that tail plus a layout refresh.
+	/// @return Whether the gesture was ACCEPTED -- for Synth/Kit that means dispatched, not swapped.
+	bool changeOutputType(OutputType newOutputType,
+	                      deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewChangeType);
 	/// @brief changeOutputType()'s follow-up, reached via View::completeChangeOutputTypeFor()'s
-	///        `ViewChangeType` arm -- on the storage owner for Synth/Kit, inline for MIDI/CV. Runs
+	///        `ViewChangeType` and `KeyboardChangeType` arms -- on the storage owner for Synth/Kit,
+	///        inline for MIDI/CV. Runs
 	///        InstrumentClipMinder::changeOutputType()'s LED tail (setLedStates(), inherited) AND this
 	///        class's own recolour/repaint tail, since both used to fire, together, right after the
 	///        (now-deferred) swap -- see the rung 5 task 4 review.

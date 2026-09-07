@@ -2241,7 +2241,6 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	}
 
 	deluge::storage::PresetRequest request{
-	    .query = deluge::storage::PresetQuery::Navigate,
 	    .consumer = deluge::storage::PresetConsumer::ViewNavigateClipPreset,
 	    .outputType = outputType,
 	    .offset = offset,
@@ -2250,7 +2249,9 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	    .oldInstrument = (Instrument*)clip->output,
 	    .clip = clip,
 	};
-	loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+	// A dropped gesture leaves the clip on the preset it already had; nothing to undo, and the next
+	// encoder tick dispatches again. See dispatchPresetAcquisition()'s doc.
+	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
 // Runs on the storage owner for Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for
@@ -2608,7 +2609,6 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	}
 
 	deluge::storage::PresetRequest request{
-	    .query = deluge::storage::PresetQuery::ConfirmOrNext,
 	    .consumer = consumer,
 	    .outputType = newOutputType,
 	    .availability = Availability::ANY,
@@ -2677,6 +2677,24 @@ bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer,
 			// it is in InstrumentClipView::completeChangeOutputType() -- an unqualified call would
 			// resolve to instrumentClipView's own (different) setLedStates() override.
 			instrumentClipView.InstrumentClipMinder::setLedStates();
+		}
+		return success;
+	}
+	case PresetConsumer::KeyboardChangeType: {
+		// KeyboardScreen's own KIT/SYNTH buttons with neither shift nor FM held. Identical to
+		// ViewChangeType -- the call chain really does go through InstrumentClipView -- PLUS the layout
+		// refresh keyboard_screen.cpp used to run eagerly off changeOutputType()'s return. Its own
+		// consumer rather than a flag on ViewChangeType, because every other caller of that arm has no
+		// keyboard layout to refresh and must not get one.
+		bool success = instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink);
+		// Gated on the clip still being current, exactly as the KeyboardNewInstrument arm is: unlike
+		// the LED/redraw tail beside it, selectLayout() both READS and WRITES per-clip model state
+		// (keyboardState.currentLayout) through getCurrentInstrumentClip(). `clip` already survived
+		// runAcquisitionFollowUp()'s liveness guard; comparing it against what is current NOW is what
+		// makes the write land on the clip the gesture was made on, rather than on whichever clip the
+		// user moved to while the swap was in flight.
+		if (success && getCurrentInstrumentClip() == clip) {
+			keyboardScreen.completeLayoutRefresh();
 		}
 		return success;
 	}

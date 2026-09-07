@@ -147,7 +147,6 @@ bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputTyp
 	}
 
 	deluge::storage::PresetRequest request{
-	    .query = deluge::storage::PresetQuery::UnusedSlot,
 	    .consumer = consumer,
 	    .outputType = newOutputType,
 	    .isDx = is_dx,

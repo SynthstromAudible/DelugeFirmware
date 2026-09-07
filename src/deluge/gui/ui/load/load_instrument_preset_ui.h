@@ -133,9 +133,7 @@ public:
 	/// Incremented once per runPresetAcquisitionOp() execution -- not once per
 	/// dispatchPresetAcquisition() call, so a superseded or dropped dispatch is never counted. Read
 	/// by the song-preview A/B harness's acquisition stage to tell a coalesced gesture from a
-	/// dropped one, and to prove a CV switch dispatches NOTHING. Nothing calls
-	/// dispatchPresetAcquisition() yet, so this stays 0 until a later task wires a real gesture
-	/// through it.
+	/// dropped one, and to prove a CV switch dispatches NOTHING.
 	/// @return The running acquisition-run count.
 	[[nodiscard]] static int32_t presetAcquisitionsRun() { return presetAcquisitionsRun_; }
 
@@ -147,10 +145,23 @@ public:
 	/// Callers must dispatch ONLY on the Synth/Kit arm -- MIDI and CV read no card, and routing
 	/// them through here would defer a close() behind a storage round-trip (spec section 2c).
 	///
+	/// The return means "the gesture was ACCEPTED", never "the acquisition finished" -- on the
+	/// Embassy backing nothing has run yet when it comes back. It is [[nodiscard]] because callers
+	/// kept gating their UI tail on it as though it were the old synchronous answer; a caller that
+	/// genuinely has nothing to do with a dropped gesture writes an explicit `(void)`.
+	///
+	/// Nine call sites do exactly that, deliberately: for a pad press or an encoder turn there is no
+	/// recovery to offer and no state left half-applied -- the coalescer is released, the view still
+	/// shows what it showed, and the user's next press dispatches again. Silently dropping the gesture
+	/// is the accepted behaviour for this rung; the `(void)`s are there so that stays a decision in
+	/// the code rather than an oversight.
+	///
 	/// @param request The snapshot; see PresetRequest.
-	/// @return true if the op was dispatched or ran inline; false if the owner queue was full and
-	///         the gesture did nothing (the coalescer is released in that case).
-	bool dispatchPresetAcquisition(const deluge::storage::PresetRequest& request);
+	/// @return true if the op was dispatched or ran inline; false if the gesture did nothing --
+	///         either the owner queue was full (the coalescer is released in that case), or a
+	///         creation gesture was already queued and must not be superseded (see
+	///         deluge::storage::isCreationConsumer()).
+	[[nodiscard]] bool dispatchPresetAcquisition(const deluge::storage::PresetRequest& request);
 
 protected:
 	void enterKeyPress() override;
@@ -185,11 +196,10 @@ private:
 	static void runCommitOp(void* self);
 
 	/// @brief The dispatched acquisition op: counts itself in presetAcquisitionsRun(), takes the
-	///        snapshot off presetCoalescer_, sets Browser::currentDir from it, and runs that
-	///        request's consumer follow-up. Does not yet run `request.query` or load a preset --
-	///        later tasks extend the op to do both; today it only threads the snapshot through to
-	///        runAcquisitionFollowUp() and re-dispatches the latest-wins target if a newer gesture
-	///        arrived while it ran.
+	///        snapshot off presetCoalescer_, sets Browser::currentDir from it, runs that request's
+	///        consumer follow-up -- which is what actually reads the directory and loads the preset,
+	///        down each gesture's own unchanged call chain -- and then re-dispatches the latest-wins
+	///        target if a newer gesture arrived while it ran.
 	///
 	/// Runs on the storage owner (inline on legacy/host).
 	/// @param self The LoadInstrumentPresetUI instance.

@@ -936,7 +936,9 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 	return ActionResult::DEALT_WITH;
 }
 
-bool InstrumentClipView::handleInstrumentChange(OutputType outputType, deluge::storage::PresetConsumer consumer) {
+bool InstrumentClipView::handleInstrumentChange(OutputType outputType,
+                                                deluge::storage::PresetConsumer newInstrumentConsumer,
+                                                deluge::storage::PresetConsumer changeTypeConsumer) {
 	bool is_fm = false;
 	bool isMIDIorCV = util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV});
 
@@ -947,12 +949,12 @@ bool InstrumentClipView::handleInstrumentChange(OutputType outputType, deluge::s
 	}
 
 	if (!isMIDIorCV && (is_fm || Buttons::isShiftButtonPressed())) {
-		return createNewInstrument(outputType, is_fm, consumer);
+		return createNewInstrument(outputType, is_fm, newInstrumentConsumer);
 	}
 	else {
-		// changeOutputType()'s own consumer is fixed (ViewChangeType) regardless of `consumer` here --
-		// that branch is unaffected by this parameter, see handleInstrumentChange()'s doc.
-		return changeOutputType(outputType);
+		// Its own consumer, not the creation one: the two branches deliver different gestures and each
+		// caller's tail runs from its own completion. See handleInstrumentChange()'s doc.
+		return changeOutputType(outputType, changeTypeConsumer);
 	}
 }
 
@@ -1751,7 +1753,7 @@ bool InstrumentClipView::completeNewInstrument(InstrumentClip* clip, OutputType 
 	return false;
 }
 
-bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
+bool InstrumentClipView::changeOutputType(OutputType newOutputType, deluge::storage::PresetConsumer consumer) {
 
 	if (getCurrentOutputType() == newOutputType) {
 		return false;
@@ -1760,10 +1762,10 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 	// The redraw used to run right here, gated on this same bool -- but for Synth/Kit that bool now
 	// means "dispatched", not "swapped", so running it here would repaint the CLIP'S OLD instrument.
 	// completeChangeOutputType() below runs it instead, once the swap (if any) has actually happened,
-	// whether that was synchronous (MIDI/CV) or deferred (Synth/Kit). ViewChangeType passed explicitly:
-	// InstrumentClipMinder::changeOutputType()'s default (ViewChangeTypeMinder) is for callers that
-	// reach IT directly, bypassing this class -- this call is not one of those.
-	return InstrumentClipMinder::changeOutputType(newOutputType, deluge::storage::PresetConsumer::ViewChangeType);
+	// whether that was synchronous (MIDI/CV) or deferred (Synth/Kit). A consumer is always passed
+	// explicitly: InstrumentClipMinder::changeOutputType()'s default (ViewChangeTypeMinder) is for
+	// callers that reach IT directly, bypassing this class -- this call is not one of those.
+	return InstrumentClipMinder::changeOutputType(newOutputType, consumer);
 }
 
 bool InstrumentClipView::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink) {

@@ -80,8 +80,19 @@ public:
 	void clipNeedsReRendering(Clip* clip) override;
 
 	/// @brief The new-instrument pad gesture's follow-up, run on the storage owner.
+	///
+	/// Runs the WHOLE remainder of the pad press, not just the row placement: the audition sub-mode,
+	/// the output name, the note and the mod-controllable all live here, because the pad handler
+	/// returns the instant it dispatches and on the Embassy backing there is no Output on the row yet
+	/// for it to act on. The audition half is gated on the finger still being down on the same pad --
+	/// nothing else records a release for this gesture, since the press never entered
+	/// UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION in the first place.
 	/// @param yPressed yPressedEffective captured at dispatch (see PresetRequest).
-	void completeNewInstrument(int32_t yPressed);
+	/// @param yPressedRaw The audition-pad row the press landed on, before that clamp -- what the pad
+	///        matrix is asked about.
+	/// @param ui The UI the press came through, whose rows the repaint marks; null falls back to this
+	///        view, matching exitSubModeWithoutAction().
+	void completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui);
 	/// @brief changeOutputType()'s follow-up: on the storage owner for Synth/Kit, inline for
 	///        MIDI/CV, which read no card.
 	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed);
@@ -171,10 +182,13 @@ private:
 	/// pad press uses, rather than restating it. `yPressedEffective` is always written (the clamp
 	/// runs before dispatch) and captured into the request as `yPressed` -- the completion must not
 	/// read the member back (spec section 6). `outputsOnScreen[yPressedEffective]` is left untouched
-	/// by this call; it is only written once (if ever) by completeNewInstrument(), mirroring the
-	/// caller's `if (!output) { return; }`.
+	/// by this call; it is written once (if ever) by completeNewInstrument(), which is also where the
+	/// REST of the press now lives -- the handler returns straight after this and reads nothing back.
 	/// @param yPressed The row the gesture was pressed on, before clamping.
-	void beginNewInstrumentAcquisition(int32_t yPressed);
+	/// @param ui The UI the pad press came through -- ArrangerView, AutomationView or PerformanceView
+	///        all drive these pads. Carried to the completion so its repaint marks the UI that is
+	///        actually on screen; null means this view.
+	void beginNewInstrumentAcquisition(int32_t yPressed, UI* ui = nullptr);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);
