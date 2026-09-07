@@ -73,6 +73,8 @@
 #include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
+#include "playback/mode/playback_mode.h"
+#include "playback/playback_handler.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -523,6 +525,24 @@ void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio
 		// output really is an `Instrument` -- the same cast legacy's `getCurrentInstrument()` makes.
 		static_cast<Instrument*>(ctx.output)->beenEdited(true);
 	}
+}
+
+void clip_cleared(Song& song, Clip& clip, ::Action* action, bool clear_automation, bool clear_sequence_and_mpe) {
+	// `audio_clip_view.cpp:426-430`. Legacy builds the stack from `currentSong` and
+	// `getCurrentClip()`; the caller names both, so this builds the same stack without reading the
+	// global (`scenes-currentSong`). `Clip::clear` is virtual, so the `AudioClip` override
+	// (`model/clip/audio_clip.cpp`) is what runs -- there is no cast here and none in legacy either
+	// beyond `getCurrentAudioClip()`'s.
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, &song, &clip);
+	clip.clear(action, stack, clear_automation, clear_sequence_and_mpe);
+}
+
+void clip_resynced(Song& song, Clip& clip) {
+	// `clip_view.cpp:114-117`.
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, &song, &clip);
+	currentPlaybackMode->reSyncClip(stack);
 }
 
 // -- The gold-knob model boundary (`services::ModKnobs`, E4 task 2) ---------------------------
