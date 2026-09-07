@@ -41,7 +41,21 @@ extern int mod_encoder_button_actions;
 extern int graphics_routines;
 /// @}
 
-/// @brief Clear every recorder.
+/// @name The scheduler's two answers, made settable
+///
+/// `ShellHostUI`'s input hooks read exactly two things from outside the shell: the clock
+/// (`getSystemTime()`) and whether the SD routine holds the lock (`isSDRoutineActive()`). Both are
+/// declared in `OSLikeStuff/scheduler_api.h` and defined in the task scheduler, which this suite
+/// does not build -- so they are defined here over these two variables, which is also what makes a
+/// deferral example drivable at all.
+/// @{
+/// What `getSystemTime()` returns, in seconds. `nowMs()` is this times 1000.
+extern double system_time_s;
+/// What `isSDRoutineActive()` returns.
+extern bool sd_routine_active;
+/// @}
+
+/// @brief Clear every recorder, and put the clock and the SD lock back to 0 / false.
 void reset();
 
 } // namespace fakelegacyui

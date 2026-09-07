@@ -33,6 +33,12 @@ gui/support/fake_legacy_hid.cpp
 # one odr-uses every ported scene, i.e. the `deluge_scenes` closure this suite never builds.
 ../../src/deluge/gui/ui/shell_host_ui.cpp
 gui/support/fake_legacy_ui.cpp
+# `deluge::hid::button::toXY`, the matrix decode the guest's `buttonAction` runs to turn a
+# `hid::Button` back into the (x, y) the shell's `BoardProfile::button_by_matrix` is indexed by.
+# The REAL file, not a fake: it is 37 lines whose only include beyond its own header is
+# definitions_cxx.hpp, and a faked copy of a coordinate encoding is a second place for that
+# encoding to be wrong. Same reasoning as node_id.cpp / validate.cpp below.
+../../src/deluge/hid/button.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 # The menu node-id registry (task 2, spec E1): dependency-free (its only model include is
@@ -73,7 +79,13 @@ scenes/support/fake_shortcuts.cpp
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell deluge_notify)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include)
+# ../../src/OSLikeStuff: `include/libdeluge/scheduler.h` re-exports `scheduler_api.h` with a bare
+# relative include (its own note at :37-40 says why), so anything reaching the scheduler through the
+# libdeluge boundary -- `gui/ui/shell_host_ui.cpp` does, for `getSystemTime()` and
+# `isSDRoutineActive()` -- needs that directory on the path. `deluge_scheduler` puts it there for
+# the app (`src/OSLikeStuff/CMakeLists.txt:22-24`); this suite does not link that target, only
+# gui/support/fake_legacy_ui.cpp's two definitions of those symbols.
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../../src/OSLikeStuff ../32bit_unit_test/mocks/ ../../include)
 # ".." (tests/, PRIVATE, not PUBLIC): needed only by this library's OWN
 # src/bsp/host/host_snapshot.c, whose `#include "harness/ui_script.h"` matches the host BSP's own
 # include convention (host_script.c uses the same spelling). Kept off deluge_spec's public

@@ -31,13 +31,13 @@ reconciliation is cheap.
 
 | Legacy hook | Guest behaviour |
 |---|---|
-| `padAction`, `buttonAction`, `*EncoderAction`, `modEncoderAction` | forwarded into the shell's `InputLowering`; legacy `Buttons::` state is *read* into `UiContext` (not duplicated) |
+| `padAction`, `buttonAction`, `*EncoderAction`, ~~`modEncoderAction`~~ | forwarded into the shell's `InputLowering` — **but not `modEncoderAction`, and legacy `Buttons::` state cannot be read into `UiContext` at all** (F1 task 6; see the corrections below) |
 | `renderOLED(Canvas&)` | the shell's `Main` surface ~~aliases~~ **serves** that canvas's storage (F1 task 4; see §3) |
 | `renderMainPads(rows, image, mask)` / `renderSidebar(...)` | the shell's grid surface ~~aliases~~ **serves** `image` row by row; returns the top scene's opacity (`!is_grid_overlay()`) |
 | `timerCallback()` | the shell's `tick`; `UI_SPECIFIC` re-armed to `next_wake_` |
 | `opened()` / `focusRegained()` | ~~`Shell::push(initial)`~~ → `Shell::init(SceneId)` / `on_resume` on ~~the shell's top~~ → `SceneStack::input_top()` (F1 task 5; see the corrections below) |
 | `canSeeViewUnderneath()` | ~~top scene's `oled_transparent(Main)`~~ → **`!top().occludes_grid()`** (F1 task 5 — copying the struck-through form ships a regression; see the corrections below) |
-| `exitUI()` | ~~`Shell::pop()`~~ → `SceneStack::pop()`; ~~returns `NOT_DEALT_WITH` … so `closeUI` pops the guest~~ → the guest calls `close()` itself when the pop empties the stack, because no caller acts on the return value that way (F1 task 5; see the corrections below) |
+| `exitUI()` | ~~`Shell::pop()`~~ → `SceneStack::pop()`; ~~returns `NOT_DEALT_WITH` … so `closeUI` pops the guest~~ → the guest calls `close()` itself when the pop empties the stack and returns `ACTIONED_AND_CAUSED_CHANGE` (F1 tasks 5 and 6; see the corrections below) |
 
 LEDs: the guest's `derive_leds` writes through an `indicator_leds` `LedSink`; the guest
 owns an LED only while one of its scenes declares it, so legacy and guest never fight.
@@ -86,11 +86,18 @@ the hook it belongs to.
   **Two divergences follow, recorded rather than fixed, because both are inert in phase 4 and neither
   is:**
 
-  - The guest returns `NOT_DEALT_WITH` where every legacy self-closing `exitUI` returns
-    `ACTIONED_AND_CAUSED_CHANGE`. Reader 2 therefore does not fire for the guest. Inert today only
-    because it runs inside `KeyboardScreen`'s pad handling and the guest's inherited `padAction`
-    consumes pads first (`gui/ui/ui.h:97`); **it stops being inert when F1 task 6 routes pads**, and
-    the fix is then one return value.
+  - ~~The guest returns `NOT_DEALT_WITH` where every legacy self-closing `exitUI` returns
+    `ACTIONED_AND_CAUSED_CHANGE`.~~ **Closed by F1 task 6: the guest now returns
+    `ACTIONED_AND_CAUSED_CHANGE` on the close path** (`SoundEditor::exitUI` is `exitCompletely()`,
+    `gui/ui/sound_editor.h:130`, which returns that value at `gui/ui/sound_editor.cpp:733`, and
+    `gui/ui/ui.h:152-153` says the hook "returns whether a UI exited"). Task 5's stated trigger for
+    the change was itself wrong and is corrected here: **routing pads into the shell does not make
+    reader 2 reachable.** `MatrixDriver::padAction` calls `getCurrentUI()->padAction` and nothing else
+    (`hid/matrix/matrix_driver.cpp:79`), and `ColumnControlsKeyboard::evaluatePads` has one caller
+    (`gui/ui/keyboard/keyboard_screen.cpp:205`), so the only route to it while the guest is current is
+    the guest forwarding the pad on the way `SoundEditor::padAction` does when the keyboard screen is
+    the root (`gui/ui/sound_editor.cpp:1419-1422`) — which the guest does not do. The value changed on
+    the legacy-fidelity argument, not on a reachability one.
   - The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` does when the
     settings menu is leaving while `isSDRoutineActive()` (`gui/ui/sound_editor.cpp:695-709`, the return
     at `:698`). That is the tail of a larger gap: leaving the settings menu is also what writes
@@ -104,6 +111,67 @@ the hook it belongs to.
 - **"aliases" is "serves", in both render rows**, following F1 task 4's §3 correction: the guest copies
   the shell's Main surface into the canvas legacy hands `renderOLED`, and copies the shell's grid rows
   into `image`. §3's amendment has the evidence.
+
+**Corrections (F1 task 6, 2026-09-07): the input row is wrong in two independent ways.**
+`ShellHostUI`'s input hooks are now written; both corrections are at the code.
+
+- **`modEncoderAction` must NOT be forwarded into `InputLowering`, and neither may the other two mod
+  hooks.** The shell's encoder entry points take **raw A-pin edges** (`Shell::on_encoder_edges`,
+  `shell/shell.h:268`) and apply their own acceleration to an `EncoderKind::Accelerating` role
+  (`shell/input_lowering.cpp:187-193`). Legacy has already applied its own before it calls the hook:
+  `interpretEncoders` passes `offset * encoder.calcNextKnobSpeed(offset)`
+  (`hid/encoder_input.cpp:192-194`) where `calcNextKnobSpeed` returns `clamp(speed, 1.0, 3.0)`
+  (`hid/encoders.cpp:76`), so a forwarded turn is accelerated twice — up to 9x — and additionally
+  picks up the shell's first-turn-after-a-pause debounce, which legacy's own copy cannot reach
+  (`hid/encoder_input.cpp:187-202`; the lowering records the same dead branch at
+  `shell/input_lowering.cpp:206-213`). Leaving all three on `UI`'s base is also what the first tenant
+  does — `SoundEditor::modEncoderAction` ends at `UI::modEncoderAction`
+  (`gui/ui/sound_editor.cpp:1583-1607`) and it never overrides `modButtonAction` — so it is what
+  global constraint 1 requires. The gold knobs need F1 task 8's `ModKnobs` **plus** a shell entry
+  point that accepts an already-lowered turn.
+- **"legacy `Buttons::` state is *read* into `UiContext`, not duplicated" is not implementable.**
+  `UiContext` is built by `Shell::make_context`, which is private and fills `.shift`/`.sticky` from
+  `InputLowering`'s own fields (`shell/shell.cpp:549-559`); `InputLowering` has no shift setter, only
+  `clear_shift_sticky()` (`shell/input_lowering.h:214`) and `set_shift_is_sticky()` (`:221`). There
+  are therefore two shift state machines, and the guest's only lever is which events it feeds. They
+  stay in step because the guest feeds every button and every pad legacy hands it and
+  `InputLowering::toggle_shift` is a line-for-line port of `Buttons::commandToggleShift`
+  (`shell/input_lowering.cpp:306-326` against `hid/buttons.cpp:237-278`) — except in three measured
+  places, of which the first is **a release blocker for the toggle**:
+
+  1. Legacy reads `runtimeFeatureSettings.get(ShiftIsSticky)` at release time (`hid/buttons.cpp:250`);
+     the shell reads `LoweringConfig::shift_is_sticky`, which `ShellHostUI` leaves at its default
+     **false** (`shell/input_lowering.h:29-31`) and nothing sets. With sticky shift on, legacy latches
+     shift on a tap and the shell does not — and `ctx.shift` is the whole gate on the menu's
+     shortcut-pad jump (`scenes/menu/menu_scene.cpp:1392`), so a sticky-shift user loses shortcut pads
+     under the toggle. The fix is a `LoweringConfig` seated at boot; `LoweringConfig` is
+     construction-time (`shell/shell.h:27-29`) and `shellHostUI` is a static-init global that cannot
+     read flash, so it belongs with F1 task 8 — the same gap, and the same home, as
+     `ShellConfig::screensaver_idle_ms`'s own warning (`shell/shell.h:30-40`).
+  2. The tap threshold is `FlashStorage::holdTime` in legacy and a fixed `hold_time_ms` (100) in the
+     shell.
+  3. Legacy clears `considerShiftReleaseForSticky` on *every* button press including the eight mod
+     buttons (`hid/buttons.cpp:88-95`), but `Buttons::buttonAction` intercepts those and never calls
+     the current UI (`:99-107`), so the shell never sees `ButtonId::Mod0`..`Mod7` at all.
+
+**Two more facts about the input row that the table cannot carry** (F1 task 6):
+
+- **The hooks feed; they do not answer.** Routing happens in `Shell::pump_input`, which only
+  `Shell::tick` calls (`shell/shell.cpp:561-571`), so no hook can report what a scene did with a
+  press and every return value is decided statically. `buttonAction` returns `NOT_DEALT_WITH`, which
+  is what keeps `Buttons::buttonAction`'s tail running: `commandToggleShift` (`hid/buttons.cpp:169-171`),
+  the transport, and the mod-encoder-button dispatch at `:226-231`, which is itself gated on that
+  value (`:134-141`). Note also that the long-press-Back timer is **not** in that tail — it is armed at
+  `:114-121`, above the `getCurrentUI()->buttonAction(...)` call at `:134` and independent of what it
+  returns, correcting a claim `ShellHostUI` used to carry.
+- **The `int8_t` edge ceiling is real and the guest saturates at it.** `Shell::on_encoder_edges` takes
+  an `int8_t`, so at the Deluge's two edges per detent a turn of more than 63 detents wraps negative
+  (`shell/input_lowering.h:387-410`). The guest *can* be handed more: legacy's `detentDelta`
+  accumulates in `DetentedEncoder::pos` across every pass `interpretEncoders` skips during the SD
+  routine (`hid/encoder_input.cpp:96-106`) or a stem export (`:66-68`). So the guest clamps to
+  ±(127 / `edges_per_detent`) **before** multiplying — legacy's own choice for tempo and select
+  (`hid/encoder_input.cpp:117`) and a divergence from it for horizontal and vertical, which legacy
+  hands the full `int32_t` (`:124`, `:140`).
 
 The rows that held up unchanged: `renderMainPads`/`renderSidebar` really do return the top scene's
 opacity, and §2.2's dual for it (`is_grid_overlay()` is `!renderMainPads()`) is the mapping the guest

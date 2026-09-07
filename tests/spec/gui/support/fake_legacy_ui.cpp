@@ -11,6 +11,8 @@ int mod_encoder_actions = 0;
 int mod_button_actions = 0;
 int mod_encoder_button_actions = 0;
 int graphics_routines = 0;
+double system_time_s = 0.0;
+bool sd_routine_active = false;
 
 void reset() {
 	closed.clear();
@@ -19,9 +21,25 @@ void reset() {
 	mod_button_actions = 0;
 	mod_encoder_button_actions = 0;
 	graphics_routines = 0;
+	system_time_s = 0.0;
+	sd_routine_active = false;
 }
 
 } // namespace fakelegacyui
+
+// ---------------------------------------------------------------------------
+// OSLikeStuff/scheduler_api.h's share: the two answers the guest's input hooks
+// ask the scheduler for. `extern "C"` because that header declares them inside
+// its own `extern "C"` block.
+// ---------------------------------------------------------------------------
+
+extern "C" double getSystemTime() {
+	return fakelegacyui::system_time_s;
+}
+
+extern "C" bool isSDRoutineActive(void) {
+	return fakelegacyui::sd_routine_active;
+}
 
 // ---------------------------------------------------------------------------
 // gui/ui/ui.cpp's share: the seven non-inline members of `UI`, plus `closeUI`

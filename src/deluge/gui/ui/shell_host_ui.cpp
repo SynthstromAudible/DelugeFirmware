@@ -17,14 +17,18 @@
 
 #include "gui/ui/shell_host_ui.h"
 
+#include "hid/button.h"
+#include "libdeluge/scheduler.h" // isSDRoutineActive(), getSystemTime()
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 
 namespace deluge::gui::ui {
 
+using deluge::ui::EncoderRole;
 using deluge::ui::shell::Scene;
 using deluge::ui::shell::SceneRegistry;
 using deluge::ui::shell::Services;
@@ -33,11 +37,16 @@ using deluge::ui::shell::SurfaceRole;
 
 ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board,
                          const deluge::ui::shell::BoardProfile& profile)
-    : surfaces_(board, profile), shell_(surfaces_, profile, registry, Services{}, ShellConfig{}) {
+    : surfaces_(board, profile), shell_(surfaces_, profile, registry, Services{}, config_) {
 	// `Services{}` and a default `ShellConfig` on purpose: the three real services each take this
 	// shell's own `SceneStack&`, so they cannot exist before it. F1 task 8 builds them over
 	// `shell()` and installs them through `Shell::set_services` (`shell/shell.h:143-175`), which is
 	// the whole reason that setter exists.
+	//
+	// `config_` rather than a `ShellConfig{}` temporary, so `feedDetents` can read
+	// `edges_per_detent` back out of the same object the shell was built from. `Shell` copies it,
+	// so the two are only equal by construction -- which is why F1 task 8, when it seats a real
+	// config, has to set `config_` and construct from it rather than reach into the shell.
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -319,6 +328,188 @@ bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 }
 
 // ---------------------------------------------------------------------------------------------
+// Input
+//
+// Every hook here does the same three things in the same order: take or release the shell's
+// SD-routine lock, feed the event, and return the value legacy's own dispatcher wants. Nothing
+// asks the shell what happened, because nothing can -- routing runs in `Shell::pump_input`, which
+// only `Shell::tick` calls (`shell/shell.cpp:561-571`).
+//
+// **`inCardRoutine` is not a shell concept, and this is where it stops being one.** Legacy's
+// answer is `ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE`: `SoundEditor::padAction` opens with it
+// (`gui/ui/sound_editor.cpp:1405-1408`) and `dispatchInputEvent` stashes the offending event in
+// `heldInputEvent`, sets `waitingForSDRoutineToEnd`, and re-dispatches it at the top of the next
+// `readButtonsAndPads` once the routine has ended (`deluge.cpp:235-279`, the stash at `:245-248`
+// and `:256-259`, the replay at `:295-305`). One event deep. The port of that is
+// `InputLowering::set_sd_busy`, which queues up to `kDeferredCapacity` (8) events and replays them
+// in arrival order, each with the clock it arrived at, when the lock is released
+// (`shell/input_lowering.cpp:134-160`). So the guest **defers rather than drops**, and it never
+// returns `REMIND_ME_OUTSIDE_CARD_ROUTINE`.
+//
+// @warning **The release is input-driven, not time-driven.** The guest only hears "the routine
+//          ended" when the next hook fires, because that is the only place it can ask. Legacy
+//          retries from the poll loop the moment `isSDRoutineActive()` goes false. So a press
+//          deferred here waits for the *next* input rather than for the routine's end -- order and
+//          content are preserved, latency is not. F1 task 7's `timerCallback` is the natural place
+//          to make the release periodic, and it is one `set_sd_busy` call there.
+// ---------------------------------------------------------------------------------------------
+
+uint32_t ShellHostUI::nowMs() const {
+	const double seconds = getSystemTime();
+	if (!(seconds > 0.0)) {
+		// Also the NaN arm: every comparison against a NaN is false, so the negated `>` catches it.
+		// Before the scheduler starts there is no elapsed time to report and 0 is the honest answer.
+		return 0;
+	}
+	return static_cast<uint32_t>(static_cast<uint64_t>(seconds * 1000.0));
+}
+
+void ShellHostUI::feed(const DelugeInputEvent& ev) {
+	shell_.on_board_event(ev, nowMs());
+}
+
+void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
+	if (detents == 0) {
+		// `interpretEncoders` only calls a hook when `fe.pending()` (`hid/encoder_input.cpp:109`),
+		// so a zero is not something legacy produces -- but `selectEncoderAction` is also reachable
+		// from the SD test mode (`:83`) and from anything else that decides to drive a UI directly,
+		// and a zero-edge feed would still set `had_input_this_tick` and wake the repaint gate.
+		return;
+	}
+	const std::span<const deluge::ui::EncoderRole> byIndex = shell_.lowering().profile().encoder_by_index;
+	const int32_t per = config_.lowering.edges_per_detent > 0 ? config_.lowering.edges_per_detent : 1;
+	// See the `@warning` on the declaration: the clamp is in detents, before the multiply, so the
+	// product lands inside `int8_t` for any `edges_per_detent`.
+	const int32_t limit = 127 / per;
+	const int8_t edges = static_cast<int8_t>(std::clamp(detents, -limit, limit) * per);
+	for (size_t i = 0; i < byIndex.size(); i++) {
+		if (byIndex[i] != role) {
+			continue;
+		}
+		shell_.on_encoder_edges(static_cast<uint8_t>(i), edges, nowMs());
+		return;
+	}
+	// A profile with no encoder in that role. Dropped rather than guessed at, the same way
+	// `InputLowering::apply_encoder_edges` drops an index past the table
+	// (`shell/input_lowering.cpp:166-168`).
+}
+
+ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
+	// `isSDRoutineActive()` rather than a parameter, because this hook has none -- which is also
+	// why `SoundEditor::padAction` reads it directly (`gui/ui/sound_editor.cpp:1406`).
+	shell_.set_sd_busy(isSDRoutineActive());
+
+	// **The range guard is about the narrowing, not about the shell.** `on_pad` already drops a
+	// coordinate outside `PadMask`'s 32x32 (`shell/input_lowering.cpp:235-238`), but only after
+	// this side has cast to `uint8_t`, and that cast folds: `x = 256` becomes column 0 and the
+	// shell is handed a pad press that never happened. `MatrixDriver::padAction` bounds nothing of
+	// its own (`hid/matrix/matrix_driver.cpp:65-84`), and this is a public virtual that legacy UIs
+	// call on each other directly -- `SoundEditor::padAction` forwards straight into
+	// `keyboardScreen.padAction` (`gui/ui/sound_editor.cpp:1419-1422`) -- so the caller's domain is
+	// not `MatrixDriver`'s alone.
+	//
+	// Unlike `buttonAction`'s (see there) this guard is not redundant with `on_pad`'s and is
+	// covered by an example that folds a coordinate on purpose.
+	if (x >= 0 && y >= 0 && x <= UINT8_MAX && y <= UINT8_MAX) {
+		feed(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y),
+		                      static_cast<int16_t>(velocity)});
+	}
+
+	// `DEALT_WITH`, the base's own value, and the only other value legacy can act on here is
+	// `REMIND_ME_OUTSIDE_CARD_ROUTINE` -- `MatrixDriver::padAction` collapses everything else to
+	// `DEALT_WITH` before its caller sees it (`hid/matrix/matrix_driver.cpp:79-83`). So a pad the
+	// guest swallows stays swallowed, which is what an open full-screen UI should do, and the
+	// deferral above is what replaces the value legacy would have used.
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	// The parameter, not `isSDRoutineActive()`: it is the caller's own answer, computed once at
+	// `deluge.cpp:254` for the event being dispatched, and `Buttons::noPressesHappening` passes its
+	// own (`hid/buttons.cpp:315-323`).
+	shell_.set_sd_busy(inCardRoutine);
+
+	// The exact inverse of `deluge.cpp:253`'s `deluge::hid::button::fromXY(ev.x, ev.y)`: a
+	// `hid::Button` is `9 * (y + kDisplayHeight * 2) + x` and `toXY` undoes it
+	// (`hid/button.h:9-15`, `hid/button.cpp:8-13`). Feeding matrix coordinates rather than a
+	// `ButtonId` is deliberate -- `InputLowering::on_matrix` is what owns the matrix-to-`ButtonId`
+	// table, through `BoardProfile::button_by_matrix` (`shell/input_lowering.cpp:257-266`), and it
+	// is the same table the level-3 harness cross-checks against.
+	//
+	// **No range guard here, unlike `padAction` above, and the arithmetic is why.** `toXY` returns
+	// `int32_t`s, and legacy does have a "fake button" column past the matrix
+	// (`buttonStates[NUM_BUTTON_COLS + 1][...]`, `hid/buttons.cpp:73`, reachable through
+	// `button::fromChar`, `hid/button.h:57-59` -- which today has no callers in `src/`). But a
+	// `Button` is a `uint8_t`, so `toXY` gives `x = b % 9` in 0..8 and `y = b / 9 - 16` in -16..12,
+	// and every value outside the real matrix is dropped by `on_matrix` either way:
+	// x is always inside `button_cols` (9); a negative y narrows to 240..255 and a y of 4..12 stays
+	// itself, and both are at or past `button_rows` (4), which `on_matrix` tests before it indexes
+	// (`shell/input_lowering.cpp:258-260`). There is no value of `b` for which the narrowing
+	// changes the answer, so a guard here would be a second copy of a check that already holds --
+	// the same dead-code shape F1 task 5's review deleted from `opened()`. A mutation removing one
+	// is unkillable, which is the evidence.
+	const Cartesian xy = deluge::hid::button::toXY(b);
+	feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
+	                      static_cast<int16_t>(on ? 255 : 0)});
+
+	// **`NOT_DEALT_WITH`, and it is load-bearing three times over.** It is what `SoundEditor`
+	// returns for every button with an observable consequence in `Buttons::buttonAction`'s tail:
+	// its `if`/`else if` chain has no arm for Play, Shift, Record, Tempo-enc or either mod-encoder
+	// button, so those fall into the final `else` and take `MenuItem::buttonAction`'s default
+	// `NOT_DEALT_WITH` (`gui/ui/sound_editor.cpp:595-629`, `gui/menu_item/menu_item.h:78-80`).
+	// Returning `DEALT_WITH` here instead would `goto dealtWith` (`hid/buttons.cpp:139-141`) and:
+	//
+	//   1. **stop `Buttons::commandToggleShift` running** (`hid/buttons.cpp:169-171`), which is the
+	//      one thing maintaining legacy's shift state -- see the class's `@par Shift`. The
+	//      transport would go with it (`:144-167`, `:173-203`), which `SoundEditor` does not do;
+	//   2. **stop the mod-encoder buttons reaching `modEncoderButtonAction`** (`:226-231`), which
+	//      is where the gold-knob presses live until F1 task 8;
+	//   3. buy nothing, because every button the shell's menu actually claims -- Back, Select-enc,
+	//      Save, Load, Learn, Keyboard, Session -- has **no arm in that tail at all** and falls
+	//      straight through to `dealtWith:` (`:232-234`). Read the braces rather than the shape:
+	//      the chain from `:144` to `:231` names Play, Shift, Record, Tempo-enc, Mod-enc-0 and
+	//      Mod-enc-1 and nothing else.
+	//
+	// **The long-press-Back timer is not in that tail**, which corrects a claim this file used to
+	// carry. `Buttons` arms `TimerName::BACK_MENU_EXIT` at `:114-121`, *above* the
+	// `getCurrentUI()->buttonAction(...)` call at `:134` and unconditionally on the value it
+	// returns. So `exitUI()` keeps being driven whatever this returns.
+	return ActionResult::NOT_DEALT_WITH;
+}
+
+ActionResult ShellHostUI::horizontalEncoderAction(int32_t offset) {
+	// No `inCardRoutine` parameter on this one; `interpretEncoders` does not even call it during
+	// the routine (`hid/encoder_input.cpp:96-102`), so the read here is really about *releasing* a
+	// lock a button press took.
+	shell_.set_sd_busy(isSDRoutineActive());
+	feedDetents(EncoderRole::Horizontal, offset);
+	// `DEALT_WITH`, the base's value. `interpretEncoders` tests the result for exactly one thing --
+	// `REMIND_ME_OUTSIDE_CARD_ROUTINE`, on which it re-arms the encoder and hands the detents back
+	// to the accumulator (`hid/encoder_input.cpp:129-132`) -- and the deferral above is what
+	// replaces that.
+	return ActionResult::DEALT_WITH;
+}
+
+ActionResult ShellHostUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	// This one *is* called during the routine: `interpretEncoders` exempts `scrollY` from the
+	// skip (`hid/encoder_input.cpp:95-102`, `isScrollY` at `:95`) and passes `skipActioning` down
+	// as this parameter (`:140`). So the deferral matters here in a way it does not for horizontal.
+	shell_.set_sd_busy(inCardRoutine);
+	feedDetents(EncoderRole::Vertical, offset);
+	return ActionResult::DEALT_WITH;
+}
+
+void ShellHostUI::selectEncoderAction(int8_t offset) {
+	// `void`: legacy discards nothing because there is nothing to discard
+	// (`gui/ui/ui.h:103`), so unlike the other two this hook has no way to say
+	// "not now" even in legacy. The offset arrives already saturated to `int8_t`
+	// (`hid/encoder_input.cpp:117`, applied at `:171`), so `feedDetents`'s clamp can only bite on
+	// the outer 64 values of that range.
+	shell_.set_sd_busy(isSDRoutineActive());
+	feedDetents(EncoderRole::Select, offset);
+}
+
+// ---------------------------------------------------------------------------------------------
 // Leaving
 // ---------------------------------------------------------------------------------------------
 
@@ -352,16 +543,42 @@ ActionResult ShellHostUI::exitUI() {
 	//     -- the keyboard sidebar's menu-exit pad, behind
 	//     `RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit` (`:86-87`).
 	//
-	// **Two divergences from legacy follow, and both are recorded rather than fixed.**
+	// **F1 task 6 changed the close path's value to `ACTIONED_AND_CAUSED_CHANGE`, and corrected the
+	// reason task 5 recorded for leaving it alone.** Task 5 returned `NOT_DEALT_WITH` (the brief's
+	// value) and wrote that the second caller "stops being inert the moment F1 task 6 routes pads".
+	// **That is not the mechanism.** Routing pads into the *shell* does not put a pad anywhere near
+	// `KeyboardScreen`: `MatrixDriver::padAction` calls `getCurrentUI()->padAction` and nothing else
+	// (`hid/matrix/matrix_driver.cpp:79`), so while the guest is open the only way
+	// `ColumnControlsKeyboard::evaluatePads` runs at all is if the current UI hands the pad on --
+	// which is precisely what `SoundEditor::padAction` does when the keyboard screen is the root
+	// (`gui/ui/sound_editor.cpp:1419-1422`) and what this guest does **not** do. `evaluatePads` has
+	// one caller, `gui/ui/keyboard/keyboard_screen.cpp:205`. So that reader stays unreachable under the guest, and
+	// the reprieve task 5 described never ends by that route.
 	//
-	//   1. Every legacy UI that closes itself here returns `ACTIONED_AND_CAUSED_CHANGE`; this one
-	//      returns `NOT_DEALT_WITH`, which is what the brief asks for and what "this UI is gone and
-	//      dealt with nothing that outlives it" honestly says. Inert today: that second caller runs
-	//      inside `KeyboardScreen`'s pad handling, and while the guest is open `getCurrentUI()` is
-	//      the guest, whose inherited `padAction` returns `DEALT_WITH` (`gui/ui/ui.h:97`) before any
-	//      keyboard layout sees the pad. **It stops being inert the moment F1 task 6 routes pads**,
-	//      and the fix then is one line here.
-	//   2. The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` can
+	// The value changed anyway, for the reasons that do hold:
+	//
+	//   * `ui.h`'s own contract for this hook is "returns whether a UI exited" (`gui/ui/ui.h:152-153`).
+	//     On the close path a UI did exit, so `NOT_DEALT_WITH` is the wrong answer to the question
+	//     asked, however honest it is about the press.
+	//   * Every legacy implementation that closes itself answers `ACTIONED_AND_CAUSED_CHANGE`,
+	//     including the tenant this guest stands in for: `SoundEditor::exitUI` is `exitCompletely()`
+	//     (`gui/ui/sound_editor.h:130`), whose last line is that value
+	//     (`gui/ui/sound_editor.cpp:733`). Plan F1's global constraint 1 -- with the toggle on, do
+	//     what `SoundEditor` does -- settles it.
+	//   * It is provably safe today: the two readers above are the only ones, one tests a different
+	//     value and the other cannot run.
+	//
+	// **The pop depth is not a divergence, and that took reading `MenuScene` to know.** Legacy's
+	// long-press Back leaves the *whole* menu however deep it was, not one level. So does this,
+	// for the first tenant: the ported menu keeps its navigation depth inside one scene
+	// (`MenuScene`'s `st_.depth`) and only asks the shell to remove itself when Back arrives at
+	// depth 0 (`scenes/menu/menu_scene.cpp:1445-1450`). One `pop()` here is therefore one whole
+	// menu, exactly as `exitCompletely` is. A future tenant that stacks a scene per level would
+	// make this differ, and that is the condition to watch.
+	//
+	// **One divergence from legacy remains, recorded rather than fixed.**
+	//
+	//      The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` can
 	//      (`gui/ui/sound_editor.cpp:695-709`, the return at `:698`) when the settings menu is
 	//      exiting while `isSDRoutineActive()`. It is the tail of a larger gap in the same block:
 	//      leaving the *settings* menu is what writes `FlashStorage`, the MIDI devices file, the
@@ -378,7 +595,7 @@ ActionResult ShellHostUI::exitUI() {
 	//    about a press that was consumed, and closing here would pop the guest a level early.
 	//  - **Shell stack empty after the pop** -- the guest has nothing left to show and is itself
 	//    what Back leaves. `close()` (which is `closeUI(this)`, `gui/ui/ui.cpp:57-59`), then
-	//    `NOT_DEALT_WITH`.
+	//    `ACTIONED_AND_CAUSED_CHANGE`.
 	//
 	// `pop()` with no argument is "just the top" (`shell/scene_stack.h:69-73`), and it is called
 	// unguarded: `SceneStack::pop` returns immediately on an empty stack
@@ -389,7 +606,7 @@ ActionResult ShellHostUI::exitUI() {
 		return ActionResult::DEALT_WITH;
 	}
 	close();
-	return ActionResult::NOT_DEALT_WITH;
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 } // namespace deluge::gui::ui

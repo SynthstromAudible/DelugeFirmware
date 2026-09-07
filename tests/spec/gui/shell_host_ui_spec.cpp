@@ -2,6 +2,7 @@
 #include "support/fake_legacy_ui.h"
 
 #include "gui/ui/shell_host_ui.h"
+#include "hid/button.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "shell/profiles/deluge.h"
@@ -55,7 +56,28 @@ public:
 		}
 	}
 
-	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+	/// @brief One routed event, with the parts of the `UiContext` that came with it.
+	///
+	/// The context is captured rather than the reference kept: `UiContext` is an aggregate of
+	/// borrowed references built on the stack per event (`shell/scene.h:112-114`) and does not
+	/// outlive the `handle()` call.
+	struct Seen {
+		UiEvent ev;
+		bool shift;
+		bool sticky;
+		uint32_t now_ms;
+	};
+
+	Result handle(const UiEvent& ev, const UiContext& ctx) override {
+		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
+		// Unhandled on purpose: the guest's input hooks are about *delivery*, and a scene that
+		// claimed an event would stop it reaching anything below it and make the routing this
+		// records depend on what the scene decided.
+		return Result::unhandled();
+	}
+
+	/// Every event routed to this scene, in order.
+	std::vector<Seen> seen;
 
 	bool is_grid_overlay() const override { return overlay; }
 	bool occludes_grid() const override { return occludes; }
@@ -164,6 +186,46 @@ DelugeBoard board_tall_narrow_grid() {
 	return b;
 }
 
+/// @brief A profile whose encoder table is in a **different order** from the Deluge's.
+///
+/// `ShellHostUI::feedDetents` resolves a role to a board index through
+/// `BoardProfile::encoder_by_index` rather than hard-coding one; this is what makes that
+/// resolution assertable instead of accidentally right. The Deluge's order is
+/// Vertical, Horizontal, Tempo, Select, GoldUpper, GoldLower (`shell/profiles/deluge.cpp:69-77`);
+/// this reverses the first four, so an implementation that hard-coded index 1 for Horizontal would
+/// feed Select instead.
+const BoardProfile& profile_permuted_encoders() {
+	static const BoardProfile p = [] {
+		static constexpr deluge::ui::EncoderRole kOrder[] = {
+		    deluge::ui::EncoderRole::Select,     // 0
+		    deluge::ui::EncoderRole::Tempo,      // 1
+		    deluge::ui::EncoderRole::Horizontal, // 2
+		    deluge::ui::EncoderRole::Vertical,   // 3
+		    deluge::ui::EncoderRole::GoldUpper,  // 4
+		    deluge::ui::EncoderRole::GoldLower,  // 5
+		};
+		BoardProfile q = deluge_profile();
+		q.encoder_by_index = kOrder;
+		return q;
+	}();
+	return p;
+}
+
+/// @brief A profile with **no** horizontal encoder, so the "role nothing carries" arm is drivable.
+const BoardProfile& profile_no_horizontal() {
+	static const BoardProfile p = [] {
+		static constexpr deluge::ui::EncoderRole kOrder[] = {
+		    deluge::ui::EncoderRole::Vertical,
+		    deluge::ui::EncoderRole::Tempo,
+		    deluge::ui::EncoderRole::Select,
+		};
+		BoardProfile q = deluge_profile();
+		q.encoder_by_index = kOrder;
+		return q;
+	}();
+	return p;
+}
+
 /// @brief Zero legacy's pad image without touching anything else, so a later read of it can only be
 ///        something the guest wrote.
 void blank_legacy_pads() {
@@ -187,6 +249,20 @@ bool any_ink(std::span<const uint8_t> bytes) {
 
 std::vector<uint8_t> copy_of(std::span<const uint8_t> bytes) {
 	return std::vector<uint8_t>{bytes.begin(), bytes.end()};
+}
+
+/// @brief The first event of \p kind in \p scene, or null.
+///
+/// A feed usually leaves more than one event in the queue -- a shift press and the pad it modifies,
+/// a replayed deferral and the press that released the lock -- so an example that means "the pad"
+/// has to say so rather than index blindly.
+const PatternScene::Seen* first_of(const PatternScene& scene, UiEvent::Kind kind) {
+	for (const PatternScene::Seen& s : scene.seen) {
+		if (s.ev.kind == kind) {
+			return &s;
+		}
+	}
+	return nullptr;
 }
 
 } // namespace
@@ -588,19 +664,23 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// `closeUI(this)`, the same thing `RenameUI::exitUI` and `SampleMarkerEditor::exitUI` do
 		// (`gui/ui/rename/rename_ui.cpp:88-91`, `gui/ui/sample_marker_editor.cpp:680-683`) and the
 		// same thing `SoundEditor::exitCompletely` does at `gui/ui/sound_editor.cpp:723`. Without
-		// it the user is trapped: `exitUI`'s only caller stores the result and tests it against
-		// `REMIND_ME_OUTSIDE_CARD_ROUTINE` alone (`gui/ui_timer_manager.cpp:149-155`), so a bare
-		// `NOT_DEALT_WITH` return closes nothing.
+		// it the user is trapped: neither reader of the return value closes anything --
+		// `gui/ui_timer_manager.cpp:149-155` tests only `REMIND_ME_OUTSIDE_CARD_ROUTINE`.
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
-		expect(result == ActionResult::NOT_DEALT_WITH).to_be_true();
+		// **`ACTIONED_AND_CAUSED_CHANGE`, changed from `NOT_DEALT_WITH` by F1 task 6.** `ui.h`'s
+		// contract for this hook is "returns whether a UI exited" (`gui/ui/ui.h:152-153`), a UI
+		// did, and every legacy self-closing implementation answers this value -- including the
+		// tenant the guest stands in for, whose `exitUI` is `exitCompletely()`
+		// (`gui/ui/sound_editor.h:130`, returning at `gui/ui/sound_editor.cpp:733`).
+		expect(result == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 	});
 
 	it("is safe on an already-empty stack: it closes once and pops nothing", _ {
 		Rig r;
 		expect(r.guest.shell().stack().depth()).to_equal(size_t(0));
 		const ActionResult result = r.guest.exitUI();
-		expect(result == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(result == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 	});
 
@@ -648,6 +728,371 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.guest.shell().tick(2);
 		expect(fakelegacy::oled_marked()).to_be_true();
 	});
+	// ---- input: pads ---------------------------------------------------------------------------
+
+	it("routes a pad to the top scene with its coordinates and velocity intact, on the next tick", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		fakelegacyui::system_time_s = 0.25; // nowMs() == 250
+		const ActionResult result = r.guest.padAction(5, 3, 137);
+
+		// **Nothing is routed by the hook itself.** `Shell::on_board_event` feeds the lowering;
+		// `Shell::pump_input` is what routes, and only `tick` calls it (`shell/shell.cpp:561-571`).
+		expect(r.base.seen.empty()).to_be_true();
+
+		r.guest.shell().tick(250);
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(r.base.seen[0].ev.kind == UiEvent::Kind::Pad).to_be_true();
+		expect(static_cast<int>(r.base.seen[0].ev.x)).to_equal(5);
+		expect(static_cast<int>(r.base.seen[0].ev.y)).to_equal(3);
+		expect(static_cast<int>(r.base.seen[0].ev.velocity)).to_equal(137);
+		expect(r.base.seen[0].ev.on).to_be_true();
+		// `MatrixDriver::padAction` collapses every value but `REMIND_ME_OUTSIDE_CARD_ROUTINE` to
+		// `DEALT_WITH` before its caller sees it (`hid/matrix/matrix_driver.cpp:79-83`), and the
+		// guest never produces that one -- it defers instead.
+		expect(result == ActionResult::DEALT_WITH).to_be_true();
+	});
+
+	it("carries a pad release through as a release rather than a second press", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		(void)r.guest.padAction(5, 3, 255);
+		r.guest.shell().tick(1);
+		r.base.seen.clear();
+
+		(void)r.guest.padAction(5, 3, 0);
+		r.guest.shell().tick(2);
+
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(r.base.seen[0].ev.on).to_be_false();
+		expect(static_cast<int>(r.base.seen[0].ev.velocity)).to_equal(0);
+	});
+
+	it("drops a pad coordinate that would fold onto a real one when narrowed", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		// 256 is 0 in a `uint8_t`, and `InputLowering::on_pad`'s own bounds check runs on the
+		// narrowed value -- so without the guard in `padAction` this arrives as a press on column
+		// 0, a pad nobody touched. `padAction` is a public virtual legacy UIs call on each other
+		// (`gui/ui/sound_editor.cpp:1419-1422`), so its domain is not `MatrixDriver`'s alone.
+		(void)r.guest.padAction(256, 0, 255);
+		(void)r.guest.padAction(-1, 0, 255);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.empty()).to_be_true();
+
+		// Vary only the coordinate: column 0 itself still gets through, so the refusal above is
+		// about the fold and not about the guest refusing pads generally.
+		(void)r.guest.padAction(0, 0, 255);
+		r.guest.shell().tick(2);
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(static_cast<int>(r.base.seen[0].ev.x)).to_equal(0);
+	});
+
+	// ---- input: the card routine ---------------------------------------------------------------
+
+	it("defers a press that arrives during the card routine, and replays it in order when it ends", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		// Legacy's answer here is `REMIND_ME_OUTSIDE_CARD_ROUTINE`
+		// (`gui/ui/sound_editor.cpp:1405-1408`), which `dispatchInputEvent` turns into one stashed
+		// event replayed after the routine (`deluge.cpp:245-248`, `:295-305`). The port is
+		// `InputLowering::set_sd_busy`, so the press must be **deferred, not dropped**.
+		fakelegacyui::sd_routine_active = true;
+		(void)r.guest.padAction(4, 2, 255);
+		r.guest.shell().tick(10);
+		expect(r.base.seen.empty()).to_be_true();
+
+		// Vary **only** the flag: the same shape of press, on the same open guest, with the routine
+		// over. If this second press were the thing that made it work, the first would still be
+		// missing below.
+		fakelegacyui::sd_routine_active = false;
+		(void)r.guest.padAction(6, 1, 255);
+		r.guest.shell().tick(20);
+
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		// Arrival order, the deferred one first (`shell/input_lowering.cpp:142-160`).
+		expect(static_cast<int>(r.base.seen[0].ev.x)).to_equal(4);
+		expect(static_cast<int>(r.base.seen[0].ev.y)).to_equal(2);
+		expect(static_cast<int>(r.base.seen[1].ev.x)).to_equal(6);
+		expect(static_cast<int>(r.base.seen[1].ev.y)).to_equal(1);
+	});
+
+	it("defers a button press during the card routine too, from the parameter legacy passed", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		// `buttonAction` takes `inCardRoutine` rather than reading the scheduler, because that is
+		// the caller's own answer (`deluge.cpp:254`). So the *parameter* is what must gate this,
+		// and `sd_routine_active` is left false to prove the parameter is being read.
+		expect(fakelegacyui::sd_routine_active).to_be_false();
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, true);
+		r.guest.shell().tick(10);
+		expect(r.base.seen.empty()).to_be_true();
+
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false, false);
+		r.guest.shell().tick(20);
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(r.base.seen[0].ev.button == ButtonId::Load).to_be_true();
+		expect(r.base.seen[0].ev.on).to_be_true();
+		expect(r.base.seen[1].ev.on).to_be_false();
+	});
+
+	// ---- input: buttons ------------------------------------------------------------------------
+
+	it("decodes a legacy Button back into matrix coordinates, one id per button", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		// LOAD is matrix (6, 1) and SAVE is (6, 3): the same column, so a decode that dropped the
+		// row would give both the same id.
+		const ActionResult result = r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		(void)r.guest.buttonAction(deluge::hid::button::SAVE, true, false);
+		r.guest.shell().tick(1);
+
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(r.base.seen[0].ev.kind == UiEvent::Kind::Button).to_be_true();
+		expect(r.base.seen[0].ev.button == ButtonId::Load).to_be_true();
+		expect(r.base.seen[1].ev.button == ButtonId::Save).to_be_true();
+
+		// **`NOT_DEALT_WITH`, and it is what keeps `Buttons::buttonAction`'s tail running** --
+		// `commandToggleShift` (`hid/buttons.cpp:169-171`), the transport, and the mod-encoder
+		// button dispatch at `:226-231`. `DEALT_WITH` would `goto dealtWith` at `:139-141`.
+		expect(result == ActionResult::NOT_DEALT_WITH).to_be_true();
+	});
+
+	it("delivers an encoder button as an EncoderButton, not a Button", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		(void)r.guest.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
+		r.guest.shell().tick(1);
+
+		// `InputLowering::on_button` splits on `is_encoder_button` (`shell/input_lowering.cpp:300-303`),
+		// which is a fact about the id the matrix decode produced -- so this also proves the decode
+		// landed on the right cell rather than merely on *a* cell.
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(r.base.seen[0].ev.kind == UiEvent::Kind::EncoderButton).to_be_true();
+		expect(r.base.seen[0].ev.button == ButtonId::SelectEnc).to_be_true();
+	});
+
+	it("reads shift out of the events it feeds, in both directions", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+		r.guest.shell().tick(1);
+		r.base.seen.clear();
+		(void)r.guest.padAction(2, 2, 255);
+		r.guest.shell().tick(2);
+
+		const PatternScene::Seen* withShift = first_of(r.base, UiEvent::Kind::Pad);
+		expect(withShift != nullptr).to_be_true();
+		expect(withShift->shift).to_be_true();
+		// Not the sticky latch: `LoweringConfig::shift_is_sticky` is false here, which is the
+		// divergence from legacy recorded on the class (`@par Shift`, point 1).
+		expect(withShift->sticky).to_be_false();
+
+		// Vary only the shift state, on the same pad.
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+		r.guest.shell().tick(3);
+		r.base.seen.clear();
+		(void)r.guest.padAction(2, 2, 255);
+		r.guest.shell().tick(4);
+
+		const PatternScene::Seen* withoutShift = first_of(r.base, UiEvent::Kind::Pad);
+		expect(withoutShift != nullptr).to_be_true();
+		expect(withoutShift->shift).to_be_false();
+	});
+
+	// ---- input: encoders -----------------------------------------------------------------------
+
+	it("multiplies detents back up into edges, so a turn arrives at the size legacy handed over", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		// Legacy hands a `UI` whole **detents** (`hid/encoder_input.cpp:112`, `:124`); the shell's
+		// entry point takes **edges** and divides by `edges_per_detent` itself
+		// (`shell/input_lowering.cpp:178-186`). Feeding the detent count straight through would
+		// halve this to 1.
+		const ActionResult result = r.guest.horizontalEncoderAction(3);
+		r.guest.shell().tick(1);
+
+		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(turn != nullptr).to_be_true();
+		expect(turn->ev.encoder == deluge::ui::EncoderRole::Horizontal).to_be_true();
+		expect(static_cast<int>(turn->ev.delta)).to_equal(3);
+		// `interpretEncoders` tests this for `REMIND_ME_OUTSIDE_CARD_ROUTINE` alone
+		// (`hid/encoder_input.cpp:129-132`); the deferral replaces it.
+		expect(result == ActionResult::DEALT_WITH).to_be_true();
+	});
+
+	it("keeps the three function encoders on their own roles", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		(void)r.guest.verticalEncoderAction(-2, false);
+		r.guest.shell().tick(1);
+		const PatternScene::Seen* vertical = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(vertical != nullptr).to_be_true();
+		expect(vertical->ev.encoder == deluge::ui::EncoderRole::Vertical).to_be_true();
+		expect(static_cast<int>(vertical->ev.delta)).to_equal(-2);
+
+		r.base.seen.clear();
+		r.guest.selectEncoderAction(4);
+		r.guest.shell().tick(2);
+		const PatternScene::Seen* select = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(select != nullptr).to_be_true();
+		expect(select->ev.encoder == deluge::ui::EncoderRole::Select).to_be_true();
+		expect(static_cast<int>(select->ev.delta)).to_equal(4);
+	});
+
+	it("saturates a turn past the int8_t edge ceiling instead of wrapping it negative", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+
+		// The ceiling, with the arithmetic: `Shell::on_encoder_edges` takes an `int8_t`
+		// (`shell/shell.h:268`) and the Deluge is two edges per detent, so 63 detents (126 edges)
+		// is the largest that fits and 64 (128 edges) narrows to -128, i.e. **-64 detents**.
+		// The guest can be handed more than 63: legacy's `detentDelta` accumulates in
+		// `DetentedEncoder::pos` across every pass `interpretEncoders` skips during the SD routine
+		// (`hid/encoder_input.cpp:96-106`) or a stem export (`:66-68`).
+		r.base.seen.clear();
+		(void)r.guest.verticalEncoderAction(63, false);
+		r.guest.shell().tick(1);
+		const PatternScene::Seen* atCeiling = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(atCeiling != nullptr).to_be_true();
+		expect(static_cast<int>(atCeiling->ev.delta)).to_equal(63);
+
+		r.base.seen.clear();
+		(void)r.guest.verticalEncoderAction(64, false);
+		r.guest.shell().tick(2);
+		const PatternScene::Seen* past = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(past != nullptr).to_be_true();
+		// Not -64, and not 0 either: saturated, the choice legacy makes for its own two narrowing
+		// encoders (`hid/encoder_input.cpp:117`).
+		expect(static_cast<int>(past->ev.delta)).to_equal(63);
+
+		r.base.seen.clear();
+		(void)r.guest.verticalEncoderAction(-500, false);
+		r.guest.shell().tick(3);
+		const PatternScene::Seen* negative = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(negative != nullptr).to_be_true();
+		expect(static_cast<int>(negative->ev.delta)).to_equal(-63);
+	});
+
+	it("resolves an encoder role through the profile's table, not a fixed board index", _ {
+		// Only the encoder order differs from the Deluge's, so the panel, the grid and every other
+		// answer are the ones the examples above used.
+		Rig r{kDelugeBoard, profile_permuted_encoders()};
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		(void)r.guest.horizontalEncoderAction(2);
+		r.guest.shell().tick(1);
+
+		// Index 1 on this profile is Tempo, and index 2 is Horizontal.
+		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(turn != nullptr).to_be_true();
+		expect(turn->ev.encoder == deluge::ui::EncoderRole::Horizontal).to_be_true();
+		expect(static_cast<int>(turn->ev.delta)).to_equal(2);
+	});
+
+	it("drops a turn for a role the board has no encoder for, and only that role", _ {
+		Rig r{kDelugeBoard, profile_no_horizontal()};
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		(void)r.guest.horizontalEncoderAction(5);
+		r.guest.shell().tick(1);
+		expect(first_of(r.base, UiEvent::Kind::Encoder) == nullptr).to_be_true();
+
+		// Vary the role, not the board: vertical is in this table and still arrives.
+		(void)r.guest.verticalEncoderAction(5, false);
+		r.guest.shell().tick(2);
+		const PatternScene::Seen* vertical = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(vertical != nullptr).to_be_true();
+		expect(vertical->ev.encoder == deluge::ui::EncoderRole::Vertical).to_be_true();
+	});
+
+	it("feeds nothing for a zero turn", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		(void)r.guest.horizontalEncoderAction(0);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.empty()).to_be_true();
+		expect(r.guest.shell().lowering().had_input_this_tick()).to_be_false();
+	});
+
+	it("stamps events with the clock nowMs() reads, not the tick's", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+
+		fakelegacyui::system_time_s = 1.5; // nowMs() == 1500
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		// `end_tick` re-stamps the snapshot with the tick's own clock, which is what a scene reads
+		// as `ctx.now_ms` (`shell/shell.cpp:549-559`, `:561-571`). The **feed's** clock is what the
+		// press keeps, and that one comes from `nowMs()` -- so the two numbers being different is
+		// what proves the hook stamped its own rather than borrowing the tick's.
+		r.guest.shell().tick(1700);
+
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(r.base.seen[0].now_ms).to_equal(uint32_t(1700));
+		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(1500));
+	});
+
+	it("reads nowMs() from getSystemTime, so a different clock gives a different stamp", _ {
+		// The companion to the example above: vary only the clock. Without this, a `nowMs()` that
+		// returned a constant would pass everything above it.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::system_time_s = 0.037; // 37 ms
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(37));
+
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false, false);
+		fakelegacyui::system_time_s = 9.001; // 9001 ms
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		expect(r.guest.shell().lowering().held_since(ButtonId::Load)).to_equal(uint32_t(9001));
+	});
+
+	// ---- input: the hooks deliberately NOT wired ------------------------------------------------
+
+	it("leaves all three gold-knob hooks on the base, so legacy's `view` still gets them", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+
+		// Forwarding these into the lowering would double-accelerate them: legacy has already
+		// applied `calcNextKnobSpeed` before it calls (`hid/encoder_input.cpp:192-194`), and the
+		// shell applies its own to any `EncoderKind::Accelerating` role
+		// (`shell/input_lowering.cpp:187-193`). See the class's `@par The gold knobs`.
+		static_cast<::UI&>(r.guest).modEncoderAction(0, 7);
+		static_cast<::UI&>(r.guest).modButtonAction(2, true);
+		static_cast<::UI&>(r.guest).modEncoderButtonAction(1, true);
+
+		expect(fakelegacyui::mod_encoder_actions).to_equal(1);
+		expect(fakelegacyui::mod_button_actions).to_equal(1);
+		expect(fakelegacyui::mod_encoder_button_actions).to_equal(1);
+
+		// And nothing reached the shell, on this tick or any later one.
+		r.guest.shell().tick(1);
+		expect(r.base.seen.empty()).to_be_true();
+	});
+
 });
 // clang-format on
 
