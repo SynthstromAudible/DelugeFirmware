@@ -98,6 +98,49 @@ CATALOGUE_DISPATCH_CALLS = (
     "deleteFolderAndDuplicateItems",
     "getNewFileItem",
 )
+# The legacy HID OUTPUT DRIVERS the `scenes-no-legacy-hid-drivers` row forbids -- the five
+# spellings by which legacy code lights an LED, arms a UI timer, or asks for a redraw. Named
+# here, like `ROOT_UI_GLOBALS`, so `--audit-symbols` can check each is a real symbol.
+#
+# This is `model-calls-ui`'s alternative list minus everything another row already holds the
+# scenes layer to: `display->` is `scenes-no-display`, and `getRootUI(`/`getCurrentUI(`/
+# `openUI(`/`changeRootUI(` are `scenes-no-root-ui`'s `UI_STACK_CALLS`. What was left over was
+# uncovered for the scenes layer until E4 task 14, and E4 is the plan that made it matter: the
+# three services here are the port of `View` (`gui/views/view.cpp`), which is *the* legacy
+# caller of all five -- `indicator_leds::setLedState`/`blinkLed`/`setKnobIndicatorLevel`/
+# `indicateAlertOnLed` for the transport and gold-knob LEDs, `uiTimerManager.setTimer` for the
+# MIDI-learn flash and the two 25 ms automation timers, `uiNeedsRendering`/`renderUIsForOled`
+# for every repaint. The port declares LEDs through `shell::Leds`, files `Action::Kind::Repaint`
+# and returns a deadline from `Service::next_timer()`; reaching for these instead is the exact
+# regression this row exists to catch, and it is spelled as a bare call because
+# `scenes-includes-gui` already forbids the header.
+#
+# `currentUIMode` and `isUIModeActive(` are deliberately NOT here, and the reason is measured
+# rather than assumed: `is_comment_line` does not strip a TRAILING comment, so the three
+# `holding_save_ = true;  // `:240` currentUIMode = UI_MODE_HOLDING_SAVE_BUTTON` lines in
+# `services/global_controls.cpp` would give this row a non-zero baseline out of pure citation
+# text. They are also a different concern -- reading a mode, not driving an output -- which the
+# ports model as their own booleans.
+LEGACY_HID_DRIVERS = (
+    "uiNeedsRendering",
+    "renderUIsForOled",
+    "indicator_leds",
+    "PadLEDs",
+    "uiTimerManager",
+)
+# ...and the matching regex, which is not mechanically derivable from the names above because
+# each is spelled with a different suffix (a call, a namespace qualifier, a member access).
+#
+# `PadLEDs::flashCursor` is excluded BY NAME, on exactly the argument that keeps `fileItems` out
+# of `CATALOGUE_DISPATCH_CALLS`: it is not a driver call, it is the persisted SETTING BYTE that
+# `flash::Status::readCurrentValue`/`writeCurrentValue` (`gui/menu_item/flash/status.h:26-32`)
+# read and write, ported as a value in `menu/nodes/settings.cpp` and recorded there
+# (`nodes/settings.h:320-322`). Excluding the spelling rather than the file keeps the other four
+# drivers -- and every other `PadLEDs::` member -- gated inside `settings.cpp` too.
+LEGACY_HID_DRIVER_RE = (
+    r"\b(uiNeedsRendering\(|renderUIsForOled\(|indicator_leds::|"
+    r"PadLEDs::(?!flashCursor\b)|uiTimerManager\.)"
+)
 # The UI-stack entry points (`gui/ui/ui.h:184-197`), matched with a following `(`.
 UI_STACK_CALLS = (
     "openUI",
@@ -452,6 +495,51 @@ RULES = [
         r"\b(" + "|".join(LEGACY_WAVEFORM_GLOBALS) + r")\b",
         "2026-08-26-ui-toolkit-design.md",
     ),
+    (
+        # E4's service boundary, stated as a rule. See `LEGACY_HID_DRIVERS` above for what the
+        # five spellings are, why the other seven of `model-calls-ui`'s alternatives are not
+        # repeated here, and why `PadLEDs::flashCursor` is excluded by name.
+        #
+        # Same ratchet-not-proof caveat as every symbol row: it sees these spellings, not every
+        # possible one, and `is_comment_line` skips only whole-line comments.
+        "scenes-no-legacy-hid-drivers",
+        "src/scenes/**",
+        "symbol",
+        LEGACY_HID_DRIVER_RE,
+        "2026-08-26-ui-shell-design.md",
+    ),
+    (
+        # Same rule, `src/ui/**` side -- one glob per row, as `shell-no-clock` is three rows and
+        # `scenes-no-legacy-waveform` is two. E4 is why the toolkit half is needed: task 7 moved
+        # `Rainfall` and `Starfield` out of `hid/display/` into `src/ui/oled/`, so the toolkit now
+        # contains code whose ORIGINAL home was the same directory as `indicator_leds` and
+        # `PadLEDs`. A future edit restoring one of those calls would be restoring it to a file
+        # that used to be allowed to make it.
+        "scenes-no-legacy-hid-drivers",
+        "src/ui/**",
+        "symbol",
+        LEGACY_HID_DRIVER_RE,
+        "2026-08-26-ui-toolkit-design.md",
+    ),
+    (
+        # Global Constraint 5, which every plan since E2 has restated in prose and no checker has
+        # ever held anyone to: no scene raises `Action::Kind::LockInput`. It is the shell's own
+        # word (`shell/scene.h`'s `Action` enum carries the warning), and the scenes library has
+        # six @warnings saying "must not, and does not" -- `browser/listing.h:83-87` and `:335`,
+        # `browser/browser_scene.h:59`, `marker/marker_scene.h:73`, `recorder/recorder_scene.h:144`,
+        # `overlay/count_in_scene.h:97`. Six repetitions of a claim with no mechanism behind it is
+        # the shape this plan kept finding and fixing, so it gets the mechanism.
+        #
+        # The reason it matters is in `listing.h:83-87`: a scene that takes the lock across an
+        # operation with no cancel and no timeout leaves the whole UI deaf, which E3 shipped once.
+        # `src/shell/**` is NOT in scope -- the shell defines the enum and `Router::route` is what
+        # honours it (`router.cpp`'s `case Action::Kind::LockInput`).
+        "scenes-no-input-lock",
+        "src/scenes/**",
+        "symbol",
+        r"\bLockInput\b",
+        "2026-08-26-ui-shell-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
@@ -516,6 +604,29 @@ def is_comment_line(line: str) -> bool:
 
 
 def count_file(path: Path) -> dict[str, int]:
+    """Count each rule's hits in one file.
+
+    A SYMBOL rule skips two kinds of line: a comment (`is_comment_line` above) and an
+    `#include` directive. The include skip was added in E4 task 14, for a cost this plan
+    actually paid: `scenes-no-root-ui` lists `slicer` as a whole word, so the mandated path
+    `src/scenes/slicer/slicer_scene.h` tripped the row from its own `#include` lines --
+    2 violations in 2 files, `registry.cpp` and `slicer_scene.cpp`, 1 each -- and the
+    directory was renamed to `slicing/` to get around a rule that was not describing the
+    coupling it exists to forbid.
+
+    It loses nothing, and that is checkable rather than argued. Every symbol row here is
+    scoped to a directory that an INCLUDE row already gates: `scenes-no-root-ui` and
+    `scenes-no-legacy-waveform` cover `src/scenes/**`, where `scenes-includes-gui` already
+    forbids `gui/` and `hid/` outright, so a real `#include "gui/ui/slicer.h"` still fails
+    the checker -- under the row that names the actual violation, with the actual spec. What
+    a symbol row uniquely catches is the spelling an include row cannot see: the bare
+    `extern Slicer slicer;` a scene would write precisely BECAUSE the header is forbidden.
+    That spelling is untouched by this skip.
+
+    Measured, not assumed: applying the skip moved ZERO of the baseline's 120 (file, rule)
+    counts, tree-wide. Re-run it the same way if this predicate changes --
+    `--list` before, `--list` after, `diff`.
+    """
     rel = str(path.relative_to(REPO))
     counts: dict[str, int] = {}
     text = path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -529,7 +640,11 @@ def count_file(path: Path) -> dict[str, int]:
                 m = INCLUDE_RE.match(line)
                 if m and r.search(m.group(1)):
                     n += 1
-            elif r.search(line) and not is_comment_line(line):
+            elif (
+                r.search(line)
+                and not is_comment_line(line)
+                and not INCLUDE_RE.match(line)
+            ):
                 n += 1
         if n:
             counts[name] = n
@@ -561,6 +676,12 @@ AUDITED_SYMBOLS = (
     ("scenes-no-root-ui", (*ROOT_UI_GLOBALS, *UI_STACK_CALLS), "src/deluge/gui"),
     ("scenes-no-legacy-waveform", LEGACY_WAVEFORM_GLOBALS, "src/deluge/gui/waveform"),
     ("scenes-listing-through-the-seam", CATALOGUE_DISPATCH_CALLS, "src/deluge/storage"),
+    # `src/deluge` rather than a narrower root, and deliberately: the five span three legacy
+    # directories -- `indicator_leds`/`PadLEDs` are `hid/led/`, `uiTimerManager` is
+    # `gui/ui_timer_manager.h` but is used throughout `hid/display/`, and `uiNeedsRendering`/
+    # `renderUIsForOled` are `gui/ui/ui.h`. No single directory declares all five, and a root
+    # that covered only some of them would report the rest as "declared nowhere".
+    ("scenes-no-legacy-hid-drivers", LEGACY_HID_DRIVERS, "src/deluge"),
 )
 
 
