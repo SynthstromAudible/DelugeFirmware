@@ -24,7 +24,7 @@
 /// path and the golden directory from one name; the 64-row files say in their own headers which
 /// frames they kept and why the rest would have added nothing.
 ///
-/// @par The real services, and the wiring gap that made passing them awkward
+/// @par The real services, and the wiring gap this file found
 ///
 /// **Every script on this stack before this one runs with `Services{}` -- three null services --
 /// and they all still do.** That is a controller ruling and not an oversight: three plans' goldens
@@ -32,29 +32,33 @@
 /// this task would be a diff nobody could review. The five scripts here are the ones that get real
 /// ones.
 ///
-/// Passing them is not as simple as filling in the struct, and the reason is a real gap in the
+/// Passing them was not as simple as filling in the struct, and the reason was a real gap in the
 /// application's own boot path, not a test-harness quirk:
 ///
 ///   * `services::ModKnobs`, `GlobalControls` and `MidiLearn` each take a `SceneStack&` and (for
-///     the first two) an `InputLowering&` at construction, and they *use* them -- `ModKnobs`
-///     pushes `ParamPopupScene` onto that stack (`services/mod_knobs.cpp:399`) and reads
-///     `stack_.input_top()` (`:346`, `:549`); `GlobalControls` gates its `View::buttonAction`
-///     group on `stack_.input_top().is_root()` (`global_controls.cpp:580`); `MidiLearn` reads the
-///     same (`midi_learn.cpp:466`).
+///     the first two) an `InputLowering&` at construction, and they *use* them --
+///     `ModKnobs::show_popup` pushes the param popup onto that stack
+///     (`scenes/services/mod_knobs.cpp:413`), and `ModKnobs::popup_suppressed` (`:351`) and
+///     `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`;
+///     `GlobalControls::handle` gates its `View::buttonAction` group on
+///     `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
+///     `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:466`).
 ///   * The only `SceneStack` and `InputLowering` in an application are the ones the `Shell` **owns**
-///     (`shell/shell.h`'s `stack_`, `lowering_`), and `Services` is fixed at the shell's
-///     construction (`Shell::Shell`, `shell.cpp:168-204`, whose own comment says so: "the services
-///     are fixed at construction"). There is no `Shell::set_services`.
+///     (`shell/shell.h`'s `stack_`, `lowering_`), and `Services` was fixed at the shell's
+///     construction. There was no `Shell::set_services`.
 ///
-/// So a real service cannot be built before the shell it serves, and cannot be installed after it.
-/// `LateService` below closes the loop for a spec -- a `Service` that forwards to another, put in
-/// the slot at construction and pointed at the real one from `RunOptions::after_construct` -- and
-/// costs nothing at runtime beyond one indirect call per hook. **The application will need
-/// something for the same problem, and a forwarding shim is not it**: whoever wires
-/// `deluge.cpp` will need `Shell::set_services` (or late-bound service constructors). Recorded here
-/// because this task is the first thing in the tree that has ever tried to hold all three services
-/// and a `Shell` at the same time. Reported as a finding, not fixed here: adding a setter to
-/// `src/shell` is spec F's wiring decision, not a side effect of writing acceptance scripts.
+/// So a real service could not be built before the shell it serves, and could not be installed
+/// after it -- which meant **no application could install a service at all**, and no gold-knob
+/// turn, transport button or MIDI-learn press reached anything outside the scene stack. This file
+/// worked around it with a `LateService` forwarding shim, and reported the gap rather than fixing
+/// it, because adding a setter to `src/shell` was spec F's wiring decision and not a side effect of
+/// writing acceptance scripts.
+///
+/// **F1 task 2 fixed it.** `Shell::set_services` (`shell/shell.h`) re-seats all three of the things
+/// that hold the slots -- the shell's copy, the `Router`'s, and the deduplicated `service_list_` --
+/// and `RealServices::installer()` below now calls it from `after_construct` and hands the shell
+/// `Services{}` at construction, exactly as an application does. The shim is gone; the 34 golden
+/// snapshots did not move.
 ///
 /// @par What passing them changed, visibly -- and what it did not
 ///
@@ -303,49 +307,22 @@ void reset_globals() {
 
 // --- the services ---------------------------------------------------------------------------------
 
-/// @brief A `Service` that forwards every hook to another one installed later.
-///
-/// The whole of what makes a real service reachable from a script; see the file docstring for why
-/// the loop cannot be closed any other way today. Forwarding, not reimplementing: an unbound shim
-/// is byte-for-byte a `NullService` (`shell/service.h`), which is what every other script gets.
-class LateService final : public deluge::ui::shell::Service {
-public:
-	void bind(Service* target) { target_ = target; }
-
-	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
-	                                 const deluge::ui::shell::UiContext& ctx) override {
-		return target_ != nullptr ? target_->handle(event, ctx) : deluge::ui::shell::Result{};
-	}
-	void leds(deluge::ui::LedFrame& frame) override {
-		if (target_ != nullptr) {
-			target_->leds(frame);
-		}
-	}
-	void tick(uint32_t now_ms, uint32_t dt_ms) override {
-		if (target_ != nullptr) {
-			target_->tick(now_ms, dt_ms);
-		}
-	}
-	std::optional<uint32_t> next_timer() const override {
-		return target_ != nullptr ? target_->next_timer() : std::nullopt;
-	}
-	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override {
-		return target_ != nullptr ? target_->timer_repaints() : Service::timer_repaints();
-	}
-
-private:
-	Service* target_ = nullptr;
-};
-
-/// @brief The three real services, built over the run's own `Shell` from `after_construct`.
+/// @brief The three real services, built over the run's own `Shell` from `after_construct` and
+///        installed into it with `Shell::set_services`.
 ///
 /// Example-scoped: the services themselves are ordinary objects (unlike every *scene* in this tree,
-/// which is a process singleton), so nothing here leaks into the next block. The shims are unbound
-/// in the destructor anyway, because they are what a stale pointer would be reached through.
+/// which is a process singleton), so nothing here leaks into the next block. The `Shell` is
+/// constructed and destroyed inside `expect_script_goldens`, which this outlives, so nothing here
+/// is ever reached through a shell that has gone away.
+///
+/// @note This used to hold three `LateService` shims -- `Service`s that forwarded every hook to a
+///       real one bound in afterwards -- because `Services` was fixed at the `Shell`'s
+///       construction and the three real services each need the `SceneStack&` (and, for two of
+///       them, the `InputLowering&`) that only exists once that shell does. `Shell::set_services`
+///       (F1 task 2) closed that loop for the application, and this file is the reason it was
+///       found; the shim is gone and the 34 golden snapshots below did not move, which is the
+///       check that the setter installs exactly what the shim forwarded to.
 struct RealServices {
-	LateService knob_slot;
-	LateService control_slot;
-	LateService learn_slot;
 	std::optional<services::MidiLearn> learn;
 	std::optional<services::ModKnobs> knobs;
 	std::optional<services::GlobalControls> controls;
@@ -359,16 +336,13 @@ struct RealServices {
 	RealServices() = default;
 	RealServices(const RealServices&) = delete;
 	RealServices& operator=(const RealServices&) = delete;
-	~RealServices() {
-		knob_slot.bind(nullptr);
-		control_slot.bind(nullptr);
-		learn_slot.bind(nullptr);
-	}
 
-	/// @return What to hand `expect_script_goldens` as its `Services`: the three shims.
-	deluge::ui::shell::Services slots() { return {&knob_slot, &control_slot, &learn_slot}; }
+	/// @return What to hand `expect_script_goldens` as its `Services`: nothing. The shell is built
+	///         with empty slots, exactly as an application's is, and `installer()` fills them.
+	deluge::ui::shell::Services slots() { return {}; }
 
-	/// @return The `RunOptions::after_construct` hook that builds the real three over @p shell.
+	/// @return The `RunOptions::after_construct` hook that builds the real three over @p shell and
+	///         installs them into it.
 	std::function<void(Shell&)> installer() {
 		return [this](Shell& shell) {
 			// `MidiLearn` first: `GlobalControls` takes it by reference as its `LearnMode`.
@@ -382,9 +356,7 @@ struct RealServices {
 				knobs->set_target_with_timeline(mod_target, false);
 				knobs->set_mod_region();
 			}
-			knob_slot.bind(&*knobs);
-			control_slot.bind(&*controls);
-			learn_slot.bind(&*learn);
+			shell.set_services({&*knobs, &*controls, &*learn});
 		};
 	}
 };
