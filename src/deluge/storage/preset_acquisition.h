@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <string>
 
+class Clip;
 class Instrument;
 class InstrumentClip;
 
@@ -45,9 +46,19 @@ enum class PresetConsumer : uint8_t {
 	ArrangerNewInstrument,  ///< the arranger's new-instrument pad
 	ArrangerChangeType,     ///< ArrangerView::changeOutputType()
 	ArrangerNavigate,       ///< ArrangerView::navigateThroughPresets()
-	SessionChangeType,      ///< SessionView's Grid-layout output-type gesture (`:626`)
-	SessionNavigate,        ///< SessionView's preset-navigation gesture
-	SessionNewTrack,        ///< SessionView::createNewTrackForInstrumentClip()
+	SessionChangeType,      ///< SessionView's Grid-layout output-type button, inside buttonAction()
+	SessionNavigate,        ///< SessionView's Grid-layout preset-navigation gesture
+	                        ///< (commandChangeClipPreset()). The Rows-layout arm of the same gesture
+	                        ///< delegates to View and uses ViewNavigateClipPreset instead.
+	SessionNewTrack,        ///< SessionView::padAction()'s empty-pad "create a clip here" gesture
+	                        ///< (Rows layout only -- Grid pads go to gridHandlePads()).
+	SessionNewTrackEnter,   ///< SessionView::finishGridNewTrackClip()'s ENTER continuation: the grid
+	                        ///< new-track gesture that creates, plays and transitions into the clip.
+	SessionNewTrackSelect,  ///< SessionView::finishGridNewTrackClip()'s SELECT continuation: the grid
+	                        ///< new-track gesture that creates and selects the clip. Distinct from
+	                        ///< SessionNewTrackEnter because the two post-create tails differ.
+	SessionNewTrackClone,   ///< SessionView::gridClonePad() copying a clip into an EMPTY track column,
+	                        ///< which has to acquire an instrument for the new track.
 	ViewChangeType,         ///< View::changeOutputType(), reached via InstrumentClipView::changeOutputType()
 	                        ///< -- the KIT/SYNTH buttons on InstrumentClipView, AutomationView and
 	                        ///< KeyboardScreen all route through it (handleInstrumentChange()), as do
@@ -81,6 +92,16 @@ struct PresetRequest {
 	bool doBlink{};     ///< Navigate and ViewChangeType/SessionRowsChangeType: whether the redrawn name
 	                    ///< should blink.
 	int32_t yPressed{}; ///< The view row the gesture was made on, captured before any yield.
+	int32_t xPressed{}; ///< SessionNewTrack only: the pad column the gesture was made on.
+	/// @brief SessionNewTrack only: `yDisplay + songViewYScroll` as it read when the pad went down.
+	/// @note Snapshotted rather than re-derived, because the completion's own insertAndResyncNewClip()
+	///       can advance songViewYScroll before the value is used.
+	int32_t clipIndex{};
+	/// @brief SessionNewTrackEnter/Select only: the grid press coordinates, packed `y << 16 | x`.
+	/// @note Already the shape gridNewTrackClipEntered()/gridNewTrackClipSelected() take, and already
+	///       carried across the clip-type picker's wait as `pendingGridClipXY`.
+	uint32_t packedXY{};
+	uint32_t targetSection{}; ///< SessionNewTrackClone only: the section the copy is dropped into.
 
 	std::string searchName; ///< ConfirmOrNext only: the preset name to confirm.
 	std::string dirPath;    ///< Browser::currentDir at dispatch -- the op sets currentDir from THIS.
@@ -93,7 +114,9 @@ struct PresetRequest {
 	///        guards only `oldInstrument`; a consumer that reads `clip` without also setting
 	///        `oldInstrument` gets no liveness check on the clip itself.
 	InstrumentClip* clip{};
-	bool copyDrumsFromClip{true}; ///< SessionNewTrack only.
+	/// @brief SessionNewTrackClone only: the clip being copied. Song-owned, so it survives the op's
+	///        yields -- but, like `clip`, it gets no liveness re-check: only `oldInstrument` does.
+	Clip* sourceClip{};
 };
 
 } // namespace deluge::storage

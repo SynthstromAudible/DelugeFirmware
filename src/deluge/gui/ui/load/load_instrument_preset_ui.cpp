@@ -23,6 +23,7 @@
 #include "gui/ui/root_ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -452,9 +453,9 @@ void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
 // Runs the follow-up for whichever gesture dispatched this acquisition. Every arm runs ON THE
 // OWNER, which is what makes a blocking read inside one legal, and mutating UI state from here
 // matches the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
-// recalculateColours()/close(), both on the owner. The arranger's three arms are wired (Task 3) and
-// View's two, plus SessionView's Rows-layout output-type gesture, are wired (Task 4); the remaining
-// Session arms remain empty `break;`s until Task 5.
+// recalculateColours()/close(), both on the owner. Every PresetConsumer is now wired; the switch is
+// exhaustive with no `default:`, so -Werror=switch makes adding a consumer without an arm a build
+// error rather than a silent no-op.
 void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request) {
 	using deluge::storage::PresetConsumer;
 	// A coalesced request can carry a stale `oldInstrument` -- see isRequestInstrumentStillLive()'s
@@ -485,9 +486,23 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		view.completeNavigateThroughPresetsForInstrumentClip(request.offset, request.clip, request.doBlink);
 		break;
 	case PresetConsumer::SessionChangeType:
+		sessionView.completeChangeOutputType(request.outputType, request.oldInstrument);
+		break;
 	case PresetConsumer::SessionNavigate:
+		sessionView.completeNavigate(request.offset, request.oldInstrument);
+		break;
 	case PresetConsumer::SessionNewTrack:
-		break; // wired in the consumer tasks
+		sessionView.completeNewTrack(request.outputType, request.xPressed, request.yPressed, request.clipIndex);
+		break;
+	case PresetConsumer::SessionNewTrackEnter:
+		sessionView.completeNewTrackGridEnter(request.outputType, request.packedXY);
+		break;
+	case PresetConsumer::SessionNewTrackSelect:
+		sessionView.completeNewTrackGridSelect(request.outputType, request.packedXY);
+		break;
+	case PresetConsumer::SessionNewTrackClone:
+		sessionView.completeNewTrackClone(request.targetSection, request.sourceClip);
+		break;
 	}
 }
 

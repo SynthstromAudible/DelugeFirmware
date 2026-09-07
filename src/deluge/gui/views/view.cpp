@@ -2653,9 +2653,8 @@ bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer,
                                        InstrumentClip* clip, bool doBlink) {
 	using deluge::storage::PresetConsumer;
 	// Exhaustive, deliberately no `default:` -- a `default:` here would silently route any consumer a
-	// future task adds (SessionChangeType and SessionNavigate are still unused reservations) into
-	// InstrumentClipView's tail instead of failing to build, which is precisely the failure this switch
-	// exists to prevent (rung 5 task 4 review, fix round 2).
+	// future task adds into InstrumentClipView's tail instead of failing to build, which is precisely
+	// the failure this switch exists to prevent (rung 5 task 4 review, fix round 2).
 	switch (consumer) {
 	case PresetConsumer::ViewChangeType:
 		// InstrumentClipView::changeOutputType() -- the KIT/SYNTH buttons on InstrumentClipView,
@@ -2689,6 +2688,9 @@ bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer,
 	case PresetConsumer::SessionChangeType:
 	case PresetConsumer::SessionNavigate:
 	case PresetConsumer::SessionNewTrack:
+	case PresetConsumer::SessionNewTrackEnter:
+	case PresetConsumer::SessionNewTrackSelect:
+	case PresetConsumer::SessionNewTrackClone:
 	case PresetConsumer::ViewNavigateClipPreset:
 		// Not a changeOutputType() consumer -- listed explicitly, never folded into a `default:`, so
 		// -Werror=switch keeps flagging every PresetConsumer this router does not yet know how to

@@ -43,6 +43,12 @@ extern float getTransitionProgress();
 constexpr uint32_t kGridHeight = kDisplayHeight;
 
 class SessionView final : public ClipNavigationTimelineView {
+	// The song-preview A/B gate drives this view's real gestures (grid coordinates, the Grid-layout
+	// preset-navigation command) rather than the readers underneath them, which is the only way the
+	// dispatch/completion split is actually under test. Same pattern, and the same reason, as
+	// Browser's and ArrangerView's friend declarations.
+	friend class BrowserListingAbProbe;
+
 public:
 	SessionView();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
@@ -92,6 +98,56 @@ public:
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @return Whether the swap actually succeeded.
 	bool completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink);
+
+	/// @brief The Grid-layout output-type button's follow-up -- on the storage owner for Synth/Kit,
+	///        inline for MIDI/CV.
+	///
+	/// Holds everything buttonAction()'s Grid arm used to run straight after
+	/// Song::changeOutputType(): the name/mod-controllable update, and the row redraw that used to sit
+	/// unconditionally after the whole if/else.
+	/// @param newOutputType The type being switched to.
+	/// @param oldInstrument The Instrument being replaced. Song-owned, so it survives the op's yields,
+	///                      and re-checked for liveness before the follow-up runs.
+	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument);
+
+	/// @brief The Grid-layout preset-navigation gesture's follow-up -- on the storage owner for
+	///        Synth/Kit, inline for MIDI/CV.
+	/// @param offset    Scroll direction, as commandChangeClipPreset() received it.
+	/// @param oldOutput The Output being navigated away from. Song-owned, so it survives the op's
+	///                  yields.
+	void completeNavigate(int32_t offset, Output* oldOutput);
+
+	/// @brief The empty-pad "create a clip here" gesture's follow-up (Rows layout), on the storage
+	///        owner.
+	///
+	/// Runs createNewInstrumentClip() -- unchanged, and still blocking, which is legal here -- and
+	/// then padAction()'s own tail for that branch, including the held-clip state it used to enter
+	/// via `goto startHoldingDown`.
+	/// @param type      The clip type the gesture decided to create.
+	/// @param xDisplay  The pad column the gesture was made on.
+	/// @param yDisplay  The pad row the gesture was made on.
+	/// @param clipIndex `yDisplay + songViewYScroll` as it read when the pad went down.
+	void completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex);
+
+	/// @brief The grid new-track gesture's ENTER follow-up, on the storage owner.
+	/// @param type     The clip type chosen in the picker.
+	/// @param packedXY The press coordinates, `y << 16 | x`.
+	void completeNewTrackGridEnter(OutputType type, uint32_t packedXY);
+
+	/// @brief The grid new-track gesture's SELECT follow-up, on the storage owner.
+	///
+	/// Deliberately separate from completeNewTrackGridEnter(): the two share the create-and-place
+	/// half, but their post-create tails (gridNewTrackClipEntered() vs gridNewTrackClipSelected())
+	/// are different functions and must not be collapsed into one.
+	/// @param type     The clip type chosen in the picker.
+	/// @param packedXY The press coordinates, `y << 16 | x`.
+	void completeNewTrackGridSelect(OutputType type, uint32_t packedXY);
+
+	/// @brief gridClonePad()'s follow-up when the copy lands in an EMPTY track column, on the storage
+	///        owner.
+	/// @param targetSection The section the copy is dropped into.
+	/// @param sourceClip    The clip being copied. Song-owned, so it survives the op's yields.
+	void completeNewTrackClone(uint32_t targetSection, Clip* sourceClip);
 	void editNumRepeatsTilLaunch(int32_t offset);
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -202,6 +258,26 @@ private:
 	bool insertAndResyncNewClip(Clip* newClip, int32_t yDisplay);
 	void resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* modelStackWithTimelineCounter);
 
+	/// @brief Enters the held-clip UI mode for a clip that was just selected or just created
+	///
+	/// Was padAction()'s `startHoldingDown` label, which the create branch jumped into. That branch's
+	/// tail now runs from completeNewTrack(), possibly a tick or more later, so the shared body is a
+	/// function rather than a `goto` target -- the statements are unchanged and both paths still run
+	/// exactly the same ones.
+	/// @param clip     The clip now being held.
+	/// @param xDisplay The pad column the press is on.
+	/// @param yDisplay The pad row the press is on.
+	void beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yDisplay);
+
+	/// @brief Whether the pad that started a dispatched new-track gesture is still held.
+	///
+	/// Set when padAction() dispatches, cleared by the matching release. The completion enters the
+	/// held-clip UI mode only while this is true: with the acquisition deferred, the release can be
+	/// consumed BEFORE the clip exists, and a completion that then set UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
+	/// would leave the view stuck holding a clip nobody is pressing -- the next unrelated pad press
+	/// would clone it instead of selecting it.
+	bool newTrackPressHeld_{false};
+
 	// Members regarding rendering different layouts
 private:
 	void selectLayout(int8_t offset);
@@ -292,6 +368,15 @@ private:
 	/// Called from exitTrackCreation(), the single funnel out of the picker. Does nothing when no
 	/// gesture is pending or when the user backed out (which clears @ref createClip).
 	void finishGridNewTrackClip();
+
+	/// @brief Creates and places a grid new-track clip, or nullptr if it could not be created
+	///
+	/// The half finishGridNewTrackClip() ran identically for both continuations, now on the storage
+	/// owner. Only this create-and-place head is shared; the two tails stay separate functions.
+	/// @param type     The clip type chosen in the picker.
+	/// @param packedXY The press coordinates, `y << 16 | x`.
+	/// @return The placed clip, or nullptr if creation or placement failed.
+	Clip* createGridNewTrackClip(OutputType type, uint32_t packedXY);
 
 	void gridNewTrackClipEntered(Clip* clip, uint32_t packedXY);  ///< ENTER continuation
 	void gridNewTrackClipSelected(Clip* clip, uint32_t packedXY); ///< SELECT continuation

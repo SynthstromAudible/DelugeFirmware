@@ -25,7 +25,9 @@
 #include "gui/ui/save/save_song_ui.h"   // the converted caller, driven end to end below
 #include "gui/ui/ui.h"                  // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
 #include "gui/views/arranger_view.h"    // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
+#include "gui/views/session_view.h"     // the `sessionView` global driving SessionView's three gestures
 #include "gui/views/view.h"             // the `view` global driving View's two acquisition gestures
+#include "hid/button.h"                 // the SYNTH/CV buttons the Grid output-type gesture is pressed with
 #include "hid/led/pad_leds.h"           // the image both backings render into
 #include "io/file.hpp"                  // the card swap's unlink + rename
 #include "libdeluge/file_directory.h"   // deluge_file_directory_async_active
@@ -257,6 +259,61 @@ public:
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 		return view.changeOutputType(newOutputType, modelStack, true);
 	}
+
+	/// Put SessionView into Grid layout with `clip` under the first grid press, which is what BOTH
+	/// Grid-layout gestures below read their subject from (getClipForLayout() ->
+	/// gridClipFromCoords(gridFirstPressedX, gridFirstPressedY)).
+	///
+	/// Re-derived before every gesture rather than once: the grid X comes from the clip's TRACK, so a
+	/// gesture that swaps the Output moves the clip's column out from under the previous coordinates.
+	/// @return Whether the coordinates really do resolve back to `clip` -- false means the gesture
+	///         would act on nothing and the step must fail rather than pass vacuously.
+	static bool aimGridPressAt(Clip* clip) {
+		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		const Cartesian xy = sessionView.gridXYFromClip(*clip);
+		sessionView.gridFirstPressedX = xy.x;
+		sessionView.gridFirstPressedY = xy.y;
+		return sessionView.getClipForLayout() == clip;
+	}
+
+	/// Drives SessionView's REAL Grid-layout preset-navigation gesture (the select encoder's
+	/// commandChangeClipPreset), not Song::navigateThroughPresetsForInstrument underneath it -- that
+	/// helper is what the COMPLETION calls, so a probe built on it would prove nothing about the
+	/// dispatch split. Private, hence this view's friend declaration.
+	static void commandChangeClipPreset(int8_t offset) {
+		currentUIMode = UI_MODE_NONE;
+		sessionView.commandChangeClipPreset(offset);
+	}
+
+	/// Drives SessionView's REAL Grid-layout output-type button, through buttonAction() so the whole
+	/// `goto changeOutputType` region (mode gate, audio-clip refusal, LOAD-held branch) is the thing
+	/// under test.
+	///
+	/// Reproduces the preconditions a real press already satisfies: the gesture only runs while a clip
+	/// is held in song view, and selectedClipYDisplay names the row its redraw invalidates (255, which
+	/// clipPressEnded() leaves behind, would shift by 255 -- undefined on a 32-bit value).
+	static void sessionButtonChangeOutputType(deluge::hid::button::Button b) {
+		currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+		sessionView.selectedClipYDisplay = 0;
+		(void)sessionView.buttonAction(b, true, false);
+	}
+
+	/// Drives SessionView's REAL empty-pad "create a clip here" gesture, through padAction() in Rows
+	/// layout. Restores Rows layout first: the Grid steps above leave the song in Grid, where padAction
+	/// hands straight over to gridHandlePads() and this branch is unreachable.
+	static void pressEmptyPad(int32_t xDisplay, int32_t yDisplay) {
+		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+		currentSong->songViewYScroll = 0;
+		currentUIMode = UI_MODE_NONE;
+		// What the gesture creates: it reads lastTypeCreated when defaultUseLastClipType is set, and
+		// SYNTH is the only type the SYNTHS fixture can satisfy.
+		FlashStorage::defaultUseLastClipType = true;
+		sessionView.lastTypeCreated = OutputType::SYNTH;
+		(void)sessionView.padAction(xDisplay, yDisplay, 1);
+	}
+
+	/// Whether the empty-pad gesture is still waiting for its acquisition's completion to hold the pad.
+	static bool newTrackPressHeld() { return sessionView.newTrackPressHeld_; }
 };
 
 namespace {
@@ -1688,6 +1745,14 @@ enum class AcquireStep : uint8_t {
 	ViewChangeTypeCVCheck,
 	ViewChangeTypeSynth,
 	ViewChangeTypeSynthCheck,
+	SessionChangeTypeCV,
+	SessionChangeTypeCVCheck,
+	SessionChangeTypeSynth,
+	SessionChangeTypeSynthCheck,
+	SessionNewTrack,
+	SessionNewTrackCheck,
+	SessionNavigate,
+	SessionNavigateCheck,
 	Finished
 };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
@@ -1702,10 +1767,11 @@ constexpr const char* kAcqSubDir = "SYNTHS/NESTED";
 // Exactly one: Reference+Converted consume it (see the recursive-descent doc above), so the top
 // level is provably empty by the time Nested and Coalesce run.
 constexpr int32_t kAcqTopLevelCount = 1;
-// One for AcquireStep::Nested's proof, three more for Coalesce's three gestures, plus a spare --
-// Coalesce doesn't assert identity, but running out would make its gestures fail silently instead of
-// exercising the walk.
-constexpr int32_t kAcqNestedCount = 5;
+// One for AcquireStep::Nested's proof, three more for Coalesce's three gestures, one each for the
+// four dispatching View/Session gestures further down, plus spares -- none of those assert identity,
+// but running the folder dry would make their gestures fail silently instead of exercising the walk,
+// and a silent failure is exactly what their outcome assertions are there to catch.
+constexpr int32_t kAcqNestedCount = 12;
 // buildPresetFixture() names files "<prefix><NN>.XML"; kAcqTopLevelCount == 1 makes this the only
 // top-level name there is, so it can be asserted absolutely rather than merely checked non-empty.
 constexpr const char* kAcqTopLevelName = "PRESET00";
@@ -1740,6 +1806,17 @@ int32_t g_acqNonAudioBefore = 0; // presetAcquisitionsRun() sampled before NonAu
 InstrumentClip* g_viewClip = nullptr;
 int32_t g_acqViewBefore = 0;       // presetAcquisitionsRun() sampled before each View gesture below
 std::string g_acqViewNameBefore{}; // g_viewClip->output's name, sampled before ViewNavigate dispatches
+
+// The empty-pad new-track gesture (AcquireStep::SessionNewTrack). The pad has to be one with no clip
+// on it: the boot song holds a single session clip at index 0 and songViewYScroll is forced to 0, so
+// any row past the first is empty.
+constexpr int32_t kAcqNewTrackX = 0;
+constexpr int32_t kAcqNewTrackY = 3;
+int32_t g_acqNewTrackClipsBefore = 0; // sessionClips size sampled before the gesture dispatches
+// What that gesture created. AcquireStep::SessionNavigate drives its Grid gesture on THIS clip rather
+// than the boot one: its Instrument comes from SYNTHS/NESTED, the only folder here with enough entries
+// for a one-step navigation to land somewhere else (see that step's doc).
+Clip* g_acqNewTrackClip = nullptr;
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
 /// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
@@ -2038,6 +2115,174 @@ void runAcquireTick() {
 		if (typeAfter != OutputType::SYNTH) {
 			printf("SP-ACQUIRE FAIL clip did not actually become SYNTH -- "
 			       "ViewChangeType's switch arm may not be wired\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::SessionChangeTypeCV;
+		break;
+	}
+	case AcquireStep::SessionChangeTypeCV: {
+		// The MIDI/CV fast path (spec section 2c) for SessionView's Grid output-type button: it must
+		// call completeChangeOutputType() INLINE, reading no card. Readable in the SAME tick precisely
+		// because it is the synchronous arm -- see AcquireStep::NonAudio's doc.
+		if (!BrowserListingAbProbe::aimGridPressAt(g_viewClip)) {
+			printf("SP-ACQUIRE FAIL grid coordinates do not resolve back to the session clip\n");
+			g_failures++;
+			g_acquireStep = AcquireStep::Finished;
+			break;
+		}
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::sessionButtonChangeOutputType(deluge::hid::button::CV);
+		printf("SP-ACQUIRE session-changetype-cv type=%d\n", static_cast<int>(g_viewClip->output->type));
+		if (g_viewClip->output->type != OutputType::CV) {
+			printf("SP-ACQUIRE FAIL SessionView's Grid changeOutputType(CV) did not complete synchronously\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::SessionChangeTypeCVCheck;
+		break;
+	}
+	case AcquireStep::SessionChangeTypeCVCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		printf("SP-ACQUIRE session-changetype-cv dispatches=%d\n", dispatched);
+		if (dispatched != 0) {
+			printf("SP-ACQUIRE FAIL a CV switch dispatched a storage op; it reads no card\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::SessionChangeTypeSynth;
+		break;
+	}
+	case AcquireStep::SessionChangeTypeSynth: {
+		// CV -> SYNTH, so the type really does change and an unwired SessionChangeType arm leaves the
+		// clip on CV. SYNTH rather than KIT for the same reason AcquireStep::ViewChangeTypeSynth gives:
+		// the two share this code path exactly, and only SYNTH has a fixture proven safe to load.
+		if (!BrowserListingAbProbe::aimGridPressAt(g_viewClip)) {
+			printf("SP-ACQUIRE FAIL grid coordinates do not resolve back to the session clip\n");
+			g_failures++;
+			g_acquireStep = AcquireStep::Finished;
+			break;
+		}
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::sessionButtonChangeOutputType(deluge::hid::button::SYNTH);
+		g_acquireStep = AcquireStep::SessionChangeTypeSynthCheck;
+		break;
+	}
+	case AcquireStep::SessionChangeTypeSynthCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		const OutputType typeAfter = g_viewClip->output->type;
+		printf("SP-ACQUIRE session-changetype-synth dispatches=%d type=%d\n", dispatched, static_cast<int>(typeAfter));
+		if (dispatched != 1) {
+			printf("SP-ACQUIRE FAIL SessionView's Grid changeOutputType(SYNTH) ran %d op(s), expected 1\n", dispatched);
+			g_failures++;
+		}
+		if (typeAfter != OutputType::SYNTH) {
+			printf("SP-ACQUIRE FAIL clip did not actually become SYNTH -- "
+			       "SessionChangeType's switch arm may not be wired\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::SessionNewTrack;
+		break;
+	}
+	case AcquireStep::SessionNewTrack: {
+		// The empty-pad "create a clip here" gesture, in Rows layout, driven through the REAL
+		// padAction() -- the riskiest conversion in this task, since createNewTrackForInstrumentClip()'s
+		// bool answer feeds three different abandon paths. Those stayed synchronous; what moved is the
+		// gesture ABOVE them, so this drives the gesture.
+		g_acqNewTrackClipsBefore = std::ssize(currentSong->sessionClips);
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::pressEmptyPad(kAcqNewTrackX, kAcqNewTrackY);
+		// Nothing may have been created yet: the op is only ENQUEUED here.
+		if (std::ssize(currentSong->sessionClips) != g_acqNewTrackClipsBefore) {
+			printf("SP-ACQUIRE FAIL the empty-pad gesture created a clip synchronously; it reads the card\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::SessionNewTrackCheck;
+		break;
+	}
+	case AcquireStep::SessionNewTrackCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		const int32_t added = static_cast<int32_t>(std::ssize(currentSong->sessionClips)) - g_acqNewTrackClipsBefore;
+		printf("SP-ACQUIRE session-newtrack dispatches=%d clipsAdded=%d uiMode=%d\n", dispatched, added,
+		       static_cast<int>(currentUIMode));
+		if (dispatched != 1) {
+			printf("SP-ACQUIRE FAIL the empty-pad gesture ran %d op(s), expected 1\n", dispatched);
+			g_failures++;
+		}
+		// The real outcome: a clip that did not exist before now does, with an Instrument loaded off
+		// the card. An unwired SessionNewTrack arm dispatches and counts identically but adds nothing.
+		if (added != 1) {
+			printf("SP-ACQUIRE FAIL the empty-pad gesture added %d session clip(s), expected 1 -- "
+			       "SessionNewTrack's switch arm may not be wired\n",
+			       added);
+			g_failures++;
+		}
+		else {
+			Clip* created = currentSong->sessionClips[std::ssize(currentSong->sessionClips) - 1];
+			g_acqNewTrackClip = created;
+			const std::string name = acquiredName(created->output);
+			printf("SP-ACQUIRE session-newtrack name=%s\n", name.c_str());
+			if (created->output == nullptr || created->output->type != OutputType::SYNTH || name.empty()) {
+				printf("SP-ACQUIRE FAIL the created clip has no SYNTH Instrument from the fixture\n");
+				g_failures++;
+			}
+		}
+		// The gesture's own tail, which used to run through `goto startHoldingDown` on the caller's
+		// stack and now runs from completeNewTrack() a tick later. The probe forced UI_MODE_NONE before
+		// the press, and newTrackPressHeld_ was never cleared (no release was injected), so the held
+		// mode being set proves beginHoldingClipPress() actually ran after the acquisition.
+		if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+			printf("SP-ACQUIRE FAIL the created clip was not left held -- completeNewTrack()'s tail did not run\n");
+			g_failures++;
+		}
+		if (BrowserListingAbProbe::newTrackPressHeld()) {
+			printf("SP-ACQUIRE FAIL the new-track held marker outlived its gesture\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::SessionNavigate;
+		break;
+	}
+	case AcquireStep::SessionNavigate: {
+		// SessionView's Grid-layout preset-navigation dispatch. The Rows arm delegates to View (already
+		// covered by AcquireStep::ViewNavigate); this is the separate Grid arm this task converted.
+		//
+		// Driven on the clip AcquireStep::SessionNewTrack just created, not the boot clip, and sequenced
+		// after it on purpose: doPresetNavigation() walks ONE folder -- oldInstrument->dirPath -- and
+		// never descends. Everything reachable from the top level is a single preset by construction
+		// (see kAcqTopLevelCount), so navigating from an instrument that lives THERE wraps straight back
+		// onto itself and the outcome assertion below could not tell a wired arm from an unwired one.
+		// The freshly created clip's Instrument came from SYNTHS/NESTED, which holds many, so a working
+		// arm MUST land on a different preset.
+		if (g_acqNewTrackClip == nullptr) {
+			printf("SP-ACQUIRE FAIL no created clip to drive the Grid navigate gesture with\n");
+			g_failures++;
+			g_acquireStep = AcquireStep::Finished;
+			break;
+		}
+		if (!BrowserListingAbProbe::aimGridPressAt(g_acqNewTrackClip)) {
+			printf("SP-ACQUIRE FAIL grid coordinates do not resolve back to the created clip\n");
+			g_failures++;
+			g_acquireStep = AcquireStep::Finished;
+			break;
+		}
+		g_acqViewNameBefore = acquiredName(g_acqNewTrackClip->output);
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::commandChangeClipPreset(1);
+		g_acquireStep = AcquireStep::SessionNavigateCheck;
+		break;
+	}
+	case AcquireStep::SessionNavigateCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		const std::string nameAfter = acquiredName(g_acqNewTrackClip->output);
+		printf("SP-ACQUIRE session-navigate dispatches=%d before=%s after=%s\n", dispatched,
+		       g_acqViewNameBefore.c_str(), nameAfter.c_str());
+		if (dispatched != 1) {
+			printf("SP-ACQUIRE FAIL SessionView's Grid navigate arm ran %d op(s), expected 1\n", dispatched);
+			g_failures++;
+		}
+		// The real outcome, not the dispatch count: presetAcquisitionsRun_ increments at the TOP of
+		// runPresetAcquisitionOp, before the follow-up switch, so a count-only check passes identically
+		// with SessionNavigate's arm still an empty `break;`.
+		if (nameAfter == g_acqViewNameBefore) {
+			printf("SP-ACQUIRE FAIL navigate did not change the clip's Output -- "
+			       "SessionNavigate's switch arm may not be wired\n");
 			g_failures++;
 		}
 		g_acquireStep = AcquireStep::Finished;
