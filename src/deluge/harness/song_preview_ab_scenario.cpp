@@ -172,6 +172,33 @@ public:
 		return !Browser::isListingInProgress() && !Browser::enteredText.empty();
 	}
 
+	struct PredictionOutcome {
+		std::string enteredText;
+		int32_t fileIndexSelected;
+		int32_t reads;   ///< reads that reached the filesystem, across resumptions
+		int32_t editPos; ///< enteredTextEditPos afterwards — what the retraction cases assert on
+	};
+
+	/// Drive the REAL predictExtendedText and the REAL tick surface, never a restatement of the loop:
+	/// a probe that reimplemented it would pass against a browser that never re-asks.
+	static PredictionOutcome predictWith(int32_t deferAtRead, const char* dir, const char* prefix,
+	                                     std::optional<int32_t> undoPos) {
+		Browser::currentDir = dir;
+		Browser::enteredText = prefix;
+		Browser::enteredTextEditPos = static_cast<int32_t>(strlen(prefix));
+		Browser::deferAtOpenNumber_ = deferAtRead;
+		const int32_t before = Browser::totalDirectoryOpens();
+		(void)loadSongUI.predictExtendedText(undoPos);
+		for (int32_t t = 0; Browser::prediction_.active && t < 200; t++) {
+			loadSongUI.graphicsRoutine();
+		}
+		Browser::deferAtOpenNumber_ = 0;
+		return PredictionOutcome{.enteredText = Browser::enteredText,
+		                         .fileIndexSelected = Browser::fileIndexSelected,
+		                         .reads = Browser::totalDirectoryOpens() - before,
+		                         .editPos = Browser::enteredTextEditPos};
+	}
+
 	/// How many times the listing that just finished suspended. Zero on the synchronous arm by
 	/// construction, so requiring it non-zero proves the channel was actually reached.
 	static int32_t deferrals() { return Browser::listing_.deferrals; }
@@ -1178,6 +1205,82 @@ void runBrandNewNameCases() {
 	BrowserListingAbProbe::deferAtOpen(0);
 }
 
+/// Reaching prediction's SECOND read takes a big folder, and that is the point rather than an
+/// awkwardness of the fixture.
+///
+/// The re-read happens when a search runs off the end of the CACHED window. In a 25-entry folder the
+/// whole folder fits, so a prefix either matches, or sorts past everything and hits `notFound` with
+/// `doneNewRead` already set — one read either way, and a sweep over one read covers no resumption.
+/// In the 300-entry folder the window holds twenty, so the extra-zeroes branch (which clears
+/// `doneNewRead`) walks the extended string off the cached end and reads again. That is exactly the
+/// #4584 case the re-read exists for.
+///
+/// Measured, not assumed: over the 25-entry fixture every candidate tried gave reads<=1; over the
+/// 300-entry one this gives 2.
+constexpr const char* kPredictDir = kBigDir;
+constexpr const char* kPredictPrefix = "SONG0129";
+/// Matches nothing however many zeroes are appended, so the prediction FAILS — which is what the
+/// retraction cases need.
+constexpr const char* kMissingPrefix = "ZZZZNOPE";
+
+/// Prediction must survive being suspended at ANY of its reads and finish identically.
+///
+/// Synchronous leg only, like the other machine-level cases: what is under test is that the loop
+/// RESUMES rather than restarts, which the seam exercises without the channel. On the channel leg a
+/// tight tick loop here would never yield to the driver thread.
+void runPredictionCases() {
+	if (deluge_file_directory_async_active()) {
+		printf("SP-PREDICT skipped on the channel leg (a machine property, not an async one)\n");
+		return;
+	}
+
+	const auto reference = BrowserListingAbProbe::predictWith(0, kPredictDir, kPredictPrefix, std::nullopt);
+	printf("SP-PREDICT reference text=%s selected=%d reads=%d\n", reference.enteredText.c_str(),
+	       reference.fileIndexSelected, reference.reads);
+	if (reference.reads < 2) {
+		printf("SP-PREDICT FAIL only %d read(s) -- the sweep would cover no resumption\n", reference.reads);
+		g_failures++;
+		return;
+	}
+
+	for (int32_t k = 1; k <= reference.reads; k++) {
+		const auto got = BrowserListingAbProbe::predictWith(k, kPredictDir, kPredictPrefix, std::nullopt);
+		printf("SP-PREDICT deferAt=%d text=%s selected=%d reads=%d\n", k, got.enteredText.c_str(),
+		       got.fileIndexSelected, got.reads);
+		if (got.enteredText != reference.enteredText || got.fileIndexSelected != reference.fileIndexSelected) {
+			printf("SP-PREDICT FAIL deferAt=%d text=%s/%s selected=%d/%d\n", k, got.enteredText.c_str(),
+			       reference.enteredText.c_str(), got.fileIndexSelected, reference.fileIndexSelected);
+			g_failures++;
+		}
+		// The property an identical-result check cannot see: a suspended prediction RESUMED at the
+		// read that deferred rather than starting over. A deferral reads nothing, so a suspended run
+		// makes exactly as many reads as the reference; a restart would redo every read before it.
+		if (got.reads != reference.reads) {
+			printf("SP-PREDICT FAIL deferAt=%d made %d reads, the reference made %d -- it did not resume "
+			       "where it suspended\n",
+			       k, got.reads, reference.reads);
+			g_failures++;
+		}
+	}
+
+	// Only the pad-typing caller undoes. Its undo must happen even when the prediction failed on a
+	// LATER tick, long after that caller returned true and moved on.
+	const int32_t posAtCall = static_cast<int32_t>(strlen(kMissingPrefix));
+	const auto undone = BrowserListingAbProbe::predictWith(1, kPredictDir, kMissingPrefix, posAtCall - 1);
+	const auto kept = BrowserListingAbProbe::predictWith(1, kPredictDir, kMissingPrefix, std::nullopt);
+	printf("SP-PREDICT retraction undone=%d kept=%d wanted=%d/%d\n", undone.editPos, kept.editPos, posAtCall - 1,
+	       posAtCall);
+	if (undone.editPos != posAtCall - 1) {
+		printf("SP-PREDICT FAIL the pad site's failure left editPos=%d, wanted %d\n", undone.editPos, posAtCall - 1);
+		g_failures++;
+	}
+	if (kept.editPos != posAtCall) {
+		printf("SP-PREDICT FAIL a non-pad failure moved editPos to %d, wanted %d\n", kept.editPos, posAtCall);
+		g_failures++;
+	}
+	printf("SP-PREDICT-SUMMARY reads=%d sweeps=%d\n", reference.reads, reference.reads);
+}
+
 void runListingTick() {
 	if (g_listingRunning) {
 		// Checked BEFORE the tick, so it observes the state a user would see between frames.
@@ -1244,6 +1347,7 @@ void runListingTick() {
 				g_failures++;
 			}
 			runByPathCases();
+			runPredictionCases();
 			runBrandNewNameCases();
 
 			// Now with the filesystem UNMOUNTED. Mounting is real card I/O, so on the channel arm it

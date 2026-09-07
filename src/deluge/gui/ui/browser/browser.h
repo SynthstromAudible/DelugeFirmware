@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "io/debug/log.h"
 #include "model/favourite/favourite_manager.h"
+#include "storage/deferred_load.h"
 #include "storage/file_item.h"
 #include "util/containers.h"
 
@@ -157,7 +158,7 @@ protected:
 	Error goUpOneDirectoryLevel();
 	virtual Error arrivedInNewFolder(int32_t direction, char const* filenameToStartAt = nullptr,
 	                                 char const* defaultDir = nullptr);
-	bool predictExtendedText() override;
+	bool predictExtendedText(std::optional<int32_t> editPosOnFailure = std::nullopt) override;
 	void goIntoDeleteFileContextMenu();
 	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
@@ -299,6 +300,51 @@ protected:
 		int32_t deferrals{};
 	};
 	static ListingState listing_;
+
+	/// @brief Everything a suspended typing prediction needs in order to resume where it left off.
+	///
+	/// Prediction performs up to FIVE reads per call: `doneNewRead` guards the re-read, but the
+	/// extra-zeroes branch clears it before looping back, so each of the four attempts can read again.
+	/// Restarting from the top would therefore livelock against the single-slot channel exactly as the
+	/// listing did — read #1 takes the answer and consumes the slot, read #2 finds it empty and
+	/// defers, the restart consumes the freshly published answer again. So the loop's progress is
+	/// carried and the re-entry continues from it.
+	struct PredictionTarget {
+		std::string searchString;      ///< as extended so far, including any appended zeroes
+		int32_t numExtraZeroesAdded{}; ///< how far through the extra-zero attempts
+		bool doneNewRead{};            ///< whether this search string has already been re-read
+		/// The file selected when the prediction STARTED, so the tail can tell whether it landed
+		/// somewhere new. NOT recomputable on resumption: a read rebuilds fileItems, so
+		/// getCurrentFileItem() afterwards names a different file and the comparison would either
+		/// fire a spurious preview or miss a real one.
+		std::string oldFilename;
+		/// What to restore if the prediction ultimately fails — and OPTIONAL, because only ONE of the
+		/// four call sites consumes the result. `qwerty_ui.cpp`'s pad-typing path undoes the character
+		/// on false; the two backspace paths and the horizontal-encoder path ignore it, and a
+		/// resumption that undid unconditionally would corrupt all three.
+		std::optional<int32_t> editPosOnFailure;
+	};
+
+	struct PredictionState {
+		bool active{};
+		PredictionTarget target;
+		int32_t opensThisPrediction{}; ///< reads that reached the filesystem; the gate counts on it
+	};
+	static PredictionState prediction_;
+	/// @brief The prediction waiting to be re-driven, if one suspended.
+	///
+	/// A plain optional rather than `DeferredLoad`, deliberately. DeferredLoad exists for work that
+	/// is DISPATCHED — its generations, in-flight flag and is_current answer "is the op that came
+	/// back still the one we wanted?". A prediction dispatches nothing: it defers inline and is
+	/// re-driven inline from the tick, so none of that applies, and `request()` would not even arm
+	/// the pending slot (that is `complete()`'s job for an op that reported back).
+	///
+	/// Latest-wins falls out of assignment: a second keystroke starts a new prediction, which
+	/// overwrites this before the tick sees the old one.
+	static std::optional<PredictionTarget> pendingPrediction_;
+
+	/// @brief The search loop, over `prediction_.target`. See @ref PredictionTarget.
+	bool continuePrediction();
 
 	/// @brief What the selection tail decided to do next.
 	enum class SelectionOutcome : uint8_t {

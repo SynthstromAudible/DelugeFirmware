@@ -82,6 +82,8 @@ int32_t Browser::totalDirectoryOpens() {
 bool Browser::listingInProgress_;
 bool Browser::listingOnTickSurface_;
 Browser::ListingState Browser::listing_;
+Browser::PredictionState Browser::prediction_;
+std::optional<Browser::PredictionTarget> Browser::pendingPrediction_;
 int32_t Browser::deferAtOpenNumber_ = 0;
 Browser::ListingRequest Browser::pendingListing_;
 int32_t Browser::pendingReloadCatalogSearchDirection_;
@@ -179,17 +181,21 @@ static Error directoryOpenError(DelugeStatus status) {
 }
 
 bool Browser::usingDirectoryChannel() {
-	// Three conditions, and each excludes a caller that has nowhere to put a deferral:
+	// Either CONVERTED caller — a listing, or a typing prediction. Both can suspend and both are
+	// resumed by graphicsRoutine(); everything else that reaches readFileItemsForFolder cannot.
+	// `LoadInstrumentPresetUI`'s three readers still call in from outside Browser with nowhere to put
+	// a deferral, and handing one of them LISTING_DEFERRED would report a load failure for a folder
+	// that is perfectly readable. They are rung 5.
+	const bool inConvertedCaller = listing_.active || prediction_.active;
+
+	// And `inConvertedCaller` alone does NOT exclude them, because both flags are globals meaning
+	// "SOMETHING is in flight", not "I am inside it". An owner op running while a listing is
+	// suspended would otherwise take the async arm, be handed a deferral it treats as a failure, AND
+	// replace the suspended listing's outstanding request with its own.
 	//
-	//  - `listing_.active`: readFileItemsForFolder is also reached by predictExtendedText (the typing
-	//    path) and by LoadInstrumentPresetUI, neither of which is a listing.
-	//  - `!Owner::on_owner()`: and `listing_.active` alone does NOT exclude them, because it is a
-	//    global meaning "SOME listing is in flight", not "I am inside it". An owner op running while
-	//    a listing is deferred would otherwise take the async arm, be handed a LISTING_DEFERRED it
-	//    treats as a load failure, AND replace the listing's outstanding request with its own.
-	//  - the selector: with the channel absent the weak collect answers UNKNOWN forever, so a caller
-	//    that consulted it would defer every tick and never list anything.
-	return listing_.active && !deluge::storage::Owner::on_owner() && deluge_file_directory_async_active();
+	// The selector is last because with the channel absent the weak collect answers UNKNOWN forever,
+	// so a caller that consulted it would defer every tick and never read anything.
+	return inConvertedCaller && !deluge::storage::Owner::on_owner() && deluge_file_directory_async_active();
 }
 
 std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path, bool createIfMissing) {
@@ -526,7 +532,12 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// is perfectly readable. They keep the synchronous open until they are converted in turn; what
 	// this rung converts is exactly the listing actions, and the remaining blocking callers are
 	// enumerable rather than latent.
-	if (listing_.active && deferAtOpenNumber_ != 0 && listing_.opensThisListing + 1 == deferAtOpenNumber_) {
+	// Whichever converted caller is active. Only one can be: a listing runs from the pump, a
+	// prediction from a keystroke, and neither nests inside the other.
+	int32_t* opensSoFar = listing_.active      ? &listing_.opensThisListing
+	                      : prediction_.active ? &prediction_.opensThisPrediction
+	                                           : nullptr;
+	if (opensSoFar != nullptr && deferAtOpenNumber_ != 0 && *opensSoFar + 1 == deferAtOpenNumber_) {
 		// Disarmed as it fires: a real channel answers the next ask, so a seam that stayed armed would
 		// defer this same open on every resumption and the listing would never finish.
 		deferAtOpenNumber_ = 0;
@@ -552,8 +563,8 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// property the machine exists for, and what lets the two harness legs be compared directly. The
 	// counter also spans resumptions, so a design that restarted from the top would show MORE opens
 	// than the reference and be caught by the gate rather than by reasoning.
-	if (listing_.active) {
-		listing_.opensThisListing++;
+	if (opensSoFar != nullptr) {
+		(*opensSoFar)++;
 	}
 	g_totalDirectoryOpens++;
 	if (!opened.has_value()) {
@@ -877,6 +888,20 @@ void Browser::graphicsRoutine() {
 	// owner, because it opens every resident sample and may not run here.
 	if (deluge_file_directory_async_active()) {
 		StorageManager::noticeCardMount(/*mayRunHere=*/false);
+	}
+
+	// Re-ask for a prediction whose folder read has not arrived.
+	//
+	// take_pending() takes the target OUT before re-driving, not after: the drive runs inline from
+	// here and may arm a SECOND deferral, which clearing afterwards would wipe -- leaving the
+	// prediction to never finish. The same reasoning as LoadSongUI's preview re-ask.
+	if (auto target = std::exchange(pendingPrediction_, std::nullopt); target.has_value()) {
+		// Taken OUT before re-driving, not after: the drive runs inline from here and may arm a
+		// SECOND deferral, which clearing afterwards would wipe -- leaving the prediction to never
+		// finish. The same reasoning as LoadSongUI's preview re-ask.
+		prediction_.target = std::move(*target);
+		prediction_.active = true;
+		(void)continuePrediction();
 	}
 
 	if (listingInProgress_ && listingOnTickSurface_) {
@@ -1411,34 +1436,54 @@ Error Browser::reloadImpl(int32_t direction) {
 	return Error::NONE;
 }
 
-bool Browser::predictExtendedText() {
-	Error error;
+bool Browser::predictExtendedText(std::optional<int32_t> editPosOnFailure) {
 	arrivedAtFileByTyping = true;
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
 
-	// Captured by value (not the FileItem*, which readFileItemsFromFolderAndMemory()/doNewRead below can
-	// invalidate by reallocating fileItems) so we can tell after the search whether we landed on a
-	// different file - filename is a FileItem's identity.
+	// Captured by value (not the FileItem*, which the re-read below can invalidate by reallocating
+	// fileItems) so we can tell after the search whether we landed on a different file - filename is
+	// a FileItem's identity. Carried on the target because a prediction can now finish on a later
+	// tick, by which time getCurrentFileItem() names whatever the re-read selected instead.
 	FileItem* oldFileItem = getCurrentFileItem();
 	std::string oldFilename;
 	if (oldFileItem) {
 		oldFilename = oldFileItem->filename;
 	}
 
-	std::string searchString;
-	searchString = enteredText;
-	bool doneNewRead = false;
+	std::string searchString = enteredText;
 	searchString.resize(enteredTextEditPos);
+
+	// Latest wins: this keystroke's prediction replaces any still waiting to be re-driven, whose
+	// search string and undo position belong to a character the user has already moved past.
+	pendingPrediction_.reset();
+
+	prediction_ = PredictionState{
+	    .active = true,
+	    .target =
+	        {
+	            .searchString = std::move(searchString),
+	            .numExtraZeroesAdded = 0,
+	            .doneNewRead = false,
+	            .oldFilename = std::move(oldFilename),
+	            .editPosOnFailure = editPosOnFailure,
+	        },
+	    .opensThisPrediction = 0,
+	};
+	return continuePrediction();
+}
+
+bool Browser::continuePrediction() {
+	Error error;
+	PredictionTarget& target = prediction_.target;
 
 	// Reachable only via `goto gotError` from the error paths below.
 	if (false) {
 gotError:
+		prediction_.active = false;
 		display->displayError(error);
 		return false;
 	}
-
-	int32_t numExtraZeroesAdded = 0;
 
 	// Change 2026-03-29 - this code used to append a tilde to the search string. The tilde would match after all
 	// printable characters so it would return 1 greater than the index of the search result we wanted. unfortunately
@@ -1448,32 +1493,54 @@ gotError:
 	// because 2 is the closest number to 1 that comes after 1. So now we just search for the string as is. The major
 	// impact is this now returns the first match instead of the last match.
 doSearch:
-	int32_t i = searchFileItems(searchString.c_str());
+	int32_t i = searchFileItems(target.searchString.c_str());
 
 	// If that search takes us off the right-hand end of the list...
 	if (i >= static_cast<int32_t>(fileItems.size())) {
 
 		// If we haven't yet done a whole new read from the SD card etc, from within this function, do that now.
-		if (!doneNewRead) {
+		if (!target.doneNewRead) {
 doNewRead:
-			doneNewRead = true;
 			error = readFileItemsFromFolderAndMemory(
-			    currentSong, outputTypeToLoad, filePrefix, searchString.c_str(), NULL, true, Availability::ANY,
+			    currentSong, outputTypeToLoad, filePrefix, target.searchString.c_str(), NULL, true, Availability::ANY,
 			    CATALOG_SEARCH_BOTH); // This could probably actually be made to work with searching left only...
+			if (error == Error::LISTING_DEFERRED) {
+				// Optimistic: the typed character STAYS and the prediction finishes on a later tick.
+				// `target` already carries the loop's progress -- which search string, how many extra
+				// zeroes, whether this string has been re-read -- so the resumption performs only the
+				// read that deferred and does not redo the ones before it.
+				//
+				// Left active on purpose: graphicsRoutine() drives it.
+				pendingPrediction_ = target;
+				return true;
+			}
 			if (error != Error::NONE) {
 gotErrorAfterAllocating:
 				emptyFileItems();
 				goto gotError;
 				// TODO - need to close UI or something?
 			}
+			// Marked done only once the read has actually HAPPENED. Setting it before, which is where
+			// it used to be, meant a resumption re-entered the loop with the flag already true and
+			// skipped the very read that had deferred -- the prediction then finished having read one
+			// time fewer than a synchronous run, on a smaller folder view, and landed somewhere else.
+			target.doneNewRead = true;
 			goto doSearch;
 		}
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
+		prediction_.active = false;
 		if (!mayDefaultToBrandNewNameOnEntry) {
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
+			}
+			// The caller that undoes the typed character does so on a false return -- but a prediction
+			// that SUSPENDED already returned true to it and will never return again, so the undo
+			// happens here instead. Only that caller sets this; the other three ignore the result and
+			// must not have their edit position moved.
+			if (target.editPosOnFailure.has_value()) {
+				enteredTextEditPos = *target.editPosOnFailure;
 			}
 			return false;
 		}
@@ -1491,17 +1558,16 @@ notFound:
 	if (memcasecmp(fileItem->displayName().c_str(), enteredText.c_str(), enteredTextEditPos)) {
 		// If the search landed on the first cached item, the folder cache may be missing earlier entries (files
 		// alphabetically before the current one). Re-read the folder so we can find them too (#4584).
-		if (i == 0 && !doneNewRead) {
+		if (i == 0 && !target.doneNewRead) {
 			goto doNewRead;
 		}
 
 		// this code is original but I don't know what it does. Slot browser maybe?
 		// Just updated to append to the string instead of replacing the tilde
-		if (numExtraZeroesAdded < 4) {
-			searchString.resize(searchString.size());
-			searchString.append("0", 1);
-			numExtraZeroesAdded++;
-			doneNewRead = false;
+		if (target.numExtraZeroesAdded < 4) {
+			target.searchString.append("0", 1);
+			target.numExtraZeroesAdded++;
+			target.doneNewRead = false;
 			goto doSearch;
 		}
 		else {
@@ -1522,10 +1588,11 @@ notFound:
 	displayText();
 
 	// If we're now on a different file than before, preview it
-	if (fileItem->filename != oldFilename) {
+	if (fileItem->filename != target.oldFilename) {
 		currentFileChanged(0);
 	}
 
+	prediction_.active = false;
 	return true;
 }
 
