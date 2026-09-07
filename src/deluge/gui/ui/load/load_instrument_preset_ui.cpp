@@ -523,7 +523,15 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		// KeyboardNewInstrument's doc. Gated on the same "did it actually create" bool
 		// completeNewInstrument() already returns, so a failed acquisition (no unused slot, OOM) does
 		// not refresh the layout for nothing.
-		if (instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx)) {
+		//
+		// ALSO gated on request.clip still being current: unlike the LED tail beside it (setLedStates(),
+		// a pure "show the truth" read), selectLayout() both reads AND WRITES per-clip model state
+		// (keyboardState.currentLayout) -- if the current clip changed between dispatch and this
+		// completion running, writing through getCurrentInstrumentClip() would set the layout on the
+		// WRONG clip. request.clip already survived the liveness guard above; comparing it against
+		// what's current now is what makes the write itself safe, not just the pointer.
+		if (instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx)
+		    && getCurrentInstrumentClip() == request.clip) {
 			keyboardScreen.completeNewInstrumentLayoutRefresh();
 		}
 		break;
