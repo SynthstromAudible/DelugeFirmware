@@ -61,13 +61,13 @@ namespace deluge::gui::ui {
 /// | not overridden | line | why |
 /// |---|---|---|
 /// | `~UI` | `ui.h:94` | Defaulted. This class owns its members by value; the implicit destructor is correct. |
-/// | `modEncoderAction` | `ui.h:104` | **The three gold-knob hooks stay with `view`, and F1 task 6 decided that deliberately against its own brief -- see `@par The gold knobs` below.** The base forwards to `view` (`ui.cpp:35-37`), legacy's own mod-knob path, which is where `SoundEditor::modEncoderAction` ends up **only from its innermost `else`** (`gui/ui/sound_editor.cpp:1604`) -- so this is *not* parity, and what it drops is in `@par What leaving the mod hooks on the base costs`. Task 8's, with `ModKnobs`. |
+/// | `modEncoderAction` | `ui.h:104` | **The three gold-knob hooks stay with `view`, and F1 task 6 decided that deliberately against its own brief -- see `@par The gold knobs` below.** The base forwards to `view` (`ui.cpp:35-37`), legacy's own mod-knob path, which is where `SoundEditor::modEncoderAction` ends up **only from its innermost `else`** (`gui/ui/sound_editor.cpp:1642`) -- so this is *not* parity, and what it drops is in `@par What leaving the mod hooks on the base costs`. Task 8's, with `ModKnobs`. |
 /// | `modButtonAction` | `ui.h:105` | Base forwards to `view` (`ui.cpp:39-41`); `SoundEditor` does not override it at all, so this row -- alone of the three -- really is legacy's behaviour unchanged. Legacy never routes a mod button to `buttonAction` either -- `Buttons::buttonAction` intercepts the eight of them and `goto dealtWith`s (`hid/buttons.cpp:99-107`) -- so **the shell never sees `ButtonId::Mod0`..`Mod7` under the guest at all.** Recorded as a gap, not a decision, and it has a second-order cost: see `@par Shift`. |
-/// | `modEncoderButtonAction` | `ui.h:106` | Base forwards to `view` (`ui.cpp:43-45`), which is where `SoundEditor` lands only from its own `else` (`gui/ui/sound_editor.cpp:1609-1616`), losing its `automationView` redirect -- see the same `@par`. **F1 task 8 settled the ordering shell spec §15.5 asks about, and settled it the other way: `view` keeps the push and the shell never sees it.** With `ModKnobs` installed and its target seeded, feeding the press as well would run the same gesture twice -- `ModKnobs::mod_encoder_button_action` is the port of the `view` function this row forwards to -- so `buttonAction` below drops `ButtonId::ModEnc0`/`ModEnc1` instead. What that costs is one line: `View::modEncoderButtonAction_changeModControllable`'s value refresh is guarded on `getCurrentUI() == &soundEditor` (`gui/views/view.cpp:1373-1375`), false under the guest, so the ported menu's displayed value goes stale after a gold-knob push. Note the dispatch is *gated on this class's `buttonAction`*: `Buttons` only reaches it when the current UI returned `NOT_DEALT_WITH` (`hid/buttons.cpp:134-141`, the arms at `:226-231`), which is one more reason `buttonAction` below returns that value. |
+/// | `modEncoderButtonAction` | `ui.h:106` | Base forwards to `view` (`ui.cpp:43-45`), which is where `SoundEditor` lands only from its own `else` (`gui/ui/sound_editor.cpp:1647-1654`), losing its `automationView` redirect -- see the same `@par`. **F1 task 8 settled the ordering shell spec §15.5 asks about, and settled it the other way: `view` keeps the push and the shell never sees it.** With `ModKnobs` installed and its target seeded, feeding the press as well would run the same gesture twice -- `ModKnobs::mod_encoder_button_action` is the port of the `view` function this row forwards to -- so `buttonAction` below drops `ButtonId::ModEnc0`/`ModEnc1` instead. What that costs is one line: `View::modEncoderButtonAction_changeModControllable`'s value refresh is guarded on `getCurrentUI() == &soundEditor` (`gui/views/view.cpp:1373-1375`), false under the guest, so the ported menu's displayed value goes stale after a gold-knob push. Note the dispatch is *gated on this class's `buttonAction`*: `Buttons` only reaches it when the current UI returned `NOT_DEALT_WITH` (`hid/buttons.cpp:134-141`, the arms at `:226-231`), which is one more reason `buttonAction` below returns that value. |
 /// | `graphicsRoutine` | `ui.h:108` | **Deliberately kept.** The base runs the *root* view's per-frame animation whenever `canSeeViewUnderneath()` (`ui.cpp:47-51`), and `SoundEditor` does not override it either -- so the clip view under an open menu keeps its playhead moving. Overriding it would stop that. |
 /// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
 /// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
-/// | `scrollFinished` | `ui.h:129` | `SoundEditor` overrides it to clear `UI_MODE_HORIZONTAL_SCROLL` and re-render the root (`sound_editor.cpp:1024-1029`); both halves are about legacy UI modes and legacy rendering, neither of which the shell owns. **Recorded as an uncovered gap**, not a decision to forward: a scroll begun under an open guest ends without the guest hearing about it. |
+/// | `scrollFinished` | `ui.h:129` | `SoundEditor` overrides it to clear `UI_MODE_HORIZONTAL_SCROLL` and re-render the root (`sound_editor.cpp:1062-1067`); both halves are about legacy UI modes and legacy rendering, neither of which the shell owns. **Recorded as an uncovered gap**, not a decision to forward: a scroll begun under an open guest ends without the guest hearing about it. |
 /// | `pcReceivedForMidiLearn` | `ui.h:130` | **Task 10** (the MIDI event kind and `MidiLearn`'s producers). |
 /// | `noteOnReceivedForMidiLearn` | `ui.h:132` | **Task 10**. |
 /// | `getUI` | `ui.h:162` | Returns `this`, which is right: the guest is not a chooser that opens a different UI. |
@@ -241,7 +241,7 @@ namespace deluge::gui::ui {
 /// @par What leaving the mod hooks on the base costs, which is NOT nothing
 ///
 /// **`SoundEditor` does override two of the three, and calling this parity would be wrong.**
-/// `SoundEditor::modEncoderAction` (`gui/ui/sound_editor.cpp:1583-1607`) reaches
+/// `SoundEditor::modEncoderAction` (`gui/ui/sound_editor.cpp:1621-1645`) reaches
 /// `UI::modEncoderAction` only from its innermost `else` (`:1604`); above it are two arms this guest
 /// has no counterpart for:
 ///
@@ -258,7 +258,7 @@ namespace deluge::gui::ui {
 /// `SoundEditor::modEncoderAction`'s MIDI-learn arm ... whose port is `MenuScene`"*), and that it
 /// needed the service installed **and** the gold turn routed. The service is now installed. The
 /// other half does not help, because **there is no destination**: legacy's arm calls
-/// `getCurrentMenuItem()->learnKnob(...)` (`gui/ui/sound_editor.cpp:1589-1601`), and
+/// `getCurrentMenuItem()->learnKnob(...)` (`gui/ui/sound_editor.cpp:1627-1639`), and
 /// `MenuItem::learnKnob` (`gui/menu_item/menu_item.h:181`, implemented by
 /// `MenuItemWithCCLearning::learnKnob`, `gui/menu_item/menu_item_with_cc_learning.cpp:43-57`) has
 /// **no port at all** -- `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` has the *other*
@@ -295,8 +295,12 @@ namespace deluge::gui::ui {
 ///     (`shell/shell.h:30-43`).
 ///  2. ~~`hold_time_ms` is a constant here and a setting there.~~ **Closed by F1 task 8.** The tap
 ///     threshold is `FlashStorage::holdTime` (audio samples) in legacy and
-///     `LoweringConfig::hold_time_ms` in the shell; `opened()` now converts and seats it through
-///     `InputLowering::set_hold_time_ms`, beside the sticky-shift seed. Task 6 deferred it because
+///     `LoweringConfig::hold_time_ms` in the shell; `feed()` now converts and seats it through
+///     `InputLowering::set_hold_time_ms` on **every** pad and button, which is where legacy's own
+///     live read happens (`hid/buttons.cpp:264`). Not once per open: `nodes::set_default_hold_time`
+///     (`scenes/menu/nodes/settings.cpp`) is the ported settings item and writes the flash global
+///     from *inside* the guest, so a per-open seed would lag it by a whole session. Task 6 deferred
+///     it because
 ///     no `LoweringConfig` mutator existed for it; task 8 added the one, on the same argument that
 ///     justified `set_shift_is_sticky` -- these two fields are settings, and the other two
 ///     (`short_press_ms`, `edges_per_detent`) are a constant and a board fact.

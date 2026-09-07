@@ -73,7 +73,7 @@ the hook it belongs to.
   implementation closes *itself* — `RenameUI::exitUI` (`gui/ui/rename/rename_ui.cpp:88-91`),
   `SampleMarkerEditor::exitUI` (`gui/ui/sample_marker_editor.cpp:680-683`), `Browser::exitUI`
   (`gui/ui/browser/browser.h:133-136`), and `SoundEditor::exitCompletely`'s `close()` at
-  `gui/ui/sound_editor.cpp:723`. The guest therefore calls `close()` when the pop empties its stack; a
+  `gui/ui/sound_editor.cpp:761`. The guest therefore calls `close()` when the pop empties its stack; a
   guest that only returned the value would trap the user inside itself.
 
   **The two readers, measured** (`grep -rn "exitUI" src/ | grep -v exitUIMode` — 26 lines; an earlier
@@ -92,7 +92,7 @@ the hook it belongs to.
   - ~~The guest returns `NOT_DEALT_WITH` where every legacy self-closing `exitUI` returns
     `ACTIONED_AND_CAUSED_CHANGE`.~~ **Closed by F1 task 6: the guest now returns
     `ACTIONED_AND_CAUSED_CHANGE` on the close path** (`SoundEditor::exitUI` is `exitCompletely()`,
-    `gui/ui/sound_editor.h:130`, which returns that value at `gui/ui/sound_editor.cpp:733`, and
+    `gui/ui/sound_editor.h:130`, which returns that value at `gui/ui/sound_editor.cpp:771`, and
     `gui/ui/ui.h:152-153` says the hook "returns whether a UI exited"). Task 5's stated trigger for
     the change was itself wrong and is corrected here: **routing pads into the shell does not make
     reader 2 reachable.** `MatrixDriver::padAction` calls `getCurrentUI()->padAction` and nothing else
@@ -103,10 +103,10 @@ the hook it belongs to.
     `gui/ui/keyboard/keyboard_screen.cpp:205` entering from outside the hierarchy — so the only route
     to it while the guest is current is
     the guest forwarding the pad on the way `SoundEditor::padAction` does when the keyboard screen is
-    the root (`gui/ui/sound_editor.cpp:1419-1422`) — which the guest does not do. The value changed on
+    the root (`gui/ui/sound_editor.cpp:1457-1460`) — which the guest does not do. The value changed on
     the legacy-fidelity argument, not on a reachability one.
   - The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` does when the
-    settings menu is leaving while `isSDRoutineActive()` (`gui/ui/sound_editor.cpp:695-709`, the return
+    settings menu is leaving while `isSDRoutineActive()` (`gui/ui/sound_editor.cpp:733-747`, the return
     at `:698`). That is the tail of a larger gap: leaving the settings menu is also what writes
     `FlashStorage`, the MIDI devices file, the runtime-feature settings and the MIDI-follow defaults
     (`:703-709`), and nothing on the guest's exit path does any of it. The guest cannot know it is in a
@@ -142,7 +142,7 @@ the hook it belongs to.
   entry point that accepts an already-lowered turn.
 
   **Leaving them on the base is not `SoundEditor` parity, and the difference is user-visible.**
-  `SoundEditor` overrides two of the three: `modEncoderAction` (`gui/ui/sound_editor.cpp:1583-1607`)
+  `SoundEditor` overrides two of the three: `modEncoderAction` (`gui/ui/sound_editor.cpp:1621-1645`)
   reaches `UI::modEncoderAction` only from its innermost `else` (`:1604`), above which sit the
   `automationView` redirect (`:1584-1586`) and the `UI_MODE_MIDI_LEARN` →
   `getCurrentMenuItem()->learnKnob(...)` arm (`:1589-1601`); `modEncoderButtonAction` has the same
@@ -150,10 +150,19 @@ the hook it belongs to.
   `SoundEditor`. So **under the toggle, MIDI-learning a menu parameter to a gold knob silently stops
   working.** Not closable in task 6: both arms ask about `currentUIMode` and
   `getCurrentMenuItem()` — `SoundEditor`'s own navigation record, stale while the guest is what is
-  open. The port's answer is the routed-to-`MenuScene` path `ModKnobs` already names as the thing
-  its service ordering exists to protect (`scenes/services/mod_knobs.h:55-77`), which needs the
-  service installed *and* the gold turn routed: both halves of task 8. Recorded as a divergence with
-  that condition, not claimed as parity.
+  open. Task 6 recorded the port's answer as the routed-to-`MenuScene` path `ModKnobs` names as the
+  thing its service ordering exists to protect (`scenes/services/mod_knobs.h:55-77`), needing the
+  service installed *and* the gold turn routed — "both halves of task 8". **Task 8 installed the
+  service and found that the other half would not have helped: there is no destination.** Legacy's
+  arm calls `getCurrentMenuItem()->learnKnob(...)`, and `MenuItem::learnKnob`
+  (`gui/menu_item/menu_item.h:181`, implemented by `MenuItemWithCCLearning::learnKnob`,
+  `gui/menu_item/menu_item_with_cc_learning.cpp:43-57`) **has no port at all** —
+  `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` carries `learn_note_on`, `learn_cc` and
+  `learn_program_change` (`scenes/menu/menu_scene.h`), which are `SoundEditor`'s three MIDI-*message*
+  members (`sound_editor.cpp:1588-1608`); the knob arm is a fourth and was never transcribed.
+  Closing it is a new `CustomItem` hook plus a port of `soundEditor.currentModControllable`, i.e.
+  scenes-layer work, and it *also* still needs the shell entry point for an already-lowered turn.
+  Recorded as a divergence with the real condition on it, not claimed as parity.
 - **"legacy `Buttons::` state is *read* into `UiContext`, not duplicated" is not implementable.**
   `UiContext` is built by `Shell::make_context`, which is private and fills `.shift`/`.sticky` from
   `InputLowering`'s own fields (`shell/shell.cpp:549-559`); `InputLowering` has no shift setter, only
@@ -176,11 +185,16 @@ the hook it belongs to.
      regression: `ctx.shift` is the whole gate on the menu's shortcut-pad jump
      (`scenes/menu/menu_scene.cpp:1392`), so a sticky-shift user would have lost shortcut pads under
      the toggle.
-  2. **`hold_time_ms` is the one that genuinely is construction-time.** The tap threshold is
-     `FlashStorage::holdTime` in legacy and a fixed 100 ms in the shell (`shell/input_lowering.h:24-25`), and nothing can
-     change it after construction — `set_shift_is_sticky` (`:221`) is the only mutator `InputLowering`
-     exposes for any `LoweringConfig` field — so this one does wait for a config seated where the shell is constructed — the same gap, and the same home,
-     as `ShellConfig::screensaver_idle_ms`'s own warning (`shell/shell.h:30-43`).
+  2. ~~**`hold_time_ms` is the one that genuinely is construction-time.**~~ **Closed by F1 task 8.**
+     The tap threshold is `FlashStorage::holdTime` in legacy — audio samples, re-read *live* at
+     shift-release time (`hid/buttons.cpp:264`) — and `LoweringConfig::hold_time_ms` in the shell.
+     Task 6 deferred it because `set_shift_is_sticky` was the only `LoweringConfig` mutator
+     `InputLowering` exposed; task 8 added `set_hold_time_ms` beside it, on the argument that these
+     two fields are settings while the other two (`short_press_ms`, `edges_per_detent`) are a
+     constant and a board fact. `ShellHostUI::feed()` converts and seats it on **every** pad and
+     button, which is where legacy's own read happens — not once per open, because
+     `nodes::set_default_hold_time` (`scenes/menu/nodes/settings.cpp`) is the ported settings item
+     and writes the flash global from *inside* the guest.
   3. Legacy clears `considerShiftReleaseForSticky` on *every* button press including the eight mod
      buttons (`hid/buttons.cpp:88-95`), but `Buttons::buttonAction` intercepts those and never calls
      the current UI (`:99-107`), so the shell never sees `ButtonId::Mod0`..`Mod7` at all.
@@ -503,14 +517,21 @@ rather than a thing that is half-done:
 4. **No `take_choice()` dispatcher.** `BrowserScene`'s deferring descriptor parks a chosen file and
    closes; performing `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting
    is the wiring layer's.
-5. **Three boot calls.** `menu::set_shortcuts_version()` (flash byte 60 — the one menu setting whose
-   value does not live in a global the settings loader already populates),
-   `scenes::assigned_node_ids()`, and — added by E4 task 7 — a value for
-   `ShellConfig::screensaver_idle_ms`, which is
+5. ~~**Three boot calls.**~~ **Closed by F1 task 8**, and two of the three turned out not to be boot
+   calls at all — the account is `src/scenes/registry.h`'s boot-wiring record.
+   `menu::set_shortcuts_version()` is flash byte 60, whose value **does** live in a global the
+   settings loader populates (`SoundEditor::shortcutsVersion`, written at
+   `storage/flash_storage.cpp:568`) — what this item meant is that `src/scenes` may not *name* that
+   `gui/` member. It is pushed from `SoundEditor::setShortcutsVersion`, the sole writer, which all
+   four change paths go through (boot, both factory-reset menus, and the legacy settings item).
+   `scenes::assigned_node_ids()` is called from `deluge_boot`, and was already reached through
+   `scene_registry()` at static init. `ShellConfig::screensaver_idle_ms` is
    `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
-   (`hid/display/screensaver.cpp:80-82`, `:92-94`) and must be re-supplied on every settings change,
-   since `Screensaver::settingsChanged()` has no port. Until it is, `ShellConfig` defaults it to 0
-   and **the screensaver can never activate**, however the two settings are set.
+   (`hid/display/screensaver.cpp:80-82`, `:92-94`), pushed from `Screensaver::settingsChanged()` —
+   which **now has a port**, `shell::Screensaver::set_idle_ms` plus
+   `Shell::set_screensaver_idle_ms`. **What remains open** is the ported tree's own two screensaver
+   setters (`scenes/menu/nodes/settings.cpp`), which write the same globals and cannot call `hid/`,
+   so a change made from the *ported* screensaver menu notifies neither screensaver until reboot.
 6. **`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
    `PerformanceView` class member offers no bare-`extern` escape.
 7. **No application installs a service** — added by E4 task 13, the first thing in the tree that
@@ -528,9 +549,28 @@ rather than a thing that is half-done:
    `service_list_` — well defined on a re-install, and covered by `tests/spec/shell/services_spec.cpp`
    with all four one-line mutations killed. `sim/scenes_spec/scene_scripts_spec.cpp`'s forwarding
    `LateService` shim is gone: it constructs the three in `after_construct` and calls the setter,
-   with its 34 goldens unmoved. Shell spec §15.9 has the account. **What remains open here is boot
-   calling it** (task 8), which is why this item is not yet struck. Recorded in code at
-   `src/scenes/registry.h`'s boot-wiring list and `src/scenes/README.md`.
+   with its 34 goldens unmoved. Shell spec §15.9 has the account.
+
+   **And the application half is closed too, by F1 task 8.**
+   `src/deluge/gui/ui/shell_guest_services.{h,cpp}` owns the three, builds them over
+   `shellHostUI`'s own `SceneStack`/`InputLowering` and installs them with `Shell::set_services` —
+   the first call that setter has had outside a spec — from `deluge_boot` and from
+   `ShellHostUI::opened()`. It is a separate translation unit rather than three members of
+   `ShellHostUI` because the host spec suite compiles `gui/ui/shell_host_ui.cpp` directly and never
+   builds the `deluge_scenes` closure, so naming those three types there would take that suite off
+   the board; the seam is one no-argument function it stubs.
+
+   **Installing is not sufficient, which task 8 found by reading what the services then declare.**
+   `ModKnobs` keeps its own `ModTarget` where legacy keeps `View::activeModControllableModelStack`,
+   and an unseeded one reports `mode() == -1`: its `leds()` declares all eight mod LEDs **off**
+   (`scenes/services/mod_knobs.cpp:725-735`) and `declare_indicators` declares level **0** on both
+   gold knobs (`:683-690`), every tick the guest runs. So the wiring re-seeds `currentSong`,
+   `View`'s active mod controllable and mod region and both `ViewState` blocks, at boot and on every
+   open. Seeding it in turn made a latent double-dispatch live — legacy delivers MOD_ENCODER_0/1
+   both to `buttonAction` and to the tail's `modEncoderButtonAction`, whose base forwards to `view`,
+   the function `ModKnobs::mod_encoder_button_action` ports — so the guest drops those two ids from
+   its feed and leaves the gesture on legacy's own code. Recorded in code at
+   `src/scenes/registry.h`'s boot-wiring record and `gui/ui/shell_host_ui.h`.
 8. **No producer for three of `MidiLearn`'s four entry points.** `note_on_received`, `cc_received`
    and `thing_pressed` have zero callers in `src/` — there is no MIDI `UiEvent` kind for the router
    to carry, and the scenes that would call `thing_pressed` from `learnable_at(pad)`
@@ -991,7 +1031,7 @@ what a deletion loses outright.
   `currentUIMode` lives in `gui/ui/ui.h`, which this layer may never include, so there is no port to
   compare against at all.
 * **Four `ScreensaverScene` behaviours, all of them policy rather than drawing and all of them
-  `shell::Screensaver`'s half**: `settingsChanged()` (`hid/display/screensaver.cpp:166-207`), the
+  `shell::Screensaver`'s half**: `settingsChanged()` (`hid/display/screensaver.cpp:188-229`), the
   permanent-popup / working-animation / stem-export inhibitors (`:106-118`) and with them the
   1000 ms re-check that exists only to run them, the `ScreensaverMode::OFF` early-outs, and the
   `consumeFrameDirty` blit protocol.

@@ -60,34 +60,4 @@ namespace deluge::gui::ui {
 /// uncovered.
 void wireShellGuestServices();
 
-/// @brief Push `SoundEditor::shortcutsVersion` -- flash byte 60 -- into the ported menu tree.
-///
-/// `deluge::scenes::menu` selects between two `constexpr` shortcut layers rather than mutating one,
-/// so it keeps its own `ShortcutsVersion` beside those tables (`scenes/menu/shortcuts.h`); that
-/// layer may not name `SoundEditor`, and wiring it from `storage/` would be a
-/// storage-depends-on-scenes edge. `scenes/registry.h`'s boot-wiring record asked whoever owns boot
-/// to pass byte 60 through, and this is it -- **plus the two runtime changes a boot call alone
-/// would miss.**
-///
-/// The value is read from `soundEditor.shortcutsVersion`, which is byte 60: it is written by
-/// `SoundEditor::setShortcutsVersion` and by nothing else
-/// (`grep -rn "shortcutsVersion" src/deluge` -- the other two hits are reads,
-/// `storage/flash_storage.cpp:982` and `gui/menu_item/shortcuts/version.h:27`). That one writer has
-/// exactly three callers, and each of them is a caller of this:
-///
-///   * `FlashStorage::readSettings` (`storage/flash_storage.cpp:568`) -- boot, from byte 60;
-///     covered by `deluge_boot`'s call.
-///   * `FlashStorage::resetSettings` (`:311`) -- back to V3. Reached at boot through
-///     `readSettings` on blank flash, and at runtime through the reset-settings context menu, which
-///     calls this itself (`gui/context_menu/reset_settings.cpp`).
-///   * `shortcuts::Version::writeCurrentValue` (`gui/menu_item/shortcuts/version.h:28-35`) -- the user
-///     changing it, which calls this too.
-///
-/// **Not put inside `setShortcutsVersion` itself**, which would have been one call rather than
-/// three: `gui/ui/sound_editor.cpp` is the most heavily cited file in this repository, and inserting
-/// even two lines into it moved **60** `sound_editor.cpp:NNN` citations across thirty files that
-/// this task has no other business in. Measured, not guessed -- `check_citations.py --strict`
-/// reported them. Cheap and idempotent, so calling it from a fourth place later costs nothing.
-void applyShellGuestShortcutsVersion();
-
 } // namespace deluge::gui::ui

@@ -98,6 +98,28 @@ void Screensaver::noteActivity() {
 }
 
 void Screensaver::timerEvent() {
+	// **TWO SCREENSAVERS WILL RUN AT ONCE ONCE THE PORTED UI IS OPENABLE, and this function is where
+	// that has to be settled.** F1 task 8 gave `shell::Screensaver` a real timeout (see
+	// `settingsChanged()` below), so the ported service now arms and pushes
+	// `overlay::ScreensaverScene` on the same idle period this class uses, from the same two
+	// settings, woken by the same presses -- `Shell::on_board_event`/`on_encoder_edges` call
+	// `note_activity()` exactly where `dispatchInputEvent` calls `noteActivity()`. Both would then
+	// draw: this class renders into its own canvas and calls `OLED::markChanged()`, while the scene
+	// renders through the guest's surfaces into `OLED::main`. That is a visibly wrong screen, not a
+	// duplicated no-op.
+	//
+	// **It is not live yet, and the condition is exact.** `shell::Screensaver` only advances when the
+	// shell ticks, the shell only ticks from `ShellHostUI::timerCallback`, and nothing opens
+	// `shellHostUI` until F1 task 9 routes the fourteen `openUI(&soundEditor)` sites. So a real
+	// timeout is correct today and is what F1 task 8's brief asked for; the collision arrives with
+	// the first entry point.
+	//
+	// **The shape of the fix, so task 9 does not have to rediscover it:** this function early-returns
+	// while the guest is the current UI -- the guest owns the panel then, and its own service owns
+	// the idle policy -- taking care to re-arm rather than silently disarm, the way the inhibitor
+	// arm below does. `noteActivity()` may keep running unchanged; it is idempotent against a
+	// screensaver that is not showing.
+	//
 	// Qualified as ::display: inside namespace deluge::hid::display, unqualified
 	// "display" resolves to this very namespace, not the global Display pointer.
 	if (FlashStorage::screensaverMode == ScreensaverMode::OFF) {

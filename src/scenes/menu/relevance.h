@@ -17,7 +17,7 @@
 ///       each per-source predicate (`osc0_*` / `osc1_*`) are how that member survives. Reading
 ///       `MenuContext::source_index` instead would be wrong today: nothing re-resolves the context
 ///       on the way into `source1Menu` (legacy did it in `submenu::ActualSource::beginSession` ->
-///       `SoundEditor::setCurrentSource`, `sound_editor.cpp:204`), so the field would still say 0.
+///       `SoundEditor::setCurrentSource`, `sound_editor.cpp:242`), so the field would still say 0.
 ///
 /// @note **`name_of`** exists for Task 10's `deluge_menu_dump`, which has to print *which*
 ///       predicate guards a node, and for the specs, which assert the registry covers every
@@ -148,7 +148,7 @@ bool osc1_interpolation(const MenuContext& ctx);
 /// gate drum. `MenuContext` carries every one of those facts (`is_kit`, `is_kit_global_fx`,
 /// `output`, `arp`), so the `SoundEditor::editingKit()` / `editingKitRow()` /
 /// `editingCVOrMIDIClip()` / `editingNonAudioDrumRow()` / `editingGateDrumRow()` family
-/// (`gui/ui/sound_editor.cpp:161-202`) is transcribed against it rather than against globals.
+/// (`gui/ui/sound_editor.cpp:199-240`) is transcribed against it rather than against globals.
 /// @{
 
 /// @brief May the sound be switched between synth modes? `SynthModeSelection::isRelevant`
@@ -156,10 +156,10 @@ bool osc1_interpolation(const MenuContext& ctx);
 bool ringmod_allowed(const MenuContext& ctx);
 
 /// @brief Is a kit being edited? `sidechain::Send::isRelevant` (`sidechain/send.h:65`), i.e.
-///        `SoundEditor::editingKit()` (`sound_editor.cpp:161-163`).
+///        `SoundEditor::editingKit()` (`sound_editor.cpp:199-201`).
 bool is_kit(const MenuContext& ctx);
 /// @brief Is a kit *row* being edited? `IncludeInKitArp::isRelevant` (`include_in_kit_arp.h:81-84`),
-///        i.e. `editingKitRow()` (`sound_editor.cpp:169-171`).
+///        i.e. `editingKitRow()` (`sound_editor.cpp:207-209`).
 bool is_kit_row(const MenuContext& ctx);
 /// @brief The negation, `arpeggiator::NoteMode::isRelevant` (`arpeggiator/note_mode.h:37-39`).
 bool not_kit_row(const MenuContext& ctx);
@@ -186,7 +186,7 @@ bool arp_rate_sound(const MenuContext& ctx);
 ///        spells the same test.
 bool arp_non_sound(const MenuContext& ctx);
 /// @brief A kit's global-FX page. `arpeggiator::KitRate::isRelevant` (`arpeggiator/rate.h:26-29`),
-///        i.e. `editingKitAffectEntire()` (`sound_editor.cpp:165-167`). Declared for Task 8's kit
+///        i.e. `editingKitAffectEntire()` (`sound_editor.cpp:203-205`). Declared for Task 8's kit
 ///        root; batch 2 reaches it through no node.
 bool is_kit_global_fx(const MenuContext& ctx);
 

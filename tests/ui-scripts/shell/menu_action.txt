@@ -3,7 +3,7 @@
 #
 # Legacy's four (`stem_export/start.h:51`, `audio_clip/set_clip_length_equal_to_sample_length.h:31`,
 # `song/midi_learn.h:33`, `song/configure_macros.h:33`) all set `shouldEnterSubmenu()` to false, so
-# `SoundEditor` calls `selectButtonPress()` WITHOUT navigating (`gui/ui/sound_editor.cpp:382-385`).
+# `SoundEditor` calls `selectButtonPress()` WITHOUT navigating (`gui/ui/sound_editor.cpp:420-423`).
 # The port has no such flag: it descends for one tick, `on_focus` files the request, and
 # `after_render`'s drain ascends straight back out. From the user's side the two are the same
 # gesture, and "the same gesture" is precisely a claim about pixels.

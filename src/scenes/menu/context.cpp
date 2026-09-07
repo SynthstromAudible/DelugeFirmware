@@ -237,8 +237,8 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 				// `outputType == KIT && instrumentClip->affectEntire` --
 				// `model/clip/instrument_clip_minder.cpp:388-390`,
 				// `gui/views/automation_view.cpp:1601-1603`) and is cleared on menu exit
-				// (`sound_editor.cpp:151`, `:730`), so the kit-row grid-shortcut path
-				// (`sound_editor.cpp:1150-1158`) enters with it false while `affectEntire` is true,
+				// (`sound_editor.cpp:189`, `:768`), so the kit-row grid-shortcut path
+				// (`sound_editor.cpp:1188-1196`) enters with it false while `affectEntire` is true,
 				// and legacy edits the row's params rather than the kit's. Deriving the branch from
 				// `affectEntire` would silently take the kit path there -- and with it a different
 				// root (`KitGlobalFx` vs `Drum`) and a different `model_stack_for` arm.
@@ -463,7 +463,7 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	}
 
 	// The rule the range-specific overrides share, via
-	// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:1933`) --
+	// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:1971`) --
 	// e.g. `menu_item::sample::Transpose::checkPermissionToBeginSession`
 	// (`gui/menu_item/sample/transpose.h:120-135`), which after its own relevance and osc-type test
 	// defers to it verbatim.

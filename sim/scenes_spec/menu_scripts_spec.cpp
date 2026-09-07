@@ -1086,7 +1086,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{2});
 
 		// The press has no golden -- the frame after it repeats `idle` exactly, which is the whole
-		// point of `shouldEnterSubmenu() == false` (`gui/ui/sound_editor.cpp:382-385`). This is where
+		// point of `shouldEnterSubmenu() == false` (`gui/ui/sound_editor.cpp:420-423`). This is where
 		// it is visible instead.
 		const MenuActionRequest taken = menu_scene().take_action();
 		expect(taken.action == MenuAction::StartStemExport).to_be_true();

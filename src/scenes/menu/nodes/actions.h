@@ -20,7 +20,7 @@
 /// `shouldEnterSubmenu()` to `false` (`stem_export/start.h:51`,
 /// `audio_clip/set_clip_length_equal_to_sample_length.h:31`, `song/midi_learn.h:33`,
 /// `song/configure_macros.h:33`), which is what makes `SoundEditor` call
-/// `newItem->selectButtonPress()` *without* navigating into them (`gui/ui/sound_editor.cpp:382-385`).
+/// `newItem->selectButtonPress()` *without* navigating into them (`gui/ui/sound_editor.cpp:420-423`).
 /// The port has no equivalent of that flag: `MenuScene::after_render`'s `entered` arm always
 /// `enter_child`s. So the port descends for one tick, `on_focus` (= `beginSession`, `node.h`) files
 /// the request, and `after_render` drains it and ascends straight back out -- which is what the five
@@ -52,7 +52,7 @@
 ///     and `song::ConfigureMacros` (`song/configure_macros.h:35-37`) is no longer a divergence --
 ///     E3 task 9. It used to be one because `MenuContext::is_song_view` is `context_for`'s
 ///     `session_or_arranger_root` argument, i.e. `!rootUIIsClipMinderScreen()`, which is true in the
-///     arranger and the song automation view as well; `setup()` (`sound_editor.cpp:1764-1767`) opens
+///     arranger and the song automation view as well; `setup()` (`sound_editor.cpp:1802-1805`) opens
 ///     one song root for all three. `context_for` now takes the narrower `session_view_root` too and
 ///     reports it as `MenuContext::is_session_view`, and both nodes carry
 ///     `relevance::is_session_view`. The two bools are a deliberately coarse encoding of that

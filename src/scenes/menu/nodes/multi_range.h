@@ -4,7 +4,7 @@
 ///
 /// The port of `deluge::gui::menu_item::MultiRange` (`gui/menu_item/multi_range.{h,cpp}`, 435
 /// lines): the page legacy substitutes for a range-dependent item when the source has more than one
-/// `MultiRange` and none is selected yet (`SoundEditor::setup`, `sound_editor.cpp:1802-1803`:
+/// `MultiRange` and none is selected yet (`SoundEditor::setup`, `sound_editor.cpp:1840-1841`:
 /// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`).
 ///
 /// ## How it is reached

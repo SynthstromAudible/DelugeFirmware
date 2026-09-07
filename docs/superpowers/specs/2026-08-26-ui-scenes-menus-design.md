@@ -442,16 +442,16 @@ display/LED primitives directly.
 **Shortcut-pad mechanics** — three corrections to how legacy's shortcut pads actually work, found
 porting Task 9:
 - Legacy's **second shortcut layer is a second press of the focused item's own pad**
-  (`secondLayerShortcutsToggled`, `sound_editor.cpp:1309-1324`), **not** "shift held" — shift is
-  only the gate that lets a pad be treated as a shortcut at all (`sound_editor.cpp:1114`); which
+  (`secondLayerShortcutsToggled`, `sound_editor.cpp:1347-1362`), **not** "shift held" — shift is
+  only the gate that lets a pad be treated as a shortcut at all (`sound_editor.cpp:1152`); which
   layer's cell to use is the caller's business (`shortcuts.h:73-78`).
 - Two deliberate press/blink asymmetries, both legacy's own and preserved rather than "fixed":
   **`kMidiExtraCells`** (`shortcuts.cpp:244`) resolves four pads on the MIDI/CV and drum roots that
   are in no legacy table at all (`sequenceDirectionMenu` and the MIDI/CV randomizer trio,
-  `sound_editor.cpp:1282-1302`) — they navigate on press but never blink, because the blink side
+  `sound_editor.cpp:1320-1340`) — they navigate on press but never blink, because the blink side
   (`updatePadLightsFor`) only ever scans the shortcut tables' own column 11. The **`KitGlobalFx`
   press gate** (`kit_global_fx_press_gate`, `shortcuts.cpp:255-263`) is the mirror: legacy's press
-  arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1153-1157`), so
+  arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1191-1195`), so
   column 15 is admitted only at `y == 1` — the table's own `(15, 2)`/`(15, 3)` cells are unreachable
   by press yet still blink, since the blink scan has no such guard.
 
@@ -622,7 +622,7 @@ nothing fires the hooks through the interpreter yet. The chain data is real and 
 (`sim/scenes_spec/tables_3_spec.cpp`'s chaining group, against the live legacy globals).
 
 One arm of legacy's own navigation is deliberately not ported with it: `SoundEditor`'s
-`maybeGetParentMenu`/`focusChild` reparenting (`sound_editor.cpp:369-375`), which enters a
+`maybeGetParentMenu`/`focusChild` reparenting (`sound_editor.cpp:407-413`), which enters a
 horizontal *parent* with the named child focused rather than the child itself. `MenuScene::enter_child`
 has never done that for any descent, so it is a pre-existing difference the chaining work inherits.
 
@@ -925,7 +925,7 @@ families needed them:
   `restore_state()`, neither of which has a `Result` to put an `Action` in.
 * **The learn virtuals (task 8).** `learn_note_on`, `learn_cc`, `learn_program_change`, `unlearn`,
   `wants_learn_blink`, `learn_descriptor`, all with inert defaults, plus the matching
-  `MenuScene::learn_*` entry points (which match `sound_editor.cpp:1550-1570`, including
+  `MenuScene::learn_*` entry points (which match `sound_editor.cpp:1588-1608`, including
   `noteOnReceivedForMidiLearn` having **no** UI-mode gate). **Nothing routes MIDI into the scene
   stack**, so these are specced at the item level and uncovered at the routing level; that is stated
   rather than implied away. `bindings::learn_target` is a different path — PARAM learn, not

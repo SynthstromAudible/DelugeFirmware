@@ -210,7 +210,7 @@ struct Descriptor {
 	///
 	/// @note **The `Defer` dispatcher owes one more thing than `claimCurrentFile()`, and this is the
 	///       only place it is written down.** Legacy pairs the browser with a *return* affordance:
-	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2018 maybeGetParentMenu`,
+	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2056 maybeGetParentMenu`,
 	///       file-selector arm at `:2034-2039`) writes `sampleBrowser.menuItemHeadingTo` and
 	///       `parentMenuHeadingTo` on the way *in*, and `claimCurrentFile` reads them back
 	///       (`gui/ui/browser/sample_browser.cpp:1075-1086`) to re-root
@@ -226,7 +226,7 @@ struct Descriptor {
 	///       `claimCurrentFile` against `take_choice()` is therefore the owner of the re-rooting
 	///       too, and will need a `MenuScene` entry point for it. Until then the cost is one extra
 	///       BACK press after a file is accepted. `osc::AudioRecorder` carries the identical pair
-	///       (`gui/ui/sound_editor.cpp:2042-2047`, consumed by `osc/audio_recorder.h:40-48`) with
+	///       (`gui/ui/sound_editor.cpp:2080-2085`, consumed by `osc/audio_recorder.h:40-48`) with
 	///       the same disposal, recorded on `nodes::AudioRecorderItem::on_focus`.
 	///
 	/// @param ctx   What the browser was opened over.

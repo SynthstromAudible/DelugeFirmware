@@ -36,7 +36,7 @@
 ///
 /// Four legacy behaviours have no port and so no comparison here; all four are policy, and all four
 /// are `shell::Screensaver`'s half rather than the scene's. They are enumerated with citations in
-/// `screensaver_scene.h`'s class doc: `settingsChanged()` (`hid/display/screensaver.cpp:166-207`),
+/// `screensaver_scene.h`'s class doc: `settingsChanged()` (`hid/display/screensaver.cpp:188-229`),
 /// the permanent-popup / working-animation / stem-export inhibitors (`:106-118`) and with them the
 /// 1000 ms `kInhibitRecheckMS` re-arm that exists only to run them (`:56-58`), the
 /// `ScreensaverMode::OFF` early-outs (`:92-94,102-104,171-174`, ported as the service's
@@ -138,7 +138,7 @@ struct Rig {
 /// `Screensaver::getCanvas()` is legacy's real drawing surface -- the one `OLED::sendMainImage`
 /// substitutes for `main` (`hid/display/oled.cpp:342-348`) -- so this is legacy's own pixels, drawn
 /// by legacy's own `render`/`renderRainfall`/`renderStarfield`/`drawBlock`
-/// (`hid/display/screensaver.cpp:64-77,209-248`), not a transcription of them.
+/// (`hid/display/screensaver.cpp:64-77,231-270`), not a transcription of them.
 std::string legacy_canvas_pbm() {
 	return page_major_to_pbm(LegacyScreensaver::getCanvas().bytes().data(), 128, 48);
 }
@@ -469,7 +469,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expect(same_field(scene.rainfall(), expected)).to_be_true();
 
 		// A tick 200 ms late is still ONE frame: legacy re-arms its 50 ms timer from the moment it
-		// fired, so a late timer event advances once (`hid/display/screensaver.cpp:140-163`).
+		// fired, so a late timer event advances once (`hid/display/screensaver.cpp:162-185`).
 		r.tick(2 * kFrameIntervalMs - 1 + 200);
 		expected.advance();
 		expect(same_field(scene.rainfall(), expected)).to_be_true();
@@ -503,7 +503,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		r.tick(0);
 
 		// Legacy's BLANK: "a cleared canvas is the whole picture"
-		// (`hid/display/screensaver.cpp:221`).
+		// (`hid/display/screensaver.cpp:243`).
 		expect(any_pixel(r.fake.pbm(0))).to_be_false();
 
 		// Opaque on Main and nowhere else: legacy substitutes its canvas for `main` alone

@@ -660,7 +660,7 @@ void expect_same(Self& self, const BrowserState& port, const BrowserState& legac
 /// If a future fixture gave the audio clip a real sample path, legacy would enter on that file's
 /// folder and the transcription in `open_samples()` would silently stop matching. This fails first.
 /// Read off the model, not off either side's dissection of it -- `SoundEditor::getCurrentAudioFileHolder`
-/// resolves an audio clip to its own `sampleHolder` (`sound_editor.cpp:1971-1980`).
+/// resolves an audio clip to its own `sampleHolder` (`sound_editor.cpp:2009-2018`).
 bool blank_start_path(spec::AudioSongFixture& f) {
 	return f.clip->sampleHolder.filePath.empty();
 }

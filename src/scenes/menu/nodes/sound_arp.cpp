@@ -67,7 +67,7 @@ void apply_to_arp_settings(const MenuContext& ctx, bool filter_gate_drums, Fn&& 
 	}
 }
 
-/// @brief `soundEditor.editingCVOrMIDIClip()` (`gui/ui/sound_editor.cpp:173-175`).
+/// @brief `soundEditor.editingCVOrMIDIClip()` (`gui/ui/sound_editor.cpp:211-213`).
 bool cv_or_midi_clip(const MenuContext& ctx) {
 	return ctx.output != nullptr && (ctx.output->type == OutputType::MIDI_OUT || ctx.output->type == OutputType::CV);
 }
@@ -302,7 +302,7 @@ void set_arp_include_in_kit(const MenuContext& ctx, int32_t value) {
 	}
 
 	// `:48-53` -- one sound, gated on the context's own cached answer, which is what
-	// `soundEditor.allowsNoteTails` is (`sound_editor.cpp:1811-1816`).
+	// `soundEditor.allowsNoteTails` is (`sound_editor.cpp:1849-1854`).
 	if (ctx.arp != nullptr && bindings::allows_note_tails(ctx)) {
 		ctx.arp->includeInKitArp = on;
 	}

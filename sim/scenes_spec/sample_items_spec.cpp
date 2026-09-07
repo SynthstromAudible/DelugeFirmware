@@ -703,7 +703,7 @@ describe sample_items_opening("scenes::menu the sample items: what each one open
 		expect(c.sample_controls == &r.source[1]->sampleControls).to_be_true();
 
 		// Re-selecting the source already named keeps the selected range -- `setCurrentSource`'s own
-		// `currentMultiRange == nullptr` guard (`sound_editor.cpp:209`), which is what stops a
+		// `currentMultiRange == nullptr` guard (`sound_editor.cpp:247`), which is what stops a
 		// range the picker chose from being thrown away by the item that opens on it.
 		menu::select_source(c, 1);
 		expect(c.range == r.range[1]).to_be_true();

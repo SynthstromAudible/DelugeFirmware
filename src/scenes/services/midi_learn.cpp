@@ -462,7 +462,7 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 	// service is routed AFTER `global_controls`, which answers `ViewArm::NotAnArm` for a non-root
 	// scene and therefore runs its own tail; without this gate a `LEARN` press inside a menu would
 	// reach here and toggle a mode legacy would have handed to `SoundEditor::buttonAction`
-	// (`gui/ui/sound_editor.cpp:467-499`) instead.
+	// (`gui/ui/sound_editor.cpp:505-537`) instead.
 	if (!stack_.input_top().is_root()) {
 		return Result::unhandled();
 	}

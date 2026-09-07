@@ -207,7 +207,7 @@ public:
 	/// @brief Re-supply `ShellConfig::screensaver_idle_ms` after the settings behind it changed.
 	///
 	/// The shell-level half of `Screensaver::set_idle_ms`, which is the port of legacy's
-	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:166-207`). The number is
+	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:188-229`). The number is
 	/// `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`, computed
 	/// by the host -- `src/shell` may not read `storage/` (`check_layer_rules.py`'s
 	/// `shell-includes-outside` row) -- and it has to be re-supplied on every change, because the

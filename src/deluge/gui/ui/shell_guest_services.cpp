@@ -19,7 +19,6 @@
 
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -28,7 +27,6 @@
 #include "gui/views/view.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "scenes/menu/shortcuts.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
@@ -171,16 +169,6 @@ void wireShellGuestServices() {
 	// second call neither double-ticks nor strands a slot (`shell/shell.h`'s `set_services`).
 	shellHostUI.shell().set_services(
 	    {.mod_knobs = &services.knobs, .global_controls = &services.controls, .midi_learn = &services.learn});
-}
-
-void applyShellGuestShortcutsVersion() {
-	// The enumerator values are legacy's own (`SHORTCUTS_VERSION_1` == 0, `SHORTCUTS_VERSION_3` == 1,
-	// `gui/ui/sound_editor.h:26-27`), and this is the total mapping of the two byte 60 can hold,
-	// spelled the way `setShortcutsVersion`'s own `switch` spells it: V1 for `SHORTCUTS_VERSION_1`,
-	// V3 for everything else (its `default` arm is "Uses defaults").
-	deluge::scenes::menu::set_shortcuts_version(soundEditor.shortcutsVersion == SHORTCUTS_VERSION_1
-	                                                ? deluge::scenes::menu::ShortcutsVersion::V1
-	                                                : deluge::scenes::menu::ShortcutsVersion::V3);
 }
 
 } // namespace deluge::gui::ui

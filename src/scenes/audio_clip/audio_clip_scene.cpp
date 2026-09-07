@@ -904,7 +904,7 @@ void AudioClipScene::change_underlying_sample_start(const ::Sample& sample, int3
 		// all, so this is easy to miss rather than an obvious oversight. It survives on the device
 		// because an `Action` almost always exists by the time a length edit runs; the window is a
 		// fresh boot, or an `actionLogger.deleteAllLogs()` (which `SoundEditor::setup` does on every
-		// menu open, `gui/ui/sound_editor.cpp:1716`) followed immediately by a length edit. The
+		// menu open, `gui/ui/sound_editor.cpp:1754`) followed immediately by a length edit. The
 		// port reads null as "not a PATTERN_PASTE", which is the answer legacy computes for every
 		// non-null value it has ever actually seen there. Recorded in `src/scenes/README.md` beside
 		// the `getTickSquare` `xZoom`-for-`xScroll` defect; unlike that one it is NOT reproduced,

@@ -62,7 +62,7 @@
 
 // `battery::Level::isRelevant` reads `runtimeFeatureSettings` (`relevance::battery_shown`, this
 // file's own relevance.cpp); the value itself is `batteryMV`, a plain global the main loop sets
-// (`deluge.cpp:91,148`) -- declared bare and at global scope, exactly as `sound_editor.cpp:1403`
+// (`deluge.cpp:91,148`) -- declared bare and at global scope, exactly as `sound_editor.cpp:1441`
 // and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*,
 // unlinked variable rather than referring to the one `deluge.cpp` defines).
 extern uint16_t batteryMV;
@@ -820,11 +820,23 @@ void set_flash_status(const MenuContext&, int32_t value) {
 // Both hooks qualify their `menu::` callee: `nodes` already has a `shortcuts_version` (the `Node`)
 // and a `set_shortcuts_version` (this hook), and either name would hide the enclosing namespace's.
 int32_t get_shortcuts_version(const MenuContext&) {
-	return static_cast<int32_t>(menu::shortcuts_version()); // `shortcuts/version.h:27`
+	return static_cast<int32_t>(menu::shortcuts_version()); // `shortcuts/version.h:26`
 }
 void set_shortcuts_version(const MenuContext&, int32_t value) {
-	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:28-35`) ->
-	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:111-143`).
+	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:27`) ->
+	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:112-182`).
+	//
+	// @warning **This is the one writer of the setting that does NOT reach flash**, and under the
+	//          toggle it is the one the user actually presses. Legacy's item writes
+	//          `SoundEditor::shortcutsVersion`, which is what `FlashStorage::writeSettings` puts in
+	//          byte 60 (`storage/flash_storage.cpp:982`); this hook writes only this layer's copy,
+	//          because `src/scenes` may not name `SoundEditor`. So a layout chosen from the *ported*
+	//          settings menu is in force for the session and gone at the next power-on -- and the
+	//          reverse mirror is fine: `SoundEditor::setShortcutsVersion` pushes into this layer, so
+	//          a layout chosen from the legacy menu, at boot, or by a factory reset is followed here.
+	//          The same shape, and the same cause, as the ported screensaver setters below.
+	//          Recorded by F1 task 8; closing it needs the `menu::Action` dispatcher
+	//          `scenes/menu/action.h` says does not exist yet.
 	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
 	                                                                                : ShortcutsVersion::V3);
 }

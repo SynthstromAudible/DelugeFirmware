@@ -140,7 +140,7 @@ char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
 // --- Sample: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`) ---
 
-/// @brief `SoundEditor::getCurrentAudioFileHolder` (`gui/ui/sound_editor.cpp:1971-1980`), reached
+/// @brief `SoundEditor::getCurrentAudioFileHolder` (`gui/ui/sound_editor.cpp:2009-2018`), reached
 ///        through the context rather than through the `soundEditor` global.
 ///
 /// The two arms are the same two: an audio clip's own `sampleHolder`, or the selected

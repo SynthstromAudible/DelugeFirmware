@@ -18,9 +18,9 @@
 ///
 /// `FlashStorage::screensaverMode` (`storage/flash_storage.h:82`), the same global legacy reads --
 /// and read **live**, on every question, exactly as legacy does: `Screensaver::timerEvent` reads it
-/// at `hid/display/screensaver.cpp:103` (the OFF early-out), `:127` (the activation switch that
-/// scatters), `:140` (the per-frame switch that advances) and `:162` (the frame interval), and
-/// `Screensaver::render` reads it again at `:183` (the switch that draws). Nothing here snapshots
+/// at `hid/display/screensaver.cpp:125` (the OFF early-out), `:150` (the activation switch that
+/// scatters), `:163` (the per-frame switch that advances) and `:185` (the frame interval), and
+/// `Screensaver::render` reads it again at `:235` (the switch that draws). Nothing here snapshots
 /// it at `on_enter`, because legacy does not: a mode edit while the screensaver is showing is
 /// legacy's `settingsChanged()` path (ported by F1 task 8 as `shell::Screensaver::set_idle_ms`, and
 /// see the gaps below for what of it reaches this scene), and outside that path the remaining
@@ -30,7 +30,7 @@
 ///
 /// Each is policy, and policy is `shell::Screensaver`'s half; none is dropped silently.
 ///
-///   * **`settingsChanged()`** (`screensaver.cpp:166-207`): wake, then re-arm or cancel for the new
+///   * **`settingsChanged()`** (`screensaver.cpp:188-229`): wake, then re-arm or cancel for the new
 ///     settings. **Ported by F1 task 8** -- not here, where it never belonged, but as
 ///     `shell::Screensaver::set_idle_ms` (`shell/screensaver.h`), which is that reconfiguration, and
 ///     `Shell::set_screensaver_idle_ms`, which is how an application reaches it. Legacy's own
@@ -39,7 +39,7 @@
 ///     so the port is pushed from there. The residue is the *ported* menu's two setters
 ///     (`menu/nodes/settings.cpp`), which write the same globals and cannot call `hid/`; see
 ///     `scenes/registry.h`'s boot-wiring record.
-///   * **The inhibitors** (`screensaver.cpp:107-123`): a permanent popup, the working animation or
+///   * **The inhibitors** (`screensaver.cpp:129-145`): a permanent popup, the working animation or
 ///     a running stem export wakes the screensaver and re-arms, re-checked every tick. The port's
 ///     popup/working scenes are the shell's own (`Notices`, `shell/shell.h:123-129`) and stack
 ///     *above* whatever is showing, so the question "is one present" is the shell's to ask, not
@@ -58,7 +58,7 @@
 ///     needs physical input, and input runs `shell::Screensaver::note_activity` first, which pops
 ///     this scene (`shell/screensaver.cpp:9-17`) -- so the mode cannot change while it is up. The
 ///     next push re-reads the mode and scatters the right field.
-///   * **`ScreensaverMode::OFF`** (`screensaver.cpp:93-95,103-105,201-204`): the port of "off" is
+///   * **`ScreensaverMode::OFF`** (`screensaver.cpp:93-95,125-127,223-226`): the port of "off" is
 ///     `shell::Screensaver`'s `idle_ms == 0` (that service's own class note), decided by whatever
 ///     wires the shell up. If this scene is nonetheless pushed with the mode at `OFF` it draws
 ///     nothing and asks for no timer, which is the closest thing to legacy's "never activates".
@@ -106,7 +106,7 @@ public:
 	/// @brief Activate: scatter whichever animation the mode names.
 	///
 	/// The port of `Screensaver::timerEvent`'s `if (!active_)` arm
-	/// (`hid/display/screensaver.cpp:125-139`) -- the switch that calls `scatter()` on exactly one
+	/// (`hid/display/screensaver.cpp:147-161`) -- the switch that calls `scatter()` on exactly one
 	/// of the two fields and leaves `BLANK`/`OFF` alone.
 	///
 	/// @param id The push. `id.arg` is `shell::Screensaver`'s `seed` (its low 16 bits,
@@ -120,7 +120,7 @@ public:
 
 	/// @brief Advance one animation frame once `kFrameIntervalMs` of ticks have accumulated.
 	///
-	/// The port of `Screensaver::timerEvent`'s `else` arm (`hid/display/screensaver.cpp:140-155`)
+	/// The port of `Screensaver::timerEvent`'s `else` arm (`hid/display/screensaver.cpp:162-177`)
 	/// plus the `setTimer(..., kFrameIntervalMS)` re-arm at `:161-162`. The shell calls `tick()`
 	/// every tick rather than only at a deadline (`Shell::tick_stack`, `shell.cpp:553-563`), so the
 	/// deadline is kept here: elapsed time accumulates and the counter is **reset to zero**, not
@@ -131,7 +131,7 @@ public:
 
 	/// @brief Draw the current frame.
 	///
-	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:209-223`) and the two
+	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:231-245`) and the two
 	/// per-mode renderers it dispatches to (`:225-248`). Legacy's leading `canvas_.clear()`
 	/// (`:210`) has no counterpart here because `Shell::render_oled` clears the canvas before the
 	/// pass (`shell.cpp:642`).

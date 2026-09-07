@@ -713,7 +713,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("declares the LEDs opened() sets, RECORD blinking at the fast rate", _ {
 		// `AudioRecorder::opened`'s LED tail (`audio_recorder.cpp:100-106`). SYNTH/KIT are the
-		// interesting pair: `SoundEditor::setLedStates` turns BOTH off (`sound_editor.cpp:306-307`)
+		// interesting pair: `SoundEditor::setLedStates` turns BOTH off (`sound_editor.cpp:344-345`)
 		// and this UI lights exactly one, so a scene that left them to `MenuScene` beneath would
 		// show neither.
 		Guards g;
@@ -725,7 +725,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		// Composed over the REAL stack -- `MenuScene` beneath, recorder on top -- rather than by
 		// calling `leds()` directly, because the SYNTH/KIT claim is precisely that this scene's
 		// declaration outranks the menu's (fix round 1, Minor 1). `MenuScene::leds` declares both
-		// OFF, mirroring `SoundEditor::setLedStates` (`sound_editor.cpp:306-307`).
+		// OFF, mirroring `SoundEditor::setLedStates` (`sound_editor.cpp:344-345`).
 		deluge::ui::LedFrame f;
 		deluge::ui::shell::LedCompose::compose(f, {}, r.shell.stack().scenes());
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Record)))

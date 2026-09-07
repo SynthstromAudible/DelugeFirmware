@@ -47,7 +47,7 @@
 /// (`shell/scene.h`'s `Scene::is_root`, added for this) and leaves the tail ungated. With a
 /// non-root scene on top -- a menu, a browser, the marker editor -- `SAVE`, `LOAD`,
 /// `SYNC_SCALING`, `TAP_TEMPO`, `BACK` and shift+`SELECT_ENC` do nothing here, exactly as they do
-/// nothing in legacy: `SoundEditor::buttonAction` (`gui/ui/sound_editor.cpp:333`) ends by
+/// nothing in legacy: `SoundEditor::buttonAction` (`gui/ui/sound_editor.cpp:371`) ends by
 /// delegating to `currentMenuItem->buttonAction` (`:595-628`), whose base
 /// (`gui/menu_item/menu_item.h:78-80`) returns `NOT_DEALT_WITH`, and nothing on that path names
 /// `view`.

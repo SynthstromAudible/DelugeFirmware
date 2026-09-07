@@ -901,7 +901,7 @@ as for gold-knob turns. Six UIs override the first (`SoundEditor`, `gui/ui/sound
 2, and a null service declines everything, so the chain behaved identically either way round. E4
 task 2 found it by reading `hid/`, not by a failing spec.
 
-**What it would have cost.** `SoundEditor::modEncoderAction` (`gui/ui/sound_editor.cpp:1583-1607`)
+**What it would have cost.** `SoundEditor::modEncoderAction` (`gui/ui/sound_editor.cpp:1621-1645`)
 intercepts a gold turn while MIDI learn is active and learns the knob to the current menu param,
 falling through to `UI::modEncoderAction` otherwise. `MenuScene` is that UI's port. With the service
 claiming the turn first, that arm could never fire, and no spec in E4 would have caught it — nothing

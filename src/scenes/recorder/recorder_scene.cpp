@@ -383,9 +383,9 @@ void RecorderScene::leds(deluge::ui::LedFrame& f) {
 	// same lamp.
 	//
 	// SYNTH and KIT are declared here and NOT left to `MenuScene` beneath, even though that scene
-	// also names them: `SoundEditor::setLedStates` turns **both** off (`sound_editor.cpp:306-307`)
+	// also names them: `SoundEditor::setLedStates` turns **both** off (`sound_editor.cpp:344-345`)
 	// and this UI then lights exactly one of them, by `soundEditor.editingKit()`
-	// (`sound_editor.cpp:161-163`, which is `getCurrentOutputType() == OutputType::KIT` -- the
+	// (`sound_editor.cpp:199-201`, which is `getCurrentOutputType() == OutputType::KIT` -- the
 	// context's own `is_kit`). `LedCompose::compose` runs the stack bottom to top and the last
 	// writer wins (`shell/leds.h`), so declaring them here is what makes the recorder's answer the
 	// one that shows.

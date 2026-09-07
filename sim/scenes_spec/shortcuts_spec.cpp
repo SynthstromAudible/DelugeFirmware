@@ -68,7 +68,7 @@ using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 using deluge::scenes::menu::ShortcutPos;
 
-// `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:65` and named in no header;
+// `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:66` and named in no header;
 // `LegacyVersion1` below has to restore the two cells the V1 arm writes.
 extern "C++" PatchSource modSourceShortcuts[2][8];
 
@@ -80,7 +80,7 @@ using Root = MenuContext::Root;
 
 /// @brief `menus.cpp:2171`'s `comingSoonMenu` sentinel. It is a `#define` local to that translation
 ///        unit, so the spec spells the same value: a cell holding it is "not implemented", which
-///        legacy answers with a popup and no navigation (`sound_editor.cpp:1330-1333`) and the port
+///        legacy answers with a popup and no navigation (`sound_editor.cpp:1368-1371`) and the port
 ///        transcribes as `nullptr`.
 ::MenuItem* coming_soon() {
 	return reinterpret_cast<::MenuItem*>(0xFFFFFFFFu);
@@ -262,7 +262,7 @@ std::string diff_column(const char* table, ::MenuItem* legacy[kDisplayHeight], s
 
 /// @brief Select `SHORTCUTS_VERSION_1` on both sides for the scope, and put everything back.
 ///
-/// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:111-143`) *writes into* the legacy
+/// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:112-181`) *writes into* the legacy
 /// arrays -- and its `SHORTCUTS_VERSION_3` arm is a comment, not an undo (`:139-141`), so nothing but
 /// this guard restores them. Twelve cells are snapshotted: the six of `paramShortcutsForSounds` and
 /// four of `paramShortcutsForAudioClips` the V1 arm assigns, plus the two `modSourceShortcuts` ones
@@ -326,12 +326,12 @@ const std::vector<Root>& all_roots() {
 // clang-format off
 describe shortcuts_transcription("scenes::menu shortcut tables: transcription", $ {
 	it("is transcribed from the default SHORTCUTS_VERSION_3 layout", _ {
-		// `SoundEditor::setShortcutsVersion` (`sound_editor.cpp:111-143`) *mutates* the legacy arrays
+		// `SoundEditor::setShortcutsVersion` (`sound_editor.cpp:112-181`) *mutates* the legacy arrays
 		// in place for the pre-3.0 layout; the port transcribes them as written. If anything in this
 		// process ever selects version 1, every cross-check below would be comparing against a
 		// different table -- so say so here, once, rather than failing ten cells at a time.
 		// `SHORTCUTS_VERSION_1` moves this cell to `audioClipSampleMarkerEditorMenuStart`
-		// (`sound_editor.cpp:119`), so its still holding the end marker is the version's fingerprint.
+		// (`sound_editor.cpp:157`), so its still holding the end marker is the version's fingerprint.
 		expect(paramShortcutsForAudioClips[0][7] == &audioClipSampleMarkerEditorMenuEnd).to_be_true();
 	});
 
@@ -375,7 +375,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 
 	it("matches midiOrCVParamShortcuts, in column 11", _ {
 		select_language();
-		// Column 11 is where `potentialShortcutPadAction` (`sound_editor.cpp:1277`) and
+		// Column 11 is where `potentialShortcutPadAction` (`sound_editor.cpp:1315`) and
 		// `updatePadLightsFor` (`:848`) index this table -- the task brief said column 0.
 		expect(diff_column("midiOrCVParamShortcuts", midiOrCVParamShortcuts,
 		                   menu::shortcut_layer(Root::MidiOrCv, /*second_layer=*/false)))
@@ -390,7 +390,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	});
 
 	it("resolves the four inline MIDI/CV cells that are in no legacy table", _ {
-		// `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1282-1302`), in the
+		// `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1320-1340`), in the
 		// arm `editingCVOrMIDIClip() || editingNonAudioDrumRow()` takes -- so all three of the roots
 		// that arm covers, and none of the others.
 		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
@@ -412,7 +412,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 
 	it("keeps those four cells out of the layers, so the blink never reports them", _ {
 		// The asymmetry is the point: `updatePadLightsFor`'s MIDI/CV and gate-drum arms
-		// (`sound_editor.cpp:833-853`) scan column 11 and nothing else, so legacy navigates from
+		// (`sound_editor.cpp:871-891`) scan column 11 and nothing else, so legacy navigates from
 		// these pads and never lights them. Removing the resolve-only split would fail here.
 		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
 			const auto layer = menu::shortcut_layer(root, false);
@@ -485,7 +485,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	it("refuses the two kit global-FX cells legacy's own guard never let it press", _ {
 		// The mirror of the four inline cells above. `paramShortcutsForKitGlobalFX` holds
 		// `randomizerLockMenu` at (15, 2) and `randomizerNoteProbabilityMenu` at (15, 3), but the arm
-		// is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1153-1157`),
+		// is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1191-1195`),
 		// so legacy can only ever press column 15 at y == 1.
 		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 1) == &nodes::spread_velocity).to_be_true();
 		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 2) == nullptr).to_be_true();
@@ -511,7 +511,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 
 	it("swaps the name editor for the drum one on the two drum roots", _ {
 		install_sound_context();
-		// `potentialShortcutPadAction` (`sound_editor.cpp:1279-1281`, `:1306-1308`) rewrites
+		// `potentialShortcutPadAction` (`sound_editor.cpp:1317-1319`, `:1306-1308`) rewrites
 		// `editNameMenu` to `drumNameEditMenu` for a kit output or a non-audio drum row; the port
 		// bakes that into the drum roots' own layers.
 		const auto at = [](Root root, uint8_t x, uint8_t y) { return menu::shortcut_node(root, false, x, y); };
@@ -569,7 +569,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 	});
 
 	it("falls back to the first layer where the second has no cell", _ {
-		// Legacy's own rule (`sound_editor.cpp:1320-1323`): the second layer *replaces* a cell only
+		// Legacy's own rule (`sound_editor.cpp:1358-1361`): the second layer *replaces* a cell only
 		// where it has one, so a second press of a pad without a second-layer item re-opens the
 		// first-layer one rather than nothing.
 		expect(menu::shortcut_node(Root::Sound, true, 8, 0) == &nodes::env3_release).to_be_true();
@@ -594,7 +594,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 						expect(pos.valid).to_be_true();
 						// ... and a press finds it again, EXCEPT where the arm's own guard excluded
 						// the pad from the press path in the first place: legacy's kit global-FX arm
-						// admits column 15 only at y == 1 (`sound_editor.cpp:1153-1157`), while the
+						// admits column 15 only at y == 1 (`sound_editor.cpp:1191-1195`), while the
 						// blink side scans the whole table. Spelled out here rather than skipped, so
 						// this fails if the gate's shape changes.
 						const bool pressable = root != Root::KitGlobalFx || pos.x <= 14 || pos.y == 1;
@@ -861,7 +861,7 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 
 	it("moves exactly the two sound cells that carry a different item under V1", _ {
 		install_sound_context();
-		// Legacy's V1 arm assigns six cells of this table (`sound_editor.cpp:125-132`) but four of
+		// Legacy's V1 arm assigns six cells of this table (`sound_editor.cpp:163-170`) but four of
 		// them write the value it already held -- so naming the two that move, and asserting the
 		// other four did not, is the difference between transcribing the *arm* and transcribing its
 		// *effect*. Interpolation gives way to the sample end point; nothing else changes.
@@ -891,7 +891,7 @@ describe shortcuts_version_1("scenes::menu shortcut tables: the SHORTCUTS_VERSIO
 		install_sound_context();
 		const LegacyVersion1 guard;
 		// V1 puts the marker editor's *start* item at `(0..1, 7)` and its *end* item at `(0..1, 6)`
-		// (`sound_editor.cpp:119-124`). The port has ONE node for the marker editor,
+		// (`sound_editor.cpp:157-162`). The port has ONE node for the marker editor,
 		// `audio_clip_waveform`, so both pairs resolve to it -- which is right for the end pair and
 		// as close as this table can get for the start pair. `diff_cell` compares by name and
 		// `audioClipSampleMarkerEditorMenuStart` is constructed with `EMPTY_STRING`

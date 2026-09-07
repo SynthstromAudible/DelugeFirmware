@@ -84,7 +84,7 @@ SampleControls* sample_controls_of(const MenuContext& ctx, uint8_t index) {
 // `osc::Type` (`gui/menu_item/osc/type.h:34-160`).
 
 /// @brief `Type::mayUseDx()` (`osc/type.h:40`): `!soundEditor.editingKit() && sourceId_ == 0`.
-///        `editingKit()` is `getCurrentOutputType() == KIT` (`gui/ui/sound_editor.cpp:165-167`),
+///        `editingKit()` is `getCurrentOutputType() == KIT` (`gui/ui/sound_editor.cpp:203-205`),
 ///        which `MenuContext` carries as `is_kit`.
 bool may_use_dx(const MenuContext& ctx, uint8_t index) {
 	return !ctx.is_kit && index == 0;

@@ -1012,7 +1012,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	it("the root gate: with a NON-root scene on top, LEARN does nothing here", _ {
 		// `View::buttonAction` is the ROOT view's fallback and only the root view's (see the
 		// header's proof). Legacy's LEARN inside a menu is `SoundEditor::buttonAction`'s own arm
-		// (`gui/ui/sound_editor.cpp:467-499`), which is `MenuScene`'s to port -- so an ungated
+		// (`gui/ui/sound_editor.cpp:505-537`), which is `MenuScene`'s to port -- so an ungated
 		// `MidiLearn` would put a second, wrong owner on the button.
 		LearnRig rig;
 		rig.root.root = false;

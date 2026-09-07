@@ -24,7 +24,7 @@
 ///   * `drawPixelsForOled` -> `render`.
 ///   * `shouldBlinkLearnLed` -> `wants_learn_blink`, which is `true` on all twelve.
 ///   * `allowsLearnMode` has no port: it gates legacy's `UI_MODE_MIDI_LEARN` bookkeeping
-///     (`sound_editor.cpp:474-497`), which is UI-mode state this layer does not own. The routing
+///     (`sound_editor.cpp:512-535`), which is UI-mode state this layer does not own. The routing
 ///     that eventually calls `MenuScene::learn_*` is where the equivalent gate belongs.
 ///   * `beginSession` is empty in legacy (`command.cpp:30-31`), so `on_focus` keeps its
 ///     do-nothing default rather than being overridden to an empty body.

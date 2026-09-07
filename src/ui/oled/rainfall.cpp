@@ -324,7 +324,7 @@ void draw_rainfall(OledFrame& f, const Rainfall& field) {
 	// including a block that straddles an edge -- which is what `drawBlock`'s own per-pixel test
 	// did.
 	f.region(band_of(f), InputMask::none(), [&](OledFrame& g) {
-		// `Screensaver::renderRainfall`, `hid/display/screensaver.cpp:232-238`.
+		// `Screensaver::renderRainfall`, `hid/display/screensaver.cpp:254-260`.
 		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
 			for (size_t cell = 0; cell < field.length_of(drop); cell++) {
 				Rainfall::Block block = field.cell_at(drop, cell);
@@ -333,7 +333,7 @@ void draw_rainfall(OledFrame& f, const Rainfall& field) {
 			}
 		}
 
-		// The logo, `hid/display/screensaver.cpp:240-247`: every few minutes a whole logo falls
+		// The logo, `hid/display/screensaver.cpp:262-269`: every few minutes a whole logo falls
 		// through the field, drawn through the same clipped block helper as the rain.
 		if (field.logo_active()) {
 			for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {

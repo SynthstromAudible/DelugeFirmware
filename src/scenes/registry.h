@@ -63,10 +63,15 @@ uint16_t assigned_node_ids();
 ///     layout, flash byte 60. Pushed from `SoundEditor::setShortcutsVersion`
 ///     (`gui/ui/sound_editor.cpp`), which is the sole writer of `SoundEditor::shortcutsVersion` --
 ///     the `gui/` member this layer may not name and keeps its own copy beside the tables the
-///     setting selects -- and which is already called from all three places the value can come
-///     from: `FlashStorage::readSettings` at boot (`storage/flash_storage.cpp:568`, from byte 60),
-///     `FlashStorage::resetSettings` (`:311`) and the settings item
-///     (`gui/menu_item/shortcuts/version.h:28-35`). Covered by `sim/scenes_spec/boot_wiring_spec.cpp`;
+///     setting selects -- and which is already called from **all four** places the value can come
+///     from, in both layers: `FlashStorage::readSettings` at boot
+///     (`storage/flash_storage.cpp:568`, from byte 60), `FlashStorage::resetSettings` (`:311`) --
+///     which the *ported* reset menu reaches as well as the legacy one
+///     (`scenes/context_menu/context_menu_scene.cpp`'s `accept_reset_flash` / `accept_reset_all`) --
+///     the legacy settings item (`gui/menu_item/shortcuts/version.h:27`), and this layer's own
+///     `nodes::set_shortcuts_version`, which calls `menu::set_shortcuts_version` directly and does
+///     not go through `SoundEditor` at all (see the `@warning` at that hook).
+///     Covered by `sim/scenes_spec/boot_wiring_spec.cpp`;
 ///     the setting's own behaviour is `sim/scenes_spec/tables_3_spec.cpp`'s batch-4 group and
 ///     `shortcuts_spec.cpp`'s `SHORTCUTS_VERSION_1 layer` group.
 ///

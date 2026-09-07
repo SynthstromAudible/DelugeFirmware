@@ -47,7 +47,7 @@ struct ShortcutPos {
 ///
 /// A legacy one-dimensional table (`midiOrCVParamShortcuts`, `gateDrumParamShortcuts`) is stored as
 /// a full grid with only **column 11** filled -- the column `potentialShortcutPadAction`
-/// (`sound_editor.cpp:1277`) and `updatePadLightsFor` (`:836`, `:848`) index it at. (The task brief
+/// (`sound_editor.cpp:1315`) and `updatePadLightsFor` (`:874`, `:886`) index it at. (The task brief
 /// said column 0; legacy says 11.)
 ///
 /// @param root         Which menu root is open.
@@ -60,20 +60,20 @@ struct ShortcutPos {
 /// @return The cells. Every root resolves to a layer of exactly `kShortcutCols * kShortcutRows`
 ///         cells; `Root::Settings` resolves to an all-null one, because legacy never blinks a
 ///         shortcut while the settings menu is open (`updatePadLightsFor`'s `!inSettingsMenu()`
-///         guard, `sound_editor.cpp:812`).
+///         guard, `sound_editor.cpp:850`).
 std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_layer);
 
 /// @brief The node the shortcut pad at (@p x, @p y) opens, or `nullptr` for a pad with no
 ///        shortcut.
 ///
 /// Ports the table lookup inside `SoundEditor::potentialShortcutPadAction`
-/// (`gui/ui/sound_editor.cpp:1140-1325`): which of the seven tables is consulted follows from
+/// (`gui/ui/sound_editor.cpp:1178-1363`): which of the seven tables is consulted follows from
 /// @p root, exactly as legacy's chain of `rootUIIsClipMinderScreen()` / `setupKitGlobalFXMenu` /
 /// `ClipType::AUDIO` / output-type tests does.
 ///
 /// @param root         Which menu root is open, i.e. which table applies.
 /// @param second_layer Take the cell from the second layer where that layer has one. This is
-///                     legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1309-1324`) --
+///                     legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1347-1362`) --
 ///                     pressing the focused item's *own* shortcut pad a second time -- **not**
 ///                     "shift is held". Shift is only the gate that lets a pad be a shortcut at
 ///                     all (`:1114`), which is the caller's business. As in legacy, a null second
@@ -83,7 +83,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///                     are the same cells.
 /// @note **Resolve-only cells.** `Root::MidiOrCv`, `Root::MidiDrum` and `Root::GateDrum` also
 ///       resolve four pads that are in no legacy table, because legacy spells them inline in the
-///       very same arm (`sound_editor.cpp:1282-1302`): `(4, 7)` is `sequenceDirectionMenu` and
+///       very same arm (`sound_editor.cpp:1320-1340`): `(4, 7)` is `sequenceDirectionMenu` and
 ///       `(15, 1..3)` the MIDI/CV randomizer trio. They are reachable from here and **not** from
 ///       `shortcut_layer` or `shortcut_pos`, which is exactly legacy's asymmetry: the blink side
 ///       (`updatePadLightsFor`, `:833-853`) scans column 11 and nothing else, so pressing those
@@ -93,7 +93,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///
 /// @note **Press-only gate, the mirror of the above.** `Root::KitGlobalFx` resolves *fewer* pads
 ///       than its table holds: legacy's arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)`
-///       (`sound_editor.cpp:1153-1157`), so `paramShortcutsForKitGlobalFX`'s own `(15, 2)` and
+///       (`sound_editor.cpp:1191-1195`), so `paramShortcutsForKitGlobalFX`'s own `(15, 2)` and
 ///       `(15, 3)` cells were never pressable. They are still in the layer, and still blink, because
 ///       `setupShortcutsBlinkFromTable` (`:825`) scans the whole table with no such guard. The other
 ///       four roots' guards match their tables exactly and add nothing here.
@@ -104,7 +104,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, uint8_t y);
 
 /// @brief Where @p node's own shortcut pad is, for the focused-param blink
-///        (`SoundEditor::updatePadLightsFor` / `setupShortcutBlink`, `sound_editor.cpp:806-905`,
+///        (`SoundEditor::updatePadLightsFor` / `setupShortcutBlink`, `sound_editor.cpp:844-943`,
 ///        whose `currentParamShortcutX` / `currentParamShortcutY` this replaces).
 ///
 /// The reverse of `shortcut_node` over the same tables, so `MenuScene` never has to know a table's
@@ -129,12 +129,12 @@ ShortcutPos shortcut_pos(MenuContext::Root root, const Node& node);
 
 /// @brief The patching-source pads that blink alongside @p node, on the short phase of
 ///        `render_grid`'s cadence (`SoundEditor::blinkShortcut`'s even-counter arm,
-///        `sound_editor.cpp:987-999`, which flashes `x + 14` for every armed
+///        `sound_editor.cpp:1025-1037`, which flashes `x + 14` for every armed
 ///        `sourceShortcutBlinkFrequencies[x][y]`).
 ///
 /// @note **Still empty after Task 9, and deliberately so.** Which source pads blink is not table
 ///       data: legacy fills `sourceShortcutBlinkFrequencies` from
-///       `MenuItem::shouldBlinkPatchingSourceShortcut` (`sound_editor.cpp:759-781`), which every
+///       `MenuItem::shouldBlinkPatchingSourceShortcut` (`sound_editor.cpp:797-819`), which every
 ///       patch-cable and patched-param item answers out of the live patch matrix. In E1 every
 ///       patch-cable item is a `Kind::Custom` placeholder (`nodes::kPending`), so there is no
 ///       patching state in this layer to answer from; E2's patch-cable items bring both. The
@@ -160,7 +160,7 @@ enum class ShortcutsVersion : uint8_t {
 ShortcutsVersion shortcuts_version();
 
 /// @brief Select @p version -- the port of `SoundEditor::setShortcutsVersion`
-///        (`gui/ui/sound_editor.cpp:111-143`), and the reason `nodes::shortcuts_version` is a real
+///        (`gui/ui/sound_editor.cpp:112-181`), and the reason `nodes::shortcuts_version` is a real
 ///        item rather than a setting that "selects nothing".
 ///
 /// @note **This selects a layer; legacy *mutates* one.** `setShortcutsVersion`'s `V1` arm assigns

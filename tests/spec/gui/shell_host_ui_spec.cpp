@@ -760,7 +760,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.base.exits).to_equal(1);
 		// `closeUI(this)`, the same thing `RenameUI::exitUI` and `SampleMarkerEditor::exitUI` do
 		// (`gui/ui/rename/rename_ui.cpp:88-91`, `gui/ui/sample_marker_editor.cpp:680-683`) and the
-		// same thing `SoundEditor::exitCompletely` does at `gui/ui/sound_editor.cpp:723`. Without
+		// same thing `SoundEditor::exitCompletely` does at `gui/ui/sound_editor.cpp:761`. Without
 		// it the user is trapped: neither reader of the return value closes anything --
 		// `gui/ui_timer_manager.cpp:149-155` tests only `REMIND_ME_OUTSIDE_CARD_ROUTINE`.
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
@@ -769,7 +769,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// contract for this hook is "returns whether a UI exited" (`gui/ui/ui.h:152-153`), a UI
 		// did, and every legacy self-closing implementation answers this value -- including the
 		// tenant the guest stands in for, whose `exitUI` is `exitCompletely()`
-		// (`gui/ui/sound_editor.h:130`, returning at `gui/ui/sound_editor.cpp:733`).
+		// (`gui/ui/sound_editor.h:130`, returning at `gui/ui/sound_editor.cpp:771`).
 		expect(result == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 	});
 
@@ -875,7 +875,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// 256 is 0 in a `uint8_t`, and `InputLowering::on_pad`'s own bounds check runs on the
 		// narrowed value -- so without the guard in `padAction` this arrives as a press on column
 		// 0, a pad nobody touched. `padAction` is a public virtual legacy UIs call on each other
-		// (`gui/ui/sound_editor.cpp:1419-1422`), so its domain is not `MatrixDriver`'s alone.
+		// (`gui/ui/sound_editor.cpp:1457-1460`), so its domain is not `MatrixDriver`'s alone.
 		(void)r.guest.padAction(256, 0, 255);
 		(void)r.guest.padAction(-1, 0, 255);
 		r.guest.shell().tick(1);
@@ -897,7 +897,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.seen.clear();
 
 		// Legacy's answer here is `REMIND_ME_OUTSIDE_CARD_ROUTINE`
-		// (`gui/ui/sound_editor.cpp:1405-1408`), which `dispatchInputEvent` turns into one stashed
+		// (`gui/ui/sound_editor.cpp:1443-1446`), which `dispatchInputEvent` turns into one stashed
 		// event replayed after the routine (`deluge.cpp:247-250`, `:295-305`). The port is
 		// `InputLowering::set_sd_busy`, so the press must be **deferred, not dropped**.
 		fakelegacyui::sd_routine_active = true;
@@ -1037,36 +1037,68 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(unlatched->shift).to_be_false();
 	});
 
-	it("seeds hold_time_ms from FlashStorage::holdTime, converted out of audio samples", _ {
+	it("re-reads hold_time_ms from FlashStorage::holdTime on every event, out of audio samples", _ {
 		// The other half of the sticky-shift divergence, and the one F1 task 6 could not close: the
 		// threshold a tap is measured against is `FlashStorage::holdTime` in legacy
 		// (`hid/buttons.cpp:264`) and a fixed 100 ms in the shell. `holdTime` is in **samples**, so
-		// the seed is a unit conversion as well as a copy -- a seed that forwarded the number
-		// unchanged would give 4410 ms for legacy's default.
-		Rig defaults;
-		expect(defaults.open()).to_be_true();
-		expect(defaults.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(100));
+		// this is a unit conversion as well as a copy -- a seed that forwarded the number unchanged
+		// would give 4410 ms for legacy's default.
+		//
+		// Asserted after a *feed*, not after `open()`: the read is in `feed()`, which is where
+		// legacy's own read is. See the next example for why that placement is load-bearing.
+		const auto seeded_by_a_press = [](int32_t hold_samples) {
+			FlashStorage::holdTime = hold_samples;
+			Rig r;
+			(void)r.open();
+			(void)r.guest.padAction(1, 1, 255);
+			return r.guest.shell().lowering().hold_time_ms();
+		};
+		expect(seeded_by_a_press((2 * kSampleRate) / 20)).to_equal(uint16_t(100));  // legacy's default
+		expect(seeded_by_a_press((20 * kSampleRate) / 20)).to_equal(uint16_t(1000)); // the item's max
+		expect(seeded_by_a_press((1 * kSampleRate) / 20)).to_equal(uint16_t(50));    // and its min
+		FlashStorage::holdTime = (2 * kSampleRate) / 20;
+	});
 
-		// Both ends of the settings item's range (`gui/menu_item/defaults/hold_time.h:26-27`:
-		// `defaultHoldTime` 1..20). Three values, so "always 100" and "always whatever flash says in
-		// samples" both fail.
-		Rig slow;
-		FlashStorage::holdTime = (20 * kSampleRate) / 20; // the maximum: 1 s
-		expect(slow.open()).to_be_true();
-		expect(slow.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(1000));
+	it("follows a change made while the guest is open, which is the only way the ported item can", _ {
+		// **The placement is the point.** The first version of this seeded once, in `opened()`, on
+		// the reasoning that a guest that is not open cannot be observing the threshold. That is
+		// backwards for the one writer reachable *only while the guest is open*:
+		// `nodes::set_default_hold_time` (`scenes/menu/nodes/settings.cpp`) is the ported settings
+		// item and writes `FlashStorage::holdTime` from inside the shell, so a per-open seed would
+		// lag it by a whole guest session -- exactly the hole this task recorded for the screensaver
+		// settings and, in its first version, reproduced here.
+		//
+		// The guest is opened ONCE and the flash global is moved underneath it, which is what the
+		// ported item does; only then is the gesture driven. An `opened()`-only seed fails here and
+		// passes the example above, which is why both exist.
+		Rig r;
+		FlashStorage::holdTime = (2 * kSampleRate) / 20; // 100 ms at open
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
+		expect(r.open()).to_be_true();
 
-		Rig fast;
-		FlashStorage::holdTime = (1 * kSampleRate) / 20; // the minimum: 50 ms
-		expect(fast.open()).to_be_true();
-		expect(fast.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(50));
-		FlashStorage::holdTime = (2 * kSampleRate) / 20; // back to the default for later examples
+		FlashStorage::holdTime = (10 * kSampleRate) / 20; // the ported item writes 500 ms
+		fakelegacyui::system_time_s = 1.000;
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+		fakelegacyui::system_time_s = 1.200; // a 200 ms tap: a hold at 100 ms, a tap at 500
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+		expect(r.guest.shell().lowering().hold_time_ms()).to_equal(uint16_t(500));
+		r.guest.shell().tick(200);
+		r.base.seen.clear();
+		(void)r.guest.padAction(3, 3, 255);
+		r.guest.shell().tick(210);
+		const PatternScene::Seen* pad = first_of(r.base, UiEvent::Kind::Pad);
+		expect(pad != nullptr).to_be_true();
+		expect(pad->sticky).to_be_true();
+
+		FlashStorage::holdTime = (2 * kSampleRate) / 20;
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
 	});
 
 	it("a tap that legacy would latch latches here too, once the threshold is seeded", _ {
-		// The seed made visible where it matters, rather than read back out of the setter: the same
-		// 200 ms shift tap, with only `FlashStorage::holdTime` varied, must reach a scene as a latch
-		// on one setting and not on the other. With the shell's fixed 100 ms this gesture could
-		// never latch at all, which is what the divergence cost a user who had raised the setting.
+		// The seed made visible where it matters: the same 200 ms shift tap, with only
+		// `FlashStorage::holdTime` varied, must reach a scene as a latch on one setting and not on
+		// the other. With the shell's fixed 100 ms this gesture could never latch at all, which is
+		// what the divergence cost a user who had raised the setting.
 		const auto latches_with = [](int32_t hold_samples) {
 			FlashStorage::holdTime = hold_samples;
 			Rig r;
@@ -1083,10 +1115,10 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			const PatternScene::Seen* pad = first_of(r.base, UiEvent::Kind::Pad);
 			return pad != nullptr && pad->sticky;
 		};
-		expect(latches_with((2 * kSampleRate) / 20)).to_be_false();  // 100 ms: 200 is a hold
-		expect(latches_with((10 * kSampleRate) / 20)).to_be_true();  // 500 ms: 200 is a tap
-		expect(latches_with((20 * kSampleRate) / 20)).to_be_true();  // 1 s
-		expect(latches_with((1 * kSampleRate) / 20)).to_be_false();  // 50 ms
+		expect(latches_with((2 * kSampleRate) / 20)).to_be_false(); // 100 ms: 200 is a hold
+		expect(latches_with((10 * kSampleRate) / 20)).to_be_true(); // 500 ms: 200 is a tap
+		expect(latches_with((20 * kSampleRate) / 20)).to_be_true(); // 1 s
+		expect(latches_with((1 * kSampleRate) / 20)).to_be_false(); // 50 ms
 		FlashStorage::holdTime = (2 * kSampleRate) / 20;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
 	});

@@ -74,7 +74,7 @@ Starfield::Projected Starfield::project(size_t i) const {
 }
 
 void draw_starfield(OledFrame& f, const Starfield& field) {
-	// `Screensaver::renderStarfield`, `hid/display/screensaver.cpp:225-230`. Same band and same
+	// `Screensaver::renderStarfield`, `hid/display/screensaver.cpp:247-252`. Same band and same
 	// block helper as `draw_rainfall`; see its `band_of` for why the band is the animation's own
 	// and not the frame's panel.
 	const gfx::oled::Rect band{-f.origin.x, -f.origin.y + Rainfall::kTopmost, Rainfall::kWidth,

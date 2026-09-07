@@ -72,7 +72,7 @@ constexpr uint16_t sid(String s) {
 
 // ---------------------------------------------------------------------------------------------
 // The five descriptors. Each is one `ResetSettingsAction` arm of
-// `ResetSettings::acceptCurrentOption` (`gui/context_menu/reset_settings.cpp:44-72`), with the
+// `ResetSettings::acceptCurrentOption` (`gui/context_menu/reset_settings.cpp:43-63`), with the
 // heading and the option list that class's `getTitle()` / `getOptions()` return for all five.
 
 /// `ResetSettings::getOptions()`: a single `STRING_FOR_OK`. **Not a NO/YES pair** -- legacy's

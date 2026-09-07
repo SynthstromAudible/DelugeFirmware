@@ -50,6 +50,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "scenes/menu/shortcuts.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/comparison.h"
@@ -111,6 +112,43 @@ PatchSource modSourceShortcutsSecondLayer[2][8] = {
 void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 
 	shortcutsVersion = newVersion;
+
+	// **Keep the ported menu's copy of this setting in step.** `deluge::scenes::menu` selects
+	// between two `constexpr` shortcut layers rather than mutating one, so it keeps its own
+	// `ShortcutsVersion` beside those tables (`scenes/menu/shortcuts.h`, `set_shortcuts_version`);
+	// that layer may not name `SoundEditor`, and wiring it from `storage/` would be a
+	// storage-depends-on-scenes edge -- so `scenes/registry.h`'s boot-wiring record asked whoever
+	// owns boot to pass flash byte 60 through.
+	//
+	// **Here, and not at the call sites**, because this is the sole writer of `shortcutsVersion` and
+	// every path that changes the setting goes through it -- **four of them, in both layers**:
+	//
+	//   * `FlashStorage::readSettings` (`storage/flash_storage.cpp:568`) -- boot, from byte 60;
+	//   * `FlashStorage::resetSettings` (`:311`) -- back to V3 on a factory reset, reached at boot
+	//     on blank flash, from the legacy reset menu
+	//     (`gui/context_menu/reset_settings.cpp`'s `Flash` and `All` arms) **and from the ported
+	//     one, which runs under the toggle this port exists for**
+	//     (`scenes/context_menu/context_menu_scene.cpp`'s `accept_reset_flash` and
+	//     `accept_reset_all`);
+	//   * `shortcuts::Version::writeCurrentValue` (`gui/menu_item/shortcuts/version.h:27`) -- the
+	//     legacy settings item;
+	//   * `nodes::set_shortcuts_version` (`scenes/menu/nodes/settings.cpp`) -- the ported one, which
+	//     calls `menu::set_shortcuts_version` directly and does **not** reach here. See the
+	//     `@warning` at that hook.
+	//
+	// F1 task 8 first put this mirror at three of those call sites instead, to avoid moving the 253
+	// `sound_editor.cpp:NNN` citations that inserting lines here shifts. That traded a live coverage
+	// hole for a citation sweep: the two ported reset arms were missed, so a factory reset from
+	// inside the guest left the ported tree resolving the pre-reset layer until reboot. The census
+	// that missed them was `grep -rn "shortcutsVersion" src/deluge` -- scoped to one layer of a
+	// two-layer plan. Reverted in the fix round; the sweep is what a sweep is for.
+	//
+	// The enumerator values are legacy's own (`SHORTCUTS_VERSION_1` == 0), so this is a total
+	// mapping of the two the setting can hold, spelled as the `switch` below spells it: V1 for
+	// `SHORTCUTS_VERSION_1`, V3 for everything else (its `default` arm is "Uses defaults").
+	deluge::scenes::menu::set_shortcuts_version(newVersion == SHORTCUTS_VERSION_1
+	                                                ? deluge::scenes::menu::ShortcutsVersion::V1
+	                                                : deluge::scenes::menu::ShortcutsVersion::V3);
 
 	switch (newVersion) {
 

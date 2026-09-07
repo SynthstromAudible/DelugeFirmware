@@ -63,7 +63,7 @@
 ///          not, and its `Buttons` tail has no `LEARN` arm, so an ungated `MidiLearn` routed last
 ///          would toggle learn mode from inside a menu, a browser or the marker editor. Legacy
 ///          does something quite different there: `SoundEditor::buttonAction` has its **own**
-///          `LEARN` arm (`gui/ui/sound_editor.cpp:467-499`) which sets `UI_MODE_MIDI_LEARN` only
+///          `LEARN` arm (`gui/ui/sound_editor.cpp:505-537`) which sets `UI_MODE_MIDI_LEARN` only
 ///          after `getCurrentMenuItem()->allowsLearnMode()` (`:473`) and otherwise raises
 ///          `CANT_LEARN`. That arm is `MenuScene`'s to port -- its `learn_*` hooks
 ///          (`scenes/menu/menu_scene.h`) are the delivery half of it and are documented as not yet

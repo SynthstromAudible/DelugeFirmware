@@ -19,7 +19,7 @@
 440   snapshot after_back            # the COUNT page again, still showing the count -- not the spread
 # E2 task 12: `after_back` is the frame that found the bug. `MenuScene::ascend` did not re-run the
 # leaf's `beginSession` the way legacy's `goUpOneLevel` -> `beginScreen` does
-# (`gui/ui/sound_editor.cpp:672-691`), so this frame drew the SPREAD's value under the COUNT's title
+# (`gui/ui/sound_editor.cpp:710-729`), so this frame drew the SPREAD's value under the COUNT's title
 # and the detent below edited from it. It is byte-different from `after_gold_turn` only because the
 # count clamped at its maximum; the fix is what makes it equal to it again.
 500   encoder GoldUpper -2

@@ -58,15 +58,15 @@
 ///   * The UI-mode half of the affect-entire condition. Legacy asks
 ///     `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()`
 ///     (`unpatched_param.cpp:52`). The second half is `getCurrentOutputType() == KIT &&
-///     !setupKitGlobalFXMenu` (`sound_editor.cpp:169-171`), which `MenuContext` already carries as
+///     !setupKitGlobalFXMenu` (`sound_editor.cpp:207-209`), which `MenuContext` already carries as
 ///     `is_kit && !is_kit_global_fx`; the first half is a `currentUIMode` read, which this layer may
 ///     not do (task-3 ruling 2), so it arrives as `MenuContext::affect_entire_held` -- a field the
 ///     caller sets and `context_for` never does. It is deliberately NOT `MenuContext::affect_entire`:
 ///     that is the *clip's* `InstrumentClip::affectEntire` setting, which is true on the kit-row
-///     grid-shortcut path (`sound_editor.cpp:1150-1158`) where legacy edits one row only.
+///     grid-shortcut path (`sound_editor.cpp:1188-1196`) where legacy edits one row only.
 ///   * `MenuItem::usesAffectEntire()` (`gui/menu_item/menu_item.h:112`), the per-item gate legacy
 ///     uses to *enter* `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR` at all
-///     (`sound_editor.cpp:503`). It has no `Node` counterpart, and needs none today: every
+///     (`sound_editor.cpp:541`). It has no `Node` counterpart, and needs none today: every
 ///     `ParamRef`-backed legacy class returns true (`patched_param/integer.h:32`,
 ///     `unpatched_param.h:38`), so no `ParamRef` node loses the loop and none gains one legacy
 ///     refused. It becomes a real gap only if E2 gives `affect_entire_held` to a node that is not a
@@ -475,7 +475,7 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 } // namespace
 
 /// Legacy `unpatched_param.cpp:52` / `patched_param/integer.cpp:45` -- write the whole kit rather than the
-/// selected row? `editingKitRow()` (`sound_editor.cpp:169-171`) is `is_kit && !is_kit_global_fx`;
+/// selected row? `editingKitRow()` (`sound_editor.cpp:207-209`) is `is_kit && !is_kit_global_fx`;
 /// the held-button half arrives as `affect_entire_held` (see the file header). Declared in
 /// `bindings.h` since Task 6 -- a couple of the tables' own `set` hooks branch on it.
 bool writes_whole_kit(const MenuContext& ctx) {
@@ -779,7 +779,7 @@ uint32_t menu_to_unsigned(int32_t menu_value) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// `SoundEditor::allowsNoteTails` (`gui/ui/sound_editor.cpp:1811-1816`)
+// `SoundEditor::allowsNoteTails` (`gui/ui/sound_editor.cpp:1849-1854`)
 
 bool allows_note_tails(const MenuContext& ctx) {
 	if (ctx.sound == nullptr) {

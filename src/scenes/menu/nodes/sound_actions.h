@@ -46,7 +46,7 @@
 /// @note **`sequence::Direction::checkPermissionToBeginSession`** (`:93-104`) refuses on a kit row
 ///       with no selected drum and otherwise latches `soundEditor.selectedNoteRow`. The refusal is
 ///       already what `context_for` resolves to `MenuContext::resolved == false`
-///       (`sound_editor.cpp:1677-1684`); the latch is the UI state above.
+///       (`sound_editor.cpp:1715-1722`); the latch is the UI state above.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"

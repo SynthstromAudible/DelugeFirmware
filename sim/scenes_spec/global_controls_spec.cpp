@@ -198,7 +198,7 @@ StubDisplay& stub_display() {
 ///          those two classes (`gui/views/timeline_view.h:27`,
 ///          `gui/ui/keyboard/keyboard_screen.h:35`), so "the current UI is the root UI" IS the
 ///          reachability rule rather than an approximation of it. With a menu open,
-///          `SoundEditor::buttonAction` (`gui/ui/sound_editor.cpp:333`) ends by delegating to
+///          `SoundEditor::buttonAction` (`gui/ui/sound_editor.cpp:371`) ends by delegating to
 ///          `currentMenuItem->buttonAction` (`:595-628`), whose base
 ///          (`gui/menu_item/menu_item.h:78-80`) returns `NOT_DEALT_WITH`, and nothing on that path
 ///          names `view` -- so legacy runs the tail and skips every `View::buttonAction` arm. The
@@ -985,7 +985,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	it("shift+SELECT_ENC: pushes the menu scene at the settings root", _ {
 		// `view.cpp:449-464`. `soundEditor.setup()`'s default `clip` is null
 		// (`gui/ui/sound_editor.h:122`) and shift is held by this arm's own condition, so
-		// legacy always lands on `settingsRootMenu` (`sound_editor.cpp:1769`).
+		// legacy always lands on `settingsRootMenu` (`sound_editor.cpp:1807`).
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();

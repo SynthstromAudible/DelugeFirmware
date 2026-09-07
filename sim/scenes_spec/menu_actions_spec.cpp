@@ -131,7 +131,7 @@ struct Rig {
 	MenuContext open(const Node& root) {
 		// The song root is opened from a root UI, not over a clip -- and since E3 task 9 that matters:
 		// `song_midi_learn` and `configure_song_macros` carry `relevance::is_session_view`, so a clip
-		// context would list neither of the two rows this spec presses. `sound_editor.cpp:1764-1767`
+		// context would list neither of the two rows this spec presses. `sound_editor.cpp:1802-1805`
 		// is the arm being stood in for; `sessionView` of its three views, because that is the one
 		// where both items are shown.
 		const bool song_root = &root == &nodes::root_song;
@@ -316,7 +316,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 		// assert that a `SceneId::arg` deep link onto one of these items filed its action; that was
 		// the port firing `selectButtonPress` with no press behind it. Legacy cannot: it never
 		// navigates into these items at all (`shouldEnterSubmenu() == false`,
-		// `gui/ui/sound_editor.cpp:382-385`), so the only way to reach the body is a press on the
+		// `gui/ui/sound_editor.cpp:420-423`), so the only way to reach the body is a press on the
 		// parent's row, and `Toggle` -- the same shape -- guards the other way in explicitly
 		// (`gui/menu_item/toggle.h:35-37`). `MenuScene::enter_leaf`'s `FocusCause` is that
 		// discriminator and `CustomItem::on_focus_is_press` is its scope.
@@ -384,7 +384,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 			Rig r;
 			const MenuActionRequest got = press_child(r, *p.parent, *p.node);
 			expect(got.engaged()).to_be_true();
-			// Legacy's `shouldEnterSubmenu() == false` (`gui/ui/sound_editor.cpp:382-385`): the item
+			// Legacy's `shouldEnterSubmenu() == false` (`gui/ui/sound_editor.cpp:420-423`): the item
 			// is never navigated into. The port descends for the width of one `after_render` and
 			// ascends inside it, so by the time the tick is over the parent is focused again.
 			expect(scene().focused() == p.parent).to_be_true();

@@ -67,7 +67,7 @@ describe menu_context("scenes::menu::context_for", $ {
 
 		// NOTE: the task-3 brief's step-1 list says `Root::Sound` for this case. That is a slip in
 		// the brief: `setup()` sends a kit with affectEntire to `soundEditorRootMenuKitGlobalFX`
-		// (`sound_editor.cpp:1735-1737`), which is what `Root::KitGlobalFx` -- an enumerator the
+		// (`sound_editor.cpp:1773-1775`), which is what `Root::KitGlobalFx` -- an enumerator the
 		// brief's own struct declares, and which nothing else could ever produce -- exists for.
 		// The port follows the legacy source; see the task-3 report.
 		expect(root_of(ctx)).to_equal(static_cast<int>(Root::KitGlobalFx));
@@ -80,7 +80,7 @@ describe menu_context("scenes::menu::context_for", $ {
 	});
 
 	it("edits the selected row when kit_global_fx is false, even with affect-entire on", _ {
-		// The kit-row grid-shortcut path (`sound_editor.cpp:1150-1158`): `setupKitGlobalFXMenu` is
+		// The kit-row grid-shortcut path (`sound_editor.cpp:1188-1196`): `setupKitGlobalFXMenu` is
 		// false there while the clip's `affectEntire` is true, and legacy edits the row's params.
 		// `affect_entire` still reports the clip's setting; `kit_global_fx` is what chose the branch.
 		auto f = spec::make_kit_song();

@@ -23,7 +23,7 @@ void Screensaver::note_activity(uint32_t now_ms) {
 }
 
 void Screensaver::set_idle_ms(uint32_t idle_ms) {
-	// `Screensaver::settingsChanged` (`hid/display/screensaver.cpp:166-207`), step for step.
+	// `Screensaver::settingsChanged` (`hid/display/screensaver.cpp:188-229`), step for step.
 	idle_ms_ = idle_ms;
 	if (active_) { // `:166-169` -- unconditional, and before the OFF test.
 		stack_.pop(SceneKind::Screensaver);

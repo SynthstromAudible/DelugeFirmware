@@ -69,12 +69,12 @@ namespace {
 /// @brief The colour a flashed shortcut pad takes.
 ///
 /// `SoundEditor::setupShortcutBlink` passes `colour == 0` for every ordinary param
-/// (`sound_editor.cpp:959`), which `PadLEDs::flashMainPad` (`hid/led/pad_leds.h:128`) turns into
+/// (`sound_editor.cpp:997`), which `PadLEDs::flashMainPad` (`hid/led/pad_leds.h:128`) turns into
 /// the default flash, `flashColours[0]` (`hid/led/pad_leds.cpp:277-280`).
 constexpr RGB kFlashColour{130, 120, 130};
 
 /// @brief The back LED's blink period: legacy's `kFlashTime`, the period
-///        `indicator_leds::blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:314`) runs at
+///        `indicator_leds::blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:352`) runs at
 ///        (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`).
 constexpr uint16_t kBackBlinkMs = 110;
 
@@ -325,7 +325,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 }
 
 void MenuScene::on_resume() {
-	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp:279-289`): "If just came back from a
+	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp:317-327`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
 	// again the instant the user gets back.
@@ -384,7 +384,7 @@ ParamDescriptor MenuScene::learn_target() const {
 
 // ---------------------------------------------------------------------------------------------
 // MIDI learn: `SoundEditor`'s three delivery members and `unlearnAction`, forwarded to the focused
-// item exactly as legacy's `getCurrentMenuItem()->learnX(...)` did (`sound_editor.cpp:478`,
+// item exactly as legacy's `getCurrentMenuItem()->learnX(...)` did (`sound_editor.cpp:516`,
 // `:1550-1570`). See the warning on the declarations: nothing routes MIDI here yet.
 
 const CustomItem* MenuScene::focused_custom() const {
@@ -485,7 +485,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	// **The depth test precedes the read** (task-5 ruling 3). At depth 0 `back_pressed()` is never
 	// called at all, so the input stays unclaimed and `Router::route_post_render` delivers
 	// `Button{Back}` to `handle()`, which pops the scene -- legacy's back at the root closing the
-	// editor (`sound_editor.cpp:418` -> `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`).
+	// editor (`sound_editor.cpp:456` -> `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`).
 	// Reading first and deciding afterwards is impossible: the read IS the claim.
 	if (st_.depth > 0) {
 		st_.back_claimed = f.back_pressed();
@@ -699,7 +699,7 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 		st_.render_resp.entered = true;
 	}
 	// And the select *encoder*: legacy edits the value with it on a number screen
-	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1067`). This port leaves the editing to
+	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1105`). This port leaves the editing to
 	// the gold knobs, but the input still belongs to this screen -- left unclaimed it would fall out
 	// of `route_post_render` into whatever service is registered.
 	f.claim_turn();
@@ -869,12 +869,12 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	const uint32_t now = f.now_ms();
 
 	// ONE 200 ms cycle with two unequal phases, not two independent blinks: legacy alternates the
-	// param flash and the source flash off `shortcutBlinkCounter & 1` (`sound_editor.cpp:974-1000`)
+	// param flash and the source flash off `shortcutBlinkCounter & 1` (`sound_editor.cpp:1012-1038`)
 	// with a 20 ms arm on the source phase and a 180 ms arm on the param phase, precisely so the
 	// two are never lit at the same instant (`:970-971`). `phase` is where in that cycle this tick
 	// falls; the source pads own `[0, kSourceBlinkMs)` and the focused param's pad owns the rest.
 	// Legacy zeroes `shortcutBlinkCounter` every time the focused item changes
-	// (`setupShortcutBlink`, `sound_editor.cpp:964`), so a pad that has just been jumped to starts
+	// (`setupShortcutBlink`, `sound_editor.cpp:1002`), so a pad that has just been jumped to starts
 	// its cycle now rather than wherever a free-running clock happens to be.
 	if (st_.blink_node != node) {
 		st_.blink_node = node;
@@ -912,7 +912,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// Button LEDs only: `LedFrame` has no pad concept whatever, so the pad blink above is grid
 	// pixels rather than an LED declaration. The set is `SoundEditor::setLedStates`
-	// (`sound_editor.cpp:301-314`), minus the parts that belong to services (`playbackHandler`,
+	// (`sound_editor.cpp:339-352`), minus the parts that belong to services (`playbackHandler`,
 	// `view.setKnobIndicatorLevels`).
 	// Nothing to declare while the path is empty: `on_model_changed(SongSwapped)` drops it and the
 	// scene draws nothing until the application re-`open()`s, so announcing the menu's LED set
@@ -928,7 +928,7 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	}
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
 	            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0});
-	// `SoundEditor::beginScreen`'s tail (`sound_editor.cpp:911-916`): every screen change asks the
+	// `SoundEditor::beginScreen`'s tail (`sound_editor.cpp:949-954`): every screen change asks the
 	// item whether it wants the LEARN LED, and blinks or extinguishes it accordingly. Declared on
 	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
 	// state of the LEDs this scene owns, redeclared each time. The period is `kFlashTime`, the same
@@ -1054,7 +1054,7 @@ void MenuScene::descend_to(const Node& child) {
 
 void MenuScene::enter_child(const Node& child) {
 	// `checkPermissionToBeginSessionForRangeSpecificParam`'s **first statement**
-	// (`sound_editor.cpp:1938-1942`), ahead of every one of its arms: the check creates the source's
+	// (`sound_editor.cpp:1976-1980`), ahead of every one of its arms: the check creates the source's
 	// first `MultiRange` if it has none, and refuses outright if that allocation fails.
 	// `permission_for` is a pure predicate and deliberately does not (`context.cpp`'s "Owed to E2"),
 	// so the allocation happens here -- the port of the call site -- for exactly the nodes legacy
@@ -1068,7 +1068,7 @@ void MenuScene::enter_child(const Node& child) {
 	case Permission::No:
 		return;
 	case Permission::MustSelectRange:
-		// `sound_editor.cpp:1802-1803`: `multiRangeMenu.menuItemHeadingTo = newItem;` and then the
+		// `sound_editor.cpp:1840-1841`: `multiRangeMenu.menuItemHeadingTo = newItem;` and then the
 		// picker is opened *instead of* the item. `pending_after_range` is `menuItemHeadingTo`, and
 		// `nodes::multi_range_chain` is what reads it back on the picker's own select press.
 		//
@@ -1093,7 +1093,7 @@ void MenuScene::enter_child(const Node& child) {
 }
 
 void MenuScene::ascend() {
-	// `SoundEditor::goUpOneLevel` (`sound_editor.cpp:672-683`): step up, skipping any level whose
+	// `SoundEditor::goUpOneLevel` (`sound_editor.cpp:710-721`): step up, skipping any level whose
 	// permission has since become `No`. The cursor each level is restored to is the one
 	// `st_.list[depth]` has been holding all along, which is what legacy's `focusChild`
 	// (`submenu.cpp:21`) reconstructs from the item it navigated backward from.
@@ -1114,7 +1114,7 @@ void MenuScene::ascend() {
 		st_.depth--;
 	} while (st_.path[st_.depth] != nullptr && permission_for(*st_.path[st_.depth], ctx_) == Permission::No);
 
-	// `goUpOneLevel` ends with `beginScreen(oldItem)` (`sound_editor.cpp:672-691`), i.e. it re-runs
+	// `goUpOneLevel` ends with `beginScreen(oldItem)` (`sound_editor.cpp:710-729`), i.e. it re-runs
 	// `beginSession` on the item it lands on -- so a value leaf reached by going *up* re-reads its
 	// value from the model, exactly as one reached by going down does.
 	//
@@ -1172,7 +1172,7 @@ Result MenuScene::after_render() {
 	bool repaint = false;
 
 	// The range picker's own commit -- `soundEditor.setCurrentMultiRange(...)`
-	// (`sound_editor.cpp:1928-1931`), which `MultiRangeItem` cannot do itself: it is handed a
+	// (`sound_editor.cpp:1966-1969`), which `MultiRangeItem` cannot do itself: it is handed a
 	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
 	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:54`, `:249`).
 	if (st_.range_choice >= 0) {
@@ -1265,7 +1265,7 @@ Result MenuScene::after_render() {
 		}
 		else if (const Node* chained = node->select_chain != nullptr ? node->select_chain(ctx_, st_) : nullptr) {
 			// `MenuItem::selectButtonPress` returning a menu: `SoundEditor` navigates *into* it
-			// rather than going up (`gui/ui/sound_editor.cpp:356-386` -> `enterSubmenu`, which is
+			// rather than going up (`gui/ui/sound_editor.cpp:394-424` -> `enterSubmenu`, which is
 			// `navigationDepth++` and a record write, exactly what `enter_child` does). The node's
 			// own hook answers, because the answer is value-dependent for two of the seven ported
 			// overrides -- see `node.h`'s `SelectChainFn`.
@@ -1303,7 +1303,7 @@ Result MenuScene::after_render() {
 	//     The wiring plan's dispatcher is the consumer.
 	//   * The four `ActionItem`s ascend straight back out. Legacy never descends into them at all --
 	//     `shouldEnterSubmenu()` is false, so `SoundEditor` calls `selectButtonPress()` and stays on
-	//     the parent list (`gui/ui/sound_editor.cpp:382-385`). Ascending on the tick the request is
+	//     the parent list (`gui/ui/sound_editor.cpp:420-423`). Ascending on the tick the request is
 	//     filed is what makes the port's descend-then-leave look like legacy's never-descend.
 	//     `PerformEditorItem` is excluded because legacy *does* stay on that page
 	//     (`editing_mode.h:73`, `NO_NAVIGATION`); it files its request from `render`, not `on_focus`,
@@ -1373,7 +1373,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// A custom item owns its input while it is focused: it sees every event first and, if it
 	// consumes it, the scene does nothing else this call -- the same precedence legacy gives a
 	// `MenuItem`'s own `buttonAction` override over the rest of `SoundEditor::buttonAction`
-	// (`gui/ui/sound_editor.cpp:598`: `currentMenuItem->buttonAction(...)` runs before anything else
+	// (`gui/ui/sound_editor.cpp:636`: `currentMenuItem->buttonAction(...)` runs before anything else
 	// in that branch looks at the result). Checked before the shortcut-pad jump and the root `Back`
 	// below, not after: a bespoke item's own input (the patch-cable pages' pad presses, a file browser's
 	// scroll) is exactly the kind of thing this layer cannot interpret generically, so it must not
@@ -1387,10 +1387,10 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	// (a) The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule
 	// 4), so it always arrives here. Legacy gates the non-auditioning case on
-	// `Buttons::isShiftButtonPressed()` (`sound_editor.cpp:1114`); the auditioning half is a UI
+	// `Buttons::isShiftButtonPressed()` (`sound_editor.cpp:1152`); the auditioning half is a UI
 	// mode this layer may not read, so shift is the whole gate.
 	if (event.kind == UiEvent::Kind::Pad && event.on && ctx.shift) {
-		// Legacy's second-layer toggle (`sound_editor.cpp:1309-1324`), which is a *double press of
+		// Legacy's second-layer toggle (`sound_editor.cpp:1347-1362`), which is a *double press of
 		// the focused item's own shortcut pad* -- not shift, which is only the gate above. Pressing
 		// any other pad clears it, and a patch-cable item never arms it.
 		//
@@ -1426,7 +1426,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	}
 
 	// (b) Back at the root. `render_oled` deliberately never claimed it at depth 0, so the shell
-	// delivers it post-render and this closes the editor -- `sound_editor.cpp:418`'s BACK case ->
+	// delivers it post-render and this closes the editor -- `sound_editor.cpp:456`'s BACK case ->
 	// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`.
 	//
 	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
@@ -1456,7 +1456,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 // Composition, saved state and timers
 
 deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
-	// `SoundEditor::getGreyoutColsAndRows` (`sound_editor.cpp:214-256`), with the arms this layer
+	// `SoundEditor::getGreyoutColsAndRows` (`sound_editor.cpp:252-294`), with the arms this layer
 	// can decide. The KEYBOARD_SCREEN, AUTOMATION and note-editor arms all branch on the root UI's
 	// type or on a `currentUIMode`, neither of which `src/scenes` may read (the same wall that
 	// kept `setup()`'s two `currentUIMode` roots out of `MenuContext::Root`); they stay with the
@@ -1555,7 +1555,7 @@ void MenuScene::restore_state(const SceneState& state) {
 			// Fix round 1, Minor 2. This reaches `CustomItem::on_focus`, so restoring a menu that
 			// was parked on an item which opens a scene (`nodes::EditNameItem`) re-opens that
 			// scene on the next `after_render`. **That is deliberate, and it is what legacy does.**
-			// `SoundEditor::focusRegained` ends in `beginScreen()` (`sound_editor.cpp:292`), which
+			// `SoundEditor::focusRegained` ends in `beginScreen()` (`sound_editor.cpp:330`), which
 			// calls `beginSession` on whatever the current item is (`:1015`), and
 			// `EditName::beginSession` opens `RenameUI` unconditionally
 			// (`gui/menu_item/edit_name.cpp:29-54`) -- there is no "only the first time" arm

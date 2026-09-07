@@ -12,7 +12,7 @@
 ///
 /// Legacy's `soundEditor.shouldGoUpOneLevelOnBegin = true` (`edit_name.cpp:50`), which makes the
 /// menu step back out of the item when the rename UI closes (`SoundEditor::focusRegained`,
-/// `gui/ui/sound_editor.cpp:280-283`), is `MenuState::go_up_on_resume` -- set by the same
+/// `gui/ui/sound_editor.cpp:318-321`), is `MenuState::go_up_on_resume` -- set by the same
 /// `after_render` arm, read by `MenuScene::on_resume`.
 ///
 /// @note Legacy also calls `instrumentClipView.cancelAllAuditioning()` on the way

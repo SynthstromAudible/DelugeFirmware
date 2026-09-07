@@ -782,13 +782,6 @@ static void deluge_boot(const DelugeBoard* board) {
 	// `restore_state` and the shortcut-pad jump (`src/scenes/registry.h`'s `assigned_node_ids`).
 	(void)deluge::scenes::assigned_node_ids();
 
-	// Flash byte 60's shortcut layout, which `FlashStorage::readSettings()` above has just loaded
-	// into `soundEditor.shortcutsVersion`. The ported tree keeps its own copy beside the two layers
-	// it selects between; the other two callers of this are the settings item and the reset-settings
-	// context menu (see the function's own doc for why it is not one call inside
-	// `SoundEditor::setShortcutsVersion`).
-	deluge::gui::ui::applyShellGuestShortcutsVersion();
-
 	// Build the three real services over the guest's own `Shell` and install them -- migration
 	// §10.2 item 7's boot half, and the first call `Shell::set_services` has ever had outside a
 	// spec. After `setupBlankSong()` above, deliberately: all three take `currentSong`, and

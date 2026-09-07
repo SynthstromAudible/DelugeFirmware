@@ -15,7 +15,7 @@
 /// `HorizontalMenu::renderOLED` / `renderMenuItems` / `switchVisiblePage` / `selectMenuItem` /
 /// `preparePaging` (`gui/menu_item/horizontal_menu.cpp:477`, called at `:114` and `:378`) -- all four already
 /// pinned by the `list` / `columns` widgets, which this scene composes rather than re-implements;
-/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1034`), `buttonAction` (`:333`,
+/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1072`), `buttonAction` (`:333`,
 /// back -> `goUpOneLevel` `:672`, which exits at depth 0 via `exitCompletely` `:678`),
 /// `horizontalEncoderAction` (`:1008`), `padAction` (`:1405`) with `potentialShortcutPadAction`
 /// (`:1111`), `enterSubmenu` (`:324`), `setupShortcutBlink` (`:959`) / `blinkShortcut`
@@ -72,7 +72,7 @@ inline constexpr size_t kMaxMenuColumns = 16;
 /// @brief The two phases of `render_grid`'s shortcut-blink cycle, in milliseconds.
 ///
 /// **Not two independent blinks, and not one symmetric period.** Legacy runs *one* alternating
-/// cycle off `shortcutBlinkCounter` (`sound_editor.cpp:974-1000`): `counter & 1` selects the phase,
+/// cycle off `shortcutBlinkCounter` (`sound_editor.cpp:1012-1038`): `counter & 1` selects the phase,
 /// the param phase flashes the focused item's pad and re-arms `TimerName::SHORTCUT_BLINK` at
 /// **180 ms** (`:981-986`), and the source phase flashes the patching-source pads and re-arms at
 /// **20 ms** (`:989-999`). So the cycle is `kSourceBlinkMs + kShortcutBlinkMs` = 200 ms, of which
@@ -113,7 +113,7 @@ inline constexpr uint32_t kBlinkCycleMs = uint32_t{kSourceBlinkMs} + kShortcutBl
 ///
 ///   1. **`range_choice`** -- above navigation. `select_range` writes `ctx_`'s multi-range and a
 ///      descent decided below reads it; legacy commits it inside `selectButtonPress`
-///      (`gui/ui/sound_editor.cpp:1928-1931 setCurrentMultiRange`).
+///      (`gui/ui/sound_editor.cpp:1966-1970 setCurrentMultiRange`).
 ///   2. **`source_choice`** -- above navigation, and this is the load-bearing one.
 ///      `ctx_.source_index` is what `gate_selection_chain` picks its target from and what
 ///      `gate_mode_names` formats, so draining it below navigation chains off the *previous*
@@ -185,18 +185,18 @@ struct MenuState {
 	/// `render_grid`: when the current shortcut-blink cycle started.
 	///
 	/// One anchor for both phases, because legacy has one counter for both
-	/// (`sound_editor.cpp:974-1000`). Not a `Blink`: a `Blink` carries a single symmetric period,
+	/// (`sound_editor.cpp:1012-1038`). Not a `Blink`: a `Blink` carries a single symmetric period,
 	/// which is precisely the shape this cycle is not.
 	///
 	/// Re-anchored whenever `blink_node` changes, which is legacy's `shortcutBlinkCounter = 0` in
-	/// `setupShortcutBlink` (`sound_editor.cpp:959-966`) -- reached from `updatePadLightsFor` on every
+	/// `setupShortcutBlink` (`sound_editor.cpp:997-1004`) -- reached from `updatePadLightsFor` on every
 	/// screen change (`:806`, via `beginScreen` `:1015`). Without it the port would free-run from
 	/// t = 0 and a newly focused pad could light mid-cycle.
 	uint32_t blink_anchor_ms = 0;
 	/// Which node `blink_anchor_ms` was set for; `render_grid` is the only writer of both.
 	const Node* blink_node = nullptr;
 
-	/// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1309-1316`): pressing the focused
+	/// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1347-1354`): pressing the focused
 	/// item's own shortcut pad a second time takes the second shortcut layer, and pressing any
 	/// other pad clears it. `handle()` is the only writer.
 	bool second_layer = false;
@@ -222,7 +222,7 @@ struct MenuState {
 	bool column_press = false;
 	/// Spec E §4.1's `MustSelectRange` outcome. E1 recorded it and left the node unentered; E2 task
 	/// 9 acts on it -- `enter_child` descends into `nodes::multi_range` instead, which is legacy's
-	/// own substitution at `sound_editor.cpp:1802-1803` (`multiRangeMenu.menuItemHeadingTo = newItem`
+	/// own substitution at `sound_editor.cpp:1840-1841` (`multiRangeMenu.menuItemHeadingTo = newItem`
 	/// followed by `newItem = &multiRangeMenu`).
 	///
 	/// Stays true for as long as the picker is the reason the deeper item has not been opened; the
@@ -390,7 +390,7 @@ struct MenuState {
 	///
 	/// Set when `pending_scene` is pushed, exactly where legacy sets the flag (beside its own
 	/// `openUI`), and read in `on_resume`, exactly where legacy reads it
-	/// (`SoundEditor::focusRegained`, `sound_editor.cpp:280-283`). Without it, closing the pushed
+	/// (`SoundEditor::focusRegained`, `sound_editor.cpp:318-321`). Without it, closing the pushed
 	/// scene would land back on the item that opened it and `on_focus` would open it again on the
 	/// next descent -- which is precisely why legacy has the flag.
 	bool go_up_on_resume = false;
@@ -491,7 +491,7 @@ public:
 	/// @name MIDI-learn entry points -- the port of `SoundEditor`'s own three delivery members.
 	///
 	/// `SoundEditor::noteOnReceivedForMidiLearn` / `midiCCReceived` / `pcReceivedForMidiLearn`
-	/// (`gui/ui/sound_editor.cpp:1550-1570`) each forward to `getCurrentMenuItem()->learnX(...)`
+	/// (`gui/ui/sound_editor.cpp:1588-1608`) each forward to `getCurrentMenuItem()->learnX(...)`
 	/// and report whether the message was used; `unlearn` is `unlearnAction()` at `:478`. These do
 	/// the same, to `focused()`'s `CustomItem` -- the item decides, exactly as legacy's virtual
 	/// dispatch let it.
@@ -503,7 +503,7 @@ public:
 	///          reaches, and what that item does with it.
 	///
 	/// @warning **`wants_learn_blink()` is NOT the learn gate.** Legacy enters learn mode on
-	///          `getCurrentMenuItem()->allowsLearnMode()` (`sound_editor.cpp:473`) and only then
+	///          `getCurrentMenuItem()->allowsLearnMode()` (`sound_editor.cpp:511`) and only then
 	///          asks `shouldBlinkLearnLed()` for the LED (`:488`, `:911-916`). They are different
 	///          predicates over different sets: `allowsLearnMode` is true on every
 	///          `MenuItemWithCCLearning` -- all the patched/unpatched params, the transpose items,
@@ -524,7 +524,7 @@ public:
 	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
 	///
 	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail
-	/// (`sound_editor.cpp:911-916`). Public because the LED is also legacy's own answer at `:488`,
+	/// (`sound_editor.cpp:949-954`). Public because the LED is also legacy's own answer at `:488`,
 	/// on the way *out* of learn mode -- **not** because it is the gate into it. See the second
 	/// `@warning` above: that gate is `allowsLearnMode()`, which this is not a synonym for.
 	bool wants_learn_blink() const;
@@ -607,7 +607,7 @@ private:
 	///
 	/// Legacy reaches a bespoke item's work by two routes and treats them differently:
 	/// `selectButtonPress()` (a press on the parent's row) *acts*, while `beginSession()` -- which
-	/// `focusRegained` -> `beginScreen` also runs on every re-entry, `sound_editor.cpp:292`,
+	/// `focusRegained` -> `beginScreen` also runs on every re-entry, `sound_editor.cpp:330`,
 	/// `:1015` -- only (re-)initialises. `CustomItem::on_focus` is `beginSession`, so a port that
 	/// ran it on every focus transition ran *both* meanings, and an item whose `on_focus` stands in
 	/// for a press fired without one. This is that lost distinction, restored.
@@ -646,7 +646,7 @@ private:
 	///        `enter_child` the range-picker substitution reuses.
 	void descend_to(const Node& child);
 	/// @brief Go up one level, skipping levels whose permission is now `No`
-	///        (`sound_editor.cpp:672-683`).
+	///        (`sound_editor.cpp:710-721`).
 	void ascend();
 	/// @brief Re-root the path at @p node (the shortcut jump and `on_enter`'s re-target).
 	void retarget(const Node& node);

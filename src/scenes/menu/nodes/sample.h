@@ -151,7 +151,7 @@ inline const MarkerItem kSample1End{1, 3};   ///< `MarkerType::END`
 /// `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp:1183`) -- the **END** marker, and the
 /// only one of the pair the audio-clip root shows (`menus.cpp:1193`, `audioClipSampleMenu`). Its
 /// sibling `audioClipSampleMarkerEditorMenuStart` (`:1182`) is reachable only from the grid
-/// shortcut table (`gui/ui/sound_editor.cpp:119-120`), which is `menu/shortcuts.h`'s business and
+/// shortcut table (`gui/ui/sound_editor.cpp:157-158`), which is `menu/shortcuts.h`'s business and
 /// not a node in any submenu.
 inline const MarkerItem kAudioClipWaveform{-1, 3};
 

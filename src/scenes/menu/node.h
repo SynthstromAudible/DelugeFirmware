@@ -255,7 +255,7 @@ struct MenuState;
 ///        legacy's `MenuItem* MenuItem::selectButtonPress()` (`gui/menu_item/menu_item.h`).
 ///
 /// Returning `nullptr` means "ascend", which is exactly the base class's `return nullptr` arm and
-/// exactly what `SoundEditor` reads as `goUpOneLevel()` (`gui/ui/sound_editor.cpp:357-390`).
+/// exactly what `SoundEditor` reads as `goUpOneLevel()` (`gui/ui/sound_editor.cpp:395-428`).
 ///
 /// It takes the context and the interpreter's state because the answer is value-dependent for two
 /// of the ported overrides: `arpeggiator::PresetMode` opens the custom octave-mode page only on
@@ -326,7 +326,7 @@ struct CustomItem {
 	/// `on_focus` above is the **forward** arm only: `MenuScene::ascend` runs this instead of it, so
 	/// the two never both fire for one transition. That is legacy's own shape --
 	/// `SoundEditor::goUpOneLevel` ends in `beginScreen(oldItem)` with a non-null `oldItem`
-	/// (`gui/ui/sound_editor.cpp:672-690`), where every other entry passes `nullptr`
+	/// (`gui/ui/sound_editor.cpp:710-728`), where every other entry passes `nullptr`
 	/// (`:263`, `:292`) -- expressed as two hooks rather than one hook and a discriminator, because
 	/// the two arms of every legacy override that has both share no code at all.
 	///
@@ -385,12 +385,12 @@ struct CustomItem {
 	/// `on_focus` is `beginSession`, and `MenuScene` runs it on every focus transition -- a descent
 	/// from the parent list, a `SceneId` deep link, the shortcut-pad jump, and `restore_state`
 	/// rebuilding a saved path. Legacy runs `beginSession` on all of those too
-	/// (`SoundEditor::focusRegained` -> `beginScreen`, `gui/ui/sound_editor.cpp:292`, `:1015`), so
+	/// (`SoundEditor::focusRegained` -> `beginScreen`, `gui/ui/sound_editor.cpp:330`, `:1053`), so
 	/// for an item that *initialises* itself there the port matches and this stays false.
 	///
 	/// **It must be true for an item whose `on_focus` is really `selectButtonPress`.** Legacy has
 	/// items whose entire body is a press handler and which `SoundEditor` therefore never navigates
-	/// into (`shouldEnterSubmenu() == false`, `gui/ui/sound_editor.cpp:382-385`); the port has no
+	/// into (`shouldEnterSubmenu() == false`, `gui/ui/sound_editor.cpp:420-423`); the port has no
 	/// equivalent of that flag, so it descends for one tick and acts from `on_focus`
 	/// (`nodes/actions.h`). That works for a press on this item's own row and is wrong for every
 	/// other way in: a restore, a deep link **or a shortcut-pad jump** would run the press with no
@@ -415,7 +415,7 @@ struct CustomItem {
 	/// `allowsLearnMode`, `shouldBlinkLearnLed`, `learnNoteOn`, `learnProgramChange`, `learnCC`,
 	/// `unlearnAction`), all with do-nothing/false defaults, and `SoundEditor` calls them on
 	/// `getCurrentMenuItem()` without asking what class it is
-	/// (`gui/ui/sound_editor.cpp:478`, `:1550-1570`). The port keeps that shape but puts the hooks
+	/// (`gui/ui/sound_editor.cpp:516`, `:1550-1570`). The port keeps that shape but puts the hooks
 	/// on `CustomItem` rather than on `Node`: the only ported items that learn anything are
 	/// bespoke ones (the twelve `nodes::MidiCommandItem`s), and a `Kind`'s interpreter has no
 	/// business growing a learn arm none of its nodes use.
@@ -446,11 +446,11 @@ struct CustomItem {
 		return false;
 	}
 
-	/// @brief Forget what this item learned -- `MenuItem::unlearnAction` (`sound_editor.cpp:478`).
+	/// @brief Forget what this item learned -- `MenuItem::unlearnAction` (`sound_editor.cpp:516`).
 	virtual void unlearn() const {}
 
 	/// @brief Does this item want the LEARN LED blinking while it is focused?
-	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:911-916`, `:488-492`).
+	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:949-954`, `:488-492`).
 	virtual bool wants_learn_blink() const { return false; }
 
 	/// @brief Which automatable parameter a CC would bind to on this item -- `getLearningThing()`

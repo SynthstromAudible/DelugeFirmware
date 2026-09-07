@@ -176,9 +176,9 @@ bool interpolation(const MenuContext& ctx, uint8_t index) {
 
 // ---------------------------------------------------------------------------------------------
 // Batch 2's shared clip-shape tests -- the `SoundEditor::editing*` family
-// (`gui/ui/sound_editor.cpp:161-202`) against `MenuContext` instead of globals.
+// (`gui/ui/sound_editor.cpp:199-240`) against `MenuContext` instead of globals.
 
-/// @brief `SoundEditor::editingCVOrMIDIClip()` (`sound_editor.cpp:173-175`).
+/// @brief `SoundEditor::editingCVOrMIDIClip()` (`sound_editor.cpp:211-213`).
 bool cv_or_midi_clip(const MenuContext& ctx) {
 	return ctx.output != nullptr && (ctx.output->type == OutputType::MIDI_OUT || ctx.output->type == OutputType::CV);
 }
@@ -196,25 +196,25 @@ const Drum* selected_drum(const MenuContext& ctx) {
 	return static_cast<const Kit*>(ctx.output)->selectedDrum;
 }
 
-/// @brief `SoundEditor::editingNonAudioDrumRow()` (`sound_editor.cpp:177-184`).
+/// @brief `SoundEditor::editingNonAudioDrumRow()` (`sound_editor.cpp:215-222`).
 bool non_audio_drum_row(const MenuContext& ctx) {
 	const Drum* drum = selected_drum(ctx);
 	return drum != nullptr && (drum->type == DrumType::MIDI || drum->type == DrumType::GATE);
 }
 
-/// @brief `SoundEditor::editingMidiDrumRow()` (`sound_editor.cpp:186-193`).
+/// @brief `SoundEditor::editingMidiDrumRow()` (`sound_editor.cpp:224-231`).
 bool midi_drum_row(const MenuContext& ctx) {
 	const Drum* drum = selected_drum(ctx);
 	return drum != nullptr && drum->type == DrumType::MIDI;
 }
 
-/// @brief `SoundEditor::editingGateDrumRow()` (`sound_editor.cpp:195-202`).
+/// @brief `SoundEditor::editingGateDrumRow()` (`sound_editor.cpp:233-240`).
 bool gate_drum_row(const MenuContext& ctx) {
 	const Drum* drum = selected_drum(ctx);
 	return drum != nullptr && drum->type == DrumType::GATE;
 }
 
-/// @brief `SoundEditor::editingKitAffectEntire()` (`sound_editor.cpp:165-167`) -- the kit's own
+/// @brief `SoundEditor::editingKitAffectEntire()` (`sound_editor.cpp:203-205`) -- the kit's own
 ///        global-FX page, which is what `setupKitGlobalFXMenu` selects (`context.h`'s
 ///        `kit_global_fx`).
 bool kit_affect_entire(const MenuContext& ctx) {
@@ -500,7 +500,7 @@ bool is_session_view(const MenuContext& ctx) {
 	// `song::MidiLearn::isRelevant` (`gui/menu_item/song/midi_learn.h:35-37`) and
 	// `song::ConfigureMacros::isRelevant` (`gui/menu_item/song/configure_macros.h:35-37`), both
 	// `return (getRootUI() == &sessionView);`. `is_session_view`, NOT `is_song_view`: the latter is
-	// `!rootUIIsClipMinderScreen()` (`sound_editor.cpp:1632`) and stays true in the arranger and the
+	// `!rootUIIsClipMinderScreen()` (`sound_editor.cpp:1670`) and stays true in the arranger and the
 	// song automation view, the two places this test is what hides both items.
 	return ctx.is_session_view;
 }

@@ -56,8 +56,8 @@ ShellHostUI::ShellHostUI(const SceneRegistry& registry, const DelugeBoard& board
 	// **The default `ShellConfig` is a placeholder, and the two fields that are settings are seated
 	// afterwards**: `screensaver_idle_ms` through `Shell::set_screensaver_idle_ms`, pushed from
 	// `Screensaver::settingsChanged()`, and `lowering.hold_time_ms` through
-	// `InputLowering::set_hold_time_ms` in `opened()`. Neither could be read here -- flash has not
-	// been read when this runs.
+	// `InputLowering::set_hold_time_ms`, re-read on every event in `feed()`. Neither could be read
+	// here -- flash has not been read when this runs.
 	//
 	// `config_` rather than a `ShellConfig{}` temporary, so `feedDetents` can read
 	// `edges_per_detent` back out of the same object the shell was built from. `Shell` copies it, so
@@ -86,7 +86,7 @@ bool ShellHostUI::opened() {
 	// stacked puts one object at two indices, and no lifecycle hook is coherent under that -- the
 	// scene takes `on_enter` twice with no `on_exit` between and both indices share a single
 	// `SceneState` slot (`shell/scene_stack.h:200-206`). Legacy's equivalent is
-	// `SoundEditor::opened` calling `beginScreen()` (`gui/ui/sound_editor.cpp:259-273`), which
+	// `SoundEditor::opened` calling `beginScreen()` (`gui/ui/sound_editor.cpp:297-311`), which
 	// begins a menu session rather than resuming one.
 	shell_.stack().reset();
 
@@ -112,23 +112,6 @@ bool ShellHostUI::opened() {
 	// opened after a setting changed while it was shut.
 	shell_.lowering().set_shift_is_sticky(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)
 	                                      == RuntimeFeatureStateToggle::On);
-
-	// **And the threshold that setting is measured against.** `LoweringConfig::hold_time_ms` is the
-	// other half of the same divergence, and F1 task 6 left it open because no setter existed for
-	// it; `InputLowering::set_hold_time_ms` (`shell/input_lowering.h`) is F1 task 8's, written for
-	// this line. Legacy's `FlashStorage::holdTime` is in **audio samples** -- `defaultHoldTime *
-	// kSampleRate / 20` (`storage/flash_storage.cpp:733`), read live on every shift release
-	// (`hid/buttons.cpp:264`) -- and the lowering's field is in milliseconds, so the conversion is
-	// `* 1000 / kSampleRate`. The default 2 gives 4410 samples and 100 ms, which is exactly what
-	// `LoweringConfig`'s own default documents; the range the settings item allows is 1..20
-	// (`gui/menu_item/defaults/hold_time.h:26-27`, re-clamped on read at
-	// `storage/flash_storage.cpp:730-732`), i.e. 50..1000 ms, so the `uint16_t` cannot overflow.
-	//
-	// Seeded here rather than mirrored at the settings item, unlike the shortcut layout and the
-	// screensaver: a guest that is not open cannot be observing the threshold, and `opened()` is
-	// where the shell's other flash-backed input setting is already read.
-	shell_.lowering().set_hold_time_ms(
-	    static_cast<uint16_t>(static_cast<uint32_t>(FlashStorage::holdTime) * 1000u / kSampleRate));
 
 	// **No `Shell::boot()` here, and its absence is deliberate.** The first version of this function
 	// called it, on the reasoning that the panels want a repaint on the way in. They do, and they
@@ -215,7 +198,7 @@ void ShellHostUI::displayOrLanguageChanged() {
 	// invalidates every string on screen without changing anything the shell watches, so without
 	// this the guest would keep serving the frame it last rendered until something else happened.
 	// `SoundEditor` overrides this hook too, for the same reason
-	// (`gui/ui/sound_editor.cpp:298-300`, `readValueAgain`).
+	// (`gui/ui/sound_editor.cpp:336-338`, `readValueAgain`).
 	//
 	// **What this does not buy.** The repaint lands on the shell's next tick, whereas the base's
 	// `renderUIsForOled()` makes legacy pull `renderOLED` before that -- so exactly one frame of the
@@ -270,7 +253,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// The port spells `doGreyout == false` as an **all-zero mask**, deliberately and at the code:
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
 	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1458-1490`,
-	// against `gui/ui/sound_editor.cpp:214-256`). Every arm of legacy's switch that leaves
+	// against `gui/ui/sound_editor.cpp:252-294`). Every arm of legacy's switch that leaves
 	// `doGreyout` true also writes a non-zero `*cols` (`:232`, `:237`, `:245`, `:252`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
 	// one place that equivalence is turned back into legacy's two-out-parameters-plus-bool shape.
@@ -400,7 +383,7 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	//     For the first tenant that is exactly right: `SoundEditor` renders no pads at all.
 	//  2. **Legacy's menu blink is a hardware flash; the port's is a framebuffer write.**
 	//     `SoundEditor`'s shortcut blink calls `PadLEDs::flashMainPad`
-	//     (`gui/ui/sound_editor.cpp:959-1002`, the calls at `:983` and `:994`), which goes straight
+	//     (`gui/ui/sound_editor.cpp:997-1040`, the calls at `:1021` and `:1032`), which goes straight
 	//     to `deluge_control_flash_pad` (`hid/led/pad_leds.h:128-135`) and never touches `image`, so
 	//     a root-view repaint cannot wipe it. `MenuScene` paints its blinks into the shell's grid,
 	//     which reaches the pads through `image` -- so a root-view repaint *can* erase one until the
@@ -506,7 +489,7 @@ void ShellHostUI::armTickSoon() {
 //
 // **`inCardRoutine` is not a shell concept, and this is where it stops being one.** Legacy's
 // answer is `ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE`: `SoundEditor::padAction` opens with it
-// (`gui/ui/sound_editor.cpp:1405-1408`) and `dispatchInputEvent` stashes the offending event in
+// (`gui/ui/sound_editor.cpp:1443-1446`) and `dispatchInputEvent` stashes the offending event in
 // `heldInputEvent`, sets `waitingForSDRoutineToEnd`, and re-dispatches it at the top of the next
 // `readButtonsAndPads` once the routine has ended (`deluge.cpp:237-281`, the stash at `:245-248`
 // and `:256-259`, the replay at `:295-305`). One event deep. The port of that is
@@ -534,6 +517,33 @@ uint32_t ShellHostUI::nowMs() const {
 }
 
 void ShellHostUI::feed(const DelugeInputEvent& ev) {
+	// **Re-read the tap threshold on every event, which is what legacy does.**
+	// `LoweringConfig::hold_time_ms` is `FlashStorage::holdTime` -- a setting, in **audio samples**
+	// (`defaultHoldTime * kSampleRate / 20`, `storage/flash_storage.cpp:733`), which legacy reads
+	// *live* at shift-release time (`hid/buttons.cpp:264`) and the shell reads out of a config field
+	// that nothing moved. F1 task 6 left it open for want of a setter;
+	// `InputLowering::set_hold_time_ms` (`shell/input_lowering.h`) is F1 task 8's, written for this
+	// line, and the conversion to milliseconds is `* 1000 / kSampleRate`. Legacy's default 2 gives
+	// 4410 samples and 100 ms, exactly what `LoweringConfig`'s own default documents; the settings
+	// item's range is 1..20, re-clamped on read (`storage/flash_storage.cpp:730-732`), i.e.
+	// 50..1000 ms, so the `uint16_t` cannot overflow.
+	//
+	// **Here rather than in `opened()`, and the fix round is what settled it.** The first version
+	// seeded once per open, on the reasoning that "a guest that is not open cannot be observing the
+	// threshold" -- which is backwards for the one writer that can only be reached *while the guest
+	// is open*: `nodes::set_default_hold_time` (`scenes/menu/nodes/settings.cpp`) is the ported
+	// settings item, and it writes `FlashStorage::holdTime` from inside the shell. A per-open seed
+	// lags it by a whole guest session. This is the same hole the screensaver settings have from the
+	// ported tree, and unlike that one it is closable here, because the *reader* is on this side of
+	// the seam.
+	//
+	// This is the funnel every pad and every button passes through (`padAction`, `buttonAction`), so
+	// it is where legacy's own read happens: two loads, a divide and a compare-free store, on a path
+	// that already builds an event and takes the SD lock. Encoder turns deliberately do not come
+	// through here and do not need to -- `hold_time_ms` gates the sticky-shift tap and nothing else.
+	shell_.lowering().set_hold_time_ms(
+	    static_cast<uint16_t>(static_cast<uint32_t>(FlashStorage::holdTime) * 1000u / kSampleRate));
+
 	shell_.on_board_event(ev, nowMs());
 }
 
@@ -565,7 +575,7 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
 
 ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// `isSDRoutineActive()` rather than a parameter, because this hook has none -- which is also
-	// why `SoundEditor::padAction` reads it directly (`gui/ui/sound_editor.cpp:1406`).
+	// why `SoundEditor::padAction` reads it directly (`gui/ui/sound_editor.cpp:1444`).
 	shell_.set_sd_busy(isSDRoutineActive());
 
 	// **The range guard is about the narrowing, not about the shell.** `on_pad` already drops a
@@ -574,7 +584,7 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// shell is handed a pad press that never happened. `MatrixDriver::padAction` bounds nothing of
 	// its own (`hid/matrix/matrix_driver.cpp:65-84`), and this is a public virtual that legacy UIs
 	// call on each other directly -- `SoundEditor::padAction` forwards straight into
-	// `keyboardScreen.padAction` (`gui/ui/sound_editor.cpp:1419-1422`) -- so the caller's domain is
+	// `keyboardScreen.padAction` (`gui/ui/sound_editor.cpp:1457-1460`) -- so the caller's domain is
 	// not `MatrixDriver`'s alone.
 	//
 	// Unlike `buttonAction`'s (see there) this guard is not redundant with `on_pad`'s and is
@@ -657,7 +667,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// returns for every button with an observable consequence in `Buttons::buttonAction`'s tail:
 	// its `if`/`else if` chain has no arm for Play, Shift, Record, Tempo-enc or either mod-encoder
 	// button, so those fall into the final `else` and take `MenuItem::buttonAction`'s default
-	// `NOT_DEALT_WITH` (`gui/ui/sound_editor.cpp:595-629`, `gui/menu_item/menu_item.h:78-80`).
+	// `NOT_DEALT_WITH` (`gui/ui/sound_editor.cpp:633-667`, `gui/menu_item/menu_item.h:78-80`).
 	// Returning `DEALT_WITH` here instead would `goto dealtWith` (`hid/buttons.cpp:139-141`) and:
 	//
 	//   1. **stop `Buttons::commandToggleShift` running** (`hid/buttons.cpp:169-171`), which is the
@@ -724,7 +734,7 @@ ActionResult ShellHostUI::exitUI() {
 	// release (`hid/buttons.cpp:114-121`), and the timer manager calls this from that arm
 	// (`gui/ui_timer_manager.cpp:149-155`). `SoundEditor::exitUI` is `exitCompletely()`
 	// (`gui/ui/sound_editor.h:130`), which leaves the whole menu however deep it was, not one
-	// level of it (`gui/ui/sound_editor.cpp:693-734`).
+	// level of it (`gui/ui/sound_editor.cpp:731-772`).
 	//
 	// **The brief's stated mechanism does not exist, and this is the correction.** F1's task-5
 	// brief and spec F §2.1 both say this "returns `NOT_DEALT_WITH` when the stack is empty so
@@ -733,7 +743,7 @@ ActionResult ShellHostUI::exitUI() {
 	// (`gui/ui/rename/rename_ui.cpp:88-91`), `SampleMarkerEditor::exitUI` is the same two lines
 	// (`gui/ui/sample_marker_editor.cpp:680-683`), `Browser::exitUI` is `exitAction()` and the same
 	// value (`gui/ui/browser/browser.h:133-136`), and `exitCompletely` calls `close()` at
-	// `gui/ui/sound_editor.cpp:723`. A guest that only returned a value would trap the user inside
+	// `gui/ui/sound_editor.cpp:761`. A guest that only returned a value would trap the user inside
 	// itself, because nothing on the other end acts on it.
 	//
 	// @par The two readers of the return value, measured
@@ -756,7 +766,7 @@ ActionResult ShellHostUI::exitUI() {
 	// (`hid/matrix/matrix_driver.cpp:79`), so while the guest is open the only way
 	// `ColumnControlsKeyboard::evaluatePads` runs at all is if the current UI hands the pad on --
 	// which is precisely what `SoundEditor::padAction` does when the keyboard screen is the root
-	// (`gui/ui/sound_editor.cpp:1419-1422`) and what this guest does **not** do. `evaluatePads` has
+	// (`gui/ui/sound_editor.cpp:1457-1460`) and what this guest does **not** do. `evaluatePads` has
 	// **one route in**, not one caller: `grep -rn evaluatePads src/deluge` gives six call sites, of
 	// which five are subclasses chaining up to `ColumnControlsKeyboard::evaluatePads`
 	// (`layout/piano.cpp:39`, `layout/in_key.cpp:37`, `layout/isomorphic.cpp:40`,
@@ -772,7 +782,7 @@ ActionResult ShellHostUI::exitUI() {
 	//   * Every legacy implementation that closes itself answers `ACTIONED_AND_CAUSED_CHANGE`,
 	//     including the tenant this guest stands in for: `SoundEditor::exitUI` is `exitCompletely()`
 	//     (`gui/ui/sound_editor.h:130`), whose last line is that value
-	//     (`gui/ui/sound_editor.cpp:733`). Plan F1's global constraint 1 -- with the toggle on, do
+	//     (`gui/ui/sound_editor.cpp:771`). Plan F1's global constraint 1 -- with the toggle on, do
 	//     what `SoundEditor` does -- settles it.
 	//   * It is provably safe today: the two readers above are the only ones, one tests a different
 	//     value and the other cannot run.
@@ -788,7 +798,7 @@ ActionResult ShellHostUI::exitUI() {
 	// **One divergence from legacy remains, recorded rather than fixed.**
 	//
 	//      The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` can
-	//      (`gui/ui/sound_editor.cpp:695-709`, the return at `:698`) when the settings menu is
+	//      (`gui/ui/sound_editor.cpp:733-747`, the return at `:698`) when the settings menu is
 	//      exiting while `isSDRoutineActive()`. It is the tail of a larger gap in the same block:
 	//      leaving the *settings* menu is what writes `FlashStorage`, the MIDI devices file, the
 	//      runtime-feature settings and the MIDI-follow defaults (`:703-709`), and **nothing on the

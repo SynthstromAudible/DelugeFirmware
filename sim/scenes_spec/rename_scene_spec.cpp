@@ -848,7 +848,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 
 		// Fix round 1, Minor 2. `restore_state` -> `enter_leaf` -> `CustomItem::on_focus` fires,
 		// and the editor comes back -- legacy's `focusRegained` -> `beginScreen` -> `beginSession`
-		// (`sound_editor.cpp:292,1015`), which `EditName` answers by opening `RenameUI`
+		// (`sound_editor.cpp:330,1053`), which `EditName` answers by opening `RenameUI`
 		// unconditionally. Restoring the user's place means restoring the editor they were in.
 		menu_scene().restore_state(saved);
 		expect(menu_scene().focused() == &nodes::drum_name_edit).to_be_true();

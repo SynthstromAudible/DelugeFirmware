@@ -343,7 +343,7 @@ void draw_block(OledFrame& f, const Rainfall::Block& block);
 
 /// @brief Paint one frame of @p field onto @p f, clipped exactly as legacy clips it.
 ///
-/// Ports `Screensaver::renderRainfall` (`hid/display/screensaver.cpp:232-248`) and the `drawBlock`
+/// Ports `Screensaver::renderRainfall` (`hid/display/screensaver.cpp:254-270`) and the `drawBlock`
 /// helper it draws through (`:63-76`). `drawBlock`'s clip is `x` in `[0, OLED_MAIN_WIDTH_PIXELS)`
 /// and `y` in `[OLED_MAIN_TOPMOST_PIXEL, OLED_MAIN_HEIGHT_PIXELS)`, i.e. this class's own
 /// `kWidth`/`kTopmost`/`kHeight` -- so the clip is taken from those, not from the frame's panel.

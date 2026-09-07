@@ -103,7 +103,7 @@ describe boot_node_ids("scenes::assigned_node_ids at boot", $ {
 });
 
 describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
-	it("applyShellGuestShortcutsVersion carries soundEditor.shortcutsVersion into the ported tree", _ {
+	it("SoundEditor::setShortcutsVersion carries the choice into the ported tree, on every path", _ {
 		const uint8_t saved_legacy = soundEditor.shortcutsVersion;
 		const ShortcutsVersion saved_port = menu::shortcuts_version();
 		// `setShortcutsVersion`'s V1 arm rewrites six cells of this array in place and its V3 arm is
@@ -112,18 +112,25 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 		// Saved and put back by hand, exactly as `shortcuts_spec.cpp`'s `LegacyVersion1` guard does.
 		::MenuItem* const saved_cells[2] = {paramShortcutsForSounds[0][6], paramShortcutsForSounds[1][6]};
 
-		// The boot sequence, in order: `FlashStorage::readSettings` calls
-		// `soundEditor.setShortcutsVersion(buffer[60])` (`storage/flash_storage.cpp:568`), then
-		// `deluge_boot` calls the function under test. Both values byte 60 can hold, in both
-		// directions, because a mirror that only ever wrote V1 would pass a one-way check.
+		// **This function is the whole of the wiring, which is why the example drives it and not a
+		// helper.** It is the sole writer of `shortcutsVersion`, and all four paths that change the
+		// setting go through it: `FlashStorage::readSettings` at boot
+		// (`storage/flash_storage.cpp:568`, from byte 60), `FlashStorage::resetSettings` (`:311`,
+		// reached from the legacy reset menu AND from the ported one --
+		// `scenes/context_menu/context_menu_scene.cpp`'s `accept_reset_flash` / `accept_reset_all`),
+		// and `shortcuts::Version::writeCurrentValue` (`gui/menu_item/shortcuts/version.h:27`).
+		// Each of those four is one call of exactly the shape below; the fix round put the mirror
+		// here for that reason, after a version at three call sites missed the two ported reset
+		// arms. Not driven from `resetSettings` itself: it rewrites every setting this process
+		// shares with the other twenty specs in this binary.
+		//
+		// Both values byte 60 can hold, in both directions -- a mirror that only ever wrote V1
+		// would pass a one-way check.
 		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
-		deluge::gui::ui::applyShellGuestShortcutsVersion();
 		expect(menu::shortcuts_version() == ShortcutsVersion::V1).to_be_true();
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		deluge::gui::ui::applyShellGuestShortcutsVersion();
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3); // `resetSettings`' own line, verbatim
 		expect(menu::shortcuts_version() == ShortcutsVersion::V3).to_be_true();
 		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
-		deluge::gui::ui::applyShellGuestShortcutsVersion();
 		expect(menu::shortcuts_version() == ShortcutsVersion::V1).to_be_true();
 
 		// The layout the port actually resolves moves with it -- the setting is not just recorded.
@@ -133,16 +140,12 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 		       == &deluge::scenes::menu::nodes::sample0_end)
 		    .to_be_true();
 		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
-		deluge::gui::ui::applyShellGuestShortcutsVersion();
 		expect(menu::shortcut_node(menu::MenuContext::Root::Sound, false, 0, 6)
 		       == &deluge::scenes::menu::nodes::sample0_interpolation)
 		    .to_be_true();
 
-		// **And `setShortcutsVersion` alone does not do it**, which is the shape of the wiring and
-		// the reason three call sites exist rather than one. Stated as an assertion so the example
-		// cannot pass by the push having been folded back into that function without the call sites
-		// being revisited.
-		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+		// And a value that is neither enumerator takes the V3 arm, as legacy's own `default` does.
+		soundEditor.setShortcutsVersion(7);
 		expect(menu::shortcuts_version() == ShortcutsVersion::V3).to_be_true();
 
 		paramShortcutsForSounds[0][6] = saved_cells[0];

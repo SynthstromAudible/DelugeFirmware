@@ -184,7 +184,7 @@ void install(const MenuContext& ctx, Song* song) {
 	soundEditor.currentPriority = ctx.priority;
 	soundEditor.currentSidechain = ctx.sidechain;
 	soundEditor.currentSampleControls = ctx.sample_controls;
-	// `SoundEditor::setup` caches this once per entry (`sound_editor.cpp:1811-1816`), and
+	// `SoundEditor::setup` caches this once per entry (`sound_editor.cpp:1849-1854`), and
 	// `arpeggiator::IncludeInKitArp` reads the cached copy. Computed here the way legacy computes
 	// it -- straight from `Sound::allowNoteTails` over the fixture's own model stack -- so the
 	// comparison against `bindings::allows_note_tails` stays a real one.
@@ -321,7 +321,7 @@ struct Pair {
 
 	/// @brief The `soundEditor.navigationDepth` this item is *displayed* at.
 	///
-	/// Legacy sets it to 0 while the root list is on screen (`sound_editor.cpp:1847`) and
+	/// Legacy sets it to 0 while the root list is on screen (`sound_editor.cpp:1885`) and
 	/// increments on the way into a submenu (`:328`), so the items **inside** a first-level
 	/// submenu are drawn at depth 1 -- i.e. one less than their own distance from the root. Two
 	/// legacy `isRelevant` overrides read it (`bend_range/per_finger.h:41` is the one this tree
@@ -1368,7 +1368,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// The legacy *write* path is not driven, for the reason this file already records for
 		// `ParamRef` nodes: with no root UI open, `PatchCableStrength::writeCurrentValue` resolves
 		// `soundEditor.getCurrentModelStack` down the `!rootUIIsClipMinderScreen()` arm
-		// (`sound_editor.cpp:1986`) and asks the *song's* param manager for a patch-cable collection
+		// (`sound_editor.cpp:2024`) and asks the *song's* param manager for a patch-cable collection
 		// it does not have -- which is `FREEZE_WITH_ERROR("E412")`, i.e. a null-`display` segfault in
 		// the host build. `bindings_spec` covers the model-stack half directly.
 		expect(menu::bindings::patch_cable_write(f.ctx, learn, -2500)).to_be_true(); // sentinel
@@ -1622,7 +1622,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		//
 		// `ParamRef` nodes are deliberately not here: legacy's `UnpatchedParam::writeCurrentValue`
 		// resolves its model stack through `SoundEditor::getCurrentModelStack`, which with no root
-		// UI open takes its `!rootUIIsClipMinderScreen()` arm (`sound_editor.cpp:1986`) and writes
+		// UI open takes its `!rootUIIsClipMinderScreen()` arm (`sound_editor.cpp:2024`) and writes
 		// the *song's* param collection where the port writes the clip's. That is the divergence
 		// task 6 recorded as its concern 8; it is a property of the harness, not of the tables, and
 		// `bindings_spec` already covers the param write path end to end. The next example covers

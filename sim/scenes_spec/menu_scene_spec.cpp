@@ -68,7 +68,7 @@ using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
 // The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:91`) -- declared bare and at
-// global scope, exactly as `settings.cpp` and `sound_editor.cpp:1403` both do (a declaration
+// global scope, exactly as `settings.cpp` and `sound_editor.cpp:1441` both do (a declaration
 // inside this file's own anonymous namespace below would name a different, unlinked variable).
 extern uint16_t batteryMV;
 
@@ -448,7 +448,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		// `SoundEditor::getGreyoutColsAndRows`'s INSTRUMENT_CLIP arm (`sound_editor.cpp:236`):
+		// `SoundEditor::getGreyoutColsAndRows`'s INSTRUMENT_CLIP arm (`sound_editor.cpp:274`):
 		// cols = 0xFFFFFFFE, i.e. every column but the rightmost sidebar one.
 		expect(static_cast<uint64_t>(menu_scene().greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFEu});
 		expect(static_cast<uint64_t>(menu_scene().greyout_mask().rows)).to_equal(uint64_t{0});
@@ -792,7 +792,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 
-		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:418` ->
+		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:456` ->
 		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`). `Remove`, not `Pop`: review round 1
 		// (task 11) -- `Pop{.pop_to = kind}` still pops everything ABOVE `kind` too
 		// (`scene_stack.cpp:63-95`), which is wrong for "close just me" the moment a `Notices`
@@ -857,7 +857,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		       != std::string::npos)
 		    .to_be_true();
 
-		// Without shift the pad is not a shortcut (`sound_editor.cpp:1114`'s
+		// Without shift the pad is not a shortcut (`sound_editor.cpp:1152`'s
 		// `Buttons::isShiftButtonPressed()` gate), and nothing moves.
 		r.button(kShiftX, kShiftY, false, 40);
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 50);
@@ -871,7 +871,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		Rig r;
 		(void)r.open(settings_root);
 
-		// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1309-1324`) -- and the reason
+		// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1347-1362`) -- and the reason
 		// `shortcut_node`'s second argument is NOT "shift is held": shift is held throughout here.
 		r.button(kShiftX, kShiftY, true, 0);
 		r.pad(kEnv1RelX, kEnv1RelY, 64, 10);
@@ -932,14 +932,14 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(110);
 		// E2 task 9: `enter_child` substitutes the picker for the item, which is legacy's own
 		// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
-		// (`sound_editor.cpp:1802-1803`). So the *picker* is entered, not the leaf.
+		// (`sound_editor.cpp:1840-1841`). So the *picker* is entered, not the leaf.
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
 		expect(menu_scene().state().range_picker_pending).to_be_true();
 		expect(menu_scene().state().pending_after_range == &transpose_leaf).to_be_true();
 
 		// Both ranges are on screen, and the picker has selected one -- `setCurrentMultiRange`
-		// (`sound_editor.cpp:1928-1931`), applied by `after_render` from `MenuState::range_choice`.
+		// (`sound_editor.cpp:1966-1969`), applied by `after_render` from `MenuState::range_choice`.
 		// `MultiRange::beginSession` (`multi_range.cpp:46-50`): a `defaultRangeI` of -1 is invalid, so
 		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
 		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
@@ -963,7 +963,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
 		// E1's carried debt, end to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
-		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1938`), so a
+		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1976`), so a
 		// sample item on a source with no ranges at all opens -- it does not bounce to a picker with
 		// nothing in it. `tables_1_spec` drives `menu::ensure_first_range` directly; this drives the
 		// caller, `MenuScene::enter_child`, which is where the ordering (create, *then* ask) lives.
@@ -1033,7 +1033,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a leaf's select press opens the menu its select_chain names, instead of ascending", _ {
-		// The port of `MenuItem::selectButtonPress` returning a menu (`gui/ui/sound_editor.cpp:357`
+		// The port of `MenuItem::selectButtonPress` returning a menu (`gui/ui/sound_editor.cpp:395`
 		// -> `enterSubmenu`). `chain_source_leaf`'s hook chains only on an odd value, so this drives
 		// both answers through the real shell and asserts each.
 		select_language();
@@ -1407,13 +1407,13 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.shell.tick(2);
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 
-		// `SoundEditor::blinkShortcut` (`sound_editor.cpp:974-1000`) alternates on one counter: the
+		// `SoundEditor::blinkShortcut` (`sound_editor.cpp:1012-1038`) alternates on one counter: the
 		// source phase re-arms at 20 ms and the param phase at 180 ms, so the cycle is 200 ms and
 		// the source slice is the short leading one. Rendered directly, at the phase boundaries, so
 		// this asserts the *timings* rather than "it blinks".
 		//
 		// Measured from the cycle's anchor, which `setupShortcutBlink` zeroes on every focus change
-		// (`sound_editor.cpp:964`) and `render_grid` re-sets whenever the focused node changes.
+		// (`sound_editor.cpp:1002`) and `render_grid` re-sets whenever the focused node changes.
 		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
 		const auto lit_at = [&](uint32_t offset_ms) {
 			deluge::ui::test::GridRig grid;
@@ -1452,7 +1452,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(menu_scene().state().blink_anchor_ms).to_equal(first);
 
 		// ... but jumping to another pad re-anchors, exactly as `setupShortcutBlink`'s
-		// `shortcutBlinkCounter = 0` does (`sound_editor.cpp:964`). Without that the port would
+		// `shortcutBlinkCounter = 0` does (`sound_editor.cpp:1002`). Without that the port would
 		// free-run and a freshly focused pad could light mid-cycle.
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 600);
 		r.shell.tick(601);
