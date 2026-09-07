@@ -88,23 +88,27 @@ uint16_t assigned_node_ids();
 ///     `sim/scenes_spec/screensaver_scene_spec.cpp`, whose service example builds the
 ///     `ShellConfig` by hand for exactly this reason.
 ///
-///   * **The three services cannot be installed at all** -- `services::ModKnobs`,
+///   * **The three services still have to be installed** -- `services::ModKnobs`,
 ///     `services::GlobalControls`, `services::MidiLearn`. Each is constructed from a `SceneStack&`
-///     (the first two also from an `InputLowering&`) and each *uses* it: `ModKnobs` pushes
-///     `overlay::ParamPopupScene` onto that stack and reads `stack_.input_top()`; `GlobalControls`
-///     gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
-///     (`services/global_controls.cpp:580`); `MidiLearn` reads the same. The only `SceneStack` and
-///     `InputLowering` in an application are the ones the **`Shell` owns**, and `Services` is passed
-///     by value into the `Shell`'s constructor and fixed there (`shell/shell.cpp:186-189`, "the
-///     services are fixed at construction", where the deduplicated `service_list_` is built once).
-///     So a real service cannot be built before the shell it serves and cannot be installed after
-///     it: **an application that builds a `Shell` today can only pass `Services{}`**, and no
-///     gold-knob turn, transport button or MIDI-learn press reaches anything outside the scene
-///     stack. Whoever wires boot needs `Shell::set_services` (setting `services_`, re-seating
-///     `Router`'s copy and rebuilding `service_list_`) or late-bound service constructors. Unlike
-///     the two above, this is not a setting that degrades -- it is a whole routing tier that is
-///     unreachable. E4 task 13; `sim/scenes_spec/scene_scripts_spec.cpp` works around it for a spec
-///     with a forwarding `LateService` shim, which is a test-only shape.
+///     (the first two also from an `InputLowering&`) and each *uses* it: `ModKnobs::show_popup`
+///     pushes `overlay::ParamPopupScene` onto that stack (`services/mod_knobs.cpp:413`) and
+///     `ModKnobs::popup_suppressed` (`:351`) and `ModKnobs::mod_encoder_button_action` (`:564`)
+///     read `stack_.input_top()`; `GlobalControls::handle` gates its whole `View::buttonAction`
+///     group on `stack_.input_top().is_root()` (`services/global_controls.cpp:580`);
+///     `MidiLearn::handle` reads the same (`services/midi_learn.cpp:466`). The only `SceneStack`
+///     and `InputLowering` in an application are the ones the **`Shell` owns**, so a real service
+///     cannot be built before the shell it serves.
+///
+///     Until F1 task 2 it could not be installed *after* it either -- `Services` was passed by
+///     value into the constructor and fixed there -- so **an application that built a `Shell` could
+///     only pass `Services{}`**, and no gold-knob turn, transport button or MIDI-learn press
+///     reached anything outside the scene stack. `Shell::set_services` (`shell/shell.h`) is the
+///     fix: build the shell with `Services{}`, construct the three over `shell.stack()` and
+///     `shell.lowering()`, then install them. It re-seats all three things that hold the slots --
+///     `services_`, the `Router`'s own copy, and the deduplicated `service_list_`. What remains
+///     here is boot calling it, which is the rest of this note's business, not a missing
+///     mechanism. E4 task 13 found the gap; `sim/scenes_spec/scene_scripts_spec.cpp` is where it
+///     was reported and is now the level-2 demonstration of the setter.
 ///
 /// Nothing else in `src/scenes` is in this position: every other setting the menu tree edits is read
 /// and written through the same `FlashStorage` / `runtimeFeatureSettings` / `midiEngine` global the

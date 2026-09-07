@@ -237,9 +237,11 @@ never renders OLED/grid.
 > `src/shell/`. What each actually ports, with the LED sets, is in `src/scenes/README.md`'s
 > "The three services". Two facts from building them that the table cannot show: the routing order
 > is **top scene → `mod_knobs` → `global_controls` → `midi_learn`** and was reversed until E4 task 3
-> (§15.4, §15.5); and **no application can install any of them yet**, because `Services` is fixed at
-> the `Shell`'s construction and there is no `Shell::set_services` — the third spec-F wiring blocker
-> (migration spec §10.2, `src/scenes/registry.h`'s boot-wiring list).
+> (§15.4, §15.5); and **an application installs them with `Shell::set_services` after building the
+> shell**, never through the constructor, because each needs the `SceneStack&` (two of them also the
+> `InputLowering&`) that only exists once that shell does. Until F1 task 2 there was no such call and
+> **no application could install a service at all** — migration spec §10.2's blocker 7; the account is
+> §15.9.
 
 | Service | Owns | Replaces |
 |---|---|---|
@@ -1160,3 +1162,87 @@ bought is a *syntactically* distinguishable service claim for the checker to key
 glob buys that more cheaply and without a second type. The defaults fix is sufficient because the
 defect was never about which hook was being overridden — it was that `{.grid = true}` did not mean
 `{.grid = true}`, and now it does, for both.
+
+### 15.9 `Services` was fixed at construction, so no application could install a service at all (F1 task 2)
+
+Filed here because it is the same class as §15.2 and §15.4: a shipped shell whose contract read
+correctly and whose one path to using it did not exist.
+
+`Shell::Shell` took `Services` **by value** and built the deduplicated `service_list_` in its own
+body, under a comment that said so — "the services are fixed at construction". That was true, and it
+was the defect. The three real services each take the shell's own `SceneStack&`, and two of them its
+`InputLowering&`, and each *uses* what it is handed: `ModKnobs::show_popup` pushes the param popup
+onto that stack (`src/scenes/services/mod_knobs.cpp:413`) while `ModKnobs::popup_suppressed` (`:351`)
+and `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`;
+`GlobalControls::handle` gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
+(`src/scenes/services/global_controls.cpp:580`); `MidiLearn::handle` gates all of itself on the same
+(`src/scenes/services/midi_learn.cpp:466`). The only `SceneStack` and `InputLowering` in an
+application are the ones the `Shell` owns. So a real service could not be constructed **before** the
+shell it serves, and — because the slots were fixed in the constructor — could not be installed
+**after** it either.
+
+The consequence is larger than a wiring inconvenience: **every application that built a `Shell` could
+only ever pass `Services{}`**, three `null_service()`s. No gold-knob turn reached `ModKnobs`, no
+transport button reached `GlobalControls`, no learn press reached `MidiLearn`. Migration spec §10.2's
+blocker 7; the previous plan's final review called closing it the highest-value task in the stack.
+
+**How it was found.** Not by review of `src/shell`, which had read correctly to four plans' worth of
+readers, but by `sim/scenes_spec/scene_scripts_spec.cpp` (E4 task 13) — the first thing in the tree
+that ever tried to hold all three real services and a `Shell` at the same time. It could not, and
+worked around it with a `LateService` forwarding shim: a `Service` put in each slot at construction
+and pointed at the real one from `RunOptions::after_construct`. That file reported the gap in its own
+header rather than fixing it, on the ruling that adding a setter to `src/shell` was spec F's decision
+and not a side effect of writing acceptance scripts.
+
+**The fix: `Shell::set_services(Services)`.** Three things hold the slots and all three must move
+together —
+
+1. `Shell::services_`, the shell's own copy, which is what `service_list_` is rebuilt from;
+2. `Router::services_`, a **second by-value copy** taken in the router's constructor, and the one
+   routing actually reads (`Router::route` consults `services_.mod_knobs` and its two siblings, never
+   `service_list_`);
+3. `Shell::service_list_`, the deduplicated `FixedVector<Service*, 5>` that four sites iterate:
+   `Shell::tick`'s step 8c timer fold (`shell.cpp:494`), `Shell::tick_stack` (`:584`),
+   `Shell::derive_leds` via `LedCompose::compose` (`:841`), and `Shell::compute_next_wake`
+   (`:1044`).
+
+A change that updated two of the three leaves a shell that either ticks services it never routes to
+or routes to services it never ticks, and **each half passes the other half's tests** — which is why
+the mutation proof below drops each one separately. `set_services` assigns (1), calls the new
+`Router::set_services` for (2), and calls the new private `Shell::rebuild_service_list()` for (3).
+The constructor calls that same helper, so the re-install path's dedup is the constructor's body and
+not a second copy of it that can drift.
+
+**The dedup rule survives a re-install, and the mechanism is the `clear()`.** The rule is that a
+service appearing in two slots is ticked, asked for LEDs and asked for its timer exactly once, and
+that the shell's own `Notices` and `Screensaver` are in the list too. `rebuild_service_list()` clears
+before rebuilding, which is what makes installing twice idempotent and what stops a previously
+installed service from being left behind. Dropping just the `clear()` is not a subtle failure: the
+vector's capacity is 5 and a live install already fills it (three slots plus the two shell-owned), so
+a second install both keeps the old services ticking **and** silently drops the new ones on
+`push_back`'s fail-soft return — both halves observed in the mutation run.
+
+**What is covered, and by what.** `tests/spec/shell/services_spec.cpp`, eight examples over a real
+`Shell` driven through `on_board_event`/`tick`: routing after a late install (both the ordinary
+button chain and the mod-button chain, order asserted); tick/LED/timer reach; a service in two slots
+listed once but still routed to twice; a repeated install; an install over a live set; an install of
+`Services{}` back over a live set; a literal `nullptr` slot skipped by the list; and — through
+`Screensaver::push_refused()`, the one externally observable consequence of a shell-owned service
+being ticked — that the rebuilt list still carries `Notices` and `Screensaver`. Four mutations, each
+killed: dropping the `Router` re-seat fails the three routing examples (the chain logs nothing);
+dropping the `rebuild_service_list()` call fails the four tick/LED examples for the opposite reason
+(the services are routed to but never ticked); dropping the `clear()` fails "installing over a live
+set" with the old services' tick counts at 2 and the new one's at 0; dropping `services_ = services`
+fails the same tick examples, since the rebuild reads that field.
+
+**`LateService` is gone.** `sim/scenes_spec/scene_scripts_spec.cpp` now builds the three in
+`after_construct` and calls `shell.set_services({...})`, handing the shell `Services{}` at
+construction exactly as an application does. Its 34 golden snapshots did not move, which is the check
+that the setter installs precisely what the shim forwarded to.
+
+**The comment is gone too.** `shell.cpp`'s "the services are fixed at construction" is deleted rather
+than reworded — a stale ruling attached to a now-false statement is a defect this stack has already
+had to fix once (§13's superseded paragraph is the precedent). `src/scenes/registry.h`'s boot-wiring list,
+`src/scenes/README.md`, `src/shell/README.md`, `tests/spec/shell/support/script_runner.h` and §5's
+own note above were corrected in the same change, because each of them asserted the impossibility.
+**What is still owed is boot calling it** — a wiring job, not a missing mechanism.

@@ -1214,29 +1214,32 @@ default (`flash_storage.cpp:287`) and the only one of the three modes that reach
 (`ui/grid/columns.h`'s `tick_colour` warning). Consequence today: a user who turns the play cursor
 off still sees it in the audio clip view. Whoever wires boot should pass flash byte 36 through.
 
-**And a third, and it is the one that stops boot rather than degrading it: there is no way to install
-the three services at all.** `services::ModKnobs`, `services::GlobalControls` and
+**And a third, which used to stop boot rather than degrade it: until F1 task 2 there was no way to
+install the three services at all.** `services::ModKnobs`, `services::GlobalControls` and
 `services::MidiLearn` are each constructed from a `SceneStack&` (and the first two from an
-`InputLowering&`), and they *use* them — `ModKnobs` pushes `overlay::ParamPopupScene` onto that stack
-(`services/mod_knobs.cpp`'s `show_popup`) and reads `stack_.input_top()`; `GlobalControls` gates its
-whole `View::buttonAction` group on `stack_.input_top().is_root()`
-(`services/global_controls.cpp:580`); `MidiLearn` reads the same. The only `SceneStack` and
-`InputLowering` in an application are the ones the **`Shell` owns** (`shell/shell.h`'s `stack_`,
-`lowering_`), and `Services` is passed **by value into the `Shell`'s constructor** and fixed there —
-`Shell::Shell` says so itself (`shell/shell.cpp:186-189`, "the services are fixed at construction",
-where the deduplicated `service_list_` is also built once). So a real service cannot be constructed
-before the shell it serves and cannot be installed after it, and an application that builds a `Shell`
-today can only pass `Services{}`: no gold-knob turn reaches `ModKnobs`, no transport button reaches
-`GlobalControls`, and `SceneKind::Screensaver` aside, nothing outside the scene stack ever runs.
+`InputLowering&`), and they *use* them — `ModKnobs::show_popup` pushes `overlay::ParamPopupScene`
+onto that stack (`services/mod_knobs.cpp:413`) and `ModKnobs::popup_suppressed` (`:351`) and
+`ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`; `GlobalControls::handle`
+gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
+(`services/global_controls.cpp:580`); `MidiLearn::handle` reads the same
+(`services/midi_learn.cpp:466`). The only `SceneStack` and `InputLowering` in an application are the
+ones the **`Shell` owns** (`shell/shell.h`'s `stack_`, `lowering_`), so a real service cannot be
+constructed before the shell it serves. And `Services` was passed **by value into the `Shell`'s
+constructor** and fixed there, so it could not be installed after it either: an application that
+built a `Shell` could only pass `Services{}` — no gold-knob turn reached `ModKnobs`, no transport
+button reached `GlobalControls`, and `SceneKind::Screensaver` aside, nothing outside the scene stack
+ever ran.
 
-Consequence today: none, because nothing wires a `Shell` yet — which is exactly why this has to be
-written down here rather than discovered by whoever does. Whoever wires boot needs **`Shell::set_services`**
-(setting `services_`, re-seating `Router`'s copy and rebuilding `service_list_`), or service
-constructors that take their stack and lowering later. `sim/scenes_spec/scene_scripts_spec.cpp` gets
-around it for a spec with a forwarding `LateService` shim installed from
-`uitest::RunOptions::after_construct`; that is a test-only shape and is not the answer for the
-application. Found by E4 task 13, the first thing in the tree that ever tried to hold all three
-services and a `Shell` at the same time.
+**`Shell::set_services` (`shell/shell.h`) is the fix.** Build the shell with `Services{}`, construct
+the three over `shell.stack()` and `shell.lowering()`, then install them; the call re-seats all three
+things that hold the slots — `services_`, the `Router`'s own by-value copy, and the deduplicated
+`service_list_` — and is well defined on a re-install (the list is rebuilt from scratch, so nothing
+previously installed is left in it and nothing is double-ticked).
+`sim/scenes_spec/scene_scripts_spec.cpp` drove a forwarding `LateService` shim from
+`uitest::RunOptions::after_construct` before that existed; the shim is gone and that file now calls
+the setter, with its 34 golden snapshots unmoved. Found by E4 task 13, the first thing in the tree
+that ever tried to hold all three services and a `Shell` at the same time; fixed by F1 task 2. What
+is still owed here is **boot calling it** — that is a wiring job, not a missing mechanism.
 
 The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
 application has to call — that is the file a boot author is already in.
@@ -1304,9 +1307,10 @@ in, kept because it names the legacy routines each item has to be checked agains
 Beyond the menu tree, the remainder of spec E §2's scene inventory is `SessionScene`,
 `NoteClipScene`, `ArrangerScene`, `KeyboardScene`, `PerformanceScene`, `AutomationScene` and the
 load/save half of the browser family — **the overlays are done** (E4 tasks 1, 6 and 7 landed the
-last three). And **nothing links `deluge_scenes`**: the wiring plan owes the entry point, the MIDI
-routing, the boot calls, the `MenuAction` dispatcher and — new in E4 — a way to install a service at
-all (`Shell::set_services`; see "Boot wiring this layer does not do for itself"). Three of
+last three). The wiring plan (F1) owes the entry point, the MIDI routing, the boot calls and the
+`MenuAction` dispatcher; its task 1 put `deluge_scenes` into both link closures and its task 2 added
+`Shell::set_services`, so installing a service is a boot call away rather than impossible (see "Boot
+wiring this layer does not do for itself"). Three of
 `MidiLearn`'s four entry points have **no producer in `src/` today**: `note_on_received`,
 `cc_received` and `thing_pressed` have zero callers outside the spec, because there is no MIDI
 `UiEvent` kind for the router to carry and the scenes that would call `thing_pressed` from

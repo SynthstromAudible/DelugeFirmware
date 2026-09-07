@@ -69,10 +69,12 @@ using deluge::ui::shell::ShellConfig;
 ///     `scenes::services::ModKnobs`, `GlobalControls` and `MidiLearn` are each constructed from
 ///     `SceneStack&` and `InputLowering&`, and the only instances of those two are the ones the
 ///     `Shell` **owns** (`shell/shell.h`'s `stack_`, `lowering_`) -- so a real service cannot be
-///     built until the shell it serves already exists, and `Services` is fixed at the shell's
-///     construction. This hook is where a caller closes that loop; see
-///     `sim/scenes_spec/scene_scripts_spec.cpp`'s `LateService` for the shape, and that file's
-///     header for why the same gap is a real one for the application's own boot.
+///     built until the shell it serves already exists. This hook is where a caller closes that
+///     loop: construct the three here over `shell.stack()`/`shell.lowering()` and install them
+///     with `Shell::set_services`, which is what an application's own boot does. See
+///     `sim/scenes_spec/scene_scripts_spec.cpp`'s `RealServices` for the shape, and that file's
+///     header for the account of the gap (`Services` used to be fixed at the shell's construction,
+///     so this hook had to drive a forwarding shim instead; F1 task 2 removed the need).
 ///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The
 ///     stand-in for a model that moves on its own: `overlay::CountInScene` is a **poll** of
 ///     `playbackHandler.count_in_visual()` (`scenes/overlay/count_in_scene.h`), and the only thing

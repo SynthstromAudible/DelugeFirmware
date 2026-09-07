@@ -210,20 +210,24 @@ rather than a thing that is half-done:
    and **the screensaver can never activate**, however the two settings are set.
 6. **`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
    `PerformanceView` class member offers no bare-`extern` escape.
-7. **No application can install a service** — added by E4 task 13, the first thing in the tree that
+7. **No application installs a service** — added by E4 task 13, the first thing in the tree that
    ever tried to hold all three services and a `Shell` at once. `services::ModKnobs`,
    `services::GlobalControls` and `services::MidiLearn` each take the `Shell`'s own `SceneStack&`
-   (two of them its `InputLowering&`) and each *uses* it, `Services` is taken **by value into the
-   `Shell`'s constructor** and `service_list_` is built once there
-   (`src/shell/shell.cpp:186-190`, "the services are fixed at construction"). So a real service
-   cannot be constructed before the shell it serves and cannot be installed after it: an application
-   that builds a `Shell` today can only pass `Services{}`, and **no gold-knob turn, transport button
-   or MIDI-learn press reaches anything outside the scene stack.** Unlike 5, this is not a setting
-   that degrades — it is a whole routing tier that is unreachable. Whoever wires boot needs
-   `Shell::set_services` (setting `services_`, re-seating `Router`'s copy and rebuilding
-   `service_list_`) or late-bound service constructors;
-   `sim/scenes_spec/scene_scripts_spec.cpp`'s forwarding `LateService` shim is a test-only shape.
-   Recorded in code at `src/scenes/registry.h`'s boot-wiring list and `src/scenes/README.md`.
+   (two of them its `InputLowering&`) and each *uses* it, so a real service cannot be constructed
+   before the shell it serves; and `Services` used to be taken **by value into the `Shell`'s
+   constructor**, with `service_list_` built once there, so it could not be installed after it
+   either. An application that built a `Shell` could only pass `Services{}`, and **no gold-knob
+   turn, transport button or MIDI-learn press reached anything outside the scene stack.** Unlike 5,
+   this is not a setting that degrades — it is a whole routing tier that is unreachable.
+
+   **The mechanism half is closed.** F1 task 2 added `Shell::set_services` (`src/shell/shell.h`),
+   which sets `services_`, re-seats `Router`'s own by-value copy and rebuilds the deduplicated
+   `service_list_` — well defined on a re-install, and covered by `tests/spec/shell/services_spec.cpp`
+   with all four one-line mutations killed. `sim/scenes_spec/scene_scripts_spec.cpp`'s forwarding
+   `LateService` shim is gone: it constructs the three in `after_construct` and calls the setter,
+   with its 34 goldens unmoved. Shell spec §15.9 has the account. **What remains open here is boot
+   calling it** (task 8), which is why this item is not yet struck. Recorded in code at
+   `src/scenes/registry.h`'s boot-wiring list and `src/scenes/README.md`.
 8. **No producer for three of `MidiLearn`'s four entry points.** `note_on_received`, `cc_received`
    and `thing_pressed` have zero callers in `src/` — there is no MIDI `UiEvent` kind for the router
    to carry, and the scenes that would call `thing_pressed` from `learnable_at(pad)`

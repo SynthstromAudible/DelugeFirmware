@@ -119,8 +119,10 @@ false and 0.
 
 A `Service` is a scene-shaped participant in the routing chain that is not itself pushed or
 popped and has no render surface: `handle()`, `leds()`, `tick()`, `next_timer()`, `timer_repaints()`, all defaulting
-to nothing. `Services{mod_knobs, global_controls, midi_learn}` is what a `Shell` is built with;
-every unfilled slot defaults to `null_service()`, so the full legacy chain shape (the scene, then
+to nothing. `Services{mod_knobs, global_controls, midi_learn}` is what a `Shell` is built with, or
+handed later through `Shell::set_services` — which is how an application installs the three real
+ones, since each needs the `SceneStack&` (and two of them the `InputLowering&`) that only exists
+once the shell owning it does. Either way, every unfilled slot defaults to `null_service()`, so the full legacy chain shape (the scene, then
 the mod-knobs bar, then global transport/shift/record handling, then MIDI learn) runs with the
 unfilled slots contributing nothing. `Notices` and `Screensaver` are the two services this task
 actually implemented, because they need nothing from the model; `ModKnobs`, `GlobalControls` and
