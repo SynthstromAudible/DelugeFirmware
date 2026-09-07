@@ -35,4 +35,29 @@ enum class Bootstrap {
 ///         absence is unconfirmed.
 Bootstrap bootstrap_action(const std::expected<bool, deluge::io::Status>& present);
 
+/// @brief Whether a save may write to a path whose presence has been checked.
+///
+/// @note `Undeterminable` is REFUSED, never treated as absent — and confirming an overwrite does not
+///       override that. On the storage owner the filesystem answers, so "could not tell" means the
+///       card genuinely did not respond: a fault, not a routine condition. Taking the absent branch
+///       there would overwrite a file the user still has.
+/// @warning Switch on this enum exhaustively, with no `default:` label, for the same reason given on
+///          `Presence` above.
+enum class SaveAction : uint8_t {
+	Write,    ///< the path is free to write (nothing there, or the user confirmed an overwrite)
+	Occupied, ///< something is there and the user has not confirmed
+	Refuse,   ///< presence could not be determined; write NOTHING and surface a card error
+};
+
+/// @brief The one rule both save existence checks share.
+///
+/// `Occupied` is named for the FACT, not for one site's reaction: the overwrite check turns it into
+/// a prompt, while the temp-filename search turns it into "try the next candidate".
+///
+/// @param present      The result of the existence check on the target path.
+/// @param mayOverwrite Whether the user has already confirmed an overwrite.
+/// @return `Refuse` whenever existence is undeterminable — never write over a file whose absence is
+///         unconfirmed.
+SaveAction save_action(const std::expected<bool, deluge::io::Status>& present, bool mayOverwrite);
+
 } // namespace deluge::storage

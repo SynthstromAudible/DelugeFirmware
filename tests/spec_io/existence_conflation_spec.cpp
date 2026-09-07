@@ -176,6 +176,50 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 		expect(deluge::storage::presence_of(present) == deluge::storage::Presence::Undeterminable)
 		    .to_equal(true);
 	});
+
+	// A save must never take the "absent" branch on a refused check: that is how a file the user
+	// still has gets silently overwritten. Injected BUSY is the real shape of that refusal.
+	it("refuses to write when the check was refused", _ {
+		mock_file_io_reset();
+		uint32_t h = 0;
+		expect(deluge_efatfs_file_open("SONGS/SONG001.XML", DELUGE_FILE_WRITE_CREATE, &h))
+		    .to_equal(DELUGE_OK);
+		deluge_efatfs_file_close(h);
+		mock_file_io_inject_status("SONGS/SONG001.XML", DELUGE_ERR_BUSY);
+
+		auto present = deluge::io::presence_from_open(
+		    deluge::io::File::open("SONGS/SONG001.XML", DELUGE_FILE_READ));
+
+		expect(deluge::storage::save_action(present, false) == deluge::storage::SaveAction::Refuse)
+		    .to_equal(true);
+		// Confirming an overwrite must NOT override a refusal -- the user confirmed overwriting a
+		// file we were never able to see.
+		expect(deluge::storage::save_action(present, true) == deluge::storage::SaveAction::Refuse)
+		    .to_equal(true);
+	});
+
+	it("writes into a genuinely free name", _ {
+		mock_file_io_reset();
+		auto present = deluge::io::presence_from_open(
+		    deluge::io::File::open("SONGS/NoSuchSong.XML", DELUGE_FILE_READ));
+		expect(deluge::storage::save_action(present, false) == deluge::storage::SaveAction::Write)
+		    .to_equal(true);
+	});
+
+	it("reports an occupied name, and writes once the overwrite is confirmed", _ {
+		mock_file_io_reset();
+		uint32_t h = 0;
+		expect(deluge_efatfs_file_open("SONGS/SONG002.XML", DELUGE_FILE_WRITE_CREATE, &h))
+		    .to_equal(DELUGE_OK);
+		deluge_efatfs_file_close(h);
+
+		auto present = deluge::io::presence_from_open(
+		    deluge::io::File::open("SONGS/SONG002.XML", DELUGE_FILE_READ));
+		expect(deluge::storage::save_action(present, false) == deluge::storage::SaveAction::Occupied)
+		    .to_equal(true);
+		expect(deluge::storage::save_action(present, true) == deluge::storage::SaveAction::Write)
+		    .to_equal(true);
+	});
 });
 
 CPPSPEC_SPEC(existence_conflation)

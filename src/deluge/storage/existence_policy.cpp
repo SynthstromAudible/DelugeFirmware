@@ -22,4 +22,18 @@ Bootstrap bootstrap_action(const std::expected<bool, deluge::io::Status>& presen
 	return Bootstrap::UseInMemoryOnly;
 }
 
+SaveAction save_action(const std::expected<bool, deluge::io::Status>& present, bool mayOverwrite) {
+	switch (presence_of(present)) {
+	case Presence::Absent:
+		return SaveAction::Write;
+	case Presence::Present:
+		return mayOverwrite ? SaveAction::Write : SaveAction::Occupied;
+	case Presence::Undeterminable:
+		return SaveAction::Refuse;
+	}
+	// No `default:` above, deliberately -- see this header's warning, so -Wswitch catches an
+	// unhandled enumerator. Unreachable for a valid one; Refuse is the safe reading regardless.
+	return SaveAction::Refuse;
+}
+
 } // namespace deluge::storage
