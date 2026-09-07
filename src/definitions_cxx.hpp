@@ -209,6 +209,10 @@ enum class UIType : uint8_t {
 	SESSION,
 	SLICER,
 	SOUND_EDITOR,
+	// Out of alphabetical order on purpose (F1 task 5): every other name here is followed by ones
+	// whose values would shift if a new name were inserted above them, and `UI_TYPE_COUNT` sizes
+	// `uiTypeMap` (`gui/ui/ui.cpp:463-488`). Appending is the only insertion that moves nothing.
+	SHELL_HOST,
 	// Keep these at the bottom!
 	UI_TYPE_COUNT,
 	NONE = 255,

@@ -485,7 +485,8 @@ EnumStringMap<UIType, util::to_underlying(UIType::UI_TYPE_COUNT)> uiTypeMap = {
       {UIType::SAVE_SONG, "save_song"},
       {UIType::SESSION, "session"},
       {UIType::SLICER, "slicer"},
-      {UIType::SOUND_EDITOR, "sound_editor"}}}};
+      {UIType::SOUND_EDITOR, "sound_editor"},
+      {UIType::SHELL_HOST, "shell_host"}}}};
 
 const char* UI::getUIName() {
 	return uiTypeMap(getUIType());

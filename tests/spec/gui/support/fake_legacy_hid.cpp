@@ -48,6 +48,10 @@ void OLED::sendMainImage() {
 namespace PadLEDs {
 
 RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth];
+// Defined but never written by anything under test: `GuestSurfaceSet::send_columns` and
+// `ShellHostUI::renderMainPads` both leave legacy's occupancy map alone, and a spec can only assert
+// that if the array exists to be looked at.
+uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 
 // Stands in for `sortLedsForCol` (`hid/led/pad_leds.cpp:260-275`). The real one reads `image`
 // through `prepareColour` and pushes the pair to the control surface; the fake records the column
@@ -117,6 +121,7 @@ void reset() {
 	oled_frames_marked = 0;
 	pad_output_space = 1u << 20;
 	std::memset(PadLEDs::image, 0, sizeof(PadLEDs::image));
+	std::memset(PadLEDs::occupancyMask, 0, sizeof(PadLEDs::occupancyMask));
 	deluge::hid::display::OLED::main.clear();
 	// `Canvas::clear()` only zeroes the bytes; it does not touch the dirty flag. Drain it through
 	// the same door a spec would.

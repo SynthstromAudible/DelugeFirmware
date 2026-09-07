@@ -25,6 +25,14 @@ add_library(deluge_spec STATIC
 # below, which defines exactly those symbols. Same arrangement as scenes/support/fake_shortcuts.cpp.
 ../../src/deluge/gui/ui/shell_guest_surfaces.cpp
 gui/support/fake_legacy_hid.cpp
+# The guest itself (F1 task 5): `ShellHostUI : UI`. Its only legacy dependencies beyond the
+# surfaces above are `UI`'s own seven non-inline members plus `closeUI`/`renderUIsForOled`, which
+# gui/support/fake_legacy_ui.cpp below defines -- `gui/ui/ui.cpp` itself would pull in `view`,
+# `getRootUI()` and the whole legacy view tree. That fake also supplies an empty
+# `deluge::scenes::scene_registry()` for the one `shellHostUI` global this file defines; the real
+# one odr-uses every ported scene, i.e. the `deluge_scenes` closure this suite never builds.
+../../src/deluge/gui/ui/shell_host_ui.cpp
+gui/support/fake_legacy_ui.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 # The menu node-id registry (task 2, spec E1): dependency-free (its only model include is
