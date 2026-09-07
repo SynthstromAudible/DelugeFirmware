@@ -5,6 +5,7 @@
 #include "hid/button.h"
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "shell/profiles/deluge.h"
 #include "ui/core/style.h"
 
@@ -882,6 +883,62 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.base.seen.size()).to_equal(size_t(1));
 		expect(r.base.seen[0].ev.kind == UiEvent::Kind::EncoderButton).to_be_true();
 		expect(r.base.seen[0].ev.button == ButtonId::SelectEnc).to_be_true();
+	});
+
+	it("seeds the shell's sticky-shift setting from runtimeFeatureSettings when it opens", _ {
+		// Legacy reads `ShiftIsSticky` at shift-release time (`hid/buttons.cpp:250`); the shell reads
+		// its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's
+		// latched shift is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad
+		// jump (`scenes/menu/menu_scene.cpp:1392`).
+		Rig on;
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
+		expect(on.open()).to_be_true();
+		expect(on.guest.shell().lowering().shift_is_sticky()).to_be_true();
+
+		// Vary only the setting, on an otherwise identical guest.
+		Rig off;
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
+		expect(off.open()).to_be_true();
+		expect(off.guest.shell().lowering().shift_is_sticky()).to_be_false();
+	});
+
+	it("latches shift on a tap once the setting is seeded, and does not without it", _ {
+		// The seed is only worth having if it changes what a scene sees, so this drives the whole
+		// gesture: a tap shorter than `hold_time_ms` (100), then a pad, and asks whether `ctx.shift`
+		// survived the release.
+		Rig sticky;
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
+		expect(sticky.open()).to_be_true();
+		fakelegacyui::system_time_s = 1.000;
+		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+		fakelegacyui::system_time_s = 1.010; // a 10 ms tap
+		(void)sticky.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+		sticky.guest.shell().tick(10);
+		sticky.base.seen.clear();
+		(void)sticky.guest.padAction(3, 3, 255);
+		sticky.guest.shell().tick(20);
+		const PatternScene::Seen* latched = first_of(sticky.base, UiEvent::Kind::Pad);
+		expect(latched != nullptr).to_be_true();
+		expect(latched->shift).to_be_true();
+		expect(latched->sticky).to_be_true();
+
+		// Vary only the setting; the identical gesture must not latch.
+		Rig plain;
+		// The `Rig` constructor has already put the feature back to Off; naming it is what makes the
+		// contrast with the block above explicit rather than incidental.
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
+		expect(plain.open()).to_be_true();
+		fakelegacyui::system_time_s = 1.000;
+		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, true, false);
+		fakelegacyui::system_time_s = 1.010;
+		(void)plain.guest.buttonAction(deluge::hid::button::SHIFT, false, false);
+		plain.guest.shell().tick(10);
+		plain.base.seen.clear();
+		(void)plain.guest.padAction(3, 3, 255);
+		plain.guest.shell().tick(20);
+		const PatternScene::Seen* unlatched = first_of(plain.base, UiEvent::Kind::Pad);
+		expect(unlatched != nullptr).to_be_true();
+		expect(unlatched->shift).to_be_false();
 	});
 
 	it("reads shift out of the events it feeds, in both directions", _ {

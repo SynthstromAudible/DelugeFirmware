@@ -1,6 +1,8 @@
 #include "fake_legacy_ui.h"
 
 #include "gui/ui/ui.h"
+#include "memory/heaps.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "scenes/registry.h"
 
 namespace fakelegacyui {
@@ -23,6 +25,11 @@ void reset() {
 	graphics_routines = 0;
 	system_time_s = 0.0;
 	sd_routine_active = false;
+	// `ShellHostUI::opened()` reads `ShiftIsSticky` out of the global below, and a spec that left it
+	// set would change how a *later* example's shift tap behaves -- with the clock at 0, every tap
+	// is shorter than `hold_time_ms` and would latch. `Rig` calls this in its constructor, so an
+	// example that wants the feature on sets it after constructing its rig and before `open()`.
+	runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::Off);
 }
 
 } // namespace fakelegacyui
@@ -109,3 +116,29 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 }
 
 } // namespace deluge::scenes
+
+// ---------------------------------------------------------------------------
+// model/settings/runtime_feature_settings.cpp's share: the one global, and the
+// one out-of-line member. `ShellHostUI::opened()` reads `ShiftIsSticky` out of
+// it to seed the shell's own copy of the setting, and `get()` is already inline
+// in the header (`model/settings/runtime_feature_settings.h:100`), so all this
+// suite needs is storage plus a constructor -- the real one reads a file.
+// A spec sets the value through `set()`, which is inline too (`:108`).
+// ---------------------------------------------------------------------------
+RuntimeFeatureSettings runtimeFeatureSettings;
+
+RuntimeFeatureSettings::RuntimeFeatureSettings() = default;
+
+// Its two `deluge::vector` members pull in `external_allocator`, whose deallocate calls
+// `deluge::memory::dealloc` (`memory/external_allocator.h:35`) -- named by the vectors' destructors
+// whether or not they ever hold anything. The real pair is the GMA. Forwarding to the host
+// allocator keeps them honest rather than aborting: an empty vector frees nothing, and a spec that
+// somehow made one grow would still be correct instead of leaking.
+namespace deluge::memory {
+void* alloc_external(std::size_t size, std::size_t align) {
+	return ::operator new(size, std::align_val_t{align});
+}
+void dealloc(void* ptr) {
+	::operator delete(ptr);
+}
+} // namespace deluge::memory

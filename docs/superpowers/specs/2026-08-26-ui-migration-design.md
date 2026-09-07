@@ -93,8 +93,12 @@ the hook it belongs to.
     `gui/ui/ui.h:152-153` says the hook "returns whether a UI exited"). Task 5's stated trigger for
     the change was itself wrong and is corrected here: **routing pads into the shell does not make
     reader 2 reachable.** `MatrixDriver::padAction` calls `getCurrentUI()->padAction` and nothing else
-    (`hid/matrix/matrix_driver.cpp:79`), and `ColumnControlsKeyboard::evaluatePads` has one caller
-    (`gui/ui/keyboard/keyboard_screen.cpp:205`), so the only route to it while the guest is current is
+    (`hid/matrix/matrix_driver.cpp:79`), and `ColumnControlsKeyboard::evaluatePads` has **one route
+    in, not one caller** — six call sites, five of them subclasses chaining up
+    (`layout/piano.cpp:39`, `layout/in_key.cpp:37`, `layout/isomorphic.cpp:40`,
+    `layout/chord_keyboard.cpp:59`, `layout/chord_library.cpp:57`), with only
+    `gui/ui/keyboard/keyboard_screen.cpp:205` entering from outside the hierarchy — so the only route
+    to it while the guest is current is
     the guest forwarding the pad on the way `SoundEditor::padAction` does when the keyboard screen is
     the root (`gui/ui/sound_editor.cpp:1419-1422`) — which the guest does not do. The value changed on
     the legacy-fidelity argument, not on a reachability one.
@@ -117,18 +121,36 @@ the hook it belongs to.
 
 - **`modEncoderAction` must NOT be forwarded into `InputLowering`, and neither may the other two mod
   hooks.** The shell's encoder entry points take **raw A-pin edges** (`Shell::on_encoder_edges`,
-  `shell/shell.h:268`) and apply their own acceleration to an `EncoderKind::Accelerating` role
-  (`shell/input_lowering.cpp:187-193`). Legacy has already applied its own before it calls the hook:
-  `interpretEncoders` passes `offset * encoder.calcNextKnobSpeed(offset)`
+  `shell/shell.h:268`), while legacy has already turned a gold knob's edges into an accelerated
+  magnitude before it calls: `interpretEncoders` passes `offset * encoder.calcNextKnobSpeed(offset)`
   (`hid/encoder_input.cpp:192-194`) where `calcNextKnobSpeed` returns `clamp(speed, 1.0, 3.0)`
-  (`hid/encoders.cpp:76`), so a forwarded turn is accelerated twice — up to 9x — and additionally
-  picks up the shell's first-turn-after-a-pause debounce, which legacy's own copy cannot reach
+  (`hid/encoders.cpp:76`). **The lowering does not re-accelerate it — `ModKnobs` does.** The
+  `EncoderKind::Accelerating` branch is `delta = edges`, and its own comment says acceleration "is
+  applied by whoever consumes it, through `calc_next_knob_speed`"
+  (`shell/input_lowering.cpp:187-193`); the one consumer is `scenes/services/mod_knobs.cpp:274`. So
+  the second multiplication is real but lands a layer lower than the lowering. **And the factor is
+  ~18x, not 9x**: the Accelerating branch does not divide by `edges_per_detent`, only the `Detented`
+  one does (`shell/input_lowering.cpp:178-186`), so `feedDetents`' ×2 survives intact and `e` raw
+  edges arrive as `2 · e · s_legacy · s_shell` where legacy delivers at most `3 · e`. A forwarded
+  turn additionally picks up the shell's first-turn-after-a-pause debounce
+  (`shell/input_lowering.cpp:191`), which legacy's own copy cannot reach
   (`hid/encoder_input.cpp:187-202`; the lowering records the same dead branch at
-  `shell/input_lowering.cpp:206-213`). Leaving all three on `UI`'s base is also what the first tenant
-  does — `SoundEditor::modEncoderAction` ends at `UI::modEncoderAction`
-  (`gui/ui/sound_editor.cpp:1583-1607`) and it never overrides `modButtonAction` — so it is what
-  global constraint 1 requires. The gold knobs need F1 task 8's `ModKnobs` **plus** a shell entry
-  point that accepts an already-lowered turn.
+  `shell/input_lowering.cpp:206-213`). The gold knobs need F1 task 8's `ModKnobs` **plus** a shell
+  entry point that accepts an already-lowered turn.
+
+  **Leaving them on the base is not `SoundEditor` parity, and the difference is user-visible.**
+  `SoundEditor` overrides two of the three: `modEncoderAction` (`gui/ui/sound_editor.cpp:1583-1607`)
+  reaches `UI::modEncoderAction` only from its innermost `else` (`:1604`), above which sit the
+  `automationView` redirect (`:1584-1586`) and the `UI_MODE_MIDI_LEARN` →
+  `getCurrentMenuItem()->learnKnob(...)` arm (`:1589-1601`); `modEncoderButtonAction` has the same
+  shape minus the learn arm (`:1609-1616`). Only `modButtonAction` is genuinely untouched by
+  `SoundEditor`. So **under the toggle, MIDI-learning a menu parameter to a gold knob silently stops
+  working.** Not closable in task 6: both arms ask about `currentUIMode` and
+  `getCurrentMenuItem()` — `SoundEditor`'s own navigation record, stale while the guest is what is
+  open. The port's answer is the routed-to-`MenuScene` path `ModKnobs` already names as the thing
+  its service ordering exists to protect (`scenes/services/mod_knobs.h:55-64`), which needs the
+  service installed *and* the gold turn routed: both halves of task 8. Recorded as a divergence with
+  that condition, not claimed as parity.
 - **"legacy `Buttons::` state is *read* into `UiContext`, not duplicated" is not implementable.**
   `UiContext` is built by `Shell::make_context`, which is private and fills `.shift`/`.sticky` from
   `InputLowering`'s own fields (`shell/shell.cpp:549-559`); `InputLowering` has no shift setter, only
@@ -139,17 +161,23 @@ the hook it belongs to.
   (`shell/input_lowering.cpp:306-326` against `hid/buttons.cpp:237-278`) — except in three measured
   places, of which the first is **a release blocker for the toggle**:
 
-  1. Legacy reads `runtimeFeatureSettings.get(ShiftIsSticky)` at release time (`hid/buttons.cpp:250`);
-     the shell reads `LoweringConfig::shift_is_sticky`, which `ShellHostUI` leaves at its default
-     **false** (`shell/input_lowering.h:29-31`) and nothing sets. With sticky shift on, legacy latches
-     shift on a tap and the shell does not — and `ctx.shift` is the whole gate on the menu's
-     shortcut-pad jump (`scenes/menu/menu_scene.cpp:1392`), so a sticky-shift user loses shortcut pads
-     under the toggle. The fix is a `LoweringConfig` seated at boot; `LoweringConfig` is
-     construction-time (`shell/shell.h:27-29`) and `shellHostUI` is a static-init global that cannot
-     read flash, so it belongs with F1 task 8 — the same gap, and the same home, as
-     `ShellConfig::screensaver_idle_ms`'s own warning (`shell/shell.h:30-40`).
-  2. The tap threshold is `FlashStorage::holdTime` in legacy and a fixed `hold_time_ms` (100) in the
-     shell.
+  1. ~~The sticky-shift feature flag.~~ **Fixed in task 6, and an earlier version of this bullet
+     deferred it to task 8 for a reason that was false.** `InputLowering::set_shift_is_sticky` exists
+     (`shell/input_lowering.cpp:334-341`) precisely because "the settings menu toggles it live"
+     (`shell/input_lowering.h:29-30`), and `Shell::lowering()` is public and non-const
+     (`shell/shell.h:311`) — so nothing about `LoweringConfig` being construction-time applies to
+     *this* field. `ShellHostUI::opened()` now seeds it from
+     `runtimeFeatureSettings.get(ShiftIsSticky)`, and `ShiftIsSticky::writeCurrentValue`
+     (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`) mirrors it live, alongside the
+     `Buttons::clearShiftSticky()` it already had to pair with. Left unfixed this was a real
+     regression: `ctx.shift` is the whole gate on the menu's shortcut-pad jump
+     (`scenes/menu/menu_scene.cpp:1392`), so a sticky-shift user would have lost shortcut pads under
+     the toggle.
+  2. **`hold_time_ms` is the one that genuinely is construction-time.** The tap threshold is
+     `FlashStorage::holdTime` in legacy and a fixed 100 ms in the shell (`shell/input_lowering.h:24-25`), and nothing can
+     change it after construction — `set_shift_is_sticky` (`:221`) is the only mutator `InputLowering`
+     exposes for any `LoweringConfig` field — so this one does wait for a config seated where the shell is constructed — the same gap, and the same home,
+     as `ShellConfig::screensaver_idle_ms`'s own warning (`shell/shell.h:30-40`).
   3. Legacy clears `considerShiftReleaseForSticky` on *every* button press including the eight mod
      buttons (`hid/buttons.cpp:88-95`), but `Buttons::buttonAction` intercepts those and never calls
      the current UI (`:99-107`), so the shell never sees `ButtonId::Mod0`..`Mod7` at all.

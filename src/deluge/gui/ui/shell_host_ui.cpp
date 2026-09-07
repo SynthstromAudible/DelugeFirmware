@@ -19,6 +19,7 @@
 
 #include "hid/button.h"
 #include "libdeluge/scheduler.h" // isSDRoutineActive(), getSystemTime()
+#include "model/settings/runtime_feature_settings.h"
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
 
@@ -73,6 +74,29 @@ bool ShellHostUI::opened() {
 	// `SoundEditor::opened` calling `beginScreen()` (`gui/ui/sound_editor.cpp:259-273`), which
 	// begins a menu session rather than resuming one.
 	shell_.stack().reset();
+
+	// **Seed the sticky-shift setting from flash, every time the guest opens.**
+	//
+	// The shell has its own shift state machine -- there is no seam to read legacy's through, see
+	// the class's `@par Shift` -- and `InputLowering::toggle_shift` is a faithful port of
+	// `Buttons::commandToggleShift` (`shell/input_lowering.cpp:306-326` against
+	// `hid/buttons.cpp:237-278`) *except* that legacy reads the runtime feature at release time
+	// (`hid/buttons.cpp:250`) while the shell reads a `LoweringConfig` field that defaults to false
+	// (`shell/input_lowering.h:29-31`). Left unseeded, a sticky-shift user's latched shift would be
+	// invisible to `ctx.shift`, which is the whole gate on the menu's shortcut-pad jump
+	// (`scenes/menu/menu_scene.cpp:1392`) -- so shortcut pads would silently stop working under the
+	// toggle.
+	//
+	// `opened()` is the right place and the setter is the right tool: `set_shift_is_sticky` exists
+	// precisely because "the settings menu toggles it live" (`shell/input_lowering.h:29-30`,
+	// `shell/input_lowering.cpp:334-341`), and this function -- unlike the constructor, which runs
+	// at static-init before flash is read -- runs long after `readSettingsFromFile`. The live half
+	// is mirrored in `ShiftIsSticky::writeCurrentValue`
+	// (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`), which already had to pair with
+	// `Buttons::clearShiftSticky()` for exactly the same reason; this seed is what covers a guest
+	// opened after a setting changed while it was shut.
+	shell_.lowering().set_shift_is_sticky(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)
+	                                      == RuntimeFeatureStateToggle::On);
 
 	// **No `Shell::boot()` here, and its absence is deliberate.** The first version of this function
 	// called it, on the reasoning that the panels want a repaint on the way in. They do, and they
@@ -445,9 +469,13 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// x is always inside `button_cols` (9); a negative y narrows to 240..255 and a y of 4..12 stays
 	// itself, and both are at or past `button_rows` (4), which `on_matrix` tests before it indexes
 	// (`shell/input_lowering.cpp:258-260`). There is no value of `b` for which the narrowing
-	// changes the answer, so a guard here would be a second copy of a check that already holds --
-	// the same dead-code shape F1 task 5's review deleted from `opened()`. A mutation removing one
-	// is unkillable, which is the evidence.
+	// changes the answer -- **on a profile whose `button_rows` is at most 13**, which is what makes
+	// the Deluge's 4 (`shell/profiles/deluge.cpp:144-145`, and the matrix table it indexes at `:12-18`) safe. The proof
+	// is board-specific, not universal: a hypothetical profile with 14 or more button rows would let a `y` of 13 index
+	// a real cell for a `b` legacy never means as a matrix button. Stated rather than guarded, because no such profile
+	// exists and a guard against one would be untestable. So a guard here would be a second copy of a check that
+	// already holds -- the same dead-code shape F1 task 5's review deleted from `opened()`. A mutation removing one is
+	// unkillable, which is the evidence.
 	const Cartesian xy = deluge::hid::button::toXY(b);
 	feed(DelugeInputEvent{DELUGE_EVENT_BUTTON, static_cast<uint8_t>(xy.x), static_cast<uint8_t>(xy.y),
 	                      static_cast<int16_t>(on ? 255 : 0)});
@@ -552,8 +580,12 @@ ActionResult ShellHostUI::exitUI() {
 	// `ColumnControlsKeyboard::evaluatePads` runs at all is if the current UI hands the pad on --
 	// which is precisely what `SoundEditor::padAction` does when the keyboard screen is the root
 	// (`gui/ui/sound_editor.cpp:1419-1422`) and what this guest does **not** do. `evaluatePads` has
-	// one caller, `gui/ui/keyboard/keyboard_screen.cpp:205`. So that reader stays unreachable under the guest, and
-	// the reprieve task 5 described never ends by that route.
+	// **one route in**, not one caller: `grep -rn evaluatePads src/deluge` gives six call sites, of
+	// which five are subclasses chaining up to `ColumnControlsKeyboard::evaluatePads`
+	// (`layout/piano.cpp:39`, `layout/in_key.cpp:37`, `layout/isomorphic.cpp:40`,
+	// `layout/chord_keyboard.cpp:59`, `layout/chord_library.cpp:57`) and only
+	// `gui/ui/keyboard/keyboard_screen.cpp:205` enters from outside the hierarchy. So that reader stays unreachable
+	// under the guest, and the reprieve task 5 described never ends by that route.
 	//
 	// The value changed anyway, for the reasons that do hold:
 	//
