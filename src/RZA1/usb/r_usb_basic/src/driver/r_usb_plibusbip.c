@@ -873,92 +873,71 @@ void usb_pstd_data_end(uint16_t pipe, uint16_t status)
 void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
 {
 
-    // uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    (void)bitsts;
 
     uint16_t pipe = USB_CFG_PMIDI_BULK_IN;
 
-    if (true || (bitsts & USB_BITSET(pipe)) != 0u) // Not really necessary
+    // because this is polled theres no synchronization with the state of the bus so we have to handle some edge cases
+
+    // No receive armed? Then this is a stale BRDY for a packet we already drained below (BRDYSTS is cleared before
+    // this handler is called, so a packet arriving while we drain re-raises it afterwards). Nothing to do.
+    //
+    // g_p_usb_pipe[pipe] is the HAL-visible proxy for "a receive is armed": the BSP sets it when it arms the
+    // transfer and this handler clears it on completion. The HAL does not name the BSP's device state.
+    if (USB_NULL == g_p_usb_pipe[pipe])
     {
-        /* Interrupt check */
-        // hw_usb_clear_status_bemp(USB_NULL, pipe);
+        return;
+    }
 
-        if (true || USB_NULL != g_p_usb_pipe[pipe])
+    // Rohan originally removed this as "not needed", but if midi is coming faster than
+    // we can handle it this is required to tell the host to retry.
+    // With the pipe NAKed the host just retries until the poll routine re-arms
+    usb_cstd_set_nak_fast_rohan(pipe);
+
+    // A packet mid-transaction when NAK was written above still completes and lands in the FIFO. In case that's
+    // happening let's read until the pipes empty
+    for (uint32_t n = 0; n < 0xFFFFu; n++)
+    {
+        if (!(hw_usb_read_pipectr(USB_NULL, pipe) & USB_PBUSY))
         {
-            /* Pipe number to FIFO port select */
-            // useport = USB_CUSE;//usb_pstd_pipe2fport(pipe);
-
-            /* FIFO to Buffer data read */
-            // usb_pstd_fifo_to_buf(pipe, USB_CUSE);
-            {
-                uint16_t end_flag = usb_read_data_fast_rohan(pipe);
-
-                if (end_flag == USB_READEND)
-                { // I condensed USB_READSHRT into this too
-                    // usb_pstd_data_end(pipe, newStatus);
-                    {
-
-                        // Turns out not needed!
-#if 0
-						/* PID = NAK */
-						/* Set NAK */
-						//usb_cstd_select_nak(USB_NULL, pipe);
-						usb_cstd_set_nak_fast_rohan(pipe);
-
-						/* Disable Interrupt */
-						/* Disable Ready Interrupt */
-						hw_usb_clear_brdyenb(USB_NULL,pipe);
-
-						/* Disable Not Ready Interrupt */
-						hw_usb_clear_nrdyenb(USB_NULL,pipe);
-
-						/* Disable Empty Interrupt */
-						hw_usb_clear_bempenb(USB_NULL,pipe);
-
-						/* Disable Transaction count */
-						//usb_cstd_clr_transaction_counter(USB_NULL, pipe);
-						hw_usb_clear_trenb(USB_NULL, pipe);
-						hw_usb_set_trclr(USB_NULL, pipe);
-#endif
-                        /* Call Back */
-                        if (true || USB_NULL != g_p_usb_pipe[pipe])
-                        {
-                            /* Check PIPE TYPE */
-                            if (true
-                                || usb_cstd_get_pipe_type(USB_NULL, pipe)
-                                       != USB_TYPFIELD_ISO) // Corrected by Rohan from USB_ISO
-                            {
-                                /* Transfer information set */
-                                /* I don't actually read any of these...
-                                g_p_usb_pstd_pipe[pipe]->tranlen    = g_usb_pstd_data_cnt[pipe];
-                                g_p_usb_pstd_pipe[pipe]->status     = newStatus;
-                                g_p_usb_pstd_pipe[pipe]->pipectr    = hw_usb_read_pipectr(USB_NULL,pipe);
-                                g_p_usb_pstd_pipe[pipe]->keyword    = pipe;
-                                */
-                                //((usb_cb_t)g_p_usb_pstd_pipe[pipe]->complete)(g_p_usb_pstd_pipe[pipe], USB_NULL,
-                                // USB_NULL); usbReceiveComplete(0, 0, g_usb_pstd_data_cnt[pipe]);
-                                g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
-                                // Only the first device receives in peripheral mode. Record the bulk-IN completion;
-                                // the BSP drains it and owns the buffers.
-                                usb_midi_completion_record(USB_MIDI_COMPLETION_RECEIVE, 0, 64 - g_usb_data_cnt[pipe]);
-                            }
-                        }
-                    }
-                }
-                else
-                { // USB_FIFOERROR and formerly USB_READOVER
-                    usb_pstd_forced_termination(pipe, USB_DATA_ERR);
-                }
-            }
+            break;
         }
     }
 
-    /*
-    uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-    uint16_t duration = endTime - startTime;
-    uint32_t timePassedNS = superfastTimerCountToNS(duration);
-    uartPrint("brdy process duration, nSec: ");
-    uartPrintNumber(timePassedNS);
-    */
+    uint16_t end_flag = usb_read_data_fast_rohan(pipe); // Reads the armed packet into the BSP's receive buffer
+
+    if (USB_READEND != end_flag) // I condensed USB_READSHRT into READEND
+    {
+        // FIFO error, which seems to be bubbled up by the buffer not being ready
+        // Set the pipe up again and we'll read it next time
+        hw_usb_set_pid_nonzero_pipe_rohan(pipe, USB_PID_BUF);
+        return;
+    }
+
+    // How many bytes the armed 64-byte transfer actually received.
+    int32_t total = 64 - g_usb_data_cnt[pipe];
+
+    // Handle edge case where a packet was arriving when we set the NAK back. The drain runs past the armed
+    // transfer length, so it is bounded by USB_MIDI_RECEIVE_DRAIN_MAX_PACKETS rather than by the destination
+    // buffer's size -- that buffer belongs to the BSP, which sizes it to hold this many packets.
+    while (total + 64 <= USB_MIDI_RECEIVE_DRAIN_MAX_BYTES)
+    {
+        // pretend there's at least 64 more available. The code in read_data_fast notes that
+        // reading in this case is still ok and this handles the edge case of a transmission finishing while the
+        // copy is occuring. That's happening in DMA so a critical section wouldn't help
+        g_usb_data_cnt[pipe] = 64;
+        if (USB_READEND != usb_read_data_fast_rohan(pipe))
+        {
+            break; // FIFO empty - the usual case
+        }
+        total += 64 - g_usb_data_cnt[pipe];
+    }
+
+    g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // also marks the receive as no longer armed, see the check above
+
+    // Only the first device receives in peripheral mode. Record the bulk-IN completion; the BSP drains it,
+    // owns the buffers, and arms the next receive.
+    usb_midi_completion_record(USB_MIDI_COMPLETION_RECEIVE, 0, (uint16_t)total);
 }
 
 /***********************************************************************************************************************

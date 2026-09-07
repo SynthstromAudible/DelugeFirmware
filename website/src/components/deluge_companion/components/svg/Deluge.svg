@@ -653,7 +653,7 @@
         <circle cx="788.204" cy="225.808" r="64.258" style="fill:rgb(255,164,0);"/>
     </g>
     <g id="OLED-Display" serif:id="OLED Display" transform="matrix(0.999432,0,0,1.01281,0.785559,-4.64301)">
-        <rect x="1105.9" y="274.347" width="275.943" height="88.191"/>
+        <rect x="1105.9" y="274.347" width="275.943" height="88.191" style="fill:none;stroke:rgb(231,232,233);stroke-opacity:0.65;stroke-width:0.12px;stroke-linejoin:miter;stroke-miterlimit:1;shape-rendering:geometricPrecision;"/>
     </g>
     <g id="Synced" transform="matrix(0.799982,0,0,0.799982,358.176,50.5576)">
         <circle cx="1791.35" cy="252.765" r="8.109" style="fill:none;stroke:white;stroke-width:1.25px;stroke-linejoin:miter;stroke-miterlimit:1;"/>

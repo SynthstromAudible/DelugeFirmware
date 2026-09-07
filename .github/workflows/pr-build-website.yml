@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - "website/**"
+      - "src/deluge/gui/ui/menus.cpp"
+      - "src/deluge/gui/menu_item/generate/g_menus.inc"
+      - "src/deluge/gui/l10n/english.json"
+      - "src/deluge/gui/l10n/seven_segment.json"
   workflow_dispatch:
 
 permissions:

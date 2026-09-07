@@ -2258,8 +2258,15 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		// CV
 		if (outputType == OutputType::CV) {
 			while (true) {
+				auto oldChannel = newChannel;
 				newChannel = CVInstrument::navigateChannels(newChannel, offset);
-
+				int channelToSearch = newChannel;
+				if (newChannel == CVInstrumentMode::both) {
+					// in this case we just need to make sure the one were not about to give up is free
+					// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
+					// change and this doesn't matter much
+					channelToSearch = oldNonAudioInstrument->getChannel() == 0 ? 1 : 0;
+				}
 				if (newChannel == oldNonAudioInstrument->getChannel()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
@@ -2268,21 +2275,21 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (availabilityRequirement == Availability::ANY) {
 					break;
 				}
+				// check if we can move this clip to another instrument that has a vacant spot in this section
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-					int channelToSearch = newChannel;
-					if (newChannel == CVInstrumentMode::both) {
-						// in this case we just need to make sure the one were not about to give up is free
-						// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
-						// change and this doesn't matter much
-						channelToSearch = oldNonAudioInstrument->getChannel() == 0 ? 1 : 0;
-					}
 					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, channelToSearch)) {
 						break;
 					}
 				}
+				// or if we want to move the whole instrument over
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr,
-					                                                   false)) {
+					if (oldChannel == both && oldInstrumentCanBeReplaced) {
+						// both blocks 1 and 2 but we're about to give one up, so that means it's available
+						break;
+					}
+					// in this case we're replacing the whole instrument so same logic applies as above,
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, channelToSearch, -1, nullptr,
+					                                                   nullptr, false)) {
 						break;
 					}
 				}
@@ -2722,7 +2729,6 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		break;
 
-	// No break
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
 		// fall through into UI_MODE_STUTTERING so you can toggle clip status while holding a clip
 		[[fallthrough]];

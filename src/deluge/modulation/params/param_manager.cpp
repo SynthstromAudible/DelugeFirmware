@@ -378,11 +378,20 @@ void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* m
 
 		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
-		                                            true);
-		// if we can't interpolate by samples then we'll interpolate by ticks here instead
+		// If we can't interpolate by samples then we'll interpolate by ticks instead. This has to happen *before*
+		// processCurrentPos(), because that may reach a node and set up a new increment for the span we're about to
+		// begin - whereas the ticks we've skipped belong to the span we've just finished. Applying them to the new
+		// increment sends the value far past its target (a whole inter-node gap's worth of a few-tick ramp), which for
+		// MIDI output means expression values well outside 0-127.
 		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
 			summary->paramCollection->tickTicks(ticksSkipped, modelStackWithParamCollection);
+		}
+
+		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
+		                                            true);
+		// Re-check after processCurrentPos(): if a node has just started some interpolation, we need to come back every
+		// tick to advance it.
+		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
 			ticksTilNextEvent = 0;
 		}
 		ticksTilNextEvent = std::min(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);

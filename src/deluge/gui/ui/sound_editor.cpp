@@ -370,7 +370,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 								}
 								else {
 									HorizontalMenu* parent = maybeGetParentMenu(newItem);
-									if (parent != nullptr && parent->focusChild(newItem)) {
+									if (parent != nullptr && parent != currentMenuItem && parent->focusChild(newItem)) {
 										navigatedBackwardFrom = newItem;
 										newItem = parent;
 									}
@@ -1475,7 +1475,7 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
 			// Read active voices
 			else if (x == 14) {
-				intToString(AudioEngine::getNumVoices(), buffer);
+				intToString(AudioEngine::getNumVoices() + AudioEngine::getNumAudio(), buffer);
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}

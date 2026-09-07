@@ -24,6 +24,9 @@
 LiveInputBuffer::LiveInputBuffer() {
 	upToTime = 0;
 	numRawSamplesProcessed = 0;
+	lastSampleRead = 0;
+	lastAngle = 0;
+	memset(angleLPFMem, 0, sizeof(angleLPFMem));
 }
 
 void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscType inputType) {
@@ -82,7 +85,8 @@ void LiveInputBuffer::giveInput(int32_t numSamples, uint32_t currentTime, OscTyp
 				difference = -difference;
 			}
 
-			int32_t percussiveness = ((uint64_t)difference * 262144 / angle) >> 1;
+			// guard against dividing by 0
+			int32_t percussiveness = angle ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
 
 			percussiveness = getTanH<23>(percussiveness);
 

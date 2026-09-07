@@ -38,17 +38,21 @@ namespace {
 /// Path of the cartridge file to load; populated just before dispatch, read back by the op.
 std::string g_cartridgeLoadPath;
 /// True while a dispatched load is in flight. Guards against a second dispatch stomping
-/// g_cartridgeLoadPath before the first op reads it (defensive: enterKeyPress already close()s
-/// the browser before dispatching, so a second call can't normally land while one's in flight).
+/// g_cartridgeLoadPath before the first op reads it: the browser stays open until the load
+/// succeeds, so a second enterKeyPress can land while one is already in flight.
 bool g_cartridgeLoadInFlight = false;
 
 /// Owner-op trampoline: read+parse the cartridge (tryLoad already shows its own error popups on
-/// failure), then on success enter the submenu — the "enter on success" tail for enterKeyPress.
+/// failure), then on success enter the submenu and close the browser — the "enter on success" tail
+/// for enterKeyPress. The browser is closed here, not before the dispatch, so that a cartridge which
+/// fails to load leaves you in the browser to pick another one instead of dropping you out of it.
 void runCartridgeLoadOp(void*) {
 	bool loaded = menu_item::dxCartridge.tryLoad(g_cartridgeLoadPath);
 	g_cartridgeLoadInFlight = false;
 	if (loaded) {
 		soundEditor.enterSubmenu(&menu_item::dxCartridge);
+		soundEditor.shouldGoUpOneLevelOnBegin = false;
+		dxBrowser.close();
 	}
 }
 } // namespace
@@ -123,7 +127,6 @@ void DxSyxBrowser::enterKeyPress() {
 	else {
 		// TODO: c.f. slotbrowser, we might just be able to pass a file pointer to the FAT loader
 		std::string path = getCurrentFilePath();
-		close();
 
 		if (!path.empty() && !g_cartridgeLoadInFlight) {
 			g_cartridgeLoadPath = std::move(path);

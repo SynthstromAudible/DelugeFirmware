@@ -481,7 +481,6 @@ void setupStartupSong() {
 			}
 		}
 		// Load song, if we got this far!
-		void* songMemory = deluge::memory::alloc_fast(sizeof(Song));
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad();

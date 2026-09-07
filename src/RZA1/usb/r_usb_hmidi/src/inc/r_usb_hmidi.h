@@ -36,6 +36,10 @@
 
 #define USB_HMIDI_CLSDATASIZE (512)
 
+/* Largest possible string descriptor: bLength is a single byte, so 255. Requesting more than
+ * this hangs the control transfer on some device stacks (e.g. Disaster Area gen3 pedals). */
+#define USB_HMIDI_STRDESC_MAX_REQ (255)
+
 /* Host HID Task */                   // TODO: should these be changed if I re-introduce actual HID?
 #define USB_HMIDI_TSK (USB_TID_4)     /* Task ID */
 #define USB_HMIDI_MBX (USB_HMIDI_TSK) /* Mailbox ID */

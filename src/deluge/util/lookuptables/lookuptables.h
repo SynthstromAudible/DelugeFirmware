@@ -134,7 +134,7 @@ extern const uint8_t noteCodeToNoteLetter[];
 extern const uint8_t noteCodeToNoteLetterFlats[];
 extern const bool noteCodeIsSharp[];
 
-extern const std::array<Iterance, 35> iterancePresets;
+extern const std::array<Iterance, kNumIterancePresets> iterancePresets;
 
 #define MAX_CHORD_TYPES 9
 #define MAX_CHORD_NOTES 4

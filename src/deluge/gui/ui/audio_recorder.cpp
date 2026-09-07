@@ -231,7 +231,7 @@ void AudioRecorder::process() {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 				}
 			}
-			else if (!updatedRecordingStatus && recorder->numSamplesCaptured) {
+			else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
 				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX, kTextBigSizeY);
 				deluge::hid::display::OLED::sendMainImage();

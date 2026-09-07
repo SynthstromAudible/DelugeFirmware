@@ -23,7 +23,9 @@
 
 extern uint32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 #if defined(__arm__)
-extern "C" void v7_dma_flush_range(uint32_t start, uint32_t end);
+// Declared here rather than included from <RZA1/cache/cache.h>: this is application code, which compiles with
+// no HAL on its include path. The platform supplies the symbol at link time.
+extern "C" void invalidate_range_all_caches(uintptr_t start, uintptr_t end);
 #endif
 
 void chainload_from_buf(uint8_t* buffer, int buf_size) {
@@ -33,6 +35,7 @@ void chainload_from_buf(uint8_t* buffer, int buf_size) {
 
 	int32_t code_size = (int32_t)(user_code_end - user_code_start);
 	if (code_size > buf_size) {
+		FREEZE_WITH_ERROR("E994");
 		return;
 	}
 
@@ -45,16 +48,11 @@ void chainload_from_buf(uint8_t* buffer, int buf_size) {
 	uint8_t* funcbuf = reinterpret_cast<uint8_t*>(spareRenderingBuffer);
 
 #if defined(__arm__)
-	// The chainloader below runs with the MMU and caches disabled, storing straight to
-	// physical RAM - but its per-word DCCMVAU maintenance writes back any line still dirty
-	// in the (disabled, not emptied) data cache, clobbering words it just stored. All RAM
-	// here is mapped write-back, so clean & invalidate everything the chainloader touches
-	// while the MMU is still on: the new image, the copy destination, and funcbuf - which
-	// is an audio rendering buffer, so it is full of dirty lines whenever audio has been
-	// rendered since boot (chainloading used to hang precisely then).
-	v7_dma_flush_range((uint32_t)buffer, (uint32_t)buffer + (uint32_t)buf_size);
-	v7_dma_flush_range(user_code_start, user_code_start + (uint32_t)code_size + 4);
-	v7_dma_flush_range((uint32_t)funcbuf, (uint32_t)funcbuf + 1024);
+	// The chainloader runs with the MMU and caches disable so we need to make sure everything is flushed to the right
+	// state before it starts
+	invalidate_range_all_caches((uint32_t)buffer, (uint32_t)buffer + (uint32_t)buf_size);
+	invalidate_range_all_caches(user_code_start, user_code_start + (uint32_t)code_size + 4);
+	invalidate_range_all_caches((uint32_t)funcbuf, (uint32_t)funcbuf + 1024);
 
 	// Jump to the chainloader
 	asm volatile("mov r0,%0\n\t"

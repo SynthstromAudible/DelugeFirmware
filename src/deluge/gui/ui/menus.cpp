@@ -101,6 +101,7 @@
 #include "gui/menu_item/midi/device_is_relative.h"
 #include "gui/menu_item/midi/device_receive_clock.h"
 #include "gui/menu_item/midi/device_send_clock.h"
+#include "gui/menu_item/midi/device_send_thru.h"
 #include "gui/menu_item/midi/devices.h"
 #include "gui/menu_item/midi/follow/follow_channel.h"
 #include "gui/menu_item/midi/follow/follow_feedback_automation.h"
@@ -1190,6 +1191,7 @@ PLACE_SDRAM_BSS midi::DefaultVelocityToLevel defaultVelocityToLevelMenu{STRING_F
 PLACE_SDRAM_BSS midi::DeviceSendClock device_send_clock_menu{STRING_FOR_CLOCK_OUT};
 PLACE_SDRAM_BSS midi::DeviceReceiveClock device_receive_clock_menu{STRING_FOR_CLOCK_IN};
 PLACE_SDRAM_BSS midi::DeviceIsRelative device_is_relative_menu{STRING_FOR_IS_RELATIVE};
+PLACE_SDRAM_BSS midi::DeviceSendThru device_send_thru_menu{STRING_FOR_MIDI_THRU};
 PLACE_SDRAM_BSS midi::Device midiDeviceMenu{
     EMPTY_STRING,
     {
@@ -1198,6 +1200,7 @@ PLACE_SDRAM_BSS midi::Device midiDeviceMenu{
         &device_send_clock_menu,
         &device_receive_clock_menu,
         &device_is_relative_menu,
+        &device_send_thru_menu,
     },
 };
 
@@ -1486,10 +1489,6 @@ PLACE_SDRAM_BSS PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 PLACE_SDRAM_BSS HorizontalMenu soundMasterMenu{
     STRING_FOR_MASTER,
     {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu, &vibratoMenu},
-};
-PLACE_SDRAM_BSS HorizontalMenu soundMasterMenuWithoutVibrato{
-    STRING_FOR_MASTER,
-    {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu},
 };
 
 PLACE_SDRAM_BSS HorizontalMenuGroup sourceMenuGroup{
@@ -2015,7 +2014,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
 };
 
 PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
-	&recorderMenu, &soundMasterMenuWithoutVibrato,
+    &recorderMenu, &soundMasterMenu,
 	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
 	&reverbMenuGroup, &delayMenu, &soundDistortionMenu,
