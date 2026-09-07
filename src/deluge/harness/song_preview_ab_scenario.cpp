@@ -38,6 +38,7 @@
 #include "storage/owner.h"
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h" // getInstrumentFolder, to pin kAcqDir against drift
 #include "util/string.h"
 
 #include <array>
@@ -1564,15 +1565,22 @@ bool writeBlankSynthPresetFile(const char* path) {
 	return error == Error::NONE;
 }
 
-/// Create a directory of `count` real synth presets. Mirrors buildFixtureDir(), which writes SONG
-/// xml -- a synth preset's root tag is "sound" (storage_manager.cpp:300), and a file whose root tag
-/// is wrong fails to load, which would make every acquisition here fail identically on both legs
-/// and the comparison pass while covering nothing.
-bool buildPresetFixture(const char* dir, int32_t count) {
+/// Create a directory of `count` real synth presets named `namePrefix00.XML`, `namePrefix01.XML`,
+/// etc. Mirrors buildFixtureDir(), which writes SONG xml -- a synth preset's root tag is "sound"
+/// (storage_manager.cpp:300), and a file whose root tag is wrong fails to load, which would make
+/// every acquisition here fail identically on both legs and the comparison pass while covering
+/// nothing.
+///
+/// `namePrefix` must differ between the top-level directory and any subfolder placed under it:
+/// `Browser::deleteFolderAndDuplicateItems` drops a file whose display name collides with another
+/// entry already seen, so two directories both handing out "PRESET00" would make the recursive
+/// descent this stage exists to prove silently lose an entry instead of genuinely finding a nested
+/// one.
+bool buildPresetFixture(const char* dir, const char* namePrefix, int32_t count) {
 	(void)deluge::io::mkdir(dir);
 	for (int32_t i = 0; i < count; i++) {
 		char path[64];
-		snprintf(path, sizeof(path), "%s/PRESET%02d.XML", dir, static_cast<int>(i));
+		snprintf(path, sizeof(path), "%s/%s%02d.XML", dir, namePrefix, static_cast<int>(i));
 		auto existing = deluge::io::File::open(path, DELUGE_FILE_READ);
 		if (existing.has_value()) {
 			(void)existing->close();
@@ -1611,16 +1619,41 @@ bool buildPresetFixture(const char* dir, int32_t count) {
 // the rung 5 spec, section 2b). Every leg runs it synchronously today; a later task converts the
 // PAD-PRESS CALLER, not this method, onto the storage channel -- so driving this entry point (rather
 // than createNewInstrument() directly) is what keeps this gate covering the converted path once that
-// happens. A folder is not enough on its own -- the walk only recurses when the top level holds a
-// subfolder, so the fixture below plants one.
-enum class AcquireStep : uint8_t { Fixture, Reference, Converted, Coalesce, NonAudio, Finished };
+// happens.
+//
+// The recursive descent (load_instrument_preset_ui.cpp:1291-1296 vs :1317) is only reached once the
+// TOP LEVEL is exhausted -- a preset sitting at the top level is always returned first, however many
+// subfolders sit alongside it. So the fixture keeps exactly ONE top-level preset: Reference acquires
+// and releases it (still top-level), Converted acquires it again and keeps it (top-level now
+// permanently empty), and every acquisition from AcquireStep::Nested onward MUST descend into
+// SYNTHS/NESTED to find anything at all. `AcquireStep::Nested` asserts the acquired name is a nested
+// one, which is the only way to prove the walk actually descended rather than merely that some
+// acquisition happened to succeed.
+enum class AcquireStep : uint8_t { Fixture, Reference, Converted, Nested, Coalesce, NonAudio, Finished };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
 
 // The INSTRUMENT folder, not a song folder: findAnUnlaunchedPresetIncludingWithinSubfolders reads
 // getInstrumentFolder(outputType), which is "SYNTHS". BIGLIST holds song XML and would make every
-// acquisition fail identically on both legs -- a gate comparing two failures.
+// acquisition fail identically on both legs -- a gate comparing two failures. Pinned against drift
+// by AcquireStep::Fixture, which compares this literal to getInstrumentFolder(OutputType::SYNTH)
+// directly rather than trusting the two to stay in sync silently.
 constexpr const char* kAcqDir = "SYNTHS";
 constexpr const char* kAcqSubDir = "SYNTHS/NESTED";
+// Exactly one: Reference+Converted consume it (see the recursive-descent doc above), so the top
+// level is provably empty by the time Nested and Coalesce run.
+constexpr int32_t kAcqTopLevelCount = 1;
+// One for AcquireStep::Nested's proof, three more for Coalesce's three gestures, plus a spare --
+// Coalesce doesn't assert identity, but running out would make its gestures fail silently instead of
+// exercising the walk.
+constexpr int32_t kAcqNestedCount = 5;
+// buildPresetFixture() names files "<prefix><NN>.XML"; kAcqTopLevelCount == 1 makes this the only
+// top-level name there is, so it can be asserted absolutely rather than merely checked non-empty.
+constexpr const char* kAcqTopLevelName = "PRESET00";
+// What buildPresetFixture() names SYNTHS/NESTED's first entry -- the recursive descent's target.
+// Distinct from "PRESET..." on purpose: Browser::deleteFolderAndDuplicateItems drops a file whose
+// display name collides with one already seen, so reusing the top-level names here would make
+// AcquireStep::Nested's find silently skip the very entries recursion is supposed to prove reachable.
+constexpr const char* kAcqNestedFirstName = "NESTED00";
 // The row the gesture is pressed on. `beginNewInstrumentAcquisition` clamps this into
 // [-arrangementYScroll-1, -arrangementYScroll+getNumOutputs()] and stores the CLAMPED value back
 // into `yPressedEffective` before it ever indexes `outputsOnScreen` -- arrangementYScroll is not 0
@@ -1628,13 +1661,13 @@ constexpr const char* kAcqSubDir = "SYNTHS/NESTED";
 // gestures in this same stage), so the row actually written can differ from this one. Read back via
 // `arrangerView.yPressedEffective`, not this constant, for exactly that reason.
 constexpr int32_t kAcqRow = 0;
-// Read from the production counter once it exists (Task 2 adds
-// LoadInstrumentPresetUI::presetDispatches()); 0 before then, which is why the NonAudio check below
-// is inert until Task 3.
+// Read from the production counter this commit adds (LoadInstrumentPresetUI::presetDispatches());
+// nothing increments it yet -- a later task wires dispatchPresetAcquisition() to it -- which is why
+// the NonAudio and Coalesce checks below are inert until then.
 int32_t acqDispatches() {
 	return LoadInstrumentPresetUI::presetDispatches();
 }
-int32_t g_acqLoads = 0;         // acquisitions that actually ran
+int32_t g_acqLoads = 0;         // acquisition gestures that actually ran
 std::string g_acqReferenceName; // the instrument the synchronous leg settled on
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
@@ -1647,7 +1680,6 @@ std::string acquiredName(Output* output) {
 /// through `arrangerView.yPressedEffective` (see `kAcqRow`'s doc) -- exactly what the real pad
 /// handler does immediately after this same call (arranger_view.cpp).
 std::string runAcquisitionGesture() {
-	Browser::currentDir = kAcqDir;
 	BrowserListingAbProbe::beginNewInstrumentAcquisition(kAcqRow);
 	return acquiredName(arrangerView.outputsOnScreen[arrangerView.yPressedEffective]);
 }
@@ -1673,9 +1705,16 @@ void releaseAcquiredInstrument() {
 void runAcquireTick() {
 	switch (g_acquireStep) {
 	case AcquireStep::Fixture: {
-		// Synth presets, and a nested folder holding one: without the subfolder the reader never
-		// recurses (spec section 2b) and this stage tests the flat path twice.
-		if (!buildPresetFixture(kAcqDir, 8) || !buildPresetFixture(kAcqSubDir, 2)) {
+		// The duplicated "SYNTHS" literal (kAcqDir), pinned against the two silently drifting apart.
+		if (std::string{kAcqDir} != getInstrumentFolder(OutputType::SYNTH)) {
+			printf("SP-ACQUIRE FAIL kAcqDir=%s no longer matches getInstrumentFolder(SYNTH)=%s\n", kAcqDir,
+			       getInstrumentFolder(OutputType::SYNTH));
+			g_failures++;
+		}
+		// One top-level preset, and a nested folder holding several more: see the recursive-descent
+		// doc above AcquireStep's declaration for why the counts are exactly this shape.
+		if (!buildPresetFixture(kAcqDir, "PRESET", kAcqTopLevelCount)
+		    || !buildPresetFixture(kAcqSubDir, "NESTED", kAcqNestedCount)) {
 			printf("SP-ACQUIRE FAIL could not build the preset fixture under %s\n", kAcqDir);
 			g_failures++;
 		}
@@ -1690,6 +1729,15 @@ void runAcquireTick() {
 			g_failures++;
 		}
 		else {
+			// Pinned absolutely, not just non-empty: with exactly one top-level preset, the walk has
+			// only one possible correct answer here, and asserting it is what would catch a later
+			// conversion that changed the acquired preset identically on every leg (a bug the
+			// cross-leg shell check below cannot see, because it only diffs legs against each other).
+			if (g_acqReferenceName != kAcqTopLevelName) {
+				printf("SP-ACQUIRE FAIL reference acquired %s, expected the top-level preset %s\n",
+				       g_acqReferenceName.c_str(), kAcqTopLevelName);
+				g_failures++;
+			}
 			// Release it so AcquireStep::Converted asks the SAME question the reference did, rather
 			// than the next one along -- see releaseAcquiredInstrument's doc.
 			releaseAcquiredInstrument();
@@ -1698,8 +1746,11 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::Converted: {
-		// Re-run the same gesture and require the same instrument. On the dir leg this goes
-		// through the channel; on the others it does not. Either way the ANSWER must match.
+		// Re-run the SAME gesture in the SAME process and require the SAME instrument. This can only
+		// detect in-process NONDETERMINISM: both calls run identical code in the identical binary, so
+		// this pair alone proves nothing about a channel conversion. The one check that spans
+		// backings is the shell's file-vs-dir comparison of this exact "converted" line
+		// (song_preview_ab.sh, the acquisition-agreement loop).
 		const std::string name = runAcquisitionGesture();
 		g_acqLoads++;
 		printf("SP-ACQUIRE converted name=%s dispatches=%d\n", name.c_str(), acqDispatches());
@@ -1708,18 +1759,52 @@ void runAcquireTick() {
 			       g_acqReferenceName.c_str());
 			g_failures++;
 		}
+		// Deliberately NOT released: the top-level preset is now permanently consumed, so every
+		// acquisition from here on must descend into SYNTHS/NESTED to find anything at all.
+		g_acquireStep = AcquireStep::Nested;
+		break;
+	}
+	case AcquireStep::Nested: {
+		// The top level is now empty (Reference released, but Converted kept, the one preset there
+		// ever was), so findAnUnlaunchedPresetIncludingWithinSubfolders MUST reach its subfolder loop
+		// (load_instrument_preset_ui.cpp:1317) to find anything -- the recursive descent this whole
+		// stage exists to cover. Asserting the exact nested name is what proves the walk actually
+		// descended, rather than merely that some acquisition happened to succeed.
+		const std::string name = runAcquisitionGesture();
+		g_acqLoads++;
+		printf("SP-ACQUIRE nested name=%s\n", name.c_str());
+		if (name != kAcqNestedFirstName) {
+			printf("SP-ACQUIRE FAIL acquisition did not descend into the subfolder: got %s, expected %s\n",
+			       name.c_str(), kAcqNestedFirstName);
+			g_failures++;
+		}
 		g_acquireStep = AcquireStep::Coalesce;
 		break;
 	}
 	case AcquireStep::Coalesce: {
-		// Three gestures with no owner tick between them. Under coalescing this must produce
-		// FEWER loads than gestures; synchronously it produces exactly three.
-		const int32_t before = g_acqLoads;
-		for (int32_t i = 0; i < 3; ++i) {
+		// Three gestures with no owner tick between them. Coalescing would produce fewer preset LOADS
+		// than gestures pressed; "loads" here is read from the production dispatch counter, not
+		// merely counted per gesture -- counting gestures would make this always equal the loop
+		// bound by construction and could never fail, whatever the production code did.
+		//
+		// NOTE: inert until Task 3 -- dispatchPresetAcquisition() (Task 2) increments
+		// presetDispatches_, but nothing calls it until the arranger's caller is converted, so
+		// `loads` reads 0 and `0 >= kCoalesceGestures` is always false here. Written as a real
+		// assertion now (not a stub) so it arms itself the moment the counter starts counting, the
+		// same shape as AcquireStep::NonAudio below.
+		constexpr int32_t kCoalesceGestures = 3;
+		const int32_t dispatchesBefore = acqDispatches();
+		for (int32_t i = 0; i < kCoalesceGestures; ++i) {
 			(void)runAcquisitionGesture();
 			g_acqLoads++;
 		}
-		printf("SP-ACQUIRE coalesce gestures=3 loads=%d\n", g_acqLoads - before);
+		const int32_t loads = acqDispatches() - dispatchesBefore;
+		printf("SP-ACQUIRE coalesce gestures=%d loads=%d\n", kCoalesceGestures, loads);
+		if (loads >= kCoalesceGestures) {
+			printf("SP-ACQUIRE FAIL coalescing produced %d load(s) for %d gesture(s) -- expected fewer\n", loads,
+			       kCoalesceGestures);
+			g_failures++;
+		}
 		g_acquireStep = AcquireStep::NonAudio;
 		break;
 	}

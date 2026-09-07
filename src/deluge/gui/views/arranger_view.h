@@ -158,9 +158,9 @@ private:
 	///
 	/// Extracted verbatim from the pad-press handler's `if (!output)` branch (auditionPadAction) so
 	/// the song-preview A/B harness's BrowserListingAbProbe can drive the SAME gesture entry point a
-	/// pad press uses, rather than restating it. Writes `yPressedEffective` (clamped into the visible
-	/// row range) and `outputsOnScreen[yPressedEffective]`; leaves both untouched if acquisition
-	/// fails, mirroring the caller's `if (!output) { return; }`.
+	/// pad press uses, rather than restating it. `yPressedEffective` is always written (the clamp
+	/// runs before acquisition can fail); `outputsOnScreen[yPressedEffective]` is left untouched on
+	/// failure, mirroring the caller's `if (!output) { return; }`.
 	/// @param yPressed The row the gesture was pressed on, before clamping.
 	void beginNewInstrumentAcquisition(int32_t yPressed);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
