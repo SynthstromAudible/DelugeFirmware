@@ -451,6 +451,22 @@ public:
 	/// than this hook's single per-scene answer, and a *widget* has no other way to ask. Those arms
 	/// are refinements on top of step 8b, not a substitute for it.
 	///
+	/// **Zero is a legal answer, and it means "next tick", not "never".** It reaches
+	/// `RepaintGate::request_repaint_after(0, now_ms)`, which sets the deadline to `now_ms` --
+	/// due on the following tick, since `needs_frame` tests `now_ms - deadline >= 0` -- and it is
+	/// the same idiom `Shell::tick`'s own step 8a already uses to turn a router `Repaint` into a
+	/// wake (`shell.cpp:379-393`). It is not a busy loop: the shell still only ticks when its host
+	/// asks it to, and the grid's flush diffs against `last_sent`, so a repaint that changed no
+	/// pixel costs no blit. It IS a per-tick blit on an OLED surface, which has no such diff, so a
+	/// scene that returns zero should claim `{.oled = false}` in `timer_repaints()` unless its OLED
+	/// content really does change every tick.
+	///
+	/// The case it exists for is a legacy routine driven from the main loop rather than from
+	/// `uiTimerManager`: `scenes::audio_clip::AudioClipScene` (E4 task 11) is the first, porting
+	/// `AudioClipView::graphicsRoutine`'s play cursor, which legacy recomputes on every iteration
+	/// (`UI::graphicsRoutine`, `gui/ui/ui.cpp:47-51`). "Every tick" is that cadence, and zero is how
+	/// this hook spells it.
+	///
 	/// @return Milliseconds from now, or `std::nullopt` for "no timer".
 	/// @see timer_repaints, for which surfaces (if any) that deadline arms.
 	virtual std::optional<uint32_t> next_timer() const { return std::nullopt; }

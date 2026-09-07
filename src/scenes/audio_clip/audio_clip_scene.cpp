@@ -120,8 +120,14 @@ void AudioClipScene::focus_regained() {
 	timeline_.focus_regained();
 	end_marker_visible_ = false;
 	start_marker_visible_ = false;
-	blink_on_ = false;
-	blink_accum_ms_ = 0;
+	// **And nothing else.** `blink_on_` and `blink_accum_ms_` are deliberately NOT reset here: an
+	// earlier cut did reset them, and legacy's `focusRegained` touches `blinkOn` on none of its
+	// paths (`:79-88`, read line by line). It does not have to -- with both markers down nothing
+	// reads the phase, and the one gesture that raises a marker restarts it, which is `padAction`'s
+	// own `blinkOn = true; setTimer(UI_SPECIFIC, kSampleMarkerBlinkTime)` pair (`:553-554`,
+	// `:563-564`) and is ported as `set_end_marker_visible`/`set_start_marker_visible`. Unobservable
+	// either way; removed because this function's whole documentation is what it does not do, and an
+	// added write inside that is the last place to leave one (fix round 1, Minor 2).
 }
 
 // ---------------------------------------------------------------------------------------------

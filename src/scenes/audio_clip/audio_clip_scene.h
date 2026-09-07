@@ -6,7 +6,7 @@
 /// The port of `AudioClipView` (`gui/views/audio_clip_view.{h,cpp}`). Task 11 covers `opened`
 /// (`:68-76`), `focusRegained` (`:78-89`), `renderOLED` (`:91-93`), `renderMainPads` (`:95-221`),
 /// `timerCallback` (`:223-229`), `renderSidebar` (`:231-260`), `graphicsRoutine` (`:262-310`),
-/// `needsRenderingDependingOnSubMode` (`:312-321`), `setupScroll` (`:850-855`), `getMaxLength`
+/// `needsRenderingDependingOnSubMode` (`:312-320`), `setupScroll` (`:850-855`), `getMaxLength`
 /// (`:857-862`) and `getMaxZoom` (`:864-870`); Task 12 adds the buttons, the pads and the edits.
 ///
 /// @par This IS a root scene -- the first one in the tree -- and that has consequences
@@ -21,11 +21,18 @@
 /// predicate (`shell/scene.h`'s `Scene::is_root`, `services/global_controls.cpp:580`).
 ///
 /// The group that becomes reachable with this scene on top is `View::buttonAction`'s
-/// (`gui/views/view.cpp:139-470`): `SAVE`, `LOAD`, `SYNC_SCALING`, `TAP_TEMPO`, `BACK` (undo/redo)
-/// and shift+`SELECT_ENC`. **That reachability is legacy's, checked by reading the chain rather
-/// than assumed:** `AudioClipView::buttonAction`'s final `else` (`audio_clip_view.cpp:448-467`)
-/// calls `ClipMinder::buttonAction` and then `ClipView::buttonAction` (`clip_view.cpp:47-70`),
-/// whose own `else` (`:65-67`) calls `ClipNavigationTimelineView::buttonAction` -- which that class
+/// (`gui/views/view.cpp:139-470`), and it is **nine** arms, not the six an earlier cut of this
+/// comment listed (fix round 1, Minor 1): `SAVE`, `LOAD`, `SYNC_SCALING`, `TAP_TEMPO`, `BACK`
+/// (undo/redo) and shift+`SELECT_ENC`, **plus** `LEARN` and -- while MIDI learn is on -- `PLAY` and
+/// `RECORD`. Those last three are `View::buttonAction` arms too (`view.cpp:185-196`, `:199-212`,
+/// `:215-228`); `services::GlobalControls` returns them as `ViewArm::LearnOwns`
+/// (`services/global_controls.cpp:370-381`) so `services::MidiLearn`, routed one step further on,
+/// gets them -- but that hand-off happens **inside the same `is_root()` gate** at
+/// `global_controls.cpp:580`, so with a non-root scene on top it does not happen at all, exactly as
+/// in legacy. **That reachability is legacy's, checked by reading the chain rather than assumed:**
+/// `AudioClipView::buttonAction`'s final `else` (`audio_clip_view.cpp:448-467`) calls `ClipMinder::buttonAction` and
+/// then `ClipView::buttonAction` (`clip_view.cpp:47-70`), whose own `else` (`:65-67`) calls
+/// `ClipNavigationTimelineView::buttonAction` -- which that class
 /// **does not declare** (`grep buttonAction gui/views/clip_navigation_timeline_view.{h,cpp}` finds
 /// nothing), so the name resolves to the inherited `TimelineView::buttonAction`, whose own `else`
 /// (`timeline_view.cpp:119-121`) is `return view.buttonAction(b, on, inCardRoutine)`. None of the
@@ -121,7 +128,7 @@
 /// **All four are `PadLEDs` transition animations, and the port carries none of them** --
 /// `scenes/timeline/timeline.h` already records that split for `initiateXScroll`/`initiateXZoom`,
 /// and the shell has no transition surface at all. So those gates are constant-false here, and
-/// `needsRenderingDependingOnSubMode` (`:312-321`), whose entire body is "ask for a redraw unless a
+/// `needsRenderingDependingOnSubMode` (`:312-320`), whose entire body is "ask for a redraw unless a
 /// horizontal scroll or zoom transition is running", reduces to "ask for a redraw" -- which in an
 /// immediate-mode shell is what `next_timer()` already grants every tick the playhead is live.
 ///
@@ -319,7 +326,9 @@ public:
 	///   * **the playhead.** `AudioClipView::graphicsRoutine` is called from the main loop on
 	///     every iteration (`UI::graphicsRoutine`, `gui/ui/ui.cpp:47-51`), not from
 	///     `uiTimerManager` -- it is a per-frame redraw, not a deadline. Its port is therefore
-	///     `0`, "repaint on the next tick", for as long as the cursor is live; the shell's own
+	///     `0`, "repaint on the next tick" -- the first zero any scene in this tree returns, and
+	///     the case `Scene::next_timer`'s own contract now spells out -- for as long as the cursor
+	///     is live; the shell's own
 	///     router arms repaints with exactly `request_repaint_after(0, now_ms)`
 	///     (`shell/shell.cpp:379-393`) and the grid flush diffs against `last_sent`, so a tick on
 	///     which the column did not move costs a repaint and no blit.

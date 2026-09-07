@@ -228,7 +228,13 @@ void ensure_display() {
 ///          boundary 16 bytes from the end of cluster 31, which takes the two-cluster arm with
 ///          `investigatingAWholeCluster` left false, and the "grey region" example passed with an
 ///          entirely black grid. `expect_grid_has_content` below is the assertion that closes it,
-///          and it is on **every** render example.
+///          and **every** example that calls `expect_pads_match` calls one of it or
+///          `expect_waveform_without_cursor` (which is it, plus "and no pad is the cursor colour")
+///          first. Fix round 1, Critical: the first cut of this docstring said "every render
+///          example" while four of the twelve comparisons had no guard at all -- the blink's second
+///          phase and the three "no cursor is drawn" examples, which are exactly the shape where
+///          both sides legitimately go black. Review demonstrated it: forcing `x_zoom = 24` on the
+///          count-in example gave 27/27 passing on two black grids.
 ///
 ///          The constraint on this fixture: `x_zoom * (endPos - startPos) / loop_length` -- which
 ///          is `AudioClip::getSamplesFromTicks` (`model/clip/audio_clip.cpp:979-988`) -- must be a
@@ -416,6 +422,67 @@ void expect_grid_has_content(Self& self, Rig& r, int32_t at_least) {
 		}
 	}
 	expect(lit >= at_least).to_be_true();
+}
+
+/// @brief The colour the pad driver substitutes for a `Normal` tick square.
+///
+/// `PadLEDs::flashColours[0]` (`hid/led/pad_leds.cpp:277-281`), which is `ui::grid::tick_colour`'s
+/// `kPlayheadColour`. No waveform bar can take it: the bars are a scaling of the clip's colour,
+/// whose green channel is 26, and grey is `RGB::monochrome(7)`.
+constexpr RGB kPlayheadColour{130, 120, 130};
+
+/// @brief How many pads the port painted in the play cursor's colour.
+/// @param r The rig.
+/// @return The count, over the whole grid including the sidebar.
+int32_t cursor_pads(Rig& r) {
+	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	int32_t n = 0;
+	for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			if (g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == kPlayheadColour) {
+				n++;
+			}
+		}
+	}
+	return n;
+}
+
+/// @brief The assertion for the "no cursor is drawn" examples: the waveform IS there and the
+///        cursor is NOT.
+///
+/// Fix round 1, Critical. `expect_grid_has_content` alone is the wrong predicate for those three
+/// examples, and leaving them with no predicate at all was worse. Their whole subject is that a
+/// gate in `graphicsRoutine` suppresses the cursor while the rest of the view keeps drawing -- so
+/// "nothing is black" and "no pad is the cursor colour" are two different claims and both have to
+/// hold, or the example cannot fail for the reason it exists. Demonstrated in review: forcing a
+/// failed scan on the count-in example gave 27/27 passing on two black grids.
+/// @param self     The enclosing `it(...)` block's lambda parameter.
+/// @param r        The rig.
+/// @param at_least Minimum non-black pads the example's own geometry implies.
+template <typename Self>
+void expect_waveform_without_cursor(Self& self, Rig& r, int32_t at_least) {
+	expect_grid_has_content(self, r, at_least);
+	expect(cursor_pads(r)).to_equal(0);
+}
+
+/// @brief Assert one whole column of the port's grid is exactly @p colour.
+///
+/// Fix round 1, Critical: what the second half of the blink example is actually about. Without it
+/// the phase-2 comparison could pass on any pair of agreeing images, black included.
+/// @param self   The enclosing `it(...)` block's lambda parameter.
+/// @param r      The rig.
+/// @param x      The column.
+/// @param colour The colour every row of it must be.
+template <typename Self>
+void expect_column_is(Self& self, Rig& r, int32_t x, RGB colour) {
+	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+	int32_t matching = 0;
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		if (g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == colour) {
+			matching++;
+		}
+	}
+	expect(matching).to_equal(static_cast<int32_t>(kDisplayHeight));
 }
 
 /// @brief Assert the port's pads are the legacy image, pad for pad.
@@ -643,6 +710,11 @@ describe audio_clip_scene_spec_body(
 		        (void)legacy_view.timerCallback();
 		        r.tick(deluge::scenes::audio_clip::kMarkerBlinkMs);
 		        expect(r.scene().blink_on()).to_be_false();
+		        expect_grid_has_content(self, r, 16);
+		        // The subject of this half: on the dim phase the end column is `colours::red_dull`
+		        // (`audio_clip_view.cpp:168-170`), where the bright phase drew `colours::red`. The
+		        // end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15.
+		        expect_column_is(self, r, 15, deluge::gui::colours::red_dull);
 		        expect_pads_match(self, r, legacy_pads());
 
 		        lower_legacy_end_marker(r);
@@ -658,7 +730,7 @@ describe audio_clip_scene_spec_body(
 		        r.tick(0);
 		        // `graphicsRoutine`'s first arm (`audio_clip_view.cpp:269-273`) -> 255.
 		        expect(r.scene().last_tick_square()).to_equal(255);
-		        expect_grid_has_content(self, r, 16);
+		        expect_waveform_without_cursor(self, r, 16);
 		        expect_pads_match(self, r, legacy_pads());
 	        });
 
@@ -690,6 +762,7 @@ describe audio_clip_scene_spec_body(
 		        r.open();
 		        r.tick(0);
 		        expect(r.scene().last_tick_square()).to_equal(255);
+		        expect_waveform_without_cursor(self, r, 16);
 		        expect_pads_match(self, r, legacy_pads());
 		        playbackHandler.ticksLeftInCountIn = 0;
 		        playbackHandler.playbackState = 0;
@@ -704,6 +777,7 @@ describe audio_clip_scene_spec_body(
 		        r.open();
 		        r.tick(0);
 		        expect(r.scene().last_tick_square()).to_equal(255);
+		        expect_waveform_without_cursor(self, r, 16);
 		        expect_pads_match(self, r, legacy_pads());
 		        r.f.clip->activeIfNoSolo = true;
 		        playbackHandler.playbackState = 0;
@@ -718,12 +792,16 @@ describe audio_clip_scene_spec_body(
 		        r.tick(0);
 		        const int32_t with_cursor = r.scene().last_tick_square();
 		        expect(with_cursor).to_equal(5);
+		        // The cursor really is on screen before the setting is changed -- eight pads, one
+		        // whole column -- so the assertion after it is a change and not a tautology.
+		        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
 
 		        // Legacy's setting and the port's copy, each set on its own side.
 		        PadLEDs::flashCursor = FLASH_CURSOR_OFF;
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		        r.scene().set_flash_cursor(FlashCursor::Off);
 		        r.tick(1);
+		        expect_waveform_without_cursor(self, r, 16);
 		        expect_pads_match(self, r, legacy_pads());
 		        playbackHandler.playbackState = 0;
 	        });
@@ -747,6 +825,34 @@ describe audio_clip_scene_spec_body(
 		        // A visible marker arms the blink instead, at the phase's own interval.
 		        r.scene().set_end_marker_visible(true);
 		        expect(r.scene().next_timer().value()).to_equal(deluge::scenes::audio_clip::kMarkerBlinkMs);
+	        });
+
+	    it(
+	        "keeps the cursor tracking across twelve quiet ticks, with no input at all", _ {
+		        // Fix round 1, Minor 3. `next_timer() == 0` is the first zero any scene in this tree
+		        // returns, so the thing worth driving is not the value but what a long run of ticks
+		        // does with it: twelve consecutive ticks, no board event of any kind, the model's
+		        // play position advanced between them the way the audio engine would advance it.
+		        // Each tick must re-render (the arm is `request_repaint_after(0, now_ms)`, whose
+		        // deadline is due on the very next tick) and must land on legacy's own image.
+		        Rig r;
+		        playbackHandler.playbackState = PLAYBACK_SWITCHED_ON | PLAYBACK_CLOCK_INTERNAL_ACTIVE;
+		        r.seed(Sentinel{});
+		        r.open();
+		        for (int32_t step = 0; step < 12; step++) {
+			        // 48 ticks is exactly one column at this zoom, so the expected column is the
+			        // step number -- derived from the sentinel, not from either side.
+			        r.f.clip->lastProcessedPos = step * 48;
+			        r.tick(static_cast<uint32_t>(step));
+			        expect(r.scene().last_tick_square()).to_equal(step);
+			        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
+			        expect_grid_has_content(self, r, 16 + 8);
+			        expect_pads_match(self, r, legacy_pads());
+			        // And the timer stays armed for the next one, rather than being a one-shot.
+			        expect(r.scene().next_timer().has_value()).to_be_true();
+			        expect(r.scene().next_timer().value()).to_equal(0u);
+		        }
+		        playbackHandler.playbackState = 0;
 	        });
 
 	    it(
