@@ -34,12 +34,15 @@ reconciliation is cheap.
 | `padAction`, `buttonAction`, `*EncoderAction`, ~~`modEncoderAction`~~ | forwarded into the shell's `InputLowering` — **but not `modEncoderAction`, and legacy `Buttons::` state cannot be read into `UiContext` at all** (F1 task 6; see the corrections below) |
 | `renderOLED(Canvas&)` | the shell's `Main` surface ~~aliases~~ **serves** that canvas's storage (F1 task 4; see §3) |
 | `renderMainPads(rows, image, mask)` / `renderSidebar(...)` | the shell's grid surface ~~aliases~~ **serves** `image` row by row; returns the top scene's opacity (`!is_grid_overlay()`) |
-| `timerCallback()` | the shell's `tick`; `UI_SPECIFIC` re-armed to `next_wake_` |
+| `timerCallback()` | the shell's `tick`; `UI_SPECIFIC` re-armed to `next_wake_` — **right, and incomplete: `next_wake_` is an absolute deadline and `setTimer` takes a duration, and the guest must also arm from four hooks legacy disarms it from** (F1 task 7; see the corrections below) |
 | `opened()` / `focusRegained()` | ~~`Shell::push(initial)`~~ → `Shell::init(SceneId)` / `on_resume` on ~~the shell's top~~ → `SceneStack::input_top()` (F1 task 5; see the corrections below) |
 | `canSeeViewUnderneath()` | ~~top scene's `oled_transparent(Main)`~~ → **`!top().occludes_grid()`** (F1 task 5 — copying the struck-through form ships a regression; see the corrections below) |
 | `exitUI()` | ~~`Shell::pop()`~~ → `SceneStack::pop()`; ~~returns `NOT_DEALT_WITH` … so `closeUI` pops the guest~~ → the guest calls `close()` itself when the pop empties the stack and returns `ACTIONED_AND_CAUSED_CHANGE` (F1 tasks 5 and 6; see the corrections below) |
 
-LEDs: the guest's `derive_leds` writes through an `indicator_leds` `LedSink`; the guest
+LEDs: ~~the guest's `derive_leds` writes through an `indicator_leds` `LedSink`~~ → **`Shell::flush`
+writes through `SurfaceSet::set_led`, which `GuestSurfaceSet` implements over
+`indicator_leds::setLedState`** (F1 tasks 4 and 7; there is no `LedSink` and `derive_leds` is the
+shell's, not the guest's — see the corrections below); the guest
 owns an LED only while one of its scenes declares it, so legacy and guest never fight.
 Popups raised by the model while the guest is up still go through `display->` until
 phase 5; the guest's `Notices` service is idle in phase 4.
@@ -222,6 +225,69 @@ Answering `false` here is not the fix: `gui/ui/ui.cpp:73-83` would then take the
 mask while the shell owns the tint end to end; it is recorded at `ShellHostUI::getGreyoutColsAndRows`
 and belongs with the tick (F1 task 7) or the acceptance round. Phase 5 dissolves it, since
 `prepareColour` goes with the rest of the legacy send path.
+
+**Corrections (F1 task 7, 2026-09-07): the timer row is right and incomplete, and the LED sentence
+names a type that does not exist.** `ShellHostUI::timerCallback` is now written; each correction is
+at the code.
+
+- **`next_wake_` is an absolute deadline; `setTimer` takes a duration.** The row does not say which,
+  and the two are different units. `Shell::next_wake()` returns `std::optional<uint32_t>`, an
+  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:306`,
+  `shell/shell.cpp:515`); `UITimerManager::setTimer(which, ms)` is a duration and converts it with
+  `ms * 44` into audio samples (`gui/ui_timer_manager.cpp:253-255`). The guest converts with the
+  wrap-safe difference `(int32_t)(deadline - now)` — the form `compute_next_wake` and `RepaintGate`
+  both use, because a plain `<` across the ~49.7-day `uint32_t` wrap picks the later of two
+  straddling deadlines — and clamps it to 1 ms … `INT32_MAX / 44`. The upper clamp is arithmetic, not
+  policy: above it `ms * 44` is signed overflow. Arming *earlier* than asked is always safe, because
+  the next tick recomputes `next_wake()` from scratch.
+- **A deadline of `now_ms` must not arm zero.** `Scene::next_timer()` may answer 0, meaning "next
+  tick" (`shell/scene.h`), and `AudioClipScene::next_timer()` answers it for the whole of playback
+  (`scenes/audio_clip/audio_clip_scene.cpp:1187-1193`), so `next_wake()` reports `now_ms` on every
+  tick for as long as that scene is stacked. `setTimer(UI_SPECIFIC, 0)` would put `triggerTime` at
+  exactly `AudioEngine::audioSampleTimer` (`gui/ui_timer_manager.cpp:257-266`) and `timeNextEvent`
+  with it, defeating `UITimerManager::routine`'s own early return (`:54-57`) — the whole 29-timer
+  sweep would then run on every pass of the main loop, for ever. The floor of 1 ms is the smallest
+  duration `setTimer` can express that leaves `triggerTime` strictly in the future.
+- **Legacy's per-frame cadence is 15 ms, not the main loop's rate**, and three docs in this stack
+  said otherwise (`shell/scene.h`'s `next_timer`, `shell/shell.h`'s `next_wake`,
+  `scenes/audio_clip/audio_clip_scene.h`'s `next_timer`, all corrected in place).
+  `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside the `UI` hierarchy:
+  `TimerName::GRAPHICS_ROUTINE`, re-armed at 15 ms (`gui/ui_timer_manager.cpp:213-218`). The guest
+  keeps the 1 ms floor anyway, because the first tenant (`MenuScene`) has no zero-timer arm while a
+  15 ms floor would put 15 ms of latency on the repaint after *every* press — which legacy does not
+  have, since `doAnyPendingUIRendering` runs from the main loop (`gui/ui/ui.cpp:375-396`).
+- **The row omits that legacy disarms `UI_SPECIFIC` from under its owner**, at
+  `changeUIAtLevel` (`gui/ui/ui.cpp:92`), `changeRootUI` (`:113`), `closeUI` (`:197`) and `openUI`
+  (`:233`) — each of them immediately before the `opened()`/`focusRegained()` that follows. Since
+  nothing inside the guest runs except `Shell::tick`, a guest that armed only in `opened()` would
+  freeze the moment any UI opened over it and closed again. The guest therefore arms from `opened()`
+  (success path only), `focusRegained()`, `displayOrLanguageChanged()`, `exitUI()`'s survive path and
+  all five input hooks — and deliberately **not** from `exitUI()`'s close path, where `closeUI` is
+  about to unset it and where an arm would deliver this guest's callback to the UI beneath.
+- **There is no `LedSink`.** `grep -rn LedSink src/` has no hits. `derive_leds` is a private member
+  of `Shell` (`shell/shell.h:429`), not of the guest, and it does not write anything: it composes the
+  frame and fills the `desired_*` shadows (`shell/shell.cpp:838-857`), and `Shell::flush` is what
+  calls `SurfaceSet::set_led` (`shell/shell.cpp:966-992`). The `indicator_leds` half of the sentence
+  is right and was already built by F1 task 4 (`GuestSurfaceSet::set_led`). What task 7 adds is the
+  *tick*, without which none of it ever runs.
+- **The ownership rule holds, and it is one-sided in the guest's favour.** An id no scene declared
+  fails `led_send_needed`'s `desired_declared` test (`shell/leds.cpp:75-80`), so no number of ticks
+  can write it; an id a scene does declare is taken away from legacy's blinker, because
+  `setLedState`'s default `allowContinuedBlinking = false` calls `stopLedBlinking`
+  (`hid/led/indicator_leds.cpp:42-52`, `:141-149`). The handover back is coherent for LEDs
+  (`setLedState` keeps `ledStates[]` true) and **not** for knob indicators, whose
+  `knobIndicatorLevels[]` shadow `GuestSurfaceSet::set_indicator` cannot update — but that is not
+  live in phase 4 as built: the only `frame.indicator(...)` declarer in the tree is `ModKnobs`
+  (`scenes/services/mod_knobs.cpp:687`), a service, and the guest is constructed with `Services{}`.
+  F1 task 8 is what makes it live, and `indicator_leds::clearKnobIndicatorLevels()` on the close path
+  is the fix that belongs with it.
+- **The double greyout above is NOT the tick's, and is re-homed.** Task 5 recorded it as belonging
+  "with the tick (F1 task 7) or the acceptance round". Having written the tick: the tick is what
+  makes it *observable* for the first time — before it, nothing sent a pad at all — but it neither
+  causes nor can fix it. Both fixes are changes to `src/shell` (a seam separating compose from tint,
+  or a `ShellConfig` flag saying the host owns the tint), i.e. shared plan-D code four tasks in this
+  plan depend on, and the defect is a *brightness*, whose oracle is the level-3 A/B picture. It
+  therefore belongs to **F1 task 11**, the acceptance round, and not to the tick.
 
 ### 2.2 Phase 5 — shell as host
 

@@ -1,6 +1,7 @@
 #include "fake_legacy_ui.h"
 
 #include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
 #include "memory/heaps.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/registry.h"
@@ -15,6 +16,20 @@ int mod_encoder_button_actions = 0;
 int graphics_routines = 0;
 double system_time_s = 0.0;
 bool sd_routine_active = false;
+std::vector<TimerArm> timer_arms;
+std::vector<TimerName> timer_unsets;
+
+int32_t ui_specific_armed_ms() {
+	if (!uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)) {
+		return -1;
+	}
+	for (size_t i = timer_arms.size(); i-- > 0;) {
+		if (timer_arms[i].which == TimerName::UI_SPECIFIC) {
+			return timer_arms[i].ms;
+		}
+	}
+	return -1;
+}
 
 void reset() {
 	closed.clear();
@@ -25,6 +40,11 @@ void reset() {
 	graphics_routines = 0;
 	system_time_s = 0.0;
 	sd_routine_active = false;
+	timer_arms.clear();
+	timer_unsets.clear();
+	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
+		uiTimerManager.getTimer(static_cast<TimerName>(i)).active = false;
+	}
 	// `ShellHostUI::opened()` reads `ShiftIsSticky` out of the global below, and a spec that left it
 	// set would change how a *later* example's shift tap behaves -- with the clock at 0, every tap
 	// is shorter than `hold_time_ms` and would latch. `Rig` calls this in its constructor, so an
@@ -33,6 +53,52 @@ void reset() {
 }
 
 } // namespace fakelegacyui
+
+// ---------------------------------------------------------------------------
+// gui/ui_timer_manager.cpp's share: the one global and the five out-of-line
+// members. The real file drags in `soundEditor`, `view`, every legacy view and
+// `AudioEngine::audioSampleTimer`; what a guest spec needs is only that an arm
+// is recorded with its duration and that `isTimerSet` answers honestly.
+//
+// `routine()` is deliberately a no-op rather than a reimplementation of
+// `gui/ui_timer_manager.cpp:52-251`: dispatching would need `getCurrentUI()`,
+// which needs the whole `uiNavigationHierarchy` this suite does not build. A
+// spec that wants the tick chain calls `timerCallback()` itself, at the moment
+// the recorded arm says the manager would have.
+// ---------------------------------------------------------------------------
+
+UITimerManager uiTimerManager{};
+
+UITimerManager::UITimerManager() {
+	timeNextEvent = 2147483647;
+}
+
+void UITimerManager::routine() {
+}
+
+void UITimerManager::setTimer(TimerName which, int32_t ms) {
+	fakelegacyui::timer_arms.push_back(fakelegacyui::TimerArm{which, ms});
+	getTimer(which).active = true;
+}
+
+void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
+	// The real conversion, run backwards, so a spec reads one unit: `setTimer` is
+	// `setTimerSamples(which, ms * 44)` (`gui/ui_timer_manager.cpp:253-255`).
+	fakelegacyui::timer_arms.push_back(fakelegacyui::TimerArm{which, samples / 44});
+	getTimer(which).active = true;
+}
+
+void UITimerManager::unsetTimer(TimerName which) {
+	fakelegacyui::timer_unsets.push_back(which);
+	getTimer(which).active = false;
+}
+
+bool UITimerManager::isTimerSet(TimerName which) {
+	return getTimer(which).active;
+}
+
+void UITimerManager::workOutNextEventTime() {
+}
 
 // ---------------------------------------------------------------------------
 // OSLikeStuff/scheduler_api.h's share: the two answers the guest's input hooks

@@ -1,4 +1,6 @@
 #pragma once
+#include "gui/ui_timer_manager.h"
+
 #include <cstdint>
 #include <vector>
 
@@ -39,6 +41,30 @@ extern int mod_encoder_actions;
 extern int mod_button_actions;
 extern int mod_encoder_button_actions;
 extern int graphics_routines;
+/// @}
+
+/// @brief One recorded `UITimerManager::setTimer` call.
+struct TimerArm {
+	TimerName which;
+	int32_t ms;
+};
+
+/// @name The `uiTimerManager` recorder
+///
+/// F1 task 7 makes `ShellHostUI` a *client* of legacy's timer manager: `timerCallback` is the
+/// shell's tick and `TimerName::UI_SPECIFIC` is what schedules it. The real manager
+/// (`gui/ui_timer_manager.cpp`) converts milliseconds to audio samples against
+/// `AudioEngine::audioSampleTimer` and dispatches through `getCurrentUI()`, neither of which this
+/// suite has -- so the fake keeps only the two facts a guest spec is about: which timer was armed,
+/// and for how long. `active` is modelled too, so `isTimerSet` answers the way legacy's does.
+/// @{
+/// Every `setTimer` call, in order. `setTimerSamples` is recorded here as well, in milliseconds.
+extern std::vector<TimerArm> timer_arms;
+/// Every `unsetTimer` call, in order.
+extern std::vector<TimerName> timer_unsets;
+/// @brief The `ms` of the last `TimerName::UI_SPECIFIC` arm, or -1 if it has never been armed or was
+///        unset since.
+int32_t ui_specific_armed_ms();
 /// @}
 
 /// @name The scheduler's two answers, made settable

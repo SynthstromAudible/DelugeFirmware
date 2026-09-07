@@ -17,6 +17,7 @@
 
 #include "gui/ui/shell_host_ui.h"
 
+#include "gui/ui_timer_manager.h"
 #include "hid/button.h"
 #include "libdeluge/scheduler.h" // isSDRoutineActive(), getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
@@ -26,6 +27,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 namespace deluge::gui::ui {
 
@@ -119,7 +121,24 @@ bool ShellHostUI::opened() {
 	// `SceneKind::Null`. An empty guest is worse than no guest: it would swallow every pad
 	// (`UI::padAction`'s `DEALT_WITH` default) while drawing nothing. So a refused push is a
 	// refused open.
-	return shell_.stack().depth() > before;
+	if (shell_.stack().depth() <= before) {
+		return false;
+	}
+
+	// **The first tick, and the only reason anything inside the guest ever runs.** Nothing above
+	// armed a deadline: `Shell::init` is a bare `push` and `Shell::boot` calls `request_repaint()`,
+	// which fires a gate without giving it a deadline (`shell/shell.cpp:230-239`), so
+	// `Shell::next_wake()` is still `std::nullopt` here and there is nothing to convert. See
+	// `armTickSoon`.
+	//
+	// **Only on the success path**, and that matters rather than being tidy: `openUI` unsets
+	// `TimerName::UI_SPECIFIC` *before* calling this (`gui/ui/ui.cpp:233`, the call at `:235`) and
+	// on a refusal rolls the hierarchy back to the previous UI (`:237-242`). A timer armed by a
+	// refused open would therefore deliver this guest's `timerCallback` to whichever UI is current
+	// instead -- `UITimerManager::routine` dispatches to `getCurrentUI()`, not to the arming object
+	// (`gui/ui_timer_manager.cpp:143`).
+	armTickSoon();
+	return true;
 }
 
 void ShellHostUI::focusRegained() {
@@ -134,6 +153,13 @@ void ShellHostUI::focusRegained() {
 	// popup or a console line that never took input in the first place -- the §15.7 defect the
 	// stack was fixed for -- and would skip the scene that genuinely gets input back.
 	shell_.stack().input_top().on_resume();
+
+	// **And re-arm, because legacy just disarmed us.** Both routes into this hook clear
+	// `TimerName::UI_SPECIFIC` on the line before they call it -- `closeUI` at `gui/ui/ui.cpp:197`
+	// with the call at `:199`, and `openUI`'s refusal rollback at `:233`/`:240`. Without this the
+	// guest would tick normally until any UI was opened over it and then never again: frozen pads,
+	// a frozen panel, and input piling up in a queue only `Shell::tick` drains.
+	armTickSoon();
 }
 
 void ShellHostUI::displayOrLanguageChanged() {
@@ -144,11 +170,15 @@ void ShellHostUI::displayOrLanguageChanged() {
 	// `SoundEditor` overrides this hook too, for the same reason
 	// (`gui/ui/sound_editor.cpp:298-300`, `readValueAgain`).
 	//
-	// **What this does not buy.** The repaint lands on the shell's next tick (F1 task 7), whereas
-	// the base's `renderUIsForOled()` makes legacy pull `renderOLED` before that -- so exactly one
-	// frame of the old language can still go out. Chaining to the base keeps that pull, because the
-	// alternative is legacy never being told the panel is stale at all.
+	// **What this does not buy.** The repaint lands on the shell's next tick, whereas the base's
+	// `renderUIsForOled()` makes legacy pull `renderOLED` before that -- so exactly one frame of the
+	// old language can still go out. Chaining to the base keeps that pull, because the alternative
+	// is legacy never being told the panel is stale at all.
 	shell_.boot();
+	// `boot()` requests repaints without arming any deadline (`shell/shell.cpp:230-239`), so
+	// `compute_next_wake` has nothing to report and the "next tick" above would be whatever tick
+	// happened to come along. On an idle guest that is never. Hence the explicit ask.
+	armTickSoon();
 	::UI::displayOrLanguageChanged();
 }
 
@@ -352,6 +382,74 @@ bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 }
 
 // ---------------------------------------------------------------------------------------------
+// The tick
+//
+// The whole of the guest's clock, in three functions. `timerCallback` is the only place
+// `Shell::tick` is called from, so it is the only place any of the shell runs at all -- routing,
+// rendering, LEDs and the wake computation are all steps of that one function
+// (`shell/shell.cpp:297-520`). Everything else in this file either feeds a queue or answers a
+// legacy query.
+// ---------------------------------------------------------------------------------------------
+
+ActionResult ShellHostUI::timerCallback() {
+	const uint32_t now = nowMs();
+
+	// **Before the tick, not after**, and it is the same ordering every input hook below uses:
+	// `InputLowering::set_sd_busy(false)` replays the deferred queue into the ordinary one
+	// (`shell/input_lowering.cpp:134-160`), and `Shell::tick`'s step 3 is what drains that
+	// (`shell/shell.cpp:311`). Released after the tick, a press would wait a whole extra tick.
+	//
+	// This line is what makes the SD release *time*-driven. F1 task 6 wired `set_sd_busy` into the
+	// five input hooks only, and recorded the gap that leaves: legacy retries from the poll loop
+	// the moment `isSDRoutineActive()` goes false (`deluge.cpp:295-305`), whereas a guest that only
+	// asks on input strands a deferred press until the user touches something else. `rearmTimer`
+	// below is the other half -- it keeps the timer armed for exactly as long as the lock is held.
+	shell_.set_sd_busy(isSDRoutineActive());
+
+	shell_.tick(now);
+	rearmTimer(now);
+
+	// **Never `REMIND_ME_OUTSIDE_CARD_ROUTINE`.** That is the one value the `UI_SPECIFIC` arm acts
+	// on, and what it does is set `timer.active = true` again *without touching `triggerTime`*
+	// (`gui/ui_timer_manager.cpp:144-146`) -- which is already in the past, so the timer re-fires on
+	// the very next pass of the manager, for ever. It is legacy's "come back immediately" idiom and
+	// it is precisely the spin `kMinRearmMs` exists to avoid; the guest has no need of it either,
+	// because it defers rather than refuses (see the Input section below). `DEALT_WITH` is inert
+	// here: nothing in that arm reads any other value.
+	return ActionResult::DEALT_WITH;
+}
+
+void ShellHostUI::rearmTimer(uint32_t now) {
+	const std::optional<uint32_t> deadline = shell_.next_wake();
+	if (!deadline.has_value()) {
+		// Nothing armed anywhere in the shell -- no gate deadline, no scene or service timer, no
+		// declared blink (`shell/shell.cpp:1015-1083`). Legacy has already cleared the timer
+		// (`gui/ui_timer_manager.cpp:66`), so leaving it alone *is* "sleep until the next input",
+		// and every path that can wake the guest re-arms it (`armTickSoon`).
+		//
+		// Except one, which no scene can express as a deadline: a press held back by the SD-routine
+		// lock is waiting on a fact outside the shell entirely. Poll for it. At `kMinRearmMs` that
+		// is slower than legacy's own retry, which runs from `readButtonsAndPads` on every pass of
+		// the main loop (`deluge.cpp:295-305`), so it is not a new cost -- and it only runs while
+		// the lock is actually held.
+		if (shell_.lowering().sd_busy()) {
+			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kMinRearmMs);
+		}
+		return;
+	}
+	// Absolute deadline minus the clock the tick ran on, in the wrap-safe difference form. A
+	// deadline at or before `now` -- which `Shell::next_wake()` reports routinely, and reports on
+	// every tick while a zero-`next_timer()` scene is stacked -- clamps up to `kMinRearmMs` rather
+	// than arming zero. See the class's `@par The unit mismatch` and `@par Why the floor is 1 ms`.
+	const int32_t in = static_cast<int32_t>(*deadline - now);
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, std::clamp(in, kMinRearmMs, kMaxRearmMs));
+}
+
+void ShellHostUI::armTickSoon() {
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, kMinRearmMs);
+}
+
+// ---------------------------------------------------------------------------------------------
 // Input
 //
 // Every hook here does the same three things in the same order: take or release the shell's
@@ -370,12 +468,12 @@ bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 // (`shell/input_lowering.cpp:134-160`). So the guest **defers rather than drops**, and it never
 // returns `REMIND_ME_OUTSIDE_CARD_ROUTINE`.
 //
-// @warning **The release is input-driven, not time-driven.** The guest only hears "the routine
-//          ended" when the next hook fires, because that is the only place it can ask. Legacy
-//          retries from the poll loop the moment `isSDRoutineActive()` goes false. So a press
-//          deferred here waits for the *next* input rather than for the routine's end -- order and
-//          content are preserved, latency is not. F1 task 7's `timerCallback` is the natural place
-//          to make the release periodic, and it is one `set_sd_busy` call there.
+// **The release is time-driven, as of F1 task 7.** The hooks below still ask on every input, but
+// `timerCallback` asks too, and `rearmTimer` keeps the timer armed at `kMinRearmMs` for as long as
+// `InputLowering::sd_busy()` holds -- so a deferred press waits for the routine to end rather than
+// for the user to touch something else. That closes the divergence task 6 recorded here; what
+// remains is only that the poll is at `kMinRearmMs` where legacy's is at the main loop's rate
+// (`deluge.cpp:295-305`), i.e. the guest is at worst a millisecond behind.
 // ---------------------------------------------------------------------------------------------
 
 uint32_t ShellHostUI::nowMs() const {
@@ -444,6 +542,7 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// `DEALT_WITH` before its caller sees it (`hid/matrix/matrix_driver.cpp:79-83`). So a pad the
 	// guest swallows stays swallowed, which is what an open full-screen UI should do, and the
 	// deferral above is what replaces the value legacy would have used.
+	armTickSoon();
 	return ActionResult::DEALT_WITH;
 }
 
@@ -502,6 +601,7 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// carry. `Buttons` arms `TimerName::BACK_MENU_EXIT` at `:114-121`, *above* the
 	// `getCurrentUI()->buttonAction(...)` call at `:134` and unconditionally on the value it
 	// returns. So `exitUI()` keeps being driven whatever this returns.
+	armTickSoon();
 	return ActionResult::NOT_DEALT_WITH;
 }
 
@@ -515,6 +615,7 @@ ActionResult ShellHostUI::horizontalEncoderAction(int32_t offset) {
 	// `REMIND_ME_OUTSIDE_CARD_ROUTINE`, on which it re-arms the encoder and hands the detents back
 	// to the accumulator (`hid/encoder_input.cpp:129-132`) -- and the deferral above is what
 	// replaces that.
+	armTickSoon();
 	return ActionResult::DEALT_WITH;
 }
 
@@ -524,6 +625,7 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset, bool inCardRouti
 	// as this parameter (`:140`). So the deferral matters here in a way it does not for horizontal.
 	shell_.set_sd_busy(inCardRoutine);
 	feedDetents(EncoderRole::Vertical, offset);
+	armTickSoon();
 	return ActionResult::DEALT_WITH;
 }
 
@@ -535,6 +637,7 @@ void ShellHostUI::selectEncoderAction(int8_t offset) {
 	// the outer 64 values of that range.
 	shell_.set_sd_busy(isSDRoutineActive());
 	feedDetents(EncoderRole::Select, offset);
+	armTickSoon();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -635,8 +738,19 @@ ActionResult ShellHostUI::exitUI() {
 	// check the stack already makes -- and one that reads as though the call were unsafe without it.
 	shell_.stack().pop();
 	if (shell_.stack().depth() != 0) {
+		// The stack moved, so the next tick will re-render everything (`SceneStack::pop` sets
+		// `changed_`, `shell/scene_stack.cpp:63-82`, which `Shell::tick` turns into a repaint request
+		// on every gate, `shell/shell.cpp:328-340`) -- but nothing schedules that tick. This hook is
+		// reached from `TimerName::BACK_MENU_EXIT` (`gui/ui_timer_manager.cpp:149-155`), not from
+		// `UI_SPECIFIC`, so whatever the guest last armed is still standing and may be a long way off.
+		armTickSoon();
 		return ActionResult::DEALT_WITH;
 	}
+	// No arm on the close path: `close()` is `closeUI(this)` (`gui/ui/ui.cpp:57-59`), which unsets
+	// `TimerName::UI_SPECIFIC` itself (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath
+	// (`:199`). Arming here would either be undone one line later or, worse, deliver this guest's
+	// `timerCallback` to that UI -- `UITimerManager::routine` dispatches to `getCurrentUI()`
+	// (`gui/ui_timer_manager.cpp:143`).
 	close();
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
