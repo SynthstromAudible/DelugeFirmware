@@ -838,7 +838,7 @@ the sidebar UI beneath overwrites that pad later in the same pass; the shell com
 visible where legacy's is not. The port paints the marks inside the main-column region, which clips
 it: behaviour preserved by clipping rather than by transcription.
 
-## The audio clip view (`audio_clip/`, E4 task 11) — the first ROOT scene
+## The audio clip view (`audio_clip/`, E4 tasks 11 and 12) — the first ROOT scene
 
 `AudioClipScene` is the port of `AudioClipView` (`gui/views/audio_clip_view.{h,cpp}`), and it is the
 first scene in this tree that is a **root view**: `AudioClipView` -> `ClipView` ->
@@ -909,6 +909,51 @@ cluster arithmetic and the whole history.
 **Any later spec that compares a rendered grid against legacy wants this shape**: fold the
 non-vacuity assertion into the comparison rather than asking callers to precede it with one.
 
+### The edits (E4 task 12), and the three things they closed
+
+Task 12 adds `buttonAction`, `padAction`, the two marker edits, the two length edits, the encoder
+arms and `on_model_changed`. Four things about it are worth knowing without reading the class:
+
+* **The `BACK` + horizontal-encoder collision is closed.** `AudioClipView` claims `BACK` for "clear
+  clip" while `currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON`
+  (`audio_clip_view.cpp:417-447`) and returns before the `else` at `:448`, so legacy's clip-clear
+  wins over `View::buttonAction`'s undo. Task 11 made `is_root()` true without shipping that arm, so
+  for one task the port undid where legacy cleared. `handle()`'s `Back` arm now claims it, and the
+  spec asserts both directions: claimed with the mode set, **not** claimed without it, and not
+  claimed when the song button is held too — because `:417` compares the whole word for equality.
+* **The scene carries a two-value `currentUIMode`.** `UI_MODE_HOLDING_SONG_BUTTON` and
+  `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON` are set by this view's own button arms and read by its
+  own encoder arms, so they are transcribed (`gui/ui/ui.h:79`, `:81`, `:89`) along with
+  `enterUIMode`/`exitUIMode`/`isUIModeActive`'s exclusive-vs-flag arithmetic. **The mode is a latch,
+  not a question about held buttons**: pressing `X_ENC` with shift held enters no mode at all
+  (`audio_clip_view.cpp:392-396` does nothing and never delegates), which is exactly what leaves
+  `horizontalEncoderAction`'s first arm reachable.
+* **`stop_following()` landed one function lower than the ruling said.** Task 11 (and task 12's
+  brief) placed it at "the first statement of the horizontal-encoder arm, above every gate", naming
+  `AudioClipView::horizontalEncoderAction`. Legacy's clear is the first statement of
+  `ClipNavigationTimelineView::horizontalEncoderAction`
+  (`gui/views/clip_navigation_timeline_view.cpp:30-34`), which is reached only through the **third**
+  arm of `ClipView::horizontalEncoderAction` — below the shift length edit, the `Y_ENC` shift and the
+  `currentlyScrollableAndZoomable()` guard, none of which clear it. The higher placement would have
+  been a behaviour change, not a placement detail. Both cases are specced: a turn the UI-mode gate
+  refuses still clears, and a shift length edit still does not.
+* **`setClipLengthEqualToSampleLength` is real, and nothing dispatches it.** It is the first of
+  `menu/action.h`'s five parked `MenuAction`s to have a callee. The spec drives the method directly
+  **and** through legacy's own `X_ENC`+`Y_ENC` chord; `MenuScene::take_action()` is still an outbox
+  with no consumer, because the dispatcher is the wiring plan's.
+
+Two spec-side facts that will bite the next author of this file:
+
+* **`Button{Back}` never comes out of `InputLowering::next()`.** It is one of the widget-owned
+  inputs held back from routing (`shell/input_lowering.h`'s "held-back split"), delivered after
+  render from `held_back()`. A rig that drains only `next()` never calls `handle` with a `Back`
+  event at all — and a "this is not claimed" assertion then passes for entirely the wrong reason.
+* **`Buttons::buttonAction` cannot be called from a spec process**, because its first act after
+  recording the press is `getCurrentUI()->buttonAction(...)` (`hid/buttons.cpp:134`) and
+  `getCurrentUI()` is null with no UI open. Legacy's held-button state is set through bare `extern`s
+  on `Buttons::buttonStates` / `shiftCurrentlyPressed` instead. `AudioClipView::focusRegained()` is
+  out for the same class of reason: it reaches `view.focusRegained()`, which segfaults there.
+
 ## Repaint and the timer fold (`Shell::tick` step 8b, E3 tasks 10-11)
 
 Two shell-level corrections this plan made, both of which change how a scene asks to be redrawn:
@@ -976,7 +1021,7 @@ the hook.
 
 ## Defects this port found in shipping firmware
 
-Nine, none of them introduced by the port, none of them fixed by it, and all nine recorded at
+Ten, none of them introduced by the port, none of them fixed by it, and all ten recorded at
 their own site as well as here. They are listed together because a ledger is not where a release note
 looks.
 
@@ -995,6 +1040,7 @@ comment there would shift every one of them. Their port-side `@warning`s are com
 | **`View::modButtonAction` dereferences a pointer its own sibling null-checks — twice.** `ModControllable::getModKnobMode()` returns `nullptr` for anything that does not support mod-knob banks (`model/mod_controllable/mod_controllable.cpp:47-49`, whose declaration at `mod_controllable.h:55` says so in a comment: *"Return NULL if different modes not supported"*). `View::getModKnobMode` (`gui/views/view.cpp:1680-1689`) tests it before dereferencing. `View::modButtonAction` does not, at **`view.cpp:1517`** (a read, inside the `!rootUIIsClipMinderScreen()` arm) and again at **`:1532`** (a *write*, outside `!rootUIIsClipMinderScreen()` and therefore reached on a press in a clip-minder view, where `:1517` is not). Both are inside `if (…modControllable)` (`:1510`), `if (on)` (`:1511`) and the `isUIModeWithinRange(modButtonUIModes) \|\| rootUI == &performanceView` gate (`:1512`), past the automation-editor early return at `:1501-1505`, so a release and a press during any other UI mode reach neither. Six classes override the default — `GlobalEffectableForSong`, `SoundInstrument`, `SoundDrum`, `Kit`, `AudioOutput`, `MIDIInstrument` — and the one class in the tree that can be an active mod controllable and does **not** is `CVInstrument` (`model/instrument/cv_instrument.h:31`, a `NonAudioInstrument` whose `toModControllable()` returns `this`, `non_audio_instrument.h:57`). So the mechanism is: mod button pressed while a CV clip's knobs are the active target. **Established by reading, not reproduced** — no device here, and no fixture in `sim/` builds a CV clip. The port guards both sites; the guard can only differ from legacy in the case legacy faults in. | **crash (null dereference), if reachable as read** | `src/scenes/services/mod_knobs.cpp`'s `mod_button_action` @warning |
 | **`View::setKnobIndicatorLevel` reads an uninitialised `int32_t`.** `gui/views/view.cpp:1410` declares `int32_t knobPos;` with no initialiser. Its three-way branch assigns it when the param has an `autoParam` (`:1413`), when `paramId == 255` (`:1454`), and when the descriptor is not just a param (`:1460`) — and leaves it **unassigned** on the fourth path, a param with no `autoParam`, a `paramId != 255`, and `(paramId & 0x0000FF00) == 0x0000FF00`. The value is then passed to `indicator_leds::setKnobIndicatorLevel` at `:1468`, which truncates it to `uint8_t` and lights the gold knob's four-segment column from it. Undefined behaviour with a visible symptom: an indicator column showing whatever was on the stack. The port declares **nothing** for that knob instead, which leaves the column as it was — the shell's own rule for an undeclared indicator (`Shell::flush`). | undefined behaviour; user-visible as a wrong indicator | `src/scenes/services/mod_knobs.cpp`'s `indicator_level` @warning; `src/scenes/services/mod_target.h`'s `ModIndicatorInfo` @warning |
 | **`ClipView::getTickSquare` compares a scroll against the zoom.** The arm that stops following an auto-extending linear recording and restores the scroll it started from reads `if (newXScroll != currentSong->xZoom[NAVIGATION_CLIP])` (`gui/views/clip_view.cpp:382`). The value on the left is a **scroll**: it came from `xScrollBeforeFollowingAutoExtendingLinearRecording` (`:379`), which the follow arm eleven lines up filled from `currentSong->xScroll[NAVIGATION_CLIP]` (`:366`). Comparing it against `xZoom` is a comparison between two unrelated quantities, and the guard's evident purpose — skip a restore that would move nothing — needs `xScroll`. Two consequences, both live: the restore is **skipped** whenever the remembered scroll happens to equal the current zoom, leaving the view wherever the follow pushed it instead of back where the user was; and it is **performed** in the case the guard exists to skip, `newXScroll == xScroll`, costing a redraw (and, when no popup is up, a scroll-position popup) for a move of zero. Reached whenever a linear recording auto-extends past the right edge and then stops — the ordinary case for recording a clip longer than one screen. **Established by reading, and by driving legacy's own `getTickSquare` from both sides**; not reproduced on a device. The port reproduces it rather than fixing it, because every other example in `sim/scenes_spec/timeline_spec.cpp` asserts that the port and legacy agree, and a one-sided fix would be a silent divergence. | user-visible, not a crash | `src/scenes/timeline/timeline.h`'s `tick_square` @warning; `src/scenes/timeline/timeline.cpp`'s file comment; the two-sided assertion in `sim/scenes_spec/timeline_spec.cpp`. Deliberately **not** annotated in `clip_view.cpp` itself: this task's three files alone cite it by line 35 times, and inserting a comment would shift every one |
+| **`ClipView::lengthenClip` and `shortenClip` dereference `actionLogger.firstAction[BEFORE]` without a null check.** `lengthenClip`'s `undoing` test four lines earlier is null-guarded (`gui/views/clip_view.cpp:81-84`), and then `:100` reads `actionLogger.firstAction[BEFORE]->type` unguarded; `shortenClip` opens with the same unguarded read at `:128`. Both are reached from `changeClipLength` (`:277`, `:297`) and from `AudioClipView::adjustLoopLength` (`:762`, `:770`), i.e. from a shift + horizontal-encoder length edit and from the `X_ENC`+`Y_ENC` set-length-to-sample chord. It survives on the device because an `Action` almost always exists by the time a length edit runs -- `actionLogger` is written by nearly every gesture -- so the window is a fresh boot (or an `actionLogger.deleteAllLogs()`, which `SoundEditor::setup` does on **every menu open**, `sound_editor.cpp:1716`) followed immediately by a length edit. **Established by driving it**: `sim/scenes_spec/audio_clip_scene_spec.cpp` segfaulted here rather than failing, which is why its `Rig::reseed` seeds one inert `ActionType::MISC` action before either side runs. The port reads null as "not a `PATTERN_PASTE`" and is **not** a faithful reproduction, because a port cannot faithfully reproduce a segfault. | **crash (null dereference) on a fresh boot** | `src/scenes/audio_clip/audio_clip_scene.cpp`'s `lengthen_clip` comment; `Rig::reseed`'s `@note` in `sim/scenes_spec/audio_clip_scene_spec.cpp`. Deliberately **not** annotated in `clip_view.cpp` itself, for the reason the `getTickSquare` row above gives |
 | **The first gold-knob turn after boot is always swallowed.** `InputLowering::action_gold_turn`'s wiggle debounce asks "has this knob been still for `short_press_ms`", comparing against a `last_turn_ms_` that starts at 0 — so on device, where `now_ms` is uptime, the answer is always *yes* by the time a user reaches a knob, and the first turn of every session takes the recorded-but-swallowed arm. `was_short_press` carries a deliberate guard against exactly this shape; this function has none. It also means **all 22 pre-existing UI scripts** turn gold before `t = 500` — inside the window, by luck — so every committed golden depicts the arm the device never presents first. Recorded rather than changed: whether this is a defect or legacy behaviour worth keeping needs a device. | user-visible, not a crash | `src/shell/input_lowering.h`'s gold-knob debounce @warning; `tests/ui-scripts/`'s own docstring |
 
 ## The action seam (`menu/action.h`, E2 task 11b)
