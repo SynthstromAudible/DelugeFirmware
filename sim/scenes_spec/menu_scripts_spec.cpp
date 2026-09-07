@@ -98,6 +98,32 @@
 /// device does from cold, and nothing at any level asserts what it does instead. Recorded here
 /// rather than papered over; closing it means a script whose clock starts past `short_press_ms`,
 /// which `RunOptions` has no way to express today.
+///
+/// @par Every script here runs with `Services{}`, and some of these goldens are owed a re-record
+///
+/// All 24 `expect_script_goldens` calls in this file pass `deluge::ui::shell::Services{}` -- three
+/// `NullService`s. That is E4's own ruling and not an oversight (three plans of goldens were
+/// recorded that way; re-recording them as a side effect of building the services would be a diff
+/// nobody could review), but it means these frames describe a shell with no mod-knob service in it,
+/// and spec F installs one. Twelve of these scripts drive 19 gold-knob turns between them.
+///
+/// **What decides whether a given step moves is the PAGE, not the router's chain**, and the split
+/// was measured for E4's final review rather than argued:
+///
+///   * Where the focused page's widget CLAIMS the gold turn -- `menu_int`'s Int leaf, whose
+///     `after_gold_turn` golden really does show the value move -- `Router::route_post_render`
+///     drops the event before `Router::run_chain` is entered (`src/shell/README.md`), so
+///     `services::ModKnobs` never sees it and installing the services changes nothing.
+///     `scene_scripts_spec.cpp`'s `menu_gold_turn` records exactly that, on this same node, with
+///     the real three installed.
+///   * Where the page reads no edit encoder -- `menu_decimal`'s first `GoldUpper` turn is the
+///     worked example, and E3 task 10 dropped its snapshot for being byte-identical to the frame
+///     before -- the turn is unclaimed, falls the whole way through the chain, and is dropped.
+///     With a real `ModKnobs` it will write the mod param and push a `ParamPopupScene` over the
+///     menu: a second `scene` line in `.state` and a value strip in the `.pbm`.
+///
+/// Classify each of the 19 as you re-record it. `src/scenes/README.md`'s carry table and the
+/// migration spec's §10.2 blocker list both carry this row.
 
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"

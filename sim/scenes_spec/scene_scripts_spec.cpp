@@ -15,6 +15,7 @@
 /// | `param_popup` | `overlay::ParamPopupScene` (E4 task 1) **pushed by `services::ModKnobs`** (task 2) | nothing in the script pushes it: a gold-knob turn reaches the service, and `ModKnobs::show_popup` pushes the scene (`services/mod_knobs.cpp:399`) |
 /// | `screensaver` | `overlay::ScreensaverScene` (E4 task 7) **pushed by `shell::Screensaver`** | nothing in the script pushes it either: the script simply stops touching anything for longer than `ShellConfig::screensaver_idle_ms` |
 /// | `count_in` | `overlay::CountInScene` (E4 task 6) | **the spec pushes it**, from `RunOptions::before_tick`, over an `AudioClipScene` root. Nothing in the tree pushes this kind -- see the honesty note below |
+/// | `menu_gold_turn` | `menu::MenuScene` and a real `services::ModKnobs` in one run (E4 final review) | `RunOptions::initial_scene` at `nodes::saturation`, exactly as `menu_scripts_spec.cpp` opens a menu. The only recorded frame on this stack with a menu and a real service together |
 // clang-format on
 ///
 /// Each script has a `_64` sibling that re-runs the geometry-sensitive frames on the 128x64 panel
@@ -125,6 +126,12 @@
 /// @note Like `menu_scripts_spec.cpp`, this file may include `gui/` and `hid/`; the library may not.
 
 #include "scenes/audio_clip/audio_clip_scene.h"
+#include "scenes/menu/bindings.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/overlay/screensaver_scene.h"
@@ -174,6 +181,7 @@
 using namespace deluge::scenes;
 using deluge::scenes::audio_clip::audio_clip_scene;
 using deluge::scenes::audio_clip::kAudioClipSceneKind;
+using deluge::scenes::menu::MenuContext;
 using deluge::scenes::slicing::kSlicerSceneKind;
 using deluge::scenes::slicing::Mode;
 using deluge::scenes::slicing::slicer_scene;
@@ -182,6 +190,8 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+namespace bindings = deluge::scenes::menu::bindings;
+namespace nodes = deluge::scenes::menu::nodes;
 
 /// @brief `PlaybackHandler`'s "we are inside a swung tick" latch, declared rather than included
 ///        exactly as `audio_clip_scene_spec.cpp:122` and `timeline_spec.cpp` declare it.
@@ -756,6 +766,84 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "param_popup_64", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{2});
+	});
+
+	// ---- a menu and a real ModKnobs in the same run ---------------------------------------------
+
+	it("a gold turn in a MENU with the real services: the scene claims it, ModKnobs never sees it, "
+	   "and no popup is pushed", _ {
+		// **E4 final-review fix wave, the ruling's step 1.** Every menu golden in
+		// `menu_scripts_spec.cpp` was recorded with `Services{}` -- three `NullService`s -- so none
+		// of them can show what a menu does with a service that also wants gold-knob turns present.
+		// This is that frame, on the same node `menu_int.txt` opens.
+		reset_globals();
+		install_display();
+		SceneReset reset;
+		spec::QuietAudio quiet;
+		spec::SongFixture song = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::saturation, ctx);
+		const int32_t before = bindings::read(nodes::saturation, ctx);
+		// **Drain the popup first, and say why.** `ParamPopupScene` is a process singleton and
+		// `param_popup_64` above quits at 300 ms with 1.8 s still on its lifetime, so a bare
+		// `remaining_ms() == 0` here reads the PREVIOUS example's popup and fails for a reason that
+		// has nothing to do with this one. (It did, on the first run of this block -- 1850 ms of a
+		// popup this script never raised.) Two ticks longer than `kPopupLifetimeMs` puts it in the
+		// state a fresh process would have, and the same assertion after the run is then about this
+		// run alone.
+		overlay::param_popup_scene().tick(60'000);
+		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
+
+		RealServices svc;
+		svc.song = song.song;
+		svc.mod_target = song.clip;
+		uitest::RunOptions opts = opts_for(SceneId{SceneKind::FirstApp, menu::node_id(nodes::saturation)});
+		opts.after_construct = svc.installer();
+
+		const uitest::RunResult result =
+		    uitest::expect_script_goldens(self, "menu_gold_turn", scenes::scene_registry(), svc.slots(), opts);
+		expect(result.snapshots).to_equal(uint32_t{3});
+
+		// **The scene got the turn.** `+2` detents through `MenuScene`'s `int_value` widget is the
+		// same arithmetic `menu_int`'s block derives: `edges_per_detent`(2) * 2 = 4 raw edges, and
+		// `int_value`'s coarse step is `range.step` (1), clamped to `IntRange{0,15,1}`. The `+1` at
+		// 100 ms is swallowed by `pretend_knobs_untouched()`, so it contributes nothing -- if that
+		// debounce ever stops applying, this total is what notices.
+		expect(bindings::read(nodes::saturation, ctx)).to_equal(std::min(before + 4, 15));
+
+		// **`ModKnobs` never saw it, so nothing was pushed.** The gold turn is one of the six
+		// widget-owned inputs the shell holds back and delivers after render, skipping any input
+		// `ctx().claims` shows a widget already took (`shell/README.md`, `Router::route_post_render`)
+		// -- and `MenuScene`'s `int_value` widget takes this one. So the service is never reached,
+		// and `ParamPopupScene` stays off the stack: `idle` and `after_gold_turn` carry exactly one
+		// `scene` line and `after_back` carries none, which is the recorded half of this claim (a
+		// popup pushed by the turn would still be stacked at `after_back`, since its 2000 ms
+		// lifetime outlasts the run).
+		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
+		expect(overlay::param_popup_scene().has_pending()).to_be_false();
+		// ---------------------------------------------------------------------------------------
+		// **This is NOT a guard on the router's chain order, and that was measured rather than
+		// assumed.** It was written to be one: E4 task 3 corrected the chain from
+		// `mod_knobs -> top scene` to `top scene -> mod_knobs` (shell spec §15.4), and the ruling
+		// asked for a recorded frame behind it. Swapping the two steps back inside
+		// `Router::run_chain` and re-running leaves all three goldens byte-identical and every
+		// assertion here green -- because the claim check that decides this gesture runs in
+		// `Router::route_post_render`, BEFORE `run_chain` is entered, and a claimed event never
+		// reaches the chain in either order.
+		//
+		// The order is observable only where a scene and `mod_knobs` could both claim the same
+		// event from `handle()`, and **no real scene in the tree claims a gold turn there**:
+		// `AudioClipScene` declines it explicitly (`audio_clip_scene.cpp:247-251`), `MenuScene` has
+		// no gold arm at all, and `grep -rn "GoldUpper\|GoldLower" src/scenes/` finds nothing
+		// outside `ModKnobs` itself. So the order stays pinned by `router_spec.cpp`'s "a scene that
+		// claims a gold-knob turn gets it, and mod_knobs never sees it", which uses a spec-local
+		// scene that does -- and a recorded frame for it cannot exist until a ported scene has such
+		// an arm. That is the finding, and it is in this fix wave's report.
+		//
+		// What this DOES pin is still worth its three goldens: installing the real services does
+		// not silently steal a menu's edit encoder. That is a claim no `Services{}` golden can
+		// make, and it is the one that will break first if the widget-claim path changes.
 	});
 
 	// ---- ScreensaverScene, pushed by shell::Screensaver -----------------------------------------

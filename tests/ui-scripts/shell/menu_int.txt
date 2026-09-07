@@ -1,3 +1,24 @@
+# **This script runs with `Services{}` -- three `NullService`s -- and so does every other menu
+# script here.** That is deliberate (the ruling is in E4's ledger: three plans' goldens were recorded
+# against null services, and re-recording them as a side effect of building the services would be a
+# diff nobody could review), but it means these goldens describe a shell with no mod-knob service in
+# it, and spec F will install one.
+#
+# **For THIS script the answer is measured, and it is "nothing moves".** The `300 encoder GoldUpper
+# +2` step below is claimed by `MenuScene`'s own `int_value` widget during render, so
+# `Router::route_post_render` drops the event before `Router::run_chain` is entered
+# (`src/shell/README.md`) and `services::ModKnobs` never sees it either way. E4's final review added
+# `tests/ui-scripts/shell/menu_gold_turn.txt`, which drives this same node with the real three
+# services installed and records the same behaviour: the value moves in the menu, no
+# `ParamPopupScene` is pushed.
+#
+# **It is not the answer for every menu script.** Where a page reads no edit encoder -- `menu_decimal`'s
+# first `GoldUpper` turn is the worked example, and its snapshot was dropped in E3 task 10 for being
+# byte-identical to the frame before it -- the turn is unclaimed, falls through the whole chain and
+# is dropped today. With a real `ModKnobs` it will write the mod param and push a popup over the
+# menu. Those goldens are owed a re-record when the services are installed; `src/scenes/README.md`'s
+# carry table and migration section 10.2 both carry the row.
+#
 # Level-2 acceptance (task-11 brief): an Int leaf (nodes::saturation), opened directly at depth 0.
 # The generic recipe every menu_* script drives; the C++ spec pins the node and the model asserts.
 0     snapshot idle

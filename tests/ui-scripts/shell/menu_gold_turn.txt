@@ -1,0 +1,45 @@
+# Level-2 acceptance (E4 final-review fix wave): **a gold-knob turn inside a MENU, with the three
+# real services installed.** The only recorded frame on this stack that puts a `MenuScene` and a
+# real `services::ModKnobs` in the same run.
+#
+# **What it pins.** Every menu golden in `menu_scripts_spec.cpp` was recorded with `Services{}` --
+# three `NullService`s -- so none of them can show what a menu does when a service that also wants
+# gold-knob turns is present. This one does: the menu's own `int_value` widget reads the turn during
+# render and CLAIMS it, so `Router::route_post_render` drops the event before the chain runs
+# (`shell/README.md`, "skipping any input `ctx().claims` shows a widget already took"), `ModKnobs`
+# never sees it, and no `ParamPopupScene` is pushed. The value moves in the menu, on the panel.
+#
+# **What it does NOT pin, measured rather than assumed.** It is not a guard on the router's chain
+# ORDER. E4 task 3 corrected the chain from `mod_knobs -> top scene` to `top scene -> mod_knobs`
+# (shell spec §15.4), and this script was written to be the recorded half of that. It is not:
+# swapping the two steps back inside `Router::run_chain` and re-running leaves this script's three
+# goldens byte-identical and every assertion green, because the claim check that decides this
+# gesture happens in `route_post_render` BEFORE `run_chain` is entered. No real scene in the tree
+# claims a gold turn from `handle()`, so the order is only observable against a spec-local scene
+# that does -- which is `router_spec.cpp`'s "a scene that claims a gold-knob turn gets it, and
+# mod_knobs never sees it". The finding is recorded in this plan's report.
+#
+# The subject is `nodes::saturation`, deliberately the same node `menu_int.txt` opens, so the two
+# goldens are directly comparable: one recorded with null services and one with real ones.
+#
+# **The first gold detent is swallowed, and that is the port working.** `RealServices::installer`
+# calls `ModKnobs::set_target_with_timeline`, which opens with `pretend_knobs_untouched()`
+# (`services/mod_knobs.cpp:120`, legacy's `View::pretendModKnobsUntouchedForAWhile`,
+# `view.cpp:1951-1955`) -- so `InputLowering::action_gold_turn` writes the next turn off as the
+# opening half of a possible wiggle. `param_popup.txt` carries the same note and the same two-turn
+# opening for the same reason.
+0     snapshot idle              # the SATURATION leaf reading 0
+100   encoder GoldUpper +1       # armed, not acted on: see above
+150   encoder GoldUpper +2
+200   snapshot after_gold_turn   # **the frame this script exists for**: the same leaf reading 4.
+                                 # `.state` still has exactly ONE `scene` line -- no popup was
+                                 # pushed over it -- and the knob indicator rings are unchanged from
+                                 # `idle`, because the model param the knobs point at never moved
+300   button Back down
+320   button Back up
+340   snapshot after_back        # the menu closes; nothing is left on the stack, so `.state` has no
+                                 # `scene` line at all and the panel is blank. Kept because it is
+                                 # the proof the popup was never there: a `ParamPopupScene` pushed
+                                 # by the turn would still be on the stack here, since its 2000 ms
+                                 # lifetime outlasts this run
+400   quit

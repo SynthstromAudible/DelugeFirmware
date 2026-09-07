@@ -229,6 +229,27 @@ rather than a thing that is half-done:
    to carry, and the scenes that would call `thing_pressed` from `learnable_at(pad)`
    (`SessionScene`, `NoteClipScene`, `ArrangerScene`) are E5's and E6's. The four button arms
    *are* live through `Router`.
+9. **Installing the services re-records part of the level-2 baseline** — added by E4's final review,
+   and it belongs with 7 rather than after it: doing the wiring in 7 is what makes this fall due.
+   All 24 `expect_script_goldens` calls in `sim/scenes_spec/menu_scripts_spec.cpp` pass
+   `Services{}`, and twelve of those scripts drive **19 gold-knob turns** between them. What decides
+   whether a given step's golden moves is the focused **page**, not the router's chain, and the
+   split is measured:
+   * A turn the page's own widget claims never reaches `Router::run_chain` at all —
+     `Router::route_post_render` drops it on `ctx().claims` first — so installing the services
+     changes nothing. `menu_int`'s `after_gold_turn` is that case, and
+     `sim/scenes_spec/scene_scripts_spec.cpp`'s `menu_gold_turn` script records the same node with
+     the real three services installed to prove it.
+   * A turn the page does not claim is dropped today and will, with a real `services::ModKnobs`,
+     write the mod param and push a `ParamPopupScene` over the menu — a second `scene` line in
+     `.state` and a value strip in the `.pbm`. `menu_decimal`'s first `GoldUpper` turn is the worked
+     example.
+
+   Each of the 19 has to be classified and looked at as it is re-recorded; that is a step in the
+   wiring work, not a separate plan. E4 deliberately did not do it, because the same commit range
+   also reordered the router's chain (§15.4/§15.5 of the shell spec) and a golden diff with two
+   causes cannot be reviewed for either. Recorded in code at `src/scenes/README.md`'s carry table,
+   `tests/ui-scripts/shell/menu_int.txt` and `menu_scripts_spec.cpp`'s own header.
 
 ### 10.3 Two consequences of the deletion that are not preconditions but must be planned for
 
