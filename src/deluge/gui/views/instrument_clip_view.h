@@ -231,6 +231,16 @@ public:
 	void drawNoteCode(uint8_t yDisplay);
 	bool createNewInstrument(OutputType instrumentType, bool is_fm = false);
 	bool changeOutputType(OutputType newOutputType);
+	/// @brief changeOutputType()'s follow-up, reached via View::completeChangeOutputTypeFor()'s
+	///        `ViewChangeType` arm -- on the storage owner for Synth/Kit, inline for MIDI/CV. Runs
+	///        InstrumentClipMinder::changeOutputType()'s LED tail (setLedStates(), inherited) AND this
+	///        class's own recolour/repaint tail, since both used to fire, together, right after the
+	///        (now-deferred) swap -- see the rung 5 task 4 review.
+	/// @param newOutputType The type that was switched to.
+	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param doBlink Whether the redrawn output name should blink.
+	/// @return Whether the swap actually succeeded.
+	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 	bool getAffectEntire() override;

@@ -1744,13 +1744,25 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 		return false;
 	}
 
-	if (InstrumentClipMinder::changeOutputType(newOutputType)) {
+	// The redraw used to run right here, gated on this same bool -- but for Synth/Kit that bool now
+	// means "dispatched", not "swapped", so running it here would repaint the CLIP'S OLD instrument.
+	// completeChangeOutputType() below runs it instead, once the swap (if any) has actually happened,
+	// whether that was synchronous (MIDI/CV) or deferred (Synth/Kit).
+	return InstrumentClipMinder::changeOutputType(newOutputType);
+}
+
+bool InstrumentClipView::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink) {
+	bool success = view.completeChangeOutputType(newOutputType, clip, doBlink);
+	if (success) {
+		// Qualified deliberately: InstrumentClipMinder::changeOutputType()'s old eager tail called
+		// setLedStates() from ITS OWN (non-virtual) scope, which always resolved to this base version,
+		// never InstrumentClipView::setLedStates()'s extra KEYBOARD-LED bit -- an unqualified call here
+		// would silently pick up that extra behaviour instead of reproducing what actually ran before.
+		InstrumentClipMinder::setLedStates();
 		recalculateColours();
 		uiNeedsRendering(getRootUI());
-		return true;
 	}
-
-	return false;
+	return success;
 }
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {

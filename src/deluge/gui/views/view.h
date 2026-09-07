@@ -23,6 +23,7 @@
 #include "model/model_stack.h"
 #include "modulation/params/param.h"
 #include "processing/audio_output.h"
+#include "storage/preset_acquisition.h"
 #include <cstdint>
 
 class InstrumentClip;
@@ -85,17 +86,53 @@ public:
 	void displayAutomation();
 	void displayOutputName(Output* output, bool doBlink = true, Clip* clip = nullptr);
 	void instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument);
+	/// @param offset Scroll direction/amount to move through the folder's presets.
+	/// @param modelStack The caller's stack-local model stack; NOT carried past this call -- the
+	///        Synth/Kit arm rebuilds its own from `clip` once the op actually runs.
+	/// @param doBlink Whether the redrawn output name should blink.
 	void navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWithTimelineCounter* modelStack,
 	                                             bool doBlink = false);
 	/// @brief navigateThroughPresetsForInstrumentClip()'s follow-up: on the storage owner for
 	///        Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for the tier split.
+	/// @param offset Scroll direction/amount, carried from the dispatching call.
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param doBlink Whether the redrawn output name should blink.
 	void completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink);
 	void navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink = false);
-	bool changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
+	/// @brief Change `modelStack`'s clip to a new output type, on the storage owner for Synth/Kit and
+	///        inline for MIDI/CV.
+	/// @param newOutputType The type to switch to.
+	/// @param modelStack The caller's stack-local model stack; NOT carried past this call -- see
+	///        navigateThroughPresetsForInstrumentClip()'s doc for why.
+	/// @param doBlink Whether the redrawn output name should blink.
+	/// @param consumer Which caller's completion the acquisition (once it runs) hands off to; see
+	///        `PresetConsumer` -- `InstrumentClipMinder`/`SessionView` pass their own value so their
+	///        redraw/LED tail runs from that completion instead of firing here before the swap has
+	///        actually happened.
+	/// @return `true` once the gesture is accepted -- for Synth/Kit this means DISPATCHED, not yet
+	///         complete; a caller that needs to know whether the swap actually succeeded has to wait
+	///         for its completion to run, exactly as the arranger's own changeOutputType() works.
+	bool changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false,
+	                      deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewChangeType);
 	/// @brief changeOutputType()'s follow-up: on the storage owner for Synth/Kit, inline for MIDI/CV.
+	///        Does the core swap and the View-level redraw only -- no caller-specific tail. Callers
+	///        that need one route through completeChangeOutputTypeFor() instead, which this backs.
+	/// @param newOutputType The type that was switched to.
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param doBlink Whether the redrawn output name should blink.
+	/// @return Whether the swap actually succeeded (a real answer now, not a dispatch acknowledgement).
 	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink);
+	/// @brief Routes a completed (or synchronously-run) changeOutputType() to the completion its
+	///        `consumer` asked for, so the caller-specific redraw/LED tail runs from exactly ONE place
+	///        regardless of whether the acquisition was dispatched (Synth/Kit) or ran inline (MIDI/CV)
+	///        -- never both, and never before the swap in completeChangeOutputType() above has run.
+	/// @param consumer Which caller dispatched the original changeOutputType() call.
+	/// @param newOutputType The type that was switched to.
+	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param doBlink Whether the redrawn output name should blink.
+	/// @return Whether the swap actually succeeded.
+	bool completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer, OutputType newOutputType,
+	                                 InstrumentClip* clip, bool doBlink);
 	void drawOutputNameFromDetails(OutputType outputType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool isNameEmpty, bool editedByUser, bool doBlink, Clip* clip = nullptr);
 	void startMIDILearn();

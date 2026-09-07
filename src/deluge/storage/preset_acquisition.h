@@ -45,11 +45,14 @@ enum class PresetConsumer : uint8_t {
 	ArrangerNewInstrument,  ///< the arranger's new-instrument pad
 	ArrangerChangeType,     ///< ArrangerView::changeOutputType()
 	ArrangerNavigate,       ///< ArrangerView::navigateThroughPresets()
-	SessionChangeType,      ///< SessionView's output-type gesture
+	SessionChangeType,      ///< SessionView's Grid-layout output-type gesture (`:626`)
 	SessionNavigate,        ///< SessionView's preset-navigation gesture
 	SessionNewTrack,        ///< SessionView::createNewTrackForInstrumentClip()
-	ViewChangeType,         ///< View::changeOutputType()
+	ViewChangeType,         ///< View::changeOutputType(), reached via InstrumentClipMinder/InstrumentClipView
 	ViewNavigateClipPreset, ///< View::navigateThroughPresetsForInstrumentClip()
+	SessionRowsChangeType,  ///< SessionView's Rows-layout output-type gesture (`:620`) -- distinct from
+	                        ///< SessionChangeType, which is the Grid-layout call site at `:626`; the two
+	                        ///< reach the directory through different functions with different tails.
 };
 
 /// @brief Everything an acquisition needs, captured at dispatch time.
@@ -65,7 +68,8 @@ struct PresetRequest {
 	Availability availability{Availability::ANY};
 
 	int32_t offset{};   ///< Navigate only: scroll direction.
-	bool doBlink{};     ///< Navigate only.
+	bool doBlink{};     ///< Navigate and ViewChangeType/SessionRowsChangeType: whether the redrawn name
+	                    ///< should blink.
 	int32_t yPressed{}; ///< The view row the gesture was made on, captured before any yield.
 
 	std::string searchName; ///< ConfirmOrNext only: the preset name to confirm.
@@ -74,7 +78,11 @@ struct PresetRequest {
 	/// @brief The instrument navigated away from, or being replaced. Song-owned, so it stays valid
 	///        across the op's yields.
 	Instrument* oldInstrument{};
-	InstrumentClip* clip{};       ///< The clip the gesture was made on, if any. Song-owned.
+	/// @brief The clip the gesture was made on, if any. Song-owned, so it stays valid across the
+	///        op's yields the same way `oldInstrument` does -- but note `isRequestInstrumentStillLive()`
+	///        guards only `oldInstrument`; a consumer that reads `clip` without also setting
+	///        `oldInstrument` gets no liveness check on the clip itself.
+	InstrumentClip* clip{};
 	bool copyDrumsFromClip{true}; ///< SessionNewTrack only.
 };
 

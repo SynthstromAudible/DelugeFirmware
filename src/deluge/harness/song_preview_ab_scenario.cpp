@@ -1686,8 +1686,8 @@ enum class AcquireStep : uint8_t {
 	ViewNavigateCheck,
 	ViewChangeTypeCV,
 	ViewChangeTypeCVCheck,
-	ViewChangeTypeKit,
-	ViewChangeTypeKitCheck,
+	ViewChangeTypeSynth,
+	ViewChangeTypeSynthCheck,
 	Finished
 };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
@@ -1738,7 +1738,8 @@ int32_t g_acqNonAudioBefore = 0; // presetAcquisitionsRun() sampled before NonAu
 // a real SYNTH Instrument, dirPath "SYNTHS" -- already exists by the time AcquireStep::ViewNavigate
 // reads it back via getCurrentInstrumentClip().
 InstrumentClip* g_viewClip = nullptr;
-int32_t g_acqViewBefore = 0; // presetAcquisitionsRun() sampled before each View gesture below
+int32_t g_acqViewBefore = 0;       // presetAcquisitionsRun() sampled before each View gesture below
+std::string g_acqViewNameBefore{}; // g_viewClip->output's name, sampled before ViewNavigate dispatches
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
 /// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
@@ -1938,11 +1939,10 @@ void runAcquireTick() {
 		// session InstrumentClip -- see g_viewClip's doc above for why this can't run through any
 		// arranger row. Reuses the SYNTHS fixture the steps above already built; doPresetNavigation()
 		// reads only the top-level folder (it does not recurse into NESTED), so nothing new needs
-		// building. Whether a preset is actually FOUND is not asserted, only that dispatching the
-		// gesture runs the op exactly once -- the same "prove the mechanism, not the search result"
-		// contract as AcquireStep::Coalesce and ::NonAudio above, and the only thing an op that
-		// might legitimately fail to find anything (its Instrument is not one of the fixture's
-		// files) can be held to.
+		// building. ViewNavigateCheck asserts a REAL outcome (the clip's Output actually changed),
+		// not just that an op ran -- a dispatch-count-only check would pass identically with
+		// PresetConsumer::ViewNavigateClipPreset's switch arm still an empty `break;` (see the rung 5
+		// task 4 review).
 		g_viewClip = getCurrentInstrumentClip();
 		if (g_viewClip == nullptr || g_viewClip->output == nullptr) {
 			printf("SP-ACQUIRE FAIL no current InstrumentClip to drive View's gestures with\n");
@@ -1950,6 +1950,7 @@ void runAcquireTick() {
 			g_acquireStep = AcquireStep::Finished;
 			break;
 		}
+		g_acqViewNameBefore = acquiredName(g_viewClip->output);
 		g_acqViewBefore = acqDispatches();
 		BrowserListingAbProbe::navigateThroughPresetsForInstrumentClip(g_viewClip, 1);
 		g_acquireStep = AcquireStep::ViewNavigateCheck;
@@ -1957,11 +1958,22 @@ void runAcquireTick() {
 	}
 	case AcquireStep::ViewNavigateCheck: {
 		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
-		printf("SP-ACQUIRE view-navigate dispatches=%d\n", dispatched);
+		const std::string nameAfter = acquiredName(g_viewClip->output);
+		printf("SP-ACQUIRE view-navigate dispatches=%d before=%s after=%s\n", dispatched, g_acqViewNameBefore.c_str(),
+		       nameAfter.c_str());
 		if (dispatched != 1) {
 			printf("SP-ACQUIRE FAIL View::navigateThroughPresetsForInstrumentClip's Synth/Kit arm ran "
 			       "%d op(s), expected 1\n",
 			       dispatched);
+			g_failures++;
+		}
+		// The real outcome: the boot clip's Output ("0") does not match anything in the fixture, so a
+		// working ViewNavigateClipPreset arm MUST land on the top-level PRESET00 -- proving
+		// completeNavigateThroughPresetsForInstrumentClip() actually ran the swap, not merely that the
+		// op executed.
+		if (nameAfter == g_acqViewNameBefore) {
+			printf("SP-ACQUIRE FAIL navigate did not change the clip's Output -- "
+			       "ViewNavigateClipPreset's switch arm may not be wired\n");
 			g_failures++;
 		}
 		g_acquireStep = AcquireStep::ViewChangeTypeCV;
@@ -1990,27 +2002,42 @@ void runAcquireTick() {
 			printf("SP-ACQUIRE FAIL View::changeOutputType(CV) dispatched a storage op; it reads no card\n");
 			g_failures++;
 		}
-		g_acquireStep = AcquireStep::ViewChangeTypeKit;
+		g_acquireStep = AcquireStep::ViewChangeTypeSynth;
 		break;
 	}
-	case AcquireStep::ViewChangeTypeKit: {
-		// The Synth/Kit dispatch arm again, this time via changeOutputType() rather than navigate --
-		// proves PresetConsumer::ViewChangeType's switch arm (load_instrument_preset_ui.cpp) is
-		// actually WIRED to View::completeChangeOutputType(), not merely that the switch compiles
-		// (it is exhaustive with no `default:`, which only proves every enumerator has SOME arm).
-		// No KITS fixture is built: the op still runs -- and is counted -- whether or not a preset is
-		// found, exactly like ViewNavigate above.
+	case AcquireStep::ViewChangeTypeSynth: {
+		// The Synth/Kit dispatch arm again, this time via changeOutputType() (CV -> SYNTH) rather than
+		// navigate -- proves PresetConsumer::ViewChangeType's switch arm (load_instrument_preset_ui.cpp)
+		// is actually WIRED to View::completeChangeOutputTypeFor(), asserted by the REAL outcome below
+		// (the clip really becomes SYNTH), not merely a nonzero dispatch count -- a dispatch-count-only
+		// check would pass identically with the switch arm still an empty `break;`.
+		//
+		// Targets SYNTH, not KIT: SYNTH reuses the SYNTHS fixture the steps above already proved
+		// correct (a real, loadable preset written via the production save path). A KIT preset needs
+		// its own from-scratch fixture writer (Kit's XML root tag and blank-instrument setup differ
+		// from SoundInstrument's, and writeBlankSynthPresetFile()'s doc above already records ONE
+		// real crash this stage found from getting that shape subtly wrong for Synth) -- building and
+		// proving a second one correct was judged higher-risk, for the same proof, than this fix round
+		// had room for. SYNTH and KIT share the exact same code path here (View::changeOutputType()
+		// branches only on MIDI/CV vs everything else), so this is not a narrower proof, just a safer
+		// one. Recorded here rather than silently substituted.
 		g_acqViewBefore = acqDispatches();
-		BrowserListingAbProbe::changeOutputType(g_viewClip, OutputType::KIT);
-		g_acquireStep = AcquireStep::ViewChangeTypeKitCheck;
+		BrowserListingAbProbe::changeOutputType(g_viewClip, OutputType::SYNTH);
+		g_acquireStep = AcquireStep::ViewChangeTypeSynthCheck;
 		break;
 	}
-	case AcquireStep::ViewChangeTypeKitCheck: {
+	case AcquireStep::ViewChangeTypeSynthCheck: {
 		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
-		printf("SP-ACQUIRE view-changetype-kit dispatches=%d\n", dispatched);
+		const OutputType typeAfter = g_viewClip->output->type;
+		printf("SP-ACQUIRE view-changetype-synth dispatches=%d type=%d\n", dispatched, static_cast<int>(typeAfter));
 		if (dispatched != 1) {
-			printf("SP-ACQUIRE FAIL View::changeOutputType(KIT)'s Synth/Kit arm ran %d op(s), expected 1\n",
+			printf("SP-ACQUIRE FAIL View::changeOutputType(SYNTH)'s Synth/Kit arm ran %d op(s), expected 1\n",
 			       dispatched);
+			g_failures++;
+		}
+		if (typeAfter != OutputType::SYNTH) {
+			printf("SP-ACQUIRE FAIL clip did not actually become SYNTH -- "
+			       "ViewChangeType's switch arm may not be wired\n");
 			g_failures++;
 		}
 		g_acquireStep = AcquireStep::Finished;

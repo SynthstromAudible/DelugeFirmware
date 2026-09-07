@@ -577,6 +577,7 @@ changeOutputType:
 				// Don't allow converting audio clip to instrument clip
 				if (clip->type == ClipType::AUDIO) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
+					requestRendering(this, 1 << selectedClipYDisplay, 0);
 				}
 				else {
 
@@ -617,7 +618,13 @@ doActualSimpleChange:
 							ModelStackWithTimelineCounter* modelStack =
 							    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
 
-							view.changeOutputType(newOutputType, modelStack, true);
+							// The redraw below used to run unconditionally right after this call -- but
+							// for Synth/Kit, dispatchPresetAcquisition() only just enqueued the swap, so
+							// redrawing here would show the OLD instrument. completeChangeOutputTypeRows()
+							// runs it instead, once the swap (if any) has actually happened; see the rung
+							// 5 task 4 review.
+							view.changeOutputType(newOutputType, modelStack, true,
+							                      deluge::storage::PresetConsumer::SessionRowsChangeType);
 							break;
 						}
 						case SessionLayoutType::SessionLayoutTypeGrid: {
@@ -629,6 +636,9 @@ doActualSimpleChange:
 									view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 								}
 							}
+							// Still synchronous (currentSong->changeOutputType() above is unconverted) --
+							// unaffected by this task; Task 5 converts this branch.
+							requestRendering(this, 1 << selectedClipYDisplay, 0);
 							break;
 						}
 						// explicit fallthrough cases
@@ -636,8 +646,6 @@ doActualSimpleChange:
 						}
 					}
 				}
-
-				requestRendering(this, 1 << selectedClipYDisplay, 0);
 			}
 		}
 	}
@@ -675,6 +683,15 @@ notDealtWith:
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+bool SessionView::completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink) {
+	bool success = view.completeChangeOutputType(newOutputType, clip, doBlink);
+	// selectedClipYDisplay is read live, not carried from dispatch time: it names WHICH ROW to
+	// invalidate, not anything the acquisition itself depends on, so redrawing wherever the clip
+	// actually is now is more correct than redrawing wherever it was when the gesture was made.
+	requestRendering(this, 1 << selectedClipYDisplay, 0);
+	return success;
 }
 
 void SessionView::goToArrangementEditor() {

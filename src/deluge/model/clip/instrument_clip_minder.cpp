@@ -493,13 +493,12 @@ bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	bool success = view.changeOutputType(newOutputType, modelStack);
-
-	if (success) {
-		setLedStates(); // Might need to change the scale LED's state
-	}
-
-	return success;
+	// setLedStates() ("Might need to change the scale LED's state") used to run right here, gated on
+	// this same bool -- but for Synth/Kit that bool now means "dispatched", not "swapped", so running
+	// it here would read the OLD output type. It runs from View::completeChangeOutputTypeFor()'s
+	// ViewChangeType arm instead, once the swap (if any) has actually happened.
+	return view.changeOutputType(newOutputType, modelStack, /*doBlink=*/false,
+	                             deluge::storage::PresetConsumer::ViewChangeType);
 }
 
 void InstrumentClipMinder::calculateDefaultRootNote() {

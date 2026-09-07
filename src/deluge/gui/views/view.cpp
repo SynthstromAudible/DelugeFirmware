@@ -2581,7 +2581,8 @@ getOut:
 }
 
 // Returns whether success
-bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
+bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink,
+                            deluge::storage::PresetConsumer consumer) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -2598,14 +2599,17 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	}
 
 	// MIDI/CV read no card (spec section 2c) -- run them inline so the gesture's bool is still a
-	// real answer for those types. Only Synth/Kit reaches the directory.
+	// real answer for those types. Only Synth/Kit reaches the directory. Routed through the SAME
+	// per-consumer completion the dispatched arm below uses, so a caller's redraw/LED tail runs from
+	// exactly one place regardless of which arm actually ran -- never from here directly, or it would
+	// run a second time when a future caller's completion also runs it (see completeChangeOutputTypeFor()).
 	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
-		return completeChangeOutputType(newOutputType, clip, doBlink);
+		return completeChangeOutputTypeFor(consumer, newOutputType, clip, doBlink);
 	}
 
 	deluge::storage::PresetRequest request{
 	    .query = deluge::storage::PresetQuery::ConfirmOrNext,
-	    .consumer = deluge::storage::PresetConsumer::ViewChangeType,
+	    .consumer = consumer,
 	    .outputType = newOutputType,
 	    .availability = Availability::ANY,
 	    .doBlink = doBlink,
@@ -2619,7 +2623,8 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 }
 
 // Runs on the storage owner for Synth/Kit, inline for MIDI/CV. InstrumentClip::changeOutputType()
-// is unchanged and does its own branch on output type.
+// is unchanged and does its own branch on output type. Core swap + View-level redraw only -- no
+// caller-specific tail; see completeChangeOutputTypeFor() for those.
 bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -2634,6 +2639,31 @@ bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* cl
 	displayOutputName(newInstrument, doBlink, clip);
 
 	return true;
+}
+
+// The router changeOutputType() uses for BOTH its arms (see the doc above the MIDI/CV branch): each
+// consumer's completion runs completeChangeOutputType() as its first step, then whatever redraw/LED
+// tail its own caller used to run eagerly on changeOutputType()'s old, always-synchronous bool return
+// -- a return that is no longer safe to gate a tail on now that the Synth/Kit arm can return `true`
+// for a DISPATCHED (not yet complete) acquisition. Distinct consumers, distinct completions, on
+// purpose: guessing a single shared "refresh" from whatever UI happens to be current at completion
+// time is exactly how this class of regression happens (three different callers, three different
+// tails -- see the rung 5 task 4 review).
+bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer, OutputType newOutputType,
+                                       InstrumentClip* clip, bool doBlink) {
+	using deluge::storage::PresetConsumer;
+	switch (consumer) {
+	case PresetConsumer::SessionRowsChangeType:
+		return sessionView.completeChangeOutputTypeRows(newOutputType, clip, doBlink);
+	case PresetConsumer::ViewChangeType:
+	default:
+		// InstrumentClipMinder::changeOutputType()'s own direct-call path (InstrumentClipMinder::
+		// buttonAction()'s SYNTH/MIDI/CV block) is unreachable in the current build -- InstrumentClipView,
+		// AutomationView and KeyboardScreen all intercept those buttons themselves before it would run
+		// (verified by reading, rung 5 task 4 fix round) -- so ViewChangeType's one live path is always
+		// via InstrumentClipView::changeOutputType(), and its completion is what actually runs here.
+		return instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink);
+	}
 }
 
 void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument) {

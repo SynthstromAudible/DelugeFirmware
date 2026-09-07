@@ -452,8 +452,9 @@ void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
 // Runs the follow-up for whichever gesture dispatched this acquisition. Every arm runs ON THE
 // OWNER, which is what makes a blocking read inside one legal, and mutating UI state from here
 // matches the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
-// recalculateColours()/close(), both on the owner. The arranger's three arms are wired (Task 3)
-// and View's two are wired (Task 4); the Session arms remain empty `break;`s until Task 5.
+// recalculateColours()/close(), both on the owner. The arranger's three arms are wired (Task 3) and
+// View's two, plus SessionView's Rows-layout output-type gesture, are wired (Task 4); the remaining
+// Session arms remain empty `break;`s until Task 5.
 void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request) {
 	using deluge::storage::PresetConsumer;
 	// A coalesced request can carry a stale `oldInstrument` -- see isRequestInstrumentStillLive()'s
@@ -473,7 +474,11 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed);
 		break;
 	case PresetConsumer::ViewChangeType:
-		(void)view.completeChangeOutputType(request.outputType, request.clip, request.doBlink);
+	case PresetConsumer::SessionRowsChangeType:
+		// Both route through the same per-consumer completion changeOutputType()'s synchronous MIDI/CV
+		// arm also uses, so the caller's redraw/LED tail runs from exactly one place either way -- see
+		// View::completeChangeOutputTypeFor()'s doc.
+		(void)view.completeChangeOutputTypeFor(request.consumer, request.outputType, request.clip, request.doBlink);
 		break;
 	case PresetConsumer::ViewNavigateClipPreset:
 		view.completeNavigateThroughPresetsForInstrumentClip(request.offset, request.clip, request.doBlink);

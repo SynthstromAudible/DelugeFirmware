@@ -83,6 +83,15 @@ public:
 	ActionResult timerCallback() override;
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
 	void setLedStates();
+	/// @brief The Rows-layout output-type button's follow-up (`:620`), reached via
+	///        View::completeChangeOutputTypeFor()'s `SessionRowsChangeType` arm -- on the storage owner
+	///        for Synth/Kit, inline for MIDI/CV. Runs the redraw that used to fire unconditionally,
+	///        right after the (now possibly-deferred) swap, at the row the gesture was made on.
+	/// @param newOutputType The type that was switched to.
+	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param doBlink Whether the redrawn output name should blink.
+	/// @return Whether the swap actually succeeded.
+	bool completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink);
 	void editNumRepeatsTilLaunch(int32_t offset);
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
