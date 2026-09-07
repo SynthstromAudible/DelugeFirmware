@@ -55,14 +55,29 @@
 /// and a `Shell` at the same time. Reported as a finding, not fixed here: adding a setter to
 /// `src/shell` is spec F's wiring decision, not a side effect of writing acceptance scripts.
 ///
-/// @par What passing them changed, visibly
+/// @par What passing them changed, visibly -- and what it did not
 ///
-/// The `.state` of every frame here carries `led` and `indicator` lines that a null-service run
-/// cannot produce: `GlobalControls::leds` declares Play/Record/TapTempo/SyncScaling/Save/Load/Clip
-/// (`services/global_controls.cpp:600-620`), `ModKnobs::leds` declares the two gold-knob
-/// indicator rings, and `MidiLearn::leds` declares LEARN. And `param_popup` is the script that
-/// could not exist at all without them: the popup is *pushed by a service*, so with `Services{}`
-/// a gold-knob turn produces no frame of any kind.
+/// **An LED declared `Off` is not written to `.state` at all** (`script_runner.h`'s `state_text`:
+/// "an LED declared off is not shown at all"), so "the services are wired in" and "the services are
+/// visible in a golden" are two different claims and only the second is worth making. What is
+/// actually in these 34 snapshots:
+///
+///   * `led Mod0 on` / `led Mod1 on` and both `indicator` lines, in **every** frame -- `ModKnobs`,
+///     and they differ between scripts because the mod target does (`Mod1` and a non-zero lower ring
+///     in `slicer`, whose target is a synth clip; `Mod0` in the audio-clip scripts).
+///   * `led Record on` and `led Play on`, in `audio_clip`'s last three frames -- `GlobalControls`
+///     (`services/global_controls.cpp:601-616`, the port of `PlaybackHandler::setLedStates`),
+///     after the script presses RECORD and PLAY for real. That is the brief's own motivating
+///     gesture, and it is reachable in exactly one script here: `GlobalControls::handle` gates its
+///     `View::buttonAction` group on `stack_.input_top().is_root()` (`:580`) and `AudioClipScene`
+///     is the only root scene that exists.
+///   * **Nothing from `MidiLearn`.** LEARN is off unless learn mode is entered, and no script here
+///     enters it -- `MidiLearn` is wired in and contributes no observable line. Stated rather than
+///     implied: an earlier version of this docstring claimed seven `GlobalControls` LEDs and a
+///     LEARN line that no golden contains, which the review caught by counting them.
+///
+/// And `param_popup` is the script that could not exist at all without the services: the popup is
+/// *pushed by a service*, so with `Services{}` a gold-knob turn produces no frame of any kind.
 ///
 /// @par Honesty notes -- the two things a script here cannot do by itself
 ///
@@ -100,6 +115,7 @@
 #include "shell/shell.h"
 
 #include "gui/l10n/l10n.h"
+#include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -107,6 +123,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
 
@@ -139,6 +156,16 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 using deluge::ui::shell::Shell;
 using deluge::ui::shell::ShellConfig;
+
+/// @brief `PlaybackHandler`'s "we are inside a swung tick" latch, declared rather than included
+///        exactly as `audio_clip_scene_spec.cpp:122` and `timeline_spec.cpp` declare it.
+///
+/// `audio_clip.txt` starts real playback, and `AudioClipScene::compute_tick_square` then asks
+/// `Clip::getLivePos()` where the clip is -- which, on a song whose transport a spec started but
+/// whose audio thread never runs, reaches `getActualSwungTickCount`'s external-clock swing branch
+/// and divides by `(uint32_t)(50 + currentSong->swingAmount)` (`playback_handler.cpp:1263`): a
+/// **SIGFPE**, not a failure. Holding the latch takes legacy's own early return (`:1209-1214`).
+extern bool currentlyActioningSwungTickOrResettingPlayPos;
 
 namespace {
 
@@ -335,6 +362,9 @@ struct RealServices {
 struct SceneReset {
 	uint8_t saved_playback_state = playbackHandler.playbackState;
 	int32_t saved_count_in = playbackHandler.currentVisualCountForCountIn;
+	RecordingMode saved_recording = playbackHandler.recording;
+	bool saved_metronome = playbackHandler.metronomeOn;
+	bool saved_swung_latch = currentlyActioningSwungTickOrResettingPlayPos;
 
 	SceneReset() = default;
 	SceneReset(const SceneReset&) = delete;
@@ -342,8 +372,20 @@ struct SceneReset {
 	~SceneReset() {
 		audio_clip_scene().open(nullptr, nullptr);
 		slicer_scene().set_ops(nullptr);
+		// The transport half, restored in `global_controls_spec.cpp`'s `reset_transport` order and
+		// for its reasons -- `audio_clip.txt` really does press RECORD and PLAY through
+		// `services::GlobalControls`, so `playbackHandler` is genuinely running by the end of it.
+		// `setForegroundRecording` matters even though no script here starts an output recording:
+		// one left standing suppresses the RECORD LED for every later example
+		// (`playback_handler.cpp:2503-2506`), which is exactly the cross-contamination this file's
+		// own LED assertions would then be reading.
 		playbackHandler.playbackState = saved_playback_state;
 		playbackHandler.currentVisualCountForCountIn = saved_count_in;
+		playbackHandler.recording = saved_recording;
+		playbackHandler.metronomeOn = saved_metronome;
+		Buttons::recordButtonPressUsedUp = false;
+		AudioEngine::setForegroundRecording(nullptr, AudioInputChannel::NONE);
+		currentlyActioningSwungTickOrResettingPlayPos = saved_swung_latch;
 		std::memset(matrixDriver.padStates, 0, sizeof(matrixDriver.padStates));
 	}
 };
@@ -503,6 +545,13 @@ void attach_audio_sample(spec::AudioSongFixture& f, Sample* sample) {
 	f.song->xZoom[NAVIGATION_CLIP] = 48;
 	f.song->tripletsOn = false;
 	playbackHandler.playbackState = 0;
+	playbackHandler.recording = RecordingMode::OFF;
+	playbackHandler.metronomeOn = false;
+	Buttons::recordButtonPressUsedUp = false;
+	// `Clip::getLivePos()`'s SIGFPE guard -- `audio_clip_scene_spec.cpp`'s `Rig` sets the same
+	// latch for the same reason, and `audio_clip.txt` needs it because that script starts real
+	// playback and `AudioClipScene::compute_tick_square` then asks the clip where it is.
+	currentlyActioningSwungTickOrResettingPlayPos = true;
 	PadLEDs::flashCursor = FLASH_CURSOR_SLOW;
 	PadLEDs::clearTickSquares(/*shouldSend=*/false);
 }
@@ -532,7 +581,14 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "audio_clip", scenes::scene_registry(), svc.slots(), opts);
-		expect(result.snapshots).to_equal(uint32_t{5});
+		expect(result.snapshots).to_equal(uint32_t{7});
+		// **The transport really ran**, which is what makes `after_record`/`after_play`'s LED lines
+		// evidence rather than decoration: `services::GlobalControls` called
+		// `playbackHandler.recordButtonPressed()` and `playButtonPressed()` for real (the fixture
+		// holds `spec::QuietAudio`, which disarms the audio routine those reach, and stubs nothing
+		// else). Read back from `playbackHandler`, not from the service.
+		expect(playbackHandler.recording == RecordingMode::NORMAL).to_be_true();
+		expect(playbackHandler.playbackState != 0).to_be_true();
 	});
 
 	it("AudioClipScene: the same scene at 64 rows", _ {
@@ -627,7 +683,7 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "param_popup", scenes::scene_registry(), svc.slots(), opts);
-		expect(result.snapshots).to_equal(uint32_t{3});
+		expect(result.snapshots).to_equal(uint32_t{4});
 
 		// The popup is a process singleton, and the run's last frame is the one AFTER its deadline
 		// passed -- so it must have taken itself down. Asserted rather than cleared: a popup still
@@ -635,41 +691,25 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		// last frame exists to catch (`shell/scene.h`'s warning on `Pop` vs `Remove`).
 		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
 		expect(overlay::param_popup_scene().has_pending()).to_be_false();
-		// And it drew something. An empty name is the shape a popup pushed over a param the target
-		// could not resolve would have, and it would still have produced a "different" frame.
+		// It drew something, and it drew the SECOND value. An empty name is the shape a popup pushed
+		// over a param the target could not resolve would have; a value of "26" here is the shape
+		// the defect below had, and this pair says in words what `popup_moved`'s pixels say.
 		expect(std::string(overlay::param_popup_scene().shown_name())).to_equal(std::string("Master level"));
-
-		// ---------------------------------------------------------------------------------------
-		// **THE DEFECT THIS SCRIPT FOUND, asserted rather than photographed.**
-		//
-		// The `popup_shown` golden shows the name "Master level" (drawn in the panel's own
-		// uppercase font) and the value "26" -- the value the 150 ms turn produced.
-		// The 300 ms turn moved the param a great deal further (the `indicator upper` line of
-		// `popup_expired` records it: `255 255 255 100` against `popup_shown`'s `255 255 1 0`) and
-		// moved the popup's own text with it, to "45". **The panel never showed "45".**
-		//
-		// Nothing repaints the OLED for a popup whose value changed while it is already up:
-		// `ModKnobs::mod_encoder_action` files an `Action` only for `note_tails_changed`
-		// (`services/mod_knobs.cpp:306-314`), `ParamPopupScene::show` files none (it is not a
-		// `Scene::handle` and has no `Result` to file one in), and the scene's own `next_timer()` is
-		// its whole 2000 ms lifetime (`param_popup_scene.cpp:37`, `:344-350`) -- so the next OLED
-		// frame after the first push is the one that draws the popup DISAPPEARING. The first turn is
-		// visible only because pushing a scene arms the gate. On the device this means a gold knob
-		// turned continuously shows the value it had when the popup opened and never updates, which
-		// legacy does not do: `View::displayModEncoderValuePopup` calls
-		// `OLED::displayNotification`, which writes the panel and blits it on every call
-		// (`gui/views/view.cpp:1084-1288`).
-		//
-		// Left unfixed here **deliberately**: this is E4 task 1/2's behaviour, the fix is a
-		// `Result` action in `ModKnobs` (or a repaint request from the scene), and it needs the
-		// mutation-proof and the unit example that belong with it. Task 13 owns scripts and goldens,
-		// and the one thing it must not do is record a golden that photographs the bug -- which is
-		// why `param_popup.txt` has no `popup_moved` frame. Reported in the task-13 report.
-		//
-		// This assertion is what makes the missing frame a *record* rather than a gap: the day the
-		// repaint is filed, this still passes, and the script grows the frame it should always have
-		// had.
 		expect(std::string(overlay::param_popup_scene().shown_value())).to_equal(std::string("45"));
+		// ---------------------------------------------------------------------------------------
+		// **What `popup_moved` guards, and how it was found.** Task 13's first cut of this script
+		// had no such frame: a second detent on an already-open popup moved the scene's text from
+		// "26" to "45" and **nothing repainted the panel**, so the golden showed "26" while
+		// `shown_value()` said "45". The narrow cause was the arbitration's immediate-commit arm
+		// alone -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms
+		// `pending_flush_remaining_ms_`, which `next_timer()` reports and `timer_repaints()`
+		// resolves to `{.oled = true}`, so a *fast* turn repainted itself and only a slow one did
+		// not. `ParamPopupScene::show` now returns whether it committed and
+		// `ModKnobs::mod_encoder_action` files `Action::Kind::Repaint` on `SurfaceRole::Main` when
+		// it did (legacy's `display->displayNotification(...)`, `view.cpp:1245`, being a write AND
+		// a blit). Mutation-proved from both ends: deleting that `Repaint` turns `popup_moved` back
+		// into a copy of `popup_shown` and this script fails, and `mod_knobs_spec.cpp`'s
+		// "files an OLED repaint for every committed popup update" example fails with it.
 	});
 
 	it("ParamPopupScene: the same popup over the same base scene at 64 rows", _ {

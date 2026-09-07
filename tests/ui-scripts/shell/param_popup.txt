@@ -25,30 +25,36 @@
 # and looking at it: the first version of this script turned once and recorded a `popup_shown`
 # golden byte-identical to `idle`.
 #
-# (`menu_scripts_spec.cpp`'s header records the *other* half of this: with no target ever set,
-# `last_turn_ms_` stays 0 and a script's clock starts at 0, so a turn before t=500 is spuriously
-# inside the window. Both arms are artefacts of where the clock starts; this one is the arm the
-# device is always in, because something always sets the mod target first.)
+# `src/scenes/README.md`'s divergence table already logs the *other* face of this debounce -- the
+# first turn after boot is swallowed too, because `last_turn_ms_` starts at 0 and on device `now_ms`
+# is uptime -- and records that whether the whole mechanism is a defect needs a device to settle. So
+# "the port working" is the narrow claim: the port reproduces legacy here. Whether legacy is right
+# is the open question that row already carries.
 #
-# **THE TURN AT 300 ms HAS NO SNAPSHOT AFTER IT, AND THAT IS A DEFECT, NOT AN OMISSION.** See the
-# `it` block in `sim/scenes_spec/scene_scripts_spec.cpp`, which asserts in C++ what the pixels cannot
-# show: the turn moves the popup's own text (`shown_value()` goes from "26" to "45") and moves the
-# knob indicator, but **nothing repaints the OLED**, so the panel keeps showing "26" until the popup
-# expires. `ModKnobs::mod_encoder_action` files a `RepaintAll` only for `note_tails_changed`
-# (`services/mod_knobs.cpp:306-314`) and nothing at all for a popup whose value changed; the popup's
-# own `next_timer()` is its full 2000 ms lifetime, so the next OLED frame is the one that draws its
-# disappearance. The first turn is visible only because *pushing* the scene arms the gate. Recording
-# a `popup_moved` golden here would have frozen that bug into a picture, so there is no such frame.
+# **`popup_moved` is the frame that found, and now guards, a real defect.** E4 task 13 first recorded
+# this script with no such frame, because there was nothing to record: a second detent on an
+# already-open popup moved the scene's text and **nothing repainted the panel**, so the pixels kept
+# the first value until the popup expired. The narrow cause was the arbitration's *immediate-commit*
+# arm alone -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms
+# `pending_flush_remaining_ms_`, which `next_timer()` reports and `timer_repaints()` resolves to
+# `{.oled = true}`, so a FAST turn repainted itself and only a slow one did not.
+# `ParamPopupScene::show` now reports whether it committed and `ModKnobs::show_popup` passes that up
+# to `mod_encoder_action`, which files `Action::Kind::Repaint` on `SurfaceRole::Main` --
+# legacy's `display->displayNotification(...)` at `view.cpp:1245` being a write AND a blit. Deleting
+# that action turns this frame back into a copy of `popup_shown`.
 0     snapshot idle              # the audio clip view, no popup -- `.state` has one `scene` line
 100   encoder GoldUpper +1       # armed, not acted on: see above
 150   encoder GoldUpper +1
 200   snapshot popup_shown       # `ModKnobs` wrote the param and pushed the popup: the MASTER LEVEL
                                  # name/value notification strip over the top of the clip view, and
                                  # a second `scene` line in `.state`
-300   encoder GoldUpper +25      # deliberately unsnapshotted -- see the defect note above. The
-                                 # `indicator upper` line of `popup_expired` is where this turn IS
-                                 # visible: it is the one surface that did repaint
-# +2200 ms of quiet ticks, no input at all. `kPopupLifetimeMs` is 2000 ms from the last show
+300   encoder GoldUpper +25
+400   snapshot popup_moved       # twenty-five more detents on the SAME param: the strip's value
+                                 # moves and the knob's indicator ring with it. Nothing is pushed a
+                                 # second time (`show_popup`'s already-stacked guard,
+                                 # `mod_knobs.cpp:394-398`), so `.state` still has exactly two
+                                 # `scene` lines -- what changed is the text and the ring
+# +2100 ms of quiet ticks, no input at all. `kPopupLifetimeMs` is 2000 ms from the last commit
 # (`param_popup_scene.cpp:37`), so the deadline falls at ~2300.
 2500  snapshot popup_expired     # the popup ran its own timer down and removed ITSELF --
                                  # `after_render`'s `Action::Kind::Remove`, never `Pop`
