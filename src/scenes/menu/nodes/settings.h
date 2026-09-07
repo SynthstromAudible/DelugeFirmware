@@ -1079,7 +1079,7 @@ inline constexpr Node record_settings = submenu(sid(String::STRING_FOR_RECORDING
 // E2 placeholder the file note explains.
 
 /// One community-feature toggle. `n` is the `RuntimeFeatureSettingType` enumerator's value
-/// (`model/settings/runtime_feature_settings.h:41-66`).
+/// (`model/settings/runtime_feature_settings.h:41-67`).
 #define DELUGE_RUNTIME_TOGGLE(node_name, n, name_id)                                                                   \
 	inline constexpr Node node_name =                                                                                  \
 	    toggle_item(sid(String::name_id), get_runtime_feature<(n)>, set_runtime_feature<(n)>)
