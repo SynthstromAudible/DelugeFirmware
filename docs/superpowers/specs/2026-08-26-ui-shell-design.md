@@ -1246,3 +1246,39 @@ had to fix once (§13's superseded paragraph is the precedent). `src/scenes/regi
 `src/scenes/README.md`, `src/shell/README.md`, `tests/spec/shell/support/script_runner.h` and §5's
 own note above were corrected in the same change, because each of them asserted the impossibility.
 **What is still owed is boot calling it** — a wiring job, not a missing mechanism.
+
+### 15.10 `Shell::flush`'s OLED comment cited a legacy skip that does not exist (F1 task 4)
+
+A documentation defect, not a behaviour one — but the kind this stack has ruled is worth a ledger
+entry, because the comment is the only thing telling the next backend author what `oled_busy` means,
+and it told them something false.
+
+`Shell::flush`'s OLED loop carried: *"skipping … a panel still transferring a previous frame — the
+`deluge_display_busy` skip around `OLED::sendMainImage` (`hid/display/oled.cpp:335-378`)."* Both
+halves are wrong. `OLED::sendMainImage` (`hid/display/oled.cpp:335-385`) has no busy check of any
+kind; it gates on its own `needsSending` flag and nothing else. And **no file under `src/deluge/`
+calls `deluge_display_busy` or `deluge_display_busy_n` at all** — grepped repo-wide, the only three
+mentions are the two BSPs that define them (`src/bsp/host/host_bsp.c:480,501`,
+`src/bsp/rust/src/display.rs:88,115`) and `BoardSurfaceSet::oled_busy`
+(`src/shell/board_surfaces.cpp:27-29`), which is the shell's own backend. The citation resolved,
+which is why `check_citations.py` never flagged it; it was the *claim* that was invented, written
+from the shape of the two names rather than from the function's body.
+
+What legacy actually consults before pushing a panel is the pad-output-space gate in
+`doAnyPendingUIRendering` (`src/deluge/gui/ui/ui.cpp:375-396`): `deluge_control_pad_output_space() >
+(kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2` at `:389`, whose body (`:390-393`) holds
+**both** `doAnyPendingGridRendering()` and `doAnyPendingOLEDRendering()`, itself inside the
+`pendingUIRenderingLock` re-entrancy guard opened at `:376-380`. One gate on one shared bus, not a
+per-panel transfer flag.
+
+**The contract `oled_busy` actually has**, restated: *"can this backend take a frame for panel
+`index` right now?"* — whatever each backend's own pre-push condition is. For `BoardSurfaceSet` that
+is `deluge_display_busy_n`, because libdeluge is the hardware. For `GuestSurfaceSet`
+(`src/deluge/gui/ui/shell_guest_surfaces.cpp`, F1 task 4) it is that legacy gate negated, because
+legacy is the hardware; the guest ignores `index`, since legacy's gate is not per-panel. The
+`SurfaceSet` doc's phrasing ("still transferring a previous blit") remains true of the hardware
+backend and is now the narrower of the two readings, not the definition.
+
+Fixed by replacing the comment at `shell.cpp:887` with the account above. No code moved: `flush`
+already asked the backend rather than assuming an answer, which is why the wrong comment cost
+nothing beyond the risk of the next backend copying it.

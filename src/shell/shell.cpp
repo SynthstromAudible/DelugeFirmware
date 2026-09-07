@@ -885,8 +885,18 @@ void Shell::flush(uint32_t now_ms) {
 	bool any_sent = false;
 
 	// OLED: one blit per surface that rendered this tick, skipping (and leaving `blit_pending`
-	// armed on) a panel still transferring a previous frame -- the `deluge_display_busy` skip
-	// around `OLED::sendMainImage` (`hid/display/oled.cpp:335-378`).
+	// armed on) a panel the backend says cannot take a frame right now.
+	//
+	// This comment used to say that was "the `deluge_display_busy` skip around
+	// `OLED::sendMainImage`". There is no such skip: `OLED::sendMainImage`
+	// (`hid/display/oled.cpp:335-385`) gates only on its own `needsSending` flag, and no file under
+	// `src/deluge/` calls `deluge_display_busy` or `deluge_display_busy_n` at all -- the only
+	// callers in the tree are the BSPs that define them and `board_surfaces.cpp` (F1 task 4,
+	// grepped repo-wide). What legacy actually consults before pushing a panel is the pad-output
+	// gate in `doAnyPendingUIRendering` (`gui/ui/ui.cpp:375-396`, the `if` at `:389`), which guards
+	// the grid and the OLED render together. `oled_busy` is therefore whatever the backend's own
+	// pre-push condition is: `deluge_display_busy_n` for `BoardSurfaceSet`, that legacy gate for
+	// the guest (`gui/ui/shell_guest_surfaces.cpp`).
 	for (OledSurface& s : surfaces_.oled()) {
 		if (!s.blit_pending) {
 			continue;

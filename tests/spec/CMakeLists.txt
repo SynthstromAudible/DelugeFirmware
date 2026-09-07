@@ -19,6 +19,12 @@ add_library(deluge_spec STATIC
 # src/ui/oled/, which deluge_ui_oled below already builds and this library already links.)
 ../../src/deluge/hid/display/oled_canvas/canvas.cpp
 ../../src/deluge/gui/ui/notify_drain_mapping.cpp
+# The shell's guest-side surface backend (F1 task 4): it talks only to `OLED::main`,
+# `PadLEDs::image`, `indicator_leds::setLedState` and the libdeluge control-surface boundary, none
+# of which drag in the rest of legacy -- so it compiles here against gui/support/fake_legacy_hid.cpp
+# below, which defines exactly those symbols. Same arrangement as scenes/support/fake_shortcuts.cpp.
+../../src/deluge/gui/ui/shell_guest_surfaces.cpp
+gui/support/fake_legacy_hid.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 # The menu node-id registry (task 2, spec E1): dependency-free (its only model include is

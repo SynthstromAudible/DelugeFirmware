@@ -87,6 +87,35 @@ Formats are byte-identical, so aliasing is free and copy-less:
 `PadLEDs::occupancyMask` (used by legacy sidebar rendering) is kept as an adapter-private
 buffer until phase 7.
 
+**Correction (F1 task 4, 2026-09-07): the phase-4 bullet above is wrong, and the guest copies.**
+The formats *are* byte-identical — that much held up, and `shell_guest_surfaces.cpp` `static_assert`s
+it — but neither aliasing claim survives contact with the code:
+
+- **The grid cannot alias at all.** `gfx::grid::PadGrid` stores `cells_[kMaxGridRows][kMaxGridCols]`
+  inline, a 32-column row stride, while `PadLEDs::image` is
+  `[kDisplayHeight][kDisplayWidth + kSideBarWidth]`, an 18-column stride. `pad_grid.h:38-41` had
+  already said so in as many words: `row(y)` is the seam for **copying** a single row to or from
+  that legacy buffer, "never reinterpret the whole `cells_` array as one contiguous legacy image".
+  There is no version of `PadGrid::row(y)` that points into `PadLEDs::image`; the storage is a
+  member, not a span.
+- **The OLED could alias, but must not.** `OLED::main` is an `OwnedCanvas` over its own 768-byte
+  store, and `OLED::clearMainImage()` zeroes it from seventeen legacy call sites — including
+  `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp:351-371`), which clears it immediately before asking
+  each open UI to re-render. The shell is retained-mode: `Shell::flush` blits only a surface whose
+  `blit_pending` a repaint raised. An aliased buffer that legacy zeroed between two shell renders
+  would go blank with nothing to tell the shell to paint it again.
+
+So `SurfaceSet::build`'s own `storage_[]` and `grid_storage` stay as they are — **no shell seam for
+borrowed storage was added** — and the copy is measured rather than waved through: 768 B per OLED
+blit (≤ 76.8 kB/s at the fastest OLED gate the shell has ever armed, 10 ms) and 48 B per changed
+column pair, 432 B for a whole grid (≤ 21.6 kB/s at the fastest grid gate, 20 ms). Both numbers are
+`static_assert`ed at the code as `GuestSurfaceSet::kOledCopyBytesPerBlit`,
+`kGridCopyBytesPerColumnPair` and `kGridCopyBytesPerFullFlush`. For scale, legacy already memcpys up
+to that whole OLED image per frame in `copyBackgroundAroundForeground` whenever a console or popup is
+up, and `sortLedsForCol` already copies those same 16 colours per pair it sends.
+
+Phase 5's bullet is unaffected: it deletes the legacy buffers rather than aliasing them.
+
 ## 4. Façades, codemods, removal dates
 
 - Every façade carries `// FACADE (remove after UI phase N): forwards to …` and a row in
