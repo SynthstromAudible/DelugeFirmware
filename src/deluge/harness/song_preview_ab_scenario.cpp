@@ -22,13 +22,17 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_instrument_preset_ui.h" // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/save/save_song_ui.h" // the converted caller, driven end to end below
-#include "gui/views/arranger_view.h"  // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
-#include "hid/led/pad_leds.h"         // the image both backings render into
-#include "io/file.hpp"                // the card swap's unlink + rename
-#include "libdeluge/file_directory.h" // deluge_file_directory_async_active
-#include "libdeluge/file_prefix.h"    // deluge_file_prefix_async_active
+#include "gui/ui/save/save_song_ui.h"   // the converted caller, driven end to end below
+#include "gui/ui/ui.h"                  // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
+#include "gui/views/arranger_view.h"    // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
+#include "gui/views/view.h"             // the `view` global driving View's two acquisition gestures
+#include "hid/led/pad_leds.h"           // the image both backings render into
+#include "io/file.hpp"                  // the card swap's unlink + rename
+#include "libdeluge/file_directory.h"   // deluge_file_directory_async_active
+#include "libdeluge/file_prefix.h"      // deluge_file_prefix_async_active
+#include "model/clip/instrument_clip.h" // the boot song's session clip, driven by the View gestures
 #include "model/mod_controllable/mod_controllable_audio.h" // the cast writeToFile's backed-up-paramManager lookup needs
+#include "model/model_stack.h"                             // setupModelStackWithTimelineCounter
 #include "model/output.h"                                  // Output::name, read by the acquire stage
 #include "model/song/song.h"                               // currentSong, getNonAudioInstrumentToSwitchTo
 #include "modulation/params/param_manager.h"               // ParamManagerForTimeline, for the preset fixture writer
@@ -225,6 +229,34 @@ public:
 	/// calls for MIDI/CV, so a probe built on it would prove nothing about ArrangerView's own
 	/// synchronous/dispatch split (AcquireStep::NonAudio, rung 5 task 3).
 	static void changeOutputType(OutputType newOutputType) { arrangerView.changeOutputType(newOutputType); }
+
+	/// Drives View's REAL preset-navigation gesture on the boot song's session InstrumentClip
+	/// (rung 5, task 4), rather than calling LoadInstrumentPresetUI::doPresetNavigation directly --
+	/// that helper isn't what navigateThroughPresetsForInstrumentClip() calls for MIDI/CV, so a probe
+	/// built on it would prove nothing about View's own synchronous/dispatch split. Both
+	/// `navigateThroughPresetsForInstrumentClip` and `changeOutputType` are already public on View,
+	/// so this wraps them only for symmetry with the ArrangerView wrappers above, not for access.
+	static void navigateThroughPresetsForInstrumentClip(InstrumentClip* clip, int32_t offset) {
+		// Unlike changeOutputType(), this gesture gates on currentUIMode (UI_MODE_NONE or
+		// UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) before it will even dispatch -- a real caller only
+		// reaches it from one of those modes, and an earlier stage in this same process (Listing)
+		// can leave currentUIMode sitting on whatever mode its own simulated browsing left behind.
+		// Forcing it to NONE here reproduces the precondition a real gesture would already have,
+		// rather than either skipping the check or leaving this probe at the mercy of stage order.
+		currentUIMode = UI_MODE_NONE;
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+		view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
+	}
+	/// Drives View's REAL output-type gesture on `clip`. See navigateThroughPresetsForInstrumentClip()
+	/// above for why this goes through View rather than InstrumentClip::changeOutputType directly.
+	static bool changeOutputType(InstrumentClip* clip, OutputType newOutputType) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+		return view.changeOutputType(newOutputType, modelStack, true);
+	}
 };
 
 namespace {
@@ -1650,6 +1682,12 @@ enum class AcquireStep : uint8_t {
 	CoalesceCheck,
 	NonAudio,
 	NonAudioCheck,
+	ViewNavigate,
+	ViewNavigateCheck,
+	ViewChangeTypeCV,
+	ViewChangeTypeCVCheck,
+	ViewChangeTypeKit,
+	ViewChangeTypeKitCheck,
 	Finished
 };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
@@ -1692,6 +1730,15 @@ int32_t g_acqLoads = 0;          // acquisition gestures that actually ran
 std::string g_acqReferenceName;  // the instrument the reference gesture settled on
 int32_t g_acqCoalesceBefore = 0; // presetAcquisitionsRun() sampled before Coalesce's 3 gestures
 int32_t g_acqNonAudioBefore = 0; // presetAcquisitionsRun() sampled before NonAudio's CV switch
+
+// The boot song's session InstrumentClip -- View::changeOutputType() and
+// View::navigateThroughPresetsForInstrumentClip() (rung 5, task 4) act on a Clip, not an Output row,
+// so the arranger's outputsOnScreen rows above cannot drive them at all. setupBlankSong() (deluge.cpp)
+// calls Song::ensureAtLeastOneSessionClip() before this scenario ever runs, so a session Clip -- with
+// a real SYNTH Instrument, dirPath "SYNTHS" -- already exists by the time AcquireStep::ViewNavigate
+// reads it back via getCurrentInstrumentClip().
+InstrumentClip* g_viewClip = nullptr;
+int32_t g_acqViewBefore = 0; // presetAcquisitionsRun() sampled before each View gesture below
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
 /// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
@@ -1883,6 +1930,89 @@ void runAcquireTick() {
 			printf("SP-ACQUIRE FAIL a CV switch dispatched a storage op; it reads no card\n");
 			g_failures++;
 		}
+		g_acquireStep = AcquireStep::ViewNavigate;
+		break;
+	}
+	case AcquireStep::ViewNavigate: {
+		// View's Synth/Kit preset-navigation dispatch (rung 5, task 4), driven on the boot song's
+		// session InstrumentClip -- see g_viewClip's doc above for why this can't run through any
+		// arranger row. Reuses the SYNTHS fixture the steps above already built; doPresetNavigation()
+		// reads only the top-level folder (it does not recurse into NESTED), so nothing new needs
+		// building. Whether a preset is actually FOUND is not asserted, only that dispatching the
+		// gesture runs the op exactly once -- the same "prove the mechanism, not the search result"
+		// contract as AcquireStep::Coalesce and ::NonAudio above, and the only thing an op that
+		// might legitimately fail to find anything (its Instrument is not one of the fixture's
+		// files) can be held to.
+		g_viewClip = getCurrentInstrumentClip();
+		if (g_viewClip == nullptr || g_viewClip->output == nullptr) {
+			printf("SP-ACQUIRE FAIL no current InstrumentClip to drive View's gestures with\n");
+			g_failures++;
+			g_acquireStep = AcquireStep::Finished;
+			break;
+		}
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::navigateThroughPresetsForInstrumentClip(g_viewClip, 1);
+		g_acquireStep = AcquireStep::ViewNavigateCheck;
+		break;
+	}
+	case AcquireStep::ViewNavigateCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		printf("SP-ACQUIRE view-navigate dispatches=%d\n", dispatched);
+		if (dispatched != 1) {
+			printf("SP-ACQUIRE FAIL View::navigateThroughPresetsForInstrumentClip's Synth/Kit arm ran "
+			       "%d op(s), expected 1\n",
+			       dispatched);
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::ViewChangeTypeCV;
+		break;
+	}
+	case AcquireStep::ViewChangeTypeCV: {
+		// The MIDI/CV fast path (spec section 2c), for View this time: changeOutputType() must call
+		// completeChangeOutputType() INLINE for CV/MIDI, so the bool it returns is a real synchronous
+		// answer (its callers use it to decide whether to beep) and no card is read. Readable in the
+		// SAME tick, unlike every dispatched gesture above -- see AcquireStep::NonAudio's doc for why
+		// that's legitimate only for the synchronous arm.
+		g_acqViewBefore = acqDispatches();
+		const bool ok = BrowserListingAbProbe::changeOutputType(g_viewClip, OutputType::CV);
+		printf("SP-ACQUIRE view-changetype-cv ok=%d type=%d\n", ok ? 1 : 0, static_cast<int>(g_viewClip->output->type));
+		if (!ok || g_viewClip->output->type != OutputType::CV) {
+			printf("SP-ACQUIRE FAIL View::changeOutputType(CV) did not complete synchronously\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::ViewChangeTypeCVCheck;
+		break;
+	}
+	case AcquireStep::ViewChangeTypeCVCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		printf("SP-ACQUIRE view-changetype-cv dispatches=%d\n", dispatched);
+		if (dispatched != 0) {
+			printf("SP-ACQUIRE FAIL View::changeOutputType(CV) dispatched a storage op; it reads no card\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::ViewChangeTypeKit;
+		break;
+	}
+	case AcquireStep::ViewChangeTypeKit: {
+		// The Synth/Kit dispatch arm again, this time via changeOutputType() rather than navigate --
+		// proves PresetConsumer::ViewChangeType's switch arm (load_instrument_preset_ui.cpp) is
+		// actually WIRED to View::completeChangeOutputType(), not merely that the switch compiles
+		// (it is exhaustive with no `default:`, which only proves every enumerator has SOME arm).
+		// No KITS fixture is built: the op still runs -- and is counted -- whether or not a preset is
+		// found, exactly like ViewNavigate above.
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::changeOutputType(g_viewClip, OutputType::KIT);
+		g_acquireStep = AcquireStep::ViewChangeTypeKitCheck;
+		break;
+	}
+	case AcquireStep::ViewChangeTypeKitCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		printf("SP-ACQUIRE view-changetype-kit dispatches=%d\n", dispatched);
+		if (dispatched != 1) {
+			printf("SP-ACQUIRE FAIL View::changeOutputType(KIT)'s Synth/Kit arm ran %d op(s), expected 1\n",
+			       dispatched);
+			g_failures++;
+		}
 		g_acquireStep = AcquireStep::Finished;
 		break;
 	}
@@ -1965,6 +2095,8 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_acquireStep = AcquireStep::Fixture;
 	g_acqLoads = 0;
 	g_acqReferenceName.clear();
+	g_viewClip = nullptr;
+	g_acqViewBefore = 0;
 
 	// Line-buffer stdout for the rest of the run. The platform driver ends the process with a raw
 	// `exit_group` syscall, which flushes NOTHING of C's stdio -- so a block-buffered stdout, which is

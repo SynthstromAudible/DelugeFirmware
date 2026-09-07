@@ -87,8 +87,15 @@ public:
 	void instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument);
 	void navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWithTimelineCounter* modelStack,
 	                                             bool doBlink = false);
+	/// @brief navigateThroughPresetsForInstrumentClip()'s follow-up: on the storage owner for
+	///        Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for the tier split.
+	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	void completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink);
 	void navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink = false);
 	bool changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false);
+	/// @brief changeOutputType()'s follow-up: on the storage owner for Synth/Kit, inline for MIDI/CV.
+	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink);
 	void drawOutputNameFromDetails(OutputType outputType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool isNameEmpty, bool editedByUser, bool doBlink, Clip* clip = nullptr);
 	void startMIDILearn();

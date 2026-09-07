@@ -88,6 +88,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include "util/functions.h"
 #include <iterator>
 
 namespace params = deluge::modulation::params;
@@ -2224,8 +2225,6 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		return;
 	}
 
-	int32_t oldSubMode = currentUIMode; // We may have been holding down a clip in Session View
-
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -2233,6 +2232,34 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	OutputType outputType = clip->output->type;
 
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E057", "H057");
+
+	// MIDI/CV read no card (spec section 2c) -- run them inline so this stays fully synchronous for
+	// those types. Only Synth/Kit reaches the directory.
+	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
+		completeNavigateThroughPresetsForInstrumentClip(offset, clip, doBlink);
+		return;
+	}
+
+	deluge::storage::PresetRequest request{
+	    .query = deluge::storage::PresetQuery::Navigate,
+	    .consumer = deluge::storage::PresetConsumer::ViewNavigateClipPreset,
+	    .outputType = outputType,
+	    .offset = offset,
+	    .doBlink = doBlink,
+	    .dirPath = ((Instrument*)clip->output)->dirPath,
+	    .oldInstrument = (Instrument*)clip->output,
+	    .clip = clip,
+	};
+	loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for
+// the tier split.
+void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+	OutputType outputType = clip->output->type;
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
 	Availability availabilityRequirement;
@@ -2569,6 +2596,33 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
 		return false;
 	}
+
+	// MIDI/CV read no card (spec section 2c) -- run them inline so the gesture's bool is still a
+	// real answer for those types. Only Synth/Kit reaches the directory.
+	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
+		return completeChangeOutputType(newOutputType, clip, doBlink);
+	}
+
+	deluge::storage::PresetRequest request{
+	    .query = deluge::storage::PresetQuery::ConfirmOrNext,
+	    .consumer = deluge::storage::PresetConsumer::ViewChangeType,
+	    .outputType = newOutputType,
+	    .availability = Availability::ANY,
+	    .doBlink = doBlink,
+	    .dirPath = getInstrumentFolder(newOutputType),
+	    .oldInstrument = (Instrument*)clip->output,
+	    .clip = clip,
+	};
+	// The acquisition may still fail on the owner; the gesture itself was accepted, so report
+	// success here and let the completion surface any error, exactly as goIntoFolder() does.
+	return loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. InstrumentClip::changeOutputType()
+// is unchanged and does its own branch on output type.
+bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	Instrument* newInstrument = clip->changeOutputType(modelStack, newOutputType);
 	if (!newInstrument) {

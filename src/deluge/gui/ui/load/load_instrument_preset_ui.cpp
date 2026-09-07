@@ -452,8 +452,8 @@ void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
 // Runs the follow-up for whichever gesture dispatched this acquisition. Every arm runs ON THE
 // OWNER, which is what makes a blocking read inside one legal, and mutating UI state from here
 // matches the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
-// recalculateColours()/close(), both on the owner. The arranger's three arms are wired (Task 3);
-// the Session/View arms remain empty `break;`s until Tasks 4 and 5.
+// recalculateColours()/close(), both on the owner. The arranger's three arms are wired (Task 3)
+// and View's two are wired (Task 4); the Session arms remain empty `break;`s until Task 5.
 void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request) {
 	using deluge::storage::PresetConsumer;
 	// A coalesced request can carry a stale `oldInstrument` -- see isRequestInstrumentStillLive()'s
@@ -472,11 +472,15 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 	case PresetConsumer::ArrangerNavigate:
 		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed);
 		break;
+	case PresetConsumer::ViewChangeType:
+		(void)view.completeChangeOutputType(request.outputType, request.clip, request.doBlink);
+		break;
+	case PresetConsumer::ViewNavigateClipPreset:
+		view.completeNavigateThroughPresetsForInstrumentClip(request.offset, request.clip, request.doBlink);
+		break;
 	case PresetConsumer::SessionChangeType:
 	case PresetConsumer::SessionNavigate:
 	case PresetConsumer::SessionNewTrack:
-	case PresetConsumer::ViewChangeType:
-	case PresetConsumer::ViewNavigateClipPreset:
 		break; // wired in the consumer tasks
 	}
 }
