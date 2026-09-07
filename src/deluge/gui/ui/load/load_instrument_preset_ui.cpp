@@ -474,10 +474,11 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed);
 		break;
 	case PresetConsumer::ViewChangeType:
+	case PresetConsumer::ViewChangeTypeMinder:
 	case PresetConsumer::SessionRowsChangeType:
-		// Both route through the same per-consumer completion changeOutputType()'s synchronous MIDI/CV
-		// arm also uses, so the caller's redraw/LED tail runs from exactly one place either way -- see
-		// View::completeChangeOutputTypeFor()'s doc.
+		// All three route through the same per-consumer completion changeOutputType()'s synchronous
+		// MIDI/CV arm also uses, so each caller's redraw/LED tail runs from exactly one place either
+		// way -- see View::completeChangeOutputTypeFor()'s doc.
 		(void)view.completeChangeOutputTypeFor(request.consumer, request.outputType, request.clip, request.doBlink);
 		break;
 	case PresetConsumer::ViewNavigateClipPreset:

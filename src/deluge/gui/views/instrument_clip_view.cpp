@@ -1747,8 +1747,10 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 	// The redraw used to run right here, gated on this same bool -- but for Synth/Kit that bool now
 	// means "dispatched", not "swapped", so running it here would repaint the CLIP'S OLD instrument.
 	// completeChangeOutputType() below runs it instead, once the swap (if any) has actually happened,
-	// whether that was synchronous (MIDI/CV) or deferred (Synth/Kit).
-	return InstrumentClipMinder::changeOutputType(newOutputType);
+	// whether that was synchronous (MIDI/CV) or deferred (Synth/Kit). ViewChangeType passed explicitly:
+	// InstrumentClipMinder::changeOutputType()'s default (ViewChangeTypeMinder) is for callers that
+	// reach IT directly, bypassing this class -- this call is not one of those.
+	return InstrumentClipMinder::changeOutputType(newOutputType, deluge::storage::PresetConsumer::ViewChangeType);
 }
 
 bool InstrumentClipView::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink) {

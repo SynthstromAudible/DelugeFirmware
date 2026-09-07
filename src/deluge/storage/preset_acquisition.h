@@ -48,11 +48,21 @@ enum class PresetConsumer : uint8_t {
 	SessionChangeType,      ///< SessionView's Grid-layout output-type gesture (`:626`)
 	SessionNavigate,        ///< SessionView's preset-navigation gesture
 	SessionNewTrack,        ///< SessionView::createNewTrackForInstrumentClip()
-	ViewChangeType,         ///< View::changeOutputType(), reached via InstrumentClipMinder/InstrumentClipView
+	ViewChangeType,         ///< View::changeOutputType(), reached via InstrumentClipView::changeOutputType()
+	                        ///< -- the KIT/SYNTH buttons on InstrumentClipView, AutomationView and
+	                        ///< KeyboardScreen all route through it (handleInstrumentChange()), as do
+	                        ///< InstrumentClipView's own MIDI/CV buttons. Runs InstrumentClipView's full
+	                        ///< tail: InstrumentClipMinder's LEDs, plus recolour + repaint.
 	ViewNavigateClipPreset, ///< View::navigateThroughPresetsForInstrumentClip()
 	SessionRowsChangeType,  ///< SessionView's Rows-layout output-type gesture (`:620`) -- distinct from
 	                        ///< SessionChangeType, which is the Grid-layout call site at `:626`; the two
 	                        ///< reach the directory through different functions with different tails.
+	ViewChangeTypeMinder,   ///< View::changeOutputType() reached via InstrumentClipMinder::changeOutputType()
+	                        ///< DIRECTLY, bypassing InstrumentClipView -- today only KeyboardScreen's own
+	                        ///< MIDI/CV buttons (keyboard_screen.cpp does not override changeOutputType(),
+	                        ///< so the unqualified call there resolves to the base). Runs
+	                        ///< InstrumentClipMinder's LEDs ONLY: InstrumentClipView was never in this
+	                        ///< call chain, so its recolour/repaint never ran for this path either.
 };
 
 /// @brief Everything an acquisition needs, captured at dispatch time.

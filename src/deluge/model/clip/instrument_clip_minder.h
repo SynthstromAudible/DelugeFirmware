@@ -22,6 +22,7 @@
 #include "hid/display/oled_canvas/canvas.h"
 #include "model/clip/clip_minder.h"
 #include "model/scale/preset_scales.h"
+#include "storage/preset_acquisition.h"
 
 #include <cstdint>
 
@@ -49,7 +50,19 @@ public:
 	void selectEncoderAction(int32_t offset);
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
 	static bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
-	bool changeOutputType(OutputType newOutputType);
+	/// @brief Change the current clip's output type. Non-virtual: an unqualified call from a derived
+	///        class's own scope (e.g. KeyboardScreen's MIDI/CV buttons, which do not override this)
+	///        resolves to THIS version, not a derived override -- which is exactly why `consumer`
+	///        defaults to the base tail (`ViewChangeTypeMinder`) rather than InstrumentClipView's fuller
+	///        one; InstrumentClipView::changeOutputType() passes `ViewChangeType` explicitly instead.
+	/// @param newOutputType The type to switch to.
+	/// @param consumer Which completion runs once the swap (if any) actually happens; see
+	///        `PresetConsumer`.
+	/// @return Whether the gesture was accepted -- for Synth/Kit this means dispatched, not yet
+	///         complete; see View::changeOutputType()'s doc.
+	bool
+	changeOutputType(OutputType newOutputType,
+	                 deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewChangeTypeMinder);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas);
 

@@ -606,6 +606,12 @@ changeOutputType:
 
 						loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, nullptr);
 						openUI(&loadInstrumentPresetUI);
+						// No requestRendering() here, deliberately: openUI() hands the screen to
+						// loadInstrumentPresetUI, which masks this view's rows while it's up, and
+						// selectedClipYDisplay was JUST set to 255 above -- the old unconditional
+						// requestRendering(this, 1 << selectedClipYDisplay, 0) after this whole if/else
+						// would have shifted by 255, undefined behaviour on a 32-bit value, so this
+						// branch never usefully redrew anything through that call either.
 					}
 
 					// Otherwise, just change the instrument type

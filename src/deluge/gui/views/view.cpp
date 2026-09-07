@@ -2652,18 +2652,53 @@ bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* cl
 bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer, OutputType newOutputType,
                                        InstrumentClip* clip, bool doBlink) {
 	using deluge::storage::PresetConsumer;
+	// Exhaustive, deliberately no `default:` -- a `default:` here would silently route any consumer a
+	// future task adds (SessionChangeType and SessionNavigate are still unused reservations) into
+	// InstrumentClipView's tail instead of failing to build, which is precisely the failure this switch
+	// exists to prevent (rung 5 task 4 review, fix round 2).
 	switch (consumer) {
+	case PresetConsumer::ViewChangeType:
+		// InstrumentClipView::changeOutputType() -- the KIT/SYNTH buttons on InstrumentClipView,
+		// AutomationView and KeyboardScreen, plus InstrumentClipView's own MIDI/CV buttons. Runs the
+		// full tail: InstrumentClipMinder's LEDs, plus recolour + repaint.
+		return instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink);
+	case PresetConsumer::ViewChangeTypeMinder: {
+		// InstrumentClipMinder::changeOutputType() reached DIRECTLY, bypassing InstrumentClipView --
+		// today only KeyboardScreen's own MIDI/CV buttons (keyboard_screen.cpp:525,533 call the
+		// unqualified, non-virtual changeOutputType(), which resolves to InstrumentClipMinder's own
+		// version since KeyboardScreen never overrides it). InstrumentClipView was never in that call
+		// chain, so its recolour/repaint never ran for this path either -- only the LEDs did.
+		bool success = completeChangeOutputType(newOutputType, clip, doBlink);
+		if (success) {
+			// InstrumentClipMinder::setLedStates() reads only global state (getCurrentOutputType(),
+			// getCurrentInstrumentClip(), getCurrentUI()) -- it never touches `this` -- so which
+			// InstrumentClipMinder-derived instance runs it is interchangeable. instrumentClipView is
+			// used here only because it is already referenced nearby, NOT because this path runs
+			// through it; the explicit `InstrumentClipMinder::` qualifier is load-bearing the same way
+			// it is in InstrumentClipView::completeChangeOutputType() -- an unqualified call would
+			// resolve to instrumentClipView's own (different) setLedStates() override.
+			instrumentClipView.InstrumentClipMinder::setLedStates();
+		}
+		return success;
+	}
 	case PresetConsumer::SessionRowsChangeType:
 		return sessionView.completeChangeOutputTypeRows(newOutputType, clip, doBlink);
-	case PresetConsumer::ViewChangeType:
-	default:
-		// InstrumentClipMinder::changeOutputType()'s own direct-call path (InstrumentClipMinder::
-		// buttonAction()'s SYNTH/MIDI/CV block) is unreachable in the current build -- InstrumentClipView,
-		// AutomationView and KeyboardScreen all intercept those buttons themselves before it would run
-		// (verified by reading, rung 5 task 4 fix round) -- so ViewChangeType's one live path is always
-		// via InstrumentClipView::changeOutputType(), and its completion is what actually runs here.
-		return instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink);
+	case PresetConsumer::ArrangerNewInstrument:
+	case PresetConsumer::ArrangerChangeType:
+	case PresetConsumer::ArrangerNavigate:
+	case PresetConsumer::SessionChangeType:
+	case PresetConsumer::SessionNavigate:
+	case PresetConsumer::SessionNewTrack:
+	case PresetConsumer::ViewNavigateClipPreset:
+		// Not a changeOutputType() consumer -- listed explicitly, never folded into a `default:`, so
+		// -Werror=switch keeps flagging every PresetConsumer this router does not yet know how to
+		// route. changeOutputType() itself never passes any of these; reached only if a future caller
+		// misuses the `consumer` parameter, in which case falling back to the core swap with no extra
+		// tail is the safe choice.
+		return completeChangeOutputType(newOutputType, clip, doBlink);
 	}
+	FREEZE_WITH_ERROR("VCTC"); // Unreachable: the switch above is exhaustive over PresetConsumer.
+	return false;
 }
 
 void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument) {
