@@ -211,8 +211,11 @@ add_compile_options(
     # cull counts. If J-Link reports nominal figures, the slowness was the probe and -Og is usable.
     $<$<CONFIG:DEBUG>:${DELUGE_DEBUG_OPT_LEVEL}>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-O2>
-        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fsplit-loops>
-        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-funswitch-loops>
+
+    # GCC-only spellings: clang errors on -fsplit-loops and ignores -funswitch-loops with a
+    # warning. The shipping image is the clang one, so these must stay gated.
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-fsplit-loops>
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-funswitch-loops>
 
         # does not block inlining, just blocks considering all functions for inlining
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
