@@ -20,6 +20,7 @@
 
 #include "scenes/registry.h"
 
+#include "scenes/audio_clip/audio_clip_scene.h"
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/marker/marker_scene.h"
@@ -81,6 +82,10 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 		table[static_cast<size_t>(overlay::kCountInSceneKind)] = &overlay::count_in_scene();
 		// `FirstApp + 8`, likewise.
 		table[static_cast<size_t>(slicing::kSlicerSceneKind)] = &slicing::slicer_scene();
+		// `FirstApp + 9`, likewise -- and the first entry in this table that is a ROOT scene
+		// (`Scene::is_root()`), which is what makes `services::GlobalControls`'
+		// `View::buttonAction` group reachable at all (`services/global_controls.cpp:580`).
+		table[static_cast<size_t>(audio_clip::kAudioClipSceneKind)] = &audio_clip::audio_clip_scene();
 		// `SceneKind::Screensaver` -- one of the SHELL's own kinds, not `FirstApp + N`, because
 		// `shell::Screensaver` pushes it by name (`shell/screensaver.cpp:45`). The shell overwrites
 		// the `Popup`/`Console`/`Working`/`Loading` slots with its own instances but deliberately

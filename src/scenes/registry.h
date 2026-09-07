@@ -18,7 +18,9 @@
 /// (`marker::kMarkerSceneKind`), `FirstApp + 5` the audio recorder
 /// (`recorder::kRecorderSceneKind`), `FirstApp + 6` the mod-encoder value popup
 /// (`overlay::kParamPopupSceneKind`), `FirstApp + 7` the record count-in digit
-/// (`overlay::kCountInSceneKind`), `FirstApp + 8` the slicer (`slicing::kSlicerSceneKind`).
+/// (`overlay::kCountInSceneKind`), `FirstApp + 8` the slicer (`slicing::kSlicerSceneKind`),
+/// `FirstApp + 9` the audio clip view (`audio_clip::kAudioClipSceneKind`) -- the first ROOT scene
+/// in this table.
 
 #include "shell/scene.h"
 
@@ -114,6 +116,7 @@ menu::MenuScene& menu_scene();
 ///         `by_kind[SceneKind::FirstApp + 6]` is `&overlay::param_popup_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 7]` is `&overlay::count_in_scene()`, whose
 ///         `by_kind[SceneKind::FirstApp + 8]` is `&slicing::slicer_scene()`, whose
+///         `by_kind[SceneKind::FirstApp + 9]` is `&audio_clip::audio_clip_scene()`, whose
 ///         `by_kind[SceneKind::Screensaver]` is `&overlay::screensaver_scene()` (the one
 ///         shell-owned kind an application fills in -- see the note above), and whose every other
 ///         slot is null.

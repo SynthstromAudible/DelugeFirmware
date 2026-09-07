@@ -116,7 +116,12 @@ add_library(deluge_scenes STATIC
     timeline/timeline.cpp
     # E4 task 9: the slicer -- state, render and the three encoder arms. NOT a root scene: legacy's
     # `Slicer` is a plain `UI` opened over the sample browser. See `slicing/slicer_scene.h`.
-    slicing/slicer_scene.cpp)
+    slicing/slicer_scene.cpp
+    # E4 task 11: the audio clip view -- render and navigation. The FIRST root scene in the tree
+    # (`AudioClipView` -> `ClipView` -> `ClipNavigationTimelineView` -> `TimelineView : public
+    # RootUI`), and therefore the first for which `Scene::is_root()` is true. See
+    # `audio_clip/audio_clip_scene.h`.
+    audio_clip/audio_clip_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include
