@@ -111,59 +111,32 @@ bool SlicerScene::on_enter(const SceneId& id) {
 }
 
 void SlicerScene::on_resume() {
-	// **Deliberately empty, and Task 10 is why.** Task 9 mapped this to `focusRegained` because
-	// `closeUI` calls it on whatever is left on top after something above closes
-	// (`gui/ui/ui.cpp:199`). That mapping is wrong, and the arms Task 10 added are what showed it:
+	// `closeUI` calls `focusRegained()` on whatever is left on top once something above it closes
+	// (`gui/ui/ui.cpp:194-199`), and legacy's `Slicer` gets nothing else on that edge -- so this is
+	// `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`) again, exactly as `on_enter` is.
 	//
-	// `Slicer` raises timed popups from four of its own arms -- `horizontalEncoderAction` (`:227`),
-	// `verticalEncoderAction` (`:243`), `buttonAction`'s Y_ENC arm (`:301`) and, as a cancel,
-	// `padAction` (`:503`, `:540`). In legacy a popup is a *display overlay* (`OLED::popupText`),
-	// not a UI on `uiNavigationHierarchy`, so it never reaches `closeUI` and `focusRegained` never
-	// runs for one. In the shell a popup **is** a scene: `Notices::show_popup_with_timeout` pushes
-	// `SceneKind::Popup` (`shell/notices.cpp:301-325`) and `Notices::tick` removes it once
-	// `kPopupTimeoutMs` -- 800 ms (`notices.cpp:31`) -- has passed (`notices.cpp:327-350`), and
-	// `SceneStack::remove`'s `if (was_top && n_ > 0)` arm then calls `on_resume()` on the scene
-	// beneath (`shell/scene_stack.cpp:108-113`).
+	// @par Why this was empty for one task, and what changed
 	//
-	// With the reset in place that meant: place forty slices by hand, tap a pad to hear one -- and
-	// 800 ms later every slice is gone, because the scene's own popup expired. Measured, not
-	// predicted: `sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table when a popup it
-	// raised itself expires" is the example, and it fails with this body restored.
+	// E4 task 10 measured a regression the mapping alone did not predict: `Slicer` raises timed
+	// popups from four of its own arms -- `horizontalEncoderAction` (`:227`), `verticalEncoderAction`
+	// (`:243`), `buttonAction`'s Y_ENC arm (`:301`) and, as a cancel, `padAction` (`:503`, `:540`).
+	// In legacy a popup is a *display overlay* (`OLED::popupText`), not a UI on
+	// `uiNavigationHierarchy`, so it never reaches `closeUI`; in the shell a popup **is** a scene,
+	// and `SceneStack::remove` used to fire `on_resume()` on the scene beneath whenever the scene it
+	// removed sat highest. Place forty slices by hand, tap a pad, and 800 ms later
+	// (`kPopupTimeoutMs`, `shell/notices.cpp:31`) every one of them was gone.
 	//
-	// Nothing is lost by leaving it empty **today**. The `closeUI` edge legacy runs `focusRegained`
-	// on needs a real UI to have been opened *over* the slicer, and `SlicerScene` pushes nothing --
-	// the only scenes the shell puts above it are the three `input_transparent()` notice overlays,
-	// which is exactly the case legacy runs nothing for.
+	// The fix was the shell's, not this scene's: `SceneStack` now fires `on_resume()` only when
+	// `input_top()` actually changes hands, and an `input_transparent()` overlay never holds it
+	// (`shell/scene_stack.h`'s contract table; design spec §15.7). A popup coming and going is
+	// therefore no longer an edge at all, and the legacy body is back -- so the first wiring that
+	// pushes something real over the slicer, a context menu or a MIDI-learn overlay, gets legacy's
+	// reset rather than silently not getting it.
 	//
-	// @warning **This is a placeholder, not the finished port, and it expires.** The moment either
-	//          (a) `SceneStack` stops notifying on the removal of an `input_transparent()` scene, or
-	//          (b) wiring pushes something real over the slicer -- a context menu, a MIDI-learn
-	//          overlay, a sound-editor menu -- an empty body silently stops doing what legacy's
-	//          `closeUI` -> `focusRegained` does (`gui/ui/ui.cpp:199`), and the slice table survives
-	//          a menu that legacy would have wiped it for. **Restore the `on_enter` call here when
-	//          the shell fix lands**, and delete this warning with it. Carried in
-	//          `src/scenes/README.md`'s E4 roadmap table so the shell task has the instruction in the
-	//          tree rather than in a review thread.
-	//
-	// @note The underlying asymmetry is the shell's and is reported upward, not patched here:
-	//       *pushing* an `input_transparent()` overlay tells the scene beneath nothing (it never
-	//       lost the input top -- `SceneStack::input_top` skips transparent scenes,
-	//       `scene_stack.cpp:194`), but *removing* one tells it "you are back on top". `Scene` has
-	//       no `on_pause` to pair with it either, so the edge cannot mean "you are back on top" --
-	//       only "something above you vanished". And the same two arms *under*-notify symmetrically:
-	//       `pop`/`remove` resume `stack_[n_ - 1]`, the raw top rather than the input top, so with
-	//       `[slicer, popup, menu]` removing the menu notifies the POPUP and the slicer -- which
-	//       genuinely regains the input top -- gets nothing.
-	//
-	//       **`MenuScene` is not immune either**, which an earlier draft of this comment got wrong.
-	//       Its `go_up_on_resume` flag guards only the `ascend()` (`menu_scene.cpp:332-335`); the
-	//       tail below it unconditionally resets `render_resp`, `value_changed`, `value_node`,
-	//       `back_claimed` and `column_press` (`:337-341`) -- and `MenuScene` raises
-	//       `Notice::Kind::Console` itself (`:1256`, and `menu/bindings.cpp:372`), which is
-	//       `input_transparent()` and removed by `Notices::tick`. So a second live scene already
-	//       takes the spurious edge, and `go_up_on_resume` is a port of `SoundEditor::focusRegained`'s
-	//       "came back from a deeper UI" semantics (`gui/ui/sound_editor.cpp:279-289`), not a popup
-	//       guard. It is a coincidence, not a pattern to copy.
+	// Covered from both sides: `sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table when
+	// a popup it raised itself expires" (the popup must not reset it) and "resets its state when a
+	// real scene above it closes" (an opaque scene must).
+	(void)on_enter(SceneId{});
 }
 
 // ---------------------------------------------------------------------------------------------

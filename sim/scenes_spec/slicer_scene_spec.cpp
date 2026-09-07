@@ -64,6 +64,7 @@
 /// @note The spec may include `gui/` (for the legacy slicer); the library may not. Same rule
 ///       `marker_scene_spec.cpp` runs under.
 
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "scenes/slicing/slicer_scene.h"
@@ -1142,6 +1143,35 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 		expect(slicer_scene().num_manual_slices()).to_equal(4);
 		expect(slicer_scene().slice(3).start_pos).to_equal(300000);
+	});
+
+	it("resets its state when a real scene above it closes", _ {
+		// The other half of the pair above, and the half `SlicerScene::on_resume`'s empty-body
+		// placeholder could not make: `closeUI` calls `focusRegained()` on whatever it leaves on
+		// top (`gui/ui/ui.cpp:194-199`), so an opaque scene closing over the slicer DOES reset it.
+		// `ContextMenuScene` is the stand-in for the context menus and MIDI-learn overlays wiring
+		// will put here; unlike a popup it is not `input_transparent()`, so it really does take the
+		// input top and really does hand it back.
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(Mode::Manual);
+		r.tick(0);
+		seed_port({100000, 200000, 300000});
+		expect(slicer_scene().num_manual_slices()).to_equal(4);
+
+		const SceneId menu{deluge::scenes::context_menu::kContextMenuSceneKind,
+		                   static_cast<uint16_t>(deluge::scenes::context_menu::DescriptorId::ResetFlash)};
+		expect(r.shell.stack().push(menu)).to_be_true();
+		expect(&r.shell.stack().input_top() != &slicer_scene()).to_be_true();
+		r.shell.stack().pop();
+		expect(&r.shell.stack().input_top() == &slicer_scene()).to_be_true();
+
+		// `Slicer::focusRegained` (`slicer.cpp:59-72`) again: one slice, slot 0, REGION.
+		expect(slicer_scene().num_manual_slices()).to_equal(1);
+		expect(slicer_scene().current_slice()).to_equal(0);
+		expect(slicer_scene().mode() == Mode::Region).to_be_true();
 	});
 
 	it("hands a REGION pad to the scene beneath, as legacy hands it to the sample browser", _ {

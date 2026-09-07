@@ -798,34 +798,35 @@ Seven things are worth finding from here rather than from the header.
   `InputLowering::set_sd_busy`; and the hazard `doSlice` *does* have is the one legacy names itself
   at `:353-362` -- re-entry of its own dispatch while the op is popping UIs -- guarded by the
   `currentUIMode` gate at `:363`, which the port carries as `SlicerScene::committing()`.
-* **`on_resume()` is empty, and task 9's mapping of it to `focusRegained` was wrong.** `closeUI`
-  calls `focusRegained` on whatever is left on top (`gui/ui/ui.cpp:199`), so task 9 re-ran it there.
-  But a legacy popup is a *display overlay*, not a UI on `uiNavigationHierarchy`, while a shell popup
-  **is** a scene: `Notices::show_popup_with_timeout` pushes `SceneKind::Popup`
-  (`shell/notices.cpp:301-325`), `Notices::tick` removes it once `kPopupTimeoutMs` -- 800 ms
-  (`notices.cpp:31`) -- has passed (`notices.cpp:327-350`), and `SceneStack::remove`'s
-  `if (was_top && n_ > 0)` arm calls `on_resume()` on the scene beneath
-  (`shell/scene_stack.cpp:108-113`). The slicer raises popups from four of its own arms, so with the
-  reset in place forty hand-placed slices vanished 800 ms after the user tapped a pad. Measured, not
-  predicted -- `slicer_scene_spec.cpp`'s "keeps its slice table when a popup it raised itself
-  expires" fails with the old body restored, and the empty body is a **placeholder with a restore
-  instruction** (carry table below), not the finished port.
+* **`on_resume()` is `focusRegained`, and the shell had to be corrected before it could be.**
+  `closeUI` calls `focusRegained` on whatever is left on top (`gui/ui/ui.cpp:194-199`), so task 9
+  re-ran it there. Task 10 measured that firing where legacy never would: a legacy popup is a
+  *display overlay*, not a UI on `uiNavigationHierarchy`, while a shell popup **is** a scene --
+  `Notices::show_popup_with_timeout` pushes `SceneKind::Popup` (`shell/notices.cpp:301-325`) and
+  `Notices::tick` removes it once `kPopupTimeoutMs` (800 ms, `notices.cpp:31`) has passed
+  (`notices.cpp:327-350`). `SceneStack::remove` used to notify the scene beneath whenever the scene
+  it removed sat highest, so with the reset in place forty hand-placed slices vanished 800 ms after
+  the user tapped a pad. The body was emptied for exactly one task and is **restored**: the fix was
+  the shell's, and it landed as design spec §15.7 -- `SceneStack` now fires `on_resume()` only when
+  `input_top()` changes hands, and an `input_transparent()` overlay never holds it.
 
-  The underlying asymmetry is the shell's and is reported upward rather than patched here: *pushing*
-  an `input_transparent()` overlay tells the scene beneath nothing (it never lost the input top), but
-  *removing* one tells it "you are back on top" -- and `Scene` has no `on_pause` for that edge to
-  pair with, so it cannot mean "you are back on top", only "something above you vanished". The same
-  two arms under-notify symmetrically: `pop`/`remove` resume `stack_[n_ - 1]`, the raw top rather
-  than the input top, so with `[A, popup, B]` removing `B` notifies the **popup** while `A`, which
-  genuinely regains the input top, gets nothing. Every scene with a stateful `on_resume` shares the
-  hazard, **`MenuScene` included** -- its `go_up_on_resume` guards only the `ascend()`
-  (`menu_scene.cpp:332-335`) while the tail below it resets `render_resp`, `value_changed`,
-  `value_node`, `back_claimed` and `column_press` unconditionally (`:337-341`), and `MenuScene`
-  raises `Notice::Kind::Console` itself (`:1256`, `menu/bindings.cpp:372`), which is
-  `input_transparent()` and removed by `Notices::tick`. That flag is a port of
-  `SoundEditor::focusRegained`'s "came back from a deeper UI" semantics
-  (`gui/ui/sound_editor.cpp:279-289`), not a popup guard; treating it as the established pattern
-  would normalise the hazard on a coincidence.
+  The shell defect had three parts, all now closed. It **over-notified**: removing a transparent
+  layer announced a transition `input_top()` itself says did not happen. It **under-notified,
+  symmetrically**: `pop`/`remove` resumed `stack_[n_ - 1]`, the raw top rather than the input top,
+  so `[A, popup, B]` removing `B` notified the **popup** while `A`, which genuinely regains the
+  input top, got nothing. And `Scene` had no `on_pause` for the edge to pair with -- deliberately
+  still true, and now stated as a decision on `Scene::on_resume` rather than left open. `MenuScene`
+  took the spurious edge too (`go_up_on_resume` guards only the `ascend()` at
+  `menu_scene.cpp:332-335`; the tail resets five per-tick fields unconditionally at `:337-341`, and
+  the scene raises `Notice::Kind::Console` itself at `:1256` and `menu/bindings.cpp:372`), but cost
+  nothing by it: those five fields are drained at the end of every `after_render` (`:1358-1362`) and
+  `render_oled` re-zeroes two of them at its own head (`:482-483`), while `Notices` is a `Service`
+  and ticks at `Shell::tick` step 4 (`shell/shell.cpp:304-305`) -- before any render. They were already
+  at their defaults every time the edge arrived.
+
+  Both directions are asserted: `sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table
+  when a popup it raised itself expires" (a transparent layer must not reset it) and "resets its
+  state when a real scene above it closes" (an opaque one must).
 
 One transcription this port deliberately does **not** make, and it is the only one:
 `renderMainPads`' MANUAL slice mark is `image[4][x]` with
@@ -1024,7 +1025,6 @@ in, kept because it names the legacy routines each item has to be checked agains
 | **`take_choice()` has no dispatcher, and it owes two things.** `Descriptor::accept`'s `Defer` outcome parks the chosen file and closes; the dispatcher that drains it must perform `SampleBrowser::claimCurrentFile` (which reaches the sound and the audio-file manager through paths `src/scenes` may not name) **and** legacy's `maybeGetParentMenu` re-rooting, which lands the user on the source page rather than back on the item that opened the browser. The recorder carries the identical pair. | `browser/browser_scene.h`'s two `Descriptor::accept` notes; `menu/nodes/sample.cpp`'s two `on_focus` bodies | one dispatcher, in the wiring layer; costs one extra BACK press until then |
 | **`model/clip/audio_clip.cpp` still includes `gui/waveform/waveform_renderer.h`** — the one surviving `model-includes-ui` row of the waveform split, and it is the *method* that is inverted, not the include: `AudioClip::renderAsSingleRow` is a `model/` class that draws into an `RGB*`. Its extracted form takes a `GridFrame` that `model/` cannot build, so closing it means moving clip-row rendering into the scene layer. | the include site itself; `scripts/layer_rules_baseline.txt` | `SessionScene`'s job |
 | **`slicing::SliceOps` has no implementation.** Six virtuals, no-op defaults, wired by nobody — the whole audio/model/card half of the slicer. `Slicer` reaches that work through four `gui/` globals `scenes-no-root-ui`/`scenes-includes-gui` forbid (`sampleBrowser` `:600`/`:749`, `soundEditor` `:452`/`:612-614`/`:634`, `instrumentClipView` `:481`/`:747`, `PadLEDs` `:378`), so the port names the calls at a boundary and keeps the state, the guards, the coalescer, the dispatch and the gate. Until a wiring layer implements it the slicer selects, deletes, renders and snapshots correctly and makes no sound and no kit. `SliceOps::play_position` is the **third** consumer of the voice walk no spec can drive — `Slicer::graphicsRoutine` and `AudioClipScene`'s playhead are the other two — so the fixture that unblocks it (a `Song` with a booted `AudioEngine` and one sounding voice) unblocks all three. | `slicing/slicer_scene.h`'s `SliceOps`; the slicer section above | six virtuals over ~195 lines of legacy (`Slicer::previewForTarget` 40, `Slicer::doSlice` 155) plus the oracle neither has today — a task, not a wiring detail |
-| **`SlicerScene::on_resume()` is empty as a placeholder, and must be restored.** Task 9 mapped it to `Slicer::focusRegained` on the strength of `closeUI` (`gui/ui/ui.cpp:199`); task 10 measured that a `SceneKind::Popup` removal takes the same edge (`SceneStack::remove`, `shell/scene_stack.cpp:108-113`) and wiped forty hand-placed slices 800 ms after a pad tap. Emptying it is correct only while nothing real is pushed over the slicer. **Restore the `on_enter` call when `SceneStack` stops notifying on the removal of an `input_transparent()` scene**, or the first wiring that pushes a context menu / MIDI-learn overlay over the slicer silently loses legacy's reset. The shell side owes three things, not one: the spurious edge above; the *symmetric under-notification* (`pop`/`remove` resume `stack_[n_ - 1]`, the raw top rather than the input top, so `[A, popup, B]` removing `B` notifies the popup and not `A`); and the missing dual — `Scene` has no `on_pause`, so an unpaired edge cannot mean "resume". `MenuScene` is **not** immune: `go_up_on_resume` guards only the `ascend()` (`menu_scene.cpp:332-335`) while the tail resets five fields unconditionally (`:337-341`), and it raises `Notice::Kind::Console` itself (`:1256`, `menu/bindings.cpp:372`). | `slicing/slicer_scene.cpp`'s `on_resume` `@warning`; the slicer section above | the shell change is a condition on two `on_resume()` calls plus its own spec; restoring the scene body is one line and the deletion of a `@warning` |
 | **Three firmware defects, recorded not fixed** — the `AudioRecorder::finishRecording` use-after-free, the dead `FOLDER_DOESNT_EXIST` fallbacks, and the swallowed first gold turn. | "Defects this port found in shipping firmware" above, and each defect's own site | each needs a device to validate; none is this stack's to change |
 
 Beyond the menu tree, the rest of spec E §2's scene inventory (`SessionScene`, `NoteClipScene`, the

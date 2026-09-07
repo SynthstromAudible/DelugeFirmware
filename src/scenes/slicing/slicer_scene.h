@@ -139,20 +139,21 @@
 /// legacy's own pair -- the re-entry gate (`committing_`) and the dropped-dispatch recovery at
 /// `:364-368` -- both of which are asserted in the spec, in both directions.
 ///
-/// @par Task 10's correction to `on_resume`
+/// @par What this scene's own popups found in the shell
 ///
-/// Task 9 mapped `on_resume()` to `Slicer::focusRegained`, on the strength of `closeUI` calling it
-/// (`gui/ui/ui.cpp:199`). **That was wrong, and this scene's own popups are what proved it.** A
-/// legacy popup is a display overlay, not a UI; a shell popup is a `SceneKind::Popup` scene, and
-/// removing it calls `on_resume()` on the scene beneath (`shell/scene_stack.cpp:108-113`). So a
-/// tap on a slice pad -- which cancels a popup (`slicer.cpp:503`) or a Y_ENC press which raises one
-/// (`:301`) -- wiped forty hand-placed slices 800 ms later. `on_resume()` is now empty.
+/// `on_resume()` is `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), the same body `on_enter`
+/// runs, because `closeUI` calls `focusRegained()` on whatever it leaves on top
+/// (`gui/ui/ui.cpp:194-199`). Task 10 measured that mapping firing where legacy never would: a
+/// legacy popup is a display overlay, not a UI, while a shell popup is a `SceneKind::Popup` scene,
+/// and `SceneStack::remove` used to notify the scene beneath whenever the scene it removed sat
+/// highest. So a Y_ENC press raising a popup (`slicer.cpp:301`), or a slice-pad tap cancelling one
+/// (`:503`), wiped forty hand-placed slices 800 ms later.
 ///
-/// **That empty body is a placeholder with an expiry date**, not the finished port: it is correct
-/// only while nothing real is pushed over the slicer. Restore the reset when `SceneStack` stops
-/// notifying on the removal of an `input_transparent()` scene. The reasoning, the measurement, the
-/// shell asymmetry and the restore instruction are all at the definition, and the carry row is in
-/// `src/scenes/README.md`'s E4 roadmap table.
+/// The body was empty for exactly one task while the shell was corrected. **It is not any more:**
+/// `SceneStack` now fires `on_resume()` only when `input_top()` changes hands, and an
+/// `input_transparent()` overlay never holds it, so a popup coming and going is not an edge
+/// (`shell/scene_stack.h`'s contract table; design spec §15.7). Both directions are asserted in
+/// `sim/scenes_spec/slicer_scene_spec.cpp`.
 ///
 /// @par Two legacy defects found while porting, reproduced or clipped rather than fixed
 ///
@@ -395,8 +396,8 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
-	/// @brief Deliberately empty -- see the definition, and "Task 10's correction to `on_resume`" in
-	///        the class docstring.
+	/// @brief `Slicer::focusRegained` again, as `on_enter` is -- see the definition, and "What this
+	///        scene's own popups found in the shell" in the class docstring.
 	void on_resume() override;
 
 	/// @brief False: a plain `UI`, not a `RootUI`. See the table in the class docstring.
