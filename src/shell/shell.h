@@ -255,7 +255,7 @@ public:
 	///          ticking as fast as you can", and a host cannot currently tell them apart.** Zero is
 	///          a legal `Scene::next_timer()` answer meaning "next tick" (its own doc has the
 	///          account), and `scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
-	///          whole of playback (`audio_clip_scene.cpp:1188`) -- faithfully, because legacy drives
+	///          whole of playback (`audio_clip_scene.cpp:1193`) -- faithfully, because legacy drives
 	///          that play cursor from the main loop's `graphicsRoutine` rather than from
 	///          `uiTimerManager`. So while an audio clip is playing this hook reports `now_ms` on
 	///          every tick, for ever, which is indistinguishable from the busy loop the screensaver
