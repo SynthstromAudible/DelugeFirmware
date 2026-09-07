@@ -65,6 +65,12 @@ public:
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 	void checkNewInstrument(Instrument* newInstrument);
 
+	/// @brief PresetConsumer::KeyboardNewInstrument's layout-refresh tail. selectLayout() itself is
+	///        private; this is the seam LoadInstrumentPresetUI's completion calls through, on the
+	///        storage owner, once InstrumentClipView::completeNewInstrument() has actually created the
+	///        new instrument -- see that PresetConsumer's doc.
+	void completeNewInstrumentLayoutRefresh() { selectLayout(0); }
+
 private:
 	bool opened() override;
 	void focusRegained() override;

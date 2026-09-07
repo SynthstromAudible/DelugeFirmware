@@ -81,7 +81,12 @@ public:
 	// Used to reveal Session macros only after the Session button has passed the long-press threshold.
 	ActionResult timerCallback() override;
 	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
-	bool handleInstrumentChange(OutputType outputType);
+	/// @param consumer Threaded through to createNewInstrument() for the shift/FM branch only -- the
+	///        changeOutputType() branch (no shift/FM held) always uses `ViewChangeType`, unaffected by
+	///        this parameter. KeyboardScreen passes `KeyboardNewInstrument`; every other caller keeps
+	///        the default.
+	bool handleInstrumentChange(OutputType outputType, deluge::storage::PresetConsumer consumer =
+	                                                       deluge::storage::PresetConsumer::ViewNewInstrument);
 
 	// PAD ACTION pad press / release handling
 
@@ -229,16 +234,31 @@ public:
 	void setLedStates();
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
-	bool createNewInstrument(OutputType instrumentType, bool is_fm = false);
+	/// @brief Dispatch the shift/FM "create a new instrument" gesture. Always returns false: the
+	///        acquisition reads the card, so this always either dispatches or is rejected by the
+	///        clip-not-empty guard -- there is no synchronous "yes, created" left to report, so
+	///        callers that used to gate a tail on this return (KeyboardScreen's SYNTH/KIT handlers)
+	///        no longer can; that tail runs from the `consumer`'s completion instead
+	///        (see PresetConsumer::KeyboardNewInstrument).
+	/// @param instrumentType SYNTH or KIT.
+	/// @param is_fm Whether the new Synth should be FM (DX7). Ignored for KIT.
+	/// @param consumer Which completion runs the tail once the acquisition actually completes; default
+	///        `ViewNewInstrument` is for this class's own and AutomationView's shift/FM buttons.
+	/// @return Always false.
+	bool
+	createNewInstrument(OutputType instrumentType, bool is_fm = false,
+	                    deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewNewInstrument);
 	/// @brief createNewInstrument()'s follow-up, reached from LoadInstrumentPresetUI::
-	///        runAcquisitionFollowUp()'s `ViewNewInstrument` arm, on the storage owner. Runs
-	///        InstrumentClipMinder::createNewInstrument() (unchanged, blocking -- legal here) then this
-	///        class's own recolour/repaint/enterDrumCreator tail, since all of that used to fire,
-	///        together, right after the (now-deferred) creation.
+	///        runAcquisitionFollowUp()'s `ViewNewInstrument`/`KeyboardNewInstrument` arms, on the
+	///        storage owner. Runs InstrumentClipMinder::createNewInstrument() (unchanged, blocking --
+	///        legal here) then this class's own recolour/repaint/enterDrumCreator tail, since all of
+	///        that used to fire, together, right after the (now-deferred) creation.
+	/// @param clip The dispatch-time snapshot (PresetRequest::clip); acted on directly, never
+	///        re-fetched via getCurrentInstrumentClip() -- see createNewInstrument()'s doc for why.
 	/// @param newOutputType SYNTH or KIT.
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
 	/// @return Whether an instrument was actually created.
-	bool completeNewInstrument(OutputType newOutputType, bool is_dx);
+	bool completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx);
 	bool changeOutputType(OutputType newOutputType);
 	/// @brief changeOutputType()'s follow-up, reached via View::completeChangeOutputTypeFor()'s
 	///        `ViewChangeType` arm -- on the storage owner for Synth/Kit, inline for MIDI/CV. Runs

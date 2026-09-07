@@ -82,9 +82,17 @@ enum class PresetConsumer : uint8_t {
 	                        ///< replaces discarded createNewInstrument()'s bool too.
 	ViewNewInstrument,      ///< InstrumentClipView::createNewInstrument(), reached via
 	                        ///< handleInstrumentChange() -- the shift/FM new-instrument buttons on
-	                        ///< InstrumentClipView, AutomationView and KeyboardScreen all route through
-	                        ///< it. Runs InstrumentClipView's full tail: recolour + repaint, plus
+	                        ///< InstrumentClipView and AutomationView route through it (KeyboardScreen's
+	                        ///< own shift/FM buttons use KeyboardNewInstrument instead). Runs
+	                        ///< InstrumentClipView's full tail: recolour + repaint, plus
 	                        ///< enterDrumCreator() for a new Kit.
+	KeyboardNewInstrument,  ///< InstrumentClipView::createNewInstrument(), reached via
+	                        ///< handleInstrumentChange() from KeyboardScreen's own shift/FM buttons.
+	                        ///< Runs ViewNewInstrument's exact tail, PLUS KeyboardScreen::selectLayout() --
+	                        ///< keyboard_screen.cpp used to gate that on createNewInstrument()'s
+	                        ///< synchronous return, which this rung's dispatch removed; a shared
+	                        ///< ViewNewInstrument arm has no KeyboardScreen instance to call it on, so
+	                        ///< this exists to give the layout refresh somewhere correct to run.
 };
 
 /// @brief Everything an acquisition needs, captured at dispatch time.
@@ -120,7 +128,8 @@ struct PresetRequest {
 	///       than the synchronous path did.
 	bool padStillPressed{};
 	uint32_t targetSection{}; ///< SessionNewTrackClone only: the section the copy is dropped into.
-	/// @brief MinderNewInstrument/ViewNewInstrument only: whether the new Synth should be FM (DX7).
+	/// @brief MinderNewInstrument/ViewNewInstrument/KeyboardNewInstrument only: whether the new Synth
+	///        should be FM (DX7).
 	bool isDx{};
 
 	std::string searchName; ///< ConfirmOrNext only: the preset name to confirm.

@@ -40,15 +40,30 @@ public:
 	/// @brief The card-reading half of new-instrument creation, unchanged and blocking. Legal only on
 	///        the storage owner -- see beginNewInstrumentAcquisition()'s doc for why every caller now
 	///        goes through that instead of this directly.
+	///
+	/// Acts on `clip`, the snapshot beginNewInstrumentAcquisition() took at dispatch time -- never
+	/// getCurrentInstrumentClip() -- because the clip current when this actually runs may not be the
+	/// clip the gesture was made on (see beginNewInstrumentAcquisition()'s doc). `clip->output->type`
+	/// is read fresh here for the old-output-type check below, which is safe: it's a read THROUGH the
+	/// snapshot, not a re-fetch of a different clip, the same way InstrumentClip::changeOutputType()'s
+	/// leaf reads its own `output->type` fresh.
+	/// @param clip The clip to create the instrument on/for. Song-owned; caller-snapshotted.
 	/// @param newOutputType SYNTH or KIT (never MIDI/CV -- those never reach this function at all).
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
 	/// @return Whether an instrument was actually created.
-	bool createNewInstrument(OutputType newOutputType, bool is_dx = false);
+	bool createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx = false);
 	/// @brief Dispatch new-instrument creation onto the storage owner. Non-virtual, matching
 	///        changeOutputType()'s shape and for the same reason: an unqualified call from a derived
 	///        class's own scope resolves to THIS version, which is exactly why `consumer` defaults to
 	///        the base tail (`MinderNewInstrument`) rather than InstrumentClipView's fuller one;
-	///        InstrumentClipView::createNewInstrument() passes `ViewNewInstrument` explicitly instead.
+	///        InstrumentClipView::createNewInstrument() passes `ViewNewInstrument`/`KeyboardNewInstrument`
+	///        explicitly instead.
+	///
+	/// Reads getCurrentInstrumentClip() exactly ONCE, here, at dispatch time -- the one legitimate live
+	/// read, matching InstrumentClipMinder::changeOutputType()'s identical `setupModelStackWithCurrentClip()`
+	/// call. The result is snapshotted into `request.clip`/`request.oldInstrument` so the completion
+	/// acts on THIS clip, not on whatever is current when it actually runs; `isRequestInstrumentStillLive()`
+	/// then guards the completion the same way it does for every other clip-bearing consumer.
 	/// @param newOutputType SYNTH or KIT.
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
 	/// @param consumer Which completion runs once createNewInstrument() actually runs; see
@@ -61,9 +76,10 @@ public:
 	/// @brief The MinderNewInstrument completion: runs createNewInstrument() on the storage owner with
 	///        no further tail, matching what the direct SYNTH-button call sites this replaces did with
 	///        its bool (discarded it).
+	/// @param clip The snapshot beginNewInstrumentAcquisition() took; forwarded to createNewInstrument().
 	/// @param newOutputType SYNTH or KIT.
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
-	void completeNewInstrument(OutputType newOutputType, bool is_dx);
+	void completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx);
 	void setLedStates();
 	virtual void focusRegained();
 	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);

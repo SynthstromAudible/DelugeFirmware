@@ -44,6 +44,7 @@
 #include "model/consequence/consequence.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
@@ -151,6 +152,13 @@ bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputTyp
 	    .outputType = newOutputType,
 	    .isDx = is_dx,
 	    .dirPath = getInstrumentFolder(newOutputType),
+	    // Snapshotted, not re-read by the completion: the clip current when the op actually runs may
+	    // not be the clip this gesture was made on. `oldInstrument` doubles as the liveness guard
+	    // runAcquisitionFollowUp() already applies to every other clip-bearing consumer -- if `clip`'s
+	    // output is gone by the time this runs, the completion is skipped rather than acting on a
+	    // clip that may have moved on to something else entirely.
+	    .oldInstrument = (Instrument*)clip->output,
+	    .clip = clip,
 	};
 	// The acquisition may still fail on the owner (no unused slot, OOM, etc); the gesture itself was
 	// accepted here, so report success and let the completion surface any error, exactly as
@@ -160,19 +168,18 @@ bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputTyp
 
 // The MinderNewInstrument completion: no extra tail, matching what the direct SYNTH-button call
 // sites this replaces did with createNewInstrument()'s bool (discarded it).
-void InstrumentClipMinder::completeNewInstrument(OutputType newOutputType, bool is_dx) {
-	createNewInstrument(newOutputType, is_dx);
+void InstrumentClipMinder::completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx) {
+	createNewInstrument(clip, newOutputType, is_dx);
 }
 
 // Runs on the storage owner -- see beginNewInstrumentAcquisition() above, which is what every caller
 // now goes through instead of this directly. Otherwise unchanged: still blocks on the card read,
-// which is legal on this tier.
-bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is_dx) {
+// which is legal on this tier. Acts on `clip` (the dispatch-time snapshot) throughout, not
+// getCurrentInstrumentClip()/getCurrentOutput() -- see this function's doc.
+bool InstrumentClipMinder::createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx) {
 	Error error;
 
-	OutputType oldOutputType = getCurrentOutputType();
-
-	InstrumentClip* clip = getCurrentInstrumentClip();
+	OutputType oldOutputType = clip->output->type;
 
 	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(clip);
 
@@ -230,7 +237,7 @@ gotError:
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	// If replacing whole Instrument
 	if (shouldReplaceWholeInstrument) {
@@ -238,7 +245,7 @@ gotError:
 		//  This is how we feed a ParamManager into the replaceInstrument() function
 		currentSong->backUpParamManager((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
 		                                &newParamManager, true);
-		currentSong->replaceInstrument(getCurrentInstrument(), newInstrument, false);
+		currentSong->replaceInstrument((Instrument*)clip->output, newInstrument, false);
 	}
 
 	// Or if just adding new Instrument
@@ -270,12 +277,16 @@ gotError:
 
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E060", "H060");
 
+	// Deliberately still live, not passed `clip`: setLedStates() reflects whatever IS on screen right
+	// now, the same as every other completion's LED/redraw tail (ViewChangeTypeMinder's arm, View::
+	// completeChangeOutputType()'s recolour/repaint) -- it is a "show the truth" call, not part of the
+	// acquisition's own logic, so it stays on the established live-read exception those share.
 	setLedStates();
 
 	newInstrument->name = newName;
 
 	if (is_dx) {
-		soundEditor.setup(getCurrentInstrumentClip(), &dxMenu, 0);
+		soundEditor.setup(clip, &dxMenu, 0);
 		openUI(&soundEditor);
 	}
 

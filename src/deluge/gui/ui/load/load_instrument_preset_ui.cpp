@@ -507,15 +507,25 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		sessionView.completeNewTrackClone(request.targetSection, request.sourceClip);
 		break;
 	case PresetConsumer::MinderNewInstrument:
-		// InstrumentClipMinder::completeNewInstrument() reads only global state (getCurrentInstrumentClip(),
-		// currentSong, etc.) -- it never touches `this` -- so which InstrumentClipMinder-derived instance
-		// runs it is interchangeable; instrumentClipView is used here only because it is already
-		// referenced nearby, the same idiom completeChangeOutputTypeFor()'s ViewChangeTypeMinder arm
-		// uses for setLedStates().
-		instrumentClipView.InstrumentClipMinder::completeNewInstrument(request.outputType, request.isDx);
+		// InstrumentClipMinder::completeNewInstrument() (the leaf underneath) reads only its `clip`
+		// parameter and global Song state, never `this` -- so which InstrumentClipMinder-derived
+		// instance runs it is interchangeable; instrumentClipView is used here only because it is
+		// already referenced nearby, the same idiom completeChangeOutputTypeFor()'s ViewChangeTypeMinder
+		// arm uses for setLedStates().
+		instrumentClipView.InstrumentClipMinder::completeNewInstrument(request.clip, request.outputType, request.isDx);
 		break;
 	case PresetConsumer::ViewNewInstrument:
-		instrumentClipView.completeNewInstrument(request.outputType, request.isDx);
+		instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx);
+		break;
+	case PresetConsumer::KeyboardNewInstrument:
+		// Same tail as ViewNewInstrument, plus the layout refresh keyboard_screen.cpp used to run
+		// eagerly off createNewInstrument()'s old synchronous return -- see PresetConsumer::
+		// KeyboardNewInstrument's doc. Gated on the same "did it actually create" bool
+		// completeNewInstrument() already returns, so a failed acquisition (no unused slot, OOM) does
+		// not refresh the layout for nothing.
+		if (instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx)) {
+			keyboardScreen.completeNewInstrumentLayoutRefresh();
+		}
 		break;
 	}
 }

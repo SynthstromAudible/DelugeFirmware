@@ -936,7 +936,7 @@ ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRou
 	return ActionResult::DEALT_WITH;
 }
 
-bool InstrumentClipView::handleInstrumentChange(OutputType outputType) {
+bool InstrumentClipView::handleInstrumentChange(OutputType outputType, deluge::storage::PresetConsumer consumer) {
 	bool is_fm = false;
 	bool isMIDIorCV = util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV});
 
@@ -947,9 +947,11 @@ bool InstrumentClipView::handleInstrumentChange(OutputType outputType) {
 	}
 
 	if (!isMIDIorCV && (is_fm || Buttons::isShiftButtonPressed())) {
-		return createNewInstrument(outputType, is_fm);
+		return createNewInstrument(outputType, is_fm, consumer);
 	}
 	else {
+		// changeOutputType()'s own consumer is fixed (ViewChangeType) regardless of `consumer` here --
+		// that branch is unaffected by this parameter, see handleInstrumentChange()'s doc.
 		return changeOutputType(outputType);
 	}
 }
@@ -1718,22 +1720,25 @@ void InstrumentClipView::doubleClipLengthAction() {
 
 // The acquisition reads the card (InstrumentClipMinder::createNewInstrument() -> Browser::
 // getUnusedSlot()), so it runs on the storage owner; everything that used to follow that call's
-// synchronous return now runs in completeNewInstrument() instead.
-bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx) {
-	return InstrumentClipMinder::beginNewInstrumentAcquisition(newOutputType, is_dx,
-	                                                           deluge::storage::PresetConsumer::ViewNewInstrument);
+// synchronous return now runs in completeNewInstrument() instead -- see this function's declaration
+// for why the return is always false.
+bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx,
+                                             deluge::storage::PresetConsumer consumer) {
+	InstrumentClipMinder::beginNewInstrumentAcquisition(newOutputType, is_dx, consumer);
+	return false;
 }
 
-bool InstrumentClipView::completeNewInstrument(OutputType newOutputType, bool is_dx) {
-	if (InstrumentClipMinder::createNewInstrument(newOutputType, is_dx)) {
+bool InstrumentClipView::completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx) {
+	if (InstrumentClipMinder::createNewInstrument(clip, newOutputType, is_dx)) {
 		recalculateColours();
 		uiNeedsRendering(getRootUI());
 
 		if (newOutputType == OutputType::KIT) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+			ModelStackWithTimelineCounter* modelStack =
+			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
-			NoteRow* noteRow = &getCurrentInstrumentClip()->noteRows[0];
+			NoteRow* noteRow = &clip->noteRows[0];
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, noteRow);
 

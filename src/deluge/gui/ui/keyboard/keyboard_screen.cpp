@@ -504,9 +504,15 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	// Kit button
+	//
+	// The shift/FM branch (createNewInstrument()) always returns false and refreshes the layout from
+	// its own completion instead (PresetConsumer::KeyboardNewInstrument, passed explicitly here) --
+	// see InstrumentClipView::createNewInstrument()'s doc. The changeOutputType() branch (no shift/FM
+	// held) is unaffected by that parameter and still gates this eager call on its own return.
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			if (instrumentClipView.handleInstrumentChange(OutputType::KIT)) {
+			if (instrumentClipView.handleInstrumentChange(OutputType::KIT,
+			                                              deluge::storage::PresetConsumer::KeyboardNewInstrument)) {
 				selectLayout(0);
 			}
 		}
@@ -514,7 +520,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			if (instrumentClipView.handleInstrumentChange(OutputType::SYNTH)) {
+			if (instrumentClipView.handleInstrumentChange(OutputType::SYNTH,
+			                                              deluge::storage::PresetConsumer::KeyboardNewInstrument)) {
 				selectLayout(0);
 			}
 		}
