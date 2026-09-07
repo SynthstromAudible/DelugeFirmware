@@ -138,7 +138,13 @@ void SaveUI::noteSaveTier() {
 	// Boot is the one legal exception: it writes before any interaction tier exists. Owner::started()
 	// is the same monotonic latch the TIR1-TIR4 reader checks use.
 	if (!deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
+		// Counted as well as frozen: the count is what let the gate report "3 saves on the
+		// interaction tier" BEFORE the conversion, which is the evidence that the conversion did
+		// something. The freeze is what keeps it from coming back.
 		interactionTierSaves_++;
+		if (ALPHA_OR_BETA_VERSION) {
+			FREEZE_WITH_ERROR("TIR5");
+		}
 	}
 }
 
