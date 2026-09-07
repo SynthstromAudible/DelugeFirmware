@@ -1645,9 +1645,12 @@ stands:
 
 Task 14 added a fifth: **`SCAN_ROOTS` now covers `tests/ui-scripts`**, which had been invisible to a
 blocking gate — task 13 found two wrong citations there by hand. Measured before it was done, since
-it sweeps 27 pre-existing scripts nothing had ever checked: 90 citations, 50 resolvable, 12 carrying
-a symbol, **one flag**, which was a citation pinned to a past revision and was reworded at its site
-rather than excepted. `src/scenes/README.md` and the three design specs are still outside, and the
+it sweeps 27 pre-existing scripts nothing had ever checked, and **one flag** came out — a citation
+pinned to a past revision, reworded at its site rather than excepted. The sub-counts are stated in
+the checker's own comment with the derivation that produces them (`CITATION_RE` 74 + `CONTINUATION_RE`
+15, of which 49 resolve and 12 carry an extractable symbol), and with the note that the same script
+counted 90 and 50 on the tree *before* the flag was fixed: re-run it against the exact tree you are
+reporting on, which is this plan's own lesson from task 9. `src/scenes/README.md` and the three design specs are still outside, and the
 comment says so rather than leaving it to be rediscovered.
 
 ### 16.6 Four ratchet rows and one narrowing (task 14)

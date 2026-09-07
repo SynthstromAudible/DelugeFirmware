@@ -145,9 +145,18 @@ EXCEPTIONS = REPO / "scripts" / "citation_exceptions.txt"
 # found two wrong ones there BY HAND -- one landing on a closing brace, one naming a 51-line file
 # for line 221 -- while this gate, which CI runs with `--strict`, could not see the directory at
 # all. Widening it was a SWEEP over 27 pre-existing scripts nothing had ever checked, so it was
-# measured before it was done: 90 citations, 50 of them resolvable, 12 carrying an adjacent
-# symbol, and exactly ONE flag -- a citation pinned to a past revision, which was reworded at its
-# site rather than excepted (see `tests/ui-scripts/shell/menu_midi_device.txt`).
+# measured before it was done, and exactly ONE thing was flagged -- a citation pinned to a past
+# revision, reworded at its site rather than excepted (see
+# `tests/ui-scripts/shell/menu_midi_device.txt`).
+#
+# The sub-counts, with how they were obtained, because a number nobody else can re-derive is an
+# argument wearing a measurement's clothes: over `tests/ui-scripts/**/*.txt`, `CITATION_RE` matches
+# **74** path-bearing citations and `CONTINUATION_RE` a further **15** bare `` `:NNN` ``
+# continuations (89 together); **49** of those resolve to a file under `CITED_ROOT`; **12** of the
+# resolved carry a symbol `adjacent_symbol` can extract, i.e. are eligible for the second predicate
+# at all. Measured on the tree AFTER the one flag was fixed -- before it, the same script counted
+# 90 and 50, because the flagged citation was still written in the live `file:line` form. Re-run it
+# against the exact tree you are reporting on.
 #
 # `.txt` is what the scripts are. It also pulls in the four `CMakeLists.txt` under the other scan
 # roots, which is a gain rather than a side effect (`src/scenes/CMakeLists.txt`'s header block

@@ -487,12 +487,30 @@ comparison against a transcription of legacy's body held in the spec file.
 | `AudioClipScene` | 14 | 30 | `audio_clip_scene_spec.cpp` |
 
 **How "comparison sites" is counted here, and why it differs from §10.6.** A site is **one example
-(`it(...)`) that calls a legacy entry point with spec-chosen inputs and asserts**. That rule is
-stated because it is reproducible — count the `it(` blocks in a spec that contain both a legacy call
-and an `expect` — and §10.6's own site numbers are not: they were a hand count, and re-deriving them
-mechanically from the files gives 6 and 3 for the browser and the recorder (matching) but 5 for the
-marker against a recorded 18. The entry-point column is the substantive one either way, and every
-entry point in it is enumerated below by name.
+(`it(...)`) that calls a legacy entry point with spec-chosen inputs and asserts**. Precisely, so it
+can be re-derived: walk the spec's lines, tracking the enclosing `it(`/`they(` block; **skip lines
+whose first non-space characters are `//`, `///`, `*`, `*/` or `/*`**; and count a block that
+contains both a **call** to one of the entry points named below (matched as the identifier followed
+by `(`) and an `expect`. A legacy call reached only through a **teardown helper** does not count —
+`global_controls_spec.cpp`'s `release_all_legacy_buttons()` calls `Buttons::buttonAction` to release
+held buttons so one example's combo cannot leak into the next, which is not the gesture under test;
+counting helpers transitively would turn that spec's 7 into 21.
+
+Two places the rule earns its precision, both found by a reviewer re-deriving these numbers:
+
+* **Comment lines must be excluded.** Counting `global_controls_spec.cpp`'s blocks for the bare word
+  `buttonAction` *without* the comment skip gives **8**; with it, **7**. The extra block is "the
+  root gate: `View`'s arms need a root scene, and the `Buttons` tail never does", which names
+  `View::buttonAction` and `Buttons::buttonAction` in its opening comment and **calls neither** — it
+  drives the port and asserts against a rule established by reading. 7 is the count.
+* **§10.6's own site numbers are a hand count and do not re-derive.** Applying this rule to E3's
+  specs gives 6 for the browser and 3 for the recorder — matching §10.6 exactly — and **5** for the
+  marker against a recorded **18**. Recorded rather than reconciled: §10.6's entry-point column is
+  unaffected, and this plan's own lesson (task 9's unreproducible "8 violations") is that a
+  measurement a reader cannot repeat is an argument wearing a measurement's clothes.
+
+The entry-point column is the substantive one either way, and every entry point in it is enumerated
+below by name.
 
 **`ModKnobs`** (`gui/views/view.cpp`). `modEncoderAction`; `modButtonAction`;
 `displayModEncoderValuePopup`; `calculateKnobPosForModEncoderTurn`;
@@ -532,9 +550,32 @@ own `display->displayPopup(buffer, 0, true, 255, 2)` call at `:100`, with `buffe
 `playbackHandler.currentVisualCountForCountIn` — the same public sentinel the port reads for itself
 through `count_in_visual()`. Neither side is computed from the other's.
 
+> **This one sits on the boundary of the rule above, and is marked so it is not read as precedent.**
+> `notify_drain.cpp`'s count-in block never runs: `count_in_spec.cpp`'s `legacy_show_count_in()` is a
+> **two-line transcription** of `:98-100` — the `intToString` call and the five `displayPopup`
+> arguments — and what it reaches from there is real, unmodified legacy
+> (`OLED::displayPopup` → `popupText`, and the panel is compared through the real
+> `hid::display::OLED` singleton). So the *drawing* is driven, the *dispatch* is transcribed. It is
+> counted because the transcribed part is a call site rather than a body — five literal arguments a
+> reader can check against `:100` in one glance, with no branch and no arithmetic — and because
+> nothing above `:100` is reachable from a spec (`notify_drain` is driven by the tick tree). A
+> future subject that transcribes a *body* to reach legacy is **not** the same thing and does not
+> get counted on this precedent; §10.6's exclusion means what it says.
+
 **`ScreensaverScene`** (`hid/display/screensaver.cpp`). `Screensaver::timerEvent` and
 `Screensaver::noteActivity`, observed through `isActive()` and `getCanvas()`, with the two 128x48
-panels compared **pixel for pixel on every frame** in both animated modes. What is *not* counted
+panels compared **pixel for pixel on every frame** in both animated modes.
+
+> **What that pair can and cannot disagree about.** Since the move, legacy's own `Screensaver`
+> includes `ui/oled/rainfall.h` and `ui/oled/starfield.h` (`hid/display/screensaver.h:21-22`) — so
+> **both sides draw with the same objects.** The comparison is therefore about *sequencing*: which
+> of `scatter()` / `advance()` / `render()` each side runs, in what order, on which tick, and into
+> which canvas. It cannot disagree about pixel *content* for a given animation state, because there
+> is only one implementation of that left in the tree. That is exactly why the transcription oracles
+> exist and why the move needed a second, textual argument — and it is why "pixel for pixel" here
+> means "the assembled frame agrees", not "the animation arithmetic was re-derived".
+
+What is *not* counted
 here is the move's own proof: `Rainfall` and `Starfield` are compared against
 `sim/scenes_spec/support/oracle_{rainfall,starfield}` — a transcription of the pre-move source, and
 §10.6's rule excludes transcriptions. It is a strong transcription (produced by a recorded
