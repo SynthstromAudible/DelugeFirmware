@@ -1,0 +1,13 @@
+# Level-2 acceptance (E4 task 13), 128x64 panel: `overlay::CountInScene` over `AudioClipScene`.
+#
+# Board and OLED `Style` both come from the spec (`board_64()` / `profile_64()`) -- see
+# `audio_clip_64.txt`'s header. The push and the digit schedule are `count_in.txt`'s, unchanged;
+# read that file's header for both, including why neither is a gesture.
+#
+# **Two frames.** The box is centred on the panel by `OLED::popupText`
+# (`textPixelX = (OLED_MAIN_WIDTH_PIXELS - lineWidths[l]) >> 1`, `oled.cpp:629`) and the base scene
+# lays its own text out from the panel height, so the two move apart at 64 rows -- which is what a
+# composition golden is for. The digit change itself is already compared at 48 rows.
+0     snapshot idle              # count 0: the clip view alone, at 64 rows
+300   snapshot count_4           # the framed digit over it, centred on a 64-row panel
+400   quit

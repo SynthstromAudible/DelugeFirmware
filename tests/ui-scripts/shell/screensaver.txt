@@ -1,0 +1,33 @@
+# Level-2 acceptance (E4 task 13): `overlay::ScreensaverScene` (E4 task 7), pushed by
+# `shell::Screensaver`.
+#
+# **How the scene gets on the stack: nothing in this script pushes it either.** The script simply
+# stops touching anything. `shell::Screensaver::tick` arms an idle deadline on its first tick and
+# pushes `SceneKind::Screensaver` when the deadline passes (`shell/screensaver.cpp`), and
+# `scenes::scene_registry()` is what registers a real scene at that kind -- the shell registers none
+# (`shell/shell.cpp:177-184`). The spec sets `ShellConfig::screensaver_idle_ms = 200`;
+# **`RunOptions` had no way to set it before this task**, which is why no level-2 script has ever
+# had a screensaver in it (`shell/screensaver.h`: "`idle_ms == 0` disables the service outright").
+#
+# `FlashStorage::screensaverMode` is `ScreensaverMode::DELUGE` for this run, so the animation is the
+# rainfall; the spec sets and restores it, exactly as `screensaver_scene_spec.cpp`'s `set_mode` does.
+# `ShellConfig::seed` is 0x7777 -- the same seed the per-kind unit goldens
+# (`tests/golden/ui/scenes/screensaver_rainfall_48.pbm`) were recorded from, so the two are
+# comparable by eye.
+0     snapshot idle              # the audio clip view. The screensaver's deadline was armed by this
+                                 # very tick and falls 200 ms from now
+# No input of any kind between here and 700 ms. That is the whole gesture.
+300   snapshot saver_shown       # past the deadline: the rainfall owns the panel
+                                 # (`oled_transparent` is false for `SurfaceRole::Main`), the pads
+                                 # still show the clip underneath -- the scene draws no grid -- and
+                                 # `.state` carries a `scene Screensaver` line above the clip's
+600   snapshot saver_advanced    # 300 ms later, on quiet ticks alone: the rain has fallen further.
+                                 # If this frame ever matches the one above, the animation stopped
+700   pad 15 3 down 64
+720   pad 15 3 up
+800   snapshot after_wake        # `Screensaver::note_activity` runs BEFORE the event is lowered
+                                 # (`shell/shell.cpp:246-252`), so the pad both dismissed the
+                                 # screensaver AND reached the clip view under it -- which raised
+                                 # the end marker on column 15. That red column is the evidence the
+                                 # waking press was not swallowed
+900   quit

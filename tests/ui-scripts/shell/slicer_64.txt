@@ -1,0 +1,17 @@
+# Level-2 acceptance (E4 task 13), 128x64 panel: `slicing::SlicerScene`.
+#
+# Board and OLED `Style` both come from the spec (`board_64()` / `profile_64()`), never from a
+# `board` step -- see `audio_clip_64.txt`'s header for why the two have to move together.
+#
+# **Two frames.** The pads are 16x8 on both boards and `slicer.txt` already compares them frame by
+# frame; what 64 rows moves is the OLED, and this scene has exactly two OLED states worth recording
+# at the other geometry: its own boxed "NUM SLICES" page, and that page with a shell popup
+# composited over it.
+0     snapshot region_idle       # the boxed slice-count page, laid out for a 64-row panel
+100   button XEnc down
+120   button XEnc up
+200   pad 1 0 down 64
+220   pad 1 0 up
+300   encoder Horizontal +30
+400   snapshot start_popup       # the "Start: <n>" popup box, centred on a 64-row panel
+500   quit

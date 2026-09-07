@@ -1,0 +1,15 @@
+# Level-2 acceptance (E4 task 13), 128x64 panel: `overlay::ParamPopupScene` over `AudioClipScene`.
+#
+# Board and OLED `Style` both come from the spec (`board_64()` / `profile_64()`) -- see
+# `audio_clip_64.txt`'s header. The two-detent opening is `param_popup.txt`'s, and its header says
+# why the first one is swallowed.
+#
+# **Two frames**, and they are the two the geometry actually changes: the base scene alone, and the
+# base scene with the popup strip over it. The strip is pinned to the top of the panel while the
+# output name is laid out from the panel's own height, so 64 rows moves them *differently* -- which
+# is the composition question a per-kind unit golden at 64 rows cannot ask.
+0     snapshot idle              # the clip view at 64 rows, no popup
+100   encoder GoldUpper +1       # arms the wiggle debounce; swallowed by design
+150   encoder GoldUpper +1
+200   snapshot popup_shown       # the value strip over it
+300   quit

@@ -1,0 +1,20 @@
+# Level-2 acceptance (E4 task 13), 128x64 panel: `audio_clip::AudioClipScene`.
+#
+# The board and the OLED `Style` both come from the spec (`board_64()` / `profile_64()` in
+# `sim/scenes_spec/scene_scripts_spec.cpp`), not from a `board` step: a `board` step re-sizes the
+# panel but leaves the profile's `style_by_index` pointing at `kDelugeStyle48`, and the two have to
+# move together or `Shell::render_oled` draws the 48-row layout into a 64-row panel.
+#
+# **Two frames, not the five `audio_clip.txt` records.** Only the OLED half of this scene is
+# geometry-dependent -- the pad grid is 16x8 on both boards, and the model edits it shows are
+# already compared frame by frame at 48 rows. The two kept here are the two OLED states the scene
+# has: its own output-name screen, and that screen with a shell popup composited over it (the popup
+# box is centred on the panel, so its position is the thing 64 rows moves).
+#
+# The horizontal turn moves no pads here either, and for a plainer reason than in `audio_clip.txt`:
+# this run does no length edit, so the clip is 768 ticks -- exactly sixteen columns -- and fills the
+# screen with nothing to scroll to. The popup is what the frame is for.
+0     snapshot idle              # the output name, laid out for a 64-row panel
+500   encoder Horizontal +1
+600   snapshot scroll_popup      # the bars-and-beats popup over it, boxed and centred at 64 rows
+700   quit

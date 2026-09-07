@@ -1,0 +1,33 @@
+# Level-2 acceptance (E4 task 13): `overlay::CountInScene` (E4 task 6), over a real base scene.
+#
+# **How the scene gets on the stack -- and the honest answer is "the spec pushes it".** Nothing in
+# `src/` pushes `kCountInSceneKind`: `grep -rn kCountInSceneKind src/` finds the registry entry and
+# the scene's own `Action::Kind::Remove`, and nothing else. The scene's own header says so plainly
+# ("whatever pushes it can push-and-forget"), and the pusher is spec F's wiring. So this script boots
+# onto `AudioClipScene` and `sim/scenes_spec/scene_scripts_spec.cpp` pushes the overlay over it on
+# the first tick, which is what the missing wiring will do. It is written down here rather than
+# dressed up as a gesture, because no user gesture reaches this scene today.
+#
+# **The digit's schedule is the spec's too, and for a second, separate reason.** This scene is a
+# POLL of `playbackHandler.count_in_visual()` (`overlay/count_in_scene.h`), and the only writer of
+# that number is `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree
+# (`playback_handler.cpp:1044-1051`), which needs a running `AudioEngine`. `count_in_spec.cpp` writes
+# the field directly for exactly that reason; this script's fixture does the same through
+# `RunOptions::before_tick`, on this schedule:
+#
+#     t <  200 ms : 0   (nothing showing)
+#     t in [200, 500) : 4
+#     t in [500, 800) : 3
+#     t >= 800 ms : 0   (the count-in ended)
+0     snapshot idle              # count 0: the overlay is on the stack and draws nothing, so the
+                                 # clip view is the whole panel. `.state` has both `scene` lines
+300   snapshot count_4           # `notify_drain.cpp:97-100`: the digit in a framed, CENTRED popup
+                                 # box -- centred and not right-aligned, and static and not
+                                 # blinking, because `alignRight`/`blinkSpeed` are dead arguments on
+                                 # the shipped OLED build (`count_in_scene.h` carries the grep)
+600   snapshot count_3           # the poll noticed the change on its own: no input, one tick,
+                                 # a different digit in the same box
+900   snapshot after_zero        # `:102-103`'s cancel arm. The box is gone AND the scene took
+                                 # itself off the stack (`after_render`'s `Remove`), so `.state` is
+                                 # back to one `scene` line
+1000  quit

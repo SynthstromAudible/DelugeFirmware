@@ -1,0 +1,6 @@
+scene Popup/General
+scene app25
+led Mod0 on
+indicator lower 0 0 0 0
+indicator upper 255 255 0 0
+notice Text Sample cleared
