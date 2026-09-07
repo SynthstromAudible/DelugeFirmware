@@ -1082,7 +1082,10 @@ Two shell-level corrections this plan made, both of which change how a scene ask
   `compute_next_wake` skips a scene only when an arm **actually happened** — a covered scene still
   needs its wake, because `tick_stack` advances its clock whatever the render pass decides.
 * **The fold is per-surface, and all-or-nothing was wrong.** `Scene::timer_repaints()` returns
-  `RepaintSurfaces{oled, grid}`, defaulting to both. It has to, because **the two flushes are not
+  `RepaintSurfaces{oled, grid}`. The base body returns both, and since the E4 final review the
+  struct's own members default to **false**, so a designated initializer arms only what it names --
+  `return {.grid = true};` no longer silently claims the OLED as well. It matters because **the two
+  flushes are not
   alike**: the grid's diffs against `last_sent` and sends nothing when a repaint changed no pixel,
   while the OLED's blits unconditionally once rendered. So over-arming is *free* on the grid and a
   permanent cost on the OLED — and `MenuScene::next_timer` returns a constant 20 ms whenever the

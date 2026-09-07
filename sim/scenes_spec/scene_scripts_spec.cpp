@@ -85,7 +85,7 @@
 /// Counted, not estimated (`md5sum` over the ten golden directories): the 34 `.pbm` files hold **21
 /// distinct panels**. Three groups are repeats.
 ///
-///   * **Eleven**, all the same panel -- `AudioClipScene::render_oled`'s output name (`:1405`, the
+///   * **Eleven**, all the same panel -- `AudioClipScene::render_oled`'s output name (`:1410`, the
 ///     port of `view.displayOutputName`). It is `audio_clip/{idle, end_marker, after_play,
 ///     after_record, after_length_edit}`, `param_popup/{idle, popup_expired}`,
 ///     `screensaver/{idle, after_wake}` and `count_in/{idle, after_zero}`. Four of the five scripts
