@@ -483,11 +483,21 @@ public:
 	/// scene that returns zero should claim `{.oled = false}` in `timer_repaints()` unless its OLED
 	/// content really does change every tick.
 	///
-	/// The case it exists for is a legacy routine driven from the main loop rather than from
-	/// `uiTimerManager`: `scenes::audio_clip::AudioClipScene` (E4 task 11) is the first, porting
-	/// `AudioClipView::graphicsRoutine`'s play cursor, which legacy recomputes on every iteration
-	/// (`UI::graphicsRoutine`, `gui/ui/ui.cpp:47-51`). "Every tick" is that cadence, and zero is how
-	/// this hook spells it.
+	/// The case it exists for is `AudioClipView::graphicsRoutine`'s play cursor, ported by
+	/// `scenes::audio_clip::AudioClipScene` (E4 task 11) -- a *frame* animation rather than a
+	/// scheduled event, which is what "every tick" spells.
+	///
+	/// @warning **Corrected (F1 task 7, 2026-09-07): legacy's `graphicsRoutine` is NOT driven from
+	///          the main loop, and it is not per-iteration.** This paragraph said "a legacy routine
+	///          driven from the main loop rather than from `uiTimerManager`", and both halves are
+	///          wrong. `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside
+	///          the `UI` hierarchy: `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm,
+	///          which calls `getCurrentUI()->graphicsRoutine()` and then re-arms itself at **15 ms**
+	///          (`gui/ui_timer_manager.cpp:213-218`), behind a pad-output-space gate. So legacy's
+	///          per-frame cadence is ~66 Hz on `uiTimerManager`, not the main loop's rate. Zero here
+	///          still means "next tick" -- what it costs is a question for the *host*, which decides
+	///          the tick rate, and `ShellHostUI` (`gui/ui/shell_host_ui.h`, `@par Why the floor is
+	///          1 ms`) is the first one that has had to answer it.
 	///
 	/// @return Milliseconds from now, or `std::nullopt` for "no timer".
 	/// @see timer_repaints, for which surfaces (if any) that deadline arms.

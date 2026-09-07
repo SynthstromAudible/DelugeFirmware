@@ -451,9 +451,12 @@ public:
 	///
 	/// Two independent deadlines, and the nearer wins:
 	///
-	///   * **the playhead.** `AudioClipView::graphicsRoutine` is called from the main loop on
-	///     every iteration (`UI::graphicsRoutine`, `gui/ui/ui.cpp:47-51`), not from
-	///     `uiTimerManager` -- it is a per-frame redraw, not a deadline. Its port is therefore
+	///   * **the playhead.** `AudioClipView::graphicsRoutine` is a per-frame redraw rather than a
+	///     deadline (`UI::graphicsRoutine`, `gui/ui/ui.cpp:47-51`). It is **not** "called from the
+	///     main loop on every iteration", which this bullet used to say: its one external driver is
+	///     `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm, re-armed at 15 ms
+	///     (`gui/ui_timer_manager.cpp:213-218`) -- corrected F1 task 7, whose `ShellHostUI` is the
+	///     first host that had to decide what a zero costs. Its port is therefore
 	///     `0`, "repaint on the next tick" -- the first zero any scene in this tree returns, and
 	///     the case `Scene::next_timer`'s own contract now spells out -- for as long as the cursor
 	///     is live; the shell's own

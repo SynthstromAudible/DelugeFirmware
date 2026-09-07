@@ -290,8 +290,11 @@ public:
 	///          a legal `Scene::next_timer()` answer meaning "next tick" (its own doc has the
 	///          account), and `scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
 	///          whole of playback (`audio_clip_scene.cpp:1193`) -- faithfully, because legacy drives
-	///          that play cursor from the main loop's `graphicsRoutine` rather than from
-	///          `uiTimerManager`. So while an audio clip is playing this hook reports `now_ms` on
+	///          that play cursor from `graphicsRoutine`, which is a per-frame redraw rather than a
+	///          deadline. (It is **not** driven from the main loop: `TimerName::GRAPHICS_ROUTINE`
+	///          re-arms it at 15 ms, `gui/ui_timer_manager.cpp:213-218` -- corrected F1 task 7, and
+	///          `Scene::next_timer`'s own doc has the measurement.) So while an audio clip is
+	///          playing this hook reports `now_ms` on
 	///          every tick, for ever, which is indistinguishable from the busy loop the screensaver
 	///          service shipped before its refusal latch (see `Screensaver`'s note below).
 	///
