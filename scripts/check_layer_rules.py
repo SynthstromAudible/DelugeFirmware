@@ -559,16 +559,57 @@ RULES = [
         # `--update` with the argument in the commit message and a `flush_spec` leg to match. What
         # it stops is the claim arriving as a habit.
         #
-        # Scoped to `src/scenes/services/**` and not to `src/scenes/**` on purpose: four SCENES
-        # (`ParamPopupScene`, `CountInScene`, `ScreensaverScene`, and the menu's own) legitimately
-        # claim `{.oled = true}` and have `oled_paintable` standing behind them.
+        # SCOPE (E4 final review, I1 -- the row as first written had two holes and caught nothing
+        # it was written for). It is `src/shell/**` AND `src/scenes/services/**`, less
+        # `src/shell/scene.h`:
+        #
+        # * `src/scenes/services/**` alone left `shell::Notices` and `shell::Screensaver` -- two
+        #   live `Service` implementations -- outside the row entirely, and any future service the
+        #   shell owns with them. `audit_service_scope()` below now makes that hole a build
+        #   failure rather than something a reviewer has to notice.
+        # * `src/shell/scene.h` is excluded because it DEFINES `RepaintSurfaces` and is where
+        #   `Scene::timer_repaints()`'s `{true, true}` base body lives. It declares no `Service`.
+        #
+        # Still NOT `src/scenes/**`: four SCENES (`ParamPopupScene`, `CountInScene`,
+        # `ScreensaverScene`, and the menu's own) legitimately claim `{.oled = true}` and have
+        # `oled_paintable` standing behind them.
+        #
+        # REGEX. The first cut was `\.oled\s*=\s*true`, which matched only the spelling nobody was
+        # going to get wrong. What it missed was everything the type's own defaults used to arm for
+        # you -- `return {.grid = true};` and `return {};` both carried `oled == true` while
+        # `RepaintSurfaces`' members defaulted to `true`. Those two spellings are now SAFE rather
+        # than merely unmatched (the members are `false`; `shell/scene.h`'s `static_assert`s pin
+        # it), so this row does not have to catch them. What it must catch is every remaining way
+        # to arm the OLED:
+        #
+        # * `.oled = <anything not literally false>` -- the designated initializer, and the
+        #   field-by-field local (`RepaintSurfaces s; s.oled = flashing;`) the old regex also
+        #   missed. The lookahead is `(?!\s*false\b)` and not `(?!false\b)`: `\s*` before it can
+        #   backtrack to zero width, so the shorter form matches `.oled = false` and reports it.
+        #   (Found by measuring: the shorter form hit `service.h` and `midi_learn.h`, both of which
+        #   spell `false`.)
+        # * a POSITIONAL brace, `{true, ...}`, whose first member is `oled` -- `return {true, ...}`
+        #   in a body, `RepaintSurfaces{true, ...}` anywhere.
+        #
+        # What it still cannot see is a claim computed elsewhere and returned by name
+        # (`return my_claim;`). That is the residual, and it is why the type change is the fix and
+        # this row is the tripwire rather than the other way round.
+        #
+        # Measured on the tree at the time of writing: zero hits, so the baseline does not move.
         "services-no-oled-timer-claim",
-        "src/scenes/services/**",
+        ("src/{shell,scenes/services}/**", "src/shell/scene.h"),
         "symbol",
-        r"\.oled\s*=\s*true",
+        r"\.oled\s*=\s*(?!\s*false\b)|RepaintSurfaces\s*\{\s*true\b|return\s*\{\s*true\b",
         "2026-08-26-ui-shell-design.md",
     ),
 ]
+
+# A class declaring itself a `shell::Service`, in any of the spellings this tree uses:
+# `: public Service`, `: public deluge::ui::shell::Service`, and as the second base
+# (`MidiLearn` is `: public deluge::ui::shell::Service, public LearnMode`).
+SERVICE_DECL_RE = re.compile(r"public\s+(?:\w+\s*::\s*)*Service\b")
+# The row `audit_service_scope` guards, and which files it is allowed not to cover.
+SERVICE_ROW = "services-no-oled-timer-claim"
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
 # are real layer violations and must count the same as the quoted spelling -- mirrors the
@@ -739,6 +780,51 @@ def audit_symbols() -> int:
     return 1 if bad else 0
 
 
+def audit_service_scope() -> int:
+    """Check `services-no-oled-timer-claim`'s glob still covers every `Service` in the tree.
+
+    This is the second half of the E4 final review's I1, and it exists because the first half
+    alone would rot. The row was written scoped to `src/scenes/services/**` while two live
+    `Service` implementations -- `shell::Notices` and `shell::Screensaver` -- sat in `src/shell/`,
+    outside it, so the row protected three of the five services that existed and nobody noticed
+    for a whole plan. Widening the glob fixes today; this makes tomorrow's service a build failure
+    instead of a discovery.
+
+    Deliberately crude, in the same way `audit_symbols` is: it asks whether a file that declares a
+    `Service` subclass is covered by the row's scope, not whether the class is correct. A new
+    service in a directory the row cannot see is exactly the failure it catches.
+
+    Scope note: only `src/` is walked, matching `current()`. Test doubles under `tests/` and
+    `sim/` derive from `Service` too and are intentionally out of the ratchet -- a spec claiming
+    the OLED is how the OLED branch gets covered at all (`tests/spec/shell/flush_spec.cpp`).
+    """
+    frm = next(f for name, f, *_ in RULES if name == SERVICE_ROW)
+    bad = 0
+    found = 0
+    for p in sorted((REPO / "src").rglob("*")):
+        if p.suffix not in SUFFIXES or not p.is_file():
+            continue
+        text = p.read_text(encoding="utf-8", errors="replace")
+        if not any(
+            SERVICE_DECL_RE.search(line)
+            for line in text.splitlines()
+            if not is_comment_line(line)
+        ):
+            continue
+        found += 1
+        rel = str(p.relative_to(REPO))
+        if not rule_covers(rel, frm):
+            print(
+                f"{rel} declares a shell::Service but is outside {SERVICE_ROW}'s scope "
+                f"({frm}) -- widen the glob in scripts/check_layer_rules.py"
+            )
+            bad += 1
+    print(
+        f"audited {found} file(s) declaring a shell::Service, {bad} outside the row's scope"
+    )
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--update", action="store_true")
@@ -746,7 +832,9 @@ def main() -> int:
     ap.add_argument("--audit-symbols", action="store_true")
     a = ap.parse_args()
     if a.audit_symbols:
-        return audit_symbols()
+        return audit_symbols() or audit_service_scope()
+    if not a.list and audit_service_scope() != 0:
+        return 1
     cur = current()
     if a.list:
         for (f, r), n in sorted(cur.items()):

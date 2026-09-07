@@ -72,15 +72,27 @@ public:
 	/// @warning That last sentence had nothing behind it until E4 task 14, which is the reason
 	///          this warning exists: the paragraph above is advice, and the next service to
 	///          override this was one docstring away from an unconditional periodic blit on every
-	///          panel. There is now a tripwire -- `check_layer_rules.py`'s
-	///          `services-no-oled-timer-claim` row, zero-baseline over `src/scenes/services/**`.
+	///          panel. Three things stand behind it now, and the order matters because the first
+	///          two are what make the third a tripwire rather than the whole defence.
+	///          1. **The type.** `Scene::RepaintSurfaces`' members are `false`, so an override can
+	///             only arm what it names. Until E4's final review they were `true`, and
+	///             `return {.grid = true};` silently claimed the OLED as well.
+	///          2. **`tests/spec/shell/flush_spec.cpp`**, whose two service legs are the only
+	///             machine check on step 8c: "Claiming the OLED: the other branch, and the one
+	///             that had only a docstring" (the first cut set only `{false, false}` and
+	///             `{false, true}`, so deleting step 8c's whole `if (surfaces.oled)` block left all
+	///             98 host tests green), and "a service claiming `{.grid = true}` arms no OLED
+	///             gate", which is written in the dangerous spelling itself.
+	///          3. **`check_layer_rules.py`'s `services-no-oled-timer-claim` row**, zero-baseline
+	///             over `src/shell/**` *and* `src/scenes/services/**` -- it was scoped to the
+	///             latter alone until E4's final review, which left `Notices` and `Screensaver`,
+	///             two live services in this very directory, outside it. `audit_service_scope()`
+	///             now fails the checker if a `Service` is ever declared where the row cannot see
+	///             it.
+	///
 	///          It is a ratchet and not a ban: if your service really does need the OLED armed,
-	///          make the case in the commit message, run `--update`, and **extend the OLED leg of
-	///          `tests/spec/shell/flush_spec.cpp`** ("Claiming the OLED: the other branch, and the
-	///          one that had only a docstring"), which is the only machine check standing behind
-	///          this whole branch. It exists because the first cut of that example set only
-	///          `{false, false}` and `{false, true}`, so deleting step 8c's entire
-	///          `if (surfaces.oled)` block left all 98 host tests green.
+	///          make the case in the commit message, run `--update`, and extend flush_spec's OLED
+	///          leg to match.
 	///
 	/// @return `{false, false}` by default: the timer is a wake and nothing more.
 	virtual Scene::RepaintSurfaces timer_repaints() const { return {.oled = false, .grid = false}; }
