@@ -21,6 +21,7 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -403,10 +404,27 @@ dontDeactivateMarker:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			if (!soundEditor.setup(getCurrentClip())) {
-				return ActionResult::DEALT_WITH;
+			// F1 task 9, site 5 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the
+			// legacy refusal and open unchanged.
+			if (deluge::gui::ui::shellMenuEnabled()) {
+				// An `AudioClip` under a clip-minder root, so `setup()` lands on
+				// `soundEditorRootMenuAudioClip` (`gui/ui/sound_editor.cpp:1794-1796`) and
+				// `context_for` lands on `Root::AudioClip` (`scenes/menu/context.cpp:356-358`).
+				// `openShellMenu` returning false stands in for `setup()` returning false, which is
+				// what this arm's early return is written against.
+				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
+				                                    /*performanceView=*/false,
+				                                    /*sessionOrArrangerRoot=*/false,
+				                                    /*sessionViewRoot=*/false, /*kitGlobalFx=*/false)) {
+					return ActionResult::DEALT_WITH;
+				}
 			}
-			openUI(&soundEditor);
+			else {
+				if (!soundEditor.setup(getCurrentClip())) {
+					return ActionResult::DEALT_WITH;
+				}
+				openUI(&soundEditor);
+			}
 
 			result = ActionResult::DEALT_WITH;
 			goto deactivateMarkerIfNecessary;

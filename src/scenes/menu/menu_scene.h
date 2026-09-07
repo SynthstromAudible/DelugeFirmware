@@ -468,7 +468,7 @@ public:
 	///
 	/// The port of the one call legacy makes to it from outside the menu:
 	/// `View::modEncoderButtonAction_changeModControllable`'s
-	/// `soundEditor.getCurrentMenuItem()->readValueAgain()` (`gui/views/view.cpp:1374-1376`), run
+	/// `soundEditor.getCurrentMenuItem()->readValueAgain()` (`gui/views/view.cpp:1391-1393`), run
 	/// after a gold-knob **push** has changed a `ModControllable` param behind the menu's back. The
 	/// edit storage this scene keeps (`MenuState::edit_int`, `enum_index`, …) is loaded on focus,
 	/// so without this the menu would keep showing the value it read on the way in.
@@ -543,6 +543,22 @@ public:
 	/// Exposed for specs and for E2's range picker (which has to see `range_picker_pending`);
 	/// nothing outside may write it.
 	const MenuState& state() const { return st_; }
+
+	/// @brief What the menu is currently editing -- the `MenuContext` the last `open()` installed.
+	///
+	/// Added by F1 task 9, and the reason is a real gap rather than convenience: the application's
+	/// entry points resolve this context themselves (`gui/ui/shell_menu_entry.cpp`), and two of its
+	/// fields -- `is_session_view` and `is_performance` -- change nothing about which root is opened
+	/// and everything about which items are relevant inside it. Without this accessor a caller
+	/// passing the wrong one is invisible from outside the scene, so "the session and the arranger
+	/// open the same root" could not be told apart from "the session and the arranger are the same
+	/// thing". Read-only, like `state()`.
+	///
+	/// @note Spelled `menu_context` rather than `context` on purpose: CppSpec's `cppspec.hpp`
+	///       defines `context` as a macro (`#define context self.context`), so a member of that
+	///       name is unusable from every spec in this tree -- which is precisely where this
+	///       accessor is meant to be read.
+	const MenuContext& menu_context() const { return ctx_; }
 
 	/// @brief Collect the root-UI action a menu item asked for, if any, and clear it.
 	///

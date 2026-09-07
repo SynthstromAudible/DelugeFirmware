@@ -32,6 +32,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/menus.h"
+#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -549,8 +550,25 @@ moveAfterClipInstance:
 					}
 				}
 				// open Song FX menu
-				soundEditor.setup();
-				openUI(&soundEditor);
+				//
+				// F1 task 9, site 2 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the
+				// two legacy statements unchanged.
+				if (deluge::gui::ui::shellMenuEnabled()) {
+					// No shift (`:506`) and the session view is the root, so `setup()` picks
+					// `soundEditorRootMenuSongView` (`gui/ui/sound_editor.cpp:1802-1805`) and
+					// `!rootUIIsClipMinderScreen()` is true -- the two legacy expressions
+					// `sessionOrArrangerRoot` fuses agree here by construction. `sessionViewRoot` is
+					// the narrower fact, and it is what the two `getRootUI() == &sessionView` items
+					// in that root read (`MenuContext::is_session_view`).
+					(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+					                                     /*performanceView=*/false,
+					                                     /*sessionOrArrangerRoot=*/true,
+					                                     /*sessionViewRoot=*/true, /*kitGlobalFx=*/false);
+				}
+				else {
+					soundEditor.setup();
+					openUI(&soundEditor);
+				}
 			}
 		}
 	}

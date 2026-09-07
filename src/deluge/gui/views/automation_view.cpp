@@ -31,6 +31,7 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "gui/ui/sample_marker_editor.h"
+#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -1598,13 +1599,34 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 			return;
 		}
 
-		if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
-			soundEditor.setupKitGlobalFXMenu = true;
+		// F1 task 9, site 7 of 14 (`gui/ui/shell_menu_entry.cpp`'s table), and the one that is
+		// **conditionally** gated. This arm also runs under `UI_MODE_NOTES_PRESSED &&
+		// padSelectionOn` (`:1593`), where `setup(clip)` picks `noteEditorRootMenu`
+		// (`gui/ui/sound_editor.cpp:1757-1759`) -- a root `MenuContext::Root` deliberately has no
+		// enumerator for, because legacy chooses it from a UI mode `src/scenes` may not read. So
+		// that case falls through to the legacy statements, which are otherwise unchanged.
+		if (deluge::gui::ui::shellMenuEnabled() && currentUIMode == UI_MODE_NONE) {
+			// `onArrangerView` is both halves of the mapping at once: it is why the clip is null,
+			// and it is `!rootUIIsClipMinderScreen()` -- the automation view is a clip minder only
+			// when it is over a clip. With a null clip `setup()` takes `:1802-1805`'s
+			// `soundEditorRootMenuSongView`, and `sessionViewRoot` stays false because
+			// `getRootUI()` is the automation view, not the session view.
+			Clip* clip = onArrangerView ? nullptr : getCurrentClip();
+			const bool kitGlobalFx =
+			    (getCurrentOutputType() == OutputType::KIT) && getCurrentInstrumentClip()->affectEntire;
+			(void)deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+			                                     /*sessionOrArrangerRoot=*/onArrangerView,
+			                                     /*sessionViewRoot=*/false, kitGlobalFx);
 		}
+		else {
+			if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+				soundEditor.setupKitGlobalFXMenu = true;
+			}
 
-		Clip* clip = onArrangerView ? nullptr : getCurrentClip();
-		if (soundEditor.setup(clip)) {
-			openUI(&soundEditor);
+			Clip* clip = onArrangerView ? nullptr : getCurrentClip();
+			if (soundEditor.setup(clip)) {
+				openUI(&soundEditor);
+			}
 		}
 	}
 }

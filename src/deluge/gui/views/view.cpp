@@ -31,6 +31,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
+#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -458,8 +459,24 @@ possiblyRevert:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			soundEditor.setup();
-			openUI(&soundEditor);
+			// F1 task 9, site 1 of 14 -- `gui/ui/shell_menu_entry.cpp`'s table has all fourteen and
+			// says why six of them are not here. The `else` below is the two legacy statements
+			// unchanged: with `ShellMenu` off, this arm is byte-for-byte what it was.
+			if (deluge::gui::ui::shellMenuEnabled()) {
+				// SHIFT is held (`:450`), so both of `setup()`'s view tests are `&& !shift` and
+				// false, and the root is `settingsRootMenu` whatever is on screen
+				// (`gui/ui/sound_editor.cpp:1799-1808`). All four UI facts therefore go in false --
+				// the same reading `services::GlobalControls::handle_settings_menu` already made of
+				// this arm (`scenes/services/global_controls.cpp:319-331`).
+				(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+				                                     /*performanceView=*/false,
+				                                     /*sessionOrArrangerRoot=*/false,
+				                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
+			}
+			else {
+				soundEditor.setup();
+				openUI(&soundEditor);
+			}
 		}
 	}
 	else {

@@ -33,6 +33,7 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
+#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -495,10 +496,26 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 			if (getCurrentOutputType() == OutputType::SYNTH) {
 				cancelAllAuditioning();
 
-				// Can't fail because we just set the selected Drum
-				bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
-				if (success) {
-					openUI(&soundEditor);
+				// F1 task 9, site 8 of 14 (`gui/ui/shell_menu_entry.cpp`'s table) -- and the only
+				// one of the eight that names a node rather than a root, so the only one whose
+				// `SceneId::arg` is non-zero. The `else` is the legacy pair unchanged.
+				if (deluge::gui::ui::shellMenuEnabled()) {
+					// `file0SelectorMenu`'s port is `nodes::file0_selector`
+					// (`scenes/menu/nodes/sound_osc.h:17`), reached by its stable node id. The
+					// context is a SYNTH instrument clip under a clip-minder root, i.e.
+					// `Root::Sound`, which is the root that node lives under.
+					(void)deluge::gui::ui::openShellMenu(getCurrentInstrumentClip(), /*sourceIndex=*/0,
+					                                     /*performanceView=*/false,
+					                                     /*sessionOrArrangerRoot=*/false,
+					                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false,
+					                                     deluge::gui::ui::ShellMenuNode::Osc0FileSelector);
+				}
+				else {
+					// Can't fail because we just set the selected Drum
+					bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
+					if (success) {
+						openUI(&soundEditor);
+					}
 				}
 			}
 		}
@@ -3566,6 +3583,10 @@ bool InstrumentClipView::enterNoteEditor() {
 	    && lastSelectedNoteYDisplay != kNoSelection) {
 		dontDeleteNotesOnDepress();
 		InstrumentClip* clip = getCurrentInstrumentClip();
+		// F1 task 9, site 12 of 14: **not gated.** `noteEditorRootMenu` has no ported root --
+		// `MenuContext::Root` has no enumerator for it on purpose, because legacy selects it from
+		// `currentUIMode` (`gui/ui/sound_editor.cpp:1757-1759`), which `src/scenes` may not read.
+		// See `gui/ui/shell_menu_entry.cpp`'s table.
 		if (soundEditor.setup(clip, &noteEditorRootMenu)) {
 			// if it's a kit with affect entire enabled, toggle it off when entering note editor
 			if (clip->output->type == OutputType::KIT) {
@@ -3732,6 +3753,8 @@ bool InstrumentClipView::enterNoteRowEditor() {
 		// does note row exist?
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			InstrumentClip* clip = getCurrentInstrumentClip();
+			// F1 task 9, site 13 of 14: **not gated**, for site 12's reason with the other UI mode
+			// (`UI_MODE_AUDITIONING`, `gui/ui/sound_editor.cpp:1760-1762`).
 			if (soundEditor.setup(clip, &noteRowEditorRootMenu)) {
 				// if it's a kit with affect entire enabled, toggle it off when entering note row editor
 				if (clip->output->type == OutputType::KIT) {
@@ -5573,6 +5596,11 @@ doDisplayError:
 	}
 
 	if (!success) {
+		// F1 task 9, site 14 of 14: **not gated**, and not for want of a node -- the item is
+		// `file0SelectorMenu` (`:5581`), the same one site 8 maps. It is not gated because this is a
+		// *fallback*: it runs only when `openUI(&audioRecorder)`/`openUI(&sampleBrowser)` has just
+		// refused, and the ported node's own hook would answer that by asking the shell to push the
+		// ported browser. See `gui/ui/shell_menu_entry.cpp`'s table.
 		openUI(&soundEditor);
 	}
 }

@@ -24,9 +24,14 @@
 #include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
-#include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/save/save_midi_device_definition_ui.h"
 #include "gui/ui/save/save_pattern_ui.h"
+// F1 task 9. This file is inside the `model-includes-ui` ratchet's scope
+// (`scripts/check_layer_rules.py`'s NON_UI glob) and its baseline is 17, which Global
+// Constraint 8 says may only shrink -- so the gate's header displaces one rather than adding
+// to the count: `gui/ui/save/save_kit_row_ui.h` went with it, and it was dead
+// (`grep -c "SaveKitRowUI\|saveKitRowUI"` on this file is 0, before and after).
+#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -243,6 +248,10 @@ gotError:
 	newInstrument->name = newName;
 
 	if (is_dx) {
+		// F1 task 9, site 11 of 14: **not gated, and it stays that way until `dxMenu` has a port.**
+		// `src/scenes/README.md` records the three bespoke DX items as owed to E2's browser work, so
+		// there is no node to name here -- and naming the wrong one is worse than opening the legacy
+		// menu. `gui/ui/shell_menu_entry.cpp`'s table has all fourteen sites and this one's row.
 		soundEditor.setup(getCurrentInstrumentClip(), &dxMenu, 0);
 		openUI(&soundEditor);
 	}
@@ -386,14 +395,37 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
-				soundEditor.setupKitGlobalFXMenu = true;
+			// F1 task 9, site 6 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the
+			// legacy three statements unchanged -- including the `setupKitGlobalFXMenu` write, which
+			// is deliberately inside it: that member is `SoundEditor`'s state, cleared on menu exit
+			// (`gui/ui/sound_editor.cpp:189`, `:768`), and setting it on a path that never opens the
+			// legacy editor would leave it latched for whoever opens one next.
+			if (deluge::gui::ui::shellMenuEnabled()) {
+				// The same fact legacy puts in `setupKitGlobalFXMenu`, passed as an argument instead
+				// (`scenes/menu/context.h`'s `kit_global_fx`, whose doc names this very line as one
+				// of its two writers). The root is then one of six, and `context_for` runs the same
+				// six tests in the same order (`scenes/menu/context.cpp:330-358`); the two UI-mode
+				// roots legacy could otherwise pick are unreachable here because this arm is
+				// `currentUIMode == UI_MODE_NONE` (`:397`).
+				const bool kitGlobalFx =
+				    (getCurrentOutputType() == OutputType::KIT) && getCurrentInstrumentClip()->affectEntire;
+				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,
+				                                    /*performanceView=*/false,
+				                                    /*sessionOrArrangerRoot=*/false,
+				                                    /*sessionViewRoot=*/false, kitGlobalFx)) {
+					return ActionResult::DEALT_WITH;
+				}
 			}
+			else {
+				if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+					soundEditor.setupKitGlobalFXMenu = true;
+				}
 
-			if (!soundEditor.setup(getCurrentClip())) {
-				return ActionResult::DEALT_WITH;
+				if (!soundEditor.setup(getCurrentClip())) {
+					return ActionResult::DEALT_WITH;
+				}
+				openUI(&soundEditor);
 			}
-			openUI(&soundEditor);
 		}
 	}
 

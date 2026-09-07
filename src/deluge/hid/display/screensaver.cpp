@@ -18,6 +18,7 @@
 #include "hid/display/screensaver.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -98,31 +99,42 @@ void Screensaver::noteActivity() {
 }
 
 void Screensaver::timerEvent() {
-	// **TWO SCREENSAVERS WILL RUN AT ONCE ONCE THE PORTED UI IS OPENABLE, and this function is where
-	// that has to be settled.** F1 task 8 gave `shell::Screensaver` a real timeout (see
-	// `settingsChanged()` below), so the ported service now arms and pushes
-	// `overlay::ScreensaverScene` on the same idle period this class uses, from the same two
-	// settings, woken by the same presses -- `Shell::on_board_event`/`on_encoder_edges` call
-	// `note_activity()` exactly where `dispatchInputEvent` calls `noteActivity()`. Both would then
-	// draw: this class renders into its own canvas and calls `OLED::markChanged()`, while the scene
-	// renders through the guest's surfaces into `OLED::main`. That is a visibly wrong screen, not a
-	// duplicated no-op.
-	//
-	// **It is not live yet, and the condition is exact.** `shell::Screensaver` only advances when the
-	// shell ticks, the shell only ticks from `ShellHostUI::timerCallback`, and nothing opens
-	// `shellHostUI` until F1 task 9 routes the fourteen `openUI(&soundEditor)` sites. So a real
-	// timeout is correct today and is what F1 task 8's brief asked for; the collision arrives with
-	// the first entry point.
-	//
-	// **The shape of the fix, so task 9 does not have to rediscover it:** this function early-returns
-	// while the guest is the current UI -- the guest owns the panel then, and its own service owns
-	// the idle policy -- taking care to re-arm rather than silently disarm, the way the inhibitor
-	// arm below does. `noteActivity()` may keep running unchanged; it is idempotent against a
-	// screensaver that is not showing.
-	//
 	// Qualified as ::display: inside namespace deluge::hid::display, unqualified
 	// "display" resolves to this very namespace, not the global Display pointer.
 	if (FlashStorage::screensaverMode == ScreensaverMode::OFF) {
+		return;
+	}
+
+	// **Two screensavers, and this is where it is settled (F1 task 9).**
+	//
+	// F1 task 8 gave `shell::Screensaver` a real timeout (see `settingsChanged()` below), so the
+	// ported service arms and pushes `overlay::ScreensaverScene` on the same idle period this class
+	// uses, from the same two settings, woken by the same presses --
+	// `Shell::on_board_event`/`on_encoder_edges` call `note_activity()` exactly where
+	// `dispatchInputEvent` calls `noteActivity()`. Both would draw: this class renders into its own
+	// canvas and calls `OLED::markChanged()`, while the scene renders through the guest's surfaces
+	// into `OLED::main`. That is a visibly wrong screen, not a duplicated no-op. Task 8 recorded it
+	// here as latent because `shell::Screensaver` only advances when the shell ticks, the shell only
+	// ticks from `ShellHostUI::timerCallback`, and nothing opened `shellHostUI`. Task 9's eight
+	// gated entry points are what open it, so the collision is live and this is the adjudication.
+	//
+	// **The guest owns the panel while it is the current UI, so its own service owns the idle
+	// policy there.** The condition is `getCurrentUI()`, not "the guest exists" and not "the guest
+	// is anywhere in the hierarchy": with a legacy UI open *over* the guest, that UI owns the panel
+	// and the shell is not ticking at all (`openUI` unsets `TimerName::UI_SPECIFIC`,
+	// `gui/ui/ui.cpp:233`), so this class is the only screensaver there and must keep running.
+	//
+	// **Re-armed, not disarmed**, and woken first -- the same three lines the inhibitor arm below
+	// uses, in the same order, and for the same reason: a silent `return` would leave
+	// `TimerName::SCREENSAVER` unarmed until the next `noteActivity()`, and this class must be ready
+	// the instant the guest closes. `noteActivity()` itself is left alone: it is idempotent against
+	// a screensaver that is not showing, and it is what re-arms both sides on a press.
+	if (getCurrentUI() == &shellHostUI) {
+		if (active_) {
+			active_ = false;
+			OLED::markChanged();
+		}
+		arm();
 		return;
 	}
 

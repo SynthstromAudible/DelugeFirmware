@@ -23,6 +23,7 @@
 #include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/menus.h"
+#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -827,8 +828,24 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			}
 
 			if (!defaultEditingMode) {
-				if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
-					openUI(&soundEditor);
+				// F1 task 9, site 4 of 14 (`gui/ui/shell_menu_entry.cpp`'s table). The `else` is the
+				// legacy `if` unchanged.
+				if (deluge::gui::ui::shellMenuEnabled()) {
+					// Legacy names the root by pointer here; the port names it by the fact that
+					// picks it. They agree because this arm is `SELECT_ENC && !shift` inside
+					// `PerformanceView`, which is exactly `setup()`'s
+					// `currentUI == &performanceView && !Buttons::isShiftButtonPressed()`
+					// (`gui/ui/sound_editor.cpp:1799-1801`) and `context_for`'s `performance_view`
+					// (`scenes/menu/context.cpp:361-363`).
+					(void)deluge::gui::ui::openShellMenu(/*clip=*/nullptr, /*sourceIndex=*/0,
+					                                     /*performanceView=*/true,
+					                                     /*sessionOrArrangerRoot=*/false,
+					                                     /*sessionViewRoot=*/false, /*kitGlobalFx=*/false);
+				}
+				else {
+					if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
+						openUI(&soundEditor);
+					}
 				}
 			}
 		}
