@@ -155,8 +155,11 @@ public:
 	bool emit_repaint_from_handle = false;
 	UiEvent::Kind last_event_kind = UiEvent::Kind::AllReleased;
 	std::optional<uint32_t> timer;
-	/// What `timer_repaints()` answers -- `{true, true}`, the base class's own default.
-	Scene::RepaintSurfaces timer_repaints_{};
+	/// What `timer_repaints()` answers. Spelled out rather than left default-constructed: since
+	/// E4's final review a default-constructed `RepaintSurfaces` is `{false, false}` (so that a
+	/// designated initializer cannot arm an unnamed surface), while the value this double must
+	/// start at is what `Scene::timer_repaints()`'s un-overridden *body* returns -- both surfaces.
+	Scene::RepaintSurfaces timer_repaints_{.oled = true, .grid = true};
 };
 
 /// @brief The scene stacked on top: a grid overlay by default, with every composition hook

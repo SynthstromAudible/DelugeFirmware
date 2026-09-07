@@ -168,6 +168,25 @@ struct TimerService final : Service {
 	Scene::RepaintSurfaces claim{.oled = false, .grid = false};
 };
 
+/// @brief A `Service` whose `timer_repaints()` is written the way an author naturally writes it:
+///        one designated initializer naming the one surface the timer actually moves.
+///
+/// This double exists to be the E4 final review's I1 in executable form. `services::MidiLearn`
+/// spells both fields (`{.oled = false, .grid = true}`), so nothing in the tree exercised what an
+/// *unnamed* member means -- and while `Scene::RepaintSurfaces`' members defaulted to `true`, it
+/// meant "arm it". A service claiming the grid alone would therefore have armed every OLED panel
+/// at its timer's cadence, unconditionally and forever, which is the regression E3 shipped twice
+/// on the scene side (50 Hz, then 100 Hz, both two-panel).
+///
+/// The claim is a fixed `return {.grid = true};` rather than a settable member on purpose: the
+/// thing under test is the *spelling*, so it has to appear literally.
+struct GridOnlyTimerService final : Service {
+	std::optional<uint32_t> next_timer() const override { return timer; }
+	Scene::RepaintSurfaces timer_repaints() const override { return {.grid = true}; }
+
+	std::optional<uint32_t> timer{};
+};
+
 /// @brief `Rig`, with one service occupying the `midi_learn` slot.
 struct ServiceRig {
 	BoardProfile profile = flush_profile();
@@ -181,6 +200,21 @@ struct ServiceRig {
 	ServiceRig(const ServiceRig&) = delete;
 	ServiceRig& operator=(const ServiceRig&) = delete;
 	ServiceRig() = default;
+};
+
+/// @brief `Rig`, with the natural-override service in the `midi_learn` slot.
+struct NaturalServiceRig {
+	BoardProfile profile = flush_profile();
+	FlushScene base;
+	GridOnlyTimerService service;
+	std::array<Scene*, 18> table = table_for(base);
+	SceneRegistry reg{std::span<Scene* const>{table}};
+	uitest::FakeSurfaceSet fake{uitest::kBoard2, profile};
+	Shell shell{fake, profile, reg, Services{.midi_learn = &service}, ShellConfig{}};
+
+	NaturalServiceRig(const NaturalServiceRig&) = delete;
+	NaturalServiceRig& operator=(const NaturalServiceRig&) = delete;
+	NaturalServiceRig() = default;
 };
 
 /// One recorded call to the mirror sink under test.
@@ -598,6 +632,51 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(quiet.fake.columns_sent.empty()).to_be_true();
 		expect(quiet.fake.blits.empty()).to_be_true();
 		expect(quiet.shell.next_wake().has_value()).to_be_false();
+	});
+
+	it("a service claiming {.grid = true} arms no OLED gate -- the unnamed member is not a claim", _ {
+		// E4 final review, I1. The leg above proves the shell HONOURS a claim; this one proves the
+		// claim is what the author wrote. `RepaintSurfaces`' members default to `false`, so
+		// `return {.grid = true};` -- the shape every author reaches for first -- leaves `oled`
+		// false. Before the fix the members defaulted to `true`, this example blitted both panels
+		// every 60 ms forever, and nothing in the tree noticed because every existing override
+		// happens to spell both fields.
+		//
+		// Read first, as a type property, so the failure names the cause rather than a blit count:
+		expect(Scene::RepaintSurfaces{}.oled).to_be_false();
+		expect(Scene::RepaintSurfaces{}.grid).to_be_false();
+		expect(Scene::RepaintSurfaces{}.any()).to_be_false();
+		expect(Scene::RepaintSurfaces{.grid = true}.oled).to_be_false();
+		expect(Scene::RepaintSurfaces{.oled = true}.grid).to_be_false();
+
+		deluge::notify::dirty().drain();
+		NaturalServiceRig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		expect(r.service.timer_repaints().grid).to_be_true();
+		expect(r.service.timer_repaints().oled).to_be_false();
+
+		// …and the same answer through the shell, at the deadline. Distinct content on both
+		// surfaces so each half is observed rather than inferred, exactly as the leg above does.
+		r.service.timer = 60;
+		r.base.colour = RGB{200, 150, 100};
+		r.shell.tick(100);
+		r.fake.blits.clear();
+		r.fake.columns_sent.clear();
+		r.base.oled_renders = 0;
+		r.base.colour = RGB{7, 8, 9};
+		r.shell.tick(160); // 100 + the 60 ms the service asked for
+		expect(r.fake.columns_sent.empty()).to_be_false(); // the grid it named repainted
+		expect(r.base.oled_renders).to_equal(0);           // the OLED it did not name never drew
+		expect(r.fake.blits.empty()).to_be_true();         // …so no panel was blitted
+
+		// The other half of the contract, and the reason the `false` members live on the TYPE and
+		// the `{true, true}` default lives in `Scene::timer_repaints()`'s BODY: a scene that
+		// overrides nothing still arms both. `FlushScene` overrides neither hook.
+		expect(r.base.timer_repaints().oled).to_be_true();
+		expect(r.base.timer_repaints().grid).to_be_true();
+		// A service that overrides nothing still arms nothing.
+		expect(NullService{}.timer_repaints().any()).to_be_false();
 	});
 
 	it("next_wake sees a running tween's step cadence", _ {

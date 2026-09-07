@@ -41,12 +41,23 @@ public:
 
 	/// @brief Which surfaces `next_timer()`'s deadline should repaint.
 	///
-	/// The `Service` half of `Scene::timer_repaints`, and it defaults the other way round --
-	/// `{false, false}`, arming nothing -- because until E4 task 5 a service timer was *only* a
-	/// wake for `Shell::compute_next_wake` and every existing service was written on that
-	/// understanding. Defaulting to `{true, true}` here would have silently started arming both
-	/// gates for `ModKnobs`, `GlobalControls`, `Notices` and `Screensaver`, which is a behaviour
-	/// change none of them asked for.
+	/// The `Service` half of `Scene::timer_repaints`. **The two hooks share one return type and one
+	/// member default -- `RepaintSurfaces{}` is `{false, false}` for both -- and differ only in what
+	/// their un-overridden bodies return:** `Scene`'s returns `{true, true}`, this one returns
+	/// nothing armed. The reason is history, not taste: until E4 task 5 a service timer was *only* a
+	/// wake for `Shell::compute_next_wake`, and every existing service was written on that
+	/// understanding, so returning `{true, true}` here would have silently started arming both gates
+	/// for `ModKnobs`, `GlobalControls`, `Notices` and `Screensaver` -- a behaviour change none of
+	/// them asked for.
+	///
+	/// **What this docstring used to say, and why it was wrong** (E4 final review, I1): it said the
+	/// default was `{false, false}` and left the reader to conclude that an override naming one
+	/// field got `false` for the other. That was true of *this body* and false of the *type*, whose
+	/// members then defaulted to `true`, so the natural override
+	/// `return {.grid = true};` arrived with `oled == true` and armed an unconditional per-timer
+	/// blit on every OLED panel. The type's members are now `false` (`Scene::RepaintSurfaces`), so
+	/// the sentence is finally true of both, and a designated initializer here can only arm what it
+	/// names.
 	///
 	/// **A service has no stack position, so there is no "can it paint" narrowing.**
 	/// `Shell::tick`'s step 8b skips a *scene* whose surface is covered

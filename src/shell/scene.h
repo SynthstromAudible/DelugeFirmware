@@ -473,7 +473,23 @@ public:
 
 	/// @brief Which of this scene's own surfaces `next_timer()`'s deadline should repaint.
 	///
-	/// Both true by default, which is what makes `next_timer()` mean "repaint me later" (see it).
+	/// **A `Scene` that does not override this arms both**, which is what makes `next_timer()` mean
+	/// "repaint me later" (see it). That default lives in *this function's body*
+	/// (`return {true, true};`) and deliberately **not** in `RepaintSurfaces`' member initialisers,
+	/// which are `false`. The distinction is the whole safety property of the type, and E4's final
+	/// review is what forced it out: while the members defaulted to `true`, the natural override
+	///
+	/// ```cpp
+	/// RepaintSurfaces timer_repaints() const override { return {.grid = true}; }
+	/// ```
+	///
+	/// silently also claimed the OLED, because a designated initializer leaves unnamed members at
+	/// their member default. Every one of this tree's overrides happens to spell both fields, so
+	/// nothing was broken -- but the next author to write the obvious thing would have armed an
+	/// unconditional per-timer blit on every OLED panel, which is the exact regression that shipped
+	/// twice in E3 (50 Hz, then 100 Hz, both two-panel; the account is below). With `false` members,
+	/// a designated initializer can only ever arm what the author named, and the "both" default is
+	/// still reached by anyone who overrides nothing.
 	///
 	/// **Per-surface, not all-or-nothing -- E3 task 10 fix round 1.** The fold's first cut armed
 	/// every surface a scene is drawn on from one shared deadline, on the reasoning that
@@ -501,21 +517,36 @@ public:
 	/// A covered scene loses nothing else: `compute_next_wake` still wakes the shell at its
 	/// deadline, and `Shell::tick_stack` still calls `tick(dt)` on it.
 	///
-	/// @return `{true, true}` (the default) to arm both kinds of surface at the timer's deadline;
-	///         `{false, false}` for a timer with no visible consequence at all -- state a later
-	///         input will read, a deadline that only matters once something else happens -- which
-	///         makes `Shell::tick` wake the shell for it without dirtying either.
+	/// @return `{true, true}` (what the un-overridden body below returns) to arm both kinds of
+	///         surface at the timer's deadline; `{false, false}` -- which is what a
+	///         default-constructed `RepaintSurfaces` is -- for a timer with no visible consequence
+	///         at all: state a later input will read, a deadline that only matters once something
+	///         else happens. That makes `Shell::tick` wake the shell for it without dirtying either.
 	struct RepaintSurfaces {
-		bool oled = true;
-		bool grid = true;
+		/// @brief Arm the OLED panels. **Defaults to `false` on purpose** -- see this struct's
+		///        owning function: an unnamed member of a designated initializer must not arm a
+		///        surface the author did not ask for. The "both" default is the base body's, not
+		///        the type's.
+		bool oled = false;
+		/// @brief Arm the grid. `false` for the same reason `oled` is.
+		bool grid = false;
 		/// @brief Whether this asks for anything at all -- the full opt-out. **Not** the test
 		///        `compute_next_wake` skips on: that one is `Shell::timer_arms_a_gate`, which also
 		///        answers false for a covered scene and for an OLED-only claim on a profile with no
 		///        OLED surfaces.
 		constexpr bool any() const { return oled || grid; }
 	};
-	virtual RepaintSurfaces timer_repaints() const { return {}; }
+	virtual RepaintSurfaces timer_repaints() const { return {.oled = true, .grid = true}; }
 };
+
+// The property the member defaults exist for, checked by the compiler rather than by review:
+// naming one surface must never arm the other, and the "both" default belongs to
+// `Scene::timer_repaints()`'s body rather than to the type. It costs nothing and it fails at the
+// build if anyone puts the `true`s back on the members. (Namespace scope and not class scope: a
+// nested class's default member initializers are not usable inside the enclosing class's body.)
+static_assert(!Scene::RepaintSurfaces{.grid = true}.oled, "naming .grid must not arm the OLED");
+static_assert(!Scene::RepaintSurfaces{.oled = true}.grid, "naming .oled must not arm the grid");
+static_assert(!Scene::RepaintSurfaces{}.any(), "a default-constructed claim arms nothing");
 
 /// @brief The application's scene table: one pointer per `SceneKind`, indexed by the kind itself.
 ///
