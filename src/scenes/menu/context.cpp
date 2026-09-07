@@ -539,7 +539,9 @@ void clip_cleared(Song& song, Clip& clip, ::Action* action, bool clear_automatio
 }
 
 void clip_resynced(Song& song, Clip& clip) {
-	// `clip_view.cpp:114-117`.
+	// `clip_view.cpp:113-116`. **Unmeasured** -- see the `@warning` on the declaration: its only
+	// caller needs a running clock, and a spec process has no transport.
+
 	char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, &song, &clip);
 	currentPlaybackMode->reSyncClip(stack);

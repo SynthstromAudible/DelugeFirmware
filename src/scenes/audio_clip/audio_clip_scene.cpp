@@ -381,7 +381,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		// resolves through `TimelineView::buttonAction`'s `else` (`timeline_view.cpp:119-121`) to
 		// `view.buttonAction` -- `services::GlobalControls`. Unhandled is exactly that hand-off,
 		// **and the marker is deliberately not deactivated**: that is what the `dontDeactivateMarker`
-		// label buys, since these three return before the tail at `:456`.
+		// label buys, since these three return before the tail at `audio_clip_view.cpp:456`.
 		return Result::unhandled();
 	}
 
@@ -396,14 +396,15 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 			return r;
 		}
 		if (ctx.shift) {
-			// `:393`'s `else if (!Buttons::isShiftButtonPressed())` is false, so the arm does
+			// `:394`'s `else if (!Buttons::isShiftButtonPressed())` is false, so the arm does
 			// nothing and -- crucially -- never delegates. That is what leaves
 			// `UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON` unset while shift+X_ENC is held, which is
 			// what makes `horizontalEncoderAction`'s `isNoUIModeActive()` first arm reachable at all
 			// (`:789`). See the class docstring.
 			return r;
 		}
-		// `:395`'s `goto dontDeactivateMarker` -> `ClipView::buttonAction` (`clip_view.cpp:47-70`).
+		// `audio_clip_view.cpp:395`'s `goto dontDeactivateMarker` -> `ClipView::buttonAction`
+		// (`clip_view.cpp:47-70`).
 		if (on && !scrollable_and_zoomable()) {
 			// `clip_view.cpp:52`: an empty block, then DEALT_WITH -- so a clip that cannot be
 			// zoomed does not enter the mode at all.
@@ -425,16 +426,16 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		return r;
 	}
 
-	// ---- SELECT_ENC without shift (`:400-415`) ----
+	// ---- SELECT_ENC without shift (`audio_clip_view.cpp:400-414`) ----
 	if (b == ButtonId::SelectEnc && !ctx.shift) {
-		// `soundEditor.setup(getCurrentClip())` + `openUI(&soundEditor)` (`:406-410`).
+		// `soundEditor.setup(getCurrentClip())` + `openUI(&soundEditor)` (`audio_clip_view.cpp:406-409`).
 		// `soundEditor` is a `scenes-no-root-ui` global; its port is `menu::MenuScene`, but nothing
 		// in this library pushes that scene -- resolving a `MenuContext` for a clip and filing a
 		// `Push` is the wiring plan's, exactly as `MarkerScene` records for its own shortcut jump
 		// (`scenes/marker/marker_scene.h`). **Not ported**, and therefore not claimed: the event
 		// falls through, where `services::GlobalControls` gates its own `SELECT_ENC` arm on shift
 		// and does nothing with it either. The divergence is legacy's `goto
-		// deactivateMarkerIfNecessary` at `:412`, which puts the end marker down as the editor
+		// deactivateMarkerIfNecessary` at `audio_clip_view.cpp:412`, which puts the end marker down as the editor
 		// opens; with no editor to open, putting it down would be a gesture with no cause.
 		return Result::unhandled();
 	}
@@ -466,10 +467,11 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 		timeline_.toggle_triplets();
 		r.handled = true;
 	}
-	// `:455-464`, and it runs whether or not the arm above claimed the button: legacy's tail is
-	// outside the `if`, guarded only on the result not being `REMIND_ME_OUTSIDE_CARD_ROUTINE`.
-	// Read against the enclosing braces rather than the shape: the `if (result != ...)` at `:455`
-	// closes at `:464`, inside the `else` block that opened at `:448` and closes at `:467`.
+	// `audio_clip_view.cpp:455-464`, and it runs whether or not the arm above claimed the button:
+	// legacy's tail is outside the `if`, guarded only on the result not being
+	// `REMIND_ME_OUTSIDE_CARD_ROUTINE`. Read against the enclosing braces rather than the shape:
+	// the `if (result != ...)` at `:455` closes at `:464`, inside the `else` block that opened at
+	// `:448` and closes at `:467`.
 	if (deactivate_marker_if_necessary()) {
 		(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll}); // `:462`
 	}
@@ -543,11 +545,11 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 		}
 		::Sample* const sample = current_sample(); // `:518`
 		if (sample != nullptr) {
-			const int32_t new_length = (x + 1) * zoom + timeline_.x_scroll; // `:521-522`
-			const int32_t old_length = clip_->loopLength;                   // `:523`
+			const int32_t new_length = (x + 1) * zoom + timeline_.x_scroll; // `:520-521`
+			const int32_t old_length = clip_->loopLength;                   // `:522`
 			const auto old_length_samples = static_cast<uint64_t>(clip_->sampleHolder.getDurationInSamples(true));
-			change_underlying_sample_length(*sample, new_length, old_length, old_length_samples); // `:525`
-			repaint();                                                                            // `:526`
+			change_underlying_sample_length(*sample, new_length, old_length, old_length_samples); // `:524`
+			repaint();                                                                            // `:525`
 		}
 		return r;
 	}
@@ -561,11 +563,11 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 		}
 		::Sample* const sample = current_sample(); // `:537`
 		if (sample != nullptr) {
-			const int32_t new_start_ticks = x * zoom + timeline_.x_scroll; // `:540-541`
-			const int32_t old_length = clip_->loopLength;                  // `:542`
+			const int32_t new_start_ticks = x * zoom + timeline_.x_scroll; // `:539-540`
+			const int32_t old_length = clip_->loopLength;                  // `:541`
 			const auto old_length_samples = static_cast<uint64_t>(clip_->sampleHolder.getDurationInSamples(true));
-			change_underlying_sample_start(*sample, new_start_ticks, old_length, old_length_samples); // `:544`
-			repaint();                                                                                // `:545`
+			change_underlying_sample_start(*sample, new_start_ticks, old_length, old_length_samples); // `:543`
+			repaint();                                                                                // `:544`
 		}
 		return r;
 	}
@@ -607,8 +609,9 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 		// session view, so it belongs with `services::ModKnobs`/E5 rather than being rebuilt here.
 		return false;
 	}
-	// `:735-736`. `AudioClip::output` is always an `AudioOutput` (`AudioClip::setOutput` is only
-	// ever handed one), which is the same cast legacy makes.
+	// `audio_clip_view.cpp:735-736` (spelled with the file, because the paragraph above cites
+	// `view.cpp` line numbers). `AudioClip::output` is always an `AudioOutput` -- `setOutput` is
+	// only ever handed one -- which is the same cast legacy makes.
 	if (clip_ == nullptr || clip_->output == nullptr) {
 		return false;
 	}
@@ -645,17 +648,17 @@ Result AudioClipScene::clip_horizontal_encoder_action(int32_t offset, const UiCo
 
 	// ---- shift: edit the length, WITH timestretching (`clip_view.cpp:149-181`) ----
 	if (no_ui_mode_active() && !ctx.held.has(ButtonId::YEnc) && ctx.shift) {
-		if (!scrollable_and_zoomable()) { // `:152`
+		if (!scrollable_and_zoomable()) { // `:153`
 			(void)r.actions.push_back(
 			    ShellAction{.kind = ShellAction::Kind::Popup,
 			                .surface = SurfaceRole::Main,
 			                .popup_string = sid(deluge::l10n::String::STRING_FOR_CANT_EDIT_LENGTH)});
-			return r; // `:154`
+			return r; // `:154-155`
 		}
-		const auto old_length = static_cast<uint32_t>(clip_->loopLength);                             // `:157`
-		if (timeline_.scroll_right_to_end_of_length_if_necessary(static_cast<int32_t>(old_length))) { // `:160`
+		const auto old_length = static_cast<uint32_t>(clip_->loopLength);                             // `:158`
+		if (timeline_.scroll_right_to_end_of_length_if_necessary(static_cast<int32_t>(old_length))) { // `:161`
 			(void)r.actions.push_back(ShellAction{.kind = ShellAction::Kind::RepaintAll});
-			return r; // `:161`
+			return r; // `:162`
 		}
 		// `:167-169`'s SD defer: none, as above.
 		::Action* action = nullptr;                                                 // `:171`
@@ -671,14 +674,19 @@ Result AudioClipScene::clip_horizontal_encoder_action(int32_t offset, const UiCo
 	// ---- Y_ENC (or X_ENC held + CLIP): shift the clip's contents (`clip_view.cpp:184-250`) ----
 	if ((no_ui_mode_active() && ctx.held.has(ButtonId::YEnc))
 	    || (ui_mode_ == kUiModeHoldingHorizontalEncoder && ctx.held.has(ButtonId::Clip))) {
-		// **Not ported.** `Clip::shiftHorizontally` (`:210`) is model, but two of the three
+		// **Not ported.** `Clip::shiftHorizontally` (`:208`) is model, but two of the three
 		// arguments legacy passes are decided by `getCurrentUI() == &automationView`
-		// (`clip_view.cpp:203-209`) -- a `scenes-no-root-ui` read this layer may not make and, with
+		// (`clip_view.cpp:203-206`) -- a `scenes-no-root-ui` read this layer may not make and, with
 		// no `AutomationScene`, a question with no answer. Its undo consequence also
-		// `alloc_sdram`s a `ConsequenceClipHorizontalShift` (`:239-245`), which plan constraint 6
+		// `alloc_sdram`s a `ConsequenceClipHorizontalShift` (`:240-245`), which plan constraint 6
 		// forbids from library code. The gesture is still **claimed**, because legacy claims it
 		// (`:249`): letting it fall through would hand a Y_ENC turn to `GlobalControls`, which
 		// legacy never does.
+		//
+		// **It is therefore a silent no-op for a real gesture** -- on the device this shifts the
+		// clip's contents -- and it must NOT survive into E5 in that state: an `AutomationScene`
+		// answers the `getCurrentUI() == &automationView` question, and once one exists this arm
+		// has no excuse left.
 		return r;
 	}
 
@@ -708,7 +716,7 @@ Result AudioClipScene::nav_horizontal_encoder_action(int32_t offset, const UiCon
 	// `InputLowering::set_sd_busy`'s, and the other two guard a re-entrancy legacy's own comment at
 	// `:141-142` doubts, which an immediate-mode scene called once per event cannot have.
 	//
-	// `:159`'s `inNoteRowEditor` is `getCurrentUI() == &soundEditor` -- a `scenes-no-root-ui` read,
+	// `:158`'s `inNoteRowEditor` is `getCurrentUI() == &soundEditor` -- a `scenes-no-root-ui` read,
 	// and false for this view in legacy too unless the sound editor is open over it. Constant false
 	// here, which is what makes both `|| inNoteRowEditor` disjuncts below drop out.
 
@@ -781,7 +789,7 @@ void AudioClipScene::change_underlying_sample_length(const ::Sample& sample, int
 		}
 		value_to_change = &clip_->sampleHolder.endPos; // `:614`
 
-		// `:617-626`: snap to the loop-end marker written in the audio file, if we landed within
+		// `:617-625`: snap to the loop-end marker written in the audio file, if we landed within
 		// ten samples of it.
 		if (sample.fileLoopStartSamples != 0) {
 			int64_t distance = new_end_pos_samples - static_cast<int64_t>(sample.fileLoopStartSamples);
@@ -794,17 +802,17 @@ void AudioClipScene::change_underlying_sample_length(const ::Sample& sample, int
 		}
 	}
 
-	const ActionType action_type = (new_length < old_length) ? ActionType::CLIP_LENGTH_DECREASE // `:629-630`
+	const ActionType action_type = (new_length < old_length) ? ActionType::CLIP_LENGTH_DECREASE // `:628-629`
 	                                                         : ActionType::CLIP_LENGTH_INCREASE;
 
-	// `:632-636`. The marker must move BEFORE `setClipLength`, which reads it -- legacy's own
+	// `:631-634`. The marker must move BEFORE `setClipLength`, which reads it -- legacy's own
 	// comment says so, and the order is load-bearing rather than stylistic.
 	const uint64_t old_value = *value_to_change;
 	*value_to_change = static_cast<uint64_t>(new_end_pos_samples);
 
-	::Action* action = actionLogger.getNewAction(action_type, ActionAddition::NOT_ALLOWED); // `:638`
-	song_->setClipLength(clip_, static_cast<uint32_t>(new_length), action);                 // `:639`
-	if (action != nullptr) {                                                                // `:640-645`
+	::Action* action = actionLogger.getNewAction(action_type, ActionAddition::NOT_ALLOWED); // `:636`
+	song_->setClipLength(clip_, static_cast<uint32_t>(new_length), action);                 // `:637`
+	if (action != nullptr) {                                                                // `:638-645`
 		if (action->firstConsequence != nullptr && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 			auto* consequence = static_cast<ConsequenceClipLength*>(action->firstConsequence);
 			consequence->pointerToMarkerValue = value_to_change;
@@ -820,36 +828,36 @@ void AudioClipScene::change_underlying_sample_start(const ::Sample& sample, int3
 	if (clip_ == nullptr || song_ == nullptr || old_length == 0) {
 		return;
 	}
-	const int32_t old_end_tick = old_length;                   // `:652`
-	int32_t new_length_ticks = old_end_tick - new_start_ticks; // `:653`
-	if (new_length_ticks < 1) {                                // `:654-656`
+	const int32_t old_end_tick = old_length;                   // `:651`
+	int32_t new_length_ticks = old_end_tick - new_start_ticks; // `:652`
+	if (new_length_ticks < 1) {                                // `:653-655`
 		new_length_ticks = 1;
 	}
 	const uint64_t new_length_samples =
 	    static_cast<uint64_t>(old_length_samples * static_cast<uint64_t>(new_length_ticks) + (old_length / 2))
-	    / static_cast<uint32_t>(old_length); // `:657-658`
+	    / static_cast<uint32_t>(old_length); // `:656-657`
 
 	// Both arms are the same five steps over a different field, exactly as legacy writes them
 	// twice. The comparison inside `actionType` is `newLengthTicks < oldLength` on BOTH arms
-	// (`:667-668`, `:685-686`) -- not `newStartTicks`, and not the reversed arm's own value.
+	// (`:667-668`, `:688-689`) -- not `newStartTicks`, and not the reversed arm's own value.
 	uint64_t* value_to_change = nullptr;
 	uint64_t old_value = 0;
-	if (clip_->sampleControls.isCurrentlyReversed()) {                            // `:660`
-		old_value = clip_->sampleHolder.endPos;                                   // `:661`
-		uint64_t new_end_pos = clip_->sampleHolder.startPos + new_length_samples; // `:662`
-		if (new_end_pos > sample.lengthInSamples) {                               // `:663-665`
+	if (clip_->sampleControls.isCurrentlyReversed()) {                            // `:659`
+		old_value = clip_->sampleHolder.endPos;                                   // `:660`
+		uint64_t new_end_pos = clip_->sampleHolder.startPos + new_length_samples; // `:661`
+		if (new_end_pos > sample.lengthInSamples) {                               // `:662-664`
 			new_end_pos = sample.lengthInSamples;
 		}
-		clip_->sampleHolder.endPos = new_end_pos; // `:666`
+		clip_->sampleHolder.endPos = new_end_pos; // `:665`
 		value_to_change = &clip_->sampleHolder.endPos;
 	}
 	else {
-		old_value = clip_->sampleHolder.startPos;                                 // `:679`
-		uint64_t new_start_pos = clip_->sampleHolder.endPos - new_length_samples; // `:680`
-		if (static_cast<int64_t>(new_start_pos) < 0) {                            // `:681-683`
+		old_value = clip_->sampleHolder.startPos;                                 // `:681`
+		uint64_t new_start_pos = clip_->sampleHolder.endPos - new_length_samples; // `:682`
+		if (static_cast<int64_t>(new_start_pos) < 0) {                            // `:683-685`
 			new_start_pos = 0;
 		}
-		clip_->sampleHolder.startPos = new_start_pos; // `:684`
+		clip_->sampleHolder.startPos = new_start_pos; // `:686`
 		value_to_change = &clip_->sampleHolder.startPos;
 	}
 
@@ -872,12 +880,12 @@ void AudioClipScene::change_underlying_sample_start(const ::Sample& sample, int3
 	::Action* action = nullptr;
 	::Action* const first = actionLogger.firstAction[BEFORE];
 
-	// `:81-84`: if the last action was a shorten of this very clip, undo it instead of adding a
+	// `:80-82`: if the last action was a shorten of this very clip, undo it instead of adding a
 	// second consequence on top.
 	const bool undoing = first != nullptr && first->openForAdditions && first->type == ActionType::CLIP_LENGTH_DECREASE
 	                     && first->currentClip == clip_;
 	if (undoing) {
-		// `:86-91`. `allowResyncingDuringClipLengthChange` lives in `model/song/song.cpp:886`;
+		// `:84-89`. `allowResyncingDuringClipLengthChange` lives in `model/song/song.cpp:886`;
 		// legacy's `clip_view.cpp:72` reaches it with a bare `extern` and so does this file, for the
 		// reason `nodes/settings.cpp:76` reaches `jcong` that way -- the layer rules forbid the
 		// header, not the symbol.
@@ -886,31 +894,34 @@ void AudioClipScene::change_underlying_sample_start(const ::Sample& sample, int3
 		allowResyncingDuringClipLengthChange = true;
 	}
 
-	if (clip_->loopLength != new_length) {                                                           // `:95`
-		ActionType action_type = (new_length < clip_->loopLength) ? ActionType::CLIP_LENGTH_DECREASE // `:96-97`
+	if (clip_->loopLength != new_length) {                                                           // `:93`
+		ActionType action_type = (new_length < clip_->loopLength) ? ActionType::CLIP_LENGTH_DECREASE // `:94-95`
 		                                                          : ActionType::CLIP_LENGTH_INCREASE;
-		// `:100-102`. **Legacy dereferences `actionLogger.firstAction[BEFORE]` here without a null
-		// check**, and again at `shortenClip`'s `:128`; the `undoing` test four lines above is
-		// null-guarded, so the omission is inconsistent rather than an invariant being relied on.
-		// It survives on the device because an `Action` almost always exists by the time a length
-		// edit runs, and it is a latent crash on a fresh boot. The port reads null as "not a
-		// PATTERN_PASTE", which is the answer legacy computes for every non-null value it has ever
-		// actually seen there. Recorded in `src/scenes/README.md` beside the `getTickSquare`
-		// `xZoom`-for-`xScroll` defect; unlike that one it is NOT reproduced, because a port cannot
-		// faithfully reproduce a segfault.
+		// `:98-100`. **Legacy dereferences `actionLogger.firstAction[BEFORE]` at `:98` without a
+		// null check**, and again at `shortenClip`'s `:129`. The nearest null-guarded read of the
+		// same pointer is the `undoing` test at `:80-82` -- **eighteen lines up, in a different
+		// `if`, whose result is not carried down here** -- and `shortenClip` has no earlier test at
+		// all, so this is easy to miss rather than an obvious oversight. It survives on the device
+		// because an `Action` almost always exists by the time a length edit runs; the window is a
+		// fresh boot, or an `actionLogger.deleteAllLogs()` (which `SoundEditor::setup` does on every
+		// menu open, `gui/ui/sound_editor.cpp:1716`) followed immediately by a length edit. The
+		// port reads null as "not a PATTERN_PASTE", which is the answer legacy computes for every
+		// non-null value it has ever actually seen there. Recorded in `src/scenes/README.md` beside
+		// the `getTickSquare` `xZoom`-for-`xScroll` defect; unlike that one it is NOT reproduced,
+		// because a port cannot faithfully reproduce a segfault.
 		::Action* const now_first = actionLogger.firstAction[BEFORE];
 		if (now_first != nullptr && now_first->type == ActionType::PATTERN_PASTE) {
 			action_type = ActionType::PATTERN_PASTE;
 		}
 
-		action = actionLogger.getNewAction(action_type, ActionAddition::ALLOWED); // `:104`
-		if (action != nullptr && action->currentClip != clip_) {                  // `:105-107`
+		action = actionLogger.getNewAction(action_type, ActionAddition::ALLOWED); // `:102`
+		if (action != nullptr && action->currentClip != clip_) {                  // `:103-105`
 			action = actionLogger.getNewAction(action_type, ActionAddition::NOT_ALLOWED);
 		}
-		song_->setClipLength(clip_, static_cast<uint32_t>(new_length), action); // `:110`
+		song_->setClipLength(clip_, static_cast<uint32_t>(new_length), action); // `:107`
 	}
 	else if (undoing && playbackHandler.isEitherClockActive()) {
-		// `:113-119`: the revert above already produced the right length, so the re-sync it would
+		// `:111-118`: the revert above already produced the right length, so the re-sync it would
 		// have done has to be done by hand. The `ModelStack` is `menu::clip_resynced`'s, for the
 		// reason `clip_cleared` is (`scenes/menu/context.h`).
 		menu::clip_resynced(*song_, *clip_);
@@ -922,12 +933,12 @@ void AudioClipScene::change_underlying_sample_start(const ::Sample& sample, int3
 	// `ClipView::shortenClip` (`gui/views/clip_view.cpp:124-144`).
 	::Action* action = nullptr;
 	::Action* const first = actionLogger.firstAction[BEFORE];
-	if (first != nullptr && first->type == ActionType::PATTERN_PASTE) { // `:128` -- see `lengthen_clip`
+	if (first != nullptr && first->type == ActionType::PATTERN_PASTE) { // `:129` -- unguarded in legacy
 		action = actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	}
 	else {
-		action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::ALLOWED); // `:132`
-		if (action != nullptr && action->currentClip != clip_) {                                       // `:133-135`
+		action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::ALLOWED); // `:133`
+		if (action != nullptr && action->currentClip != clip_) {                                       // `:134-136`
 			action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_DECREASE, ActionAddition::NOT_ALLOWED);
 		}
 	}
@@ -954,14 +965,14 @@ uint32_t AudioClipScene::change_clip_length(int32_t offset, uint32_t old_length,
 		}
 	}
 	else {
-		// `:288-293`. Landing exactly on a column edge chops the previous square's width; landing
+		// `:289-294`. Landing exactly on a column edge chops the previous square's width; landing
 		// inside one snaps back to that column's start.
 		new_length = right_on_square ? old_length - static_cast<uint32_t>(timeline_.length_chop_amount(end_square))
 		                             : static_cast<uint32_t>(timeline_.pos_from_square(end_square));
-		if (new_length > 0) {                                                                // `:295`
-			action = shorten_clip(static_cast<int32_t>(new_length));                         // `:297`
-			if (!timeline_.scroll_left_if_too_far_right(static_cast<int32_t>(new_length))) { // `:300`
-				(void)timeline_.zoom_to_max(max_zoom(), /*in_only=*/true);                   // `:302`
+		if (new_length > 0) {                                                                // `:296`
+			action = shorten_clip(static_cast<int32_t>(new_length));                         // `:298`
+			if (!timeline_.scroll_left_if_too_far_right(static_cast<int32_t>(new_length))) { // `:301`
+				(void)timeline_.zoom_to_max(max_zoom(), /*in_only=*/true);                   // `:303`
 			}
 		}
 	}
@@ -1068,8 +1079,8 @@ void AudioClipScene::set_clip_length_equal_to_sample_length() {
 		deluge::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_NO_SAMPLE));
 		return;
 	}
-	adjust_loop_length(holder->getLoopLengthAtSystemSampleRate(true));                         // `:746`
-	deluge::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_CLIP_LENGTH_ADJUSTED)); // `:747`
+	adjust_loop_length(holder->getLoopLengthAtSystemSampleRate(true));                         // `:745`
+	deluge::notify::notice_string(sid(deluge::l10n::String::STRING_FOR_CLIP_LENGTH_ADJUSTED)); // `:746`
 }
 
 void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {

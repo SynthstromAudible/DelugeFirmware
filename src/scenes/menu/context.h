@@ -364,13 +364,21 @@ void marker_written(const MenuContext& ctx, MarkerType marker, bool resume_audio
 void clip_cleared(Song& song, Clip& clip, ::Action* action, bool clear_automation, bool clear_sequence_and_mpe);
 
 /// @brief Re-sync a clip to the transport -- `ClipView::lengthenClip`'s `else` branch
-///        (`gui/views/clip_view.cpp:113-119`).
+///        (`gui/views/clip_view.cpp:111-118`).
 ///
 /// Here for the same one reason as the two above: `PlaybackMode::reSyncClip` takes a
 /// `ModelStackWithTimelineCounter*` (`playback/mode/playback_mode.h:61`) and legacy builds one from
-/// `currentSong->setupModelStackWithCurrentClip` (`clip_view.cpp:114-115`). The *decision* to call
+/// `currentSong->setupModelStackWithCurrentClip` (`clip_view.cpp:113-114`). The *decision* to call
 /// it -- that a shorten was just undone and a clock is running -- stays with the caller, exactly
 /// where legacy has it.
+///
+/// @warning **No spec drives this.** Its one caller is `AudioClipScene::lengthen_clip`'s `else`
+///          arm, reachable only when a shorten of the same clip was just undone AND a clock is
+///          running (`clip_view.cpp:112`) -- and a `sim/scenes_spec` process has no transport, so
+///          `sim/scenes_spec/audio_clip_scene_spec.cpp` covers every other path through
+///          `lengthen_clip` and not this one. It is written from the citation and **unmeasured**;
+///          treat it as unverified until something can start playback in a spec, and do not assume
+///          a later refactor of it is covered by the audio-clip suite.
 ///
 /// @param song The song the clip belongs to.
 /// @param clip The clip to re-sync.

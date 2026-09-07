@@ -395,8 +395,8 @@ struct Rig {
 	///
 	/// @note `actionLogger.deleteAllLogs()` then one throwaway `getNewAction` is deliberate and is
 	///       itself a finding: `ClipView::shortenClip` opens with an **unguarded**
-	///       `actionLogger.firstAction[BEFORE]->type` (`gui/views/clip_view.cpp:128`), as does
-	///       `lengthenClip` at `:100`, so driving legacy's length edits with an empty undo log
+	///       `actionLogger.firstAction[BEFORE]->type` (`gui/views/clip_view.cpp:129`), as does
+	///       `lengthenClip` at `:98`, so driving legacy's length edits with an empty undo log
 	///       segfaults rather than failing. One inert `MISC` action puts both sides in the state
 	///       the device is always in by the time a length edit runs, identically, before either
 	///       side moves. `ActionType::MISC` is chosen because neither `lengthenClip`'s `undoing`
