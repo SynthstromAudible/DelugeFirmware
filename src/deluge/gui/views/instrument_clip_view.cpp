@@ -33,7 +33,6 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -95,6 +94,7 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/shell_menu_entry.h"
 #include "util/try.h"
 #include <new>
 #include <string.h>

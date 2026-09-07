@@ -31,8 +31,8 @@
 #include "shell/shell.h"
 
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/ui.h"
+#include "util/shell_menu_entry.h"
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui_timer_manager.h"
@@ -392,9 +392,16 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 		// guest; this task opens it, so the property is asserted rather than assumed.
 		//
 		// `MenuScene::next_timer()` answers `std::nullopt`, `kSourceBlinkMs` (20) or
-		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1591-1606`). Driven over
-		// three roots, because the answer depends on the focused node's shortcut pads and a single
-		// root would only prove it for that one.
+		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1591-1606`).
+		//
+		// **This is a sample, not a sweep, and the distinction matters.** The eight gated sites open
+		// ten different roots between them; what runs below is the settings root, the sound root and
+		// one leaf inside the sound root -- **three of ten**. Song, Performance, AudioClip,
+		// KitGlobalFx, MidiOrCv, MidiDrum and GateDrum are undriven here. The property is safe for
+		// all ten by *reading* -- `next_timer()` has exactly three returns and none of them is 0 --
+		// and the sample exists because the answer depends on the focused node's shortcut pads, so
+		// one root would not even sample the two branches. Do not read it as coverage of the roots
+		// the sites open.
 		// `Shell::tick` renders, and rendering resolves l10n strings -- `l10n::chosenLanguage` is
 		// null in a spec process because nothing constructed a `Display` (`l10n_bridge_spec.cpp:29`
 		// records the same trap, and five other specs in this binary do the same line).

@@ -182,7 +182,7 @@ struct MenuContext {
 ///                                the kit's own global FX, false to edit the selected row. Callers
 ///                                normally pass the clip's `affectEntire`, which is exactly what
 ///                                both writers of that member set it from
-///                                (`model/clip/instrument_clip_minder.cpp:397-421`,
+///                                (`model/clip/instrument_clip_minder.cpp:393-417`,
 ///                                `gui/views/automation_view.cpp:1622-1624`); the kit-row grid
 ///                                shortcut (`sound_editor.cpp:1188-1196`) is the caller that passes
 ///                                false with affect-entire on, and it is why this is an argument

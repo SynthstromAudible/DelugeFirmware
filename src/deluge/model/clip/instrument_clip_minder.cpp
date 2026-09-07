@@ -24,14 +24,9 @@
 #include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/save/save_midi_device_definition_ui.h"
 #include "gui/ui/save/save_pattern_ui.h"
-// F1 task 9. This file is inside the `model-includes-ui` ratchet's scope
-// (`scripts/check_layer_rules.py`'s NON_UI glob) and its baseline is 17, which Global
-// Constraint 8 says may only shrink -- so the gate's header displaces one rather than adding
-// to the count: `gui/ui/save/save_kit_row_ui.h` went with it, and it was dead
-// (`grep -c "SaveKitRowUI\|saveKitRowUI"` on this file is 0, before and after).
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -58,6 +53,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/shell_menu_entry.h"
 #include <cstring>
 #include <string.h>
 

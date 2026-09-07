@@ -423,7 +423,22 @@ public:
 	/// The entry point for a scene that opens a menu: the caller resolves a `MenuContext`
 	/// (`context_for`) and names the root. `on_enter` re-targets afterwards from `SceneId::arg`,
 	/// so a push whose argument names a deeper node lands there instead.
-	/// @param root The node to show.
+	///
+	/// @warning **`root` is dead weight for every caller that then pushes with `arg == 0`, and both
+	///          of this tree's callers do.** `on_enter` re-roots unconditionally: from
+	///          `node_by_id(arg)` when `arg != 0`, and otherwise from `ctx_.root` -- the copy this
+	///          function just installed -- so whichever node was passed here is overwritten one
+	///          call later. Measured, not reasoned: F1 task 9 mutated
+	///          `gui/ui/shell_menu_entry.cpp`'s call to pass `roots[0]` instead of the resolved
+	///          root and **nothing in the suite noticed**. The parameter is kept because this is
+	///          the only entry point that installs a `MenuContext` at all, and because a scene left
+	///          pointing at the wrong root between this call and `on_enter` is a real (if brief)
+	///          inconsistency for anything that reads `focused()`. What it is not is a second
+	///          chance to get the root right. Splitting the context install from the re-root -- or
+	///          asserting here that `root` is the one `ctx.root` names -- is the fix, and it is a
+	///          `MenuScene` API change rather than a caller's.
+	///
+	/// @param root The node to show. See the warning: `on_enter` decides the final one.
 	/// @param ctx  What the menu edits.
 	void open(const Node& root, const MenuContext& ctx);
 

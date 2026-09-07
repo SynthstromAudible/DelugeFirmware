@@ -31,7 +31,6 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/save/save_song_ui.h"
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -89,6 +88,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include "util/shell_menu_entry.h"
 #include <iterator>
 
 namespace params = deluge::modulation::params;

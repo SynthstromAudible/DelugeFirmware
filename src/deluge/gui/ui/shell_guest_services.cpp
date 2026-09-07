@@ -69,7 +69,7 @@ GuestServices& guestServices() {
 /// Legacy's gold-knob state is a live `ModelStackWithThreeMainThings` on `View` (`gui/views/view.h:120`),
 /// set by whichever root view is open -- `InstrumentClipMinder::focusRegained` calls
 /// `view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip())`
-/// (`model/clip/instrument_clip_minder.cpp:295-299`), and the other views their own equivalents.
+/// (`model/clip/instrument_clip_minder.cpp:291-295`), and the other views their own equivalents.
 /// `ModKnobs` keeps the same six pointers as POD (`scenes/services/mod_target.h`) and nothing sets
 /// them for it, so an installed-but-unseeded `ModKnobs` reports `mode() == -1` and
 /// `target_.mod_controllable == nullptr` -- which makes its `leds()` declare **all eight mod LEDs

@@ -23,7 +23,6 @@
 #include "gui/context_menu/clip_settings/launch_style.h"
 #include "gui/menu_item/unpatched_param.h"
 #include "gui/ui/menus.h"
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -49,6 +48,7 @@
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
+#include "util/shell_menu_entry.h"
 
 extern "C" {}
 

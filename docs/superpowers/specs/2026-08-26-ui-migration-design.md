@@ -66,7 +66,7 @@ the hook it belongs to.
   `canSeeViewUnderneath() { return false; }` at `:38` — which is proof in the shipped tree that they are
   independent questions. The guest maps it to `!top().occludes_grid()` (`shell/scene.h:338-339`).
   **The regression the wrong mapping would have shipped:** `MenuScene::oled_transparent` is false
-  (`scenes/menu/menu_scene.h:449`) where `SoundEditor::canSeeViewUnderneath` is true
+  (`scenes/menu/menu_scene.h:464`) where `SoundEditor::canSeeViewUnderneath` is true
   (`gui/ui/sound_editor.h:121`), so the clip view under an open menu would have stopped animating.
 - **`exitUI()`'s return value pops nothing.** The row says it returns `NOT_DEALT_WITH` on an empty
   shell stack "so `closeUI` pops the guest". Neither of its two readers does that, and every legacy

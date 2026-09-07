@@ -225,7 +225,7 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//    (`gui/ui/ui.h:158`), set false by `UI::UI` (`gui/ui/ui.cpp:31-33`) and read by
 	//    `doAnyPendingOLEDRendering` to decide how far down the stack to start drawing
 	//    (`gui/ui/ui.cpp:351-371`, the walk at `:353-356`). `SoundEditor` leaves it false and
-	//    `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h:448-449`) -- those
+	//    `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h:463-464`) -- those
 	//    two already agree, and neither is this hook.
 	//  - `Slicer` sets `oledShowsUIUnderneath = true` and returns **false** here
 	//    (`gui/ui/slicer.h:33-38`), on the same object. One legacy UI holding both values at once is
@@ -241,7 +241,7 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//
 	// It lands where legacy lands for the first tenant: `SoundEditor::canSeeViewUnderneath` is true
 	// (`gui/ui/sound_editor.h:121`) and `MenuScene::occludes_grid` is false
-	// (`scenes/menu/menu_scene.h:443-444`). Mapping it to `oled_transparent(Main)` would have made
+	// (`scenes/menu/menu_scene.h:458-459`). Mapping it to `oled_transparent(Main)` would have made
 	// it false and frozen the clip view's playhead under an open menu.
 	return !shell_.stack().top().occludes_grid();
 }
@@ -848,7 +848,7 @@ ActionResult ShellHostUI::exitUI() {
 	// (`gui/ui/ui.cpp:199`), and that is what re-fills the rings -- every root view's
 	// `focusRegained` reaches `view.setActiveModControllableTimelineCounter(...)`
 	// (`gui/views/session_view.cpp:184-186`, `gui/views/arranger_view.cpp:564-566`,
-	// `model/clip/instrument_clip_minder.cpp:295-298`), whose tail is `setKnobIndicatorLevels()`
+	// `model/clip/instrument_clip_minder.cpp:291-294`), whose tail is `setKnobIndicatorLevels()`
 	// (`gui/views/view.cpp:1902`). Clearing after the close would blank rings nothing then
 	// refreshes.
 	//

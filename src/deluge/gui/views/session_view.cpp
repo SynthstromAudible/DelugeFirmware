@@ -32,7 +32,6 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/menus.h"
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -85,6 +84,7 @@
 #include "util/etl_string.h"
 #include "util/finally.h"
 #include "util/functions.h"
+#include "util/shell_menu_entry.h"
 #include "util/try.h"
 #include <algorithm>
 #include <cstdint>

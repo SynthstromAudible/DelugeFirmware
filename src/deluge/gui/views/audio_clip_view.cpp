@@ -21,7 +21,6 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -51,6 +50,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "sync/storage_op.h"
+#include "util/shell_menu_entry.h"
 
 extern "C" {}
 

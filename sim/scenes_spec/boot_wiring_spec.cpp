@@ -236,7 +236,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		currentSong = f.song;
 
 		// Legacy's root views set this on `focusRegained`
-		// (`model/clip/instrument_clip_minder.cpp:295-298`); the port has no way to read it, and an
+		// (`model/clip/instrument_clip_minder.cpp:291-294`); the port has no way to read it, and an
 		// unseeded `ModKnobs` reports `mode() == -1`, which makes its `leds()` declare all eight mod
 		// LEDs off and its indicators declare level 0 on both rings -- every tick the guest runs.
 		view.setActiveModControllableTimelineCounter(f.clip);

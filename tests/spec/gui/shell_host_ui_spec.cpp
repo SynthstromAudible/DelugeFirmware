@@ -647,7 +647,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// An overlay scene is transparent over the pads, which is what `SoundEditor` is: it does
 		// not override either hook, so it takes `UI`'s `return false`, and `MenuScene` is
-		// `is_grid_overlay()` (`scenes/menu/menu_scene.h:441-442`).
+		// `is_grid_overlay()` (`scenes/menu/menu_scene.h:456-457`).
 		r.base.overlay = true;
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_false();
 		expect(static_cast<::UI&>(r.guest).renderSidebar()).to_be_false();
@@ -670,7 +670,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		expect(r.open()).to_be_true();
 
-		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h:443-444`), and
+		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h:458-459`), and
 		// `SoundEditor::canSeeViewUnderneath()` is true (`gui/ui/sound_editor.h:121`) -- the guest
 		// has to land on legacy's answer, because `UI::graphicsRoutine` runs the root view's
 		// animation only while it does (`gui/ui/ui.cpp:47-51`).

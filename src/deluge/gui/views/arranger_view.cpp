@@ -26,7 +26,6 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/rename/rename_output_ui.h"
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -79,6 +78,7 @@
 #include "sync/storage_op.h"
 #include "util/c_string.h"
 #include "util/functions.h"
+#include "util/shell_menu_entry.h"
 #include "util/try.h"
 #include <algorithm>
 #include <cstdint>

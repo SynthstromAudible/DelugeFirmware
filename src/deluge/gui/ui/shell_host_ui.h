@@ -407,7 +407,7 @@ private:
 	/// of this mapping for the phase-5 adapter -- `is_grid_overlay()` is `!renderMainPads()` -- so
 	/// this is that same equivalence read in the guest direction.
 	///
-	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:441-442`), so the first
+	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:456-457`), so the first
 	/// tenant answers **false** here, which is exactly what `SoundEditor` answers: it does not
 	/// override either hook, so it takes `UI`'s `return false`.
 	bool opaque();

@@ -40,7 +40,7 @@
 /// @par Delivery contract (read this before using the seam)
 ///
 /// This is **not** the one-slot mailbox with a silent overwrite that `MenuScene::take_action()`
-/// (`scenes/menu/menu_scene.h:510 take_action`) is, and the difference is deliberate. That mailbox carries a
+/// (`scenes/menu/menu_scene.h:525 take_action`) is, and the difference is deliberate. That mailbox carries a
 /// *request the caller may repeat*; this one guards a *process-global resource*. There is exactly
 /// one `FileCatalogue` -- one `fileItems` vector, one `currentDir`, one cull window -- so two
 /// listings running over it would not merely lose a request, they would interleave two directory

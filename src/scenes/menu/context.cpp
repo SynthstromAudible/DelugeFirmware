@@ -235,7 +235,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 				// UI fact `context_for` takes as an argument. It is NOT the same as the clip's
 				// `affectEntire`: the member is only ever set true (from
 				// `outputType == KIT && instrumentClip->affectEntire` --
-				// `model/clip/instrument_clip_minder.cpp:397-421`,
+				// `model/clip/instrument_clip_minder.cpp:393-417`,
 				// `gui/views/automation_view.cpp:1622-1624`) and is cleared on menu exit
 				// (`sound_editor.cpp:189`, `:768`), so the kit-row grid-shortcut path
 				// (`sound_editor.cpp:1188-1196`) enters with it false while `affectEntire` is true,

@@ -31,7 +31,6 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "gui/ui/sample_marker_editor.h"
-#include "gui/ui/shell_menu_entry.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -96,6 +95,7 @@
 #include "util/cfunctions.h"
 #include "util/comparison.h"
 #include "util/functions.h"
+#include "util/shell_menu_entry.h"
 #include <new>
 #include <string.h>
 

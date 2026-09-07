@@ -24,16 +24,37 @@
 /// `openUI(&shellHostUI)` plus a `Menu{node}` push, **behind
 /// `RuntimeFeatureSettingType::ShellMenu`**. There are fourteen such places
 /// (`grep -rn "openUI(&soundEditor)" src/deluge`); eight of them route here and six stay on the
-/// legacy path because the node they want has no port. The table is in `shell_menu_entry.cpp`.
+/// legacy path because the node they want has no port. The table is in
+/// `gui/ui/shell_menu_entry.cpp`.
 ///
 /// @par Why this is its own translation unit
 ///
-/// The same reason `shell_guest_services.h` gives, one layer out: the eight call sites are ordinary
-/// legacy views, and making each of them name `deluge::scenes::menu::context_for`,
+/// The same reason `gui/ui/shell_guest_services.h` gives, one layer out: the eight call sites are
+/// ordinary legacy views, and making each of them name `deluge::scenes::menu::context_for`,
 /// `MenuScene::roots()` and `SceneId` would put `src/scenes` includes into eight `gui/views/` and
 /// `model/clip/` translation units for four lines of work apiece. `ShellMenuNode` below exists for
 /// exactly that reason: it is how a caller names a *specific ported node* without naming the
 /// `deluge::scenes::menu::nodes` namespace.
+///
+/// @par Why the header is in `util/` and the implementation in `gui/ui/`
+///
+/// **One of the eight call sites is `model/clip/instrument_clip_minder.cpp`**, and that file is
+/// inside `check_layer_rules.py`'s `NON_UI` glob -- so a `gui/ui/` header there would raise the
+/// `model-includes-ui` ratchet, which plan F1's global constraint 8 says may only shrink. Keeping
+/// the count level by *displacing* another `gui/` include (the first version of this file did that,
+/// with a dead one) is worse than it looks: it trades a dead coupling for a live one and leaves the
+/// number saying nothing changed.
+///
+/// So the declaration lives outside `gui/` and the implementation stays inside it, which is
+/// `util/notify.h`'s shape exactly -- a light header any layer may include, with the UI half in
+/// `gui/ui/notify_drain.cpp`. This header includes nothing but `<cstdint>` and forward-declares
+/// `class Clip`, so it is a legal `util/` header on its own terms and not a loophole: the
+/// `src/scenes` and `gui/` dependencies are all in `gui/ui/shell_menu_entry.cpp`, where they belong.
+///
+/// @note One thing that costs, stated because it is invisible otherwise: `check_citations.py`'s
+///       `SCAN_ROOTS` covers `src/deluge/gui/ui` and **not** `src/deluge/util`, so the citations in
+///       this file are no longer read by that gate. They were verified by hand against `grep -n`
+///       when this file moved.
 ///
 /// @par What works under the toggle, and what does not -- read this before turning it on
 ///
