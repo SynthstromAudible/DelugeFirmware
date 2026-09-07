@@ -1185,6 +1185,11 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 	                         && playbackHandler.playbackState != 0u && song_->isClipActive(clip_)
 	                         && playbackHandler.ticksLeftInCountIn == 0u;
 	if (cursor_live) {
+		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**
+		// (E4 final review, M3): while this returns zero the shell's next wake is `now_ms` on every
+		// tick, and nothing in the shell's vocabulary distinguishes that from a spin. Faithful and
+		// free here -- the host chooses the tick rate and the grid's flush diffs -- but the shell
+		// owes a way to say "every frame" that is not the same answer as "as soon as possible".
 		return 0u;
 	}
 	if (end_marker_visible_ || start_marker_visible_) {

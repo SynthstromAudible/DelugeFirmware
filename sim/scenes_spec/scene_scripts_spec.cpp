@@ -79,6 +79,32 @@
 /// And `param_popup` is the script that could not exist at all without the services: the popup is
 /// *pushed by a service*, so with `Services{}` a gold-knob turn produces no frame of any kind.
 ///
+/// @par 34 snapshots are 21 distinct panels, and eleven of them are one panel
+///
+/// Counted, not estimated (`md5sum` over the ten golden directories): the 34 `.pbm` files hold **21
+/// distinct panels**. Three groups are repeats.
+///
+///   * **Eleven**, all the same panel -- `AudioClipScene::render_oled`'s output name (`:1405`, the
+///     port of `view.displayOutputName`). It is `audio_clip/{idle, end_marker, after_play,
+///     after_record, after_length_edit}`, `param_popup/{idle, popup_expired}`,
+///     `screensaver/{idle, after_wake}` and `count_in/{idle, after_zero}`. Four of the five scripts
+///     boot onto `AudioClipScene`, and its OLED half does not move for anything those scripts do:
+///     the play cursor, the markers and the length edit are all GRID, and the two overlays that
+///     cover it are gone again by the frame after.
+///   * **Two**: `slicer/{manual, slice_selected}`.
+///   * **Three**: the 64-row idles, `{audio_clip_64, param_popup_64, count_in_64}/idle`.
+///
+/// **None is vacuous, and the check is per script.** Within any one script no two snapshots are the
+/// same frame -- the `.state` half differs at every step, which is what the review that asked for
+/// this paragraph verified. *Across* scripts five are the same frame in both halves, and that is
+/// the point rather than a defect: `audio_clip/idle`, `param_popup/idle`, `screensaver/idle` and
+/// `count_in/after_zero` are literally the same boot state reached by four routes, as are
+/// `audio_clip/end_marker` and `screensaver/after_wake`.
+///
+/// Recorded because the count misleads in one specific way: **a regression in `AudioClipScene`'s
+/// OLED reports eleven times**, in four scripts, and a reader counting "34 goldens" is counting
+/// eleven copies of one panel. If you are triaging a wide golden diff here, check that panel first.
+///
 /// @par Honesty notes -- the two things a script here cannot do by itself
 ///
 ///   * **`CountInScene` has no pusher in the tree.** `count_in_scene.h` says so plainly ("fires

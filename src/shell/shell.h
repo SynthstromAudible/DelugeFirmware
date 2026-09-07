@@ -250,6 +250,25 @@ public:
 	///         deadline read from that gate. The three that reach the scene loop are the full
 	///         opt-out, a scene covered on every surface it claims, and an OLED-only claim on a
 	///         profile with no OLED surfaces.
+	///
+	/// @warning **A returned `now_ms` does not distinguish "wake once, immediately" from "keep
+	///          ticking as fast as you can", and a host cannot currently tell them apart.** Zero is
+	///          a legal `Scene::next_timer()` answer meaning "next tick" (its own doc has the
+	///          account), and `scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
+	///          whole of playback (`audio_clip_scene.cpp:1188`) -- faithfully, because legacy drives
+	///          that play cursor from the main loop's `graphicsRoutine` rather than from
+	///          `uiTimerManager`. So while an audio clip is playing this hook reports `now_ms` on
+	///          every tick, for ever, which is indistinguishable from the busy loop the screensaver
+	///          service shipped before its refusal latch (see `Screensaver`'s note below).
+	///
+	///          It is not a bug today and it is not costing anything: the shell only ticks when its
+	///          host asks it to, and the grid's flush diffs against `last_sent`, so a repaint that
+	///          changed no pixel sends nothing. It is **owed** as an expressiveness gap, and it is
+	///          recorded here rather than at `next_timer()` because the host author scheduling on
+	///          this value is the one who needs it. Whoever closes it wants a third answer -- a
+	///          per-frame cadence, or a distinct "every tick" sentinel -- not a change to what zero
+	///          means, since zero's current meaning is what makes overriding `next_timer()`
+	///          sufficient for an animation at all.
 	std::optional<uint32_t> next_wake() const { return next_wake_; }
 
 	/// @name Inspection

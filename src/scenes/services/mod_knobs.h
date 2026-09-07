@@ -448,7 +448,11 @@ public:
 		/// `ModIndicatorInfo`.
 		bool declared = false;
 		/// The `uint8_t level` legacy hands `indicator_leds::setKnobIndicatorLevel`
-		/// (`indicator_leds.h:86`), truncated at exactly the same point legacy truncates it.
+		/// (`indicator_leds.h:86`), truncated at exactly the same point legacy truncates it:
+		/// `View::setKnobIndicatorLevel` holds an `int32_t knobPos` and narrows it implicitly at
+		/// the call (`gui/views/view.cpp:1468`). The `>> 5`/`& 31` in
+		/// `hid/led/indicator_leds.cpp:196-206` run on the truncated parameter, so there is no
+		/// wider legacy arithmetic this type loses. See `indicator_level`'s own comment.
 		uint8_t level = 0;
 		/// Legacy's `isBipolar`.
 		bool bipolar = false;
