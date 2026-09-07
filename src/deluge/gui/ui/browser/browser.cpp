@@ -498,8 +498,6 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	AudioEngine::logAction("readFileItemsForFolder");
 
-	emptyFileItems();
-
 	// initSD() MOUNTS, and mounting is real card I/O. On the synchronous arm this runs on the storage
 	// owner and that is where it belongs; with the channel active this runs on the interaction tier,
 	// so the mount moves to the channel's driver instead -- it mounts lazily when an open reports no
@@ -562,6 +560,13 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		return opened.error();
 	}
 	auto dir = std::move(*opened);
+
+	// Emptied HERE, not before the open. A deferred or failed open must leave the previous listing
+	// alone: the browser hides a suspended LISTING behind listingInProgress_, but the typing
+	// prediction reaches this same function with no such gate and would blank the folder
+	// mid-keystroke. The walk below still starts from a clean list, which is all the original
+	// placement guaranteed.
+	emptyFileItems();
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;

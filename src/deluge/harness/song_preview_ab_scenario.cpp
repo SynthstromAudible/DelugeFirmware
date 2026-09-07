@@ -1012,6 +1012,12 @@ int32_t g_listingTicks = 0;    ///< tick budget guard for the run in flight
 ListingSnapshot g_listingReference;
 int32_t g_listingCasesRun = 0;
 uint32_t g_mountNoticesBefore = 0;
+/// How many items the list held when the run in flight started. A suspended listing must not blank
+/// the list it is replacing -- but only where there WAS one, so the very first listing (with nothing
+/// to preserve) is not counted as a violation.
+size_t g_itemsWhenRunBegan = 0;
+/// Set if a suspended listing was ever seen with an empty list it should have been preserving.
+bool g_sawBlankWhileSuspended = false;
 
 ListingSnapshot takeListingSnapshot() {
 	ListingSnapshot snap;
@@ -1174,6 +1180,13 @@ void runBrandNewNameCases() {
 
 void runListingTick() {
 	if (g_listingRunning) {
+		// Checked BEFORE the tick, so it observes the state a user would see between frames.
+		// readFileItemsForFolder clears the list before it opens, so a suspended listing blanks the
+		// folder it is replacing -- invisible for the listing itself, which hides behind
+		// listingInProgress_, but the typing prediction reaches the same function with no such gate.
+		if (g_itemsWhenRunBegan > 0 && BrowserListingAbProbe::inProgress() && Browser::fileItems.empty()) {
+			g_sawBlankWhileSuspended = true;
+		}
 		BrowserListingAbProbe::tick();
 		if (++g_listingTicks > 200) {
 			printf("SP-LISTING FAIL deferAt=%d never finished -- nothing re-asked\n", g_listingDeferAt);
@@ -1205,7 +1218,12 @@ void runListingTick() {
 				printf("SP-LISTING FAIL mount: the mount edge fired %u times, wanted exactly 1\n", notices);
 				g_failures++;
 			}
-			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
+			if (g_sawBlankWhileSuspended) {
+				printf("SP-LISTING FAIL a suspended listing blanked the folder it was replacing\n");
+				g_failures++;
+			}
+			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d blanked=%d\n", g_listingOpens, g_listingCasesRun,
+			       kBigEntries, g_sawBlankWhileSuspended ? 1 : 0);
 			g_listingStep = ListingStep::Finished;
 			return;
 		}
@@ -1381,6 +1399,7 @@ void runListingTick() {
 		}
 		g_listingDeferAt++;
 		BrowserListingAbProbe::deferAtOpen(g_listingDeferAt);
+		g_itemsWhenRunBegan = Browser::fileItems.size();
 		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
 		g_listingRunning = true;
 		g_listingTicks = 0;
@@ -1458,6 +1477,8 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_listingTicks = 0;
 	g_listingCasesRun = 0;
 	g_listingReference = ListingSnapshot{};
+	g_itemsWhenRunBegan = 0;
+	g_sawBlankWhileSuspended = false;
 
 	// Line-buffer stdout for the rest of the run. The platform driver ends the process with a raw
 	// `exit_group` syscall, which flushes NOTHING of C's stdio -- so a block-buffered stdout, which is
