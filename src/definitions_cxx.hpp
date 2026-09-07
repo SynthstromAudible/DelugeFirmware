@@ -211,7 +211,9 @@ enum class UIType : uint8_t {
 	SOUND_EDITOR,
 	// Out of alphabetical order on purpose (F1 task 5): every other name here is followed by ones
 	// whose values would shift if a new name were inserted above them, and `UI_TYPE_COUNT` sizes
-	// `uiTypeMap` (`gui/ui/ui.cpp:463-488`). Appending is the only insertion that moves nothing.
+	// `uiTypeMap` (`gui/ui/ui.cpp:464-489`, whose extra row is this insertion's own -- the map moved
+	// down one line in the same commit, which is why the range is not the `:463-488` it was when
+	// this comment was first written). Appending is the only insertion that moves nothing.
 	SHELL_HOST,
 	// Keep these at the bottom!
 	UI_TYPE_COUNT,

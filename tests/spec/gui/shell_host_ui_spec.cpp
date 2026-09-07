@@ -143,6 +143,27 @@ struct Rig {
 	}
 };
 
+/// @brief A board whose pad grid is **taller and narrower** than legacy's, with legacy's own panel.
+///
+/// `SurfaceSet::build` sizes the grid from `DelugeBoard::pad_grid_width`/`pad_grid_height` and
+/// `BoardProfile::sidebar_cols` (`shell/surfaces.cpp:26-28`) and never consults legacy's numbers, so
+/// nothing but `serveGrid`'s own two `min`s keeps the copy inside
+/// `PadLEDs::image[kDisplayHeight][kDisplayWidth + kSideBarWidth]`. `canOpen()` cannot help: it is
+/// the *panel's* shape, which this board leaves alone.
+///
+/// One board exercises both clamps, in opposite directions:
+///   * **12 rows** (legacy has 8) — without `min(dims.rows, kDisplayHeight)` the copy writes four
+///     rows past the end of the image it was handed.
+///   * **8 main + 2 sidebar = 10 columns** (legacy has 18) — without `min(x1, dims.cols())` the copy
+///     reads `PadGrid::at(10..15, y)`, which is a `DELUGE_GFX_CONTRACT` violation and traps
+///     (`gfx/contract.h:34-39`, `gfx/grid/pad_grid.h:60-75`).
+DelugeBoard board_tall_narrow_grid() {
+	DelugeBoard b = kDelugeBoard;
+	b.pad_grid_width = 8;
+	b.pad_grid_height = 12;
+	return b;
+}
+
 /// @brief Zero legacy's pad image without touching anything else, so a later read of it can only be
 ///        something the guest wrote.
 void blank_legacy_pads() {
@@ -280,6 +301,14 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 		// One shell pass. `GuestSurfaceSet::blit` copies the rendered panel into `OLED::main` and
 		// marks it changed; that copy is the oracle for what legacy is meant to end up holding.
+		//
+		// This is also the assertion that `opened()` does not need a `Shell::boot()` of its own
+		// (F1 task 5 review round, Important 1): the *first* tick after opening must draw, and it
+		// does, because `SceneStack::reset` and the push both set `changed_`
+		// (`shell/scene_stack.cpp:201-202`, `:39`) and `Shell::tick` re-arms every gate on
+		// `changed_since_last_query()` before it renders (`shell/shell.cpp:328-340`). The `boot()`
+		// call that used to sit in `opened()` was removed and this stayed green, which is the
+		// evidence it was dead.
 		r.guest.shell().tick(0);
 		const std::vector<uint8_t> rendered = copy_of(OLED::main.bytes());
 		expect(any_ink(rendered)).to_be_true();
@@ -373,6 +402,50 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			const RGB got = PadLEDs::image[y][3];
 			expect(got == PatternScene::pad_for(3, y)).to_equal(asked);
 			expect(got == RGB{0, 0, 0}).to_equal(!asked);
+		}
+	});
+
+	it("stays inside legacy's image when the board's grid is taller, and inside the grid when it is "
+	   "narrower", _ {
+		// F1 task 5 review round, Important 1: both of `serveGrid`'s clamps survived mutation on the
+		// first pass, because no example varied the grid's dimensions at all -- every board in the
+		// file had legacy's own 16+2 x 8. Unlike `renderOLED`'s size guard (M28), these two are
+		// reachable: `canOpen()` guards the panel's shape and says nothing about the grid.
+		Rig r{board_tall_narrow_grid(), deluge_profile()};
+		r.base.occludes = true;
+		expect(r.guest.canOpen()).to_be_true(); // the panel is untouched; only the grid differs
+		expect(r.open()).to_be_true();
+		expect(r.guest.surfaces().grid().grid().dims().rows).to_equal(uint8_t(12));
+		expect(r.guest.surfaces().grid().grid().dims().cols()).to_equal(uint16_t(10));
+		r.guest.shell().tick(0);
+
+		// Deliberately NOT `PadLEDs::image`. The row width is legacy's, so the guest cannot tell the
+		// difference, but the buffer has `kMaxGridRows` rows instead of `kDisplayHeight` -- so a copy
+		// that honoured the board's 12 rows instead of legacy's 8 lands in memory this example owns
+		// and can assert about, rather than in whatever follows `image` in the fake's data segment.
+		// (The suite's sanitizers are opt-in, `DELUGE_TEST_SANITIZERS` defaulting OFF in
+		// `tests/CMakeLists.txt:23`, so an out-of-bounds write is otherwise silent here.)
+		RGB oversized[deluge::gfx::grid::kMaxGridRows][kDisplayWidth + kSideBarWidth]{};
+
+		const bool usedUp = r.guest.renderMainPads(0xFFFFFFFF, oversized, PadLEDs::occupancyMask, true);
+		expect(usedUp).to_be_true();
+
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			// Columns the board actually has: copied.
+			for (int32_t x = 0; x < 10; x++) {
+				expect(oversized[y][x] == PatternScene::pad_for(x, y)).to_be_true();
+			}
+			// Columns it does not: left alone, rather than read out of the grid's range.
+			for (int32_t x = 10; x < kDisplayWidth + kSideBarWidth; x++) {
+				expect(oversized[y][x] == RGB{0, 0, 0}).to_be_true();
+			}
+		}
+		// Rows past legacy's eight: never written, however many rows the board's grid has. This is
+		// the assertion that would have caught a write past the end of `PadLEDs::image`.
+		for (int32_t y = kDisplayHeight; y < deluge::gfx::grid::kMaxGridRows; y++) {
+			for (int32_t x = 0; x < kDisplayWidth + kSideBarWidth; x++) {
+				expect(oversized[y][x] == RGB{0, 0, 0}).to_be_true();
+			}
 		}
 	});
 
@@ -533,7 +606,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 	// ---- the hooks deliberately left to the base ----------------------------------------------
 
-	it("leaves graphicsRoutine to the base, which is what keeps the view underneath animating", _ {
+	it("does not override graphicsRoutine, so the base's forward to the root view survives", _ {
 		Rig r;
 		r.base.occludes = false;
 		expect(r.open()).to_be_true();
@@ -541,10 +614,18 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		static_cast<::UI&>(r.guest).graphicsRoutine();
 
-		// The base implementation ran -- the guest does not override it. `SoundEditor` does not
-		// either, and the base's body is "run the root view's animation if `canSeeViewUnderneath()`"
-		// (`gui/ui/ui.cpp:47-51`).
+		// **What this proves, precisely: non-override.** The fake replaces `UI::graphicsRoutine`'s
+		// body with a counter (`gui/support/fake_legacy_ui.cpp`), because the real body needs
+		// `getRootUI()` and a legacy view tree this suite does not build -- so reaching the counter
+		// says the call landed on the base, and says nothing about a root view animating. That the
+		// base's real body then runs the root's animation while `canSeeViewUnderneath()` is a claim
+		// about `gui/ui/ui.cpp:47-51`, read, not driven here. The example's job is the half that can
+		// regress silently: `ShellHostUI` adding an override.
 		expect(fakelegacyui::graphics_routines).to_equal(1);
+		// And the predicate the base gates on, evaluated by the fake, is the one the guest answers
+		// true for on a non-occluding scene -- so if a future override did appear, the thing it
+		// would be suppressing is a live `true`.
+		expect(r.guest.canSeeViewUnderneath()).to_be_true();
 	});
 
 	it("asks the shell for a repaint when the display or language changed, and still tells legacy", _ {

@@ -64,9 +64,19 @@ bool ShellHostUI::opened() {
 	// `SoundEditor::opened` calling `beginScreen()` (`gui/ui/sound_editor.cpp:259-273`), which
 	// begins a menu session rather than resuming one.
 	shell_.stack().reset();
-	// Ports legacy's "the panel is stale, draw it whatever the gates think" -- a repaint requested
-	// on every surface, nothing pushed (`shell/shell.cpp:230-239`).
-	shell_.boot();
+
+	// **No `Shell::boot()` here, and its absence is deliberate.** The first version of this function
+	// called it, on the reasoning that the panels want a repaint on the way in. They do, and they
+	// get one without it: `SceneStack::reset` sets `changed_` unconditionally
+	// (`shell/scene_stack.cpp:201-202`) and a successful `push` sets it too (`:39`), and
+	// `Shell::tick` reacts to `changed_since_last_query()` by requesting a repaint on **every** OLED
+	// surface, the grid and the widgets gate before it renders anything
+	// (`shell/shell.cpp:328-340`) -- which is the same three things `boot()` does
+	// (`shell/shell.cpp:230-239`). So the call was dead, and the F1 task 5 review round caught it
+	// the only way dead code gets caught here: a mutation that deleted it survived. Deleted rather
+	// than left in with a comment, because a redundant repaint request reads as a load-bearing one
+	// to the next person. `displayOrLanguageChanged` still calls `boot()`, where there is no stack
+	// change to ride on and the mutation dropping it is killed.
 
 	const size_t before = shell_.stack().depth();
 	shell_.init(initial_);
@@ -154,6 +164,28 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// `doGreyout` true also writes a non-zero `*cols` (`:232`, `:237`, `:245`, `:252`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
 	// one place that equivalence is turned back into legacy's two-out-parameters-plus-bool shape.
+	//
+	// @warning **KNOWN DEFECT, in this hook: under the guest the greyout is applied TWICE.** Legacy
+	//          greys exactly once, in the *send* path -- `prepareColour`
+	//          (`hid/led/pad_leds.cpp:283-298`, the tint at `:293-296`) reads the module-level
+	//          `greyoutCols`/`greyoutRows` that `reassessGreyout` fills from this very function
+	//          (`hid/led/pad_leds.cpp:734-735`, via `getUIGreyoutColsAndRows`), and never mutates
+	//          `PadLEDs::image`. The shell has no send stage to hook, so it greys its own grid in
+	//          place instead: `Shell::render_grid` runs `ui::grid::greyout` over `greyout_`
+	//          (`shell/shell.cpp:753-759`), the OR of every stacked scene's mask (`:328-334`). Those
+	//          already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
+	//          which writes `PadLEDs::image` and calls `sortLedsForCol` -- i.e. straight back through
+	//          `prepareColour`, which greys them a second time for whatever this function reported.
+	//          A pad the menu greys is therefore darker under the guest than under `SoundEditor`.
+	//
+	//          Not fixed here, and the alternative was considered rather than skipped: answering
+	//          `false` unconditionally would stop the double tint but would hand the greyout decision
+	//          to the UI *underneath* (`gui/ui/ui.cpp:73-83` takes the first UI that says true),
+	//          which is a different wrong answer -- the clip view would grey by its own rules while
+	//          the menu is up. The real fixes are a `Shell` seam that separates "compose" from
+	//          "tint", or the guest reporting an empty mask while the shell owns the tint end to
+	//          end; both are shell changes and belong with the tick (F1 task 7) or the acceptance
+	//          round, not with this hook. It is a brightness difference, not a wrong pad.
 	const deluge::ui::grid::GreyoutMask mask = shell_.stack().top().greyout_mask();
 	if (mask.cols == 0 && mask.rows == 0) {
 		return false;
@@ -225,6 +257,18 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 
 	const deluge::gfx::grid::PadGrid& grid = surfaces_.grid().grid();
 	const deluge::gfx::grid::GridDimensions dims = grid.dims();
+	// **Both clamps are load-bearing, and neither is covered by `canOpen()`.**
+	// `GuestSurfaceSet::canReachMainPanel` asks about the *panel's* shape and says nothing about the
+	// grid (`gui/ui/shell_guest_surfaces.h`), and `SurfaceSet::build` sizes the grid straight from
+	// `DelugeBoard::pad_grid_width`/`pad_grid_height` and `BoardProfile::sidebar_cols`
+	// (`shell/surfaces.cpp:26-28`) with no reference to legacy's numbers at all -- a `PadGrid` may be
+	// up to `kMaxGridRows` x `kMaxGridCols` = 16 x 32 (`gfx/grid/pad_grid.h:30-32`) while
+	// `PadLEDs::image` is fixed at `[kDisplayHeight][kDisplayWidth + kSideBarWidth]` = 8 x 18
+	// (`hid/led/pad_leds.h:33`). So a profile with a taller or wider grid than legacy's is the case
+	// these two `min`s exist for, and dropping either writes past the end of legacy's buffer rather
+	// than merely painting a wrong pad. Both are mutation-covered by the tall/wide-grid board in
+	// `tests/spec/gui/shell_host_ui_spec.cpp` (F1 task 5 review round, Important 1: both survived
+	// the first pass because no example varied grid dimensions at all).
 	const int32_t rows = std::min<int32_t>(dims.rows, kDisplayHeight);
 	const int32_t last = std::min<int32_t>(x1, dims.cols());
 	for (int32_t y = 0; y < rows; y++) {
@@ -235,6 +279,24 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 			image[y][x] = grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
 		}
 	}
+	// **Two things about this buffer that are true and are not defects here, recorded because the
+	// next reader of this function is the one who needs them** (F1 task 5 review round).
+	//
+	//  1. **Two paths now write `PadLEDs::image`.** `GuestSurfaceSet::send_columns` writes it and
+	//     calls `sortLedsForCol` on the shell's own flush; this writes it again when legacy pulls.
+	//     They agree -- same grid, same rows -- but when the guest answers transparent, legacy keeps
+	//     walking down and the UI underneath overwrites these rows
+	//     (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`, the `usedUp` test at `:329-337`).
+	//     For the first tenant that is exactly right: `SoundEditor` renders no pads at all.
+	//  2. **Legacy's menu blink is a hardware flash; the port's is a framebuffer write.**
+	//     `SoundEditor`'s shortcut blink calls `PadLEDs::flashMainPad`
+	//     (`gui/ui/sound_editor.cpp:959-1002`, the calls at `:983` and `:994`), which goes straight
+	//     to `deluge_control_flash_pad` (`hid/led/pad_leds.h:128-135`) and never touches `image`, so
+	//     a root-view repaint cannot wipe it. `MenuScene` paints its blinks into the shell's grid,
+	//     which reaches the pads through `image` -- so a root-view repaint *can* erase one until the
+	//     shell's next flush re-sends it. Whether that is visible is a question about the tick's
+	//     cadence, i.e. F1 task 7's.
+	//
 	// `occupancyMask` is deliberately untouched, and this is the same gap F1 task 4 recorded for
 	// `GuestSurfaceSet::send_columns`: nothing in the shell populates an occupancy map, and
 	// inventing one here would be the guest making up a fact about legacy's buffer.
@@ -261,39 +323,68 @@ bool ShellHostUI::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + 
 // ---------------------------------------------------------------------------------------------
 
 ActionResult ShellHostUI::exitUI() {
-	// **What this hook is in legacy.** It is the long-press-Back exit, and nothing else: `Buttons`
-	// arms `TimerName::BACK_MENU_EXIT` for `LONG_PRESS_DURATION` when Back goes down and unsets it
-	// on release (`hid/buttons.cpp:109-121`), and the timer manager is the *only* caller
+	// **What this hook is in legacy.** Chiefly the long-press-Back exit: `Buttons` arms
+	// `TimerName::BACK_MENU_EXIT` for `LONG_PRESS_DURATION` when Back goes down and unsets it on
+	// release (`hid/buttons.cpp:114-121`), and the timer manager calls this from that arm
 	// (`gui/ui_timer_manager.cpp:149-155`). `SoundEditor::exitUI` is `exitCompletely()`
 	// (`gui/ui/sound_editor.h:130`), which leaves the whole menu however deep it was, not one
 	// level of it (`gui/ui/sound_editor.cpp:693-734`).
 	//
 	// **The brief's stated mechanism does not exist, and this is the correction.** F1's task-5
 	// brief and spec F §2.1 both say this "returns `NOT_DEALT_WITH` when the stack is empty so
-	// `closeUI` pops the guest". No caller reads that: `ui_timer_manager.cpp:150-153` stores the
-	// result and tests it against `REMIND_ME_OUTSIDE_CARD_ROUTINE` alone, and there is no `closeUI`
-	// anywhere in that path. I grepped every reference to `exitUI` under `src/` -- the only call
-	// sites are that one, plus `RenameUI` and `SampleMarkerEditor` calling their own. Every legacy
-	// implementation closes *itself*: `RenameUI::exitUI` is `close(); return
-	// ACTIONED_AND_CAUSED_CHANGE;` (`gui/ui/rename/rename_ui.cpp:88-91`),
-	// `SampleMarkerEditor::exitUI` is the same two lines
-	// (`gui/ui/sample_marker_editor.cpp:680-683`), and `exitCompletely` calls `close()` at
+	// `closeUI` pops the guest". Neither caller does that; every legacy implementation closes
+	// *itself*. `RenameUI::exitUI` is `close(); return ACTIONED_AND_CAUSED_CHANGE;`
+	// (`gui/ui/rename/rename_ui.cpp:88-91`), `SampleMarkerEditor::exitUI` is the same two lines
+	// (`gui/ui/sample_marker_editor.cpp:680-683`), `Browser::exitUI` is `exitAction()` and the same
+	// value (`gui/ui/browser/browser.h:133-136`), and `exitCompletely` calls `close()` at
 	// `gui/ui/sound_editor.cpp:723`. A guest that only returned a value would trap the user inside
 	// itself, because nothing on the other end acts on it.
 	//
-	// So both directions, spelled out:
+	// @par The two readers of the return value, measured
+	//
+	// `grep -rn "exitUI" src/ | grep -v exitUIMode` is 26 lines; two of them read what comes back,
+	// and they read it for different values:
+	//
+	//   * `gui/ui_timer_manager.cpp:150-153` stores it and tests only for
+	//     `REMIND_ME_OUTSIDE_CARD_ROUTINE`, to re-arm the timer. There is no `closeUI` in that path.
+	//   * `gui/ui/keyboard/layout/column_controls.cpp:89` tests for
+	//     `ACTIONED_AND_CAUSED_CHANGE`, and on it calls `keyboardScreen.killColumnSwitchKey(LEFT_COL)`
+	//     -- the keyboard sidebar's menu-exit pad, behind
+	//     `RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit` (`:86-87`).
+	//
+	// **Two divergences from legacy follow, and both are recorded rather than fixed.**
+	//
+	//   1. Every legacy UI that closes itself here returns `ACTIONED_AND_CAUSED_CHANGE`; this one
+	//      returns `NOT_DEALT_WITH`, which is what the brief asks for and what "this UI is gone and
+	//      dealt with nothing that outlives it" honestly says. Inert today: that second caller runs
+	//      inside `KeyboardScreen`'s pad handling, and while the guest is open `getCurrentUI()` is
+	//      the guest, whose inherited `padAction` returns `DEALT_WITH` (`gui/ui/ui.h:97`) before any
+	//      keyboard layout sees the pad. **It stops being inert the moment F1 task 6 routes pads**,
+	//      and the fix then is one line here.
+	//   2. The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` can
+	//      (`gui/ui/sound_editor.cpp:695-709`, the return at `:698`) when the settings menu is
+	//      exiting while `isSDRoutineActive()`. It is the tail of a larger gap in the same block:
+	//      leaving the *settings* menu is what writes `FlashStorage`, the MIDI devices file, the
+	//      runtime-feature settings and the MIDI-follow defaults (`:703-709`), and **nothing on the
+	//      guest's exit path does any of that**. The guest cannot know it is in a settings root --
+	//      that is a `MenuScene`/entry-point fact -- so it belongs with F1 task 9, which maps the
+	//      fourteen callers to `SceneId`s and is the first place that knows. Under the toggle,
+	//      settings edited in the ported menu are not persisted on exit.
+	//
+	// So both directions of the contract this task does own, spelled out:
 	//
 	//  - **Shell stack still occupied after the pop** -- something inside the guest took the exit.
 	//    `DEALT_WITH`, and the guest stays open. Returning `NOT_DEALT_WITH` here would be a lie
 	//    about a press that was consumed, and closing here would pop the guest a level early.
 	//  - **Shell stack empty after the pop** -- the guest has nothing left to show and is itself
 	//    what Back leaves. `close()` (which is `closeUI(this)`, `gui/ui/ui.cpp:57-59`), then
-	//    `NOT_DEALT_WITH`: the value the brief asks for, and honest, since after `close()` this UI
-	//    is no longer on the hierarchy and dealt with nothing that outlives it.
-	if (shell_.stack().depth() != 0) {
-		// `pop()` with no argument is "just the top" (`shell/scene_stack.h:69-73`).
-		shell_.stack().pop();
-	}
+	//    `NOT_DEALT_WITH`.
+	//
+	// `pop()` with no argument is "just the top" (`shell/scene_stack.h:69-73`), and it is called
+	// unguarded: `SceneStack::pop` returns immediately on an empty stack
+	// (`shell/scene_stack.cpp:63-66`), so a `depth() != 0` test here would be a second copy of a
+	// check the stack already makes -- and one that reads as though the call were unsafe without it.
+	shell_.stack().pop();
 	if (shell_.stack().depth() != 0) {
 		return ActionResult::DEALT_WITH;
 	}
