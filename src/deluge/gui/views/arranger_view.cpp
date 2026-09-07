@@ -856,6 +856,31 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 	return newInstrument;
 }
 
+// Extracted verbatim from auditionPadAction()'s `if (!output)` branch -- see the header doc.
+void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed) {
+
+	int32_t minY = -currentSong->arrangementYScroll - 1;
+	int32_t maxY = -currentSong->arrangementYScroll + currentSong->getNumOutputs();
+
+	yPressedEffective = std::max((int32_t)yPressed, minY);
+	yPressedEffective = std::min((int32_t)yPressedEffective, maxY);
+
+	bool instrumentAlreadyInSong; // Will always end up false
+
+	Output* output = createNewInstrument(OutputType::SYNTH, &instrumentAlreadyInSong);
+	if (!output) {
+		return;
+	}
+
+	if (!instrumentAlreadyInSong) {
+		currentSong->addOutput(
+		    output,
+		    (yPressedEffective == -currentSong->arrangementYScroll - 1)); // This should always be triggered
+	}
+
+	outputsOnScreen[yPressedEffective] = output;
+}
+
 void ArrangerView::auditionPadAction(bool on, int32_t y, UI* ui) {
 
 	int32_t note = (currentSong->key.rootNote + 120) % 12;
@@ -888,27 +913,11 @@ doNewPress:
 
 			// If nothing on this row yet, we'll add a brand new Instrument
 			if (!output) {
-
-				int32_t minY = -currentSong->arrangementYScroll - 1;
-				int32_t maxY = -currentSong->arrangementYScroll + currentSong->getNumOutputs();
-
-				yPressedEffective = std::max((int32_t)yPressedEffective, minY);
-				yPressedEffective = std::min((int32_t)yPressedEffective, maxY);
-
-				bool instrumentAlreadyInSong; // Will always end up false
-
-				output = createNewInstrument(OutputType::SYNTH, &instrumentAlreadyInSong);
+				beginNewInstrumentAcquisition(yPressedEffective);
+				output = outputsOnScreen[yPressedEffective];
 				if (!output) {
 					return;
 				}
-
-				if (!instrumentAlreadyInSong) {
-					currentSong->addOutput(
-					    output,
-					    (yPressedEffective == -currentSong->arrangementYScroll - 1)); // This should always be triggered
-				}
-
-				outputsOnScreen[yPressedEffective] = output;
 			}
 
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;

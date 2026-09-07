@@ -153,6 +153,16 @@ private:
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
 	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
+	/// @brief The new-instrument acquisition gesture: create a SYNTH Instrument for the empty row
+	///        at `yPressed` and place it on screen.
+	///
+	/// Extracted verbatim from the pad-press handler's `if (!output)` branch (auditionPadAction) so
+	/// the song-preview A/B harness's BrowserListingAbProbe can drive the SAME gesture entry point a
+	/// pad press uses, rather than restating it. Writes `yPressedEffective` (clamped into the visible
+	/// row range) and `outputsOnScreen[yPressedEffective]`; leaves both untouched if acquisition
+	/// fails, mirroring the caller's `if (!output) { return; }`.
+	/// @param yPressed The row the gesture was pressed on, before clamping.
+	void beginNewInstrumentAcquisition(int32_t yPressed);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);
@@ -169,6 +179,8 @@ private:
 	void deleteClipInstance(Output* output, ClipInstance* clipInstance);
 	void createNewClipForClipInstance(Output* output, ClipInstance* clipInstance);
 	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);
+
+	friend class BrowserListingAbProbe;
 };
 
 extern ArrangerView arrangerView;

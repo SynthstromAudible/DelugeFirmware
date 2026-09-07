@@ -20,12 +20,19 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/load/load_instrument_preset_ui.h" // presetDispatches(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h" // the converted caller, driven end to end below
+#include "gui/views/arranger_view.h"  // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
 #include "hid/led/pad_leds.h"         // the image both backings render into
 #include "io/file.hpp"                // the card swap's unlink + rename
 #include "libdeluge/file_directory.h" // deluge_file_directory_async_active
 #include "libdeluge/file_prefix.h"    // deluge_file_prefix_async_active
+#include "model/mod_controllable/mod_controllable_audio.h" // the cast writeToFile's backed-up-paramManager lookup needs
+#include "model/output.h"                                  // Output::name, read by the acquire stage
+#include "model/song/song.h"                               // currentSong, getNonAudioInstrumentToSwitchTo
+#include "modulation/params/param_manager.h"               // ParamManagerForTimeline, for the preset fixture writer
+#include "processing/sound/sound_instrument.h"             // setupAsBlankSynth(), for the preset fixture writer
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/owner.h"
@@ -205,6 +212,13 @@ public:
 	/// `Browser::fileIndexSelected` is protected; the snapshot needs it, and it is half of what
 	/// "the listing finished the same way" means.
 	static int32_t selectedIndex() { return Browser::fileIndexSelected; }
+
+	/// Drives ArrangerView's REAL new-instrument pad gesture, rather than restating its callee
+	/// (createNewInstrument) directly: a later task converts this gesture's CALLER, not the callee,
+	/// and a probe that skipped it would keep testing the unconverted path forever.
+	static void beginNewInstrumentAcquisition(int32_t yPressed) {
+		arrangerView.beginNewInstrumentAcquisition(yPressed);
+	}
 };
 
 namespace {
@@ -385,7 +399,7 @@ constexpr int32_t kMaxCaseTicks = 2000;
 // ── State ───────────────────────────────────────────────────────────────────
 
 /// Which stage `dispatch_step` is in, in order.
-enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Listing, Done };
+enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Listing, Acquire, Done };
 Stage g_stage = Stage::Cases;
 
 /// Where the swap stage is in the sequence above.
@@ -1514,6 +1528,223 @@ void runListingTick() {
 	}
 }
 
+// ---- Acquire stage -------------------------------------------------------
+
+/// Write a real, loadable synth preset to `path` by round-tripping the SAME production path a
+/// "new synth" gesture and a preset save use -- StorageManager::createNewInstrument() +
+/// SoundInstrument::setupAsBlankSynth(), then Output::writeToFile() -- rather than hand-writing an
+/// XML stub.
+///
+/// A minimal `<sound></sound>` with no param-collection tags at all is not a shape any real preset
+/// takes: nothing in it ever calls ENSURE_PARAM_MANAGER_EXISTS (sound.cpp), so
+/// loadInstrumentFromFile finds no backed-up ParamManager, takes its FILE_CORRUPTED/delete cleanup
+/// path (storage_manager.cpp, `paramManagersMissing`), and segfaults freeing the Instrument -- a
+/// real, pre-existing bug, found by running this gate, and not this stage's to fix (see the task
+/// report). Building the fixture from a real Instrument sidesteps it and is more representative of
+/// what the acquisition walk actually reads on a card.
+///
+/// The helper Instrument is deliberately leaked: it is never added to currentSong (no addOutput
+/// call), so nothing else ever scans it, and this is a short-lived test process.
+bool writeBlankSynthPresetFile(const char* path) {
+	ParamManagerForTimeline paramManager;
+	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	if (instrument == nullptr) {
+		return false;
+	}
+	static_cast<SoundInstrument*>(instrument)->setupAsBlankSynth(&paramManager, false);
+	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
+	                                &paramManager, true);
+
+	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
+	if (error != Error::NONE) {
+		return false;
+	}
+	instrument->writeToFile(nullptr, currentSong);
+	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</sound>\n");
+	return error == Error::NONE;
+}
+
+/// Create a directory of `count` real synth presets. Mirrors buildFixtureDir(), which writes SONG
+/// xml -- a synth preset's root tag is "sound" (storage_manager.cpp:300), and a file whose root tag
+/// is wrong fails to load, which would make every acquisition here fail identically on both legs
+/// and the comparison pass while covering nothing.
+bool buildPresetFixture(const char* dir, int32_t count) {
+	(void)deluge::io::mkdir(dir);
+	for (int32_t i = 0; i < count; i++) {
+		char path[64];
+		snprintf(path, sizeof(path), "%s/PRESET%02d.XML", dir, static_cast<int>(i));
+		auto existing = deluge::io::File::open(path, DELUGE_FILE_READ);
+		if (existing.has_value()) {
+			(void)existing->close();
+			continue; // already present from a previous run
+		}
+		if (!writeBlankSynthPresetFile(path)) {
+			printf("SP-ACQUIRE FAIL could not write preset fixture %s\n", path);
+			return false;
+		}
+	}
+	auto opened = deluge::io::Directory::open(dir);
+	if (!opened.has_value()) {
+		printf("SP-ACQUIRE FAIL could not open fixture %s\n", dir);
+		return false;
+	}
+	int32_t counted = 0;
+	while (true) {
+		auto entry = opened->read();
+		if (!entry.has_value() || !entry->has_value()) {
+			break;
+		}
+		if ((*entry)->name[0] != '.') {
+			counted++;
+		}
+	}
+	if (counted < count) {
+		printf("SP-ACQUIRE FAIL fixture %s has %d entries, needs %d\n", dir, counted, count);
+		return false;
+	}
+	return true;
+}
+
+// Drives the REAL gesture entry point that acquires an instrument -- ArrangerView::
+// beginNewInstrumentAcquisition(), extracted verbatim from the pad-press handler -- which is the
+// only thing that exercises findAnUnlaunchedPresetIncludingWithinSubfolders' recursive descent (see
+// the rung 5 spec, section 2b). Every leg runs it synchronously today; a later task converts the
+// PAD-PRESS CALLER, not this method, onto the storage channel -- so driving this entry point (rather
+// than createNewInstrument() directly) is what keeps this gate covering the converted path once that
+// happens. A folder is not enough on its own -- the walk only recurses when the top level holds a
+// subfolder, so the fixture below plants one.
+enum class AcquireStep : uint8_t { Fixture, Reference, Converted, Coalesce, NonAudio, Finished };
+AcquireStep g_acquireStep = AcquireStep::Fixture;
+
+// The INSTRUMENT folder, not a song folder: findAnUnlaunchedPresetIncludingWithinSubfolders reads
+// getInstrumentFolder(outputType), which is "SYNTHS". BIGLIST holds song XML and would make every
+// acquisition fail identically on both legs -- a gate comparing two failures.
+constexpr const char* kAcqDir = "SYNTHS";
+constexpr const char* kAcqSubDir = "SYNTHS/NESTED";
+// The row the gesture is pressed on. `beginNewInstrumentAcquisition` clamps this into
+// [-arrangementYScroll-1, -arrangementYScroll+getNumOutputs()] and stores the CLAMPED value back
+// into `yPressedEffective` before it ever indexes `outputsOnScreen` -- arrangementYScroll is not 0
+// by the time this stage runs (the arranger view auto-scrolls as outputs are added by earlier
+// gestures in this same stage), so the row actually written can differ from this one. Read back via
+// `arrangerView.yPressedEffective`, not this constant, for exactly that reason.
+constexpr int32_t kAcqRow = 0;
+// Read from the production counter once it exists (Task 2 adds
+// LoadInstrumentPresetUI::presetDispatches()); 0 before then, which is why the NonAudio check below
+// is inert until Task 3.
+int32_t acqDispatches() {
+	return LoadInstrumentPresetUI::presetDispatches();
+}
+int32_t g_acqLoads = 0;         // acquisitions that actually ran
+std::string g_acqReferenceName; // the instrument the synchronous leg settled on
+
+/// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
+/// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
+std::string acquiredName(Output* output) {
+	return (output != nullptr) ? output->name : std::string{};
+}
+
+/// Run the acquisition gesture on row `kAcqRow` and report the name it settled on. Reads back
+/// through `arrangerView.yPressedEffective` (see `kAcqRow`'s doc) -- exactly what the real pad
+/// handler does immediately after this same call (arranger_view.cpp).
+std::string runAcquisitionGesture() {
+	Browser::currentDir = kAcqDir;
+	BrowserListingAbProbe::beginNewInstrumentAcquisition(kAcqRow);
+	return acquiredName(arrangerView.outputsOnScreen[arrangerView.yPressedEffective]);
+}
+
+/// Undo the acquisition gesture's `addOutput`, so the SAME preset is available to the next gesture
+/// on the same row.
+///
+/// Without this, `Availability::INSTRUMENT_UNUSED` (createNewInstrument's own filter,
+/// arranger_view.cpp) excludes whatever the last gesture settled on from the very next search: two
+/// gestures in a row always land on two DIFFERENT presets, never the same one twice. Left alone,
+/// AcquireStep::Converted would be comparing a DIFFERENT question ("what's the next unused preset
+/// after PRESET00?") against the reference's, not the same question asked twice through a different
+/// backing -- which is what this stage exists to check.
+void releaseAcquiredInstrument() {
+	Output* acquired = arrangerView.outputsOnScreen[arrangerView.yPressedEffective];
+	if (acquired == nullptr) {
+		return;
+	}
+	arrangerView.outputsOnScreen[arrangerView.yPressedEffective] = nullptr;
+	currentSong->deleteOutputThatIsInMainList(acquired);
+}
+
+void runAcquireTick() {
+	switch (g_acquireStep) {
+	case AcquireStep::Fixture: {
+		// Synth presets, and a nested folder holding one: without the subfolder the reader never
+		// recurses (spec section 2b) and this stage tests the flat path twice.
+		if (!buildPresetFixture(kAcqDir, 8) || !buildPresetFixture(kAcqSubDir, 2)) {
+			printf("SP-ACQUIRE FAIL could not build the preset fixture under %s\n", kAcqDir);
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::Reference;
+		break;
+	}
+	case AcquireStep::Reference: {
+		g_acqReferenceName = runAcquisitionGesture();
+		printf("SP-ACQUIRE reference name=%s\n", g_acqReferenceName.c_str());
+		if (g_acqReferenceName.empty()) {
+			printf("SP-ACQUIRE FAIL reference acquired nothing -- the stage would compare two failures\n");
+			g_failures++;
+		}
+		else {
+			// Release it so AcquireStep::Converted asks the SAME question the reference did, rather
+			// than the next one along -- see releaseAcquiredInstrument's doc.
+			releaseAcquiredInstrument();
+		}
+		g_acquireStep = AcquireStep::Converted;
+		break;
+	}
+	case AcquireStep::Converted: {
+		// Re-run the same gesture and require the same instrument. On the dir leg this goes
+		// through the channel; on the others it does not. Either way the ANSWER must match.
+		const std::string name = runAcquisitionGesture();
+		g_acqLoads++;
+		printf("SP-ACQUIRE converted name=%s dispatches=%d\n", name.c_str(), acqDispatches());
+		if (name != g_acqReferenceName) {
+			printf("SP-ACQUIRE FAIL converted acquired %s, reference acquired %s\n", name.c_str(),
+			       g_acqReferenceName.c_str());
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::Coalesce;
+		break;
+	}
+	case AcquireStep::Coalesce: {
+		// Three gestures with no owner tick between them. Under coalescing this must produce
+		// FEWER loads than gestures; synchronously it produces exactly three.
+		const int32_t before = g_acqLoads;
+		for (int32_t i = 0; i < 3; ++i) {
+			(void)runAcquisitionGesture();
+			g_acqLoads++;
+		}
+		printf("SP-ACQUIRE coalesce gestures=3 loads=%d\n", g_acqLoads - before);
+		g_acquireStep = AcquireStep::NonAudio;
+		break;
+	}
+	case AcquireStep::NonAudio: {
+		// The MIDI/CV fast path (spec section 2c): no card, and so no dispatch at all.
+		// NOTE: inert until Task 3 -- presetDispatches() is 0 before the op exists, so
+		// this passes trivially here. It becomes a real check when dispatchPresetAcquisition()
+		// starts counting.
+		const int32_t before = acqDispatches();
+		bool alreadyInSong = false;
+		(void)currentSong->getNonAudioInstrumentToSwitchTo(OutputType::CV, Availability::INSTRUMENT_UNUSED, 0, -1,
+		                                                   &alreadyInSong);
+		printf("SP-ACQUIRE nonaudio dispatches=%d\n", acqDispatches() - before);
+		if (acqDispatches() != before) {
+			printf("SP-ACQUIRE FAIL a CV switch dispatched a storage op; it reads no card\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::Finished;
+		break;
+	}
+	case AcquireStep::Finished:
+		break;
+	}
+}
+
 void printSummary() {
 	const bool async = deluge_file_prefix_async_active();
 	printf("SP-SUMMARY asyncActive=%d cases=%zu corpus=%zu failures=%d\n", async ? 1 : 0, kCases.size(), g_corpusRan,
@@ -1543,6 +1774,8 @@ void printSummary() {
 		       g_corpusRan);
 		g_failures++;
 	}
+	printf("SP-ACQUIRE-SUMMARY loads=%d dispatches=%d\n", g_acqLoads, acqDispatches());
+
 	printf("SP-RESULT failures=%d\n", g_failures);
 	fflush(stdout);
 }
@@ -1583,6 +1816,9 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_listingReference = ListingSnapshot{};
 	g_itemsWhenRunBegan = 0;
 	g_sawBlankWhileSuspended = false;
+	g_acquireStep = AcquireStep::Fixture;
+	g_acqLoads = 0;
+	g_acqReferenceName.clear();
 
 	// Line-buffer stdout for the rest of the run. The platform driver ends the process with a raw
 	// `exit_group` syscall, which flushes NOTHING of C's stdio -- so a block-buffered stdout, which is
@@ -1625,6 +1861,12 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 	case Stage::Listing:
 		runListingTick();
 		if (g_listingStep == ListingStep::Finished) {
+			g_stage = Stage::Acquire;
+		}
+		break;
+	case Stage::Acquire:
+		runAcquireTick();
+		if (g_acquireStep == AcquireStep::Finished) {
 			g_stage = Stage::Done;
 			printSummary();
 			g_summaryPrinted = true;

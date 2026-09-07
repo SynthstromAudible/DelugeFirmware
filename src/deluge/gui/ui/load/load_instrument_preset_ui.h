@@ -127,6 +127,13 @@ public:
 	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
 	bool canDisplayFavourites() override { return true; }
 
+	/// @brief How many preset-acquisition dispatches have run since boot.
+	///
+	/// Nothing increments this yet -- a later task wires it to dispatchPresetAcquisition(). Read by
+	/// the song-preview A/B harness's acquisition stage, which is inert until that dispatch exists.
+	/// @return The running dispatch count.
+	[[nodiscard]] static int32_t presetDispatches() { return presetDispatches_; }
+
 protected:
 	void enterKeyPress() override;
 	void folderContentsReady(int32_t entryDirection) override;
@@ -188,6 +195,9 @@ private:
 
 	std::string initialName{};
 	std::string initialDirPath{};
+
+	/// @brief Backing counter for presetDispatches(). Nothing increments it yet.
+	static inline int32_t presetDispatches_{};
 };
 
 extern LoadInstrumentPresetUI loadInstrumentPresetUI;

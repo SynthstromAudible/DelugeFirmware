@@ -144,7 +144,7 @@ run_leg() {
 	# Each stage prints exactly one of these. Its absence means the run reached SP-RESULT without
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
-	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY; do
+	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-ACQUIRE-SUMMARY; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1
@@ -196,6 +196,20 @@ if echo "$FILE_LISTING" | grep -qv 'deferrals=0'; then
 	exit 1
 fi
 echo "directory channel: listings identical to a direct open, and every one of them deferred"
+
+# The acquisition must reach the same instrument on every leg. Compared against the file leg,
+# which never touches the channel, so a difference can only come from the conversion.
+for tag in prefix dir; do
+	ref=$(grep '^SP-ACQUIRE converted ' "$OUT_ROOT/file.txt" | head -1)
+	got=$(grep '^SP-ACQUIRE converted ' "$OUT_ROOT/$tag.txt" | head -1)
+	# Compare the name field only; the dispatch count legitimately differs between legs.
+	if [ "${ref%% dispatches=*}" != "${got%% dispatches=*}" ]; then
+		echo "FAIL — the $tag leg acquired a different instrument:"
+		echo "  file: $ref"
+		echo "  $tag: $got"
+		exit 1
+	fi
+done
 
 # Each leg must be the leg it claims to be. The file leg with asyncActive=1 (or the reverse) means
 # the two binaries were built the same way and the comparison is a build against itself.
