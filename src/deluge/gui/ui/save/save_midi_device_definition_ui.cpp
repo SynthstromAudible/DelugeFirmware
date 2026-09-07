@@ -131,6 +131,7 @@ void SaveMidiDeviceDefinitionUI::onBrowserOpened() {
 }
 
 bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
+	noteSaveTier();
 	MIDIInstrument* midiInstrumentToSave = (MIDIInstrument*)getCurrentInstrument();
 
 	std::string filePath = getCurrentFilePath();

@@ -273,6 +273,11 @@ unsafe extern "C" {
     fn deluge_scenario_audio_load_ab_step_done() -> bool;
     fn deluge_scenario_audio_load_ab_failures() -> i32;
 
+    fn deluge_scenario_save_roundtrip_begin();
+    fn deluge_scenario_save_roundtrip_complete() -> bool;
+    fn deluge_scenario_save_roundtrip_dispatch_step();
+    fn deluge_scenario_save_roundtrip_step_done() -> bool;
+    fn deluge_scenario_save_roundtrip_failures() -> i32;
     fn deluge_scenario_song_preview_ab_begin();
     fn deluge_scenario_song_preview_ab_complete() -> bool;
     fn deluge_scenario_song_preview_ab_dispatch_step();
@@ -941,6 +946,65 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
 const MAX_CORPUS_CASES: usize = 16;
 const _: () = assert!(MAX_CORPUS_CASES == 16);
 
+/// Drives the save round-trip gate: save a song through the real SaveSongUI gesture, load it back,
+/// overwrite it, and require the two written files to be identical.
+///
+/// Stepped rather than one blocking call for the same reason the song-preview A/B is: saving is
+/// dispatched onto the storage owner, so an op is only ENQUEUED when the gesture runs and each check
+/// must read its result on a later tick.
+#[embassy_executor::task]
+async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_save_roundtrip_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_save_roundtrip_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_save_roundtrip_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the save round-trip did not complete within the 600s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_save_roundtrip_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_save_roundtrip_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_save_roundtrip_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the save round-trip FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: save round-trip completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=song_preview_ab` scenario: draw every fixture song's artwork through the
 /// real `LoadSongUI`, printing each one's image fingerprint and decode outcome as a diffable
 /// `SP-CASE` line.
@@ -1117,6 +1181,7 @@ fn main() {
     let recorder_mode = scenario == "recorder_roundtrip";
     let audio_load_ab_mode = scenario == "audio_load_ab";
     let song_preview_ab_mode = scenario == "song_preview_ab";
+    let save_roundtrip_mode = scenario == "save_roundtrip";
     if song_preview_ab_mode && !cfg!(feature = "async_file_prefix") {
         // Refusing beats running, for the reason the audio-load check below gives: without
         // `async_file_prefix` this binary has no prefix channel compiled at all, so the "file
@@ -1228,6 +1293,8 @@ fn main() {
         spawner.spawn(run_audio_load_ab_scenario(&DONE).unwrap());
     } else if song_preview_ab_mode {
         spawner.spawn(run_song_preview_ab_scenario(&DONE).unwrap());
+    } else if save_roundtrip_mode {
+        spawner.spawn(run_save_roundtrip_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {

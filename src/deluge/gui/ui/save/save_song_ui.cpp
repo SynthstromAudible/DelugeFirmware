@@ -120,6 +120,7 @@ void SaveSongUI::focusRegained() {
 }
 
 bool SaveSongUI::performSave(bool mayOverwrite) {
+	noteSaveTier();
 
 	// Diagnostic only, not a hard invariant (see docs/dev/sd_busy_audit.md, save_song_ui.cpp): this
 	// used to FREEZE_WITH_ERROR("E316") here, back when sd_busy() was permanently false and the check

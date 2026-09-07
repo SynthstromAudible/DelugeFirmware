@@ -141,6 +141,7 @@ ActionResult SavePatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 }
 
 bool SavePatternUI::performSave(bool mayOverwrite) {
+	noteSaveTier();
 	std::string filePath = getCurrentFilePath();
 	Error error = Error::NONE;
 	if (error != Error::NONE) {

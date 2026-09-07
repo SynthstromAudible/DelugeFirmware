@@ -41,4 +41,21 @@ protected:
 	// void displayText(bool blinkImmediately) final;
 	void enterKeyPress() final;
 	static bool currentFolderIsEmpty;
+
+	/// The save round-trip gate drives the REAL ENTER gesture rather than performSave() underneath
+	/// it, so it needs the protected entry. Mirrors BrowserListingAbProbe's friendship in browser.h.
+	friend class SaveRoundtripProbe;
+
+public:
+	/// @brief How many times a performSave() body has begun on the INTERACTION tier.
+	///
+	/// Writing the card from there is the violation this rung exists to remove, so the gate asserts
+	/// this is zero. Counting rather than freezing lets the gate report the number before the
+	/// conversion as well as after it; the hard assertion lands alongside.
+	[[nodiscard]] static int32_t interactionTierSaves() { return interactionTierSaves_; }
+	/// @brief Record one performSave() entry. Call as the FIRST statement of every override.
+	static void noteSaveTier();
+
+private:
+	static inline int32_t interactionTierSaves_{};
 };

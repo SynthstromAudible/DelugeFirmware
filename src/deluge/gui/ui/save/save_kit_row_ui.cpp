@@ -88,6 +88,7 @@ void SaveKitRowUI::onBrowserOpened() {
 }
 
 bool SaveKitRowUI::performSave(bool mayOverwrite) {
+	noteSaveTier();
 	// We can't save into this slot if another Instrument in this Song already uses it
 	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.c_str(), currentDir.c_str(),
 	                                             false)) {

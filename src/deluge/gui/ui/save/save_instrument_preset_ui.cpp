@@ -144,6 +144,7 @@ void SaveInstrumentPresetUI::onBrowserOpened() {
 }
 
 bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
+	noteSaveTier();
 	Instrument* instrumentToSave = getCurrentInstrument();
 
 	bool isDifferentSlot = !deluge::string::caselessEquals(enteredText, instrumentToSave->name);

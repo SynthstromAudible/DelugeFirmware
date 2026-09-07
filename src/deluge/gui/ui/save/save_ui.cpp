@@ -24,6 +24,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "storage/file_item.h"
+#include "storage/owner.h"
 #include "storage/storage_manager.h"
 
 using namespace deluge;
@@ -119,5 +120,13 @@ ActionResult SaveUI::timerCallback() {
 	}
 	else {
 		return SlotBrowser::timerCallback();
+	}
+}
+
+void SaveUI::noteSaveTier() {
+	// Boot is the one legal exception: it writes before any interaction tier exists. Owner::started()
+	// is the same monotonic latch the TIR1-TIR4 reader checks use.
+	if (!deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
+		interactionTierSaves_++;
 	}
 }
