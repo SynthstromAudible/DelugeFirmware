@@ -699,16 +699,7 @@ void SevenSegment::setTextVeryBasicA1(char const* text) {
 void SevenSegment::freezeWithError(char const* text) {
 	setTextVeryBasicA1(text);
 
-	while (1) {
-		PIC::flush();
-		uartFlushIfNotSending(UART_ITEM_MIDI);
-
-		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-		if (anything && value == 175) {
-			break;
-		}
-	}
+	deluge::hid::display::wait_for_select_encoder_press();
 
 	setTextVeryBasicA1("OK");
 }
