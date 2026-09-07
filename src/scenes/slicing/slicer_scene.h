@@ -146,8 +146,13 @@
 /// legacy popup is a display overlay, not a UI; a shell popup is a `SceneKind::Popup` scene, and
 /// removing it calls `on_resume()` on the scene beneath (`shell/scene_stack.cpp:108-113`). So a
 /// tap on a slice pad -- which cancels a popup (`slicer.cpp:503`) or a Y_ENC press which raises one
-/// (`:301`) -- wiped forty hand-placed slices 800 ms later. `on_resume()` is now empty; the
-/// reasoning, the measurement and the shell asymmetry behind it are at the definition.
+/// (`:301`) -- wiped forty hand-placed slices 800 ms later. `on_resume()` is now empty.
+///
+/// **That empty body is a placeholder with an expiry date**, not the finished port: it is correct
+/// only while nothing real is pushed over the slicer. Restore the reset when `SceneStack` stops
+/// notifying on the removal of an `input_transparent()` scene. The reasoning, the measurement, the
+/// shell asymmetry and the restore instruction are all at the definition, and the carry row is in
+/// `src/scenes/README.md`'s E4 roadmap table.
 ///
 /// @par Two legacy defects found while porting, reproduced or clipped rather than fixed
 ///

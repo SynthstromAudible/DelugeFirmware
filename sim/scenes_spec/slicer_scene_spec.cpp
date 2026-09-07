@@ -85,9 +85,14 @@
 
 #include "support/song_fixture.h"
 
-// Before <cppspec.hpp>: it #defines `it`, which collides with every local named `it` in the project
-// headers this drags in.
-#include "support/card_access.h"
+// NOT `support/card_access.h`. Task 9 included it and used neither guard; task 10 deleted it, and
+// the reason is worth stating because the omission looks like one. `QuietAudio` disarms exactly one
+// landmine -- `FileCatalogue`'s `emptyFileItems`/`deleteSomeFileItems` pump
+// `AudioEngine::routineWithClusterLoading()` between chunks, and an un-booted engine dies in
+// `fillInputRing` (`card_access.h:59-81`). Nothing here drives a listing, and the card-touching half
+// of `Slicer::doSlice` is behind `SliceOps::commit`, whose fake performs no I/O -- so nothing in this
+// file reaches an audio-engine yield point at all. Holding the latch anyway would assert a card
+// touch that does not happen. `SdRoot` likewise: no file is opened.
 
 #include "spec/gfx/support/golden.h"
 #include "spec/shell/support/fake_surfaces.h"
@@ -327,7 +332,8 @@ struct Rig {
 	std::string popup() { return shell.notices().last_popup_text(); }
 
 	/// @return Is a popup scene on the stack right now? `Notices` pushes `SceneKind::Popup` for one
-	///         and `SceneStack::remove`s it on cancel or timeout (`shell/notices.cpp:283`).
+	///         and `SceneStack::remove`s it on cancel (`Notices::drain`'s `CancelPopup` case,
+	///         `shell/notices.cpp:282-289`) or on timeout (`Notices::tick`, `notices.cpp:327-350`).
 	bool popup_showing() {
 		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
 			if (s->kind() == SceneKind::Popup) {
@@ -1115,7 +1121,9 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		// user tapped a pad. See `SlicerScene::on_resume` for the whole argument.
 		//
 		// The popup here is raised by the scene's own Y_ENC arm (`slicer.cpp:301`), and the 800 ms
-		// is `Notices::timeout_for` (`shell/notices.h:340-356`).
+		// is `kPopupTimeoutMs` (`shell/notices.cpp:31`), returned by `Notices::timeout_for`
+		// (`notices.cpp:352-355`); the push is `Notices::show_popup_with_timeout`
+		// (`notices.cpp:301-325`) and the removal `Notices::tick` (`notices.cpp:327-350`).
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1350,7 +1358,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		// `:346` reads `numClips` in REGION mode, and nothing kills voices on that path (`:347-351`).
 		expect(ops.kill_voices_calls).to_equal(0);
 		// The gate is closed before dispatch and released by the op (`:363`, `:593`); on this BSP the
-		// dispatch is inline (`deluge_worker_run`, `task_scheduler_c_api.cpp:101-103`), so by the
+		// dispatch is inline (`deluge_worker_run`, `task_scheduler_c_api.cpp:101-104`), so by the
 		// time the tick returns it is open again.
 		expect(slicer_scene().committing()).to_be_false();
 	});
