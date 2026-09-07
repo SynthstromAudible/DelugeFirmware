@@ -36,7 +36,7 @@ Changes the current synth preset.
 #OFFICIAL #SYNTH
 
 ```shortcut
-hold(LOAD) + press(SYNTH), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
+hold(LOAD) + press(SYNTH), turn(SELECT), hold(LOAD), menu(CLONE), press(SELECT)
 ```
 
 A single preset can only appear in one active clip, so clone the original preset for multiple instances in the same song. It is good practice to clone first when tweaking to avoid affecting interdependent songs.
@@ -76,7 +76,7 @@ Deluge detects the pitch of provided samples regardless of filename, though for 
 #OFFICIAL #SYNTH
 
 ```shortcut
-hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT) + menu(NONE), press(SELECT)
+hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT), turn(SELECT) + menu(BASIC), press(SELECT)
 ```
 
 Hold Select and turn to choose BASIc, which loads a sample with no pitch detection.
@@ -86,7 +86,7 @@ Hold Select and turn to choose BASIc, which loads a sample with no pitch detecti
 #OFFICIAL #SYNTH
 
 ```shortcut
-hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT) + menu(NONE), press(SELECT)
+hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT), menu(MULTISAMPLES), press(SELECT)
 ```
 
 Scroll through folders to select a sample or parent folder for multi-samples. Hold Select and turn to choose MULTi for multi-sampling.
@@ -96,17 +96,17 @@ Scroll through folders to select a sample or parent folder for multi-samples. Ho
 #OFFICIAL #SYNTH
 
 ```shortcut
-hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT) + menu(NONE), press(SELECT)
+hold(AUDITION) + press(LOAD), press(SELECT), turn(SELECT), hold(SELECT), turn(SELECT) + menu(SINGLE_CYCLE), press(SELECT)
 ```
 
 Single-cycle waveforms should be under 20ms. Deluge automatically transposes to C and sets loop mode. Use the SINGle option to force samples into this mode.
 
-# External sound source
+# External oscillator sound source
 
 #OFFICIAL #SYNTH
 
 ```shortcut
-hold(SHIFT) + press(GRID), turn(SELECT), menu(NONE), press(PLAY)
+hold(SHIFT) + press(OSC_TYPE), turn(SELECT) + menu(OSCILLATOR_INPUT), press(SELECT)
 ```
 
 Use an external input as an oscillator source by selecting IN. You can pitch-shift around the source or play chords with several sequenced notes at once. A stereo-to-mono adapter can feed one source to OSC1 INL and another to OSC2 INR.

@@ -36,6 +36,15 @@
 extern "C" {
 #endif
 
+/// Peripheral-mode bulk-IN drain bound.
+///
+/// A receive is armed for one 64-byte packet, but the peripheral bulk pipe is double-buffered, so its BRDY
+/// handler can find more than the armed packet already ACKed by the hardware. It drains up to this many bytes
+/// in one go rather than dropping what arrived (see usb_pstd_brdy_pipe_process_rohan_midi()) -- which means it
+/// writes past the armed transfer length. The BSP's receive buffer must therefore be at least this large.
+#define USB_MIDI_RECEIVE_DRAIN_MAX_PACKETS 3
+#define USB_MIDI_RECEIVE_DRAIN_MAX_BYTES   (USB_MIDI_RECEIVE_DRAIN_MAX_PACKETS * 64)
+
 typedef enum UsbMidiCompletionKind {
     USB_MIDI_COMPLETION_RECEIVE = 0,    ///< bulk-IN done: deviceNum + bytesReceived are set
     USB_MIDI_COMPLETION_SEND_HOST,      ///< bulk-OUT done as host

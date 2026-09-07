@@ -8,27 +8,27 @@ sub-capability-order: 2
 #OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
-hold(GRID) + press(GRID_UNLIT)
+hold(GRID_UNLIT) + press(GRID)
 ```
 
-Select two grid buttons on the same row.
+Select two grid pads on the same row.
 
 # Make long note across the next screen
 
 #OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
-press(GRID), turn(X), hold(X) + press(GRID_UNLIT)
+press(GRID_UNLIT), turn(X), hold(X) + press(GRID)
 ```
 
-Move to the next screen, then select the two grid buttons on the same row.
+Move to the next screen, then select the grid pad on the same row.
 
 # Edit Note Repeat
 
 #OFFICIAL #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
 ```shortcut
-hold(GRID) + press(Y) + turn(Y)
+hold(GRID_LIT) + press(Y) + turn(Y)
 ```
 
 Adjusts selected note's repeats.
@@ -38,7 +38,7 @@ Adjusts selected note's repeats.
 #OFFICIAL #SYNTH #KIT #MIDI #CV
 
 ```shortcut
-hold(GRID) + turn(X)
+hold(GRID_LIT) + turn(X)
 ```
 
 Multiple notes can be selected. New notes default to the last velocity setting. Default velocity is 64, with a range of 0-127.
@@ -48,7 +48,7 @@ Multiple notes can be selected. New notes default to the last velocity setting. 
 #OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
 
 ```shortcut
-hold(GRID) + turn(SELECT)
+hold(GRID_LIT) + turn(SELECT)
 ```
 
 ```community
@@ -64,7 +64,7 @@ Community: A note can have both note probability and note iterance set.
 #OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
 
 ```shortcut
-hold(GRID) + turn(SELECT)
+hold(GRID_LIT) + turn(SELECT)
 ```
 
 Multiple notes can be selected.
@@ -275,7 +275,7 @@ Community: A note row can have both note probability and note iterance set.
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
 ```shortcut
-hold(GRID) + turn(X)
+hold(AUDITION) + turn(X)
 ```
 
 Adjusts the selected note row's velocity. All note's in the note row will be set with the same value.
@@ -295,7 +295,7 @@ Adjusts the selected note row's fill setting when the Community Feature is enabl
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
 ```shortcut
-hold(GRID) + press(SELECT)
+hold(GRID_LIT) + press(SELECT)
 ```
 
 Opens the note editor menu for the held note.
@@ -345,7 +345,7 @@ Exits the note row editor menu.
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
 ```shortcut
-press(Y) + turn(Y)
+hold(Y) + turn(Y)
 ```
 
 Transposes the selected note row while editing velocity data.

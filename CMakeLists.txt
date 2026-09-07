@@ -212,7 +212,12 @@ add_compile_options(
     $<$<CONFIG:DEBUG>:${DELUGE_DEBUG_OPT_LEVEL}>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-O2>
 
-    # does not block inlining, just blocks considering all functions for inlining
+    # GCC-only spellings: clang errors on -fsplit-loops and ignores -funswitch-loops with a
+    # warning. The shipping image is the clang one, so these must stay gated.
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-fsplit-loops>
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-funswitch-loops>
+
+        # does not block inlining, just blocks considering all functions for inlining
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
     #
     # Applies to clang too, despite meaning something stronger there: GCC disables
@@ -232,11 +237,11 @@ add_compile_options(
     # -fuse-linker-plugin, -flto-partition and -fdevirtualize-at-ltrans are all
     # GCC spellings clang rejects.
     $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-flto=auto>
-        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-save-temps=obj>
+#        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-save-temps=obj>
 
         $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-fuse-linker-plugin>
     # this makes the optimization better at the cost of linking being REALLY slow
-        $<$<AND:$<CONFIG:RELEASE>,$<CXX_COMPILER_ID:GNU>>:-flto-partition=none>
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-flto-partition=none>
 
         $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-fdevirtualize-at-ltrans>
 

@@ -224,6 +224,10 @@ void TaskManager::blockTask(TaskID id) {
 }
 
 void TaskManager::runTask(TaskID id) {
+	// runTask() can be entered while another task is mid-run (e.g. the audio task during an SD wait),
+	// so restore the caller's currentID on exit - otherwise yield() acts on the wrong task and a
+	// run-once task can be re-entered.
+	TaskID callerID = currentID;
 	countThisTask = true;
 	currentID = id;
 	auto* current_task = &list[currentID];
@@ -260,6 +264,7 @@ void TaskManager::runTask(TaskID id) {
 		}
 		lastFinishTime = timeNow;
 	}
+	currentID = callerID;
 }
 
 void TaskManager::runHighestPriTask() {

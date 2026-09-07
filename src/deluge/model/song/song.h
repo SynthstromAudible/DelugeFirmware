@@ -427,7 +427,7 @@ public:
 	bool hasBeenTransposed = 0;
 	int16_t transposeOffset = 0;
 
-	int32_t countAudioClips() const;
+	int32_t countAudioVoices() const;
 
 	// Chord memory
 	uint8_t chordMemNoteCount[kDisplayHeight] = {0};

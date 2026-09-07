@@ -118,7 +118,8 @@ considerEnvelopeStage:
 	return (lastValue - 1073741824) << 1; // Centre the range of the envelope around 0
 }
 
-int32_t Envelope::noteOn(bool directlyToDecay) {
+int32_t Envelope::noteOn(bool directlyToDecay, int32_t sustain) {
+	smoothedSustain = sustain;
 	ignoredNoteOff = false;
 	pos = 0;
 	if (!directlyToDecay) {
@@ -135,10 +136,10 @@ int32_t Envelope::noteOn(bool directlyToDecay) {
 
 int32_t Envelope::noteOn(uint8_t envelopeIndex, Sound* sound, Voice* voice) {
 	int32_t attack = voice->paramFinalValues[params::LOCAL_ENV_0_ATTACK + envelopeIndex];
-	smoothedSustain = voice->paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + envelopeIndex];
+	int32_t sustain = voice->paramFinalValues[params::LOCAL_ENV_0_SUSTAIN + envelopeIndex];
 	bool directlyToDecay = (attack > 245632);
 
-	return noteOn(directlyToDecay);
+	return noteOn(directlyToDecay, sustain);
 }
 
 void Envelope::noteOff(uint8_t envelopeIndex, Sound* sound, ParamManagerForTimeline* paramManager) {

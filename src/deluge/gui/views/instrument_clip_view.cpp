@@ -3539,27 +3539,9 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 
 void InstrumentClipView::displayIterance(Iterance iterance) {
 	char buffer[29];
-
-	// Iteration dependence
-	int32_t iterancePreset = iterance.toPresetIndex();
-
-	if (iterancePreset == kDefaultIterancePreset) {
-		strcpy(buffer, "Iterance: OFF");
-	}
-	else if (iterancePreset == kCustomIterancePreset) {
-		strcpy(buffer, "Iterance: CUSTOM");
-	}
-	else {
-		Iterance iterance = iterancePresets[iterancePreset - 1];
-		int32_t i = iterance.divisor;
-		for (; i >= 0; i--) {
-			// try to find which iteration step index is active
-			if (iterance.iteranceStep[i]) {
-				break;
-			}
-		}
-		sprintf(buffer, "Iterance: %d of %d", i + 1, iterance.divisor);
-	}
+	iterance.format_display_value(
+	    buffer, sizeof(buffer),
+	    {.step_format = "%d of %d", .prefix = "Iterance: ", .label_type = Iterance::DisplayLabelType::LONG});
 
 	display->popupText(buffer, PopupType::ITERANCE);
 }
@@ -3567,7 +3549,7 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 void InstrumentClipView::displayFill(uint8_t mode) {
 	char buffer[29];
 
-	strcpy(buffer, getFillString(mode));
+	strncpy(buffer, getFillString(mode), sizeof(buffer));
 
 	display->popupText(buffer, PopupType::FILL);
 }
@@ -3617,6 +3599,7 @@ bool InstrumentClipView::enterNoteEditor() {
 }
 
 void InstrumentClipView::exitNoteEditor() {
+	noteEditorAuditionMuted = false;
 	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
 		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
@@ -3671,20 +3654,13 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 			if (lastAuditionedVelocityOnScreen[y] != 255) {
 				sendAuditionNote(false, y, 127, 0);
 				lastAuditionedVelocityOnScreen[y] = 255;
-				// set the intendedVelocity to 255 as well so that if reassessAuditionStatus gets called elsewhere
-				// it won't send another note on
-				editPadPresses[0].intendedVelocity = 255;
+				// Remember that we've deliberately silenced this note, so that if reassessAuditionStatus()
+				// gets called elsewhere it won't send another note on for it.
+				noteEditorAuditionMuted = true;
 			}
 			// Switch note on if it was off
 			else {
-				// intendedVelocity is used by reassessAuditionStatus so if we turned the note off previously
-				// then we need to reset intendedVelocity to the velocity of the left most note in the pad we selected
-				if (editPadPresses[0].intendedVelocity == 255) {
-					Note* leftMostNotePressed = getLeftMostNotePressed();
-					if (leftMostNotePressed) {
-						editPadPresses[0].intendedVelocity = leftMostNotePressed->getVelocity();
-					}
-				}
+				noteEditorAuditionMuted = false;
 				reassessAuditionStatus(y);
 			}
 		}
@@ -4842,11 +4818,17 @@ uint8_t InstrumentClipView::getVelocityForAudition(uint8_t yDisplay, uint32_t* s
 
 		if (makeCurrentClipActiveOnInstrumentIfPossible(modelStack)) { // Should always be true, cos playback is stopped
 
-			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-				if (editPadPresses[i].isActive && editPadPresses[i].yDisplay == yDisplay) {
-					sum += editPadPresses[i].intendedVelocity;
-					numInstances++;
-					*sampleSyncLength = editPadPresses[i].intendedLength;
+			// While the Note Editor has this row's note deliberately muted, don't let it contribute
+			// a velocity here - that's what tells reassessAuditionStatus() to keep it switched off.
+			bool rowMutedByNoteEditor = noteEditorAuditionMuted && yDisplay == lastSelectedNoteYDisplay;
+
+			if (!rowMutedByNoteEditor) {
+				for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+					if (editPadPresses[i].isActive && editPadPresses[i].yDisplay == yDisplay) {
+						sum += editPadPresses[i].intendedVelocity;
+						numInstances++;
+						*sampleSyncLength = editPadPresses[i].intendedLength;
+					}
 				}
 			}
 		}
@@ -6274,6 +6256,40 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	int32_t screenStartPos = xScroll;
 	int32_t screenEndPos = xScroll + (xZoom * kDisplayWidth);
 
+	auto num_note_rows = clip->getNumNoteRows();
+
+	// A row only moves if it has at least one note on the current screen.
+	auto rowHasNoteOnScreen = [&](NoteRow* noteRow) {
+		for (int32_t i = 0; i < std::ssize(noteRow->notes); i++) {
+			Note* note = &noteRow->notes[i];
+			if (note->pos >= screenStartPos && note->pos < screenEndPos) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	// Reject the whole transpose if it would push any note out of the playable range, matching the
+	// limit that vertical scrolling and key transposition enforce. It's all-or-nothing so that the
+	// intervals between the moved notes are preserved. Do this before touching anything, since the
+	// collection pass below already steals MPE data.
+	for (int32_t index = 0; index < num_note_rows; index++) {
+		NoteRow* noteRow = &clip->noteRows[index];
+		if (!noteRow || noteRow->hasNoNotes()) {
+			continue;
+		}
+		int32_t currentYNote = noteRow->y;
+		int32_t destYNote = currentSong->incrementYNoteInKey(currentYNote, offset, inOctave, clip->inScaleMode);
+		if (destYNote == currentYNote) {
+			continue;
+		}
+		// Rows can move in either direction regardless of `offset` - keeping within the octave wraps
+		// some of them the other way - so ask about the direction this row is actually travelling.
+		if (rowHasNoteOnScreen(noteRow) && !clip->isScrollWithinRange(destYNote - currentYNote, destYNote)) {
+			return;
+		}
+	}
+
 	// Collect all notes from visible rows that need to be moved
 	struct NoteToMove {
 		int32_t sourceYNote;
@@ -6294,7 +6310,6 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	// First pass: collect all notes from visible rows within screen bounds
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
-	auto num_note_rows = clip->getNumNoteRows();
 	for (int32_t index = 0; index < num_note_rows; index++) {
 		NoteRow* noteRow = clip->noteRows.tryGet(index);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRow->y, noteRow);

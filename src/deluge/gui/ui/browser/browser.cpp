@@ -1902,42 +1902,48 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 
-	if (isFavouritesVisible() && y == favouriteRow && on) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		if (Buttons::isShiftButtonPressed()) {
-			std::string filePath = getCurrentFilePath();
-			if (favouritesManager.isEmpty(x)) {
-				if (!getCurrentFileItem()->isFolder) {
-					favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.c_str());
+	bool inFavouriteOrBanksColumn = (x >= 0 && x < static_cast<int32_t>(kNumFavourites));
+
+	if (isFavouritesVisible() && inFavouriteOrBanksColumn && y == favouriteRow) {
+		if (on) {
+			if (isSDRoutineActive()) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			if (Buttons::isShiftButtonPressed()) {
+				std::string filePath = getCurrentFilePath();
+				if (favouritesManager.isEmpty(x)) {
+					if (!getCurrentFileItem()->isFolder) {
+						favouritesManager.setFavorite(x, FavouritesManager::favouriteDefaultColor, filePath.c_str());
+						favouritesChanged();
+					}
+				}
+				else {
+					favouritesManager.unsetFavorite(x);
 					favouritesChanged();
 				}
 			}
 			else {
-				favouritesManager.unsetFavorite(x);
+				const std::string favoritePath = favouritesManager.getFavoriteFilename(x);
 				favouritesChanged();
-			}
-		}
-		else {
-			const std::string favoritePath = favouritesManager.getFavoriteFilename(x);
-			favouritesChanged();
-			if (!favoritePath.empty()) {
-				setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
-			}
-			else {
-				display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
+				if (!favoritePath.empty()) {
+					setFileByFullPath(outputTypeToLoad, favoritePath.c_str());
+				}
+				else {
+					display->displayPopup(l10n::get(l10n::String::STRING_FOR_FAVOURITES_EMPTY));
+				}
 			}
 		}
 		return ActionResult::DEALT_WITH;
 	}
-	else if (isBanksVisible() && y == favouriteBankRow && on) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	else if (isBanksVisible() && inFavouriteOrBanksColumn && y == favouriteBankRow) {
+		if (on) {
+			if (isSDRoutineActive()) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			favouritesManager.selectFavouritesBank(x);
+			favouritesChanged();
+			return ActionResult::DEALT_WITH;
 		}
-		favouritesManager.selectFavouritesBank(x);
-		favouritesChanged();
-		return ActionResult::DEALT_WITH;
 	}
 	else {
 		return QwertyUI::padAction(x, y, on);

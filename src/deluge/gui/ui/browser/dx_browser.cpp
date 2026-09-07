@@ -55,21 +55,35 @@ std::string g_cartridgeLoadPath;
 /// unconditionally for nothing.
 PLACE_SDRAM_BSS std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> g_cartridgeBuffer;
 /// True while a dispatched load is in flight. Guards against a second dispatch stomping
-/// g_cartridgeLoadPath before the first op reads it (defensive: enterKeyPress already close()s
-/// the browser before dispatching, so a second call can't normally land while one's in flight).
+/// g_cartridgeLoadPath before the first op reads it: the browser stays open until the load
+/// succeeds, so a second enterKeyPress can land while one is already in flight.
 bool g_cartridgeLoadInFlight = false;
 
-/// Owner-op trampoline for the SYNCHRONOUS arm — unchanged by this rung, deliberately.
+/// Owner-op trampoline for the SYNCHRONOUS arm: read+parse the cartridge (tryLoad shows its own
+/// error popups on failure), and on success enter the cartridge submenu and close the browser.
 ///
-/// The browser was already closed by enterKeyPress before this was dispatched, and it stays that
-/// way: this runs on the storage owner (the fiber on device), and calling close() from here would be
-/// a UI mutation from the storage tier, which is precisely what the tier model forbids and what this
-/// arm has never done.
+/// The close has to be HERE, after the load result is known, and that is upstream #4866 (DX7 browser
+/// "back" navigation) rather than a preference. DxBrowseMenu::beginSession sets
+/// soundEditor.shouldGoUpOneLevelOnBegin = true before opening this browser, and closing it fires
+/// SoundEditor::focusRegained(), which acts on that flag and pops a level. So a close that happens
+/// before we know whether the cartridge loaded has already popped us back to the DX source menu by
+/// the time enterSubmenu() runs -- and "back" from the cartridge then lands there instead of here.
+/// Clearing the flag first, on the success path only, is what suppresses that pop; a failed load
+/// still wants it, and still gets it, because it leaves the browser open.
+///
+/// This rung originally kept the close in enterKeyPress, before the dispatch, on the grounds that
+/// this op runs on the storage owner (the fiber on device) and must not mutate the UI. That reason
+/// is real but it does not survive contact with #4866: the two are incompatible, and the arm cannot
+/// both close early and navigate correctly. It is also not a NEW boundary crossing -- the
+/// enterSubmenu() below has always run here, on the same tier, and is the same kind of mutation.
+/// Moving both off the owner is the tier fix; doing it by keeping the bug is not.
 void runCartridgeLoadOp(void*) {
 	bool loaded = menu_item::dxCartridge.tryLoad(g_cartridgeLoadPath);
 	g_cartridgeLoadInFlight = false;
 	if (loaded) {
 		soundEditor.enterSubmenu(&menu_item::dxCartridge);
+		soundEditor.shouldGoUpOneLevelOnBegin = false;
+		dxBrowser.close();
 	}
 }
 } // namespace
@@ -145,20 +159,17 @@ void DxSyxBrowser::enterKeyPress() {
 		// TODO: c.f. slotbrowser, we might just be able to pass a file pointer to the FAT loader
 		std::string path = getCurrentFilePath();
 
-		// The two arms close at different moments, and that is inherent rather than an oversight.
+		// NEITHER arm closes here, and for the same reason in the end: the browser has to still be
+		// open when the load result comes back.
 		//
-		// SYNCHRONOUS: close here, before dispatching, exactly as before this rung. The op that
-		// follows runs on the storage owner and must not touch the UI.
+		// SYNCHRONOUS: closing here would pop a level before the op can clear
+		// shouldGoUpOneLevelOnBegin -- upstream #4866, see runCartridgeLoadOp above.
 		//
-		// ASYNCHRONOUS: do NOT close here. The read spans several ticks and the collect that ends it
-		// runs on the interaction tier, where closing is legal — so the browser stays up for the
-		// duration and closes on BOTH the success and the failure path once the read has actually
-		// happened. Closing at dispatch time instead would leave those ticks with no UI and then pop
-		// a read error over whatever had taken the browser's place.
+		// ASYNCHRONOUS: the read spans several ticks and the collect that ends it runs on the
+		// interaction tier, where closing is legal, so the browser stays up for the duration.
+		// Closing at dispatch time instead would leave those ticks with no UI and then pop a read
+		// error over whatever had taken the browser's place.
 		const bool async = deluge_file_prefix_async_active();
-		if (!async) {
-			close();
-		}
 		if (!path.empty() && !g_cartridgeLoadInFlight) {
 			g_cartridgeLoadPath = std::move(path);
 			g_cartridgeLoadInFlight = true;
@@ -186,7 +197,8 @@ void DxSyxBrowser::close() {
 	// the stale path's bytes and jumps into the cartridge submenu for a file the user never chose.
 	//
 	// The synchronous arm is unaffected: its op runs to completion on the owner and clears the flag
-	// itself, and the browser was already closed before it was dispatched.
+	// before it closes the browser, so by the time this runs on that arm the flag is already false
+	// and the guard below is a no-op.
 	if (deluge_file_prefix_async_active()) {
 		g_cartridgeLoadInFlight = false;
 	}
@@ -211,21 +223,22 @@ void DxSyxBrowser::browserGraphicsRoutine() {
 		return;
 	case DELUGE_FILE_PREFIX_FAILED:
 		// Terminal. The read did not happen, so there is nothing to parse; show the same popup the
-		// synchronous arm shows for a file it could not read, then close as that arm does.
+		// synchronous arm shows for a file it could not read, and leave the browser up exactly as
+		// that arm now does, so you can pick another file.
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR));
 		g_cartridgeLoadInFlight = false;
-		close();
 		return;
 	default: { // READY
 		const std::span bytes{reinterpret_cast<std::byte*>(g_cartridgeBuffer.data()), length};
 		const bool loaded = menu_item::dxCartridge.tryLoadFromBuffer(bytes);
 		g_cartridgeLoadInFlight = false;
-		// close() on BOTH paths, and before the submenu: the synchronous arm's browser is already gone
-		// by the time its op runs, so a failed async load that left the browser up would be the one
-		// visible difference between the two.
-		close();
+		// Same shape as runCartridgeLoadOp, deliberately -- the two arms must navigate identically.
+		// Enter first, clear shouldGoUpOneLevelOnBegin, then close (upstream #4866); a failed parse
+		// leaves the browser open and keeps the flag, so back still returns to the DX source menu.
 		if (loaded) {
 			soundEditor.enterSubmenu(&menu_item::dxCartridge);
+			soundEditor.shouldGoUpOneLevelOnBegin = false;
+			close();
 		}
 		return;
 	}

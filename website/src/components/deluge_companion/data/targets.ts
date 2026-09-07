@@ -64,12 +64,19 @@ export enum Control {
   RANDOM_PATCH_SOURCE,
   VELOCITY_PATCH_SOURCE,
   NAME,
+  OSC_TYPE,
+  VOICE_POLYPHONY,
   QWERTY,
+  MENU,
 }
 
 export const controlDescriptions: ControlDescriptions = {
   [Control.NONE]: {
     title: "-",
+    type: ControlType.none,
+  },
+  [Control.MENU]: {
+    title: "Menu",
     type: ControlType.none,
   },
   [Control.PLAY]: {
@@ -379,6 +386,16 @@ export const controlDescriptions: ControlDescriptions = {
     title: "'Name' grid pad",
     type: ControlType.grid,
     classes: ["dc-grid-3-12"],
+  },
+  [Control.OSC_TYPE]: {
+    title: "'Oscillator Type' grid pads",
+    type: ControlType.grid,
+    classes: ["dc-grid-1-1", "dc-grid-1-2"],
+  },
+  [Control.VOICE_POLYPHONY]: {
+    title: "'Voice Polyphony' grid pad",
+    type: ControlType.grid,
+    classes: ["dc-grid-1-1"],
   },
   [Control.QWERTY]: {
     title: "Qwerty",

@@ -37,6 +37,7 @@
 /// slot, mapped by the boundary implementation in midi_io.c), and the receive
 /// transfers are (re)armed down here as part of the port read.
 
+#include "RZA1/usb/usb_midi_completion.h" // USB_MIDI_RECEIVE_DRAIN_MAX_BYTES
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -68,7 +69,10 @@ typedef struct BspUsbMidiDevice {
 	uint8_t connected; // Non-zero while a device is attached on this slot (the
 	                   // send path's "is this an active sink", was cable[0]!=NULL)
 	uint16_t numBytesReceived;
-	__attribute__((aligned(8))) uint8_t receiveData[64];
+	// Receive transfers are armed for one 64-byte packet at a time, but the peripheral-mode bulk pipe is
+	// double-buffered, so its BRDY handler can have to drain up to two packets (plus margin) in one go rather than
+	// dropping what the hardware already ACKed - see usb_pstd_brdy_pipe_process_rohan_midi().
+	__attribute__((aligned(8))) uint8_t receiveData[USB_MIDI_RECEIVE_DRAIN_MAX_BYTES];
 
 	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
 	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
