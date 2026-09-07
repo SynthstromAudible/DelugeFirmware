@@ -71,7 +71,44 @@ is one of those, not a convenience.
     it is of `buttonAction`, since qualifying a name with its class is what makes it one). A name
     with none of those three has no brace body this can brace-match, so there is nothing to check it
     against; skipped, not failed;
-  * a citation into anything but `src/deluge`, as before.
+  * a citation into anything but `src/deluge`, as before (`CITED_ROOT`).
+
+    OWED, WITH EVIDENCE AND A MEASUREMENT (F1 task 2, 2026-09-07). **This exemption is now the
+    biggest hole, ahead of the bare-continuation one above.** Its stated rationale is below at
+    `CITED_ROOT`: "only the legacy tree rots relative to these comments; a citation into `src/ui` or
+    `src/scenes` is a citation into a file the same commit can fix." That is true of a citation made
+    *from inside* the port. It is false of one made from `sim/scenes_spec`, `tests/ui-scripts` or
+    `docs/` into `src/scenes` -- and those are scanned (see `SCAN_ROOTS`), so the citations are read
+    and then dropped for pointing at the wrong tree. Five such citations, all naming
+    `src/scenes/services/mod_knobs.cpp`, had drifted onto neighbouring *comment* lines and `--strict`
+    read clean over every one:
+
+      - `ModKnobs::show_popup`'s push, cited `services/mod_knobs.cpp:399` in
+        `sim/scenes_spec/scene_scripts_spec.cpp:15` (a table cell), `:41` (the file header) and
+        `tests/ui-scripts/shell/param_popup.txt:9`. `:394-402` is a comment block about the return
+        value; the `stack_.push` is `:413` -- off by fourteen lines;
+      - `ModKnobs`' two `stack_.input_top()` reads, cited `:346` and `:549` in that same header; the
+        reads are `:351` (`popup_suppressed`) and `:564` (`mod_encoder_button_action`);
+      - `show_popup`'s already-stacked guard, cited `mod_knobs.cpp:394-398` in
+        `tests/ui-scripts/shell/param_popup.txt:55`; the `for (const Scene* scene : stack_.scenes())`
+        loop is `:408-412`.
+
+    **Measured, not reasoned.** Putting `` `show_popup` (`services/mod_knobs.cpp:99999`) `` into
+    `param_popup.txt:9` -- symbol-adjacent, tens of thousands of lines past EOF -- and running
+    `--strict` gives "0 certainly-wrong citation(s)", exit 0. The same line written as
+    `` `displayPopup` (`hid/display/oled.cpp:99999`) `` is caught immediately ("past EOF", exit 1).
+    So the file is scanned, the predicates work, and `CITED_ROOT` alone is what hid all five. The
+    adjacency and "prose between symbol and citation" skips above are contributing holes for some of
+    the five, but they are not the decisive one.
+
+    The candidate fix is to widen `CITED_ROOT` to the port layers a spec or script may cite --
+    `src/scenes`, `src/shell`, `src/ui`, `src/gfx` -- for citations made from a file that is *not*
+    itself inside the cited layer, which preserves the original rationale exactly. **It is not bolted
+    on here, deliberately:** this is a blocking CI gate and both prior extensions were measured
+    before they were kept (the naive symbol predicate flagged 493 candidates and reached 39 real ones
+    only after three named skips; the body-extent test was kept because 33 flags were hand-verified
+    with zero false positives). Same treatment owed -- run it tree-wide, count the flags,
+    hand-verify a sample, keep it only if the measurement justifies it. Scheduled as its own work.
 
 **The range is judged against the symbol's actual body, brace-matched, not against a direction.**
 Earlier rounds narrowed this to a range ending ABOVE its symbol, on the grounds that a range starting
