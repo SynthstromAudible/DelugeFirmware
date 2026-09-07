@@ -729,14 +729,14 @@ Four things about it are worth finding from here rather than from the header.
   review caught it; without it a manual scroll during an auto-extending linear recording keeps a
   stale restore point and yanks the scroll back when recording stops.
 
-## The slicer (`slicing/`, E4 task 9)
+## The slicer (`slicing/`, E4 tasks 9-10)
 
 `slicing::SlicerScene` is the port of `Slicer` (`gui/ui/slicer.{h,cpp}`) -- the page the sample
 browser opens once a sample has been chosen, where a kit is cut into equal regions or into slices
-placed by hand. Task 9 is its state, its two renders and its three encoder arms; `padAction`, the
-rest of `buttonAction`, the audition preview and the slice commit are task 10's.
+placed by hand. Task 9 built its state, its two renders and its three encoder arms; task 10 added
+`padAction`, the rest of `buttonAction`, the audition preview and the slice commit.
 
-Four things are worth finding from here rather than from the header.
+Seven things are worth finding from here rather than from the header.
 
 * **It is not a root scene, and it does not use `TimelineState`.** The plan's prose calls
   `SlicerScene` and `AudioClipScene` "the first two root scenes"; only the second is one.
@@ -773,6 +773,44 @@ Four things are worth finding from here rather than from the header.
   build a `Song` by direct construction with none. Shipping the column arithmetic would mean
   shipping every branch of it unmeasured, so `next_timer()` stays `std::nullopt` and
   `timer_repaints()` is left at its default rather than claiming surfaces nothing repaints.
+
+* **Everything the slicer does to the audio, the model and the card goes through `SliceOps`.**
+  `Slicer` reaches its work through four `gui/` globals -- `sampleBrowser` (`:600`, `:749`),
+  `soundEditor` (`:452`, `:612-614`, `:634`), `instrumentClipView` (`:481`, `:747`) and `PadLEDs`
+  (`:378`) -- and `scenes-no-root-ui` / `scenes-includes-gui` forbid every one of them. The six calls
+  that matter are collected into one interface (`slicing::SliceOps`), one virtual per legacy call
+  site, and the scene keeps everything else: the slice table, the modes, the guards, the
+  `LatestWins` coalescer, the `storage::Owner` dispatch and the re-entry gate. That split is what
+  makes the port measurable -- the parts an oracle can compare against legacy are all on this side of
+  it -- and it is the same seam `menu::model_stack_for()` and `browser::Listing` are. A null `ops()`
+  is the honest default while nothing links `deluge_scenes` into an application; it is not a licence
+  to leave a call out.
+* **The commit does not need `RecorderScene`'s SD-routine guard, and that is a finding, not an
+  omission.** `AudioEngine::sdRoutineBusy()` exists because freeing a `SampleRecorder` that is
+  suspended part-way through its own `cardRoutine()` leaves that routine running on freed memory
+  (`gui/ui/audio_recorder.cpp:168-176`). Three things say `Slicer::doSlice` is not that shape:
+  `cardRoutine()` exists on exactly one class in this tree (`SampleRecorder`,
+  `model/sample/sample_recorder.h:67`, pumped only by `AudioEngine::doRecorderCardRoutines`,
+  `audio_engine.cpp:1682`) and `doSlice` frees none -- its one `delugeDealloc` (`slicer.cpp:703`)
+  releases a `SoundDrum` allocated thirteen lines earlier, before `kit->addDrum` at `:711`, so
+  nothing else holds it; the commit is reached only from a button press, which legacy already refuses
+  from inside a card routine (`REMIND_ME_OUTSIDE_CARD_ROUTINE`, `:335-337`) and whose port is
+  `InputLowering::set_sd_busy`; and the hazard `doSlice` *does* have is the one legacy names itself
+  at `:353-362` -- re-entry of its own dispatch while the op is popping UIs -- guarded by the
+  `currentUIMode` gate at `:363`, which the port carries as `SlicerScene::committing()`.
+* **`on_resume()` is empty, and task 9's mapping of it to `focusRegained` was wrong.** `closeUI`
+  calls `focusRegained` on whatever is left on top (`gui/ui/ui.cpp:199`), so task 9 re-ran it there.
+  But a legacy popup is a *display overlay*, not a UI on `uiNavigationHierarchy`, while a shell popup
+  **is** a scene: `Notices` pushes `SceneKind::Popup` and removes it 800 ms later, and
+  `SceneStack::remove`'s `if (was_top && n_ > 0)` arm calls `on_resume()` on the scene beneath
+  (`shell/scene_stack.cpp:108-113`). The slicer raises popups from four of its own arms, so with the
+  reset in place forty hand-placed slices vanished 800 ms after the user tapped a pad. Measured, not
+  predicted -- `slicer_scene_spec.cpp`'s "keeps its slice table when a popup it raised itself
+  expires" fails with the old body restored. The underlying asymmetry is the shell's and is reported
+  upward rather than patched here: *pushing* an `input_transparent()` overlay tells the scene beneath
+  nothing (it never lost the input top), but *removing* one tells it "you are back on top", and every
+  scene with a stateful `on_resume` shares that hazard. `MenuScene` is immune only because it guards
+  its own resume with a flag it sets alongside its own push (`MenuState::go_up_on_resume`).
 
 One transcription this port deliberately does **not** make, and it is the only one:
 `renderMainPads`' MANUAL slice mark is `image[4][x]` with
@@ -851,11 +889,11 @@ the hook.
 
 ## Defects this port found in shipping firmware
 
-Eight, none of them introduced by the port, none of them fixed by it, and all eight recorded at
+Nine, none of them introduced by the port, none of them fixed by it, and all nine recorded at
 their own site as well as here. They are listed together because a ledger is not where a release note
 looks.
 
-Two of the eight are in `gui/views/view.cpp`, and neither is annotated in that file, for the reason
+Two of the nine are in `gui/views/view.cpp`, and neither is annotated in that file, for the reason
 the `browser.cpp` row below already gives: `view.cpp` is cited by line from `src/scenes/services/`,
 `src/scenes/menu/context.cpp` and `sim/scenes_spec/` more than a hundred times, and inserting a
 comment there would shift every one of them. Their port-side `@warning`s are complete.
@@ -863,6 +901,7 @@ comment there would shift every one of them. Their port-side `@warning`s are com
 | defect | severity | where it is recorded |
 |---|---|---|
 | **`Slicer::renderMainPads` never checks that it was given an image.** `UI`'s own header says every override must (*"These \*must\* check whether image has been supplied - if not, just return"*, `gui/ui/ui.h:141-142`) and its sibling `SampleMarkerEditor::renderMainPads` does (`gui/ui/sample_marker_editor.cpp:1362-1366`). `closeUI` quizzes every UI from the top down to and including the one being closed with the **no-argument** form (`gui/ui/ui.cpp:184-192`, `redrawMainPads \|= thisUI->renderMainPads()`), so `image` is null; nothing between that call and the write guards it. Closing the slicer takes that path on every exit -- `buttonAction`'s BACK arm calls `close()` (`slicer.cpp:391`), and so does the commit, through `sampleBrowser.exitAndNeverDeleteDrum()`. In REGION mode the null reaches `WaveformRenderer::renderFullScreen`'s clear (`gui/waveform/waveform_renderer.cpp:57-59`), which memsets 48 bytes at eight addresses from 0 to 432; in MANUAL mode it reaches the squash loop, the slice-mark loop and the slot-grid loop directly (`slicer.cpp:117-149`), and the squash loop additionally reads `myImage` uninitialised whenever the scan returned early (`waveform_renderer.cpp:52-54`, before its own clear). **Established by reading the enclosing braces**, not reproduced on a device; whether address 0 faults on an RZ/A1 depends on the boot-time memory map, which is why it has survived. The port has no equivalent -- `render_grid` is always handed a real frame -- and does not patch legacy. | **memory corruption / undefined behaviour, on every exit from the slicer** | `src/scenes/slicing/slicer_scene.h`'s "Two legacy defects" section |
+| **`Slicer` declares 432 bytes of stack it never touches, twice.** `renderMainPads`' REGION arm opens with `RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];` (`gui/ui/slicer.cpp:107`) and then renders into the caller's `image`, not into it (`:108-109`); `buttonAction`'s BACK arm declares the same array (`:376`) and then renders into `PadLEDs::image` (`:377-379`). Both are uninitialised, unread and unwritten -- 8 x 18 x 3 = 432 bytes of stack each, on a device whose UI runs on a small one. Almost certainly the residue of the MANUAL arm at `:113`, which is the one place the array is real. **Read the braces on both**: neither name appears again inside its own scope. Harmless as written, and not fixed here (a legacy edit this plan does not authorise); worth a line because a reader comparing the three arms will otherwise assume the two dead ones matter. The port has no counterpart -- `render_grid` snapshots what it needs from the frame and `button_action` renders nothing. | cosmetic / stack pressure | this row; `src/scenes/slicing/slicer_scene.cpp`'s `button_action` BACK comment |
 | **`Slicer::selectEncoderAction`'s slice-count wrap only fires on an exact hit.** The REGION arm is `numClips += offset; if (numClips == 257) numClips = 2; else if (numClips == 1) numClips = 256;` (`gui/ui/slicer.cpp:249-257`) -- equality, not a range -- and `offset` is whole detents, so a fast turn delivers more than one at a time and steps straight over both ends. 255 + 2 is 257 and wraps; 256 + 2 is 258 and does not. Downward it is worse: from the opening 16, a single -20 turn lands on **-4**, and the page then reads "-4"; nothing between there and `doSlice(sliceCount)` re-checks the sign. Reachable with an ordinary flick of the select encoder. The port reproduces it exactly, including the `int16_t` width the wrap is written against, and `sim/scenes_spec/slicer_scene_spec.cpp` asserts both halves against legacy's own `selectEncoderAction` -- a one-sided fix would be a silent divergence, which is what every other example there exists to catch. | user-visible, not a crash | `src/scenes/slicing/slicer_scene.cpp`'s `select_encoder` comments; the "steps past the wrap" and "drive the REGION count negative" examples in `sim/scenes_spec/slicer_scene_spec.cpp` |
 | **Use-after-free in `AudioRecorder::finishRecording`.** It frees through the member (`discardRecorder` → `~SampleRecorder` + `delugeDealloc`) and only *then* clears `recorder` and `recordingSource`. In that window the pointer dangles while the channel still says LEFT/STEREO — and `AudioEngine::setMonitoringMode`, reached from `renderAudio` on the **priority-0 audio task**, tests that pair and dereferences `audioRecorder.recorder`. The Rust scheduler routes priority 0 onto the **preemptive** SGI executor, so the interrupt can land on any instruction inside `discardRecorder`; the `recorder != nullptr` double-check does not help, because the pointer is non-null and freed for the whole window. `audio_engine.cpp`'s output/stem-recording paths read the same member the same way. The port takes the correct order (channel first, then pointer, then free, with a compiler barrier between the two stores) and does **not** patch legacy, because those members are written from five other legacy sites this port is not entitled to re-order. | **crash / memory corruption** | `gui/ui/audio_recorder.cpp`'s `finishRecording` @warning; `AudioEngine::setForegroundRecording`'s header contract |
 | **`Browser`'s default-directory fallback is dead**, and so is `LoadInstrumentPresetUI`'s. Both test `Error::FOLDER_DOESNT_EXIST`, but the read path they take reports a missing directory as `Error::FILE_NOT_FOUND` — `FOLDER_DOESNT_EXIST` is produced in exactly one place in the tree, `storage_manager.cpp`'s file-*open* path, which neither call reaches. So the fallback, and `browser.cpp`'s mkdir arm behind it, cannot run. The port accepts **both** codes as a documented divergence rather than patching, because which folder a user should land in when one is missing is a product decision. | user-visible, not a crash | `gui/ui/load/load_instrument_preset_ui.cpp`'s @warning; `src/scenes/browser/listing.cpp`'s divergence note, which carries the full trace. Deliberately **not** annotated in `browser.cpp` itself: inserting lines there would shift ~100 legacy citations from this stack, and the port-side record is complete |
