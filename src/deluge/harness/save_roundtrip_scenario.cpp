@@ -31,7 +31,9 @@
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include <cstdio>
+#include <cstdlib>
 #include <string>
+#include <utility>
 #include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
@@ -88,6 +90,7 @@ enum class Stage : uint8_t {
 	SaveFirstCheck,
 	LoadBack,
 	LoadBackWait,
+	Reopen,
 	SaveSecond,
 	SaveSecondCheck,
 	Confirm,
@@ -103,6 +106,7 @@ int32_t g_failures = 0;
 uint32_t g_crcFirst = 0;
 uint32_t g_crcSecond = 0;
 size_t g_bytesFirst = 0;
+std::vector<uint8_t> g_first;
 
 uint32_t crc32(const void* data, size_t len) {
 	const auto* p = static_cast<const uint8_t*>(data);
@@ -134,6 +138,107 @@ bool readWholeFile(const char* path, std::vector<uint8_t>& out) {
 		out.insert(out.end(), buf, buf + read->size());
 	}
 	(void)opened->close();
+	return true;
+}
+
+/// The song file embeds a hex dump of `PadLEDs::imageStore` as its `preview` attribute -- 144 pads x
+/// 3 colours, the artwork the browser draws (song.cpp writes it right after `previewNumPads`). That
+/// is live DISPLAY state, so it legitimately differs between two saves separated by a load, and a
+/// byte-identity check over the whole file is asserting something the format does not promise.
+///
+/// So the round trip compares everything EXCEPT that one attribute's value, and asserts separately
+/// that the attribute is still present and the right length -- skipping a region without checking it
+/// is still there would let a save that dropped the artwork entirely pass.
+constexpr const char* kPreviewTag = "preview";
+
+/// @return the [start,end) byte range of the preview attribute's VALUE, or {0,0} if absent.
+std::pair<size_t, size_t> previewValueRange(const std::vector<uint8_t>& bytes) {
+	const std::string hay(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+	// `previewNumPads` is written FIRST and contains "preview" as a prefix, so search past it --
+	// matching it instead finds a 3-character value ("144") and silently compares the wrong field.
+	size_t tag = hay.find(kPreviewTag);
+	while (tag != std::string::npos) {
+		const size_t after = tag + std::char_traits<char>::length(kPreviewTag);
+		const char next = after < hay.size() ? hay[after] : '\0';
+		if (!((next >= 'A' && next <= 'Z') || (next >= 'a' && next <= 'z'))) {
+			break; // a real `preview` tag, not `previewNumPads`
+		}
+		tag = hay.find(kPreviewTag, after);
+	}
+	if (tag == std::string::npos) {
+		return {0, 0};
+	}
+	const size_t open = hay.find('"', tag);
+	if (open == std::string::npos) {
+		return {0, 0};
+	}
+	const size_t close = hay.find('"', open + 1);
+	if (close == std::string::npos) {
+		return {0, 0};
+	}
+	return {open + 1, close};
+}
+
+/// Pull one integer attribute's value out of a saved song, for reporting what drifted.
+int32_t attrValue(const std::vector<uint8_t>& bytes, const char* name) {
+	const std::string hay(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+	const size_t at = hay.find(name);
+	if (at == std::string::npos) {
+		return -9999;
+	}
+	const size_t open = hay.find('"', at);
+	if (open == std::string::npos) {
+		return -9999;
+	}
+	return std::atoi(hay.c_str() + open + 1);
+}
+
+/// Compare two saves ignoring only the preview artwork. Reports what it found either way.
+bool sameIgnoringPreview(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
+	const auto ra = previewValueRange(a);
+	const auto rb = previewValueRange(b);
+	if (ra.second == 0 || rb.second == 0) {
+		printf("SR-ROUNDTRIP FAIL a save wrote no preview attribute at all\n");
+		return false;
+	}
+	const size_t lena = ra.second - ra.first;
+	const size_t lenb = rb.second - rb.first;
+	// 144 pads * 3 colours * 2 hex chars. Pinned so a save that truncated the artwork still fails.
+	if (lena != 864 || lenb != 864) {
+		printf("SR-ROUNDTRIP FAIL preview length first=%zu second=%zu, wanted 864\n", lena, lenb);
+		return false;
+	}
+	if (a.size() != b.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < a.size(); i++) {
+		if (i >= ra.first && i < ra.second) {
+			continue; // the artwork, which is display state
+		}
+		if (a[i] != b[i]) {
+			printf("SR-ROUNDTRIP FAIL first difference outside the preview at offset %zu\n", i);
+			char pre[65] = {0};
+			char fa[49] = {0};
+			char fb[49] = {0};
+			const size_t back = i > 64 ? 64 : i;
+			for (size_t k = 0; k < back; k++) {
+				const uint8_t c = a[i - back + k];
+				pre[k] = (c >= 32 && c < 127) ? (char)c : '.';
+			}
+			for (size_t k = 0; k < 48 && i + k < a.size(); k++) {
+				fa[k] = (a[i + k] >= 32 && a[i + k] < 127) ? (char)a[i + k] : '.';
+				fb[k] = (b[i + k] >= 32 && b[i + k] < 127) ? (char)b[i + k] : '.';
+			}
+			printf("SR-MAGNITUDE first=%d second=%d (song.cpp writes the SUM of\n"
+			       "  insideWorldTickMagnitude + insideWorldTickMagnitudeOffsetFromBPM, but the load\n"
+			       "  assigns it to insideWorldTickMagnitude ALONE and recomputes the offset)\n",
+			       attrValue(a, "inputTickMagnitude"), attrValue(b, "inputTickMagnitude"));
+			printf("SR-FIELD context=[%s]\n", pre);
+			printf("SR-FIELD first =[%s]\n", fa);
+			printf("SR-FIELD second=[%s]\n", fb);
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -176,6 +281,7 @@ void runTick() {
 		else {
 			g_crcFirst = crc32(bytes.data(), bytes.size());
 			g_bytesFirst = bytes.size();
+			g_first = bytes;
 			printf("SR-SEAM free prompted=0 created=1 bytes=%zu\n", g_bytesFirst);
 		}
 		g_stage = Stage::LoadBack;
@@ -190,16 +296,23 @@ void runTick() {
 	}
 	case Stage::LoadBackWait: {
 		if (!loadSongUI.isLoadingSong()) {
-			g_stage = Stage::SaveSecond;
+			g_stage = Stage::Reopen;
 		}
 		break;
 	}
-	case Stage::SaveSecond: {
-		// Re-open the save browser first: a successful save ENDS in close(), which pops it off the
-		// UI stack, so a second save has to reach the save screen again exactly as the user would.
+	case Stage::Reopen: {
+		// Re-open the save browser: a successful save ENDS in close(), which pops it off the UI
+		// stack, so a second save has to reach the save screen again exactly as the user would.
 		// Driving the popped browser instead makes close() search a stack it is no longer on and
 		// index off the end of it.
 		(void)SaveRoundtripProbe::openOn(kSaveDir);
+		// Typing happens on the NEXT tick, not this one. The listing this open starts is async, and
+		// when it settles it picks a brand-new unused name -- which silently overwrote the typed
+		// name here and aimed the second save at a free slot instead of the existing file.
+		g_stage = Stage::SaveSecond;
+		break;
+	}
+	case Stage::SaveSecond: {
 		// The SAME name, deliberately: performSave writes currentSong->name = enteredText, so saving
 		// under a different name would differ for a reason that is not a defect. Overwriting keeps
 		// every name-derived field identical, and makes this the occupied-prompt case too.
@@ -210,6 +323,9 @@ void runTick() {
 	}
 	case Stage::SaveSecondCheck: {
 		if (!SaveRoundtripProbe::overwritePromptOpen()) {
+			std::vector<uint8_t> probe;
+			printf("SR-DIAG dir=%s entered=%s targetExists=%d\n", Browser::currentDir.c_str(),
+			       Browser::enteredText.c_str(), readWholeFile(kSavePath, probe) ? 1 : 0);
 			printf("SR-SEAM FAIL occupied prompted=0 -- an existing file did not prompt\n");
 			g_failures++;
 			g_stage = Stage::Tier; // nothing to confirm; skip the confirmation case
@@ -233,9 +349,32 @@ void runTick() {
 		else {
 			g_crcSecond = crc32(bytes.data(), bytes.size());
 			printf("SR-ROUNDTRIP first=%08X second=%08X bytes=%zu\n", g_crcFirst, g_crcSecond, bytes.size());
-			if (g_crcFirst != g_crcSecond) {
+			if (!sameIgnoringPreview(g_first, bytes)) {
 				printf("SR-ROUNDTRIP FAIL first=%08X second=%08X -- the round trip changed the song\n", g_crcFirst,
 				       g_crcSecond);
+				// Report WHERE they diverge: a field that legitimately varies looks very different
+				// from a truncation, and the byte counts here are equal.
+				size_t n = g_first.size() < bytes.size() ? g_first.size() : bytes.size();
+				for (size_t d = 0; d < n; d++) {
+					if (g_first[d] != bytes[d]) {
+						char a[41] = {0};
+						char b[41] = {0};
+						for (size_t k = 0; k < 40 && d + k < n; k++) {
+							a[k] = (g_first[d + k] >= 32 && g_first[d + k] < 127) ? (char)g_first[d + k] : '.';
+							b[k] = (bytes[d + k] >= 32 && bytes[d + k] < 127) ? (char)bytes[d + k] : '.';
+						}
+						char pre[81] = {0};
+						size_t back = d > 80 ? 80 : d;
+						for (size_t k = 0; k < back; k++) {
+							uint8_t c = g_first[d - back + k];
+							pre[k] = (c >= 32 && c < 127) ? (char)c : '.';
+						}
+						printf("SR-DIFF context=[%s]\n", pre);
+						printf("SR-DIFF at=%zu first=[%s]\n", d, a);
+						printf("SR-DIFF at=%zu second=[%s]\n", d, b);
+						break;
+					}
+				}
 				g_failures++;
 			}
 		}
