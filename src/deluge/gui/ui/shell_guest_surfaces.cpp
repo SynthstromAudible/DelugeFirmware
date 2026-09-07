@@ -48,12 +48,29 @@ static_assert(GuestSurfaceSet::kGridCopyBytesPerColumnPair == 48);
 static_assert(GuestSurfaceSet::kOledCopyBytesPerBlit == 768);
 static_assert(GuestSurfaceSet::kGridCopyBytesPerFullFlush == 432);
 
+namespace {
+/// @brief Can a panel of this shape be handed to legacy's single `OLED::main`?
+///
+/// Shape, not byte count. Both are 768 bytes on the Deluge, but they are not the same question and
+/// the difference is a blank screen: a 64x96 panel is *also* 768 bytes, would satisfy a size check,
+/// and would then be dropped frame by frame by `blit`'s geometry guard with nothing saying why
+/// (F1 task 4 review, Important 4). `visible_top` is deliberately not compared -- it is a faceplate
+/// fact about what the user can see, not about what fits in the buffer, and `blit` does not carry
+/// it either.
+///
+/// The constructor and `blit` both go through this one predicate so the accessor's promise and the
+/// guard that enforces it cannot drift apart.
+bool fits_legacy_panel(uint16_t w, uint16_t h) {
+	return w == OLED_MAIN_WIDTH_PIXELS && h == OLED_MAIN_HEIGHT_PIXELS;
+}
+} // namespace
+
 GuestSurfaceSet::GuestSurfaceSet(const DelugeBoard& board, const deluge::ui::shell::BoardProfile& profile) {
 	build(board, profile);
 	// Resolved once, here, rather than per blit: `oled(SurfaceRole::Main)` is a linear scan, and
 	// the answer cannot change -- `build()` is the only thing that assigns roles.
 	const deluge::ui::shell::OledSurface* main = oled(SurfaceRole::Main);
-	if (main != nullptr && main->canvas.bytes().size() == OLED::main.bytes().size()) {
+	if (main != nullptr && fits_legacy_panel(main->geometry.width, main->geometry.height)) {
 		mainIndex_ = static_cast<int8_t>(main->index);
 	}
 }
@@ -91,10 +108,10 @@ void GuestSurfaceSet::blit(uint8_t index, std::span<const uint8_t> bytes, uint16
 		return; // Legacy holds exactly one framebuffer; nothing else has anywhere to go.
 	}
 	const std::span<uint8_t> dest = OLED::main.bytes();
-	if (w != OLED_MAIN_WIDTH_PIXELS || h != OLED_MAIN_HEIGHT_PIXELS || bytes.size() != dest.size()) {
-		// The constructor already rejected a Main surface of the wrong size (`canReachMainPanel()`),
-		// so this is unreachable today. It is still checked, because a partial copy would show a
-		// torn frame rather than fail: half a frame is worse than none.
+	if (!fits_legacy_panel(w, h) || bytes.size() != dest.size()) {
+		// The constructor already rejected a Main surface of the wrong shape (`canReachMainPanel()`)
+		// through this same predicate, so this is unreachable today. It is still checked, because a
+		// partial copy would show a torn frame rather than fail: half a frame is worse than none.
 		return;
 	}
 	// kOledCopyBytesPerBlit (768 B). See the class doc for why this is a copy and not an alias.
@@ -130,6 +147,13 @@ void GuestSurfaceSet::send_columns(uint8_t pair_index, const ColumnPair& pair) {
 	// re-assessment, the zoom and scroll animations, a later full `sendOutMainPadColours`).
 	//
 	// Costs kGridCopyBytesPerColumnPair (48 B) per changed pair; see the class doc.
+	//
+	// @warning On a board with FEWER rows than legacy's `kDisplayHeight`, this writes rows
+	//          0..rows-1 and `sortLedsForCol` still reads all eight (`hid/led/pad_leds.cpp:267-272`),
+	//          so the rows above the board's go out as whatever `image` last held. Deliberately not
+	//          zeroed: those rows are not the shell's to own, and blanking them would be the guest
+	//          inventing a policy about legacy's buffer. Hypothetical-board only -- every board in
+	//          the tree is 8 rows -- and stated at the spec site as uncovered (F1 task 4 review).
 	const uint8_t x0 = static_cast<uint8_t>(pair_index * 2);
 	const uint8_t x1 = static_cast<uint8_t>(x0 + 1);
 	if (x1 >= kDisplayWidth + kSideBarWidth) {

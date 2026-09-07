@@ -197,6 +197,44 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 		expect(fakelegacy::oled_marked()).to_be_false();
 	});
 
+	it("refuses a Main surface that is the right SIZE but the wrong SHAPE", _ {
+		// 64 x 96 at 1bpp is 768 bytes -- exactly `OLED::main`'s size, and a completely different
+		// panel. A byte-count check said yes here and then let `blit`'s geometry guard drop every
+		// frame in silence; the F1 task 4 review caught it, and the constructor now compares shape
+		// through the same predicate `blit` enforces.
+		fakelegacy::reset();
+		static constexpr DelugeDisplayDesc kSquare[] = {{64, 96, 0}};
+		DelugeBoard squareBoard = kDelugeBoard;
+		squareBoard.display_width = 64;
+		squareBoard.display_height = 96;
+		squareBoard.displays = kSquare;
+		GuestSurfaceSet set{squareBoard, deluge_profile()};
+		// The premise of the example, asserted rather than assumed: same bytes, different shape.
+		expect(set.oled()[0].canvas.bytes().size()).to_equal(OLED::main.bytes().size());
+		expect(set.oled()[0].geometry.width != uint16_t(OLED_MAIN_WIDTH_PIXELS)).to_be_true();
+
+		expect(set.canReachMainPanel()).to_be_false();
+		std::span<uint8_t> bytes = set.oled()[0].canvas.bytes();
+		for (size_t i = 0; i < bytes.size(); i++) {
+			bytes[i] = 0xCD;
+		}
+		set.blit(0, bytes, 64, 96);
+		expect(OLED::main.bytes()[0]).to_equal(uint8_t(0));
+		expect(fakelegacy::oled_marked()).to_be_false();
+
+		// And the other half of the predicate: right HEIGHT, wrong width. Without this, a
+		// `fits_legacy_panel` that compared height alone passed every example in this file --
+		// mutation 19, which survived until this block was added. Both boards above are 96 and 64
+		// rows, so height alone rejects them.
+		static constexpr DelugeDisplayDesc kNarrow[] = {{64, 48, 5}};
+		DelugeBoard narrowBoard = kDelugeBoard;
+		narrowBoard.display_width = 64;
+		narrowBoard.displays = kNarrow;
+		GuestSurfaceSet narrow{narrowBoard, deluge_profile()};
+		expect(narrow.oled()[0].geometry.height).to_equal(uint16_t(OLED_MAIN_HEIGHT_PIXELS));
+		expect(narrow.canReachMainPanel()).to_be_false();
+	});
+
 	it("drops a blit for a panel legacy does not have, and one of the wrong shape", _ {
 		Rig r;
 		const std::span<const uint8_t> painted = paint_panel(r.set, 3);
@@ -262,8 +300,19 @@ describe guest_surfaces("gui::ui::GuestSurfaceSet", $ {
 			expect(PadLEDs::image[y][0] == RGB{static_cast<uint8_t>(y + 1), 0, 0}).to_be_true();
 			expect(PadLEDs::image[y][1] == RGB{static_cast<uint8_t>(y + 5), 0, 0}).to_be_true();
 		}
-		// Rows legacy has and this board does not are left alone, not filled with junk.
+		// KNOWN GAP, stated here rather than implied by an assertion that cannot see it (F1 task 4
+		// review, Minor 2). `send_columns` writes rows 0..rows-1, but `sortLedsForCol` reads
+		// `image[y][x]` for every `y < kDisplayHeight` (`hid/led/pad_leds.cpp:267-272`), so on a
+		// board shorter than legacy's 8 rows the remaining rows go out as whatever `image` last
+		// held. This example cannot cover that: `fakelegacy::reset()` zeroed the whole image, so
+		// asserting row 4 is black would pass for the wrong reason. What is asserted is only the
+		// narrow true thing -- the guest wrote none of those rows itself.
 		expect(PadLEDs::image[4][0] == RGB{0, 0, 0}).to_be_true();
+		expect(PadLEDs::image[4][1] == RGB{0, 0, 0}).to_be_true();
+		// The gap is hypothetical-board only: every board in the tree is 8 rows
+		// (`kDisplayHeight`), and the guest is only ever constructed for the Deluge. It is not
+		// fixed here because zeroing rows the shell does not own would be the guest inventing a
+		// policy about legacy's buffer -- see `send_columns`' note.
 	});
 
 	it("reaches the sidebar pair and drops a pair past legacy's columns", _ {

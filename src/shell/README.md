@@ -281,14 +281,20 @@ showing the view underneath, unchanged.
 `Shell::flush` is the only place the shell touches `SurfaceSet`'s sink virtuals, once per tick,
 after LEDs are derived:
 
-- **OLED**: one `blit()` per surface that rendered this tick and is not `oled_busy()` (the
-  `deluge_display_busy` skip around legacy's `sendMainImage`); a busy panel keeps `blit_pending`
-  armed and is retried next tick. The `Main` surface's blit additionally feeds `Mirror::after_blit`,
+- **OLED**: one `blit()` per surface that rendered this tick and is not `oled_busy()`; a busy panel
+  keeps `blit_pending` armed and is retried next tick. `oled_busy()` means "can this backend take a
+  frame right now?", and each backend answers with its own pre-push condition -- `deluge_display_busy_n`
+  for `BoardSurfaceSet`, legacy's pad-output gate (`doAnyPendingUIRendering`, `gui/ui/ui.cpp:389`)
+  for the guest. This bullet used to gloss it as "the `deluge_display_busy` skip around legacy's
+  `sendMainImage`"; there is no such skip -- `OLED::sendMainImage` gates only on its own
+  `needsSending` flag, and nothing under `src/deluge/` calls `deluge_display_busy` at all. See §15.10
+  of the shell spec. The `Main` surface's blit additionally feeds `Mirror::after_blit`,
   which throttles sends to `MirrorSink` to at most one per `min_interval_ms` and -- unlike a naive
   throttle -- never drops a frame the throttle held back: `Mirror::retry` redelivers the pending
   frame once the interval has passed, every tick, independent of whether that tick blitted anything.
 - **Grid**: column pairs are diffed against `last_sent` and sent within a budget derived from
-  `SurfaceSet::pad_output_space() / kBytesPerColumnPair` (legacy's `uartGetTxBufferSpace` guard,
+  `SurfaceSet::pad_output_space() / kBytesPerColumnPair` (legacy's `deluge_control_pad_output_space`
+  guard in `sendOutMainPadColours`,
   generalised from an all-or-nothing gate to a per-pair budget so a large backlog drains over
   several ticks); a pair skipped for budget stays dirty and arms a real repaint deadline via
   `RepaintGate::request_repaint_after`, so `next_wake()` reports it rather than the scheduler

@@ -61,12 +61,22 @@ class GuestSurfaceSet final : public deluge::ui::shell::SurfaceSet {
 public:
 	/// @brief Bytes copied into `OLED::main` by one `blit()` of the main panel.
 	///
-	/// The whole 1-bpp page-major frame: 128 x 48 / 8. Worst case one per shell tick, and the
-	/// fastest OLED repaint cadence the shell has ever armed is the 10 ms popup gate
-	/// (`shell/shell.cpp:444-455` records it as a 100 Hz two-panel blit regression), so the
-	/// worst-case cost of this decision is 768 B x 100/s = 76.8 kB/s on one panel. For scale,
-	/// legacy already memcpys up to this whole image per frame in `copyBackgroundAroundForeground`
-	/// (`hid/display/oled.cpp:331`) whenever a console or popup is up.
+	/// The whole 1-bpp page-major frame: 128 x 48 / 8.
+	///
+	/// **This is a per-tick cost, not a per-second one, and deliberately stated that way.** The OLED
+	/// path has no diff -- `Shell::flush` blits a surface unconditionally once it has rendered, which
+	/// `shell/shell.cpp:435-442` records as the reason the OLED half may not over-arm the way the
+	/// grid half may. So the cost is 768 B on every tick in which the panel re-rendered, and the
+	/// only ceiling is the host's tick rate: several `next_timer()` overrides return 0 ("as soon as
+	/// possible"), so there is no millisecond floor to quote. The fastest *fixed* cadence in the
+	/// tree that arms an OLED gate is `RecorderScene`'s `kRecorderPollMs = 10`
+	/// (`src/scenes/recorder/recorder_scene.h:180`), which takes `Scene::timer_repaints()`'s
+	/// `{.oled = true, .grid = true}` default (`shell/scene.h:561`) because it does not override it
+	/// -- 768 B x 100/s = 76.8 kB/s on one panel, and a floor rather than a ceiling.
+	///
+	/// For scale, legacy already memcpys up to this whole image per frame in
+	/// `copyBackgroundAroundForeground` (`hid/display/oled.cpp:331`) whenever a console or popup is
+	/// up.
 	static constexpr uint32_t kOledCopyBytesPerBlit = OLED_MAIN_WIDTH_PIXELS * OLED_MAIN_HEIGHT_PIXELS / 8;
 
 	/// @brief Bytes written into `PadLEDs::image` by one `send_columns()`.
@@ -77,13 +87,22 @@ public:
 	/// @brief Bytes written into `PadLEDs::image` by a flush that re-sends every column pair.
 	///
 	/// Nine pairs on the Deluge (16 main + 2 sidebar columns), so exactly `sizeof(PadLEDs::image)`
-	/// -- asserted against it in the .cpp. The fastest grid repaint cadence the shell arms is the
-	/// 20 ms shortcut-blink gate (`shell/shell.cpp:444-455`, a 50 Hz regression), so the worst case
-	/// is 432 B x 50/s = 21.6 kB/s -- and only for pairs whose colours actually changed, because
-	/// `Shell::flush` diffs each pair against `last_sent` before calling `send_columns` at all
-	/// (`shell/shell.cpp:941-957`). Legacy's own `sortLedsForCol` (`hid/led/pad_leds.cpp:260-275`)
-	/// already copies these same 16 colours into a `doubleColumn` for every pair it sends, so the
-	/// guest adds one copy of that same size per pair, not a new order of cost.
+	/// -- asserted against it in the .cpp.
+	///
+	/// **The bound here is the diff, not a cadence** (corrected in the F1 task 4 review; the first
+	/// version of this note quoted a 20 ms ceiling that two shipped scenes already exceed).
+	/// `AudioClipScene::next_timer()` returns `0u` for as long as the playhead is live
+	/// (`src/scenes/audio_clip/audio_clip_scene.cpp:1193`) with `{.oled = false, .grid = true}`
+	/// (`audio_clip_scene.h:474`), so the grid gate arms on **every tick** and there is no
+	/// millisecond ceiling to name. What makes that free is that `Shell::flush` diffs each pair
+	/// against `last_sent` before calling `send_columns` at all (`shell/shell.cpp:941-957`): a tick
+	/// in which no pad changed colour costs zero bytes however fast the ticks come, and the 432 B
+	/// above is the cost of a *full repaint*, not of a tick. The real figure is 48 B x (pairs whose
+	/// colours actually changed).
+	///
+	/// Legacy's own `sortLedsForCol` (`hid/led/pad_leds.cpp:260-275`) already copies these same 16
+	/// colours into a `doubleColumn` for every pair it sends, so the guest adds one copy of that
+	/// same size per pair, not a new order of cost.
 	static constexpr uint32_t kGridCopyBytesPerFullFlush =
 	    kGridCopyBytesPerColumnPair * ((kDisplayWidth + kSideBarWidth) / 2);
 
@@ -107,6 +126,12 @@ public:
 	/// put its bytes, and `blit()` drops them rather than showing half a frame. That is a
 	/// configuration error, not a runtime condition, so it is reported here for the caller
 	/// (`ShellHostUI`) to refuse to open on rather than discovered as a blank screen.
+	///
+	/// The question asked is the panel's **shape**, and it is asked through the same predicate
+	/// `blit()` enforces (`fits_legacy_panel`, in the .cpp), so this cannot promise more than the
+	/// guard delivers. It was a byte-count comparison until the F1 task 4 review: a 64x96 panel is
+	/// also 768 bytes, so a size check said yes and every frame was then dropped silently -- exactly
+	/// the blank screen this accessor exists to let the caller refuse.
 	/// @return True if `blit()` will actually reach the panel.
 	bool canReachMainPanel() const { return mainIndex_ >= 0; }
 

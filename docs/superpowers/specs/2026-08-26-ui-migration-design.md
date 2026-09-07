@@ -106,13 +106,39 @@ it — but neither aliasing claim survives contact with the code:
   would go blank with nothing to tell the shell to paint it again.
 
 So `SurfaceSet::build`'s own `storage_[]` and `grid_storage` stay as they are — **no shell seam for
-borrowed storage was added** — and the copy is measured rather than waved through: 768 B per OLED
-blit (≤ 76.8 kB/s at the fastest OLED gate the shell has ever armed, 10 ms) and 48 B per changed
-column pair, 432 B for a whole grid (≤ 21.6 kB/s at the fastest grid gate, 20 ms). Both numbers are
-`static_assert`ed at the code as `GuestSurfaceSet::kOledCopyBytesPerBlit`,
-`kGridCopyBytesPerColumnPair` and `kGridCopyBytesPerFullFlush`. For scale, legacy already memcpys up
-to that whole OLED image per frame in `copyBackgroundAroundForeground` whenever a console or popup is
-up, and `sortLedsForCol` already copies those same 16 colours per pair it sends.
+borrowed storage was added** — and the copy is measured rather than waved through: **768 B per OLED
+blit** and **48 B per changed column pair**, 432 B for a full-grid repaint (exactly
+`sizeof(PadLEDs::image)`). All three are `static_assert`ed at the code as
+`GuestSurfaceSet::kOledCopyBytesPerBlit`, `kGridCopyBytesPerColumnPair` and
+`kGridCopyBytesPerFullFlush`.
+
+**Stated as per-tick costs, not per-second rates — corrected in the task's review round, and the
+correction is the interesting part.** The first version of this paragraph quoted "≤ 21.6 kB/s at the
+fastest grid gate, 20 ms". There is no such ceiling, and two shipped scenes already exceed it:
+`RecorderScene` polls at `kRecorderPollMs = 10` (`src/scenes/recorder/recorder_scene.h:180`) and does
+not override `timer_repaints()`, so it takes `Scene`'s `{.oled = true, .grid = true}` default
+(`src/shell/scene.h:561`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
+returns `0u` for as long as the playhead is live
+(`src/scenes/audio_clip/audio_clip_scene.cpp:1193`) with `{.grid = true}`
+(`audio_clip_scene.h:474`), so the grid gate arms every tick and no millisecond figure bounds it at
+all. Sweeping the tree (14 `next_timer()` overrides against 6 `timer_repaints()` overrides) there is
+no cadence ceiling to quote for either surface.
+
+The bounds that are actually true:
+
+- **Grid: the per-pair diff, not a cadence.** `Shell::flush` compares each pair against `last_sent`
+  before calling `send_columns` at all (`src/shell/shell.cpp:941-957`), so a tick in which no pad
+  changed colour costs **zero bytes**, however fast the ticks come. 432 B is the price of a full
+  repaint, not of a tick.
+- **OLED: per tick that rendered, because there is no diff.** `flush` blits a surface
+  unconditionally once it has rendered (`src/shell/shell.cpp:435-442` is the ruling that says so, and
+  says why the OLED half may not over-arm the way the grid half may). 768 B per re-rendered tick,
+  bounded only by the host's tick rate; the 10 ms `RecorderScene` gate gives 76.8 kB/s as a **floor**
+  for a busy panel, not a ceiling.
+
+For scale, legacy already memcpys up to that whole OLED image per frame in
+`copyBackgroundAroundForeground` whenever a console or popup is up, and `sortLedsForCol` already
+copies those same 16 colours per pair it sends.
 
 Phase 5's bullet is unaffected: it deletes the legacy buffers rather than aliasing them.
 

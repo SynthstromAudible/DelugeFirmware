@@ -217,6 +217,31 @@ SCAN_ROOTS = (
 )
 SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt"}
 
+# UNCHECKED, AND MEASURED RATHER THAN SUSPECTED (F1 task 4 review, 2026-09-07). `SCAN_ROOTS` above
+# does not contain `src/deluge` or `src/shell`, so a citation written *in* either tree is never read
+# by this script -- only citations written in the five roots above are. That is a hole in the gate
+# and it is maximally live right now, because spec F's guest (`ShellHostUI` and friends) is written
+# inside `src/deluge/gui/ui/` by design: F1 task 4's two deliverable files carry **45** citations
+# (12 in the header, 33 in the .cpp), every one of them into `src/deluge`, `src/shell`, `src/gfx` or
+# `src/ui`, and this script read none of them. They were hand-verified instead and all 45 resolve --
+# which is the point: the gate reported "0 certainly-wrong citations" over a task whose citations it
+# had not looked at.
+#
+# What widening would find, measured by temporarily adding `src/deluge/gui/ui` and `src/shell` to
+# `SCAN_ROOTS` and running `--strict`: **four** certainly-wrong citations, all pre-existing, none in
+# task 4's own files --
+#
+#   src/shell/input_lowering.cpp:208  `hid/encoders.cpp:242`      past EOF
+#   src/shell/input_lowering.h:72     `hid/encoders.cpp:242`      past EOF
+#   src/shell/leds.cpp:13             `indicator_leds.cpp:122`    `setLedState` is 69 lines above
+#   src/shell/shell.cpp:770           `pad_leds.cpp:984`          `setGreyoutAmount` is 195 lines above
+#
+# Not widened here, and deliberately not: adding a root changes what the blocking gate rejects for
+# every subsequent commit, those four have to be fixed in the same change, and `src/deluge` is a far
+# larger scan than the five current roots put together. It is scheduled as its own measured round
+# before F1 task 5, the way `PORT_CITED_ROOTS` was in task 3 -- the four hits above are the list that
+# round starts from.
+
 # What a citation may point INTO. The legacy tree, always: it rots relative to these comments and
 # nothing in this repo can stop it.
 CITED_ROOT = "src/deluge"
