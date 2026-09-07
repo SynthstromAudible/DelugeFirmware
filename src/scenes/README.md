@@ -838,6 +838,56 @@ the sidebar UI beneath overwrites that pad later in the same pass; the shell com
 visible where legacy's is not. The port paints the marks inside the main-column region, which clips
 it: behaviour preserved by clipping rather than by transcription.
 
+## The audio clip view (`audio_clip/`, E4 task 11) — the first ROOT scene
+
+`AudioClipScene` is the port of `AudioClipView` (`gui/views/audio_clip_view.{h,cpp}`), and it is the
+first scene in this tree that is a **root view**: `AudioClipView` -> `ClipView` ->
+`ClipNavigationTimelineView` -> `TimelineView : public RootUI` (`gui/views/timeline_view.h:27`), and
+`grep "public RootUI"` finds exactly two classes in the whole tree. So `Scene::is_root()` returns
+true here for the first time, and the group of legacy global button arms `services::GlobalControls`
+gates on that predicate (`services/global_controls.cpp:580`) — `SAVE`, `LOAD`, `SYNC_SCALING`,
+`TAP_TEMPO`, `BACK` and shift+`SELECT_ENC` — becomes reachable for the first time as well.
+
+Three things about it that are not obvious from the class:
+
+* **The play cursor is not painted by `renderMainPads`.** `AudioClipView::graphicsRoutine`
+  (`audio_clip_view.cpp:262-310`) hands a column to `PadLEDs::setTickSquares`, and the *driver*
+  substitutes the colour per pad on the way out, in `PadLEDs::prepareColour`
+  (`hid/led/pad_leds.cpp:283-298`). The shell has one immediate-mode `render_grid`, so the port
+  paints both halves there — the waveform, then `ui::grid::tick_squares` last — and the spec's
+  oracle runs legacy's `graphicsRoutine`, `renderMainPads`, `renderSidebar` **and** `prepareColour`
+  so the two are comparable at all.
+* **It is not the voice walk tasks 9 and 10 could not drive.** That is `Slicer::graphicsRoutine`
+  (`gui/ui/slicer.cpp:156-203`). This one reads `playbackHandler`, `Song::isClipActive` and
+  `ClipView::getTickSquare`, all of which a spec drives, and the last of which is already
+  `timeline::TimelineState::tick_square`.
+* **`AudioClipView::renderSidebar` uses neither of `ui/grid/sidebar.h`'s colour helpers.** It fills
+  both columns black (`audio_clip_view.cpp:244-245`) and, only while `UI_MODE_HOLDING_SONG_BUTTON`,
+  draws `view.renderMacros` (`:247-249`). `status_pad`/`audition_pad` belong to the session and
+  instrument-clip views; the entry point here is `ui::grid::sidebar_columns`. The macro arm is not
+  ported: `view.clipArmFlashOn`, `matrixDriver.isPadPressed` and `view.flashPlayEnable()` are all
+  outside this layer, `View::renderMacros` is shared with `SessionView`, and the mode that gates it
+  is set by an arm E4 task 12 owns.
+
+`ui::oled::output_name`'s `name_empty` branch draws a **slot**, which is legacy's substitution for an
+unnamed MIDI or CV output (`view.cpp:2145-2170`). An `OutputType::AUDIO` output with no name matches
+none of `drawOutputNameFromDetails`' three arms, so legacy draws the type text alone — the scene
+therefore passes the empty name with `name_empty = false`, and the "unnamed output" example in
+`sim/scenes_spec/audio_clip_scene_spec.cpp` is what found it.
+
+### The spec constraint that makes a pad comparison vacuous, and the assertion that closes it
+
+`deluge::sample::find_peaks_per_col` takes its cached whole-cluster arm only when a display column
+spans two or more clusters (`model/sample/waveform_scan.cpp:220-230`); on any other arm it opens a
+`SampleFrameReader`, which fails with no card mounted, sets `hadAnyTroubleLoading` and returns
+**false**. Both sides then draw nothing — the port because `render_grid` returns, legacy because
+`renderMainPads`' `image == PadLEDs::image` arm returns (`:151-154`) — and a pad-for-pad comparison
+passes on two black grids. It was written that way first: a `loop_length` of 384 at `x_zoom = 48`
+puts a column boundary 16 bytes from the end of the last cluster, and the "grey region" example
+passed with an entirely black grid. Every render example in that spec now asserts a floor on its own
+lit-pad count (`expect_grid_has_content`), and the fixture's `Sentinel` docstring carries the
+arithmetic. Any later spec that renders a waveform wants the same guard.
+
 ## Repaint and the timer fold (`Shell::tick` step 8b, E3 tasks 10-11)
 
 Two shell-level corrections this plan made, both of which change how a scene asks to be redrawn:
@@ -978,6 +1028,15 @@ name — so the port keeps its own copy beside the tables the setting selects. C
 user who selects the pre-3.0 layout gets the current one back on the next power-on. Whoever wires the
 scene stack to `deluge.cpp` should pass flash byte 60 through. Wiring it from `storage/` instead
 would be a storage-depends-on-scenes edge and is the wrong direction.
+
+**And a second, added by E4 task 11: `AudioClipScene::set_flash_cursor()` has no caller at boot
+either.** `PadLEDs::flashCursor` is the same shape of problem — it lives on `PadLEDs` (`hid/`, which
+this layer may never include) and `FlashStorage::readSettings` writes it straight there
+(`storage/flash_storage.cpp:440`), so there is nothing in `model/` or `storage/` to read it back
+from. The scene keeps its own copy, defaulting to `FlashCursor::Slow`, which is both the factory
+default (`flash_storage.cpp:287`) and the only one of the three modes that reaches a pixel at all
+(`ui/grid/columns.h`'s `tick_colour` warning). Consequence today: a user who turns the play cursor
+off still sees it in the audio clip view. Whoever wires boot should pass flash byte 36 through.
 
 The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
 application has to call — that is the file a boot author is already in.
