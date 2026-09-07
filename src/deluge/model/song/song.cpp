@@ -1207,7 +1207,13 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeAttribute("release", AudioEngine::reverbSidechain.release);
 	writer.writeAttribute("volume", AudioEngine::reverbSidechainVolume);
 	writer.writeAttribute("shape", AudioEngine::reverbSidechainShape);
-	writer.writeAttribute("syncLevel", AudioEngine::reverbSidechain.syncLevel);
+	// Converted, not raw: the reader at readTagFromFile() puts this back through
+	// convertSyncLevelFromFileValueToInternalValue(), and writing the internal value straight out
+	// left the two sides disagreeing. With a magnitude of 2 the read subtracts one, so every
+	// save->load cycle walked this sync level down a step and the drift COMPOUNDED until it clamped.
+	// Every other syncLevel in the format goes through this same helper (delay, sidechain, all four
+	// LFOs, swingInterval); this one site did not.
+	writer.writeAbsoluteSyncLevelToFile(this, "syncLevel", AudioEngine::reverbSidechain.syncLevel, false);
 	writer.closeTag();
 
 	writer.writeClosingTag("reverb");
