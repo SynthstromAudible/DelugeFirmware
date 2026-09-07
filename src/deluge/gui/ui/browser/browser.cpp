@@ -519,15 +519,15 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// the finished listing is identical either way. Counted here rather than at the call sites
 	// because this is the ONLY place the browser opens a directory.
 	//
-	// Gated on `listing_.active`, and that is the rung's central rule rather than a detail. This
-	// function has callers that are NOT listing attempts and have nowhere to put a deferral:
-	// `predictExtendedText` re-reads the folder straight from the typing path, and
-	// `LoadInstrumentPresetUI` calls in from outside Browser entirely. Neither runs under
-	// `runPendingListing`, so neither would ever be resumed, and handing either of them
-	// LISTING_DEFERRED would empty the file list and put an error popup on screen for a folder that
-	// is perfectly readable. They keep the synchronous open until they are converted in turn; what
-	// this rung converts is exactly the listing actions, and the remaining blocking callers are
-	// enumerable rather than latent.
+	// Gated on `listing_.active`, and that is deliberate rather than a gap: `opensSoFar` only tracks
+	// the two state machines that resume THROUGH graphicsRoutine() -- a listing from the pump, a
+	// prediction from a keystroke -- because those are the only callers this per-open counter needs
+	// to force a specific Nth open to defer for. Every other caller that reaches this function now
+	// dispatches onto the storage owner instead (rung 5): `LoadInstrumentPresetUI`'s readers and
+	// `InstrumentClipMinder::createNewInstrument()`'s Browser::getUnusedSlot() read both run there,
+	// where a defer is a fiber yield, not a LISTING_DEFERRED handed back to a caller with nowhere to
+	// put it -- they have their own dispatch-count instrumentation (presetAcquisitionsRun()) rather
+	// than this counter.
 	// Whichever converted caller is active. Only one can be: a listing runs from the pump, a
 	// prediction from a keystroke, and neither nests inside the other.
 	int32_t* opensSoFar = listing_.active      ? &listing_.opensThisListing

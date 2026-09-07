@@ -230,6 +230,15 @@ public:
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
 	bool createNewInstrument(OutputType instrumentType, bool is_fm = false);
+	/// @brief createNewInstrument()'s follow-up, reached from LoadInstrumentPresetUI::
+	///        runAcquisitionFollowUp()'s `ViewNewInstrument` arm, on the storage owner. Runs
+	///        InstrumentClipMinder::createNewInstrument() (unchanged, blocking -- legal here) then this
+	///        class's own recolour/repaint/enterDrumCreator tail, since all of that used to fire,
+	///        together, right after the (now-deferred) creation.
+	/// @param newOutputType SYNTH or KIT.
+	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
+	/// @return Whether an instrument was actually created.
+	bool completeNewInstrument(OutputType newOutputType, bool is_dx);
 	bool changeOutputType(OutputType newOutputType);
 	/// @brief changeOutputType()'s follow-up, reached via View::completeChangeOutputTypeFor()'s
 	///        `ViewChangeType` arm -- on the storage owner for Synth/Kit, inline for MIDI/CV. Runs

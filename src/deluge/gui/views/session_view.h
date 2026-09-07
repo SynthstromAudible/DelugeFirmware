@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
+#include "storage/owner.h"
 #include "util/etl_string.h"
 
 class Editor;
@@ -196,8 +197,28 @@ public:
 	// Host-sim reproduction harness entry (src/bsp/host/host_debug.cpp). Runs the full "create a new instrument clip
 	// with a new track" gesture (loads the next unlaunched preset, copying drums, and inserts the clip into the song)
 	// without going through pad input — used to reproduce the kit-copy memory pressure / leak off-target.
+	//
+	// Routed through the owner seam rather than calling createNewInstrumentClip() directly: that call
+	// reaches LoadInstrumentPresetUI's readers the same way a real gesture does, and this tool is the
+	// one caller left that isn't itself dispatched by one (host-sim only, on-demand via a signal, not
+	// a pad press). `run_or_inline` is inline here regardless -- this tool only ever builds against
+	// sim/'s cooperative scheduler backing, never the Embassy one -- so this is a no-op today, but it
+	// is the discipline every other caller now goes through, and it is what keeps this tool from being
+	// the one silent exception if that ever changes.
 	Clip* reproCreateNewInstrumentClip(OutputType type, int32_t yDisplay) {
-		return createNewInstrumentClip(type, yDisplay);
+		struct Ctx {
+			SessionView* self;
+			OutputType type;
+			int32_t yDisplay;
+			Clip* result;
+		} ctx{this, type, yDisplay, nullptr};
+		deluge::storage::Owner::run_or_inline(
+		    [](void* ctxPtr) {
+			    auto* c = static_cast<Ctx*>(ctxPtr);
+			    c->result = c->self->createNewInstrumentClip(c->type, c->yDisplay);
+		    },
+		    &ctx);
+		return ctx.result;
 	}
 
 	// ui

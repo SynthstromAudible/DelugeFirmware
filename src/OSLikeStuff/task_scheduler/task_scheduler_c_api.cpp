@@ -126,6 +126,15 @@ bool deluge_worker_on_worker(void) {
 // Embassy boot-exception idiom - see fiber.rs's WORKER_STARTED) is trivially satisfied here rather
 // than tripping on a distinction this BSP doesn't have. The Embassy BSP supplies its own definition
 // (fiber.rs) that wins at link time.
+//
+// This is also why that assertion's guarantee is debug/host-only, not a property this BSP itself
+// enforces: `assert()` compiles out under NDEBUG, and even where it doesn't, `on_owner()` is ALSO
+// always false here (see deluge_worker_on_worker() above), so `on_owner() || !worker_started()` is
+// vacuously true on every cooperative/host build regardless of what actually called in -- it proves
+// nothing here, only on Embassy. A future change that made this return true (to give cooperative/host
+// a real "has the owner run yet" answer) would make every one of those assertions fire spuriously the
+// first time an interaction-tier caller reached one of load_instrument_preset_ui.cpp's readers on
+// this BSP, since `on_owner()` staying always-false would then never satisfy the left-hand side.
 bool deluge_worker_started(void) {
 	return false;
 }

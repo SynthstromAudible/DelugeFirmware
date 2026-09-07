@@ -128,11 +128,14 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	display->popupText(buffer.c_str());
 }
 #pragma GCC pop
-bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is_dx) {
-	Error error;
-
+// Dispatch new-instrument creation onto the storage owner: reads the card (Browser::getUnusedSlot(),
+// via createNewInstrument() below) to name a free preset slot, which readFileItemsForFolder() may
+// now defer -- there is no interaction-tier context left to run it inline in. The clip-not-empty
+// guard runs HERE, before any card access, matching View::changeOutputType()'s identical guard
+// (InstrumentClip::changeOutputType(), that leaf's equivalent, carries no copy of it either).
+bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputType, bool is_dx,
+                                                         deluge::storage::PresetConsumer consumer) {
 	OutputType oldOutputType = getCurrentOutputType();
-
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	// don't allow clip type change if clip is not empty
@@ -141,6 +144,35 @@ bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is
 	    && (!clip->isEmpty() || !clip->output->isEmpty())) {
 		return false;
 	}
+
+	deluge::storage::PresetRequest request{
+	    .query = deluge::storage::PresetQuery::UnusedSlot,
+	    .consumer = consumer,
+	    .outputType = newOutputType,
+	    .isDx = is_dx,
+	    .dirPath = getInstrumentFolder(newOutputType),
+	};
+	// The acquisition may still fail on the owner (no unused slot, OOM, etc); the gesture itself was
+	// accepted here, so report success and let the completion surface any error, exactly as
+	// View::changeOutputType() does.
+	return loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// The MinderNewInstrument completion: no extra tail, matching what the direct SYNTH-button call
+// sites this replaces did with createNewInstrument()'s bool (discarded it).
+void InstrumentClipMinder::completeNewInstrument(OutputType newOutputType, bool is_dx) {
+	createNewInstrument(newOutputType, is_dx);
+}
+
+// Runs on the storage owner -- see beginNewInstrumentAcquisition() above, which is what every caller
+// now goes through instead of this directly. Otherwise unchanged: still blocks on the card read,
+// which is legal on this tier.
+bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is_dx) {
+	Error error;
+
+	OutputType oldOutputType = getCurrentOutputType();
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(clip);
 
@@ -459,10 +491,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (Buttons::isButtonPressed(MOD7)) { // FM
-				createNewInstrument(OutputType::SYNTH, true);
+				beginNewInstrumentAcquisition(OutputType::SYNTH, true);
 			}
 			else if (Buttons::isShiftButtonPressed()) {
-				createNewInstrument(OutputType::SYNTH);
+				beginNewInstrumentAcquisition(OutputType::SYNTH);
 			}
 			else {
 				changeOutputType(OutputType::SYNTH);

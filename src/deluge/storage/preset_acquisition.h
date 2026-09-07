@@ -35,6 +35,8 @@ enum class PresetQuery : uint8_t {
 	AnyUnlaunched, ///< findAnUnlaunchedPresetIncludingWithinSubfolders()
 	ConfirmOrNext, ///< confirmPresetOrNextUnlaunchedOne()
 	Navigate,      ///< doPresetNavigation()
+	UnusedSlot,    ///< Browser::getUnusedSlot() -- not a LoadInstrumentPresetUI reader, but the same
+	               ///< shape: it names a brand-new preset slot by reading the folder.
 };
 
 /// @brief Which gesture's follow-up the completion runs.
@@ -74,6 +76,15 @@ enum class PresetConsumer : uint8_t {
 	                        ///< so the unqualified call there resolves to the base). Runs
 	                        ///< InstrumentClipMinder's LEDs ONLY: InstrumentClipView was never in this
 	                        ///< call chain, so its recolour/repaint never ran for this path either.
+	MinderNewInstrument,    ///< InstrumentClipMinder::buttonAction()'s own SYNTH branch (FM/shift),
+	                        ///< reached DIRECTLY the same way ViewChangeTypeMinder is -- InstrumentClipView
+	                        ///< was never in this call chain. No extra tail: the direct call sites this
+	                        ///< replaces discarded createNewInstrument()'s bool too.
+	ViewNewInstrument,      ///< InstrumentClipView::createNewInstrument(), reached via
+	                        ///< handleInstrumentChange() -- the shift/FM new-instrument buttons on
+	                        ///< InstrumentClipView, AutomationView and KeyboardScreen all route through
+	                        ///< it. Runs InstrumentClipView's full tail: recolour + repaint, plus
+	                        ///< enterDrumCreator() for a new Kit.
 };
 
 /// @brief Everything an acquisition needs, captured at dispatch time.
@@ -109,6 +120,8 @@ struct PresetRequest {
 	///       than the synchronous path did.
 	bool padStillPressed{};
 	uint32_t targetSection{}; ///< SessionNewTrackClone only: the section the copy is dropped into.
+	/// @brief MinderNewInstrument/ViewNewInstrument only: whether the new Synth should be FM (DX7).
+	bool isDx{};
 
 	std::string searchName; ///< ConfirmOrNext only: the preset name to confirm.
 	std::string dirPath;    ///< Browser::currentDir at dispatch -- the op sets currentDir from THIS.

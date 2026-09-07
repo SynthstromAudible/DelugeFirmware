@@ -2692,6 +2692,8 @@ bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer,
 	case PresetConsumer::SessionNewTrackSelect:
 	case PresetConsumer::SessionNewTrackClone:
 	case PresetConsumer::ViewNavigateClipPreset:
+	case PresetConsumer::MinderNewInstrument:
+	case PresetConsumer::ViewNewInstrument:
 		// Not a changeOutputType() consumer -- listed explicitly, never folded into a `default:`, so
 		// -Werror=switch keeps flagging every PresetConsumer this router does not yet know how to
 		// route. changeOutputType() itself never passes any of these; reached only if a future caller

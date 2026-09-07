@@ -1716,7 +1716,15 @@ void InstrumentClipView::doubleClipLengthAction() {
 	display->consoleText("Clip multiplied");
 }
 
+// The acquisition reads the card (InstrumentClipMinder::createNewInstrument() -> Browser::
+// getUnusedSlot()), so it runs on the storage owner; everything that used to follow that call's
+// synchronous return now runs in completeNewInstrument() instead.
 bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx) {
+	return InstrumentClipMinder::beginNewInstrumentAcquisition(newOutputType, is_dx,
+	                                                           deluge::storage::PresetConsumer::ViewNewInstrument);
+}
+
+bool InstrumentClipView::completeNewInstrument(OutputType newOutputType, bool is_dx) {
 	if (InstrumentClipMinder::createNewInstrument(newOutputType, is_dx)) {
 		recalculateColours();
 		uiNeedsRendering(getRootUI());

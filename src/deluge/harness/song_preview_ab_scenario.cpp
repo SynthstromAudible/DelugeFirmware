@@ -261,6 +261,16 @@ public:
 		return view.changeOutputType(newOutputType, modelStack, true);
 	}
 
+	/// Drives InstrumentClipView's REAL shift/FM "create a brand-new instrument" gesture -- the one
+	/// LoadInstrumentPresetUI reader NEVER covers (Browser::getUnusedSlot(), not one of the three
+	/// PresetQuery readers) and the one rung 5 task 6's fix round found still reaching the directory
+	/// channel from the interaction tier. Reads getCurrentInstrumentClip() live, exactly as the real
+	/// gesture (handleInstrumentChange() -> createNewInstrument()) does -- no clip parameter, to keep
+	/// this a faithful call of the production entry point rather than a reimplementation of it.
+	static bool createNewInstrument(OutputType newOutputType, bool isDx) {
+		return instrumentClipView.createNewInstrument(newOutputType, isDx);
+	}
+
 	/// Put SessionView into Grid layout with `clip` under the first grid press, which is what BOTH
 	/// Grid-layout gestures below read their subject from (getClipForLayout() ->
 	/// gridClipFromCoords(gridFirstPressedX, gridFirstPressedY)).
@@ -1784,6 +1794,8 @@ enum class AcquireStep : uint8_t {
 	SessionNavigateCheck,
 	SessionNewTrackEnter,
 	SessionNewTrackEnterCheck,
+	ViewNewInstrument,
+	ViewNewInstrumentCheck,
 	Finished
 };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
@@ -2364,6 +2376,58 @@ void runAcquireTick() {
 		if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 			printf("SP-ACQUIRE FAIL the grid ENTER gesture did not leave the new clip held -- "
 			       "gridNewTrackClipEntered() read the reset press coordinates instead of the snapshot\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::ViewNewInstrument;
+		break;
+	}
+	case AcquireStep::ViewNewInstrument: {
+		// The shift/FM new-instrument gesture: a DIFFERENT card read from every step above (Browser::
+		// getUnusedSlot(), not one of the three LoadInstrumentPresetUI readers -- see the rung 5 task 6
+		// fix round). Deliberately LAST: it creates a genuinely new "SYNT<N>"-named Instrument and adds
+		// it to the live Song (createNewInstrument() -> currentSong->addOutput()), which earlier steps'
+		// findAnUnlaunchedPresetIncludingWithinSubfolders()-backed scans would otherwise pick up as an
+		// in-memory candidate (readFileItemsFromFolderAndMemory() merges card files with live Outputs)
+		// and land on instead of the fixture file they expect -- found by running this step earlier and
+		// watching AcquireStep::SessionNavigate fail downstream.
+		//
+		// Reads getCurrentInstrumentClip() fresh, not g_viewClip: SessionNewTrackEnter above holds a
+		// DIFFERENT clip (beginHoldingClipPress() -> currentSong->setCurrentClip()), and this step
+		// means to drive the real gesture on whichever clip is actually current, exactly as
+		// createNewInstrument() itself does -- not to reach past it back to the boot clip. That clip is
+		// SYNTH (created via SessionNewTrackEnter's own acquisition), so the clip-not-empty guard
+		// (KIT-only) does not apply and this reads the card unconditionally. ViewNewInstrumentCheck
+		// asserts a REAL outcome (the clip's Output actually became a NEW, unused-slot-named
+		// instrument), not just that an op ran -- same standard as ViewNavigateCheck above.
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		g_acqViewNameBefore = acquiredName(clip->output);
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::createNewInstrument(OutputType::SYNTH, false);
+		g_acquireStep = AcquireStep::ViewNewInstrumentCheck;
+		break;
+	}
+	case AcquireStep::ViewNewInstrumentCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		const std::string nameAfter = acquiredName(getCurrentInstrumentClip()->output);
+		printf("SP-ACQUIRE view-newinstrument dispatches=%d before=%s after=%s\n", dispatched,
+		       g_acqViewNameBefore.c_str(), nameAfter.c_str());
+		if (dispatched != 1) {
+			printf("SP-ACQUIRE FAIL InstrumentClipView::createNewInstrument()'s dispatch ran %d op(s), "
+			       "expected 1\n",
+			       dispatched);
+			g_failures++;
+		}
+		// The real outcome: getUnusedSlot() names the new instrument from the "SYNT:"-prefixed slot
+		// search (browser.cpp), which nothing in this fixture's SYNTHS folder collides with, so a
+		// working ViewNewInstrument arm MUST land on a freshly minted "SYNT"-prefixed name -- proving
+		// InstrumentClipMinder::createNewInstrument() actually ran the card read AND
+		// InstrumentClipView::completeNewInstrument() actually ran the swap, not merely that the op
+		// executed (a dispatch-count-only check would pass identically with the switch arm still an
+		// empty `break;`).
+		if (nameAfter == g_acqViewNameBefore || !nameAfter.starts_with("SYNT")) {
+			printf("SP-ACQUIRE FAIL createNewInstrument did not create a new, unused-slot-named "
+			       "instrument -- ViewNewInstrument's switch arm may not be wired, or "
+			       "Browser::getUnusedSlot() never ran\n");
 			g_failures++;
 		}
 		g_acquireStep = AcquireStep::Finished;

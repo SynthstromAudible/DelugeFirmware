@@ -506,6 +506,17 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 	case PresetConsumer::SessionNewTrackClone:
 		sessionView.completeNewTrackClone(request.targetSection, request.sourceClip);
 		break;
+	case PresetConsumer::MinderNewInstrument:
+		// InstrumentClipMinder::completeNewInstrument() reads only global state (getCurrentInstrumentClip(),
+		// currentSong, etc.) -- it never touches `this` -- so which InstrumentClipMinder-derived instance
+		// runs it is interchangeable; instrumentClipView is used here only because it is already
+		// referenced nearby, the same idiom completeChangeOutputTypeFor()'s ViewChangeTypeMinder arm
+		// uses for setLedStates().
+		instrumentClipView.InstrumentClipMinder::completeNewInstrument(request.outputType, request.isDx);
+		break;
+	case PresetConsumer::ViewNewInstrument:
+		instrumentClipView.completeNewInstrument(request.outputType, request.isDx);
+		break;
 	}
 }
 
