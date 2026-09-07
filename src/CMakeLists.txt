@@ -9,7 +9,9 @@ add_subdirectory(notify)     # deluge_notify: model->UI notification channel
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
 # deluge_scenes: the first UI layer allowed to include the model (ruling Q4). Links deluge_app;
-# nothing links deluge_scenes yet -- must come after deluge_app exists to link against it.
+# must come after deluge_app exists to link against it. Linked into the firmware and the host sim
+# by src/bsp/rust/build.rs (both the device and host archive lists), and into its own spec
+# executable by sim/scenes_spec/CMakeLists.txt.
 add_subdirectory(scenes)
 add_subdirectory(NE10)
 add_subdirectory(lib)

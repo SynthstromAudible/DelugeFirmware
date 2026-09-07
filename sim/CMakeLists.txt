@@ -440,7 +440,10 @@ add_executable(deluge_host
 # (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
 # ${REPO_ROOT}/tests is for host_script.c's <harness/ui_script.h>.
 target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge ${REPO_ROOT}/tests)
-target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+# deluge_scenes is COMPILE_ONLY-linked to deluge_app (src/scenes/CMakeLists.txt:144-152), so it does
+# not re-provide deluge_app's symbols -- deluge_app is already linked directly above, which is what
+# makes this safe.
+target_link_libraries(deluge_host PRIVATE deluge_app deluge_scenes deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})
 endif()
