@@ -473,7 +473,14 @@ add_executable(deluge_loadcheck
 # src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
 # ${REPO_ROOT}/tests is for host_script.c's <harness/ui_script.h>.
 target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge ${REPO_ROOT}/tests)
-target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+# deluge_scenes, even though this tool loads audio files and opens no UI: deluge_app is an OBJECT
+# library (src/deluge/CMakeLists.txt:30), so EVERY one of its objects is linked into every consumer
+# -- there is no archive-member drop to rely on -- and `gui/ui/shell_host_ui.cpp`'s `shellHostUI`
+# global is constructed from `deluge::scenes::scene_registry()`. This target has therefore failed to
+# link since F1 task 5 added that global, which nothing noticed because no gate builds it
+# (`ctest --test-dir build-sim` runs pre-built rows and the plan's build step names
+# `--target deluge_scenes_spec`). Found and fixed by F1 task 8, which adds more of the same edges.
+target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scenes deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
 endif()
