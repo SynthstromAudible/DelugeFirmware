@@ -20,7 +20,8 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/load/load_instrument_preset_ui.h" // presetAcquisitionsRun(), the acquire stage's inert counter
+#include "gui/context_menu/clip_settings/new_clip_type.h" // the picker's chosen type, set by the grid ENTER probe
+#include "gui/ui/load/load_instrument_preset_ui.h"        // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"   // the converted caller, driven end to end below
 #include "gui/ui/ui.h"                  // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
@@ -314,6 +315,34 @@ public:
 
 	/// Whether the empty-pad gesture is still waiting for its acquisition's completion to hold the pad.
 	static bool newTrackPressHeld() { return sessionView.newTrackPressHeld_; }
+
+	/// Drives the grid new-track gesture's ENTER continuation, resuming from the state the clip-type
+	/// picker leaves behind and going through exitTrackCreation()'s real funnel.
+	///
+	/// The picker itself is NOT opened: setupTrackCreation() calls openUI() on a context menu, and
+	/// this headless scenario never set up a UI stack for one to be pushed onto (the same reason
+	/// openSaveBrowserOn() drives beginListing rather than opening a browser). Everything the
+	/// conversion touches lives below that -- finishGridNewTrackClip() -> dispatch ->
+	/// completeNewTrackGridEnter() -> gridNewTrackClipEntered() -- so the pending state the picker
+	/// would have set is written directly and the funnel is entered for real.
+	static void beginGridNewTrackEnter(int32_t x, int32_t y) {
+		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		currentUIMode = UI_MODE_NONE;
+		sessionView.gridFirstPressedX = x;
+		sessionView.gridFirstPressedY = y;
+		sessionView.gridResetPresses(false, true);
+		sessionView.pendingGridClip = SessionView::PendingGridClip::ENTER;
+		sessionView.pendingGridClipXY = (static_cast<uint32_t>(y) << 16) | static_cast<uint32_t>(x);
+		sessionView.createClip = true;
+		deluge::gui::context_menu::clip_settings::newClipType.toCreate = OutputType::SYNTH;
+		sessionView.exitTrackCreation();
+	}
+
+	/// Reproduce the caller's own tail: both release paths that call exitTrackCreation() follow it
+	/// immediately with clipPressEnded(), which runs gridResetPresses() and sets gridFirstPressedX/Y
+	/// to -1 -- the reset that made the deferred continuation read "pad released" when the pad was in
+	/// fact still down. Driving the gesture without this would not exercise the bug at all.
+	static void endGridPress() { sessionView.clipPressEnded(); }
 };
 
 namespace {
@@ -1753,6 +1782,8 @@ enum class AcquireStep : uint8_t {
 	SessionNewTrackCheck,
 	SessionNavigate,
 	SessionNavigateCheck,
+	SessionNewTrackEnter,
+	SessionNewTrackEnterCheck,
 	Finished
 };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
@@ -1817,6 +1848,11 @@ int32_t g_acqNewTrackClipsBefore = 0; // sessionClips size sampled before the ge
 // than the boot one: its Instrument comes from SYNTHS/NESTED, the only folder here with enough entries
 // for a one-step navigation to land somewhere else (see that step's doc).
 Clip* g_acqNewTrackClip = nullptr;
+
+// Where AcquireStep::SessionNewTrackEnter presses. Any grid cell whose section maps in range does:
+// the gesture creates its own track, so nothing has to already be at these coordinates.
+constexpr int32_t kAcqEnterX = 1;
+constexpr int32_t kAcqEnterY = kGridHeight - 1;
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
 /// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
@@ -2283,6 +2319,51 @@ void runAcquireTick() {
 		if (nameAfter == g_acqViewNameBefore) {
 			printf("SP-ACQUIRE FAIL navigate did not change the clip's Output -- "
 			       "SessionNavigate's switch arm may not be wired\n");
+			g_failures++;
+		}
+		g_acquireStep = AcquireStep::SessionNewTrackEnter;
+		break;
+	}
+	case AcquireStep::SessionNewTrackEnter: {
+		// The grid new-track gesture's ENTER continuation, the one consumer whose OUTCOME the deferral
+		// silently changed: gridNewTrackClipEntered() used to compare the press coordinates against the
+		// live gridFirstPressedX/Y, and the caller resets those (clipPressEnded()) the moment
+		// exitTrackCreation() returns -- so once the acquisition was deferred, every ENTER gesture read
+		// "pad released" and transitioned INTO the clip instead of holding it. The check below asserts
+		// the held outcome the synchronous version produced.
+		g_acqNewTrackClipsBefore = std::ssize(currentSong->sessionClips);
+		g_acqViewBefore = acqDispatches();
+		BrowserListingAbProbe::beginGridNewTrackEnter(kAcqEnterX, kAcqEnterY);
+		if (std::ssize(currentSong->sessionClips) != g_acqNewTrackClipsBefore) {
+			printf("SP-ACQUIRE FAIL the grid ENTER gesture created a clip synchronously; it reads the card\n");
+			g_failures++;
+		}
+		// The caller's tail, which is what resets the coordinates the completion must NOT re-read.
+		BrowserListingAbProbe::endGridPress();
+		g_acquireStep = AcquireStep::SessionNewTrackEnterCheck;
+		break;
+	}
+	case AcquireStep::SessionNewTrackEnterCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqViewBefore;
+		const int32_t added = static_cast<int32_t>(std::ssize(currentSong->sessionClips)) - g_acqNewTrackClipsBefore;
+		printf("SP-ACQUIRE session-newtrack-enter dispatches=%d clipsAdded=%d uiMode=%d\n", dispatched, added,
+		       static_cast<int>(currentUIMode));
+		if (dispatched != 1) {
+			printf("SP-ACQUIRE FAIL the grid ENTER gesture ran %d op(s), expected 1\n", dispatched);
+			g_failures++;
+		}
+		if (added != 1) {
+			printf("SP-ACQUIRE FAIL the grid ENTER gesture added %d session clip(s), expected 1 -- "
+			       "SessionNewTrackEnter's switch arm may not be wired\n",
+			       added);
+			g_failures++;
+		}
+		// The outcome the snapshot exists to preserve: still holding the clip, NOT transitioned into
+		// it. A completion that re-read gridFirstPressedX/Y would have taken the released branch and
+		// left currentUIMode alone.
+		if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
+			printf("SP-ACQUIRE FAIL the grid ENTER gesture did not leave the new clip held -- "
+			       "gridNewTrackClipEntered() read the reset press coordinates instead of the snapshot\n");
 			g_failures++;
 		}
 		g_acquireStep = AcquireStep::Finished;

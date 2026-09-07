@@ -495,10 +495,10 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		sessionView.completeNewTrack(request.outputType, request.xPressed, request.yPressed, request.clipIndex);
 		break;
 	case PresetConsumer::SessionNewTrackEnter:
-		sessionView.completeNewTrackGridEnter(request.outputType, request.packedXY);
+		sessionView.completeNewTrackGridEnter(request.outputType, request.packedXY, request.padStillPressed);
 		break;
 	case PresetConsumer::SessionNewTrackSelect:
-		sessionView.completeNewTrackGridSelect(request.outputType, request.packedXY);
+		sessionView.completeNewTrackGridSelect(request.outputType, request.packedXY, request.padStillPressed);
 		break;
 	case PresetConsumer::SessionNewTrackClone:
 		sessionView.completeNewTrackClone(request.targetSection, request.sourceClip);

@@ -130,18 +130,22 @@ public:
 	void completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex);
 
 	/// @brief The grid new-track gesture's ENTER follow-up, on the storage owner.
-	/// @param type     The clip type chosen in the picker.
-	/// @param packedXY The press coordinates, `y << 16 | x`.
-	void completeNewTrackGridEnter(OutputType type, uint32_t packedXY);
+	/// @param type            The clip type chosen in the picker.
+	/// @param packedXY        The press coordinates, `y << 16 | x`.
+	/// @param padStillPressed Whether the starting pad was still down when the gesture dispatched.
+	///                        Snapshotted, because the dispatching caller resets gridFirstPressedX/Y
+	///                        immediately afterwards.
+	void completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed);
 
 	/// @brief The grid new-track gesture's SELECT follow-up, on the storage owner.
 	///
 	/// Deliberately separate from completeNewTrackGridEnter(): the two share the create-and-place
 	/// half, but their post-create tails (gridNewTrackClipEntered() vs gridNewTrackClipSelected())
 	/// are different functions and must not be collapsed into one.
-	/// @param type     The clip type chosen in the picker.
-	/// @param packedXY The press coordinates, `y << 16 | x`.
-	void completeNewTrackGridSelect(OutputType type, uint32_t packedXY);
+	/// @param type            The clip type chosen in the picker.
+	/// @param packedXY        The press coordinates, `y << 16 | x`.
+	/// @param padStillPressed Whether the starting pad was still down when the gesture dispatched.
+	void completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed);
 
 	/// @brief gridClonePad()'s follow-up when the copy lands in an EMPTY track column, on the storage
 	///        owner.
@@ -378,8 +382,17 @@ private:
 	/// @return The placed clip, or nullptr if creation or placement failed.
 	Clip* createGridNewTrackClip(OutputType type, uint32_t packedXY);
 
-	void gridNewTrackClipEntered(Clip* clip, uint32_t packedXY);  ///< ENTER continuation
-	void gridNewTrackClipSelected(Clip* clip, uint32_t packedXY); ///< SELECT continuation
+	/// @brief ENTER continuation: play the new clip, then hold it or transition into it
+	/// @param clip            The clip that was just created and placed.
+	/// @param padStillPressed Whether the starting pad was still down when the gesture dispatched.
+	///                        Passed in rather than re-derived from gridFirstPressedX/Y: those are
+	///                        reset by clipPressEnded() before a dispatched completion ever runs.
+	void gridNewTrackClipEntered(Clip* clip, bool padStillPressed);
+
+	/// @brief SELECT continuation: select the new clip, and take clip control if still held
+	/// @param clip            The clip that was just created and placed.
+	/// @param padStillPressed Whether the starting pad was still down when the gesture dispatched.
+	void gridNewTrackClipSelected(Clip* clip, bool padStillPressed);
 
 	/// @name Deferred new-track gesture state
 	/// Carried across the picker wait, since no stack spans it.

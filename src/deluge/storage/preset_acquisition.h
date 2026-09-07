@@ -98,9 +98,16 @@ struct PresetRequest {
 	///       can advance songViewYScroll before the value is used.
 	int32_t clipIndex{};
 	/// @brief SessionNewTrackEnter/Select only: the grid press coordinates, packed `y << 16 | x`.
-	/// @note Already the shape gridNewTrackClipEntered()/gridNewTrackClipSelected() take, and already
-	///       carried across the clip-type picker's wait as `pendingGridClipXY`.
+	/// @note Already the shape the create-and-place half takes, and already carried across the
+	///       clip-type picker's wait as `pendingGridClipXY`.
 	uint32_t packedXY{};
+	/// @brief SessionNewTrackEnter/Select only: whether the pad that started the gesture was STILL
+	///        pressed when the gesture dispatched.
+	/// @note Snapshotted, never re-read: the dispatching caller runs clipPressEnded() ->
+	///       gridResetPresses() the instant it returns, so a completion comparing `packedXY` against
+	///       the live gridFirstPressedX/Y would always conclude "released" and take a different branch
+	///       than the synchronous path did.
+	bool padStillPressed{};
 	uint32_t targetSection{}; ///< SessionNewTrackClone only: the section the copy is dropped into.
 
 	std::string searchName; ///< ConfirmOrNext only: the preset name to confirm.

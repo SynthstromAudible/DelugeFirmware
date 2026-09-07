@@ -972,13 +972,6 @@ midiLearnMelodicInstrumentAction:
 
 		// Release
 		else {
-			// The pad that may have started a deferred new-track acquisition is up again, so
-			// completeNewTrack() must not enter the held-clip mode when it eventually runs -- nothing
-			// would ever leave it. Cleared here rather than in clipPressEnded(), which only runs once
-			// the held mode has actually been entered, and so never runs while the gesture is still
-			// in flight.
-			newTrackPressHeld_ = false;
-
 			// If Clip was pressed before...
 			if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
 
@@ -1051,6 +1044,19 @@ justEndClipPress:
 				if (isSDRoutineActive()) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
+				// Only NOW is this release actually being consumed. The pad that may have started a
+				// deferred new-track acquisition is up, so completeNewTrack() must not enter the
+				// held-clip mode when it eventually runs -- nothing would ever leave it (see
+				// newTrackPressHeld_'s doc). Deliberately BELOW the reminder above: while the card is
+				// busy -- which is exactly the acquisition's own window -- padAction() is re-delivered
+				// once it finishes, by which time the completion has entered the held mode and the
+				// quick-tap "enter the clip" shortcut still works. Clearing before that check would
+				// throw the shortcut away for nothing.
+				//
+				// Not cleared in the two branches above either: reaching them means either the
+				// completion has already run (it clears the marker itself on every path) or another
+				// gesture owns the UI mode.
+				newTrackPressHeld_ = false;
 			}
 		}
 	}
@@ -3868,6 +3874,17 @@ void SessionView::finishGridNewTrackClip() {
 
 	const OutputType toCreate = context_menu::clip_settings::newClipType.toCreate;
 
+	// Read HERE, not in the continuation: both callers of exitTrackCreation() run clipPressEnded() ->
+	// gridResetPresses() the instant it returns (session_view.cpp, the first-finger-up and empty-pad
+	// release paths), which sets gridFirstPressedX/Y to -1. The synchronous version compared against
+	// them at this point, while the press was still live; a completion comparing against them later
+	// would always conclude "released" and take the other branch -- for ENTER, transitioning into the
+	// clip instead of holding it. So the answer is snapshotted, exactly like every other piece of
+	// state that crosses a dispatch.
+	const int32_t pressX = static_cast<int32_t>(packedXY & 0xFFFF);
+	const int32_t pressY = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
+	const bool padStillPressed = (pressX == gridFirstPressedX && pressY == gridFirstPressedY);
+
 	// Synth/Kit reach the directory underneath createNewClip(), so the create-and-place half plus this
 	// continuation's own tail move onto the storage owner. Audio, MIDI and CV read no card and stay
 	// synchronous (spec section 2c). Each continuation gets its own consumer: their tails
@@ -3880,6 +3897,7 @@ void SessionView::finishGridNewTrackClip() {
 		    .outputType = toCreate,
 		    .availability = Availability::INSTRUMENT_UNUSED,
 		    .packedXY = packedXY,
+		    .padStillPressed = padStillPressed,
 		    .dirPath = getInstrumentFolder(toCreate),
 		};
 		loadInstrumentPresetUI.dispatchPresetAcquisition(request);
@@ -3887,10 +3905,10 @@ void SessionView::finishGridNewTrackClip() {
 	}
 
 	if (which == PendingGridClip::ENTER) {
-		completeNewTrackGridEnter(toCreate, packedXY);
+		completeNewTrackGridEnter(toCreate, packedXY, padStillPressed);
 	}
 	else {
-		completeNewTrackGridSelect(toCreate, packedXY);
+		completeNewTrackGridSelect(toCreate, packedXY, padStillPressed);
 	}
 }
 
@@ -3908,36 +3926,30 @@ Clip* SessionView::createGridNewTrackClip(OutputType type, uint32_t packedXY) {
 }
 
 // Runs on the storage owner for Synth/Kit, inline for Audio/MIDI/CV.
-void SessionView::completeNewTrackGridEnter(OutputType type, uint32_t packedXY) {
+void SessionView::completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed) {
 	Clip* clip = createGridNewTrackClip(type, packedXY);
 	if (clip == nullptr) {
 		return;
 	}
-	// gridNewTrackClipEntered() already re-reads gridFirstPressedX/Y and downgrades to
-	// select-and-transition if the pad was released meanwhile, so the deferral needs no extra guard:
-	// the picker wait this gesture already crossed had exactly the same hazard.
-	gridNewTrackClipEntered(clip, packedXY);
+	gridNewTrackClipEntered(clip, padStillPressed);
 }
 
 // Runs on the storage owner for Synth/Kit, inline for Audio/MIDI/CV.
-void SessionView::completeNewTrackGridSelect(OutputType type, uint32_t packedXY) {
+void SessionView::completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed) {
 	Clip* clip = createGridNewTrackClip(type, packedXY);
 	if (clip == nullptr) {
 		return;
 	}
-	// As above: gridNewTrackClipSelected() only takes clip control while the original pad is still
-	// pressed, which it re-checks itself.
-	gridNewTrackClipSelected(clip, packedXY);
+	gridNewTrackClipSelected(clip, padStillPressed);
 }
 
-void SessionView::gridNewTrackClipEntered(Clip* clip, uint32_t packedXY) {
-	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
-	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
+void SessionView::gridNewTrackClipEntered(Clip* clip, bool padStillPressed) {
 	// New track: start it playing immediately.
 	gridToggleClipPlay(clip, true);
-	// If the pad was released during selection (press coords no longer current), just
-	// select + transition; otherwise treat it as a held clip press.
-	if (x != gridFirstPressedX || y != gridFirstPressedY) {
+	// If the pad was released during selection, just select + transition; otherwise treat it as a held
+	// clip press. `padStillPressed` is the caller's snapshot of that comparison, not a live read of
+	// gridFirstPressedX/Y -- see finishGridNewTrackClip() for why re-reading them here is wrong.
+	if (!padStillPressed) {
 		gridSelectClipForPulsing(*clip);
 		currentSong->setCurrentClip(clip);
 		transitionToViewForClip(clip);
@@ -3953,9 +3965,7 @@ void SessionView::gridNewTrackClipEntered(Clip* clip, uint32_t packedXY) {
 	view.setActiveModControllableTimelineCounter(clip);
 }
 
-void SessionView::gridNewTrackClipSelected(Clip* clip, uint32_t packedXY) {
-	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
-	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
+void SessionView::gridNewTrackClipSelected(Clip* clip, bool padStillPressed) {
 	// If playing and Rec enabled, an empty-pad create can start it playing.
 	if (playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL
 	    && FlashStorage::gridEmptyPadsCreateRec) {
@@ -3963,8 +3973,9 @@ void SessionView::gridNewTrackClipSelected(Clip* clip, uint32_t packedXY) {
 	}
 	gridSelectClipForPulsing(*clip);
 	currentSong->setCurrentClip(clip);
-	// Allow clip control (selection) if still holding the original pad.
-	if (x == gridFirstPressedX && y == gridFirstPressedY) {
+	// Allow clip control (selection) if still holding the original pad -- the caller's snapshot, for
+	// the same reason gridNewTrackClipEntered() takes one.
+	if (padStillPressed) {
 		currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 		view.displayOutputName(clip->output, true, clip);
 		display->cancelPopup();
