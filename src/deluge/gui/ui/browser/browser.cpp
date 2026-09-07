@@ -64,6 +64,21 @@ char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
 char const* Browser::filenameToStartSearchAt;
 
+namespace {
+/// See Browser::unusedSlotCalls().
+int32_t g_unusedSlotCalls = 0;
+/// See Browser::totalDirectoryOpens().
+int32_t g_totalDirectoryOpens = 0;
+} // namespace
+
+int32_t Browser::unusedSlotCalls() {
+	return g_unusedSlotCalls;
+}
+
+int32_t Browser::totalDirectoryOpens() {
+	return g_totalDirectoryOpens;
+}
+
 bool Browser::listingInProgress_;
 bool Browser::listingOnTickSurface_;
 Browser::ListingState Browser::listing_;
@@ -542,6 +557,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	if (listing_.active) {
 		listing_.opensThisListing++;
 	}
+	g_totalDirectoryOpens++;
 	if (!opened.has_value()) {
 		return opened.error();
 	}
@@ -932,6 +948,18 @@ Error Browser::stepListing() {
 		case ListingPhase::Select: {
 			const auto outcome = applyListingSelection();
 			if (!outcome.has_value()) {
+				if (outcome.error() == Error::LISTING_DEFERRED) {
+					// The SELECTION reads the card too: getUnusedSlot names a brand-new slot by scanning
+					// the folder, from inside this listing. Its deferral suspends the listing where it
+					// stands -- phase stays Select, listing_ stays active -- so the pump resumes into
+					// the same selection.
+					//
+					// Clearing listing_.active here, which is what the general failure path below does,
+					// left the pump with no active listing: it called startPendingListing() and RESTARTED
+					// from the top, redoing every open before the deferral. Against the real channel --
+					// one slot, consumed at take -- that is the livelock rung 3 already fixed once.
+					return outcome.error();
+				}
 				emptyFileItems();
 				listing_.active = false;
 				return outcome.error();
@@ -1079,6 +1107,7 @@ std::expected<Browser::SelectionOutcome, Error> Browser::pickBrandNewName() {
 
 // You must set currentDir before calling this.
 Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName) {
+	g_unusedSlotCalls++;
 
 	Error error;
 	// Names always carry the prefix now, on both displays, so there is one search key.

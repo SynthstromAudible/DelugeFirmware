@@ -129,6 +129,22 @@ public:
 	/// @return True while a listing is in flight; false once it has completed (or none was started).
 	static bool isListingInProgress() { return listingInProgress_; }
 
+	/// @brief How many times getUnusedSlot() has run. For gates only.
+	///
+	/// getUnusedSlot names a brand-new slot by READING the folder, from inside a listing that is
+	/// already running. A gate needs to prove that a listing which suspended in that read does not
+	/// name a second time when it resumes — `pickBrandNewName`'s `enteredText.empty()` guard is what
+	/// prevents it, and a guard asserted rather than measured is exactly how this rung's earlier
+	/// drafts went wrong.
+	[[nodiscard]] static int32_t unusedSlotCalls();
+
+	/// @brief Every directory open the browser has ever made. For gates only.
+	///
+	/// NOT `ListingState::opensThisListing`, and the difference is the whole point: a listing that
+	/// RESTARTS re-arms `listing_` and resets that member, so it cannot see the restart it is meant to
+	/// catch. This one is never reset, so redone opens show up as a higher total.
+	[[nodiscard]] static int32_t totalDirectoryOpens();
+
 	ActionResult exitUI() override {
 		exitAction();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;

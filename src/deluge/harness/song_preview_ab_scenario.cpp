@@ -20,7 +20,8 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/load/load_song_ui.h" // the converted caller, driven end to end below
+#include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/save/save_song_ui.h" // the converted caller, driven end to end below
 #include "hid/led/pad_leds.h"         // the image both backings render into
 #include "io/file.hpp"                // the card swap's unlink + rename
 #include "libdeluge/file_directory.h" // deluge_file_directory_async_active
@@ -153,6 +154,24 @@ public:
 	/// Whether the finished listing matched its search string EXACTLY. For a ByPath listing this IS
 	/// the existence answer the retired fileExists() used to give.
 	static bool foundExactMatch() { return Browser::listing_.foundExactMatch; }
+	/// Open the SAVE browser on `dir` and drive it to completion.
+	///
+	/// saveSongUI, not loadSongUI: `mayDefaultToBrandNewNameOnEntry` is set only by SaveUI's
+	/// constructor, and without it a listing never reaches `pickBrandNewName` at all.
+	/// @return Whether the listing COMPLETED and named a slot, rather than failing.
+	static bool openSaveBrowserOn(const char* dir) {
+		Browser::currentDir = dir;
+		(void)saveSongUI.beginListing({.action = Browser::ListingAction::Open,
+		                               .direction = 0,
+		                               .filenameToStartAt = "",
+		                               .defaultDir = "",
+		                               .folderOrPath = ""});
+		for (int32_t t = 0; Browser::isListingInProgress() && t < 200; t++) {
+			saveSongUI.graphicsRoutine();
+		}
+		return !Browser::isListingInProgress() && !Browser::enteredText.empty();
+	}
+
 	/// How many times the listing that just finished suspended. Zero on the synchronous arm by
 	/// construction, so requiring it non-zero proves the channel was actually reached.
 	static int32_t deferrals() { return Browser::listing_.deferrals; }
@@ -973,6 +992,13 @@ static_assert(kListingEntries > FILE_ITEMS_MAX_NUM_ELEMENTS,
 /// first attempt succeed and the case would test nothing.
 constexpr const char* kMakeDir = "MADEDIR";
 
+/// EMPTY on purpose: `pickBrandNewName` is only reached when a listing finds no files at all, and it
+/// is the path whose getUnusedSlot read defers from INSIDE the listing.
+constexpr const char* kEmptyDir = "EMPTYDIR";
+/// Higher than any listing's open count, so arming the seam with it selects the tick surface without
+/// ever firing.
+constexpr int32_t kNeverDefers = 99;
+
 constexpr const char* kBigDir = "BIGLIST";
 constexpr int32_t kBigEntries = 300;
 static_assert(kBigEntries > 230, "the case must exceed the arena threshold it exists to guard");
@@ -1071,6 +1097,81 @@ void runByPathCases() {
 	}
 }
 
+/// A listing that finds NO files names a brand-new slot, and naming it reads the folder again
+/// (`getUnusedSlot`) from INSIDE the listing. A deferral there must SUSPEND the listing, not fail it:
+/// before the fix it propagated out of `pickBrandNewName` as an ordinary error, and `stepListing`
+/// turned that into emptyFileItems() + onListingFailed -- an error popup and a closed browser, on a
+/// folder that is perfectly readable.
+///
+/// The resumption must also not re-name. `pickBrandNewName`'s `enteredText.empty()` guard is what
+/// prevents it; a guard asserted rather than measured is how this rung's earlier drafts went wrong,
+/// so the call count is checked.
+void runBrandNewNameCases() {
+	if (deluge_file_directory_async_active()) {
+		// Synchronous leg only, like the ByPath cases. What is under test is a property of the listing
+		// MACHINE -- that a deferral arising inside its selection tail suspends it rather than
+		// restarting it -- and the seam exercises that without the channel. Driving it on the channel
+		// leg would need this case to become a step of the scenario's own machine, because a tight
+		// tick loop here never yields to the driver thread.
+		printf("SP-NEWNAME skipped on the channel leg (a machine property, not an async one)\n");
+		return;
+	}
+	Browser::enteredText.clear();
+	// Armed with a number no listing reaches, so the reference takes the TICK SURFACE like the sweep
+	// runs do but never actually defers. `beginListing` chooses the tick surface on `deferAtOpenNumber_
+	// != 0`, and with 0 it dispatches to the storage owner instead -- which this probe's loop does not
+	// pump, so the listing would simply never run. Reference and sweep must travel the same path or
+	// the comparison is between two different things.
+	BrowserListingAbProbe::deferAtOpen(kNeverDefers);
+	const int32_t openBefore = Browser::totalDirectoryOpens();
+	if (!BrowserListingAbProbe::openSaveBrowserOn(kEmptyDir)) {
+		printf("SP-NEWNAME FAIL the reference listing did not name a slot\n");
+		g_failures++;
+		return;
+	}
+	const std::string referenceName = Browser::enteredText;
+	// The TOTAL, not listing_.opensThisListing: a restart re-arms listing_ and resets that member, so
+	// it cannot see the very restart this case exists to catch.
+	const int32_t referenceOpens = Browser::totalDirectoryOpens() - openBefore;
+	printf("SP-NEWNAME reference name=%s opens=%d\n", referenceName.c_str(), referenceOpens);
+	if (referenceOpens < 2) {
+		printf("SP-NEWNAME FAIL only %d open(s) -- getUnusedSlot's read was never reached\n", referenceOpens);
+		g_failures++;
+		return;
+	}
+
+	for (int32_t k = 1; k <= referenceOpens; k++) {
+		Browser::enteredText.clear(); // the pickBrandNewName precondition
+		BrowserListingAbProbe::deferAtOpen(k);
+		const int32_t slotCallsBefore = Browser::unusedSlotCalls();
+		const int32_t before = Browser::totalDirectoryOpens();
+		const bool ok = BrowserListingAbProbe::openSaveBrowserOn(kEmptyDir);
+		const int32_t opens = Browser::totalDirectoryOpens() - before;
+		// slotCalls is reported, not asserted: a naming read that deferred and was then re-run is
+		// legitimately two calls. It is here because it is what first exposed the restart, when an
+		// open count that resets on re-arm could not see it.
+		printf("SP-NEWNAME deferAt=%d ok=%d opens=%d slotCalls=%d name=%s\n", k, ok ? 1 : 0, opens,
+		       Browser::unusedSlotCalls() - slotCallsBefore, Browser::enteredText.c_str());
+		if (!ok || Browser::enteredText != referenceName) {
+			printf("SP-NEWNAME FAIL deferAt=%d named %s, the reference named %s\n", k, Browser::enteredText.c_str(),
+			       referenceName.c_str());
+			g_failures++;
+		}
+		// The property, and the one an identical-name check cannot see: a deferral inside the
+		// SELECTION must suspend the listing where it stands. stepListing used to clear
+		// listing_.active on its way out, so the pump found no active listing and called
+		// startPendingListing() -- restarting from the top and redoing every open before the
+		// deferral. Against the real channel, one slot and consumed at take, that livelocks.
+		if (opens != referenceOpens) {
+			printf("SP-NEWNAME FAIL deferAt=%d made %d opens, the reference made %d -- the listing "
+			       "restarted instead of resuming\n",
+			       k, opens, referenceOpens);
+			g_failures++;
+		}
+	}
+	BrowserListingAbProbe::deferAtOpen(0);
+}
+
 void runListingTick() {
 	if (g_listingRunning) {
 		BrowserListingAbProbe::tick();
@@ -1125,6 +1226,7 @@ void runListingTick() {
 				g_failures++;
 			}
 			runByPathCases();
+			runBrandNewNameCases();
 
 			// Now with the filesystem UNMOUNTED. Mounting is real card I/O, so on the channel arm it
 			// belongs to the driver, not to StorageManager::initSD() running on the interaction tier.
@@ -1266,7 +1368,7 @@ void runListingTick() {
 		if (g_listingDeferAt >= g_listingOpens) {
 			BrowserListingAbProbe::deferAtOpen(0);
 			// The big folder is listed LAST, so a panic in it cannot be mistaken for a sweep failure.
-			if (!buildFixtureDir(kBigDir, kBigEntries)) {
+			if (!buildFixtureDir(kEmptyDir, 0) || !buildFixtureDir(kBigDir, kBigEntries)) {
 				g_failures++;
 				g_listingStep = ListingStep::Finished;
 				return;

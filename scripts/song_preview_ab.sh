@@ -253,5 +253,5 @@ echo "PASS — both backings drew all $CASES song(s) identically, agreed on ever
 grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY ' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"
 # The listing lines from the file leg (the synchronous control) and the dir leg (the channel), so the
 # deferral counts that separate them are visible rather than merely asserted.
-grep -h '^SP-LISTING' "$OUT_ROOT/file.txt" | sed 's/^/ sync  /'
+grep -hE '^SP-LISTING|^SP-NEWNAME' "$OUT_ROOT/file.txt" | sed 's/^/ sync  /'
 grep -h '^SP-LISTING' "$OUT_ROOT/dir.txt" | sed 's/^/ chan  /'

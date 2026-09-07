@@ -1232,14 +1232,6 @@ bool LoadInstrumentPresetUI::showingAuditionPads() {
 	return getRootUI()->toClipMinder();
 }
 
-void LoadInstrumentPresetUI::instrumentEdited(Instrument* instrument) {
-	if (instrument == currentInstrument && currentInstrumentLoadError == Error::NONE && enteredText.empty()) {
-		enteredText = instrument->name;
-		// TODO: update the FileItem too?
-		displayText(false);
-	}
-}
-
 // Caller must set currentDir before calling this.
 // Caller must call emptyFileItems() at some point after calling this function.
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when

@@ -70,7 +70,6 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	void instrumentEdited(Instrument* instrument);
 	/// @brief Load the selected instrument preset, replacing instrumentToReplace (or cloning it).
 	///
 	/// @param doClone   If true, create a new Instrument even when the target file is already
