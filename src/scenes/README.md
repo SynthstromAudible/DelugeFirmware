@@ -886,16 +886,28 @@ passes on two black grids. It was written that way first: a `loop_length` of 384
 puts a column boundary 16 bytes from the end of the last cluster, and the "grey region" example
 passed with an entirely black grid.
 
-**And the first fix for it was itself over-claimed.** `expect_grid_has_content` landed on eight of
-the twelve pad comparisons while the docs said "every render example" — the four it missed were the
-blink's second phase and the three "no cursor is drawn" examples, which are *precisely* the shape
-where both sides legitimately go black. Review demonstrated it by forcing a failed scan on the
-count-in example: 27/27 passing on two black grids. So the rule is now mechanical — **every example
-that calls `expect_pads_match` calls a content assertion first** — and the "no cursor" examples got
-the sharper predicate they actually needed, `expect_waveform_without_cursor` ("the waveform is there
-**and** no pad is the play cursor's colour"), which can fail in both directions. The fixture's
-`Sentinel` docstring carries the cluster arithmetic. Any later spec that renders a waveform wants the
-same pair, and wants to check the pairing rather than assume it.
+**It took two more rounds to fix properly, and the second is the first one level up.** Round one:
+`expect_grid_has_content` was a separate call, it landed on eight of the twelve pad comparisons, and
+the docs said "every render example" — the four it missed were the blink's second phase and the
+three "no cursor is drawn" examples, *precisely* the shape where both sides legitimately go black.
+Review demonstrated it by forcing a failed scan on the count-in example: 27/27 passing on two black
+grids. Round two: the four were fixed, but the claim was then "every caller does X" with a one-off
+script behind it — an absolute claim resting on a convention, in a file **E4 task 12 extends with
+more pad comparisons**, so the next unguarded comparison would have been written by someone reading
+a docstring saying the invariant already held.
+
+**The invariant is now a property of the helper's signature, not a discipline.**
+`expect_pads_match(self, r, legacy, expected)` takes a `PadExpectation` with no default and no
+"nothing" value, applies it before comparing, and asserts its non-black floor is positive — so there
+is no spelling of "compare these two grids" that does not also say what makes the comparison worth
+making. The factories are `waveform(n)`, `waveform_with_cursor(n)` and `waveform_without_cursor(n)`
+(the last being the sharper predicate the "no cursor" examples needed: the waveform IS there **and**
+no pad carries the play cursor's colour, which can fail in both directions), with
+`.and_column(x, colour)` for the blink's two phases. The fixture's `Sentinel` docstring carries the
+cluster arithmetic and the whole history.
+
+**Any later spec that compares a rendered grid against legacy wants this shape**: fold the
+non-vacuity assertion into the comparison rather than asking callers to precede it with one.
 
 ## Repaint and the timer fold (`Shell::tick` step 8b, E3 tasks 10-11)
 

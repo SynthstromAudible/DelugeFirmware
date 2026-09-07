@@ -227,14 +227,25 @@ void ensure_display() {
 ///          It was written that way first: `loop_length = 384` at `x_zoom = 48` puts a column
 ///          boundary 16 bytes from the end of cluster 31, which takes the two-cluster arm with
 ///          `investigatingAWholeCluster` left false, and the "grey region" example passed with an
-///          entirely black grid. `expect_grid_has_content` below is the assertion that closes it,
-///          and **every** example that calls `expect_pads_match` calls one of it or
-///          `expect_waveform_without_cursor` (which is it, plus "and no pad is the cursor colour")
-///          first. Fix round 1, Critical: the first cut of this docstring said "every render
-///          example" while four of the twelve comparisons had no guard at all -- the blink's second
-///          phase and the three "no cursor is drawn" examples, which are exactly the shape where
-///          both sides legitimately go black. Review demonstrated it: forcing `x_zoom = 24` on the
-///          count-in example gave 27/27 passing on two black grids.
+///          entirely black grid.
+///
+///          **`PadExpectation` below is what closes it, and it closes it structurally:**
+///          `expect_pads_match` takes one as a required argument and applies it before it compares
+///          anything, so there is no spelling of "compare these two grids" that does not also say
+///          what makes the comparison non-vacuous. Nothing here relies on a caller remembering to
+///          precede the comparison with a guard.
+///
+///          It took two rounds to get there, and both are worth knowing because the second is the
+///          first one level up. Fix round 1: the guard existed but was a separate call, and the
+///          docstring claimed it was on every render example while four of the twelve comparisons
+///          had none -- the blink's second phase and the three "no cursor is drawn" examples, which
+///          are exactly the shape where both sides legitimately go black. Review demonstrated it
+///          rather than inferring it: forcing `x_zoom = 24` on the count-in example gave 27/27
+///          passing on two black grids. Fix round 2: the four were fixed, but the claim was then
+///          "every caller does X" backed by a one-off script -- an absolute claim with a
+///          convention behind it, in a file **task 12 extends with more pad comparisons**. The next
+///          unguarded comparison would have been written by someone reading a docstring saying the
+///          invariant already held. Hence the argument.
 ///
 ///          The constraint on this fixture: `x_zoom * (endPos - startPos) / loop_length` -- which
 ///          is `AudioClip::getSamplesFromTicks` (`model/clip/audio_clip.cpp:979-988`) -- must be a
@@ -447,48 +458,98 @@ int32_t cursor_pads(Rig& r) {
 	return n;
 }
 
-/// @brief The assertion for the "no cursor is drawn" examples: the waveform IS there and the
-///        cursor is NOT.
+/// @brief What makes one pad comparison non-vacuous. A **required argument** to
+///        `expect_pads_match`, not a convention its callers are trusted to follow.
 ///
-/// Fix round 1, Critical. `expect_grid_has_content` alone is the wrong predicate for those three
-/// examples, and leaving them with no predicate at all was worse. Their whole subject is that a
-/// gate in `graphicsRoutine` suppresses the cursor while the rest of the view keeps drawing -- so
-/// "nothing is black" and "no pad is the cursor colour" are two different claims and both have to
-/// hold, or the example cannot fail for the reason it exists. Demonstrated in review: forcing a
-/// failed scan on the count-in example gave 27/27 passing on two black grids.
-/// @param self     The enclosing `it(...)` block's lambda parameter.
-/// @param r        The rig.
-/// @param at_least Minimum non-black pads the example's own geometry implies.
-template <typename Self>
-void expect_waveform_without_cursor(Self& self, Rig& r, int32_t at_least) {
-	expect_grid_has_content(self, r, at_least);
-	expect(cursor_pads(r)).to_equal(0);
-}
+/// See the `Sentinel` docstring for the failure this exists for, and for why it is an argument
+/// rather than a separate call that callers are asked to make first. Every instance must claim a
+/// positive floor on the number of non-black pads (`expect_pads_match` asserts that too, so
+/// `waveform(0)` is not a way out); the cursor and column claims are the ones an example adds when
+/// its own subject is sharper than "something was drawn".
+class PadExpectation {
+public:
+	/// @brief The waveform is on screen; this comparison says nothing about the cursor.
+	/// @param lit_at_least Minimum non-black pads the example's own geometry implies; must be > 0.
+	static PadExpectation waveform(int32_t lit_at_least) { return PadExpectation{lit_at_least, -1}; }
+	/// @brief The waveform is on screen **and** the cursor is not -- the "no cursor is drawn"
+	///        examples, whose whole subject is a `graphicsRoutine` gate suppressing the cursor while
+	///        the rest of the view keeps drawing. Two claims, and both have to hold, or the example
+	///        cannot fail for the reason it exists.
+	/// @param lit_at_least Minimum non-black pads; must be > 0.
+	static PadExpectation waveform_without_cursor(int32_t lit_at_least) { return PadExpectation{lit_at_least, 0}; }
+	/// @brief The waveform is on screen **and** the cursor is a whole column of it.
+	/// @param lit_at_least Minimum non-black pads; must be > 0.
+	static PadExpectation waveform_with_cursor(int32_t lit_at_least) {
+		return PadExpectation{lit_at_least, static_cast<int32_t>(kDisplayHeight)};
+	}
 
-/// @brief Assert one whole column of the port's grid is exactly @p colour.
-///
-/// Fix round 1, Critical: what the second half of the blink example is actually about. Without it
-/// the phase-2 comparison could pass on any pair of agreeing images, black included.
-/// @param self   The enclosing `it(...)` block's lambda parameter.
-/// @param r      The rig.
-/// @param x      The column.
-/// @param colour The colour every row of it must be.
-template <typename Self>
-void expect_column_is(Self& self, Rig& r, int32_t x, RGB colour) {
-	const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
-	int32_t matching = 0;
-	for (int32_t y = 0; y < kDisplayHeight; y++) {
-		if (g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y)) == colour) {
-			matching++;
+	/// @brief Also require that column @p x is @p colour on every row.
+	///
+	/// What the two halves of the blink example are actually about: the end column is
+	/// `colours::red` on the bright phase and `colours::red_dull` on the dim one
+	/// (`audio_clip_view.cpp:164-170`). Without it either half would pass on any pair of agreeing
+	/// images.
+	/// @param x      The column.
+	/// @param colour The colour every row of it must be.
+	/// @return This expectation, for chaining onto a factory.
+	PadExpectation and_column(int32_t x, RGB colour) const {
+		PadExpectation out = *this;
+		out.column_ = x;
+		out.column_colour_ = colour;
+		return out;
+	}
+
+	/// @brief Assert everything this expectation claims about @p r's grid.
+	/// @param self The enclosing `it(...)` block's lambda parameter.
+	/// @param r    The rig.
+	template <typename Self>
+	void apply(Self& self, Rig& r) const {
+		// A floor of zero would be "compare these two grids and claim nothing", which is the thing
+		// this type exists to make unspellable. Asserted rather than `static_assert`ed because the
+		// factories take a runtime int.
+		expect(lit_at_least_ > 0).to_be_true();
+		expect_grid_has_content(self, r, lit_at_least_);
+		if (cursor_pads_ >= 0) {
+			expect(cursor_pads(r)).to_equal(cursor_pads_);
+		}
+		if (column_ >= 0) {
+			const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+			int32_t matching = 0;
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				if (g.at(static_cast<uint8_t>(column_), static_cast<uint8_t>(y)) == column_colour_) {
+					matching++;
+				}
+			}
+			expect(matching).to_equal(static_cast<int32_t>(kDisplayHeight));
 		}
 	}
-	expect(matching).to_equal(static_cast<int32_t>(kDisplayHeight));
-}
 
-/// @brief Assert the port's pads are the legacy image, pad for pad.
-/// @param self The enclosing `it(...)` block's lambda parameter -- `expect` expands to `self.expect`.
+private:
+	PadExpectation(int32_t lit_at_least, int32_t cursor_pads_expected)
+	    : lit_at_least_(lit_at_least), cursor_pads_(cursor_pads_expected) {}
+
+	int32_t lit_at_least_;
+	/// Expected count of pads in the cursor's colour, or -1 for "this example does not say".
+	int32_t cursor_pads_;
+	/// A column that must be uniformly `column_colour_`, or -1 for "this example does not say".
+	int32_t column_ = -1;
+	RGB column_colour_{};
+};
+
+/// @brief Assert the port's pads are the legacy image, pad for pad -- **and** that the comparison
+///        is worth making.
+///
+/// @p expected has no default and no "nothing" value: a caller physically cannot compare two grids
+/// here without saying what makes the comparison non-vacuous, which is the property the `Sentinel`
+/// docstring's account of the two fix rounds is the argument for. It is applied **before** the
+/// comparison so a failure names the vacuity rather than a pad.
+/// @param self     The enclosing `it(...)` block's lambda parameter -- `expect` expands to `self.expect`.
+/// @param r        The rig.
+/// @param legacy   The image legacy's own four functions produced.
+/// @param expected What makes this comparison non-vacuous.
 template <typename Self>
-void expect_pads_match(Self& self, Rig& r, const LegacyPads& legacy) {
+void expect_pads_match(Self& self, Rig& r, const LegacyPads& legacy, const PadExpectation& expected) {
+	expected.apply(self, r);
 	const PadDiff d = pad_diff(r, legacy);
 	// The coordinates first, so a failure names a pad rather than only a count.
 	expect(d.first_x).to_equal(-1);
@@ -627,8 +688,7 @@ describe audio_clip_scene_spec_body(
 		        r.open();
 		        r.tick(0);
 		        // 16 columns of waveform, so well over one bar per column even at the quietest.
-		        expect_grid_has_content(self, r, 16);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
 	        });
 
 	    it(
@@ -640,8 +700,7 @@ describe audio_clip_scene_spec_body(
 		        r.seed(Sentinel{});
 		        r.open();
 		        r.tick(0);
-		        expect_grid_has_content(self, r, 16);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
 	        });
 
 	    it(
@@ -654,8 +713,7 @@ describe audio_clip_scene_spec_body(
 		        r.open();
 		        r.tick(0);
 		        // The grey region alone is 4 columns x 8 rows.
-		        expect_grid_has_content(self, r, 32 + 12);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(32 + 12));
 	        });
 
 	    it(
@@ -666,8 +724,7 @@ describe audio_clip_scene_spec_body(
 		        r.seed(Sentinel{.x_zoom = 96});
 		        r.open();
 		        r.tick(0);
-		        expect_grid_has_content(self, r, 64 + 8);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(64 + 8));
 	        });
 
 	    it(
@@ -677,8 +734,7 @@ describe audio_clip_scene_spec_body(
 		        r.f.clip->sampleControls.reversed = true;
 		        r.open();
 		        r.tick(0);
-		        expect_grid_has_content(self, r, 16);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform(16));
 		        r.f.clip->sampleControls.reversed = false;
 	        });
 
@@ -701,8 +757,10 @@ describe audio_clip_scene_spec_body(
 		        // (`audio_clip_view.cpp:553`), the port's setter does the same.
 		        expect(r.scene().blink_on()).to_be_true();
 		        r.tick(0);
-		        expect_grid_has_content(self, r, 16);
-		        expect_pads_match(self, r, legacy_pads());
+		        // The end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15, and on
+		        // the bright phase it is `colours::red` (`audio_clip_view.cpp:164-167`).
+		        expect_pads_match(self, r, legacy_pads(),
+		                          PadExpectation::waveform(16).and_column(15, deluge::gui::colours::red));
 
 		        // One blink phase later, both should be on the dim half -- legacy through its own
 		        // `timerCallback` (`:223-229`), the port through the deadline `next_timer()` armed on the
@@ -710,12 +768,11 @@ describe audio_clip_scene_spec_body(
 		        (void)legacy_view.timerCallback();
 		        r.tick(deluge::scenes::audio_clip::kMarkerBlinkMs);
 		        expect(r.scene().blink_on()).to_be_false();
-		        expect_grid_has_content(self, r, 16);
 		        // The subject of this half: on the dim phase the end column is `colours::red_dull`
 		        // (`audio_clip_view.cpp:168-170`), where the bright phase drew `colours::red`. The
 		        // end column at scroll 0, zoom 48 and length 768 is `(768 - 1) / 48` = 15.
-		        expect_column_is(self, r, 15, deluge::gui::colours::red_dull);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(),
+		                          PadExpectation::waveform(16).and_column(15, deluge::gui::colours::red_dull));
 
 		        lower_legacy_end_marker(r);
 	        });
@@ -730,8 +787,7 @@ describe audio_clip_scene_spec_body(
 		        r.tick(0);
 		        // `graphicsRoutine`'s first arm (`audio_clip_view.cpp:269-273`) -> 255.
 		        expect(r.scene().last_tick_square()).to_equal(255);
-		        expect_waveform_without_cursor(self, r, 16);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
 	        });
 
 	    it(
@@ -747,8 +803,7 @@ describe audio_clip_scene_spec_body(
 			        // 0 and zoom 48, tick `pos` is column `pos / 48`.
 			        expect(r.scene().last_tick_square()).to_equal(pos / 48);
 			        // The cursor alone is a whole column of `kPlayheadColour`, on top of the waveform.
-			        expect_grid_has_content(self, r, 16 + 8);
-			        expect_pads_match(self, r, legacy_pads());
+			        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_with_cursor(16 + 8));
 		        }
 		        playbackHandler.playbackState = 0;
 	        });
@@ -762,8 +817,7 @@ describe audio_clip_scene_spec_body(
 		        r.open();
 		        r.tick(0);
 		        expect(r.scene().last_tick_square()).to_equal(255);
-		        expect_waveform_without_cursor(self, r, 16);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
 		        playbackHandler.ticksLeftInCountIn = 0;
 		        playbackHandler.playbackState = 0;
 	        });
@@ -777,8 +831,7 @@ describe audio_clip_scene_spec_body(
 		        r.open();
 		        r.tick(0);
 		        expect(r.scene().last_tick_square()).to_equal(255);
-		        expect_waveform_without_cursor(self, r, 16);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
 		        r.f.clip->activeIfNoSolo = true;
 		        playbackHandler.playbackState = 0;
 	        });
@@ -801,8 +854,7 @@ describe audio_clip_scene_spec_body(
 		        PadLEDs::clearTickSquares(/*shouldSend=*/false);
 		        r.scene().set_flash_cursor(FlashCursor::Off);
 		        r.tick(1);
-		        expect_waveform_without_cursor(self, r, 16);
-		        expect_pads_match(self, r, legacy_pads());
+		        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_without_cursor(16));
 		        playbackHandler.playbackState = 0;
 	        });
 
@@ -845,9 +897,7 @@ describe audio_clip_scene_spec_body(
 			        r.f.clip->lastProcessedPos = step * 48;
 			        r.tick(static_cast<uint32_t>(step));
 			        expect(r.scene().last_tick_square()).to_equal(step);
-			        expect(cursor_pads(r)).to_equal(static_cast<int32_t>(kDisplayHeight));
-			        expect_grid_has_content(self, r, 16 + 8);
-			        expect_pads_match(self, r, legacy_pads());
+			        expect_pads_match(self, r, legacy_pads(), PadExpectation::waveform_with_cursor(16 + 8));
 			        // And the timer stays armed for the next one, rather than being a one-shot.
 			        expect(r.scene().next_timer().has_value()).to_be_true();
 			        expect(r.scene().next_timer().value()).to_equal(0u);
@@ -979,6 +1029,10 @@ describe audio_clip_scene_spec_body(
 		        r.seed(Sentinel{.x_zoom = 96, .last_processed_pos = 240});
 		        r.open();
 		        r.tick(0);
+		        // The one place a bare content assertion is still right: this compares against a
+		        // recorded golden rather than against legacy, so there is no `PadExpectation` to
+		        // carry -- but a golden of a black grid would have recorded nothing and passed
+		        // forever, which is the same hazard, so the floor is asserted here too.
 		        expect_grid_has_content(self, r, 64 + 8);
 		        expect_golden(self, "../ui/scenes/audio_clip_pads.state", r.grid());
 		        playbackHandler.playbackState = 0;
