@@ -58,6 +58,19 @@ public:
 	/// surface is blitted unconditionally once it has rendered. Claim `oled` only for a timer
 	/// whose deadline really does change OLED content.
 	///
+	/// @warning That last sentence had nothing behind it until E4 task 14, which is the reason
+	///          this warning exists: the paragraph above is advice, and the next service to
+	///          override this was one docstring away from an unconditional periodic blit on every
+	///          panel. There is now a tripwire -- `check_layer_rules.py`'s
+	///          `services-no-oled-timer-claim` row, zero-baseline over `src/scenes/services/**`.
+	///          It is a ratchet and not a ban: if your service really does need the OLED armed,
+	///          make the case in the commit message, run `--update`, and **extend the OLED leg of
+	///          `tests/spec/shell/flush_spec.cpp`** ("Claiming the OLED: the other branch, and the
+	///          one that had only a docstring"), which is the only machine check standing behind
+	///          this whole branch. It exists because the first cut of that example set only
+	///          `{false, false}` and `{false, true}`, so deleting step 8c's entire
+	///          `if (surfaces.oled)` block left all 98 host tests green.
+	///
 	/// @return `{false, false}` by default: the timer is a wake and nothing more.
 	virtual Scene::RepaintSurfaces timer_repaints() const { return {.oled = false, .grid = false}; }
 };

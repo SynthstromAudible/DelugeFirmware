@@ -540,6 +540,34 @@ RULES = [
         r"\bLockInput\b",
         "2026-08-26-ui-shell-design.md",
     ),
+    (
+        # E4 task 5's residual, made into a tripwire rather than left as a docstring.
+        #
+        # `Shell::tick`'s step 8b skips a SCENE whose surface is covered (`Shell::oled_paintable`),
+        # so a scene's OLED claim is checked by machine. Step 8c cannot do that for a SERVICE --
+        # a service has no stack index and draws nothing -- so a service claiming `oled` arms
+        # EVERY OLED surface, every period, unconditionally. An OLED surface blits whenever it
+        # rendered (`Shell::tick` step 5 sets `blit_pending` on any successful `render_oled`; there
+        # is no content diff, unlike the grid's `last_sent`), so the claim IS the blit rate. That
+        # branch is the one whose scene-side twin shipped a 50 Hz and then a 100 Hz two-panel blit
+        # in E3, and its only machine check is one leg of `tests/spec/shell/flush_spec.cpp`.
+        #
+        # `Service::timer_repaints`'s doc (`src/shell/service.h`) says all of that and says "claim
+        # `oled` only for a timer whose deadline really does change OLED content" -- but nothing
+        # made the next service author read it, which is exactly the gap this row closes. It is a
+        # RATCHET, not a ban: a service that genuinely needs an OLED repaint gets one, by an agreed
+        # `--update` with the argument in the commit message and a `flush_spec` leg to match. What
+        # it stops is the claim arriving as a habit.
+        #
+        # Scoped to `src/scenes/services/**` and not to `src/scenes/**` on purpose: four SCENES
+        # (`ParamPopupScene`, `CountInScene`, `ScreensaverScene`, and the menu's own) legitimately
+        # claim `{.oled = true}` and have `oled_paintable` standing behind them.
+        "services-no-oled-timer-claim",
+        "src/scenes/services/**",
+        "symbol",
+        r"\.oled\s*=\s*true",
+        "2026-08-26-ui-shell-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
