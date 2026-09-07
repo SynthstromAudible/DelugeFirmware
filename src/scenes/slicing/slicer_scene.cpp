@@ -13,6 +13,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/waveform_scan.h"
 #include "notify/notice_queue.h"
+#include "storage/owner.h"
 
 #include <algorithm>
 #include <array>
@@ -23,6 +24,7 @@
 namespace deluge::scenes::slicing {
 
 using deluge::ui::shell::Action;
+using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::Result;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SurfaceRole;
@@ -109,12 +111,36 @@ bool SlicerScene::on_enter(const SceneId& id) {
 }
 
 void SlicerScene::on_resume() {
-	// `focusRegained` is not only an opening hook: `closeUI` calls it on whatever is left on top
-	// after something above closes (`gui/ui/ui.cpp:199`), and `UI::opened()` calls it on the way in
-	// (`gui/ui/ui.h:111-113`). So a menu or context menu opened over the slicer and then dismissed
-	// wipes the manual slices back to one at the origin, on the device as here. Reproduced, not
-	// tidied: it is one call in legacy and `on_resume` is exactly the edge it fires on.
-	(void)on_enter(SceneId{kSlicerSceneKind, 0});
+	// **Deliberately empty, and Task 10 is why.** Task 9 mapped this to `focusRegained` because
+	// `closeUI` calls it on whatever is left on top after something above closes
+	// (`gui/ui/ui.cpp:199`). That mapping is wrong, and the arms Task 10 added are what showed it:
+	//
+	// `Slicer` raises timed popups from four of its own arms -- `horizontalEncoderAction` (`:227`),
+	// `verticalEncoderAction` (`:243`), `buttonAction`'s Y_ENC arm (`:301`) and, as a cancel,
+	// `padAction` (`:503`, `:540`). In legacy a popup is a *display overlay* (`OLED::popupText`),
+	// not a UI on `uiNavigationHierarchy`, so it never reaches `closeUI` and `focusRegained` never
+	// runs for one. In the shell a popup **is** a scene: `Notices` pushes `SceneKind::Popup` and
+	// removes it 800 ms later (`shell/notices.h:340-356`), and `SceneStack::remove`'s
+	// `if (was_top && n_ > 0)` arm then calls `on_resume()` on the scene beneath
+	// (`shell/scene_stack.cpp:108-113`).
+	//
+	// With the reset in place that meant: place forty slices by hand, tap a pad to hear one -- and
+	// 800 ms later every slice is gone, because the scene's own popup expired. Measured, not
+	// predicted: `sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table when a popup it
+	// raised itself expires" is the example, and it fails with this body restored.
+	//
+	// Nothing is lost by leaving it empty. The `closeUI` edge legacy runs `focusRegained` on needs a
+	// real UI to have been opened *over* the slicer, and `SlicerScene` pushes nothing -- the only
+	// scenes the shell puts above it today are the three `input_transparent()` notice overlays,
+	// which is exactly the case legacy runs nothing for. `MenuScene` guards its own resume the same
+	// way rather than trusting the edge, with a flag it sets alongside its own push
+	// (`MenuState::go_up_on_resume`, `scenes/menu/menu_scene.cpp:327-334`).
+	//
+	// @note The underlying asymmetry is the shell's and is reported upward, not patched here:
+	//       *pushing* an `input_transparent()` overlay tells the scene beneath nothing (it never
+	//       lost the input top -- `SceneStack::input_top` skips transparent scenes,
+	//       `scene_stack.cpp:194`), but *removing* one tells it "you are back on top". Every scene
+	//       with a stateful `on_resume` shares that hazard.
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -245,12 +271,324 @@ Result SlicerScene::select_encoder(int32_t offset) {
 	return r;
 }
 
+// ---------------------------------------------------------------------------------------------
+// The audition preview -- `Slicer::preview` / `runPreviewOp` (`slicer.cpp:409-444`)
+
+void SlicerScene::preview(const PreviewRequest& req) {
+	// `:418-432`, verbatim in structure and in type: snapshot the request (plain values -- nothing
+	// points into `points_` past this call) and coalesce latest-wins onto one owner op, so a burst
+	// of pad taps converges on whichever slice the finger actually landed on, and the op's
+	// "is the sliced sample already resident?" check, the load it may trigger and the audition note
+	// always run together on the worker rather than being split across a yield.
+	if (!preview_coalescer_.request(req)) {
+		return;
+	}
+	if (!deluge::storage::Owner::run(&SlicerScene::run_preview_op, this)) {
+		// `:428-431`: the owner queue was full, so the op will never run and would wedge the
+		// single-flight guard forever. Release it; the next `preview()` re-requests.
+		preview_coalescer_.reset();
+	}
+}
+
+void SlicerScene::run_preview_op(void* self) {
+	// `:435-444`.
+	auto* s = static_cast<SlicerScene*>(self);
+	if (s->ops_ != nullptr) {
+		s->ops_->audition(s->preview_coalescer_.current());
+	}
+	if (s->preview_coalescer_.complete().has_value()) {
+		if (!deluge::storage::Owner::run(&SlicerScene::run_preview_op, self)) {
+			s->preview_coalescer_.reset(); // `:441`
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// The commit -- `Slicer::runDoSliceOp` / `commitSlice` (`slicer.cpp:570-594`)
+
+void SlicerScene::run_do_slice_op(void* self) {
+	static_cast<SlicerScene*>(self)->commit_slice(); // `:570-573`
+}
+
+void SlicerScene::commit_slice() {
+	if (ops_ != nullptr) {
+		// `:576-589`: `doSlice(target.sliceCount)` and, for a MANUAL commit, the per-drum
+		// start/end/transpose paint loop. They run together for the reason `runDoSliceOp`'s
+		// docstring gives -- the loop indexes drums `doSlice` creates.
+		ops_->commit(pending_commit_);
+	}
+	// `:591-593`. Released here and not inside `SliceOps::commit`, because every exit path of
+	// `doSlice` -- its `getOut:` load-failure branch included -- has to reach it.
+	committing_ = false;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Pads -- `Slicer::padAction` (`slicer.cpp:484-568`)
+
+bool SlicerScene::add_slice_at(int32_t sample_pos) {
+	// `:535-551`, with the play position handed in. Legacy compares a signed `samplePos` against an
+	// unsigned `lengthInSamples`, which promotes the comparison to unsigned -- so a negative
+	// position would pass the test. The port cannot reach that: `SliceOps::play_position` returns
+	// `nullopt` where legacy has no voice, and a real play position is never negative. The
+	// comparison is spelled with the cast that makes the promotion visible rather than silent.
+	if (nav_.sample == nullptr) {
+		return false;
+	}
+	if (static_cast<uint64_t>(static_cast<uint32_t>(sample_pos)) >= nav_.sample->lengthInSamples
+	    || num_manual_slices_ >= kMaxManualSlices) {
+		return false;
+	}
+
+	points_[num_manual_slices_] = SlicePoint{.start_pos = sample_pos, .transpose = 0}; // `:536-537`
+	num_manual_slices_++;                                                              // `:539`
+	deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);            // `:540`
+
+	// `:542-551`, legacy's own bubble sort over the placed slices, kept as a bubble sort: it is
+	// `numManualSlice` <= 64 elements on a pad press, and swapping it for something else would be a
+	// change to what the table looks like after an equal-key insertion.
+	for (int32_t i = 0; i < num_manual_slices_ - 1; i++) {
+		for (int32_t j = num_manual_slices_ - 1; j > i; j--) {
+			if (points_[j].start_pos < points_[j - 1].start_pos) {
+				const SlicePoint tmp = points_[j];
+				points_[j] = points_[j - 1];
+				points_[j - 1] = tmp;
+			}
+		}
+	}
+	return true;
+}
+
+Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
+	Result r;
+	const bool on = velocity != 0;
+	// `:486` and `:559`: both arms are the same window -- a main-grid pad in the TOP half, in
+	// MANUAL mode. `kDisplayHeight / 2` is legacy's own expression for the slot grid's four rows.
+	const bool in_window = x < kDisplayWidth && y < kDisplayHeight / 2 && mode_ == Mode::Manual;
+
+	if (on && in_window) {
+		// `:488`. The inverse of the slot layout `render_grid` draws with -- index `i` goes to
+		// `((i % 4) + (i / 16) * 4, (i / 4) % 4)` there, and this brings it back.
+		const int32_t index = (x % 4 + (x / 4) * 16) + ((y % 4) * 4);
+
+		if (index < num_manual_slices_) {                     // `:490` play slice
+			const bool close_popup = current_slice_ != index; // `:491`
+			current_slice_ = index;                           // `:492`
+			if (nav_.sample != nullptr) {
+				// `:493-500`. The two arms differ only in where the slice ends: the next slice's
+				// start, or the end of the sample for the last one. A third case cannot arise --
+				// `index < num_manual_slices_` makes `index + 1 > num_manual_slices_` impossible --
+				// so legacy's `else if` is an `else` in effect, and is kept as legacy spells it.
+				const int64_t end = (index + 1 < num_manual_slices_)
+				                        ? static_cast<int64_t>(points_[index + 1].start_pos)
+				                        : static_cast<int64_t>(nav_.sample->lengthInSamples);
+				preview(PreviewRequest{.start_point = points_[index].start_pos,
+				                       .end_point = end,
+				                       .transpose = points_[index].transpose,
+				                       .on = velocity});
+			}
+			if (close_popup) {
+				// `:502-504` `display->cancelPopup()`, through the notify seam -- the popup service
+				// owns the panel, so "take mine down" is a notice, not a frame write.
+				deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelPopup);
+			}
+		}
+		else { // `:506` do slice
+			// `:508-534` is the voice walk, which is not ported -- see `SliceOps::play_position`.
+			// `:533`'s `if (voiceSample != nullptr)` is exactly "the walk found one", which is what
+			// an engaged `nullopt` means here.
+			//
+			// NOT a defect, but worth writing down because it reads like one: legacy declares
+			// `MultisampleRange* range;` uninitialised at `:510`, captures it BY REFERENCE into the
+			// filter predicate at `:515-518`, and only assigns it at `:520` -- one line AFTER the
+			// view is built. It is safe, and only because `std::views::filter` is lazy: the
+			// predicate is first evaluated by `valid_voices_view.empty()` at `:522`, which is after
+			// the assignment. `graphicsRoutine` does the same walk with the assignment FIRST
+			// (`:167` before `:169`), so the two orderings differ for no reason and the padAction
+			// one is a trap for anyone who makes the view eager or the capture by value.
+			if (ops_ != nullptr) {
+				if (const std::optional<int32_t> pos = ops_->play_position(); pos.has_value()) {
+					(void)add_slice_at(*pos);
+				}
+			}
+		}
+
+		// `:556-557`, inside the outer `if` and therefore fired by BOTH branches above -- including
+		// a "do slice" that placed nothing.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		return r;
+	}
+
+	if (!on && in_window) {
+		// `:559-561`: a release in the window silences the audition and repaints nothing.
+		preview(PreviewRequest{.start_point = 0, .end_point = 0, .transpose = 0, .on = 0});
+		r.handled = true;
+		return r;
+	}
+
+	if (mode_ == Mode::Manual) {
+		// `:563-565`: in MANUAL every pad is DEALT_WITH, in or out of the window -- the sidebar and
+		// the bottom half included.
+		r.handled = true;
+		return r;
+	}
+
+	// `:567` `return sampleBrowser.padAction(x, y, on)`. DIVERGENCE in spelling only: this layer may
+	// not name `sampleBrowser` (`scenes-no-root-ui`), and it does not have to. Legacy hands the pad
+	// to the UI it was opened over; the shell hands an unhandled event to the scene beneath, which
+	// is that same browser. Falling through is the delegation, not a dropped input.
+	return Result::unhandled();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Buttons -- `Slicer::buttonAction` (`slicer.cpp:276-398`)
+
+void SlicerScene::delete_current_slice() {
+	// `:310-326`. The shift-down runs over the WHOLE table, not just the placed slices, so the tail
+	// entry is always the one that gets cleared.
+	const int32_t target = current_slice_;
+	for (int32_t i = 0; i < kMaxManualSlices - 1; i++) {
+		points_[i] = points_[(i >= target) ? i + 1 : i];
+	}
+	points_[kMaxManualSlices - 1] = SlicePoint{}; // `:315-316`
+
+	num_manual_slices_--; // `:318`
+	if (num_manual_slices_ <= 0) {
+		// `:319-323`, the same floor `selectEncoderAction`'s MANUAL arm applies (`:261-265`).
+		num_manual_slices_ = 1;
+		points_[0] = SlicePoint{};
+	}
+	if (current_slice_ >= num_manual_slices_ - 1) {
+		current_slice_ = num_manual_slices_ - 1; // `:324-326`
+	}
+}
+
+Result SlicerScene::button_action(ButtonId b, const UiContext& ctx) {
+	Result r;
+
+	// `:284-294`, the mode switch.
+	if (b == ButtonId::XEnc) {
+		mode_ = (mode_ == Mode::Region) ? Mode::Manual : Mode::Region; // `:285-286`
+		if (ops_ != nullptr) {
+			if (mode_ == Mode::Manual) {
+				ops_->stop_previewing(); // `:287-288`
+			}
+			ops_->kill_voices(); // `:291`, on both mode transitions
+		}
+		// `:289` `renderUIsForOled()` and `:292` `uiNeedsRendering(this, ...)` together are
+		// `RepaintAll`.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		return r;
+	}
+
+	// `:297-303`, the transpose popup. Note the extra condition legacy's own encoder arm does not
+	// have: `currentSlice < numManualSlice`.
+	if (b == ButtonId::YEnc && mode_ == Mode::Manual && current_slice_ < num_manual_slices_) {
+		char buffer[24]; // legacy's own `char buffer[24]` (`:298`)
+		deluge::notify::notice_text(
+		    prefixed_int("Transpose: ", points_[current_slice_].transpose, std::span<char>{buffer}));
+		r.handled = true;
+		return r;
+	}
+
+	// `:306-332`, the delete. The pad the cursor sits on has to be HELD -- legacy asks
+	// `matrixDriver.isPadPressed(xx, yy)` with the slot-grid coordinates `render_grid` draws at.
+	// **The braces matter here:** the whole arm is inside `if (matrixDriver.isPadPressed(...) &&
+	// currentSlice < numManualSlice)`, and when that test fails the arm does NOT return -- it falls
+	// past the SELECT_ENC/BACK chain to the `else` at `:393-395` and answers NOT_DEALT_WITH.
+	if (b == ButtonId::Save && mode_ == Mode::Manual) {
+		const int32_t xx = (current_slice_ % 4) + (current_slice_ / 16) * 4; // `:307`
+		const int32_t yy = (current_slice_ / 4) % 4;                         // `:308`
+		if (ctx.held_pads.test(static_cast<uint8_t>(xx), static_cast<uint8_t>(yy))
+		    && current_slice_ < num_manual_slices_) { // `:309`
+			delete_current_slice();
+			r.handled = true;
+			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll}); // `:328-329`
+			return r;
+		}
+		return Result::unhandled();
+	}
+
+	if (b == ButtonId::SelectEnc) {
+		// `:334-368`. `inCardRoutine` has no counterpart here: it is a defer-and-retry gate whose
+		// port is `InputLowering::set_sd_busy`, not a scene's business. See the class docstring's
+		// "The commit does NOT need `RecorderScene`'s SD-routine guard".
+		//
+		// `:345-349`: snapshot the gesture -- plain values only, nothing pointing into `points_`,
+		// `num_manual_slices_` or `num_clips_` survives past this point.
+		pending_commit_.is_manual = mode_ == Mode::Manual;
+		pending_commit_.slice_count = pending_commit_.is_manual ? num_manual_slices_ : num_clips_;
+		if (pending_commit_.is_manual) {
+			std::copy(std::begin(points_), std::end(points_), std::begin(pending_commit_.points));
+			if (ops_ != nullptr) {
+				ops_->kill_voices(); // `:350`
+			}
+		}
+
+		// `:363` -- the gate, closed BEFORE dispatch and not inside the op, because the op ends by
+		// popping this scene (and the browser beneath it) off the stack. It is what makes a second
+		// SELECT_ENC and a BACK arriving during the op no-ops (`:279-281`).
+		committing_ = true;
+		if (!deluge::storage::Owner::run_or_inline(&SlicerScene::run_do_slice_op, this)) {
+			// `:364-368`: dispatch dropped, so `run_do_slice_op` will never run and would leave the
+			// scene wedged with no BACK and no SELECT_ENC forever. Release what was just closed.
+			committing_ = false;
+		}
+		r.handled = true;
+		return r;
+	}
+
+	if (b == ButtonId::Back) {
+		// `:371-392`.
+		if (mode_ == Mode::Manual && ops_ != nullptr) {
+			// `:376-379` renders the full-height waveform into `PadLEDs::image` on the way out --
+			// legacy's parting frame for the transition it is about to run. It has no counterpart
+			// here and needs none: the shell recomposes the grid bottom-up on the next tick from
+			// whatever scenes are then on the stack, so there is no image to leave behind.
+			// (`:376`'s own `RGB myImage[...]` is 432 bytes of dead stack -- declared, never read,
+			// never written, and `:378` renders into `PadLEDs::image` instead. The REGION arm of
+			// `renderMainPads` has the identical dead array at `:107`. Recorded in
+			// `src/scenes/README.md`'s ledger; not fixed, and nothing to port.)
+			ops_->kill_voices();        // `:380`
+			ops_->restore_full_range(); // `:381-388`
+		}
+		// `:391` `close()`. `Remove` and not `Pop`, for the reason `shell/scene.h`'s note on
+		// `Action::Kind::Pop` gives: a `Popup` this scene itself raised can legally be above it by
+		// the time the router applies the action, and a blind `Pop` would take that instead.
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
+		return r;
+	}
+
+	// `:393-395`: everything else falls through.
+	return Result::unhandled();
+}
+
 Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
-	if (event.kind != UiEvent::Kind::Encoder) {
-		// `padAction` and the rest of `buttonAction` -- the mode switch, the transpose popup, the
-		// slice delete, the commit and BACK -- are Task 10's. Until then a pad or button falls
-		// through to whatever is beneath, which is a gap, not a decision: legacy's `Slicer` handles
-		// all of them. Nothing links this library into an application yet, so the gap is inert.
+	switch (event.kind) {
+	case UiEvent::Kind::Pad:
+		// Legacy's third parameter is the raw velocity, which it names `on` and passes straight
+		// through to `preview` (`:494`). The shell keeps `on == (velocity != 0)` invariantly
+		// (`InputLowering::on_pad`, `shell/input_lowering.cpp:243-251`), so the velocity alone is
+		// exactly what legacy is handed.
+		return pad_action(event.x, event.y, event.velocity);
+
+	case UiEvent::Kind::Button:
+	case UiEvent::Kind::EncoderButton:
+		// `:279-281`, the top-of-function guard. `!on` is the release half; `currentUIMode !=
+		// UI_MODE_NONE` is the commit gate, which is this scene's `committing_` -- legacy's other
+		// UI modes are global state the shell does not have, and the ones a slicer could see
+		// (a held encoder button, a held pad) are questions `UiContext` answers instead.
+		if (!event.on || committing_) {
+			return Result::unhandled();
+		}
+		return button_action(event.button, ctx);
+
+	case UiEvent::Kind::Encoder:
+		break;
+
+	case UiEvent::Kind::AllReleased:
 		return Result::unhandled();
 	}
 
