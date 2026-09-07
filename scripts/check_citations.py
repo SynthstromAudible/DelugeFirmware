@@ -168,6 +168,41 @@ list above, and the cost of a false negative has been measured three times.
 
 Known false positives live in `scripts/citation_exceptions.txt`, one per line, in the
 `<citing file>:<cited token>` form the warnings print.
+
+IF YOU ARE SWEEPING BY HAND -- WHICH ANY COMMIT THAT INSERTS LINES INTO A CITED FILE MUST
+-------------------------------------------------------------------------------------------
+This gate is not the mechanism for a sweep and cannot be. It flags a citation that lands somewhere
+structurally impossible; a citation that slides three lines inside a doc comment resolves perfectly
+and it exits 0 before and after. Every task in this stack that edited a heavily-cited legacy file
+has had to remap by hand, and the ratio is worth knowing before you start: F1 task 9 gated eight
+entry points, `--strict` went from 0 to **134**, and the number of citations that had actually moved
+was **568**.
+
+Four classes a regex-and-shift-map rewriter cannot see, all of them found the hard way:
+
+  * **bare continuations** (`` `:1804` ``) carry no path and are resolved from the previous citation
+    ON THE SAME LINE -- so one written after a citation naming a *different* file resolves to the
+    wrong file, and one with no citation before it on its line resolves to nothing and is silently
+    skipped by this gate and by your rewriter alike;
+  * **comma lists** (`screensaver.cpp:94-96,125-127,223-226`): only the first element matches any
+    citation regex. The tail goes stale silently;
+  * **citations with a trailing symbol inside the backticks**
+    (`` `sound_editor.cpp:2056 maybeGetParentMenu` ``), which do not match a pattern anchored on the
+    closing backtick;
+  * **your own rewriter run twice**, which shifts a citation you already corrected by hand a second
+    time. A shift map is a hypothesis; the file content is the fact.
+
+So run more than one mechanism, and make the second one compare CONTENT -- the text at the citation's
+old line in `HEAD` against the text at its rewritten line now -- rather than arithmetic. A third,
+cheap and genuinely independent, is to check each rewrite's delta against `git diff -U0`'s own hunks:
+that is what catches a brace-only line paired with the WRONG brace, which a content comparison cannot
+see because both lines are `}`.
+
+**And print the lines. Do not guess them.** F1 task 9's own spot-check of two citations "looked
+wrong" and was not -- the ranges had been typed from memory rather than read out of the file, so the
+check disagreed with a rewrite that was correct. A verification that fails while measuring the wrong
+thing is the sibling of the example that passes while exercising a different mechanism than it names,
+and this stack has now shipped both.
 """
 
 import argparse
@@ -216,6 +251,7 @@ SCAN_ROOTS = (
     "tests/ui-scripts",
     "src/shell",
     "src/deluge/gui/ui",
+    "src/deluge/util",
 )
 SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt"}
 
@@ -267,6 +303,21 @@ SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt"}
 # above, `--strict` over the scoped `SCAN_ROOTS` (temporarily widened for the measurement) reports
 # 0 shown, 2 known exceptions suppressed -- the same two pre-existing `sidechain/shape.h:6` resolver
 # artefacts as before, unrelated to this round.
+#
+# WIDENED AGAIN, TO `src/deluge/util` (F1 task 9 fix round, 2026-09-07), and the reason is a hole
+# this stack opened rather than one it found. `gui/ui/shell_menu_entry.h` was moved to
+# `src/deluge/util/` so that `model/clip/instrument_clip_minder.cpp` -- inside
+# `check_layer_rules.py`'s `NON_UI` glob -- could include it without raising the `model-includes-ui`
+# ratchet. Satisfying one gate walked its four citations straight out of this one, because
+# `src/deluge/gui/ui` was in `SCAN_ROOTS` and `src/deluge/util` was not. That is the shape to watch:
+# **a header moved to satisfy a layer rule leaves this gate's scope at the same moment**, and the
+# move looks clean from inside either checker.
+#
+# Measured before adding, the same way the round above was: `--strict` over the widened roots reports
+# **0 certainly-wrong**, so it is free. It is a small root today -- exactly **4** citation tokens in
+# **1** file, that header's own -- and that is the point rather than an argument against it: the
+# entry cost nothing and it means the next declaration pushed out of `gui/` for the layer ratchet
+# stays judged. The rest of `src/deluge/util` carries no citations at all.
 
 # What a citation may point INTO. The legacy tree, always: it rots relative to these comments and
 # nothing in this repo can stop it.

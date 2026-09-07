@@ -47,14 +47,23 @@
 ///
 /// So the declaration lives outside `gui/` and the implementation stays inside it, which is
 /// `util/notify.h`'s shape exactly -- a light header any layer may include, with the UI half in
-/// `gui/ui/notify_drain.cpp`. This header includes nothing but `<cstdint>` and forward-declares
-/// `class Clip`, so it is a legal `util/` header on its own terms and not a loophole: the
-/// `src/scenes` and `gui/` dependencies are all in `gui/ui/shell_menu_entry.cpp`, where they belong.
+/// `gui/ui/notify_drain.cpp`.
 ///
-/// @note One thing that costs, stated because it is invisible otherwise: `check_citations.py`'s
-///       `SCAN_ROOTS` covers `src/deluge/gui/ui` and **not** `src/deluge/util`, so the citations in
-///       this file are no longer read by that gate. They were verified by hand against `grep -n`
-///       when this file moved.
+/// **The load-bearing fact, and it is not the precedent:** `src/deluge/util` is *itself* inside
+/// `check_layer_rules.py`'s `NON_UI` glob (`src/deluge/{model,playback,processing,storage,io,
+/// modulation,memory,sync,util,dsp}/**`). So this header is judged by the very rule the move is
+/// about, and it passes on its own terms -- it includes nothing but `<cstdint>` and forward-declares
+/// `class Clip`. That is what makes this a real move of the declaration out of the UI layer rather
+/// than a rename that puts a `gui/` header somewhere the ratchet cannot see it. Every `src/scenes`
+/// and `gui/` dependency stays in `gui/ui/shell_menu_entry.cpp`, where the rule would judge it if it
+/// moved.
+///
+/// @note Moving a header to satisfy one gate can walk it out of another, and that happened here:
+///       `check_citations.py`'s `SCAN_ROOTS` covered `src/deluge/gui/ui` and not `src/deluge/util`,
+///       so this file's four citations left the citation gate at the moment they satisfied the layer
+///       gate. `src/deluge/util` was added to `SCAN_ROOTS` in the same round (measured first: 0 new
+///       flags), and the widening was probed rather than assumed -- a past-EOF citation planted here
+///       is reported at `src/deluge/util/shell_menu_entry.h`. **This file is gate-read.**
 ///
 /// @par What works under the toggle, and what does not -- read this before turning it on
 ///
