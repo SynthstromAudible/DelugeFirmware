@@ -408,6 +408,62 @@ void LoadInstrumentPresetUI::runCommitOp(void* self) {
 	ui->close();
 }
 
+bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::PresetRequest& request) {
+	presetDispatches_++;
+	if (!presetCoalescer_.request(request)) {
+		return true; // superseded an in-flight op; that op will pick this up via complete()
+	}
+	if (!deluge::storage::Owner::run_or_inline(&LoadInstrumentPresetUI::runPresetAcquisitionOp, this)) {
+		// Owner queue was full - the op never ran, so release the guard or the coalescer would
+		// wedge single-flight forever (see LatestWins::reset()'s doc, and currentFileChanged()).
+		presetCoalescer_.reset();
+		return false;
+	}
+	return true;
+}
+
+void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
+	auto* ui = static_cast<LoadInstrumentPresetUI*>(self);
+	// By value, not by reference: complete() below overwrites presetCoalescer_'s current_ in place,
+	// so a reference into it would dangle once complete() runs while runAcquisitionFollowUp() still
+	// needs `request` (contrast runScrollLoadOp(), which is done with its target before calling
+	// complete() and so can take a reference).
+	const deluge::storage::PresetRequest request = ui->presetCoalescer_.current();
+
+	// currentDir comes from the snapshot, never from whatever the UI task left in the static:
+	// doPresetNavigation writes it from oldInstrument->dirPath on entry, and the readers mutate it
+	// as they descend (spec section 6).
+	Browser::currentDir = request.dirPath;
+
+	ui->runAcquisitionFollowUp(request);
+
+	// If a newer gesture arrived while this ran, dispatch it (latest-wins).
+	if (auto next = ui->presetCoalescer_.complete(); next.has_value()) {
+		if (!deluge::storage::Owner::run(&LoadInstrumentPresetUI::runPresetAcquisitionOp, self)) {
+			ui->presetCoalescer_.reset(); // re-dispatch dropped - release
+		}
+	}
+}
+
+// Runs the follow-up for whichever gesture dispatched this acquisition. Every arm runs ON THE
+// OWNER, which is what makes the blocking read below it legal. Mutating UI state from here matches
+// the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
+// recalculateColours()/close(), both on the owner.
+void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request) {
+	using deluge::storage::PresetConsumer;
+	switch (request.consumer) {
+	case PresetConsumer::ArrangerNewInstrument:
+	case PresetConsumer::ArrangerChangeType:
+	case PresetConsumer::ArrangerNavigate:
+	case PresetConsumer::SessionChangeType:
+	case PresetConsumer::SessionNavigate:
+	case PresetConsumer::SessionNewTrack:
+	case PresetConsumer::ViewChangeType:
+	case PresetConsumer::ViewNavigateClipPreset:
+		break; // wired in the consumer tasks
+	}
+}
+
 ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 

@@ -25,6 +25,7 @@
 #include "processing/sound/sound_drum.h"
 #include "storage/latest_wins.h"
 #include "storage/owner.h"
+#include "storage/preset_acquisition.h"
 
 class Instrument;
 class InstrumentClip;
@@ -134,6 +135,19 @@ public:
 	/// @return The running dispatch count.
 	[[nodiscard]] static int32_t presetDispatches() { return presetDispatches_; }
 
+	/// @brief Dispatch one instrument acquisition onto the storage owner.
+	///
+	/// Mirrors currentFileChanged(): the caller builds `request` from live state HERE, the only
+	/// point where reading it is safe, and the op then acts only on that snapshot.
+	///
+	/// Callers must dispatch ONLY on the Synth/Kit arm -- MIDI and CV read no card, and routing
+	/// them through here would defer a close() behind a storage round-trip (spec section 2c).
+	///
+	/// @param request The snapshot; see PresetRequest.
+	/// @return true if the op was dispatched or ran inline; false if the owner queue was full and
+	///         the gesture did nothing (the coalescer is released in that case).
+	bool dispatchPresetAcquisition(const deluge::storage::PresetRequest& request);
+
 protected:
 	void enterKeyPress() override;
 	void folderContentsReady(int32_t entryDirection) override;
@@ -166,6 +180,17 @@ private:
 	/// @param self The LoadInstrumentPresetUI instance.
 	static void runCommitOp(void* self);
 
+	/// @brief The dispatched acquisition op: runs the query named by presetCoalescer_.current(),
+	///        loads the preset if it is not already resident, then runs that consumer's follow-up.
+	///
+	/// Runs on the storage owner (inline on legacy/host), which is what makes the reader's
+	/// recursive subfolder descent legal: the walk never crosses the seam (spec section 2b).
+	/// @param self The LoadInstrumentPresetUI instance.
+	static void runPresetAcquisitionOp(void* self);
+
+	/// @brief Runs one acquisition's consumer follow-up, on the owner. See runPresetAcquisitionOp().
+	void runAcquisitionFollowUp(const deluge::storage::PresetRequest& request);
+
 	// Tells changeOutputType()'s Open listing apart from opened()'s in the shared onBrowserOpened()/
 	// onListingFailed() hooks (see changeOutputType()'s comment).
 	bool changingOutputType_{};
@@ -185,6 +210,11 @@ private:
 	// tick) onto the storage worker: a fast scroll only actually loads the preset the user settles
 	// on. Mirrors SampleBrowser's previewCoalescer_.
 	deluge::storage::LatestWins<LoadTarget> loadCoalescer_{};
+
+	// Coalesces repeated acquisition gestures (a held preset-navigation encoder, a mashed
+	// output-type button) onto the storage worker, so only the gesture the user settles on
+	// actually loads. Mirrors loadCoalescer_.
+	deluge::storage::LatestWins<deluge::storage::PresetRequest> presetCoalescer_{};
 
 	int16_t initialChannel{};
 	int8_t initialChannelSuffix{};
