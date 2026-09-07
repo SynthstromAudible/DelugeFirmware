@@ -450,12 +450,18 @@ void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
 }
 
 // Runs the follow-up for whichever gesture dispatched this acquisition. Every arm runs ON THE
-// OWNER; every arm is empty today (wired in Tasks 3-5), but once filled in that's what will make a
-// blocking read inside one legal, and mutating UI state from here will match the established
-// pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
-// recalculateColours()/close(), both on the owner.
+// OWNER, which is what makes a blocking read inside one legal, and mutating UI state from here
+// matches the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
+// recalculateColours()/close(), both on the owner. The arranger's three arms are wired (Task 3);
+// the Session/View arms remain empty `break;`s until Tasks 4 and 5.
 void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request) {
 	using deluge::storage::PresetConsumer;
+	// A coalesced request can carry a stale `oldInstrument` -- see isRequestInstrumentStillLive()'s
+	// doc. Consumers that never set it (ArrangerNewInstrument) leave it null, so the `!= nullptr`
+	// guard skips this check for them rather than abandoning every follow-up that doesn't use it.
+	if (request.oldInstrument != nullptr && !isRequestInstrumentStillLive(request.oldInstrument)) {
+		return;
+	}
 	switch (request.consumer) {
 	case PresetConsumer::ArrangerNewInstrument:
 		arrangerView.completeNewInstrument(request.yPressed);
@@ -812,6 +818,11 @@ bool LoadInstrumentPresetUI::isInstrumentInList(Instrument* searchInstrument, Ou
 		list = list->next;
 	}
 	return false;
+}
+
+// See the header doc for why this exists: a currency check, not a lifetime one.
+bool LoadInstrumentPresetUI::isRequestInstrumentStillLive(Instrument* instrument) {
+	return isInstrumentInList(instrument, currentSong->firstOutput);
 }
 
 // Returns whether it was in fact an unused one that it was able to return

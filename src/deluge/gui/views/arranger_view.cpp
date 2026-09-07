@@ -894,6 +894,12 @@ void ArrangerView::completeNewInstrument(int32_t yPressed) {
 	}
 
 	outputsOnScreen[yPressed] = output;
+
+	// The pad handler's early return (auditionPadAction(), the `if (!output) { return; }` right
+	// after dispatch) skips the uiNeedsRendering() call that used to sit at the end of its shared
+	// tail, so the row this just populated would otherwise stay unpainted until something unrelated
+	// dirtied it.
+	uiNeedsRendering(this, 0, 1 << yPressed);
 }
 
 void ArrangerView::auditionPadAction(bool on, int32_t y, UI* ui) {
@@ -2638,7 +2644,14 @@ void ArrangerView::completeNavigateThroughPresets(int32_t offset, Output* output
 
 	AudioEngine::routineWithClusterLoading();
 
-	beginAudition(output);
+	// If the user released the audition pad before this completed, exitSubModeWithoutAction() has
+	// already run endAudition() and cleared currentUIMode -- nothing will ever end a note started
+	// here. Same if a later press moved the audition to a different row: currentUIMode matches again,
+	// but this snapshot's row is stale. Both are re-checked here, not at dispatch, because either can
+	// change during the op's yield.
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective == yPressed) {
+		beginAudition(output);
+	}
 }
 
 void ArrangerView::changeOutputType(OutputType newOutputType) {
@@ -2692,7 +2705,12 @@ void ArrangerView::completeChangeOutputType(OutputType newOutputType, Instrument
 	view.displayOutputName(newInstrument);
 	view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
 
-	beginAudition(newInstrument);
+	// See completeNavigateThroughPresets() for why both checks are needed: a release before this
+	// completed already ran endAudition() and cleared currentUIMode, and a later press could have
+	// moved the audition to a different row -- either way, starting a note here would never be ended.
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective == yPressed) {
+		beginAudition(newInstrument);
+	}
 }
 
 void ArrangerView::changeOutputToAudio() {

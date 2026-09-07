@@ -1649,6 +1649,7 @@ enum class AcquireStep : uint8_t {
 	Coalesce,
 	CoalesceCheck,
 	NonAudio,
+	NonAudioCheck,
 	Finished
 };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
@@ -1690,6 +1691,7 @@ int32_t acqDispatches() {
 int32_t g_acqLoads = 0;          // acquisition gestures that actually ran
 std::string g_acqReferenceName;  // the instrument the reference gesture settled on
 int32_t g_acqCoalesceBefore = 0; // presetAcquisitionsRun() sampled before Coalesce's 3 gestures
+int32_t g_acqNonAudioBefore = 0; // presetAcquisitionsRun() sampled before NonAudio's CV switch
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
 /// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
@@ -1845,9 +1847,12 @@ void runAcquireTick() {
 		constexpr int32_t kCoalesceGestures = 3;
 		const int32_t loads = acqDispatches() - g_acqCoalesceBefore;
 		printf("SP-ACQUIRE coalesce gestures=%d loads=%d\n", kCoalesceGestures, loads);
-		if (loads >= kCoalesceGestures) {
-			printf("SP-ACQUIRE FAIL coalescing produced %d load(s) for %d gesture(s) -- expected fewer\n", loads,
-			       kCoalesceGestures);
+		// Both bounds matter: an upper bound alone would let `loads=0` (nothing ran at all -- the
+		// dispatch mechanism silently broken) pass as "fewer than 3", same vacuous-pass shape as the
+		// NonAudio bug below. The lower bound requires that SOMETHING actually completed.
+		if (loads < 1 || loads >= kCoalesceGestures) {
+			printf("SP-ACQUIRE FAIL coalescing produced %d load(s) for %d gesture(s) -- expected 1..%d\n", loads,
+			       kCoalesceGestures, kCoalesceGestures - 1);
 			g_failures++;
 		}
 		g_acquireStep = AcquireStep::NonAudio;
@@ -1858,13 +1863,23 @@ void runAcquireTick() {
 		// completeChangeOutputType() INLINE for CV/MIDI rather than dispatching, so no card is read
 		// and no storage op runs at all. Drives the REAL ArrangerView gesture on the row Coalesce
 		// just left a SYNTH Output on -- not Song::getNonAudioInstrumentToSwitchTo() directly, which
-		// changeOutputType() never calls, and so would prove nothing about this split. No `*Check`
-		// state needed: unlike the SYNTH/KIT arm, this path is synchronous by design, so the result
-		// is genuinely readable in the same tick.
-		const int32_t before = acqDispatches();
+		// changeOutputType() never calls, and so would prove nothing about this split.
+		//
+		// The Output ending up CV is readable in this same tick (changeOutputType()'s synchronous arm
+		// really does run to completion inline), but presetAcquisitionsRun() is not: if
+		// changeOutputType() ever regressed to dispatching on this arm, the op would only be
+		// ENQUEUED by the time this tick's read ran, and the delta would still read 0 -- passing for
+		// the wrong reason, the same same-tick trap the rest of this stage was fixed for. So the
+		// counter is read one tick later, in NonAudioCheck, like every other dispatched gesture here.
+		g_acqNonAudioBefore = acqDispatches();
 		BrowserListingAbProbe::changeOutputType(OutputType::CV);
-		printf("SP-ACQUIRE nonaudio dispatches=%d\n", acqDispatches() - before);
-		if (acqDispatches() != before) {
+		g_acquireStep = AcquireStep::NonAudioCheck;
+		break;
+	}
+	case AcquireStep::NonAudioCheck: {
+		const int32_t dispatched = acqDispatches() - g_acqNonAudioBefore;
+		printf("SP-ACQUIRE nonaudio dispatches=%d\n", dispatched);
+		if (dispatched != 0) {
 			printf("SP-ACQUIRE FAIL a CV switch dispatched a storage op; it reads no card\n");
 			g_failures++;
 		}

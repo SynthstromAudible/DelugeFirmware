@@ -199,6 +199,21 @@ private:
 	/// @param request The snapshot the acquisition was dispatched with; see PresetRequest.
 	void runAcquisitionFollowUp(const deluge::storage::PresetRequest& request);
 
+	/// @brief Whether `instrument` is still one of currentSong's live outputs.
+	///
+	/// `PresetRequest::oldInstrument` is Song-owned, so it never dangles across the op's yields (spec
+	/// section 6 covers that LIFETIME guarantee) -- but lifetime is not currency. Under coalescing,
+	/// two rapid change-type/navigate gestures on the same row both snapshot the SAME `oldInstrument`
+	/// pointer, because the second reads live state (outputsOnScreen) before the first gesture's op
+	/// has completed. If the first op replaces or hibernates that Instrument, a coalesced follow-up
+	/// for the second gesture must not act on it as though it were still the row's live output --
+	/// this is what re-validates that before any such follow-up runs. Reused by every consumer that
+	/// carries an `oldInstrument` (Tasks 4 and 5 add more).
+	/// @param instrument The snapshot's `oldInstrument`; null is not "still live" (callers should
+	///                    skip this check for consumers that never set it).
+	/// @return true if `instrument` is still in currentSong's live output list.
+	bool isRequestInstrumentStillLive(Instrument* instrument);
+
 	// Tells changeOutputType()'s Open listing apart from opened()'s in the shared onBrowserOpened()/
 	// onListingFailed() hooks (see changeOutputType()'s comment).
 	bool changingOutputType_{};
