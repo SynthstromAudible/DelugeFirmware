@@ -148,12 +148,22 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
 
     // Host builds (the golden renderer, the Embassy host harness) have no PIC and no user, so
     // there is no acknowledgement to wait for — blocking would hang a batch render instead of
-    // stopping a device in front of someone. Log it and return, which is exactly what this
-    // function did on every target before the device wait above existed: an assertion firing
-    // under the host harness surfaces through the log, not through a halt.
+    // stopping a device in front of someone. Log it, THEN abort the process.
+    //
+    // The log line alone is not a gate: every A/B script here builds this crate `--release`, and
+    // `deluge-bsp`/`rza1l-hal` request `log`'s `release_max_level_off` feature for the device
+    // build's benefit — Cargo unifies that feature across the whole binary's dependency graph, so
+    // in a `--release` host build `log::error!` (like every other `log::*!` call) compiles to a
+    // no-op. Grepping this process's output for the message would therefore find nothing whether
+    // or not a freeze happened. The abort is what makes a `FREEZE_WITH_ERROR` on host observable
+    // at all: it restores the pre-freeze behaviour where the same call was a live `assert()` that
+    // `abort()`ed (host builds have no `NDEBUG`), which is what the song-preview/audio-load A/B
+    // scripts' existing "leg exited nonzero" checks already fail a run on — see
+    // `deluge_system_reset` in services.rs for the same host-abort pattern.
     #[cfg(not(target_os = "none"))]
     {
         let _ = PIC_SELECT_KNOB_PRESS;
-        log::error!("deluge-rust: display freeze (assertion) — no PIC on this build, continuing");
+        log::error!("deluge-rust: display freeze (assertion) — no PIC on this build, aborting");
+        std::process::abort();
     }
 }
