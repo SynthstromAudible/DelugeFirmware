@@ -16,6 +16,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -53,6 +54,32 @@ using deluge::ui::shell::ShellConfig;
 /// The clock is entirely the script's: `tick_ms` is the step between `Shell::tick` calls and the
 /// only unit of time the run knows (spec G §5 -- no wall clock in the UI). `ShellConfig::seed` is
 /// left at its 0 default, which is what the harness seeds every random element from.
+///
+/// @par The three hooks E4 task 13 added, and why a script alone could not express them
+///
+/// A script is a list of board events, and three things this stack's scenes depend on are not
+/// board events at all. Each is a `std::function` a caller may leave empty, and an empty one is
+/// exactly the behaviour every script written before E4 task 13 already had:
+///
+///   * `config` -- the `ShellConfig` the run's `Shell` is built with. It was a hard-coded default
+///     here, which meant `screensaver_idle_ms` was always 0 and `shell::Screensaver` was **off in
+///     every level-2 script that has ever run** (`shell/screensaver.h`: "`idle_ms == 0` disables
+///     the service outright"). Nothing a script could type turned it on.
+///   * `after_construct` -- run once, after the `Shell` exists and before `init()`/`boot()`.
+///     `scenes::services::ModKnobs`, `GlobalControls` and `MidiLearn` are each constructed from
+///     `SceneStack&` and `InputLowering&`, and the only instances of those two are the ones the
+///     `Shell` **owns** (`shell/shell.h`'s `stack_`, `lowering_`) -- so a real service cannot be
+///     built until the shell it serves already exists, and `Services` is fixed at the shell's
+///     construction. This hook is where a caller closes that loop; see
+///     `sim/scenes_spec/scene_scripts_spec.cpp`'s `LateService` for the shape, and that file's
+///     header for why the same gap is a real one for the application's own boot.
+///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The
+///     stand-in for a model that moves on its own: `overlay::CountInScene` is a **poll** of
+///     `playbackHandler.count_in_visual()` (`scenes/overlay/count_in_scene.h`), and the only thing
+///     that moves that number is `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree
+///     (`playback_handler.cpp:1044-1051`), which needs a running `AudioEngine` a spec process does
+///     not have. `sim/scenes_spec/count_in_spec.cpp` writes the field directly for the same
+///     reason; this is that, at level 2.
 struct RunOptions {
 	/// Milliseconds between successive `Shell::tick` calls.
 	uint32_t tick_ms = 10;
@@ -72,6 +99,15 @@ struct RunOptions {
 	/// spec F asserts "the same script produces the same snapshots against the legacy UI and the
 	/// new scene": two scene tables, one script, nothing to record ahead of time.
 	const SceneRegistry* second_registry = nullptr;
+	/// The `ShellConfig` the run's `Shell` is built with; `seed` stays at its 0 default unless a
+	/// caller sets it. See the class doc.
+	ShellConfig config{};
+	/// Called once with the run's `Shell`, after it is constructed and before `init()`/`boot()`.
+	/// See the class doc.
+	std::function<void(Shell&)> after_construct;
+	/// Called with each tick's clock, immediately before that `Shell::tick` and after the steps
+	/// due at that clock have been applied. See the class doc.
+	std::function<void(uint32_t)> before_tick;
 };
 
 /// @brief What one `run_script` call produced.
@@ -444,7 +480,7 @@ inline std::string first_mismatch(const std::filesystem::path& a, const std::fil
 /// @param registry    The application's scene table.
 /// @param services    The shell's services.
 /// @param out_dir     Directory to write snapshots into; created if missing.
-/// @param opts        Clock, board, profile and initial scene.
+/// @param opts        Clock, board, profile, initial scene, `ShellConfig` and the two hooks.
 /// @return What was written, or the first parse/run failure (in which case nothing was written).
 inline RunResult run_script(std::string_view script_text, const SceneRegistry& registry, Services services,
                             std::string_view out_dir, RunOptions opts = {}) {
@@ -488,8 +524,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	for (deluge::notify::Notice drop; deluge::notify::notices().pop(drop);) {}
 
 	FakeSurfaceSet fake{*board, *opts.profile};
-	ShellConfig config;
-	config.seed = 0;
+	const ShellConfig config = opts.config;
 	Shell shell{fake, *opts.profile, registry, services, config};
 	// **Every scene this run pushes gets its `on_exit` before the run returns.** A `Shell` is
 	// per-call but the scenes it drives are process-wide singletons, so a script that ends
@@ -532,6 +567,12 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 			}
 		}
 	} teardown{shell};
+	// Before the first push, so a service that reacts to the stack sees it grow from empty exactly
+	// as the application's would. Caller-owned: whatever this installs must outlive the run, and
+	// nothing here unwires it -- see `RunOptions::after_construct`.
+	if (opts.after_construct) {
+		opts.after_construct(shell);
+	}
 	if (opts.initial_scene) {
 		shell.init(*opts.initial_scene);
 	}
@@ -678,6 +719,11 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 		// no error. When nothing is due (`popup.txt`'s lone `3200 quit`) this is one extra tick
 		// that writes nothing.
 
+		// After the steps due at `t`, before the tick that acts on them: a model fact this hook
+		// writes is one the tick's `Scene::tick` poll sees, which is the whole point of it.
+		if (opts.before_tick) {
+			opts.before_tick(t);
+		}
 		shell.tick(t);
 
 		for (const std::string& name : due_snapshots) {
@@ -724,7 +770,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 /// @param script_name The script's basename, without `.txt`.
 /// @param registry    The application's scene table.
 /// @param services    The shell's services.
-/// @param opts        Clock, board, profile and initial scene.
+/// @param opts        Clock, board, profile, initial scene, `ShellConfig` and the two hooks.
 /// @return What the run produced, so a caller can assert on `snapshots` too.
 template <typename Self>
 inline RunResult expect_script_goldens(Self& self, std::string_view script_name, const SceneRegistry& registry,
