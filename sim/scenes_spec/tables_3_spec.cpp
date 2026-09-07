@@ -1631,6 +1631,18 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 });
 
 describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
+	it("defaults the shell-menu toggle to Off, straight from the settings loader (task-3 ruling)", _ {
+		// Not asserted on the enum literal: call the real loader (`RuntimeFeatureSettings::init()`,
+		// `runtime_feature_settings.cpp`'s `SetupOnOffSetting` table) and read the result back
+		// through `RuntimeFeatureSettings::get`. A check against the enum's own declaration would
+		// pass just as easily if the default were flipped to On by mistake in the loader alone --
+		// and that is exactly the mistake that would open this plan's guest to every user on first
+		// boot, the one thing Global Constraint 2 forbids.
+		runtimeFeatureSettings.init();
+		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu))
+		    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
+	});
+
 	it("leaves the model where the legacy item leaves it, for every set hook", _ {
 		// The task-7 ruling, applied to batch 3: every `set` hook is driven for three values
 		// spanning its range, each write path run **from its own copy of a common starting state**
@@ -1664,9 +1676,12 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 				covered.insert(p.node);
 			}
 		}
-		// 184 distinct `set`-hook nodes, 1152 (node, root, value) probes across the ten roots -- a
-		// node reachable from three roots is driven three times, on three different fixtures. A drop
-		// in either number means the loop stopped reaching hooks it used to.
+		// 193 distinct `set`-hook nodes, 1179 (node, root, value) probes across the ten roots -- a
+		// node reachable from three roots is driven three times, on three different fixtures. Task 3
+		// added the 193rd (`feature_shell_menu`, reachable from exactly the `settings` root, +3
+		// probes); the thresholds below stay loose rather than exact so the next addition doesn't
+		// have to touch this comment's arithmetic to stay green, only its accuracy. A drop in either
+		// number means the loop stopped reaching hooks it used to.
 		expect(exercised > size_t(1000)).to_be_true();
 		expect(covered.size() > size_t(160)).to_be_true();
 	});

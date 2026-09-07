@@ -171,6 +171,11 @@ void RuntimeFeatureSettings::init() {
 	// Rounded Corners
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
 	                  "roundedCorners", RuntimeFeatureStateToggle::On);
+
+	// ShellMenu -- gates whether `ShellHostUI` (the ported menu tree's guest) is reachable at all.
+	// Default Off: this plan's guest must not change what any user sees until they opt in.
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShellMenu], STRING_FOR_COMMUNITY_FEATURE_SHELL_MENU,
+	                  "shellMenu", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {

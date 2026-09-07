@@ -12516,6 +12516,12 @@
             "name": "Show Battery Level",
             "title": "Show Battery Level",
             "type": "basic"
+          },
+          {
+            "id": 497,
+            "name": "Shell Menu",
+            "title": "Shell Menu",
+            "type": "basic"
           }
         ],
         "id": 473,
@@ -12525,13 +12531,13 @@
       },
       {
         "available_when": "battery_shown",
-        "id": 497,
+        "id": 498,
         "name": "Battery level",
         "title": "Battery level",
         "type": "basic"
       },
       {
-        "id": 498,
+        "id": 499,
         "name": "Firmware version",
         "title": "Firmware vers",
         "type": "basic"
@@ -13045,13 +13051,13 @@
         "type": "basic"
       }
     ],
-    "id": 499,
+    "id": 500,
     "name": "CV instrument",
     "title": "CV instrument",
     "type": "submenu"
   },
   {
-    "id": 500,
+    "id": 501,
     "name": "Note range",
     "select_chain": [
       {

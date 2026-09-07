@@ -1073,7 +1073,7 @@ inline constexpr Node record_settings = submenu(sid(String::STRING_FOR_RECORDING
 // 11. Community features
 //
 // `runtime_feature::Settings` is a `Submenu` over `subMenuEntries`
-// (`runtime_feature/settings.cpp:56-80`), 23 items in that array's order. Twenty-one of them are
+// (`runtime_feature/settings.cpp:67-91`), 24 items in that array's order. Twenty-two of them are
 // `SettingToggle`s -- `Selection`s flagged `isToggle()` (`runtime_feature/setting.h:45`) -- which is
 // `Kind::Toggle` here; `SyncScalingAction` is a plain two-option `Setting`; `DevSysexAllowed` is the
 // E2 placeholder the file note explains.
@@ -1105,6 +1105,7 @@ DELUGE_RUNTIME_TOGGLE(feature_horizontal_menus, 19, STRING_FOR_COMMUNITY_FEATURE
 DELUGE_RUNTIME_TOGGLE(feature_trim_from_start, 20, STRING_FOR_COMMUNITY_FEATURE_TRIM_FROM_START_OF_AUDIO_CLIP);
 DELUGE_RUNTIME_TOGGLE(feature_show_battery_level, 21, STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL);
 DELUGE_RUNTIME_TOGGLE(feature_rounded_corners, 22, STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS);
+DELUGE_RUNTIME_TOGGLE(feature_shell_menu, 23, STRING_FOR_COMMUNITY_FEATURE_SHELL_MENU);
 
 #undef DELUGE_RUNTIME_TOGGLE
 
@@ -1144,7 +1145,8 @@ inline constexpr const Node* kRuntimeFeatureChildren[] = {&feature_drum_randomiz
                                                           &feature_horizontal_menus,
                                                           &feature_rounded_corners,
                                                           &feature_trim_from_start,
-                                                          &feature_show_battery_level};
+                                                          &feature_show_battery_level,
+                                                          &feature_shell_menu};
 inline constexpr Node runtime_features =
     submenu(sid(String::STRING_FOR_COMMUNITY_FTS), kRuntimeFeatureChildren, Layout::Vertical, nullptr,
             sid(String::STRING_FOR_COMMUNITY_FTS_MENU_TITLE));
