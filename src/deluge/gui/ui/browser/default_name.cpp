@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/browser/default_name.h"
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
@@ -26,13 +27,6 @@ namespace {
 
 constexpr size_t kMaxSlotDigits = 3;
 constexpr int32_t kMaxNumericSuffix = 9999;
-
-bool exists(FileListView const& files, std::string const& nameWithoutExtension) {
-	// The browser lists both extensions (allowedFileExtensionsXML), and saving picks between them via writeJsonFlag, so
-	// a name is taken if *either* form is on the card. Probing only .XML would hand back a name that already exists.
-	return files.contains((nameWithoutExtension + ".XML").c_str())
-	       || files.contains((nameWithoutExtension + ".Json").c_str());
-}
 
 char upper(char c) {
 	return static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
@@ -100,6 +94,37 @@ std::string numericStem(std::string_view name, char* delimiter) {
 	return std::string{name};
 }
 
+/// Reads the number a family member carries: the digit run straight after `prefix`, which must then run to the
+/// extension or to the end of the name. Returns 0 when `name` is not of that form, and kMaxNumericSuffix when the
+/// digits run past what we are willing to count to (so the caller stops rather than wrapping).
+///
+/// The "digits must reach the extension" rule is what keeps a neighbour like "JAM 2024-01-05.XML" out of the "JAM "
+/// family. Read as a member it would say the family had reached 2024, and the next save would land on "JAM 2025".
+int32_t numberOfSibling(std::string const& name, std::string_view prefix) {
+	if (name.size() <= prefix.size()) {
+		return 0;
+	}
+	for (size_t i = 0; i < prefix.size(); i++) {
+		if (upper(name[i]) != upper(prefix[i])) {
+			return 0;
+		}
+	}
+
+	int32_t number = 0;
+	size_t pos = prefix.size();
+	if (!std::isdigit(static_cast<unsigned char>(name[pos]))) {
+		return 0;
+	}
+	while (pos < name.size() && std::isdigit(static_cast<unsigned char>(name[pos]))) {
+		number = number * 10 + (name[pos] - '0');
+		if (number > kMaxNumericSuffix) {
+			return kMaxNumericSuffix;
+		}
+		pos++;
+	}
+	return (pos == name.size() || name[pos] == '.') ? number : 0;
+}
+
 } // namespace
 
 char const* numberPartOf(char const* name, char const* filePrefix) {
@@ -125,28 +150,36 @@ std::string nextDefaultName(std::string_view currentName, std::string_view slotP
 	char letter = 0;
 	std::string stem = slotStem(currentName, slotPrefix, &letter);
 
-	// Slot-form name ("SONG185" / "SONG185A"): advance the letter suffix.
+	// Slot-form name ("SONG185" / "SONG185A"): the first free letter at or above the one we are on. The whole family
+	// is fetched at once rather than tested a candidate at a time, so the answer holds however big the folder is.
 	if (!stem.empty()) {
+		uint32_t taken = files.takenLetterSuffixes(stem.c_str());
 		char from = (letter == 0) ? 'A' : static_cast<char>(letter + 1);
 		for (char c = from; c <= 'Z'; c++) {
-			std::string candidate = stem + c;
-			if (!exists(files, candidate)) {
-				return candidate;
+			if (!(taken & (1U << (c - 'A')))) {
+				return stem + c;
 			}
 		}
 		return std::string{currentName}; // Letters exhausted.
 	}
 
-	// Anything else: advance the numeric suffix.
+	// Anything else: one past the highest-numbered member of the family. Asking for that single name, rather than
+	// testing "<base> 2", "<base> 3", ... in turn, is again what makes the answer independent of how much of the
+	// folder the caller can see. Numbering from the top also leaves gaps alone, so a deleted "<base> 3" is not
+	// silently reused.
 	char delimiter = kNumericSuffixDelimiter;
 	std::string base = numericStem(currentName, &delimiter);
-	for (int32_t n = 2; n <= kMaxNumericSuffix; n++) {
-		std::string candidate = base + delimiter + std::to_string(n);
-		if (!exists(files, candidate)) {
-			return candidate;
-		}
+	std::string prefix = base + delimiter;
+
+	// The name we are saving over is itself on the card, so its own number is a floor the answer can never go below -
+	// which keeps this right even if the folder scan comes back empty because the card would not answer.
+	int32_t highest = std::max(numberOfSibling(files.highestNumberedName(prefix.c_str()), prefix),
+	                           numberOfSibling(std::string{currentName}, prefix));
+	if (highest >= kMaxNumericSuffix) {
+		return std::string{currentName}; // Numbers exhausted - the user will have to name this one.
 	}
-	return std::string{currentName};
+	// An unnumbered original ("MYTRACK.XML" alone) counts as 1, so the first variation is "MYTRACK 2".
+	return prefix + std::to_string(std::max<int32_t>(highest, 1) + 1);
 }
 
 } // namespace deluge::gui::browser
