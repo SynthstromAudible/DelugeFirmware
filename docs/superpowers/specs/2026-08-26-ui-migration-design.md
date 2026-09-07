@@ -32,12 +32,12 @@ reconciliation is cheap.
 | Legacy hook | Guest behaviour |
 |---|---|
 | `padAction`, `buttonAction`, `*EncoderAction`, `modEncoderAction` | forwarded into the shell's `InputLowering`; legacy `Buttons::` state is *read* into `UiContext` (not duplicated) |
-| `renderOLED(Canvas&)` | the shell's `Main` surface aliases that canvas's storage |
-| `renderMainPads(rows, image, mask)` / `renderSidebar(...)` | the shell's grid surface aliases `image` row by row; returns the top scene's opacity |
+| `renderOLED(Canvas&)` | the shell's `Main` surface ~~aliases~~ **serves** that canvas's storage (F1 task 4; see §3) |
+| `renderMainPads(rows, image, mask)` / `renderSidebar(...)` | the shell's grid surface ~~aliases~~ **serves** `image` row by row; returns the top scene's opacity (`!is_grid_overlay()`) |
 | `timerCallback()` | the shell's `tick`; `UI_SPECIFIC` re-armed to `next_wake_` |
-| `opened()` / `focusRegained()` | `Shell::push(initial)` / `on_resume` on the shell's top |
-| `canSeeViewUnderneath()` | top scene's `oled_transparent(Main)` |
-| `exitUI()` | `Shell::pop()`; returns `NOT_DEALT_WITH` when the shell's stack is empty so `closeUI` pops the guest |
+| `opened()` / `focusRegained()` | ~~`Shell::push(initial)`~~ → `Shell::init(SceneId)` / `on_resume` on ~~the shell's top~~ → `SceneStack::input_top()` (F1 task 5; see the corrections below) |
+| `canSeeViewUnderneath()` | ~~top scene's `oled_transparent(Main)`~~ → **`!top().occludes_grid()`** (F1 task 5 — copying the struck-through form ships a regression; see the corrections below) |
+| `exitUI()` | ~~`Shell::pop()`~~ → `SceneStack::pop()`; ~~returns `NOT_DEALT_WITH` … so `closeUI` pops the guest~~ → the guest calls `close()` itself when the pop empties the stack, because no caller acts on the return value that way (F1 task 5; see the corrections below) |
 
 LEDs: the guest's `derive_leds` writes through an `indicator_leds` `LedSink`; the guest
 owns an LED only while one of its scenes declares it, so legacy and guest never fight.
@@ -66,14 +66,38 @@ the hook it belongs to.
   (`scenes/menu/menu_scene.h:449`) where `SoundEditor::canSeeViewUnderneath` is true
   (`gui/ui/sound_editor.h:121`), so the clip view under an open menu would have stopped animating.
 - **`exitUI()`'s return value pops nothing.** The row says it returns `NOT_DEALT_WITH` on an empty
-  shell stack "so `closeUI` pops the guest". Nothing reads it that way: `exitUI` has exactly one caller
-  in `src/`, `TimerName::BACK_MENU_EXIT` in `gui/ui_timer_manager.cpp:149-155`, which stores the result
-  and tests it against `REMIND_ME_OUTSIDE_CARD_ROUTINE` alone. There is no `closeUI` in that path. Every
-  legacy implementation closes *itself* — `RenameUI::exitUI` (`gui/ui/rename/rename_ui.cpp:88-91`),
-  `SampleMarkerEditor::exitUI` (`gui/ui/sample_marker_editor.cpp:680-683`), and
-  `SoundEditor::exitCompletely`'s `close()` at `gui/ui/sound_editor.cpp:723`. The guest therefore calls
-  `close()` when the pop empties its stack and returns `NOT_DEALT_WITH`; a guest that only returned the
-  value would trap the user inside itself.
+  shell stack "so `closeUI` pops the guest". Neither of its two readers does that, and every legacy
+  implementation closes *itself* — `RenameUI::exitUI` (`gui/ui/rename/rename_ui.cpp:88-91`),
+  `SampleMarkerEditor::exitUI` (`gui/ui/sample_marker_editor.cpp:680-683`), `Browser::exitUI`
+  (`gui/ui/browser/browser.h:133-136`), and `SoundEditor::exitCompletely`'s `close()` at
+  `gui/ui/sound_editor.cpp:723`. The guest therefore calls `close()` when the pop empties its stack; a
+  guest that only returned the value would trap the user inside itself.
+
+  **The two readers, measured** (`grep -rn "exitUI" src/ | grep -v exitUIMode` — 26 lines; an earlier
+  version of this bullet said "exactly one caller", which was wrong, and a correction whose authority is
+  its measurement must not carry an unmeasured claim):
+
+  1. `gui/ui_timer_manager.cpp:150-153` (`TimerName::BACK_MENU_EXIT`) stores the result and tests it
+     against `REMIND_ME_OUTSIDE_CARD_ROUTINE` alone, to re-arm the timer. No `closeUI` in that path.
+  2. `gui/ui/keyboard/layout/column_controls.cpp:89` tests it against `ACTIONED_AND_CAUSED_CHANGE` and
+     on a match calls `keyboardScreen.killColumnSwitchKey(LEFT_COL)` — the keyboard sidebar's menu-exit
+     pad, behind `RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit` (`:86-87`).
+
+  **Two divergences follow, recorded rather than fixed, because both are inert in phase 4 and neither
+  is:**
+
+  - The guest returns `NOT_DEALT_WITH` where every legacy self-closing `exitUI` returns
+    `ACTIONED_AND_CAUSED_CHANGE`. Reader 2 therefore does not fire for the guest. Inert today only
+    because it runs inside `KeyboardScreen`'s pad handling and the guest's inherited `padAction`
+    consumes pads first (`gui/ui/ui.h:97`); **it stops being inert when F1 task 6 routes pads**, and
+    the fix is then one return value.
+  - The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` does when the
+    settings menu is leaving while `isSDRoutineActive()` (`gui/ui/sound_editor.cpp:695-709`, the return
+    at `:698`). That is the tail of a larger gap: leaving the settings menu is also what writes
+    `FlashStorage`, the MIDI devices file, the runtime-feature settings and the MIDI-follow defaults
+    (`:703-709`), and nothing on the guest's exit path does any of it. The guest cannot know it is in a
+    settings root, so this belongs with F1 task 9, which maps the fourteen callers to `SceneId`s and is
+    the first place that does.
 - **`opened()` is `Shell::init(SceneId)`, not `Shell::push(initial)`.** There is no `Shell::push`;
   `init` is `stack_.push(initial)` with the result dropped (`shell/shell.cpp:226-228`), which is why the
   guest checks the depth afterwards rather than trusting the call.
@@ -88,6 +112,20 @@ implements; `focusRegained` really is `on_resume`, with the one refinement that 
 says (`shell/scene.h:311-326`) and what the stack itself does (`shell/scene_stack.h:38-46`);
 `getGreyoutColsAndRows` really is the top scene's `greyout_mask()`, with `doGreyout == false` spelled
 as an all-zero mask (`scenes/menu/menu_scene.cpp:1458-1490`).
+
+**One phase-4 topology defect the table does not mention and cannot be read off it: the greyout is
+applied twice.** Legacy greys once, in the send path — `prepareColour` (`hid/led/pad_leds.cpp:283-298`,
+the tint at `:293-296`) reads the masks `reassessGreyout` took from `getUIGreyoutColsAndRows`
+(`:734-735`) and never mutates `PadLEDs::image`. The shell has no send stage to hook, so it greys its
+own grid in place (`Shell::render_grid`, `shell/shell.cpp:753-759`, over the whole stack's OR at
+`:328-334`); those already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
+which writes `image` and calls `sortLedsForCol` — back through `prepareColour`, which greys them again
+for whatever the guest just reported. A greyed pad is darker under the guest than under `SoundEditor`.
+Answering `false` here is not the fix: `gui/ui/ui.cpp:73-83` would then take the mask from the UI
+*underneath*. The fix is a shell seam separating compose from tint, or the guest reporting an empty
+mask while the shell owns the tint end to end; it is recorded at `ShellHostUI::getGreyoutColsAndRows`
+and belongs with the tick (F1 task 7) or the acceptance round. Phase 5 dissolves it, since
+`prepareColour` goes with the rest of the legacy send path.
 
 ### 2.2 Phase 5 — shell as host
 
