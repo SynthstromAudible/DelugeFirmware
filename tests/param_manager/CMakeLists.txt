@@ -42,8 +42,26 @@ target_include_directories(SongBackupTests PRIVATE song_mocks mocks ../../src ..
 target_compile_features(SongBackupTests PRIVATE cxx_std_23)
 add_test(NAME SongBackupTests COMMAND SongBackupTests)
 
+add_executable(ParamLookupTests param_lookup_tests.cpp
+	../../src/deluge/model/model_stack_param_lookup.cpp
+	../../src/deluge/modulation/params/param_set_param_lookup.cpp
+	../../src/deluge/modulation/params/param_manager_type.cpp
+	../../src/deluge/model/instrument/melodic_instrument_param_lookup.cpp
+	../../src/deluge/model/instrument/kit_param_lookup.cpp
+	../../src/deluge/gui/views/automation_view_param_lookup.cpp
+	../../src/deluge/gui/menu_item/patched_param_lookup.cpp
+	../../src/deluge/gui/menu_item/unpatched_param_lookup.cpp
+	../../src/deluge/gui/menu_item/patch_cable_strength_lookup.cpp
+	../../src/deluge/model/instrument/midi_instrument_param_lookup.cpp
+	../../src/deluge/model/song/song_param_lookup.cpp
+	../../src/deluge/processing/audio_output_param_lookup.cpp
+	../../src/deluge/io/midi/midi_follow_param_lookup.cpp)
+target_include_directories(ParamLookupTests PRIVATE lookup_mocks ../../src ../../src/deluge)
+target_compile_features(ParamLookupTests PRIVATE cxx_std_23)
+add_test(NAME ParamLookupTests COMMAND ParamLookupTests)
+
 foreach(test_target IN ITEMS ParamManagerCleanupTests ParamManagerTransferTests
-		ParamManagerAutomationTests SongBackupTests)
+		ParamManagerAutomationTests SongBackupTests ParamLookupTests)
 	get_target_property(test_sources ${test_target} SOURCES)
 	get_target_property(test_includes ${test_target} INCLUDE_DIRECTORIES)
 	set(disabled_target ${test_target}NoDiagnostics)
