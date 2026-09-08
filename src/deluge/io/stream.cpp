@@ -1,5 +1,8 @@
 #include "io/stream.hpp"
 
+#include "libdeluge/file_write.h"
+#include "libdeluge/storage_wait.h"
+
 #include <cstdint>
 
 namespace deluge::io {
@@ -16,6 +19,15 @@ DelugeStream* box_stream_handle(uint32_t handle) {
 uint32_t unbox_stream_handle(DelugeStream* handle) {
 	return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(handle) - 1);
 }
+
+/// The handle `Stream::close()` is currently draining. `RunCondition` (libdeluge/storage_wait.h)
+/// takes no context pointer, so the predicate reads it from here. Only ever touched between the two
+/// statements that set and clear it, on the storage owner.
+uint32_t g_draining_handle = 0;
+
+/// Bound on that drain. Generous, because exceeding it means losing a cluster the channel had
+/// accepted; finite, because a driver that has stopped answering must not wedge teardown.
+constexpr double kDrainTimeoutSeconds = 5.0;
 
 } // namespace
 
@@ -39,6 +51,23 @@ std::expected<uint32_t, Status> Stream::write_at(uint32_t byte_offset, std::span
 		return std::unexpected(Status::ERR);
 	}
 	return out_written;
+}
+
+bool Stream::request_write_at(uint32_t byte_offset, std::span<const std::byte> buffer) {
+	if (handle_ == nullptr) {
+		return false;
+	}
+	return deluge_file_write_request(unbox_stream_handle(handle_), byte_offset,
+	                                 reinterpret_cast<const uint8_t*>(buffer.data()),
+	                                 static_cast<uint32_t>(buffer.size()));
+}
+
+uint8_t Stream::collect_write_at(uint32_t* out_written) {
+	if (handle_ == nullptr) {
+		// UNKNOWN, not PENDING: nothing is in flight and nothing ever will be on this stream.
+		return DELUGE_FILE_WRITE_UNKNOWN;
+	}
+	return deluge_file_write_collect(unbox_stream_handle(handle_), out_written);
 }
 
 std::expected<uint32_t, Status> Stream::read_at_via(uint32_t byte_offset, std::span<std::byte> dst) {
@@ -78,6 +107,23 @@ std::expected<uint32_t, Status> Stream::sector_of(uint32_t /*cluster_index*/) {
 }
 
 std::expected<void, Status> Stream::close() {
+	// Drain any in-flight async write BEFORE the handle goes away. The channel holds a raw pointer
+	// into the caller's buffer, and every caller frees that buffer after close() returns --
+	// `SampleRecorder::releaseCaptureBuffers()` most importantly. Yielding here is legal: every
+	// caller of close() is on the storage owner (finalize, alterFile, truncate, the abort path),
+	// which is exactly where waiting is allowed. The timeout means a driver that has stopped
+	// answering cannot wedge teardown either -- we lose the write, not the device.
+	if (handle_ != nullptr) {
+		g_draining_handle = unbox_stream_handle(handle_);
+		(void)yieldingRoutineWithTimeoutForSD(
+		    []() -> bool {
+			    uint32_t written = 0;
+			    return deluge_file_write_collect(g_draining_handle, &written) != DELUGE_FILE_WRITE_PENDING;
+		    },
+		    kDrainTimeoutSeconds);
+		g_draining_handle = 0;
+	}
+
 	bool ok = deluge_efatfs_stream_close(unbox_stream_handle(handle_));
 	handle_ = nullptr; // matters even on error: don't let the destructor double-close
 	if (!ok) {
