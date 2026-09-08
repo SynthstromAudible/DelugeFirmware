@@ -659,20 +659,42 @@ rather than a thing that is half-done:
    * **No `ParamPopupScene` appeared anywhere.** Across all 68 moved golden files the diff carries
      not one added or removed `scene` line. The second bullet's predicted popup does not happen.
    * **A turn the page claims does not "change nothing" — it changes the model.** `menu_int`'s own
-     C++ assertion (`+2` detents on `nodes::saturation` reads back 4) fails: **0** with the services
-     installed and a `mod_target` seeded, **1** with them installed and `svc.mod_target = nullptr`.
-     `menu_submenu_horizontal`'s equivalent goes 32 → 28. So a mod-knob service in the slot changes
-     the edge-to-value arithmetic even for a claimed turn, and seeding a target changes it again.
+     C++ assertion (`+2` detents on `nodes::saturation` reads back 4) fails, reading **0**, and its
+     `after_gold_turn` panel moves with it. `menu_submenu_horizontal`'s equivalent goes 32 → 28.
    * The uniform part is uniform: **57 `.state` files gain exactly `led Mod1 on` and the two
      `indicator` lines**. But **11 `.pbm` files move pixels** — `menu_chain` (3), `menu_int` (1),
      `menu_patch_cables` (1), `menu_range` (4), `menu_submenu_horizontal` (2).
 
-   Refused on E4 task 13's rule, which was ruled correct: those 11 photograph a behaviour change
-   nobody has explained, in the same commit as two assertions saying the edit itself moved. The
-   blocker stands, unchanged in size and better specified: **explain the interaction between
-   `InputLowering::action_gold_turn`'s wiggle debounce, `services::ModKnobs` and `MenuScene`'s own
-   claim first**, then install, re-record, and classify each of the 19 against what that explanation
-   predicts. The one piece of it that is done is the fixture move.
+   **Why, and it is not the router.** `InputLowering::action_gold_turn` runs on the gold path
+   unconditionally, gated on no service — the Continuous arm of
+   `InputLowering::apply_encoder_edges` (`src/shell/input_lowering.cpp:191`), which
+   `on_encoder_edges` forwards to (`:158-163`) — and swallows a turn
+   unless `(now_ms - last_turn_ms_[role]) < short_press_ms` (`:214`; 500 ms,
+   `src/shell/input_lowering.h:26`). `ModKnobs::pretend_knobs_untouched()`
+   (`src/scenes/services/mod_knobs.cpp:193-197`) writes that same array from the other side via
+   `InputLowering::pretend_knob_untouched` (`input_lowering.cpp:451-461`,
+   `last_turn_ms_ = now_ms - 1000`), and `RealServices::installer()` reaches it twice at
+   construction — `set_target_with_timeline` (`mod_knobs.cpp:120`) and `set_mod_region` (`:165`) —
+   **but only when a `mod_target` is seeded**. At `menu_int.txt`'s `+2` at t=300: unseeded,
+   `300 - 0 = 300 < 500` → acted → 4; seeded, `300 - (0-1000) = 1300 ≥ 500` → swallowed → 0.
+   `menu_gold_turn` reads 4 on the same node because its `+1` at t=100 arms the debounce first.
+
+   **The seam to know about before installing the next service**: a service mutated shared
+   `InputLowering` state at construction, and the effect surfaced in a debounce that no routed event
+   passes through. Re-measured after the review (correcting task 11's first pass, which misread an
+   interleaved "1" for the unseeded case): unseeded raises no assertion failure at all, and with all
+   twelve unseeded the re-record is **57 `.state` files, +2 lines each
+   (`indicator lower/upper 0 0 0 0`), zero pixels**.
+
+   Still refused, on the better premise. The **seeded** fixture is the right one — the application
+   seeds a target too (`src/deluge/gui/ui/shell_guest_services.cpp:104`, `:111`), so unseeded
+   goldens would describe a shell no application has — but recording it today makes those 11 frames
+   depict a **first-turn-swallowed** gesture, so the scripts stop recording the edits they exist
+   for: a worse oracle, not a re-recorded one. (Same gap `menu_scripts_spec.cpp`'s header already
+   names: on the device `now_ms` is uptime, so the debounce is never pre-armed.) Owed, concretely:
+   **arm the debounce in these scripts the way `menu_gold_turn.txt` already does** — a leading
+   detent inside `short_press_ms` — then install seeded services and re-record; the residual is then
+   the two indicator lines plus `led Mod1 on`. The one piece already done is the fixture move.
 
 ### 10.3 Two consequences of the deletion that are not preconditions but must be planned for
 

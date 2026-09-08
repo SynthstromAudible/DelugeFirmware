@@ -11,17 +11,31 @@
 # that, that installing the services would leave this script alone, is **false**.
 #
 # F1 task 11 installed the real three over this block and measured it: the spec's own assertion that
-# `+2` detents on `nodes::saturation` reads back 4 **fails**, reading 0 with a `mod_target` seeded
-# and 1 with `svc.mod_target = nullptr`, and `after_gold_turn.oled0.pbm` moves with it (the leaf
-# draws 0 instead of 4). No `ParamPopupScene` is pushed -- that half of the old claim survives -- so
-# the turn is still not going through the chain; the arithmetic it goes through has changed. Nothing
-# in the tree explains that yet, which is why task 11 refused the re-record. See
-# `sim/scenes_spec/menu_scripts_spec.cpp`'s header for the full measurement.
+# `+2` detents on `nodes::saturation` reads back 4 **fails, reading 0**, and
+# `after_gold_turn.oled0.pbm` moves with it (the leaf draws 0 instead of 4). No `ParamPopupScene` is
+# pushed -- that half of the old claim survives -- so the turn is still not going through the chain.
+#
+# **The turn is swallowed by the gold-knob wiggle debounce, and a service is what armed it.**
+# `InputLowering::action_gold_turn` runs on the gold path unconditionally, gated on no service --
+# the Continuous arm of `InputLowering::apply_encoder_edges` (`shell/input_lowering.cpp:191`),
+# which `on_encoder_edges` forwards to (`:158-163`). It swallows a turn unless
+# `(now_ms - last_turn_ms_[role]) < short_press_ms` (`:214`, 500 ms, `shell/input_lowering.h:26`).
+# `ModKnobs::pretend_knobs_untouched()` (`scenes/services/mod_knobs.cpp:193-197`) writes that same
+# array through `InputLowering::pretend_knob_untouched` (`input_lowering.cpp:451-461`,
+# `last_turn_ms_ = now_ms - 1000`), and the fixture reaches it twice at construction --
+# `set_target_with_timeline` (`mod_knobs.cpp:120`) and `set_mod_region` (`:165`) -- **but only with a
+# `mod_target` seeded**. So for the `300 encoder GoldUpper +2` step below:
+#
+#   Services{} or an unseeded ModKnobs:  300 - 0        =  300 <  500  -> acted    -> 4
+#   real three with a seeded mod_target: 300 - (0-1000) = 1300 >= 500  -> swallowed -> 0
 #
 # E4's final review added `tests/ui-scripts/shell/menu_gold_turn.txt`, which drives this same node
-# with the real three installed and DOES record the value moving to 4 -- so the two disagree, and the
-# difference between them (that script arms the gold-turn debounce with a `+1` at t=100 first) is
-# where the explanation probably starts.
+# with the real three installed and DOES record the value moving to 4. The difference is one step:
+# that script turns `+1` at t=100 first, setting `last_turn_ms_` to 100, so its `+2` at t=150 sees
+# `50 < 500` and acts. **Arming the debounce the same way here is the owed fix**, and it has to come
+# before the re-record -- otherwise the new goldens depict a first-turn-swallowed gesture and this
+# script stops recording the edit it exists for. See `sim/scenes_spec/menu_scripts_spec.cpp`'s
+# header for the full measurement and the residual (two indicator lines plus `led Mod1 on`).
 #
 # **It is not the answer for every menu script.** Where a page reads no edit encoder -- `menu_decimal`'s
 # first `GoldUpper` turn is the worked example, and its snapshot was dropped in E3 task 10 for being

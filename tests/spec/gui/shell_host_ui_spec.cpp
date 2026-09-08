@@ -76,11 +76,25 @@ public:
 
 	Result handle(const UiEvent& ev, const UiContext& ctx) override {
 		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
+		if (remove_self_on_event) {
+			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:1447-1452`),
+			// reduced to the one thing this suite is about: a scene that takes itself off the
+			// stack from inside `Shell::tick`'s routing. Off by default so every other example
+			// keeps the delivery-only behaviour below.
+			Result r;
+			r.handled = true;
+			(void)r.actions.push_back(
+			    deluge::ui::shell::Action{.kind = deluge::ui::shell::Action::Kind::Remove, .pop_to = kind_});
+			return r;
+		}
 		// Unhandled on purpose: the guest's input hooks are about *delivery*, and a scene that
 		// claimed an event would stop it reaching anything below it and make the routing this
 		// records depend on what the scene decided.
 		return Result::unhandled();
 	}
+
+	/// Make `handle` take this scene off the stack, the way `MenuScene` answers Back at depth 0.
+	bool remove_self_on_event = false;
 
 	/// Every event routed to this scene, in order.
 	std::vector<Seen> seen;
@@ -797,6 +811,61 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		const ActionResult result = r.guest.exitUI();
 		expect(result == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+	});
+
+	// ---- the SHORT Back, which is the exit a user actually performs (F1 task 11) ---------------
+	//
+	// `exitUI` above is the LONG press only: `Buttons` arms `TimerName::BACK_MENU_EXIT` on Back
+	// down (`hid/buttons.cpp:114-121`) and the manager calls `exitUI` from that arm alone
+	// (`gui/ui_timer_manager.cpp:149-155`). A short Back is fed into the shell like any other
+	// button and routed inside `Shell::tick`, where a scene can take itself off the stack --
+	// `MenuScene`'s `Action::Kind::Remove` at depth 0. Before F1 task 11 nothing closed the guest
+	// when that emptied the stack, and the level-3 A/B measured what it left: `shellHostUI` still
+	// current, drawing nothing, swallowing every later press.
+
+	it("closes itself when a scene removes itself during the tick and empties the stack", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.remove_self_on_event = true;
+		fakelegacyui::reset();
+
+		// The button is fed, not actioned: routing happens in `Shell::tick`, which only
+		// `timerCallback` calls. So nothing has closed yet at this point...
+		(void)r.guest.buttonAction(deluge::hid::button::BACK, true, false);
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
+		expect(fakelegacyui::closed.empty()).to_be_true();
+
+		// Reset AFTER the press and before the tick, so the arm assertion below is about the tick
+		// alone: `buttonAction` arms `kMinRearmMs` on its way out (`armTickSoon`), which is correct
+		// and would otherwise be the thing the last expectation saw.
+		fakelegacyui::reset();
+
+		// ...and the tick is what empties the stack and must therefore be what closes.
+		expect(r.guest.timerCallback()).to_equal(ActionResult::DEALT_WITH);
+
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(0));
+		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+		expect(fakelegacyui::closed[0] == static_cast<::UI*>(&r.guest)).to_be_true();
+		// And no re-arm on the close path: `closeUI` unsets `TimerName::UI_SPECIFIC` itself
+		// (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath, so a timer armed here would
+		// either be undone one line later or deliver this guest's `timerCallback` to that UI
+		// (`gui/ui_timer_manager.cpp:143`).
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
+	});
+
+	it("does NOT close on a tick that leaves the stack occupied, and re-arms as usual", _ {
+		// The other direction, and the one that makes the example above mean something: a guest
+		// that closed on every tick would pass that one too.
+		Rig r;
+		r.base.timer = 120;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+
+		expect(r.guest.timerCallback()).to_equal(ActionResult::DEALT_WITH);
+
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
+		expect(fakelegacyui::closed.empty()).to_be_true();
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(120));
 	});
 
 	// ---- MIDI learn: the two `UI` virtuals, F1 task 10 ----------------------------------------

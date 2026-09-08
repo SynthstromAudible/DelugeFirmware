@@ -100,12 +100,20 @@ def main() -> int:
     if not shared:
         fail("the two legs share no snapshot at all")
 
-    # (2) and (3).
+    # (2) and (3). `pbm_same` is counted, not inferred from `len(...)`: an earlier version printed
+    # the number of `.pbm` files under the label "identical .pbm panels", so a run that FAILED for
+    # differing pixels still reported all five as identical. A summary line that cannot contradict
+    # the failure above it is worse than no summary line.
     state_differs: list[str] = []
+    pbm_total = 0
+    pbm_same = 0
     for name in shared:
         same = off_files[name] == on_files[name]
-        if name.endswith(".pbm") and not same:
-            fail(f"{name}: the two legs render different pixels")
+        if name.endswith(".pbm"):
+            pbm_total += 1
+            pbm_same += 1 if same else 0
+            if not same:
+                fail(f"{name}: the two legs render different pixels")
         if name.endswith(".state") and not same:
             state_differs.append(name)
 
@@ -114,7 +122,7 @@ def main() -> int:
              "A/B proves nothing (see this file's docstring, point 3)")
 
     print(f"ui_app_ab_check: {len(shared)} snapshot files compared")
-    print(f"  identical .pbm panels: {sum(1 for n in shared if n.endswith('.pbm'))}")
+    print(f"  identical .pbm panels: {pbm_same} of {pbm_total}")
     print(f"  .state files that differ: {len(state_differs)}")
     for name in state_differs:
         print(f"    {name}")

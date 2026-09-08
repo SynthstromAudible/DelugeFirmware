@@ -387,12 +387,26 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	//     and legacy keeps painting the view underneath, dimmed. Measured on `menu.txt`: with the
 	//     toggle off the clip view's sidebar column is still lit under the open menu, greyed
 	//     (`pad 16 0 3 160 7` against boot's `0 255 6`); with it on there is no `pad` line at all.
-	//     Legacy's own walk is not what does that -- `MenuScene::is_grid_overlay()` is true
-	//     (`scenes/menu/menu_scene.h:457`) so `opaque()` is false and `serveGrid` answers
-	//     transparent -- it is the shell's OWN flush, `GuestSurfaceSet::send_columns`, pushing the
-	//     menu's all-black grid to the hardware before legacy's walk gets a say. Recorded as a
-	//     divergence in F1 task 11's report rather than fixed here: the fix is in the flush path,
-	//     which is F1 task 4/5's, not this hook's.
+	//     **Under the guest the sidebar is wrong for TWO independent reasons, and fixing either
+	//     alone still leaves it wrong.** Opacity is not one of them: `MenuScene::is_grid_overlay()`
+	//     is true (`scenes/menu/menu_scene.h:457`), so `opaque()` is false and this function
+	//     answers transparent exactly as the paragraph above describes.
+	//       (a) **The shell's own flush paints black.** `GuestSurfaceSet::send_columns`
+	//           (`gui/ui/shell_guest_surfaces.cpp:156-172`) writes `PadLEDs::image` and calls
+	//           `sortLedsForCol` itself, so the menu's all-black grid reaches the hardware without
+	//           passing through legacy's walk at all.
+	//       (b) **Legacy's walk never runs while the guest is open.** Nothing in this class calls
+	//           `uiNeedsRendering` (`grep` it: this file names it only in a comment), so
+	//           `doAnyPendingGridRendering` has nothing pending and the UI underneath is never
+	//           asked to repaint; `PadLEDs::reassessGreyout` likewise runs only from `openUI` /
+	//           `closeUI` (`gui/ui/ui.cpp:93`, `:99`, `:115`, `:126`, `:198`, `:234`, `:239`),
+	//           i.e. at transitions, not during. Measured by the F1 task 11 reviewer, by disabling
+	//           (a)'s write and re-running the ON leg: the sidebar came back at boot's **ungreyed**
+	//           `0 255 6`, not the OFF leg's greyed `3 160 7`. So (a) alone is a stale undimmed
+	//           sidebar -- still divergent, differently.
+	//     Recorded as a divergence in F1 task 11's report rather than fixed here: (a) is in the
+	//     flush path (F1 task 4/5) and (b) is a repaint-request the guest never makes; neither is
+	//     this hook's, and fixing one without the other is not an improvement.
 	//  2. **Legacy's menu blink is a hardware flash; the port's is a framebuffer write.**
 	//     `SoundEditor`'s shortcut blink calls `PadLEDs::flashMainPad`
 	//     (`gui/ui/sound_editor.cpp:997-1040`, the calls at `:1021` and `:1032`), which goes straight

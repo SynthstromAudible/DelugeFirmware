@@ -120,23 +120,68 @@
 ///   * **No `ParamPopupScene` appeared anywhere.** Across all 68 moved golden files, the diff
 ///     contains not one added or removed `scene` line. The predicted popup does not happen.
 ///   * **The CLAIMED turns changed, and changed the model.** `menu_int`'s own C++ assertion --
-///     `+2` detents on `nodes::saturation` reads back 4 -- fails: it reads **0** with the services
-///     installed and a `mod_target` seeded, and **1** with the services installed and
-///     `svc.mod_target = nullptr`. `menu_submenu_horizontal`'s equivalent goes 32 -> 28 with a null
-///     target. So installing a mod-knob service changes the edge-to-value arithmetic a turn the
-///     page claims sees, and seeding a target changes it again -- an interaction between
-///     `InputLowering::action_gold_turn`'s wiggle debounce, `services::ModKnobs` and `MenuScene`'s
-///     own claim that nothing in this tree explains.
+///     `+2` detents on `nodes::saturation` reads back 4 -- **fails, reading 0**, and
+///     `after_gold_turn.oled0.pbm` moves with it (the leaf draws 0 where the committed golden
+///     draws 4). `menu_submenu_horizontal`'s equivalent goes 32 -> 28.
 ///   * The uniform part is real and is only the uniform part: **57 `.state` files gain exactly
 ///     `led Mod1 on` and the two `indicator` lines** -- `ModKnobs` declaring the mod LED and both
 ///     rings on every tick. **11 `.pbm` files move pixels**, in five scripts: `menu_chain` (3),
 ///     `menu_int` (1), `menu_patch_cables` (1), `menu_range` (4), `menu_submenu_horizontal` (2).
 ///
-/// **So task 11 refused the re-record**, on E4 task 13's rule: those 11 pixel diffs photograph a
-/// behaviour change nobody has explained, in the same commit as the two assertions that say the
-/// EDIT itself moved. `Services{}` therefore still stands here. What is owed is unchanged in size
-/// and better specified: explain the arithmetic above first, then install and re-record, and
-/// classify each of the 19 turns against what the explanation predicts.
+/// @par Why the claimed turns move: a service reaching into the lowering behind the router
+///
+/// The task-11 review found the mechanism, and it is three files away. **The router is not
+/// involved, which is why looking at the router found nothing.**
+///
+///   1. The gold path runs `InputLowering::action_gold_turn` **unconditionally** -- the Continuous
+///      arm of `InputLowering::apply_encoder_edges` (`shell/input_lowering.cpp:191`), which
+///      `on_encoder_edges` forwards to (`:158-163`), gated on no service at all. Its
+///      wiggle debounce is `(now_ms - last_turn_ms_[role]) < cfg_.short_press_ms` (`:214`, with
+///      `short_press_ms` = 500, `input_lowering.h:26`), and a turn that fails it is recorded and
+///      **swallowed** (`:216-222`).
+///   2. `ModKnobs::pretend_knobs_untouched()` (`scenes/services/mod_knobs.cpp:193-197`) writes that
+///      same array from the other side, through `InputLowering::pretend_knob_untouched`
+///      (`input_lowering.cpp:451-461`): `last_turn_ms_[role] = now_ms - kPretendUntouchedMs`, and
+///      `kPretendUntouchedMs` is 1000 (`input_lowering.h:395`).
+///   3. `RealServices::installer()` reaches it twice at construction -- `set_target_with_timeline`
+///      (`mod_knobs.cpp:120`) and `set_mod_region` (`:165`) -- but **only when a `mod_target` is
+///      seeded**, since both are skipped for a null one.
+///
+/// The arithmetic closes it exactly, at this file's `300 encoder GoldUpper +2`:
+///
+/// | fixture | `last_turn_ms_[GoldUpper]` | test at t=300 | result |
+/// |---|---|---|---|
+/// | `Services{}` | 0 | `300 - 0 = 300 < 500` | acted -> **4** |
+/// | real three, `mod_target = nullptr` | 0 | same | acted -> **4** |
+/// | real three, `mod_target` seeded | `0 - 1000` (unsigned wrap) | `1300 >= 500` | swallowed -> **0** |
+///
+/// And it explains the disagreement with `scene_scripts_spec.cpp`'s `menu_gold_turn`, which drives
+/// the same node with the same services and reads 4: its script turns `+1` at t=100 first, which
+/// sets `last_turn_ms_` to 100, so the `+2` at t=150 sees `50 < 500` and acts. That leading detent
+/// is the whole difference.
+///
+/// **The seam worth naming for whoever installs the next service**: a service mutated shared
+/// `InputLowering` state at construction, and the effect is observable in a debounce that no
+/// routed event passes through. "The router never gave it the event" was true and irrelevant.
+///
+/// **Measured again after the review, and it corrects task 11's first pass**, which reported "1
+/// with `svc.mod_target = nullptr`" -- a misread of interleaved CppSpec output from a run with
+/// twelve blocks patched. With only this block patched: seeded fails 4 -> 0; unseeded raises **no
+/// failure at all**. And with all twelve unseeded, `GFX_GOLDEN_UPDATE=1` moves **57 `.state` files
+/// by exactly two lines** (`indicator lower 0 0 0 0`, `indicator upper 0 0 0 0`), **zero `.pbm`
+/// files**, with every C++ assertion passing.
+///
+/// **So the refusal stands, on a better premise than "unexplained".** The seeded tree is the one
+/// worth having -- the application seeds a target too (`gui/ui/shell_guest_services.cpp:104`,
+/// `:111`), so unseeded goldens would describe a shell no application has -- but recording it today
+/// would make those 11 frames depict a **first-turn-swallowed** gesture: the scripts would stop
+/// recording the edits they were written to record, which is a worse oracle rather than a
+/// re-recorded one. (It is the same gap this file's own header already names: on the device
+/// `now_ms` is uptime, so the debounce is never pre-armed and the first gold turn after a pause is
+/// always swallowed.) The owed work is now concrete: **arm the debounce in these scripts the way
+/// `menu_gold_turn.txt` already does** -- a leading detent inside `short_press_ms` -- then install
+/// seeded services and re-record, at which point the residual is the two indicator lines plus
+/// `led Mod1 on`.
 ///
 /// `src/scenes/README.md`'s carry table, the migration spec's §10.2 blocker list and F1 task 11's
 /// report all carry this row.
