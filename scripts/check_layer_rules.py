@@ -151,7 +151,91 @@ UI_STACK_CALLS = (
     "swapOutRootUILowLevel",
 )
 
+# The legacy files F1 authorised to reach into the ported UI -- the `legacy-includes-port` and
+# `legacy-names-port` rows' exclusion list, one entry per argued seam. Everything else under
+# `src/deluge/**` is held to zero.
+#
+# Why the list is spelled out file by file rather than as `gui/ui/shell_*`: a glob would silently
+# exempt the next `shell_`-prefixed file somebody drops into `gui/ui/`, and the whole value of
+# these two rows is that adding a legacy->port edge is a decision somebody has to write down here.
+#
+# * `deluge.cpp` -- the three boot calls (F1 task 8): `scenes::assigned_node_ids()` and the service
+#   install. `src/scenes/registry.h`'s own note is the boot author's copy of this.
+# * `gui/ui/shell_host_ui.{h,cpp}` -- the guest itself, `ShellHostUI : UI` (spec F §2.1).
+# * `gui/ui/shell_guest_surfaces.{h,cpp}` -- `GuestSurfaceSet`, the `SurfaceSet` that copies into
+#   legacy's `OLED::main` and `PadLEDs::image` (F1 task 4).
+# * `gui/ui/shell_guest_services.cpp` -- where the three `scenes::services::` singletons are built
+#   and handed to `Shell::set_services` (F1 task 8). Its HEADER is deliberately NOT excluded: it
+#   names none of this, and leaving it in scope is what keeps that true.
+# * `gui/ui/shell_menu_entry.cpp` -- `openShellMenu`, the one door the fourteen entry points use.
+#   Its DECLARATION (`util/shell_menu_entry.h`) is likewise not excluded, and must stay includable
+#   from `model/clip/instrument_clip_minder.cpp`, which is why it names no port type (F1 task 9).
+# * `gui/ui/sound_editor.cpp` -- `SoundEditor::setShortcutsVersion` mirrors flash byte 60 into
+#   `menu::set_shortcuts_version`, covering all four legacy writers in one call (F1 task 8 fix
+#   round 1). The one seam that is not part of the guest.
+LEGACY_PORT_SEAMS = (
+    "src/deluge/deluge.cpp",
+    "src/deluge/gui/ui/shell_host_ui.h",
+    "src/deluge/gui/ui/shell_host_ui.cpp",
+    "src/deluge/gui/ui/shell_guest_surfaces.h",
+    "src/deluge/gui/ui/shell_guest_surfaces.cpp",
+    "src/deluge/gui/ui/shell_guest_services.cpp",
+    "src/deluge/gui/ui/shell_menu_entry.cpp",
+    "src/deluge/gui/ui/sound_editor.cpp",
+)
+
 RULES = [
+    (
+        # F1's own boundary, and the one this plan CREATED rather than inherited. Until F1 task 1
+        # (`eb17d4688`) nothing linked `deluge_scenes` into the firmware or the host sim, so a
+        # `#include "scenes/..."` from a legacy translation unit compiled and then failed to
+        # resolve at link time -- the build was the enforcement. Task 1 put
+        # `libdeluge_scenes.a` into both closures (`src/bsp/rust/build.rs`,
+        # `sim/CMakeLists.txt:446`) and that enforcement is gone: any legacy file may now reach
+        # into the ported UI and link.
+        #
+        # The rule this replaces it with is spec F §2.1's: the ported UI enters the firmware
+        # through ONE guest (`ShellHostUI`), and the legacy files that may name it are the seams
+        # listed in `LEGACY_PORT_SEAMS` above. Everything else under `src/deluge/**` -- 1,000-odd
+        # files, `model/`, `storage/`, `playback/`, and the rest of `gui/` -- is held to zero, so
+        # the second legacy->port edge is a decision somebody writes into that list.
+        #
+        # `ui/`, `gfx/` and `notify/` are deliberately NOT in the pattern, and the reason is that
+        # they are not F1's seams to police: `hid/display/screensaver.h` includes
+        # `ui/oled/rainfall.h` because E4 task 7 MOVED `Rainfall`/`Starfield` there,
+        # `gui/colour/rgb.h` re-exports `gfx/grid/rgb.h`, and `util/notify.h` is the notify
+        # channel's own legacy-side header. Those three are earlier plans' seams with earlier
+        # plans' owners; widening this row over them would be this row claiming more than its
+        # mechanism.
+        "legacy-includes-port",
+        ("src/deluge/**", *LEGACY_PORT_SEAMS),
+        "include",
+        r"^(scenes/|shell/)",
+        "2026-08-26-ui-migration-design.md",
+    ),
+    (
+        # The symbol half of `legacy-includes-port`, for exactly the reason `scenes-no-root-ui` is
+        # a symbol row rather than an include row: this tree routinely names a symbol through a
+        # bare declaration BECAUSE the include is forbidden (`extern uint32_t jcong;`,
+        # `src/scenes/menu/nodes/settings.cpp:76`). A legacy file that wants
+        # `deluge::scenes::scene_registry()` and finds the include row in its way can write
+        # `namespace deluge::scenes { const SceneTable& scene_registry(); }` and link, because
+        # task 1 put the archive in the closure. This row is what sees that spelling.
+        #
+        # Matched without a trailing `::` so that the namespace-reopening form above counts too,
+        # and `\b`-anchored on `deluge::` so it cannot fire on the English words "scenes" and
+        # "shell", which this tree's prose is full of. Same ratchet-not-proof caveat as every
+        # symbol row here: a `using namespace` plus an unqualified type would slip past, and
+        # `is_comment_line` skips only whole-line comments.
+        #
+        # Measured on the tree at the time of writing: zero hits outside `LEGACY_PORT_SEAMS`, so
+        # the baseline does not move.
+        "legacy-names-port",
+        ("src/deluge/**", *LEGACY_PORT_SEAMS),
+        "symbol",
+        r"\bdeluge::(scenes|ui::shell)\b",
+        "2026-08-26-ui-migration-design.md",
+    ),
     (
         "model-includes-ui",
         NON_UI,
