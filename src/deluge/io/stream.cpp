@@ -60,6 +60,68 @@ uint8_t Stream::collect_write_at(uint32_t* out_written) {
 	return deluge_file_write_collect_write_at(unbox_stream_handle(handle_), out_written);
 }
 
+bool Stream::request_open(std::string_view path, DelugeStreamMode mode) {
+	return deluge_file_write_request_open(path.data(), static_cast<uint8_t>(mode));
+}
+
+uint8_t Stream::collect_open(Stream* out) {
+	uint32_t handle = 0;
+	const uint8_t status = deluge_file_write_collect_open(&handle);
+	if (status == DELUGE_FILE_WRITE_READY && out != nullptr) {
+		*out = Stream(box_stream_handle(handle));
+	}
+	return status;
+}
+
+bool Stream::request_read_at(uint32_t byte_offset, std::span<std::byte> dst) {
+	if (handle_ == nullptr) {
+		return false;
+	}
+	return deluge_file_write_request_read_at(unbox_stream_handle(handle_), byte_offset,
+	                                         reinterpret_cast<uint8_t*>(dst.data()), static_cast<uint32_t>(dst.size()));
+}
+
+uint8_t Stream::collect_read_at(uint32_t* out_read) {
+	if (handle_ == nullptr) {
+		return DELUGE_FILE_WRITE_UNKNOWN;
+	}
+	return deluge_file_write_collect_read_at(unbox_stream_handle(handle_), out_read);
+}
+
+bool Stream::request_truncate(uint32_t new_size) {
+	if (handle_ == nullptr) {
+		return false;
+	}
+	return deluge_file_write_request_truncate(unbox_stream_handle(handle_), new_size);
+}
+
+uint8_t Stream::collect_truncate() {
+	if (handle_ == nullptr) {
+		return DELUGE_FILE_WRITE_UNKNOWN;
+	}
+	return deluge_file_write_collect_truncate(unbox_stream_handle(handle_));
+}
+
+bool Stream::request_close() {
+	if (handle_ == nullptr) {
+		return false;
+	}
+	return deluge_file_write_request_close(unbox_stream_handle(handle_));
+}
+
+uint8_t Stream::collect_close() {
+	if (handle_ == nullptr) {
+		return DELUGE_FILE_WRITE_UNKNOWN;
+	}
+	const uint8_t status = deluge_file_write_collect_close(unbox_stream_handle(handle_));
+	if (status == DELUGE_FILE_WRITE_READY || status == DELUGE_FILE_WRITE_FAILED) {
+		// Disengage on ANY terminal status, exactly as the synchronous close() does on error: the
+		// handle is gone either way, and leaving it boxed would let the destructor close it twice.
+		handle_ = nullptr;
+	}
+	return status;
+}
+
 std::expected<uint32_t, Status> Stream::read_at_via(uint32_t byte_offset, std::span<std::byte> dst) {
 	uint32_t out_read = 0;
 	if (!deluge_efatfs_stream_read_at_via(unbox_stream_handle(handle_), byte_offset, dst.data(),
