@@ -121,37 +121,59 @@ struct MenuActionRequest {
 /// which is exactly the arrangement `menu::shortcuts_version()` already documents for
 /// `soundEditor.shortcutsVersion` (`scenes/menu/shortcuts.h`, task 11 §4).
 ///
-/// **What the wiring plan owes, precisely.** The mirror is authoritative for what the menu *shows*
-/// and for what `MenuAction::OpenPerformanceView` carries. It is not authoritative for the view. The
-/// dispatcher must therefore call `set_performance_editing_mode()` at **every** site where the view
-/// moves those two bools behind the menu's back. There are five, and this list is exhaustive as of
-/// `gui/views/performance_view.cpp` today -- an implementation that covers four of them still ships
-/// a stale mirror:
+/// **What the wiring plan owed, and what it paid (F2 task 5, shipped).** The mirror is
+/// authoritative for what the menu *shows* and for what `MenuAction::OpenPerformanceView` carries.
+/// It is not authoritative for the view, so `set_performance_editing_mode()` has to be called at
+/// **every** site where the view moves those two bools behind the menu's back. There are **four**,
+/// they are all in `gui/views/performance_view.cpp`, and each one is now a
+/// `syncEditingModeMirror(*this)` immediately below the write it answers:
 ///
-///   1. `PerformanceView::releaseViewOnExit` (`:1327-1332`, the writes at `:1330-1331`). **This is
-///      the ordinary exit path** -- `:698`, `:884` and `:902` all reach it -- so it is the one that
-///      matters most and the one easiest to miss, because it is a helper rather than a button arm.
-///   2. `buttonAction`'s BACK arm (`:788-791`).
-///   3. `buttonAction`'s shift+KEYBOARD exit (`:855-857`).
-///   4. `buttonAction`'s shift+KEYBOARD *cycle* (`:865-868`; `:863-864` is the block that guards
-///      it, not the writes).
-///   5. `PerformanceView::focusRegained`'s `defaultEditingMode = false` (`:189`).
+///   1. `PerformanceView::releaseViewOnExit` (`:1402-1412`, the writes at `:1405-1406`, the call at
+///      `:1411`). **This is the ordinary exit path**, and the one that matters most and is easiest
+///      to miss, because it is a private helper rather than a button arm. **Four callers reach it,
+///      not three**: `buttonAction`'s CLIP_VIEW arm (`:748`), its KEYBOARD-press exit (`:959`) and
+///      its KEYBOARD-release exit (`:977`), and `padAction`'s grid-mode pad (`:1092`).
+///   2. `buttonAction`'s BACK arm (`:838-848`, the writes at `:840-841`, the call at `:844`).
+///   3. `buttonAction`'s shift+KEYBOARD exit (`:924-932`, the writes at `:925-926`, the call at
+///      `:928`).
+///   4. `buttonAction`'s shift+KEYBOARD *cycle* (`:933-956`, the writes at `:936` and `:938`, the
+///      call at `:942`). The only one of the four whose answer is not fixed: it produces `VALUE`
+///      when the press entered editing mode and `PARAM` when it cycled within it, which is why the
+///      call sits after **both** writes.
 ///
-/// With all five the mirror and the view agree at every point the menu can observe. This is the
+/// A fifth site was listed here until F2 task 5 and **does not exist**: `focusRegained` (`:328-345`)
+/// writes neither bool. The `defaultEditingMode = false` that entry pointed at is in
+/// `PerformanceView::PerformanceView()` (`:239`), the constructor, and it is deliberately **not** a
+/// sync site -- it runs at static init and the mirror's own initialiser is already `DISABLED`
+/// (`menu/nodes/actions.cpp:45`), so the two agree and a call there would only add a dependency on
+/// two translation units' initialisation order. The reasoning is repeated at that line, so a reader
+/// who counts four calls against five writes does not "fix" it.
+///
+/// With all four the mirror and the view agree at every point the menu can observe. This is the
 /// single node excluded from the generic port-vs-legacy value comparison, for the same reason and
 /// with the same name as `shortcuts_version`.
 ///
-/// @warning Nothing in this repository can check that list stays complete: a sixth write added to
-///          `PerformanceView` would desync the mirror silently. The durable fix is to move the two
-///          bools out of the view, which is a larger legacy change than this task took on; until
-///          then this comment is the contract.
+/// The four calls are **ungated**, in a legacy file, while `RuntimeFeatureSettingType::ShellMenu` is
+/// Off by default. `syncEditingModeMirror`'s own comment carries the argument for that; the short
+/// form is that they write one `static` inside `libdeluge_scenes` and nothing loads it with the
+/// toggle off. `gui/views/performance_view.cpp` is in `LEGACY_PORT_SEAMS`
+/// (`scripts/check_layer_rules.py`) for it, which is where that decision is recorded.
+///
+/// @warning Nothing in this repository can check that list stays complete: a fifth write added to
+///          `PerformanceView`, or a fifth caller added to `releaseViewOnExit`, would desync the
+///          mirror silently -- no checker here is content-aware enough to see either. The examples
+///          in `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_perform_mirror` group pin the
+///          four sites and all four of that helper's callers, one example each, but they can only
+///          fail for a site that exists; they cannot notice a new one. The durable fix is to move
+///          the two bools out of the view, which is a larger legacy change than this task took on;
+///          until then this comment is the contract.
 /// @{
 
 /// @brief What `EditingMode::readCurrentValue` would report.
 PerformanceEditingMode performance_editing_mode();
 
-/// @brief Set the mirror. Called by the item's own select press, and owed by the wiring plan
-///        wherever the view moves the two bools itself (see above).
+/// @brief Set the mirror. Called by the item's own select press, and by the four
+///        `syncEditingModeMirror` sites in `gui/views/performance_view.cpp` (see above).
 void set_performance_editing_mode(PerformanceEditingMode mode);
 
 /// @}

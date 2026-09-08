@@ -90,8 +90,8 @@
 ///         * `audio_clip_waveform` -- the marker editor (`audio_clip/sample_marker_editor.h:26`).
 ///         * (`perform_editor` is no longer one -- task 11b. `nodes::PerformEditorItem` renders the
 ///           three-option list and files `MenuAction::OpenPerformanceView`; the mode it shows is
-///           mirrored on this side of the wall by `menu::performance_editing_mode()`, which the
-///           wiring plan owes a sync call, exactly as `menu::shortcuts_version()` does.)
+///           mirrored on this side of the wall by `menu::performance_editing_mode()`, which
+///           `PerformanceView` keeps in step from four sites of its own (F2 task 5, `menu/action.h`).)
 ///         * (`active_scales` is no longer one -- task 11b. `nodes::ActiveScalesItem`
 ///           (`nodes/scales.h`) is the real item: one row per preset scale with a checkbox, over
 ///           `ui::oled::list`, which already ports the renderer legacy's own
