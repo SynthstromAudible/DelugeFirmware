@@ -256,6 +256,51 @@ void deluge_file_bytes_request_exists(const char* path) DELUGE_NOEXCEPT;
 ///       `existence_policy.h`'s `StartupPresence`, which is this distinction given a name.
 uint8_t deluge_file_bytes_collect_exists(const char* path, bool* out_present, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
+/// @brief Ask for `path` and every missing directory above it to be created, and return immediately.
+///
+/// Whole-path, not one segment. A caller that walked segments itself would need a phase machine per
+/// caller to do it over this channel, and both callers that need this already have a segment loop
+/// that this deletes. It is also the shape the channel already has: @ref
+/// deluge_file_bytes_request_write creates its destination's parent directory, so segment arithmetic
+/// is below this boundary already.
+///
+/// @param path NUL-terminated path of the deepest directory wanted. Copied out before this returns.
+/// @return true if accepted. false if REFUSED -- the channel is busy with another operation, or the
+///         path is NULL or over long.
+/// @note An already-existing path is SUCCESS, not `DELUGE_ERR_EXISTS`. Callers use this to mean "make
+///       sure this is there", and the commonest outcome is that it already is.
+bool deluge_file_bytes_request_mkdir_all(const char* path) DELUGE_NOEXCEPT;
+
+/// @brief Collect the outcome of the directory creation for `path`, if it has finished.
+///
+/// @param path       NUL-terminated path, matched exactly against the one requested.
+/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED, with the first failure that
+///                   was not "already exists". Untouched otherwise.
+/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
+///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+uint8_t deluge_file_bytes_collect_mkdir_all(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
+/// @brief Ask for `path`'s modification time to be set, and return immediately.
+///
+/// Its own operation rather than an optional parameter on @ref deluge_file_bytes_request_mkdir_all,
+/// because only two of its four callers follow a directory creation: the other two stamp an arbitrary
+/// path on request and stamp a file after writing it.
+///
+/// @param path      NUL-terminated path. Copied out before this returns.
+/// @param timestamp Passed BY VALUE. `DelugeTimestamp` is a fixed-width POD (`types.h`), so it
+///                  crosses this boundary without a pointer and without a lifetime rule.
+/// @return true if accepted. false if REFUSED -- the channel is busy, or the path is NULL or over
+///         long.
+bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timestamp) DELUGE_NOEXCEPT;
+
+/// @brief Collect the outcome of the timestamp write for `path`, if it has finished.
+///
+/// @param path       NUL-terminated path, matched exactly against the one requested.
+/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
+///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+uint8_t deluge_file_bytes_collect_set_time(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
 /// @brief Whether the Rust async whole-file channel backs this header on this BSP/config.
 /// @return true if a request will actually be served; false if every caller must do its own file I/O,
 ///         synchronously. When this is false, the request functions do nothing (and the two that

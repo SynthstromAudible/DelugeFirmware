@@ -113,6 +113,27 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_exists(const 
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
+extern "C" __attribute__((weak)) bool deluge_file_bytes_request_mkdir_all(const char* /*path*/) noexcept {
+	// REFUSED. Reporting the refusal honestly matters: a caller told `true` for a creation that will
+	// never happen waits for a collect that never turns terminal.
+	return false;
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_mkdir_all(const char* /*path*/,
+                                                                             DelugeStatus* /*out_status*/) noexcept {
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
+extern "C" __attribute__((weak)) bool deluge_file_bytes_request_set_time(const char* /*path*/,
+                                                                         DelugeTimestamp /*timestamp*/) noexcept {
+	return false;
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_set_time(const char* /*path*/,
+                                                                            DelugeStatus* /*out_status*/) noexcept {
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
 extern "C" __attribute__((weak)) bool deluge_file_bytes_async_active() noexcept {
 	return false;
 }
