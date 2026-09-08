@@ -280,3 +280,15 @@ run = ["scripts/settings_channel.sh"]
 requires = ["cargo", "build-embassy-hostapp"]
 ci = "nightly"
 runtime = "~4m"
+
+[[harness]]
+name = "startup-failsafe"
+path = "."
+kind = "property"
+status = "gate"
+gates = "no file operation in the startup song fail-safe may begin on the interaction tier. SF-TIER is the evidence and is deliberately non-zero before the conversion, so the gate fails then; the transition to zero is the only thing that proves anything moved. SF-CHANNEL is required non-zero on the channel-on leg only, because with the byte channel absent every operation falls back to the owner arm and that fallback is correct and silent -- a channel that never worked would leave this gate green, which is exactly what the settings gate shipped on its first channel-on run. The fail-safe's happy path ends in openUI and this harness has no UI stack, so the scenario drives the song-missing path: the canary creation, the existence checks and the cleanup unlink, then a return before the UI. Which tier those run on does not depend on which branch reached them."
+build = []
+run = ["scripts/startup_failsafe.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~4m"

@@ -297,6 +297,12 @@ unsafe extern "C" {
     fn deluge_scenario_settings_channel_dispatch_step();
     fn deluge_scenario_settings_channel_step_done() -> bool;
     fn deluge_scenario_settings_channel_failures() -> i32;
+
+    fn deluge_scenario_startup_failsafe_begin();
+    fn deluge_scenario_startup_failsafe_complete() -> bool;
+    fn deluge_scenario_startup_failsafe_dispatch_step();
+    fn deluge_scenario_startup_failsafe_step_done() -> bool;
+    fn deluge_scenario_startup_failsafe_failures() -> i32;
     fn deluge_scenario_song_preview_ab_begin();
     fn deluge_scenario_song_preview_ab_complete() -> bool;
     fn deluge_scenario_song_preview_ab_dispatch_step();
@@ -965,6 +971,65 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
 const MAX_CORPUS_CASES: usize = 16;
 const _: () = assert!(MAX_CORPUS_CASES == 16);
 
+/// The `GOLDEN_SCENARIO=startup_failsafe` scenario: drive the REAL startup fail-safe and require
+/// that none of its file I/O begins on the interaction tier.
+///
+/// Stepped rather than one blocking call for the same reason the settings gate is: the fail-safe's
+/// operations are only ENQUEUED when the entry point runs, so the tier count must be read on a later
+/// tick.
+#[embassy_executor::task]
+async fn run_startup_failsafe_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_startup_failsafe_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_startup_failsafe_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_startup_failsafe_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the startup fail-safe gate did not complete within the 600s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_startup_failsafe_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_startup_failsafe_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_startup_failsafe_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the startup fail-safe gate FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: startup fail-safe gate completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=settings_channel` scenario: write a settings file through the real consumer
 /// entry point, read it back, and require the value to survive -- while counting every settings
 /// operation that began on the interaction tier.
@@ -1261,6 +1326,7 @@ fn main() {
     let song_preview_ab_mode = scenario == "song_preview_ab";
     let save_roundtrip_mode = scenario == "save_roundtrip";
     let settings_channel_mode = scenario == "settings_channel";
+    let startup_failsafe_mode = scenario == "startup_failsafe";
     if song_preview_ab_mode && !cfg!(feature = "async_file_prefix") {
         // Refusing beats running, for the reason the audio-load check below gives: without
         // `async_file_prefix` this binary has no prefix channel compiled at all, so the "file
@@ -1381,6 +1447,8 @@ fn main() {
         spawner.spawn(run_save_roundtrip_scenario(&DONE).unwrap());
     } else if settings_channel_mode {
         spawner.spawn(run_settings_channel_scenario(&DONE).unwrap());
+    } else if startup_failsafe_mode {
+        spawner.spawn(run_startup_failsafe_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {

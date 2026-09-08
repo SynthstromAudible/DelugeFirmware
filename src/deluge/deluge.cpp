@@ -414,6 +414,7 @@ std::string startupFailSafePath;
 /// run loop, so the cleanup travels with it - otherwise the canary would be removed while the song was
 /// still loading, and a load that then bricked the device would look like a clean boot next time.
 void finishStartupSong() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 	if (startupSongWasTemplate) {
 		// Wipe the name so the Save action asks you for a new song
 		currentSong->name.clear();
@@ -467,6 +468,7 @@ void setupStartupSong() {
 	case StartupSongMode::LASTOPENED:
 		[[fallthrough]];
 	case StartupSongMode::LASTSAVED: {
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 		// Create canary
 		deluge_file_invalidate_cache();
 		{

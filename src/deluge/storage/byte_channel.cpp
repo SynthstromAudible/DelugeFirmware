@@ -33,6 +33,18 @@ namespace {
 /// @ref IoTier. See @ref interactionTierIo.
 int32_t g_interactionTierIo[2] = {0, 0};
 
+/// Whether a violation by this consumer is a hard freeze yet. Indexed by @ref IoTier.
+///
+/// **A tier's freeze arrives WITH its conversion, never before.** The gate that has to measure the
+/// pre-conversion number cannot measure it if the first violation aborts the run — which is exactly
+/// what happened the moment the startup fail-safe's sites were instrumented against an already-armed
+/// freeze. Counting is what proves the sites are reachable; freezing is what keeps them from coming
+/// back, and it is only truthful once there is a converted path for them to come back FROM.
+constexpr bool kFreezeOnViolation[2] = {
+    true,  // Settings: converted, so any violation is now a regression.
+    false, // Startup: not converted yet. Flipped to true with the conversion.
+};
+
 /// Translate the C ABI's `uint32_t`-shaped status byte into the type the callers switch on.
 ///
 /// No `default:`, deliberately: `-Werror=switch` is what catches a fifth status added to the header
@@ -446,7 +458,7 @@ void noteIoTier(IoTier which) {
 		// let each gate report its pre-conversion number, which is the evidence that the conversion
 		// did something. The freeze is what keeps it from coming back.
 		g_interactionTierIo[static_cast<size_t>(which)]++;
-		if (ALPHA_OR_BETA_VERSION) {
+		if (ALPHA_OR_BETA_VERSION && kFreezeOnViolation[static_cast<size_t>(which)]) {
 			FREEZE_WITH_ERROR("TIR6");
 		}
 	}
