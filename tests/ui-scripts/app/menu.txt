@@ -36,7 +36,7 @@
 # (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
 # (`gui/views/view.cpp:477`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
 # the session view): both SIGSEGV at that line under gdb, in the TOGGLE-OFF leg, on an unmodified
-# tree. Sites 3 (`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:846`)
+# tree. Sites 3 (`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:898`)
 # pass the same null clip into the same function and so reach the same line, but were not driven --
 # that is inspection, not a measurement. Pre-existing, and latent rather than fatal on the device,
 # where address 0 is mapped. Recorded in F1 task 11's report; this script stays on a clip-carrying
