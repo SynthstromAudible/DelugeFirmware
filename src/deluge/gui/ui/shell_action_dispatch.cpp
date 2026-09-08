@@ -175,14 +175,23 @@ void closePortedMenu() {
 /// @par What `getRootUI()` answers here, which is the question the close order raises
 ///
 /// `getRootUI()` reads `uiNavigationHierarchy[0]` and answers `nullptr` only when `numUIsOpen == 0`
-/// (`gui/ui/ui.cpp:145-150`). **Neither menu is at index 0.** `openUI` writes
-/// `uiNavigationHierarchy[numUIsOpen]` and increments (`:227-231`), so both legacy's `soundEditor`
-/// and this guest (`gui/ui/shell_menu_entry.cpp:162`) sit *above* whichever root view is open, never
-/// at it. And `closeUI` cannot move index 0: its search stops at `u >= 1` (`:183`) and it assigns
+/// (`gui/ui/ui.cpp:145-150`). **Neither menu is at index 0 -- given a root view is open**, which is
+/// the precondition this whole argument stands on and is worth saying out loud: `openUI` writes
+/// `uiNavigationHierarchy[numUIsOpen]` and increments (`:227-231`), so with `numUIsOpen == 0` the
+/// guest would land at index 0 and `getRootUI()` would answer the guest itself. `openShellMenu`
+/// cannot get there -- it refuses on `currentSong == nullptr` (`gui/ui/shell_menu_entry.cpp:109-111`)
+/// and every path that opens it (`:162`) runs from a root view -- but an argument whose precondition
+/// is unstated is one nobody can re-check. With a root view open, both legacy's `soundEditor` and
+/// this guest sit *above* it, never at it.
+///
+/// And `closeUI` cannot move index 0: its search stops at `u >= 1` (`:183`) and it assigns
 /// `numUIsOpen = u` (`:195`), so closing a UI it finds above the root leaves `[0]` untouched and
 /// `numUIsOpen >= 1`. Its one re-entrant hook is `newUI->focusRegained()` (`:199`), and no
-/// `focusRegained` override reaches `changeRootUI` -- every call site of it is a button, pad or
-/// transition handler, or `ActionLogger::revertAction`.
+/// `focusRegained` override reaches `changeRootUI`: of the 56 call sites in `src/`, every one is a
+/// `buttonAction`/`padAction`, an explicit `goTo…`/`transitionTo…`/`gridTransitionTo…` helper,
+/// `SessionView::finishedTransitioningHere`, a `PadLEDs` transition-completion routine,
+/// `ActionLogger::revertAction`, or the harness -- and none of the eight files holding one has a
+/// brace-matched `::focusRegained` body containing any of them.
 ///
 /// **So the answer is the same before the close and after it, in legacy and under the guest**, and
 /// legacy's close-then-read order is not what picks the arm. What the order decides is only whether
@@ -201,11 +210,20 @@ void closePortedMenu() {
 /// where no stem export is driven from a ported menu.
 ///
 /// One more of `exitCompletely`'s tail has no counterpart on the guest's close path and is left
-/// unpaid here: `currentUIMode = UI_MODE_NONE` (`gui/ui/sound_editor.cpp:770`). It is inert for this
-/// verb -- `enterUIMode` never refuses, it merges or replaces (`gui/ui/ui.cpp:454-460`), so
-/// `runStemExportProcess`'s `enterUIMode(UI_MODE_STEM_EXPORT)` (`stem_export.cpp:115`) engages
-/// either way -- but it belongs to the guest's close path rather than to this arm, and is reported
-/// rather than fixed from here.
+/// unpaid here: `currentUIMode = UI_MODE_NONE` (`gui/ui/sound_editor.cpp:770`). **The export's own
+/// mode engages either way, and that is the whole of what is safe to claim.**
+/// `UI_MODE_STEM_EXPORT` is `64` (`gui/ui/ui.h:78`), which is not `> EXCLUSIVE_UI_MODES_MASK` (`255`,
+/// `:81`), so `runStemExportProcess`'s `enterUIMode(UI_MODE_STEM_EXPORT)` (`stem_export.cpp:115`)
+/// takes `enterUIMode`'s else branch, `currentUIMode = (currentUIMode & ~255) | 64`
+/// (`gui/ui/ui.cpp:458-459`) -- it never refuses.
+///
+/// But that clears only the **exclusive** bits. The five non-exclusive modes (`gui/ui/ui.h:85-89`:
+/// `QUANTIZE`, `STUTTERING`, `HORIZONTAL_SCROLL`, `AUDITIONING`,
+/// `HOLDING_HORIZONTAL_ENCODER_BUTTON`, all bits 27-31) survive it, where legacy's
+/// `UI_MODE_NONE` is `0` (`:34`) and clears every bit. So a menu entered with, say,
+/// `UI_MODE_AUDITIONING` latched leaves that flag set through the whole export under the guest and
+/// not under legacy. The residue is specifically those five flags; it belongs to the guest's close
+/// path rather than to this arm, and is reported rather than fixed from here.
 void startStemExport() {
 	// `start.h:32` -- first, exactly as legacy has it.
 	closePortedMenu();
