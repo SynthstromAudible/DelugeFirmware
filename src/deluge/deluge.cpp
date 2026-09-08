@@ -70,6 +70,7 @@
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
+#include "storage/settings_file.h"
 #include "storage/smsysex.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
@@ -589,6 +590,11 @@ void registerTasks() {
 	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it only ever
 	// queues the next stretch of the load onto the storage owner, so it holds no SD resource itself.
 	addRepeatingTask([]() { loadSongUI.loadRoutine(); }, p++, 0.001, 0.005, 0.02, "song load", RESOURCE_NONE);
+	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
+	// the same reason: both are request/collect state machines whose caller returned long ago, and
+	// neither has a UI tick of its own to resume from.
+	addRepeatingTask([]() { deluge::storage::settings::serviceRoutine(); }, p++, 0.001, 0.005, 0.02, "settings io",
+	                 RESOURCE_NONE);
 
 	// Same shape for stem export: each pass queues one step onto the storage owner and returns, so the
 	// UI keeps running for the whole export - which is what makes cancelling it possible at all.

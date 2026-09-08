@@ -220,6 +220,13 @@ async_file_prefix_active = ["async_file_prefix"]
 # open is not one of `LoadOps`'s four file operations.
 async_file_directory = []
 async_file_directory_active = ["async_file_directory"]
+# Mirrors `../Cargo.toml`'s two file-bytes features exactly, and is here for the same reason the
+# directory pair is: `card.rs`'s flush names `file_bytes`, so the module is compiled whenever `card`
+# is, and its `#[cfg(feature = ...)]` conditionals need these spellings to exist. Neither is in
+# `default` -- with both off what lands in the golden binary is the slot logic and the C ABI over a
+# channel with no statics and no task. Like the directory pair it implies nothing.
+async_file_bytes = []
+async_file_bytes_active = ["async_file_bytes"]
 
 [build-dependencies]
 bindgen = "0.70"

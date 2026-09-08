@@ -47,6 +47,9 @@
 
 #define SETTINGS_FOLDER "SETTINGS"
 #define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
+/// Where the file lived before c1.3, at the card root. Migrated into the path above on a read that
+/// finds nothing there.
+#define LEGACY_MIDI_DEVICES_XML "MIDIDevices.XML"
 
 PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[DELUGE_USB_NUM_CONTROLLERS][MAX_NUM_USB_MIDI_DEVICES];
 
@@ -444,25 +447,68 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	}
 }
 
+/// @brief `writeDevicesToFile`'s body, run where blocking on the card is legal.
+void writeDevicesOnOwner();
+/// @brief `readDevicesFromFile`'s body, run where blocking on the card is legal.
+void readDevicesOnOwner();
+/// @brief Walk an already-opened document into the in-memory device table.
+///
+/// Shared by both arms: the owner arm's reader is a file, the channel arm's is the bytes the channel
+/// delivered, and neither difference reaches here.
+void parseDevices(Deserializer& reader);
+/// @brief Write the device table into an already-opened serialiser, file- or memory-backed.
+void serialiseDevices(Serializer& writer);
+/// @brief `deluge::storage::settings::ParseFn` for @ref parseDevices.
+void parseDevicesBytes(void* ctx, char* bytes, uint32_t len);
+
+/// @brief Whether any port or hosted device has settings worth putting in the file.
+///
+/// Factored out of `writeDevicesOnOwner` so the dispatcher can ask it before choosing an arm: a
+/// "nothing worth writing" answer means DELETE the file, and this channel carries no unlink.
+bool anythingWorthWriting() {
+	if (dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
+	    || upstreamUSBMIDICable2.worthWritingToFile()) {
+		return true;
+	}
+	for (MIDICableUSBHosted* device : hostedMIDIDevices) {
+		if (device->worthWritingToFile()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void writeDevicesToFile() {
+	// The "nothing worth writing" test comes FIRST, and stays on the owner arm when it fires: its
+	// action is an UNLINK, which this channel does not carry. Everything past it is a real write.
+	if (deluge::storage::settings::usingSettingsChannel() && anyChangesToSave && anythingWorthWriting()) {
+		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
+		// dies at the end of this scope, which is safe because `submitWrite` copies.
+		XMLSerializer writer;
+		writer.setMemoryBased();
+		serialiseDevices(writer);
+		if (deluge::storage::settings::submitWrite(MIDI_DEVICES_XML, writer.getBufferPtr(),
+		                                           static_cast<uint32_t>(writer.bytesWritten()))) {
+			// Cleared here rather than on the collect, for the reason `PerformanceView` gives: the
+			// flag means "the table in memory matches what we last asked to be stored", and the ask
+			// has happened.
+			anyChangesToSave = false;
+			return;
+		}
+		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
+		// is the thing this must not do. The owner arm below still writes it, just synchronously.
+	}
+	deluge::storage::settings::runOnStorageOwner([](void*) { writeDevicesOnOwner(); }, nullptr);
+}
+
+void writeDevicesOnOwner() {
 	deluge::storage::settings::noteSettingsIoTier();
 	if (!anyChangesToSave) {
 		return;
 	}
 	anyChangesToSave = false;
 
-	bool anyWorthWritting = dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
-	                        || upstreamUSBMIDICable2.worthWritingToFile();
-	if (!anyWorthWritting) {
-		for (MIDICableUSBHosted* device : hostedMIDIDevices) {
-			if (device->worthWritingToFile()) {
-				anyWorthWritting = true;
-				break;
-			}
-		}
-	}
-
-	if (!anyWorthWritting) {
+	if (!anythingWorthWriting()) {
 		// If still here, nothing worth writing. Delete the file if there was one.
 		deluge::io::unlink(MIDI_DEVICES_XML); // May give error, but no real consequence from that.
 		return;
@@ -473,7 +519,11 @@ void writeDevicesToFile() {
 		return;
 	}
 
-	Serializer& writer = GetSerializer();
+	serialiseDevices(GetSerializer());
+	GetSerializer().closeFileAfterWriting();
+}
+
+void serialiseDevices(Serializer& writer) {
 	writer.writeOpeningTagBeginning("midiDevices");
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");
@@ -498,8 +548,6 @@ void writeDevicesToFile() {
 	}
 
 	writer.writeClosingTag("midiDevices");
-
-	writer.closeFileAfterWriting();
 }
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
@@ -524,6 +572,32 @@ void factoryReset(bool showPopup) {
 }
 
 void readDevicesFromFile() {
+	if (deluge::storage::settings::usingSettingsChannel()) {
+		if (successfullyReadDevicesFromFile) {
+			return; // Yup, we only want to do this once
+		}
+		if (deluge::storage::settings::submitRead(MIDI_DEVICES_XML, LEGACY_MIDI_DEVICES_XML, &parseDevicesBytes,
+		                                          /*onAbsent=*/nullptr, nullptr)) {
+			return;
+		}
+		// Refused: the owner arm below repeats the early-out harmlessly and does the read itself.
+	}
+	deluge::storage::settings::runOnStorageOwner([](void*) { readDevicesOnOwner(); }, nullptr);
+}
+
+void parseDevicesBytes(void* /*ctx*/, char* bytes, uint32_t len) {
+	// `activeDeserializer` goes back on EVERY path, the failed open included -- see
+	// `RuntimeFeatureSettings::parseSettingsBytes`, which carries the full reasoning.
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, "midiDevices")
+	    == Error::NONE) {
+		parseDevices(*activeDeserializer);
+		successfullyReadDevicesFromFile = true;
+	}
+	activeDeserializer = previous;
+}
+
+void readDevicesOnOwner() {
 	deluge::storage::settings::noteSettingsIoTier();
 	// Owner-audit exemption: this runs once at boot, before the storage-owner worker pump is
 	// reliably driving, and reads the card when nothing else does (so it is not a FatFS-reentrancy
@@ -544,7 +618,7 @@ void readDevicesFromFile() {
 		// it to the new SETTINGS folder (but first make sure folder exists).
 		auto result = deluge::io::mkdir(SETTINGS_FOLDER);
 		if (result.has_value() || result.error() == deluge::io::Status::EXISTS) {
-			auto renamed = deluge::io::rename("MIDIDevices.XML", MIDI_DEVICES_XML);
+			auto renamed = deluge::io::rename(LEGACY_MIDI_DEVICES_XML, MIDI_DEVICES_XML);
 			if (renamed.has_value()) {
 				// this means we moved it; confirm the migration actually landed before trusting
 				// the new path.
@@ -566,7 +640,12 @@ void readDevicesFromFile() {
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = *activeDeserializer;
+	parseDevices(*activeDeserializer);
+	activeDeserializer->closeWriter();
+	successfullyReadDevicesFromFile = true;
+}
+
+void parseDevices(Deserializer& reader) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
@@ -588,13 +667,9 @@ void readDevicesFromFile() {
 		reader.exitTag();
 	}
 
-	activeDeserializer->closeWriter();
-
 	recountSmallestMPEZones();
 
 	soundEditor.mpeZonesPotentiallyUpdated();
-
-	successfullyReadDevicesFromFile = true;
 }
 
 void readAHostedDeviceFromFile(Deserializer& reader) {

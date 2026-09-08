@@ -42,7 +42,23 @@ public:
 	MidiFollow();
 	void factoryReset(bool showPopup = true);
 	void writeDefaultsToFile();
+	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
+	void writeDefaultsOnOwner();
 	void readDefaultsFromFile();
+	/// @brief readDefaultsFromFile's body, run where blocking on the card is legal.
+	void readDefaultsOnOwner();
+	/// @brief Put the in-memory follow settings into their out-of-the-box state.
+	///
+	/// What must be true whether the file turns up or not, so both arms do it before reading.
+	void resetToDefaults();
+	/// @brief Walk an already-opened document into the in-memory follow settings.
+	void parseDefaults(Deserializer& reader);
+	/// @brief Write the follow settings into an already-opened serialiser, file- or memory-backed.
+	void serialiseDefaults(Serializer& writer);
+	/// @brief `deluge::storage::settings::ParseFn` for @ref parseDefaults.
+	static void parseDefaultsBytes(void* ctx, char* bytes, uint32_t len);
+	/// @brief `deluge::storage::settings::AbsentFn`: no MIDIFollow.XML, so write one.
+	static void writeDefaultsAbsent(void* ctx);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t soundParamId, int32_t globalParamId,

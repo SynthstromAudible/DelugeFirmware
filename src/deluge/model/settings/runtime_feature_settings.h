@@ -110,7 +110,21 @@ public:
 	void init();
 	void factoryReset(bool showPopup = true);
 	void readSettingsFromFile();
+	/// @brief readSettingsFromFile's body, run where blocking on the card is legal.
+	void readSettingsOnOwner();
 	void writeSettingsToFile();
+	/// @brief writeSettingsToFile's body, run where blocking on the card is legal.
+	void writeSettingsOnOwner();
+	/// @brief Walk an already-opened document into the in-memory settings.
+	///
+	/// Shared by both arms: the owner arm's reader is a file, the channel arm's is the bytes the
+	/// channel delivered, and neither difference reaches here.
+	void parseSettings(Deserializer& reader);
+	/// @brief Write the settings into an already-opened serialiser, file-backed or memory-backed.
+	void serialiseSettings(Serializer& writer);
+	/// @brief `deluge::storage::settings::ParseFn` for @ref parseSettings, over channel-delivered
+	///        bytes.
+	static void parseSettingsBytes(void* ctx, char* bytes, uint32_t len);
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};

@@ -1659,13 +1659,41 @@ void PerformanceView::savePerformanceViewLayout() {
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
 void PerformanceView::writeDefaultsToFile() {
+	if (deluge::storage::settings::usingSettingsChannel()) {
+		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
+		// dies at the end of this scope, which is safe because `submitWrite` copies.
+		XMLSerializer writer;
+		writer.setMemoryBased();
+		serialiseDefaults(writer);
+		if (deluge::storage::settings::submitWrite(PERFORM_DEFAULTS_XML, writer.getBufferPtr(),
+		                                           static_cast<uint32_t>(writer.bytesWritten()))) {
+			// Cleared here rather than on the collect: this flag means "the layout in memory matches
+			// what we last asked to be stored", and the ask has happened. Waiting for the collect
+			// would leave a second, identical write to be made by whatever checks this next.
+			anyChangesToSave = false;
+			return;
+		}
+		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
+		// is the thing this must not do. The owner arm below still writes it, just synchronously.
+	}
+	deluge::storage::settings::runOnStorageOwner(
+	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->writeDefaultsOnOwner(); }, this);
+}
+
+void PerformanceView::writeDefaultsOnOwner() {
 	deluge::storage::settings::noteSettingsIoTier();
 	// PerformanceView.xml
 	Error error = StorageManager::createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = GetSerializer();
+	serialiseDefaults(GetSerializer());
+	GetSerializer().closeFileAfterWriting();
+
+	anyChangesToSave = false;
+}
+
+void PerformanceView::serialiseDefaults(Serializer& writer) {
 	//<defaults>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -1679,10 +1707,6 @@ void PerformanceView::writeDefaultsToFile() {
 	writer.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
 
 	writer.writeClosingTag(PERFORM_DEFAULTS_TAG);
-
-	writer.closeFileAfterWriting();
-
-	anyChangesToSave = false;
 }
 
 /// creates "FX1 - FX16 tags"
@@ -1805,6 +1829,17 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 
 /// read defaults from XML
 void PerformanceView::readDefaultsFromFile() {
+	// The owner arm only, deliberately: this is the ONE settings read this rung does not relocate into
+	// Rust. Its walk reaches the `smDeserializer` global directly in six places
+	// (`readDefaultFXValuesFromFile` and the four below it), so a memory-backed arm would mean
+	// threading a `Deserializer&` through all six -- a parser refactor, where this rung moves only the
+	// I/O. The tier violation is fixed either way, and the read runs once per session behind
+	// `successfullyReadDefaultsFromFile`, so what stays on the fiber is one read at view entry.
+	deluge::storage::settings::runOnStorageOwner(
+	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsOnOwner(); }, this);
+}
+
+void PerformanceView::readDefaultsOnOwner() {
 	deluge::storage::settings::noteSettingsIoTier();
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {

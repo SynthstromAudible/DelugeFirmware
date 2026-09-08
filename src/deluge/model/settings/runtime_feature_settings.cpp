@@ -29,6 +29,9 @@
 
 #define SETTINGS_FOLDER "SETTINGS"
 #define RUNTIME_FEATURE_SETTINGS_FILE "SETTINGS/CommunityFeatures.XML"
+/// Where the file lived before c1.3, at the card root. Migrated into the path above on a read that
+/// finds nothing there.
+#define LEGACY_RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
 #define TAG_RUNTIME_FEATURE_SETTING "setting"
 #define TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME "name"
@@ -188,6 +191,35 @@ void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
+	// The channel first: it does the read in Rust, so nothing blocks anywhere. A false means the
+	// channel is not in use here (boot, or a build without it) or is already busy, and the owner arm
+	// below does the same work where blocking is legal -- so a refusal costs a slower read, never a
+	// lost one.
+	if (deluge::storage::settings::submitRead(RUNTIME_FEATURE_SETTINGS_FILE, LEGACY_RUNTIME_FEATURE_SETTINGS_FILE,
+	                                          &RuntimeFeatureSettings::parseSettingsBytes,
+	                                          /*onAbsent=*/nullptr, this)) {
+		return;
+	}
+	deluge::storage::settings::runOnStorageOwner(
+	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->readSettingsOnOwner(); }, this);
+}
+
+void RuntimeFeatureSettings::parseSettingsBytes(void* ctx, char* bytes, uint32_t len) {
+	// `activeDeserializer` goes back on EVERY path, the failed open included: `openDelugeBuffer`
+	// points it at the memory reader before it knows whether the document opened, and code downstream
+	// WRITES through that global without opening anything of its own. Left pointing here it would
+	// write into `bytes`, which is the channel's own staging buffer. Copied from
+	// `deluge::storage::decodeSongPreview()`, which says it at length.
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false,
+	                                     TAG_RUNTIME_FEATURE_SETTINGS)
+	    == Error::NONE) {
+		static_cast<RuntimeFeatureSettings*>(ctx)->parseSettings(*activeDeserializer);
+	}
+	activeDeserializer = previous;
+}
+
+void RuntimeFeatureSettings::readSettingsOnOwner() {
 	deluge::storage::settings::noteSettingsIoTier();
 	// CommunityFeatures.XML
 	switch (deluge::storage::bootstrap_action(StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE))) {
@@ -200,7 +232,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		// let's move it to the new SETTINGS folder (but first make sure folder exists).
 		auto result = deluge::io::mkdir(SETTINGS_FOLDER);
 		if (result.has_value() || result.error() == deluge::io::Status::EXISTS) {
-			auto renamed = deluge::io::rename("CommunityFeatures.XML", RUNTIME_FEATURE_SETTINGS_FILE);
+			auto renamed = deluge::io::rename(LEGACY_RUNTIME_FEATURE_SETTINGS_FILE, RUNTIME_FEATURE_SETTINGS_FILE);
 			if (renamed.has_value()) {
 				// this means we moved it; confirm the migration actually landed before trusting
 				// the new path.
@@ -223,7 +255,11 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = *activeDeserializer;
+	parseSettings(*activeDeserializer);
+	smDeserializer.closeWriter();
+}
+
+void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 	std::string currentName;
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
@@ -272,10 +308,27 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		}
 		reader.exitTag(currentTag);
 	}
-	smDeserializer.closeWriter();
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {
+	if (deluge::storage::settings::usingSettingsChannel()) {
+		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
+		// dies at the end of this scope, which is safe because `submitWrite` copies.
+		XMLSerializer writer;
+		writer.setMemoryBased();
+		serialiseSettings(writer);
+		if (deluge::storage::settings::submitWrite(RUNTIME_FEATURE_SETTINGS_FILE, writer.getBufferPtr(),
+		                                           static_cast<uint32_t>(writer.bytesWritten()))) {
+			return;
+		}
+		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
+		// is the thing this must not do. The owner arm below still writes it, just synchronously.
+	}
+	deluge::storage::settings::runOnStorageOwner(
+	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->writeSettingsOnOwner(); }, this);
+}
+
+void RuntimeFeatureSettings::writeSettingsOnOwner() {
 	deluge::storage::settings::noteSettingsIoTier();
 	deluge::io::unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
@@ -283,7 +336,11 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = GetSerializer();
+	serialiseSettings(GetSerializer());
+	GetSerializer().closeFileAfterWriting();
+}
+
+void RuntimeFeatureSettings::serialiseSettings(Serializer& writer) {
 	writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.3");
@@ -308,5 +365,4 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	}
 
 	writer.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
-	writer.closeFileAfterWriting();
 }

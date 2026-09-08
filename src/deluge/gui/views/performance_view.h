@@ -157,6 +157,11 @@ private:
 
 	/// write/load default values
 	void writeDefaultsToFile();
+	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
+	void writeDefaultsOnOwner();
+	/// @brief Write the performance defaults into an already-opened serialiser, file- or
+	///        memory-backed.
+	void serialiseDefaults(Serializer& writer);
 	void writeDefaultFXValuesToFile(Serializer& writer);
 	void writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay);
@@ -164,6 +169,8 @@ private:
 	void loadDefaultLayout();
 	void readDefaultsFromBackedUpFile();
 	void readDefaultsFromFile();
+	/// @brief readDefaultsFromFile's body, run where blocking on the card is legal.
+	void readDefaultsOnOwner();
 	void readDefaultFXValuesFromFile();
 	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
 	void readDefaultFXParamFromFile(int32_t xDisplay);

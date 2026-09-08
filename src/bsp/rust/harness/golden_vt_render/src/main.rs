@@ -174,6 +174,19 @@ mod ffi;
 mod ffi_extra;
 #[path = "../../../src/fiber.rs"]
 mod fiber;
+/// The single-slot whole-file byte channel and its request/collect C ABI. Gated like
+/// `file_directory` below, for the identical structural reason: `deluge_card_flush` names every
+/// module it flushes, so a build that compiles `card.rs` without this one does not compile.
+///
+/// Also on `async_file_bytes` and not just `async_audio_load`, or a leg that enables ONLY the byte
+/// channel would silently test nothing: the module would not be compiled, the C++ weak fallback
+/// would resolve `deluge_file_bytes_async_active` to false, and every settings read and write would
+/// quietly take the synchronous arm while the leg reported a green run. That is not hypothetical --
+/// it is what this file did on the first channel-on run of the settings gate, and `SC-CHANNEL
+/// served=0` is what caught it.
+#[cfg(any(feature = "async_audio_load", feature = "async_file_bytes"))]
+#[path = "../../../src/file_bytes.rs"]
+mod file_bytes;
 /// The single-slot directory channel and its request/collect C ABI. Gated with `card` above and
 /// `file_prefix` below, for the identical structural reason: `deluge_card_flush` names all three
 /// of the modules it flushes, so a build that compiles `card.rs` without this one does not compile.
@@ -1353,6 +1366,11 @@ fn main() {
     // pass when the code is right.
     #[cfg(feature = "async_file_directory_active")]
     spawner.spawn(file_directory::file_directory_task().unwrap());
+    // The whole-file worker, likewise. Without this the channel's collects answer UNKNOWN forever
+    // and every settings operation falls back to the owner arm — which is CORRECT and SILENT, so the
+    // gate would still pass. `SC-CHANNEL served=` is the only thing that can tell the difference.
+    #[cfg(feature = "async_file_bytes_active")]
+    spawner.spawn(file_bytes::file_bytes_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
     if audio_load_ab_mode {

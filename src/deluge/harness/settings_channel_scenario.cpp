@@ -105,6 +105,11 @@ void runTick() {
 		break;
 
 	case Stage::Tier: {
+		// Reported, never asserted here. This gate runs in both configurations: with the channel
+		// compiled out the honest answer is 0, and failing on it would make the default build fail
+		// for doing exactly what it is supposed to do. `settings_channel.sh`'s channel-on leg is what
+		// requires this to be non-zero -- see there.
+		printf("SC-CHANNEL served=%d\n", deluge::storage::settings::channelServedOps());
 		const int32_t violations = deluge::storage::settings::interactionTierSettingsIo();
 		printf("SC-TIER violations=%d\n", violations);
 		if (violations != 0) {
@@ -155,6 +160,10 @@ void deluge_scenario_settings_channel_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
+	// The channel's pump. In the firmware this is a repeating task registered in `deluge.cpp`; here
+	// the scenario owns the tick, so without this call the channel arm would be requested and never
+	// collected -- and a dead channel would pass, which is the failure rung 3 shipped.
+	deluge::storage::settings::serviceRoutine();
 	runTick();
 	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after the
 	// dispatched operation (and immediately if nothing was dispatched). That is what makes each

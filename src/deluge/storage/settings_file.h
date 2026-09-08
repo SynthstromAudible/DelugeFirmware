@@ -58,9 +58,12 @@ enum class SettingsIo : uint8_t {
 ///
 /// Mirrors `Browser::usingDirectoryChannel()`, and inherits its reasoning: on the owner the
 /// synchronous path is correct and cheaper, because blocking there is legal and the channel exists
-/// to keep the INTERACTION tier off the card. That `on_owner()` term is also what keeps the three
-/// boot reads in `deluge.cpp` working unchanged -- measured `on_owner=0 started=0`, so they run
-/// before an owner exists and the selector below is what stands them down.
+/// to keep the INTERACTION tier off the card.
+///
+/// It adds an `Owner::started()` term that the browser's does not need, and that term is what keeps
+/// the three boot reads in `deluge.cpp` working. They measure `on_owner=0 started=0`, so `on_owner()`
+/// alone would route them through a channel whose task is not yet running and whose answer nothing is
+/// yet ticking to collect -- and the device would boot with defaults for every setting.
 ///
 /// The selector is checked LAST because with the channel absent the weak collect answers UNKNOWN
 /// forever, so a caller that consulted it would defer every tick and never read anything.
@@ -134,6 +137,89 @@ SettingsIo requestRename(const char* from, const char* to);
 ///                  which for the migration callers is the ordinary case -- there is no legacy file
 ///                  -- and not an error to show anyone.
 SettingsIo collectRename(const char* to, DelugeStatus* outStatus);
+
+/// @}
+/// @name The consumers' seam
+/// @{
+///
+/// The four consumers do not drive request/collect themselves. They submit one operation and return;
+/// @ref serviceRoutine drives it to completion and hands a read's bytes back through @p parse. Four
+/// hand-written copies of a collect loop would be four places for the contract to be got subtly
+/// wrong, and each of the four would need its own tick to be driven from.
+
+/// @brief What a consumer does with the bytes a read produced.
+/// @param ctx   The consumer's own pointer, passed through unexamined.
+/// @param bytes The file's contents. Valid ONLY for the duration of the call.
+/// @param len   Byte count.
+using ParseFn = void (*)(void* ctx, char* bytes, uint32_t len);
+
+/// @brief What a consumer does when a read found the file genuinely absent.
+///
+/// Called ONLY for `DELUGE_ERR_NOT_FOUND`, never for an unreadable card and never for a file too
+/// large for the channel. That distinction is the whole point of it: two of the four consumers write
+/// their defaults when the file is missing, and writing defaults because the card hiccuped would
+/// replace the user's real settings. It is the same line `bootstrap_action()` draws between
+/// `WriteDefaults` and `UseInMemoryOnly`, and this rung does not move it.
+using AbsentFn = void (*)(void* ctx);
+
+/// @brief A consumer's existing synchronous body, to run where blocking is legal.
+using OwnerFn = void (*)(void* ctx);
+
+/// @brief Take a read through the channel, if the channel is the right place for it.
+///
+/// @param path       The file to read.
+/// @param legacyPath The pre-1.3 location at the card root, migrated into `path` on a first read that
+///                   finds nothing there. May be nullptr for a consumer with no legacy location.
+/// @param parse      Called once, from @ref serviceRoutine, with the bytes. NOT called if the file is
+///                   absent or unreadable.
+/// @param onAbsent   Called instead of @p parse when the file is genuinely absent -- after the legacy
+///                   migration has been tried and also come up empty. May be nullptr for a consumer
+///                   that does nothing on absence. NOT called for an unreadable card.
+/// @param ctx        Passed through to @p parse and @p onAbsent.
+/// @return true when the channel took it and one of the two callbacks will be called later. **false when the caller
+///         must do the read itself**, either because the channel is not in use here or because it is
+///         already busy with another operation. A false is never a lost read: the caller falls
+///         through to @ref runOnStorageOwner, which does the same work where blocking is legal.
+bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx);
+
+/// @brief Take a write through the channel, if the channel is the right place for it.
+///
+/// @param path  The file to write. Its parent directory is created if absent.
+/// @param bytes The serialised contents. Copied out before this returns, so the caller's serialiser
+///              may be destroyed immediately afterwards.
+/// @param len   Byte count.
+/// @return true when the channel took it. **false when the caller must do the write itself.**
+///
+/// @note A false here is a REFUSAL, not a queue. That is the no-coalescing rule: two rapid toggles
+///       are two distinct settings changes, and superseding the first would lose one the user watched
+///       themselves make. The caller falls through to @ref runOnStorageOwner rather than retrying, so
+///       the second intent still reaches the card -- just synchronously, on a tier where blocking is
+///       legal.
+bool submitWrite(const char* path, const char* bytes, uint32_t len);
+
+/// @brief Run @p fn where blocking on the card is legal: on the storage owner, or inline if already
+///        there.
+///
+/// The fallback arm for every consumer, and the whole of the fix on a build with no channel. It is
+/// what takes settings I/O off the interaction tier even when nothing has been relocated into Rust.
+void runOnStorageOwner(OwnerFn fn, void* ctx);
+
+/// @brief How many settings operations the CHANNEL has carried to completion.
+///
+/// The check that the async arm is executed at all. Every consumer falls back to
+/// @ref runOnStorageOwner when the channel refuses, and that fallback is correct and silent -- so a
+/// channel that never worked would leave every gate passing and every settings file intact, which is
+/// exactly how a previous rung's livelock survived review. This number is the difference between the
+/// channel being used and the channel merely being compiled.
+///
+/// A read that found nothing counts too: the channel carried the question and answered it.
+[[nodiscard]] int32_t channelServedOps();
+
+/// @brief Drive whatever @ref submitRead or @ref submitWrite handed over.
+///
+/// Registered as a repeating task in `deluge.cpp` beside `loadSongUI.loadRoutine()`, and called by
+/// the settings-channel gate's own tick. Cheap and reentrant when there is nothing pending.
+void serviceRoutine();
 
 /// @}
 /// @name The tier gate
