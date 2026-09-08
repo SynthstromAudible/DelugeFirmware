@@ -178,6 +178,19 @@ void doRecorderCardRoutines();
 /// Runs inline on legacy/host; coalesced onto the worker fiber on Embassy.
 void requestRecorderCardRoutines();
 
+/// @brief Run one blocking recorder tick on the storage owner.
+///
+/// `SampleRecorder::cardRoutine()` calls this for the ticks that cannot run where they were asked --
+/// creating the file, finalizing it, and the abort cleanup. Coalesced: at most one in flight.
+/// @return false when there is no worker to run it, in which case the caller must run inline.
+bool requestRecorderTickOnOwner(SampleRecorder* recorder);
+
+/// @brief How many recorder drains ran OFF the storage owner.
+///
+/// The evidence that the drain actually moved. A served count alone can be non-zero while every
+/// write was still handled on the owner, which would be a rename rather than a relocation.
+[[nodiscard]] int32_t recorderOffOwnerTicks();
+
 int32_t getNumSamplesLeftToOutputFromPreviousRender();
 
 void registerSideChainHit(int32_t strength);

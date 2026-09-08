@@ -25,7 +25,9 @@
 #include "io/file.hpp"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
+#include "processing/engines/audio_engine.h"
 #include "storage/cluster/cluster.h"
+#include "storage/owner.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -523,6 +525,15 @@ extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
 		g_failures++;
 	}
 	printf("  %s\n", regressionOk ? "PASS" : "FAIL");
+
+	// The rung's whole evidence. `served` says the async arm executed; `offOwnerTicks` says the drain
+	// actually left the storage owner. Served alone can be non-zero while every write was still
+	// handled on the owner, which would be a rename rather than a relocation.
+	printf("RW-SUMMARY served=%d offOwnerTicks=%d\n", (int)SampleRecorder::writeChannelServedOps(),
+	       (int)AudioEngine::recorderOffOwnerTicks());
+	// A terminator, so a run that aborted part-way is a gate FAILURE rather than a silently
+	// truncated log: a stage that never ran asserts nothing, and the failure count cannot show that.
+	printf("RW-RESULT failures=%d\n", (int)g_failures);
 
 	fflush(nullptr);
 	return g_failures;

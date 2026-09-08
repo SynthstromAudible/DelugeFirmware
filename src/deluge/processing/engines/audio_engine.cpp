@@ -40,6 +40,7 @@
 #include "io/midi/midi_engine.h"
 #include "libdeluge/app.h"
 #include "libdeluge/audio_io.h"
+#include "libdeluge/file_write.h" // deluge_file_write_async_active (is the recorder drain relocatable)
 #include "libdeluge/signals.h"
 #include "libdeluge/storage_owner.h"  // deluge_storage_on_owner
 #include "libdeluge/streaming_fill.h" // deluge_streaming_resource_manager()
@@ -1689,7 +1690,40 @@ deluge::storage::Coalescer g_recorder_coalescer{/*sd_routine=*/true};
 void recorder_card_routines_fill(void*) {
 	doRecorderCardRoutines();
 }
+
+/// How many recorder drains ran OFF the storage owner. Without this a gate cannot tell a channel
+/// that served writes from a channel that served them while everything still ran on the owner --
+/// which is the only difference between this conversion and a rename.
+int32_t g_recorderOffOwnerTicks = 0;
+
+/// The recorder whose blocking tick is being run on the owner. One at a time, which the coalescer
+/// below enforces; only ever touched on the main executor.
+SampleRecorder* g_ownerTickRecorder = nullptr;
+
+deluge::storage::Coalescer g_recorder_tick_coalescer{/*sd_routine=*/true};
+
+void recorder_owner_tick_fill(void*) {
+	if (g_ownerTickRecorder != nullptr) {
+		(void)g_ownerTickRecorder->cardRoutine();
+	}
+}
 } // namespace
+
+int32_t recorderOffOwnerTicks() {
+	return g_recorderOffOwnerTicks;
+}
+
+bool requestRecorderTickOnOwner(SampleRecorder* recorder) {
+	// Coalesced: at most one blocking recorder tick in flight. A second request while one is queued
+	// is dropped rather than stacked -- the caller simply asks again next tick, and the state it is
+	// asking about has not changed.
+	if (!deluge::storage::Owner::started()) {
+		return false; // No worker to run it: the caller must do the work inline, as it always has.
+	}
+	g_ownerTickRecorder = recorder;
+	g_recorder_tick_coalescer.request(recorder_owner_tick_fill, nullptr);
+	return true;
+}
 
 void requestRecorderCardRoutines() {
 	// Never from an ISR / the audio interrupt-executor: deluge_storage_on_owner() is false there
@@ -1700,10 +1734,26 @@ void requestRecorderCardRoutines() {
 	}
 	// Already on the owner (fiber on Embassy; always on legacy/host) — run inline, so a
 	// fiber-context caller doesn't re-dispatch onto the fiber it already runs on.
+	//
+	// This is also what keeps the OFFLINE stem-export drain loop working. That loop calls
+	// doRecorderCardRoutines() in a bounded loop expecting each call to COMPLETE a cluster write so
+	// the renderer cannot outrun the card, and it runs on the owner — so it lands here and keeps the
+	// synchronous behaviour it depends on.
 	if (deluge_storage_on_owner()) {
 		doRecorderCardRoutines();
 		return;
 	}
+
+	// Off the owner with the channel live: run the drain HERE. cardRoutine()'s cluster write is
+	// request/collect now and its blocking ticks dispatch themselves to the owner, so there is
+	// nothing left to block on — and dispatching the whole drain onto the owner would leave every
+	// converted write taking its owner arm forever, which is a conversion that relocates nothing.
+	if (deluge::storage::Owner::started() && deluge_file_write_async_active()) {
+		g_recorderOffOwnerTicks++;
+		doRecorderCardRoutines();
+		return;
+	}
+
 	g_recorder_coalescer.request(recorder_card_routines_fill, nullptr);
 }
 

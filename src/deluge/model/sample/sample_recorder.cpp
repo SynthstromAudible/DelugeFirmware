@@ -386,6 +386,13 @@ Error SampleRecorder::cardRoutine() {
 		return Error::NONE; // Still outstanding; come back next tick.
 	}
 
+	// Off the owner, only the steady-state cluster write may run here -- everything else blocks, so
+	// send that tick to the owner and come back. One dispatch per recording for the create, one for
+	// the finalize; the writes in between, which are the whole length of the recording, stay here.
+	if (!deluge::storage::Owner::on_owner() && tickNeedsOwner() && AudioEngine::requestRecorderTickOnOwner(this)) {
+		return Error::NONE;
+	}
+
 	// If aborted, delete the file.
 	// ACQUIRE: synchronizes-with abort()'s release store.
 	if (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED) {
@@ -606,7 +613,7 @@ cutRecordingFolderPathAndTryCreating:
 
 		// Might want to write just one cluster
 		if (firstUnwrittenClusterIndex < currentRecordClusterIndex.load(std::memory_order_acquire)) {
-			error = writeOneCompletedCluster();
+			error = writeOneCompletedCluster(/*mayUseChannel=*/true);
 
 			if (error != Error::NONE) {
 gotError:
@@ -658,7 +665,7 @@ allDoneForNow:
 Error SampleRecorder::writeAnyCompletedClusters() {
 	while (firstUnwrittenClusterIndex < currentRecordClusterIndex.load(std::memory_order_acquire)) {
 
-		Error error = writeOneCompletedCluster();
+		Error error = writeOneCompletedCluster(/*mayUseChannel=*/false);
 
 		// On error, just return -- the buffer writeOneCompletedCluster() couldn't flush stays put in
 		// bufferTable_ (never recycled) rather than being freed here.
@@ -678,7 +685,7 @@ Error SampleRecorder::writeAnyCompletedClusters() {
 	return Error::NONE;
 }
 
-Error SampleRecorder::writeOneCompletedCluster() {
+Error SampleRecorder::writeOneCompletedCluster(bool mayUseChannel) {
 	int32_t writingClusterIndex = firstUnwrittenClusterIndex;
 
 	firstUnwrittenClusterIndex++; // Have to increment this before writing, cos while writing, the audio routine will be
@@ -687,7 +694,7 @@ Error SampleRecorder::writeOneCompletedCluster() {
 
 	// writeCluster() recycles this buffer's memory back to the free-list once the write succeeds --
 	// no separate "reason" to drop; we privately own it outright.
-	return writeCluster(writingClusterIndex, Cluster::size);
+	return writeCluster(writingClusterIndex, Cluster::size, mayUseChannel);
 }
 
 Error SampleRecorder::finalizeRecordedFile() {
@@ -726,7 +733,9 @@ Error SampleRecorder::finalizeRecordedFile() {
 
 		int32_t bytesToWrite = writePos - reinterpret_cast<char*>(currentRecordBuffer);
 		if (bytesToWrite > 0) { // Will always be true
-			Error error = writeCluster(currentRecordClusterIndex.load(std::memory_order_relaxed), bytesToWrite);
+			// Finalize: this cluster must be on the card before the header patch-back below reads the file.
+			Error error = writeCluster(currentRecordClusterIndex.load(std::memory_order_relaxed), bytesToWrite,
+			                           /*mayUseChannel=*/false);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -952,6 +961,22 @@ void SampleRecorder::finishCluster(int32_t clusterIndex) {
 	bufferTable_[clusterIndex] = nullptr;
 }
 
+bool SampleRecorder::tickNeedsOwner() const {
+	const RecorderStatus st = status.load(std::memory_order_acquire);
+	// The abort cleanup closes the stream and unlinks the file; the error path is about to do the
+	// same; and with no file yet this tick runs initSD, checkSpaceOnCard and Stream::open.
+	if (st == RecorderStatus::ABORTED || hadCardError || filePathCreated.empty()) {
+		return true;
+	}
+	// Finalize -- but only once the clusters are drained. While there are still completed clusters
+	// to write, this tick is a steady-state write like any other and belongs on the channel.
+	if (st == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING
+	    && firstUnwrittenClusterIndex >= currentRecordClusterIndex.load(std::memory_order_acquire)) {
+		return true;
+	}
+	return false;
+}
+
 bool SampleRecorder::pumpInFlightWrite() {
 	if (inFlightClusterIndex_ < 0) {
 		return false;
@@ -1013,12 +1038,15 @@ Error SampleRecorder::writeClusterSynchronously(int32_t clusterIndex, size_t num
 	return Error::NONE;
 }
 
-Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
-	// The channel is for the steady-state write only, and only where blocking is illegal. On the
-	// owner the synchronous arm is correct and cheaper; `started()` keeps anything running before
+Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes, bool mayUseChannel) {
+	// Deliberately NOT gated on `!on_owner()`, unlike the byte channel's selector. That term exists
+	// to keep the INTERACTION tier off the card, and this cluster has no tier problem to solve --
+	// every one of its sites was measured on the owner before this rung. Gating on it here would
+	// mean the write keeps blocking the owner wherever it already runs, which is exactly the thing
+	// that stops the owner ever being removable. `started()` stays: it keeps anything running before
 	// the worker exists on the arm it has always used.
-	const bool channelActive = !channelAbandoned_ && !deluge::storage::Owner::on_owner()
-	                           && deluge::storage::Owner::started() && deluge_file_write_async_active();
+	const bool channelActive =
+	    mayUseChannel && !channelAbandoned_ && deluge::storage::Owner::started() && deluge_file_write_async_active();
 
 	if (channelActive && inFlightClusterIndex_ < 0) {
 		const uint32_t byteOffset = static_cast<uint32_t>(clusterIndex) << Cluster::size_magnitude;
