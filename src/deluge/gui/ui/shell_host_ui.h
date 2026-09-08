@@ -303,12 +303,28 @@ namespace deluge::gui::ui {
 ///          `SessionView::enterMidiLearnMode` (`gui/views/session_view.cpp:3072-3076`), which the
 ///          song context menu's MIDI-learn entry reaches
 ///          (`MidiLearnMode::setupAndCheckAvailability`, `gui/context_menu/midi_learn_mode.cpp:51`).
-///          **The conclusion is unchanged, because all three funnel through those two assignments
-///          and none of the three runs while the guest is open** -- `View::buttonAction` is the
-///          *root view's* fallback and the guest is the current UI; `SoundEditor` is not open at
-///          all; and the context-menu entry is `sessionView`'s, whose ported form is
-///          `MenuScene::take_action`'s `song_midi_learn` (`scenes/menu/action.h:18`), whose
-///          **dispatcher arm is still empty** (F2 task 4; the poll itself exists as of F2 task 1).
+///          **The conclusion still holds, but as of F2 task 4 one of the three reasons has changed
+///          and it is now the interesting one.** `View::buttonAction` is the *root view's* fallback
+///          and the guest is the current UI; `SoundEditor` is not open at all. The third,
+///          `SessionView::enterMidiLearnMode` reached from the song menu's MIDI-learn entry, **does
+///          now run under the guest**: its ported form is `MenuScene::take_action`'s
+///          `song_midi_learn` (`scenes/menu/action.h:18`), and `dispatchShellActions`' arm for it
+///          calls `midiLearnMode.setupAndCheckAvailability()` exactly as
+///          `song::MidiLearn::selectButtonPress` does (`gui/ui/shell_action_dispatch.cpp`, the
+///          `MenuAction::OpenSongMidiLearn` arm). So `currentUIMode == UI_MODE_MIDI_LEARN` **is**
+///          settable from under the guest now.
+///
+///          It still does not reach these two overrides, for the reason the same arm's second
+///          statement supplies: it ends in `openUI(&midiLearnMode)`, so while the mode is set the
+///          **context menu** is `getCurrentUI()`, not the guest -- and every one of these dispatch
+///          arms asks `getCurrentUI()` (`playback_handler.cpp:2898`, `:2968`). `MidiLearnMode`
+///          overrides neither hook (`gui/context_menu/midi_learn_mode.h:23-38`), so `UI`'s own
+///          `return false` (`gui/ui/ui.h:130`, `:132-134`) runs and `view` takes the `else`. Closing
+///          the context menu clears the mode again (`MidiLearnMode::acceptCurrentOption` and its
+///          `BACK` arm both call `sessionView.exitMidiLearnMode()`,
+///          `gui/context_menu/midi_learn_mode.cpp:56`, `:68`; `View::endMIDILearn` clears it at
+///          `gui/views/view.cpp:511-513`). **So the reachability of these two overrides is unchanged;
+///          what changed is that "nothing under the guest sets the mode" is no longer the reason.**
 ///          Meanwhile the port's own learn mode (`services::MidiLearn::begin`, reached from its
 ///          `LEARN` arm) sets a **different bit** -- `MidiLearn::active_`, which `PlaybackHandler`
 ///          cannot see -- and is itself gated on `SceneStack::input_top().is_root()`, which

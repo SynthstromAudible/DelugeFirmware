@@ -346,9 +346,9 @@ public:
 	/// **The first of the five parked `MenuAction`s to get a real method behind it.**
 	/// `scenes/menu/action.h`'s table names `audioClipView.setClipLengthEqualToSampleLength()` as
 	/// what `MenuAction::SetClipLengthToSampleLength` means. The consumer of
-	/// `MenuScene::take_action()` exists as of F2 task 1 and its arm for this verb is empty until F2
-	/// task 4. This is the callee that arm will have; **there is deliberately no dispatcher here** --
-	/// half of one would be a second seam nobody owns.
+	/// `MenuScene::take_action()` exists as of F2 task 1, and as of F2 task 4 its arm calls the
+	/// **legacy** method on `audioClipView` (`gui/ui/shell_action_dispatch.cpp`). This is the port of
+	/// that same method; **there is deliberately no dispatcher here** -- that would be a second seam.
 	///
 	/// It is public for a second reason too: legacy reaches it from two places, the menu item and
 	/// `buttonAction`'s `X_ENC`+`Y_ENC` chord (`audio_clip_view.cpp:384-391`), and this scene's own

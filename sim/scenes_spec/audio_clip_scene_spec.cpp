@@ -1757,9 +1757,10 @@ describe audio_clip_scene_spec_body(
 	        "sets the clip length equal to the sample length exactly as legacy does", _ {
 		        spec_fixture::QuietAudio quiet;
 		        // `MenuAction::SetClipLengthToSampleLength`'s callee (`scenes/menu/action.h`'s table).
-		        // **Driven directly**, because the dispatcher's arm for this verb is empty until F2
-		        // task 4 -- and building half of one here would be a second seam nobody owns. This
-		        // example is what says the callee is real.
+		        // **Driven directly**, because building half a dispatcher here would be a second seam
+		        // nobody owns. This example is what says the callee is real; that the dispatcher's arm
+		        // reaches the LEGACY method of the same name is F2 task 4's, and is pinned in
+		        // `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_three_verbs`.
 		        Rig r;
 		        const Sentinel s{};
 

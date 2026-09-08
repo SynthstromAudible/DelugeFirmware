@@ -9,8 +9,8 @@
 /// and two `gui/context_menu/` singletons, none of which exist in this suite's link closure
 /// (`tests/spec/CMakeLists.txt:28-35`). So **nothing here asserts that a request is performed, or
 /// even that the outbox is what gets read** -- that half is
-/// `sim/scenes_spec/menu_actions_spec.cpp`'s two `gui::ui::dispatchShellActions` groups (the drain,
-/// and `OpenPerformanceView`'s body), in the binary that links the real scene.
+/// `sim/scenes_spec/menu_actions_spec.cpp`'s four `gui::ui::dispatchShellActions` groups (the drain,
+/// and one per verb body), in the binary that links the real scene.
 ///
 /// What is left is the half that exists nowhere else: the call site. And it is the half that the
 /// hazard is actually about. `MenuScene::take_action()` is "a one-slot mailbox with a silent

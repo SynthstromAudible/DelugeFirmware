@@ -70,12 +70,12 @@
 /// The toggle is Off by default, so none of the following is a regression. Turned on, it is what a
 /// user gets, and none of it is discoverable from a green test suite:
 ///
-///  1. **Four ported menu items do nothing.** The outbox is polled as of F2 task 1 --
-///     `gui::ui::dispatchShellActions` drains it once per guest tick -- and F2 task 2 filled the
-///     `OpenPerformanceView` arm, so `perform_editor` now really does open the performance view in
-///     the chosen mode. `setClipLengthEqualToSampleLength()`, the stem export, the MIDI-learn
-///     overlay and the song-macros menu are still requested and dropped; each arm lands with its own
-///     F2 task, and none of them was in *this* plan's scope by Kate's choice, not by oversight.
+///  1. ~~**Four ported menu items do nothing.**~~ **CLOSED as of F2 task 4.** The outbox is polled
+///     as of F2 task 1 -- `gui::ui::dispatchShellActions` drains it once per guest tick -- and all
+///     five arms now have bodies (tasks 2, 3 and 4), so `perform_editor`, `start_stem_export`,
+///     `set_clip_length`, `song_midi_learn` and `configure_song_macros` all do under the toggle what
+///     their legacy items do. What each arm still owes is narrower than "nothing happens" and is
+///     recorded per arm at `gui/ui/shell_action_dispatch.h`.
 ///  2. **A file chosen in the ported browser is parked, not claimed.** `BrowserScene`'s deferring
 ///     descriptor closes with the choice in `take_choice()`, which nothing polls either (§10.2
 ///     item 4). `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting are
@@ -93,8 +93,8 @@
 ///     `shell_menu_entry.cpp`'s table for which, and why each one's node has no port. So with the
 ///     toggle on the firmware has *both* menus, reachable by different gestures.
 ///
-/// Items 1-4 are `src/scenes` gaps this plan does not close; item 5 is this task's own honest
-/// answer to "a wrong node is worse than a legacy menu".
+/// Items 2-4 are `src/scenes` gaps plan F1 does not close (item 1 was one, and plan F2 closed it);
+/// item 5 is this task's own honest answer to "a wrong node is worse than a legacy menu".
 
 #include <cstdint>
 

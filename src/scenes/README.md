@@ -364,10 +364,10 @@ To add one:
    `SoundEditor::buttonAction`'s `LEARN` arm (`gui/ui/sound_editor.cpp:520`) are the only
    assignments, and the first has two callers — `View::buttonAction`'s `LEARN` arm (`view.cpp:192`)
    and `SessionView::enterMidiLearnMode` (`gui/views/session_view.cpp:3072-3076`), reached from the
-   song context menu (`gui/context_menu/midi_learn_mode.cpp:51`). None of the three runs while the
-   guest is the current UI, and the third one's *port* is
-   `MenuScene::take_action`'s `song_midi_learn`, which nothing polls (migration §10.2 item 3). See
-   `gui/ui/shell_host_ui.h`'s `@par MIDI learn`.
+   song context menu (`gui/context_menu/midi_learn_mode.cpp:51`). The first two do not run while the
+   guest is the current UI; the third's *port* is `MenuScene::take_action`'s `song_midi_learn`, whose
+   arm **does** run it as of F2 task 4 — so the mode IS set from under the guest now, but that arm's
+   `openUI(&midiLearnMode)` puts the menu above the guest. `gui/ui/shell_host_ui.h`'s `@par MIDI learn`.
    `bindings::learn_target` is a *different* path — PARAM learn, not global-command learn.
 2. Point the node at a `static`/`inline const` instance via the `custom(name, &item, relevant)`
    builder. A null `custom` pointer is itself a validator error (`Issue::Kind::NullCustom`) — there

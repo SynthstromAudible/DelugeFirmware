@@ -38,15 +38,15 @@
 ///   4. `MenuScene::after_render` drains it **where `pending_scene` is drained**, and parks it in
 ///      `MenuScene::take_action()` for the application-side wiring to collect and perform.
 ///
-/// ## What this file does NOT do, and must be read as owing
+/// ## What this file does NOT do
 ///
-/// **Four of the five actions are still not performed.** `take_action()` is an outbox; as of F2
-/// task 1 it has a consumer -- `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`)
-/// drains it once per guest tick -- and as of F2 task 2 exactly one of its arms has a body,
-/// `OpenPerformanceView`. The other four are empty and arrive one verb at a time. The specs in
-/// `sim/scenes_spec/menu_actions_spec.cpp` assert that the right item emits the right *identity* and
-/// payload through the real input path, and that the dispatcher takes it; only that file's
-/// `OpenPerformanceView` group asserts that anything happens as a result.
+/// `take_action()` is an outbox and this file is only its producing half. Its consumer,
+/// `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`), arrived with F2 task 1 and
+/// drains it once per guest tick; **all five arms have bodies as of F2 task 4**. The specs in
+/// `sim/scenes_spec/menu_actions_spec.cpp` assert both halves: that the right item emits the right
+/// *identity* and payload through the real input path, and -- in the three `dispatchShellActions`
+/// groups -- that the legacy effect happens. Only `StartStemExport`'s acting half is still pinned by
+/// identity alone, for a reason that file's own group states.
 ///
 /// @note **Legacy's own post-conditions travel with the intent, not with the menu.** Two of the
 ///       five have a documented effect on the menu itself -- `stem_export::Start` calls

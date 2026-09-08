@@ -292,7 +292,7 @@ bool shellGuestMenuLearnProgramChange(::MIDICable& cable, int32_t channel, int32
 }
 
 // `gui/ui/shell_action_dispatch.cpp`'s share, on exactly the terms of the three above: the real one
-// reads `deluge::scenes::menu_scene()` and its arms name (or will name) `performanceView`, `audioClipView`,
+// reads `deluge::scenes::menu_scene()` and its five arms name `performanceView`, `audioClipView`,
 // `stemExport` and two `gui/context_menu/` singletons -- the `deluge_scenes` and legacy-view
 // closures this suite never builds. The counter and the callback are what let
 // `shell_action_dispatch_spec.cpp` ask the only questions that live on this side of that seam:
