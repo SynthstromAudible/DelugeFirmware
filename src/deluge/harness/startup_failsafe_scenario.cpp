@@ -57,7 +57,12 @@ enum class Stage : uint8_t {
 };
 
 /// How many ticks the machine gets to finish before the gate calls it wedged.
-constexpr int32_t kMaxDriveTicks = 500;
+///
+/// Comfortably above the machine's own worst case, which is `kMaxPendingTicks` per phase across six
+/// phases when the channel accepts requests and never answers them. A cap below that would report a
+/// legitimate slow fallback as a wedge, which is a gate failing for the wrong reason -- and it only
+/// costs harness ticks in runs that are failing anyway.
+constexpr int32_t kMaxDriveTicks = 5000;
 
 Stage g_stage = Stage::Fixture;
 int32_t g_driveTicks = 0;

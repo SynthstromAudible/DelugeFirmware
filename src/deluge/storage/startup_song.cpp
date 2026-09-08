@@ -42,18 +42,38 @@ namespace {
 /// The template song, and the fallback when the recorded startup song has gone.
 constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 
-/// How many consecutive channel refusals before falling back to the storage owner.
+/// How many consecutive unproductive attempts before falling back to the storage owner.
 ///
 /// The channel is single-flight across all operation kinds, so a settings write in flight refuses
 /// this machine's request. Retrying is right -- the machine is already ticking, and retrying keeps
-/// the relocation that falling back forfeits -- but an unbounded retry would let a permanently busy
-/// channel wedge boot. After this many the machine takes `runOnStorageOwner`, which is tier-safe and
-/// ordered, just not relocated.
+/// the relocation that falling back forfeits -- but an unbounded retry would let a busy channel wedge
+/// boot. After this many the machine takes `runOnStorageOwner`, which is tier-safe and ordered, just
+/// not relocated.
+///
+/// **It counts re-asks as well as refusals, and that is the half that matters.** A refusal is a
+/// `false` from a request that returns one; but the read and existence requests return nothing at
+/// all, so a channel that ACCEPTS a request and never answers it produces neither a refusal nor a
+/// result -- just `UNKNOWN` forever, and a machine that re-asks forever. That is exactly the livelock
+/// shape an earlier rung shipped, and it is what a dead channel looks like from here.
 ///
 /// Eight because this routine ticks at roughly the song-load routine's rate and the channel
-/// serialises one small operation at a time: eight consecutive refusals means something is wrong,
-/// not busy.
-constexpr int32_t kMaxRefusals = 8;
+/// serialises one small operation at a time: eight consecutive unproductive attempts means something
+/// is wrong, not busy.
+constexpr int32_t kMaxAttemptsWithoutProgress = 8;
+
+/// How many ticks one channel operation may sit PENDING before the machine gives up on the channel.
+///
+/// A separate, far larger bound than the one above, because it is guarding a different failure. A
+/// refusal is instant and means "busy"; PENDING means "working", and a real card operation is
+/// legitimately allowed to take a while. But a channel whose driver is not running answers PENDING
+/// **forever** -- the request sits in its slot with nothing to take it -- and that is neither a
+/// refusal nor an answer, so the bound above never sees it. Without this one the machine re-asks
+/// until the end of time and boot never completes.
+///
+/// That is not hypothetical: it is exactly what leaving the Rust worker unspawned produced, and it is
+/// the same livelock shape an earlier rung shipped. Six hundred ticks is several seconds at this
+/// routine's rate -- far beyond any real operation, far short of forever.
+constexpr int32_t kMaxPendingTicks = 600;
 
 /// @name The machine's state
 /// @{
@@ -66,8 +86,11 @@ std::string g_canaryPath;
 std::string g_songPath;
 /// Whether the current phase has issued its request yet.
 bool g_requested = false;
-/// Consecutive refusals of the current request. See @ref kMaxRefusals.
-int32_t g_refusals = 0;
+/// Consecutive attempts at the current request that produced neither an answer nor progress.
+/// See @ref kMaxAttemptsWithoutProgress.
+int32_t g_attemptsWithoutProgress = 0;
+/// Consecutive ticks the current request has spent PENDING. See @ref kMaxPendingTicks.
+int32_t g_pendingTicks = 0;
 /// @}
 
 /// @name The owner arm's answers
@@ -97,16 +120,31 @@ std::string g_startupFailSafePath;
 void enter(StartupPhase phase) {
 	g_phase = phase;
 	g_requested = false;
-	g_refusals = 0;
+	g_attemptsWithoutProgress = 0;
+	g_pendingTicks = 0;
 	g_ownerDone = false;
 }
 
 /// Whether the channel should carry this operation, or the owner arm should.
 ///
-/// Falls back permanently once `kMaxRefusals` consecutive refusals have been seen for the current
-/// phase -- see that constant.
+/// Falls back permanently once `kMaxAttemptsWithoutProgress` consecutive unproductive attempts have
+/// been seen for the current phase -- see that constant.
 bool viaChannel() {
-	return deluge::storage::bytes::usingByteChannel() && g_refusals < kMaxRefusals;
+	return deluge::storage::bytes::usingByteChannel() && g_attemptsWithoutProgress < kMaxAttemptsWithoutProgress
+	       && g_pendingTicks < kMaxPendingTicks;
+}
+
+/// Note one more tick spent waiting, and abandon the channel for this phase once that has gone on too
+/// long. Returns whether the caller should keep waiting.
+///
+/// The re-request on giving up is what makes the fallback take effect: `viaChannel()` is consulted
+/// again at the next issue, and by then it answers false.
+bool stillWaiting() {
+	if (++g_pendingTicks < kMaxPendingTicks) {
+		return true;
+	}
+	g_requested = false; // re-issue, on the owner arm this time
+	return false;
 }
 
 /// Issue an existence check for `path` on whichever arm is in force.
@@ -116,7 +154,7 @@ void issueExists(const char* path) {
 			g_requested = true;
 		}
 		else {
-			g_refusals++;
+			g_attemptsWithoutProgress++;
 		}
 		return;
 	}
@@ -142,9 +180,13 @@ std::optional<StartupPresence> collectExists(const char* path) {
 		DelugeStatus status = DELUGE_OK;
 		switch (deluge::storage::bytes::collectExists(path, &present, &status)) {
 		case deluge::storage::bytes::ByteIo::Pending:
+			(void)stillWaiting();
 			return std::nullopt;
 		case deluge::storage::bytes::ByteIo::Unknown:
-			g_requested = false; // "ask again" -- the documented meaning.
+			// "Ask again" -- the documented meaning. Counted, because a channel that accepts and never
+			// answers looks exactly like this, forever.
+			g_requested = false;
+			g_attemptsWithoutProgress++;
 			return std::nullopt;
 		case deluge::storage::bytes::ByteIo::Ready:
 			// A real answer, either way. `startup_action` is what keeps "known absent" apart from
@@ -171,7 +213,7 @@ void issueCanaryWrite() {
 			g_requested = true;
 		}
 		else {
-			g_refusals++;
+			g_attemptsWithoutProgress++;
 		}
 		return;
 	}
@@ -203,9 +245,13 @@ std::optional<bool> collectCanaryWrite() {
 		DelugeStatus status = DELUGE_OK;
 		switch (deluge::storage::bytes::collectWrite(g_canaryPath.c_str(), &status)) {
 		case deluge::storage::bytes::ByteIo::Pending:
+			(void)stillWaiting();
 			return std::nullopt;
 		case deluge::storage::bytes::ByteIo::Unknown:
-			g_requested = false; // Displaced before we took it; writing the same bytes twice is safe.
+			// Displaced before we took it; writing the same bytes twice is safe. Counted for the same
+			// reason as the existence collect's.
+			g_requested = false;
+			g_attemptsWithoutProgress++;
 			return std::nullopt;
 		case deluge::storage::bytes::ByteIo::Ready:
 			g_canaryConfirmed = true;
@@ -232,7 +278,7 @@ void issueUnlink(const std::string& path) {
 			g_requested = true;
 		}
 		else {
-			g_refusals++;
+			g_attemptsWithoutProgress++;
 		}
 		return;
 	}
@@ -256,9 +302,11 @@ bool unlinkFinished(const std::string& path) {
 		DelugeStatus status = DELUGE_OK;
 		switch (deluge::storage::bytes::collectUnlink(path.c_str(), &status)) {
 		case deluge::storage::bytes::ByteIo::Pending:
+			(void)stillWaiting();
 			return false;
 		case deluge::storage::bytes::ByteIo::Unknown:
 			g_requested = false;
+			g_attemptsWithoutProgress++;
 			return false;
 		case deluge::storage::bytes::ByteIo::Ready:
 		case deluge::storage::bytes::ByteIo::Failed:
