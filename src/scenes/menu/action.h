@@ -40,13 +40,13 @@
 ///
 /// ## What this file does NOT do, and must be read as owing
 ///
-/// **Nothing performs any of these actions.** `take_action()` is an outbox; there is no consumer of
-/// it in this repository yet, because the consumer is the wiring plan's -- it is the half that gets
-/// to say `openUI(&performanceView)`. The specs in `sim/scenes_spec/menu_actions_spec.cpp` assert
-/// that the right item emits the right *identity* (and the right payload), driven through the real
-/// input path; they cannot and do not assert that anything happens as a result. A reviewer looking
-/// for "does pressing START EXPORT export anything" will not find it here, and should not: that
-/// question is answered by the dispatcher the wiring plan writes, against these five enumerators.
+/// **Nothing performs any of these actions yet.** `take_action()` is an outbox, and as of F2 task 1
+/// it has a consumer -- `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`) drains it
+/// once per guest tick -- whose five arms are empty: performing them is the half that gets to say
+/// `openUI(&performanceView)`, and it arrives one verb at a time. The specs in
+/// `sim/scenes_spec/menu_actions_spec.cpp` assert that the right item emits the right *identity* and
+/// payload through the real input path, and that the dispatcher takes it; they do not assert that
+/// anything happens as a result, because nothing does.
 ///
 /// @note **Legacy's own post-conditions travel with the intent, not with the menu.** Two of the
 ///       five have a documented effect on the menu itself -- `stem_export::Start` calls

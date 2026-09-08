@@ -17,6 +17,7 @@
 
 #include "gui/ui/shell_host_ui.h"
 
+#include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
@@ -464,6 +465,32 @@ ActionResult ShellHostUI::timerCallback() {
 	shell_.set_sd_busy(isSDRoutineActive());
 
 	shell_.tick(now);
+
+	// **The action drain, and both halves of where it sits are load-bearing.**
+	//
+	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
+	// (`scenes/menu/menu_scene.h:593-607`), and it announces nothing: "`after_render` returns no
+	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
+	// tick, or requests are dropped or stale**" (`:596-598`). This line is the polling, and it is
+	// the only one in the firmware. `dispatchShellActions` performs whatever it finds.
+	//
+	// **After the tick**, because a request is filed by `MenuScene::after_render`, and `after_render`
+	// is what `Shell::tick` runs as its step 7 (`shell/shell.cpp:399-407`) -- a poll above
+	// `shell_.tick` would read the slot before this tick's press could have filled it, and would
+	// therefore always deliver a tick late, against whatever state the next tick brings.
+	//
+	// **Above the close check below**, not beside `rearmTimer`, because that check `return`s. On the
+	// tick a short Back empties the stack there is nothing wrong with a request having been filed
+	// earlier in the same tick, and a poll placed after the return would leave it in the outbox --
+	// where it would sit, undelivered, until the next time the guest is opened and ticked, and would
+	// then run against a song and a root UI chosen since. That is exactly the "delivered whenever
+	// someone finally does" hazard, and the cheapest way not to have it is to have no path through
+	// this function that skips the poll.
+	//
+	// **Unconditional**, for the same reason: not gated on input, not on whether anything rendered,
+	// not on which scene is frontmost. Nothing here can know whether a request is waiting without
+	// asking, and asking is what takes it.
+	dispatchShellActions();
 
 	// **The short-Back exit, which is the only exit a user actually performs.**
 	//

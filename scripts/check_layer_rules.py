@@ -167,6 +167,11 @@ UI_STACK_CALLS = (
 # * `gui/ui/shell_guest_services.cpp` -- where the three `scenes::services::` singletons are built
 #   and handed to `Shell::set_services` (F1 task 8). Its HEADER is deliberately NOT excluded: it
 #   names none of this, and leaving it in scope is what keeps that true.
+# * `gui/ui/shell_action_dispatch.cpp` -- `dispatchShellActions`, the poll of
+#   `MenuScene::take_action()` that `ShellHostUI::timerCallback` runs once per tick (F2 task 1). Its
+#   HEADER is deliberately NOT excluded, on `shell_guest_services.h`'s terms: it declares one
+#   no-arguments free function and names no port type, and leaving it in scope is what keeps that
+#   true.
 # * `gui/ui/shell_menu_entry.cpp` -- `openShellMenu`, the one door the fourteen entry points use.
 #   Its DECLARATION (`util/shell_menu_entry.h`) is likewise not excluded, and must stay includable
 #   from `model/clip/instrument_clip_minder.cpp`, which is why it names no port type (F1 task 9).
@@ -180,6 +185,7 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_guest_surfaces.h",
     "src/deluge/gui/ui/shell_guest_surfaces.cpp",
     "src/deluge/gui/ui/shell_guest_services.cpp",
+    "src/deluge/gui/ui/shell_action_dispatch.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
 )
@@ -419,8 +425,8 @@ RULES = [
         # but names every other allowed directory explicitly rather than the two forbidden ones --
         # this row restates the gui/hid half on its own so a reviewer scanning by rule name finds
         # it without re-deriving the negation. The (include, *excludes) glob tuple already exists
-        # (`rule_covers`, check_layer_rules.py:769-781, as ui-widgets-read-input-directly uses at
-        # :313) -- no checker change needed; this row needs no `except` field of its own.
+        # (`rule_covers`, check_layer_rules.py:775-787, as ui-widgets-read-input-directly uses at
+        # :319) -- no checker change needed; this row needs no `except` field of its own.
         #
         # Both numbers in that parenthetical were wrong before F1 task 12 as well as after it, and
         # they are why `SCAN_ROOTS` now reaches `scripts/`: nothing has ever read a citation written

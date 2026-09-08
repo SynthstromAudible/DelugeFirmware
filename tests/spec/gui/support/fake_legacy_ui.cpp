@@ -24,6 +24,8 @@ int menu_learn_note_ons = 0;
 int menu_learn_program_changes = 0;
 MidiLearnCall last_menu_learn{};
 bool menu_learn_claims = false;
+int action_dispatches = 0;
+std::function<void()> on_action_dispatch{};
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
 
@@ -55,6 +57,8 @@ void reset() {
 	menu_learn_program_changes = 0;
 	last_menu_learn = MidiLearnCall{};
 	menu_learn_claims = false;
+	action_dispatches = 0;
+	on_action_dispatch = nullptr;
 	timer_arms.clear();
 	timer_unsets.clear();
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
@@ -285,5 +289,18 @@ bool shellGuestMenuLearnProgramChange(::MIDICable& cable, int32_t channel, int32
 	fakelegacyui::menu_learn_program_changes++;
 	fakelegacyui::last_menu_learn = fakelegacyui::MidiLearnCall{&cable, channel, program, 0};
 	return fakelegacyui::menu_learn_claims;
+}
+
+// `gui/ui/shell_action_dispatch.cpp`'s share, on exactly the terms of the three above: the real one
+// reads `deluge::scenes::menu_scene()` and its five arms name `performanceView`, `audioClipView`,
+// `stemExport` and two `gui/context_menu/` singletons -- the `deluge_scenes` and legacy-view
+// closures this suite never builds. The counter and the callback are what let
+// `shell_action_dispatch_spec.cpp` ask the only questions that live on this side of that seam:
+// whether `ShellHostUI::timerCallback` polls at all, how often, on which paths, and after what.
+void dispatchShellActions() {
+	fakelegacyui::action_dispatches++;
+	if (fakelegacyui::on_action_dispatch) {
+		fakelegacyui::on_action_dispatch();
+	}
 }
 } // namespace deluge::gui::ui

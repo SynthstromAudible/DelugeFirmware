@@ -887,7 +887,7 @@ Seven things are worth finding from here rather than from the header.
   global `slicer` as a whole word, and `#include "scenes/slicer/slicer_scene.h"` contains that whole
   word. Measured with the path put back and the namespace left alone: **two violations, in two
   files, one line each** — this scene's own include and `registry.cpp`'s. (`count_file` skips
-  comment-only lines, `check_layer_rules.py:849-853`, so the prose mentions never counted.) Two real
+  comment-only lines, `check_layer_rules.py:855-859`, so the prose mentions never counted.) Two real
   include lines is not "the path is impossible"; it is "the row as written flags this path, and
   narrowing it to skip `#include` would preserve its stated purpose exactly". That narrowing is a
   change to a shared checker, so it is an open question for E4 task 14 and the local fix stands,

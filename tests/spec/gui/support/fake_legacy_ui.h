@@ -2,6 +2,7 @@
 #include "gui/ui_timer_manager.h"
 
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 class MIDICable;
@@ -116,6 +117,27 @@ extern int menu_learn_program_changes;
 extern MidiLearnCall last_menu_learn;
 /// What both of them return -- the ported menu item's own answer, which the guest acts on.
 extern bool menu_learn_claims;
+
+/// @brief How many times `deluge::gui::ui::dispatchShellActions()` was called.
+///
+/// Faked for the third time for the same reason as `wireShellGuestServices` and the two
+/// `shellGuestMenuLearn*` hooks above: the real one reads `deluge::scenes::menu_scene()` and so
+/// belongs to the `deluge_scenes` closure this suite never builds (`gui/ui/shell_action_dispatch.h`
+/// says so in its own words). What that leaves assertable here is the half that lives in
+/// `ShellHostUI::timerCallback` and cannot be seen from anywhere else -- **that the poll happens,
+/// once per tick, on every path through the tick, and after `Shell::tick` has run**. That the poll
+/// then empties `MenuScene`'s real outbox is `sim/scenes_spec/menu_actions_spec.cpp`'s, in the
+/// binary where the real scene exists.
+extern int action_dispatches;
+
+/// @brief Called by the fake `dispatchShellActions()`, after it bumps `action_dispatches`.
+///
+/// The ordering questions this suite is about are all of the form "what had already happened when
+/// the poll ran", and the answers live in the example's own rig -- how many events its scene had
+/// been handed, whether `after_render` had run, whether the stack was still up. None of those is
+/// visible from this file, so instead of guessing which of them to record, the fake calls back and
+/// lets the example record whatever it is asking about. Empty by default; cleared by `reset()`.
+extern std::function<void()> on_action_dispatch;
 /// @}
 
 /// @brief Clear every recorder, and put the clock and the SD lock back to 0 / false.

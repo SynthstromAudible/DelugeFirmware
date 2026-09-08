@@ -580,15 +580,15 @@ public:
 	/// The application-facing half of the action seam (`scenes/menu/action.h`). `after_render`
 	/// drains `MenuState::pending_action` into a one-slot outbox here -- beside where it drains
 	/// `pending_scene` into a `Push`, and for the same reason: an item's hook has no `Result` to put
-	/// anything in. The wiring plan's dispatcher polls this after ticking the shell and performs
-	/// whatever it names.
+	/// anything in. `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`) polls this
+	/// after ticking the shell, and is where each verb's legacy statement lands.
 	///
-	/// @warning **Nothing in this repository performs these actions.** There is no consumer of this
-	///          function outside the specs; the performing half is the wiring plan's, and until it
-	///          exists a select press on `start_stem_export` exports nothing. That is the seam
-	///          working as designed, not a bug -- but it is a real gap, and it is stated here as
-	///          well as in `action.h` so a caller cannot conclude from a green suite that the five
-	///          items do anything yet.
+	/// @warning **Nothing in this repository performs these actions yet.** The consumer exists as of
+	///          F2 task 1 and polls once per guest tick, but its five arms are still empty, so a
+	///          select press on `start_stem_export` exports nothing. That is the seam working as
+	///          designed, not a bug -- but it is a real gap, and it is stated here as well as in
+	///          `action.h` so a caller cannot conclude from a green suite that the five items do
+	///          anything yet.
 	///
 	/// @warning **This is a one-slot mailbox with a silent overwrite, not an exactly-once queue.**
 	///          Two requests filed between two polls lose the first, and a request nobody polls for
