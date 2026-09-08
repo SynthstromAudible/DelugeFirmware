@@ -113,7 +113,7 @@ inline constexpr uint32_t kBlinkCycleMs = uint32_t{kSourceBlinkMs} + kShortcutBl
 ///
 ///   1. **`range_choice`** -- above navigation. `select_range` writes `ctx_`'s multi-range and a
 ///      descent decided below reads it; legacy commits it inside `selectButtonPress`
-///      (`gui/ui/sound_editor.cpp:1966-1970 setCurrentMultiRange`).
+///      (`gui/ui/sound_editor.cpp:1983-1987 setCurrentMultiRange`).
 ///   2. **`source_choice`** -- above navigation, and this is the load-bearing one.
 ///      `ctx_.source_index` is what `gate_selection_chain` picks its target from and what
 ///      `gate_mode_names` formats, so draining it below navigation chains off the *previous*
@@ -196,7 +196,7 @@ struct MenuState {
 	/// Which node `blink_anchor_ms` was set for; `render_grid` is the only writer of both.
 	const Node* blink_node = nullptr;
 
-	/// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1347-1354`): pressing the focused
+	/// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1364-1371`): pressing the focused
 	/// item's own shortcut pad a second time takes the second shortcut layer, and pressing any
 	/// other pad clears it. `handle()` is the only writer.
 	bool second_layer = false;
@@ -222,7 +222,7 @@ struct MenuState {
 	bool column_press = false;
 	/// Spec E §4.1's `MustSelectRange` outcome. E1 recorded it and left the node unentered; E2 task
 	/// 9 acts on it -- `enter_child` descends into `nodes::multi_range` instead, which is legacy's
-	/// own substitution at `sound_editor.cpp:1840-1841` (`multiRangeMenu.menuItemHeadingTo = newItem`
+	/// own substitution at `sound_editor.cpp:1857-1858` (`multiRangeMenu.menuItemHeadingTo = newItem`
 	/// followed by `newItem = &multiRangeMenu`).
 	///
 	/// Stays true for as long as the picker is the reason the deeper item has not been opened; the
@@ -506,7 +506,7 @@ public:
 	/// @name MIDI-learn entry points -- the port of `SoundEditor`'s own three delivery members.
 	///
 	/// `SoundEditor::noteOnReceivedForMidiLearn` / `midiCCReceived` / `pcReceivedForMidiLearn`
-	/// (`gui/ui/sound_editor.cpp:1588-1608`) each forward to `getCurrentMenuItem()->learnX(...)`
+	/// (`gui/ui/sound_editor.cpp:1605-1625`) each forward to `getCurrentMenuItem()->learnX(...)`
 	/// and report whether the message was used; `unlearn` is `unlearnAction()` at `:478`. These do
 	/// the same, to `focused()`'s `CustomItem` -- the item decides, exactly as legacy's virtual
 	/// dispatch let it.

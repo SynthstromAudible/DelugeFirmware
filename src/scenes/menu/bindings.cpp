@@ -63,7 +63,7 @@
 ///     not do (task-3 ruling 2), so it arrives as `MenuContext::affect_entire_held` -- a field the
 ///     caller sets and `context_for` never does. It is deliberately NOT `MenuContext::affect_entire`:
 ///     that is the *clip's* `InstrumentClip::affectEntire` setting, which is true on the kit-row
-///     grid-shortcut path (`sound_editor.cpp:1188-1196`) where legacy edits one row only.
+///     grid-shortcut path (`sound_editor.cpp:1205-1213`) where legacy edits one row only.
 ///   * `MenuItem::usesAffectEntire()` (`gui/menu_item/menu_item.h:112`), the per-item gate legacy
 ///     uses to *enter* `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR` at all
 ///     (`sound_editor.cpp:541`). It has no `Node` counterpart, and needs none today: every
@@ -460,7 +460,7 @@ void write_whole_kit(const Node& node, const MenuContext& ctx, int32_t final_val
 /// caller has room to render: `Enumeration::selectEncoderAction` clamps against `size()` on every
 /// detent (`enumeration.cpp:19,28`), so running a `dynamic_names` hook to obtain it is exactly what
 /// legacy does, at the same rate. That is why the window here is the full `kMaxDynamicNames`
-/// (`node.h:97` -- the documented cap on what one call may produce) rather than whatever `out` span
+/// (`node.h:98` -- the documented cap on what one call may produce) rather than whatever `out` span
 /// `names()` was handed: a caller with room for four names still edits a ten-option enum over its
 /// real 0..9 range (fix round 1, Minor 3). Cost is a `std::string_view[64]` -- 512 bytes on the
 /// 32-bit target -- in this frame for the duration of the hook call.
@@ -655,7 +655,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 }
 
 IntRange range(const Node& node, const MenuContext& ctx) {
-	// node.h:110-116's documented order: a dynamic hook, then the literal bounds a builder was
+	// node.h:111-117's documented order: a dynamic hook, then the literal bounds a builder was
 	// given, then the legacy per-kind default.
 	if (node.bind.range != nullptr) {
 		return node.bind.range(ctx);
@@ -710,7 +710,7 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 
 	if (node.bind.dynamic_names != nullptr) {
 		// The hook writes views it owns (static strings, or storage of its own); `scratch` is for
-		// the id path only, and `DynamicNamesFn`'s signature (node.h:89) has nowhere to pass it.
+		// the id path only, and `DynamicNamesFn`'s signature (node.h:90) has nowhere to pass it.
 		return std::min(node.bind.dynamic_names(ctx, out.first(limit)), limit);
 	}
 
@@ -779,7 +779,7 @@ uint32_t menu_to_unsigned(int32_t menu_value) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// `SoundEditor::allowsNoteTails` (`gui/ui/sound_editor.cpp:1849-1854`)
+// `SoundEditor::allowsNoteTails` (`gui/ui/sound_editor.cpp:1866-1871`)
 
 bool allows_note_tails(const MenuContext& ctx) {
 	if (ctx.sound == nullptr) {

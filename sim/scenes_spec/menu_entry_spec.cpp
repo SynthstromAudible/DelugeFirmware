@@ -175,11 +175,11 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		(void)f;
 
 		// All four UI facts false -- SHIFT is held at that site, so `setup()`'s two view tests are
-		// false and the root is `settingsRootMenu` (`gui/ui/sound_editor.cpp:1799-1808`).
+		// false and the root is `settingsRootMenu` (`gui/ui/sound_editor.cpp:1816-1825`).
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
 		expect(deluge::scenes::menu_scene().focused() == &nodes::root_settings).to_be_true();
-		// `arg == 0` is "the root the context chose" (`scenes/menu/menu_scene.cpp:310-319`).
+		// `arg == 0` is "the root the context chose" (`scenes/menu/menu_scene.cpp:334-343`).
 		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = 0}).to_be_true();
 		closeGuest();
 	});
@@ -292,7 +292,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		    .to_be_true();
 		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = id}).to_be_true();
 		// And it landed there rather than merely being asked to: `MenuScene::on_enter` resolves the
-		// arg through `node_by_id` and re-roots the path at it (`menu_scene.cpp:305-325`).
+		// arg through `node_by_id` and re-roots the path at it (`menu_scene.cpp:329-349`).
 		expect(deluge::scenes::menu_scene().focused() == &nodes::file0_selector).to_be_true();
 		// ...and the log survived, which is the half a `clip != nullptr` test alone would get wrong.
 		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
@@ -318,7 +318,7 @@ describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refu
 		deluge::scenes::spec::SongFixture kit = deluge::scenes::spec::make_kit_song();
 
 		// `MenuContext::resolved` is `setup()`'s own `return false` at
-		// `gui/ui/sound_editor.cpp:1716-1722`, and the five gated sites that test a return value
+		// `gui/ui/sound_editor.cpp:1733-1739`, and the five gated sites that test a return value
 		// are written against exactly that. **Nothing must be left half-open**: the assertion is
 		// that the hierarchy did not move, not merely that the call said false.
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_false();
@@ -342,7 +342,7 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
-		// `sound_editor.cpp:1754` is inside `if (item) ... else if (clip)`, so the wipe follows the
+		// `sound_editor.cpp:1771` is inside `if (item) ... else if (clip)`, so the wipe follows the
 		// clip and not the open. `scenes/menu/context.cpp:44` records it as owed to whoever landed
 		// the port's entry point; this is that entry point.
 		// The seed has to happen with the guest open, and that is not a detail:
@@ -455,7 +455,7 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 		// guest; this task opens it, so the property is asserted rather than assumed.
 		//
 		// `MenuScene::next_timer()` answers `std::nullopt`, `kSourceBlinkMs` (20) or
-		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1615-1630`).
+		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1639-1654`).
 		//
 		// **This is a sample, not a sweep, and the distinction matters.** The eight gated sites open
 		// ten different roots between them; what runs below is the settings root, the sound root and
@@ -493,7 +493,7 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the ported menu", $ {
 	// F1 task 10, the guest half. `ShellHostUI::pcReceivedForMidiLearn` and
 	// `noteOnReceivedForMidiLearn` are the ports of `SoundEditor`'s two hooks
-	// (`gui/ui/sound_editor.cpp:1588-1597`), and they reach `MenuScene` through
+	// (`gui/ui/sound_editor.cpp:1605-1614`), and they reach `MenuScene` through
 	// `gui/ui/shell_guest_services.h`'s two free functions -- the seam the host suite has to fake,
 	// which is why the real thing is driven here.
 	//
@@ -600,7 +600,7 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 	});
 
 	it("the program-change hook keeps SoundEditor's UI_MODE_MIDI_LEARN gate, and its return-true", _ {
-		// `SoundEditor::pcReceivedForMidiLearn` (`gui/ui/sound_editor.cpp:1588-1594`): acts only
+		// `SoundEditor::pcReceivedForMidiLearn` (`gui/ui/sound_editor.cpp:1605-1611`): acts only
 		// under `currentUIMode == UI_MODE_MIDI_LEARN && !isShiftButtonPressed()`, and inside that
 		// gate returns **true whatever the item answered** -- which is what stops
 		// `PlaybackHandler::programChangeReceived`'s `else` handing the same message to `view`

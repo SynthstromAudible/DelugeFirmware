@@ -61,7 +61,7 @@ inline constexpr Node bend_range_main = int_item(sid(deluge::l10n::String::STRIN
 ///
 /// `bend_range::PerFinger::isRelevant` is `soundEditor.navigationDepth == 1 || editingKit()`
 /// (`bend_range/per_finger.h:41`). The depth is 0 while the root list is on screen
-/// (`sound_editor.cpp:1885`) and 1 inside a first-level submenu (`:366`), and this object is only
+/// (`sound_editor.cpp:1902`) and 1 inside a first-level submenu (`:366`), and this object is only
 /// ever reached one level down, inside `bendMenu` -- so the first arm short-circuits to true and
 /// legacy shows the item unconditionally there. A null `relevant` is that fact: always relevant,
 /// wherever this node is reachable. (`drum_bend_range` below is the *same class* used as a root

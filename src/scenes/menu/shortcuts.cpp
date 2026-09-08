@@ -22,7 +22,7 @@
 /// pad column `x`, eight cells `y = 0..7` -- so a reviewer can diff it line for line against
 /// `gui/ui/menus.cpp`. `from_columns` transposes them once, at compile time, into the row-major
 /// `Cells` the lookups index. A `comingSoonMenu` cell becomes `nullptr` (legacy pops up
-/// "unimplemented" and goes nowhere, `sound_editor.cpp:1364`) and says so in the line comment.
+/// "unimplemented" and goes nowhere, `sound_editor.cpp:1381`) and says so in the line comment.
 ///
 /// The transcription is not trusted on its own: `sim/scenes_spec/shortcuts_spec.cpp` walks every
 /// `(x, y)` of every legacy array and of every port layer and asserts the two agree in both
@@ -69,7 +69,7 @@ constexpr Cells from_columns(const Node* const (&cols)[kShortcutCols][kShortcutR
 }
 
 /// @brief A legacy one-dimensional table, laid into column 11 -- the column
-///        `potentialShortcutPadAction` (`sound_editor.cpp:1315`) and `updatePadLightsFor`
+///        `potentialShortcutPadAction` (`sound_editor.cpp:1332`) and `updatePadLightsFor`
 ///        (`:836`, `:848`) index it at.
 constexpr Cells from_column11(const Node* const (&col)[kShortcutRows]) {
 	Cells out{};
@@ -82,7 +82,7 @@ constexpr Cells from_column11(const Node* const (&col)[kShortcutRows]) {
 /// @brief @p base with the name-editor cell swapped for the drum one.
 ///
 /// Legacy does this at lookup time rather than in the table: `potentialShortcutPadAction`
-/// (`sound_editor.cpp:1317-1319`, `:1306-1308`) rewrites `editNameMenu` to `drumNameEditMenu` for a
+/// (`sound_editor.cpp:1334-1336`, `:1323-1325`) rewrites `editNameMenu` to `drumNameEditMenu` for a
 /// kit output or a non-audio drum row, and `updatePadLightsFor` (`:843-845`, `:858-861`) does the
 /// same on the way back. Baking it into a per-root layer keeps both directions of the lookup pure
 /// table reads, and keeps `shortcut_layer` honest about what a root's grid actually holds.
@@ -259,7 +259,7 @@ constexpr Cells kAudioClipV1Cells =
 /// @}
 
 /// @brief The four cells the MIDI/CV and non-audio-drum arm resolves that are **not** in any legacy
-///        table -- `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1320-1340`).
+///        table -- `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1337-1357`).
 ///
 /// Legacy spells them inline rather than in a table: `(4, 7)` opens `sequenceDirectionMenu` and
 /// `(15, 1..3)` the MIDI/CV randomizer trio, for `editingCVOrMIDIClip() || editingNonAudioDrumRow()`
@@ -276,7 +276,7 @@ constexpr Cells kAudioClipV1Cells =
 /// (`x in {14, 15}`, `:1180-1268`, which walks `patchingSourceShortcutPress` up the menu stack).
 constexpr Cells kMidiExtraCells = [] {
 	Cells out{};
-	out[cell_index(4, 7)] = &n::sequence_direction;     // `sound_editor.cpp:1334-1336`
+	out[cell_index(4, 7)] = &n::sequence_direction;     // `sound_editor.cpp:1351-1353`
 	out[cell_index(15, 1)] = &n::spread_velocity_midi;  // `:1288-1289`
 	out[cell_index(15, 2)] = &n::randomizer_lock;       // `:1290-1291`
 	out[cell_index(15, 3)] = &n::note_probability_midi; // `:1292-1293`
@@ -287,7 +287,7 @@ constexpr Cells kMidiExtraCells = [] {
 ///
 /// The mirror of `kMidiExtraCells`, and the other half of the same guard asymmetry. The kit
 /// global-FX arm is gated `if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1))`
-/// (`sound_editor.cpp:1191-1195`), so **column 15 is admitted only at y == 1** -- legacy can never
+/// (`sound_editor.cpp:1208-1212`), so **column 15 is admitted only at y == 1** -- legacy can never
 /// press the table's own `(15, 2)` and `(15, 3)` cells (`randomizerLockMenu`,
 /// `randomizerNoteProbabilityMenu`), even though it transcribes them. The blink side does not share
 /// the guard: `setupShortcutsBlinkFromTable` (`sound_editor.cpp:863`, `:786-795`) scans the whole
@@ -321,7 +321,7 @@ struct Layers {
 };
 
 /// @brief Which table each root reads, i.e. legacy's chain of context tests
-///        (`sound_editor.cpp:1178-1208` for the jump, `:812-848` for the blink) resolved once.
+///        (`sound_editor.cpp:1195-1225` for the jump, `:812-848` for the blink) resolved once.
 ///
 /// * `Sound` / `Drum` -- `paramShortcutsForSounds`, the `else` arm; `Drum` is the kit-drum output
 ///   whose name editor is the drum one. Both carry the second layer.
@@ -416,7 +416,7 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 	}
 	if (second_layer) {
 		// Legacy's own fallback: the second layer *replaces* the cell only where it has one
-		// (`sound_editor.cpp:1358-1361`), so a second press of a pad with no second-layer item
+		// (`sound_editor.cpp:1375-1378`), so a second press of a pad with no second-layer item
 		// re-opens the first-layer item rather than nothing.
 		if (const Node* second = cell_of(*l.second, x, y); second != nullptr) {
 			return second;

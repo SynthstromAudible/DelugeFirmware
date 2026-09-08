@@ -102,7 +102,7 @@ void send_program_change(InstrumentClip& clip) {
 // The MIDI / CV root
 
 const Node& midi_or_cv_root(const MenuContext& ctx) {
-	// `sound_editor.cpp:1763-1771`: one object, two titles, chosen by output type. CV first because
+	// `sound_editor.cpp:1780-1788`: one object, two titles, chosen by output type. CV first because
 	// a null output (which `setup()` cannot produce for this root, but a spec can) should read as
 	// the MIDI spelling -- the constructor's own argument.
 	return (ctx.output != nullptr && ctx.output->type == OutputType::CV) ? root_cv : root_midi_or_cv;

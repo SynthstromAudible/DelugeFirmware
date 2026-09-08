@@ -985,7 +985,7 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 	it("shift+SELECT_ENC: pushes the menu scene at the settings root", _ {
 		// `view.cpp:450-481`. `soundEditor.setup()`'s default `clip` is null
 		// (`gui/ui/sound_editor.h:122`) and shift is held by this arm's own condition, so
-		// legacy always lands on `settingsRootMenu` (`sound_editor.cpp:1807`).
+		// legacy always lands on `settingsRootMenu` (`sound_editor.cpp:1824`).
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		release_all_legacy_buttons();

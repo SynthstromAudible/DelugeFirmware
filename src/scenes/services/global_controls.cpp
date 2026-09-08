@@ -319,7 +319,7 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// `:461-462` `soundEditor.setup(); openUI(&soundEditor);`.
 	//
 	// `SoundEditor::setup`'s default `clip` argument is `nullptr` (`gui/ui/sound_editor.h:122`), so
-	// this call always takes the `else` at `sound_editor.cpp:1798`, and both of that branch's
+	// this call always takes the `else` at `sound_editor.cpp:1815`, and both of that branch's
 	// view tests are `&& !Buttons::isShiftButtonPressed()` (`:1761`, `:1764`) -- which is false
 	// here by construction, because this arm's own condition is `b == SELECT_ENC &&
 	// Buttons::isShiftButtonPressed()` (`view.cpp:450`). So the root is `settingsRootMenu`
@@ -656,7 +656,7 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	// minder and legacy has CLIP_VIEW lit -- `SoundEditor::setLedStates` (`gui/ui/sound_editor.cpp:
 	// 340-354`) clears SAVE, SYNTH, KIT, MIDI, CV, CROSS_SCREEN and SCALE and never touches
 	// CLIP_VIEW, so opening the legacy menu leaves it on. `MenuScene::leds` ports exactly that list
-	// (`scenes/menu/menu_scene.cpp:924-927`) and so declares no CLIP_VIEW to outrank this line --
+	// (`scenes/menu/menu_scene.cpp:948-951`) and so declares no CLIP_VIEW to outrank this line --
 	// and this line then puts the LED out. Measured on `tests/ui-scripts/app/menu.txt`: every
 	// toggle-off menu frame has `led Clip on` and every toggle-on one does not, while `boot` and
 	// `menu-exit` agree.

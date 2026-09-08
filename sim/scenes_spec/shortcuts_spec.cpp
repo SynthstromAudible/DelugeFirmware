@@ -80,7 +80,7 @@ using Root = MenuContext::Root;
 
 /// @brief `menus.cpp:2171`'s `comingSoonMenu` sentinel. It is a `#define` local to that translation
 ///        unit, so the spec spells the same value: a cell holding it is "not implemented", which
-///        legacy answers with a popup and no navigation (`sound_editor.cpp:1368-1371`) and the port
+///        legacy answers with a popup and no navigation (`sound_editor.cpp:1385-1388`) and the port
 ///        transcribes as `nullptr`.
 ::MenuItem* coming_soon() {
 	return reinterpret_cast<::MenuItem*>(0xFFFFFFFFu);
@@ -375,7 +375,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 
 	it("matches midiOrCVParamShortcuts, in column 11", _ {
 		select_language();
-		// Column 11 is where `potentialShortcutPadAction` (`sound_editor.cpp:1315`) and
+		// Column 11 is where `potentialShortcutPadAction` (`sound_editor.cpp:1332`) and
 		// `updatePadLightsFor` (`:848`) index this table -- the task brief said column 0.
 		expect(diff_column("midiOrCVParamShortcuts", midiOrCVParamShortcuts,
 		                   menu::shortcut_layer(Root::MidiOrCv, /*second_layer=*/false)))
@@ -390,7 +390,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	});
 
 	it("resolves the four inline MIDI/CV cells that are in no legacy table", _ {
-		// `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1320-1340`), in the
+		// `potentialShortcutPadAction`'s own `else if` chain (`sound_editor.cpp:1337-1357`), in the
 		// arm `editingCVOrMIDIClip() || editingNonAudioDrumRow()` takes -- so all three of the roots
 		// that arm covers, and none of the others.
 		for (Root root : {Root::MidiOrCv, Root::MidiDrum, Root::GateDrum}) {
@@ -485,7 +485,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 	it("refuses the two kit global-FX cells legacy's own guard never let it press", _ {
 		// The mirror of the four inline cells above. `paramShortcutsForKitGlobalFX` holds
 		// `randomizerLockMenu` at (15, 2) and `randomizerNoteProbabilityMenu` at (15, 3), but the arm
-		// is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1191-1195`),
+		// is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1208-1212`),
 		// so legacy can only ever press column 15 at y == 1.
 		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 1) == &nodes::spread_velocity).to_be_true();
 		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 2) == nullptr).to_be_true();
@@ -511,7 +511,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 
 	it("swaps the name editor for the drum one on the two drum roots", _ {
 		install_sound_context();
-		// `potentialShortcutPadAction` (`sound_editor.cpp:1317-1319`, `:1306-1308`) rewrites
+		// `potentialShortcutPadAction` (`sound_editor.cpp:1334-1336`, `:1323-1325`) rewrites
 		// `editNameMenu` to `drumNameEditMenu` for a kit output or a non-audio drum row; the port
 		// bakes that into the drum roots' own layers.
 		const auto at = [](Root root, uint8_t x, uint8_t y) { return menu::shortcut_node(root, false, x, y); };
@@ -569,7 +569,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 	});
 
 	it("falls back to the first layer where the second has no cell", _ {
-		// Legacy's own rule (`sound_editor.cpp:1358-1361`): the second layer *replaces* a cell only
+		// Legacy's own rule (`sound_editor.cpp:1375-1378`): the second layer *replaces* a cell only
 		// where it has one, so a second press of a pad without a second-layer item re-opens the
 		// first-layer one rather than nothing.
 		expect(menu::shortcut_node(Root::Sound, true, 8, 0) == &nodes::env3_release).to_be_true();
@@ -594,7 +594,7 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 						expect(pos.valid).to_be_true();
 						// ... and a press finds it again, EXCEPT where the arm's own guard excluded
 						// the pad from the press path in the first place: legacy's kit global-FX arm
-						// admits column 15 only at y == 1 (`sound_editor.cpp:1191-1195`), while the
+						// admits column 15 only at y == 1 (`sound_editor.cpp:1208-1212`), while the
 						// blink side scans the whole table. Spelled out here rather than skipped, so
 						// this fails if the gate's shape changes.
 						const bool pressable = root != Root::KitGlobalFx || pos.x <= 14 || pos.y == 1;

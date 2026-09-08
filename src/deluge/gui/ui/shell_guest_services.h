@@ -64,7 +64,7 @@ namespace deluge::gui::ui {
 /// uncovered.
 void wireShellGuestServices();
 
-/// @brief `SoundEditor::noteOnReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1595-1597`),
+/// @brief `SoundEditor::noteOnReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1612-1614`),
 ///        for the ported menu.
 ///
 /// Legacy's is one line -- `return getCurrentMenuItem()->learnNoteOn(cable, channel, note);` -- with
@@ -82,7 +82,7 @@ void wireShellGuestServices();
 /// @return The focused item's own answer, or false when the menu is not the frontmost scene.
 bool shellGuestMenuLearnNoteOn(::MIDICable& cable, int32_t channel, int32_t note);
 
-/// @brief `SoundEditor::pcReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1588-1594`), for
+/// @brief `SoundEditor::pcReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1605-1611`), for
 ///        the ported menu.
 ///
 /// The same shape with legacy's two extra conditions kept: it acts only under

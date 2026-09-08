@@ -53,7 +53,7 @@
 ///
 /// @note **The MIDI/CV root carries two titles.** `SoundEditor::setup` rewrites the single
 ///       `soundEditorRootMenuMIDIOrCV` object's `title` member on the way in --
-///       `STRING_FOR_MIDI_INST_MENU_TITLE` for a MIDI output (`sound_editor.cpp:1764`),
+///       `STRING_FOR_MIDI_INST_MENU_TITLE` for a MIDI output (`sound_editor.cpp:1781`),
 ///       `STRING_FOR_CV_INSTRUMENT` for a CV one (`:1731`). One `Node::title` is one static id, so
 ///       the port declares **two nodes over one child list**: `root_midi_or_cv` (the MIDI title)
 ///       and `root_cv` (the CV one). `midi_or_cv_root(ctx)` picks between them from
@@ -411,7 +411,7 @@ inline constexpr const Node* kMidiOrCvRootChildren[] = {
     &midi_or_cv_actions, &midi_device_definition, &midi_program, &arp_midi,          &randomizer, &bend,
     &cv2_source,         &mpe_y_to_mod_wheel,     &midi_mpe,     &sequence_direction};
 inline constexpr Node root_midi_or_cv = submenu(sid(String::STRING_FOR_MIDI_INST_MENU_TITLE), kMidiOrCvRootChildren);
-/// The CV spelling of the very same root -- `sound_editor.cpp:1769`'s retitle, as a second node.
+/// The CV spelling of the very same root -- `sound_editor.cpp:1786`'s retitle, as a second node.
 inline constexpr Node root_cv = submenu(sid(String::STRING_FOR_CV_INSTRUMENT), kMidiOrCvRootChildren);
 
 /// @brief Which of the two MIDI/CV root nodes @p ctx wants -- the port of `setup()`'s retitle.
@@ -541,7 +541,7 @@ inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALE
 /// The song root's two session-only items: `song::ConfigureMacros::isRelevant`
 /// (`gui/menu_item/song/configure_macros.h:35-37`) and `song::MidiLearn::isRelevant`
 /// (`gui/menu_item/song/midi_learn.h:35-37`) are both `getRootUI() == &sessionView`, so both are
-/// hidden in the arranger and the song automation view even though `setup()` (`sound_editor.cpp:1802-1805`)
+/// hidden in the arranger and the song automation view even though `setup()` (`sound_editor.cpp:1819-1822`)
 /// opens this same root there. They are the only two nodes in the whole tree that spend
 /// `MenuContext::is_session_view`.
 inline constexpr Node configure_song_macros =

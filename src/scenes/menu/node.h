@@ -444,7 +444,7 @@ struct CustomItem {
 	/// `allowsLearnMode`, `shouldBlinkLearnLed`, `learnNoteOn`, `learnProgramChange`, `learnCC`,
 	/// `unlearnAction`), all with do-nothing/false defaults, and `SoundEditor` calls them on
 	/// `getCurrentMenuItem()` without asking what class it is
-	/// (`gui/ui/sound_editor.cpp:516`, `:1550-1570`). The port keeps that shape but puts the hooks
+	/// (`gui/ui/sound_editor.cpp:516`, `:1567-1587`). The port keeps that shape but puts the hooks
 	/// on `CustomItem` rather than on `Node`: the only ported items that learn anything are
 	/// bespoke ones (the twelve `nodes::MidiCommandItem`s), and a `Kind`'s interpreter has no
 	/// business growing a learn arm none of its nodes use.

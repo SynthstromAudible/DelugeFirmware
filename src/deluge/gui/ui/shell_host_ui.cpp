@@ -100,7 +100,7 @@ bool ShellHostUI::opened() {
 	// (`hid/buttons.cpp:250`) while the shell reads a `LoweringConfig` field that defaults to false
 	// (`shell/input_lowering.h:29-31`). Left unseeded, a sticky-shift user's latched shift would be
 	// invisible to `ctx.shift`, which is the whole gate on the menu's shortcut-pad jump
-	// (`scenes/menu/menu_scene.cpp:1416`) -- so shortcut pads would silently stop working under the
+	// (`scenes/menu/menu_scene.cpp:1440`) -- so shortcut pads would silently stop working under the
 	// toggle.
 	//
 	// `opened()` is the right place and the setter is the right tool: `set_shift_is_sticky` exists
@@ -253,7 +253,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	//
 	// The port spells `doGreyout == false` as an **all-zero mask**, deliberately and at the code:
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
-	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1482-1514`,
+	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1506-1538`,
 	// against `gui/ui/sound_editor.cpp:252-294`). Every arm of legacy's switch that leaves
 	// `doGreyout` true also writes a non-zero `*cols` (`:232`, `:237`, `:245`, `:252`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
@@ -499,7 +499,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// from that arm (`gui/ui_timer_manager.cpp:149-155`). A short Back never reaches it -- it is fed
 	// into the shell like any other button (`buttonAction` below) and routed inside `Shell::tick`,
 	// where `MenuScene` answers Back at depth 0 with `Action::Kind::Remove{.pop_to = FirstApp}`
-	// (`scenes/menu/menu_scene.cpp:1469-1474`), the port of `sound_editor.cpp:456`'s BACK case ->
+	// (`scenes/menu/menu_scene.cpp:1493-1498`), the port of `sound_editor.cpp:456`'s BACK case ->
 	// `:471` `goUpOneLevel()` -> `:710-717` `SoundEditor::goUpOneLevel`, whose depth-0 arm is
 	// `exitCompletely()` at `:716`. (`MenuScene`'s own comment on that block cites `:433` and
 	// `:678` for those two; both are stale -- `:433` is an `AFFECT_ENTIRE` blink and `:678` is
@@ -580,7 +580,7 @@ void ShellHostUI::armTickSoon() {
 //
 // **`inCardRoutine` is not a shell concept, and this is where it stops being one.** Legacy's
 // answer is `ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE`: `SoundEditor::padAction` opens with it
-// (`gui/ui/sound_editor.cpp:1443-1446`) and `dispatchInputEvent` stashes the offending event in
+// (`gui/ui/sound_editor.cpp:1460-1463`) and `dispatchInputEvent` stashes the offending event in
 // `heldInputEvent`, sets `waitingForSDRoutineToEnd`, and re-dispatches it at the top of the next
 // `readButtonsAndPads` once the routine has ended (`deluge.cpp:237-281`, the stash at `:245-248`
 // and `:256-259`, the replay at `:295-305`). One event deep. The port of that is
@@ -666,7 +666,7 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
 
 ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// `isSDRoutineActive()` rather than a parameter, because this hook has none -- which is also
-	// why `SoundEditor::padAction` reads it directly (`gui/ui/sound_editor.cpp:1444`).
+	// why `SoundEditor::padAction` reads it directly (`gui/ui/sound_editor.cpp:1461`).
 	shell_.set_sd_busy(isSDRoutineActive());
 
 	// **The range guard is about the narrowing, not about the shell.** `on_pad` already drops a
@@ -675,7 +675,7 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// shell is handed a pad press that never happened. `MatrixDriver::padAction` bounds nothing of
 	// its own (`hid/matrix/matrix_driver.cpp:65-84`), and this is a public virtual that legacy UIs
 	// call on each other directly -- `SoundEditor::padAction` forwards straight into
-	// `keyboardScreen.padAction` (`gui/ui/sound_editor.cpp:1457-1460`) -- so the caller's domain is
+	// `keyboardScreen.padAction` (`gui/ui/sound_editor.cpp:1474-1477`) -- so the caller's domain is
 	// not `MatrixDriver`'s alone.
 	//
 	// Unlike `buttonAction`'s (see there) this guard is not redundant with `on_pad`'s and is
@@ -857,7 +857,7 @@ ActionResult ShellHostUI::exitUI() {
 	// (`hid/matrix/matrix_driver.cpp:79`), so while the guest is open the only way
 	// `ColumnControlsKeyboard::evaluatePads` runs at all is if the current UI hands the pad on --
 	// which is precisely what `SoundEditor::padAction` does when the keyboard screen is the root
-	// (`gui/ui/sound_editor.cpp:1457-1460`) and what this guest does **not** do. `evaluatePads` has
+	// (`gui/ui/sound_editor.cpp:1474-1477`) and what this guest does **not** do. `evaluatePads` has
 	// **one route in**, not one caller: `grep -rn evaluatePads src/deluge` gives six call sites, of
 	// which five are subclasses chaining up to `ColumnControlsKeyboard::evaluatePads`
 	// (`layout/piano.cpp:39`, `layout/in_key.cpp:37`, `layout/isomorphic.cpp:40`,
@@ -882,7 +882,7 @@ ActionResult ShellHostUI::exitUI() {
 	// long-press Back leaves the *whole* menu however deep it was, not one level. So does this,
 	// for the first tenant: the ported menu keeps its navigation depth inside one scene
 	// (`MenuScene`'s `st_.depth`) and only asks the shell to remove itself when Back arrives at
-	// depth 0 (`scenes/menu/menu_scene.cpp:1469-1474`). One `pop()` here is therefore one whole
+	// depth 0 (`scenes/menu/menu_scene.cpp:1493-1498`). One `pop()` here is therefore one whole
 	// menu, exactly as `exitCompletely` is. A future tenant that stacks a scene per level would
 	// make this differ, and that is the condition to watch.
 	//
@@ -980,7 +980,7 @@ void ShellHostUI::closeGuest() {
 // board. The seam is a symbol, and the fake is one line each.
 
 bool ShellHostUI::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
-	// `SoundEditor::pcReceivedForMidiLearn` (`gui/ui/sound_editor.cpp:1588-1594`), whole. There is
+	// `SoundEditor::pcReceivedForMidiLearn` (`gui/ui/sound_editor.cpp:1605-1611`), whole. There is
 	// no service half and that is not an omission: `View::pcReceivedForMIDILearn` has an **empty
 	// body** (`gui/views/view.h:63`), so the `view` fallback `PlaybackHandler::programChangeReceived`
 	// runs at `:2900` does nothing, there is nothing for `services::MidiLearn` to port, and no

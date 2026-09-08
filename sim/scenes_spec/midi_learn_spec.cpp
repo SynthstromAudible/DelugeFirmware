@@ -290,7 +290,7 @@ public:
 	Result handle(const UiEvent& e, const UiContext&) override {
 		// `claim_midi` is the port-side stand-in for a UI that overrides
 		// `noteOnReceivedForMidiLearn` and answers true -- `SoundEditor` is the one that does
-		// (`gui/ui/sound_editor.cpp:1595-1597`), and the scenes that will are E5's and E6's,
+		// (`gui/ui/sound_editor.cpp:1612-1614`), and the scenes that will are E5's and E6's,
 		// answering `learnable_at(pad)`. Off by default, so every other example in this file routes
 		// through a scene that declines exactly as `StubRootUI` does.
 		if (claim_midi && (e.kind == UiEvent::Kind::MidiNoteOn || e.kind == UiEvent::Kind::MidiCc)) {

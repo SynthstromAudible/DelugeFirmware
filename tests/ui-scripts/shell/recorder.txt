@@ -15,7 +15,7 @@
 # the ordinary door leaves the item at **depth 2**, where `MenuState::go_up_on_resume` has a level to
 # ascend to, and the close lands back on the ACTIONS list. The shortcut jump re-roots the path onto
 # the item itself (`MenuScene::handle`'s `Replace`), so it sits at **depth 0**, `ascend()` returns
-# without doing anything (`menu_scene.cpp:1093-1095` -- the divergence from `goUpOneLevel`'s
+# without doing anything (`menu_scene.cpp:1117-1119` -- the divergence from `goUpOneLevel`'s
 # `exitCompletely()` arm that `src/scenes/README.md` carries), and the close lands on a dead end.
 # `after_stop` and `after_shortcut_stop` are those two outcomes, side by side.
 #

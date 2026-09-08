@@ -52,7 +52,7 @@
 ///     and `song::ConfigureMacros` (`song/configure_macros.h:35-37`) is no longer a divergence --
 ///     E3 task 9. It used to be one because `MenuContext::is_song_view` is `context_for`'s
 ///     `session_or_arranger_root` argument, i.e. `!rootUIIsClipMinderScreen()`, which is true in the
-///     arranger and the song automation view as well; `setup()` (`sound_editor.cpp:1802-1805`) opens
+///     arranger and the song automation view as well; `setup()` (`sound_editor.cpp:1819-1822`) opens
 ///     one song root for all three. `context_for` now takes the narrower `session_view_root` too and
 ///     reports it as `MenuContext::is_session_view`, and both nodes carry
 ///     `relevance::is_session_view`. The two bools are a deliberately coarse encoding of that

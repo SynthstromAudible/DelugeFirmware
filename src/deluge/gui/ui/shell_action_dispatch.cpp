@@ -140,7 +140,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
-/// (`scenes/menu/menu_scene.cpp:1469-1474`). `SceneStack::remove` and not `pop`, for the reason
+/// (`scenes/menu/menu_scene.cpp:1493-1498`). `SceneStack::remove` and not `pop`, for the reason
 /// recorded there (`:1434-1446`): `pop` would take a `Working` animation or a `Popup` sitting over
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
@@ -323,7 +323,7 @@ void dispatchShellActions() {
 		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
 		// relies on the item being reachable only under the audio-clip root, which
-		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp:1756`'s
+		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp:1773`'s
 		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip` at `:1794-1796`).
 		//
 		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off

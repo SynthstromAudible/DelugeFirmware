@@ -64,7 +64,7 @@
 
 // `battery::Level::isRelevant` reads `runtimeFeatureSettings` (`relevance::battery_shown`, this
 // file's own relevance.cpp); the value itself is `batteryMV`, a plain global the main loop sets
-// (`deluge.cpp:91,148`) -- declared bare and at global scope, exactly as `sound_editor.cpp:1441`
+// (`deluge.cpp:91,148`) -- declared bare and at global scope, exactly as `sound_editor.cpp:1458`
 // and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*,
 // unlinked variable rather than referring to the one `deluge.cpp` defines).
 extern uint16_t batteryMV;
@@ -585,8 +585,8 @@ namespace {
 /// `MenuAction::ScreensaverSettingsChanged` (`scenes/menu/action.h`).
 ///
 /// Filed through `menu_scene().request_action` for `set_shortcuts_version`'s reason, verbatim: a
-/// `Binding::set` hook is handed no `MenuState` (`SetFn`, `node.h:139`), and the commit and the
-/// drain are the same `after_render` -- `commit_value` at `menu_scene.cpp:1201`, the move into the
+/// `Binding::set` hook is handed no `MenuState` (`SetFn`, `node.h:140`), and the commit and the
+/// drain are the same `after_render` -- `commit_value` at `menu_scene.cpp:1225`, the move into the
 /// outbox at `:1315-1316`.
 void request_screensaver_notify() {
 	menu_scene().request_action(MenuActionRequest{.action = MenuAction::ScreensaverSettingsChanged});

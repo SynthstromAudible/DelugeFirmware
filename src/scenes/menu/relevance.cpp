@@ -500,7 +500,7 @@ bool is_session_view(const MenuContext& ctx) {
 	// `song::MidiLearn::isRelevant` (`gui/menu_item/song/midi_learn.h:35-37`) and
 	// `song::ConfigureMacros::isRelevant` (`gui/menu_item/song/configure_macros.h:35-37`), both
 	// `return (getRootUI() == &sessionView);`. `is_session_view`, NOT `is_song_view`: the latter is
-	// `!rootUIIsClipMinderScreen()` (`sound_editor.cpp:1670`) and stays true in the arranger and the
+	// `!rootUIIsClipMinderScreen()` (`sound_editor.cpp:1687`) and stays true in the arranger and the
 	// song automation view, the two places this test is what hides both items.
 	return ctx.is_session_view;
 }

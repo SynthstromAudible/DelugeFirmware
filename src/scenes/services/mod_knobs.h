@@ -58,14 +58,14 @@
 ///       `docs/superpowers/specs/2026-08-26-ui-shell-design.md`, and specced in
 ///       `tests/spec/shell/router_spec.cpp`. It was invisible for three plans because the slot
 ///       held a `NullService`; what it would have cost is `SoundEditor::modEncoderAction`'s
-///       MIDI-learn arm (`gui/ui/sound_editor.cpp:1621-1645`) never firing.
+///       MIDI-learn arm (`gui/ui/sound_editor.cpp:1638-1662`) never firing.
 ///
 /// @warning **That sentence used to say "whose port is `MenuScene`", and F1 task 8 found it is not
 ///          true yet.** The arm calls `getCurrentMenuItem()->learnKnob(...)` (`:1589-1601`), and
 ///          `MenuItem::learnKnob` (`gui/menu_item/menu_item.h:181`) has **no port**:
 ///          `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` carries `learn_note_on`,
 ///          `learn_cc` and `learn_program_change` -- `SoundEditor`'s three MIDI-*message* members
-///          (`sound_editor.cpp:1588-1608`) -- and the knob arm is a fourth that was never
+///          (`sound_editor.cpp:1605-1625`) -- and the knob arm is a fourth that was never
 ///          transcribed. So installing this service and routing a gold turn to it, which is what
 ///          F1 task 8 was expected to need, would still not restore MIDI-learning a menu parameter
 ///          to a gold knob under the toggle. Closing it is a `CustomItem` hook plus a port of

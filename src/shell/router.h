@@ -92,7 +92,7 @@ public:
 	///
 	/// **This was inverted from plan D until E4 task 3.** It was invisible for three plans because
 	/// the slot held a `NullService`; the concrete cost was that `SoundEditor::modEncoderAction`'s
-	/// MIDI-learn arm (`gui/ui/sound_editor.cpp:1621-1645`), whose port is `MenuScene`, could never
+	/// MIDI-learn arm (`gui/ui/sound_editor.cpp:1638-1662`), whose port is `MenuScene`, could never
 	/// have fired -- the service would have claimed the turn first. Recorded as amendment §15.4 of
 	/// `docs/superpowers/specs/2026-08-26-ui-shell-design.md`.
 	///

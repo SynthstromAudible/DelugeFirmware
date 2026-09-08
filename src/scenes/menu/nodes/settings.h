@@ -40,7 +40,7 @@
 ///           All three are ordinary `Kind::Enum` nodes with get/set hooks now, as is
 ///           `feature_dev_sysex`. (`battery_level`/`firmware_version` used to point here too, at `kPending`,
 ///           but neither actually reaches behind the `hid/` wall -- `batteryMV` is a plain global
-///           set from `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1441` reads with its
+///           set from `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1458` reads with its
 ///           own bare `extern` -- so E2 task 2 gave them real, finished `CustomItem`s instead of
 ///           leaving them as placeholders; see "12-13. Battery and firmware" below.)
 ///         * **UI navigation.** (This group is empty now. `cv_selection` / `gate_selection`

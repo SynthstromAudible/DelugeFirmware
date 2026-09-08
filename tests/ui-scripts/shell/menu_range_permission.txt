@@ -3,7 +3,7 @@
 #
 # E2 task 9 changed this script's subject. Entry is no longer *refused*: `Permission::MustSelectRange`
 # now makes `MenuScene::enter_child` open `nodes::multi_range` in the leaf's place -- legacy's own
-# `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;` (`sound_editor.cpp:1840-1841`).
+# `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;` (`sound_editor.cpp:1857-1858`).
 # So `after_select_press` is the real range picker, listing both ranges by name, and `after_back`
 # is the wrapper again. What the script still pins is that the *leaf* was never opened and its
 # value never moved.

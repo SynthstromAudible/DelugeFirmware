@@ -201,7 +201,7 @@ bool shellGuestMenuLearnNoteOn(::MIDICable& cable, int32_t channel, int32_t note
 }
 
 bool shellGuestMenuLearnProgramChange(::MIDICable& cable, int32_t channel, int32_t program) {
-	// `sound_editor.cpp:1589`'s gate, both conjuncts.
+	// `sound_editor.cpp:1606`'s gate, both conjuncts.
 	if (currentUIMode != UI_MODE_MIDI_LEARN || Buttons::isShiftButtonPressed()) {
 		return false;
 	}

@@ -508,7 +508,7 @@ bool relevance_reads_root_ui(const Node& node) {
 /// (`osc/audio_recorder.h:60-63`) with no null test -- and `soundEditorRootDrumActionsMenu`
 /// (`menus.cpp:1769`), which holds both sample recorders, is a child of **`soundEditorRootMenuMidiDrum`
 /// and `soundEditorRootMenuGateDrum`** (`:1969`, `:1977`), whose `setup()` arm leaves
-/// `currentModControllable` null (`sound_editor.cpp:1710-1712`). So opening ACTIONS on a MIDI or
+/// `currentModControllable` null (`sound_editor.cpp:1727-1729`). So opening ACTIONS on a MIDI or
 /// gate drum row dereferences a null `Sound` in the shipping firmware: a legacy bug this port
 /// found, recorded here rather than reproduced. The port's own answer is `relevance::is_subtractive`,
 /// which returns false for a null sound, and the example below asserts exactly that instead of
@@ -1081,7 +1081,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 	});
 
 	it("carries both of the MIDI/CV root's titles, chosen by output type", _ {
-		// `sound_editor.cpp:1764-1769` rewrites one object's title; the port has two nodes over one
+		// `sound_editor.cpp:1781-1786` rewrites one object's title; the port has two nodes over one
 		// child list, and `midi_or_cv_root` is the branch.
 		expect(text_of(nodes::root_midi_or_cv.title))
 		    .to_equal(std::string{deluge::l10n::get(String::STRING_FOR_MIDI_INST_MENU_TITLE)});
@@ -1161,7 +1161,7 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 
 			// `UnpatchedParam::getParamKind` (`unpatched_param.cpp:96-101`) answers by building
 			// `SoundEditor::getCurrentModelStack`, which dereferences `getCurrentInstrumentClip()`
-			// (`sound_editor.cpp:2021`) -- so it can only be asked where the fixture HAS a clip. The
+			// (`sound_editor.cpp:2038`) -- so it can only be asked where the fixture HAS a clip. The
 			// song, performance and settings roots have none by construction (`context_for`'s
 			// `clip == nullptr` arm is what selects them), so the *kind* half of this comparison is
 			// restricted to the seven clip-backed roots; the *index* half above covers all ten.
@@ -1277,7 +1277,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 	});
 
 	it("hides the song root's two session-only items in the arranger and the automation view", _ {
-		// `sound_editor.cpp:1802-1805` opens ONE root (`soundEditorRootMenuSongView`) for
+		// `sound_editor.cpp:1819-1822` opens ONE root (`soundEditorRootMenuSongView`) for
 		// `sessionView`, `arrangerView` and `automationView` alike, and `song::MidiLearn` /
 		// `song::ConfigureMacros` are the only items in it that tell the three apart:
 		// `return (getRootUI() == &sessionView);` (`song/midi_learn.h:35-37`,
@@ -2357,12 +2357,12 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	// `nodes::MidiCommandItem` parameterised by that command, and `MenuScene::learn_note_on` /
 	// `learn_cc` / `learn_program_change` / `unlearn` are the entry points
 	// `SoundEditor::noteOnReceivedForMidiLearn` / `midiCCReceived` / `pcReceivedForMidiLearn` /
-	// `unlearnAction()` become (`gui/ui/sound_editor.cpp:516`, `:1550-1570`).
+	// `unlearnAction()` become (`gui/ui/sound_editor.cpp:516`, `:1567-1587`).
 	//
 	// **What these examples do NOT cover.** Nothing routes MIDI into the scene stack yet -- that
 	// wiring is a later plan's -- so every example below calls the entry points directly, exactly as
 	// the wiring will. The gate legacy puts in front of them (`currentUIMode == UI_MODE_MIDI_LEARN`
-	// and `!Buttons::isShiftButtonPressed()`, `sound_editor.cpp:1588`, `:1562`) is not ported and is
+	// and `!Buttons::isShiftButtonPressed()`, `sound_editor.cpp:1605`, `:1579`) is not ported and is
 	// not tested here: it reads UI-mode state a scene may not touch.
 
 	it("binds each node to the same GlobalMIDICommand as the legacy item in the same position", _ {
@@ -2438,7 +2438,7 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 			   // Program change: `Command::learnProgramChange` (`command.cpp:105-111`) adds `IS_A_PC`
 			   // to the channel -- except on FILL, which refuses with the `CANT_LEARN_PC` popup and
 			   // writes nothing. `SoundEditor::pcReceivedForMidiLearn` still reports the message as
-			   // used in both cases (`sound_editor.cpp:1588-1594`), and so does the port.
+			   // used in both cases (`sound_editor.cpp:1605-1611`), and so does the port.
 			   CommandSlots::clear_all();
 			   Rig pc_rig;
 			   focus_command_row(pc_rig, settings.ctx, i);
@@ -2509,7 +2509,7 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	it("ignores a zero-valued CC, still reporting the message as used", _ {
 		// `Command::learnCC` (`command.cpp:126-130`): the release half of a momentary controller
 		// binds nothing. Legacy's `SoundEditor::midiCCReceived` returns true for it regardless
-		// (`sound_editor.cpp:1600-1608`), so the port does too.
+		// (`sound_editor.cpp:1617-1625`), so the port does too.
 		const Root& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const CommandSlots saved = CommandSlots::capture();

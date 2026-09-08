@@ -47,7 +47,7 @@ struct ShortcutPos {
 ///
 /// A legacy one-dimensional table (`midiOrCVParamShortcuts`, `gateDrumParamShortcuts`) is stored as
 /// a full grid with only **column 11** filled -- the column `potentialShortcutPadAction`
-/// (`sound_editor.cpp:1315`) and `updatePadLightsFor` (`:874`, `:886`) index it at. (The task brief
+/// (`sound_editor.cpp:1332`) and `updatePadLightsFor` (`:874`, `:886`) index it at. (The task brief
 /// said column 0; legacy says 11.)
 ///
 /// @param root         Which menu root is open.
@@ -67,13 +67,13 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///        shortcut.
 ///
 /// Ports the table lookup inside `SoundEditor::potentialShortcutPadAction`
-/// (`gui/ui/sound_editor.cpp:1178-1363`): which of the seven tables is consulted follows from
+/// (`gui/ui/sound_editor.cpp:1195-1380`): which of the seven tables is consulted follows from
 /// @p root, exactly as legacy's chain of `rootUIIsClipMinderScreen()` / `setupKitGlobalFXMenu` /
 /// `ClipType::AUDIO` / output-type tests does.
 ///
 /// @param root         Which menu root is open, i.e. which table applies.
 /// @param second_layer Take the cell from the second layer where that layer has one. This is
-///                     legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1347-1362`) --
+///                     legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1364-1379`) --
 ///                     pressing the focused item's *own* shortcut pad a second time -- **not**
 ///                     "shift is held". Shift is only the gate that lets a pad be a shortcut at
 ///                     all (`:1114`), which is the caller's business. As in legacy, a null second
@@ -83,7 +83,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///                     are the same cells.
 /// @note **Resolve-only cells.** `Root::MidiOrCv`, `Root::MidiDrum` and `Root::GateDrum` also
 ///       resolve four pads that are in no legacy table, because legacy spells them inline in the
-///       very same arm (`sound_editor.cpp:1320-1340`): `(4, 7)` is `sequenceDirectionMenu` and
+///       very same arm (`sound_editor.cpp:1337-1357`): `(4, 7)` is `sequenceDirectionMenu` and
 ///       `(15, 1..3)` the MIDI/CV randomizer trio. They are reachable from here and **not** from
 ///       `shortcut_layer` or `shortcut_pos`, which is exactly legacy's asymmetry: the blink side
 ///       (`updatePadLightsFor`, `:833-853`) scans column 11 and nothing else, so pressing those
@@ -93,7 +93,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///
 /// @note **Press-only gate, the mirror of the above.** `Root::KitGlobalFx` resolves *fewer* pads
 ///       than its table holds: legacy's arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)`
-///       (`sound_editor.cpp:1191-1195`), so `paramShortcutsForKitGlobalFX`'s own `(15, 2)` and
+///       (`sound_editor.cpp:1208-1212`), so `paramShortcutsForKitGlobalFX`'s own `(15, 2)` and
 ///       `(15, 3)` cells were never pressable. They are still in the layer, and still blink, because
 ///       `setupShortcutsBlinkFromTable` (`:825`) scans the whole table with no such guard. The other
 ///       four roots' guards match their tables exactly and add nothing here.

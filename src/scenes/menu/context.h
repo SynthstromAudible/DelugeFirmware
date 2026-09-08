@@ -4,7 +4,7 @@
 ///        the model through it, and gate entry into a node with it (spec E §4 and §4.1).
 ///
 /// This is the context-resolution half of `SoundEditor::setup`
-/// (`src/deluge/gui/ui/sound_editor.cpp:1656-1889`), `SoundEditor::getCurrentModelStack` (`:1982`)
+/// (`src/deluge/gui/ui/sound_editor.cpp:1673-1906`), `SoundEditor::getCurrentModelStack` (`:1999`)
 /// and the common rule behind the `checkPermissionToBeginSession` overrides
 /// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, `:1933`), ported as free
 /// functions over plain arguments. (`gui/menu_item/` has 18 *files* naming
@@ -58,7 +58,7 @@ struct Node;
 /// resolved, and is meaningful (e.g. `sound == nullptr` on a MIDI clip, `params == nullptr` in the
 /// settings root).
 struct MenuContext {
-	/// @brief Which root menu `setup()` would have opened (`sound_editor.cpp:1753-1809`).
+	/// @brief Which root menu `setup()` would have opened (`sound_editor.cpp:1770-1826`).
 	///
 	/// `Count` is the enumerator count, not a root.
 	///
@@ -109,7 +109,7 @@ struct MenuContext {
 	///
 	/// @note NOT the same fact as `affect_entire` below. That one is the clip's own
 	///       `InstrumentClip::affectEntire` setting, which is true on the kit-row grid-shortcut path
-	///       (`sound_editor.cpp:1188-1196`) where legacy still edits one row only; the button being
+	///       (`sound_editor.cpp:1205-1213`) where legacy still edits one row only; the button being
 	///       held is independent of it (`sound_editor.cpp:540-547` sets the UI mode whenever
 	///       `editingKitRow()`, whatever `affectEntire` says).
 	bool affect_entire_held = false;
@@ -129,9 +129,9 @@ struct MenuContext {
 	///        `gui/menu_item/song/configure_macros.h:35-37`)?
 	///
 	/// `is_song_view` above is the *other* legacy expression, `!rootUIIsClipMinderScreen()`
-	/// (`sound_editor.cpp:1670`), and one song root serves three views: `setup()` picks
+	/// (`sound_editor.cpp:1687`), and one song root serves three views: `setup()` picks
 	/// `soundEditorRootMenuSongView` for `sessionView`, `arrangerView` **and** `automationView`
-	/// alike (`sound_editor.cpp:1802-1805`). Only two items in that root care which of the three it
+	/// alike (`sound_editor.cpp:1819-1822`). Only two items in that root care which of the three it
 	/// is, and they are the two `getRootUI()` reads above; `relevance::is_session_view` is what
 	/// spends this field. So the pair is a two-bit encoding of a three-way fact -- deliberately, and
 	/// deliberately no finer: nothing in the port distinguishes the arranger from the song
@@ -146,7 +146,7 @@ struct MenuContext {
 	bool is_kit_global_fx = false;
 
 	/// @brief False where `setup()` would have returned `false` outright: a kit whose selected
-	///        `SoundDrum` has no note row (`sound_editor.cpp:1702-1704`), and a kit with neither
+	///        `SoundDrum` has no note row (`sound_editor.cpp:1719-1721`), and a kit with neither
 	///        affect-entire nor a selected drum (`:1677-1684`).
 	///
 	/// An addition to the brief's field list, forced by the signature: `context_for()` returns a
@@ -159,7 +159,7 @@ struct MenuContext {
 };
 
 /// @brief Resolve what a menu opened over @p clip would edit -- `SoundEditor::setup`'s context half
-///        (`sound_editor.cpp:1669-1809` and `:1811-1842`), with no UI reads.
+///        (`sound_editor.cpp:1686-1826` and `:1828-1859`), with no UI reads.
 ///
 /// @param song                    the song that owns @p clip; used instead of the `currentSong`
 ///                                global wherever `setup()` reached for it (task-3 ruling 3).
@@ -184,14 +184,14 @@ struct MenuContext {
 ///                                both writers of that member set it from
 ///                                (`model/clip/instrument_clip_minder.cpp:393-417`,
 ///                                `gui/views/automation_view.cpp:1622-1624`); the kit-row grid
-///                                shortcut (`sound_editor.cpp:1188-1196`) is the caller that passes
+///                                shortcut (`sound_editor.cpp:1205-1213`) is the caller that passes
 ///                                false with affect-entire on, and it is why this is an argument
 ///                                rather than a re-read of the clip.
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool session_view_root, bool kit_global_fx);
 
 /// @brief Build the model stack a binding reads and writes through -- the port of
-///        `SoundEditor::getCurrentModelStack` (`sound_editor.cpp:2020-2043`).
+///        `SoundEditor::getCurrentModelStack` (`sound_editor.cpp:2037-2060`).
 ///
 /// @pre @p ctx came from `context_for` with `ctx.resolved == true`, and either `ctx.is_song_view` or
 ///      `ctx.clip != nullptr`. A settings-root context (no clip, no song view) has no timeline
@@ -399,7 +399,7 @@ enum class Permission : uint8_t {
 ///
 /// Ports the base `MenuItem::checkPermissionToBeginSession` (`gui/menu_item/menu_item.cpp:27-31`,
 /// relevance only) plus the range rule the range-specific overrides share via
-/// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:1971-1998`).
+/// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:1988-2015`).
 ///
 /// The range rule fires on `Node::range_dependent` -- legacy's `MenuItem::isRangeDependent()`
 /// (`gui/menu_item/menu_item.h:202`) -- **not** on "has a `bind.param`". An ordinary patched param
@@ -423,7 +423,7 @@ int32_t range_count(const MenuContext& ctx);
 int32_t range_top_note(const MenuContext& ctx, int32_t index);
 
 /// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
-///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1976`.
+///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1993`.
 ///
 /// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
 /// "Owed to E2"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first
@@ -442,7 +442,7 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 bool ensure_first_range(MenuContext& ctx);
 
 /// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`
-///        (`sound_editor.cpp:1966-1969`), plus `Source::defaultRangeI`, which the picker keeps in
+///        (`sound_editor.cpp:1983-1986`), plus `Source::defaultRangeI`, which the picker keeps in
 ///        step with its own cursor (`multi_range.cpp:239`).
 ///
 /// Out-of-range indices are ignored rather than clamped: legacy indexes `ranges.getElement(i)`

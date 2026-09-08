@@ -51,7 +51,7 @@
 ///
 ///       **In a horizontal page the item still does not run**: `MenuScene::render_columns`
 ///       dispatches on `Kind` and `Custom` falls to its `default:` arm -> `meter_column`
-///       (`menu_scene.cpp:544-555`), so these eight columns draw empty bars. Legacy renders each of
+///       (`menu_scene.cpp:568-579`), so these eight columns draw empty bars. Legacy renders each of
 ///       them itself (`FileSelector::renderInHorizontalMenu`, `file_selector.cpp:88-91`;
 ///       `LoopPoint::renderInHorizontalMenu`, `sample/loop_point.cpp:75-90`;
 ///       `osc::AudioRecorder::renderInHorizontalMenu`, `osc/audio_recorder.h:81-114`), which `Node`

@@ -725,7 +725,7 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 		st_.render_resp.entered = true;
 	}
 	// And the select *encoder*: legacy edits the value with it on a number screen
-	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1105`). This port leaves the editing to
+	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1122`). This port leaves the editing to
 	// the gold knobs, but the input still belongs to this screen -- left unclaimed it would fall out
 	// of `route_post_render` into whatever service is registered.
 	f.claim_turn();
@@ -1080,7 +1080,7 @@ void MenuScene::descend_to(const Node& child) {
 
 void MenuScene::enter_child(const Node& child) {
 	// `checkPermissionToBeginSessionForRangeSpecificParam`'s **first statement**
-	// (`sound_editor.cpp:1976-1980`), ahead of every one of its arms: the check creates the source's
+	// (`sound_editor.cpp:1993-1997`), ahead of every one of its arms: the check creates the source's
 	// first `MultiRange` if it has none, and refuses outright if that allocation fails.
 	// `permission_for` is a pure predicate and deliberately does not (`context.cpp`'s "Owed to E2"),
 	// so the allocation happens here -- the port of the call site -- for exactly the nodes legacy
@@ -1094,7 +1094,7 @@ void MenuScene::enter_child(const Node& child) {
 	case Permission::No:
 		return;
 	case Permission::MustSelectRange:
-		// `sound_editor.cpp:1840-1841`: `multiRangeMenu.menuItemHeadingTo = newItem;` and then the
+		// `sound_editor.cpp:1857-1858`: `multiRangeMenu.menuItemHeadingTo = newItem;` and then the
 		// picker is opened *instead of* the item. `pending_after_range` is `menuItemHeadingTo`, and
 		// `nodes::multi_range_chain` is what reads it back on the picker's own select press.
 		//
@@ -1198,7 +1198,7 @@ Result MenuScene::after_render() {
 	bool repaint = false;
 
 	// The range picker's own commit -- `soundEditor.setCurrentMultiRange(...)`
-	// (`sound_editor.cpp:1966-1969`), which `MultiRangeItem` cannot do itself: it is handed a
+	// (`sound_editor.cpp:1983-1986`), which `MultiRangeItem` cannot do itself: it is handed a
 	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
 	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:54`, `:249`).
 	if (st_.range_choice >= 0) {
@@ -1435,10 +1435,10 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	// (a) The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule
 	// 4), so it always arrives here. Legacy gates the non-auditioning case on
-	// `Buttons::isShiftButtonPressed()` (`sound_editor.cpp:1152`); the auditioning half is a UI
+	// `Buttons::isShiftButtonPressed()` (`sound_editor.cpp:1169`); the auditioning half is a UI
 	// mode this layer may not read, so shift is the whole gate.
 	if (event.kind == UiEvent::Kind::Pad && event.on && ctx.shift) {
-		// Legacy's second-layer toggle (`sound_editor.cpp:1347-1362`), which is a *double press of
+		// Legacy's second-layer toggle (`sound_editor.cpp:1364-1379`), which is a *double press of
 		// the focused item's own shortcut pad* -- not shift, which is only the gate above. Pressing
 		// any other pad clears it, and a patch-cable item never arms it.
 		//
