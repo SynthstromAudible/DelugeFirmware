@@ -17,8 +17,10 @@
 
 #include "storage/smsysex_pending.h"
 
+#include "libdeluge/file_bytes.h"
 #include "storage/byte_channel.h"
 
+#include <cstring>
 #include <string>
 
 namespace deluge::storage {
@@ -47,6 +49,16 @@ std::string g_pathA;
 std::string g_pathB;
 DelugeTimestamp g_stamp{};
 uint8_t g_stage = 0;
+
+/// The offset an offset-addressed operation works at.
+uint32_t g_offset = 0;
+/// A write's payload, or a read's answer. One buffer for both directions because only one operation
+/// is ever pending.
+uint8_t g_block[DELUGE_FILE_BYTES_BLOCK];
+/// How many of `g_block` are meaningful: a write's length going out, a read's length coming back.
+uint32_t g_blockLen = 0;
+/// A `Stat`'s size or a `WriteAt`'s byte count. See @ref pathOpResultValue.
+uint32_t g_resultValue = 0;
 
 /// Whether the request has been issued (as opposed to started but still refused).
 bool g_issued = false;
@@ -82,6 +94,89 @@ void runOnOwner() {
 	case PathOp::SetTime:
 		result = deluge::io::set_time(g_pathA, g_stamp);
 		break;
+	case PathOp::ReadAt: {
+		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
+		if (!file.has_value()) {
+			g_ownerStatus = file.error();
+			g_ownerDone = true;
+			return;
+		}
+		auto seeked = file->seek(g_offset);
+		if (!seeked.has_value()) {
+			g_ownerStatus = seeked.error();
+			(void)file->close();
+			g_ownerDone = true;
+			return;
+		}
+		auto read = file->read(std::span{reinterpret_cast<std::byte*>(g_block), g_blockLen});
+		// A short read is end-of-file, not a failure -- the same rule the channel arm follows.
+		g_blockLen = read.has_value() ? static_cast<uint32_t>(read->size()) : 0;
+		g_ownerStatus = read.has_value() ? deluge::io::Status::OK : read.error();
+		(void)file->close();
+		g_ownerDone = true;
+		return;
+	}
+	case PathOp::WriteAt: {
+		// DELUGE_FILE_READ, not WRITE_CREATE, for the reason the Rust arm gives at length: the create
+		// mode truncates, which would erase the file on every block.
+		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
+		if (!file.has_value() && file.error() == deluge::io::Status::NOT_FOUND) {
+			auto created = deluge::io::File::open(g_pathA, DELUGE_FILE_WRITE_CREATE);
+			if (created.has_value()) {
+				(void)created->close();
+			}
+			file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
+		}
+		if (!file.has_value()) {
+			g_ownerStatus = file.error();
+			g_ownerDone = true;
+			return;
+		}
+		auto seeked = file->seek(g_offset);
+		if (!seeked.has_value()) {
+			g_ownerStatus = seeked.error();
+			(void)file->close();
+			g_ownerDone = true;
+			return;
+		}
+		auto written = file->write(std::span{reinterpret_cast<const std::byte*>(g_block), g_blockLen});
+		g_resultValue = written.has_value() ? static_cast<uint32_t>(*written) : 0;
+		g_ownerStatus = written.has_value() ? deluge::io::Status::OK : written.error();
+		(void)file->close();
+		g_ownerDone = true;
+		return;
+	}
+	case PathOp::Stat: {
+		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
+		if (!file.has_value()) {
+			g_ownerStatus = file.error();
+			g_ownerDone = true;
+			return;
+		}
+		auto size = file->size();
+		g_resultValue = size.has_value() ? *size : 0;
+		g_ownerStatus = size.has_value() ? deluge::io::Status::OK : size.error();
+		(void)file->close();
+		g_ownerDone = true;
+		return;
+	}
+	case PathOp::CreateEmpty: {
+		// Truncating on purpose here, unlike WriteAt: this IS the create-and-empty step.
+		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_WRITE_CREATE);
+		g_ownerStatus = file.has_value() ? deluge::io::Status::OK : file.error();
+		if (file.has_value()) {
+			(void)file->close();
+		}
+		g_ownerDone = true;
+		return;
+	}
+	case PathOp::Copy:
+		// No synchronous whole-file copy exists to fall back to, and writing one here would
+		// reintroduce the loop this rung moved into Rust. A refused copy is reported as unsupported
+		// rather than silently doing nothing, so the SysEx client learns it did not happen.
+		g_ownerStatus = deluge::io::Status::UNSUPPORTED;
+		g_ownerDone = true;
+		return;
 	case PathOp::None:
 		return;
 	}
@@ -106,6 +201,24 @@ void issue() {
 			break;
 		case PathOp::SetTime:
 			accepted = deluge::storage::bytes::requestSetTime(g_pathA.c_str(), g_stamp);
+			break;
+		case PathOp::ReadAt:
+			accepted = deluge::storage::bytes::requestReadAt(g_pathA.c_str(), g_offset, g_blockLen);
+			break;
+		case PathOp::WriteAt:
+			accepted = deluge::storage::bytes::requestWriteAt(g_pathA.c_str(), g_offset,
+			                                                  reinterpret_cast<const char*>(g_block), g_blockLen);
+			break;
+		case PathOp::Stat:
+			accepted = deluge::storage::bytes::requestStat(g_pathA.c_str());
+			break;
+		case PathOp::Copy:
+			accepted = deluge::storage::bytes::requestCopy(g_pathA.c_str(), g_pathB.c_str());
+			break;
+		case PathOp::CreateEmpty:
+			// The whole-file write with no bytes: it creates the parent, creates the file and
+			// truncates it, which is precisely what an open-for-write meant.
+			accepted = deluge::storage::bytes::requestWrite(g_pathA.c_str(), "", 0);
 			break;
 		case PathOp::None:
 			return;
@@ -147,6 +260,45 @@ bool pathOpStart(PathOp op, const char* a, const char* b, DelugeTimestamp stamp)
 	return true;
 }
 
+bool pathOpStartBlock(PathOp op, const char* path, uint32_t offset, const uint8_t* bytes, uint32_t len) {
+	if (len > DELUGE_FILE_BYTES_BLOCK) {
+		len = DELUGE_FILE_BYTES_BLOCK;
+	}
+	g_op = op;
+	g_pathA = (path != nullptr) ? path : "";
+	g_pathB.clear();
+	g_offset = offset;
+	g_blockLen = len;
+	g_resultValue = 0;
+	if (bytes != nullptr && len > 0) {
+		// COPIED, so the caller's decode buffer is free the instant this returns -- a resumed handler
+		// re-parses and re-decodes into that same buffer.
+		memcpy(g_block, bytes, len);
+	}
+	g_issued = false;
+	g_refusals = 0;
+	g_pendingTicks = 0;
+	g_ownerDone = false;
+	issue();
+	return g_issued;
+}
+
+std::optional<deluge::io::Status> pathOpCollectBlock(uint8_t* outBuf, uint32_t* outLen) {
+	auto outcome = pathOpCollect();
+	if (!outcome.has_value()) {
+		return std::nullopt;
+	}
+	if (*outcome == deluge::io::Status::OK && outBuf != nullptr && outLen != nullptr) {
+		memcpy(outBuf, g_block, g_blockLen);
+		*outLen = g_blockLen;
+	}
+	return outcome;
+}
+
+uint32_t pathOpResultValue() {
+	return g_resultValue;
+}
+
 std::optional<deluge::io::Status> pathOpCollect() {
 	using deluge::storage::bytes::ByteIo;
 	if (g_op == PathOp::None) {
@@ -179,6 +331,22 @@ std::optional<deluge::io::Status> pathOpCollect() {
 	case PathOp::SetTime:
 		outcome = deluge::storage::bytes::collectSetTime(g_pathA.c_str(), &status);
 		break;
+	case PathOp::ReadAt:
+		outcome = deluge::storage::bytes::collectReadAt(g_pathA.c_str(), reinterpret_cast<char*>(g_block),
+		                                                DELUGE_FILE_BYTES_BLOCK, &g_blockLen, &status);
+		break;
+	case PathOp::WriteAt:
+		outcome = deluge::storage::bytes::collectWriteAt(g_pathA.c_str(), &g_resultValue, &status);
+		break;
+	case PathOp::Stat:
+		outcome = deluge::storage::bytes::collectStat(g_pathA.c_str(), &g_resultValue, &status);
+		break;
+	case PathOp::Copy:
+		outcome = deluge::storage::bytes::collectCopy(g_pathB.c_str(), &status);
+		break;
+	case PathOp::CreateEmpty:
+		outcome = deluge::storage::bytes::collectWrite(g_pathA.c_str(), &status);
+		break;
 	case PathOp::None:
 		return std::nullopt;
 	}
@@ -208,6 +376,9 @@ std::optional<deluge::io::Status> pathOpCollect() {
 void pathOpClear() {
 	g_op = PathOp::None;
 	g_stage = 0;
+	g_offset = 0;
+	g_blockLen = 0;
+	g_resultValue = 0;
 	g_issued = false;
 	g_refusals = 0;
 	g_pendingTicks = 0;

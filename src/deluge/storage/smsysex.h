@@ -24,7 +24,15 @@ struct FileOpParams {
 	bool hasTimestamp() const { return date != 0 || time != 0; }
 };
 
-FILdata* openFIL(const char* fPath, bool forWrite, deluge::storage::FsWireStatus* eCode);
+/// @brief Start the card work an open needs: a size for a read, an empty file for a write.
+///
+/// No handle is opened. What an open MEANS here is "the client may now name this file by fid", and
+/// the transfer that follows is offset-addressed.
+void beginOpenFIL(const char* fPath, bool forWrite);
+
+/// @brief Finish an open whose card work has landed, recording the fid the client will use.
+FILdata* finishOpenFIL(const char* fPath, bool forWrite, deluge::io::Status status,
+                       deluge::storage::FsWireStatus* eCode);
 deluge::storage::FsWireStatus closeFIL(FILdata* fd);
 FILdata* findEmptyFIL();
 
@@ -37,10 +45,18 @@ void sendMsg(MIDICable& device, JsonSerializer& writer);
 
 void sysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
 void handleNextSysEx();
-void openFile(MIDICable& cable, JsonDeserializer& reader);
-void closeFile(MIDICable& cable, JsonDeserializer& reader);
-void readBlock(MIDICable& cable, JsonDeserializer& reader);
-void writeBlock(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
+bool openFile(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
+bool closeFile(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
+bool readBlock(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
+bool writeBlock(MIDICable& cable, JsonDeserializer& reader);
 void getDirEntries(MIDICable& cable, JsonDeserializer& reader);
 /// @return true when the request is finished and its entry may be popped; false while a path
 ///         operation it started is still in flight, in which case it is re-entered next tick.

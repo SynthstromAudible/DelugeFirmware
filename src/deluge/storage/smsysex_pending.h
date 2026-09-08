@@ -50,6 +50,14 @@ enum class PathOp : uint8_t {
 	Rename,
 	MkdirAll,
 	SetTime,
+	ReadAt,
+	WriteAt,
+	Stat,
+	Copy,
+	/// Create the file empty, truncating an existing one -- the whole-file write with zero bytes.
+	/// This is what `DELUGE_FILE_WRITE_CREATE` meant, kept as its own operation because
+	/// @ref PathOp::WriteAt deliberately does NOT truncate.
+	CreateEmpty,
 };
 
 /// @brief Whether an operation has been started and not yet cleared.
@@ -67,6 +75,31 @@ enum class PathOp : uint8_t {
 /// @return true when the operation was started. **false when it was refused this tick** — the
 ///         handler returns "not done" and the next tick's re-entry tries again.
 bool pathOpStart(PathOp op, const char* a, const char* b, DelugeTimestamp stamp);
+
+/// @brief Start an offset-addressed operation.
+///
+/// @param op     @ref PathOp::ReadAt, @ref PathOp::WriteAt or @ref PathOp::Stat.
+/// @param path   The file.
+/// @param offset Byte offset. Ignored by `Stat`.
+/// @param bytes  The payload for a write; nullptr otherwise. **Copied**, so the caller's decode
+///               buffer is free the instant this returns.
+/// @param len    Byte count for a write, or how many bytes a read wants.
+/// @return As @ref pathOpStart.
+bool pathOpStartBlock(PathOp op, const char* path, uint32_t offset, const uint8_t* bytes, uint32_t len);
+
+/// @brief Collect an offset-addressed operation, copying a read's bytes out.
+///
+/// @param outBuf Written **only** when the outcome is `OK` and the operation was a read.
+/// @param outLen Written **only** then, with the byte count. **A short count is end-of-file**, not a
+///               failure -- the transfer detects its own end that way.
+/// @return `nullopt` while running; the outcome once terminal.
+[[nodiscard]] std::optional<deluge::io::Status> pathOpCollectBlock(uint8_t* outBuf, uint32_t* outLen);
+
+/// @brief The scalar a `Stat` or `WriteAt` produced: a size, or a byte count.
+///
+/// Valid only immediately after @ref pathOpCollectBlock returned a terminal outcome, and before
+/// @ref pathOpClear.
+[[nodiscard]] uint32_t pathOpResultValue();
 
 /// @brief Collect the operation in flight.
 /// @return `nullopt` while it is still running; its outcome once terminal. The caller then sends its

@@ -45,7 +45,9 @@ struct FILdata {
 	uint32_t fPosition = 0; // file offset noted after last read/write operation.
 	bool fileOpen = false;
 	bool forWrite = false;
-	std::optional<deluge::io::File> file;
+	// No `deluge::io::File` any more. A `fid` is a WIRE concept the client owns, and the transfer is
+	// offset-addressed, so the path and position below are everything a block needs -- nothing has to
+	// be held open across the ticks a deferred operation spans.
 };
 
 int32_t FIDcounter = 1;
@@ -241,20 +243,35 @@ void smSysex::sendMsg(MIDICable& cable, JsonSerializer& writer) {
 	cable.sendSysex((const uint8_t*)bitz, bw);
 };
 
-FILdata* smSysex::openFIL(const char* fPath, bool forWrite, FsWireStatus* eCode) {
+/// Start the card work an open needs: a size for a read, an empty file for a write.
+///
+/// No handle is opened. What an open MEANS here is "the client may now name this file by fid", and
+/// the transfer that follows is offset-addressed -- so a read needs only the size it must report, and
+/// a write needs only the file to exist and be empty.
+void smSysex::beginOpenFIL(const char* fPath, bool forWrite) {
+	if (forWrite) {
+		// Creates the parent, creates the file, truncates it -- exactly what DELUGE_FILE_WRITE_CREATE
+		// meant. It also makes `openFile`'s old createPathDirectories retry unnecessary, because the
+		// whole-file write creates the destination's parent itself.
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::CreateEmpty, fPath, nullptr, {});
+		return;
+	}
+	(void)deluge::storage::pathOpStartBlock(deluge::storage::PathOp::Stat, fPath, 0, nullptr, 0);
+}
+
+/// Finish an open whose card work has landed, recording the fid the client will use.
+FILdata* smSysex::finishOpenFIL(const char* fPath, bool forWrite, deluge::io::Status status,
+                                deluge::storage::FsWireStatus* eCode) {
+	*eCode = toWireStatus(status);
+	if (status != deluge::io::Status::OK) {
+		return nullptr;
+	}
 	FILdata* fp = findEmptyFIL();
 	fp->fName = fPath;
 	fp->fileID = FIDcounter++;
 	noteFileIdUse(fp);
-
-	auto opened = deluge::io::File::open(fPath, forWrite ? DELUGE_FILE_WRITE_CREATE : DELUGE_FILE_READ);
-	*eCode = toWireStatus(opened.has_value() ? deluge::io::Status::OK : opened.error());
-	if (!opened.has_value()) {
-		return nullptr;
-	}
-	fp->file = std::move(*opened);
-	auto size = fp->file->size();
-	fp->fSize = size.has_value() ? *size : 0;
+	// A write starts empty; a read reports the size the stat just measured.
+	fp->fSize = forWrite ? 0 : deluge::storage::pathOpResultValue();
 	fp->fileOpen = true;
 	fp->forWrite = forWrite;
 	fp->fPosition = 0;
@@ -266,12 +283,9 @@ FsWireStatus smSysex::closeFIL(FILdata* fp) {
 		return FsWireStatus::InvalidObject;
 	}
 
-	deluge::io::Status status = deluge::io::Status::OK;
-	if (fp->file.has_value()) {
-		auto result = fp->file->close();
-		status = result.has_value() ? deluge::io::Status::OK : result.error();
-		fp->file.reset();
-	}
+	// Nothing to release: no handle was ever held. That is the point of the stateless design, and it
+	// is why this cannot fail any more.
+	const deluge::io::Status status = deluge::io::Status::OK;
 	fp->fileOpen = false;
 	fp->forWrite = false;
 	fp->fSize = 0;
@@ -331,16 +345,16 @@ FsWireStatus smSysex::createPathDirectories(std::string& path, std::optional<Del
 	return toWireStatus(status);
 }
 
-void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
-	bool forWrite = false;
-	std::string path;
+bool smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
+	std::string path;
+	bool forWrite = false;
 	uint32_t date = 0;
 	uint32_t time = 0;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "write")) {
-			forWrite = reader.readTagOrAttributeValueInt();
+			forWrite = reader.readTagOrAttributeValueInt() != 0;
 		}
 		else if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(path);
@@ -355,23 +369,29 @@ void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 			reader.exitTag();
 		}
 	}
-
 	reader.match('}');
-	bool pathCreateTried = false;
-retry:
-	FsWireStatus errCode;
-	uint32_t fSize = 0;
+	(void)date;
+	(void)time;
 
-	FILdata* fp = openFIL(path.c_str(), forWrite, &errCode);
+	if (path.empty()) {
+		return true;
+	}
 
-	if (fp != nullptr) {
-		fSize = fp->fSize;
+	// The old path-missing retry is gone with the handle. An open-for-write is now a whole-file write
+	// of zero bytes, and that creates the destination's parent itself -- so there is nothing left for
+	// a createPathDirectories retry to fix.
+	if (!deluge::storage::pathOpPending()) {
+		beginOpenFIL(path.c_str(), forWrite);
+		return false;
 	}
-	if (forWrite && !pathCreateTried && errCode == FsWireStatus::NoFile) { // was the path missing?
-		createPathDirectories(path, timestampFromWireDateTime(date, time));
-		pathCreateTried = true;
-		goto retry;
+	auto outcome = deluge::storage::pathOpCollectBlock(nullptr, nullptr);
+	if (!outcome.has_value()) {
+		return false;
 	}
+	FsWireStatus errCode = FsWireStatus::Ok;
+	FILdata* fp = finishOpenFIL(path.c_str(), forWrite, *outcome, &errCode);
+	const uint32_t fSize = (fp != nullptr) ? fp->fSize : 0;
+	deluge::storage::pathOpClear();
 
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^open", false, true);
@@ -381,9 +401,10 @@ retry:
 	jWriter.closeTag(true);
 
 	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	int32_t fid = 0;
 	char const* tagName;
 	reader.match('{');
@@ -407,6 +428,7 @@ void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	jWriter.closeTag(true);
 
 	sendMsg(cable, jWriter);
+	return true; // nothing to wait for: closing releases no handle any more
 }
 
 bool smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
@@ -641,7 +663,7 @@ errorFound:;
 	sendMsg(cable, jWriter);
 }
 
-void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t addr = 0;
 	uint32_t size = blockBufferMax;
@@ -681,29 +703,29 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 
 		if (readBlockBuffer && fp) {
 			noteFileIdUse(fp);
-			deluge::io::Status status = deluge::io::Status::OK;
-			// If file position requested is not what we expect, seek to requested.
-			if (fp->fPosition != addr) {
-				auto seeked = fp->file->seek(addr);
-				status = seeked.has_value() ? deluge::io::Status::OK : seeked.error();
+			// One request carrying the path and the address. The seek is gone: the operation is
+			// offset-addressed, so there is no position to move and nothing held open between blocks.
+			if (!deluge::storage::pathOpPending()) {
+				(void)deluge::storage::pathOpStartBlock(deluge::storage::PathOp::ReadAt, fp->fName.c_str(), addr,
+				                                        nullptr, size);
+				return false;
 			}
-			if (status == deluge::io::Status::OK) {
-				auto result = fp->file->read(std::span{reinterpret_cast<std::byte*>(readBlockBuffer), size});
-				if (result.has_value()) {
-					uint32_t actuallyRead = static_cast<uint32_t>(result->size());
-					size = actuallyRead;
-					srcAddr = readBlockBuffer;
-					fp->fPosition = addr + actuallyRead;
-				}
-				else {
-					status = result.error();
-					size = 0;
-				}
+			uint32_t got = 0;
+			auto outcome = deluge::storage::pathOpCollectBlock(readBlockBuffer, &got);
+			if (!outcome.has_value()) {
+				return false;
+			}
+			deluge::storage::pathOpClear();
+			if (*outcome == deluge::io::Status::OK) {
+				// A SHORT count is end-of-file, not a failure -- the client detects the end that way.
+				size = got;
+				srcAddr = readBlockBuffer;
+				fp->fPosition = addr + got;
 			}
 			else {
-				D_PRINTLN("lseek issue: %d", static_cast<uint8_t>(toWireStatus(status)));
+				size = 0;
 			}
-			errCode = toWireStatus(status);
+			errCode = toWireStatus(*outcome);
 		}
 	}
 	else {
@@ -742,9 +764,10 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 		jWriter.writeBlock(working, pktSize + 1);
 	}
 	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t fileId = 0;
 	uint32_t addr = 0;
@@ -786,24 +809,26 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 		errCode = FsWireStatus::NotEnabled;
 	}
 	if (writeBlockBuffer && (fp != nullptr) && fp->fileOpen) {
-		deluge::io::Status status = deluge::io::Status::OK;
-		if (addr != fp->fPosition) {
-			auto seeked = fp->file->seek(addr);
-			status = seeked.has_value() ? deluge::io::Status::OK : seeked.error();
+		// One request carrying the path, the address and the decoded bytes. The decode above happens
+		// on every entry, which is why it must stay before this: a resumed handler re-parses and
+		// re-decodes into the same buffer, and the request copies from it.
+		if (!deluge::storage::pathOpPending()) {
+			(void)deluge::storage::pathOpStartBlock(deluge::storage::PathOp::WriteAt, fp->fName.c_str(), addr,
+			                                        writeBlockBuffer, decodedSize);
+			return false;
 		}
-		if (status == deluge::io::Status::OK) {
+		auto outcome = deluge::storage::pathOpCollectBlock(nullptr, nullptr);
+		if (!outcome.has_value()) {
+			return false;
+		}
+		const uint32_t written = deluge::storage::pathOpResultValue();
+		deluge::storage::pathOpClear();
+		if (*outcome == deluge::io::Status::OK) {
 			noteFileIdUse(fp);
-			auto result = fp->file->write(std::span{reinterpret_cast<const std::byte*>(writeBlockBuffer), decodedSize});
-			if (result.has_value()) {
-				size = *result;
-				fp->fPosition = addr + *result;
-			}
-			else {
-				status = result.error();
-				size = 0;
-			}
+			size = written;
+			fp->fPosition = addr + written;
 		}
-		errCode = toWireStatus(status);
+		errCode = toWireStatus(*outcome);
 	}
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^write", false, true);
@@ -814,6 +839,7 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	jWriter.closeTag(true);
 
 	sendMsg(cable, jWriter);
+	return true;
 }
 
 bool smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
@@ -983,11 +1009,11 @@ void smSysex::processFrontSysEx() {
 	parser.match('{');
 	while (*(tagName = parser.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "open")) {
-			openFile(de.cable, parser);
+			done = openFile(de.cable, parser);
 			goto finished;
 		}
 		else if (!strcmp(tagName, "close")) {
-			closeFile(de.cable, parser);
+			done = closeFile(de.cable, parser);
 			goto finished;
 		}
 		else if (!strcmp(tagName, "dir")) {
@@ -995,11 +1021,11 @@ void smSysex::processFrontSysEx() {
 			goto finished;
 		}
 		else if (!strcmp(tagName, "read")) {
-			readBlock(de.cable, parser);
+			done = readBlock(de.cable, parser);
 			goto finished;
 		}
 		else if (!strcmp(tagName, "write")) {
-			writeBlock(de.cable, parser);
+			done = writeBlock(de.cable, parser);
 			goto finished; // Already skipped end.
 		}
 		else if (!strcmp(tagName, "delete")) {
