@@ -20,8 +20,8 @@
 #include "hid/display/display.h"
 #include "io/file.hpp"
 #include "model/song/song.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
-#include "storage/settings_file.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include <cstring>
@@ -195,12 +195,12 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 	// channel is not in use here (boot, or a build without it) or is already busy, and the owner arm
 	// below does the same work where blocking is legal -- so a refusal costs a slower read, never a
 	// lost one.
-	if (deluge::storage::settings::submitRead(RUNTIME_FEATURE_SETTINGS_FILE, LEGACY_RUNTIME_FEATURE_SETTINGS_FILE,
-	                                          &RuntimeFeatureSettings::parseSettingsBytes,
-	                                          /*onAbsent=*/nullptr, this)) {
+	if (deluge::storage::bytes::submitRead(RUNTIME_FEATURE_SETTINGS_FILE, LEGACY_RUNTIME_FEATURE_SETTINGS_FILE,
+	                                       &RuntimeFeatureSettings::parseSettingsBytes,
+	                                       /*onAbsent=*/nullptr, this)) {
 		return;
 	}
-	deluge::storage::settings::runOnStorageOwner(
+	deluge::storage::bytes::runOnStorageOwner(
 	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->readSettingsOnOwner(); }, this);
 }
 
@@ -220,7 +220,7 @@ void RuntimeFeatureSettings::parseSettingsBytes(void* ctx, char* bytes, uint32_t
 }
 
 void RuntimeFeatureSettings::readSettingsOnOwner() {
-	deluge::storage::settings::noteSettingsIoTier();
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// CommunityFeatures.XML
 	switch (deluge::storage::bootstrap_action(StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE))) {
 	case deluge::storage::Bootstrap::Load:
@@ -311,25 +311,25 @@ void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {
-	if (deluge::storage::settings::usingSettingsChannel()) {
+	if (deluge::storage::bytes::usingByteChannel()) {
 		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
 		serialiseSettings(writer);
-		if (deluge::storage::settings::submitWrite(RUNTIME_FEATURE_SETTINGS_FILE, writer.getBufferPtr(),
-		                                           static_cast<uint32_t>(writer.bytesWritten()))) {
+		if (deluge::storage::bytes::submitWrite(RUNTIME_FEATURE_SETTINGS_FILE, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
 			return;
 		}
 		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
 		// is the thing this must not do. The owner arm below still writes it, just synchronously.
 	}
-	deluge::storage::settings::runOnStorageOwner(
+	deluge::storage::bytes::runOnStorageOwner(
 	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->writeSettingsOnOwner(); }, this);
 }
 
 void RuntimeFeatureSettings::writeSettingsOnOwner() {
-	deluge::storage::settings::noteSettingsIoTier();
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	deluge::io::unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
 	Error error = StorageManager::createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smSerializer, true);

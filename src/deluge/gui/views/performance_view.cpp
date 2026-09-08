@@ -44,8 +44,8 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
-#include "storage/settings_file.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
@@ -1659,14 +1659,14 @@ void PerformanceView::savePerformanceViewLayout() {
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
 void PerformanceView::writeDefaultsToFile() {
-	if (deluge::storage::settings::usingSettingsChannel()) {
+	if (deluge::storage::bytes::usingByteChannel()) {
 		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
 		serialiseDefaults(writer);
-		if (deluge::storage::settings::submitWrite(PERFORM_DEFAULTS_XML, writer.getBufferPtr(),
-		                                           static_cast<uint32_t>(writer.bytesWritten()))) {
+		if (deluge::storage::bytes::submitWrite(PERFORM_DEFAULTS_XML, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
 			// Cleared here rather than on the collect: this flag means "the layout in memory matches
 			// what we last asked to be stored", and the ask has happened. Waiting for the collect
 			// would leave a second, identical write to be made by whatever checks this next.
@@ -1676,12 +1676,12 @@ void PerformanceView::writeDefaultsToFile() {
 		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
 		// is the thing this must not do. The owner arm below still writes it, just synchronously.
 	}
-	deluge::storage::settings::runOnStorageOwner(
+	deluge::storage::bytes::runOnStorageOwner(
 	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->writeDefaultsOnOwner(); }, this);
 }
 
 void PerformanceView::writeDefaultsOnOwner() {
-	deluge::storage::settings::noteSettingsIoTier();
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// PerformanceView.xml
 	Error error = StorageManager::createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
@@ -1835,12 +1835,12 @@ void PerformanceView::readDefaultsFromFile() {
 	// threading a `Deserializer&` through all six -- a parser refactor, where this rung moves only the
 	// I/O. The tier violation is fixed either way, and the read runs once per session behind
 	// `successfullyReadDefaultsFromFile`, so what stays on the fiber is one read at view entry.
-	deluge::storage::settings::runOnStorageOwner(
+	deluge::storage::bytes::runOnStorageOwner(
 	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsOnOwner(); }, this);
 }
 
 void PerformanceView::readDefaultsOnOwner() {
-	deluge::storage::settings::noteSettingsIoTier();
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;

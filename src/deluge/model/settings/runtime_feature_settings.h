@@ -122,7 +122,7 @@ public:
 	void parseSettings(Deserializer& reader);
 	/// @brief Write the settings into an already-opened serialiser, file-backed or memory-backed.
 	void serialiseSettings(Serializer& writer);
-	/// @brief `deluge::storage::settings::ParseFn` for @ref parseSettings, over channel-delivered
+	/// @brief `deluge::storage::bytes::ParseFn` for @ref parseSettings, over channel-delivered
 	///        bytes.
 	static void parseSettingsBytes(void* ctx, char* bytes, uint32_t len);
 

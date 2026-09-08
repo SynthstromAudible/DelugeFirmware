@@ -55,9 +55,9 @@ public:
 	void parseDefaults(Deserializer& reader);
 	/// @brief Write the follow settings into an already-opened serialiser, file- or memory-backed.
 	void serialiseDefaults(Serializer& writer);
-	/// @brief `deluge::storage::settings::ParseFn` for @ref parseDefaults.
+	/// @brief `deluge::storage::bytes::ParseFn` for @ref parseDefaults.
 	static void parseDefaultsBytes(void* ctx, char* bytes, uint32_t len);
-	/// @brief `deluge::storage::settings::AbsentFn`: no MIDIFollow.XML, so write one.
+	/// @brief `deluge::storage::bytes::AbsentFn`: no MIDIFollow.XML, so write one.
 	static void writeDefaultsAbsent(void* ctx);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,

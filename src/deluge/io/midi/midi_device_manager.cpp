@@ -33,8 +33,8 @@
 #include "libdeluge/midi_io.h" // deluge_midi_init/_usb_port/_write/_write_space, deluge_midi_poll_usb_host_event
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
-#include "storage/settings_file.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <algorithm>
@@ -458,7 +458,7 @@ void readDevicesOnOwner();
 void parseDevices(Deserializer& reader);
 /// @brief Write the device table into an already-opened serialiser, file- or memory-backed.
 void serialiseDevices(Serializer& writer);
-/// @brief `deluge::storage::settings::ParseFn` for @ref parseDevices.
+/// @brief `deluge::storage::bytes::ParseFn` for @ref parseDevices.
 void parseDevicesBytes(void* ctx, char* bytes, uint32_t len);
 
 /// @brief Whether any port or hosted device has settings worth putting in the file.
@@ -481,14 +481,14 @@ bool anythingWorthWriting() {
 void writeDevicesToFile() {
 	// The "nothing worth writing" test comes FIRST, and stays on the owner arm when it fires: its
 	// action is an UNLINK, which this channel does not carry. Everything past it is a real write.
-	if (deluge::storage::settings::usingSettingsChannel() && anyChangesToSave && anythingWorthWriting()) {
+	if (deluge::storage::bytes::usingByteChannel() && anyChangesToSave && anythingWorthWriting()) {
 		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
 		serialiseDevices(writer);
-		if (deluge::storage::settings::submitWrite(MIDI_DEVICES_XML, writer.getBufferPtr(),
-		                                           static_cast<uint32_t>(writer.bytesWritten()))) {
+		if (deluge::storage::bytes::submitWrite(MIDI_DEVICES_XML, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
 			// Cleared here rather than on the collect, for the reason `PerformanceView` gives: the
 			// flag means "the table in memory matches what we last asked to be stored", and the ask
 			// has happened.
@@ -498,11 +498,11 @@ void writeDevicesToFile() {
 		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
 		// is the thing this must not do. The owner arm below still writes it, just synchronously.
 	}
-	deluge::storage::settings::runOnStorageOwner([](void*) { writeDevicesOnOwner(); }, nullptr);
+	deluge::storage::bytes::runOnStorageOwner([](void*) { writeDevicesOnOwner(); }, nullptr);
 }
 
 void writeDevicesOnOwner() {
-	deluge::storage::settings::noteSettingsIoTier();
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	if (!anyChangesToSave) {
 		return;
 	}
@@ -572,17 +572,17 @@ void factoryReset(bool showPopup) {
 }
 
 void readDevicesFromFile() {
-	if (deluge::storage::settings::usingSettingsChannel()) {
+	if (deluge::storage::bytes::usingByteChannel()) {
 		if (successfullyReadDevicesFromFile) {
 			return; // Yup, we only want to do this once
 		}
-		if (deluge::storage::settings::submitRead(MIDI_DEVICES_XML, LEGACY_MIDI_DEVICES_XML, &parseDevicesBytes,
-		                                          /*onAbsent=*/nullptr, nullptr)) {
+		if (deluge::storage::bytes::submitRead(MIDI_DEVICES_XML, LEGACY_MIDI_DEVICES_XML, &parseDevicesBytes,
+		                                       /*onAbsent=*/nullptr, nullptr)) {
 			return;
 		}
 		// Refused: the owner arm below repeats the early-out harmlessly and does the read itself.
 	}
-	deluge::storage::settings::runOnStorageOwner([](void*) { readDevicesOnOwner(); }, nullptr);
+	deluge::storage::bytes::runOnStorageOwner([](void*) { readDevicesOnOwner(); }, nullptr);
 }
 
 void parseDevicesBytes(void* /*ctx*/, char* bytes, uint32_t len) {
@@ -598,7 +598,7 @@ void parseDevicesBytes(void* /*ctx*/, char* bytes, uint32_t len) {
 }
 
 void readDevicesOnOwner() {
-	deluge::storage::settings::noteSettingsIoTier();
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// Owner-audit exemption: this runs once at boot, before the storage-owner worker pump is
 	// reliably driving, and reads the card when nothing else does (so it is not a FatFS-reentrancy
 	// hazard). Left inline deliberately — dispatching onto the owner here could queue an op nothing

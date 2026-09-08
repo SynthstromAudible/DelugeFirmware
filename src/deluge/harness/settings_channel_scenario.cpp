@@ -18,8 +18,8 @@
 #include "harness/settings_channel_scenario.h"
 
 #include "model/settings/runtime_feature_settings.h"
+#include "storage/byte_channel.h"
 #include "storage/owner.h"
-#include "storage/settings_file.h"
 
 #include <cstdio>
 
@@ -109,8 +109,8 @@ void runTick() {
 		// compiled out the honest answer is 0, and failing on it would make the default build fail
 		// for doing exactly what it is supposed to do. `settings_channel.sh`'s channel-on leg is what
 		// requires this to be non-zero -- see there.
-		printf("SC-CHANNEL served=%d\n", deluge::storage::settings::channelServedOps());
-		const int32_t violations = deluge::storage::settings::interactionTierSettingsIo();
+		printf("SC-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
+		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings);
 		printf("SC-TIER violations=%d\n", violations);
 		if (violations != 0) {
 			// Before the conversion this is the DEFECT the rung exists to remove, and the gate is
@@ -163,7 +163,7 @@ void deluge_scenario_settings_channel_dispatch_step(void) {
 	// The channel's pump. In the firmware this is a repeating task registered in `deluge.cpp`; here
 	// the scenario owns the tick, so without this call the channel arm would be requested and never
 	// collected -- and a dead channel would pass, which is the failure rung 3 shipped.
-	deluge::storage::settings::serviceRoutine();
+	deluge::storage::bytes::serviceRoutine();
 	runTick();
 	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after the
 	// dispatched operation (and immediately if nothing was dispatched). That is what makes each

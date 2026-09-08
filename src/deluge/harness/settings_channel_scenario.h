@@ -38,7 +38,7 @@
 ///
 /// A counter incremented at the point of dispatch proves that dispatch was reached, not that the
 /// work moved. This one is incremented inside the consumer's own I/O path, from
-/// `deluge::storage::settings::noteSettingsIoTier()`, and it reads the tier it is actually standing
+/// `deluge::storage::bytes::noteIoTier()`, and it reads the tier it is actually standing
 /// on -- so it cannot report success for an operation that dispatched and then ran inline anyway.
 ///
 /// ## Stepped, not one blocking call

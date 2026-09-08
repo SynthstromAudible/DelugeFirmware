@@ -69,8 +69,8 @@
 #include "processing/stem_export/stem_export.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
-#include "storage/settings_file.h"
 #include "storage/smsysex.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
@@ -593,7 +593,7 @@ void registerTasks() {
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
 	// the same reason: both are request/collect state machines whose caller returned long ago, and
 	// neither has a UI tick of its own to resume from.
-	addRepeatingTask([]() { deluge::storage::settings::serviceRoutine(); }, p++, 0.001, 0.005, 0.02, "settings io",
+	addRepeatingTask([]() { deluge::storage::bytes::serviceRoutine(); }, p++, 0.001, 0.005, 0.02, "settings io",
 	                 RESOURCE_NONE);
 
 	// Same shape for stem export: each pass queues one step onto the storage owner and returns, so the

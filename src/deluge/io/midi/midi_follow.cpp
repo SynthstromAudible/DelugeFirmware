@@ -41,8 +41,8 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
-#include "storage/settings_file.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/etl_string.h"
@@ -1624,25 +1624,25 @@ bool MidiFollow::isFeedbackEnabled() {
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
 void MidiFollow::writeDefaultsToFile() {
-	if (deluge::storage::settings::usingSettingsChannel()) {
+	if (deluge::storage::bytes::usingByteChannel()) {
 		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
 		serialiseDefaults(writer);
-		if (deluge::storage::settings::submitWrite(MIDI_FOLLOW_XML, writer.getBufferPtr(),
-		                                           static_cast<uint32_t>(writer.bytesWritten()))) {
+		if (deluge::storage::bytes::submitWrite(MIDI_FOLLOW_XML, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
 			return;
 		}
 		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
 		// is the thing this must not do. The owner arm below still writes it, just synchronously.
 	}
-	deluge::storage::settings::runOnStorageOwner(
-	    [](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsOnOwner(); }, this);
+	deluge::storage::bytes::runOnStorageOwner([](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsOnOwner(); },
+	                                          this);
 }
 
 void MidiFollow::writeDefaultsOnOwner() {
-	deluge::storage::settings::noteSettingsIoTier();
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// MidiFollow.xml
 	Error error = StorageManager::createXMLFile(MIDI_FOLLOW_XML, smSerializer, true);
 	if (error != Error::NONE) {
@@ -1813,7 +1813,7 @@ void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
 
 /// read defaults from XML
 void MidiFollow::readDefaultsFromFile() {
-	if (deluge::storage::settings::usingSettingsChannel()) {
+	if (deluge::storage::bytes::usingByteChannel()) {
 		// The early-out and the in-memory defaults happen HERE, before anything is submitted, because
 		// they are exactly what must be true whether the file turns up or not -- the owner arm sets
 		// them up before its own read for the same reason.
@@ -1821,15 +1821,14 @@ void MidiFollow::readDefaultsFromFile() {
 			return;
 		}
 		resetToDefaults();
-		if (deluge::storage::settings::submitRead(MIDI_FOLLOW_XML, /*legacyPath=*/nullptr,
-		                                          &MidiFollow::parseDefaultsBytes, &MidiFollow::writeDefaultsAbsent,
-		                                          this)) {
+		if (deluge::storage::bytes::submitRead(MIDI_FOLLOW_XML, /*legacyPath=*/nullptr, &MidiFollow::parseDefaultsBytes,
+		                                       &MidiFollow::writeDefaultsAbsent, this)) {
 			return;
 		}
 		// Refused: the owner arm below repeats the setup harmlessly and does the read itself.
 	}
-	deluge::storage::settings::runOnStorageOwner(
-	    [](void* ctx) { static_cast<MidiFollow*>(ctx)->readDefaultsOnOwner(); }, this);
+	deluge::storage::bytes::runOnStorageOwner([](void* ctx) { static_cast<MidiFollow*>(ctx)->readDefaultsOnOwner(); },
+	                                          this);
 }
 
 void MidiFollow::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
@@ -1856,7 +1855,7 @@ void MidiFollow::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
 
 void MidiFollow::writeDefaultsAbsent(void* ctx) {
 	// Only a genuinely absent file reaches here, never an unreadable card -- see
-	// `deluge::storage::settings::AbsentFn`. That is the same line the owner arm's
+	// `deluge::storage::bytes::AbsentFn`. That is the same line the owner arm's
 	// `bootstrap_action()` draws between `WriteDefaults` and `UseInMemoryOnly`.
 	auto* self = static_cast<MidiFollow*>(ctx);
 	self->writeDefaultsToFile();
@@ -1864,7 +1863,7 @@ void MidiFollow::writeDefaultsAbsent(void* ctx) {
 }
 
 void MidiFollow::readDefaultsOnOwner() {
-	deluge::storage::settings::noteSettingsIoTier();
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
