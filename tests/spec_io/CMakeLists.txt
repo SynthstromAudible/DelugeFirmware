@@ -25,6 +25,7 @@ function(create_specs_driver driver_name spec_dir)
     ../../src/deluge/storage/existence_policy.cpp
     ../../src/deluge/storage/startup_song_policy.cpp
     ../../src/deluge/model/sample/recorder_write_policy.cpp
+    ../../src/deluge/model/sample/recorder_finalize_policy.cpp
   )
   target_link_libraries(${driver_name} PRIVATE c++spec)
   target_include_directories(${driver_name} PRIVATE
