@@ -1,6 +1,7 @@
 #pragma once
 
 #include "io/file.hpp"
+#include <cstdint>
 #include <expected>
 
 namespace deluge::storage {
@@ -59,5 +60,32 @@ enum class SaveAction : uint8_t {
 /// @return `Refuse` whenever existence is undeterminable — never write over a file whose absence is
 ///         unconfirmed.
 SaveAction save_action(const std::expected<bool, deluge::io::Status>& present, bool mayOverwrite);
+
+/// @brief What a startup fail-safe existence check has established.
+///
+/// @warning Switch on this enum exhaustively, with no `default:` label, for the same reason given on
+///          `Presence` above — though note that guard protects the FIRMWARE build only:
+///          `tests/CMakeLists.txt` is a separate `project(DelugeTests)` which does not inherit
+///          `DELUGE_COMMON_COMPILE_OPTIONS`.
+enum class StartupPresence : uint8_t {
+	Confirmed, ///< the path is there
+	Missing,   ///< the path is known not to be there
+	Unusable,  ///< existence could not be established. NEVER the "missing" branch.
+};
+
+/// @brief The one rule all four startup fail-safe checks share.
+///
+/// Named for the FACT, not for one site's reaction, exactly as `save_action`'s `Occupied` is: the
+/// four sites react to `Missing` in four different ways -- skip the startup song, CREATE the
+/// template, fall back to the template, give up -- and what they share is that the third state
+/// exists and is distinguishable.
+///
+/// `Unusable` is never `Missing`. A boot that cannot tell whether the startup song is there must skip
+/// it rather than replace it with a template, and must not treat a canary it could not read as
+/// absent -- or the crash loop the fail-safe was built to break would resume.
+///
+/// @param present The result of the existence check on the path.
+/// @return `Unusable` whenever existence is undeterminable.
+StartupPresence startup_action(const std::expected<bool, deluge::io::Status>& present);
 
 } // namespace deluge::storage

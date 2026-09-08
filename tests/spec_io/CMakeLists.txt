@@ -12,7 +12,11 @@ FetchContent_Declare(CppSpec
 FetchContent_MakeAvailable(CppSpec)
 
 function(create_specs_driver driver_name spec_dir)
-  file(GLOB_RECURSE spec_sources RELATIVE ${spec_dir} ${spec_dir}/*_spec.cpp)
+  # CONFIGURE_DEPENDS so a newly added *_spec.cpp is picked up without a manual reconfigure.
+  # Without it `./dbt test` — which only configures when build/tests is absent — compiles the new
+  # spec into nothing and reports a green run, so a spec that was never built looks exactly like a
+  # spec that passed.
+  file(GLOB_RECURSE spec_sources CONFIGURE_DEPENDS RELATIVE ${spec_dir} ${spec_dir}/*_spec.cpp)
   create_test_sourcelist(specs ${driver_name}.cpp ${spec_sources})
   add_executable(${driver_name}
     ${specs}

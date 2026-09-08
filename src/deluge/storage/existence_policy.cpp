@@ -36,4 +36,18 @@ SaveAction save_action(const std::expected<bool, deluge::io::Status>& present, b
 	return SaveAction::Refuse;
 }
 
+StartupPresence startup_action(const std::expected<bool, deluge::io::Status>& present) {
+	switch (presence_of(present)) {
+	case Presence::Present:
+		return StartupPresence::Confirmed;
+	case Presence::Absent:
+		return StartupPresence::Missing;
+	case Presence::Undeterminable:
+		return StartupPresence::Unusable;
+	}
+	// No `default:` above, deliberately -- see this header's warning, so -Wswitch catches an
+	// unhandled enumerator. Unreachable for a valid one; Unusable is the safe reading regardless.
+	return StartupPresence::Unusable;
+}
+
 } // namespace deluge::storage
