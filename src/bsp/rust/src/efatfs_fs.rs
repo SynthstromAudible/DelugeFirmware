@@ -480,7 +480,12 @@ pub(crate) async fn task_file_write(handle: u32, src: &[u8]) -> Result<usize, De
 }
 
 /// Set the handle's cursor position directly. No FS access needed.
-async fn task_file_seek(handle: u32, offset: u32) -> Result<(), DelugeStatus> {
+/// Seek to an absolute byte offset.
+///
+/// `pub(crate)` so `file_bytes.rs`'s driver can AWAIT it: the offset-addressed operations seek before
+/// every read and write, and the C ABI beside them reaches the same future through
+/// `sim_block::block_on`, which spins its caller.
+pub(crate) async fn task_file_seek(handle: u32, offset: u32) -> Result<(), DelugeStatus> {
     if TASK_FILES.lock().await.seek(handle, offset) {
         Ok(())
     } else {

@@ -101,6 +101,15 @@ pub struct FileTimestamp {
     pub second: u8,
 }
 
+/// The largest single offset-addressed transfer, in bytes. See `DELUGE_FILE_BYTES_BLOCK`.
+///
+/// A THIRD staging buffer lives at this size, which is why it is 1 KiB and not 8: two 8 KiB ones are
+/// already resident, and at 32 KiB each they stopped the device image linking.
+pub const BLOCK_BYTES: usize = 1024;
+
+/// One offset-addressed transfer's bytes, inline.
+pub type BlockBuf = heapless::Vec<u8, BLOCK_BYTES>;
+
 /// One file's contents, inline, for the same reason [`BytesPath`] is.
 pub type ByteBuf = heapless::Vec<u8, MAX_BYTES>;
 
@@ -157,6 +166,7 @@ pub const DELUGE_FILE_BYTES_FAILED: u8 = 3;
 const _: () = {
     assert!(MAX_PATH_CHARS == 255); // DELUGE_FILE_BYTES_MAX_PATH - 1
     assert!(MAX_BYTES == 8192); // DELUGE_FILE_BYTES_MAX_BYTES
+    assert!(BLOCK_BYTES == 1024); // DELUGE_FILE_BYTES_BLOCK
     assert!(NO_FILESYSTEM == -11); // DELUGE_ERR_NO_FILESYSTEM
     assert!(NO_MEMORY == -13); // DELUGE_ERR_NO_MEMORY
     assert!(ERR_IO == -5); // DELUGE_ERR_IO
@@ -181,6 +191,10 @@ pub enum ByteOp {
     Exists,
     MkdirAll,
     SetTime,
+    ReadAt,
+    WriteAt,
+    Stat,
+    Copy,
 }
 
 /// What one operation produced.
@@ -196,6 +210,15 @@ pub enum ByteOutcome {
     /// not the same as "the operation succeeded" -- collapsing them is what makes an absent file look
     /// like a present one, and vice versa.
     Exists(bool),
+    /// One offset-addressed read's bytes. Distinct from `Bytes(ByteBuf)`, which is the whole-file
+    /// read's much larger buffer -- keeping them apart is what stops a 1 KiB block being handed to a
+    /// caller expecting a whole settings file.
+    Block(BlockBuf),
+    /// A `stat`'s answer.
+    Size(u32),
+    /// A `write_at`'s byte count. Its own variant rather than `Done` because a short write is
+    /// reported honestly and the caller decides what it means.
+    Wrote(u32),
     /// The operation failed, carrying the status rather than collapsing it. The callers distinguish
     /// "no such file" (write the defaults) from "the card is unreadable" (write nothing, or the
     /// user's real settings are replaced by defaults), which is the distinction
@@ -334,6 +357,14 @@ pub trait ByteOps {
     async fn mkdir_all(&self, path: &str) -> Result<(), i8>;
     /// Set `path`'s modification time.
     async fn set_time(&self, path: &str, timestamp: FileTimestamp) -> Result<(), i8>;
+    /// Read up to `len` bytes from `path` at `offset`. A SHORT result means end-of-file, not failure.
+    async fn read_at(&self, path: &str, offset: u32, len: u32) -> Result<BlockBuf, i8>;
+    /// Write `bytes` into `path` at `offset`, WITHOUT truncating. See the impl for why that matters.
+    async fn write_at(&self, path: &str, offset: u32, bytes: &[u8]) -> Result<u32, i8>;
+    /// `path`'s size in bytes.
+    async fn stat(&self, path: &str) -> Result<u32, i8>;
+    /// Copy `from` to `to`, whole.
+    async fn copy_file(&self, from: &str, to: &str) -> Result<(), i8>;
 }
 
 /// One request, as the driver receives it.
@@ -367,6 +398,23 @@ pub enum ByteRequest {
         path: BytesPath,
         timestamp: FileTimestamp,
     },
+    ReadAt {
+        path: BytesPath,
+        offset: u32,
+        len: u32,
+    },
+    WriteAt {
+        path: BytesPath,
+        offset: u32,
+        bytes: BlockBuf,
+    },
+    Stat {
+        path: BytesPath,
+    },
+    Copy {
+        from: BytesPath,
+        to: BytesPath,
+    },
 }
 
 impl ByteRequest {
@@ -381,6 +429,10 @@ impl ByteRequest {
             Self::Exists { path } => (ByteOp::Exists, path.as_str()),
             Self::MkdirAll { path } => (ByteOp::MkdirAll, path.as_str()),
             Self::SetTime { path, .. } => (ByteOp::SetTime, path.as_str()),
+            Self::ReadAt { path, .. } => (ByteOp::ReadAt, path.as_str()),
+            Self::WriteAt { path, .. } => (ByteOp::WriteAt, path.as_str()),
+            Self::Stat { path } => (ByteOp::Stat, path.as_str()),
+            Self::Copy { to, .. } => (ByteOp::Copy, to.as_str()),
         }
     }
 
@@ -396,6 +448,10 @@ impl ByteRequest {
             Self::Exists { path } => (ByteOp::Exists, path.clone()),
             Self::MkdirAll { path } => (ByteOp::MkdirAll, path.clone()),
             Self::SetTime { path, .. } => (ByteOp::SetTime, path.clone()),
+            Self::ReadAt { path, .. } => (ByteOp::ReadAt, path.clone()),
+            Self::WriteAt { path, .. } => (ByteOp::WriteAt, path.clone()),
+            Self::Stat { path } => (ByteOp::Stat, path.clone()),
+            Self::Copy { to, .. } => (ByteOp::Copy, to.clone()),
         }
     }
 }
@@ -417,6 +473,23 @@ pub async fn bytes_io_once<O: ByteOps>(ops: &O, request: &ByteRequest) -> ByteOu
         ByteRequest::Unlink { path } => ops.unlink(path).await,
         ByteRequest::MkdirAll { path } => ops.mkdir_all(path).await,
         ByteRequest::SetTime { path, timestamp } => ops.set_time(path, *timestamp).await,
+        ByteRequest::Copy { from, to } => ops.copy_file(from, to).await,
+        ByteRequest::ReadAt { path, offset, len } => match ops.read_at(path, *offset, *len).await {
+            Ok(bytes) => return ByteOutcome::Block(bytes),
+            Err(status) => Err(status),
+        },
+        ByteRequest::WriteAt {
+            path,
+            offset,
+            bytes,
+        } => match ops.write_at(path, *offset, bytes).await {
+            Ok(written) => return ByteOutcome::Wrote(written),
+            Err(status) => Err(status),
+        },
+        ByteRequest::Stat { path } => match ops.stat(path).await {
+            Ok(size) => return ByteOutcome::Size(size),
+            Err(status) => Err(status),
+        },
         ByteRequest::Exists { path } => match ops.exists(path).await {
             Ok(present) => return ByteOutcome::Exists(present),
             Err(status) => Err(status),
@@ -627,6 +700,92 @@ pub unsafe extern "C" fn deluge_file_bytes_request_set_time(
     enqueue_request(ByteRequest::SetTime { path, timestamp })
 }
 
+/// Request up to `len` bytes from `path` at `offset`, and wake the driver. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. It is copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_read_at(
+    path: *const c_char,
+    offset: u32,
+    len: u32,
+) -> bool {
+    if len as usize > BLOCK_BYTES {
+        return false;
+    }
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return false;
+    };
+    enqueue_request(ByteRequest::ReadAt { path, offset, len })
+}
+
+/// Request `len` bytes be written into `path` at `offset`, and wake the driver. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string, and `bytes` must point to at least `len` readable
+/// bytes. Both are copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_write_at(
+    path: *const c_char,
+    offset: u32,
+    bytes: *const u8,
+    len: u32,
+) -> bool {
+    if bytes.is_null() || len as usize > BLOCK_BYTES {
+        return false;
+    }
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return false;
+    };
+    // SAFETY: `bytes` points to at least `len` readable bytes, and the slice is consumed into an
+    // owned buffer before this returns -- so nothing outlives it.
+    let src = unsafe { core::slice::from_raw_parts(bytes, len as usize) };
+    let Ok(bytes) = BlockBuf::from_slice(src) else {
+        return false; // cannot happen: `len` is bounded above
+    };
+    enqueue_request(ByteRequest::WriteAt {
+        path,
+        offset,
+        bytes,
+    })
+}
+
+/// Request `path`'s size, and wake the driver. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. It is copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_stat(path: *const c_char) {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return;
+    };
+    let _ = enqueue_request(ByteRequest::Stat { path });
+}
+
+/// Request `from` be copied to `to`, and wake the driver. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `from` and `to` must be valid NUL-terminated C strings. Both are copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_copy(
+    from: *const c_char,
+    to: *const c_char,
+) -> bool {
+    // SAFETY: the caller's contract, above.
+    let (Some(from), Some(to)) = (unsafe { cstr_to_path(from) }, unsafe { cstr_to_path(to) })
+    else {
+        return false;
+    };
+    enqueue_request(ByteRequest::Copy { from, to })
+}
+
 /// Install the request and wake the driver, REFUSING if the channel is already busy.
 ///
 /// `try_lock` rather than a block: this is called synchronously from C++ in whatever context the app
@@ -730,9 +889,14 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
         // a read, and the take matched on `ByteOp::Read`. Reported as UNKNOWN rather than asserted
         // because the alternative -- READY with `out_len` unwritten -- hands the caller an
         // uninitialised length.
-        Probe::Ready(ByteOutcome::Done) | Probe::Ready(ByteOutcome::Exists(_)) => {
-            DELUGE_FILE_BYTES_UNKNOWN
-        }
+        // None of these can be filed under Read -- `bytes_io_once` produces `Bytes` or `Failed` for
+        // it, and the take matched on `ByteOp::Read`. Reported as UNKNOWN rather than asserted,
+        // because the alternative hands the caller an uninitialised length.
+        Probe::Ready(ByteOutcome::Done)
+        | Probe::Ready(ByteOutcome::Exists(_))
+        | Probe::Ready(ByteOutcome::Block(_))
+        | Probe::Ready(ByteOutcome::Size(_))
+        | Probe::Ready(ByteOutcome::Wrote(_)) => DELUGE_FILE_BYTES_UNKNOWN,
         Probe::Ready(ByteOutcome::Failed(status)) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
@@ -826,9 +990,11 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_exists(
         // Neither can be filed under Exists -- `bytes_io_once` produces `Exists` or `Failed` for this
         // op, and the take matched on `ByteOp::Exists`. Reported as UNKNOWN rather than asserted
         // because the alternative is READY with `out_present` left uninitialised.
-        Probe::Ready(ByteOutcome::Bytes(_)) | Probe::Ready(ByteOutcome::Done) => {
-            DELUGE_FILE_BYTES_UNKNOWN
-        }
+        Probe::Ready(ByteOutcome::Bytes(_))
+        | Probe::Ready(ByteOutcome::Done)
+        | Probe::Ready(ByteOutcome::Block(_))
+        | Probe::Ready(ByteOutcome::Size(_))
+        | Probe::Ready(ByteOutcome::Wrote(_)) => DELUGE_FILE_BYTES_UNKNOWN,
         Probe::Pending => DELUGE_FILE_BYTES_PENDING,
         Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
     }
@@ -864,6 +1030,139 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_set_time(
     unsafe { collect_completion(ByteOp::SetTime, path, out_status) }
 }
 
+/// Collect the bytes read at an offset for `path`, if they are ready. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string; `out_buf` must point to at least `buf_cap`
+/// writable bytes; `out_len` and `out_status` must point to writable objects of their types.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_read_at(
+    path: *const c_char,
+    out_buf: *mut u8,
+    buf_cap: u32,
+    out_len: *mut u32,
+    out_status: *mut i8,
+) -> u8 {
+    if out_buf.is_null() || out_len.is_null() || out_status.is_null() {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    }
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    };
+    match probe(ByteOp::ReadAt, &path) {
+        Probe::Ready(ByteOutcome::Block(bytes)) => {
+            if bytes.len() > buf_cap as usize {
+                // SAFETY: non-null (checked above); written only on FAILED.
+                unsafe { *out_status = NO_MEMORY };
+                return DELUGE_FILE_BYTES_FAILED;
+            }
+            // SAFETY: `out_buf` has at least `buf_cap` writable bytes and the length was just
+            // checked. The regions cannot overlap: the source is this module's own `.bss`.
+            unsafe {
+                core::ptr::copy_nonoverlapping(bytes.as_ptr(), out_buf, bytes.len());
+                *out_len = bytes.len() as u32;
+            }
+            DELUGE_FILE_BYTES_READY
+        }
+        Probe::Ready(ByteOutcome::Failed(status)) => {
+            // SAFETY: as above, and written only on FAILED.
+            unsafe { *out_status = status };
+            DELUGE_FILE_BYTES_FAILED
+        }
+        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
+        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+    }
+}
+
+/// Collect the outcome of the offset-addressed write to `path`, if it has finished.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string; `out_written` and `out_status` must point to
+/// writable objects of their types.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_write_at(
+    path: *const c_char,
+    out_written: *mut u32,
+    out_status: *mut i8,
+) -> u8 {
+    if out_written.is_null() || out_status.is_null() {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    }
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    };
+    match probe(ByteOp::WriteAt, &path) {
+        Probe::Ready(ByteOutcome::Wrote(written)) => {
+            // SAFETY: non-null (checked above); written only on READY.
+            unsafe { *out_written = written };
+            DELUGE_FILE_BYTES_READY
+        }
+        Probe::Ready(ByteOutcome::Failed(status)) => {
+            // SAFETY: as above, and written only on FAILED.
+            unsafe { *out_status = status };
+            DELUGE_FILE_BYTES_FAILED
+        }
+        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
+        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+    }
+}
+
+/// Collect `path`'s size, if it is known. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string; `out_size` and `out_status` must point to writable
+/// objects of their types.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_stat(
+    path: *const c_char,
+    out_size: *mut u32,
+    out_status: *mut i8,
+) -> u8 {
+    if out_size.is_null() || out_status.is_null() {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    }
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    };
+    match probe(ByteOp::Stat, &path) {
+        Probe::Ready(ByteOutcome::Size(size)) => {
+            // SAFETY: non-null (checked above); written only on READY.
+            unsafe { *out_size = size };
+            DELUGE_FILE_BYTES_READY
+        }
+        Probe::Ready(ByteOutcome::Failed(status)) => {
+            // SAFETY: as above, and written only on FAILED.
+            unsafe { *out_status = status };
+            DELUGE_FILE_BYTES_FAILED
+        }
+        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
+        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+    }
+}
+
+/// Collect the outcome of the copy to `to`, if it has finished. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `to` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_copy(
+    to: *const c_char,
+    out_status: *mut i8,
+) -> u8 {
+    // SAFETY: the caller's contract, above.
+    unsafe { collect_completion(ByteOp::Copy, to, out_status) }
+}
+
 /// The shared body of the two completion collects, which differ only in the [`ByteOp`] they key on.
 ///
 /// # Safety
@@ -887,9 +1186,11 @@ unsafe fn collect_completion(op: ByteOp, path: *const c_char, out_status: *mut i
         }
         // Neither can be filed under a completion op -- see the same case in
         // `deluge_file_bytes_collect_read`.
-        Probe::Ready(ByteOutcome::Bytes(_)) | Probe::Ready(ByteOutcome::Exists(_)) => {
-            DELUGE_FILE_BYTES_UNKNOWN
-        }
+        Probe::Ready(ByteOutcome::Bytes(_))
+        | Probe::Ready(ByteOutcome::Exists(_))
+        | Probe::Ready(ByteOutcome::Block(_))
+        | Probe::Ready(ByteOutcome::Size(_))
+        | Probe::Ready(ByteOutcome::Wrote(_)) => DELUGE_FILE_BYTES_UNKNOWN,
         Probe::Pending => DELUGE_FILE_BYTES_PENDING,
         Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
     }
@@ -1013,13 +1314,15 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
-        mount, task_file_close, task_file_open, task_file_read_exact, task_file_size,
-        task_file_truncate, task_file_write, task_mkdir, task_rename, task_set_time, task_unlink,
+        mount, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
+        task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
+        task_set_time, task_unlink,
     };
     #[cfg(not(target_os = "none"))]
     pub(super) use crate::efatfs_host_shim::{
-        mount, task_file_close, task_file_open, task_file_read_exact, task_file_size,
-        task_file_truncate, task_file_write, task_mkdir, task_rename, task_set_time, task_unlink,
+        mount, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
+        task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
+        task_set_time, task_unlink,
     };
 }
 
@@ -1226,6 +1529,118 @@ impl ByteOps for ProdByteOps {
         )
         .await
         .map_err(|status| status as i8)
+    }
+
+    async fn read_at(&self, path: &str, offset: u32, len: u32) -> Result<BlockBuf, i8> {
+        let handle = Self::open_mounted(path, OPEN_READ).await?;
+        let result = async {
+            let mut buf = BlockBuf::new();
+            buf.resize_default(len.min(BLOCK_BYTES as u32) as usize)
+                .map_err(|()| NO_MEMORY)?;
+            backing::task_file_seek(handle, offset)
+                .await
+                .map_err(|status| status as i8)?;
+            let read = backing::task_file_read_exact(handle, &mut buf)
+                .await
+                .map_err(|status| status as i8)?;
+            // A SHORT read is end-of-file, not a failure. `smsysex`'s reader detects EOF exactly this
+            // way, so collapsing it into an error would break the transfer's termination.
+            buf.truncate(read);
+            Ok(buf)
+        }
+        .await;
+        backing::task_file_close(handle).await;
+        result
+    }
+
+    async fn write_at(&self, path: &str, offset: u32, bytes: &[u8]) -> Result<u32, i8> {
+        // OPEN_READ, and that is NOT a mistake. `task_file_open`'s mode selects which `efatfs_core`
+        // helper runs: mode 1 goes to `create_context`, which calls `truncate()` UNCONDITIONALLY, so
+        // opening that way here would erase the file on every block and a multi-block transfer would
+        // keep only its last block. Mode 0 goes to `open_context`, which uses `open_file` and returns
+        // a read-WRITE handle without truncating. Do not "fix" this to a write mode.
+        let handle = match Self::open_mounted(path, OPEN_READ).await {
+            Ok(handle) => handle,
+            Err(NOT_FOUND) => {
+                // Absent: create it once. An absent file is empty, so truncation is moot here alone.
+                let created = Self::open_mounted(path, OPEN_WRITE_CREATE).await?;
+                backing::task_file_close(created).await;
+                Self::open_mounted(path, OPEN_READ).await?
+            }
+            Err(status) => return Err(status),
+        };
+        let result = async {
+            backing::task_file_seek(handle, offset)
+                .await
+                .map_err(|status| status as i8)?;
+            backing::task_file_write(handle, bytes)
+                .await
+                .map_err(|status| status as i8)
+                .map(|written| written as u32)
+        }
+        .await;
+        // The close is what flushes; dropping the handle without it leaves the write unlanded.
+        backing::task_file_close(handle).await;
+        result
+    }
+
+    async fn stat(&self, path: &str) -> Result<u32, i8> {
+        let handle = Self::open_mounted(path, OPEN_READ).await?;
+        let result = backing::task_file_size(handle)
+            .await
+            .map_err(|status| status as i8);
+        backing::task_file_close(handle).await;
+        result
+    }
+
+    async fn copy_file(&self, from: &str, to: &str) -> Result<(), i8> {
+        // The loop `smSysex::performFileCopy` used to run, moved below the seam so its caller needs
+        // neither a loop nor two open files -- the same move `mkdir_all`'s segment walk made.
+        if let Some(parent) = Self::parent_of(to) {
+            let _ = backing::task_mkdir(parent).await;
+        }
+        // Truncate the destination FIRST: a copy onto a longer existing file must not leave its tail
+        // behind. This is the one place in this module that wants `create_context`'s truncation.
+        let dst_init = Self::open_mounted(to, OPEN_WRITE_CREATE).await?;
+        backing::task_file_close(dst_init).await;
+
+        let src = Self::open_mounted(from, OPEN_READ).await?;
+        let result = async {
+            let mut offset: u32 = 0;
+            loop {
+                let mut buf = BlockBuf::new();
+                buf.resize_default(BLOCK_BYTES).map_err(|()| NO_MEMORY)?;
+                backing::task_file_seek(src, offset)
+                    .await
+                    .map_err(|status| status as i8)?;
+                let read = backing::task_file_read_exact(src, &mut buf)
+                    .await
+                    .map_err(|status| status as i8)?;
+                if read == 0 {
+                    return Ok(());
+                }
+                buf.truncate(read);
+                // Non-truncating, for the reason `write_at` gives at length.
+                let dst = Self::open_mounted(to, OPEN_READ).await?;
+                let written = async {
+                    backing::task_file_seek(dst, offset)
+                        .await
+                        .map_err(|status| status as i8)?;
+                    backing::task_file_write(dst, &buf)
+                        .await
+                        .map_err(|status| status as i8)
+                }
+                .await;
+                backing::task_file_close(dst).await;
+                if written? != buf.len() {
+                    return Err(ERR_IO);
+                }
+                offset += read as u32;
+            }
+        }
+        .await;
+        backing::task_file_close(src).await;
+        result
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<(), i8> {

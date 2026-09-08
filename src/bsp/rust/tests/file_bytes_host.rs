@@ -13,8 +13,8 @@
 mod file_bytes;
 
 use file_bytes::{
-    ByteBuf, ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, FileTimestamp,
-    drain, publish_into, take_from,
+    BlockBuf, ByteBuf, ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot,
+    FileTimestamp, drain, publish_into, take_from,
 };
 
 /// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let
@@ -318,4 +318,58 @@ fn a_mkdir_all_request_is_keyed_on_its_path() {
         path: BytesPath::try_from("PATTERNS/RHYTHMIC/KIT").expect("fits"),
     };
     assert_eq!(request.key(), (ByteOp::MkdirAll, "PATTERNS/RHYTHMIC/KIT"));
+}
+
+/// A read's block is not a write's count, even for the same path.
+#[test]
+fn a_read_at_answer_is_not_a_write_at_answer() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::WriteAt,
+        SETTINGS,
+        ByteOutcome::Wrote(512),
+        CARD,
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::ReadAt, SETTINGS, CARD),
+        ByteTake::Absent,
+        "the read collect must not be handed the write's count"
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::WriteAt, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Wrote(512))
+    );
+}
+
+/// A zero-length block is an ANSWER -- end of file -- and must survive as one. A transfer detects
+/// its own end this way, so collapsing it into a failure would break termination.
+#[test]
+fn an_empty_block_is_an_answer_not_a_failure() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::ReadAt,
+        SETTINGS,
+        ByteOutcome::Block(BlockBuf::new()),
+        CARD,
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::ReadAt, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Block(BlockBuf::new()))
+    );
+}
+
+/// A copy is keyed on its DESTINATION, like a rename -- that is the name the caller goes on to use.
+#[test]
+fn a_copy_is_keyed_on_its_destination() {
+    let request = ByteRequest::Copy {
+        from: BytesPath::try_from("A.WAV").expect("fits"),
+        to: BytesPath::try_from(SETTINGS).expect("fits"),
+    };
+    assert_eq!(request.key(), (ByteOp::Copy, SETTINGS));
+    assert_eq!(
+        request.key_owned(),
+        (ByteOp::Copy, BytesPath::try_from(SETTINGS).expect("fits"))
+    );
 }
