@@ -1162,7 +1162,7 @@ async fn stream_open(path: &str, mode: u8) -> Option<u32> {
 /// Write `src` at absolute `byte_offset`, advancing the handle's persisted context WITHOUT
 /// flushing the size/mtime edit to disk (`efatfs_core::write_context_noflush`). Returns the true
 /// byte count written, or `None` on a bad handle or FS error.
-async fn stream_write_at(handle: u32, byte_offset: u32, src: &[u8]) -> Option<usize> {
+pub(crate) async fn stream_write_at(handle: u32, byte_offset: u32, src: &[u8]) -> Option<usize> {
     let (generation, ctx) = STREAM_WRITE_CTX.lock().await.checkout(handle)?;
     let (newctx, n) =
         with_fs(async |fs| efatfs_core::write_context_noflush(fs, ctx, byte_offset, src).await)
