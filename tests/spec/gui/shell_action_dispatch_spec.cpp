@@ -113,6 +113,9 @@ struct Rig {
 	Rig() : guest(fill(), kDelugeBoard, deluge_profile()) {
 		fakelegacy::reset();
 		fakelegacyui::reset();
+		// The guest is the current UI, which is the precondition the real `UITimerManager` would
+		// have dispatched `timerCallback()` under -- and what `rearmTimer`'s guard reads.
+		fakelegacyui::current_ui = &guest;
 	}
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
@@ -122,6 +125,7 @@ struct Rig {
 		// means a later example cannot call a lambda over a destroyed `Rig` even if it forgets --
 		// and `fakelegacyui::reset()` in the constructor is the belt to this file's braces.
 		fakelegacyui::on_action_dispatch = nullptr;
+		fakelegacyui::current_ui = nullptr;
 	}
 
 	const SceneRegistry& fill() {

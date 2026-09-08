@@ -41,6 +41,8 @@ int32_t ui_specific_armed_ms() {
 	return -1;
 }
 
+UI* current_ui = nullptr;
+
 void reset() {
 	closed.clear();
 	oled_redraws = 0;
@@ -185,6 +187,14 @@ void UI::close() {
 
 void closeUI(UI* uiToClose) {
 	fakelegacyui::closed.push_back(uiToClose);
+}
+
+// `getCurrentUI` (`gui/ui/ui.cpp:136-140`) reads `uiNavigationHierarchy`, which this suite does
+// not build. `ShellHostUI::rearmTimer` asks it anyway -- it refuses to arm `TimerName::UI_SPECIFIC`
+// for a UI that is no longer current -- so the fake answers whatever the rig declared. See
+// `fakelegacyui::current_ui` for why that declaration is the honest model rather than a shim.
+UI* getCurrentUI() {
+	return fakelegacyui::current_ui;
 }
 
 void renderUIsForOled() {

@@ -281,7 +281,7 @@ struct GuestRig {
 	void press_enter() { (void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
 
 	/// One detent of the select encoder, through the guest's own hook. `ShellHostUI::selectEncoderAction`
-	/// (`gui/ui/shell_host_ui.cpp:807`) is the override legacy's `interpretEncoders` calls
+	/// (`gui/ui/shell_host_ui.cpp:860`) is the override legacy's `interpretEncoders` calls
 	/// (`hid/encoder_input.cpp:112`, `:117`), and it queues into the same lowering `press_enter`
 	/// does -- so, as there, nothing moves until the guest is ticked.
 	void turn_select(int32_t detents) { ui.selectEncoderAction(static_cast<int8_t>(detents)); }
@@ -522,6 +522,49 @@ bool open_global_guest(const Node& root, spec::SongFixture& song) {
 	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
 	return shellHostUI.opened();
 }
+
+/// @brief `open_global_guest`, but with the guest **on `uiNavigationHierarchy`** as well as on its
+///        own scene stack -- so `getCurrentUI() == &shellHostUI`, the way production leaves it.
+///
+/// `open_global_guest` above deliberately keeps the guest off the UI stack, and says why. The
+/// re-arm example below needs the opposite, and needs it for the thing under test: the guard in
+/// `ShellHostUI::rearmTimer` is `getCurrentUI() != this`, so an example where the guest was never
+/// current could not tell a working guard from a broken one -- it would take the early return in
+/// both worlds and pass vacuously.
+///
+/// `openUI(&shellHostUI)` is production's own call (`gui/ui/shell_menu_entry.cpp:162`) and
+/// `menu_entry_spec.cpp:147` already drives the global this way. It runs `opened()` itself, so this
+/// does NOT call `opened()` first the way `open_global_guest` does -- doing both would push the
+/// initial scene twice.
+///
+/// @warning Seat a root UI first. `openUI` writes `uiNavigationHierarchy[numUIsOpen]` (`ui.cpp:230`),
+///          so with an empty hierarchy the guest lands at index 0 and becomes `getRootUI()` -- the
+///          precondition `stemExportTypeForRootUI`'s note in `gui/ui/shell_action_dispatch.cpp`
+///          spells out. Teardown is `UiStackGuard`'s `nullifyUIs()`, never `closeUI`.
+bool open_global_guest_on_ui_stack(const Node& root, spec::SongFixture& song) {
+	const bool song_root = &root == &nodes::root_song;
+	const MenuContext ctx = menu::context_for(*song.song, song_root ? nullptr : song.clip, 0, false,
+	                                          /*session_or_arranger_root=*/song_root,
+	                                          /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+	(void)menu::assign_node_ids(kRoots);
+	menu_scene().open(root, ctx);
+	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
+	return openUI(&shellHostUI);
+}
+
+/// @brief Leave `TimerName::UI_SPECIFIC` unset afterwards, whatever an example armed.
+///
+/// Unset rather than restored to its exact deadline: the timer is a shared one-shot whose resting
+/// state between guest sessions is "not armed" (`ShellHostUI::rearmTimer`'s own no-deadline arm
+/// leaves it alone, `gui/ui/shell_host_ui.cpp:598-613`), and every path that can wake the guest
+/// re-arms it through `armTickSoon`. Leaving it armed would hand the next example a timer pointing
+/// at a UI this one tore down.
+struct UiSpecificTimerGuard {
+	UiSpecificTimerGuard(const UiSpecificTimerGuard&) = delete;
+	UiSpecificTimerGuard& operator=(const UiSpecificTimerGuard&) = delete;
+	UiSpecificTimerGuard() = default;
+	~UiSpecificTimerGuard() { uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC); }
+};
 
 /// @brief What `stemExportTypeForRootUI()` chose, as an `int`, with `-1` for "nothing".
 ///
@@ -2430,6 +2473,76 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		expect(currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid).to_be_true();
 		// `configure_macros.h:29`.
 		expect(isUIOpen(&deluge::gui::context_menu::configureSongMacros)).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("an arm that opens a UI leaves the guest's timer unarmed, because it is no longer the guest's", _ {
+		// **The cross-task hazard the whole-branch review found, and the one example that can see
+		// it.** Three arms end in `openUI(...)`, so when they return `getCurrentUI()` is no longer
+		// `ShellHostUI` -- and legacy's `NO_NAVIGATION` semantics correctly leave the ported menu on
+		// the shell stack, so `timerCallback`'s `depth() == 0` close does not fire and `rearmTimer`
+		// runs. `TimerName::UI_SPECIFIC` is dispatched to `getCurrentUI()->timerCallback()`
+		// (`gui/ui_timer_manager.cpp:142-148`), so re-arming there hands this guest's tick to the UI
+		// that was just opened over it. For `performanceView` that is not inert:
+		// `PerformanceView::timerCallback` forwards into `sessionView`/`arrangerView`
+		// (`gui/views/performance_view.cpp:383-391`).
+		//
+		// The guard is in `ShellHostUI::rearmTimer` (`gui/ui/shell_host_ui.cpp:593`), and this
+		// example is what reddens without it -- measured, not assumed.
+		select_language();
+		PerformViewGuard perform_guard;
+		UiStackGuard ui_guard;
+		UiSpecificTimerGuard timer_guard;
+
+		{
+			// **The control, and it is the half that makes the subject mean anything.** Identical
+			// rig, identical guest, identical settle tick -- with no press, so the drain finds
+			// nothing, opens nothing, and the guest is still current when `rearmTimer` runs. The
+			// timer IS armed here. Without this leg the subject's `to_be_false()` would also pass on
+			// a `rearmTimer` that never arms in this rig at all -- e.g. if `Shell::next_wake()`
+			// answered `nullopt` and took the early return (`shell_host_ui.cpp:598-613`).
+			GlobalGuestGuard control_guard;
+			spec::SongFixture control_song = spec::make_synth_song();
+			setRootUILowLevel(&sessionView);
+			expect(open_global_guest_on_ui_stack(nodes::perform_editor, control_song)).to_be_true();
+			expect(getCurrentUI() == &shellHostUI).to_be_true();
+
+			// Cleared right before the tick, so the only thing that can set it is `rearmTimer`:
+			// `opened()` and every input hook arm it too, through `armTickSoon`
+			// (`gui/ui/shell_host_ui.cpp:171`, and the six input hooks at `:746`-`:868`).
+			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
+			(void)shellHostUI.timerCallback();
+
+			expect(getCurrentUI() == &shellHostUI).to_be_true(); // nothing was opened over it
+			expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_true();
+			(void)scene().take_action();
+		}
+
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture song = spec::make_synth_song();
+		setRootUILowLevel(&sessionView);
+		// VALUE rather than DISABLED: `PerformEditorItem::on_focus` seeds the cursor from the mirror
+		// (`scenes/menu/nodes/actions.cpp:121`), and DISABLED is the arm that files nothing.
+		menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+		expect(open_global_guest_on_ui_stack(nodes::perform_editor, song)).to_be_true();
+
+		(void)shellHostUI.timerCallback();                 // settle the first frame...
+		expect(scene().take_action().engaged()).to_be_false(); // ...which files nothing on its own
+
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC); // `buttonAction` armed it via `armTickSoon`
+		(void)shellHostUI.timerCallback();
+
+		// The arm really opened the view -- so this is about the re-arm and not about a press that
+		// never landed.
+		expect(isUIOpen(&performanceView)).to_be_true();
+		// ...and the view, not the guest, is who `TimerName::UI_SPECIFIC` would now be delivered to.
+		// This is the guard's exact predicate, asserted rather than assumed.
+		expect(getCurrentUI() == &performanceView).to_be_true();
+
+		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
+
+		// And the outbox is empty, so the effects above came from this one request.
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 });

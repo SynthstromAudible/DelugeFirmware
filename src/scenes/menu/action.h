@@ -125,7 +125,7 @@ enum class MenuAction : uint8_t {
 	/// The `soundEditor.exitCompletely()` that precedes it (`:32`) is performed *in equivalent
 	/// form rather than verbatim*, and that is the one divergence: under the guest the open UI is
 	/// `ShellHostUI` and not `soundEditor`, so the literal call would walk `closeUI` off the front
-	/// of the navigation stack. `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp:170-172`)
+	/// of the navigation stack. `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp:176-178`)
 	/// empties the guest's scene stack instead and lets `ShellHostUI::timerCallback` do the close
 	/// it already owns -- the same statement the menu's own root-Back reaches. That file argues it
 	/// at length; this reference exists so the divergence is not discoverable only from there.

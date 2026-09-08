@@ -140,7 +140,30 @@ extern int action_dispatches;
 extern std::function<void()> on_action_dispatch;
 /// @}
 
+/// @brief Which `UI` this suite's `getCurrentUI()` answers -- i.e. **who owns
+///        `TimerName::UI_SPECIFIC` right now**.
+///
+/// There is no `uiNavigationHierarchy` in this suite, which the timer-manager note above already
+/// records as the reason `routine()` cannot dispatch. `ShellHostUI::rearmTimer` nevertheless has to
+/// ask, because it refuses to arm `UI_SPECIFIC` for a UI that is no longer current
+/// (`gui/ui/shell_host_ui.cpp:593`) -- the guard that stops an arm whose `openUI(...)` has just put
+/// something else on top from handing this guest's tick to that something else.
+///
+/// So each `Rig` sets this to its own `guest`, and that is not a convenience: it is the precondition
+/// under which the real `UITimerManager` would have called `timerCallback()` at all
+/// (`gui/ui_timer_manager.cpp:142-148`). A spec driving `timerCallback()` by hand is standing in for
+/// that dispatch, and saying so out loud is what makes the re-arm assertions mean what they claim.
+///
+/// @note **`reset()` deliberately does NOT clear this**, unlike every other field here. It describes
+///       the fixture's topology rather than something an example recorded, and several examples call
+///       `reset()` again mid-way to zero the counters -- clearing it there would silently disarm the
+///       guest for the rest of the example. Each `Rig`'s constructor sets it and its destructor
+///       clears it, so it never outlives the object it points at.
+extern UI* current_ui;
+
 /// @brief Clear every recorder, and put the clock and the SD lock back to 0 / false.
+///
+/// Everything except `current_ui` -- see its note.
 void reset();
 
 } // namespace fakelegacyui

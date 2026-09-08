@@ -32,6 +32,19 @@ namespace {
 constexpr SceneKind kBase = SceneKind::FirstApp;
 constexpr SceneKind kOver = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 1);
 
+/// @brief Some other `UI`, for the one example that needs `getCurrentUI()` to answer "not the
+///        guest".
+///
+/// A real `UI` rather than a cast pointer: `rearmTimer`'s guard only ever compares the address, but
+/// an example that lies about a type to make a comparison come out right is one nobody can later
+/// change safely. `UI` has exactly two pure virtuals (`gui/ui/ui.h:157`, `:164`), and neither is
+/// reached here -- nothing renders this and nothing asks its type.
+class OtherUI final : public UI {
+public:
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
+	UIType getUIType() override { return UIType::NONE; }
+};
+
 /// @brief A scene that paints a colour derived from (x, y), so a copy that transposes, offsets or
 ///        drops a column is visible rather than merely "different".
 ///
@@ -201,11 +214,16 @@ struct Rig {
 	Rig() : guest(fill(), kDelugeBoard, deluge_profile()) {
 		fakelegacy::reset();
 		fakelegacyui::reset();
+		fakelegacyui::current_ui = &guest;
 	}
 	explicit Rig(const DelugeBoard& board, const BoardProfile& profile) : guest(fill(), board, profile) {
 		fakelegacy::reset();
 		fakelegacyui::reset();
+		fakelegacyui::current_ui = &guest;
 	}
+	/// Never leave `getCurrentUI()` pointing at a destroyed guest. Only ever compared, never
+	/// dereferenced -- but a dangling pointer that is only compared is still a dangling pointer.
+	~Rig() { fakelegacyui::current_ui = nullptr; }
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
@@ -1637,6 +1655,55 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(120));
 		// The tick really ran on `nowMs()`, not on 0: `next_wake` is `now + 120`.
 		expect(fakelegacyui::timer_arms.back().which == TimerName::UI_SPECIFIC).to_be_true();
+	});
+
+	it("arms NOTHING when it is no longer the current UI, however loudly the shell asks for a wake", _ {
+		// **The guard at `ShellHostUI::rearmTimer`'s top** (`gui/ui/shell_host_ui.cpp:593`).
+		// `TimerName::UI_SPECIFIC` is the *current* UI's timer -- `UITimerManager::routine` dispatches
+		// it to `getCurrentUI()->timerCallback()` and never to whatever armed it
+		// (`gui/ui_timer_manager.cpp:142-148`) -- so arming it while something else is current hands
+		// this guest's tick to that something else.
+		//
+		// This is not hypothetical, and it is not a state the guest puts itself into: three of the
+		// dispatcher's arms end in `openUI(...)` (`gui/ui/shell_action_dispatch.cpp`), and legacy's
+		// `NO_NAVIGATION` semantics correctly leave the ported menu on the shell stack when they do --
+		// so `timerCallback`'s `depth() == 0` close does not fire and control reaches `rearmTimer`
+		// with a foreign UI on top. `dispatchShellActions` is stubbed in this suite, so the *cause*
+		// cannot be reproduced here; the guest's response to the resulting state can, and is exactly
+		// what this pins. The end-to-end version, with the real dispatcher opening the real
+		// `performanceView`, is `sim/scenes_spec/menu_actions_spec.cpp`'s
+		// `menu_action_three_verbs`.
+		Rig r;
+		// A scene that wants a wake on every tick, so "nothing was armed" cannot be the shell simply
+		// having nothing to ask for -- `next_wake()` answering `nullopt` takes a different early
+		// return (`gui/ui/shell_host_ui.cpp:598-613`) and would make this example vacuous.
+		r.base.timer = 120;
+		expect(r.open()).to_be_true();
+
+		// The control leg, and it is what makes the subject mean anything: still current, so the arm
+		// happens. Same rig, same scene, same clock -- one thing differs below.
+		set_clock_ms(500);
+		(void)r.guest.timerCallback();
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(120));
+
+		// Now something else is the current UI -- the state an arm ending in `openUI(...)` leaves.
+		fakelegacyui::timer_arms.clear();
+		OtherUI someone_else;
+		fakelegacyui::current_ui = &someone_else;
+		set_clock_ms(600);
+		expect(r.guest.timerCallback()).to_equal(ActionResult::DEALT_WITH);
+
+		// The shell still wants a wake -- so the refusal is the guard's doing and not an empty shell.
+		expect(r.guest.shell().next_wake().has_value()).to_be_true();
+		expect(fakelegacyui::timer_arms.empty()).to_be_true();
+
+		// And it recovers the moment the guest is current again, which is the half that says the
+		// guard is not a wedge. In production `closeUI` does this through `focusRegained`
+		// (`gui/ui/ui.cpp:197-199`); here the topology is declared rather than simulated.
+		fakelegacyui::current_ui = &r.guest;
+		set_clock_ms(700);
+		(void)r.guest.timerCallback();
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(120));
 	});
 
 	it("arms the floor -- not zero -- for a deadline that is already now, and does not wedge there", _ {

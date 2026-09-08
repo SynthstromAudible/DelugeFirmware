@@ -528,6 +528,10 @@ ActionResult ShellHostUI::timerCallback() {
 		return ActionResult::DEALT_WITH;
 	}
 
+	// Unconditional here, but **not unconditional inside**: `rearmTimer` refuses when this guest is
+	// no longer the current UI, which is exactly what the drain above leaves behind when an arm ends
+	// in `openUI(...)`. The whole argument, including why the guard is in the callee, is at
+	// `rearmTimer` itself.
 	rearmTimer(now);
 
 	// **Never `REMIND_ME_OUTSIDE_CARD_ROUTINE`.** That is the one value the `UI_SPECIFIC` arm acts
@@ -541,6 +545,55 @@ ActionResult ShellHostUI::timerCallback() {
 }
 
 void ShellHostUI::rearmTimer(uint32_t now) {
+	// **Only while this guest is the current UI -- which, since the action drain landed, is no
+	// longer a given.**
+	//
+	// `TimerName::UI_SPECIFIC` is not this object's timer. It is *the current UI's* timer:
+	// `UITimerManager::routine` dispatches it to `getCurrentUI()->timerCallback()`, never to
+	// whatever armed it (`gui/ui_timer_manager.cpp:142-148`). Arming it while something else is
+	// current does not delay this guest's tick, it **delivers this guest's tick to a stranger**.
+	//
+	// This branch already says so three times, and enforced it nowhere until now. `opened()` says it
+	// for a refused open (`:164-169`), `timerCallback`'s close check says it for the short-Back exit
+	// (`:520-525`), and `closePortedMenu` says it to rule out `closeGuest()` as an implementation
+	// (`gui/ui/shell_action_dispatch.cpp:153-163`). The path none of the three covers is the one F2
+	// tasks 2 and 4 created between them: **three of the seven `MenuAction` arms end in
+	// `openUI(...)`** -- `grep -n "openUI(" gui/ui/shell_action_dispatch.cpp` gives exactly three
+	// (`:115` in `openPerformanceView`, `:358` and `:368` for the two context menus), against eight
+	// `case` labels; tasks 6 and 7's `SetShortcutsVersion` and `ScreensaverSettingsChanged` open
+	// nothing. And legacy's own `NO_NAVIGATION` semantics mean the ported menu correctly stays on the
+	// shell stack when they do. So `timerCallback`'s `depth() == 0` close does not fire, control
+	// reaches the `rearmTimer` below, and the UI that has just been opened over the guest gets the
+	// timer.
+	//
+	// **The guard is on `getCurrentUI()`, not on that list**, so it does not go stale when the list
+	// does -- which matters, because F3 adds the `take_choice` dispatcher to the same drain.
+	//
+	// **What that costs, bounded honestly.** The two context menus inherit `UI::timerCallback`'s
+	// `return DEALT_WITH` (`gui/ui/ui.h:109`) and no `gui/context_menu/` class overrides it, so for
+	// those two it is inert. `PerformanceView::timerCallback` is not inert: it forwards into
+	// `sessionView.timerCallback()` or `arrangerView.timerCallback()`
+	// (`gui/views/performance_view.cpp:383-391`). Toggle-ON only, and not a wedge -- but a
+	// `timerCallback` legacy never delivers.
+	//
+	// **Returning early cannot strand the guest, and that is by construction rather than by luck.**
+	// When the UI opened above it closes, `closeUI` unsets `UI_SPECIFIC` (`gui/ui/ui.cpp:197`) and
+	// calls `newUI->focusRegained()` (`:199`) -- which for this guest is an **unconditional**
+	// `armTickSoon()` (`:188-193`), written for exactly this shape of disarm. So the guest sleeps
+	// while it is covered and re-arms the instant it is uncovered.
+	//
+	// The guard is here rather than at the one call site because arming a timer that will be
+	// delivered elsewhere violates *this function's* contract, not its caller's -- and because the
+	// early-return branch below arms a second time for the SD poll (`:610`), which a call-site guard
+	// would leave uncovered on the day someone adds a third. `armTickSoon` is deliberately NOT
+	// guarded: its ten call sites are the input hooks, `opened()`, `displayOrLanguageChanged()` and
+	// `exitUI()`, on which the guest is current by construction -- and `focusRegained`'s is the one
+	// arm that MUST fire while this guard is suppressing, so guarding it too would be the wedge this
+	// one avoids.
+	if (getCurrentUI() != this) {
+		return;
+	}
+
 	const std::optional<uint32_t> deadline = shell_.next_wake();
 	if (!deadline.has_value()) {
 		// Nothing armed anywhere in the shell -- no gate deadline, no scene or service timer, no
