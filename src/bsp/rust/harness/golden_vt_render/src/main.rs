@@ -278,6 +278,12 @@ unsafe extern "C" {
     fn deluge_scenario_save_roundtrip_dispatch_step();
     fn deluge_scenario_save_roundtrip_step_done() -> bool;
     fn deluge_scenario_save_roundtrip_failures() -> i32;
+
+    fn deluge_scenario_settings_channel_begin();
+    fn deluge_scenario_settings_channel_complete() -> bool;
+    fn deluge_scenario_settings_channel_dispatch_step();
+    fn deluge_scenario_settings_channel_step_done() -> bool;
+    fn deluge_scenario_settings_channel_failures() -> i32;
     fn deluge_scenario_song_preview_ab_begin();
     fn deluge_scenario_song_preview_ab_complete() -> bool;
     fn deluge_scenario_song_preview_ab_dispatch_step();
@@ -946,6 +952,65 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
 const MAX_CORPUS_CASES: usize = 16;
 const _: () = assert!(MAX_CORPUS_CASES == 16);
 
+/// The `GOLDEN_SCENARIO=settings_channel` scenario: write a settings file through the real consumer
+/// entry point, read it back, and require the value to survive -- while counting every settings
+/// operation that began on the interaction tier.
+///
+/// Stepped rather than one blocking call for the same reason the save round-trip is: the operation
+/// is only ENQUEUED when the entry point runs, so each check must read its result on a later tick.
+#[embassy_executor::task]
+async fn run_settings_channel_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_settings_channel_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_settings_channel_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_settings_channel_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the settings channel gate did not complete within the 600s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_settings_channel_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_settings_channel_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_settings_channel_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the settings channel gate FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: settings channel gate completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// Drives the save round-trip gate: save a song through the real SaveSongUI gesture, load it back,
 /// overwrite it, and require the two written files to be identical.
 ///
@@ -1182,6 +1247,7 @@ fn main() {
     let audio_load_ab_mode = scenario == "audio_load_ab";
     let song_preview_ab_mode = scenario == "song_preview_ab";
     let save_roundtrip_mode = scenario == "save_roundtrip";
+    let settings_channel_mode = scenario == "settings_channel";
     if song_preview_ab_mode && !cfg!(feature = "async_file_prefix") {
         // Refusing beats running, for the reason the audio-load check below gives: without
         // `async_file_prefix` this binary has no prefix channel compiled at all, so the "file
@@ -1295,6 +1361,8 @@ fn main() {
         spawner.spawn(run_song_preview_ab_scenario(&DONE).unwrap());
     } else if save_roundtrip_mode {
         spawner.spawn(run_save_roundtrip_scenario(&DONE).unwrap());
+    } else if settings_channel_mode {
+        spawner.spawn(run_settings_channel_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {

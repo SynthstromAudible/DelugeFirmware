@@ -42,6 +42,7 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/existence_policy.h"
+#include "storage/settings_file.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/etl_string.h"
@@ -1623,6 +1624,7 @@ bool MidiFollow::isFeedbackEnabled() {
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
 void MidiFollow::writeDefaultsToFile() {
+	deluge::storage::settings::noteSettingsIoTier();
 	// MidiFollow.xml
 	Error error = StorageManager::createXMLFile(MIDI_FOLLOW_XML, smSerializer, true);
 	if (error != Error::NONE) {
@@ -1792,6 +1794,7 @@ void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
 
 /// read defaults from XML
 void MidiFollow::readDefaultsFromFile() {
+	deluge::storage::settings::noteSettingsIoTier();
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;

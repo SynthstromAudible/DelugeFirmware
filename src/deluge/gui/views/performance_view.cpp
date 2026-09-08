@@ -45,6 +45,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/existence_policy.h"
+#include "storage/settings_file.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
@@ -1658,6 +1659,7 @@ void PerformanceView::savePerformanceViewLayout() {
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
 void PerformanceView::writeDefaultsToFile() {
+	deluge::storage::settings::noteSettingsIoTier();
 	// PerformanceView.xml
 	Error error = StorageManager::createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
@@ -1803,6 +1805,7 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 
 /// read defaults from XML
 void PerformanceView::readDefaultsFromFile() {
+	deluge::storage::settings::noteSettingsIoTier();
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;

@@ -34,6 +34,7 @@
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/existence_policy.h"
+#include "storage/settings_file.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <algorithm>
@@ -444,6 +445,7 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 }
 
 void writeDevicesToFile() {
+	deluge::storage::settings::noteSettingsIoTier();
 	if (!anyChangesToSave) {
 		return;
 	}
@@ -522,6 +524,7 @@ void factoryReset(bool showPopup) {
 }
 
 void readDevicesFromFile() {
+	deluge::storage::settings::noteSettingsIoTier();
 	// Owner-audit exemption: this runs once at boot, before the storage-owner worker pump is
 	// reliably driving, and reads the card when nothing else does (so it is not a FatFS-reentrancy
 	// hazard). Left inline deliberately — dispatching onto the owner here could queue an op nothing

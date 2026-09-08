@@ -17,8 +17,6 @@
 
 #include "storage/settings_file.h"
 
-#include "definitions_cxx.hpp"
-#include "hid/display/display.h"
 #include "libdeluge/file_bytes.h"
 #include "storage/owner.h"
 
@@ -134,9 +132,10 @@ void noteSettingsIoTier() {
 		// lets the gate report the number BEFORE the conversion, which is the evidence that the
 		// conversion did something. The freeze is what keeps it from coming back.
 		interactionTierSettingsIo_++;
-		if (ALPHA_OR_BETA_VERSION) {
-			FREEZE_WITH_ERROR("TIR6");
-		}
+		// No freeze yet, deliberately. This counter lands BEFORE the conversion so the gate can
+		// report the pre-conversion number, and a freeze here would abort the very run that has to
+		// measure it. The freeze arrives with the conversion, which is what makes zero the only
+		// legal answer from then on.
 	}
 }
 

@@ -21,6 +21,7 @@
 #include "io/file.hpp"
 #include "model/song/song.h"
 #include "storage/existence_policy.h"
+#include "storage/settings_file.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include <cstring>
@@ -187,6 +188,7 @@ void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
+	deluge::storage::settings::noteSettingsIoTier();
 	// CommunityFeatures.XML
 	switch (deluge::storage::bootstrap_action(StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE))) {
 	case deluge::storage::Bootstrap::Load:
@@ -274,6 +276,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {
+	deluge::storage::settings::noteSettingsIoTier();
 	deluge::io::unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
 	Error error = StorageManager::createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smSerializer, true);
