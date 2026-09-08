@@ -716,4 +716,46 @@ foreach(script IN LISTS UI_APP_SCRIPTS)
              COMMAND python3 ${REPO_ROOT}/scripts/ui_snapshot_diff.py
                      ${CMAKE_BINARY_DIR}/got/app/${name} ${REPO_ROOT}/tests/golden/ui/app/${name})
     set_tests_properties(ui_app_scripts_${name}_diff PROPERTIES DEPENDS ui_app_scripts_${name})
+
+    # ---------------------------------------------------------------------------------------
+    # The A/B second leg (F1 task 11).
+    #
+    # `menu.txt` is the branch's acceptance test and is run TWICE: once by the pair above, from
+    # tests/fixtures/card, which has no SETTINGS/CommunityFeatures.XML and so leaves ShellMenu at
+    # its registered default of Off (model/settings/runtime_feature_settings.cpp:175-178); and
+    # once here from tests/fixtures/card-shell-menu, which is a byte-identical copy of that tree
+    # plus that one file, setting shellMenu to 1. So the second leg differs from the first by
+    # exactly one setting read out of one file on the card, on the same mechanism the device uses
+    # — no env var, no new script verb, nothing added to the harness (spec G is untouched).
+    #
+    # Attached to the loop rather than written out beside it so the two legs cannot drift: the
+    # script path, the timeout and the naming all come from the same variables the first leg used.
+    # A future second A/B script only has to be named here.
+    if(name STREQUAL "menu")
+        add_test(NAME ui_app_scripts_${name}_shell
+                 COMMAND ${CMAKE_COMMAND} -E env DELUGE_HOST_DETERMINISTIC=1 DELUGE_HOST_SCRIPT=${script}
+                         DELUGE_HOST_SNAPSHOT_DIR=${CMAKE_BINARY_DIR}/got/app/${name}_shell
+                         DELUGE_SD_ROOT=${REPO_ROOT}/tests/fixtures/card-shell-menu
+                         $<TARGET_FILE:deluge_host>)
+        set_tests_properties(ui_app_scripts_${name}_shell PROPERTIES TIMEOUT ${_ui_timeout})
+        add_test(NAME ui_app_scripts_${name}_shell_diff
+                 COMMAND python3 ${REPO_ROOT}/scripts/ui_snapshot_diff.py
+                         ${CMAKE_BINARY_DIR}/got/app/${name}_shell
+                         ${REPO_ROOT}/tests/golden/ui/app/${name}_shell)
+        set_tests_properties(ui_app_scripts_${name}_shell_diff PROPERTIES
+                             DEPENDS ui_app_scripts_${name}_shell)
+
+        # The comparison the two goldens cannot make on their own: they pin each leg against its
+        # own past, and this pins the two legs against EACH OTHER. Same file names, byte-identical
+        # OLED panels, and at least one `.state` that differs — the last of which is what stops
+        # this suite passing vacuously if the toggle ever stops taking. See the script's docstring.
+        add_test(NAME ui_app_scripts_${name}_ab
+                 COMMAND python3 ${REPO_ROOT}/scripts/ui_app_ab_check.py
+                         ${CMAKE_BINARY_DIR}/got/app/${name}
+                         ${CMAKE_BINARY_DIR}/got/app/${name}_shell
+                         --fixture-off ${REPO_ROOT}/tests/fixtures/card
+                         --fixture-on ${REPO_ROOT}/tests/fixtures/card-shell-menu)
+        set_tests_properties(ui_app_scripts_${name}_ab PROPERTIES
+                             DEPENDS "ui_app_scripts_${name};ui_app_scripts_${name}_shell")
+    endif()
 endforeach()

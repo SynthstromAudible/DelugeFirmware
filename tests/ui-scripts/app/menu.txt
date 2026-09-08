@@ -1,0 +1,76 @@
+# Level 3 (spec G §4.2): **the branch's acceptance test.** One script, run twice against two SD-card
+# fixtures that differ by exactly one file, and the two trees compared against each other:
+#
+#   ui_app_scripts_menu        SD root tests/fixtures/card             -> ShellMenu OFF: legacy SoundEditor
+#   ui_app_scripts_menu_shell  SD root tests/fixtures/card-shell-menu  -> ShellMenu ON:  ported MenuScene
+#   ui_app_scripts_menu_ab     scripts/ui_app_ab_check.py over the two got trees
+#
+# There is no env var and no new script verb for the toggle, and that is deliberate.
+# `shellMenuEnabled()` reads `runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu)`
+# (`gui/ui/shell_menu_entry.cpp:103-105`); the setting is registered with xmlName "shellMenu" and
+# default Off (`model/settings/runtime_feature_settings.cpp:175-178`) and read from
+# `SETTINGS/CommunityFeatures.XML` on the card (`RuntimeFeatureSettings::readSettingsFromFile`,
+# `:194-222`). So the toggle-on leg is a genuine boot-from-settings on the mechanism the device
+# itself uses, not a test-only door.
+#
+# **Neither leg mutates its own input**, which matters because a test that edits its input is not
+# reproducible. With the file present `bootstrap_action` returns `Bootstrap::Load`
+# (`storage/existence_policy.cpp:12-24`) and the `WriteDefaults` arm that would `mkdir`/`rename`
+# (`runtime_feature_settings.cpp:200-217`) is never entered; the OFF leg does enter it, but its
+# `mkdir` finds `SETTINGS/` already there and its `rename` of a root-level "CommunityFeatures.XML"
+# that does not exist fails, so it returns having created nothing (`:204-216`). Checked rather than
+# reasoned: `git status --short tests/fixtures/` is empty after both legs have run.
+#
+# **What this script presses, and why it presses exactly this.**
+#
+# Boot lands in `InstrumentClipView`, not the session view -- `boot.state` shows `led Clip on`
+# and `led Synth on`, and a `SoundEditor::setup` breakpoint on the SELECT press below stops with
+# `InstrumentClipMinder::buttonAction` one frame up (`model/clip/instrument_clip_minder.cpp:392-424`:
+# the gate at `:399`, the guest arm at `:408-411`, legacy's at `:415-424`). That is **site 6** of the
+# fourteen in `gui/ui/shell_menu_entry.cpp`'s table, the site whose root is `soundEditorRootMenu` /
+# `MenuContext::Root::Sound`.
+#
+# **The four null-clip sites cannot be scripted here, and it is not the port's fault.**
+# `sound_editor.cpp:1876`'s `else if (clip->type == ClipType::AUDIO)` runs whenever `currentSound`
+# is null, and `newSound` is only ever assigned inside `setup()`'s `else if (clip)` arm
+# (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
+# (`gui/views/view.cpp:477`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
+# the session view): both SIGSEGV at that line under gdb, in the TOGGLE-OFF leg, on an unmodified
+# tree. Sites 3 (`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:846`)
+# pass the same null clip into the same function and so reach the same line, but were not driven --
+# that is inspection, not a measurement. Pre-existing, and latent rather than fatal on the device,
+# where address 0 is mapped. Recorded in F1 task 11's report; this script stays on a clip-carrying
+# site so that the leg it would crash is the one that has to run.
+#
+# The shape is spec E §7's: boot into a scene, one navigation, one edit gesture, one popup, back out.
+#
+# 50 ms rather than 0: the legacy app blits its first OLED frame from inside the main loop, after
+# its first input poll, so nothing has been drawn at 0 ms (boot.txt's own note).
+50     snapshot boot
+
+# Site 6: SELECT with no shift from the instrument clip view -> the SOUND root.
+400    button SelectEnc down
+420    button SelectEnc up
+600    snapshot menu-root
+
+# One navigation: the select encoder moves the root's selected entry.
+700    encoder Select +1
+900    snapshot menu-scrolled
+
+# One edit gesture, and the popup it raises. `GoldUpper` is encoder index 4 = mod1 = the UPPER gold
+# knob (`src/bsp/host/host_script_tables.c`'s `k_encoder_roles`). Under the toggle this is
+# `services::ModKnobs`; with it off it is `View::modEncoderAction` through `UI`'s base forward,
+# which `ShellHostUI` deliberately does not override (F1 task 6).
+1000   encoder GoldUpper +2
+1200   snapshot gold-turn
+
+# Back out. A SHORT Back, which is the exit a user actually performs: the long press goes through
+# `TimerName::BACK_MENU_EXIT` -> `exitUI()` (`hid/buttons.cpp:114-121`,
+# `gui/ui_timer_manager.cpp:149-155`), and the short one does not. This step is what found F1 task
+# 11's port defect -- before the fix, the toggle-on leg was left wedged here with an empty shell
+# stack and every later press swallowed.
+1300   button Back down
+1320   button Back up
+1500   snapshot menu-exit
+
+1700   quit

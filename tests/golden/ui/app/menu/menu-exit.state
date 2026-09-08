@@ -1,0 +1,17 @@
+led AffectEntire on
+led Clip on
+led Mod1 on
+led Scale on
+led Synth on
+pad 16 0 2 193 7
+pad 16 1 2 193 7
+pad 16 2 2 193 7
+pad 16 3 2 193 7
+pad 16 4 2 193 7
+pad 16 5 2 193 7
+pad 16 6 2 193 7
+pad 16 7 2 193 7
+pad 17 0 255 0 0
+pad 17 7 128 0 128
+indicator lower 72 0 0 0
+indicator upper 255 255 36 0

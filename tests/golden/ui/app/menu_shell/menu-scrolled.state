@@ -1,0 +1,5 @@
+led AffectEntire on
+led Back on
+led Mod1 on
+indicator lower 72 0 0 0
+indicator upper 255 255 16 0
