@@ -133,7 +133,7 @@ public:
 	/// Not the arrow `CustomItem::row_icon` defaults to (`node.h`), because this item's legacy class
 	/// is one of the three that override the base blit. The **second text row** that override also
 	/// draws when checked -- the linked file's base name, at `yPixel + kTextSpacingY * 2`
-	/// (`linked.h:73`) -- is still not ported: `ui::oled::ListRow` has one label and one icon per
+	/// (`linked.h:72`) -- is still not ported: `ui::oled::ListRow` has one label and one icon per
 	/// row (`ui/oled/list.h`), and a second row of text under a row is a `list` change rather than
 	/// an item's. That remains this item's divergence; the checkbox no longer does.
 	const deluge::gfx::oled::Icon* row_icon(const MenuContext& ctx) const override;

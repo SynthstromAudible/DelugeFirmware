@@ -901,7 +901,7 @@ as for gold-knob turns. Six UIs override the first (`SoundEditor`, `gui/ui/sound
 2, and a null service declines everything, so the chain behaved identically either way round. E4
 task 2 found it by reading `hid/`, not by a failing spec.
 
-**What it would have cost.** `SoundEditor::modEncoderAction` (`gui/ui/sound_editor.cpp:1621-1645`)
+**What it would have cost.** `SoundEditor::modEncoderAction` (`gui/ui/sound_editor.cpp:1638-1662`)
 intercepts a gold turn while MIDI learn is active and learns the knob to the current menu param,
 falling through to `UI::modEncoderAction` otherwise. `MenuScene` is that UI's port. With the service
 claiming the turn first, that arm could never fire, and no spec in E4 would have caught it — nothing
@@ -1077,7 +1077,7 @@ the stack with no notice that it is back. `changeUIAtLevel`'s own failure path d
 
 **What it cost in shipped code.** `SlicerScene` is the scene that paid: its `on_resume` was emptied
 for one task and is now restored. `MenuScene` was taking the spurious edge too — it raises
-`Notice::Kind::Console` itself (`menu_scene.cpp:1258`, `menu/bindings.cpp:372`), `ConsoleScene` is
+`Notice::Kind::Console` itself (`menu_scene.cpp:1282`, `menu/bindings.cpp:372`), `ConsoleScene` is
 `input_transparent()`, and `MenuScene::on_resume`'s `go_up_on_resume` flag guards only the `ascend()`
 (`:332-335`) while the tail resets `render_resp`, `value_changed`, `value_node`, `back_claimed` and
 `column_press` unconditionally (`:337-341`). **It cost nothing**, and the reason is the tick order:

@@ -317,7 +317,7 @@ later doc task.
   own types, spec B), not new types the menus layer declares — the widgets that render a `Hint` or
   a `Range` already have their own names for these shapes, and a second, menus-only enum would be a
   translation step with nothing on either side to translate.
-- `Binding` gained **`ValueStyle style`** (`deluge::ui::oled::ValueStyle`, `node.h:168`) — the
+- `Binding` gained **`ValueStyle style`** (`deluge::ui::oled::ValueStyle`, `node.h:169`) — the
   per-widget rendering style (units, precision) the draft's `Binding` sketch has no field for.
 - `MenuContext` gained an explicit **`Permission`** enum (`context.h:179`, `permission_for()`'s
   return type) rather than the draft's bare description of "18 `checkPermissionToBeginSession`
@@ -375,7 +375,7 @@ through two registries.
 hand count).
 
 **Range-dependent items** — `MustSelectRange` (§4.1) is driven by an explicit `Node::range_dependent`
-flag (`node.h:254`, set via `with_range_dependent(...)`, ported from legacy's
+flag (`node.h:255`, set via `with_range_dependent(...)`, ported from legacy's
 `MenuItem::isRangeDependent()`), not by "any node whose `Binding` carries a param" as an earlier
 pass assumed — only the ten osc-subtree nodes legacy actually marks (sample transpose, loop point,
 the file selector, the audio recorder, …) carry the flag; `validate_tree`'s
@@ -383,7 +383,7 @@ the file selector, the audio recorder, …) carry the flag; `validate_tree`'s
 and no others.
 
 **`Binding::Scaling`** — `Binding` gained an explicit `Scaling{Standard, HalfPrecision, Pan}`
-(`node.h:102`, `bindings.h:16-23`): legacy's default integer scaling (`Scaling::Standard`) is not
+(`node.h:103`, `bindings.h:16-23`): legacy's default integer scaling (`Scaling::Standard`) is not
 universal. Missed in an earlier pass and caught reviewing the port against
 `value_scaling.cpp:36` — **`Scaling::HalfPrecision`** covers osc pulse width and the compressor
 params, whose legacy scaling halves precision to make room for negative stored values
@@ -393,7 +393,7 @@ and no scaling was set explicitly.
 
 **`Binding::updates_reverb_params` and the `ReverbUpdateWithHook` validator rule** — a node whose
 write must additionally poke `AudioEngine::reverb`'s live parameters (the sidechain/reverb params,
-`sound_sidechain.h:14`, `roots.h:44`) sets `Binding::updates_reverb_params` (`node.h:188`);
+`sound_sidechain.h:14`, `roots.h:44`) sets `Binding::updates_reverb_params` (`node.h:189`);
 `validate_tree` now rejects (`Issue::Kind::FlagMismatch`, detail `Flag::ReverbUpdateWithHook`,
 `validate.cpp:277-279`) a node that sets both `updates_reverb_params` **and** a `set` hook, because
 `bindings::write` runs the `set` hook and returns without ever reaching the
@@ -421,7 +421,7 @@ re-deriving the answer from context every time a menu binding reads or writes.
 were **dropped**: zero nodes across all ten roots need them, which fails spec E §4's own "a kind
 exists only if ≥3 items use it" rule at zero, let alone three. `SyncLevel` survived (it has real
 users). The shipped `Kind` enum is `{Submenu, Toggle, Enum, Int, Decimal, SyncLevel, Custom}`
-(`node.h:64-72`) — seven, not the draft's twelve. `Action` is re-added in E2 with its first real
+(`node.h:65-73`) — seven, not the draft's twelve. `Action` is re-added in E2 with its first real
 consumer (a bespoke action item E1's ten roots have no need for).
 
 **`DuplicateName`'s co-visibility qualifier** — `validate_tree`'s `DuplicateName` rule
@@ -442,21 +442,21 @@ display/LED primitives directly.
 **Shortcut-pad mechanics** — three corrections to how legacy's shortcut pads actually work, found
 porting Task 9:
 - Legacy's **second shortcut layer is a second press of the focused item's own pad**
-  (`secondLayerShortcutsToggled`, `sound_editor.cpp:1347-1362`), **not** "shift held" — shift is
-  only the gate that lets a pad be treated as a shortcut at all (`sound_editor.cpp:1152`); which
+  (`secondLayerShortcutsToggled`, `sound_editor.cpp:1364-1379`), **not** "shift held" — shift is
+  only the gate that lets a pad be treated as a shortcut at all (`sound_editor.cpp:1169`); which
   layer's cell to use is the caller's business (`shortcuts.h:73-78`).
 - Two deliberate press/blink asymmetries, both legacy's own and preserved rather than "fixed":
   **`kMidiExtraCells`** (`shortcuts.cpp:244`) resolves four pads on the MIDI/CV and drum roots that
   are in no legacy table at all (`sequenceDirectionMenu` and the MIDI/CV randomizer trio,
-  `sound_editor.cpp:1320-1340`) — they navigate on press but never blink, because the blink side
+  `sound_editor.cpp:1337-1357`) — they navigate on press but never blink, because the blink side
   (`updatePadLightsFor`) only ever scans the shortcut tables' own column 11. The **`KitGlobalFx`
   press gate** (`kit_global_fx_press_gate`, `shortcuts.cpp:255-263`) is the mirror: legacy's press
-  arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1191-1195`), so
+  arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1208-1212`), so
   column 15 is admitted only at `y == 1` — the table's own `(15, 2)`/`(15, 3)` cells are unreachable
   by press yet still blink, since the blink scan has no such guard.
 
 **Blink cadence** — the shortcut-pad blink is legacy's **200 ms two-phase cycle**
-(`menu_scene.h:70-72`, `menu_scene.cpp:674-676`): a 20 ms re-arm on the source-pad phase and a
+(`menu_scene.h:70-72`, `menu_scene.cpp:698-700`): a 20 ms re-arm on the source-pad phase and a
 180 ms re-arm on the focused-param phase, not a symmetric period — a `Blink`'s single symmetric
 period cannot represent this, which is why `MenuState` carries `blink_anchor_ms`/`blink_node`
 instead of a `Blink` for this one purpose. The **visible DUTY cycle within each phase is not
@@ -540,7 +540,7 @@ the changelog where a release note will find it.
 this leaf opens *that* menu" is a per-item `MenuItem* selectButtonPress()` override returning
 another `MenuItem*`; `SoundEditor` navigates to whatever comes back
 (`gui/ui/sound_editor.cpp`'s select handling). E1 had no `Node` spelling for it at all:
-`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:895-899`, which
+`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:919-923`, which
 transcribed only the `return nullptr` = "go up" arm of the base class), and until fix round 2's I5
 the difference lived only in four scattered header comments. The complete sweep of
 `grep -rn selectButtonPress src/deluge/gui/menu_item/`, in three groups:
@@ -925,7 +925,7 @@ families needed them:
   `restore_state()`, neither of which has a `Result` to put an `Action` in.
 * **The learn virtuals (task 8).** `learn_note_on`, `learn_cc`, `learn_program_change`, `unlearn`,
   `wants_learn_blink`, `learn_descriptor`, all with inert defaults, plus the matching
-  `MenuScene::learn_*` entry points (which match `sound_editor.cpp:1588-1608`, including
+  `MenuScene::learn_*` entry points (which match `sound_editor.cpp:1605-1625`, including
   `noteOnReceivedForMidiLearn` having **no** UI-mode gate). When this was written **nothing routed
   MIDI into the scene stack**, so these were specced at the item level and uncovered at the routing
   level. **F1 task 10 closed two of the three**: `ShellHostUI` overrides
@@ -1139,7 +1139,7 @@ carries the same table with pointers into the code.
 |---|---|---|
 | ~~**The file/sample family** — 11 nodes still `nodes::kPending`~~ **CLOSED by E3 tasks 6 and 7.** (Accurate as E2 history: at the close of E2 these eleven were still placeholders. `kPendingCustomNodes` is now **0** — see the E3 amendments in §11.) | needed the card; every other item family was reachable without it | was the largest remaining group. `validate.h`'s `kPendingCustomNodes` names the exact set, pinned by node identity so closing it was a deliberate spec change |
 | ~~**`midiDeviceMenu`'s subtree** (`gui/ui/menus.cpp:1444-1453`)~~ — **CLOSED by E3 task 8** (`menu/nodes/midi_device.{h,cpp}`): eight nodes, the four-hook per-cable family over `MenuContext::midi_cable`, the three-item MPE arm with its two onward chains, and `midi_devices`' own `select_chain`. | was size, and only size. Tasks 3 and 9 each declared a *single* chain-target page; this was several times that | landed as ~8 nodes, 3 bespoke, exactly as estimated. `whichDirection`/`whichZone` went to `MenuState` (not `MenuContext`) by the mapping rule the patch-cable trio set: a `soundEditor.current*` member is context, a menu-item member another page reads is scene state |
-| ~~**Splitting session from arranger**~~ — **CLOSED by E3 task 9**, and the costing was wrong twice: it needed **two** bools, not three (nothing distinguishes the arranger from song automation, because no legacy `isRelevant` does), and the call sites were **85**, not ~62. See §15.6. | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1765 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:265` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
+| ~~**Splitting session from arranger**~~ — **CLOSED by E3 task 9**, and the costing was wrong twice: it needed **two** bools, not three (nothing distinguishes the arranger from song automation, because no legacy `isRelevant` does), and the call sites were **85**, not ~62. See §15.6. | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1782 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:265` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
 | **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback`, the three `shouldBlinkPatchingSourceShortcut` overrides and `patchingSourceShortcutPress` | `MenuScene::render_grid` owns one blink cycle keyed off the focused *node*; consulting the focused `CustomItem` needs a hook on `CustomItem` and a second blink source | same shape of change as routing MIDI to `MenuScene::learn_*` |
 | ~~**The row-scrolling path is untested, not missing**~~ — **CLOSED by E3 task 10**: a real focused over-long node driven through `MenuScene` itself, mutation-checked against `list.cpp`'s selected-row draw. | every over-long row in the recorded goldens is *unselected*, which legacy truncates too. (Legacy does **not** side-scroll long *titles*: `draw_screen_title` is a plain clipped `draw_string`, so a truncated title is faithful) | one level-2 script parking the cursor on a long row across quiet ticks |
 | ~~**Seven self-duplicate goldens**~~ — **CLOSED by E3 task 10**, with a correction: only **five** are duplicates of both halves. `menu_int`'s two match `idle`'s `.pbm` but not its `.state`, so they did record a fact (the shortcut blink appearing) that the kept `after_gold_turn` also carries. Original row: — `menu_int/{after_select_press,after_select_turn}`, `menu_enum/{after_select_press,after_gold_turn}`, `menu_toggle/{after_select_press,after_gold_turn}`, `menu_shortcut/after_select_turn` each equal their own `idle` | pre-existing; each is named for an event it does not show | cleanup. E2 task 9 deleted three of exactly this kind, so leaving seven is an inconsistency, not a policy |

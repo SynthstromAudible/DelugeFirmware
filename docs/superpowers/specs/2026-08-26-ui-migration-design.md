@@ -103,7 +103,7 @@ the hook it belongs to.
     `gui/ui/keyboard/keyboard_screen.cpp:205` entering from outside the hierarchy — so the only route
     to it while the guest is current is
     the guest forwarding the pad on the way `SoundEditor::padAction` does when the keyboard screen is
-    the root (`gui/ui/sound_editor.cpp:1457-1460`) — which the guest does not do. The value changed on
+    the root (`gui/ui/sound_editor.cpp:1474-1477`) — which the guest does not do. The value changed on
     the legacy-fidelity argument, not on a reachability one.
   - The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` does when the
     settings menu is leaving while `isSDRoutineActive()` (`gui/ui/sound_editor.cpp:733-747`, the return
@@ -142,7 +142,7 @@ the hook it belongs to.
   entry point that accepts an already-lowered turn.
 
   **Leaving them on the base is not `SoundEditor` parity, and the difference is user-visible.**
-  `SoundEditor` overrides two of the three: `modEncoderAction` (`gui/ui/sound_editor.cpp:1621-1645`)
+  `SoundEditor` overrides two of the three: `modEncoderAction` (`gui/ui/sound_editor.cpp:1638-1662`)
   reaches `UI::modEncoderAction` only from its innermost `else` (`:1604`), above which sit the
   `automationView` redirect (`:1584-1586`) and the `UI_MODE_MIDI_LEARN` →
   `getCurrentMenuItem()->learnKnob(...)` arm (`:1589-1601`); `modEncoderButtonAction` has the same
@@ -159,7 +159,7 @@ the hook it belongs to.
   `gui/menu_item/menu_item_with_cc_learning.cpp:43-57`) **has no port at all** —
   `grep -rn "learn_knob" src/scenes` is empty. `MenuScene` carries `learn_note_on`, `learn_cc` and
   `learn_program_change` (`scenes/menu/menu_scene.h`), which are `SoundEditor`'s three MIDI-*message*
-  members (`sound_editor.cpp:1588-1608`); the knob arm is a fourth and was never transcribed.
+  members (`sound_editor.cpp:1605-1625`); the knob arm is a fourth and was never transcribed.
   Closing it is a new `CustomItem` hook plus a port of `soundEditor.currentModControllable`, i.e.
   scenes-layer work, and it *also* still needs the shell entry point for an already-lowered turn.
   Recorded as a divergence with the real condition on it, not claimed as parity.
@@ -183,7 +183,7 @@ the hook it belongs to.
      (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`) mirrors it live, alongside the
      `Buttons::clearShiftSticky()` it already had to pair with. Left unfixed this was a real
      regression: `ctx.shift` is the whole gate on the menu's shortcut-pad jump
-     (`scenes/menu/menu_scene.cpp:1416`), so a sticky-shift user would have lost shortcut pads under
+     (`scenes/menu/menu_scene.cpp:1440`), so a sticky-shift user would have lost shortcut pads under
      the toggle.
   2. ~~**`hold_time_ms` is the one that genuinely is construction-time.**~~ **Closed by F1 task 8.**
      The tap threshold is `FlashStorage::holdTime` in legacy — audio samples, re-read *live* at
@@ -224,7 +224,7 @@ implements; `focusRegained` really is `on_resume`, with the one refinement that 
 `SceneStack::input_top()` rather than `top()`, because that is what `Scene::on_resume`'s own contract
 says (`shell/scene.h:359-374`) and what the stack itself does (`shell/scene_stack.h:38-46`);
 `getGreyoutColsAndRows` really is the top scene's `greyout_mask()`, with `doGreyout == false` spelled
-as an all-zero mask (`scenes/menu/menu_scene.cpp:1482-1514`).
+as an all-zero mask (`scenes/menu/menu_scene.cpp:1506-1538`).
 
 **One phase-4 topology defect the table does not mention and cannot be read off it: the greyout is
 applied twice.** Legacy greys once, in the send path — `prepareColour` (`hid/led/pad_leds.cpp:283-298`,
@@ -936,7 +936,7 @@ E4 tasks 9, 10 and 12 added the last four, three of them in the slicer and one i
   segfault.
 
 **F1 task 11 added an eleventh, and it is the most reachable of the set: `SoundEditor::setup`
-dereferences a null `Clip*`.** `sound_editor.cpp:1876`'s `else if (clip->type == ClipType::AUDIO)`
+dereferences a null `Clip*`.** `sound_editor.cpp:1893`'s `else if (clip->type == ClipType::AUDIO)`
 runs whenever `currentSound` is null — `currentSound = newSound` at `:1856`, while `newSound` is
 only ever assigned inside the `else if (clip)` arm at `:1679-1744` — so a `setup()` reached with the
 default null `clip` dereferences null. **Measured, not read**: it SIGSEGVs at that line in the
