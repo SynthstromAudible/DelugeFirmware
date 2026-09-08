@@ -41,7 +41,7 @@ namespace {
 /// @brief The three services, in the one order their constructors allow.
 ///
 /// `learn` first because `GlobalControls` takes a `LearnMode&` and a real application passes the
-/// same `MidiLearn` it also puts in `Services::midi_learn` (`services/global_controls.h:289-292`);
+/// same `MidiLearn` it also puts in `Services::midi_learn` (`services/global_controls.h:297-300`);
 /// member order is what makes that reference valid rather than a promise. Same shape as
 /// `sim/scenes_spec/scene_scripts_spec.cpp`'s `RealServices`, which is the level-2 demonstration of
 /// this wiring.
@@ -118,7 +118,7 @@ void wireShellGuestServices() {
 
 	// `currentSong`, which `src/scenes` may not read for itself (`check_layer_rules.py`'s
 	// `scenes-currentSong` row) and which all three services resolve against
-	// (`services/mod_knobs.h:240-249`, `global_controls.h:305-313`, `scenes/services/midi_learn.h:279`).
+	// (`services/mod_knobs.h:240-249`, `global_controls.h:313-321`, `scenes/services/midi_learn.h:279`).
 	services.learn.set_song(currentSong);
 	services.knobs.set_song(currentSong);
 	services.controls.set_song(currentSong);
@@ -160,7 +160,7 @@ void wireShellGuestServices() {
 	// there is no total mapping from legacy's 47-value `currentUIMode` bitfield onto the port's
 	// enum, and `GlobalControls`'s own doc says `MidiLearn` is deliberately not settable through
 	// this struct because `effective_ui_mode()` takes that from `LearnMode::active()` instead
-	// (`services/global_controls.h:266-269`). Every arm that reads it is inside the
+	// (`services/global_controls.h:274-277`). Every arm that reads it is inside the
 	// `View::buttonAction` group, which `GlobalControls::handle` gates on
 	// `stack_.input_top().is_root()` (`services/global_controls.cpp:580`) -- and the guest's only
 	// tenant, `MenuScene`, is not a root scene. So no arm that reads `ui_mode` is reachable under

@@ -2008,7 +2008,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 });
 
 describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExport", $ {
-	// The second arm with a body (F2 task 3), and the one `scenes/menu/action.h:125-127` deliberately
+	// The second arm with a body (F2 task 3), and the one `scenes/menu/action.h:133-134` deliberately
 	// refused to split into four enumerators, "the choice is made from the root UI, which this layer
 	// cannot read". So the fan-out over `getRootUI()` (`gui/menu_item/stem_export/start.h:33-47`) is
 	// the whole of what this side of the seam adds, and it is what this group pins.
@@ -2218,7 +2218,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
 		shellHostUI.shell().tick(20);
 		// Still up after the tick that filed the request: the scene does not pop itself
-		// (`scenes/menu/nodes/actions.h:47-50`), which is why the dispatcher owes this at all.
+		// (`scenes/menu/nodes/actions.h:47-54`), which is why this close is the dispatcher's.
 		expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
 
 		deluge::gui::ui::dispatchShellActions();

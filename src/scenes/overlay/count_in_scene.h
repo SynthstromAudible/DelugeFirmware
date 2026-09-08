@@ -54,7 +54,7 @@
 ///     an audition-pad or keyboard hold. `currentUIMode` is declared in `gui/ui/ui.h:30`, which
 ///     `src/scenes` may never include (Global Constraint 3) -- this scene has no way to touch it.
 ///     This is the same wall `services::GlobalControls` already documents for its own
-///     `UiMode::RecordCountIn` (`services/global_controls.h:236-256`, `:323-329`): the mode is
+///     `UiMode::RecordCountIn` (`services/global_controls.h:244-264`, `:331-337`): the mode is
 ///     something a future root scene's `ViewState` carries and clears, not this overlay. Recorded
 ///     here as a citation-backed gap, not silently assumed away.
 ///

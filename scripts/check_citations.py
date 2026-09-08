@@ -296,11 +296,40 @@ EXCEPTIONS = REPO / "scripts" / "citation_exceptions.txt"
 # roots, which is a gain rather than a side effect (`src/scenes/CMakeLists.txt`'s header block
 # cites legacy) and which flags nothing today.
 #
-# STILL OUTSIDE, and named rather than left to be rediscovered: `src/scenes/README.md` and the
-# three design specs under `docs/superpowers/specs/` are the densest citation sites in the repo
-# and no suffix here matches them. Prose citations there differ in kind -- they routinely cite a
-# range across two functions, or a file with no line at all -- so widening to `.md` is its own
-# measured decision, not a suffix to add in passing.
+# `.md` JOINED IN F2 TASK 9, AND IT WAS MEASURED BOTH WAYS FIRST. The paragraph this replaces named
+# `src/scenes/README.md` and the design specs as "the densest citation sites in the repo, and no
+# suffix here matches them", and called widening its own measured decision rather than a suffix to
+# add in passing. F2 task 8 then shipped a stale `README.md` citation that BOTH gates -- this one and
+# `check_citation_shift.py`, which borrows these roots -- reported clean, and it was found by reading
+# the sentence. That is the fifth distinct blind spot this stack has found in its own citation
+# sweeps, and it lands on the READMEs, which is where a contributor reads first.
+#
+# THE MEASUREMENT, on the tree at the time (F2 task 9, 2026-09-08), from a clean baseline of 0:
+#
+#   * `.md` alone, over the roots below: **4 flags, all in `src/scenes/README.md`, and 3 of the 4
+#     were REAL stale citations** rather than false positives by construction -- `sound_editor.cpp`
+#     `:1015` for `beginScreen` (really `:957`; `:1015` is inside `blinkShortcut`), `linked.h:73`
+#     for the linked file's base name (really `:72` -- the SAME endpoint F2 task 8 corrected in
+#     `nodes/output_items.h` and could not see here), and two bare `` `:762` ``/`` `:770` `` that
+#     the row's own continuation rule resolved to `clip_view.cpp` while the sentence said
+#     `AudioClipView::adjustLoopLength`, i.e. `audio_clip_view.cpp:780`/`:788`. All four were fixed
+#     in the same commit as this widening, so the gate goes back to 0 WITH `.md` scanned. This is
+#     the opposite result from the `.py` measurement below, where all 11 new flags were false by
+#     construction -- there the number was recorded and the widening refused; here the number is
+#     the argument FOR it.
+#   * `.md` PLUS `docs/superpowers/specs` in `SCAN_ROOTS`: **31 flags**, i.e. 27 more from the specs
+#     tree. **REFUSED.** Most belong to plans this stack never ran (the waveform prescan, the storage
+#     execution model, the voices race) and are stale against code nobody here is editing; fixing
+#     them is a different task with a different owner, and freezing them behind an exception list
+#     would be a mechanism rather than a configuration change. So the two READMEs are gated and the
+#     specs are not, which is worth knowing before trusting a green run: **every citation in
+#     `docs/superpowers/specs/**` is still hand-checked only.** `docs/superpowers/plans/**` is
+#     deliberately stale by policy (a plan records the tree as it stood) and must stay outside.
+#
+# Prose citations in `.md` really do differ in kind -- a range across two functions, a file with no
+# line at all -- which was the original reason for caution. The measurement is what settles it: the
+# checker already skips a citation carrying no line, and the range-versus-symbol predicate flagged
+# nothing spurious in either README.
 SCAN_ROOTS = (
     "src/scenes",
     "src/ui",
@@ -311,7 +340,7 @@ SCAN_ROOTS = (
     "src/deluge/gui/ui",
     "src/deluge/util",
 )
-SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt"}
+SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt", ".md"}
 
 # WIDENED, AND MEASURED FIRST (F1 task 5, 2026-09-07). Before this round, `SCAN_ROOTS` contained
 # neither `src/deluge` nor `src/shell`, so a citation written *in* either tree was never read by this

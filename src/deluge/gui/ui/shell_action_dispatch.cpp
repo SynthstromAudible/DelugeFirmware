@@ -141,7 +141,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
 /// (`scenes/menu/menu_scene.cpp:1500-1505`). `SceneStack::remove` and not `pop`, for the reason
-/// recorded there (`:1434-1446`): `pop` would take a `Working` animation or a `Popup` sitting over
+/// recorded there (`:1487-1498`): `pop` would take a `Working` animation or a `Popup` sitting over
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
 ///
@@ -189,9 +189,9 @@ void closePortedMenu() {
 /// is unstated is one nobody can re-check. With a root view open, both legacy's `soundEditor` and
 /// this guest sit *above* it, never at it.
 ///
-/// And `closeUI` cannot move index 0: its search stops at `u >= 1` (`:183`) and it assigns
-/// `numUIsOpen = u` (`:195`), so closing a UI it finds above the root leaves `[0]` untouched and
-/// `numUIsOpen >= 1`. Its one re-entrant hook is `newUI->focusRegained()` (`:199`), and no
+/// And `closeUI` cannot move index 0: its search stops at `u >= 1` (`gui/ui/ui.cpp:183`) and it
+/// assigns `numUIsOpen = u` (`:195`), so closing a UI it finds above the root leaves `[0]` untouched
+/// and `numUIsOpen >= 1`. Its one re-entrant hook is `newUI->focusRegained()` (`:199`), and no
 /// `focusRegained` override reaches `changeRootUI`: of the 56 call sites in `src/`, every one is a
 /// `buttonAction`/`padAction`, an explicit `goTo…`/`transitionTo…`/`gridTransitionTo…` helper,
 /// `SessionView::finishedTransitioningHere`, a `PadLEDs` transition-completion routine,
@@ -276,10 +276,10 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
-	// the request and clears it in the same call (`scenes/menu/menu_scene.h:623-624`). So an early
+	// the request and clears it in the same call (`scenes/menu/menu_scene.h:625-626`). So an early
 	// return above this line would not be "nothing to do", it would be "the request stays in the
 	// outbox until something else asks", which is the stale delivery the mailbox's own warning
-	// describes (`:593-598`).
+	// describes (`:595-600`).
 	const MenuActionRequest req = menu_scene().take_action();
 	if (!req.engaged()) {
 		return;
@@ -287,7 +287,7 @@ void dispatchShellActions() {
 
 	switch (req.action) {
 	case MenuAction::None:
-		// Unreachable: `engaged()` IS `action != None` (`scenes/menu/action.h:201`), so the guard
+		// Unreachable: `engaged()` IS `action != None` (`scenes/menu/action.h:208`), so the guard
 		// above has already returned. Spelled out anyway because the alternative is a `default:`,
 		// and a `default:` here would silently absorb the enumerators later tasks add -- see the
 		// header's note on `-Werror=switch`.

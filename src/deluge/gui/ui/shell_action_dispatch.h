@@ -61,10 +61,10 @@ namespace deluge::gui::ui {
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
 /// `MenuScene::take_action()` is **a one-slot mailbox with a silent overwrite, not an exactly-once
-/// queue** (`scenes/menu/menu_scene.h:593-621`), and the consequence stated there is a requirement
+/// queue** (`scenes/menu/menu_scene.h:595-623`), and the consequence stated there is a requirement
 /// on this function's caller rather than on this function: "`after_render` returns no `Action`
 /// announcing that one is waiting, so nothing enforces the polling: **poll after every tick, or
-/// requests are dropped or stale**" (`:596-598`). Nothing in the shell will complain if a tick
+/// requests are dropped or stale**" (`:598-600`). Nothing in the shell will complain if a tick
 /// skips the poll; the request simply arrives whenever someone next asks, against whatever state
 /// exists then.
 ///

@@ -82,7 +82,7 @@ ROOT_UI_GLOBALS = (
     #
     # Measured on the tree at the time of writing: zero non-comment hits in `src/scenes/**`,
     # `src/shell/**` or `src/ui/**`, so the baseline does not move. The four hits under
-    # `src/scenes` (`menu/action.h:18`, `:19`, `:133`, `:136`, `context_menu/context_menu_scene.h`)
+    # `src/scenes` (`menu/action.h:18`, `:19`, `:140`, `:143`, `context_menu/context_menu_scene.h`)
     # are all whole-line `///` comments, which `is_comment_line` skips -- they are the seam's own
     # description of what the dispatcher does, and the row is what keeps them descriptions.
     "midiLearnMode",

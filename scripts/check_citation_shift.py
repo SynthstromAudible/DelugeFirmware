@@ -149,14 +149,28 @@ REPO = cc.REPO
 # The citing files this tool reads. `check_citations.SCAN_ROOTS` plus the two layer READMEs and
 # the design specs, and `.md` alongside the code suffixes.
 #
-# The gate deliberately leaves `.md` out (its own docstring says widening `SCAN_SUFFIXES` is a
-# separate measured decision, because prose citations there cite across two functions or a file
-# with no line at all, which its range predicates cannot judge). None of that applies here: this
-# tool renders no verdict about a range's *contents*, only about whether the text under it moved,
-# and the densest citation sites in the repo are exactly those files. Measured over the F1 range
-# rather than assumed: including `.md` takes the report from 1014 endpoints to 1124 and the skips
-# from 281 to 336, so roughly a tenth of everything this tool finds is in prose the gate does not
-# read at all -- including both `.md` sites of F1 task 7's five (`ui-migration-design.md`).
+# The gate USED to leave `.md` out (its docstring called widening `SCAN_SUFFIXES` a separate
+# measured decision, because prose citations there cite across two functions or a file with no line
+# at all, which its range predicates cannot judge). None of that applied here: this tool renders no
+# verdict about a range's *contents*, only about whether the text under it moved, and the densest
+# citation sites in the repo are exactly those files. Measured over the F1 range rather than
+# assumed: including `.md` takes the report from 1014 endpoints to 1124 and the skips from 281 to
+# 336, so roughly a tenth of everything this tool finds is in prose the gate did not read at all --
+# including both `.md` sites of F1 task 7's five (`ui-migration-design.md`).
+#
+# **The gate caught up in F2 task 9: `cc.SCAN_SUFFIXES` now contains `.md`**, measured at 4 flags
+# over `cc.SCAN_ROOTS` (3 of them real, all fixed in the same commit) and refused for
+# `docs/superpowers/specs`, which would have been 31. So the `| {".md"}` below is now a no-op for
+# the suffix and the `docs/superpowers/specs` root is the only widening this line still makes.
+# **It is kept rather than removed**, because the two tools' scopes are a deliberate decision each
+# and this expression is where the difference is written down: the gate judges the two layer
+# READMEs and not the specs; this tool judges both.
+#
+# Worth stating because it was assumed the other way while planning this task: **the F2 task 8
+# stale README citation escaped this tool for its OWN documented reason, not for the suffix.** It
+# was in a file this tool has always read; it was missed because it never moved, which is
+# limitation 1 below. Widening `SCAN_SUFFIXES` does not close that, and nothing does except
+# reading the sentence.
 CITING_ROOTS = (*cc.SCAN_ROOTS, "docs/superpowers/specs")
 CITING_SUFFIXES = cc.SCAN_SUFFIXES | {".md"}
 
