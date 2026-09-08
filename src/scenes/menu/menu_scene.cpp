@@ -110,6 +110,25 @@ std::string_view text_of(uint16_t string_id, TextScratch& scratch) {
 /// @brief The row icon legacy's `renderSubmenuItemTypeForOled` draws for @p node
 ///        (`gui/menu_item/menu_item.cpp:69` for the submenu arrow; `Toggle`'s override for the
 ///        checkbox).
+///
+/// @par What the `default` arm still owes, measured rather than assumed
+///
+/// **`Kind::Enum`, `Kind::Int`, `Kind::Decimal` and the rest still answer `nullptr`, and legacy
+/// draws the arrow on all of them.** `Submenu::drawSubmenuItemsForOled` calls
+/// `renderSubmenuItemTypeForOled` on *every* visible row (`gui/menu_item/submenu.cpp:117`) and the
+/// base implementation blits `submenuArrowIcon` (`gui/menu_item/menu_item.cpp:69-75`); the only
+/// overrides are `Toggle`'s checkbox (`toggle.cpp:50-57`), `Selection`'s checkbox-if-`isToggle()`
+/// and otherwise-arrow (`selection.cpp:38-56`), and the two `midi/device_definition` items. So a
+/// legacy `Integer`/`Decimal`/`Value` row, and a `Selection` row that is not a toggle, both carry
+/// the arrow and reserve its 14px (`submenu.cpp:109`).
+///
+/// Closing that arm is **not** a one-line change to this `default`, which is why F2 task 8 did not
+/// make it: six `Selection`s override `isToggle()` to true (`arpeggiator/mode.h:100`,
+/// `arpeggiator/include_in_kit_arp.h:88`, `delay/ping_pong.h:30`, `randomizer/randomizer_lock.h:62`,
+/// `runtime_feature/setting.h:45`, `sample/pitch_speed.h:80`) and draw a **checkbox**, so an
+/// unconditional arrow here would trade one divergence for another on whichever of those six is not
+/// a `Kind::Toggle` in the port. It needs that six-item audit first. Measured cost of the
+/// unconditional version, for whoever picks it up: 30 golden panels move.
 const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx) {
 	switch (node.kind) {
 	case Kind::Submenu:
@@ -117,6 +136,11 @@ const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx
 	case Kind::Toggle:
 		return bindings::read(node, ctx) != 0 ? &deluge::gfx::oled::icons::checkedBox
 		                                      : &deluge::gfx::oled::icons::uncheckedBox;
+	case Kind::Custom:
+		// The item decides, exactly as legacy's virtual does; its default is the same arrow the
+		// base `MenuItem` blits. `node.custom` is never null for a `Kind::Custom` node --
+		// `validate.h`'s `NullCustom` rule is what says so.
+		return node.custom->row_icon(ctx);
 	default:
 		return nullptr;
 	}

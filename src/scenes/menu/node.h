@@ -17,6 +17,7 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
+#include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
 #include "modulation/params/param.h"
 #include "modulation/params/param_descriptor.h" // CustomItem::learn_descriptor -- returned by value
 #include "ui/oled/meters.h"
@@ -360,6 +361,34 @@ struct CustomItem {
 	/// Do-nothing default: only the three patch-cable-strength pages have a value with no `Binding`
 	/// behind it (`nodes/patch_cables.h`).
 	virtual void commit(const MenuContext&, MenuState&) const {}
+
+	/// @brief The icon this item's row draws in its **parent's** list -- legacy's
+	///        `MenuItem::renderSubmenuItemTypeForOled` (`gui/menu_item/menu_item.cpp:69-75`), which
+	///        `Submenu::drawSubmenuItemsForOled` calls once per visible row
+	///        (`gui/menu_item/submenu.cpp:117`).
+	///
+	/// **The submenu arrow is the default because it is legacy's default**: the base
+	/// `MenuItem::renderSubmenuItemTypeForOled` blits `submenuArrowIcon` unconditionally, and only
+	/// three overrides in the tree replace it -- `Toggle` and `Selection::isToggle()` with a
+	/// checkbox (`gui/menu_item/toggle.cpp:50-57`, `gui/menu_item/selection.cpp:38-56`), and
+	/// `midi::device_definition::Linked`/`HideUnlabeled` with a checkbox of their own
+	/// (`gui/menu_item/midi/device_definition/linked.h:56`, `hide_unlabeled.h:48`). A bespoke item
+	/// whose legacy class overrides none of those therefore draws the arrow, whatever it is.
+	///
+	/// This hook is what `src/scenes/README.md` recorded as owed when it wrote "a `Kind::Custom`
+	/// node cannot draw a row icon in its parent's list … closing this needs a `CustomItem` hook
+	/// `row_icon` can ask". `MenuScene`'s `row_icon` asks it for every `Kind::Custom` node
+	/// (`menu_scene.cpp`).
+	///
+	/// @param ctx The menu context, for an item whose icon is value-dependent (the checkbox arms
+	///            above are: `MidiDeviceLinkedItem` reads whether a definition file is linked).
+	/// @return The icon, or `nullptr` for a row that draws none. Returning `nullptr` also gives the
+	///         label the full row width, exactly as legacy's `endX` does
+	///         (`gui/menu_item/submenu.cpp:109`: `OLED_MAIN_WIDTH_PIXELS -
+	///         getSubmenuItemTypeRenderLength()`), so it is not merely "the icon is hidden".
+	virtual const deluge::gfx::oled::Icon* row_icon(const MenuContext&) const {
+		return &deluge::gfx::oled::icons::submenuArrow;
+	}
 
 	/// @brief Is this a stand-in for an item E2 still owes, rather than the real thing?
 	///

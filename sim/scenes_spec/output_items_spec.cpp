@@ -49,6 +49,7 @@
 // something earlier in that translation unit already had.
 #include "model/instrument/non_audio_instrument.h"
 
+#include "gfx/oled/icons.h" // the two checkbox icons `row_icon` chooses between
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/audio_clip/specific_output_source_selector.h"
 #include "gui/menu_item/midi/device_definition/linked.h"
@@ -576,6 +577,24 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 		expect(port).to_equal(legacy);
 		// Not all one answer, so a constant-returning port could not pass.
 		expect(legacy).to_equal(std::vector<int>{0, 1, 0});
+	});
+
+	it("draws the checkbox its parent's row wants, not the CustomItem default arrow", _ {
+		// `Linked::renderSubmenuItemTypeForOled` (`linked.h:56-78`) is one of the three overrides of
+		// legacy's base blit, so this row is a checkbox in both states -- never the submenu arrow
+		// `CustomItem::row_icon` defaults to (`scenes/menu/node.h`). Both icons are named, so a
+		// port that returned one constant could not pass, and the arrow is named too, so a port
+		// that fell back to the default could not either.
+		MidiRig rig;
+
+		rig.instrument()->deviceDefinitionFileName.clear();
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::uncheckedBox)
+		    .to_be_true();
+
+		rig.instrument()->deviceDefinitionFileName = "MIDI_DEVICES/DEFINITION/DEVICE1.XML";
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::checkedBox).to_be_true();
+
+		expect(nodes::kMidiDeviceLinked.row_icon(rig.ctx()) == &deluge::gfx::oled::icons::submenuArrow).to_be_false();
 	});
 
 	it("says nothing is linked when the output is not a MIDI instrument", _ {

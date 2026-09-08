@@ -53,16 +53,15 @@
 ///
 /// ## Divergences, stated here rather than absorbed
 ///
-///   * **The parent row's checkbox and file name are not drawn.** `Linked` overrides
+///   * **The parent row's file name is not drawn; the checkbox now is.** `Linked` overrides
 ///     `renderSubmenuItemTypeForOled` (`linked.h:56-78`) to draw a checked/unchecked box on its row
-///     in the parent list and, when checked, the linked file's base name under it.
-///     `MenuScene::render_oled`'s `row_icon` gives a checkbox to `Kind::Toggle` nodes only
-///     (`menu_scene.cpp`), and this node is `Kind::Custom` -- it must stay `Kind::Custom`, because
-///     the committed `deluge_menu_dump` JSON carries the node's type. Closing this needs a
-///     `CustomItem` hook `row_icon` can ask, which is a `node.h` change rather than an item's, and
-///     is recorded on the E3 roadmap in `src/scenes/README.md`. Consequence on device: the row says
-///     `LINKED` with no state, so the toggle is write-only from the user's side until that hook
-///     exists.
+///     in the parent list and, when checked, the linked file's base name under it. F2 task 8 added
+///     the `CustomItem::row_icon` hook this needed (`scenes/menu/node.h`) and
+///     `MidiDeviceLinkedItem::row_icon` below answers it with the box, so the row is no longer
+///     write-only from the user's side. The node still stays `Kind::Custom`, because the committed
+///     `deluge_menu_dump` JSON carries the node's type. **The second text row is still owed**:
+///     `ui::oled::ListRow` carries one label and one icon (`ui/oled/list.h`), and a second line of
+///     text under a row is a `list` change rather than an item's.
 ///   * **`on_focus` toggles, so a *restore* toggles too.** `MenuScene::restore_state` re-runs
 ///     `enter_leaf` on the leaf a saved menu was parked on, which reaches `on_focus`
 ///     (`menu_scene.cpp`'s note there, which argues that this is right for an item that opens a
@@ -127,6 +126,17 @@ public:
 	/// reached without a press on its row. `MenuScene::enter_leaf`'s `FocusCause` is the port of
 	/// that test.
 	bool on_focus_is_press() const override { return true; }
+
+	/// @brief `Linked::renderSubmenuItemTypeForOled`'s icon half (`linked.h:56-78`): a checked box
+	///        when a definition file is linked, an unchecked one when not.
+	///
+	/// Not the arrow `CustomItem::row_icon` defaults to (`node.h`), because this item's legacy class
+	/// is one of the three that override the base blit. The **second text row** that override also
+	/// draws when checked -- the linked file's base name, at `yPixel + kTextSpacingY * 2`
+	/// (`linked.h:73`) -- is still not ported: `ui::oled::ListRow` has one label and one icon per
+	/// row (`ui/oled/list.h`), and a second row of text under a row is a `list` change rather than
+	/// an item's. That remains this item's divergence; the checkbox no longer does.
+	const deluge::gfx::oled::Icon* row_icon(const MenuContext& ctx) const override;
 
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

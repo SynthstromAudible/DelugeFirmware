@@ -28,6 +28,7 @@
 #include "ui/oled/text.h"
 
 #include "gfx/oled/font.h"
+#include "gfx/oled/icons.h" // MidiDeviceLinkedItem::row_icon -- the two checkbox icons
 // `gfx/oled/font.h` above carries `string_width_px` -- `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`
 
 #include "definitions_cxx.hpp"
@@ -186,6 +187,12 @@ bool MidiDeviceLinkedItem::linked(const MenuContext& ctx) {
 	// `readCurrentValue` (`linked.h:33-36`).
 	const MIDIInstrument* instrument = midi_instrument_of(ctx);
 	return instrument != nullptr && !instrument->deviceDefinitionFileName.empty();
+}
+
+const deluge::gfx::oled::Icon* MidiDeviceLinkedItem::row_icon(const MenuContext& ctx) const {
+	// `renderSubmenuItemTypeForOled` (`linked.h:56-78`), icon half: `getToggleValue()` is
+	// `readCurrentValue`'s answer, which `linked()` above already is.
+	return linked(ctx) ? &deluge::gfx::oled::icons::checkedBox : &deluge::gfx::oled::icons::uncheckedBox;
 }
 
 void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) const {
