@@ -504,12 +504,50 @@ nodes behind 55 distinct real items, zero placeholders.
 wiring**, which is this document. Concretely, and each of these is a thing that does not exist today
 rather than a thing that is half-done:
 
-1. **Nothing links `deluge_scenes`.** `src/CMakeLists.txt` builds the library; its only consumer is
-   its own spec executable. Until an application target links it, deleting the legacy tree deletes
-   the only menu the firmware has.
-2. **No entry point.** Nothing routes buttons, pads, encoders or MIDI into the scene stack — §2.1's
-   `ShellHostUI` or §2.2's host inversion is what supplies it. `openUI(&soundEditor)` has no
-   replacement call site yet.
+1. ~~**Nothing links `deluge_scenes`.**~~ **Closed by F1 task 1.** `libdeluge_scenes.a` is in the
+   device closure (`src/bsp/rust/build.rs`, both the CMake target list and the archive deps array,
+   on both the device and host paths) and `deluge_scenes` is in `deluge_host`'s
+   `target_link_libraries` (`sim/CMakeLists.txt:446`) — which is the *actual* host-sim closure;
+   `build.rs`'s own `run_host_app` path targets a `build-embassy-hostapp` tree that no CMake flag
+   in this repo configures, so following it would have left the port out of the binary §10.8's A/B
+   runs on. `deluge_scenes` `PUBLIC`-links `deluge_ui_shell`, so this is what put `src/shell` in
+   the firmware image too, and `$<COMPILE_ONLY:deluge_app>` (`src/scenes/CMakeLists.txt:144-152`)
+   is why both closures must keep linking `deluge_app` directly.
+
+   **What it opened, and what now holds it shut.** Before this, an `#include "scenes/..."` from a
+   legacy translation unit compiled and then failed to resolve — the build was the enforcement.
+   `check_layer_rules.py`'s `legacy-includes-port` and `legacy-names-port` rows (F1 task 12) are
+   the replacement: `src/deluge/**` is held to zero, less the eight files in `LEGACY_PORT_SEAMS`
+   that are the argued seams, and the second row exists because this tree names a symbol through a
+   bare `extern` precisely when the include is forbidden.
+2. ~~**No entry point.**~~ **Closed for eight of the fourteen, by F1 tasks 5-7 and 9, behind a
+   runtime toggle that is Off by default.** `ShellHostUI` (`src/deluge/gui/ui/shell_host_ui.{h,cpp}`)
+   is §2.1's guest: a `UI` subclass pushed with `openUI`, forwarding buttons, pads and encoders into
+   `Shell`, rendering through `GuestSurfaceSet` into legacy's own `OLED::main` and `PadLEDs::image`,
+   re-arming `TimerName::UI_SPECIFIC` from `Shell::next_wake()`, and declaring LEDs through
+   `SurfaceSet::set_led`. `openShellMenu` (`src/deluge/gui/ui/shell_menu_entry.cpp`) is the one
+   door, declared in `src/deluge/util/shell_menu_entry.h` — in `util/` deliberately, because that
+   directory is inside `check_layer_rules.py`'s `NON_UI` glob, so the move is judged by the very
+   rule it is about rather than hidden from it.
+
+   **Six of the fourteen are still open, and each is a node with no port**, listed with its reason
+   in `shell_menu_entry.cpp`'s own fourteen-entry-point table. With the toggle on the firmware has
+   *both* menus, reachable by different gestures; with it off — the default — every gated site runs
+   the exact legacy statements it ran before, which F1 task 9 verified line by line at all eight
+   sites.
+
+   **MIDI is a separate half and is only partly closed** — see item 8. Two of the four learn
+   messages have a transport and all four are inert for a third reason recorded there.
+
+   **One user-visible divergence the level-3 A/B found, with two causes** (§10.8): with the ported
+   menu open, legacy leaves the clip view showing with the sidebar **greyed**
+   (`SoundEditor::getGreyoutColsAndRows`, `gui/ui/sound_editor.cpp:252-294`) and the guest **blacks
+   the grid**. Fixing either cause alone still leaves it wrong: (a) `GuestSurfaceSet::send_columns`
+   writes the menu's all-black grid into `PadLEDs::image`, and (b) legacy's greyout walk never runs
+   at all, because `ShellHostUI` never re-requests grid rendering, so `reassessGreyout` and
+   `prepareColour` are never reached. Proved by probe rather than by inspection: disabling (a)
+   alone brought the sidebar back **ungreyed** (`pad 16 0 0 255 6`, boot's colour, not the OFF
+   leg's `3 160 7`).
 3. **No `MenuAction` dispatcher.** Five ported items request root-UI behaviour
    (`openUI(&performanceView)`, `setClipLengthEqualToSampleLength()`, the MIDI-learn overlay, the two
    song verbs) through `MenuScene::take_action()`, which nothing consumes. That mailbox is a one-slot
@@ -783,7 +821,7 @@ three `IntegerWithOff` nodes that draw "0" where legacy draws "OFF".
   `shell/shell.h`. Rewriting one as a bulleted list fixes it, and the citations in it have to be
   re-verified line by line while doing so (E4 tasks 9 and 14 each fixed one this way).
 
-### 10.5 Ten defects in shipping firmware, found by the port and not fixed by it
+### 10.5 Eleven defects in shipping firmware, found by the port and not fixed by it
 
 They belong in a release note, not only in a spec, and are written up in full in
 `src/scenes/README.md`'s "Defects this port found in shipping firmware" with a `@warning` at each
@@ -847,9 +885,31 @@ E4 tasks 9, 10 and 12 added the last four, three of them in the slicer and one i
   it and is deliberately **not** a faithful reproduction — a port cannot faithfully reproduce a
   segfault.
 
-Four of the ten are in `gui/views/view.cpp` and `gui/views/clip_view.cpp` and **none of the four is
-annotated in the legacy file**: this stack cites those two by line more than 130 times, and
-inserting a comment would shift every citation. Every port-side `@warning` is complete, and
+**F1 task 11 added an eleventh, and it is the most reachable of the set: `SoundEditor::setup`
+dereferences a null `Clip*`.** `sound_editor.cpp:1876`'s `else if (clip->type == ClipType::AUDIO)`
+runs whenever `currentSound` is null — `currentSound = newSound` at `:1856`, while `newSound` is
+only ever assigned inside the `else if (clip)` arm at `:1679-1744` — so a `setup()` reached with the
+default null `clip` dereferences null. **Measured, not read**: under gdb, both site 1
+(`gui/views/view.cpp:477`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, plain SELECT
+from the session view) SIGSEGV at that line in the **toggle-off** leg of §10.8's A/B, on an
+unmodified tree. Site 2 is "open the Song FX menu" — an everyday gesture in shipping firmware.
+Sites 3 (`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:846`) pass the
+same null clip into the same function and so reach the same line; that is inspection, not a
+measurement.
+
+It is not a crash on the device because address 0 is mapped there, and the real hazard is what
+happens *instead*: `ClipType::AUDIO == 1`, so a byte of 1 at `0 + offsetof(Clip, type)` **takes**
+the branch and seeds `currentSampleControls` and `currentPriority` with near-null pointers that
+later menu code both reads and **writes** through. "Latent rather than fatal" is right about the
+read and silent about the write. **The guest makes it strictly less reachable** — both scripts that
+crash under the OFF fixture exit 0 under the ON one, because `openShellMenu` never dereferences the
+clip — which is the opposite of a reason not to fix it. Not fixed here: it is a legacy behaviour
+change, and this stack's standing rule sends those to Kate.
+
+Four of the eleven are in `gui/views/view.cpp` and `gui/views/clip_view.cpp` and **none of the four
+is annotated in the legacy file**: this stack cites those two by line more than 130 times, and
+inserting a comment would shift every citation. The eleventh is unannotated in `sound_editor.cpp`
+for the same reason and at a larger scale. Every port-side `@warning` is complete, and
 `src/scenes/README.md`'s "Defects this port found in shipping firmware" is the full table.
 
 ### 10.6 What the oracle actually covers for the three new scenes (2026-09-04, closing E3's final review)
@@ -1188,3 +1248,75 @@ supplies the callers, not when someone writes more spec. As in §10.6, the hones
 device-validate the slicer's commit before `slicer.cpp` goes, or keep it alive behind a spec-only
 target for one more phase — the same choice §10.3 offers for `menus.cpp`, `browser.cpp`,
 `sample_marker_editor.cpp` and `audio_recorder.cpp`, and it should be made once for all of them.
+
+### 10.8 What the oracle covers for F1's subjects, and why the number is small (2026-09-07, closing F1)
+
+The same question §10.6 and §10.7 ask, for what plan F1 built: **the guest and the wiring**. Its
+oracle is **different in kind** from every prior plan's, and saying so is most of the answer.
+
+**§10.6 and §10.7 count object-level comparisons.** A spec drives a legacy entry point from its own
+inputs, on a fixture reset to what the port started from, and compares the two answers — 64 entry
+points across 121 comparison sites for E4's nine subjects. That is a wide net with a shallow mesh:
+each site proves one function agrees, and nothing proves the functions are reached.
+
+**F1's is a level-3 A/B: the whole application, twice.** `tests/ui-scripts/app/menu.txt` is booted
+into the real `deluge_host` binary against two SD-card fixtures that differ by exactly one file —
+`tests/fixtures/card` and `tests/fixtures/card-shell-menu`, whose `SETTINGS/CommunityFeatures.XML`
+sets `shellMenu` — and the two output trees are compared against each other by
+`scripts/ui_app_ab_check.py` as well as each against its own golden. That is **stronger per
+comparison** than any object-level fixture: nothing is stubbed, the toggle is read from the card by
+the same code the device runs, and the thing compared is what a user would see. It also **covers far
+less surface per comparison**, and the honest number is much smaller than E4's.
+
+**The number: 1 script, 5 frames, 2 legs, 10 committed goldens, 1 of the 14 entry points.**
+
+| what the A/B compares | count |
+|---|---|
+| scripts | 1 (`tests/ui-scripts/app/menu.txt`) |
+| snapshots per leg | 5 — `boot`, `menu-root`, `menu-scrolled`, `gold-turn`, `menu-exit` |
+| legs | 2 (toggle off, toggle on) |
+| OLED panels compared leg-to-leg | 5, **all 5 byte-identical** |
+| `.state` files compared leg-to-leg | 5, of which **1 is identical (`boot`) and 4 differ** |
+| legacy `openUI(&soundEditor)` entry points driven end to end | **1 of 14** — site 6, `InstrumentClipMinder::buttonAction` (`model/clip/instrument_clip_minder.cpp:399`) |
+| ctest rows | 5 — `ui_app_scripts_menu{,_diff,_shell,_shell_diff,_ab}` |
+
+**The headline result is the OLED equality.** Five panels, byte for byte, across an open, a
+navigation, a gold-knob edit and an exit: the ported `MenuScene` draws `SoundEditor`'s pixels in the
+real firmware. That is one assertion covering the guest's lifecycle, its OLED composition, its
+button/encoder forwarding, its timer re-arm, the boot calls and the service install at once — no
+object-level fixture in §10.7 covers a chain that long.
+
+**The four `.state` differences are the findings, not the noise**, and each is explained and cited
+in `.superpowers/sdd/2026-09-07-ui-wiring-1/task-11-report.md`. The user-visible one is the sidebar
+divergence recorded in §10.2 item 2, with both of its causes.
+
+**What one script cannot cover, stated so the number is not read as more than it is:**
+
+* **Thirteen of the fourteen entry points.** Eight are gated and only one is scripted; six have no
+  ported node at all. The other seven gated sites are covered at level 2 by
+  `sim/scenes_spec/menu_entry_spec.cpp`, which is an object-level oracle, not this one.
+* **The four null-clip sites cannot be scripted at all** — the toggle-**off** leg SIGSEGVs in
+  legacy before the comparison happens (§10.5's eleventh defect). The script stays on a
+  clip-carrying site precisely so the leg that would crash is the one that has to run.
+* **MIDI.** Both learn transports F1 built are inert under the guest for the reason §10.2 item 8
+  gives, so no script can drive them; their coverage is `midi_learn_spec.cpp`'s, at level 2.
+* **The grid.** Four of the five frames disagree on the pads, so the grid is a *finding* here, not
+  coverage. Nothing in this suite pins what the sidebar should look like under the guest, because
+  what it should look like is still open.
+* **Everything the toggle is off for.** The A/B proves the two legs differ in exactly the ways
+  recorded; it does not, and cannot, prove the toggle-off leg is unchanged from before this branch.
+  That claim is F1's global constraint 2, and its evidence is a different mechanism: at each of the
+  eight gated sites every removed line reappears as a **stripped-identical** line inside the
+  toggle-off `else`, checked mechanically across the whole diff and then read by hand at the four
+  sites where the restructuring is not a straight indent (F1 task 9). The raw diff of `src/deluge/`
+  across the branch removes 27 non-comment lines: 24 are such pairs, and the other three are lines
+  a *continuation* was appended to — the toggle's own `subMenuEntries` entry, its `UIType` name-table
+  row, and `ShiftIsSticky::writeCurrentValue`'s test, rewritten to hold the value it now also
+  mirrors into the guest.
+
+**An honest small number beats an inflated one.** 1 script and 5 frames against E4's 121 comparison
+sites is the right comparison to print, and the right conclusion to draw from it is not "F1 is less
+tested" — the level-1 and level-2 suites grew from 43 to 50 sim specs and 98 to 101 host specs over
+these twelve tasks — but that **the acceptance oracle for a wiring plan is narrow and deep where a
+porting plan's is wide and shallow**, and the next plan should add scripts (a second entry point, a
+second root, a MIDI path once one is live) rather than assume this one generalises.

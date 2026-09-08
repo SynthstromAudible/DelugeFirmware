@@ -363,3 +363,54 @@ This is what the acceptance layer is for, and it earned its place: level 2 found
 their own `idle` — named for an event they do not show, and therefore unable to fail when that event
 breaks. Deleting such a frame is the correct action, not keeping it for symmetry; three were deleted
 in E2 and seven remain as owed cleanup.
+
+## 12. Amendment from spec F1 (2026-09-07): the migration A/B, and why §6 was not what got built
+
+**§6 described a level-2 A/B behind a `LegacySceneAdapter`.** F1 built a **level-3** one, against the
+whole application, and needed **no harness change and no script-language change** to do it. Both
+halves of that are worth recording, because the harness change §6 implies would have been a real
+cost and it turned out not to be owed.
+
+**What §6 said.** *"The same level-2 script runs twice — once with the legacy `UI` behind
+`LegacySceneAdapter`, once with the new scene."* `LegacySceneAdapter` is spec F §2.2's phase-5
+mechanism and does not exist; it is not F1's, and a level-2 runner has no legacy `UI` to wrap in the
+first place. So §6's shape was unavailable to the plan that needed it.
+
+**What was built instead** (`tests/ui-scripts/app/menu.txt`, F1 task 11). One script, run twice by
+`deluge_host` against two SD-card fixtures that differ by exactly one file:
+
+| ctest row | SD root | what it exercises |
+|---|---|---|
+| `ui_app_scripts_menu` | `tests/fixtures/card` | `ShellMenu` off — legacy `SoundEditor` |
+| `ui_app_scripts_menu_shell` | `tests/fixtures/card-shell-menu` | `ShellMenu` on — the ported `MenuScene` |
+| `ui_app_scripts_menu_ab` | — | `scripts/ui_app_ab_check.py` over the two `got` trees |
+
+plus a `_diff` row per leg against its own committed golden tree.
+
+**The toggle is read from the card, not from the harness**, and that is the design decision worth
+keeping. `shellMenuEnabled()` reads `RuntimeFeatureSettingType::ShellMenu`, registered with xmlName
+`"shellMenu"` and default Off (`model/settings/runtime_feature_settings.cpp:175-178`) and loaded
+from `SETTINGS/CommunityFeatures.XML` (`:194`). The level-3 ctest rows already pass
+`DELUGE_SD_ROOT` (`sim/CMakeLists.txt:710-713`), so a second fixture directory was the whole
+mechanism. An env var or a new script verb would each have been a **test-only door** into a feature
+whose entire subject is whether the real settings path reaches it; a second card is the mechanism
+the device itself uses. Neither leg mutates its own fixture, which is checked rather than reasoned:
+`git status --short tests/fixtures/` is empty after both legs have run.
+
+**`ui_app_ab_check.py` asserts the relationship the per-leg golden diffs cannot.** A golden pins
+each leg against its own past; it says nothing about the two legs' relation to each other, and two
+goldens re-recorded from the *same* leg would pass forever. So the checker asserts: the two legs
+produced the same snapshot names; every OLED panel is byte-identical; **at least one `.state` file
+differs**; and, optionally, that the two fixtures differ by exactly the one named file. The third
+assertion is the non-vacuity one and it is not hypothetical — F1 task 9's reviewer forced
+`shellMenuEnabled()` to `return true`, ran `ctest -R ui_app_scripts`, and got a green suite with
+unchanged goldens, because the only app script at the time (`boot.txt`) pressed nothing.
+
+**Two rules from §5 and §10 that this leaned on and that held.** Level 3 is deterministic enough for
+a byte comparison across two runs that differ only in their fixture — the same script, the same tick cadence,
+the same seed — and "a golden that records nothing is worse than no golden" is exactly what the
+non-vacuity assertion mechanises for an A/B.
+
+**What the A/B covers, and what it does not,** is migration spec §10.8 rather than here: 1 script,
+5 frames, 2 legs, 5 of 5 OLED panels identical, 4 of 5 `.state` files different, 1 of the 14 legacy
+entry points driven end to end.

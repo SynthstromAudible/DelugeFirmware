@@ -1282,3 +1282,53 @@ backend and is now the narrower of the two readings, not the definition.
 Fixed by replacing the comment at `shell.cpp:905` with the account above. No code moved: `flush`
 already asked the backend rather than assuming an answer, which is why the wrong comment cost
 nothing beyond the risk of the next backend copying it.
+
+### 15.11 The shell now has a host, and three things this document said are no longer true (F1)
+
+Not a defect round: `Shell` was written to be driven by something, and F1 built the something.
+These are the sentences that were written while nothing did.
+
+**`SurfaceSet` has a third implementation, and it copies.** §2 and this file's Flush section named
+two — `BoardSurfaceSet` over libdeluge, `uitest::FakeSurfaceSet` over recorders. The third is
+`GuestSurfaceSet` (`src/deluge/gui/ui/shell_guest_surfaces.{h,cpp}`, F1 task 4), whose sinks write
+into legacy's own `OLED::main` canvas and `PadLEDs::image`. Spec F §3 said those buffers could be
+*aliased* — the surfaces built directly over legacy's storage, "free and copy-less" — and both
+halves of that are false, which task 4 established rather than assumed:
+
+* **The grid cannot alias.** `PadGrid` stores `cells_[kMaxGridRows][kMaxGridCols]` with
+  `kMaxGridCols` = 32 against legacy's 18-column `PadLEDs::image`, and `src/gfx/grid/pad_grid.h:37-41`
+  already said so in its own warning, naming `row(y)` as the seam for copying.
+* **The OLED could alias and must not.** `OLED::clearMainImage()` (`hid/display/oled.h:46`) is
+  called from legacy all over the tree -- including immediately before `renderOLED`
+  (`gui/ui/ui.cpp:358`, then `:362`) -- and the shell is retained-mode — `flush` blits only on `blit_pending`. An aliased buffer legacy zeroed
+  between renders goes blank with nothing to re-dirty it.
+
+So it copies, measured: 768 B per OLED blit, 48 B per changed column pair, 432 B for a full grid,
+with the constants derived from legacy's macros and `static_assert`ed against `kDelugeOled.bytes()`
+and `sizeof(PadLEDs::image)`. The bound on the grid is `Shell::flush`'s per-pair diff against
+`last_sent` (`src/shell/shell.cpp:961`), not a cadence — a tick where no pad changed costs nothing however fast ticks
+arrive — and the OLED has no diff at all, so its cost is per re-rendered tick.
+
+**`next_wake()`'s "the shell only ticks when its host asks it to" now has a host that asks at 1
+kHz.** `ShellHostUI::timerCallback` re-arms `TimerName::UI_SPECIFIC` from `Shell::next_wake()` with
+a 1 ms floor, so a scene returning `0u` from `next_timer()` — which the type's contract reads as
+"next tick", and which `AudioClipScene` returns while the playhead is live — compounds twice: the
+scene's grid gate is re-armed at `now` every tick, so it is a full grid *render* at up to 1 kHz, and
+legacy's 29-timer sweep runs at up to 1 kHz where its own `GRAPHICS_ROUTINE` is about 66 Hz. `0u` is
+still the right answer (the rate is the host's decision, not the scene's, and the grid flush diffs
+against `last_sent`); what is no longer true is that it is *free*. Latent while `MenuScene` — which
+returns `nullopt` unless a blink is armed — is the only tenant. Recorded at `shell.h`'s `next_wake`
+warning.
+
+**And one correction that reaches back into E3 and E4.** Legacy's `graphicsRoutine` is **a 15 ms
+timer, not a main-loop call**: `deluge.cpp` arms `TimerName::GRAPHICS_ROUTINE` at 50 ms and
+`gui/ui_timer_manager.cpp:213-218` calls `getCurrentUI()->graphicsRoutine()` and re-arms at 15 ms,
+gated on `deluge_control_pad_output_space()`. Three docs in this stack asserted the opposite
+(`Scene::next_timer`, `Shell::next_wake`, `AudioClipScene::next_timer`) and all three are corrected
+in place.
+
+**What did *not* need a shell change.** The whole guest is built on the seams as specified —
+`Shell::set_services` (§15.9), `SurfaceSet`'s six sinks, `next_wake`, `state_lines()` — and the only
+new one F1 asked for is `oled_busy`'s restated contract (§15.10). `src/shell` gained no `#include`
+outside its rule, and `MIDICable` is forward-declared rather than included so the MIDI `UiEvent`
+kinds cost the layer nothing.
