@@ -60,7 +60,7 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel);
 // read at `:939`). `ClipView::lengthenClip` lowers it across an undo of a previous shorten
 // (`gui/views/clip_view.cpp:85-88`) and legacy reaches it with exactly this bare `extern`
 // (`clip_view.cpp:72`); this layer may not include `model/song/song.cpp`'s definition site either
-// way, and `nodes/settings.cpp:76` already spells a model global this way for the same reason.
+// way, and `nodes/settings.cpp:78` already spells a model global this way for the same reason.
 extern bool allowResyncingDuringClipLengthChange;
 
 namespace deluge::scenes::audio_clip {
@@ -893,7 +893,7 @@ void AudioClipScene::change_underlying_sample_start(const ::Sample& sample, int3
 	if (undoing) {
 		// `:84-89`. `allowResyncingDuringClipLengthChange` lives in `model/song/song.cpp:886`;
 		// legacy's `clip_view.cpp:72` reaches it with a bare `extern` and so does this file, for the
-		// reason `nodes/settings.cpp:76` reaches `jcong` that way -- the layer rules forbid the
+		// reason `nodes/settings.cpp:78` reaches `jcong` that way -- the layer rules forbid the
 		// header, not the symbol.
 		allowResyncingDuringClipLengthChange = false;
 		(void)actionLogger.revert(BEFORE, false, false);

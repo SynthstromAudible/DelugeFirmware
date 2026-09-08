@@ -133,8 +133,8 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	//   * `shortcuts::Version::writeCurrentValue` (`gui/menu_item/shortcuts/version.h:27`) -- the
 	//     legacy settings item;
 	//   * `nodes::set_shortcuts_version` (`scenes/menu/nodes/settings.cpp`) -- the ported one, which
-	//     calls `menu::set_shortcuts_version` directly and does **not** reach here. See the
-	//     `@warning` at that hook.
+	//     DOES reach here as of F2 task 6, by filing `MenuAction::SetShortcutsVersion` for
+	//     `dispatchShellActions` to perform; it writes the mirror itself too (`menu/action.h`).
 	//
 	// F1 task 8 first put this mirror at three of those call sites instead, to avoid moving the 253
 	// `sound_editor.cpp:NNN` citations that inserting lines here shifts. That traded a live coverage

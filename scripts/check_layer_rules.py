@@ -251,7 +251,7 @@ RULES = [
         # The symbol half of `legacy-includes-port`, for exactly the reason `scenes-no-root-ui` is
         # a symbol row rather than an include row: this tree routinely names a symbol through a
         # bare declaration BECAUSE the include is forbidden (`extern uint32_t jcong;`,
-        # `src/scenes/menu/nodes/settings.cpp:76`). A legacy file that wants
+        # `src/scenes/menu/nodes/settings.cpp:78`). A legacy file that wants
         # `deluge::scenes::scene_registry()` and finds the include row in its way can write
         # `namespace deluge::scenes { const SceneTable& scene_registry(); }` and link, because
         # task 1 put the archive in the closure. This row is what sees that spelling.
@@ -530,7 +530,7 @@ RULES = [
         # It must be a SYMBOL row, not an include row: `scenes-includes-gui` above already
         # forbids `#include "gui/ui/session_view.h"`, but this library routinely names a legacy
         # global through a bare `extern` declaration instead of its header (`extern uint32_t
-        # jcong;`, `nodes/settings.cpp:76`) precisely because the include rule forbids the
+        # jcong;`, `nodes/settings.cpp:78`) precisely because the include rule forbids the
         # header -- so an include row alone cannot see the call.
         #
         # `getRootUI()`/`getCurrentUI()` are listed alongside the view globals because reading

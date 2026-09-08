@@ -585,16 +585,21 @@ rather than a thing that is half-done:
    1. **The ported screensaver setters** (`scenes/menu/nodes/settings.cpp`) write the same globals
       and cannot call `hid/`, so a change made from the ported screensaver menu notifies neither
       screensaver until reboot.
-   2. **The ported shortcut-layout setter never reaches flash byte 60.** The sentence above says
-      `SoundEditor::setShortcutsVersion` is the sole writer "which all four change paths go
-      through" — and that is a *different four* from the one the code enumerates.
-      `gui/ui/sound_editor.cpp:124-137` lists four writers of the *setting* and names the fourth as
-      `nodes::set_shortcuts_version`, of which it says explicitly that it does **not** reach there.
-      `scenes/menu/nodes/settings.cpp:829-838` carries the `@warning`: that hook writes only this
-      layer's copy, so **a layout chosen from the ported settings menu holds for the session and is
-      gone at the next power-on** — and under the toggle it is the one the user actually presses.
-      The four paths that *do* funnel through `setShortcutsVersion` are boot, both factory-reset
-      menus and the legacy settings item; the ported item is a fifth, and it is the open one.
+   2. ~~**The ported shortcut-layout setter never reaches flash byte 60.**~~ — **CLOSED, F2 task 6.**
+      The gap was real: `gui/ui/sound_editor.cpp:124-137` listed four writers of the *setting* and
+      named the fourth, `nodes::set_shortcuts_version`, as one that did **not** reach
+      `setShortcutsVersion` — so a layout chosen from the ported settings menu held for the session
+      and was gone at the next power-on, and under the toggle it is the one the user actually
+      presses. It now reaches it: the hook files `MenuAction::SetShortcutsVersion`
+      (`scenes/menu/action.h`) beside its own mirror write, and `dispatchShellActions`
+      (`gui/ui/shell_action_dispatch.cpp`) performs `soundEditor.setShortcutsVersion(...)`. Both
+      writes are kept — the mirror is what the item displays, the request is what persists — and the
+      round trip does not loop, because `setShortcutsVersion`'s own mirror call reaches the free
+      `menu::set_shortcuts_version` rather than the item hook. Pinned by
+      `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_shortcuts_version`, six examples
+      covering both directions. Item 5.1 above is **not** the same shape and was wrongly grouped
+      with this one in `src/scenes/README.md`: the screensaver setters' *settings* persist, it is
+      only the `Screensaver::settingsChanged()` apply they drop.
    3. **The play-cursor flash (byte 36) is unwired in BOTH directions** — the one item here that is
       not a one-way gap. `AudioClipScene::set_flash_cursor()` is called by **no application path**
       — its only two callers in the tree are in `sim/scenes_spec/audio_clip_scene_spec.cpp` — so

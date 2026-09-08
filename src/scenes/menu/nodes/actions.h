@@ -24,7 +24,7 @@
 /// The port has no equivalent of that flag: `MenuScene::after_render`'s `entered` arm always
 /// `enter_child`s. So the port descends for one tick, `on_focus` (= `beginSession`, `node.h`) files
 /// the request, and `after_render` drains it and ascends straight back out -- which is what the five
-/// `ResetItem`s already do for the same legacy shape (`nodes/settings.h:386-409`), except that they
+/// `ResetItem`s already do for the same legacy shape (`nodes/settings.h:392-415`), except that they
 /// ascend by way of `go_up_on_resume` after a pushed scene closes and these have no scene to push.
 /// From the user's side the two are the same gesture: press, the parent list is still there.
 ///
@@ -71,7 +71,7 @@ namespace deluge::scenes::menu::nodes {
 
 /// @brief A menu item whose entire body is "file one `MenuAction` and get out of the way".
 ///
-/// One class, four instances -- the `ResetItem` shape (`nodes/settings.h:397`), which is the same
+/// One class, four instances -- the `ResetItem` shape (`nodes/settings.h:403`), which is the same
 /// legacy shape (a `MenuItem` that is only a `selectButtonPress`).
 class ActionItem final : public CustomItem {
 public:

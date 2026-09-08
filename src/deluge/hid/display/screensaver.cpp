@@ -215,7 +215,7 @@ void Screensaver::settingsChanged() {
 	// early-outs the port spells as `idle_ms == 0` (`:92-94`, `:102-104`, `:171-174`).
 	//
 	// **Not covered from here: the ported menu's own two setters.**
-	// `scenes/menu/nodes/settings.cpp:570` and `:577` write the same two `FlashStorage` globals
+	// `scenes/menu/nodes/settings.cpp:572` and `:579` write the same two `FlashStorage` globals
 	// directly and cannot call this -- `src/scenes` may not include `hid/`. So under the toggle,
 	// changing either setting from the *ported* screensaver menu leaves both this class and the
 	// service armed at the old value until the next boot or the next change made from the legacy
