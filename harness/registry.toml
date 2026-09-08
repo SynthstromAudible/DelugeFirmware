@@ -316,3 +316,15 @@ run = ["scripts/offset_io.sh"]
 requires = ["cargo", "build-embassy-hostapp"]
 ci = "nightly"
 runtime = "~4m"
+
+[[harness]]
+name = "recorder-write"
+path = "."
+kind = "property"
+status = "gate"
+gates = "a real recording driven to COMPLETE must still read back byte-correctly -- mid-recording AND finalized multi-cluster -- while its per-cluster card write is served asynchronously and its drain runs OFF the storage owner. Four checks, and the third carries the weight: RW-ROUNDTRIP passes on both sides of the conversion, RW-CHANNEL can be non-zero while every write was still handled on the owner, and only RW-OFFOWNER separates a relocation from a rename. RW-ROUNDTRIP is not ceremony either -- a recycled stream handle collecting a previous recorder's answer reported a cluster as written when nothing had been, and the readback was the only thing in the run that noticed. RW-DRAIN covers the offline stem-export loop, which calls the card routine expecting each call to COMPLETE a write and is the one caller the off-owner flip could plausibly break. Like offset-io and unlike the tier gates, this one PASSES before the conversion: every site it touches was already on the storage owner, so there is no tier transition to show and served-plus-off-owner is the whole of the evidence."
+build = []
+run = ["scripts/recorder_write.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~8m"
