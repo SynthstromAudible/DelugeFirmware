@@ -1044,6 +1044,24 @@ crash under the OFF fixture exit 0 under the ON one, because `openShellMenu` nev
 clip — which is the opposite of a reason not to fix it. Not fixed here: it is a legacy behaviour
 change, and this stack's standing rule sends those to Kate.
 
+**The fix, designed and banked 2026-09-08 (Kate: "bank it"), not applied.** One line: guard the
+`else if` with `clip != nullptr &&`. Falling through is correct when there is no clip -- there is no
+audio clip to read sample controls from, and `currentSampleControls`/`currentPriority` keep the
+values set above. The branch belongs off **`next`** (`5fc6c84d9`), where the line is
+`sound_editor.cpp:1838` and where it can ship without waiting on thirteen unmerged `ui/*` branches;
+`next` is an ancestor of `ui/wiring-2`, so the fix flows up rather than the stack flowing down.
+
+**The testing constraint, which is why this is banked rather than trivial.** `tests/ui-scripts/` and
+`src/bsp/host/host_script.c` **do not exist on `next`** -- the level-3 script harness is entirely
+this stack's work -- so there is no place on `next` to put a regression test. The evidence available
+today is a scratch merge with `ui/wiring-2`, where a six-line SHIFT+SELECT script exits **139**
+before the guard and would exit 0 after it. A permanent regression script is owed to whichever
+branch carries the harness, and is the first thing to add when this stack integrates.
+
+The defect predates the enum-class conversion (`1ad7933df`, PR #1024, which only rewrote
+`CLIP_TYPE_AUDIO` to `ClipType::AUDIO` on that same line), so it is long-standing rather than
+introduced by this redesign.
+
 F2 task 4 added a twelfth, found by porting the clip-length verb: **`AudioClipView::setClipLengthEqualToSampleLength`'s
 `NO_SAMPLE` arm is dead code.** Its guard is `if (sampleHolder)` (`gui/views/audio_clip_view.cpp:762`)
 over `audioClip.guide.audioFileHolder` (`:761`), which `AudioClip::AudioClip` sets to the address of
