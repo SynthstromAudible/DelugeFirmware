@@ -77,7 +77,10 @@ extern "C" {
 
 /// @brief Ask for `len` bytes at `bytes` to be written to `handle` at absolute `offset`.
 ///
-/// @param handle A stream-write handle from `deluge_efatfs_stream_open`.
+/// @param handle A stream-write handle from `deluge_efatfs_stream_open`. ZERO IS VALID -- this
+///               table's slots are indexed from zero, which is why `deluge::io::Stream` boxes
+///               `handle + 1` into its opaque pointer. Do not borrow `sample_stream.h`'s
+///               `0 = invalid` convention; it belongs to a different registry.
 /// @param offset Absolute byte offset within the file.
 /// @param bytes  Caller-owned buffer. Must stay alive and unmodified until the matching collect is
 ///               terminal. NOT copied.

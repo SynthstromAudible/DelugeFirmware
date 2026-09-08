@@ -91,7 +91,11 @@ pub unsafe extern "C" fn deluge_file_write_request(
     bytes: *const u8,
     len: u32,
 ) -> bool {
-    if handle == 0 || bytes.is_null() || len == 0 || !deluge_file_write_async_active() {
+    // NOTE: handle 0 is VALID here. This table is `STREAM_WRITE_CTX`, whose slots are indexed from
+    // zero -- which is exactly why `deluge::io::Stream` boxes `handle + 1` into its opaque pointer.
+    // The `0 = invalid` convention belongs to `sample_stream.h`'s registry, not this one, and
+    // rejecting it here silently refused every write the first recorder ever made.
+    if bytes.is_null() || len == 0 || !deluge_file_write_async_active() {
         return false;
     }
     let (Ok(mut req), Ok(in_flight)) = (REQUEST.try_lock(), IN_FLIGHT.try_lock()) else {
@@ -101,6 +105,17 @@ pub unsafe extern "C" fn deluge_file_write_request(
     // replaced: a dropped cluster write is lost audio, so the caller must see the refusal.
     if req.is_some() || in_flight.is_some() {
         return false;
+    }
+    // Drop any uncollected answer for this handle before accepting a new request. Handles are slot
+    // indices in `STREAM_WRITE_CTX` and are RECYCLED: a recorder that closed its stream frees slot
+    // N, and the next recorder to open one gets slot N back. Without this, that second recorder's
+    // first collect would consume the first recorder's stale answer and report a write as landed
+    // when its own bytes had not been written at all.
+    let Ok(mut result) = RESULT.try_lock() else {
+        return false;
+    };
+    if result.is_some_and(|a| a.handle == handle) {
+        *result = None;
     }
     *req = Some(WriteRequest {
         handle,
