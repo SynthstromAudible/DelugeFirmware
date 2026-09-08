@@ -437,6 +437,43 @@ ActionResult ShellHostUI::timerCallback() {
 	shell_.set_sd_busy(isSDRoutineActive());
 
 	shell_.tick(now);
+
+	// **The short-Back exit, which is the only exit a user actually performs.**
+	//
+	// `exitUI()` below is the LONG press: `Buttons` arms `TimerName::BACK_MENU_EXIT` for
+	// `LONG_PRESS_DURATION` on Back down (`hid/buttons.cpp:114-121`) and the manager calls `exitUI`
+	// from that arm (`gui/ui_timer_manager.cpp:149-155`). A short Back never reaches it -- it is fed
+	// into the shell like any other button (`buttonAction` below) and routed inside `Shell::tick`,
+	// where `MenuScene` answers Back at depth 0 with `Action::Kind::Remove{.pop_to = FirstApp}`
+	// (`scenes/menu/menu_scene.cpp:1447-1452`), the port of `sound_editor.cpp:456`'s BACK case ->
+	// `:471` `goUpOneLevel()` -> `:710-717` `SoundEditor::goUpOneLevel`, whose depth-0 arm is
+	// `exitCompletely()` at `:716`. (`MenuScene`'s own comment on that block cites `:433` and
+	// `:678` for those two; both are stale -- `:433` is an `AFFECT_ENTIRE` blink and `:678` is
+	// `handlePotentialParamMenuChange`. Reported in F1 task 11's report, not corrected here: they
+	// are pre-existing and belong to the sweep task, and a citation moved by the wrong hand is how
+	// this plan has lost seven of them.) That removes the scene and empties the
+	// stack, and **nothing in legacy closes this UI when it happens**: `close()` lived only on
+	// `exitUI`'s path.
+	//
+	// What that left is precisely the state `opened()` refuses to create -- "An empty guest is worse
+	// than no guest: it would swallow every pad while drawing nothing" (`:134-136`). Measured on the
+	// F1 task 11 A/B: with the toggle on, Back from the ported menu's root left `shellHostUI`
+	// current with an empty stack, `renderOLED` painting nothing over legacy's cleared frame, and
+	// every later button (Session, Select) swallowed. The toggle-off leg of the same script exited
+	// to the clip view. So the close belongs on both paths, and this is the one that carries the
+	// short press.
+	//
+	// **After the tick, not before**: the tick is what routes the Back and applies the `Remove`
+	// (`shell/shell.cpp:315-538`), so the stack cannot be seen empty until it has run. And **before
+	// `rearmTimer`**, which is skipped entirely on this path for the same reason `exitUI`'s close
+	// arms nothing: `closeUI` unsets `TimerName::UI_SPECIFIC` itself (`gui/ui/ui.cpp:197`) before
+	// handing focus to the UI beneath, so a re-arm here would either be undone one line later or
+	// deliver this guest's `timerCallback` to that UI (`gui/ui_timer_manager.cpp:143`).
+	if (shell_.stack().depth() == 0) {
+		closeGuest();
+		return ActionResult::DEALT_WITH;
+	}
+
 	rearmTimer(now);
 
 	// **Never `REMIND_ME_OUTSIDE_CARD_ROUTINE`.** That is the one value the `UI_SPECIFIC` arm acts
@@ -830,6 +867,11 @@ ActionResult ShellHostUI::exitUI() {
 		armTickSoon();
 		return ActionResult::DEALT_WITH;
 	}
+	closeGuest();
+	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+}
+
+void ShellHostUI::closeGuest() {
 	// **Hand the two knob indicator rings back to legacy, coherently.** F1 task 4 recorded, and
 	// task 7 re-measured, that `GuestSurfaceSet::set_indicator` writes the hardware through
 	// `deluge_control_set_indicator` without touching legacy's `knobIndicatorLevels[]` shadow --
@@ -852,11 +894,14 @@ ActionResult ShellHostUI::exitUI() {
 	// (`gui/views/view.cpp:1902`). Clearing after the close would blank rings nothing then
 	// refreshes.
 	//
-	// **Two residuals, both legacy's own.** `SessionView` and `ArrangerView` skip that refresh
-	// while `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW` / `UI_MODE_HOLDING_ARRANGEMENT_ROW` is active, so a
-	// guest closed during either leaves the rings dark until the next thing that sets levels; and
-	// this is the only close path the guest owns -- a `closeUI(&shellHostUI)` from elsewhere (F1
-	// task 9's exits) has no hook here to run it from, since `UI` declares none.
+	// **One residual, legacy's own.** `SessionView` and `ArrangerView` skip that refresh while
+	// `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW` / `UI_MODE_HOLDING_ARRANGEMENT_ROW` is active, so a guest
+	// closed during either leaves the rings dark until the next thing that sets levels.
+	//
+	// (This function used to say it was "the only close path the guest owns". It is now the *body*
+	// of both of the guest's own close paths -- `exitUI`'s long-press Back and `timerCallback`'s
+	// short one -- which is what F1 task 11's A/B forced. A `closeUI(&shellHostUI)` from somewhere
+	// else still has no hook to run it from, since `UI` declares none.)
 	indicator_leds::clearKnobIndicatorLevels();
 
 	// No arm on the close path: `close()` is `closeUI(this)` (`gui/ui/ui.cpp:57-59`), which unsets
@@ -865,7 +910,6 @@ ActionResult ShellHostUI::exitUI() {
 	// `timerCallback` to that UI -- `UITimerManager::routine` dispatches to `getCurrentUI()`
 	// (`gui/ui_timer_manager.cpp:143`).
 	close();
-	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
 // -- MIDI learn (F1 task 10) ---------------------------------------------------------------------

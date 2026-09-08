@@ -547,6 +547,18 @@ private:
 	/// arming at all freezes the guest until something else happens to.
 	void armTickSoon();
 
+	/// @brief Hand the knob indicator rings back to legacy and `close()` this UI.
+	///
+	/// The body both of the guest's close paths share: `exitUI()`'s long-press Back, and
+	/// `timerCallback()`'s "the shell's stack emptied during the tick", which is what a *short* Back
+	/// at the ported menu's root produces (`MenuScene`'s `Action::Kind::Remove`,
+	/// `scenes/menu/menu_scene.cpp:1447-1452`). Neither the ring hand-back nor the close may be
+	/// skipped on either path; see the definition for why the order between them is fixed.
+	///
+	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
+	/// (`gui/ui/ui.cpp:197`). Callers must not re-arm after it.
+	void closeGuest();
+
 	/// The scene `opened()` pushes; `SceneKind::Null` until a caller sets one.
 	deluge::ui::shell::SceneId initial_{};
 	/// @brief The config `shell_` was built with, kept so `feedDetents` can read
