@@ -1412,6 +1412,52 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 	// and `previousGridModeActive` are private (`gui/views/session_view.h:231`, `:202`), so the half
 	// of `enterMidiLearnMode`/`enterMacrosConfigMode` that moves them is asserted only through the
 	// state that *is* reachable -- `currentUIMode` and `currentSong->sessionLayout`.
+	//
+	// @par What these examples do NOT pin, and why that is a fact about legacy rather than a hole
+	//
+	// **The ORDER of the two statements in each context-menu arm.** Swapping them -- `openUI(...)`
+	// first, `setupAndCheckAvailability()` second -- leaves this group green; measured, not assumed.
+	// The arms are written in legacy's order because they are a transcription
+	// (`gui/menu_item/song/midi_learn.h:28-29`), and it is worth knowing that no test defends it.
+	//
+	// It is not merely unobserved, though. **It is unobservable**, and the reason is every effect
+	// `openUI` has, not just the one that is easy to name. `openUI` (`gui/ui/ui.cpp:227-245`) does
+	// five things, and each is inert with respect to `setupAndCheckAvailability`:
+	//
+	//   1. **The push** (`:230-231`), which happens FIRST inside `openUI` -- before any of the four
+	//      below -- so nothing here observes a half-open stack either way.
+	//   2. **`uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC)`** (`:233`). A *different* timer from
+	//      the only one this arm's other statement arms: `View::midiLearnFlash` sets
+	//      `TimerName::MIDI_LEARN_FLASH` (`gui/views/view.cpp:815`). Neither clears the other.
+	//   3. **`PadLEDs::reassessGreyout()`** (`:234`). **This is the one that could have made the
+	//      order observable, which is why it belongs in the argument rather than being left out of
+	//      it.** It recomputes from `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp:73-83`), which walks the
+	//      hierarchy top-down and takes the first UI that answers true -- and by `:234` the context
+	//      menu is already top, in either order. `MidiLearnMode::getGreyoutColsAndRows`
+	//      (`gui/context_menu/midi_learn_mode.cpp:32-36`) then answers two **constants** and reads no
+	//      state at all, `currentUIMode` included. Had that greyout depended on the MIDI-learn mode,
+	//      the two orders would give different pad greyouts and this example would be hiding a real
+	//      difference.
+	//   4. **`newUI->opened()`** (`:235`). Neither context menu overrides it, so it is `UI::opened`
+	//      (`gui/ui/ui.h:111-114`): `focusRegained()` -- for a `ContextMenu`, one
+	//      `blinkLed(IndicatorLED::BACK)` (`gui/context_menu/context_menu.cpp:54-56`) -- and then
+	//      `return true`, **unconditionally**. That last word matters: the `!success` branch
+	//      (`gui/ui/ui.cpp:237-242`) pops the UI and calls `oldUI->focusRegained()`, which WOULD be
+	//      order-sensitive, and it is unreachable here for that reason rather than by luck. Nothing
+	//      on the path -- `getTitle`/`getOptions` included (`midi_learn_mode.cpp:38-48`) -- reads
+	//      `currentUIMode`, and the LED is not the `IndicatorLED::LEARN` that `View::startMIDILearn`
+	//      blinks (`gui/views/view.cpp:495`).
+	//   5. **`renderUIsForOled()`** (`:243`), which sets `doesOLEDNeedRendering = true` and nothing
+	//      else (`:263-265`). No frame is composed inside `openUI`, so there is no transient render
+	//      in which the mode could differ.
+	//
+	// And the reverse direction is closed too, which the list above does not cover on its own:
+	// `View::midiLearnFlash` calls `getRootUI()->midiLearnFlash()` (`gui/views/view.cpp:817-819`), so
+	// running `setupAndCheckAvailability()` *after* the open would be observable if the open moved
+	// the root. It cannot: `getRootUI()` reads `uiNavigationHierarchy[0]` (`gui/ui/ui.cpp:145-150`)
+	// and `openUI` writes index `numUIsOpen` (`:230`), which is >= 1 whenever a root view is open --
+	// the precondition `stemExportTypeForRootUI`'s own note in `gui/ui/shell_action_dispatch.cpp`
+	// states and these examples establish with `setRootUILowLevel(&sessionView)`.
 
 	it("SetClipLengthToSampleLength: sets the clip's length from the sample, as legacy's view does", _ {
 		select_language();
