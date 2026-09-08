@@ -207,6 +207,13 @@ mod file_directory;
 #[cfg(feature = "async_audio_load")]
 #[path = "../../../src/file_prefix.rs"]
 mod file_prefix;
+/// The recorder's async stream-write driver. Included here for the same reason every module above
+/// is: this binary is a separate package, so a module missing from this list resolves to the C++
+/// weak fallback and every write quietly takes the synchronous arm — which is exactly how the
+/// settings channel first shipped a green run reporting nothing served.
+#[cfg(feature = "async_file_write")]
+#[path = "../../../src/file_write.rs"]
+mod file_write;
 #[path = "../../../src/flash.rs"]
 mod flash;
 #[path = "../../../src/host_link_stubs.rs"]
@@ -1569,6 +1576,10 @@ fn main() {
     // gate would still pass. `SC-CHANNEL served=` is the only thing that can tell the difference.
     #[cfg(feature = "async_file_bytes_active")]
     spawner.spawn(file_bytes::file_bytes_task().unwrap());
+    // Same again for the recorder's cluster write: without this spawn the channel is compiled,
+    // answers UNKNOWN forever, and every cluster is written on the owner arm.
+    #[cfg(feature = "async_file_write_active")]
+    spawner.spawn(file_write::file_write_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
     if audio_load_ab_mode {

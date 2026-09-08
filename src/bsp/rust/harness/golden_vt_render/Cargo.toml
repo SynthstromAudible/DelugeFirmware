@@ -227,6 +227,8 @@ async_file_directory_active = ["async_file_directory"]
 # channel with no statics and no task. Like the directory pair it implies nothing.
 async_file_bytes = []
 async_file_bytes_active = ["async_file_bytes"]
+async_file_write = []
+async_file_write_active = ["async_file_write"]
 
 [build-dependencies]
 bindgen = "0.70"
