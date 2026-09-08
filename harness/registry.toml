@@ -304,3 +304,15 @@ run = ["scripts/path_operations.sh"]
 requires = ["cargo", "build-embassy-hostapp"]
 ci = "nightly"
 runtime = "~4m"
+
+[[harness]]
+name = "offset-io"
+path = "."
+kind = "property"
+status = "gate"
+gates = "three blocks written at ascending offsets through the real SysEx transfer verbs must all still be on the card, a copy must reproduce its source byte-for-byte, and copying a missing source must report an error. THREE blocks and not one is the whole point: efatfs_core::create_context truncates unconditionally, so a write_at that re-opened that way would leave only the last block, and a single-block round trip would pass against exactly that bug. The missing-source case is load-bearing for the same class of reason -- without a case whose expected answer is an error, a handler replying before its operation completed reports the same err=0 a correct one does. Unlike its neighbours this gate PASSES before the conversion, because smsysex is already owner-dispatched and has no tier transition to show; the evidence is OI-CHANNEL going non-zero."
+build = []
+run = ["scripts/offset_io.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~4m"

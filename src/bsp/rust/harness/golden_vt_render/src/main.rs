@@ -309,6 +309,12 @@ unsafe extern "C" {
     fn deluge_scenario_path_operations_dispatch_step();
     fn deluge_scenario_path_operations_step_done() -> bool;
     fn deluge_scenario_path_operations_failures() -> i32;
+
+    fn deluge_scenario_offset_io_begin();
+    fn deluge_scenario_offset_io_complete() -> bool;
+    fn deluge_scenario_offset_io_dispatch_step();
+    fn deluge_scenario_offset_io_step_done() -> bool;
+    fn deluge_scenario_offset_io_failures() -> i32;
     fn deluge_scenario_song_preview_ab_begin();
     fn deluge_scenario_song_preview_ab_complete() -> bool;
     fn deluge_scenario_song_preview_ab_dispatch_step();
@@ -977,6 +983,64 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
 const MAX_CORPUS_CASES: usize = 16;
 const _: () = assert!(MAX_CORPUS_CASES == 16);
 
+/// The `GOLDEN_SCENARIO=offset_io` scenario: drive a real multi-block SysEx file transfer and a
+/// whole-file copy, and require the bytes on the card to be the ones that were written.
+///
+/// Stepped rather than one blocking call for the same reason its neighbours are: the SysEx handlers
+/// are resumable, so replies arrive on later ticks.
+#[embassy_executor::task]
+async fn run_offset_io_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_offset_io_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_offset_io_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_offset_io_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the offset io gate did not complete within the 600s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_offset_io_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_offset_io_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_offset_io_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the offset io gate FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: offset io gate completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=path_operations` scenario: drive real SysEx path requests and the browser's
 /// folder creation, and require that the protocol still replies and that no folder creation begins on
 /// the interaction tier.
@@ -1394,6 +1458,7 @@ fn main() {
     let settings_channel_mode = scenario == "settings_channel";
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
+    let offset_io_mode = scenario == "offset_io";
     if song_preview_ab_mode && !cfg!(feature = "async_file_prefix") {
         // Refusing beats running, for the reason the audio-load check below gives: without
         // `async_file_prefix` this binary has no prefix channel compiled at all, so the "file
@@ -1518,6 +1583,8 @@ fn main() {
         spawner.spawn(run_startup_failsafe_scenario(&DONE).unwrap());
     } else if path_operations_mode {
         spawner.spawn(run_path_operations_scenario(&DONE).unwrap());
+    } else if offset_io_mode {
+        spawner.spawn(run_offset_io_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {
