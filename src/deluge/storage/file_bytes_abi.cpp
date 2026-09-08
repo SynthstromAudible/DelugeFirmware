@@ -89,6 +89,30 @@ static_assert(DELUGE_FILE_BYTES_FAILED != DELUGE_AUDIO_LOAD_PENDING);
 static_assert(DELUGE_FILE_BYTES_FAILED != DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_BYTES_FAILED != DELUGE_AUDIO_LOAD_UNKNOWN);
 
+extern "C" __attribute__((weak)) bool deluge_file_bytes_request_unlink(const char* /*path*/) noexcept {
+	// REFUSED. Reporting the refusal honestly matters: a caller told `true` for a deletion that will
+	// never happen waits for a collect that never turns terminal.
+	return false;
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_unlink(const char* /*path*/,
+                                                                          DelugeStatus* /*out_status*/) noexcept {
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
+extern "C" __attribute__((weak)) void deluge_file_bytes_request_exists(const char* /*path*/) noexcept {
+	// No byte channel on this BSP/config; the caller never reaches here because
+	// deluge_file_bytes_async_active() is false.
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_exists(const char* /*path*/, bool* /*out_present*/,
+                                                                          DelugeStatus* /*out_status*/) noexcept {
+	// UNKNOWN, not FAILED. FAILED is terminal and would be read as `StartupPresence::Unusable`, which
+	// would make a build without the channel skip the startup song forever rather than take its
+	// synchronous arm. This distinction is load-bearing -- do not "simplify" it.
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
 extern "C" __attribute__((weak)) bool deluge_file_bytes_async_active() noexcept {
 	return false;
 }

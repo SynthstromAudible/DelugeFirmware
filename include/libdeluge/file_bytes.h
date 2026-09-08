@@ -207,6 +207,55 @@ bool deluge_file_bytes_request_rename(const char* from, const char* to) DELUGE_N
 ///       to show anyone.
 uint8_t deluge_file_bytes_collect_rename(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
+/// @brief Ask for `path` to be deleted, and return immediately.
+///
+/// @param path NUL-terminated path. Copied out before this returns.
+/// @return true if accepted. false if REFUSED -- the channel is busy with another operation, or the
+///         path is NULL or over long. Refused like a write rather than dropped like a read, because a
+///         caller that believes a file is gone when it is not will act on that belief.
+bool deluge_file_bytes_request_unlink(const char* path) DELUGE_NOEXCEPT;
+
+/// @brief Collect the outcome of the deletion of `path`, if it has finished.
+///
+/// @param path       NUL-terminated path, matched exactly against the one requested.
+/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
+///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @note Deleting a path that was already gone reports FAILED with `DELUGE_ERR_NOT_FOUND`. For the
+///       startup fail-safe's cleanup that is success by another name -- the file is not there, which
+///       is what was wanted -- so that caller must not treat it as an error.
+uint8_t deluge_file_bytes_collect_unlink(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
+/// @brief Ask whether `path` exists, and return immediately.
+///
+/// **Not a read.** Answering existence by requesting @ref deluge_file_bytes_request_read and reading
+/// `NOT_FOUND` as absence works only for files below @ref DELUGE_FILE_BYTES_MAX_BYTES: a larger file
+/// that IS there reports FAILED with `DELUGE_ERR_NO_MEMORY`, and a caller collapsing the two would
+/// read "present" as "absent" and may then overwrite it. Song files are far above that bound, which
+/// is why this operation exists rather than being expressed in terms of the read.
+///
+/// A request for a path already in flight is a no-op rather than a replacement, exactly as the read's
+/// is, and an unusable request is dropped for the same reason: the next collect reports UNKNOWN,
+/// whose documented meaning is "ask again".
+///
+/// @param path NUL-terminated path. Copied out before this returns.
+void deluge_file_bytes_request_exists(const char* path) DELUGE_NOEXCEPT;
+
+/// @brief Collect the existence answer for `path`, if there is one.
+///
+/// @param path        NUL-terminated path, matched exactly against the one requested.
+/// @param out_present Written **only** on @ref DELUGE_FILE_BYTES_READY: true if the path is there,
+///                    false if it is known not to be. Untouched on every other status, so it may be
+///                    passed uninitialised.
+/// @param out_status  Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
+///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @note THREE-STATE, and the third state is the point. READY with `*out_present == false` means
+///       "known absent"; FAILED means "could not establish", which is NOT absence. A caller that
+///       collapses FAILED into "absent" will write over files that are still there -- see
+///       `existence_policy.h`'s `StartupPresence`, which is this distinction given a name.
+uint8_t deluge_file_bytes_collect_exists(const char* path, bool* out_present, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
 /// @brief Whether the Rust async whole-file channel backs this header on this BSP/config.
 /// @return true if a request will actually be served; false if every caller must do its own file I/O,
 ///         synchronously. When this is false, the request functions do nothing (and the two that
