@@ -26,6 +26,7 @@
 #include "storage/smsysex.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 
@@ -75,13 +76,20 @@ struct VerbCase {
 	const char* name;
 	const char* json;
 	const char* replyTag;
+	/// Whether the reply's `err` must be zero. **This is what makes the reply's STATUS testable**, not
+	/// merely its arrival: a handler that replied before collecting would report success it has not
+	/// obtained, which only a case expected to FAIL can distinguish.
+	bool expectOk;
 };
 
 constexpr VerbCase kVerbs[] = {
-    {"delete", R"({"delete":{"path":"PO_TEST/gone.txt"}})", "^delete"},
-    {"mkdir", R"({"mkdir":{"path":"PO_TEST/MADE","date":0,"time":0}})", "^mkdir"},
-    {"rename", R"({"rename":{"from":"PO_TEST/a.txt","to":"PO_TEST/b.txt"}})", "^rename"},
-    {"utime", R"({"utime":{"path":"PO_TEST/MADE","date":0,"time":0}})", "^utime"},
+    {"delete", R"({"delete":{"path":"PO_TEST/gone.txt"}})", "^delete", true},
+    {"mkdir", R"({"mkdir":{"path":"PO_TEST/MADE","date":0,"time":0}})", "^mkdir", true},
+    {"rename", R"({"rename":{"from":"PO_TEST/a.txt","to":"PO_TEST/b.txt"}})", "^rename", true},
+    {"utime", R"({"utime":{"path":"PO_TEST/MADE","date":0,"time":0}})", "^utime", false},
+    // Deliberately doomed: the path is not there. Its reply must carry a NON-zero err, which a reply
+    // sent before its operation completed cannot do -- that one reports the success it assumed.
+    {"delete-missing", R"({"delete":{"path":"PO_TEST/never-existed.txt"}})", "^delete", false},
 };
 constexpr int32_t kVerbCount = static_cast<int32_t>(sizeof(kVerbs) / sizeof(kVerbs[0]));
 
@@ -116,6 +124,22 @@ int32_t g_verbTicks = 0;
 int32_t g_repliesBefore = 0;
 int32_t g_nestedCreated = -1;
 int32_t g_nestedIdempotent = -1;
+
+/// Pull the `err` attribute out of a captured reply, or -1 if it has none.
+///
+/// The reply is JSON with an `"err":N` member. Scanned rather than parsed because the scenario needs
+/// one number out of it and a deserializer here would be more machinery than the check is worth.
+int32_t replyErr(const std::string& reply) {
+	const size_t at = reply.find("\"err\"");
+	if (at == std::string::npos) {
+		return -1;
+	}
+	const size_t colon = reply.find(':', at);
+	if (colon == std::string::npos) {
+		return -1;
+	}
+	return static_cast<int32_t>(strtol(reply.c_str() + colon + 1, nullptr, 10));
+}
 
 /// Whether `path` names a directory that is there.
 bool directoryExists(const char* path) {
@@ -178,13 +202,21 @@ void runTick() {
 		const VerbCase& verb = kVerbs[g_verbIndex];
 		const bool replied = g_cable.replies > g_repliesBefore;
 		const bool tagged = replied && g_cable.lastReply.find(verb.replyTag) != std::string::npos;
-		printf("PO-SYSEX verb=%s replied=%d tagged=%d\n", verb.name, replied ? 1 : 0, tagged ? 1 : 0);
+		const int32_t err = replied ? replyErr(g_cable.lastReply) : -1;
+		const bool okAsExpected = verb.expectOk ? (err == 0) : (err > 0);
+		printf("PO-SYSEX verb=%s replied=%d tagged=%d err=%d\n", verb.name, replied ? 1 : 0, tagged ? 1 : 0, err);
 		if (!replied) {
 			printf("PO-SYSEX FAIL %s produced no reply within %d ticks\n", verb.name, kMaxVerbTicks);
 			g_failures++;
 		}
 		else if (!tagged) {
 			printf("PO-SYSEX FAIL %s replied without its %s tag\n", verb.name, verb.replyTag);
+			g_failures++;
+		}
+		else if (!okAsExpected) {
+			// The status the reply CARRIES, not merely that one arrived. A handler that replied before
+			// its operation finished reports a status it never obtained, and this is what sees it.
+			printf("PO-SYSEX FAIL %s err=%d, expected %s\n", verb.name, err, verb.expectOk ? "zero" : "non-zero");
 			g_failures++;
 		}
 		g_verbIndex++;

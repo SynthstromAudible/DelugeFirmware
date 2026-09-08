@@ -15,6 +15,7 @@
 #include "scheduler_api.h"
 #include "storage/fs_status.h"
 #include "storage/owner.h"
+#include "storage/smsysex_pending.h"
 #include "sync/sd_access.h"
 #include "util/containers.h"
 #include "util/pack.h"
@@ -408,7 +409,7 @@ void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	sendMsg(cable, jWriter);
 }
 
-void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	std::string path;
 	reader.match('{');
@@ -422,19 +423,31 @@ void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	if (!path.empty()) {
-		D_PRINTLN(path.c_str());
-		auto result = deluge::io::unlink(path);
-		FsWireStatus errCode = toWireStatus(result.has_value() ? deluge::io::Status::OK : result.error());
-		startReply(jWriter, reader);
-		jWriter.writeOpeningTag("^delete", false, true);
-		jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
-		jWriter.closeTag(true);
-		sendMsg(cable, jWriter);
+	if (path.empty()) {
+		return true; // nothing asked for; nothing to reply to
 	}
+	D_PRINTLN(path.c_str());
+
+	if (!deluge::storage::pathOpPending()) {
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Unlink, path.c_str(), nullptr, {});
+		return false; // re-entered next tick, where this record is found and collected
+	}
+	auto outcome = deluge::storage::pathOpCollect();
+	if (!outcome.has_value()) {
+		return false; // still running
+	}
+	deluge::storage::pathOpClear();
+
+	FsWireStatus errCode = toWireStatus(*outcome);
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^delete", false, true);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
+	jWriter.closeTag(true);
+	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	std::string path;
 	uint32_t date = 0;
@@ -456,25 +469,44 @@ void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	if (!path.empty()) {
-		D_PRINTLN(path.c_str());
-		auto made = deluge::io::mkdir(path);
-		deluge::io::Status status = made.has_value() ? deluge::io::Status::OK : made.error();
-		auto timestamp = timestampFromWireDateTime(date, time);
-		if (made.has_value() && timestamp.has_value()) {
-			auto timed = deluge::io::set_time(path, *timestamp);
-			status = timed.has_value() ? deluge::io::Status::OK : timed.error();
-		}
-		startReply(jWriter, reader);
-		jWriter.writeOpeningTag("^mkdir", false, true);
-		jWriter.writeAttribute("path", path.c_str());
-		jWriter.writeAttribute("err", static_cast<uint8_t>(toWireStatus(status)));
-		jWriter.closeTag(true);
-		sendMsg(cable, jWriter);
+	if (path.empty()) {
+		return true; // nothing asked for
 	}
+	D_PRINTLN(path.c_str());
+	auto timestamp = timestampFromWireDateTime(date, time);
+
+	// TWO operations in sequence, so this is the one handler that needs a stage. Stage 0 creates the
+	// directory; stage 1 stamps it, and only if the creation succeeded and a timestamp was supplied --
+	// exactly the condition the synchronous form tested.
+	if (!deluge::storage::pathOpPending()) {
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::MkdirAll, path.c_str(), nullptr, {});
+		deluge::storage::pathOpSetStage(0);
+		return false;
+	}
+	auto outcome = deluge::storage::pathOpCollect();
+	if (!outcome.has_value()) {
+		return false;
+	}
+	deluge::io::Status status = *outcome;
+
+	if (deluge::storage::pathOpStage() == 0 && status == deluge::io::Status::OK && timestamp.has_value()) {
+		deluge::storage::pathOpClear();
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::SetTime, path.c_str(), nullptr, *timestamp);
+		deluge::storage::pathOpSetStage(1);
+		return false; // the stamp's own outcome is what the reply carries
+	}
+	deluge::storage::pathOpClear();
+
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^mkdir", false, true);
+	jWriter.writeAttribute("path", path.c_str());
+	jWriter.writeAttribute("err", static_cast<uint8_t>(toWireStatus(status)));
+	jWriter.closeTag(true);
+	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	std::string fromName;
 	std::string toName;
@@ -492,11 +524,23 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	if (!fromName.empty() && !toName.empty()) {
+	if (fromName.empty() || toName.empty()) {
+		return true; // nothing asked for
+	}
+	{
 		D_PRINTLN(fromName.c_str());
 		D_PRINTLN(toName.c_str());
-		auto result = deluge::io::rename(fromName, toName);
-		FsWireStatus errCode = toWireStatus(result.has_value() ? deluge::io::Status::OK : result.error());
+		if (!deluge::storage::pathOpPending()) {
+			(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Rename, fromName.c_str(), toName.c_str(), {});
+			return false;
+		}
+		auto outcome = deluge::storage::pathOpCollect();
+		if (!outcome.has_value()) {
+			return false;
+		}
+		deluge::storage::pathOpClear();
+
+		FsWireStatus errCode = toWireStatus(*outcome);
 		startReply(jWriter, reader);
 		jWriter.writeOpeningTag("^rename", false, true);
 		jWriter.writeAttribute("from", fromName.c_str());
@@ -505,6 +549,7 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 		jWriter.closeTag(true);
 		sendMsg(cable, jWriter);
 	}
+	return true;
 }
 
 // Returns a block of directory entries as a Json array.
@@ -771,7 +816,7 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	sendMsg(cable, jWriter);
 }
 
-void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t date = 0;
 	uint32_t time = 0;
@@ -797,10 +842,19 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	FsWireStatus errCode;
 	auto timestamp = timestampFromWireDateTime(date, time);
 	if (!path.empty() && timestamp.has_value()) {
-		auto result = deluge::io::set_time(path, *timestamp);
-		errCode = toWireStatus(result.has_value() ? deluge::io::Status::OK : result.error());
+		if (!deluge::storage::pathOpPending()) {
+			(void)deluge::storage::pathOpStart(deluge::storage::PathOp::SetTime, path.c_str(), nullptr, *timestamp);
+			return false;
+		}
+		auto outcome = deluge::storage::pathOpCollect();
+		if (!outcome.has_value()) {
+			return false;
+		}
+		deluge::storage::pathOpClear();
+		errCode = toWireStatus(*outcome);
 	}
 	else {
+		// No I/O at all on this path, so nothing to wait for: reply immediately, as before.
 		errCode = FsWireStatus::InvalidParameter;
 	}
 	startReply(jWriter, reader);
@@ -808,6 +862,7 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 	sendMsg(cable, jWriter);
+	return true;
 }
 
 // A session ID or sid is a number used by clients to keep track of which messages belong to who.
@@ -876,46 +931,39 @@ void smSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	memcpy(de.data, data, len);
 }
 
-// Each SysEx request's file ops run on the storage owner. smSysex is a namespace (no instance
-// state), so the single-flight guard and the op trampoline live at file scope. processFrontSysEx()
-// is the parse+handle+reply+dequeue body; handleNextSysEx() is the per-tick trigger that dispatches
-// it via deluge::storage::Owner::run so the FatFS work runs on the storage owner rather than the
-// task stack.
+// smSysex is a namespace (no instance state), so what little state the pump needs lives at file
+// scope. processFrontSysEx() is the parse+handle+reply body; handleNextSysEx() is the per-tick
+// trigger.
 namespace smSysex {
 void processFrontSysEx();
 }
-
-namespace {
-/// True while an owner op is processing SysExQ.front(). Prevents a later handleNextSysEx() tick from
-/// dispatching a second op for the same (or next) entry before the first pops it. Set at dispatch,
-/// cleared when the op completes. Synchronous, single executor thread (same contract as the queue).
-bool g_sysex_op_in_flight = false;
-
-/// Owner-op trampoline: process the front SysEx request, then release the single-flight guard.
-void runSysexOp(void*) {
-	smSysex::processFrontSysEx();
-	g_sysex_op_in_flight = false;
-}
-} // namespace
 
 void smSysex::handleNextSysEx() {
 
 	if (SysExQ.empty()) {
 		return;
 	}
-	if (g_sysex_op_in_flight) {
-		return; // an op is already processing the front entry; it pops + clears the guard when done
-	}
 	if (deluge::sync::sd_busy()) {
 		return;
 	}
 
-	// Dispatch the front request's parse+handle+reply onto the storage owner. Inline on legacy/host
-	// (one request per tick, exactly as before); on Embassy the FatFS work leaves the task stack.
-	g_sysex_op_in_flight = true;
-	if (!deluge::storage::Owner::run(&runSysexOp, nullptr)) {
-		g_sysex_op_in_flight = false; // owner queue full → the op won't run; retry next tick
-	}
+	// Called DIRECTLY rather than dispatched onto the storage owner, and that is the whole point of
+	// this conversion: `usingByteChannel()` is false on the owner by design, so an owner-side handler
+	// would take the synchronous arm and nothing would be relocated. Parsing and replying touch no
+	// card; each path operation goes through the channel, or through `runOnStorageOwner` when it will
+	// not -- see `smsysex_pending.h`.
+	//
+	// The single-flight guard that used to sit here is gone WITH the dispatch, and the two must go
+	// together. A direct call cannot overlap itself, so the guard is redundant here -- but restoring
+	// the dispatch without it makes a second tick process a queue the first already popped, which
+	// aborts in `SysExQ.front()`. That was confirmed by trying exactly that. The pending path operation
+	// is the single-flight state now, and the front entry staying unpopped is what makes the next tick
+	// resume the same request rather than start another.
+	//
+	// `sd_busy()` stays, though it now guards less than it did -- neither arm touches FatFS from this
+	// stack. Keeping it is one fewer behaviour change, and it was silently dead once before and had to
+	// be fixed, so removing a live one deserves its own deliberate decision.
+	processFrontSysEx();
 }
 
 void smSysex::processFrontSysEx() {
@@ -928,64 +976,72 @@ void smSysex::processFrontSysEx() {
 	JsonDeserializer parser(de.data + 2, de.len - 2);
 	parser.setReplySeqNum(msgSeqNum);
 
+	// `done` is false only while a converted handler has a path operation in flight. Every other
+	// handler finishes within its tick, exactly as all of them used to.
+	bool done = true;
+
 	parser.match('{');
 	while (*(tagName = parser.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "open")) {
 			openFile(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		else if (!strcmp(tagName, "close")) {
 			closeFile(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		else if (!strcmp(tagName, "dir")) {
 			getDirEntries(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		else if (!strcmp(tagName, "read")) {
 			readBlock(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		else if (!strcmp(tagName, "write")) {
 			writeBlock(de.cable, parser);
-			goto done; // Already skipped end.
+			goto finished; // Already skipped end.
 		}
 		else if (!strcmp(tagName, "delete")) {
-			deleteFile(de.cable, parser);
-			goto done;
+			done = deleteFile(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "mkdir")) {
-			createDirectory(de.cable, parser);
-			goto done;
+			done = createDirectory(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "rename")) {
-			rename(de.cable, parser);
-			goto done;
+			done = rename(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "copy")) {
 			copyFile(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		else if (!strcmp(tagName, "move")) {
 			moveFile(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		else if (!strcmp(tagName, "utime")) {
-			updateTime(de.cable, parser);
-			goto done;
+			done = updateTime(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "session")) {
 			assignSession(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		else if (!strcmp(tagName, "ping")) {
 			doPing(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		parser.exitTag();
 	}
-done:
-	SysExQ.pop_front();
+finished:
+	// Popped only when the handler says so. Leaving the entry in place is what makes the next tick
+	// re-enter this same request -- it re-parses the unchanged bytes and finds its pending operation.
+	if (done) {
+		SysExQ.pop_front();
+	}
 }
 
 // Helper function to parse file operation parameters

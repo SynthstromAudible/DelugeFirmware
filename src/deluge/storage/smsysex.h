@@ -42,11 +42,19 @@ void closeFile(MIDICable& cable, JsonDeserializer& reader);
 void readBlock(MIDICable& cable, JsonDeserializer& reader);
 void writeBlock(MIDICable& cable, JsonDeserializer& reader);
 void getDirEntries(MIDICable& cable, JsonDeserializer& reader);
-void deleteFile(MIDICable& cable, JsonDeserializer& reader);
-void createDirectory(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
+bool deleteFile(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
+bool createDirectory(MIDICable& cable, JsonDeserializer& reader);
 deluge::storage::FsWireStatus createPathDirectories(std::string& path, std::optional<DelugeTimestamp> timestamp);
-void rename(MIDICable& cable, JsonDeserializer& reader);
-void updateTime(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
+bool rename(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
+bool updateTime(MIDICable& cable, JsonDeserializer& reader);
 void copyFile(MIDICable& cable, JsonDeserializer& reader);
 void moveFile(MIDICable& cable, JsonDeserializer& reader);
 void assignSession(MIDICable& cable, JsonDeserializer& reader);
