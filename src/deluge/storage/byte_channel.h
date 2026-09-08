@@ -178,6 +178,37 @@ ByteIo requestExists(const char* path);
 ByteIo collectExists(const char* path, bool* outPresent, DelugeStatus* outStatus);
 
 /// @}
+/// @name Directory creation and timestamps
+/// @{
+
+/// @brief Ask for `path` and every missing directory above it to be created.
+///
+/// Whole-path, not one segment: the walk lives in Rust, so a caller needs no loop and no phase
+/// machine of its own to do it over this channel.
+/// @return `Pending` when accepted; `Unknown` when REFUSED because the channel is busy — **nothing
+///         was queued and nothing was created**; `Failed` when the path cannot be keyed at all.
+ByteIo requestMkdirAll(const char* path);
+
+/// @brief Collect the outcome of the directory creation for `path`, if it has finished.
+/// @param path      NUL-terminated path, matched exactly against the one requested.
+/// @param outStatus Written **only** on `Failed`, with the first failure that was not "already
+///                  exists". May be passed uninitialised.
+/// @note An already-existing path reports `Ready`, NOT a failure. Callers use this to mean "make sure
+///       this is there", and the commonest outcome is that it already is.
+ByteIo collectMkdirAll(const char* path, DelugeStatus* outStatus);
+
+/// @brief Ask for `path`'s modification time to be set.
+/// @param path      NUL-terminated path.
+/// @param timestamp By value — `DelugeTimestamp` is a fixed-width POD, so it needs no lifetime.
+/// @return As @ref requestMkdirAll.
+ByteIo requestSetTime(const char* path, DelugeTimestamp timestamp);
+
+/// @brief Collect the outcome of the timestamp write for `path`, if it has finished.
+/// @param path      NUL-terminated path, matched exactly against the one requested.
+/// @param outStatus Written **only** on `Failed`. May be passed uninitialised.
+ByteIo collectSetTime(const char* path, DelugeStatus* outStatus);
+
+/// @}
 /// @name The consumers' seam
 /// @{
 ///
@@ -277,6 +308,7 @@ void serviceRoutine();
 enum class IoTier : uint8_t {
 	Settings, ///< runtime feature settings, the MIDI device table, MIDI follow, performance view
 	Startup,  ///< the startup song fail-safe
+	Browser,  ///< the browser's folder creation: the context-menu gesture and the UI-open pre-creates
 };
 
 /// @brief How many of `which`'s file operations have begun on the INTERACTION tier.

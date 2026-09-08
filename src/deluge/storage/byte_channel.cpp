@@ -31,7 +31,7 @@ namespace {
 
 /// How many of each consumer's file operations have begun on the interaction tier. Indexed by
 /// @ref IoTier. See @ref interactionTierIo.
-int32_t g_interactionTierIo[2] = {0, 0};
+int32_t g_interactionTierIo[3] = {0, 0, 0};
 
 /// Whether a violation by this consumer is a hard freeze yet. Indexed by @ref IoTier.
 ///
@@ -40,9 +40,10 @@ int32_t g_interactionTierIo[2] = {0, 0};
 /// what happened the moment the startup fail-safe's sites were instrumented against an already-armed
 /// freeze. Counting is what proves the sites are reachable; freezing is what keeps them from coming
 /// back, and it is only truthful once there is a converted path for them to come back FROM.
-constexpr bool kFreezeOnViolation[2] = {
-    true, // Settings: converted, so any violation is now a regression.
-    true, // Startup: converted, likewise.
+constexpr bool kFreezeOnViolation[3] = {
+    true,  // Settings: converted, so any violation is now a regression.
+    true,  // Startup: converted, likewise.
+    false, // Browser: not converted yet. Flipped to true with the conversion.
 };
 
 /// Translate the C ABI's `uint32_t`-shaped status byte into the type the callers switch on.
@@ -459,6 +460,42 @@ ByteIo collectExists(const char* path, bool* outPresent, DelugeStatus* outStatus
 		return ByteIo::Failed;
 	}
 	return counted(fromAbi(deluge_file_bytes_collect_exists(path, outPresent, outStatus)));
+}
+
+ByteIo requestMkdirAll(const char* path) {
+	if (!keyable(path)) {
+		return ByteIo::Failed;
+	}
+	if (!deluge_file_bytes_request_mkdir_all(path)) {
+		// REFUSED because the channel is busy: nothing was queued and nothing was created. `Unknown`
+		// is the documented "ask again", and the caller must still be holding its intent.
+		return ByteIo::Unknown;
+	}
+	return ByteIo::Pending;
+}
+
+ByteIo collectMkdirAll(const char* path, DelugeStatus* outStatus) {
+	if (!keyable(path) || outStatus == nullptr) {
+		return ByteIo::Failed;
+	}
+	return counted(fromAbi(deluge_file_bytes_collect_mkdir_all(path, outStatus)));
+}
+
+ByteIo requestSetTime(const char* path, DelugeTimestamp timestamp) {
+	if (!keyable(path)) {
+		return ByteIo::Failed;
+	}
+	if (!deluge_file_bytes_request_set_time(path, timestamp)) {
+		return ByteIo::Unknown;
+	}
+	return ByteIo::Pending;
+}
+
+ByteIo collectSetTime(const char* path, DelugeStatus* outStatus) {
+	if (!keyable(path) || outStatus == nullptr) {
+		return ByteIo::Failed;
+	}
+	return counted(fromAbi(deluge_file_bytes_collect_set_time(path, outStatus)));
 }
 
 int32_t interactionTierIo(IoTier which) {
