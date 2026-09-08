@@ -81,9 +81,4 @@ MenuItem* PatchedParam::patchingSourceShortcutPress(PatchSource s, bool previous
 	return &patch_cable_strength::regularMenu;
 }
 
-ModelStackWithAutoParam* PatchedParam::getModelStack(void* memory) {
-	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(memory);
-	return modelStack->getPatchedAutoParamFromId(getP());
-}
-
 } // namespace deluge::gui::menu_item

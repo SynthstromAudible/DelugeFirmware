@@ -3088,25 +3088,6 @@ void AutomationView::initInterpolation() {
 
 // get's the modelstack for the parameters that are being edited
 // the model stack differs for SYNTH's, KIT's, MIDI, and Audio clip's
-ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack,
-                                                                       Clip* clip, int32_t paramID,
-                                                                       params::Kind paramKind) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (paramID == kNoParamID) {
-		paramID = clip->lastSelectedParamID;
-		paramKind = clip->lastSelectedParamKind;
-	}
-
-	// check if we're in the sound menu and not the settings menu
-	// because in the settings menu, the menu mod controllable's aren't setup, so we don't want to use those
-	bool inSoundMenu = getCurrentUI() == &soundEditor && !soundEditor.inSettingsMenu();
-
-	modelStackWithParam =
-	    clip->output->getModelStackWithParam(modelStack, clip, paramID, paramKind, getAffectEntire(), inSoundMenu);
-
-	return modelStackWithParam;
-}
 
 // this function obtains a parameters value and converts it to a knobPos
 // the knobPos is used for rendering the current parameter values in the automation editor
