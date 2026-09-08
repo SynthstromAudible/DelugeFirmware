@@ -12,11 +12,11 @@
 ///     and reproduces both of `selectButtonPress`'s two return values; that nothing files an action
 ///     without a press, across quiet ticks; and that the five item-to-action pairings are pinned by
 ///     identity, with a permutation proof that the pinning is not vacuous.
-///   * **NOT covered, and it cannot be from inside this layer:** that anything *happens*.
-///     `MenuScene::take_action()` is an outbox with no consumer in this repository. Nothing in this
-///     file asserts that a stem export starts, that a clip's length changes, or that the
-///     performance view opens, because performing those is the wiring plan's half of the seam. A
-///     green run here means the menu asks correctly, not that the firmware answers.
+///   * **Covered as of F2 task 1, in the last group:** that `gui::ui::dispatchShellActions` is what
+///     takes a filed request out of the outbox. That is the consumer half's *seam*, not its body.
+///   * **NOT covered:** that anything *happens*. The dispatcher's five arms are still empty, so
+///     nothing here asserts that a stem export starts, that a clip's length changes, or that the
+///     performance view opens. A green run means the menu asks and the request is taken.
 ///
 /// Legacy is the oracle wherever it can be reached: `performEditorMenu`'s real option list and its
 /// real `readCurrentValue` mapping are both run here, on the real `performanceView`, and compared
@@ -43,6 +43,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
+#include "gui/ui/shell_action_dispatch.h"
 #include "gui/views/performance_view.h"
 #include "model/song/song.h"
 
@@ -520,13 +521,65 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 		}
 	});
 });
+
+describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbox", $ {
+	// The other side of the seam, in the one binary that has both halves: the real `menu_scene()`
+	// and the real dispatcher. The host suite's `tests/spec/gui/shell_action_dispatch_spec.cpp`
+	// cannot see either -- it stubs the dispatcher, because the real one belongs to the
+	// `deluge_scenes` closure that suite never builds -- so what it pins is the CALL SITE (that
+	// `ShellHostUI::timerCallback` polls, once, after `Shell::tick`, on every path through it).
+	// What these two examples pin is the other half: that the call reads THIS outbox.
+	//
+	// Neither file asserts that anything is performed, because as of F2 task 1 nothing is: the
+	// dispatcher's five arms are empty and each verb arrives with its own task.
+
+	it("takes the request a real item press filed, and leaves the outbox empty", _ {
+		select_language();
+		{
+			// The control, and it is not decoration: without it the example below is satisfied by a
+			// press that filed nothing at all, which is exactly how a drain test passes vacuously.
+			Rig control;
+			(void)control.open(nodes::stem_export);
+			control.shell.tick(5);
+			control.enter(10);
+			control.shell.tick(20);
+			expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+		}
+
+		Rig r;
+		(void)r.open(nodes::stem_export);
+		r.shell.tick(5);
+		r.enter(10);
+		r.shell.tick(20);
+		// Deliberately NOT drained by hand here -- the dispatcher is the only thing that reads it.
+		deluge::gui::ui::dispatchShellActions();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("takes nothing when nothing was filed, and does not eat the next request", _ {
+		select_language();
+		Rig r;
+		(void)r.open(nodes::stem_export);
+		r.shell.tick(5);
+		// Twenty polls against an empty outbox -- which is what every quiet tick of the guest is.
+		for (uint32_t t = 0; t < 20; t++) {
+			r.shell.tick(10 + t * 10);
+			deluge::gui::ui::dispatchShellActions();
+		}
+		// And the press after all of them still delivers, so the polling above left the seam intact
+		// rather than jamming it.
+		r.enter(300);
+		r.shell.tick(310);
+		expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+	});
+});
 // clang-format on
 
-/// Three `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Four `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead -- exactly as `context_spec.cpp` does.
 int menu_actions_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(menu_action_seam, menu_action_items, menu_action_perform)
+	               .add_specs(menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS
