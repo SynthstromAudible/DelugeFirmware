@@ -31,7 +31,7 @@
 # `MenuContext::Root::Sound`.
 #
 # **The four null-clip sites cannot be scripted here, and it is not the port's fault.**
-# `sound_editor.cpp:1876`'s `else if (clip->type == ClipType::AUDIO)` runs whenever `currentSound`
+# `sound_editor.cpp:1893`'s `else if (clip->type == ClipType::AUDIO)` runs whenever `currentSound`
 # is null, and `newSound` is only ever assigned inside `setup()`'s `else if (clip)` arm
 # (`:1679-1744`) -- so a `setup()` with a null clip dereferences null. **Measured** for site 1
 # (`gui/views/view.cpp:477`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, SELECT from
@@ -73,4 +73,104 @@
 1320   button Back up
 1500   snapshot menu-exit
 
-1700   quit
+# ---------------------------------------------------------------------------------------------
+# F2 task 8: **one MenuAction verb, performed end to end, from a real press.**
+#
+# Everything above is the *shape* of a menu visit. Everything below drives
+# `MenuAction::SetClipLengthToSampleLength` through `gui::ui::dispatchShellActions`'s arm
+# (`gui/ui/shell_action_dispatch.cpp`) and photographs the popup it raises -- and the toggle-OFF
+# leg performs the same verb through `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress`
+# (`gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h:26-29`). The two popups are
+# byte-identical, which is the claim.
+#
+# **Why this verb, when the plan asked for a different one.** Of `MenuAction`'s seven enumerators,
+# six cannot be reached by any script, and five of those for one reason: `SoundEditor::setup`
+# dereferences a null `clip` at `gui/ui/sound_editor.cpp:1893` (`else if (clip->type == ...)`,
+# reached whenever `currentSound` is null), so every `soundEditor.setup()` call that passes no clip
+# SIGSEGVs the OFF leg on the host sim. That is sites 1 (SHIFT+SELECT -> Settings), 2 and 3
+# (SELECT from the session view / arranger -> Song) and 4 (performance view), i.e. every root that
+# holds `SetShortcutsVersion`, `ScreensaverSettingsChanged`, `OpenSongMidiLearn`, `OpenSongMacros`
+# and `OpenPerformanceView`. Measured under gdb, in the toggle-OFF leg, on an unmodified tree --
+# the same pre-existing legacy bug F1 task 11 recorded in this file's own note above, which is why
+# the script had stayed on `InstrumentClipMinder`'s clip-carrying site 6. `StartStemExport` is
+# reachable only from the song root (the same crash) or the kit-global-FX root, which needs a kit
+# this empty card cannot create ("NO MORE PRESETS FOUND"), and would write stems to the fixture.
+# That leaves this one. F2 task 8's report has the whole table.
+#
+# **The route is the gesture a user performs**, not a back door: convert the boot song's one
+# (empty) synth clip to an audio clip in the song view -- hold its pad, press the select encoder
+# (`gui/views/session_view.cpp:525-540`, `replaceInstrumentClipWithAudioClip` at `:539`) -- enter
+# it, open its menu (site 5, `gui/views/audio_clip_view.cpp:423-426`), and walk ACTIONS -> SET CLIP
+# LENGTH.
+#
+# **The timings below are not padding, and three of them are load-bearing.**
+#
+#   * **1700 -> 2900 before the first pad.** `SessionView::padAction`'s clip arm is gated on
+#     `currentUIMode == UI_MODE_NONE` (`session_view.cpp:739`), and the clip-view -> song-view
+#     transition holds `UI_MODE_ANIMATION_FADE` (44, `gui/ui/ui.h:60`) for about a second. A pad
+#     pressed inside that window is swallowed silently -- measured: `currentUIMode == 44` at a
+#     `padAction` breakpoint 400 ms after the SESSION press.
+#   * **pad 0 7, not pad 0 0.** `songViewYScroll` is -7 on a fresh song, so
+#     `getClipOnScreen(yDisplay)` is `sessionClips[yDisplay - 7]`: row 7 is the song's one clip and
+#     row 0 is nothing. Pressing row 0 falls into the *create* arm instead, and the SELECT that
+#     follows then reaches `session_view.cpp:569`'s no-clip `soundEditor.setup()` -- site 2, i.e.
+#     the crash above.
+#   * **6000 -> 6350, the whole tail.** `SET CLIP LENGTH EQUAL TO SAMPLE LENGTH` is wider than the
+#     panel, so the selected row's label side-scrolls, and the two legs scroll it with different
+#     code: legacy registers `OLED::setupSideScroller` (`gui/menu_item/submenu.cpp:123-124`) and
+#     the port animates `ui::oled::scroll_text` inside `list` (`ui/oled/list.h`). **They stay in
+#     step for the first ~400 ms and drift apart after it** -- measured at 50 ms granularity: the
+#     two legs are byte-identical at 100/250/300/350/400 ms past the turn and differ at 500 ms and
+#     beyond. So the press and its snapshot both happen inside that window. This is a real
+#     divergence and it is recorded rather than dodged: it is the same
+#     `setupSideScroller`-has-no-port gap `scenes/menu/nodes/output_items.h` already lists, seen
+#     here on a menu row instead of an output name.
+1700   button Session down
+1720   button Session up
+2900   snapshot song-view
+
+# Hold the clip's pad and press the select encoder: `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW`
+# (`session_view.cpp:840`) plus SELECT is legacy's convert-to-audio-clip gesture (`:525-540`).
+# Both legs run the same legacy code here -- the toggle only reaches menus.
+3100   pad 0 7 down
+3300   button SelectEnc down
+3320   button SelectEnc up
+3500   pad 0 7 up
+3800   snapshot audio-clip-made
+
+# CLIP takes the (now audio) clip's view. `audio-clip-view` is the panel that proves the conversion
+# took: it reads AUDIO PLAYER / AUDIO, where the same snapshot before the conversion read SYNTH.
+4000   button Clip down
+4020   button Clip up
+4800   snapshot audio-clip-view
+
+# Site 5 of the fourteen (`gui/ui/shell_menu_entry.cpp`): SELECT from the audio clip view ->
+# `soundEditorRootMenuAudioClip` / `MenuContext::Root::AudioClip`. The A/B has never covered this
+# root before -- every snapshot above it is `Root::Sound`.
+5000   button SelectEnc down
+5020   button SelectEnc up
+5300   snapshot audio-root
+
+# ACTIONS is the root's first child on both sides, so this press needs no turn.
+5500   button SelectEnc down
+5520   button SelectEnc up
+5800   snapshot audio-actions
+
+# One detent onto SET CLIP LENGTH EQUAL TO SAMPLE LENGTH (RENAME is first), then the press that
+# performs the verb. Under the toggle that press is `MenuScene`'s `ActionItem` filing
+# `MenuAction::SetClipLengthToSampleLength` (`scenes/menu/nodes/actions.h:123`) and
+# `dispatchShellActions` calling `audioClipView.setClipLengthEqualToSampleLength()`; with it off it
+# is legacy's `selectButtonPress` calling the same method.
+6000   encoder Select +1
+6100   snapshot set-clip-length
+6150   button SelectEnc down
+6170   button SelectEnc up
+
+# The popup is the verb's own output: `AudioClipView::setClipLengthEqualToSampleLength`
+# (`gui/views/audio_clip_view.cpp:758-769`) ends in one of two `displayPopup`s, and this clip has a
+# sample holder, so it is the CLIP LENGTH ADJUSTED arm (`:764`). Break the dispatcher's
+# `SetClipLengthToSampleLength` arm and this panel loses the popup while the OFF leg keeps it,
+# which is what makes the A/B red -- proven, F2 task 8 report step 5.
+6350   snapshot verb-done
+
+6500   quit
