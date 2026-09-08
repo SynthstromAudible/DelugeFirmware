@@ -124,7 +124,7 @@ namespace deluge::gui::ui {
 /// @par The `switch` has no `default:`, deliberately
 ///
 /// `MenuAction` is closed on purpose so that "a new enumerator breaks that switch loudly"
-/// (`scenes/menu/action.h:88-90`). `-Werror=switch` is on for every target
+/// (`scenes/menu/action.h:106-108`). `-Werror=switch` is on for every target
 /// (`cmake/deluge_common_options.cmake:32`), so an enumerator added without an arm here fails the
 /// build; a `default:` would absorb it silently and the compiler would stop being the check.
 void dispatchShellActions();
@@ -135,7 +135,7 @@ void dispatchShellActions();
 /// `stem_export::Start::selectButtonPress` (`gui/menu_item/stem_export/start.h:31-49`) is two
 /// statements welded together: a fan-out over `getRootUI()` that picks one of four
 /// `StemExportType`s (`:33-47`), and a `stemExport.startStemExportProcess(...)` that acts on the
-/// pick. `scenes/menu/action.h:105-109` says why the seam could not split them into four enumerators
+/// pick. `scenes/menu/action.h:123-127` says why the seam could not split them into four enumerators
 /// -- "the choice is made from the root UI, which this layer cannot read" -- so the whole fan-out
 /// lands on this side of the wall, and it is by some distance the most substantial thing any of the
 /// five verbs does.

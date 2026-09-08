@@ -58,7 +58,7 @@ namespace {
 ///        `performanceView`.
 ///
 /// @param mode What `MenuActionRequest::arg` carried: a `PerformanceEditingMode`
-///        (`scenes/menu/action.h:95-101`).
+///        (`scenes/menu/action.h:113-119`).
 ///
 /// @par What `DISABLED` does here, and why it is not an assert
 ///
@@ -71,7 +71,7 @@ namespace {
 /// It has also already happened. The port reproduces the whole of legacy's `DISABLED` arm on the
 /// **producing** side: `PerformEditorItem::render` leaves `MenuState::render_resp.entered` set so
 /// `after_render`'s leaf arm ascends, and files no request at all
-/// (`scenes/menu/nodes/actions.cpp:153-158`). That is what `scenes/menu/action.h:95-96`'s "never
+/// (`scenes/menu/nodes/actions.cpp:153-158`). That is what `scenes/menu/action.h:113-114`'s "never
 /// `DISABLED`" promise is made of, and `sim/scenes_spec/menu_actions_spec.cpp`'s "goes up a level on
 /// DISABLED and files nothing" example is what pins it. So this branch is unreachable through every
 /// real path, and is defence in depth rather than behaviour -- and, being unreachable, it is the one
@@ -88,7 +88,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 	}
 
 	// `editing_mode.h:55-62`, transcribed branch for branch rather than collapsed into one
-	// assignment, so the two writes stay legible against their source. (`scenes/menu/action.h:98`
+	// assignment, so the two writes stay legible against their source. (`scenes/menu/action.h:116`
 	// scopes what is owed here to `editing_mode.h:56-95`, which begins one line INSIDE this
 	// `else if` because `editing_mode.h:51-53` is the `DISABLED` arm handled above.)
 	if (mode == PerformanceEditingMode::VALUE) {
@@ -287,20 +287,20 @@ void dispatchShellActions() {
 
 	switch (req.action) {
 	case MenuAction::None:
-		// Unreachable: `engaged()` IS `action != None` (`scenes/menu/action.h:158`), so the guard
+		// Unreachable: `engaged()` IS `action != None` (`scenes/menu/action.h:201`), so the guard
 		// above has already returned. Spelled out anyway because the alternative is a `default:`,
 		// and a `default:` here would silently absorb the enumerators later tasks add -- see the
 		// header's note on `-Werror=switch`.
 		break;
 
 	case MenuAction::OpenPerformanceView:
-		// `arg` is a `PerformanceEditingMode` and is never `DISABLED` (`scenes/menu/action.h:95-101`);
+		// `arg` is a `PerformanceEditingMode` and is never `DISABLED` (`scenes/menu/action.h:113-119`);
 		// the helper says what it does with one anyway, and why.
 		openPerformanceView(static_cast<PerformanceEditingMode>(req.arg));
 		break;
 
 	case MenuAction::StartStemExport:
-		// All of `stem_export/start.h:31-49`, which `scenes/menu/action.h:105-109` says is owed
+		// All of `stem_export/start.h:31-49`, which `scenes/menu/action.h:123-127` says is owed
 		// whole: the `soundEditor.exitCompletely()` that comes first AND the `getRootUI()` fan-out
 		// that picks between the four `StemExportType`s. The helper says what each of those two
 		// means under the guest, where the open UI is `ShellHostUI` rather than `soundEditor`.
