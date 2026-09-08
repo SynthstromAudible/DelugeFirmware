@@ -23,7 +23,7 @@
 ///
 /// The producing half is `src/scenes`': five ported menu items ask for a piece of legacy root-UI
 /// behaviour by writing `MenuState::pending_action`, `MenuScene::after_render` moves that into a
-/// one-slot outbox, and `MenuScene::take_action()` (`scenes/menu/menu_scene.h:613`) hands it out.
+/// one-slot outbox, and `MenuScene::take_action()` (`scenes/menu/menu_scene.h:625`) hands it out.
 /// The five verbs and the legacy statement each one stands for are tabulated at
 /// `scenes/menu/action.h:13-19`.
 ///
@@ -56,7 +56,7 @@ namespace deluge::gui::ui {
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
 /// `MenuScene::take_action()` is **a one-slot mailbox with a silent overwrite, not an exactly-once
-/// queue** (`scenes/menu/menu_scene.h:593-609`), and the consequence stated there is a requirement
+/// queue** (`scenes/menu/menu_scene.h:593-621`), and the consequence stated there is a requirement
 /// on this function's caller rather than on this function: "`after_render` returns no `Action`
 /// announcing that one is waiting, so nothing enforces the polling: **poll after every tick, or
 /// requests are dropped or stale**" (`:596-598`). Nothing in the shell will complain if a tick

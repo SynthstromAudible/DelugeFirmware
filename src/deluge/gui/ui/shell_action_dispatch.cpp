@@ -275,7 +275,7 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
-	// the request and clears it in the same call (`scenes/menu/menu_scene.h:611-612`). So an early
+	// the request and clears it in the same call (`scenes/menu/menu_scene.h:623-624`). So an early
 	// return above this line would not be "nothing to do", it would be "the request stays in the
 	// outbox until something else asks", which is the stale delivery the mailbox's own warning
 	// describes (`:593-598`).

@@ -602,11 +602,23 @@ public:
 	///          one level down) or a new `Action` kind for the router to carry, which would put a
 	///          concept the shell has no business knowing about (a legacy root-UI call) into
 	///          `shell/scene.h`. An honest mailbox plus this warning was judged better than a
-	///          guarantee that only half holds. Two requests in one tick is not reachable today
-	///          either: the drain runs once per `after_render`, and each of the two routes into
-	///          `pending_action` fires at most once per tick -- one tick delivers at most one select
-	///          press, and `commit_value` runs at most once per `after_render` however many detents
-	///          the encoder produced (`after_render`'s `value_changed` arm).
+	///          guarantee that only half holds. **No shipped item can lose a request today, but the
+	///          reason is narrower than it used to be and the arithmetic does not carry it.** This
+	///          warning used to argue "one tick delivers at most one select press", which was a
+	///          complete argument while a select press was the only route in. It is not any more.
+	///          There are two: a `CustomItem` writing `pending_action` from `on_focus`/`render`, and
+	///          `request_action` below, reached from a `Binding::set` hook by way of `commit_value`.
+	///          Each fires at most once per `after_render`, so the ceiling is **two**, not one --
+	///          "once each" is exactly the pair this paragraph needs to rule out, and it does not
+	///          rule it out.
+	///
+	///          What rules it out is which items exist. The only caller of `request_action` is
+	///          `nodes::set_shortcuts_version` (`menu/nodes/settings.cpp`), and its node is an
+	///          ordinary `Kind::Enum` leaf with no `select_chain` and no `CustomItem` under it --
+	///          so the `after_render` that commits its value has nothing to descend into, and
+	///          cannot also reach an `on_focus` that files. **That is a fact about today's tables,
+	///          not an invariant**: an item that filed from both routes in one tick would silently
+	///          lose the first, and nothing here would say so.
 	///
 	/// @return The request, or `MenuAction::None` when none was filed since the last poll. Reading
 	///         clears the slot.

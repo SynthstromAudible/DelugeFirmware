@@ -84,9 +84,9 @@ void ActionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx
 	// `after_render` runs `enter_child` -> `enter_leaf` -> `on_focus` and then the action drain's
 	// `ascend()` within the *same* call, so the item is focused for zero renders -- which is exactly
 	// legacy, where `shouldEnterSubmenu() == false` means `SoundEditor` calls `selectButtonPress()`
-	// and never navigates in at all (`gui/ui/sound_editor.cpp:420-423`). (`ResetItem::render`
-	// (`nodes/settings.cpp:1105`) *is* drawn for one tick, because its request is a scene push the
-	// router applies a tick later.)
+	// and never navigates in at all (`gui/ui/sound_editor.cpp:420-423`). (`ContextMenuItem::render`
+	// (`nodes/context_menu_items.cpp:49`) *is* drawn for one tick, because its request is a scene
+	// push the router applies a tick later.)
 	//
 	// It still has to draw something: a caller that opens this node *as a root* -- `open()` directly,
 	// or a `SceneId::arg` deep link -- lands on it at depth 0, where `ascend()` is a no-op, and then
