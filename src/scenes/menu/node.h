@@ -369,11 +369,18 @@ struct CustomItem {
 	///
 	/// **The submenu arrow is the default because it is legacy's default**: the base
 	/// `MenuItem::renderSubmenuItemTypeForOled` blits `submenuArrowIcon` unconditionally, and only
-	/// three overrides in the tree replace it -- `Toggle` and `Selection::isToggle()` with a
-	/// checkbox (`gui/menu_item/toggle.cpp:50-57`, `gui/menu_item/selection.cpp:38-56`), and
-	/// `midi::device_definition::Linked`/`HideUnlabeled` with a checkbox of their own
+	/// **four** overrides in the tree replace it -- `Toggle` and `Selection::isToggle()` with a
+	/// checkbox (`gui/menu_item/toggle.h:22`, `gui/menu_item/selection.h:41`; bodies at
+	/// `toggle.cpp:50-57`, `selection.cpp:38-56`), and `midi::device_definition::Linked` and
+	/// `HideUnlabeled` with a checkbox of their own
 	/// (`gui/menu_item/midi/device_definition/linked.h:56`, `hide_unlabeled.h:48`). A bespoke item
 	/// whose legacy class overrides none of those therefore draws the arrow, whatever it is.
+	///
+	/// Counted, not asserted -- this file's own brief warns against an ungrepped superlative, and
+	/// this sentence said "three" and then listed four until F2 task 8's review:
+	/// `grep -rn renderSubmenuItemTypeForOled src/deluge/` is seven hits -- the base declaration
+	/// (`menu_item.h:282`) and its definition (`menu_item.cpp:69`), the `Submenu` call site
+	/// (`submenu.cpp:117`), and the four overrides above.
 	///
 	/// This hook is what `src/scenes/README.md` recorded as owed when it wrote "a `Kind::Custom`
 	/// node cannot draw a row icon in its parent's list … closing this needs a `CustomItem` hook

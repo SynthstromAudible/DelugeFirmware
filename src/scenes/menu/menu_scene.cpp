@@ -127,8 +127,15 @@ std::string_view text_of(uint16_t string_id, TextScratch& scratch) {
 /// `arpeggiator/include_in_kit_arp.h:88`, `delay/ping_pong.h:30`, `randomizer/randomizer_lock.h:62`,
 /// `runtime_feature/setting.h:45`, `sample/pitch_speed.h:80`) and draw a **checkbox**, so an
 /// unconditional arrow here would trade one divergence for another on whichever of those six is not
-/// a `Kind::Toggle` in the port. It needs that six-item audit first. Measured cost of the
-/// unconditional version, for whoever picks it up: 30 golden panels move.
+/// a `Kind::Toggle` in the port. It needs that six-item audit first.
+///
+/// Cost of the unconditional version, for whoever picks it up: **about 30 golden panels move --
+/// the author's estimate, not a reproducible measurement.** It was obtained by applying the change,
+/// re-recording under `GFX_GOLDEN_UPDATE=1` and counting the modified files; F2 task 8's reviewer
+/// could not reproduce the number by re-running the suites, because the specs abort at the first
+/// mismatching panel and several have no regeneration mode, so a plain run reports 4 red suites and
+/// 11 failing examples rather than a panel count. The direction is certain; treat the magnitude as
+/// an order of magnitude.
 const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx) {
 	switch (node.kind) {
 	case Kind::Submenu:

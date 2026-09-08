@@ -77,7 +77,7 @@ public:
 	Result handle(const UiEvent& ev, const UiContext& ctx) override {
 		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
 		if (remove_self_on_event) {
-			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:1493-1498`),
+			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:1500-1505`),
 			// reduced to the one thing this suite is about: a scene that takes itself off the
 			// stack from inside `Shell::tick`'s routing. Off by default so every other example
 			// keeps the delivery-only behaviour below.
@@ -725,7 +725,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
-		// (`scenes/menu/menu_scene.cpp:1506-1538`), and legacy's false means "obey UI under me"
+		// (`scenes/menu/menu_scene.cpp:1513-1545`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
 		// the next UI down is about to be asked with (`gui/ui/ui.cpp:73-83`), so a false answer must
 		// leave them alone.
@@ -1163,7 +1163,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// Legacy reads `ShiftIsSticky` at shift-release time (`hid/buttons.cpp:250`); the shell reads
 		// its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's
 		// latched shift is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad
-		// jump (`scenes/menu/menu_scene.cpp:1440`).
+		// jump (`scenes/menu/menu_scene.cpp:1447`).
 		Rig on;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(on.open()).to_be_true();
@@ -1826,7 +1826,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.led_declared = true;
 		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
 		// The same shape `MenuScene::leds` declares for BACK and LEARN
-		// (`scenes/menu/menu_scene.cpp:955`, `:962`): a plain blink, no deadline.
+		// (`scenes/menu/menu_scene.cpp:962`, `:969`): a plain blink, no deadline.
 		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
 		expect(r.open()).to_be_true();
 

@@ -84,7 +84,7 @@ namespace menu = deluge::scenes::menu;
 ///
 /// @return `false` when a named node has no id, which means `scenes::assigned_node_ids()` never
 ///         ran over a tree containing it. Refusing is deliberate: id 0 means "the context's root"
-///         to `MenuScene::on_enter` (`scenes/menu/menu_scene.cpp:334-343`), so a silently-zero id
+///         to `MenuScene::on_enter` (`scenes/menu/menu_scene.cpp:341-350`), so a silently-zero id
 ///         would open the wrong menu rather than none.
 bool resolveNodeId(ShellMenuNode node, uint16_t& out) {
 	switch (node) {
