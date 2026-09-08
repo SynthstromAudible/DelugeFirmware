@@ -443,6 +443,12 @@ struct OffOwnerCase {
 	/// finalize takes its REMOVE_RIGHT_CHANNEL branch. Without a case that does, the whole batch
 	/// machine is dead code: the three alterFile characterizations call the old function DIRECTLY.
 	bool alter = false;
+	/// Whether this run aborts mid-recording instead of finishing, so the abort machine runs and its
+	/// close-before-unlink ordering is exercised.
+	bool abortRun = false;
+	/// Free clusters before the recording started. An abort that unlinks before its close completes
+	/// leaks the chain, which no byte comparison can see -- the file is gone either way.
+	uint32_t freeBefore = 0;
 	std::string path;
 	int32_t ticks = 0;
 	bool started = false;
@@ -453,6 +459,9 @@ OffOwnerCase g_offOwner;
 /// finish inside the finalize drain and never exercise the steady-state write at all.
 constexpr uint32_t kOffOwnerFrames = 33153;
 
+/// `SampleRecorder::AbortPhase::Done`, as the diagnostic accessor reports it.
+constexpr uint8_t kAbortPhaseDone = 3;
+
 } // namespace
 
 extern "C" void deluge_scenario_offowner_begin(int32_t alter) {
@@ -460,13 +469,20 @@ extern "C" void deluge_scenario_offowner_begin(int32_t alter) {
 	g_offOwner.ticks = 0;
 	g_offOwner.path.clear();
 	g_offOwner.started = false;
-	g_offOwner.alter = (alter != 0);
+	g_offOwner.alter = (alter == 1);
+	g_offOwner.abortRun = (alter == 2);
+	g_offOwner.freeBefore = 0;
+	{
+		uint32_t total = 0;
+		(void)deluge_efatfs_stats(&g_offOwner.freeBefore, &total);
+	}
 
 	// stderr as well as stdout: this case runs AFTER the scenario's own fflush(nullptr), so a
 	// stdout-only line can be lost at exit -- and a case whose output vanishes is a case nobody can
 	// tell from one that never ran.
-	printf("CASE offowner_%s (channels=%d frames=%u onOwner=%d)\n", g_offOwner.alter ? "alterfile" : "recording",
-	       g_offOwner.alter ? 2 : 1, kOffOwnerFrames, (int)deluge::storage::Owner::on_owner());
+	printf("CASE offowner_%s (channels=%d frames=%u onOwner=%d)\n",
+	       g_offOwner.abortRun ? "abort" : (g_offOwner.alter ? "alterfile" : "recording"), g_offOwner.alter ? 2 : 1,
+	       kOffOwnerFrames, (int)deluge::storage::Owner::on_owner());
 	fflush(nullptr);
 
 	Error err = g_offOwner.rec->setup(g_offOwner.alter ? 2 : 1, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
@@ -489,7 +505,12 @@ extern "C" void deluge_scenario_offowner_begin(int32_t alter) {
 		input[i].r = 0;
 	}
 	g_offOwner.rec->feedAudio(std::span<StereoSample>(input));
-	g_offOwner.rec->endSyncedRecording(0);
+	if (!g_offOwner.abortRun) {
+		g_offOwner.rec->endSyncedRecording(0);
+	}
+	// The abort run does NOT end the recording here. It lets a few ticks pass first so the file is
+	// actually created and some clusters are on the card -- aborting before that leaves the machine
+	// nothing to close or delete, which is the one shape that proves least.
 	g_offOwner.started = true;
 }
 
@@ -498,6 +519,49 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		return 2; // failed to start
 	}
 	SampleRecorder& rec = *g_offOwner.rec;
+
+	if (g_offOwner.abortRun) {
+		if (rec.status.load(std::memory_order_acquire) == RecorderStatus::CAPTURING_DATA && g_offOwner.ticks >= 8) {
+			// File created, clusters written: now abandon it.
+			rec.abort();
+		}
+		// Wait for the abort MACHINE to finish, not for AWAITING_DELETION: this recorder is held by
+		// the harness, so `pointerHeldElsewhere` is set and the status legitimately stays ABORTED.
+		// What is under test is that the close completed and the unlink then ran.
+		const bool cleanupDone = rec.status.load(std::memory_order_acquire) == RecorderStatus::ABORTED
+		                         && rec.abortPhaseForDiag() == kAbortPhaseDone;
+		if (!cleanupDone) {
+			if (++g_offOwner.ticks > 2000) {
+				fprintf(stderr, "  FAIL: abort cleanup never finished (status=%d phase=%d held=%d)\n",
+				        (int)rec.status.load(std::memory_order_acquire), (int)rec.abortPhaseForDiag(),
+				        (int)rec.pointerHeldElsewhere);
+				g_offOwner.rec.reset();
+				return 2;
+			}
+			(void)rec.cardRoutine();
+			return 0;
+		}
+		const std::string path = rec.filePathCreated;
+		g_offOwner.rec.reset();
+		uint32_t freeAfter = 0;
+		uint32_t total = 0;
+		(void)deluge_efatfs_stats(&freeAfter, &total);
+		// The clusters must come back. An abort that unlinks before its close has COMPLETED leaks the
+		// chain, and no byte comparison can see that -- the file is gone either way.
+		std::vector<std::byte> leftover;
+		const bool gone = path.empty() || !readWholeFile(path, leftover);
+		const bool noLeak = (freeAfter >= g_offOwner.freeBefore);
+		printf("OO-LEAK freeBefore=%u freeAfter=%u gone=%d ok=%d\n", g_offOwner.freeBefore, freeAfter, (int)gone,
+		       (int)(gone && noLeak));
+		fflush(nullptr);
+		if (!noLeak) {
+			fprintf(stderr, "  FAIL: aborted recording leaked clusters (%u -> %u)\n", g_offOwner.freeBefore, freeAfter);
+		}
+		if (!gone) {
+			fprintf(stderr, "  FAIL: aborted recording left its file behind\n");
+		}
+		return (gone && noLeak) ? 1 : 2;
+	}
 
 	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
 		const std::string path = rec.filePathCreated;

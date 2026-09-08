@@ -691,6 +691,28 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         hard_exit(1);
     }
 
+    // And once more, abandoning the recording part-way, so the abort machine runs: its close must
+    // complete before its unlink, and the free-cluster count is the only thing that can see it.
+    // SAFETY: same C-ABI contract as above.
+    unsafe { deluge_scenario_offowner_begin(2) };
+    let abort_deadline = Instant::now() + Duration::from_secs(300);
+    let abort_result = loop {
+        // SAFETY: as above.
+        let state = unsafe { deluge_scenario_offowner_tick() };
+        if state != 0 {
+            break state;
+        }
+        if Instant::now() >= abort_deadline {
+            log::error!("golden_vt_render: off-owner abort did not complete within 300s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(1).await;
+    };
+    if abort_result != 1 {
+        log::error!("golden_vt_render: off-owner abort FAILED — see the log above");
+        hard_exit(1);
+    }
+
     log::info!("golden_vt_render: recorder round-trip PASSED (0 failures); exiting cleanly");
     done.store(true, Ordering::Release);
 }

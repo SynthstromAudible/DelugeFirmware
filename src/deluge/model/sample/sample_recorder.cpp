@@ -35,6 +35,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "storage/owner.h"
 #include "util/exceptions.h"
@@ -398,61 +399,11 @@ Error SampleRecorder::cardRoutine() {
 	if (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED) {
 
 aborted:
-		if (sample != nullptr) { // This might get called multiple times, so check we haven't already detached it.
-
-			// Note: if this abort() is due to a song-swap (loading a different song),
-			// then samples is about to be searched for temp ones to delete, and we'll need to have deleted it here
-			// before that trips over us. Previously caused an E281. So, for that to happen,
-			// SampleManager::deleteAnyTempRecordedSamplesFromMemory() (indirectly) calls us here first.
-
-			detachSample(); // Does not set sample to NULL - we do that below
-
-#if ALPHA_OR_BETA_VERSION
-			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be
-			// "aborted" before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip
-			// becomes a "reason".
-			if (sample->isProjectReferenced()) {
-				FREEZE_WITH_ERROR("E282");
-			}
-#endif
-
-			if (haveAddedSampleToArray) { // We only add it to the array when the file is created.
-				audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*sample);
-			}
-
-			sample = nullptr; // So we don't try to detach it again when we're destructed
-		}
-
-		// Delete the file if one was created
-		if (!filePathCreated.empty()) {
-
-			// Flush and close the persistent write context BEFORE deleting the file. `file` is
-			// write-through for cluster data but defers the directory-entry
-			// (size/first_cluster/mtime) update to close()/flush_context -- if we deleted the file
-			// first, the unlink below would see a stale (near-empty) directory entry with
-			// first_cluster still ~0 and free no clusters (an orphaned-cluster leak), and a same-name
-			// file that later recycles this freed short-name slot (see the counter tick-back below)
-			// could have this now-dangling handle's deferred flush land on ITS entry instead. reset()
-			// here first makes the flush observe the file still on disk, so it writes a CONSISTENT
-			// entry; the unlink then frees the real chain and no dirty handle survives into the next
-			// recording. reset() on an already-disengaged optional (an abort before the file was ever
-			// opened) is a safe no-op.
-			this->file.reset();
-
-			deluge_file_invalidate_cache();
-			bool unlinked = deluge::io::unlink(filePathCreated).has_value();
-
-			// If this was the most recent recording in this category, tick the counter backwards - so long as
-			// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder
-			// and can be overwritten anyway
-			if (unlinked || folderID == AudioRecordingFolder::CLIPS) {
-				if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]
-				    == audioFileNumber) {
-					audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]--;
-					D_PRINTLN("ticked file counter backwards");
-				}
-			}
-			filePathCreated.clear();
+		// The cleanup spans ticks now: closing the stream and deleting the file are both requests,
+		// and the close must be COMPLETE before the unlink goes out. Everything below lives in
+		// advanceAbort().
+		if (advanceAbort()) {
+			return Error::NONE; // Still working; come back next tick.
 		}
 
 		// Normally we now just await deletion - except if a pointer is still being held elsewhere - which I think can
@@ -913,6 +864,135 @@ Error SampleRecorder::finalizeBookkeeping() {
 	}
 
 	return Error::NONE;
+}
+
+// --- abort, as phases ----------------------------------------------------------------------------
+//
+// One rule matters here above all the others, and it is the transition from CloseStream to Unlink:
+// the close must have COMPLETED, not merely been issued. Closing is what flushes the directory entry
+// this recorder deferred for the whole recording; unlinking first leaves a stale near-empty entry
+// with first_cluster still ~0, frees no clusters, and lets a later file that recycles the freed
+// short-name slot receive this handle's deferred flush.
+
+bool SampleRecorder::advanceAbort() {
+	// The channel is usable only from a context that will yield before asking again -- see
+	// advanceFinalize() for why. On the owner the synchronous arm is both legal and the only one
+	// that can make progress.
+	const bool mayUseChannel =
+	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+
+	switch (abortPhase_) {
+
+	case AbortPhase::Detach: {
+		// Memory only, and still FIRST, exactly as before: a song-swap abort is about to search for
+		// temp samples to delete and must not trip over this one (previously an E281). Its safety
+		// against the channel comes from pumpInFlightWrite() at the top of cardRoutine, which has
+		// already settled anything outstanding by the time we get here.
+		if (sample != nullptr) { // This might get called multiple times, so check we haven't already detached it.
+
+			// Note: if this abort() is due to a song-swap (loading a different song),
+			// then samples is about to be searched for temp ones to delete, and we'll need to have deleted it here
+			// before that trips over us. Previously caused an E281. So, for that to happen,
+			// SampleManager::deleteAnyTempRecordedSamplesFromMemory() (indirectly) calls us here first.
+
+			detachSample(); // Does not set sample to NULL - we do that below
+
+#if ALPHA_OR_BETA_VERSION
+			// It should be impossible that anyone else still holds a "reason" to this Sample, as we can only be
+			// "aborted" before AudioClip::finishLinearRecording() is called, and it's only then at the AudioClip
+			// becomes a "reason".
+			if (sample->isProjectReferenced()) {
+				FREEZE_WITH_ERROR("E282");
+			}
+#endif
+
+			if (haveAddedSampleToArray) { // We only add it to the array when the file is created.
+				audioFileManager.deleteUnusedAudioFileFromMemoryIndexUnknown(*sample);
+			}
+
+			sample = nullptr; // So we don't try to detach it again when we're destructed
+		}
+
+		abortPhase_ = AbortPhase::CloseStream;
+		return true;
+	}
+
+	case AbortPhase::CloseStream: {
+		if (filePathCreated.empty() || !file) {
+			// Nothing was ever opened (an abort before the file existed), or it is already closed.
+			abortPhase_ = filePathCreated.empty() ? AbortPhase::Done : AbortPhase::Unlink;
+			return abortPhase_ != AbortPhase::Done;
+		}
+		if (!abortIssued_) {
+			if (mayUseChannel && file->request_close()) {
+				abortIssued_ = true;
+				return true;
+			}
+			auto closeResult = file->close();
+			file.reset();
+			// A failed close still proceeds to the unlink: a file we are deleting must not survive
+			// because its close reported an error. This is the opposite of finalize, deliberately.
+			(void)closeResult;
+			abortPhase_ = AbortPhase::Unlink;
+			abortIssued_ = false;
+			return true;
+		}
+		const uint8_t collected = file->collect_close();
+		if (collected == DELUGE_FILE_WRITE_PENDING) {
+			return true; // NOT terminal yet -- the unlink must not go out.
+		}
+		file.reset();
+		abortPhase_ = AbortPhase::Unlink;
+		abortIssued_ = false;
+		return true;
+	}
+
+	case AbortPhase::Unlink: {
+		bool unlinked = false;
+		if (!abortIssued_) {
+			deluge_file_invalidate_cache();
+			if (mayUseChannel
+			    && deluge::storage::bytes::requestUnlink(filePathCreated.c_str())
+			           == deluge::storage::bytes::ByteIo::Pending) {
+				abortIssued_ = true;
+				return true;
+			}
+			unlinked = deluge::io::unlink(filePathCreated).has_value();
+		}
+		else {
+			DelugeStatus outStatus = DELUGE_OK;
+			const deluge::storage::bytes::ByteIo io =
+			    deluge::storage::bytes::collectUnlink(filePathCreated.c_str(), &outStatus);
+			if (io == deluge::storage::bytes::ByteIo::Pending) {
+				return true;
+			}
+			if (io == deluge::storage::bytes::ByteIo::Unknown) {
+				// Never keyed -- ask again next tick rather than treating it as a failed delete.
+				abortIssued_ = false;
+				return true;
+			}
+			unlinked = (io == deluge::storage::bytes::ByteIo::Ready);
+		}
+
+		// If this was the most recent recording in this category, tick the counter backwards - so long as
+		// either the delete was successful or it was for an AudioClip, which means the file is in the TEMP folder
+		// and can be overwritten anyway
+		if (unlinked || folderID == AudioRecordingFolder::CLIPS) {
+			if (audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)] == audioFileNumber) {
+				audioFileManager.highestUsedAudioRecordingNumber[util::to_underlying(folderID)]--;
+				D_PRINTLN("ticked file counter backwards");
+			}
+		}
+		filePathCreated.clear();
+		abortPhase_ = AbortPhase::Done;
+		abortIssued_ = false;
+		return false;
+	}
+
+	case AbortPhase::Done:
+		return false;
+	}
+	return false;
 }
 
 SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {

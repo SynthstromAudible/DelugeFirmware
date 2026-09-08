@@ -213,6 +213,7 @@ public:
 	/// Diagnostic accessors, for the harness's wedge reporting only.
 	[[nodiscard]] uint8_t finalizePhaseForDiag() const { return static_cast<uint8_t>(finalizePhase_); }
 	[[nodiscard]] bool finalizeIssuedForDiag() const { return finalizeIssued_; }
+	[[nodiscard]] uint8_t abortPhaseForDiag() const { return static_cast<uint8_t>(abortPhase_); }
 
 	/// @brief How many cluster writes have gone through the channel, process-wide.
 	///
@@ -250,6 +251,26 @@ private:
 	/// operation and returns, so the whole of finishing a recording -- header patch, alteration,
 	/// truncate and close -- happens off the storage owner.
 	FinalizeStep advanceFinalize();
+
+	/// @brief Where the abort cleanup has got to.
+	enum class AbortPhase : uint8_t {
+		/// Detach the sample and free the capture buffers. Memory only; runs once.
+		Detach,
+		/// Close the recording stream, flushing its deferred directory entry.
+		CloseStream,
+		/// Delete the file. MUST NOT be entered until the close is terminal.
+		Unlink,
+		/// Cleanup finished; the caller makes its status transition.
+		Done,
+	};
+
+	/// @brief Advance the abort cleanup by one phase. Never blocks.
+	/// @return true while more remains -- come back next tick.
+	bool advanceAbort();
+
+	AbortPhase abortPhase_ = AbortPhase::Detach;
+	/// Whether the current abort phase has issued its operation yet.
+	bool abortIssued_ = false;
 
 	/// @name Finalize phase bodies
 	/// Each holds code moved verbatim out of the old single-call finalize.
