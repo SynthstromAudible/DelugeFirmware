@@ -598,6 +598,74 @@ ByteIo collectSetTime(const char* path, DelugeStatus* outStatus) {
 	return counted(fromAbi(deluge_file_bytes_collect_set_time(path, outStatus)));
 }
 
+ByteIo requestReadAt(const char* path, uint32_t offset, uint32_t len) {
+	if (!keyable(path) || len > DELUGE_FILE_BYTES_BLOCK) {
+		// Terminal, not a retry: a request above the block bound will be above it next tick too.
+		return ByteIo::Failed;
+	}
+	if (!deluge_file_bytes_request_read_at(path, offset, len)) {
+		return ByteIo::Unknown;
+	}
+	return ByteIo::Pending;
+}
+
+ByteIo collectReadAt(const char* path, char* buf, uint32_t cap, uint32_t* outLen, DelugeStatus* outStatus) {
+	if (!keyable(path) || buf == nullptr || outLen == nullptr || outStatus == nullptr) {
+		return ByteIo::Failed;
+	}
+	return counted(
+	    fromAbi(deluge_file_bytes_collect_read_at(path, reinterpret_cast<uint8_t*>(buf), cap, outLen, outStatus)));
+}
+
+ByteIo requestWriteAt(const char* path, uint32_t offset, const char* bytes, uint32_t len) {
+	if (!keyable(path) || bytes == nullptr || len > DELUGE_FILE_BYTES_BLOCK) {
+		return ByteIo::Failed;
+	}
+	if (!deluge_file_bytes_request_write_at(path, offset, reinterpret_cast<const uint8_t*>(bytes), len)) {
+		return ByteIo::Unknown;
+	}
+	return ByteIo::Pending;
+}
+
+ByteIo collectWriteAt(const char* path, uint32_t* outWritten, DelugeStatus* outStatus) {
+	if (!keyable(path) || outWritten == nullptr || outStatus == nullptr) {
+		return ByteIo::Failed;
+	}
+	return counted(fromAbi(deluge_file_bytes_collect_write_at(path, outWritten, outStatus)));
+}
+
+ByteIo requestStat(const char* path) {
+	if (!keyable(path)) {
+		return ByteIo::Failed;
+	}
+	deluge_file_bytes_request_stat(path);
+	return ByteIo::Pending;
+}
+
+ByteIo collectStat(const char* path, uint32_t* outSize, DelugeStatus* outStatus) {
+	if (!keyable(path) || outSize == nullptr || outStatus == nullptr) {
+		return ByteIo::Failed;
+	}
+	return counted(fromAbi(deluge_file_bytes_collect_stat(path, outSize, outStatus)));
+}
+
+ByteIo requestCopy(const char* from, const char* to) {
+	if (!keyable(from) || !keyable(to)) {
+		return ByteIo::Failed;
+	}
+	if (!deluge_file_bytes_request_copy(from, to)) {
+		return ByteIo::Unknown;
+	}
+	return ByteIo::Pending;
+}
+
+ByteIo collectCopy(const char* to, DelugeStatus* outStatus) {
+	if (!keyable(to) || outStatus == nullptr) {
+		return ByteIo::Failed;
+	}
+	return counted(fromAbi(deluge_file_bytes_collect_copy(to, outStatus)));
+}
+
 int32_t interactionTierIo(IoTier which) {
 	return g_interactionTierIo[static_cast<size_t>(which)];
 }

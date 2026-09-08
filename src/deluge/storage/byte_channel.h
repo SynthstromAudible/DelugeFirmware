@@ -209,6 +209,55 @@ ByteIo requestSetTime(const char* path, DelugeTimestamp timestamp);
 ByteIo collectSetTime(const char* path, DelugeStatus* outStatus);
 
 /// @}
+/// @name Offset-addressed transfers
+/// @{
+
+/// @brief Ask for up to `DELUGE_FILE_BYTES_BLOCK` bytes from `path` at `offset`.
+///
+/// Stateless: nothing is opened, held or returned. The consumer these serve already carries its
+/// offset, so the path and offset are the whole request.
+/// @return `Pending` when accepted; `Unknown` when REFUSED because the channel is busy; `Failed`
+///         when the path cannot be keyed or `len` exceeds the block bound — neither of which a retry
+///         would fix.
+ByteIo requestReadAt(const char* path, uint32_t offset, uint32_t len);
+
+/// @brief Collect the bytes read for `path`, if they are ready.
+/// @param outLen Written **only** on `Ready`. **A short count is not an error** — it means
+///               end-of-file, which is how a transfer detects its own end.
+ByteIo collectReadAt(const char* path, char* buf, uint32_t cap, uint32_t* outLen, DelugeStatus* outStatus);
+
+/// @brief Ask for `len` bytes to be written into `path` at `offset`.
+///
+/// @warning Does NOT truncate, and must not — see `libdeluge/file_bytes.h`, which carries the full
+///          reasoning. A caller wanting an empty file asks for one with @ref requestWrite and zero
+///          bytes; there is no write-create mode to pass here.
+ByteIo requestWriteAt(const char* path, uint32_t offset, const char* bytes, uint32_t len);
+
+/// @brief Collect the outcome of the offset-addressed write to `path`, if it has finished.
+/// @param outWritten Written **only** on `Ready`. A short write is reported honestly rather than as
+///                   success; the caller decides what it means.
+ByteIo collectWriteAt(const char* path, uint32_t* outWritten, DelugeStatus* outStatus);
+
+/// @brief Ask for `path`'s size.
+/// @return `Pending` when accepted; `Failed` when the path cannot be keyed at all.
+ByteIo requestStat(const char* path);
+
+/// @brief Collect `path`'s size, if it is known.
+/// @param outSize   Written **only** on `Ready`.
+/// @param outStatus Written **only** on `Failed`, with `DELUGE_ERR_NOT_FOUND` for a path that is not
+///                  there.
+ByteIo collectStat(const char* path, uint32_t* outSize, DelugeStatus* outStatus);
+
+/// @brief Ask for `from` to be copied to `to`, whole.
+///
+/// The entire copy, not a block of it: the loop lives on the Rust side, so a caller needs neither a
+/// loop nor two open files.
+ByteIo requestCopy(const char* from, const char* to);
+
+/// @brief Collect the outcome of the copy to `to`. Keyed on the DESTINATION, like a rename.
+ByteIo collectCopy(const char* to, DelugeStatus* outStatus);
+
+/// @}
 /// @name The consumers' seam
 /// @{
 ///
