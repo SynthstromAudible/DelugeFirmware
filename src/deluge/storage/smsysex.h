@@ -57,29 +57,45 @@ bool readBlock(MIDICable& cable, JsonDeserializer& reader);
 /// @return true when the request is finished and its entry may be popped; false while a path
 ///         operation it started is still in flight, in which case it is re-entered next tick.
 bool writeBlock(MIDICable& cable, JsonDeserializer& reader);
-void getDirEntries(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when finished; false while the directory it asked for is still opening.
+bool getDirEntries(MIDICable& cable, JsonDeserializer& reader);
+
+/// @brief Open `path` through the directory channel, or synchronously when it is not in use.
+///
+/// @return the directory once open; `nullopt` both while opening AND on failure — told apart by
+///         `*outCode`, which stays `Ok` for the former.
+std::optional<deluge::io::Directory> openDirectoryForSysex(const char* path, deluge::storage::FsWireStatus* outCode);
 /// @return true when the request is finished and its entry may be popped; false while a path
 ///         operation it started is still in flight, in which case it is re-entered next tick.
 bool deleteFile(MIDICable& cable, JsonDeserializer& reader);
 /// @return true when the request is finished and its entry may be popped; false while a path
 ///         operation it started is still in flight, in which case it is re-entered next tick.
+/// @return true when the request is finished and its entry may be popped; false while a path
+///         operation it started is still in flight, in which case it is re-entered next tick.
 bool createDirectory(MIDICable& cable, JsonDeserializer& reader);
-deluge::storage::FsWireStatus createPathDirectories(std::string& path, std::optional<DelugeTimestamp> timestamp);
 /// @return true when the request is finished and its entry may be popped; false while a path
 ///         operation it started is still in flight, in which case it is re-entered next tick.
 bool rename(MIDICable& cable, JsonDeserializer& reader);
 /// @return true when the request is finished and its entry may be popped; false while a path
 ///         operation it started is still in flight, in which case it is re-entered next tick.
 bool updateTime(MIDICable& cable, JsonDeserializer& reader);
-void copyFile(MIDICable& cable, JsonDeserializer& reader);
-void moveFile(MIDICable& cable, JsonDeserializer& reader);
+/// @return true when finished; false while a copy it started is still in flight.
+bool copyFile(MIDICable& cable, JsonDeserializer& reader);
+
+/// @brief Copy `params.fromName` to `params.toName`, stamping the result if a timestamp was given.
+///
+/// The read/write loop that used to live here is gone: the copy is ONE request, and the loop runs in
+/// Rust.
+/// @return true when finished, with `*outCode` set; false while an operation is still in flight.
+bool performFileCopy(const FileOpParams& params, deluge::storage::FsWireStatus* outCode);
+/// @return true when finished; false while an operation it started is still in flight.
+bool moveFile(MIDICable& cable, JsonDeserializer& reader);
 void assignSession(MIDICable& cable, JsonDeserializer& reader);
 void doPing(MIDICable& cable, JsonDeserializer& reader);
 uint32_t decodeDataFromReader(JsonDeserializer& reader, uint8_t* dest, uint32_t destMax);
 
 // Helper functions for file operations
 bool parseFileOpParams(JsonDeserializer& reader, FileOpParams& params);
-deluge::storage::FsWireStatus performFileCopy(const FileOpParams& params);
-void setFileTimestamp(std::string_view path, uint32_t date, uint32_t time);
+/// @return true when finished, with `*outCode` set; false while an operation is still in flight.
 
 } // namespace smSysex

@@ -74,6 +74,47 @@ bool viaChannel() {
 	return deluge::storage::bytes::usingByteChannel() && g_refusals < kMaxRefusals && g_pendingTicks < kMaxPendingTicks;
 }
 
+/// Copy `from` to `to` synchronously, block by block.
+///
+/// Only the owner arm reaches this. Its shape is `smSysex::performFileCopy`'s former body, minus the
+/// path-creation retry: the destination's parent is created by the open below, and the channel arm
+/// does not come here at all.
+deluge::io::Status copyOnOwner(const std::string& from, const std::string& to) {
+	auto src = deluge::io::File::open(from, DELUGE_FILE_READ);
+	if (!src.has_value()) {
+		return src.error();
+	}
+	auto dst = deluge::io::File::open(to, DELUGE_FILE_WRITE_CREATE);
+	if (!dst.has_value()) {
+		(void)src->close();
+		return dst.error();
+	}
+	deluge::io::Status status = deluge::io::Status::OK;
+	for (;;) {
+		auto read = src->read(std::span{reinterpret_cast<std::byte*>(g_block), DELUGE_FILE_BYTES_BLOCK});
+		if (!read.has_value()) {
+			status = read.error();
+			break;
+		}
+		if (read->empty()) {
+			break;
+		}
+		auto written = dst->write(*read);
+		if (!written.has_value()) {
+			status = written.error();
+			break;
+		}
+		if (*written != read->size()) {
+			// Preserving the pre-existing quirk: a short write here is not itself flagged, and the
+			// copy simply stops.
+			break;
+		}
+	}
+	(void)dst->close();
+	(void)src->close();
+	return status;
+}
+
 /// Run the operation synchronously. The body of the owner arm's dispatch, and never called anywhere
 /// a card wait is disallowed.
 void runOnOwner() {
@@ -171,10 +212,11 @@ void runOnOwner() {
 		return;
 	}
 	case PathOp::Copy:
-		// No synchronous whole-file copy exists to fall back to, and writing one here would
-		// reintroduce the loop this rung moved into Rust. A refused copy is reported as unsupported
-		// rather than silently doing nothing, so the SysEx client learns it did not happen.
-		g_ownerStatus = deluge::io::Status::UNSUPPORTED;
+		// The loop, kept HERE and only here. The channel arm has none -- `copy_file` is one request
+		// and the loop runs in Rust -- but a build without the channel must still be able to copy a
+		// file, so the fallback keeps the walk. Same division as the browser's recursive mkdir: the
+		// channel arm is loop-free, the owner arm is not.
+		g_ownerStatus = copyOnOwner(g_pathA, g_pathB);
 		g_ownerDone = true;
 		return;
 	case PathOp::None:

@@ -81,7 +81,7 @@ if ! grep -q '^OI-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in OI-TRANSFER OI-COPY OI-CHANNEL; do
+for marker in OI-TRANSFER OI-COPY OI-DIR OI-CHANNEL; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^OI-' "$OUT/run.txt"

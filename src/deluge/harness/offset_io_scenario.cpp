@@ -105,6 +105,8 @@ enum class Stage : uint8_t {
 	CopyCheck,
 	CopyMissing,
 	CopyMissingCheck,
+	Dir,
+	DirCheck,
 	Report,
 	Summary,
 	Done,
@@ -122,6 +124,7 @@ uint32_t g_readFid = 0;
 int32_t g_matched = 0;
 int32_t g_copySame = -1;
 int32_t g_copyMissingReports = -1;
+int32_t g_dirListed = -1;
 uint8_t g_scratch[kBlock];
 
 /// Pull an integer attribute out of a captured reply, or -1 if absent.
@@ -412,6 +415,27 @@ void runTick() {
 		// nearly shipped an untestable gate.
 		const int32_t err = replyAttr(g_cable.lastReply, "err");
 		g_copyMissingReports = (err > 0) ? 1 : 0;
+		g_stage = Stage::Dir;
+		break;
+	}
+
+	case Stage::Dir:
+		g_repliesBefore = g_cable.replies;
+		g_verbTicks = 0;
+		// The listing verb, whose directory OPEN now goes through the directory channel. Included
+		// because converting a site the gate never drives is exactly the shape this ladder keeps
+		// catching -- a conversion nothing exercises looks identical to one that works.
+		sendJson(R"({"dir":{"path":"OI_TEST","offset":0,"lines":8}})");
+		g_stage = Stage::DirCheck;
+		break;
+
+	case Stage::DirCheck: {
+		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+			break;
+		}
+		const int32_t err = replyAttr(g_cable.lastReply, "err");
+		const bool listed = g_cable.lastReply.find("SRC.BIN") != std::string::npos;
+		g_dirListed = (err == 0 && listed) ? 1 : 0;
 		g_stage = Stage::Report;
 		break;
 	}
@@ -435,6 +459,12 @@ void runTick() {
 
 		// Reported, never asserted here. With the channel compiled out zero is the honest answer, and
 		// the channel-on leg of `offset_io.sh` is what requires it non-zero.
+		printf("OI-DIR listed=%d\n", g_dirListed);
+		if (g_dirListed != 1) {
+			printf("OI-DIR FAIL the listing did not return the directory's contents\n");
+			g_failures++;
+		}
+
 		printf("OI-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 		g_stage = Stage::Summary;
 		break;
@@ -472,6 +502,7 @@ void deluge_scenario_offset_io_begin(void) {
 	g_matched = 0;
 	g_copySame = -1;
 	g_copyMissingReports = -1;
+	g_dirListed = -1;
 	g_cable.replies = 0;
 	g_cable.lastReply.clear();
 }
