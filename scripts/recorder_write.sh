@@ -15,6 +15,12 @@
 #   RW-OFFOWNER   that the drain ran OFF the storage owner. This is the gate's real subject. Without
 #                 it RW-CHANNEL can be non-zero while every write was still served on the owner, and
 #                 the conversion would have renamed a mechanism rather than moved it.
+#   RW-OFFOWNER-FINALIZE  that FINISHING a recording ran off the storage owner. This is the subject
+#                 of the change: a served count says operations went through the channel, not where
+#                 the caller stood. Restoring the dispatch drops this to zero and nothing else moves.
+#   RW-LEAK       that an aborted recording gives its clusters back. It does NOT currently catch a
+#                 premature unlink -- single-flight sends that unlink down its synchronous arm anyway
+#                 -- but it does catch a cleanup that fails to delete at all.
 #   RW-OFFOWNER-CASE  that a whole recording driven from a NON-fiber context -- the shape the device
 #                 actually uses -- still reads back byte-for-byte identical to the on-fiber ones, and
 #                 that its cluster writes went through the channel. The eleven cases above cannot
@@ -100,29 +106,58 @@ run_leg() {
 run_leg off "$BIN"
 run_leg on "$CHAN_BIN"
 
-# The off-owner case runs AFTER the on-fiber oracle has printed RW-SUMMARY, so its evidence is its
-# own line. `served` here is cumulative, so it must EXCEED the RW-SUMMARY figure: equal would mean the
-# off-owner recording served nothing and took the synchronous arm throughout.
-if ! grep -q '^CASE offowner_recording ' "$OUT/on.txt"; then
-	echo "FAIL RW-OFFOWNER-CASE — the off-owner case did not run"
-	fail=1
-fi
-oo_line=$(grep '^OO-RESULT ' "$OUT/on.txt" || true)
-if [ -z "$oo_line" ]; then
-	echo "FAIL RW-OFFOWNER-CASE — no OO-RESULT line; the off-owner case did not finish"
-	fail=1
-else
-	oo_ok=$(sed -n 's/^OO-RESULT ok=\([0-9]*\).*/\1/p' "$OUT/on.txt")
-	oo_served=$(sed -n 's/^OO-RESULT .*served=\([0-9]*\).*/\1/p' "$OUT/on.txt")
-	[ "$oo_ok" = "1" ] || {
-		echo "FAIL RW-OFFOWNER-CASE — an off-owner recording did not read back correctly ($oo_line)"
-		fail=1
-	}
-	if ! grep -q '^CASE offowner_recording .*onOwner=0' "$OUT/on.txt"; then
-		echo "FAIL RW-OFFOWNER-CASE — the case did not run off the owner; it proves nothing there"
+# The off-owner cases run AFTER the on-fiber oracle has printed RW-SUMMARY, so their evidence is
+# their own lines. There are three, and each covers a shape the eleven on-fiber cases cannot: the
+# oracle is dispatched onto the fiber wholesale, so every one of those measures on_owner=1 and takes
+# the synchronous arm.
+#
+# The alteration case exists because the three byte-exact alterFile cases call that function DIRECTLY
+# and nothing sets allowFileAlterationAfter -- so before it was added, finalize's whole batch machine
+# had no coverage on any leg.
+for c in recording alterfile abort; do
+	if ! grep -q "^CASE offowner_$c " "$OUT/on.txt"; then
+		echo "FAIL RW-OFFOWNER-CASE — the off-owner '$c' case did not run"
 		fail=1
 	fi
+	if ! grep -q "^CASE offowner_$c .*onOwner=0" "$OUT/on.txt"; then
+		echo "FAIL RW-OFFOWNER-CASE — '$c' did not run off the owner; it proves nothing there"
+		fail=1
+	fi
+done
+
+oo_count=$(grep -c '^OO-RESULT ' "$OUT/on.txt" || true)
+oo_ok_count=$(grep -c '^OO-RESULT ok=1 ' "$OUT/on.txt" || true)
+if [ "$oo_count" -lt 2 ] || [ "$oo_ok_count" -ne "$oo_count" ]; then
+	echo "FAIL RW-OFFOWNER-CASE — $oo_ok_count of $oo_count off-owner recordings read back correctly"
+	grep '^OO-RESULT ' "$OUT/on.txt"
+	fail=1
 fi
+
+# RW-OFFOWNER-FINALIZE: the subject of this whole change. A served count says operations went through
+# the channel; it does not say where the caller was standing. Restoring tickNeedsOwner's claim over
+# finalize drops this straight to zero while everything else stays green.
+oo_fin=$(grep '^OO-RESULT ' "$OUT/on.txt" | sed -n 's/.*offOwnerFinalizeTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
+[ -n "$oo_fin" ] || oo_fin=0
+if [ "$oo_fin" -eq 0 ]; then
+	echo "FAIL RW-OFFOWNER-FINALIZE — finalize never ran off the owner; nothing relocated"
+	fail=1
+fi
+
+# RW-LEAK: an aborted recording must give its clusters back. Note this currently passes even with the
+# close/unlink ordering broken -- with one operation in flight at a time the unlink falls back to its
+# synchronous arm, so the ordering holds by construction rather than by observation. Kept because it
+# catches a cleanup that fails to delete at all, which IS observable.
+oo_leak=$(grep '^OO-LEAK ' "$OUT/on.txt" || true)
+if [ -z "$oo_leak" ]; then
+	echo "FAIL RW-LEAK — no OO-LEAK line; the abort case did not finish"
+	fail=1
+elif ! grep -q '^OO-LEAK .*ok=1' "$OUT/on.txt"; then
+	echo "FAIL RW-LEAK — $oo_leak; an aborted recording did not give its clusters back"
+	fail=1
+fi
+
+oo_served=$(grep '^OO-RESULT ' "$OUT/on.txt" | sed -n 's/^OO-RESULT ok=[0-9]* served=\([0-9]*\).*/\1/p' | sort -n | tail -1)
+[ -n "$oo_served" ] || oo_served=0
 
 served=$(sed -n 's/^RW-SUMMARY served=\([0-9]*\).*/\1/p' "$OUT/on.txt")
 offowner=$(sed -n 's/^RW-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/on.txt")
@@ -173,4 +208,4 @@ if [ "$fail" -ne 0 ]; then
 	echo "recorder write: FAILED"
 	exit 1
 fi
-echo "recorder write: OK (served=$served->${oo_served:-?} offOwnerTicks=$offowner)"
+echo "recorder write: OK (served=$served->${oo_served:-?} offOwnerTicks=$offowner offOwnerFinalizeTicks=$oo_fin)"
