@@ -25,15 +25,18 @@
 #include "io/stream.hpp"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/file_io.h"
+#include "libdeluge/file_write.h"
 #include "libdeluge/stream_io.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
+#include "model/sample/recorder_write_policy.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/cluster/cluster.h"
+#include "storage/owner.h"
 #include "util/exceptions.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
@@ -373,6 +376,16 @@ void SampleRecorder::abort() {
 // Returns error if one occurred just now - not if one was already noted before
 Error SampleRecorder::cardRoutine() {
 
+	// Settle any in-flight cluster write FIRST. The channel holds a raw pointer into
+	// `bufferTable_`, and almost everything below can invalidate it: the abort path calls
+	// detachSample() -> releaseCaptureBuffers(), which frees capture buffers well before the stream
+	// is closed; finalize closes the stream outright. Every path through this recorder passes
+	// through here, so settling here is the whole of the buffer-lifetime contract -- there is no
+	// second place that needs to know about it.
+	if (pumpInFlightWrite()) {
+		return Error::NONE; // Still outstanding; come back next tick.
+	}
+
 	// If aborted, delete the file.
 	// ACQUIRE: synchronizes-with abort()'s release store.
 	if (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED) {
@@ -648,9 +661,17 @@ Error SampleRecorder::writeAnyCompletedClusters() {
 		Error error = writeOneCompletedCluster();
 
 		// On error, just return -- the buffer writeOneCompletedCluster() couldn't flush stays put in
-		// bufferTable_ (never recycled), so it's still safely freed later by releaseCaptureBuffers().
+		// bufferTable_ (never recycled) rather than being freed here.
 		if (error != Error::NONE) {
 			return error;
+		}
+
+		// Every caller of this function reaches it from finalizeRecordedFile(), which only ever runs
+		// on the storage owner -- so writeCluster() took its synchronous arm and the cluster is
+		// genuinely on the card. If that stopped being true this loop would spin without progress,
+		// writing nothing, so say so rather than trust it.
+		if (writePending()) {
+			return Error::SD_CARD;
 		}
 	}
 
@@ -908,25 +929,113 @@ extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 // is stable -- the audio thread never rewrites an already-assigned slot, only appends new ones (see
 // bufferTable_'s doc). Flushes it to disk, advances the committed-length watermark, then recycles the
 // buffer's memory for reuse.
-Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
-	std::byte* buffer = bufferTable_[clusterIndex];
+namespace {
+/// How many cluster writes went through the channel, process-wide. Counted at the ISSUE, because
+/// that is the point at which the write left the storage owner -- which is the thing this rung
+/// changes and the thing a gate has to be able to see.
+int32_t g_writeChannelServed = 0;
+} // namespace
 
-	uint32_t byteOffset = static_cast<uint32_t>(clusterIndex) << Cluster::size_magnitude;
+int32_t SampleRecorder::writeChannelServedOps() {
+	return g_writeChannelServed;
+}
+
+void SampleRecorder::finishCluster(int32_t clusterIndex) {
+	// writeCluster() recycles this buffer's memory back to the free-list once the write succeeds --
+	// no separate "reason" to drop; we privately own it outright.
+	recycleBuffer(bufferTable_[clusterIndex]);
+	// Null the table slot now that its buffer has been recycled -- this index is drained
+	// (< firstUnwrittenClusterIndex once the caller advances it) and must never be read again, but
+	// leaving a dangling pointer here would let a stale/reused buffer linger at a drained index.
+	// releaseCaptureBuffers() already tolerates a null entry here (its `if (buffer != nullptr)`
+	// guard).
+	bufferTable_[clusterIndex] = nullptr;
+}
+
+bool SampleRecorder::pumpInFlightWrite() {
+	if (inFlightClusterIndex_ < 0) {
+		return false;
+	}
+
+	const int32_t index = inFlightClusterIndex_;
+	const uint32_t expected = inFlightNumBytes_;
+	uint32_t written = 0;
+	const uint8_t collected = file->collect_write_at(&written);
+
+	switch (
+	    deluge::storage::nextWriteStep(/*channelActive=*/true, /*haveInFlight=*/true, collected, writePendingTicks_)) {
+	case deluge::storage::WriteStep::Wait:
+		writePendingTicks_++;
+		return true; // Still outstanding: nothing that could free this buffer may run.
+
+	case deluge::storage::WriteStep::Complete:
+		inFlightClusterIndex_ = -1;
+		writePendingTicks_ = 0;
+		if (written != expected) {
+			hadCardError = true; // A short write is a card error, exactly as the synchronous arm says.
+		}
+		else {
+			finishCluster(index);
+		}
+		return false;
+
+	case deluge::storage::WriteStep::Failed:
+		inFlightClusterIndex_ = -1;
+		writePendingTicks_ = 0;
+		hadCardError = true;
+		return false;
+
+	case deluge::storage::WriteStep::Issue:
+	case deluge::storage::WriteStep::Inline:
+		// Either the channel never keyed the request (UNKNOWN) or it accepted one and stopped
+		// answering (the stall bound). Both mean these bytes are NOT on the card, so write them here
+		// and stop trusting the channel for the rest of this recording -- a driver that stalled once
+		// would otherwise cost a full stall bound per cluster.
+		inFlightClusterIndex_ = -1;
+		writePendingTicks_ = 0;
+		channelAbandoned_ = true;
+		if (writeClusterSynchronously(index, expected) != Error::NONE) {
+			hadCardError = true;
+		}
+		return false;
+	}
+	return false;
+}
+
+Error SampleRecorder::writeClusterSynchronously(int32_t clusterIndex, size_t numBytes) {
+	std::byte* buffer = bufferTable_[clusterIndex];
+	const uint32_t byteOffset = static_cast<uint32_t>(clusterIndex) << Cluster::size_magnitude;
 	auto writeResult = file->write_at(byteOffset, std::span<const std::byte>(buffer, numBytes));
 	if (!writeResult || *writeResult != numBytes) {
 		return Error::SD_CARD;
 	}
-
-	recycleBuffer(buffer);
-	// Null the table slot now that its buffer has been recycled -- this
-	// index is drained (< firstUnwrittenClusterIndex once the caller advances it) and must never be
-	// read again, but leaving a dangling pointer here would let a stale/reused buffer linger at a
-	// drained index. Nulling it here keeps bufferTable_ free of dangling drained-buffer pointers;
-	// releaseCaptureBuffers() already tolerates a null entry here (its `if (buffer != nullptr)`
-	// guard).
-	bufferTable_[clusterIndex] = nullptr;
-
+	finishCluster(clusterIndex);
 	return Error::NONE;
+}
+
+Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes) {
+	// The channel is for the steady-state write only, and only where blocking is illegal. On the
+	// owner the synchronous arm is correct and cheaper; `started()` keeps anything running before
+	// the worker exists on the arm it has always used.
+	const bool channelActive = !channelAbandoned_ && !deluge::storage::Owner::on_owner()
+	                           && deluge::storage::Owner::started() && deluge_file_write_async_active();
+
+	if (channelActive && inFlightClusterIndex_ < 0) {
+		const uint32_t byteOffset = static_cast<uint32_t>(clusterIndex) << Cluster::size_magnitude;
+		if (file->request_write_at(byteOffset, std::span<const std::byte>(bufferTable_[clusterIndex], numBytes))) {
+			inFlightClusterIndex_ = clusterIndex;
+			inFlightNumBytes_ = static_cast<uint32_t>(numBytes);
+			writePendingTicks_ = 0;
+			g_writeChannelServed++;
+			// Issued, not written. `pumpInFlightWrite()` collects it on a later tick and recycles the
+			// buffer then; recycling here would hand the card a buffer the audio thread has reused.
+			return Error::NONE;
+		}
+		// Refused. Fall through rather than dropping the cluster: a refused write that is not
+		// retried is lost audio.
+	}
+
+	return writeClusterSynchronously(clusterIndex, numBytes);
 }
 
 Error SampleRecorder::createNextCluster() {

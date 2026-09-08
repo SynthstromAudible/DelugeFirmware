@@ -102,6 +102,27 @@ public:
 
 	int32_t firstUnwrittenClusterIndex = 0;
 
+	/// The cluster index whose write is in flight on the channel, or -1 when none is.
+	///
+	/// Its buffer stays in `bufferTable_` and must NOT be recycled or freed until the collect is
+	/// terminal -- the channel holds a raw pointer into it rather than a copy. `cardRoutine()`
+	/// settles this before anything else runs, which is the whole of the buffer-lifetime contract:
+	/// every path through this recorder passes through there, including the abort path, whose
+	/// `detachSample()` frees capture buffers well before the stream is closed.
+	int32_t inFlightClusterIndex_ = -1;
+	/// Byte count of the write in flight, so the collect can tell a complete write from a short one
+	/// without the caller having to remember what it asked for.
+	uint32_t inFlightNumBytes_ = 0;
+	/// Consecutive ticks the in-flight write has read PENDING. Bounded by
+	/// `deluge::storage::kMaxPendingTicks`; see `recorder_write_policy.h` for why a stall bound is
+	/// not optional.
+	int32_t writePendingTicks_ = 0;
+	/// Set once this recorder gives up on the channel (a stall, or a request the channel never
+	/// keyed). Latched for the rest of the recording rather than retried: a driver that stopped
+	/// answering once will keep costing a full stall bound per cluster, and the synchronous arm is
+	/// always correct.
+	bool channelAbandoned_ = false;
+
 	/// @brief Index of the cluster currently being written to. Starts at -1 so a recorder destructed
 	///        before any recording began is still in a valid state.
 	///
@@ -183,8 +204,31 @@ public:
 	/// which is consistent with that reading but does not confirm it.
 	std::optional<deluge::io::Stream> file;
 
+public:
+	/// @brief Whether a cluster write is in flight on the channel right now.
+	[[nodiscard]] bool writePending() const { return inFlightClusterIndex_ >= 0; }
+
+	/// @brief How many cluster writes have gone through the channel, process-wide.
+	///
+	/// The difference between the channel being used and the channel merely being compiled. Every
+	/// fallback in this path is correct and silent, so a channel that never worked would leave every
+	/// gate green and every recording intact.
+	[[nodiscard]] static int32_t writeChannelServedOps();
+
+private:
 private:
 	Error writeCluster(int32_t clusterIndex, size_t numBytes);
+	/// @brief Settle the in-flight cluster write, if there is one.
+	///
+	/// Call as the FIRST thing in `cardRoutine()`. Nothing that could free a capture buffer or close
+	/// the stream may run while a write is outstanding.
+	/// @return true when the caller must return immediately -- the write has not landed yet.
+	bool pumpInFlightWrite();
+	/// @brief Write a cluster on the storage owner, blocking. The arm that shipped before the
+	///        channel existed, and the fallback every refusal and stall returns to.
+	Error writeClusterSynchronously(int32_t clusterIndex, size_t numBytes);
+	/// @brief Recycle a written cluster's buffer and clear its table slot.
+	void finishCluster(int32_t clusterIndex);
 	Error finalizeRecordedFile();
 	Error createNextCluster();
 	Error writeAnyCompletedClusters();
