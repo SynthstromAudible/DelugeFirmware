@@ -35,6 +35,8 @@ enum class PopupType {
 	THRESHOLD_RECORDING_MODE,
 	/// Used for popups in the horizontal menu when changing value
 	NOTIFICATION,
+	/// Persistent status shown while an inactive MIDI-macro automation lane is in view
+	MACRO_INACTIVE,
 	// Note: Add here more popup types
 };
 

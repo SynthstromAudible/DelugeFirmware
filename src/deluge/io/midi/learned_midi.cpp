@@ -67,12 +67,19 @@ char const* getTagNameFromMIDIMessageType(int32_t midiMessageType) {
 // this.
 void LearnedMIDI::writeAttributesToFile(Serializer& writer, int32_t midiMessageType) {
 
-	if (isForMPEZone()) {
-		char const* zoneText = (channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper";
+	// Command-style CC learns store the channel offset by IS_A_CC (see midi::Command::learnCC());
+	// unwrap that here so the file gets the real channel, not a value that masquerades as an MPE zone
+	int32_t channelToWrite = channelOrZone;
+	if (channelToWrite >= IS_A_CC && channelToWrite < IS_A_CC + NUM_CHANNELS) {
+		channelToWrite -= IS_A_CC;
+	}
+
+	if (channelToWrite == MIDI_CHANNEL_MPE_LOWER_ZONE || channelToWrite == MIDI_CHANNEL_MPE_UPPER_ZONE) {
+		char const* zoneText = (channelToWrite == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper";
 		writer.writeAttribute("mpeZone", zoneText, false);
 	}
 	else {
-		writer.writeAttribute("channel", channelOrZone, false);
+		writer.writeAttribute("channel", channelToWrite, false);
 	}
 
 	if (midiMessageType != MIDI_MESSAGE_NONE) {
@@ -119,6 +126,12 @@ void LearnedMIDI::readFromFile(Deserializer& reader, int32_t midiMessageType) {
 			noteOrCC = std::min<int32_t>(noteOrCC, 127);
 		}
 		reader.exitTag();
+	}
+
+	// Command-style CC learns keep the channel offset by IS_A_CC in memory (see midi::Command::learnCC());
+	// the file stores the real channel, so restore the offset
+	if (midiMessageType == MIDI_MESSAGE_CC && channelOrZone != MIDI_CHANNEL_NONE && channelOrZone < IS_A_CC) {
+		channelOrZone += IS_A_CC;
 	}
 }
 

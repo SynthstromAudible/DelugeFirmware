@@ -30,6 +30,12 @@ ParamDescriptor Regular::getDestinationDescriptor() {
 }
 
 MenuItem* Regular::selectButtonPress() {
+	// A macro row toggles this param as a target of that macro (stays in the menu); a real source
+	// proceeds into the cable's strength editor as always.
+	if (isMacroRow(this->getValue())) {
+		toggleMacroRow(macroForRow(this->getValue()));
+		return NO_NAVIGATION;
+	}
 	return &patch_cable_strength::regularMenu;
 }
 

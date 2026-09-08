@@ -90,6 +90,13 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 
 	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+
+	// GLOBAL-domain macro lanes rest at 0 (source at rest) until the macro system writes them, mirroring
+	// the sound macro lanes (Sound::setupAsDefault). Inert as global params - nothing in render reads them.
+	unpatchedParams->params[params::UNPATCHED_GLOBAL_MACRO_1].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_GLOBAL_MACRO_2].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_GLOBAL_MACRO_3].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_GLOBAL_MACRO_4].setCurrentValueBasicForSetup(-2147483648);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
@@ -850,6 +857,18 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 
 	unpatchedParams->writeParamAsAttribute(writer, "arpeggiatorRate", params::UNPATCHED_ARP_RATE, writeAutomation,
 	                                       false, valuesForOverride);
+
+	// The GLOBAL-domain macro automation lanes (audio clips / kit-global). Inert as global params, but
+	// their baked automation must persist. Written for every GlobalEffectable for symmetry with the
+	// sound side (Sound::writeParamsToFile); hosts that don't yet drive macros just serialize defaults.
+	unpatchedParams->writeParamAsAttribute(writer, "macro1", params::UNPATCHED_GLOBAL_MACRO_1, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(writer, "macro2", params::UNPATCHED_GLOBAL_MACRO_2, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(writer, "macro3", params::UNPATCHED_GLOBAL_MACRO_3, writeAutomation, false,
+	                                       valuesForOverride);
+	unpatchedParams->writeParamAsAttribute(writer, "macro4", params::UNPATCHED_GLOBAL_MACRO_4, writeAutomation, false,
+	                                       valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
@@ -980,6 +999,27 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "tempo")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_TEMPO, readAutomationUpToPos);
 		reader.exitTag("tempo");
+	}
+
+	else if (!strcmp(tagName, "macro1")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_GLOBAL_MACRO_1,
+		                           readAutomationUpToPos);
+		reader.exitTag("macro1");
+	}
+	else if (!strcmp(tagName, "macro2")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_GLOBAL_MACRO_2,
+		                           readAutomationUpToPos);
+		reader.exitTag("macro2");
+	}
+	else if (!strcmp(tagName, "macro3")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_GLOBAL_MACRO_3,
+		                           readAutomationUpToPos);
+		reader.exitTag("macro3");
+	}
+	else if (!strcmp(tagName, "macro4")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_GLOBAL_MACRO_4,
+		                           readAutomationUpToPos);
+		reader.exitTag("macro4");
 	}
 
 	else if (!strcmp(tagName, "volume")) {

@@ -190,6 +190,11 @@ public:
 	virtual void learnProgramChange(MIDICable& cable, int32_t channel, int32_t programNumber) {}
 	virtual void learnCC(MIDICable& cable, int32_t channel, int32_t ccNumber, int32_t value);
 
+	/// Gives the focused menu item a chance to update itself live from an incoming CC while its menu is
+	/// on screen (e.g. macro From/To dials follow the destination CC knob). Return true to consume the
+	/// message. Default: ignore.
+	virtual bool liveEditFromMidiCC(int32_t ccNumber, int32_t value) { return false; }
+
 	/// Return true if the Learn LED should blink while this menu is active (otherwise, it blinks only while LEARN is
 	/// held).
 	virtual bool shouldBlinkLearnLed() { return false; }
