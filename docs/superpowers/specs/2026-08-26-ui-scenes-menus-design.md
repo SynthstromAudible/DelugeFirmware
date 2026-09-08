@@ -647,7 +647,7 @@ node `patch_cable_strength::Fixed` (`nodes/sound_master.h:16-22`);
 `audio_clip::SetClipLengthEqualToSampleLength` (`.../set_clip_length_equal_to_sample_length.h:26`),
 `song::ConfigureMacros` (`song/configure_macros.h:27`), `song::MidiLearn` (`song/midi_learn.h:27`),
 `stem_export::Start` (`stem_export/start.h:31`), `reset_settings::Reset` (`reset_settings/reset.h:29`),
-`performance_session_view::EditingMode` (`performance_session_view/editing_mode.h:49-72`),
+`performance_session_view::EditingMode` (`performance_session_view/editing_mode.h:50-95`),
 `note::IterancePreset` → `noteCustomIteranceRootMenu` and `note_row::IterancePreset` →
 `noteRowCustomIteranceRootMenu` (`note/iterance_preset.h:59`, `note_row/iterance_preset.h:72` — the
 note editor's menus, which none of E1's ten roots reach) — every one of these is either a `kPending`

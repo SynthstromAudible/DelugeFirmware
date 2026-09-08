@@ -7,7 +7,7 @@
 // clang-format off
 /// | node | legacy global | legacy class | emits |
 /// |---|---|---|---|
-/// | `perform_editor` | `performEditorMenu` (`gui/ui/menus.cpp:2005`) | `performance_session_view::EditingMode` (`performance_session_view/editing_mode.h:28`) | `OpenPerformanceView` + mode |
+/// | `perform_editor` | `performEditorMenu` (`gui/ui/menus.cpp:2005`) | `performance_session_view::EditingMode` (`performance_session_view/editing_mode.h:29`) | `OpenPerformanceView` + mode |
 /// | `start_stem_export` | `startStemExportMenu` (`gui/ui/menus.cpp:2018`) | `stem_export::Start` (`stem_export/start.h:27`) | `StartStemExport` |
 /// | `set_clip_length` | `setClipLengthMenu` (`gui/ui/menus.cpp:1131-1132`) | `audio_clip::SetClipLengthEqualToSampleLength` (`audio_clip/set_clip_length_equal_to_sample_length.h:22`) | `SetClipLengthToSampleLength` |
 /// | `song_midi_learn` | `midiLearnMenu` (`gui/ui/menus.cpp:2082`) | `song::MidiLearn` (`song/midi_learn.h:23`) | `OpenSongMidiLearn` |
@@ -29,7 +29,7 @@
 /// From the user's side the two are the same gesture: press, the parent list is still there.
 ///
 /// **`PerformEditorItem` -- the one that is a value *and* a verb.** `EditingMode` is a `Selection`
-/// with three options (`editing_mode.h:76-84`) whose `selectButtonPress` acts on the *chosen* one
+/// with three options (`editing_mode.h:99-107`) whose `selectButtonPress` acts on the *chosen* one
 /// (`:49-74`), so it is a page the user enters, turns, and presses. It draws with `enum_value`, the
 /// same widget `Kind::Enum` uses, and files the request from its own render when the select lands.
 ///

@@ -1250,7 +1250,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// The VALUE press filed `OpenPerformanceView` carrying the chosen mode as its `arg`; the
-		// DISABLED press that follows files nothing (`editing_mode.h:50-52` returns nullptr), so this
+		// DISABLED press that follows files nothing (`editing_mode.h:51-53` returns nullptr), so this
 		// one-slot outbox still holds the first one.
 		const MenuActionRequest taken = menu_scene().take_action();
 		expect(taken.action == MenuAction::OpenPerformanceView).to_be_true();

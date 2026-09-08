@@ -41,7 +41,7 @@ namespace {
 ///        `PerformanceView::defaultEditingMode` starts `false` in its constructor
 ///        (`gui/views/performance_view.cpp:239`) and `focusRegained` never touches it, which
 ///        `EditingMode::readCurrentValue` maps to
-///        `DISABLED` (`performance_session_view/editing_mode.h:35-37`).
+///        `DISABLED` (`performance_session_view/editing_mode.h:36-38`).
 PerformanceEditingMode g_perform_mode = PerformanceEditingMode::DISABLED;
 } // namespace
 
@@ -112,7 +112,7 @@ void ActionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 // `PerformEditorItem` -- `performance_session_view::EditingMode`
 
 void PerformEditorItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
-	// `EditingMode::readCurrentValue` (`editing_mode.h:34-45`): the cursor starts on whatever mode
+	// `EditingMode::readCurrentValue` (`editing_mode.h:35-46`): the cursor starts on whatever mode
 	// the performance view is in. `Selection::beginSession` is what calls it, and `on_focus` is
 	// `beginSession` -- so the read happens here rather than every frame, which is also what stops a
 	// turn from being undone by the next render.
@@ -125,7 +125,7 @@ void PerformEditorItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) c
 void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	draw_title_for(f, state);
 
-	// `EditingMode::getOptions` (`editing_mode.h:76-84`), in its own order -- the order IS the
+	// `EditingMode::getOptions` (`editing_mode.h:99-107`), in its own order -- the order IS the
 	// `PerformanceEditingMode` numbering, which is what makes the cursor the value.
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::DISABLED) == 0);
 	static_assert(static_cast<int32_t>(PerformanceEditingMode::VALUE) == 1);
@@ -145,7 +145,7 @@ void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 		return;
 	}
 
-	// `EditingMode::selectButtonPress` (`editing_mode.h:49-74`). `currentMode` is whatever
+	// `EditingMode::selectButtonPress` (`editing_mode.h:50-97`). `currentMode` is whatever
 	// `writeCurrentValue` last stored from the cursor (`:47`), so the cursor is the mode.
 	const auto mode = static_cast<PerformanceEditingMode>(
 	    std::clamp<int32_t>(index, 0, static_cast<int32_t>(PerformanceEditingMode::PARAM)));

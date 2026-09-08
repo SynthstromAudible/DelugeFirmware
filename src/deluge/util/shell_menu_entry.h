@@ -82,10 +82,14 @@
 ///     the missing half.
 ///  3. ~~**`perform_editor`'s four sync calls into `menu::performance_editing_mode()` are
 ///     absent**~~ -- **closed, F2 task 5** (§10.2 item 6). All four sites where `PerformanceView`
-///     moves the two mirrored bools now call `syncEditingModeMirror(*this)`
-///     (`gui/views/performance_view.cpp:844`, `:928`, `:942`, `:1411`), so the ported editing item
-///     and the view cannot disagree. It was four sites and not the five `scenes/menu/action.h`
-///     used to list; that header carries the corrected contract.
+///     moves the two mirrored bools call `syncEditingModeMirror(*this)`
+///     (`gui/views/performance_view.cpp:844`, `:928`, `:942`, `:1411`), and review round 1 added a
+///     fifth writer the first pass had excluded: legacy's own `EditingMode::selectButtonPress`
+///     (`gui/menu_item/performance_session_view/editing_mode.h:84`), which runs with the toggle OFF
+///     and would otherwise leave the mirror stale for the first ported menu opened after a flip-on.
+///     With all five, and the writer set closed, the ported editing item and the view cannot
+///     disagree in either toggle state. It was four sites in the view and not the five
+///     `scenes/menu/action.h` used to list; that header carries the corrected contract.
 ///  4. **Three ported settings items write flash and notify nobody.** The two screensaver setters
 ///     (`scenes/menu/nodes/settings.cpp`) and `nodes::set_shortcuts_version`: F1 task 8 found them,
 ///     and each needs its own enumerator and arm on (1)'s dispatcher. Changing the screensaver

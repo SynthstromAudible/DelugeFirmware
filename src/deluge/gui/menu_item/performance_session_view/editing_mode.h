@@ -23,6 +23,7 @@
 #include "hid/led/indicator_leds.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "scenes/menu/action.h" // set_performance_editing_mode -- the mirror, see selectButtonPress
 
 namespace deluge::gui::menu_item::performance_session_view {
 class EditingMode final : public Selection {
@@ -59,6 +60,28 @@ public:
 			performanceView.defaultEditingMode = true;
 			performanceView.editingParam = true;
 		}
+
+		// The fifth site that keeps the ported menu's mirror of those two bools in step
+		// (`scenes/menu/action.h`; the other four are `syncEditingModeMirror`'s callers in
+		// `gui/views/performance_view.cpp`). THIS item is the writer that F2 task 5's first pass
+		// excluded as "the menu, not behind the menu's back" -- an exclusion that only holds while
+		// `RuntimeFeatureSettingType::ShellMenu` is On. With the toggle off this item is the ONLY
+		// way into an editing mode from a menu, and without this line the mirror stays where it was
+		// while the view moves; flip the toggle on afterwards and `PerformEditorItem::on_focus`
+		// seeds its cursor from that stale value (`scenes/menu/nodes/actions.cpp:121`). The toggle
+		// is a runtime setting, so "the port is off" is not a state the mirror may rot in.
+		//
+		// `currentMode` rather than a re-derivation from the two bools: the branch that just ran set
+		// them FROM it, so `EditingMode::readCurrentValue` (`:35-46`) maps the pair straight back to
+		// this value -- VALUE is `{true, false}` (`:39-41`), PARAM is `{true, true}` (`:42-44`). The
+		// spec asserts the derivation rather than trusting the equivalence.
+		//
+		// Ungated, for the reason `syncEditingModeMirror` gives at length
+		// (`gui/views/performance_view.cpp`): it writes one `static` inside `libdeluge_scenes` that
+		// nothing reads with the toggle off, reads nothing, and cannot fail. Not reached at all on
+		// the DISABLED arm, which returns at `:52` without writing either bool -- and the port's own
+		// item leaves the mirror alone on DISABLED too, which is asserted.
+		deluge::scenes::menu::set_performance_editing_mode(currentMode);
 
 		if (!performanceView.editingParam) {
 			// reset performance view when you switch modes

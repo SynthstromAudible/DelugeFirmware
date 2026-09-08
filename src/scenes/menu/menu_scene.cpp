@@ -1308,7 +1308,7 @@ Result MenuScene::after_render() {
 	//     the parent list (`gui/ui/sound_editor.cpp:420-423`). Ascending on the tick the request is
 	//     filed is what makes the port's descend-then-leave look like legacy's never-descend.
 	//     `PerformEditorItem` is excluded because legacy *does* stay on that page
-	//     (`editing_mode.h:73`, `NO_NAVIGATION`); it files its request from `render`, not `on_focus`,
+	//     (`editing_mode.h:96`, `NO_NAVIGATION`); it files its request from `render`, not `on_focus`,
 	//     which is exactly the discriminator -- see below.
 	//
 	// Placed **above** the repaint check so the ascend is covered by it.

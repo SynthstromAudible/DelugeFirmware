@@ -12,7 +12,7 @@
 // clang-format off
 /// | node | legacy | what its select press does |
 /// |---|---|---|
-/// | `perform_editor` | `performance_session_view::EditingMode::selectButtonPress` (`gui/menu_item/performance_session_view/editing_mode.h:49-74`) | writes `performanceView.defaultEditingMode`/`editingParam`, resets the performance view, `openUI(&performanceView)` |
+/// | `perform_editor` | `performance_session_view::EditingMode::selectButtonPress` (`gui/menu_item/performance_session_view/editing_mode.h:50-97`) | writes `performanceView.defaultEditingMode`/`editingParam`, resets the performance view, `openUI(&performanceView)` |
 /// | `start_stem_export` | `stem_export::Start::selectButtonPress` (`gui/menu_item/stem_export/start.h:31-49`) | `soundEditor.exitCompletely()`, then `getRootUI()` chooses one of four `StemExportType`s |
 /// | `set_clip_length` | `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress` (`gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h:26-29`) | `audioClipView.setClipLengthEqualToSampleLength()` |
 /// | `song_midi_learn` | `song::MidiLearn::selectButtonPress` (`gui/menu_item/song/midi_learn.h:27-31`) | `context_menu::midiLearnMode.setupAndCheckAvailability()` + `openUI(...)` |
@@ -73,7 +73,7 @@ enum class MenuAction : uint8_t {
 	/// @brief Enter the performance view in the editing mode named by `MenuActionRequest::arg`
 	///        (a `PerformanceEditingMode`, and never `DISABLED` -- see `nodes/actions.h`).
 	///
-	/// The dispatcher owed `editing_mode.h:55-72` and pays it as of F2 task 2: set
+	/// The dispatcher owed `editing_mode.h:56-95` and pays it as of F2 task 2: set
 	/// `performanceView.defaultEditingMode = true` and `editingParam` from the payload, call
 	/// `performanceView.resetPerformanceView(modelStack)` unless `editingParam`, then `openUI(...)`.
 	OpenPerformanceView,
@@ -112,7 +112,7 @@ struct MenuActionRequest {
 
 /// @name The performance view's editing mode, mirrored on this side of the wall.
 ///
-/// `EditingMode::readCurrentValue` (`editing_mode.h:34-45`) reads `performanceView.defaultEditingMode`
+/// `EditingMode::readCurrentValue` (`editing_mode.h:35-46`) reads `performanceView.defaultEditingMode`
 /// and `performanceView.editingParam` -- two plain `bool` members of a `gui/views/` class
 /// (`gui/views/performance_view.h:112-113`), read and written from thirty-odd places inside that
 /// view. There is no bare-`extern` escape from a class member (the trick `settings.cpp` uses for
@@ -124,9 +124,10 @@ struct MenuActionRequest {
 /// **What the wiring plan owed, and what it paid (F2 task 5, shipped).** The mirror is
 /// authoritative for what the menu *shows* and for what `MenuAction::OpenPerformanceView` carries.
 /// It is not authoritative for the view, so `set_performance_editing_mode()` has to be called at
-/// **every** site where the view moves those two bools behind the menu's back. There are **four**,
-/// they are all in `gui/views/performance_view.cpp`, and each one is now a
-/// `syncEditingModeMirror(*this)` immediately below the write it answers:
+/// **every** site that moves those two bools. There are **five writers: four inside
+/// `PerformanceView`, plus legacy's own menu item.** The four are each a
+/// `syncEditingModeMirror(*this)` immediately below the write they answer, in
+/// `gui/views/performance_view.cpp`:
 ///
 ///   1. `PerformanceView::releaseViewOnExit` (`:1402-1412`, the writes at `:1405-1406`, the call at
 ///      `:1411`). **This is the ordinary exit path**, and the one that matters most and is easiest
@@ -141,39 +142,66 @@ struct MenuActionRequest {
 ///      when the press entered editing mode and `PARAM` when it cycled within it, which is why the
 ///      call sits after **both** writes.
 ///
-/// A fifth site was listed here until F2 task 5 and **does not exist**: `focusRegained` (`:328-345`)
-/// writes neither bool. The `defaultEditingMode = false` that entry pointed at is in
-/// `PerformanceView::PerformanceView()` (`:239`), the constructor, and it is deliberately **not** a
-/// sync site -- it runs at static init and the mirror's own initialiser is already `DISABLED`
-/// (`menu/nodes/actions.cpp:45`), so the two agree and a call there would only add a dependency on
-/// two translation units' initialisation order. The reasoning is repeated at that line, so a reader
-/// who counts four calls against five writes does not "fix" it.
+/// The fifth is `EditingMode::selectButtonPress` itself
+/// (`gui/menu_item/performance_session_view/editing_mode.h:50-97`, the writes at `:56-57` and
+/// `:60-61`, the call at `:84`) -- **the legacy menu item this node ports**, and the only writer outside the view.
 ///
-/// With all four the mirror and the view agree at every point the menu can observe. This is the
-/// single node excluded from the generic port-vs-legacy value comparison, for the same reason and
-/// with the same name as `shortcuts_version`.
+/// **Why the fifth is not one of the four, and why excluding it was wrong.** "Behind the menu's
+/// back" reads like it excludes the menu's own item, and F2 task 5's first pass excluded it on
+/// exactly that reading. The exclusion holds only while `RuntimeFeatureSettingType::ShellMenu` is
+/// **On**. With the toggle off, this item is the way into an editing mode from a menu
+/// (`gui/views/performance_view.cpp:882`'s `else` branch), it writes both bools, and a mirror it
+/// does not maintain sits stale until the toggle is flipped -- at which point `PerformEditorItem`
+/// seeds its cursor from the rot (`menu/nodes/actions.cpp:121`). That is the same flip-on staleness
+/// that makes gating the other four calls a bug, so the same answer applies: the mirror is
+/// maintained by **every** writer, in both toggle states, or it is not maintained at all. The call
+/// passes `currentMode` rather than re-deriving, because the branch above it set the bools *from*
+/// that value; and it sits after the `if`/`else` chain so the `DISABLED` arm -- which returns at
+/// `:52` without writing either bool -- does not reach it, matching what `PerformEditorItem` does.
 ///
-/// The four calls are **ungated**, in a legacy file, while `RuntimeFeatureSettingType::ShellMenu` is
-/// Off by default. `syncEditingModeMirror`'s own comment carries the argument for that; the short
-/// form is that they write one `static` inside `libdeluge_scenes` and nothing loads it with the
-/// toggle off. `gui/views/performance_view.cpp` is in `LEGACY_PORT_SEAMS`
-/// (`scripts/check_layer_rules.py`) for it, which is where that decision is recorded.
+/// **The writer set is now closed**, which is the claim that makes the rest true. Recipe, so it can
+/// be re-checked rather than believed: `grep -rn "defaultEditingMode\|editingParam" src sim` and
+/// keep the assignments. Nine are in `PerformanceView` (the four sites above, eight lines, plus the
+/// constructor); four are `EditingMode::selectButtonPress`'s two arms; two pairs are
+/// `gui/ui/shell_action_dispatch.cpp:93-98`, this seam's own arm, which runs *from* a mirror the
+/// node has already set. Nothing else in the tree writes either bool. Every one of those either
+/// syncs or is a pair that starts in agreement -- the constructor's `defaultEditingMode = false`
+/// (`gui/views/performance_view.cpp:239`) against this mirror's own `DISABLED` initialiser
+/// (`menu/nodes/actions.cpp:45`). That constructor write is deliberately **not** a sync site: it
+/// runs at static init, the two already agree, and a call there would only add a dependency on two
+/// translation units' initialisation order. The reasoning is repeated at that line, so a reader who
+/// counts four calls against nine writes in that file does not "fix" it.
 ///
-/// @warning Nothing in this repository can check that list stays complete: a fifth write added to
-///          `PerformanceView`, or a fifth caller added to `releaseViewOnExit`, would desync the
-///          mirror silently -- no checker here is content-aware enough to see either. The examples
-///          in `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_perform_mirror` group pin the
-///          four sites and all four of that helper's callers, one example each, but they can only
-///          fail for a site that exists; they cannot notice a new one. The durable fix is to move
-///          the two bools out of the view, which is a larger legacy change than this task took on;
-///          until then this comment is the contract.
+/// A site listed here until F2 task 5 **does not exist**: `focusRegained`
+/// (`gui/views/performance_view.cpp:328-345`) writes neither bool. The write that entry's `:189`
+/// pointed at was the constructor's, correctly numbered at the time and wrongly attributed.
+///
+/// With all five the mirror and the view agree at every point the menu can observe, **in both
+/// toggle states**. This is the single node excluded from the generic port-vs-legacy value
+/// comparison, for the same reason and with the same name as `shortcuts_version`.
+///
+/// All five calls are **ungated**, in legacy files, while `ShellMenu` is Off by default.
+/// `syncEditingModeMirror`'s own comment carries the argument at length; the short form is that they
+/// write one `static` inside `libdeluge_scenes`, read nothing, and cannot fail, so with the toggle
+/// off each is a store to a byte no one loads. Both files are in `LEGACY_PORT_SEAMS`
+/// (`scripts/check_layer_rules.py`), which is where that kind of decision is recorded.
+///
+/// @warning Nothing in this repository can check that list stays complete: a sixth writer, or a
+///          fifth caller added to `releaseViewOnExit`, would desync the mirror silently -- no
+///          checker here is content-aware enough to see either. The examples in
+///          `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_perform_mirror` group pin all
+///          five sites and all four of that helper's callers, but they can only fail for a site
+///          that exists; they cannot notice a new one. The durable fix is to move the two bools out
+///          of the view, which is a larger legacy change than this task took on; until then this
+///          comment is the contract.
 /// @{
 
 /// @brief What `EditingMode::readCurrentValue` would report.
 PerformanceEditingMode performance_editing_mode();
 
-/// @brief Set the mirror. Called by the item's own select press, and by the four
-///        `syncEditingModeMirror` sites in `gui/views/performance_view.cpp` (see above).
+/// @brief Set the mirror. Called by the ported item's own select press, by the four
+///        `syncEditingModeMirror` sites in `gui/views/performance_view.cpp`, and by legacy's own
+///        `EditingMode::selectButtonPress` (see above).
 void set_performance_editing_mode(PerformanceEditingMode mode);
 
 /// @}

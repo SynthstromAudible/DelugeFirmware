@@ -52,7 +52,7 @@ using deluge::ui::shell::SceneKind;
 namespace {
 
 /// @brief `EditingMode::selectButtonPress`
-///        (`gui/menu_item/performance_session_view/editing_mode.h:49-74`), performed on the real
+///        (`gui/menu_item/performance_session_view/editing_mode.h:50-97`), performed on the real
 ///        `performanceView`.
 ///
 /// @param mode What `MenuActionRequest::arg` carried: a `PerformanceEditingMode`
@@ -61,7 +61,7 @@ namespace {
 /// @par What `DISABLED` does here, and why it is not an assert
 ///
 /// **It returns, doing nothing** -- and the reason is that legacy's `DISABLED` arm has no meaning on
-/// this side of the seam. `editing_mode.h:50-52` answers it with `return nullptr`, which is
+/// this side of the seam. `editing_mode.h:51-53` answers it with `return nullptr`, which is
 /// `SelectChainFn`'s "go up a level" (`scenes/menu/node.h`): a *navigation* answer to the select
 /// press. The dispatcher runs after `MenuScene::after_render` has finished with that press, so there
 /// is no navigation left for it to ask for.
@@ -85,10 +85,10 @@ void openPerformanceView(PerformanceEditingMode mode) {
 		return;
 	}
 
-	// `editing_mode.h:54-61`, transcribed branch for branch rather than collapsed into one
+	// `editing_mode.h:55-62`, transcribed branch for branch rather than collapsed into one
 	// assignment, so the two writes stay legible against their source. (`scenes/menu/action.h:76`
-	// scopes what is owed here to `editing_mode.h:55-72`, which begins one line INSIDE this
-	// `else if` because `editing_mode.h:50-52` is the `DISABLED` arm handled above.)
+	// scopes what is owed here to `editing_mode.h:56-95`, which begins one line INSIDE this
+	// `else if` because `editing_mode.h:51-53` is the `DISABLED` arm handled above.)
 	if (mode == PerformanceEditingMode::VALUE) {
 		performanceView.defaultEditingMode = true;
 		performanceView.editingParam = false;
@@ -98,7 +98,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 		performanceView.editingParam = true;
 	}
 
-	// `editing_mode.h:63-70`, guard and reason included: reset the view when the mode changes, but
+	// `editing_mode.h:86-93`, guard and reason included: reset the view when the mode changes, but
 	// not in param-editing mode, "cause that would reset param assignments to FX columns" (`:65`).
 	if (!performanceView.editingParam) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -107,7 +107,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 		performanceView.resetPerformanceView(modelStack);
 	}
 
-	// `editing_mode.h:72`. `:73`'s `return NO_NAVIGATION` -- stay on the menu page while the view
+	// `editing_mode.h:95`. `:96`'s `return NO_NAVIGATION` -- stay on the menu page while the view
 	// opens over it -- is the producer's half and is already ported: `PerformEditorItem::render`
 	// clears `render_resp.entered` (`scenes/menu/nodes/actions.cpp:167`).
 	openUI(&performanceView);

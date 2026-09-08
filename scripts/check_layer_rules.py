@@ -187,6 +187,16 @@ UI_STACK_CALLS = (
 #   `shortcutsVersion` there is no bare-`extern` escape from a class member, which is what makes the
 #   mirror the only shape available rather than the convenient one. Four call sites in one file,
 #   each writing nothing but the mirror; `scenes/menu/action.h` is the contract they answer to.
+# * `gui/menu_item/performance_session_view/editing_mode.h` -- the FIFTH call into
+#   `menu::set_performance_editing_mode` (F2 task 5, review round 1), and the only one outside
+#   `PerformanceView`. It is here because the mirror has to survive the toggle being flipped ON:
+#   `EditingMode::selectButtonPress` is legacy's own way into an editing mode, it runs with the
+#   toggle OFF, and it writes both bools. Without this call the mirror rots while the port is off
+#   and `PerformEditorItem` seeds its cursor from the rot at the next flip-on. A HEADER rather than
+#   a `.cpp`, which is the one thing that makes this entry different from every other on this list
+#   -- acceptable only because exactly two translation units include it (`gui/ui/menus.cpp` and
+#   `sim/scenes_spec/menu_actions_spec.cpp`), so it is not a port include smuggled into the tree at
+#   large. If it ever gains a `.cpp`, the call belongs there and this entry should move with it.
 LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
     "src/deluge/gui/ui/shell_host_ui.h",
@@ -198,6 +208,7 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",
+    "src/deluge/gui/menu_item/performance_session_view/editing_mode.h",
 )
 
 RULES = [

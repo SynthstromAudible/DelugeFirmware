@@ -65,7 +65,7 @@ namespace {
 ///        them, under `EditingMode::readCurrentValue`'s own rule.
 ///
 /// **What the mirror is.** `performance_session_view::EditingMode` -- the legacy menu item -- has no
-/// state: `readCurrentValue` (`gui/menu_item/performance_session_view/editing_mode.h:34-45`) reads
+/// state: `readCurrentValue` (`gui/menu_item/performance_session_view/editing_mode.h:35-46`) reads
 /// these two bools straight off `performanceView` every time it is asked. The port cannot: the two
 /// are plain members of a `gui/views/` class, `src/scenes` may not include `gui/`
 /// (`scenes-includes-gui`, `scripts/check_layer_rules.py`), and there is no bare-`extern` escape
@@ -77,7 +77,7 @@ namespace {
 /// **Why the mapping is transcribed here rather than each caller passing a literal.** Three of the
 /// four call sites end at `DISABLED` and could spell it, but a literal at a call site goes stale
 /// silently the day the write above it changes. Deriving from the pair cannot: it is
-/// `readCurrentValue`'s three-way test (`editing_mode.h:35-44`), and if it and legacy ever disagree
+/// `readCurrentValue`'s three-way test (`editing_mode.h:36-45`), and if it and legacy ever disagree
 /// the spec that runs both on the real `performanceView`
 /// (`sim/scenes_spec/menu_actions_spec.cpp`, `menu_action_perform`) reddens.
 ///
@@ -231,7 +231,7 @@ PerformanceView::PerformanceView() {
 	// No `syncEditingModeMirror(*this)` here, and that is a decision rather than an omission. This
 	// runs at static init; the mirror's own initialiser is `PerformanceEditingMode::DISABLED`
 	// (`scenes/menu/nodes/actions.cpp:45`), which is what `readCurrentValue` makes of
-	// `defaultEditingMode == false` (`gui/menu_item/performance_session_view/editing_mode.h:35-37`).
+	// `defaultEditingMode == false` (`gui/menu_item/performance_session_view/editing_mode.h:36-38`).
 	// The two already agree, so a call here would move nothing -- and it would be the one call in
 	// this file that runs before anything can observe its effect, at a point where the order of two
 	// translation units' static initialisers decides whether `g_perform_mode` has been constructed
