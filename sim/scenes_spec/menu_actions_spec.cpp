@@ -315,8 +315,9 @@ struct PerformViewGuard {
 /// `nullifyUIs()` also sets `lastUIBeforeNullifying = getCurrentUI()` (`gui/ui/ui.cpp:258`), and
 /// that variable is defined at `gui/ui/ui.cpp:66` with no declaration in `ui.h`, so it cannot be
 /// reset from here -- `tables_3_spec.cpp:1334-1343` records the same fact for the same reason. So
-/// after an example in this group, `getCurrentUI()` answers `&performanceView` instead of null,
-/// while `getRootUI()` still answers null (it reads only `numUIsOpen`, `ui.cpp:136-140`). It is
+/// after an example in this group, `getCurrentUI()` (`ui.cpp:136-140`) answers `&performanceView`
+/// instead of null, while `getRootUI()` still answers null -- it is a different function, at
+/// `ui.cpp:145-150`, and it reads only `numUIsOpen` (`:146-147`), never the residue. It is
 /// benign for this file on two counts, both checkable: nothing in `sim/scenes_spec/menu_actions_spec.cpp`
 /// reads `getCurrentUI()`, and `menu_action_open_perform` is registered LAST in `add_specs` below,
 /// after the three groups that drive the port. An example added to this file that needs a null
@@ -759,9 +760,19 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 	//     `lastUIBeforeNullifying` on an empty hierarchy (`gui/ui/ui.cpp:136-140`) and so cannot
 	//     tell "opened" from "an earlier example left this behind".
 	//
-	// Each example's control leg differs from its subject in EXACTLY ONE CALL --
-	// `dispatchShellActions()` -- and asserts the request really is sitting in the outbox, so the
-	// subject's green cannot come from a press that filed nothing.
+	// Every example has a control leg that asserts the request really is sitting in the outbox, so no
+	// subject's green can come from a press that filed nothing. What separates control from subject
+	// is stated per example rather than as one claim, because it is not the same in all three:
+	//
+	//   * examples 1 and 2 -- EXACTLY ONE CALL, `dispatchShellActions()`. Same rig, same seed, same
+	//     press, same ticks;
+	//   * example 3 -- **one difference in kind, spread over three statements.** The control ticks
+	//     the SHELL and the subject ticks the GUEST, at both of the two tick points; and the subject
+	//     additionally drains once after its settle tick, asserting the outbox empty. That extra
+	//     drain is not a leg the control has: it is there to say the settle tick files nothing on its
+	//     own, and it is inert with respect to the assertions below because the press it would have
+	//     to eat has not happened yet. "Shell tick vs guest tick" is the one thing being varied;
+	//     three statements is what varying it honestly costs.
 
 	it("VALUE: writes the two bools, resets the view, and opens it", _ {
 		select_language();
@@ -849,9 +860,12 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		PerformViewGuard guard;
 		UiStackGuard ui_guard;
 
-		// The two legs differ in ONE call, `GuestRig`'s own comment's arrangement: the control ticks
-		// the SHELL (routes the press, runs `MenuScene::after_render`, does not poll), the subject
-		// ticks the GUEST.
+		// The two legs vary ONE THING -- shell tick vs guest tick, `GuestRig`'s own comment's
+		// arrangement: the control ticks the SHELL (routes the press, runs `MenuScene::after_render`,
+		// does not poll), the subject ticks the GUEST. It takes three statements rather than one,
+		// and this is the whole list: both tick points differ, and the subject alone drains after its
+		// settle tick to say that tick files nothing. That drain cannot affect what follows -- the
+		// press it would have to eat is two lines later.
 		// `GuestRig` has no encoder helper, so the cursor is placed by the mirror instead of walked:
 		// `PerformEditorItem::on_focus` seeds it from `performance_editing_mode()`
 		// (`nodes/actions.cpp:121`), which is `EditingMode::beginSession` -> `readCurrentValue`.
