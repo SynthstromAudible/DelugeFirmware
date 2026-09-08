@@ -57,21 +57,11 @@ bool LoadPatternUI::opened() {
 		return false;
 	}
 
-	Error error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
+	// Fire-and-forget: these only ensure the default folders exist, and the listing reports a card
+	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
 
 	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	overwriteExisting = true;
@@ -100,7 +90,7 @@ bool LoadPatternUI::opened() {
 	favouritesChanged();
 	currentDir = defaultDir.c_str();
 
-	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;

@@ -778,6 +778,13 @@ Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputTyp
 	return readFolderAndMemory(read, triedCreatingFolder);
 }
 
+namespace {
+/// The path the owner arm is creating. Held here because the dispatched body runs after this call
+/// has returned, so it cannot read the caller's argument.
+std::string g_ownerCreatePath;
+
+} // namespace
+
 Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder) {
 	// filenameToStartAt should have .XML at the end of it.
 	while (true) {
@@ -817,11 +824,16 @@ Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder)
 			read.createIfMissing = true;
 			continue;
 		}
-		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-		auto result = deluge::io::mkdir(read.defaultDirToAlsoTry);
-		if (!result.has_value()) {
-			return delugeStatusToError(deluge::io::to_deluge_status(result.error()));
-		}
+		// No channel arm here: the channel arm of this function set `createIfMissing` above and never
+		// reaches this line. What it needs is the TIER, so the mkdir moves onto the owner and the
+		// failure it used to report becomes one the following listing attempt reports instead.
+		g_ownerCreatePath = read.defaultDirToAlsoTry;
+		deluge::storage::bytes::runOnStorageOwner(
+		    [](void*) {
+			    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
+			    (void)deluge::io::mkdir(g_ownerCreatePath.c_str());
+		    },
+		    nullptr);
 	}
 
 	if (currentSong && read.outputType != OutputType::NONE) {
@@ -2118,7 +2130,6 @@ Error Browser::goUpOneDirectoryLevelImpl() {
 // with the error. A listing failure after a successful mkdir is routed through onListingFailed()
 // instead, after the menu has already closed on the (correct) mkdir success.
 Error Browser::createFolder() {
-	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 	displayText();
 
 	std::string newDirPath;
@@ -2130,22 +2141,35 @@ Error Browser::createFolder() {
 
 	newDirPath.append(enteredText);
 
-	auto result = deluge::io::mkdir(newDirPath.c_str());
-	if (!result.has_value()) {
-		return Error::SD_CARD;
+	// Fire-and-forget, like the recursive helper below and for the same reason: the listing this
+	// dispatches into already reports a folder it cannot open, so a card failure is not lost -- it
+	// simply arrives from the listing rather than from here. See the comment above this function,
+	// which already describes a listing failure after a successful mkdir taking that route.
+	if (deluge::storage::bytes::submitMkdirAll(newDirPath.c_str())) {
+		goIntoFolder(enteredText.c_str()); // Dispatches the listing async; always returns Error::NONE.
+		return Error::NONE;
 	}
+	g_ownerCreatePath = newDirPath;
+	deluge::storage::bytes::runOnStorageOwner(
+	    [](void*) {
+		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
+		    (void)deluge::io::mkdir(g_ownerCreatePath.c_str());
+	    },
+	    nullptr);
 
 	goIntoFolder(enteredText.c_str()); // Dispatches the listing async; always returns Error::NONE.
 
 	return Error::NONE;
 }
 
-Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
-	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-	if (!path || *path == '\0') {
-		return Error::UNSPECIFIED;
-	}
+namespace {
 
+/// The segment walk, for the arm that has no channel to do it.
+///
+/// Unchanged from what `createFoldersRecursiveIfNotExists` did inline, including its pre-existing
+/// quirk, which is not this rung's to fix. The channel arm does not come here at all: its walk lives
+/// in Rust, in one place, so neither this caller nor `smSysex` needs a loop of its own.
+Error createFoldersRecursiveOnOwner(const char* path) {
 	char tempPath[256];
 	size_t len = 0;
 
@@ -2166,6 +2190,34 @@ Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
 			}
 		}
 	}
+	return Error::NONE;
+}
+
+} // namespace
+
+Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
+	if (!path || *path == '\0') {
+		return Error::UNSPECIFIED;
+	}
+
+	// FIRE-AND-FORGET, deliberately. The four callers reach here from `opened()`, which returns `bool`
+	// once and has nowhere to wait, so a deferred creation cannot gate a UI open. A card failure now
+	// surfaces when that folder's listing fails -- which already has a failure path, and already
+	// handles a missing folder -- rather than refusing to open a UI that would work for every other
+	// folder. That is a user-visible change, and an improvement, but a change.
+	// Through the seam's submit machine rather than a bare request, so `serviceRoutine` collects the
+	// answer. A request nobody collects leaves its outcome unlearned and its answer sitting in the
+	// slot -- fire-and-forget describes the CALLER, not the channel.
+	if (deluge::storage::bytes::submitMkdirAll(path)) {
+		return Error::NONE;
+	}
+	g_ownerCreatePath = path;
+	deluge::storage::bytes::runOnStorageOwner(
+	    [](void*) {
+		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
+		    (void)createFoldersRecursiveOnOwner(g_ownerCreatePath.c_str());
+	    },
+	    nullptr);
 	return Error::NONE;
 }
 

@@ -47,11 +47,9 @@ bool SaveMidiDeviceDefinitionUI::opened() {
 		return false;
 	}
 
-	Error error = createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
+	// Fire-and-forget: these only ensure the default folders exist, and the listing reports a card
+	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
+	(void)createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 
 	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.

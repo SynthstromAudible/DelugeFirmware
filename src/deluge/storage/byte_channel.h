@@ -252,6 +252,18 @@ using OwnerFn = void (*)(void* ctx);
 ///         through to @ref runOnStorageOwner, which does the same work where blocking is legal.
 bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx);
 
+/// @brief Take a whole-path directory creation through the channel, driven to completion by
+///        @ref serviceRoutine.
+///
+/// For a caller that wants the directories made but has nowhere to wait for the answer — the
+/// browser's folder pre-creates reach here from `opened()`, which returns once. Requesting directly
+/// and never collecting would leave the answer in the slot and the outcome unlearned; this hands the
+/// collect to the pump instead.
+///
+/// @return true when the channel took it. **false when the caller must create the directories
+///         itself**, either because the channel is not in use here or because it is already busy.
+bool submitMkdirAll(const char* path);
+
 /// @brief Take a write through the channel, if the channel is the right place for it.
 ///
 /// @param path  The file to write. Its parent directory is created if absent.

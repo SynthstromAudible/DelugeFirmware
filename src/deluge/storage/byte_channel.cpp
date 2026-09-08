@@ -41,9 +41,9 @@ int32_t g_interactionTierIo[3] = {0, 0, 0};
 /// freeze. Counting is what proves the sites are reachable; freezing is what keeps them from coming
 /// back, and it is only truthful once there is a converted path for them to come back FROM.
 constexpr bool kFreezeOnViolation[3] = {
-    true,  // Settings: converted, so any violation is now a regression.
-    true,  // Startup: converted, likewise.
-    false, // Browser: not converted yet. Flipped to true with the conversion.
+    true, // Settings: converted, so any violation is now a regression.
+    true, // Startup: converted, likewise.
+    true, // Browser: converted, likewise.
 };
 
 /// Translate the C ABI's `uint32_t`-shaped status byte into the type the callers switch on.
@@ -189,6 +189,11 @@ enum class Step : uint8_t {
 	ReadRetryCollect,
 	WriteRequest,
 	WriteCollect,
+	/// Ask for a whole path's directories.
+	MkdirAllRequest,
+	/// Wait for it. A creation nobody waited for would leave its answer in the slot and its failure
+	/// unnoticed -- see `submitMkdirAll`.
+	MkdirAllCollect,
 };
 
 /// The one operation in flight, if any.
@@ -266,6 +271,15 @@ bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentF
 	g_pending.parse = parse;
 	g_pending.onAbsent = onAbsent;
 	g_pending.ctx = ctx;
+	return true;
+}
+
+bool submitMkdirAll(const char* path) {
+	if (!usingByteChannel() || g_pending.step != Step::Idle) {
+		return false;
+	}
+	g_pending.step = Step::MkdirAllRequest;
+	g_pending.path = path;
 	return true;
 }
 
@@ -386,6 +400,37 @@ void serviceRoutine() {
 			// No legacy file to move, which is the ordinary case and not an error to show anyone. The
 			// file is genuinely absent in both locations, which is exactly what `onAbsent` is for.
 			finishAbsent();
+			return;
+		}
+		return;
+
+	case Step::MkdirAllRequest:
+		switch (requestMkdirAll(g_pending.path)) {
+		case ByteIo::Pending:
+			g_pending.step = Step::MkdirAllCollect;
+			return;
+		case ByteIo::Unknown:
+			return; // Refused this tick; ask again on the next one.
+		case ByteIo::Ready:
+		case ByteIo::Failed:
+			finish(); // Unkeyable path: re-requesting will never help.
+			return;
+		}
+		return;
+
+	case Step::MkdirAllCollect:
+		switch (collectMkdirAll(g_pending.path, &status)) {
+		case ByteIo::Ready:
+		case ByteIo::Failed:
+			// Terminal either way. The caller is long gone -- this is a fire-and-forget creation --
+			// so there is nobody to report a failure to; what the collect is FOR is taking the answer
+			// out of the slot and letting the served count see that the channel did the work.
+			finish();
+			return;
+		case ByteIo::Pending:
+			return;
+		case ByteIo::Unknown:
+			g_pending.step = Step::MkdirAllRequest;
 			return;
 		}
 		return;

@@ -53,21 +53,11 @@ bool SavePatternUI::opened() {
 		return false;
 	}
 
-	Error error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
+	// Fire-and-forget: these only ensure the default folders exist, and the listing reports a card
+	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
 
 	Instrument* currentInstrument = getCurrentInstrument();
 	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
