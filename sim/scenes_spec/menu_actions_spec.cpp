@@ -48,10 +48,14 @@
 #include "gui/menu_item/performance_session_view/editing_mode.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/ui.h" // isUIOpen / nullifyUIs, for the group that lets the dispatcher openUI
+#include "gui/ui/ui.h" // isUIOpen / nullifyUIs / setRootUILowLevel, for the groups that use the real UI stack
+#include "gui/views/arranger_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
 #include "hid/button.h"
 #include "model/song/song.h"
+#include "processing/stem_export/stem_export.h"
 
 #include "support/song_fixture.h"
 
@@ -60,7 +64,9 @@
 #include "cppspec.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <set>
 #include <span>
 #include <string>
@@ -369,6 +375,89 @@ void press_perform_mode(Rig& r, PerformanceEditingMode mode) {
 	}
 	r.enter(100);
 	r.shell.tick(110);
+}
+
+/// @brief Save and restore the `stemExport` fields the `StartStemExport` group reads or moves.
+///
+/// `exportMixdown` (`processing/stem_export/stem_export.h:66`) is what legacy's arranger arm
+/// branches on (`gui/menu_item/stem_export/start.h:35`) and is a user setting elsewhere, so an
+/// example that moves it must put it back. `processStarted` (`:53`) and `currentStemExportType`
+/// (`:55`) are the first two things `StemExport::runStemExportProcess` writes
+/// (`processing/stem_export/stem_export.cpp:102-103`), and are how the group below says that no
+/// export was started.
+struct StemExportGuard {
+	bool saved_mixdown = stemExport.exportMixdown;
+	bool saved_started = stemExport.processStarted;
+	StemExportType saved_type = stemExport.currentStemExportType;
+	StemExportGuard(const StemExportGuard&) = delete;
+	StemExportGuard& operator=(const StemExportGuard&) = delete;
+	StemExportGuard() = default;
+	~StemExportGuard() {
+		stemExport.exportMixdown = saved_mixdown;
+		stemExport.processStarted = saved_started;
+		stemExport.currentStemExportType = saved_type;
+	}
+};
+
+/// @brief Empty the **global** guest's scene stack, whichever way an example ended.
+///
+/// Its resting state in this binary is depth 0 -- `shellHostUI` is a static-init global that nothing
+/// here opens except the one example below, and `SceneStack` starts empty -- so emptying it restores
+/// exactly what was found. Popping unconditionally is `Rig::~Rig`'s discipline and the same
+/// singleton is at stake: `MenuScene` left on any stack is what makes the next `on_enter` see stale
+/// state.
+struct GlobalGuestGuard {
+	GlobalGuestGuard(const GlobalGuestGuard&) = delete;
+	GlobalGuestGuard& operator=(const GlobalGuestGuard&) = delete;
+	GlobalGuestGuard() = default;
+	~GlobalGuestGuard() {
+		while (shellHostUI.shell().stack().depth() > 0) {
+			shellHostUI.shell().stack().pop(SceneKind::Null);
+		}
+	}
+};
+
+/// @brief Open the ported menu at @p root on the ONE guest whose stack the dispatcher's close acts
+///        on, over @p song's context -- `GuestRig::open`, aimed at the global instead of a local.
+///
+/// **This is the only thing in this file that touches `shellHostUI`, and it has to be.**
+/// `closePortedMenu` removes the menu scene from `shellHostUI.shell().stack()` (see
+/// `gui/ui/shell_action_dispatch.cpp`), because the guest is a singleton with one open site
+/// (`gui/ui/shell_menu_entry.cpp:162`) and this seam's sibling reads the same global for the same
+/// kind of question (`menuIsFrontmost`, `gui/ui/shell_guest_services.cpp:190-192`). A local
+/// `GuestRig` has its own `Shell`, so its stack is not the one production empties -- an example
+/// built on one could only ever assert that nothing happened to it.
+///
+/// The contamination `GuestRig`'s note warns about is the scene left behind, and `GlobalGuestGuard`
+/// is what answers it: every example using this leaves the global at depth 0, the state it was
+/// constructed in. `menu_entry_spec.cpp` drives the same global harder still, through
+/// `openUI(&shellHostUI)` (`:147`).
+///
+/// No `openUI` here, deliberately: this example needs the menu on the guest's *scene* stack, not the
+/// guest on `uiNavigationHierarchy`. Keeping it off means no `closeUI(&shellHostUI)` can run in this
+/// process, and so no root view's `focusRegained` either.
+bool open_global_guest(const Node& root, spec::SongFixture& song) {
+	const bool song_root = &root == &nodes::root_song;
+	const MenuContext ctx = menu::context_for(*song.song, song_root ? nullptr : song.clip, 0, false,
+	                                          /*session_or_arranger_root=*/song_root,
+	                                          /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+	(void)menu::assign_node_ids(kRoots);
+	menu_scene().open(root, ctx);
+	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
+	return shellHostUI.opened();
+}
+
+/// @brief What `stemExportTypeForRootUI()` chose, as an `int`, with `-1` for "nothing".
+///
+/// One expectation per answer, and never `operator*` on the optional: `expect` does not abort the
+/// example, so a two-step `has_value()` then `*chosen` turns a red assertion into a libstdc++
+/// `_M_is_engaged()` abort that takes the rest of the group with it -- measured, on the first
+/// mutation run of this group. `-1` is outside `StemExportType`'s four enumerators
+/// (`definitions_cxx.hpp:247-252`), so "nothing" compares unequal to every real answer rather than
+/// aliasing one.
+int chosen_stem_export_type() {
+	const std::optional<StemExportType> chosen = deluge::gui::ui::stemExportTypeForRootUI();
+	return chosen.has_value() ? static_cast<int>(*chosen) : -1;
 }
 
 /// @brief Every item that files an action, paired with what it must file. Asserted by identity.
@@ -900,18 +989,242 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 });
+
+describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExport", $ {
+	// The second arm with a body (F2 task 3), and the one `scenes/menu/action.h:85-87` deliberately
+	// refused to split into four enumerators, "the choice is made from the root UI, which this layer
+	// cannot read". So the fan-out over `getRootUI()` (`gui/menu_item/stem_export/start.h:33-47`) is
+	// the whole of what this side of the seam adds, and it is what this group pins.
+	//
+	// **Why the chooser is driven by name and the arm is not, which is a real limit and not a
+	// preference.** `StemExport::startStemExportProcess` hands the export to
+	// `deluge::storage::Owner::run` (`processing/stem_export/stem_export.cpp:87-96`), and on the
+	// cooperative BSP this binary links, `Owner::run` runs the op **inline on the caller's stack**
+	// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`). An example that let a
+	// matching arm reach it would arm the recorder, write stems under `DELUGE_SD_ROOT` and then sit
+	// in `renderWait` (`stem_export.cpp:587-596`) waiting for a transport no spec is driving. So the
+	// four matching arms are driven through `stemExportTypeForRootUI()`, and the dispatcher's arm is
+	// driven end to end only where the chain falls through -- the branch that starts nothing.
+	//
+	// **The set these examples cover is the whole of legacy's chain**, stated so a reader can check
+	// it: `arrangerView` twice (`start.h:34-41` is one root with two answers), `sessionView` once
+	// (`:42-44`), `instrumentClipView` twice (`:45-47`'s `&&`, once each way), plus the two ways to
+	// reach no arm at all -- a root legacy never names, and no root open. Six root states, five
+	// answers, and every `if` in `start.h:33-47` has an example on both sides of it.
+	//
+	// Each example seeds `currentStemExportType` at a value the answer is not, so no assertion can
+	// pass on a residue -- `StemExportGuard` puts it back.
+
+	it("arrangerView with exportMixdown set chooses MIXDOWN", _ {
+		UiStackGuard ui_guard;
+		StemExportGuard stem_guard;
+		spec::SongFixture song = spec::make_synth_song();
+
+		// `setRootUILowLevel` (`gui/ui/ui.cpp:122-127`) is legacy's own "seat the root, run no
+		// `opened()`" -- what `setupBlankSong` uses. `changeRootUI` (`:107-119`) would run the real
+		// view's `opened()`, which is a great deal of view work for a fact the chooser answers with
+		// one pointer comparison.
+		setRootUILowLevel(&arrangerView);
+		stemExport.exportMixdown = true;
+
+		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::MIXDOWN)); // `start.h:35-37`
+	});
+
+	it("arrangerView without exportMixdown chooses TRACK", _ {
+		// The other half of the same `if` (`start.h:38-40`). Identical to the example above in every
+		// statement but the one `exportMixdown` assignment, which is what makes the pair say that
+		// the flag is read rather than that the arranger has a fixed answer.
+		UiStackGuard ui_guard;
+		StemExportGuard stem_guard;
+		spec::SongFixture song = spec::make_synth_song();
+
+		setRootUILowLevel(&arrangerView);
+		stemExport.exportMixdown = false;
+
+		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::TRACK)); // `start.h:38-40`
+	});
+
+	it("sessionView chooses CLIP", _ {
+		UiStackGuard ui_guard;
+		StemExportGuard stem_guard;
+		spec::SongFixture song = spec::make_synth_song();
+
+		// `exportMixdown` set, so this example also says the arranger's flag has no reach outside
+		// the arranger arm -- an implementation that tested it before the root would answer MIXDOWN
+		// here.
+		setRootUILowLevel(&sessionView);
+		stemExport.exportMixdown = true;
+
+		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::CLIP)); // `start.h:42-44`
+	});
+
+	it("instrumentClipView over a KIT chooses DRUM", _ {
+		UiStackGuard ui_guard;
+		StemExportGuard stem_guard;
+		// The output type is the second half of `start.h:45`'s `&&`, and `getCurrentOutputType()`
+		// reads it off the song's current clip (`model/song/song.cpp:135-137`) -- so the fixture is
+		// what varies between this example and the one below, not the root.
+		spec::SongFixture song = spec::make_kit_song();
+		expect(getCurrentOutputType() == OutputType::KIT).to_be_true();
+
+		setRootUILowLevel(&instrumentClipView);
+
+		expect(chosen_stem_export_type()).to_equal(static_cast<int>(StemExportType::DRUM)); // `start.h:45-47`
+	});
+
+	it("instrumentClipView over a non-KIT output chooses nothing, which is legacy's fall-through", _ {
+		// `start.h:45`'s `&&` in the direction that fails, and `start.h:48`: legacy returns
+		// `NO_NAVIGATION` having started no export. Same root as the example above, different
+		// output -- the one difference.
+		UiStackGuard ui_guard;
+		StemExportGuard stem_guard;
+		spec::SongFixture song = spec::make_synth_song();
+		expect(getCurrentOutputType() == OutputType::SYNTH).to_be_true();
+
+		setRootUILowLevel(&instrumentClipView);
+
+		expect(chosen_stem_export_type()).to_equal(-1);
+	});
+
+	it("a root legacy never names, and no root at all, both choose nothing", _ {
+		UiStackGuard ui_guard;
+		StemExportGuard stem_guard;
+		spec::SongFixture song = spec::make_kit_song();
+		stemExport.exportMixdown = true;
+
+		// A real `RootUI` that `start.h:33-47` simply does not test for. A KIT song with
+		// `exportMixdown` set, so both of the facts the other arms read are true here and neither
+		// can carry this one on its own.
+		setRootUILowLevel(&performanceView);
+		expect(chosen_stem_export_type()).to_equal(-1);
+
+		// And the null root: `getRootUI()` answers `nullptr` while `numUIsOpen == 0`
+		// (`gui/ui/ui.cpp:145-150`), which is legacy's "during song load / swap" (`:64`).
+		// `nullifyUIs()` (`:257-261`) is how legacy itself gets there.
+		nullifyUIs();
+		expect(getRootUI() == nullptr).to_be_true();
+		expect(chosen_stem_export_type()).to_equal(-1);
+	});
+
+	it("the arm itself starts no export where legacy's chain falls through", _ {
+		// The real `case MenuAction::StartStemExport:` end to end, driven by a real select press on
+		// `start_stem_export` -- down the one branch a spec can take, where nothing is exported.
+		select_language();
+		UiStackGuard ui_guard;
+		StemExportGuard stem_guard;
+		GlobalGuestGuard guest_guard; // the arm's close runs here too; see the example below
+
+		{
+			// The control, and it differs in EXACTLY ONE CALL: no `dispatchShellActions()`. Same
+			// rig, same root, same fixture, same press, same ticks. Its job is to say the press
+			// really files, so the subject's "nothing happened" is about the arm rather than about
+			// a press that never reached the item.
+			Rig control;
+			setRootUILowLevel(&instrumentClipView);
+			(void)control.open(nodes::stem_export);
+			control.shell.tick(5);
+			control.enter(10);
+			control.shell.tick(20);
+			expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+		}
+
+		Rig r;
+		// `Rig` builds its own `make_synth_song()`, so this root is `start.h:45`'s `&&` failing.
+		setRootUILowLevel(&instrumentClipView);
+		expect(chosen_stem_export_type()).to_equal(-1);
+		stemExport.processStarted = false;
+
+		(void)r.open(nodes::stem_export);
+		r.shell.tick(5);
+		r.enter(10);
+		r.shell.tick(20);
+		deluge::gui::ui::dispatchShellActions();
+
+		// Nothing was exported. `runStemExportProcess` sets `processStarted` as its third statement
+		// (`processing/stem_export/stem_export.cpp:102-103`) and on this BSP it would have run
+		// inline, before this line (`task_scheduler_c_api.cpp:101-104`).
+		expect(stemExport.processStarted).to_be_false();
+		// And the request is out of the outbox.
+		//
+		// **What this example cannot say, measured rather than assumed.** Commenting the whole
+		// `startStemExport()` call out of the arm leaves it green: both assertions above hold of an
+		// empty arm too, because the drain happens in `dispatchShellActions` before the `switch`
+		// and the fall-through is legacy's own no-op. It is the example below, on the close, that
+		// reddens when the arm's body goes away. That is the price of a verb whose acting half
+		// cannot be run here, and it is why the close is pinned separately rather than trusted.
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("takes the ported menu off the guest's stack, which is exitCompletely()'s half", _ {
+		// `soundEditor.exitCompletely()` (`gui/menu_item/stem_export/start.h:32`) is the first
+		// statement of legacy's body, and under the guest what is open is `ShellHostUI` rather than
+		// `soundEditor`. The dispatcher's answer is `SceneStack::remove(SceneKind::FirstApp)` on the
+		// guest's own stack -- the same statement `MenuScene::handle` already uses for the short-Back
+		// exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
+		// (`scenes/menu/menu_scene.cpp:1447-1452`; `gui/ui/sound_editor.cpp:710-717`, the call at
+		// `:716`). The full argument, including why neither `closeUI` nor `closeGuest()` can be
+		// called from there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
+		//
+		// The guest is ticked through `Shell::tick` and NOT through `timerCallback`, on purpose: it
+		// is `timerCallback`'s empty-stack arm (`gui/ui/shell_host_ui.cpp:526-529`) that performs
+		// the actual `closeUI`, and running that here would put a real root view's `focusRegained`
+		// inside the example. What this pins is the dispatcher's half -- the stack -- which is the
+		// half the dispatcher owns.
+		select_language();
+		UiStackGuard ui_guard;
+		StemExportGuard stem_guard;
+
+		{
+			// Control: one call different, `dispatchShellActions()`. The menu is still up, and the
+			// request is really sitting in the outbox.
+			GlobalGuestGuard control_guard;
+			spec::SongFixture control_song = spec::make_synth_song();
+			setRootUILowLevel(&instrumentClipView);
+			expect(open_global_guest(nodes::stem_export, control_song)).to_be_true();
+			shellHostUI.shell().tick(5);
+			(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
+			shellHostUI.shell().tick(20);
+
+			expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
+			expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+		}
+
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture song = spec::make_synth_song();
+		// The fall-through root again, so this example is about the close and nothing else.
+		setRootUILowLevel(&instrumentClipView);
+		expect(chosen_stem_export_type()).to_equal(-1);
+
+		expect(open_global_guest(nodes::stem_export, song)).to_be_true();
+		shellHostUI.shell().tick(5);
+		expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
+		(void)shellHostUI.buttonAction(deluge::hid::button::SELECT_ENC, true, false);
+		shellHostUI.shell().tick(20);
+		// Still up after the tick that filed the request: the scene does not pop itself
+		// (`scenes/menu/nodes/actions.h:47-50`), which is why the dispatcher owes this at all.
+		expect(shellHostUI.shell().stack().depth()).to_equal(size_t(1));
+
+		deluge::gui::ui::dispatchShellActions();
+
+		expect(shellHostUI.shell().stack().depth()).to_equal(size_t(0));
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+});
 // clang-format on
 
 /// Five `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead -- exactly as `context_spec.cpp` does.
 ///
-/// `menu_action_open_perform` is LAST on purpose, and `UiStackGuard`'s note says why: it is the only
-/// group that puts a legacy view on `uiNavigationHierarchy`, and the one residue its teardown cannot
-/// undo is `lastUIBeforeNullifying`.
+/// `menu_action_open_perform` and `menu_action_stem_export` are LAST on purpose, and `UiStackGuard`'s
+/// note says why: they are the two groups that put something on `uiNavigationHierarchy`, and the one
+/// residue their teardown cannot undo is `lastUIBeforeNullifying`. `menu_action_stem_export` is
+/// after `menu_action_open_perform` because it is also the only group that opens the global guest;
+/// it reads neither `getCurrentUI()` nor that residue, and `GlobalGuestGuard` returns the global to
+/// the depth 0 it was constructed at.
 int menu_actions_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch,
-	                          menu_action_open_perform)
+	                          menu_action_open_perform, menu_action_stem_export)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS
