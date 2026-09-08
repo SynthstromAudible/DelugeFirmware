@@ -44,7 +44,9 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
 #include "gui/ui/shell_action_dispatch.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/views/performance_view.h"
+#include "hid/button.h"
 #include "model/song/song.h"
 
 #include "support/song_fixture.h"
@@ -159,6 +161,61 @@ struct Rig {
 menu::MenuScene& scene() {
 	return menu_scene();
 }
+
+/// @brief The real guest, over the real scene table -- what the firmware actually ticks.
+///
+/// `Rig` above is a bare `Shell` over `FakeSurfaceSet`, which is right for every example about
+/// `MenuScene`. It is wrong for the one example about the *composition*, because the thing under
+/// test there is `ShellHostUI::timerCallback` -- a function `Rig` does not contain. This holds the
+/// real `ShellHostUI` instead, constructed the way `shell_host_ui.cpp`'s own global is: over
+/// `scene_registry()`, `kDelugeBoard` and `deluge_profile()`.
+///
+/// **Not the `shellHostUI` global**, deliberately. `boot_wiring_spec.cpp` reads that object's shell
+/// and its services, and an example that opened it, pushed a scene onto it and ticked it would be
+/// handing every later spec in this binary a guest with a menu on its stack. A local one has its own
+/// `Shell`, its own `GuestSurfaceSet` and its own input queue, and the only global it touches is the
+/// `MenuScene` singleton -- which the destructor puts back, exactly as `Rig`'s does.
+///
+/// @note `opened()` calls the real `wireShellGuestServices()`, which installs the three services
+///       into the **global** `shellHostUI`'s shell rather than into this one
+///       (`gui/ui/shell_guest_services.cpp:66`, `:173`). That is documented as idempotent, so
+///       re-running it is a re-seed and not a second set; and it leaves this guest running on
+///       `Services{}`, which is what `Rig` above runs on too. Nothing here reads a service.
+struct GuestRig {
+	spec::SongFixture song = spec::make_synth_song();
+	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	deluge::gui::ui::ShellHostUI ui{reg, deluge::ui::shell::kDelugeBoard, deluge_profile()};
+
+	GuestRig(const GuestRig&) = delete;
+	GuestRig& operator=(const GuestRig&) = delete;
+	GuestRig() = default;
+
+	/// Tear the stack down, so every scene's `on_exit` runs and the next example gets a fresh
+	/// `MenuScene` -- `Rig::~Rig`'s reason, verbatim, and the same singleton.
+	~GuestRig() {
+		while (ui.shell().stack().depth() > 0) {
+			ui.shell().stack().pop(SceneKind::Null);
+		}
+	}
+
+	/// `Rig::open`'s two halves, through the guest's own door: point the scene at @p root with a
+	/// session-view context, then let `opened()` do the `Shell::init` push.
+	bool open(const Node& root) {
+		const bool song_root = &root == &nodes::root_song;
+		const MenuContext ctx = menu::context_for(*song.song, song_root ? nullptr : song.clip, 0, false,
+		                                          /*session_or_arranger_root=*/song_root,
+		                                          /*session_view_root=*/song_root, /*kit_global_fx=*/false);
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(root, ctx);
+		ui.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(root)});
+		return ui.opened();
+	}
+
+	/// The select-encoder press, through the guest's own hook rather than the shell's -- which is
+	/// the point: `buttonAction` only queues, and `Shell::pump_input` inside a tick is what routes
+	/// (`shell/shell.cpp:579-589`).
+	void press_enter() { (void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
+};
 
 /// @brief @p parent's visible children in the order the scene lists them.
 ///
@@ -523,15 +580,20 @@ describe menu_action_perform("scenes::menu PerformEditorItem", $ {
 });
 
 describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbox", $ {
-	// The other side of the seam, in the one binary that has both halves: the real `menu_scene()`
-	// and the real dispatcher. The host suite's `tests/spec/gui/shell_action_dispatch_spec.cpp`
-	// cannot see either -- it stubs the dispatcher, because the real one belongs to the
-	// `deluge_scenes` closure that suite never builds -- so what it pins is the CALL SITE (that
-	// `ShellHostUI::timerCallback` polls, once, after `Shell::tick`, on every path through it).
-	// What these two examples pin is the other half: that the call reads THIS outbox.
+	// The other side of the seam, in the binary that has every half: `deluge_scenes_spec` links the
+	// real `menu_scene()`, the real `dispatchShellActions` AND the real
+	// `ShellHostUI::timerCallback` (`nm -C` on the driver shows all three as `T`). The host suite's
+	// `tests/spec/gui/shell_action_dispatch_spec.cpp` links only the last of those -- it stubs the
+	// dispatcher, because the real one belongs to the `deluge_scenes` closure that suite never
+	// builds -- so what it pins is the CALL SITE in isolation.
 	//
-	// Neither file asserts that anything is performed, because as of F2 task 1 nothing is: the
-	// dispatcher's five arms are empty and each verb arrives with its own task.
+	// Two isolated halves are not the composition, and the third example below is the one that says
+	// so: a stub at the call site plus a separate proof that the real function reads the outbox does
+	// not prove the real call site calls the real function. That example drives a real guest's own
+	// `timerCallback()` and asserts the real outbox is empty afterwards.
+	//
+	// Nothing in either file asserts that anything is performed, because as of F2 task 1 nothing is:
+	// the dispatcher's five arms are empty and each verb arrives with its own task.
 
 	it("takes the request a real item press filed, and leaves the outbox empty", _ {
 		select_language();
@@ -571,6 +633,40 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		r.enter(300);
 		r.shell.tick(310);
 		expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+	});
+
+	it("is reached BY the guest's own tick: press select, call timerCallback, outbox empty", _ {
+		// The composition, end to end and with nothing stubbed: a real `ShellHostUI` over the real
+		// `scene_registry()`, a real select press through the guest's own `buttonAction`, and the
+		// guest's own `timerCallback()` -- which is the only thing this example calls that could
+		// drain anything. `dispatchShellActions` is never named here.
+		select_language();
+
+		// The two legs differ in **one call** and share everything else: the same guest type over
+		// the same registry, the same scene singleton, the same node, the same press through the
+		// same input queue. Leg 1 ticks the SHELL directly (`guest.shell().tick`), which routes the
+		// press and runs `MenuScene::after_render` but is not the guest's tick and so does not
+		// poll; leg 2 ticks the GUEST (`timerCallback`), which does the same and then polls. So the
+		// difference between "outbox full" and "outbox empty" isolates `timerCallback`'s own extra
+		// work rather than comparing two different rigs.
+		{
+			GuestRig control;
+			expect(control.open(nodes::stem_export)).to_be_true();
+			control.ui.shell().tick(5);
+			control.press_enter();
+			control.ui.shell().tick(20);
+			// The press really files, on this exact path, through this exact guest. Without this the
+			// example below passes on a press that never filed anything.
+			expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
+		}
+
+		GuestRig r;
+		expect(r.open(nodes::stem_export)).to_be_true();
+		(void)r.ui.timerCallback(); // settle the first frame
+		expect(scene().take_action().engaged()).to_be_false(); // ...which files nothing on its own
+		r.press_enter();
+		(void)r.ui.timerCallback();
+		expect(scene().take_action().engaged()).to_be_false();
 	});
 });
 // clang-format on
