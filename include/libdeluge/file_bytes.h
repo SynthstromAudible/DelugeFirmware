@@ -97,6 +97,17 @@ extern "C" {
 ///       parsed as if whole would silently reset every setting past the cut.
 #define DELUGE_FILE_BYTES_MAX_BYTES 8192u
 
+/// @brief The largest single transfer this channel's offset-addressed operations will carry.
+///
+/// Equal to `smsysex`'s `blockBufferMax` (`smsysex.cpp:34`), which is the only consumer: one SysEx
+/// message carries at most this many bytes, so a larger block could never be filled.
+///
+/// Deliberately much smaller than @ref DELUGE_FILE_BYTES_MAX_BYTES, and that is a device-link
+/// constraint rather than a preference. This bound sizes a THIRD staging buffer, and two 8 KiB ones
+/// already sit in the Rust side; at 32 KiB each they pushed `.ARM.exidx` into `.rtt_cached_reserve`
+/// and the image stopped linking. Keep this one small.
+#define DELUGE_FILE_BYTES_BLOCK 1024u
+
 /// @brief Collect: requested, or being read/written right now.
 ///
 /// Ask again on a later tick. Do NOT re-request: the operation is already under way.
@@ -300,6 +311,88 @@ bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timest
 /// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
 ///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
 uint8_t deluge_file_bytes_collect_set_time(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
+/// @brief Ask for up to @ref DELUGE_FILE_BYTES_BLOCK bytes to be read from `path` at `offset`.
+///
+/// Stateless: the path and offset are the whole request, and no handle is opened, held or returned.
+/// `smsysex`'s `readBlock` already seeks to an address carried on the wire before every read, so this
+/// matches its consumer exactly.
+///
+/// @param path   NUL-terminated path. Copied out before this returns.
+/// @param offset Byte offset to read from. Past end-of-file yields zero bytes, not an error.
+/// @param len    How many bytes to read, at most @ref DELUGE_FILE_BYTES_BLOCK.
+/// @return true if accepted. false if REFUSED -- the channel is busy, the path is NULL or over long,
+///         or `len` exceeds the block bound.
+bool deluge_file_bytes_request_read_at(const char* path, uint32_t offset, uint32_t len) DELUGE_NOEXCEPT;
+
+/// @brief Collect the bytes read for `path`, if they are ready.
+///
+/// @param path       NUL-terminated path, matched exactly against the one requested.
+/// @param out_buf    Written **only** on @ref DELUGE_FILE_BYTES_READY, with `*out_len` bytes.
+/// @param buf_cap    Capacity of `out_buf`. A read longer than this reports
+///                   @ref DELUGE_FILE_BYTES_FAILED with `DELUGE_ERR_NO_MEMORY`.
+/// @param out_len    Written **only** on READY. **A short count is not an error**: it means
+///                   end-of-file was reached, which is how a caller detects it.
+/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED.
+uint8_t deluge_file_bytes_collect_read_at(const char* path, uint8_t* out_buf, uint32_t buf_cap, uint32_t* out_len,
+                                          DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
+/// @brief Ask for `len` bytes to be written into `path` at `offset`.
+///
+/// @warning **This does NOT truncate, and must not.** `efatfs_core::create_context` truncates
+///          unconditionally, so an implementation that re-opened with `DELUGE_FILE_WRITE_CREATE`
+///          would erase the file on every block and a multi-block transfer would end holding only
+///          its last block. The Rust side opens non-truncating; a caller that wants an empty file
+///          asks for one explicitly with @ref deluge_file_bytes_request_write and zero bytes, which
+///          is exactly what `smsysex`'s open-for-write does.
+///
+/// @param path   NUL-terminated destination. Created if absent -- an absent file is empty, so
+///               truncation is moot on that path alone.
+/// @param offset Byte offset to write at.
+/// @param bytes  Copied out before this returns.
+/// @param len    Byte count, at most @ref DELUGE_FILE_BYTES_BLOCK.
+/// @return true if accepted. false if REFUSED.
+bool deluge_file_bytes_request_write_at(const char* path, uint32_t offset, const uint8_t* bytes,
+                                        uint32_t len) DELUGE_NOEXCEPT;
+
+/// @brief Collect the outcome of the write to `path`, if it has finished.
+///
+/// @param path        NUL-terminated path, matched exactly against the one requested.
+/// @param out_written Written **only** on READY, with the byte count actually written. A short write
+///                    is reported honestly rather than as success; the caller decides what it means.
+/// @param out_status  Written **only** on FAILED.
+uint8_t deluge_file_bytes_collect_write_at(const char* path, uint32_t* out_written,
+                                           DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
+/// @brief Ask for `path`'s size.
+///
+/// Dropped rather than refused on an unusable request, like the other queries: the next collect
+/// reports UNKNOWN, whose documented meaning is "ask again".
+/// @param path NUL-terminated path. Copied out before this returns.
+void deluge_file_bytes_request_stat(const char* path) DELUGE_NOEXCEPT;
+
+/// @brief Collect `path`'s size, if it is known.
+///
+/// @param path       NUL-terminated path, matched exactly against the one requested.
+/// @param out_size   Written **only** on @ref DELUGE_FILE_BYTES_READY.
+/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED, with `DELUGE_ERR_NOT_FOUND`
+///                   for a path that is not there.
+uint8_t deluge_file_bytes_collect_stat(const char* path, uint32_t* out_size, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
+/// @brief Ask for `from` to be copied to `to`, whole.
+///
+/// The entire copy, not a block of it: the read/write loop lives on the Rust side so its caller needs
+/// neither a loop nor two open files. `to`'s parent directory is created if absent, and `to` is
+/// truncated before the copy -- a copy onto a longer existing file must not leave its tail behind.
+/// @return true if accepted. false if REFUSED.
+bool deluge_file_bytes_request_copy(const char* from, const char* to) DELUGE_NOEXCEPT;
+
+/// @brief Collect the outcome of the copy to `to`, if it has finished.
+///
+/// Keyed on the DESTINATION, because that is the name the caller goes on to use.
+/// @param to         NUL-terminated destination, matched exactly against the one requested.
+/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED.
+uint8_t deluge_file_bytes_collect_copy(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Whether the Rust async whole-file channel backs this header on this BSP/config.
 /// @return true if a request will actually be served; false if every caller must do its own file I/O,

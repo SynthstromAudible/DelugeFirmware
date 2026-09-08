@@ -48,6 +48,10 @@ static_assert(DELUGE_FILE_BYTES_MAX_PATH == DELUGE_FILE_DIRECTORY_MAX_PATH);
 // two staging buffers of this size. See the header.
 static_assert(DELUGE_FILE_BYTES_MAX_BYTES == 8192u);
 
+// The block bound, hand-duplicated on the Rust side as `BLOCK_BYTES`. Pinned here because the C++
+// consumer's own `blockBufferMax` must agree with it, and nothing else checks that they do.
+static_assert(DELUGE_FILE_BYTES_BLOCK == 1024u);
+
 // The two STATUSES the Rust module hand-duplicates because its driver produces them itself rather
 // than carrying them through: NO_FILESYSTEM is what tells the driver to mount, NO_MEMORY is what it
 // reports for a file too large for the staging buffer, and IO is what it reports for a short read or
@@ -131,6 +135,53 @@ extern "C" __attribute__((weak)) bool deluge_file_bytes_request_set_time(const c
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_set_time(const char* /*path*/,
                                                                             DelugeStatus* /*out_status*/) noexcept {
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
+extern "C" __attribute__((weak)) bool deluge_file_bytes_request_read_at(const char* /*path*/, uint32_t /*offset*/,
+                                                                        uint32_t /*len*/) noexcept {
+	return false;
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_read_at(const char* /*path*/, uint8_t* /*out_buf*/,
+                                                                           uint32_t /*buf_cap*/, uint32_t* /*out_len*/,
+                                                                           DelugeStatus* /*out_status*/) noexcept {
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
+extern "C" __attribute__((weak)) bool deluge_file_bytes_request_write_at(const char* /*path*/, uint32_t /*offset*/,
+                                                                         const uint8_t* /*bytes*/,
+                                                                         uint32_t /*len*/) noexcept {
+	// REFUSED. Reporting the refusal honestly matters: a caller told `true` for a write that will
+	// never happen waits for a collect that never turns terminal.
+	return false;
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_write_at(const char* /*path*/,
+                                                                            uint32_t* /*out_written*/,
+                                                                            DelugeStatus* /*out_status*/) noexcept {
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
+extern "C" __attribute__((weak)) void deluge_file_bytes_request_stat(const char* /*path*/) noexcept {
+	// No byte channel on this BSP/config; the caller never reaches here because
+	// deluge_file_bytes_async_active() is false.
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_stat(const char* /*path*/, uint32_t* /*out_size*/,
+                                                                        DelugeStatus* /*out_status*/) noexcept {
+	// UNKNOWN, not FAILED, for the reason `collect_exists`'s fallback gives: FAILED is terminal, and a
+	// caller reading it as a real answer would act on a size it never obtained.
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
+extern "C" __attribute__((weak)) bool deluge_file_bytes_request_copy(const char* /*from*/,
+                                                                     const char* /*to*/) noexcept {
+	return false;
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_copy(const char* /*to*/,
+                                                                        DelugeStatus* /*out_status*/) noexcept {
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
