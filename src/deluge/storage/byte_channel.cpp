@@ -19,11 +19,13 @@
 
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
+#include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
 #include "storage/owner.h"
 
 #include <cstddef>
 #include <cstring>
+#include <string>
 
 namespace deluge::storage::bytes {
 
@@ -216,6 +218,21 @@ struct PendingOp {
 
 PendingOp g_pending;
 
+/// How many ticks the pending operation has spent waiting for an answer. See @ref kMaxPendingTicks.
+int32_t g_pendingTicks = 0;
+
+/// How many ticks one operation may wait before this machine gives up on the channel.
+///
+/// A channel whose driver is not running answers PENDING forever -- the request sits in its slot with
+/// nothing to take it -- which is neither a refusal nor an answer, so nothing else here sees it.
+/// Without this bound a submitted operation is polled until the end of time and never happens,
+/// silently: the caller was told the channel took it, so it does not fall back either.
+///
+/// Found by neutering, twice. The startup fail-safe hit it first and wedged boot; this machine hit it
+/// again through the browser's folder creation, which simply never occurred. Six hundred ticks is
+/// several seconds at this routine's rate -- far beyond any real operation, far short of forever.
+constexpr int32_t kMaxPendingTicks = 600;
+
 /// The bytes in flight: a write's payload on the way out, a read's contents on the way in.
 ///
 /// One buffer for both directions because only one operation is ever pending. Sized to the channel's
@@ -233,6 +250,37 @@ char g_buffer[DELUGE_FILE_BYTES_MAX_BYTES];
 /// @see finishAbsent for the one failure that is NOT this.
 void finish() {
 	g_pending = PendingOp{};
+	g_pendingTicks = 0;
+}
+
+/// Give up on the channel for the operation in flight, doing it on the owner instead where that is
+/// possible, and go idle.
+///
+/// Only a write-shaped operation can be salvaged this way: a READ's bytes have nowhere to go once the
+/// caller's callback has been abandoned, and its consumer's documented behaviour for "no answer" is
+/// already that its in-memory defaults stand. A directory creation, by contrast, is worth completing
+/// -- its caller was told the channel had taken it and is not coming back.
+void abandonChannel() {
+	switch (g_pending.step) {
+	case Step::MkdirAllRequest:
+	case Step::MkdirAllCollect: {
+		static std::string path;
+		path = g_pending.path;
+		runOnStorageOwner(
+		    [](void*) {
+			    // One level, matching what the callers' synchronous form did. The channel arm creates
+			    // every segment; this arm is the fallback, and its caller's own owner arm walks
+			    // segments when it takes that path instead.
+			    (void)deluge::io::mkdir(path.c_str());
+		    },
+		    nullptr);
+		break;
+	}
+	default:
+		// Nothing to salvage -- see the doc above.
+		break;
+	}
+	finish();
 }
 
 /// End a read whose file is genuinely absent, telling the consumer so.
@@ -319,6 +367,13 @@ void runOnStorageOwner(OwnerFn fn, void* ctx) {
 void serviceRoutine() {
 	DelugeStatus status = DELUGE_OK;
 	uint32_t len = 0;
+
+	// One tick's grace accounting, before any of the steps below. A step that returns without
+	// finishing has spent a tick; enough of those and the channel is not going to answer.
+	if (g_pending.step != Step::Idle && ++g_pendingTicks >= kMaxPendingTicks) {
+		abandonChannel();
+		return;
+	}
 
 	switch (g_pending.step) {
 	case Step::Idle:

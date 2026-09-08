@@ -103,6 +103,10 @@ constexpr int32_t kMaxVerbTicks = 5000;
 /// is what makes it a test of the WALK rather than of one mkdir.
 constexpr const char* kNestedPath = "PO_TEST/A/B";
 
+/// How long the nested creation gets to land before the gate calls it missing. Above the seam's own
+/// stall bound, so a fallback that does eventually happen is not reported as a failure to happen.
+constexpr int32_t kMaxNestedTicks = 900;
+
 enum class Stage : uint8_t {
 	Fixture,
 	FixtureCheck,
@@ -122,6 +126,7 @@ int32_t g_failures = 0;
 int32_t g_verbIndex = 0;
 int32_t g_verbTicks = 0;
 int32_t g_repliesBefore = 0;
+int32_t g_nestedTicks = 0;
 int32_t g_nestedCreated = -1;
 int32_t g_nestedIdempotent = -1;
 
@@ -233,6 +238,14 @@ void runTick() {
 		break;
 
 	case Stage::NestedCheck:
+		// Wait for it, bounded. The creation is deferred on both arms, and on a channel that accepts
+		// and never answers the seam falls back to the owner only after its stall bound -- so checking
+		// one tick later would report "not created" for a folder that does arrive. Letting it land
+		// makes a dead channel fail on PO-CHANNEL alone, which is the precise signal, rather than on
+		// this stage as a side effect of timing.
+		if (!directoryExists(kNestedPath) && ++g_nestedTicks < kMaxNestedTicks) {
+			break;
+		}
 		g_nestedCreated = directoryExists(kNestedPath) ? 1 : 0;
 		// Called a second time on a path that now exists: "make sure this is there" must be success,
 		// not EXISTS. Every caller of this relies on that, since the folders usually already exist.
@@ -298,6 +311,7 @@ void deluge_scenario_path_operations_begin(void) {
 	g_verbIndex = 0;
 	g_verbTicks = 0;
 	g_repliesBefore = 0;
+	g_nestedTicks = 0;
 	g_nestedCreated = -1;
 	g_nestedIdempotent = -1;
 	g_cable.replies = 0;
