@@ -945,7 +945,7 @@ session view — open the Song FX menu", which inherited a false premise about w
 shows `led Clip on` and `led Synth on`, and F1 task 11's own script says so). Site 2
 (`gui/views/session_view.cpp:569`) is still a real null-clip site and still an everyday gesture, but
 it needs a SONG press first, so it is not the one reachable with no navigation. Sites 3
-(`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:846`) pass the same null
+(`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:898`) pass the same null
 clip into the same function and so reach the same line; that is inspection, not a measurement.
 
 It is not a crash on the device because address 0 is mapped there, and the real hazard is what

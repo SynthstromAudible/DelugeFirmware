@@ -382,14 +382,14 @@ void seed_view_away_from(PerformanceEditingMode mode) {
 	performanceView.defaultEditingMode = false;
 	performanceView.editingParam = (mode != PerformanceEditingMode::PARAM);
 	// The reset marker. `resetPerformanceView` opens with `resetPadPressInfo()`
-	// (`gui/views/performance_view.cpp:1306-1307`), which is `initPadPress(firstPadPress)` +
-	// `initPadPress(lastPadPress)` (`:1352-1355`), and `initPadPress` clears `isActive` (`:223-229`).
+	// (`gui/views/performance_view.cpp:1364-1365`), which is `initPadPress(firstPadPress)` +
+	// `initPadPress(lastPadPress)` (`:1415-1418`), and `initPadPress` clears `isActive` (`:272-278`).
 	// `lastPadPress` is the half of that pair the header makes public (`performance_view.h:119`).
 	//
 	// Nothing else on the dispatcher's path writes it: the only other writers in the whole view are
-	// `padPressAction` (`:1124`, the writes at `:1141-1145`), `padReleaseAction`'s `initPadPress`
-	// (`:1149`, the call at `:1171`) and `restorePreviousHoldPress` (`:1259-1262`), none of which
-	// `openUI` -> `opened()` -> `focusRegained()` (`:269-296`) can reach. So `isActive` going false
+	// `padPressAction` (`:1182`, the writes at `:1199-1203`), `padReleaseAction`'s `initPadPress`
+	// (`:1207`, the call at `:1229`) and `restorePreviousHoldPress` (`:1317-1320`), none of which
+	// `openUI` -> `opened()` -> `focusRegained()` (`:328-345`) can reach. So `isActive` going false
 	// means `resetPerformanceView` ran, and nothing else does.
 	performanceView.lastPadPress.isActive = true;
 }

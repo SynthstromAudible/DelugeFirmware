@@ -178,6 +178,15 @@ UI_STACK_CALLS = (
 # * `gui/ui/sound_editor.cpp` -- `SoundEditor::setShortcutsVersion` mirrors flash byte 60 into
 #   `menu::set_shortcuts_version`, covering all four legacy writers in one call (F1 task 8 fix
 #   round 1). The one seam that is not part of the guest.
+# * `gui/views/performance_view.cpp` -- `syncEditingModeMirror`, the four calls into
+#   `menu::set_performance_editing_mode` (F2 task 5). The SECOND seam that is not part of the guest,
+#   and it is `sound_editor.cpp`'s exactly: a piece of legacy state the ported menu has to display
+#   but may not read, mirrored by its writers. `PerformEditorItem` shows
+#   `performanceView.defaultEditingMode`/`editingParam` (`gui/menu_item/performance_session_view/
+#   editing_mode.h:34-45`), which are members of a class `scenes-includes-gui` forbids -- and unlike
+#   `shortcutsVersion` there is no bare-`extern` escape from a class member, which is what makes the
+#   mirror the only shape available rather than the convenient one. Four call sites in one file,
+#   each writing nothing but the mirror; `scenes/menu/action.h` is the contract they answer to.
 LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
     "src/deluge/gui/ui/shell_host_ui.h",
@@ -188,6 +197,7 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_action_dispatch.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
+    "src/deluge/gui/views/performance_view.cpp",
 )
 
 RULES = [
