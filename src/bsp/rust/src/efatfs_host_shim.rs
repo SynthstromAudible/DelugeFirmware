@@ -457,7 +457,7 @@ static DIR_HANDLES: Mutex<CriticalSectionRawMutex, DirHandleTable> =
 /// `DelugeFileOpenMode` mode selector matching `file_io.h`'s C enum's implicit
 /// declaration-order values: 0 = READ, 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW.
 /// See `efatfs_fs.rs::task_file_open` for the granular-error rationale (identical here).
-async fn task_file_open(path: &str, mode: u8) -> Result<u32, DelugeStatus> {
+pub(crate) async fn task_file_open(path: &str, mode: u8) -> Result<u32, DelugeStatus> {
     let ctx = with_fs(async |fs| match mode {
         0 => efatfs_core::open_context(fs, path).await,
         1 => efatfs_core::create_context(fs, path, false).await,
@@ -493,7 +493,10 @@ async fn task_file_read(handle: u32, dst: &mut [u8]) -> Result<(), DelugeStatus>
 /// port's `File::read` (`file.cpp`). Returns the TRUE byte count (may be less
 /// than `dst.len()` at EOF, never zero-padded), advancing the position by that
 /// count.
-async fn task_file_read_exact(handle: u32, dst: &mut [u8]) -> Result<usize, DelugeStatus> {
+pub(crate) async fn task_file_read_exact(
+    handle: u32,
+    dst: &mut [u8],
+) -> Result<usize, DelugeStatus> {
     let (generation, ctx, pos) = TASK_FILES
         .lock()
         .await
@@ -512,7 +515,7 @@ async fn task_file_read_exact(handle: u32, dst: &mut [u8]) -> Result<usize, Delu
 
 /// Write at the handle's current position, advancing it by the bytes actually
 /// written.
-async fn task_file_write(handle: u32, src: &[u8]) -> Result<usize, DelugeStatus> {
+pub(crate) async fn task_file_write(handle: u32, src: &[u8]) -> Result<usize, DelugeStatus> {
     let (generation, ctx, pos) = TASK_FILES
         .lock()
         .await
@@ -539,7 +542,7 @@ async fn task_file_seek(handle: u32, offset: u32) -> Result<(), DelugeStatus> {
 }
 
 /// File length in bytes. Leaves the handle's position untouched.
-async fn task_file_size(handle: u32) -> Result<u32, DelugeStatus> {
+pub(crate) async fn task_file_size(handle: u32) -> Result<u32, DelugeStatus> {
     let (generation, ctx, pos) = TASK_FILES
         .lock()
         .await
@@ -559,7 +562,7 @@ async fn task_file_size(handle: u32) -> Result<u32, DelugeStatus> {
 /// Truncate to `new_len` bytes. Leaves the handle's position untouched (matches
 /// POSIX `ftruncate`'s file-offset-unchanged convention -- a subsequent read at
 /// a now-past-EOF position simply returns 0 bytes).
-async fn task_file_truncate(handle: u32, new_len: u32) -> Result<(), DelugeStatus> {
+pub(crate) async fn task_file_truncate(handle: u32, new_len: u32) -> Result<(), DelugeStatus> {
     let Some((generation, ctx, pos)) = TASK_FILES.lock().await.checkout(handle) else {
         return Err(DELUGE_ERR_PARAM);
     };
@@ -578,7 +581,7 @@ async fn task_file_truncate(handle: u32, new_len: u32) -> Result<(), DelugeStatu
 }
 
 /// Close a task-context file handle, freeing its slot.
-async fn task_file_close(handle: u32) {
+pub(crate) async fn task_file_close(handle: u32) {
     TASK_FILES.lock().await.remove(handle);
 }
 
@@ -1027,6 +1030,18 @@ pub extern "C" fn deluge_efatfs_unlink(path: *const c_char) -> DelugeStatus {
     }
 }
 
+/// Rename or move a file or directory.
+///
+/// `pub(crate)` so `file_bytes.rs`'s driver can AWAIT it: the C ABI below reaches the same future
+/// through `sim_block::block_on`, which spins its caller, and the settings family's legacy-path
+/// migration reaches that from the interaction tier where waiting on the card is not allowed.
+pub(crate) async fn task_rename(old: &str, new: &str) -> Result<(), DelugeStatus> {
+    match with_fs(async |fs| efatfs_core::rename(fs, old, new).await).await {
+        Some(result) => result,
+        None => Err(DELUGE_ERR_NO_FILESYSTEM),
+    }
+}
+
 /// C-ABI: rename/move a file or directory.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_rename(
@@ -1044,12 +1059,9 @@ pub extern "C" fn deluge_efatfs_rename(
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    let fut = with_fs(async |fs| efatfs_core::rename(fs, old, new).await);
-    let result = crate::sim_block::block_on(fut);
-    match result {
-        Some(Ok(())) => DELUGE_OK,
-        Some(Err(st)) => st,
-        None => DELUGE_ERR_NO_FILESYSTEM,
+    match crate::sim_block::block_on(task_rename(old, new)) {
+        Ok(()) => DELUGE_OK,
+        Err(st) => st,
     }
 }
 

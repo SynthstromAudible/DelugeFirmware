@@ -47,4 +47,5 @@ pub extern "C" fn deluge_card_flush() {
     super::audio_loader::flush_tables();
     super::file_prefix::flush_tables();
     super::file_directory::flush_tables();
+    super::file_bytes::flush_tables();
 }

@@ -30,13 +30,15 @@
 /// Every line of XML parsing, policy and migration stays on the C++ side; only the source and the
 /// sink move.
 ///
-/// **Three independent slots, one per operation kind.** A read answer can never be mistaken for a
-/// write answer, and a settings read in flight does not block an unrelated settings write.
+/// **One operation at a time, and answers are keyed by kind as well as by path.** A read answer can
+/// never be mistaken for a write answer even when both name the same file. Single-flight rather than
+/// a queue because the filesystem beneath serialises everything anyway, and because it is what makes
+/// the refusal below observable: a caller that is told "no" knows its intent did not happen.
 ///
 /// **Reads coalesce; writes do NOT.** A second @ref deluge_file_bytes_request_read for a path already
 /// in flight is a no-op, because re-asking a question already asked costs nothing and the collect
-/// reports the one answer. A second @ref deluge_file_bytes_request_write while any write is in flight
-/// is REFUSED -- it returns false and nothing is queued or replaced. Two rapid toggles of a setting
+/// reports the one answer. A @ref deluge_file_bytes_request_write that arrives while the channel is
+/// busy is REFUSED -- it returns false and nothing is queued or replaced. Two rapid toggles of a setting
 /// are two distinct intents, and superseding the first would silently lose a settings change; a
 /// dropped directory listing is merely re-asked, but a dropped write is gone. The caller must retry a
 /// refused write, and this is the one place this channel deliberately differs from
@@ -82,15 +84,18 @@ extern "C" {
 
 /// @brief The largest file this channel will carry, in bytes.
 ///
-/// Deliberately equal to `FileWriter`'s in-memory buffer (`storage_manager.cpp:730`), because that
-/// buffer is what produces every byte the write path is ever handed: a serialiser that cannot emit
-/// more than this cannot ask this channel to carry more than this. The read side matches it so a file
-/// this channel wrote can always be read back.
+/// Set by measurement, in both directions. Real settings files on a real card measure 1.4-2.0 KiB
+/// (`CommunityFeatures.XML` 1453 B, `MIDIFollow.XML` 1957 B), so this is roughly 4x the largest one
+/// that exists. It is deliberately NOT `FileWriter`'s 32 KiB buffer, which is what bounds the
+/// serialiser: the Rust side stages one of these for a pending request and one for an uncollected
+/// answer, and at 32 KiB each the resulting 64 KiB of on-chip `.bss` pushes `.ARM.exidx` into
+/// `.rtt_cached_reserve` and the device image stops linking. 16 KiB was measured to still link, so
+/// there is headroom -- but raising this is a device-link question, not a free change.
 ///
-/// @note A file larger than this is not truncated. The read reports @ref DELUGE_FILE_BYTES_FAILED
-///       with `DELUGE_ERR_NO_MEMORY`, and a truncated settings file parsed as if whole would silently
-///       reset every setting past the cut.
-#define DELUGE_FILE_BYTES_MAX_BYTES 32768u
+/// @note A file larger than this is never truncated. The read reports @ref DELUGE_FILE_BYTES_FAILED
+///       with `DELUGE_ERR_NO_MEMORY` and the write is refused, because a truncated settings file
+///       parsed as if whole would silently reset every setting past the cut.
+#define DELUGE_FILE_BYTES_MAX_BYTES 8192u
 
 /// @brief Collect: requested, or being read/written right now.
 ///
@@ -155,17 +160,19 @@ uint8_t deluge_file_bytes_collect_read(const char* path, uint8_t* out_buf, uint3
 /// Creates `path`'s parent directory if it is absent, so a caller needs no `mkdir` of its own.
 ///
 /// @param path  NUL-terminated destination path. Copied out before this returns.
-/// @param bytes The bytes to write. **NOT copied.** The caller's buffer must stay valid and unchanged
-///              until the matching @ref deluge_file_bytes_collect_write returns a terminal status;
-///              a buffer with automatic storage duration will not do. Copying instead would need a
-///              second @ref DELUGE_FILE_BYTES_MAX_BYTES buffer on a device that has one already: the
-///              caller's serialiser output, which is exactly these bytes.
-/// @param len   Byte count, at most @ref DELUGE_FILE_BYTES_MAX_BYTES.
+/// @param bytes The bytes to write. **Copied out before this returns**, so the caller's buffer is
+///              free the instant this call ends and a serialiser may be destroyed immediately after.
+///              Borrowing instead would be cheaper by one buffer and would put a lifetime rule at
+///              every call site — and a caller doing something after the call returns is the exact
+///              shape of defect this ladder has produced repeatedly.
+/// @param len   Byte count, at most @ref DELUGE_FILE_BYTES_MAX_BYTES. A longer write is REFUSED
+///              rather than clipped, because a settings file cut short parses as one whose remaining
+///              settings were absent.
 /// @return true if the write was accepted and a collect will eventually report it. false if it was
-///         REFUSED -- another write is in flight, the path is NULL or over long, or `len` exceeds
-///         @ref DELUGE_FILE_BYTES_MAX_BYTES. **A refused write did not happen and nothing is
-///         queued**, so the caller must keep its intent and retry; unlike a read, a lost request here
-///         is a lost settings change rather than a question worth re-asking.
+///         REFUSED -- the channel is busy with another operation, the path is NULL or over long, or
+///         `len` exceeds @ref DELUGE_FILE_BYTES_MAX_BYTES. **A refused write did not happen and
+///         nothing is queued**, so the caller must keep its intent and retry; unlike a read, a lost
+///         request here is a lost settings change rather than a question worth re-asking.
 bool deluge_file_bytes_request_write(const char* path, const uint8_t* bytes, uint32_t len) DELUGE_NOEXCEPT;
 
 /// @brief Collect the outcome of the write to `path`, if it has finished.
@@ -184,8 +191,8 @@ uint8_t deluge_file_bytes_collect_write(const char* path, DelugeStatus* out_stat
 ///
 /// @param from NUL-terminated source path. Copied out before this returns.
 /// @param to   NUL-terminated destination path. Copied out before this returns.
-/// @return true if accepted. false if REFUSED -- another rename is in flight, or either path is NULL
-///         or over long. Refused like a write rather than dropped like a read: a migration that
+/// @return true if accepted. false if REFUSED -- the channel is busy with another operation, or
+///         either path is NULL or over long. Refused like a write rather than dropped like a read: a migration that
 ///         silently did not happen leaves the file where the next boot will migrate it again.
 bool deluge_file_bytes_request_rename(const char* from, const char* to) DELUGE_NOEXCEPT;
 

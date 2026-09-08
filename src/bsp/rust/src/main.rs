@@ -216,6 +216,17 @@ mod ffi_extra;
 /// The worker fiber: a stackful coroutine for the long synchronous C++ operations
 /// that pause via `yield()`. This module is the context-switch primitive.
 mod fiber;
+/// file_bytes.h — the whole-file byte channel: read, write or rename a small settings file on the
+/// storage tier and hand the BYTES to a caller that must not wait on the card. Gated identically to
+/// `file_directory` above, and to `card` — which reaches this module's `flush_tables` and so must
+/// never be compiled without it. The four settings consumers (runtime feature settings, the MIDI
+/// device table, MIDI follow's defaults, performance view) only enter this channel when
+/// `async_file_bytes_active` is on; both of the features are off by default.
+///
+/// Unlike `file_prefix` it borrows nothing from `audio_loader`: reading a whole file and writing one
+/// back are not `LoadOps`'s four operations, so it declares its own three-operation trait.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+mod file_bytes;
 /// file_directory.h — the single-slot directory channel: open a directory on the storage tier and
 /// hand the ready handle to a caller that must not wait on the card. Gated identically to
 /// `file_prefix` below, and to `card` — which reaches this module's `flush_tables` and so must
@@ -474,6 +485,10 @@ async fn stream_bootstrap() {
     // mutex across an SD await.
     #[cfg(all(feature = "async_file_directory_active", feature = "efatfs_streaming"))]
     spawner.spawn(file_directory::file_directory_task().unwrap());
+    // And again: every one of `task_file_open`/`_read_exact`/`_write`/`_truncate` and `task_rename`
+    // goes through `with_fs`, so this task holds the FS mutex across an SD await too.
+    #[cfg(all(feature = "async_file_bytes_active", feature = "efatfs_streaming"))]
+    spawner.spawn(file_bytes::file_bytes_task().unwrap());
 }
 
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in
@@ -1233,6 +1248,8 @@ fn main() {
                         spawner.spawn(file_prefix::file_prefix_task().unwrap());
                         #[cfg(feature = "async_file_directory_active")]
                         spawner.spawn(file_directory::file_directory_task().unwrap());
+                        #[cfg(feature = "async_file_bytes_active")]
+                        spawner.spawn(file_bytes::file_bytes_task().unwrap());
                         log::info!(
                             "deluge-bsp-rust: host streaming executor up on thread {:?}",
                             std::thread::current().name()
