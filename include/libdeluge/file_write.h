@@ -33,19 +33,21 @@
 /// none of the device-link pressure @ref file_bytes.h's `DELUGE_FILE_BYTES_MAX_BYTES` documents.
 ///
 /// **The caller owns the buffer until the collect is terminal.** `bytes` must stay alive and
-/// unmodified from @ref deluge_file_write_request until @ref deluge_file_write_collect returns
-/// @ref DELUGE_FILE_WRITE_READY or @ref DELUGE_FILE_WRITE_FAILED. `deluge::io::Stream::close()`
-/// enforces this by draining any in-flight request before it closes the handle; nothing else may
-/// free a buffer with a request outstanding.
+/// unmodified from the request until the matching collect returns @ref DELUGE_FILE_WRITE_READY or
+/// @ref DELUGE_FILE_WRITE_FAILED. Nothing below the caller enforces this: `deluge::io::Stream::close()`
+/// deliberately does NOT drain first (see the note at its definition -- every wait primitive it could
+/// use is unavailable in the contexts it runs in), so the obligation belongs to the caller's own
+/// state machine, which must reach a terminal collect before it frees or closes.
 ///
 /// **Single-flight, keyed by handle.** `SampleRecorder` writes one cluster per tick, so it has one
 /// write outstanding by construction. A second request for a handle that already has one is
 /// REFUSED (returns false) rather than queued or replaced: a dropped cluster write is lost audio,
 /// so the caller must see the refusal and retry.
 ///
-/// **Open, read, truncate and close are deliberately absent.** They stay synchronous on
-/// `deluge_efatfs_stream_*`, because every one of their callers is on the storage owner, where
-/// blocking is legal. Only the per-tick write needed to move.
+/// **Seven operations, six keyed by handle and one by path.** The write came first; open, read,
+/// truncate, close and stats followed once the recorder's finalize and create needed them off the
+/// owner too. @ref deluge_file_write_request_read_file is the odd one out: it is keyed by PATH
+/// because it does its own open/read/close, for a caller that wants a whole file and nothing else.
 ///
 /// **Fixed-width, never a native enum.** `arm-none-eabi` defaults to short enums, so a native enum
 /// layout must never be relied on across this boundary.
@@ -164,6 +166,29 @@ bool deluge_file_write_request_stats(void) DELUGE_NOEXCEPT;
 /// @brief Collect the free-cluster count.
 /// @param out_free_clusters Written ONLY on @ref DELUGE_FILE_WRITE_READY.
 uint8_t deluge_file_write_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEXCEPT;
+
+/// @brief Read the whole of `path` into the caller's buffer.
+///
+/// PATH-keyed, unlike the handle operations above, because it does its own open/read/close
+/// internally -- one request instead of four, for a caller that wants a whole file and nothing else.
+///
+/// @param path NUL-terminated path.
+/// @param dst  Caller-owned destination. Must stay alive and unmodified until the collect is
+///             terminal. NOT copied: the pointer crosses the boundary, the bytes do not.
+/// @param cap  Capacity of `dst`. A file larger than this is REFUSED, never truncated -- a truncated
+///             document handed to a parser is worse than a failure.
+/// @return false when the request was refused; the caller must retry.
+bool deluge_file_write_request_read_file(const char* path, uint8_t* dst, uint32_t cap) DELUGE_NOEXCEPT;
+
+/// @brief Collect the whole-file read.
+///
+/// @param path       The path passed to @ref deluge_file_write_request_read_file.
+/// @param out_len    Written ONLY on @ref DELUGE_FILE_WRITE_READY: the file's size, now in `dst`.
+/// @param out_needed Written on @ref DELUGE_FILE_WRITE_FAILED when the file did not FIT: the size
+///                   required. ZERO on a genuine I/O failure, which is how the caller tells a
+///                   too-small buffer from a broken card. Sizing with a stat first does not make
+///                   this redundant -- it is what catches the file changing in between.
+uint8_t deluge_file_write_collect_read_file(const char* path, uint32_t* out_len, uint32_t* out_needed) DELUGE_NOEXCEPT;
 
 /// @brief Whether the Rust driver is running and this channel may be used at all.
 ///

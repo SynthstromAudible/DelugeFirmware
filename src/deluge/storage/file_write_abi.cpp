@@ -62,7 +62,7 @@ __attribute__((weak)) uint8_t deluge_file_write_collect_write_at(uint32_t, uint3
 	return DELUGE_FILE_WRITE_UNKNOWN;
 }
 
-// The other five operations, same two rules throughout: a request is REFUSED so the caller takes its
+// The other six operations, same two rules throughout: a request is REFUSED so the caller takes its
 // synchronous arm, and a collect answers UNKNOWN -- "nothing is in flight, ask again if you want
 // one" -- never PENDING, which would tell a caller to keep waiting for an answer that can never come.
 
@@ -103,6 +103,14 @@ __attribute__((weak)) bool deluge_file_write_request_stats(void) noexcept {
 }
 
 __attribute__((weak)) uint8_t deluge_file_write_collect_stats(uint32_t*) noexcept {
+	return DELUGE_FILE_WRITE_UNKNOWN;
+}
+
+__attribute__((weak)) bool deluge_file_write_request_read_file(const char*, uint8_t*, uint32_t) noexcept {
+	return false;
+}
+
+__attribute__((weak)) uint8_t deluge_file_write_collect_read_file(const char*, uint32_t*, uint32_t*) noexcept {
 	return DELUGE_FILE_WRITE_UNKNOWN;
 }
 
