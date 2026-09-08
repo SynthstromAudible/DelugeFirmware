@@ -24,8 +24,9 @@ NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,syn
 
 # The `scenes-no-root-ui` row's alternatives, named rather than inlined so `--audit-symbols` can
 # check that each one is a symbol this tree actually has. Every entry below was taken from an
-# `extern <T> <name>;` declaration in `src/deluge/gui/views/*.h` or `src/deluge/gui/ui/**/*.h`
-# whose type is a `UI` subclass -- i.e. from the declarations, not from memory.
+# `extern <T> <name>;` declaration in `src/deluge/gui/views/*.h`, `src/deluge/gui/ui/**/*.h` or
+# `src/deluge/gui/context_menu/*.h` whose type is a `UI` subclass -- i.e. from the declarations,
+# not from memory. (The third directory is F2 task 9's; see the two entries at the end.)
 #
 # `view` (`View view`, `gui/views/view.h`) is deliberately NOT here: as a whole-word pattern it
 # would match the English word in prose and any local named `view`, and its false-positive rate
@@ -66,6 +67,57 @@ ROOT_UI_GLOBALS = (
     "saveKitRowUI",
     "loadMidiDeviceDefinitionUI",
     "saveMidiDeviceDefinitionUI",
+    # The two `gui/context_menu/` singletons `dispatchShellActions`' fourth and fifth arms open
+    # (F2 tasks 2 and 4). Added by F2 task 9, and the argument is the one this row was built on:
+    # `MenuAction::OpenSongMidiLearn` and `OpenSongMacros` exist BECAUSE the scenes layer may not
+    # name these two, and until now nothing checked that it did not. Probed rather than assumed --
+    # a `namespace probe { extern int midiLearnMode, configureSongMacros; }` plus a use, dropped
+    # into `menu/nodes/roots.cpp`, left `check_layer_rules.py` reporting **zero** regressions
+    # before this entry and reports both after it.
+    #
+    # They are `UI` subclasses like every other name here (`ContextMenu : public UI`,
+    # `gui/context_menu/context_menu.h:27`), just from a third directory -- which is why the
+    # comment above now names three rather than two. `--audit-symbols`' root for this row is
+    # `src/deluge/gui`, so both are already inside what it reads.
+    #
+    # Measured on the tree at the time of writing: zero non-comment hits in `src/scenes/**`,
+    # `src/shell/**` or `src/ui/**`, so the baseline does not move. The four hits under
+    # `src/scenes` (`menu/action.h:18`, `:19`, `:133`, `:136`, `context_menu/context_menu_scene.h`)
+    # are all whole-line `///` comments, which `is_comment_line` skips -- they are the seam's own
+    # description of what the dispatcher does, and the row is what keeps them descriptions.
+    "midiLearnMode",
+    "configureSongMacros",
+)
+# The `StemExport` PROCESS entry points -- the `scenes-no-stem-export-process` row's alternatives,
+# named here for the same reason `CATALOGUE_DISPATCH_CALLS` is: `--audit-symbols` checks each is a
+# method this tree really declares (`processing/stem_export/stem_export.h:36`, `:39`, `:40`, `:41`).
+#
+# Why this needs a row of its own, and why it is the only arm of `dispatchShellActions` that does.
+# Every other verb's legacy target is already unreachable from `src/scenes`: `performanceView`,
+# `audioClipView`, `soundEditor`, `midiLearnMode` and `configureSongMacros` are `ROOT_UI_GLOBALS`
+# above, and `Screensaver::settingsChanged` lives in `hid/display/screensaver.h`, which
+# `scenes-includes-gui` and `scenes-includes-outside` BOTH refuse (probed: adding that include to
+# `menu/nodes/settings.cpp` raises two regressions). `stemExport` is the exception --
+# `processing/**` is on `scenes-includes-outside`' allow-list on purpose, and the scenes layer
+# *does* legitimately reach `stemExport`'s members: the seven `ToggleBool`s at
+# `menu/nodes/roots.cpp:354-360` read and write `allowNormalization`, `exportMixdown` and five more
+# through one macro (`:348`, `:351`), exactly as `menus.cpp:2020-2036` does. So
+# `MenuAction::StartStemExport` is the one
+# verb whose target the scenes layer could reach through an allowed include, and nothing saw it.
+#
+# The split is `CATALOGUE_DISPATCH_CALLS`' split, for the same reason: the *settings* stay readable
+# and writable, the calls that START, RUN, STOP or ABORT the export are the wiring layer's. A row on
+# the bare name `stemExport` would have had a baseline of two and would have banned the toggles.
+#
+# The five remaining public methods (`startOutputRecordingUntilLoopEndAndSilence`, `stopPlayback`,
+# `stopOutputRecording`, `renderWait`, `checkForLoopEnd`) are deliberately NOT here: `stopPlayback`
+# in particular is a name `PlaybackHandler` also has, and this row is a whole-word symbol match with
+# no receiver in it. Four names that end in `StemExportProcess` cannot collide with anything.
+STEM_EXPORT_PROCESS_CALLS = (
+    "startStemExportProcess",
+    "runStemExportProcess",
+    "stopStemExportProcess",
+    "abortStemExportProcess",
 )
 # The `scenes-no-legacy-waveform` row's alternatives, named here for the same reason
 # `ROOT_UI_GLOBALS` is: `--audit-symbols` checks each one is a global this tree really declares.
@@ -600,6 +652,29 @@ RULES = [
         "2026-08-26-ui-notifications-design.md",
     ),
     (
+        # F2's own boundary, and the ONE arm of `dispatchShellActions` no existing row could see.
+        # See `STEM_EXPORT_PROCESS_CALLS` above for why: `processing/**` is on
+        # `scenes-includes-outside`' allow-list, so unlike every other verb's target this one is
+        # reachable from `src/scenes` through an include the rules already permit -- and the layer
+        # really does use it, for the seven stem-export toggles at `menu/nodes/roots.cpp:354-360`.
+        #
+        # `src/scenes/**` only, and one glob per row as ever. `src/shell/**` is not in scope
+        # because `shell-includes-outside` refuses `processing/` outright and the shell has no
+        # `StemExport` declaration to name; `src/ui/**` likewise.
+        #
+        # Same ratchet-not-proof caveat as every symbol row here: it sees these four spellings, a
+        # call through a member function pointer slips past, and `is_comment_line` skips only
+        # whole-line comments. What it catches is a scene deciding to do the export itself instead
+        # of filing `MenuAction::StartStemExport` -- which is the habit the seam exists to prevent.
+        #
+        # Measured on the tree at the time of writing: zero hits, so the baseline does not move.
+        "scenes-no-stem-export-process",
+        "src/scenes/**",
+        "symbol",
+        r"\b(" + "|".join(STEM_EXPORT_PROCESS_CALLS) + r")\b",
+        "2026-08-26-ui-migration-design.md",
+    ),
+    (
         # E3's async listing seam, stated as a rule. `storage::FileCatalogue` holds ONE shared
         # `fileItems` vector and ONE single-flight claim, and the claim is what stops a scenes
         # listing and a legacy `Browser` listing from interleaving over it (task 2 fix round 2 moved
@@ -916,6 +991,11 @@ AUDITED_SYMBOLS = (
     ("scenes-no-root-ui", (*ROOT_UI_GLOBALS, *UI_STACK_CALLS), "src/deluge/gui"),
     ("scenes-no-legacy-waveform", LEGACY_WAVEFORM_GLOBALS, "src/deluge/gui/waveform"),
     ("scenes-listing-through-the-seam", CATALOGUE_DISPATCH_CALLS, "src/deluge/storage"),
+    (
+        "scenes-no-stem-export-process",
+        STEM_EXPORT_PROCESS_CALLS,
+        "src/deluge/processing",
+    ),
     # `src/deluge` rather than a narrower root, and deliberately: the five span three legacy
     # directories -- `indicator_leds`/`PadLEDs` are `hid/led/`, `uiTimerManager` is
     # `gui/ui_timer_manager.h` but is used throughout `hid/display/`, and `uiNeedsRendering`/
