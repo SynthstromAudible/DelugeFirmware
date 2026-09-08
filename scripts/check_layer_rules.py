@@ -183,7 +183,7 @@ UI_STACK_CALLS = (
 #   and it is `sound_editor.cpp`'s exactly: a piece of legacy state the ported menu has to display
 #   but may not read, mirrored by its writers. `PerformEditorItem` shows
 #   `performanceView.defaultEditingMode`/`editingParam` (`gui/menu_item/performance_session_view/
-#   editing_mode.h:34-45`), which are members of a class `scenes-includes-gui` forbids -- and unlike
+#   editing_mode.h:35-46`), which are members of a class `scenes-includes-gui` forbids -- and unlike
 #   `shortcutsVersion` there is no bare-`extern` escape from a class member, which is what makes the
 #   mirror the only shape available rather than the convenient one. Four call sites in one file,
 #   each writing nothing but the mirror; `scenes/menu/action.h` is the contract they answer to.
@@ -192,11 +192,18 @@ UI_STACK_CALLS = (
 #   `PerformanceView`. It is here because the mirror has to survive the toggle being flipped ON:
 #   `EditingMode::selectButtonPress` is legacy's own way into an editing mode, it runs with the
 #   toggle OFF, and it writes both bools. Without this call the mirror rots while the port is off
-#   and `PerformEditorItem` seeds its cursor from the rot at the next flip-on. A HEADER rather than
-#   a `.cpp`, which is the one thing that makes this entry different from every other on this list
-#   -- acceptable only because exactly two translation units include it (`gui/ui/menus.cpp` and
-#   `sim/scenes_spec/menu_actions_spec.cpp`), so it is not a port include smuggled into the tree at
-#   large. If it ever gains a `.cpp`, the call belongs there and this entry should move with it.
+#   and `PerformEditorItem` seeds its cursor from the rot at the next flip-on.
+#
+#   A HEADER rather than a `.cpp`. **Not the first on this list** -- `shell_host_ui.h` and
+#   `shell_guest_surfaces.h` are both headers and both predate it, and `shell_host_ui.h` reaches
+#   eighteen files under `src`/`sim`/`tests`, far wider than this. (An earlier version of this
+#   comment claimed "the first header", which was asserted rather than grepped -- exactly the shape
+#   of mistake F2 task 5 exists to correct. The recipe is one line:
+#   `grep -c '\.h",' <this list>`.) What is worth stating is the narrow fact rather than a
+#   superlative: exactly two translation units include this header (`gui/ui/menus.cpp:154` and
+#   `sim/scenes_spec/menu_actions_spec.cpp:61`, with no transitive includers), so the port include
+#   it carries is not being smuggled into the tree at large. If it ever gains a `.cpp`, the call
+#   belongs there and this entry should move with it.
 LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
     "src/deluge/gui/ui/shell_host_ui.h",
