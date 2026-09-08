@@ -15,6 +15,16 @@
 #   RW-OFFOWNER   that the drain ran OFF the storage owner. This is the gate's real subject. Without
 #                 it RW-CHANNEL can be non-zero while every write was still served on the owner, and
 #                 the conversion would have renamed a mechanism rather than moved it.
+#   RW-OFFOWNER-CREATE  that CREATING the recording's file ran off the storage owner. It was the last
+#                 tick this recorder dispatched away, so zero here means it is blocking there again.
+#
+#   NOT covered: the stem-export folder search. Its machine is exercised only by the offline golden
+#                render, which runs ON the owner, so only its SYNCHRONOUS arm is verified. An
+#                off-owner case was attempted and abandoned: routing a harness recording down the
+#                stem path needs more engine state than `processStarted` +
+#                `currentStemExportType` + `lastFolderNameForStemExport`, and a case that silently
+#                records to RESAMPLE while calling itself a stem case is worse than none.
+#
 #   RW-OFFOWNER-FINALIZE  that FINISHING a recording ran off the storage owner. This is the subject
 #                 of the change: a served count says operations went through the channel, not where
 #                 the caller stood. Restoring the dispatch drops this to zero and nothing else moves.
@@ -156,6 +166,15 @@ elif ! grep -q '^OO-LEAK .*ok=1' "$OUT/on.txt"; then
 	fail=1
 fi
 
+# RW-OFFOWNER-CREATE: the third counter. Creating the file was the LAST thing this recorder
+# dispatched to the owner, so this reading zero means the recorder is back to blocking there.
+oo_create=$(grep '^OO-RESULT ' "$OUT/on.txt" | sed -n 's/.*offOwnerCreateTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
+[ -n "$oo_create" ] || oo_create=0
+if [ "$oo_create" -eq 0 ]; then
+	echo "FAIL RW-OFFOWNER-CREATE — the create tick never ran off the owner; nothing relocated"
+	fail=1
+fi
+
 oo_served=$(grep '^OO-RESULT ' "$OUT/on.txt" | sed -n 's/^OO-RESULT ok=[0-9]* served=\([0-9]*\).*/\1/p' | sort -n | tail -1)
 [ -n "$oo_served" ] || oo_served=0
 
@@ -208,4 +227,4 @@ if [ "$fail" -ne 0 ]; then
 	echo "recorder write: FAILED"
 	exit 1
 fi
-echo "recorder write: OK (served=$served->${oo_served:-?} offOwnerTicks=$offowner offOwnerFinalizeTicks=$oo_fin)"
+echo "recorder write: OK (served=$served->${oo_served:-?} offOwner drain=$offowner finalize=$oo_fin create=$oo_create)"
