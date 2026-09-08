@@ -402,6 +402,25 @@ each hook:
 | `Shell::next_wake()` | the timer re-arm, and the reason the note below matters |
 | `Shell::state_lines()` | the level-3 harness's `.state` snapshot, unchanged |
 
+**Plan F2 added a second thing the host does every tick, and it is deliberately *not* a `Shell`
+surface.** `gui::ui::dispatchShellActions` (`src/deluge/gui/ui/shell_action_dispatch.{h,cpp}`) drains
+`deluge::scenes::menu::MenuScene::take_action()` — a **scene-owned** one-slot outbox — and performs
+the seven pieces of legacy behaviour a ported menu item may ask for. Nothing was added to `Shell`,
+`Router`, `Scene` or `Action` to carry it, and that was the decision rather than an omission: the
+shell's vocabulary is scenes, and what these requests name (`openUI(&performanceView)`,
+`stemExport.startStemExportProcess(...)`, `soundEditor.setShortcutsVersion(...)`) is not a scene, so
+an `Action::Kind` for it would have put legacy root-UI concepts into the shell's own enum. The seam
+is `src/scenes`' and the consumer is the application's; `src/shell` is untouched by it.
+
+What a shell contributor needs from that anyway is the **ordering constraint it puts on the host**,
+because it is not expressible in the shell's own contracts. The poll sits *after* `Shell::tick` —
+the request is filed by `MenuScene::after_render`, which the tick runs as its step 7, so polling
+first is always one tick late — and *above* the close check that returns early without re-arming the
+timer, or a request filed on the tick the guest closes would be stranded until something reopened
+it. Neither position is enforced by anything: `after_render` returns no `Action` announcing that a
+request is waiting, and the slot overwrites silently. `tests/spec/gui/shell_action_dispatch_spec.cpp`
+is what pins it, from this side of the seam.
+
 **`next_wake()`'s "the shell only ticks when its host asks it to" now has a host that asks at up to
 1 kHz.** A scene returning `0u` from `next_timer()` -- which the contract reads as "next tick", and
 which `AudioClipScene` returns while the playhead is live -- compounds twice through that 1 ms floor:

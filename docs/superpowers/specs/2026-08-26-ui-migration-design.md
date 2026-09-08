@@ -548,13 +548,35 @@ rather than a thing that is half-done:
    `prepareColour` are never reached. Proved by probe rather than by inspection: disabling (a)
    alone brought the sidebar back **ungreyed** (`pad 16 0 0 255 6`, boot's colour, not the OFF
    leg's `3 160 7`).
-3. **No `MenuAction` dispatcher.** Five ported items request root-UI behaviour
-   (`openUI(&performanceView)`, `setClipLengthEqualToSampleLength()`, the MIDI-learn overlay, the two
-   song verbs) through `MenuScene::take_action()`, which nothing consumes. That mailbox is a one-slot
-   silent overwrite, so the dispatcher must poll every tick.
+3. ~~**No `MenuAction` dispatcher.**~~ **CLOSED by plan F2.** Five ported items requested root-UI
+   behaviour (`openUI(&performanceView)`, `setClipLengthEqualToSampleLength()`, the MIDI-learn
+   overlay, the two song verbs) through `MenuScene::take_action()`, which nothing consumed; the
+   mailbox is a one-slot silent overwrite, so the dispatcher had to poll every tick.
+   `gui::ui::dispatchShellActions` (`src/deluge/gui/ui/shell_action_dispatch.{h,cpp}`, F2 task 1)
+   does, drained from `ShellHostUI::timerCallback` after `Shell::tick` and above the close check
+   that returns early — neither position is enforced by anything, so both are argued at the
+   function and pinned by `tests/spec/gui/shell_action_dispatch_spec.cpp`.
+
+   **Seven arms, not five, and the extra two are a different shape.** Tasks 2, 3 and 4 gave the
+   five root-UI verbs bodies. Tasks 6 and 7 then added `SetShortcutsVersion` and
+   `ScreensaverSettingsChanged` — *settings writes*, filed by a `Binding::set` hook that is handed
+   no `MenuState`, through `MenuScene::request_action` (task 6). They are here rather than under
+   item 5 by mechanism as well as by convenience: closing 5.1 and 5.2 needed exactly this
+   dispatcher, which item 5's own "what each one needs" paragraph already said. The `switch` has no
+   `default:`, so `-Werror=switch` is what breaks on a new enumerator; that guard forced two
+   decisions during F2 rather than merely recording them.
+
+   **What "closed" does and does not claim.** All seven arms perform their legacy statement, and
+   `sim/scenes_spec/menu_actions_spec.cpp`'s 52 examples pin all seven at fixture level. **One** is
+   demonstrated end to end in the real firmware. The other six are blocked from level-3 evidence by
+   a legacy defect and not by an omission — §10.9 is the number and the reason.
 4. **No `take_choice()` dispatcher.** `BrowserScene`'s deferring descriptor parks a chosen file and
    closes; performing `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting
-   is the wiring layer's.
+   is the wiring layer's. **Still open after F2, by an explicit scope decision.** F2 built item 3's
+   dispatcher and Kate scoped this one out of it; it is F3's. The two are not one job: a
+   `MenuAction` names a legacy statement and carries at most a `uint16_t`, whereas a `BrowserChoice`
+   carries a path whose claim re-roots the *navigation record* — `MenuState::path`/`depth`, which
+   only `MenuScene` may write.
 5. ~~**Three boot calls.**~~ **Closed by F1 task 8**, and two of the three turned out not to be boot
    calls at all — the account is `src/scenes/registry.h`'s boot-wiring record.
    `menu::set_shortcuts_version()` is flash byte 60, whose value **does** live in a global the
@@ -569,9 +591,13 @@ rather than a thing that is half-done:
    which **now has a port**, `shell::Screensaver::set_idle_ms` plus
    `Shell::set_screensaver_idle_ms`.
 
-   **What remains open — three things, and they are NOT all the same shape.** An earlier version of
-   this paragraph said "the legacy→port direction is closed for all three; the port→legacy direction
-   is closed for none". That is true of 5.1 and 5.2 and **false of 5.3**, which is the item the
+   **What remained open — three things, and they are NOT all the same shape. F2 closed the two that
+   were, and 5.3 is the one that was not.** 5.1 and 5.2 are struck below; 5.3 stands, and the
+   paragraphs that follow are kept in their original tense because the *distinction* they draw is
+   the thing that must survive: it was flattened once, by a tidy generalisation, and had to be
+   unwound. An earlier version of this paragraph said "the legacy→port direction is closed for all
+   three; the port→legacy direction is closed for none". That is true of 5.1 and 5.2 and **false of
+   5.3**, which is the item the
    generalisation was tidiest about: `Screensaver::settingsChanged()` and
    `SoundEditor::setShortcutsVersion` really do push into the port, so 5.1 and 5.2 are one-way gaps
    needing only the reverse writer — but **`AudioClipScene::set_flash_cursor()` is called by no application
@@ -582,9 +608,28 @@ rather than a thing that is half-done:
    either direction"), and the spec is the one place that made the third fit the first two. Each
    item states its own condition below.
 
-   1. **The ported screensaver setters** (`scenes/menu/nodes/settings.cpp`) write the same globals
+   1. ~~**The ported screensaver setters** (`scenes/menu/nodes/settings.cpp`) write the same globals
       and cannot call `hid/`, so a change made from the ported screensaver menu notifies neither
-      screensaver until reboot.
+      screensaver until reboot.~~ — **CLOSED, F2 task 7**, and by exactly the route the "what each
+      one needs" paragraph below predicted: item 3's dispatcher, not a `hid/` call from the scenes
+      layer, which stays forbidden. Both `set_screensaver_mode` and `set_screensaver_timeout` file
+      `MenuAction::ScreensaverSettingsChanged` (`scenes/menu/nodes/settings.cpp:592`) beside their
+      own `FlashStorage` write, and `dispatchShellActions` performs
+      `hid::display::Screensaver::settingsChanged()`.
+
+      **One enumerator for two setters, and that is a mechanism rather than a shortcut**:
+      `settingsChanged()` is a zero-parameter static that re-reads both globals for itself
+      (`hid/display/screensaver.cpp:200-241`), so the mode setter and the timeout setter are asking
+      for the identical thing and a second enumerator would have nothing to distinguish.
+
+      **What was lost was never the value.** Unlike 5.2 below, both setters always wrote
+      `FlashStorage::screensaverMode` / `screensaverTimeoutMinutes` themselves, matching the *first*
+      statement of each legacy `writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:39`,
+      `:61`); the setting persisted across a reboot the whole time. What was missing was the second
+      statement — the immediate apply — so both screensavers stayed armed at the old mode and
+      timing until the next reboot or the next change made from the legacy menu. Pinned by
+      `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_screensaver` group, five examples over
+      both setters and both branches.
    2. ~~**The ported shortcut-layout setter never reaches flash byte 60.**~~ — **CLOSED, F2 task 6.**
       The gap was real: `gui/ui/sound_editor.cpp:124-137` listed four writers of the *setting* and
       named the fourth, `nodes::set_shortcuts_version`, as one that did **not** reach
@@ -613,15 +658,37 @@ rather than a thing that is half-done:
       `src/deluge/deluge.cpp`'s boot-wiring comment and in `src/scenes/README.md`'s boot-wiring
       section.
 
-   **What each one needs, stated separately because they differ.** 5.1 and 5.2 are **one-way**: the
-   port already learns of a legacy change and cannot report its own, so each needs only the reverse
-   writer — which for both means the `MenuAction` dispatcher of **item 3**, since a ported node
-   cannot name `hid/` or `SoundEditor` directly. 5.3 is **two-way and needs no dispatcher**: a
-   reader at boot (byte 36 into `AudioClipScene::set_flash_cursor`, beside legacy's own writer, on
-   the shape `SoundEditor::setShortcutsVersion` demonstrates) and, once a ported item can change it,
-   a writer back. Today only the reader is owed, because no ported node edits it yet.
-6. **`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
-   `PerformanceView` class member offers no bare-`extern` escape.
+   **What each one needed, stated separately because they differ — and the split is exactly what
+   decided which two closed.** 5.1 and 5.2 were **one-way**: the port already learned of a legacy
+   change and could not report its own, so each needed only the reverse writer — which for both
+   meant the `MenuAction` dispatcher of **item 3**, since a ported node cannot name `hid/` or
+   `SoundEditor` directly. **Item 3 arrived in F2, so both closed in F2**, one task each.
+
+   **5.3 is the one that remains, and it is still not the same shape.** It is **two-way and needs
+   no dispatcher**: a reader at boot (byte 36 into `AudioClipScene::set_flash_cursor`, beside
+   legacy's own writer, on the shape `SoundEditor::setShortcutsVersion` demonstrates) and, once a
+   ported item can change it, a writer back. Today only the reader is owed, because no ported node
+   edits it yet — so having built the dispatcher, F2 could not have closed 5.3 with it, and the
+   fact that item 3 landed changes nothing about this one. Re-check that before treating "item 3 is
+   closed" as closing item 5: the two halves of item 5 that needed a dispatcher had one, and this
+   half never did.
+6. ~~**`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
+   `PerformanceView` class member offers no bare-`extern` escape.~~ — **CLOSED, F2 task 5, and the
+   contract was wrong in two ways this item repeated.** There are **four** sites in
+   `PerformanceView` that move the two mirrored bools, and each now calls `syncEditingModeMirror`
+   (`gui/views/performance_view.cpp:844`, `:928`, `:942`, `:1411`) — not the five
+   `scenes/menu/action.h` used to list; the fifth it named, `focusRegained`, writes neither bool,
+   and the header carries the corrected census.
+
+   **And four in the view is not the whole writer set.** Review round 1 added a **fifth writer
+   outside `PerformanceView` entirely**: legacy's own `EditingMode::selectButtonPress`
+   (`gui/menu_item/performance_session_view/editing_mode.h:84`), which runs with the toggle **OFF**
+   and would otherwise leave the mirror rotting for the first ported menu opened after a flip-on.
+   That call is why `gui/menu_item/performance_session_view/editing_mode.h` is now an entry in
+   `check_layer_rules.py`'s `LEGACY_PORT_SEAMS`. With all five, and the set closed by grep, the
+   ported item and the view cannot disagree in either toggle state. Pinned by
+   `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_perform_mirror` group, which drives all
+   five from real legacy gestures.
 7. **No application installs a service** — added by E4 task 13, the first thing in the tree that
    ever tried to hold all three services and a `Shell` at once. `services::ModKnobs`,
    `services::GlobalControls` and `services::MidiLearn` each take the `Shell`'s own `SceneStack&`
@@ -708,9 +775,22 @@ rather than a thing that is half-done:
      2. **item 3 of this list**, the missing `MenuAction` dispatcher: the third entry's ported form
         is `MenuScene::take_action`'s `song_midi_learn` (`scenes/menu/action.h:18`), whose legacy
         body is `midiLearnMode.setupAndCheckAvailability()` — i.e. the context-menu route above.
-        Nothing polls that mailbox.
+        ~~Nothing polls that mailbox.~~ **Something does, as of F2 task 1, and it did NOT make these
+        transports live** — which is worth stating precisely, because this sub-item read as though
+        it would. `dispatchShellActions`' `OpenSongMidiLearn` arm performs both of legacy's
+        statements, so the ported item now reaches `View::startMIDILearn` and can set
+        `currentUIMode = UI_MODE_MIDI_LEARN`. But the second statement is `openUI(&midiLearnMode)`,
+        so the current UI is then the **legacy context menu**, not `ShellHostUI` — and legacy's
+        note-on dispatch goes to `getCurrentUI()`. The port's own `learn_note_on` / `learn_cc` are
+        no more reachable than before; what changed is that the gesture reaching legacy's learn mode
+        now has a ported entry point. **Only sub-item 1 makes the port's transports live**, and it
+        is unchanged. (F2 task 2 also recorded a legacy defect on this path: when
+        `setupAndCheckAvailability` answers false the menu opens anyway and can learn nothing,
+        because legacy discards the bool. Reproduced, not fixed —
+        `gui/ui/shell_action_dispatch.h`'s `@warning`.)
 
-     Until one of the two lands, both transports are correct and carry nothing.
+     So one of the two has landed and **both transports are still correct and still carry nothing**.
+     Sub-item 1 is the remaining condition, on its own.
 
    Task 10 also closed the **guest half** this item did not mention: `ShellHostUI` now overrides
    `pcReceivedForMidiLearn` and `noteOnReceivedForMidiLearn` and forwards to
@@ -1378,3 +1458,74 @@ tested" — the level-1 and level-2 suites grew from 43 to 50 sim specs and 98 t
 these twelve tasks — but that **the acceptance oracle for a wiring plan is narrow and deep where a
 porting plan's is wide and shallow**, and the next plan should add scripts (a second entry point, a
 second root, a MIDI path once one is live) rather than assume this one generalises.
+
+### 10.9 What the oracle covers for F2's subject, and why one is the honest number (2026-09-08, closing F2)
+
+The same question §10.6, §10.7 and §10.8 ask, for what plan F2 built: **the action seam's consumer**
+— `gui::ui::dispatchShellActions`, its seven arms, and the five `PerformanceView` sync calls that
+keep the port-side mirror honest. §10.8 is the model to read this against, including its closing
+line: an honest small number beats an inflated one.
+
+**F2's oracle is two levels, and only one of them reaches the application.** Level 1/2 is
+`sim/scenes_spec/menu_actions_spec.cpp`, which grew from **14 examples to 52** over this plan and
+covers all seven arms — the emit half (the right item files the right identity and payload, driven
+through the real input path) and, in its `dispatchShellActions` groups, the act half (the legacy
+effect happens). Level 3 is `tests/ui-scripts/app/menu.txt`, extended from 5 snapshots to 12, and it
+reaches **one arm of the seven**.
+
+**The number: 7 arms, 52 fixture examples, 1 arm driven end to end.**
+
+| what | count |
+|---|---|
+| `MenuAction` enumerators, all with an arm and no `default:` | 7 |
+| arms with a fixture-level oracle (`menu_actions_spec.cpp`) | 7 — 52 examples, up from 14 at F2's base |
+| arms with a host-side spec for the **poll** rather than the act (`tests/spec/gui/shell_action_dispatch_spec.cpp`) | the poll itself, 4 examples: it happens on an idle tick, after `Shell::tick`, on the closing tick, and from nowhere else |
+| **arms driven end to end in the real firmware, both toggle legs** | **1 of 7** — `SetClipLengthToSampleLength` |
+| level-3 scripts | 1 (`tests/ui-scripts/app/menu.txt`), 34 steps |
+| snapshots per leg | 12 (5 at F2's base) |
+| committed goldens | 48 — 12 `.pbm` + 12 `.state`, twice |
+| OLED panels compared leg-to-leg | 12, **all 12 byte-identical** |
+| `.state` files compared leg-to-leg | 12, of which 4 identical and **8 differ** — every one explained by a pre-existing finding (F1 task 11's antiphase BACK blink, and the sidebar divergence of §10.2 item 2) |
+| ctest rows | 7 — `ui_app_scripts_{boot,boot_diff,menu,menu_diff,menu_shell,menu_shell_diff,menu_ab}` |
+| `PerformanceView` sync sites, driven from real legacy gestures | 5 of 5 (`menu_action_perform_mirror`) |
+
+**Why six of seven have no level-3 coverage, and why that is a finding rather than a gap in the
+work.** Every script must run *both* legs — the toggle-on leg and the toggle-off leg — and be
+compared. Six of the seven verbs live under `Root::Settings`, `Root::Song` and `Root::Performance`,
+and every legacy gesture that opens one of those roots passes a null `Clip*` into
+`SoundEditor::setup`, which dereferences it at `sound_editor.cpp:1893`. **The toggle-off leg
+SIGSEGVs before any comparison happens.** So the missing six are blocked by §10.5's eleventh defect,
+in shipping legacy code, and not by an unwritten script: F2 task 8 measured this rather than
+inferring it, with gdb backtraces at two of the four null-clip sites. The seventh verb's root
+(`Root::AudioClip`, site 5) passes a real clip, which is why it is the one that can be driven.
+
+**Both directions of that were measured as mutations, which is what makes the number honest rather
+than merely small:**
+
+* Making the `SetClipLengthToSampleLength` arm inert reddens **two** ctest rows —
+  `ui_app_scripts_menu_shell_diff` (the ON leg's own golden) and `ui_app_scripts_menu_ab` (the
+  cross-leg check). The verb is genuinely covered.
+* Making the `SetShortcutsVersion` arm inert leaves `ctest -R ui_app_scripts` at **7/7**. That is
+  the coverage claim stated as its own counter-example, and it holds for five more arms besides.
+
+**What one script cannot cover here, over and above §10.8's list.**
+
+* **`take_choice()`** is not covered at any level, because F2 did not build it (§10.2 item 4, F3's).
+* **The two settings verbs' persistence.** `SetShortcutsVersion` reaches flash byte 60 through
+  `SoundEditor::setShortcutsVersion`; nothing in any suite reboots and reads it back. The oracle is
+  that the legacy writer is called, not that the byte survives a power cycle.
+* **`ScreensaverSettingsChanged`'s user-visible effect** is a screensaver arming at a new timeout.
+  The specs assert `Screensaver::settingsChanged()` runs; no suite waits out an idle timeout.
+* **The mailbox's overwrite semantics under real load.** `take_action()` drops the first of two
+  requests filed between two polls. `menu_actions_spec.cpp` covers the contract; nothing exercises
+  it under a real tick rate, because no ported item can file twice in one tick today. That is a
+  fact about today's tables, not an invariant — see `MenuScene::take_action`'s `@warning`.
+
+**The conclusion, and it is §10.8's sharpened rather than repeated.** F1 learned that a wiring
+plan's oracle is narrow and deep. F2 adds the harder half: **narrow and deep is bounded by what the
+legacy leg can survive.** An A/B is only as wide as the gestures that do not crash the code it is
+comparing against, so from here the level-3 number grows by *fixing legacy defects*, not by writing
+more scripts. Fixing `sound_editor.cpp:1893` alone converts 1 of 7 into 7 of 7. That is a legacy
+behaviour change and the repo owner's call; it is recorded here, at §10.5's eleventh defect, in
+`src/scenes/README.md`'s carried table, and in the script's own header, with that consequence
+attached.
