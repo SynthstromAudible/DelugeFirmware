@@ -47,12 +47,12 @@ pub const DELUGE_FILE_WRITE_FAILED: u8 = 3;
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
-        fs_stats_free, stream_close, stream_open, stream_read_at_via, stream_truncate,
+        fs_stats_free, mount, stream_close, stream_open, stream_read_at_via, stream_truncate,
         stream_write_at,
     };
     #[cfg(not(target_os = "none"))]
     pub(super) use crate::efatfs_host_shim::{
-        fs_stats_free, stream_close, stream_open, stream_read_at_via, stream_truncate,
+        fs_stats_free, mount, stream_close, stream_open, stream_read_at_via, stream_truncate,
         stream_write_at,
     };
 }
@@ -359,6 +359,28 @@ pub unsafe extern "C" fn deluge_file_write_collect_stats(out_free_clusters: *mut
     unsafe { collect(OpKind::Stats, 0, out_free_clusters) }
 }
 
+/// Open `path`, mounting the card first if it turns out not to be mounted.
+///
+/// The same lazy shape `file_bytes::open_mounted` uses, and for the same reason: the caller may be
+/// the first thing to touch a card inserted after boot, and on the CHANNEL arm nothing else will have
+/// mounted it. (The synchronous arm is different -- it reaches efatfs directly and relies on
+/// `StorageManager::initSD` having mounted already, which is why that call cannot simply be deleted.)
+///
+/// `stream_open` collapses "no filesystem" and a real failure into one `None`, so this retries once
+/// on any failure rather than only on the unmounted case. `mount()` is idempotent, so a retry after a
+/// genuine error costs one wasted call and still reports the error.
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
+))]
+async fn open_mounted(path: &str, mode: u8) -> Option<u32> {
+    if let Some(handle) = backing::stream_open(path, mode).await {
+        return Some(handle);
+    }
+    backing::mount().await.ok()?;
+    backing::stream_open(path, mode).await
+}
+
 /// The driver. Takes one operation at a time and publishes its answer.
 #[cfg(any(
     all(target_os = "none", feature = "efatfs_streaming"),
@@ -375,9 +397,7 @@ pub async fn file_write_task() {
             let (kind, handle) = op_key(&op);
             *IN_FLIGHT.lock().await = Some((kind, handle));
             let result = match op {
-                StreamOp::Open { mode } => {
-                    backing::stream_open(path.as_str(), mode).await.ok_or(())
-                }
+                StreamOp::Open { mode } => open_mounted(path.as_str(), mode).await.ok_or(()),
                 StreamOp::ReadAt {
                     handle,
                     offset,
