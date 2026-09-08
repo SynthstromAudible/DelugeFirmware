@@ -28,7 +28,8 @@
 #include "io/stream.hpp"
 #include "libdeluge/audio_load.h" // the async loader's request/collect pair + the sample build
 #include "libdeluge/block_device.h"
-#include "libdeluge/card.h"          // deluge_card_flush
+#include "libdeluge/card.h" // deluge_card_flush
+#include "libdeluge/file_directory.h"
 #include "libdeluge/file_io.h"       // deluge_efatfs_cluster_size
 #include "libdeluge/storage_owner.h" // deluge_storage_on_owner
 #include "libdeluge/stream_io.h"
@@ -324,7 +325,42 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 		// just after it still increments a now-stale counter. Fixing this requires deciding what the
 		// scan should do about a stale counter and a cleared cache flag; that's a real design decision,
 		// not a mechanical fix.
-		auto dir = deluge::io::Directory::open(audioRecordingFolderNames[folderID]);
+		// Only the OPEN can block. The directory channel hands back a snapshot -- `readdir_next` is
+		// FS-free (see `file_directory.rs`) -- so the scan below costs no card access at all and is
+		// left exactly as it was. Same shape `Browser::openDirectoryForListing` uses.
+		//
+		// `std::optional` rather than the `std::expected` this used to be: both answer `has_value()`
+		// and `operator->`, so the loop is untouched either way.
+		std::optional<deluge::io::Directory> dir;
+		const bool useDirChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
+		                           && deluge_file_directory_async_active();
+		if (!useDirChannel) {
+			auto opened = deluge::io::Directory::open(audioRecordingFolderNames[folderID]);
+			if (opened.has_value()) {
+				dir.emplace(std::move(*opened));
+			}
+		}
+		else {
+			uint32_t dirHandle = 0;
+			DelugeStatus dirStatus = DELUGE_OK;
+			switch (deluge_file_directory_collect(audioRecordingFolderNames[folderID], &dirHandle, &dirStatus)) {
+			case DELUGE_FILE_DIRECTORY_READY:
+				dir.emplace(deluge::io::Directory::adopt(dirHandle));
+				break;
+			case DELUGE_FILE_DIRECTORY_UNKNOWN:
+				// "Request it (again)" -- and this is also where the FIRST request is issued.
+				deluge_file_directory_request(audioRecordingFolderNames[folderID], /*create_if_missing=*/false);
+				return Error::LISTING_DEFERRED;
+			case DELUGE_FILE_DIRECTORY_PENDING:
+				// Do NOT re-request: that would replace a request about to be served.
+				return Error::LISTING_DEFERRED;
+			default:
+				// FAILED, or an unrecognised status. A folder that is not there is not an error for
+				// this caller -- the scan simply finds no existing recordings, which is exactly how
+				// the synchronous arm behaves when its open fails.
+				break;
+			}
+		}
 		if (dir.has_value()) {
 			while (true) {
 				std::optional<DelugeDirEntry> entry = D_TRY_CATCH(dir->read(), error, {
