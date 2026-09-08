@@ -767,13 +767,27 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	// ---- Boot wiring for the ported UI (`src/scenes/registry.h`'s boot-wiring note) -------------
 	//
-	// Three settings the ported tree and the guest's `Shell` cannot read for themselves. Two of them
-	// are not here, and that is F1 task 8's finding rather than an omission:
+	// Three settings the ported tree and the guest's `Shell` cannot read for themselves, and NONE of
+	// them is a call here. That is F1 task 8's finding rather than an omission: a boot call covers
+	// boot and goes stale the moment the user changes the setting, so each one belongs beside
+	// legacy's own writer instead.
 	//
 	//   * **The screensaver timeout** is pushed from `Screensaver::settingsChanged()`
 	//     (`hid/display/screensaver.cpp`), which is where all three of its writers already funnel --
-	//     including the call immediately below, which was already here. A call at this point would
-	//     have covered boot and gone stale the moment the user changed either setting.
+	//     including the call immediately below, which was already here.
+	//   * **The shortcut layout** (flash byte 60) is pushed from inside
+	//     `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:112`), the sole writer of
+	//     `shortcutsVersion`, which all four change paths go through: boot
+	//     (`storage/flash_storage.cpp:568`), the legacy settings item, and BOTH factory-reset menus
+	//     via `FlashStorage::resetSettings` (`storage/flash_storage.cpp:311`) -- one of which is the
+	//     ported reset menu running under this very toggle. A version of this that mirrored at three
+	//     hand-picked call sites lost that path; see the function's own doc.
+	//   * **The play-cursor flash** (flash byte 36, `AudioClipScene::set_flash_cursor`) is still
+	//     unwired in either direction -- `FlashStorage::readSettings` writes `PadLEDs::flashCursor`
+	//     straight (`storage/flash_storage.cpp:440`) and the scene keeps its own copy defaulting to
+	//     the factory value, so a user who turns the cursor off still sees it in the ported audio
+	//     clip view. Recorded in `src/scenes/README.md`'s boot-wiring section; the shortcut-layout
+	//     fix above is the shape to copy.
 
 	// Number the ported menu tree. Idempotent (a function-local static) and, in this binary, already
 	// done: `shellHostUI`'s own construction calls `scenes::scene_registry()`, which calls this. It

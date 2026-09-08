@@ -42,8 +42,23 @@ site is allowed to test the hook itself.
 ## Surfaces (`surfaces.h`, `board_surfaces.h`)
 
 `SurfaceSet` is the shell's only hardware seam. Everything above it renders into the surfaces and
-flushes through the sink virtuals; `BoardSurfaceSet` binds those sinks to libdeluge and the specs'
-`uitest::FakeSurfaceSet` binds them to recorders.
+flushes through the sink virtuals. **There are three implementations**, and the third is new:
+`BoardSurfaceSet` binds the sinks to libdeluge, the specs' `uitest::FakeSurfaceSet` binds them to
+recorders, and `GuestSurfaceSet` (`src/deluge/gui/ui/shell_guest_surfaces.{h,cpp}`, F1 task 4) binds
+them to **legacy** -- `OLED::main` for the panel, `PadLEDs::image` for the grid,
+`indicator_leds::setLedState` for the LEDs -- so that the ported UI can run inside the shipping
+firmware as a guest.
+
+**`GuestSurfaceSet` copies; it does not alias**, and spec F §3's "aliasing is free and copy-less"
+is false on both halves. The grid *cannot* alias: `PadGrid` stores `cells_[kMaxGridRows][kMaxGridCols]`
+with `kMaxGridCols` = 32 against legacy's 18-column `PadLEDs::image`, and
+`src/gfx/grid/pad_grid.h:37-41` already said so, naming `row(y)` as the seam for copying. The OLED
+*could* alias and must not: `OLED::clearMainImage()` (`hid/display/oled.h:46`) is called from legacy
+all over the tree, including immediately before `renderOLED` (`gui/ui/ui.cpp:358`, then `:362`), and
+the shell is retained-mode -- `flush` blits only on `blit_pending`, so a buffer legacy zeroed
+between renders goes blank with nothing to re-dirty it. The copy is measured rather than waved
+through: 768 B per OLED blit, 48 B per changed column pair, 432 B for a full grid, `static_assert`ed
+against `kDelugeOled.bytes()` and `sizeof(PadLEDs::image)`.
 
 | type | purpose |
 |---|---|
@@ -129,6 +144,14 @@ actually implemented, because they need nothing from the model; `ModKnobs`, `Glo
 `MidiLearn` are the seam spec E filled in (E4 tasks 2-5) -- the model-owned `ModTarget`, transport
 state and MIDI-learn table. Nothing in `src/shell` depends on their being real: a `Service` is the
 whole contract, and a `NullService` satisfies it completely.
+
+**An application installs them for the first time in F1** (`src/deluge/gui/ui/shell_guest_services.cpp`,
+task 8), from `deluge_boot` and again from `ShellHostUI::opened()`. Two things that showed up only
+once something did: an unseeded `ModKnobs` is **not** inert -- with no `ModTarget` it declares all
+eight mod LEDs off and level 0 on both gold knobs every tick -- and a service can reach *shared
+`InputLowering` state out of band of the router*, because `ModKnobs::pretend_knobs_untouched()`
+backdates `last_turn_ms_`, which is what the gold-knob wiggle debounce reads. Neither is a shell
+change; both are things to check for when the next service arrives.
 
 `Screensaver` pushes `SceneKind::Screensaver` but ships no scene of that kind — the animation is
 `deluge::scenes::overlay::ScreensaverScene` (E4 task 7), registered by the application like any
@@ -268,6 +291,19 @@ overlays, then applies the stack's greyout at legacy's full strength (`setGreyou
 legacy has only the greyout. Spec D §7 says "dim if any overlay is above"; the shell narrows that
 to "if any overlay above the base `dims_grid()`", so an overlay that composites nothing can opt out.
 
+> **That "not a port" is an OUTSTANDING flag, not a settled decision** -- one of four inventions
+> deferred rather than resolved, and the UI-stack port's standing constraint is that everything be a
+> port of something legacy already does. It is no longer only a design question: since F1 the
+> compositor runs inside the shipping firmware, so `dim_grid` is live code in the path the level-3
+> A/B exercises. **And the A/B found the adjacent question empirically.** With the ported menu open,
+> legacy leaves the clip view showing with the sidebar **greyed**
+> (`SoundEditor::getGreyoutColsAndRows`, `gui/ui/sound_editor.cpp:252-294`) and the guest **blacks
+> the grid**. That has two causes and fixing either alone leaves it wrong: (a) `GuestSurfaceSet`'s
+> `send_columns` writes the menu's all-black grid, and (b) legacy's greyout walk never runs at all,
+> because `ShellHostUI` never re-requests grid rendering, so `reassessGreyout` and `prepareColour`
+> are never reached. Proved by probe: disabling (a) alone brought the sidebar back **ungreyed**.
+> Whoever settles `dim_grid` should settle this at the same time; they are plausibly one question.
+
 The three notice scenes are grid overlays that paint nothing and dim nothing (`is_grid_overlay()`
 true, `dims_grid()` false, `occludes_grid()` false, no `render_grid`). Both flags are load-bearing
 and separate: the grid base is the topmost scene that is *not* an overlay, so without
@@ -345,6 +381,44 @@ board profile that reuses another enum's numbering rather than inventing its own
 is free to choose differently -- `LedId` and `ButtonId` are only required to agree here, by this
 profile's own contract, not by anything in `shell.cpp` or `leds.h`.
 
+## The shell's first host (`ShellHostUI`, spec F phase 4, F1)
+
+Everything above was written while nothing drove a `Shell` outside a spec. Plan F1 built the driver,
+and it lives in the **legacy** tree rather than here, which is the point of phase 4: the ported UI
+runs as a *guest* of the shipping firmware, behind a runtime toggle that is Off by default.
+
+`deluge::gui::ui::ShellHostUI` (`src/deluge/gui/ui/shell_host_ui.{h,cpp}`) is a legacy `UI` subclass
+holding one `Shell` over a `GuestSurfaceSet`. It is pushed with `openUI` from `openShellMenu`
+(`src/deluge/util/shell_menu_entry.h`), which eight of legacy's fourteen `openUI(&soundEditor)` sites
+call when `shellMenuEnabled()` is true. The mapping, so a shell contributor knows what now depends on
+each hook:
+
+| shell surface | what the guest does with it |
+|---|---|
+| `Shell::tick(now_ms)` | `ShellHostUI::timerCallback`, re-arming `TimerName::UI_SPECIFIC` from `Shell::next_wake()` with a 1 ms floor |
+| `Shell::feed(...)` | `buttonAction`, `padAction`, `selectEncoderAction` and the horizontal/vertical encoder hooks. The three **mod** hooks stay on `UI`'s base on purpose: legacy already applies `calcNextKnobSpeed`, so forwarding would double-accelerate |
+| `SurfaceSet` sinks | `GuestSurfaceSet`, above -- `renderOLED`, `renderMainPads`, `renderSidebar` |
+| `Shell::stack()` / `lowering()` | the three real services are constructed over these and installed with `Shell::set_services` |
+| `Shell::next_wake()` | the timer re-arm, and the reason the note below matters |
+| `Shell::state_lines()` | the level-3 harness's `.state` snapshot, unchanged |
+
+**`next_wake()`'s "the shell only ticks when its host asks it to" now has a host that asks at up to
+1 kHz.** A scene returning `0u` from `next_timer()` -- which the contract reads as "next tick", and
+which `AudioClipScene` returns while the playhead is live -- compounds twice through that 1 ms floor:
+the scene's grid gate is re-armed at `now` every tick, so it is a full grid *render* at 1 kHz, and
+legacy's own 29-timer sweep runs at up to 1 kHz where its `GRAPHICS_ROUTINE` is about 66 Hz. `0u` is
+still the right answer -- the rate is the host's decision, not the scene's, and the grid flush diffs
+against `last_sent` -- but it is no longer *free*. Latent while `MenuScene` is the only tenant.
+Shell spec §15.11.
+
+**Two divergences from legacy that are the guest's, not the shell's**, recorded here because a shell
+contributor will meet them: `ShellHostUI::exitUI` returns `NOT_DEALT_WITH` where every self-closing
+legacy `UI` returns `ACTIONED_AND_CAUSED_CHANGE`, and it can never return
+`REMIND_ME_OUTSIDE_CARD_ROUTINE`, the one value the timer manager acts on; and `canSeeViewUnderneath`
+answers `!top().occludes_grid()` rather than the top scene's OLED transparency, because the two
+callers ask a grid-shaped question (whether the root view's animation runs, `gui/ui/ui.cpp:47-51`)
+and the spec's original mapping would have frozen the clip view's playhead whenever the menu was open.
+
 ## Testing
 
 Every header above has a matching spec in `tests/spec/shell/` (`profile_spec.cpp`,
@@ -368,6 +442,16 @@ mechanism. Two rigs make that possible without a board:
 Event-script tests (spec G's acceptance suite: boot -> session -> press Clip -> snapshot every
 surface + `.state`) are not part of this task; `Shell::state_lines()` exists for that harness to
 call but nothing under `src/shell` depends on the harness existing.
+
+**Since F1 there is also a level-3 A/B over the whole firmware**, and it is the strongest thing
+pinning this library's behaviour. `tests/ui-scripts/app/menu.txt` is booted into `deluge_host` twice
+against two SD-card fixtures that differ by exactly one file (`tests/fixtures/card` and
+`tests/fixtures/card-shell-menu`, whose `SETTINGS/CommunityFeatures.XML` sets `shellMenu`), and
+`scripts/ui_app_ab_check.py` compares the two output trees against each other -- five OLED panels,
+**all five byte-identical**, across an open, a navigation, a gold-knob edit and an exit. A shell
+change that moves a pixel in the composed frame turns that red. Five ctest rows,
+`ui_app_scripts_menu{,_diff,_shell,_shell_diff,_ab}`; what it covers and what it does not is
+migration spec §10.8.
 
 ## Archive size
 
