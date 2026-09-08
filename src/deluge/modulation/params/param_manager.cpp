@@ -297,62 +297,6 @@ Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
 	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
 }
 
-// Does *not* forget MPE params
-void ParamManager::forgetParamCollections() {
-	summaries[0] = *getExpressionParamSetSummary();
-	summaries[1] = {0};
-	summaries[2] = {0};
-	summaries[3] = {0};
-	summaries[4] = {0};
-	expressionParamSetOffset = 0;
-}
-
-// Main collections belong to the sound/output; expression belongs to the clip or note row. Also disposes of a
-// non-expression collection sitting in the expression slot, which an incompatible manager can have.
-void ParamManager::destructMainParamCollections() {
-	if (expressionParamSetOffset != 0 && expressionParamSetOffset != 1 && expressionParamSetOffset != 3) {
-#if ALPHA_OR_BETA_VERSION
-		FREEZE_WITH_ERROR("PM0C");
-#endif
-		// The expression slot cannot be trusted. Do not pass this offset to either accessor below.
-		destructAndForgetParamCollections();
-		return;
-	}
-	int32_t mainCollections = expressionParamSetOffset;
-	for (int32_t i = 0; i < mainCollections; ++i) {
-		if (summaries[i].paramCollection) {
-			summaries[i].paramCollection->~ParamCollection();
-			delugeDealloc(summaries[i].paramCollection);
-		}
-	}
-	// An incompatible manager may also have the wrong collection in the expression slot.
-	auto* expressionSummary = &summaries[expressionParamSetOffset];
-	if (expressionSummary->paramCollection
-	    && expressionSummary->paramCollection->getParamKind() != deluge::modulation::params::Kind::EXPRESSION) {
-		expressionSummary->paramCollection->~ParamCollection();
-		delugeDealloc(expressionSummary->paramCollection);
-		*expressionSummary = {0};
-	}
-	forgetParamCollections();
-}
-
-// This one deletes MPE params too
-void ParamManager::destructAndForgetParamCollections() {
-	ParamCollectionSummary* summary = summaries;
-	while (summary != &summaries[PARAM_COLLECTIONS_STORAGE_NUM] && summary->paramCollection) {
-		summary->paramCollection->~ParamCollection();
-		delugeDealloc(summary->paramCollection);
-		summary++;
-	}
-
-	summaries[0] = {0};
-	summaries[1] = {0};
-	summaries[2] = {0};
-	summaries[3] = {0};
-	summaries[4] = {0};
-	expressionParamSetOffset = 0;
-}
-
 // Returns whether there is one / one could be created.
 bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
 	int32_t offset = getExpressionParamSetOffset();
