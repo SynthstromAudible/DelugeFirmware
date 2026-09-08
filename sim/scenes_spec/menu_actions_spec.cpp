@@ -2178,7 +2178,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// `soundEditor`. The dispatcher's answer is `SceneStack::remove(SceneKind::FirstApp)` on the
 		// guest's own stack -- the same statement `MenuScene::handle` already uses for the short-Back
 		// exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
-		// (`scenes/menu/menu_scene.cpp:1459-1464`; `gui/ui/sound_editor.cpp:710-717`, the call at
+		// (`scenes/menu/menu_scene.cpp:1469-1474`; `gui/ui/sound_editor.cpp:710-717`, the call at
 		// `:716`). The full argument, including why neither `closeUI` nor `closeGuest()` can be
 		// called from there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
 		//

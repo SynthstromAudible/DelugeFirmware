@@ -255,7 +255,7 @@ struct MenuActionRequest {
 /// be re-checked rather than believed: `grep -rn "defaultEditingMode\|editingParam" src sim` and
 /// keep the assignments. Nine are in `PerformanceView` (the four sites above, eight lines, plus the
 /// constructor); four are `EditingMode::selectButtonPress`'s two arms; two pairs are
-/// `gui/ui/shell_action_dispatch.cpp:94-99`, this seam's own arm, which runs *from* a mirror the
+/// `gui/ui/shell_action_dispatch.cpp:95-100`, this seam's own arm, which runs *from* a mirror the
 /// node has already set. Nothing else in the tree writes either bool. Every one of those either
 /// syncs or is a pair that starts in agreement -- the constructor's `defaultEditingMode = false`
 /// (`gui/views/performance_view.cpp:239`) against this mirror's own `DISABLED` initialiser

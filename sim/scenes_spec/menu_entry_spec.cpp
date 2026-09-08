@@ -455,7 +455,7 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 		// guest; this task opens it, so the property is asserted rather than assumed.
 		//
 		// `MenuScene::next_timer()` answers `std::nullopt`, `kSourceBlinkMs` (20) or
-		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1605-1620`).
+		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1615-1630`).
 		//
 		// **This is a sample, not a sweep, and the distinction matters.** The eight gated sites open
 		// ten different roots between them; what runs below is the settings root, the sound root and
