@@ -46,6 +46,24 @@
 ///   * it must **not** ascend the menu, because legacy stays on the item while the user turns the
 ///     encoder. See the `switch` in `MenuScene::after_render` that decides that question.
 ///
+/// ## The seventh, which is the sixth's shape again, twice over (F2 task 7)
+///
+/// `screensaver_mode` and `screensaver_timeout` are two more writes, not presses, and they share
+/// **one** enumerator. Legacy's `ScreensaverModeMenu::writeCurrentValue` and
+/// `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:38-41`, `:60-63`)
+/// are each two statements: a `FlashStorage` assignment, and
+/// `hid::display::Screensaver::settingsChanged()`. The port already makes the assignment -- the two
+/// hooks write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves
+/// (`nodes/settings.cpp:600`, `:608`), so **these settings have always persisted**, which is the one
+/// way this differs from `shortcuts_version`'s gap. What it could not do is the second statement:
+/// `settingsChanged()` is `hid/`, which `src/scenes` may not include. So both screensavers kept
+/// their old timings until the next boot or the next edit made from the legacy menu.
+///
+/// **One enumerator, because legacy's notify takes no argument.** `settingsChanged()` is a
+/// zero-parameter static that re-reads both globals itself (`hid/display/screensaver.cpp:200-241`),
+/// so there is nothing for a payload to carry and nothing for a second enumerator to distinguish:
+/// the mode setter and the timeout setter ask for the identical thing. `arg` is unused.
+///
 /// ## The shape
 ///
 /// The verb counterpart of the noun that already works:
@@ -64,7 +82,7 @@
 ///
 /// `take_action()` is an outbox and this file is only its producing half. Its consumer,
 /// `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`), arrived with F2 task 1 and
-/// drains it once per guest tick; **all six arms have bodies as of F2 task 6**. The specs in
+/// drains it once per guest tick; **all seven arms have bodies as of F2 task 7**. The specs in
 /// `sim/scenes_spec/menu_actions_spec.cpp` assert both halves: that the right item emits the right
 /// *identity* and payload through the real input path, and -- in the four `dispatchShellActions`
 /// groups -- that the legacy effect happens. Only `StartStemExport`'s acting half is still pinned by
@@ -144,6 +162,31 @@ enum class MenuAction : uint8_t {
 	/// and it terminates there. Anything later that makes the *mirror* setter file a request would
 	/// close that loop, which is why the mirror setter must stay a plain assignment.
 	SetShortcutsVersion,
+
+	/// @brief `hid::display::Screensaver::settingsChanged()` -- the notify half of **both** ported
+	///        screensaver setters' writes. `arg` is unused.
+	///
+	/// The dispatcher performs the second statement of `ScreensaverModeMenu::writeCurrentValue` and
+	/// of `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:40`, `:62`).
+	/// The first statement of each -- the `FlashStorage` assignment -- is already made by the ported
+	/// hook itself, so unlike `SetShortcutsVersion` **no value is lost at power-off**; what was
+	/// missing was only the immediate apply.
+	///
+	/// **One call updates both screensavers, which is why one enumerator is enough.**
+	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:200-241`) does three things:
+	/// it pushes the recomputed idle period into the guest's own service
+	/// (`shellHostUI.shell().set_screensaver_idle_ms(...)`, `:225-228`), it wakes the legacy
+	/// screensaver if it is showing (`:230-233`), and it then either cancels the legacy timer for
+	/// `ScreensaverMode::OFF` (`:235-238`) or re-arms it from now (`:240`, `arm()` at `:81-83`). So
+	/// the legacy `hid::display::Screensaver` and the ported `shell::Screensaver` both move on the
+	/// one call, and there is nothing for a second enumerator or a payload to say -- legacy's own
+	/// notify is a zero-parameter static that re-reads both globals for itself.
+	///
+	/// **This does not loop.** `settingsChanged()` writes no menu state and files no request: its
+	/// only reach back into this layer is `Shell::set_screensaver_idle_ms`, which sets one number on
+	/// a `shell::Screensaver` service (`shell/shell.h:222-228`). Nothing on that path touches
+	/// `MenuState`, so the round trip is hook -> request -> notify, and it stops.
+	ScreensaverSettingsChanged,
 };
 
 /// @brief One request: which action, and the one payload word `OpenPerformanceView` and

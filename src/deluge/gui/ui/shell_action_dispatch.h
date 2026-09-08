@@ -73,11 +73,13 @@ namespace deluge::gui::ui {
 ///
 /// @par What it does today
 ///
-/// It drains, and it performs **all five** verbs: `OpenPerformanceView` as of F2 task 2,
-/// `StartStemExport` as of F2 task 3, and `SetClipLengthToSampleLength`, `OpenSongMidiLearn` and
-/// `OpenSongMacros` as of F2 task 4. The `switch` has an arm for every `MenuAction` and no
-/// `default:` -- see below, and note that F2 tasks 6 and 7 each add an enumerator after this one, so
-/// the guard that makes them break loudly is re-established there rather than settled here.
+/// It drains, and it performs **all seven** verbs: `OpenPerformanceView` as of F2 task 2,
+/// `StartStemExport` as of F2 task 3, `SetClipLengthToSampleLength`, `OpenSongMidiLearn` and
+/// `OpenSongMacros` as of F2 task 4, `SetShortcutsVersion` as of F2 task 6, and
+/// `ScreensaverSettingsChanged` as of F2 task 7. The last two are a different shape from the five --
+/// a **write** rather than a select press, filed from a `Binding::set` hook through
+/// `MenuScene::request_action` -- which `scenes/menu/action.h` argues at each enumerator. The
+/// `switch` has an arm for every `MenuAction` and no `default:` -- see below.
 ///
 /// @par The two context menus open even when `setupAndCheckAvailability()` says no
 ///

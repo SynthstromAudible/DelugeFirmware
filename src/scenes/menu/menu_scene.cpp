@@ -1330,6 +1330,15 @@ Result MenuScene::after_render() {
 		// `writeCurrentValue` (`shortcuts/version.h:27`) runs on every detent while the user stands
 		// on it. Ascending here would close that page under the user on the first turn, which is UI
 		// the port would be inventing.
+		//
+		// **The seventh (F2 task 7) has the sixth's shape exactly, so it takes the sixth's answer.**
+		// `ScreensaverSettingsChanged` is filed from the same `Binding::set` route, by two hooks
+		// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`); and legacy enters both
+		// of their items too. `ScreensaverModeMenu` is a `Selection` and `ScreensaverTimeout` an
+		// `Integer` (`gui/menu_item/defaults/screensaver.h:34`, `:54`), neither overrides
+		// `shouldEnterSubmenu()`, and both reach `writeCurrentValue` from
+		// `Value<T>::selectEncoderAction` (`gui/menu_item/value.h:69`) -- once per detent, with the
+		// user still standing on the page. Same discriminator, same conclusion: no ascend.
 		switch (st_.pending_action.action) {
 		case MenuAction::StartStemExport:
 		case MenuAction::SetClipLengthToSampleLength:
@@ -1339,6 +1348,7 @@ Result MenuScene::after_render() {
 			break;
 		case MenuAction::OpenPerformanceView:
 		case MenuAction::SetShortcutsVersion:
+		case MenuAction::ScreensaverSettingsChanged:
 		case MenuAction::None:
 			break;
 		}

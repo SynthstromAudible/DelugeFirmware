@@ -82,13 +82,14 @@ uint16_t assigned_node_ids();
 ///     spells "off" as `idle_ms == 0`. Pushed from `Screensaver::settingsChanged()`
 ///     (`hid/display/screensaver.cpp`), through `Shell::set_screensaver_idle_ms` --
 ///     which is also the **port of `settingsChanged()` itself** (`shell::Screensaver::set_idle_ms`),
-///     the gap `overlay/screensaver_scene.h` recorded. That function is where the three writers
-///     funnel: `deluge_boot`, and the two settings items
-///     (`gui/menu_item/defaults/screensaver.h`). **Still open:** the *ported* tree's own two setters
-///     (`menu/nodes/settings.cpp`) write the two globals directly and cannot call it -- this layer
-///     may not include `hid/` -- so a change made from the ported screensaver menu notifies
-///     neither screensaver until the next boot. Closing that needs a `menu::Action` kind and the
-///     dispatcher `menu/action.h` records as not existing yet.
+///     the gap `overlay/screensaver_scene.h` recorded. That function is where every writer funnels:
+///     `deluge_boot`, the two legacy settings items (`gui/menu_item/defaults/screensaver.h`), and --
+///     **closed by F2 task 7** -- the *ported* tree's own two setters (`menu/nodes/settings.cpp`).
+///     Those write the two globals directly and still cannot call it, because this layer may not
+///     include `hid/`; they file `menu::MenuAction::ScreensaverSettingsChanged` instead
+///     (`menu/action.h`) and `gui::ui::dispatchShellActions` makes the call. Until then a change
+///     made from the ported screensaver menu was stored but notified neither screensaver until the
+///     next boot.
 ///
 ///   * **The three services are installed** -- `services::ModKnobs`, `services::GlobalControls`,
 ///     `services::MidiLearn`. Each is constructed from a `SceneStack&` (the first two also from an

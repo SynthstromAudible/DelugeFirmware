@@ -96,14 +96,23 @@
 ///
 /// @note **Three write side effects stay behind, and are gaps, not omissions.**
 ///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`
-///       (`defaults/pad_brightness.h:26`), `ScreensaverModeMenu`/`ScreensaverTimeout` also call
-///       `hid::display::Screensaver::settingsChanged()` (`defaults/screensaver.h:40,62`), the
-///       accessibility highlighting item also pokes `Canvas::menuHighlightingInverts`
-///       (`accessibility_menu_highlighting.h:14-15`), and `ShiftIsSticky` also calls
-///       `Buttons::clearShiftSticky()` (`runtime_feature/shift_is_sticky.cpp:26`). All four are
-///       `hid/`. The `FlashStorage` / `runtimeFeatureSettings` half of each write IS transcribed,
-///       so the setting persists; only the immediate apply is missing, and it belongs to whoever
-///       owns those globals once E2 has moved them.
+///       (`defaults/pad_brightness.h:26`), the accessibility highlighting item also pokes
+///       `Canvas::menuHighlightingInverts` (`accessibility_menu_highlighting.h:14-15`), and
+///       `ShiftIsSticky` also calls `Buttons::clearShiftSticky()`
+///       (`runtime_feature/shift_is_sticky.cpp:26`). All three are `hid/`. The `FlashStorage` /
+///       `runtimeFeatureSettings` half of each write IS transcribed, so the setting persists; only
+///       the immediate apply is missing, and it belongs to whoever owns those globals once E2 has
+///       moved them.
+///
+///       **A fourth of exactly this kind is now PAID, and it is the template for the rest.**
+///       `ScreensaverModeMenu`/`ScreensaverTimeout` also call
+///       `hid::display::Screensaver::settingsChanged()` (`defaults/screensaver.h:40`, `:62`). F2
+///       task 7 closed that one, not by reaching `hid/` from here -- which stays forbidden -- but by
+///       filing `menu::MenuAction::ScreensaverSettingsChanged` (`scenes/menu/action.h`) for
+///       `gui::ui::dispatchShellActions` to perform. The three above could be closed the same way;
+///       the reason they have not been is that nobody has needed them, not that the route is
+///       missing. (This paragraph counted **four** before that, against a heading that said three:
+///       the miscount was there since the note was written and is corrected by the fix.)
 ///
 ///       **Task 11 adds two of exactly the same kind**, and for the same reason:
 ///       `flash::Status::writeCurrentValue` also calls `PadLEDs::clearTickSquares()` when the old

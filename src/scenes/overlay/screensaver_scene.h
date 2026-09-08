@@ -36,8 +36,10 @@
 ///     `Shell::set_screensaver_idle_ms`, which is how an application reaches it. Legacy's own
 ///     callers are `deluge_boot` and the two settings items
 ///     (`gui/menu_item/defaults/screensaver.h`), and they all funnel through `settingsChanged()`,
-///     so the port is pushed from there. The residue is the *ported* menu's two setters
-///     (`menu/nodes/settings.cpp`), which write the same globals and cannot call `hid/`; see
+///     so the port is pushed from there. The *ported* menu's two setters
+///     (`menu/nodes/settings.cpp`) write the same globals and still cannot call `hid/`; they were
+///     the residue until **F2 task 7**, which routes them through
+///     `menu::MenuAction::ScreensaverSettingsChanged` and the dispatcher. See
 ///     `scenes/registry.h`'s boot-wiring record.
 ///   * **The inhibitors** (`screensaver.cpp:141-157`): a permanent popup, the working animation or
 ///     a running stem export wakes the screensaver and re-arms, re-checked every tick. The port's
@@ -54,7 +56,8 @@
 ///     (`:140` and `:162`), so a `BLANK` -> `STARSCAPE`/`DELUGE` change made while the screensaver
 ///     is showing starts animating within a second, where this scene -- reporting no timer -- stays
 ///     blank for ever. It is unreachable in practice rather than merely unlikely: the only way to
-///     change the setting is the menu (`gui/menu_item/defaults/screensaver.h:34-41`), reaching it
+///     change the setting is a menu (legacy's, `gui/menu_item/defaults/screensaver.h:34-41`, or the
+///     ported `screensaver_mode` item, `scenes/menu/nodes/settings.h:933-934`), reaching either
 ///     needs physical input, and input runs `shell::Screensaver::note_activity` first, which pops
 ///     this scene (`shell/screensaver.cpp:9-17`) -- so the mode cannot change while it is up. The
 ///     next push re-reads the mode and scatters the right field.

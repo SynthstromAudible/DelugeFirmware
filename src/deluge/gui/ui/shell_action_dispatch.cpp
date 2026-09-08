@@ -33,6 +33,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
+#include "hid/display/screensaver.h" // Screensaver::settingsChanged -- the ScreensaverSettingsChanged arm
 #include "model/model_stack.h"
 #include "model/song/song.h" // getCurrentOutputType
 #include "processing/stem_export/stem_export.h"
@@ -387,6 +388,32 @@ void dispatchShellActions() {
 		// spelled the same way on both sides (`V1` for `SHORTCUTS_VERSION_1`, `V3` otherwise), so
 		// the lap is idempotent rather than merely finite.
 		soundEditor.setShortcutsVersion(static_cast<int32_t>(req.arg));
+		break;
+
+	case MenuAction::ScreensaverSettingsChanged:
+		// The second statement of `ScreensaverModeMenu::writeCurrentValue` and of
+		// `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:40`,
+		// `:62`), which is the same statement in both. No helper and no payload: legacy's notify is
+		// a zero-parameter static that re-reads `FlashStorage::screensaverMode` and
+		// `screensaverTimeoutMinutes` for itself, and the ported hooks have already written both
+		// (`scenes/menu/nodes/settings.cpp`'s two setters).
+		//
+		// **This arm is why the two screensavers agree.** `Screensaver::settingsChanged()`
+		// (`hid/display/screensaver.cpp:200-241`) is a *pair* of reconfigurations: it recomputes the
+		// idle period and pushes it into the guest's `shell::Screensaver` through
+		// `shellHostUI.shell().set_screensaver_idle_ms(...)` (`:225-228`), then wakes the legacy
+		// screensaver if it is showing (`:230-233`) and either cancels its timer for
+		// `ScreensaverMode::OFF` (`:235-238`) or re-arms it from now (`:240`). One call, both
+		// halves -- which is what let this task be one enumerator rather than two arms and a
+		// duplicated formula.
+		//
+		// **The `shellHostUI` it names is the global guest**, not "whichever shell asked". That is
+		// correct here for the same reason it is correct at every other caller: there is exactly one
+		// guest in the firmware, and this dispatcher runs from that guest's own
+		// `ShellHostUI::timerCallback`. It is only worth stating because it makes the write
+		// unconditional on the guest being open -- see the header's note on why nothing here is
+		// gated.
+		deluge::hid::display::Screensaver::settingsChanged();
 		break;
 	}
 }

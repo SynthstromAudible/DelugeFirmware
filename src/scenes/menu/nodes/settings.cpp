@@ -564,19 +564,50 @@ void set_default_hold_time(const MenuContext&, int32_t value) {
 	FlashStorage::holdTime = (FlashStorage::defaultHoldTime * kSampleRate) / 20;
 }
 
+namespace {
+
+/// @brief The notify half both screensaver setters below owe, filed once for either of them.
+///
+/// `ScreensaverModeMenu::writeCurrentValue` and `ScreensaverTimeout::writeCurrentValue`
+/// (`defaults/screensaver.h:38-41`, `:60-63`) are each two statements. The `FlashStorage`
+/// assignment is transcribed in place below -- so, unlike the shortcut layout, **these two
+/// settings have always persisted**. The other statement is
+/// `hid::display::Screensaver::settingsChanged()` (`:40`, `:62`), which this layer may not name
+/// (`scenes-includes-outside`, `scripts/check_layer_rules.py`), so it is asked for and
+/// `gui::ui::dispatchShellActions` performs it.
+///
+/// **One request for both setters, and no payload**, because legacy's notify is a zero-parameter
+/// static that re-reads both globals itself (`hid/display/screensaver.cpp:200-241`). That one call
+/// moves both screensavers: it pushes the recomputed idle period into the guest's own
+/// `shell::Screensaver` (`:225-228`) and re-arms or cancels the legacy timer (`:235-240`). Without
+/// it, an edit made from the *ported* screensaver menu was stored correctly and applied by neither
+/// screensaver until the next boot. The argument in full is on
+/// `MenuAction::ScreensaverSettingsChanged` (`scenes/menu/action.h`).
+///
+/// Filed through `menu_scene().request_action` for `set_shortcuts_version`'s reason, verbatim: a
+/// `Binding::set` hook is handed no `MenuState` (`SetFn`, `node.h:139`), and the commit and the
+/// drain are the same `after_render` -- `commit_value` at `menu_scene.cpp:1201`, the move into the
+/// outbox at `:1315-1316`.
+void request_screensaver_notify() {
+	menu_scene().request_action(MenuActionRequest{.action = MenuAction::ScreensaverSettingsChanged});
+}
+
+} // namespace
+
 int32_t get_screensaver_mode(const MenuContext&) {
 	return static_cast<int32_t>(FlashStorage::screensaverMode); // `defaults/screensaver.h:37 readCurrentValue`
 }
 void set_screensaver_mode(const MenuContext&, int32_t value) {
-	// `:25-28`. `Screensaver::settingsChanged()` is `hid/` -- see `settings.h`'s note.
-	FlashStorage::screensaverMode = static_cast<ScreensaverMode>(value);
+	FlashStorage::screensaverMode = static_cast<ScreensaverMode>(value); // `:38-41 writeCurrentValue`
+	request_screensaver_notify();
 }
 
 int32_t get_screensaver_timeout(const MenuContext&) {
-	return FlashStorage::screensaverTimeoutMinutes; // `defaults/screensaver.h:55`
+	return FlashStorage::screensaverTimeoutMinutes; // `defaults/screensaver.h:59 readCurrentValue`
 }
 void set_screensaver_timeout(const MenuContext&, int32_t value) {
-	FlashStorage::screensaverTimeoutMinutes = static_cast<uint8_t>(value); // `:56-59`
+	FlashStorage::screensaverTimeoutMinutes = static_cast<uint8_t>(value); // `:60-63 writeCurrentValue`
+	request_screensaver_notify();
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -204,7 +204,7 @@ void Screensaver::settingsChanged() {
 	// where this class re-reads `FlashStorage` on every arm and every tick, and something has to
 	// push a change in. That is what `scenes/registry.h`'s boot-wiring note asked whoever owns boot
 	// to do, and this function is the better home than a boot call: it is already the one place a
-	// change to either setting funnels through, from all three writers --
+	// change to either setting funnels through, from all of its writers --
 	// `deluge_boot` (`deluge.cpp`, after `FlashStorage::readSettings()`),
 	// `ScreensaverModeMenu::writeCurrentValue` and `ScreensaverTimeout::writeCurrentValue`
 	// (`gui/menu_item/defaults/screensaver.h:38-40`, `:60-62`). A boot call would have covered only
@@ -214,14 +214,14 @@ void Screensaver::settingsChanged() {
 	// `screensaverTimeoutMinutes * kMillisecondsPerMinute` (`:79-81`) and the `ScreensaverMode::OFF`
 	// early-outs the port spells as `idle_ms == 0` (`:92-94`, `:102-104`, `:171-174`).
 	//
-	// **Not covered from here: the ported menu's own two setters.**
-	// `scenes/menu/nodes/settings.cpp:572` and `:579` write the same two `FlashStorage` globals
-	// directly and cannot call this -- `src/scenes` may not include `hid/`. So under the toggle,
-	// changing either setting from the *ported* screensaver menu leaves both this class and the
-	// service armed at the old value until the next boot or the next change made from the legacy
-	// menu. A pre-existing hole in the ported tree (it does not notify this class either), recorded
-	// by F1 task 8 rather than closed: closing it needs a `menu::Action` kind and the dispatcher
-	// that performs one, which `scenes/menu/action.h` records as not existing yet.
+	// **A fourth writer as of F2 task 7: the ported menu's own two setters.**
+	// `nodes::set_screensaver_mode` and `nodes::set_screensaver_timeout`
+	// (`scenes/menu/nodes/settings.cpp`) write the same two `FlashStorage` globals directly and
+	// cannot call this -- `src/scenes` may not include `hid/`. Until F2 task 7 that left both this
+	// class and the service armed at the old value until the next boot or the next change made from
+	// the legacy menu. They now file `MenuAction::ScreensaverSettingsChanged`
+	// (`scenes/menu/action.h`) and `gui::ui::dispatchShellActions` calls this function, so the two
+	// ported items funnel through here exactly as the two legacy ones do.
 	shellHostUI.shell().set_screensaver_idle_ms(FlashStorage::screensaverMode == ScreensaverMode::OFF
 	                                                ? 0u
 	                                                : static_cast<uint32_t>(FlashStorage::screensaverTimeoutMinutes)
