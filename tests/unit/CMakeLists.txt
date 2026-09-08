@@ -102,6 +102,9 @@ file(GLOB_RECURSE deluge_SOURCES
         # mock_file_io.cpp (borrowed from tests/spec_io) backs deluge::io::File with an in-memory card.
         ../../src/deluge/storage/song_preview.cpp
         ../../src/deluge/storage/file_reader.cpp
+        # The REAL weak fallbacks, not a hand-written stand-in: this is exactly what a BSP without
+        # the Rust write channel resolves, and linking it means the host cannot drift from it.
+        ../../src/deluge/storage/file_write_abi.cpp
         ../../src/deluge/storage/Deserializer.cpp
         ../../src/deluge/storage/JsonDeserializer.cpp
         ../../src/deluge/io/file.cpp

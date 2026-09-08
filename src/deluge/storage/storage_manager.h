@@ -404,6 +404,62 @@ Error openDelugeFile(char const* path, char const* firstTagName, char const* alt
 ///       which left pointing here IS @p buffer). Copy that function's save/restore, not just this call.
 Error openDelugeBuffer(std::span<uint8_t> buffer, bool isJson, char const* firstTagName, char const* altTagName = "",
                        bool ignoreIncorrectFirmware = false);
+
+/// @brief Outcome of one attempt to stage a document and open it for parsing.
+enum class StagedOpen : uint8_t {
+	/// Nothing is ready yet. The caller must return to its executor and ask again on a later tick.
+	/// Only the channel arm can produce this; the synchronous arm never does.
+	Deferred,
+	/// The document is in the caller's `StagingState` and `activeDeserializer` now points at it.
+	Opened,
+	/// The document could not be staged or did not parse. Any buffer has been released.
+	Failed,
+};
+
+/// @brief Cross-tick state for one staged open. One per concurrent staging caller.
+///
+/// This must OUTLIVE the parse, not merely the open. openDelugeBuffer() borrows these bytes and the
+/// walk NUL-terminates names and values inside them, so freeing when the open returns pulls the
+/// document out from under the deserializer. Free it when the DESERIALIZER is finished --
+/// releaseStaging() after closeWriter(), and on every path that abandons the load in between.
+struct StagingState {
+	/// The staged bytes, owned by this state and freed by releaseStaging().
+	uint8_t* buffer = nullptr;
+	/// Bytes in `buffer`. Set to the file's true size once the fill completes.
+	uint32_t size = 0;
+	/// Whether a channel read has been issued and is awaiting its collect.
+	bool issued = false;
+};
+
+/// @brief Read the whole of @p path into a freshly allocated buffer, blocking until it is there.
+///
+/// The OWNER arm of openDocumentStaged(). It runs only where blocking was always legal, and it is a
+/// BUILD-configuration fallback rather than a runtime one: it retires when the channel becomes
+/// unconditional, and nothing chooses it because staging failed.
+///
+/// @param path NUL-terminated path.
+/// @param out  Receives the buffer and its size on success; untouched on failure.
+/// @return false if the file could not be opened, sized, allocated for, or read in full.
+bool readWholeFileSynchronously(char const* path, StagingState* out);
+
+/// @brief Stage @p path in memory and open it for parsing, from whichever arm this context allows.
+///
+/// The one entry point for reading a Deluge document. Off the storage owner it drives the byte
+/// channel and the whole-file read, returning StagedOpen::Deferred until the bytes arrive; on the
+/// owner it fills synchronously and returns a terminal answer at once.
+///
+/// @param path         NUL-terminated path. Its extension picks the parser, exactly as the file-backed
+///                     opener did: a name containing ".Json" parses as JSON, anything else as XML.
+/// @param firstTagName The root tag the document must open with.
+/// @param altTagName   An accepted alternative root tag.
+/// @param state        Caller-owned, and must outlive the parse. See StagingState.
+/// @return Deferred (ask again next tick), Opened, or Failed.
+/// @note On Opened this leaves `activeDeserializer` pointing at a memory reader, with all of
+///       openDelugeBuffer()'s caveats about saving and restoring it.
+StagedOpen openDocumentStaged(char const* path, char const* firstTagName, char const* altTagName, StagingState* state);
+
+/// @brief Free a staged buffer and clear its state. Safe on a state that holds nothing.
+void releaseStaging(StagingState* state);
 Error initSD();
 
 /// @brief Run AudioFileManager::firstCardRead() if the filesystem has been mounted since we last

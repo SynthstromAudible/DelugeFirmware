@@ -27,9 +27,13 @@
 #include "io/file.hpp"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
+#include "libdeluge/file_write.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
+#include "storage/owner.h"
 #include "storage/storage_manager.h"
 
 #include <cstring>
@@ -175,6 +179,133 @@ bool FileReader::closeWriter() {
 	auto result = file->close();
 	file.reset();
 	return result.has_value();
+}
+
+bool StorageManager::readWholeFileSynchronously(char const* path, StagingState* out) {
+	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
+	if (!opened) {
+		return false;
+	}
+	auto size = opened->size();
+	if (!size || *size == 0) {
+		return false;
+	}
+	// alloc_sdram EVICTS rather than failing on a tight heap: the resource manager is the SDRAM
+	// heap's sole reclaim coordinator (general_memory_allocator.cpp) and gives up its lowest-value
+	// cached chunks, which are recomputable. A null here therefore means eviction ran and STILL
+	// could not produce a contiguous buffer -- a real error condition, not a hint to stream instead.
+	auto* bytes = static_cast<uint8_t*>(deluge::memory::alloc_sdram(*size));
+	if (bytes == nullptr) {
+		return false;
+	}
+	auto read = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(bytes), *size));
+	if (!read || read->size() != *size) {
+		// A short read of a WHOLE document is a failure, not a small success.
+		deluge::memory::dealloc(bytes);
+		return false;
+	}
+	out->buffer = bytes;
+	out->size = *size;
+	return true;
+}
+
+void StorageManager::releaseStaging(StagingState* state) {
+	if (state->buffer != nullptr) {
+		deluge::memory::dealloc(state->buffer);
+	}
+	*state = {};
+}
+
+StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, char const* firstTagName,
+                                                              char const* altTagName, StagingState* state) {
+	AudioEngine::logAction("openDocumentStaged");
+
+	// An async request issued from a context that will not YIELD can never complete: the driver only
+	// runs when this caller returns to its executor. On the owner we therefore fill synchronously,
+	// which is legal there and is what shipped before this channel existed.
+	const bool mayUseChannel =
+	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+
+	if (!mayUseChannel) {
+		if (state->buffer == nullptr && !readWholeFileSynchronously(path, state)) {
+			return StagedOpen::Failed;
+		}
+	}
+	else if (!state->issued) {
+		// Size first, so the buffer can be allocated exactly. `out_needed` on the collect below is
+		// what catches the file changing between this stat and the read.
+		uint32_t size = 0;
+		DelugeStatus statStatus = DELUGE_OK;
+		switch (deluge::storage::bytes::collectStat(path, &size, &statStatus)) {
+		case deluge::storage::bytes::ByteIo::Unknown:
+			(void)deluge::storage::bytes::requestStat(path);
+			return StagedOpen::Deferred;
+		case deluge::storage::bytes::ByteIo::Pending:
+			return StagedOpen::Deferred;
+		case deluge::storage::bytes::ByteIo::Failed:
+			return StagedOpen::Failed;
+		case deluge::storage::bytes::ByteIo::Ready:
+			break;
+		}
+		if (size == 0) {
+			return StagedOpen::Failed;
+		}
+		if (state->buffer == nullptr) {
+			state->buffer = static_cast<uint8_t*>(deluge::memory::alloc_sdram(size));
+			if (state->buffer == nullptr) {
+				return StagedOpen::Failed;
+			}
+			state->size = size;
+		}
+		if (!deluge_file_write_request_read_file(path, state->buffer, state->size)) {
+			// Refused, not failed: nothing was queued, so ask again next tick.
+			return StagedOpen::Deferred;
+		}
+		state->issued = true;
+		return StagedOpen::Deferred;
+	}
+	else {
+		uint32_t got = 0;
+		uint32_t needed = 0;
+		const uint8_t collected = deluge_file_write_collect_read_file(path, &got, &needed);
+		if (collected == DELUGE_FILE_WRITE_PENDING) {
+			return StagedOpen::Deferred;
+		}
+		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+			// Never keyed, so nothing is coming. Re-issue next tick rather than wait forever.
+			state->issued = false;
+			return StagedOpen::Deferred;
+		}
+		if (collected == DELUGE_FILE_WRITE_FAILED) {
+			state->issued = false;
+			if (needed != 0) {
+				// The file grew between the stat and the read. Resize and try once more; the retry
+				// is bounded because a second FAILED with a needed size re-enters here with a buffer
+				// already that large, and the read then either fits or reports a genuine failure.
+				releaseStaging(state);
+				state->buffer = static_cast<uint8_t*>(deluge::memory::alloc_sdram(needed));
+				if (state->buffer == nullptr) {
+					return StagedOpen::Failed;
+				}
+				state->size = needed;
+				return StagedOpen::Deferred;
+			}
+			releaseStaging(state);
+			return StagedOpen::Failed;
+		}
+		state->size = got;
+		state->issued = false;
+	}
+
+	// One parse entry point, whichever arm filled the buffer. The extension decides the parser,
+	// exactly as the file-backed opener decided it.
+	const bool isJson = strstr(path, ".Json") != nullptr;
+	if (openDelugeBuffer(std::span<uint8_t>(state->buffer, state->size), isJson, firstTagName, altTagName)
+	    != Error::NONE) {
+		releaseStaging(state);
+		return StagedOpen::Failed;
+	}
+	return StagedOpen::Opened;
 }
 
 Error StorageManager::openXMLFile(char const* path, XMLDeserializer& reader, char const* firstTagName,

@@ -26,7 +26,9 @@
 /// because the firmware defines them in storage_manager.cpp alongside the whole instrument model.
 
 #include "gui/ui_timer_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
+#include "storage/owner.h"
 #include "storage/storage_manager.h"
 
 #include <cstdio>
@@ -55,6 +57,31 @@ void* alloc_sdram(std::size_t size, std::size_t align) {
 void dealloc(void* /*ptr*/) {
 }
 } // namespace deluge::memory
+
+// The storage owner and the byte channel, as they exist on a host with neither.
+//
+// StorageManager::openDocumentStaged() consults these to choose an arm. `started()` is false because
+// no owner has ever run here, and that alone routes every staged open to its synchronous arm -- which
+// is the arm these specs want, since a request issued from a test that never yields could not be
+// answered by anything. The byte-channel pair below is therefore UNREACHABLE from the specs; it is
+// defined so the link succeeds, and answers "nothing is known" rather than inventing a result.
+namespace deluge::storage {
+bool Owner::on_owner() {
+	return false;
+}
+bool Owner::started() {
+	return false;
+}
+} // namespace deluge::storage
+
+namespace deluge::storage::bytes {
+ByteIo requestStat(const char* /*path*/) {
+	return ByteIo::Failed;
+}
+ByteIo collectStat(const char* /*path*/, uint32_t* /*outSize*/, DelugeStatus* /*outStatus*/) {
+	return ByteIo::Unknown;
+}
+} // namespace deluge::storage::bytes
 
 namespace AudioEngine {
 void logAudioAction(char const* /*string*/, const char* /*file*/, int /*line*/) {
