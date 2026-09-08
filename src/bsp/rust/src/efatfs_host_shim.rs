@@ -1143,7 +1143,18 @@ static STREAM_WRITE_CTX: Mutex<
 
 /// `DelugeStreamMode` mode selector matching `stream_io.h`'s C enum's implicit declaration-order
 /// values: 0 = READ, 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND.
-async fn stream_open(path: &str, mode: u8) -> Option<u32> {
+/// Free-cluster count: the async half of what `deluge_efatfs_stats` blocks on.
+///
+/// Exists so the stream channel can answer a space query without holding its caller. Returns only
+/// the free count; `efatfs_core::fs_stats` yields `(free, total)` and no caller here needs the total.
+pub(crate) async fn fs_stats_free() -> Option<u32> {
+    with_fs(async |fs| efatfs_core::fs_stats(fs).await)
+        .await
+        .flatten()
+        .map(|(free, _total)| free)
+}
+
+pub(crate) async fn stream_open(path: &str, mode: u8) -> Option<u32> {
     // `open_context`/`create_context` now report a granular `DelugeStatus`, but
     // this persistent stream-write bridge's contract (`stream_io.h`) is still
     // bare success/failure, so `.ok()` collapses it back to `Option` here.
@@ -1177,7 +1188,11 @@ pub(crate) async fn stream_write_at(handle: u32, byte_offset: u32, src: &[u8]) -
 /// EOF-honest read at absolute `byte_offset`, bounded by the handle's IN-MEMORY size
 /// (`efatfs_core::read_at_via_context`) -- can read back data written earlier in the same
 /// unflushed session. Returns the true byte count read, or `None` on a bad handle or FS error.
-async fn stream_read_at_via(handle: u32, byte_offset: u32, dst: &mut [u8]) -> Option<usize> {
+pub(crate) async fn stream_read_at_via(
+    handle: u32,
+    byte_offset: u32,
+    dst: &mut [u8],
+) -> Option<usize> {
     let (generation, ctx) = STREAM_WRITE_CTX.lock().await.checkout(handle)?;
     let (newctx, n) =
         with_fs(async |fs| efatfs_core::read_at_via_context(fs, ctx, byte_offset, dst).await)
@@ -1210,7 +1225,7 @@ async fn stream_flush(handle: u32) -> bool {
 }
 
 /// Truncate the file behind `handle` to `new_len` bytes.
-async fn stream_truncate(handle: u32, new_len: u32) -> bool {
+pub(crate) async fn stream_truncate(handle: u32, new_len: u32) -> bool {
     let Some((generation, ctx)) = STREAM_WRITE_CTX.lock().await.checkout(handle) else {
         return false;
     };
@@ -1240,7 +1255,7 @@ async fn stream_size(handle: u32) -> Option<u32> {
 
 /// Flush (see [`stream_flush`]) then free `handle`'s slot. Returns whether the flush succeeded;
 /// the slot is freed either way.
-async fn stream_close(handle: u32) -> bool {
+pub(crate) async fn stream_close(handle: u32) -> bool {
     let flushed = stream_flush(handle).await;
     STREAM_WRITE_CTX.lock().await.remove(handle);
     flushed
