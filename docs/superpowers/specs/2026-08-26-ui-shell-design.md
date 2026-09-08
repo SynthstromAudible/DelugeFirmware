@@ -1203,8 +1203,8 @@ together —
    `service_list_`);
 3. `Shell::service_list_`, the deduplicated `FixedVector<Service*, 5>` that four sites iterate:
    `Shell::tick`'s step 8c timer fold (`shell.cpp:512`), `Shell::tick_stack` (`:602`),
-   `Shell::derive_leds` via `LedCompose::compose` (`:841`), and `Shell::compute_next_wake`
-   (`:1044`).
+   `Shell::derive_leds` via `LedCompose::compose` (`:852`), and `Shell::compute_next_wake`
+   (`:1055`).
 
 A change that updated two of the three leaves a shell that either ticks services it never routes to
 or routes to services it never ticks, and **each half passes the other half's tests** — which is why
@@ -1279,7 +1279,7 @@ legacy is the hardware; the guest ignores `index`, since legacy's gate is not pe
 `SurfaceSet` doc's phrasing ("still transferring a previous blit") remains true of the hardware
 backend and is now the narrower of the two readings, not the definition.
 
-Fixed by replacing the comment at `shell.cpp:905` with the account above. No code moved: `flush`
+Fixed by replacing the comment at `shell.cpp:916` with the account above. No code moved: `flush`
 already asked the backend rather than assuming an answer, which is why the wrong comment cost
 nothing beyond the risk of the next backend copying it.
 

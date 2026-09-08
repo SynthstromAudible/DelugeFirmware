@@ -265,7 +265,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	//          (`hid/led/pad_leds.cpp:734-735`, via `getUIGreyoutColsAndRows`), and never mutates
 	//          `PadLEDs::image`. The shell has no send stage to hook, so it greys its own grid in
 	//          place instead: `Shell::render_grid` runs `ui::grid::greyout` over `greyout_`
-	//          (`shell/shell.cpp:771-777`), the OR of every stacked scene's mask (`:346-352`). Those
+	//          (`shell/shell.cpp:782-788`), the OR of every stacked scene's mask (`:346-352`). Those
 	//          already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
 	//          which writes `PadLEDs::image` and calls `sortLedsForCol` -- i.e. straight back through
 	//          `prepareColour`, which greys them a second time for whatever this function reported.
@@ -304,7 +304,7 @@ void ShellHostUI::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	// `OLED::clearMainImage()` and then asks each open UI to draw into `OLED::main`
 	// (`gui/ui/ui.cpp:351-371`: the clear at `:358`, the `renderOLED` call at `:362`). The shell is
 	// retained-mode -- `Shell::flush` blits a surface only when a repaint raised its `blit_pending`
-	// (`shell/shell.cpp:902-1031`) -- so a frame legacy zeroed between two shell renders would stay
+	// (`shell/shell.cpp:913-1042`) -- so a frame legacy zeroed between two shell renders would stay
 	// zeroed with nothing to tell the shell to paint it again. The guest keeping its *own* copy of
 	// the frame (F1 task 4's copy-not-alias decision) is what makes that recoverable: this hook
 	// hands that copy back every time legacy asks.
@@ -517,7 +517,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	const std::optional<uint32_t> deadline = shell_.next_wake();
 	if (!deadline.has_value()) {
 		// Nothing armed anywhere in the shell -- no gate deadline, no scene or service timer, no
-		// declared blink (`shell/shell.cpp:1033-1101`). Legacy has already cleared the timer
+		// declared blink (`shell/shell.cpp:1044-1112`). Legacy has already cleared the timer
 		// (`gui/ui_timer_manager.cpp:66`), so leaving it alone *is* "sleep until the next input",
 		// and every path that can wake the guest re-arms it (`armTickSoon`).
 		//

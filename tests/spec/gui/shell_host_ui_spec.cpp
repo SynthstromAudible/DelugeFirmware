@@ -326,7 +326,7 @@ const PatternScene::Seen* first_of(const PatternScene& scene, UiEvent::Kind kind
 /// @brief A `Service` that declares one knob indicator, standing in for `ModKnobs`.
 ///
 /// `Shell::flush` calls `SurfaceSet::set_indicator` only for an indicator declared this tick
-/// (`shell/shell.cpp:1014-1026`), and the only declarer in the shipped tree is
+/// (`shell/shell.cpp:1025-1037`), and the only declarer in the shipped tree is
 /// `scenes::services::ModKnobs` (`scenes/services/mod_knobs.cpp:687`) -- a *service*, which F1 task 8
 /// installs and this guest does not have. This is the smallest thing that stands where `ModKnobs`
 /// will stand, so "the guest writes no indicator" can be shown to be about the declaration rather
@@ -1888,7 +1888,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// **Exactly ONE further tick runs, and that is the mechanism rather than a limitation.** With
 		// nothing declared the composed `LedFrame` is empty, so `compute_next_wake`'s blink loop
-		// (`shell/shell.cpp:1095-1099`) has no source, `next_wake()` is `std::nullopt` and the chain
+		// (`shell/shell.cpp:1106-1110`) has no source, `next_wake()` is `std::nullopt` and the chain
 		// ends -- which is itself the ownership rule showing through the wake computation. One tick
 		// is all this assertion needs: it is the tick on which the flip would have been written.
 		expect(after.size()).to_equal(size_t(1));
@@ -1906,7 +1906,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		(void)run_quiet(r.guest, now, 5);
 
 		// `Shell::flush` calls `set_indicator` only for an indicator declared this tick
-		// (`shell/shell.cpp:1014-1026`), and the only declarer in the tree is `ModKnobs`
+		// (`shell/shell.cpp:1025-1037`), and the only declarer in the tree is `ModKnobs`
 		// (`scenes/services/mod_knobs.cpp:687`), which is a *service* -- and this guest is built
 		// with `Services{}`. So legacy's `knobIndicatorLevels[]` shadow, which
 		// `GuestSurfaceSet::set_indicator` cannot keep true, cannot go stale until F1 task 8

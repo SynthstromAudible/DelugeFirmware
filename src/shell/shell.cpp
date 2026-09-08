@@ -709,6 +709,17 @@ void Shell::dim_grid(gfx::grid::PadGrid& grid) {
 	// (`hid/led/pad_leds.cpp:283-298`), and its overlays (the sidebar menus, the context menus)
 	// simply overwrite the pads they cover. `RGB::dim(1)` is `channel >> 1` per channel
 	// (`gfx/grid/rgb.h`), which is what spec D §7 asks for in so many words.
+	//
+	// @warning **That sentence is an OPEN FLAG, not a settled design note**, and reading it as
+	//          settled is the mistake this paragraph exists to prevent. The UI-stack port's
+	//          standing constraint is that everything be a port of something legacy already does;
+	//          this is one of four inventions Kate has deferred rather than decided. It is argued
+	//          at `src/shell/README.md`'s composition section, and `src/scenes/README.md`'s carry
+	//          table ties it to the sidebar divergence the F1 level-3 A/B found empirically --
+	//          which is plausibly the same question, since both are about what the grid under an
+	//          open menu should look like. Since F1 this function runs inside the shipping
+	//          firmware (`ShellHostUI`'s guest), so it is live code rather than a design note.
+	//          Do not remove the flag, and do not treat it as decided, without settling both.
 	const gfx::grid::GridDimensions d = grid.dims();
 	for (uint8_t y = 0; y < d.rows; y++) {
 		for (uint8_t x = 0; x < d.cols(); x++) {

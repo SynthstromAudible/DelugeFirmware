@@ -230,7 +230,7 @@ as an all-zero mask (`scenes/menu/menu_scene.cpp:1460-1492`).
 applied twice.** Legacy greys once, in the send path — `prepareColour` (`hid/led/pad_leds.cpp:283-298`,
 the tint at `:293-296`) reads the masks `reassessGreyout` took from `getUIGreyoutColsAndRows`
 (`:734-735`) and never mutates `PadLEDs::image`. The shell has no send stage to hook, so it greys its
-own grid in place (`Shell::render_grid`, `shell/shell.cpp:771-777`, over the whole stack's OR at
+own grid in place (`Shell::render_grid`, `shell/shell.cpp:782-788`, over the whole stack's OR at
 `:328-334`); those already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
 which writes `image` and calls `sortLedsForCol` — back through `prepareColour`, which greys them again
 for whatever the guest just reported. A greyed pad is darker under the guest than under `SoundEditor`.
@@ -285,8 +285,8 @@ at the code.
   about to unset it and where an arm would deliver this guest's callback to the UI beneath.
 - **There is no `LedSink`.** `grep -rn LedSink src/` has no hits. `derive_leds` is a private member
   of `Shell` (`shell/shell.h:507`), not of the guest, and it does not write anything: it composes the
-  frame and fills the `desired_*` shadows (`shell/shell.cpp:856-875`), and `Shell::flush` is what
-  calls `SurfaceSet::set_led` (`shell/shell.cpp:984-1010`). The `indicator_leds` half of the sentence
+  frame and fills the `desired_*` shadows (`shell/shell.cpp:867-886`), and `Shell::flush` is what
+  calls `SurfaceSet::set_led` (`shell/shell.cpp:995-1021`). The `indicator_leds` half of the sentence
   is right and was already built by F1 task 4 (`GuestSurfaceSet::set_led`). What task 7 adds is the
   *tick*, without which none of it ever runs.
 - **The ownership rule holds, and it is one-sided in the guest's favour.** An id no scene declared
@@ -567,9 +567,40 @@ rather than a thing that is half-done:
    `screensaverMode == ScreensaverMode::OFF ? 0 : screensaverTimeoutMinutes * 60000`
    (`hid/display/screensaver.cpp:81-83`, `:93-95`), pushed from `Screensaver::settingsChanged()` —
    which **now has a port**, `shell::Screensaver::set_idle_ms` plus
-   `Shell::set_screensaver_idle_ms`. **What remains open** is the ported tree's own two screensaver
-   setters (`scenes/menu/nodes/settings.cpp`), which write the same globals and cannot call `hid/`,
-   so a change made from the *ported* screensaver menu notifies neither screensaver until reboot.
+   `Shell::set_screensaver_idle_ms`.
+
+   **What remains open — three things, all the same shape, and none of them closed by task 8.**
+   Each is a setting the *ported* tree can change and cannot write back, because `src/scenes` may
+   not name the `gui/` or `hid/` object that owns the persisted byte. The legacy→port direction is
+   closed for all three; the port→legacy direction is closed for none.
+
+   1. **The ported screensaver setters** (`scenes/menu/nodes/settings.cpp`) write the same globals
+      and cannot call `hid/`, so a change made from the ported screensaver menu notifies neither
+      screensaver until reboot.
+   2. **The ported shortcut-layout setter never reaches flash byte 60.** The sentence above says
+      `SoundEditor::setShortcutsVersion` is the sole writer "which all four change paths go
+      through" — and that is a *different four* from the one the code enumerates.
+      `gui/ui/sound_editor.cpp:124-137` lists four writers of the *setting* and names the fourth as
+      `nodes::set_shortcuts_version`, of which it says explicitly that it does **not** reach there.
+      `scenes/menu/nodes/settings.cpp:829-838` carries the `@warning`: that hook writes only this
+      layer's copy, so **a layout chosen from the ported settings menu holds for the session and is
+      gone at the next power-on** — and under the toggle it is the one the user actually presses.
+      The four paths that *do* funnel through `setShortcutsVersion` are boot, both factory-reset
+      menus and the legacy settings item; the ported item is a fifth, and it is the open one.
+   3. **The play-cursor flash (byte 36) is unwired in both directions.**
+      `AudioClipScene::set_flash_cursor()` has no caller at all.
+      `FlashStorage::readSettings` writes `PadLEDs::flashCursor` straight
+      (`storage/flash_storage.cpp:440`) — `hid/`, which `src/scenes` may never include — so the
+      scene keeps its own copy defaulting to the factory value (`flash_storage.cpp:287`), and a
+      user who turns the play cursor off still sees it in the ported audio clip view. This item
+      was E4 task 11's and was never on this list; it belongs here because this list is what a
+      contributor works from and item 5 otherwise reads as closed. Recorded at
+      `src/deluge/deluge.cpp`'s boot-wiring comment and in `src/scenes/README.md`'s boot-wiring
+      section.
+
+   Items 1 and 2 close the same way — the `MenuAction` dispatcher of **item 3** — and item 3 above
+   is why they are not closable here. Item 5.3 needs no dispatcher, only a writer beside legacy's
+   own, on the shape `SoundEditor::setShortcutsVersion` already demonstrates.
 6. **`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
    `PerformanceView` class member offers no bare-`extern` escape.
 7. **No application installs a service** — added by E4 task 13, the first thing in the tree that
@@ -889,19 +920,27 @@ E4 tasks 9, 10 and 12 added the last four, three of them in the slicer and one i
 dereferences a null `Clip*`.** `sound_editor.cpp:1876`'s `else if (clip->type == ClipType::AUDIO)`
 runs whenever `currentSound` is null — `currentSound = newSound` at `:1856`, while `newSound` is
 only ever assigned inside the `else if (clip)` arm at `:1679-1744` — so a `setup()` reached with the
-default null `clip` dereferences null. **Measured, not read**: under gdb, both site 1
-(`gui/views/view.cpp:477`, SHIFT+SELECT) and site 2 (`gui/views/session_view.cpp:569`, plain SELECT
-from the session view) SIGSEGV at that line in the **toggle-off** leg of §10.8's A/B, on an
-unmodified tree. Site 2 is "open the Song FX menu" — an everyday gesture in shipping firmware.
-Sites 3 (`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:846`) pass the
-same null clip into the same function and so reach the same line; that is inspection, not a
-measurement.
+default null `clip` dereferences null. **Measured, not read**: it SIGSEGVs at that line in the
+**toggle-off** leg of §10.8's A/B, on an unmodified tree.
+
+**The trigger, corrected.** The gesture that reaches it from the firmware's *default* state is
+**SHIFT + SELECT — open Settings** — site 1, `gui/views/view.cpp:477`, reached through
+`View::buttonAction` from any root. An earlier version of this record said "plain SELECT in the
+session view — open the Song FX menu", which inherited a false premise about where boot lands:
+**boot lands in `InstrumentClipView`, not the session view** (`tests/golden/ui/app/boot/boot.state`
+shows `led Clip on` and `led Synth on`, and F1 task 11's own script says so). Site 2
+(`gui/views/session_view.cpp:569`) is still a real null-clip site and still an everyday gesture, but
+it needs a SONG press first, so it is not the one reachable with no navigation. Sites 3
+(`gui/views/arranger_view.cpp:346`) and 4 (`gui/views/performance_view.cpp:846`) pass the same null
+clip into the same function and so reach the same line; that is inspection, not a measurement.
 
 It is not a crash on the device because address 0 is mapped there, and the real hazard is what
 happens *instead*: `ClipType::AUDIO == 1`, so a byte of 1 at `0 + offsetof(Clip, type)` **takes**
 the branch and seeds `currentSampleControls` and `currentPriority` with near-null pointers that
 later menu code both reads and **writes** through. "Latent rather than fatal" is right about the
-read and silent about the write. **The guest makes it strictly less reachable** — both scripts that
+read and silent about the write — and on the RZ/A1 the low page is the **exception vector region**,
+so a write through a near-null pointer does not present as a menu bug at all. It presents as an
+unattributable lockup some time later, which is the worst shape a defect can have for a bug report. **The guest makes it strictly less reachable** — both scripts that
 crash under the OFF fixture exit 0 under the ON one, because `openShellMenu` never dereferences the
 clip — which is the opposite of a reason not to fix it. Not fixed here: it is a legacy behaviour
 change, and this stack's standing rule sends those to Kate.
