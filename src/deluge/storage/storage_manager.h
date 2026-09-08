@@ -439,8 +439,11 @@ struct StagingState {
 ///
 /// @param path NUL-terminated path.
 /// @param out  Receives the buffer and its size on success; untouched on failure.
-/// @return false if the file could not be opened, sized, allocated for, or read in full.
-bool readWholeFileSynchronously(char const* path, StagingState* out);
+/// @return Error::NONE, or which KIND of failure it was. FILE_CORRUPTED for a file that opened and
+///         held nothing -- an empty document has no root tag, which is what the streaming reader
+///         reported for one, and collapsing that into FILE_NOT_FOUND would tell someone their file
+///         is missing when it is sitting on the card.
+Error readWholeFileSynchronously(char const* path, StagingState* out);
 
 /// @brief Stage @p path in memory and open it for parsing, from whichever arm this context allows.
 ///
@@ -478,6 +481,13 @@ void releaseStaging(StagingState* state);
 ///
 /// @return Error::NONE, Error::FILE_NOT_FOUND if it could not be staged, or Error::FILE_CORRUPTED.
 Error openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName = "");
+
+/// @brief Whether @p path names a JSON document rather than an XML one.
+///
+/// The extension rule the file-backed opener used, in one place now that three call sites need it: a
+/// buffer has no filename to infer from, so whoever stages one has to decide before parsing. Getting
+/// it wrong routes an XML song to the JSON parser and the failure reads as a corrupt file.
+bool documentIsJson(char const* path);
 
 /// @brief Release the shared slot filled by openDocumentSynchronously(). Safe to call twice.
 void releaseDocumentStaging();

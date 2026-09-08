@@ -181,14 +181,19 @@ bool FileReader::closeWriter() {
 	return result.has_value();
 }
 
-bool StorageManager::readWholeFileSynchronously(char const* path, StagingState* out) {
+Error StorageManager::readWholeFileSynchronously(char const* path, StagingState* out) {
 	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
 	if (!opened) {
-		return false;
+		return Error::FILE_NOT_FOUND;
 	}
 	auto size = opened->size();
-	if (!size || *size == 0) {
-		return false;
+	if (!size) {
+		return Error::FILE_NOT_FOUND;
+	}
+	if (*size == 0) {
+		// It is there and it is empty. Not the same thing as missing: a zero-byte document simply has
+		// no root tag, which is what the streaming reader said about one.
+		return Error::FILE_CORRUPTED;
 	}
 	// alloc_sdram EVICTS rather than failing on a tight heap: the resource manager is the SDRAM
 	// heap's sole reclaim coordinator (general_memory_allocator.cpp) and gives up its lowest-value
@@ -196,17 +201,17 @@ bool StorageManager::readWholeFileSynchronously(char const* path, StagingState* 
 	// could not produce a contiguous buffer -- a real error condition, not a hint to stream instead.
 	auto* bytes = static_cast<uint8_t*>(deluge::memory::alloc_sdram(*size));
 	if (bytes == nullptr) {
-		return false;
+		return Error::INSUFFICIENT_RAM;
 	}
 	auto read = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(bytes), *size));
 	if (!read || read->size() != *size) {
 		// A short read of a WHOLE document is a failure, not a small success.
 		deluge::memory::dealloc(bytes);
-		return false;
+		return Error::SD_CARD;
 	}
 	out->buffer = bytes;
 	out->size = *size;
-	return true;
+	return Error::NONE;
 }
 
 void StorageManager::releaseStaging(StagingState* state) {
@@ -227,7 +232,7 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
 
 	if (!mayUseChannel) {
-		if (state->buffer == nullptr && !readWholeFileSynchronously(path, state)) {
+		if (state->buffer == nullptr && readWholeFileSynchronously(path, state) != Error::NONE) {
 			return StagedOpen::Failed;
 		}
 	}
@@ -297,10 +302,8 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		state->issued = false;
 	}
 
-	// One parse entry point, whichever arm filled the buffer. The extension decides the parser,
-	// exactly as the file-backed opener decided it.
-	const bool isJson = strstr(path, ".Json") != nullptr;
-	if (openDelugeBuffer(std::span<uint8_t>(state->buffer, state->size), isJson, firstTagName, altTagName)
+	// One parse entry point, whichever arm filled the buffer.
+	if (openDelugeBuffer(std::span<uint8_t>(state->buffer, state->size), documentIsJson(path), firstTagName, altTagName)
 	    != Error::NONE) {
 		releaseStaging(state);
 		return StagedOpen::Failed;
@@ -316,16 +319,19 @@ namespace {
 StorageManager::StagingState documentStaging;
 } // namespace
 
+bool StorageManager::documentIsJson(char const* path) {
+	return strstr(path, ".Json") != nullptr;
+}
+
 Error StorageManager::openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName) {
 	AudioEngine::logAction("openDocumentSynchronously");
 	releaseDocumentStaging();
-	if (!readWholeFileSynchronously(path, &documentStaging)) {
-		return Error::FILE_NOT_FOUND;
+	Error staged = readWholeFileSynchronously(path, &documentStaging);
+	if (staged != Error::NONE) {
+		return staged;
 	}
-	// The extension picks the parser, exactly as the file-backed opener picked it.
-	const bool isJson = strstr(path, ".Json") != nullptr;
-	Error err = openDelugeBuffer(std::span<uint8_t>(documentStaging.buffer, documentStaging.size), isJson, firstTagName,
-	                             altTagName);
+	Error err = openDelugeBuffer(std::span<uint8_t>(documentStaging.buffer, documentStaging.size), documentIsJson(path),
+	                             firstTagName, altTagName);
 	if (err != Error::NONE) {
 		releaseDocumentStaging();
 		return Error::FILE_CORRUPTED;

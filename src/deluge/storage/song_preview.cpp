@@ -137,20 +137,36 @@ SongPreviewOutcome decodeSongPreview(std::span<uint8_t> buffer, bool isJson,
 
 SongPreviewOutcome decodeSongPreviewFromFile(char const* path, RGB (*imageStore)[kDisplayWidth + kSideBarWidth],
                                              ::Error* openError) {
-	::Error error = StorageManager::openDelugeFile(path, "song");
+	// Save and restore `activeDeserializer` for the reason decodeSongPreview() gives above, which now
+	// applies here too: this entry point stages the song and parses from those bytes, so the global is
+	// left pointing at a reader whose `fileClusterBuffer` IS the buffer released at the bottom of this
+	// function. Before staging it pointed at smDeserializer, whose buffer is a permanent 32 KiB
+	// allocation and survived being written through afterwards; a freed staging buffer does not.
+	FileDeserializer* const previous = activeDeserializer;
+
+	::Error error = StorageManager::openDocumentSynchronously(path, "song");
 	if (error != ::Error::NONE) {
+		activeDeserializer = previous;
 		if (openError != nullptr) {
 			*openError = error;
 		}
 		return SongPreviewOutcome::Error;
 	}
 	FileDeserializer* reader = activeDeserializer;
-	if (activeDeserializer == &smJsonDeserializer) {
-		activeDeserializer->match('{');
+	// Asked of the PATH rather than of which global the reader happens to be: both memory readers are
+	// distinct objects from smDeserializer/smJsonDeserializer, so an identity test against those would
+	// now be false for every document and silently skip the JSON opening brace.
+	if (StorageManager::documentIsJson(path)) {
+		reader->match('{');
 	}
 
 	// No Truncated arm: this walk had the whole file, so ending without a preview means there is none.
-	return runPreviewWalk(reader, imageStore) ? SongPreviewOutcome::Rendered : SongPreviewOutcome::NoPreview;
+	const bool rendered = runPreviewWalk(reader, imageStore);
+
+	// runPreviewWalk() has already closed the reader, so nothing reads these bytes after this point.
+	StorageManager::releaseDocumentStaging();
+	activeDeserializer = previous;
+	return rendered ? SongPreviewOutcome::Rendered : SongPreviewOutcome::NoPreview;
 }
 
 } // namespace deluge::storage
