@@ -1232,7 +1232,7 @@ pub(crate) async fn stream_truncate(handle: u32, new_len: u32) -> bool {
 }
 
 /// File length in bytes.
-async fn stream_size(handle: u32) -> Option<u32> {
+pub(crate) async fn stream_size(handle: u32) -> Option<u32> {
     let (generation, ctx) = STREAM_WRITE_CTX.lock().await.checkout(handle)?;
     let (newctx, size) = with_fs(async |fs| efatfs_core::size_context(fs, ctx).await).await??;
     STREAM_WRITE_CTX
