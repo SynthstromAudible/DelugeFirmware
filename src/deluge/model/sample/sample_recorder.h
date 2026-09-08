@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "model/sample/recorder_finalize_policy.h"
+
 #include "definitions_cxx.hpp"
 #include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/stereo_sample.h"
@@ -208,6 +210,10 @@ public:
 	/// @brief Whether a cluster write is in flight on the channel right now.
 	[[nodiscard]] bool writePending() const { return inFlightClusterIndex_ >= 0; }
 
+	/// Diagnostic accessors, for the harness's wedge reporting only.
+	[[nodiscard]] uint8_t finalizePhaseForDiag() const { return static_cast<uint8_t>(finalizePhase_); }
+	[[nodiscard]] bool finalizeIssuedForDiag() const { return finalizeIssued_; }
+
 	/// @brief How many cluster writes have gone through the channel, process-wide.
 	///
 	/// The difference between the channel being used and the channel merely being compiled. Every
@@ -227,6 +233,56 @@ private:
 	/// the stream may run while a write is outstanding.
 	/// @return true when the caller must return immediately -- the write has not landed yet.
 	bool pumpInFlightWrite();
+
+	/// @brief What one call to @ref advanceFinalize achieved.
+	enum class FinalizeStep : uint8_t {
+		/// An operation is outstanding, or another phase remains. Come back next tick.
+		Pending,
+		/// Finalize is complete; the caller runs its status transitions.
+		Done,
+		/// Finalize failed; the caller sets `hadCardError`.
+		Failed,
+	};
+
+	/// @brief Advance the finalize machine by one phase. Never blocks.
+	///
+	/// Replaces the old single-call `finalizeRecordedFile()`. Each call issues at most one channel
+	/// operation and returns, so the whole of finishing a recording -- header patch, alteration,
+	/// truncate and close -- happens off the storage owner.
+	FinalizeStep advanceFinalize();
+
+	/// @name Finalize phase bodies
+	/// Each holds code moved verbatim out of the old single-call finalize.
+	/// @{
+	void finalizePrologueOnce();
+	Error finalizeWriteFinalPartial();
+	void finalizeDecide();
+	Error finalizeRunAlterationSynchronously();
+	Error finalizeBookkeeping();
+	/// Whether @ref finalizePrologueOnce has run; it must not repeat across the drain's many ticks.
+	bool finalizePrologueDone_ = false;
+	/// @}
+
+	/// @name Finalize machine state
+	/// Cross-tick state for @ref advanceFinalize. Owned by it alone.
+	/// @{
+	deluge::storage::FinalizePhase finalizePhase_ = deluge::storage::FinalizePhase::DrainClusters;
+	/// Whether the current phase has issued its operation yet. Distinguishes "issue it" from
+	/// "collect it" without needing a second phase per operation.
+	bool finalizeIssued_ = false;
+	bool finalizeAltering_ = false;
+	bool finalizeNeedTruncate_ = false;
+	bool finalizeNeedHeaderPatch_ = false;
+	MonitoringAction finalizeAction_ = MonitoringAction::NONE;
+	int32_t finalizeLshift_ = 0;
+	uint32_t finalizeIdealSizeBefore_ = 0;
+	uint64_t finalizeDataLenAfter_ = 0;
+	uint32_t finalizeTruncateTo_ = 0;
+	uint32_t finalizeHeaderLen_ = 0;
+	/// The header sector, read back and patched across two ticks. A member because the channel reads
+	/// into it asynchronously -- a stack buffer would be freed under the driver.
+	std::array<std::byte, 512> headerScratch_{};
+	/// @}
 	/// @brief Whether this tick must run on the storage owner because it is about to block.
 	///
 	/// Everything except the steady-state cluster write blocks: creating the file (initSD,

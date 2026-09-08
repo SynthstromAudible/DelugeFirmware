@@ -137,7 +137,9 @@ bool pumpToComplete(SampleRecorder& rec) {
 			return false;
 		}
 	}
-	fprintf(stderr, "  FAIL: cardRoutine() never reached COMPLETE\n");
+	fprintf(stderr, "  FAIL: cardRoutine() never reached COMPLETE (phase=%d issued=%d status=%d)\n",
+	        (int)rec.finalizePhaseForDiag(), (int)rec.finalizeIssuedForDiag(),
+	        (int)rec.status.load(std::memory_order_acquire));
 	return false;
 }
 

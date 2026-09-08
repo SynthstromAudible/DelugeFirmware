@@ -634,10 +634,17 @@ gotError:
 	// currentRecordClusterIndex/payload writes before we take over as producer in finalizeRecordedFile().
 	if (status.load(std::memory_order_acquire) == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
 		if (!hadCardError) {
-			error = finalizeRecordedFile();
-			if (error != Error::NONE) {
+			switch (advanceFinalize()) {
+			case FinalizeStep::Pending:
+				// One operation issued, or one phase advanced. Come back next tick; the status
+				// transitions below must not run until finalize is actually finished.
+				return Error::NONE;
+			case FinalizeStep::Failed:
 				hadCardError = true;
 				error = Error::SD_CARD;
+				break;
+			case FinalizeStep::Done:
+				break; // Fall through to the status transitions, which are unchanged.
 			}
 		}
 
@@ -697,13 +704,25 @@ Error SampleRecorder::writeOneCompletedCluster(bool mayUseChannel) {
 	return writeCluster(writingClusterIndex, Cluster::size, mayUseChannel);
 }
 
-Error SampleRecorder::finalizeRecordedFile() {
+namespace {
+/// The header sector this recorder reads back and patches. 512 is the first-sector size the old
+/// synchronous path used; `audioDataStartPosBytes` is always 44 or 112, well inside it.
+constexpr uint32_t kHeaderSectorBytes = 512;
+} // namespace
 
-	// ACQUIRE: cardRoutine() decision read (debug assertion, same fiber path as the flip observation above).
-	if (ALPHA_OR_BETA_VERSION && (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED || hadCardError)) {
-		FREEZE_WITH_ERROR("E273");
+// --- finalize, as phases -------------------------------------------------------------------------
+//
+// What was one long blocking call is now one operation per tick. Each phase either ISSUES its
+// operation and returns Pending, or COLLECTS the answer it issued last time and asks
+// `nextFinalizePhase` where to go. `finalizeIssued_` is what tells those two apart.
+
+/// The overhang cluster, run once when the machine enters DrainClusters. Pure memory and
+/// bookkeeping apart from the cluster writes it may queue, which the drain phase then picks up.
+void SampleRecorder::finalizePrologueOnce() {
+	if (finalizePrologueDone_) {
+		return;
 	}
-
+	finalizePrologueDone_ = true;
 	D_PRINTLN("finalizing");
 
 	// In the very rare case where we've already got between 1 and 5 bytes overhanging the end of our current cluster,
@@ -716,17 +735,17 @@ Error SampleRecorder::finalizeRecordedFile() {
 		} // So incredibly unlikely. But no real problem - we maybe just lose a byte or two
 
 		else if (error != Error::NONE) {
-			return error;
+			hadCardError = true;
 		}
 		else { // No error
-			// Having just created a new cluster, there'll be one more completed one to write
-			error = writeAnyCompletedClusters();
-			if (error != Error::NONE) {
-				return error;
-			}
+			   // Having just created a new cluster, there'll be one more completed one to write
+			   // The drain phase writes these one per tick; nothing to do here but let it.
 		}
 	}
+}
 
+/// The partially-filled final cluster.
+Error SampleRecorder::finalizeWriteFinalPartial() {
 	// And we probably need to write some of the final buffer to file. (If it's NULL, it means that it couldn't be
 	// created, cos or RAM or file size limit.)
 	if (currentRecordBuffer) {
@@ -753,7 +772,11 @@ Error SampleRecorder::finalizeRecordedFile() {
 		currentRecordClusterIndex.fetch_add(1, std::memory_order_relaxed); // We've finished with that cluster
 		currentRecordBuffer = nullptr; // But currentRecordClusterIndex now refers to a cluster that'll never exist
 	}
+	return Error::NONE;
+}
 
+/// PURE: what processing the recording needs, and what the file's final length will be.
+void SampleRecorder::finalizeDecide() {
 	uint32_t idealFileSizeBeforeAction = sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
 	uint32_t dataLengthBeforeAction = sample->audioDataLengthBytes;
 
@@ -804,72 +827,39 @@ Error SampleRecorder::finalizeRecordedFile() {
 	// TODO: in a perfect world, where we're not deleting a channel, we'd go backwards from the last Cluster, because
 	// that's the most likely to still be in memory
 
-	// If some processing of the recorded audio data needs to happen...
-	if (lshiftAmount || action != MonitoringAction::NONE) {
-
-		auto closeResult = this->file->close();
-		this->file.reset();
-		if (!closeResult) {
-			return Error::SD_CARD;
-		}
-
-		Error error = alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLengthAfterAction);
-		if (error != Error::NONE) {
-			return error;
-		}
+	finalizeAction_ = action;
+	finalizeLshift_ = lshiftAmount;
+	finalizeAltering_ = (lshiftAmount != 0 || action != MonitoringAction::NONE);
+	finalizeDataLenAfter_ = action != MonitoringAction::NONE ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
+	finalizeIdealSizeBefore_ = idealFileSizeBeforeAction;
+	finalizeTruncateTo_ = sample->audioDataStartPosBytes + static_cast<uint32_t>(sample->audioDataLengthBytes);
+	finalizeNeedTruncate_ = capturedTooMuch;
+	// The header was written before the true length was known, which is the usual case rather than
+	// the exception.
+	finalizeNeedHeaderPatch_ = sample->audioDataLengthBytes != audioDataLengthBytesAsWrittenToFile
+	                           || (recordingExtraMargins && sample->fileLoopEndSamples != loopEndSampleAsWrittenToFile);
+	if (finalizeNeedHeaderPatch_) {
+		audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
+		loopEndSampleAsWrittenToFile = sample->fileLoopEndSamples;
 	}
+}
 
-	// Or if no action or shifting was required...
-	else {
-
-		// If we made the file too long, because we then compensated for button latency and are throwing away the last
-		// little bit, then truncate it
-		if (capturedTooMuch) {
-			D_PRINTLN("truncating");
-			uint32_t correctLength =
-			    sample->audioDataStartPosBytes
-			    + sample->audioDataLengthBytes; // These were written to in totalSampleLengthNowKnown().
-			Error error = truncateFileDownToSize(correctLength);
-		}
-
-		// If the actual audio data length we ended up with is not the same as was written in the headers in the first
-		// cluster (very likely; various reasons)
-		bool headerNeedsPatch =
-		    sample->audioDataLengthBytes != audioDataLengthBytesAsWrittenToFile
-		    || (recordingExtraMargins && sample->fileLoopEndSamples != loopEndSampleAsWrittenToFile);
-
-		// The buffer that held the header (bufferTable_[0]) may have already been recycled --
-		// it was flushed to disk before we ever reach here (the pending-cluster flush above always
-		// runs first), so its physical memory could be reused for a later index by now. Read the
-		// header sector BACK from our own still-open write context instead (positional read_at_via
-		// on the deluge::io::Stream), patch it, and write it right back. EOF-honest: reads
-		// (and so re-writes) only as many bytes as actually exist on disk, never padding past the
-		// real file extent.
-		//
-		// This goes out through the still-open persistent write context via Stream::write_at
-		// -- write_at needs an open handle, so this must happen BEFORE file->close() below.
-		if (headerNeedsPatch) {
-			audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
-			loopEndSampleAsWrittenToFile = sample->fileLoopEndSamples;
-
-			constexpr uint32_t kFirstSectorBytes = 512;
-			std::array<std::byte, kFirstSectorBytes> headerSector{};
-			auto readResult = file->read_at_via(0, std::span<std::byte>(headerSector));
-			if (readResult && *readResult > 0) {
-				std::span<std::byte> headerBytes(headerSector.data(), *readResult);
-				updateDataLengthInHeader(headerBytes);
-				(void)file->write_at(0, std::span<const std::byte>(headerBytes.data(), headerBytes.size()));
-				// If that failed, well, that's a shame, but we don't need to do anything.
-			}
-		}
-
+/// The alteration, still synchronous. The next change turns this into phases of its own.
+Error SampleRecorder::finalizeRunAlterationSynchronously() {
+	if (file) {
 		auto closeResult = this->file->close();
 		this->file.reset();
 		if (!closeResult) {
 			return Error::SD_CARD;
 		}
 	}
+	return alterFile(finalizeAction_, finalizeLshift_, finalizeIdealSizeBefore_, finalizeDataLenAfter_);
+}
 
+/// PURE: final geometry and the overview-cache grow.
+Error SampleRecorder::finalizeBookkeeping() {
+	const MonitoringAction action = finalizeAction_;
+	const uint64_t dataLengthAfterAction = finalizeDataLenAfter_;
 	sample->numChannels = (action != MonitoringAction::NONE || recordingNumChannels == 1) ? 1 : 2;
 	sample->lengthInSamples = dataLengthAfterAction / (sample->byteDepth * sample->numChannels);
 	sample->audioDataLengthBytes =
@@ -914,6 +904,208 @@ Error SampleRecorder::finalizeRecordedFile() {
 	}
 
 	return Error::NONE;
+}
+
+SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
+	using deluge::storage::FinalizeInputs;
+	using deluge::storage::FinalizePhase;
+	using deluge::storage::nextFinalizePhase;
+
+	// ACQUIRE: cardRoutine() decision read (debug assertion, same fiber path as the flip observation
+	// above).
+	if (ALPHA_OR_BETA_VERSION && finalizePhase_ == FinalizePhase::DrainClusters && !finalizeIssued_
+	    && (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED || hadCardError)) {
+		FREEZE_WITH_ERROR("E273");
+	}
+
+	// The channel is usable only from a context that will YIELD before asking again. On the storage
+	// owner the caller spins -- the offline stem-export drain and the harness's own pump both do --
+	// and the Rust driver never gets to run, so an issued request would stay PENDING forever. There
+	// blocking is legal anyway, so take the synchronous arm. `started()` keeps anything running
+	// before the worker exists on the arm it has always used.
+	const bool finalizeMayUseChannel =
+	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+
+	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
+
+	// Issue this phase's operation, if it has one and has not issued it yet.
+	if (!finalizeIssued_) {
+		switch (finalizePhase_) {
+
+		case FinalizePhase::DrainClusters: {
+			finalizePrologueOnce();
+			if (firstUnwrittenClusterIndex < currentRecordClusterIndex.load(std::memory_order_acquire)) {
+				// One cluster per tick. `pumpInFlightWrite()` at the top of cardRoutine collects it,
+				// so this phase never collects for itself -- it just re-enters until none remain.
+				if (writeOneCompletedCluster(/*mayUseChannel=*/true) != Error::NONE) {
+					return FinalizeStep::Failed;
+				}
+				return FinalizeStep::Pending;
+			}
+			break; // Drained: fall through to the transition below.
+		}
+
+		case FinalizePhase::WriteFinalPartial:
+			if (finalizeWriteFinalPartial() != Error::NONE) {
+				return FinalizeStep::Failed;
+			}
+			break;
+
+		case FinalizePhase::Decide:
+			finalizeDecide();
+			break;
+
+		case FinalizePhase::Truncate:
+			if (!file) {
+				return FinalizeStep::Failed;
+			}
+			if (finalizeMayUseChannel && file->request_truncate(finalizeTruncateTo_)) {
+				finalizeIssued_ = true;
+				return FinalizeStep::Pending;
+			}
+			// Refused -- the channel is off, or busy with another operation. Do it here. Every phase
+			// below keeps this arm for the same reason: a refusal must never fail a recording, and
+			// this is the path that shipped before the channel existed.
+			if (!file->truncate(finalizeTruncateTo_)) {
+				return FinalizeStep::Failed;
+			}
+			break;
+
+		case FinalizePhase::HeaderRead: {
+			if (!file) {
+				return FinalizeStep::Failed;
+			}
+			std::span<std::byte> dst(headerScratch_.data(), kHeaderSectorBytes);
+			if (finalizeMayUseChannel && file->request_read_at(0, dst)) {
+				finalizeIssued_ = true;
+				return FinalizeStep::Pending;
+			}
+			auto readResult = file->read_at_via(0, dst);
+			if (!readResult) {
+				return FinalizeStep::Failed;
+			}
+			if (*readResult == 0) {
+				finalizeNeedHeaderPatch_ = false;
+			}
+			finalizeHeaderLen_ = *readResult;
+			break;
+		}
+
+		case FinalizePhase::HeaderWrite: {
+			if (!file) {
+				return FinalizeStep::Failed;
+			}
+			std::span<std::byte> headerBytes(headerScratch_.data(), finalizeHeaderLen_);
+			updateDataLengthInHeader(headerBytes);
+			if (finalizeMayUseChannel && file->request_write_at(0, std::span<const std::byte>(headerBytes))) {
+				finalizeIssued_ = true;
+				return FinalizeStep::Pending;
+			}
+			// The old path ignored a failed header write here ("that's a shame, but we don't need to
+			// do anything"), and that judgement is preserved: the audio is on the card either way.
+			(void)file->write_at(0, std::span<const std::byte>(headerBytes));
+			break;
+		}
+
+		case FinalizePhase::Close: {
+			if (!file) {
+				break; // Already closed by the alteration path; nothing to wait for.
+			}
+			if (finalizeMayUseChannel && file->request_close()) {
+				finalizeIssued_ = true;
+				return FinalizeStep::Pending;
+			}
+			auto closeResult = file->close();
+			file.reset();
+			if (!closeResult) {
+				return FinalizeStep::Failed;
+			}
+			break;
+		}
+
+		case FinalizePhase::CloseBeforeAlter:
+		case FinalizePhase::OpenForAlter:
+		case FinalizePhase::BatchRead:
+		case FinalizePhase::BatchWrite:
+			// The alteration path is still the old synchronous one; the next change converts it.
+			// Running it here keeps this step's diff to the branch every audio-clip recording takes.
+			if (finalizeRunAlterationSynchronously() != Error::NONE) {
+				return FinalizeStep::Failed;
+			}
+			finalizePhase_ = FinalizePhase::Bookkeeping;
+			return FinalizeStep::Pending;
+
+		case FinalizePhase::Bookkeeping:
+			if (finalizeBookkeeping() != Error::NONE) {
+				return FinalizeStep::Failed;
+			}
+			break;
+
+		case FinalizePhase::Done:
+			return FinalizeStep::Done;
+		case FinalizePhase::Failed:
+			return FinalizeStep::Failed;
+		}
+		collected = DELUGE_FILE_WRITE_READY; // A phase with nothing to wait for advances immediately.
+	}
+	else {
+		// Collect the answer this phase issued last tick.
+		uint32_t got = 0;
+		switch (finalizePhase_) {
+		case FinalizePhase::Truncate:
+			collected = file ? file->collect_truncate() : DELUGE_FILE_WRITE_FAILED;
+			break;
+		case FinalizePhase::HeaderRead:
+			collected = file ? file->collect_read_at(&got) : DELUGE_FILE_WRITE_FAILED;
+			if (collected == DELUGE_FILE_WRITE_READY) {
+				if (got == 0) {
+					// Nothing came back at all: there is no header to patch, which the old path
+					// treated as "leave it alone" rather than an error.
+					finalizeNeedHeaderPatch_ = false;
+				}
+				finalizeHeaderLen_ = got;
+			}
+			break;
+		case FinalizePhase::HeaderWrite:
+			collected = file ? file->collect_write_at(&got) : DELUGE_FILE_WRITE_FAILED;
+			break;
+		case FinalizePhase::Close:
+			collected = file ? file->collect_close() : DELUGE_FILE_WRITE_FAILED;
+			if (collected == DELUGE_FILE_WRITE_READY || collected == DELUGE_FILE_WRITE_FAILED) {
+				file.reset();
+			}
+			break;
+		default:
+			collected = DELUGE_FILE_WRITE_READY;
+			break;
+		}
+		if (collected == DELUGE_FILE_WRITE_PENDING) {
+			return FinalizeStep::Pending;
+		}
+	}
+
+	const FinalizePhase next = nextFinalizePhase(FinalizeInputs{
+	    finalizePhase_,
+	    collected,
+	    firstUnwrittenClusterIndex < currentRecordClusterIndex.load(std::memory_order_acquire),
+	    currentRecordBuffer != nullptr,
+	    finalizeAltering_,
+	    false, // framesRemain: the alteration path does not use the machine yet
+	    finalizeNeedTruncate_,
+	    finalizeNeedHeaderPatch_,
+	});
+	if (next != finalizePhase_) {
+		finalizeIssued_ = false;
+	}
+	finalizePhase_ = next;
+
+	if (finalizePhase_ == FinalizePhase::Done) {
+		return FinalizeStep::Done;
+	}
+	if (finalizePhase_ == FinalizePhase::Failed) {
+		return FinalizeStep::Failed;
+	}
+	return FinalizeStep::Pending;
 }
 
 void SampleRecorder::updateDataLengthInHeader(std::span<std::byte> headerBuf) {
