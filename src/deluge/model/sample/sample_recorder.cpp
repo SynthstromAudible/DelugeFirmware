@@ -425,123 +425,17 @@ aborted:
 
 	if (!hadCardError) {
 
-		// If file not created yet, do that
-		if (filePathCreated.empty()) {
-
-			error = StorageManager::initSD();
-			if (error != Error::NONE) {
-				goto gotError;
-			}
-
-			// Check there's space on the card
-			error = StorageManager::checkSpaceOnCard();
-			if (error != Error::NONE) {
-				goto gotError;
-			}
-
-			std::string filePath;
-			std::string tempFilePathForRecording;
-
-			// Note: we couldn't pass the actual Sample pointer into this function, cos the Sample might get destructed
-			// during the card access! (Though probably not anymore right?)
-			// Recording could finish or abort during this!
-			if (stemExport.processStarted) {
-				error = stemExport.getUnusedStemRecordingFilePath(&filePath, folderID);
-			}
-			else {
-				const char* name;
-				if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && !AudioEngine::lineInPluggedIn) {
-					if (AudioEngine::micPluggedIn) {
-						name = "ExtMic";
-					}
-					else {
-						name = "IntMic";
-					}
-				}
-				else if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
-					if (outputRecordingFrom) {
-						name = outputRecordingFrom->name.c_str();
-					}
-				}
-				else {
-					name = inputChannelToString(mode);
-				}
-				error = audioFileManager.getUnusedAudioRecordingFilePath(filePath, &tempFilePathForRecording, folderID,
-				                                                         &audioFileNumber, name, &currentSong->name);
-			}
-			// ACQUIRE: cardRoutine() decision read.
-			if (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED) {
-				goto aborted; // In case aborted during
-			}
-			if (error != Error::NONE) {
-				goto gotError;
-			}
-
-			bool mayOverwrite = true;
-
-			// Now store our own copy of the actually (possibly temp) filename
-			if (!tempFilePathForRecording.empty()) {
-				filePathCreated = tempFilePathForRecording.c_str(); // Can't fail!
-			}
-			else {
-				filePathCreated = filePath.c_str(); // Can't fail!
-				mayOverwrite = false;
-			}
-
-			// Recording could finish or abort during this!
-			DelugeStreamMode streamOpenMode =
-			    mayOverwrite ? DELUGE_STREAM_WRITE_CREATE : DELUGE_STREAM_WRITE_CREATE_NEW;
-			bool triedCreatingRecordingFolder = false;
-
-tryOpenRecordingStream:
-			// Bypasses the Tier 2 locator cache (same as the raw FatFS open createFileRaw used to do)
-			// -- must invalidate it, or a stale cached locator for this exact path (from an earlier
-			// directory listing) could survive a mayOverwrite create-always reopen and feed a later
-			// cache-hit read the pre-overwrite file's stale sclust/objsize.
-			deluge_file_invalidate_cache();
-			auto openedStream = deluge::io::Stream::open(filePathCreated, streamOpenMode);
-			if (!openedStream && openedStream.error() == deluge::io::Status::NOT_FOUND) {
-				// deluge::io::Stream::open (unlike the old createFileRaw, and unlike the portable
-				// deluge::io layer's createFile()) does no folder-creation retry of its own -- but the
-				// containing folder legitimately might not exist yet (AudioClip's CLIPS/TEMP
-				// subfolder, or a per-song recording subfolder under RECORD/RESAMPLE -- see
-				// AudioFileManager::getUnusedAudioRecordingFilePath). Replicate createFileRaw's
-				// create-parent-and-retry behaviour here, one folder level at a time.
-				if (triedCreatingRecordingFolder) {
-					filePathCreated.clear();
-					goto gotError;
-				}
-				triedCreatingRecordingFolder = true;
-
-				std::string folderPath = filePathCreated;
-
-cutRecordingFolderPathAndTryCreating:
-				size_t slashPos = folderPath.find_last_of('/');
-				if (slashPos == std::string::npos) {
-					filePathCreated.clear();
-					goto gotError;
-				}
-				folderPath.resize(slashPos);
-
-				auto madeDir = deluge::io::mkdir(folderPath.c_str());
-				if (madeDir) {
-					goto tryOpenRecordingStream;
-				}
-				else if (madeDir.error() == deluge::io::Status::NOT_FOUND) {
-					triedCreatingRecordingFolder = false; // Let it try multiple levels again
-					goto cutRecordingFolderPathAndTryCreating;
-				}
-				else {
-					filePathCreated.clear();
-					goto gotError;
-				}
-			}
-			if (!openedStream) {
+		// If file not created yet, do that. Four phases now rather than a goto web; see
+		// advanceCreate(). It returns Pending until the file exists, so the tick simply comes back.
+		if (filePathCreated.empty() || createPhase_ != deluge::storage::CreatePhase::Done) {
+			switch (advanceCreate()) {
+			case CreateStep::Pending:
+				return Error::NONE; // Come back next tick.
+			case CreateStep::Failed:
 				filePathCreated.clear();
 				goto gotError;
-			}
-			else {
-				this->file = std::move(openedStream.value());
+			case CreateStep::Done:
+				break;
 			}
 
 			// ACQUIRE: cardRoutine() decision read.
@@ -550,8 +444,8 @@ cutRecordingFolderPathAndTryCreating:
 			}
 
 			// Ok, the Sample still exists.
-			sample->filePath = filePath;                                 // Can't fail!
-			sample->tempFilePathForRecording = tempFilePathForRecording; // Can't fail!
+			sample->filePath = createFilePath_;                     // Can't fail!
+			sample->tempFilePathForRecording = createTempFilePath_; // Can't fail!
 
 			auto inserted = audioFileManager.audioFiles.insertElement(sample);
 			if (!inserted) {
@@ -993,6 +887,266 @@ bool SampleRecorder::advanceAbort() {
 		return false;
 	}
 	return false;
+}
+
+namespace {
+/// Create `path` and every missing level above it, synchronously.
+///
+/// The owner arm's counterpart to the byte channel's `mkdir_all`, which walks the segments in Rust.
+/// This is the same one-level-at-a-time retry the create block used to express with
+/// `cutRecordingFolderPathAndTryCreating`, minus the goto: shorten the path at each separator until
+/// a mkdir succeeds, then create back down.
+bool mkdirAllSynchronously(const std::string& path) {
+	if (path.empty()) {
+		return false;
+	}
+	auto made = deluge::io::mkdir(path.c_str());
+	if (made || made.error() == deluge::io::Status::EXISTS) {
+		return true;
+	}
+	if (made.error() != deluge::io::Status::NOT_FOUND) {
+		return false;
+	}
+	const size_t slashPos = path.find_last_of('/');
+	if (slashPos == std::string::npos) {
+		return false;
+	}
+	if (!mkdirAllSynchronously(path.substr(0, slashPos))) {
+		return false;
+	}
+	auto retry = deluge::io::mkdir(path.c_str());
+	return retry.has_value() || retry.error() == deluge::io::Status::EXISTS;
+}
+} // namespace
+
+// --- creating the recording's file, as phases ----------------------------------------------------
+//
+// What was a block threaded with `goto tryOpenRecordingStream` and
+// `goto cutRecordingFolderPathAndTryCreating` is now four phases. The retry those labels expressed
+// -- create the parent folder once, then try the open again -- lives in `nextCreatePhase`, where a
+// spec can check it without a filesystem.
+
+SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
+	using deluge::storage::CreateInputs;
+	using deluge::storage::CreatePhase;
+	using deluge::storage::nextCreatePhase;
+
+	// The channel is usable only from a context that will YIELD before asking again -- see
+	// advanceFinalize() for why. On the owner the caller spins and the Rust driver never runs.
+	const bool mayUseChannel =
+	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+
+	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
+	bool spaceExhausted = false;
+	bool pathReady = false;
+
+	if (!createIssued_) {
+		switch (createPhase_) {
+
+		case CreatePhase::Stats: {
+			// initSD stays, and only on this arm. The channel arm mounts lazily (file_write.rs's
+			// open_mounted); the OWNER arm reaches efatfs directly through deluge_efatfs_stream_open
+			// and needs the card already mounted. Deleting it would leave the rig green -- it mounts
+			// at boot -- and break a card inserted afterwards. Running it on the channel arm would
+			// block for something about to happen anyway.
+			if (!mayUseChannel) {
+				Error initError = StorageManager::initSD();
+				if (initError != Error::NONE) {
+					return CreateStep::Failed;
+				}
+				uint32_t freeClusters = 0;
+				uint32_t totalClusters = 0;
+				// Best-effort, exactly as checkSpaceOnCard has always been: a query that cannot run
+				// is not a full card.
+				if (deluge_efatfs_stats(&freeClusters, &totalClusters) && freeClusters == 0) {
+					spaceExhausted = true;
+				}
+				break;
+			}
+			if (deluge_file_write_request_stats()) {
+				createIssued_ = true;
+				return CreateStep::Pending;
+			}
+			break; // Refused: treat as "space available" and carry on.
+		}
+
+		case CreatePhase::PathSearch: {
+			Error error = Error::NONE;
+			if (stemExport.processStarted) {
+				error = stemExport.getUnusedStemRecordingFilePath(&createFilePath_, folderID);
+			}
+			else {
+				const char* name;
+				if (mode < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION && !AudioEngine::lineInPluggedIn) {
+					if (AudioEngine::micPluggedIn) {
+						name = "ExtMic";
+					}
+					else {
+						name = "IntMic";
+					}
+				}
+				else if (mode == AudioInputChannel::SPECIFIC_OUTPUT) {
+					if (outputRecordingFrom) {
+						name = outputRecordingFrom->name.c_str();
+					}
+				}
+				else {
+					name = inputChannelToString(mode);
+				}
+				error = audioFileManager.getUnusedAudioRecordingFilePath(
+				    createFilePath_, &createTempFilePath_, folderID, &audioFileNumber, name, &currentSong->name);
+			}
+			// ACQUIRE: cardRoutine() decision read.
+			if (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED) {
+				return CreateStep::Failed; // The abort machine takes it from here.
+			}
+			if (error == Error::LISTING_DEFERRED) {
+				// The search is waiting on its own channel answer. Come back next tick.
+				return CreateStep::Pending;
+			}
+			if (error != Error::NONE) {
+				return CreateStep::Failed;
+			}
+			// Store our own copy of the actually (possibly temp) filename.
+			bool mayOverwrite = true;
+			if (!createTempFilePath_.empty()) {
+				filePathCreated = createTempFilePath_.c_str(); // Can't fail!
+			}
+			else {
+				filePathCreated = createFilePath_.c_str(); // Can't fail!
+				mayOverwrite = false;
+			}
+			createStreamMode_ = mayOverwrite ? DELUGE_STREAM_WRITE_CREATE : DELUGE_STREAM_WRITE_CREATE_NEW;
+			pathReady = true;
+			break;
+		}
+
+		case CreatePhase::Open: {
+			// Bypasses the Tier 2 locator cache (same as the raw FatFS open createFileRaw used to
+			// do) -- must invalidate it, or a stale cached locator for this exact path (from an
+			// earlier directory listing) could survive a mayOverwrite create-always reopen and feed
+			// a later cache-hit read the pre-overwrite file's stale sclust/objsize.
+			deluge_file_invalidate_cache();
+			createOpenNotFound_ = false;
+			if (mayUseChannel && deluge::io::Stream::request_open(filePathCreated, createStreamMode_)) {
+				createIssued_ = true;
+				return CreateStep::Pending;
+			}
+			auto openedStream = deluge::io::Stream::open(filePathCreated, createStreamMode_);
+			if (openedStream) {
+				file = std::move(openedStream.value());
+				break;
+			}
+			// deluge::io::Stream::open does no folder-creation retry of its own -- but the
+			// containing folder legitimately might not exist yet (AudioClip's CLIPS/TEMP subfolder,
+			// or a per-song recording subfolder under RECORD/RESAMPLE). That is the one open failure
+			// worth acting on.
+			createOpenNotFound_ = (openedStream.error() == deluge::io::Status::NOT_FOUND);
+			collected = DELUGE_FILE_WRITE_FAILED;
+			break;
+		}
+
+		case CreatePhase::MakeFolder: {
+			createTriedMakeFolder_ = true;
+			createFolderPath_ = filePathCreated;
+			const size_t slashPos = createFolderPath_.find_last_of('/');
+			if (slashPos == std::string::npos) {
+				return CreateStep::Failed;
+			}
+			createFolderPath_.resize(slashPos);
+			// ONE mkdir_all, not one level at a time: the byte channel walks the segments in Rust,
+			// which is the same collapse the browser's folder creation got.
+			if (mayUseChannel
+			    && deluge::storage::bytes::requestMkdirAll(createFolderPath_.c_str())
+			           == deluge::storage::bytes::ByteIo::Pending) {
+				createIssued_ = true;
+				return CreateStep::Pending;
+			}
+			if (!mkdirAllSynchronously(createFolderPath_)) {
+				return CreateStep::Failed;
+			}
+			break;
+		}
+
+		case CreatePhase::Done:
+			return CreateStep::Done;
+		case CreatePhase::Failed:
+			return CreateStep::Failed;
+		}
+		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+			collected = DELUGE_FILE_WRITE_READY;
+		}
+	}
+	else {
+		uint32_t got = 0;
+		switch (createPhase_) {
+		case CreatePhase::Stats:
+			collected = deluge_file_write_collect_stats(&got);
+			if (collected == DELUGE_FILE_WRITE_READY && got == 0) {
+				spaceExhausted = true;
+			}
+			else if (collected == DELUGE_FILE_WRITE_FAILED) {
+				// A query that could not run is not a full card -- carry on, as the synchronous arm
+				// always has.
+				collected = DELUGE_FILE_WRITE_READY;
+			}
+			break;
+		case CreatePhase::Open: {
+			std::optional<deluge::io::Stream> opened;
+			collected = deluge::io::Stream::collect_open(&opened);
+			if (collected == DELUGE_FILE_WRITE_READY && opened.has_value()) {
+				file = std::move(opened);
+			}
+			else if (collected == DELUGE_FILE_WRITE_FAILED) {
+				// The channel cannot say NOT_FOUND apart from any other failure, so give the folder
+				// retry its one chance rather than failing a recording whose only problem is a
+				// missing parent.
+				createOpenNotFound_ = !createTriedMakeFolder_;
+			}
+			break;
+		}
+		case CreatePhase::MakeFolder: {
+			DelugeStatus outStatus = DELUGE_OK;
+			const deluge::storage::bytes::ByteIo io =
+			    deluge::storage::bytes::collectMkdirAll(createFolderPath_.c_str(), &outStatus);
+			collected = (io == deluge::storage::bytes::ByteIo::Pending)   ? DELUGE_FILE_WRITE_PENDING
+			            : (io == deluge::storage::bytes::ByteIo::Ready)   ? DELUGE_FILE_WRITE_READY
+			            : (io == deluge::storage::bytes::ByteIo::Unknown) ? DELUGE_FILE_WRITE_UNKNOWN
+			                                                              : DELUGE_FILE_WRITE_FAILED;
+			break;
+		}
+		default:
+			collected = DELUGE_FILE_WRITE_READY;
+			break;
+		}
+		if (collected == DELUGE_FILE_WRITE_PENDING) {
+			return CreateStep::Pending;
+		}
+		if (createPhase_ == CreatePhase::PathSearch) {
+			pathReady = true;
+		}
+	}
+
+	const CreatePhase next = nextCreatePhase(CreateInputs{
+	    createPhase_,
+	    collected,
+	    spaceExhausted,
+	    pathReady,
+	    createOpenNotFound_,
+	    createTriedMakeFolder_,
+	});
+	if (next != createPhase_) {
+		createIssued_ = false;
+	}
+	createPhase_ = next;
+
+	if (createPhase_ == CreatePhase::Done) {
+		return CreateStep::Done;
+	}
+	if (createPhase_ == CreatePhase::Failed) {
+		return CreateStep::Failed;
+	}
+	return CreateStep::Pending;
 }
 
 SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {

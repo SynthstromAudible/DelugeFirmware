@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "model/sample/recorder_create_policy.h"
 #include "model/sample/recorder_finalize_policy.h"
 
 #include "definitions_cxx.hpp"
@@ -234,6 +235,31 @@ private:
 	/// the stream may run while a write is outstanding.
 	/// @return true when the caller must return immediately -- the write has not landed yet.
 	bool pumpInFlightWrite();
+
+	/// @brief What one call to @ref advanceCreate achieved.
+	enum class CreateStep : uint8_t { Pending, Done, Failed };
+
+	/// @brief Advance the file-creation machine by one phase. Never blocks off the owner.
+	///
+	/// Replaces the `goto` web the create block used to carry: `tryOpenRecordingStream` and
+	/// `cutRecordingFolderPathAndTryCreating` encoded retry state in control flow, where the phase
+	/// enum states it somewhere @ref deluge::storage::nextCreatePhase can be tested against.
+	CreateStep advanceCreate();
+
+	/// @name Create machine state
+	/// @{
+	deluge::storage::CreatePhase createPhase_ = deluge::storage::CreatePhase::Stats;
+	bool createIssued_ = false;
+	bool createTriedMakeFolder_ = false;
+	bool createOpenNotFound_ = false;
+	/// The resolved recording path, and the temp path when one applies. Members because they are
+	/// produced by PathSearch and consumed after Open, several ticks later.
+	std::string createFilePath_{};
+	std::string createTempFilePath_{};
+	/// The parent folder MakeFolder creates. One `mkdir_all` covers every missing level.
+	std::string createFolderPath_{};
+	DelugeStreamMode createStreamMode_ = DELUGE_STREAM_WRITE_CREATE;
+	/// @}
 
 	/// @brief What one call to @ref advanceFinalize achieved.
 	enum class FinalizeStep : uint8_t {
