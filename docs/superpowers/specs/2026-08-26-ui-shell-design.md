@@ -1203,8 +1203,8 @@ together —
    `service_list_`);
 3. `Shell::service_list_`, the deduplicated `FixedVector<Service*, 5>` that four sites iterate:
    `Shell::tick`'s step 8c timer fold (`shell.cpp:512`), `Shell::tick_stack` (`:602`),
-   `Shell::derive_leds` via `LedCompose::compose` (`:852`), and `Shell::compute_next_wake`
-   (`:1055`).
+   `Shell::derive_leds` via `LedCompose::compose` (`:870`), and `Shell::compute_next_wake`
+   (`:1083`).
 
 A change that updated two of the three leaves a shell that either ticks services it never routes to
 or routes to services it never ticks, and **each half passes the other half's tests** — which is why
@@ -1306,7 +1306,7 @@ halves of that are false, which task 4 established rather than assumed:
 So it copies, measured: 768 B per OLED blit, 48 B per changed column pair, 432 B for a full grid,
 with the constants derived from legacy's macros and `static_assert`ed against `kDelugeOled.bytes()`
 and `sizeof(PadLEDs::image)`. The bound on the grid is `Shell::flush`'s per-pair diff against
-`last_sent` (`src/shell/shell.cpp:961`), not a cadence — a tick where no pad changed costs nothing however fast ticks
+`last_sent` (`src/shell/shell.cpp:972`), not a cadence — a tick where no pad changed costs nothing however fast ticks
 arrive — and the OLED has no diff at all, so its cost is per re-rendered tick.
 
 **`next_wake()`'s "the shell only ticks when its host asks it to" now has a host that asks at 1

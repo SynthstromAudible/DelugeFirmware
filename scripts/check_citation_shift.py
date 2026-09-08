@@ -42,6 +42,18 @@ them is a bug to be fixed later -- they are properties of comparing content acro
      faithfully moved it to a new wrong line, and a content comparison approves of that. Detecting
      a citation that is *wrong* is `check_citations.py`'s symbol-extent predicate, a different
      tool. **This one detects only citations THIS COMMIT moved.**
+
+     The concrete instance, because this limitation went four plans without one. F1 task 12's
+     `dim_grid` comment inserted 11 lines into `src/shell/shell.cpp`; the sweep that followed moved
+     `tests/spec/shell/services_spec.cpp`'s citation for
+     `Shell::derive_leds` -> `LedCompose::compose` from `:841` to `:852`, and this tool confirmed
+     the shift. Both numbers are wrong: `LedCompose::compose` is called at **`:870`**, and `:841`
+     was already ~18 lines into an unrelated function *before* the commit. **A content check
+     verifies shift-consistency, not ground truth** -- it compared `HEAD[841]` against `NOW[852]`,
+     found them identical, and was right about exactly the question it asks. Re-resolving the
+     surrounding group by symbol then found four more of the same shape in the same two files. Only
+     `check_citations.py`'s symbol-extent predicate, or a human reading the sentence, sees that
+     class.
   2. **It skips a citation whose basename is ambiguous.** `midi_learn.h` is both
      `src/scenes/services/` and `src/deluge/gui/menu_item/song/`; the resolver borrowed from
      `check_citations.py` picks one, and if it picks the other file the pair is compared against
@@ -62,8 +74,13 @@ them is a bug to be fixed later -- they are properties of comparing content acro
 
 A FIFTH PROPERTY, which is not a limitation so much as a thing to read the output with: it cannot
 tell "the cited line moved out from under the citation" from "the commit rewrote the text ON that
-line in place". Both print the same two-line before/after, and both are reasons to go and look;
-only one is drift. The count below is therefore a count of citations to RE-READ, not of defects.
+line in place", nor either of those from "the author deliberately re-pointed this citation at a
+different, correct line". All three print the same two-line before/after, and all three are reasons
+to go and look; only one is drift. The third is not hypothetical -- F1 task 12's last commit
+re-resolved five citations by SYMBOL rather than by shift, and this tool duly reported the one it
+could pair as having moved, which it had, on purpose. **It flags a correction exactly as loudly as
+a regression**, because from a content comparison they are the same event. The count below is
+therefore a count of citations to RE-READ, not of defects.
 
 MEASURED BEFORE IT WAS KEPT, the way `check_citations.py`'s two widenings were (2026-09-07, plan
 F1 task 12). Run `--per-commit` over F1's own history, `f9d00c951..32f4d4551`, **39 commits**:

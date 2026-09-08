@@ -389,7 +389,7 @@ no cadence ceiling to quote for either surface.
 The bounds that are actually true:
 
 - **Grid: the per-pair diff, not a cadence.** `Shell::flush` compares each pair against `last_sent`
-  before calling `send_columns` at all (`src/shell/shell.cpp:959-975`), so a tick in which no pad
+  before calling `send_columns` at all (`src/shell/shell.cpp:970-986`), so a tick in which no pad
   changed colour costs **zero bytes**, however fast the ticks come. 432 B is the price of a full
   repaint, not of a tick.
 - **OLED: per tick that rendered, because there is no diff.** `flush` blits a surface
@@ -569,10 +569,18 @@ rather than a thing that is half-done:
    which **now has a port**, `shell::Screensaver::set_idle_ms` plus
    `Shell::set_screensaver_idle_ms`.
 
-   **What remains open — three things, all the same shape, and none of them closed by task 8.**
-   Each is a setting the *ported* tree can change and cannot write back, because `src/scenes` may
-   not name the `gui/` or `hid/` object that owns the persisted byte. The legacy→port direction is
-   closed for all three; the port→legacy direction is closed for none.
+   **What remains open — three things, and they are NOT all the same shape.** An earlier version of
+   this paragraph said "the legacy→port direction is closed for all three; the port→legacy direction
+   is closed for none". That is true of 5.1 and 5.2 and **false of 5.3**, which is the item the
+   generalisation was tidiest about: `Screensaver::settingsChanged()` and
+   `SoundEditor::setShortcutsVersion` really do push into the port, so 5.1 and 5.2 are one-way gaps
+   needing only the reverse writer — but **`AudioClipScene::set_flash_cursor()` is called by no application
+   path at all** — the only two calls in the tree are in `sim/scenes_spec/audio_clip_scene_spec.cpp`
+   — so 5.3 has no legacy→port push either and needs a reader *and* a writer.
+   This branch's own records already said so (`src/scenes/README.md`'s boot-wiring section calls it
+   "the one that is genuinely unwired"; `src/deluge/deluge.cpp`'s boot comment says "unwired in
+   either direction"), and the spec is the one place that made the third fit the first two. Each
+   item states its own condition below.
 
    1. **The ported screensaver setters** (`scenes/menu/nodes/settings.cpp`) write the same globals
       and cannot call `hid/`, so a change made from the ported screensaver menu notifies neither
@@ -587,8 +595,10 @@ rather than a thing that is half-done:
       gone at the next power-on** — and under the toggle it is the one the user actually presses.
       The four paths that *do* funnel through `setShortcutsVersion` are boot, both factory-reset
       menus and the legacy settings item; the ported item is a fifth, and it is the open one.
-   3. **The play-cursor flash (byte 36) is unwired in both directions.**
-      `AudioClipScene::set_flash_cursor()` has no caller at all.
+   3. **The play-cursor flash (byte 36) is unwired in BOTH directions** — the one item here that is
+      not a one-way gap. `AudioClipScene::set_flash_cursor()` is called by **no application path**
+      — its only two callers in the tree are in `sim/scenes_spec/audio_clip_scene_spec.cpp` — so
+      unlike 5.1 and 5.2 there is no legacy→port push to be the closed half.
       `FlashStorage::readSettings` writes `PadLEDs::flashCursor` straight
       (`storage/flash_storage.cpp:440`) — `hid/`, which `src/scenes` may never include — so the
       scene keeps its own copy defaulting to the factory value (`flash_storage.cpp:287`), and a
@@ -598,9 +608,13 @@ rather than a thing that is half-done:
       `src/deluge/deluge.cpp`'s boot-wiring comment and in `src/scenes/README.md`'s boot-wiring
       section.
 
-   Items 1 and 2 close the same way — the `MenuAction` dispatcher of **item 3** — and item 3 above
-   is why they are not closable here. Item 5.3 needs no dispatcher, only a writer beside legacy's
-   own, on the shape `SoundEditor::setShortcutsVersion` already demonstrates.
+   **What each one needs, stated separately because they differ.** 5.1 and 5.2 are **one-way**: the
+   port already learns of a legacy change and cannot report its own, so each needs only the reverse
+   writer — which for both means the `MenuAction` dispatcher of **item 3**, since a ported node
+   cannot name `hid/` or `SoundEditor` directly. 5.3 is **two-way and needs no dispatcher**: a
+   reader at boot (byte 36 into `AudioClipScene::set_flash_cursor`, beside legacy's own writer, on
+   the shape `SoundEditor::setShortcutsVersion` demonstrates) and, once a ported item can change it,
+   a writer back. Today only the reader is owed, because no ported node edits it yet.
 6. **`perform_editor`'s four sync calls** into `menu::performance_editing_mode()`, because a
    `PerformanceView` class member offers no bare-`extern` escape.
 7. **No application installs a service** — added by E4 task 13, the first thing in the tree that

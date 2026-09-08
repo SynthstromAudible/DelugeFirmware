@@ -336,11 +336,18 @@ SCAN_SUFFIXES = {".h", ".hpp", ".cpp", ".txt"}
 # What that scope found, measured by temporarily adding `src/shell` and `src/deluge/gui/ui` to
 # `SCAN_ROOTS` and running `--strict`: the same **four** certainly-wrong citations found in the
 # original survey, all pre-existing, none in task 4's own files. Two were genuine line drift and
-# were corrected in place: `src/shell/leds.cpp:13`'s `indicator_leds.cpp:122-126` for `setLedState`
-# was two lines short of the call it actually names (`:128`, inside the `blinksLeft` zero-check),
-# fixed to `:122-128`; `src/shell/shell.cpp:770`'s `pad_leds.cpp:984-987` for the `amountDone > 1`
-# snap to `setGreyoutAmount(1)` likewise stopped one line short of that call (`:988`), fixed to
-# `:986-988`. The other two, `src/shell/input_lowering.cpp:208` and `input_lowering.h:72`, are the
+# were corrected in place: `leds.cpp`'s `indicator_leds.cpp:122-126` for `setLedState` was two lines
+# short of the call it actually names (`:128`, inside the `blinksLeft` zero-check), fixed to
+# `:122-128`; and `shell.cpp`'s `pad_leds.cpp:984-987` for the `amountDone > 1` snap to
+# `setGreyoutAmount(1)` likewise stopped one line short of that call (`:988`), fixed to `:986-988`.
+# Both are named WITHOUT the citing line, deliberately and on the same convention as the
+# `input_lowering` pair two paragraphs down: a number recording where a citation SAT when a past
+# round fixed it is pinned to that round's tree, so writing it in live `file:line` form invites the
+# next sweeper to shift it and quietly falsify the history. (F1 task 12 shipped the second of these
+# in live form, with a line number, and then had to argue at review why it alone was exempt from its
+# own sweep -- while the `input_lowering` pair below had been reworded out of that form for exactly
+# this reason. An unmarked exception to a convention the same paragraph follows is what makes the
+# next sweeper guess, so it now follows the convention instead of arguing against it.) The other two, `src/shell/input_lowering.cpp:208` and `input_lowering.h:72`, are the
 # same citation in both places (`hid/encoders.cpp:242-292` at `e460593c8^`) and are not drift at
 # all: they cite the file as it stood at a past revision, before an encoder overhaul cut it to 107
 # lines, exactly the shape already worked out for `tests/ui-scripts/shell/menu_midi_device.txt` --
