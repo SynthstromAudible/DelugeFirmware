@@ -307,8 +307,8 @@ namespace deluge::gui::ui {
 ///          and none of the three runs while the guest is open** -- `View::buttonAction` is the
 ///          *root view's* fallback and the guest is the current UI; `SoundEditor` is not open at
 ///          all; and the context-menu entry is `sessionView`'s, whose ported form is
-///          `MenuScene::take_action`'s `song_midi_learn` (`scenes/menu/action.h:18`), which
-///          **nothing polls** (migration §10.2 item 3, the missing `MenuAction` dispatcher).
+///          `MenuScene::take_action`'s `song_midi_learn` (`scenes/menu/action.h:18`), whose
+///          **dispatcher arm is still empty** (F2 task 4; the poll itself exists as of F2 task 1).
 ///          Meanwhile the port's own learn mode (`services::MidiLearn::begin`, reached from its
 ///          `LEARN` arm) sets a **different bit** -- `MidiLearn::active_`, which `PlaybackHandler`
 ///          cannot see -- and is itself gated on `SceneStack::input_top().is_root()`, which

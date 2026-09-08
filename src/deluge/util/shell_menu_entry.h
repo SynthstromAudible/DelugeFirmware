@@ -70,11 +70,11 @@
 /// The toggle is Off by default, so none of the following is a regression. Turned on, it is what a
 /// user gets, and none of it is discoverable from a green test suite:
 ///
-///  1. **Five ported menu items do nothing.** `MenuScene::take_action()` is a one-slot outbox that
-///     nothing in this repository polls (migration §10.2 item 3, and the `@warning` on
-///     `scenes/menu/action.h`'s `MenuActionRequest`): `openUI(&performanceView)`,
-///     `setClipLengthEqualToSampleLength()`, the MIDI-learn overlay and the two song verbs are
-///     requested and dropped. Writing that dispatcher is out of this plan's scope by Kate's choice,
+///  1. **Five ported menu items do nothing.** The outbox is polled as of F2 task 1 --
+///     `gui::ui::dispatchShellActions` drains it once per guest tick -- but that dispatcher's five
+///     arms are empty, so `openUI(&performanceView)`, `setClipLengthEqualToSampleLength()`, the
+///     MIDI-learn overlay and the two song verbs are still requested and dropped. Each arm lands
+///     with its own F2 task; writing any of them was out of *this* plan's scope by Kate's choice,
 ///     not an oversight.
 ///  2. **A file chosen in the ported browser is parked, not claimed.** `BrowserScene`'s deferring
 ///     descriptor closes with the choice in `take_choice()`, which nothing polls either (§10.2
@@ -85,7 +85,7 @@
 ///     state can disagree.
 ///  4. **Three ported settings items write flash and notify nobody.** The two screensaver setters
 ///     (`scenes/menu/nodes/settings.cpp`) and `nodes::set_shortcuts_version`: F1 task 8 found them,
-///     and each needs the same missing `menu::Action` dispatcher as (1). Changing the screensaver
+///     and each needs its own enumerator and arm on (1)'s dispatcher. Changing the screensaver
 ///     mode or timeout **from the ported menu** leaves both screensavers armed at the old value
 ///     until the next reboot or the next change made from the legacy menu; choosing a shortcut
 ///     layout there holds for the session and is gone at the next power-on.

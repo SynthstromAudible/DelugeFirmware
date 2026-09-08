@@ -345,10 +345,10 @@ public:
 	///
 	/// **The first of the five parked `MenuAction`s to get a real method behind it.**
 	/// `scenes/menu/action.h`'s table names `audioClipView.setClipLengthEqualToSampleLength()` as
-	/// what `MenuAction::SetClipLengthToSampleLength` means, and says plainly that nothing consumes
-	/// `MenuScene::take_action()` because the consumer is the wiring plan's. This is the callee that
-	/// dispatcher will have; **there is deliberately no dispatcher here** -- half of one would be a
-	/// second seam nobody owns.
+	/// what `MenuAction::SetClipLengthToSampleLength` means. The consumer of
+	/// `MenuScene::take_action()` exists as of F2 task 1 and its arm for this verb is empty until F2
+	/// task 4. This is the callee that arm will have; **there is deliberately no dispatcher here** --
+	/// half of one would be a second seam nobody owns.
 	///
 	/// It is public for a second reason too: legacy reaches it from two places, the menu item and
 	/// `buttonAction`'s `X_ENC`+`Y_ENC` chord (`audio_clip_view.cpp:384-391`), and this scene's own
