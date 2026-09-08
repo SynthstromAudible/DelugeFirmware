@@ -12,11 +12,14 @@
 ///     and reproduces both of `selectButtonPress`'s two return values; that nothing files an action
 ///     without a press, across quiet ticks; and that the five item-to-action pairings are pinned by
 ///     identity, with a permutation proof that the pinning is not vacuous.
-///   * **Covered as of F2 task 1, in the last group:** that `gui::ui::dispatchShellActions` is what
-///     takes a filed request out of the outbox. That is the consumer half's *seam*, not its body.
-///   * **NOT covered:** that anything *happens*. The dispatcher's five arms are still empty, so
-///     nothing here asserts that a stem export starts, that a clip's length changes, or that the
-///     performance view opens. A green run means the menu asks and the request is taken.
+///   * **Covered as of F2 task 1, in `menu_action_dispatch`:** that `gui::ui::dispatchShellActions`
+///     is what takes a filed request out of the outbox. That is the consumer half's *seam*, not its
+///     body.
+///   * **Covered as of F2 task 2, in `menu_action_open_perform`:** that `OpenPerformanceView` is
+///     *performed* -- the two `performanceView` bools, the conditional `resetPerformanceView`, and
+///     the `openUI`. It is the only verb with a body.
+///   * **NOT covered:** that the other four verbs do anything. Their arms are still empty, so
+///     nothing here asserts that a stem export starts or that a clip's length changes.
 ///
 /// Legacy is the oracle wherever it can be reached: `performEditorMenu`'s real option list and its
 /// real `readCurrentValue` mapping are both run here, on the real `performanceView`, and compared
@@ -45,6 +48,7 @@
 #include "gui/menu_item/performance_session_view/editing_mode.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/ui.h" // isUIOpen / nullifyUIs, for the group that lets the dispatcher openUI
 #include "gui/views/performance_view.h"
 #include "hid/button.h"
 #include "model/song/song.h"
@@ -299,6 +303,72 @@ struct PerformViewGuard {
 		menu::set_performance_editing_mode(saved_mirror);
 	}
 };
+
+/// @brief Put the legacy UI hierarchy back to "nothing open" after an example let the dispatcher
+///        `openUI(&performanceView)`.
+///
+/// `nullifyUIs()` rather than `closeUI`, on `menu_entry_spec.cpp`'s terms: `closeUI` indexes
+/// `uiNavigationHierarchy[-1]` when the view it closes is the only entry (`gui/ui/ui.cpp:183-194`),
+/// and `nullifyUIs()` is what legacy itself calls to tear the hierarchy down (`:257-261`).
+///
+/// **The one residue this cannot put back, stated rather than left to be discovered.**
+/// `nullifyUIs()` also sets `lastUIBeforeNullifying = getCurrentUI()` (`gui/ui/ui.cpp:258`), and
+/// that variable is defined at `gui/ui/ui.cpp:66` with no declaration in `ui.h`, so it cannot be
+/// reset from here -- `tables_3_spec.cpp:1334-1343` records the same fact for the same reason. So
+/// after an example in this group, `getCurrentUI()` answers `&performanceView` instead of null,
+/// while `getRootUI()` still answers null (it reads only `numUIsOpen`, `ui.cpp:136-140`). It is
+/// benign for this file on two counts, both checkable: nothing in `sim/scenes_spec/menu_actions_spec.cpp`
+/// reads `getCurrentUI()`, and `menu_action_open_perform` is registered LAST in `add_specs` below,
+/// after the three groups that drive the port. An example added to this file that needs a null
+/// `getCurrentUI()` must say so itself.
+struct UiStackGuard {
+	UiStackGuard(const UiStackGuard&) = delete;
+	UiStackGuard& operator=(const UiStackGuard&) = delete;
+	UiStackGuard() = default;
+	~UiStackGuard() { nullifyUIs(); }
+};
+
+/// @brief Put `performanceView`'s two bools at the opposite of what a press for @p mode must leave
+///        them at, and arm the reset marker.
+///
+/// Opposite on BOTH bools, so neither assertion below can pass on a value that was already there:
+/// `defaultEditingMode` starts false and every branch sets it true; `editingParam` starts at
+/// `!(mode == PARAM)`, which is what the branch for @p mode must move it away from.
+void seed_view_away_from(PerformanceEditingMode mode) {
+	performanceView.defaultEditingMode = false;
+	performanceView.editingParam = (mode != PerformanceEditingMode::PARAM);
+	// The reset marker. `resetPerformanceView` opens with `resetPadPressInfo()`
+	// (`gui/views/performance_view.cpp:1306-1307`), which is `initPadPress(firstPadPress)` +
+	// `initPadPress(lastPadPress)` (`:1352-1355`), and `initPadPress` clears `isActive` (`:223-229`).
+	// `lastPadPress` is the half of that pair the header makes public (`performance_view.h:119`).
+	//
+	// Nothing else on the dispatcher's path writes it: the only other writers in the whole view are
+	// `padPressAction` (`:1124`, the writes at `:1141-1145`), `padReleaseAction`'s `initPadPress`
+	// (`:1149`, the call at `:1171`) and `restorePreviousHoldPress` (`:1259-1262`), none of which
+	// `openUI` -> `opened()` -> `focusRegained()` (`:269-296`) can reach. So `isActive` going false
+	// means `resetPerformanceView` ran, and nothing else does.
+	performanceView.lastPadPress.isActive = true;
+}
+
+/// @brief Open `perform_editor`, walk the cursor onto @p mode and press select, through the real
+///        widget and the real lowering -- `press_child`'s walk, on the one page whose payload varies.
+///
+/// Leaves the filed request in the outbox **undrained**, deliberately: in this group the dispatcher
+/// is the only thing allowed to read it.
+void press_perform_mode(Rig& r, PerformanceEditingMode mode) {
+	// Seed the cursor at DISABLED so the walk below is `mode` detents from 0 -- the same setup the
+	// "files OpenPerformanceView carrying the chosen mode" example uses, and for the same reason:
+	// `PerformEditorItem::on_focus` seeds the cursor from the mirror (`nodes/actions.cpp:121`).
+	menu::set_performance_editing_mode(PerformanceEditingMode::DISABLED);
+	(void)r.open(nodes::perform_editor);
+	r.shell.tick(5);
+	for (int32_t i = 0; i < static_cast<int32_t>(mode); i++) {
+		r.turn(1, static_cast<uint32_t>(10 + i * 10));
+		r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+	}
+	r.enter(100);
+	r.shell.tick(110);
+}
 
 /// @brief Every item that files an action, paired with what it must file. Asserted by identity.
 struct Pairing {
@@ -592,8 +662,9 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	// not prove the real call site calls the real function. That example drives a real guest's own
 	// `timerCallback()` and asserts the real outbox is empty afterwards.
 	//
-	// Nothing in either file asserts that anything is performed, because as of F2 task 1 nothing is:
-	// the dispatcher's five arms are empty and each verb arrives with its own task.
+	// Nothing in THIS group asserts that anything is performed -- it is about the drain. The one arm
+	// that performs anything, `OpenPerformanceView`, has its own group below; the other four are
+	// still empty and each arrives with its own task.
 
 	it("takes the request a real item press filed, and leaves the outbox empty", _ {
 		select_language();
@@ -669,13 +740,164 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 });
+
+describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerformanceView", $ {
+	// The first arm with a body (F2 task 2), and the only group in this file that asserts a legacy
+	// EFFECT rather than a filed request. It is the real dispatcher over the real `performanceView`
+	// in the binary that links both, driven by a real select press on `nodes::perform_editor`.
+	//
+	// What each example must distinguish, and how:
+	//
+	//   * **the two bools** -- seeded at the opposite of the answer first (`seed_view_away_from`),
+	//     so neither assertion can pass on a value that was already there;
+	//   * **the reset** -- `performanceView.lastPadPress.isActive`, which only
+	//     `resetPerformanceView` clears on this path (see `seed_view_away_from`'s note). This is the
+	//     assertion the `!editingParam` guard is pinned by, and it is pinned in BOTH directions:
+	//     VALUE must clear it and PARAM must leave it standing, so inverting the guard reddens both
+	//     examples on the line that names the reset rather than on the line that names the open;
+	//   * **the open** -- `isUIOpen(&performanceView)`, and NOT `getCurrentUI()`, which answers
+	//     `lastUIBeforeNullifying` on an empty hierarchy (`gui/ui/ui.cpp:136-140`) and so cannot
+	//     tell "opened" from "an earlier example left this behind".
+	//
+	// Each example's control leg differs from its subject in EXACTLY ONE CALL --
+	// `dispatchShellActions()` -- and asserts the request really is sitting in the outbox, so the
+	// subject's green cannot come from a press that filed nothing.
+
+	it("VALUE: writes the two bools, resets the view, and opens it", _ {
+		select_language();
+		PerformViewGuard guard;
+		UiStackGuard ui_guard;
+
+		{
+			// Same rig, same press, same seed -- minus the dispatch.
+			Rig control;
+			seed_view_away_from(PerformanceEditingMode::VALUE);
+			press_perform_mode(control, PerformanceEditingMode::VALUE);
+
+			// Nothing happened, which is what makes the subject's assertions about the dispatch.
+			expect(performanceView.defaultEditingMode).to_be_false();
+			expect(performanceView.editingParam).to_be_true();
+			expect(performanceView.lastPadPress.isActive).to_be_true();
+			expect(isUIOpen(&performanceView)).to_be_false();
+			// ...and the press really did file, so "nothing happened" is about the missing call and
+			// not about a press that never reached the item.
+			const MenuActionRequest filed = scene().take_action();
+			expect(filed.action == MenuAction::OpenPerformanceView).to_be_true();
+			expect(static_cast<int>(filed.arg)).to_equal(static_cast<int>(PerformanceEditingMode::VALUE));
+		}
+
+		Rig r;
+		seed_view_away_from(PerformanceEditingMode::VALUE);
+		press_perform_mode(r, PerformanceEditingMode::VALUE);
+		deluge::gui::ui::dispatchShellActions();
+
+		// `editing_mode.h:54-57` -- the VALUE branch.
+		expect(performanceView.defaultEditingMode).to_be_true();
+		expect(performanceView.editingParam).to_be_false();
+		// `editing_mode.h:63-70` -- `!editingParam`, so the reset runs.
+		expect(performanceView.lastPadPress.isActive).to_be_false();
+		// `editing_mode.h:72` -- `openUI(&performanceView)`.
+		expect(isUIOpen(&performanceView)).to_be_true();
+		// And the outbox is empty, so the effects above came from this one request rather than from
+		// a second delivery of it.
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("PARAM: writes both bools and opens the view, and does NOT reset it", _ {
+		// Legacy's own reason, at `editing_mode.h:64-65`: resetting in param-editing mode "would
+		// reset param assignments to FX columns". This is the half of the guard that an
+		// implementation which simply always resets would still pass the VALUE example with.
+		select_language();
+		PerformViewGuard guard;
+		UiStackGuard ui_guard;
+
+		{
+			Rig control;
+			seed_view_away_from(PerformanceEditingMode::PARAM);
+			press_perform_mode(control, PerformanceEditingMode::PARAM);
+
+			expect(performanceView.defaultEditingMode).to_be_false();
+			expect(performanceView.editingParam).to_be_false();
+			expect(performanceView.lastPadPress.isActive).to_be_true();
+			expect(isUIOpen(&performanceView)).to_be_false();
+			const MenuActionRequest filed = scene().take_action();
+			expect(filed.action == MenuAction::OpenPerformanceView).to_be_true();
+			expect(static_cast<int>(filed.arg)).to_equal(static_cast<int>(PerformanceEditingMode::PARAM));
+		}
+
+		Rig r;
+		seed_view_away_from(PerformanceEditingMode::PARAM);
+		press_perform_mode(r, PerformanceEditingMode::PARAM);
+		deluge::gui::ui::dispatchShellActions();
+
+		// `editing_mode.h:58-61` -- the PARAM branch.
+		expect(performanceView.defaultEditingMode).to_be_true();
+		expect(performanceView.editingParam).to_be_true();
+		// `editing_mode.h:63` -- `editingParam`, so the reset is SKIPPED and the marker stands.
+		expect(performanceView.lastPadPress.isActive).to_be_true();
+		// `editing_mode.h:72` -- the open happens either way; only the reset is conditional.
+		expect(isUIOpen(&performanceView)).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("reaches the view through the guest's own tick, with nothing calling the dispatcher by name", _ {
+		// Task 1's composition example, now that there is an effect to see at the end of it: a real
+		// `ShellHostUI` over the real `scene_registry()`, a real select press through the guest's own
+		// `buttonAction`, and the guest's own `timerCallback()` -- which is the only thing here that
+		// could open anything. `dispatchShellActions` is never named.
+		select_language();
+		PerformViewGuard guard;
+		UiStackGuard ui_guard;
+
+		// The two legs differ in ONE call, `GuestRig`'s own comment's arrangement: the control ticks
+		// the SHELL (routes the press, runs `MenuScene::after_render`, does not poll), the subject
+		// ticks the GUEST.
+		// `GuestRig` has no encoder helper, so the cursor is placed by the mirror instead of walked:
+		// `PerformEditorItem::on_focus` seeds it from `performance_editing_mode()`
+		// (`nodes/actions.cpp:121`), which is `EditingMode::beginSession` -> `readCurrentValue`.
+		// VALUE rather than DISABLED, because DISABLED is the arm that files nothing.
+		{
+			GuestRig control;
+			menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+			expect(control.open(nodes::perform_editor)).to_be_true();
+			control.ui.shell().tick(5);
+			seed_view_away_from(PerformanceEditingMode::VALUE);
+			control.press_enter();
+			control.ui.shell().tick(20);
+
+			expect(performanceView.defaultEditingMode).to_be_false();
+			expect(isUIOpen(&performanceView)).to_be_false();
+			expect(scene().take_action().action == MenuAction::OpenPerformanceView).to_be_true();
+		}
+
+		GuestRig r;
+		menu::set_performance_editing_mode(PerformanceEditingMode::VALUE);
+		expect(r.open(nodes::perform_editor)).to_be_true();
+		(void)r.ui.timerCallback(); // settle the first frame -- a render files nothing on its own
+		expect(scene().take_action().engaged()).to_be_false();
+		seed_view_away_from(PerformanceEditingMode::VALUE);
+		r.press_enter();
+		(void)r.ui.timerCallback();
+
+		expect(performanceView.defaultEditingMode).to_be_true();
+		expect(performanceView.editingParam).to_be_false();
+		expect(performanceView.lastPadPress.isActive).to_be_false();
+		expect(isUIOpen(&performanceView)).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+});
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Five `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead -- exactly as `context_spec.cpp` does.
+///
+/// `menu_action_open_perform` is LAST on purpose, and `UiStackGuard`'s note says why: it is the only
+/// group that puts a legacy view on `uiNavigationHierarchy`, and the one residue its teardown cannot
+/// undo is `lastUIBeforeNullifying`.
 int menu_actions_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch)
+	               .add_specs(menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch,
+	                          menu_action_open_perform)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS
