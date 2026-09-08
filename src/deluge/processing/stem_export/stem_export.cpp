@@ -29,7 +29,9 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "io/file.hpp"
+#include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
+#include "libdeluge/file_write.h"
 #include "libdeluge/streaming_fill.h" // deluge_streaming_drain_queue_blocking
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
@@ -42,6 +44,7 @@
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/owner.h" // deluge::storage::Owner::run — run the export on the worker fiber
 #include "util/etl_string.h"
@@ -1002,53 +1005,108 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 
 		// here we loop until we are able to successfully create a folder, or give up because
 		// existence could not be determined for some candidate (searchAborted)
+		// The candidate search, as phases. Each tick issues at most one operation and returns, so a
+		// search over many candidates no longer holds the card for its whole duration.
+		//
+		// PROBE-THEN-CREATE is preserved deliberately: efatfs mkdir is idempotent and succeeds on a
+		// directory that already exists, so creating first and reading the result would quietly
+		// adopt somebody's finished export. Only a candidate proven Absent is taken. (The old
+		// C-FatFS f_mkdir returned FR_EXIST here, which is where that behaviour came from.)
 		bool searchAborted = false;
-		while (true) {
-			// efatfs mkdir is idempotent (succeeds on an existing dir), so a successful mkdir does
-			// not imply the folder was new. Only accept a folder that does not already exist, so we
-			// never reuse an occupied stem-export folder (old C-FatFS f_mkdir returned FR_EXIST here).
-			deluge_file_invalidate_cache();
-			bool created = false;
-			switch (deluge::storage::presence_of(
-			    deluge::io::presence_from_open(deluge::io::Directory::open(tempPathForSearch.c_str())))) {
-			case deluge::storage::Presence::Absent:
-				// Genuinely absent: safe to create.
-				created = deluge::io::mkdir(tempPathForSearch.c_str()).has_value();
-				break;
-			case deluge::storage::Presence::Undeterminable:
-				// Could not tell whether this folder is occupied -- do not risk reusing it, and a
-				// persistent BUSY must not spin forever.
-				searchAborted = true;
-				break;
-			case deluge::storage::Presence::Present:
-				break; // occupied: advance to the next candidate
-			}
-			if (created) {
-				// successful, exit out of loop
-				break;
-			}
-			if (searchAborted) {
-				break;
-			}
-			// not successful — an existing folder is how we find a free number; try the next
-			// increment folder number so we can append it to the folder name
-			highestUsedStemFolderNumber++;
-
-			// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS
-			tempPathForSearch = tempPath.c_str();
-
-			// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS-
-			tempPathForSearch.append("-");
-
-			// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-##
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-##
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS-##
-			tempPathForSearch.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
+		if (!stemSearchActive_) {
+			stemSearchActive_ = true;
+			stemSearchPhase_ = deluge::storage::StemSearchPhase::ProbeCandidate;
+			stemSearchIssued_ = false;
+			stemSearchCandidatesTried_ = 0;
+			stemSearchCandidatePath_ = tempPathForSearch;
 		}
+
+		const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
+		                           && deluge_file_bytes_async_active();
+
+		while (stemSearchPhase_ != deluge::storage::StemSearchPhase::Done
+		       && stemSearchPhase_ != deluge::storage::StemSearchPhase::Failed) {
+			uint8_t collected = DELUGE_FILE_WRITE_READY;
+			deluge::storage::Presence candidate = deluge::storage::Presence::Absent;
+
+			switch (stemSearchPhase_) {
+			case deluge::storage::StemSearchPhase::ProbeCandidate: {
+				deluge_file_invalidate_cache();
+				if (mayUseChannel) {
+					DelugeStatus outStatus = DELUGE_OK;
+					bool present = false;
+					const deluge::storage::bytes::ByteIo io =
+					    deluge::storage::bytes::collectExists(stemSearchCandidatePath_.c_str(), &present, &outStatus);
+					if (io == deluge::storage::bytes::ByteIo::Unknown) {
+						(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
+						return Error::LISTING_DEFERRED;
+					}
+					if (io == deluge::storage::bytes::ByteIo::Pending) {
+						return Error::LISTING_DEFERRED;
+					}
+					candidate = (io == deluge::storage::bytes::ByteIo::Ready)
+					                ? (present ? deluge::storage::Presence::Present : deluge::storage::Presence::Absent)
+					                : deluge::storage::Presence::Undeterminable;
+				}
+				else {
+					candidate = deluge::storage::presence_of(
+					    deluge::io::presence_from_open(deluge::io::Directory::open(stemSearchCandidatePath_.c_str())));
+				}
+				break;
+			}
+
+			case deluge::storage::StemSearchPhase::MkdirCandidate: {
+				deluge_file_invalidate_cache();
+				if (mayUseChannel) {
+					DelugeStatus outStatus = DELUGE_OK;
+					const deluge::storage::bytes::ByteIo io =
+					    deluge::storage::bytes::collectMkdirAll(stemSearchCandidatePath_.c_str(), &outStatus);
+					if (io == deluge::storage::bytes::ByteIo::Unknown) {
+						(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
+						return Error::LISTING_DEFERRED;
+					}
+					if (io == deluge::storage::bytes::ByteIo::Pending) {
+						return Error::LISTING_DEFERRED;
+					}
+					collected = (io == deluge::storage::bytes::ByteIo::Ready) ? DELUGE_FILE_WRITE_READY
+					                                                          : DELUGE_FILE_WRITE_FAILED;
+				}
+				else {
+					collected = deluge::io::mkdir(stemSearchCandidatePath_.c_str()).has_value()
+					                ? DELUGE_FILE_WRITE_READY
+					                : DELUGE_FILE_WRITE_FAILED;
+				}
+				break;
+			}
+
+			default:
+				break;
+			}
+
+			const deluge::storage::StemSearchPhase next =
+			    deluge::storage::nextStemSearchPhase(deluge::storage::StemSearchInputs{
+			        stemSearchPhase_,
+			        collected,
+			        candidate,
+			        stemSearchCandidatesTried_,
+			    });
+
+			// Occupied: advance to the next candidate name. Every naming decision stays here.
+			if (next == deluge::storage::StemSearchPhase::ProbeCandidate
+			    && stemSearchPhase_ == deluge::storage::StemSearchPhase::ProbeCandidate) {
+				stemSearchCandidatesTried_++;
+				highestUsedStemFolderNumber++;
+				stemSearchCandidatePath_ = tempPath.c_str();
+				stemSearchCandidatePath_.append("-");
+				stemSearchCandidatePath_.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
+			}
+			stemSearchPhase_ = next;
+		}
+
+		tempPathForSearch = stemSearchCandidatePath_;
+		searchAborted = (stemSearchPhase_ == deluge::storage::StemSearchPhase::Failed);
+		stemSearchActive_ = false;
+		stemSearchPhase_ = deluge::storage::StemSearchPhase::MkdirBase;
 
 		if (searchAborted) {
 			// Existence couldn't be determined for some candidate folder -- refuse rather than

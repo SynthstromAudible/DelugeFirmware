@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "processing/stem_export/stem_search_policy.h"
+
 #include "definitions_cxx.hpp"
 #include "gui/l10n/strings.h"
 #include "processing/sound/sound_drum.h"
@@ -190,6 +192,18 @@ public:
 	Error getUnusedStemRecordingFilePath(std::string* filePath, AudioRecordingFolder folder);
 	Error getUnusedStemRecordingFolderPath(std::string* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
+
+	/// @name Folder-search machine state
+	/// Cross-tick state for the free-folder search. The loop it replaces held these on the stack and
+	/// blocked until it finished; now it issues one operation per tick and returns.
+	/// @{
+	deluge::storage::StemSearchPhase stemSearchPhase_ = deluge::storage::StemSearchPhase::MkdirBase;
+	bool stemSearchIssued_ = false;
+	bool stemSearchActive_ = false;
+	std::string stemSearchBasePath_{};
+	std::string stemSearchCandidatePath_{};
+	int32_t stemSearchCandidatesTried_ = 0;
+	/// @}
 	std::string lastFolderNameForStemExport{};
 	/// returns false if no valid file name could be built (e.g. the output / drum names are too long
 	/// for the file system), in which case the stem must not be exported
