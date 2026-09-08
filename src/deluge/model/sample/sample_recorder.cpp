@@ -832,6 +832,27 @@ void SampleRecorder::finalizeDecide() {
 	finalizeAltering_ = (lshiftAmount != 0 || action != MonitoringAction::NONE);
 	finalizeDataLenAfter_ = action != MonitoringAction::NONE ? (dataLengthBeforeAction >> 1) : dataLengthBeforeAction;
 	finalizeIdealSizeBefore_ = idealFileSizeBeforeAction;
+	if (finalizeAltering_) {
+		// The alteration rewrites the audio in place, so its final length comes from the action, not
+		// from what was captured -- and its truncate is conditional on the same thing the old code
+		// used: an action that halves the data, or a capture that overran.
+		finalizeTruncateTo_ = static_cast<uint32_t>(finalizeDataLenAfter_) + sample->audioDataStartPosBytes;
+		finalizeNeedTruncate_ = (action != MonitoringAction::NONE) || capturedTooMuch;
+		// Input region: `idealFileSizeBeforeAction` bytes from the start, in frames of 3 (mono in,
+		// for NONE) or 6 (stereo in, for the two channel-combining actions).
+		alterInputFrameBytes_ = (action == MonitoringAction::NONE) ? 3u : 6u;
+		alterNumFrames_ = (idealFileSizeBeforeAction - sample->audioDataStartPosBytes) / alterInputFrameBytes_;
+		alterReadCursor_ = sample->audioDataStartPosBytes;
+		alterWriteCursor_ = sample->audioDataStartPosBytes;
+		alterFramesDone_ = 0;
+		// The alteration always rewrites the header: its length changed, and for a channel-combining
+		// action so did its channel count.
+		finalizeNeedHeaderPatch_ = true;
+		audioDataLengthBytesAsWrittenToFile = finalizeDataLenAfter_;
+		loopEndSampleAsWrittenToFile = sample->fileLoopEndSamples;
+		finalizeHeaderLen_ = sample->audioDataStartPosBytes;
+		return;
+	}
 	finalizeTruncateTo_ = sample->audioDataStartPosBytes + static_cast<uint32_t>(sample->audioDataLengthBytes);
 	finalizeNeedTruncate_ = capturedTooMuch;
 	// The header was written before the true length was known, which is the usual case rather than
@@ -842,18 +863,6 @@ void SampleRecorder::finalizeDecide() {
 		audioDataLengthBytesAsWrittenToFile = sample->audioDataLengthBytes;
 		loopEndSampleAsWrittenToFile = sample->fileLoopEndSamples;
 	}
-}
-
-/// The alteration, still synchronous. The next change turns this into phases of its own.
-Error SampleRecorder::finalizeRunAlterationSynchronously() {
-	if (file) {
-		auto closeResult = this->file->close();
-		this->file.reset();
-		if (!closeResult) {
-			return Error::SD_CARD;
-		}
-	}
-	return alterFile(finalizeAction_, finalizeLshift_, finalizeIdealSizeBefore_, finalizeDataLenAfter_);
 }
 
 /// PURE: final geometry and the overview-cache grow.
@@ -975,7 +984,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			if (!file) {
 				return FinalizeStep::Failed;
 			}
-			std::span<std::byte> dst(headerScratch_.data(), kHeaderSectorBytes);
+			const uint32_t headerWant = finalizeAltering_ ? sample->audioDataStartPosBytes : kHeaderSectorBytes;
+			std::span<std::byte> dst(headerScratch_.data(), headerWant);
 			if (finalizeMayUseChannel && file->request_read_at(0, dst)) {
 				finalizeIssued_ = true;
 				return FinalizeStep::Pending;
@@ -997,6 +1007,16 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			}
 			std::span<std::byte> headerBytes(headerScratch_.data(), finalizeHeaderLen_);
 			updateDataLengthInHeader(headerBytes);
+			if (finalizeAltering_ && finalizeAction_ != MonitoringAction::NONE) {
+				// A channel-combining action leaves a mono file: channel count, byte rate and block
+				// align all follow. Same three patches the old alterFile made.
+				uint16_t data16 = 1;
+				memcpy(headerBytes.data() + 22, &data16, 2);
+				uint32_t data32 = kSampleRate * 1 * 3;
+				memcpy(headerBytes.data() + 28, &data32, 4);
+				data16 = 1 * 3;
+				memcpy(headerBytes.data() + 32, &data16, 2);
+			}
 			if (finalizeMayUseChannel && file->request_write_at(0, std::span<const std::byte>(headerBytes))) {
 				finalizeIssued_ = true;
 				return FinalizeStep::Pending;
@@ -1023,17 +1043,78 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			break;
 		}
 
-		case FinalizePhase::CloseBeforeAlter:
-		case FinalizePhase::OpenForAlter:
-		case FinalizePhase::BatchRead:
-		case FinalizePhase::BatchWrite:
-			// The alteration path is still the old synchronous one; the next change converts it.
-			// Running it here keeps this step's diff to the branch every audio-clip recording takes.
-			if (finalizeRunAlterationSynchronously() != Error::NONE) {
+		case FinalizePhase::CloseBeforeAlter: {
+			// The recording stream is closed and the file reopened for append, because the transform
+			// reads and writes the same file through two cursors and wants a context that starts at
+			// its true size.
+			if (!file) {
+				break;
+			}
+			if (finalizeMayUseChannel && file->request_close()) {
+				finalizeIssued_ = true;
+				return FinalizeStep::Pending;
+			}
+			auto closeResult = file->close();
+			file.reset();
+			if (!closeResult) {
 				return FinalizeStep::Failed;
 			}
-			finalizePhase_ = FinalizePhase::Bookkeeping;
-			return FinalizeStep::Pending;
+			break;
+		}
+
+		case FinalizePhase::OpenForAlter: {
+			if (finalizeMayUseChannel
+			    && deluge::io::Stream::request_open(sample->filePath, DELUGE_STREAM_WRITE_APPEND)) {
+				finalizeIssued_ = true;
+				return FinalizeStep::Pending;
+			}
+			auto openedStream = deluge::io::Stream::open(sample->filePath, DELUGE_STREAM_WRITE_APPEND);
+			if (!openedStream) {
+				return FinalizeStep::Failed;
+			}
+			file = std::move(openedStream.value());
+			break;
+		}
+
+		case FinalizePhase::BatchRead: {
+			const uint32_t bytes = alterBatchFrames() * alterInputFrameBytes_;
+			std::span<std::byte> dst(alterBatchBuf_.data(), bytes);
+			if (!file) {
+				return FinalizeStep::Failed;
+			}
+			if (finalizeMayUseChannel && file->request_read_at(alterReadCursor_, dst)) {
+				finalizeIssued_ = true;
+				return FinalizeStep::Pending;
+			}
+			auto readResult = file->read_at_via(alterReadCursor_, dst);
+			// A short read mid-transform means the file is not what finalize believes it is.
+			if (!readResult || *readResult != bytes) {
+				return FinalizeStep::Failed;
+			}
+			transformBatchInPlace(alterBatchFrames());
+			break;
+		}
+
+		case FinalizePhase::BatchWrite: {
+			const uint32_t batchFrames = alterBatchFrames();
+			const uint32_t outBytes = batchFrames * 3;
+			std::span<const std::byte> src(alterBatchBuf_.data(), outBytes);
+			if (!file) {
+				return FinalizeStep::Failed;
+			}
+			if (finalizeMayUseChannel && file->request_write_at(alterWriteCursor_, src)) {
+				finalizeIssued_ = true;
+				return FinalizeStep::Pending;
+			}
+			auto writeResult = file->write_at(alterWriteCursor_, src);
+			if (!writeResult || *writeResult != outBytes) {
+				return FinalizeStep::Failed;
+			}
+			alterReadCursor_ += batchFrames * alterInputFrameBytes_;
+			alterWriteCursor_ += outBytes;
+			alterFramesDone_ += batchFrames;
+			break;
+		}
 
 		case FinalizePhase::Bookkeeping:
 			if (finalizeBookkeeping() != Error::NONE) {
@@ -1069,6 +1150,38 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 		case FinalizePhase::HeaderWrite:
 			collected = file ? file->collect_write_at(&got) : DELUGE_FILE_WRITE_FAILED;
 			break;
+		case FinalizePhase::CloseBeforeAlter:
+			collected = file ? file->collect_close() : DELUGE_FILE_WRITE_FAILED;
+			if (collected == DELUGE_FILE_WRITE_READY || collected == DELUGE_FILE_WRITE_FAILED) {
+				file.reset();
+			}
+			break;
+		case FinalizePhase::OpenForAlter: {
+			std::optional<deluge::io::Stream> opened;
+			collected = deluge::io::Stream::collect_open(&opened);
+			if (collected == DELUGE_FILE_WRITE_READY && opened.has_value()) {
+				file = std::move(opened);
+			}
+			break;
+		}
+		case FinalizePhase::BatchRead:
+			collected = file ? file->collect_read_at(&got) : DELUGE_FILE_WRITE_FAILED;
+			if (collected == DELUGE_FILE_WRITE_READY) {
+				if (got != alterBatchFrames() * alterInputFrameBytes_) {
+					return FinalizeStep::Failed; // Short read mid-transform.
+				}
+				transformBatchInPlace(alterBatchFrames());
+			}
+			break;
+		case FinalizePhase::BatchWrite:
+			collected = file ? file->collect_write_at(&got) : DELUGE_FILE_WRITE_FAILED;
+			if (collected == DELUGE_FILE_WRITE_READY) {
+				const uint32_t batchFrames = alterBatchFrames();
+				alterReadCursor_ += batchFrames * alterInputFrameBytes_;
+				alterWriteCursor_ += batchFrames * 3;
+				alterFramesDone_ += batchFrames;
+			}
+			break;
 		case FinalizePhase::Close:
 			collected = file ? file->collect_close() : DELUGE_FILE_WRITE_FAILED;
 			if (collected == DELUGE_FILE_WRITE_READY || collected == DELUGE_FILE_WRITE_FAILED) {
@@ -1090,7 +1203,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 	    firstUnwrittenClusterIndex < currentRecordClusterIndex.load(std::memory_order_acquire),
 	    currentRecordBuffer != nullptr,
 	    finalizeAltering_,
-	    false, // framesRemain: the alteration path does not use the machine yet
+	    alterFramesDone_ < alterNumFrames_,
 	    finalizeNeedTruncate_,
 	    finalizeNeedHeaderPatch_,
 	});
@@ -1631,6 +1744,32 @@ void writeShiftedInt32As24(int32_t processed, std::byte* dst) {
 	dst[2] = static_cast<std::byte>((u >> 24) & 0xFF);
 }
 } // namespace
+
+constexpr uint32_t kAlterBatchFrames = 256;
+
+uint32_t SampleRecorder::alterBatchFrames() const {
+	const uint32_t remaining = alterNumFrames_ - alterFramesDone_;
+	return remaining < kAlterBatchFrames ? remaining : kAlterBatchFrames;
+}
+
+void SampleRecorder::transformBatchInPlace(uint32_t batchFrames) {
+	for (uint32_t i = 0; i < batchFrames; i++) {
+		const std::byte* in = alterBatchBuf_.data() + static_cast<size_t>(i) * alterInputFrameBytes_;
+
+		int32_t value = read24AsShiftedInt32(in);
+		if (finalizeAction_ == MonitoringAction::SUBTRACT_RIGHT_CHANNEL) {
+			int32_t right = read24AsShiftedInt32(in + 3);
+			value = (value >> 1) - (right >> 1);
+		}
+		// REMOVE_RIGHT_CHANNEL reads only the left channel above and discards the right (in + 3)
+		// entirely; NONE never has a right channel to begin with (mono input).
+
+		int32_t processed = value << finalizeLshift_;
+		// Writing at i*3 while reading at i*alterInputFrameBytes_: see alterBatchBuf_'s comment for
+		// why this cannot clobber a frame a later iteration has yet to read.
+		writeShiftedInt32As24(processed, alterBatchBuf_.data() + static_cast<size_t>(i) * 3);
+	}
+}
 
 Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
                                 uint64_t dataLengthAfterAction) {

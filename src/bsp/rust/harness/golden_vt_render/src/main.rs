@@ -287,7 +287,7 @@ unsafe extern "C" {
     fn deluge_scenario_start_recorder_roundtrip();
     fn deluge_scenario_recorder_roundtrip_done() -> bool;
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
-    fn deluge_scenario_offowner_begin();
+    fn deluge_scenario_offowner_begin(alter: i32);
     fn deluge_scenario_offowner_tick() -> i32;
     fn deluge_scenario_audio_load_ab_begin();
     fn deluge_scenario_audio_load_ab_complete() -> bool;
@@ -644,7 +644,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     // the cluster write goes through the channel, and the blocking ticks dispatch back to the owner.
     // The eleven cases above cannot cover either, because the oracle runs wholesale on the fiber.
     // SAFETY: same C-ABI contract as the calls above; called only from this task.
-    unsafe { deluge_scenario_offowner_begin() };
+    unsafe { deluge_scenario_offowner_begin(0) };
     let off_deadline = Instant::now() + Duration::from_secs(300);
     let off_result = loop {
         // SAFETY: as above.
@@ -664,6 +664,30 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     };
     if off_result != 1 {
         log::error!("golden_vt_render: off-owner recording FAILED — see the log above");
+        hard_exit(1);
+    }
+
+    // Again, this time through the alteration branch. Separate run rather than a flag inside the
+    // first, so a failure names which shape broke.
+    // SAFETY: same C-ABI contract as above.
+    unsafe { deluge_scenario_offowner_begin(1) };
+    let alter_deadline = Instant::now() + Duration::from_secs(300);
+    let alter_result = loop {
+        // SAFETY: as above.
+        let state = unsafe { deluge_scenario_offowner_tick() };
+        if state != 0 {
+            break state;
+        }
+        if Instant::now() >= alter_deadline {
+            log::error!(
+                "golden_vt_render: off-owner alterFile did not complete within 300s — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(1).await;
+    };
+    if alter_result != 1 {
+        log::error!("golden_vt_render: off-owner alterFile FAILED — see the log above");
         hard_exit(1);
     }
 

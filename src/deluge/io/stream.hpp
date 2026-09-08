@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -58,9 +59,11 @@ public:
 	[[nodiscard]] static bool request_open(std::string_view path, DelugeStreamMode mode);
 
 	/// @brief Collect the open, constructing the Stream in @p out on success.
-	/// @param out Assigned ONLY on `DELUGE_FILE_WRITE_READY`.
+	/// @param out Engaged ONLY on `DELUGE_FILE_WRITE_READY`. An optional rather than a `Stream*`
+	///            because Stream has no valid empty state -- there is nothing to overwrite until the
+	///            handle actually exists.
 	/// @return a `DELUGE_FILE_WRITE_*` value.
-	[[nodiscard]] static uint8_t collect_open(Stream* out);
+	[[nodiscard]] static uint8_t collect_open(std::optional<Stream>* out);
 
 	/// @brief Ask for @p dst.size() bytes at @p byte_offset to be read, without blocking.
 	///

@@ -439,6 +439,10 @@ namespace {
 /// progress on the clusters it has been given.
 struct OffOwnerCase {
 	std::unique_ptr<SampleRecorder> rec;
+	/// Whether this run records stereo with a silent right channel and permits alteration, so
+	/// finalize takes its REMOVE_RIGHT_CHANNEL branch. Without a case that does, the whole batch
+	/// machine is dead code: the three alterFile characterizations call the old function DIRECTLY.
+	bool alter = false;
 	std::string path;
 	int32_t ticks = 0;
 	bool started = false;
@@ -451,20 +455,21 @@ constexpr uint32_t kOffOwnerFrames = 33153;
 
 } // namespace
 
-extern "C" void deluge_scenario_offowner_begin() {
+extern "C" void deluge_scenario_offowner_begin(int32_t alter) {
 	g_offOwner.rec = std::make_unique<SampleRecorder>();
 	g_offOwner.ticks = 0;
 	g_offOwner.path.clear();
 	g_offOwner.started = false;
+	g_offOwner.alter = (alter != 0);
 
 	// stderr as well as stdout: this case runs AFTER the scenario's own fflush(nullptr), so a
 	// stdout-only line can be lost at exit -- and a case whose output vanishes is a case nobody can
 	// tell from one that never ran.
-	printf("CASE offowner_recording (channels=1 frames=%u onOwner=%d)\n", kOffOwnerFrames,
-	       (int)deluge::storage::Owner::on_owner());
+	printf("CASE offowner_%s (channels=%d frames=%u onOwner=%d)\n", g_offOwner.alter ? "alterfile" : "recording",
+	       g_offOwner.alter ? 2 : 1, kOffOwnerFrames, (int)deluge::storage::Owner::on_owner());
 	fflush(nullptr);
 
-	Error err = g_offOwner.rec->setup(1, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
+	Error err = g_offOwner.rec->setup(g_offOwner.alter ? 2 : 1, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
 	                                  /*shouldRecordExtraMargins=*/false, AudioRecordingFolder::RESAMPLE,
 	                                  /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
 	if (err != Error::NONE) {
@@ -472,6 +477,11 @@ extern "C" void deluge_scenario_offowner_begin() {
 		g_offOwner.rec.reset();
 		return;
 	}
+
+	// Alteration case: permit it, and leave the right channel silent so inputHasNoRightChannel()
+	// picks REMOVE_RIGHT_CHANNEL. The result is a MONO file carrying the left ramp, which is exactly
+	// what the plain case's verification already checks for.
+	g_offOwner.rec->allowFileAlterationAfter = g_offOwner.alter;
 
 	std::vector<StereoSample> input(kOffOwnerFrames);
 	for (uint32_t i = 0; i < kOffOwnerFrames; i++) {

@@ -50,7 +50,10 @@ int32_t deluge_scenario_run_recorder_roundtrip();
 /// case exists to cover what that cannot: a recorder driven from where the device actually drives
 /// one, so the async cluster write is exercised and `cardRoutine`'s dispatch of its BLOCKING ticks
 /// back to the owner is load-bearing rather than dead code.
-void deluge_scenario_offowner_begin(void);
+/// @param alter non-zero to record stereo with a silent right channel and permit alteration, so
+///              finalize takes its REMOVE_RIGHT_CHANNEL branch. The three alterFile cases in the
+///              oracle call `alterFile()` DIRECTLY, so without this the batch machine is never run.
+void deluge_scenario_offowner_begin(int32_t alter);
 
 /// @brief Advance the off-owner case by one tick. Call from the SAME non-fiber context.
 ///

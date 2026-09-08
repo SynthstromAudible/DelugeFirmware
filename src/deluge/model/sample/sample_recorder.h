@@ -257,7 +257,10 @@ private:
 	void finalizePrologueOnce();
 	Error finalizeWriteFinalPartial();
 	void finalizeDecide();
-	Error finalizeRunAlterationSynchronously();
+	/// @brief Apply the per-frame transform to the batch sitting in @ref alterBatchBuf_, in place.
+	void transformBatchInPlace(uint32_t batchFrames);
+	/// @brief How many frames this batch covers.
+	[[nodiscard]] uint32_t alterBatchFrames() const;
 	Error finalizeBookkeeping();
 	/// Whether @ref finalizePrologueOnce has run; it must not repeat across the drain's many ticks.
 	bool finalizePrologueDone_ = false;
@@ -279,6 +282,25 @@ private:
 	uint64_t finalizeDataLenAfter_ = 0;
 	uint32_t finalizeTruncateTo_ = 0;
 	uint32_t finalizeHeaderLen_ = 0;
+	/// @name Alteration loop state
+	/// The whole of what the positional transform carries between ticks: six scalars and one buffer.
+	/// @{
+	uint32_t alterReadCursor_ = 0;
+	uint32_t alterWriteCursor_ = 0;
+	uint32_t alterFramesDone_ = 0;
+	uint32_t alterNumFrames_ = 0;
+	uint32_t alterInputFrameBytes_ = 3;
+
+	/// One buffer, not two: the transform runs IN PLACE. Output is 3 bytes per frame and input is 3
+	/// or 6, so within a batch the write position is always at or behind the read position -- frame
+	/// `i` reads `i*inputFrameBytes` and writes `i*3`, and `i*3+2 < i*6` for every `i >= 1`, while
+	/// frame 0 writes only after it has read. Processing FORWARD is therefore safe.
+	///
+	/// A member rather than a stack buffer because the channel reads into it asynchronously: a stack
+	/// buffer would be freed under the driver.
+	std::array<std::byte, 256 * 6> alterBatchBuf_{};
+	/// @}
+
 	/// The header sector, read back and patched across two ticks. A member because the channel reads
 	/// into it asynchronously -- a stack buffer would be freed under the driver.
 	std::array<std::byte, 512> headerScratch_{};

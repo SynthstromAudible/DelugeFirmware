@@ -64,11 +64,11 @@ bool Stream::request_open(std::string_view path, DelugeStreamMode mode) {
 	return deluge_file_write_request_open(path.data(), static_cast<uint8_t>(mode));
 }
 
-uint8_t Stream::collect_open(Stream* out) {
+uint8_t Stream::collect_open(std::optional<Stream>* out) {
 	uint32_t handle = 0;
 	const uint8_t status = deluge_file_write_collect_open(&handle);
 	if (status == DELUGE_FILE_WRITE_READY && out != nullptr) {
-		*out = Stream(box_stream_handle(handle));
+		out->emplace(Stream(box_stream_handle(handle)));
 	}
 	return status;
 }
