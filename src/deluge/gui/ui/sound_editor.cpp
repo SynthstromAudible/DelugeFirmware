@@ -1092,9 +1092,26 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 		bool hadNoteTails;
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
-
+		// A `char modelStackMemory[MODEL_STACK_MAX_SIZE];` and a
+		// `ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();`
+		// stood here, immediately above the `if (currentSound)` below. Both were **shadowed** by the
+		// identical pair inside that block (`:1116-1117`), and neither name was read between the two --
+		// the outer `modelStack` had no reader anywhere in this function. Dead since they were written
+		// (`4501bbfe8`, "Feature: Performance View (#711)").
+		//
+		// Dead, but not harmless: `getCurrentModelStack` dereferences `getCurrentInstrument()` at
+		// `:2044` (`instrument->type == OutputType::KIT && ...`), and that is **null on an audio clip**.
+		// So every select-encoder turn anywhere in the audio-clip menu ran a null dereference whose
+		// result was then thrown away. Measured under gdb on the host sim, from the ported A/B script's
+		// own audio-clip leg (`tests/ui-scripts/app/menu.txt`): SIGSEGV at `:2044` with
+		// `instrument == nullptr`, `getCurrentInstrumentClip() == nullptr` and
+		// `getCurrentClip()->type == ClipType::AUDIO`. On the device address 0 is mapped, so it read
+		// whatever sits there and discarded it -- latent rather than fatal, which is why it survived.
+		//
+		// Deleting a value nothing reads cannot change behaviour on any path that did not fault: the
+		// callee writes only into the caller's `modelStackMemory` buffer and touches no global
+		// (`SoundEditor::getCurrentModelStack`, `:2037-2062`). The A/B's toggle-OFF goldens are the
+		// check -- `tests/golden/ui/app/menu` is byte-for-byte unchanged across this edit.
 		if (currentSound) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
