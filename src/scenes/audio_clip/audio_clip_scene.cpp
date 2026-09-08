@@ -1071,9 +1071,13 @@ void AudioClipScene::adjust_loop_length(int32_t new_length) {
 void AudioClipScene::set_clip_length_equal_to_sample_length() {
 	// `AudioClipView::setClipLengthEqualToSampleLength` (`audio_clip_view.cpp:758-769`).
 	//
-	// `MenuAction::SetClipLengthToSampleLength`'s callee. Nothing dispatches that enumerator yet --
-	// `scenes/menu/action.h` says so and says whose job it is -- so this method's only caller in
-	// this library is `button_action`'s X_ENC+Y_ENC chord.
+	// `MenuAction::SetClipLengthToSampleLength`'s callee -- in the sense that the enumerator names
+	// the same legacy statement, NOT that the dispatcher calls this. It calls
+	// `audioClipView.setClipLengthEqualToSampleLength()` on the real legacy view
+	// (`gui/ui/shell_action_dispatch.cpp`'s arm, F2 task 4), because that is the object the running
+	// firmware's clip belongs to. So this method's only caller in this library is still
+	// `button_action`'s X_ENC+Y_ENC chord, and it is the port's own copy of the verb rather than
+	// the one a ported menu item reaches.
 	if (clip_ == nullptr) {
 		return;
 	}

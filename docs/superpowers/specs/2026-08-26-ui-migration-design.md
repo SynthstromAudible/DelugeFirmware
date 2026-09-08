@@ -951,7 +951,7 @@ three `IntegerWithOff` nodes that draw "0" where legacy draws "OFF".
   `shell/shell.h`. Rewriting one as a bulleted list fixes it, and the citations in it have to be
   re-verified line by line while doing so (E4 tasks 9 and 14 each fixed one this way).
 
-### 10.5 Eleven defects in shipping firmware, found by the port and not fixed by it
+### 10.5 Twelve defects in shipping firmware, found by the port and not fixed by it
 
 They belong in a release note, not only in a spec, and are written up in full in
 `src/scenes/README.md`'s "Defects this port found in shipping firmware" with a `@warning` at each
@@ -1044,11 +1044,25 @@ crash under the OFF fixture exit 0 under the ON one, because `openShellMenu` nev
 clip — which is the opposite of a reason not to fix it. Not fixed here: it is a legacy behaviour
 change, and this stack's standing rule sends those to Kate.
 
-Four of the eleven are in `gui/views/view.cpp` and `gui/views/clip_view.cpp` and **none of the four
+F2 task 4 added a twelfth, found by porting the clip-length verb: **`AudioClipView::setClipLengthEqualToSampleLength`'s
+`NO_SAMPLE` arm is dead code.** Its guard is `if (sampleHolder)` (`gui/views/audio_clip_view.cpp:762`)
+over `audioClip.guide.audioFileHolder` (`:761`), which `AudioClip::AudioClip` sets to the address of
+a member "permanently" (`model/clip/audio_clip.cpp:57`) — so no `AudioClip` can ever take the
+`else`, and `:766-768`'s "NO SAMPLE" popup is unreachable. **What the user gets instead is the
+misleading half**: with no sample loaded the *other* branch runs, `getLoopLengthAtSystemSampleRate`
+falls through to `return getCurrentClip()->loopLength` (`model/sample/sample_holder.cpp:112`), and
+the display reads "CLIP LENGTH ADJUSTED" over an adjustment of zero. Scope, because the same
+always-true guard appears elsewhere in that file and only this one is a defect: `:841`'s wraps a
+real `if (sample)` test and is not a dead error arm. Recorded rather than fixed, and it stayed in a
+task report for five tasks before landing here — which is the failure this section exists to
+prevent.
+
+Four of the twelve are in `gui/views/view.cpp` and `gui/views/clip_view.cpp` and **none of the four
 is annotated in the legacy file**: this stack cites those two by line more than 130 times, and
-inserting a comment would shift every citation. The eleventh is unannotated in `sound_editor.cpp`
-for the same reason and at a larger scale. Every port-side `@warning` is complete, and
-`src/scenes/README.md`'s "Defects this port found in shipping firmware" is the full table.
+inserting a comment would shift every citation. The eleventh (`sound_editor.cpp`) and the twelfth
+(`audio_clip_view.cpp`) are unannotated for the same reason and at a larger scale. Every port-side
+`@warning` is complete, and `src/scenes/README.md`'s "Defects this port found in shipping firmware"
+is the full table.
 
 ### 10.6 What the oracle actually covers for the three new scenes (2026-09-04, closing E3's final review)
 
