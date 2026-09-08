@@ -196,9 +196,10 @@ namespace deluge::gui::ui {
 ///    declarer is `services::ModKnobs` (`grep -rn "frame.indicator(" src/scenes` --
 ///    `scenes/services/mod_knobs.cpp:687`, `:696`, `:703`), `Shell::flush` calls `set_indicator`
 ///    only for an indicator declared this tick (`shell/shell.cpp:1014-1026`), and the guest now has a
-///    `ModKnobs` in its `Services`. The fix task 7 named is in: `exitUI`'s close path calls
-///    `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`) *before*
-///    `close()`, which puts shadow and hardware back in step at level 0 in time for the
+///    `ModKnobs` in its `Services`. The fix task 7 named is in: `closeGuest()`, the body BOTH of
+///    the guest's close paths run (`exitUI`'s long-press Back and `timerCallback`'s short one, F1
+///    task 11), calls `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`)
+///    *before* `close()`, which puts shadow and hardware back in step at level 0 in time for the
 ///    `focusRegained` that `closeUI` runs on the same call -- every root view's reaches
 ///    `view.setActiveModControllableTimelineCounter(...)` and so `setKnobIndicatorLevels()`. See
 ///    that function for the two residual cases.

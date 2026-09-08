@@ -380,7 +380,19 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	//     They agree -- same grid, same rows -- but when the guest answers transparent, legacy keeps
 	//     walking down and the UI underneath overwrites these rows
 	//     (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`, the `usedUp` test at `:329-337`).
-	//     For the first tenant that is exactly right: `SoundEditor` renders no pads at all.
+	//     This used to end "For the first tenant that is exactly right: `SoundEditor` renders no
+	//     pads at all", and **F1 task 11's A/B falsified the conclusion, not the premise.**
+	//     `SoundEditor` does render no pads -- it overrides neither hook -- but it does not BLANK
+	//     them either: it overrides `getGreyoutColsAndRows` (`gui/ui/sound_editor.cpp:252-294`)
+	//     and legacy keeps painting the view underneath, dimmed. Measured on `menu.txt`: with the
+	//     toggle off the clip view's sidebar column is still lit under the open menu, greyed
+	//     (`pad 16 0 3 160 7` against boot's `0 255 6`); with it on there is no `pad` line at all.
+	//     Legacy's own walk is not what does that -- `MenuScene::is_grid_overlay()` is true
+	//     (`scenes/menu/menu_scene.h:457`) so `opaque()` is false and `serveGrid` answers
+	//     transparent -- it is the shell's OWN flush, `GuestSurfaceSet::send_columns`, pushing the
+	//     menu's all-black grid to the hardware before legacy's walk gets a say. Recorded as a
+	//     divergence in F1 task 11's report rather than fixed here: the fix is in the flush path,
+	//     which is F1 task 4/5's, not this hook's.
 	//  2. **Legacy's menu blink is a hardware flash; the port's is a framebuffer write.**
 	//     `SoundEditor`'s shortcut blink calls `PadLEDs::flashMainPad`
 	//     (`gui/ui/sound_editor.cpp:997-1040`, the calls at `:1021` and `:1032`), which goes straight
