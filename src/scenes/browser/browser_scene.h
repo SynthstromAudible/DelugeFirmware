@@ -290,7 +290,7 @@ inline constexpr int32_t kRowIconX = 1;
 /// **This is what keeps the seam from jamming, and it is not decoration.** `Listing` must be polled
 /// every tick (`listing.h`'s `@warning`: an uncollected `Ready` refuses every later request), and
 /// the only hook that can file an `Action` is `after_render()` -- which the shell calls only for
-/// scenes that actually *drew* this tick (`shell/shell.cpp:360-364`). With no input arriving and
+/// scenes that actually *drew* this tick (`shell/shell.cpp:378-382`). With no input arriving and
 /// nothing else asking for a frame, the browser would neither render nor poll, and the listing would
 /// land into silence. So while a request is in flight or waiting to be retried, `next_timer()` asks
 /// the shell to come back at this interval, and `Shell::tick`'s step 8b turns that answer into the

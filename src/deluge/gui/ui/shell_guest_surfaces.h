@@ -51,7 +51,7 @@ namespace deluge::gui::ui {
 ///    `clearMainImage()` across `src/deluge`, less its declaration and its definition), including
 ///    `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp:351-371`), which clears it immediately before
 ///    asking each open UI to re-render. The shell is retained-mode: `Shell::flush`
-///    (`shell/shell.cpp:884-1013`) blits only a surface whose `blit_pending` a repaint raised. An
+///    (`shell/shell.cpp:902-1031`) blits only a surface whose `blit_pending` a repaint raised. An
 ///    aliased buffer that legacy zeroed between two shell renders would go blank with nothing to
 ///    tell the shell to paint it again.
 ///
@@ -65,13 +65,13 @@ public:
 	///
 	/// **This is a per-tick cost, not a per-second one, and deliberately stated that way.** The OLED
 	/// path has no diff -- `Shell::flush` blits a surface unconditionally once it has rendered, which
-	/// `shell/shell.cpp:435-442` records as the reason the OLED half may not over-arm the way the
+	/// `shell/shell.cpp:453-460` records as the reason the OLED half may not over-arm the way the
 	/// grid half may. So the cost is 768 B on every tick in which the panel re-rendered, and the
 	/// only ceiling is the host's tick rate: several `next_timer()` overrides return 0 ("as soon as
 	/// possible"), so there is no millisecond floor to quote. The fastest *fixed* cadence in the
 	/// tree that arms an OLED gate is `RecorderScene`'s `kRecorderPollMs = 10`
 	/// (`src/scenes/recorder/recorder_scene.h:180`), which takes `Scene::timer_repaints()`'s
-	/// `{.oled = true, .grid = true}` default (`shell/scene.h:571`) because it does not override it
+	/// `{.oled = true, .grid = true}` default (`shell/scene.h:619`) because it does not override it
 	/// -- 768 B x 100/s = 76.8 kB/s on one panel, and a floor rather than a ceiling.
 	///
 	/// For scale, legacy already memcpys up to this whole image per frame in
@@ -92,10 +92,10 @@ public:
 	/// **The bound here is the diff, not a cadence** (corrected in the F1 task 4 review; the first
 	/// version of this note quoted a 20 ms ceiling that two shipped scenes already exceed).
 	/// `AudioClipScene::next_timer()` returns `0u` for as long as the playhead is live
-	/// (`src/scenes/audio_clip/audio_clip_scene.cpp:1193`) with `{.oled = false, .grid = true}`
+	/// (`src/scenes/audio_clip/audio_clip_scene.cpp:1199`) with `{.oled = false, .grid = true}`
 	/// (`audio_clip_scene.h:477`), so the grid gate arms on **every tick** and there is no
 	/// millisecond ceiling to name. What makes that free is that `Shell::flush` diffs each pair
-	/// against `last_sent` before calling `send_columns` at all (`shell/shell.cpp:941-957`): a tick
+	/// against `last_sent` before calling `send_columns` at all (`shell/shell.cpp:959-975`): a tick
 	/// in which no pad changed colour costs zero bytes however fast the ticks come, and the 432 B
 	/// above is the cost of a *full repaint*, not of a tick. The real figure is 48 B x (pairs whose
 	/// colours actually changed).

@@ -486,7 +486,7 @@ struct Rig {
 	/// @brief Run the parked listing op and settle the scene on its result.
 	///
 	/// **Two ticks, and the second is not padding.** `Shell::tick` renders at steps 5-6 and calls
-	/// `after_render()` at step 7 (`shell/shell.cpp:334-364`), so the tick that *collects* the
+	/// `after_render()` at step 7 (`shell/shell.cpp:352-382`), so the tick that *collects* the
 	/// listing draws the state from before it landed; the `RepaintAll` that collection files is for
 	/// the tick after. Anything comparing pixels needs both.
 	void land() {
@@ -889,7 +889,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		// **Fix round 1, Critical 1.** This scene used to file `Action::Kind::LockInput{true}` while
 		// `in_flight()` and clear its own flag in `on_exit()` -- which returns `void`, so the
 		// matching release could never be filed on the one path that needs it. `set_input_lock` is
-		// one bare global bool with no owner (`shell/router.cpp:139` ->
+		// one bare global bool with no owner (`shell/router.cpp:154` ->
 		// `shell/input_lowering.h:331 set_input_lock`), so an external `Pop` mid-listing left the ENTIRE device
 		// deaf until something else happened to clear it. It is also the wrong lock: it *drops*
 		// events, including encoder edges (`shell/input_lowering.cpp:159`), where legacy's
@@ -961,7 +961,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 	it("collects a listing that lands on a tick with NO input at all", _ {
 		// The quiet-tick example, and it has to be one: `after_render()` -- the only hook that can
 		// collect a result or file an action -- runs only for scenes the shell actually *rendered*
-		// this tick (`shell/shell.cpp:360-364`). With no input arriving, nothing else asks for a
+		// this tick (`shell/shell.cpp:378-382`). With no input arriving, nothing else asks for a
 		// frame, so `render_oled`'s `kListingPollMs` gate arm and `next_timer()`'s matching answer
 		// are the ONLY things that bring the browser back. A spec that supplied input on every tick
 		// would pass with both deleted.

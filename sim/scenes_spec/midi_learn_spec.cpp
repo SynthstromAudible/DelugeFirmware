@@ -75,6 +75,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -286,10 +287,54 @@ class RootScene final : public Scene {
 public:
 	SceneKind kind() const override { return SceneKind::FirstApp; }
 	bool is_root() const override { return root; }
-	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+	Result handle(const UiEvent& e, const UiContext&) override {
+		// `claim_midi` is the port-side stand-in for a UI that overrides
+		// `noteOnReceivedForMidiLearn` and answers true -- `SoundEditor` is the one that does
+		// (`gui/ui/sound_editor.cpp:1595-1597`), and the scenes that will are E5's and E6's,
+		// answering `learnable_at(pad)`. Off by default, so every other example in this file routes
+		// through a scene that declines exactly as `StubRootUI` does.
+		if (claim_midi && (e.kind == UiEvent::Kind::MidiNoteOn || e.kind == UiEvent::Kind::MidiCc)) {
+			midi_seen++;
+			return Result{.handled = true};
+		}
+		return Result::unhandled();
+	}
 
 	bool root = true;
+	bool claim_midi = false;
+	int midi_seen = 0;
 };
+
+/// @brief The `channelOrZone` legacy's dispatchers compute before they call either learn function
+///        (`playback/playback_handler.cpp:2966`, `:3126`).
+///
+/// The port is driven with this same value rather than the raw channel, because that is what its
+/// producer is handed: `ShellHostUI::noteOnReceivedForMidiLearn`'s `channel` argument IS
+/// `channelOrZone`, already mapped by the dispatcher one line above the call. Computing it here
+/// rather than assuming it equals the channel is what keeps the two sides comparable on an MPE
+/// port, where they would differ.
+uint8_t zone_of(::MIDICable& cable, uint8_t channel) {
+	return static_cast<uint8_t>(cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].channelToZone(channel));
+}
+
+/// @brief The `UiEvent` `ShellHostUI::noteOnReceivedForMidiLearn` builds (`gui/ui/shell_host_ui.cpp`).
+UiEvent midi_note_on(::MIDICable& cable, uint8_t channel, uint8_t note, uint8_t velocity) {
+	return UiEvent{.kind = UiEvent::Kind::MidiNoteOn,
+	               .channel = zone_of(cable, channel),
+	               .data1 = note,
+	               .data2 = velocity,
+	               .cable = &cable};
+}
+
+/// @brief The `UiEvent` a CC producer would build. **There is none in `src/`** -- see the section
+///        comment below, and `MidiLearn::cc_received`'s `@warning`.
+UiEvent midi_cc(::MIDICable& cable, uint8_t channel, uint8_t cc, uint8_t value) {
+	return UiEvent{.kind = UiEvent::Kind::MidiCc,
+	               .channel = zone_of(cable, channel),
+	               .data1 = cc,
+	               .data2 = value,
+	               .cable = &cable};
+}
 
 /// @brief The full chain a shell builds, minus the shell: a real `Router` over a real
 ///        `SceneStack`, a real `InputLowering`, and BOTH services in their shipped slots.
@@ -1122,6 +1167,162 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.cc_received(cables().b, 8, 74, 100);
 
 		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
+	});
+
+	// -- The transport: `UiEvent::Kind::MidiNoteOn` / `MidiCc` through the real `Router` -----------
+	//
+	// F1 task 10 / migration §10.2 item 8. Until this section existed, `note_on_received` and
+	// `cc_received` had **no caller anywhere in `src/`** -- every example above reaches them by
+	// calling the service directly, which pins the service's behaviour and says nothing about
+	// whether anything can deliver a message to it.
+	//
+	// So these four drive the port from a **different sentinel to the rest of the file**:
+	// `rig.router.route(...)`, the same call `Shell::route_midi` makes. `GlobalControls` is live in
+	// its own slot throughout, one step ahead of `midi_learn` in the chain, so a routed message
+	// reaching the model at all is also the evidence that `GlobalControls` did not swallow it.
+	//
+	// Legacy is driven from a different sentinel too, and a wider one: `PlaybackHandler`'s
+	// dispatchers rather than `View`'s methods. That is what makes these transport examples --
+	// `noteMessageReceived`'s `UI_MODE_MIDI_LEARN` gate, its `channelToZone` mapping and its
+	// UI-first `if`/`else` are all inside the compared path.
+
+	it("MidiNoteOn: legacy's note-on DISPATCHER and the Router reach the same `LearnedMIDI`", _ {
+		static spec::SongFixture fixture = spec::make_synth_song();
+		::LearnedMIDI& slot = fixture.song->sections[5].launchMIDICommand;
+
+		// --- Legacy, from `PlaybackHandler::noteMessageReceived` (`:2960-2973`) --------------
+		expect(reset_legacy_learn()).to_be_true();
+		slot.clear();
+		view.startMIDILearn();
+		// `:2963`'s gate, which `startMIDILearn` is what sets (`view.cpp:493`). Asserted rather
+		// than assumed: with it false the dispatcher falls through to `offerNoteToLearnedThings`
+		// and this example would compare two untouched slots.
+		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true();
+		view.sectionMidiLearnPadPressed(true, 5);
+		bool thru = false;
+		playbackHandler.noteMessageReceived(cables().a, /*on=*/true, 3, 64, 127, &thru);
+		const Learned legacy = Learned::of(slot);
+		expect(legacy.cable == &cables().a).to_be_true();
+		expect(legacy.channel_or_zone == zone_of(cables().a, 3)).to_be_true();
+		expect(legacy.note_or_cc == 64).to_be_true();
+		view.sectionMidiLearnPadPressed(false, 5);
+		expect(reset_legacy_learn()).to_be_true();
+
+		// --- Poison ---------------------------------------------------------------------------
+		expect(poison(slot)).to_be_true();
+
+		// --- The port, from `Router::route` ----------------------------------------------------
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 5), true);
+		const uint32_t dropped_before = rig.router.dropped_events();
+		const bool handled = rig.router.route(midi_note_on(cables().a, 3, 64, 127), rig.ctx());
+
+		// The bool `ShellHostUI::noteOnReceivedForMidiLearn` returns to legacy, so its `else`
+		// (`playback_handler.cpp:2969-2971`) does not hand the same message to `view` as well.
+		expect(handled).to_be_true();
+		expect(rig.router.dropped_events() == dropped_before).to_be_true();
+		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
+	});
+
+	it("MidiCc: legacy's CC DISPATCHER and the Router reach the same `LearnedMIDI`", _ {
+		// **The port side of this example has no producer in `src/`**, and that is the one thing it
+		// cannot assert. `PlaybackHandler::midiCCReceived` reaches learn at `:3132-3133` with no
+		// `getCurrentUI()->...ForMidiLearn` call and no `UI` virtual to override (`gui/ui/ui.h:130`,
+		// `:132` are the only two `*ForMidiLearn` hooks the class declares), so the guest cannot
+		// intercept it the way it intercepts note-on. What is asserted is that the *transport* --
+		// the kind, the chain position, the service arm -- lands the same model write legacy's
+		// dispatcher does, so the day that dispatcher gains a seam there is nothing else to build.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		::LearnedMIDI& slot = fixture.song->sections[6].launchMIDICommand;
+
+		expect(reset_legacy_learn()).to_be_true();
+		slot.clear();
+		view.startMIDILearn();
+		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true(); // `:3132`'s gate
+		// `getCurrentUI()` is `StubRootUI`, not `&soundEditor`, so `:3128`'s first-dibs test is
+		// false and the message falls to `view.ccReceivedForMIDILearn` at `:3133` -- the branch this
+		// example is about. Asserted, because if it were ever true this would compare nothing.
+		expect(getCurrentUI() == static_cast<UI*>(&soundEditor)).to_be_false();
+		view.sectionMidiLearnPadPressed(true, 6);
+		bool thru = false;
+		playbackHandler.midiCCReceived(cables().a, 2, 74, 100, &thru);
+		const Learned legacy = Learned::of(slot);
+		expect(legacy.cable == &cables().a).to_be_true();
+		// The `IS_A_CC` bias is applied by `ccReceivedForMIDILearn` itself (`view.cpp:805-808`), not
+		// by the dispatcher -- so it must appear on the port side too, from `cc_received`, and NOT
+		// from the transport. `UiEvent::channel` carries the raw zone.
+		expect(legacy.channel_or_zone == zone_of(cables().a, 2) + IS_A_CC).to_be_true();
+		expect(legacy.note_or_cc == 74).to_be_true();
+		view.sectionMidiLearnPadPressed(false, 6);
+		expect(reset_legacy_learn()).to_be_true();
+
+		expect(poison(slot)).to_be_true();
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 6), true);
+		const bool handled = rig.router.route(midi_cc(cables().a, 2, 74, 100), rig.ctx());
+
+		expect(handled).to_be_true();
+		expect(Learned::of(slot).channel_or_zone != kPoisonChannel).to_be_true();
+		expect(Learned::of(slot).describe()).to_equal(legacy.describe());
+	});
+
+	it("the SCENE gets the message first, so a scene that claims it stops `midi_learn` seeing it", _ {
+		// The port of `:2968`'s first refusal: `getCurrentUI()->noteOnReceivedForMidiLearn(...)`
+		// runs before `view.` and its `true` is what skips `view.` entirely. In the chain that is
+		// `Router::run_chain`'s scene step running before its `midi_learn` step, and this example
+		// is the only thing in the file that would fail if those two were swapped -- every other
+		// one routes through a scene that declines, where the order is unobservable.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		::LearnedMIDI& slot = fixture.song->sections[7].launchMIDICommand;
+		expect(poison(slot)).to_be_true();
+
+		LearnRig rig;
+		rig.root.claim_midi = true;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 7), true);
+		const bool handled = rig.router.route(midi_note_on(cables().a, 3, 64, 127), rig.ctx());
+
+		expect(handled).to_be_true();
+		expect(rig.root.midi_seen == 1).to_be_true();
+		// Still poisoned: the service never ran. If the chain consulted `midi_learn` first this
+		// would hold `cable A / 3 / 64` instead.
+		expect(Learned::of(slot).channel_or_zone == kPoisonChannel).to_be_true();
+
+		// And with the scene declining, the SAME rig, the same held thing and the same event do
+		// reach the service -- so the assertion above is about the claim and not about some other
+		// reason the model did not move.
+		rig.root.claim_midi = false;
+		expect(rig.router.route(midi_note_on(cables().a, 3, 64, 127), rig.ctx())).to_be_true();
+		expect(Learned::of(slot).channel_or_zone == zone_of(cables().a, 3)).to_be_true();
+		expect(Learned::of(slot).note_or_cc == 64).to_be_true();
+	});
+
+	it("a MIDI event with a null cable is dropped, not dereferenced", _ {
+		// `UiEvent::cable`'s documented "no message" value. The service is the only thing in the
+		// tree that may read through it, so it is the only thing that can refuse -- and it refuses
+		// by reporting the event unhandled, which lets `Router` count it rather than silently
+		// swallowing it.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		::LearnedMIDI& slot = fixture.song->sections[8].launchMIDICommand;
+		expect(poison(slot)).to_be_true();
+
+		LearnRig rig;
+		rig.ml.set_song(fixture.song);
+		rig.ml.begin();
+		rig.ml.thing_pressed(LearnTarget::section(*fixture.song, 8), true);
+		const uint32_t dropped_before = rig.router.dropped_events();
+		const bool handled = rig.router.route(UiEvent{.kind = UiEvent::Kind::MidiNoteOn, .cable = nullptr}, rig.ctx());
+
+		expect(handled).to_be_false();
+		expect(rig.router.dropped_events() == dropped_before + 1).to_be_true();
+		expect(Learned::of(slot).channel_or_zone == kPoisonChannel).to_be_true();
 	});
 
 	// -- `startMIDILearn`'s guard ------------------------------------------------------------------

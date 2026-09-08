@@ -60,7 +60,7 @@ std::array<Scene*, 18> table_for(Scene& base) {
 ///        it is routed to.
 ///
 /// The four counters are the four hooks a `Shell` reaches a service through: `handle()` via
-/// `Router` (`shell.cpp:568`'s `router_.route`), and `tick()`, `leds()` and `next_timer()` via
+/// `Router` (`shell.cpp:586`'s `router_.route`), and `tick()`, `leds()` and `next_timer()` via
 /// `service_list_` (`Shell::tick_stack` at `:584`, `Shell::derive_leds` -> `LedCompose::compose` at
 /// `:841`, `Shell::compute_next_wake` at `:1044`). The list has a fourth reader, `Shell::tick`'s
 /// step 8c at `:494`, which also calls `next_timer()` -- but only for a service whose
@@ -196,7 +196,7 @@ describe shell_services("shell::Shell::set_services", $ {
 		expect(r.global_controls.led_calls).to_equal(1);
 		expect(r.midi_learn.led_calls).to_equal(1);
 		// Exactly one `next_timer()` per tick, and from one caller: `Shell::compute_next_wake`'s
-		// unguarded loop over `service_list_` (`shell.cpp:1044`). `Shell::tick`'s step 8c reads the
+		// unguarded loop over `service_list_` (`shell.cpp:1062`). `Shell::tick`'s step 8c reads the
 		// same list (`:494`) but asks `next_timer()` only for a service whose `timer_repaints()`
 		// claims a surface, and `Service::timer_repaints()`'s default claims none.
 		expect(r.mod_knobs.timer_queries).to_equal(1);

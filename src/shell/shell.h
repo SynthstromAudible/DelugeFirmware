@@ -155,7 +155,7 @@ public:
 	/// `ModKnobs::mod_encoder_button_action` (`:564`) both read `stack_.input_top()`;
 	/// `GlobalControls::handle` gates its `View::buttonAction` group on
 	/// `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
-	/// `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:466`). So a real
+	/// `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:490`). So a real
 	/// service cannot be constructed before the shell it serves, and before this existed it could
 	/// not be installed after it either -- an application could only ever pass `Services{}`, and
 	/// no gold-knob turn, transport button or MIDI-learn press reached anything outside the scene
@@ -292,6 +292,31 @@ public:
 	/// @param edges  Signed A-pin edge count since the last call.
 	/// @param now_ms The wall clock.
 	void on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
+
+	/// @brief Route one MIDI-learn message through the chain **now**, and say whether anything took
+	///        it.
+	///
+	/// The odd one out of the three feeds, in the one way that matters: `on_board_event` and
+	/// `on_encoder_edges` *queue*, and nothing is routed until the next `tick()`
+	/// (`pump_input`) -- so neither can report what a scene did. This one routes synchronously,
+	/// because its caller is a legacy `UI` virtual whose whole contract is a bool: the note-on and
+	/// program-change learn dispatchers are
+	/// `if (getCurrentUI()->...ForMidiLearn(...)) {} else { view....(...); }`
+	/// (`playback/playback_handler.cpp:2968-2971`, `:2897-2901`), and a guest that answered "ask me
+	/// again next tick" would hand the message to `view` as well.
+	///
+	/// It is not a lowering event and does not open the lowering's tick window: \p event is built
+	/// by the caller (`Kind::MidiNoteOn` or `Kind::MidiCc`, with the cable, channel and two data
+	/// bytes), not derived from a `DelugeInputEvent`, and the held sets, shift latch and press
+	/// bookkeeping `make_context` reads are levels that are as valid between ticks as within one.
+	///
+	/// @param event  The event; anything but the two MIDI kinds is a caller error and is routed
+	///               anyway (there is no shape here worth a second gate -- `Router` is total over
+	///               `Kind`).
+	/// @param now_ms The wall clock, for the `UiContext`.
+	/// @return True if the top scene or a service reported `handled`, which the caller should
+	///         return to legacy so its `else` does not also run.
+	bool route_midi(const UiEvent& event, uint32_t now_ms);
 	/// @}
 
 	/// @brief Take or release the SD-routine lock, deferring board input while it is held.
@@ -315,7 +340,7 @@ public:
 	///          ticking as fast as you can", and a host cannot currently tell them apart.** Zero is
 	///          a legal `Scene::next_timer()` answer meaning "next tick" (its own doc has the
 	///          account), and `scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
-	///          whole of playback (`audio_clip_scene.cpp:1193`) -- faithfully, because legacy drives
+	///          whole of playback (`audio_clip_scene.cpp:1199`) -- faithfully, because legacy drives
 	///          that play cursor from `graphicsRoutine`, which is a per-frame redraw rather than a
 	///          deadline. (It is **not** driven from the main loop: `TimerName::GRAPHICS_ROUTINE`
 	///          re-arms it at 15 ms, `gui/ui_timer_manager.cpp:213-218` -- corrected F1 task 7, and

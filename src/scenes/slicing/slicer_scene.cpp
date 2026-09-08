@@ -584,6 +584,12 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Encoder:
 		break;
 
+	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
+	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
+	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
+	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
+	case UiEvent::Kind::MidiNoteOn:
+	case UiEvent::Kind::MidiCc:
 	case UiEvent::Kind::AllReleased:
 		return Result::unhandled();
 	}

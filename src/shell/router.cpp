@@ -76,7 +76,7 @@ bool already_claimed(const UiEvent& e, const InputClaims& claims) {
 
 } // namespace
 
-void Router::run_chain(const UiEvent& event, const UiContext& ctx) {
+bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	// `input_top()`, not `top()`: a popup, a console line or the working animation sits on the
 	// stack without ever taking the input of the scene it is drawn over (`Scene::input_transparent`,
 	// and legacy's own popups, which are composited into the OLED image and route nothing --
@@ -84,7 +84,7 @@ void Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	Result scene_result = stack_.input_top().handle(event, ctx);
 	apply(scene_result);
 	if (scene_result.handled) {
-		return;
+		return true;
 	}
 
 	// `mod_knobs` is `View`, and `View` is the *base-class fallback* the current UI drops through
@@ -93,14 +93,14 @@ void Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 		Result mod_result = services_.mod_knobs->handle(event, ctx);
 		apply(mod_result);
 		if (mod_result.handled) {
-			return;
+			return true;
 		}
 	}
 
 	Result global_result = services_.global_controls->handle(event, ctx);
 	apply(global_result);
 	if (global_result.handled) {
-		return;
+		return true;
 	}
 
 	// `midi_learn` last, added by E4 task 5. The four `View::buttonAction` arms it owns
@@ -108,27 +108,42 @@ void Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	// `if`/`else if` chain as the arms `global_controls` owns, so their relative order is only
 	// observable if both could claim one event -- and `GlobalControls::view_button_action` answers
 	// `ViewArm::LearnOwns` for exactly those four, reporting them unhandled and suppressing its own
-	// tail for them. Last is what keeps that abstention live, and it matches the order the two
-	// legacy MIDI dispatchers use for the rest of this service's surface: current UI first, `view`
-	// as the fallback (`playback/playback_handler.cpp:2968-2971`, `:3128-3136`).
+	// tail for them. Last is what keeps that abstention live.
+	//
+	// It is also the order legacy's **note-on** learn dispatcher uses for
+	// `UiEvent::Kind::MidiNoteOn`: `PlaybackHandler::noteMessageReceived` asks
+	// `getCurrentUI()->noteOnReceivedForMidiLearn` and only falls through to
+	// `view.noteOnReceivedForMidiLearn` when it declines (`playback/playback_handler.cpp:2968-2971`),
+	// and `PlaybackHandler::programChangeReceived` has the identical shape one dispatcher up
+	// (`:2897-2901`). **The CC dispatcher does NOT** -- this comment claimed it did until F1 task 10
+	// re-resolved the citation. `PlaybackHandler::midiCCReceived` has no
+	// `getCurrentUI()->…ForMidiLearn` call and `UI` declares no such virtual (`gui/ui/ui.h:130`,
+	// `:132` are the only two); what sits at `:3128` is a hardcoded
+	// `getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(...)` **outside** the
+	// `UI_MODE_MIDI_LEARN` gate, after which learn goes straight to `view.ccReceivedForMIDILearn`
+	// at `:3133` with no UI-first refusal at all. So note-on is the dispatcher this ordering
+	// mirrors, `Kind::MidiCc` is carried in the same position for consistency of the chain rather
+	// than because legacy asks a UI first, and the divergence that leaves under the guest is
+	// recorded at `playback_handler.cpp:3128`.
 	Result learn_result = services_.midi_learn->handle(event, ctx);
 	apply(learn_result);
 	if (learn_result.handled) {
-		return;
+		return true;
 	}
 
 	dropped_++;
+	return false;
 }
 
-void Router::route(const UiEvent& event, const UiContext& ctx) {
-	run_chain(event, ctx);
+bool Router::route(const UiEvent& event, const UiContext& ctx) {
+	return run_chain(event, ctx);
 }
 
-void Router::route_post_render(const UiEvent& event, const UiContext& ctx, const InputClaims& claims) {
+bool Router::route_post_render(const UiEvent& event, const UiContext& ctx, const InputClaims& claims) {
 	if (already_claimed(event, claims)) {
-		return;
+		return false;
 	}
-	run_chain(event, ctx);
+	return run_chain(event, ctx);
 }
 
 void Router::apply(const Result& result) {

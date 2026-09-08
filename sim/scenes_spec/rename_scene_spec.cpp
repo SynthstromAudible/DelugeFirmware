@@ -545,7 +545,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// Fix round 2. The regression test for the gate-arm in `render_oled`, and it has to drive
 		// *quiet* ticks to be one. `Shell::tick` renders an OLED surface only when
 		// `s.gate.needs_frame(now, had_input_, false)`, the shell-wide widgets gate, or
-		// `router_.repaint_requested(role)` says so (`shell/shell.cpp:334-343`). On a tick with no
+		// `router_.repaint_requested(role)` says so (`shell/shell.cpp:352-361`). On a tick with no
 		// input none of those fire on their own here: nothing in this scene arms the widgets gate
 		// (`text_edit` is render-only and owns no clock, `ui/oled/text_edit.h`), and no `Repaint`
 		// action is in flight. So the scene's own `request_repaint_after` is the *only* thing that

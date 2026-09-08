@@ -251,6 +251,12 @@ Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return Result::unhandled();
 		}
 
+	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
+	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
+	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
+	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
+	case UiEvent::Kind::MidiNoteOn:
+	case UiEvent::Kind::MidiCc:
 	case UiEvent::Kind::AllReleased:
 		break;
 	}
@@ -1134,7 +1140,7 @@ void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
 void AudioClipScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 	// `clipNeedsReRendering` (`audio_clip_view.cpp:725-736`), `sampleNeedsReRendering` (`:738-742`)
 	// and `playbackEnded` (`:703-705`). Two of the three are pure `uiNeedsRendering` calls, which
-	// `Shell::apply_dirty` (`shell/shell.cpp:502-527`) already does for these facts; what is left is
+	// `Shell::apply_dirty` (`shell/shell.cpp:520-545`) already does for these facts; what is left is
 	// the scroll-back-left legacy hides inside `clipNeedsReRendering`.
 	if (!dirty.has(deluge::notify::Dirty::ClipContent) || clip_ == nullptr || song_ == nullptr) {
 		return;

@@ -277,6 +277,24 @@ void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
 	lowering_.on_encoder_edges(index, edges, now_ms);
 }
 
+bool Shell::route_midi(const UiEvent& event, uint32_t now_ms) {
+	// No `ensure_tick_window` and no `note_activity`, and both omissions are decisions.
+	//
+	// The window: this event is not lowered and never enters `InputLowering`'s queue, so there is
+	// nothing for `begin_tick`/`end_tick` to assemble on its behalf. Opening one here would reset
+	// the tick-scoped detent sums and press edges of a window the board feeds have already opened
+	// -- `ensure_tick_window` is idempotent per tick, but the first MIDI message of a tick would be
+	// the one that opened it, and a board event arriving afterwards would then share it. Harmless
+	// today and pointless always: nothing this routes reads tick-scoped state.
+	//
+	// The screensaver: legacy does not wake it for MIDI either. `Screensaver::noteActivity()`
+	// (`hid/display/screensaver.cpp:85`) has exactly three callers -- the two board-event arms of
+	// `deluge_control_poll_event`'s dispatch (`deluge.cpp:240`, `:254`) and
+	// `Encoders::interpretEncoders` (`hid/encoder_input.cpp:208`) -- and none of `PlaybackHandler`'s
+	// MIDI dispatchers is one. A MIDI message is not a user touching the box.
+	return router_.route(event, make_context(now_ms));
+}
+
 void Shell::set_sd_busy(bool busy) {
 	// Releasing the lock replays the whole deferred queue through the ordinary lowering path
 	// (`InputLowering::set_sd_busy`), which writes the tick-scoped state -- the detent sums, the pad

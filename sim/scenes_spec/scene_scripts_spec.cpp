@@ -42,7 +42,7 @@
 ///     `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`;
 ///     `GlobalControls::handle` gates its `View::buttonAction` group on
 ///     `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
-///     `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:466`).
+///     `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:490`).
 ///   * The only `SceneStack` and `InputLowering` in an application are the ones the `Shell` **owns**
 ///     (`shell/shell.h`'s `stack_`, `lowering_`), and `Services` was fixed at the shell's
 ///     construction. There was no `Shell::set_services`.

@@ -14,6 +14,17 @@
 #include <optional>
 #include <span>
 
+/// @brief The MIDI cable a `UiEvent::Kind::MidiNoteOn`/`MidiCc` arrived on -- declared, never
+///        defined, in this layer.
+///
+/// `MIDICable` is `io/midi/midi_device.h`'s, and `check_layer_rules.py`'s `shell-includes-outside`
+/// row keeps `io/` (like `model/`, `gui/` and `hid/`) out of `src/shell/**`. A forward declaration
+/// is not an include and asks nothing of the type: `UiEvent` stores the pointer and the shell hands
+/// it on, and only `scenes::services::MidiLearn` -- which is in `src/scenes/`, the first layer
+/// allowed to reach the model -- ever dereferences it. Declaring the real type rather than an
+/// opaque `void*` is what keeps the hand-off type-checked across the seam.
+class MIDICable;
+
 namespace deluge::ui::shell {
 
 /// @brief Lowers hardware input into the shell's own vocabulary and tracks per-button press
@@ -91,12 +102,37 @@ static_assert(alignof(SceneState) == 8);
 /// | `Encoder` | `encoder`, `delta` (signed detents, or an accelerated magnitude per `EncoderKind`) |
 /// | `EncoderButton` | `button` (the encoder's own `*Enc` id), `on` |
 /// | `AllReleased` | none -- the edge where the last held button and pad went up |
+/// | `MidiNoteOn` | `cable`, `channel` (channel or MPE zone), `data1` (note), `data2` (velocity) |
+/// | `MidiCc` | `cable`, `channel`, `data1` (CC number), `data2` (CC value) |
 ///
 /// @note `AllReleased` is an edge, not a level: it fires once when the held set empties, and
 ///       `UiContext::held`/`held_pads` are the level a scene should test instead.
+///
+/// @par The two MIDI kinds, and why they are `UiEvent`s at all
+///
+/// They are the transport migration §10.2 item 8 was opened for: `services::MidiLearn`'s
+/// `note_on_received` and `cc_received` are ports of `View::noteOnReceivedForMidiLearn`
+/// (`gui/views/view.cpp:640`) and `View::ccReceivedForMIDILearn` (`:784`), and until F1 task 10
+/// there was no event shape a `Router` could carry them in, so neither had a caller anywhere in
+/// `src/`. Routing them rather than calling the service directly is what puts the **scene** first:
+/// legacy's note-on dispatcher asks `getCurrentUI()->noteOnReceivedForMidiLearn` before it falls
+/// through to `view` (`playback/playback_handler.cpp:2968-2971`), and `Router::run_chain`'s
+/// scene-then-`midi_learn` order is the same shape -- which is what a future `SessionScene` /
+/// `NoteClipScene` needs when it answers `learnable_at(pad)` and claims the message itself.
+///
+/// Unlike every other kind these are **not** produced by `InputLowering`: they arrive from
+/// legacy's MIDI dispatchers, synchronously, through `Shell::route_midi`.
+///
+/// @note `cable` is the one pointer in this struct and the only thing here the shell layer cannot
+///       name a definition for -- `MIDICable` lives in `io/midi/`, which
+///       `check_layer_rules.py`'s `shell-includes-outside` row keeps out of `src/shell/**`. It is
+///       forward-declared above and **never dereferenced in this layer**: only
+///       `services::MidiLearn`, which is in `src/scenes/` and may reach the model, ever reads
+///       through it. A null `cable` is what a `MidiNoteOn`/`MidiCc` built without one carries, and
+///       every consumer must treat it as "no message" rather than dereferencing it.
 struct UiEvent {
 	/// @brief Which shape this event has; see the table above.
-	enum class Kind : uint8_t { Pad, Button, Encoder, EncoderButton, AllReleased };
+	enum class Kind : uint8_t { Pad, Button, Encoder, EncoderButton, AllReleased, MidiNoteOn, MidiCc };
 
 	Kind kind;
 	uint8_t x = 0;                    ///< `Pad`: column, absolute.
@@ -106,6 +142,18 @@ struct UiEvent {
 	ButtonId button = ButtonId::None; ///< `Button`/`EncoderButton`: which button.
 	EncoderRole encoder{};            ///< `Encoder`: which encoder turned.
 	int8_t delta = 0;                 ///< `Encoder`: signed turn magnitude.
+	/// `MidiNoteOn`/`MidiCc`: channel, or the MPE zone `MIDIPort::channelToZone` mapped it to.
+	/// Never a `+ IS_A_CC`/`+ IS_A_PC` composite -- that encoding is `LearnedMIDI`'s and the
+	/// service applies it (`services::MidiLearn::cc_received`), so this field stays the raw
+	/// dispatcher argument.
+	uint8_t channel = 0;
+	/// `MidiNoteOn`: the note number. `MidiCc`: the CC number.
+	uint8_t data1 = 0;
+	/// `MidiNoteOn`: the velocity. `MidiCc`: the CC value.
+	uint8_t data2 = 0;
+	/// `MidiNoteOn`/`MidiCc`: the cable the message arrived on; null means "no message". Opaque
+	/// here -- see the note above.
+	::MIDICable* cable = nullptr;
 };
 
 /// @brief Everything a scene may ask about the world *around* one `UiEvent`.
@@ -390,7 +438,7 @@ public:
 	///     other group, the port of `Buttons::buttonAction`'s tail, is deliberately *ungated*,
 	///     because legacy runs that tail for any current UI. The two reachability rules below are
 	///     why one call is gated and the other is not.
-	///   * `services::MidiLearn` gates its **entire** `handle()` (`midi_learn.cpp:466`), which is
+	///   * `services::MidiLearn` gates its **entire** `handle()` (`midi_learn.cpp:490`), which is
 	///     the stronger use: it has only `View` arms, so there is nothing left to run when the
 	///     input top is not a root. It is also the one that made the gate load-bearing, because
 	///     `MidiLearn` is routed last and therefore sees a `LEARN` press under a non-root scene
@@ -477,7 +525,7 @@ public:
 	/// `RepaintGate::request_repaint_after(0, now_ms)`, which sets the deadline to `now_ms` --
 	/// due on the following tick, since `needs_frame` tests `now_ms - deadline >= 0` -- and it is
 	/// the same idiom `Shell::tick`'s own step 8a already uses to turn a router `Repaint` into a
-	/// wake (`shell.cpp:379-393`). It is not a busy loop: the shell still only ticks when its host
+	/// wake (`shell.cpp:397-411`). It is not a busy loop: the shell still only ticks when its host
 	/// asks it to, and the grid's flush diffs against `last_sent`, so a repaint that changed no
 	/// pixel costs no blit. It IS a per-tick blit on an OLED surface, which has no such diff, so a
 	/// scene that returns zero should claim `{.oled = false}` in `timer_repaints()` unless its OLED

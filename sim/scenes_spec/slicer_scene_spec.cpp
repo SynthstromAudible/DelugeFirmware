@@ -261,8 +261,8 @@ struct Rig {
 	/// @brief One tick to deliver the turn, one to draw its consequence.
 	///
 	/// `Shell::tick` delivers encoder events at **step 8**, after step 5/6 have already built this
-	/// tick's frames (`shell/shell.cpp:370-371`), and the `Repaint` the arm files is therefore for
-	/// the tick after (`shell.cpp:379-386`). So a pixel comparison taken one tick after a turn shows
+	/// tick's frames (`shell/shell.cpp:388-389`), and the `Repaint` the arm files is therefore for
+	/// the tick after (`shell.cpp:397-404`). So a pixel comparison taken one tick after a turn shows
 	/// the value from *before* it -- found by writing exactly that and watching the panel read 17
 	/// where legacy read 20. Every gesture below therefore settles before anything is read.
 	void settle(uint32_t at_ms) {

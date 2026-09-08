@@ -97,7 +97,7 @@ uint16_t assigned_node_ids();
 ///     `ModKnobs::popup_suppressed` (`:351`) and `ModKnobs::mod_encoder_button_action` (`:564`)
 ///     read `stack_.input_top()`; `GlobalControls::handle` gates its whole `View::buttonAction`
 ///     group on `stack_.input_top().is_root()` (`services/global_controls.cpp:580`);
-///     `MidiLearn::handle` reads the same (`services/midi_learn.cpp:466`). The only `SceneStack`
+///     `MidiLearn::handle` reads the same (`services/midi_learn.cpp:490`). The only `SceneStack`
 ///     and `InputLowering` in an application are the ones the **`Shell` owns**, so a real service
 ///     cannot be built before the shell it serves, and until F1 task 2's `Shell::set_services` it
 ///     could not be installed after it either -- `Services` was passed by value into the

@@ -108,7 +108,12 @@ public:
 	/// whether or not it reports `handled`, and routing stops at the first `handled` step.
 	/// @param event The event to route.
 	/// @param ctx   The world around it.
-	void route(const UiEvent& event, const UiContext& ctx);
+	/// @return True if some step of the chain reported `handled`; false if the event fell off the
+	///         end and was counted by `dropped_events()`. Almost every caller ignores it -- the
+	///         one that does not is `Shell::route_midi`, whose own caller is a legacy `UI` hook
+	///         that must answer legacy's `if (getCurrentUI()->...) {} else { view. ... }` with a
+	///         bool (F1 task 10).
+	bool route(const UiEvent& event, const UiContext& ctx);
 
 	/// @brief Route one of the six widget-owned event shapes after render, unless a widget already
 	///        claimed it this tick.
@@ -123,7 +128,10 @@ public:
 	/// @param event  The event to route.
 	/// @param ctx    The world around it.
 	/// @param claims This tick's widget claims, read once to decide whether to route at all.
-	void route_post_render(const UiEvent& event, const UiContext& ctx, const InputClaims& claims);
+	/// @return True if some step of the chain reported `handled`. A claimed event returns false
+	///         without routing -- "a widget consumed it" is not "the chain handled it", and it is
+	///         not a drop either.
+	bool route_post_render(const UiEvent& event, const UiContext& ctx, const InputClaims& claims);
 
 	/// @brief Apply every action in \p result, in order.
 	///
@@ -184,10 +192,11 @@ public:
 	uint32_t dropped_events() const { return dropped_; }
 
 private:
-	/// @brief The shared chain body: top scene -> `mod_knobs` -> `global_controls` -> drop,
-	///        `apply()`d at every step. Used by both `route()` and `route_post_render()`
+	/// @brief The shared chain body: top scene -> `mod_knobs` -> `global_controls` -> `midi_learn`
+	///        -> drop, `apply()`d at every step. Used by both `route()` and `route_post_render()`
 	///        (the latter only once the claim gate has let the event through).
-	void run_chain(const UiEvent& event, const UiContext& ctx);
+	/// @return True if a step reported `handled`; false once `dropped_` has been incremented.
+	bool run_chain(const UiEvent& event, const UiContext& ctx);
 
 	/// Real surfaces a `Repaint` action can name -- `Main` through `Aux`. `None` is excluded: it
 	/// keeps `surfaces.h`'s "no surface, never matches" meaning and is never itself a slot (see

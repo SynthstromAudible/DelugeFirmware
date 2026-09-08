@@ -303,7 +303,7 @@ void MenuScene::retarget(const Node& node) {
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
-	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:56`),
+	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:67`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
 	const Node* target = nullptr;
@@ -831,7 +831,7 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
 	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's
 	// `SyncLevel::drawPixelsForOled` does not clear its band either -- `Shell::render_oled` already
-	// clears the whole canvas before any scene draws (`shell/shell.cpp:662`), which is what makes
+	// clears the whole canvas before any scene draws (`shell/shell.cpp:680`), which is what makes
 	// that safe for a full-panel screen like this one.
 	constexpr deluge::gfx::oled::FontId kFont = deluge::gfx::oled::FontId::MetricBold13;
 	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
@@ -1200,7 +1200,7 @@ Result MenuScene::after_render() {
 		// The write raises its own `notify::Dirty` facts (`bindings.cpp`), which repaint the
 		// surfaces those name; `RepaintAll` covers what a commit changed *off* this surface (a
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
-		// which is a documented no-op (`shell/scene.h:165`).
+		// which is a documented no-op (`shell/scene.h:213`).
 		repaint = true;
 	}
 

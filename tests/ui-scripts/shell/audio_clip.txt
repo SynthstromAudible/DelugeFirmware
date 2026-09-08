@@ -29,7 +29,7 @@
 0     snapshot idle              # the audio clip view: the output name on the OLED, the waveform on
                                  # the pads, and the service LEDs/indicators in `.state`
 # `end_square` is `(loopLength - xScroll - 1) / xZoom` = (768 - 0 - 1) / 48 = 15
-# (`AudioClipScene::pad_action`, `audio_clip_scene.cpp:533`; legacy's `AudioClipView::padAction`,
+# (`AudioClipScene::pad_action`, `audio_clip_scene.cpp:539`; legacy's `AudioClipView::padAction`,
 # `audio_clip_view.cpp:520-525`).
 100   pad 15 3 down 64
 120   pad 15 3 up
@@ -57,7 +57,7 @@
                                  # `timeline_view.cpp:217` and the call at `:221`; the port
                                  # transcribes the placement and argues it at
                                  # `AudioClipScene::nav_horizontal_encoder_action`
-                                 # (`audio_clip_scene.cpp:743-750`). So the
+                                 # (`audio_clip_scene.cpp:749-756`). So the
                                  # pads are `after_length_edit`'s and the popup reads "1 : 1 : 1" --
                                  # bar 1, beat 1, tick 1, i.e. still at the top. Nothing else in the
                                  # tree pins that placement, and getting it wrong would silently

@@ -79,7 +79,7 @@ void ScreensaverScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 	}
 	// `Screensaver::render`, `hid/display/screensaver.cpp:247-256`. The `default` arm is legacy's
 	// own: "BLANK: a cleared canvas is the whole picture" (`:188`), and the shell has already
-	// cleared it (`shell.cpp:642`).
+	// cleared it (`shell.cpp:660`).
 	switch (mode()) {
 	case ::ScreensaverMode::STARSCAPE:
 		deluge::ui::oled::draw_starfield(frame, starfield_);

@@ -539,8 +539,8 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   loop that reads it), before either task had been dispatched: `InputLowering` instead owns one
   `RepaintGate widgets_gate_` (`input_lowering.h:420 widgets_gate_`, exposed as `widgets_gate()`,
   referenced by the one shared `FrameContext` at `:421`), and `Shell::tick` calls `needs_frame()` on it **exactly
-  once per tick**, into a local (`widgets_want_frame`, `shell.cpp:331`), OR'd into every surface's
-  own decision (`shell.cpp:328-344`; `README.md`'s "The widgets' gate is evaluated once per tick"
+  once per tick**, into a local (`widgets_want_frame`, `shell.cpp:349`), OR'd into every surface's
+  own decision (`shell.cpp:346-362`; `README.md`'s "The widgets' gate is evaluated once per tick"
   line). The rejected alternative — cache the bool across ticks instead of re-deriving it fresh
   each tick — would have widened the bug rather than fixed it: a widget's animation would then
   repaint only whichever surface happened to ask first, on every subsequent tick too, instead of
@@ -1081,7 +1081,7 @@ for one task and is now restored. `MenuScene` was taking the spurious edge too �
 `input_transparent()`, and `MenuScene::on_resume`'s `go_up_on_resume` flag guards only the `ascend()`
 (`:332-335`) while the tail resets `render_resp`, `value_changed`, `value_node`, `back_claimed` and
 `column_press` unconditionally (`:337-341`). **It cost nothing**, and the reason is the tick order:
-`Notices` is a `Service`, so `Notices::tick` runs at `Shell::tick` step 4 (`shell/shell.cpp:304-305`),
+`Notices` is a `Service`, so `Notices::tick` runs at `Shell::tick` step 4 (`shell/shell.cpp:322-323`),
 before step 5's OLED render and step 7's `after_render`. All five fields are per-tick observations
 written during render, read by `after_render` and drained at its tail (`:1358-1362`), with
 `render_oled` re-zeroing two of them at its own head (`:482-483`) — so every one of them was already
@@ -1176,7 +1176,7 @@ onto that stack (`src/scenes/services/mod_knobs.cpp:413`) while `ModKnobs::popup
 and `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`;
 `GlobalControls::handle` gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
 (`src/scenes/services/global_controls.cpp:580`); `MidiLearn::handle` gates all of itself on the same
-(`src/scenes/services/midi_learn.cpp:466`). The only `SceneStack` and `InputLowering` in an
+(`src/scenes/services/midi_learn.cpp:490`). The only `SceneStack` and `InputLowering` in an
 application are the ones the `Shell` owns. So a real service could not be constructed **before** the
 shell it serves, and — because the slots were fixed in the constructor — could not be installed
 **after** it either.
@@ -1202,7 +1202,7 @@ together —
    routing actually reads (`Router::route` consults `services_.mod_knobs` and its two siblings, never
    `service_list_`);
 3. `Shell::service_list_`, the deduplicated `FixedVector<Service*, 5>` that four sites iterate:
-   `Shell::tick`'s step 8c timer fold (`shell.cpp:494`), `Shell::tick_stack` (`:584`),
+   `Shell::tick`'s step 8c timer fold (`shell.cpp:512`), `Shell::tick_stack` (`:602`),
    `Shell::derive_leds` via `LedCompose::compose` (`:841`), and `Shell::compute_next_wake`
    (`:1044`).
 
@@ -1279,6 +1279,6 @@ legacy is the hardware; the guest ignores `index`, since legacy's gate is not pe
 `SurfaceSet` doc's phrasing ("still transferring a previous blit") remains true of the hardware
 backend and is now the narrower of the two readings, not the definition.
 
-Fixed by replacing the comment at `shell.cpp:887` with the account above. No code moved: `flush`
+Fixed by replacing the comment at `shell.cpp:905` with the account above. No code moved: `flush`
 already asked the backend rather than assuming an answer, which is why the wrong comment cost
 nothing beyond the risk of the next backend copying it.

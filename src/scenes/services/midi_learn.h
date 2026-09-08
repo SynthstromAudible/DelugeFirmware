@@ -354,6 +354,12 @@ public:
 	/// @param note           The note number, or the CC number on that same re-entry.
 	/// @param velocity       The velocity. Legacy takes it and never reads it; kept so the
 	///                       signature is legacy's and a future arm has it.
+	///
+	/// @note **Routed, not called.** F1 task 10 gave this its transport:
+	///       `UiEvent::Kind::MidiNoteOn` (`shell/scene.h`) carried by `Router::run_chain`'s
+	///       `midi_learn` step, produced by `ShellHostUI::noteOnReceivedForMidiLearn`. `handle()`
+	///       is the only caller in `src/`; this stays public because the spec drives it directly
+	///       for the arms it compares against legacy, and because `cc_received` re-enters it.
 	void note_on_received(::MIDICable& cable, int32_t channel_or_zone, int32_t note, int32_t velocity);
 	/// @brief `View::ccReceivedForMIDILearn` (`view.cpp:784-811`).
 	///
@@ -364,6 +370,21 @@ public:
 	/// @param channel The channel.
 	/// @param cc      The CC number.
 	/// @param value   The CC value; zero is ignored by the second arm (`:789`).
+	///
+	/// @warning **`UiEvent::Kind::MidiCc` exists and `handle()` consumes it, but nothing in `src/`
+	///          produces one.** F1 task 10 built the transport for both MIDI kinds and could only
+	///          wire a producer for the note-on half, because legacy's two dispatchers are not the
+	///          same shape: `PlaybackHandler::noteMessageReceived` asks
+	///          `getCurrentUI()->noteOnReceivedForMidiLearn` first
+	///          (`playback/playback_handler.cpp:2968`), which is a `UI` virtual the guest can
+	///          override, while `PlaybackHandler::midiCCReceived` has **no such virtual to
+	///          override** -- `gui/ui/ui.h` declares exactly two `*ForMidiLearn` hooks (`:130`
+	///          `pc`, `:132` `noteOn`) -- and reaches learn through a hardcoded
+	///          `getCurrentUI() == &soundEditor` test at `:3128` followed by a bare
+	///          `view.ccReceivedForMIDILearn` at `:3133`. Giving this a producer means adding a
+	///          `UI` virtual and rewriting that dispatch, which is a legacy-behaviour change F1
+	///          does not make. Recorded at `playback_handler.cpp:3128` and in migration §10.2
+	///          item 8.
 	void cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
 	/// @}
 

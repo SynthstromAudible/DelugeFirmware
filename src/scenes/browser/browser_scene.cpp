@@ -1182,7 +1182,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// `Browser::selectEncoderAction` (`browser.cpp:549`), applied here rather than parked for
 			// `after_render`. The turn is one of the shell's widget-owned shapes, so it is delivered
 			// **after** the render pass and after every `after_render()` call for the tick
-			// (`Shell::tick` step 8, `shell/shell.cpp:390-391 deliver_post_render_input`) -- parking it
+			// (`Shell::tick` step 8, `shell/shell.cpp:408-409 deliver_post_render_input`) -- parking it
 			// would cost a whole tick per detent, which a level-2 script would have found as a
 			// browser that lags one click behind the encoder. The frame is already built either way,
 			// which is what the `Repaint` below is for.
@@ -1219,6 +1219,12 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		break;
 
+	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
+	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
+	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
+	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
+	case UiEvent::Kind::MidiNoteOn:
+	case UiEvent::Kind::MidiCc:
 	case UiEvent::Kind::AllReleased:
 		break;
 	}

@@ -64,7 +64,7 @@ the hook it belongs to.
   the play flash through it (`playback/mode/session.cpp:1295`). `Slicer` holds the two at opposite
   values on one object — `oledShowsUIUnderneath = true` at `gui/ui/slicer.h:35`,
   `canSeeViewUnderneath() { return false; }` at `:38` — which is proof in the shipped tree that they are
-  independent questions. The guest maps it to `!top().occludes_grid()` (`shell/scene.h:338-339`).
+  independent questions. The guest maps it to `!top().occludes_grid()` (`shell/scene.h:386-387`).
   **The regression the wrong mapping would have shipped:** `MenuScene::oled_transparent` is false
   (`scenes/menu/menu_scene.h:464`) where `SoundEditor::canSeeViewUnderneath` is true
   (`gui/ui/sound_editor.h:121`), so the clip view under an open menu would have stopped animating.
@@ -165,7 +165,7 @@ the hook it belongs to.
   Recorded as a divergence with the real condition on it, not claimed as parity.
 - **"legacy `Buttons::` state is *read* into `UiContext`, not duplicated" is not implementable.**
   `UiContext` is built by `Shell::make_context`, which is private and fills `.shift`/`.sticky` from
-  `InputLowering`'s own fields (`shell/shell.cpp:549-559`); `InputLowering` has no shift setter, only
+  `InputLowering`'s own fields (`shell/shell.cpp:567-577`); `InputLowering` has no shift setter, only
   `clear_shift_sticky()` (`shell/input_lowering.h:214`) and `set_shift_is_sticky()` (`:221`). There
   are therefore two shift state machines, and the guest's only lever is which events it feeds. They
   stay in step because the guest feeds every button and every pad legacy hands it and
@@ -177,7 +177,7 @@ the hook it belongs to.
      deferred it to task 8 for a reason that was false.** `InputLowering::set_shift_is_sticky` exists
      (`shell/input_lowering.cpp:334-341`) precisely because "the settings menu toggles it live"
      (`shell/input_lowering.h:29-30`), and `Shell::lowering()` is public and non-const
-     (`shell/shell.h:358`) — so nothing about `LoweringConfig` being construction-time applies to
+     (`shell/shell.h:383`) — so nothing about `LoweringConfig` being construction-time applies to
      *this* field. `ShellHostUI::opened()` now seeds it from
      `runtimeFeatureSettings.get(ShiftIsSticky)`, and `ShiftIsSticky::writeCurrentValue`
      (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`) mirrors it live, alongside the
@@ -202,7 +202,7 @@ the hook it belongs to.
 **Two more facts about the input row that the table cannot carry** (F1 task 6):
 
 - **The hooks feed; they do not answer.** Routing happens in `Shell::pump_input`, which only
-  `Shell::tick` calls (`shell/shell.cpp:561-571`), so no hook can report what a scene did with a
+  `Shell::tick` calls (`shell/shell.cpp:579-589`), so no hook can report what a scene did with a
   press and every return value is decided statically. `buttonAction` returns `NOT_DEALT_WITH`, which
   is what keeps `Buttons::buttonAction`'s tail running: `commandToggleShift` (`hid/buttons.cpp:169-171`),
   the transport, and the mod-encoder-button dispatch at `:226-231`, which is itself gated on that
@@ -222,7 +222,7 @@ The rows that held up unchanged: `renderMainPads`/`renderSidebar` really do retu
 opacity, and §2.2's dual for it (`is_grid_overlay()` is `!renderMainPads()`) is the mapping the guest
 implements; `focusRegained` really is `on_resume`, with the one refinement that it goes to
 `SceneStack::input_top()` rather than `top()`, because that is what `Scene::on_resume`'s own contract
-says (`shell/scene.h:311-326`) and what the stack itself does (`shell/scene_stack.h:38-46`);
+says (`shell/scene.h:359-374`) and what the stack itself does (`shell/scene_stack.h:38-46`);
 `getGreyoutColsAndRows` really is the top scene's `greyout_mask()`, with `doGreyout == false` spelled
 as an all-zero mask (`scenes/menu/menu_scene.cpp:1458-1490`).
 
@@ -230,7 +230,7 @@ as an all-zero mask (`scenes/menu/menu_scene.cpp:1458-1490`).
 applied twice.** Legacy greys once, in the send path — `prepareColour` (`hid/led/pad_leds.cpp:283-298`,
 the tint at `:293-296`) reads the masks `reassessGreyout` took from `getUIGreyoutColsAndRows`
 (`:734-735`) and never mutates `PadLEDs::image`. The shell has no send stage to hook, so it greys its
-own grid in place (`Shell::render_grid`, `shell/shell.cpp:753-759`, over the whole stack's OR at
+own grid in place (`Shell::render_grid`, `shell/shell.cpp:771-777`, over the whole stack's OR at
 `:328-334`); those already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
 which writes `image` and calls `sortLedsForCol` — back through `prepareColour`, which greys them again
 for whatever the guest just reported. A greyed pad is darker under the guest than under `SoundEditor`.
@@ -246,8 +246,8 @@ at the code.
 
 - **`next_wake_` is an absolute deadline; `setTimer` takes a duration.** The row does not say which,
   and the two are different units. `Shell::next_wake()` returns `std::optional<uint32_t>`, an
-  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:353`,
-  `shell/shell.cpp:515`); `UITimerManager::setTimer(which, ms)` is a duration and converts it with
+  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:378`,
+  `shell/shell.cpp:533`); `UITimerManager::setTimer(which, ms)` is a duration and converts it with
   `ms * 44` into audio samples (`gui/ui_timer_manager.cpp:253-255`). The guest converts with the
   wrap-safe difference `(int32_t)(deadline - now)` — the form `compute_next_wake` and `RepaintGate`
   both use, because a plain `<` across the ~49.7-day `uint32_t` wrap picks the later of two
@@ -256,7 +256,7 @@ at the code.
   the next tick recomputes `next_wake()` from scratch.
 - **A deadline of `now_ms` must not arm zero.** `Scene::next_timer()` may answer 0, meaning "next
   tick" (`shell/scene.h`), and `AudioClipScene::next_timer()` answers it for the whole of playback
-  (`scenes/audio_clip/audio_clip_scene.cpp:1187-1193`), so `next_wake()` reports `now_ms` on every
+  (`scenes/audio_clip/audio_clip_scene.cpp:1193-1199`), so `next_wake()` reports `now_ms` on every
   tick for as long as that scene is stacked. **The floor of 1 ms is the smallest duration `setTimer`
   can express that leaves `triggerTime` strictly in the future** (`ms * 44`, so 44 samples), and that
   is the whole argument: `setTimer(UI_SPECIFIC, 0)` puts `triggerTime` at exactly
@@ -284,9 +284,9 @@ at the code.
   all five input hooks — and deliberately **not** from `exitUI()`'s close path, where `closeUI` is
   about to unset it and where an arm would deliver this guest's callback to the UI beneath.
 - **There is no `LedSink`.** `grep -rn LedSink src/` has no hits. `derive_leds` is a private member
-  of `Shell` (`shell/shell.h:482`), not of the guest, and it does not write anything: it composes the
-  frame and fills the `desired_*` shadows (`shell/shell.cpp:838-857`), and `Shell::flush` is what
-  calls `SurfaceSet::set_led` (`shell/shell.cpp:966-992`). The `indicator_leds` half of the sentence
+  of `Shell` (`shell/shell.h:507`), not of the guest, and it does not write anything: it composes the
+  frame and fills the `desired_*` shadows (`shell/shell.cpp:856-875`), and `Shell::flush` is what
+  calls `SurfaceSet::set_led` (`shell/shell.cpp:984-1010`). The `indicator_leds` half of the sentence
   is right and was already built by F1 task 4 (`GuestSurfaceSet::set_led`). What task 7 adds is the
   *tick*, without which none of it ever runs.
 - **The ownership rule holds, and it is one-sided in the guest's favour.** An id no scene declared
@@ -379,9 +379,9 @@ correction is the interesting part.** The first version of this paragraph quoted
 fastest grid gate, 20 ms". There is no such ceiling, and two shipped scenes already exceed it:
 `RecorderScene` polls at `kRecorderPollMs = 10` (`src/scenes/recorder/recorder_scene.h:180`) and does
 not override `timer_repaints()`, so it takes `Scene`'s `{.oled = true, .grid = true}` default
-(`src/shell/scene.h:571`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
+(`src/shell/scene.h:619`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
 returns `0u` for as long as the playhead is live
-(`src/scenes/audio_clip/audio_clip_scene.cpp:1193`) with `{.grid = true}`
+(`src/scenes/audio_clip/audio_clip_scene.cpp:1199`) with `{.grid = true}`
 (`audio_clip_scene.h:477`), so the grid gate arms every tick and no millisecond figure bounds it at
 all. Sweeping the tree (14 `next_timer()` overrides against 6 `timer_repaints()` overrides) there is
 no cadence ceiling to quote for either surface.
@@ -389,11 +389,11 @@ no cadence ceiling to quote for either surface.
 The bounds that are actually true:
 
 - **Grid: the per-pair diff, not a cadence.** `Shell::flush` compares each pair against `last_sent`
-  before calling `send_columns` at all (`src/shell/shell.cpp:941-957`), so a tick in which no pad
+  before calling `send_columns` at all (`src/shell/shell.cpp:959-975`), so a tick in which no pad
   changed colour costs **zero bytes**, however fast the ticks come. 432 B is the price of a full
   repaint, not of a tick.
 - **OLED: per tick that rendered, because there is no diff.** `flush` blits a surface
-  unconditionally once it has rendered (`src/shell/shell.cpp:435-442` is the ruling that says so, and
+  unconditionally once it has rendered (`src/shell/shell.cpp:453-460` is the ruling that says so, and
   says why the OLED half may not over-arm the way the grid half may). 768 B per re-rendered tick,
   bounded only by the host's tick rate; the 10 ms `RecorderScene` gate gives 76.8 kB/s as a **floor**
   for a busy panel, not a ceiling.

@@ -40,7 +40,7 @@
 ///
 /// `after_render()` is the hook the poll has to live in, for `BrowserScene`'s reason: it is the only
 /// one that can file an `Action`, and the shell calls it only for a scene that actually *drew* this
-/// tick (`shell/shell.cpp:360-364`). So `next_timer()` asks the shell back at `kRecorderPollMs`, and
+/// tick (`shell/shell.cpp:378-382`). So `next_timer()` asks the shell back at `kRecorderPollMs`, and
 /// `Shell::tick`'s step 8b turns that answer into a repaint of every surface this scene both claims
 /// and is not covered on -- which is what makes the woken tick actually render, and therefore call
 /// `after_render()`.
@@ -120,7 +120,7 @@
 /// @par The completion poll used to stall under this scene's own popup, and no longer does
 ///
 /// `PopupScene` is not `oled_transparent` (`shell/notices.h`), so `Shell::render_oled`'s
-/// transparency walk stops at it (`shell/shell.cpp:485-488`): while a popup is up **this scene is
+/// transparency walk stops at it (`shell/shell.cpp:503-506`): while a popup is up **this scene is
 /// still not drawn on the OLED**. That much is unchanged, and it is why the `render_oled` gate arm
 /// above cannot be the poll's only lifeline -- a recording that finished while this scene's own
 /// clipping popup was on screen went unnoticed until the popup expired (`kPopupTimeoutMs`, 800 ms),
@@ -230,7 +230,7 @@ public:
 	/// The scene itself paints no pads at all (legacy overrides neither `renderMainPads` nor
 	/// `renderSidebar`), so it is not a grid overlay and occludes nothing: what is beneath keeps
 	/// drawing, greyed. `Shell::tick` ORs this mask over every scene on the stack
-	/// (`shell/shell.cpp:311-317`), which is where the greying happens.
+	/// (`shell/shell.cpp:329-335`), which is where the greying happens.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
 
 	/// @name Observable state

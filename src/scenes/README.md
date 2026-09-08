@@ -845,7 +845,7 @@ Seven things are worth finding from here rather than from the header.
 * **It is not a root scene, and it does not use `TimelineState`.** The plan's prose calls
   `SlicerScene` and `AudioClipScene` "the first two root scenes"; only the second is one.
   `class Slicer final : public UI` (`gui/ui/slicer.h:33`) -- a plain `UI`, opened over the sample
-  browser, and `grep "public RootUI"` finds exactly two classes in the tree (`shell/scene.h:385`).
+  browser, and `grep "public RootUI"` finds exactly two classes in the tree (`shell/scene.h:433`).
   So `is_root()` is false, `services::GlobalControls` correctly withholds the `View::buttonAction`
   group of global button arms from it (they are unreachable in legacy too, because
   `UI::buttonAction`'s base returns `NOT_DEALT_WITH` without forwarding to `view`,
@@ -856,7 +856,7 @@ Seven things are worth finding from here rather than from the header.
   and `UI::renderSidebar`'s base returns false (`gui/ui/ui.h:148-151`), so the sidebar beneath keeps
   painting, exactly as it does under `MarkerScene`. `occludes_grid()`'s one consumer is
   `Shell::tick_stack`, which stops advancing clocks beneath a scene that claims it
-  (`shell/shell.cpp:553-567`); claiming it here would stop the scene that owns the sidebar.
+  (`shell/shell.cpp:571-585`); claiming it here would stop the scene that owns the sidebar.
 * **The directory and namespace are `slicing`, not `slicer`.** `scenes-no-root-ui` lists the legacy
   global `slicer` as a whole word, and `#include "scenes/slicer/slicer_scene.h"` contains that whole
   word. Measured with the path put back and the namespace left alone: **two violations, in two
@@ -925,7 +925,7 @@ Seven things are worth finding from here rather than from the header.
   the scene raises `Notice::Kind::Console` itself at `:1256` and `menu/bindings.cpp:372`), but cost
   nothing by it: those five fields are drained at the end of every `after_render` (`:1358-1362`) and
   `render_oled` re-zeroes two of them at its own head (`:482-483`), while `Notices` is a `Service`
-  and ticks at `Shell::tick` step 4 (`shell/shell.cpp:304-305`) -- before any render. They were already
+  and ticks at `Shell::tick` step 4 (`shell/shell.cpp:322-323`) -- before any render. They were already
   at their defaults every time the edge arrived.
 
   Both directions are asserted: `sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table
@@ -938,7 +938,7 @@ One transcription this port deliberately does **not** make, and it is the only o
 column -- once `horizontalEncoderAction`'s clamp (`:220-221`) has driven a slice to the end of the
 sample. Legacy composes the grid top-down (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`), so
 the sidebar UI beneath overwrites that pad later in the same pass; the shell composes bottom-up
-(`Shell::render_grid`, `shell/shell.cpp:682-798`), so reproducing the write would leave a stray pad
+(`Shell::render_grid`, `shell/shell.cpp:700-816`), so reproducing the write would leave a stray pad
 visible where legacy's is not. The port paints the marks inside the main-column region, which clips
 it: behaviour preserved by clipping rather than by transcription.
 
@@ -1222,7 +1222,7 @@ onto that stack (`services/mod_knobs.cpp:413`) and `ModKnobs::popup_suppressed` 
 `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`; `GlobalControls::handle`
 gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
 (`services/global_controls.cpp:580`); `MidiLearn::handle` reads the same
-(`services/midi_learn.cpp:466`). The only `SceneStack` and `InputLowering` in an application are the
+(`services/midi_learn.cpp:490`). The only `SceneStack` and `InputLowering` in an application are the
 ones the **`Shell` owns** (`shell/shell.h`'s `stack_`, `lowering_`), so a real service cannot be
 constructed before the shell it serves. And `Services` was passed **by value into the `Shell`'s
 constructor** and fixed there, so it could not be installed after it either: an application that

@@ -122,7 +122,7 @@ public:
 	///
 	/// The port of `Screensaver::timerEvent`'s `else` arm (`hid/display/screensaver.cpp:174-189`)
 	/// plus the `setTimer(..., kFrameIntervalMS)` re-arm at `:161-162`. The shell calls `tick()`
-	/// every tick rather than only at a deadline (`Shell::tick_stack`, `shell.cpp:553-563`), so the
+	/// every tick rather than only at a deadline (`Shell::tick_stack`, `shell.cpp:571-581`), so the
 	/// deadline is kept here: elapsed time accumulates and the counter is **reset to zero**, not
 	/// decremented by the interval, because legacy re-arms its timer from the moment the timer
 	/// fired -- a late tick is one frame there, and must be one frame here.
@@ -134,7 +134,7 @@ public:
 	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:243-257`) and the two
 	/// per-mode renderers it dispatches to (`:225-248`). Legacy's leading `canvas_.clear()`
 	/// (`:210`) has no counterpart here because `Shell::render_oled` clears the canvas before the
-	/// pass (`shell.cpp:642`).
+	/// pass (`shell.cpp:660`).
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
 
 	/// @brief The screensaver routes nothing: legacy's is a canvas override, never a `UI`.

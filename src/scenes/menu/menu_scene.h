@@ -51,7 +51,7 @@ namespace deluge::scenes::menu {
 
 /// @brief How deep a menu path may go, and how many `ListState`s the scene therefore keeps.
 ///
-/// Unrelated to `ui::shell::kStackDepth` (`shell/scene.h:48`), which counts *scenes*: the whole
+/// Unrelated to `ui::shell::kStackDepth` (`shell/scene.h:59`), which counts *scenes*: the whole
 /// menu is one scene however deep the user walks into it. Eight is legacy's own
 /// `menuItemNavigationRecord` depth (`gui/ui/sound_editor.h`).
 inline constexpr uint8_t kMenuDepth = 8;
@@ -412,7 +412,7 @@ struct MenuSavedState {
 	int16_t focus = 0;
 };
 static_assert(sizeof(MenuSavedState) <= 32);
-static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:49 -- 256
+static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:60 -- 256
 
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).
@@ -463,7 +463,7 @@ public:
 	/// @brief False for every role: a menu covers the Main panel.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
 	// `input_transparent()` stays at its default false: `MenuScene` IS the `input_top()`
-	// (`shell/scene.h:322`), which is what makes its frames the focused ones.
+	// (`shell/scene.h:370`), which is what makes its frames the focused ones.
 
 	deluge::ui::grid::GreyoutMask greyout_mask() const override;
 	void save_state(deluge::ui::shell::SceneState& state) const override;
