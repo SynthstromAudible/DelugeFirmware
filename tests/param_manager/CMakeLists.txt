@@ -9,3 +9,11 @@ add_executable(ParamManagerCleanupTests param_manager_cleanup_tests.cpp
 target_include_directories(ParamManagerCleanupTests PRIVATE mocks ../../src ../../src/deluge)
 target_compile_features(ParamManagerCleanupTests PRIVATE cxx_std_23)
 add_test(NAME ParamManagerCleanupTests COMMAND ParamManagerCleanupTests)
+
+add_executable(ParamManagerTransferTests param_manager_transfer_tests.cpp
+	../../src/deluge/modulation/params/param_manager_type.cpp
+	../../src/deluge/modulation/params/param_manager_transfer.cpp
+	../../src/deluge/modulation/params/param_manager_cleanup.cpp)
+target_include_directories(ParamManagerTransferTests PRIVATE mocks ../../src ../../src/deluge)
+target_compile_features(ParamManagerTransferTests PRIVATE cxx_std_23)
+add_test(NAME ParamManagerTransferTests COMMAND ParamManagerTransferTests)
