@@ -48,7 +48,7 @@ static_assert(DELUGE_FILE_WRITE_READY == DELUGE_AUDIO_LOAD_READY);
 
 extern "C" {
 
-__attribute__((weak)) bool deluge_file_write_request(uint32_t, uint32_t, const uint8_t*, uint32_t) noexcept {
+__attribute__((weak)) bool deluge_file_write_request_write_at(uint32_t, uint32_t, const uint8_t*, uint32_t) noexcept {
 	// Refused, so the caller takes its synchronous arm. Silently accepting and never answering is
 	// the failure this project has hit three times (the startup fail-safe's boot wedge,
 	// smsysex_pending, and the settings submit machine): a channel that accepts and never answers
@@ -56,9 +56,53 @@ __attribute__((weak)) bool deluge_file_write_request(uint32_t, uint32_t, const u
 	return false;
 }
 
-__attribute__((weak)) uint8_t deluge_file_write_collect(uint32_t, uint32_t*) noexcept {
+__attribute__((weak)) uint8_t deluge_file_write_collect_write_at(uint32_t, uint32_t*) noexcept {
 	// UNKNOWN, not PENDING: "there is nothing in flight, ask again if you want one". PENDING would
 	// tell a caller to keep waiting for an answer that can never come.
+	return DELUGE_FILE_WRITE_UNKNOWN;
+}
+
+// The other five operations, same two rules throughout: a request is REFUSED so the caller takes its
+// synchronous arm, and a collect answers UNKNOWN -- "nothing is in flight, ask again if you want
+// one" -- never PENDING, which would tell a caller to keep waiting for an answer that can never come.
+
+__attribute__((weak)) bool deluge_file_write_request_open(const char*, uint8_t) noexcept {
+	return false;
+}
+
+__attribute__((weak)) uint8_t deluge_file_write_collect_open(uint32_t*) noexcept {
+	return DELUGE_FILE_WRITE_UNKNOWN;
+}
+
+__attribute__((weak)) bool deluge_file_write_request_read_at(uint32_t, uint32_t, uint8_t*, uint32_t) noexcept {
+	return false;
+}
+
+__attribute__((weak)) uint8_t deluge_file_write_collect_read_at(uint32_t, uint32_t*) noexcept {
+	return DELUGE_FILE_WRITE_UNKNOWN;
+}
+
+__attribute__((weak)) bool deluge_file_write_request_truncate(uint32_t, uint32_t) noexcept {
+	return false;
+}
+
+__attribute__((weak)) uint8_t deluge_file_write_collect_truncate(uint32_t) noexcept {
+	return DELUGE_FILE_WRITE_UNKNOWN;
+}
+
+__attribute__((weak)) bool deluge_file_write_request_close(uint32_t) noexcept {
+	return false;
+}
+
+__attribute__((weak)) uint8_t deluge_file_write_collect_close(uint32_t) noexcept {
+	return DELUGE_FILE_WRITE_UNKNOWN;
+}
+
+__attribute__((weak)) bool deluge_file_write_request_stats(void) noexcept {
+	return false;
+}
+
+__attribute__((weak)) uint8_t deluge_file_write_collect_stats(uint32_t*) noexcept {
 	return DELUGE_FILE_WRITE_UNKNOWN;
 }
 

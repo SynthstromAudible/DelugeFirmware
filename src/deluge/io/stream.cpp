@@ -47,9 +47,9 @@ bool Stream::request_write_at(uint32_t byte_offset, std::span<const std::byte> b
 	if (handle_ == nullptr) {
 		return false;
 	}
-	return deluge_file_write_request(unbox_stream_handle(handle_), byte_offset,
-	                                 reinterpret_cast<const uint8_t*>(buffer.data()),
-	                                 static_cast<uint32_t>(buffer.size()));
+	return deluge_file_write_request_write_at(unbox_stream_handle(handle_), byte_offset,
+	                                          reinterpret_cast<const uint8_t*>(buffer.data()),
+	                                          static_cast<uint32_t>(buffer.size()));
 }
 
 uint8_t Stream::collect_write_at(uint32_t* out_written) {
@@ -57,7 +57,7 @@ uint8_t Stream::collect_write_at(uint32_t* out_written) {
 		// UNKNOWN, not PENDING: nothing is in flight and nothing ever will be on this stream.
 		return DELUGE_FILE_WRITE_UNKNOWN;
 	}
-	return deluge_file_write_collect(unbox_stream_handle(handle_), out_written);
+	return deluge_file_write_collect_write_at(unbox_stream_handle(handle_), out_written);
 }
 
 std::expected<uint32_t, Status> Stream::read_at_via(uint32_t byte_offset, std::span<std::byte> dst) {

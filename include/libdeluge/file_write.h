@@ -88,16 +88,82 @@ extern "C" {
 /// @return false when the request was refused -- `handle` already has a write in flight, the
 ///         channel is not running, or a pointer/length is unusable. The caller MUST retry or take
 ///         its synchronous arm; nothing has been queued.
-bool deluge_file_write_request(uint32_t handle, uint32_t offset, const uint8_t* bytes, uint32_t len) DELUGE_NOEXCEPT;
+bool deluge_file_write_request_write_at(uint32_t handle, uint32_t offset, const uint8_t* bytes,
+                                        uint32_t len) DELUGE_NOEXCEPT;
 
 /// @brief Collect the answer for `handle`'s in-flight write.
 ///
-/// @param handle      The handle passed to @ref deluge_file_write_request.
+/// @param handle      The handle passed to @ref deluge_file_write_request_write_at.
 /// @param out_written Written ONLY on @ref DELUGE_FILE_WRITE_READY, with the true byte count. A
 ///                    count below the requested `len` is a short write; the caller treats it as a
 ///                    card error.
 /// @return one of the four statuses above.
-uint8_t deluge_file_write_collect(uint32_t handle, uint32_t* out_written) DELUGE_NOEXCEPT;
+uint8_t deluge_file_write_collect_write_at(uint32_t handle, uint32_t* out_written) DELUGE_NOEXCEPT;
+
+/// @brief Ask for `path` to be opened for writing.
+///
+/// The only PATH-keyed operation here: there is no handle yet. The handle arrives in the collect.
+/// @param path NUL-terminated path.
+/// @param mode `DelugeStreamMode` as a fixed-width byte (0 read, 1 create, 2 create-always,
+///             3 append: open existing, no truncation).
+/// @return false when refused -- another operation is in flight, or the channel is not running.
+bool deluge_file_write_request_open(const char* path, uint8_t mode) DELUGE_NOEXCEPT;
+
+/// @brief Collect the open.
+/// @param out_handle Written ONLY on @ref DELUGE_FILE_WRITE_READY. ZERO IS A VALID HANDLE -- see the
+///                   note on @ref deluge_file_write_request_write_at.
+uint8_t deluge_file_write_collect_open(uint32_t* out_handle) DELUGE_NOEXCEPT;
+
+/// @brief Ask for `len` bytes at `offset` to be read into `dst`.
+///
+/// Goes through the HANDLE, not a path, and that is load-bearing: it reads bounded by the handle's
+/// live, not-yet-flushed size (`deluge_efatfs_stream_read_at_via`). A path-keyed read would see the
+/// on-disk extent instead, which during finalize is the wrong number.
+/// @param handle A stream-write handle. Zero is valid.
+/// @param offset Absolute byte offset within the file.
+/// @param dst    Caller-owned destination. Must stay alive and unmodified until the collect is
+///               terminal. NOT copied.
+/// @param len    Byte count to read.
+/// @return false when refused; the caller must retry or take its synchronous arm.
+bool deluge_file_write_request_read_at(uint32_t handle, uint32_t offset, uint8_t* dst, uint32_t len) DELUGE_NOEXCEPT;
+
+/// @brief Collect the read.
+/// @param handle   The handle passed to @ref deluge_file_write_request_read_at.
+/// @param out_read Written ONLY on @ref DELUGE_FILE_WRITE_READY, with the TRUE byte count, which may
+///                 be short of `len` at EOF. The caller decides whether short is an error; for the
+///                 recorder mid-transform it is.
+uint8_t deluge_file_write_collect_read_at(uint32_t handle, uint32_t* out_read) DELUGE_NOEXCEPT;
+
+/// @brief Ask for the file behind `handle` to be truncated to `size` bytes.
+/// @return false when refused.
+bool deluge_file_write_request_truncate(uint32_t handle, uint32_t size) DELUGE_NOEXCEPT;
+
+/// @brief Collect the truncate.
+uint8_t deluge_file_write_collect_truncate(uint32_t handle) DELUGE_NOEXCEPT;
+
+/// @brief Ask for `handle` to be closed, flushing its deferred directory entry.
+///
+/// A caller that will DELETE this file must wait for the collect to be terminal before unlinking.
+/// Closing flushes the size/first_cluster/mtime edit deferred for the whole recording; unlinking
+/// first leaves a stale near-empty entry with `first_cluster` still ~0, frees no clusters, and lets a
+/// later file that recycles the freed short-name slot receive this handle's flush.
+/// @return false when refused.
+bool deluge_file_write_request_close(uint32_t handle) DELUGE_NOEXCEPT;
+
+/// @brief Collect the close.
+uint8_t deluge_file_write_collect_close(uint32_t handle) DELUGE_NOEXCEPT;
+
+/// @brief Ask for the filesystem's free-cluster count.
+///
+/// Exists for the recorder's pre-flight space check, and doubles as the only instrument that can see
+/// a leaked cluster chain -- an ordering bug that deletes a file before closing it is invisible to
+/// any byte comparison, because the file is gone either way.
+/// @return false when refused.
+bool deluge_file_write_request_stats(void) DELUGE_NOEXCEPT;
+
+/// @brief Collect the free-cluster count.
+/// @param out_free_clusters Written ONLY on @ref DELUGE_FILE_WRITE_READY.
+uint8_t deluge_file_write_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEXCEPT;
 
 /// @brief Whether the Rust driver is running and this channel may be used at all.
 ///
