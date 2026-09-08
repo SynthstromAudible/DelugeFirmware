@@ -15,6 +15,7 @@
 #include "cppspec.hpp"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -159,6 +160,23 @@ const BoardProfile& profile_64() {
 }
 
 /// @brief A `ShellHostUI` over a two-entry table, with both sets of legacy fakes reset.
+/// @brief A `MIDICable` **address**, and deliberately nothing more.
+///
+/// The two learn hooks take `MIDICable&` and this suite cannot build one: `MIDICable` is abstract
+/// and every shipped subclass needs a USB or DIN backend behind it
+/// (`sim/scenes_spec/midi_learn_spec.cpp`'s `SpecCable` makes the same observation, in a target
+/// that does link `io/midi/`). It does not need to build one, because **nothing on this path reads
+/// through the pointer**: `src/shell/**` may not include `io/`, so `UiEvent::cable` is a
+/// forward-declared type the shell only ever copies (`shell/scene.h`), and the one thing in the
+/// tree that dereferences it -- `services::MidiLearn` -- is in the closure this suite does not
+/// build. So the examples below assert the identity of the address that came out against the one
+/// that went in, which is the whole of what this layer transports.
+alignas(alignof(std::max_align_t)) std::byte cable_storage[sizeof(void*) * 4]{};
+
+MIDICable& fake_cable() {
+	return *reinterpret_cast<MIDICable*>(&cable_storage[0]);
+}
+
 struct Rig {
 	PatternScene base{kBase};
 	PatternScene over{kOver};
@@ -779,6 +797,97 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		const ActionResult result = r.guest.exitUI();
 		expect(result == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+	});
+
+	// ---- MIDI learn: the two `UI` virtuals, F1 task 10 ----------------------------------------
+	//
+	// These examples are about **delivery**, which is all this suite can be about: the far side of
+	// both hooks is `gui/ui/shell_guest_services.h`'s two free functions, faked here for the reason
+	// `wireShellGuestServices` is (`tests/spec/CMakeLists.txt`: the `deluge_scenes` closure is
+	// deliberately not built). So what is driven is the guest's own composition -- menu first, then
+	// the shell's chain, and what each hook returns to legacy's `if`/`else` -- and NOT
+	// `MenuScene::learn_note_on`, whose behaviour is `sim/scenes_spec`'s.
+	//
+	// The mode/shift gate on the program-change hook is likewise on the far side (it reads
+	// `currentUIMode` and `Buttons`, neither of which this suite links), and is covered where the
+	// real closure exists.
+
+	it("the note-on hook offers the message to the menu first and routes it into the shell when the "
+	   "menu declines", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		fakelegacyui::menu_learn_claims = false;
+
+		const bool handled = r.guest.noteOnReceivedForMidiLearn(fake_cable(), 9, 64, 100);
+
+		// Offered to the menu, with the dispatcher's own three arguments and no fourth: legacy's
+		// `SoundEditor::noteOnReceivedForMidiLearn` drops the velocity too
+		// (`gui/ui/sound_editor.cpp:1596`).
+		expect(fakelegacyui::menu_learn_note_ons).to_equal(1);
+		expect(fakelegacyui::last_menu_learn.cable == &fake_cable()).to_be_true();
+		expect(fakelegacyui::last_menu_learn.channel).to_equal(int32_t(9));
+		expect(fakelegacyui::last_menu_learn.data).to_equal(int32_t(64));
+
+		// …and then routed, synchronously. `Shell::route_midi` does NOT queue, so the scene has the
+		// event before this line -- which is the whole reason that entry point exists (a queued feed
+		// could not produce the bool legacy's `else` is decided by).
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(r.base.seen[0].ev.kind == UiEvent::Kind::MidiNoteOn).to_be_true();
+		expect(r.base.seen[0].ev.channel).to_equal(uint8_t(9));
+		expect(r.base.seen[0].ev.data1).to_equal(uint8_t(64));
+		expect(r.base.seen[0].ev.data2).to_equal(uint8_t(100));
+		expect(r.base.seen[0].ev.cable == &fake_cable()).to_be_true();
+
+		// `PatternScene` declines and this rig installs no services (`Services{}` -- the real three
+		// arrive through `wireShellGuestServices`, which is a counter here), so nothing handled it
+		// and the guest says so. Legacy then runs `view.noteOnReceivedForMidiLearn`
+		// (`playback/playback_handler.cpp:2970`), which is the correct fallback for a guest whose
+		// chain claimed nothing.
+		expect(handled).to_be_false();
+	});
+
+	it("the note-on hook stops at the menu when the menu claims, and routes nothing", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		fakelegacyui::menu_learn_claims = true;
+
+		const bool handled = r.guest.noteOnReceivedForMidiLearn(fake_cable(), 9, 64, 100);
+
+		expect(handled).to_be_true();
+		expect(fakelegacyui::menu_learn_note_ons).to_equal(1);
+		// **Nothing routed.** This is the half that regresses silently: a hook that always fed the
+		// shell as well would deliver one message twice, once to the focused menu item and once to
+		// `services::MidiLearn`. Legacy's `SoundEditor` returning true is what stops `view` seeing
+		// it, and `MidiLearn` is `View`'s port.
+		expect(r.base.seen.size()).to_equal(size_t(0));
+	});
+
+	it("the program-change hook forwards to the menu and returns its answer, and never routes", _ {
+		// Legacy's `View::pcReceivedForMIDILearn` is an EMPTY BODY (`gui/views/view.h:63`), so there
+		// is nothing for `services::MidiLearn` to port, no `UiEvent` kind for program change and
+		// nothing for this hook to route -- unlike its note-on neighbour, which has both halves.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		fakelegacyui::menu_learn_claims = true;
+
+		expect(r.guest.pcReceivedForMidiLearn(fake_cable(), 4, 12)).to_be_true();
+		expect(fakelegacyui::menu_learn_program_changes).to_equal(1);
+		expect(fakelegacyui::last_menu_learn.cable == &fake_cable()).to_be_true();
+		expect(fakelegacyui::last_menu_learn.channel).to_equal(int32_t(4));
+		expect(fakelegacyui::last_menu_learn.data).to_equal(int32_t(12));
+		expect(r.base.seen.size()).to_equal(size_t(0));
+		expect(fakelegacyui::menu_learn_note_ons).to_equal(0);
+
+		// And the other direction, so "returns its answer" is a claim about the value rather than
+		// about the one value that happened to be set.
+		fakelegacyui::reset();
+		fakelegacyui::menu_learn_claims = false;
+		expect(r.guest.pcReceivedForMidiLearn(fake_cable(), 4, 12)).to_be_false();
+		expect(fakelegacyui::menu_learn_program_changes).to_equal(1);
+		expect(r.base.seen.size()).to_equal(size_t(0));
 	});
 
 	// ---- the hooks deliberately left to the base ----------------------------------------------

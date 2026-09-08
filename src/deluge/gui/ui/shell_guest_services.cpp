@@ -25,9 +25,12 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "hid/buttons.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "scenes/menu/menu_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
+#include "scenes/registry.h"
 #include "scenes/services/global_controls.h"
 #include "scenes/services/midi_learn.h"
 #include "scenes/services/mod_knobs.h"
@@ -169,6 +172,47 @@ void wireShellGuestServices() {
 	// second call neither double-ticks nor strands a slot (`shell/shell.h`'s `set_services`).
 	shellHostUI.shell().set_services(
 	    {.mod_knobs = &services.knobs, .global_controls = &services.controls, .midi_learn = &services.learn});
+}
+
+namespace {
+
+/// @brief Is the ported menu the scene that would take input right now?
+///
+/// The port of "`getCurrentUI() == &soundEditor`", which is what makes `getCurrentMenuItem()` total
+/// in the two legacy bodies these two functions come from. `input_top()` and not `top()`, for the
+/// reason `Router::run_chain` uses it: a popup, a console line or the working animation sits over
+/// the menu without taking its input (`Scene::input_transparent`), and a MIDI-learn message during
+/// a popup is still the menu's.
+///
+/// Identity against `menu_scene()` rather than `kind() == SceneKind::FirstApp`: the registry maps
+/// three application kinds (`scenes/registry.h`) and only one of them is the menu, so comparing the
+/// object is the question actually being asked.
+bool menuIsFrontmost() {
+	return &shellHostUI.shell().stack().input_top() == static_cast<deluge::ui::shell::Scene*>(&scenes::menu_scene());
+}
+
+} // namespace
+
+bool shellGuestMenuLearnNoteOn(::MIDICable& cable, int32_t channel, int32_t note) {
+	if (!menuIsFrontmost()) {
+		return false;
+	}
+	return scenes::menu_scene().learn_note_on(cable, channel, note);
+}
+
+bool shellGuestMenuLearnProgramChange(::MIDICable& cable, int32_t channel, int32_t program) {
+	// `sound_editor.cpp:1589`'s gate, both conjuncts.
+	if (currentUIMode != UI_MODE_MIDI_LEARN || Buttons::isShiftButtonPressed()) {
+		return false;
+	}
+	if (!menuIsFrontmost()) {
+		return false;
+	}
+	// `:1590-1591`: the item's answer is DISCARDED and the hook reports true regardless, which is
+	// what stops the dispatcher's `else` handing the same message to `view`. Legacy's asymmetry
+	// with `noteOnReceivedForMidiLearn` one function below it, kept rather than smoothed.
+	(void)scenes::menu_scene().learn_program_change(cable, channel, program);
+	return true;
 }
 
 } // namespace deluge::gui::ui

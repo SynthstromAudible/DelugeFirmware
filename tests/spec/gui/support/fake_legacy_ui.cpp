@@ -20,6 +20,10 @@ bool sd_routine_active = false;
 int knob_indicator_clears = 0;
 bool knob_clear_saw_close = false;
 int service_wirings = 0;
+int menu_learn_note_ons = 0;
+int menu_learn_program_changes = 0;
+MidiLearnCall last_menu_learn{};
+bool menu_learn_claims = false;
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
 
@@ -47,6 +51,10 @@ void reset() {
 	knob_indicator_clears = 0;
 	knob_clear_saw_close = false;
 	service_wirings = 0;
+	menu_learn_note_ons = 0;
+	menu_learn_program_changes = 0;
+	last_menu_learn = MidiLearnCall{};
+	menu_learn_claims = false;
 	timer_arms.clear();
 	timer_unsets.clear();
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
@@ -259,5 +267,23 @@ void clearKnobIndicatorLevels() {
 namespace deluge::gui::ui {
 void wireShellGuestServices() {
 	fakelegacyui::service_wirings++;
+}
+
+// The other two symbols out of `gui/ui/shell_guest_services.h`, faked for the same reason and with
+// one addition: these two have a return value the guest ACTS on, so the fake records the arguments
+// and answers whatever `fakelegacyui::menu_learn_claims` is set to. The real ones ask
+// `menu_scene().learn_note_on` / `learn_program_change`, which are `MenuScene`'s and are covered by
+// `sim/scenes_spec`; what a guest spec can say is that the hook forwards the right three arguments
+// and honours the answer.
+bool shellGuestMenuLearnNoteOn(::MIDICable& cable, int32_t channel, int32_t note) {
+	fakelegacyui::menu_learn_note_ons++;
+	fakelegacyui::last_menu_learn = fakelegacyui::MidiLearnCall{&cable, channel, note, 0};
+	return fakelegacyui::menu_learn_claims;
+}
+
+bool shellGuestMenuLearnProgramChange(::MIDICable& cable, int32_t channel, int32_t program) {
+	fakelegacyui::menu_learn_program_changes++;
+	fakelegacyui::last_menu_learn = fakelegacyui::MidiLearnCall{&cable, channel, program, 0};
+	return fakelegacyui::menu_learn_claims;
 }
 } // namespace deluge::gui::ui

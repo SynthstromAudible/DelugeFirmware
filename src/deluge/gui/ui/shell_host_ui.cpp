@@ -868,6 +868,57 @@ ActionResult ShellHostUI::exitUI() {
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
+// -- MIDI learn (F1 task 10) ---------------------------------------------------------------------
+//
+// The two `UI` virtuals `SoundEditor` overrides, ported. `@par MIDI learn` on this class has the
+// whole table -- which two of the four message types are reachable at all, why CC and pitch bend
+// are not, and the `UI_MODE_MIDI_LEARN` gate that makes every one of them inert today. Read it
+// before treating either of these as a live path.
+//
+// Both go through `gui/ui/shell_guest_services.h`'s free functions rather than naming `MenuScene`
+// here, for the reason `wireShellGuestServices` does: the host spec suite compiles this file
+// directly and never builds the `deluge_scenes` closure (`tests/spec/CMakeLists.txt`), so a
+// `MenuScene` type in this translation unit would take `shell_host_ui_spec`'s examples off the
+// board. The seam is a symbol, and the fake is one line each.
+
+bool ShellHostUI::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {
+	// `SoundEditor::pcReceivedForMidiLearn` (`gui/ui/sound_editor.cpp:1588-1594`), whole. There is
+	// no service half and that is not an omission: `View::pcReceivedForMIDILearn` has an **empty
+	// body** (`gui/views/view.h:63`), so the `view` fallback `PlaybackHandler::programChangeReceived`
+	// runs at `:2900` does nothing, there is nothing for `services::MidiLearn` to port, and no
+	// `UiEvent` kind was added for program change.
+	return shellGuestMenuLearnProgramChange(cable, channel, program);
+}
+
+bool ShellHostUI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
+	// **The menu first**, which is `SoundEditor::noteOnReceivedForMidiLearn` (`:1595-1597`): the
+	// focused item's own answer, no mode guard, and a `true` is what makes legacy skip its `else`.
+	if (shellGuestMenuLearnNoteOn(cable, channel, note)) {
+		return true;
+	}
+
+	// **Then the shell's own chain**, which is where the `else` goes under the guest. Legacy's
+	// fallback is `view.noteOnReceivedForMidiLearn` (`playback/playback_handler.cpp:2970`), and the
+	// port of that function is `services::MidiLearn::note_on_received` -- installed in this shell's
+	// `midi_learn` slot by `wireShellGuestServices()`. So the message goes to the port of `View`,
+	// not to `View`: routing it and returning the chain's answer is what keeps ONE learn state
+	// authoritative while the guest is open, instead of splitting a press between the port (which
+	// owns the pads) and legacy's `View` (which cannot see them).
+	//
+	// `Shell::route_midi` is synchronous precisely so this can return a bool at all -- the queueing
+	// feeds this class's other input hooks use could not (see its doc, and `@par Input is fed, not
+	// answered`). `MidiLearn::handle` claims the message whenever the cable is non-null, matching
+	// the dispatcher's own unconditional `return` at `:2972`, so in practice `view` does not run;
+	// the value is still taken from the chain rather than hardcoded, because a scene that declines
+	// with no service installed must still fall through.
+	const deluge::ui::shell::UiEvent event{.kind = deluge::ui::shell::UiEvent::Kind::MidiNoteOn,
+	                                       .channel = static_cast<uint8_t>(channel),
+	                                       .data1 = static_cast<uint8_t>(note),
+	                                       .data2 = static_cast<uint8_t>(velocity),
+	                                       .cable = &cable};
+	return shell_.route_midi(event, nowMs());
+}
+
 } // namespace deluge::gui::ui
 
 deluge::gui::ui::ShellHostUI shellHostUI{deluge::scenes::scene_registry()};

@@ -17,6 +17,10 @@
 
 #pragma once
 
+#include <cstdint>
+
+class MIDICable;
+
 /// @file
 /// @brief The three real `shell::Service`s the guest runs, and the one call that wires them.
 ///
@@ -59,5 +63,40 @@ namespace deluge::gui::ui {
 /// function's own comments for what each field is read from and which of them are stated as
 /// uncovered.
 void wireShellGuestServices();
+
+/// @brief `SoundEditor::noteOnReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1595-1597`),
+///        for the ported menu.
+///
+/// Legacy's is one line -- `return getCurrentMenuItem()->learnNoteOn(cable, channel, note);` -- with
+/// no mode guard and the item's own answer as the result. The one thing it does implicitly is what
+/// this has to say out loud: `SoundEditor` is only ever the current UI with a menu open, so
+/// "`getCurrentMenuItem()`" is total there. Under the guest the current UI is `ShellHostUI`
+/// whatever is on the scene stack, so this asks first whether the input-frontmost scene really is
+/// `menu_scene()` and declines otherwise -- a browser, a rename field or the marker editor is not
+/// a menu item and has no `learnNoteOn`.
+///
+/// @param cable   The cable the note arrived on.
+/// @param channel The channel or MPE zone, as `PlaybackHandler::noteMessageReceived` computed it
+///                (`playback/playback_handler.cpp:2966`).
+/// @param note    The note number.
+/// @return The focused item's own answer, or false when the menu is not the frontmost scene.
+bool shellGuestMenuLearnNoteOn(::MIDICable& cable, int32_t channel, int32_t note);
+
+/// @brief `SoundEditor::pcReceivedForMidiLearn`'s body (`gui/ui/sound_editor.cpp:1588-1594`), for
+///        the ported menu.
+///
+/// The same shape with legacy's two extra conditions kept: it acts only under
+/// `currentUIMode == UI_MODE_MIDI_LEARN && !Buttons::isShiftButtonPressed()`, and it returns
+/// **true** inside that gate whatever the item answered -- so a declining item still stops
+/// `PlaybackHandler::programChangeReceived`'s `else` from handing the message to `view`
+/// (`playback/playback_handler.cpp:2897-2901`). Both of those are legacy's, reproduced rather than
+/// tidied. The mode test is redundant with the dispatcher's own gate one frame up; legacy tests it
+/// twice and so does this.
+///
+/// @param cable   The cable.
+/// @param channel The channel.
+/// @param program The program number.
+/// @return True if the gate was open and the menu was the frontmost scene.
+bool shellGuestMenuLearnProgramChange(::MIDICable& cable, int32_t channel, int32_t program);
 
 } // namespace deluge::gui::ui

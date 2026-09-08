@@ -54,8 +54,10 @@ namespace deluge::gui::ui {
 ///
 /// The failure mode this list exists for is a guest that silently inherits a `UI` default where it
 /// should have forwarded: nothing breaks until a scene needs that hook, and by then it reads as a
-/// scene bug. `::UI` declares 32 virtuals (`gui/ui/ui.h:94-173`, `grep -n virtual`); sixteen are
-/// overridden below and the other sixteen are listed here with the reason.
+/// scene bug. `::UI` declares 32 virtuals (`gui/ui/ui.h:94-173`, `grep -n virtual`); eighteen are
+/// overridden below and the other fourteen are listed here with the reason. (Sixteen and sixteen
+/// until F1 task 10, which took `pcReceivedForMidiLearn` and `noteOnReceivedForMidiLearn` off this
+/// list -- see `@par MIDI learn` below, and read it before assuming that path is live.)
 ///
 // clang-format off
 /// | not overridden | line | why |
@@ -68,8 +70,6 @@ namespace deluge::gui::ui {
 /// | `toClipMinder` | `ui.h:122` | Null, as `SoundEditor` leaves it. A guest is not a clip minder; `currentUIIsClipMinderScreen()` must keep answering about the view underneath. |
 /// | `toTimelineView` | `ui.h:127` | Null, as `SoundEditor` leaves it, for the same reason. |
 /// | `scrollFinished` | `ui.h:129` | `SoundEditor` overrides it to clear `UI_MODE_HORIZONTAL_SCROLL` and re-render the root (`sound_editor.cpp:1062-1067`); both halves are about legacy UI modes and legacy rendering, neither of which the shell owns. **Recorded as an uncovered gap**, not a decision to forward: a scroll begun under an open guest ends without the guest hearing about it. |
-/// | `pcReceivedForMidiLearn` | `ui.h:130` | **Task 10** (the MIDI event kind and `MidiLearn`'s producers). |
-/// | `noteOnReceivedForMidiLearn` | `ui.h:132` | **Task 10**. |
 /// | `getUI` | `ui.h:162` | Returns `this`, which is right: the guest is not a chooser that opens a different UI. |
 /// | `getUIContextType` | `ui.h:167` | Defaults to `getUIType()`, as `SoundEditor` leaves it. |
 /// | `getUIModControllableContext` | `ui.h:170` | `NONE`, as `SoundEditor` leaves it. |
@@ -268,6 +268,51 @@ namespace deluge::gui::ui {
 /// `soundEditor.currentModControllable`, i.e. scenes-layer work, not wiring. Recorded as a
 /// divergence with the real condition on it, and the claim in `mod_knobs.h` corrected.
 ///
+/// @par MIDI learn: two of the four messages are forwarded, and NONE of them is reachable yet
+///
+/// F1 task 10. `SoundEditor` learns a menu item from four MIDI message types and the guest reaches
+/// them by four different mechanisms, only two of which exist:
+///
+// clang-format off
+/// | message | `SoundEditor` | how legacy dispatches | the guest |
+/// |---|---|---|---|
+/// | program change | `pcReceivedForMidiLearn` (`sound_editor.cpp:1588-1594`) | `getCurrentUI()->pcReceivedForMidiLearn`, `view` as the `else` (`playback/playback_handler.cpp:2897-2901`) | **overridden below**, forwarding to `MenuScene::learn_program_change` through `shellGuestMenuLearnProgramChange` |
+/// | note on | `noteOnReceivedForMidiLearn` (`:1595-1597`) | the same shape (`playback_handler.cpp:2968-2971`) | **overridden below**, forwarding to `MenuScene::learn_note_on`, then feeding the shell's own chain |
+/// | CC | `midiCCReceived` (`:1600-1608`) | **no `UI` virtual.** A hardcoded `getCurrentUI() == &soundEditor` at `playback_handler.cpp:3128` | **lost.** See below |
+/// | pitch bend | `pitchBendReceived` (`:1611-1619`) | the same hardcoded test at `:3078` | **lost**, and doubly: `MenuItem::learnKnob` has no port either -- see the mod-knob `@par` above |
+// clang-format on
+///
+/// The first two are closable because `UI` declares a virtual for each (`ui.h:130`, `:132`) and a
+/// guest can override it. The last two are not: `gui/ui/ui.h` declares **exactly two**
+/// `*ForMidiLearn` hooks, and closing CC or pitch bend means adding a third and fourth and
+/// rewriting two legacy dispatch sites -- a legacy-behaviour change plan F1 does not make. Recorded
+/// at `playback_handler.cpp:3128` and `:3078`, at `MidiLearn::cc_received`, and in migration §10.2
+/// item 8.
+///
+/// @warning **All four are unreachable under the guest today, for a reason none of the above
+///          names, and it is worth knowing before anyone counts this as working.** Every one of
+///          these dispatch arms is gated on `currentUIMode == UI_MODE_MIDI_LEARN`
+///          (`playback_handler.cpp:2897`, `:2963`, `:3132`, and `SoundEditor`'s own inner tests),
+///          and **exactly two lines in the tree ever set that value**:
+///          `View::startMIDILearn` (`gui/views/view.cpp:493`) and `SoundEditor::buttonAction`'s
+///          `LEARN` arm (`gui/ui/sound_editor.cpp:520`) --
+///          `grep -rn "currentUIMode = UI_MODE_MIDI_LEARN" src/deluge` returns exactly those two
+///          lines and nothing else. Neither runs while the guest
+///          is open: `View::buttonAction` is the *root view's* fallback and the guest is the
+///          current UI, and `SoundEditor` is not open at all. The port's own learn mode
+///          (`services::MidiLearn::begin`, reached from its `LEARN` arm) sets a **different bit**
+///          -- `MidiLearn::active_`, which `PlaybackHandler` cannot see -- and is itself gated on
+///          `SceneStack::input_top().is_root()`, which `MenuScene` is not.
+///
+///          So this is transport built ahead of its producer, deliberately and in that order: the
+///          two overrides are the port of `SoundEditor`'s two hooks and are correct, and they will
+///          start carrying messages the moment something under the guest sets legacy's mode --
+///          which is `MenuScene` porting `SoundEditor::buttonAction`'s `LEARN` arm
+///          (`sound_editor.cpp:505-537`, gated on `getCurrentMenuItem()->allowsLearnMode()`), the
+///          arm `services::MidiLearn`'s own class doc already names as `MenuScene`'s to port and
+///          not the service's. Until then, asserting "MIDI learn works under the toggle" would be a
+///          claim broader than its mechanism.
+///
 /// @par Shift: two state machines, and what actually keeps them in step
 ///
 /// §2.1's rule is that legacy `Buttons::` state is *read* into `UiContext`, not duplicated.
@@ -382,6 +427,8 @@ public:
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	ActionResult exitUI() override;
+	bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) override;
+	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	UIType getUIType() override { return UIType::SHELL_HOST; }
 
