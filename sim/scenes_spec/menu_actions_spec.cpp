@@ -44,6 +44,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/actions.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/shortcuts.h" // menu::shortcuts_version -- the port half of the setting
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -59,10 +60,12 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
+#include "gui/ui/menus.h"   // paramShortcutsForSounds and friends -- ShortcutsVersionGuard's cells
 #include "gui/ui/root_ui.h" // PerformExitStubUI's base, for the arms that close()
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/ui.h" // isUIOpen / nullifyUIs / setRootUILowLevel, for the groups that use the real UI stack
+#include "gui/ui/sound_editor.h" // soundEditor.shortcutsVersion, SHORTCUTS_VERSION_1 / _3
+#include "gui/ui/ui.h"           // isUIOpen / nullifyUIs / setRootUILowLevel, for the groups that use the real UI stack
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
@@ -96,6 +99,7 @@
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "spec/support/spec_main.h"
@@ -105,6 +109,11 @@
 /// make its `menu_item::` spelling work) and `gui/ui/menus.h` does not export it -- the same
 /// situation `tables_3_spec.cpp:589` records for `flashStatusMenu` and friends.
 extern deluge::gui::menu_item::performance_session_view::EditingMode performEditorMenu;
+
+// `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:66` and named in no header;
+// `ShortcutsVersionGuard` below has to restore the two cells the V1 arm writes. Declared exactly as
+// `shortcuts_spec.cpp:73` declares it, for the same reason.
+extern "C++" PatchSource modSourceShortcuts[2][8];
 
 using namespace deluge::scenes;
 using deluge::l10n::String;
@@ -137,7 +146,13 @@ constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
 /// @brief The real roots this spec navigates, so `assign_node_ids` numbers everything it touches.
-constexpr const Node* kRoots[] = {&nodes::root_song, &nodes::root_audio_clip, &nodes::root_performance};
+///
+/// `root_settings` joined for F2 task 6: `menu_action_shortcuts_version` opens `pads_settings` as a
+/// root, and `Rig::open` needs `menu::node_id` to have numbered it. Adding a root here is safe for
+/// every other group -- ids are looked up per node, never assumed -- and it is the whole settings
+/// subtree that gets numbered, which is what `nodes::shortcuts_version` needs.
+constexpr const Node* kRoots[] = {&nodes::root_song, &nodes::root_audio_clip, &nodes::root_performance,
+                                  &nodes::root_settings};
 
 struct Rig {
 	spec::SongFixture song = spec::make_synth_song();
@@ -250,6 +265,12 @@ struct GuestRig {
 	/// the point: `buttonAction` only queues, and `Shell::pump_input` inside a tick is what routes
 	/// (`shell/shell.cpp:579-589`).
 	void press_enter() { (void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
+
+	/// One detent of the select encoder, through the guest's own hook. `ShellHostUI::selectEncoderAction`
+	/// (`gui/ui/shell_host_ui.cpp:807`) is the override legacy's `interpretEncoders` calls
+	/// (`hid/encoder_input.cpp:112`, `:117`), and it queues into the same lowering `press_enter`
+	/// does -- so, as there, nothing moves until the guest is ticked.
+	void turn_select(int32_t detents) { ui.selectEncoderAction(static_cast<int8_t>(detents)); }
 };
 
 /// @brief @p parent's visible children in the order the scene lists them.
@@ -761,6 +782,98 @@ std::array<int, 2> mirror_and_view() {
 /// (`both` on its own is ambiguous against a name the spec headers already pull in.)
 std::array<int, 2> both_at(PerformanceEditingMode mode) {
 	return {static_cast<int>(mode), static_cast<int>(mode)};
+}
+
+// --- F2 task 6: the shortcuts-layout setting, in both directions -------------------------------
+
+/// @brief Put back everything `SoundEditor::setShortcutsVersion` moves, on both sides of the wall.
+///
+/// Unlike `shortcuts_spec.cpp`'s `LegacyVersion1` -- which this is otherwise a copy of, cells and
+/// all -- the constructor **selects nothing**. Each example drives the choice itself, because the
+/// choice is what is under test.
+///
+/// The twelve cells matter because `setShortcutsVersion`'s `SHORTCUTS_VERSION_1` arm assigns them in
+/// place (`gui/ui/sound_editor.cpp:157-173`) and its `default` arm is a comment, not an undo
+/// (`:177-179`) -- so a V1 -> V3 round trip does **not** restore them and the other twenty specs in
+/// this process would see a corrupted legacy shortcut table. `menu::set_shortcuts_version` has no
+/// such problem (it selects between two `constexpr` layers), but it is saved here too so one guard
+/// covers the whole setting.
+struct ShortcutsVersionGuard {
+	::MenuItem* sounds[6];
+	::MenuItem* clips[4];
+	PatchSource sources[2];
+	uint8_t legacy_version;
+	menu::ShortcutsVersion port_version;
+
+	ShortcutsVersionGuard(const ShortcutsVersionGuard&) = delete;
+	ShortcutsVersionGuard& operator=(const ShortcutsVersionGuard&) = delete;
+
+	ShortcutsVersionGuard() {
+		for (size_t i = 0; i < 6; i++) {
+			sounds[i] = paramShortcutsForSounds[kSoundCells[i].first][kSoundCells[i].second];
+		}
+		for (size_t i = 0; i < 4; i++) {
+			clips[i] = paramShortcutsForAudioClips[kClipCells[i].first][kClipCells[i].second];
+		}
+		sources[0] = modSourceShortcuts[0][7];
+		sources[1] = modSourceShortcuts[1][7];
+		legacy_version = soundEditor.shortcutsVersion;
+		port_version = menu::shortcuts_version();
+	}
+
+	~ShortcutsVersionGuard() {
+		for (size_t i = 0; i < 6; i++) {
+			paramShortcutsForSounds[kSoundCells[i].first][kSoundCells[i].second] = sounds[i];
+		}
+		for (size_t i = 0; i < 4; i++) {
+			paramShortcutsForAudioClips[kClipCells[i].first][kClipCells[i].second] = clips[i];
+		}
+		modSourceShortcuts[0][7] = sources[0];
+		modSourceShortcuts[1][7] = sources[1];
+		// The field, not the setter: the setter would rewrite the arrays this destructor has just
+		// restored.
+		soundEditor.shortcutsVersion = legacy_version;
+		menu::set_shortcuts_version(port_version);
+	}
+
+private:
+	static constexpr std::pair<uint8_t, uint8_t> kSoundCells[6] = {{0, 6}, {1, 6}, {2, 6}, {3, 6}, {2, 7}, {3, 7}};
+	static constexpr std::pair<uint8_t, uint8_t> kClipCells[4] = {{0, 7}, {1, 7}, {0, 6}, {1, 6}};
+};
+
+/// The two values the ported item can hold, as its own enum indices -- which are legacy's numbers
+/// (`SHORTCUTS_VERSION_1` 0, `SHORTCUTS_VERSION_3` 1, `gui/ui/sound_editor.h:26-27`; restated by
+/// `menu::ShortcutsVersion`, `scenes/menu/shortcuts.h:154-157`). Spelled here as the *item's* index
+/// rather than reached for through either enum, because what the examples drive is a cursor.
+constexpr int32_t kVersion1Index = 0;
+constexpr int32_t kVersion3Index = 1;
+
+/// @brief Open the ported Pads page, step into `shortcuts_version`, and turn the encoder until the
+///        item sits on @p index -- leaving whatever the write filed **in the outbox**.
+///
+/// The whole gesture is real input through the real widget: a row press to descend (legacy's own
+/// `shouldEnterSubmenu()`, which for a bare `Selection` is the base's `return true`,
+/// `gui/menu_item/menu_item.h:271`) and then detents, one per tick, which is what the value widget's
+/// clamping walk expects. The write happens on the turn and not on a further press, because that is
+/// where legacy's happens: `SoundEditor::selectEncoderAction` is what reaches `writeCurrentValue`.
+///
+/// @return The enum cursor the item ended on, so an example can say the turn really landed rather
+///         than assuming it.
+int32_t choose_shortcuts_version(Rig& r, int32_t index) {
+	(void)r.open(nodes::pads_settings);
+	r.shell.tick(5);
+	(void)scene().take_action(); // opening the page files nothing; the group asserts that separately
+	r.enter(10);                 // row 0 is `shortcuts_version`
+	r.shell.tick(20);
+	(void)scene().take_action(); // nor does descending into the leaf
+
+	int32_t cursor = static_cast<int32_t>(scene().state().enum_index);
+	for (uint32_t step = 0; cursor != index && step < 8; step++) {
+		r.turn(index > cursor ? 1 : -1, 30 + step * 10);
+		r.shell.tick(35 + step * 10);
+		cursor = static_cast<int32_t>(scene().state().enum_index);
+	}
+	return cursor;
 }
 
 } // namespace
@@ -1279,7 +1392,7 @@ describe menu_action_open_perform("gui::ui::dispatchShellActions -- OpenPerforma
 });
 
 describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExport", $ {
-	// The second arm with a body (F2 task 3), and the one `scenes/menu/action.h:85-87` deliberately
+	// The second arm with a body (F2 task 3), and the one `scenes/menu/action.h:107-109` deliberately
 	// refused to split into four enumerators, "the choice is made from the root UI, which this layer
 	// cannot read". So the fan-out over `getRootUI()` (`gui/menu_item/stem_export/start.h:33-47`) is
 	// the whole of what this side of the seam adds, and it is what this group pins.
@@ -1449,7 +1562,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// `soundEditor`. The dispatcher's answer is `SceneStack::remove(SceneKind::FirstApp)` on the
 		// guest's own stack -- the same statement `MenuScene::handle` already uses for the short-Back
 		// exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
-		// (`scenes/menu/menu_scene.cpp:1447-1452`; `gui/ui/sound_editor.cpp:710-717`, the call at
+		// (`scenes/menu/menu_scene.cpp:1459-1464`; `gui/ui/sound_editor.cpp:710-717`, the call at
 		// `:716`). The full argument, including why neither `closeUI` nor `closeGuest()` can be
 		// called from there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
 		//
@@ -2007,6 +2120,233 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 		performEditorMenu.currentMode = saved_item_mode;
 	});
 });
+
+describe menu_action_shortcuts_version("gui::ui::dispatchShellActions -- SetShortcutsVersion", $ {
+	// F2 task 6 -- the sixth arm, and the only one whose request is filed by a **value write**
+	// rather than by a select press. `scenes/menu/action.h`'s "the sixth item" section says why:
+	// legacy's `menu_item::shortcuts::Version` is an ordinary `Selection` the user opens and turns,
+	// and what it cannot be ported is `writeCurrentValue`'s one statement,
+	// `soundEditor.setShortcutsVersion(this->getValue())` (`gui/menu_item/shortcuts/version.h:27`).
+	//
+	// **What was broken, in user terms.** Until this arm existed the ported item wrote only this
+	// layer's mirror (`menu::set_shortcuts_version`), so the menu showed the new layout and the
+	// shortcut pads followed it -- and `SoundEditor::shortcutsVersion`, the byte
+	// `FlashStorage::writeSettings` stores at byte 60 (`storage/flash_storage.cpp:982`) and
+	// `readSettings` hands back at boot (`:568`), never moved. The layout survived until power-off
+	// and no further. **Every control leg below is that bug**, reproduced deliberately: same rig,
+	// same gesture, minus `dispatchShellActions()` -- and each one asserts the mirror DID move while
+	// the legacy byte did not, which is the shape of the defect rather than merely "nothing
+	// happened".
+	//
+	// **Flash itself is not written here, and that is deliberate.** `FlashStorage::writeSettings`
+	// rewrites every setting this process shares with the other twenty specs in this binary -- the
+	// reason `boot_wiring_spec.cpp` gives for not driving `resetSettings` either. What these
+	// examples pin is `soundEditor.shortcutsVersion`, which is the *only* thing `:982` reads.
+	//
+	// **The reverse direction has its own example**, and it is not a duplicate of
+	// `boot_wiring_spec.cpp`'s: it is this group's control for the mutation reported with the task.
+	// Deleting the dispatcher arm must redden the new direction and leave the old one green, and
+	// the two have to be in one file for that to be a comparison rather than a claim.
+	//
+	// `ShortcutsVersionGuard` is on every example: `setShortcutsVersion`'s V1 arm rewrites twelve
+	// cells of the legacy shortcut tables in place and its V3 arm is a comment, not an undo.
+
+	it("choosing V1 in the ported menu reaches SoundEditor::shortcutsVersion, which is flash byte 60", _ {
+		select_language();
+		ShortcutsVersionGuard guard;
+
+		{
+			// The control, and it differs in EXACTLY ONE CALL: no `dispatchShellActions()`. It is
+			// also the bug this task closes, stated as an assertion: the mirror moves, the legacy
+			// byte does not.
+			soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+			Rig control;
+			expect(choose_shortcuts_version(control, kVersion1Index)).to_equal(kVersion1Index);
+
+			expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+			expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+			// ...and the write really did file, so the subject's effect is about the arm and not
+			// about a turn that never reached the hook.
+			const MenuActionRequest filed = scene().take_action();
+			expect(filed.action == MenuAction::SetShortcutsVersion).to_be_true();
+			expect(static_cast<int>(filed.arg)).to_equal(kVersion1Index);
+		}
+
+		// Seeded at the value the answer is NOT, on both sides, so neither assertion below can pass
+		// on a value that was already there.
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+
+		Rig r;
+		expect(choose_shortcuts_version(r, kVersion1Index)).to_equal(kVersion1Index);
+		deluge::gui::ui::dispatchShellActions();
+
+		// `shortcuts/version.h:27` performed on the real `soundEditor` -- the byte
+		// `storage/flash_storage.cpp:982` stores.
+		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+		// The mirror is still right too. It was written by the hook and then written again, to the
+		// same value, by `setShortcutsVersion`'s own mirror call -- the lap the enumerator's doc
+		// argues terminates. If that lap were wrong in either direction this would be the value
+		// that showed it.
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+		// And the legacy table really moved, which is the effect a user sees: `(0, 6)` of the sound
+		// shortcuts is `sample0EndMenu` under V1 (`gui/ui/sound_editor.cpp:163`).
+		expect(paramShortcutsForSounds[0][6] == &sample0EndMenu).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("and back again: choosing V3 restores it, so the arm is not a one-way write", _ {
+		// The other value byte 60 can hold. Without this an implementation that hard-coded V1 --
+		// or one that only ever fired on a decrease -- would pass the example above.
+		select_language();
+		ShortcutsVersionGuard guard;
+
+		{
+			Rig control;
+			soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+			expect(choose_shortcuts_version(control, kVersion3Index)).to_equal(kVersion3Index);
+
+			expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
+			expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+			const MenuActionRequest filed = scene().take_action();
+			expect(filed.action == MenuAction::SetShortcutsVersion).to_be_true();
+			expect(static_cast<int>(filed.arg)).to_equal(kVersion3Index);
+		}
+
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+
+		Rig r;
+		expect(choose_shortcuts_version(r, kVersion3Index)).to_equal(kVersion3Index);
+		deluge::gui::ui::dispatchShellActions();
+
+		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("does NOT ascend: the user is left standing on the item, as legacy leaves them", _ {
+		// The `switch` in `MenuScene::after_render` that decides whether an action ascends. The four
+		// verbs that file from `on_focus` do, because legacy never enters those items at all; this
+		// one must not, because legacy's `Selection` IS entered and `writeCurrentValue` runs on
+		// every detent while the user stands on it. An arm that ascended would close the page under
+		// the user on the first turn.
+		select_language();
+		ShortcutsVersionGuard guard;
+
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+		Rig r;
+		expect(choose_shortcuts_version(r, kVersion1Index)).to_equal(kVersion1Index);
+		deluge::gui::ui::dispatchShellActions();
+
+		// The first detent really wrote, so the second one below is a second write and not the
+		// first one arriving late.
+		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+		// Still inside the item, one level down from the Pads page it was opened at.
+		expect(scene().focused() == &nodes::shortcuts_version).to_be_true();
+		expect(static_cast<int>(scene().state().depth)).to_equal(1);
+		// And a second detent still lands, which an ascend would have made impossible: the value
+		// goes back to V3 and the byte follows it.
+		r.turn(1, 200);
+		r.shell.tick(210);
+		deluge::gui::ui::dispatchShellActions();
+		expect(static_cast<int>(scene().state().enum_index)).to_equal(kVersion3Index);
+		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+		expect(scene().focused() == &nodes::shortcuts_version).to_be_true();
+	});
+
+	it("files nothing at all until the value is turned -- opening and descending are quiet", _ {
+		// The other side of "a write, not a press". Walking onto the item and pressing into it is
+		// what a user does before choosing anything, and it must not write flash.
+		select_language();
+		ShortcutsVersionGuard guard;
+
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+		Rig r;
+		(void)r.open(nodes::pads_settings);
+		r.shell.tick(5);
+		expect(scene().take_action().engaged()).to_be_false();
+		r.enter(10);
+		r.shell.tick(20);
+		expect(scene().focused() == &nodes::shortcuts_version).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+		// ...and it stays quiet across twenty ticks with the item open.
+		for (uint32_t t = 0; t < 20; t++) {
+			r.shell.tick(30 + t * 10);
+			deluge::gui::ui::dispatchShellActions();
+			expect(scene().take_action().engaged()).to_be_false();
+		}
+		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+	});
+
+	it("reaches SoundEditor through the guest's own tick, with nothing calling the dispatcher by name", _ {
+		// The composition, end to end: a real `ShellHostUI` over the real `scene_registry()`, a real
+		// press and a real select-encoder turn through the guest's own hooks, and the guest's own
+		// `timerCallback()` -- which is the only thing here that could write anything.
+		// `dispatchShellActions` is never named.
+		//
+		// The two legs vary ONE THING -- shell tick vs guest tick -- the arrangement
+		// `menu_action_open_perform`'s third example uses and for the same reason. It takes three
+		// statements: both tick points differ, and the subject alone drains after its settle tick to
+		// say that tick files nothing. That drain cannot affect what follows; the turn it would have
+		// to eat is two lines later.
+		select_language();
+		ShortcutsVersionGuard guard;
+
+		{
+			GuestRig control;
+			soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+			expect(control.open(nodes::shortcuts_version)).to_be_true();
+			control.ui.shell().tick(5);
+			control.turn_select(-1);
+			control.ui.shell().tick(20);
+
+			expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+			expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_3);
+			expect(scene().take_action().action == MenuAction::SetShortcutsVersion).to_be_true();
+		}
+
+		GuestRig r;
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+		// Opened AT the item rather than walked into, because `GuestRig` has no row-press helper for
+		// a submenu row -- the same substitution `menu_action_open_perform`'s guest example makes.
+		// A deep link onto an `Kind::Enum` leaf shows its page with the current value, which is what
+		// a restore does; the turn after it is the real gesture.
+		expect(r.open(nodes::shortcuts_version)).to_be_true();
+		(void)r.ui.timerCallback(); // settle the first frame -- a render files nothing on its own
+		expect(scene().take_action().engaged()).to_be_false();
+		r.turn_select(-1);
+		(void)r.ui.timerCallback();
+
+		expect(static_cast<int>(soundEditor.shortcutsVersion)).to_equal(SHORTCUTS_VERSION_1);
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("the legacy -> port direction still works, with no menu and no dispatcher anywhere in it", _ {
+		// **This is the control for the mutation, not a second copy of `boot_wiring_spec.cpp`.**
+		// The two directions have to be in one file for "delete the dispatcher arm and the new
+		// example reddens while this one does not" to be something a reader can re-run.
+		//
+		// `SoundEditor::setShortcutsVersion` is the sole writer of `shortcutsVersion` and mirrors
+		// into this layer from there (`gui/ui/sound_editor.cpp:149-151`, F1 task 8's fix), which is
+		// what makes a layout chosen from the legacy menu, at boot, or by a factory reset show up in
+		// the ported tree. Nothing in this example touches a `Shell`, a `MenuScene` or the outbox.
+		ShortcutsVersionGuard guard;
+
+		// Both values, in both directions -- a mirror that only ever wrote V1 would pass a one-way
+		// check.
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_3);
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V3).to_be_true();
+		soundEditor.setShortcutsVersion(SHORTCUTS_VERSION_1);
+		expect(menu::shortcuts_version() == menu::ShortcutsVersion::V1).to_be_true();
+		// And the outbox stayed empty throughout: this direction files nothing, so the mirror call
+		// inside `setShortcutsVersion` cannot be feeding the loop the enumerator's doc rules out.
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+});
 // clang-format on
 
 /// Seven `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
@@ -2030,7 +2370,7 @@ int menu_actions_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch,
 	                          menu_action_open_perform, menu_action_stem_export, menu_action_three_verbs,
-	                          menu_action_perform_mirror)
+	                          menu_action_perform_mirror, menu_action_shortcuts_version)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

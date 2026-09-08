@@ -201,7 +201,7 @@ UI_STACK_CALLS = (
 #   of mistake F2 task 5 exists to correct. The recipe is one line:
 #   `grep -c '\.h",' <this list>`.) What is worth stating is the narrow fact rather than a
 #   superlative: exactly two translation units include this header (`gui/ui/menus.cpp:154` and
-#   `sim/scenes_spec/menu_actions_spec.cpp:61`, with no transitive includers), so the port include
+#   `sim/scenes_spec/menu_actions_spec.cpp:62`, with no transitive includers), so the port include
 #   it carries is not being smuggled into the tree at large. If it ever gains a `.cpp`, the call
 #   belongs there and this entry should move with it.
 LEGACY_PORT_SEAMS = (
