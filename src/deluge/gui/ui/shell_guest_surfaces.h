@@ -92,7 +92,7 @@ public:
 	/// **The bound here is the diff, not a cadence** (corrected in the F1 task 4 review; the first
 	/// version of this note quoted a 20 ms ceiling that two shipped scenes already exceed).
 	/// `AudioClipScene::next_timer()` returns `0u` for as long as the playhead is live
-	/// (`src/scenes/audio_clip/audio_clip_scene.cpp:1199`) with `{.oled = false, .grid = true}`
+	/// (`src/scenes/audio_clip/audio_clip_scene.cpp:1203`) with `{.oled = false, .grid = true}`
 	/// (`audio_clip_scene.h:477`), so the grid gate arms on **every tick** and there is no
 	/// millisecond ceiling to name. What makes that free is that `Shell::flush` diffs each pair
 	/// against `last_sent` before calling `send_columns` at all (`shell/shell.cpp:970-986`): a tick

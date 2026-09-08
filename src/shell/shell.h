@@ -340,7 +340,7 @@ public:
 	///          ticking as fast as you can", and a host cannot currently tell them apart.** Zero is
 	///          a legal `Scene::next_timer()` answer meaning "next tick" (its own doc has the
 	///          account), and `scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
-	///          whole of playback (`audio_clip_scene.cpp:1199`) -- faithfully, because legacy drives
+	///          whole of playback (`audio_clip_scene.cpp:1203`) -- faithfully, because legacy drives
 	///          that play cursor from `graphicsRoutine`, which is a per-frame redraw rather than a
 	///          deadline. (It is **not** driven from the main loop: `TimerName::GRAPHICS_ROUTINE`
 	///          re-arms it at 15 ms, `gui/ui_timer_manager.cpp:213-218` -- corrected F1 task 7, and

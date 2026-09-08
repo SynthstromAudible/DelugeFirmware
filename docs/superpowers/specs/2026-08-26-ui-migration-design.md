@@ -256,7 +256,7 @@ at the code.
   the next tick recomputes `next_wake()` from scratch.
 - **A deadline of `now_ms` must not arm zero.** `Scene::next_timer()` may answer 0, meaning "next
   tick" (`shell/scene.h`), and `AudioClipScene::next_timer()` answers it for the whole of playback
-  (`scenes/audio_clip/audio_clip_scene.cpp:1193-1199`), so `next_wake()` reports `now_ms` on every
+  (`scenes/audio_clip/audio_clip_scene.cpp:1197-1203`), so `next_wake()` reports `now_ms` on every
   tick for as long as that scene is stacked. **The floor of 1 ms is the smallest duration `setTimer`
   can express that leaves `triggerTime` strictly in the future** (`ms * 44`, so 44 samples), and that
   is the whole argument: `setTimer(UI_SPECIFIC, 0)` puts `triggerTime` at exactly
@@ -381,7 +381,7 @@ fastest grid gate, 20 ms". There is no such ceiling, and two shipped scenes alre
 not override `timer_repaints()`, so it takes `Scene`'s `{.oled = true, .grid = true}` default
 (`src/shell/scene.h:629`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
 returns `0u` for as long as the playhead is live
-(`src/scenes/audio_clip/audio_clip_scene.cpp:1199`) with `{.grid = true}`
+(`src/scenes/audio_clip/audio_clip_scene.cpp:1203`) with `{.grid = true}`
 (`audio_clip_scene.h:477`), so the grid gate arms every tick and no millisecond figure bounds it at
 all. Sweeping the tree (14 `next_timer()` overrides against 6 `timer_repaints()` overrides) there is
 no cadence ceiling to quote for either surface.

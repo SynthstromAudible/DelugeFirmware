@@ -1643,7 +1643,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		// `Scene::next_timer()` may legally answer 0, meaning "next tick"
 		// (`shell/scene.h:510-562`); `AudioClipScene` answers it for the whole of playback
-		// (`scenes/audio_clip/audio_clip_scene.cpp:1193-1199`). `next_wake()` is then `now_ms` on
+		// (`scenes/audio_clip/audio_clip_scene.cpp:1197-1203`). `next_wake()` is then `now_ms` on
 		// every tick, for ever.
 		r.base.timer = 0;
 		expect(r.open()).to_be_true();

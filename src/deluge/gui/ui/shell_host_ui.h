@@ -128,7 +128,7 @@ namespace deluge::gui::ui {
 ///
 /// `Scene::next_timer()` may legally return **0**, meaning "next tick"
 /// (`shell/scene.h:510-562`), and `AudioClipScene::next_timer()` returns it for the whole of
-/// playback (`scenes/audio_clip/audio_clip_scene.cpp:1193-1199`). `Shell::next_wake()`'s own
+/// playback (`scenes/audio_clip/audio_clip_scene.cpp:1197-1203`). `Shell::next_wake()`'s own
 /// `@warning` records that a host cannot tell that apart from "wake once, immediately", and that the
 /// shell "only ticks when its host asks it to" -- **this class is that host**, so the answer is here.
 ///
