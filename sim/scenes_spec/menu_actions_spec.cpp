@@ -17,16 +17,24 @@
 ///     body.
 ///   * **Covered as of F2 task 2, in `menu_action_open_perform`:** that `OpenPerformanceView` is
 ///     *performed* -- the two `performanceView` bools, the conditional `resetPerformanceView`, and
-///     the `openUI`. It is the only verb with a body.
-///   * **NOT covered:** that the other four verbs do anything. Their arms are still empty, so
-///     nothing here asserts that a stem export starts or that a clip's length changes.
+///     the `openUI`.
+///   * **Covered as of F2 task 3, in `menu_action_stem_export`:** the whole of `StartStemExport`'s
+///     `getRootUI()` fan-out, driven by name through `stemExportTypeForRootUI()`, plus the arm end
+///     to end down the one branch that starts nothing, plus the close.
+///   * **Covered as of F2 task 4, in `menu_action_three_verbs`:** that the remaining three verbs are
+///     *performed* -- the clip's length really moves to the sample's, MIDI learn really arms, and
+///     each context menu really lands on `uiNavigationHierarchy`.
+///   * **NOT covered:** the acting half of `StartStemExport` -- `startStemExportProcess` would run a
+///     real export inline on this BSP (see that group's own note) -- and
+///     `audio_clip_view.cpp:766-768`'s `STRING_FOR_NO_SAMPLE` arm, which no `AudioClip` can reach
+///     (see `menu_action_three_verbs`' first example).
 ///
 /// Legacy is the oracle wherever it can be reached: `performEditorMenu`'s real option list and its
 /// real `readCurrentValue` mapping are both run here, on the real `performanceView`, and compared
-/// against the port. The four pure verbs have no comparable surface -- their legacy bodies are one
-/// `openUI`/`startStemExportProcess`/`setClipLengthEqualToSampleLength` statement each, which is
-/// exactly the half this layer does not own -- so they are pinned by identity instead, the same way
-/// task 6's five reset descriptors are.
+/// against the port; and as of task 4 the three one-line verbs run their real legacy callees on the
+/// real `audioClipView`, `sessionView` and `gui/context_menu/` singletons. The identity pinning that
+/// preceded those bodies is kept -- it is what says the right *item* files the right *action*, which
+/// no effect assertion can say on its own.
 
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/action.h"
@@ -43,17 +51,30 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+// `card_access.h` before CppSpec, for the reason its own `@warning` gives.
+#include "support/card_access.h"
+
+#include "gui/context_menu/configure_song_macros.h"
+#include "gui/context_menu/midi_learn_mode.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/performance_session_view/editing_mode.h"
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h" // isUIOpen / nullifyUIs / setRootUILowLevel, for the groups that use the real UI stack
+#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
+#include "gui/views/view.h"
 #include "hid/button.h"
+#include "hid/display/display.h"
+#include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
+#include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/stem_export/stem_export.h"
 
@@ -258,13 +279,20 @@ int32_t visible_index_of(const Node& parent, const Node& child, const MenuContex
 }
 
 /// @brief Open @p parent, walk the cursor onto @p child, and press select -- through the real
-///        lowering, the real `list` widget and the real `enter_child`.
-/// @return The action the scene filed as a result, drained exactly once.
-MenuActionRequest press_child(Rig& r, const Node& parent, const Node& child) {
+///        lowering, the real `list` widget and the real `enter_child` -- leaving whatever was filed
+///        **in the outbox**.
+///
+/// `press_child` below is this plus the drain. Split so the groups where the dispatcher must be the
+/// only reader of the outbox (`menu_action_open_perform` and after) can reuse the same walk instead
+/// of a second copy of it; `press_perform_mode` is the one page whose payload varies and keeps its
+/// own.
+/// @return false when @p child is not visible in @p parent -- the case `press_child` reports as an
+///         unengaged request.
+bool press_child_leaving_request(Rig& r, const Node& parent, const Node& child) {
 	const MenuContext ctx = r.open(parent);
 	const int32_t index = visible_index_of(parent, child, ctx);
 	if (index < 0) {
-		return MenuActionRequest{};
+		return false;
 	}
 	// Settle the first frame, then walk. One detent per tick, which is what the widget's own
 	// clamping walk expects.
@@ -276,6 +304,15 @@ MenuActionRequest press_child(Rig& r, const Node& parent, const Node& child) {
 	}
 	r.enter(static_cast<uint32_t>(100));
 	r.shell.tick(static_cast<uint32_t>(110));
+	return true;
+}
+
+/// @brief `press_child_leaving_request`, drained.
+/// @return The action the scene filed as a result, drained exactly once.
+MenuActionRequest press_child(Rig& r, const Node& parent, const Node& child) {
+	if (!press_child_leaving_request(r, parent, child)) {
+		return MenuActionRequest{};
+	}
 	return scene().take_action();
 }
 
@@ -473,6 +510,151 @@ const std::array<Pairing, 4> kVerbs{{
     {&nodes::song_midi_learn, &nodes::root_song, MenuAction::OpenSongMidiLearn},
     {&nodes::configure_song_macros, &nodes::root_song, MenuAction::OpenSongMacros},
 }};
+
+// --- F2 task 4: the three one-line verbs --------------------------------------------------------
+
+/// @brief The `Display` the `SetClipLengthToSampleLength` group needs, recording what it was asked
+///        to show.
+///
+/// `display` is null in a spec process (`hid/display/display.cpp`), and
+/// `AudioClipView::setClipLengthEqualToSampleLength` dereferences it on **both** of its branches
+/// (`gui/views/audio_clip_view.cpp:764`, `:767`) -- so an example that drives that callee with no
+/// `Display` installed segfaults rather than failing. `audio_clip_scene_spec.cpp:227-242`'s
+/// `QuietDisplay` is the same object with the popups thrown away; this one keeps them, because the
+/// popup is one of the two legacy effects this group asserts.
+struct RecordingDisplay final : deluge::hid::Display {
+	std::vector<std::string> popups;
+
+	constexpr size_t getNumBrowserAndMenuLines() override { return 3; }
+	void displayPopup(char const* text, int8_t, bool, uint8_t, int32_t, PopupType) override {
+		popups.emplace_back(text != nullptr ? text : "");
+	}
+	void popupText(char const*, PopupType) override {}
+	void popupTextTemporary(char const*, PopupType) override {}
+	void cancelPopup() override {}
+	void freezeWithError(char const*) override {}
+	void displayError(Error) override {}
+	void removeWorkingAnimation() override {}
+	void displayLoadingAnimationText(char const*, bool, bool) override {}
+	void removeLoadingAnimation() override {}
+	bool hasPopup() override { return !popups.empty(); }
+	bool hasPopupOfType(PopupType) override { return !popups.empty(); }
+	void consoleText(char const*) override {}
+	void timerRoutine() override {}
+};
+
+/// @brief Install a `RecordingDisplay` for the scope and put `display` back to what it was.
+struct DisplayGuard {
+	deluge::hid::Display* saved = display;
+	RecordingDisplay recorder;
+	DisplayGuard(const DisplayGuard&) = delete;
+	DisplayGuard& operator=(const DisplayGuard&) = delete;
+	DisplayGuard() { display = &recorder; }
+	~DisplayGuard() { display = saved; }
+};
+
+/// @brief One `MISC` action in an otherwise empty undo log, and an empty one again afterwards.
+///
+/// Not a convenience: `ClipView::lengthenClip` opens with an **unguarded**
+/// `actionLogger.firstAction[BEFORE]->type` (`gui/views/clip_view.cpp:98`), as does `shortenClip`
+/// (`:129`), so driving a length edit with an empty log segfaults rather than failing.
+/// `audio_clip_scene_spec.cpp:396-403` records the same fact and picks the same `ActionType::MISC`,
+/// which no test in either function matches.
+struct ActionLogGuard {
+	ActionLogGuard(const ActionLogGuard&) = delete;
+	ActionLogGuard& operator=(const ActionLogGuard&) = delete;
+	ActionLogGuard() {
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+	}
+	~ActionLogGuard() { actionLogger.deleteAllLogs(); }
+};
+
+/// @brief The `View` and UI-mode state `OpenSongMidiLearn` moves, saved and put back by hand.
+///
+/// By hand rather than by calling `sessionView.exitMidiLearnMode()`: that reaches
+/// `View::endMIDILearn` (`gui/views/view.cpp:499-517`), whose first statement can write the settings
+/// file (`:500-503`) and whose fourth calls `getRootUI()->midiLearnFlash()` (`:507-509`) -- a
+/// teardown that does more than undo.
+///
+/// `SessionView::gridModeActive` and `previousGridModeActive` are **private** (`session_view.h:231`,
+/// `:202`), so neither can be saved here nor asserted below; what an example after this one would
+/// see of them is `SessionGridModeLaunch` and whatever it was. Stated rather than left to be found.
+struct MidiLearnGuard {
+	uint32_t saved_ui_mode = currentUIMode;
+	bool saved_flash_on = view.midiLearnFlashOn;
+	MidiLearn saved_pressed = view.thingPressedForMidiLearn;
+	bool saved_should_save = view.shouldSaveSettingsAfterMidiLearn;
+	MidiLearnGuard(const MidiLearnGuard&) = delete;
+	MidiLearnGuard& operator=(const MidiLearnGuard&) = delete;
+	MidiLearnGuard() = default;
+	~MidiLearnGuard() {
+		uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH); // armed by `View::midiLearnFlash` (`:815`)
+		view.shouldSaveSettingsAfterMidiLearn = saved_should_save;
+		view.thingPressedForMidiLearn = saved_pressed;
+		view.midiLearnFlashOn = saved_flash_on;
+		currentUIMode = saved_ui_mode;
+	}
+};
+
+/// @brief A `Sample` with a length and nothing else.
+///
+/// `audio_clip_scene_spec.cpp:175-199`'s `make_sample()` minus everything only the waveform scan
+/// reads (the cluster size and the overview cache): `SampleHolder::getLoopLengthAtSystemSampleRate`
+/// asks for `getDurationInSamples(/*forTimeStretching=*/true)`, which is `endPos - startPos` and
+/// never touches the `Sample` at all (`model/sample/sample_holder.cpp:81-92`). The object still has
+/// to exist, because `:106`'s `if (audioFile)` is what picks that branch over "return the clip's
+/// current length" (`:112`).
+///
+/// Placed in the deluge heap and never freed -- `support/song_fixture.h`'s own rule, for its reason.
+Sample* make_length_only_sample(uint64_t length_in_samples) {
+	void* memory = deluge::memory::alloc_fast(sizeof(Sample));
+	auto* s = new (memory) Sample();
+	s->byteDepth = 2;
+	s->numChannels = 1;
+	s->sampleRate = 44100;
+	s->audioDataStartPosBytes = 0;
+	s->audioDataLengthBytes = length_in_samples * 2;
+	s->lengthInSamples = length_in_samples;
+	return s;
+}
+
+/// Four seconds at 44.1kHz -- long enough that the length it implies is nowhere near
+/// `make_audio_clip_song`'s default clip length, which is what makes the assertion below
+/// non-vacuous.
+constexpr uint64_t kSampleFrames = 44100 * 4;
+
+/// @brief An audio song whose one clip carries `kSampleFrames` of sample, seated as `currentSong`.
+///
+/// @warning **Construct this AFTER the `Rig`**, or the `Rig`'s own `make_synth_song()` takes
+///          `currentSong` back and `getCurrentAudioClip()` (`model/song/song.cpp:98-104`) answers
+///          null inside the callee -- which it dereferences (`gui/views/audio_clip_view.cpp:759-760`).
+spec::AudioSongFixture seat_audio_clip_with_sample() {
+	spec::AudioSongFixture f = spec::make_audio_clip_song();
+
+	// The sample, attached the way `AudioClip::setupPlaybackBounds` leaves it: the whole file,
+	// forwards. `guide.audioFileHolder` needs no assignment -- `AudioClip::AudioClip` points it at
+	// `sampleHolder` permanently (`model/clip/audio_clip.cpp:57`).
+	f.clip->sampleHolder.audioFile = make_length_only_sample(kSampleFrames);
+	f.clip->sampleHolder.startPos = 0;
+	f.clip->sampleHolder.endPos = static_cast<int64_t>(kSampleFrames);
+	// `SampleHolder::setAudioFile` normally computes this (`model/sample/sample_holder.cpp:110`);
+	// the fixture attaches by hand, so it is set by hand. `kMaxSampleValue` is the identity for
+	// `getLengthInSamplesAtSystemSampleRate` (`:94-102`) -- and a **SIGFPE** at zero.
+	f.clip->sampleHolder.neutralPhaseIncrement = kMaxSampleValue;
+
+	// A realistic tempo, which `Song::setupDefault()` does not leave behind: a fresh song's
+	// `timePerTimerTickBig` makes `getTimePerTimerTickFloat()` answer 2^32
+	// (`model/song/song.cpp:3213-3215`), and `getLoopLengthAtSystemSampleRate` divides by it
+	// (`model/sample/sample_holder.cpp:105-113`) -- so the computed length would be **zero** and
+	// `adjustLoopLength` would write nothing while every assertion about "a popup happened" still
+	// passed. `audio_clip_scene_spec.cpp:410-422` found that the hard way; this is its arithmetic,
+	// 120 BPM through `Song::setBPMInner`'s own formula (`song.cpp:3072-3081`) rather than by
+	// calling it, because `setTempoFromNumSamples` reaches a transport this process does not have.
+	const double bpm = 120.0 * static_cast<double>(1u << f.song->insideWorldTickMagnitude);
+	f.song->timePerTimerTickBig = static_cast<uint64_t>((110250.0 / bpm) * 4294967296.0);
+	return f;
+}
 
 } // namespace
 
@@ -752,9 +934,8 @@ describe menu_action_dispatch("gui::ui::dispatchShellActions over the real outbo
 	// not prove the real call site calls the real function. That example drives a real guest's own
 	// `timerCallback()` and asserts the real outbox is empty afterwards.
 	//
-	// Nothing in THIS group asserts that anything is performed -- it is about the drain. The one arm
-	// that performs anything, `OpenPerformanceView`, has its own group below; the other four are
-	// still empty and each arrives with its own task.
+	// Nothing in THIS group asserts that anything is performed -- it is about the drain. Each arm's
+	// effect has its own group below.
 
 	it("takes the request a real item press filed, and leaves the outbox empty", _ {
 		select_language();
@@ -1210,21 +1391,184 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		expect(scene().take_action().engaged()).to_be_false();
 	});
 });
+
+describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one-line verbs", $ {
+	// The last three arms (F2 task 4). Each is one legacy statement -- or, for the two context
+	// menus, one legacy *pair* -- so they share a group rather than getting three of their own.
+	//
+	// **All three run the real legacy callee, and none of them needs a decision function.** That
+	// was not obvious: `StartStemExport` had to be split (`stemExportTypeForRootUI`) because its
+	// acting half runs a real export inline on this BSP. None of these three does anything
+	// comparable -- `setClipLengthEqualToSampleLength` writes the model and shows a popup, and the
+	// two openers move a view mode and push a UI onto `uiNavigationHierarchy`, all of which a spec
+	// can seat, observe and put back.
+	//
+	// Every example is a control leg and a subject that **differ in exactly one call**,
+	// `dispatchShellActions()` -- same rig, same fixture, same root, same press, same ticks. The
+	// control's job is to say the press really filed, so the subject's effect is attributable to the
+	// arm and not to a press that never landed.
+	//
+	// What each example can and cannot see is stated where it bites: `SessionView::gridModeActive`
+	// and `previousGridModeActive` are private (`gui/views/session_view.h:231`, `:202`), so the half
+	// of `enterMidiLearnMode`/`enterMacrosConfigMode` that moves them is asserted only through the
+	// state that *is* reachable -- `currentUIMode` and `currentSong->sessionLayout`.
+
+	it("SetClipLengthToSampleLength: sets the clip's length from the sample, as legacy's view does", _ {
+		select_language();
+		UiStackGuard ui_guard;
+		spec::QuietAudio quiet;
+
+		{
+			// The control. One call different.
+			DisplayGuard control_display;
+			ActionLogGuard control_log;
+			Rig control;
+			const spec::AudioSongFixture f = seat_audio_clip_with_sample();
+			setRootUILowLevel(&audioClipView);
+			const int32_t seeded = f.clip->loopLength;
+
+			expect(press_child_leaving_request(control, nodes::audio_clip_actions, nodes::set_clip_length))
+			    .to_be_true();
+
+			expect(f.clip->loopLength).to_equal(seeded);
+			expect(static_cast<int>(control_display.recorder.popups.size())).to_equal(0);
+			expect(scene().take_action().action == MenuAction::SetClipLengthToSampleLength).to_be_true();
+		}
+
+		DisplayGuard display_guard;
+		ActionLogGuard log_guard;
+		Rig r;
+		const spec::AudioSongFixture f = seat_audio_clip_with_sample();
+		// `audioClipView` as the root, which is the view legacy's other caller of this same method
+		// runs inside (`gui/views/audio_clip_view.cpp:384-393`, the call at `:391`) and the view the
+		// audio-clip menu is opened over. It also has to be *something*: `adjustLoopLength` hands
+		// `getRootUI()` to `uiNeedsRendering` (`:783`).
+		setRootUILowLevel(&audioClipView);
+
+		const int32_t seeded = f.clip->loopLength;
+		// Legacy's own argument, from legacy's own function -- `audio_clip_view.cpp:763` computes
+		// exactly this and passes it to `adjustLoopLength`. Read here rather than hard-coded so the
+		// expectation is derived from the model both sides share.
+		const int32_t from_sample = f.clip->sampleHolder.getLoopLengthAtSystemSampleRate(true);
+		// ...and the two differ, which is what stops the assertion below passing on a no-op. Without
+		// the tempo `seat_audio_clip_with_sample` writes, this is the line that goes red.
+		expect(from_sample == seeded).to_be_false();
+
+		expect(press_child_leaving_request(r, nodes::audio_clip_actions, nodes::set_clip_length)).to_be_true();
+		deluge::gui::ui::dispatchShellActions();
+
+		// `set_clip_length_equal_to_sample_length.h:27` -> `audio_clip_view.cpp:758-769`: the
+		// `sampleHolder` branch (`:762-765`), whose two statements are the length and the popup.
+		expect(f.clip->loopLength).to_equal(from_sample);
+		expect(static_cast<int>(display_guard.recorder.popups.size())).to_equal(1);
+		expect(display_guard.recorder.popups.empty() ? std::string{} : display_guard.recorder.popups[0])
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_CLIP_LENGTH_ADJUSTED)));
+		expect(scene().take_action().engaged()).to_be_false();
+
+		// **The `else` at `audio_clip_view.cpp:766-768` is unreachable and is therefore not covered
+		// here.** It is guarded by `if (sampleHolder)` (`:762`), and `sampleHolder` is
+		// `guide.audioFileHolder` (`:761`), which `AudioClip::AudioClip` points at the clip's own
+		// `sampleHolder` member permanently (`model/clip/audio_clip.cpp:57`) -- the address of a
+		// member, never null. So no `AudioClip` can take it, and `STRING_FOR_NO_SAMPLE` is dead
+		// code. Reported, not fixed.
+	});
+
+	it("OpenSongMidiLearn: arms MIDI learn and opens the context menu, which is both statements", _ {
+		select_language();
+		UiStackGuard ui_guard;
+		MidiLearnGuard learn_guard;
+
+		{
+			// The control. One call different.
+			Rig control;
+			// `sessionView` as the root, because that is the only root the item is relevant under
+			// (`song::MidiLearn::isRelevant`, `gui/menu_item/song/midi_learn.h:35-37`) and because
+			// `MidiLearnMode::setupAndCheckAvailability` acts on `sessionView` by name
+			// (`gui/context_menu/midi_learn_mode.cpp:51`).
+			setRootUILowLevel(&sessionView);
+			// `View::startMIDILearn` only arms from `UI_MODE_NONE` or `UI_MODE_MIDI_LEARN`
+			// (`gui/views/view.cpp:490`), so the seed is the mode under which legacy succeeds.
+			currentUIMode = UI_MODE_NONE;
+			expect(press_child_leaving_request(control, nodes::root_song, nodes::song_midi_learn)).to_be_true();
+
+			expect(static_cast<int>(currentUIMode)).to_equal(static_cast<int>(UI_MODE_NONE));
+			expect(isUIOpen(&deluge::gui::context_menu::midiLearnMode)).to_be_false();
+			expect(scene().take_action().action == MenuAction::OpenSongMidiLearn).to_be_true();
+		}
+
+		Rig r;
+		setRootUILowLevel(&sessionView);
+		currentUIMode = UI_MODE_NONE;
+		expect(press_child_leaving_request(r, nodes::root_song, nodes::song_midi_learn)).to_be_true();
+		deluge::gui::ui::dispatchShellActions();
+
+		// `midi_learn.h:28` -- `MidiLearnMode::setupAndCheckAvailability`
+		// (`gui/context_menu/midi_learn_mode.cpp:50-53`) -> `SessionView::enterMidiLearnMode`
+		// (`gui/views/session_view.cpp:3072-3077`) -> `View::startMIDILearn`
+		// (`gui/views/view.cpp:489-497`), whose one globally visible write is
+		// `currentUIMode = UI_MODE_MIDI_LEARN` (`:493`). It is also exactly what
+		// `setupAndCheckAvailability` returns (`midi_learn_mode.cpp:52`), so this assertion says the
+		// discarded bool was `true` here as well.
+		expect(static_cast<int>(currentUIMode)).to_equal(static_cast<int>(UI_MODE_MIDI_LEARN));
+		// `midi_learn.h:29` -- the `openUI` that runs whatever the bool said.
+		expect(isUIOpen(&deluge::gui::context_menu::midiLearnMode)).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+
+	it("OpenSongMacros: enters the macros grid mode and opens the context menu", _ {
+		select_language();
+		UiStackGuard ui_guard;
+
+		{
+			// The control. One call different.
+			Rig control;
+			setRootUILowLevel(&sessionView);
+			control.song.song->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+			expect(press_child_leaving_request(control, nodes::root_song, nodes::configure_song_macros)).to_be_true();
+
+			expect(currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows).to_be_true();
+			expect(isUIOpen(&deluge::gui::context_menu::configureSongMacros)).to_be_false();
+			expect(scene().take_action().action == MenuAction::OpenSongMacros).to_be_true();
+		}
+
+		Rig r;
+		setRootUILowLevel(&sessionView);
+		// Seeded at the layout the effect is NOT, so the assertion below cannot pass on a value that
+		// was already there. `Rig` owns this song and nothing outside the example reads it, so there
+		// is no guard to put it back.
+		r.song.song->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+		expect(press_child_leaving_request(r, nodes::root_song, nodes::configure_song_macros)).to_be_true();
+		deluge::gui::ui::dispatchShellActions();
+
+		// `configure_macros.h:28` -- `ConfigureSongMacros::setupAndCheckAvailability`
+		// (`gui/context_menu/configure_song_macros.cpp:48-51`) -> `SessionView::enterMacrosConfigMode`
+		// (`gui/views/session_view.cpp:3060-3066`), whose one write to state this spec can read is
+		// `currentSong->sessionLayout = ...Grid` (`:3062`). Its other two writes,
+		// `previousLayout` and `gridModeActive`, are private members of `SessionView`.
+		expect(currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid).to_be_true();
+		// `configure_macros.h:29`.
+		expect(isUIOpen(&deluge::gui::context_menu::configureSongMacros)).to_be_true();
+		expect(scene().take_action().engaged()).to_be_false();
+	});
+});
 // clang-format on
 
-/// Five `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead -- exactly as `context_spec.cpp` does.
 ///
-/// `menu_action_open_perform` and `menu_action_stem_export` are LAST on purpose, and `UiStackGuard`'s
-/// note says why: they are the two groups that put something on `uiNavigationHierarchy`, and the one
-/// residue their teardown cannot undo is `lastUIBeforeNullifying`. `menu_action_stem_export` is
-/// after `menu_action_open_perform` because it is also the only group that opens the global guest;
-/// it reads neither `getCurrentUI()` nor that residue, and `GlobalGuestGuard` returns the global to
-/// the depth 0 it was constructed at.
+/// `menu_action_open_perform`, `menu_action_stem_export` and `menu_action_three_verbs` are LAST on
+/// purpose, and `UiStackGuard`'s note says why: they are the groups that put something on
+/// `uiNavigationHierarchy`, and the one residue their teardown cannot undo is
+/// `lastUIBeforeNullifying`. `menu_action_stem_export` is after `menu_action_open_perform` because it
+/// is also the only group that opens the global guest; it reads neither `getCurrentUI()` nor that
+/// residue, and `GlobalGuestGuard` returns the global to the depth 0 it was constructed at.
+/// `menu_action_three_verbs` is after both because it is the only group that leaves a `SessionView`
+/// mode moved -- `gridModeActive`, which is private and so cannot be put back from here (see
+/// `MidiLearnGuard`).
 int menu_actions_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(menu_action_seam, menu_action_items, menu_action_perform, menu_action_dispatch,
-	                          menu_action_open_perform, menu_action_stem_export)
+	                          menu_action_open_perform, menu_action_stem_export, menu_action_three_verbs)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS
