@@ -1074,6 +1074,30 @@ pub extern "C" fn deluge_efatfs_rename(
     }
 }
 
+/// Set a file or directory's last-modified timestamp.
+///
+/// `pub(crate)` so `file_bytes.rs`'s driver can AWAIT it: the C ABI below reaches the same future
+/// through `sim_block::block_on`, which spins its caller, and the SysEx file protocol reaches that
+/// from a scheduler task where waiting on the card is not allowed.
+///
+/// Takes the decomposed fields rather than a packed value, because packing is `efatfs_core`'s
+/// business and the boundary above carries the fields.
+pub(crate) async fn task_set_time(
+    path: &str,
+    year: u16,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+    second: u8,
+) -> Result<(), DelugeStatus> {
+    let packed = efatfs_core::pack_timestamp(year, month, day, hour, minute, second);
+    match with_fs(async |fs| efatfs_core::set_time(fs, path, packed).await).await {
+        Some(result) => result,
+        None => Err(DELUGE_ERR_NO_FILESYSTEM),
+    }
+}
+
 /// C-ABI: set a file or directory's last-modified timestamp (decomposed
 /// fields, packed here via `efatfs_core::pack_timestamp`).
 #[unsafe(no_mangle)]
@@ -1093,13 +1117,9 @@ pub extern "C" fn deluge_efatfs_set_time(
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    let packed = efatfs_core::pack_timestamp(year, month, day, hour, minute, second);
-    let fut = with_fs(async |fs| efatfs_core::set_time(fs, path, packed).await);
-    let result = crate::sim_block::block_on(fut);
-    match result {
-        Some(Ok(())) => DELUGE_OK,
-        Some(Err(st)) => st,
-        None => DELUGE_ERR_NO_FILESYSTEM,
+    match crate::sim_block::block_on(task_set_time(path, year, month, day, hour, minute, second)) {
+        Ok(()) => DELUGE_OK,
+        Err(st) => st,
     }
 }
 

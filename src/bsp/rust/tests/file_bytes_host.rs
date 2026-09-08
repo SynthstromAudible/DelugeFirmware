@@ -13,8 +13,8 @@
 mod file_bytes;
 
 use file_bytes::{
-    ByteBuf, ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, drain, publish_into,
-    take_from,
+    ByteBuf, ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, FileTimestamp,
+    drain, publish_into, take_from,
 };
 
 /// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let
@@ -265,4 +265,57 @@ fn an_unlink_request_is_keyed_on_its_path() {
         request.key_owned(),
         (ByteOp::Unlink, BytesPath::try_from(SETTINGS).expect("fits"))
     );
+}
+
+/// Keying holds for the two new kinds too: a path creation's answer is not a timestamp's.
+#[test]
+fn a_mkdir_answer_is_not_a_set_time_answer_for_the_same_path() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::MkdirAll,
+        SETTINGS,
+        ByteOutcome::Done,
+        CARD,
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::SetTime, SETTINGS, CARD),
+        ByteTake::Absent,
+        "the timestamp collect must not be handed the creation's answer"
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::MkdirAll, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Done)
+    );
+}
+
+#[test]
+fn a_set_time_request_is_keyed_on_its_path() {
+    let request = ByteRequest::SetTime {
+        path: BytesPath::try_from(SETTINGS).expect("fits"),
+        timestamp: FileTimestamp {
+            year: 2026,
+            month: 9,
+            day: 8,
+            hour: 12,
+            minute: 0,
+            second: 0,
+        },
+    };
+    assert_eq!(request.key(), (ByteOp::SetTime, SETTINGS));
+    assert_eq!(
+        request.key_owned(),
+        (
+            ByteOp::SetTime,
+            BytesPath::try_from(SETTINGS).expect("fits")
+        )
+    );
+}
+
+#[test]
+fn a_mkdir_all_request_is_keyed_on_its_path() {
+    let request = ByteRequest::MkdirAll {
+        path: BytesPath::try_from("PATTERNS/RHYTHMIC/KIT").expect("fits"),
+    };
+    assert_eq!(request.key(), (ByteOp::MkdirAll, "PATTERNS/RHYTHMIC/KIT"));
 }

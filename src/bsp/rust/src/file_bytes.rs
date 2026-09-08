@@ -87,6 +87,20 @@ pub const MAX_BYTES: usize = 8192;
 /// `audio_loader::LoadPath`, which says it at length.
 pub type BytesPath = heapless::String<MAX_PATH_CHARS>;
 
+/// `DelugeTimestamp`, hand-mirrored.
+///
+/// Spelled here for the reason every status in this module is: it compiles in carriers with no
+/// bindgen bindings at all. Pinned from the other side by `file_bytes_abi.cpp`.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct FileTimestamp {
+    pub year: u16,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u8,
+    pub minute: u8,
+    pub second: u8,
+}
+
 /// One file's contents, inline, for the same reason [`BytesPath`] is.
 pub type ByteBuf = heapless::Vec<u8, MAX_BYTES>;
 
@@ -109,6 +123,11 @@ const ERR_IO: i8 = -5;
 /// sibling shipped exactly that bug -- it compiled, matched EVERY error, and the only complaint was a
 /// non-snake-case warning among thirty-odd others.
 const NOT_FOUND: i8 = -8;
+/// `DELUGE_ERR_EXISTS`, as a bare `i8`. What every segment but the last of an existing path reports,
+/// and therefore SUCCESS for "make sure this path is there".
+///
+/// A NAMED constant, never written inline in a pattern, for the reason `NOT_FOUND` gives above.
+const EXISTS: i8 = -9;
 
 /// `DelugeFileOpenMode::READ`, matching `file_io.h`'s C enum's declaration order.
 const OPEN_READ: u8 = 0;
@@ -142,6 +161,7 @@ const _: () = {
     assert!(NO_MEMORY == -13); // DELUGE_ERR_NO_MEMORY
     assert!(ERR_IO == -5); // DELUGE_ERR_IO
     assert!(NOT_FOUND == -8); // DELUGE_ERR_NOT_FOUND
+    assert!(EXISTS == -9); // DELUGE_ERR_EXISTS
     assert!(DELUGE_FILE_BYTES_PENDING == 0);
     assert!(DELUGE_FILE_BYTES_READY == 1);
     assert!(DELUGE_FILE_BYTES_UNKNOWN == 2);
@@ -159,6 +179,8 @@ pub enum ByteOp {
     Rename,
     Unlink,
     Exists,
+    MkdirAll,
+    SetTime,
 }
 
 /// What one operation produced.
@@ -308,6 +330,10 @@ pub trait ByteOps {
     /// `Ok(true)` and `Ok(false)` are both ANSWERS; `Err` means the question could not be answered,
     /// which is not the same as "no" and must never be collapsed into one.
     async fn exists(&self, path: &str) -> Result<bool, i8>;
+    /// Create `path` and every missing directory above it. An existing path is SUCCESS.
+    async fn mkdir_all(&self, path: &str) -> Result<(), i8>;
+    /// Set `path`'s modification time.
+    async fn set_time(&self, path: &str, timestamp: FileTimestamp) -> Result<(), i8>;
 }
 
 /// One request, as the driver receives it.
@@ -334,6 +360,13 @@ pub enum ByteRequest {
     Exists {
         path: BytesPath,
     },
+    MkdirAll {
+        path: BytesPath,
+    },
+    SetTime {
+        path: BytesPath,
+        timestamp: FileTimestamp,
+    },
 }
 
 impl ByteRequest {
@@ -346,6 +379,8 @@ impl ByteRequest {
             Self::Rename { to, .. } => (ByteOp::Rename, to.as_str()),
             Self::Unlink { path } => (ByteOp::Unlink, path.as_str()),
             Self::Exists { path } => (ByteOp::Exists, path.as_str()),
+            Self::MkdirAll { path } => (ByteOp::MkdirAll, path.as_str()),
+            Self::SetTime { path, .. } => (ByteOp::SetTime, path.as_str()),
         }
     }
 
@@ -359,6 +394,8 @@ impl ByteRequest {
             Self::Rename { to, .. } => (ByteOp::Rename, to.clone()),
             Self::Unlink { path } => (ByteOp::Unlink, path.clone()),
             Self::Exists { path } => (ByteOp::Exists, path.clone()),
+            Self::MkdirAll { path } => (ByteOp::MkdirAll, path.clone()),
+            Self::SetTime { path, .. } => (ByteOp::SetTime, path.clone()),
         }
     }
 }
@@ -378,6 +415,8 @@ pub async fn bytes_io_once<O: ByteOps>(ops: &O, request: &ByteRequest) -> ByteOu
         ByteRequest::Write { path, bytes } => ops.write_all(path, bytes).await,
         ByteRequest::Rename { from, to } => ops.rename(from, to).await,
         ByteRequest::Unlink { path } => ops.unlink(path).await,
+        ByteRequest::MkdirAll { path } => ops.mkdir_all(path).await,
+        ByteRequest::SetTime { path, timestamp } => ops.set_time(path, *timestamp).await,
         ByteRequest::Exists { path } => match ops.exists(path).await {
             Ok(present) => return ByteOutcome::Exists(present),
             Err(status) => Err(status),
@@ -553,6 +592,39 @@ pub unsafe extern "C" fn deluge_file_bytes_request_exists(path: *const c_char) {
         return;
     };
     let _ = enqueue_request(ByteRequest::Exists { path });
+}
+
+/// Request `path` and every missing directory above it be created, and wake the driver. See
+/// `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. It is copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_mkdir_all(path: *const c_char) -> bool {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return false;
+    };
+    enqueue_request(ByteRequest::MkdirAll { path })
+}
+
+/// Request `path`'s modification time be set, and wake the driver. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. It is copied out before this returns; the
+/// timestamp arrives by value and needs no lifetime at all.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_set_time(
+    path: *const c_char,
+    timestamp: FileTimestamp,
+) -> bool {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return false;
+    };
+    enqueue_request(ByteRequest::SetTime { path, timestamp })
 }
 
 /// Install the request and wake the driver, REFUSING if the channel is already busy.
@@ -762,6 +834,36 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_exists(
     }
 }
 
+/// Collect the outcome of the directory creation for `path`, if it has finished. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
+/// written ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_mkdir_all(
+    path: *const c_char,
+    out_status: *mut i8,
+) -> u8 {
+    // SAFETY: the caller's contract, above.
+    unsafe { collect_completion(ByteOp::MkdirAll, path, out_status) }
+}
+
+/// Collect the outcome of the timestamp write for `path`, if it has finished. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
+/// written ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_set_time(
+    path: *const c_char,
+    out_status: *mut i8,
+) -> u8 {
+    // SAFETY: the caller's contract, above.
+    unsafe { collect_completion(ByteOp::SetTime, path, out_status) }
+}
+
 /// The shared body of the two completion collects, which differ only in the [`ByteOp`] they key on.
 ///
 /// # Safety
@@ -912,12 +1014,12 @@ mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
         mount, task_file_close, task_file_open, task_file_read_exact, task_file_size,
-        task_file_truncate, task_file_write, task_mkdir, task_rename, task_unlink,
+        task_file_truncate, task_file_write, task_mkdir, task_rename, task_set_time, task_unlink,
     };
     #[cfg(not(target_os = "none"))]
     pub(super) use crate::efatfs_host_shim::{
         mount, task_file_close, task_file_open, task_file_read_exact, task_file_size,
-        task_file_truncate, task_file_write, task_mkdir, task_rename, task_unlink,
+        task_file_truncate, task_file_write, task_mkdir, task_rename, task_set_time, task_unlink,
     };
 }
 
@@ -960,6 +1062,30 @@ impl ProdByteOps {
                     .map_err(|status| status as i8)
             }
             other => other.map_err(|status| status as i8),
+        }
+    }
+
+    /// Create one directory, treating "it is already there" as success.
+    ///
+    /// EXISTS is not a failure for "make sure this path is there" -- it is the commonest outcome of
+    /// every segment but the last, and treating it as an error would make the walk fail on any path
+    /// that partly exists, which is nearly all of them.
+    async fn mkdir_one(path: &str) -> Result<(), i8> {
+        match backing::task_mkdir(path).await {
+            Ok(()) => Ok(()),
+            Err(EXISTS) => Ok(()),
+            Err(NO_FILESYSTEM) => {
+                // Not mounted. MOUNTING IS REAL CARD I/O, which is exactly why it happens here rather
+                // than in the caller -- the same reason every other operation in this module mounts
+                // lazily.
+                backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+                match backing::task_mkdir(path).await {
+                    Ok(()) => Ok(()),
+                    Err(EXISTS) => Ok(()),
+                    Err(status) => Err(status as i8),
+                }
+            }
+            Err(status) => Err(status as i8),
         }
     }
 
@@ -1064,6 +1190,42 @@ impl ByteOps for ProdByteOps {
             Err(NOT_FOUND) => Ok(false),
             Err(status) => Err(status),
         }
+    }
+
+    async fn mkdir_all(&self, path: &str) -> Result<(), i8> {
+        // The walk that used to live in `smSysex::createPathDirectories` and
+        // `Browser::createFoldersRecursiveIfNotExists`, moved below the seam once so neither caller
+        // needs a phase machine to do it.
+        //
+        // Leading and repeated separators produce empty segments, which are skipped rather than
+        // passed to mkdir: `task_mkdir("")` is not a directory anyone asked for.
+        let mut start = 0usize;
+        for (index, byte) in path.char_indices() {
+            if byte == '/' {
+                if index > start {
+                    ProdByteOps::mkdir_one(&path[..index]).await?;
+                }
+                start = index + 1;
+            }
+        }
+        if path.len() > start {
+            ProdByteOps::mkdir_one(path).await?;
+        }
+        Ok(())
+    }
+
+    async fn set_time(&self, path: &str, timestamp: FileTimestamp) -> Result<(), i8> {
+        backing::task_set_time(
+            path,
+            timestamp.year,
+            timestamp.month,
+            timestamp.day,
+            timestamp.hour,
+            timestamp.minute,
+            timestamp.second,
+        )
+        .await
+        .map_err(|status| status as i8)
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<(), i8> {
