@@ -191,3 +191,78 @@ fn a_rename_is_keyed_on_its_destination() {
         (ByteOp::Rename, BytesPath::try_from(SETTINGS).expect("fits"))
     );
 }
+
+/// The reason `Exists(false)` is not `Failed`. "Known absent" is an ANSWER; a collect that could not
+/// establish existence is not, and the startup fail-safe writes to the card on one and not the other.
+#[test]
+fn a_known_absence_is_an_answer_not_a_failure() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::Exists,
+        SETTINGS,
+        ByteOutcome::Exists(false),
+        CARD,
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::Exists, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Exists(false))
+    );
+}
+
+/// And the other half: a check that could not be answered must not arrive as `Exists(false)`.
+#[test]
+fn an_unanswerable_check_is_not_a_known_absence() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::Exists,
+        SETTINGS,
+        ByteOutcome::Failed(NOT_FOUND),
+        CARD,
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::Exists, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Failed(NOT_FOUND)),
+        "a failure must survive as a failure, not collapse into 'absent'"
+    );
+}
+
+#[test]
+fn an_unlink_answer_is_not_an_exists_answer_for_the_same_path() {
+    let mut slot = BytesSlot::new();
+    publish_into(&mut slot, ByteOp::Unlink, SETTINGS, ByteOutcome::Done, CARD);
+    assert_eq!(
+        take_from(&mut slot, ByteOp::Exists, SETTINGS, CARD),
+        ByteTake::Absent,
+        "the existence collect must not be handed the deletion's answer"
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::Unlink, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Done)
+    );
+}
+
+#[test]
+fn an_exists_request_is_keyed_on_its_path() {
+    let request = ByteRequest::Exists {
+        path: BytesPath::try_from(SETTINGS).expect("fits"),
+    };
+    assert_eq!(request.key(), (ByteOp::Exists, SETTINGS));
+    assert_eq!(
+        request.key_owned(),
+        (ByteOp::Exists, BytesPath::try_from(SETTINGS).expect("fits"))
+    );
+}
+
+#[test]
+fn an_unlink_request_is_keyed_on_its_path() {
+    let request = ByteRequest::Unlink {
+        path: BytesPath::try_from(SETTINGS).expect("fits"),
+    };
+    assert_eq!(request.key(), (ByteOp::Unlink, SETTINGS));
+    assert_eq!(
+        request.key_owned(),
+        (ByteOp::Unlink, BytesPath::try_from(SETTINGS).expect("fits"))
+    );
+}

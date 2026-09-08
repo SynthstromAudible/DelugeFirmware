@@ -988,6 +988,18 @@ pub extern "C" fn deluge_efatfs_mkdir(path: *const c_char) -> DelugeStatus {
     }
 }
 
+/// Delete a file or empty directory.
+///
+/// `pub(crate)` so `file_bytes.rs`'s driver can AWAIT it: the C ABI below reaches the same future
+/// through `sim_block::block_on`, which spins its caller, and the startup fail-safe reaches that from
+/// a scheduler task where waiting on the card is not allowed.
+pub(crate) async fn task_unlink(path: &str) -> Result<(), DelugeStatus> {
+    match with_fs(async |fs| efatfs_core::unlink(fs, path).await).await {
+        Some(result) => result,
+        None => Err(DELUGE_ERR_NO_FILESYSTEM),
+    }
+}
+
 /// C-ABI: delete a file or empty directory.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_unlink(path: *const c_char) -> DelugeStatus {
@@ -998,10 +1010,9 @@ pub extern "C" fn deluge_efatfs_unlink(path: *const c_char) -> DelugeStatus {
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    match crate::sim_block::block_on(with_fs(async |fs| efatfs_core::unlink(fs, path).await)) {
-        Some(Ok(())) => DELUGE_OK,
-        Some(Err(st)) => st,
-        None => DELUGE_ERR_NO_FILESYSTEM,
+    match crate::sim_block::block_on(task_unlink(path)) {
+        Ok(()) => DELUGE_OK,
+        Err(st) => st,
     }
 }
 

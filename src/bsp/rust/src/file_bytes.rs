@@ -33,7 +33,7 @@
 //! A read request for something already in flight is dropped, exactly as `file_directory`'s is: the
 //! collect reports the one answer, and re-asking a question already asked costs nothing.
 //!
-//! A write or rename request that arrives while the channel is busy is **REFUSED** -- it returns
+//! A write, rename or unlink request that arrives while the channel is busy is **REFUSED** -- it returns
 //! `false`, and nothing is queued or replaced. This is the one place this channel deliberately
 //! differs from `file_directory`, and the difference is the point of it. `LatestWins` behaviour
 //! drops the middle of three rapid requests; for a listing that is invisible, but two rapid toggles
@@ -101,6 +101,14 @@ const NO_FILESYSTEM: i8 = -11;
 const NO_MEMORY: i8 = -13;
 /// `DELUGE_ERR_IO`, as a bare `i8`. A short write is reported as this rather than as success.
 const ERR_IO: i8 = -5;
+/// `DELUGE_ERR_NOT_FOUND`, as a bare `i8`. The existence op's ANSWER "no", as distinct from every
+/// other failure, which means "could not tell".
+///
+/// A NAMED constant, never written inline in the match below, for the reason `NO_FILESYSTEM` gives:
+/// an unknown identifier in pattern position is a fresh BINDING, not a comparison, and this module's
+/// sibling shipped exactly that bug -- it compiled, matched EVERY error, and the only complaint was a
+/// non-snake-case warning among thirty-odd others.
+const NOT_FOUND: i8 = -8;
 
 /// `DelugeFileOpenMode::READ`, matching `file_io.h`'s C enum's declaration order.
 const OPEN_READ: u8 = 0;
@@ -133,6 +141,7 @@ const _: () = {
     assert!(NO_FILESYSTEM == -11); // DELUGE_ERR_NO_FILESYSTEM
     assert!(NO_MEMORY == -13); // DELUGE_ERR_NO_MEMORY
     assert!(ERR_IO == -5); // DELUGE_ERR_IO
+    assert!(NOT_FOUND == -8); // DELUGE_ERR_NOT_FOUND
     assert!(DELUGE_FILE_BYTES_PENDING == 0);
     assert!(DELUGE_FILE_BYTES_READY == 1);
     assert!(DELUGE_FILE_BYTES_UNKNOWN == 2);
@@ -148,6 +157,8 @@ pub enum ByteOp {
     Read,
     Write,
     Rename,
+    Unlink,
+    Exists,
 }
 
 /// What one operation produced.
@@ -155,8 +166,14 @@ pub enum ByteOp {
 pub enum ByteOutcome {
     /// A read's bytes. Whoever takes it owns them; nothing else holds a reference.
     Bytes(ByteBuf),
-    /// A write or rename that reached the card.
+    /// A write, rename or unlink that reached the card.
     Done,
+    /// An existence answer: `true` if the path is there, `false` if it is known not to be.
+    ///
+    /// A separate variant from `Done` because "the question was answered, and the answer is no" is
+    /// not the same as "the operation succeeded" -- collapsing them is what makes an absent file look
+    /// like a present one, and vice versa.
+    Exists(bool),
     /// The operation failed, carrying the status rather than collapsing it. The callers distinguish
     /// "no such file" (write the defaults) from "the card is unreadable" (write nothing, or the
     /// user's real settings are replaced by defaults), which is the distinction
@@ -284,6 +301,13 @@ pub trait ByteOps {
     async fn write_all(&self, path: &str, bytes: &[u8]) -> Result<(), i8>;
     /// Rename `from` to `to`.
     async fn rename(&self, from: &str, to: &str) -> Result<(), i8>;
+    /// Delete `path`.
+    async fn unlink(&self, path: &str) -> Result<(), i8>;
+    /// Whether `path` exists.
+    ///
+    /// `Ok(true)` and `Ok(false)` are both ANSWERS; `Err` means the question could not be answered,
+    /// which is not the same as "no" and must never be collapsed into one.
+    async fn exists(&self, path: &str) -> Result<bool, i8>;
 }
 
 /// One request, as the driver receives it.
@@ -304,6 +328,12 @@ pub enum ByteRequest {
         from: BytesPath,
         to: BytesPath,
     },
+    Unlink {
+        path: BytesPath,
+    },
+    Exists {
+        path: BytesPath,
+    },
 }
 
 impl ByteRequest {
@@ -314,6 +344,8 @@ impl ByteRequest {
             Self::Read { path } => (ByteOp::Read, path.as_str()),
             Self::Write { path, .. } => (ByteOp::Write, path.as_str()),
             Self::Rename { to, .. } => (ByteOp::Rename, to.as_str()),
+            Self::Unlink { path } => (ByteOp::Unlink, path.as_str()),
+            Self::Exists { path } => (ByteOp::Exists, path.as_str()),
         }
     }
 
@@ -325,6 +357,8 @@ impl ByteRequest {
             Self::Read { path } => (ByteOp::Read, path.clone()),
             Self::Write { path, .. } => (ByteOp::Write, path.clone()),
             Self::Rename { to, .. } => (ByteOp::Rename, to.clone()),
+            Self::Unlink { path } => (ByteOp::Unlink, path.clone()),
+            Self::Exists { path } => (ByteOp::Exists, path.clone()),
         }
     }
 }
@@ -343,6 +377,11 @@ pub async fn bytes_io_once<O: ByteOps>(ops: &O, request: &ByteRequest) -> ByteOu
         },
         ByteRequest::Write { path, bytes } => ops.write_all(path, bytes).await,
         ByteRequest::Rename { from, to } => ops.rename(from, to).await,
+        ByteRequest::Unlink { path } => ops.unlink(path).await,
+        ByteRequest::Exists { path } => match ops.exists(path).await {
+            Ok(present) => return ByteOutcome::Exists(present),
+            Err(status) => Err(status),
+        },
     };
     match result {
         Ok(()) => ByteOutcome::Done,
@@ -482,6 +521,40 @@ pub unsafe extern "C" fn deluge_file_bytes_request_rename(
     enqueue_request(ByteRequest::Rename { from, to })
 }
 
+/// Request `path` be deleted, and wake the driver. See `file_bytes.h`.
+///
+/// Refused rather than dropped, like a write: a caller that believes a file is gone when it is not
+/// will act on that belief.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. It is copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_unlink(path: *const c_char) -> bool {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return false;
+    };
+    enqueue_request(ByteRequest::Unlink { path })
+}
+
+/// Request an existence check on `path`, and wake the driver. See `file_bytes.h`.
+///
+/// Dropped rather than refused, like a read: an unanswered question is covered by the next collect's
+/// UNKNOWN, whose documented meaning is "ask again".
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. It is copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_exists(path: *const c_char) {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return;
+    };
+    let _ = enqueue_request(ByteRequest::Exists { path });
+}
+
 /// Install the request and wake the driver, REFUSING if the channel is already busy.
 ///
 /// `try_lock` rather than a block: this is called synchronously from C++ in whatever context the app
@@ -585,7 +658,9 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
         // a read, and the take matched on `ByteOp::Read`. Reported as UNKNOWN rather than asserted
         // because the alternative -- READY with `out_len` unwritten -- hands the caller an
         // uninitialised length.
-        Probe::Ready(ByteOutcome::Done) => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Ready(ByteOutcome::Done) | Probe::Ready(ByteOutcome::Exists(_)) => {
+            DELUGE_FILE_BYTES_UNKNOWN
+        }
         Probe::Ready(ByteOutcome::Failed(status)) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
@@ -626,6 +701,67 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_rename(
     unsafe { collect_completion(ByteOp::Rename, to, out_status) }
 }
 
+/// Collect the outcome of the deletion of `path`, if it has finished. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
+/// written ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_unlink(
+    path: *const c_char,
+    out_status: *mut i8,
+) -> u8 {
+    // SAFETY: the caller's contract, above.
+    unsafe { collect_completion(ByteOp::Unlink, path, out_status) }
+}
+
+/// Collect the existence answer for `path`, if there is one. See `file_bytes.h`.
+///
+/// Not routed through [`collect_completion`] because it writes `out_present`, and because the
+/// distinction it carries -- READY+false is an ANSWER, FAILED is "could not tell" -- is the whole
+/// reason this operation exists.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string; `out_present` must point to a writable `bool` and
+/// `out_status` to a writable `i8`. `out_present` is written ONLY on [`DELUGE_FILE_BYTES_READY`],
+/// `out_status` ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_exists(
+    path: *const c_char,
+    out_present: *mut bool,
+    out_status: *mut i8,
+) -> u8 {
+    if out_present.is_null() || out_status.is_null() {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    }
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    };
+    match probe(ByteOp::Exists, &path) {
+        Probe::Ready(ByteOutcome::Exists(present)) => {
+            // SAFETY: non-null (checked above); written only on READY, as the header promises.
+            unsafe { *out_present = present };
+            DELUGE_FILE_BYTES_READY
+        }
+        Probe::Ready(ByteOutcome::Failed(status)) => {
+            // SAFETY: as above, and written only on FAILED.
+            unsafe { *out_status = status };
+            DELUGE_FILE_BYTES_FAILED
+        }
+        // Neither can be filed under Exists -- `bytes_io_once` produces `Exists` or `Failed` for this
+        // op, and the take matched on `ByteOp::Exists`. Reported as UNKNOWN rather than asserted
+        // because the alternative is READY with `out_present` left uninitialised.
+        Probe::Ready(ByteOutcome::Bytes(_)) | Probe::Ready(ByteOutcome::Done) => {
+            DELUGE_FILE_BYTES_UNKNOWN
+        }
+        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
+        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+    }
+}
+
 /// The shared body of the two completion collects, which differ only in the [`ByteOp`] they key on.
 ///
 /// # Safety
@@ -647,9 +783,11 @@ unsafe fn collect_completion(op: ByteOp, path: *const c_char, out_status: *mut i
             unsafe { *out_status = status };
             DELUGE_FILE_BYTES_FAILED
         }
-        // Bytes filed under a completion op cannot happen -- see the same case in
+        // Neither can be filed under a completion op -- see the same case in
         // `deluge_file_bytes_collect_read`.
-        Probe::Ready(ByteOutcome::Bytes(_)) => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Ready(ByteOutcome::Bytes(_)) | Probe::Ready(ByteOutcome::Exists(_)) => {
+            DELUGE_FILE_BYTES_UNKNOWN
+        }
         Probe::Pending => DELUGE_FILE_BYTES_PENDING,
         Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
     }
@@ -774,12 +912,12 @@ mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
         mount, task_file_close, task_file_open, task_file_read_exact, task_file_size,
-        task_file_truncate, task_file_write, task_mkdir, task_rename,
+        task_file_truncate, task_file_write, task_mkdir, task_rename, task_unlink,
     };
     #[cfg(not(target_os = "none"))]
     pub(super) use crate::efatfs_host_shim::{
         mount, task_file_close, task_file_open, task_file_read_exact, task_file_size,
-        task_file_truncate, task_file_write, task_mkdir, task_rename,
+        task_file_truncate, task_file_write, task_mkdir, task_rename, task_unlink,
     };
 }
 
@@ -902,6 +1040,30 @@ impl ByteOps for ProdByteOps {
         // without it would leave the write unflushed as well as leaking the slot.
         backing::task_file_close(handle).await;
         result
+    }
+
+    async fn unlink(&self, path: &str) -> Result<(), i8> {
+        backing::task_unlink(path)
+            .await
+            .map_err(|status| status as i8)
+    }
+
+    async fn exists(&self, path: &str) -> Result<bool, i8> {
+        // Open for READ and read the outcome, which is what `deluge::io::presence_from_open` does on
+        // the C++ side. NOT_FOUND is the ANSWER "no"; every other failure is "could not tell", and
+        // the two must stay apart all the way to `StartupPresence`.
+        //
+        // Deliberately NOT expressed as a read of the file's bytes: the paths this answers for are
+        // SONG files, far above `MAX_BYTES`, so a read would report `NO_MEMORY` for a song that is
+        // there and a caller collapsing that into "absent" would overwrite it.
+        match ProdByteOps::open_mounted(path, OPEN_READ).await {
+            Ok(handle) => {
+                backing::task_file_close(handle).await;
+                Ok(true)
+            }
+            Err(NOT_FOUND) => Ok(false),
+            Err(status) => Err(status),
+        }
     }
 
     async fn rename(&self, from: &str, to: &str) -> Result<(), i8> {
