@@ -460,6 +460,27 @@ StagedOpen openDocumentStaged(char const* path, char const* firstTagName, char c
 
 /// @brief Free a staged buffer and clear its state. Safe on a state that holds nothing.
 void releaseStaging(StagingState* state);
+
+/// @brief Stage a document synchronously in a shared slot and open it for parsing.
+///
+/// For the single-shot openers below, whose callers run a whole load start-to-finish inside one
+/// call and so cannot act on a StagedOpen::Deferred. `LoadInstrumentPresetUI::performLoad()` states
+/// that invariant outright and enforces it with FREEZE_WITH_ERROR("TIR1"); the pattern, favourite,
+/// MIDI-definition and synth-to-drum loads have the same one-call shape.
+///
+/// This is behaviour-preserving rather than a relocation: those callers blocked through the
+/// streaming reader before and block the same amount here. What changes is only that the parse now
+/// runs over memory, which is what lets the streaming readers go.
+///
+/// The shared slot is safe because these openers are never in flight at once -- each is driven by a
+/// single load* wrapper on one call stack. The wrapper MUST call releaseDocumentStaging() once its
+/// deserializer is finished.
+///
+/// @return Error::NONE, Error::FILE_NOT_FOUND if it could not be staged, or Error::FILE_CORRUPTED.
+Error openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName = "");
+
+/// @brief Release the shared slot filled by openDocumentSynchronously(). Safe to call twice.
+void releaseDocumentStaging();
 Error initSD();
 
 /// @brief Run AudioFileManager::firstCardRead() if the filesystem has been mounted since we last

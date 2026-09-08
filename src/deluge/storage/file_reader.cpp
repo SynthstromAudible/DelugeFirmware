@@ -308,6 +308,35 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 	return StagedOpen::Opened;
 }
 
+// One staging slot for the single-shot openers. They are never in flight at once: each is driven by
+// a single load* wrapper on one call stack, which opens, parses and closes before returning. If that
+// ever stops being true this becomes a silent cross-document corruption, so it is stated here rather
+// than left to be inferred from the call graph.
+namespace {
+StorageManager::StagingState documentStaging;
+} // namespace
+
+Error StorageManager::openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName) {
+	AudioEngine::logAction("openDocumentSynchronously");
+	releaseDocumentStaging();
+	if (!readWholeFileSynchronously(path, &documentStaging)) {
+		return Error::FILE_NOT_FOUND;
+	}
+	// The extension picks the parser, exactly as the file-backed opener picked it.
+	const bool isJson = strstr(path, ".Json") != nullptr;
+	Error err = openDelugeBuffer(std::span<uint8_t>(documentStaging.buffer, documentStaging.size), isJson, firstTagName,
+	                             altTagName);
+	if (err != Error::NONE) {
+		releaseDocumentStaging();
+		return Error::FILE_CORRUPTED;
+	}
+	return Error::NONE;
+}
+
+void StorageManager::releaseDocumentStaging() {
+	releaseStaging(&documentStaging);
+}
+
 Error StorageManager::openXMLFile(char const* path, XMLDeserializer& reader, char const* firstTagName,
                                   char const* altTagName, bool ignoreIncorrectFirmware) {
 

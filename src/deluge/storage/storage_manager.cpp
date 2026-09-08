@@ -307,7 +307,7 @@ Error StorageManager::openInstrumentFile(OutputType outputType, char const* path
 		firstTagName = "kit";
 	}
 
-	Error error = openXMLFile(path, smDeserializer, firstTagName, altTagName);
+	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
 	return error;
 }
 
@@ -330,14 +330,16 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	Instrument* newInstrument = createNewInstrument(outputType);
 
 	if (!newInstrument) {
-		smDeserializer.closeWriter();
+		activeDeserializer->closeWriter();
+		releaseDocumentStaging();
 		D_PRINTLN("Allocating instrument file failed -  %d", name->c_str());
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
+	error = newInstrument->readFromFile(*activeDeserializer, song, clip, 0);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
+	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -414,7 +416,7 @@ Error StorageManager::openMidiDeviceDefinitionFile(char const* path) {
 	char const* firstTagName = "midiDevice";
 	char const* altTagName = "";
 
-	Error error = openXMLFile(path, smDeserializer, firstTagName, altTagName);
+	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
 	return error;
 }
 
@@ -434,9 +436,10 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 
 	AudioEngine::logAction("readMidiDeviceDefinitionFile");
 
-	error = midiInstrument->readDeviceDefinitionFile(smDeserializer, false);
+	error = midiInstrument->readDeviceDefinitionFile(*activeDeserializer, false);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
+	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -460,7 +463,7 @@ Error StorageManager::openPatternFile(char const* path) {
 	char const* firstTagName = "pattern";
 	char const* altTagName = "";
 
-	Error error = openXMLFile(path, smDeserializer, firstTagName, altTagName);
+	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
 	return error;
 }
 
@@ -470,7 +473,7 @@ Error StorageManager::openFavouriteFile(char const* path) {
 	char const* firstTagName = "favourites";
 	char const* altTagName = "";
 
-	Error error = openXMLFile(path, smDeserializer, firstTagName, altTagName);
+	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
 	return error;
 }
 
@@ -487,10 +490,11 @@ Error StorageManager::loadPatternFile(char const* path, std::string* fileName, b
 
 	AudioEngine::logAction("readPatternFile");
 
-	error = instrumentClipView.pasteNotesFromFile(smDeserializer, overwriteExisting, noScaling, previewOnly,
+	error = instrumentClipView.pasteNotesFromFile(*activeDeserializer, overwriteExisting, noScaling, previewOnly,
 	                                              selectedDrumOnly);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
+	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -516,9 +520,10 @@ Error StorageManager::loadFavouriteFile(char const* path, std::string* fileName)
 
 	AudioEngine::logAction("readFavouriteFile");
 
-	error = favouritesManager.loadFavouritesFromFile(smDeserializer);
+	error = favouritesManager.loadFavouritesFromFile(*activeDeserializer);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
+	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -553,9 +558,10 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
+	error = newDrum->readFromFile(*activeDeserializer, song, clip, 0);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
+	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
