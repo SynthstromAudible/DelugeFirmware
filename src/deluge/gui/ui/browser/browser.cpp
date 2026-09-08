@@ -34,6 +34,7 @@
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/byte_channel.h"
 #include "storage/file_item.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
@@ -816,6 +817,7 @@ Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder)
 			read.createIfMissing = true;
 			continue;
 		}
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 		auto result = deluge::io::mkdir(read.defaultDirToAlsoTry);
 		if (!result.has_value()) {
 			return delugeStatusToError(deluge::io::to_deluge_status(result.error()));
@@ -2116,6 +2118,7 @@ Error Browser::goUpOneDirectoryLevelImpl() {
 // with the error. A listing failure after a successful mkdir is routed through onListingFailed()
 // instead, after the menu has already closed on the (correct) mkdir success.
 Error Browser::createFolder() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 	displayText();
 
 	std::string newDirPath;
@@ -2138,6 +2141,7 @@ Error Browser::createFolder() {
 }
 
 Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 	if (!path || *path == '\0') {
 		return Error::UNSPECIFIED;
 	}

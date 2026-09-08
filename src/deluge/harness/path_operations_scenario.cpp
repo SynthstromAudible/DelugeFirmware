@@ -1,0 +1,304 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "harness/path_operations_scenario.h"
+
+#include "gui/ui/browser/browser.h"
+#include "gui/ui/save/save_song_ui.h"
+#include "io/file.hpp"
+#include "io/midi/midi_device.h"
+#include "storage/byte_channel.h"
+#include "storage/owner.h"
+#include "storage/smsysex.h"
+
+#include <cstdio>
+#include <cstring>
+#include <string>
+
+// The headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`.
+// That implementation emits through `putchar_`, which only the C host BSP defines -- this harness
+// links the Rust BSP and has no provider, so the alias turns every line this file writes into an
+// undefined symbol at link time. Every one of those lines IS the gate's output.
+#ifdef printf
+#undef printf
+#endif
+
+namespace {
+
+/// A `MIDICable` that keeps what was sent to it instead of putting it on a wire.
+///
+/// `sendSysex` is pure virtual, which is what makes this possible at all. The other five pure
+/// virtuals get minimal bodies -- except `sendBufferSpace`, whose return value matters: a zero would
+/// have the SysEx path decline to send and the gate would read "no reply" for a reply that was never
+/// attempted.
+class LoopbackCable final : public MIDICable {
+public:
+	void writeToFlash(uint8_t* /*memory*/) override {}
+	char const* getDisplayName() override { return "PO-LOOPBACK"; }
+	void sendMessage(MIDIMessage /*message*/) override {}
+
+	void sendSysex(const uint8_t* data, int32_t len) override {
+		lastReply.assign(reinterpret_cast<const char*>(data), static_cast<size_t>(len));
+		replies++;
+	}
+
+	/// Nonzero deliberately -- see the class doc.
+	[[nodiscard]] size_t sendBufferSpace() const override { return 1024; }
+	void writeReferenceAttributesToFile(Serializer& /*writer*/) override {}
+
+	std::string lastReply;
+	int32_t replies = 0;
+};
+
+LoopbackCable g_cable;
+
+/// The four verbs this gate drives, with the request each sends and the reply tag it must get back.
+///
+/// Real requests through `smSysex::sysexReceived`, not calls to the handlers underneath: the subject
+/// is whether the PROTOCOL still answers, and a gate that reached past the dispatcher would keep
+/// testing something else.
+struct VerbCase {
+	const char* name;
+	const char* json;
+	const char* replyTag;
+};
+
+constexpr VerbCase kVerbs[] = {
+    {"delete", R"({"delete":{"path":"PO_TEST/gone.txt"}})", "^delete"},
+    {"mkdir", R"({"mkdir":{"path":"PO_TEST/MADE","date":0,"time":0}})", "^mkdir"},
+    {"rename", R"({"rename":{"from":"PO_TEST/a.txt","to":"PO_TEST/b.txt"}})", "^rename"},
+    {"utime", R"({"utime":{"path":"PO_TEST/MADE","date":0,"time":0}})", "^utime"},
+};
+constexpr int32_t kVerbCount = static_cast<int32_t>(sizeof(kVerbs) / sizeof(kVerbs[0]));
+
+/// How many ticks one verb gets to produce its reply before the gate calls it wedged.
+///
+/// Comfortably above the handler's own worst case once it is resumable and its channel arm has a
+/// stall bound. A cap below that would report a legitimate slow fallback as a wedge.
+constexpr int32_t kMaxVerbTicks = 5000;
+
+/// The nested path the mkdir_all stage creates. None of its three segments exists at the start, which
+/// is what makes it a test of the WALK rather than of one mkdir.
+constexpr const char* kNestedPath = "PO_TEST/A/B";
+
+enum class Stage : uint8_t {
+	Fixture,
+	FixtureCheck,
+	Verb,
+	VerbCheck,
+	Nested,
+	NestedCheck,
+	Report,
+	Summary,
+	Done,
+};
+
+Stage g_stage = Stage::Fixture;
+bool g_stepDone = false;
+bool g_summaryPrinted = false;
+int32_t g_failures = 0;
+int32_t g_verbIndex = 0;
+int32_t g_verbTicks = 0;
+int32_t g_repliesBefore = 0;
+int32_t g_nestedCreated = -1;
+int32_t g_nestedIdempotent = -1;
+
+/// Whether `path` names a directory that is there.
+bool directoryExists(const char* path) {
+	auto dir = deluge::io::Directory::open(path);
+	return dir.has_value();
+}
+
+/// Feed one verb's request in as a real SysEx message.
+///
+/// `data[1]` is the message sequence number the reply is addressed with, and the JSON starts at
+/// `data[2]` -- see `smSysex::sysexReceived` and `processFrontSysEx`.
+void sendVerb(const VerbCase& verb) {
+	uint8_t buffer[512];
+	const size_t jsonLen = strlen(verb.json);
+	buffer[0] = 0;
+	buffer[1] = static_cast<uint8_t>(1 + g_verbIndex); // a distinct sequence number per verb
+	memcpy(buffer + 2, verb.json, jsonLen);
+	smSysex::sysexReceived(g_cable, buffer, static_cast<int32_t>(jsonLen + 2));
+}
+
+void runTick() {
+	switch (g_stage) {
+	case Stage::Fixture: {
+		// The delete and rename verbs need something to act on, and the mkdir_all stage needs its
+		// nested path absent. Built with the synchronous API deliberately: this is the gate's own
+		// setup, not the code under test.
+		(void)deluge::io::mkdir("PO_TEST");
+		auto seed = deluge::io::File::open("PO_TEST/gone.txt", DELUGE_FILE_WRITE_CREATE);
+		if (seed.has_value()) {
+			(void)seed->close();
+		}
+		auto seed2 = deluge::io::File::open("PO_TEST/a.txt", DELUGE_FILE_WRITE_CREATE);
+		if (seed2.has_value()) {
+			(void)seed2->close();
+		}
+		(void)deluge::io::unlink("PO_TEST/b.txt");
+		(void)deluge::io::unlink(kNestedPath);
+		(void)deluge::io::unlink("PO_TEST/A");
+		g_stage = Stage::FixtureCheck;
+		break;
+	}
+
+	case Stage::FixtureCheck:
+		g_stage = Stage::Verb;
+		break;
+
+	case Stage::Verb:
+		g_repliesBefore = g_cable.replies;
+		g_verbTicks = 0;
+		sendVerb(kVerbs[g_verbIndex]);
+		g_stage = Stage::VerbCheck;
+		break;
+
+	case Stage::VerbCheck: {
+		// The handler becomes resumable, so one tick is not enough: wait for the reply, bounded so a
+		// wedged handler fails the gate rather than hanging it.
+		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+			break;
+		}
+		const VerbCase& verb = kVerbs[g_verbIndex];
+		const bool replied = g_cable.replies > g_repliesBefore;
+		const bool tagged = replied && g_cable.lastReply.find(verb.replyTag) != std::string::npos;
+		printf("PO-SYSEX verb=%s replied=%d tagged=%d\n", verb.name, replied ? 1 : 0, tagged ? 1 : 0);
+		if (!replied) {
+			printf("PO-SYSEX FAIL %s produced no reply within %d ticks\n", verb.name, kMaxVerbTicks);
+			g_failures++;
+		}
+		else if (!tagged) {
+			printf("PO-SYSEX FAIL %s replied without its %s tag\n", verb.name, verb.replyTag);
+			g_failures++;
+		}
+		g_verbIndex++;
+		g_stage = (g_verbIndex < kVerbCount) ? Stage::Verb : Stage::Nested;
+		break;
+	}
+
+	case Stage::Nested:
+		// Through the REAL entry point. Its three segments are all absent, so this exercises the walk.
+		// `saveSongUI` is used only because the method needs a `Browser` instance and this one already
+		// exists -- the folder creation is the same code whichever browser calls it.
+		(void)saveSongUI.createFoldersRecursiveIfNotExists(kNestedPath);
+		g_stage = Stage::NestedCheck;
+		break;
+
+	case Stage::NestedCheck:
+		g_nestedCreated = directoryExists(kNestedPath) ? 1 : 0;
+		// Called a second time on a path that now exists: "make sure this is there" must be success,
+		// not EXISTS. Every caller of this relies on that, since the folders usually already exist.
+		(void)saveSongUI.createFoldersRecursiveIfNotExists(kNestedPath);
+		g_nestedIdempotent = directoryExists(kNestedPath) ? 1 : 0;
+		g_stage = Stage::Report;
+		break;
+
+	case Stage::Report: {
+		printf("PO-MKDIRALL created=%d idempotent=%d\n", g_nestedCreated, g_nestedIdempotent);
+		if (g_nestedCreated != 1) {
+			printf("PO-MKDIRALL FAIL the nested path was not created\n");
+			g_failures++;
+		}
+		if (g_nestedIdempotent != 1) {
+			printf("PO-MKDIRALL FAIL a second creation of an existing path did not succeed\n");
+			g_failures++;
+		}
+
+		// Reported, never asserted here. This gate runs in both configurations, and with the channel
+		// compiled out zero is the honest answer; failing on it would make the default build fail for
+		// doing exactly what it is supposed to do. The channel-on leg of `path_operations.sh` is what
+		// requires this to be non-zero.
+		printf("PO-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
+
+		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
+		printf("PO-TIER violations=%d\n", violations);
+		if (violations != 0) {
+			// Before the conversion this is the DEFECT the rung exists to remove, and the gate is
+			// expected to fail on it. After the conversion a non-zero count is a regression.
+			printf("PO-TIER FAIL browser folder creation ran on the interaction tier\n");
+			g_failures++;
+		}
+		g_stage = Stage::Summary;
+		break;
+	}
+
+	case Stage::Summary:
+		printf("PO-RESULT failures=%d\n", g_failures);
+		// Piped into a script stdout is block-buffered and the harness exits without flushing C
+		// stdio, so without this the entire gate output vanishes while the run reports success.
+		fflush(stdout);
+		g_summaryPrinted = true;
+		g_stage = Stage::Done;
+		break;
+
+	case Stage::Done:
+		break;
+	}
+}
+
+} // namespace
+
+extern "C" {
+
+void deluge_scenario_path_operations_begin(void) {
+	// Line-buffer stdout: piped into a script it is block-buffered by default. See the flush above.
+	setvbuf(stdout, nullptr, _IOLBF, 0);
+	g_stage = Stage::Fixture;
+	g_stepDone = false;
+	g_summaryPrinted = false;
+	g_failures = 0;
+	g_verbIndex = 0;
+	g_verbTicks = 0;
+	g_repliesBefore = 0;
+	g_nestedCreated = -1;
+	g_nestedIdempotent = -1;
+	g_cable.replies = 0;
+	g_cable.lastReply.clear();
+}
+
+bool deluge_scenario_path_operations_complete(void) {
+	return g_summaryPrinted;
+}
+
+void deluge_scenario_path_operations_dispatch_step(void) {
+	if (g_summaryPrinted) {
+		return;
+	}
+	g_stepDone = false;
+	// The SysEx pump. In the firmware this is a repeating task registered in `deluge.cpp`; here the
+	// scenario owns the tick, so without this call a queued request would never be processed.
+	smSysex::handleNextSysEx();
+	runTick();
+	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after the
+	// dispatched operation (and immediately if nothing was dispatched). That is what makes each
+	// *Check stage read a result the operation has actually produced.
+	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
+		g_stepDone = true;
+	}
+}
+
+bool deluge_scenario_path_operations_step_done(void) {
+	return g_stepDone;
+}
+
+int32_t deluge_scenario_path_operations_failures(void) {
+	return g_failures;
+}
+
+} // extern "C"
