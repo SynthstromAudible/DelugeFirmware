@@ -150,7 +150,7 @@ constexpr uint8_t kSelectEncoder = 3;
 /// The same table's 4 = `EncoderRole::GoldUpper` (`shell/profiles/deluge.cpp:69-76`), which lowers to
 /// `InputSnapshot::edit[0]` (`shell/input_lowering.cpp:80`) -- the coarse knob `int_value` reads
 /// (`ui/oled/values.cpp:87-89`). It is what moves an `Kind::Int` leaf: that widget claims the two
-/// gold knobs and leaves the select encoder to the scene (`scenes/menu/menu_scene.cpp:691-701`).
+/// gold knobs and leaves the select encoder to the scene (`scenes/menu/menu_scene.cpp:690-702`).
 constexpr uint8_t kGoldUpperEncoder = 4;
 /// Matrix coordinates of the select-encoder button (`kMatrix`, `shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
@@ -895,7 +895,7 @@ int32_t choose_shortcuts_version(Rig& r, int32_t index) {
 ///
 /// They ARE the enum's numbers -- `enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE,
 /// DELUGE }` (`definitions_cxx.hpp:1108`), and `nodes::kScreensaverModeNames`
-/// (`scenes/menu/nodes/settings.h:927-932`) lists the four strings in that order, as
+/// (`scenes/menu/nodes/settings.h:936-941`) lists the four strings in that order, as
 /// `ScreensaverModeMenu::getOptions`' own `@warning` requires (`defaults/screensaver.h:42-43`).
 /// Spelled as cursor indices because what the examples drive is a cursor.
 constexpr int32_t kModeOffIndex = 0;
@@ -971,7 +971,7 @@ int32_t choose_screensaver(Rig& r, const Node& child, bool enum_item, int32_t ta
 	(void)scene().take_action(); // opening the page files nothing; the group asserts that separately
 
 	// `kScreensaverChildren` is `{&screensaver_mode, &screensaver_timeout}`
-	// (`scenes/menu/nodes/settings.h:938`), but the row is resolved rather than assumed -- a
+	// (`scenes/menu/nodes/settings.h:947`), but the row is resolved rather than assumed -- a
 	// `relevant` hook added to either would move it, and that must be seen and not walked past.
 	const int32_t row = visible_index_of(nodes::screensaver, child, ctx);
 	if (row < 0) {
@@ -2742,7 +2742,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 /// Ten `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead -- exactly as `context_spec.cpp` does.
 ///
-/// **`menu_action_screensaver` (F2 task 7) is registered fifth, immediately after the group it is a
+/// **`menu_action_screensaver` (F2 task 7) is registered sixth, immediately after the group it is a
 /// second instance of, and by that group's argument rather than a new one.** It opens no UI (no
 /// `setRootUILowLevel`, no `openUI`, no `changeRootUI`), touches neither `currentUIMode` nor shift,
 /// and everything it moves -- two `FlashStorage` fields, the global `shellHostUI`'s
@@ -2751,7 +2751,7 @@ describe menu_action_perform_mirror("PerformanceView -> menu::performance_editin
 /// It reads the global guest's shell where the shortcut-version group reads `soundEditor`, which is
 /// the only global either of them shares with `boot_wiring_spec.cpp`, and both restore it.
 ///
-/// **`menu_action_shortcuts_version` (F2 task 6) is registered fourth, before the UI-stack groups,
+/// **`menu_action_shortcuts_version` (F2 task 6) is registered fifth, before the UI-stack groups,
 /// and that is the ordering question rather than a default.** It is the only group added since this
 /// note was written that could have gone at the end and does not, because it leaves no residue for
 /// the end to be protecting: it opens no UI (no `setRootUILowLevel`, no `openUI`, no

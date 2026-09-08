@@ -57,7 +57,7 @@
 ///     is showing starts animating within a second, where this scene -- reporting no timer -- stays
 ///     blank for ever. It is unreachable in practice rather than merely unlikely: the only way to
 ///     change the setting is a menu (legacy's, `gui/menu_item/defaults/screensaver.h:34-41`, or the
-///     ported `screensaver_mode` item, `scenes/menu/nodes/settings.h:933-934`), reaching either
+///     ported `screensaver_mode` item, `scenes/menu/nodes/settings.h:942-943`), reaching either
 ///     needs physical input, and input runs `shell::Screensaver::note_activity` first, which pops
 ///     this scene (`shell/screensaver.cpp:9-17`) -- so the mode cannot change while it is up. The
 ///     next push re-reads the mode and scatters the right field.

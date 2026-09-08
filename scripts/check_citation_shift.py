@@ -72,6 +72,20 @@ them is a bug to be fixed later -- they are properties of comparing content acro
      the post-edit tree, so its "old" number was never a number in `HEAD`, and the comparison
      succeeds on the wrong pair. Sweep first, author second.
 
+     The concrete instance, added because this one had none and it is the easiest of the four to
+     walk into while believing you are being careful. F2 task 7's `b35228a70` rewrote a doc note in
+     `src/scenes/menu/nodes/settings.h` (+9 lines, 1227 -> 1236) **and, in the same commit, wrote
+     three new citations INTO that file** from `scenes/overlay/screensaver_scene.h` and
+     `sim/scenes_spec/menu_actions_spec.cpp`. All three were resolved against the pre-edit tree and
+     so landed 9 lines short: `:933-934` for `screensaver_mode` (which is `default_hold_time`),
+     `:927-932` for `kScreensaverModeNames`, `:938` for `kScreensaverChildren`. This tool reported
+     0, correctly; **the read-back script published in that plan's task-6 report reported 0 as well,
+     for the same reason** -- it also pairs against BASE, and there was no BASE text to pair with.
+     Neither tool was wrong; both were asked a question about drift, and this is not drift. The only
+     check that sees it is a read-back against **HEAD**: for every citation you ADD into a file your
+     own commit edited, open the target at HEAD and read the cited line. Or follow the rule above
+     and sweep first.
+
 A FIFTH PROPERTY, which is not a limitation so much as a thing to read the output with: it cannot
 tell "the cited line moved out from under the citation" from "the commit rewrote the text ON that
 line in place", nor either of those from "the author deliberately re-pointed this citation at a

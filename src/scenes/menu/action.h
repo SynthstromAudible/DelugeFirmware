@@ -54,7 +54,7 @@
 /// are each two statements: a `FlashStorage` assignment, and
 /// `hid::display::Screensaver::settingsChanged()`. The port already makes the assignment -- the two
 /// hooks write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves
-/// (`nodes/settings.cpp:600`, `:608`), so **these settings have always persisted**, which is the one
+/// (`nodes/settings.cpp:601`, `:609`), so **these settings have always persisted**, which is the one
 /// way this differs from `shortcuts_version`'s gap. What it could not do is the second statement:
 /// `settingsChanged()` is `hid/`, which `src/scenes` may not include. So both screensavers kept
 /// their old timings until the next boot or the next edit made from the legacy menu.
