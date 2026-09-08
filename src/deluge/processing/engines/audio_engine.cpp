@@ -1702,18 +1702,15 @@ int32_t g_recorderOffOwnerTicks = 0;
 /// every one of them ran on the owner.
 int32_t g_offOwnerFinalizeTicks = 0;
 
-/// The recorder whose blocking tick is being run on the owner. One at a time, which the coalescer
-/// below enforces; only ever touched on the main executor.
-SampleRecorder* g_ownerTickRecorder = nullptr;
-
-deluge::storage::Coalescer g_recorder_tick_coalescer{/*sd_routine=*/true};
-
-void recorder_owner_tick_fill(void*) {
-	if (g_ownerTickRecorder != nullptr) {
-		(void)g_ownerTickRecorder->cardRoutine();
-	}
-}
+/// Create ticks that ran OFF the storage owner. The third of these counters, and they answer three
+/// different questions: the drain moved, the finalize moved, the CREATE moved. A served count
+/// answers none of them -- an earlier rung served writes while every one of them ran on the owner.
+int32_t g_offOwnerCreateTicks = 0;
 } // namespace
+
+int32_t recorderOffOwnerTicks() {
+	return g_recorderOffOwnerTicks;
+}
 
 int32_t offOwnerFinalizeTicks() {
 	return g_offOwnerFinalizeTicks;
@@ -1723,20 +1720,12 @@ void noteOffOwnerFinalizeTick() {
 	g_offOwnerFinalizeTicks++;
 }
 
-int32_t recorderOffOwnerTicks() {
-	return g_recorderOffOwnerTicks;
+int32_t offOwnerCreateTicks() {
+	return g_offOwnerCreateTicks;
 }
 
-bool requestRecorderTickOnOwner(SampleRecorder* recorder) {
-	// Coalesced: at most one blocking recorder tick in flight. A second request while one is queued
-	// is dropped rather than stacked -- the caller simply asks again next tick, and the state it is
-	// asking about has not changed.
-	if (!deluge::storage::Owner::started()) {
-		return false; // No worker to run it: the caller must do the work inline, as it always has.
-	}
-	g_ownerTickRecorder = recorder;
-	g_recorder_tick_coalescer.request(recorder_owner_tick_fill, nullptr);
-	return true;
+void noteOffOwnerCreateTick() {
+	g_offOwnerCreateTicks++;
 }
 
 void requestRecorderCardRoutines() {

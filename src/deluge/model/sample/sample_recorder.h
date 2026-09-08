@@ -352,14 +352,6 @@ private:
 	/// into it asynchronously -- a stack buffer would be freed under the driver.
 	std::array<std::byte, 512> headerScratch_{};
 	/// @}
-	/// @brief Whether this tick must run on the storage owner because it is about to block.
-	///
-	/// Everything except the steady-state cluster write blocks: creating the file (initSD,
-	/// checkSpaceOnCard, Stream::open), finalizing it (the header read/write, alterFile's whole
-	/// positional pass, truncate, close) and the abort cleanup (close, then unlink). Each of those
-	/// happens once per recording; only the cluster write repeats for its whole length, which is why
-	/// only the cluster write was worth moving off the owner.
-	[[nodiscard]] bool tickNeedsOwner() const;
 	/// @brief Write a cluster on the storage owner, blocking. The arm that shipped before the
 	///        channel existed, and the fallback every refusal and stall returns to.
 	Error writeClusterSynchronously(int32_t clusterIndex, size_t numBytes);

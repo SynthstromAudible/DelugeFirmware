@@ -178,13 +178,6 @@ void doRecorderCardRoutines();
 /// Runs inline on legacy/host; coalesced onto the worker fiber on Embassy.
 void requestRecorderCardRoutines();
 
-/// @brief Run one blocking recorder tick on the storage owner.
-///
-/// `SampleRecorder::cardRoutine()` calls this for the ticks that cannot run where they were asked --
-/// creating the file, finalizing it, and the abort cleanup. Coalesced: at most one in flight.
-/// @return false when there is no worker to run it, in which case the caller must run inline.
-bool requestRecorderTickOnOwner(SampleRecorder* recorder);
-
 /// @brief How many recorder drains ran OFF the storage owner.
 ///
 /// The evidence that the drain actually moved. A served count alone can be non-zero while every
@@ -196,6 +189,15 @@ bool requestRecorderTickOnOwner(SampleRecorder* recorder);
 /// The evidence that finishing a recording actually moved. Distinct from @ref recorderOffOwnerTicks,
 /// which only says the drain moved.
 [[nodiscard]] int32_t offOwnerFinalizeTicks();
+
+/// @brief How many create ticks ran OFF the storage owner.
+///
+/// The evidence that creating a recording's file moved. Creating it was the last thing this recorder
+/// dispatched away, so this reading zero means the rung relocated nothing.
+[[nodiscard]] int32_t offOwnerCreateTicks();
+
+/// @brief Record one create tick that ran off the owner.
+void noteOffOwnerCreateTick();
 
 /// @brief Record one finalize tick that ran off the owner.
 void noteOffOwnerFinalizeTick();

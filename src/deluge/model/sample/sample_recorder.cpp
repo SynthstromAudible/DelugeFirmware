@@ -387,12 +387,9 @@ Error SampleRecorder::cardRoutine() {
 		return Error::NONE; // Still outstanding; come back next tick.
 	}
 
-	// Off the owner, only the steady-state cluster write may run here -- everything else blocks, so
-	// send that tick to the owner and come back. One dispatch per recording for the create, one for
-	// the finalize; the writes in between, which are the whole length of the recording, stay here.
-	if (!deluge::storage::Owner::on_owner() && tickNeedsOwner() && AudioEngine::requestRecorderTickOnOwner(this)) {
-		return Error::NONE;
-	}
+	// No dispatch to the owner any more. Creating the file was the last tick that blocked, and it is
+	// a machine now like the rest -- so the escape hatch that used to carry those ticks has nothing
+	// left to carry and is gone with them.
 
 	// If aborted, delete the file.
 	// ACQUIRE: synchronizes-with abort()'s release store.
@@ -935,6 +932,10 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 	// advanceFinalize() for why. On the owner the caller spins and the Rust driver never runs.
 	const bool mayUseChannel =
 	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+
+	if (!deluge::storage::Owner::on_owner()) {
+		AudioEngine::noteOffOwnerCreateTick();
+	}
 
 	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
 	bool spaceExhausted = false;
@@ -1502,23 +1503,6 @@ void SampleRecorder::finishCluster(int32_t clusterIndex) {
 	// releaseCaptureBuffers() already tolerates a null entry here (its `if (buffer != nullptr)`
 	// guard).
 	bufferTable_[clusterIndex] = nullptr;
-}
-
-bool SampleRecorder::tickNeedsOwner() const {
-	// ONLY the create tick now. Finalize and the abort cleanup used to be sent here too; both are
-	// state machines that issue one request and return, so neither blocks and neither needs the
-	// owner any more. Removing them is what makes this rung a relocation rather than a rename.
-	//
-	// The create tick stays because its calls have no async form and its synchronous arm does not go
-	// through a channel: `StorageManager::initSD` mounts the card, and `Stream::open`'s owner arm
-	// reaches `deluge_efatfs_stream_open` directly, which needs an already-mounted filesystem. It
-	// runs exactly once per recording, against per-cluster writes and a finalize that now do not.
-	if (hadCardError) {
-		// About to close and unlink on the error path, which is the abort machine's job -- but that
-		// machine has not been entered yet, so this tick still blocks.
-		return true;
-	}
-	return filePathCreated.empty();
 }
 
 bool SampleRecorder::pumpInFlightWrite() {
