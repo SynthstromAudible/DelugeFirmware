@@ -191,6 +191,15 @@ bool requestRecorderTickOnOwner(SampleRecorder* recorder);
 /// write was still handled on the owner, which would be a rename rather than a relocation.
 [[nodiscard]] int32_t recorderOffOwnerTicks();
 
+/// @brief How many finalize ticks ran OFF the storage owner.
+///
+/// The evidence that finishing a recording actually moved. Distinct from @ref recorderOffOwnerTicks,
+/// which only says the drain moved.
+[[nodiscard]] int32_t offOwnerFinalizeTicks();
+
+/// @brief Record one finalize tick that ran off the owner.
+void noteOffOwnerFinalizeTick();
+
 int32_t getNumSamplesLeftToOutputFromPreviousRender();
 
 void registerSideChainHit(int32_t strength);

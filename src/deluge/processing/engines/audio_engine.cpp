@@ -1696,6 +1696,12 @@ void recorder_card_routines_fill(void*) {
 /// which is the only difference between this conversion and a rename.
 int32_t g_recorderOffOwnerTicks = 0;
 
+/// Finalize ticks that ran OFF the storage owner. Separate from the drain counter above because they
+/// answer different questions: that one says the DRAIN moved, this one says the FINALIZE did. A
+/// served count establishes neither -- the previous rung's first measured run served writes while
+/// every one of them ran on the owner.
+int32_t g_offOwnerFinalizeTicks = 0;
+
 /// The recorder whose blocking tick is being run on the owner. One at a time, which the coalescer
 /// below enforces; only ever touched on the main executor.
 SampleRecorder* g_ownerTickRecorder = nullptr;
@@ -1708,6 +1714,14 @@ void recorder_owner_tick_fill(void*) {
 	}
 }
 } // namespace
+
+int32_t offOwnerFinalizeTicks() {
+	return g_offOwnerFinalizeTicks;
+}
+
+void noteOffOwnerFinalizeTick() {
+	g_offOwnerFinalizeTicks++;
+}
 
 int32_t recorderOffOwnerTicks() {
 	return g_recorderOffOwnerTicks;

@@ -574,9 +574,9 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		// The evidence for THIS case, taken here rather than from RW-SUMMARY: that line is printed by
 		// the on-fiber oracle, which has already returned by the time this case runs, so it cannot
 		// see anything the off-owner recording did.
-		printf("OO-RESULT ok=%d served=%d offOwnerTicks=%d ticks=%d\n", (int)ok,
+		printf("OO-RESULT ok=%d served=%d offOwnerTicks=%d offOwnerFinalizeTicks=%d ticks=%d\n", (int)ok,
 		       (int)SampleRecorder::writeChannelServedOps(), (int)AudioEngine::recorderOffOwnerTicks(),
-		       g_offOwner.ticks);
+		       (int)AudioEngine::offOwnerFinalizeTicks(), g_offOwner.ticks);
 		fflush(nullptr);
 		return ok ? 1 : 2;
 	}

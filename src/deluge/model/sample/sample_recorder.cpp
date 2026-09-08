@@ -1015,6 +1015,10 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 	const bool finalizeMayUseChannel =
 	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
 
+	if (!deluge::storage::Owner::on_owner()) {
+		AudioEngine::noteOffOwnerFinalizeTick();
+	}
+
 	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
 
 	// Issue this phase's operation, if it has one and has not issued it yet.
@@ -1347,19 +1351,20 @@ void SampleRecorder::finishCluster(int32_t clusterIndex) {
 }
 
 bool SampleRecorder::tickNeedsOwner() const {
-	const RecorderStatus st = status.load(std::memory_order_acquire);
-	// The abort cleanup closes the stream and unlinks the file; the error path is about to do the
-	// same; and with no file yet this tick runs initSD, checkSpaceOnCard and Stream::open.
-	if (st == RecorderStatus::ABORTED || hadCardError || filePathCreated.empty()) {
+	// ONLY the create tick now. Finalize and the abort cleanup used to be sent here too; both are
+	// state machines that issue one request and return, so neither blocks and neither needs the
+	// owner any more. Removing them is what makes this rung a relocation rather than a rename.
+	//
+	// The create tick stays because its calls have no async form and its synchronous arm does not go
+	// through a channel: `StorageManager::initSD` mounts the card, and `Stream::open`'s owner arm
+	// reaches `deluge_efatfs_stream_open` directly, which needs an already-mounted filesystem. It
+	// runs exactly once per recording, against per-cluster writes and a finalize that now do not.
+	if (hadCardError) {
+		// About to close and unlink on the error path, which is the abort machine's job -- but that
+		// machine has not been entered yet, so this tick still blocks.
 		return true;
 	}
-	// Finalize -- but only once the clusters are drained. While there are still completed clusters
-	// to write, this tick is a steady-state write like any other and belongs on the channel.
-	if (st == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING
-	    && firstUnwrittenClusterIndex >= currentRecordClusterIndex.load(std::memory_order_acquire)) {
-		return true;
-	}
-	return false;
+	return filePathCreated.empty();
 }
 
 bool SampleRecorder::pumpInFlightWrite() {
