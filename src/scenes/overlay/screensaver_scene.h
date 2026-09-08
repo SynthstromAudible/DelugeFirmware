@@ -41,7 +41,7 @@
 ///     `scenes/registry.h`'s boot-wiring record.
 ///   * **The inhibitors** (`screensaver.cpp:141-157`): a permanent popup, the working animation or
 ///     a running stem export wakes the screensaver and re-arms, re-checked every tick. The port's
-///     popup/working scenes are the shell's own (`Notices`, `shell/shell.h:123-129`) and stack
+///     popup/working scenes are the shell's own (`Notices`, `shell/shell.h:133-136`) and stack
 ///     *above* whatever is showing, so the question "is one present" is the shell's to ask, not
 ///     this scene's. This is the reason `kInhibitRecheckMS`'s 1000 ms re-arm has no port either --
 ///     it exists only to run that check (`screensaver.cpp:52-55`'s own note says so), so a blank

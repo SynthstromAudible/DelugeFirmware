@@ -860,7 +860,7 @@ Seven things are worth finding from here rather than from the header.
 * **It is not a root scene, and it does not use `TimelineState`.** The plan's prose calls
   `SlicerScene` and `AudioClipScene` "the first two root scenes"; only the second is one.
   `class Slicer final : public UI` (`gui/ui/slicer.h:33`) -- a plain `UI`, opened over the sample
-  browser, and `grep "public RootUI"` finds exactly two classes in the tree (`shell/scene.h:433`).
+  browser, and `grep "public RootUI"` finds exactly two classes in the tree (`shell/scene.h:475-478`).
   So `is_root()` is false, `services::GlobalControls` correctly withholds the `View::buttonAction`
   group of global button arms from it (they are unreachable in legacy too, because
   `UI::buttonAction`'s base returns `NOT_DEALT_WITH` without forwarding to `view`,
