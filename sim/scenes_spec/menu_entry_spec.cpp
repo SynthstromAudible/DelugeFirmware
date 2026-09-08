@@ -130,7 +130,7 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// Not through `openShellMenu` itself, because that resolves a *root* from the calling site's
 /// arguments and `ShellMenuNode` names only two leaves, neither of them a MIDI command. What these
 /// examples need is a focused item whose `learn_note_on` writes something -- `MidiCommandItem`
-/// (`scenes/menu/nodes/midi_command.cpp:203-212`) is the only ported one that does.
+/// (`scenes/menu/nodes/midi_command.cpp:204-213`) is the only ported one that does.
 ///
 /// The node is named through `SceneId::arg`, not through `open()`'s root argument, and that is the
 /// warning `MenuScene::open` carries: `on_enter` re-roots from `arg`, or from `ctx_.root` when
@@ -455,7 +455,7 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 		// guest; this task opens it, so the property is asserted rather than assumed.
 		//
 		// `MenuScene::next_timer()` answers `std::nullopt`, `kSourceBlinkMs` (20) or
-		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1591-1606`).
+		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1593-1608`).
 		//
 		// **This is a sample, not a sweep, and the distinction matters.** The eight gated sites open
 		// ten different roots between them; what runs below is the settings root, the sound root and
@@ -622,7 +622,7 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 		expect(slot.channelOrZone == kPoisonChannel).to_be_true();
 
 		// Gate open: the item learns, with the `IS_A_PC` bias `MidiCommandItem::learn_program_change`
-		// applies (`scenes/menu/nodes/midi_command.cpp:234`) -- so the bias is the item's, not the
+		// applies (`scenes/menu/nodes/midi_command.cpp:235`) -- so the bias is the item's, not the
 		// transport's, exactly as it is on the CC side.
 		currentUIMode = UI_MODE_MIDI_LEARN;
 		expect(shellHostUI.pcReceivedForMidiLearn(cable(), 3, 7)).to_be_true();

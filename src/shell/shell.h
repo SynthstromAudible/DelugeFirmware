@@ -155,7 +155,7 @@ public:
 	/// `ModKnobs::mod_encoder_button_action` (`:564`) both read `stack_.input_top()`;
 	/// `GlobalControls::handle` gates its `View::buttonAction` group on
 	/// `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
-	/// `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:490`). So a real
+	/// `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:491`). So a real
 	/// service cannot be constructed before the shell it serves, and before this existed it could
 	/// not be installed after it either -- an application could only ever pass `Services{}`, and
 	/// no gold-knob turn, transport button or MIDI-learn press reached anything outside the scene

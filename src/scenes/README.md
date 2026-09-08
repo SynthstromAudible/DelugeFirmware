@@ -339,10 +339,19 @@ To add one:
    the old exclusion gave every `Kind::Custom` item for free) is wrong for it specifically — see the
    item's own doc for why.
 
-   **The learn virtuals are inert without routing.** `MenuScene::learn_note_on`/`learn_cc`/
-   `learn_program_change`/`unlearn` exist and are specced, but nothing in this repository routes
-   MIDI into the scene stack. `bindings::learn_target` is a *different* path — PARAM learn, not
-   global-command learn.
+   **Two of the learn virtuals are routed now; one is not, and all of them are inert.** F1 task 10
+   gave `MenuScene::learn_note_on` and `learn_program_change` producers —
+   `ShellHostUI::noteOnReceivedForMidiLearn` / `pcReceivedForMidiLearn`, the two `UI` virtuals
+   legacy's dispatchers ask (`gui/ui/ui.h:130`, `:132`), reached through
+   `gui/ui/shell_guest_services.h`. **`learn_cc` still has none**, because
+   `PlaybackHandler::midiCCReceived` reaches learn through a hardcoded
+   `getCurrentUI() == &soundEditor` (`playback/playback_handler.cpp:3164`) rather than a virtual, and
+   adding one is a legacy-behaviour change F1 does not make. And **all of them are unreachable in the
+   shipped firmware today**, because every learn dispatcher is gated on
+   `currentUIMode == UI_MODE_MIDI_LEARN` and nothing under the guest sets it — the two lines that do
+   belong to `View::buttonAction` and `SoundEditor::buttonAction`, neither of which runs while the
+   guest is the current UI (`gui/ui/shell_host_ui.h`'s `@par MIDI learn`).
+   `bindings::learn_target` is a *different* path — PARAM learn, not global-command learn.
 2. Point the node at a `static`/`inline const` instance via the `custom(name, &item, relevant)`
    builder. A null `custom` pointer is itself a validator error (`Issue::Kind::NullCustom`) — there
    is no "no-op custom" shorthand.
@@ -1222,7 +1231,7 @@ onto that stack (`services/mod_knobs.cpp:413`) and `ModKnobs::popup_suppressed` 
 `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`; `GlobalControls::handle`
 gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
 (`services/global_controls.cpp:580`); `MidiLearn::handle` reads the same
-(`services/midi_learn.cpp:490`). The only `SceneStack` and `InputLowering` in an application are the
+(`services/midi_learn.cpp:491`). The only `SceneStack` and `InputLowering` in an application are the
 ones the **`Shell` owns** (`shell/shell.h`'s `stack_`, `lowering_`), so a real service cannot be
 constructed before the shell it serves. And `Services` was passed **by value into the `Shell`'s
 constructor** and fixed there, so it could not be installed after it either: an application that
@@ -1292,7 +1301,7 @@ in, kept because it names the legacy routines each item has to be checked agains
 | **The action seam's dispatcher** — nothing consumes `MenuScene::take_action()`. | `menu/action.h`, the action seam section above | one `switch` over five enumerators, plus per-tick polling (the slot is a one-shot mailbox) |
 | ~~**`script_runner.h`'s `run_script` never pops its own stack**~~ — **done, E3 task 11.** The gap this row described stopped being latent the moment a script drove `RecorderScene`: its `on_enter` refuses on its own leaked `recorder_` (`recorder_scene.cpp:149`) and `setup_recording` publishes a live foreground recording that nine other subsystems read (`AudioEngine::setForegroundRecording`), so `recorder.txt` would have left both behind for every later block in the process. `run_script` now tears its stack down through a scope guard declared right after the `Shell` — a destructor rather than a line before each of the eight `return`s, three of which are error paths, which are exactly when the stack is most likely to be somewhere strange. `menu_scripts_spec.cpp`'s recorder block asserts what that buys: nothing armed, and `AudioEngine::foregroundRecordingSource()` back at `NONE`. | `tests/spec/shell/support/script_runner.h`'s `run_script` | — |
 | ~~**`Action::Kind::RepaintAll` never reached the grid**~~ — **found and fixed, E3 task 11.** `shell/scene.h` documents it as "invalidate every surface for the next tick", but `SurfaceRole` names OLED panels only (`shell/profile.h:60`) and `Shell::tick`'s grid step consulted the grid's own gate and nothing else — so a scene that changed what the *pads* show in response to **post-render** input had no way to say so. Its own gate is not one: `render_grid` is what arms that, and the render has already happened by the time the event arrives (`Shell::tick` step 8). `MarkerScene::handle`'s select turn is the case that showed it: the marker moved a column on the OLED and stayed put on the pads until the blink timer fired, up to a full 200 ms phase later. `Router::grid_repaint_requested()` is the fix, and `marker.txt`'s `after_select_turn` golden is where it is pinned — the one frame in the whole suite whose two halves used to disagree. `BrowserScene::handle` files the same action and had the same latency; nothing else in the shipped scenes does. | `shell/router.{h,cpp}`, `shell/shell.cpp`'s grid step | — |
-| **`MenuScene::ascend()` at depth 0 is a silent no-op where legacy exits the editor.** `SoundEditor::goUpOneLevel` at `navigationDepth == 0` calls `exitCompletely()` and returns (`gui/ui/sound_editor.cpp:710-716`); `ascend()`'s loop does a bare `return;` (`menu_scene.cpp:1091-1093`) and its own comment cites that legacy routine without acknowledging the difference. Invisible for as long as everything that ascends is reached by descending — a menu path always has a level to go back to. It becomes visible the moment a path is *re-rooted* on a leaf: the shortcut-pad jump does that (`MenuScene::handle`'s `Replace`), so a jump onto one of the nine `nodes/sample.h` items puts it at depth 0, and `MenuState::go_up_on_resume` — the thing that steps back out of the item when the scene it opened closes — ascends from 0 and does nothing. The user is left on the item's own bare title screen (`SampleSceneItem::render`, whose doc says it is drawn "for at most the one tick": true on the menu path, false on this one) where the only working input is BACK, which closes the menu. All three of E3 task 11's scene scripts end on that screen and their last golden IS it. **Not the `claimCurrentFile` re-rooting** — fix round 1 corrected that mis-diagnosis; this is a three-line divergence from a named routine, deliberately not taken in task 11 because closing it moves goldens well outside that task's subject. | `menu/menu_scene.cpp`'s `ascend()` | an `exitCompletely()` equivalent at depth 0 (`Remove{FirstApp}`, which `handle`'s root-`Back` arm already files), plus re-recording whatever goldens depend on the no-op |
+| **`MenuScene::ascend()` at depth 0 is a silent no-op where legacy exits the editor.** `SoundEditor::goUpOneLevel` at `navigationDepth == 0` calls `exitCompletely()` and returns (`gui/ui/sound_editor.cpp:710-716`); `ascend()`'s loop does a bare `return;` (`menu_scene.cpp:1093-1095`) and its own comment cites that legacy routine without acknowledging the difference. Invisible for as long as everything that ascends is reached by descending — a menu path always has a level to go back to. It becomes visible the moment a path is *re-rooted* on a leaf: the shortcut-pad jump does that (`MenuScene::handle`'s `Replace`), so a jump onto one of the nine `nodes/sample.h` items puts it at depth 0, and `MenuState::go_up_on_resume` — the thing that steps back out of the item when the scene it opened closes — ascends from 0 and does nothing. The user is left on the item's own bare title screen (`SampleSceneItem::render`, whose doc says it is drawn "for at most the one tick": true on the menu path, false on this one) where the only working input is BACK, which closes the menu. All three of E3 task 11's scene scripts end on that screen and their last golden IS it. **Not the `claimCurrentFile` re-rooting** — fix round 1 corrected that mis-diagnosis; this is a three-line divergence from a named routine, deliberately not taken in task 11 because closing it moves goldens well outside that task's subject. | `menu/menu_scene.cpp`'s `ascend()` | an `exitCompletely()` equivalent at depth 0 (`Remove{FirstApp}`, which `handle`'s root-`Back` arm already files), plus re-recording whatever goldens depend on the no-op |
 | ~~**`CustomItem`'s missing backward arm**~~ — **done, E3 task 10.** `CustomItem::on_focus_backward` (`node.h`) is what `ascend()` calls now, instead of the old blanket `Kind::Custom` exclusion; do-nothing default, so every item the exclusion used to cover for free (`CvSelectionItem`, `MidiDevicesItem`, `PatchCablesItem`, `SourceSelectionItem`) is unchanged. `GateSelectionItem` (`nodes/dynamic.cpp`) is the one real override, and the reason it needs one: `gate::Selection`'s own backward arm restores `soundEditor.currentSourceIndex`, which `selectButtonPress` never writes for the minimum-off-time row (`gate/selection.h:44-47`) — so "keep the cursor" leaves it on that row, where legacy snaps back to the last real output. Pinned by `menu_scene_spec.cpp`'s task-10 example, which fails on the old exclusion. | `menu/node.h`, `menu/nodes/dynamic.{h,cpp}`, `menu_scene.cpp`'s `ascend()` | — |
 | **The load/save browser family** — seven legacy UIs (`load_song_ui`, `load_instrument_preset_ui`, `load_pattern_ui`, and all of `gui/ui/save/`) that `BrowserScene` was shaped for but does not yet carry, because they are reached from root UIs rather than menu items and carry `SlotBrowser`'s brand-new-name axis. **Was billed as E4's main body of work; E4 did the services and the first root scenes instead**, so this is E5's or E6's. | this section's preamble; `browser/browser_scene.h`'s scope note | new `Descriptor`s or a second scene, plus a `SlotBrowser` equivalent, plus an oracle that is not the menu walk |
 | **`FileCatalogue`'s claim covers a listing, not a session.** The leaf calls — `predictExtendedText`, `getUnusedSlot`, the save UIs' default-name search — do not claim at all, so a listing dispatched elsewhere can still replace `fileItems` under one of them. This is exactly the exposure legacy always had; closing it means claim-on-open/release-on-close and a change to `Browser`'s lifecycle. | `storage/file_catalogue.h`'s `claim` contract | belongs with whoever wires the browser up for real — i.e. E4 |
@@ -1311,10 +1320,16 @@ last three). The wiring plan (F1) owes the entry point, the MIDI routing, the bo
 `MenuAction` dispatcher; its task 1 put `deluge_scenes` into both link closures and its task 2 added
 `Shell::set_services`, so installing a service is a boot call away rather than impossible (see "Boot
 wiring this layer does not do for itself"). Three of
-`MidiLearn`'s four entry points have **no producer in `src/` today**: `note_on_received`,
-`cc_received` and `thing_pressed` have zero callers outside the spec, because there is no MIDI
-`UiEvent` kind for the router to carry and the scenes that would call `thing_pressed` from
-`learnable_at(pad)` are E5's and E6's. The wiring plan owes those producers too.
+`MidiLearn`'s four entry points had **no producer in `src/`**, and F1 task 10 closed part of that.
+Two corrections to what this paragraph used to say, both found by re-reading rather than by
+re-running a gate: `thing_pressed` was never producerless — it has three callers in the service's own
+`handle()` (`services/midi_learn.cpp:514`, `:522`, `:530`, the TAP/PLAY/RECORD arms) — and only
+`note_on_received` and `cc_received` were, `cc_received` re-entering `note_on_received` internally.
+Both now have a transport: `UiEvent::Kind::MidiNoteOn` and `Kind::MidiCc` (`shell/scene.h`), carried
+by `Router::run_chain`'s `midi_learn` step. **Only the note-on half has a producer**
+(`ShellHostUI::noteOnReceivedForMidiLearn` -> `Shell::route_midi`); the CC half cannot get one
+without a new `UI` virtual, and neither can do anything until a scene answers `learnable_at(pad)` and
+calls `thing_pressed`, which is E5's and E6's. See migration §10.2 item 8.
 
 ### The carry list in detail
 

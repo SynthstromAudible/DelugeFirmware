@@ -1301,7 +1301,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The scene closed itself both times. Where that leaves the menu is what the two closes
 		// differ in, and the run ends on the second: the shortcut jump re-rooted the path onto the
 		// item, so the ascend `go_up_on_resume` asks for happens at depth 0 and does nothing
-		// (`menu_scene.cpp:1091-1093`). `after_stop`, seven hundred milliseconds earlier, is the
+		// (`menu_scene.cpp:1093-1095`). `after_stop`, seven hundred milliseconds earlier, is the
 		// other outcome -- the ACTIONS list, cursor still on the row the descent came from.
 		expect(menu_scene().focused() == &nodes::sample0_recorder).to_be_true();
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);

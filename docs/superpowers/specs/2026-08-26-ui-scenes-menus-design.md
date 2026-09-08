@@ -456,7 +456,7 @@ porting Task 9:
   by press yet still blink, since the blink scan has no such guard.
 
 **Blink cadence** — the shortcut-pad blink is legacy's **200 ms two-phase cycle**
-(`menu_scene.h:70-72`, `menu_scene.cpp:672-674`): a 20 ms re-arm on the source-pad phase and a
+(`menu_scene.h:70-72`, `menu_scene.cpp:674-676`): a 20 ms re-arm on the source-pad phase and a
 180 ms re-arm on the focused-param phase, not a symmetric period — a `Blink`'s single symmetric
 period cannot represent this, which is why `MenuState` carries `blink_anchor_ms`/`blink_node`
 instead of a `Blink` for this one purpose. The **visible DUTY cycle within each phase is not
@@ -540,7 +540,7 @@ the changelog where a release note will find it.
 this leaf opens *that* menu" is a per-item `MenuItem* selectButtonPress()` override returning
 another `MenuItem*`; `SoundEditor` navigates to whatever comes back
 (`gui/ui/sound_editor.cpp`'s select handling). E1 had no `Node` spelling for it at all:
-`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:893-897`, which
+`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:895-899`, which
 transcribed only the `return nullptr` = "go up" arm of the base class), and until fix round 2's I5
 the difference lived only in four scattered header comments. The complete sweep of
 `grep -rn selectButtonPress src/deluge/gui/menu_item/`, in three groups:
@@ -926,10 +926,17 @@ families needed them:
 * **The learn virtuals (task 8).** `learn_note_on`, `learn_cc`, `learn_program_change`, `unlearn`,
   `wants_learn_blink`, `learn_descriptor`, all with inert defaults, plus the matching
   `MenuScene::learn_*` entry points (which match `sound_editor.cpp:1588-1608`, including
-  `noteOnReceivedForMidiLearn` having **no** UI-mode gate). **Nothing routes MIDI into the scene
-  stack**, so these are specced at the item level and uncovered at the routing level; that is stated
-  rather than implied away. `bindings::learn_target` is a different path — PARAM learn, not
-  global-command learn — and now says so on its declaration.
+  `noteOnReceivedForMidiLearn` having **no** UI-mode gate). When this was written **nothing routed
+  MIDI into the scene stack**, so these were specced at the item level and uncovered at the routing
+  level. **F1 task 10 closed two of the three**: `ShellHostUI` overrides
+  `noteOnReceivedForMidiLearn` and `pcReceivedForMidiLearn` and forwards to `MenuScene::learn_note_on`
+  / `learn_program_change`, covered by `sim/scenes_spec/menu_entry_spec.cpp`'s
+  `menu_entry_midi_learn` group. `learn_cc` is still unrouted and cannot be routed without adding a
+  `UI` virtual, because `PlaybackHandler::midiCCReceived` tests `getCurrentUI() == &soundEditor`
+  directly (`playback/playback_handler.cpp:3164`); and every one of the three is inert until
+  something under the guest sets `UI_MODE_MIDI_LEARN`, which nothing does — see migration §10.2
+  item 8. `bindings::learn_target` is a different path — PARAM learn, not global-command learn — and
+  now says so on its declaration.
 
 ### 12.3 The action seam (`menu/action.h`, task 11b)
 

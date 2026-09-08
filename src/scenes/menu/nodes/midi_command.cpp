@@ -195,8 +195,9 @@ deluge::ui::shell::Result MidiCommandItem::handle(const deluge::ui::shell::UiEve
                                                   const deluge::ui::shell::UiContext& /*ui_ctx*/,
                                                   const MenuContext& /*ctx*/, MenuState& /*state*/) const {
 	// `midi::Command` has no `buttonAction`/`padAction` override, and learn does not arrive as a
-	// `UiEvent`: it comes through `MenuScene::learn_note_on` and friends, which the wiring plan will
-	// call from the MIDI engine's own delivery path. Nothing to consume here.
+	// `UiEvent`: it comes through `MenuScene::learn_note_on` and friends, which F1 task 10 wired to
+	// `ShellHostUI`'s two `UI` learn virtuals (`learn_cc` excepted -- see `node.h`). Nothing to
+	// consume here.
 	return {};
 }
 

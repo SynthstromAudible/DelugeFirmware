@@ -711,7 +711,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
-		// (`scenes/menu/menu_scene.cpp:1458-1490`), and legacy's false means "obey UI under me"
+		// (`scenes/menu/menu_scene.cpp:1460-1492`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
 		// the next UI down is about to be asked with (`gui/ui/ui.cpp:73-83`), so a false answer must
 		// leave them alone.
@@ -1094,7 +1094,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// Legacy reads `ShiftIsSticky` at shift-release time (`hid/buttons.cpp:250`); the shell reads
 		// its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's
 		// latched shift is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad
-		// jump (`scenes/menu/menu_scene.cpp:1392`).
+		// jump (`scenes/menu/menu_scene.cpp:1394`).
 		Rig on;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(on.open()).to_be_true();
@@ -1757,7 +1757,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.led_declared = true;
 		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
 		// The same shape `MenuScene::leds` declares for BACK and LEARN
-		// (`scenes/menu/menu_scene.cpp:929`, `:936`): a plain blink, no deadline.
+		// (`scenes/menu/menu_scene.cpp:931`, `:938`): a plain blink, no deadline.
 		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
 		expect(r.open()).to_be_true();
 

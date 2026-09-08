@@ -889,7 +889,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		// **Fix round 1, Critical 1.** This scene used to file `Action::Kind::LockInput{true}` while
 		// `in_flight()` and clear its own flag in `on_exit()` -- which returns `void`, so the
 		// matching release could never be filed on the one path that needs it. `set_input_lock` is
-		// one bare global bool with no owner (`shell/router.cpp:154` ->
+		// one bare global bool with no owner (`shell/router.cpp:155` ->
 		// `shell/input_lowering.h:331 set_input_lock`), so an external `Pop` mid-listing left the ENTIRE device
 		// deaf until something else happened to clear it. It is also the wrong lock: it *drops*
 		// events, including encoder edges (`shell/input_lowering.cpp:159`), where legacy's

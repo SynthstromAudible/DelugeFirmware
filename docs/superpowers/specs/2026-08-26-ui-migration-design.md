@@ -183,7 +183,7 @@ the hook it belongs to.
      (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`) mirrors it live, alongside the
      `Buttons::clearShiftSticky()` it already had to pair with. Left unfixed this was a real
      regression: `ctx.shift` is the whole gate on the menu's shortcut-pad jump
-     (`scenes/menu/menu_scene.cpp:1392`), so a sticky-shift user would have lost shortcut pads under
+     (`scenes/menu/menu_scene.cpp:1394`), so a sticky-shift user would have lost shortcut pads under
      the toggle.
   2. ~~**`hold_time_ms` is the one that genuinely is construction-time.**~~ **Closed by F1 task 8.**
      The tap threshold is `FlashStorage::holdTime` in legacy — audio samples, re-read *live* at
@@ -224,7 +224,7 @@ implements; `focusRegained` really is `on_resume`, with the one refinement that 
 `SceneStack::input_top()` rather than `top()`, because that is what `Scene::on_resume`'s own contract
 says (`shell/scene.h:359-374`) and what the stack itself does (`shell/scene_stack.h:38-46`);
 `getGreyoutColsAndRows` really is the top scene's `greyout_mask()`, with `doGreyout == false` spelled
-as an all-zero mask (`scenes/menu/menu_scene.cpp:1458-1490`).
+as an all-zero mask (`scenes/menu/menu_scene.cpp:1460-1492`).
 
 **One phase-4 topology defect the table does not mention and cannot be read off it: the greyout is
 applied twice.** Legacy greys once, in the send path — `prepareColour` (`hid/led/pad_leds.cpp:283-298`,
@@ -571,11 +571,52 @@ rather than a thing that is half-done:
    the function `ModKnobs::mod_encoder_button_action` ports — so the guest drops those two ids from
    its feed and leaves the gesture on legacy's own code. Recorded in code at
    `src/scenes/registry.h`'s boot-wiring record and `gui/ui/shell_host_ui.h`.
-8. **No producer for three of `MidiLearn`'s four entry points.** `note_on_received`, `cc_received`
-   and `thing_pressed` have zero callers in `src/` — there is no MIDI `UiEvent` kind for the router
-   to carry, and the scenes that would call `thing_pressed` from `learnable_at(pad)`
-   (`SessionScene`, `NoteClipScene`, `ArrangerScene`) are E5's and E6's. The four button arms
-   *are* live through `Router`.
+8. **~~No producer for three of `MidiLearn`'s four entry points.~~ Partly closed by F1 task 10, and
+   the item's own arithmetic was wrong.** It said `note_on_received`, `cc_received` **and
+   `thing_pressed`** had zero callers in `src/`. `thing_pressed` had three all along — the service's
+   own `handle()` calls it for the TAP, PLAY and RECORD arms
+   (`scenes/services/midi_learn.cpp:514`, `:522`, `:530`), which is the same fact the item's last
+   sentence states about the button arms. Only `note_on_received` and `cc_received` were
+   producerless, and `cc_received` re-enters `note_on_received` internally (`:445`).
+
+   **What task 10 built.** `UiEvent::Kind::MidiNoteOn` and `Kind::MidiCc` (`src/shell/scene.h`),
+   carrying a forward-declared `::MIDICable*` plus channel and two data bytes;
+   `Router::run_chain` needed no reordering to carry them (the other two services decline any
+   non-button shape, so a MIDI event already went scene → `global_controls` → `midi_learn`, which
+   is legacy's own note-on order) but did gain a `bool` return, because the producer is a legacy
+   `UI` virtual whose contract is that bool. `Shell::route_midi` is the synchronous entry;
+   `ShellHostUI::noteOnReceivedForMidiLearn` is the producer.
+
+   **What is still owed, and it is three separate things:**
+
+   * **`cc_received` has a transport and no producer.** `PlaybackHandler::midiCCReceived` reaches
+     learn through a hardcoded `getCurrentUI() == &soundEditor` at
+     `playback/playback_handler.cpp:3164`, *outside* the `UI_MODE_MIDI_LEARN` gate, and `UI` declares
+     no CC learn virtual to override — `gui/ui/ui.h` has exactly two `*ForMidiLearn` hooks (`:130`
+     pc, `:132` noteOn). Same for pitch bend at `:3091`. Closing either means adding a `UI` virtual
+     and rewriting a legacy dispatcher, which is a legacy-behaviour change plan F1 does not make.
+     Recorded at both dispatcher sites, at `MidiLearn::cc_received` and at `ShellHostUI`'s
+     `@par MIDI learn`.
+   * **Nothing calls `thing_pressed` from a pad.** The scenes that would answer `learnable_at(pad)`
+     (`SessionScene`, `NoteClipScene`, `ArrangerScene`) are E5's and E6's, unchanged.
+   * **The whole path is inert, for a reason this item never named.** Every learn dispatcher is
+     gated on `currentUIMode == UI_MODE_MIDI_LEARN`, and
+     `grep -rn "currentUIMode = UI_MODE_MIDI_LEARN" src/deluge` returns exactly two lines:
+     `View::startMIDILearn` (`gui/views/view.cpp:493`) and `SoundEditor::buttonAction`'s LEARN arm
+     (`gui/ui/sound_editor.cpp:520`). Neither runs while `ShellHostUI` is the current UI. The port's
+     own learn mode sets `MidiLearn::active_`, a different bit that `PlaybackHandler` cannot see, and
+     is itself gated on `input_top().is_root()` — false for `MenuScene`. **So the owner of the last
+     step is `MenuScene`, porting `SoundEditor::buttonAction`'s LEARN arm
+     (`gui/ui/sound_editor.cpp:505-537`, gated on `getCurrentMenuItem()->allowsLearnMode()`)** —
+     which `services::MidiLearn`'s own class doc already assigns to `MenuScene` and explicitly not
+     to the service. Until that lands, both transports are correct and carry nothing.
+
+   Task 10 also closed the **guest half** this item did not mention: `ShellHostUI` now overrides
+   `pcReceivedForMidiLearn` and `noteOnReceivedForMidiLearn` and forwards to
+   `MenuScene::learn_program_change` / `learn_note_on`, which E2 task 8 wrote and specced and which
+   nothing had routed into. Program change routes no `UiEvent` at all, deliberately:
+   `View::pcReceivedForMIDILearn` is an empty body (`gui/views/view.h:63`), so there is nothing for
+   `services::MidiLearn` to port on that message.
 9. **Installing the services re-records part of the level-2 baseline** — added by E4's final review,
    and it belongs with 7 rather than after it: doing the wiring in 7 is what makes this fall due.
    All 24 `expect_script_goldens` calls in `sim/scenes_spec/menu_scripts_spec.cpp` pass
@@ -1050,11 +1091,17 @@ there is no 64-row legacy singleton to ask — both are goldens at that geometry
 `marker_scene_spec`'s and `browser_scene_spec`'s are; and the `Y_ENC` shift arm and
 `changeRootUI(&automationView)` arm of `ClipView`, which have no port to compare (§10.4).
 
-**Three of `MidiLearn`'s four entry points have no producer in `src/` at all.**
-`note_on_received`, `cc_received` and `thing_pressed` have zero callers outside the spec: there is
-no MIDI `UiEvent` kind for the router to carry, and the scenes that would call `thing_pressed` from
-`learnable_at(pad)` are E5's and E6's. So its coverage reads as "the service's behaviour is pinned;
-three of its four entry points have no producer yet", and §10.2 item 8 owes them.
+**Two of `MidiLearn`'s four entry points had no producer in `src/` at all** — `note_on_received`
+and `cc_received`; `thing_pressed`'s "no callers" was a miscount, corrected in §10.2 item 8, and the
+four button arms have always been live through `Router`. **F1 task 10 gave both a transport and one
+of them a producer.** `note_on_received` is now reached from `ShellHostUI::noteOnReceivedForMidiLearn`
+through `Shell::route_midi` and the chain's `midi_learn` step, and `sim/scenes_spec/midi_learn_spec.cpp`
+drives it from `PlaybackHandler`'s own dispatcher on the legacy side rather than from `View`'s method,
+so the `UI_MODE_MIDI_LEARN` gate and the `channelToZone` mapping are inside the compared path.
+`cc_received`'s transport is specced the same way and has no producer, for the reason §10.2 item 8
+gives. So its coverage now reads as "the service's behaviour is pinned, and the delivery of one of
+its two message entry points is too"; what §10.2 item 8 still owes is the CC producer, a scene that
+answers `learnable_at(pad)`, and the LEARN arm that would make legacy's dispatchers fire at all.
 
 **What this means for §7 and §10.3.** Two of E4's nine subjects are carried by literals in the way
 `AudioRecorder` is: the slicer's **commit path** (`SliceOps`, `doSlice`) and everything the **voice

@@ -1077,7 +1077,7 @@ the stack with no notice that it is back. `changeUIAtLevel`'s own failure path d
 
 **What it cost in shipped code.** `SlicerScene` is the scene that paid: its `on_resume` was emptied
 for one task and is now restored. `MenuScene` was taking the spurious edge too — it raises
-`Notice::Kind::Console` itself (`menu_scene.cpp:1256`, `menu/bindings.cpp:372`), `ConsoleScene` is
+`Notice::Kind::Console` itself (`menu_scene.cpp:1258`, `menu/bindings.cpp:372`), `ConsoleScene` is
 `input_transparent()`, and `MenuScene::on_resume`'s `go_up_on_resume` flag guards only the `ascend()`
 (`:332-335`) while the tail resets `render_resp`, `value_changed`, `value_node`, `back_claimed` and
 `column_press` unconditionally (`:337-341`). **It cost nothing**, and the reason is the tick order:
@@ -1176,7 +1176,7 @@ onto that stack (`src/scenes/services/mod_knobs.cpp:413`) while `ModKnobs::popup
 and `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`;
 `GlobalControls::handle` gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
 (`src/scenes/services/global_controls.cpp:580`); `MidiLearn::handle` gates all of itself on the same
-(`src/scenes/services/midi_learn.cpp:490`). The only `SceneStack` and `InputLowering` in an
+(`src/scenes/services/midi_learn.cpp:491`). The only `SceneStack` and `InputLowering` in an
 application are the ones the `Shell` owns. So a real service could not be constructed **before** the
 shell it serves, and — because the slots were fixed in the constructor — could not be installed
 **after** it either.

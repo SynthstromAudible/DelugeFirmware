@@ -118,13 +118,14 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	// (`:2897-2901`). **The CC dispatcher does NOT** -- this comment claimed it did until F1 task 10
 	// re-resolved the citation. `PlaybackHandler::midiCCReceived` has no
 	// `getCurrentUI()->…ForMidiLearn` call and `UI` declares no such virtual (`gui/ui/ui.h:130`,
-	// `:132` are the only two); what sits at `:3128` is a hardcoded
+	// `:132` are the only two); what sits at `playback_handler.cpp:3164` is a hardcoded
 	// `getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(...)` **outside** the
 	// `UI_MODE_MIDI_LEARN` gate, after which learn goes straight to `view.ccReceivedForMIDILearn`
-	// at `:3133` with no UI-first refusal at all. So note-on is the dispatcher this ordering
+	// at `playback_handler.cpp:3169` with no UI-first refusal at all. So note-on is the dispatcher
+	// this ordering
 	// mirrors, `Kind::MidiCc` is carried in the same position for consistency of the chain rather
 	// than because legacy asks a UI first, and the divergence that leaves under the guest is
-	// recorded at `playback_handler.cpp:3128`.
+	// recorded at `playback_handler.cpp:3164`.
 	Result learn_result = services_.midi_learn->handle(event, ctx);
 	apply(learn_result);
 	if (learn_result.handled) {

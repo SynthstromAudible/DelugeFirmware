@@ -385,7 +385,9 @@ ParamDescriptor MenuScene::learn_target() const {
 // ---------------------------------------------------------------------------------------------
 // MIDI learn: `SoundEditor`'s three delivery members and `unlearnAction`, forwarded to the focused
 // item exactly as legacy's `getCurrentMenuItem()->learnX(...)` did (`sound_editor.cpp:516`,
-// `:1550-1570`). See the warning on the declarations: nothing routes MIDI here yet.
+// `:1550-1570`). F1 task 10 wired the note-on and program-change halves --
+// `ShellHostUI`'s two `UI` overrides, through `gui/ui/shell_guest_services.h` -- and could not wire
+// `learn_cc`, which has no `UI` virtual to override. See `node.h`'s note on the declarations.
 
 const CustomItem* MenuScene::focused_custom() const {
 	const Node* node = focused();

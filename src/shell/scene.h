@@ -438,7 +438,7 @@ public:
 	///     other group, the port of `Buttons::buttonAction`'s tail, is deliberately *ungated*,
 	///     because legacy runs that tail for any current UI. The two reachability rules below are
 	///     why one call is gated and the other is not.
-	///   * `services::MidiLearn` gates its **entire** `handle()` (`midi_learn.cpp:490`), which is
+	///   * `services::MidiLearn` gates its **entire** `handle()` (`midi_learn.cpp:491`), which is
 	///     the stronger use: it has only `View` arms, so there is nothing left to run when the
 	///     input top is not a root. It is also the one that made the gate load-bearing, because
 	///     `MidiLearn` is routed last and therefore sees a `LEARN` press under a non-root scene

@@ -306,7 +306,7 @@ public:
 };
 
 /// @brief The `channelOrZone` legacy's dispatchers compute before they call either learn function
-///        (`playback/playback_handler.cpp:2966`, `:3126`).
+///        (`playback/playback_handler.cpp:2966`, `:3140`).
 ///
 /// The port is driven with this same value rather than the raw channel, because that is what its
 /// producer is handed: `ShellHostUI::noteOnReceivedForMidiLearn`'s `channel` argument IS
@@ -1241,9 +1241,11 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true(); // `:3132`'s gate
-		// `getCurrentUI()` is `StubRootUI`, not `&soundEditor`, so `:3128`'s first-dibs test is
-		// false and the message falls to `view.ccReceivedForMIDILearn` at `:3133` -- the branch this
+		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true(); // `playback_handler.cpp:3168`'s gate
+		// `getCurrentUI()` is `StubRootUI`, not `&soundEditor`, so `playback_handler.cpp:3164`'s
+		// first-dibs test is
+		// false and the message falls to `view.ccReceivedForMIDILearn` at
+		// `playback_handler.cpp:3169` -- the branch this
 		// example is about. Asserted, because if it were ever true this would compare nothing.
 		expect(getCurrentUI() == static_cast<UI*>(&soundEditor)).to_be_false();
 		view.sectionMidiLearnPadPressed(true, 6);

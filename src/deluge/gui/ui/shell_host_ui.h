@@ -278,21 +278,21 @@ namespace deluge::gui::ui {
 /// |---|---|---|---|
 /// | program change | `pcReceivedForMidiLearn` (`sound_editor.cpp:1588-1594`) | `getCurrentUI()->pcReceivedForMidiLearn`, `view` as the `else` (`playback/playback_handler.cpp:2897-2901`) | **overridden below**, forwarding to `MenuScene::learn_program_change` through `shellGuestMenuLearnProgramChange` |
 /// | note on | `noteOnReceivedForMidiLearn` (`:1595-1597`) | the same shape (`playback_handler.cpp:2968-2971`) | **overridden below**, forwarding to `MenuScene::learn_note_on`, then feeding the shell's own chain |
-/// | CC | `midiCCReceived` (`:1600-1608`) | **no `UI` virtual.** A hardcoded `getCurrentUI() == &soundEditor` at `playback_handler.cpp:3128` | **lost.** See below |
-/// | pitch bend | `pitchBendReceived` (`:1611-1619`) | the same hardcoded test at `:3078` | **lost**, and doubly: `MenuItem::learnKnob` has no port either -- see the mod-knob `@par` above |
+/// | CC | `midiCCReceived` (`:1600-1608`) | **no `UI` virtual.** A hardcoded `getCurrentUI() == &soundEditor` at `playback_handler.cpp:3164` | **lost.** See below |
+/// | pitch bend | `pitchBendReceived` (`:1611-1619`) | the same hardcoded test at `playback_handler.cpp:3091` | **lost**, and doubly: `MenuItem::learnKnob` has no port either -- see the mod-knob `@par` above |
 // clang-format on
 ///
 /// The first two are closable because `UI` declares a virtual for each (`ui.h:130`, `:132`) and a
 /// guest can override it. The last two are not: `gui/ui/ui.h` declares **exactly two**
 /// `*ForMidiLearn` hooks, and closing CC or pitch bend means adding a third and fourth and
 /// rewriting two legacy dispatch sites -- a legacy-behaviour change plan F1 does not make. Recorded
-/// at `playback_handler.cpp:3128` and `:3078`, at `MidiLearn::cc_received`, and in migration §10.2
+/// at `playback_handler.cpp:3164` and `:3091`, at `MidiLearn::cc_received`, and in migration §10.2
 /// item 8.
 ///
 /// @warning **All four are unreachable under the guest today, for a reason none of the above
 ///          names, and it is worth knowing before anyone counts this as working.** Every one of
 ///          these dispatch arms is gated on `currentUIMode == UI_MODE_MIDI_LEARN`
-///          (`playback_handler.cpp:2897`, `:2963`, `:3132`, and `SoundEditor`'s own inner tests),
+///          (`playback_handler.cpp:2897`, `:2963`, `:3168`, and `SoundEditor`'s own inner tests),
 ///          and **exactly two lines in the tree ever set that value**:
 ///          `View::startMIDILearn` (`gui/views/view.cpp:493`) and `SoundEditor::buttonAction`'s
 ///          `LEARN` arm (`gui/ui/sound_editor.cpp:520`) --
@@ -332,7 +332,7 @@ namespace deluge::gui::ui {
 ///     (`hid/buttons.cpp:250`); the shell reads `LoweringConfig::shift_is_sticky`, which this class
 ///     constructs as its default **false** (`shell/input_lowering.h:29-31`) and nothing sets. With
 ///     the setting on, legacy latches shift on a tap and this shell does not -- and `ctx.shift` is
-///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:1392`), so under
+///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:1394`), so under
 ///     the toggle a sticky-shift user loses shortcut pads. **A release blocker for the toggle**,
 ///     and it belongs with the boot wiring: `LoweringConfig` is construction-time
 ///     (`shell/shell.h:27-29`) and this object is a static-init global that cannot read flash.

@@ -458,11 +458,12 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 	// `View::buttonAction` reachability rule and nothing else (`Scene::is_root`); legacy's learn
 	// dispatchers reach `view.noteOnReceivedForMidiLearn` / `view.ccReceivedForMIDILearn` from
 	// `PlaybackHandler` with no root-UI test anywhere on the path
-	// (`playback/playback_handler.cpp:2970`, `:3133`), so applying the button gate to them would
+	// (`playback/playback_handler.cpp:2970`, `:3169`), so applying the button gate to them would
 	// invent a restriction legacy does not have.
 	//
 	// Claimed unconditionally, matching legacy's dispatchers: both `return` immediately after the
-	// `view.` call whatever it did (`:2972`, `:3135`), and both ported functions are no-ops when
+	// `view.` call whatever it did (`playback_handler.cpp:2972`, `:3171`), and both ported functions
+	// are no-ops when
 	// nothing is held (`view.cpp:641`, and `cc_received`'s own arms). A null `cable` is the
 	// "no message" value `UiEvent` documents and is dropped rather than dereferenced.
 	if (event.kind == UiEvent::Kind::MidiNoteOn || event.kind == UiEvent::Kind::MidiCc) {

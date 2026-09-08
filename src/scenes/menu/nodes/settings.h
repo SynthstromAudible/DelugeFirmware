@@ -56,7 +56,8 @@
 ///           below); and the twelve `midi_command_*` (`midi/command.h`, MIDI-learn items), which E2
 ///           task 8 gave a real `MidiCommandItem` -- they navigate nowhere, they bind an incoming
 ///           MIDI message to a `GlobalMIDICommand`, and the entry points that deliver that message
-///           are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn`.)
+///           are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn` -- the
+///           first and third of which F1 task 10 gave a producer.)
 ///         * **Items with genuinely dynamic state.** (`default_tempo`, `default_swing_amount` and
 ///           `default_key` were on this list. E2 task 11b brought `Kind::Range` back -- they are
 ///           exactly the three consumers spec E §4's own threshold asks for -- and moved their

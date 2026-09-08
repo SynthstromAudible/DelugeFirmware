@@ -422,8 +422,14 @@ struct CustomItem {
 	///
 	/// Every default here is "did nothing, used nothing", so no other `CustomItem` changes.
 	///
-	/// @note Nothing routes MIDI into the scene stack yet. `MenuScene::learn_note_on` and friends
-	///       are the entry points the eventual wiring calls; these are what they forward to.
+	/// @note **Two of the three are routed now** (F1 task 10):
+	///       `ShellHostUI::noteOnReceivedForMidiLearn` and `pcReceivedForMidiLearn` override the two
+	///       `UI` virtuals legacy's dispatchers ask (`gui/ui/ui.h:130`, `:132`) and forward here
+	///       through `MenuScene::learn_note_on` / `learn_program_change`. **`learn_cc` still has
+	///       none**, because `PlaybackHandler::midiCCReceived` reaches learn through a hardcoded
+	///       `getCurrentUI() == &soundEditor` (`playback/playback_handler.cpp:3164`) with no virtual
+	///       to override; and all three are inert until something under the guest sets
+	///       `UI_MODE_MIDI_LEARN` -- see `gui/ui/shell_host_ui.h`'s `@par MIDI learn`.
 	/// @{
 
 	/// @brief Bind a note-on to whatever this item learns.

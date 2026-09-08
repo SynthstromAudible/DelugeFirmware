@@ -99,7 +99,7 @@ bool ShellHostUI::opened() {
 	// (`hid/buttons.cpp:250`) while the shell reads a `LoweringConfig` field that defaults to false
 	// (`shell/input_lowering.h:29-31`). Left unseeded, a sticky-shift user's latched shift would be
 	// invisible to `ctx.shift`, which is the whole gate on the menu's shortcut-pad jump
-	// (`scenes/menu/menu_scene.cpp:1392`) -- so shortcut pads would silently stop working under the
+	// (`scenes/menu/menu_scene.cpp:1394`) -- so shortcut pads would silently stop working under the
 	// toggle.
 	//
 	// `opened()` is the right place and the setter is the right tool: `set_shift_is_sticky` exists
@@ -252,7 +252,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	//
 	// The port spells `doGreyout == false` as an **all-zero mask**, deliberately and at the code:
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
-	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1458-1490`,
+	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1460-1492`,
 	// against `gui/ui/sound_editor.cpp:252-294`). Every arm of legacy's switch that leaves
 	// `doGreyout` true also writes a non-zero `*cols` (`:232`, `:237`, `:245`, `:252`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
@@ -791,7 +791,7 @@ ActionResult ShellHostUI::exitUI() {
 	// long-press Back leaves the *whole* menu however deep it was, not one level. So does this,
 	// for the first tenant: the ported menu keeps its navigation depth inside one scene
 	// (`MenuScene`'s `st_.depth`) and only asks the shell to remove itself when Back arrives at
-	// depth 0 (`scenes/menu/menu_scene.cpp:1445-1450`). One `pop()` here is therefore one whole
+	// depth 0 (`scenes/menu/menu_scene.cpp:1447-1452`). One `pop()` here is therefore one whole
 	// menu, exactly as `exitCompletely` is. A future tenant that stacks a scene per level would
 	// make this differ, and that is the condition to watch.
 	//
