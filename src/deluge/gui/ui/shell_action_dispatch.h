@@ -45,6 +45,10 @@
 /// `check_layer_rules.py`'s `NON_UI` glob (`model/clip/instrument_clip_minder.cpp`), and this one
 /// has exactly one caller, `gui/ui/shell_host_ui.cpp`, which is inside `gui/` already.
 
+#include "definitions_cxx.hpp" // StemExportType
+
+#include <optional>
+
 namespace deluge::gui::ui {
 
 /// @brief Take whatever the ported menu asked for, if anything, and perform it.
@@ -69,10 +73,11 @@ namespace deluge::gui::ui {
 ///
 /// @par What it does today
 ///
-/// It drains, and it performs one of the five verbs. The `switch` has an arm for every `MenuAction`;
-/// `OpenPerformanceView` has a body as of F2 task 2 and the other four are still empty, each
-/// arriving with the task that ports it. So a select press on `start_stem_export` still exports
-/// nothing -- but the request is consumed on the tick it was filed rather than left in the outbox.
+/// It drains, and it performs two of the five verbs. The `switch` has an arm for every `MenuAction`;
+/// `OpenPerformanceView` has a body as of F2 task 2, `StartStemExport` as of F2 task 3, and the
+/// other three are still empty, each arriving with the task that ports it. So a select press on
+/// `set_clip_length` still changes no length -- but the request is consumed on the tick it was filed
+/// rather than left in the outbox.
 ///
 /// @par The `switch` has no `default:`, deliberately
 ///
@@ -81,5 +86,39 @@ namespace deluge::gui::ui {
 /// (`cmake/deluge_common_options.cmake:32`), so an enumerator added without an arm here fails the
 /// build; a `default:` would absorb it silently and the compiler would stop being the check.
 void dispatchShellActions();
+
+/// @brief Which stem export legacy's `Start::selectButtonPress` would start from whatever root UI is
+///        open right now, or `std::nullopt` for the roots it leaves alone.
+///
+/// `stem_export::Start::selectButtonPress` (`gui/menu_item/stem_export/start.h:31-49`) is two
+/// statements welded together: a fan-out over `getRootUI()` that picks one of four
+/// `StemExportType`s (`:33-47`), and a `stemExport.startStemExportProcess(...)` that acts on the
+/// pick. `scenes/menu/action.h:83-87` says why the seam could not split them into four enumerators
+/// -- "the choice is made from the root UI, which this layer cannot read" -- so the whole fan-out
+/// lands on this side of the wall, and it is by some distance the most substantial thing any of the
+/// five verbs does.
+///
+/// @par Why it is declared here rather than left inside the `.cpp`'s anonymous namespace
+///
+/// **Because the acting half cannot be run in a spec, and the choosing half must be.**
+/// `StemExport::startStemExportProcess` hands the export to `deluge::storage::Owner::run`
+/// (`processing/stem_export/stem_export.cpp:87-96`), which is queued onto a fiber only on the
+/// Embassy BSP: the cooperative default runs the op **inline on the caller's stack**
+/// (`storage/owner.h:28-31`; `OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`), and
+/// `deluge_scenes_spec` links that default. An example that let the real arm reach
+/// `startStemExportProcess` would therefore run `StemExport::runStemExportProcess` for real inside
+/// the assertion -- arming the recorder, writing stems to `DELUGE_SD_ROOT`, and blocking in
+/// `renderWait` (`stem_export.cpp:587-596`) for a transport that nothing in a spec is driving.
+///
+/// So the fan-out is named, and `sim/scenes_spec/menu_actions_spec.cpp` drives it directly from each
+/// of the root UIs legacy names. The dispatcher's own arm is still covered end to end, but only down
+/// the branch where this returns `std::nullopt` -- which is legacy's own no-op and the one branch
+/// that starts nothing.
+///
+/// @return The type legacy would export, or `std::nullopt` where legacy's `if`/`else if` chain falls
+///         through: any root that is not one of the three named, `instrumentClipView` over a
+///         non-`KIT` output, and a null root (`getRootUI()` answers `nullptr` while `numUIsOpen ==
+///         0`, `gui/ui/ui.cpp:145-150`, which is "during song load / swap", `:64`).
+std::optional<StemExportType> stemExportTypeForRootUI();
 
 } // namespace deluge::gui::ui

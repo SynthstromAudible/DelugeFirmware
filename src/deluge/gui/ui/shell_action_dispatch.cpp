@@ -21,20 +21,30 @@
 
 #include "gui/ui/shell_action_dispatch.h"
 
-#include "definitions_cxx.hpp" // PerformanceEditingMode
-#include "gui/ui/ui.h"         // openUI
+#include "definitions_cxx.hpp" // PerformanceEditingMode, StemExportType
+#include "gui/ui/root_ui.h"
+#include "gui/ui/shell_host_ui.h"
+#include "gui/ui/ui.h" // openUI, getRootUI
+#include "gui/views/arranger_view.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
 #include "model/model_stack.h"
-#include "model/song/song.h"
+#include "model/song/song.h" // getCurrentOutputType
+#include "processing/stem_export/stem_export.h"
 #include "scenes/menu/action.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
+#include "shell/scene.h" // SceneKind
+
+#include <optional>
 
 namespace deluge::gui::ui {
 
 using deluge::scenes::menu_scene;
 using deluge::scenes::menu::MenuAction;
 using deluge::scenes::menu::MenuActionRequest;
+using deluge::ui::shell::SceneKind;
 
 namespace {
 
@@ -100,7 +110,146 @@ void openPerformanceView(PerformanceEditingMode mode) {
 	openUI(&performanceView);
 }
 
+/// @brief `soundEditor.exitCompletely()` (`gui/menu_item/stem_export/start.h:32`), ported.
+///
+/// @par What legacy's first statement is, and why it cannot be transcribed
+///
+/// `SoundEditor::exitCompletely` (`gui/ui/sound_editor.cpp:731-772`) ends the menu item's session
+/// (`endScreen()`, `:759`) and closes the menu UI (`close()`, `:761`, which is `closeUI(this)`,
+/// `gui/ui/ui.cpp:57-59`). Under the guest **the thing that is open is `ShellHostUI`, not
+/// `soundEditor`** -- `openShellMenu` opens this UI in `SoundEditor`'s place
+/// (`gui/ui/shell_menu_entry.cpp:162`) and nothing on that path opens `soundEditor` at all.
+///
+/// So calling `soundEditor.exitCompletely()` here would not be a harmless no-op. `closeUI`'s search
+/// loop stops at `u >= 1` (`gui/ui/ui.cpp:183`); given a UI that is not on the stack it falls out
+/// with `u == 0`, reads `uiNavigationHierarchy[u - 1]` -- index **-1** -- at `:194` and sets
+/// `numUIsOpen = 0` at `:195`. After that `getRootUI()` answers `nullptr` for the whole application
+/// (`:145-150`) and `getCurrentUI()` answers the `lastUIBeforeNullifying` residue (`:136-140`).
+/// That is F1 task 11's wedge, one turn worse: its own header says "If UI not found, chaos"
+/// (`:176`).
+///
+/// @par What this does instead, and why it is not a new idea
+///
+/// **Take the menu scene off the guest's stack, and let `ShellHostUI::timerCallback` perform the one
+/// close it already owns.** The port already has an `exitCompletely()`: a short Back at the menu's
+/// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
+/// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
+/// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
+/// (`scenes/menu/menu_scene.cpp:1447-1452`). `SceneStack::remove` and not `pop`, for the reason
+/// recorded there (`:1434-1446`): `pop` would take a `Working` animation or a `Popup` sitting over
+/// the menu down with it, and "close the editor" should not mean that. This is that same statement,
+/// reached by a different press, so the two exits of the ported menu agree by construction.
+///
+/// Emptying the stack is the whole of it, because `ShellHostUI::timerCallback` closes the guest
+/// itself the moment the stack is empty (`gui/ui/shell_host_ui.cpp:526-529`) -- F1 task 11's fix,
+/// and the only close path the guest has besides `exitUI`'s (`:924`). The two alternatives were
+/// both tried on paper and both are broken:
+///
+///   * **`closeGuest()` from here, without emptying the stack.** The stack is still occupied, so
+///     `:526` does not fire, so `rearmTimer` at `:531` runs and arms `TimerName::UI_SPECIFIC` for a
+///     UI that is no longer current -- and `UITimerManager::routine` dispatches that timer to
+///     `getCurrentUI()` (`gui/ui_timer_manager.cpp:143`), i.e. to the root view underneath. That is
+///     the exact hazard `ShellHostUI::closeGuest`'s own comment names (`:961-965`).
+///   * **Empty the stack *and* `closeGuest()` from here.** Then `:526` fires too and closes a second
+///     time, and the second `closeUI(&shellHostUI)` is the index `-1` read above.
+///
+/// @par The `shellHostUI` global, deliberately
+///
+/// The guest is a singleton -- one object, one open site (`gui/ui/shell_menu_entry.cpp:162`) -- and
+/// this seam's sibling reaches for it the same way for the same kind of question: `menuIsFrontmost`
+/// (`gui/ui/shell_guest_services.cpp:190-192`) reads `shellHostUI.shell().stack()` and calls itself
+/// "the port of `getCurrentUI() == &soundEditor`". `SceneStack::remove` is a documented no-op when
+/// no scene of that kind is on the stack -- it returns false having touched nothing and flagged
+/// nothing (`shell/scene_stack.cpp:104-106`) -- so if this is ever reached with no ported menu up,
+/// it does nothing rather than corrupting a stack it does not own.
+void closePortedMenu() {
+	(void)shellHostUI.shell().stack().remove(SceneKind::FirstApp);
+}
+
+/// @brief `stem_export::Start::selectButtonPress`'s second and third statements
+///        (`gui/menu_item/stem_export/start.h:33-47`), performed on the real root UI.
+///
+/// Transcribed branch for branch rather than collapsed into a lookup, so the four arms stay legible
+/// against their source -- the same treatment `openPerformanceView` above gives `editing_mode.h`.
+///
+/// @par What `getRootUI()` answers here, which is the question the close order raises
+///
+/// `getRootUI()` reads `uiNavigationHierarchy[0]` and answers `nullptr` only when `numUIsOpen == 0`
+/// (`gui/ui/ui.cpp:145-150`). **Neither menu is at index 0.** `openUI` writes
+/// `uiNavigationHierarchy[numUIsOpen]` and increments (`:227-231`), so both legacy's `soundEditor`
+/// and this guest (`gui/ui/shell_menu_entry.cpp:162`) sit *above* whichever root view is open, never
+/// at it. And `closeUI` cannot move index 0: its search stops at `u >= 1` (`:183`) and it assigns
+/// `numUIsOpen = u` (`:195`), so closing a UI it finds above the root leaves `[0]` untouched and
+/// `numUIsOpen >= 1`. Its one re-entrant hook is `newUI->focusRegained()` (`:199`), and no
+/// `focusRegained` override reaches `changeRootUI` -- every call site of it is a button, pad or
+/// transition handler, or `ActionLogger::revertAction`.
+///
+/// **So the answer is the same before the close and after it, in legacy and under the guest**, and
+/// legacy's close-then-read order is not what picks the arm. What the order decides is only whether
+/// there is a `[0]` left to read at all, which is why `closePortedMenu` above does not call
+/// `closeUI` on anything.
+///
+/// @par The one ordering divergence, named rather than absorbed
+///
+/// Legacy closes and *then* exports. Here the removal is filed first but the guest is popped by
+/// `timerCallback` (`gui/ui/shell_host_ui.cpp:526-529`), after this function has returned, so on a
+/// BSP where `deluge::storage::Owner::run` is inline the export body runs *between* the two
+/// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`). On the shipping Embassy BSP
+/// `startStemExportProcess` only queues (`processing/stem_export/stem_export.cpp:87-96`,
+/// `storage/owner.h:28-31`), so on the device both orders are the same sequence: stack emptied,
+/// export queued, guest closed, export runs. The divergence is real only on the cooperative BSPs,
+/// where no stem export is driven from a ported menu.
+///
+/// One more of `exitCompletely`'s tail has no counterpart on the guest's close path and is left
+/// unpaid here: `currentUIMode = UI_MODE_NONE` (`gui/ui/sound_editor.cpp:770`). It is inert for this
+/// verb -- `enterUIMode` never refuses, it merges or replaces (`gui/ui/ui.cpp:454-460`), so
+/// `runStemExportProcess`'s `enterUIMode(UI_MODE_STEM_EXPORT)` (`stem_export.cpp:115`) engages
+/// either way -- but it belongs to the guest's close path rather than to this arm, and is reported
+/// rather than fixed from here.
+void startStemExport() {
+	// `start.h:32` -- first, exactly as legacy has it.
+	closePortedMenu();
+
+	// `start.h:33-47`. `startStemExportProcess` is `start.h`'s `:36`/`:39`/`:43`/`:46`, one call
+	// rather than four because the fan-out has already chosen; the `std::nullopt` return is
+	// `start.h`'s own fall-through, where the chain matches nothing and legacy starts nothing.
+	if (const std::optional<StemExportType> type = stemExportTypeForRootUI()) {
+		stemExport.startStemExportProcess(*type);
+	}
+}
+
 } // namespace
+
+std::optional<StemExportType> stemExportTypeForRootUI() {
+	// `start.h:33-47`, statement for statement. `getRootUI()` may be null (`gui/ui/ui.cpp:145-150`)
+	// and legacy never dereferences it either -- the three tests below are pointer comparisons, so a
+	// null root falls through to the same `std::nullopt` every other unnamed root does.
+	RootUI* rootUI = getRootUI();
+	if (rootUI == &arrangerView) {
+		// `start.h:35-40`. Left as legacy's `if`/`else` rather than a conditional expression: the
+		// two arms are different exports, not two values of one.
+		if (stemExport.exportMixdown) {
+			return StemExportType::MIXDOWN;
+		}
+		else {
+			return StemExportType::TRACK;
+		}
+	}
+	else if (rootUI == &sessionView) {
+		// `start.h:42-44`.
+		return StemExportType::CLIP;
+	}
+	else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
+		// `start.h:45-47`. The `&&` order is legacy's and is load-bearing rather than stylistic:
+		// `getCurrentOutputType()` dereferences `currentSong->getCurrentClip()->output`
+		// (`model/song/song.cpp:135-137`), so it is only ever asked once the root is known to be a
+		// clip view.
+		return StemExportType::DRUM;
+	}
+	// `start.h:48` -- the chain matched nothing, legacy returns `NO_NAVIGATION` having started no
+	// export. There is no `else` in legacy and there is none here.
+	return std::nullopt;
+}
 
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
@@ -127,17 +276,23 @@ void dispatchShellActions() {
 		openPerformanceView(static_cast<PerformanceEditingMode>(req.arg));
 		break;
 
-	// **The four verbs still empty.** Each one's body is one legacy statement (or, for
-	// `StartStemExport`, one legacy statement plus the `getRootUI()` fan-out that chooses its
-	// argument), tabulated with its legacy source at `scenes/menu/action.h:13-19` and owed in detail
-	// by each enumerator's own doc comment (`:81-98`). They arrive with the tasks that port them.
+	case MenuAction::StartStemExport:
+		// All of `stem_export/start.h:31-49`, which `scenes/menu/action.h:83-87` says is owed
+		// whole: the `soundEditor.exitCompletely()` that comes first AND the `getRootUI()` fan-out
+		// that picks between the four `StemExportType`s. The helper says what each of those two
+		// means under the guest, where the open UI is `ShellHostUI` rather than `soundEditor`.
+		startStemExport();
+		break;
+
+	// **The three verbs still empty.** Each one's body is one legacy statement, tabulated with its
+	// legacy source at `scenes/menu/action.h:13-19` and owed in detail by each enumerator's own doc
+	// comment (`:90-98`). They arrive with the tasks that port them.
 	//
 	// Until then the drain is the whole of their behaviour, and it is not nothing: the request is
 	// consumed once, on the tick it was filed, rather than sitting in a one-slot outbox to be
 	// delivered against unrelated state whenever something finally polls. What a user sees for these
-	// four is unchanged -- a select press on `start_stem_export` still exports nothing, which is item
-	// 1 of `util/shell_menu_entry.h`'s "what works under the toggle" list.
-	case MenuAction::StartStemExport:
+	// three is unchanged -- a select press on `set_clip_length` still changes no length, which is
+	// item 1 of `util/shell_menu_entry.h`'s "what works under the toggle" list.
 	case MenuAction::SetClipLengthToSampleLength:
 	case MenuAction::OpenSongMidiLearn:
 	case MenuAction::OpenSongMacros:
