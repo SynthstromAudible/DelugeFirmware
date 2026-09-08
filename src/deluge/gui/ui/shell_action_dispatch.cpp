@@ -22,10 +22,13 @@
 #include "gui/ui/shell_action_dispatch.h"
 
 #include "definitions_cxx.hpp" // PerformanceEditingMode, StemExportType
+#include "gui/context_menu/configure_song_macros.h"
+#include "gui/context_menu/midi_learn_mode.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h" // openUI, getRootUI
 #include "gui/views/arranger_view.h"
+#include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -302,18 +305,57 @@ void dispatchShellActions() {
 		startStemExport();
 		break;
 
-	// **The three verbs still empty.** Each one's body is one legacy statement, tabulated with its
-	// legacy source at `scenes/menu/action.h:13-19` and owed in detail by each enumerator's own doc
-	// comment (`:90-98`). They arrive with the tasks that port them.
-	//
-	// Until then the drain is the whole of their behaviour, and it is not nothing: the request is
-	// consumed once, on the tick it was filed, rather than sitting in a one-slot outbox to be
-	// delivered against unrelated state whenever something finally polls. What a user sees for these
-	// three is unchanged -- a select press on `set_clip_length` still changes no length, which is
-	// item 1 of `util/shell_menu_entry.h`'s "what works under the toggle" list.
 	case MenuAction::SetClipLengthToSampleLength:
+		// `audio_clip::SetClipLengthEqualToSampleLength::selectButtonPress`'s one statement
+		// (`gui/menu_item/audio_clip/set_clip_length_equal_to_sample_length.h:26-29`, the call at
+		// `:27`), on the real view. No helper: there is no argument to choose and no branch to
+		// transcribe.
+		//
+		// **What the callee assumes, and why no null test is added here.**
+		// `AudioClipView::setClipLengthEqualToSampleLength` (`gui/views/audio_clip_view.h:50`,
+		// defined `gui/views/audio_clip_view.cpp:758-769`) opens with
+		// `AudioClip& audioClip = *getCurrentAudioClip();` (`:759`), and `getCurrentAudioClip()`
+		// answers `nullptr` whenever `currentSong->getCurrentClip()` is not an `AudioClip`
+		// (`model/song/song.cpp:98-104`); the next line reads `audioClip.guide` (`:760`) through it.
+		// Neither of legacy's two callers tests it either. `AudioClipView::buttonAction`'s
+		// X_ENC + Y_ENC chord (`audio_clip_view.cpp:384-393`, the call at `:391`) relies on
+		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
+		// relies on the item being reachable only under the audio-clip root, which
+		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp:1756`'s
+		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip` at `:1794-1796`).
+		//
+		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
+		// `audio_clip_actions`, which hangs off `root_audio_clip` (`scenes/menu/nodes/roots.h:430-433`,
+		// `:483-487`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
+		// (`scenes/menu/context.cpp:330-358`, the assignment at `:357`, reached because `ClipType` has
+		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp:1095-1098`); and `openShellMenu` is the
+		// one opener (`gui/ui/shell_menu_entry.cpp:107-163`, the context at `:118-120`). The gap both
+		// sides share is that the argument and `currentSong->getCurrentClip()` are two different
+		// reads: legacy resolves the root from the `clip` it was handed and the callee resolves the
+		// clip from the song. Closing that here -- with a null test, or by reading the argument --
+		// would be behaviour legacy does not have, which the no-new-UI/UX rule forbids. It is
+		// reported instead.
+		audioClipView.setClipLengthEqualToSampleLength();
+		break;
+
 	case MenuAction::OpenSongMidiLearn:
+		// `song::MidiLearn::selectButtonPress`'s two statements (`gui/menu_item/song/midi_learn.h:27-31`,
+		// the calls at `:28` and `:29`), in legacy's order. **The `bool` is discarded here because it
+		// is discarded there**, and this is the one of the two whose answer can be false -- what that
+		// means, and what it costs, is the header's "@par The two context menus open even when
+		// setupAndCheckAvailability() says no".
+		(void)gui::context_menu::midiLearnMode.setupAndCheckAvailability();
+		openUI(&gui::context_menu::midiLearnMode);
+		break;
+
 	case MenuAction::OpenSongMacros:
+		// `song::ConfigureMacros::selectButtonPress`'s two statements
+		// (`gui/menu_item/song/configure_macros.h:27-31`, the calls at `:28` and `:29`), in legacy's
+		// order. The discarded `bool` here can only ever be `true`
+		// (`gui/context_menu/configure_song_macros.cpp:48-51`, the `return true` at `:50`), so the
+		// discard costs nothing at this site -- see the header for the site where it does.
+		(void)gui::context_menu::configureSongMacros.setupAndCheckAvailability();
+		openUI(&gui::context_menu::configureSongMacros);
 		break;
 	}
 }

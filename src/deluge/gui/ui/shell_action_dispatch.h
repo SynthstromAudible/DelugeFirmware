@@ -73,11 +73,51 @@ namespace deluge::gui::ui {
 ///
 /// @par What it does today
 ///
-/// It drains, and it performs two of the five verbs. The `switch` has an arm for every `MenuAction`;
-/// `OpenPerformanceView` has a body as of F2 task 2, `StartStemExport` as of F2 task 3, and the
-/// other three are still empty, each arriving with the task that ports it. So a select press on
-/// `set_clip_length` still changes no length -- but the request is consumed on the tick it was filed
-/// rather than left in the outbox.
+/// It drains, and it performs **all five** verbs: `OpenPerformanceView` as of F2 task 2,
+/// `StartStemExport` as of F2 task 3, and `SetClipLengthToSampleLength`, `OpenSongMidiLearn` and
+/// `OpenSongMacros` as of F2 task 4. The `switch` has an arm for every `MenuAction` and no
+/// `default:` -- see below, and note that F2 tasks 6 and 7 each add an enumerator after this one, so
+/// the guard that makes them break loudly is re-established there rather than settled here.
+///
+/// @par The two context menus open even when `setupAndCheckAvailability()` says no
+///
+/// `song::MidiLearn::selectButtonPress` and `song::ConfigureMacros::selectButtonPress`
+/// (`gui/menu_item/song/midi_learn.h:27-31`, `gui/menu_item/song/configure_macros.h:27-31`) are each
+/// two statements: a `setupAndCheckAvailability()` **whose `bool` they throw away** (`:28` in both)
+/// and an `openUI(...)` (`:29` in both) that runs unconditionally. This dispatcher does the same, and
+/// the `(void)` casts at those two arms are the only difference in spelling.
+///
+/// **Only one of the two can actually answer false, which is narrower than "it returns a bool
+/// legacy discards" suggests.** `ConfigureSongMacros::setupAndCheckAvailability`
+/// (`gui/context_menu/configure_song_macros.cpp:48-51`) enters the mode and then `return true;`
+/// (`:50`) -- there is no false. `MidiLearnMode::setupAndCheckAvailability`
+/// (`gui/context_menu/midi_learn_mode.cpp:50-53`) returns `currentUIMode == UI_MODE_MIDI_LEARN`
+/// (`:52`) *after* calling `sessionView.enterMidiLearnMode()` (`:51`), and that call reaches
+/// `View::startMIDILearn` (`gui/views/view.cpp:489-497`), which assigns the mode (`:493`) **only
+/// under** `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN` (`:490`). So the
+/// false answer means exactly one thing: some other UI mode was latched when the press landed, and
+/// MIDI learn did not arm.
+///
+/// **Discarding it is not special to these two sites**, which is worth saying because the opposite
+/// was assumed. `grep -rn "setupAndCheckAvailability" src/deluge` returns 41 lines; 14 are
+/// declarations or definitions and one is a doc comment in `shell_host_ui.h`, leaving **26 call
+/// sites, of which 11 discard the result and 15 bind it to a `bool available` and branch**
+/// (`gui/context_menu/save_song_or_instrument.cpp:62` is one of the 15;
+/// `gui/menu_item/reset_settings/reset.h:31` and `gui/views/session_view.cpp:522` are two of the 11).
+/// It is a split convention, and these two sites are on the discarding side of it. Reproduced, not
+/// improved.
+///
+/// @warning **What opening an unavailable MIDI-learn menu does, reported rather than fixed.** The
+///          context menu appears and reads "MIDI learn", but `currentUIMode` still holds the other
+///          mode, and every legacy MIDI-learn dispatch arm is gated on `currentUIMode ==
+///          UI_MODE_MIDI_LEARN` (`playback/playback_handler.cpp:2897`, `:2963`, `:3168`) -- so the
+///          menu learns nothing. `SessionView::enterMidiLearnMode` has meanwhile overwritten
+///          `previousGridModeActive` and forced `gridModeActive` to `SessionGridModeLaunch`
+///          (`gui/views/session_view.cpp:3072-3077`) regardless, and the exit restores those
+///          (`:3079-3083`) while `View::endMIDILearn` leaves the latched mode alone, because it only
+///          clears `currentUIMode` when it *is* `UI_MODE_MIDI_LEARN` (`gui/views/view.cpp:511-513`).
+///          So it is a cosmetic-but-real defect -- a menu that cannot do its job -- and it is
+///          legacy's, unchanged here.
 ///
 /// @par The `switch` has no `default:`, deliberately
 ///
