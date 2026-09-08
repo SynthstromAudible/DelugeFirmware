@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Warn about legacy line citations that certainly point at nothing.
+r"""Warn about legacy line citations that certainly point at nothing.
 
 The UI-redesign layers (`src/ui`, `src/scenes`, and their specs) document nearly every decision
 with a citation into the legacy tree -- `gui/menu_item/gate/selection.h:43-54 selectButtonPress`.
@@ -178,7 +178,7 @@ has had to remap by hand, and the ratio is worth knowing before you start: F1 ta
 entry points, `--strict` went from 0 to **134**, and the number of citations that had actually moved
 was **568**.
 
-Seven classes a regex-and-shift-map rewriter cannot see, all of them found the hard way:
+Eight classes a regex-and-shift-map rewriter cannot see, all of them found the hard way:
 
   * **bare continuations** (`` `:1804` ``) carry no path and are resolved from the previous citation
     ON THE SAME LINE -- so one written after a citation naming a *different* file resolves to the
@@ -210,17 +210,31 @@ Seven classes a regex-and-shift-map rewriter cannot see, all of them found the h
     `src/shell/scene.h`, which bumped that gate's line number and left "gates its **entire**
     `handle()`" standing -- **worse than leaving it stale, because an accurate line number reads as
     evidence the text was checked.** For every citation your commit's own diff touches the
-    *behaviour* of, re-read the surrounding sentence, not just the number.
+    *behaviour* of, re-read the surrounding sentence, not just the number;
+  * **the second endpoint of a range.** A `` :\d+ `` pattern -- which is what every ad-hoc rewriter
+    in this stack has been written with -- matches the FIRST number of `` `scene.h:500-552` `` and
+    stops, turning it into `510-552`: a range whose start has been swept and whose end has not,
+    which is a shape no reader would ever type. F1 task 10 caught one in flight and judged it a
+    property of that one rewriter rather than of sweeping. True, and exactly why it belongs here:
+    every task in this plan wrote an ad-hoc rewriter and every one of them would hit it. Anchor on
+    `` :(\d+)(-(\d+))? `` and rewrite both, or compare both endpoints afterwards.
 
 So run more than one mechanism, and make the second one compare CONTENT -- the text at the citation's
-old line in `HEAD` against the text at its rewritten line now -- rather than arithmetic. A third,
-cheap and genuinely independent, is to check each rewrite's delta against `git diff -U0`'s own hunks:
+old line in `HEAD` against the text at its rewritten line now -- rather than arithmetic.
+`scripts/check_citation_shift.py` is that mechanism, written for this after the trap's seventh
+instance and measured over F1's own history before it was kept: it pairs every citation into a file
+your range touched, old version against new, and prints both endpoints' text when they disagree. Its
+docstring carries the four things it structurally cannot do; the first of them is that it detects
+only citations your commit MOVED, never citations that are merely wrong. A third mechanism, cheap and
+genuinely independent, is to check each rewrite's delta against `git diff -U0`'s own hunks:
 that is what catches a brace-only line paired with the WRONG brace, which a content comparison cannot
 see because both lines are `}`.
 
-A fourth, and the only one that catches the last class: for each file your commit actually changed,
+A fourth, and the only one that catches the two classes no map can reach -- the claim around the
+citation, and the citation your own commit authored: for each file your commit actually changed,
 list the citations *into* it and read the sentence each one sits in. There is no automated form of
-this and there should not be a pretence of one.
+this and there should not be a pretence of one. It is what found F1 task 10's laundered claim in a
+SECOND file (`ui-shell-design.md`) after the review had found the first.
 
 **And print the lines. Do not guess them.** F1 task 9's own spot-check of two citations "looked
 wrong" and was not -- the ranges had been typed from memory rather than read out of the file, so the
