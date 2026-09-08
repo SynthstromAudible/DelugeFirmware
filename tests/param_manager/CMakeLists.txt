@@ -17,3 +17,10 @@ add_executable(ParamManagerTransferTests param_manager_transfer_tests.cpp
 target_include_directories(ParamManagerTransferTests PRIVATE mocks ../../src ../../src/deluge)
 target_compile_features(ParamManagerTransferTests PRIVATE cxx_std_23)
 add_test(NAME ParamManagerTransferTests COMMAND ParamManagerTransferTests)
+
+add_executable(ParamManagerAutomationTests param_manager_automation_tests.cpp
+	../../src/deluge/modulation/params/param_manager_automation.cpp
+	../../src/deluge/modulation/params/param_manager_type.cpp)
+target_include_directories(ParamManagerAutomationTests PRIVATE mocks ../../src ../../src/deluge)
+target_compile_features(ParamManagerAutomationTests PRIVATE cxx_std_23)
+add_test(NAME ParamManagerAutomationTests COMMAND ParamManagerAutomationTests)

@@ -182,48 +182,6 @@ void ParamManagerForTimeline::ensureSomeParamCollections() {
 	summary++;                                                                                                         \
 	}
 
-// You'll usually want to call mightContainAutomation() before bothering with this, to save time.
-void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* modelStack, int32_t ticksSinceLast,
-                                                bool reversed, bool didPingpong, bool mayInterpolate) {
-
-#if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
-	                              // with its "while".
-#endif
-
-	ticksSkipped += ticksSinceLast;
-	ticksTilNextEvent -= ticksSinceLast;
-
-	if (ticksTilNextEvent <= 0) {
-
-		ticksTilNextEvent = 2147483647;
-
-		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
-
-		// If we can't interpolate by samples then we'll interpolate by ticks instead. This has to happen *before*
-		// processCurrentPos(), because that may reach a node and set up a new increment for the span we're about to
-		// begin - whereas the ticks we've skipped belong to the span we've just finished. Applying them to the new
-		// increment sends the value far past its target (a whole inter-node gap's worth of a few-tick ramp), which for
-		// MIDI output means expression values well outside 0-127.
-		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
-			summary->paramCollection->tickTicks(ticksSkipped, modelStackWithParamCollection);
-		}
-
-		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
-		                                            true);
-		// Re-check after processCurrentPos(): if a node has just started some interpolation, we need to come back every
-		// tick to advance it.
-		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
-			ticksTilNextEvent = 0;
-		}
-		ticksTilNextEvent = std::min(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
-
-		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
-
-		ticksSkipped = 0;
-	}
-}
-
 void ParamManagerForTimeline::expectEvent(ModelStackWithThreeMainThings const* modelStack) {
 	TimelineCounter* timelineCounter = modelStack->getTimelineCounterAllowNull();
 	if (playbackHandler.isEitherClockActive() && (!timelineCounter || timelineCounter->isPlayingAutomationNow())) {

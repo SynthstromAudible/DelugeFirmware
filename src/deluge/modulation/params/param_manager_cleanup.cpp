@@ -1,6 +1,7 @@
 #include "memory/general_memory_allocator.h"
 #include "modulation/params/param_manager.h"
 
+// Does *not* forget MPE params
 void ParamManager::forgetParamCollections() {
 	summaries[0] = *getExpressionParamSetSummary();
 	summaries[1] = {0};
@@ -10,14 +11,18 @@ void ParamManager::forgetParamCollections() {
 	expressionParamSetOffset = 0;
 }
 
+// Main collections belong to the sound/output; expression belongs to the clip or note row. Also disposes of a
+// non-expression collection sitting in the expression slot, which an incompatible manager can have.
 void ParamManager::destructMainParamCollections() {
 	if (expressionParamSetOffset != 0 && expressionParamSetOffset != 1 && expressionParamSetOffset != 3) {
 #if ALPHA_OR_BETA_VERSION
 		FREEZE_WITH_ERROR("PM0C");
 #endif
+		// The expression slot cannot be trusted. Do not pass this offset to either accessor below.
 		destructAndForgetParamCollections();
 		return;
 	}
+	// An incompatible manager may also have the wrong collection in the expression slot.
 	ParamCollectionSummary expression = summaries[expressionParamSetOffset];
 	if (expression.paramCollection
 	    && expression.paramCollection->getParamKind() == deluge::modulation::params::Kind::EXPRESSION) {
@@ -34,6 +39,7 @@ void ParamManager::destructMainParamCollections() {
 	summaries[0] = expression;
 }
 
+// This one deletes MPE params too
 void ParamManager::destructAndForgetParamCollections() {
 	for (auto& summary : summaries) {
 		auto* collection = summary.paramCollection;
