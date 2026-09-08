@@ -1,21 +1,27 @@
-# **This script runs with `Services{}` -- three `NullService`s -- and so does every other menu
-# script here.** That is deliberate (the ruling is in E4's ledger: three plans' goldens were recorded
-# against null services, and re-recording them as a side effect of building the services would be a
-# diff nobody could review), but it means these goldens describe a shell with no mod-knob service in
-# it, and spec F will install one.
+# **This script now runs with the three REAL services installed, UNSEEDED** -- `svc.song` set,
+# `svc.mod_target` left null (F1 task 11 fix round 2). It used to run with `Services{}`, three
+# `NullService`s, and so did every other menu script here; twelve of them moved, and the twelve that
+# drive no gold turn did not. What the install cost these goldens is exactly two lines per frame,
+# `indicator lower 0 0 0 0` and `indicator upper 0 0 0 0` -- `ModKnobs::leds` declaring both rings
+# dark because there is no target. No pixel moved and no assertion changed.
+#
+# **Do not read this script's `after_gold_turn` as settling anything about gold turns under real
+# services.** Unseeded is exactly the configuration in which the swallowed-turn defect below cannot
+# bite. Seeding, and the debounce arming that has to come with it, are still owed.
 #
 # **This file used to say the answer for THIS script was measured, and was "nothing moves".** The
 # `300 encoder GoldUpper +2` step below is claimed by `MenuScene`'s own `int_value` widget during
 # render, so `Router::route_post_render` drops the event before `Router::run_chain` is entered
 # (`src/shell/README.md`) and `services::ModKnobs` never sees it -- and the conclusion drawn from
-# that, that installing the services would leave this script alone, is **false**.
+# that, that installing the services SEEDED would leave this script alone, is **false**.
 #
-# F1 task 11 installed the real three over this block and measured it: the spec's own assertion that
-# `+2` detents on `nodes::saturation` reads back 4 **fails, reading 0**, and
-# `after_gold_turn.oled0.pbm` moves with it (the leaf draws 0 instead of 4). No `ParamPopupScene` is
-# pushed -- that half of the old claim survives -- so the turn is still not going through the chain.
+# F1 task 11 installed the real three over this block WITH a seeded target and measured it: the
+# spec's own assertion that `+2` detents on `nodes::saturation` reads back 4 **fails, reading 0**,
+# and `after_gold_turn.oled0.pbm` moves with it (the leaf draws 0 instead of 4). No `ParamPopupScene`
+# is pushed -- that half of the old claim survives -- so the turn is still not going through the
+# chain.
 #
-# **The turn is swallowed by the gold-knob wiggle debounce, and a service is what armed it.**
+# **The turn is swallowed by the gold-knob wiggle debounce, and seeding a target is what armed it.**
 # `InputLowering::action_gold_turn` runs on the gold path unconditionally, gated on no service --
 # the Continuous arm of `InputLowering::apply_encoder_edges` (`shell/input_lowering.cpp:191`),
 # which `on_encoder_edges` forwards to (`:158-163`). It swallows a turn unless
@@ -24,16 +30,17 @@
 # array through `InputLowering::pretend_knob_untouched` (`input_lowering.cpp:451-461`,
 # `last_turn_ms_ = now_ms - 1000`), and the fixture reaches it twice at construction --
 # `set_target_with_timeline` (`mod_knobs.cpp:120`) and `set_mod_region` (`:165`) -- **but only with a
-# `mod_target` seeded**. So for the `300 encoder GoldUpper +2` step below:
+# `mod_target` seeded**, which is why the fixture here leaves it null. So for the `300 encoder
+# GoldUpper +2` step below:
 #
-#   Services{} or an unseeded ModKnobs:  300 - 0        =  300 <  500  -> acted    -> 4
+#   Services{} or an unseeded ModKnobs:  300 - 0        =  300 <  500  -> acted    -> 4  <- what runs
 #   real three with a seeded mod_target: 300 - (0-1000) = 1300 >= 500  -> swallowed -> 0
 #
 # E4's final review added `tests/ui-scripts/shell/menu_gold_turn.txt`, which drives this same node
 # with the real three installed and DOES record the value moving to 4. The difference is one step:
 # that script turns `+1` at t=100 first, setting `last_turn_ms_` to 100, so its `+2` at t=150 sees
 # `50 < 500` and acts. **Arming the debounce the same way here is the owed fix**, and it has to come
-# before the re-record -- otherwise the new goldens depict a first-turn-swallowed gesture and this
+# with the seeding -- otherwise the seeded goldens depict a first-turn-swallowed gesture and this
 # script stops recording the edit it exists for. See `sim/scenes_spec/menu_scripts_spec.cpp`'s
 # header for the full measurement and the residual (two indicator lines plus `led Mod1 on`).
 #

@@ -3,8 +3,12 @@
 # real `services::ModKnobs` in the same run.
 #
 # **What it pins.** Every menu golden in `menu_scripts_spec.cpp` was recorded with `Services{}` --
-# three `NullService`s -- so none of them can show what a menu does when a service that also wants
-# gold-knob turns is present. This one does: the menu's own `int_value` widget reads the turn during
+# three `NullService`s -- so none of them could show what a menu does when a service that also wants
+# gold-knob turns is present. Twelve of those scripts now install the real three UNSEEDED (F1 task 11
+# fix round 2), which narrows but does not close that gap: with no `mod_target`, nothing backdates
+# `InputLowering`'s knob clock, so their gold turns behave exactly as they did under `Services{}`.
+# **This is still the only recorded frame on the stack with a SEEDED `ModKnobs` behind a menu.**
+# What it pins: the menu's own `int_value` widget reads the turn during
 # render and CLAIMS it, so `Router::route_post_render` drops the event before the chain runs
 # (`shell/README.md`, "skipping any input `ctx().claims` shows a widget already took"), `ModKnobs`
 # never sees it, and no `ParamPopupScene` is pushed. The value moves in the menu, on the panel.

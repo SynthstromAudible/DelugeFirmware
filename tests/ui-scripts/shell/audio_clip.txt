@@ -20,8 +20,10 @@
 # **The real services are visible in every `.state` here.** `led Mod0 on` and the two `indicator`
 # lines are `ModKnobs::leds`; `led Record on` and `led Play on`, from `after_record` onwards, are
 # `GlobalControls::leds` (`services/global_controls.cpp:601-616`, the port of
-# `PlaybackHandler::setLedStates`). A run with `Services{}` -- which is every other script in this
-# directory -- has none of them. **An LED declared `Off` is not written to `.state` at all**
+# `PlaybackHandler::setLedStates`). A run with `Services{}` has none of them -- and that is no longer
+# every other script here: `menu_scripts_spec.cpp`'s twelve gold-turn scripts install the real three
+# UNSEEDED (F1 task 11 fix round 2), so they carry the two `indicator` lines but no `led Mod*` line,
+# because an unseeded `ModKnobs` declares both rings dark and lights no mod LED. **An LED declared `Off` is not written to `.state` at all**
 # (`script_runner.h`'s `state_text`), which is why TAP TEMPO, SYNC SCALING, SAVE, LOAD and CLIP do
 # not appear: this fixture has no metronome, no sync-scaling clip and nothing held. `MidiLearn`
 # contributes nothing here either -- LEARN is off unless learn mode is entered, which no script on

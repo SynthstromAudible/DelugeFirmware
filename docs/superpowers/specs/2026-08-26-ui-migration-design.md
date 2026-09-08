@@ -686,15 +686,33 @@ rather than a thing that is half-done:
    twelve unseeded the re-record is **57 `.state` files, +2 lines each
    (`indicator lower/upper 0 0 0 0`), zero pixels**.
 
-   Still refused, on the better premise. The **seeded** fixture is the right one — the application
-   seeds a target too (`src/deluge/gui/ui/shell_guest_services.cpp:104`, `:111`), so unseeded
-   goldens would describe a shell no application has — but recording it today makes those 11 frames
-   depict a **first-turn-swallowed** gesture, so the scripts stop recording the edits they exist
-   for: a worse oracle, not a re-recorded one. (Same gap `menu_scripts_spec.cpp`'s header already
-   names: on the device `now_ms` is uptime, so the debounce is never pre-armed.) Owed, concretely:
-   **arm the debounce in these scripts the way `menu_gold_turn.txt` already does** — a leading
-   detent inside `short_press_ms` — then install seeded services and re-record; the residual is then
-   the two indicator lines plus `led Mod1 on`. The one piece already done is the fixture move.
+   **The install has landed, UNSEEDED** (F1 task 11 fix round 2, after the re-review reversed the
+   first refusal by performing the recording itself). The twelve gold-turn blocks install the real
+   three through `sim/scenes_spec/support/real_services.h` with `svc.song` set and `svc.mod_target`
+   left null; the other twelve keep `Services{}` because they drive no gold turn. Measured cost:
+   **57 `.state` files, 114 insertions, 0 deletions, 0 `.pbm`, 0 value assertions**, every inserted
+   line one of `indicator lower 0 0 0 0` / `indicator upper 0 0 0 0` — `ModKnobs::leds` declaring
+   both rings dark for want of a target. `led Mod1 on` does not appear; that comes from seeding.
+
+   The argument for doing it: `Services{}` is three nulls, which is **further** from the application
+   than an unseeded `ModKnobs`, so this was never a choice between a right fixture and a wrong one —
+   it is very wrong versus one seeded step from right, and 114 lines of a single repeated pair is
+   not the ambiguous two-cause diff E4 task 13's rule exists to prevent. That rule still binds; it
+   does not reach this case.
+
+   **Caution, and it is the part that keeps the goldens honest: unseeded is exactly the
+   configuration in which the swallowed-turn defect cannot bite.** With no `mod_target` nothing
+   backdates the knob clock, so every gold turn in those 57 frames acts as it did under
+   `Services{}`. They record the services being present; they settle nothing about the gesture, and
+   the caution is written at the goldens themselves (`menu_scripts_spec.cpp`'s `@warning`,
+   `tests/ui-scripts/shell/menu_int.txt`).
+
+   **Still owed, as a named edit rather than a research task:** seed `svc.mod_target`, arm the
+   debounce in each script the way `tests/ui-scripts/shell/menu_gold_turn.txt` already does (one
+   leading detent inside `short_press_ms`), and re-record. Measured cost of that step: `led Mod1 on`
+   on 57 frames plus **11 `.pbm` files moving pixels** — `menu_chain` (3), `menu_int` (1),
+   `menu_patch_cables` (1), `menu_range` (4), `menu_submenu_horizontal` (2) — and the two value
+   assertions above, which is precisely the diff the debounce arming exists to prevent.
 
 ### 10.3 Two consequences of the deletion that are not preconditions but must be planned for
 

@@ -1,1 +1,3 @@
 scene Console
+indicator lower 0 0 0 0
+indicator upper 0 0 0 0

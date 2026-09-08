@@ -1,3 +1,5 @@
 scene Console
 scene app16/76
 led Back blink 110
+indicator lower 0 0 0 0
+indicator upper 0 0 0 0

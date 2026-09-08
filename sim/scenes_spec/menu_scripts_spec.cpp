@@ -99,89 +99,93 @@
 /// rather than papered over; closing it means a script whose clock starts past `short_press_ms`,
 /// which `RunOptions` has no way to express today.
 ///
-/// @par Every script here runs with `Services{}`, and some of these goldens are owed a re-record
+/// @par The twelve gold-turn scripts install the real three, UNSEEDED -- and what that does not settle
 ///
-/// All 24 `expect_script_goldens` calls in this file pass `deluge::ui::shell::Services{}` -- three
-/// `NullService`s. That is E4's own ruling and not an oversight (three plans of goldens were
-/// recorded that way; re-recording them as a side effect of building the services would be a diff
-/// nobody could review), but it means these frames describe a shell with no mod-knob service in it,
-/// and spec F installs one. Twelve of these scripts drive 19 gold-knob turns between them.
+/// **Twelve of the 24 `expect_script_goldens` calls here install `services::ModKnobs`,
+/// `GlobalControls` and `MidiLearn` through `support/real_services.h`, with `svc.song` set and
+/// `svc.mod_target` deliberately LEFT NULL.** The other twelve still pass
+/// `deluge::ui::shell::Services{}` -- three `NullService`s -- because they drive no gold turn and
+/// the install would move their goldens for nothing.
 ///
-/// **The prediction this paragraph used to make was wrong, and F1 task 11 measured it wrong.**
-/// It said the split was decided by the page: a turn the page's widget CLAIMS (`menu_int`'s Int
-/// leaf) reaches `Router::route_post_render` and is dropped before `Router::run_chain`, so
-/// installing the services would change nothing; a turn the page does not claim (`menu_decimal`'s
-/// first) would fall through the chain and make `services::ModKnobs` write the mod param and push a
-/// `ParamPopupScene` -- "a second `scene` line in `.state` and a value strip in the `.pbm`".
+/// Migration §10.2 blocker 9 asked for this, F1 task 11 first refused it, and the task-11 re-review
+/// reversed that by doing the recording itself and showing what it costs: **57 `.state` files, 114
+/// insertions, 0 deletions, 0 `.pbm` files, 0 value assertions**. Every inserted line is one of
+/// exactly two:
 ///
-/// Task 11 installed the real three here, over all twelve gold-turn blocks, through
-/// `support/real_services.h`, and re-recorded into a scratch tree to see. **Neither half held:**
+///     indicator lower 0 0 0 0
+///     indicator upper 0 0 0 0
 ///
-///   * **No `ParamPopupScene` appeared anywhere.** Across all 68 moved golden files, the diff
-///     contains not one added or removed `scene` line. The predicted popup does not happen.
-///   * **The CLAIMED turns changed, and changed the model.** `menu_int`'s own C++ assertion --
-///     `+2` detents on `nodes::saturation` reads back 4 -- **fails, reading 0**, and
-///     `after_gold_turn.oled0.pbm` moves with it (the leaf draws 0 where the committed golden
-///     draws 4). `menu_submenu_horizontal`'s equivalent goes 32 -> 28.
-///   * The uniform part is real and is only the uniform part: **57 `.state` files gain exactly
-///     `led Mod1 on` and the two `indicator` lines** -- `ModKnobs` declaring the mod LED and both
-///     rings on every tick. **11 `.pbm` files move pixels**, in five scripts: `menu_chain` (3),
-///     `menu_int` (1), `menu_patch_cables` (1), `menu_range` (4), `menu_submenu_horizontal` (2).
+/// -- `ModKnobs::leds` declaring both mod-knob rings on every tick, all four quadrants dark because
+/// there is no target to read a level from. `led Mod1 on` does **not** appear; that comes from
+/// seeding, and seeding is still owed. The reversal's argument is the one that matters: `Services{}`
+/// is three nulls, which is *further* from the application than an unseeded `ModKnobs`, so this was
+/// never a choice between a right fixture and a wrong one -- it is very wrong versus one seeded step
+/// from right, and 114 lines of a single repeated pair is not the ambiguous two-cause diff E4 task
+/// 13's rule exists to prevent.
 ///
-/// @par Why the claimed turns move: a service reaching into the lowering behind the router
+/// @warning **Unseeded is exactly the configuration in which the swallowed-turn defect cannot
+///          bite.** Do not read these goldens as settling anything about gold turns under real
+///          services. What swallows a turn is `InputLowering::action_gold_turn`'s wiggle debounce
+///          (below), and what arms it is `ModKnobs::pretend_knobs_untouched()` -- which
+///          `RealServices::installer()` reaches **only when a `mod_target` is seeded**. With a null
+///          target nothing backdates the knob clock, so every gold turn in these frames acts exactly
+///          as it did under `Services{}`. These 57 frames record the *services being present*. They
+///          record nothing about the gesture.
 ///
-/// The task-11 review found the mechanism, and it is three files away. **The router is not
-/// involved, which is why looking at the router found nothing.**
+/// **Still owed, and it is now a named edit rather than a research task:** seed `svc.mod_target`,
+/// arm the debounce in each script the way `tests/ui-scripts/shell/menu_gold_turn.txt` already does
+/// (one leading detent inside `short_press_ms`), and re-record. Measured cost of that step, from the
+/// task-11 scratch run with targets seeded: `led Mod1 on` on 57 frames plus **11 `.pbm` files moving
+/// pixels** -- `menu_chain` (3), `menu_int` (1), `menu_patch_cables` (1), `menu_range` (4),
+/// `menu_submenu_horizontal` (2) -- and two C++ value assertions changing, which is precisely the
+/// diff the debounce arming is there to prevent.
+///
+/// @par Why a seeded install swallows the turn: a service reaching into the lowering behind the router
+///
+/// The prediction this file used to carry was that the split was decided by the page -- a turn the
+/// page's widget CLAIMS is dropped by `Router::route_post_render` before `Router::run_chain`, so
+/// installing the services would change nothing; an unclaimed turn would fall through and make
+/// `ModKnobs` push a `ParamPopupScene`. **Neither half held.** No `ParamPopupScene` appears anywhere
+/// (not one added or removed `scene` line, in either the seeded or the unseeded recording), and the
+/// CLAIMED turns changed under seeding. The mechanism is three files away and the router is not in
+/// it, which is why looking at the router found nothing:
 ///
 ///   1. The gold path runs `InputLowering::action_gold_turn` **unconditionally** -- the Continuous
 ///      arm of `InputLowering::apply_encoder_edges` (`shell/input_lowering.cpp:191`), which
 ///      `on_encoder_edges` forwards to (`:158-163`), gated on no service at all. Its
 ///      wiggle debounce is `(now_ms - last_turn_ms_[role]) < cfg_.short_press_ms` (`:214`, with
 ///      `short_press_ms` = 500, `input_lowering.h:26`), and a turn that fails it is recorded and
-///      **swallowed** (`:216-222`).
+///      **swallowed** -- the test at `:216`, the direction recorded at `:223`, the refusal at
+///      `:224`.
 ///   2. `ModKnobs::pretend_knobs_untouched()` (`scenes/services/mod_knobs.cpp:193-197`) writes that
 ///      same array from the other side, through `InputLowering::pretend_knob_untouched`
 ///      (`input_lowering.cpp:451-461`): `last_turn_ms_[role] = now_ms - kPretendUntouchedMs`, and
 ///      `kPretendUntouchedMs` is 1000 (`input_lowering.h:395`).
 ///   3. `RealServices::installer()` reaches it twice at construction -- `set_target_with_timeline`
 ///      (`mod_knobs.cpp:120`) and `set_mod_region` (`:165`) -- but **only when a `mod_target` is
-///      seeded**, since both are skipped for a null one.
+///      seeded**, since both are skipped for a null one. That is the whole reason the fixture below
+///      leaves it null.
 ///
 /// The arithmetic closes it exactly, at this file's `300 encoder GoldUpper +2`:
 ///
 /// | fixture | `last_turn_ms_[GoldUpper]` | test at t=300 | result |
 /// |---|---|---|---|
 /// | `Services{}` | 0 | `300 - 0 = 300 < 500` | acted -> **4** |
-/// | real three, `mod_target = nullptr` | 0 | same | acted -> **4** |
+/// | real three, `mod_target = nullptr` (**what runs here**) | 0 | same | acted -> **4** |
 /// | real three, `mod_target` seeded | `0 - 1000` (unsigned wrap) | `1300 >= 500` | swallowed -> **0** |
 ///
 /// And it explains the disagreement with `scene_scripts_spec.cpp`'s `menu_gold_turn`, which drives
-/// the same node with the same services and reads 4: its script turns `+1` at t=100 first, which
-/// sets `last_turn_ms_` to 100, so the `+2` at t=150 sees `50 < 500` and acts. That leading detent
-/// is the whole difference.
+/// the same node with the same services SEEDED and still reads 4: its script turns `+1` at t=100
+/// first, which sets `last_turn_ms_` to 100, so the `+2` at t=150 sees `50 < 500` and acts. That
+/// leading detent is the whole difference, and it is the edit the scripts here are owed.
 ///
 /// **The seam worth naming for whoever installs the next service**: a service mutated shared
 /// `InputLowering` state at construction, and the effect is observable in a debounce that no
 /// routed event passes through. "The router never gave it the event" was true and irrelevant.
 ///
-/// **Measured again after the review, and it corrects task 11's first pass**, which reported "1
-/// with `svc.mod_target = nullptr`" -- a misread of interleaved CppSpec output from a run with
-/// twelve blocks patched. With only this block patched: seeded fails 4 -> 0; unseeded raises **no
-/// failure at all**. And with all twelve unseeded, `GFX_GOLDEN_UPDATE=1` moves **57 `.state` files
-/// by exactly two lines** (`indicator lower 0 0 0 0`, `indicator upper 0 0 0 0`), **zero `.pbm`
-/// files**, with every C++ assertion passing.
-///
-/// **So the refusal stands, on a better premise than "unexplained".** The seeded tree is the one
-/// worth having -- the application seeds a target too (`gui/ui/shell_guest_services.cpp:104`,
-/// `:111`), so unseeded goldens would describe a shell no application has -- but recording it today
-/// would make those 11 frames depict a **first-turn-swallowed** gesture: the scripts would stop
-/// recording the edits they were written to record, which is a worse oracle rather than a
-/// re-recorded one. (It is the same gap this file's own header already names: on the device
-/// `now_ms` is uptime, so the debounce is never pre-armed and the first gold turn after a pause is
-/// always swallowed.) The owed work is now concrete: **arm the debounce in these scripts the way
-/// `menu_gold_turn.txt` already does** -- a leading detent inside `short_press_ms` -- then install
-/// seeded services and re-record, at which point the residual is the two indicator lines plus
-/// `led Mod1 on`.
+/// **One number in this file's history was wrong and is corrected here**: task 11's first pass
+/// reported "1 with `svc.mod_target = nullptr`", which was a misread of interleaved CppSpec output.
+/// Re-run with a single block patched, unseeded raises no failure at all.
 ///
 /// `src/scenes/README.md`'s carry table, the migration spec's §10.2 blocker list and F1 task 11's
 /// report all carry this row.
@@ -231,6 +235,13 @@
 // headers this drags in (`audio_engine.h` -> `util/container/ordered_pos_vector.h`). Same placement
 // rule `browser_scene_spec.cpp`, `marker_scene_spec.cpp` and `recorder_scene_spec.cpp` run under.
 #include "support/card_access.h"
+
+// Before `script_runner.h`, which is what actually drags `<cppspec.hpp>` in (`script_runner.h:10`)
+// -- so "before cppspec" is not enough here, it has to be before this line. `real_services.h`
+// reaches `scenes/overlay/param_popup_scene.h`, whose `push` takes a parameter named `context`
+// (`:163`), and CppSpec `#define`s `context` to `self.context` (`cppspec.hpp:23`). The same
+// placement rule as `card_access.h` above, for the same kind of collision on a different keyword.
+#include "support/real_services.h"
 
 #include "spec/shell/support/script_runner.h"
 
@@ -595,8 +606,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::saturation)},
 		};
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_int", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
+		    uitest::expect_script_goldens(self, "menu_int", scenes::scene_registry(), svc.slots(), opts);
 		// Three, not five: E3 task 10 dropped the Select-turn and Select-press snapshots. Their
 		// `.pbm` halves were byte-identical to `idle`, for two different reasons the script file's
 		// own comments name (`render_leaf_int` claims-and-ignores the turn; the press's `ascend()`
@@ -640,8 +656,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::source0_transpose)},
 		};
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_decimal", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
+		    self, "menu_decimal", scenes::scene_registry(), svc.slots(), opts);
 		// Five, not six: the script's first GoldUpper turn lands on a page that reads no edit
 		// encoder, so its snapshot was byte-identical to `after_select_press` and was dropped (fix
 		// round 1) -- the *step* stays, because the "unchanged" assertion below is about it.
@@ -683,8 +704,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::lpf_mode)},
 		};
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
-		    uitest::expect_script_goldens(self, "menu_enum", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
+		    uitest::expect_script_goldens(self, "menu_enum", scenes::scene_registry(), svc.slots(), opts);
 		// Three, not five: E3 task 10 dropped the Select-press and GoldUpper-turn snapshots -- both
 		// were byte-identical to `after_select_turn`, for the two reasons the script file's own
 		// comments name. The steps stay; the final assertion below (`before + 1`, not `+2`) is their
@@ -715,8 +741,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::osc_sync)},
 		};
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_toggle", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
+		    self, "menu_toggle", scenes::scene_registry(), svc.slots(), opts);
 		// Three, not five: E3 task 10 dropped the Select-press and GoldUpper-turn snapshots, for the
 		// same two reasons as `menu_enum` above. The steps stay; the final assertion below (flipped
 		// exactly once, not twice) is their proof.
@@ -745,8 +776,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    .profile = &deluge::scenes::deluge_profile(),
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(nodes::lpf)},
 		};
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_submenu_horizontal", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
+		    self, "menu_submenu_horizontal", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
@@ -775,8 +811,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(nodes::sound_root)},
 		};
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_shortcut", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
+		    self, "menu_shortcut", scenes::scene_registry(), svc.slots(), opts);
 		// Five: `lpf_freq` is a `PatchedParam` node too, so the script gained a second GoldUpper turn
 		// after the Back -- and lost the first one's empty snapshot, same as `menu_decimal` above. E3
 		// task 10 dropped a second one, `after_select_turn` (byte-identical to `after_shortcut`, for
@@ -813,8 +854,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    .initial_scene = deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp,
 		                                               menu::node_id(range_perm_root)},
 		};
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_range_permission", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
+		    self, "menu_range_permission", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{4});
 
 		// The script ends with a Back, so the wrapper is on screen again -- but `after_select_press`
@@ -850,8 +896,14 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		const deluge::scenes::menu::IntRange sync_range = bindings::range(nodes::delay_sync, ctx);
 
+		uitest::RunOptions opts = opts_for(nodes::delay_sync);
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_sync_level", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::delay_sync));
+		    self, "menu_sync_level", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{3});
 
 		// `SyncLevel` derives from `Enumeration`, not `Integer` (`gui/menu_item/sync_level.h:27`), and
@@ -881,8 +933,14 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		const deluge::scenes::menu::IntRange count_range = bindings::range(nodes::unison_count, ctx);
 		const deluge::scenes::menu::IntRange spread_range = bindings::range(nodes::unison_spread, ctx);
 
+		uitest::RunOptions opts = opts_for(nodes::unison_count);
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_chain", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::unison_count));
+		    self, "menu_chain", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{6});
 
 		// `CountToStereoSpread::selectButtonPress` (`gui/menu_item/unison/count.h:76-79`) navigates
@@ -915,8 +973,14 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper = 200;
 		menu_scene().open(nodes::default_tempo, ctx);
 
+		uitest::RunOptions opts = opts_for(nodes::default_tempo);
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
-		    self, "menu_range", scenes::scene_registry(), deluge::ui::shell::Services{}, opts_for(nodes::default_tempo));
+		    self, "menu_range", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// The page opened already on the LEFT edge (`kDefaultTempoSpec.focus_left_when_split`, legacy's
@@ -1114,9 +1178,15 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		const int32_t selected_before = set->patchCables[0].param.getCurrentValue();
 
 		menu_scene().open(nodes::patch_cables, ctx);
+		uitest::RunOptions opts = opts_for(nodes::patch_cables);
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "menu_patch_cables", scenes::scene_registry(),
-		                                  deluge::ui::shell::Services{}, opts_for(nodes::patch_cables));
+		                                  svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// The script's two saturating `Horizontal` steps left the digit cursor on the hundreds place
@@ -1220,9 +1290,15 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		}
 		menu_scene().open(nodes::midi_devices, ctx);
 
+		uitest::RunOptions opts = opts_for(nodes::midi_devices);
+		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
+		// `@par Every script here installs the real three, unseeded`.
+		spec::RealServices svc;
+		svc.song = song.song;
+		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "menu_midi_device", scenes::scene_registry(),
-		                                  deluge::ui::shell::Services{}, opts_for(nodes::midi_devices));
+		                                  svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{10});
 
 		// The script picked the SECOND row, the OUT direction and the UPPER zone -- the non-default

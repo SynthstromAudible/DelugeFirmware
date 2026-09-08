@@ -392,7 +392,8 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	//     is true (`scenes/menu/menu_scene.h:457`), so `opaque()` is false and this function
 	//     answers transparent exactly as the paragraph above describes.
 	//       (a) **The shell's own flush paints black.** `GuestSurfaceSet::send_columns`
-	//           (`gui/ui/shell_guest_surfaces.cpp:156-172`) writes `PadLEDs::image` and calls
+	//           (`gui/ui/shell_guest_surfaces.cpp:137-173`, the writes at `:169-170`) writes
+	//           `PadLEDs::image` and calls
 	//           `sortLedsForCol` itself, so the menu's all-black grid reaches the hardware without
 	//           passing through legacy's walk at all.
 	//       (b) **Legacy's walk never runs while the guest is open.** Nothing in this class calls
