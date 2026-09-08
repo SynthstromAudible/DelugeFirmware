@@ -178,7 +178,7 @@ has had to remap by hand, and the ratio is worth knowing before you start: F1 ta
 entry points, `--strict` went from 0 to **134**, and the number of citations that had actually moved
 was **568**.
 
-Eight classes a regex-and-shift-map rewriter cannot see, all of them found the hard way:
+Nine classes a regex-and-shift-map rewriter cannot see, all of them found the hard way:
 
   * **bare continuations** (`` `:1804` ``) carry no path and are resolved from the previous citation
     ON THE SAME LINE -- so one written after a citation naming a *different* file resolves to the
@@ -211,6 +211,26 @@ Eight classes a regex-and-shift-map rewriter cannot see, all of them found the h
     `handle()`" standing -- **worse than leaving it stale, because an accurate line number reads as
     evidence the text was checked.** For every citation your commit's own diff touches the
     *behaviour* of, re-read the surrounding sentence, not just the number;
+  * **a citation written in, or pointing into, a Python script.** `SCAN_ROOTS` below has no
+    `scripts/` and `SCAN_SUFFIXES` has no `.py`, so a citation *written in* one is never read; and
+    `scripts/` is in neither `CITED_ROOT` nor `PORT_CITED_ROOTS`, so a citation *into* one is
+    unresolvable. Both halves are blind, and so is `check_citation_shift.py`, which borrows this
+    file's roots. F1 task 12 shipped two of exactly this shape in one commit --
+    `check_layer_rules.py`'s `(include, *excludes)` note cited `:214-226` for `rule_covers` (really
+    `:716-728`) and `:98` for the row that uses the tuple (really `:313`), *both already wrong at
+    that task's own base*, which is how long nothing had looked.
+
+    **Measured, and deliberately NOT closed** (F1 task 12, 2026-09-08). Adding `scripts` to
+    `SCAN_ROOTS` and `.py` to `SCAN_SUFFIXES` takes the tree from 2 flags to **13**. All **11** new
+    ones are false positives *by construction*, and all 11 are in the two files that cannot avoid
+    them: eight in **this docstring**, which quotes deliberately-wrong citations as worked examples
+    (`services/mod_knobs.cpp:99999`, `hid/display/oled.cpp:99999`, the eight `src/shell` drifts the
+    `CITED_ROOT` widening found), and three in **`citation_exceptions.txt`**, whose entire job is to
+    name citations that are wrong. **Zero** new flags come from any of the other 40 scripts.
+    Suppressing them needs a per-file exclusion `SCAN_ROOTS` does not have, and a checker that must
+    exempt itself and its own exception list to run over its own directory is a mechanism, not a
+    configuration change -- so the number is recorded here instead. With those two files excluded it
+    is 0, which is the measurement a future round starts from rather than re-derives;
   * **the second endpoint of a range.** A `` :\d+ `` pattern -- which is what every ad-hoc rewriter
     in this stack has been written with -- matches the FIRST number of `` `scene.h:500-552` `` and
     stops, turning it into `510-552`: a range whose start has been swept and whose end has not,

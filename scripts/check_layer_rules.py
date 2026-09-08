@@ -419,8 +419,14 @@ RULES = [
         # but names every other allowed directory explicitly rather than the two forbidden ones --
         # this row restates the gui/hid half on its own so a reviewer scanning by rule name finds
         # it without re-deriving the negation. The (include, *excludes) glob tuple already exists
-        # (`rule_covers`, check_layer_rules.py:214-226, as ui-widgets-read-input-directly uses at
-        # :98) -- no checker change needed; this row needs no `except` field of its own.
+        # (`rule_covers`, check_layer_rules.py:769-781, as ui-widgets-read-input-directly uses at
+        # :313) -- no checker change needed; this row needs no `except` field of its own.
+        #
+        # Both numbers in that parenthetical were wrong before F1 task 12 as well as after it, and
+        # they are why `SCAN_ROOTS` now reaches `scripts/`: nothing has ever read a citation written
+        # in a Python file. At 32f4d4551 `:214-226` was the `ui-grid-no-oled` row and `:98` was a
+        # `CATALOGUE_DISPATCH_CALLS` entry -- neither has been `rule_covers` or a glob tuple for
+        # several plans.
         "scenes-includes-gui",
         "src/scenes/**",
         "include",
@@ -521,6 +527,34 @@ RULES = [
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
+        # Same rule, `src/shell/**` side -- one glob per row, as `shell-no-clock` is three rows and
+        # `scenes-no-legacy-waveform` two. Added by F1 task 12, and the argument is NOT that F1
+        # created the exposure. It did not, and that was checked before the row was written:
+        # `deluge_app` has `PUBLIC`-linked `deluge_ui_shell` since `6bf7f1dbf` (plan D's shell
+        # skeleton, `src/deluge/CMakeLists.txt:47-62`), an ancestor of F1's own base -- so a bare
+        # `extern SoundEditor soundEditor;` in `src/shell` has resolved in every binary that
+        # matters for several plans. What is true is that **nothing has ever checked it**:
+        # `scenes-no-root-ui` and `scenes-no-legacy-hid-drivers` are scoped to `src/scenes/**` and
+        # `src/ui/**` and to neither is `src/shell/**` added, while `shell-includes-outside` is an
+        # INCLUDE row that a bare `extern` walks straight past -- which is the same gap, in the same
+        # spelling, that `scenes-no-root-ui` exists for one layer up.
+        #
+        # F1 is only why it became worth closing: the shell now runs inside the shipping firmware as
+        # `ShellHostUI`'s guest, so a shell file naming `soundEditor` would be naming the very object
+        # the guest replaces, in the same image, at run time.
+        #
+        # Measured on the tree at the time of writing: zero hits, so the baseline does not move.
+        "scenes-no-root-ui",
+        "src/shell/**",
+        "symbol",
+        r"\b("
+        + "|".join(ROOT_UI_GLOBALS)
+        + r")\b|\b("
+        + "|".join(UI_STACK_CALLS)
+        + r")\(",
+        "2026-08-26-ui-shell-design.md",
+    ),
+    (
         # The notify seam's half of the same argument. `model-calls-display` above holds the
         # model layer to this; NON_UI does not cover `src/scenes`, so until now nothing did.
         # A scene reports to the user through `notify::` and `Action::Kind::Popup` (E2 task 5's
@@ -604,6 +638,25 @@ RULES = [
         "symbol",
         LEGACY_HID_DRIVER_RE,
         "2026-08-26-ui-toolkit-design.md",
+    ),
+    (
+        # ...and the `src/shell/**` side, F1 task 12, on the argument the `scenes-no-root-ui` shell
+        # row above sets out in full: the exposure is plan D's, not F1's, and what was missing is
+        # the check. It matters more here than the root-UI half, because these five are exactly what
+        # the shell's own seams replace -- `SurfaceSet::set_led`/`set_indicator` for
+        # `indicator_leds::` and `PadLEDs::`, `Service::next_timer()` for `uiTimerManager.`, and the
+        # `RepaintGate`s for `uiNeedsRendering`/`renderUIsForOled`. A shell file reaching for one is
+        # reaching around its own hardware seam, which is the one thing `src/shell` is for.
+        #
+        # `src/shell/board_surfaces.cpp` is deliberately NOT excluded: it binds the sinks to
+        # `libdeluge`, not to legacy's `hid/`, and it has zero hits.
+        #
+        # Measured on the tree at the time of writing: zero hits, so the baseline does not move.
+        "scenes-no-legacy-hid-drivers",
+        "src/shell/**",
+        "symbol",
+        LEGACY_HID_DRIVER_RE,
+        "2026-08-26-ui-shell-design.md",
     ),
     (
         # Global Constraint 5, which every plan since E2 has restated in prose and no checker has

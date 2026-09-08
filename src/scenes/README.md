@@ -887,7 +887,7 @@ Seven things are worth finding from here rather than from the header.
   global `slicer` as a whole word, and `#include "scenes/slicer/slicer_scene.h"` contains that whole
   word. Measured with the path put back and the namespace left alone: **two violations, in two
   files, one line each** — this scene's own include and `registry.cpp`'s. (`count_file` skips
-  comment-only lines, `check_layer_rules.py:490-532`, so the prose mentions never counted.) Two real
+  comment-only lines, `check_layer_rules.py:849-853`, so the prose mentions never counted.) Two real
   include lines is not "the path is impossible"; it is "the row as written flags this path, and
   narrowing it to skip `#include` would preserve its stated purpose exactly". That narrowing is a
   change to a shared checker, so it is an open question for E4 task 14 and the local fix stands,
@@ -1306,7 +1306,7 @@ each is scoped to the file it is in, and all three name every open item between 
 
 The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
 application has to call — that is the file a boot author is already in. `deluge_boot` calls it
-explicitly (`src/deluge/deluge.cpp:783`) even though `shellHostUI`'s own construction already
+explicitly (`src/deluge/deluge.cpp:797`) even though `shellHostUI`'s own construction already
 reaches it through `scene_registry()`, because that is a static-initialisation accident rather than
 a guarantee and three features silently no-op on an unnumbered tree.
 

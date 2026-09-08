@@ -68,8 +68,13 @@ only one is drift. The count below is therefore a count of citations to RE-READ,
 MEASURED BEFORE IT WAS KEPT, the way `check_citations.py`'s two widenings were (2026-09-07, plan
 F1 task 12). Run `--per-commit` over F1's own history, `f9d00c951..32f4d4551`, **39 commits**:
 
-  * it reports on **11** of the 39, naming **1124** citation endpoints, and skips **336** it
-    refuses to judge (110 for an ambiguous basename, 19 pairings it could not make);
+  * it reports on **11** of the 39, naming **1124** moved endpoints out of **4921** compared, and
+    skips **336** citations it refuses to judge -- **266** on 110 `SKIP` lines for an ambiguous
+    basename and **70** on 19 for a pairing it could not make. Same units on both sides of that
+    sentence, deliberately: the earlier phrasing counted citations on one side and `SKIP` *lines* on
+    the other, which read as 336 being roughly 129. **The skip rate is 336 of 5257, or 6.4%** --
+    not the 23% a first estimate put it at, which divided by the *moved* count as though that were
+    the universe;
   * the two commits whose drift this plan actually had to go back and fix by hand are both in it,
     and on the smaller of the two the match is EXACT. F1 task 7's `280352058` inserted 13 lines
     into two doc comments; the tool names 5 endpoints, and those 5 are precisely the four
@@ -85,6 +90,13 @@ F1 task 12). Run `--per-commit` over F1's own history, `f9d00c951..32f4d4551`, *
     sweeping section: at `a4b6fce59`, `--strict` went from 0 to **134** while **568** citations
     had moved. It saw about a quarter. On `280352058` it saw none of the 5, because a citation
     sliding inside a doc comment resolves perfectly.
+
+**And what it does on its own task**, because a tool that is not run against the commits that ship
+it has not been run: `--quiet 32f4d4551..7efd7bd79` reports **0 moved, 39 skipped, 2 compared**. Two
+judged endpoints and thirty-nine refusals is the cleanest illustration of limitation 2 this tool will
+ever produce -- almost every citation into a file that range touched names `deluge.cpp`, which is
+`src/deluge/deluge.cpp` *and* `src/shell/profiles/deluge.cpp`, or `README.md`, which is twenty-six
+files. Both citations that task actually broke were in the 39, and both were found by hand.
 
 Kept on that: naming four citations a code review missed, and turning "which of ~4200 citations
 did my commit move?" into a printed list, is worth a script nobody has to run in CI. Re-derive the
@@ -276,7 +288,7 @@ def main() -> int:
 
     if a.per_commit:
         revs = git("rev-list", "--reverse", f"{old}..{new}").split()
-        total_moved = total_skipped = flagged = 0
+        total_moved = total_skipped = total_compared = flagged = 0
         for rev in revs:
             m, s, p = report_range(rev + "^", rev, a.strict, a.quiet)
             subject = git("log", "-1", "--format=%h %s", rev).strip()
@@ -286,9 +298,18 @@ def main() -> int:
                 flagged += 1
             total_moved += m
             total_skipped += s
+            total_compared += p
+        # `compared` is summed over EVERY commit, including the ones whose per-commit line was not
+        # printed -- a commit with nothing to report still compared endpoints. Reconstructing this
+        # by adding up the printed lines undercounts, and by a different amount with `--quiet` than
+        # without it (3582 and 2416 against a true 4921, on this tool's own first measurement
+        # range), which is why the total is printed here rather than left to be summed by hand.
+        universe = total_compared + total_skipped
+        rate = (100.0 * total_skipped / universe) if universe else 0.0
         print(
             f"check_citation_shift: {len(revs)} commit(s), {flagged} with citations whose cited "
-            f"line moved, {total_moved} citation endpoint(s) total, {total_skipped} unpaired"
+            f"line moved, {total_moved} moved of {total_compared} endpoint(s) compared, "
+            f"{total_skipped} citation(s) skipped ({rate:.1f}% of {universe})"
         )
         return 1 if (a.strict and total_moved) else 0
 
