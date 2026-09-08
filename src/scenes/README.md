@@ -1296,6 +1296,14 @@ builds the `deluge_scenes` closure.
 > changes what the *next user gesture* does. That is the seam the level-2 re-record turned up
 > (carry-table row 30) and the one to check for when the next service lands.
 
+**A note on the two lists, because they are different threes.** This section's three are the
+*scenes library's*: what `src/scenes` cannot read for itself. `registry.h`'s boot-wiring record
+lists the **boot author's** three — the shortcut layout, `ShellConfig::screensaver_idle_ms` and the
+service install — substituting the screensaver timeout (a `shell::Screensaver` setting, closed the
+same way and with the same one-way gap on the ported setters) for the flash cursor, which is
+`AudioClipScene`'s. `deluge_boot`'s own comment lists the three *settings*. Neither list is wrong;
+each is scoped to the file it is in, and all three name every open item between them.
+
 The same note is on `assigned_node_ids()` in `registry.h`, next to the one other thing an
 application has to call — that is the file a boot author is already in. `deluge_boot` calls it
 explicitly (`src/deluge/deluge.cpp:783`) even though `shellHostUI`'s own construction already

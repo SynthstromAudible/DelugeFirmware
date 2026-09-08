@@ -37,7 +37,11 @@ from pathlib import Path
 
 def _tree(root: Path) -> dict[str, bytes]:
     """Every file under `root`, keyed by its path relative to `root`."""
-    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*")) if p.is_file()}
+    return {
+        str(p.relative_to(root)): p.read_bytes()
+        for p in sorted(root.rglob("*"))
+        if p.is_file()
+    }
 
 
 def _check_fixtures(off: Path, on: Path, toggle: str, fail) -> None:
@@ -45,7 +49,9 @@ def _check_fixtures(off: Path, on: Path, toggle: str, fail) -> None:
     on_files = _tree(on)
 
     if toggle in off_files:
-        fail(f"the toggle-OFF fixture {off} contains {toggle}; it is what makes the leg ON")
+        fail(
+            f"the toggle-OFF fixture {off} contains {toggle}; it is what makes the leg ON"
+        )
     if toggle not in on_files:
         fail(f"the toggle-ON fixture {on} is missing {toggle}")
     on_files.pop(toggle, None)
@@ -62,13 +68,18 @@ def _check_fixtures(off: Path, on: Path, toggle: str, fail) -> None:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("off", type=Path, help="snapshot tree from the ShellMenu-off run")
     ap.add_argument("on", type=Path, help="snapshot tree from the ShellMenu-on run")
     ap.add_argument("--fixture-off", type=Path, help="SD root the off leg booted from")
     ap.add_argument("--fixture-on", type=Path, help="SD root the on leg booted from")
-    ap.add_argument("--toggle-file", default="SETTINGS/CommunityFeatures.XML",
-                    help="the one file the two SD roots may differ by")
+    ap.add_argument(
+        "--toggle-file",
+        default="SETTINGS/CommunityFeatures.XML",
+        help="the one file the two SD roots may differ by",
+    )
     args = ap.parse_args()
 
     errors: list[str] = []
@@ -83,7 +94,10 @@ def main() -> int:
 
     if args.fixture_off is not None or args.fixture_on is not None:
         if args.fixture_off is None or args.fixture_on is None:
-            print("ui_app_ab_check: --fixture-off and --fixture-on go together", file=sys.stderr)
+            print(
+                "ui_app_ab_check: --fixture-off and --fixture-on go together",
+                file=sys.stderr,
+            )
             return 2
         _check_fixtures(args.fixture_off, args.fixture_on, args.toggle_file, fail)
 
@@ -118,8 +132,10 @@ def main() -> int:
             state_differs.append(name)
 
     if not state_differs:
-        fail("the two legs are identical in every .state file -- the toggle did nothing, so this "
-             "A/B proves nothing (see this file's docstring, point 3)")
+        fail(
+            "the two legs are identical in every .state file -- the toggle did nothing, so this "
+            "A/B proves nothing (see this file's docstring, point 3)"
+        )
 
     print(f"ui_app_ab_check: {len(shared)} snapshot files compared")
     print(f"  identical .pbm panels: {pbm_same} of {pbm_total}")
