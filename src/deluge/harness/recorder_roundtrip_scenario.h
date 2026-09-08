@@ -43,6 +43,22 @@ extern "C" {
 /// @return Number of failed cases (0 = all passed).
 int32_t deluge_scenario_run_recorder_roundtrip();
 
+/// @brief Set up the off-owner recording case. Call from a NON-fiber context.
+///
+/// The eleven cases in @ref deluge_scenario_run_recorder_roundtrip all run on the storage owner,
+/// because the oracle is dispatched there wholesale for the finalized probe's streaming drain. This
+/// case exists to cover what that cannot: a recorder driven from where the device actually drives
+/// one, so the async cluster write is exercised and `cardRoutine`'s dispatch of its BLOCKING ticks
+/// back to the owner is load-bearing rather than dead code.
+void deluge_scenario_offowner_begin(void);
+
+/// @brief Advance the off-owner case by one tick. Call from the SAME non-fiber context.
+///
+/// Tick-driven on purpose: the pump must return so the storage owner can run the ticks this case
+/// hands it and the Rust write task can make progress.
+/// @return 0 while running, 1 when it passed, 2 when it failed.
+int32_t deluge_scenario_offowner_tick(void);
+
 } // extern "C"
 
 #endif // DELUGE_HOST

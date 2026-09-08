@@ -287,6 +287,8 @@ unsafe extern "C" {
     fn deluge_scenario_start_recorder_roundtrip();
     fn deluge_scenario_recorder_roundtrip_done() -> bool;
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
+    fn deluge_scenario_offowner_begin();
+    fn deluge_scenario_offowner_tick() -> i32;
     fn deluge_scenario_audio_load_ab_begin();
     fn deluge_scenario_audio_load_ab_complete() -> bool;
     fn deluge_scenario_audio_load_ab_dispatch_step();
@@ -637,6 +639,34 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         );
         hard_exit(1);
     }
+    // The off-owner case. Driven from HERE -- this task is not the fiber (it dispatches INTO it
+    // above), so `on_owner()` is false and the recorder takes the path the device actually takes:
+    // the cluster write goes through the channel, and the blocking ticks dispatch back to the owner.
+    // The eleven cases above cannot cover either, because the oracle runs wholesale on the fiber.
+    // SAFETY: same C-ABI contract as the calls above; called only from this task.
+    unsafe { deluge_scenario_offowner_begin() };
+    let off_deadline = Instant::now() + Duration::from_secs(300);
+    let off_result = loop {
+        // SAFETY: as above.
+        let state = unsafe { deluge_scenario_offowner_tick() };
+        if state != 0 {
+            break state;
+        }
+        if Instant::now() >= off_deadline {
+            log::error!(
+                "golden_vt_render: off-owner recording did not complete within 300s — wedged"
+            );
+            hard_exit(2);
+        }
+        // Yield so the storage owner can run the ticks the case handed it and the write task can
+        // make progress on the clusters it has been given. Without this the case cannot advance.
+        Timer::after_millis(1).await;
+    };
+    if off_result != 1 {
+        log::error!("golden_vt_render: off-owner recording FAILED — see the log above");
+        hard_exit(1);
+    }
+
     log::info!("golden_vt_render: recorder round-trip PASSED (0 failures); exiting cleanly");
     done.store(true, Ordering::Release);
 }

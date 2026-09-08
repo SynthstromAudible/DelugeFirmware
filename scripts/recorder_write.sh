@@ -15,6 +15,13 @@
 #   RW-OFFOWNER   that the drain ran OFF the storage owner. This is the gate's real subject. Without
 #                 it RW-CHANNEL can be non-zero while every write was still served on the owner, and
 #                 the conversion would have renamed a mechanism rather than moved it.
+#   RW-OFFOWNER-CASE  that a whole recording driven from a NON-fiber context -- the shape the device
+#                 actually uses -- still reads back byte-for-byte identical to the on-fiber ones, and
+#                 that its cluster writes went through the channel. The eleven cases above cannot
+#                 show this: the oracle is dispatched onto the fiber wholesale (it has to be, for the
+#                 finalized probe's streaming drain), so every one of them measures on_owner=1 and
+#                 takes the synchronous arm. This case is the only one that exercises the async write
+#                 path in the context the conversion is FOR.
 #   RW-DRAIN      that the offline stem-export path still drains to completion. That loop calls the
 #                 card routine in a bounded loop expecting each call to COMPLETE a write, and it is
 #                 the one caller the flip could plausibly break.
@@ -93,6 +100,30 @@ run_leg() {
 run_leg off "$BIN"
 run_leg on "$CHAN_BIN"
 
+# The off-owner case runs AFTER the on-fiber oracle has printed RW-SUMMARY, so its evidence is its
+# own line. `served` here is cumulative, so it must EXCEED the RW-SUMMARY figure: equal would mean the
+# off-owner recording served nothing and took the synchronous arm throughout.
+if ! grep -q '^CASE offowner_recording ' "$OUT/on.txt"; then
+	echo "FAIL RW-OFFOWNER-CASE — the off-owner case did not run"
+	fail=1
+fi
+oo_line=$(grep '^OO-RESULT ' "$OUT/on.txt" || true)
+if [ -z "$oo_line" ]; then
+	echo "FAIL RW-OFFOWNER-CASE — no OO-RESULT line; the off-owner case did not finish"
+	fail=1
+else
+	oo_ok=$(sed -n 's/^OO-RESULT ok=\([0-9]*\).*/\1/p' "$OUT/on.txt")
+	oo_served=$(sed -n 's/^OO-RESULT .*served=\([0-9]*\).*/\1/p' "$OUT/on.txt")
+	[ "$oo_ok" = "1" ] || {
+		echo "FAIL RW-OFFOWNER-CASE — an off-owner recording did not read back correctly ($oo_line)"
+		fail=1
+	}
+	if ! grep -q '^CASE offowner_recording .*onOwner=0' "$OUT/on.txt"; then
+		echo "FAIL RW-OFFOWNER-CASE — the case did not run off the owner; it proves nothing there"
+		fail=1
+	fi
+fi
+
 served=$(sed -n 's/^RW-SUMMARY served=\([0-9]*\).*/\1/p' "$OUT/on.txt")
 offowner=$(sed -n 's/^RW-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/on.txt")
 off_served=$(sed -n 's/^RW-SUMMARY served=\([0-9]*\).*/\1/p' "$OUT/off.txt")
@@ -107,6 +138,10 @@ off_served=$(sed -n 's/^RW-SUMMARY served=\([0-9]*\).*/\1/p' "$OUT/off.txt")
 
 if [ "$served" -eq 0 ]; then
 	echo "FAIL RW-CHANNEL — the channel-on leg served 0 writes; the async arm never ran"
+	fail=1
+fi
+if [ -n "${oo_served:-}" ] && [ "$oo_served" -le "$served" ]; then
+	echo "FAIL RW-CHANNEL — the off-owner recording served nothing beyond the on-fiber oracle's $served"
 	fail=1
 fi
 if [ "$offowner" -eq 0 ]; then
@@ -138,4 +173,4 @@ if [ "$fail" -ne 0 ]; then
 	echo "recorder write: FAILED"
 	exit 1
 fi
-echo "recorder write: OK (served=$served offOwnerTicks=$offowner)"
+echo "recorder write: OK (served=$served->${oo_served:-?} offOwnerTicks=$offowner)"

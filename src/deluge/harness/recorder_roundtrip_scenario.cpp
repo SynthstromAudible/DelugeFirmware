@@ -29,6 +29,8 @@
 #include "storage/cluster/cluster.h"
 #include "storage/owner.h"
 
+#include <memory>
+
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -139,55 +141,11 @@ bool pumpToComplete(SampleRecorder& rec) {
 	return false;
 }
 
-bool runCase(const Case& c) {
-	printf("CASE %s (channels=%u margins=%d frames=%u)\n", c.name, c.channels, c.extraMargins, c.frames);
-	g_cases++;
-
-	// Build the input ramp.
-	std::vector<StereoSample> input(c.frames);
-	for (uint32_t i = 0; i < c.frames; i++) {
-		input[i].l = rampSample(i, 0);
-		input[i].r = (c.channels == 2) ? rampSample(i, 1) : 0;
-	}
-
-	SampleRecorder rec;
-	Error err = rec.setup(c.channels, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
-	                      /*shouldRecordExtraMargins=*/c.extraMargins, AudioRecordingFolder::RESAMPLE,
-	                      /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
-	if (err != Error::NONE) {
-		fprintf(stderr, "  FAIL: setup() returned error %d\n", static_cast<int>(err));
-		return false;
-	}
-
-	rec.feedAudio(std::span<StereoSample>(input));
-
-	// endSyncedRecording(0): with MIX-mode (numSamplesExtraToCaptureAtEndSyncingWise == 0) and no
-	// button-latency compensation, numMoreSamplesToCapture is 0 when extraMargins is off (so
-	// finishCapturing() runs synchronously inside this call) and kAudioClipMarginSizePostEnd when
-	// extraMargins is on (status goes to CAPTURING_DATA_WAITING_TO_STOP; feed that many more silent
-	// frames to push it through to finishCapturing() — mirrors the real end-of-recording sequence).
-	rec.endSyncedRecording(0);
-	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP) {
-		// finishCapturing() only fires once feedAudio() observes numSamplesCaptured has reached (or
-		// passed) sample->lengthInSamples -- i.e. it needs a call whose span EXTENDS PAST the target,
-		// not one that lands exactly on it (matching how real callers feed fixed-size audio blocks
-		// and the final block naturally overshoots by less than one block). Feed a few extra silent
-		// frames beyond the margin so a later iteration inside feedAudio's own do-while loop re-checks
-		// the stop condition and finds it satisfied.
-		std::vector<StereoSample> silence(kAudioClipMarginSizePostEnd + 64, StereoSample{0, 0});
-		rec.feedAudio(std::span<StereoSample>(silence));
-	}
-
-	if (!pumpToComplete(rec)) {
-		return false;
-	}
-
-	std::string path = rec.filePathCreated;
-	if (path.empty()) {
-		fprintf(stderr, "  FAIL: no file path recorded\n");
-		return false;
-	}
-
+/// Byte-exact verification of a finished recording, factored out of runCase() so the off-owner case
+/// below checks the SAME things rather than a weaker copy of them. A recording driven off the
+/// storage owner must be indistinguishable from one driven on it -- that is the whole claim.
+bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t frames, bool extraMargins) {
+	const Case c{/*name=*/"", channels, extraMargins, frames};
 	std::vector<std::byte> bytes;
 	if (!readWholeFile(path, bytes)) {
 		return false;
@@ -269,6 +227,58 @@ bool runCase(const Case& c) {
 
 	printf("  %s\n", ok ? "PASS" : "FAIL");
 	return ok;
+}
+
+bool runCase(const Case& c) {
+	printf("CASE %s (channels=%u margins=%d frames=%u)\n", c.name, c.channels, c.extraMargins, c.frames);
+	g_cases++;
+
+	// Build the input ramp.
+	std::vector<StereoSample> input(c.frames);
+	for (uint32_t i = 0; i < c.frames; i++) {
+		input[i].l = rampSample(i, 0);
+		input[i].r = (c.channels == 2) ? rampSample(i, 1) : 0;
+	}
+
+	SampleRecorder rec;
+	Error err = rec.setup(c.channels, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
+	                      /*shouldRecordExtraMargins=*/c.extraMargins, AudioRecordingFolder::RESAMPLE,
+	                      /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
+	if (err != Error::NONE) {
+		fprintf(stderr, "  FAIL: setup() returned error %d\n", static_cast<int>(err));
+		return false;
+	}
+
+	rec.feedAudio(std::span<StereoSample>(input));
+
+	// endSyncedRecording(0): with MIX-mode (numSamplesExtraToCaptureAtEndSyncingWise == 0) and no
+	// button-latency compensation, numMoreSamplesToCapture is 0 when extraMargins is off (so
+	// finishCapturing() runs synchronously inside this call) and kAudioClipMarginSizePostEnd when
+	// extraMargins is on (status goes to CAPTURING_DATA_WAITING_TO_STOP; feed that many more silent
+	// frames to push it through to finishCapturing() — mirrors the real end-of-recording sequence).
+	rec.endSyncedRecording(0);
+	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::CAPTURING_DATA_WAITING_TO_STOP) {
+		// finishCapturing() only fires once feedAudio() observes numSamplesCaptured has reached (or
+		// passed) sample->lengthInSamples -- i.e. it needs a call whose span EXTENDS PAST the target,
+		// not one that lands exactly on it (matching how real callers feed fixed-size audio blocks
+		// and the final block naturally overshoots by less than one block). Feed a few extra silent
+		// frames beyond the margin so a later iteration inside feedAudio's own do-while loop re-checks
+		// the stop condition and finds it satisfied.
+		std::vector<StereoSample> silence(kAudioClipMarginSizePostEnd + 64, StereoSample{0, 0});
+		rec.feedAudio(std::span<StereoSample>(silence));
+	}
+
+	if (!pumpToComplete(rec)) {
+		return false;
+	}
+
+	std::string path = rec.filePathCreated;
+	if (path.empty()) {
+		fprintf(stderr, "  FAIL: no file path recorded\n");
+		return false;
+	}
+
+	return verifyRecordedFile(path, c.channels, c.frames, c.extraMargins);
 }
 
 // Byte-exact characterization of `SampleRecorder::alterFile()` — the post-capture, in-place file
@@ -409,6 +419,108 @@ bool runAlterFileCase(const char* name, MonitoringAction action, int32_t lshiftA
 }
 
 } // namespace
+
+namespace {
+
+/// The off-owner recording case: a real `SampleRecorder` driven ENTIRELY from a non-fiber context,
+/// which is the shape the device actually uses and the one the eleven cases above cannot reach.
+///
+/// They cannot reach it because `deluge_scenario_start_recorder_roundtrip` dispatches the whole
+/// oracle onto the fiber -- it has to, because the finalized probe's streaming drain must block and
+/// resume against the fill task there. So every one of those cases measures `on_owner=1`, the
+/// cluster write takes its synchronous arm, and two things go untested: the async write path itself,
+/// and `cardRoutine`'s dispatch of its BLOCKING ticks (create, finalize, abort) back to the owner.
+/// Deleting that dispatch left all eleven cases passing.
+///
+/// Tick-driven rather than a loop, because that is the point: the pump must return to its caller so
+/// the storage owner can run the ticks this case hands it, and so the Rust write task can make
+/// progress on the clusters it has been given.
+struct OffOwnerCase {
+	std::unique_ptr<SampleRecorder> rec;
+	std::string path;
+	int32_t ticks = 0;
+	bool started = false;
+};
+OffOwnerCase g_offOwner;
+
+/// Mono, no margins, and big enough to complete several clusters -- a single-cluster recording would
+/// finish inside the finalize drain and never exercise the steady-state write at all.
+constexpr uint32_t kOffOwnerFrames = 33153;
+
+} // namespace
+
+extern "C" void deluge_scenario_offowner_begin() {
+	g_offOwner.rec = std::make_unique<SampleRecorder>();
+	g_offOwner.ticks = 0;
+	g_offOwner.path.clear();
+	g_offOwner.started = false;
+
+	// stderr as well as stdout: this case runs AFTER the scenario's own fflush(nullptr), so a
+	// stdout-only line can be lost at exit -- and a case whose output vanishes is a case nobody can
+	// tell from one that never ran.
+	printf("CASE offowner_recording (channels=1 frames=%u onOwner=%d)\n", kOffOwnerFrames,
+	       (int)deluge::storage::Owner::on_owner());
+	fflush(nullptr);
+
+	Error err = g_offOwner.rec->setup(1, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
+	                                  /*shouldRecordExtraMargins=*/false, AudioRecordingFolder::RESAMPLE,
+	                                  /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
+	if (err != Error::NONE) {
+		fprintf(stderr, "  FAIL: setup() returned error %d\n", static_cast<int>(err));
+		g_offOwner.rec.reset();
+		return;
+	}
+
+	std::vector<StereoSample> input(kOffOwnerFrames);
+	for (uint32_t i = 0; i < kOffOwnerFrames; i++) {
+		input[i].l = rampSample(i, 0);
+		input[i].r = 0;
+	}
+	g_offOwner.rec->feedAudio(std::span<StereoSample>(input));
+	g_offOwner.rec->endSyncedRecording(0);
+	g_offOwner.started = true;
+}
+
+extern "C" int32_t deluge_scenario_offowner_tick() {
+	if (!g_offOwner.started || !g_offOwner.rec) {
+		return 2; // failed to start
+	}
+	SampleRecorder& rec = *g_offOwner.rec;
+
+	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
+		const std::string path = rec.filePathCreated;
+		g_offOwner.rec.reset(); // closes the stream and releases the capture buffers
+		if (path.empty()) {
+			fprintf(stderr, "  FAIL: no file path recorded\n");
+			return 2;
+		}
+		const bool ok = verifyRecordedFile(path, /*channels=*/1, kOffOwnerFrames, /*extraMargins=*/false);
+		// The evidence for THIS case, taken here rather than from RW-SUMMARY: that line is printed by
+		// the on-fiber oracle, which has already returned by the time this case runs, so it cannot
+		// see anything the off-owner recording did.
+		printf("OO-RESULT ok=%d served=%d offOwnerTicks=%d ticks=%d\n", (int)ok,
+		       (int)SampleRecorder::writeChannelServedOps(), (int)AudioEngine::recorderOffOwnerTicks(),
+		       g_offOwner.ticks);
+		fflush(nullptr);
+		return ok ? 1 : 2;
+	}
+
+	if (++g_offOwner.ticks > 400000) {
+		fprintf(stderr, "  FAIL: off-owner recording never reached COMPLETE (%d ticks)\n", g_offOwner.ticks);
+		g_offOwner.rec.reset();
+		return 2;
+	}
+
+	// The real caller's decision, not a direct call: off the owner with the channel live this runs
+	// here, and the blocking ticks inside dispatch themselves back to the owner.
+	Error e = rec.cardRoutine();
+	if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
+		fprintf(stderr, "  FAIL: off-owner cardRoutine() returned error %d\n", static_cast<int>(e));
+		g_offOwner.rec.reset();
+		return 2;
+	}
+	return 0;
+}
 
 extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
 	// Whether this binary can reach the async write driver at all. A module missing from
