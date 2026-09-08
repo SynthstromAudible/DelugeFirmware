@@ -4,13 +4,24 @@
 # diff nobody could review), but it means these goldens describe a shell with no mod-knob service in
 # it, and spec F will install one.
 #
-# **For THIS script the answer is measured, and it is "nothing moves".** The `300 encoder GoldUpper
-# +2` step below is claimed by `MenuScene`'s own `int_value` widget during render, so
-# `Router::route_post_render` drops the event before `Router::run_chain` is entered
-# (`src/shell/README.md`) and `services::ModKnobs` never sees it either way. E4's final review added
-# `tests/ui-scripts/shell/menu_gold_turn.txt`, which drives this same node with the real three
-# services installed and records the same behaviour: the value moves in the menu, no
-# `ParamPopupScene` is pushed.
+# **This file used to say the answer for THIS script was measured, and was "nothing moves".** The
+# `300 encoder GoldUpper +2` step below is claimed by `MenuScene`'s own `int_value` widget during
+# render, so `Router::route_post_render` drops the event before `Router::run_chain` is entered
+# (`src/shell/README.md`) and `services::ModKnobs` never sees it -- and the conclusion drawn from
+# that, that installing the services would leave this script alone, is **false**.
+#
+# F1 task 11 installed the real three over this block and measured it: the spec's own assertion that
+# `+2` detents on `nodes::saturation` reads back 4 **fails**, reading 0 with a `mod_target` seeded
+# and 1 with `svc.mod_target = nullptr`, and `after_gold_turn.oled0.pbm` moves with it (the leaf
+# draws 0 instead of 4). No `ParamPopupScene` is pushed -- that half of the old claim survives -- so
+# the turn is still not going through the chain; the arithmetic it goes through has changed. Nothing
+# in the tree explains that yet, which is why task 11 refused the re-record. See
+# `sim/scenes_spec/menu_scripts_spec.cpp`'s header for the full measurement.
+#
+# E4's final review added `tests/ui-scripts/shell/menu_gold_turn.txt`, which drives this same node
+# with the real three installed and DOES record the value moving to 4 -- so the two disagree, and the
+# difference between them (that script arms the gold-turn debounce with a `+1` at t=100 first) is
+# where the explanation probably starts.
 #
 # **It is not the answer for every menu script.** Where a page reads no edit encoder -- `menu_decimal`'s
 # first `GoldUpper` turn is the worked example, and its snapshot was dropped in E3 task 10 for being

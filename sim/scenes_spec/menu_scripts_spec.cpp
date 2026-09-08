@@ -107,23 +107,39 @@
 /// nobody could review), but it means these frames describe a shell with no mod-knob service in it,
 /// and spec F installs one. Twelve of these scripts drive 19 gold-knob turns between them.
 ///
-/// **What decides whether a given step moves is the PAGE, not the router's chain**, and the split
-/// was measured for E4's final review rather than argued:
+/// **The prediction this paragraph used to make was wrong, and F1 task 11 measured it wrong.**
+/// It said the split was decided by the page: a turn the page's widget CLAIMS (`menu_int`'s Int
+/// leaf) reaches `Router::route_post_render` and is dropped before `Router::run_chain`, so
+/// installing the services would change nothing; a turn the page does not claim (`menu_decimal`'s
+/// first) would fall through the chain and make `services::ModKnobs` write the mod param and push a
+/// `ParamPopupScene` -- "a second `scene` line in `.state` and a value strip in the `.pbm`".
 ///
-///   * Where the focused page's widget CLAIMS the gold turn -- `menu_int`'s Int leaf, whose
-///     `after_gold_turn` golden really does show the value move -- `Router::route_post_render`
-///     drops the event before `Router::run_chain` is entered (`src/shell/README.md`), so
-///     `services::ModKnobs` never sees it and installing the services changes nothing.
-///     `scene_scripts_spec.cpp`'s `menu_gold_turn` records exactly that, on this same node, with
-///     the real three installed.
-///   * Where the page reads no edit encoder -- `menu_decimal`'s first `GoldUpper` turn is the
-///     worked example, and E3 task 10 dropped its snapshot for being byte-identical to the frame
-///     before -- the turn is unclaimed, falls the whole way through the chain, and is dropped.
-///     With a real `ModKnobs` it will write the mod param and push a `ParamPopupScene` over the
-///     menu: a second `scene` line in `.state` and a value strip in the `.pbm`.
+/// Task 11 installed the real three here, over all twelve gold-turn blocks, through
+/// `support/real_services.h`, and re-recorded into a scratch tree to see. **Neither half held:**
 ///
-/// Classify each of the 19 as you re-record it. `src/scenes/README.md`'s carry table and the
-/// migration spec's §10.2 blocker list both carry this row.
+///   * **No `ParamPopupScene` appeared anywhere.** Across all 68 moved golden files, the diff
+///     contains not one added or removed `scene` line. The predicted popup does not happen.
+///   * **The CLAIMED turns changed, and changed the model.** `menu_int`'s own C++ assertion --
+///     `+2` detents on `nodes::saturation` reads back 4 -- fails: it reads **0** with the services
+///     installed and a `mod_target` seeded, and **1** with the services installed and
+///     `svc.mod_target = nullptr`. `menu_submenu_horizontal`'s equivalent goes 32 -> 28 with a null
+///     target. So installing a mod-knob service changes the edge-to-value arithmetic a turn the
+///     page claims sees, and seeding a target changes it again -- an interaction between
+///     `InputLowering::action_gold_turn`'s wiggle debounce, `services::ModKnobs` and `MenuScene`'s
+///     own claim that nothing in this tree explains.
+///   * The uniform part is real and is only the uniform part: **57 `.state` files gain exactly
+///     `led Mod1 on` and the two `indicator` lines** -- `ModKnobs` declaring the mod LED and both
+///     rings on every tick. **11 `.pbm` files move pixels**, in five scripts: `menu_chain` (3),
+///     `menu_int` (1), `menu_patch_cables` (1), `menu_range` (4), `menu_submenu_horizontal` (2).
+///
+/// **So task 11 refused the re-record**, on E4 task 13's rule: those 11 pixel diffs photograph a
+/// behaviour change nobody has explained, in the same commit as the two assertions that say the
+/// EDIT itself moved. `Services{}` therefore still stands here. What is owed is unchanged in size
+/// and better specified: explain the arithmetic above first, then install and re-record, and
+/// classify each of the 19 turns against what the explanation predicts.
+///
+/// `src/scenes/README.md`'s carry table, the migration spec's §10.2 blocker list and F1 task 11's
+/// report all carry this row.
 
 #include "scenes/browser/browser_scene.h"
 #include "scenes/context_menu/context_menu_scene.h"

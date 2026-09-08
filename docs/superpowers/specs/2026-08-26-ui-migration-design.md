@@ -652,6 +652,28 @@ rather than a thing that is half-done:
    causes cannot be reviewed for either. Recorded in code at `src/scenes/README.md`'s carry table,
    `tests/ui-scripts/shell/menu_int.txt` and `menu_scripts_spec.cpp`'s own header.
 
+   **F1 task 11 carried this out and refused it, and the two bullets above are both wrong.** It
+   moved `RealServices` into `sim/scenes_spec/support/real_services.h`, installed the real three
+   over all twelve gold-turn blocks, and recorded into a scratch tree.
+
+   * **No `ParamPopupScene` appeared anywhere.** Across all 68 moved golden files the diff carries
+     not one added or removed `scene` line. The second bullet's predicted popup does not happen.
+   * **A turn the page claims does not "change nothing" — it changes the model.** `menu_int`'s own
+     C++ assertion (`+2` detents on `nodes::saturation` reads back 4) fails: **0** with the services
+     installed and a `mod_target` seeded, **1** with them installed and `svc.mod_target = nullptr`.
+     `menu_submenu_horizontal`'s equivalent goes 32 → 28. So a mod-knob service in the slot changes
+     the edge-to-value arithmetic even for a claimed turn, and seeding a target changes it again.
+   * The uniform part is uniform: **57 `.state` files gain exactly `led Mod1 on` and the two
+     `indicator` lines**. But **11 `.pbm` files move pixels** — `menu_chain` (3), `menu_int` (1),
+     `menu_patch_cables` (1), `menu_range` (4), `menu_submenu_horizontal` (2).
+
+   Refused on E4 task 13's rule, which was ruled correct: those 11 photograph a behaviour change
+   nobody has explained, in the same commit as two assertions saying the edit itself moved. The
+   blocker stands, unchanged in size and better specified: **explain the interaction between
+   `InputLowering::action_gold_turn`'s wiggle debounce, `services::ModKnobs` and `MenuScene`'s own
+   claim first**, then install, re-record, and classify each of the 19 against what that explanation
+   predicts. The one piece of it that is done is the fixture move.
+
 ### 10.3 Two consequences of the deletion that are not preconditions but must be planned for
 
 * **Deleting `gui/ui/sound_editor.*` and `gui/ui/menus.*` deletes the oracle.** Sixteen files under
