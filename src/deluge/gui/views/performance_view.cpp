@@ -232,10 +232,10 @@ PerformanceView::PerformanceView() {
 	// runs at static init; the mirror's own initialiser is `PerformanceEditingMode::DISABLED`
 	// (`scenes/menu/nodes/actions.cpp:45`), which is what `readCurrentValue` makes of
 	// `defaultEditingMode == false` (`gui/menu_item/performance_session_view/editing_mode.h:36-38`).
-	// The two already agree, so a call here would move nothing -- and it would be the one call in
-	// this file that runs before anything can observe its effect, at a point where the order of two
-	// translation units' static initialisers decides whether `g_perform_mode` has been constructed
-	// yet. Four sync calls in this file, not five; `scenes/menu/action.h` says so too.
+	// **The two already agree, so a call here would move nothing** -- and that is the whole reason.
+	// An earlier draft gave a second, about two translation units' static-init order. It is false:
+	// `g_perform_mode` has a constant initialiser, so it is constant-initialised before any dynamic
+	// init and there is no order to lose. Four sync calls in this file, not five; `action.h` agrees.
 	defaultEditingMode = false;
 
 	layoutVariant = 1;

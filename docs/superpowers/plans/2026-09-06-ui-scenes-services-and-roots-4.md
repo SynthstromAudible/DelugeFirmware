@@ -735,6 +735,7 @@ has named no registered scene until now.
 
 **Not in this plan, deliberately:** `KeyboardScene` (5,252 lines — E5) and `PerformanceScene` (2,249 — E5 or
 E6); the load/save browser family (§10.4, phase 6); spec F's wiring, all six blockers of §10.2. Also **not**
-resolved here: the four inventions the 2026-09-06 audit found still in the tree (`Shell::dim_grid`'s overlay
-dim, `GestureEvent::Hold`, the widened `SecondPad`) and the two legacy bug-fixes awaiting a ruling. They are
+resolved here: the three of the 2026-09-06 audit's four inventions still in the tree (`Shell::dim_grid`'s
+overlay dim, `GestureEvent::Hold`, the widened `SecondPad`) — the fourth, `BootScene`, was removed the same
+day (`2026-08-26-ui-shell-design.md:601-614`) — and the two legacy bug-fixes awaiting a ruling. They are
 recorded and are Kate's call; a task here must not quietly remove or extend any of them.
