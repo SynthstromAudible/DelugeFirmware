@@ -26,15 +26,37 @@
 /// legacy `ContextMenu` subclasses that this plan has not ported, so even `pending_scene` could not
 /// spell them.
 ///
+/// ## The sixth item, which is a different shape (F2 task 6)
+///
+/// `shortcuts_version` is **not** one of those five and must not be read as one. Its select press
+/// does nothing special: it is an ordinary `Kind::Enum` leaf, and legacy's own
+/// `menu_item::shortcuts::Version` is an ordinary `Selection` the user opens and edits in place.
+/// What crosses the wall is its **write**. `shortcuts::Version::writeCurrentValue`
+/// (`gui/menu_item/shortcuts/version.h:27`) is `soundEditor.setShortcutsVersion(this->getValue())`,
+/// and `SoundEditor::shortcutsVersion` is the byte `FlashStorage::writeSettings` stores at flash
+/// byte 60 (`storage/flash_storage.cpp:982`). The ported hook could reach neither symbol, so it
+/// wrote only this layer's mirror (`menu::set_shortcuts_version`, `scenes/menu/shortcuts.h`) and a
+/// layout chosen from the ported settings menu was in force for the session and gone at the next
+/// power-on. `MenuAction::SetShortcutsVersion` is that missing half.
+///
+/// Two consequences follow from "a write, not a press", and both are load-bearing below:
+///
+///   * it is filed from a `Binding::set` hook, which is handed no `MenuState`
+///     (`SetFn`, `node.h`) -- hence `MenuScene::request_action`, whose own doc argues the timing;
+///   * it must **not** ascend the menu, because legacy stays on the item while the user turns the
+///     encoder. See the `switch` in `MenuScene::after_render` that decides that question.
+///
 /// ## The shape
 ///
 /// The verb counterpart of the noun that already works:
 ///
 ///   1. `MenuAction` -- a closed enum of the actions a menu item may request.
-///   2. `MenuActionRequest` -- that enumerator plus one `uint16_t` payload, for the one action whose
-///      meaning is not fixed by its identity (`OpenPerformanceView` carries which editing mode).
+///   2. `MenuActionRequest` -- that enumerator plus one `uint16_t` payload, for the two actions
+///      whose meaning is not fixed by their identity (`OpenPerformanceView` carries which editing
+///      mode; `SetShortcutsVersion` carries which layout).
 ///   3. `MenuState::pending_action` -- the field an item writes, exactly as it writes
-///      `pending_scene` (`menu_scene.h`).
+///      `pending_scene` (`menu_scene.h`); or, for a hook that is handed no state,
+///      `MenuScene::request_action`, which writes that same field.
 ///   4. `MenuScene::after_render` drains it **where `pending_scene` is drained**, and parks it in
 ///      `MenuScene::take_action()` for the application-side wiring to collect and perform.
 ///
@@ -42,9 +64,9 @@
 ///
 /// `take_action()` is an outbox and this file is only its producing half. Its consumer,
 /// `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`), arrived with F2 task 1 and
-/// drains it once per guest tick; **all five arms have bodies as of F2 task 4**. The specs in
+/// drains it once per guest tick; **all six arms have bodies as of F2 task 6**. The specs in
 /// `sim/scenes_spec/menu_actions_spec.cpp` assert both halves: that the right item emits the right
-/// *identity* and payload through the real input path, and -- in the three `dispatchShellActions`
+/// *identity* and payload through the real input path, and -- in the four `dispatchShellActions`
 /// groups -- that the legacy effect happens. Only `StartStemExport`'s acting half is still pinned by
 /// identity alone, for a reason that file's own group states.
 ///
@@ -96,12 +118,39 @@ enum class MenuAction : uint8_t {
 	/// @brief Open the song-macros context menu (`context_menu::configureSongMacros`). `arg` is
 	///        unused.
 	OpenSongMacros,
+
+	/// @brief `soundEditor.setShortcutsVersion(arg)` -- the legacy half of the ported
+	///        `shortcuts_version` item's write. `arg` is the value the item was set to.
+	///
+	/// The dispatcher performs `shortcuts::Version::writeCurrentValue`'s one statement
+	/// (`gui/menu_item/shortcuts/version.h:27`) on the real `soundEditor`, which F1 task 8
+	/// established is the single writer covering all four legacy paths that change this setting
+	/// (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:112-181`, the census in its own
+	/// comment). That is what puts the choice in flash byte 60
+	/// (`FlashStorage::writeSettings`, `storage/flash_storage.cpp:982`).
+	///
+	/// **`arg` is legacy's own unnormalised value, deliberately.** `writeCurrentValue` passes
+	/// `this->getValue()` straight through and lets `setShortcutsVersion`'s `switch` decide what a
+	/// value that is neither enumerator means ("Uses defaults", i.e. V3); the port passes the enum
+	/// index straight through for the same reason, so the two cannot disagree about the mapping
+	/// because neither of them applies one.
+	///
+	/// **This does not loop, and that is a design constraint rather than an observation.**
+	/// `SoundEditor::setShortcutsVersion` mirrors *into* this layer -- it calls
+	/// `menu::set_shortcuts_version` (`scenes/menu/shortcuts.h`), F1 task 8's fix. That callee is the
+	/// free function that assigns one file-scope `ShortcutsVersion` in `menu/shortcuts.cpp`; it is
+	/// **not** `nodes::set_shortcuts_version`, files no request and touches no `MenuState`. So the
+	/// round trip is exactly one lap: hook -> request -> dispatcher -> legacy write -> mirror write,
+	/// and it terminates there. Anything later that makes the *mirror* setter file a request would
+	/// close that loop, which is why the mirror setter must stay a plain assignment.
+	SetShortcutsVersion,
 };
 
-/// @brief One request: which action, and the one payload word `OpenPerformanceView` needs.
+/// @brief One request: which action, and the one payload word `OpenPerformanceView` and
+///        `SetShortcutsVersion` need.
 ///
-/// A `uint16_t` rather than a variant because exactly one action carries anything, and because it is
-/// the same width `ui::shell::SceneId::arg` uses for the same job on the noun side.
+/// A `uint16_t` rather than a variant because the payload is one small number in both cases, and
+/// because it is the same width `ui::shell::SceneId::arg` uses for the same job on the noun side.
 struct MenuActionRequest {
 	MenuAction action = MenuAction::None;
 	uint16_t arg = 0;
@@ -163,7 +212,7 @@ struct MenuActionRequest {
 /// be re-checked rather than believed: `grep -rn "defaultEditingMode\|editingParam" src sim` and
 /// keep the assignments. Nine are in `PerformanceView` (the four sites above, eight lines, plus the
 /// constructor); four are `EditingMode::selectButtonPress`'s two arms; two pairs are
-/// `gui/ui/shell_action_dispatch.cpp:93-98`, this seam's own arm, which runs *from* a mirror the
+/// `gui/ui/shell_action_dispatch.cpp:94-99`, this seam's own arm, which runs *from* a mirror the
 /// node has already set. Nothing else in the tree writes either bool. Every one of those either
 /// syncs or is a pair that starts in agreement -- the constructor's `defaultEditingMode = false`
 /// (`gui/views/performance_view.cpp:239`) against this mirror's own `DISABLED` initialiser

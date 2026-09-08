@@ -26,7 +26,8 @@
 #include "gui/context_menu/midi_learn_mode.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
-#include "gui/ui/ui.h" // openUI, getRootUI
+#include "gui/ui/sound_editor.h" // soundEditor.setShortcutsVersion -- the SetShortcutsVersion arm
+#include "gui/ui/ui.h"           // openUI, getRootUI
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -56,7 +57,7 @@ namespace {
 ///        `performanceView`.
 ///
 /// @param mode What `MenuActionRequest::arg` carried: a `PerformanceEditingMode`
-///        (`scenes/menu/action.h:73-79`).
+///        (`scenes/menu/action.h:95-101`).
 ///
 /// @par What `DISABLED` does here, and why it is not an assert
 ///
@@ -69,7 +70,7 @@ namespace {
 /// It has also already happened. The port reproduces the whole of legacy's `DISABLED` arm on the
 /// **producing** side: `PerformEditorItem::render` leaves `MenuState::render_resp.entered` set so
 /// `after_render`'s leaf arm ascends, and files no request at all
-/// (`scenes/menu/nodes/actions.cpp:153-158`). That is what `scenes/menu/action.h:73-74`'s "never
+/// (`scenes/menu/nodes/actions.cpp:153-158`). That is what `scenes/menu/action.h:95-96`'s "never
 /// `DISABLED`" promise is made of, and `sim/scenes_spec/menu_actions_spec.cpp`'s "goes up a level on
 /// DISABLED and files nothing" example is what pins it. So this branch is unreachable through every
 /// real path, and is defence in depth rather than behaviour -- and, being unreachable, it is the one
@@ -86,7 +87,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 	}
 
 	// `editing_mode.h:55-62`, transcribed branch for branch rather than collapsed into one
-	// assignment, so the two writes stay legible against their source. (`scenes/menu/action.h:76`
+	// assignment, so the two writes stay legible against their source. (`scenes/menu/action.h:98`
 	// scopes what is owed here to `editing_mode.h:56-95`, which begins one line INSIDE this
 	// `else if` because `editing_mode.h:51-53` is the `DISABLED` arm handled above.)
 	if (mode == PerformanceEditingMode::VALUE) {
@@ -138,7 +139,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
-/// (`scenes/menu/menu_scene.cpp:1447-1452`). `SceneStack::remove` and not `pop`, for the reason
+/// (`scenes/menu/menu_scene.cpp:1459-1464`). `SceneStack::remove` and not `pop`, for the reason
 /// recorded there (`:1434-1446`): `pop` would take a `Working` animation or a `Popup` sitting over
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
@@ -274,7 +275,7 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
-	// the request and clears it in the same call (`scenes/menu/menu_scene.h:609-610`). So an early
+	// the request and clears it in the same call (`scenes/menu/menu_scene.h:611-612`). So an early
 	// return above this line would not be "nothing to do", it would be "the request stays in the
 	// outbox until something else asks", which is the stale delivery the mailbox's own warning
 	// describes (`:593-598`).
@@ -285,20 +286,20 @@ void dispatchShellActions() {
 
 	switch (req.action) {
 	case MenuAction::None:
-		// Unreachable: `engaged()` IS `action != None` (`scenes/menu/action.h:109`), so the guard
+		// Unreachable: `engaged()` IS `action != None` (`scenes/menu/action.h:158`), so the guard
 		// above has already returned. Spelled out anyway because the alternative is a `default:`,
 		// and a `default:` here would silently absorb the enumerators later tasks add -- see the
 		// header's note on `-Werror=switch`.
 		break;
 
 	case MenuAction::OpenPerformanceView:
-		// `arg` is a `PerformanceEditingMode` and is never `DISABLED` (`scenes/menu/action.h:73-79`);
+		// `arg` is a `PerformanceEditingMode` and is never `DISABLED` (`scenes/menu/action.h:95-101`);
 		// the helper says what it does with one anyway, and why.
 		openPerformanceView(static_cast<PerformanceEditingMode>(req.arg));
 		break;
 
 	case MenuAction::StartStemExport:
-		// All of `stem_export/start.h:31-49`, which `scenes/menu/action.h:83-87` says is owed
+		// All of `stem_export/start.h:31-49`, which `scenes/menu/action.h:105-109` says is owed
 		// whole: the `soundEditor.exitCompletely()` that comes first AND the `getRootUI()` fan-out
 		// that picks between the four `StemExportType`s. The helper says what each of those two
 		// means under the guest, where the open UI is `ShellHostUI` rather than `soundEditor`.
@@ -356,6 +357,36 @@ void dispatchShellActions() {
 		// discard costs nothing at this site -- see the header for the site where it does.
 		(void)gui::context_menu::configureSongMacros.setupAndCheckAvailability();
 		openUI(&gui::context_menu::configureSongMacros);
+		break;
+
+	case MenuAction::SetShortcutsVersion:
+		// `shortcuts::Version::writeCurrentValue`'s one statement
+		// (`gui/menu_item/shortcuts/version.h:27`), on the real `soundEditor`. No helper: there is
+		// no branch to transcribe, and the value is legacy's own -- `writeCurrentValue` passes
+		// `this->getValue()` through unnormalised and so does the port, so the two-way mapping
+		// between the enum index and the setting is decided in exactly one place,
+		// `SoundEditor::setShortcutsVersion`'s own `switch` (`gui/ui/sound_editor.cpp:153-180`,
+		// whose `default` arm at `:177-179` is "Uses defaults").
+		//
+		// **This is the arm that reaches flash**, which no other arm in this switch does:
+		// `SoundEditor::shortcutsVersion` (`gui/ui/sound_editor.cpp:114`) is what
+		// `FlashStorage::writeSettings` stores at byte 60 (`storage/flash_storage.cpp:982`) and
+		// `readSettings` hands back at boot (`:568`). Before F2 task 6 the ported settings item
+		// wrote only `deluge::scenes::menu`'s mirror, so the layout a user chose from it survived
+		// until power-off and no further.
+		//
+		// **It does not loop**, and the reason is worth having here as well as at the enumerator,
+		// because this is the call that would close the loop if it ever did.
+		// `setShortcutsVersion` mirrors back into the port -- `:149-151` calls
+		// `deluge::scenes::menu::set_shortcuts_version`, F1 task 8's fix. That callee assigns one
+		// file-scope variable in `scenes/menu/shortcuts.cpp:450-452`. It is **not**
+		// `nodes::set_shortcuts_version`, the item hook that filed this request; it writes no
+		// `MenuState`, files nothing, and calls nothing. One lap, then it stops.
+		//
+		// The mirror write it makes is also the same value the hook already wrote, by the same rule
+		// spelled the same way on both sides (`V1` for `SHORTCUTS_VERSION_1`, `V3` otherwise), so
+		// the lap is idempotent rather than merely finite.
+		soundEditor.setShortcutsVersion(static_cast<int32_t>(req.arg));
 		break;
 	}
 }

@@ -336,6 +336,12 @@ void set_flash_status(const MenuContext& ctx, int32_t value);
 /// tables in place (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:112-181`). The
 /// port keeps it in `menu/shortcuts.cpp` beside the tables it selects, and selects a whole layer
 /// rather than editing one -- see `menu::set_shortcuts_version`.
+///
+/// **The write does two things as of F2 task 6**, and both are needed: the layer selection above,
+/// and a `MenuAction::SetShortcutsVersion` request (`scenes/menu/action.h`) that the dispatcher
+/// turns into `soundEditor.setShortcutsVersion(...)` -- which is what reaches flash byte 60. Before
+/// that, a layout chosen from the ported menu was gone at the next power-on. The reasoning is at the
+/// hook itself.
 /// @{
 int32_t get_shortcuts_version(const MenuContext& ctx);
 void set_shortcuts_version(const MenuContext& ctx, int32_t value);

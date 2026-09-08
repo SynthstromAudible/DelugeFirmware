@@ -27,10 +27,12 @@
 #include "scenes/menu/nodes/settings.h"
 
 #include "scenes/l10n_bridge.h"
+#include "scenes/menu/action.h" // MenuAction -- `set_shortcuts_version` files one
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
 #include "scenes/menu/shortcuts.h"  // `shortcuts_version` selects a layer here
 #include "scenes/profile.h"         // deluge_profile() -- ditto
+#include "scenes/registry.h"        // menu_scene() -- the singleton `request_action` is filed on
 
 #include "definitions_cxx.hpp"
 #include "io/midi/midi_device_manager.h"
@@ -824,21 +826,39 @@ int32_t get_shortcuts_version(const MenuContext&) {
 }
 void set_shortcuts_version(const MenuContext&, int32_t value) {
 	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:27`) ->
-	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:112-182`).
+	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:112-181`).
 	//
-	// @warning **This is the one writer of the setting that does NOT reach flash**, and under the
-	//          toggle it is the one the user actually presses. Legacy's item writes
-	//          `SoundEditor::shortcutsVersion`, which is what `FlashStorage::writeSettings` puts in
-	//          byte 60 (`storage/flash_storage.cpp:982`); this hook writes only this layer's copy,
-	//          because `src/scenes` may not name `SoundEditor`. So a layout chosen from the *ported*
-	//          settings menu is in force for the session and gone at the next power-on -- and the
-	//          reverse mirror is fine: `SoundEditor::setShortcutsVersion` pushes into this layer, so
-	//          a layout chosen from the legacy menu, at boot, or by a factory reset is followed here.
-	//          The same shape, and the same cause, as the ported screensaver setters below.
-	//          Recorded by F1 task 8; closing it needs the `menu::Action` dispatcher
-	//          `scenes/menu/action.h` says does not exist yet.
+	// **TWO WRITES, AND NEITHER IS REDUNDANT. Do not delete one for the other.**
+	//
+	//   1. `menu::set_shortcuts_version` is this layer's own copy -- what `get_shortcuts_version`
+	//      above reads back for the display, and what every shortcut-pad lookup in
+	//      `menu/shortcuts.cpp` resolves against. It has to happen here, synchronously, because the
+	//      item's own readout is drawn from it on the very next frame.
+	//   2. `request_action` is what reaches flash. `SoundEditor::shortcutsVersion` is the byte
+	//      `FlashStorage::writeSettings` stores at byte 60 (`storage/flash_storage.cpp:982`), and
+	//      `src/scenes` may not name `SoundEditor` (`scenes-includes-outside`,
+	//      `scripts/check_layer_rules.py`) -- so the write is asked for rather than made, and
+	//      `gui::ui::dispatchShellActions` performs it (`gui/ui/shell_action_dispatch.cpp`'s
+	//      `SetShortcutsVersion` arm). F1 task 8 recorded the gap this closes: without it, a layout
+	//      chosen from the *ported* settings menu was in force for the session and gone at the next
+	//      power-on. The reverse direction was already fine and still is --
+	//      `SoundEditor::setShortcutsVersion` pushes into this layer, so a layout chosen from the
+	//      legacy menu, at boot, or by a factory reset is followed here.
+	//
+	// The two do not fight and cannot loop: the dispatcher's callee mirrors back into (1) by calling
+	// `menu::set_shortcuts_version` -- the free function, not this hook -- with the same value, so
+	// the lap terminates. The argument in full is on `MenuAction::SetShortcutsVersion`
+	// (`scenes/menu/action.h`).
+	//
+	// `value` crosses to the dispatcher **unnormalised**, exactly as legacy's `getValue()` does:
+	// `SoundEditor::setShortcutsVersion`'s own `switch` is what decides that anything other than
+	// `SHORTCUTS_VERSION_1` means V3, and duplicating that decision here would be two mappings to
+	// keep in step instead of one. The normalisation below is only for (1), whose enum has no
+	// "anything else" member to hold an out-of-range index.
 	menu::set_shortcuts_version(value == static_cast<int32_t>(ShortcutsVersion::V1) ? ShortcutsVersion::V1
 	                                                                                : ShortcutsVersion::V3);
+	menu_scene().request_action(
+	    MenuActionRequest{.action = MenuAction::SetShortcutsVersion, .arg = static_cast<uint16_t>(value)});
 }
 
 // The six `pad_colour_*` nodes are six instantiations of `settings.h`'s `get_pad_colour` /

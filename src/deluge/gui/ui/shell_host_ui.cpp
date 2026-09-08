@@ -100,7 +100,7 @@ bool ShellHostUI::opened() {
 	// (`hid/buttons.cpp:250`) while the shell reads a `LoweringConfig` field that defaults to false
 	// (`shell/input_lowering.h:29-31`). Left unseeded, a sticky-shift user's latched shift would be
 	// invisible to `ctx.shift`, which is the whole gate on the menu's shortcut-pad jump
-	// (`scenes/menu/menu_scene.cpp:1394`) -- so shortcut pads would silently stop working under the
+	// (`scenes/menu/menu_scene.cpp:1406`) -- so shortcut pads would silently stop working under the
 	// toggle.
 	//
 	// `opened()` is the right place and the setter is the right tool: `set_shift_is_sticky` exists
@@ -253,7 +253,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	//
 	// The port spells `doGreyout == false` as an **all-zero mask**, deliberately and at the code:
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
-	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1460-1492`,
+	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1472-1504`,
 	// against `gui/ui/sound_editor.cpp:252-294`). Every arm of legacy's switch that leaves
 	// `doGreyout` true also writes a non-zero `*cols` (`:232`, `:237`, `:245`, `:252`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
@@ -469,7 +469,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// **The action drain, and both halves of where it sits are load-bearing.**
 	//
 	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
-	// (`scenes/menu/menu_scene.h:593-607`), and it announces nothing: "`after_render` returns no
+	// (`scenes/menu/menu_scene.h:593-609`), and it announces nothing: "`after_render` returns no
 	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
 	// tick, or requests are dropped or stale**" (`:596-598`). This line is the polling, and it is
 	// the only one in the firmware. `dispatchShellActions` performs whatever it finds.
@@ -499,7 +499,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// from that arm (`gui/ui_timer_manager.cpp:149-155`). A short Back never reaches it -- it is fed
 	// into the shell like any other button (`buttonAction` below) and routed inside `Shell::tick`,
 	// where `MenuScene` answers Back at depth 0 with `Action::Kind::Remove{.pop_to = FirstApp}`
-	// (`scenes/menu/menu_scene.cpp:1447-1452`), the port of `sound_editor.cpp:456`'s BACK case ->
+	// (`scenes/menu/menu_scene.cpp:1459-1464`), the port of `sound_editor.cpp:456`'s BACK case ->
 	// `:471` `goUpOneLevel()` -> `:710-717` `SoundEditor::goUpOneLevel`, whose depth-0 arm is
 	// `exitCompletely()` at `:716`. (`MenuScene`'s own comment on that block cites `:433` and
 	// `:678` for those two; both are stale -- `:433` is an `AFFECT_ENTIRE` blink and `:678` is
@@ -882,7 +882,7 @@ ActionResult ShellHostUI::exitUI() {
 	// long-press Back leaves the *whole* menu however deep it was, not one level. So does this,
 	// for the first tenant: the ported menu keeps its navigation depth inside one scene
 	// (`MenuScene`'s `st_.depth`) and only asks the shell to remove itself when Back arrives at
-	// depth 0 (`scenes/menu/menu_scene.cpp:1447-1452`). One `pop()` here is therefore one whole
+	// depth 0 (`scenes/menu/menu_scene.cpp:1459-1464`). One `pop()` here is therefore one whole
 	// menu, exactly as `exitCompletely` is. A future tenant that stacks a scene per level would
 	// make this differ, and that is the condition to watch.
 	//

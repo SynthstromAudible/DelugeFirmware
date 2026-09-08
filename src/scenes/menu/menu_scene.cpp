@@ -1319,6 +1319,17 @@ Result MenuScene::after_render() {
 		// are the four that file from `on_focus`, which is the same set as "legacy never enters
 		// this item" -- so the test is on the action's own identity rather than on a flag, and a
 		// sixth action added without deciding this question fails the `switch`'s coverage warning.
+		//
+		// **The sixth arrived (F2 task 6) and does NOT ascend**, and the rule above is what decides
+		// it rather than a preference. `SetShortcutsVersion` is filed from a `Binding::set` hook,
+		// which runs from `commit_value` a few lines above -- not from `on_focus`, and not from any
+		// press. It is also the other half of the same rule: legacy DOES enter this item. It is a
+		// plain `menu_item::Selection` (`gui/menu_item/shortcuts/version.h:23`) and overrides
+		// nothing, so `shouldEnterSubmenu()` is the base's `return true`
+		// (`gui/menu_item/menu_item.h:271`) -- `SoundEditor` navigates into its page and
+		// `writeCurrentValue` (`shortcuts/version.h:27`) runs on every detent while the user stands
+		// on it. Ascending here would close that page under the user on the first turn, which is UI
+		// the port would be inventing.
 		switch (st_.pending_action.action) {
 		case MenuAction::StartStemExport:
 		case MenuAction::SetClipLengthToSampleLength:
@@ -1327,6 +1338,7 @@ Result MenuScene::after_render() {
 			ascend();
 			break;
 		case MenuAction::OpenPerformanceView:
+		case MenuAction::SetShortcutsVersion:
 		case MenuAction::None:
 			break;
 		}

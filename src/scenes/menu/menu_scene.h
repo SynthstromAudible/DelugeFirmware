@@ -603,12 +603,39 @@ public:
 	///          concept the shell has no business knowing about (a legacy root-UI call) into
 	///          `shell/scene.h`. An honest mailbox plus this warning was judged better than a
 	///          guarantee that only half holds. Two requests in one tick is not reachable today
-	///          either: the drain runs once per `after_render` and one tick delivers at most one
-	///          select press.
+	///          either: the drain runs once per `after_render`, and each of the two routes into
+	///          `pending_action` fires at most once per tick -- one tick delivers at most one select
+	///          press, and `commit_value` runs at most once per `after_render` however many detents
+	///          the encoder produced (`after_render`'s `value_changed` arm).
 	///
 	/// @return The request, or `MenuAction::None` when none was filed since the last poll. Reading
 	///         clears the slot.
 	MenuActionRequest take_action();
+
+	/// @brief File @p request on behalf of a hook that is handed no `MenuState` to write.
+	///
+	/// **The one route into `pending_action` that is not an item writing the field itself**, and it
+	/// exists because `Binding::set` is `void (*)(const MenuContext&, int32_t)` (`SetFn`, `node.h`):
+	/// a value-write hook gets the context and the value and nothing else. Every other filer is a
+	/// `CustomItem`, whose `on_focus`/`render` are handed `MenuState&` and write the field directly
+	/// (`nodes/actions.cpp`).
+	///
+	/// Its only caller today is `nodes::set_shortcuts_version` (`nodes/settings.cpp`), which files
+	/// `MenuAction::SetShortcutsVersion` beside its own mirror write -- see `scenes/menu/action.h`'s
+	/// "the sixth item" for why that item's write, rather than its press, is what crosses the wall.
+	///
+	/// @par The timing, which is what makes this safe rather than merely convenient
+	///
+	/// A hook reaches this through the `menu_scene()` singleton (`scenes/registry.h`) -- the same
+	/// route `nodes/context_menu_items.cpp` already takes to `context_menu_scene()`. The only path
+	/// that calls a `Binding::set` hook is `commit_value` (`bindings::write`), and `commit_value`'s
+	/// one call site is inside `after_render`, **above** the `pending_action` drain. So a request
+	/// filed here is drained on the same tick it was filed, by the same `after_render` call, and
+	/// never sits in the field across a tick boundary where `retarget` could drop it.
+	///
+	/// @warning This overwrites whatever is in the field, exactly as an item's own assignment does.
+	///          The one-slot mailbox's warning above applies unchanged.
+	void request_action(MenuActionRequest request) { st_.pending_action = request; }
 
 private:
 	/// @brief Fill @p out with @p node's children that `relevant` admits, resolving
