@@ -22,6 +22,7 @@
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/owner.h"
+#include "storage/startup_song.h"
 
 #include <cstdio>
 
@@ -32,10 +33,6 @@
 #ifdef printf
 #undef printf
 #endif
-
-/// The real fail-safe, which this gate must drive rather than reimplement. Declared here rather than
-/// included because it is a free function in `deluge.cpp` with no header of its own.
-void setupStartupSong();
 
 namespace {
 
@@ -59,7 +56,38 @@ enum class Stage : uint8_t {
 	Done,
 };
 
+/// How many ticks the machine gets to finish before the gate calls it wedged.
+constexpr int32_t kMaxDriveTicks = 500;
+
 Stage g_stage = Stage::Fixture;
+int32_t g_driveTicks = 0;
+/// Whether the machine has been observed in its canary-write phase yet.
+bool g_sawCanaryPhase = false;
+/// Whether the canary was readable ON THE CARD at the instant the machine left that phase. -1 until
+/// the transition is observed, so a run that never reached it cannot look like a pass.
+int32_t g_canaryOnCard = -1;
+
+/// Observe the ordering guarantee: by the time the machine leaves its canary-write phase, everything
+/// downstream leads to the load, so the canary must ALREADY be on the card.
+///
+/// Checked by opening the file, not by asking the machine -- asking the machine would only confirm
+/// that it believes the write landed, which is the very thing under test. Called every tick, from
+/// beside the machine's own pump.
+void observeCanaryOrdering() {
+	if (deluge::storage::startupSongAwaitingCanary()) {
+		g_sawCanaryPhase = true;
+		return;
+	}
+	if (!g_sawCanaryPhase || g_canaryOnCard >= 0) {
+		return;
+	}
+	const char* path = deluge::storage::startupSongCanaryPath();
+	auto canary = deluge::io::File::open(path, DELUGE_FILE_READ);
+	g_canaryOnCard = canary.has_value() ? 1 : 0;
+	if (canary.has_value()) {
+		(void)canary->close();
+	}
+}
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
 int32_t g_failures = 0;
@@ -83,12 +111,21 @@ void runTick() {
 		// The REAL entry point, never the layer underneath it: the whole subject of this rung is which
 		// tier that entry point does its I/O on, so a gate that reached past it would keep testing the
 		// unconverted path forever.
-		setupStartupSong();
+		deluge::storage::armStartupSong();
 		g_stage = Stage::DriveCheck;
 		break;
 
 	case Stage::DriveCheck:
-		// Spends the tick the enqueued operations need before the tier count is read.
+		// The machine is phased now, so one tick is not enough: wait until it has finished before
+		// reading the tier count, or the count would be read partway through and report whatever
+		// happened to have run. Bounded so a wedged machine fails the gate rather than hanging it.
+		if (!deluge::storage::startupSongIdle() && ++g_driveTicks < kMaxDriveTicks) {
+			break;
+		}
+		if (g_driveTicks >= kMaxDriveTicks) {
+			printf("SF-DRIVE FAIL the fail-safe machine did not finish within %d ticks\n", kMaxDriveTicks);
+			g_failures++;
+		}
 		g_stage = Stage::Tier;
 		break;
 
@@ -97,6 +134,22 @@ void runTick() {
 		// compiled out the honest answer is 0; failing on that would make the default build fail for
 		// doing exactly what it is supposed to do. The channel-on leg of `startup_failsafe.sh` is what
 		// requires this to be non-zero.
+		const int32_t confirmed = deluge::storage::startupSongCanaryConfirmed() ? 1 : 0;
+		printf("SF-ORDER canaryOnCard=%d confirmedBeforeAdvancing=%d\n", g_canaryOnCard, confirmed);
+		if (confirmed != 1) {
+			// The half that can be tested. The card check below proves the canary is THERE; this
+			// proves the machine WAITED for it rather than reaching that state by luck, which on a
+			// host where the channel completes within a tick is the only way to tell the two apart.
+			printf("SF-ORDER FAIL the machine advanced past the canary write without a terminal answer\n");
+			g_failures++;
+		}
+		if (g_canaryOnCard != 1) {
+			// THE ORDERING GUARANTEE. A canary that has not landed when the machine allows the load to
+			// proceed is precisely the failure the fail-safe exists to prevent: the device dies
+			// mid-load, no canary survives, and the next boot retries the same song.
+			printf("SF-ORDER FAIL the canary was not on the card when the load was allowed to proceed\n");
+			g_failures++;
+		}
 		printf("SF-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup);
@@ -136,6 +189,9 @@ void deluge_scenario_startup_failsafe_begin(void) {
 	g_stepDone = false;
 	g_summaryPrinted = false;
 	g_failures = 0;
+	g_driveTicks = 0;
+	g_sawCanaryPhase = false;
+	g_canaryOnCard = -1;
 }
 
 bool deluge_scenario_startup_failsafe_complete(void) {
@@ -147,6 +203,12 @@ void deluge_scenario_startup_failsafe_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
+	// The machine's pump. In the firmware this is a repeating task registered in `deluge.cpp`; here
+	// the scenario owns the tick. Called before AND after the stage below so the machine gets a tick
+	// per dispatch whatever the stage does -- without it the fail-safe would be armed and never
+	// advanced, and a dead channel would pass.
+	deluge::storage::startupSongRoutine();
+	observeCanaryOrdering();
 	runTick();
 	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after the
 	// dispatched operation (and immediately if nothing was dispatched). That is what makes each

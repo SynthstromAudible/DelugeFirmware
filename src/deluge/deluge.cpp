@@ -72,6 +72,7 @@
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/smsysex.h"
+#include "storage/startup_song.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include "util/pack.h"
@@ -399,146 +400,11 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-namespace {
-
-/// @brief Whether the startup song was loaded from the template, so its name must be wiped.
-bool startupSongWasTemplate = false;
-
-/// @brief The startup canary to remove once the load is done. Held here rather than on
-///        setupStartupSong()'s stack, which is long gone by the time the load finishes.
-std::string startupFailSafePath;
-
-/// @brief Cleanup owed to the startup song load, run as its completion.
-///
-/// This used to sit on the straight line after performLoad() returned. The load now finishes from the
-/// run loop, so the cleanup travels with it - otherwise the canary would be removed while the song was
-/// still loading, and a load that then bricked the device would look like a clean boot next time.
-void finishStartupSong() {
-	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-	if (startupSongWasTemplate) {
-		// Wipe the name so the Save action asks you for a new song
-		currentSong->name.clear();
-	}
-	// ...but we got this far, cleanup
-	deluge_file_invalidate_cache();
-	(void)deluge::io::unlink(startupFailSafePath);
-	startupFailSafePath.clear();
-}
-
-} // namespace
-
-/// Can only happen after settings, which includes default settings, have been read
-void setupStartupSong() {
-
-	auto startupSongMode = FlashStorage::defaultStartupSongMode;
-	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
-	auto filename =
-	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
-	std::string failSafePath;
-	failSafePath.append("SONGS/__STARTUP_OFF_CHECK_");
-	auto size = strlen(filename) + 1;
-	// The messages we show to the user are mostly plain language, but
-	// for non-user facing errors we use codes. All messages are < 20 chars.
-	if (size > 2048) {
-		display->consoleText("Startup path too long");
-		return;
-	}
-
-	char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
-	replace_char(replaced, filename, '/', '_');
-	failSafePath.append(replaced);
-
-	// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
-	// gives this site its real ruling.
-	if (StorageManager::fileExists(failSafePath.c_str()).value_or(false)) {
-		// canary exists, previous boot failed?
-		display->consoleText("Startup fault F1");
-		return; // no cleanup, keep canary!
-	}
-	switch (startupSongMode) {
-	case StartupSongMode::TEMPLATE: {
-		// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
-		// gives this site its real ruling.
-		if (!StorageManager::fileExists(defaultSongFullPath).value_or(false)) {
-			display->consoleText("Creating template");
-			currentSong->writeTemplateSong(defaultSongFullPath);
-		}
-	}
-		[[fallthrough]];
-	case StartupSongMode::LASTOPENED:
-		[[fallthrough]];
-	case StartupSongMode::LASTSAVED: {
-		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-		// Create canary
-		deluge_file_invalidate_cache();
-		{
-			auto canary = deluge::io::File::open(failSafePath, DELUGE_FILE_WRITE_CREATE);
-			if (canary.has_value()) {
-				(void)canary->close(); // RAII would close anyway; explicit for parity with the old f_close
-			}
-			else {
-				// Could not create canary, not a user-facing error so code is fine.
-				// We're going to skip the startup song to avoid any issues.
-				display->consoleText("Startup fault F2");
-				return; // no canary, no cleanup
-			}
-		}
-		// Handle missing song
-		// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
-		// gives this site its real ruling.
-		if (!StorageManager::fileExists(filename).value_or(false)) {
-			if (startupSongMode == StartupSongMode::TEMPLATE) {
-				// we tried to create it earlier, but didn't happen?
-				display->consoleText("Startup fault F3");
-				// cleanup, this wasn't a crash
-				deluge_file_invalidate_cache();
-				(void)deluge::io::unlink(failSafePath);
-				return;
-			}
-			display->consoleText("Song missing");
-			// user didn't ask for the template, but if it exists let's use it instead
-			// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
-			// gives this site its real ruling.
-			if (StorageManager::fileExists(defaultSongFullPath).value_or(false)) {
-				display->consoleText("Using template");
-				filename = defaultSongFullPath;
-				startupSongMode = StartupSongMode::TEMPLATE;
-			}
-			else {
-				// cleanup, this wasn't a crash
-				deluge_file_invalidate_cache();
-				(void)deluge::io::unlink(failSafePath);
-				return;
-			}
-		}
-		// Load song, if we got this far!
-		currentSong->setSongFullPath(filename);
-		if (openUI(&loadSongUI)) {
-			// beginLoad() returns as soon as the load has to wait, and this task is fire-once, so the
-			// cleanup below cannot stay here - it goes in the completion instead.
-			startupSongWasTemplate = (startupSongMode == StartupSongMode::TEMPLATE);
-			startupFailSafePath = failSafePath;
-			loadSongUI.beginLoad(&finishStartupSong);
-			return;
-		}
-		// what just failed??
-		display->consoleText("Startup fault F4");
-		// ...but we got this far, cleanup
-		deluge_file_invalidate_cache();
-		(void)deluge::io::unlink(failSafePath);
-	} break;
-	case StartupSongMode::BLANK:
-		[[fallthrough]];
-	default:
-		return;
-	}
-}
-
 // Which conditional task fires once the SD card is ready. Normally the startup-song
 // loader above; the headless stem-render utility (src/bsp/host/host_render_main.cpp)
 // overrides this with its own driver before deluge_main() runs. A plain firmware or
 // interactive-host build never touches it, so behaviour is unchanged on-device.
-TaskHandle startupConditionalTask = setupStartupSong;
+TaskHandle startupConditionalTask = deluge::storage::armStartupSong;
 
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
@@ -596,6 +462,12 @@ void registerTasks() {
 	// the same reason: both are request/collect state machines whose caller returned long ago, and
 	// neither has a UI tick of its own to resume from.
 	addRepeatingTask([]() { deluge::storage::bytes::serviceRoutine(); }, p++, 0.001, 0.005, 0.02, "settings io",
+	                 RESOURCE_NONE);
+
+	// Advances the startup fail-safe's phases. Beside the two above for the same reason: it is a
+	// request/collect state machine whose caller returned long ago, and it has no UI tick of its own
+	// to resume from. Cheap and reentrant once the machine reaches Done.
+	addRepeatingTask([]() { deluge::storage::startupSongRoutine(); }, p++, 0.001, 0.005, 0.02, "startup failsafe",
 	                 RESOURCE_NONE);
 
 	// Same shape for stem export: each pass queues one step onto the storage owner and returns, so the

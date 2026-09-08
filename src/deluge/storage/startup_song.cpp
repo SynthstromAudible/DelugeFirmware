@@ -1,0 +1,490 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "storage/startup_song.h"
+
+#include "definitions_cxx.hpp"
+#include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/ui.h"
+#include "hid/display/display.h"
+#include "io/file.hpp"
+#include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
+#include "storage/byte_channel.h"
+#include "storage/existence_policy.h"
+#include "storage/flash_storage.h"
+#include "storage/startup_song_policy.h"
+#include "storage/storage_manager.h"
+#include "util/functions.h"
+
+#include <cstring>
+#include <expected>
+#include <string>
+
+namespace deluge::storage {
+
+namespace {
+
+/// The template song, and the fallback when the recorded startup song has gone.
+constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
+
+/// How many consecutive channel refusals before falling back to the storage owner.
+///
+/// The channel is single-flight across all operation kinds, so a settings write in flight refuses
+/// this machine's request. Retrying is right -- the machine is already ticking, and retrying keeps
+/// the relocation that falling back forfeits -- but an unbounded retry would let a permanently busy
+/// channel wedge boot. After this many the machine takes `runOnStorageOwner`, which is tier-safe and
+/// ordered, just not relocated.
+///
+/// Eight because this routine ticks at roughly the song-load routine's rate and the channel
+/// serialises one small operation at a time: eight consecutive refusals means something is wrong,
+/// not busy.
+constexpr int32_t kMaxRefusals = 8;
+
+/// @name The machine's state
+/// @{
+StartupPhase g_phase = StartupPhase::Idle;
+/// Whether the song about to be loaded is the TEMPLATE, so the completion wipes its name.
+bool g_usingTemplate = false;
+/// The canary for this attempt. Outlives `armStartupSong` because the load's completion removes it.
+std::string g_canaryPath;
+/// The song this attempt means to load. Reassigned when the fallback template is used.
+std::string g_songPath;
+/// Whether the current phase has issued its request yet.
+bool g_requested = false;
+/// Consecutive refusals of the current request. See @ref kMaxRefusals.
+int32_t g_refusals = 0;
+/// @}
+
+/// @name The owner arm's answers
+///
+/// The synchronous arm dispatches onto the storage owner and the answer arrives on a later tick, so
+/// it cannot be returned from the call that issued it. These hold it in between.
+/// @{
+bool g_ownerDone = false;
+std::expected<bool, deluge::io::Status> g_ownerPresence;
+bool g_ownerOk = false;
+/// @}
+
+/// Whether the canary write was CONFIRMED terminal before the machine advanced past it.
+///
+/// The ordering guarantee stated as observable state. The card check beside it in the gate proves the
+/// canary is there; this proves the machine WAITED for it rather than arriving there by luck --
+/// which on a host where the channel completes within a tick is the only way to tell the two apart.
+bool g_canaryConfirmed = false;
+
+/// Whether the startup song was loaded from the template, so its name must be wiped.
+bool g_startupSongWasTemplate = false;
+/// The canary to remove once the load is done. Held here rather than on the arming call's stack,
+/// which is long gone by the time the load finishes.
+std::string g_startupFailSafePath;
+
+/// Enter `phase` with a clean request state.
+void enter(StartupPhase phase) {
+	g_phase = phase;
+	g_requested = false;
+	g_refusals = 0;
+	g_ownerDone = false;
+}
+
+/// Whether the channel should carry this operation, or the owner arm should.
+///
+/// Falls back permanently once `kMaxRefusals` consecutive refusals have been seen for the current
+/// phase -- see that constant.
+bool viaChannel() {
+	return deluge::storage::bytes::usingByteChannel() && g_refusals < kMaxRefusals;
+}
+
+/// Issue an existence check for `path` on whichever arm is in force.
+void issueExists(const char* path) {
+	if (viaChannel()) {
+		if (deluge::storage::bytes::requestExists(path) == deluge::storage::bytes::ByteIo::Pending) {
+			g_requested = true;
+		}
+		else {
+			g_refusals++;
+		}
+		return;
+	}
+	// The owner arm. `noteIoTier` lives inside the dispatched body, not here: what the gate counts is
+	// where the card is touched, and the entry point is on the interaction tier either way.
+	static std::string ownerPath;
+	ownerPath = path;
+	g_ownerDone = false;
+	deluge::storage::bytes::runOnStorageOwner(
+	    [](void*) {
+		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
+		    g_ownerPresence = StorageManager::fileExists(ownerPath.c_str());
+		    g_ownerDone = true;
+	    },
+	    nullptr);
+	g_requested = true;
+}
+
+/// Collect the existence check for `path`, or `nullopt` while it is still running.
+std::optional<StartupPresence> collectExists(const char* path) {
+	if (viaChannel()) {
+		bool present = false;
+		DelugeStatus status = DELUGE_OK;
+		switch (deluge::storage::bytes::collectExists(path, &present, &status)) {
+		case deluge::storage::bytes::ByteIo::Pending:
+			return std::nullopt;
+		case deluge::storage::bytes::ByteIo::Unknown:
+			g_requested = false; // "ask again" -- the documented meaning.
+			return std::nullopt;
+		case deluge::storage::bytes::ByteIo::Ready:
+			// A real answer, either way. `startup_action` is what keeps "known absent" apart from
+			// "could not tell", which is the whole point of this operation being three-state.
+			return startup_action(std::expected<bool, deluge::io::Status>(present));
+		case deluge::storage::bytes::ByteIo::Failed:
+			return startup_action(std::unexpected(deluge::io::to_status(status)));
+		}
+		return StartupPresence::Unusable;
+	}
+	if (!g_ownerDone) {
+		return std::nullopt;
+	}
+	return startup_action(g_ownerPresence);
+}
+
+/// Issue the canary write on whichever arm is in force. A zero-byte file: only its EXISTENCE means
+/// anything.
+void issueCanaryWrite() {
+	deluge_file_invalidate_cache();
+	if (viaChannel()) {
+		if (deluge::storage::bytes::requestWrite(g_canaryPath.c_str(), "", 0)
+		    == deluge::storage::bytes::ByteIo::Pending) {
+			g_requested = true;
+		}
+		else {
+			g_refusals++;
+		}
+		return;
+	}
+	g_ownerDone = false;
+	deluge::storage::bytes::runOnStorageOwner(
+	    [](void*) {
+		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
+		    auto canary = deluge::io::File::open(g_canaryPath, DELUGE_FILE_WRITE_CREATE);
+		    if (canary.has_value()) {
+			    (void)canary->close(); // RAII would close anyway; explicit for parity with f_close
+			    g_ownerOk = true;
+		    }
+		    else {
+			    g_ownerOk = false;
+		    }
+		    g_ownerDone = true;
+	    },
+	    nullptr);
+	g_requested = true;
+}
+
+/// Collect the canary write, or `nullopt` while it is still running.
+///
+/// **This is the ordering guarantee.** The caller advances to the load only on `true`, never on
+/// "requested": a canary that has not landed when the device dies mid-load is precisely the failure
+/// the fail-safe exists to prevent.
+std::optional<bool> collectCanaryWrite() {
+	if (viaChannel()) {
+		DelugeStatus status = DELUGE_OK;
+		switch (deluge::storage::bytes::collectWrite(g_canaryPath.c_str(), &status)) {
+		case deluge::storage::bytes::ByteIo::Pending:
+			return std::nullopt;
+		case deluge::storage::bytes::ByteIo::Unknown:
+			g_requested = false; // Displaced before we took it; writing the same bytes twice is safe.
+			return std::nullopt;
+		case deluge::storage::bytes::ByteIo::Ready:
+			g_canaryConfirmed = true;
+			return true;
+		case deluge::storage::bytes::ByteIo::Failed:
+			return false;
+		}
+		return false;
+	}
+	if (!g_ownerDone) {
+		return std::nullopt;
+	}
+	g_canaryConfirmed = g_ownerOk;
+	return g_ownerOk;
+}
+
+/// Issue the canary removal. Fire-and-forget in spirit: a canary that outlives its attempt by a few
+/// ticks costs nothing, and one never removed costs a single skipped startup song next boot, which is
+/// the fail-safe being conservative rather than failing.
+void issueUnlink(const std::string& path) {
+	deluge_file_invalidate_cache();
+	if (viaChannel()) {
+		if (deluge::storage::bytes::requestUnlink(path.c_str()) == deluge::storage::bytes::ByteIo::Pending) {
+			g_requested = true;
+		}
+		else {
+			g_refusals++;
+		}
+		return;
+	}
+	static std::string ownerPath;
+	ownerPath = path;
+	g_ownerDone = false;
+	deluge::storage::bytes::runOnStorageOwner(
+	    [](void*) {
+		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
+		    (void)deluge::io::unlink(ownerPath);
+		    g_ownerDone = true;
+	    },
+	    nullptr);
+	g_requested = true;
+}
+
+/// Collect the canary removal. A path that was already gone reports FAILED with NOT_FOUND, which for
+/// a cleanup is success by another name, so both terminal statuses finish the phase.
+bool unlinkFinished(const std::string& path) {
+	if (viaChannel()) {
+		DelugeStatus status = DELUGE_OK;
+		switch (deluge::storage::bytes::collectUnlink(path.c_str(), &status)) {
+		case deluge::storage::bytes::ByteIo::Pending:
+			return false;
+		case deluge::storage::bytes::ByteIo::Unknown:
+			g_requested = false;
+			return false;
+		case deluge::storage::bytes::ByteIo::Ready:
+		case deluge::storage::bytes::ByteIo::Failed:
+			return true;
+		}
+		return true;
+	}
+	return g_ownerDone;
+}
+
+} // namespace
+
+void armStartupSong() {
+	auto startupSongMode = FlashStorage::defaultStartupSongMode;
+	if (startupSongMode == StartupSongMode::BLANK) {
+		enter(StartupPhase::Done);
+		return;
+	}
+
+	const char* filename =
+	    startupSongMode == StartupSongMode::TEMPLATE ? kDefaultSongFullPath : runtimeFeatureSettings.getStartupSong();
+	// The messages we show to the user are mostly plain language, but for non-user facing errors we
+	// use codes. All messages are < 20 chars.
+	if (strlen(filename) + 1 > 2048) {
+		display->consoleText("Startup path too long");
+		enter(StartupPhase::Done);
+		return;
+	}
+
+	g_canaryConfirmed = false;
+	g_canaryPath = "SONGS/__STARTUP_OFF_CHECK_";
+	{
+		char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
+		replace_char(replaced, filename, '/', '_');
+		g_canaryPath.append(replaced);
+	}
+	g_songPath = filename;
+	g_usingTemplate = (startupSongMode == StartupSongMode::TEMPLATE);
+	enter(StartupPhase::CheckCanary);
+}
+
+void startupSongRoutine() {
+	switch (g_phase) {
+	case StartupPhase::Idle:
+	case StartupPhase::Done:
+		return;
+
+	case StartupPhase::CheckCanary: {
+		if (!g_requested) {
+			issueExists(g_canaryPath.c_str());
+			return;
+		}
+		auto answer = collectExists(g_canaryPath.c_str());
+		if (!answer.has_value()) {
+			return;
+		}
+		if (*answer == StartupPresence::Confirmed) {
+			// canary exists, previous boot failed?
+			display->consoleText("Startup fault F1");
+		}
+		auto step = nextStartupPhase(StartupPhase::CheckCanary, *answer, g_usingTemplate);
+		g_usingTemplate = step.usingTemplate;
+		enter(step.next); // Done keeps the canary, deliberately -- there is no unlink on this path.
+		return;
+	}
+
+	case StartupPhase::CheckTemplate: {
+		if (!g_requested) {
+			issueExists(kDefaultSongFullPath);
+			return;
+		}
+		auto answer = collectExists(kDefaultSongFullPath);
+		if (!answer.has_value()) {
+			return;
+		}
+		if (*answer == StartupPresence::Missing) {
+			display->consoleText("Creating template");
+			currentSong->writeTemplateSong(kDefaultSongFullPath);
+		}
+		auto step = nextStartupPhase(StartupPhase::CheckTemplate, *answer, g_usingTemplate);
+		g_usingTemplate = step.usingTemplate;
+		enter(step.next);
+		return;
+	}
+
+	case StartupPhase::WriteCanary: {
+		if (!g_requested) {
+			issueCanaryWrite();
+			return;
+		}
+		auto landed = collectCanaryWrite();
+		if (!landed.has_value()) {
+			return;
+		}
+		if (!*landed) {
+			// Could not create canary, not a user-facing error so code is fine. We're going to skip
+			// the startup song to avoid any issues.
+			display->consoleText("Startup fault F2");
+			enter(StartupPhase::Done); // no canary, no cleanup
+			return;
+		}
+		// THE ORDERING GUARANTEE: only a canary confirmed on the card lets the load proceed.
+		enter(StartupPhase::CheckSong);
+		return;
+	}
+
+	case StartupPhase::CheckSong: {
+		if (!g_requested) {
+			issueExists(g_songPath.c_str());
+			return;
+		}
+		auto answer = collectExists(g_songPath.c_str());
+		if (!answer.has_value()) {
+			return;
+		}
+		if (*answer == StartupPresence::Missing) {
+			if (g_usingTemplate) {
+				// we tried to create it earlier, but didn't happen? Handled here rather than in
+				// `nextStartupPhase` because it is a MESSAGE difference, not a policy one: the
+				// destination is the same cleanup either way, and the policy's job is the third state.
+				display->consoleText("Startup fault F3");
+				enter(StartupPhase::UnlinkCanary);
+				return;
+			}
+			display->consoleText("Song missing");
+		}
+		auto step = nextStartupPhase(StartupPhase::CheckSong, *answer, g_usingTemplate);
+		g_usingTemplate = step.usingTemplate;
+		enter(step.next);
+		return;
+	}
+
+	case StartupPhase::CheckFallbackTemplate: {
+		if (!g_requested) {
+			issueExists(kDefaultSongFullPath);
+			return;
+		}
+		auto answer = collectExists(kDefaultSongFullPath);
+		if (!answer.has_value()) {
+			return;
+		}
+		if (*answer == StartupPresence::Confirmed) {
+			// user didn't ask for the template, but if it exists let's use it instead
+			display->consoleText("Using template");
+			g_songPath = kDefaultSongFullPath;
+		}
+		auto step = nextStartupPhase(StartupPhase::CheckFallbackTemplate, *answer, g_usingTemplate);
+		g_usingTemplate = step.usingTemplate;
+		enter(step.next);
+		return;
+	}
+
+	case StartupPhase::BeginLoad: {
+		// Load song, if we got this far!
+		currentSong->setSongFullPath(g_songPath.c_str());
+		if (openUI(&loadSongUI)) {
+			// beginLoad() returns as soon as the load has to wait, so the cleanup cannot stay here --
+			// it goes in the completion instead.
+			g_startupSongWasTemplate = g_usingTemplate;
+			g_startupFailSafePath = g_canaryPath;
+			loadSongUI.beginLoad(&finishStartupSong);
+			enter(StartupPhase::Done);
+			return;
+		}
+		// what just failed??
+		display->consoleText("Startup fault F4");
+		enter(StartupPhase::UnlinkCanary);
+		return;
+	}
+
+	case StartupPhase::UnlinkCanary: {
+		if (!g_requested) {
+			issueUnlink(g_canaryPath);
+			return;
+		}
+		if (!unlinkFinished(g_canaryPath)) {
+			return;
+		}
+		enter(StartupPhase::Done);
+		return;
+	}
+	}
+}
+
+bool startupSongCanaryConfirmed() {
+	return g_canaryConfirmed;
+}
+
+bool startupSongAwaitingCanary() {
+	return g_phase == StartupPhase::WriteCanary;
+}
+
+const char* startupSongCanaryPath() {
+	return g_canaryPath.c_str();
+}
+
+bool startupSongIdle() {
+	return g_phase == StartupPhase::Idle || g_phase == StartupPhase::Done;
+}
+
+void finishStartupSong() {
+	if (g_startupSongWasTemplate) {
+		// Wipe the name so the Save action asks you for a new song
+		currentSong->name.clear();
+	}
+	// ...but we got this far, cleanup. Requested and not collected: this runs from the load's
+	// completion, which has nowhere to poll from, and an uncollected answer costs nothing -- see
+	// `issueUnlink`.
+	deluge_file_invalidate_cache();
+	if (deluge::storage::bytes::usingByteChannel()) {
+		if (deluge::storage::bytes::requestUnlink(g_startupFailSafePath.c_str())
+		    == deluge::storage::bytes::ByteIo::Pending) {
+			g_startupFailSafePath.clear();
+			return;
+		}
+		// Refused: fall through to the owner arm rather than dropping the cleanup.
+	}
+	static std::string path;
+	path = g_startupFailSafePath;
+	deluge::storage::bytes::runOnStorageOwner(
+	    [](void*) {
+		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
+		    (void)deluge::io::unlink(path);
+	    },
+	    nullptr);
+	g_startupFailSafePath.clear();
+}
+
+} // namespace deluge::storage

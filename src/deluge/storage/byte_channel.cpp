@@ -41,8 +41,8 @@ int32_t g_interactionTierIo[2] = {0, 0};
 /// freeze. Counting is what proves the sites are reachable; freezing is what keeps them from coming
 /// back, and it is only truthful once there is a converted path for them to come back FROM.
 constexpr bool kFreezeOnViolation[2] = {
-    true,  // Settings: converted, so any violation is now a regression.
-    false, // Startup: not converted yet. Flipped to true with the conversion.
+    true, // Settings: converted, so any violation is now a regression.
+    true, // Startup: converted, likewise.
 };
 
 /// Translate the C ABI's `uint32_t`-shaped status byte into the type the callers switch on.
@@ -76,6 +76,26 @@ bool keyable(const char* path) {
 	return path != nullptr && strlen(path) < DELUGE_FILE_BYTES_MAX_PATH;
 }
 
+/// See @ref channelServedOps.
+int32_t g_channelServed = 0;
+
+/// Count one channel operation that reached a terminal status, and pass that status through.
+///
+/// Counted HERE, at the collect wrappers, rather than in the submit machine below -- because not
+/// every consumer uses that machine. The startup fail-safe drives request/collect itself, and a
+/// counter that only saw the machine reported zero for it while it was demonstrably using the
+/// channel. What this number proves is that the channel RAN, so it has to be incremented wherever an
+/// answer actually comes back.
+///
+/// Terminal only: PENDING and UNKNOWN are "ask again", and counting those would report a number that
+/// grows with polling rather than with work.
+ByteIo counted(ByteIo status) {
+	if (status == ByteIo::Ready || status == ByteIo::Failed) {
+		g_channelServed++;
+	}
+	return status;
+}
+
 } // namespace
 
 bool usingByteChannel() {
@@ -101,7 +121,8 @@ ByteIo collectRead(const char* path, char* buf, uint32_t cap, uint32_t* outLen, 
 	}
 	// The cast is the identity on the wire: the channel carries bytes, and the deserialiser wants
 	// them as `char`. Nothing here interprets them.
-	return fromAbi(deluge_file_bytes_collect_read(path, reinterpret_cast<uint8_t*>(buf), cap, outLen, outStatus));
+	return counted(
+	    fromAbi(deluge_file_bytes_collect_read(path, reinterpret_cast<uint8_t*>(buf), cap, outLen, outStatus)));
 }
 
 ByteIo requestWrite(const char* path, const char* bytes, uint32_t len) {
@@ -122,7 +143,7 @@ ByteIo collectWrite(const char* path, DelugeStatus* outStatus) {
 	if (!keyable(path) || outStatus == nullptr) {
 		return ByteIo::Failed;
 	}
-	return fromAbi(deluge_file_bytes_collect_write(path, outStatus));
+	return counted(fromAbi(deluge_file_bytes_collect_write(path, outStatus)));
 }
 
 ByteIo requestRename(const char* from, const char* to) {
@@ -139,7 +160,7 @@ ByteIo collectRename(const char* to, DelugeStatus* outStatus) {
 	if (!keyable(to) || outStatus == nullptr) {
 		return ByteIo::Failed;
 	}
-	return fromAbi(deluge_file_bytes_collect_rename(to, outStatus));
+	return counted(fromAbi(deluge_file_bytes_collect_rename(to, outStatus)));
 }
 
 namespace {
@@ -189,9 +210,6 @@ struct PendingOp {
 
 PendingOp g_pending;
 
-/// See @ref channelServedOps.
-int32_t g_channelServed = 0;
-
 /// The bytes in flight: a write's payload on the way out, a read's contents on the way in.
 ///
 /// One buffer for both directions because only one operation is ever pending. Sized to the channel's
@@ -208,11 +226,6 @@ char g_buffer[DELUGE_FILE_BYTES_MAX_BYTES];
 ///
 /// @see finishAbsent for the one failure that is NOT this.
 void finish() {
-	if (g_pending.step != Step::Idle) {
-		// Counted at every terminal exit, the failures included: what this proves is that the channel
-		// RAN, not that the card was cooperative.
-		g_channelServed++;
-	}
 	g_pending = PendingOp{};
 }
 
@@ -430,7 +443,7 @@ ByteIo collectUnlink(const char* path, DelugeStatus* outStatus) {
 	if (!keyable(path) || outStatus == nullptr) {
 		return ByteIo::Failed;
 	}
-	return fromAbi(deluge_file_bytes_collect_unlink(path, outStatus));
+	return counted(fromAbi(deluge_file_bytes_collect_unlink(path, outStatus)));
 }
 
 ByteIo requestExists(const char* path) {
@@ -445,7 +458,7 @@ ByteIo collectExists(const char* path, bool* outPresent, DelugeStatus* outStatus
 	if (!keyable(path) || outPresent == nullptr || outStatus == nullptr) {
 		return ByteIo::Failed;
 	}
-	return fromAbi(deluge_file_bytes_collect_exists(path, outPresent, outStatus));
+	return counted(fromAbi(deluge_file_bytes_collect_exists(path, outPresent, outStatus)));
 }
 
 int32_t interactionTierIo(IoTier which) {

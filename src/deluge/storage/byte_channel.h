@@ -247,11 +247,16 @@ void runOnStorageOwner(OwnerFn fn, void* ctx);
 ///
 /// The check that the async arm is executed at all. Every consumer falls back to
 /// @ref runOnStorageOwner when the channel refuses, and that fallback is correct and silent -- so a
-/// channel that never worked would leave every gate passing and every settings file intact, which is
-/// exactly how a previous rung's livelock survived review. This number is the difference between the
-/// channel being used and the channel merely being compiled.
+/// channel that never worked would leave every gate passing and every file intact, which is exactly
+/// how a previous rung's livelock survived review. This number is the difference between the channel
+/// being used and the channel merely being compiled.
 ///
-/// A read that found nothing counts too: the channel carried the question and answered it.
+/// Counted at the COLLECT wrappers, not in the submit machine, because not every consumer uses that
+/// machine: the startup fail-safe drives request/collect itself, and a counter that only saw the
+/// machine reported zero for it while it was demonstrably using the channel.
+///
+/// A read that found nothing counts too, as does a failure: the channel carried the question and
+/// answered it, which is what this measures.
 [[nodiscard]] int32_t channelServedOps();
 
 /// @brief Drive whatever @ref submitRead or @ref submitWrite handed over.

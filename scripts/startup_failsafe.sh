@@ -81,7 +81,7 @@ if ! grep -q '^SF-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in SF-CHANNEL SF-TIER; do
+for marker in SF-ORDER SF-CHANNEL SF-TIER; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SF-' "$OUT/run.txt"
