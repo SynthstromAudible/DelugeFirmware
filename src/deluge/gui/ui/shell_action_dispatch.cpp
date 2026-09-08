@@ -300,10 +300,12 @@ void dispatchShellActions() {
 		break;
 
 	case MenuAction::StartStemExport:
-		// All of `stem_export/start.h:31-49`, which `scenes/menu/action.h:123-127` says is owed
-		// whole: the `soundEditor.exitCompletely()` that comes first AND the `getRootUI()` fan-out
-		// that picks between the four `StemExportType`s. The helper says what each of those two
-		// means under the guest, where the open UI is `ShellHostUI` rather than `soundEditor`.
+		// All of `stem_export/start.h:31-49`, which `scenes/menu/action.h:122-131` says this arm
+		// performs whole: the `soundEditor.exitCompletely()` that comes first AND the
+		// `getRootUI()` fan-out that picks between the four `StemExportType`s. The helpers say what
+		// each of those two means under the guest, where the open UI is `ShellHostUI` rather than
+		// `soundEditor` -- the first is performed in equivalent form rather than verbatim, and that
+		// is this arm's one divergence.
 		startStemExport();
 		break;
 

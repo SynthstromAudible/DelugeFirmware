@@ -21,11 +21,16 @@
 /// @brief The consumer half of the menu's action seam -- the poll `MenuScene::take_action()` has
 ///        been documented as owing since it was written, and nothing performed.
 ///
-/// The producing half is `src/scenes`': five ported menu items ask for a piece of legacy root-UI
-/// behaviour by writing `MenuState::pending_action`, `MenuScene::after_render` moves that into a
-/// one-slot outbox, and `MenuScene::take_action()` (`scenes/menu/menu_scene.h:625`) hands it out.
-/// The five verbs and the legacy statement each one stands for are tabulated at
-/// `scenes/menu/action.h:13-19`.
+/// The producing half is `src/scenes`': a ported menu item asks for a piece of legacy behaviour it
+/// may not perform, `MenuScene::after_render` moves the request into a one-slot outbox, and
+/// `MenuScene::take_action()` (`scenes/menu/menu_scene.h:627`) hands it out.
+///
+/// **Seven verbs, and they are not all one shape.** Five are root-UI behaviour filed by writing
+/// `MenuState::pending_action` directly, and they are tabulated at `scenes/menu/action.h:13-19`.
+/// The other two are settings writes filed through `MenuScene::request_action` by a `Binding::set`
+/// hook that is handed no `MenuState` at all -- `SetShortcutsVersion` (F2 task 6) and
+/// `ScreensaverSettingsChanged` (F2 task 7), argued at `action.h:29-65`. The difference matters to
+/// this file only in what each arm calls; the drain and the poll are identical for all seven.
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
@@ -135,10 +140,10 @@ void dispatchShellActions();
 /// `stem_export::Start::selectButtonPress` (`gui/menu_item/stem_export/start.h:31-49`) is two
 /// statements welded together: a fan-out over `getRootUI()` that picks one of four
 /// `StemExportType`s (`:33-47`), and a `stemExport.startStemExportProcess(...)` that acts on the
-/// pick. `scenes/menu/action.h:123-127` says why the seam could not split them into four enumerators
+/// pick. `scenes/menu/action.h:133-134` says why the seam could not split them into four enumerators
 /// -- "the choice is made from the root UI, which this layer cannot read" -- so the whole fan-out
 /// lands on this side of the wall, and it is by some distance the most substantial thing any of the
-/// five verbs does.
+/// seven verbs does.
 ///
 /// @par Why it is declared here rather than left inside the `.cpp`'s anonymous namespace
 ///

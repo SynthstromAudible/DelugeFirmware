@@ -74,8 +74,9 @@
 ///     as of F2 task 1 -- `gui::ui::dispatchShellActions` drains it once per guest tick -- and all
 ///     five arms now have bodies (tasks 2, 3 and 4), so `perform_editor`, `start_stem_export`,
 ///     `set_clip_length`, `song_midi_learn` and `configure_song_macros` all do under the toggle what
-///     their legacy items do. What each arm still owes is narrower than "nothing happens" and is
-///     recorded per arm at `gui/ui/shell_action_dispatch.h`.
+///     their legacy items do. Tasks 6 and 7 added two more verbs (item 4 below), so the switch is
+///     **seven** arms now, not five. What each arm still owes is narrower than "nothing happens"
+///     and is recorded per arm at `gui/ui/shell_action_dispatch.h`.
 ///  2. **A file chosen in the ported browser is parked, not claimed.** `BrowserScene`'s deferring
 ///     descriptor closes with the choice in `take_choice()`, which nothing polls either (§10.2
 ///     item 4). `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting are
@@ -90,18 +91,34 @@
 ///     With all five, and the writer set closed, the ported editing item and the view cannot
 ///     disagree in either toggle state. It was four sites in the view and not the five
 ///     `scenes/menu/action.h` used to list; that header carries the corrected contract.
-///  4. **Three ported settings items write flash and notify nobody.** The two screensaver setters
-///     (`scenes/menu/nodes/settings.cpp`) and `nodes::set_shortcuts_version`: F1 task 8 found them,
-///     and each needs its own enumerator and arm on (1)'s dispatcher. Changing the screensaver
-///     mode or timeout **from the ported menu** leaves both screensavers armed at the old value
-///     until the next reboot or the next change made from the legacy menu; choosing a shortcut
-///     layout there holds for the session and is gone at the next power-on.
+///  4. ~~**Three ported settings items write flash and notify nobody.**~~ -- **closed, F2 tasks 6
+///     and 7** (§10.2 items 5.2 and 5.1). Each got the enumerator and arm this item asked for, and
+///     the two are **not** the same defect, which is why they took two tasks. The shortcut-layout
+///     setter was losing the *value*: it held for the session and was gone at the next power-on,
+///     because nothing reached `SoundEditor::setShortcutsVersion` and so nothing reached flash
+///     byte 60. `nodes::set_shortcuts_version` (`scenes/menu/nodes/settings.cpp:891-892`) now files
+///     `MenuAction::SetShortcutsVersion` beside its own mirror write, and the dispatcher performs
+///     the legacy call. The two screensaver setters were losing only the *apply*: their
+///     `FlashStorage` assignment was always made by the ported hook, matching the first statement
+///     of each legacy `writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:39`, `:61`), so
+///     no value was ever lost -- what was missing was the second statement,
+///     `Screensaver::settingsChanged()`, and both screensavers stayed armed at the old timing until
+///     a reboot or a change made from the legacy menu. Both setters now file
+///     `MenuAction::ScreensaverSettingsChanged` (`scenes/menu/nodes/settings.cpp:592`); one
+///     enumerator serves both because legacy's notify takes no argument.
+///
+///     **What is NOT closed by these two and is not this door's symptom:** the play-cursor flash
+///     (§10.2 item 5.3) is unwired in both directions and reaches no menu item, so it is not a
+///     thing a user can do wrong from behind this toggle. It is recorded at §10.2 and in
+///     `src/scenes/README.md`'s boot-wiring section, where it belongs.
 ///  5. **Six of the fourteen entry points still open the legacy `SoundEditor`** -- see
 ///     `shell_menu_entry.cpp`'s table for which, and why each one's node has no port. So with the
 ///     toggle on the firmware has *both* menus, reachable by different gestures.
 ///
-/// Items 2-4 are `src/scenes` gaps plan F1 does not close (item 1 was one, and plan F2 closed it);
-/// item 5 is this task's own honest answer to "a wrong node is worse than a legacy menu".
+/// Items 2-4 were `src/scenes` gaps plan F1 did not close. Plan F2 closed 1, 3 and 4 and left 2
+/// (the `take_choice()` dispatcher) open by an explicit scope decision -- it is F3's. Item 5 is
+/// this task's own honest answer to "a wrong node is worse than a legacy menu", and it is the one
+/// entry here that is unchanged by F2.
 
 #include <cstdint>
 

@@ -102,9 +102,17 @@
 /// Every entry is a call into something `src/scenes` may not name, with no seam that would let it
 /// be spelled honestly. The E4 controller's ruling for the load/save pair applies to all of them:
 /// **port the arm's decision and leave the call as a documented no-op with a `@warning`, not as a
-/// new outbox.** A second outbox with no consumer is the exact shape migration spec §10.2 already
-/// lists as a blocker -- `menu/action.h`'s `MenuAction` mailbox has five requests and no
-/// dispatcher -- and adding another before the first has one would leave two seams nobody owns.
+/// new outbox.** The ruling stands; **its premise has since changed and the record should not read
+/// as though it had not.** When E4 made it, `menu/action.h`'s `MenuAction` mailbox had five
+/// requests and no dispatcher, and a second outbox with no consumer would have left two seams
+/// nobody owned. `gui::ui::dispatchShellActions` arrived with F2 task 1 and the mailbox now has
+/// seven arms and a consumer, so the "before the first has one" half of the argument is spent.
+/// What survives it is the half that was never about timing: `take_action()` is a **one-slot**
+/// mailbox with a silent overwrite (`menu/menu_scene.h`), a second outbox would need its own
+/// polling contract and its own dispatcher arm, and nothing in this service's SAVE/LOAD arms is
+/// waiting on one -- the load/save browser family has no port at all (migration §10.4, phase 6),
+/// so there would be nothing for a request to ask for. Whoever ports that family decides this
+/// again, on those terms rather than on the mailbox's.
 ///
 ///   * **`openUI(&saveSongUI)`** (`view.cpp:262`) and **`openUI(&loadSongUI)`** (`:314`). The
 ///     load/save browser family is not ported; migration spec §10.4 puts it on phase 6, and

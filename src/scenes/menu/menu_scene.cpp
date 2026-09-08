@@ -1331,9 +1331,9 @@ Result MenuScene::after_render() {
 	// Two things happen, and both are legacy's:
 	//
 	//   * The request goes into the one-slot outbox `take_action()` empties. There is no `Action`
-	//     kind for it and there must not be: the shell knows about scenes, and what these five items
-	//     run is not a scene (`openUI(&performanceView)`, `stemExport.startStemExportProcess(...)`).
-	//     The wiring plan's dispatcher is the consumer.
+	//     kind for it and there must not be: the shell knows about scenes, and what these items run
+	//     is not a scene (`openUI(&performanceView)`, `stemExport.startStemExportProcess(...)`).
+	//     `gui::ui::dispatchShellActions` is the consumer, as of F2 task 1.
 	//   * The four `ActionItem`s ascend straight back out. Legacy never descends into them at all --
 	//     `shouldEnterSubmenu()` is false, so `SoundEditor` calls `selectButtonPress()` and stays on
 	//     the parent list (`gui/ui/sound_editor.cpp:420-423`). Ascending on the tick the request is

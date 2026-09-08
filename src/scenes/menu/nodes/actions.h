@@ -45,9 +45,13 @@
 /// ## Divergences, named rather than absorbed
 ///
 ///   * **`soundEditor.exitCompletely()`** (`stem_export/start.h:32`) closes the whole menu before
-///     the export starts. `MenuAction::StartStemExport`'s dispatcher owes it; the scene cannot pop
-///     itself out from under a request it has not yet handed over. The port's own ascend is a no-op
-///     once the dispatcher pops the scene.
+///     the export starts. `MenuAction::StartStemExport`'s dispatcher performs it, as of F2 task 3,
+///     and it has to be the dispatcher rather than this item: the scene cannot pop itself out from
+///     under a request it has not yet handed over. The port's own ascend is a no-op once the
+///     dispatcher pops the scene. **Performed in equivalent form rather than verbatim** --
+///     `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp:170-172`) empties the guest's scene
+///     stack, because under the guest the open UI is `ShellHostUI` and the literal call would walk
+///     `closeUI` off the front of the navigation stack. Argued in full at that helper.
 ///   * (**`isRelevant() == (getRootUI() == &sessionView)`** on `song::MidiLearn` (`song/midi_learn.h:35-37`)
 ///     and `song::ConfigureMacros` (`song/configure_macros.h:35-37`) is no longer a divergence --
 ///     E3 task 9. It used to be one because `MenuContext::is_song_view` is `context_for`'s

@@ -158,7 +158,7 @@
 
 # One detent onto SET CLIP LENGTH EQUAL TO SAMPLE LENGTH (RENAME is first), then the press that
 # performs the verb. Under the toggle that press is `MenuScene`'s `ActionItem` filing
-# `MenuAction::SetClipLengthToSampleLength` (`scenes/menu/nodes/actions.h:123`) and
+# `MenuAction::SetClipLengthToSampleLength` (`scenes/menu/nodes/actions.h:127`) and
 # `dispatchShellActions` calling `audioClipView.setClipLengthEqualToSampleLength()`; with it off it
 # is legacy's `selectButtonPress` calling the same method.
 6000   encoder Select +1
