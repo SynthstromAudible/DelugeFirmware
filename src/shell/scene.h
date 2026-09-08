@@ -438,11 +438,21 @@ public:
 	///     other group, the port of `Buttons::buttonAction`'s tail, is deliberately *ungated*,
 	///     because legacy runs that tail for any current UI. The two reachability rules below are
 	///     why one call is gated and the other is not.
-	///   * `services::MidiLearn` gates its **entire** `handle()` (`midi_learn.cpp:491`), which is
-	///     the stronger use: it has only `View` arms, so there is nothing left to run when the
-	///     input top is not a root. It is also the one that made the gate load-bearing, because
-	///     `MidiLearn` is routed last and therefore sees a `LEARN` press under a non-root scene
-	///     where legacy hands it to `SoundEditor::buttonAction`'s own arm.
+	///   * `services::MidiLearn` gates **all four of its `View::buttonAction` arms** and only those
+	///     (`midi_learn.cpp:491`, the same sentence `services/midi_learn.h:58` makes). It is the
+	///     consumer that made the gate load-bearing, because `MidiLearn` is routed last and therefore
+	///     sees a `LEARN` press under a non-root scene where legacy hands it to
+	///     `SoundEditor::buttonAction`'s own arm.
+	///
+	///     **It is no longer the whole of `handle()`, and this bullet said it was until F1 task 10's
+	///     fix round.** That task put the two MIDI arms (`UiEvent::Kind::MidiNoteOn`/`MidiCc`)
+	///     deliberately *above* the gate, and `midi_learn.cpp:457-462` argues why: legacy reaches
+	///     `view.noteOnReceivedForMidiLearn` from `PlaybackHandler` with no root-UI test anywhere on
+	///     the path, so gating them would invent a restriction legacy does not have. The claim was
+	///     falsified by the same commit that then swept this file's citations -- which bumped the
+	///     number and left the sentence. See `scripts/check_citations.py`'s sweeping section: a shift
+	///     map keeps a citation pointing where it pointed, so a freshly-correct line number can sit
+	///     on a sentence the same commit made false, and read as evidence the text was checked.
 	///
 	/// @warning **This list is owned by whoever adds the next consumer.** It said "there is
 	///          exactly one consumer today" and named only `GlobalControls` for the whole of E4,

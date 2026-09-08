@@ -122,8 +122,8 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	// `getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(...)` **outside** the
 	// `UI_MODE_MIDI_LEARN` gate, after which learn goes straight to `view.ccReceivedForMIDILearn`
 	// at `playback_handler.cpp:3169` with no UI-first refusal at all. So note-on is the dispatcher
-	// this ordering
-	// mirrors, `Kind::MidiCc` is carried in the same position for consistency of the chain rather
+	// this ordering mirrors, `Kind::MidiCc` is carried in the same position for consistency of the
+	// chain rather
 	// than because legacy asks a UI first, and the divergence that leaves under the guest is
 	// recorded at `playback_handler.cpp:3164`.
 	Result learn_result = services_.midi_learn->handle(event, ctx);

@@ -127,7 +127,7 @@ namespace deluge::gui::ui {
 /// @par Why the floor is 1 ms and not 0 -- the busy loop this shell has shipped before
 ///
 /// `Scene::next_timer()` may legally return **0**, meaning "next tick"
-/// (`shell/scene.h:500-552`), and `AudioClipScene::next_timer()` returns it for the whole of
+/// (`shell/scene.h:510-562`), and `AudioClipScene::next_timer()` returns it for the whole of
 /// playback (`scenes/audio_clip/audio_clip_scene.cpp:1193-1199`). `Shell::next_wake()`'s own
 /// `@warning` records that a host cannot tell that apart from "wake once, immediately", and that the
 /// shell "only ticks when its host asks it to" -- **this class is that host**, so the answer is here.
@@ -293,21 +293,31 @@ namespace deluge::gui::ui {
 ///          names, and it is worth knowing before anyone counts this as working.** Every one of
 ///          these dispatch arms is gated on `currentUIMode == UI_MODE_MIDI_LEARN`
 ///          (`playback_handler.cpp:2897`, `:2963`, `:3168`, and `SoundEditor`'s own inner tests),
-///          and **exactly two lines in the tree ever set that value**:
+///          and **exactly two lines in the tree assign it -- but there are THREE ways in, and the
+///          count of assignments is not the count of entries**:
+///          `grep -rn "currentUIMode = UI_MODE_MIDI_LEARN" src/deluge` returns
 ///          `View::startMIDILearn` (`gui/views/view.cpp:493`) and `SoundEditor::buttonAction`'s
-///          `LEARN` arm (`gui/ui/sound_editor.cpp:520`) --
-///          `grep -rn "currentUIMode = UI_MODE_MIDI_LEARN" src/deluge` returns exactly those two
-///          lines and nothing else. Neither runs while the guest
-///          is open: `View::buttonAction` is the *root view's* fallback and the guest is the
-///          current UI, and `SoundEditor` is not open at all. The port's own learn mode
-///          (`services::MidiLearn::begin`, reached from its `LEARN` arm) sets a **different bit**
-///          -- `MidiLearn::active_`, which `PlaybackHandler` cannot see -- and is itself gated on
-///          `SceneStack::input_top().is_root()`, which `MenuScene` is not.
+///          `LEARN` arm (`gui/ui/sound_editor.cpp:520`), and nothing else. The first of those has
+///          two callers, not one: `View::buttonAction`'s own `LEARN` arm (`view.cpp:192`) and
+///          `SessionView::enterMidiLearnMode` (`gui/views/session_view.cpp:3072-3076`), which the
+///          song context menu's MIDI-learn entry reaches
+///          (`MidiLearnMode::setupAndCheckAvailability`, `gui/context_menu/midi_learn_mode.cpp:51`).
+///          **The conclusion is unchanged, because all three funnel through those two assignments
+///          and none of the three runs while the guest is open** -- `View::buttonAction` is the
+///          *root view's* fallback and the guest is the current UI; `SoundEditor` is not open at
+///          all; and the context-menu entry is `sessionView`'s, whose ported form is
+///          `MenuScene::take_action`'s `song_midi_learn` (`scenes/menu/action.h:18`), which
+///          **nothing polls** (migration §10.2 item 3, the missing `MenuAction` dispatcher).
+///          Meanwhile the port's own learn mode (`services::MidiLearn::begin`, reached from its
+///          `LEARN` arm) sets a **different bit** -- `MidiLearn::active_`, which `PlaybackHandler`
+///          cannot see -- and is itself gated on `SceneStack::input_top().is_root()`, which
+///          `MenuScene` is not.
 ///
 ///          So this is transport built ahead of its producer, deliberately and in that order: the
-///          two overrides are the port of `SoundEditor`'s two hooks and are correct, and they will
-///          start carrying messages the moment something under the guest sets legacy's mode --
-///          which is `MenuScene` porting `SoundEditor::buttonAction`'s `LEARN` arm
+///          two overrides are the port of `SoundEditor`'s two hooks and are correct, and they start
+///          carrying messages the moment something under the guest sets legacy's mode. **Two
+///          separate open items would each do it, and they are not the same item:** `MenuScene`
+///          porting `SoundEditor::buttonAction`'s `LEARN` arm
 ///          (`sound_editor.cpp:505-537`, gated on `getCurrentMenuItem()->allowsLearnMode()`), the
 ///          arm `services::MidiLearn`'s own class doc already names as `MenuScene`'s to port and
 ///          not the service's. Until then, asserting "MIDI learn works under the toggle" would be a

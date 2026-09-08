@@ -348,9 +348,15 @@ To add one:
    `getCurrentUI() == &soundEditor` (`playback/playback_handler.cpp:3164`) rather than a virtual, and
    adding one is a legacy-behaviour change F1 does not make. And **all of them are unreachable in the
    shipped firmware today**, because every learn dispatcher is gated on
-   `currentUIMode == UI_MODE_MIDI_LEARN` and nothing under the guest sets it — the two lines that do
-   belong to `View::buttonAction` and `SoundEditor::buttonAction`, neither of which runs while the
-   guest is the current UI (`gui/ui/shell_host_ui.h`'s `@par MIDI learn`).
+   `currentUIMode == UI_MODE_MIDI_LEARN` and nothing under the guest sets it. **Two assignments,
+   three entries:** `View::startMIDILearn` (`gui/views/view.cpp:493`) and
+   `SoundEditor::buttonAction`'s `LEARN` arm (`gui/ui/sound_editor.cpp:520`) are the only
+   assignments, and the first has two callers — `View::buttonAction`'s `LEARN` arm (`view.cpp:192`)
+   and `SessionView::enterMidiLearnMode` (`gui/views/session_view.cpp:3072-3076`), reached from the
+   song context menu (`gui/context_menu/midi_learn_mode.cpp:51`). None of the three runs while the
+   guest is the current UI, and the third one's *port* is
+   `MenuScene::take_action`'s `song_midi_learn`, which nothing polls (migration §10.2 item 3). See
+   `gui/ui/shell_host_ui.h`'s `@par MIDI learn`.
    `bindings::learn_target` is a *different* path — PARAM learn, not global-command learn.
 2. Point the node at a `static`/`inline const` instance via the `custom(name, &item, relevant)`
    builder. A null `custom` pointer is itself a validator error (`Issue::Kind::NullCustom`) — there
@@ -1323,7 +1329,7 @@ wiring this layer does not do for itself"). Three of
 `MidiLearn`'s four entry points had **no producer in `src/`**, and F1 task 10 closed part of that.
 Two corrections to what this paragraph used to say, both found by re-reading rather than by
 re-running a gate: `thing_pressed` was never producerless — it has three callers in the service's own
-`handle()` (`services/midi_learn.cpp:514`, `:522`, `:530`, the TAP/PLAY/RECORD arms) — and only
+`handle()` (`services/midi_learn.cpp:513`, `:521`, `:529`, the TAP/PLAY/RECORD arms) — and only
 `note_on_received` and `cc_received` were, `cc_received` re-entering `note_on_received` internally.
 Both now have a transport: `UiEvent::Kind::MidiNoteOn` and `Kind::MidiCc` (`shell/scene.h`), carried
 by `Router::run_chain`'s `midi_learn` step. **Only the note-on half has a producer**

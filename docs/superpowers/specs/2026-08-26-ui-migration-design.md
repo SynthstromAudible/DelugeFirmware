@@ -379,7 +379,7 @@ correction is the interesting part.** The first version of this paragraph quoted
 fastest grid gate, 20 ms". There is no such ceiling, and two shipped scenes already exceed it:
 `RecorderScene` polls at `kRecorderPollMs = 10` (`src/scenes/recorder/recorder_scene.h:180`) and does
 not override `timer_repaints()`, so it takes `Scene`'s `{.oled = true, .grid = true}` default
-(`src/shell/scene.h:619`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
+(`src/shell/scene.h:629`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
 returns `0u` for as long as the playhead is live
 (`src/scenes/audio_clip/audio_clip_scene.cpp:1199`) with `{.grid = true}`
 (`audio_clip_scene.h:477`), so the grid gate arms every tick and no millisecond figure bounds it at
@@ -575,7 +575,7 @@ rather than a thing that is half-done:
    the item's own arithmetic was wrong.** It said `note_on_received`, `cc_received` **and
    `thing_pressed`** had zero callers in `src/`. `thing_pressed` had three all along — the service's
    own `handle()` calls it for the TAP, PLAY and RECORD arms
-   (`scenes/services/midi_learn.cpp:514`, `:522`, `:530`), which is the same fact the item's last
+   (`scenes/services/midi_learn.cpp:513`, `:521`, `:529`), which is the same fact the item's last
    sentence states about the button arms. Only `note_on_received` and `cc_received` were
    producerless, and `cc_received` re-enters `note_on_received` internally (`:445`).
 
@@ -600,16 +600,29 @@ rather than a thing that is half-done:
    * **Nothing calls `thing_pressed` from a pad.** The scenes that would answer `learnable_at(pad)`
      (`SessionScene`, `NoteClipScene`, `ArrangerScene`) are E5's and E6's, unchanged.
    * **The whole path is inert, for a reason this item never named.** Every learn dispatcher is
-     gated on `currentUIMode == UI_MODE_MIDI_LEARN`, and
-     `grep -rn "currentUIMode = UI_MODE_MIDI_LEARN" src/deluge` returns exactly two lines:
+     gated on `currentUIMode == UI_MODE_MIDI_LEARN`. **Two assignments, three entries** — and the
+     distinction matters, because the two owed items are not the same item.
+     `grep -rn "currentUIMode = UI_MODE_MIDI_LEARN" src/deluge` returns exactly two lines,
      `View::startMIDILearn` (`gui/views/view.cpp:493`) and `SoundEditor::buttonAction`'s LEARN arm
-     (`gui/ui/sound_editor.cpp:520`). Neither runs while `ShellHostUI` is the current UI. The port's
-     own learn mode sets `MidiLearn::active_`, a different bit that `PlaybackHandler` cannot see, and
-     is itself gated on `input_top().is_root()` — false for `MenuScene`. **So the owner of the last
-     step is `MenuScene`, porting `SoundEditor::buttonAction`'s LEARN arm
-     (`gui/ui/sound_editor.cpp:505-537`, gated on `getCurrentMenuItem()->allowsLearnMode()`)** —
-     which `services::MidiLearn`'s own class doc already assigns to `MenuScene` and explicitly not
-     to the service. Until that lands, both transports are correct and carry nothing.
+     (`gui/ui/sound_editor.cpp:520`); the first has **two** callers, `View::buttonAction`'s LEARN arm
+     (`gui/views/view.cpp:192`) and `SessionView::enterMidiLearnMode`
+     (`gui/views/session_view.cpp:3072-3076`), which the song context menu's MIDI-learn entry reaches
+     (`MidiLearnMode::setupAndCheckAvailability`, `gui/context_menu/midi_learn_mode.cpp:51`). None of
+     the three runs while `ShellHostUI` is the current UI. The port's own learn mode sets
+     `MidiLearn::active_`, a different bit that `PlaybackHandler` cannot see, and is itself gated on
+     `input_top().is_root()` — false for `MenuScene`. **So two separate open items would each make
+     these transports live, and neither is E5/E6's:**
+
+     1. `MenuScene` porting `SoundEditor::buttonAction`'s LEARN arm
+        (`gui/ui/sound_editor.cpp:505-537`, gated on `getCurrentMenuItem()->allowsLearnMode()`) —
+        which `services::MidiLearn`'s own class doc already assigns to `MenuScene` and explicitly not
+        to the service; and
+     2. **item 3 of this list**, the missing `MenuAction` dispatcher: the third entry's ported form
+        is `MenuScene::take_action`'s `song_midi_learn` (`scenes/menu/action.h:18`), whose legacy
+        body is `midiLearnMode.setupAndCheckAvailability()` — i.e. the context-menu route above.
+        Nothing polls that mailbox.
+
+     Until one of the two lands, both transports are correct and carry nothing.
 
    Task 10 also closed the **guest half** this item did not mention: `ShellHostUI` now overrides
    `pcReceivedForMidiLearn` and `noteOnReceivedForMidiLearn` and forwards to

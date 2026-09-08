@@ -1229,7 +1229,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 	it("MidiCc: legacy's CC DISPATCHER and the Router reach the same `LearnedMIDI`", _ {
 		// **The port side of this example has no producer in `src/`**, and that is the one thing it
-		// cannot assert. `PlaybackHandler::midiCCReceived` reaches learn at `:3132-3133` with no
+		// cannot assert. `PlaybackHandler::midiCCReceived` reaches learn at
+		// `playback_handler.cpp:3168-3169` with no
 		// `getCurrentUI()->...ForMidiLearn` call and no `UI` virtual to override (`gui/ui/ui.h:130`,
 		// `:132` are the only two `*ForMidiLearn` hooks the class declares), so the guest cannot
 		// intercept it the way it intercepts note-on. What is asserted is that the *transport* --

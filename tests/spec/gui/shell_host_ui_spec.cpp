@@ -1573,7 +1573,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("arms the floor -- not zero -- for a deadline that is already now, and does not wedge there", _ {
 		Rig r;
 		// `Scene::next_timer()` may legally answer 0, meaning "next tick"
-		// (`shell/scene.h:500-552`); `AudioClipScene` answers it for the whole of playback
+		// (`shell/scene.h:510-562`); `AudioClipScene` answers it for the whole of playback
 		// (`scenes/audio_clip/audio_clip_scene.cpp:1193-1199`). `next_wake()` is then `now_ms` on
 		// every tick, for ever.
 		r.base.timer = 0;

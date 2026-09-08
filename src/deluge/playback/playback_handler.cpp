@@ -3075,8 +3075,8 @@ void PlaybackHandler::pitchBendReceived(MIDICable& cable, uint8_t channel, uint8
 	else {
 		// **The same divergence `midiCCReceived` carries at `playback_handler.cpp:3164`, and the same
 		// ruling** (F1 task 10): under the ShellMenu toggle `getCurrentUI()` is `ShellHostUI`, so
-		// pitch-bend MIDI learn
-		// never reaches the ported menu, and it cannot be closed by a `UI` virtual because none
+		// pitch-bend MIDI learn never reaches the ported menu, and it cannot be closed by a `UI`
+		// virtual because none
 		// exists. Read that comment for the whole account.
 		//
 		// This half has a *second* reason it could not be closed even with a seam here:

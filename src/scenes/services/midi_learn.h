@@ -381,12 +381,10 @@ public:
 	///          override** -- `gui/ui/ui.h` declares exactly two `*ForMidiLearn` hooks (`:130`
 	///          `pc`, `:132` `noteOn`) -- and reaches learn through a hardcoded
 	///          `getCurrentUI() == &soundEditor` test at `playback_handler.cpp:3164` followed by a
-	///          bare
-	///          `view.ccReceivedForMIDILearn` at `playback_handler.cpp:3169`. Giving this a producer
-	///          means adding a
-	///          `UI` virtual and rewriting that dispatch, which is a legacy-behaviour change F1
-	///          does not make. Recorded at `playback_handler.cpp:3164` and in migration §10.2
-	///          item 8.
+	///          bare `view.ccReceivedForMIDILearn` at `playback_handler.cpp:3169`. Giving this a
+	///          producer means adding a `UI` virtual and rewriting that dispatch, which is a
+	///          legacy-behaviour change F1 does not make. Recorded at `playback_handler.cpp:3164`
+	///          and in migration §10.2 item 8.
 	void cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
 	/// @}
 

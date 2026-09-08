@@ -1175,8 +1175,8 @@ was the defect. The three real services each take the shell's own `SceneStack&`,
 onto that stack (`src/scenes/services/mod_knobs.cpp:413`) while `ModKnobs::popup_suppressed` (`:351`)
 and `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`;
 `GlobalControls::handle` gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
-(`src/scenes/services/global_controls.cpp:580`); `MidiLearn::handle` gates all of itself on the same
-(`src/scenes/services/midi_learn.cpp:491`). The only `SceneStack` and `InputLowering` in an
+(`src/scenes/services/global_controls.cpp:580`); `MidiLearn::handle` gates its four `View` arms on
+the same (`src/scenes/services/midi_learn.cpp:491`). The only `SceneStack` and `InputLowering` in an
 application are the ones the `Shell` owns. So a real service could not be constructed **before** the
 shell it serves, and — because the slots were fixed in the constructor — could not be installed
 **after** it either.

@@ -178,7 +178,7 @@ has had to remap by hand, and the ratio is worth knowing before you start: F1 ta
 entry points, `--strict` went from 0 to **134**, and the number of citations that had actually moved
 was **568**.
 
-Four classes a regex-and-shift-map rewriter cannot see, all of them found the hard way:
+Seven classes a regex-and-shift-map rewriter cannot see, all of them found the hard way:
 
   * **bare continuations** (`` `:1804` ``) carry no path and are resolved from the previous citation
     ON THE SAME LINE -- so one written after a citation naming a *different* file resolves to the
@@ -190,13 +190,37 @@ Four classes a regex-and-shift-map rewriter cannot see, all of them found the ha
     (`` `sound_editor.cpp:2056 maybeGetParentMenu` ``), which do not match a pattern anchored on the
     closing backtick;
   * **your own rewriter run twice**, which shifts a citation you already corrected by hand a second
-    time. A shift map is a hypothesis; the file content is the fact.
+    time. A shift map is a hypothesis; the file content is the fact;
+  * **a citation the SAME COMMIT authored**, which is already written against the post-edit tree and
+    which the rewriter then shifts a second time -- the sub-case above, in the form that gets past
+    the content check as well. The content check compares `HEAD[old]` against `NOW[new]`, and for a
+    freshly-authored citation `old` was never a `HEAD` number, so the comparison succeeds on the
+    wrong pair. F1 task 10's own docs commit shipped three of these (`thing_pressed`'s callers,
+    `514/522/530` where the file says `513/521/529`), and two of the three were bare continuations,
+    so `--strict` could not see them either. **Sweep first, author second** -- or exclude from the
+    sweep any file whose citations you wrote in the same commit;
+  * **an ambiguous basename.** `midi_learn.h` is both `scenes/services/` and
+    `gui/menu_item/song/`; `README.md` is twenty-six files; `settings.h` is two. A matcher keyed on
+    the basename will shift citations into the wrong file, and the content check will not notice
+    because it re-resolves against the same wrong file. Detect the collision (`git ls-files` by
+    basename) and refuse rather than guessing, then do those by hand;
+  * **the claim around the citation**, which is the one that is not about numbers at all. A shift map
+    keeps a citation pointing where it pointed; it cannot know the same commit made the SENTENCE
+    false. F1 task 10 put two arms above `MidiLearn`'s root gate and then swept
+    `src/shell/scene.h`, which bumped that gate's line number and left "gates its **entire**
+    `handle()`" standing -- **worse than leaving it stale, because an accurate line number reads as
+    evidence the text was checked.** For every citation your commit's own diff touches the
+    *behaviour* of, re-read the surrounding sentence, not just the number.
 
 So run more than one mechanism, and make the second one compare CONTENT -- the text at the citation's
 old line in `HEAD` against the text at its rewritten line now -- rather than arithmetic. A third,
 cheap and genuinely independent, is to check each rewrite's delta against `git diff -U0`'s own hunks:
 that is what catches a brace-only line paired with the WRONG brace, which a content comparison cannot
 see because both lines are `}`.
+
+A fourth, and the only one that catches the last class: for each file your commit actually changed,
+list the citations *into* it and read the sentence each one sits in. There is no automated form of
+this and there should not be a pretence of one.
 
 **And print the lines. Do not guess them.** F1 task 9's own spot-check of two citations "looked
 wrong" and was not -- the ranges had been typed from memory rather than read out of the file, so the

@@ -463,9 +463,9 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 	//
 	// Claimed unconditionally, matching legacy's dispatchers: both `return` immediately after the
 	// `view.` call whatever it did (`playback_handler.cpp:2972`, `:3171`), and both ported functions
-	// are no-ops when
-	// nothing is held (`view.cpp:641`, and `cc_received`'s own arms). A null `cable` is the
-	// "no message" value `UiEvent` documents and is dropped rather than dereferenced.
+	// are no-ops when nothing is held (`view.cpp:641`, and `cc_received`'s own arms). A null
+	// `cable` is the "no message" value `UiEvent` documents and is dropped rather than
+	// dereferenced.
 	if (event.kind == UiEvent::Kind::MidiNoteOn || event.kind == UiEvent::Kind::MidiCc) {
 		if (event.cable == nullptr) {
 			return Result::unhandled();
