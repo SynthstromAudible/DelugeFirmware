@@ -583,12 +583,12 @@ public:
 	/// anything in. `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`) polls this
 	/// after ticking the shell, and is where each verb's legacy statement lands.
 	///
-	/// @warning **Nothing in this repository performs these actions yet.** The consumer exists as of
-	///          F2 task 1 and polls once per guest tick, but its five arms are still empty, so a
-	///          select press on `start_stem_export` exports nothing. That is the seam working as
-	///          designed, not a bug -- but it is a real gap, and it is stated here as well as in
-	///          `action.h` so a caller cannot conclude from a green suite that the five items do
-	///          anything yet.
+	/// @warning **Four of these five actions are still not performed.** The consumer exists as of F2
+	///          task 1 and polls once per guest tick; F2 task 2 gave `OpenPerformanceView` a body,
+	///          and the other four arms are still empty, so a select press on `start_stem_export`
+	///          exports nothing. That is the seam working as designed, not a bug -- but it is a real
+	///          gap, and it is stated here as well as in `action.h` so a caller cannot conclude from
+	///          a green suite that all five items do something.
 	///
 	/// @warning **This is a one-slot mailbox with a silent overwrite, not an exactly-once queue.**
 	///          Two requests filed between two polls lose the first, and a request nobody polls for

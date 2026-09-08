@@ -69,10 +69,10 @@ namespace deluge::gui::ui {
 ///
 /// @par What it does today
 ///
-/// It drains. The `switch` has an arm for every `MenuAction` and every arm but `None` is empty:
-/// this is the seam and the drain, and the five verbs' bodies arrive with the tasks that port each
-/// one. So a select press on `start_stem_export` still exports nothing -- what has changed is that
-/// the request is now consumed once, on the tick it was filed, instead of sitting in the outbox.
+/// It drains, and it performs one of the five verbs. The `switch` has an arm for every `MenuAction`;
+/// `OpenPerformanceView` has a body as of F2 task 2 and the other four are still empty, each
+/// arriving with the task that ports it. So a select press on `start_stem_export` still exports
+/// nothing -- but the request is consumed on the tick it was filed rather than left in the outbox.
 ///
 /// @par The `switch` has no `default:`, deliberately
 ///

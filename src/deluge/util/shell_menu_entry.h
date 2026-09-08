@@ -70,12 +70,12 @@
 /// The toggle is Off by default, so none of the following is a regression. Turned on, it is what a
 /// user gets, and none of it is discoverable from a green test suite:
 ///
-///  1. **Five ported menu items do nothing.** The outbox is polled as of F2 task 1 --
-///     `gui::ui::dispatchShellActions` drains it once per guest tick -- but that dispatcher's five
-///     arms are empty, so `openUI(&performanceView)`, `setClipLengthEqualToSampleLength()`, the
-///     MIDI-learn overlay and the two song verbs are still requested and dropped. Each arm lands
-///     with its own F2 task; writing any of them was out of *this* plan's scope by Kate's choice,
-///     not an oversight.
+///  1. **Four ported menu items do nothing.** The outbox is polled as of F2 task 1 --
+///     `gui::ui::dispatchShellActions` drains it once per guest tick -- and F2 task 2 filled the
+///     `OpenPerformanceView` arm, so `perform_editor` now really does open the performance view in
+///     the chosen mode. `setClipLengthEqualToSampleLength()`, the stem export, the MIDI-learn
+///     overlay and the song-macros menu are still requested and dropped; each arm lands with its own
+///     F2 task, and none of them was in *this* plan's scope by Kate's choice, not by oversight.
 ///  2. **A file chosen in the ported browser is parked, not claimed.** `BrowserScene`'s deferring
 ///     descriptor closes with the choice in `take_choice()`, which nothing polls either (§10.2
 ///     item 4). `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting are

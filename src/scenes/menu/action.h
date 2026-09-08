@@ -40,13 +40,13 @@
 ///
 /// ## What this file does NOT do, and must be read as owing
 ///
-/// **Nothing performs any of these actions yet.** `take_action()` is an outbox, and as of F2 task 1
-/// it has a consumer -- `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`) drains it
-/// once per guest tick -- whose five arms are empty: performing them is the half that gets to say
-/// `openUI(&performanceView)`, and it arrives one verb at a time. The specs in
+/// **Four of the five actions are still not performed.** `take_action()` is an outbox; as of F2
+/// task 1 it has a consumer -- `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`)
+/// drains it once per guest tick -- and as of F2 task 2 exactly one of its arms has a body,
+/// `OpenPerformanceView`. The other four are empty and arrive one verb at a time. The specs in
 /// `sim/scenes_spec/menu_actions_spec.cpp` assert that the right item emits the right *identity* and
-/// payload through the real input path, and that the dispatcher takes it; they do not assert that
-/// anything happens as a result, because nothing does.
+/// payload through the real input path, and that the dispatcher takes it; only that file's
+/// `OpenPerformanceView` group asserts that anything happens as a result.
 ///
 /// @note **Legacy's own post-conditions travel with the intent, not with the menu.** Two of the
 ///       five have a documented effect on the menu itself -- `stem_export::Start` calls
@@ -73,9 +73,9 @@ enum class MenuAction : uint8_t {
 	/// @brief Enter the performance view in the editing mode named by `MenuActionRequest::arg`
 	///        (a `PerformanceEditingMode`, and never `DISABLED` -- see `nodes/actions.h`).
 	///
-	/// The dispatcher owes `editing_mode.h:55-72`: set `performanceView.defaultEditingMode = true`
-	/// and `editingParam` from the payload, call `performanceView.resetPerformanceView(modelStack)`
-	/// unless `editingParam`, then `openUI(&performanceView)`.
+	/// The dispatcher owed `editing_mode.h:55-72` and pays it as of F2 task 2: set
+	/// `performanceView.defaultEditingMode = true` and `editingParam` from the payload, call
+	/// `performanceView.resetPerformanceView(modelStack)` unless `editingParam`, then `openUI(...)`.
 	OpenPerformanceView,
 
 	/// @brief Begin a stem export. `arg` is unused.
