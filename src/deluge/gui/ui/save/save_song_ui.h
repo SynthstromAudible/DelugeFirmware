@@ -107,6 +107,7 @@ private:
 		NONE,     ///< No collection in flight.
 		TRANSFER, ///< Moving and copying, one entry at a time.
 		APPLY,    ///< Writing the decided paths back, in one step.
+		FINISH,   ///< Writing the document and closing the save, on the storage owner.
 	};
 
 	void runTransferPhase();
@@ -114,7 +115,16 @@ private:
 	/// @brief End the collection having applied NOTHING, and fail the save.
 	void abandonCollection();
 	/// @brief The owner-side arm of one transfer, for builds without the channel.
+	/// @brief Drive the closing document write, dispatching it onto the owner.
+	void runFinishPhaseOnOwner();
 	static void runTransferOnOwner(void* self);
+	/// @brief The dispatched op for the save's closing document write.
+	///
+	/// `finishSaveAfterCollection()` BLOCKS -- an unbounded existence-check loop, a streaming
+	/// document write, an unlink and a rename -- so it belongs on the owner, which may block. It
+	/// used to be reached inside `performSave()`, which is owner-dispatched; splitting the tail out
+	/// left it running on the repeating task until this restored it.
+	static void runFinishOnOwner(void* self);
 	/// @brief Perform the current entry with blocking calls. Legal ONLY on the storage owner.
 	bool transferOneSynchronously();
 	/// @brief Defer one more tick, or give up if the collection has stopped making progress.
@@ -133,6 +143,8 @@ private:
 	bool ownerTransferDispatched_{};
 	bool ownerTransferDone_{};
 	bool ownerTransferOk_{};
+	bool ownerFinishDispatched_{};
+	bool ownerFinishDone_{};
 
 	/// Locals the save used to keep on its stack. It no longer finishes inside one call.
 	std::string pendingFilePath_;

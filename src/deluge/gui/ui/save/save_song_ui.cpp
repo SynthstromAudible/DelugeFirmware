@@ -615,13 +615,49 @@ void SaveSongUI::collectRoutine() {
 		return;
 	case CollectPhase::APPLY:
 		applyTransfers();
-		collectPhase_ = CollectPhase::NONE;
 		transfers_.clear();
-		if (!finishSaveAfterCollection()) {
-			// finishSaveAfterCollection displayed its own error; the save is over either way.
-		}
+		ownerFinishDispatched_ = false;
+		ownerFinishDone_ = false;
+		collectStallTicks_ = 0;
+		collectPhase_ = CollectPhase::FINISH;
+		return;
+	case CollectPhase::FINISH:
+		runFinishPhaseOnOwner();
 		return;
 	}
+}
+
+void SaveSongUI::runFinishPhaseOnOwner() {
+	// The document write is BLOCKING work -- a temp-name search that asks the card once per attempt,
+	// a streaming write, an unlink and a rename -- so it runs where blocking is legal. This routine
+	// is driven by a repeating task on the interaction tier, which is not that place.
+	if (ownerFinishDone_) {
+		collectPhase_ = CollectPhase::NONE;
+		return;
+	}
+	if (!ownerFinishDispatched_) {
+		if (!deluge::storage::Owner::run(&SaveSongUI::runFinishOnOwner, this)) {
+			// Refused, not failed: nothing was queued, so ask again next tick.
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		}
+		ownerFinishDispatched_ = true;
+		collectStallTicks_ = 0;
+		return;
+	}
+	if (!deferCollection()) {
+		abandonCollection();
+	}
+}
+
+void SaveSongUI::runFinishOnOwner(void* self) {
+	auto* ui = static_cast<SaveSongUI*>(self);
+	// The return value is deliberately dropped: finishSaveAfterCollection() closes the UI on success
+	// and displays its own error otherwise, so the save is over either way.
+	(void)ui->finishSaveAfterCollection();
+	ui->ownerFinishDone_ = true;
 }
 
 bool SaveSongUI::deferCollection() {
@@ -885,6 +921,13 @@ void SaveSongUI::applyTransfers() {
 }
 
 bool SaveSongUI::finishSaveAfterCollection() {
+	// The save's card work did not stop when performSave() returned -- it moved HERE, and this
+	// function blocks: an unbounded existence-check loop looking for a free temp name, a streaming
+	// document write, then an unlink and a rename. Recording the tier here rather than only at
+	// performSave()'s entry is the difference between measuring where a save STARTS and where it
+	// actually does its work. Once the two were separated, the entry alone stopped describing it.
+	noteSaveTier();
+
 	Error error = Error::NONE;
 	if (error != Error::NONE) {
 gotError:
