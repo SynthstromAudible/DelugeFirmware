@@ -425,6 +425,17 @@ void LoadSongUI::endLoad() {
 
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::beginLoad(void (*onComplete)()) {
+	// The browser stays live and interactive for the whole of STAGE, which for a large song is many
+	// ticks. enterKeyPress() calls straight in here, and only queueLoadNextSongIfAvailable() checks
+	// this flag on the way. A second ENTER would re-enter, find stagingPath_ already pinned, and carry
+	// on staging the FIRST song while the user believes they chose the second -- with a channel
+	// request possibly already in flight against the old buffer.
+	//
+	// Before staging moved off the owner this window was one tick wide, which is why nobody hit it.
+	if (performingLoad) {
+		return;
+	}
+
 	// The browser is on its way out and the pads now belong to the load: the greyout, the loading
 	// animation, and finally the new song's view. Nothing here asks for a replacement preview, so an
 	// artwork read still outstanding would paint over all of that. It also frees the storage owner
@@ -443,6 +454,10 @@ void LoadSongUI::beginLoad(void (*onComplete)()) {
 	// deletes the outgoing song partway through, and a file that turns out to be unreadable after that
 	// leaves the messy recovery its `fail:` block exists to perform. An unreadable song now stops the
 	// load before anything has been destroyed.
+	// Raised here, not in startLoad(), because the waiting now starts here: a large song stages for
+	// many ticks before the owner stretch is even dispatched, and would otherwise do it in silence.
+	display->displayLoadingAnimationText("Loading");
+
 	loadPhase_ = LoadPhase::STAGE;
 
 	// Attempt it once here rather than waiting for the next loadRoutine() pass. Boot loads the startup
@@ -585,7 +600,6 @@ void LoadSongUI::startLoad() {
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
-	display->displayLoadingAnimationText("Loading");
 	nullifyUIs();
 
 	deletedPartsOfOldSong = true;
