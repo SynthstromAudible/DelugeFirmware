@@ -212,7 +212,7 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 /// `BrowserScene::take_choice()` is a one-slot outbox that announces nothing -- `enter` files it and
 /// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:895-897`), so no `Action` says a
 /// choice is waiting and nothing enforces the polling. That is `MenuScene::take_action()`'s hazard
-/// (`scenes/menu/menu_scene.h:612-617`, the poll at `:644`) in the same shape, and it lands as the same requirement on
+/// (`scenes/menu/menu_scene.h:623-628`, the poll at `:655`) in the same shape, and it lands as the same requirement on
 /// this function's *caller*: poll after every tick, or a choice is delivered whenever something next
 /// asks, against whatever song and clip exist then.
 ///

@@ -178,7 +178,7 @@ bool ShellHostUI::opened() {
 void ShellHostUI::focusRegained() {
 	// Legacy calls this on the UI that is the current one again after something above it closed
 	// (`closeUI`, `gui/ui/ui.cpp:194-199`), and `Scene::on_resume` is the port of exactly that
-	// call, in as many words (`shell/scene.h:359-374`).
+	// call, in as many words (`shell/scene.h:380-395`).
 	//
 	// **`input_top()`, not `top()`**, and this is a deliberate departure from the brief's wording
 	// ("`on_resume` on the shell's top"). `on_resume`'s own contract is that it fires on the scene
@@ -229,7 +229,7 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//    (`gui/ui/ui.h:158`), set false by `UI::UI` (`gui/ui/ui.cpp:31-33`) and read by
 	//    `doAnyPendingOLEDRendering` to decide how far down the stack to start drawing
 	//    (`gui/ui/ui.cpp:351-371`, the walk at `:353-356`). `SoundEditor` leaves it false and
-	//    `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h:480-481`) -- those
+	//    `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h:491-492`) -- those
 	//    two already agree, and neither is this hook.
 	//  - `Slicer` sets `oledShowsUIUnderneath = true` and returns **false** here
 	//    (`gui/ui/slicer.h:33-38`), on the same object. One legacy UI holding both values at once is
@@ -240,7 +240,7 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	// (`gui/ui/ui.cpp:47-51`), and `Session::armingChanged` re-arms the play flash and the OLED
 	// dirty bit through it (`playback/mode/session.cpp:1290-1305`, the test at `:1295`). The shell's
 	// question of the same shape is `Scene::occludes_grid` -- "does this scene cover the grid
-	// completely, so scenes beneath need not render?" (`shell/scene.h:386-387`) -- so this is its
+	// completely, so scenes beneath need not render?" (`shell/scene.h:407-408`) -- so this is its
 	// negation.
 	//
 	// It lands where legacy lands for the first tenant: `SoundEditor::canSeeViewUnderneath` is true
@@ -472,9 +472,9 @@ ActionResult ShellHostUI::timerCallback() {
 	// **The action drain, and both halves of where it sits are load-bearing.**
 	//
 	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
-	// (`scenes/menu/menu_scene.h:612-640`), and it announces nothing: "`after_render` returns no
+	// (`scenes/menu/menu_scene.h:623-651`), and it announces nothing: "`after_render` returns no
 	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
-	// tick, or requests are dropped or stale**" (`:615-617`). This line is the polling for the
+	// tick, or requests are dropped or stale**" (`:627-628`). This line is the polling for the
 	// **menu's** outbox. `dispatchShellActions` performs whatever it finds.
 	//
 	// (This used to say "and it is the only one in the firmware". F3 task 1 made that false:

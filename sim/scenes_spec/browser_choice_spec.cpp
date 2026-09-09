@@ -478,7 +478,7 @@ struct GuestRig {
 	void guest_step() { (void)ui.timerCallback(); }
 
 	/// @brief Press and release the enter pad through the guest's own hook -- which is the point:
-	///        `padAction` only queues (`gui/ui/shell_host_ui.cpp:767-810`), and a tick is what routes.
+	///        `padAction` only queues (`gui/ui/shell_host_ui.cpp:778-844`), and a tick is what routes.
 	void press_enter(void (GuestRig::*tick)()) {
 		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
 		(void)ui.padAction(p.x, p.y, 64);

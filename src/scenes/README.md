@@ -905,7 +905,7 @@ Seven things are worth finding from here rather than from the header.
 * **It is not a root scene, and it does not use `TimelineState`.** The plan's prose calls
   `SlicerScene` and `AudioClipScene` "the first two root scenes"; only the second is one.
   `class Slicer final : public UI` (`gui/ui/slicer.h:33`) -- a plain `UI`, opened over the sample
-  browser, and `grep "public RootUI"` finds exactly two classes in the tree (`shell/scene.h:475-478`).
+  browser, and `grep "public RootUI"` finds exactly two classes in the tree (`shell/scene.h:507-510`).
   So `is_root()` is false, `services::GlobalControls` correctly withholds the `View::buttonAction`
   group of global button arms from it (they are unreachable in legacy too, because
   `UI::buttonAction`'s base returns `NOT_DEALT_WITH` without forwarding to `view`,
@@ -1634,14 +1634,23 @@ not come with them.
    So when a note-editor root exists and answers `GridPadClaim::None`, `forwardGridPad`'s switch will
    need the same main-grid/sidebar split inside its own note-editor arms, not a single bare forward
    the way `keyboardScreen`'s and `performanceView`'s arms are today.
-2. **Behaviour 4, the firmware-version diagnostics, is Kate's deliberate gap (2026-09-09).**
+2. **Behaviour 4, the firmware-version diagnostics: the popups are Kate's deliberate gap
+   (2026-09-09), and the "menu stays open" half is now ported (I2).**
    `SoundEditor::padAction`'s tail (`sound_editor.cpp:1521-1543`) special-cases three pads when the
    ported menu shows `&firmwareVersionMenu` at `y == 7`: `x == 15` reads SRAM
    (`deluge::memory::sram_size()`), `x == 14` reads the active voice count
    (`AudioEngine::getNumVoices()`), and `x == 13` reads the PIC firmware version
-   (`picFirmwareVersion`), each popping the value up in a display. `forwardGridPad`'s tail
-   (`gui/ui/shell_pad_forward.cpp:136-139`) ports the surrounding exit but not this block, so
-   replicating it later is a lookup, not a rediscovery.
+   (`picFirmwareVersion`), each popping the value up in a display **and leaving the menu open**
+   rather than falling to `exitCompletely()`. The popups themselves are not ported -- replicating
+   them later is a lookup, not a rediscovery -- but before I2 the "menu stays open" half was not
+   ported either, and that half is not a diagnostics detail: without it, all three pads reached
+   `forwardGridPad`'s tail unconditionally (the ported node,
+   `nodes::firmware_version` at `scenes/menu/nodes/settings.h:1219`, sits on a settings root that
+   answers `GridPadClaim::None`) and the guest closed the menu where legacy keeps it open -- a
+   divergence this branch would otherwise have introduced. `forwardGridPad`'s tail
+   (`gui/ui/shell_pad_forward.cpp:154-162`) now carries the carve-out that reproduces the "stays
+   open" half, via `onFirmwareVersionMenu()` (`:82-97`) asking the ported menu's focused node
+   identity.
 3. **The automation-view interpolation pads are a divergence this plan records rather than closes.**
    Legacy's shift-held shortcut gate exempts `x == 0, y == 6|7` from claiming a shortcut jump when
    `getRootUI() == &automationView` (`sound_editor.cpp:1175-1177`), deferring those two pads to
@@ -1651,7 +1660,7 @@ not come with them.
    a menu root, not a `getRootUI()` identity. **Not the same blocker as "settings-root shortcut
    jumps" above, and this row previously said it was.** That block sits on the `src/scenes` side of
    the wall with no seam through it yet; this one does not — `ShellHostUI::claimsGridPad`
-   (`gui/ui/shell_host_ui.cpp:754-770`) is itself a declared `LEGACY_PORT_SEAMS` entry
+   (`gui/ui/shell_host_ui.cpp:754-776`) is itself a declared `LEGACY_PORT_SEAMS` entry
    (`scripts/check_layer_rules.py:304`) and its `ShortcutsOnly` arm already runs on the legacy
    side of that wall; `forwardGridPad` right beside it already calls `getRootUI()`
    (`gui/ui/shell_pad_forward.cpp:127`) and names `automationView` (`:139`). So the exemption could
@@ -1664,7 +1673,7 @@ not come with them.
    getRootUI() == &instrumentClipView)` (`sound_editor.cpp:1171-1172`) — a UI-mode read `src/scenes`
    may not make. `MenuScene`'s ported shift gate already records dropping that half, with the reason:
    under the port, shift is the whole gate (`scenes/menu/menu_scene.cpp:1627-1630`).
-   `ShellHostUI::claimsGridPad`'s `ShortcutsOnly` arm (`gui/ui/shell_host_ui.cpp:755-762`) cites both
+   `ShellHostUI::claimsGridPad`'s `ShortcutsOnly` arm (`gui/ui/shell_host_ui.cpp:760-773`) cites both
    sites and inherits the same drop rather than re-arguing it.
 5. **A fifth carry the plan did not know about, found while recording the level-3 A/B (task 5) and
    player-reachable today, with the toggle on.** Legacy's static `Submenu::focusChild`

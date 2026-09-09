@@ -9,7 +9,7 @@ behaves like legacy's when a pad is pressed under it.
 
 ## 1. Why this exists
 
-`ShellHostUI::padAction` (`src/deluge/gui/ui/shell_host_ui.cpp:767`) feeds every pad to the shell and
+`ShellHostUI::padAction` (`src/deluge/gui/ui/shell_host_ui.cpp:778`) feeds every pad to the shell and
 returns `DEALT_WITH` unconditionally. Legacy's equivalent, `SoundEditor::padAction`
 (`src/deluge/gui/ui/sound_editor.cpp:1460`), does four things, and the port does one of them.
 
@@ -46,8 +46,8 @@ The six forwarding paths (behaviour 2):
 | `automationView` | `SoundEditor::handleAutomationViewPadAction` (`:1551`) | `:1508` |
 | `performanceView` | `performanceView.padAction` | `:1516` |
 
-**Of the six, exactly one is recorded.** `shell_host_ui.cpp:974-975` notes of the keyboard screen that
-forwarding is *"what this guest does **not** do."* That file names `automationView`,
+**Of the six, exactly one is recorded.** `shell_host_ui.cpp:1008-1009` notes of the keyboard screen
+that forwarding is *"what this guest does **not** do."* That file names `automationView`,
 `performanceView`, `instrumentClipView` and `audition` **zero times**.
 
 ### 2.1 The two shipped divergences

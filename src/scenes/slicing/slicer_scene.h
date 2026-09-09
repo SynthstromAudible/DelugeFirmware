@@ -23,7 +23,7 @@
 /// The plan's prose calls it one; it is not. `class Slicer final : public UI` (`gui/ui/slicer.h:33`)
 /// -- a plain `UI`, opened with `openUI(&slicer)` from `gui/ui/browser/sample_browser.cpp:378` and
 /// `gui/context_menu/sample_browser/kit.cpp:77`, and `grep "public RootUI"` finds exactly two
-/// classes in the tree, `TimelineView` and `KeyboardScreen` (`shell/scene.h:475-478`, which already
+/// classes in the tree, `TimelineView` and `KeyboardScreen` (`shell/scene.h:507-510`, which already
 /// records this). So `is_root()` is false, and `services::GlobalControls` correctly gates the
 /// `View::buttonAction` group of legacy's global button arms off it: with the slicer up, those arms
 /// are unreachable in legacy too, because `UI::buttonAction`'s base returns `NOT_DEALT_WITH`

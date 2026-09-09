@@ -468,7 +468,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.guest.focusRegained();
 
 		// `top()` is the passive layer; `input_top()` is the scene that genuinely gets input back,
-		// and `Scene::on_resume`'s contract is about the latter (`shell/scene.h:359-374`).
+		// and `Scene::on_resume`'s contract is about the latter (`shell/scene.h:380-395`).
 		expect(r.guest.shell().stack().top().kind() == kOver).to_be_true();
 		expect(r.base.resumes).to_equal(1);
 		expect(r.over.resumes).to_equal(0);
@@ -1795,7 +1795,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("arms NOTHING when it is no longer the current UI, however loudly the shell asks for a wake", _ {
-		// **The guard at `ShellHostUI::rearmTimer`'s top** (`gui/ui/shell_host_ui.cpp:622`).
+		// **The guard at `ShellHostUI::rearmTimer`'s top** (`gui/ui/shell_host_ui.cpp:627`).
 		// `TimerName::UI_SPECIFIC` is the *current* UI's timer -- `UITimerManager::routine` dispatches
 		// it to `getCurrentUI()->timerCallback()` and never to whatever armed it
 		// (`gui/ui_timer_manager.cpp:142-148`) -- so arming it while something else is current hands
@@ -1813,7 +1813,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		// A scene that wants a wake on every tick, so "nothing was armed" cannot be the shell simply
 		// having nothing to ask for -- `next_wake()` answering `nullopt` takes a different early
-		// return (`gui/ui/shell_host_ui.cpp:627-642`) and would make this example vacuous.
+		// return (`gui/ui/shell_host_ui.cpp:632-647`) and would make this example vacuous.
 		r.base.timer = 120;
 		expect(r.open()).to_be_true();
 
@@ -1846,7 +1846,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("arms the floor -- not zero -- for a deadline that is already now, and does not wedge there", _ {
 		Rig r;
 		// `Scene::next_timer()` may legally answer 0, meaning "next tick"
-		// (`shell/scene.h:510-562`); `AudioClipScene` answers it for the whole of playback
+		// (`shell/scene.h:542-594`); `AudioClipScene` answers it for the whole of playback
 		// (`scenes/audio_clip/audio_clip_scene.cpp:1197-1203`). `next_wake()` is then `now_ms` on
 		// every tick, for ever.
 		r.base.timer = 0;

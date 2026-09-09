@@ -491,7 +491,7 @@ public:
 	/// @brief False for every role: a menu covers the Main panel.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
 	// `input_transparent()` stays at its default false: `MenuScene` IS the `input_top()`
-	// (`shell/scene.h:370`), which is what makes its frames the focused ones.
+	// (`shell/scene.h:444`), which is what makes its frames the focused ones.
 
 	deluge::ui::grid::GreyoutMask greyout_mask() const override;
 	void save_state(deluge::ui::shell::SceneState& state) const override;
