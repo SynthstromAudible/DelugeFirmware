@@ -69,6 +69,13 @@ public:
 	void displayLoopsRemainingPopup();
 	bool isLoadingSong();
 
+	/// @brief Whether a load is actually in flight.
+	///
+	/// NOT the same question as isLoadingSong(), which is true merely because the load UI is showing.
+	/// Five of that predicate's six callers want exactly that, so it is left alone. This is the flag
+	/// queueLoadNextSongIfAvailable() already guards on; it is exposed here, not invented.
+	[[nodiscard]] bool loadInFlight() const { return performingLoad; }
+
 	bool deletedPartsOfOldSong{};
 
 	// ui
@@ -228,6 +235,7 @@ private:
 	/// @ref loadRoutine from dispatching a second one on top of it.
 	enum class LoadPhase : uint8_t {
 		NONE,      ///< No load in flight.
+		STAGE,     ///< Reading the song into memory, OFF the owner, before any of it is parsed.
 		START,     ///< Requested, but the owner queue was full - waiting to be dispatched.
 		RUNNING,   ///< A stretch is queued on, or running on, the storage owner.
 		SETTLE,    ///< Waiting for the sample loader to settle, or for its deadline to pass.
@@ -244,12 +252,47 @@ private:
 	/// @brief getSystemTime() value past which SETTLE stops waiting and swaps anyway.
 	double settleDeadline_{0.};
 
+	/// @brief The song's bytes, held from STAGE until the deserializer is finished in startLoad().
+	///
+	/// A member and not a local because the fill spans ticks: STAGE runs on the interaction tier and
+	/// returns to the run loop between attempts, which is the only reason the Rust driver can make
+	/// progress at all. The walk also NUL-terminates inside these bytes, so they must outlive the
+	/// PARSE and not merely the open -- see StorageManager::openDelugeBuffer().
+	StorageManager::StagingState songStaging_{};
+
+	/// @brief The path STAGE is filling from, pinned once.
+	///
+	/// The browser's list is rebuilt by other tiers, so re-reading the cursor on a later tick could
+	/// name a different song than the one being staged -- or nothing at all. Outlives
+	/// releaseSongStaging(), because startLoad() derives the song's filename from it; endLoad() clears it.
+	std::string stagingPath_{};
+
+	/// @brief `activeDeserializer` as it was before STAGE pointed it at the staged song.
+	///
+	/// Restored wherever the load ends, because the memory reader's `fileClusterBuffer` IS a buffer
+	/// this class frees, and code downstream writes 32 KiB through that global without opening a
+	/// document of its own.
+	FileDeserializer* stagingPrevious_{nullptr};
+
+	/// @brief Consecutive ticks STAGE has waited for the browser's listing. Bounded.
+	int32_t stagingWaitTicks_{};
+
 	/// @brief Completion handed to @ref beginLoad, cleared as it runs.
 	void (*loadOnComplete_)(){nullptr};
 
 	/// @name The three stretches of storage work, split at the two waits. Owner-only.
 	/// @{
-	void startLoad();  ///< Open, read and claim samples, then park in SETTLE.
+	void startLoad(); ///< Read the staged song and claim samples, then park in SETTLE.
+	/// @}
+
+	/// @brief Fill @ref songStaging_ off the owner, a tick at a time. See its definition.
+	void runStageSegment();
+
+	/// @brief Free @ref songStaging_'s bytes. Safe to call twice.
+	void releaseSongStaging();
+
+	/// @name Owner-only, continued
+	/// @{
 	void armOrSwap();  ///< Arm the swap and park in AWAIT_ARM, or swap outright and carry straight on.
 	void finishLoad(); ///< Free the old song, finish loading, restore the UI, run the completion.
 	/// @}

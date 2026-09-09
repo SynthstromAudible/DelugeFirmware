@@ -374,6 +374,13 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	currentUIMode = UI_MODE_NONE;
 }
 
+namespace {
+/// How many consecutive ticks STAGE waits for the browser's listing before giving up. A bound, not a
+/// timeout: a listing settles in a handful of ticks when it settles at all, and an empty folder must
+/// end the load with an error rather than spinning forever.
+constexpr int32_t kMaxStagingWaitTicks = 2000;
+} // namespace
+
 void LoadSongUI::startLoadTrampoline(void*) {
 	loadSongUI.startLoad();
 }
@@ -401,6 +408,13 @@ void LoadSongUI::endLoad() {
 	loadToDelete_ = nullptr;
 	performingLoad = false;
 
+	// The backstop for the staged song: every way a load can end passes through here, so a buffer that
+	// survived an early return is freed exactly once and the next load starts from a clear path.
+	releaseSongStaging();
+	stagingPath_.clear();
+	stagingPrevious_ = nullptr;
+	stagingWaitTicks_ = 0;
+
 	// Cleared before the call so a completion that starts another load doesn't inherit this one's.
 	void (*onComplete)() = loadOnComplete_;
 	loadOnComplete_ = nullptr;
@@ -420,20 +434,91 @@ void LoadSongUI::beginLoad(void (*onComplete)()) {
 	loadOnComplete_ = onComplete;
 	performingLoad = true;
 
-	// The load reads the card, so all three of its stretches run on the storage owner - including this
-	// first one, which is why the call is dispatched rather than made here. Callers reach this from the
-	// interaction tier (a button press, the startup task), where card access is not allowed.
+	// The song is read into memory FIRST, on this tier, before any owner work starts. Staging here
+	// rather than inside the owner stretch is what lets the read happen off the owner at all: the Rust
+	// driver only makes progress once we return to the run loop, so a request issued from inside the
+	// owner stretch -- which does not yield -- could never be answered.
 	//
-	// A full owner queue parks the load in START rather than abandoning it. Finishing here instead would
-	// mean running the caller's completion - which writes to the card - on this interaction-tier context.
-	loadPhase_ = LoadPhase::START;
-	dispatchLoadSegment(&startLoadTrampoline);
+	// It also puts the one failure that used to arrive too late in front of everything. startLoad()
+	// deletes the outgoing song partway through, and a file that turns out to be unreadable after that
+	// leaves the messy recovery its `fail:` block exists to perform. An unreadable song now stops the
+	// load before anything has been destroyed.
+	loadPhase_ = LoadPhase::STAGE;
+
+	// Attempt it once here rather than waiting for the next loadRoutine() pass. Boot loads the startup
+	// song before the repeating tasks are running, so a beginLoad() that only parked would never be
+	// picked up and the device would sit at the splash screen forever.
+	runStageSegment();
+}
+
+/// @brief Fill @ref songStaging_ from the card, a tick at a time, then hand the load to the owner.
+///
+/// Runs on the interaction tier, which is the whole point: returning to the run loop between attempts
+/// is what lets the Rust driver run at all. Nothing here touches the outgoing song, so abandoning the
+/// load from this phase costs only the buffer.
+void LoadSongUI::runStageSegment() {
+	if (stagingPath_.empty()) {
+		// Wait for the browser's listing on TWO conditions, and both are needed.
+		// isListingInProgress() alone is NOT sufficient: its contract is "false once it has completed
+		// OR NONE WAS STARTED", so at the instant beginLoad() runs -- before any listing has begun --
+		// it already reads false, and we would sail straight into a null cursor. The null-cursor test
+		// is what actually waits; isListingInProgress() is what stops us reading a list mid-rebuild.
+		FileItem* item = getCurrentFileItem();
+		if (Browser::isListingInProgress() || item == nullptr) {
+			if (++stagingWaitTicks_ > kMaxStagingWaitTicks) {
+				display->displayError(Error::FILE_NOT_FOUND);
+				endLoad();
+			}
+			return;
+		}
+		stagingPath_ = currentDir + "/" + item->getFilenameWithExtension();
+		stagingPrevious_ = activeDeserializer;
+	}
+
+	switch (StorageManager::openDocumentStaged(stagingPath_.c_str(), "song", "", &songStaging_)) {
+	case StorageManager::StagedOpen::Deferred:
+		return; // Ask again next pass.
+
+	case StorageManager::StagedOpen::NotHere:
+		// A build without the channel. Staging cannot happen on this tier, so hand the whole job to
+		// the owner exactly as it was handed before any of this existed; startLoad() stages there.
+		loadPhase_ = LoadPhase::START;
+		dispatchLoadSegment(&startLoadTrampoline);
+		return;
+
+	case StorageManager::StagedOpen::Failed:
+		// Nothing has been destroyed yet, so there is nothing to recover -- say so and stop, leaving
+		// the browser open so the user can pick another song.
+		activeDeserializer = stagingPrevious_;
+		releaseSongStaging();
+		display->displayError(Error::FILE_CORRUPTED);
+		endLoad();
+		return;
+
+	case StorageManager::StagedOpen::Opened:
+		loadPhase_ = LoadPhase::START;
+		dispatchLoadSegment(&startLoadTrampoline);
+		return;
+	}
+}
+
+/// @brief Free the staged song's bytes.
+///
+/// Called as soon as the deserializer is finished with them, and again from endLoad() as a backstop so
+/// no path that abandons a load can leak a megabyte. `stagingPath_` deliberately OUTLIVES this --
+/// startLoad() still needs the name of the song it just read -- and endLoad() clears it.
+void LoadSongUI::releaseSongStaging() {
+	StorageManager::releaseStaging(&songStaging_);
 }
 
 void LoadSongUI::loadRoutine() {
 	switch (loadPhase_) {
 	case LoadPhase::NONE:
 	case LoadPhase::RUNNING:
+		return;
+
+	case LoadPhase::STAGE:
+		runStageSegment();
 		return;
 
 	case LoadPhase::START:
@@ -462,31 +547,39 @@ void LoadSongUI::loadRoutine() {
 }
 
 void LoadSongUI::startLoad() {
-	FileItem* currentFileItem = getCurrentFileItem();
-
-	if (!currentFileItem) {
-		display->displayError(Error::FILE_NOT_FOUND);
-		endLoad();
-		return;
-	}
-
 	actionLogger.deleteAllLogs();
 
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
-	Error error;
 
-	// Saved before the open, and put back at every exit below. openDocumentSynchronously() leaves
-	// activeDeserializer pointing at the memory reader on EVERY path including the failed one, and
-	// that reader's fileClusterBuffer IS the staged buffer released here -- code downstream writes
-	// through the global without opening a document of its own (SaveSongUI's sample collection reads
-	// Cluster::size, 32 KiB, into it), so leaving it pointing at freed bytes is heap corruption rather
-	// than a stale read. Same discipline decodeSongPreview() documents.
-	FileDeserializer* const previousDeserializer = activeDeserializer;
-
-	std::string filePath = currentDir + "/" + currentFileItem->getFilenameWithExtension();
-	error = StorageManager::openDocumentSynchronously(filePath.c_str(), "song");
+	// Usually already open, over songStaging_'s bytes: STAGE read it on the interaction tier before
+	// this stretch was dispatched. On a build without the channel STAGE could not read there at all,
+	// so the same staging happens here instead -- on the owner, where blocking is legal. Either way
+	// the parse below runs over memory and `activeDeserializer` points at the memory reader.
+	//
+	// stagingPrevious_ is what that global gets put back to at every exit. Not hygiene: the memory
+	// reader's fileClusterBuffer IS the staged buffer, and code downstream writes through the global
+	// without opening a document of its own (SaveSongUI's sample collection reads Cluster::size,
+	// 32 KiB, into it), so leaving it pointing at released bytes is heap corruption, not a stale read.
+	Error error = Error::NONE;
+	if (songStaging_.buffer == nullptr) {
+		stagingPrevious_ = activeDeserializer;
+		switch (StorageManager::openDocumentStaged(stagingPath_.c_str(), "song", "", &songStaging_)) {
+		case StorageManager::StagedOpen::Opened:
+			break;
+		case StorageManager::StagedOpen::Deferred:
+		case StorageManager::StagedOpen::NotHere:
+			// Neither is reachable on the owner: the synchronous fill answers in one call. Treat a
+			// surprise as the error it would be rather than carrying on with no document.
+		case StorageManager::StagedOpen::Failed:
+			activeDeserializer = stagingPrevious_;
+			releaseSongStaging();
+			display->displayError(Error::FILE_CORRUPTED);
+			endLoad();
+			return;
+		}
+	}
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -521,8 +614,8 @@ ramError:
 someError:
 		display->displayError(error);
 		activeDeserializer->closeWriter();
-		StorageManager::releaseDocumentStaging();
-		activeDeserializer = previousDeserializer;
+		releaseSongStaging();
+		activeDeserializer = stagingPrevious_;
 fail:
 		// We couldn't load the requested song. Recover to a usable state and stop.
 		//
@@ -575,9 +668,10 @@ gotErrorAfterCreatingSong:
 	AudioEngine::logAction("read new song from file");
 
 	bool success = activeDeserializer->closeWriter();
-	// Nothing reads the staged bytes once the reader is closed.
-	StorageManager::releaseDocumentStaging();
-	activeDeserializer = previousDeserializer;
+	// Nothing reads the staged bytes once the reader is closed, and the global must not be left
+	// pointing into them.
+	releaseSongStaging();
+	activeDeserializer = stagingPrevious_;
 	if (!success) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
@@ -585,7 +679,14 @@ gotErrorAfterCreatingSong:
 
 	preLoadedSong->dirPath = currentDir;
 
-	std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
+	// Taken from the path that was actually STAGED rather than from the browser's cursor. The cursor
+	// is rebuilt by other tiers and may since have moved to a different song, or off the list
+	// entirely -- and the song now in memory is the one this name has to describe.
+	const std::string_view stagedPath{stagingPath_};
+	const auto lastSlash = stagedPath.rfind('/');
+	const std::string_view leaf = (lastSlash == std::string_view::npos) ? stagedPath : stagedPath.substr(lastSlash + 1);
+	const auto lastDot = leaf.rfind('.');
+	std::string currentFilenameWithoutExtension{(lastDot == std::string_view::npos) ? leaf : leaf.substr(0, lastDot)};
 
 	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(),
 	                                                    currentFilenameWithoutExtension.c_str());
