@@ -542,14 +542,23 @@ rather than a thing that is half-done:
    stated reason is spent and the table's row now says so. Gating it is a decision of its own rather
    than a node lookup and F3 did not make it. The other five are unchanged.
 
-   **Grid-pad forwarding measured a correction to how the eight gated sites are counted.**
-   `model/clip/instrument_clip_minder.cpp:408` (site 6's own gated call, the SELECT arm of
-   `InstrumentClipMinder::buttonAction`) is inherited by three root views and called by all three —
-   `gui/ui/keyboard/keyboard_screen.cpp:585`, `gui/views/automation_view.cpp:1209`,
-   `gui/views/instrument_clip_view.cpp:867` — so the eight gated entry sites reach five distinct
-   legacy roots, not eight views' worth of one. This is what lets `SoundEditor::padAction`'s
-   forwarding switch reach `keyboardScreen` and `automationView`, not only `instrumentClipView`, with
-   no separate entry-point work
+   **Grid-pad forwarding measured a correction to how the eight gated sites are counted: seven
+   distinct legacy roots, not eight views' worth of one.** Six of the eight are each their own root
+   by construction — `gui/views/session_view.cpp:563` (`sessionView`),
+   `gui/views/arranger_view.cpp:340` (`arrangerView`), `gui/views/performance_view.cpp:892`
+   (`performanceView`), `gui/views/instrument_clip_view.cpp:507` (`instrumentClipView`),
+   `gui/views/audio_clip_view.cpp:415` (`audioClipView`), `gui/views/automation_view.cpp:1617`
+   (`automationView`). The seventh comes from `model/clip/instrument_clip_minder.cpp:408` (site 6's
+   own gated call, the SELECT arm of `InstrumentClipMinder::buttonAction`), inherited by three root
+   views and called by all three — `gui/ui/keyboard/keyboard_screen.cpp:585`,
+   `gui/views/automation_view.cpp:1209`, `gui/views/instrument_clip_view.cpp:867` — which adds only
+   `keyboardScreen` to the set, the other two being the same roots session/arranger/etc. already
+   named. **The eighth gated site, `gui/views/view.cpp:471`, names no root of its own**: it is the
+   SHIFT+SELECT arm, and its own comment (`view.cpp:466-470`) says the root it opens is
+   `settingsRootMenu` "whatever is on screen" — the legacy root view underneath it is whichever one
+   the player is already in, so it adds no eighth name while bounding the set at every root view.
+   This is what lets `SoundEditor::padAction`'s forwarding switch reach `keyboardScreen` and
+   `automationView`, not only `instrumentClipView`, with no separate entry-point work
    (`docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md` §2.1).
 
    **MIDI is a separate half and is only partly closed** — see item 8. Two of the four learn
