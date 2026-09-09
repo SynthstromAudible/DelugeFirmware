@@ -24,6 +24,7 @@
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"
+#include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -40,6 +41,7 @@
 #include "util/string.h"
 #include "util/try.h"
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstring>
 
@@ -215,7 +217,11 @@ bool SaveSongUI::planTransfers(std::vector<PlannedTransfer>& into, bool collecti
 					}
 				}
 
-				std::string destination;
+				// SEEDED with the song's alternate folder, not empty: setupAlternateAudioFilePath
+				// APPENDS to this string and uses `alternateDirLength` to know where its own prefix
+				// ends. Handing it a fresh string leaves it building a path with no root, which
+				// reaches the filesystem as an empty name and panics it outright.
+				std::string destination = songAlternatePath;
 				if (!memcasecmp(pathForNaming.c_str(), "SAMPLES/", 8)) {
 					const Error error =
 					    audioFileManager.setupAlternateAudioFilePath(destination, alternateDirLength, pathForNaming);
@@ -224,8 +230,11 @@ bool SaveSongUI::planTransfers(std::vector<PlannedTransfer>& into, bool collecti
 					}
 				}
 				else {
-					destination = songAlternatePath;
 					destination += getFileNameFromEndOfPath(pathForNaming.c_str());
+				}
+				if (destination.empty()) {
+					// Never hand an empty name to the card: it does not fail, it panics the filesystem.
+					return false;
 				}
 				entry.copyTo = destination;
 				if (needToPretendLoadedAlternate) {
@@ -638,9 +647,45 @@ void SaveSongUI::runTransferPhase() {
 	PlannedTransfer& entry = transfers_[transferCursor_];
 
 	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
-	if (!onOwner) {
-		++offOwnerTransferTicks_;
+	const bool mayUseChannel = !onOwner && deluge_file_bytes_async_active();
+
+	// A build without the byte channel has no way to ask for a transfer from here, and blocking on
+	// this tier would stop the very thing the card needs running to answer. The whole entry goes to
+	// the owner, which may block legally -- the same build-configuration fallback the song load and
+	// the document save use, and it retires when the channel becomes unconditional.
+	//
+	// Without this the collection deferred until its stall bound and abandoned, so a build with the
+	// channel compiled out could never collect a sample at all.
+	if (!onOwner && !mayUseChannel) {
+		if (ownerTransferDone_) {
+			ownerTransferDone_ = false;
+			ownerTransferDispatched_ = false;
+			if (!ownerTransferOk_) {
+				abandonCollection();
+				return;
+			}
+			++transferCursor_;
+			collectStallTicks_ = 0;
+			return;
+		}
+		if (!ownerTransferDispatched_) {
+			if (!deluge::storage::Owner::run(&SaveSongUI::runTransferOnOwner, this)) {
+				if (!deferCollection()) {
+					abandonCollection();
+				}
+				return;
+			}
+			ownerTransferDispatched_ = true;
+			collectStallTicks_ = 0;
+			return;
+		}
+		if (!deferCollection()) {
+			abandonCollection();
+		}
+		return;
 	}
+
+	++offOwnerTransferTicks_;
 
 	DelugeStatus status = DELUGE_OK;
 
@@ -717,6 +762,66 @@ void SaveSongUI::runTransferPhase() {
 	copyIssued_ = false;
 	renameSucceeded_ = true;
 	collectStallTicks_ = 0;
+}
+
+void SaveSongUI::runTransferOnOwner(void* self) {
+	auto* ui = static_cast<SaveSongUI*>(self);
+	ui->ownerTransferOk_ = ui->transferOneSynchronously();
+	ui->ownerTransferDone_ = true;
+}
+
+bool SaveSongUI::transferOneSynchronously() {
+	PlannedTransfer& entry = transfers_[transferCursor_];
+
+	if (entry.renameTemp) {
+		// A failed move is NOT fatal: the recording stays where it is and the copy reads from there,
+		// which is what the old code expressed by consulting a field the move had or had not cleared.
+		StorageManager::buildPathToFile(entry.renameTo.c_str());
+		deluge_file_invalidate_cache();
+		const auto renamed = deluge::io::rename(entry.renameFrom, entry.renameTo);
+		renameSucceeded_ = renamed.has_value();
+		if (!renameSucceeded_) {
+			anyErrorMovingTempFiles_ = true;
+		}
+	}
+
+	if (!entry.copy) {
+		return true;
+	}
+
+	const std::string& from = renameSucceeded_ ? entry.copyFromAfterRename : entry.copyFromIfRenameFailed;
+	auto source = deluge::io::File::open(from.c_str(), DELUGE_FILE_READ);
+	if (!source) {
+		return false;
+	}
+	auto created = StorageManager::createFile(entry.copyTo.c_str(), false);
+	if (!created) {
+		// Already there from a previous save is SUCCESS, not failure -- the old loop said exactly
+		// this, and treating it as an error would abandon perfectly good saves.
+		return created.error() == Error::FILE_ALREADY_EXISTS;
+	}
+
+	std::array<std::byte, 4096> buffer{};
+	while (true) {
+		auto read = source->read(std::span<std::byte>(buffer));
+		if (!read) {
+			return false;
+		}
+		const size_t got = read->size();
+		if (got == 0) {
+			break;
+		}
+		auto written = created->write(std::span<const std::byte>(buffer.data(), got));
+		if (!written || *written != got) {
+			return false;
+		}
+		if (got < buffer.size()) {
+			break;
+		}
+	}
+	(void)created->close();
+	(void)source->close();
+	return true;
 }
 
 void SaveSongUI::applyTransfers() {

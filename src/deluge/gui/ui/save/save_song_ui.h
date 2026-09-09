@@ -26,6 +26,9 @@ class AudioFile;
 class ContextMenu;
 
 class SaveSongUI final : public SaveUI {
+	/// The sample-collect gate drives the real ENTER gesture and turns collect-media on.
+	friend class SampleCollectProbe;
+
 public:
 	SaveSongUI();
 	bool opened() override;
@@ -103,6 +106,10 @@ private:
 	void applyTransfers();
 	/// @brief End the collection having applied NOTHING, and fail the save.
 	void abandonCollection();
+	/// @brief The owner-side arm of one transfer, for builds without the channel.
+	static void runTransferOnOwner(void* self);
+	/// @brief Perform the current entry with blocking calls. Legal ONLY on the storage owner.
+	bool transferOneSynchronously();
 	/// @brief Defer one more tick, or give up if the collection has stopped making progress.
 	bool deferCollection();
 	/// @brief Everything the save does after its samples are in place.
@@ -116,6 +123,9 @@ private:
 	/// Whether the CURRENT entry's rename succeeded, which decides where its copy reads from.
 	bool renameSucceeded_{true};
 	int32_t collectStallTicks_{};
+	bool ownerTransferDispatched_{};
+	bool ownerTransferDone_{};
+	bool ownerTransferOk_{};
 
 	/// Locals the save used to keep on its stack. It no longer finishes inside one call.
 	std::string pendingFilePath_;
