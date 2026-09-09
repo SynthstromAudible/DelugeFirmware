@@ -90,6 +90,12 @@ enum StreamOp {
         dst: usize,
         cap: u32,
     },
+    /// Whole-document write: the mirror of [`StreamOp::ReadFile`]. Also path-keyed.
+    WriteFile {
+        src: usize,
+        len: u32,
+        may_overwrite: bool,
+    },
 }
 
 /// What a collect matches against. Keyed by KIND as well as handle, so a read answer can never be
@@ -104,6 +110,7 @@ enum OpKind {
     Close,
     Stats,
     ReadFile,
+    WriteFile,
 }
 
 /// The answer to one operation. The `Ok` payload is the handle for `Open`, the byte count for
@@ -144,6 +151,7 @@ fn op_key(op: &StreamOp) -> (OpKind, u32) {
         StreamOp::Stats => (OpKind::Stats, 0),
         // Path-keyed, like Open: the handle slot is unused and the KIND is what distinguishes it.
         StreamOp::ReadFile { .. } => (OpKind::ReadFile, 0),
+        StreamOp::WriteFile { .. } => (OpKind::WriteFile, 0),
     }
 }
 
@@ -270,6 +278,60 @@ pub unsafe extern "C" fn deluge_file_write_collect_read_file(
 ) -> u8 {
     // SAFETY: forwarded contract.
     unsafe { collect(OpKind::ReadFile, 0, out_len, out_needed) }
+}
+
+/// C-ABI: ask for a whole document to be written.
+///
+/// # Safety
+/// `path` must be NUL-terminated; `src` must point at `len` readable bytes that stay alive until the
+/// matching collect is terminal.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_write_request_write_file(
+    path: *const c_char,
+    src: *const u8,
+    len: u32,
+    may_overwrite: bool,
+) -> bool {
+    if path.is_null() || src.is_null() || len == 0 {
+        return false;
+    }
+    // SAFETY: caller guarantees NUL-termination.
+    let Ok(p) = (unsafe { CStr::from_ptr(path) }).to_str() else {
+        return false;
+    };
+    accept(
+        StreamOp::WriteFile {
+            src: src as usize,
+            len,
+            may_overwrite,
+        },
+        p,
+    )
+}
+
+/// C-ABI: collect the whole-document write.
+///
+/// `_path` is unused: like `Open` and `ReadFile`, this operation is single-flight and distinguished
+/// by its KIND alone. It stays in the signature so the C side reads symmetrically with the request.
+///
+/// # Safety
+/// Either out-pointer may be null; when non-null they must point at writable storage.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_write_collect_write_file(
+    _path: *const c_char,
+    out_written: *mut u32,
+    out_exists: *mut u8,
+) -> u8 {
+    let mut reason: u32 = 0;
+    // SAFETY: forwarded contract.
+    let status = unsafe { collect(OpKind::WriteFile, 0, out_written, &raw mut reason) };
+    if status == DELUGE_FILE_WRITE_FAILED && !out_exists.is_null() {
+        // The error arm carries 1 for "the name was taken" and 0 for everything else, the way
+        // ReadFile's carries the size it needed.
+        // SAFETY: non-null, and the caller guarantees it is writable.
+        unsafe { *out_exists = u8::from(reason == 1) };
+    }
+    status
 }
 
 /// C-ABI: is the driver running?
@@ -552,6 +614,53 @@ pub async fn file_write_task() {
                                     Some(n) if n as u32 == size => Ok(size),
                                     _ => Err(0),
                                 }
+                            }
+                        }
+                    }
+                }
+                StreamOp::WriteFile {
+                    src,
+                    len,
+                    may_overwrite,
+                } => {
+                    // stream_io.h is authoritative and these two READ BACKWARDS: mode 1 CREATES,
+                    // truncating an existing file; mode 2 creates NEW and fails if one is already
+                    // there (`create_context`'s parameter is literally named `exclusive`). Letting
+                    // the OPEN carry the policy is what keeps the check atomic -- a caller that
+                    // looked first would leave a gap in which the file could appear.
+                    let mode = if may_overwrite { 1 } else { 2 };
+                    match open_mounted(path.as_str(), mode).await {
+                        None => {
+                            // stream_open collapses its status through `.ok()`, so the refusal does
+                            // not say WHY. Ask separately, and only to CLASSIFY: the write did not
+                            // happen either way, so nothing races on it -- the worst case is calling
+                            // a file that vanished in between a card error, which is harmless.
+                            let exists = if may_overwrite {
+                                false
+                            } else {
+                                match open_mounted(path.as_str(), 0).await {
+                                    Some(h) => {
+                                        backing::stream_close(h).await;
+                                        true
+                                    }
+                                    None => false,
+                                }
+                            };
+                            Err(u32::from(exists))
+                        }
+                        Some(handle) => {
+                            // SAFETY: the C++ contract (file_write.h) is that this buffer stays alive
+                            // and unmodified until the collect below is observed as terminal.
+                            let bytes = unsafe {
+                                core::slice::from_raw_parts(src as *const u8, len as usize)
+                            };
+                            let written = backing::stream_write_at(handle, 0, bytes).await;
+                            backing::stream_close(handle).await;
+                            match written {
+                                // A SHORT write of a whole document is a failure, not a small
+                                // success: a truncated preset on the card is worse than no preset.
+                                Some(n) if n as u32 == len => Ok(len),
+                                _ => Err(0),
                             }
                         }
                     }

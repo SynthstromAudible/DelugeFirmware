@@ -108,8 +108,13 @@ uint8_t deluge_file_write_collect_write_at(uint32_t handle, uint32_t* out_writte
 ///
 /// The only PATH-keyed operation here: there is no handle yet. The handle arrives in the collect.
 /// @param path NUL-terminated path.
-/// @param mode `DelugeStreamMode` as a fixed-width byte (0 read, 1 create, 2 create-always,
-///             3 append: open existing, no truncation).
+/// @param mode `DelugeStreamMode` as a fixed-width byte. See stream_io.h, which is authoritative:
+///             0 read, 1 create TRUNCATING an existing file, 2 create NEW and fail if it already
+///             exists, 3 append (open existing, no truncation).
+///
+///             1 and 2 are easy to read backwards -- this comment had them backwards -- so take them
+///             from the enum rather than from memory. `create_context`'s parameter is named
+///             `exclusive`, and mode 2 is the exclusive one.
 /// @return false when refused -- another operation is in flight, or the channel is not running.
 bool deluge_file_write_request_open(const char* path, uint8_t mode) DELUGE_NOEXCEPT;
 
