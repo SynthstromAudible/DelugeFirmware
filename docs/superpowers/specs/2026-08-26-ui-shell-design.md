@@ -1086,6 +1086,12 @@ before step 5's OLED render and step 7's `after_render`. All five fields are per
 written during render, read by `after_render` and drained at its tail (`:1358-1362`), with
 `render_oled` re-zeroing two of them at its own head (`:482-483`) — so every one of them was already
 at its default at the instant the spurious `on_resume` arrived. It was a latent bug, not a shipped
+bug. **The bare `:NNN` chain in this paragraph is stale and is deliberately left alone** (F3 task 5,
+2026-09-09): the citations inherit `shell/shell.cpp`, which is 1175 lines, so `:1358-1362` is out of
+range; and the paragraph's subject is `MenuScene`, where `:1358-1362`, `:332-335`, `:337-341` and
+`:482-483` all fail to describe what the prose says. **The whole chain is stale, not one endpoint**,
+so re-anchoring it would invent a target rather than recover one. Recorded here rather than only in
+a plan report so the next sweep does not re-find it as new.
 one, and it is closed either way.
 
 **A limitation, stated rather than fixed.** The comparison is scene identity, and the registry holds
