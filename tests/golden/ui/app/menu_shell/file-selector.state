@@ -1,0 +1,73 @@
+led AffectEntire on
+led Back on
+led Clip on
+led Mod1 on
+led Scale on
+led Synth on
+pad 1 2 6 6 65
+pad 10 1 48 48 48
+pad 10 2 3 3 3
+pad 10 3 19 19 19
+pad 10 4 3 3 3
+pad 10 5 19 19 19
+pad 11 2 3 3 3
+pad 11 3 19 19 19
+pad 11 4 3 3 3
+pad 11 5 19 19 19
+pad 12 3 19 19 19
+pad 12 4 3 3 3
+pad 12 5 19 19 19
+pad 13 2 6 6 65
+pad 13 3 3 3 3
+pad 13 5 3 3 3
+pad 14 2 6 6 65
+pad 14 3 6 65 6
+pad 14 5 65 6 6
+pad 15 3 6 65 6
+pad 15 5 65 6 6
+pad 16 0 0 255 6
+pad 16 1 0 255 6
+pad 16 2 0 255 6
+pad 16 3 0 255 6
+pad 16 4 0 255 6
+pad 16 5 0 255 6
+pad 16 6 0 255 6
+pad 16 7 0 255 6
+pad 17 0 0 46 209
+pad 17 7 0 226 29
+pad 2 2 6 6 65
+pad 3 2 3 3 3
+pad 3 3 19 19 19
+pad 3 4 3 3 3
+pad 3 5 19 19 19
+pad 4 2 3 3 3
+pad 4 3 19 19 19
+pad 4 4 3 3 3
+pad 4 5 19 19 19
+pad 5 1 48 48 48
+pad 5 2 3 3 3
+pad 5 3 19 19 19
+pad 5 4 3 3 3
+pad 5 5 19 19 19
+pad 6 1 48 48 48
+pad 6 2 3 3 3
+pad 6 3 48 48 48
+pad 6 4 3 3 3
+pad 6 5 19 19 19
+pad 7 1 48 48 48
+pad 7 2 3 3 3
+pad 7 3 3 3 3
+pad 7 4 3 3 3
+pad 7 5 19 19 19
+pad 8 1 48 48 48
+pad 8 2 3 3 3
+pad 8 3 3 3 3
+pad 8 4 3 3 3
+pad 8 5 19 19 19
+pad 9 1 48 48 48
+pad 9 2 3 3 3
+pad 9 3 48 48 48
+pad 9 4 3 3 3
+pad 9 5 19 19 19
+indicator lower 72 0 0 0
+indicator upper 255 255 36 0
