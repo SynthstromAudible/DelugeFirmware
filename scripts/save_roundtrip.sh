@@ -15,6 +15,13 @@
 #   SR-ROUNDTRIP  the written bytes. A CRC, not a length -- a save that truncated or reordered
 #                 would pass a length check.
 #   SR-TIER       that performSave never ran on the interaction tier.
+#   SL-NOSTREAM   that no streaming document reader has come back. A SOURCE check, and unusually so:
+#                 a gate cannot observe a path that is not compiled, so noticing the deletion being
+#                 undone is the only way to keep it deleted. A runtime path that can block the
+#                 storage owner is a reason the owner can never be removed, however rarely it runs.
+#   SL-EVICT      that the round trip still produces the SAME bytes when the song has to be staged
+#                 into an SDRAM heap too small to hold it without evicting. Loading a song now gives
+#                 up cached sample chunks it never used to; that was a decision, so it gets measured.
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
 set -euo pipefail
@@ -83,4 +90,50 @@ if ! grep -q '^SR-RESULT failures=0$' "$OUT/run.txt"; then
 fi
 
 grep -E '^SR-' "$OUT/run.txt"
-echo "PASS — the song round-tripped byte-identically and the overwrite seam behaved"
+
+# SL-NOSTREAM. The three StorageManager functions that opened a document by streaming it off the card
+# while parsing it. Their deletion is what makes "nothing parses from the card" true, and nothing at
+# runtime can notice them coming back, so it is checked here.
+if grep -rnE '\bStorageManager::open(XML|Json)File\(|\bopenDelugeFile\(' \
+	"$REPO_ROOT/src" --include='*.cpp' --include='*.h' --include='*.hpp' >"$OUT/nostream.txt"; then
+	echo "FAIL SL-NOSTREAM — a streaming document reader is back:"
+	cat "$OUT/nostream.txt"
+	echo "  A path that can block the storage owner at runtime is a reason the owner can never be"
+	echo "  removed. Parse from a staged buffer (StorageManager::openDocumentSynchronously) instead."
+	exit 1
+fi
+echo "SL-NOSTREAM ok — no streaming document reader in src/"
+
+# SL-EVICT. Re-run the whole round trip with the usable SDRAM clamped low enough that staging a song
+# cannot happen without the resource manager evicting cached chunks first, and require the SAME
+# result. alloc_sdram evicts rather than failing, so this exercises that path rather than an error
+# path -- and if the eviction ever corrupted or truncated what was staged, the CRC comparison inside
+# the run is what would notice.
+echo "save round-trip: running under a clamped SDRAM heap (SL-EVICT)"
+set +e
+DELUGE_SIM_SDRAM_MB="${SL_EVICT_SDRAM_MB:-2}" GOLDEN_SCENARIO=save_roundtrip \
+	"$BIN" >"$OUT/evict.txt" 2>"$OUT/evict.err"
+evict_status=$?
+set -e
+if [ "$evict_status" -ne 0 ]; then
+	echo "FAIL SL-EVICT — the clamped-heap run exited $evict_status"
+	grep -E '^SR-' "$OUT/evict.txt" || sed -n '1,60p' "$OUT/evict.txt"
+	sed -n '1,25p' "$OUT/evict.err" >&2
+	exit 1
+fi
+if ! grep -q '^SR-RESULT failures=0$' "$OUT/evict.txt"; then
+	echo "FAIL SL-EVICT — in-process failures under a clamped heap:"
+	grep -E '^SR-' "$OUT/evict.txt"
+	exit 1
+fi
+# The round-trip CRC itself must be identical to the unclamped run: eviction must change WHAT IS
+# CACHED, never what is written.
+if ! diff <(grep '^SR-ROUNDTRIP ' "$OUT/run.txt") <(grep '^SR-ROUNDTRIP ' "$OUT/evict.txt"); then
+	echo "FAIL SL-EVICT — the clamped-heap run wrote different bytes than the unclamped one"
+	exit 1
+fi
+grep -E '^SR-' "$OUT/evict.txt"
+echo "SL-EVICT ok — same bytes with the song staged into a heap that had to evict first"
+
+echo "PASS — the song round-tripped byte-identically, the overwrite seam behaved, no streaming"
+echo "       document reader survives, and staging under eviction changed nothing"
