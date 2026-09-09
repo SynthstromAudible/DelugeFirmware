@@ -574,17 +574,27 @@ rather than a thing that is half-done:
    alone brought the sidebar back **ungreyed** (`pad 16 0 0 255 6`, boot's colour, not the OFF
    leg's `3 160 7`).
 
-   **A second user-visible divergence, reachable at six of the eight gated entry sites, and now
+   **A second user-visible divergence, reachable at seven of the eight gated entry sites, and now
    fixed.** With the toggle on, a grid pad pressed under a ported menu did nothing, where legacy
    closes the menu: `SoundEditor::padAction`'s tail (`gui/ui/sound_editor.cpp:1520-1545`) falls
    through every root-forwarding arm and calls `exitCompletely()` on any unclaimed pad while
    `currentUIMode == UI_MODE_NONE`, and the port had no equivalent — `MenuScene` ignored an unclaimed
-   pad outright, and the menu stayed open over the grid. Not universal: the two sites whose root
-   claims every pad through a forwarding arm ending in a hard `return` — `performanceView`'s
-   (`gui/ui/sound_editor.cpp:1515-1517`) and the `keyboardScreen` half of site 6's fan-out
-   (`:1474-1477`) — never reach the tail, in legacy or in the port's matching arms, so there was no
-   divergence to fix at either; `docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md`
-   §2.1 has the full per-site account. **Fixed by `ui/pads-1`**: `Scene::grid_pad_claim()`
+   pad outright, and the menu stayed open over the grid. Not universal, but the exclusion is a
+   single whole site rather than two: site 4, `performanceView`'s
+   (`gui/ui/sound_editor.cpp:1515-1517`), is the only site whose one root forwards every pad through
+   an arm ending in a hard `return`, so it never reaches the tail in legacy or in the port's matching
+   arm. Site 6 (`model/clip/instrument_clip_minder.cpp:408`) fans out to three roots and is reachable
+   through two of them — its `keyboardScreen` arm (`:1474-1477`) is the same hard-`return` shape as
+   site 4's and never reaches the tail either, but that is an unreachable *arm* of a reachable site,
+   not a second unreachable site: site 6's `instrumentClipView`-shaped arm reaches the tail
+   unconditionally (any pad but the audition column) and its `automationView`-shaped arm reaches it
+   conditionally, on the same test site 7's own `automationView` arm uses — the ported menu is not
+   showing the very param automation view is editing (`menuShowsAutomationParam()`). Site 1
+   (`views/view.cpp:471`) is root-agnostic and inherits whichever of the above answers the root
+   already on screen gives, so it is reachable whenever that root is one of the seven; site 6 was
+   miscounted as a whole exclusion in two earlier passes at this sentence —
+   `docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md` §2.1 has the full per-site
+   account. **Fixed by `ui/pads-1`**: `Scene::grid_pad_claim()`
    (`src/shell/scene.h:455`) plus `ShellHostUI::claimsGridPad` (`gui/ui/shell_host_ui.cpp:749-765`)
    and `forwardGridPad`'s tail (`gui/ui/shell_pad_forward.cpp:136-139`) now call
    `closePortedMenu()` (`gui/ui/shell_action_dispatch.cpp:189-191`) on the same condition legacy's

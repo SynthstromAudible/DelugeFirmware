@@ -52,27 +52,40 @@ forwarding is *"what this guest does **not** do."* That file names `automationVi
 
 ### 2.1 The two shipped divergences
 
-**Behaviour 3 is the more serious, and it is reachable at six of the eight gated entry sites — not
+**Behaviour 3 is the more serious, and it is reachable at seven of the eight gated entry sites — not
 all eight.** Open the Song menu over the session view and press any grid pad: legacy falls past
 every forwarding arm (`sessionView` matches none) to the tail at `:1545` and **closes the menu**.
 Under the guest the pad reaches `MenuScene`, which ignores anything without shift
 (`menu_scene.cpp:1631`), and the menu stays open. Dismissing a menu with a pad — a hand already on
 the grid — is an ordinary gesture, not an edge case.
 
-**The two sites the tail never reaches are `performanceView`'s and the `keyboardScreen` half of
-site 6's fan-out.** Both roots forward every pad through an arm ending in a hard `return` —
-`:1474-1477` for `keyboardScreen`, `:1515-1517` for `performanceView` — in legacy and in the port's
-matching arms alike, so no main-grid press is ever left unclaimed for the tail to catch: site 4
-(`views/performance_view.cpp:892`) and the `keyboardScreen` arm of site 6
-(`model/clip/instrument_clip_minder.cpp:408`, reached via `keyboard_screen.cpp:585`). At the other
-six site/root pairings a plain main-grid press falls to the tail **unconditionally** at `sessionView`
-(site 2), `arrangerView` (site 3) and `audioClipView` (site 8, `views/audio_clip_view.cpp:415`), and
-at `instrumentClipView` (site 5 and site 6's matching fan-out) for any pad but the audition column;
-at `automationView` (site 7, `views/automation_view.cpp:1617`, and site 6's matching fan-out) it
-falls to the tail only **conditionally** — when the pad is on the main grid and the ported menu is
-not showing the very param automation view is editing (`menuShowsAutomationParam()`). Site 1
-(`views/view.cpp:471`) is root-agnostic — its own comment (`:466-470`) says it opens over whatever
-root is already on screen — so it inherits whichever of the above answers that root gives.
+**Site 4 is the sole whole-site exclusion.** `performanceView` (`views/performance_view.cpp:892`)
+forwards every pad through the one arm matching its root, and that arm ends in a hard `return`
+(`:1515-1517`) — in legacy and in the port's matching arm alike — so no main-grid press is ever left
+unclaimed for the tail to catch. That is the only gated site whose single root behaves this way.
+
+**Site 6 is reachable, not excluded — it has one unreachable arm among three.**
+`model/clip/instrument_clip_minder.cpp:408` fans out to three roots
+(`keyboard_screen.cpp:585`, `automation_view.cpp:1209`, `instrument_clip_view.cpp:867`), and one of
+its three matching arms shares site 4's shape: `keyboardScreen`'s (`:1474-1477`) is the same hard
+`return`, unreachable for the same reason. But the other two are not: its
+`instrumentClipView`-shaped arm falls to the tail **unconditionally** for any pad but the audition
+column, and its `automationView`-shaped arm falls to the tail **conditionally**, on the same test
+site 7's own arm uses below. A site with two reachable arms out of three is a reachable site, not an
+unreachable one.
+
+At the other six site/root pairings a plain main-grid press falls to the tail **unconditionally** at
+`sessionView` (site 2), `arrangerView` (site 3), `audioClipView` (site 8,
+`views/audio_clip_view.cpp:415`) and `instrumentClipView` (site 5, plus site 6's matching fan-out
+arm above); at `automationView` (site 7, `views/automation_view.cpp:1617`, plus site 6's matching
+fan-out arm above) it falls to the tail only **conditionally** — when the pad is on the main grid and
+the ported menu is not showing the very param automation view is editing
+(`menuShowsAutomationParam()`). That is seven site/root pairings in total (site 6 counted once, over
+its two reachable arms), matching the seven reachable sites. Site 1 (`views/view.cpp:471`) is
+root-agnostic — its own comment (`:466-470`) says it opens over whatever root is already on screen,
+and one of its own examples is the settings root, which answers `GridPadClaim::None`
+(§3's table) — so it inherits whichever of the above answers that root gives, and is reachable
+whenever that root is one of the seven above.
 
 **Kate's ruling, 2026-09-09: *"legacy is correct, we need to close on pad press."*** The target is
 legacy's behaviour, and the divergence is a defect to fix rather than a behaviour to preserve. This
@@ -265,10 +278,11 @@ This stack's recurring failure is findings that live only in a task report; F2 t
 one into the tree for exactly that reason. All four land in `src/scenes/README.md`'s carry table:
 
 1. The five unrecorded forwarding paths, named individually.
-2. **Behaviour 3, shipped and reachable at six of the eight gated sites** (not `performanceView`'s
-   or the `keyboardScreen` half of site 6's fan-out, whose forwarding arms end in a hard `return` and
-   never reach the tail; §2.1 has the per-site account) — also in migration §10's defect list,
-   because unlike the others a player meets it immediately.
+2. **Behaviour 3, shipped and reachable at seven of the eight gated sites** (not `performanceView`'s
+   -- site 4 is the sole whole-site exclusion, its one forwarding arm ending in a hard `return` that
+   never reaches the tail; site 6's `keyboardScreen` arm shares that shape but is one unreachable arm
+   of a reachable site, not a second excluded site -- §2.1 has the per-site account) — also in
+   migration §10's defect list, because unlike the others a player meets it immediately.
 3. Behaviour 4 as a deliberate gap, with coordinates.
 4. `GridPadClaim::None`'s missing producer for note-editor roots (it does ship with one: `Settings`).
 5. The automation interpolation pads (§3.1's last paragraph), which `MenuScene` claims and legacy

@@ -759,9 +759,15 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		return false;
 	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
 		// `SoundEditor::potentialShortcutPadAction`'s gate (`gui/ui/sound_editor.cpp:1169-1186`),
-		// minus its auditioning half: that is `isUIModeActive(UI_MODE_AUDITIONING)`, which
-		// `MenuScene` already drops with the reason recorded (`scenes/menu/menu_scene.cpp:1627-1630`).
-		// Past that gate legacy claims unconditionally, even where no shortcut table has an entry
+		// minus two halves that stay on legacy's side (M1: this comment used to name only the
+		// first). One is `isUIModeActive(UI_MODE_AUDITIONING)`, which `MenuScene` already drops
+		// with the reason recorded (`scenes/menu/menu_scene.cpp:1627-1630`). The other is the
+		// automation-view interpolation carve-out, `getRootUI() == &automationView && x == 0 &&
+		// (y == 6 || y == 7)` (`:1174-1177`), which exempts those two pads from claiming a shortcut
+		// jump at all -- `src/scenes` cannot ask `getRootUI()`'s identity, so `MenuScene` claims
+		// them here exactly as it would anywhere else on the same arm. Recorded as a divergence
+		// rather than closed (`src/scenes/README.md`'s carry table, item 3). Past what remains of
+		// the gate legacy claims unconditionally, even where no shortcut table has an entry
 		// (`:1431`) -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad
 		// die (`menu_scene.cpp:1664`). The two agree; see spec §3.1.
 		return velocity != 0 && x < kDisplayWidth && Buttons::isShiftButtonPressed();

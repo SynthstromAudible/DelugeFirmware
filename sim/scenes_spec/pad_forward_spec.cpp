@@ -166,10 +166,14 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("lets a main-grid pad on a clip root fall through to the tail", _ {
 		// `:1500`'s `else if` not taken -> the comment `// fall through below` at `:1504` -> the
-		// tail at `:1520-1545`. This is the shipped divergence spec section 2.1 describes: legacy's
-		// note-editor arms are not ported (`shell_pad_forward.h`'s own note), so a main-grid pad on
-		// an `instrumentClipView` root reaches the tail here where legacy's `inNoteEditor()` gate
-		// would have claimed it first on the device.
+		// tail at `:1520-1545`. M3: this is NOT the note-editor arms' gap -- neither `inNoteEditor()`
+		// nor `inNoteRowEditor()` is true here (no guest path ever sets that state, so they can't
+		// be), and design spec §2.1 (`docs/.../2026-09-09-guest-pad-forwarding-design.md:104-106`)
+		// says those two arms are exactly the ones that are **not** reachable with the toggle on,
+		// for that reason -- nothing ships from an arm nothing can reach. This example is ordinary
+		// behaviour 3 (§2.1) at site 5/one of site 6's fan-out arms: `instrumentClipView` matches no
+		// coordinate-gated arm above it for a plain main-grid pad, so both legacy and the port fall
+		// to the tail the same way -- no divergence in this example.
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;

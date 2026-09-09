@@ -1626,6 +1626,14 @@ not come with them.
    so). They arrive together with `GridPadClaim::None`'s second producer, once sites 12 and 13 of
    `shell_menu_entry.cpp`'s fourteen-entry table (migration §10.2 item 2) gain a ported root — today
    `None` has exactly one producer, `MenuScene` on a `Settings` root (`menu_scene.h:487-489`).
+   **What the plan asked to be recorded here rather than written (M5, `docs/superpowers/plans/2026-09-09-guest-pad-forwarding.md:40`):**
+   legacy's two arms are not a bare forward each -- `sound_editor.cpp:1483-1497` splits on
+   coordinate, not only on which arm: `inNoteEditor()`'s main grid (`x < kDisplayWidth`) goes to
+   `handleNoteEditorEditPadAction`, its sidebar to `exitCompletely()`; `inNoteRowEditor()` calls
+   `handleNoteRowEditorPadAction` and falls to `exitCompletely()` only when that returns unhandled.
+   So when a note-editor root exists and answers `GridPadClaim::None`, `forwardGridPad`'s switch will
+   need the same main-grid/sidebar split inside its own note-editor arms, not a single bare forward
+   the way `keyboardScreen`'s and `performanceView`'s arms are today.
 2. **Behaviour 4, the firmware-version diagnostics, is Kate's deliberate gap (2026-09-09).**
    `SoundEditor::padAction`'s tail (`sound_editor.cpp:1521-1543`) special-cases three pads when the
    ported menu shows `&firmwareVersionMenu` at `y == 7`: `x == 15` reads SRAM
@@ -1638,11 +1646,18 @@ not come with them.
    Legacy's shift-held shortcut gate exempts `x == 0, y == 6|7` from claiming a shortcut jump when
    `getRootUI() == &automationView` (`sound_editor.cpp:1175-1177`), deferring those two pads to
    automation view's own interpolation/pad-selection handling. `MenuScene`'s ported shift gate
-   (`scenes/menu/menu_scene.cpp:1627-1665`) has no equivalent: it cannot see which legacy root view
-   is behind it — `MenuContext::Root` names a menu root, not a `getRootUI()` identity — so it claims
-   `x == 0, y == 6|7` under `automationView` exactly as it would anywhere else on the Sound/Drum arm.
-   Not fixed: this reads as a second instance of the same gap "settings-root shortcut jumps" above is
-   blocked on, an additive root-view identity `MenuContext` does not carry yet.
+   (`scenes/menu/menu_scene.cpp:1627-1665`) has no equivalent, and correctly cannot: it lives in
+   `src/scenes`, which may not name `getRootUI()` or `automationView`, and `MenuContext::Root` names
+   a menu root, not a `getRootUI()` identity. **Not the same blocker as "settings-root shortcut
+   jumps" above, and this row previously said it was.** That block sits on the `src/scenes` side of
+   the wall with no seam through it yet; this one does not — `ShellHostUI::claimsGridPad`
+   (`gui/ui/shell_host_ui.cpp:754-770`) is itself a declared `LEGACY_PORT_SEAMS` entry
+   (`scripts/check_layer_rules.py:304`) and its `ShortcutsOnly` arm already runs on the legacy
+   side of that wall; `forwardGridPad` right beside it already calls `getRootUI()`
+   (`gui/ui/shell_pad_forward.cpp:127`) and names `automationView` (`:139`). So the exemption could
+   be asked for at
+   `claimsGridPad`'s `ShortcutsOnly` arm today, the same seam `shell_pad_forward.cpp` uses -- it is
+   simply not this branch's task to add it. Not fixed here: out of scope rather than blocked.
 4. **The auditioning half of the shortcut gate was already dropped, and `GridPadClaim::ShortcutsOnly`
    inherits the drop rather than reintroducing the question.** Legacy's non-shift branch of
    `potentialShortcutPadAction` is `ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) &&
@@ -1659,10 +1674,29 @@ not come with them.
    unconditionally on every open, so the port always reopens on the first row. Reachable with an
    ordinary gesture: scroll a menu off its first row, back out, reopen, and the two legs land on
    different rows. `tests/ui-scripts/app/menu.txt` now carries one corrective gesture,
-   `17100 encoder Select -5`, that exists solely to make the two legs converge past this divergence
-   (`Submenu::wrapAround()`, `gui/menu_item/submenu.cpp:129-131`, returns
-   `renderingStyle() == HORIZONTAL` — false for the SOUND root's vertical list — so a five-item
-   backward scan overshoots and clamps both legs at the same row regardless of where each started);
-   remove that gesture once this divergence is fixed. Not this branch's to fix — a bigger change than
-   one test script — and recorded in migration §10's defect list as well, because unlike the other
-   four here a player meets it immediately.
+   `17100 encoder Select -5`, that exists solely to make the two legs converge past this divergence,
+   and it works on both legs' own clamp, not just one (M4: an earlier pass here cited only the OFF
+   leg's). **OFF**: `Submenu::wrapAround()` (`gui/menu_item/submenu.cpp:129-131`) returns
+   `renderingStyle() == HORIZONTAL` — false for the SOUND root's vertical list — so
+   `Submenu::selectEncoderAction`'s backward scan clamps at `items.begin()` rather than wrapping, and
+   a five-item overshoot lands on the first row regardless of where the scan started. **ON**:
+   `move_cursor`'s own backward loop is the same shape, `if (--cursor < 0) return last_ok;`
+   (`src/ui/oled/list.cpp:54-75`, the test at `:66`) — no `wrapAround` concept at all, just a clamp at
+   the top of the row span, so the same overshoot lands both legs on the same row for two different
+   reasons that happen to agree. Remove the gesture once this divergence is fixed. Not this branch's
+   to fix — a bigger change than one test script — and recorded in migration §10's defect list as
+   well, because unlike the other four here a player meets it immediately.
+6. **A sixth carry (M2): the ~1 ms window after `Exit` empties the stack, during which an arriving
+   pad is claimed rather than forwarded.** `PadForwardTarget::Exit` runs `closePortedMenu()`, which
+   empties the guest's own `SceneStack` (`gui/ui/shell_action_dispatch.cpp`) but leaves the guest
+   itself current; `ShellHostUI::timerCallback` is what notices the empty stack and closes the guest
+   (`gui/ui/shell_host_ui.cpp:555-558`), and that timer is armed at `kMinRearmMs` -- 1 ms
+   (`shell_host_ui.h:433`). In the window before that tick fires, `SceneStack::input_top()` on an
+   empty stack answers the `NullScene` (`shell/scene_stack.h:144-155`), and `NullScene` does not
+   override `Scene::grid_pad_claim()`, so it inherits the default answer, `All`
+   (`shell/scene.h:455`). `ShellHostUI::claimsGridPad` therefore **claims** any pad that lands in
+   that window rather than forwarding it, where legacy -- which has no such empty-stack moment --
+   would have given the same press to the root view underneath. Window is tiny (a millisecond) and
+   the close design (a timer-driven `depth() == 0` check rather than a synchronous close) predates
+   this branch; not fixed here because this branch is what adds a *second* producer of it -- the
+   `Exit` arm this task added is a second way to empty the stack, beside whatever already could.

@@ -309,10 +309,14 @@
 # MASTER and the ON leg on ACTIONS, and `pad-menu-open.oled0.pbm` would differ between the legs
 # for a reason that has nothing to do with grid-pad forwarding -- measured: recording without this
 # line fails `ui_app_scripts_menu_ab` on exactly that file. `-5` overshoots the top of a
-# three-item list on purpose: `Submenu::selectEncoderAction`'s backward scan clamps at
-# `items.begin()` rather than wrapping unless `wrapAround()` (`renderingStyle() == HORIZONTAL`,
-# `submenu.cpp:129-131`) is true, and the SOUND root is not, so both legs land on ACTIONS
-# regardless of where each one started. This is a real, separate MenuScene gap -- cursor memory
+# three-item list on purpose, and lands both legs on ACTIONS by two different clamps (M4: this
+# comment used to cite only the OFF leg's). OFF: `Submenu::selectEncoderAction`'s backward scan
+# clamps at `items.begin()` rather than wrapping unless `wrapAround()`
+# (`renderingStyle() == HORIZONTAL`, `submenu.cpp:129-131`) is true, and the SOUND root is not. ON:
+# `move_cursor`'s own backward loop clamps the same way, `if (--cursor < 0) return last_ok;`
+# (`src/ui/oled/list.cpp:54-75`), no `wrapAround` involved at all. Both clamps stop an overshooting
+# scan at the top of the list, which is why the two legs still agree despite the mechanisms
+# differing. This is a real, separate MenuScene gap -- cursor memory
 # across a menu's re-open is not ported -- recorded here rather than fixed, because fixing it is
 # not grid-pad forwarding and is out of this task's files.
 17100  encoder Select -5
