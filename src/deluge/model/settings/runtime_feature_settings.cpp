@@ -251,12 +251,13 @@ void RuntimeFeatureSettings::readSettingsOnOwner() {
 	}
 
 	Error error =
-	    StorageManager::openXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smDeserializer, TAG_RUNTIME_FEATURE_SETTINGS);
+	    StorageManager::openDocumentSynchronously(RUNTIME_FEATURE_SETTINGS_FILE, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error != Error::NONE) {
 		return;
 	}
 	parseSettings(*activeDeserializer);
-	smDeserializer.closeWriter();
+	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
 }
 
 void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {

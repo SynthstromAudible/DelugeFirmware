@@ -636,12 +636,13 @@ void readDevicesOnOwner() {
 		return;
 	}
 
-	Error error = StorageManager::openXMLFile(MIDI_DEVICES_XML, smDeserializer, "midiDevices");
+	Error error = StorageManager::openDocumentSynchronously(MIDI_DEVICES_XML, "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}
 	parseDevices(*activeDeserializer);
 	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
 	successfullyReadDevicesFromFile = true;
 }
 

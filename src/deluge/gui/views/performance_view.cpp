@@ -1829,12 +1829,13 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 
 /// read defaults from XML
 void PerformanceView::readDefaultsFromFile() {
-	// The owner arm only, deliberately: this is the ONE settings read this rung does not relocate into
-	// Rust. Its walk reaches the `smDeserializer` global directly in six places
-	// (`readDefaultFXValuesFromFile` and the four below it), so a memory-backed arm would mean
-	// threading a `Deserializer&` through all six -- a parser refactor, where this rung moves only the
-	// I/O. The tier violation is fixed either way, and the read runs once per session behind
-	// `successfullyReadDefaultsFromFile`, so what stays on the fiber is one read at view entry.
+	// The owner arm, where blocking is legal. The read itself no longer streams: the document is
+	// staged whole and the walk below runs over memory, so nothing here holds the card open across a
+	// parse. It runs once per session behind `successfullyReadDefaultsFromFile`.
+	//
+	// The six places this walk reached `smDeserializer` by name now go through `activeDeserializer`,
+	// which is where the staged reader lives -- the same substitution the instrument, pattern and
+	// favourite loads took, and not the parser refactor it was once feared to be.
 	deluge::storage::bytes::runOnStorageOwner(
 	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsOnOwner(); }, this);
 }
@@ -1878,12 +1879,12 @@ void PerformanceView::readDefaultsOnOwner() {
 	}
 
 	//<defaults>
-	Error error = StorageManager::openXMLFile(PERFORM_DEFAULTS_XML, smDeserializer, PERFORM_DEFAULTS_TAG);
+	Error error = StorageManager::openDocumentSynchronously(PERFORM_DEFAULTS_XML, PERFORM_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		loadDefaultLayout();
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	// step into the <defaultFXValues> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1892,7 +1893,8 @@ void PerformanceView::readDefaultsOnOwner() {
 		}
 		reader.exitTag();
 	}
-	smDeserializer.closeWriter();
+	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
 
 	successfullyReadDefaultsFromFile = true;
 }
@@ -1921,7 +1923,7 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 	tagNameFX[0] = 'F';
 	tagNameFX[1] = 'X';
 
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	// loop through all FX number tags
 	//<FX#>
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1940,7 +1942,7 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 
 void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
@@ -1963,7 +1965,7 @@ void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 /// rowColour, rowTailColour)
 void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
@@ -1982,7 +1984,7 @@ void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	// loop through all row <#> number tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the row number that the tag corresponds to
@@ -2015,7 +2017,7 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<status>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {

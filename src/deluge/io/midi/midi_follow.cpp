@@ -1900,7 +1900,7 @@ void MidiFollow::readDefaultsOnOwner() {
 	}
 
 	//<defaults>
-	Error error = StorageManager::openXMLFile(MIDI_FOLLOW_XML, smDeserializer, MIDI_DEFAULTS_TAG);
+	Error error = StorageManager::openDocumentSynchronously(MIDI_FOLLOW_XML, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		writeDefaultsToFile();
 		successfullyReadDefaultsFromFile = true;
@@ -1909,6 +1909,7 @@ void MidiFollow::readDefaultsOnOwner() {
 
 	parseDefaults(*activeDeserializer);
 	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
 	successfullyReadDefaultsFromFile = true;
 }
 
