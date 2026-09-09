@@ -207,6 +207,11 @@ void runTick() {
 		}
 		printf("SL-SUMMARY served=%d offOwnerTicks=%d\n", (int)StorageManager::stagingChannelServedOps(),
 		       (int)AudioEngine::offOwnerSongStageTicks());
+		// Leave the card as we found it. These harness images are keyed by fingerprint and SHARED with
+		// other gates, so a song left behind here changes what THEIR browser listings see -- which is
+		// exactly how this run broke save-roundtrip once, and the accumulation trap this project has
+		// hit before with the streaming-scenario images.
+		(void)deluge::io::unlink(kSavePath);
 		printf("SL-RESULT failures=%d\n", g_failures);
 		// The Rust runner ends a failing run with process::exit, which does NOT flush C stdio. These
 		// lines ARE the gate's evidence, so losing them exactly when the gate fails is the one case
