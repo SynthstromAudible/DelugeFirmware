@@ -993,6 +993,62 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
 	});
 
+	it("a range-dependent node reached by SceneId::arg creates the range too, not only a descent", _ {
+		// The same debt on the other route in. `MenuScene::enter_child` runs `ensure_first_range`
+		// for a *descent*; a deep link does not descend, it re-roots -- `on_enter` resolves
+		// `node_by_id(id.arg)` and hands it to `retarget`. Legacy makes no such distinction:
+		// `SoundEditor::setup(clip, item, sourceIndex)` runs the named item's own
+		// `checkPermissionToBeginSession` (`sound_editor.cpp:1845-1846`) whichever way the item was
+		// asked for, and for a range-dependent one that is
+		// `checkPermissionToBeginSessionForRangeSpecificParam`, whose first statement creates the
+		// range (`:1993`).
+		//
+		// Two callers arrive this way and both were affected: site 8 of
+		// `gui/ui/shell_menu_entry.cpp`'s table (`soundEditor.setup(getCurrentInstrumentClip(),
+		// &menu_item::file0SelectorMenu, 0)`, `gui/views/instrument_clip_view.cpp:515`) and the
+		// shortcut-pad jump, which re-enters through `Action::Kind::Replace` carrying the same
+		// `arg`. Measured at level 3 before the fix: the ported file selector's browser refused to
+		// open on a fresh synth clip -- `browser::sample_can` wants a non-null `AudioFileHolder`
+		// (`scenes/browser/browser_scene.cpp:151-163`) and `ctx.range` was still null -- while the
+		// toggle-OFF leg opened it. `tests/ui-scripts/app/menu.txt`'s `file-selector` snapshot is
+		// that measurement; this is the same claim at fixture level.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		expect(sound->sources[0].ranges.empty()).to_be_true(); // the fixture starts with none
+
+		// `Rig::open` ends in `shell.init(SceneId{FirstApp, node_id(root)})`, so opening the leaf
+		// itself IS the deep link -- the same shape site 8 pushes.
+		(void)r.open(transpose_leaf);
+		r.shell.tick(0);
+
+		expect(depth_of()).to_equal(0);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
+	});
+
+	it("a deep link to a node that is NOT range-dependent allocates nothing", _ {
+		// The other half of the guard, so the arm above cannot be satisfied by allocating for every
+		// deep link. Legacy runs the range check only for the items whose
+		// `checkPermissionToBeginSession` routes into it -- `MenuItem::isRangeDependent()`
+		// (`gui/menu_item/menu_item.h:202`), which is `Node::range_dependent` -- and an ordinary
+		// param takes `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
+		// never looks at a range at all.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		expect(sound->sources[0].ranges.empty()).to_be_true();
+
+		(void)r.open(toggle_leaf);
+		r.shell.tick(0);
+
+		expect(menu_scene().focused() == &toggle_leaf).to_be_true();
+		expect(sound->sources[0].ranges.empty()).to_be_true();
+	});
+
 	it("save_state and restore_state round-trip a depth-3 path", _ {
 		select_language();
 		deluge::notify::dirty().drain();

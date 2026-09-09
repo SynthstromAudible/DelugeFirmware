@@ -400,6 +400,41 @@ bool MenuScene::on_enter(const SceneId& id) {
 	const Node* target = nullptr;
 	if (id.arg != 0) {
 		target = node_by_id(id.arg);
+		// **The allocation legacy's permission check performs before it opens a named item.**
+		// `SoundEditor::setup(clip, item, sourceIndex)` runs
+		// `item->checkPermissionToBeginSession(...)` on the item it was asked for
+		// (`gui/ui/sound_editor.cpp:1845-1846`), and for every range-dependent item that lands in
+		// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, whose **first
+		// statement** is `source->getOrCreateFirstRange()` (`:1993`) -- a *create*, not a read,
+		// which fails only with `INSUFFICIENT_RAM` (`:1994-1997`).
+		//
+		// `enter_child` (below) already runs it for a descent, which covers everything
+		// reached by walking the menu. A deep link does not descend: it re-roots. So site 8 of
+		// `gui/ui/shell_menu_entry.cpp`'s table -- `soundEditor.setup(getCurrentInstrumentClip(),
+		// &menu_item::file0SelectorMenu, 0)`, `gui/views/instrument_clip_view.cpp:515` -- and the
+		// shortcut-pad jump, which comes back through here as an `Action::Kind::Replace`
+		// (`handle`'s `Replace` arm), both arrived with `ctx_.range` still null on a source with no
+		// ranges yet. **Measured** at level 3 on a fresh synth clip: the toggle-OFF leg opened the
+		// sample browser and the toggle-ON leg did not, because `browser::sample_can` refuses a
+		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp:151-163`) and the push was
+		// declined, leaving the menu parked on the file selector's own title page.
+		//
+		// **Only the allocation, deliberately -- not `permission_for` around it.** Legacy's gate
+		// here is the *item's own* `checkPermissionToBeginSession` override, and the five
+		// scene-opener items override it in a way that never consults `isRelevant`:
+		// `FileSelector::checkPermissionToBeginSession` (`gui/menu_item/file_selector.cpp:68-86`)
+		// answers YES for any SUBTRACTIVE sound and defers the rest to the range check, while
+		// `FileSelector::isRelevant` (`:54-67`) additionally demands `oscType == SAMPLE`.
+		// `permission_for` is the port of the *base* `MenuItem::checkPermissionToBeginSession`
+		// (`gui/menu_item/menu_item.cpp:27-31`, relevance and nothing else) plus the range rule,
+		// so running it here would refuse site 8 on a default SAW synth that legacy opens. That
+		// gap -- `Node` has no port of an item-specific `checkPermissionToBeginSession` that
+		// bypasses relevance -- is recorded in `src/scenes/README.md` rather than half-closed here.
+		if (target != nullptr && target->range_dependent && !ensure_first_range(ctx_)) {
+			deluge::notify::notice_string(
+			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
+			return false;
+		}
 	}
 	else {
 		// Arg 0 means "the root this context chose" -- a real fallback since Task 6 filled

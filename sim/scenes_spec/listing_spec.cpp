@@ -173,8 +173,10 @@ struct CleanListing {
 
 /// @brief A scratch card with a two-level directory, for the `UpLevel` examples.
 ///
-/// The committed fixture is flat (`KITS`, `SAMPLES`, `SETTINGS`, `SONGS`, `SYNTHS`, one file), and
-/// `UpLevel` needs a directory with a parent that is not the root -- legacy refuses to ascend when
+/// The committed fixture is two levels deep at exactly one place (`SETTINGS/FAVOURITES/`, which F3
+/// task 4 added so the level-3 A/B's browser leg does not have to write it -- see
+/// `tests/fixtures/card/SETTINGS/FAVOURITES/SAMPLES_Bank0.xml`), and `UpLevel` needs a directory
+/// with a parent that is not the root -- legacy refuses to ascend when
 /// `currentDir` has no `/` in it at all (`browser.cpp:1382`). Under the host temp directory,
 /// removed on the way out, so nothing is left behind and the committed fixture is untouched.
 ///
@@ -483,7 +485,7 @@ describe listing("the async listing seam", $ {
 		expect(result.has_value()).to_be_true();
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SETTINGS"));
-		expect(catalogue_order()).to_equal(std::string("MIDIFollow.XML"));
+		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
 	});
 
 	it("refuses to ascend out of a single-segment directory, as legacy does", _ {
@@ -548,7 +550,9 @@ describe listing("the async listing seam", $ {
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SETTINGS"));
 		expect(result->entered_text).to_equal(std::string("MIDIFollow.XML"));
-		expect(result->file_index).to_equal(0);
+		// Index 1, not 0: `SETTINGS/` holds the `FAVOURITES` folder as well, and folders sort in
+		// with files rather than ahead of them as a group.
+		expect(result->file_index).to_equal(1);
 		expect(result->found_exact).to_be_true();
 	});
 
@@ -583,7 +587,7 @@ describe listing("the async listing seam", $ {
 		expect(result.has_value()).to_be_true();
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SETTINGS"));
-		expect(catalogue_order()).to_equal(std::string("MIDIFollow.XML"));
+		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
 	});
 
 	it("falls back to the default directory when the requested one does not exist", _ {
@@ -608,7 +612,7 @@ describe listing("the async listing seam", $ {
 		expect(result.has_value()).to_be_true();
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::NONE));
 		expect(result->dir).to_equal(std::string("SETTINGS"));
-		expect(catalogue_order()).to_equal(std::string("MIDIFollow.XML"));
+		expect(catalogue_order()).to_equal(std::string("FAVOURITES,MIDIFollow.XML"));
 	});
 
 	// ---- the harness's own limit, pinned rather than described --------------------------------

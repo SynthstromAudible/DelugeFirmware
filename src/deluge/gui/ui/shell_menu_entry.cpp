@@ -140,10 +140,17 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// `MenuScene` lands" -- this is the call site that lands, so it picks it up. Without it a user
 	// with the toggle on could undo past a menu edit where legacy stops them.
 	//
-	// Two of the three items on that list are still owed and are NOT done here, because neither has
-	// a home on this side of the seam: remembering the previously selected `MultiRange` across
-	// sessions (`:1784-1788`, `MenuContext::range`) and `Source::getOrCreateFirstRange()`'s
-	// allocation inside the legacy permission check (`:1938`).
+	// One of the three items on that list is still owed and is NOT done here, because it has no
+	// home on this side of the seam: remembering the previously selected `MultiRange` across
+	// sessions (`:1784-1788`, `MenuContext::range`).
+	//
+	// **The second one is no longer owed, and it did not land here either.**
+	// `Source::getOrCreateFirstRange()`'s allocation inside the legacy permission check (`:1993`)
+	// belongs to whoever *opens* a range-dependent item, and this function does not: it hands the
+	// node id to `MenuScene::on_enter` through `SceneId::arg`, which is where the open happens and
+	// where F3 task 4 put it. Site 8 -- the only site here that names a leaf -- was the one this
+	// showed up on: without it the ported file selector's browser refused to open on a synth whose
+	// source had no ranges yet, while the toggle-OFF leg opened it.
 	if (node == ShellMenuNode::ContextRoot && clip != nullptr) {
 		actionLogger.deleteAllLogs();
 	}

@@ -48,6 +48,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 
+#include "support/card_access.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -60,6 +61,7 @@ namespace menu = deluge::scenes::menu;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace shell = deluge::ui::shell;
 namespace entry = deluge::gui::ui;
+namespace spec = deluge::scenes::spec;
 
 namespace {
 
@@ -136,7 +138,30 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// warning `MenuScene::open` carries: `on_enter` re-roots from `arg`, or from `ctx_.root` when
 /// `arg == 0`, one call later -- so passing the leaf as the "root" and a zero `arg` lands on the
 /// settings root instead, which is exactly how this helper failed the first time it was run.
+/// @brief `spec::QuietAudio`, held from the first example that can leave a card listing behind.
+///
+/// **Since F3 task 4 the site-8 example really opens the ported browser**, because
+/// `MenuScene::on_enter` now performs the `Source::getOrCreateFirstRange()` legacy's permission
+/// check performs (`gui/ui/sound_editor.cpp:1993`) -- so `browser::sample_can` stops refusing and
+/// the scene reads `SAMPLES/` off the fixture card, which since the same task holds a file. The
+/// next `openUI(&shellHostUI)` resets the stack, `BrowserScene::on_exit` calls
+/// `FileCatalogue::emptyFileItems`, and that pumps `AudioEngine::routineWithClusterLoading()`
+/// between chunks (`storage/file_catalogue.cpp:94`) -- which **segfaults** in a spec process,
+/// because nothing here ran `AudioEngine::init()` and so `inputRingPos` is still 0
+/// (`processing/engines/audio_engine.cpp:183`; `support/card_access.h` has the whole diagnosis).
+/// Measured: with the fix and without this latch, `menu_entry_spec` dies with SIGSEGV in
+/// `fillInputRing`; with either one absent it passes.
+///
+/// Process-scoped, function-local rather than namespace-scope: this binary links every spec and
+/// runs one per invocation, so a namespace-scope instance would silently disarm the audio routine
+/// for all of them.
+spec::QuietAudio& quiet_audio() {
+	static spec::QuietAudio instance;
+	return instance;
+}
+
 bool openGuestOnPlayCommand(Song& song) {
+	(void)quiet_audio();
 	const menu::MenuContext ctx = menu::context_for(song, nullptr, 0, false, false, false, false);
 	const uint16_t arg = menu::node_id(nodes::midi_command_play);
 	if (arg == 0) {
@@ -269,6 +294,9 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 
 describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $ {
 	it("site 8 opens on nodes::file0_selector through a non-zero SceneId::arg", _ {
+		// The first example in this file that reads the card: the item's `on_focus` pushes
+		// `BrowserScene`, which lists `SAMPLES/`. See `quiet_audio()` for why that needs the latch.
+		(void)quiet_audio();
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		(void)f;

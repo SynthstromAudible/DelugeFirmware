@@ -428,8 +428,12 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 /// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
 /// "Owed to E2"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first
 /// range before it answers anything, and can fail with `INSUFFICIENT_RAM`. `permission_for` stayed a
-/// pure predicate, so the caller that actually opens a range-dependent item does this first --
-/// `MenuScene::enter_child`, which is the port of the call site.
+/// pure predicate, so **every** caller that actually opens a range-dependent item does this first.
+/// There are two, because legacy has two ways in and makes no distinction between them:
+/// `MenuScene::enter_child` for a descent, and `MenuScene::on_enter` for a `SceneId::arg` deep link
+/// (the eight gated `openShellMenu` sites and the shortcut-pad jump's `Action::Kind::Replace`).
+/// F3 task 4 added the second after the ported file selector, reached by the deep link, refused to
+/// open its browser on a source with no ranges.
 ///
 /// On success it also mirrors legacy's `*previouslySelectedRange = firstRange` (`:1951`): when the
 /// choice cannot be ambiguous (a kit row, or exactly one range) `ctx.range`/`ctx.range_index` are
