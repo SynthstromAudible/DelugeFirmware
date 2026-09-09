@@ -19,6 +19,10 @@
 
 #include "gui/ui/save/save_ui.h"
 
+class AudioFile;
+#include <string>
+#include <vector>
+
 class ContextMenu;
 
 class SaveSongUI final : public SaveUI {
@@ -28,6 +32,51 @@ public:
 	void focusRegained() override;
 	// void selectEncoderAction(int8_t offset);
 	bool performSave(bool mayOverwrite = false) override;
+
+	/// @brief What one AudioFile needs done, decided but not yet performed.
+	///
+	/// ONE ENTRY PER FILE carrying up to TWO operations, because the second's input depends on the
+	/// first's OUTCOME. A recording still at its temporary path is renamed into place, and that rename
+	/// clears `tempFilePathForRecording` on success -- which is exactly what the copy then consults to
+	/// choose its source. A failed rename is not fatal: it warns, leaves the temporary path set, and
+	/// the copy reads from there instead. A flat list of independent transfers cannot express that.
+	struct PlannedTransfer {
+		AudioFile* file{};
+
+		/// Set when a recording must be moved out of its temporary location first.
+		bool renameTemp = false;
+		std::string renameFrom;
+		std::string renameTo;
+
+		/// Set when the file must also be copied to or from an alternate location.
+		bool copy = false;
+		/// The source to use IF the rename succeeded, or if there was none.
+		std::string copyFromAfterRename;
+		/// The source to use if the rename FAILED and the temporary file is still where it was.
+		std::string copyFromIfRenameFailed;
+		std::string copyTo;
+
+		/// What `filePath` becomes, empty if unchanged. COMPUTED here, applied later.
+		std::string newFilePath;
+		/// What `loadedFromAlternatePath` becomes.
+		std::string newAlternatePath;
+		/// Whether `loadedFromAlternatePath` must be CLEARED, which is what a successful copy does
+		/// when this save is not collecting media. Distinct from "unchanged", hence not just an empty
+		/// string above.
+		bool clearAlternatePath = false;
+		/// Whether `tempFilePathForRecording` must be cleared -- the rename's own mutation, deferred.
+		bool clearTempPath = false;
+	};
+
+	/// @brief Decide what every referenced audio file needs, WITHOUT performing or applying any of it.
+	///
+	/// @param into               Receives one entry per file that needs work.
+	/// @param collectingSamples  Whether this save is collecting media into the song's own folder.
+	/// @param songAlternatePath  The song's alternate-media folder, as performSave built it.
+	/// @param alternateDirLength Its length, which setupAlternateAudioFilePath wants.
+	/// @return false if a path could not be built, which fails the save exactly as it did before.
+	[[nodiscard]] bool planTransfers(std::vector<PlannedTransfer>& into, bool collectingSamples,
+	                                 const std::string& songAlternatePath, int32_t alternateDirLength);
 	bool collectingSamples{};
 	[[nodiscard]] bool collectingSamplesForDispatch() const override { return collectingSamples; }
 	// ui

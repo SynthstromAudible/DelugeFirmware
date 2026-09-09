@@ -120,6 +120,138 @@ void SaveSongUI::focusRegained() {
 	return SaveUI::focusRegained();
 }
 
+bool SaveSongUI::planTransfers(std::vector<PlannedTransfer>& into, bool collectingSamples,
+                               const std::string& songAlternatePath, int32_t alternateDirLength) {
+	for (AudioFile* audioFile : audioFileManager.audioFiles) {
+		if (!audioFile->isProjectReferenced()) {
+			continue;
+		}
+
+		PlannedTransfer entry;
+		entry.file = audioFile;
+
+		// A recording still at its temporary location has to be moved into place. The move CLEARS the
+		// temporary path, which is what the copy below then consults -- so both the move and the
+		// clearing are recorded here rather than done.
+		if (audioFile->type == AudioFileType::SAMPLE) {
+			auto& sample = *static_cast<Sample*>(audioFile);
+			if (!sample.tempFilePathForRecording.empty()) {
+				entry.renameTemp = true;
+				entry.renameFrom = sample.tempFilePathForRecording;
+				entry.renameTo = audioFile->filePath;
+				entry.clearTempPath = true;
+			}
+		}
+
+		// Or the file needs copying to or from an "alt" location -- either a collect-media save, or a
+		// file imported from such a folder. The obscure combination matters: a collect-media save can
+		// ALSO have just moved (or failed to move) a recording out of its temporary location.
+		if (collectingSamples || !audioFile->loadedFromAlternatePath.empty()) {
+
+			// Saving under the same name and folder, collecting, and it already came from the alternate
+			// location: there is nothing to do.
+			if (collectingSamples && !audioFile->loadedFromAlternatePath.empty()
+			    && deluge::string::caselessEquals(currentDir, currentSong->dirPath)
+			    && deluge::string::caselessEquals(enteredText, currentSong->name)) {
+				if (entry.renameTemp) {
+					into.push_back(std::move(entry)); // the move above still has to happen
+				}
+				continue;
+			}
+
+			// The source, in both the worlds TRANSFER might find itself in. If the rename above
+			// succeeds the temporary file is gone and `filePath` is the source; if it fails the
+			// temporary file is still there and is the source -- which is what the old code expressed
+			// by reading a field the rename had or had not cleared.
+			if (!audioFile->loadedFromAlternatePath.empty()) {
+				entry.copyFromAfterRename = audioFile->loadedFromAlternatePath;
+				entry.copyFromIfRenameFailed = audioFile->loadedFromAlternatePath;
+			}
+			else {
+				entry.copyFromAfterRename = audioFile->filePath;
+				entry.copyFromIfRenameFailed = entry.renameTemp ? entry.renameFrom : audioFile->filePath;
+			}
+
+			// The destination, and the renaming that goes with it.
+			std::string pathForNaming = audioFile->filePath;
+			bool needToPretendLoadedAlternate = false;
+
+			if (collectingSamples) {
+				// A recording gets a random suffix, so that re-saving does not collide with the copy a
+				// previous save made.
+				const char* normalFilePath = pathForNaming.c_str();
+				if (!memcasecmp(normalFilePath, "SAMPLES/RECORD/REC", 18)
+				    || !memcasecmp(normalFilePath, "SAMPLES/RESAMPLE/REC", 20)
+				    || !memcasecmp(normalFilePath, "SAMPLES/CLIPS/REC", 17)) {
+					const char* slashAddr = strrchr(normalFilePath, '/');
+					const int32_t slashPos = static_cast<int32_t>(slashAddr - normalFilePath);
+					const int32_t fileNamePos = slashPos + 1;
+
+					if (static_cast<int32_t>(pathForNaming.size()) - fileNamePos == 12
+					    && !strcasecmp(normalFilePath + fileNamePos + 8, ".WAV")) {
+						char buffer[11];
+						buffer[0] = '_';
+						buffer[6] = '.';
+						buffer[7] = 'W';
+						buffer[8] = 'A';
+						buffer[9] = 'V';
+						buffer[10] = 0;
+						seedRandom();
+						for (int32_t i = 1; i < 6; i++) {
+							const int32_t rand = random(35);
+							buffer[i] =
+							    (rand < 10) ? static_cast<char>('0' + rand) : static_cast<char>('A' + (rand - 10));
+						}
+						// COMPUTED, not applied: the vector is sorted by this field and searched by
+						// bisection, so rewriting it now would break every lookup until the transfers
+						// finish.
+						entry.newFilePath = pathForNaming.substr(0, fileNamePos + 8) + buffer;
+						pathForNaming = entry.newFilePath;
+						// The file will exist only in the alternate location, so it has to be marked as
+						// having come from there -- or a later collect-media save would copy it again.
+						needToPretendLoadedAlternate = true;
+					}
+				}
+
+				std::string destination;
+				if (!memcasecmp(pathForNaming.c_str(), "SAMPLES/", 8)) {
+					const Error error =
+					    audioFileManager.setupAlternateAudioFilePath(destination, alternateDirLength, pathForNaming);
+					if (error != Error::NONE) {
+						return false;
+					}
+				}
+				else {
+					destination = songAlternatePath;
+					destination += getFileNameFromEndOfPath(pathForNaming.c_str());
+				}
+				entry.copyTo = destination;
+				if (needToPretendLoadedAlternate) {
+					entry.newAlternatePath = destination;
+				}
+			}
+			else {
+				entry.copyTo = pathForNaming;
+				// A successful copy back into the main location means the file is no longer only in the
+				// alternate one.
+				entry.clearAlternatePath = true;
+			}
+
+			entry.copy = true;
+		}
+
+		if (entry.renameTemp || entry.copy) {
+			into.push_back(std::move(entry));
+		}
+	}
+
+	// Nothing above writes to any AudioFile or to audioFiles. That is not tidiness: the vector is
+	// sorted by filePath and search() binary-searches it, so a path rewritten here would break the
+	// ordering for every lookup between now and the end of the transfers. SC-ATOMIC in the
+	// sample-collect gate is what holds this true.
+	return true;
+}
+
 bool SaveSongUI::performSave(bool mayOverwrite) {
 	noteSaveTier();
 
