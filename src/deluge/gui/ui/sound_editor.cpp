@@ -176,7 +176,6 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
 					occupancyMask[yDisplay][xDisplay] = 64;
 				}
 			}
-			D_PRINTLN("done");
 		}
 	}
 }
@@ -1317,14 +1316,16 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		// session views (arranger, song, performance)
 		auto [potential_item, do_sound_checks] = get_basic_shortcut_action(x, y);
 		item = potential_item;
-		if (do_sound_checks) {
+		if (do_sound_checks)
+		{
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
-			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
-			           == RuntimeFeatureStateToggle::On) {
+				&& runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
+				== RuntimeFeatureStateToggle::On)
+			{
 				if (dxParam.potentialShortcutPadAction(x, y, on)) {
 					return ActionResult::DEALT_WITH;
 				}
-			}
+					   }
 
 			// Shortcut to patch a modulation source to the parameter we're already looking at
 			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15)) {
@@ -1333,10 +1334,10 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
 				secondLayerModSourceShortcutsToggled =
-				    sourceShortcutBlinkFrequencies[modSourceX][y] != 255
-				            && getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
-				        ? !secondLayerModSourceShortcutsToggled
-				        : false;
+					sourceShortcutBlinkFrequencies[modSourceX][y] != 255
+					&& getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
+						? !secondLayerModSourceShortcutsToggled
+						: false;
 
 				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
 				if (secondLayerModSourceShortcutsToggled) {
@@ -1368,7 +1369,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 					}
 				}
 
-getOut:
+				getOut:
 				bool wentBack = false;
 
 				int32_t newNavigationDepth = navigationDepth;
@@ -1377,7 +1378,7 @@ getOut:
 
 					// Ask current MenuItem what to do with this action
 					MenuItem* newMenuItem = menuItemNavigationRecord[newNavigationDepth]->patchingSourceShortcutPress(
-					    source, previousPressStillActive);
+						source, previousPressStillActive);
 
 					// If it says "go up a level and ask that MenuItem", do that
 					if (newMenuItem == NO_NAVIGATION) {
@@ -1393,9 +1394,10 @@ getOut:
 					else {
 						// If we've been given a MenuItem to go into, do that
 						if (newMenuItem
-						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
-						                                                  &currentMultiRange)
-						           != MenuPermission::NO) {
+							&& newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
+							                                              &currentMultiRange)
+							!= MenuPermission::NO)
+						{
 							// end current menu item session before beginning new menu item session
 							endScreen();
 
@@ -1412,7 +1414,7 @@ getOut:
 								// potentially refresh grid if opening a new patch cable menu
 								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
 							}
-						}
+								   }
 
 						// Otherwise, do nothing
 						break;
@@ -1422,8 +1424,10 @@ getOut:
 
 			// Shortcut to edit a parameter
 			if (!modulationItemFound
-			    && (x < 14 || (x == 14 && y < 5) ||   //< regular shortcuts
-			        (x == 15 && y >= 1 && y <= 3))) { //< randomizer shortcuts
+				&& (x < 14 || (x == 14 && y < 5) || //< regular shortcuts
+					(x == 15 && y >= 1 && y <= 3)))
+			{
+				//< randomizer shortcuts
 
 				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
 					if (x == 11) {
@@ -1462,68 +1466,70 @@ getOut:
 
 					// Replace the current shortcut with a second layer shortcut if the pad was pressed twice
 					secondLayerShortcutsToggled =
-					    getCurrentMenuItem() != nullptr && x == currentParamShortcutX && y == currentParamShortcutY
-					            && getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
-					        ? !secondLayerShortcutsToggled
-					        : false;
+						getCurrentMenuItem() != nullptr && x == currentParamShortcutX && y == currentParamShortcutY
+						&& getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
+							? !secondLayerShortcutsToggled
+							: false;
 
 					if (secondLayerShortcutsToggled) {
 						if (const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
-						    secondLayerItem != nullptr) {
+							secondLayerItem != nullptr) {
 							item = secondLayerItem;
 						}
 					}
 				}
-doSetup:
-				if (item) {
-					if (item == comingSoonMenu) {
-						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
-						return ActionResult::DEALT_WITH;
-					}
-
-					// if we're in the menu and automation view is the root (background) UI
-					// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
-					MenuItem* newItem;
-					newItem = (MenuItem*)item;
-					// need to make sure we're already in the menu
-					// because at this point menu may not have been setup yet
-					// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
-					if (getCurrentUI() == &soundEditor) {
-						deluge::modulation::params::Kind kind = newItem->getParamKind();
-						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
-						    && getRootUI() == &automationView) {
-							return ActionResult::DEALT_WITH;
-						}
-					}
-
-					// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
-					Clip* currentClip = getCurrentClip();
-					if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
-					    && display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
-					    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
-
-						noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
-						instrumentClipView.enterNoteRowEditor();
-						return ActionResult::DEALT_WITH;
-					}
-
-					const int32_t thingIndex = x & 1;
-
-					bool setupSuccess = setup(currentClip, item, thingIndex);
-
-					if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
-						item = &dxParam;
-						setupSuccess = setup(currentClip, item, thingIndex);
-					}
-
-					if (!setupSuccess) {
-						return ActionResult::DEALT_WITH;
-					}
-
-					enterOrUpdateSoundEditor(on);
-				}
 			}
 		}
+
+		if (item) {
+			if (item == comingSoonMenu) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+				return ActionResult::DEALT_WITH;
+			}
+
+			// if we're in the menu and automation view is the root (background) UI
+			// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
+			MenuItem* newItem;
+			newItem = (MenuItem*)item;
+			// need to make sure we're already in the menu
+			// because at this point menu may not have been setup yet
+			// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
+			if (getCurrentUI() == &soundEditor) {
+				deluge::modulation::params::Kind kind = newItem->getParamKind();
+				if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
+				    && getRootUI() == &automationView) {
+					return ActionResult::DEALT_WITH;
+				}
+			}
+
+			// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
+			Clip* currentClip = getCurrentClip();
+			if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
+			    && display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
+			    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
+
+				noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
+				instrumentClipView.enterNoteRowEditor();
+				return ActionResult::DEALT_WITH;
+			}
+
+			const int32_t thingIndex = x & 1;
+
+			bool setupSuccess = setup(currentClip, item, thingIndex);
+
+			if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
+				item = &dxParam;
+				setupSuccess = setup(currentClip, item, thingIndex);
+			}
+
+			if (!setupSuccess) {
+				return ActionResult::DEALT_WITH;
+			}
+
+			enterOrUpdateSoundEditor(on);
+		}
+
+
 	}
 
 	return ActionResult::DEALT_WITH;
