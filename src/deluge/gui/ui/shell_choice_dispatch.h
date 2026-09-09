@@ -151,13 +151,19 @@ inline constexpr SampleClaimArgs kShellSampleClaimArgs{
 ///     3's subject in the ported world's own terms (`scenes/browser/browser_scene.h:211-230`:
 ///     `MenuState::path`/`depth`, not `menuItemNavigationRecord`). Skipping it structurally changes
 ///     nothing today, and task 3 must not try to revive this block.
-///   * `uiNeedsRendering(&audioClipView)` (`:1124`) -- **wanted, so this op pays it back.** The
-///     legacy view under the guest is a real root UI, and `uiNeedsRendering` is a walk down
-///     `uiNavigationHierarchy` that drops the request when something above is opaque
-///     (`gui/ui/ui.cpp:279-303`), so it is safe under the guest as well as faithful.
+///   * `uiNeedsRendering(&audioClipView)` (`gui/ui/browser/sample_browser.cpp:1125`) -- **wanted, so
+///     this op pays it back.** The legacy view under the guest is a real root UI, and
+///     `uiNeedsRendering` is a walk down `uiNavigationHierarchy` that drops the request when
+///     something above is opaque (`gui/ui/ui.cpp:279-303`), so it is safe under the guest as well as
+///     faithful. The path is named in full rather than left as a bare `` `:NNNN` ``: the nearest
+///     named citation above it is `browser_scene.h`, so a bare number here would inherit the wrong
+///     file -- and neither citation gate can see that.
 ///
-/// It is gated on the claim's own return, because legacy's tail is on the success path: every
-/// failure inside `claimCurrentFile` returns before `:1107`.
+/// It is gated on the claim's own return, because legacy's tail is on the success path.
+/// `claimCurrentFile` has exactly three returns, and the tail sits immediately above `return true`
+/// (`gui/ui/browser/sample_browser.cpp:1108-1128`), so no path returns true without reaching it and
+/// none reaches it without returning true -- `if (claim) { ... }` is legacy's own condition rather
+/// than an approximation of it.
 ///
 /// @param unused The storage-owner op signature's context pointer. Legacy's wrapper ignores it too
 ///               (`sample_browser.cpp:397-399`).

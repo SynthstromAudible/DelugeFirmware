@@ -77,10 +77,16 @@
 ///     their legacy items do. Tasks 6 and 7 added two more verbs (item 4 below), so the switch is
 ///     **seven** arms now, not five. What each arm still owes is narrower than "nothing happens"
 ///     and is recorded per arm at `gui/ui/shell_action_dispatch.h`.
-///  2. **A file chosen in the ported browser is parked, not claimed.** `BrowserScene`'s deferring
-///     descriptor closes with the choice in `take_choice()`, which nothing polls either (§10.2
-///     item 4). `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting are
-///     the missing half.
+///  2. ~~**A file chosen in the ported browser is parked, not claimed.**~~ -- **half closed, F3 tasks
+///     1 and 2** (§10.2 item 4). `deluge::gui::ui::dispatchShellChoices`
+///     (`gui/ui/shell_choice_dispatch.cpp`) drains `take_choice()` from `ShellHostUI::timerCallback`
+///     after every `Shell::tick` and performs `SampleBrowser::claimCurrentFile` against the parked
+///     path, so the sample really loads under the toggle. **What is still owed is the other half**:
+///     legacy's `maybeGetParentMenu` re-rooting, which lands the user on the source page rather than
+///     back on the item that opened the browser -- F3 task 3's, and in `MenuState`'s own terms rather
+///     than the heading pair's (`scenes/browser/browser_scene.h:211-230`). Until then a claimed file
+///     costs one extra BACK press. Item 4 must not be marked closed for the `Sample` descriptor
+///     without the qualification at `claimSampleFile`'s `@warning`: shift+select still diverges.
 ///  3. ~~**`perform_editor`'s four sync calls into `menu::performance_editing_mode()` are
 ///     absent**~~ -- **closed, F2 task 5** (§10.2 item 6). All four sites where `PerformanceView`
 ///     moves the two mirrored bools call `syncEditingModeMirror(*this)`
