@@ -46,6 +46,9 @@ protected:
 	/// The save round-trip gate drives the REAL ENTER gesture rather than performSave() underneath
 	/// it, so it needs the protected entry. Mirrors BrowserListingAbProbe's friendship in browser.h.
 	friend class SaveRoundtripProbe;
+	/// The song-load channel gate saves a song to load back, and drives the same real gesture for the
+	/// same reason: a save made by calling performSave() directly would not be the save a user makes.
+	friend class SongLoadChannelProbe;
 
 public:
 	/// @brief Dispatch one save onto the storage owner.
