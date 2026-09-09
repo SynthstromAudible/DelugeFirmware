@@ -791,6 +791,9 @@ describe browser_choice_claim(
 		        // its discarded result stated in one place (`sample_browser.h:56-69`).
 		        expect(spy.dispatches).to_equal(1);
 		        expect(ClaimSpy::last_op == &SampleBrowser::runClaimCurrentFileOp).to_be_true();
+		        // ...and the drain emptied the outbox on the way, so a mutant that stops reading it
+		        // fails by comparison here rather than by `CleanBrowser`'s abort.
+		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
 	        });
 
 	    it(
@@ -834,6 +837,11 @@ describe browser_choice_claim(
 		        expect(ClaimSpy::last_op == &SampleBrowser::runClaimCurrentFileOp).to_be_true();
 		        expect(std::string{Browser::currentDir}).to_equal(std::string{"SAMPLES/OSC_A"});
 		        expect(selected_filename()).to_equal(std::string{"A1.WAV"});
+		        // The outbox is empty because the guest's own tick emptied it. Asserted here as well as
+		        // in the group above so a mutant that deletes the call site fails this example by
+		        // comparison, rather than by `CleanBrowser`'s abort -- which stops the file on its first
+		        // casualty and prints one reason for all of them.
+		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
 	        });
 
 	    it(
