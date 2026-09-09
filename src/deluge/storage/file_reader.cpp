@@ -27,6 +27,7 @@
 #include "io/file.hpp"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
+#include "libdeluge/file_bytes.h"
 #include "libdeluge/file_write.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
@@ -233,6 +234,19 @@ void StorageManager::releaseStaging(StagingState* state) {
 namespace {
 /// Completed whole-file staging reads served by the channel. See stagingChannelServedOps().
 int32_t stagingServedOps = 0;
+
+/// How many consecutive deferrals one staging tolerates before giving up. A bound, not a timeout: the
+/// channel answers within a tick or two when it is running at all, so anything approaching this means
+/// it is not going to.
+constexpr uint16_t kMaxStalledTicks = 600;
+
+/// Defer one more tick, or give up if this staging has stopped making progress.
+StorageManager::StagedOpen deferStaging(StorageManager::StagingState* state) {
+	if (++state->stalledTicks > kMaxStalledTicks) {
+		return StorageManager::StagedOpen::Failed;
+	}
+	return StorageManager::StagedOpen::Deferred;
+}
 } // namespace
 
 StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, char const* firstTagName,
@@ -243,7 +257,11 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 	// runs when this caller returns to its executor. On the owner we therefore fill synchronously,
 	// which is legal there and is what shipped before this channel existed.
 	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
-	const bool mayUseChannel = !onOwner && deluge_file_write_async_active();
+	// BOTH channels, and that is not belt-and-braces. This arm sizes the buffer with the BYTE
+	// channel's stat and then fills it with the write channel's whole-file read. With the byte channel
+	// off, `requestStat` still answers Pending -- it calls a weak fallback that never replies -- so a
+	// build carrying only the write channel would enter here and defer forever.
+	const bool mayUseChannel = !onOwner && deluge_file_write_async_active() && deluge_file_bytes_async_active();
 
 	// Off the owner with no channel to ask, there is no legal fill left. The synchronous one blocks
 	// THIS context, and on a BSP whose card is served by an executor this context has to return to,
@@ -269,13 +287,18 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		DelugeStatus statStatus = DELUGE_OK;
 		switch (deluge::storage::bytes::collectStat(path, &size, &statStatus)) {
 		case deluge::storage::bytes::ByteIo::Unknown:
-			(void)deluge::storage::bytes::requestStat(path);
-			return StagedOpen::Deferred;
+			// Ask -- and HONOUR the answer: requestStat reports Failed for a path it cannot key at
+			// all, and discarding that leaves this asking a channel that will never reply.
+			if (deluge::storage::bytes::requestStat(path) == deluge::storage::bytes::ByteIo::Failed) {
+				return StagedOpen::Failed;
+			}
+			return deferStaging(state);
 		case deluge::storage::bytes::ByteIo::Pending:
-			return StagedOpen::Deferred;
+			return deferStaging(state);
 		case deluge::storage::bytes::ByteIo::Failed:
 			return StagedOpen::Failed;
 		case deluge::storage::bytes::ByteIo::Ready:
+			state->stalledTicks = 0;
 			break;
 		}
 		if (size == 0) {
@@ -290,9 +313,10 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		}
 		if (!deluge_file_write_request_read_file(path, state->buffer, state->size)) {
 			// Refused, not failed: nothing was queued, so ask again next tick.
-			return StagedOpen::Deferred;
+			return deferStaging(state);
 		}
 		state->issued = true;
+		state->stalledTicks = 0;
 		return StagedOpen::Deferred;
 	}
 	else {
@@ -300,12 +324,12 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		uint32_t needed = 0;
 		const uint8_t collected = deluge_file_write_collect_read_file(path, &got, &needed);
 		if (collected == DELUGE_FILE_WRITE_PENDING) {
-			return StagedOpen::Deferred;
+			return deferStaging(state);
 		}
 		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
 			// Never keyed, so nothing is coming. Re-issue next tick rather than wait forever.
 			state->issued = false;
-			return StagedOpen::Deferred;
+			return deferStaging(state);
 		}
 		if (collected == DELUGE_FILE_WRITE_FAILED) {
 			state->issued = false;

@@ -432,6 +432,10 @@ struct StagingState {
 	uint32_t size = 0;
 	/// Whether a channel read has been issued and is awaiting its collect.
 	bool issued = false;
+	/// Consecutive ticks this staging has been deferred without progress. Bounded, because a channel
+	/// that is never going to answer must END the wait rather than defer forever -- an unbounded retry
+	/// is not patience, it is a wedge that presents as the device having hung.
+	uint16_t stalledTicks = 0;
 };
 
 /// @brief Read the whole of @p path into a freshly allocated buffer, blocking until it is there.

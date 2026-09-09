@@ -103,8 +103,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/storage/song_preview.cpp
         ../../src/deluge/storage/file_reader.cpp
         # The REAL weak fallbacks, not a hand-written stand-in: this is exactly what a BSP without
-        # the Rust write channel resolves, and linking it means the host cannot drift from it.
+        # the Rust channels resolves, and linking them means the host cannot drift from them.
         ../../src/deluge/storage/file_write_abi.cpp
+        ../../src/deluge/storage/file_bytes_abi.cpp
         ../../src/deluge/storage/Deserializer.cpp
         ../../src/deluge/storage/JsonDeserializer.cpp
         ../../src/deluge/io/file.cpp
