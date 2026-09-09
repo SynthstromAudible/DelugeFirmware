@@ -55,13 +55,45 @@ namespace {
 ///          (`:1076-1083`) -- inside the assertion. That is this seam's version of the export F2
 ///          task 3 could not let an example start.
 ///
-/// @par What is NOT missing, so task 2 does not port it twice
+/// @warning **And the choosing half above does NOT keep an example out of it. That makes this task
+///          2's first move rather than an afterthought.** F2 task 3's `stemExportTypeForRootUI()`
+///          was safe in a spec because its `std::nullopt` branch is an ordinary root-UI state; that
+///          property does not exist here. `BrowserScene::enter` always appends a non-empty
+///          `FileItem::filename` (`scenes/browser/browser_scene.cpp:872-876`), so
+///          `sampleClaimTargetFor` **always** engages on a real press, and
+///          `sim/scenes_spec/browser_choice_spec.cpp`'s guest-tick example presses a real file.
 ///
-/// `SampleBrowser::enterKeyPress`'s file arm is three statements, and only the last is deferred.
-/// `AudioEngine::stopAnyPreviewing()` (`:342`) and the slicer fan-out (`:372-384`) are the other
-/// two; both are recorded as findings on this task's report rather than performed here, because the
-/// first runs on the folder arm too (which this dispatcher never sees) and the second reads
-/// `Buttons::isShiftButtonPressed()` at a moment a tick later than the press that filed the choice.
+///          The mechanism that does close it is one this repository already uses for this exact
+///          hazard, one layer down: `BrowserScene::set_dispatch`
+///          (`scenes/browser/browser_scene.h:373-381`) swaps `storage::Owner::run` for a dispatcher
+///          that stores the op instead of running it. The claim reaches the owner the same way the
+///          listing does (`gui/ui/browser/sample_browser.cpp:392` is `Owner::run_or_inline`), so the
+///          same swap applies here -- and it buys more than safety: with it the drain example can
+///          assert the claim was **requested**, against the right target, without it ever running.
+///          Nothing today can observe that wire at all.
+///
+/// @warning **The file arm is a fan-out and only its `else` is deferred, so two of legacy's three
+///          statements have no port at all. This is a live divergence under the toggle, not a
+///          division of labour.** It is a row in `src/scenes/README.md`'s open-divergence table, and
+///          the plan's own migration §10.2 item 4 needs qualifying when it is marked closed for the
+///          `Sample` descriptor: **it is not closed for shift+select.**
+///
+///            * `AudioEngine::stopAnyPreviewing()` (`:342`) runs on the folder arm as well as the
+///              file arm, and the port drops it on both. No choice dispatcher can pay it, because
+///              the folder arm files no choice.
+///            * **The slicer fan-out (`:371-384`) has no port and no route.** Legacy opens the
+///              slicer on `soundEditor.editingKit() && Buttons::isShiftButtonPressed()` when
+///              `canImportWholeKit()` (the `openUI(&slicer)` at `:378`), and announces
+///              `STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT` when it does not (`:381-382`).
+///              `Descriptor::accept` carries no shift bit (`scenes/browser/browser_scene.h:236`)
+///              and `sample_accept` answers `Defer` unconditionally
+///              (`scenes/browser/browser_scene.cpp:202-211`), so **shift+select on a file loads the
+///              sample instead of opening the slicer**. `SlicerScene`
+///              (`scenes/slicing/slicer_scene.h`) exists, so this is a missing *route*, not a
+///              missing port. It cannot be recovered from here either: this runs a tick after the
+///              press, so `Buttons::isShiftButtonPressed()` read from this function is a different
+///              moment than the one that filed the choice. Closing it means the shift state
+///              travelling on `BrowserChoice`.
 ///
 /// @param target Where the claim would load from.
 void claimSampleFile(const SampleClaimTarget& target) {

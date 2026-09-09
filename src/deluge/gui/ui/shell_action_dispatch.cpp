@@ -147,21 +147,21 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///
 /// Emptying the stack is the whole of it, because `ShellHostUI::timerCallback` closes the guest
 /// itself the moment the stack is empty (`gui/ui/shell_host_ui.cpp:553-556`) -- F1 task 11's fix,
-/// and the only close path the guest has besides `exitUI`'s (`:977`). The two alternatives were
+/// and the only close path the guest has besides `exitUI`'s (`:1004`). The two alternatives were
 /// both tried on paper and both are broken:
 ///
 ///   * **`closeGuest()` from here, without emptying the stack.** The stack is still occupied, so
-///     `:526` does not fire and `rearmTimer` at `:535` runs. **The timer half of this is now
-///     guarded** -- `rearmTimer` refuses when this guest is not the current UI (`:593`) --
+///     `:553` does not fire and `rearmTimer` at `:562` runs. **The timer half of this is now
+///     guarded** -- `rearmTimer` refuses when this guest is not the current UI (`:620`) --
 ///     but read the rest, because the guard was added for a sibling of this exact mistake and the
 ///     bullet is why it exists. Unguarded it armed `TimerName::UI_SPECIFIC` for a UI that is no
 ///     longer current, and `UITimerManager::routine` dispatches that timer to `getCurrentUI()`
 ///     (`gui/ui_timer_manager.cpp:142-148`), i.e. to the root view underneath -- the hazard
-///     `ShellHostUI::closeGuest`'s own comment names (`:1014-1018`). What survives the guard and
+///     `ShellHostUI::closeGuest`'s own comment names (`:1041-1045`). What survives the guard and
 ///     still rules this alternative out is simpler: it closes the UI while leaving the ported menu
 ///     on the shell stack, so the next open would resume a menu session this one was supposed to
 ///     have ended. That is not `exitCompletely()`.
-///   * **Empty the stack *and* `closeGuest()` from here.** Then `:526` fires too and closes a second
+///   * **Empty the stack *and* `closeGuest()` from here.** Then `:553` fires too and closes a second
 ///     time, and the second `closeUI(&shellHostUI)` is the index `-1` read above.
 ///
 /// @par The `shellHostUI` global, deliberately
