@@ -13,12 +13,17 @@
 ///     has already closed itself; that polling an empty outbox neither reports nor eats anything;
 ///     and that `sampleClaimTargetFor` splits a chosen path exactly the way
 ///     `SampleBrowser::getCurrentFilePath()` builds one.
-///   * **NOT covered, because it does not exist yet:** the claim. F3 task 1 ships the drain and the
-///     choosing half; `claimSampleFile` (`gui/ui/shell_choice_dispatch.cpp`) is an empty body until
-///     task 2 fills it in. That file's own `@warning` says what a spec would run if it were filled
-///     in today -- a card read, an `AudioFileManager` allocation and an `openUI(&soundEditor)`,
-///     inline on this BSP (`storage/owner.h:28-30`) -- and task 1's report names the two mechanisms
-///     that can keep an example out of it once it is.
+///   * **Covered since F3 task 2:** the claim -- that the drain *points the legacy browser* at the
+///     chosen directory and filename and then hands `SampleBrowser::runClaimCurrentFileOp` to the
+///     storage owner, which together are `SampleBrowser::enterKeyPress`'s file arm
+///     (`gui/ui/browser/sample_browser.cpp:392`). The effect is asserted on `Browser`'s own state,
+///     not on the dispatcher having been entered.
+///   * **NOT run, ever, in this file:** `SampleBrowser::claimCurrentFile` itself. On this BSP
+///     `Owner::run_or_inline` is inline on the caller's stack (`storage/owner.h:28-30`), so a real
+///     claim would mean a card read, an `AudioFileManager` allocation and an `openUI(&soundEditor)`
+///     inside an assertion. `ClaimSpy` installs a recording dispatcher through
+///     `deluge::gui::ui::setSampleClaimDispatch`, which is why the examples can press a real file at
+///     all -- see that function's own note.
 ///
 /// @par Why the guest examples open the browser from the menu rather than as the initial scene
 ///
@@ -48,15 +53,20 @@
 #include "ui/grid/keyboard.h"
 
 #include "gui/l10n/l10n.h"
+#include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_host_ui.h"
 #include "hid/display/display.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/cluster/cluster.h"
+#include "storage/file_item.h"
 #include "storage/multi_range/multisample_range.h"
+#include "storage/owner.h"
 
 #include "support/song_fixture.h"
 
@@ -109,6 +119,15 @@ struct ScratchCard {
 		std::filesystem::remove_all(d);
 		std::filesystem::create_directories(d / "SAMPLES" / "OSC_A");
 		std::ofstream(d / "SAMPLES" / "OSC_A" / "A1.WAV") << "RIFF";
+		// ...and the one file the OTHER descriptor browses, for the control that pins it unaffected.
+		// The shape `StorageManager::openMidiDeviceDefinitionFile` demands (root tag `midiDevice`,
+		// `storage/storage_manager.cpp:371`) with the one tag
+		// `MIDIInstrument::readDeviceDefinitionFile` accepts, so the load answers `Error::NONE`
+		// (`model/instrument/midi_instrument.cpp:606-607`). `browser_scene_spec.cpp`'s, unchanged.
+		std::filesystem::create_directories(d / "MIDI_DEVICES" / "DEFINITION");
+		std::ofstream(d / "MIDI_DEVICES" / "DEFINITION" / "DEVICE1.XML")
+		    << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<midiDevice>\n"
+		       "\t<hideUnlabeledCC\n\t\tvalue=\"0\" />\n</midiDevice>\n";
 		return d;
 	}
 
@@ -167,6 +186,72 @@ private:
 		}
 	}
 };
+
+/// @brief The claim seam, swapped for a recorder -- what lets these examples press a real file.
+///
+/// `deluge::gui::ui::setSampleClaimDispatch` exists for this and nothing else; its own note argues
+/// why. **This is not `BrowserScene::set_dispatch`** (`scenes/browser/browser_scene.h:373-381`),
+/// which swaps the dispatcher on the scene's `Listing` -- the directory read, one layer down. There
+/// is no claim seam on `BrowserScene`: the claim happens in the legacy-side dispatcher, so the
+/// settable dispatcher is the dispatcher's own.
+///
+/// What it records is what `Owner::run_or_inline` would have been given (`storage/owner.h:68`): the
+/// op and how many times. It answers `true`, which is that function's "it ran or was queued"
+/// (`:52`) -- the caller discards it either way, as legacy's file arm does
+/// (`gui/ui/browser/sample_browser.cpp:388-392`).
+struct ClaimSpy {
+	static inline int32_t dispatches = 0;
+	static inline void (*last_op)(void*) = nullptr;
+
+	static bool record(void (*fn)(void*), void* ctx) {
+		(void)ctx;
+		dispatches++;
+		last_op = fn;
+		return true;
+	}
+
+	ClaimSpy() {
+		dispatches = 0;
+		last_op = nullptr;
+		deluge::gui::ui::setSampleClaimDispatch(&record);
+	}
+	/// Put the shipped dispatcher back, so a later example that forgot a spy fails loudly rather
+	/// than silently recording into a dead struct.
+	~ClaimSpy() { deluge::gui::ui::setSampleClaimDispatch(&deluge::storage::Owner::run_or_inline); }
+	ClaimSpy(const ClaimSpy&) = delete;
+	ClaimSpy& operator=(const ClaimSpy&) = delete;
+};
+
+/// @brief `Browser::fileItems` as one comma-joined string, so a mismatch prints as a listing.
+///
+/// The claim's own witness: `BrowserScene` reads and writes the same shared `FileCatalogue`
+/// (`Browser::fileItems` is a reference onto it, `gui/ui/browser/browser.h:106-107`), but
+/// `BrowserScene::on_exit` empties it on the way out (`scenes/browser/browser_scene.cpp:394`). So
+/// after a `Defer` closes the scene this is empty, and anything in it afterwards was put there by
+/// `SampleBrowser::selectFileForClaim`.
+std::string catalogue_order() {
+	std::string out;
+	for (const FileItem& item : Browser::fileItems) {
+		if (!out.empty()) {
+			out += ",";
+		}
+		out += item.filename;
+	}
+	return out;
+}
+
+/// @brief The filename `claimCurrentFile()` would read, or `"-"` when nothing is selected.
+///
+/// Guarded rather than dereferenced: `Browser::getCurrentFileItem()` indexes `fileItems` with
+/// `fileIndexSelected` (`browser.cpp:1138-1143`), so asking it while the catalogue is empty is only
+/// safe once something has selected an entry in it.
+std::string selected_filename() {
+	if (Browser::fileItems.empty()) {
+		return "-";
+	}
+	const FileItem* item = Browser::getCurrentFileItem();
+	return item != nullptr ? item->filename : std::string{"-"};
+}
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -389,6 +474,71 @@ struct GuestRig {
 	bool browser_on_stack() { return scene_on_stack(ui.shell(), browser::kBrowserSceneKind); }
 };
 
+/// @brief A `Shell` over a MIDI song, on the browser that does **not** defer.
+///
+/// `BrowserId::MidiDeviceDefinition`'s accept hook really loads the file --
+/// `StorageManager::loadMidiDeviceDefinitionFile` is in `storage/`, which the scenes layer may
+/// include (`scenes/browser/browser_scene.h:203-209`) -- so it answers `Close` and files nothing.
+/// This rig exists to pin that the claim wiring leaves it exactly as it was.
+///
+/// It pushes the browser's `SceneId` directly, the way `browser_scene_spec.cpp`'s own rig does,
+/// rather than re-deriving `nodes::MidiDeviceLinkedItem` (`scenes/menu/nodes/output_items.h`): what
+/// is under test here is what the dispatcher does with a descriptor's answer, not how that item's
+/// toggle opens the scene. And it is a bare `Shell`, not the guest, so the empty stack that `Close`
+/// leaves behind reaches no `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:553-556`).
+struct MidiRig {
+	spec::SongFixture song = spec::make_midi_song();
+	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge_profile()};
+	Shell shell{fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}};
+	uint32_t clock = 0;
+
+	MidiRig(const MidiRig&) = delete;
+	MidiRig& operator=(const MidiRig&) = delete;
+	MidiRig() = default;
+	~MidiRig() {
+		while (shell.stack().depth() > 0) {
+			shell.stack().pop(SceneKind::Null);
+		}
+	}
+
+	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }
+
+	void open_browser() {
+		select_language();
+		instrument()->deviceDefinitionFileName.clear();
+		browser::browser_scene().open(
+		    menu::context_for(*song.song, song.clip, 0, false, false, false, /*kit_global_fx=*/false));
+		shell.init(
+		    SceneId{browser::kBrowserSceneKind, static_cast<uint16_t>(browser::BrowserId::MidiDeviceDefinition)});
+		for (int32_t i = 0; i < 4; i++) {
+			step();
+		}
+	}
+
+	void step() {
+		clock += 10;
+		shell.tick(clock);
+	}
+
+	void pad(const Pad& p, uint8_t velocity) {
+		clock += 10;
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(p.x), static_cast<uint8_t>(p.y),
+		                                      static_cast<int16_t>(velocity)},
+		                     clock);
+		step();
+	}
+
+	void enter() {
+		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
+		pad(p, 64);
+		pad(p, 0);
+		step();
+	}
+
+	bool browser_on_stack() { return scene_on_stack(shell, browser::kBrowserSceneKind); }
+};
+
 /// @brief `sampleClaimTargetFor` as one comparable string, so a mismatch prints as a split.
 ///
 /// `"<dir>|<name>"`, or `"-"` for `std::nullopt`. Read through a default rather than through
@@ -413,7 +563,7 @@ describe browser_choice_target(
 
 	    it(
 	        "splits a chosen path the way getCurrentFilePath builds one", _ {
-		        // `SampleBrowser::getCurrentFilePath` (`gui/ui/browser/sample_browser.cpp:503-514`) is
+		        // `SampleBrowser::getCurrentFilePath` (`gui/ui/browser/sample_browser.cpp:538-549`) is
 		        // `currentDir`, a separator, and `currentFileItem->filename` with its extension; this is that
 		        // run backwards, and the extension has to survive it.
 		        expect(split_of("SAMPLES/OSC_A/A1.WAV")).to_equal(std::string{"SAMPLES/OSC_A|A1.WAV"});
@@ -422,7 +572,7 @@ describe browser_choice_target(
 
 	    it(
 	        "treats a path with no separator as a file at the card root", _ {
-		        // `getCurrentFilePath` appends the separator only when `currentDir` is non-empty (`:505-507`),
+		        // `getCurrentFilePath` appends the separator only when `currentDir` is non-empty (`:540-542`),
 		        // so the inverse of an empty `currentDir` is a path with no separator in it at all.
 		        expect(split_of("A1.WAV")).to_equal(std::string{"|A1.WAV"});
 	        });
@@ -470,7 +620,9 @@ describe browser_choice_dispatch(
 	    // `timerCallback()` and asserts the real outbox is empty afterwards, without naming
 	    // `dispatchShellChoices` at all.
 	    //
-	    // Nothing here asserts that anything is *performed*. Nothing is, yet -- see the file docstring.
+	    // Nothing in THIS group asserts that anything is performed -- that is `browser_choice_claim`'s
+	    // subject below. Every example here still installs a `ClaimSpy`, because a real file press
+	    // followed by a drain now reaches the claim, and the shipped dispatcher would run it.
 
 	    before_each([] {
 		    static QuietDisplay d;
@@ -482,6 +634,7 @@ describe browser_choice_dispatch(
 	    it(
 	        "takes the choice a real file press filed, and leaves the outbox empty", _ {
 		        CleanBrowser clean;
+		        ClaimSpy spy;
 		        ScratchCard card;
 		        {
 			        // The control, and it is not decoration: without it the example below is satisfied by a
@@ -511,6 +664,7 @@ describe browser_choice_dispatch(
 	    it(
 	        "takes nothing when nothing was chosen, and does not eat the next choice", _ {
 		        CleanBrowser clean;
+		        ClaimSpy spy;
 		        ScratchCard card;
 		        ShellRig r;
 		        r.open_browser();
@@ -544,6 +698,7 @@ describe browser_choice_dispatch(
 		        // between "outbox full" and "outbox empty" isolates `timerCallback`'s own extra work rather
 		        // than comparing two different rigs.
 		        CleanBrowser clean;
+		        ClaimSpy spy;
 		        ScratchCard card;
 		        {
 			        GuestRig control;
@@ -578,10 +733,146 @@ describe browser_choice_dispatch(
 	        });
     });
 
+describe browser_choice_claim(
+    "gui::ui::dispatchShellChoices performing the claim", $ {
+	    // What the drain *does*, asserted on `Browser`'s own state rather than on the dispatcher
+	    // having been entered. `SampleBrowser::enterKeyPress`'s file arm is two things once the
+	    // browser it reads is gone: point the browser (`selectFileForClaim`) and dispatch the claim
+	    // onto the storage owner (`gui/ui/browser/sample_browser.cpp:392`). Both are visible from
+	    // outside -- `Browser::currentDir`, `Browser::fileItems` and `Browser::getCurrentFileItem()`
+	    // are public statics (`gui/ui/browser/browser.h:63`, `:106-107`), and `ClaimSpy` records the
+	    // dispatch.
+
+	    before_each([] {
+		    static QuietDisplay d;
+		    if (display == nullptr) {
+			    display = &d;
+		    }
+	    });
+
+	    it(
+	        "points the legacy browser at the chosen file and hands legacy's own op to the owner", _ {
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        r.enter();
+
+		        // The catalogue is EMPTY here, and that is what makes the assertions below witnesses
+		        // rather than residue: the scene and the legacy browser share one `FileCatalogue`, and
+		        // `BrowserScene::on_exit` empties it as it closes
+		        // (`scenes/browser/browser_scene.cpp:394`). So the listing that landed the selection
+		        // cannot be what puts an entry back.
+		        expect(Browser::fileItems.empty()).to_be_true();
+		        expect(spy.dispatches).to_equal(0);
+
+		        // And the two pieces of state the claim reads are pointed somewhere else entirely --
+		        // which under the guest they genuinely are, since the legacy `sampleBrowser` was never
+		        // opened and whatever wrote them last was some other browser.
+		        Browser::currentDir = "SOMEWHERE/ELSE";
+		        QwertyUI::enteredText = "STALE";
+
+		        deluge::gui::ui::dispatchShellChoices();
+
+		        // `getCurrentFilePath()` (`sample_browser.cpp:538-549`) read forwards again: the
+		        // directory, and the selected item's filename WITH its extension.
+		        expect(std::string{Browser::currentDir}).to_equal(std::string{"SAMPLES/OSC_A"});
+		        expect(catalogue_order()).to_equal(std::string{"A1.WAV"});
+		        expect(selected_filename()).to_equal(std::string{"A1.WAV"});
+		        expect(Browser::fileItems.empty() ? true : Browser::fileItems[0].isFolder).to_be_false();
+		        // `setEnteredTextFromCurrentFilename` (`browser.cpp:1316-1330`), which browsing would
+		        // have run: the name without its extension. `claimAudioFileForInstrument` names a new
+		        // Drum from it (`sample_browser.cpp:1033`, `:1039`).
+		        expect(std::string{QwertyUI::enteredText}).to_equal(std::string{"A1"});
+
+		        // Exactly one dispatch, and it is legacy's own op rather than a second trampoline
+		        // written here -- which is what keeps `claimCurrentFile`'s three default arguments and
+		        // its discarded result stated in one place (`sample_browser.h:56-69`).
+		        expect(spy.dispatches).to_equal(1);
+		        expect(ClaimSpy::last_op == &SampleBrowser::runClaimCurrentFileOp).to_be_true();
+	        });
+
+	    it(
+	        "claims from the guest's own tick, with nothing in the example naming the dispatcher", _ {
+		        // The composition, as the drain examples above do it: the difference between the two
+		        // legs is one call, `ui.shell().tick` versus `ui.timerCallback()`. So a claim on the
+		        // second leg and none on the first isolates `timerCallback`'s own extra work.
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        {
+			        GuestRig control;
+			        expect(control.open()).to_be_true();
+			        for (int32_t i = 0; i < 4; i++) {
+				        control.shell_step();
+			        }
+			        expect(control.browser_on_stack()).to_be_true();
+			        control.press_enter(&GuestRig::shell_step);
+			        // The press filed, the browser closed -- and nothing claimed, because the shell's
+			        // tick is not the guest's.
+			        expect(control.browser_on_stack()).to_be_false();
+			        expect(spy.dispatches).to_equal(0);
+			        expect(Browser::fileItems.empty()).to_be_true();
+			        expect(browser::browser_scene().take_choice().has_value()).to_be_true();
+		        }
+
+		        GuestRig r;
+		        expect(r.open()).to_be_true();
+		        for (int32_t i = 0; i < 4; i++) {
+			        r.guest_step();
+		        }
+		        expect(r.browser_on_stack()).to_be_true();
+		        // Ticking the guest over an open browser claims nothing on its own.
+		        expect(spy.dispatches).to_equal(0);
+
+		        r.press_enter(&GuestRig::guest_step);
+		        expect(r.browser_on_stack()).to_be_false();
+		        // Three guest ticks, one choice, one claim: the drain is not re-entered on the ticks
+		        // after the outbox is empty.
+		        expect(spy.dispatches).to_equal(1);
+		        expect(ClaimSpy::last_op == &SampleBrowser::runClaimCurrentFileOp).to_be_true();
+		        expect(std::string{Browser::currentDir}).to_equal(std::string{"SAMPLES/OSC_A"});
+		        expect(selected_filename()).to_equal(std::string{"A1.WAV"});
+	        });
+
+	    it(
+	        "leaves the descriptor that answers Close alone: it loads its own file and claims nothing", _ {
+		        // `BrowserId::MidiDeviceDefinition` does not defer -- its accept hook really loads the
+		        // file, because `StorageManager::loadMidiDeviceDefinitionFile` is in `storage/`, which
+		        // the scenes layer may include (`scenes/browser/browser_scene.h:203-209`). So the drain
+		        // must see nothing at all for it, and the `Sample` arm's new body must not be reachable
+		        // from it.
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        MidiRig r;
+		        r.open_browser();
+		        expect(r.browser_on_stack()).to_be_true();
+
+		        r.enter();
+		        expect(r.browser_on_stack()).to_be_false();
+		        // The proof the accept hook really ran and answered `Close`: the instrument's own
+		        // remembered filename, which `loadMidiDeviceDefinitionFile` writes.
+		        expect(r.instrument()->deviceDefinitionFileName)
+		            .to_equal(std::string{"MIDI_DEVICES/DEFINITION/DEVICE1.XML"});
+		        // Nothing parked...
+		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
+
+		        // ...so the drain has nothing to take, and nothing is claimed. Polled the same way a
+		        // quiet guest tick polls, which is unconditionally.
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(spy.dispatches).to_equal(0);
+	        });
+    });
+
 /// `browser_choice_target` first: it touches no scene, no card and no song, so it runs before
 /// anything can have left a singleton in a state it would have to survive.
 int browser_choice_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_specs(browser_choice_target, browser_choice_dispatch).exec().is_success()
+	return CppSpec::parse(argc, argv)
+	               .add_specs(browser_choice_target, browser_choice_dispatch, browser_choice_claim)
+	               .exec()
+	               .is_success()
 	           ? EXIT_SUCCESS
 	           : EXIT_FAILURE;
 }
