@@ -1159,7 +1159,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 	it("still arms the tick after a forward", _ {
 		// Load-bearing, not housekeeping: the `Exit` arm empties the guest's shell stack, and
-		// `ShellHostUI::timerCallback` is what then closes the guest (`shell_host_ui.cpp:553-556`).
+		// `ShellHostUI::timerCallback` is what then closes the guest (`shell_host_ui.cpp:555-558`).
 		// With no tick armed, the guest would sit open over an empty stack.
 		Rig r;
 		expect(r.open()).to_be_true();
@@ -1744,7 +1744,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("arms NOTHING when it is no longer the current UI, however loudly the shell asks for a wake", _ {
-		// **The guard at `ShellHostUI::rearmTimer`'s top** (`gui/ui/shell_host_ui.cpp:620`).
+		// **The guard at `ShellHostUI::rearmTimer`'s top** (`gui/ui/shell_host_ui.cpp:622`).
 		// `TimerName::UI_SPECIFIC` is the *current* UI's timer -- `UITimerManager::routine` dispatches
 		// it to `getCurrentUI()->timerCallback()` and never to whatever armed it
 		// (`gui/ui_timer_manager.cpp:142-148`) -- so arming it while something else is current hands
@@ -1762,7 +1762,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		// A scene that wants a wake on every tick, so "nothing was armed" cannot be the shell simply
 		// having nothing to ask for -- `next_wake()` answering `nullopt` takes a different early
-		// return (`gui/ui/shell_host_ui.cpp:625-640`) and would make this example vacuous.
+		// return (`gui/ui/shell_host_ui.cpp:627-642`) and would make this example vacuous.
 		r.base.timer = 120;
 		expect(r.open()).to_be_true();
 

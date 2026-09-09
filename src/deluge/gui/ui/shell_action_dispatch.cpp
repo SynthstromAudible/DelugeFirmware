@@ -148,7 +148,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// reached by a different press, so the two exits of the ported menu agree by construction.
 ///
 /// Emptying the stack is the whole of it, because `ShellHostUI::timerCallback` closes the guest
-/// itself the moment the stack is empty (`gui/ui/shell_host_ui.cpp:553-556`) -- F1 task 11's fix,
+/// itself the moment the stack is empty (`gui/ui/shell_host_ui.cpp:555-558`) -- F1 task 11's fix,
 /// and the only close path the guest has besides `exitUI`'s (`:1004`). The two alternatives were
 /// both tried on paper and both are broken:
 ///
@@ -227,7 +227,7 @@ namespace {
 /// @par The one ordering divergence, named rather than absorbed
 ///
 /// Legacy closes and *then* exports. Here the removal is filed first but the guest is popped by
-/// `timerCallback` (`gui/ui/shell_host_ui.cpp:553-556`), after this function has returned, so on a
+/// `timerCallback` (`gui/ui/shell_host_ui.cpp:555-558`), after this function has returned, so on a
 /// BSP where `deluge::storage::Owner::run` is inline the export body runs *between* the two
 /// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`). On the shipping Embassy BSP
 /// `startStemExportProcess` only queues (`processing/stem_export/stem_export.cpp:87-96`,

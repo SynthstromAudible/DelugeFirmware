@@ -793,9 +793,9 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 			// is: `performanceView.padAction` opens the legacy sound editor on a shift press
 			// (`gui/views/performance_view.cpp:1038`) and the tail's `closePortedMenu()` empties
 			// this guest's own stack. `armTickSoon` is safe on both counts -- `rearmTimer` refuses
-			// when this guest is not the current UI (`:620`, F2's final fix) -- and it is *required*
+			// when this guest is not the current UI (`:622`, F2's final fix) -- and it is *required*
 			// on the second: the tick is what notices the empty stack and closes the guest
-			// (`:553-556`).
+			// (`:555-558`).
 			(void)forwardGridPad(x, y, velocity);
 		}
 	}

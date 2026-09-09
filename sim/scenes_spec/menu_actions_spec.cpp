@@ -281,7 +281,7 @@ struct GuestRig {
 	void press_enter() { (void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
 
 	/// One detent of the select encoder, through the guest's own hook. `ShellHostUI::selectEncoderAction`
-	/// (`gui/ui/shell_host_ui.cpp:887`) is the override legacy's `interpretEncoders` calls
+	/// (`gui/ui/shell_host_ui.cpp:922`) is the override legacy's `interpretEncoders` calls
 	/// (`hid/encoder_input.cpp:112`, `:117`), and it queues into the same lowering `press_enter`
 	/// does -- so, as there, nothing moves until the guest is ticked.
 	void turn_select(int32_t detents) { ui.selectEncoderAction(static_cast<int8_t>(detents)); }
@@ -556,7 +556,7 @@ bool open_global_guest_on_ui_stack(const Node& root, spec::SongFixture& song) {
 ///
 /// Unset rather than restored to its exact deadline: the timer is a shared one-shot whose resting
 /// state between guest sessions is "not armed" (`ShellHostUI::rearmTimer`'s own no-deadline arm
-/// leaves it alone, `gui/ui/shell_host_ui.cpp:625-640`), and every path that can wake the guest
+/// leaves it alone, `gui/ui/shell_host_ui.cpp:627-642`), and every path that can wake the guest
 /// re-arms it through `armTickSoon`. Leaving it armed would hand the next example a timer pointing
 /// at a UI this one tore down.
 struct UiSpecificTimerGuard {
@@ -2226,7 +2226,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// called from there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
 		//
 		// The guest is ticked through `Shell::tick` and NOT through `timerCallback`, on purpose: it
-		// is `timerCallback`'s empty-stack arm (`gui/ui/shell_host_ui.cpp:553-556`) that performs
+		// is `timerCallback`'s empty-stack arm (`gui/ui/shell_host_ui.cpp:555-558`) that performs
 		// the actual `closeUI`, and running that here would put a real root view's `focusRegained`
 		// inside the example. What this pins is the dispatcher's half -- the stack -- which is the
 		// half the dispatcher owns.
@@ -2487,7 +2487,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// `PerformanceView::timerCallback` forwards into `sessionView`/`arrangerView`
 		// (`gui/views/performance_view.cpp:383-391`).
 		//
-		// The guard is in `ShellHostUI::rearmTimer` (`gui/ui/shell_host_ui.cpp:620`), and this
+		// The guard is in `ShellHostUI::rearmTimer` (`gui/ui/shell_host_ui.cpp:622`), and this
 		// example is what reddens without it -- measured, not assumed.
 		select_language();
 		PerformViewGuard perform_guard;
@@ -2500,7 +2500,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			// nothing, opens nothing, and the guest is still current when `rearmTimer` runs. The
 			// timer IS armed here. Without this leg the subject's `to_be_false()` would also pass on
 			// a `rearmTimer` that never arms in this rig at all -- e.g. if `Shell::next_wake()`
-			// answered `nullopt` and took the early return (`shell_host_ui.cpp:625-640`).
+			// answered `nullopt` and took the early return (`shell_host_ui.cpp:627-642`).
 			GlobalGuestGuard control_guard;
 			spec::SongFixture control_song = spec::make_synth_song();
 			setRootUILowLevel(&sessionView);
@@ -2509,7 +2509,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 
 			// Cleared right before the tick, so the only thing that can set it is `rearmTimer`:
 			// `opened()` and every input hook arm it too, through `armTickSoon`
-			// (`gui/ui/shell_host_ui.cpp:172`, and the six input hooks at `:773`-`:895`).
+			// (`gui/ui/shell_host_ui.cpp:174`, and the six input hooks at `:808`-`:930`).
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			(void)shellHostUI.timerCallback();
 
