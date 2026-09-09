@@ -31,7 +31,7 @@ script never presses a grid pad while a menu is open (§6.3).
 | 1 | **Shortcut pads.** Tried first, and **skipped entirely** in settings, note editor and note-row editor | `:1468` `potentialShortcutPadAction(x, y, on)` | **yes** — `src/scenes/menu/menu_scene.cpp:1631`, shift-gated |
 | 2 | **Six root-forwarding paths**, by `getRootUI()` identity | see below | **no** |
 | 3 | **Exit on any unclaimed pad**, when `currentUIMode == UI_MODE_NONE && on` | `:1545` `exitCompletely()` | **no** |
-| 4 | **Firmware-version diagnostics**, `y == 7` on `&firmwareVersionMenu` | `:1522-1546`, `x == 15` SRAM, `x == 14` voices, `x == 13` PIC version | **no** |
+| 4 | **Firmware-version diagnostics**, `y == 7` on `&firmwareVersionMenu` | `:1521-1543`, `x == 15` SRAM, `x == 14` voices, `x == 13` PIC version | **no** |
 
 The six forwarding paths (behaviour 2):
 
