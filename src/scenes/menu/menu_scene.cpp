@@ -271,6 +271,19 @@ bool is_leaf(Kind k) {
 /// Static `children` only: a `dynamic_children` node produces its list from a `MenuContext` and
 /// none of the roots reaches either file selector through one, so resolving them here would be
 /// machinery with no caller.
+///
+/// @warning **One guard inside the function being ported is deliberately dropped, and it is not a
+///          detail.** `getCurrentHorizontalMenusChain` answers `nullopt` outright when
+///          `runtimeFeatureSettings.get(HorizontalMenus) == Off` (`gui/ui/sound_editor.cpp:2112-2114`),
+///          so for a user with that feature off legacy writes no heading pair at all and
+///          `claimCurrentFile` re-roots **nothing** -- it leaves the menu wherever the browser was
+///          opened from. This walks the tables regardless, so the ported menu re-roots for every
+///          user. That is the concrete consequence of the port having no equivalent of
+///          `HorizontalMenu::renderingStyle()` (`gui/menu_item/horizontal_menu.cpp:596-601`): these
+///          pages are `Layout::Horizontal` unconditionally here, so there is no "the feature is off"
+///          state for this function to answer differently in, and honouring the guard would mean
+///          suppressing the re-root on a page that is horizontal anyway. Carried as a row in
+///          `src/scenes/README.md`; the guard goes back in when `Layout` learns to read the feature.
 const Node* horizontal_page_listing(const Node& node, const Node& item) {
 	if (node.kind != Kind::Submenu) {
 		return nullptr;

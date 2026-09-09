@@ -38,7 +38,7 @@
 /// state the pixels could not have shown anyway; the script files say which and why.
 ///
 /// **Why one node id resolves correctly across every script.** `MenuScene::on_enter` re-targets the
-/// path from `SceneId::arg` (`node_by_id`) but never touches `ctx_` (`menu_scene.cpp:346-366`), so
+/// path from `SceneId::arg` (`node_by_id`) but never touches `ctx_` (`menu_scene.cpp:359-379`), so
 /// each `it` block calls `menu_scene().open(target, ctx)` itself first -- purely to install `ctx_`
 /// for its own fixture on the process-wide singleton -- before handing `expect_script_goldens` a
 /// `RunOptions::initial_scene` that re-targets the path a second time via the id. `assign_node_ids`
@@ -1438,7 +1438,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The scene closed itself both times. Where that leaves the menu is what the two closes
 		// differ in, and the run ends on the second: the shortcut jump re-rooted the path onto the
 		// item, so the ascend `go_up_on_resume` asks for happens at depth 0 and does nothing
-		// (`menu_scene.cpp:1215-1217`). `after_stop`, seven hundred milliseconds earlier, is the
+		// (`menu_scene.cpp:1228-1230`). `after_stop`, seven hundred milliseconds earlier, is the
 		// other outcome -- the ACTIONS list, cursor still on the row the descent came from.
 		expect(menu_scene().focused() == &nodes::sample0_recorder).to_be_true();
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(0);

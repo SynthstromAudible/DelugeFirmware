@@ -456,7 +456,7 @@ porting Task 9:
   by press yet still blink, since the blink scan has no such guard.
 
 **Blink cadence** — the shortcut-pad blink is legacy's **200 ms two-phase cycle**
-(`menu_scene.h:70-72`, `menu_scene.cpp:796-798`): a 20 ms re-arm on the source-pad phase and a
+(`menu_scene.h:70-72`, `menu_scene.cpp:809-811`): a 20 ms re-arm on the source-pad phase and a
 180 ms re-arm on the focused-param phase, not a symmetric period — a `Blink`'s single symmetric
 period cannot represent this, which is why `MenuState` carries `blink_anchor_ms`/`blink_node`
 instead of a `Blink` for this one purpose. The **visible DUTY cycle within each phase is not
@@ -540,7 +540,7 @@ the changelog where a release note will find it.
 this leaf opens *that* menu" is a per-item `MenuItem* selectButtonPress()` override returning
 another `MenuItem*`; `SoundEditor` navigates to whatever comes back
 (`gui/ui/sound_editor.cpp`'s select handling). E1 had no `Node` spelling for it at all:
-`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:1017-1021`, which
+`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:1030-1034`, which
 transcribed only the `return nullptr` = "go up" arm of the base class), and until fix round 2's I5
 the difference lived only in four scattered header comments. The complete sweep of
 `grep -rn selectButtonPress src/deluge/gui/menu_item/`, in three groups:
@@ -680,6 +680,28 @@ have a column source (`arp_preset` on `arpBasicMenu`, `unison_count` on `unisonM
 what makes "select on the UNISON page's NUM column does not open the spread page" correct rather
 than a gap — the chain fires once that column has been entered as a leaf, which is when legacy's
 `SoundEditor` consults `selectButtonPress` for navigation too.
+
+**Correction (F3 task 3): the paragraph above is right about the default and wrong about the
+overrides, and "the port matches without needing a rule for it" must not be read as covering them.**
+`allowToBeginSessionFromHorizontalMenu()` defaults to false (`menu_item.h:314`), and for a value
+column that is the whole story — everything above stands. But **five items override it to `true`**,
+and every one of them is a scene opener: `FileSelector` (`gui/menu_item/file_selector.h:35`),
+`osc::AudioRecorder` (`gui/menu_item/osc/audio_recorder.h:76`), `sample::Start` / `sample::End`
+(`gui/menu_item/sample/start.h:25`, `gui/menu_item/sample/end.h:25`) and
+`audio_clip::SampleMarkerEditor` (`gui/menu_item/audio_clip/sample_marker_editor.h:34`). For those,
+`handleItemAction`'s guard is false and it falls through to `soundEditor.enterSubmenu(menuItem)`
+(`horizontal_menu.cpp:677`) — **legacy opens the browser, the recorder or the marker editor straight
+from the horizontal page.**
+
+The port has no equivalent of the bit. `Column::is_submenu` is `kid.kind == Kind::Submenu`
+(`scenes/menu/menu_scene.cpp`'s `render_horizontal`) and `columns` claims the press only for a
+submenu column (`ui/oled/columns.cpp:419-423`), so a select press on the FILE BROWSER column of
+`source0` raises the notification and opens nothing. Combined with the port's fixed `Node::layout`
+(legacy renders these pages vertically when the `HorizontalMenus` feature is off,
+`horizontal_menu.cpp:596-601`), the consequence is that **a file selector is reachable only by the
+shortcut pad**, which lands it at depth 0. Both are carried rows in `src/scenes/README.md`; neither
+is fixed, because closing either moves every horizontal golden. Recorded here rather than left as an
+omission because this passage names the symbol and reads as settled, which is worse than silence.
 
 **The `Custom` cap counts nodes, and is not 10** (fix round 2, I4) — spec E §4 says "at most 10
 `Kind::Custom` items across the whole tree", and `validate_tree`'s `TooManyCustom` rule implemented

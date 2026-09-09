@@ -140,8 +140,8 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
-/// (`scenes/menu/menu_scene.cpp:1604-1609`). `SceneStack::remove` and not `pop`, for the reason
-/// recorded there (`:1591-1602`): `pop` would take a `Working` animation or a `Popup` sitting over
+/// (`scenes/menu/menu_scene.cpp:1617-1622`). `SceneStack::remove` and not `pop`, for the reason
+/// recorded there (`:1604-1615`): `pop` would take a `Working` animation or a `Popup` sitting over
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
 ///

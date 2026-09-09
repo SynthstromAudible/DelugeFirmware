@@ -139,11 +139,17 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// `MenuState::scene_opener` is written for every scene push, this one included. What is missing
 	// is a *caller* -- `deluge::gui::ui::runShellSampleClaimOp` calls it because the browser's choice
 	// is drained through `BrowserScene::take_choice()`, and `RecorderScene` has no equivalent outbox
-	// and no dispatcher draining one. **Legacy's recorder arm also differs in a second respect** it
-	// would have to carry: it re-roots at `menuItemNavigationRecord[navigationDepth]`, not `[0]`
-	// (`osc/audio_recorder.h:43`), and points at the *file selector* rather than at the recorder
-	// (`sound_editor.cpp:2100-2102`). So the consequence here is still one extra BACK press after a
-	// recording.
+	// and no dispatcher draining one.
+	//
+	// **The re-rooting itself is the browser's, statement for statement**, which a first reading of
+	// this arm got wrong and is worth stating so nobody re-derives the mistake: `:42` assigns
+	// `soundEditor.navigationDepth = 0` and `:43` then indexes `menuItemNavigationRecord` *with*
+	// that member, so `[navigationDepth]` here IS `[0]`. The two arms differ only in the order of
+	// those two statements. What a caller would additionally have to carry is the pair's own
+	// content -- `parentMenuHeadingTo` is `&sourceMenuGroup` unconditionally and `menuItemHeadingTo`
+	// is the matching *file selector*, not the recorder (`sound_editor.cpp:2100-2102`) -- and
+	// `shouldGoUpOneLevelOnBegin = false` (`:44`), which is `MenuState::go_up_on_resume`.
+	// So the consequence here is still one extra BACK press after a recording.
 	//
 	// `process()` is not called either, and that is the whole of task 5: legacy runs the recorder
 	// as a blocking loop from this stack frame (`gui/ui/audio_recorder.cpp:193-242`), while the
