@@ -19,7 +19,7 @@
 ///   * legacy, through **`Slicer`'s own public entry points** -- `focusRegained`,
 ///     `selectEncoderAction`, `horizontalEncoderAction`, `verticalEncoderAction`, `renderOLED`,
 ///     `renderMainPads` -- over a `waveformBasicNavigator` that `open_legacy` sets up with the two
-///     lines `SampleBrowser::renderPreviewForTarget` uses (`sample_browser.cpp:652-654`), so even the
+///     lines `SampleBrowser::renderPreviewForTarget` uses (`sample_browser.cpp:653-655`), so even the
 ///     scroll and zoom legacy renders from are ones IT derived.
 ///
 /// Nothing the port computed is ever handed to legacy. The one thing both sides are *told* is the
@@ -359,7 +359,7 @@ Slicer& legacy_slicer = ::slicer;
 ///
 /// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();` is
 /// `SampleBrowser::renderPreviewForTarget`'s own pair
-/// (`gui/ui/browser/sample_browser.cpp:652-654`) -- the lines the preview path runs before the
+/// (`gui/ui/browser/sample_browser.cpp:653-655`) -- the lines the preview path runs before the
 /// slicer is opened over it -- and `focusRegained()` is what
 /// `UI::opened()` then calls (`gui/ui/ui.h:111-113`). So legacy's scroll, zoom, mode, counts and
 /// slice table are all ones IT computed, from the sample alone.

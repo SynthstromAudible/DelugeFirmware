@@ -411,10 +411,11 @@ bool SampleBrowser::selectFileForClaim(std::string_view dir, std::string_view na
 
 	FileItem* item = getNewFileItem();
 	if (item == nullptr) {
-		// Out of RAM. Legacy's own listing turns this into `Error::INSUFFICIENT_RAM` and empties the
-		// catalogue (`file_catalogue.cpp:265-269`); here the caller simply does not claim, and the
-		// selection is left at "no real file" so `getCurrentFileItem()` answers null
-		// (`browser.cpp:1138-1143`) rather than indexing an empty vector.
+		// Out of RAM. Legacy's own listing turns this into `Error::INSUFFICIENT_RAM`
+		// (`file_catalogue.cpp:265-269`) and empties the catalogue on the way out (`:278-280`); here
+		// the catalogue is already empty and the caller simply does not claim, so the selection is
+		// left at "no real file" and `getCurrentFileItem()` answers null (`browser.cpp:1138-1143`)
+		// rather than indexing an empty vector.
 		fileIndexSelected = -1;
 		return false;
 	}

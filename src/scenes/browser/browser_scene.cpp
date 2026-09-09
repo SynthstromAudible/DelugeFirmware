@@ -169,13 +169,20 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	// directory and the filename to select.
 	//
 	// **One named divergence.** Legacy's middle arm falls back to `SampleBrowser::lastFilePathLoaded`
-	// (`sample_browser.h:103`) before it falls back to the folder. That member is written inside
-	// `claimCurrentFile()`, which this layer cannot perform (see `Descriptor::accept`), so there is
-	// nothing here that could keep it up to date -- a mirror would be authoritative for nothing and
-	// stale from the first load. Dropped rather than half-built: the browser opens on the default
-	// folder where legacy would have reopened on the last manually-loaded sample's folder. Whoever
-	// wires `claimCurrentFile` up owns closing it, and the natural home is a mirror beside
-	// `menu::performance_editing_mode()`.
+	// (`sample_browser.h:105`) before it falls back to the folder. Dropped rather than half-built: the
+	// browser opens on the default folder where legacy would have reopened on the last
+	// manually-loaded sample's folder.
+	//
+	// **The reason has changed, and only half of it still holds.** It used to be that nothing could
+	// keep the member current, because `claimCurrentFile()` writes it (through
+	// `SampleHolder::setAudioFile`'s `manuallySelected` arm, `model/sample/sample_holder.cpp:120-124`,
+	// reached from both `claimAudioFileForInstrument` and `claimAudioFileForAudioClip`) and this layer
+	// cannot perform it. **Since F3 task 2 the wiring layer does perform it**
+	// (`gui/ui/shell_choice_dispatch.cpp`'s `claimSampleFile`), so under the toggle the member is
+	// current again and a mirror would be authoritative. What is still true is that
+	// `lastFilePathLoaded` lives on a `gui/` object this layer may not name, so closing the divergence
+	// means the value arriving through `MenuContext` or a `Services` hook -- not a mirror written
+	// here. Natural home: beside `menu::performance_editing_mode()`.
 	const AudioFileHolder* holder = audio_file_holder(ctx);
 	const std::string_view path = holder != nullptr ? std::string_view{holder->filePath} : std::string_view{};
 	if (path.empty() || !case_prefix_equal(path, "SAMPLES/", 8)) {
@@ -867,7 +874,7 @@ Result BrowserScene::enter_key_press() {
 		return repaint_all();
 	}
 
-	// `getCurrentFilePath()` (`sample_browser.h:162 getCurrentFilePath`, `load_midi_device_definition_ui.cpp:214-218`):
+	// `getCurrentFilePath()` (`sample_browser.h:172 getCurrentFilePath`, `load_midi_device_definition_ui.cpp:214-218`):
 	// the directory, a separator, and the entry's own filename with its extension.
 	std::string path{current_dir()};
 	if (!path.empty()) {

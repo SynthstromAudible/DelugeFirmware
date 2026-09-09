@@ -213,7 +213,7 @@ struct Descriptor {
 	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`,
 	///       file-selector arm at `:2034-2039`) writes `sampleBrowser.menuItemHeadingTo` and
 	///       `parentMenuHeadingTo` on the way *in*, and `claimCurrentFile` reads them back
-	///       (`gui/ui/browser/sample_browser.cpp:1110-1121`) to re-root
+	///       (`gui/ui/browser/sample_browser.cpp:1111-1122`) to re-root
 	///       `soundEditor.menuItemNavigationRecord` onto the oscillator's horizontal page with the
 	///       file selector focused. So accepting a file lands the user on the source page, not back
 	///       on the item that opened the browser.
@@ -248,7 +248,7 @@ const Descriptor& descriptor(BrowserId id);
 struct BrowserChoice {
 	BrowserId id = BrowserId::Sample;
 	/// The chosen file's full path, as `getCurrentFilePath()` would have spelled it
-	/// (`sample_browser.h:162 getCurrentFilePath`): `currentDir` + "/" + the filename, extension included.
+	/// (`sample_browser.h:172 getCurrentFilePath`): `currentDir` + "/" + the filename, extension included.
 	std::string path;
 };
 
@@ -336,7 +336,7 @@ public:
 	///        classes sets `oledShowsUIUnderneath`.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
 	/// @brief `*cols = 0xFFFFFFFF` on both: `SampleBrowser::getGreyoutColsAndRows`
-	///        (`sample_browser.cpp:551 getGreyoutColsAndRows`) and
+	///        (`sample_browser.cpp:552 getGreyoutColsAndRows`) and
 	///        `LoadMidiDeviceDefinitionUI::getGreyoutColsAndRows`
 	///        (`load_midi_device_definition_ui.cpp:40 getGreyoutColsAndRows`).
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }

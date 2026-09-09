@@ -22,15 +22,15 @@
 ///        `gui/ui/shell_action_dispatch.h` is the verb half of.
 ///
 /// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
-/// `AcceptOutcome::Defer` (`scenes/browser/browser_scene.cpp:202-211`, the `return` at `:210`),
+/// `AcceptOutcome::Defer` (`scenes/browser/browser_scene.cpp:209-218`, the `return` at `:217`),
 /// `BrowserScene::enter` parks the chosen path and closes the scene in one statement
-/// (`:888-890`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:371`,
-/// defined `browser_scene.cpp:409-413`) hands it out exactly once.
+/// (`:895-897`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:371`,
+/// defined `browser_scene.cpp:416-420`) hands it out exactly once.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm is one dispatch onto the
 /// storage owner (`gui/ui/browser/sample_browser.cpp:333 enterKeyPress`, the dispatch at `:392`),
 /// whose op is `SampleBrowser::runClaimCurrentFileOp` (`:397-399`) and whose body is
-/// `SampleBrowser::claimCurrentFile` (`:813`). That body reaches `soundEditor`, `AudioEngine`,
+/// `SampleBrowser::claimCurrentFile` (`:814`). That body reaches `soundEditor`, `AudioEngine`,
 /// `slicer`, `PadLEDs` and `instrumentClipView` -- five `gui/` and `hid/` symbols the scenes layer
 /// may not name (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
 /// `Descriptor::accept`'s own note says the same thing from the other side
@@ -47,6 +47,7 @@
 /// `tests/spec/gui/support/fake_legacy_ui.cpp`, exactly as it stubs `dispatchShellActions` and
 /// `wireShellGuestServices`.
 
+#include <cstdint>
 #include <optional>
 #include <string_view>
 
@@ -54,10 +55,10 @@ namespace deluge::gui::ui {
 
 /// @brief A chosen file split the way the legacy browser holds one: a directory and a filename.
 ///
-/// This is `SampleBrowser::getCurrentFilePath()` (`gui/ui/browser/sample_browser.cpp:538-549`) run
+/// This is `SampleBrowser::getCurrentFilePath()` (`gui/ui/browser/sample_browser.cpp:539-550`) run
 /// backwards. That function is `currentDir`, a separator when `currentDir` is non-empty, then
-/// `currentFileItem->filename` with its extension (`:539-546`), and `BrowserScene::enter` builds the
-/// parked path with the same three statements (`scenes/browser/browser_scene.cpp:872-876`) precisely
+/// `currentFileItem->filename` with its extension (`:540-547`), and `BrowserScene::enter` builds the
+/// parked path with the same three statements (`scenes/browser/browser_scene.cpp:879-883`) precisely
 /// so the two spellings agree. Splitting it back apart is what any performer of the claim has to do
 /// first, because `claimCurrentFile` reads the browser's own `currentDir` and selected item rather
 /// than taking a path.
@@ -82,10 +83,10 @@ struct SampleClaimTarget {
 /// the Embassy BSP:
 /// the cooperative default "runs inline on the caller's stack" (`storage/owner.h:28-30`, and again
 /// at `:40`), and `deluge_scenes_spec` links that default. So an example that reached the real claim
-/// would run `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:813`) for real inside the
-/// assertion: `display->displayLoadingAnimationText("Working")` (`:823`), a card read down through
+/// would run `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:814`) for real inside the
+/// assertion: `display->displayLoadingAnimationText("Working")` (`:824`), a card read down through
 /// `Sample::determinePitch`, an `AudioFileManager` allocation for the sample, and the
-/// `audioFileIsNowSet()` / `openUI(&soundEditor)` tail (`:1096`, `:1118`).
+/// `audioFileIsNowSet()` / `openUI(&soundEditor)` tail (`:1097`, `:1119`).
 ///
 /// So the split is named, `sim/scenes_spec/browser_choice_spec.cpp` drives it directly over every
 /// path shape, and the dispatcher's arm calls it before it calls anything that acts.
@@ -94,6 +95,73 @@ struct SampleClaimTarget {
 /// @return The directory and filename, or `std::nullopt` for an empty path or one whose last
 ///         separator is the last character -- neither of which names a file to claim.
 std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path);
+
+/// @brief The arguments the drain claims with.
+///
+/// `SampleBrowser::claimCurrentFile`'s four parameters (`gui/ui/browser/sample_browser.h:53-54`),
+/// named so the one that differs from legacy's file arm is a value a spec can read rather than a
+/// literal buried in an op body.
+struct SampleClaimArgs {
+	/// 0 no, 1 auto, 2 definitely -- legacy's default.
+	int32_t mayDoPitchDetection;
+	/// As above.
+	int32_t mayDoSingleCycle;
+	/// As above.
+	int32_t mayDoWaveTable;
+	/// **The one that is not legacy's default, and it is a correctness requirement.** See
+	/// `runShellSampleClaimOp`.
+	bool loadWithoutExiting;
+};
+
+/// @brief What `dispatchShellChoices` claims with: `claimCurrentFile`'s three defaults, and
+///        `loadWithoutExiting = true`.
+///
+/// The same four values legacy's own auto-load path passes -- `claimCurrentFile(1, 1, 1, true)` at
+/// `gui/ui/browser/sample_browser.cpp:640`, the "load it into the instrument as if you had confirmed,
+/// but keep the browser open" feature. That is exactly this dispatcher's situation, for a different
+/// reason: there is no browser of legacy's to keep open or to close.
+inline constexpr SampleClaimArgs kShellSampleClaimArgs{
+    .mayDoPitchDetection = 1, .mayDoSingleCycle = 1, .mayDoWaveTable = 1, .loadWithoutExiting = true};
+
+/// @brief The op `dispatchShellChoices` hands the storage owner for a `Sample` choice.
+///
+/// @par Why this is not `SampleBrowser::runClaimCurrentFileOp`
+///
+/// Because that one runs `claimCurrentFile()` with **default** arguments, and
+/// `loadWithoutExiting = false` **closes the browser** on success:
+/// `exitAndNeverDeleteDrum()` (`gui/ui/browser/sample_browser.cpp:1109`) is `close()`
+/// (`:258-260`), which is `Browser::close()` (`gui/ui/browser/browser.cpp:189-193`) and then
+/// `UI::close()` -> `closeUI(this)` (`gui/ui/ui.cpp:57-59`).
+///
+/// **Under the guest, `sampleBrowser` was never opened, so it is not in `uiNavigationHierarchy`.**
+/// `closeUI`'s search runs `u` down to 1 and falls out at `u == 0`, so `uiNavigationHierarchy[u - 1]`
+/// reads index `-1` (`gui/ui/ui.cpp:183-194`) -- and even reading that benignly, the next three
+/// statements set `numUIsOpen = 0`, unset `TimerName::UI_SPECIFIC` (`:195-197`) from **inside**
+/// `ShellHostUI::timerCallback`, and call `focusRegained()` on whatever that index produced. It is
+/// the same index `-1` read `gui/ui/shell_action_dispatch.cpp:128-134` describes.
+///
+/// @par What the flag suppresses, and what this op pays back
+///
+/// `loadWithoutExiting` skips the whole of `sample_browser.cpp:1108-1126`, which is three statements:
+///
+///   * `exitAndNeverDeleteDrum()` (`:1109`) -- the close above. **Correctly skipped:** there is no
+///     legacy browser open to exit.
+///   * the `menuItemHeadingTo`/`parentMenuHeadingTo` re-rooting (`:1111-1123`) -- **already dead
+///     under the guest**, since nothing on the ported path writes either member, and it is F3 task
+///     3's subject in the ported world's own terms (`scenes/browser/browser_scene.h:211-230`:
+///     `MenuState::path`/`depth`, not `menuItemNavigationRecord`). Skipping it structurally changes
+///     nothing today, and task 3 must not try to revive this block.
+///   * `uiNeedsRendering(&audioClipView)` (`:1124`) -- **wanted, so this op pays it back.** The
+///     legacy view under the guest is a real root UI, and `uiNeedsRendering` is a walk down
+///     `uiNavigationHierarchy` that drops the request when something above is opaque
+///     (`gui/ui/ui.cpp:279-303`), so it is safe under the guest as well as faithful.
+///
+/// It is gated on the claim's own return, because legacy's tail is on the success path: every
+/// failure inside `claimCurrentFile` returns before `:1107`.
+///
+/// @param unused The storage-owner op signature's context pointer. Legacy's wrapper ignores it too
+///               (`sample_browser.cpp:397-399`).
+void runShellSampleClaimOp(void* unused);
 
 /// @brief What the `Sample` arm hands the claim to -- `deluge::storage::Owner::run`'s own shape
 ///        (`storage/owner.h:43`), because the claim is what legacy's file arm dispatches
@@ -112,10 +180,10 @@ using SampleClaimDispatch = bool (*)(void (*)(void*), void*);
 /// Without it a spec cannot reach `dispatchShellChoices()` at all. `Owner::run_or_inline` runs the op
 /// on the caller's stack on this BSP (`storage/owner.h:28-30`, and again at `:40`), and
 /// `BrowserScene::enter` always appends a non-empty `FileItem::filename`
-/// (`scenes/browser/browser_scene.cpp:872-876`), so every example that presses a real file reaches a
-/// real `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:813`): the "Working" animation
-/// (`:823`), a card read down through `Sample::determinePitch`, an `AudioFileManager` allocation, and
-/// the `openUI(&soundEditor)` tail (`:1111-1118`). With it, an example asserts something stronger
+/// (`scenes/browser/browser_scene.cpp:879-883`), so every example that presses a real file reaches a
+/// real `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:814`): the "Working" animation
+/// (`:824`), a card read down through `Sample::determinePitch`, an `AudioFileManager` allocation, and
+/// the `openUI(&soundEditor)` tail (`:1112-1119`). With it, an example asserts something stronger
 /// than it could otherwise -- that the claim was *requested*, against a browser pointed at the right
 /// directory and filename, without it running.
 ///
@@ -131,7 +199,7 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
 /// `BrowserScene::take_choice()` is a one-slot outbox that announces nothing -- `enter` files it and
-/// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:888-890`), so no `Action` says a
+/// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:895-897`), so no `Action` says a
 /// choice is waiting and nothing enforces the polling. That is `MenuScene::take_action()`'s hazard
 /// (`scenes/menu/menu_scene.h:595-600`, the poll at `:627`) in the same shape, and it lands as the same requirement on
 /// this function's *caller*: poll after every tick, or a choice is delivered whenever something next
@@ -144,8 +212,8 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 /// @par The scene is already gone by the time this runs, and that is the point
 ///
 /// `Defer` **parks and closes in the same statement**: `choice_ = BrowserChoice{...}` then
-/// `return close()` (`scenes/browser/browser_scene.cpp:889-890`), and `close()` is
-/// `Action::Kind::Remove` naming the browser's own kind (`:910-919`). The router applies that inside
+/// `return close()` (`scenes/browser/browser_scene.cpp:896-897`), and `close()` is
+/// `Action::Kind::Remove` naming the browser's own kind (`:917-926`). The router applies that inside
 /// the same `Shell::tick` that routed the press, so by the time this drain runs the browser is off
 /// the stack and the ported menu underneath is frontmost again. Nothing here may assume otherwise --
 /// there is no state in which a choice is pending *and* the browser is still up.

@@ -53,21 +53,6 @@ public:
 	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1, int32_t mayDoWaveTable = 1,
 	                      bool loadWithoutExiting = false); // 0 means no. 1 means auto. 2 means yes definitely
 
-	/// @brief The dispatched op for the direct pad-tap load (enterKeyPress).
-	///
-	/// Runs claimCurrentFile() with its default args on the storage owner. The result is
-	/// discarded (as it always was inline) — claimCurrentFile() already handles its own
-	/// loading-animation/close-on-success internally. Its unnamed `void*` parameter is the
-	/// storage-owner op signature; unused here.
-	///
-	/// @note **Public because the ported browser's choice dispatcher hands it to the owner too.**
-	///       It was private while `enterKeyPress` (`sample_browser.cpp:392`) was the only caller.
-	///       `deluge::gui::ui::dispatchShellChoices` (`gui/ui/shell_choice_dispatch.cpp`) performs
-	///       the same file arm for a file chosen in `BrowserScene`, and reusing this op rather than
-	///       writing a second trampoline is what keeps `claimCurrentFile`'s three default arguments
-	///       and its discarded result stated in exactly one place.
-	static void runClaimCurrentFileOp(void*);
-
 	/// @brief Point the browser at @p dir / @p name, so `claimCurrentFile()` can run against a file
 	///        the user chose somewhere this browser was never open.
 	///
@@ -75,19 +60,36 @@ public:
 	/// `Browser::getCurrentFileItem()` for itself, which is what `getCurrentFilePath()` (`:538-549`)
 	/// composes. Browsing normally leaves both set, so `enterKeyPress` never has to. The ported
 	/// `BrowserScene` hands its dispatcher a *path* and has already closed — and `BrowserScene::on_exit`
-	/// empties the shared catalogue (`scenes/browser/browser_scene.cpp:394`, via
+	/// empties the shared catalogue (`scenes/browser/browser_scene.cpp:401`, via
 	/// `FileCatalogue::emptyFileItems`) exactly as `Browser::close()` does — so the state legacy would
 	/// have left behind has to be rebuilt from the path before the claim can read it.
 	///
 	/// This is the smallest thing that does that, and it is deliberately not
 	/// `Browser::setFileByFullPath` (`browser.h:64`): that one dispatches a whole listing of the
 	/// folder, then `setEnteredTextFromCurrentFilename`, `renderUIsForOled` and `currentFileChanged`
-	/// (`browser.cpp:257-270`) — a re-read and a sample preview that `enterKeyPress`'s file arm does
+	/// (`browser.cpp:257-274`) — a re-read and a sample preview that `enterKeyPress`'s file arm does
 	/// not do, i.e. behaviour the port would be adding rather than carrying over.
 	///
 	/// It lives here rather than in the dispatcher because `fileIndexSelected` and
 	/// `setEnteredTextFromCurrentFilename()` are `Browser`'s protected state, and because "the
 	/// selected index indexes `fileItems`" is `Browser`'s invariant to keep.
+	///
+	/// @note **What this leaves behind, on both paths.** The success path leaves a **one-entry**
+	///       catalogue and `fileIndexSelected == 0`; the failure path leaves `currentDir` already
+	///       reassigned to @p dir with the catalogue empty and nothing selected. Neither is cleaned
+	///       up, deliberately: every reader re-lists first (`FileCatalogue::readFileItemsForFolder`
+	///       opens with `emptyFileItems()`, `storage/file_catalogue.cpp:209`), and clearing
+	///       `fileIndexSelected` back to a value that indexed the *old* catalogue would be the bug
+	///       this function exists to avoid. It is exactly the state a real browse leaves, one entry
+	///       narrower.
+	///
+	/// @warning **The caller must claim with `loadWithoutExiting = true`.** `claimCurrentFile`'s
+	///          success tail closes the browser (`exitAndNeverDeleteDrum()` → `Browser::close()` →
+	///          `closeUI(this)`), and under the ported browser this object was never opened, so it is
+	///          not in `uiNavigationHierarchy` and `closeUI` would read index `-1`
+	///          (`gui/ui/ui.cpp:183-195`). `deluge::gui::ui::runShellSampleClaimOp` is the op that
+	///          gets this right; `runClaimCurrentFileOp` is `enterKeyPress`'s and must not be reused
+	///          from outside an open browser.
 	///
 	/// @param dir  The chosen file's directory, as `Browser::currentDir` spells it (empty at the card
 	///             root).
@@ -154,6 +156,14 @@ private:
 	void clearPreviewDisplay(int32_t movementDirection);
 
 	deluge::storage::LatestWins<PreviewTarget> previewCoalescer_{};
+
+	/// @brief The dispatched op for the direct pad-tap load (enterKeyPress).
+	///
+	/// Runs claimCurrentFile() with its default args on the storage owner. The result is
+	/// discarded (as it always was inline) — claimCurrentFile() already handles its own
+	/// loading-animation/close-on-success internally. Its unnamed `void*` parameter is the
+	/// storage-owner op signature; unused here.
+	static void runClaimCurrentFileOp(void*);
 
 	void audioFileIsNowSet();
 	bool canImportWholeKit();

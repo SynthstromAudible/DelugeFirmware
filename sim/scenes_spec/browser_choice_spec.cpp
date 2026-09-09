@@ -14,10 +14,10 @@
 ///     and that `sampleClaimTargetFor` splits a chosen path exactly the way
 ///     `SampleBrowser::getCurrentFilePath()` builds one.
 ///   * **Covered since F3 task 2:** the claim -- that the drain *points the legacy browser* at the
-///     chosen directory and filename and then hands `SampleBrowser::runClaimCurrentFileOp` to the
+///     chosen directory and filename and then hands `deluge::gui::ui::runShellSampleClaimOp` to the
 ///     storage owner, which together are `SampleBrowser::enterKeyPress`'s file arm
-///     (`gui/ui/browser/sample_browser.cpp:392`). The effect is asserted on `Browser`'s own state,
-///     not on the dispatcher having been entered.
+///     (`gui/ui/browser/sample_browser.cpp:392`) with the one argument the guest has to change. The
+///     effect is asserted on `Browser`'s own state, not on the dispatcher having been entered.
 ///   * **NOT run, ever, in this file:** `SampleBrowser::claimCurrentFile` itself. On this BSP
 ///     `Owner::run_or_inline` is inline on the caller's stack (`storage/owner.h:28-30`), so a real
 ///     claim would mean a card read, an `AudioFileManager` allocation and an `openUI(&soundEditor)`
@@ -197,8 +197,15 @@ private:
 ///
 /// What it records is what `Owner::run_or_inline` would have been given (`storage/owner.h:68`): the
 /// op and how many times. It answers `true`, which is that function's "it ran or was queued"
-/// (`:52`) -- the caller discards it either way, as legacy's file arm does
+/// (`:67`) -- the caller discards it either way, as legacy's file arm does
 /// (`gui/ui/browser/sample_browser.cpp:388-392`).
+///
+/// @warning **Recording the op is as far as this can go, and that is a real limit on what the
+///          examples below prove.** Running it means running `SampleBrowser::claimCurrentFile` --
+///          a card read and an `AudioFileManager` allocation -- which is the thing the seam exists to
+///          keep out. So WHICH op is dispatched, and WHAT arguments that op will use
+///          (`kShellSampleClaimArgs`), are pinned; the `closeUI` the wrong op would reach is not
+///          reachable from a spec at all, and is argued at `runShellSampleClaimOp` instead.
 struct ClaimSpy {
 	static inline int32_t dispatches = 0;
 	static inline void (*last_op)(void*) = nullptr;
@@ -226,7 +233,7 @@ struct ClaimSpy {
 ///
 /// The claim's own witness: `BrowserScene` reads and writes the same shared `FileCatalogue`
 /// (`Browser::fileItems` is a reference onto it, `gui/ui/browser/browser.h:106-107`), but
-/// `BrowserScene::on_exit` empties it on the way out (`scenes/browser/browser_scene.cpp:394`). So
+/// `BrowserScene::on_exit` empties it on the way out (`scenes/browser/browser_scene.cpp:401`). So
 /// after a `Defer` closes the scene this is empty, and anything in it afterwards was put there by
 /// `SampleBrowser::selectFileForClaim`.
 std::string catalogue_order() {
@@ -563,7 +570,7 @@ describe browser_choice_target(
 
 	    it(
 	        "splits a chosen path the way getCurrentFilePath builds one", _ {
-		        // `SampleBrowser::getCurrentFilePath` (`gui/ui/browser/sample_browser.cpp:538-549`) is
+		        // `SampleBrowser::getCurrentFilePath` (`gui/ui/browser/sample_browser.cpp:539-550`) is
 		        // `currentDir`, a separator, and `currentFileItem->filename` with its extension; this is that
 		        // run backwards, and the extension has to survive it.
 		        expect(split_of("SAMPLES/OSC_A/A1.WAV")).to_equal(std::string{"SAMPLES/OSC_A|A1.WAV"});
@@ -572,7 +579,7 @@ describe browser_choice_target(
 
 	    it(
 	        "treats a path with no separator as a file at the card root", _ {
-		        // `getCurrentFilePath` appends the separator only when `currentDir` is non-empty (`:540-542`),
+		        // `getCurrentFilePath` appends the separator only when `currentDir` is non-empty (`:541-543`),
 		        // so the inverse of an empty `currentDir` is a path with no separator in it at all.
 		        expect(split_of("A1.WAV")).to_equal(std::string{"|A1.WAV"});
 	        });
@@ -580,7 +587,7 @@ describe browser_choice_target(
 	    it(
 	        "answers nothing where the path names no file", _ {
 		        // Neither of these can come out of `BrowserScene::enter`, which always appends a `FileItem`'s
-		        // own filename (`scenes/browser/browser_scene.cpp:872-876`) -- they are the defence-in-depth
+		        // own filename (`scenes/browser/browser_scene.cpp:879-883`) -- they are the defence-in-depth
 		        // arms, pinned so a later caller that is not the scene gets the documented answer.
 		        expect(split_of("")).to_equal(std::string{"-"});
 		        expect(split_of("SAMPLES/OSC_A/")).to_equal(std::string{"-"});
@@ -643,7 +650,7 @@ describe browser_choice_dispatch(
 			        control.open_browser();
 			        expect(control.browser_on_stack()).to_be_true();
 			        control.enter();
-			        // `Defer` parks AND closes in one statement (`scenes/browser/browser_scene.cpp:888-890`),
+			        // `Defer` parks AND closes in one statement (`scenes/browser/browser_scene.cpp:895-897`),
 			        // so both halves of it are asserted here, on the leg that is allowed to look.
 			        expect(control.browser_on_stack()).to_be_false();
 			        const std::optional<browser::BrowserChoice> choice = browser::browser_scene().take_choice();
@@ -751,7 +758,7 @@ describe browser_choice_claim(
 	    });
 
 	    it(
-	        "points the legacy browser at the chosen file and hands legacy's own op to the owner", _ {
+	        "points the legacy browser at the chosen file and hands the guest's claim op to the owner", _ {
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;
@@ -762,7 +769,7 @@ describe browser_choice_claim(
 		        // The catalogue is EMPTY here, and that is what makes the assertions below witnesses
 		        // rather than residue: the scene and the legacy browser share one `FileCatalogue`, and
 		        // `BrowserScene::on_exit` empties it as it closes
-		        // (`scenes/browser/browser_scene.cpp:394`). So the listing that landed the selection
+		        // (`scenes/browser/browser_scene.cpp:401`). So the listing that landed the selection
 		        // cannot be what puts an entry back.
 		        expect(Browser::fileItems.empty()).to_be_true();
 		        expect(spy.dispatches).to_equal(0);
@@ -775,7 +782,7 @@ describe browser_choice_claim(
 
 		        deluge::gui::ui::dispatchShellChoices();
 
-		        // `getCurrentFilePath()` (`sample_browser.cpp:538-549`) read forwards again: the
+		        // `getCurrentFilePath()` (`sample_browser.cpp:539-550`) read forwards again: the
 		        // directory, and the selected item's filename WITH its extension.
 		        expect(std::string{Browser::currentDir}).to_equal(std::string{"SAMPLES/OSC_A"});
 		        expect(catalogue_order()).to_equal(std::string{"A1.WAV"});
@@ -783,14 +790,17 @@ describe browser_choice_claim(
 		        expect(Browser::fileItems.empty() ? true : Browser::fileItems[0].isFolder).to_be_false();
 		        // `setEnteredTextFromCurrentFilename` (`browser.cpp:1316-1330`), which browsing would
 		        // have run: the name without its extension. `claimAudioFileForInstrument` names a new
-		        // Drum from it (`sample_browser.cpp:1033`, `:1039`).
+		        // Drum from it (`sample_browser.cpp:1034`, `:1040`).
 		        expect(std::string{QwertyUI::enteredText}).to_equal(std::string{"A1"});
 
-		        // Exactly one dispatch, and it is legacy's own op rather than a second trampoline
-		        // written here -- which is what keeps `claimCurrentFile`'s three default arguments and
-		        // its discarded result stated in one place (`sample_browser.h:56-69`).
+		        // Exactly one dispatch, and it is the guest's own op rather than
+		        // `SampleBrowser::runClaimCurrentFileOp`. That is not bookkeeping: legacy's op claims
+		        // with default arguments, and `loadWithoutExiting = false` ends in
+		        // `exitAndNeverDeleteDrum()` -> `closeUI(&sampleBrowser)` on a browser the guest never
+		        // opened, i.e. an index `-1` read of `uiNavigationHierarchy` and `numUIsOpen = 0` from
+		        // inside the running `timerCallback` (`gui/ui/ui.cpp:183-197`). See the example below.
 		        expect(spy.dispatches).to_equal(1);
-		        expect(ClaimSpy::last_op == &SampleBrowser::runClaimCurrentFileOp).to_be_true();
+		        expect(ClaimSpy::last_op == &deluge::gui::ui::runShellSampleClaimOp).to_be_true();
 		        // ...and the drain emptied the outbox on the way, so a mutant that stops reading it
 		        // fails by comparison here rather than by `CleanBrowser`'s abort.
 		        expect(browser::browser_scene().take_choice().has_value()).to_be_false();
@@ -834,7 +844,7 @@ describe browser_choice_claim(
 		        // Three guest ticks, one choice, one claim: the drain is not re-entered on the ticks
 		        // after the outbox is empty.
 		        expect(spy.dispatches).to_equal(1);
-		        expect(ClaimSpy::last_op == &SampleBrowser::runClaimCurrentFileOp).to_be_true();
+		        expect(ClaimSpy::last_op == &deluge::gui::ui::runShellSampleClaimOp).to_be_true();
 		        expect(std::string{Browser::currentDir}).to_equal(std::string{"SAMPLES/OSC_A"});
 		        expect(selected_filename()).to_equal(std::string{"A1.WAV"});
 		        // The outbox is empty because the guest's own tick emptied it. Asserted here as well as
@@ -871,6 +881,33 @@ describe browser_choice_claim(
 		        // quiet guest tick polls, which is unconditionally.
 		        deluge::gui::ui::dispatchShellChoices();
 		        expect(spy.dispatches).to_equal(0);
+	        });
+
+	    it(
+	        "claims without exiting, because there is no legacy browser open to close", _ {
+		        // **The device defect this pins.** `claimCurrentFile`'s success tail is gated on
+		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:1108`), and its first
+		        // statement is `exitAndNeverDeleteDrum()` (`:1109`) -- which is `close()` (`:258-260`),
+		        // `Browser::close()` (`gui/ui/browser/browser.cpp:189-193`), `UI::close()` and finally
+		        // `closeUI(this)` (`gui/ui/ui.cpp:57-59`). Under the guest `sampleBrowser` was never
+		        // opened, so `closeUI`'s search falls out at `u == 0` and reads
+		        // `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:183-194`), then sets `numUIsOpen = 0`
+		        // and unsets `TimerName::UI_SPECIFIC` (`:195-197`) -- from inside the very
+		        // `ShellHostUI::timerCallback` that is running the drain.
+		        //
+		        // **This is the strongest form the pin can take, and the limit is the seam's own.**
+		        // Reaching `closeUI` means running a real `claimCurrentFile`: a card read and an
+		        // `AudioFileManager` allocation inside the assertion. So what an example can say is
+		        // which op the drain dispatches -- above -- and what that op will claim with, which is
+		        // here. Flip `loadWithoutExiting` and this reddens.
+		        //
+		        // The values are legacy's own, from the one call site that already needed this: the
+		        // auto-load feature's `claimCurrentFile(1, 1, 1, true)` (`sample_browser.cpp:640`),
+		        // "load it into the instrument as if you had confirmed, but keep the browser open".
+		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoPitchDetection).to_equal(1);
+		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoSingleCycle).to_equal(1);
+		        expect(deluge::gui::ui::kShellSampleClaimArgs.mayDoWaveTable).to_equal(1);
+		        expect(deluge::gui::ui::kShellSampleClaimArgs.loadWithoutExiting).to_be_true();
 	        });
     });
 

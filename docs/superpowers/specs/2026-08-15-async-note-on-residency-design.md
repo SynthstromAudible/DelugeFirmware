@@ -110,7 +110,7 @@ the warmed chunk lost its last lease, became evictable, was evicted, and `reques
 unready replacement under the same key — `ready = false, leases = 1`, reported as `LOADING`.
 
 The warm hint therefore works and is then dropped before the note consumes it. Previews are
-dispatched as worker-fiber ops (`sample_browser.cpp:590`, `Owner::run`) and each `previewSample`
+dispatched as worker-fiber ops (`sample_browser.cpp:591`, `Owner::run`) and each `previewSample`
 begins with `stopAnyPreviewing()`, so rapid scrolling — which is how this reproduces — lets a later
 preview release the reservation that an earlier, still-pending note-on was relying on.
 
