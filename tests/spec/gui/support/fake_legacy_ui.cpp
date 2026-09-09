@@ -1,8 +1,10 @@
 #include "fake_legacy_ui.h"
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/shell_pad_forward.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
+#include "hid/buttons.h"
 #include "memory/heaps.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/registry.h"
@@ -17,6 +19,7 @@ int mod_encoder_button_actions = 0;
 int graphics_routines = 0;
 double system_time_s = 0.0;
 bool sd_routine_active = false;
+bool shift_button_pressed = false;
 int knob_indicator_clears = 0;
 bool knob_clear_saw_close = false;
 int service_wirings = 0;
@@ -27,6 +30,8 @@ bool menu_learn_claims = false;
 int action_dispatches = 0;
 std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
+int pad_forwards = 0;
+PadCall last_pad_forward{};
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
 
@@ -53,6 +58,7 @@ void reset() {
 	graphics_routines = 0;
 	system_time_s = 0.0;
 	sd_routine_active = false;
+	shift_button_pressed = false;
 	knob_indicator_clears = 0;
 	knob_clear_saw_close = false;
 	service_wirings = 0;
@@ -63,6 +69,8 @@ void reset() {
 	action_dispatches = 0;
 	on_action_dispatch = nullptr;
 	choice_dispatches = 0;
+	pad_forwards = 0;
+	last_pad_forward = PadCall{};
 	timer_arms.clear();
 	timer_unsets.clear();
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
@@ -325,4 +333,27 @@ void dispatchShellActions() {
 void dispatchShellChoices() {
 	fakelegacyui::choice_dispatches++;
 }
+
+// `gui/ui/shell_pad_forward.cpp`'s share, on exactly the same terms as the two above: the real one
+// names `keyboardScreen`, `instrumentClipView`, `performanceView`, `automationView` and
+// `deluge::scenes::menu_scene()` -- the `deluge_scenes` and legacy-view closures this suite never
+// builds. The counter and the recorded arguments are what let `shell_host_ui_spec.cpp` ask the only
+// question that lives on this side of that seam: whether `ShellHostUI::padAction` forwards a pad the
+// scene did not claim, and with which coordinates and velocity -- not which arm the real decision
+// takes, which is `sim/scenes_spec/pad_forward_spec.cpp`'s, in the binary where the real legacy
+// views exist.
+PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
+	fakelegacyui::pad_forwards++;
+	fakelegacyui::last_pad_forward = fakelegacyui::PadCall{x, y, velocity};
+	return PadForwardTarget::None;
+}
 } // namespace deluge::gui::ui
+
+// `hid/buttons.cpp`'s share of legacy state `ShellHostUI` reads directly rather than through the
+// shell: see the docblock on `fakelegacyui::shift_button_pressed` in the header for why this suite
+// cannot link the real one.
+namespace Buttons {
+bool isShiftButtonPressed() {
+	return fakelegacyui::shift_button_pressed;
+}
+} // namespace Buttons

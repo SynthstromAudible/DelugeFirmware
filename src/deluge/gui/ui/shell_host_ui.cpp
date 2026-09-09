@@ -20,8 +20,10 @@
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
+#include "gui/ui/shell_pad_forward.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
+#include "hid/buttons.h"
 #include "hid/led/indicator_leds.h"
 #include "libdeluge/scheduler.h" // isSDRoutineActive(), getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
@@ -744,6 +746,24 @@ void ShellHostUI::feedDetents(EncoderRole role, int32_t detents) {
 	// (`shell/input_lowering.cpp:166-168`).
 }
 
+bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
+	switch (shell_.stack().input_top().grid_pad_claim()) {
+	case deluge::ui::shell::GridPadClaim::All:
+		return true;
+	case deluge::ui::shell::GridPadClaim::None:
+		return false;
+	case deluge::ui::shell::GridPadClaim::ShortcutsOnly:
+		// `SoundEditor::potentialShortcutPadAction`'s gate (`gui/ui/sound_editor.cpp:1169-1186`),
+		// minus its auditioning half: that is `isUIModeActive(UI_MODE_AUDITIONING)`, which
+		// `MenuScene` already drops with the reason recorded (`scenes/menu/menu_scene.cpp:1627-1630`).
+		// Past that gate legacy claims unconditionally, even where no shortcut table has an entry
+		// (`:1431`) -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad
+		// die (`menu_scene.cpp:1664`). The two agree; see spec §3.1.
+		return velocity != 0 && x < kDisplayWidth && Buttons::isShiftButtonPressed();
+	}
+	return true; // `-Werror=switch` makes this unreachable; it is here for the enum's future.
+}
+
 ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// `isSDRoutineActive()` rather than a parameter, because this hook has none -- which is also
 	// why `SoundEditor::padAction` reads it directly (`gui/ui/sound_editor.cpp:1461`).
@@ -761,8 +781,23 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// Unlike `buttonAction`'s (see there) this guard is not redundant with `on_pad`'s and is
 	// covered by an example that folds a coordinate on purpose.
 	if (x >= 0 && y >= 0 && x <= UINT8_MAX && y <= UINT8_MAX) {
-		feed(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y),
-		                      static_cast<int16_t>(velocity)});
+		if (claimsGridPad(x, y, velocity)) {
+			feed(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y),
+			                      static_cast<int16_t>(velocity)});
+		}
+		else {
+			// The pad is the legacy root view's, as it is in `SoundEditor::padAction`
+			// (`gui/ui/sound_editor.cpp:1474-1545`).
+			//
+			// **The guest may not be current when this returns**, and nothing below may assume it
+			// is: `performanceView.padAction` opens the legacy sound editor on a shift press
+			// (`gui/views/performance_view.cpp:1038`) and the tail's `closePortedMenu()` empties
+			// this guest's own stack. `armTickSoon` is safe on both counts -- `rearmTimer` refuses
+			// when this guest is not the current UI (`:620`, F2's final fix) -- and it is *required*
+			// on the second: the tick is what notices the empty stack and closes the guest
+			// (`:553-556`).
+			(void)forwardGridPad(x, y, velocity);
+		}
 	}
 
 	// `DEALT_WITH`, the base's own value, and the only other value legacy can act on here is

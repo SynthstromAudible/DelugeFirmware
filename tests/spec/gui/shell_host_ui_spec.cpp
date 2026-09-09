@@ -132,6 +132,7 @@ public:
 	bool dims_grid() const override { return false; }
 	bool input_transparent() const override { return passive; }
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return greyout; }
+	GridPadClaim grid_pad_claim() const override { return claim; }
 
 	void on_resume() override { resumes++; }
 	void on_exit() override { exits++; }
@@ -150,6 +151,9 @@ public:
 	bool overlay = false;
 	bool occludes = false;
 	bool passive = false;
+	/// What `grid_pad_claim()` answers. `GridPadClaim::All` -- `Scene`'s own default -- unless an
+	/// example wants `ShellHostUI::claimsGridPad` to see something else.
+	GridPadClaim claim = GridPadClaim::All;
 	bool led_declared = false;
 	deluge::ui::LedId led_id{};
 	deluge::ui::LedState led_state{};
@@ -1083,6 +1087,88 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.guest.shell().tick(2);
 		expect(r.base.seen.size()).to_equal(size_t(1));
 		expect(static_cast<int>(r.base.seen[0].ev.x)).to_equal(0);
+	});
+
+	// ---- input: the seam with `Scene::grid_pad_claim()` ----------------------------------------
+
+	it("feeds a pad the scene claims, and does not forward it", _ {
+		// `GridPadClaim::All` is the default, so this is every scene that existed before this seam.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::All;
+
+		(void)r.guest.padAction(3, 4, 64);
+		r.guest.shell().tick(1);
+
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(fakelegacyui::pad_forwards).to_equal(0);
+	});
+
+	it("forwards a pad the scene does not claim, and does not feed it", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::None;
+
+		(void)r.guest.padAction(3, 4, 64);
+		r.guest.shell().tick(1);
+
+		expect(r.base.seen.empty()).to_be_true();
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+		expect(fakelegacyui::last_pad_forward.x).to_equal(int32_t(3));
+		expect(fakelegacyui::last_pad_forward.y).to_equal(int32_t(4));
+		expect(fakelegacyui::last_pad_forward.velocity).to_equal(int32_t(64));
+	});
+
+	it("under ShortcutsOnly feeds a shift-held main-grid press and forwards everything else", _ {
+		// Spec §3.1: `potentialShortcutPadAction`'s gate is `on && x < kDisplayWidth && shift`
+		// (`gui/ui/sound_editor.cpp:1169-1186`), and past that gate it claims unconditionally
+		// (`:1431`).
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::ShortcutsOnly;
+
+		fakelegacyui::shift_button_pressed = true;
+		(void)r.guest.padAction(3, 4, 64);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.size()).to_equal(size_t(1));
+
+		(void)r.guest.padAction(kDisplayWidth + 1, 4, 64); // sidebar: never a shortcut
+		(void)r.guest.padAction(3, 4, 0);                  // release: never a shortcut
+		fakelegacyui::shift_button_pressed = false;
+		(void)r.guest.padAction(3, 4, 64); // no shift
+		expect(fakelegacyui::pad_forwards).to_equal(3);
+	});
+
+	it("asks the input top, not the top", _ {
+		// A popup is `input_transparent()`, so it is not the scene whose grid this is. Asking
+		// `top()` would let a popup's default `All` swallow a pad the menu beneath would forward.
+		Rig r;
+		r.base.claim = GridPadClaim::None;
+		expect(r.open()).to_be_true();
+		r.over.passive = true; // a popup / console line: drawn over, never taking input
+		expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+		fakelegacyui::reset();
+
+		(void)r.guest.padAction(3, 4, 64);
+
+		expect(fakelegacyui::pad_forwards).to_equal(1);
+	});
+
+	it("still arms the tick after a forward", _ {
+		// Load-bearing, not housekeeping: the `Exit` arm empties the guest's shell stack, and
+		// `ShellHostUI::timerCallback` is what then closes the guest (`shell_host_ui.cpp:553-556`).
+		// With no tick armed, the guest would sit open over an empty stack.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::None;
+
+		(void)r.guest.padAction(3, 4, 64);
+
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 	});
 
 	// ---- input: the card routine ---------------------------------------------------------------

@@ -84,6 +84,19 @@ extern double system_time_s;
 extern bool sd_routine_active;
 /// @}
 
+/// @name Legacy's own shift state, made settable
+///
+/// `ShellHostUI::claimsGridPad`'s `ShortcutsOnly` arm reads `Buttons::isShiftButtonPressed()`
+/// directly, exactly as `SoundEditor::potentialShortcutPadAction` does
+/// (`gui/ui/sound_editor.cpp:1169`) -- not `ctx.shift`, which is the shell's own latch and a
+/// different fact. `hid/buttons.cpp`, where the real function reads a matrix-scan flag, is not in
+/// this suite's link closure (only `hid/button.cpp`, singular, is), so it is defined here over one
+/// settable bool, the same pattern as the scheduler's two answers above.
+/// @{
+/// What `Buttons::isShiftButtonPressed()` returns.
+extern bool shift_button_pressed;
+/// @}
+
 /// @name What the guest calls out to, on the two paths this suite cannot build
 /// @{
 /// How many times `indicator_leds::clearKnobIndicatorLevels()` was called -- the guest's close-path
@@ -148,6 +161,23 @@ extern std::function<void()> on_action_dispatch;
 /// still links here, and so a later task can ask the one question that IS on this side -- whether
 /// the second poll happens on the same paths the first does.
 extern int choice_dispatches;
+
+/// @brief How many times `deluge::gui::ui::forwardGridPad()` was called.
+///
+/// F4's sibling of `action_dispatches` and `choice_dispatches`, on the same terms: the real
+/// `gui/ui/shell_pad_forward.cpp` names `keyboardScreen`, `instrumentClipView`, `performanceView`,
+/// `automationView` and `deluge::scenes::menu_scene()`, none of which this suite builds. What that
+/// leaves assertable here is the question that lives on `ShellHostUI`'s side of the seam --
+/// whether a pad the scene did not claim reaches the forward at all, and with which arguments --
+/// not which arm the real decision takes; that is `sim/scenes_spec/pad_forward_spec.cpp`'s, in the
+/// binary where the real legacy views exist.
+extern int pad_forwards;
+/// @brief The arguments of the last `forwardGridPad()` call.
+struct PadCall {
+	int32_t x, y, velocity;
+	bool operator==(const PadCall&) const = default;
+};
+extern PadCall last_pad_forward;
 /// @}
 
 /// @brief Which `UI` this suite's `getCurrentUI()` answers -- i.e. **who owns

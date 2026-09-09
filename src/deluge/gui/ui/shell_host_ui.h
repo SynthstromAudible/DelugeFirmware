@@ -576,6 +576,14 @@ private:
 	/// (`gui/ui/ui.cpp:197`). Callers must not re-arm after it.
 	void closeGuest();
 
+	/// @brief Does the scene that would receive this pad claim it? Spec §3.1's predicate.
+	///
+	/// `input_top()`, not `top()`: a passive overlay (popup, console, working animation) is
+	/// `input_transparent()` and is not the scene whose grid this is (`shell/scene.h:444`). Asking
+	/// `top()` would let such an overlay's default `All` swallow a pad the menu beneath it would
+	/// have forwarded.
+	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
+
 	/// The scene `opened()` pushes; `SceneKind::Null` until a caller sets one.
 	deluge::ui::shell::SceneId initial_{};
 	/// @brief The config `shell_` was built with, kept so `feedDetents` can read
