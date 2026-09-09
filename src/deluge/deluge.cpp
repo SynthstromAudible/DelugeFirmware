@@ -458,6 +458,11 @@ void registerTasks() {
 	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it only ever
 	// queues the next stretch of the load onto the storage owner, so it holds no SD resource itself.
 	addRepeatingTask([]() { loadSongUI.loadRoutine(); }, p++, 0.001, 0.005, 0.02, "song load", RESOURCE_NONE);
+
+	// A staged document save builds itself on this tier and then stores it in one operation. Like the
+	// song load above, it parks between steps and needs something to bring it back -- and returning to
+	// the run loop is the only reason the storage driver can make progress at all.
+	addRepeatingTask([]() { SaveUI::saveRoutine(); }, p++, 0.001, 0.005, 0.02, "document save", RESOURCE_NONE);
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
 	// the same reason: both are request/collect state machines whose caller returned long ago, and
 	// neither has a UI tick of its own to resume from.

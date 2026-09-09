@@ -84,8 +84,58 @@ public:
 	/// @brief Record one performSave() entry. Call as the FIRST statement of every override.
 	static void noteSaveTier();
 
+	/// @brief Serialise this save's document into @p into.
+	///
+	/// Runs on the INTERACTION tier and must touch no storage whatsoever -- building a document is
+	/// pure computation, and that is the asymmetry that lets a save leave the owner without the
+	/// segmentation a load needs.
+	virtual bool serializeForSave(XMLSerializer& into) { return false; }
+
+	/// @brief Whether this UI's save is a document that can be built in memory first.
+	///
+	/// False for SaveSongUI, whose save copies samples around the card and is not a document write.
+	/// It keeps the owner-side path unchanged, which is what keeps it out of this conversion.
+	[[nodiscard]] virtual bool savesStagedDocument() const { return false; }
+
+	/// @brief Drive a staged save one step. Registered as a repeating task in deluge.cpp.
+	static void saveRoutine();
+
+	/// @brief Whether a staged save is mid-flight. For gates; NOT the same as the UI being open.
+	[[nodiscard]] static bool saveInFlight() { return saveInFlight_; }
+
+	/// @brief Whole-document writes the CHANNEL has served, and staged steps that ran off the owner.
+	[[nodiscard]] static int32_t writeChannelServedOps() { return writeChannelServedOps_; }
+	[[nodiscard]] static int32_t offOwnerSaveTicks() { return offOwnerSaveTicks_; }
+
 private:
+	/// @brief Which part of a staged save runs next.
+	enum class SavePhase : uint8_t {
+		NONE,      ///< No staged save in flight.
+		SERIALIZE, ///< Building the document in memory, on the interaction tier.
+		WRITE,     ///< One whole-document write, through the channel or handed to the owner.
+		FINISH,    ///< Running the caller's completion.
+	};
+
+	void runSerializePhase();
+	void runWritePhase();
+	void runFinishPhase();
+	/// @brief Turn one write's outcome into a prompt, an error, or a success.
+	void handleWriteOutcome(bool alreadyExists, bool ok);
+	/// @brief Release the staged document and end the save. `succeeded` reaches the completion.
+	void endStagedSave(bool succeeded);
+	/// @brief Defer one more tick, or give up if this save has stopped making progress.
+	static bool deferStagedSave();
+
 	static inline int32_t interactionTierSaves_{};
+	static inline int32_t writeChannelServedOps_{};
+	static inline int32_t offOwnerSaveTicks_{};
+	static inline SavePhase savePhase_{SavePhase::NONE};
+	/// The UI whose staged save is running. The phase state is static because saves are
+	/// single-flight, so this says which instance the static state belongs to.
+	static inline SaveUI* phaseOwner_{nullptr};
+	static inline bool writeIssued_{};
+	static inline bool stagedSucceeded_{};
+	static inline int32_t stallTicks_{};
 	/// The in-flight save, if any. Single-flight by refusal: see dispatchSave().
 	static inline bool saveInFlight_{};
 	static inline deluge::storage::SaveRequest inFlightRequest_{};

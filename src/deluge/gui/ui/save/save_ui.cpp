@@ -24,9 +24,13 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "libdeluge/file_bytes.h"
+#include "libdeluge/file_write.h"
 #include "storage/file_item.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
+#include <optional>
+#include <span>
 
 using namespace deluge;
 
@@ -156,11 +160,212 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 	}
 	saveInFlight_ = true;
 	inFlightRequest_ = request;
+
+	// A document save builds itself in memory first and then stores it in one operation, so it does
+	// not go to the owner to begin with. Everything else -- the song save, whose save copies samples
+	// around the card -- keeps the path it has always had.
+	if (savesStagedDocument()) {
+		phaseOwner_ = this;
+		savePhase_ = SavePhase::SERIALIZE;
+		writeIssued_ = false;
+		stagedSucceeded_ = false;
+		stallTicks_ = 0;
+		// Attempt it once here rather than waiting for the next saveRoutine() pass, for the reason
+		// beginLoad() does: work dispatched during boot must not sit waiting for a repeating task
+		// that is not running yet.
+		saveRoutine();
+		return true;
+	}
+
 	if (!deluge::storage::Owner::run_or_inline(&SaveUI::runSaveOp, this)) {
 		saveInFlight_ = false; // the op never ran; release, or every later save is refused forever
 		return false;
 	}
 	return true;
+}
+
+/// The staged document, alive from SERIALIZE until the write is terminal.
+///
+/// A file-scope optional rather than a member, because saves are single-flight and the phase state
+/// they run on is static too. Disengaged at rest, so it costs nothing until a save starts -- the
+/// shape `smXmlBufferDeserializer` uses for the same reason on the read side.
+namespace {
+std::optional<XMLSerializer> stagedWriter;
+/// How many consecutive ticks one staged save tolerates without progress. A bound, not a timeout: an
+/// unbounded retry is not patience, it is a wedge that presents as the device having hung.
+constexpr int32_t kMaxSaveStallTicks = 600;
+} // namespace
+
+void SaveUI::saveRoutine() {
+	if (phaseOwner_ == nullptr) {
+		return;
+	}
+	switch (savePhase_) {
+	case SavePhase::NONE:
+		return;
+	case SavePhase::SERIALIZE:
+		phaseOwner_->runSerializePhase();
+		return;
+	case SavePhase::WRITE:
+		phaseOwner_->runWritePhase();
+		return;
+	case SavePhase::FINISH:
+		phaseOwner_->runFinishPhase();
+		return;
+	}
+}
+
+bool SaveUI::deferStagedSave() {
+	if (++stallTicks_ > kMaxSaveStallTicks) {
+		return false;
+	}
+	return true;
+}
+
+void SaveUI::runSerializePhase() {
+	// No card contact at all. This is the half of a save that never needed the owner.
+	stagedWriter.emplace();
+	stagedWriter->setMemoryBased();
+	if (!serializeForSave(*stagedWriter)) {
+		endStagedSave(false);
+		return;
+	}
+	if (stagedWriter->bytesWritten() <= 0) {
+		// An empty document is a failed save, not a small one.
+		endStagedSave(false);
+		return;
+	}
+	savePhase_ = SavePhase::WRITE;
+	stallTicks_ = 0;
+}
+
+void SaveUI::runWritePhase() {
+	const auto* bytes = reinterpret_cast<const uint8_t*>(stagedWriter->getBufferPtr());
+	const auto len = static_cast<uint32_t>(stagedWriter->bytesWritten());
+	const char* path = inFlightRequest_.filePath.c_str();
+	const bool mayOverwrite = inFlightRequest_.mayOverwrite;
+
+	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	// BOTH channels: the write goes through one and this arm's siblings size themselves with the
+	// other, and an arm that needs two and is given one defers forever.
+	const bool mayUseChannel = !onOwner && deluge_file_write_async_active() && deluge_file_bytes_async_active();
+
+	if (!onOwner && !mayUseChannel) {
+		// A build without the channel. Writing from here would block the very tier the card needs
+		// running to answer, so hand the whole write to the owner, which may block legally.
+		if (!deluge::storage::Owner::run(&SaveUI::runSaveOp, this)) {
+			if (!deferStagedSave()) {
+				endStagedSave(false);
+			}
+			return;
+		}
+		// runSaveOp ran performSave(), which owns the whole legacy path including its completion.
+		savePhase_ = SavePhase::NONE;
+		phaseOwner_ = nullptr;
+		stagedWriter.reset();
+		return;
+	}
+
+	if (onOwner) {
+		// Blocking is legal here, and the driver could not run anyway: a request issued from a
+		// context that will not yield can never be answered.
+		auto created = StorageManager::createFile(path, mayOverwrite);
+		if (!created) {
+			handleWriteOutcome(created.error() == Error::FILE_ALREADY_EXISTS, false);
+			return;
+		}
+		auto written = created->write(std::span<const std::byte>(reinterpret_cast<const std::byte*>(bytes), len));
+		const bool ok = written.has_value() && *written == len;
+		(void)created->close();
+		handleWriteOutcome(false, ok);
+		return;
+	}
+
+	if (!writeIssued_) {
+		if (!deluge_file_write_request_write_file(path, bytes, len, mayOverwrite)) {
+			// Refused, not failed: nothing was queued, so ask again next tick.
+			if (!deferStagedSave()) {
+				endStagedSave(false);
+			}
+			return;
+		}
+		writeIssued_ = true;
+		stallTicks_ = 0;
+		return;
+	}
+
+	uint32_t writtenLen = 0;
+	uint8_t exists = 0;
+	const uint8_t collected = deluge_file_write_collect_write_file(path, &writtenLen, &exists);
+	if (collected == DELUGE_FILE_WRITE_PENDING) {
+		if (!deferStagedSave()) {
+			endStagedSave(false);
+		}
+		return;
+	}
+	if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+		// Never keyed, so nothing is coming. Re-issue rather than wait forever.
+		writeIssued_ = false;
+		if (!deferStagedSave()) {
+			endStagedSave(false);
+		}
+		return;
+	}
+	writeIssued_ = false;
+	if (collected == DELUGE_FILE_WRITE_FAILED) {
+		handleWriteOutcome(exists == 1, false);
+		return;
+	}
+	++writeChannelServedOps_;
+	handleWriteOutcome(false, writtenLen == len);
+}
+
+void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
+	if (alreadyExists) {
+		// The name is taken and the user did not ask to replace it. Ask them, exactly as the
+		// owner-side path did -- and report the save as "dealt with", which is what a prompt means.
+		deluge::gui::context_menu::overwriteFile.currentSaveUI = this;
+		if (!deluge::gui::context_menu::overwriteFile.setupAndCheckAvailability()) {
+			endStagedSave(false);
+			return;
+		}
+		display->removeWorkingAnimation();
+		openUI(&deluge::gui::context_menu::overwriteFile);
+		endStagedSave(true);
+		return;
+	}
+	if (!ok) {
+		display->displayError(Error::WRITE_FAIL);
+		endStagedSave(false);
+		return;
+	}
+	endStagedSave(true);
+}
+
+void SaveUI::runFinishPhase() {
+	const deluge::storage::SaveRequest request = inFlightRequest_;
+	const bool succeeded = stagedSucceeded_;
+	SaveUI* const ui = phaseOwner_;
+
+	savePhase_ = SavePhase::NONE;
+	phaseOwner_ = nullptr;
+	// Released BEFORE the completion, exactly as runSaveOp() releases it: a completion may
+	// legitimately start another save (confirming the overwrite prompt is one), and it must not be
+	// refused by this save's own guard.
+	saveInFlight_ = false;
+
+	ui->runSaveCompletion(request, succeeded);
+}
+
+void SaveUI::endStagedSave(bool succeeded) {
+	// The staged document dies here and not one tick later: it can be the better part of a hundred
+	// kilobytes, and every path out of a save passes through this function.
+	stagedWriter.reset();
+	writeIssued_ = false;
+	stallTicks_ = 0;
+	stagedSucceeded_ = succeeded;
+	savePhase_ = SavePhase::FINISH;
+	runFinishPhase();
 }
 
 void SaveUI::runSaveOp(void* self) {
