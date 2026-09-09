@@ -286,4 +286,53 @@
 14420  button Back up
 16500  snapshot claim-exited
 
-17000  quit
+# **The gesture this script never made, and why it is here.** Everything above opens menus and
+# turns encoders; the only main-grid presses (`pad 0 7`, `pad 0 6`) happen with no menu open, to
+# make a clip. So `SoundEditor::padAction`'s forwarding switch and its `exitCompletely()` tail
+# (`gui/ui/sound_editor.cpp:1474-1545`) were never once exercised by the acceptance test, and the
+# guest's divergence from both shipped through five task reviews and three whole-branch reviews.
+# See the pad-forwarding spec §7.2.
+#
+# Root here is `InstrumentClipView` (the `claim-exited` snapshot above), which is the one root that
+# reaches two arms: the audition column at `x == kDisplayWidth + 1` (`:1500-1502`) and the tail.
+17000  button SelectEnc down
+17020  button SelectEnc up
+
+# **Not in the original plan for this step, and load-bearing.** This is the SOUND root's SECOND
+# open in this run -- the first was at `t=400`, scrolled onto MASTER at `t=700`, and never
+# scrolled back. Legacy's `soundEditorRootMenu` is a single static `Submenu`, and
+# `Submenu::focusChild` keeps whatever `current_item_` a previous visit left
+# (`gui/menu_item/submenu.cpp:21-34`) -- a real, deliberate legacy feature (the device remembers
+# where you left a menu). `MenuScene::open` does not port it: `openShellMenu` calls it directly
+# and it unconditionally resets (`st_ = MenuState{}`, `scenes/menu/menu_scene.cpp:314-318`), so
+# the ON leg always reopens at the first row. Without this turn the OFF leg would reopen on
+# MASTER and the ON leg on ACTIONS, and `pad-menu-open.oled0.pbm` would differ between the legs
+# for a reason that has nothing to do with grid-pad forwarding -- measured: recording without this
+# line fails `ui_app_scripts_menu_ab` on exactly that file. `-5` overshoots the top of a
+# three-item list on purpose: `Submenu::selectEncoderAction`'s backward scan clamps at
+# `items.begin()` rather than wrapping unless `wrapAround()` (`renderingStyle() == HORIZONTAL`,
+# `submenu.cpp:129-131`) is true, and the SOUND root is not, so both legs land on ACTIONS
+# regardless of where each one started. This is a real, separate MenuScene gap -- cursor memory
+# across a menu's re-open is not ported -- recorded here rather than fixed, because fixing it is
+# not grid-pad forwarding and is out of this task's files.
+17100  encoder Select -5
+17300  snapshot pad-menu-open
+
+# The audition column, forwarded to `instrumentClipView.padAction` (`:1501`). The menu stays open:
+# legacy's arm returns `DEALT_WITH` without reaching the tail.
+17500  pad 17 4 down
+17800  snapshot pad-audition-forwarded
+
+# Released before the next press ON PURPOSE. The audition press latches `UI_MODE_AUDITIONING`, and
+# the tail is gated on `currentUIMode == UI_MODE_NONE` (`:1520`) -- so with the pad still held, the
+# main-grid press below would not close the menu, and this script would be pinning the wrong
+# reason for the right picture.
+18000  pad 17 4 up
+18200  snapshot pad-audition-released
+
+# A main-grid pad with no shift: no arm matches, so `:1520-1545` closes the menu. This is the
+# behaviour Kate ruled on (spec §2.1): legacy is correct, we close on pad press.
+18500  pad 3 3 down
+18700  pad 3 3 up
+19000  snapshot pad-menu-closed
+20000  quit
