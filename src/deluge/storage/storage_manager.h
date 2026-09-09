@@ -367,18 +367,13 @@ std::expected<deluge::io::File, Error> createFile(char const* filePath, bool may
 Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
 Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,
                      bool displayErrors = true);
-Error openXMLFile(char const* path, XMLDeserializer& reader, char const* firstTagName, char const* altTagName = "",
-                  bool ignoreIncorrectFirmware = false);
-Error openJsonFile(char const* path, JsonDeserializer& reader, char const* firstTagName, char const* altTagName = "",
-                   bool ignoreIncorrectFirmware = false);
-Error openDelugeFile(char const* path, char const* firstTagName, char const* altTagName = "",
-                     bool ignoreIncorrectFirmware = false);
-
 /// @brief Open a Deluge document that is already in memory, with no I/O of any kind.
 ///
-/// The in-memory twin of openDelugeFile(): it picks the deserializer the caller names rather than
-/// inferring it from a filename extension, points that deserializer at @p buffer, and runs the SAME
-/// openXMLFile()/openJsonFile() validation the file path runs.
+/// The only way a document is parsed. It picks the deserializer the caller names rather than
+/// inferring it from a filename extension, points that deserializer at @p buffer, and runs the same
+/// XMLDeserializer::openXMLFile()/JsonDeserializer::openJsonFile() validation as ever -- those are
+/// the deserializers' own methods, and they stay; what has gone is the pair of StorageManager
+/// functions that used to open a document by streaming it off the card while parsing it.
 ///
 /// @param buffer                 The document bytes. Borrowed, NOT copied: it must outlive every read
 ///                               through `activeDeserializer` that follows. May be a PREFIX of a longer

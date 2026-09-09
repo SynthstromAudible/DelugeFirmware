@@ -103,13 +103,14 @@ static_assert(std::tuple_size_v<SongPreviewPrefixBuffer> >= DELUGE_FILE_PREFIX_C
 static_assert(deluge::storage::kSongPreviewWindow <= std::tuple_size_v<SongPreviewPrefixBuffer>,
               "the preview cannot request more than its own buffer holds");
 
-/// @brief Whether a song path names a JSON document, decided exactly as openDelugeFile() decides it.
+/// @brief Whether a song path names a JSON document.
 ///
-/// A buffer has no filename for the reader to infer the format from, so the caller has to say. The
-/// rule is `.Json` anywhere in the path -- see StorageManager::openDelugeFile() in file_reader.cpp,
-/// which is the behaviour the file-backed decode gets for free and this one has to reproduce.
+/// A buffer has no filename for the reader to infer the format from, so the caller has to say.
+/// Delegates rather than restating the rule: two copies of "what counts as JSON" is exactly the pair
+/// that drifts, and getting it wrong routes an XML song to the JSON parser, where the failure reads
+/// as a corrupt file.
 bool isJsonSongPath(const std::string& path) {
-	return path.find(".Json") != std::string::npos;
+	return StorageManager::documentIsJson(path.c_str());
 }
 
 } // namespace
@@ -1015,7 +1016,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 		// about it.
 		//
 		// Error::FILE_NOT_FOUND specifically, which is what the file backing's own open reports for
-		// EVERY failed open (StorageManager::openXMLFile maps busy and unreadable onto it too). The
+		// EVERY failed open (the staged opener maps busy and unreadable onto it too). The
 		// channel does not say which failure it was; neither does the path this stands in for, so the
 		// two arms conflate identically rather than differently.
 		if (imageStore != nullptr) {

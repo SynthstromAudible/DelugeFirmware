@@ -171,8 +171,8 @@ bool FileReader::closeWriter() {
 		return true;
 	}
 	// Already closed. A corrupt document reaches this twice -- XMLDeserializer::openXMLFile() closes on
-	// its FILE_CORRUPTED exit and StorageManager::openXMLFile() closes again on the error it returns --
-	// and without this the second call dereferences a disengaged optional.
+	// its FILE_CORRUPTED exit and the staged opener closes again on the error it returns -- and
+	// without this the second call dereferences a disengaged optional.
 	if (!file) {
 		return true;
 	}
@@ -341,57 +341,6 @@ Error StorageManager::openDocumentSynchronously(char const* path, char const* fi
 
 void StorageManager::releaseDocumentStaging() {
 	releaseStaging(&documentStaging);
-}
-
-Error StorageManager::openXMLFile(char const* path, XMLDeserializer& reader, char const* firstTagName,
-                                  char const* altTagName, bool ignoreIncorrectFirmware) {
-
-	AudioEngine::logAction("openXMLFile");
-	reader.reset();
-	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
-	if (!opened) {
-		return Error::FILE_NOT_FOUND;
-	}
-	reader.file = std::move(opened.value());
-	Error err = reader.openXMLFile(firstTagName, altTagName, ignoreIncorrectFirmware);
-	activeDeserializer = &reader;
-	if (err == Error::NONE)
-		return Error::NONE;
-	reader.closeWriter();
-
-	return Error::FILE_CORRUPTED;
-}
-
-Error StorageManager::openJsonFile(char const* path, JsonDeserializer& reader, char const* firstTagName,
-                                   char const* altTagName, bool ignoreIncorrectFirmware) {
-
-	AudioEngine::logAction("openJsonFile");
-	reader.reset();
-	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
-	if (!opened) {
-		return Error::FILE_NOT_FOUND;
-	}
-	reader.file = std::move(opened.value());
-	Error err = reader.openJsonFile(firstTagName, altTagName, ignoreIncorrectFirmware);
-	activeDeserializer = &reader;
-	if (err == Error::NONE)
-		return Error::NONE;
-	reader.closeWriter();
-
-	return Error::FILE_CORRUPTED;
-}
-
-Error StorageManager::openDelugeFile(char const* path, char const* firstTagName, char const* altTagName,
-                                     bool ignoreIncorrectFirmware) {
-	Error error;
-	if (strstr(path, ".Json") != nullptr) {
-		error =
-		    StorageManager::openJsonFile(path, smJsonDeserializer, firstTagName, altTagName, ignoreIncorrectFirmware);
-	}
-	else {
-		error = StorageManager::openXMLFile(path, smDeserializer, firstTagName, altTagName, ignoreIncorrectFirmware);
-	}
-	return error;
 }
 
 // The memory-backed readers are separate objects from smDeserializer/smJsonDeserializer rather than a
