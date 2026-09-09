@@ -2148,3 +2148,25 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 */
+
+void SoundEditor::adoptResolvedContext(const ResolvedContext& resolved) {
+	// `setup()`'s tail, in its own order (`:1832-1834`, then `:1873-1896`). Assigned unconditionally
+	// rather than under `setup()`'s `if (currentSound)` / `else if (clip->type == AUDIO)` guards,
+	// because whoever resolved these values has already applied exactly those guards -- the ported
+	// `menu::context_for` does (`scenes/menu/context.cpp:382-416`), which is why it is the one
+	// caller. Re-applying them here would be a second implementation of the same branch.
+	//
+	// Defined at the end of the file on purpose: `sound_editor.cpp` is the most heavily cited legacy
+	// file in this stack, and an insert anywhere above shifts every one of those citations.
+	currentParamManager = resolved.params;           // `:1832`
+	currentModControllable = resolved.mod;           // `:1834`
+	currentSound = resolved.sound;                   // `:1873`
+	currentArpSettings = resolved.arp;               // `:1874`
+	currentMultiRange = resolved.range;              // `:1875`
+	currentSidechain = resolved.sidechain;           // `:1877-1879`
+	currentSourceIndex = resolved.sourceIndex;       // `:1882`
+	currentSource = resolved.source;                 // `:1883`
+	currentSampleControls = resolved.sampleControls; // `:1884`
+	currentPriority = resolved.priority;             // `:1885`
+	currentMultiRangeIndex = resolved.rangeIndex;
+}

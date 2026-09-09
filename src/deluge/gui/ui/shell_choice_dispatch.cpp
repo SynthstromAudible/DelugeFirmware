@@ -22,9 +22,11 @@
 #include "gui/ui/shell_choice_dispatch.h"
 
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "scenes/browser/browser_scene.h"
+#include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/registry.h"
 #include "storage/owner.h"
@@ -119,6 +121,32 @@ void claimSampleFile(const SampleClaimTarget& target) {
 		// that because it only ever claims what it just listed.
 		return;
 	}
+	// **The editor half of the same rebuild.** `selectFileForClaim` above restores what
+	// `BrowserScene::on_exit` destroyed; this restores what `SoundEditor::setup` never wrote.
+	// `claimCurrentFile`'s instrument arm reads `soundEditor.currentSound` on its very first
+	// statement (`sample_browser.cpp:871`) and `currentSource` / `currentSourceIndex` /
+	// `currentMultiRange` throughout, and under the toggle no `setup()` ever ran -- `openShellMenu`
+	// opens the guest instead. **Measured**: without this the toggle-ON leg of
+	// `tests/ui-scripts/app/menu.txt` SIGSEGVs at `sample_browser.cpp:871` on the first claim, on a
+	// fresh boot where `currentSound` is still its default `nullptr`.
+	//
+	// The values come from `MenuScene`'s own `MenuContext` -- the one `openShellMenu` resolved for
+	// this visit -- so this is a mirror of a resolution, not a second one. See
+	// `SoundEditor::adoptResolvedContext`.
+	const deluge::scenes::menu::MenuContext& menuCtx = deluge::scenes::menu_scene().menu_context();
+	soundEditor.adoptResolvedContext(SoundEditor::ResolvedContext{
+	    .sound = menuCtx.sound,
+	    .mod = menuCtx.mod,
+	    .params = menuCtx.params,
+	    .arp = menuCtx.arp,
+	    .sidechain = menuCtx.sidechain,
+	    .range = menuCtx.range,
+	    .rangeIndex = menuCtx.range_index,
+	    .sourceIndex = menuCtx.source_index,
+	    .source = menuCtx.source,
+	    .sampleControls = menuCtx.sample_controls,
+	    .priority = menuCtx.priority,
+	});
 	// `SampleBrowser::enterKeyPress`'s file arm (`gui/ui/browser/sample_browser.cpp:392`):
 	// fire-and-forget onto the storage owner, the dispatch's own result discarded exactly as legacy
 	// discards it. The op is this file's rather than legacy's, for the one reason

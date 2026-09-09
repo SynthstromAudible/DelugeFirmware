@@ -169,6 +169,52 @@ public:
 	std::optional<std::span<deluge::gui::menu_item::HorizontalMenu* const>>
 	getCurrentHorizontalMenusChain(bool checkNavigationDepth = true);
 
+	/// @brief The eleven facts `setup()` resolves before it opens anything, as a value.
+	///
+	/// Field-for-field the resolved half of the ported `menu::MenuContext`, but spelled in legacy's
+	/// own types: `check_layer_rules.py`'s `legacy-names-port` row forbids this header naming a
+	/// `src/scenes` type, and it is right to -- this header is included across the whole legacy tree
+	/// and the value is that the dependency runs one way. The caller translates
+	/// (`gui/ui/shell_choice_dispatch.cpp`), which is the layer whose job is translating.
+	struct ResolvedContext {
+		Sound* sound;
+		ModControllableAudio* mod;
+		ParamManagerForTimeline* params;
+		ArpeggiatorSettings* arp;
+		SideChain* sidechain;
+		::MultiRange* range;
+		int16_t rangeIndex;
+		int8_t sourceIndex;
+		Source* source;
+		SampleControls* sampleControls;
+		VoicePriority* priority;
+	};
+
+	/// @brief Point the eleven resolved `current*` members at what @p resolved names -- `setup()`'s
+	///        own tail, for a caller that never ran `setup()`.
+	///
+	/// **Why this exists.** `SampleBrowser::claimCurrentFile`'s instrument arm reads `currentSound`
+	/// on its first statement (`gui/ui/browser/sample_browser.cpp:871`) and `currentSource` /
+	/// `currentSourceIndex` / `currentMultiRange` throughout (`:880`, `:927`, `:1013`), and reaches
+	/// `getCurrentAudioFileHolder()` and `cutSound()`, both of which dereference them. Legacy never
+	/// has to think about it: the browser is only ever reached from `FileSelector::beginSession`
+	/// (`gui/menu_item/file_selector.cpp:36-47`), i.e. from inside a `SoundEditor` that `setup()`
+	/// resolved. **Under the ShellMenu toggle nothing calls `setup()` at all**, so `currentSound` is
+	/// whatever the last legacy menu left, which on a fresh boot is `nullptr`. Measured at level 3:
+	/// the toggle-ON leg of `tests/ui-scripts/app/menu.txt` SIGSEGVed on the first claim.
+	///
+	/// The editor-side twin of `SampleBrowser::selectFileForClaim`
+	/// (`gui/ui/browser/sample_browser.h`), which rebuilds the *browser* state
+	/// `BrowserScene::on_exit` destroyed: same argument, other object, and the write lives on the
+	/// class that owns the members rather than in the wiring layer that has the values.
+	///
+	/// What it deliberately does NOT touch: `allowsNoteTails` (a twelfth value `setup()` computes,
+	/// never read by a claim), `navigationDepth` / `menuItemNavigationRecord` (the ported walk lives
+	/// in `MenuState`, and `runShellSampleClaimOp` re-roots that instead), and every UI member. This
+	/// makes `soundEditor` a correct *model* accessor for the duration of the claim; it does not
+	/// make it an open UI.
+	void adoptResolvedContext(const ResolvedContext& resolved);
+
 private:
 	/// Setup shortcut blinking by finding the given menu item in the provided item map
 	void setupShortcutsBlinkFromTable(MenuItem const* currentItem,
