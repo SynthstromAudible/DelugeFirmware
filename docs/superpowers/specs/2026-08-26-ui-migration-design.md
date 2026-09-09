@@ -64,9 +64,9 @@ the hook it belongs to.
   the play flash through it (`playback/mode/session.cpp:1295`). `Slicer` holds the two at opposite
   values on one object — `oledShowsUIUnderneath = true` at `gui/ui/slicer.h:35`,
   `canSeeViewUnderneath() { return false; }` at `:38` — which is proof in the shipped tree that they are
-  independent questions. The guest maps it to `!top().occludes_grid()` (`shell/scene.h:386-387`).
+  independent questions. The guest maps it to `!top().occludes_grid()` (`shell/scene.h:407-408`).
   **The regression the wrong mapping would have shipped:** `MenuScene::oled_transparent` is false
-  (`scenes/menu/menu_scene.h:481`) where `SoundEditor::canSeeViewUnderneath` is true
+  (`scenes/menu/menu_scene.h:492`) where `SoundEditor::canSeeViewUnderneath` is true
   (`gui/ui/sound_editor.h:121`), so the clip view under an open menu would have stopped animating.
 - **`exitUI()`'s return value pops nothing.** The row says it returns `NOT_DEALT_WITH` on an empty
   shell stack "so `closeUI` pops the guest". Neither of its two readers does that, and every legacy
@@ -222,7 +222,7 @@ The rows that held up unchanged: `renderMainPads`/`renderSidebar` really do retu
 opacity, and §2.2's dual for it (`is_grid_overlay()` is `!renderMainPads()`) is the mapping the guest
 implements; `focusRegained` really is `on_resume`, with the one refinement that it goes to
 `SceneStack::input_top()` rather than `top()`, because that is what `Scene::on_resume`'s own contract
-says (`shell/scene.h:359-374`) and what the stack itself does (`shell/scene_stack.h:38-46`);
+says (`shell/scene.h:380-395`) and what the stack itself does (`shell/scene_stack.h:38-46`);
 `getGreyoutColsAndRows` really is the top scene's `greyout_mask()`, with `doGreyout == false` spelled
 as an all-zero mask (`scenes/menu/menu_scene.cpp:1697-1729`).
 
@@ -379,7 +379,7 @@ correction is the interesting part.** The first version of this paragraph quoted
 fastest grid gate, 20 ms". There is no such ceiling, and two shipped scenes already exceed it:
 `RecorderScene` polls at `kRecorderPollMs = 10` (`src/scenes/recorder/recorder_scene.h:180`) and does
 not override `timer_repaints()`, so it takes `Scene`'s `{.oled = true, .grid = true}` default
-(`src/shell/scene.h:629`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
+(`src/shell/scene.h:661`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
 returns `0u` for as long as the playhead is live
 (`src/scenes/audio_clip/audio_clip_scene.cpp:1203`) with `{.grid = true}`
 (`audio_clip_scene.h:477`), so the grid gate arms every tick and no millisecond figure bounds it at
@@ -595,8 +595,8 @@ rather than a thing that is half-done:
    miscounted as a whole exclusion in two earlier passes at this sentence —
    `docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md` §2.1 has the full per-site
    account. **Fixed by `ui/pads-1`**: `Scene::grid_pad_claim()`
-   (`src/shell/scene.h:455`) plus `ShellHostUI::claimsGridPad` (`gui/ui/shell_host_ui.cpp:749-765`)
-   and `forwardGridPad`'s tail (`gui/ui/shell_pad_forward.cpp:136-139`) now call
+   (`src/shell/scene.h:455`) plus `ShellHostUI::claimsGridPad` (`gui/ui/shell_host_ui.cpp:754-776`)
+   and `forwardGridPad`'s tail (`gui/ui/shell_pad_forward.cpp:154-162`) now call
    `closePortedMenu()` (`gui/ui/shell_action_dispatch.cpp:189-191`) on the same condition legacy's
    tail tests. **Why it survived five task reviews and three whole-branch reviews**: the level-3
    acceptance script (`tests/ui-scripts/app/menu.txt`) had never made the gesture before this branch
