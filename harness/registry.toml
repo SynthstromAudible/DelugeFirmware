@@ -282,6 +282,18 @@ ci = "nightly"
 runtime = "~10m"
 
 [[harness]]
+name = "sample-collect-channel"
+path = "."
+kind = "property"
+status = "gate"
+gates = "a song saved with collect-media on must land every sample it references in its own folder, byte-identical to the source, and must leave the audio-file list sorted and every resident file still findable. Two legs: the off leg proves a build with no byte channel still collects through the storage owner, the on leg proves the channel arm runs and runs OFF the owner. SC-ORDERED is the reason this gate is worth its runtime -- the collection walks a container the audio engine and the UI both read, mutating the very key it is SORTED BY, and the old code was safe from that only ACCIDENTALLY, because the whole walk was one uninterrupted call on the owner. Take the owner away and the accident goes with it. A green SC-ORDERED proves nothing by itself, though: what proves the snapshot is load-bearing is the neutering that mutates filePath during the PLAN walk instead of the APPLY pass, which must turn SC-ORDERED red. On its first run this gate found three defects -- transfers had no owner arm at all so a channel-free build could never collect anything, the collected path was built by APPENDING to an empty string and took the filesystem down, and the check itself asked the wrong question twice over."
+build = []
+run = ["scripts/sample_collect_channel.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~10m"
+
+[[harness]]
 name = "song-load-channel"
 path = "."
 kind = "property"

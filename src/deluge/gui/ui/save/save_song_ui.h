@@ -91,6 +91,13 @@ public:
 	[[nodiscard]] static int32_t transferChannelServedOps() { return transferChannelServedOps_; }
 	[[nodiscard]] static int32_t offOwnerTransferTicks() { return offOwnerTransferTicks_; }
 
+	/// @brief Transfers the storage OWNER served, synchronously.
+	///
+	/// The counterpart to transferChannelServedOps(). Reported alongside it because the two must
+	/// account for every transfer between them: a build where half the files quietly took the other
+	/// arm reads as a success from either number alone.
+	[[nodiscard]] static int32_t transferOwnerServedOps() { return transferOwnerServedOps_; }
+
 private:
 	/// Which part of a sample collection runs next.
 	///
@@ -133,6 +140,7 @@ private:
 	bool anyErrorMovingTempFiles_{};
 
 	static inline int32_t transferChannelServedOps_{};
+	static inline int32_t transferOwnerServedOps_{};
 	static inline int32_t offOwnerTransferTicks_{};
 
 public:

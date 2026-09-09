@@ -590,9 +590,13 @@ gotError:
 	collectStallTicks_ = 0;
 	collectPhase_ = CollectPhase::TRANSFER;
 
-	// Attempt once here rather than waiting for the next pass, and return "dealt with" -- the same
-	// answer this function already gives when it opens the overwrite prompt instead of finishing.
-	collectRoutine();
+	// The transfers are NOT started here, and that is the point. This function runs on the storage
+	// owner, so a transfer attempted from it would take the owner arm and copy synchronously -- the
+	// exact thing this rung exists to stop. The repeating save task picks the collection up on its
+	// next pass, off the owner, which costs one tick and buys the whole relocation.
+	//
+	// Returning "dealt with" is the same answer this function already gives when it opens the
+	// overwrite prompt instead of finishing.
 	return true;
 }
 
@@ -685,6 +689,25 @@ void SaveSongUI::runTransferPhase() {
 		return;
 	}
 
+	if (onOwner) {
+		// Blocking is legal here, and asking the channel would be worse than pointless: a request
+		// issued from a context that will not yield can never be answered.
+		++transferOwnerServedOps_;
+		if (!transferOneSynchronously()) {
+			abandonCollection();
+			return;
+		}
+		++transferCursor_;
+		renameIssued_ = false;
+		copyIssued_ = false;
+		renameSucceeded_ = true;
+		collectStallTicks_ = 0;
+		return;
+	}
+
+	// Past this point every transfer goes through the channel, from the interaction tier. THIS is the
+	// rung's claim, and the number a gate can read it from. Counting the on-owner case here too would
+	// have made the number say "off the owner" about work that ran ON it.
 	++offOwnerTransferTicks_;
 
 	DelugeStatus status = DELUGE_OK;
@@ -766,6 +789,7 @@ void SaveSongUI::runTransferPhase() {
 
 void SaveSongUI::runTransferOnOwner(void* self) {
 	auto* ui = static_cast<SaveSongUI*>(self);
+	++transferOwnerServedOps_;
 	ui->ownerTransferOk_ = ui->transferOneSynchronously();
 	ui->ownerTransferDone_ = true;
 }
