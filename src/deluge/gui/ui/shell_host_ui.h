@@ -112,7 +112,7 @@ namespace deluge::gui::ui {
 /// the bottom of every tick (`shell/shell.cpp:533`). `UITimerManager::setTimer` takes a **duration**
 /// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:253-255`). The
 /// conversion is therefore `in = (int32_t)(deadline - now)`, in the wrap-safe difference form
-/// `Shell::compute_next_wake` and `RepaintGate` both use (`shell/shell.cpp:1046-1054`,
+/// `Shell::compute_next_wake` and `RepaintGate` both use (`shell/shell.cpp:1053-1061`,
 /// `ui/core/repaint_gate.cpp:7`) -- a plain `<` across the ~49.7-day `uint32_t` wrap picks the wrong
 /// one of two straddling deadlines -- and then clamped to `kMinRearmMs .. kMaxRearmMs`.
 ///
@@ -169,14 +169,14 @@ namespace deluge::gui::ui {
 /// **There is no `LedSink`, and this class implements no LED sink.** Spec F §2.1 says "the guest's
 /// `derive_leds` writes through an `indicator_leds` `LedSink`"; `grep -rn LedSink src/` has no hits,
 /// `derive_leds` is a private member of `Shell` (`shell/shell.h:507`) rather than of the guest, and
-/// the writing is done by `Shell::flush`, not by `derive_leds` (`shell/shell.cpp:995-1021`). The seam
+/// the writing is done by `Shell::flush`, not by `derive_leds` (`shell/shell.cpp:1002-1028`). The seam
 /// that actually exists is `SurfaceSet::set_led`/`set_indicator`, implemented for the guest by F1
 /// task 4 (`gui/ui/shell_guest_surfaces.cpp:175`, `:189`). What this task adds is the *tick* that
 /// makes any of it run.
 ///
 ///  - **An LED a scene declares is the guest's.** `Shell::flush`'s diff loop only ever calls
 ///    `set_led` for an id with `desired_declared` set (`shell/leds.cpp:75-80`), which
-///    `Shell::derive_leds` sets only from the composed `LedFrame` (`shell/shell.cpp:867-886`). The
+///    `Shell::derive_leds` sets only from the composed `LedFrame` (`shell/shell.cpp:874-893`). The
 ///    guest then takes the LED away from legacy's blinker for as long as it holds it:
 ///    `GuestSurfaceSet::set_led` calls `indicator_leds::setLedState` with the default
 ///    `allowContinuedBlinking = false`, whose first act is `stopLedBlinking(led)`
@@ -195,7 +195,7 @@ namespace deluge::gui::ui {
 ///    **This went live with F1 task 8, which is what task 7 said would make it live.** The one
 ///    declarer is `services::ModKnobs` (`grep -rn "frame.indicator(" src/scenes` --
 ///    `scenes/services/mod_knobs.cpp:687`, `:696`, `:703`), `Shell::flush` calls `set_indicator`
-///    only for an indicator declared this tick (`shell/shell.cpp:1025-1037`), and the guest now has a
+///    only for an indicator declared this tick (`shell/shell.cpp:1032-1044`), and the guest now has a
 ///    `ModKnobs` in its `Services`. The fix task 7 named is in: `closeGuest()`, the body BOTH of
 ///    the guest's close paths run (`exitUI`'s long-press Back and `timerCallback`'s short one, F1
 ///    task 11), calls `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`)

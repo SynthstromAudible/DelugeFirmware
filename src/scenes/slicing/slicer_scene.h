@@ -170,7 +170,7 @@
 ///     `lengthInSamples`, which `horizontalEncoderAction`'s clamp (`:220-221`) allows -- and column
 ///     16 is the first sidebar column. Legacy composes the grid **top-down**
 ///     (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`), so the sidebar UI beneath overwrites that pad later in
-///     the same pass; the shell composes **bottom-up** (`Shell::render_grid`, `shell/shell.cpp:700-827`: base first,
+///     the same pass; the shell composes **bottom-up** (`Shell::render_grid`, `shell/shell.cpp:700-834`: base first,
 ///     then overlays), so reproducing the write here would leave the stray pad visible where legacy's is not. The port
 ///     therefore paints the slice marks inside the main-column region, which clips it. Behaviour
 ///     preserved by clipping, not by transcription -- the one place in this file where those differ.

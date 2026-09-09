@@ -998,7 +998,7 @@ One transcription this port deliberately does **not** make, and it is the only o
 column -- once `horizontalEncoderAction`'s clamp (`:220-221`) has driven a slice to the end of the
 sample. Legacy composes the grid top-down (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`), so
 the sidebar UI beneath overwrites that pad later in the same pass; the shell composes bottom-up
-(`Shell::render_grid`, `shell/shell.cpp:700-827`), so reproducing the write would leave a stray pad
+(`Shell::render_grid`, `shell/shell.cpp:700-834`), so reproducing the write would leave a stray pad
 visible where legacy's is not. The port paints the marks inside the main-column region, which clips
 it: behaviour preserved by clipping rather than by transcription.
 
