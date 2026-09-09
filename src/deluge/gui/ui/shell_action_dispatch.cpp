@@ -123,7 +123,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// (`endScreen()`, `:759`) and closes the menu UI (`close()`, `:761`, which is `closeUI(this)`,
 /// `gui/ui/ui.cpp:57-59`). Under the guest **the thing that is open is `ShellHostUI`, not
 /// `soundEditor`** -- `openShellMenu` opens this UI in `SoundEditor`'s place
-/// (`gui/ui/shell_menu_entry.cpp:162`) and nothing on that path opens `soundEditor` at all.
+/// (`gui/ui/shell_menu_entry.cpp:169`) and nothing on that path opens `soundEditor` at all.
 ///
 /// So calling `soundEditor.exitCompletely()` here would not be a harmless no-op. `closeUI`'s search
 /// loop stops at `u >= 1` (`gui/ui/ui.cpp:183`); given a UI that is not on the stack it falls out
@@ -140,8 +140,8 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
-/// (`scenes/menu/menu_scene.cpp:1617-1622`). `SceneStack::remove` and not `pop`, for the reason
-/// recorded there (`:1604-1615`): `pop` would take a `Working` animation or a `Popup` sitting over
+/// (`scenes/menu/menu_scene.cpp:1652-1657`). `SceneStack::remove` and not `pop`, for the reason
+/// recorded there (`:1639-1650`): `pop` would take a `Working` animation or a `Popup` sitting over
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
 ///
@@ -166,7 +166,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///
 /// @par The `shellHostUI` global, deliberately
 ///
-/// The guest is a singleton -- one object, one open site (`gui/ui/shell_menu_entry.cpp:162`) -- and
+/// The guest is a singleton -- one object, one open site (`gui/ui/shell_menu_entry.cpp:169`) -- and
 /// this seam's sibling reaches for it the same way for the same kind of question: `menuIsFrontmost`
 /// (`gui/ui/shell_guest_services.cpp:190-192`) reads `shellHostUI.shell().stack()` and calls itself
 /// "the port of `getCurrentUI() == &soundEditor`". `SceneStack::remove` is a documented no-op when
@@ -339,7 +339,7 @@ void dispatchShellActions() {
 		// `:483-487`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
 		// (`scenes/menu/context.cpp:330-358`, the assignment at `:357`, reached because `ClipType` has
 		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp:1095-1098`); and `openShellMenu` is the
-		// one opener (`gui/ui/shell_menu_entry.cpp:107-163`, the context at `:118-120`). The gap both
+		// one opener (`gui/ui/shell_menu_entry.cpp:107-170`, the context at `:118-120`). The gap both
 		// sides share is that the argument and `currentSong->getCurrentClip()` are two different
 		// reads: legacy resolves the root from the `clip` it was handed and the callee resolves the
 		// clip from the song. Closing that here -- with a null test, or by reading the argument --

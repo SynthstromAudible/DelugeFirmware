@@ -67,7 +67,7 @@ public:
 	Result handle(const UiEvent&, const UiContext&) override {
 		events++;
 		if (remove_self_on_event) {
-			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:1617-1622`),
+			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:1652-1657`),
 			// reduced to the one thing this file needs: a scene that takes itself off the stack
 			// from inside the tick's routing, which is what sends `timerCallback` down its early
 			// `return`.

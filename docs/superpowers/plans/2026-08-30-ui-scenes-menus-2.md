@@ -38,7 +38,7 @@
 
 ### Task 1: `Kind::SyncLevel` has no renderer
 
-E1 shipped `Kind::SyncLevel` with a `validate.cpp` arm but **no arm in `MenuScene::render_leaf`** (`menu_scene.cpp:399-429`), so all ten sync nodes — delay sync, arp sync, LFO1/LFO2 sync, sidechain sync, reverb sidechain sync, both swing intervals, record quantize — fall to `default:` and draw a title with no value and no way to edit it. Task 11's goldens covered int/decimal/enum/toggle/submenu/shortcut/range-permission and never rendered one.
+E1 shipped `Kind::SyncLevel` with a `validate.cpp` arm but **no arm in `MenuScene::render_leaf`** (`menu_scene.cpp:399-464`), so all ten sync nodes — delay sync, arp sync, LFO1/LFO2 sync, sidechain sync, reverb sidechain sync, both swing intervals, record quantize — fall to `default:` and draw a title with no value and no way to edit it. Task 11's goldens covered int/decimal/enum/toggle/submenu/shortcut/range-permission and never rendered one.
 
 **Files:**
 - Modify: `src/scenes/menu/menu_scene.cpp` (add the arm; correct the stale `default:` comment at `:419-421`, which still names `Bipolar`/`Range`/`MultiRange`/`Colour`/`Action` — all five were dropped in E1 Task 8), `src/scenes/menu/menu_scene.h` (declare `render_leaf_sync_level`)
@@ -136,7 +136,7 @@ git commit -m "fix(scenes): render and edit Kind::SyncLevel, which E1 left drawi
 
 ### Task 2: Custom items receive input; `Kind::Info` for read-only text
 
-`CustomItem::handle` is declared and never called — `menu_scene.cpp:421-424` renders a custom and stops. Nothing can implement a custom item until input reaches it. Two of the placeholders (firmware version, battery level) are pure read-only centred text and do not deserve a `CustomItem` each, so this task also adds the small kind that serves them.
+`CustomItem::handle` is declared and never called — `menu_scene.cpp:456-459` renders a custom and stops. Nothing can implement a custom item until input reaches it. Two of the placeholders (firmware version, battery level) are pure read-only centred text and do not deserve a `CustomItem` each, so this task also adds the small kind that serves them.
 
 **Files:**
 - Modify: `src/scenes/menu/node.h` (add `Kind::Info`, `InfoScratch`, `InfoFn`, `Node::info`, and the `info_item()` builder), `src/scenes/menu/menu_scene.cpp` (call `custom->handle`; add the `Kind::Info` render arm), `src/scenes/menu/validate.cpp` (`Kind::Info` needs a non-null `info`), `src/scenes/menu/nodes/settings.h` (`firmware_version`, `battery_level` become `info_item`s)
@@ -269,7 +269,7 @@ git commit -m "feat(scenes): deliver input to custom items; add Kind::Info for r
 
 ### Task 3: `select_chain` — legacy's `selectButtonPress` chaining
 
-E1 dropped this wholesale: `menu_scene.cpp:900-904` ascends on any leaf press, so `ArpPreset::CUSTOM` no longer opens `arpOctaveModeToNoteModeMenu` (`gui/menu_item/arpeggiator/preset_mode.h:110-118`), `unison_count` no longer chains to `stereoSpreadMenu` (`unison/count.h:72`), and `arp_octave_mode` no longer chains (`octave_mode.h:90,99`). The spec's amendment carries the complete sweep, including `Submenu::shouldForwardButtons()` and `PatchCableStrength`'s arm (that one is Task 9's).
+E1 dropped this wholesale: `menu_scene.cpp:935-939` ascends on any leaf press, so `ArpPreset::CUSTOM` no longer opens `arpOctaveModeToNoteModeMenu` (`gui/menu_item/arpeggiator/preset_mode.h:110-118`), `unison_count` no longer chains to `stereoSpreadMenu` (`unison/count.h:72`), and `arp_octave_mode` no longer chains (`octave_mode.h:90,99`). The spec's amendment carries the complete sweep, including `Submenu::shouldForwardButtons()` and `PatchCableStrength`'s arm (that one is Task 9's).
 
 **Files:**
 - Modify: `src/scenes/menu/node.h` (`SelectChainFn`, `Node::select_chain`, `with_select_chain()`), `src/scenes/menu/menu_scene.cpp` (consult it before ascending), `src/scenes/menu/nodes/sound_arp.h`, `sound_unison.h`, `sound_voice.h`, `settings.h` (the four leaves; delete the four header comments that stood in for the behaviour)

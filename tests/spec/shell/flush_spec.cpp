@@ -509,8 +509,8 @@ describe shell_flush("shell::Shell::flush", $ {
 		// `compute_next_wake` consults is something a scene or service asked for -- so before this
 		// fix a declared `Kind::Blink` froze at whatever phase the last tick left it in on an
 		// otherwise idle system. Live rather than theoretical: `MenuScene::leds` declares BACK and
-		// LEARN as `Blink(kFlashTime)` unconditionally (`scenes/menu/menu_scene.cpp:1066`, `:1073`)
-		// while `MenuScene::next_timer` (`scenes/menu/menu_scene.cpp:1797-1811`) answers `nullopt` for
+		// LEARN as `Blink(kFlashTime)` unconditionally (`scenes/menu/menu_scene.cpp:1101`, `:1108`)
+		// while `MenuScene::next_timer` (`scenes/menu/menu_scene.cpp:1798-1812`) answers `nullopt` for
 		// any focused node with neither source pads nor a shortcut position.
 		//
 		// `FlushScene` has no `next_timer()` of its own and this rig arms no gate past the first

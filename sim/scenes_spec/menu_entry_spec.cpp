@@ -204,7 +204,7 @@ describe menu_entry_roots("openShellMenu resolves the root each site's arguments
 		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
 		expect(deluge::scenes::menu_scene().focused() == &nodes::root_settings).to_be_true();
-		// `arg == 0` is "the root the context chose" (`scenes/menu/menu_scene.cpp:401-410`).
+		// `arg == 0` is "the root the context chose" (`scenes/menu/menu_scene.cpp:401-445`).
 		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = 0}).to_be_true();
 		closeGuest();
 	});
@@ -320,7 +320,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 		    .to_be_true();
 		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = id}).to_be_true();
 		// And it landed there rather than merely being asked to: `MenuScene::on_enter` resolves the
-		// arg through `node_by_id` and re-roots the path at it (`menu_scene.cpp:396-416`).
+		// arg through `node_by_id` and re-roots the path at it (`menu_scene.cpp:396-451`).
 		expect(deluge::scenes::menu_scene().focused() == &nodes::file0_selector).to_be_true();
 		// ...and the log survived, which is the half a `clip != nullptr` test alone would get wrong.
 		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
@@ -483,7 +483,7 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 		// guest; this task opens it, so the property is asserted rather than assumed.
 		//
 		// `MenuScene::next_timer()` answers `std::nullopt`, `kSourceBlinkMs` (20) or
-		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1763-1778`).
+		// `kShortcutBlinkMs` (180) -- never 0 (`scenes/menu/menu_scene.cpp:1798-1813`).
 		//
 		// **This is a sample, not a sweep, and the distinction matters.** The eight gated sites open
 		// ten different roots between them; what runs below is the settings root, the sound root and
