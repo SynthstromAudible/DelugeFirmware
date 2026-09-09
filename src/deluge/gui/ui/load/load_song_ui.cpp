@@ -476,8 +476,16 @@ void LoadSongUI::startLoad() {
 	}
 	Error error;
 
+	// Saved before the open, and put back at every exit below. openDocumentSynchronously() leaves
+	// activeDeserializer pointing at the memory reader on EVERY path including the failed one, and
+	// that reader's fileClusterBuffer IS the staged buffer released here -- code downstream writes
+	// through the global without opening a document of its own (SaveSongUI's sample collection reads
+	// Cluster::size, 32 KiB, into it), so leaving it pointing at freed bytes is heap corruption rather
+	// than a stale read. Same discipline decodeSongPreview() documents.
+	FileDeserializer* const previousDeserializer = activeDeserializer;
+
 	std::string filePath = currentDir + "/" + currentFileItem->getFilenameWithExtension();
-	error = StorageManager::openDelugeFile(filePath.c_str(), "song");
+	error = StorageManager::openDocumentSynchronously(filePath.c_str(), "song");
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -512,6 +520,8 @@ ramError:
 someError:
 		display->displayError(error);
 		activeDeserializer->closeWriter();
+		StorageManager::releaseDocumentStaging();
+		activeDeserializer = previousDeserializer;
 fail:
 		// We couldn't load the requested song. Recover to a usable state and stop.
 		//
@@ -564,6 +574,9 @@ gotErrorAfterCreatingSong:
 	AudioEngine::logAction("read new song from file");
 
 	bool success = activeDeserializer->closeWriter();
+	// Nothing reads the staged bytes once the reader is closed.
+	StorageManager::releaseDocumentStaging();
+	activeDeserializer = previousDeserializer;
 	if (!success) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
