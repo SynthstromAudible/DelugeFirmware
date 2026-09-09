@@ -536,6 +536,12 @@ rather than a thing that is half-done:
    the exact legacy statements it ran before, which F1 task 9 verified line by line at all eight
    sites.
 
+   **F3 unblocked one of the six and did not take it, so the count is still 8 of 14.** Site 10
+   (`SampleBrowser::claimCurrentFile`) was unmapped because it wants `parentMenuHeadingTo` focused on
+   `menuItemHeadingTo`, a pair with no port. Item 4's re-rooting **is** that pair's port, so the
+   stated reason is spent and the table's row now says so. Gating it is a decision of its own rather
+   than a node lookup and F3 did not make it. The other five are unchanged.
+
    **MIDI is a separate half and is only partly closed** — see item 8. Two of the four learn
    messages have a transport and all four are inert for a third reason recorded there.
 
@@ -572,20 +578,61 @@ rather than a thing that is half-done:
    a legacy defect and not by an omission — §10.9 is the number and the reason.
 4. ~~**No `take_choice()` dispatcher.**~~ `BrowserScene`'s deferring descriptor parks a chosen file
    and closes; performing `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu`
-   re-rooting is the wiring layer's. **Closed for the `Sample` descriptor by F3 tasks 1-3.**
-   `gui::ui::dispatchShellChoices` drains the outbox every guest tick and claims against the parked
-   path; `runShellSampleClaimOp`'s success arm re-roots through
-   `MenuScene::reroot_to_scene_opener_page()`. The two were not one job: a `MenuAction` names a
-   legacy statement and carries at most a `uint16_t`, whereas a `BrowserChoice` carries a path whose
-   claim re-roots the *navigation record* — `MenuState::path`/`depth`, which only `MenuScene` may
-   write.
+   re-rooting is the wiring layer's. **CLOSED for the `Sample` descriptor by plan F3.**
+   `gui::ui::dispatchShellChoices` (`src/deluge/gui/ui/shell_choice_dispatch.{h,cpp}`, tasks 1-2)
+   drains the outbox every guest tick and claims against the parked path, through a legacy-side
+   accessor (`SampleBrowser::selectFileForClaim`) because `claimCurrentFile` reads the browser's own
+   `currentDir` and selected item rather than taking a path, and with `loadWithoutExiting = true`
+   because its tail would otherwise `closeUI` a browser the guest never opened;
+   `runShellSampleClaimOp`'s success arm re-roots through
+   `MenuScene::reroot_to_scene_opener_page()` (task 3), which is where `loadWithoutExiting`
+   suppressed legacy's own copy. The two were not one job: a `MenuAction` names a legacy statement
+   and carries at most a `uint16_t`, whereas a `BrowserChoice` carries a path whose claim re-roots
+   the *navigation record* — `MenuState::path`/`depth`, which only `MenuScene` may write. Task 4
+   then drove one claim end to end at level 3, through legacy entry site 8 on a real card, and
+   §10.10 is what that covers.
 
-   **What "closed" does and does not claim.** Three things stay open and each is recorded at the
-   code rather than here: **shift+select** on a file loads the sample where legacy opens the slicer
-   (`claimSampleFile`'s `@warning`); the **recorder's identical heading pair** has no caller for the
-   entry point and re-roots at a different depth (`nodes::AudioRecorderItem::on_focus`); and the
-   op's *call* to the entry point is not reachable from a spec, because reaching it means running a
-   real `claimCurrentFile` (`sim/scenes_spec/browser_choice_spec.cpp`'s `browser_choice_reroot`).
+   **The claim seam's two additive legacy methods are ratcheted.** `SampleBrowser::selectFileForClaim`
+   and `SoundEditor::adoptResolvedContext` (the latter added by task 4, for the four editor members
+   no `setup()` writes under the toggle) are dead with the toggle off for exactly one reason: their
+   only caller is the dispatcher. `check_layer_rules.py`'s `legacy-calls-claim-seam` row is what
+   keeps that true, on `legacy-names-port`'s own argument pointed the other way.
+
+   **What "closed" does and does not claim, and the first of these is the one that matters.**
+
+   * **Shift+select on a file loads the sample where legacy opens the slicer, and there is no route
+     from the ported browser to `SlicerScene` at all.** `SampleBrowser::enterKeyPress`'s file arm is
+     a fan-out, not one statement (`gui/ui/browser/sample_browser.cpp:371-384`, the `openUI(&slicer)`
+     at `:378`); only the `else` is the claim. `Descriptor::accept` carries no shift bit
+     (`scenes/browser/browser_scene.h:239`) and `sample_accept` answers `Defer` unconditionally
+     (`browser_scene.cpp:209-218`), so the shift is dropped before a choice is ever filed — and **F3's
+     dispatcher cannot recover it honestly**, because it runs a tick *after* the press, so
+     `Buttons::isShiftButtonPressed()` read from there is a different moment than the one that filed
+     the choice. The fix is the shift state on `BrowserChoice`, and so on `Descriptor::accept`. **A
+     missing route, not a missing port**: `SlicerScene` (`scenes/slicing/slicer_scene.h`) shipped in
+     E3. Recorded at `claimSampleFile`'s `@warning` and in `src/scenes/README.md`'s carry table.
+   * **The recorder's identical heading pair**, deferred by scope decision rather than by mechanism.
+     Legacy writes it in the same routine for both — `SoundEditor::maybeGetParentMenu`'s browser arm
+     at `gui/ui/sound_editor.cpp:2092-2093` and its **recorder** arm at `:2097-2102` — and
+     `osc::AudioRecorder::beginSession` consumes it at `osc/audio_recorder.h:40-48`, with
+     `navigationDepth = 0` at `:42` indexing the record at `:43`, so `[navigationDepth]` IS `[0]` and
+     the two arms differ only in statement order. **The `MenuScene` half is already paid** — task 3's
+     `reroot_to_scene_opener_page()` is the entry point and `MenuState::scene_opener` is written for
+     every scene push, the recorder's included. What is missing is a **caller**, because
+     `RecorderScene` has no outbox for a dispatcher to drain the way `take_choice()` is drained. Its
+     cost is one extra BACK press after a recording. Recorded at `nodes::AudioRecorderItem::on_focus`.
+   * **The op's *call* to the entry point is not reachable from a spec**, because reaching it means
+     running a real `claimCurrentFile` (`sim/scenes_spec/browser_choice_spec.cpp`'s
+     `browser_choice_reroot`). That is what task 4's level-3 A/B exists to answer instead, and what
+     §10.10's number is bounded by.
+
+   **Legacy entry site 10 is now unblocked, and is not taken here.** `SampleBrowser::claimCurrentFile`
+   is the tenth of the fourteen `openUI(&soundEditor)` sites (`gui/ui/shell_menu_entry.cpp`'s table),
+   and its stated reason for not being gated was that it wants `parentMenuHeadingTo` focused on
+   `menuItemHeadingTo` — two arbitrary `MenuItem*`s with no port. That pair is what this item's
+   re-rooting replaces, so the reason no longer holds; the table's row says so. Gating it is a
+   separate decision (it is the *legacy* browser, reached with the toggle on only from the six
+   unmapped sites), and item 2's count stays **8 of 14**.
 5. ~~**Three boot calls.**~~ **Closed by F1 task 8**, and two of the three turned out not to be boot
    calls at all — the account is `src/scenes/registry.h`'s boot-wiring record.
    `menu::set_shortcuts_version()` is flash byte 60, whose value **does** live in a global the
@@ -1570,3 +1617,102 @@ more scripts. Fixing `sound_editor.cpp:1893` alone converts 1 of 7 into 7 of 7. 
 behaviour change and the repo owner's call; it is recorded here, at §10.5's eleventh defect, in
 `src/scenes/README.md`'s carried table, and in the script's own header, with that consequence
 attached.
+
+### 10.10 What the oracle covers for F3's subject, and why four of five is the honest number (2026-09-09, closing F3)
+
+The same question §10.6, §10.7, §10.8 and §10.9 ask, for what plan F3 built: **the choice seam's
+consumer** — `gui::ui::dispatchShellChoices`, the claim it performs, and the re-rooting its success
+arm does. §10.9 is the model to read this against, including its closing line: an honest small
+number beats an inflated one, and this plan's honest number has a named limit.
+
+**F3's oracle is two levels, and only one of them reaches the application.** Level 1/2 is
+`sim/scenes_spec/browser_choice_spec.cpp`, which grew from **7 examples to 14** over this plan, in
+four groups that follow the claim's own stages: `browser_choice_target` (4 — the path split is the
+inverse of `SampleBrowser::getCurrentFilePath`, including a driven round trip),
+`browser_choice_dispatch` (3 — the drain, from the guest's own tick, on a tick where the browser has
+already closed itself), `browser_choice_claim` (4 — the claim happens, `loadWithoutExiting` is why,
+and a `Close` descriptor is left alone) and `browser_choice_reroot` (3 — the menu lands on the source
+page, the opener is spent, a menu that opened no scene is refused). Level 3 is
+`tests/ui-scripts/app/menu.txt`, extended from 12 snapshots per leg to **16**, and it drives **one
+claim, end to end, on both toggle legs, over a real SD card**.
+
+**The number: 1 of 2 descriptors has a dispatcher arm, 14 fixture examples, 1 claim driven end to
+end — and 4 of that claim's 5 steps.**
+
+| what | count |
+|---|---|
+| `BrowserId` descriptors shipping | 2 (`Sample`, `MidiDeviceDefinition`) |
+| descriptors that answer `AcceptOutcome::Defer`, and so need a dispatcher arm | 1 — `Sample`; `MidiDeviceDefinition` loads its own file and answers `Close` |
+| arms of `dispatchShellChoices` | 1, and there is no `switch`: the drain tests the `BrowserId` and returns for anything else |
+| fixture examples (`browser_choice_spec.cpp`) | **14**, up from 7 at F3's base |
+| host-side spec for the **poll** rather than the act | **none** — see the second counter-example below |
+| **claims driven end to end in the real firmware, both toggle legs** | **1** — a `.WAV` under `SAMPLES/`, chosen in the ported browser through legacy entry site 8 |
+| steps of that claim the A/B actually proves | **4 of 5** — reaching the selector, opening the browser identically, listing the card identically, the round trip being state-neutral; **not** that the sample loaded |
+| level-3 scripts | 1 (`tests/ui-scripts/app/menu.txt`), 58 steps |
+| snapshots per leg | 16 (12 at F3's base) |
+| committed goldens | 64 — 16 `.pbm` + 16 `.state`, twice |
+| OLED panels compared leg-to-leg | 16, **all 16 byte-identical** |
+| `.state` files compared leg-to-leg | 16, of which **9 differ** — every one explained by a pre-existing or newly recorded finding (F1 task 11's antiphase BACK blink, the sidebar divergence of §10.2 item 2, and the ported browser drawing its text keyboard where legacy draws the sample's waveform) |
+| ctest rows | 7, unchanged — the extension is inside the `menu` script, not a new one |
+
+**Both directions were measured as mutations, and one of the three passes**, which is what makes the
+number honest rather than merely small:
+
+* Disabling `MenuScene::on_enter`'s `ensure_first_range` guard reddens `ui_app_scripts_menu_shell_diff`
+  and `..._ab` — the ON leg then draws the file selector's bare title page where the OFF leg draws
+  the browser.
+* Removing the `adoptResolvedContext` call in `claimSampleFile` reddens `ui_app_scripts_menu_shell`
+  itself: the leg SIGSEGVs and writes no snapshot.
+* **Making `dispatchShellChoices` drop the choice, so the claim never runs, leaves `ctest -R
+  ui_app_scripts` at 7/7.** That is this plan's coverage claim stated as its own counter-example,
+  and it is exactly the fifth step above.
+
+**Why the fifth step is not covered, and why that is a finding rather than an omission.** The only
+panel that would show the load is the page the claim lands on. Both legs land on the *same page*
+with the *same column region focused* — which is what §10.2 item 4's re-rooting claims, and the A/B
+confirms it — but the two panels are not byte-identical, and they differ for **four** reasons of
+which **one is undiagnosed**: legacy draws `[folder icon] | SAMP | TRAN | PLAY`, the port draws
+`TYPE | FILE | TRAN | REVE`. Two are carried rows meeting the application for the first time
+(`renderInHorizontalMenu` has no port for the four bespoke items; `getColumnLabel` has no `Node`
+spelling, and `FileSelector::getColumnLabel` at `gui/menu_item/file_selector.cpp:93-114` renders the
+loaded sample's *folder* where the port renders the node's name). The fourth is not relevance —
+`sample::Reverse::isRelevant` (`gui/menu_item/sample/reverse.h:34-36`) and `relevance::osc0_is_sample`
+are the same predicate — so it is paging or ordering in `render_horizontal`. Photographing that page
+would record a difference nobody has explained, which is what E4 task 13's rule forbids and what has
+now been ruled correct four times. **Closing the landing-page row is what converts 4 of 5 into 5 of
+5**, and it is a `Node`/`CustomItem` API addition that moves every horizontal golden in the tree.
+
+**A second counter-example, of a different kind: the choice poll's *position* is pinned by nothing
+on the host side.** F2's action poll has four examples in `tests/spec/gui/shell_action_dispatch_spec.cpp`
+asserting it happens on an idle tick, after `Shell::tick`, on the closing tick and from nowhere else.
+The choice poll has the same two positional requirements, argued at the same two call sites
+(`shell_host_ui.cpp`), and **no host-side example asserts any of them** — `fakelegacyui::choice_dispatches`
+exists and is incremented and nothing reads it. What pins the drain is
+`browser_choice_dispatch`'s three examples, from the *scenes* side, which reach it through a real
+guest tick but cannot see where in `timerCallback` the call sits. That is a gap of one spec file, not
+of a mechanism, and it is named here rather than closed because F3's tasks did not own it.
+
+**What one script cannot cover here, over and above §10.8's and §10.9's lists.**
+
+* **Shift+select.** Not covered at any level, because the behaviour does not exist: the port loads
+  the sample where legacy opens the slicer (§10.2 item 4). An A/B of that gesture would fail, which
+  is the correct outcome and not one this plan recorded as a golden.
+* **The `MidiDeviceDefinition` descriptor.** It answers `Close`, so it never files a choice, so
+  `dispatchShellChoices` has nothing to do for it. "1 of 2 descriptors" above is a statement about
+  the seam's shape, not a missing arm.
+* **The recorder's half of the re-rooting.** `MenuScene::reroot_to_scene_opener_page()` is called
+  from one place. `RecorderScene` has no outbox for a second caller to drain, so the entry point's
+  recorder path has no oracle at any level (§10.2 item 4).
+* **What the claim did to the sound.** No suite asserts that `Source::ranges[0]`'s audio file is the
+  one chosen — the A/B's oracle is pixels and `.state` lines, and the fixture-level claim runs
+  against a recorder rather than a card. This is the same hole as the fifth step, seen from the
+  model side rather than the screen side.
+
+**The conclusion, and it is §10.9's continued rather than repeated.** F1 learned that a wiring plan's
+oracle is narrow and deep. F2 added that narrow and deep is bounded by what the *legacy* leg can
+survive. F3 adds the third bound and it is the port's own: **an A/B can only photograph a difference
+somebody has explained.** F2's missing six were blocked by a legacy defect; F3's missing fifth step
+is blocked by a divergence in the port that is recorded, reproducible and not yet diagnosed. Both
+are the same discipline — the number grows by *fixing the thing the number is bounded by*, not by
+writing more script. Here that thing is `render_horizontal`'s fourth column, and it is one carried
+row away.
