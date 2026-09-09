@@ -161,6 +161,11 @@ PLACE_SDRAM_RODATA constexpr RGB mono_mod_shortcut_colours [][kDisplayHeight] = 
 void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB image[][kDisplayWidth + kSideBarWidth],
                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool doKitAffectEntire)
 {
+
+	if (!forThing)
+	{
+		freezeWithError("ohno");
+	}
 	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
 	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
@@ -173,9 +178,14 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
 				if (forThing && menuitem->isRelevant(forThing, 0))
 				{
 					image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
-					occupancyMask[yDisplay][xDisplay] = 64;
 				}
 			}
+			else
+			{
+				image[yDisplay][xDisplay] = none_colour;
+			}
+
+			occupancyMask[yDisplay][xDisplay] = 64;
 		}
 	}
 }
@@ -1199,7 +1209,8 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		}
 
 		bool hadNoteTails;
-
+		SynthMode oldMode;
+		OscType oldOscTypes[kNumSources];
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
@@ -1208,6 +1219,11 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
+			oldMode = currentSound->getSynthMode();
+			for (int i = 0; i < kNumSources; i++)
+			{
+				oldOscTypes[i] = currentSound->sources[i].oscType;
+			}
 		}
 
 		item->selectEncoderAction(item->isSubmenu() ? offset : scaledOffset);
@@ -1222,9 +1238,20 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
-			bool hasNoteTailsNow = currentSound->allowNoteTails(modelStack);
-			if (hadNoteTails != hasNoteTailsNow) {
+			bool needsRendering = hadNoteTails != currentSound->allowNoteTails(modelStack);
+
+			if (needsRendering)
+			{
 				uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+			}
+			needsRendering |= currentSound->getSynthMode() != oldMode;
+			for (int i = 0; i < kNumSources; i++)
+			{
+				needsRendering |= (oldOscTypes[i] != currentSound->sources[i].oscType);
+			}
+			if (needsRendering)
+			{
+				uiNeedsRendering(this, 0xFFFFFFFF, 0);
 			}
 
 			if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR

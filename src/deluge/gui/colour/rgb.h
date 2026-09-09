@@ -11,7 +11,7 @@
  * @brief This class represents the colour format most used by the Deluge globally
  *
  */
-class RGB {
+class alignas(4) RGB {
 public:
 	/// The size of each colour channel
 	using channel_type = uint8_t;

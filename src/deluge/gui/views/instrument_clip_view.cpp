@@ -252,7 +252,11 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	using namespace deluge::hid::button;
 
 	if (b == SHIFT && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)) {
+		exitedShortcutsView = false;
 		uiNeedsRendering(this);
+	}
+	else {
+		exitedShortcutsView = true;
 	}
 
 	// Scale mode button
@@ -1773,6 +1777,8 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
+	exitedShortcutsView = true;
+	uiNeedsRendering(this);
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		if (Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
@@ -6141,6 +6147,7 @@ static const uint32_t verticalScrollUIModes[] = {
 
 ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
+	exitedShortcutsView = true;
 	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
@@ -6456,6 +6463,8 @@ shiftAllColour:
 static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
+	exitedShortcutsView = true;
+
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
@@ -6535,6 +6544,7 @@ void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
 }
 
 void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
+	exitedShortcutsView = true;
 	auto quantizeType = encoderButtonPressed ? NudgeMode::QUANTIZE_ALL : NudgeMode::QUANTIZE;
 	if (isUIModeActive(UI_MODE_QUANTIZE)) {
 		commandQuantizeNotes(offset, quantizeType);
@@ -7317,6 +7327,11 @@ void InstrumentClipView::notifyPlaybackBegun() {
 	reassessAllAuditionStatus();
 }
 
+bool InstrumentClipView::shouldRenderShortcutsOverview() const {
+	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay) && Buttons::isShiftButtonPressed()
+	       and not exitedShortcutsView;
+}
+
 bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
                                         bool drawUndefinedArea) {
@@ -7328,7 +7343,7 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 		return true;
 	}
 
-	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay) && Buttons::isShiftButtonPressed()) {
+	if (shouldRenderShortcutsOverview()) {
 		// what even is this view???
 		SoundEditor::renderMainShortcutsOnly(
 		    (ModControllableAudio*)view.activeModControllableModelStack.modControllable, image, occupancyMask,
