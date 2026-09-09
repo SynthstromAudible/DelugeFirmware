@@ -107,12 +107,27 @@ public:
 	int32_t bytesWritten();
 	void setMemoryBased() { memoryBased = true; }
 
+	/// @brief Bytes the buffer can currently hold. GROWS as a memory-backed document outgrows it.
+	[[nodiscard]] uint32_t bufferCapacity() const { return bufferSize; }
+
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
+
+	/// @brief Double the buffer, preserving what has been written. Memory-backed writers only.
+	/// @return false if a larger block could not be had, which is a FAILED save and never a short one.
+	bool growWriteBuffer();
+
 	bool memoryBased = false;
 	uint8_t indentAmount{};
 	char* writeClusterBuffer;
+	/// @brief The address alloc_sdram actually returned.
+	///
+	/// `writeClusterBuffer` is this plus CACHE_LINE_SIZE, so freeing THAT hands the allocator an
+	/// interior pointer -- which the host's own test seam documents libc rejecting outright. Keeping
+	/// the base is what lets the destructor and the growth path both free the thing that was
+	/// allocated.
+	char* writeClusterBufferBase{};
 	uint32_t bufferSize;
 	int32_t fileWriteBufferCurrentPos{};
 	int32_t fileTotalBytesWritten{};

@@ -734,8 +734,8 @@ bool StorageManager::buildPathToFile(const char* fileName) {
 
 FileWriter::FileWriter() {
 	bufferSize = 32768;
-	void* temp = deluge::memory::alloc_sdram(bufferSize + CACHE_LINE_SIZE * 2);
-	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	writeClusterBufferBase = static_cast<char*>(deluge::memory::alloc_sdram(bufferSize + CACHE_LINE_SIZE * 2));
+	writeClusterBuffer = writeClusterBufferBase + CACHE_LINE_SIZE;
 }
 
 FileWriter::FileWriter(bool inMem) : FileWriter() {
@@ -743,7 +743,28 @@ FileWriter::FileWriter(bool inMem) : FileWriter() {
 }
 
 FileWriter::~FileWriter() {
-	deluge::memory::dealloc(writeClusterBuffer);
+	// The BASE, not the buffer. They differ by CACHE_LINE_SIZE, and handing back the offset pointer
+	// gives the allocator an address it never issued -- the host's own storage_mocks.cpp records libc
+	// rejecting exactly that shape ("free(): invalid size") for this class's reader twin.
+	deluge::memory::dealloc(writeClusterBufferBase);
+}
+
+bool FileWriter::growWriteBuffer() {
+	// Doubling, because a document's size is not known until it has been written. Counting it first
+	// would do the whole serialisation twice to learn what the buffer can simply discover.
+	const uint32_t grown = bufferSize * 2;
+	auto* next = static_cast<char*>(deluge::memory::alloc_sdram(grown + CACHE_LINE_SIZE * 2));
+	if (next == nullptr) {
+		// alloc_sdram EVICTS before it fails, so this means eviction ran and still could not find a
+		// contiguous block. The caller turns it into a failed save -- never a short one.
+		return false;
+	}
+	memcpy(next + CACHE_LINE_SIZE, writeClusterBuffer, fileWriteBufferCurrentPos);
+	deluge::memory::dealloc(writeClusterBufferBase);
+	writeClusterBufferBase = next;
+	writeClusterBuffer = next + CACHE_LINE_SIZE;
+	bufferSize = grown;
+	return true;
 }
 
 int32_t FileWriter::bytesWritten() {
@@ -780,18 +801,30 @@ void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 void FileWriter::writeByte(int8_t b) {
 
 	if (fileWriteBufferCurrentPos == bufferSize) {
-		if (!memoryBased && !fileAccessFailedDuringWrite) {
-			Error error = writeBufferToFile();
-			if (error != Error::NONE) {
+		if (memoryBased) {
+			// GROW rather than refuse. A memory-backed document has nowhere to flush to, so the buffer
+			// IS the document -- and a kit outgrows the size this one starts at.
+			//
+			// Failing to grow is still a FAILURE and never a short document: a truncated preset parses
+			// as a smaller one, which is the quiet corruption this whole class exists to avoid.
+			if (!growWriteBuffer()) {
 				fileAccessFailedDuringWrite = true;
 				return;
 			}
+			// Fall through and store the byte: the position is unchanged and now sits inside the
+			// grown buffer. Returning here instead would drop one byte in every bufferSize, which is
+			// precisely the silent truncation the paragraph above refuses to allow.
 		}
-		if (memoryBased) {
-			fileAccessFailedDuringWrite = true;
-			return;
+		else {
+			if (!fileAccessFailedDuringWrite) {
+				Error error = writeBufferToFile();
+				if (error != Error::NONE) {
+					fileAccessFailedDuringWrite = true;
+					return;
+				}
+			}
+			fileWriteBufferCurrentPos = 0;
 		}
-		fileWriteBufferCurrentPos = 0;
 	}
 
 	writeClusterBuffer[fileWriteBufferCurrentPos] = b;
