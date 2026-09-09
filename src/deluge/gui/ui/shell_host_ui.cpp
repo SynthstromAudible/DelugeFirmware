@@ -614,11 +614,16 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// The guard is here rather than at the one call site because arming a timer that will be
 	// delivered elsewhere violates *this function's* contract, not its caller's -- and because the
 	// early-return branch below arms a second time for the SD poll (`:637`), which a call-site guard
-	// would leave uncovered on the day someone adds a third. `armTickSoon` is deliberately NOT
-	// guarded: its ten call sites are the input hooks, `opened()`, `displayOrLanguageChanged()` and
-	// `exitUI()`, on which the guest is current by construction -- and `focusRegained`'s is the one
-	// arm that MUST fire while this guard is suppressing, so guarding it too would be the wedge this
-	// one avoids.
+	// would leave uncovered on the day someone adds a third. `armTickSoon` is mostly unguarded by
+	// design: of its eleven call sites, ten -- the other input hooks, `opened()`,
+	// `displayOrLanguageChanged()` and `exitUI()` -- are on which the guest is current by
+	// construction, and `focusRegained`'s is the one arm that MUST fire while this guard is
+	// suppressing, so guarding it too would be the wedge this one avoids. **The eleventh is not**:
+	// `padAction`'s forward branch (I1) can leave a legacy view current when it returns --
+	// `performanceView.padAction` and `keyboardScreen.padAction` can both `openUI(&soundEditor)`
+	// (`gui/views/performance_view.cpp:1038`, `gui/ui/keyboard/keyboard_screen.cpp:106`) -- so that
+	// one site carries its own `getCurrentUI() == this` guard rather than relying on this
+	// precondition; see the comment there.
 	if (getCurrentUI() != this) {
 		return;
 	}
@@ -787,16 +792,37 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 		}
 		else {
 			// The pad is the legacy root view's, as it is in `SoundEditor::padAction`
-			// (`gui/ui/sound_editor.cpp:1474-1545`).
+			// (`gui/ui/sound_editor.cpp:1474-1545`) -- but that function's very first statement
+			// applies to every arm below it, this one included: `if (isSDRoutineActive()) return
+			// REMIND_ME_OUTSIDE_CARD_ROUTINE;` (`:1461-1463`), before any target is touched.
+			// `performForward` cannot honour that on its own -- it discards each target's return
+			// value on purpose (`shell_pad_forward.cpp:82-102`, the port is `dispatchInputEvent`'s
+			// stash-and-replay, not the target's own answer) -- so the guard belongs here, before
+			// the forward is even attempted. Without it, a forwarded press runs a legacy view's
+			// `padAction` re-entrantly against the card routine; the damaging case is the audition
+			// release, which `matrixDriver.padStates` cannot recover once dropped
+			// (`hid/matrix/matrix_driver.cpp:71`). C1.
+			if (isSDRoutineActive()) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
 			//
 			// **The guest may not be current when this returns**, and nothing below may assume it
 			// is: `performanceView.padAction` opens the legacy sound editor on a shift press
-			// (`gui/views/performance_view.cpp:1038`) and the tail's `closePortedMenu()` empties
-			// this guest's own stack. `armTickSoon` is safe on both counts -- `rearmTimer` refuses
-			// when this guest is not the current UI (`:622`, F2's final fix) -- and it is *required*
-			// on the second: the tick is what notices the empty stack and closes the guest
+			// (`gui/views/performance_view.cpp:1038`) and `keyboardScreen.padAction` reaches the
+			// same call unconditionally (`gui/ui/keyboard/keyboard_screen.cpp:106`); the `Exit` arm's
+			// `closePortedMenu()` empties this guest's own stack instead, which leaves the guest
+			// current. `armTickSoon` itself is unguarded (see `rearmTimer`'s docblock) -- arming
+			// `UI_SPECIFIC` while some other UI is current would deliver the tick to *that* UI
+			// (`UITimerManager::routine`, `gui/ui_timer_manager.cpp:143`), not to this one -- so the
+			// guard is here instead (I1): arm only when this guest is still the current UI. `Exit` is
+			// unaffected by the guard -- the guest is current after its own stack empties -- and the
+			// arm is *required* there: the tick is what notices the empty stack and closes the guest
 			// (`:555-558`).
 			(void)forwardGridPad(x, y, velocity);
+			if (getCurrentUI() == this) {
+				armTickSoon();
+			}
+			return ActionResult::DEALT_WITH;
 		}
 	}
 
@@ -804,7 +830,9 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// `REMIND_ME_OUTSIDE_CARD_ROUTINE` -- `MatrixDriver::padAction` collapses everything else to
 	// `DEALT_WITH` before its caller sees it (`hid/matrix/matrix_driver.cpp:79-83`). So a pad the
 	// guest swallows stays swallowed, which is what an open full-screen UI should do, and the
-	// deferral above is what replaces the value legacy would have used.
+	// deferral above is what replaces the value legacy would have used. (Reached only on the fed
+	// path and on a coordinate the range guard above dropped -- the forwarded path returns above,
+	// guarding its own arm.)
 	armTickSoon();
 	return ActionResult::DEALT_WITH;
 }

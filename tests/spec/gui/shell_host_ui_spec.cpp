@@ -1171,6 +1171,32 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
 	});
 
+	it("does NOT arm the tick after a forward that left some other UI current (I1)", _ {
+		// `performanceView.padAction` and `keyboardScreen.padAction` can both `openUI(&soundEditor)`
+		// (`gui/views/performance_view.cpp:1038`, `gui/ui/keyboard/keyboard_screen.cpp:106`), which
+		// leaves `getCurrentUI() != &guest` by the time `forwardGridPad` returns. Arming
+		// `TimerName::UI_SPECIFIC` there would hand this guest's tick to whatever just opened
+		// (`UITimerManager::routine`, `gui/ui_timer_manager.cpp:143`) -- the same hazard
+		// `rearmTimer`'s own guard exists for. `forwardGridPad` is faked in this suite (see
+		// `fake_legacy_ui.h`), so the test stands in for "the forward opened another UI" the same
+		// way the `rearmTimer` example above does: by setting `current_ui` directly rather than
+		// reproducing a real `openUI`.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::None;
+
+		OtherUI someone_else;
+		fakelegacyui::current_ui = &someone_else;
+
+		(void)r.guest.padAction(3, 4, 64);
+
+		expect(fakelegacyui::pad_forwards).to_equal(1); // the forward itself still happened
+		expect(fakelegacyui::timer_arms.empty()).to_be_true();
+
+		fakelegacyui::current_ui = &r.guest; // never leave a dangling pointer behind (see `Rig`)
+	});
+
 	// ---- input: the card routine ---------------------------------------------------------------
 
 	it("defers a press that arrives during the card routine, and replays it in order when it ends", _ {
@@ -1200,6 +1226,31 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(static_cast<int>(r.base.seen[0].ev.y)).to_equal(2);
 		expect(static_cast<int>(r.base.seen[1].ev.x)).to_equal(6);
 		expect(static_cast<int>(r.base.seen[1].ev.y)).to_equal(1);
+	});
+
+	it("refuses to forward during the card routine -- REMIND_ME_OUTSIDE_CARD_ROUTINE, not a forward (C1)", _ {
+		// The example above covers the **fed** path, where `InputLowering::set_sd_busy` is the
+		// port and the press is deferred rather than dropped. The **forwarded** path is different:
+		// `performForward` calls straight into a legacy view's `padAction`
+		// (`gui/ui/shell_pad_forward.cpp:82-102`) and discards whatever it returns, so a target's
+		// own `REMIND_ME_OUTSIDE_CARD_ROUTINE` (`keyboard_screen.cpp:101-102`,
+		// `automation_view.cpp:1638-1639`, `instrument_clip_view.cpp:5110-5111`) never reaches this
+		// caller -- the exact shape `SoundEditor::padAction`'s own opening statement
+		// (`gui/ui/sound_editor.cpp:1461-1463`) exists to prevent. So a claim that would forward
+		// must answer `REMIND_ME_OUTSIDE_CARD_ROUTINE` **before** `forwardGridPad` is ever called,
+		// not after.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::None;
+
+		fakelegacyui::sd_routine_active = true;
+		const ActionResult result = r.guest.padAction(3, 4, 64);
+
+		expect(result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE).to_be_true();
+		expect(fakelegacyui::pad_forwards).to_equal(0);
+		// Not armed either -- legacy's own statement is a bare `return`, before anything else runs.
+		expect(fakelegacyui::timer_arms.empty()).to_be_true();
 	});
 
 	it("defers a button press during the card routine too, from the parameter legacy passed", _ {
