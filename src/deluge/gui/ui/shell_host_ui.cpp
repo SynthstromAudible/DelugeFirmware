@@ -18,6 +18,7 @@
 #include "gui/ui/shell_host_ui.h"
 
 #include "gui/ui/shell_action_dispatch.h"
+#include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
@@ -471,8 +472,12 @@ ActionResult ShellHostUI::timerCallback() {
 	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
 	// (`scenes/menu/menu_scene.h:595-623`), and it announces nothing: "`after_render` returns no
 	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
-	// tick, or requests are dropped or stale**" (`:598-600`). This line is the polling, and it is
-	// the only one in the firmware. `dispatchShellActions` performs whatever it finds.
+	// tick, or requests are dropped or stale**" (`:598-600`). This line is the polling for the
+	// **menu's** outbox. `dispatchShellActions` performs whatever it finds.
+	//
+	// (This used to say "and it is the only one in the firmware". F3 task 1 made that false:
+	// `dispatchShellChoices()` below is the same poll for the *browser's* own outbox, which is a
+	// second mailbox with a second producer. Corrected here rather than left standing, per the plan.)
 	//
 	// **After the tick**, because a request is filed by `MenuScene::after_render`, and `after_render`
 	// is what `Shell::tick` runs as its step 7 (`shell/shell.cpp:399-407`) -- a poll above
@@ -491,6 +496,28 @@ ActionResult ShellHostUI::timerCallback() {
 	// not on which scene is frontmost. Nothing here can know whether a request is waiting without
 	// asking, and asking is what takes it.
 	dispatchShellActions();
+
+	// **The choice drain -- the noun half of the same wall, and it sits in the same two places for
+	// the same two reasons.**
+	//
+	// `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:371`) is the menu outbox's twin:
+	// one slot, filled by `Descriptor::accept`'s `Defer` answer, announcing nothing. **After the
+	// tick**, because the choice is filed while `Shell::tick` routes the press
+	// (`scenes/browser/browser_scene.cpp:888-890`, reached from step 3's `pump_input`,
+	// `shell/shell.cpp:329`, or step 8's held-back delivery, `:409`). **Above the close check**, so
+	// no path through this function can skip it. **Unconditional**, because asking is what takes it.
+	//
+	// **After `dispatchShellActions()`, and that order is written down rather than incidental.** Both
+	// mailboxes can hold something on the same tick: `Defer` closes the browser in the same statement
+	// that parks the choice, so the ported menu underneath is frontmost again by steps 5-6 and gets
+	// its own `after_render()` at step 7 (`shell/shell.cpp:399-407`) -- on the very tick the choice
+	// was filed. Neither drain reads the other's mailbox, so today nothing observable turns on the
+	// order; it is fixed this way for the interaction F3 tasks 2 and 3 bring, which
+	// `shell_choice_dispatch.h` states in full.
+	//
+	// **By the time this runs the browser is already off the shell's stack** -- `Defer` parks *and*
+	// closes -- so there is no "drain while the browser is still open" state for this line to be in.
+	dispatchShellChoices();
 
 	// **The short-Back exit, which is the only exit a user actually performs.**
 	//

@@ -1,0 +1,146 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+/// @file
+/// @brief The consumer half of the **browser's** choice seam -- the noun half of the wall
+///        `gui/ui/shell_action_dispatch.h` is the verb half of.
+///
+/// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
+/// `AcceptOutcome::Defer` (`scenes/browser/browser_scene.cpp:202-211`, the `return` at `:210`),
+/// `BrowserScene::enter` parks the chosen path and closes the scene in one statement
+/// (`:888-890`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:371`,
+/// defined `browser_scene.cpp:409-413`) hands it out exactly once.
+///
+/// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm is one dispatch onto the
+/// storage owner (`gui/ui/browser/sample_browser.cpp:333 enterKeyPress`, the dispatch at `:392`),
+/// whose op is `SampleBrowser::runClaimCurrentFileOp` (`:397-399`) and whose body is
+/// `SampleBrowser::claimCurrentFile` (`:778`). That body reaches `soundEditor`, `AudioEngine`,
+/// `slicer`, `PadLEDs` and `instrumentClipView` -- five `gui/` and `hid/` symbols the scenes layer
+/// may not name (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
+/// `Descriptor::accept`'s own note says the same thing from the other side
+/// (`scenes/browser/browser_scene.h:198-236`, the `Defer` argument at `:200-209`).
+///
+/// @par Why this is its own translation unit, and why it is in `gui/ui/`
+///
+/// Both of `shell_action_dispatch.h`'s reasons, unchanged. **In `gui/ui/`** because performing a
+/// choice is exactly the half that gets to name the five symbols above. **Its own translation unit**
+/// because it also names `deluge::scenes::browser::browser_scene()`, and so belongs to the
+/// `deluge_scenes` closure the host spec suite deliberately never builds
+/// (`tests/spec/CMakeLists.txt`): naming it inside `gui/ui/shell_host_ui.cpp` would take that file's
+/// specs off the board. The host suite stubs this one symbol in
+/// `tests/spec/gui/support/fake_legacy_ui.cpp`, exactly as it stubs `dispatchShellActions` and
+/// `wireShellGuestServices`.
+
+#include <optional>
+#include <string_view>
+
+namespace deluge::gui::ui {
+
+/// @brief A chosen file split the way the legacy browser holds one: a directory and a filename.
+///
+/// This is `SampleBrowser::getCurrentFilePath()` (`gui/ui/browser/sample_browser.cpp:503-514`) run
+/// backwards. That function is `currentDir`, a separator when `currentDir` is non-empty, then
+/// `currentFileItem->filename` with its extension (`:504-511`), and `BrowserScene::enter` builds the
+/// parked path with the same three statements (`scenes/browser/browser_scene.cpp:872-876`) precisely
+/// so the two spellings agree. Splitting it back apart is what any performer of the claim has to do
+/// first, because `claimCurrentFile` reads the browser's own `currentDir` and selected item rather
+/// than taking a path.
+///
+/// Both members point **into the caller's path**; neither owns storage. The `BrowserChoice` the
+/// dispatcher splits outlives every use of the target inside `dispatchShellChoices`.
+struct SampleClaimTarget {
+	/// `Browser::currentDir` (`gui/ui/browser/browser.h:106`), empty for a file at the card root.
+	std::string_view dir;
+	/// `FileItem::filename`, extension included.
+	std::string_view name;
+};
+
+/// @brief How @p path splits, or `std::nullopt` where it names no file.
+///
+/// @par Why this is declared here rather than left inside the `.cpp`'s anonymous namespace
+///
+/// **Because the acting half cannot be run in a spec, and the choosing half must be** -- the
+/// sentence `shell_action_dispatch.h` writes over `stemExportTypeForRootUI()`, and the same wall.
+/// `SampleBrowser::enterKeyPress` (`gui/ui/browser/sample_browser.cpp:333 enterKeyPress`) hands the
+/// claim to `deluge::storage::Owner::run_or_inline` at `:392`, which is queued onto a fiber only on
+/// the Embassy BSP:
+/// the cooperative default "runs inline on the caller's stack" (`storage/owner.h:28-30`, and again
+/// at `:40`), and `deluge_scenes_spec` links that default. So an example that reached the real claim
+/// would run `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:778`) for real inside the
+/// assertion: `display->displayLoadingAnimationText("Working")` (`:788`), a card read down through
+/// `Sample::determinePitch`, an `AudioFileManager` allocation for the sample, and the
+/// `audioFileIsNowSet()` / `openUI(&soundEditor)` tail (`:1061`, `:1083`).
+///
+/// So the split is named, `sim/scenes_spec/browser_choice_spec.cpp` drives it directly over every
+/// path shape, and the dispatcher's arm calls it before it calls anything that acts.
+///
+/// @param path A `BrowserChoice::path` (`scenes/browser/browser_scene.h:248-253`).
+/// @return The directory and filename, or `std::nullopt` for an empty path or one whose last
+///         separator is the last character -- neither of which names a file to claim.
+std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path);
+
+/// @brief Take whatever the ported browser chose, if anything, and perform it.
+///
+/// @par Call this after every `Shell::tick`, and do not gate it
+///
+/// `BrowserScene::take_choice()` is a one-slot outbox that announces nothing -- `enter` files it and
+/// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:888-890`), so no `Action` says a
+/// choice is waiting and nothing enforces the polling. That is `MenuScene::take_action()`'s hazard
+/// (`scenes/menu/menu_scene.h:595-600`, the poll at `:627`) in the same shape, and it lands as the same requirement on
+/// this function's *caller*: poll after every tick, or a choice is delivered whenever something next
+/// asks, against whatever song and clip exist then.
+///
+/// So the one call site (`ShellHostUI::timerCallback`) makes the poll unconditional, and sits
+/// **after** `Shell::tick` and **above** the close check that can return early -- both for the
+/// reasons `dispatchShellActions`' call site gives, and one more that is this drain's own.
+///
+/// @par The scene is already gone by the time this runs, and that is the point
+///
+/// `Defer` **parks and closes in the same statement**: `choice_ = BrowserChoice{...}` then
+/// `return close()` (`scenes/browser/browser_scene.cpp:889-890`), and `close()` is
+/// `Action::Kind::Remove` naming the browser's own kind (`:910-919`). The router applies that inside
+/// the same `Shell::tick` that routed the press, so by the time this drain runs the browser is off
+/// the stack and the ported menu underneath is frontmost again. Nothing here may assume otherwise --
+/// there is no state in which a choice is pending *and* the browser is still up.
+///
+/// @par Order against `dispatchShellActions`, and whether both can be pending at once
+///
+/// Both drains run after `Shell::tick`, actions first. **Yes, both can be pending on the same
+/// tick**, and the path is real rather than theoretical: the browser's `Remove` is applied at
+/// `Shell::tick`'s step 3 (`shell/shell.cpp:329`), so the menu underneath is frontmost again by
+/// steps 5-6 and gets its own `after_render()` at step 7 (`:399-407`) -- on the very tick the choice
+/// was filed. A `MenuActionRequest` filed by that resume sits in the menu's outbox beside the choice
+/// in the browser's.
+///
+/// Neither drain reads the other's mailbox and neither is gated on the other, so today the order
+/// changes nothing observable. It is fixed as **actions, then choices** for the one interaction that
+/// is coming: `MenuAction::StartStemExport`'s arm removes the ported menu from the shell stack
+/// (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp:176-178`), and the re-rooting the claim
+/// owes writes that same menu's navigation state (`scenes/browser/browser_scene.h:211-230`).
+/// Draining actions first means a re-root can never be applied to a menu the same tick's verb was
+/// about to take off the stack.
+///
+/// @par The `switch` has no `default:`, deliberately
+///
+/// The same rule `dispatchShellActions` runs under, for the same reason: `-Werror=switch` is on for
+/// every target (`cmake/deluge_common_options.cmake:32`), so a `BrowserId` added without an arm here
+/// fails the build, and a `default:` would absorb it silently.
+void dispatchShellChoices();
+
+} // namespace deluge::gui::ui

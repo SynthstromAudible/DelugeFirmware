@@ -138,6 +138,16 @@ extern int action_dispatches;
 /// visible from this file, so instead of guessing which of them to record, the fake calls back and
 /// lets the example record whatever it is asking about. Empty by default; cleared by `reset()`.
 extern std::function<void()> on_action_dispatch;
+
+/// @brief How many times the fake `dispatchShellChoices()` has been called since `reset()`.
+///
+/// F3 task 1's sibling of `action_dispatches`, on identical terms: the real
+/// `gui/ui/shell_choice_dispatch.cpp` names `deluge::scenes::browser::browser_scene()` and so
+/// belongs to the `deluge_scenes` closure this suite never builds. What the drain then does with a
+/// real outbox is `sim/scenes_spec/browser_choice_spec.cpp`'s; this counter exists so the guest
+/// still links here, and so a later task can ask the one question that IS on this side -- whether
+/// the second poll happens on the same paths the first does.
+extern int choice_dispatches;
 /// @}
 
 /// @brief Which `UI` this suite's `getCurrentUI()` answers -- i.e. **who owns

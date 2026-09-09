@@ -264,6 +264,13 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_guest_surfaces.cpp",
     "src/deluge/gui/ui/shell_guest_services.cpp",
     "src/deluge/gui/ui/shell_action_dispatch.cpp",
+    # F3 task 1: the noun half of the same seam. It names
+    # `deluge::scenes::browser::browser_scene()` for exactly the reason the row above does -- the
+    # scene parks a chosen file it may not load, and this is the side of the wall that gets to name
+    # `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`. Its HEADER
+    # (`shell_choice_dispatch.h`) is deliberately NOT listed: it names no `scenes/` type, taking
+    # `std::string_view` where the choice's path would go, so the seam is one translation unit wide.
+    "src/deluge/gui/ui/shell_choice_dispatch.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",

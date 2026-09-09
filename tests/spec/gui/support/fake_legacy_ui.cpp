@@ -26,6 +26,7 @@ MidiLearnCall last_menu_learn{};
 bool menu_learn_claims = false;
 int action_dispatches = 0;
 std::function<void()> on_action_dispatch{};
+int choice_dispatches = 0;
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
 
@@ -61,6 +62,7 @@ void reset() {
 	menu_learn_claims = false;
 	action_dispatches = 0;
 	on_action_dispatch = nullptr;
+	choice_dispatches = 0;
 	timer_arms.clear();
 	timer_unsets.clear();
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
@@ -313,5 +315,14 @@ void dispatchShellActions() {
 	if (fakelegacyui::on_action_dispatch) {
 		fakelegacyui::on_action_dispatch();
 	}
+}
+
+// `gui/ui/shell_choice_dispatch.cpp`'s share, on exactly the same terms: the real one reads
+// `deluge::scenes::browser::browser_scene()` and its Sample arm performs a load that names
+// `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`. No callback hook here
+// because nothing in this suite asks an ordering question about it yet -- add one beside
+// `on_action_dispatch` when something does.
+void dispatchShellChoices() {
+	fakelegacyui::choice_dispatches++;
 }
 } // namespace deluge::gui::ui
