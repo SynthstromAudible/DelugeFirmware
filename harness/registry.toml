@@ -270,6 +270,18 @@ ci = "nightly"
 runtime = "~5m"
 
 [[harness]]
+name = "document-save-channel"
+path = "."
+kind = "property"
+status = "gate"
+gates = "a preset saved through the real ENTER gesture must be written WHOLE, both builds must write byte-identical documents, and the channel build must have stored it off the storage owner. Two legs, because one alone proves an arm ran but not that it agrees with the other -- and disagreement between the arms is the defect worth catching, which is why DS-SAVED carries a checksum compared ACROSS the legs rather than within one. DS-OCCUPIED saves onto a name that is already taken and requires both that the user is asked and that the existing document is left alone: silently replacing somebody's preset is the worst thing this code could do. This gate exists because write_file began life with NO harness building it -- exactly where the whole-file read was one rung earlier, and running that for the first time found two defects at once. Building this one found two more on its first run: the no-channel arm handed the write to a function that no longer wrote anything, and the off-owner counter this rung is measured by was never incremented."
+build = []
+run = ["scripts/document_save_channel.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~10m"
+
+[[harness]]
 name = "song-load-channel"
 path = "."
 kind = "property"
