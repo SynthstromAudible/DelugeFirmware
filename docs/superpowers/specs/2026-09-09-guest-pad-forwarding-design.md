@@ -58,6 +58,10 @@ reaches `MenuScene`, which ignores anything without shift (`menu_scene.cpp:1631`
 open. Dismissing a menu with a pad — a hand already on the grid — is an ordinary gesture, not an edge
 case.
 
+**Kate's ruling, 2026-09-09: *"legacy is correct, we need to close on pad press."*** The target is
+legacy's behaviour, and the divergence is a defect to fix rather than a behaviour to preserve. This
+settles the second open question below: behaviour 3 ships in this plan, not a separate earlier one.
+
 **Behaviour 2's performance-view path is reachable today too.** Site 4 is the performance-view entry
 and is gated and shipping. Legacy's comment on that arm reads *"Allow using performance view pads
 while in the sound editor menu"*; the guest swallows them.
@@ -151,6 +155,10 @@ unreachable rather than harmless-if-reached.
 Behaviours 1-3: the `GridPadClaim` declaration, the six-way forwarding switch, and the exit on an
 unclaimed pad.
 
+Behaviour 3 is **not** split into an earlier plan (§2.1, Kate 2026-09-09). It lands with the
+forwarding, because its tail is what the forwarding switch falls through to: implementing the exit
+first would mean writing the fall-through twice.
+
 ### 6.2 Out of scope, recorded
 
 - **Behaviour 4, the diagnostics** (Kate's call, 2026-09-09: *"deliberate gap, we can replicate
@@ -218,6 +226,3 @@ extension as a question — *what gesture would a player make that this script n
 - **The other five roots' coverage.** Two of six paths is what the A/B can reach today; whether the
   script should be extended to reach `performanceView` (site 4, gated and shipping) is a plan-level
   decision.
-- **Whether behaviour 3 should be fixed before the forwarding.** It is the more reachable of the two
-  divergences and needs no `GridPadClaim` — only the tail. Splitting it out would ship the
-  user-visible fix sooner at the cost of two plans.
