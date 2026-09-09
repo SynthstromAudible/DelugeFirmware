@@ -25,6 +25,8 @@
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "scenes/browser/browser_scene.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/registry.h"
 #include "storage/owner.h"
 
 #include <optional>
@@ -134,10 +136,28 @@ void runShellSampleClaimOp(void* unused) {
 	if (sampleBrowser.claimCurrentFile(kShellSampleClaimArgs.mayDoPitchDetection,
 	                                   kShellSampleClaimArgs.mayDoSingleCycle, kShellSampleClaimArgs.mayDoWaveTable,
 	                                   kShellSampleClaimArgs.loadWithoutExiting)) {
-		// The one statement `loadWithoutExiting` suppresses that the guest still wants
-		// (`gui/ui/browser/sample_browser.cpp:1125`), on legacy's own condition: its tail runs only
-		// on success, every failure inside `claimCurrentFile` having returned above `:1108`.
+		// The two statements `loadWithoutExiting` suppresses that the guest still wants
+		// (`gui/ui/browser/sample_browser.cpp:1116-1118` and `:1125`), on legacy's own condition:
+		// its tail runs only on success, every failure inside `claimCurrentFile` having returned
+		// above `:1108`.
+		//
+		// **`loadWithoutExiting` is why the condition can only be honoured from in here.** The claim
+		// is dispatched fire-and-forget (`claimSampleFile`, and `sample_browser.cpp:392` before it),
+		// and on the Embassy BSP `Owner::run` queues it onto a fiber (`storage/owner.h:43`), so
+		// `dispatchShellChoices` cannot know whether the load succeeded. Legacy's re-rooting is
+		// gated on success, so it belongs where the success is known -- beside the render request
+		// that was recovered for the same reason.
 		uiNeedsRendering(&audioClipView);
+		// `parentMenuHeadingTo->focusChild(menuItemHeadingTo); menuItemNavigationRecord[0] =
+		// parentMenuHeadingTo; navigationDepth = 0` (`:1116-1118`), in the ported world's own terms:
+		// the record is `MenuState::path`/`depth` and only `MenuScene` may write it, so the three
+		// statements are one entry point reached through the `menu_scene()` singleton -- the route
+		// `scenes/menu/nodes/context_menu_items.cpp:76` already takes to `context_menu_scene()`.
+		//
+		// It answers false, harmlessly, whenever there is nothing to move: the guest's menu is the
+		// only thing that can have opened the ported browser, so the only way here with no recorded
+		// opener is a caller that is not `dispatchShellChoices`.
+		(void)deluge::scenes::menu_scene().reroot_to_scene_opener_page();
 	}
 }
 

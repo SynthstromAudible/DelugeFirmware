@@ -142,15 +142,20 @@ inline constexpr SampleClaimArgs kShellSampleClaimArgs{
 ///
 /// @par What the flag suppresses, and what this op pays back
 ///
-/// `loadWithoutExiting` skips the whole of `sample_browser.cpp:1108-1126`, which is three statements:
+/// `loadWithoutExiting` skips the whole of `sample_browser.cpp:1108-1126`, which is three statements
+/// -- one correctly skipped and two paid back:
 ///
 ///   * `exitAndNeverDeleteDrum()` (`:1109`) -- the close above. **Correctly skipped:** there is no
 ///     legacy browser open to exit.
-///   * the `menuItemHeadingTo`/`parentMenuHeadingTo` re-rooting (`:1111-1123`) -- **already dead
-///     under the guest**, since nothing on the ported path writes either member, and it is F3 task
-///     3's subject in the ported world's own terms (`scenes/browser/browser_scene.h:211-230`:
-///     `MenuState::path`/`depth`, not `menuItemNavigationRecord`). Skipping it structurally changes
-///     nothing today, and task 3 must not try to revive this block.
+///   * the `menuItemHeadingTo`/`parentMenuHeadingTo` re-rooting (`:1111-1123`) -- **dead as written
+///     under the guest, and paid back in the ported world's own terms instead (F3 task 3).** Dead
+///     because nothing on the ported path writes either member: they are written in exactly one
+///     place, `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`,
+///     the two writes at `:2092-2093`), which the guest never enters. **Reviving this block would
+///     have been worse than skipping it**, because a stale non-null pair left by a pre-toggle legacy
+///     session would re-root the *legacy* editor. What the op does instead is
+///     `MenuScene::reroot_to_scene_opener_page()` (`scenes/menu/menu_scene.h`), which is the same
+///     three statements against `MenuState::path`/`depth` -- the port's `menuItemNavigationRecord`.
 ///   * `uiNeedsRendering(&audioClipView)` (`gui/ui/browser/sample_browser.cpp:1125`) -- **wanted, so
 ///     this op pays it back.** The legacy view under the guest is a real root UI, and
 ///     `uiNeedsRendering` is a walk down `uiNavigationHierarchy` that drops the request when
@@ -178,7 +183,7 @@ using SampleClaimDispatch = bool (*)(void (*)(void*), void*);
 ///
 /// @par For specs, and it is a requirement rather than a convenience
 ///
-/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:373-381`) is the same shape one
+/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:383-391`) is the same shape one
 /// layer down -- and only the shape: that one swaps the dispatcher on the scene's **`Listing`**, the
 /// directory read, and there is no claim seam anywhere in `BrowserScene`. The claim happens here, so
 /// the settable dispatcher has to be here too.
