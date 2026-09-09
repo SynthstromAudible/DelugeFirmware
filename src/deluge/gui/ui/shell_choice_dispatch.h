@@ -30,7 +30,7 @@
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm is one dispatch onto the
 /// storage owner (`gui/ui/browser/sample_browser.cpp:333 enterKeyPress`, the dispatch at `:392`),
 /// whose op is `SampleBrowser::runClaimCurrentFileOp` (`:397-399`) and whose body is
-/// `SampleBrowser::claimCurrentFile` (`:778`). That body reaches `soundEditor`, `AudioEngine`,
+/// `SampleBrowser::claimCurrentFile` (`:813`). That body reaches `soundEditor`, `AudioEngine`,
 /// `slicer`, `PadLEDs` and `instrumentClipView` -- five `gui/` and `hid/` symbols the scenes layer
 /// may not name (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
 /// `Descriptor::accept`'s own note says the same thing from the other side
@@ -54,9 +54,9 @@ namespace deluge::gui::ui {
 
 /// @brief A chosen file split the way the legacy browser holds one: a directory and a filename.
 ///
-/// This is `SampleBrowser::getCurrentFilePath()` (`gui/ui/browser/sample_browser.cpp:503-514`) run
+/// This is `SampleBrowser::getCurrentFilePath()` (`gui/ui/browser/sample_browser.cpp:538-549`) run
 /// backwards. That function is `currentDir`, a separator when `currentDir` is non-empty, then
-/// `currentFileItem->filename` with its extension (`:504-511`), and `BrowserScene::enter` builds the
+/// `currentFileItem->filename` with its extension (`:539-546`), and `BrowserScene::enter` builds the
 /// parked path with the same three statements (`scenes/browser/browser_scene.cpp:872-876`) precisely
 /// so the two spellings agree. Splitting it back apart is what any performer of the claim has to do
 /// first, because `claimCurrentFile` reads the browser's own `currentDir` and selected item rather
@@ -82,10 +82,10 @@ struct SampleClaimTarget {
 /// the Embassy BSP:
 /// the cooperative default "runs inline on the caller's stack" (`storage/owner.h:28-30`, and again
 /// at `:40`), and `deluge_scenes_spec` links that default. So an example that reached the real claim
-/// would run `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:778`) for real inside the
-/// assertion: `display->displayLoadingAnimationText("Working")` (`:788`), a card read down through
+/// would run `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:813`) for real inside the
+/// assertion: `display->displayLoadingAnimationText("Working")` (`:823`), a card read down through
 /// `Sample::determinePitch`, an `AudioFileManager` allocation for the sample, and the
-/// `audioFileIsNowSet()` / `openUI(&soundEditor)` tail (`:1061`, `:1083`).
+/// `audioFileIsNowSet()` / `openUI(&soundEditor)` tail (`:1096`, `:1118`).
 ///
 /// So the split is named, `sim/scenes_spec/browser_choice_spec.cpp` drives it directly over every
 /// path shape, and the dispatcher's arm calls it before it calls anything that acts.
@@ -94,6 +94,37 @@ struct SampleClaimTarget {
 /// @return The directory and filename, or `std::nullopt` for an empty path or one whose last
 ///         separator is the last character -- neither of which names a file to claim.
 std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path);
+
+/// @brief What the `Sample` arm hands the claim to -- `deluge::storage::Owner::run`'s own shape
+///        (`storage/owner.h:43`), because the claim is what legacy's file arm dispatches
+///        (`gui/ui/browser/sample_browser.cpp:392`).
+using SampleClaimDispatch = bool (*)(void (*)(void*), void*);
+
+/// @brief Install a dispatcher other than `deluge::storage::Owner::run_or_inline` on the claim.
+///
+/// @par For specs, and it is a requirement rather than a convenience
+///
+/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:373-381`) is the same shape one
+/// layer down -- and only the shape: that one swaps the dispatcher on the scene's **`Listing`**, the
+/// directory read, and there is no claim seam anywhere in `BrowserScene`. The claim happens here, so
+/// the settable dispatcher has to be here too.
+///
+/// Without it a spec cannot reach `dispatchShellChoices()` at all. `Owner::run_or_inline` runs the op
+/// on the caller's stack on this BSP (`storage/owner.h:28-30`, and again at `:40`), and
+/// `BrowserScene::enter` always appends a non-empty `FileItem::filename`
+/// (`scenes/browser/browser_scene.cpp:872-876`), so every example that presses a real file reaches a
+/// real `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:813`): the "Working" animation
+/// (`:823`), a card read down through `Sample::determinePitch`, an `AudioFileManager` allocation, and
+/// the `openUI(&soundEditor)` tail (`:1111-1118`). With it, an example asserts something stronger
+/// than it could otherwise -- that the claim was *requested*, against a browser pointed at the right
+/// directory and filename, without it running.
+///
+/// It changes nothing on the device: nothing outside a spec calls this, so the shipped dispatcher is
+/// `Owner::run_or_inline` from the first tick, exactly as `sample_browser.cpp:392` spells it.
+///
+/// @param dispatch The dispatcher. Must not be null; pass `&deluge::storage::Owner::run_or_inline`
+///                 to put the shipped one back.
+void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 
 /// @brief Take whatever the ported browser chose, if anything, and perform it.
 ///

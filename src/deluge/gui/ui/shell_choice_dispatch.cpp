@@ -21,7 +21,9 @@
 
 #include "gui/ui/shell_choice_dispatch.h"
 
+#include "gui/ui/browser/sample_browser.h"
 #include "scenes/browser/browser_scene.h"
+#include "storage/owner.h"
 
 #include <optional>
 #include <string_view>
@@ -34,43 +36,44 @@ using deluge::scenes::browser::BrowserId;
 
 namespace {
 
+/// @brief What the claim is dispatched onto. `setSampleClaimDispatch`'s subject; see its note for
+///        why a spec must be able to move it.
+///
+/// The shipped value is the one `SampleBrowser::enterKeyPress`'s file arm uses
+/// (`gui/ui/browser/sample_browser.cpp:392`), so on the device this indirection resolves to exactly
+/// the call legacy makes.
+SampleClaimDispatch claimDispatch = &deluge::storage::Owner::run_or_inline;
+
 /// @brief Load the chosen sample, the way `SampleBrowser::enterKeyPress`'s file arm does.
 ///
-/// @warning **Unpaid. This is F3 task 2's, and the body is deliberately empty until then.** The
-///          drain above it is complete and covered; what is missing is the one statement legacy's
-///          file arm ends in, `deluge::storage::Owner::run_or_inline(&SampleBrowser::runClaimCurrentFileOp,
-///          nullptr)` (`gui/ui/browser/sample_browser.cpp:392`), plus whatever it takes to point the
-///          legacy `sampleBrowser` at @p target first -- `claimCurrentFile` reads `currentDir` and
-///          `getCurrentFileItem()` for itself rather than taking a path
-///          (`SampleBrowser::getCurrentFilePath`, `:503-514`), which is the open question task 2
-///          owns.
+/// @par Two statements, because legacy's one is only half the state it needs
 ///
-/// @warning **What a spec would run if this body existed today**, and the reason the choosing half
-///          above it is declared separately. On the cooperative/host BSP `Owner::run_or_inline` is
-///          inline on the caller's stack (`storage/owner.h:28-30`, `:40`), so a `deluge_scenes_spec`
-///          example that reached here would run `SampleBrowser::claimCurrentFile`
-///          (`sample_browser.cpp:778`) for real: the "Working" loading animation (`:788`), a card
-///          read down through `Sample::determinePitch`, an `AudioFileManager` allocation for the
-///          sample, `audioFileIsNowSet()` (`:1061`) and the `closeUI`/`openUI(&soundEditor)` tail
-///          (`:1076-1083`) -- inside the assertion. That is this seam's version of the export F2
-///          task 3 could not let an example start.
+/// Legacy's file arm is a single dispatch,
+/// `deluge::storage::Owner::run_or_inline(&SampleBrowser::runClaimCurrentFileOp, nullptr)`
+/// (`gui/ui/browser/sample_browser.cpp:392`), and that is the second statement here, unchanged apart
+/// from the seam the dispatcher is read through. The first exists because **`claimCurrentFile()`
+/// takes no path**: it reads `Browser::currentDir` and `Browser::getCurrentFileItem()` for itself,
+/// which is what `SampleBrowser::getCurrentFilePath()` (`:538-549`) composes. Legacy never has to
+/// set them because the user browsed there; this dispatcher is handed a `BrowserChoice::path`
+/// (`scenes/browser/browser_scene.h:248-253`) by a scene that has **already closed**, and
+/// `BrowserScene::on_exit` empties the shared catalogue on the way out
+/// (`scenes/browser/browser_scene.cpp:394`) exactly as `Browser::close()` does. So the state legacy
+/// would have left behind is rebuilt from the path first, by
+/// `SampleBrowser::selectFileForClaim` -- a legacy-side accessor, argued at its own declaration
+/// (`gui/ui/browser/sample_browser.h:71-97`), because `fileIndexSelected` and
+/// `setEnteredTextFromCurrentFilename()` are `Browser`'s protected state and "the selected index
+/// indexes `fileItems`" is `Browser`'s invariant. Reaching around the class from here would have
+/// meant this file owning that invariant instead.
 ///
-/// @warning **And the choosing half above does NOT keep an example out of it. That makes this task
-///          2's first move rather than an afterthought.** F2 task 3's `stemExportTypeForRootUI()`
-///          was safe in a spec because its `std::nullopt` branch is an ordinary root-UI state; that
-///          property does not exist here. `BrowserScene::enter` always appends a non-empty
-///          `FileItem::filename` (`scenes/browser/browser_scene.cpp:872-876`), so
-///          `sampleClaimTargetFor` **always** engages on a real press, and
-///          `sim/scenes_spec/browser_choice_spec.cpp`'s guest-tick example presses a real file.
+/// @par Why the dispatch is read through `claimDispatch` rather than named directly
 ///
-///          The mechanism that does close it is one this repository already uses for this exact
-///          hazard, one layer down: `BrowserScene::set_dispatch`
-///          (`scenes/browser/browser_scene.h:373-381`) swaps `storage::Owner::run` for a dispatcher
-///          that stores the op instead of running it. The claim reaches the owner the same way the
-///          listing does (`gui/ui/browser/sample_browser.cpp:392` is `Owner::run_or_inline`), so the
-///          same swap applies here -- and it buys more than safety: with it the drain example can
-///          assert the claim was **requested**, against the right target, without it ever running.
-///          Nothing today can observe that wire at all.
+/// Because on this BSP `Owner::run_or_inline` runs the op on the caller's stack
+/// (`storage/owner.h:28-30`, and again at `:40`), and every example that presses a real file gets
+/// here: `BrowserScene::enter` always appends a non-empty `FileItem::filename`
+/// (`scenes/browser/browser_scene.cpp:872-876`), so `sampleClaimTargetFor` always engages. Without a
+/// settable seam, `sim/scenes_spec/browser_choice_spec.cpp`'s guest-tick example would run a real
+/// `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:813`) inside its assertion. See
+/// `setSampleClaimDispatch`.
 ///
 /// @warning **The file arm is a fan-out and only its `else` is deferred, so two of legacy's three
 ///          statements have no port at all. This is a live divergence under the toggle, not a
@@ -95,17 +98,34 @@ namespace {
 ///              moment than the one that filed the choice. Closing it means the shift state
 ///              travelling on `BrowserChoice`.
 ///
-/// @param target Where the claim would load from.
+/// @param target Where the claim loads from.
 void claimSampleFile(const SampleClaimTarget& target) {
-	(void)target;
+	if (!sampleBrowser.selectFileForClaim(target.dir, target.name)) {
+		// Nothing is selected, so `claimCurrentFile()` would read a null `getCurrentFileItem()`
+		// (`gui/ui/browser/browser.cpp:1138-1143`) straight through `getCurrentFilePath()`'s
+		// unguarded `currentFileItem->filename` (`sample_browser.cpp:544-546`). Legacy never reaches
+		// that because it only ever claims what it just listed.
+		return;
+	}
+	// `SampleBrowser::enterKeyPress`'s file arm, verbatim apart from the seam
+	// (`gui/ui/browser/sample_browser.cpp:392`): fire-and-forget, and the result is discarded because
+	// `claimCurrentFile()` handles its own loading animation and close-on-success internally
+	// (`sample_browser.h:56-69 runClaimCurrentFileOp`).
+	(void)claimDispatch(&SampleBrowser::runClaimCurrentFileOp, nullptr);
 }
 
 } // namespace
 
+void setSampleClaimDispatch(SampleClaimDispatch dispatch) {
+	if (dispatch != nullptr) {
+		claimDispatch = dispatch;
+	}
+}
+
 std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
-	// `SampleBrowser::getCurrentFilePath` (`gui/ui/browser/sample_browser.cpp:503-514`) run
+	// `SampleBrowser::getCurrentFilePath` (`gui/ui/browser/sample_browser.cpp:538-549`) run
 	// backwards, statement for statement: it appends the separator only when `currentDir` is
-	// non-empty (`:505-507`), so a path with no separator is a file at the card root and the whole
+	// non-empty (`:540-542`), so a path with no separator is a file at the card root and the whole
 	// of it is the filename.
 	const size_t slash = path.rfind('/');
 	if (slash == std::string_view::npos) {

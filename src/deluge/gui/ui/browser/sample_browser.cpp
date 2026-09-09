@@ -398,6 +398,41 @@ void SampleBrowser::runClaimCurrentFileOp(void*) {
 	sampleBrowser.claimCurrentFile();
 }
 
+bool SampleBrowser::selectFileForClaim(std::string_view dir, std::string_view name) {
+	// The three pieces of browser state `claimCurrentFile()` reads, and no others -- see the
+	// declaration for why they have to be rebuilt at all.
+	//
+	// `currentDir` and `fileItems` are references onto the one shared `FileCatalogue`
+	// (`browser.h:106-107`, bound in `browser.cpp`), so emptying first is what stops a stale listing
+	// from leaving entries after the one written here; `readFileItemsForFolder` opens the same way
+	// (`storage/file_catalogue.cpp:209`).
+	emptyFileItems();
+	currentDir = dir;
+
+	FileItem* item = getNewFileItem();
+	if (item == nullptr) {
+		// Out of RAM. Legacy's own listing turns this into `Error::INSUFFICIENT_RAM` and empties the
+		// catalogue (`file_catalogue.cpp:265-269`); here the caller simply does not claim, and the
+		// selection is left at "no real file" so `getCurrentFileItem()` answers null
+		// (`browser.cpp:1138-1143`) rather than indexing an empty vector.
+		fileIndexSelected = -1;
+		return false;
+	}
+	item->filename = name;
+	// A file, not a folder: this is what `enterKeyPress`'s `else` arm above claims, and
+	// `setEnteredTextFromCurrentFilename` strips the extension only for a non-folder
+	// (`browser.cpp:1322-1328`).
+	item->isFolder = false;
+
+	fileIndexSelected = 0;
+	// `Browser::setFileByFullPathImpl`'s own pairing (`browser.cpp:263-269`): the scroll follows the
+	// selection, and the entered text follows the filename. The second is not cosmetic --
+	// `claimAudioFileForInstrument` below names the new Drum from `enteredText`, which browsing would
+	// have set on the way here.
+	scrollPosVertical = 0;
+	return setEnteredTextFromCurrentFilename() == Error::NONE;
+}
+
 ActionResult SampleBrowser::backButtonAction() {
 	AudioEngine::stopAnyPreviewing();
 
