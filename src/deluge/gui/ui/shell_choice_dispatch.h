@@ -241,7 +241,7 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 /// Neither drain reads the other's mailbox and neither is gated on the other, so the order changes
 /// nothing observable. It is fixed as **actions, then choices** for the one interaction that is
 /// now real rather than coming: `MenuAction::StartStemExport`'s arm removes the ported menu from
-/// the shell stack (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp:176-178`), and the
+/// the shell stack (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp:189-191`), and the
 /// re-rooting the claim performs writes that same menu's navigation state
 /// (`scenes/browser/browser_scene.h:211-233`, applied through
 /// `MenuScene::reroot_to_scene_opener_page()`). Draining actions first means a re-root can never be

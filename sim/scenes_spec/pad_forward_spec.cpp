@@ -1,0 +1,189 @@
+/// @file
+/// @brief `gui::ui::forwardGridPad` -- `SoundEditor::padAction`'s root switch
+///        (`gui/ui/sound_editor.cpp:1474-1517`) and its tail (`:1520-1545`), ported.
+///
+/// What this pins: the five-way decision `forwardGridPad` makes over the real legacy root-UI
+/// singletons (`keyboardScreen`, `instrumentClipView`, `performanceView`, and the tail's fallback),
+/// through a recording `perform` installed by `setPadForwardPerform` -- so an example can assert the
+/// decision, and the coordinates the target would have been handed, without running a legacy view's
+/// own pad handler. The one exception is the last example, which restores the real `perform` and
+/// runs the real tail arm (`closePortedMenu`) against a real `MenuScene` on the real guest's scene
+/// stack -- that call names no legacy view, so it is safe to run for real here, and it is what makes
+/// behaviour 3 (the tail firing `closePortedMenu`) covered outside the recorder.
+///
+/// What this deliberately does not cover: the `automationView` arm and the tail's firmware-version
+/// diagnostics, both out of scope for this switch -- `shell_pad_forward.h`'s own note says why. And
+/// nothing here asks `Scene::grid_pad_claim()` (Task 1): that question is asked by this function's
+/// caller, a later task, before `forwardGridPad` is ever reached.
+
+#include "gui/ui/shell_pad_forward.h"
+
+#include "definitions_cxx.hpp" // kDisplayWidth
+#include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/shell_host_ui.h" // shellHostUI
+#include "gui/ui/ui.h"            // setRootUILowLevel, nullifyUIs, currentUIMode, UI_MODE_*
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/performance_view.h"
+#include "gui/views/session_view.h"
+
+#include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
+#include "scenes/registry.h"
+#include "shell/scene.h" // SceneKind
+
+#include "support/song_fixture.h"
+
+#include "cppspec.hpp"
+
+#include "spec/support/spec_main.h"
+
+using namespace deluge::scenes;
+using deluge::gui::ui::PadForwardTarget;
+using deluge::scenes::menu::MenuContext;
+using deluge::scenes::menu::Node;
+using deluge::ui::shell::SceneId;
+using deluge::ui::shell::SceneKind;
+namespace nodes = deluge::scenes::menu::nodes;
+
+namespace {
+
+/// @brief Put the legacy UI hierarchy back to "nothing open" after an example seats a root with
+///        `setRootUILowLevel`. `menu_actions_spec.cpp`'s `UiStackGuard`, unchanged: `nullifyUIs()`
+///        is what legacy itself calls to tear the hierarchy down (`gui/ui/ui.cpp:257-261`), and
+///        `closeUI` is not safe here for the same `[-1]` reason that file's copy of this note gives.
+struct UiStackGuard {
+	UiStackGuard(const UiStackGuard&) = delete;
+	UiStackGuard& operator=(const UiStackGuard&) = delete;
+	UiStackGuard() = default;
+	~UiStackGuard() { nullifyUIs(); }
+};
+
+/// @brief Empty the GLOBAL guest's scene stack, whichever way the one example that touches it ends.
+///        `menu_actions_spec.cpp`'s `GlobalGuestGuard`, unchanged: `shellHostUI` is a singleton with
+///        one open site (`gui/ui/shell_menu_entry.cpp:169`), and `closePortedMenu` reads that same
+///        global (`gui/ui/shell_action_dispatch.cpp`), so an example proving it empties the stack has
+///        to use the real one.
+struct GlobalGuestGuard {
+	GlobalGuestGuard(const GlobalGuestGuard&) = delete;
+	GlobalGuestGuard& operator=(const GlobalGuestGuard&) = delete;
+	GlobalGuestGuard() = default;
+	~GlobalGuestGuard() {
+		while (shellHostUI.shell().stack().depth() > 0) {
+			shellHostUI.shell().stack().pop(SceneKind::Null);
+		}
+	}
+};
+
+/// @brief Open a real `MenuScene` at `nodes::root_song` on the global guest's OWN scene stack --
+///        `menu_actions_spec.cpp`'s `open_global_guest`, narrowed to the one root this file needs.
+///
+/// `root_song` needs no clip (`context_for`'s second argument is `nullptr`), so this needs nothing
+/// from `spec::SongFixture` but the `Song&` itself -- unlike `sound_root`, which task 1's spec fixture
+/// resolves a clip and instrument for.
+///
+/// No `openUI` here, deliberately, matching `open_global_guest`'s own note: this only needs the menu
+/// on the guest's *scene* stack, not the guest on `uiNavigationHierarchy` -- the root UI for the one
+/// example that calls this is seated separately, with `setRootUILowLevel`.
+bool open_menu_on_global_guest(Song& song) {
+	const MenuContext ctx = menu::context_for(song, nullptr, 0, false,
+	                                          /*session_or_arranger_root=*/true, /*session_view_root=*/true,
+	                                          /*kit_global_fx=*/false);
+	static const Node* const roots[] = {&nodes::root_song};
+	(void)menu::assign_node_ids(roots);
+	menu_scene().open(nodes::root_song, ctx);
+	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::root_song)});
+	return shellHostUI.opened();
+}
+
+} // namespace
+
+// clang-format off
+describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root switch", $ {
+	// The recording perform. `forwardGridPad` returns its decision too; the recorder exists so an
+	// example can also assert the coordinates the target would have been handed.
+	static PadForwardTarget seen;
+	static int32_t seen_x, seen_y, seen_v;
+
+	before_each([] {
+		seen = PadForwardTarget::None;
+		deluge::gui::ui::setPadForwardPerform([](PadForwardTarget t, int32_t x, int32_t y, int32_t v) {
+			seen = t; seen_x = x; seen_y = y; seen_v = v;
+		});
+	});
+	after_each([] { deluge::gui::ui::setPadForwardPerform(nullptr); });
+
+	it("sends every pad to the keyboard screen when that is the root", _ {
+		// `sound_editor.cpp:1474-1477`: the arm has no coordinate test at all.
+		UiStackGuard ui_guard;
+		setRootUILowLevel(&keyboardScreen);
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Keyboard);
+		expect(seen_x).to_equal(3);
+	});
+
+	it("sends the audition column, and only that column, to the clip view", _ {
+		// `:1499-1502`: `x == kDisplayWidth + 1`, nothing else.
+		UiStackGuard ui_guard;
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64))
+		    .to_equal(PadForwardTarget::AuditionColumn);
+	});
+
+	it("lets a main-grid pad on a clip root fall through to the tail", _ {
+		// `:1500`'s `else if` not taken -> the comment `// fall through below` at `:1504` -> the
+		// tail at `:1520-1545`. This is the shipped divergence spec section 2.1 describes: legacy's
+		// note-editor arms are not ported (`shell_pad_forward.h`'s own note), so a main-grid pad on
+		// an `instrumentClipView` root reaches the tail here where legacy's `inNoteEditor()` gate
+		// would have claimed it first on the device.
+		UiStackGuard ui_guard;
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("sends everything to the performance view when that is the root", _ {
+		// `:1515-1517`, which returns performanceView's own result and never reaches the tail.
+		UiStackGuard ui_guard;
+		setRootUILowLevel(&performanceView);
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::Performance);
+	});
+
+	it("does not exit on a release", _ {
+		// `:1520`'s `&& on`. Load-bearing: a swallowed release leaves legacy's audition state
+		// latched after a forwarded audition-column press.
+		UiStackGuard ui_guard;
+		setRootUILowLevel(&sessionView);
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 0)).to_equal(PadForwardTarget::None);
+	});
+
+	it("does not exit while a UI mode is active", _ {
+		// `:1520`'s `currentUIMode == UI_MODE_NONE`.
+		UiStackGuard ui_guard;
+		setRootUILowLevel(&sessionView);
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64)).to_equal(PadForwardTarget::None);
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("really removes the ported menu when the tail fires", _ {
+		// The one example that runs the REAL perform: `closePortedMenu()` names no legacy view, so
+		// it is safe here, and this is what makes behaviour 3 covered outside the recorder.
+		deluge::gui::ui::setPadForwardPerform(nullptr);
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_menu_on_global_guest(*fx.song)).to_be_true();
+		expect(shellHostUI.shell().stack().depth() > 0u).to_be_true();
+
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		(void)deluge::gui::ui::forwardGridPad(3, 4, 64);
+		expect(shellHostUI.shell().stack().depth()).to_equal(0u);
+	});
+});
+// clang-format on
+
+DELUGE_SPEC(pad_forward_spec, pad_forward)

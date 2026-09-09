@@ -115,6 +115,8 @@ void openPerformanceView(PerformanceEditingMode mode) {
 	openUI(&performanceView);
 }
 
+} // namespace
+
 /// @brief `soundEditor.exitCompletely()` (`gui/menu_item/stem_export/start.h:32`), ported.
 ///
 /// @par What legacy's first statement is, and why it cannot be transcribed
@@ -173,9 +175,22 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// no scene of that kind is on the stack -- it returns false having touched nothing and flagged
 /// nothing (`shell/scene_stack.cpp:104-106`) -- so if this is ever reached with no ported menu up,
 /// it does nothing rather than corrupting a stack it does not own.
+///
+/// @par Why this sits between two anonymous-namespace blocks instead of inside one
+///
+/// It did, until the pad-forwarding seam (`gui/ui/shell_pad_forward.cpp`) needed to call it too --
+/// `SoundEditor::padAction`'s tail (`gui/ui/sound_editor.cpp:1545`) is the same `exitCompletely()`
+/// statement this ports, reached by a pad press rather than a stem-export selection. Internal
+/// linkage inside `namespace {` made that impossible from another translation unit, so this
+/// function alone was pulled out and declared in `shell_action_dispatch.h`, the same move
+/// `stemExportTypeForRootUI` below already made for the same reason. `startStemExport`'s call to
+/// this function, in the anonymous-namespace block that follows, still resolves unqualified: this
+/// file includes its own header (`:22`) before either anonymous-namespace block opens.
 void closePortedMenu() {
 	(void)shellHostUI.shell().stack().remove(SceneKind::FirstApp);
 }
+
+namespace {
 
 /// @brief `stem_export::Start::selectButtonPress`'s second and third statements
 ///        (`gui/menu_item/stem_export/start.h:33-47`), performed on the real root UI.

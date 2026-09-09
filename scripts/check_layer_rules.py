@@ -313,6 +313,14 @@ LEGACY_PORT_SEAMS = (
     # (`shell_choice_dispatch.h`) is deliberately NOT listed: it names no `scenes/` type, taking
     # `std::string_view` where the choice's path would go, so the seam is one translation unit wide.
     "src/deluge/gui/ui/shell_choice_dispatch.cpp",
+    # This plan's task 2: the pad half of the same seam. It names `keyboardScreen`,
+    # `instrumentClipView` and `performanceView` -- the legacy views `SoundEditor::padAction`
+    # forwards to (`gui/ui/sound_editor.cpp:1474-1517`) -- for the same reason the row above names
+    # `soundEditor`/`AudioEngine`/`slicer`/`PadLEDs`/`instrumentClipView`: this is the side of the
+    # wall that gets to name them. Its HEADER (`shell_pad_forward.h`) is deliberately NOT listed: it
+    # names no `scenes/` or `shell/` type, taking plain `int32_t` coordinates, so this seam is one
+    # translation unit wide -- exactly the line `shell_choice_dispatch.h` draws above.
+    "src/deluge/gui/ui/shell_pad_forward.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",

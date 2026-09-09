@@ -134,6 +134,24 @@ namespace deluge::gui::ui {
 /// build; a `default:` would absorb it silently and the compiler would stop being the check.
 void dispatchShellActions();
 
+/// @brief `soundEditor.exitCompletely()`, ported: take the ported menu off the guest's scene stack
+///        and let `ShellHostUI::timerCallback` close the guest itself.
+///
+/// Full argument at its definition (`gui/ui/shell_action_dispatch.cpp`, the block between the two
+/// anonymous-namespace blocks): why `soundEditor.exitCompletely()` cannot be called as-is under the
+/// guest, why emptying the stack is the whole of the port, and why it must not also call
+/// `closeGuest()`.
+///
+/// @par Why it is declared here rather than left inside the `.cpp`'s anonymous namespace
+///
+/// It has two callers ported from two different legacy statements that both happen to be
+/// `exitCompletely()`: `stem_export::Start::selectButtonPress`'s first statement, dispatched from
+/// this same translation unit's `startStemExport`, and `SoundEditor::padAction`'s tail
+/// (`gui/ui/sound_editor.cpp:1545`), ported by the pad-forwarding seam
+/// (`gui/ui/shell_pad_forward.cpp`) in a different translation unit. Internal linkage inside
+/// `namespace {}` serves only the first caller; this declaration is what the second one needs.
+void closePortedMenu();
+
 /// @brief Which stem export legacy's `Start::selectButtonPress` would start from whatever root UI is
 ///        open right now, or `std::nullopt` for the roots it leaves alone.
 ///
