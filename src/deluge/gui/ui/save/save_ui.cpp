@@ -168,6 +168,8 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 		phaseOwner_ = this;
 		savePhase_ = SavePhase::SERIALIZE;
 		writeIssued_ = false;
+		ownerWriteDispatched_ = false;
+		ownerWriteDone_ = false;
 		stagedSucceeded_ = false;
 		stallTicks_ = 0;
 		// Attempt it once here rather than waiting for the next saveRoutine() pass, for the reason
@@ -265,34 +267,47 @@ void SaveUI::runWritePhase() {
 
 	if (!onOwner && !mayUseChannel) {
 		// A build without the channel. Writing from here would block the very tier the card needs
-		// running to answer, so hand the whole write to the owner, which may block legally.
-		if (!deluge::storage::Owner::run(&SaveUI::runSaveOp, this)) {
-			if (!deferStagedSave()) {
-				endStagedSave(false);
-			}
+		// running to answer, so the WRITE -- and only the write -- goes to the owner.
+		//
+		// Not runSaveOp(): that calls performSave(), and for a staged save performSave() no longer
+		// stores anything. Sending the document there would end the save reporting success having
+		// written nothing at all.
+		if (ownerWriteDone_) {
+			ownerWriteDispatched_ = false;
+			ownerWriteDone_ = false;
+			handleWriteOutcome(ownerWriteExists_, ownerWriteOk_);
 			return;
 		}
-		// runSaveOp ran performSave(), which owns the whole legacy path including its completion.
-		savePhase_ = SavePhase::NONE;
-		phaseOwner_ = nullptr;
-		releaseStagedWriter();
+		if (!ownerWriteDispatched_) {
+			if (!deluge::storage::Owner::run(&SaveUI::runStagedWriteOp, this)) {
+				if (!deferStagedSave()) {
+					endStagedSave(false);
+				}
+				return;
+			}
+			ownerWriteDispatched_ = true;
+			stallTicks_ = 0;
+			return;
+		}
+		if (!deferStagedSave()) {
+			endStagedSave(false);
+		}
 		return;
 	}
 
 	if (onOwner) {
 		// Blocking is legal here, and the driver could not run anyway: a request issued from a
 		// context that will not yield can never be answered.
-		auto created = StorageManager::createFile(path, mayOverwrite);
-		if (!created) {
-			handleWriteOutcome(created.error() == Error::FILE_ALREADY_EXISTS, false);
-			return;
-		}
-		auto written = created->write(std::span<const std::byte>(reinterpret_cast<const std::byte*>(bytes), len));
-		const bool ok = written.has_value() && *written == len;
-		(void)created->close();
-		handleWriteOutcome(false, ok);
+		bool alreadyExists = false;
+		bool ok = false;
+		writeStagedSynchronously(alreadyExists, ok);
+		handleWriteOutcome(alreadyExists, ok);
 		return;
 	}
+
+	// Past this point the write goes through the channel, from the interaction tier. THIS is the
+	// rung's claim, and the number a gate can read it from.
+	++offOwnerSaveTicks_;
 
 	if (!writeIssued_) {
 		if (!deluge_file_write_request_write_file(path, bytes, len, mayOverwrite)) {
@@ -331,6 +346,27 @@ void SaveUI::runWritePhase() {
 	}
 	++writeChannelServedOps_;
 	handleWriteOutcome(false, writtenLen == len);
+}
+
+void SaveUI::writeStagedSynchronously(bool& alreadyExists, bool& ok) {
+	alreadyExists = false;
+	ok = false;
+	const auto* bytes = reinterpret_cast<const uint8_t*>(smSerializer.getBufferPtr());
+	const auto len = static_cast<uint32_t>(smSerializer.bytesWritten());
+	auto created = StorageManager::createFile(inFlightRequest_.filePath.c_str(), inFlightRequest_.mayOverwrite);
+	if (!created) {
+		alreadyExists = created.error() == Error::FILE_ALREADY_EXISTS;
+		return;
+	}
+	auto written = created->write(std::span<const std::byte>(reinterpret_cast<const std::byte*>(bytes), len));
+	ok = written.has_value() && *written == len;
+	(void)created->close();
+}
+
+void SaveUI::runStagedWriteOp(void* self) {
+	auto* ui = static_cast<SaveUI*>(self);
+	ui->writeStagedSynchronously(ownerWriteExists_, ownerWriteOk_);
+	ownerWriteDone_ = true;
 }
 
 void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
@@ -375,6 +411,8 @@ void SaveUI::endStagedSave(bool succeeded) {
 	// passes through this function, and leaving it borrowed breaks the next save that wants a file.
 	releaseStagedWriter();
 	writeIssued_ = false;
+	ownerWriteDispatched_ = false;
+	ownerWriteDone_ = false;
 	stallTicks_ = 0;
 	stagedSucceeded_ = succeeded;
 	savePhase_ = SavePhase::FINISH;

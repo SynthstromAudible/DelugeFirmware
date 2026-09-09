@@ -295,6 +295,11 @@ unsafe extern "C" {
     fn deluge_scenario_audio_load_ab_step_done() -> bool;
     fn deluge_scenario_audio_load_ab_failures() -> i32;
 
+    fn deluge_scenario_document_save_channel_begin();
+    fn deluge_scenario_document_save_channel_complete() -> bool;
+    fn deluge_scenario_document_save_channel_dispatch_step();
+    fn deluge_scenario_document_save_channel_step_done() -> bool;
+    fn deluge_scenario_document_save_channel_failures() -> i32;
     fn deluge_scenario_song_load_channel_begin();
     fn deluge_scenario_song_load_channel_complete() -> bool;
     fn deluge_scenario_song_load_channel_dispatch_step();
@@ -1307,6 +1312,68 @@ async fn run_settings_channel_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
+/// The `GOLDEN_SCENARIO=document_save_channel` scenario: save a preset through the real ENTER
+/// gesture, require the written document to be whole, and report whether the storage channel served
+/// the write off the owner.
+///
+/// Two legs are built from this one scenario -- with and without the channel features -- because
+/// `write_file` begins life with no harness building it, which is precisely the position the
+/// whole-file read was in when it turned out to contain two defects.
+#[embassy_executor::task]
+async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_document_save_channel_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_document_save_channel_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_document_save_channel_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the document-save channel run did not complete within the 600s \
+                 wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_document_save_channel_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_document_save_channel_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_document_save_channel_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the document-save channel run FAILED ({failures} in-process \
+             failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: document-save channel run completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=song_load_channel` scenario: save a song carrying a distinctive value, load
 /// it back through the real `LoadSongUI`, and report both whether the value returned and whether the
 /// storage channel served the read off the owner.
@@ -1606,6 +1673,7 @@ fn main() {
     let song_preview_ab_mode = scenario == "song_preview_ab";
     let save_roundtrip_mode = scenario == "save_roundtrip";
     let song_load_channel_mode = scenario == "song_load_channel";
+    let document_save_channel_mode = scenario == "document_save_channel";
     let settings_channel_mode = scenario == "settings_channel";
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
@@ -1734,6 +1802,8 @@ fn main() {
         spawner.spawn(run_save_roundtrip_scenario(&DONE).unwrap());
     } else if song_load_channel_mode {
         spawner.spawn(run_song_load_channel_scenario(&DONE).unwrap());
+    } else if document_save_channel_mode {
+        spawner.spawn(run_document_save_channel_scenario(&DONE).unwrap());
     } else if settings_channel_mode {
         spawner.spawn(run_settings_channel_scenario(&DONE).unwrap());
     } else if startup_failsafe_mode {

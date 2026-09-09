@@ -49,6 +49,8 @@ protected:
 	/// The song-load channel gate saves a song to load back, and drives the same real gesture for the
 	/// same reason: a save made by calling performSave() directly would not be the save a user makes.
 	friend class SongLoadChannelProbe;
+	/// The document-save channel gate drives the same real gesture, for the same reason.
+	friend class DocumentSaveChannelProbe;
 
 public:
 	/// @brief Dispatch one save onto the storage owner.
@@ -121,6 +123,10 @@ private:
 	void runFinishPhase();
 	/// @brief Turn one write's outcome into a prompt, an error, or a success.
 	void handleWriteOutcome(bool alreadyExists, bool ok);
+	/// @brief Store the staged document with a blocking write. Legal ONLY on the storage owner.
+	void writeStagedSynchronously(bool& alreadyExists, bool& ok);
+	/// @brief The owner-side arm of a staged write, for builds without the channel.
+	static void runStagedWriteOp(void* self);
 	/// @brief Release the staged document and end the save. `succeeded` reaches the completion.
 	void endStagedSave(bool succeeded);
 	/// @brief Hand the shared serialiser back to file-backed use.
@@ -136,6 +142,11 @@ private:
 	/// single-flight, so this says which instance the static state belongs to.
 	static inline SaveUI* phaseOwner_{nullptr};
 	static inline bool writeIssued_{};
+	/// The owner-side write, for builds with no channel: dispatched once, then collected.
+	static inline bool ownerWriteDispatched_{};
+	static inline bool ownerWriteDone_{};
+	static inline bool ownerWriteExists_{};
+	static inline bool ownerWriteOk_{};
 	static inline bool stagedSucceeded_{};
 	static inline int32_t stallTicks_{};
 	/// The in-flight save, if any. Single-flight by refusal: see dispatchSave().
