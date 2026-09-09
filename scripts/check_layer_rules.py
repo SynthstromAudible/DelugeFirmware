@@ -209,9 +209,10 @@ UI_STACK_CALLS = (
 # `SampleBrowser::selectFileForClaim` (`gui/ui/browser/sample_browser.h:99`, defined
 # `sample_browser.cpp:401`) points the legacy browser at a directory and a filename, because
 # `claimCurrentFile` reads `currentDir` and the selected `FileItem` rather than taking a path.
-# `SoundEditor::adoptResolvedContext` (`gui/ui/sound_editor.h:216`, defined
-# `sound_editor.cpp:2152`) writes the four editor members legacy's own `setup()` would have
-# resolved -- which under the toggle nothing calls, and which F3 task 4 found by SIGSEGV.
+# `SoundEditor::adoptResolvedContext` (`gui/ui/sound_editor.h:220`, defined
+# `sound_editor.cpp:2152`) writes the editor context legacy's own `setup()` would have resolved --
+# which under the toggle nothing calls, and which F3 task 4 found by SIGSEGV. Eleven assignments;
+# ten cite a `setup()` line and the eleventh is argued at the write.
 #
 # Why this needs a row rather than review. Both were argued as additive and BOTH ARE DEAD WITH
 # THE TOGGLE OFF -- that is the property the whole guest rests on (spec F §2.1: with the toggle
@@ -236,7 +237,7 @@ UI_STACK_CALLS = (
 # object, but a call through a `SampleBrowser*` written `->` would not. `->` is deliberately not
 # in the pattern: both objects are global singletons this tree only ever spells with a `.`
 # (`gui/ui/browser/sample_browser.h:184 extern SampleBrowser sampleBrowser`,
-# `gui/ui/sound_editor.h:235 extern SoundEditor soundEditor`), and adding `->` would be widening
+# `gui/ui/sound_editor.h:239 extern SoundEditor soundEditor`), and adding `->` would be widening
 # the row past the mechanism that makes it checkable.
 CLAIM_SEAM_CALLS = (
     "selectFileForClaim",
@@ -577,7 +578,7 @@ RULES = [
         # `CATALOGUE_DISPATCH_CALLS` entry -- neither has been `rule_covers` or a glob tuple for
         # several plans. They are left wrong on purpose: the wrongness IS the example, and
         # correcting them would delete it. What a reader should know is that they have since drifted
-        # further -- F3 task 5's `CLAIM_SEAM_CALLS` insert moved `rule_covers` from `:885` to `:945`
+        # further -- F3 task 5's `CLAIM_SEAM_CALLS` insert moved `rule_covers` from `:885` to `:946`
         # -- and that `check_citation_shift.py` cannot see this, because a self-citation inside the
         # file it cites is compared against the same file's own new text.
         "scenes-includes-gui",

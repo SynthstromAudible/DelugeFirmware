@@ -2168,5 +2168,22 @@ void SoundEditor::adoptResolvedContext(const ResolvedContext& resolved) {
 	currentSource = resolved.source;                 // `:1883`
 	currentSampleControls = resolved.sampleControls; // `:1884`
 	currentPriority = resolved.priority;             // `:1885`
+
+	// **The eleventh line is the only one `setup()` does not write, and it is load-bearing.** Every
+	// assignment above cites a `setup()` statement; `currentMultiRangeIndex` cites none because
+	// `setup()` never touches it -- the sole other writer in this file is
+	// `SoundEditor::setCurrentMultiRange` (`:1983-1984`), which the ported path never calls.
+	//
+	// It is here because `SampleBrowser::claimCurrentFile` reads it **indirectly**, which is why the
+	// header's "reads `currentSound` / `currentSource` / `currentSourceIndex` / `currentMultiRange`"
+	// list is four and the real answer is five. The claim calls
+	// `soundEditor.currentSource->setOscType(...)` twice (`gui/ui/browser/sample_browser.cpp:896`
+	// for WAVETABLE, `:963` for SAMPLE), and `Source::setOscType` reads
+	// `soundEditor.currentMultiRangeIndex` to pick which range the new type applies to
+	// (`processing/source.cpp:258-259`, and it resets the member to 0 on the reallocation failure
+	// path at `:249`). Leaving it unwritten would let a **stale index from a pre-toggle legacy
+	// session** select a wrong range inside `setOscType` -- not a crash, which is what the other ten
+	// prevent, but a silent wrong-range write. Nothing in any suite covers that: the level-3 A/B
+	// boots fresh, where the index is 0 and correct by accident.
 	currentMultiRangeIndex = resolved.rangeIndex;
 }

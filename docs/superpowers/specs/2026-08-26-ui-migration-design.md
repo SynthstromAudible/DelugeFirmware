@@ -230,7 +230,7 @@ as an all-zero mask (`scenes/menu/menu_scene.cpp:1697-1729`).
 applied twice.** Legacy greys once, in the send path — `prepareColour` (`hid/led/pad_leds.cpp:283-298`,
 the tint at `:293-296`) reads the masks `reassessGreyout` took from `getUIGreyoutColsAndRows`
 (`:734-735`) and never mutates `PadLEDs::image`. The shell has no send stage to hook, so it greys its
-own grid in place (`Shell::render_grid`, `shell/shell.cpp:782-788`, over the whole stack's OR at
+own grid in place (`Shell::render_grid`, `shell/shell.cpp:789-795`, over the whole stack's OR at
 `:328-334`); those already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
 which writes `image` and calls `sortLedsForCol` — back through `prepareColour`, which greys them again
 for whatever the guest just reported. A greyed pad is darker under the guest than under `SoundEditor`.
@@ -285,8 +285,8 @@ at the code.
   about to unset it and where an arm would deliver this guest's callback to the UI beneath.
 - **There is no `LedSink`.** `grep -rn LedSink src/` has no hits. `derive_leds` is a private member
   of `Shell` (`shell/shell.h:507`), not of the guest, and it does not write anything: it composes the
-  frame and fills the `desired_*` shadows (`shell/shell.cpp:867-886`), and `Shell::flush` is what
-  calls `SurfaceSet::set_led` (`shell/shell.cpp:995-1021`). The `indicator_leds` half of the sentence
+  frame and fills the `desired_*` shadows (`shell/shell.cpp:874-893`), and `Shell::flush` is what
+  calls `SurfaceSet::set_led` (`shell/shell.cpp:1002-1028`). The `indicator_leds` half of the sentence
   is right and was already built by F1 task 4 (`GuestSurfaceSet::set_led`). What task 7 adds is the
   *tick*, without which none of it ever runs.
 - **The ownership rule holds, and it is one-sided in the guest's favour.** An id no scene declared
@@ -389,7 +389,7 @@ no cadence ceiling to quote for either surface.
 The bounds that are actually true:
 
 - **Grid: the per-pair diff, not a cadence.** `Shell::flush` compares each pair against `last_sent`
-  before calling `send_columns` at all (`src/shell/shell.cpp:970-986`), so a tick in which no pad
+  before calling `send_columns` at all (`src/shell/shell.cpp:977-993`), so a tick in which no pad
   changed colour costs **zero bytes**, however fast the ticks come. 432 B is the price of a full
   repaint, not of a tick.
 - **OLED: per tick that rendered, because there is no diff.** `flush` blits a surface
@@ -593,10 +593,25 @@ rather than a thing that is half-done:
    §10.10 is what that covers.
 
    **The claim seam's two additive legacy methods are ratcheted.** `SampleBrowser::selectFileForClaim`
-   and `SoundEditor::adoptResolvedContext` (the latter added by task 4, for the four editor members
-   no `setup()` writes under the toggle) are dead with the toggle off for exactly one reason: their
-   only caller is the dispatcher. `check_layer_rules.py`'s `legacy-calls-claim-seam` row is what
-   keeps that true, on `legacy-names-port`'s own argument pointed the other way.
+   and `SoundEditor::adoptResolvedContext` (the latter added by task 4, for the editor context no
+   `setup()` runs under the toggle to resolve) are dead with the toggle off for exactly one reason:
+   their only caller is the dispatcher. `check_layer_rules.py`'s `legacy-calls-claim-seam` row is
+   what keeps that true, on `legacy-names-port`'s own argument pointed the other way.
+
+   **Be exact about that second one, because an earlier draft of this item was wrong three ways.**
+   `adoptResolvedContext` makes **eleven** assignments; `setup()` writes **ten** of them, each citing
+   its own `setup()` line. The members `claimCurrentFile` reads **by name** are four
+   (`currentSound`, `currentSource`, `currentSourceIndex`, `currentMultiRange`), and a **fifth** it
+   reads through a callee: the claim calls `Source::setOscType` twice
+   (`gui/ui/browser/sample_browser.cpp:896`, `:963`) and that function consults
+   `soundEditor.currentMultiRangeIndex` to pick the range (`processing/source.cpp:258-259`, resetting
+   it on the failure path at `:249`). So the eleventh assignment — `currentMultiRangeIndex` — is the
+   one with **no `setup()` line to cite**, because `setup()` never writes it: the only other writer
+   in the file is `SoundEditor::setCurrentMultiRange` (`gui/ui/sound_editor.cpp:1983-1984`), which
+   the ported path never calls. It earns its place anyway, and differently from the other ten: they
+   prevent the SIGSEGV task 4 measured, while this one prevents a **stale index from a pre-toggle
+   legacy session silently selecting a wrong range** inside `setOscType`. Nothing covers that — the
+   level-3 A/B boots fresh, where the index is 0 and correct by accident. Argued at the write.
 
    **What "closed" does and does not claim, and the first of these is the one that matters.**
 
@@ -1656,7 +1671,7 @@ end — and 4 of that claim's 5 steps.**
 |---|---|
 | `BrowserId` descriptors shipping | 2 (`Sample`, `MidiDeviceDefinition`) |
 | descriptors that answer `AcceptOutcome::Defer`, and so need a dispatcher arm | 1 — `Sample`; `MidiDeviceDefinition` loads its own file and answers `Close` |
-| arms of `dispatchShellChoices` | 1, and there is no `switch`: the drain tests the `BrowserId` and returns for anything else |
+| arms of `dispatchShellChoices` | 1 that acts, inside a **three-arm `switch` over `BrowserId` with no `default:`** (`gui/ui/shell_choice_dispatch.cpp:232`). The other two are spelled out and empty on purpose — `MidiDeviceDefinition` because it performs its own accept and answers `Close`, `Count` because it is the table's size — so a future descriptor that starts deferring lands on `-Werror=switch` rather than in a `default:` (`:244-246`) |
 | fixture examples (`browser_choice_spec.cpp`) | **14** — 0 at F3's base, because the file is task 1's; 7 after task 1, 14 after task 3 |
 | host-side spec for the **poll** rather than the act | **none** — see the second counter-example below |
 | **claims driven end to end in the real firmware, both toggle legs** | **1** — a `.WAV` under `SAMPLES/`, chosen in the ported browser through legacy entry site 8 |
@@ -1683,17 +1698,21 @@ number honest rather than merely small:
 **Why the fifth step is not covered, and why that is a finding rather than an omission.** The only
 panel that would show the load is the page the claim lands on. Both legs land on the *same page*
 with the *same column region focused* — which is what §10.2 item 4's re-rooting claims, and the A/B
-confirms it — but the two panels are not byte-identical, and they differ for **four** reasons of
-which **one is undiagnosed**: legacy draws `[folder icon] | SAMP | TRAN | PLAY`, the port draws
-`TYPE | FILE | TRAN | REVE`. Two are carried rows meeting the application for the first time
-(`renderInHorizontalMenu` has no port for the four bespoke items; `getColumnLabel` has no `Node`
-spelling, and `FileSelector::getColumnLabel` at `gui/menu_item/file_selector.cpp:93-114` renders the
-loaded sample's *folder* where the port renders the node's name). The fourth is not relevance —
-`sample::Reverse::isRelevant` (`gui/menu_item/sample/reverse.h:34-36`) and `relevance::osc0_is_sample`
-are the same predicate — so it is paging or ordering in `render_horizontal`. Photographing that page
-would record a difference nobody has explained, which is what E4 task 13's rule forbids and what has
-now been ruled correct four times. **Closing the landing-page row is what converts 4 of 5 into 5 of
-5**, and it is a `Node`/`CustomItem` API addition that moves every horizontal golden in the tree.
+confirms it — but the two panels are not byte-identical: legacy draws
+`[folder icon] | SAMP | TRAN | PLAY`, the port draws `TYPE | FILE | TRAN | REVE`. **Four columns
+differ, for three reasons, one of which is undiagnosed.** The count of columns is not the count of
+reasons, and `src/scenes/README.md`'s landing-page row is the source for both. Two of the three are
+carried rows meeting the application for the first time: `renderInHorizontalMenu` has no port for the
+four bespoke items, and `getColumnLabel` has no `Node` spelling — with
+`FileSelector::getColumnLabel` (`gui/menu_item/file_selector.cpp:93-114`) a sharper case than that
+note describes, rendering the loaded sample's *folder* where the port renders the node's name. **The
+third reason is the undiagnosed one**, and it accounts for the fourth differing column: it is not
+relevance, because `sample::Reverse::isRelevant` (`gui/menu_item/sample/reverse.h:34-36`) and
+`relevance::osc0_is_sample` are the same predicate — so it is paging or ordering in
+`render_horizontal`. Photographing that page would record a difference nobody has explained, which is
+what E4 task 13's rule forbids and what has now been ruled correct four times. **Closing the
+landing-page row is what converts 4 of 5 into 5 of 5**, and it is a `Node`/`CustomItem` API addition
+that moves every horizontal golden in the tree.
 
 **A second counter-example, of a different kind: the choice poll's *position* is pinned by nothing
 on the host side.** F2's action poll has four examples in `tests/spec/gui/shell_action_dispatch_spec.cpp`

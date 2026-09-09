@@ -196,7 +196,11 @@ public:
 	/// **Why this exists.** `SampleBrowser::claimCurrentFile`'s instrument arm reads `currentSound`
 	/// on its first statement (`gui/ui/browser/sample_browser.cpp:871`) and `currentSource` /
 	/// `currentSourceIndex` / `currentMultiRange` throughout (`:880`, `:927`, `:1013`), and reaches
-	/// `getCurrentAudioFileHolder()` and `cutSound()`, both of which dereference them. Legacy never
+	/// `getCurrentAudioFileHolder()` and `cutSound()`, both of which dereference them. **Those four
+	/// are the members it reads by name; a fifth it reads through a callee** --
+	/// `Source::setOscType` (`:896`, `:963`) consults `currentMultiRangeIndex`
+	/// (`processing/source.cpp:258-259`) -- which is the one assignment in `adoptResolvedContext`
+	/// that has no `setup()` line to cite, and is argued where it is written. Legacy never
 	/// has to think about it: the browser is only ever reached from `FileSelector::beginSession`
 	/// (`gui/menu_item/file_selector.cpp:36-47`), i.e. from inside a `SoundEditor` that `setup()`
 	/// resolved. **Under the ShellMenu toggle nothing calls `setup()` at all**, so `currentSound` is

@@ -1646,8 +1646,18 @@ the input top, so a scene that genuinely regained the input top got nothing. Now
   out** to `AudioClipScene`, on the rule that a symbol belonging to one consumer but living in a
   shared header never gets moved later.
 * **The four inventions the 2026-09-06 audit found** (`Shell::dim_grid`'s overlay dim,
-  `GestureEvent::Hold`, the widened `SecondPad`) **and the two legacy bug-fixes are out of scope for
-  every task here.** They are Kate's call and stay recorded.
+  `GestureEvent::Hold`, the widened `SecondPad`, and `BootScene`, which was removed the same day)
+  **and the two legacy bug-fixes are out of scope for every task here.** They are Kate's call and
+  stay recorded.
+
+  **Amendment (F3 task 5): this bullet said "four" and named three, and neither number is the
+  live one.** The audit's list has since moved in both directions. `Hold` and `SecondPad` were
+  retired by F3 task 5's sweep on the port's own test — `gesture()` (`src/ui/grid/effects.cpp:33`)
+  has no caller under `src/scenes` or `src/shell`, so they ship no UX — and the same sweep found
+  four sites that do. **The live tally is `src/scenes/README.md`'s sweep row: five sites**,
+  `dim_grid` plus those four, one of which was already a carry row there. The **two legacy
+  bug-fixes are still enumerated nowhere**, which is itself a finding; the sweep's best guess at
+  their identity is named in that row.
 * **`Services{}` for every pre-existing level-2 script.** Only task 13's own ten scripts get the
   real services. E1–E3's goldens were recorded against null services and are the regression baseline
   for three plans; re-recording 47+ goldens as a side effect of adding a service is a change nobody

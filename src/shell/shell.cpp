@@ -713,7 +713,14 @@ void Shell::dim_grid(gfx::grid::PadGrid& grid) {
 	// @warning **That sentence is an OPEN FLAG, not a settled design note**, and reading it as
 	//          settled is the mistake this paragraph exists to prevent. The UI-stack port's
 	//          standing constraint is that everything be a port of something legacy already does;
-	//          this is one of four inventions Kate has deferred rather than decided. It is argued
+	//          this is one of the inventions Kate has deferred rather than decided. **It is not
+	//          "one of four", which this line said until F3 task 5 counted them.** The
+	//          2026-09-06 audit's four were `dim_grid`, `GestureEvent::Hold`, the widened
+	//          `SecondPad` and `BootScene`; `BootScene` was removed the same day, and F3 task 5's
+	//          sweep both retired `Hold` and `SecondPad` (`ui/grid/effects.h` -- `gesture()` has
+	//          no caller outside specs, so they ship no UX) and found four more that do. **The
+	//          live tally is `src/scenes/README.md`'s sweep row**, and it is five sites: this one
+	//          plus those four. Do not re-derive a number here. It is argued
 	//          at `src/shell/README.md`'s composition section, and `src/scenes/README.md`'s carry
 	//          table ties it to the sidebar divergence the F1 level-3 A/B found empirically --
 	//          which is plausibly the same question, since both are about what the grid under an

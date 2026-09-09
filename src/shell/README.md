@@ -291,9 +291,12 @@ overlays, then applies the stack's greyout at legacy's full strength (`setGreyou
 legacy has only the greyout. Spec D §7 says "dim if any overlay is above"; the shell narrows that
 to "if any overlay above the base `dims_grid()`", so an overlay that composites nothing can opt out.
 
-> **That "not a port" is an OUTSTANDING flag, not a settled decision** -- one of four inventions
+> **That "not a port" is an OUTSTANDING flag, not a settled decision** -- one of the inventions
 > deferred rather than resolved, and the UI-stack port's standing constraint is that everything be a
-> port of something legacy already does. It is no longer only a design question: since F1 the
+> port of something legacy already does. (This line said "one of four" until F3 task 5 counted
+> them; **the live tally is `src/scenes/README.md`'s sweep row and it is five sites**, not the
+> 2026-09-06 audit's four, two of which turned out to ship no UX. `shell.cpp`'s own `@warning`
+> carries the arithmetic.) It is no longer only a design question: since F1 the
 > compositor runs inside the shipping firmware, so `dim_grid` is live code in the path the level-3
 > A/B exercises. **And the A/B found the adjacent question empirically.** With the ported menu open,
 > legacy leaves the clip view showing with the sidebar **greyed**
