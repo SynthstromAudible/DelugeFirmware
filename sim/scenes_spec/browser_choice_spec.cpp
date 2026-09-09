@@ -29,7 +29,7 @@
 ///
 /// Because that is the only way it is ever open. `FileBrowserItem::on_focus`
 /// (`scenes/menu/nodes/sample.cpp:77-106`) opens the scene and files `MenuState::pending_scene`
-/// (`:100-101`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
+/// (`:104-105`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
 /// the stack would empty the moment `Defer` closed it, and `ShellHostUI::timerCallback` would take
 /// its `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:553-556`) -- `closeUI` on a guest that is not
 /// on the legacy UI stack, i.e. the index `-1` read `gui/ui/shell_action_dispatch.cpp:128-134`
