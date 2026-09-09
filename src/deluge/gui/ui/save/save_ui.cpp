@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/context_menu/save_song_or_instrument.h"
+#include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -202,6 +203,11 @@ constexpr int32_t kMaxSaveStallTicks = 600;
 } // namespace
 
 void SaveUI::saveRoutine() {
+	// The song save's sample collection runs on its own machine, for the reason its enum is separate:
+	// its flow is not a staged document write and sharing one would make both harder to follow.
+	if (saveSongUI.collectInFlight()) {
+		saveSongUI.collectRoutine();
+	}
 	if (phaseOwner_ == nullptr) {
 		return;
 	}

@@ -29,8 +29,10 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/flash_storage.h"
+#include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "sync/sd_access.h"
@@ -558,14 +560,214 @@ gotError:
 		return true;
 	};
 
-	if (!std::ranges::all_of(audioFileManager.audioFiles, saveAudioFile)) {
+	// Decide everything first, then perform it a tick at a time. The list of audio files is sorted by
+	// path and searched by bisection, and the transfers below rewrite paths -- so nothing is applied
+	// until every transfer has finished.
+	transfers_.clear();
+	if (!planTransfers(transfers_, collectingSamples, newSongAlternatePath, dirPathLengthNew)) {
+		error = Error::UNSPECIFIED;
+		goto gotError;
+	}
+
+	// Everything the continuation needs once the transfers are done. They were locals; the save no
+	// longer finishes inside this call, so they have to outlive it.
+	pendingFilePath_ = filePath;
+	pendingFileAlreadyExisted_ = fileAlreadyExisted;
+	anyErrorMovingTempFiles_ = false;
+	transferCursor_ = 0;
+	renameIssued_ = false;
+	copyIssued_ = false;
+	renameSucceeded_ = true;
+	collectStallTicks_ = 0;
+	collectPhase_ = CollectPhase::TRANSFER;
+
+	// Attempt once here rather than waiting for the next pass, and return "dealt with" -- the same
+	// answer this function already gives when it opens the overwrite prompt instead of finishing.
+	collectRoutine();
+	return true;
+}
+
+namespace {
+/// How many consecutive deferrals one collection tolerates without progress. A bound, not a timeout:
+/// an unbounded retry is not patience, it is a wedge that presents as the device having hung.
+constexpr int32_t kMaxCollectStallTicks = 600;
+} // namespace
+
+void SaveSongUI::collectRoutine() {
+	switch (collectPhase_) {
+	case CollectPhase::NONE:
+		return;
+	case CollectPhase::TRANSFER:
+		runTransferPhase();
+		return;
+	case CollectPhase::APPLY:
+		applyTransfers();
+		collectPhase_ = CollectPhase::NONE;
+		transfers_.clear();
+		if (!finishSaveAfterCollection()) {
+			// finishSaveAfterCollection displayed its own error; the save is over either way.
+		}
+		return;
+	}
+}
+
+bool SaveSongUI::deferCollection() {
+	if (++collectStallTicks_ > kMaxCollectStallTicks) {
+		return false;
+	}
+	return true;
+}
+
+void SaveSongUI::abandonCollection() {
+	// NOTHING is applied. Every decided path stays decided and unwritten, so what is in memory still
+	// matches what is on the card -- which is the whole reason the decisions were kept apart from the
+	// transfers.
+	collectPhase_ = CollectPhase::NONE;
+	transfers_.clear();
+	display->removeLoadingAnimation();
+	display->displayError(Error::UNSPECIFIED);
+}
+
+void SaveSongUI::runTransferPhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	if (transferCursor_ >= transfers_.size()) {
+		collectPhase_ = CollectPhase::APPLY;
+		return;
+	}
+	PlannedTransfer& entry = transfers_[transferCursor_];
+
+	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	if (!onOwner) {
+		++offOwnerTransferTicks_;
+	}
+
+	DelugeStatus status = DELUGE_OK;
+
+	// The move out of a temporary location comes first, because whether it SUCCEEDS is what decides
+	// where the copy below reads from.
+	if (entry.renameTemp && !renameIssued_) {
+		switch (deluge::storage::bytes::collectRename(entry.renameTo.c_str(), &status)) {
+		case ByteIo::Unknown:
+			// Ask -- and honour the answer: a path that cannot be keyed reports Failed, and discarding
+			// that leaves this asking a channel that will never reply.
+			if (deluge::storage::bytes::requestRename(entry.renameFrom.c_str(), entry.renameTo.c_str())
+			    == ByteIo::Failed) {
+				renameIssued_ = true;
+				renameSucceeded_ = false;
+				anyErrorMovingTempFiles_ = true;
+				return;
+			}
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		case ByteIo::Pending:
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		case ByteIo::Failed:
+			// NOT fatal, and deliberately so: the old code warned, left the recording where it was, and
+			// carried on copying from there.
+			renameIssued_ = true;
+			renameSucceeded_ = false;
+			anyErrorMovingTempFiles_ = true;
+			collectStallTicks_ = 0;
+			return;
+		case ByteIo::Ready:
+			renameIssued_ = true;
+			renameSucceeded_ = true;
+			collectStallTicks_ = 0;
+			return;
+		}
+	}
+
+	if (entry.copy) {
+		const std::string& from = renameSucceeded_ ? entry.copyFromAfterRename : entry.copyFromIfRenameFailed;
+		switch (deluge::storage::bytes::collectCopy(entry.copyTo.c_str(), &status)) {
+		case ByteIo::Unknown:
+			if (deluge::storage::bytes::requestCopy(from.c_str(), entry.copyTo.c_str()) == ByteIo::Failed) {
+				abandonCollection();
+				return;
+			}
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		case ByteIo::Pending:
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		case ByteIo::Failed:
+			// A failed COPY does abandon the save. Collect-media promises the song's folder holds
+			// everything it references; half of that, believed whole, is worse than a visible error.
+			abandonCollection();
+			return;
+		case ByteIo::Ready:
+			++transferChannelServedOps_;
+			break;
+		}
+	}
+
+	// This entry is done.
+	++transferCursor_;
+	renameIssued_ = false;
+	copyIssued_ = false;
+	renameSucceeded_ = true;
+	collectStallTicks_ = 0;
+}
+
+void SaveSongUI::applyTransfers() {
+	for (PlannedTransfer& entry : transfers_) {
+		const bool changesPath = !entry.newFilePath.empty();
+		const bool changesAlternate = !entry.newAlternatePath.empty() || entry.clearAlternatePath;
+		if (entry.clearTempPath && entry.file->type == AudioFileType::SAMPLE && renameSucceeded_) {
+			static_cast<Sample*>(entry.file)->tempFilePathForRecording.clear();
+		}
+		if (!changesPath && !changesAlternate) {
+			continue;
+		}
+
+		// THIS ORDER AND NO OTHER. searchForExactObject bisects on the CURRENT filePath, so locating
+		// must happen while the vector is still ordered by it. Mutating first searches for the new path
+		// in a vector ordered by the old one and returns -1, silently losing the file from the index.
+		int32_t i = -1;
+		if (changesPath) {
+			i = audioFileManager.audioFiles.searchForExactObject(entry.file);
+			if (i >= 0) {
+				audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
+			}
+		}
+		if (changesPath) {
+			entry.file->filePath = entry.newFilePath;
+		}
+		if (!entry.newAlternatePath.empty()) {
+			entry.file->loadedFromAlternatePath = entry.newAlternatePath;
+		}
+		else if (entry.clearAlternatePath) {
+			entry.file->loadedFromAlternatePath.clear();
+		}
+		if (changesPath && i >= 0) {
+			(void)audioFileManager.audioFiles.insertElement(entry.file);
+		}
+	}
+}
+
+bool SaveSongUI::finishSaveAfterCollection() {
+	Error error = Error::NONE;
+	if (error != Error::NONE) {
+gotError:
+		display->removeLoadingAnimation();
+		display->displayError(error);
 		return false;
 	}
 
 	std::string filePathDuringWrite;
 
 	// If we're overwriting an existing file, we'll write to a temp file first. Find one that doesn't already exist
-	if (fileAlreadyExisted) {
+	if (pendingFileAlreadyExisted_) {
 
 		int32_t tempFileNumber = 0;
 
@@ -605,7 +807,7 @@ gotError:
 		}
 	}
 	else {
-		filePathDuringWrite = filePath;
+		filePathDuringWrite = pendingFilePath_;
 	}
 
 	D_PRINTLN("creating:  %s", filePathDuringWrite.c_str());
@@ -637,25 +839,25 @@ gotError:
 	}
 
 	// If "overwriting an existing file"...
-	if (fileAlreadyExisted) {
+	if (pendingFileAlreadyExisted_) {
 
 		// Delete the old file
 		deluge_file_invalidate_cache();
-		if (auto removed = deluge::io::unlink(filePath); !removed.has_value()) {
+		if (auto removed = deluge::io::unlink(pendingFilePath_); !removed.has_value()) {
 			error = delugeStatusToError(deluge::io::to_deluge_status(removed.error()));
 			goto gotError;
 		}
 
 		// Rename the new file
 		deluge_file_invalidate_cache();
-		if (auto renamed = deluge::io::rename(filePathDuringWrite, filePath); !renamed.has_value()) {
+		if (auto renamed = deluge::io::rename(filePathDuringWrite, pendingFilePath_); !renamed.has_value()) {
 			error = delugeStatusToError(deluge::io::to_deluge_status(renamed.error()));
 			goto gotError;
 		}
 	}
 
 	display->removeWorkingAnimation();
-	char const* message = anyErrorMovingTempFiles
+	char const* message = anyErrorMovingTempFiles_
 	                          ? (deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_MOVING_TEMP_FILES))
 	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));
 	// Update all of these

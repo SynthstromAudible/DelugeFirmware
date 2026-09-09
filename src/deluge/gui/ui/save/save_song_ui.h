@@ -77,6 +77,55 @@ public:
 	/// @return false if a path could not be built, which fails the save exactly as it did before.
 	[[nodiscard]] bool planTransfers(std::vector<PlannedTransfer>& into, bool collectingSamples,
 	                                 const std::string& songAlternatePath, int32_t alternateDirLength);
+
+	/// @brief Drive one step of a sample collection. Called from SaveUI::saveRoutine().
+	void collectRoutine();
+
+	/// @brief Whether a sample collection is in flight. NOT the same as the save UI being open.
+	[[nodiscard]] bool collectInFlight() const { return collectPhase_ != CollectPhase::NONE; }
+
+	/// @brief Transfers the CHANNEL served, and steps that ran off the storage owner.
+	[[nodiscard]] static int32_t transferChannelServedOps() { return transferChannelServedOps_; }
+	[[nodiscard]] static int32_t offOwnerTransferTicks() { return offOwnerTransferTicks_; }
+
+private:
+	/// Which part of a sample collection runs next.
+	///
+	/// Separate from SaveUI::SavePhase deliberately: the song save's flow differs enough that one
+	/// shared enum would make both harder to read.
+	enum class CollectPhase : uint8_t {
+		NONE,     ///< No collection in flight.
+		TRANSFER, ///< Moving and copying, one entry at a time.
+		APPLY,    ///< Writing the decided paths back, in one step.
+	};
+
+	void runTransferPhase();
+	void applyTransfers();
+	/// @brief End the collection having applied NOTHING, and fail the save.
+	void abandonCollection();
+	/// @brief Defer one more tick, or give up if the collection has stopped making progress.
+	bool deferCollection();
+	/// @brief Everything the save does after its samples are in place.
+	bool finishSaveAfterCollection();
+
+	CollectPhase collectPhase_{CollectPhase::NONE};
+	std::vector<PlannedTransfer> transfers_;
+	size_t transferCursor_{};
+	bool renameIssued_{};
+	bool copyIssued_{};
+	/// Whether the CURRENT entry's rename succeeded, which decides where its copy reads from.
+	bool renameSucceeded_{true};
+	int32_t collectStallTicks_{};
+
+	/// Locals the save used to keep on its stack. It no longer finishes inside one call.
+	std::string pendingFilePath_;
+	bool pendingFileAlreadyExisted_{};
+	bool anyErrorMovingTempFiles_{};
+
+	static inline int32_t transferChannelServedOps_{};
+	static inline int32_t offOwnerTransferTicks_{};
+
+public:
 	bool collectingSamples{};
 	[[nodiscard]] bool collectingSamplesForDispatch() const override { return collectingSamples; }
 	// ui
