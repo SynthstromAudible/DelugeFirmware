@@ -472,7 +472,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
 	// (`scenes/menu/menu_scene.h:612-640`), and it announces nothing: "`after_render` returns no
 	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
-	// tick, or requests are dropped or stale**" (`:598-600`). This line is the polling for the
+	// tick, or requests are dropped or stale**" (`:615-617`). This line is the polling for the
 	// **menu's** outbox. `dispatchShellActions` performs whatever it finds.
 	//
 	// (This used to say "and it is the only one in the firmware". F3 task 1 made that false:

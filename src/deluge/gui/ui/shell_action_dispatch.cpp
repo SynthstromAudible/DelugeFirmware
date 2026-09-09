@@ -141,7 +141,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
 /// (`scenes/menu/menu_scene.cpp:1604-1609`). `SceneStack::remove` and not `pop`, for the reason
-/// recorded there (`:1487-1498`): `pop` would take a `Working` animation or a `Popup` sitting over
+/// recorded there (`:1591-1602`): `pop` would take a `Working` animation or a `Popup` sitting over
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
 ///
@@ -285,7 +285,7 @@ void dispatchShellActions() {
 	// the request and clears it in the same call (`scenes/menu/menu_scene.h:642-643`). So an early
 	// return above this line would not be "nothing to do", it would be "the request stays in the
 	// outbox until something else asks", which is the stale delivery the mailbox's own warning
-	// describes (`:595-600`).
+	// describes (`:612-617`).
 	const MenuActionRequest req = menu_scene().take_action();
 	if (!req.engaged()) {
 		return;

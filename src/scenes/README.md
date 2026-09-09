@@ -963,7 +963,7 @@ Seven things are worth finding from here rather than from the header.
   still true, and now stated as a decision on `Scene::on_resume` rather than left open. `MenuScene`
   took the spurious edge too (`go_up_on_resume` guards only the `ascend()` at
   `menu_scene.cpp:410-413`; the tail resets five per-tick fields unconditionally at `:415-419`, and
-  the scene raises `Notice::Kind::Console` itself at `:1256` and `menu/bindings.cpp:372`), but cost
+  the scene raises `Notice::Kind::Console` itself at `:1353` and `menu/bindings.cpp:372`), but cost
   nothing by it: those five fields are drained at the end of every `after_render` (`:1358-1362`) and
   `render_oled` re-zeroes two of them at its own head (`:482-483`), while `Notices` is a `Service`
   and ticks at `Shell::tick` step 4 (`shell/shell.cpp:322-323`) -- before any render. They were already
