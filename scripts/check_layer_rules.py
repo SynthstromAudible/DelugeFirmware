@@ -203,6 +203,47 @@ UI_STACK_CALLS = (
     "swapOutRootUILowLevel",
 )
 
+# The two legacy methods F3 added FOR the guest and for nothing else -- the claim seam's
+# legacy-side half -- and the invariant that keeps them dead with the toggle off.
+#
+# `SampleBrowser::selectFileForClaim` (`gui/ui/browser/sample_browser.h:99`, defined
+# `sample_browser.cpp:401`) points the legacy browser at a directory and a filename, because
+# `claimCurrentFile` reads `currentDir` and the selected `FileItem` rather than taking a path.
+# `SoundEditor::adoptResolvedContext` (`gui/ui/sound_editor.h:216`, defined
+# `sound_editor.cpp:2152`) writes the four editor members legacy's own `setup()` would have
+# resolved -- which under the toggle nothing calls, and which F3 task 4 found by SIGSEGV.
+#
+# Why this needs a row rather than review. Both were argued as additive and BOTH ARE DEAD WITH
+# THE TOGGLE OFF -- that is the property the whole guest rests on (spec F §2.1: with the toggle
+# off the firmware runs the exact legacy statements it ran before), and it holds for exactly one
+# reason: their only caller is `shell_choice_dispatch.cpp`, which only `ShellHostUI::timerCallback`
+# reaches. A second caller anywhere under `src/deluge/**` -- inside `SampleBrowser` itself, in a
+# view, in a future save browser -- would make them live on the OFF leg silently, and nothing
+# today would say so. This is `legacy-names-port`'s own argument (`the second edge is a decision
+# somebody writes down`) applied to the seam pointing the other way: `legacy-names-port` counts
+# legacy files that name PORT symbols; these two are legacy symbols that exist only to be named
+# BY the seam, and no existing row can see them.
+#
+# Spelled as a member-access CALL rather than a bare name, deliberately, and it is what keeps the
+# baseline at zero without excluding the files that own the methods: `\.name\(` matches
+# `sampleBrowser.selectFileForClaim(` and `soundEditor.adoptResolvedContext(` and does NOT match
+# the declaration (`bool selectFileForClaim(`), the definition
+# (`void SoundEditor::adoptResolvedContext(`), or a `::`-qualified mention in prose. So the row's
+# scope needs exactly one exclusion -- the dispatcher -- and it names the one edge that is argued.
+#
+# Same ratchet-not-proof caveat as every symbol row here: a reference or pointer receiver
+# (`browser.selectFileForClaim(`) still matches because the match is on the member, not the
+# object, but a call through a `SampleBrowser*` written `->` would not. `->` is deliberately not
+# in the pattern: both objects are global singletons this tree only ever spells with a `.`
+# (`gui/ui/browser/sample_browser.h:184 extern SampleBrowser sampleBrowser`,
+# `gui/ui/sound_editor.h:235 extern SoundEditor soundEditor`), and adding `->` would be widening
+# the row past the mechanism that makes it checkable.
+CLAIM_SEAM_CALLS = (
+    "selectFileForClaim",
+    "adoptResolvedContext",
+)
+CLAIM_SEAM_RE = r"\.(selectFileForClaim|adoptResolvedContext)\("
+
 # The legacy files F1 authorised to reach into the ported UI -- the `legacy-includes-port` and
 # `legacy-names-port` rows' exclusion list, one entry per argued seam. Everything else under
 # `src/deluge/**` is held to zero.
@@ -327,6 +368,21 @@ RULES = [
         ("src/deluge/**", *LEGACY_PORT_SEAMS),
         "symbol",
         r"\bdeluge::(scenes|ui::shell)\b",
+        "2026-08-26-ui-migration-design.md",
+    ),
+    (
+        # The third row of the same wall, and the only one that points at legacy symbols rather
+        # than port ones: `CLAIM_SEAM_CALLS` above is the argument, and the scope is the whole of
+        # `src/deluge/**` less the one translation unit the seam was added for.
+        #
+        # Measured on the tree at the time of writing: `grep -rn` over `src`, `sim` and `tests`
+        # finds `selectFileForClaim` and `adoptResolvedContext` at their declarations, their
+        # definitions, three prose mentions and exactly two calls, both in
+        # `gui/ui/shell_choice_dispatch.cpp` (`:117`, `:137`). So the baseline does not move.
+        "legacy-calls-claim-seam",
+        ("src/deluge/**", "src/deluge/gui/ui/shell_choice_dispatch.cpp"),
+        "symbol",
+        CLAIM_SEAM_RE,
         "2026-08-26-ui-migration-design.md",
     ),
     (
@@ -1009,6 +1065,10 @@ AUDITED_SYMBOLS = (
     # `renderUIsForOled` are `gui/ui/ui.h`. No single directory declares all five, and a root
     # that covered only some of them would report the rest as "declared nowhere".
     ("scenes-no-legacy-hid-drivers", LEGACY_HID_DRIVERS, "src/deluge"),
+    # `src/deluge/gui/ui` rather than a narrower root: the two are declared in different
+    # subtrees of it (`browser/sample_browser.h` and `sound_editor.h`), and no directory below
+    # that declares both.
+    ("legacy-calls-claim-seam", CLAIM_SEAM_CALLS, "src/deluge/gui/ui"),
 )
 
 
