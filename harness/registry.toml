@@ -270,6 +270,18 @@ ci = "nightly"
 runtime = "~5m"
 
 [[harness]]
+name = "song-load-channel"
+path = "."
+kind = "property"
+status = "gate"
+gates = "the song load must read its bytes through the storage channel, off the storage owner, and must still load a song on a build with no channel at all. Two legs, because one alone would leave either the claim or the fallback untested. SL-LOADED requires a value stamped into the song before saving -- and deliberately overwritten in memory afterwards -- to come back on BOTH legs, because nothing cheaper distinguishes a real load: the song's NAME is written by the save from what the user typed, so it matches whether or not the load happened, and its object IDENTITY is unchanged across a load that did happen. SL-CHANNEL requires the on leg to have SERVED a staging read and SL-OFFOWNER requires that read to have run off the owner; SL-GATED requires the off leg to have served zero, so the feature gate is shown to gate. This gate exists because recorder-write was the ONLY harness building async_file_write_active: the whole-file staging read had never executed anywhere, and building it here found two defects on the first run -- the arm entered on a build carrying only one of the two channels it needs, and then deferred forever. The on leg builds BOTH channel features, because the read sizes its buffer with the byte channel's stat and fills it with the write channel's read."
+build = []
+run = ["scripts/song_load_channel.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~10m"
+
+[[harness]]
 name = "settings-channel"
 path = "."
 kind = "property"
