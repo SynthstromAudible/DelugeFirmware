@@ -285,6 +285,27 @@ struct Result {
 	static Result unhandled() { return {}; }
 };
 
+/// @brief How much of the grid a scene consumes while it is the input top -- `Scene::grid_pad_claim()`'s
+///        return type.
+///
+/// Declared at namespace scope, not nested in `Scene`, so a scene in another namespace (every
+/// `MenuScene` override included) can name it as `deluge::ui::shell::GridPadClaim` rather than
+/// reaching through `Scene::`.
+///
+/// The three values are legacy's three behaviours, not a design: `SoundEditor::padAction`
+/// (`gui/ui/sound_editor.cpp:1460`) tries its shortcut arm only when the menu is not a settings or
+/// note-editor menu (`:1467`), and forwards everything it did not claim to the root view by
+/// identity (`:1474-1517`).
+enum class GridPadClaim : uint8_t {
+	/// The scene owns the grid; nothing is forwarded. Every root scene, every browser.
+	All,
+	/// The scene owns only the shortcut gesture -- a pressed main-grid pad with shift held.
+	/// Everything else forwards. The port of `:1467` passing.
+	ShortcutsOnly,
+	/// The scene owns no grid pad. The port of `:1467` failing.
+	None,
+};
+
 /// @brief One screen's worth of behaviour: what it draws, what it does with input, and what it
 ///        remembers.
 ///
@@ -421,6 +442,17 @@ public:
 	///
 	/// @return True to pass input through to the scene beneath; false (the default) to take it.
 	virtual bool input_transparent() const { return false; }
+	/// @brief Which grid pads this scene consumes.
+	///
+	/// The rest are forwarded to the legacy root view by `gui/ui/shell_pad_forward.cpp`, as
+	/// `SoundEditor::padAction` forwards them. **`All` is the default on purpose**: every scene
+	/// that existed before this virtual keeps exactly today's behaviour, and a scene that forgets
+	/// to answer forwards nothing rather than forwarding something it meant to keep.
+	///
+	/// @note The exact predicate `ShortcutsOnly` stands for -- pressed, main grid, shift held --
+	///       is applied by the reader, not here: it needs `kDisplayWidth` and the button state,
+	///       neither of which this layer may read. See `ShellHostUI::claimsGridPad`.
+	virtual GridPadClaim grid_pad_claim() const { return GridPadClaim::All; }
 	/// @brief Which pad rows and columns this scene wants greyed out.
 	/// @return The mask; all-zero (the default) greys nothing.
 	virtual grid::GreyoutMask greyout_mask() const { return {}; }
