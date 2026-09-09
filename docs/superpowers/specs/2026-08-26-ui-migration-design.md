@@ -600,10 +600,22 @@ rather than a thing that is half-done:
 
    **What "closed" does and does not claim, and the first of these is the one that matters.**
 
-   * **Shift+select on a file loads the sample where legacy opens the slicer, and there is no route
-     from the ported browser to `SlicerScene` at all.** `SampleBrowser::enterKeyPress`'s file arm is
-     a fan-out, not one statement (`gui/ui/browser/sample_browser.cpp:371-384`, the `openUI(&slicer)`
-     at `:378`); only the `else` is the claim. `Descriptor::accept` carries no shift bit
+   * **Shift+select on a file while editing a KIT claims the file, where legacy claims nothing — and
+     there is no route from the ported browser to `SlicerScene` at all.** Be exact about the guard,
+     because a broader sentence is wrong. Legacy's arm is
+     `soundEditor.editingKit() && Buttons::isShiftButtonPressed()`
+     (`gui/ui/browser/sample_browser.cpp:372`), and inside it `canImportWholeKit()` (`:376`) chooses
+     between opening the slicer (`:378`) and refusing with
+     `STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT` (`:381-382`). **Neither of those two arms
+     claims the file**; only the `else` at `:392` does. So the divergence is the whole `editingKit()`
+     branch, not just its slicer half — and on a **synth** `editingKit()` is false and there is no
+     divergence at all, which matters because **site 8, the only entry point that names the file
+     selector, gates on `OutputType::SYNTH`** (`gui/views/instrument_clip_view.cpp:496`). Whether any
+     wired route reaches the ported browser in a kit context today is the
+     `allowToBeginSessionFromHorizontalMenu` and shortcut-pad question in `src/scenes/README.md`'s
+     carry table, not something this item settles.
+
+     The mechanism is unchanged by the narrowing: `Descriptor::accept` carries no shift bit
      (`scenes/browser/browser_scene.h:239`) and `sample_accept` answers `Defer` unconditionally
      (`browser_scene.cpp:209-218`), so the shift is dropped before a choice is ever filed — and **F3's
      dispatcher cannot recover it honestly**, because it runs a tick *after* the press, so
@@ -1626,15 +1638,16 @@ arm does. §10.9 is the model to read this against, including its closing line: 
 number beats an inflated one, and this plan's honest number has a named limit.
 
 **F3's oracle is two levels, and only one of them reaches the application.** Level 1/2 is
-`sim/scenes_spec/browser_choice_spec.cpp`, which grew from **7 examples to 14** over this plan, in
-four groups that follow the claim's own stages: `browser_choice_target` (4 — the path split is the
-inverse of `SampleBrowser::getCurrentFilePath`, including a driven round trip),
-`browser_choice_dispatch` (3 — the drain, from the guest's own tick, on a tick where the browser has
-already closed itself), `browser_choice_claim` (4 — the claim happens, `loadWithoutExiting` is why,
-and a `Close` descriptor is left alone) and `browser_choice_reroot` (3 — the menu lands on the source
-page, the opener is spent, a menu that opened no scene is refused). Level 3 is
-`tests/ui-scripts/app/menu.txt`, extended from 12 snapshots per leg to **16**, and it drives **one
-claim, end to end, on both toggle legs, over a real SD card**.
+`sim/scenes_spec/browser_choice_spec.cpp`, which **did not exist at F3's base**: task 1 created it
+with 7 examples (`8e60066c4`) and it stands at **14**, in four groups that follow the claim's own
+stages: `browser_choice_target` (4 — the path split is the inverse of
+`SampleBrowser::getCurrentFilePath`, including a driven round trip), `browser_choice_dispatch` (3 —
+the drain, from the guest's own tick, on a tick where the browser has already closed itself),
+`browser_choice_claim` (4 — the claim happens, `loadWithoutExiting` is why, and a `Close` descriptor
+is left alone) and `browser_choice_reroot` (3 — the menu lands on the source page, the opener is
+spent, a menu that opened no scene is refused). Level 3 is `tests/ui-scripts/app/menu.txt`, extended
+from 12 snapshots per leg to **16**, and it drives **one claim, end to end, on both toggle legs, over
+a real SD card**.
 
 **The number: 1 of 2 descriptors has a dispatcher arm, 14 fixture examples, 1 claim driven end to
 end — and 4 of that claim's 5 steps.**
@@ -1644,7 +1657,7 @@ end — and 4 of that claim's 5 steps.**
 | `BrowserId` descriptors shipping | 2 (`Sample`, `MidiDeviceDefinition`) |
 | descriptors that answer `AcceptOutcome::Defer`, and so need a dispatcher arm | 1 — `Sample`; `MidiDeviceDefinition` loads its own file and answers `Close` |
 | arms of `dispatchShellChoices` | 1, and there is no `switch`: the drain tests the `BrowserId` and returns for anything else |
-| fixture examples (`browser_choice_spec.cpp`) | **14**, up from 7 at F3's base |
+| fixture examples (`browser_choice_spec.cpp`) | **14** — 0 at F3's base, because the file is task 1's; 7 after task 1, 14 after task 3 |
 | host-side spec for the **poll** rather than the act | **none** — see the second counter-example below |
 | **claims driven end to end in the real firmware, both toggle legs** | **1** — a `.WAV` under `SAMPLES/`, chosen in the ported browser through legacy entry site 8 |
 | steps of that claim the A/B actually proves | **4 of 5** — reaching the selector, opening the browser identically, listing the card identically, the round trip being state-neutral; **not** that the sample loaded |

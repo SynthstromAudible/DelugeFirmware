@@ -183,7 +183,7 @@
 /// pattern -- and `#include "scenes/slicer/slicer_scene.h"` contains that whole word. **Measured,
 /// with the path put back and the namespace left alone: two violations, in two files, one line
 /// each** -- this file's own include and `registry.cpp`'s. `count_file` skips comment-only lines
-/// (`check_layer_rules.py:956-970`), so the docstring mentions above never counted.
+/// (`check_layer_rules.py:960-974`), so the docstring mentions above never counted.
 ///
 /// Two real include lines is not "the path is impossible"; it is "the row as written flags this
 /// path, and narrowing it to skip `#include` would preserve its stated purpose exactly". That
