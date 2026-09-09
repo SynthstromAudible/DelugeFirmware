@@ -24,7 +24,7 @@
 /// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
 /// `AcceptOutcome::Defer` (`scenes/browser/browser_scene.cpp:209-218`, the `return` at `:217`),
 /// `BrowserScene::enter` parks the chosen path and closes the scene in one statement
-/// (`:895-897`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:371`,
+/// (`:895-897`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:374`,
 /// defined `browser_scene.cpp:416-420`) hands it out exactly once.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm is one dispatch onto the
@@ -34,7 +34,7 @@
 /// `slicer`, `PadLEDs` and `instrumentClipView` -- five `gui/` and `hid/` symbols the scenes layer
 /// may not name (`scenes-includes-outside`, `scripts/check_layer_rules.py`).
 /// `Descriptor::accept`'s own note says the same thing from the other side
-/// (`scenes/browser/browser_scene.h:198-236`, the `Defer` argument at `:200-209`).
+/// (`scenes/browser/browser_scene.h:198-239`, the `Defer` argument at `:200-209`).
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
@@ -91,7 +91,7 @@ struct SampleClaimTarget {
 /// So the split is named, `sim/scenes_spec/browser_choice_spec.cpp` drives it directly over every
 /// path shape, and the dispatcher's arm calls it before it calls anything that acts.
 ///
-/// @param path A `BrowserChoice::path` (`scenes/browser/browser_scene.h:248-253`).
+/// @param path A `BrowserChoice::path` (`scenes/browser/browser_scene.h:251-256`).
 /// @return The directory and filename, or `std::nullopt` for an empty path or one whose last
 ///         separator is the last character -- neither of which names a file to claim.
 std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path);
@@ -183,7 +183,7 @@ using SampleClaimDispatch = bool (*)(void (*)(void*), void*);
 ///
 /// @par For specs, and it is a requirement rather than a convenience
 ///
-/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:383-391`) is the same shape one
+/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:376-384`) is the same shape one
 /// layer down -- and only the shape: that one swaps the dispatcher on the scene's **`Listing`**, the
 /// directory read, and there is no claim seam anywhere in `BrowserScene`. The claim happens here, so
 /// the settable dispatcher has to be here too.
@@ -212,7 +212,7 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 /// `BrowserScene::take_choice()` is a one-slot outbox that announces nothing -- `enter` files it and
 /// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:895-897`), so no `Action` says a
 /// choice is waiting and nothing enforces the polling. That is `MenuScene::take_action()`'s hazard
-/// (`scenes/menu/menu_scene.h:595-600`, the poll at `:627`) in the same shape, and it lands as the same requirement on
+/// (`scenes/menu/menu_scene.h:612-617`, the poll at `:644`) in the same shape, and it lands as the same requirement on
 /// this function's *caller*: poll after every tick, or a choice is delivered whenever something next
 /// asks, against whatever song and clip exist then.
 ///
@@ -238,13 +238,14 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 /// was filed. A `MenuActionRequest` filed by that resume sits in the menu's outbox beside the choice
 /// in the browser's.
 ///
-/// Neither drain reads the other's mailbox and neither is gated on the other, so today the order
-/// changes nothing observable. It is fixed as **actions, then choices** for the one interaction that
-/// is coming: `MenuAction::StartStemExport`'s arm removes the ported menu from the shell stack
-/// (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp:176-178`), and the re-rooting the claim
-/// owes writes that same menu's navigation state (`scenes/browser/browser_scene.h:211-230`).
-/// Draining actions first means a re-root can never be applied to a menu the same tick's verb was
-/// about to take off the stack.
+/// Neither drain reads the other's mailbox and neither is gated on the other, so the order changes
+/// nothing observable. It is fixed as **actions, then choices** for the one interaction that is
+/// now real rather than coming: `MenuAction::StartStemExport`'s arm removes the ported menu from
+/// the shell stack (`closePortedMenu`, `gui/ui/shell_action_dispatch.cpp:176-178`), and the
+/// re-rooting the claim performs writes that same menu's navigation state
+/// (`scenes/browser/browser_scene.h:211-233`, applied through
+/// `MenuScene::reroot_to_scene_opener_page()`). Draining actions first means a re-root can never be
+/// applied to a menu the same tick's verb was about to take off the stack.
 ///
 /// @par The `switch` has no `default:`, deliberately
 ///

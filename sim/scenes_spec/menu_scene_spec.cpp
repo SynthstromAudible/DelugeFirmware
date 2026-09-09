@@ -1734,7 +1734,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			// `after_render` moves the path only *after* the render that entered it, so the panel
 			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
-			// the next one (`menu_scene.cpp:913-915`; `open_lpf` above needs the identical extra
+			// the next one (`menu_scene.cpp:1004-1006`; `open_lpf` above needs the identical extra
 			// tick for the same reason).
 			r.shell.tick(120);
 			expect_golden(self, "../ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));

@@ -456,7 +456,7 @@ porting Task 9:
   by press yet still blink, since the blink scan has no such guard.
 
 **Blink cadence** — the shortcut-pad blink is legacy's **200 ms two-phase cycle**
-(`menu_scene.h:70-72`, `menu_scene.cpp:705-707`): a 20 ms re-arm on the source-pad phase and a
+(`menu_scene.h:70-72`, `menu_scene.cpp:796-798`): a 20 ms re-arm on the source-pad phase and a
 180 ms re-arm on the focused-param phase, not a symmetric period — a `Blink`'s single symmetric
 period cannot represent this, which is why `MenuState` carries `blink_anchor_ms`/`blink_node`
 instead of a `Blink` for this one purpose. The **visible DUTY cycle within each phase is not
@@ -540,7 +540,7 @@ the changelog where a release note will find it.
 this leaf opens *that* menu" is a per-item `MenuItem* selectButtonPress()` override returning
 another `MenuItem*`; `SoundEditor` navigates to whatever comes back
 (`gui/ui/sound_editor.cpp`'s select handling). E1 had no `Node` spelling for it at all:
-`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:926-930`, which
+`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:1017-1021`, which
 transcribed only the `return nullptr` = "go up" arm of the base class), and until fix round 2's I5
 the difference lived only in four scattered header comments. The complete sweep of
 `grep -rn selectButtonPress src/deluge/gui/menu_item/`, in three groups:

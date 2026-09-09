@@ -140,7 +140,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
-/// (`scenes/menu/menu_scene.cpp:1500-1505`). `SceneStack::remove` and not `pop`, for the reason
+/// (`scenes/menu/menu_scene.cpp:1604-1609`). `SceneStack::remove` and not `pop`, for the reason
 /// recorded there (`:1487-1498`): `pop` would take a `Working` animation or a `Popup` sitting over
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
@@ -282,7 +282,7 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
-	// the request and clears it in the same call (`scenes/menu/menu_scene.h:625-626`). So an early
+	// the request and clears it in the same call (`scenes/menu/menu_scene.h:642-643`). So an early
 	// return above this line would not be "nothing to do", it would be "the request stays in the
 	// outbox until something else asks", which is the stale delivery the mailbox's own warning
 	// describes (`:595-600`).

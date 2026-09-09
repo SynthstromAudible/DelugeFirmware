@@ -101,7 +101,7 @@ bool ShellHostUI::opened() {
 	// (`hid/buttons.cpp:250`) while the shell reads a `LoweringConfig` field that defaults to false
 	// (`shell/input_lowering.h:29-31`). Left unseeded, a sticky-shift user's latched shift would be
 	// invisible to `ctx.shift`, which is the whole gate on the menu's shortcut-pad jump
-	// (`scenes/menu/menu_scene.cpp:1447`) -- so shortcut pads would silently stop working under the
+	// (`scenes/menu/menu_scene.cpp:1551`) -- so shortcut pads would silently stop working under the
 	// toggle.
 	//
 	// `opened()` is the right place and the setter is the right tool: `set_shift_is_sticky` exists
@@ -227,7 +227,7 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//    (`gui/ui/ui.h:158`), set false by `UI::UI` (`gui/ui/ui.cpp:31-33`) and read by
 	//    `doAnyPendingOLEDRendering` to decide how far down the stack to start drawing
 	//    (`gui/ui/ui.cpp:351-371`, the walk at `:353-356`). `SoundEditor` leaves it false and
-	//    `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h:463-464`) -- those
+	//    `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h:480-481`) -- those
 	//    two already agree, and neither is this hook.
 	//  - `Slicer` sets `oledShowsUIUnderneath = true` and returns **false** here
 	//    (`gui/ui/slicer.h:33-38`), on the same object. One legacy UI holding both values at once is
@@ -243,7 +243,7 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//
 	// It lands where legacy lands for the first tenant: `SoundEditor::canSeeViewUnderneath` is true
 	// (`gui/ui/sound_editor.h:121`) and `MenuScene::occludes_grid` is false
-	// (`scenes/menu/menu_scene.h:458-459`). Mapping it to `oled_transparent(Main)` would have made
+	// (`scenes/menu/menu_scene.h:475-476`). Mapping it to `oled_transparent(Main)` would have made
 	// it false and frozen the clip view's playhead under an open menu.
 	return !shell_.stack().top().occludes_grid();
 }
@@ -254,7 +254,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	//
 	// The port spells `doGreyout == false` as an **all-zero mask**, deliberately and at the code:
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
-	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1513-1545`,
+	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1617-1649`,
 	// against `gui/ui/sound_editor.cpp:252-294`). Every arm of legacy's switch that leaves
 	// `doGreyout` true also writes a non-zero `*cols` (`:232`, `:237`, `:245`, `:252`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
@@ -391,7 +391,7 @@ bool ShellHostUI::serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	//     (`pad 16 0 3 160 7` against boot's `0 255 6`); with it on there is no `pad` line at all.
 	//     **Under the guest the sidebar is wrong for TWO independent reasons, and fixing either
 	//     alone still leaves it wrong.** Opacity is not one of them: `MenuScene::is_grid_overlay()`
-	//     is true (`scenes/menu/menu_scene.h:457`), so `opaque()` is false and this function
+	//     is true (`scenes/menu/menu_scene.h:474`), so `opaque()` is false and this function
 	//     answers transparent exactly as the paragraph above describes.
 	//       (a) **The shell's own flush paints black.** `GuestSurfaceSet::send_columns`
 	//           (`gui/ui/shell_guest_surfaces.cpp:137-173`, the writes at `:169-170`) writes
@@ -470,7 +470,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// **The action drain, and both halves of where it sits are load-bearing.**
 	//
 	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
-	// (`scenes/menu/menu_scene.h:595-623`), and it announces nothing: "`after_render` returns no
+	// (`scenes/menu/menu_scene.h:612-640`), and it announces nothing: "`after_render` returns no
 	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
 	// tick, or requests are dropped or stale**" (`:598-600`). This line is the polling for the
 	// **menu's** outbox. `dispatchShellActions` performs whatever it finds.
@@ -500,7 +500,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// **The choice drain -- the noun half of the same wall, and it sits in the same two places for
 	// the same two reasons.**
 	//
-	// `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:371`) is the menu outbox's twin:
+	// `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:374`) is the menu outbox's twin:
 	// one slot, filled by `Descriptor::accept`'s `Defer` answer, announcing nothing. **After the
 	// tick**, because the choice is filed while `Shell::tick` routes the press
 	// (`scenes/browser/browser_scene.cpp:895-897`, reached from step 3's `pump_input`,
@@ -526,7 +526,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// from that arm (`gui/ui_timer_manager.cpp:149-155`). A short Back never reaches it -- it is fed
 	// into the shell like any other button (`buttonAction` below) and routed inside `Shell::tick`,
 	// where `MenuScene` answers Back at depth 0 with `Action::Kind::Remove{.pop_to = FirstApp}`
-	// (`scenes/menu/menu_scene.cpp:1500-1505`), the port of `sound_editor.cpp:456`'s BACK case ->
+	// (`scenes/menu/menu_scene.cpp:1604-1609`), the port of `sound_editor.cpp:456`'s BACK case ->
 	// `:471` `goUpOneLevel()` -> `:710-717` `SoundEditor::goUpOneLevel`, whose depth-0 arm is
 	// `exitCompletely()` at `:716`. (`MenuScene`'s own comment on that block cites `:433` and
 	// `:678` for those two; both are stale -- `:433` is an `AFFECT_ENTIRE` blink and `:678` is
@@ -962,7 +962,7 @@ ActionResult ShellHostUI::exitUI() {
 	// long-press Back leaves the *whole* menu however deep it was, not one level. So does this,
 	// for the first tenant: the ported menu keeps its navigation depth inside one scene
 	// (`MenuScene`'s `st_.depth`) and only asks the shell to remove itself when Back arrives at
-	// depth 0 (`scenes/menu/menu_scene.cpp:1500-1505`). One `pop()` here is therefore one whole
+	// depth 0 (`scenes/menu/menu_scene.cpp:1604-1609`). One `pop()` here is therefore one whole
 	// menu, exactly as `exitCompletely` is. A future tenant that stacks a scene per level would
 	// make this differ, and that is the condition to watch.
 	//

@@ -1077,7 +1077,7 @@ the stack with no notice that it is back. `changeUIAtLevel`'s own failure path d
 
 **What it cost in shipped code.** `SlicerScene` is the scene that paid: its `on_resume` was emptied
 for one task and is now restored. `MenuScene` was taking the spurious edge too — it raises
-`Notice::Kind::Console` itself (`menu_scene.cpp:1289`, `menu/bindings.cpp:372`), `ConsoleScene` is
+`Notice::Kind::Console` itself (`menu_scene.cpp:1386`, `menu/bindings.cpp:372`), `ConsoleScene` is
 `input_transparent()`, and `MenuScene::on_resume`'s `go_up_on_resume` flag guards only the `ascend()`
 (`:332-335`) while the tail resets `render_resp`, `value_changed`, `value_node`, `back_claimed` and
 `column_press` unconditionally (`:337-341`). **It cost nothing**, and the reason is the tick order:

@@ -359,7 +359,7 @@ namespace deluge::gui::ui {
 ///     (`hid/buttons.cpp:250`); the shell reads `LoweringConfig::shift_is_sticky`, which this class
 ///     constructs as its default **false** (`shell/input_lowering.h:29-31`) and nothing sets. With
 ///     the setting on, legacy latches shift on a tap and this shell does not -- and `ctx.shift` is
-///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:1447`), so under
+///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:1551`), so under
 ///     the toggle a sticky-shift user loses shortcut pads. **A release blocker for the toggle**,
 ///     and it belongs with the boot wiring: `LoweringConfig` is construction-time
 ///     (`shell/shell.h:27-29`) and this object is a static-init global that cannot read flash.
@@ -481,7 +481,7 @@ private:
 	/// of this mapping for the phase-5 adapter -- `is_grid_overlay()` is `!renderMainPads()` -- so
 	/// this is that same equivalence read in the guest direction.
 	///
-	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:456-457`), so the first
+	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:473-474`), so the first
 	/// tenant answers **false** here, which is exactly what `SoundEditor` answers: it does not
 	/// override either hook, so it takes `UI`'s `return false`.
 	bool opaque();
@@ -569,7 +569,7 @@ private:
 	/// The body both of the guest's close paths share: `exitUI()`'s long-press Back, and
 	/// `timerCallback()`'s "the shell's stack emptied during the tick", which is what a *short* Back
 	/// at the ported menu's root produces (`MenuScene`'s `Action::Kind::Remove`,
-	/// `scenes/menu/menu_scene.cpp:1500-1505`). Neither the ring hand-back nor the close may be
+	/// `scenes/menu/menu_scene.cpp:1604-1609`). Neither the ring hand-back nor the close may be
 	/// skipped on either path; see the definition for why the order between them is fixed.
 	///
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself

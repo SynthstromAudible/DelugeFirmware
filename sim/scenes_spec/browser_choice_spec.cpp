@@ -28,7 +28,7 @@
 /// @par Why the guest examples open the browser from the menu rather than as the initial scene
 ///
 /// Because that is the only way it is ever open. `FileBrowserItem::on_focus`
-/// (`scenes/menu/nodes/sample.cpp:77-102`) opens the scene and files `MenuState::pending_scene`
+/// (`scenes/menu/nodes/sample.cpp:77-106`) opens the scene and files `MenuState::pending_scene`
 /// (`:100-101`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
 /// the stack would empty the moment `Defer` closed it, and `ShellHostUI::timerCallback` would take
 /// its `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:553-556`) -- `closeUI` on a guest that is not
@@ -190,7 +190,7 @@ private:
 /// @brief The claim seam, swapped for a recorder -- what lets these examples press a real file.
 ///
 /// `deluge::gui::ui::setSampleClaimDispatch` exists for this and nothing else; its own note argues
-/// why. **This is not `BrowserScene::set_dispatch`** (`scenes/browser/browser_scene.h:373-381`),
+/// why. **This is not `BrowserScene::set_dispatch`** (`scenes/browser/browser_scene.h:376-384`),
 /// which swaps the dispatcher on the scene's `Listing` -- the directory read, one layer down. There
 /// is no claim seam on `BrowserScene`: the claim happens in the legacy-side dispatcher, so the
 /// settable dispatcher is the dispatcher's own.

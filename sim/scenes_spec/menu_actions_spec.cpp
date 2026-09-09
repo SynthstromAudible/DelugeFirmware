@@ -150,7 +150,7 @@ constexpr uint8_t kSelectEncoder = 3;
 /// The same table's 4 = `EncoderRole::GoldUpper` (`shell/profiles/deluge.cpp:69-76`), which lowers to
 /// `InputSnapshot::edit[0]` (`shell/input_lowering.cpp:80`) -- the coarse knob `int_value` reads
 /// (`ui/oled/values.cpp:87-89`). It is what moves an `Kind::Int` leaf: that widget claims the two
-/// gold knobs and leaves the select encoder to the scene (`scenes/menu/menu_scene.cpp:721-733`).
+/// gold knobs and leaves the select encoder to the scene (`scenes/menu/menu_scene.cpp:812-824`).
 constexpr uint8_t kGoldUpperEncoder = 4;
 /// Matrix coordinates of the select-encoder button (`kMatrix`, `shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
@@ -2221,7 +2221,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// `soundEditor`. The dispatcher's answer is `SceneStack::remove(SceneKind::FirstApp)` on the
 		// guest's own stack -- the same statement `MenuScene::handle` already uses for the short-Back
 		// exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
-		// (`scenes/menu/menu_scene.cpp:1500-1505`; `gui/ui/sound_editor.cpp:710-717`, the call at
+		// (`scenes/menu/menu_scene.cpp:1604-1609`; `gui/ui/sound_editor.cpp:710-717`, the call at
 		// `:716`). The full argument, including why neither `closeUI` nor `closeGuest()` can be
 		// called from there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
 		//

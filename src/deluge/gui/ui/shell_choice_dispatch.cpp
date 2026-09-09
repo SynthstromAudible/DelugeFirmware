@@ -60,7 +60,7 @@ SampleClaimDispatch claimDispatch = &deluge::storage::Owner::run_or_inline;
 /// takes no path**: it reads `Browser::currentDir` and `Browser::getCurrentFileItem()` for itself,
 /// which is what `SampleBrowser::getCurrentFilePath()` (`:539-550`) composes. Legacy never has to
 /// set them because the user browsed there; this dispatcher is handed a `BrowserChoice::path`
-/// (`scenes/browser/browser_scene.h:248-253`) by a scene that has **already closed**, and
+/// (`scenes/browser/browser_scene.h:251-256`) by a scene that has **already closed**, and
 /// `BrowserScene::on_exit` empties the shared catalogue on the way out
 /// (`scenes/browser/browser_scene.cpp:401`) exactly as `Browser::close()` does. So the state legacy
 /// would have left behind is rebuilt from the path first, by
@@ -100,7 +100,7 @@ SampleClaimDispatch claimDispatch = &deluge::storage::Owner::run_or_inline;
 ///              slicer on `soundEditor.editingKit() && Buttons::isShiftButtonPressed()` when
 ///              `canImportWholeKit()` (the `openUI(&slicer)` at `:378`), and announces
 ///              `STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT` when it does not (`:381-382`).
-///              `Descriptor::accept` carries no shift bit (`scenes/browser/browser_scene.h:236`)
+///              `Descriptor::accept` carries no shift bit (`scenes/browser/browser_scene.h:239`)
 ///              and `sample_accept` answers `Defer` unconditionally
 ///              (`scenes/browser/browser_scene.cpp:209-218`), so **shift+select on a file loads the
 ///              sample instead of opening the slicer**. `SlicerScene`

@@ -17,7 +17,7 @@
 /// overwrite, not an exactly-once queue" and announces nothing --
 /// "`after_render` returns no `Action` announcing that one is waiting, so nothing enforces the
 /// polling: **poll after every tick, or requests are dropped or stale**"
-/// (`scenes/menu/menu_scene.h:595-600`). Nothing in the shell, and nothing in the scene, can fail
+/// (`scenes/menu/menu_scene.h:612-617`). Nothing in the shell, and nothing in the scene, can fail
 /// when a tick skips the poll. Only these examples can.
 
 #include "support/fake_legacy_hid.h"
@@ -67,7 +67,7 @@ public:
 	Result handle(const UiEvent&, const UiContext&) override {
 		events++;
 		if (remove_self_on_event) {
-			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:1500-1505`),
+			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:1604-1609`),
 			// reduced to the one thing this file needs: a scene that takes itself off the stack
 			// from inside the tick's routing, which is what sends `timerCallback` down its early
 			// `return`.
@@ -155,7 +155,7 @@ void set_clock_ms(uint32_t ms) {
 describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the tick", $ {
 
 	it("polls on a tick that routed nothing and rendered nothing, which is the whole hazard", _ {
-		// `menu_scene.h:595-600`: no `Action` announces a waiting request, so a poll gated on
+		// `menu_scene.h:612-617`: no `Action` announces a waiting request, so a poll gated on
 		// "something happened this tick" would look correct and would strand a request filed on the
 		// tick before it. This is the example that says the poll is not gated on anything.
 		Rig r;
@@ -190,7 +190,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		// The ordering, and the reason for it: a request is filed by `MenuScene::after_render`,
 		// which `Shell::tick` runs as its step 7 (`shell/shell.cpp:399-407`). A poll above
 		// `shell_.tick` reads the outbox before step 7 can have filled it and is therefore always
-		// one tick late -- delivered, per `menu_scene.h:596-600`, "against whatever state exists
+		// one tick late -- delivered, per `menu_scene.h:613-617`, "against whatever state exists
 		// then".
 		//
 		// The scene here files nothing (it cannot -- see this file's header). What it records is
@@ -229,7 +229,7 @@ describe shell_action_dispatch("gui::ui::dispatchShellActions -- the poll in the
 		// re-arm" is satisfied by two different lines, and only one of them is on every path. A
 		// request filed earlier in this same tick and left in the one-slot outbox would sit there
 		// until the guest was next opened AND ticked, and would then run against a song and a root
-		// UI chosen since -- `menu_scene.h:596-598`'s "delivered whenever someone finally does".
+		// UI chosen since -- `menu_scene.h:613-615`'s "delivered whenever someone finally does".
 		Rig r;
 		expect(r.open()).to_be_true();
 		r.base.remove_self_on_event = true;
