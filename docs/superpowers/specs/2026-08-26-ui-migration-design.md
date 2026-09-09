@@ -1152,7 +1152,7 @@ loses outright.
   drives `soundEditor`/`PadLEDs`/`indicator_leds`/`instrumentClipView`; `buttonAction`'s release arm
   calls `getRootUI()->buttonAction` on a null root. **Of the three new scenes the recorder is the
   one the oracle barely touches.**
-* `SampleMarkerEditor::timerCallback` (`:771`), which renders straight into `PadLEDs::image`. The
+* `SampleMarkerEditor::timerCallback` (`:806`), which renders straight into `PadLEDs::image`. The
   scene's blink is compared against `renderMainPads` instead, with the one place the two legacy
   render paths disagree (phase 2) asserted in both directions.
 * A second consecutive zoom detent. A successful `WaveformBasicNavigator::zoom` leaves

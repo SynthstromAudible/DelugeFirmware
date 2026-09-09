@@ -513,7 +513,7 @@ make KEEP the wrong call *for this round*:
    `finishRecording()` → `discardRecorder()` **unguarded** (`audio_recorder.cpp:219`, no
    `isSDRoutineActive()`/`sd_busy()` check anywhere in `process()`), and `process()` itself is reached
    from three live UI call sites — `gui/menu_item/osc/audio_recorder.h:57`,
-   `gui/ui/browser/sample_browser.cpp:471`, and `gui/views/instrument_clip_view.cpp:5563`. On an Embassy
+   `gui/ui/browser/sample_browser.cpp:506`, and `gui/views/instrument_clip_view.cpp:5563`. On an Embassy
    beta build, any ordinary recording finished through one of those paths while any unrelated FS
    operation happens to be mid-flight is now `FREEZE_WITH_ERROR("E251")`.
 

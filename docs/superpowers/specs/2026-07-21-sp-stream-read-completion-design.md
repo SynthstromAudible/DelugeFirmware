@@ -180,7 +180,7 @@ assert that would catch it (`sd.rs:386-390`) is behind the non-default `storage-
 **Two findings that narrow the problem:**
 - The **RT audio path is safe by construction** — `sample_low_level_reader`, `voice_sample` and
   `time_stretcher` use `CLUSTER_ENQUEUE` only, never a synchronous read.
-- **`audio_engine.cpp:1391` is fine** — `previewSample`'s only caller is `sample_browser.cpp:596`,
+- **`audio_engine.cpp:1391` is fine** — `previewSample`'s only caller is `sample_browser.cpp:631`,
   dispatched via `Owner::run` at `:551/564`. It is not on the RT render path.
 
 ### 6.1 Two resolutions were investigated and rejected

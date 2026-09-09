@@ -140,9 +140,9 @@ Not a production bug, recorded for context: the harness's own `loaded`-miss unde
   machinery entirely.
 - **Off-fiber callers found** (traced 2026-07-21; none wrapped in `deluge::storage::Owner::run`):
   `waveform_renderer.cpp:404,433` (UI waveform redraw — slicer, marker editor, audio-clip view, browser,
-  instrument-clip view); `sample.cpp:1395,1420` via `sample_browser.cpp:1369,1578,1589`
+  instrument-clip view); `sample.cpp:1395,1420` via `sample_browser.cpp:1404,1578,1589`
   (`loadAllSamplesInFolder`, bulk import); `sample_holder_for_voice.cpp:139` via
-  `sample_browser.cpp:1025,1799` (`claimCurrentFile`); `sample_marker_editor.cpp:200` (marker drag);
+  `sample_browser.cpp:1060,1799` (`claimCurrentFile`); `sample_marker_editor.cpp:200` (marker drag);
   `audio_clip.cpp:1396` (`shiftHorizontally`).
   **Reached from BOTH contexts** (the dangerous case): `wave_table.cpp:422` and
   `cluster_byte_source.cpp:51`, both inside the general `AudioFile::load` /`buildAudioFileFromCard`
@@ -150,7 +150,7 @@ Not a production bug, recorded for context: the harness's own `loaded`-miss unde
 - **Confirmed NOT affected:** the RT audio render path never loads synchronously —
   `sample_low_level_reader.cpp:310,400`, `voice_sample.cpp:207,868`, `time_stretcher.cpp:1141` all use
   `CLUSTER_ENQUEUE`. `audio_engine.cpp:1391` (`previewSample`) *is* on-fiber: its only caller is
-  `sample_browser.cpp:596`, dispatched via `Owner::run` at `:551/564`.
+  `sample_browser.cpp:631`, dispatched via `Owner::run` at `:551/564`.
 - **Why it goes unnoticed:** `src/bsp/rust/src/sd.rs:386-390` carries exactly the assert that would catch
   this — `debug_assert!(on_fiber() || !worker_started())`, "FatFS card transfer off the storage owner
   after the owner started — single-owner discipline violated at runtime" — but it is
