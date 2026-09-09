@@ -250,6 +250,49 @@ bool is_leaf(Kind k) {
 	return k != Kind::Submenu;
 }
 
+/// @brief The `Layout::Horizontal` submenu in @p node's subtree that lists @p item, or null.
+///
+/// `SoundEditor::maybeGetParentMenu`'s one statement of substance
+/// (`gui/ui/sound_editor.cpp:2084`): `find_if(chain, [](HorizontalMenu* menu) { return
+/// menu->hasItem(item); })`, over the chain `getCurrentHorizontalMenusChain(false)` picks for the
+/// current root (`:2079`, the dispatch at `:2108-2130`).
+///
+/// **The chain is spelled as reachability rather than as a list**, and that is the one liberty
+/// taken. Legacy's chains are curated `deluge::vector`s -- `horizontalMenusChainForSound` is
+/// `{&sourceMenuGroup, &voiceMenuGroup, ...}` (`gui/ui/menus.cpp:2270-2272`) -- and there is no
+/// port of them, nor of `HorizontalMenuGroup` (`gui/menu_item/horizontal_menu_group.h:26`), whose
+/// five members this port models as five ordinary sibling submenus. What both spellings answer for
+/// the two items this is reached for is the same page: `file0_selector` is listed by `source0`
+/// under the Sound and Drum roots (`nodes/sound_osc.h`'s `kSource0Children`) and by
+/// `audio_clip_sample` under the audio-clip root (`nodes/roots.h`'s `kAudioClipSampleChildren`),
+/// which is `sourceMenuGroup` focused on `source0Menu` (`menus.cpp:1748-1749`, `:333-349`) and
+/// `audioClipSampleMenu` (`:1186-1196`) respectively.
+///
+/// Static `children` only: a `dynamic_children` node produces its list from a `MenuContext` and
+/// none of the roots reaches either file selector through one, so resolving them here would be
+/// machinery with no caller.
+const Node* horizontal_page_listing(const Node& node, const Node& item) {
+	if (node.kind != Kind::Submenu) {
+		return nullptr;
+	}
+	if (node.layout == Layout::Horizontal) {
+		for (const Node* kid : node.children) {
+			if (kid == &item) {
+				return &node;
+			}
+		}
+	}
+	for (const Node* kid : node.children) {
+		if (kid == nullptr) {
+			continue;
+		}
+		if (const Node* found = horizontal_page_listing(*kid, item); found != nullptr) {
+			return found;
+		}
+	}
+	return nullptr;
+}
+
 } // namespace
 
 // ---------------------------------------------------------------------------------------------
@@ -325,6 +368,10 @@ void MenuScene::retarget(const Node& node) {
 	// `take_action()`'s caller, whatever the path does afterwards.
 	st_.pending_action = MenuActionRequest{};
 	st_.go_up_on_resume = false;
+	// And the same for the item that opened the pushed scene: it belongs to the walk this
+	// re-rooting abandons, and `reroot_to_scene_opener_page()` -- which is itself one of the
+	// callers here -- must not be able to fire twice off one recorded opener.
+	st_.scene_opener = nullptr;
 	if (is_leaf(node.kind)) {
 		// `NoRowPress`: re-rooting is `open()`, a `SceneId` deep link or the shortcut-pad jump. The
 		// jump IS a press -- on a grid pad, not on this node's row -- which is the distinction the
@@ -371,6 +418,50 @@ void MenuScene::on_resume() {
 	st_.value_node = nullptr;
 	st_.back_claimed = false;
 	st_.column_press = false;
+}
+
+bool MenuScene::reroot_to_scene_opener_page() {
+	// Read before `retarget` runs, which drops it along with the rest of the abandoned walk.
+	const Node* item = st_.scene_opener;
+	if (item == nullptr || st_.path[0] == nullptr) {
+		// No opener recorded, or no menu at all (`on_model_changed`'s song swap empties the path).
+		// Legacy's own guard is the same shape -- the pair is only read when both halves are
+		// non-null (`gui/ui/browser/sample_browser.cpp:1111`).
+		return false;
+	}
+	const std::span<const Node* const> r = roots();
+	const size_t i = static_cast<size_t>(ctx_.root);
+	if (i >= r.size() || r[i] == nullptr) {
+		return false;
+	}
+	// `maybeGetParentMenu`'s search (`gui/ui/sound_editor.cpp:2079-2087`). Legacy answers `nullptr`
+	// when no menu in the chain lists the item, and its caller then does nothing at all -- which is
+	// this `false`.
+	const Node* page = horizontal_page_listing(*r[i], *item);
+	if (page == nullptr) {
+		return false;
+	}
+	// `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo; soundEditor.navigationDepth =
+	// 0` (`gui/ui/browser/sample_browser.cpp:1117-1118`). `retarget` is the port's spelling of both
+	// at once, and it is the right one rather than a convenient one: legacy's two statements throw
+	// away everything above index 0 of the record, which is exactly the per-visit state `retarget`
+	// drops (see its body).
+	retarget(*page);
+	// `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`). It is a separate statement
+	// here for the reason the header gives -- legacy's focus lives on the page object, the port's
+	// lives at the page's *depth* -- and it runs after `retarget`, which resets `columns[0]`.
+	// Legacy discards `focusChild`'s bool at this site (it is only consulted at
+	// `gui/ui/sound_editor.cpp:1860`), so an item its page no longer shows simply leaves the page
+	// focused on its first column, which is what falling out of this loop does.
+	const Node* kids[kMaxMenuChildren];
+	const size_t n = visible_children(*page, kids);
+	for (size_t k = 0; k < n; k++) {
+		if (kids[k] == item) {
+			st_.columns[0].focused = static_cast<int8_t>(k);
+			break;
+		}
+	}
+	return true;
 }
 
 void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
@@ -1139,6 +1230,12 @@ void MenuScene::ascend() {
 	// that steps back out of a scene-opening item, has nowhere to go and leaves the user on that
 	// item's bare title screen. Carried, with the shape of the fix, in `src/scenes/README.md`; not
 	// changed here because it moves goldens well outside the task that found it.
+	//
+	// **One of the nine items no longer ends there, and for an unrelated reason.** A file selector's
+	// browser now re-roots the menu onto the source page when the claim succeeds
+	// (`reroot_to_scene_opener_page()` above), so that route lands somewhere useful whatever this
+	// no-op does. That closes a *symptom*, not this divergence: the other eight items, and a failed
+	// claim, still land on the bare title screen.
 	do {
 		if (st_.depth == 0) {
 			return;
@@ -1407,6 +1504,13 @@ Result MenuScene::after_render() {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.pending_scene});
 		st_.pending_scene = SceneId{};
 		st_.go_up_on_resume = true;
+		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2092`), and
+		// `osc::AudioRecorder::menuItemHeadingTo` (`:2101`) for the recorder half. Legacy writes it
+		// on the way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its
+		// own `openUI`. The four items with no return affordance record one too and nothing ever
+		// reads it -- `reroot_to_scene_opener_page()` is called only from the sample claim -- which
+		// is cheaper than teaching this arm which items have a pair.
+		st_.scene_opener = focused();
 		r.handled = true;
 	}
 

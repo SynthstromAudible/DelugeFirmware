@@ -394,6 +394,23 @@ struct MenuState {
 	/// scene would land back on the item that opened it and `on_focus` would open it again on the
 	/// next descent -- which is precisely why legacy has the flag.
 	bool go_up_on_resume = false;
+
+	/// @brief The item whose `on_focus` pushed the scene that is now on top -- legacy's
+	///        `sampleBrowser.menuItemHeadingTo` (`gui/ui/sound_editor.cpp:2092`).
+	///
+	/// **Not `MultiRange::menuItemHeadingTo`.** That name resolves on two different objects and
+	/// `pending_after_range` above is the *other* one (`gui/menu_item/multi_range.h:34`, written at
+	/// `sound_editor.cpp:1857`). This field is the browser's/recorder's pair member, written at
+	/// `sound_editor.cpp:2092` and `:2101`, and it is spelled `scene_opener` precisely so the two
+	/// never read as the same thing.
+	///
+	/// Written beside `go_up_on_resume`, exactly where legacy's is written on the way *in* to the
+	/// browser, and read by `reroot_to_scene_opener_page()` on the way back out. Legacy stores the
+	/// item's *page* alongside it (`parentMenuHeadingTo`, `sound_editor.cpp:2093`) because
+	/// `SampleBrowser` cannot reach the horizontal-menus chain from where it reads the pair back;
+	/// this scene can walk its own tables, so only half the pair is stored and the other half is
+	/// resolved at read time. Dropped by `retarget` with the rest of the per-visit state.
+	const Node* scene_opener = nullptr;
 };
 
 /// @brief What survives a `replace_root`.
@@ -650,6 +667,57 @@ public:
 	/// @warning This overwrites whatever is in the field, exactly as an item's own assignment does.
 	///          The one-slot mailbox's warning above applies unchanged.
 	void request_action(MenuActionRequest request) { st_.pending_action = request; }
+
+	/// @brief Re-root the menu onto the horizontal page that lists `MenuState::scene_opener`, with
+	///        that item focused -- `SampleBrowser::claimCurrentFile`'s return affordance
+	///        (`gui/ui/browser/sample_browser.cpp:1116-1118`).
+	///
+	/// **The one thing `MenuState::path`/`depth` may be written for from outside this class**, and
+	/// it exists because legacy's answer to "where does accepting a file land you" is spelled in
+	/// two `MenuItem*`s no port carries. Legacy's three statements, in order, and what each becomes:
+	///
+	///   * `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`) -> `columns[0].focused`
+	///     set to the item's index among the page's visible children. Legacy's `focusChild` writes
+	///     `Submenu::current_item_`, a member of the page object (`gui/menu_item/submenu.cpp:21`);
+	///     the port's focus is per *depth* (`MenuState::columns`), so moving the page to depth 0
+	///     is what makes this a separate statement rather than something the move carries along.
+	///   * `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`) -> `path[0]`.
+	///   * `soundEditor.navigationDepth = 0` (`:1118`) -> `depth = 0`. This is the whole of the
+	///     "one extra BACK press" this port used to cost: without it the user is left on the file
+	///     selector at whatever depth it was opened from, one level further in than legacy leaves
+	///     them -- and, on the shortcut-pad route, on the selector's own bare title screen.
+	///
+	/// @par Why the page is resolved here rather than carried in
+	///
+	/// Legacy writes `parentMenuHeadingTo` on the way in because `SoundEditor::maybeGetParentMenu`
+	/// (`gui/ui/sound_editor.cpp:2073`) is the only place that has the chain in scope. Its body is
+	/// `find_if(chain, [](HorizontalMenu* m) { return m->hasItem(item); })` (`:2084`) over
+	/// `getCurrentHorizontalMenusChain(false)` (`:2079`, dispatched on the root at `:2108-2130`).
+	/// This scene has the root (`MenuContext::root`) and the tables, so it answers the same
+	/// question by walking the current root's own subtree for the `Layout::Horizontal` submenu that
+	/// lists the item -- which is `hasItem` with the chain spelled as reachability instead of as a
+	/// curated `deluge::vector` (`gui/ui/menus.cpp:2270`). Carrying a resolved page in would have
+	/// meant paying that walk on every scene push, including the four that have no return
+	/// affordance at all.
+	///
+	/// @par Why an immediate mutator, and not `request_action`'s mailbox
+	///
+	/// `request_action` above is a mailbox because its caller is a `Binding::set` hook running
+	/// *inside* `after_render`, where the drain it files into is two statements below. This one's
+	/// caller is the application, between ticks (`gui::ui::runShellSampleClaimOp`), and the shape
+	/// for that is `open()` -- which already installs a `MenuContext` and re-roots `path`/`depth`
+	/// from `gui/ui/shell_menu_entry.cpp` with no mailbox in sight. A mailbox would also be wrong
+	/// rather than merely heavier: a pending re-root would sit in the field until the next
+	/// `after_render`, one frame later, and `retarget` clears the mailboxes (see its body), so any
+	/// re-root filed across a re-root would be silently dropped.
+	///
+	/// @warning Re-rooting abandons the walk that reached the item, exactly as `retarget` does for
+	///          `open()` and the shortcut-pad jump -- every per-visit mailbox goes with it.
+	///
+	/// @return True if the menu moved. False when there is nothing to move: no scene opener
+	///         recorded, no path (`on_model_changed`'s song swap), a root out of range, or an item
+	///         no horizontal page in this root lists.
+	bool reroot_to_scene_opener_page();
 
 private:
 	/// @brief Fill @p out with @p node's children that `relevant` admits, resolving
