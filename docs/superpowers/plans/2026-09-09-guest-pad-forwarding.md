@@ -529,11 +529,21 @@ In `shell_pad_forward.cpp`, in the anonymous namespace:
 /// not the fix migration §10.5 banked -- that fix edits `sound_editor.cpp`, and this does not.
 bool menuShowsAutomationParam() {
 	const auto* focused = deluge::scenes::menu_scene().focused();
-	if (focused == nullptr || !focused->bind.param.valid()) {
-		return false; // `:1576`'s `kind != NONE && paramID != kNoParamID`, failing
+	if (focused == nullptr) {
+		return false;
 	}
-	const auto kind = focused->bind.param.kind;
-	const auto paramID = focused->bind.param.id;   // confirm the field's real name in node.h
+	// `:1576`'s test, in this layer's representation. Legacy tests two things -- `kind != NONE`
+	// and `paramID != kNoParamID` -- but `kNoParamID` is `0xFFFFFFFF`
+	// (`modulation/params/param.h:304`) and `ParamRef::index` is a `uint8_t` whose unset value is
+	// 255 (`scenes/menu/node.h:132`), so that second comparison cannot be transcribed: it would be
+	// false for every possible index. `ParamRef::valid()` (`:133`) is the whole of the test here --
+	// an unbound `Binding` carries `Kind::NONE`.
+	const deluge::scenes::menu::ParamRef& param = focused->bind.param;
+	if (!param.valid()) {
+		return false;
+	}
+	const auto kind = param.kind;
+	const int32_t paramID = param.index;
 
 	if (automationView.onArrangerView) {           // `:1578-1580`
 		return currentSong != nullptr && kind == currentSong->lastSelectedParamKind
