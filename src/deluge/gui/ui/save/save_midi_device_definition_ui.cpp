@@ -161,13 +161,7 @@ fail:
 		goto fail;
 	}
 
-	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-
-	Serializer& writer = GetSerializer();
-
-	midiInstrumentToSave->writeDeviceDefinitionFile(writer, false);
-
-	writer.closeFileAfterWriting();
+	// The document is already written and stored by the time this runs.
 
 	display->removeWorkingAnimation();
 	if (error != Error::NONE) {
@@ -201,4 +195,14 @@ ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 
 		return SaveUI::buttonAction(b, on, inCardRoutine);
 	}
+}
+
+bool SaveMidiDeviceDefinitionUI::serializeForSave(XMLSerializer& into) {
+	// Derived the same way performSave() derives it: this UI holds no member for it.
+	auto* midiInstrumentToSave = static_cast<MIDIInstrument*>(getCurrentInstrument());
+	if (midiInstrumentToSave == nullptr) {
+		return false;
+	}
+	midiInstrumentToSave->writeDeviceDefinitionFile(into, false);
+	return true;
 }

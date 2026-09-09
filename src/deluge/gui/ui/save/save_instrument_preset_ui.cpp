@@ -173,53 +173,8 @@ fail:
 		return false;
 	}
 
-	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
-
-	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
-
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
-
-		if (available) { // Will always be true.
-			openUI(&gui::context_menu::overwriteFile);
-			return true;
-		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto fail;
-		}
-	}
-
-	else if (error != Error::NONE) {
-		goto fail;
-	}
-
-	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-
-	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
-
-	char const* endString;
-	switch (outputTypeToLoad) {
-	case OutputType::SYNTH:
-		endString = "\n</sound>\n";
-		break;
-	case OutputType::KIT:
-		endString = "\n</kit>\n";
-		break;
-	case OutputType::MIDI_OUT:
-		endString = "\n</midi>\n";
-	// explicit fallthrough cases
-	case OutputType::AUDIO:
-	case OutputType::CV:
-	case OutputType::NONE:;
-	}
-
-	error = GetSerializer().closeFileAfterWriting(filePath.c_str(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-	                                              endString);
+	// The document is already written and stored by the time this runs.
 	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
 
 	// Give the Instrument in memory its new slot
 	instrumentToSave->name = enteredText;
@@ -310,3 +265,14 @@ doNormalThing:
     displayText(false);
 }
 */
+
+bool SaveInstrumentPresetUI::serializeForSave(XMLSerializer& into) {
+	// `into` IS the shared serialiser: writeToFile takes none and reaches GetSerializer() itself.
+	(void)into;
+	Instrument* instrumentToSave = getCurrentInstrument();
+	if (instrumentToSave == nullptr) {
+		return false;
+	}
+	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
+	return true;
+}

@@ -106,6 +106,11 @@ public:
 	char* getBufferPtr() { return writeClusterBuffer; }
 	int32_t bytesWritten();
 	void setMemoryBased() { memoryBased = true; }
+	/// @brief Put the writer back to writing through a file.
+	///
+	/// Needed because the shared serialiser is borrowed for memory-backed work and then handed back:
+	/// left in memory mode it would silently stop reaching the card for everyone after it.
+	void clearMemoryBased() { memoryBased = false; }
 
 	/// @brief Bytes the buffer can currently hold. GROWS as a memory-backed document outgrows it.
 	[[nodiscard]] uint32_t bufferCapacity() const { return bufferSize; }

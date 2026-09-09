@@ -34,6 +34,8 @@ public:
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
 	void endSession() {};
 	bool performSave(bool mayOverwrite) override;
+	bool serializeForSave(XMLSerializer& into) override;
+	[[nodiscard]] bool savesStagedDocument() const override { return true; }
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {

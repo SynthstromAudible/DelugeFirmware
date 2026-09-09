@@ -184,13 +184,16 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 	return true;
 }
 
-/// The staged document, alive from SERIALIZE until the write is terminal.
+/// The staged document is built in `smSerializer`, the SHARED serialiser, and not in a local one.
 ///
-/// A file-scope optional rather than a member, because saves are single-flight and the phase state
-/// they run on is static too. Disengaged at rest, so it costs nothing until a save starts -- the
-/// shape `smXmlBufferDeserializer` uses for the same reason on the read side.
+/// Not a preference. `SoundDrum::writeToFileAsInstrument` and `Instrument::writeToFile` take no
+/// serialiser at all -- they reach `GetSerializer()`, which hard-codes that global -- so a local
+/// writer would receive the prolog and nothing else. Borrowing the global is what makes those two
+/// serialisable without a refactor through the model layer.
+///
+/// The borrow is why every exit calls releaseStagedWriter(): left in memory mode, the shared
+/// serialiser silently stops reaching the card for everyone after this save.
 namespace {
-std::optional<XMLSerializer> stagedWriter;
 /// How many consecutive ticks one staged save tolerates without progress. A bound, not a timeout: an
 /// unbounded retry is not patience, it is a wedge that presents as the device having hung.
 constexpr int32_t kMaxSaveStallTicks = 600;
@@ -224,13 +227,16 @@ bool SaveUI::deferStagedSave() {
 
 void SaveUI::runSerializePhase() {
 	// No card contact at all. This is the half of a save that never needed the owner.
-	stagedWriter.emplace();
-	stagedWriter->setMemoryBased();
-	if (!serializeForSave(*stagedWriter)) {
+	smSerializer.reset();
+	smSerializer.setMemoryBased();
+	// The prolog, which createXMLFile() used to write into the writer as it opened the file. Building
+	// the document without it would save every preset headerless.
+	smSerializer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	if (!serializeForSave(smSerializer)) {
 		endStagedSave(false);
 		return;
 	}
-	if (stagedWriter->bytesWritten() <= 0) {
+	if (smSerializer.bytesWritten() <= 0) {
 		// An empty document is a failed save, not a small one.
 		endStagedSave(false);
 		return;
@@ -239,9 +245,16 @@ void SaveUI::runSerializePhase() {
 	stallTicks_ = 0;
 }
 
+void SaveUI::releaseStagedWriter() {
+	// Hand the shared serialiser back. Anything after this save that writes a file through it -- the
+	// song save above all -- needs it reaching the card again.
+	smSerializer.clearMemoryBased();
+	smSerializer.reset();
+}
+
 void SaveUI::runWritePhase() {
-	const auto* bytes = reinterpret_cast<const uint8_t*>(stagedWriter->getBufferPtr());
-	const auto len = static_cast<uint32_t>(stagedWriter->bytesWritten());
+	const auto* bytes = reinterpret_cast<const uint8_t*>(smSerializer.getBufferPtr());
+	const auto len = static_cast<uint32_t>(smSerializer.bytesWritten());
 	const char* path = inFlightRequest_.filePath.c_str();
 	const bool mayOverwrite = inFlightRequest_.mayOverwrite;
 
@@ -262,7 +275,7 @@ void SaveUI::runWritePhase() {
 		// runSaveOp ran performSave(), which owns the whole legacy path including its completion.
 		savePhase_ = SavePhase::NONE;
 		phaseOwner_ = nullptr;
-		stagedWriter.reset();
+		releaseStagedWriter();
 		return;
 	}
 
@@ -358,9 +371,9 @@ void SaveUI::runFinishPhase() {
 }
 
 void SaveUI::endStagedSave(bool succeeded) {
-	// The staged document dies here and not one tick later: it can be the better part of a hundred
-	// kilobytes, and every path out of a save passes through this function.
-	stagedWriter.reset();
+	// The shared serialiser is handed back here and not one tick later: every path out of a save
+	// passes through this function, and leaving it borrowed breaks the next save that wants a file.
+	releaseStagedWriter();
 	writeIssued_ = false;
 	stallTicks_ = 0;
 	stagedSucceeded_ = succeeded;

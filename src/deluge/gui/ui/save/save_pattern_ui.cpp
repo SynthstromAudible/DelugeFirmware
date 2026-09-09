@@ -140,41 +140,15 @@ fail:
 		return false;
 	}
 
-	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
-
-	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
-
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
-
-		if (available) { // Will always be true.
-			openUI(&gui::context_menu::overwriteFile);
-			return true;
-		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto fail;
-		}
-	}
-
-	else if (error != Error::NONE) {
-		goto fail;
-	}
-
-	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-
-	Serializer& writer = GetSerializer();
-
-	instrumentClipView.copyNotesToFile(writer, selectedDrumOnly);
-
-	writer.closeFileAfterWriting();
-
+	// The document is already written and stored by the time this runs: SaveUI builds it on the
+	// interaction tier and stores it in one operation. Nothing is left here but telling the user.
 	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
-
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PATTERN_SAVED));
 	close();
+	return true;
+}
+
+bool SavePatternUI::serializeForSave(XMLSerializer& into) {
+	instrumentClipView.copyNotesToFile(into, selectedDrumOnly);
 	return true;
 }

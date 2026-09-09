@@ -130,18 +130,8 @@ fail:
 		goto fail;
 	}
 
-	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-
-	soundDrumToSave->writeToFileAsInstrument(false, paramManagerToSave);
-
-	char const* endString = "\n</sound>\n";
-
-	error = GetSerializer().closeFileAfterWriting(filePath.c_str(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-	                                              endString);
+	// The document is already written and stored by the time this runs.
 	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
 
 	// Give the Instrument in memory its new slot
 	soundDrumToSave->drumName = enteredText.c_str();
@@ -152,5 +142,13 @@ fail:
 
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
 	close();
+	return true;
+}
+
+bool SaveKitRowUI::serializeForSave(XMLSerializer& into) {
+	// `into` IS the shared serialiser this writes through: writeToFileAsInstrument takes none and
+	// reaches GetSerializer() itself, which is exactly why the staged document is built there.
+	(void)into;
+	soundDrumToSave->writeToFileAsInstrument(false, paramManagerToSave);
 	return true;
 }

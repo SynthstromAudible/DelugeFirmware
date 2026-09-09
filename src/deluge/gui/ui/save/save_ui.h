@@ -123,6 +123,8 @@ private:
 	void handleWriteOutcome(bool alreadyExists, bool ok);
 	/// @brief Release the staged document and end the save. `succeeded` reaches the completion.
 	void endStagedSave(bool succeeded);
+	/// @brief Hand the shared serialiser back to file-backed use.
+	static void releaseStagedWriter();
 	/// @brief Defer one more tick, or give up if this save has stopped making progress.
 	static bool deferStagedSave();
 
