@@ -198,7 +198,7 @@ E2's `song_midi_learn` and `configure_song_macros` stay visible in the arranger 
 
 ### Task 10: The remaining E2 debts
 
-Each is small; together they are a task. From E2's ledger: `CustomItem` has no backward arm, so `ascend()`'s blanket `Kind::Custom` exclusion (`menu_scene.cpp:1136-1138`) stands in for one — E2's review traced the chain-source customs and found no live second variant, but nothing tests it. `perform_editor` mirrors two `PerformanceView` bools and the wiring plan owes sync calls, including `releaseViewOnExit` (`performance_view.cpp:1327-1332`), the ordinary exit path. Mod-matrix pad blinking is unported. The row-scroll path (`ui/oled/list.cpp:156`) is untested for a *selected* over-long row. Seven pre-existing self-duplicate goldens are owed cleanup.
+Each is small; together they are a task. From E2's ledger: `CustomItem` has no backward arm, so `ascend()`'s blanket `Kind::Custom` exclusion (`menu_scene.cpp:1165-1167`) stands in for one — E2's review traced the chain-source customs and found no live second variant, but nothing tests it. `perform_editor` mirrors two `PerformanceView` bools and the wiring plan owes sync calls, including `releaseViewOnExit` (`performance_view.cpp:1327-1332`), the ordinary exit path. Mod-matrix pad blinking is unported. The row-scroll path (`ui/oled/list.cpp:156`) is untested for a *selected* over-long row. Seven pre-existing self-duplicate goldens are owed cleanup.
 
 **Files:** `src/scenes/menu/node.h`, `menu/menu_scene.{h,cpp}`, `menu/nodes/action.h`, `sim/scenes_spec/`, `tests/golden/ui/shell/`.
 

@@ -3142,7 +3142,7 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 		// than closed.** With the toggle on, `ShellHostUI` is the current UI wherever `soundEditor`
 		// would have been, so this test is false and a CC arriving under MIDI learn goes straight to
 		// `view.ccReceivedForMIDILearn` below -- the ported menu never sees it, and
-		// `MenuScene::learn_cc` (`scenes/menu/menu_scene.cpp:446-449`) has no caller.
+		// `MenuScene::learn_cc` (`scenes/menu/menu_scene.cpp:475-478`) has no caller.
 		//
 		// The guest closes the note-on and program-change halves of the same gesture by overriding
 		// `UI::noteOnReceivedForMidiLearn` / `pcReceivedForMidiLearn`, because those two dispatchers

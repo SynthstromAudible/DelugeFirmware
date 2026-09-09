@@ -47,7 +47,7 @@ using deluge::l10n::String;
 
 void PendingCustom::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	// Deliberately the same "honest placeholder" `MenuScene`'s own unimplemented-kind arm draws
-	// (`menu_scene.cpp:597-604`): the user sees which item they are on rather than the previous
+	// (`menu_scene.cpp:626-633`): the user sees which item they are on rather than the previous
 	// screen. Replaced, per item, when E2 lands the browser, the recorder and the marker editor.
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;

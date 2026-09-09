@@ -1029,6 +1029,38 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
 	});
 
+	it("a deep link onto a MULTI-range source opens the picker, not the item", _ {
+		// The other arm of the same gate, and the one F3 task 4's review caught missing. Legacy's
+		// `checkPermissionToBeginSessionForRangeSpecificParam` answers `MUST_SELECT_RANGE` when the
+		// source has more than one range and none is remembered (`sound_editor.cpp:2010-2014`), and
+		// `SoundEditor::setup` then opens `multiRangeMenu` *instead of* the named item
+		// (`:1855-1859`) -- for a named item exactly as for a navigated one, because `setup` runs
+		// the check on `horizontal_menu_child` whichever way it was asked for.
+		//
+		// Paying only `ensure_first_range` and dropping this would be a partial port of a two-armed
+		// gate: latent on a fresh source (0 ranges becomes 1, so `range_count == 1` and the item
+		// just opens -- which is why the level-3 A/B cannot see it) and live the moment a user
+		// presses LOAD on a multisampled oscillator.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+
+		(void)r.open(transpose_leaf);
+		r.shell.tick(0);
+
+		// The picker is what is on screen, at depth 0 -- `retarget`, not `descend_to`, because a
+		// deep link has no path to descend from -- and the item it stood in for is remembered.
+		expect(depth_of()).to_equal(0);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
+		expect(menu_scene().state().range_picker_pending).to_be_true();
+		expect(menu_scene().state().pending_after_range == &transpose_leaf).to_be_true();
+		// And the two ranges are still the source's own: nothing was allocated on top of them.
+		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(2);
+	});
+
 	it("a deep link to a node that is NOT range-dependent allocates nothing", _ {
 		// The other half of the guard, so the arm above cannot be satisfied by allocating for every
 		// deep link. Legacy runs the range check only for the items whose
@@ -1790,7 +1822,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			// `after_render` moves the path only *after* the render that entered it, so the panel
 			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
-			// the next one (`menu_scene.cpp:1052-1054`; `open_lpf` above needs the identical extra
+			// the next one (`menu_scene.cpp:1081-1083`; `open_lpf` above needs the identical extra
 			// tick for the same reason).
 			r.shell.tick(120);
 			expect_golden(self, "../ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));

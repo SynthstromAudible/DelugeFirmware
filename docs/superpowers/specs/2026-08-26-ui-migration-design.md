@@ -183,7 +183,7 @@ the hook it belongs to.
      (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`) mirrors it live, alongside the
      `Buttons::clearShiftSticky()` it already had to pair with. Left unfixed this was a real
      regression: `ctx.shift` is the whole gate on the menu's shortcut-pad jump
-     (`scenes/menu/menu_scene.cpp:1599`), so a sticky-shift user would have lost shortcut pads under
+     (`scenes/menu/menu_scene.cpp:1631`), so a sticky-shift user would have lost shortcut pads under
      the toggle.
   2. ~~**`hold_time_ms` is the one that genuinely is construction-time.**~~ **Closed by F1 task 8.**
      The tap threshold is `FlashStorage::holdTime` in legacy — audio samples, re-read *live* at
@@ -224,7 +224,7 @@ implements; `focusRegained` really is `on_resume`, with the one refinement that 
 `SceneStack::input_top()` rather than `top()`, because that is what `Scene::on_resume`'s own contract
 says (`shell/scene.h:359-374`) and what the stack itself does (`shell/scene_stack.h:38-46`);
 `getGreyoutColsAndRows` really is the top scene's `greyout_mask()`, with `doGreyout == false` spelled
-as an all-zero mask (`scenes/menu/menu_scene.cpp:1665-1697`).
+as an all-zero mask (`scenes/menu/menu_scene.cpp:1697-1729`).
 
 **One phase-4 topology defect the table does not mention and cannot be read off it: the greyout is
 applied twice.** Legacy greys once, in the send path — `prepareColour` (`hid/led/pad_leds.cpp:283-298`,

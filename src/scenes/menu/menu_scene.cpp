@@ -419,21 +419,50 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp:151-163`) and the push was
 		// declined, leaving the menu parked on the file selector's own title page.
 		//
-		// **Only the allocation, deliberately -- not `permission_for` around it.** Legacy's gate
-		// here is the *item's own* `checkPermissionToBeginSession` override, and the five
-		// scene-opener items override it in a way that never consults `isRelevant`:
+		// **The range gate in full, but NOT `permission_for` around it.** Legacy's gate here is the
+		// *item's own* `checkPermissionToBeginSession` override, and the five scene-opener items
+		// override it in a way that never consults `isRelevant`:
 		// `FileSelector::checkPermissionToBeginSession` (`gui/menu_item/file_selector.cpp:68-86`)
 		// answers YES for any SUBTRACTIVE sound and defers the rest to the range check, while
 		// `FileSelector::isRelevant` (`:54-67`) additionally demands `oscType == SAMPLE`.
 		// `permission_for` is the port of the *base* `MenuItem::checkPermissionToBeginSession`
-		// (`gui/menu_item/menu_item.cpp:27-31`, relevance and nothing else) plus the range rule,
-		// so running it here would refuse site 8 on a default SAW synth that legacy opens. That
-		// gap -- `Node` has no port of an item-specific `checkPermissionToBeginSession` that
-		// bypasses relevance -- is recorded in `src/scenes/README.md` rather than half-closed here.
-		if (target != nullptr && target->range_dependent && !ensure_first_range(ctx_)) {
-			deluge::notify::notice_string(
-			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
-			return false;
+		// (`gui/menu_item/menu_item.cpp:27-31`, relevance and nothing else) plus the range rule, so
+		// calling it here would refuse site 8 on a default SAW synth that legacy opens. That gap --
+		// `Node` has no port of an item-specific `checkPermissionToBeginSession` that bypasses
+		// relevance -- is recorded in `src/scenes/README.md` rather than half-closed here.
+		//
+		// What is NOT skipped is the range half, both of its arms. Paying only the allocation and
+		// dropping `MUST_SELECT_RANGE` would be a partial port of a two-armed gate, which is worse
+		// than paying neither: the half that is there makes it look complete. It is latent on a
+		// fresh source (0 ranges becomes 1, so the item just opens) and fires the moment a user
+		// presses LOAD on a multisampled oscillator.
+		if (target != nullptr && target->range_dependent) {
+			if (!ensure_first_range(ctx_)) {
+				deluge::notify::notice_string(
+				    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
+				return false;
+			}
+			// `:2005-2014`, the two arms after that allocation. `ensure_first_range` has already
+			// applied the first -- a kit row or a single range is unambiguous, so it points
+			// `ctx_.range` at range 0 (`:2005-2007`). What is left is legacy's own
+			// `MUST_SELECT_RANGE` (`:2014`): a range-dependent item on a source with more than one
+			// range and none remembered. Spelled as "the allocation did not resolve one" rather
+			// than by calling `permission_for`, whose first statement is the relevance fold above.
+			// `ctx_.source` is what `ensure_first_range` itself guards on, so a context with no
+			// source took its no-op success and must not land on a picker.
+			if (ctx_.source != nullptr && ctx_.range == nullptr) {
+				// `sound_editor.cpp:1855-1859`: `multiRangeMenu.menuItemHeadingTo =
+				// horizontal_menu_child; newItem = &multiRangeMenu;` -- the picker is opened
+				// *instead of* the item, and the item is remembered for the picker's own select
+				// press. `enter_child` ports the same two statements for a descent
+				// (`descend_to(nodes::multi_range)` below); this is the deep link's copy, and it
+				// re-roots rather than descending because there is no path to descend from.
+				// The two writes come after `retarget`, which resets both fields.
+				retarget(nodes::multi_range);
+				st_.range_picker_pending = true;
+				st_.pending_after_range = target;
+				return true;
+			}
 		}
 	}
 	else {
@@ -1229,8 +1258,10 @@ void MenuScene::enter_child(const Node& child) {
 	// (`sound_editor.cpp:1993-1997`), ahead of every one of its arms: the check creates the source's
 	// first `MultiRange` if it has none, and refuses outright if that allocation fails.
 	// `permission_for` is a pure predicate and deliberately does not (`context.cpp`'s "Owed to E2"),
-	// so the allocation happens here -- the port of the call site -- for exactly the nodes legacy
-	// ran it for, the `range_dependent` ones. E1's carry list records this as owed to task 9.
+	// so the allocation happens here -- one of the two ports of the call site, the descent; the
+	// other is `on_enter`'s deep link, which cannot descend and re-roots instead -- for exactly the
+	// nodes legacy ran it for, the `range_dependent` ones. E1's carry list records this as owed to
+	// task 9.
 	if (child.range_dependent && !ensure_first_range(ctx_)) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
 		return;
@@ -1271,7 +1302,8 @@ void MenuScene::ascend() {
 	// (`submenu.cpp:21`) reconstructs from the item it navigated backward from.
 	//
 	// **One divergence, named rather than inherited (E3 task 11 fix round 1).** Legacy's depth-0 arm
-	// is `exitCompletely(); return;` (`:672-678`) -- going up from the root closes the editor. This
+	// is `exitCompletely(); return;` (`sound_editor.cpp:715-717`) -- going up from the root closes
+	// the editor. This
 	// returns instead, so an ascend at depth 0 is a silent no-op. That is invisible for anything
 	// reached by descending, but a *re-rooted* path can put a leaf at depth 0 (the shortcut-pad jump
 	// does exactly that, `handle`'s `Replace` arm) -- and then `MenuState::go_up_on_resume`, the arm
