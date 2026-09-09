@@ -87,6 +87,7 @@ enum class Stage : uint8_t {
 	Fixture,
 	FixtureWait,
 	SaveFirst,
+	SaveFirstWait,
 	SaveFirstCheck,
 	LoadBack,
 	LoadBackWait,
@@ -94,6 +95,7 @@ enum class Stage : uint8_t {
 	SaveSecond,
 	SaveSecondCheck,
 	Confirm,
+	ConfirmWait,
 	ConfirmCheck,
 	Tier,
 	Done,
@@ -107,6 +109,23 @@ uint32_t g_crcFirst = 0;
 uint32_t g_crcSecond = 0;
 size_t g_bytesFirst = 0;
 std::vector<uint8_t> g_first;
+int32_t g_saveWaitTicks = 0;
+
+/// How long one save is given to finish before the run calls it wedged. A bound, not a timeout: an
+/// unbounded wait presents as the harness hanging rather than as a failure anyone can read.
+constexpr int32_t kMaxSaveWaitTicks = 200000;
+
+/// Whether the save machinery has gone quiet.
+///
+/// A song save has not finished when `enterKeyPress()` returns. It serialises, writes and finishes
+/// across ticks, and collects samples on a second machine beside that -- so reading the file back on
+/// the very next tick asks the card a question the save has not answered yet. This scenario used to
+/// do exactly that and passed anyway, because at the time the save still happened to complete inside
+/// the keypress. It stopped being true the moment the collection stopped being kicked off inline,
+/// and the gate reported "the save wrote no file" for a save that was merely still running.
+bool saveMachineryIdle() {
+	return !saveSongUI.collectInFlight() && !SaveUI::saveInFlight();
+}
 
 uint32_t crc32(const void* data, size_t len) {
 	const auto* p = static_cast<const uint8_t*>(data);
@@ -264,7 +283,20 @@ void runTick() {
 	case Stage::SaveFirst: {
 		SaveRoundtripProbe::typeName(kSaveName);
 		SaveRoundtripProbe::pressEnter();
-		g_stage = Stage::SaveFirstCheck;
+		g_saveWaitTicks = 0;
+		g_stage = Stage::SaveFirstWait;
+		break;
+	}
+	case Stage::SaveFirstWait: {
+		if (saveMachineryIdle()) {
+			g_stage = Stage::SaveFirstCheck;
+			break;
+		}
+		if (++g_saveWaitTicks > kMaxSaveWaitTicks) {
+			printf("SR-SEAM FAIL free save never finished (%d ticks)\n", g_saveWaitTicks);
+			g_failures++;
+			g_stage = Stage::SaveFirstCheck;
+		}
 		break;
 	}
 	case Stage::SaveFirstCheck: {
@@ -337,7 +369,21 @@ void runTick() {
 	}
 	case Stage::Confirm: {
 		(void)deluge::gui::context_menu::overwriteFile.acceptCurrentOption();
-		g_stage = Stage::ConfirmCheck;
+		g_saveWaitTicks = 0;
+		g_stage = Stage::ConfirmWait;
+		break;
+	}
+	case Stage::ConfirmWait: {
+		// Confirming the prompt STARTS the overwrite; it does not perform it.
+		if (saveMachineryIdle()) {
+			g_stage = Stage::ConfirmCheck;
+			break;
+		}
+		if (++g_saveWaitTicks > kMaxSaveWaitTicks) {
+			printf("SR-ROUNDTRIP FAIL the confirmed overwrite never finished (%d ticks)\n", g_saveWaitTicks);
+			g_failures++;
+			g_stage = Stage::ConfirmCheck;
+		}
 		break;
 	}
 	case Stage::ConfirmCheck: {
