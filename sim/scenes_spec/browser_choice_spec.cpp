@@ -389,11 +389,21 @@ struct ShellRig {
 	/// Four ticks, not one, for `sample_items_spec.cpp`'s `focus_in` reasons: `after_render` files
 	/// the `Push` at the end of the tick that rendered the item, and `BrowserScene` collects its
 	/// listing in its own `after_render` a tick later again.
-	void open_browser() {
+	void open_browser() { open_menu_at(nodes::file0_selector); }
+
+	/// @brief `open_browser`'s body with the landing node as a parameter.
+	///
+	/// Split out for the re-rooting group's control leg, which needs a menu that was opened the same
+	/// way and simply never pushed a scene. **Opening at a node is the shortcut-pad shape, not a
+	/// contrivance**: `MenuScene::on_enter` re-roots from `SceneId::arg` unconditionally
+	/// (`scenes/menu/menu_scene.cpp`'s `on_enter`), which is exactly what the jump's `Action::Kind::
+	/// Replace` produces (`handle`'s pad arm) -- and today the pad is the only way to focus a file
+	/// selector at all (see the group's own note).
+	void open_menu_at(const Node& node) {
 		select_language();
 		(void)menu::assign_node_ids(nodes::kAllRoots);
-		menu_scene().open(nodes::file0_selector, model.ctx());
-		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::file0_selector)});
+		menu_scene().open(node, model.ctx());
+		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(node)});
 		for (int32_t i = 0; i < 4; i++) {
 			step();
 		}
@@ -551,6 +561,27 @@ struct MidiRig {
 /// `"<dir>|<name>"`, or `"-"` for `std::nullopt`. Read through a default rather than through
 /// `->`: a mutant that answers `std::nullopt` everywhere must fail an example, not abort the
 /// process inside `std::optional::operator->` before the rest of the file has run.
+/// @brief Which column @p item is on @p page, counting only the children @p ctx admits; -1 if none.
+///
+/// `MenuScene::visible_children`'s filter (`scenes/menu/menu_scene.cpp`) re-derived, deliberately:
+/// hard-coding "the file selector is column 1" would make the focus assertion agree with a mutant
+/// that renumbered the page, and reading the index back off the scene would make it agree with
+/// itself. `Node::relevant` is public data (`scenes/menu/node.h`), so this is the same rule the
+/// interpreter applies, spelled independently of it.
+int32_t visible_index_of(const MenuContext& ctx, const Node& page, const Node& item) {
+	int32_t index = 0;
+	for (const Node* kid : page.children) {
+		if (kid == nullptr || (kid->relevant != nullptr && !kid->relevant(ctx))) {
+			continue;
+		}
+		if (kid == &item) {
+			return index;
+		}
+		index++;
+	}
+	return -1;
+}
+
 std::string split_of(std::string_view path) {
 	const std::optional<SampleClaimTarget> t = deluge::gui::ui::sampleClaimTargetFor(path);
 	if (!t.has_value()) {
@@ -911,11 +942,133 @@ describe browser_choice_claim(
 	        });
     });
 
+describe browser_choice_reroot(
+    "MenuScene::reroot_to_scene_opener_page", $ {
+	    // Legacy's return affordance, in the port's own terms:
+	    // `parentMenuHeadingTo->focusChild(menuItemHeadingTo); menuItemNavigationRecord[0] =
+	    // parentMenuHeadingTo; navigationDepth = 0` (`gui/ui/browser/sample_browser.cpp:1116-1118`).
+	    // The page is `sourceMenuGroup` focused on `source0Menu` (`gui/ui/menus.cpp:1748-1749`), which
+	    // this port models as the ordinary submenu `nodes::source0`.
+	    //
+	    // @par Why the entry point is called by name here, and the claim op is not
+	    //
+	    // Because the op cannot be run: `runShellSampleClaimOp`'s success arm is behind a real
+	    // `SampleBrowser::claimCurrentFile` -- a card read and an `AudioFileManager` allocation --
+	    // which is the whole reason `ClaimSpy` exists. So the split is the one the group above
+	    // already lives with: **which** op the drain hands the owner is pinned there, and what that
+	    // op does on success is argued at `runShellSampleClaimOp` and driven by name here. The state
+	    // these examples re-root is not a fixture, though: it is the real state a real file press
+	    // leaves behind, all four ticks and the drain included.
+	    //
+	    // @note The menu here is at **depth 0** on the file selector, and that is not the rig taking a
+	    //       shortcut -- it is the only shape a user can produce today. The port has no port of
+	    //       `MenuItem::allowToBeginSessionFromHorizontalMenu` (`gui/menu_item/menu_item.h:314`,
+	    //       overridden true by `FileSelector`, `gui/menu_item/file_selector.h:35`), so a select
+	    //       press on the file selector's column of the horizontal `source0` page raises the
+	    //       notification instead of opening the browser (`MenuScene::render_horizontal`'s
+	    //       `column_press`, and `ui/oled/columns.cpp:419` behind it). The shortcut pad is what is
+	    //       left, and it re-roots to depth 0 (`handle`'s `Replace` arm). Reported, not fixed here.
+
+	    before_each([] {
+		    static QuietDisplay d;
+		    if (display == nullptr) {
+			    display = &d;
+		    }
+	    });
+
+	    it(
+	        "lands the ported menu on the source page, at the root, with the file selector focused", _ {
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+
+		        // Before the press: the menu IS the file selector, and it is the whole path.
+		        expect(menu_scene().state().depth).to_equal(0);
+		        expect(menu_scene().state().path[0] == &nodes::file0_selector).to_be_true();
+
+		        r.enter();
+		        deluge::gui::ui::dispatchShellChoices();
+		        // The claim was requested and the outbox emptied -- the group above's subject, re-checked
+		        // here only so a failure below cannot be blamed on the press not having landed.
+		        expect(spy.dispatches).to_equal(1);
+
+		        // The browser closed and the menu resumed, and `go_up_on_resume`'s `ascend()` had
+		        // nowhere to go from depth 0: without the re-rooting the user is left staring at the
+		        // file selector's own title screen.
+		        expect(menu_scene().state().path[0] == &nodes::file0_selector).to_be_true();
+
+		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
+
+		        // `menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`) ...
+		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+		        // ... and `navigationDepth = 0` (`:1118`). This is the assertion the "one extra BACK
+		        // press" was: a re-root that left the page one level in would still satisfy the line
+		        // above.
+		        expect(menu_scene().state().depth).to_equal(0);
+		        // ... and `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`), which is a
+		        // separate failure mode: the right page with the wrong column focused is exactly what
+		        // legacy's `focusChild` exists to prevent.
+		        const int32_t column = visible_index_of(r.model.ctx(), nodes::source0, nodes::file0_selector);
+		        // Pinned as a number too, so "the focus was never moved" cannot pass by agreeing with a
+		        // page whose selector happens to sit first. `osc0_type` is column 0 on a subtractive
+		        // source (`nodes/sound_osc.h`'s `kSource0Children`).
+		        expect(column).to_equal(1);
+		        expect(static_cast<int32_t>(menu_scene().state().columns[0].focused)).to_equal(column);
+	        });
+
+	    it(
+	        "spends the recorded opener, so a second claim does not re-root a menu that has moved on", _ {
+		        // The control leg, varying exactly one thing against the example above: the entry point
+		        // is called a second time, with everything else identical. Legacy clears its pair at the
+		        // same point (`gui/ui/browser/sample_browser.cpp:1121-1122`), and the reason is the same
+		        // -- the pair belongs to one trip through the browser, and a stale one re-roots a menu
+		        // the user has since navigated somewhere else entirely.
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        r.enter();
+		        deluge::gui::ui::dispatchShellChoices();
+
+		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_true();
+		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+
+		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
+		        // And a refusal is a no-op, not a reset: the menu is exactly where the first call left it.
+		        expect(menu_scene().state().path[0] == &nodes::source0).to_be_true();
+		        expect(menu_scene().state().depth).to_equal(0);
+	        });
+
+	    it(
+	        "refuses a menu that never opened a scene, and leaves its path alone", _ {
+		        // The second control, varying one thing again: the same rig, the same root, the same
+		        // four ticks -- but the menu is opened on `sound_root` rather than on the item that
+		        // pushes the browser, so nothing ever recorded an opener. Legacy's guard is the same
+		        // shape: the re-rooting is inside `if (menuItemHeadingTo != nullptr &&
+		        // parentMenuHeadingTo != nullptr)` (`gui/ui/browser/sample_browser.cpp:1111`).
+		        CleanBrowser clean;
+		        ClaimSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_menu_at(nodes::sound_root);
+		        expect(r.browser_on_stack()).to_be_false();
+
+		        expect(menu_scene().reroot_to_scene_opener_page()).to_be_false();
+		        expect(menu_scene().state().path[0] == &nodes::sound_root).to_be_true();
+		        expect(menu_scene().state().depth).to_equal(0);
+		        expect(spy.dispatches).to_equal(0);
+	        });
+    });
+
 /// `browser_choice_target` first: it touches no scene, no card and no song, so it runs before
 /// anything can have left a singleton in a state it would have to survive.
 int browser_choice_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(browser_choice_target, browser_choice_dispatch, browser_choice_claim)
+	               .add_specs(browser_choice_target, browser_choice_dispatch, browser_choice_claim,
+	                          browser_choice_reroot)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS
