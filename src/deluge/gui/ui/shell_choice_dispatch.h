@@ -138,7 +138,7 @@ inline constexpr SampleClaimArgs kShellSampleClaimArgs{
 /// reads index `-1` (`gui/ui/ui.cpp:183-194`) -- and even reading that benignly, the next three
 /// statements set `numUIsOpen = 0`, unset `TimerName::UI_SPECIFIC` (`:195-197`) from **inside**
 /// `ShellHostUI::timerCallback`, and call `focusRegained()` on whatever that index produced. It is
-/// the same index `-1` read `gui/ui/shell_action_dispatch.cpp:128-134` describes.
+/// the same index `-1` read `gui/ui/shell_action_dispatch.cpp:130-136` describes.
 ///
 /// @par What the flag suppresses, and what this op pays back
 ///

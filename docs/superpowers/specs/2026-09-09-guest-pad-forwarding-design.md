@@ -172,7 +172,7 @@ two sides of the wall, deliberately — recorded here so a later reader does not
 the scene.
 
 **The exit itself is already written.** `closePortedMenu()`
-(`gui/ui/shell_action_dispatch.cpp:176-178`) is F2's port of `exitCompletely()`, and its docblock
+(`gui/ui/shell_action_dispatch.cpp:189-191`) is F2's port of `exitCompletely()`, and its docblock
 argues at length why it is `stack().remove(SceneKind::FirstApp)` and not
 `soundEditor.exitCompletely()` — the latter would run `closeUI` on a UI that is not on the stack and
 read `uiNavigationHierarchy[-1]`. The tail calls that function. It must not also call `closeGuest()`:

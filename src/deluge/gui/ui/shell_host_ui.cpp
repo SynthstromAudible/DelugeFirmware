@@ -583,7 +583,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// This branch already says so three times, and enforced it nowhere until now. `opened()` says it
 	// for a refused open (`:165-170`), `timerCallback`'s close check says it for the short-Back exit
 	// (`:547-552`), and `closePortedMenu` says it to rule out `closeGuest()` as an implementation
-	// (`gui/ui/shell_action_dispatch.cpp:153-163`). The path none of the three covers is the one F2
+	// (`gui/ui/shell_action_dispatch.cpp:155-165`). The path none of the three covers is the one F2
 	// tasks 2 and 4 created between them: **three of the seven `MenuAction` arms end in
 	// `openUI(...)`** -- `grep -n "openUI(" gui/ui/shell_action_dispatch.cpp` gives exactly three
 	// (`:115` in `openPerformanceView`, `:358` and `:368` for the two context menus), against eight

@@ -32,7 +32,7 @@
 /// (`:104-105`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
 /// the stack would empty the moment `Defer` closed it, and `ShellHostUI::timerCallback` would take
 /// its `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:553-556`) -- `closeUI` on a guest that is not
-/// on the legacy UI stack, i.e. the index `-1` read `gui/ui/shell_action_dispatch.cpp:128-134`
+/// on the legacy UI stack, i.e. the index `-1` read `gui/ui/shell_action_dispatch.cpp:130-136`
 /// describes. A rig that has to avoid a production path is a rig that is testing something else.
 ///
 /// @note The spec may include `gui/` (for the dispatcher and the guest); the library may not. Same
