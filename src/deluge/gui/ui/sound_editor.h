@@ -73,6 +73,7 @@ public:
 	int16_t currentMultiRangeIndex;
 	MIDICable* currentMIDICable;
 	deluge::gui::menu_item::RangeEdit editingRangeEdge;
+	bool haveRenderedPads{false};
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -91,8 +92,8 @@ public:
 	bool editingKitRow();
 	void setCurrentSource(int32_t sourceIndex);
 
-	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	bool renderMainPads(uint32_t whichRows, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth],
 	                    bool drawUndefinedArea = false) override;
 	static void renderMainShortcutsOnly(ModControllableAudio* forThing, RGB image[][kDisplayWidth + kSideBarWidth],
 	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool doKitAffectEntire);

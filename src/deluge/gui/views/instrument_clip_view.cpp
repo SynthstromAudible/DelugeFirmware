@@ -7345,10 +7345,23 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 
 	if (shouldRenderShortcutsOverview()) {
 		// what even is this view???
+		renderedShortcutPads = true;
 		SoundEditor::renderMainShortcutsOnly(
 		    (ModControllableAudio*)view.activeModControllableModelStack.modControllable, image, occupancyMask,
 		    SoundEditor::shouldEditKitAffectEntire());
 		return true;
+	}
+	else if (renderedShortcutPads) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			if (whichRows & (1 << yDisplay)) {
+				// clear this row of the pad image
+				std::fill(image[yDisplay], image[yDisplay] + kDisplayWidth + kSideBarWidth, colours::black);
+				if (occupancyMask) {
+					memset(occupancyMask[yDisplay], 0, kDisplayWidth + kSideBarWidth);
+				}
+			}
+		}
+		renderedShortcutPads = false;
 	}
 
 	PadLEDs::renderingLock = true;

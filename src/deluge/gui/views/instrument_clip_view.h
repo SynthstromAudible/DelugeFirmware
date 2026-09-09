@@ -265,6 +265,7 @@ public:
 	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do
 	// that shortcut into the SoundEditor!
 	bool editedAnyPerNoteRowStuffSinceAuditioningBegan{};
+	bool renderedShortcutPads;
 	// made these public so they can be accessed by the automation clip view
 
 	// ui

@@ -158,14 +158,19 @@ PLACE_SDRAM_RODATA constexpr RGB mono_mod_shortcut_colours [][kDisplayHeight] = 
 
 //clang-format on
 
+bool isRelevant(ModControllableAudio* forThing, MenuItem* menuitem, int32_t thing)
+{
+	// we have a menuitem, and we either have nothing to check or we checked and it's relevant
+	return ((menuitem != nullptr) and (menuitem != comingSoonMenu)) and ((forThing == nullptr) or menuitem->
+		isRelevant(forThing, thing));
+}
+
 void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB image[][kDisplayWidth + kSideBarWidth],
                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool doKitAffectEntire)
 {
 
-	if (!forThing)
-	{
-		freezeWithError("ohno");
-	}
+	D_PRINTLN("rendering with kit affect entire? %b ", doKitAffectEntire);
+
 	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
 	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
@@ -173,12 +178,9 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
 		for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++)
 		{
 			auto [menuitem, _] = get_basic_shortcut_action(xDisplay, yDisplay, doKitAffectEntire);
-			if (menuitem && (menuitem != comingSoonMenu))
+			if (isRelevant(forThing, menuitem, xDisplay % 2))
 			{
-				if (forThing && menuitem->isRelevant(forThing, 0))
-				{
-					image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
-				}
+				image[yDisplay][xDisplay] = shortcut_colours[xDisplay][yDisplay];
 			}
 			else
 			{
@@ -196,6 +198,23 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)
 		|| !Buttons::isShiftButtonPressed())
 	{
+		if (haveRenderedPads)
+		{
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+			{
+				if (whichRows & (1 << yDisplay))
+				{
+					// clear this row of the pad image
+					std::fill(image[yDisplay], image[yDisplay] + kDisplayWidth + kSideBarWidth, colours::black);
+					if (occupancyMask)
+					{
+						memset(occupancyMask[yDisplay], 0, kDisplayWidth + kSideBarWidth);
+					}
+				}
+			}
+			haveRenderedPads = false;
+		}
+
 		D_PRINTLN("shift not pressed");
 		return false;
 	}
@@ -220,8 +239,10 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 		if (patchable)
 		{
+			D_PRINTLN("it's patchable");
 			// canary - if the local lfo (lfo 2 to users) can't patch then it's a global patched param
-			if (currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param, soundEditor.currentParamManager)
+			if (currentSound and currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param,
+			                                                         soundEditor.currentParamManager)
 				== PatchCableAcceptance::DISALLOWED)
 			{
 				for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
@@ -244,6 +265,8 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 			}
 		}
 	}
+
+	haveRenderedPads = true;
 
 	return true;
 }
@@ -308,7 +331,10 @@ bool SoundEditor::editingKitAffectEntire() const {
 
 bool SoundEditor::shouldEditKitAffectEntire()
 {
-	return (getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire);
+	auto kit = (getCurrentOutputType() == OutputType::KIT);
+	auto affectEntire = (getCurrentInstrumentClip()->affectEntire);
+	D_PRINTLN("checking kit? %b Affect entire? %b",  kit, affectEntire);
+	return  kit and affectEntire ;
 }
 
 bool SoundEditor::editingKitRow() {
@@ -411,6 +437,7 @@ bool SoundEditor::opened() {
 		return true; // Must return true, which means everything is dealt with - because this UI would already have been
 		             // exited if there was a problem
 	}
+	D_PRINTLN("opening, kit status? %b", this->editingKitAffectEntire());
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	setLedStates();
@@ -1345,11 +1372,13 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		const MenuItem* item = nullptr;
 
+		D_PRINTLN("getting potential actions, kit? %b", editingKitAffectEntire());
 		// session views (arranger, song, performance)
 		auto [potential_item, do_sound_checks] = get_basic_shortcut_action(x, y, editingKitAffectEntire());
 		item = potential_item;
 		if (do_sound_checks)
 		{
+			D_PRINTLN("doing sound checks");
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
 				&& runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
 				== RuntimeFeatureStateToggle::On)
@@ -1547,6 +1576,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 			const int32_t thingIndex = x & 1;
 
+			D_PRINTLN("trying the setup");
 			bool setupSuccess = setup(currentClip, item, thingIndex);
 
 			if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
@@ -1570,6 +1600,14 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 	// If not in SoundEditor yet
 	if (getCurrentUI() != &soundEditor) {
+		D_PRINTLN("updating sound editor");
+		// setup kit fx menu if we're here from shift and not auditioning, or if it was already true
+		setupKitGlobalFXMenu = setupKitGlobalFXMenu or
+		(shouldEditKitAffectEntire() and Buttons::isShiftButtonPressed() and not
+			isUIModeActive(UI_MODE_AUDITIONING));
+
+
+
 		if (getCurrentUI() == &sampleMarkerEditor) {
 			display->setNextTransitionDirection(0);
 			changeUIAtLevel(&soundEditor, 1);
