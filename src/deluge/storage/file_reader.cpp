@@ -216,6 +216,15 @@ Error StorageManager::readWholeFileSynchronously(char const* path, StagingState*
 
 void StorageManager::releaseStaging(StagingState* state) {
 	if (state->buffer != nullptr) {
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+		// Sim/golden only, and the mirror of the allocator's zero-on-hand-out: scrub the document on
+		// the way OUT so that reading it after this point resolves to defined zeroes rather than to
+		// bytes that merely happen to still be there. Freeing a staged document before its
+		// deserializer has finished is the mistake this whole design is arranged to prevent.
+		// Firmware leaves it off: the memset would cost a megabyte per song load to catch nothing at
+		// runtime.
+		memset(state->buffer, 0, state->size);
+#endif
 		deluge::memory::dealloc(state->buffer);
 	}
 	*state = {};
