@@ -574,20 +574,24 @@ rather than a thing that is half-done:
    alone brought the sidebar back **ungreyed** (`pad 16 0 0 255 6`, boot's colour, not the OFF
    leg's `3 160 7`).
 
-   **A second user-visible divergence, reachable on all eight gated entry sites, and now fixed.**
-   With the toggle on, a grid pad pressed under a ported menu did nothing, where legacy closes the
-   menu: `SoundEditor::padAction`'s tail (`gui/ui/sound_editor.cpp:1520-1545`) falls through every
-   root-forwarding arm and calls `exitCompletely()` on any unclaimed pad while
+   **A second user-visible divergence, reachable at six of the eight gated entry sites, and now
+   fixed.** With the toggle on, a grid pad pressed under a ported menu did nothing, where legacy
+   closes the menu: `SoundEditor::padAction`'s tail (`gui/ui/sound_editor.cpp:1520-1545`) falls
+   through every root-forwarding arm and calls `exitCompletely()` on any unclaimed pad while
    `currentUIMode == UI_MODE_NONE`, and the port had no equivalent — `MenuScene` ignored an unclaimed
-   pad outright, and the menu stayed open over the grid. **Fixed by `ui/pads-1`**:
-   `Scene::grid_pad_claim()` (`src/shell/scene.h:455`) plus `ShellHostUI::claimsGridPad`
-   (`gui/ui/shell_host_ui.cpp:749-765`) and `forwardGridPad`'s tail
-   (`gui/ui/shell_pad_forward.cpp:136-139`) now call `closePortedMenu()`
-   (`gui/ui/shell_action_dispatch.cpp:189-191`) on the same condition legacy's tail tests. **Why it
-   survived five task reviews and three whole-branch reviews**: the level-3 acceptance script
-   (`tests/ui-scripts/app/menu.txt`) never made the gesture — its only main-grid presses happen
-   before any menu exists, to make a clip
-   (`docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md` §7.2).
+   pad outright, and the menu stayed open over the grid. Not universal: the two sites whose root
+   claims every pad through a forwarding arm ending in a hard `return` — `performanceView`'s
+   (`gui/ui/sound_editor.cpp:1515-1517`) and the `keyboardScreen` half of site 6's fan-out
+   (`:1474-1477`) — never reach the tail, in legacy or in the port's matching arms, so there was no
+   divergence to fix at either; `docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md`
+   §2.1 has the full per-site account. **Fixed by `ui/pads-1`**: `Scene::grid_pad_claim()`
+   (`src/shell/scene.h:455`) plus `ShellHostUI::claimsGridPad` (`gui/ui/shell_host_ui.cpp:749-765`)
+   and `forwardGridPad`'s tail (`gui/ui/shell_pad_forward.cpp:136-139`) now call
+   `closePortedMenu()` (`gui/ui/shell_action_dispatch.cpp:189-191`) on the same condition legacy's
+   tail tests. **Why it survived five task reviews and three whole-branch reviews**: the level-3
+   acceptance script (`tests/ui-scripts/app/menu.txt`) had never made the gesture before this branch
+   extended it — its only main-grid presses before this branch happened before any menu existed, to
+   make a clip (`docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md` §7.2).
 
    **A third divergence, found by the same task while recording the level-3 A/B, and left open.**
    Legacy's static `Submenu::focusChild` (`gui/menu_item/submenu.cpp:21-34`) leaves `current_item_`
