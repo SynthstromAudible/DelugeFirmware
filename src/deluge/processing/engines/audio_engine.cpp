@@ -421,13 +421,16 @@ void runRoutine() {
 extern uint16_t g_usb_usbmode;
 
 uint8_t numRoutines = 0;
+// Cost of one completed render, paired with voices_started_this_render. A scheduler
+// task can contain two renders, so its runtime is not a per-render DSP measurement.
+int32_t lastRenderTimeSamples = 0;
 
 // not in header (private to audio engine)
 /// determines how many voices to cull based on num audio samples, current voices and numSamplesLimit
 void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 	bool culled = false;
-	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
+	// At high loads voice starts are limited to 1. Since starting voices is a heavy load and we know it's temporary
 	// we can be a bit more lenient with the limit
 	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
 	static int32_t last_num_samples_over = 0;
@@ -500,12 +503,10 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 // not in header (private to audio engine)
 /// set the direness level and cull any voices
-inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
-	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
-	size_t nonDSP = numSamples - dspTime;
-	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
-	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
+inline void setDireness() {
+	// Use the previous render's measured cost even when this is the second render
+	// in a scheduler task. Buffer occupancy is not time spent rendering.
+	const size_t numSamples = lastRenderTimeSamples;
 
 	// don't smooth this - used for other decisions as well
 	if (numSamples >= direnessThreshold) {
@@ -590,7 +591,8 @@ bool calledFromScheduler = false;
 		return;
 	}
 	flushMIDIGateBuffers();
-	setDireness(numSamples);
+	setDireness();
+	const double renderStartTime = getSystemTime();
 
 	// Double the number of samples we're going to do - within some constraints
 	int32_t sampleThreshold = 6; // If too low, it'll lead to bigger audio windows and stuff
@@ -622,6 +624,7 @@ bool calledFromScheduler = false;
 
 	scheduleMidiGateOutISR(saddrPosAtStart, unadjustedNumSamplesBeforeLappingPlayHead,
 	                       timeWithinWindowAtWhichMIDIOrGateOccurs);
+	lastRenderTimeSamples = std::max<int32_t>(0, (getSystemTime() - renderStartTime) * kSampleRate);
 
 #if DO_AUDIO_LOG
 	dumpAudioLog();
