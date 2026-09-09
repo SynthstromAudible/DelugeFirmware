@@ -31,10 +31,13 @@
 /// **What deliberately stays on the other side of the wall.** The two note-editor arms inside the
 /// `instrumentClipView` case (`:1481-1498`) are keyed on `SoundEditor::inNoteEditor()` /
 /// `inNoteRowEditor()`, which read a `SoundEditor` member no guest path writes -- see the plan's own
-/// ruling. The `automationView` arm (`:1507-1512`) and the firmware-version diagnostics inside the
-/// tail (`:1521-1543`) are this task's own deliberate gaps -- ported behaviour the plan's task 2
-/// brief did not ask this switch to carry, named here rather than silently dropped. None of the
-/// five arms below asks anything Task 1's `GridPadClaim` answers -- that question is Task 4's,
+/// ruling. The firmware-version diagnostics inside the tail (`:1521-1543`) are this task's own
+/// deliberate gap -- ported behaviour the plan's task 2 brief did not ask this switch to carry,
+/// named here rather than silently dropped. The `automationView` arm (`:1507-1512`) is **not** a
+/// gap: task 3 ports it, as `PadForwardTarget::Automation` -- see `menuShowsAutomationParam` in the
+/// `.cpp` for why that arm asks the ported menu rather than calling
+/// `SoundEditor::handleAutomationViewPadAction` directly. None of the six arms below asks anything
+/// Task 1's `GridPadClaim` answers -- that question is Task 4's,
 /// asked by the caller before this function is ever reached.
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
@@ -64,6 +67,9 @@ enum class PadForwardTarget : uint8_t {
 	AuditionColumn,
 	/// `:1516` -- `performanceView.padAction`, every coordinate, never reaching the tail.
 	Performance,
+	/// `:1508` -- `SoundEditor::handleAutomationViewPadAction`'s work, done here: see
+	/// `menuShowsAutomationParam` in the `.cpp` for why it is not a call into that function.
+	Automation,
 	/// `:1545` -- `exitCompletely()`, ported as `closePortedMenu()`.
 	Exit,
 };

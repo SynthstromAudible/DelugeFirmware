@@ -2,30 +2,37 @@
 /// @brief `gui::ui::forwardGridPad` -- `SoundEditor::padAction`'s root switch
 ///        (`gui/ui/sound_editor.cpp:1474-1517`) and its tail (`:1520-1545`), ported.
 ///
-/// What this pins: the five-way decision `forwardGridPad` makes over the real legacy root-UI
-/// singletons (`keyboardScreen`, `instrumentClipView`, `performanceView`, and the tail's fallback),
-/// through a recording `perform` installed by `setPadForwardPerform` -- so an example can assert the
-/// decision, and the coordinates the target would have been handed, without running a legacy view's
-/// own pad handler. The one exception is the last example, which restores the real `perform` and
+/// What this pins: the six-way decision `forwardGridPad` makes over the real legacy root-UI
+/// singletons (`keyboardScreen`, `instrumentClipView`, `automationView`, `performanceView`, and the
+/// tail's fallback), through a recording `perform` installed by `setPadForwardPerform` -- so an
+/// example can assert the decision, and the coordinates the target would have been handed, without
+/// running a legacy view's own pad handler. Two exceptions run for real instead of through the
+/// recorder: "really removes the ported menu when the tail fires" restores the real `perform` and
 /// runs the real tail arm (`closePortedMenu`) against a real `MenuScene` on the real guest's scene
 /// stack -- that call names no legacy view, so it is safe to run for real here, and it is what makes
-/// behaviour 3 (the tail firing `closePortedMenu`) covered outside the recorder.
+/// behaviour 3 (the tail firing `closePortedMenu`) covered outside the recorder; the four
+/// `automationView` examples open a real `MenuScene` (via `open_menu_node`, on `menu_scene()`
+/// directly rather than on the guest's stack) because `menuShowsAutomationParam` reads
+/// `menu_scene().focused()` -- there is no other way to give it an answer.
 ///
-/// What this deliberately does not cover: the `automationView` arm and the tail's firmware-version
-/// diagnostics, both out of scope for this switch -- `shell_pad_forward.h`'s own note says why. And
-/// nothing here asks `Scene::grid_pad_claim()` (Task 1): that question is asked by this function's
-/// caller, a later task, before `forwardGridPad` is ever reached.
+/// What this deliberately does not cover: the tail's firmware-version diagnostics, out of scope for
+/// this switch -- `shell_pad_forward.h`'s own note says why. And nothing here asks
+/// `Scene::grid_pad_claim()` (Task 1): that question is asked by this function's caller, a later
+/// task, before `forwardGridPad` is ever reached.
 
 #include "gui/ui/shell_pad_forward.h"
 
 #include "definitions_cxx.hpp" // kDisplayWidth
+#include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h" // shellHostUI
 #include "gui/ui/ui.h"            // setRootUILowLevel, nullifyUIs, currentUIMode, UI_MODE_*
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 
+#include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- task 3's param nodes
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -46,6 +53,7 @@ using deluge::scenes::menu::Node;
 using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 namespace nodes = deluge::scenes::menu::nodes;
+namespace params = deluge::modulation::params;
 
 namespace {
 
@@ -96,6 +104,31 @@ bool open_menu_on_global_guest(Song& song) {
 	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::root_song)});
 	return shellHostUI.opened();
 }
+
+/// @brief `menu_scene_spec.cpp`'s `Rig::open`, narrowed to a bare node rather than a root: the
+///        four `menuShowsAutomationParam` examples below need `menu_scene().focused()` to answer a
+///        specific node, not a working menu tree, so this skips `assign_node_ids` and the shell
+///        stack entirely -- none of them asks `Scene::grid_pad_claim()` of these nodes.
+void open_menu_node(Song& song, InstrumentClip* clip, const Node& node) {
+	const MenuContext ctx = menu::context_for(song, clip, 0, false, /*session_or_arranger_root=*/false,
+	                                          /*session_view_root=*/false, /*kit_global_fx=*/false);
+	menu_scene().open(node, ctx);
+}
+
+/// @brief A `Kind::Toggle` leaf: `bind.param` stays default-constructed (`ParamRef{}`, invalid), so
+///        this is "a node with no param binding" for the sidebar example.
+bool g_toggle_state = false;
+constexpr Node no_param_node = menu::toggle_item(
+    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ENABLED),
+    [](const MenuContext&) { return static_cast<int32_t>(g_toggle_state); },
+    [](const MenuContext&, int32_t v) { g_toggle_state = v != 0; });
+
+/// @brief An ordinary patched param -- `bindings_spec.cpp`'s `lpf_freq_node`. Used both as the
+///        "matches" node (paired with a clip set to the same kind/index) and the "does not match"
+///        one (paired with a clip left at its default `Kind::NONE` / `kNoParamID`, or explicitly
+///        set to a different param).
+constexpr Node param_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_FREQUENCY),
+                                        {params::Kind::PATCHED, params::LOCAL_LPF_FREQ});
 
 } // namespace
 
@@ -182,6 +215,57 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 		(void)deluge::gui::ui::forwardGridPad(3, 4, 64);
 		expect(shellHostUI.shell().stack().depth()).to_equal(0u);
+	});
+
+	it("sends a sidebar pad to automation view regardless of the param", _ {
+		// `:1553-1557`: `(x >= kDisplayWidth) || editingParamInAutomationView` -- the sidebar half
+		// needs no param agreement at all.
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		open_menu_node(*fx.song, fx.clip, no_param_node);
+		setRootUILowLevel(&automationView);
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 2, 64))
+		    .to_equal(PadForwardTarget::Automation);
+	});
+
+	it("sends a main-grid pad to automation view when the menu shows the same param", _ {
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		automationView.onArrangerView = false;
+		fx.clip->lastSelectedParamKind = params::Kind::PATCHED;
+		fx.clip->lastSelectedParamID = params::LOCAL_LPF_FREQ;
+		open_menu_node(*fx.song, fx.clip, param_node);
+		setRootUILowLevel(&automationView);
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Automation);
+	});
+
+	it("falls through to the tail when the menu shows a different param", _ {
+		// `handleAutomationViewPadAction` returns NOT_DEALT_WITH (`:1561`), and `:1508-1511` then
+		// does not return -- so legacy reaches the tail.
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		automationView.onArrangerView = false;
+		fx.clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
+		fx.clip->lastSelectedParamID = params::UNPATCHED_BASS;
+		open_menu_node(*fx.song, fx.clip, param_node);
+		setRootUILowLevel(&automationView);
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("does not dereference a null clip", _ {
+		// The guard migration §10.5 banked for legacy's copy (`:1582-1586` dereferences
+		// `getCurrentClip()` unguarded). This is the port's own copy, so writing the guard here is
+		// not the banked fix -- legacy's copy is untouched.
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		automationView.onArrangerView = false;
+		fx.song->setCurrentClip(nullptr); // no current clip -- `getCurrentClip()` returns nullptr
+		open_menu_node(*fx.song, fx.clip, param_node);
+		setRootUILowLevel(&automationView);
+		currentUIMode = UI_MODE_NONE;
+		expect(deluge::gui::ui::forwardGridPad(3, 2, 64)).to_equal(PadForwardTarget::Exit);
 	});
 });
 // clang-format on

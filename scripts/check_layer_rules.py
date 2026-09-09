@@ -320,6 +320,13 @@ LEGACY_PORT_SEAMS = (
     # wall that gets to name them. Its HEADER (`shell_pad_forward.h`) is deliberately NOT listed: it
     # names no `scenes/` or `shell/` type, taking plain `int32_t` coordinates, so this seam is one
     # translation unit wide -- exactly the line `shell_choice_dispatch.h` draws above.
+    #
+    # Task 3 adds the sixth arm, `automationView`, and it is the one arm that cannot be a bare
+    # forward: `SoundEditor::isEditingAutomationViewParam` reads `SoundEditor` state no guest path
+    # writes (`gui/ui/sound_editor.cpp:1564-1590`), so the question is ported rather than called.
+    # That port is why this `.cpp` now also names `deluge::scenes::menu_scene()`
+    # (`scenes/registry.h`) and reads a focused node's `deluge::scenes::menu::ParamRef`
+    # (`scenes/menu/node.h`) -- both `scenes/` names, both covered by this same entry.
     "src/deluge/gui/ui/shell_pad_forward.cpp",
     "src/deluge/gui/ui/shell_menu_entry.cpp",
     "src/deluge/gui/ui/sound_editor.cpp",
