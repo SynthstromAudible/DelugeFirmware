@@ -230,6 +230,11 @@ void StorageManager::releaseStaging(StagingState* state) {
 	*state = {};
 }
 
+namespace {
+/// Completed whole-file staging reads served by the channel. See stagingChannelServedOps().
+int32_t stagingServedOps = 0;
+} // namespace
+
 StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, char const* firstTagName,
                                                               char const* altTagName, StagingState* state) {
 	AudioEngine::logAction("openDocumentStaged");
@@ -237,8 +242,20 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 	// An async request issued from a context that will not YIELD can never complete: the driver only
 	// runs when this caller returns to its executor. On the owner we therefore fill synchronously,
 	// which is legal there and is what shipped before this channel existed.
-	const bool mayUseChannel =
-	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	const bool mayUseChannel = !onOwner && deluge_file_write_async_active();
+
+	// Off the owner with no channel to ask, there is no legal fill left. The synchronous one blocks
+	// THIS context, and on a BSP whose card is served by an executor this context has to return to,
+	// blocking here does not wait -- it wedges. Refuse, rather than pick the arm that deadlocks; the
+	// caller takes the work to the owner and stages there instead.
+	if (!onOwner && !mayUseChannel) {
+		return StagedOpen::NotHere;
+	}
+
+	if (!onOwner) {
+		AudioEngine::noteOffOwnerSongStageTick();
+	}
 
 	if (!mayUseChannel) {
 		if (state->buffer == nullptr && readWholeFileSynchronously(path, state) != Error::NONE) {
@@ -309,6 +326,7 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		}
 		state->size = got;
 		state->issued = false;
+		++stagingServedOps;
 	}
 
 	// One parse entry point, whichever arm filled the buffer.
@@ -327,6 +345,10 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 namespace {
 StorageManager::StagingState documentStaging;
 } // namespace
+
+int32_t StorageManager::stagingChannelServedOps() {
+	return stagingServedOps;
+}
 
 bool StorageManager::documentIsJson(char const* path) {
 	return strstr(path, ".Json") != nullptr;

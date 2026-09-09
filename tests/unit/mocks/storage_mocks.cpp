@@ -90,6 +90,11 @@ void logAudioAction(char const* /*string*/, const char* /*file*/, int /*line*/) 
 // rendering here.
 void routineWithClusterLoading() {
 }
+// Counts off-owner staging attempts on the device. These specs never reach the channel arm -- no owner
+// has started, so every staged open takes its synchronous arm -- but openDocumentStaged references it
+// unconditionally, so it needs a body to link against.
+void noteOffOwnerSongStageTick() {
+}
 } // namespace AudioEngine
 
 // FileReader::readDone() also pokes the UI timers on the way past. Nothing schedules anything here,

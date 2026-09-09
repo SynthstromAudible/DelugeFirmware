@@ -1706,6 +1706,7 @@ int32_t g_offOwnerFinalizeTicks = 0;
 /// different questions: the drain moved, the finalize moved, the CREATE moved. A served count
 /// answers none of them -- an earlier rung served writes while every one of them ran on the owner.
 int32_t g_offOwnerCreateTicks = 0;
+int32_t g_offOwnerSongStageTicks = 0;
 } // namespace
 
 int32_t recorderOffOwnerTicks() {
@@ -1722,6 +1723,14 @@ void noteOffOwnerFinalizeTick() {
 
 int32_t offOwnerCreateTicks() {
 	return g_offOwnerCreateTicks;
+}
+
+int32_t offOwnerSongStageTicks() {
+	return g_offOwnerSongStageTicks;
+}
+
+void noteOffOwnerSongStageTick() {
+	g_offOwnerSongStageTicks++;
 }
 
 void noteOffOwnerCreateTick() {

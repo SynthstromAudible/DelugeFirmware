@@ -196,6 +196,15 @@ void requestRecorderCardRoutines();
 /// dispatched away, so this reading zero means the rung relocated nothing.
 [[nodiscard]] int32_t offOwnerCreateTicks();
 
+/// @brief How many document-staging attempts ran OFF the storage owner.
+///
+/// The evidence that the song load's card read moved. Reading zero means the load still takes its
+/// bytes on the owner, which is the whole thing this is here to disprove.
+[[nodiscard]] int32_t offOwnerSongStageTicks();
+
+/// @brief Record one off-owner staging attempt.
+void noteOffOwnerSongStageTick();
+
 /// @brief Record one create tick that ran off the owner.
 void noteOffOwnerCreateTick();
 

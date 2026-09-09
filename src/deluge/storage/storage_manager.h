@@ -409,6 +409,14 @@ enum class StagedOpen : uint8_t {
 	Opened,
 	/// The document could not be staged or did not parse. Any buffer has been released.
 	Failed,
+	/// This context cannot stage: it is off the storage owner and the channel is not running, so the
+	/// only fill left is the blocking one -- and blocking HERE stops the very tier the card needs
+	/// running to answer, which wedges rather than waits. The caller must take the work to the owner
+	/// and stage there.
+	///
+	/// NEVER means "the file was unreadable". This is the BUILD-configuration fallback: it disappears
+	/// when the channel becomes unconditional, and nothing chooses it because staging failed.
+	NotHere,
 };
 
 /// @brief Cross-tick state for one staged open. One per concurrent staging caller.
@@ -486,6 +494,12 @@ bool documentIsJson(char const* path);
 
 /// @brief Release the shared slot filled by openDocumentSynchronously(). Safe to call twice.
 void releaseDocumentStaging();
+
+/// @brief Whole-file staging reads the CHANNEL has completed.
+///
+/// The evidence that the async arm executed at all. It shipped with no harness building
+/// `async_file_write_active`, so until this counter had a gate reading it, nothing had ever run it.
+[[nodiscard]] int32_t stagingChannelServedOps();
 Error initSD();
 
 /// @brief Run AudioFileManager::firstCardRead() if the filesystem has been mounted since we last
