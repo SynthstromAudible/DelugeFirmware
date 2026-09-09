@@ -570,13 +570,22 @@ rather than a thing that is half-done:
    `sim/scenes_spec/menu_actions_spec.cpp`'s 52 examples pin all seven at fixture level. **One** is
    demonstrated end to end in the real firmware. The other six are blocked from level-3 evidence by
    a legacy defect and not by an omission — §10.9 is the number and the reason.
-4. **No `take_choice()` dispatcher.** `BrowserScene`'s deferring descriptor parks a chosen file and
-   closes; performing `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu` re-rooting
-   is the wiring layer's. **Still open after F2, by an explicit scope decision.** F2 built item 3's
-   dispatcher and Kate scoped this one out of it; it is F3's. The two are not one job: a
-   `MenuAction` names a legacy statement and carries at most a `uint16_t`, whereas a `BrowserChoice`
-   carries a path whose claim re-roots the *navigation record* — `MenuState::path`/`depth`, which
-   only `MenuScene` may write.
+4. ~~**No `take_choice()` dispatcher.**~~ `BrowserScene`'s deferring descriptor parks a chosen file
+   and closes; performing `SampleBrowser::claimCurrentFile` and legacy's `maybeGetParentMenu`
+   re-rooting is the wiring layer's. **Closed for the `Sample` descriptor by F3 tasks 1-3.**
+   `gui::ui::dispatchShellChoices` drains the outbox every guest tick and claims against the parked
+   path; `runShellSampleClaimOp`'s success arm re-roots through
+   `MenuScene::reroot_to_scene_opener_page()`. The two were not one job: a `MenuAction` names a
+   legacy statement and carries at most a `uint16_t`, whereas a `BrowserChoice` carries a path whose
+   claim re-roots the *navigation record* — `MenuState::path`/`depth`, which only `MenuScene` may
+   write.
+
+   **What "closed" does and does not claim.** Three things stay open and each is recorded at the
+   code rather than here: **shift+select** on a file loads the sample where legacy opens the slicer
+   (`claimSampleFile`'s `@warning`); the **recorder's identical heading pair** has no caller for the
+   entry point and re-roots at a different depth (`nodes::AudioRecorderItem::on_focus`); and the
+   op's *call* to the entry point is not reachable from a spec, because reaching it means running a
+   real `claimCurrentFile` (`sim/scenes_spec/browser_choice_spec.cpp`'s `browser_choice_reroot`).
 5. ~~**Three boot calls.**~~ **Closed by F1 task 8**, and two of the three turned out not to be boot
    calls at all — the account is `src/scenes/registry.h`'s boot-wiring record.
    `menu::set_shortcuts_version()` is flash byte 60, whose value **does** live in a global the

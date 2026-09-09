@@ -77,16 +77,17 @@
 ///     their legacy items do. Tasks 6 and 7 added two more verbs (item 4 below), so the switch is
 ///     **seven** arms now, not five. What each arm still owes is narrower than "nothing happens"
 ///     and is recorded per arm at `gui/ui/shell_action_dispatch.h`.
-///  2. ~~**A file chosen in the ported browser is parked, not claimed.**~~ -- **half closed, F3 tasks
-///     1 and 2** (§10.2 item 4). `deluge::gui::ui::dispatchShellChoices`
+///  2. ~~**A file chosen in the ported browser is parked, not claimed.**~~ -- **closed, F3 tasks 1-3**
+///     (§10.2 item 4). `deluge::gui::ui::dispatchShellChoices`
 ///     (`gui/ui/shell_choice_dispatch.cpp`) drains `take_choice()` from `ShellHostUI::timerCallback`
 ///     after every `Shell::tick` and performs `SampleBrowser::claimCurrentFile` against the parked
-///     path, so the sample really loads under the toggle. **What is still owed is the other half**:
-///     legacy's `maybeGetParentMenu` re-rooting, which lands the user on the source page rather than
-///     back on the item that opened the browser -- F3 task 3's, and in `MenuState`'s own terms rather
-///     than the heading pair's (`scenes/browser/browser_scene.h:211-230`). Until then a claimed file
-///     costs one extra BACK press. Item 4 must not be marked closed for the `Sample` descriptor
-///     without the qualification at `claimSampleFile`'s `@warning`: shift+select still diverges.
+///     path, so the sample really loads under the toggle; and `runShellSampleClaimOp`'s success arm
+///     then calls `MenuScene::reroot_to_scene_opener_page()` (`scenes/menu/menu_scene.h`), which is
+///     legacy's `maybeGetParentMenu` re-rooting in `MenuState`'s own terms rather than the heading
+///     pair's -- so a claimed file lands on the source page with the file selector focused, not one
+///     BACK press further in. **Two qualifications on "closed" for the `Sample` descriptor**, both
+///     recorded at the code: shift+select still diverges (`claimSampleFile`'s `@warning`), and the
+///     recorder's identical pair is still unpaid (`nodes::AudioRecorderItem::on_focus`).
 ///  3. ~~**`perform_editor`'s four sync calls into `menu::performance_editing_mode()` are
 ///     absent**~~ -- **closed, F2 task 5** (§10.2 item 6). All four sites where `PerformanceView`
 ///     moves the two mirrored bools call `syncEditingModeMirror(*this)`

@@ -208,10 +208,10 @@ struct Descriptor {
 	///       -- `StorageManager::loadMidiDeviceDefinitionFile` is in `storage/`, which this layer
 	///       may include, so its accept hook really loads the file.
 	///
-	/// @note **The `Defer` dispatcher owes one more thing than `claimCurrentFile()`, and this is the
-	///       only place it is written down.** Legacy pairs the browser with a *return* affordance:
+	/// @note **The `Defer` dispatcher owes one more thing than `claimCurrentFile()`, and as of F3
+	///       task 3 it is paid.** Legacy pairs the browser with a *return* affordance:
 	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`,
-	///       file-selector arm at `:2034-2039`) writes `sampleBrowser.menuItemHeadingTo` and
+	///       file-selector arm at `:2089-2095`) writes `sampleBrowser.menuItemHeadingTo` and
 	///       `parentMenuHeadingTo` on the way *in*, and `claimCurrentFile` reads them back
 	///       (`gui/ui/browser/sample_browser.cpp:1111-1122`) to re-root
 	///       `soundEditor.menuItemNavigationRecord` onto the oscillator's horizontal page with the
@@ -224,10 +224,13 @@ struct Descriptor {
 	///       write -- an item writing the menu's own navigation state is what `MenuState`'s mailbox
 	///       contract (`scenes/menu/menu_scene.h`) exists to prevent. Whoever performs
 	///       `claimCurrentFile` against `take_choice()` is therefore the owner of the re-rooting
-	///       too, and will need a `MenuScene` entry point for it. Until then the cost is one extra
-	///       BACK press after a file is accepted. `osc::AudioRecorder` carries the identical pair
-	///       (`gui/ui/sound_editor.cpp:2097-2102`, consumed by `osc/audio_recorder.h:40-48`) with
-	///       the same disposal, recorded on `nodes::AudioRecorderItem::on_focus`.
+	///       too. That is `deluge::gui::ui::runShellSampleClaimOp` (`gui/ui/shell_choice_dispatch.h`),
+	///       and the entry point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so the
+	///       "one extra BACK press" this note used to cost is gone for the browser.
+	///       **`osc::AudioRecorder` carries the identical pair and is still unpaid**
+	///       (`gui/ui/sound_editor.cpp:2097-2102`, consumed by `osc/audio_recorder.h:40-48`): the
+	///       recorder scene has no `take_choice()` equivalent to drain, so nothing calls the entry
+	///       point for it. Recorded on `nodes::AudioRecorderItem::on_focus`.
 	///
 	/// @param ctx   What the browser was opened over.
 	/// @param path  The chosen file's full path (`currentDir` + "/" + the filename).

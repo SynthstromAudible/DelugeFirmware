@@ -88,15 +88,19 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	//
 	// Nor is `sampleBrowser.menuItemHeadingTo`/`parentMenuHeadingTo`, which legacy writes not here
 	// but in `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`),
-	// whose file-selector arm is `:2034-2039`.
+	// whose file-selector arm is `:2089-2095`.
 	// It is a *return* affordance: `SampleBrowser::claimCurrentFile` reads the pair back
 	// (`gui/ui/browser/sample_browser.cpp:1111-1122`) and re-roots the navigation record onto the
 	// oscillator's horizontal page with the file selector focused, so accepting a file lands on the
 	// source page rather than back on the item. `MenuState::path`/`depth` already are that record
-	// and `go_up_on_resume` already steps out of the item, so what is actually missing is the
-	// *re-rooting* -- and it belongs to whoever performs `claimCurrentFile` against
+	// and `go_up_on_resume` already steps out of the item, so what was actually missing was the
+	// *re-rooting* -- and it belonged to whoever performs `claimCurrentFile` against
 	// `BrowserScene::take_choice()`, which is the same seam and the same owner
-	// (`browser_scene.h`'s `Descriptor::accept`).
+	// (`browser_scene.h`'s `Descriptor::accept`). **Paid, F3 task 3**: this item's half of the pair
+	// is `MenuState::scene_opener`, recorded by `MenuScene::after_render` where legacy's
+	// `maybeGetParentMenu` records its own; the page half is resolved from the tables and the
+	// re-rooting applied by `MenuScene::reroot_to_scene_opener_page()`, which
+	// `deluge::gui::ui::runShellSampleClaimOp` calls on the claim's success.
 	browser::browser_scene().open(with_source(ctx));
 	state.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, kSampleBrowserArg};
 }
@@ -120,16 +124,26 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// source, then `openUI(&audioRecorder)`. **`SceneId::arg` is unused** -- there is exactly one
 	// recorder screen and `RecorderScene::on_enter` ignores it (task-5 report §9).
 	//
-	// Legacy's `parentMenuHeadingTo` / `menuItemHeadingTo` arm (`:40-48`) has no port, and the same
-	// affordance is missing from `FileBrowserItem` above for the same reason. The pair is written by
-	// `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`), whose
-	// recorder arm (`:2042-2047`) points a recorder at the matching file selector; this arm then
-	// re-roots `menuItemNavigationRecord` onto the source page with that selector focused and clears
-	// `shouldGoUpOneLevelOnBegin`, so a finished recording lands on the source page rather than one
-	// level out from the recorder. `MenuState::path`/`depth` already are that record, but re-rooting
-	// it is `MenuScene`'s to do, not an item's -- an item writing the menu's own navigation state is
-	// exactly what `MenuState`'s mailbox contract (`menu_scene.h`) exists to avoid. Recorded rather
-	// than half-built; the consequence is one extra BACK press after a recording.
+	// Legacy's `parentMenuHeadingTo` / `menuItemHeadingTo` arm (`:40-48`) has no port. The pair is
+	// written by `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073
+	// maybeGetParentMenu`), whose recorder arm (`:2097-2103`) points a recorder at the matching file
+	// selector; this arm then re-roots `menuItemNavigationRecord` onto the source page with that
+	// selector focused and clears `shouldGoUpOneLevelOnBegin`, so a finished recording lands on the
+	// source page rather than one level out from the recorder. `MenuState::path`/`depth` already are
+	// that record, and re-rooting it is `MenuScene`'s to do rather than an item's -- an item writing
+	// the menu's own navigation state is exactly what `MenuState`'s mailbox contract (`menu_scene.h`)
+	// exists to avoid.
+	//
+	// **The `MenuScene` half now exists and this arm is still unpaid.** F3 task 3 added
+	// `MenuScene::reroot_to_scene_opener_page()`, and this item already records the half it owns:
+	// `MenuState::scene_opener` is written for every scene push, this one included. What is missing
+	// is a *caller* -- `deluge::gui::ui::runShellSampleClaimOp` calls it because the browser's choice
+	// is drained through `BrowserScene::take_choice()`, and `RecorderScene` has no equivalent outbox
+	// and no dispatcher draining one. **Legacy's recorder arm also differs in a second respect** it
+	// would have to carry: it re-roots at `menuItemNavigationRecord[navigationDepth]`, not `[0]`
+	// (`osc/audio_recorder.h:43`), and points at the *file selector* rather than at the recorder
+	// (`sound_editor.cpp:2100-2102`). So the consequence here is still one extra BACK press after a
+	// recording.
 	//
 	// `process()` is not called either, and that is the whole of task 5: legacy runs the recorder
 	// as a blocking loop from this stack frame (`gui/ui/audio_recorder.cpp:193-242`), while the
