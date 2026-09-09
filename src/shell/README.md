@@ -402,24 +402,38 @@ each hook:
 | `Shell::next_wake()` | the timer re-arm, and the reason the note below matters |
 | `Shell::state_lines()` | the level-3 harness's `.state` snapshot, unchanged |
 
-**Plan F2 added a second thing the host does every tick, and it is deliberately *not* a `Shell`
-surface.** `gui::ui::dispatchShellActions` (`src/deluge/gui/ui/shell_action_dispatch.{h,cpp}`) drains
-`deluge::scenes::menu::MenuScene::take_action()` — a **scene-owned** one-slot outbox — and performs
-the seven pieces of legacy behaviour a ported menu item may ask for. Nothing was added to `Shell`,
-`Router`, `Scene` or `Action` to carry it, and that was the decision rather than an omission: the
-shell's vocabulary is scenes, and what these requests name (`openUI(&performanceView)`,
-`stemExport.startStemExportProcess(...)`, `soundEditor.setShortcutsVersion(...)`) is not a scene, so
-an `Action::Kind` for it would have put legacy root-UI concepts into the shell's own enum. The seam
-is `src/scenes`' and the consumer is the application's; `src/shell` is untouched by it.
+**Plans F2 and F3 added two more things the host does every tick, and both are deliberately *not*
+`Shell` surfaces.** `gui::ui::dispatchShellActions` (`src/deluge/gui/ui/shell_action_dispatch.{h,cpp}`,
+F2) drains `deluge::scenes::menu::MenuScene::take_action()` — a **scene-owned** one-slot outbox — and
+performs the seven pieces of legacy behaviour a ported menu item may ask for.
+`gui::ui::dispatchShellChoices` (`src/deluge/gui/ui/shell_choice_dispatch.{h,cpp}`, F3) is the same
+poll for the **noun** half: it drains `BrowserScene::take_choice()`, a second scene-owned one-slot
+outbox holding a file the ported browser chose and may not load, and performs
+`SampleBrowser::claimCurrentFile` against it. Nothing was added to `Shell`, `Router`, `Scene` or
+`Action` to carry either, and that was the decision rather than an omission: the shell's vocabulary
+is scenes, and what these requests name (`openUI(&performanceView)`,
+`stemExport.startStemExportProcess(...)`, `soundEditor.setShortcutsVersion(...)`,
+`sampleBrowser.claimCurrentFile(...)`) is not a scene, so an `Action::Kind` for them would have put
+legacy root-UI concepts into the shell's own enum. The seams are `src/scenes`' and the consumers are
+the application's; `src/shell` is untouched by both.
 
-What a shell contributor needs from that anyway is the **ordering constraint it puts on the host**,
-because it is not expressible in the shell's own contracts. The poll sits *after* `Shell::tick` —
-the request is filed by `MenuScene::after_render`, which the tick runs as its step 7, so polling
-first is always one tick late — and *above* the close check that returns early without re-arming the
-timer, or a request filed on the tick the guest closes would be stranded until something reopened
-it. Neither position is enforced by anything: `after_render` returns no `Action` announcing that a
-request is waiting, and the slot overwrites silently. `tests/spec/gui/shell_action_dispatch_spec.cpp`
-is what pins it, from this side of the seam.
+What a shell contributor needs from them anyway is the **ordering constraint they put on the host**,
+because it is not expressible in the shell's own contracts, and it is the same constraint twice.
+Each poll sits *after* `Shell::tick` — an action is filed by `MenuScene::after_render`, which the
+tick runs as its step 7 (`shell/shell.cpp:399-407`), and a choice is filed while the tick *routes*
+the press, so polling first is always one tick late — and *above* the close check that returns early
+without re-arming the timer, or a request filed on the tick the guest closes would be stranded until
+something reopened it. Neither position is enforced by anything: neither outbox announces that it is
+full, and both slots overwrite silently. `tests/spec/gui/shell_action_dispatch_spec.cpp` is what pins
+the action poll from this side of the seam; the choice poll is pinned from the other side, by
+`sim/scenes_spec/browser_choice_spec.cpp`'s `browser_choice_dispatch` group, because the acting half
+needs a real SD card and the choosing half does not.
+
+**The two are ordered relative to each other, and it is written down rather than incidental**: the
+choice drain runs second. Both mailboxes can hold something on the same tick, because `Defer` parks
+the choice *and* closes the browser, so the menu underneath is frontmost again by the same tick's
+`after_render`. Neither drain reads the other's mailbox, so nothing observable turns on the order
+today; `shell_host_ui.cpp`'s comment at the two calls is the record of why it is fixed anyway.
 
 **`next_wake()`'s "the shell only ticks when its host asks it to" now has a host that asks at up to
 1 kHz.** A scene returning `0u` from `next_timer()` -- which the contract reads as "next tick", and
@@ -466,11 +480,17 @@ call but nothing under `src/shell` depends on the harness existing.
 pinning this library's behaviour. `tests/ui-scripts/app/menu.txt` is booted into `deluge_host` twice
 against two SD-card fixtures that differ by exactly one file (`tests/fixtures/card` and
 `tests/fixtures/card-shell-menu`, whose `SETTINGS/CommunityFeatures.XML` sets `shellMenu`), and
-`scripts/ui_app_ab_check.py` compares the two output trees against each other -- five OLED panels,
-**all five byte-identical**, across an open, a navigation, a gold-knob edit and an exit. A shell
-change that moves a pixel in the composed frame turns that red. Five ctest rows,
-`ui_app_scripts_menu{,_diff,_shell,_shell_diff,_ab}`; what it covers and what it does not is
-migration spec §10.8.
+`scripts/ui_app_ab_check.py` compares the two output trees against each other. **The script has been
+extended twice since and the numbers here are F3's close, not F1's**: **16 OLED panels, all 16
+byte-identical**, across an open, a navigation, a gold-knob edit, an exit, an `AudioClip` verb
+performed through `dispatchShellActions` (F2), and a sample file chosen in the **ported** browser
+over a real card and claimed through `dispatchShellChoices` (F3). A shell change that moves a pixel
+in the composed frame turns that red. Seven ctest rows —
+`ui_app_scripts_{boot,boot_diff,menu,menu_diff,menu_shell,menu_shell_diff,menu_ab}`. **The `.state`
+half is not identical and is not meant to be**: 9 of the 16 differ, each explained by a recorded
+finding — F1 task 11's antiphase BACK blink, the sidebar divergence of migration §10.2 item 2, and
+the ported browser drawing its text keyboard where legacy draws the sample's waveform. What the A/B
+covers and what it does not is migration §10.8 for F1, §10.9 for F2 and §10.10 for F3.
 
 ## Archive size
 

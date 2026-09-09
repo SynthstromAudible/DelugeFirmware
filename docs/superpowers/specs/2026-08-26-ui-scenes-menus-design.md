@@ -698,10 +698,22 @@ The port has no equivalent of the bit. `Column::is_submenu` is `kid.kind == Kind
 submenu column (`ui/oled/columns.cpp:419-423`), so a select press on the FILE BROWSER column of
 `source0` raises the notification and opens nothing. Combined with the port's fixed `Node::layout`
 (legacy renders these pages vertically when the `HorizontalMenus` feature is off,
-`horizontal_menu.cpp:596-601`), the consequence is that **a file selector is reachable only by the
-shortcut pad**, which lands it at depth 0. Both are carried rows in `src/scenes/README.md`; neither
-is fixed, because closing either moves every horizontal golden. Recorded here rather than left as an
-omission because this passage names the symbol and reads as settled, which is worse than silence.
+`horizontal_menu.cpp:596-601`), the consequence is that **a file selector cannot be reached by
+walking a horizontal page.** Both are carried rows in `src/scenes/README.md`; neither is fixed,
+because closing either moves every horizontal golden. Recorded here rather than left as an omission
+because this passage names the symbol and reads as settled, which is worse than silence.
+
+**Amendment (F3 task 5): the sentence above said "reachable only by the shortcut pad", and that is
+one route too few.** The other is a legacy entry point rather than a gesture inside the port: **site
+8** of the fourteen (`gui/views/instrument_clip_view.cpp:496-519`, gated at `:502`, the legacy pair
+it replaces at `:515-519`) calls `openShellMenu` with `ShellMenuNode::Osc0FileSelector`, which
+resolves to `menu::node_id(menu::nodes::file0_selector)` (`gui/ui/shell_menu_entry.cpp:95`). That is
+`MenuScene::on_enter`'s `SceneId::arg` **deep link**, not a descent and not a shortcut pad. It was
+already mapped when this correction was written and it did not work — the deep link skipped the
+range gate legacy runs on the same route, so the browser refused to open; F3 task 4 fixed that and
+then drove a whole claim through it at level 3 (migration §10.10). What survives the correction
+unchanged is the *consequence*: both routes **re-root** rather than descend, so both land the item at
+depth 0, which is `MenuScene::ascend()`'s own carried divergence and not this one.
 
 **The `Custom` cap counts nodes, and is not 10** (fix round 2, I4) — spec E §4 says "at most 10
 `Kind::Custom` items across the whole tree", and `validate_tree`'s `TooManyCustom` rule implemented
@@ -1427,11 +1439,19 @@ and that one was patched.)
 Every row of §13 is now either done or restated in the README's "E4 roadmap", which is the live
 version. Done: the file/sample family (tasks 6–7), `midiDeviceMenu`'s subtree (task 8), the
 session/arranger split (task 9, §15.6), the row-scrolling test and the seven self-duplicate goldens
-(task 10), and `CustomItem::on_focus_backward` (task 10, §15.4). Still carried, with E4's own
-additions: the load/save browser family, the claim-covers-a-listing limit, the `take_choice()`
-dispatcher and its two owed pieces, mod-matrix pad blinking, `perform_editor`'s sync calls, the
-action seam's dispatcher, `model/clip/audio_clip.cpp`'s surviving renderer include, and the
-`ascend()`-at-depth-0 divergence from `goUpOneLevel`'s `exitCompletely()`.
+(task 10), and `CustomItem::on_focus_backward` (task 10, §15.4). Still carried at E3's close, with
+E4's own additions: the load/save browser family, the claim-covers-a-listing limit, the
+`take_choice()` dispatcher and its two owed pieces, mod-matrix pad blinking, `perform_editor`'s sync
+calls, the action seam's dispatcher, `model/clip/audio_clip.cpp`'s surviving renderer include, and
+the `ascend()`-at-depth-0 divergence from `goUpOneLevel`'s `exitCompletely()`.
+
+**Three of those have since been paid and this list is not the place they are tracked** — the table
+in §11 is, and `src/scenes/README.md`'s carry table is the live one. `perform_editor`'s sync calls
+and the action seam's dispatcher closed in plan F2; **the `take_choice()` dispatcher and both of its
+owed pieces closed in plan F3** — the drain and the claim (tasks 1-2, `gui::ui::dispatchShellChoices`)
+and the `maybeGetParentMenu` re-rooting (task 3, `MenuScene::reroot_to_scene_opener_page()`) — for
+the `Sample` descriptor, with shift+select's slicer route still missing. Migration §10.2 item 4 is
+the account and §10.10 is what the oracle covers.
 
 ### 15.10 The final-review fix wave (Part A)
 

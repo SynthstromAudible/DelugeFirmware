@@ -190,7 +190,7 @@ private:
 /// @brief The claim seam, swapped for a recorder -- what lets these examples press a real file.
 ///
 /// `deluge::gui::ui::setSampleClaimDispatch` exists for this and nothing else; its own note argues
-/// why. **This is not `BrowserScene::set_dispatch`** (`scenes/browser/browser_scene.h:376-384`),
+/// why. **This is not `BrowserScene::set_dispatch`** (`scenes/browser/browser_scene.h:383-391`),
 /// which swaps the dispatcher on the scene's `Listing` -- the directory read, one layer down. There
 /// is no claim seam on `BrowserScene`: the claim happens in the legacy-side dispatcher, so the
 /// settable dispatcher is the dispatcher's own.

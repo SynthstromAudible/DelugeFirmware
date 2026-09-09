@@ -500,7 +500,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// **The choice drain -- the noun half of the same wall, and it sits in the same two places for
 	// the same two reasons.**
 	//
-	// `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:374`) is the menu outbox's twin:
+	// `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:381`) is the menu outbox's twin:
 	// one slot, filled by `Descriptor::accept`'s `Defer` answer, announcing nothing. **After the
 	// tick**, because the choice is filed while `Shell::tick` routes the press
 	// (`scenes/browser/browser_scene.cpp:895-897`, reached from step 3's `pump_input`,

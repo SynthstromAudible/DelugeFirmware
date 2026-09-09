@@ -24,7 +24,7 @@
 /// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
 /// `AcceptOutcome::Defer` (`scenes/browser/browser_scene.cpp:209-218`, the `return` at `:217`),
 /// `BrowserScene::enter` parks the chosen path and closes the scene in one statement
-/// (`:895-897`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:374`,
+/// (`:895-897`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:381`,
 /// defined `browser_scene.cpp:416-420`) hands it out exactly once.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm is one dispatch onto the
@@ -183,7 +183,7 @@ using SampleClaimDispatch = bool (*)(void (*)(void*), void*);
 ///
 /// @par For specs, and it is a requirement rather than a convenience
 ///
-/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:376-384`) is the same shape one
+/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:383-391`) is the same shape one
 /// layer down -- and only the shape: that one swaps the dispatcher on the scene's **`Listing`**, the
 /// directory read, and there is no claim seam anywhere in `BrowserScene`. The claim happens here, so
 /// the settable dispatcher has to be here too.

@@ -368,17 +368,25 @@ public:
 	/// @brief Collect the file the scene could not load itself, exactly once.
 	///
 	/// The outbox `Descriptor::accept`'s `Defer` answer fills in; `MenuScene::take_action()` is the
-	/// same shape for the verb half of the same wall. **Nothing in this repository consumes it** --
-	/// that is the wiring plan's, and `Descriptor::accept` says why.
+	/// same shape for the verb half of the same wall. `Descriptor::accept` says why the choice
+	/// cannot be performed from here.
+	///
+	/// **The consumer is `deluge::gui::ui::dispatchShellChoices`** (`gui/ui/shell_choice_dispatch.h`,
+	/// plan F3), which drains this slot once per guest tick from `ShellHostUI::timerCallback` and
+	/// performs `SampleBrowser::claimCurrentFile` against the parked path. Like `take_action()`'s,
+	/// the slot is **one deep and overwrites silently**; unlike it, that is unreachable today,
+	/// because the `Defer` arm's next statement closes the scene (`browser_scene.cpp:896-897`), so
+	/// a second choice would need the browser reopened and a file chosen inside one tick.
 	/// @return The choice, or `std::nullopt` when none is waiting.
 	std::optional<BrowserChoice> take_choice();
 
 	/// @brief Install a dispatcher other than `storage::Owner::run` on the scene's seam.
 	///
-	/// **For specs.** On the host `Owner::run` is inline (`storage/owner.h:55-59`), so with the
-	/// shipped dispatcher a listing has already finished when `request()` returns and the in-flight
-	/// state -- which is most of this scene's behaviour -- can never be observed. See the honesty
-	/// note in `listing.h`.
+	/// **For specs.** On the host `Owner::run` is inline (`storage/owner.h:28-30`, and `run`'s own
+	/// `@return` says it again at `:40`; `:55-59`, which this line used to cite, is `on_owner()`),
+	/// so with the shipped dispatcher a listing has already finished when `request()` returns and
+	/// the in-flight state -- which is most of this scene's behaviour -- can never be observed.
+	/// See the honesty note in `listing.h`.
 	/// @param dispatch The dispatcher; must satisfy `Listing::Dispatch`'s contract.
 	void set_dispatch(Listing::Dispatch dispatch) { listing_.set_dispatch(dispatch); }
 
