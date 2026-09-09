@@ -250,7 +250,7 @@ void feedReverbBackdoorForGrain(int index, q31_t value);
 /// `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
 /// `playback/playback_handler.cpp:2503`, `playback/mode/arrangement.cpp:328`,
 /// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:354,5458` and
-/// `gui/ui/browser/sample_browser.cpp:456` all test one of them.
+/// `gui/ui/browser/sample_browser.cpp:491` all test one of them.
 ///
 /// These two functions are that pair's write and read seam, for a UI that is **not**
 /// `AudioRecorder` -- `deluge::scenes::recorder::RecorderScene`, which may not name a `gui/` global

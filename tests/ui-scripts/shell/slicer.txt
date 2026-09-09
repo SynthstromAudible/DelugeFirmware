@@ -2,7 +2,7 @@
 #
 # **How the scene gets on the stack:** `RunOptions::initial_scene`, after the fixture calls
 # `slicer_scene().open(sample)`. That is the order legacy has too -- `SampleBrowser` sets
-# `waveformBasicNavigator` up and *then* opens the UI (`sample_browser.cpp:617-619`, which
+# `waveformBasicNavigator` up and *then* opens the UI (`sample_browser.cpp:652-654`, which
 # `SlicerScene::open` ports) -- so the push is the second half of a real door, not a shortcut around
 # one. The scene is `is_root() == false`, so nothing else on the stack is implied by it.
 #

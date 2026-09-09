@@ -169,7 +169,7 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	// directory and the filename to select.
 	//
 	// **One named divergence.** Legacy's middle arm falls back to `SampleBrowser::lastFilePathLoaded`
-	// (`sample_browser.h:58`) before it falls back to the folder. That member is written inside
+	// (`sample_browser.h:103`) before it falls back to the folder. That member is written inside
 	// `claimCurrentFile()`, which this layer cannot perform (see `Descriptor::accept`), so there is
 	// nothing here that could keep it up to date -- a mirror would be authoritative for nothing and
 	// stale from the first load. Dropped rather than half-built: the browser opens on the default
@@ -867,7 +867,7 @@ Result BrowserScene::enter_key_press() {
 		return repaint_all();
 	}
 
-	// `getCurrentFilePath()` (`sample_browser.h:125 getCurrentFilePath`, `load_midi_device_definition_ui.cpp:214-218`):
+	// `getCurrentFilePath()` (`sample_browser.h:162 getCurrentFilePath`, `load_midi_device_definition_ui.cpp:214-218`):
 	// the directory, a separator, and the entry's own filename with its extension.
 	std::string path{current_dir()};
 	if (!path.empty()) {

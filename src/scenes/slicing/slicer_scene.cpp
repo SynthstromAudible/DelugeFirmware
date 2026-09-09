@@ -78,7 +78,7 @@ std::string_view prefixed_int(std::string_view prefix, int32_t value, std::span<
 // Lifecycle
 
 void SlicerScene::open(Sample* sample) {
-	// `SampleBrowser::renderPreviewForTarget` (`gui/ui/browser/sample_browser.cpp:617-619`), onto this
+	// `SampleBrowser::renderPreviewForTarget` (`gui/ui/browser/sample_browser.cpp:652-654`), onto this
 	// scene's own navigator rather than the shared `waveformBasicNavigator` global. `opened()` with
 	// no holder is legacy's own call there: no remembered view, so the slicer opens zoomed all the
 	// way out.

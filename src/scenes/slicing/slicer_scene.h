@@ -355,7 +355,7 @@ public:
 	/// `MarkerScene::open` is. Legacy has no equivalent line inside `Slicer` at all: it reads the
 	/// **`waveformBasicNavigator` global**, which the sample browser's preview path filled in with
 	/// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();`
-	/// (`SampleBrowser::renderPreviewForTarget`, `gui/ui/browser/sample_browser.cpp:617-619`)
+	/// (`SampleBrowser::renderPreviewForTarget`, `gui/ui/browser/sample_browser.cpp:652-654`)
 	/// before the legacy object is opened. Those two lines are
 	/// this call, onto a navigator this scene owns rather than a shared global.
 	/// @param sample The sample to slice; null leaves the scene with nothing to draw.

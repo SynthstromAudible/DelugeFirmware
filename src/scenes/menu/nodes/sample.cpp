@@ -90,7 +90,7 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// but in `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`),
 	// whose file-selector arm is `:2034-2039`.
 	// It is a *return* affordance: `SampleBrowser::claimCurrentFile` reads the pair back
-	// (`gui/ui/browser/sample_browser.cpp:1075-1086`) and re-roots the navigation record onto the
+	// (`gui/ui/browser/sample_browser.cpp:1110-1121`) and re-roots the navigation record onto the
 	// oscillator's horizontal page with the file selector focused, so accepting a file lands on the
 	// source page rather than back on the item. `MenuState::path`/`depth` already are that record
 	// and `go_up_on_resume` already steps out of the item, so what is actually missing is the
