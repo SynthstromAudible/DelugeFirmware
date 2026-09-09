@@ -542,6 +542,16 @@ rather than a thing that is half-done:
    stated reason is spent and the table's row now says so. Gating it is a decision of its own rather
    than a node lookup and F3 did not make it. The other five are unchanged.
 
+   **Grid-pad forwarding measured a correction to how the eight gated sites are counted.**
+   `model/clip/instrument_clip_minder.cpp:408` (site 6's own gated call, the SELECT arm of
+   `InstrumentClipMinder::buttonAction`) is inherited by three root views and called by all three —
+   `gui/ui/keyboard/keyboard_screen.cpp:585`, `gui/views/automation_view.cpp:1209`,
+   `gui/views/instrument_clip_view.cpp:867` — so the eight gated entry sites reach five distinct
+   legacy roots, not eight views' worth of one. This is what lets `SoundEditor::padAction`'s
+   forwarding switch reach `keyboardScreen` and `automationView`, not only `instrumentClipView`, with
+   no separate entry-point work
+   (`docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md` §2.1).
+
    **MIDI is a separate half and is only partly closed** — see item 8. Two of the four learn
    messages have a transport and all four are inert for a third reason recorded there.
 
@@ -554,6 +564,33 @@ rather than a thing that is half-done:
    `prepareColour` are never reached. Proved by probe rather than by inspection: disabling (a)
    alone brought the sidebar back **ungreyed** (`pad 16 0 0 255 6`, boot's colour, not the OFF
    leg's `3 160 7`).
+
+   **A second user-visible divergence, reachable on all eight gated entry sites, and now fixed.**
+   With the toggle on, a grid pad pressed under a ported menu did nothing, where legacy closes the
+   menu: `SoundEditor::padAction`'s tail (`gui/ui/sound_editor.cpp:1520-1545`) falls through every
+   root-forwarding arm and calls `exitCompletely()` on any unclaimed pad while
+   `currentUIMode == UI_MODE_NONE`, and the port had no equivalent — `MenuScene` ignored an unclaimed
+   pad outright, and the menu stayed open over the grid. **Fixed by `ui/pads-1`**:
+   `Scene::grid_pad_claim()` (`src/shell/scene.h:455`) plus `ShellHostUI::claimsGridPad`
+   (`gui/ui/shell_host_ui.cpp:749-765`) and `forwardGridPad`'s tail
+   (`gui/ui/shell_pad_forward.cpp:136-139`) now call `closePortedMenu()`
+   (`gui/ui/shell_action_dispatch.cpp:189-191`) on the same condition legacy's tail tests. **Why it
+   survived five task reviews and three whole-branch reviews**: the level-3 acceptance script
+   (`tests/ui-scripts/app/menu.txt`) never made the gesture — its only main-grid presses happen
+   before any menu exists, to make a clip
+   (`docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md` §7.2).
+
+   **A third divergence, found by the same task while recording the level-3 A/B, and left open.**
+   Legacy's static `Submenu::focusChild` (`gui/menu_item/submenu.cpp:21-34`) leaves `current_item_`
+   alone when called with `nullptr` on a re-open of the process-lifetime static object, so the real
+   device reopens a menu on the row it was last left on. `MenuScene::open`
+   (`scenes/menu/menu_scene.cpp:314-318`) resets `st_ = MenuState{}` unconditionally on every open,
+   so the port always reopens on the first row. Shipped and player-visible with the toggle on: scroll
+   a menu off its first row, back out, reopen, and the two legs land on different rows. Recorded
+   rather than fixed — the state-cache change is bigger than this branch's scope — in
+   `src/scenes/README.md`'s carry table as well as here, and `tests/ui-scripts/app/menu.txt` carries
+   one corrective gesture (`17100 encoder Select -5`) that exists solely to make the two legs
+   converge past it; remove that gesture when this divergence is fixed.
 3. ~~**No `MenuAction` dispatcher.**~~ **CLOSED by plan F2.** Five ported items requested root-UI
    behaviour (`openUI(&performanceView)`, `setClipLengthEqualToSampleLength()`, the MIDI-learn
    overlay, the two song verbs) through `MenuScene::take_action()`, which nothing consumed; the

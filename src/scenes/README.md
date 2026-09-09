@@ -1610,3 +1610,59 @@ record-to-sample items (`menu/nodes/sample.h`); and E3 task 7 the last two, `mid
 and `specific_output_selector` (`menu/nodes/output_items.h`), **so none is left**). See the design
 spec's
 "Amendments during implementation" section for the full, cited account of each.
+
+**Grid-pad forwarding (`gui/ui/shell_pad_forward.{h,cpp}`, `ui/pads-1`) carries five items, named
+here because a task report is not where a reviewer looks.** `ShellHostUI::padAction` now ports four
+of `SoundEditor::padAction`'s six root-forwarding arms and its exit tail; what follows is what did
+not come with them.
+
+1. **The two note-editor forwarding arms are not ported.** `gui/ui/sound_editor.cpp:1484`
+   (`instrumentClipView.handleNoteEditorEditPadAction`) and `:1493`
+   (`instrumentClipView.handleNoteRowEditorPadAction`) are keyed on `inNoteEditor()` /
+   `inNoteRowEditor()` (`sound_editor.cpp:1916-1918`, `:1920-1922`), which read
+   `menuItemNavigationRecord[0]` — a member no guest path writes — and the roots they serve,
+   `noteEditorRootMenu`/`noteRowEditorRootMenu`, have no `MenuContext::Root` enumerator at all
+   (`scenes/menu/context.h:68-80`; `scenes/menu/menu_scene.h:485-489`'s own doc comment already says
+   so). They arrive together with `GridPadClaim::None`'s second producer, once sites 12 and 13 of
+   `shell_menu_entry.cpp`'s fourteen-entry table (migration §10.2 item 2) gain a ported root — today
+   `None` has exactly one producer, `MenuScene` on a `Settings` root (`menu_scene.h:487-489`).
+2. **Behaviour 4, the firmware-version diagnostics, is Kate's deliberate gap (2026-09-09).**
+   `SoundEditor::padAction`'s tail (`sound_editor.cpp:1521-1543`) special-cases three pads when the
+   ported menu shows `&firmwareVersionMenu` at `y == 7`: `x == 15` reads SRAM
+   (`deluge::memory::sram_size()`), `x == 14` reads the active voice count
+   (`AudioEngine::getNumVoices()`), and `x == 13` reads the PIC firmware version
+   (`picFirmwareVersion`), each popping the value up in a display. `forwardGridPad`'s tail
+   (`gui/ui/shell_pad_forward.cpp:136-139`) ports the surrounding exit but not this block, so
+   replicating it later is a lookup, not a rediscovery.
+3. **The automation-view interpolation pads are a divergence this plan records rather than closes.**
+   Legacy's shift-held shortcut gate exempts `x == 0, y == 6|7` from claiming a shortcut jump when
+   `getRootUI() == &automationView` (`sound_editor.cpp:1175-1177`), deferring those two pads to
+   automation view's own interpolation/pad-selection handling. `MenuScene`'s ported shift gate
+   (`scenes/menu/menu_scene.cpp:1627-1665`) has no equivalent: it cannot see which legacy root view
+   is behind it — `MenuContext::Root` names a menu root, not a `getRootUI()` identity — so it claims
+   `x == 0, y == 6|7` under `automationView` exactly as it would anywhere else on the Sound/Drum arm.
+   Not fixed: this reads as a second instance of the same gap "settings-root shortcut jumps" above is
+   blocked on, an additive root-view identity `MenuContext` does not carry yet.
+4. **The auditioning half of the shortcut gate was already dropped, and `GridPadClaim::ShortcutsOnly`
+   inherits the drop rather than reintroducing the question.** Legacy's non-shift branch of
+   `potentialShortcutPadAction` is `ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) &&
+   getRootUI() == &instrumentClipView)` (`sound_editor.cpp:1171-1172`) — a UI-mode read `src/scenes`
+   may not make. `MenuScene`'s ported shift gate already records dropping that half, with the reason:
+   under the port, shift is the whole gate (`scenes/menu/menu_scene.cpp:1627-1630`).
+   `ShellHostUI::claimsGridPad`'s `ShortcutsOnly` arm (`gui/ui/shell_host_ui.cpp:755-762`) cites both
+   sites and inherits the same drop rather than re-arguing it.
+5. **A fifth carry the plan did not know about, found while recording the level-3 A/B (task 5) and
+   player-reachable today, with the toggle on.** Legacy's static `Submenu::focusChild`
+   (`gui/menu_item/submenu.cpp:21-34`) leaves `current_item_` alone when called with `nullptr` on a
+   re-open of the process-lifetime static object — the real device remembers the row a menu was last
+   left on. `MenuScene::open` (`scenes/menu/menu_scene.cpp:314-318`) resets `st_ = MenuState{}`
+   unconditionally on every open, so the port always reopens on the first row. Reachable with an
+   ordinary gesture: scroll a menu off its first row, back out, reopen, and the two legs land on
+   different rows. `tests/ui-scripts/app/menu.txt` now carries one corrective gesture,
+   `17100 encoder Select -5`, that exists solely to make the two legs converge past this divergence
+   (`Submenu::wrapAround()`, `gui/menu_item/submenu.cpp:129-131`, returns
+   `renderingStyle() == HORIZONTAL` — false for the SOUND root's vertical list — so a five-item
+   backward scan overshoots and clamps both legs at the same row regardless of where each started);
+   remove that gesture once this divergence is fixed. Not this branch's to fix — a bigger change than
+   one test script — and recorded in migration §10's defect list as well, because unlike the other
+   four here a player meets it immediately.

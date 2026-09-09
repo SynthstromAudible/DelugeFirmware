@@ -9,7 +9,7 @@ behaves like legacy's when a pad is pressed under it.
 
 ## 1. Why this exists
 
-`ShellHostUI::padAction` (`src/deluge/gui/ui/shell_host_ui.cpp:747`) feeds every pad to the shell and
+`ShellHostUI::padAction` (`src/deluge/gui/ui/shell_host_ui.cpp:767`) feeds every pad to the shell and
 returns `DEALT_WITH` unconditionally. Legacy's equivalent, `SoundEditor::padAction`
 (`src/deluge/gui/ui/sound_editor.cpp:1460`), does four things, and the port does one of them.
 
@@ -46,7 +46,7 @@ The six forwarding paths (behaviour 2):
 | `automationView` | `SoundEditor::handleAutomationViewPadAction` (`:1551`) | `:1508` |
 | `performanceView` | `performanceView.padAction` | `:1516` |
 
-**Of the six, exactly one is recorded.** `shell_host_ui.cpp:939-940` notes of the keyboard screen that
+**Of the six, exactly one is recorded.** `shell_host_ui.cpp:974-975` notes of the keyboard screen that
 forwarding is *"what this guest does **not** do."* That file names `automationView`,
 `performanceView`, `instrumentClipView` and `audition` **zero times**.
 
@@ -177,7 +177,7 @@ argues at length why it is `stack().remove(SceneKind::FirstApp)` and not
 `soundEditor.exitCompletely()` — the latter would run `closeUI` on a UI that is not on the stack and
 read `uiNavigationHierarchy[-1]`. The tail calls that function. It must not also call `closeGuest()`:
 `ShellHostUI::timerCallback` closes the guest itself once the stack is empty
-(`shell_host_ui.cpp:553-556`), and doing both closes twice.
+(`shell_host_ui.cpp:555-558`), and doing both closes twice.
 
 ### 3.4 The automation arm cannot be a bare forward
 
