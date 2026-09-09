@@ -7331,7 +7331,8 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay) && Buttons::isShiftButtonPressed()) {
 		// what even is this view???
 		SoundEditor::renderMainShortcutsOnly(
-		    (ModControllableAudio*)view.activeModControllableModelStack.modControllable, image, occupancyMask);
+		    (ModControllableAudio*)view.activeModControllableModelStack.modControllable, image, occupancyMask,
+		    SoundEditor::shouldEditKitAffectEntire());
 		return true;
 	}
 
