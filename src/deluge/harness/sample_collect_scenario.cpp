@@ -68,6 +68,13 @@ constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SCTEST01";
 constexpr const char* kSampleA = "SAMPLES/COLL1.WAV";
 constexpr const char* kSampleB = "SAMPLES/COLL2.WAV";
+/// A RECORDING. The only shape of file a collect-media save renames, and therefore the only one
+/// that can move within the audio-file vector -- which is what makes SC-ORDERED able to fail.
+constexpr const char* kRecording = "SAMPLES/RECORD/REC12345.WAV";
+/// Thirteen characters, so it is NOT renamed, and it sits between the recording's old name and its
+/// new one under the case-insensitive ordering the vector uses. The rename has to move the
+/// recording ACROSS it.
+constexpr const char* kRecordingNeighbour = "SAMPLES/RECORD/REC123450.WAV";
 
 enum class Stage : uint8_t { Residents, Fixture, FixtureWait, Save, SaveWait, Verify, Report, Done };
 
@@ -77,7 +84,15 @@ bool g_summaryPrinted = false;
 int32_t g_failures = 0;
 int32_t g_waitTicks = 0;
 int32_t g_resident = 0;
+/// Ticks on which the audio-file vector was inspected mid-collection, and whether it was ever
+/// caught broken. Counted so a run that never looked cannot report success.
+int32_t g_inflightTicks = 0;
+bool g_atomicBroken = false;
 std::vector<AudioFile*> g_referenced;
+/// Where each referenced file was BEFORE the save. A collected recording's `filePath` is rewritten,
+/// so reading the source back through the AudioFile would open a name that never existed on the
+/// card and silently skip the byte comparison.
+std::vector<std::string> g_sourcePaths;
 
 constexpr int32_t kMaxWaitTicks = 200000;
 
@@ -124,15 +139,25 @@ void makeReferenced(const char* path) {
 	}
 	file->addReason();
 	g_referenced.push_back(file);
+	g_sourcePaths.push_back(file->filePath.c_str());
 	++g_resident;
 }
 
-/// SC-ORDERED. The property the whole snapshot design exists to provide.
-bool listStillUsable() {
+/// The property the whole snapshot design exists to provide: the vector is sorted by `filePath` and
+/// bisected on it, so every resident file must still be findable and every neighbouring pair must
+/// still be in order.
+///
+/// Run under two markers, and they are not the same claim. SC-ORDERED asks it once the save is over.
+/// SC-ATOMIC asks it on EVERY tick while the collection is in flight -- which is the claim that
+/// actually matters, because the hazard is another tier bisecting this vector between two transfers.
+/// A mutation applied during the planning walk is invisible to SC-ORDERED: the apply pass removes
+/// and reinserts the entry afterwards and, when its search happens to land, tidies the damage away
+/// before anything asks. The window is the defect, so the window is what has to be watched.
+bool listOrdered(const char* marker) {
 	bool ok = true;
 	for (AudioFile* file : g_referenced) {
 		if (audioFileManager.audioFiles.searchForExactObject(file) < 0) {
-			printf("SC-ORDERED FAIL %s is resident but no longer findable in the list\n", file->filePath.c_str());
+			printf("%s FAIL %s is resident but no longer findable in the list\n", marker, file->filePath.c_str());
 			ok = false;
 		}
 	}
@@ -140,7 +165,7 @@ bool listStillUsable() {
 		const char* previous = audioFileManager.audioFiles[i - 1]->filePath.c_str();
 		const char* current = audioFileManager.audioFiles[i]->filePath.c_str();
 		if (strcasecmp(previous, current) > 0) {
-			printf("SC-ORDERED FAIL the list is out of order at %zu: \"%s\" before \"%s\"\n", i, previous, current);
+			printf("%s FAIL the list is out of order at %zu: \"%s\" before \"%s\"\n", marker, i, previous, current);
 			ok = false;
 		}
 	}
@@ -152,6 +177,8 @@ void runTick() {
 	case Stage::Residents: {
 		makeReferenced(kSampleA);
 		makeReferenced(kSampleB);
+		makeReferenced(kRecording);
+		makeReferenced(kRecordingNeighbour);
 		printf("SC-SETUP resident=%d\n", g_resident);
 		g_stage = (g_failures == 0) ? Stage::Fixture : Stage::Report;
 		break;
@@ -176,6 +203,17 @@ void runTick() {
 		break;
 	}
 	case Stage::SaveWait: {
+		// SC-ATOMIC. The invariant is checked HERE, between ticks, because that is the only place the
+		// hazard exists: the transfers park and resume, and anything else that bisects this vector
+		// does so in the gaps. Asking once at the end cannot see a window that the apply pass closes
+		// behind itself.
+		if (saveSongUI.collectInFlight()) {
+			g_inflightTicks++;
+			if (!g_atomicBroken && !listOrdered("SC-ATOMIC")) {
+				g_atomicBroken = true;
+				g_failures++;
+			}
+		}
 		// Both machines: the collection parks between ticks, and the save around it does too.
 		if (!saveSongUI.collectInFlight() && !SaveUI::saveInFlight()) {
 			g_stage = Stage::Verify;
@@ -195,7 +233,18 @@ void runTick() {
 		// which of course is still there -- a collect-media save that transferred nothing at all would
 		// look perfect. `loadedFromAlternatePath` is where a collected file now lives, and its being
 		// EMPTY after a collect-media save is itself the failure.
-		for (AudioFile* file : g_referenced) {
+		for (size_t idx = 0; idx < g_referenced.size(); idx++) {
+			AudioFile* file = g_referenced[idx];
+			const std::string& sourcePath = g_sourcePaths[idx];
+
+			// SC-RENAMED. Without at least one of these, SC-ORDERED is vacuous: nothing moved in the
+			// vector, so no ordering could have been broken. A fixture that stops producing a rename
+			// -- a changed name, a changed length rule -- would leave the ordering check passing
+			// against code that never got the chance to break it.
+			if (sourcePath != file->filePath.c_str()) {
+				printf("SC-RENAMED from=%s to=%s\n", sourcePath.c_str(), file->filePath.c_str());
+			}
+
 			// Where the collected copy should be. It is COMPUTED the same way the save computes it,
 			// and not read back off the AudioFile: `loadedFromAlternatePath` is only recorded for
 			// RECORDINGS, which get a generated name. An ordinary sample is copied into the song's
@@ -218,7 +267,9 @@ void runTick() {
 
 			std::vector<uint8_t> source;
 			std::vector<uint8_t> collected;
-			const bool haveSource = readWholeFile(file->filePath.c_str(), source);
+			// The ORIGINAL path, not the current one: a collected recording's filePath now names the
+			// renamed copy, which was never written to the regular directory.
+			const bool haveSource = readWholeFile(sourcePath.c_str(), source);
 			if (!readWholeFile(expected.c_str(), collected)) {
 				printf("SC-COPIED FAIL %s was not collected to %s\n", file->filePath.c_str(), expected.c_str());
 				g_failures++;
@@ -231,7 +282,14 @@ void runTick() {
 				g_failures++;
 			}
 		}
-		if (!listStillUsable()) {
+		if (g_atomicBroken) {
+			// Already counted at the tick it broke; reported here so the marker is always present.
+			printf("SC-ATOMIC FAIL the list was observable broken during the collection\n");
+		}
+		else {
+			printf("SC-ATOMIC ok ticks=%d\n", g_inflightTicks);
+		}
+		if (!listOrdered("SC-ORDERED")) {
 			g_failures++;
 		}
 		else {

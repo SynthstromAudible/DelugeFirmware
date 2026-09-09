@@ -28,8 +28,17 @@
 # What the checks cover:
 #   SC-COPIED     every referenced sample is AT its collected destination, byte-identical to the
 #                 source. Required on BOTH legs.
-#   SC-ORDERED    the audio-file list is still sorted and every resident file still findable. The
-#                 property the snapshot-then-apply design exists to provide. Required on BOTH legs.
+#   SC-RENAMED    the fixture's recording really was renamed. Required, because a collect-media save
+#                 rewrites filePath for recordings and NOTHING else -- so if the rename stops
+#                 happening, nothing moves in the audio-file vector and SC-ORDERED becomes a check
+#                 that cannot fail.
+#   SC-ORDERED    the audio-file list is still sorted and every resident file still findable, once
+#                 the save is over. Required on BOTH legs.
+#   SC-ATOMIC     the same invariant, checked on EVERY tick while the collection is in flight. This
+#                 is the one the design is actually for: the hazard is another tier bisecting the
+#                 vector BETWEEN two transfers, and SC-ORDERED cannot see that window because the
+#                 apply pass tidies it away before the end. A path mutated during the planning walk
+#                 passes SC-ORDERED and fails this.
 #   SC-CHANNEL    the on leg's transfers were SERVED by the byte channel -- the async arm ran.
 #   SC-GATED      the off leg served ZERO, so the feature gate actually gates.
 #   SC-ACCOUNTED  the two arms account for every collected file between them, and only ONE of them
@@ -41,9 +50,13 @@
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
 #
-# What this gate does NOT prove on its own: that the snapshot is load-bearing. Only the neutering
-# does that -- mutate filePath during the PLAN walk instead of the APPLY pass and SC-ORDERED must go
-# red. A green SC-ORDERED against code that never had a chance to break it says nothing.
+# Two things keep the ordering checks from becoming checks that cannot fail. A collect-media save
+# rewrites filePath for RECORDINGS and nothing else, so the fixture carries one -- SC-RENAMED is
+# what proves it is still being renamed -- and a second file positioned so the rename must move the
+# recording ACROSS it in the sort order. And the neutering: mutate filePath during the PLAN walk
+# instead of the APPLY pass, and SC-ATOMIC must go red. It was written expecting SC-ORDERED to catch
+# that, and SC-ORDERED did not; the end state is repaired by the apply pass, so only the in-flight
+# check can see it.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -101,7 +114,7 @@ run_leg() {
 	fi
 	# An abort or a wedge exits before these lines are printed, which is what turns a freeze into a
 	# gate failure rather than a silently truncated log.
-	for marker in SC-SETUP SC-COPIED SC-ORDERED SC-SUMMARY SC-RESULT; do
+	for marker in SC-SETUP SC-COPIED SC-RENAMED SC-ATOMIC SC-ORDERED SC-SUMMARY SC-RESULT; do
 		if ! grep -q "^$marker " "$OUT/$name.txt"; then
 			echo "FAIL [$name] — no $marker line; that stage did not run"
 			grep -E '^SC-' "$OUT/$name.txt"
@@ -173,8 +186,14 @@ fi
 
 # SC-IDENTICAL. The two arms must collect the same bytes to the same destinations; the per-file
 # checksum lines are what say so.
-off_copied="$(grep '^SC-COPIED ' "$OUT/off.txt" | sort || true)"
-on_copied="$(grep '^SC-COPIED ' "$OUT/on.txt" | sort || true)"
+#
+# The recording's `_XXXXX` suffix is RANDOM by design -- it is what stops a second collect-media save
+# colliding with the copy the first one made -- so it is normalised away before the legs are
+# compared. Everything else in the line, the destination and the length and the checksum, is
+# compared as written.
+normalise() { sed 's/_[0-9A-Z]\{5\}\.WAV/_XXXXX.WAV/g' "$1" | grep '^SC-COPIED ' | sort || true; }
+off_copied="$(normalise "$OUT/off.txt")"
+on_copied="$(normalise "$OUT/on.txt")"
 if [ -z "$off_copied" ] || [ "$off_copied" != "$on_copied" ]; then
 	echo "FAIL SC-IDENTICAL — the two arms collected different files:"
 	echo "$off_copied" | sed 's/^/  [off] /'

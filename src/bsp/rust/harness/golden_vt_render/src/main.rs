@@ -765,14 +765,32 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
 ///
 /// Deliberately small. This gate is about WHICH ARM performed the transfers and whether the audio
 /// file list survives them, not about moving a lot of bytes.
+/// Stage the sample-collect scenario's card and pack it into a FAT image.
+///
+/// Two of these four files exist to make the ORDERING check able to fail at all.
+///
+/// A collect-media save rewrites `filePath` for exactly one shape of file: a recording, whose name
+/// is `REC` plus five characters plus `.WAV`, and which is given a random `_XXXXX` suffix so that
+/// re-saving cannot collide with the copy a previous save made. Every other file keeps its path.
+/// A fixture of ordinary samples therefore never moves anything in the audio-file vector, and the
+/// sorted-order check passes no matter how the code mutates it -- which is a check that cannot fail.
+///
+/// `REC12345.WAV` is that recording. `REC123450.WAV` is thirteen characters, so it is NOT renamed,
+/// and it is positioned deliberately: case-insensitively `REC12345.WAV` sorts before it and
+/// `REC12345_XXXXX.WAV` sorts after it (`.` < `0` < `_`). So the rename must move the recording
+/// ACROSS it. Rewrite the path without removing and reinserting the entry and the vector is left
+/// out of order at that exact index, which is what the gate reads.
 fn pack_sample_collect_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-sample-collect-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
-    std::fs::create_dir_all(&samples).expect("creating the sample-collect fixture directories");
+    let recordings = samples.join("RECORD");
+    std::fs::create_dir_all(&recordings).expect("creating the sample-collect fixture directories");
     std::fs::create_dir_all(root.join("SONGS")).expect("creating the fixture SONGS directory");
     write_test_wav(&samples.join("COLL1.WAV"), 1, 16, 512, 0x41);
     write_test_wav(&samples.join("COLL2.WAV"), 2, 16, 1024, 0x42);
+    write_test_wav(&recordings.join("REC12345.WAV"), 1, 16, 768, 0x43);
+    write_test_wav(&recordings.join("REC123450.WAV"), 1, 16, 640, 0x44);
     sd_image::pack_image(&root)
 }
 
