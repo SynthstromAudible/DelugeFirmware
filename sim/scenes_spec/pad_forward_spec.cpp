@@ -201,6 +201,42 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 	});
 
+	it("does not exit on the three firmware-version diagnostic pads (I2)", _ {
+		// `sound_editor.cpp:1521-1543`: while `&firmwareVersionMenu` is open, `y == 7` and `x` in
+		// {13, 14, 15} return `DEALT_WITH` **without** falling to `exitCompletely()` -- the popups
+		// themselves stay unported (`shell_pad_forward.h`'s own note), but the "menu stays open"
+		// half is legacy's own behaviour and is what this pins. `open_menu_node` focuses the ported
+		// menu on `nodes::firmware_version` directly, the same shape the automation examples above
+		// use for their own node.
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		open_menu_node(*fx.song, fx.clip, nodes::firmware_version);
+		setRootUILowLevel(&sessionView); // any root with no matching forwarding arm
+		currentUIMode = UI_MODE_NONE;
+
+		expect(deluge::gui::ui::forwardGridPad(15, 7, 64)).to_equal(PadForwardTarget::None); // SRAM
+		expect(deluge::gui::ui::forwardGridPad(14, 7, 64)).to_equal(PadForwardTarget::None); // voices
+		expect(deluge::gui::ui::forwardGridPad(13, 7, 64)).to_equal(PadForwardTarget::None); // PIC ver
+
+		// Control: a pad this carve-out does not name, on the same open menu, still exits -- the
+		// clause is additive, not a blanket "firmware-version menu never exits".
+		expect(deluge::gui::ui::forwardGridPad(12, 7, 64)).to_equal(PadForwardTarget::Exit);
+		expect(deluge::gui::ui::forwardGridPad(15, 6, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
+	it("does exit on the same three pads when a different node is focused", _ {
+		// The carve-out is keyed on node identity, not on coordinate alone -- without
+		// `onFirmwareVersionMenu()`'s check, any menu open at `y == 7` would swallow these three
+		// pads regardless of what it was showing.
+		UiStackGuard ui_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		open_menu_node(*fx.song, fx.clip, no_param_node);
+		setRootUILowLevel(&sessionView);
+		currentUIMode = UI_MODE_NONE;
+
+		expect(deluge::gui::ui::forwardGridPad(15, 7, 64)).to_equal(PadForwardTarget::Exit);
+	});
+
 	it("really removes the ported menu when the tail fires", _ {
 		// The one example that runs the REAL perform: `closePortedMenu()` names no legacy view, so
 		// it is safe here, and this is what makes behaviour 3 covered outside the recorder.

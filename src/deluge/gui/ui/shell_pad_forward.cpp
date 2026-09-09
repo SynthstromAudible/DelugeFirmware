@@ -32,6 +32,7 @@
 #include "model/song/song.h" // currentSong, getCurrentClip()
 
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/settings.h" // nodes::firmware_version
 #include "scenes/registry.h"
 
 namespace deluge::gui::ui {
@@ -76,6 +77,23 @@ bool menuShowsAutomationParam() {
 	const Clip* clip = getCurrentClip(); // `:1582`
 	return clip != nullptr && kind == clip->lastSelectedParamKind
 	       && paramID == clip->lastSelectedParamID; // `:1585-1586`
+}
+
+/// @brief The "stays open" half of the firmware-version diagnostic gap (I2), asked of the ported
+///        menu instead of of `SoundEditor`.
+///
+/// Legacy's tail (`gui/ui/sound_editor.cpp:1521-1543`) tests `getCurrentMenuItem() ==
+/// &firmwareVersionMenu && y == 7`, then for `x` in {15, 14, 13} prints a popup and `return`s
+/// `DEALT_WITH` **without** falling to `exitCompletely()` below it. This function is only the
+/// second half of that test -- the popups themselves are `shell_pad_forward.h`'s own named gap and
+/// stay unported -- so the caller still has to test `x` and `y` itself; see there.
+///
+/// `getCurrentMenuItem()` is unavailable here for the same reason `menuShowsAutomationParam` above
+/// does not call `SoundEditor::isEditingAutomationViewParam`: it is a `SoundEditor` member no guest
+/// path writes. The ported equivalent of "the firmware-version item is what's open" is the focused
+/// node's identity, the same shape the automation arm already asks for.
+bool onFirmwareVersionMenu() {
+	return deluge::scenes::menu_scene().focused() == &deluge::scenes::menu::nodes::firmware_version;
 }
 
 /// The real performer. Replaced by `setPadForwardPerform`; see its note.
@@ -133,9 +151,14 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	else if (root == &performanceView) {
 		target = PadForwardTarget::Performance; // `:1515-1517`
 	}
-	else if (currentUIMode == UI_MODE_NONE && velocity != 0) {
+	else if (currentUIMode == UI_MODE_NONE && velocity != 0
+	         && !(y == 7 && (x == 13 || x == 14 || x == 15) && onFirmwareVersionMenu())) {
 		// `:1520-1545`, minus the firmware-version diagnostics -- `shell_pad_forward.h`'s own note
-		// names that gap and why.
+		// names that gap and why. The popups are the missing half of that gap; the "menu stays
+		// open" half is not (I2) -- legacy's tail `return`s `DEALT_WITH` without `exitCompletely()`
+		// for exactly the three pads the added clause above names, and before this fix the guest
+		// closed the menu there instead, a divergence this branch would otherwise have introduced.
+		// Leaving `target` at `None` reproduces "swallowed, menu open" without porting the popups.
 		target = PadForwardTarget::Exit;
 	}
 

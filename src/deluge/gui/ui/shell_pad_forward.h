@@ -31,9 +31,15 @@
 /// **What deliberately stays on the other side of the wall.** The two note-editor arms inside the
 /// `instrumentClipView` case (`:1481-1498`) are keyed on `SoundEditor::inNoteEditor()` /
 /// `inNoteRowEditor()`, which read a `SoundEditor` member no guest path writes -- see the plan's own
-/// ruling. The firmware-version diagnostics inside the tail (`:1521-1543`) are this task's own
-/// deliberate gap -- ported behaviour the plan's task 2 brief did not ask this switch to carry,
-/// named here rather than silently dropped. The `automationView` arm (`:1507-1512`) is **not** a
+/// ruling. The firmware-version diagnostics inside the tail (`:1521-1543`) are a **partial** gap
+/// (I2): the three popups themselves (reading `sram_size()`, `AudioEngine::getNumVoices()`,
+/// `picFirmwareVersion` and calling `display->displayPopup`) are this task's own deliberate gap --
+/// ported behaviour the plan's task 2 brief did not ask this switch to carry, named here rather
+/// than silently dropped. But the **"the menu stays open" half of the same three pads is ported**
+/// -- `onFirmwareVersionMenu` in the `.cpp` and the clause on the tail's `else if` -- because
+/// leaving it unported would have made the guest close the menu where legacy keeps it open, a
+/// divergence this branch would otherwise have introduced rather than carried. The `automationView`
+/// arm (`:1507-1512`) is **not** a
 /// gap: task 3 ports it, as `PadForwardTarget::Automation` -- see `menuShowsAutomationParam` in the
 /// `.cpp` for why that arm asks the ported menu rather than calling
 /// `SoundEditor::handleAutomationViewPadAction` directly. None of the six arms below asks anything
@@ -70,7 +76,9 @@ enum class PadForwardTarget : uint8_t {
 	/// `:1508` -- `SoundEditor::handleAutomationViewPadAction`'s work, done here: see
 	/// `menuShowsAutomationParam` in the `.cpp` for why it is not a call into that function.
 	Automation,
-	/// `:1545` -- `exitCompletely()`, ported as `closePortedMenu()`.
+	/// `:1545` -- `exitCompletely()`, ported as `closePortedMenu()`. Not returned for the three
+	/// firmware-version diagnostic pads (`:1521-1543`, I2) -- `None` is, instead, so the menu stays
+	/// open there as it does in legacy.
 	Exit,
 };
 
