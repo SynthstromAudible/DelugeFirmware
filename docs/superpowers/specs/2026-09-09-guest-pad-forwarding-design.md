@@ -17,9 +17,10 @@ This was found while scoping the note-editor menus (§10.2 item 2, sites 12 and 
 without it: legacy's note editor is a **grid-interactive menu**, and its own comment at
 `sound_editor.cpp:1482` says *"allow user to interact with main pads"*.
 
-**Two of the gaps are shipped, reachable today, and were recorded nowhere.** They passed F1's five
-task reviews and three whole-branch reviews because every one of those was scoped to a diff, and
-because the level-3 A/B script never presses a grid pad while a menu is open (§6.3).
+**Behaviour 3 and four of behaviour 2's six paths are shipped, reachable today, and were recorded
+nowhere** (§2.1 measures the reachability). They passed F1's five task reviews and three
+whole-branch reviews because every one of those was scoped to a diff, and because the level-3 A/B
+script never presses a grid pad while a menu is open (§6.3).
 
 ## 2. What legacy's contract is
 
@@ -62,9 +63,21 @@ case.
 legacy's behaviour, and the divergence is a defect to fix rather than a behaviour to preserve. This
 settles the second open question below: behaviour 3 ships in this plan, not a separate earlier one.
 
-**Behaviour 2's performance-view path is reachable today too.** Site 4 is the performance-view entry
-and is gated and shipping. Legacy's comment on that arm reads *"Allow using performance view pads
-while in the sound editor menu"*; the guest swallows them.
+**Four of behaviour 2's six paths are reachable today — not one.** The eight gated entry sites are
+`views/view.cpp:471`, `views/session_view.cpp:563`, `views/arranger_view.cpp:340`,
+`views/performance_view.cpp:892`, `views/instrument_clip_view.cpp:507`,
+`views/audio_clip_view.cpp:415`, `views/automation_view.cpp:1617` and
+`model/clip/instrument_clip_minder.cpp:408`. **The last of those is the one that widens the set**:
+`InstrumentClipMinder::buttonAction` (`:297`) is inherited by three root views, and all three call
+it — `keyboard_screen.cpp:585`, `automation_view.cpp:1209`, `instrument_clip_view.cpp:867`. So a
+menu opened with SELECT can sit over `keyboardScreen` and over `automationView`, as well as over
+`instrumentClipView`.
+
+That makes **keyboard (`:1475`), the audition column (`:1500-1502`), automation (`:1508`) and
+performance (`:1516`)** all reachable with the toggle on. Only the two note-editor arms
+(`:1484`, `:1493`) are not, because no note-editor menu exists yet. Legacy's comment on the
+performance arm reads *"Allow using performance view pads while in the sound editor menu"*; the
+guest swallows them, and swallows the other three the same way.
 
 ## 3. The seam
 
@@ -84,8 +97,42 @@ Three answers because legacy has exactly three behaviours:
 | answer | who | legacy's rule |
 |---|---|---|
 | `All` | root scenes, `BrowserScene`, **default** | the scene owns the grid |
-| `ShortcutsOnly` | `MenuScene` on a settings or ordinary root | `:1468` runs, the rest forwards |
-| `None` | `MenuScene` on a note-editor root | `:1468` skipped; main grid forwards, sidebar exits |
+| `ShortcutsOnly` | `MenuScene` on any root **except** `Settings` | `:1467`'s gate passes, so `:1468` runs and claims |
+| `None` | `MenuScene` on `Root::Settings` — and later a note-editor root | `:1467`'s gate fails, `:1468` is skipped, everything forwards |
+
+**The settings row is the correction.** `SoundEditor::inSettingsMenu()` (`:1912-1914`) is one of the
+three predicates in the gate at `:1467`, so on a settings root legacy skips the shortcut arm
+entirely and every pad — shift or not — falls through to the forwarding switch and the tail. An
+earlier draft of this table put settings in `ShortcutsOnly`; that would swallow pads legacy uses to
+close the menu, which is the very defect §2.1 is about.
+
+### 3.1 What `ShortcutsOnly` claims, exactly
+
+`potentialShortcutPadAction` **returns `DEALT_WITH` unconditionally once past its own gate**
+(`:1431`) — not only when a shortcut table has an entry at that pad. So the claim is the gate, and
+the gate is three conditions (`:1169-1186`):
+
+- `on` — a release is never claimed, so **releases forward**. This is load-bearing rather than
+  tidy: the audition-column arm forwards a *press* into `instrumentClipView.padAction`, and legacy
+  latches auditioning state on that press. A swallowed release leaves it latched.
+- `x < kDisplayWidth` — a sidebar pad is never claimed, so sidebar pads forward (or reach the tail).
+- shift held, **or** auditioning with `getRootUI() == &instrumentClipView`.
+
+The port takes the first two and shift; the auditioning half is a `currentUIMode` read `src/scenes`
+may not make, and `MenuScene` already drops it with that reason recorded
+(`menu_scene.cpp:1627-1630`). So `ShortcutsOnly` means the host feeds the scene when
+`on && x < kDisplayWidth && shift`, and forwards otherwise.
+
+**The two halves agree where it matters.** With shift held on a main-grid pad that maps to no node,
+`MenuScene::handle` returns `Result::unhandled()` (`menu_scene.cpp:1664`) and the pad is swallowed —
+and legacy swallows it too, via that unconditional `DEALT_WITH`. The coarse declaration is exact
+here, not an approximation.
+
+**One divergence it does not close**, and it predates this spec: legacy exempts the automation
+interpolation pads from the shortcut arm (`:1175-1177`, `x == 0 && (y == 6 || y == 7)` under
+`automationView`), and `MenuScene` claims them because it cannot see the root view's type. Recorded
+in the carry table rather than fixed here — fixing it means handing the scene a fact about the
+legacy root, which is the wall this design is built on.
 
 **Defaulting to `All` is the safe direction**: every existing scene keeps today's behaviour, only
 `MenuScene` answers differently, and a scene that forgets to answer forwards nothing rather than
@@ -100,7 +147,7 @@ scene knows what it is. The *forwarding* lives in `gui/ui/`, beside `shell_actio
 `ShellHostUI::padAction` gains one decision before it feeds: ask the current scene, then forward or
 feed. Synchronous, one call, no duplicated routing logic.
 
-### 3.1 Two approaches rejected, and why
+### 3.2 Two approaches rejected, and why
 
 **Forward-on-drop (deferred).** Feed as today; forward whatever `Router` dropped after `tick()`
 routes. Reuses existing machinery (`router.h:198`'s handled bool, `:192`'s `dropped_events()`), but
@@ -117,12 +164,41 @@ question" shape that produced F2's mirror problems.
 !inNoteRowEditor()`), and the port already knows. The declaration is a port of that question; the
 other two reconstruct it.
 
-### 3.2 One clause deliberately split across the wall
+### 3.3 One clause deliberately split across the wall
 
 Behaviour 3's precondition is `currentUIMode == UI_MODE_NONE`, which `src/scenes` may not read. So
 the scene declares the **claim** and the `gui/ui/` site decides the **exit**. One legacy statement,
 two sides of the wall, deliberately — recorded here so a later reader does not "tidy" the exit into
 the scene.
+
+**The exit itself is already written.** `closePortedMenu()`
+(`gui/ui/shell_action_dispatch.cpp:176-178`) is F2's port of `exitCompletely()`, and its docblock
+argues at length why it is `stack().remove(SceneKind::FirstApp)` and not
+`soundEditor.exitCompletely()` — the latter would run `closeUI` on a UI that is not on the stack and
+read `uiNavigationHierarchy[-1]`. The tail calls that function. It must not also call `closeGuest()`:
+`ShellHostUI::timerCallback` closes the guest itself once the stack is empty
+(`shell_host_ui.cpp:553-556`), and doing both closes twice.
+
+### 3.4 The automation arm cannot be a bare forward
+
+`SoundEditor::handleAutomationViewPadAction` (`:1551`) calls `isEditingAutomationViewParam()`
+(`:1564`), whose first statement is `getCurrentMenuItem()->getParamKind()`. `getCurrentMenuItem()`
+is `menuItemNavigationRecord[navigationDepth]` (`:1908-1910`), and that array is a zero-initialised
+member (`sound_editor.h:111`) written only by `SoundEditor::setup`/`navigate` — **none of which runs
+on the guest's path.** `adoptResolvedContext` deliberately does not write it, and says so
+(`sound_editor.h:216`). So forwarding into that helper reads `nullptr->getParamKind()` on a boot
+where no legacy menu has ever been opened.
+
+This is F3 task 4's defect exactly: a legacy helper reading `SoundEditor` state the toggle never
+populates. The fix there was to supply the state; here it must be to **port the question**, because
+the question is "is the menu showing the same param automation view is editing" and under the toggle
+the menu is `MenuScene`, not `SoundEditor`. The answer comes from `MenuScene::focused()`'s
+`bind.param` (`scenes/menu/node.h:130-131`, `:216-217`) against
+`automationView.onArrangerView ? currentSong->lastSelectedParam* : clip->lastSelectedParam*`.
+
+The ported predicate also gets the null-clip guard that migration §10.5 banked for legacy's copy
+(`clip` is `getCurrentClip()`, dereferenced unguarded at `:1582-1586`). Writing the guard here does
+**not** unbank that fix — legacy's copy is untouched, and remains Kate's call.
 
 ## 4. Re-entrancy
 
@@ -177,13 +253,24 @@ one into the tree for exactly that reason. All four land in `src/scenes/README.m
 2. **Behaviour 3, shipped and reachable on all eight gated sites** — also in migration §10's defect
    list, because unlike the others a player meets it immediately.
 3. Behaviour 4 as a deliberate gap, with coordinates.
-4. `GridPadClaim::None`'s missing producer.
+4. `GridPadClaim::None`'s missing producer for note-editor roots (it does ship with one: `Settings`).
+5. The automation interpolation pads (§3.1's last paragraph), which `MenuScene` claims and legacy
+   exempts — a divergence this spec records rather than closes.
 
 ## 7. Testing
 
 **Fixture (`sim/scenes_spec`).** `grid_pad_claim()` is pure scene state: `MenuScene` answers
 `ShortcutsOnly` on a settings root and `None` on a note-editor root once one exists; root scenes
 answer `All`. Pinned against the roots, not against a constant.
+
+**Routing is made observable by a seam, not by running legacy.** `deluge_scenes_spec` links
+`deluge_app` (`sim/scenes_spec/CMakeLists.txt:38-39`), so `instrumentClipView`, `keyboardScreen`,
+`automationView` and `performanceView` all resolve there — but *calling* them drags in model state
+an example should not have to build. F3's answer applies unchanged: `shell_choice_dispatch` routes
+its claim through a settable `claimDispatch` so specs can watch the decision without performing it.
+The forwarding switch gets the same seam, and the six-way routing decision — which target, which
+coordinates, which pad reached the tail — becomes assertable in `scenes_spec` against a real
+`MenuScene`.
 
 **Host suite (`deluge_spec`).** Cannot hold this — its source list omits the legacy view closures
 deliberately, proven three times across F1-F3. The forwarding site gets a stub, as
