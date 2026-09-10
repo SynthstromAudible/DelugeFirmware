@@ -633,11 +633,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `int_value` now edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
 		// `select_delta`): the script's `100 encoder Select +1` step -- once a claimed-and-ignored
 		// no-op (this file used to say so) -- is what moves the value now, by exactly 1 select
-		// detent * the node's own `IntRange{0,15,1}.step` (1). The later `300 encoder GoldUpper +2`
-		// reaches nobody who acts on it: `int_value` does not claim the gold knobs at all any more,
-		// and the unseeded `ModKnobs` behind it (`@par Every script here installs the real three,
-		// unseeded`, above) has no target to write through.
-		expect(bindings::read(nodes::saturation, ctx)).to_equal(std::min(before + 1, 15));
+		// detent * the node's own `IntRange{0,15,1}.step` (1). Fix round 1's follow-up review found
+		// the script's OLD closing `300 encoder GoldUpper +2` step no longer tested anything (gold
+		// reaches nobody: `int_value` claims no gold input, and the unseeded `ModKnobs` behind it has
+		// no target to write through) -- so that step is now `encoder Select +2` too, a second select
+		// edit on the same leaf, landing at `1 + 2 = 3`.
+		expect(bindings::read(nodes::saturation, ctx)).to_equal(std::min(before + 3, 15));
 	});
 
 	it("Decimal: nodes::source0_transpose renders and edits through the real Shell", _ {
@@ -671,24 +672,25 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// E2 task 9: `source0_transpose` is one of the 53 `PatchedParam` nodes, so its select press
 		// opens the source picker rather than ascending (`patched_param.cpp:32-40`). The script's
 		// first GoldUpper turn therefore lands on that picker and edits nothing; the Back brings the
-		// leaf back and the script's second GoldUpper turn is the one that moves the value.
+		// leaf back and the script's closing select turn is the one that moves the value a second time.
 		expect(menu_scene().focused() == &nodes::source0_transpose).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		// `decimal_value` now edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`),
-		// by `10^edit_pos` per detent -- `edit_pos` starts at 0, so the script's very first step,
-		// `100 encoder Select +1`, moves the value by 1 * 1 on its own. Both GoldUpper turns that
-		// follow reach nobody: the first lands on the source picker the select press opens (which
-		// reads no edit encoder, as before), and the second lands back on this leaf but
-		// `decimal_value` no longer claims the gold knobs at all, so it does nothing either --
-		// unlike `menu_int` above, there is no second edit here for the Back to set up.
-		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(std::min(before + 1, 9600));
+		// by `10^edit_pos` per detent -- `edit_pos` stays 0 throughout, so the script's very first
+		// step, `100 encoder Select +1`, moves the value by 1 * 1 on its own. The `GoldUpper` turn
+		// that follows still reaches nobody -- it lands on the source picker the select press opens,
+		// which reads no edit encoder, as before -- but fix round 1's follow-up review found the
+		// script's OLD closing `GoldUpper` turn (back on the leaf) no longer tested anything either,
+		// since `decimal_value` claims no gold input at all now. That step is `encoder Select +2` now,
+		// landing at `1 + 2 = 3`.
+		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(std::min(before + 3, 9600));
 		// `after_select_turn`'s pixel diff against `idle` is now a real effect of the Select turn
 		// (the digits move by 1), not only the cursor's own time-driven blink as it was before this
 		// fix. What still verifies the cursor specifically: `edit_pos` moves only on the
-		// "Horizontal" encoder, which this script never touches, so it must still be 0 after the
-		// Select turns, a select press/release and both GoldUpper turns -- Select edits the value on
-		// a Decimal screen now, exactly as it always moved the cursor's *place*, but it still never
-		// moves the cursor's *position*.
+		// "Horizontal" encoder, which this script never touches, so it must still be 0 after both
+		// select turns, a select press/release and the one remaining `GoldUpper` turn -- Select edits
+		// the value on a Decimal screen now, exactly as it always moved the cursor's *place*, but it
+		// still never moves the cursor's *position*.
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(0);
 	});
 
@@ -835,11 +837,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_FREQUENCY)));
 		// `int_value` now edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), so the
 		// script's `200 encoder Select +1` step -- once claimed-and-ignored here too -- is what moves
-		// the value, by 1 select detent * the node's own step (1). Neither GoldUpper turn does
-		// anything any more: the first still lands on the source picker the select press opens, and
-		// the second lands back on this leaf but finds nobody claiming the gold knobs -- `int_value`
-		// does not, and the unseeded `ModKnobs` behind it has no target to write through.
-		expect(bindings::read(nodes::lpf_freq, ctx)).to_equal(std::min(before + 1, 50));
+		// the value first, by 1 select detent * the node's own step (1). The `GoldUpper` turn that
+		// follows still lands on the source picker the select press opens and still does nothing
+		// there. Fix round 1's follow-up review found the script's OLD closing `GoldUpper` turn (back
+		// on this leaf) no longer tested anything either, since `int_value` claims no gold input at
+		// all any more -- so that step is `encoder Select +2` now, landing at `1 + 2 = 3`.
+		expect(bindings::read(nodes::lpf_freq, ctx)).to_equal(std::min(before + 3, 50));
 	});
 
 	it("Range permission: entering the real source0_transpose opens the real range picker first", _ {
@@ -931,7 +934,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().focused() == &nodes::delay_sync).to_be_true();
 	});
 
-	it("select_chain: a select press on nodes::unison_count opens nodes::unison_spread; its gold turns edit neither", _ {
+	it("select_chain: a select press on nodes::unison_count opens nodes::unison_spread, and edits it", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
@@ -940,6 +943,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		const int32_t count_before = bindings::read(nodes::unison_count, ctx);
 		const int32_t spread_before = bindings::read(nodes::unison_spread, ctx);
+		const deluge::scenes::menu::IntRange count_range = bindings::range(nodes::unison_count, ctx);
+		const deluge::scenes::menu::IntRange spread_range = bindings::range(nodes::unison_spread, ctx);
 
 		uitest::RunOptions opts = opts_for(nodes::unison_count);
 		// The real three, UNSEEDED -- `mod_target` deliberately left null. See this file's
@@ -952,17 +957,22 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{6});
 
 		// `CountToStereoSpread::selectButtonPress` (`gui/menu_item/unison/count.h:76-79`) navigates
-		// *into* the spread, so the press must not have ascended -- and the second gold turn, after
+		// *into* the spread, so the press must not have ascended -- and the second select turn, after
 		// the Back, must have landed on the count again.
 		expect(menu_scene().focused() == &nodes::unison_count).to_be_true();
 		// `int_value` now edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
-		// `select_delta`), and this script -- unlike `menu_int`/`menu_shortcut` above -- never turns
-		// one: every edit step here is a `GoldUpper` turn, on the count, on the spread the select
-		// press opens, and on the count again after the Back. `int_value` claims none of them any
-		// more, and the unseeded `ModKnobs` behind them (`@par Every script here installs the real
-		// three, unseeded`, above) has no target to write through, so neither value moves at all.
-		expect(bindings::read(nodes::unison_count, ctx)).to_equal(count_before);
-		expect(bindings::read(nodes::unison_spread, ctx)).to_equal(spread_before);
+		// `select_delta`); fix round 1's follow-up review found this script's three OLD `GoldUpper`
+		// turns (on the count, on the spread the select press opens, on the count again after the
+		// Back) no longer tested anything, since `int_value` claims no gold input at all now. All
+		// three are `encoder Select` turns now, sized at `+/-4` (double the old gold script number,
+		// since a select detent is not doubled by `edges_per_detent` the way an `Accelerating` gold
+		// knob's magnitude is) -- so the arithmetic below is unchanged from before this fix, only the
+		// encoder producing it is different: the select turns land the count at exactly the same
+		// clamp the gold turns used to.
+		const int32_t after_first = std::min(count_before + 4, count_range.max);
+		expect(after_first).to_equal(count_range.max); // the clamp really did happen, so -4 is visible
+		expect(bindings::read(nodes::unison_count, ctx)).to_equal(std::max(after_first - 4, count_range.min));
+		expect(bindings::read(nodes::unison_spread, ctx)).to_equal(std::min(spread_before + 4, spread_range.max));
 	});
 
 	it("Range: nodes::default_tempo picks an edge with the horizontal encoder; its gold turns move neither end", _ {
@@ -1159,7 +1169,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(cursor_now()).to_equal(1);
 	});
 
-	it("PatchCablesItem: the mod matrix opens the selected cable's strength page; its gold turns edit nothing", _ {
+	it("PatchCablesItem: the mod matrix opens the selected cable's strength page, and that page edits", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
@@ -1204,11 +1214,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// the fix-round-1 font change is judged on.
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
 		// `decimal_value` now edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
-		// `select_delta`), and this script only ever turns `GoldUpper` on the strength page -- so the
-		// cable the press selected does not move at all: `decimal_value` claims none of those turns,
-		// and the unseeded `ModKnobs` behind them (`@par Every script here installs the real three,
-		// unseeded`, above) has no target to write through.
-		expect(set->patchCables[0].param.getCurrentValue()).to_equal(selected_before);
+		// `select_delta`); fix round 1's follow-up review found this script's two OLD `GoldUpper`
+		// turns on the strength page no longer tested anything, since `decimal_value` claims no gold
+		// input at all now. Both are `encoder Select` turns now, sized at double the old gold script
+		// number (`+4`, `-64` in place of `+2`, `-32`) -- a select detent is not doubled by
+		// `edges_per_detent` the way an `Accelerating` gold knob's magnitude is, so this reproduces
+		// the exact same internal delta and the cable the press selected moves again.
+		expect(set->patchCables[0].param.getCurrentValue() != selected_before).to_be_true();
 		// The other cable never had a turn aimed at it either way, which is still worth pinning: a
 		// port that somehow wrote through the wrong `patch_cables_chain` entry would show up here.
 		expect(set->patchCables[added].param.getCurrentValue()).to_equal(added_before);
@@ -1315,14 +1327,16 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{10});
 
 		// The script picked the SECOND row, the OUT direction and the UPPER zone -- the non-default
-		// arm of all three -- and then turned the gold knob twice on the member-channel count.
+		// arm of all three -- and then turned the select encoder twice on the member-channel count.
 		// `int_value` now edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
-		// `select_delta`), and this script never turns Select on that leaf -- only GoldUpper, which
-		// `int_value` no longer claims at all (irrespective of the wiggle debounce the script's own
-		// note still correctly describes for the gold path itself). So the count stays 0, and
-		// `commit` writes `15 - 0` into the UPPER zone's field
-		// (`mpe/zone_num_member_channels.cpp:66-77`).
-		expect(static_cast<int>(usb.ports[1].mpeUpperZoneLastMemberChannel)).to_equal(15);
+		// `select_delta`); fix round 1's follow-up review found this script's two OLD `GoldUpper`
+		// turns no longer tested anything, since `int_value` claims no gold input at all now. Both
+		// are `encoder Select +2` turns now -- and unlike the gold knobs, the select encoder is not
+		// `EncoderKind::Accelerating`, so it has no wiggle debounce to swallow the first one: both
+		// turns act, landing the count at the same `0 -> 4` the gold turns used to (one of theirs
+		// used to be swallowed; neither of these is). `commit` writes `15 - 4` into the UPPER zone's
+		// field (`mpe/zone_num_member_channels.cpp:66-77`).
+		expect(static_cast<int>(usb.ports[1].mpeUpperZoneLastMemberChannel)).to_equal(11);
 		// And to that one field only. Every other one of the eight is still at its fixture value, so
 		// a hook that reached for the wrong port, the wrong zone or the wrong cable fails here rather
 		// than round-tripping through itself.

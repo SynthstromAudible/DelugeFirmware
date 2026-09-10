@@ -34,19 +34,16 @@
 700   button SelectEnc down
 720   button SelectEnc up
 740   snapshot after_channels_press  # the member-channel count for out/upper: 15-15 = 0, drawn OFF
-# **Two gold steps, and the first one is meant to do nothing.** An `EncoderKind::Accelerating`
-# encoder is swallowed on its first turn after `LoweringConfig::short_press_ms` (500 ms) of
-# stillness -- the wiggle debounce, `InputLowering::action_gold_turn`, a faithful restoration of
-# `interpretEncoders`' mod-knob block as it stood before the encoder overhaul
-# (`hid/encoders.cpp` lines 242-292 as of `e460593c8^` -- pinned to that revision and therefore
-# deliberately NOT written in the live `file:line` form, since `check_citations.py` resolves
-# against the current tree, where that file is 107 lines). Every other script in this directory
-# turns a gold knob before t=500 and is therefore inside that window from the shell's own zero,
-# which is why none of them ever had to say this. This one edits at t=800 and would have recorded
-# a screen that never moved -- found by recording it and looking at the frame.
-800   encoder GoldUpper +2           # swallowed: the debounce only remembers the direction
-820   encoder GoldUpper +2
-840   snapshot after_channels_edit   # `int_value` owns the gold knobs: 0 -> 4, the second turn only
+# **Rewritten for note-family task 1's fix.** `int_value` used to read the gold pair to edit; it now
+# reads the select turn instead (`ui/oled/values.cpp`'s `select_delta`). This used to be two
+# `GoldUpper` steps because a gold knob is `EncoderKind::Accelerating` and swallows its first turn
+# after `LoweringConfig::short_press_ms` (500 ms) of stillness -- the wiggle debounce,
+# `InputLowering::action_gold_turn` -- so the first of the two used to do nothing and only the
+# second edited. The select encoder is not `Accelerating` and has no such debounce, so both turns
+# below act: this is now two genuine edits of `+2` each, not one swallowed step and one real one.
+800   encoder Select +2              # 0 -> 2: the select encoder has no wiggle debounce to swallow it
+820   encoder Select +2              # 2 -> 4
+840   snapshot after_select_edit     # `int_value` owns the select encoder: 0 -> 4, both turns count
 900   button Back down
 920   button Back up
 940   snapshot after_back            # the zone selector again, still on UPPER ZONE

@@ -1,32 +1,35 @@
 # Level-2 acceptance (task-11 brief): a real shift+pad shortcut jump (pad (8,7) of
 # paramShortcutsForSounds, &lpfFreqMenu) from the sound root, then the generic recipe on the
 # landed-on node.
+#
+# **Rewritten for note-family task 1's fix.** `int_value` used to read the gold pair to edit; it now
+# reads the select turn instead (`ui/oled/values.cpp`'s `select_delta`). The FIRST select turn
+# (`200`, below) used to be a claimed-and-ignored no-op and now genuinely edits `nodes::lpf_freq`
+# too, which `after_select_press`'s golden already shows.
 0     snapshot idle
 50    button Shift down
 100   pad 8 7 down 64
 120   pad 8 7 up
 130   button Shift up
 140   snapshot after_shortcut
-200   encoder Select +1
-# E3 task 10: `lpf_freq` renders through `render_leaf_decimal`, which claims-and-ignores the select
-# encoder for the same reason `render_leaf_int` does (menu_int.txt's own note) -- so this snapshot
-# was byte-identical to `after_shortcut`. The step stays; the snapshot does not.
+200   encoder Select +1               # 0 -> +1: genuinely edits now (used to be a no-op)
 300   button SelectEnc down
 320   button SelectEnc up
 340   snapshot after_select_press
 400   encoder GoldUpper +2
-# E2 task 9: the GoldUpper turn above lands on the page the select press opened, which reads no
-# edit encoder -- so it inks nothing new and its snapshot was byte-identical to `after_select_press`.
-# The step stays (the spec asserts the value did NOT move here) and the snapshot does not: a golden
-# that records nothing is a golden that can never fail for the right reason.
+# `lpf_freq` is a `PatchedParam` node, so the select press above opened the source picker, not the
+# leaf -- `enum_value` renders that page, and it has always read the select turn, never the gold
+# knobs (unaffected by this task's fix either way). So this `GoldUpper` still lands on a page that
+# reads no edit encoder at all: it inks nothing new, and its snapshot was and stays byte-identical
+# to `after_select_press`. The step stays; the snapshot does not.
 500   button Back down
 520   button Back up
 540   snapshot after_back
-# E2 task 9: the select press above no longer ascends -- `source0_transpose` / `lpf_freq` are
-# `PatchedParam` nodes, whose `selectButtonPress` opens the source picker
-# (`gui/menu_item/patched_param.cpp:32-38`), so the GoldUpper turn at that point lands on the
-# picker and edits nothing. The Back above comes back to the leaf; this second GoldUpper turn is
-# what edits it, and keeps this script's "the value moved" assertion about the leaf's own kind.
-600   encoder GoldUpper +2
-620   snapshot after_back_gold
+# The select press above does not ascend -- `source0_transpose` / `lpf_freq` are `PatchedParam`
+# nodes, whose `selectButtonPress` opens the source picker (`gui/menu_item/patched_param.cpp:32-38`).
+# The Back above comes back to the leaf; the select turn below is what edits it a second time, and
+# keeps this script's "the value moved" assertion about the leaf's own kind.
+600   encoder Select +2               # +1 -> +3: `int_value` claims the select turn now, not the
+                                      # gold knobs -- this step used to be `encoder GoldUpper +2`
+620   snapshot after_select_edit
 700   quit

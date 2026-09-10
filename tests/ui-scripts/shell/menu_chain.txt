@@ -2,17 +2,23 @@
 # target is an ordinary value leaf -- nodes::unison_count -> nodes::unison_spread
 # (`gui/menu_item/unison/count.h:76-79` `CountToStereoSpread::selectButtonPress`).
 #
-# The two existing scripts that touch chaining (menu_decimal, menu_shortcut) both land on a
+# The two other scripts that touch chaining (menu_decimal, menu_shortcut) both land on a
 # `PatchedParam`, whose chain target is a picker that reads no edit encoder -- so neither ever shows
-# a chained page being USED. This one does: the target is an `int_item`, and the gold turn after the
+# a chained page being USED. This one does: the target is an `int_item`, and the turn after the
 # press moves the target's value, not the source's.
+#
+# **Rewritten for note-family task 1's fix.** `int_value` used to read the gold pair to edit; it now
+# reads the select turn instead (`ui/oled/values.cpp`'s `select_delta`), one raw detent per select
+# click (unlike a gold knob, the select encoder is not `EncoderKind::Accelerating`). Every turn below
+# is `Select` now, sized at `+/-4` to land on the same clamped/unclamped shape the old `GoldUpper +2`
+# steps did (4 raw edges each, at this leaf's `range.step` of 1).
 0     snapshot idle                  # UNISON NUMBER, the count's own value
-100   encoder GoldUpper +2
-120   snapshot after_gold_turn       # int_value's coarse step: the count moved by 4
+100   encoder Select +4
+120   snapshot after_select_edit     # int_value's coarse step: the count moved by 4
 200   button SelectEnc down
 220   button SelectEnc up
 240   snapshot after_select_press    # UNISON STEREO SPREAD -- the chain target, not an ascend
-300   encoder GoldUpper +2
+300   encoder Select +4
 320   snapshot after_chain_edit      # the SPREAD moved by 4; the count did not
 400   button Back down
 420   button Back up
@@ -20,8 +26,8 @@
 # E2 task 12: `after_back` is the frame that found the bug. `MenuScene::ascend` did not re-run the
 # leaf's `beginSession` the way legacy's `goUpOneLevel` -> `beginScreen` does
 # (`gui/ui/sound_editor.cpp:710-729`), so this frame drew the SPREAD's value under the COUNT's title
-# and the detent below edited from it. It is byte-different from `after_gold_turn` only because the
+# and the detent below edited from it. It is byte-different from `after_select_edit` only because the
 # count clamped at its maximum; the fix is what makes it equal to it again.
-500   encoder GoldUpper -2
+500   encoder Select -4
 520   snapshot after_back_edit       # the count moved down from its own value, not from the spread's
 600   quit

@@ -11,23 +11,31 @@
 # (ENVELOPE_1 -> LOCAL_LPF_FREQ) so the list is a real list. The script never turns before pressing,
 # so the cable it opens is row 0 -- and the spec asserts that row 0 moved and the added cable did not,
 # which is what makes "the chain picked the right cable" a tested claim.
+#
+# **Rewritten for note-family task 1's fix.** `decimal_value` used to read the gold pair to edit; it
+# now reads the select turn instead (`ui/oled/values.cpp`'s `select_delta`). Both edit turns below
+# are `Select` now, sized at double their old `GoldUpper` script number (`+4`, `-64` in place of
+# `+2`, `-32`) because a select detent is *not* doubled by `edges_per_detent` the way an
+# `EncoderKind::Accelerating` gold knob's magnitude is -- this reproduces the exact same internal
+# delta the old gold turns produced, so the two frames below still read the same digits they always
+# did.
 0     snapshot idle                  # MOD MATRIX: three rows, each drawn by the routing-diagram widget
 100   button SelectEnc down
 120   button SelectEnc up
 140   snapshot after_select_press    # the regular cable-strength page for that cable
 200   encoder Horizontal +3
 220   encoder Horizontal -2
-# No snapshot for these two. They pin the digit cursor at the hundreds place (one gold detent =
-# 1.00) instead of inheriting whatever `MenuState::decimal_pos` an earlier page left: `+3` floors it
+# No snapshot for these two. They pin the digit cursor at the hundreds place (one detent = 1.00)
+# instead of inheriting whatever `MenuState::decimal_pos` an earlier page left: `+3` floors it
 # at 0 and `-2` walks it back up two places, and both are saturating, so the end state is the same
 # whatever it started at. `decimal_pos` is asserted in the spec, so this is pinned, not assumed.
-300   encoder GoldUpper +2
-320   snapshot after_gold_turn       # 11.00 -- FIVE glyphs, right-aligned, complete
-400   encoder GoldUpper -32
+300   encoder Select +4
+320   snapshot after_select_edit     # 11.00 -- FIVE glyphs, right-aligned, complete
+400   encoder Select -64
 420   snapshot after_negative        # clamped at kMinMenuPatchCableValue: "-50.00", the widest
 #                                      string this page can ever draw, and it fits
 # **Look at these two frames.** Before E2 task 12's fix round 1 the value was drawn in the toolkit's
-# default huge face (18px per glyph) and `after_gold_turn` had its last digit CUT by the panel's
+# default huge face (18px per glyph) and `after_select_edit` had its last digit CUT by the panel's
 # right edge -- as would every value of magnitude 10 or more, and worse for every negative one, i.e.
 # most of the +/-50.00 range, on the one number this page exists to edit. Legacy draws it in the
 # 13px "Big" face right-aligned 3px off the edge (`patch_cable_strength.cpp:172-177`); the port now
