@@ -1,9 +1,12 @@
 /// @file
 /// @brief Three optional `Binding` hooks (E-note-family task 3): `adjust`, `value_text` and
 ///        `permitted` -- driven through a real `Shell` over `uitest::FakeSurfaceSet`, the same rig
-///        `menu_horizontal_controls_spec.cpp` uses, plus one direct `render_oled` call (as
-///        `menu_scene_spec.cpp`'s `firmware_version` example does) for the one check that needs
-///        pixels rather than behaviour.
+///        `menu_horizontal_controls_spec.cpp` uses, plus direct calls on `menu_scene()` (as
+///        `menu_scene_spec.cpp`'s `firmware_version` example does) for the checks that need pixels
+///        rather than behaviour, or a lifecycle hook the `Shell` never calls except across a
+///        scene push/pop this file has no reason to set up in full (`render_oled`, `on_resume`,
+///        `after_render` are all public overrides, and this rig's `input` is a plain field a spec
+///        sets directly -- `spec/ui/support/frames.h`'s own doc on `OledRig`).
 ///
 /// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`: no
 /// shipped node sets any of these three hooks yet (they arrive with the note family's own leaves
@@ -229,6 +232,53 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		expect(g_adjust_calls).to_equal(1);
 		expect(g_adjust_last_offset).to_equal(3);
 		expect(g_adjust_set_called).to_be_false();
+	});
+
+	it("on_resume() between a staged offset and its commit discards the offset, rather than "
+	   "letting it survive into a later turn's accumulation",
+	   _ {
+		// Fix round 1, Important 1's regression: driven without the `Shell` at all, since
+		// `render_oled`/`on_resume`/`after_render` are all public on `menu_scene()`
+		// (`menu_scene.h:495`, `:502`, `:498`) and this rig's `input` is a plain field a spec sets
+		// directly (`spec/ui/support/frames.h`'s own doc on `OledRig`).
+		//
+		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset
+		// apart from `on_resume`'s OTHER four resets (`value_changed`/`value_node` alone already
+		// stop `after_render`'s `if (st_.value_changed && st_.value_node != nullptr)` guard from
+		// committing anything at all, whether or not `edit_offset` itself was cleared) -- confirmed
+		// by mutation below, and recorded in the report rather than shipped as a silently-vacuous
+		// example. Two turns, with `on_resume` run between them, isolates it: if `on_resume` failed
+		// to clear `edit_offset`, the second turn's own accumulation (`st_.edit_offset += detents`)
+		// would add onto the first turn's abandoned offset instead of starting fresh from it.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(adjust_page);
+		g_adjust_get_value = 64;
+		g_adjust_calls = 0;
+		g_adjust_last_offset = 0;
+
+		// Stage the first turn -- as if this tick's `render_oled` ran, but the scene lost focus
+		// (a pushed scene opened over it) before its own `after_render` ever got to commit it.
+		deluge::ui::test::Rig48 rig48;
+		rig48.begin_tick(0);
+		rig48.input.turn = 3;
+		menu_scene().render_oled(SurfaceRole::Main, rig48.frame);
+
+		// The path that must discard the abandoned offset: the scene regaining focus once the
+		// pushed scene pops, before any tick of its own has re-rendered this page.
+		menu_scene().on_resume();
+
+		// A fresh turn, now that the page is visible again -- `render_oled` accumulates into
+		// whatever `edit_offset` currently holds.
+		rig48.begin_tick(20);
+		rig48.input.turn = 2;
+		menu_scene().render_oled(SurfaceRole::Main, rig48.frame);
+		(void)menu_scene().after_render();
+
+		// Not 5 (3 abandoned + 2 fresh): the abandoned offset must not have survived `on_resume`.
+		expect(g_adjust_calls).to_equal(1);
+		expect(g_adjust_last_offset).to_equal(2);
 	});
 
 	it("three separate turns before a settle still commit once, with the sum of the detents", _ {
