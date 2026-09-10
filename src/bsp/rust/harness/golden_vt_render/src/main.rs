@@ -295,6 +295,11 @@ unsafe extern "C" {
     fn deluge_scenario_audio_load_ab_step_done() -> bool;
     fn deluge_scenario_audio_load_ab_failures() -> i32;
 
+    fn deluge_scenario_song_save_channel_begin();
+    fn deluge_scenario_song_save_channel_complete() -> bool;
+    fn deluge_scenario_song_save_channel_dispatch_step();
+    fn deluge_scenario_song_save_channel_step_done() -> bool;
+    fn deluge_scenario_song_save_channel_failures() -> i32;
     fn deluge_scenario_sample_collect_begin();
     fn deluge_scenario_sample_collect_complete() -> bool;
     fn deluge_scenario_sample_collect_dispatch_step();
@@ -780,6 +785,18 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
 /// `REC12345_XXXXX.WAV` sorts after it (`.` < `0` < `_`). So the rename must move the recording
 /// ACROSS it. Rewrite the path without removing and reinserting the entry and the vector is left
 /// out of order at that exact index, which is what the gate reads.
+/// Stage the song-save scenario's card: an empty SONGS directory and nothing else.
+///
+/// The fixture that matters is not on the card. It is the SONG, which the scenario inflates in
+/// memory until its document outgrows the staging buffer -- a card full of files would not change
+/// what this gate measures.
+fn pack_song_save_image() -> std::path::PathBuf {
+    let root = std::env::temp_dir().join("deluge-song-save-card");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("SONGS")).expect("creating the fixture SONGS directory");
+    sd_image::pack_image(&root)
+}
+
 fn pack_sample_collect_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-sample-collect-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1351,6 +1368,60 @@ async fn run_settings_channel_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
+/// The `GOLDEN_SCENARIO=song_save_channel` scenario: inflate the song until its document outgrows
+/// the staging buffer, save it through the real ENTER gesture, and require that what landed loads
+/// back as a song and that overwriting it leaves a song behind either way.
+#[embassy_executor::task]
+async fn run_song_save_channel_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_song_save_channel_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_song_save_channel_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_song_save_channel_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the song-save run did not complete within 600s — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_song_save_channel_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_song_save_channel_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_song_save_channel_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the song-save run FAILED ({failures} in-process failure(s))"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: song-save run completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=sample_collect` scenario: save a song that references audio files with
 /// collect-media on, and report whether the samples arrived, whether the audio-file list survived,
 /// and which arm performed the transfers.
@@ -1768,6 +1839,7 @@ fn main() {
     let song_load_channel_mode = scenario == "song_load_channel";
     let document_save_channel_mode = scenario == "document_save_channel";
     let sample_collect_mode = scenario == "sample_collect";
+    let song_save_mode = scenario == "song_save_channel";
     let settings_channel_mode = scenario == "settings_channel";
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
@@ -1820,6 +1892,8 @@ fn main() {
             pack_audio_load_ab_image()
         } else if song_preview_ab_mode {
             pack_song_preview_ab_image(&repo_root)
+        } else if song_save_mode {
+            pack_song_save_image()
         } else if sample_collect_mode {
             pack_sample_collect_image()
         } else {
@@ -1900,6 +1974,8 @@ fn main() {
         spawner.spawn(run_song_load_channel_scenario(&DONE).unwrap());
     } else if document_save_channel_mode {
         spawner.spawn(run_document_save_channel_scenario(&DONE).unwrap());
+    } else if song_save_mode {
+        spawner.spawn(run_song_save_channel_scenario(&DONE).unwrap());
     } else if sample_collect_mode {
         spawner.spawn(run_sample_collect_scenario(&DONE).unwrap());
     } else if settings_channel_mode {

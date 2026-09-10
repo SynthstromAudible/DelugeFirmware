@@ -51,6 +51,8 @@ protected:
 	friend class SongLoadChannelProbe;
 	/// The document-save channel gate drives the same real gesture, for the same reason.
 	friend class DocumentSaveChannelProbe;
+	/// The song-save channel gate drives the same real gesture, for the same reason.
+	friend class SongSaveChannelProbe;
 
 public:
 	/// @brief Dispatch one save onto the storage owner.
