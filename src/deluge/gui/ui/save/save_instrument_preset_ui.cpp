@@ -276,3 +276,19 @@ bool SaveInstrumentPresetUI::serializeForSave(XMLSerializer& into) {
 	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 	return true;
 }
+
+const char* SaveInstrumentPresetUI::verifyTailForSave() const {
+	switch (outputTypeToLoad) {
+	case OutputType::SYNTH:
+		return "\n</sound>\n";
+	case OutputType::KIT:
+		return "\n</kit>\n";
+	case OutputType::MIDI_OUT:
+		return "\n</midi>\n";
+	case OutputType::AUDIO:
+	case OutputType::CV:
+	case OutputType::NONE:
+		return nullptr;
+	}
+	return nullptr;
+}

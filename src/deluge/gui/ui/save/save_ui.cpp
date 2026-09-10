@@ -224,6 +224,9 @@ void SaveUI::saveRoutine() {
 	case SavePhase::WRITE:
 		phaseOwner_->runWritePhase();
 		return;
+	case SavePhase::VERIFY:
+		phaseOwner_->runStagedVerifyPhase();
+		return;
 	case SavePhase::FINISH:
 		phaseOwner_->runFinishPhase();
 		return;
@@ -243,7 +246,7 @@ void SaveUI::runSerializePhase() {
 	smSerializer.setMemoryBased();
 	// The prolog, which createXMLFile() used to write into the writer as it opened the file. Building
 	// the document without it would save every preset headerless.
-	smSerializer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	smSerializer.write(kStagedDocumentHead);
 	if (!serializeForSave(smSerializer)) {
 		endStagedSave(false);
 		return;
@@ -379,6 +382,93 @@ void SaveUI::runStagedWriteOp(void* self) {
 	ownerWriteDone_ = true;
 }
 
+deluge::storage::ReadBackExpectation SaveUI::stagedReadBackExpectation() const {
+	return {.staged = reinterpret_cast<const uint8_t*>(smSerializer.getBufferPtr()),
+	        .length = static_cast<uint32_t>(smSerializer.bytesWritten()),
+	        .head = kStagedDocumentHead,
+	        .tail = verifyTailForSave()};
+}
+
+void SaveUI::runStagedVerifyPhase() {
+	using deluge::storage::ReadBackTick;
+
+	const char* path = inFlightRequest_.filePath.c_str();
+	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	const bool mayUseChannel = !onOwner && deluge_file_write_async_active() && deluge_file_bytes_async_active();
+
+	if (!onOwner && !mayUseChannel) {
+		// No channel: the read-back goes to the owner, which may block, exactly as the write did.
+		if (ownerVerifyDone_) {
+			ownerVerifyDispatched_ = false;
+			ownerVerifyDone_ = false;
+			finishStagedVerify(ownerVerifyOk_);
+			return;
+		}
+		if (!ownerVerifyDispatched_) {
+			if (!deluge::storage::Owner::run(&SaveUI::runStagedVerifyOp, this)) {
+				if (!deferStagedSave()) {
+					endStagedSave(false);
+				}
+				return;
+			}
+			ownerVerifyDispatched_ = true;
+			stallTicks_ = 0;
+			return;
+		}
+		if (!deferStagedSave()) {
+			endStagedSave(false);
+		}
+		return;
+	}
+
+	if (onOwner) {
+		++verifyOwnerServedOps_;
+		finishStagedVerify(deluge::storage::readBackSynchronously(path, stagedReadBackExpectation()));
+		return;
+	}
+
+	switch (stagedReadBack_.step(path)) {
+	case ReadBackTick::Waiting:
+		if (!deferStagedSave()) {
+			endStagedSave(false);
+		}
+		return;
+	case ReadBackTick::Failed:
+		finishStagedVerify(false);
+		return;
+	case ReadBackTick::Advanced:
+		++verifyChannelServedOps_;
+		stallTicks_ = 0;
+		return;
+	case ReadBackTick::Passed:
+		++verifyChannelServedOps_;
+		stallTicks_ = 0;
+		finishStagedVerify(true);
+		return;
+	}
+}
+
+void SaveUI::runStagedVerifyOp(void* self) {
+	auto* ui = static_cast<SaveUI*>(self);
+	++verifyOwnerServedOps_;
+	ownerVerifyOk_ =
+	    deluge::storage::readBackSynchronously(inFlightRequest_.filePath.c_str(), ui->stagedReadBackExpectation());
+	ownerVerifyDone_ = true;
+}
+
+void SaveUI::finishStagedVerify(bool passed) {
+	if (!passed) {
+		// The file is already on the card; this stops it being reported as a saved preset. Presets have
+		// no temp file, so a confirmed overwrite has already replaced what was there before.
+		display->displayError(Error::WRITE_FAIL);
+		endStagedSave(false);
+		return;
+	}
+	++stagedSavesVerified_;
+	++stagedSavesCompleted_;
+	endStagedSave(true);
+}
+
 void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
 	if (alreadyExists) {
 		// The name is taken and the user did not ask to replace it. Ask them, exactly as the
@@ -398,6 +488,19 @@ void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
 		endStagedSave(false);
 		return;
 	}
+	if (verifyTailForSave() != nullptr) {
+		// Before endStagedSave(), which releases the shared serialiser and with it the staged bytes this
+		// check compares against.
+		stagedReadBack_.begin(stagedReadBackExpectation());
+		ownerVerifyDispatched_ = false;
+		ownerVerifyDone_ = false;
+		stallTicks_ = 0;
+		savePhase_ = SavePhase::VERIFY;
+		return;
+	}
+	// A save that never verified. Counted HERE and not in endStagedSave(true), which the overwrite
+	// prompt branch above also calls having written nothing.
+	++stagedSavesCompleted_;
 	endStagedSave(true);
 }
 
@@ -423,6 +526,8 @@ void SaveUI::endStagedSave(bool succeeded) {
 	writeIssued_ = false;
 	ownerWriteDispatched_ = false;
 	ownerWriteDone_ = false;
+	ownerVerifyDispatched_ = false;
+	ownerVerifyDone_ = false;
 	stallTicks_ = 0;
 	stagedSucceeded_ = succeeded;
 	savePhase_ = SavePhase::FINISH;

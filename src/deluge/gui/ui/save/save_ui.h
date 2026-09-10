@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/slot_browser.h"
 #include "hid/button.h"
+#include "storage/readback_check.h"
 #include "storage/save_dispatch.h"
 
 class SaveUI : public SlotBrowser {
@@ -101,6 +102,24 @@ public:
 	/// It keeps the owner-side path unchanged, which is what keeps it out of this conversion.
 	[[nodiscard]] virtual bool savesStagedDocument() const { return false; }
 
+	/// @brief The closing bytes this save's document must end with, or nullptr for no read-back.
+	///
+	/// Non-null only for the saves the streaming writer used to verify by reopening the file:
+	/// building the document in memory skipped that check, and this is how it comes back. A save that
+	/// never verified returns nullptr and gains nothing it did not have.
+	[[nodiscard]] virtual const char* verifyTailForSave() const { return nullptr; }
+
+	/// @brief Staged saves that wrote their document and, where they verify, passed the read-back.
+	///
+	/// NOT the number of times a staged save ended "successfully": a save that opens the overwrite
+	/// prompt also ends that way, having written nothing.
+	[[nodiscard]] static int32_t stagedSavesCompleted() { return stagedSavesCompleted_; }
+	/// @brief Staged saves whose written document passed the read-back.
+	[[nodiscard]] static int32_t stagedSavesVerified() { return stagedSavesVerified_; }
+	/// @brief Read-back operations the byte CHANNEL served, and read-backs the storage OWNER ran.
+	[[nodiscard]] static int32_t verifyChannelServedOps() { return verifyChannelServedOps_; }
+	[[nodiscard]] static int32_t verifyOwnerServedOps() { return verifyOwnerServedOps_; }
+
 	/// @brief Drive a staged save one step. Registered as a repeating task in deluge.cpp.
 	static void saveRoutine();
 
@@ -117,6 +136,7 @@ private:
 		NONE,      ///< No staged save in flight.
 		SERIALIZE, ///< Building the document in memory, on the interaction tier.
 		WRITE,     ///< One whole-document write, through the channel or handed to the owner.
+		VERIFY,    ///< Reading the written document back: length, head and tail.
 		FINISH,    ///< Running the caller's completion.
 	};
 
@@ -129,6 +149,14 @@ private:
 	void writeStagedSynchronously(bool& alreadyExists, bool& ok);
 	/// @brief The owner-side arm of a staged write, for builds without the channel.
 	static void runStagedWriteOp(void* self);
+	/// @brief Drive the read-back of the written document. Named apart from SaveSongUI's own verify.
+	void runStagedVerifyPhase();
+	/// @brief The owner-side read-back, for builds without the channel.
+	static void runStagedVerifyOp(void* self);
+	/// @brief End the save on the read-back's verdict.
+	void finishStagedVerify(bool passed);
+	/// @brief What the written document must match.
+	[[nodiscard]] deluge::storage::ReadBackExpectation stagedReadBackExpectation() const;
 	/// @brief Release the staged document and end the save. `succeeded` reaches the completion.
 	void endStagedSave(bool succeeded);
 	/// @brief Hand the shared serialiser back to file-backed use.
@@ -149,6 +177,16 @@ private:
 	static inline bool ownerWriteDone_{};
 	static inline bool ownerWriteExists_{};
 	static inline bool ownerWriteOk_{};
+	static inline bool ownerVerifyDispatched_{};
+	static inline bool ownerVerifyDone_{};
+	static inline bool ownerVerifyOk_{};
+	static inline deluge::storage::ReadBackCheck stagedReadBack_{};
+	static inline int32_t stagedSavesCompleted_{};
+	static inline int32_t stagedSavesVerified_{};
+	static inline int32_t verifyChannelServedOps_{};
+	static inline int32_t verifyOwnerServedOps_{};
+	/// The prolog runSerializePhase() writes, and so the head every staged document must start with.
+	static constexpr const char* kStagedDocumentHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 	static inline bool stagedSucceeded_{};
 	static inline int32_t stallTicks_{};
 	/// The in-flight save, if any. Single-flight by refusal: see dispatchSave().
