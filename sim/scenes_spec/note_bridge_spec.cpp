@@ -11,7 +11,7 @@
 /// `editPadAction` (`gui/views/instrument_clip_view.cpp:2345`).
 ///
 /// `editPadAction`'s "regular create-or-select press" branch unconditionally calls
-/// `reassessAuditionStatus` (`:2702`), which calls `getVelocityForAudition` (`:4837`), which calls
+/// `reassessAuditionStatus` (`:2702`), which calls `getVelocityForAudition` (`:4746`), which calls
 /// `InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible`
 /// (`model/clip/instrument_clip_minder.cpp:591`) -- and THAT dereferences `currentPlaybackMode`, a
 /// global only `deluge_boot()` sets (`deluge.cpp:659`), null under every `song_fixture.h`
@@ -114,7 +114,8 @@ struct RealNoteSelectionGuard {
 		                              modelStackWithNoteRow, /*action=*/nullptr);
 
 		// `InstrumentClipView::editPadAction`'s own callers pass `currentSong->xZoom[NAVIGATION_CLIP]`
-		// (`instrument_clip_view.cpp:1475`); square 0 is where the note above was just placed.
+		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3651`); square 0 is where the
+		// note above was just placed.
 		instrumentClipView.editPadAction(/*state=*/true, /*yDisplay=*/0, /*xDisplay=*/0,
 		                                 currentSong->xZoom[NAVIGATION_CLIP]);
 		pressed = true;
@@ -238,8 +239,8 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		size_t n = menu::note_bridge()->iterance_preset_label(1, /*compact=*/true, std::span<char>(buf, sizeof(buf)));
 		expect(n > 0).to_be_true();
 		std::string_view text(buf, n);
-		// Preset 1 is `iterancePresets[0]` == `Iterance{2, 0b1}` (`lookuptables.cpp:508`): divisor 2,
-		// step 0 active -- legacy's `"%d:%d"` with `(i + 1, divisor)` is "1:2".
+		// Preset 1 is `iterancePresets[0]` == `Iterance{2, 0b1}` (`lookuptables.cpp:508-509`):
+		// divisor 2, step 0 active -- legacy's `"%d:%d"` with `(i + 1, divisor)` is "1:2".
 		expect(text == "1:2").to_be_true();
 	});
 
