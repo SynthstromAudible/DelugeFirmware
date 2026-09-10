@@ -5,7 +5,7 @@
 ///        (a count) and, where legacy's statement takes one, its argument, and returns a settable
 ///        value.
 ///
-/// Shape follows `sim/scenes_spec/bindings_spec.cpp`'s `FeedbackHookGuard` (`:113-122`): a
+/// Shape follows `sim/scenes_spec/bindings_spec.cpp`'s `FeedbackHookGuard` (`:115-123`): a
 /// function pointer cannot capture, so the struct's methods are free functions reading a single
 /// installed instance through `FakeNoteBridgeGuard`, which installs it in its constructor and
 /// clears the bridge in its destructor -- so a failing example cannot leak the fake into a later
@@ -95,9 +95,10 @@ struct FakeNoteBridge {
 
 namespace detail {
 
-/// @brief The one fake a `FakeNoteBridgeGuard` may have installed. A bridge entry with no fake
-///        installed has nothing to record into and answers a harmless default -- that should never
-///        happen in a spec, since every example that reads the bridge opens a guard first.
+/// @brief The one fake a `FakeNoteBridgeGuard` may have installed. Every free function below
+///        dereferences this unchecked -- there is no harmless default for "no fake installed",
+///        deliberately: a spec that reads or writes the bridge without a `FakeNoteBridgeGuard` open
+///        has a bug, and a null dereference says so immediately rather than recording into nothing.
 inline FakeNoteBridge* g_fake_note_bridge = nullptr;
 
 inline bool fake_note_selected() {
@@ -255,6 +256,15 @@ struct FakeNoteBridgeGuard {
 		menu::set_note_bridge(nullptr);
 		detail::g_fake_note_bridge = nullptr;
 	}
+
+	// A copy or move would leave `bridge`'s function pointers referencing a `g_fake_note_bridge`
+	// that outlives (or a `fake` that does not outlive) the copy, and would run this constructor a
+	// second time for a `bridge` that was never re-pointed at the new object's own `fake` -- neither
+	// is a shape this guard is meant to support (fix round 1, minor c).
+	FakeNoteBridgeGuard(const FakeNoteBridgeGuard&) = delete;
+	FakeNoteBridgeGuard& operator=(const FakeNoteBridgeGuard&) = delete;
+	FakeNoteBridgeGuard(FakeNoteBridgeGuard&&) = delete;
+	FakeNoteBridgeGuard& operator=(FakeNoteBridgeGuard&&) = delete;
 };
 
 } // namespace deluge::scenes::spec

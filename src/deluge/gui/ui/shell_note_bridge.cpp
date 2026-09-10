@@ -120,8 +120,11 @@ void adjust_note_iterance(int32_t offset) {
 	instrumentClipView.adjustNoteIteranceWithOffset(offset);
 }
 
-/// @brief The CUSTOM iterance editor's commit, `adjustNoteIteranceWithFinalValue(Iterance::fromInt(...))`
-///        (`gui/views/instrument_clip_view.h:303`).
+/// @brief `adjustNoteIteranceWithFinalValue(Iterance::fromInt(...))` -- the CUSTOM iterance
+///        editor's commit, called by `note::IteranceDivisor::writeCurrentValue`
+///        (`gui/menu_item/note/iterance_divisor.h:67`) and
+///        `note::IteranceStepToggle::writeCurrentValue`
+///        (`gui/menu_item/note/iterance_step_toggle.h:65`).
 void set_note_iterance(int32_t iterance) {
 	instrumentClipView.adjustNoteIteranceWithFinalValue(Iterance::fromInt(iterance));
 }
@@ -210,8 +213,11 @@ void adjust_row_iterance(int32_t offset) {
 	(void)instrumentClipView.setNoteRowIteranceWithOffset(offset);
 }
 
-/// @brief The CUSTOM iterance editor's commit, `setNoteRowIteranceWithFinalValue`
-///        (`gui/views/instrument_clip_view.h:335`).
+/// @brief `setNoteRowIteranceWithFinalValue` -- the CUSTOM iterance editor's commit, called by
+///        `note_row::IteranceDivisor::writeCurrentValue`
+///        (`gui/menu_item/note_row/iterance_divisor.h:76`) and
+///        `note_row::IteranceStepToggle::writeCurrentValue`
+///        (`gui/menu_item/note_row/iterance_step_toggle.h:92`).
 void set_row_iterance(int32_t iterance) {
 	(void)instrumentClipView.setNoteRowIteranceWithFinalValue(Iterance::fromInt(iterance));
 }
@@ -239,14 +245,25 @@ void adjust_row_fill(int32_t offset) {
 	}
 }
 
-/// @brief The non-kit auditioned-row arm's body of `sequence::Direction::getIndividualNoteRow`
-///        (`gui/menu_item/sequence/direction.h:50-60`) -- the outer `soundEditor.selectedNoteRow`
-///        gate is not transcribed here: it is latched from `isUIModeActive(UI_MODE_AUDITIONING)` at
-///        legacy's session begin (`:118`), which the port never calls, so spec §5.5 gates the
-///        equivalent condition at the call site instead (Task 6 calls both these entries only under
-///        `Root::NoteRowEditor`).
+/// @brief The non-kit auditioned-row arm of `sequence::Direction::getIndividualNoteRow`
+///        (`gui/menu_item/sequence/direction.h:50-60`), with two of its three statements dropped on
+///        purpose:
+///          * `:50`'s own test, `clip->output->type != OutputType::KIT`, IS transcribed below --
+///            without it a kit clip would fall into this arm and read/create whatever DRUM's row
+///            happens to be displayed at `lastAuditionedYDisplay`, which is not what legacy's kit
+///            arm (`:44-49`, keyed on `kit->selectedDrum`) or its final fallback (`:62`) do. Both of
+///            those are `bindings.h`'s `read_sequence_direction`/`write_sequence_direction`'s
+///            concern, not this bridge's -- a kit clip here answers "no row" (`fix round 1,
+///            important 3`: the first cut of this function omitted `:50`'s test entirely).
+///          * `:51`'s outer gate, `soundEditor.selectedNoteRow`, is NOT transcribed: it is latched
+///            from `isUIModeActive(UI_MODE_AUDITIONING)` at legacy's session begin (`:118`), which
+///            the port never calls, so spec §5.5 gates the equivalent condition at the call site
+///            instead (Task 6 calls both these entries only under `Root::NoteRowEditor`).
 ModelStackWithNoteRow* noteRowForSequenceDirection(ModelStackWithTimelineCounter* modelStack) {
 	auto* clip = static_cast<InstrumentClip*>(modelStack->getTimelineCounter());
+	if (clip->output->type == OutputType::KIT) {
+		return modelStack->addNoteRow(0, nullptr); // no row -- legacy's kit arm is not this bridge's concern
+	}
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
 	if (!modelStackWithNoteRow->getNoteRowAllowNull()) { // if note row doesn't exist yet, create it
@@ -297,6 +314,9 @@ size_t iterance_preset_label(int32_t preset, bool compact, std::span<char> out) 
 
 	Iterance iterance = iterancePresets[preset - 1];
 	int32_t i = iterance.divisor;
+	// `iterance.iteranceStep[i]` reads index `divisor` of a `std::bitset<8>` on the first turn --
+	// legacy's own out-of-range read (`gui/menu_item/note/iterance_preset.h:100-103`), transcribed
+	// exactly rather than fixed (Kate's call).
 	for (; i >= 0; i--) {
 		// try to find which iteration step index is active
 		if (iterance.iteranceStep[i]) {

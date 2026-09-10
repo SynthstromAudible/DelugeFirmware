@@ -332,12 +332,14 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",
     "src/deluge/gui/menu_item/performance_session_view/editing_mode.h",
-    # This plan's task 4: the note bridge's installer. `src/scenes` may not include
-    # `gui/views/instrument_clip_view.h`, so this is the side of the wall that gets to name
-    # `instrumentClipView` itself, `Note`/`NoteRow` (`model/note/`) and the iterance preset table,
-    # `iterancePresets` (`util/lookuptables/lookuptables.cpp:508`) -- for the same reason
-    # `shell_pad_forward.cpp` above gets to name `instrumentClipView`/`keyboardScreen`/
-    # `performanceView`: this is the side of the wall that gets to name them. It names
+    # This plan's task 4: the note bridge's installer. `src/scenes` may include `model/**`
+    # (`src/scenes/CMakeLists.txt:3`), so `Note`/`NoteRow` are not what earns this file its place
+    # here -- it is `gui/views/instrument_clip_view.h`, which `src/scenes` may NOT include, and the
+    # iterance preset table, `iterancePresets` (`util/lookuptables/lookuptables.cpp:508`), which
+    # `src/scenes` may not reach either (it lives in a `.cpp`, not the model header the table's
+    # declaration sits in). This is the side of the wall that gets to name `instrumentClipView`
+    # itself and that table, the same reason `shell_pad_forward.cpp` above gets to name
+    # `instrumentClipView`/`keyboardScreen`/`performanceView`. It names
     # `deluge::scenes::menu::NoteBridge` and `deluge::scenes::menu::set_note_bridge`
     # (`scenes/menu/note_bridge.h`) to install the function pointers those legacy names sit behind.
     # Its HEADER (`shell_note_bridge.h`) is deliberately NOT listed: it names no `scenes/` type,
