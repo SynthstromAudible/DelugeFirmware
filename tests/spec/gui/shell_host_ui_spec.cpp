@@ -701,7 +701,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// An overlay scene is transparent over the pads, which is what `SoundEditor` is: it does
 		// not override either hook, so it takes `UI`'s `return false`, and `MenuScene` is
-		// `is_grid_overlay()` (`scenes/menu/menu_scene.h:500`).
+		// `is_grid_overlay()` (`scenes/menu/menu_scene.h:506`).
 		r.base.overlay = true;
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_false();
 		expect(static_cast<::UI&>(r.guest).renderSidebar()).to_be_false();

@@ -822,5 +822,52 @@ describe columns_w("ui::oled::columns", $ {
 		expect(static_cast<int32_t>(paging_of(p.span(), 99).page)).to_equal(1);
 		expect(static_cast<int32_t>(paging_of(p.span(), 99).focused_on_page)).to_equal(1);
 	});
+
+	it("draws TextColumn::strikethrough as note::Fill's NOT_FILL line", _ {
+		// `note::Fill::renderInHorizontalMenu`'s `NOT_FILL` arm (`gui/menu_item/note/fill.h:70-79`):
+		// `center_y = slot.start_y + kHorizontalMenuSlotYOffset + 4`, a line from
+		// `line_start_x = slot.start_x + 2` to `line_end_x = slot.start_x + slot.width - 4`, with
+		// the rows immediately above and below cleared first (legacy clears pixel by pixel; a
+		// one-row `clear` is the same effect). Called directly on the root frame rather than
+		// through `columns()`, so `b = slot_frame.bounds()` is the frame's own `{0, 0, 128, 43}`
+		// (`Rig48`'s geometry, `visible_top = 5`) and the pixel maths below is `text_column`'s
+		// alone, not entangled with `render_page`'s column layout.
+		uitest::Rig48 r;
+		// Pre-fill the whole frame with ink (canvas starts blank, so `invert` over it turns
+		// everything on) so a missing `clear()` call would leave the struck rows lit instead of
+		// silently matching an already-blank canvas.
+		r.frame.invert(r.frame.bounds());
+		TextColumn data{.value = "", .strikethrough = true};
+		text_column(r.frame, /*focused=*/false, &data);
+
+		// `b.y=0`, so `center_y = 0 + kHorizontalSlotYOffset(2) + 4 = 6` local, canvas row
+		// `5 + 6 = 11` (`visible_top` is the frame's y origin); `x0 = b.x + 2 = 2`,
+		// `x1 = b.x + b.w - 4 = 128 - 4 = 124`.
+		for (int32_t x = 2; x <= 124; x++) {
+			expect(r.lit(x, 10)).to_be_false(); // center_y - 1, cleared
+			expect(r.lit(x, 11)).to_be_true();  // center_y, the line
+			expect(r.lit(x, 12)).to_be_false(); // center_y + 1, cleared
+		}
+		// The clear/line stop exactly at x0/x1 -- one pixel either side is untouched ink.
+		expect(r.lit(1, 10)).to_be_true();
+		expect(r.lit(1, 11)).to_be_true();
+		expect(r.lit(1, 12)).to_be_true();
+		expect(r.lit(125, 10)).to_be_true();
+		expect(r.lit(125, 11)).to_be_true();
+		expect(r.lit(125, 12)).to_be_true();
+	});
+
+	it("draws no strike when TextColumn::strikethrough is false", _ {
+		uitest::Rig48 r;
+		r.frame.invert(r.frame.bounds());
+		TextColumn data{.value = "", .strikethrough = false};
+		text_column(r.frame, /*focused=*/false, &data);
+
+		for (int32_t x = 2; x <= 124; x++) {
+			expect(r.lit(x, 10)).to_be_true();
+			expect(r.lit(x, 11)).to_be_true();
+			expect(r.lit(x, 12)).to_be_true();
+		}
+	});
 });
 DELUGE_SPEC(ui_columns_spec, columns_w)

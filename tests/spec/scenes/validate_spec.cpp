@@ -60,6 +60,8 @@ int32_t zero(const MenuContext&) {
 }
 void discard(const MenuContext&, int32_t) {
 }
+void discard_offset(const MenuContext&, int32_t) {
+}
 
 /// @brief A `SelectChainFn` the validator never calls -- the rules are about the *data*
 ///        (`Node::select_chain` beside `Node::chain_targets`), which is the whole reason the static
@@ -315,6 +317,47 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		expect(count_of(validate_tree(roots, {}), Issue::Kind::FlagMismatch)).to_equal(size_t(1));
 		static constexpr const Node* expected[] = {&half};
 		expect(count_of(validate_tree(roots, {}, {}, expected), Issue::Kind::FlagMismatch)).to_equal(size_t(0));
+	});
+
+	it("flags Binding::adjust on a node with no get -- it would read through param and write "
+	   "through the hook", _ {
+		// `Flag::AdjustWithoutGet` (spec E-note-family §5.2). A `param()` node has `bind.param` but
+		// no `bind.get`, so pairing it with `adjust` leaves `bindings::read` resolving through the
+		// param while `bindings::adjust` writes through the hook -- the two disagreeing about where
+		// the value lives.
+		set_shortcut_table_for_test({}, 0, 0);
+		static constexpr Node no_get =
+		    with_adjust(param(440, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar), discard_offset);
+		static constexpr const Node* kids[] = {&no_get};
+		static constexpr Node root = submenu(441, kids);
+		static constexpr const Node* roots[] = {&root};
+
+		size_t mismatches = 0;
+		for (const Issue& i : validate_tree(roots, {})) {
+			if (i.kind == Issue::Kind::FlagMismatch && i.detail == static_cast<uint16_t>(Flag::AdjustWithoutGet)) {
+				mismatches++;
+			}
+		}
+		expect(mismatches).to_equal(size_t(1));
+	});
+
+	it("does not flag Binding::adjust on a node that also has get", _ {
+		// The shipped shape (spec §5.2): `read` stays `get` even for an offset-writing node, so a
+		// `get`/`set` node with `adjust` added is well-formed and must stay silent.
+		set_shortcut_table_for_test({}, 0, 0);
+		static constexpr Node with_get = with_adjust(
+		    int_item(442, zero, discard, deluge::ui::oled::Range{0, 50, 1}), discard_offset);
+		static constexpr const Node* kids[] = {&with_get};
+		static constexpr Node root = submenu(443, kids);
+		static constexpr const Node* roots[] = {&root};
+
+		size_t mismatches = 0;
+		for (const Issue& i : validate_tree(roots, {})) {
+			if (i.kind == Issue::Kind::FlagMismatch && i.detail == static_cast<uint16_t>(Flag::AdjustWithoutGet)) {
+				mismatches++;
+			}
+		}
+		expect(mismatches).to_equal(size_t(0));
 	});
 });
 // clang-format on

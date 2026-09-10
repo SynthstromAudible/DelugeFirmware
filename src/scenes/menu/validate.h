@@ -116,6 +116,17 @@ enum class Flag : uint16_t {
 	/// so they read as reachable when they are not. Like `ReverbUpdateWithHook` this needs no
 	/// expected set -- it is a property of one node.
 	ChainTargetsMismatch,
+	/// @brief `Binding::adjust` on a node with no `get` -- a combination that would read through
+	///        `param` and write through the hook, silently disagreeing about where the value lives
+	///        (spec E-note-family §5.2: `read` stays `get` even for an offset-writing node).
+	///
+	/// The value-kind rule just above (`is_value_kind(n.kind) && !n.bind.param.valid() && n.bind.get
+	/// == nullptr`) already reports a value node with neither `get` nor a `param` at all; this is
+	/// the remaining case -- `adjust` set on a node that still resolves its read through `param`
+	/// rather than `get`. Every shipped offset-writing node (velocity, probability, iterance, fill)
+	/// has both a `get` and an `adjust`, so this needs no expected set either -- it is a property
+	/// of one node, like the two flags just above.
+	AdjustWithoutGet,
 };
 
 /// @brief The cap on the `Kind::Custom` escape hatch, counted in **nodes that point at a custom

@@ -747,7 +747,14 @@ void MenuScene::notify_column(const Node& column) {
 	}
 	char value_buf[16];
 	std::string_view value;
-	if (column.kind == Kind::Decimal) {
+	if (column.bind.value_text != nullptr) {
+		// `Binding::value_text` (spec E-note-family §5.3): legacy's own `getNotificationValue` text
+		// -- `35% ltch`, `OFF`/`CUSTOM`, `FILL` -- in place of `format_int`/`format_decimal`.
+		const ValueText vt = column.bind.value_text(ctx_, bindings::read(column, ctx_), ValueTextUse::Notification,
+		                                            std::span<char>{value_buf, sizeof(value_buf)});
+		value = std::string_view{value_buf, std::min(vt.length, sizeof(value_buf))};
+	}
+	else if (column.kind == Kind::Decimal) {
 		value = format_decimal(bindings::read(column, ctx_), column.bind.decimal_places, value_buf, sizeof(value_buf));
 	}
 	else {
@@ -924,30 +931,47 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 	f.claim_turn();
 	if (n != 0 && detents != 0 && kids[focus]->kind != Kind::Submenu) {
 		const Node& target = *kids[focus];
-		const IntRange range = bindings::range(target, ctx_);
-		// The toolkit's own guard: a zero `step` would give a dead select knob
-		// (`ui/oled/values.cpp:37-39`'s `coarse_step`).
-		const int32_t step = range.step != 0 ? range.step : 1;
-		const int32_t moved = clamp_to(bindings::read(target, ctx_) + detents * step, range.min, range.max);
-		// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)`
-		// and `displayNotification(child)` unconditionally once it has decided the turn is permitted
-		// (`selectEncoderActionIsPermitted()`, `:321`) -- it never re-reads the value first to
-		// see whether the clamp actually moved it (`:326-328`). Gating this on `moved != current`
-		// dropped the notification on a turn already at an endpoint; `commit_value` writing the same
-		// value back at a clamp is harmless, exactly as legacy's own re-write is.
-		switch (target.kind) {
-		case Kind::Enum:
-			st_.enum_index = moved;
-			break;
-		case Kind::Toggle:
-			st_.edit_bool = moved != 0;
-			break;
-		default:
-			st_.edit_int = moved;
-			break;
+		// `Binding::permitted` (spec E-note-family §5.3): legacy's
+		// `selectEncoderActionIsPermitted()` check, consulted *before* the edit and *before* the
+		// notification (`horizontal_menu.cpp:321-324`, ahead of `:326-328`). A refusal stages
+		// nothing and raises no notification here -- the hook raises its own popup, exactly as
+		// legacy's side effect does.
+		if (target.bind.permitted == nullptr || target.bind.permitted(ctx_)) {
+			if (target.bind.adjust != nullptr) {
+				// `Binding::adjust` (spec §5.2): accumulate the turn's detents rather than
+				// computing `moved` -- an offset write (`instrumentClipView.adjustVelocity` and
+				// its siblings) has no absolute value to stage, so there is nothing to put in
+				// `edit_int`/`enum_index` here. The column below reads `bindings::read` for this
+				// node instead of any edit storage, for the same reason.
+				st_.edit_offset += detents;
+			}
+			else {
+				const IntRange range = bindings::range(target, ctx_);
+				// The toolkit's own guard: a zero `step` would give a dead select knob
+				// (`ui/oled/values.cpp:37-39`'s `coarse_step`).
+				const int32_t step = range.step != 0 ? range.step : 1;
+				const int32_t moved = clamp_to(bindings::read(target, ctx_) + detents * step, range.min, range.max);
+				// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)`
+				// and `displayNotification(child)` unconditionally once it has decided the turn is permitted
+				// (`selectEncoderActionIsPermitted()`, `:321`) -- it never re-reads the value first to
+				// see whether the clamp actually moved it (`:326-328`). Gating this on `moved != current`
+				// dropped the notification on a turn already at an endpoint; `commit_value` writing the same
+				// value back at a clamp is harmless, exactly as legacy's own re-write is.
+				switch (target.kind) {
+				case Kind::Enum:
+					st_.enum_index = moved;
+					break;
+				case Kind::Toggle:
+					st_.edit_bool = moved != 0;
+					break;
+				default:
+					st_.edit_int = moved;
+					break;
+				}
+			}
+			st_.value_changed = true;
+			st_.value_node = &target;
 		}
-		st_.value_changed = true;
-		st_.value_node = &target;
 	}
 
 	// Per-column presentation. Everything a `Column` points at has to outlive the `columns` call,
@@ -961,15 +985,35 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 
 	for (size_t i = 0; i < n; i++) {
 		const Node& kid = *kids[i];
-		const int32_t value = (st_.value_node == &kid) ? (kid.kind == Kind::Enum ? st_.enum_index : st_.edit_int)
-		                                               : bindings::read(kid, ctx_);
+		// A `Binding::adjust` node stages no absolute value (see the edit block above) -- only
+		// `bindings::read` is ever meaningful for it, so its column always re-reads rather than
+		// consulting `st_.value_node`/`edit_int`. That leaves one frame of lag before the commit's
+		// write is visible here, because renders never write the model; `node.h`'s `AdjustFn` doc
+		// names this rather than working around it.
+		const bool has_staged_edit = kid.bind.adjust == nullptr && st_.value_node == &kid;
+		const int32_t value =
+		    has_staged_edit ? (kid.kind == Kind::Enum ? st_.enum_index : st_.edit_int) : bindings::read(kid, ctx_);
+
+		if (kid.bind.value_text != nullptr) {
+			// `Binding::value_text` (spec E-note-family §5.3): legacy's bespoke column text --
+			// `35%`/`35L`, `3:4`, `FILL` struck through for `NOT_FILL` -- replaces whatever the
+			// node's own `Kind` would otherwise have drawn, exactly as legacy's own
+			// `renderInHorizontalMenu` override does for these items.
+			const ValueText vt = kid.bind.value_text(ctx_, value, ValueTextUse::Column,
+			                                         std::span<char>{value_buf[i], sizeof(value_buf[i])});
+			texts[i].value = std::string_view{value_buf[i], std::min(vt.length, sizeof(value_buf[i]))};
+			texts[i].strikethrough = vt.strikethrough;
+			cols[i].render = deluge::ui::oled::text_column;
+			cols[i].ctx = &texts[i];
+			continue;
+		}
 
 		switch (kid.kind) {
 		case Kind::Submenu:
 			cols[i].render = deluge::ui::oled::submenu_column;
 			break;
 		case Kind::Toggle:
-			toggles[i].on = (st_.value_node == &kid) ? st_.edit_bool : value != 0;
+			toggles[i].on = has_staged_edit ? st_.edit_bool : value != 0;
 			cols[i].render = deluge::ui::oled::toggle_column;
 			cols[i].ctx = &toggles[i];
 			break;
@@ -1411,6 +1455,17 @@ void MenuScene::enter_leaf(const Node& node, FocusCause cause) {
 }
 
 void MenuScene::commit_value(const Node& node) {
+	// `Binding::adjust` (spec E-note-family §5.2), ahead of the `Kind` switch: an offset-writing
+	// node commits through the hook whatever its `Kind` is (velocity/probability/iterance are
+	// `Kind::Int`), so this has to run before the switch would otherwise reach `bindings::write`.
+	// `after_render` already commits before it raises the horizontal notification, so the
+	// notification below reads the post-commit value through `bindings::read` -- legacy's own
+	// order (`selectEncoderAction` then `displayNotification`, `horizontal_menu.cpp:326-328`).
+	if (node.bind.adjust != nullptr) {
+		bindings::adjust(node, ctx_, st_.edit_offset);
+		st_.edit_offset = 0;
+		return;
+	}
 	switch (node.kind) {
 	case Kind::Custom:
 		// `CustomItem::commit` -- `writeCurrentValue` for an item whose value has no `Binding`

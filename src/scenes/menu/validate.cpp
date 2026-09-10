@@ -48,8 +48,10 @@
 /// plus, beyond §4.4: `MissingTitle`, `NullCustom` and `RangeWithoutSpec` (three ways a node would
 /// render nothing),
 /// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
-/// `Binding::updates_reverb_params`) and with `Flag::ChainTargetsMismatch` (a `select_chain` hook
-/// without its static target list, or the reverse),
+/// `Binding::updates_reverb_params`), with `Flag::ChainTargetsMismatch` (a `select_chain` hook
+/// without its static target list, or the reverse), and with `Flag::AdjustWithoutGet`
+/// (E-note-family task 3: `Binding::adjust` on a node with no `get`, which would read through
+/// `param` and write through the hook),
 /// `PlaceholderCustom` (a node that renders a stand-in rather than a real item -- unconditional
 /// since E3 task 7 retired the last two stand-ins and with them the option that suppressed this,
 /// see `validate.h`'s `kPendingCustomNodes`), and the two `FlagMismatch` audits (task 6's ruling 4).
@@ -291,6 +293,13 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		}
 		else if (is_value_kind(n.kind) && !n.bind.param.valid() && n.bind.get == nullptr) {
 			add(out, Issue::Kind::BadParamRef, &n, n.bind.param.index);
+		}
+
+		// `adjust` with no `get` would read through `param` and write through the hook -- see
+		// `Flag::AdjustWithoutGet`. The rule just above already reports a value node with neither
+		// `get` nor `param` at all; this is the remaining case.
+		if (n.bind.adjust != nullptr && n.bind.get == nullptr) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::AdjustWithoutGet));
 		}
 
 		// A `set` hook plus `updates_reverb_params` is a silent no-op -- see `Flag::ReverbUpdateWithHook`.

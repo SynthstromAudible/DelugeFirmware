@@ -179,6 +179,12 @@ struct MenuState {
 	/// `Kind::Range`: `range_value` takes two `int32_t&`s -- `edit_int` is the **lower** edge and
 	/// this is the upper (`node.h`'s `RangeSpec`).
 	int32_t edit_upper = 0;
+	/// A `Binding::adjust` node (spec E-note-family §5.2): the select turn's detents, accumulated
+	/// since the last commit rather than folded into a `moved` value the way `edit_int`/
+	/// `enum_index` are -- there is no absolute value to stage, only an offset to hand
+	/// `bindings::adjust`. `render_horizontal`'s edit block is the only writer; `commit_value`
+	/// clears it back to 0 once the offset has been applied.
+	int32_t edit_offset = 0;
 	/// `Kind::Range`: which end the horizontal encoder has selected.
 	///
 	/// Legacy keeps the same fact in `SoundEditor::editingRangeEdge`, one global shared by every

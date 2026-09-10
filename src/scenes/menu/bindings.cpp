@@ -654,6 +654,16 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 	notify::raise(notify::Dirty::GridMain);
 }
 
+void adjust(const Node& node, const MenuContext& ctx, int32_t offset) {
+	// Mirrors `write`'s `get`/`set` hook arm (`:563-567` above): the hook owns the model write --
+	// legacy's `adjustVelocity`/`adjustProbability`/`adjustNoteIterance`/`adjustNoteFillWithOffset`
+	// -- so all this layer knows is that something the OLED shows has changed.
+	if (node.bind.adjust != nullptr) {
+		node.bind.adjust(ctx, offset);
+		notify::raise(notify::Dirty::Oled);
+	}
+}
+
 IntRange range(const Node& node, const MenuContext& ctx) {
 	// node.h:111-117's documented order: a dynamic hook, then the literal bounds a builder was
 	// given, then the legacy per-kind default.

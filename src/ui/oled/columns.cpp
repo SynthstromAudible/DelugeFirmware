@@ -482,6 +482,20 @@ void text_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 	const Rect b = slot_frame.bounds();
 	text(slot_frame, Rect{b.x, b.y + kHorizontalSlotYOffset, b.w, kTextSpacingY}, data->value,
 	     TextStyle{.font = slot_frame.style.row_font, .truncate = true});
+
+	if (data->strikethrough) {
+		// Transcribes `note::Fill::renderInHorizontalMenu`'s `NOT_FILL` arm
+		// (`gui/menu_item/note/fill.h:70-79`): `center_y = slot.start_y + kHorizontalMenuSlotYOffset
+		// + 4`, a line from `line_start_x = slot.start_x + 2` to `line_end_x = slot.start_x +
+		// slot.width - 4`, with the rows immediately above and below the line cleared first
+		// (legacy clears pixel by pixel; `clear` over a one-row span is the same effect).
+		const int32_t center_y = b.y + kHorizontalSlotYOffset + 4;
+		const int32_t x0 = b.x + 2;
+		const int32_t x1 = b.x + b.w - 4;
+		slot_frame.clear(Rect{x0, center_y - 1, x1 - x0 + 1, 1});
+		slot_frame.clear(Rect{x0, center_y + 1, x1 - x0 + 1, 1});
+		slot_frame.hline(center_y, x0, x1);
+	}
 }
 
 void submenu_column(OledFrame& slot_frame, bool /*focused*/, void* /*ctx*/) {

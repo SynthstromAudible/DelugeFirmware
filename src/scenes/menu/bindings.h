@@ -81,6 +81,19 @@ int32_t read(const Node& node, const MenuContext& ctx);
 /// @param value The new value, in menu units.
 void write(const Node& node, const MenuContext& ctx, int32_t value);
 
+/// @brief Commit an offset edit through `node.bind.adjust` (spec E-note-family §5.2).
+///
+/// Mirrors `write`'s `get`/`set` hook arm: call the hook, then raise `Dirty::Oled` -- the hook
+/// itself performs whatever model write legacy's `adjustVelocity`/`adjustProbability`/
+/// `adjustNoteIterance`/`adjustNoteFillWithOffset` did, so this layer knows only that something
+/// the OLED shows has changed. A node with no `bind.adjust` does nothing (`validate_tree` reports
+/// this arm being reached with `adjust == nullptr` as a table bug, not something to guess at here).
+///
+/// @param node   The item to write. `node.bind.adjust` must be set.
+/// @param ctx    What is being edited.
+/// @param offset The accumulated detents since the last commit.
+void adjust(const Node& node, const MenuContext& ctx, int32_t offset);
+
 /// @brief The bounds and coarse step @p node is edited inside.
 ///
 /// `bind.range(ctx)` if the node has one, else `bind.fixed_range` if it has one, else the legacy

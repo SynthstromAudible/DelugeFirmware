@@ -142,6 +142,69 @@ using RangeFn = IntRange (*)(const MenuContext&);
 using RelevantFn = bool (*)(const MenuContext&);
 using DynamicNamesFn = size_t (*)(const MenuContext&, std::span<std::string_view> out);
 
+/// @brief Commit an offset edit -- `Binding::adjust` (spec E-note-family §5.2).
+///
+/// The port of `instrumentClipView.adjustVelocity(offset)` and its three siblings (probability,
+/// iterance, fill, in both the note and note-row families): each moves every note under a
+/// zoomed-out square *relative to itself* (`gridSquareInfo[y][x].averageVelocity` is an average
+/// for that reason), so a value `set` would flatten several notes to one and there is no absolute
+/// value to write. `bindings::adjust` calls this with the turn the interpreter accumulated;
+/// `read` (`get`) stays the ordinary read, so the column still shows a real value between turns.
+///
+/// @param ctx    What is being edited.
+/// @param offset The accumulated detents since the last commit -- legacy's own `offset` argument
+///               to `adjustVelocity`/`adjustProbability`/`adjustNoteIterance`/
+///               `adjustNoteFillWithOffset`.
+using AdjustFn = void (*)(const MenuContext&, int32_t offset);
+
+/// @brief Which of `Binding::value_text`'s two callers is asking (spec §5.3).
+///
+/// Legacy's column and its notification are not always the same string -- probability's column
+/// reads `35%`/`35L` (`renderInHorizontalMenu`) where its notification reads `35%`/`35% ltch`
+/// (`getNotificationValue`) -- so the hook is told which one it is filling.
+enum class ValueTextUse : uint8_t { Column, Notification };
+
+/// @brief What a `ValueTextFn` wrote into its caller's buffer.
+struct ValueText {
+	/// @brief How many bytes of the hook's `out` argument, from its start, are the text.
+	size_t length = 0;
+	/// @brief Fill's strike-through (`gui/menu_item/note/fill.h:70-79`): draw the column's text
+	///        with a line through it. Meaningful only for `ValueTextUse::Column` -- legacy's
+	///        notification text is never struck, only the column glyph is.
+	bool strikethrough = false;
+};
+
+/// @brief Legacy's bespoke value strings -- `Binding::value_text` (spec §5.3).
+///
+/// The port of `getNotificationValue`/`renderInHorizontalMenu`'s own text arm, for the handful of
+/// items whose column and notification are not a plain formatted number: `35%`/`35% ltch` for
+/// probability, `3:4`/`OFF`/`CUSTOM` for iterance, `OFF`/`FILL` (struck through for `NOT_FILL`) for
+/// fill. `MenuScene::render_horizontal`'s column and `MenuScene::notify_column`'s banner both call
+/// this in place of `format_int`/`format_decimal` when it is set.
+///
+/// @param ctx   What is being edited.
+/// @param value The value to spell, in the node's own units (`bindings::read`'s answer).
+/// @param use   Which caller is asking.
+/// @param out   Where the text goes; written up to `out.size()` bytes.
+/// @return The text's length and (for `ValueTextUse::Column`) whether it draws struck through.
+using ValueTextFn = ValueText (*)(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+
+/// @brief Refuse an edit with legacy's own popup -- `Binding::permitted` (spec §5.3).
+///
+/// The port of `note::SelectedNote::shouldEnterSubmenu()`/`selectEncoderActionIsPermitted()`
+/// (`gui/menu_item/note/selected_note.h:29-39`), which pops "Select Note" and refuses when no note
+/// is selected, and `note_row::SelectedNoteRow`'s twin (`note_row/selected_note_row.h:34-40`),
+/// which pops "Select Row" unless auditioning. Both are also
+/// `MenuItem::selectEncoderActionIsPermitted()`, which `HorizontalMenu::selectEncoderAction`
+/// consults *before* editing and *before* notifying (`horizontal_menu.cpp:321-324`, ahead of the
+/// edit and the notification at `:326-328`) -- so a turn with nothing selected shows the popup and
+/// changes nothing. The hook raises the notice itself, as legacy's side effect does: the
+/// interpreter that calls this stages no value and raises no notification on a `false` answer.
+///
+/// @param ctx What is being edited.
+/// @return Whether the edit may proceed.
+using PermittedFn = bool (*)(const MenuContext& ctx);
+
 struct Node;
 using DynamicChildrenFn = size_t (*)(const MenuContext&, std::span<const Node*> out);
 
@@ -246,6 +309,25 @@ struct Binding {
 	/// 8 declares). Meaningful only for a `ParamRef` binding -- a `get`/`set` item that needs the
 	/// flag sets it in its own hook, as the sidechain attack/release/sync ones do.
 	bool updates_reverb_params = false;
+
+	/// @brief Write by offset rather than by value (spec E-note-family §5.2, `AdjustFn`'s own doc).
+	///
+	/// When set, the interpreter's edit path accumulates the select turn's detents rather than
+	/// computing `read + delta`, and commits through this instead of `set`: `read` (`get`) is
+	/// still the ordinary read, so the column keeps showing a real value between turns.
+	/// `validate_tree` reports a node that sets this with no `get` (`Flag::AdjustWithoutGet`) --
+	/// such a node would read through `param` and write through the hook, silently disagreeing
+	/// about where the value lives.
+	AdjustFn adjust = nullptr;
+
+	/// @brief Legacy's bespoke value text for this node's column and notification (spec §5.3,
+	///        `ValueTextFn`'s own doc). Null for every ordinary node, which keeps
+	///        `format_int`/`format_decimal`.
+	ValueTextFn value_text = nullptr;
+
+	/// @brief Refuse an edit with legacy's own popup (spec §5.3, `PermittedFn`'s own doc). Null for
+	///        every ordinary node, which is always permitted.
+	PermittedFn permitted = nullptr;
 };
 
 /// @brief Forward declared only -- see the file-level note. Defined alongside the interpreter's own
@@ -696,6 +778,30 @@ constexpr Node with_selection_is_toggle(Node n) {
 constexpr Node with_select_chain(Node n, SelectChainFn fn, std::span<const Node* const> targets) {
 	n.select_chain = fn;
 	n.chain_targets = targets;
+	return n;
+}
+
+/// @brief `n` with `bind.adjust` set -- a post-hoc modifier for the same reason
+///        `with_range_dependent` is one: only the eight offset-writing note leaves (spec
+///        E-note-family §5.2) set this, so the value-node builders keep their signatures.
+constexpr Node with_adjust(Node n, AdjustFn fn) {
+	n.bind.adjust = fn;
+	return n;
+}
+
+/// @brief `n` with `bind.value_text` set -- a post-hoc modifier for the same reason
+///        `with_range_dependent` is one: only the note family's bespoke-text leaves (spec §5.3)
+///        set this.
+constexpr Node with_value_text(Node n, ValueTextFn fn) {
+	n.bind.value_text = fn;
+	return n;
+}
+
+/// @brief `n` with `bind.permitted` set -- a post-hoc modifier for the same reason
+///        `with_range_dependent` is one: only the two "Select Note"/"Select Row" guards (spec
+///        §5.3) set this.
+constexpr Node with_permitted(Node n, PermittedFn fn) {
+	n.bind.permitted = fn;
 	return n;
 }
 

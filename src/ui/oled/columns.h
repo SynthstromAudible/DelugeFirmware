@@ -239,10 +239,14 @@ void meter_column(OledFrame& slot_frame, bool focused, void* ctx);
 ///       (the caller formats the number; this just draws text).
 struct TextColumn {
 	std::string_view value;
+	/// @brief Draw `value` with a line through it -- `note::Fill::renderInHorizontalMenu`'s
+	///        `NOT_FILL` arm (`gui/menu_item/note/fill.h:70-79`), the only legacy caller of this.
+	///        Every other `text_column` use leaves it false.
+	bool strikethrough = false;
 };
 
 /// @brief `Column::render` that draws `ctx` (a `TextColumn`) centred across the region, trimmed to
-///        fit, in the row face.
+///        fit, in the row face -- and, when `strikethrough` is set, a line through it.
 ///
 /// @param slot_frame Value-region frame to draw into.
 /// @param focused    Whether this column currently has focus.
