@@ -774,7 +774,7 @@ Expected: green, identical across runs, fixtures untouched. Read every new panel
 
 Revert one at a time, rebuild, run `ctest --test-dir build-sim -R ui_app_scripts_menu_ab`, restore:
 - (a) make KIT do nothing in `MenuScene::handle` → must fail naming the snapshot of step 2;
-- (b) make `note_probability`'s column `value_text` return the bare number → must fail naming the snapshot of step 3.
+- (b) make `note_editor_probability`'s column `value_text` return the bare number → must fail naming the snapshot of step 3.
 
 Record each checker's exact output. Check `git status` before each restore.
 
