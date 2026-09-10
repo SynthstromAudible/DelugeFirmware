@@ -4,7 +4,7 @@
 ///        directly on the host -- no `deluge_main()`, no UI, no SD card.
 ///
 /// **Why direct construction and not the loadcheck shape** (task-3 ruling 1): the legacy bring-up
-/// that precedes a song, `deluge_boot()` (`src/deluge/deluge.cpp:637`), is almost entirely device
+/// that precedes a song, `deluge_boot()` (`src/deluge/deluge.cpp:638`), is almost entirely device
 /// bring-up -- OLED probe, control surface, CV DAC, USB host/peripheral, PIC boot info -- and it
 /// ends by calling `setupBlankSong()` (`:746`), whose song is built out of `Song`'s own members
 /// plus `Song::ensureAtLeastOneSessionClip()` (`model/song/song.cpp:337`). Only two things in that
@@ -74,7 +74,7 @@ inline Song* make_bare_song() {
 	GlobalEffectable::initParams(&song->paramManager);
 	song->setupDefault();
 
-	// `deluge.cpp:390`. The scenes layer itself never reads this global (`context.cpp` takes a
+	// `deluge.cpp:391`. The scenes layer itself never reads this global (`context.cpp` takes a
 	// `Song&`), but the model does, unguarded, in places a spec's writes can reach --
 	// `modulation/params/param.cpp:71`, `modulation/params/param_set.cpp:414`, the `getCurrent*()`
 	// helpers at `model/song/song.cpp:90-136`. Leaving it null would make those a latent crash for

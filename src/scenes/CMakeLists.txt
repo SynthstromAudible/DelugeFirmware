@@ -35,6 +35,7 @@ add_library(deluge_scenes STATIC
     menu/context.cpp
     menu/menu_scene.cpp
     menu/node_id.cpp
+    menu/note_bridge.cpp
     menu/relevance.cpp
     menu/shortcuts.cpp
     menu/validate.cpp

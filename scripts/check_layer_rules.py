@@ -332,6 +332,19 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",
     "src/deluge/gui/menu_item/performance_session_view/editing_mode.h",
+    # This plan's task 4: the note bridge's installer. `src/scenes` may not include
+    # `gui/views/instrument_clip_view.h`, so this is the side of the wall that gets to name
+    # `instrumentClipView` itself, `Note`/`NoteRow` (`model/note/`) and the iterance preset table,
+    # `iterancePresets` (`util/lookuptables/lookuptables.cpp:508`) -- for the same reason
+    # `shell_pad_forward.cpp` above gets to name `instrumentClipView`/`keyboardScreen`/
+    # `performanceView`: this is the side of the wall that gets to name them. It names
+    # `deluge::scenes::menu::NoteBridge` and `deluge::scenes::menu::set_note_bridge`
+    # (`scenes/menu/note_bridge.h`) to install the function pointers those legacy names sit behind.
+    # Its HEADER (`shell_note_bridge.h`) is deliberately NOT listed: it names no `scenes/` type,
+    # only the no-arguments `wireShellNoteBridge()` that installs the bridge, so this seam too is
+    # one translation unit wide -- exactly the line `shell_choice_dispatch.h` and
+    # `shell_pad_forward.h` draw above.
+    "src/deluge/gui/ui/shell_note_bridge.cpp",
 )
 
 RULES = [
