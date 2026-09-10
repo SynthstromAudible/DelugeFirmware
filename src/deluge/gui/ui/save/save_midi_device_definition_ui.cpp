@@ -139,14 +139,6 @@ void SaveMidiDeviceDefinitionUI::afterStagedSave(const deluge::storage::SaveRequ
 	close();
 }
 
-bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
-	// Never reached. SaveUI::dispatchSave() sends a staged save down the staged path and never calls
-	// performSave(); this save's checks are beforeStagedWrite() and its follow-up afterStagedSave().
-	// Leaving them duplicated here is how they came to run nowhere at all after staging.
-	(void)mayOverwrite;
-	return false;
-}
-
 ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 

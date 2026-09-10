@@ -138,11 +138,13 @@ void runTick() {
 		break;
 	}
 	case Stage::SaveWait: {
-		// The save is dispatched onto the storage owner, so the file appears on a LATER tick than the
-		// gesture. Wait for it rather than reading one tick later and calling its absence a failure.
-		// One tick is enough now that dispatch_step() waits for the owner queue to drain, but the
-		// bound stays: a save that never lands must end the run with a report, not a timeout.
-		if (fileExists(kSavePath) || ++g_saveTicks > kMaxSaveTicks) {
+		// Wait for the save to FINISH, not merely for its file to appear. A song save writes its file,
+		// then reads it back, then finishes -- and the finish closes the save screen. Moving on at the
+		// first sight of the file started the load while that close() was still to come, and it then
+		// indexed off the end of a UI stack the load had already rearranged. The bound stays: a save
+		// that never lands must end the run with a report, not a timeout.
+		const bool saveIdle = !saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight();
+		if ((saveIdle && fileExists(kSavePath)) || ++g_saveTicks > kMaxSaveTicks) {
 			g_stage = Stage::SaveCheck;
 		}
 		break;

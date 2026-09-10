@@ -29,7 +29,6 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
 	void endSession() {};
-	bool performSave(bool mayOverwrite) override;
 	bool serializeForSave(XMLSerializer& into) override;
 	[[nodiscard]] bool savesStagedDocument() const override { return true; }
 	void afterStagedSave(const deluge::storage::SaveRequest& request) override;

@@ -88,6 +88,7 @@ enum class Stage : uint8_t {
 	ParseCheck,
 	Reopen,
 	SaveSecond,
+	SaveSecondWait,
 	SaveSecondCheck,
 	Confirm,
 	ConfirmWait,
@@ -340,7 +341,23 @@ void runTick() {
 	case Stage::SaveSecond: {
 		SongSaveChannelProbe::typeName(kSaveName);
 		SongSaveChannelProbe::pressEnter();
-		g_stage = Stage::SaveSecondCheck;
+		g_waitTicks = 0;
+		g_stage = Stage::SaveSecondWait;
+		break;
+	}
+	case Stage::SaveSecondWait: {
+		// The existence answer lands on a LATER tick than the key press. This check used to read the
+		// prompt straight away, which held only while the check ran synchronously through the owner
+		// queue that every harness step drains.
+		if (saveMachineryIdle()) {
+			g_stage = Stage::SaveSecondCheck;
+			break;
+		}
+		if (++g_waitTicks > kMaxWaitTicks) {
+			printf("SS-INTACT FAIL the occupied save never answered (%d ticks)\n", g_waitTicks);
+			g_failures++;
+			g_stage = Stage::Report;
+		}
 		break;
 	}
 	case Stage::SaveSecondCheck: {

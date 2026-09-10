@@ -265,111 +265,181 @@ bool SaveSongUI::planTransfers(std::vector<PlannedTransfer>& into, bool collecti
 	return true;
 }
 
-bool SaveSongUI::performSave(bool mayOverwrite) {
-	noteSaveTier();
-
-	// Diagnostic only, not a hard invariant (see docs/dev/sd_busy_audit.md, save_song_ui.cpp): this
-	// used to FREEZE_WITH_ERROR("E316") here, back when sd_busy() was permanently false and the check
-	// could never fire. No comment or invariant here ever explained *why* entering performSave() while
-	// busy would be unsafe, and none was found -- sd_busy() being true at this exact instant is
-	// orthogonal to any hazard at this call site. Log it rather than crash a beta build over what is
-	// ordinary scheduling coincidence.
-	//
-	// This comment used to go on to say performSave is not owner-dispatched, so its FS calls run off
-	// the worker fiber where the efatfs C-ABI rejects them outright, and that the resulting
-	// "fileExists silently reads as absent" was a separate tracked gap. Both halves are now stale:
-	// performSave IS dispatched onto the storage owner, and that gap was the conflation this rung
-	// closed -- the two existence checks go through save_action(), which refuses rather than
-	// treating an unanswerable card as an absent file.
-	if (ALPHA_OR_BETA_VERSION && deluge::sync::sd_busy()) {
-		D_PRINTLN("performSave: sd_busy() was true on entry (see sd_busy_audit.md)");
-	}
-
+bool SaveSongUI::beginUnstagedSave(const deluge::storage::SaveRequest& request) {
 	if (currentSong->hasAnyPendingNextOverdubs()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OVERDUBS_PENDING));
 		return false;
 	}
-
 	display->displayLoadingAnimationText("Saving");
 
-	std::string filePath = getCurrentFilePath();
-	Error error = Error::NONE;
-	if (error != Error::NONE) {
-gotError:
-		display->removeLoadingAnimation();
-		display->displayError(error);
-		return false;
+	// The target name is checked on a later tick, off the storage owner. Nothing is planned and no
+	// sample is copied until the answer says the name may be written: the collection copies media into
+	// the new song's folder BEFORE the document is written, so learning at the write that the name was
+	// taken would be too late.
+	existsRequest_ = request;
+	ownerExistsDispatched_ = false;
+	ownerExistsDone_ = false;
+	collectStallTicks_ = 0;
+	collectPhase_ = CollectPhase::EXISTS;
+	return true;
+}
+
+void SaveSongUI::runExistsPhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	const char* path = existsRequest_.filePath.c_str();
+	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+
+	if (onOwner) {
+		// Blocking is legal here, and a channel request issued from a context that will not yield could
+		// never be answered.
+		++documentOwnerServedOps_;
+		++documentSteps_;
+		resolveExists(StorageManager::fileExists(path));
+		return;
 	}
 
-	// `fileAlreadyExisted` still drives the unlink-and-rename tail below, so it is derived from the
-	// same check rather than deleted: Occupied and a confirmed overwrite both mean a file is there.
-	bool fileAlreadyExisted = false;
-	switch (deluge::storage::save_action(StorageManager::fileExists(filePath.c_str()), mayOverwrite)) {
+	if (!deluge_file_bytes_async_active()) {
+		// No channel: the question goes to the owner, which may block, as the startup fail-safe does it.
+		if (ownerExistsDone_) {
+			ownerExistsDone_ = false;
+			ownerExistsDispatched_ = false;
+			resolveExists(ownerExistsPresence_);
+			return;
+		}
+		if (!ownerExistsDispatched_) {
+			if (!deluge::storage::Owner::run(&SaveSongUI::runExistsOnOwner, this)) {
+				if (!deferCollection()) {
+					abandonExists();
+				}
+				return;
+			}
+			ownerExistsDispatched_ = true;
+			collectStallTicks_ = 0;
+			return;
+		}
+		if (!deferCollection()) {
+			abandonExists();
+		}
+		return;
+	}
+
+	++offOwnerDocumentTicks_;
+	bool present = false;
+	DelugeStatus status = DELUGE_OK;
+	switch (deluge::storage::bytes::collectExists(path, &present, &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestExists(path) == ByteIo::Failed) {
+			// A path the channel cannot key will never be answered: "could not tell", which is refused.
+			resolveExists(std::unexpected(deluge::io::Status::PARAM));
+			return;
+		}
+		if (!deferCollection()) {
+			abandonExists();
+		}
+		return;
+	case ByteIo::Pending:
+		if (!deferCollection()) {
+			abandonExists();
+		}
+		return;
+	case ByteIo::Failed:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		// NOT absence. save_action() refuses an undeterminable answer rather than writing over a file
+		// whose absence was never confirmed.
+		resolveExists(std::unexpected(deluge::io::to_status(status)));
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		resolveExists(std::expected<bool, deluge::io::Status>(present));
+		return;
+	}
+}
+
+void SaveSongUI::runExistsOnOwner(void* self) {
+	auto* ui = static_cast<SaveSongUI*>(self);
+	++documentOwnerServedOps_;
+	++documentSteps_;
+	ui->ownerExistsPresence_ = StorageManager::fileExists(ui->existsRequest_.filePath.c_str());
+	ui->ownerExistsDone_ = true;
+}
+
+void SaveSongUI::abandonExists() {
+	collectPhase_ = CollectPhase::NONE;
+	display->removeLoadingAnimation();
+	display->displayError(Error::SD_CARD);
+	endUnstagedDispatch(existsRequest_, false);
+}
+
+void SaveSongUI::resolveExists(const std::expected<bool, deluge::io::Status>& presence) {
+	collectStallTicks_ = 0;
+	// By value: the dispatch ends below, and ending it may start another save that reuses the member.
+	const deluge::storage::SaveRequest request = existsRequest_;
+
+	switch (deluge::storage::save_action(presence, request.mayOverwrite)) {
 	case deluge::storage::SaveAction::Refuse:
 		// The card did not answer. Writing here would overwrite a file whose absence was never
 		// confirmed -- see existence_policy.h. Write nothing.
-		error = Error::SD_CARD;
-		goto gotError;
+		collectPhase_ = CollectPhase::NONE;
+		display->removeLoadingAnimation();
+		display->displayError(Error::SD_CARD);
+		endUnstagedDispatch(request, false);
+		return;
 	case deluge::storage::SaveAction::Occupied:
-		fileAlreadyExisted = true;
+		collectPhase_ = CollectPhase::NONE;
 		context_menu::overwriteFile.currentSaveUI = this;
 		if (!context_menu::overwriteFile.setupAndCheckAvailability()) { // Always available.
-			error = Error::UNSPECIFIED;
-			goto gotError;
+			display->removeLoadingAnimation();
+			display->displayError(Error::UNSPECIFIED);
+			endUnstagedDispatch(request, false);
+			return;
 		}
 		display->removeWorkingAnimation();
 		openUI(&context_menu::overwriteFile);
-		return true;
+		endUnstagedDispatch(request, true);
+		return;
 	case deluge::storage::SaveAction::Write:
-		// Write covers both "nothing there" and "the user confirmed an overwrite"; only the latter
-		// has a file to unlink afterwards.
-		fileAlreadyExisted = mayOverwrite;
 		break;
 	}
 
-	// We might want to copy some samples around - either because we're "collecting" them to a folder, or because they
-	// were loaded in from a collected folder and we now need to put them in the main samples folder.
-
-	// Create sample dir
+	// We might want to copy some samples around - either because we're "collecting" them to a folder, or
+	// because they were loaded in from a collected folder and we now need to put them in the main samples folder.
 	std::string newSongAlternatePath;
-
-	error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.c_str(), enteredText.c_str());
+	Error error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, request.dirPath.c_str(),
+	                                                          request.enteredText.c_str());
+	if (error == Error::NONE) {
+		newSongAlternatePath.append("/");
+		const int32_t dirPathLengthNew = static_cast<int32_t>(newSongAlternatePath.size());
+		// Decide everything first, then perform it a tick at a time. The list of audio files is sorted by
+		// path and searched by bisection, and the transfers rewrite paths -- so nothing is applied until
+		// every transfer has finished.
+		transfers_.clear();
+		if (!planTransfers(transfers_, request.collectingSamples, newSongAlternatePath, dirPathLengthNew)) {
+			error = Error::UNSPECIFIED;
+		}
+	}
 	if (error != Error::NONE) {
-		goto gotError;
+		collectPhase_ = CollectPhase::NONE;
+		display->removeLoadingAnimation();
+		display->displayError(error);
+		endUnstagedDispatch(request, false);
+		return;
 	}
 
-	newSongAlternatePath.append("/");
-	int32_t dirPathLengthNew = newSongAlternatePath.size();
-
-	// Decide everything first, then perform it a tick at a time. The list of audio files is sorted by
-	// path and searched by bisection, and the transfers below rewrite paths -- so nothing is applied
-	// until every transfer has finished.
-	transfers_.clear();
-	if (!planTransfers(transfers_, collectingSamples, newSongAlternatePath, dirPathLengthNew)) {
-		error = Error::UNSPECIFIED;
-		goto gotError;
-	}
-
-	// Everything the continuation needs once the transfers are done. They were locals; the save no
-	// longer finishes inside this call, so they have to outlive it.
-	pendingFilePath_ = filePath;
-	pendingFileAlreadyExisted_ = fileAlreadyExisted;
+	// Write covers both "nothing there" and "the user confirmed an overwrite"; only the latter has a file
+	// to unlink afterwards.
+	pendingFilePath_ = request.filePath;
+	pendingFileAlreadyExisted_ = request.mayOverwrite;
 	anyErrorMovingTempFiles_ = false;
 	transferCursor_ = 0;
 	renameIssued_ = false;
 	copyIssued_ = false;
 	renameSucceeded_ = true;
-	collectStallTicks_ = 0;
 	collectPhase_ = CollectPhase::TRANSFER;
-
-	// The transfers are NOT started here, and that is the point. This function runs on the storage
-	// owner, so a transfer attempted from it would take the owner arm and copy synchronously -- the
-	// exact thing this rung exists to stop. The repeating save task picks the collection up on its
-	// next pass, off the owner, which costs one tick and buys the whole relocation.
-	//
-	// Returning "dealt with" is the same answer this function already gives when it opens the
-	// overwrite prompt instead of finishing.
-	return true;
+	// "Dealt with", the answer performSave gave once it had started the collection.
+	endUnstagedDispatch(request, true);
 }
 
 namespace {
@@ -381,6 +451,9 @@ constexpr int32_t kMaxCollectStallTicks = 600;
 void SaveSongUI::collectRoutine() {
 	switch (collectPhase_) {
 	case CollectPhase::NONE:
+		return;
+	case CollectPhase::EXISTS:
+		runExistsPhase();
 		return;
 	case CollectPhase::TRANSFER:
 		runTransferPhase();

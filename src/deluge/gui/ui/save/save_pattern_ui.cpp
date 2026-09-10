@@ -136,14 +136,6 @@ void SavePatternUI::afterStagedSave(const deluge::storage::SaveRequest& /*reques
 	close();
 }
 
-bool SavePatternUI::performSave(bool mayOverwrite) {
-	// Never reached. SaveUI::dispatchSave() sends a staged save down the staged path and never calls
-	// performSave(); this save's checks are beforeStagedWrite() and its follow-up afterStagedSave().
-	// Leaving them duplicated here is how they came to run nowhere at all after staging.
-	(void)mayOverwrite;
-	return false;
-}
-
 bool SavePatternUI::serializeForSave(XMLSerializer& into) {
 	instrumentClipView.copyNotesToFile(into, selectedDrumOnly);
 	return true;

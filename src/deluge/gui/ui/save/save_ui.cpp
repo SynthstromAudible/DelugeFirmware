@@ -188,9 +188,10 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 		return true;
 	}
 
-	if (!deluge::storage::Owner::run_or_inline(&SaveUI::runSaveOp, this)) {
-		saveInFlight_ = false; // the op never ran; release, or every later save is refused forever
-		return false;
+	// Every save that is not a staged document -- the song save -- starts here, on the interaction
+	// tier, and resolves over later ticks. None of it waits on the storage owner.
+	if (!beginUnstagedSave(request)) {
+		endUnstagedDispatch(request, false);
 	}
 	return true;
 }
@@ -551,19 +552,13 @@ void SaveUI::endStagedSave(bool succeeded) {
 	runFinishPhase();
 }
 
-void SaveUI::runSaveOp(void* self) {
-	auto* ui = static_cast<SaveUI*>(self);
-	// By value: the completion still needs the request after the guard below is released, and a
-	// later dispatch may overwrite the slot a reference would point into.
-	const deluge::storage::SaveRequest request = inFlightRequest_;
-
-	const bool succeeded = ui->performSave(request.mayOverwrite);
-
+void SaveUI::endUnstagedDispatch(const deluge::storage::SaveRequest& request, bool succeeded) {
+	// By value: the caller may pass a reference into state a completion is about to overwrite.
+	const deluge::storage::SaveRequest ended = request;
 	// Release BEFORE the completion: a completion may legitimately start another save (confirming
-	// the overwrite prompt is one), and it must not be refused by this op's own guard.
+	// the overwrite prompt is one), and it must not be refused by this save's own guard.
 	saveInFlight_ = false;
-
-	ui->runSaveCompletion(request, succeeded);
+	runSaveCompletion(ended, succeeded);
 }
 
 // Runs the follow-up for whichever caller dispatched this save. Every arm runs ON THE OWNER, which

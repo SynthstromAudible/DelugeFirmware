@@ -87,14 +87,6 @@ void SaveKitRowUI::onBrowserOpened() {
 	focusRegained();
 }
 
-bool SaveKitRowUI::performSave(bool mayOverwrite) {
-	// Never reached. SaveUI::dispatchSave() sends a staged save down the staged path and never calls
-	// performSave(); this save's checks are beforeStagedWrite() and its follow-up afterStagedSave().
-	// Leaving them duplicated here is how they came to run nowhere at all after staging.
-	(void)mayOverwrite;
-	return false;
-}
-
 bool SaveKitRowUI::beforeStagedWrite(const deluge::storage::SaveRequest& request) {
 	// We can't save into this slot if another Instrument in this Song already uses it
 	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, request.enteredText.c_str(),

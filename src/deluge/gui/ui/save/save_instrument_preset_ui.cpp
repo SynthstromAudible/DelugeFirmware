@@ -143,14 +143,6 @@ void SaveInstrumentPresetUI::onBrowserOpened() {
 	}
 }
 
-bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
-	// Never reached. SaveUI::dispatchSave() sends a staged save down the staged path and never calls
-	// performSave(); this save's checks are beforeStagedWrite() and its follow-up afterStagedSave().
-	// Leaving them duplicated here is how they came to run nowhere at all after staging.
-	(void)mayOverwrite;
-	return false;
-}
-
 /*
 void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 

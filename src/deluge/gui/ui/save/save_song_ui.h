@@ -18,7 +18,10 @@
 #pragma once
 
 #include "gui/ui/save/save_ui.h"
+#include "io/file.hpp"
 #include "storage/readback_check.h"
+#include "storage/save_dispatch.h"
+#include <expected>
 
 class AudioFile;
 #include <string>
@@ -35,7 +38,8 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	// void selectEncoderAction(int8_t offset);
-	bool performSave(bool mayOverwrite = false) override;
+	/// @brief Start a song save: check the target name off the storage owner, then plan and collect.
+	[[nodiscard]] bool beginUnstagedSave(const deluge::storage::SaveRequest& request) override;
 
 	/// @brief What one AudioFile needs done, decided but not yet performed.
 	///
@@ -133,10 +137,13 @@ public:
 private:
 	/// Which part of a sample collection runs next.
 	///
+	/// The song save's work before its document write: the existence check on the target name, then
+	/// the sample collection.
 	/// Separate from SaveUI::SavePhase deliberately: the song save's flow differs enough that one
 	/// shared enum would make both harder to read.
 	enum class CollectPhase : uint8_t {
 		NONE,     ///< No collection in flight.
+		EXISTS,   ///< Asking whether the target name is taken, before anything is planned or copied.
 		TRANSFER, ///< Moving and copying, one entry at a time.
 		APPLY,    ///< Writing the decided paths back, in one step.
 		FINISH,   ///< Handing the save on to the document machine.
@@ -158,6 +165,14 @@ private:
 		FINISH,    ///< Closing the save and reporting to the user.
 	};
 
+	/// @brief Resolve the target-name existence check by one step.
+	void runExistsPhase();
+	/// @brief Act on a known existence answer: refuse, prompt, or plan and start the collection.
+	void resolveExists(const std::expected<bool, deluge::io::Status>& presence);
+	/// @brief End an existence check that stopped making progress, failing the dispatch.
+	void abandonExists();
+	/// @brief The owner-side existence check, for builds without the byte channel.
+	static void runExistsOnOwner(void* self);
 	void runTransferPhase();
 	void applyTransfers();
 	/// @brief End the collection having applied NOTHING, and fail the save.
@@ -269,6 +284,13 @@ private:
 	/// Locals the save used to keep on its stack. It no longer finishes inside one call.
 	std::string pendingFilePath_;
 	bool pendingFileAlreadyExisted_{};
+	/// The dispatch this song save is resolving. Held from beginUnstagedSave() until the existence
+	/// answer ends it, because the answer arrives on a later tick than the request.
+	deluge::storage::SaveRequest existsRequest_{};
+	bool ownerExistsDispatched_{};
+	bool ownerExistsDone_{};
+	/// The owner arm's answer, in the shape save_action() takes.
+	std::expected<bool, deluge::io::Status> ownerExistsPresence_{false};
 	bool anyErrorMovingTempFiles_{};
 
 	static inline int32_t transferChannelServedOps_{};

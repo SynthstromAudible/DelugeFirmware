@@ -93,6 +93,7 @@ enum class Stage : uint8_t {
 	LoadBackWait,
 	Reopen,
 	SaveSecond,
+	SaveSecondWait,
 	SaveSecondCheck,
 	Confirm,
 	ConfirmWait,
@@ -354,7 +355,23 @@ void runTick() {
 		// every name-derived field identical, and makes this the occupied-prompt case too.
 		SaveRoundtripProbe::typeName(kSaveName);
 		SaveRoundtripProbe::pressEnter();
-		g_stage = Stage::SaveSecondCheck;
+		g_saveWaitTicks = 0;
+		g_stage = Stage::SaveSecondWait;
+		break;
+	}
+	case Stage::SaveSecondWait: {
+		// The existence answer lands on a LATER tick than the key press. This check used to read the
+		// prompt straight away, which held only while the check ran synchronously through the owner
+		// queue that every harness step drains.
+		if (saveMachineryIdle()) {
+			g_stage = Stage::SaveSecondCheck;
+			break;
+		}
+		if (++g_saveWaitTicks > kMaxSaveWaitTicks) {
+			printf("SR-SEAM FAIL the occupied save never answered (%d ticks)\n", g_saveWaitTicks);
+			g_failures++;
+			g_stage = Stage::Tier;
+		}
 		break;
 	}
 	case Stage::SaveSecondCheck: {

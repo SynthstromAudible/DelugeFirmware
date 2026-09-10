@@ -28,8 +28,6 @@ public:
 	SaveUI();
 	bool opened() override;
 
-	virtual bool performSave(bool mayOverwrite = false) = 0; // Returns true if success, or if otherwise dealt with
-	                                                         // (e.g. "overwrite" context menu brought up)
 	void focusRegained() override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
@@ -50,30 +48,40 @@ protected:
 	/// The song-load channel gate saves a song to load back, and drives the same real gesture for the
 	/// same reason: a save made by calling performSave() directly would not be the save a user makes.
 	friend class SongLoadChannelProbe;
+	/// @brief End an unstaged save's dispatch: release the single-flight guard, then run the completion.
+	///
+	/// The guard is released FIRST because a completion may legitimately start another save --
+	/// confirming the overwrite prompt is one -- and it must not be refused by this save's own guard.
+	void endUnstagedDispatch(const deluge::storage::SaveRequest& request, bool succeeded);
+
 	/// The document-save channel gate drives the same real gesture, for the same reason.
 	friend class DocumentSaveChannelProbe;
 	/// The song-save channel gate drives the same real gesture, for the same reason.
 	friend class SongSaveChannelProbe;
 
 public:
-	/// @brief Dispatch one save onto the storage owner.
+	/// @brief Start one save.
 	///
 	/// @note Save does NOT coalesce. A second save arriving while one is in flight is REFUSED, not
 	///       queued and not superseded: LatestWins silently drops the middle of three rapid
 	///       requests, which for a repaint is fine and for a save is a lost file.
 	///
 	/// @param request The snapshot; see SaveRequest.
-	/// @return true if the save was dispatched (or ran inline); false if one was already in flight
-	///         or the owner queue was full, in which case nothing was written.
+	/// @return true if the save was started, or ended at once having been dealt with; false only if a
+	///         save was already in flight, in which case nothing was written.
 	[[nodiscard]] bool dispatchSave(const deluge::storage::SaveRequest& request);
 
-	/// @brief The dispatched save op: runs performSave() on the owner, then the caller's completion.
-	/// @param self The SaveUI instance.
-	static void runSaveOp(void* self);
+	/// @brief Start a save that is not a staged document -- the song save.
+	///
+	/// Runs on the interaction tier and must not block: anything that needs the card resolves on later
+	/// ticks and ends the dispatch with endUnstagedDispatch().
+	/// @param request The dispatched save.
+	/// @return false to end the dispatch as failed immediately.
+	[[nodiscard]] virtual bool beginUnstagedSave(const deluge::storage::SaveRequest& /*request*/) { return false; }
 
-	/// @brief Runs one save's caller-specific follow-up, on the owner.
-	/// @param request   The snapshot the op ran on.
-	/// @param succeeded What performSave() returned.
+	/// @brief Runs one save's caller-specific follow-up, on the interaction tier.
+	/// @param request   The snapshot the save ran on.
+	/// @param succeeded Whether the save succeeded or was otherwise dealt with (the overwrite prompt opening).
 	void runSaveCompletion(const deluge::storage::SaveRequest& request, bool succeeded);
 
 	/// @brief `collectingSamples` for the snapshot. SaveSongUI owns the flag; the base builds the
