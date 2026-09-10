@@ -761,7 +761,7 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		// `SoundEditor::potentialShortcutPadAction`'s gate (`gui/ui/sound_editor.cpp:1169-1186`),
 		// minus two halves that stay on legacy's side (M1: this comment used to name only the
 		// first). One is `isUIModeActive(UI_MODE_AUDITIONING)`, which `MenuScene` already drops
-		// with the reason recorded (`scenes/menu/menu_scene.cpp:1627-1630`). The other is the
+		// with the reason recorded (`scenes/menu/menu_scene.cpp:2015-2018`). The other is the
 		// automation-view interpolation carve-out, `getRootUI() == &automationView && x == 0 &&
 		// (y == 6 || y == 7)` (`:1174-1177`), which exempts those two pads from claiming a shortcut
 		// jump at all -- `src/scenes` cannot ask `getRootUI()`'s identity, so `MenuScene` claims

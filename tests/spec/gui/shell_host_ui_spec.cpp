@@ -90,7 +90,7 @@ public:
 	Result handle(const UiEvent& ev, const UiContext& ctx) override {
 		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
 		if (remove_self_on_event) {
-			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:2005`),
+			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:2073`),
 			// reduced to the one thing this suite is about: a scene that takes itself off the
 			// stack from inside `Shell::tick`'s routing. Off by default so every other example
 			// keeps the delivery-only behaviour below.
@@ -724,7 +724,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		expect(r.open()).to_be_true();
 
-		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h:502`), and
+		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h:508`), and
 		// `SoundEditor::canSeeViewUnderneath()` is true (`gui/ui/sound_editor.h:121`) -- the guest
 		// has to land on legacy's answer, because `UI::graphicsRoutine` runs the root view's
 		// animation only while it does (`gui/ui/ui.cpp:47-51`).
@@ -2030,7 +2030,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.led_declared = true;
 		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
 		// The same shape `MenuScene::leds` declares for BACK and LEARN
-		// (`scenes/menu/menu_scene.cpp:1379`, `:1386`): a plain blink, no deadline.
+		// (`scenes/menu/menu_scene.cpp:1386`, `:1393`): a plain blink, no deadline.
 		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
 		expect(r.open()).to_be_true();
 

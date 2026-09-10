@@ -368,6 +368,10 @@ void MenuScene::retarget(const Node& node) {
 	st_.value_node = nullptr;
 	st_.back_claimed = false;
 	st_.column_press = false;
+	// Same reason as the three siblings above: an offset staged for the abandoned path has nothing
+	// left to commit through once `value_node` is gone, and a stale one would otherwise double up
+	// with whatever a fresh turn on the new path accumulates next (fix round 1, Important 1).
+	st_.edit_offset = 0;
 	// A pending range belongs to the item that asked for one; re-rooting the path abandons that
 	// item, so the request goes with it rather than surviving to mislead E2's picker.
 	st_.range_picker_pending = false;
@@ -513,6 +517,9 @@ void MenuScene::on_resume() {
 	st_.value_node = nullptr;
 	st_.back_claimed = false;
 	st_.column_press = false;
+	// An offset staged for a render pass that never happened is not a live edit either (fix round
+	// 1, Important 1) -- see `retarget`'s identical reset for the full reasoning.
+	st_.edit_offset = 0;
 }
 
 bool MenuScene::reroot_to_scene_opener_page() {
@@ -1858,6 +1865,12 @@ Result MenuScene::after_render() {
 	st_.value_node = nullptr;
 	st_.back_claimed = false;
 	st_.column_press = false;
+	// `commit_value` already clears this on the ordinary path (staged and committed inside this
+	// same call), so this is a backstop rather than the usual writer: any tick that reaches here
+	// without having committed -- because `value_changed` was never set, or because some earlier
+	// return in this function skipped the commit block above -- must not let an offset survive
+	// into a later tick's accumulation (fix round 1, Important 1).
+	st_.edit_offset = 0;
 	return r;
 }
 

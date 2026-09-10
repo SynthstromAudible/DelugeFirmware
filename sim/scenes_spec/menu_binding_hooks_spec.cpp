@@ -252,7 +252,9 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		expect(g_adjust_last_offset).to_equal(3);
 	});
 
-	it("a select turn on a permitted-false node changes nothing and calls neither adjust nor set", _ {
+	it("a select turn on a permitted-false node changes nothing, calls neither adjust nor set, "
+	   "and raises no notification",
+	   _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -262,8 +264,17 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		g_permit_get_value = 5;
 		g_permit_set_calls = 0;
 
+		(void)last_notice(); // drain
 		r.turn(2, 10);
 		r.shell.tick(20);
+
+		// Read right here, before any further tick: `Shell::tick` drains `notify::notices()` at
+		// the *start* of the next tick (`shell.cpp:327`), so a second tick before this read would
+		// silently eat any notice raised at the tick above, whether or not one actually was --
+		// making the assertion pass either way. `menu_horizontal_controls_spec.cpp`'s "a select
+		// turn on a focused submenu column does nothing" example names the same trap (fix round 1,
+		// Important 2).
+		expect(last_notice().empty()).to_be_true();
 
 		expect(g_permit_get_value).to_equal(5);
 		expect(g_permit_set_calls).to_equal(0);
