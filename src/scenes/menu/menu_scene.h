@@ -37,6 +37,7 @@
 #include "ui/core/response.h"
 #include "ui/core/state.h"
 #include "ui/grid/effects.h"
+#include "ui/oled/columns.h"
 
 #include <cstdint>
 #include <optional>
@@ -68,6 +69,14 @@ inline constexpr size_t kMaxMenuChildren = kMaxDynamicChildren;
 ///        and a `Column` may claim several, so sixteen is well past any real page
 ///        (`horizontal_menu.cpp:477`'s `preparePaging`).
 inline constexpr size_t kMaxMenuColumns = 16;
+
+/// @brief The debounce shared by SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page --
+///        `HorizontalMenu::buttonAction`'s `navigation_buttons_debounce_threshold`
+///        (`horizontal_menu.cpp:78`), 0.14 s as milliseconds. A press is accepted only when
+///        strictly more time than this has passed since the last accepted one
+///        (`MenuState::nav_press_ms`), matching legacy's `time - last > threshold` (`:81-82`)
+///        rather than `>=`.
+inline constexpr uint32_t kNavButtonDebounceMs = 140;
 
 /// @brief The two phases of `render_grid`'s shortcut-blink cycle, in milliseconds.
 ///
@@ -201,6 +210,15 @@ struct MenuState {
 	/// other pad clears it. `handle()` is the only writer.
 	bool second_layer = false;
 
+	/// The `now_ms` of the last accepted SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE press -- legacy's
+	/// `last_navigation_buttons_press_time`, a `static double` shared by all six buttons
+	/// (`gui/menu_item/horizontal_menu.cpp:77`). `handle()`'s button arm is the only writer,
+	/// updated only on a press it accepts (`kNavButtonDebounceMs` below governs the accept test),
+	/// exactly where legacy's own assignment sits (`:100`, after the two `if` arms and before
+	/// returning `DEALT_WITH`). Zero-initialised, matching legacy's own `0.0`, so the first press
+	/// of a session is always accepted.
+	uint32_t nav_press_ms = 0;
+
 	// --- what this tick's render observed, for after_render to act on ---
 	/// The widget `Response` the render pass produced (`changed` / `entered`).
 	deluge::ui::Response render_resp{};
@@ -216,9 +234,17 @@ struct MenuState {
 	/// set at `depth > 0` -- see `MenuScene::render_oled`.
 	bool back_claimed = false;
 	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
-	/// claims the press only for a submenu column, `ui/oled/columns.cpp:419-423`). Legacy's
-	/// `HorizontalMenu::handleItemAction` answers it with the notification popup rather than any
-	/// navigation (`gui/menu_item/horizontal_menu.cpp:657-661`).
+	/// claims the press only for a submenu column, `ui/oled/columns.cpp:419-423`). `after_render`
+	/// answers it the way a leaf's own select press is answered, not the way this field's name
+	/// suggests: `Submenu::selectButtonPress` forwards to the focused item
+	/// (`gui/menu_item/submenu.cpp:187-194`), whose own `select_chain` is entered if it names one
+	/// and `ascend()` otherwise -- `SoundEditor::buttonAction`'s SELECT arm
+	/// (`gui/ui/sound_editor.cpp:394-424`). **Not** `HorizontalMenu::handleItemAction`
+	/// (`gui/menu_item/horizontal_menu.cpp:663-679`), which never runs from a select press at all --
+	/// its one caller is the *instrument-button* path, `buttonAction`'s `:96-97`
+	/// (`handleInstrumentButtonPress`) reaching it when the pressed button's column is already
+	/// focused. This field's old doc attributed the notification to that call by mistake; a select
+	/// press on a value column raises no notification (spec E-note-family §3.2's third bullet).
 	bool column_press = false;
 	/// Spec E §4.1's `MustSelectRange` outcome. E1 recorded it and left the node unentered; E2 task
 	/// 9 acts on it -- `enter_child` descends into `nodes::multi_range` instead, which is legacy's
@@ -507,6 +533,21 @@ public:
 	/// @brief The node currently on screen (`path[depth]`), or `nullptr` before `open()`.
 	const Node* focused() const;
 
+	/// @brief The value node the select/gold encoders would actually edit right now.
+	///
+	/// On a `Layout::Horizontal` submenu this is the focused column, *if* that column is not
+	/// itself a submenu -- `Submenu::shouldForwardButtons` (`gui/menu_item/submenu.cpp:181-185`):
+	/// legacy's same-param popup test (`View::modEncoderAction_forSomeReason`'s guard,
+	/// `gui/views/view.cpp:893-900`) forwards through a horizontal page to whichever item the
+	/// buttons would actually reach, not the page itself. On any other leaf this is `focused()`
+	/// unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
+	/// horizontal page focused on a submenu column, there is nothing to edit and this is null.
+	///
+	/// Added for `services::ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp`), whose
+	/// same-param test named `focused()` before this task and forwarded no further than the page
+	/// itself on a horizontal menu -- wrong by the same measure `shouldForwardButtons` names.
+	const Node* focused_value() const;
+
 	/// @brief Re-read the focused node's value from the model -- `MenuItem::readValueAgain`.
 	///
 	/// The port of the one call legacy makes to it from outside the menu:
@@ -741,6 +782,47 @@ private:
 	const Node* child_at(const Node& node, int32_t index) const;
 	/// @brief The child the current layout has focus on, or `nullptr`.
 	const Node* selected_child(const Node& node) const;
+	/// @brief True when `focused()` is a `Layout::Horizontal` submenu -- the gate
+	///        `HorizontalMenu::buttonAction`'s six-button arm ports (`handle()`'s button code).
+	bool on_horizontal_page() const;
+	/// @brief Turn @p node's visible children into a `Column` span carrying label, slots,
+	///        relevance and `is_submenu` -- the part of a horizontal page's presentation
+	///        `handle()`'s button code needs as well as `render_horizontal`'s full render, factored
+	///        so the two read one list rather than two copies of the same rule
+	///        (`kid.relevant == nullptr || kid.relevant(ctx_)`, `kid.kind == Kind::Submenu`).
+	///        `render`/`ctx` are left null; only the renderer fills those in, and only when
+	///        actually drawing.
+	/// @param node          The horizontal submenu to list.
+	/// @param kids          Written with @p node's visible children, parallel to @p cols.
+	/// @param cols          Written with one `Column` per child.
+	/// @param label_scratch Backing storage for each column's label text; must outlive @p cols.
+	/// @return How many children were written (`visible_children`'s own count).
+	size_t build_column_list(const Node& node, std::span<const Node*> kids, std::span<deluge::ui::oled::Column> cols,
+	                         std::span<deluge::ui::shell::TextScratch> label_scratch) const;
+	/// @brief Emit the horizontal-page notification for @p column -- the pair
+	///        `HorizontalMenu::displayNotification` prints (`horizontal_menu.cpp:335-343`), name
+	///        and formatted value on one line. Shared by `after_render`'s value-edit arm and
+	///        `handle()`'s button-focus code, which is where legacy's own two call sites are
+	///        (`selectEncoderAction` `:327`, `handleInstrumentButtonPress`/`handleItemAction`
+	///        `:436`, `:666`, `:678`... the descend arms return before reaching it).
+	void notify_column(const Node& column);
+	/// @brief `checkPermissionToBeginSessionForRangeSpecificParam`'s allocation
+	///        (`sound_editor.cpp:1993-1997`) plus legacy's `MUST_SELECT_RANGE` substitution --
+	///        `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
+	///        (`:1857-1858`) -- the one piece `enter_child` (a descent) and `handle()`'s button
+	///        focus (legacy's `initializeItem` call, `horizontal_menu.cpp:424`, `:669`) both run,
+	///        because both are ways into `MenuItem::checkPermissionToBeginSession`'s range branch.
+	///
+	///        **Not `Permission::No`.** `enter_child`'s own switch still owns that arm: a descent
+	///        refuses outright on `No`, but `HorizontalMenu::handleInstrumentButtonPress` never
+	///        consults `initializeItem`'s return for anything but `MUST_SELECT_RANGE` -- a button
+	///        focus proceeds regardless of `Yes`/`No`, which is why this helper answers only the
+	///        range question and leaves `No` to whichever caller cares.
+	/// @param child The node a session is about to begin on.
+	/// @return True if @p child must not be entered/focused as itself this tick -- the range
+	///         picker was opened instead, or the allocation failed and a notice was shown. False
+	///         (permission `Yes` or `No`) means the caller proceeds with its own next step.
+	bool enter_range_picker_if_needed(const Node& child);
 
 	void render_vertical(deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_horizontal(deluge::ui::oled::OledFrame& f, const Node& node);

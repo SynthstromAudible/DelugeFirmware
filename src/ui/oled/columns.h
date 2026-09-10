@@ -80,6 +80,45 @@ struct Paging {
 /// @return The page containing \p focused, and its position within that page.
 Paging paging_of(std::span<const Column> cols, int32_t focused);
 
+/// @brief The column covering instrument button \p button (0-3) on \p focused's visible page.
+///
+/// @note Ports legacy `HorizontalMenu::handleInstrumentButtonPress`'s search loop
+///       (`horizontal_menu.cpp:394-419`): walk the visible page's columns in order, accumulating
+///       occupied slots, and take the one whose `[start, start + slots)` covers \p button. The
+///       page itself is `window_of(cols, focused)` -- the same page computation `paging_of` and
+///       `columns` already use, reused rather than re-derived, and relevance plays no part here:
+///       legacy's `layout == FIXED && !isItemRelevant(item)` refusal is the caller's decision (a
+///       button press "does nothing" on a disabled column, it does not report "no column"), not
+///       this function's.
+///
+/// @param cols     The full column sequence, in page order.
+/// @param focused  Index into \p cols of the currently focused column -- names which page is
+///                 visible, exactly as it does for `paging_of`.
+/// @param button   Which instrument button (Synth 0, Kit 1, Midi 2, Cv 3).
+/// @return The covering column's index, or -1 if \p button lands past the page's occupied slots.
+int32_t column_under_button(std::span<const Column> cols, int32_t focused, int32_t button);
+
+/// @brief Where focus lands after switching the visible page by \p direction.
+///
+/// @note Ports legacy `HorizontalMenu::switchVisiblePage` (`horizontal_menu.cpp:345-366`) plus the
+///       `selectMenuItem` call it makes (`:444-476`): the *target* page wraps
+///       (`(page + direction) mod total_pages`), and the column selected on it is the one
+///       `selectMenuItem` keeps updating to the last *relevant* column seen while walking that
+///       page up to (and including) \p focused's own position on its own page --
+///       `Paging::selectedItemPositionOnPage`, i.e. `paging_of(cols, focused).focused_on_page`.
+///       Falling short of that position (a shorter target page) leaves the last relevant column
+///       seen as the answer, matching legacy's own fall-through when the loop's `break` never
+///       fires for that page. The page break within the walk is `window_of`'s own rule (gated on
+///       `Column::relevant`), not `selectMenuItem`'s ungated one -- one page computation reused
+///       throughout, as `column_under_button` above also does.
+///
+/// @param cols      The full column sequence, in page order.
+/// @param focused   Index into \p cols of the currently focused column.
+/// @param direction +1 (legacy's CROSS_SCREEN_EDIT) or -1 (SCALE_MODE).
+/// @return The column to focus on the target page, or \p focused unchanged when there is only one
+///         page (legacy's `totalPages <= 1` early return).
+int32_t page_switch(std::span<const Column> cols, int32_t focused, int32_t direction);
+
 /// @brief The horizontal four-slot menu page: title, page counters and column slots, drawn as one
 ///        immediate-mode call.
 ///
@@ -112,14 +151,18 @@ Paging paging_of(std::span<const Column> cols, int32_t focused);
 ///       value box, and a tight clip would shave that row off.
 ///
 /// Focus and paging:
-///   - `state.focused` indexes \p cols as a whole, not the page. `f.turn()` walks it one
-///     *relevant* column per detent and stops at either end without wrapping -- the same walk
-///     `list` makes over its selectable rows. `Response::changed` reports that it moved, and
-///     requests a repaint.
+///   - `state.focused` indexes \p cols as a whole, not the page. This control does not move it --
+///     legacy's select encoder edits the focused column's value and never moves focus
+///     (`HorizontalMenu::selectEncoderAction`), and the instrument buttons move it instead
+///     (`HorizontalMenu::buttonAction`, `column_under_button`/`page_switch` above). A scene moves
+///     focus by writing `state.focused` itself; `Response::changed` reports only the clamp below,
+///     and still requests a repaint when it fires.
+///   - `state.focused` is clamped into `[0, cols.size())` every call, so a column list that
+///     shrank under a stale index is pulled back into range with no input at all -- the same
+///     bound `list` puts on its cursor.
 ///   - `state.page` is the page that index lands on, recomputed by `paging_of` and published
-///     every frame, so a turn that crosses a page boundary changes it and only the new page's
-///     columns are drawn. Switching pages directly (without moving focus) is a scene-level
-///     gesture: a scene implements it by moving `state.focused` itself.
+///     every frame, so a scene that moves `state.focused` across a page boundary sees `state.page`
+///     follow it, and only the new page's columns are drawn.
 ///   - `Response::entered` is a select press on a relevant submenu column. `Response::focused` is
 ///     not set, as in `list`: focus lives in the state the scene owns.
 ///

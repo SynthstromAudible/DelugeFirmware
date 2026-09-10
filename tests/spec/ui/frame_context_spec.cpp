@@ -408,10 +408,16 @@ describe frame_context("ui::FrameContext", $ {
 		expect(ok.ctx.claims.turn).to_be_true();
 	});
 
-	it("spends one detent on the column focus and hands the rest of the inputs to the column", _ {
-		// The slot mask is `none()` for every column but the focused one, and
-		// `{.turn = false}` for that one -- `columns` owns the turn (it walks the column focus
-		// with it), the column's own value widget owns the gold knobs, the press and back.
+	it("no longer touches the turn at all, and still masks it out of the focused slot", _ {
+		// Re-derived (E-note-family task 2): `columns` used to spend the select encoder walking
+		// the column focus; it no longer moves focus on a turn at all, or claims the turn itself --
+		// a scene reads and claims it *before* calling `columns`, to edit the focused column's
+		// value (`MenuScene::render_horizontal`, the port of `HorizontalMenu::selectEncoderAction`,
+		// `horizontal_menu.cpp:309-326`). The slot mask is still `none()` for every column but the
+		// focused one, and still `{.turn = false}` for that one -- now so the scene's own edit,
+		// already applied above `columns`, cannot also reach the slot's widget a second time
+		// (`ui/oled/columns.cpp`'s note on `render_slot`) -- while the column's own value widget
+		// still owns the gold knobs, the press and back.
 		const std::string_view names[] = {"AAA", "BBB", "CCC"};
 		uitest::Rig48 r;
 		EnumSlot left{.names = names};
@@ -425,10 +431,10 @@ describe frame_context("ui::FrameContext", $ {
 		r.input.turn = 1;
 		columns(r.frame, r.frame.bounds(), state, cols, "MENU");
 
-		expect(int(state.focused)).to_equal(1);   // the detent walked the column focus ...
-		expect(left.index).to_equal(0);           // ... and edited nothing, in either column
-		expect(right.index).to_equal(0);
-		expect(r.ctx.claims.turn).to_be_true();   // `columns` owns it, once
+		expect(int(state.focused)).to_equal(0);   // no walk: focus never moves on a turn
+		expect(left.index).to_equal(0);           // the focused slot's own turn is still masked out
+		expect(right.index).to_equal(0);          // ... and the unfocused one is masked out entirely
+		expect(r.ctx.claims.turn).to_be_false();  // and `columns` claims nothing here -- the caller's job now
 		expect(r.ctx.claims.double_claim).to_be_false();
 
 		// The press does reach the focused column's widget: `columns` claims the select only for a

@@ -768,13 +768,20 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	});
 
 	it("Submenu (horizontal): nodes::lpf renders and edits its focused column through the real Shell", _ {
+		// **Rewritten for note-family task 2's fix.** The select turn now edits the focused column
+		// and never moves focus (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`);
+		// KIT focuses column 1 directly (`buttonAction`'s `select_map`, `:97`); the gold knob no
+		// longer touches the menu at all, falling through to the real (unseeded) `ModKnobs`; and the
+		// select press on FREQ (a `PatchedParam` with a patch-chain) follows the chain rather than
+		// raising a notification and staying.
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
 		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, false, false);
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(nodes::lpf, ctx);
 
-		const int32_t before = bindings::read(nodes::lpf_freq, ctx);
+		const int32_t before_mode = bindings::read(nodes::lpf_mode, ctx);
+		const int32_t before_freq = bindings::read(nodes::lpf_freq, ctx);
 
 		uitest::RunOptions opts{
 		    .tick_ms = 10,
@@ -791,14 +798,20 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    self, "menu_submenu_horizontal", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
+		// The select press on FREQ followed its patch-chain into the source-selection page, so the
+		// path is one level deeper than the page itself; `after_back` returns to it with FREQ still
+		// the focused column.
 		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_LPF)));
-		// The Select detent moves the column focus from MODE (0) to FREQ (1); a select press on a
-		// value column raises the notice popup rather than navigating (`horizontal_menu.cpp:657-661`
-		// port), so GoldUpper's turn still lands on FREQ -- `render_horizontal`'s own coarse step is
-		// `range.step` (1) too, so the same 4-raw-edge turn moves it by 4.
-		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
-		expect(bindings::read(nodes::lpf_freq, ctx)).to_equal(std::min(before + 4, 50));
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1); // FREQ
+
+		// The select turn edited MODE by one -- clamped, matching `Enumeration::selectEncoderAction`'s
+		// non-wrapping clamp -- and never touched FREQ.
+		const int32_t last_mode_index = static_cast<int32_t>(std::size(nodes::kLpfModeNames)) - 1;
+		expect(bindings::read(nodes::lpf_mode, ctx)).to_equal(std::min(before_mode + 1, last_mode_index));
+		// GoldUpper reached the real, unseeded `ModKnobs` instead of the menu -- no target to write
+		// through, so FREQ never moved.
+		expect(bindings::read(nodes::lpf_freq, ctx)).to_equal(before_freq);
 	});
 
 	it("Shortcut: a real shift+pad jump lands on nodes::lpf_freq, then the real Shell edits it", _ {

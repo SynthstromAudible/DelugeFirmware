@@ -250,6 +250,23 @@ bool is_leaf(Kind k) {
 	return k != Kind::Submenu;
 }
 
+/// @brief Which horizontal-page column button @p b is -- legacy's `select_map`
+///        (`gui/menu_item/horizontal_menu.cpp:97`), or -1 for every other button.
+int32_t instrument_button_index(ButtonId b) {
+	switch (b) {
+	case ButtonId::Synth:
+		return 0;
+	case ButtonId::Kit:
+		return 1;
+	case ButtonId::Midi:
+		return 2;
+	case ButtonId::Cv:
+		return 3;
+	default:
+		return -1;
+	}
+}
+
 /// @brief The `Layout::Horizontal` submenu in @p node's subtree that lists @p item, or null.
 ///
 /// `SoundEditor::maybeGetParentMenu`'s one statement of substance
@@ -666,6 +683,100 @@ const Node* MenuScene::selected_child(const Node& node) const {
 	                                         : child_at(node, st_.list[st_.depth].cursor);
 }
 
+const Node* MenuScene::focused_value() const {
+	const Node* node = focused();
+	if (node == nullptr) {
+		return nullptr;
+	}
+	if (node->kind != Kind::Submenu) {
+		return node; // a leaf IS what the encoders edit
+	}
+	if (node->layout != Layout::Horizontal) {
+		return nullptr; // a vertical page's row is not itself a value -- `shouldForwardButtons`
+		                // (`submenu.cpp:181-185`) only forwards on the HORIZONTAL rendering style
+	}
+	const Node* column = selected_child(*node);
+	return (column != nullptr && column->kind != Kind::Submenu) ? column : nullptr;
+}
+
+bool MenuScene::on_horizontal_page() const {
+	const Node* node = focused();
+	return node != nullptr && node->kind == Kind::Submenu && node->layout == Layout::Horizontal;
+}
+
+size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kids,
+                                    std::span<deluge::ui::oled::Column> cols,
+                                    std::span<deluge::ui::shell::TextScratch> label_scratch) const {
+	const size_t n = visible_children(node, kids);
+	for (size_t i = 0; i < n; i++) {
+		const Node& kid = *kids[i];
+		cols[i] = deluge::ui::oled::Column{};
+		cols[i].label = text_of(kid.name, label_scratch[i]);
+		cols[i].slots = kid.slots;
+		cols[i].show_label = true;
+		cols[i].relevant = kid.relevant == nullptr || kid.relevant(ctx_);
+		cols[i].is_submenu = kid.kind == Kind::Submenu;
+	}
+	return n;
+}
+
+void MenuScene::notify_column(const Node& column) {
+	// `notify::Notice` carries one text field, so the pair is joined below. `notice_text` copies
+	// into the queue's own 48-byte slot, so the stack buffer is enough; `notices().push` is the
+	// wrong call -- it is `[[nodiscard]]` and drops silently (`notify/notice_queue.h:46`).
+	//
+	// **`Notice::Kind::Console`, not the default `Text`.** Legacy's `OLED::displayNotification`
+	// (`hid/display/oled.cpp:744-756`) draws a single-row banner across the top of the panel *over*
+	// the running UI -- the menu underneath keeps rendering and keeps its input. The shell's `Text`
+	// notice becomes the full `PopupScene`, which is **not** `oled_transparent` for `Main`
+	// (`shell/notices.cpp:118-120`); the shell then renders from the popup upwards, `MenuScene`
+	// does not render at all, and with no render there is no `after_render` and no claims -- so the
+	// menu would freeze for the popup's whole lifetime every time a knob moved. `ConsoleScene` is
+	// the shipped overlay with legacy's composition: drawn over, transparent to both the surface
+	// beneath and to input (`notices.h:150,175`).
+	char value_buf[16];
+	std::string_view value;
+	if (column.kind == Kind::Decimal) {
+		value = format_decimal(bindings::read(column, ctx_), column.bind.decimal_places, value_buf, sizeof(value_buf));
+	}
+	else {
+		value = format_int(bindings::read(column, ctx_), value_buf, sizeof(value_buf));
+	}
+	TextScratch name_scratch;
+	const std::string_view name = text_of(column.name, name_scratch);
+	char line[48];
+	size_t out = 0;
+	for (const char c : name) {
+		if (out < sizeof(line)) {
+			line[out++] = c;
+		}
+	}
+	if (out + 1 < sizeof(line)) {
+		line[out++] = ':';
+		line[out++] = ' ';
+	}
+	for (const char c : value) {
+		if (out < sizeof(line)) {
+			line[out++] = c;
+		}
+	}
+	deluge::notify::notice_text(std::string_view{line, out}, deluge::notify::Notice::Kind::Console);
+}
+
+bool MenuScene::enter_range_picker_if_needed(const Node& child) {
+	if (child.range_dependent && !ensure_first_range(ctx_)) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
+		return true;
+	}
+	if (permission_for(child, ctx_) != Permission::MustSelectRange) {
+		return false;
+	}
+	st_.range_picker_pending = true;
+	st_.pending_after_range = &child;
+	descend_to(nodes::multi_range);
+	return true;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Rendering. Draws AND consumes input (the toolkit's rule); never touches the model.
 
@@ -762,22 +873,29 @@ void MenuScene::render_vertical(deluge::ui::oled::OledFrame& f, const Node& node
 
 void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& node) {
 	const Node* kids[kMaxMenuColumns];
-	const size_t n = visible_children(node, std::span<const Node*>{kids, kMaxMenuColumns});
+	deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+	TextScratch label_scratch[kMaxMenuColumns];
+	const size_t n = build_column_list(node, std::span<const Node*>{kids, kMaxMenuColumns},
+	                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+	                                   std::span<TextScratch>{label_scratch, kMaxMenuColumns});
 
-	// The gold knobs are read BEFORE `columns` walks the focus, so a detent edits the column the
-	// user was looking at rather than the one the same tick's turn moved onto. `columns` owns the
-	// turn and hands its focused slot `InputMask{.turn = false}` (`ui/oled/columns.h:139`); the
-	// ready-made slot renderers draw only, so the edit encoders are this scene's to read.
+	// `HorizontalMenu::selectEncoderAction` (`gui/menu_item/horizontal_menu.cpp:309-326`): the select
+	// turn edits the focused column and never moves focus. A horizontal menu is itself a submenu, so
+	// `SoundEditor::selectEncoderAction` hands it the raw offset (`gui/ui/sound_editor.cpp:1072`) --
+	// no SHIFT multiplier here -- and a submenu column is left alone (`:315-318`). Menu-side
+	// acceleration (`calcNextKnobSpeed`, `:630`) is carried, not ported. The turn is read (and
+	// claimed) BEFORE `columns` draws the page, so a detent edits the column the user was looking
+	// at; `columns` itself no longer touches the turn at all (`ui/oled/columns.cpp`'s own note).
 	const int32_t focus = n == 0 ? 0 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
-	const int8_t coarse = f.edit(0);
-	const int8_t fine = f.edit(1);
-	if (n != 0 && (coarse != 0 || fine != 0)) {
+	const int8_t detents = f.turn();
+	f.claim_turn();
+	if (n != 0 && detents != 0 && kids[focus]->kind != Kind::Submenu) {
 		const Node& target = *kids[focus];
 		const IntRange range = bindings::range(target, ctx_);
-		// The toolkit's own guard: a zero `step` would give a dead coarse knob
+		// The toolkit's own guard: a zero `step` would give a dead select knob
 		// (`ui/oled/values.cpp:37-39`'s `coarse_step`).
 		const int32_t step = range.step != 0 ? range.step : 1;
-		const int32_t moved = clamp_to(bindings::read(target, ctx_) + coarse * step + fine, range.min, range.max);
+		const int32_t moved = clamp_to(bindings::read(target, ctx_) + detents * step, range.min, range.max);
 		if (moved != bindings::read(target, ctx_)) {
 			switch (target.kind) {
 			case Kind::Enum:
@@ -797,23 +915,15 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 
 	// Per-column presentation. Everything a `Column` points at has to outlive the `columns` call,
 	// so it all lives in this frame.
-	deluge::ui::oled::Column cols[kMaxMenuColumns]{};
 	deluge::ui::oled::MeterColumn meters[kMaxMenuColumns]{};
 	deluge::ui::oled::TextColumn texts[kMaxMenuColumns]{};
 	deluge::ui::oled::ToggleColumn toggles[kMaxMenuColumns]{};
-	TextScratch label_scratch[kMaxMenuColumns];
 	char value_buf[kMaxMenuColumns][16]{};
 	std::string_view names_buf[kMaxDynamicNames];
 	TextScratch names_scratch[kMaxDynamicNames];
 
 	for (size_t i = 0; i < n; i++) {
 		const Node& kid = *kids[i];
-		cols[i].label = text_of(kid.name, label_scratch[i]);
-		cols[i].slots = kid.slots;
-		cols[i].show_label = true;
-		cols[i].relevant = kid.relevant == nullptr || kid.relevant(ctx_);
-		cols[i].is_submenu = kid.kind == Kind::Submenu;
-
 		const int32_t value = (st_.value_node == &kid) ? (kid.kind == Kind::Enum ? st_.enum_index : st_.edit_int)
 		                                               : bindings::read(kid, ctx_);
 
@@ -865,10 +975,12 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 	                                            text_of(node.title, title_scratch));
 
 	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:419-423`), so a
-	// press on a *value* column reaches nobody. Legacy answers it with the notification popup and
-	// no navigation (`HorizontalMenu::handleItemAction`, `gui/menu_item/horizontal_menu.cpp:657-661`).
-	// The read is on the same frame instance `columns` was handed, so the claim is idempotent
-	// (`ui/core/frame_context.h`, rule 2) and never trips `double_claim`.
+	// press on a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress`
+	// forwarding to the focused item does (`gui/menu_item/submenu.cpp:187-194`): enter its
+	// `select_chain` target, or `ascend()` -- see `MenuState::column_press`'s own doc for why that
+	// is not `HorizontalMenu::handleItemAction`. The read is on the same frame instance `columns`
+	// was handed, so the claim is idempotent (`ui/core/frame_context.h`, rule 2) and never trips
+	// `double_claim`.
 	const int32_t settled = n == 0 ? -1 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
 	if (settled >= 0 && kids[settled]->kind != Kind::Submenu) {
 		st_.column_press = f.select_pressed();
@@ -1026,7 +1138,7 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 	// the panel's bottom edge). But the font is `MetricBold13`, NOT `f.style.value_font`/`big_font`
 	// (both `MetricBold20`): legacy draws this one in the smaller "Big" face at its own baseline
 	// (`sync_level.cpp:37`, `kSyncValueY`'s doc comment in `ui/core/metrics.h`), and `Style` carries
-	// no field for it -- `MetricBold9` is hard-coded the same way at `ui/oled/columns.cpp:303` for
+	// no field for it -- `MetricBold9` is hard-coded the same way at `ui/oled/columns.cpp:277` for
 	// the same reason, a legacy font choice with no `Style` counterpart. Getting this wrong doesn't
 	// just mismatch the pixels: a note-length string in the huge font (`kTextHugeSpacingX` = 18px
 	// per character) runs off both edges of a 128px panel, which is exactly the clipping bug this
@@ -1125,11 +1237,64 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 		return;
 	}
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
-	constexpr ButtonId kOffButtons[] = {ButtonId::Save, ButtonId::Synth,       ButtonId::Kit,  ButtonId::Midi,
-	                                    ButtonId::Cv,   ButtonId::CrossScreen, ButtonId::Scale};
-	for (ButtonId b : kOffButtons) {
-		(void)f.set(static_cast<deluge::ui::LedId>(b), kOff);
+	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
+	// `Save` is never a horizontal-page LED in legacy either -- unaffected by anything below.
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Save), kOff);
+
+	// SYNTH/KIT/MIDI/CV: `updateSelectedMenuItemLED` (`gui/menu_item/horizontal_menu.cpp:546-572`).
+	// CROSS_SCREEN/SCALE: `renderOLED`'s own two-line LED update (`:118-119`). Both fresh every
+	// tick, gated on nothing -- an `LedFrame` is the whole LED state, redeclared each time, the same
+	// as LEARN below. Off on a vertical page or with nothing focused, matching legacy's own
+	// `endSession` extinguishing all six when a horizontal page is left (`:576-583`).
+	bool synth = false;
+	bool kit = false;
+	bool midi = false;
+	bool cv = false;
+	bool cross_screen = false;
+	bool scale = false;
+	if (on_horizontal_page()) {
+		const Node* node = focused();
+		const Node* kids[kMaxMenuColumns];
+		deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+		TextScratch label_scratch[kMaxMenuColumns];
+		const size_t n = build_column_list(*node, std::span<const Node*>{kids, kMaxMenuColumns},
+		                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+		                                   std::span<TextScratch>{label_scratch, kMaxMenuColumns});
+		const int32_t focused_col =
+		    n == 0 ? 0 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
+		const std::span<const deluge::ui::oled::Column> span{cols, n};
+
+		// `column_under_button(span, focused_col, b) == focused_col` is exactly
+		// `updateSelectedMenuItemLED`'s `i >= start_column && i < end_column` test: both name "does
+		// button b's column cover the focused one", the first by re-deriving it from the same page
+		// window, the second by accumulating slots up to the match.
+		bool lit[4] = {};
+		for (int32_t b = 0; b < 4; b++) {
+			lit[b] = deluge::ui::oled::column_under_button(span, focused_col, b) == focused_col;
+		}
+		// `page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getOccupiedSlots() <
+		// 4`: legacy suppresses all four only for a *single*, *non-submenu* column spanning the
+		// whole page. All four buttons landing on `focused_col` is exactly "the page holds one
+		// column and it covers every slot" -- the only way every button can resolve to the same
+		// index -- so this reproduces the OR as its negation without walking the page twice.
+		if (lit[0] && lit[1] && lit[2] && lit[3] && n > 0 && !cols[focused_col].is_submenu) {
+			lit[0] = lit[1] = lit[2] = lit[3] = false;
+		}
+		synth = lit[0];
+		kit = lit[1];
+		midi = lit[2];
+		cv = lit[3];
+		const bool has_pages = deluge::ui::oled::paging_of(span, focused_col).total_pages > 1;
+		cross_screen = has_pages;
+		scale = has_pages;
 	}
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Synth), synth ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Kit), kit ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Midi), midi ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Cv), cv ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), cross_screen ? kOn : kOff);
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), scale ? kOn : kOff);
+
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
 	            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0});
 	// `SoundEditor::beginScreen`'s tail (`sound_editor.cpp:949-954`): every screen change asks the
@@ -1258,35 +1423,16 @@ void MenuScene::descend_to(const Node& child) {
 
 void MenuScene::enter_child(const Node& child) {
 	// `checkPermissionToBeginSessionForRangeSpecificParam`'s **first statement**
-	// (`sound_editor.cpp:1993-1997`), ahead of every one of its arms: the check creates the source's
-	// first `MultiRange` if it has none, and refuses outright if that allocation fails.
-	// `permission_for` is a pure predicate and deliberately does not (`context.cpp`'s "Owed to E2"),
-	// so the allocation happens here -- one of the two ports of the call site, the descent; the
-	// other is `on_enter`'s deep link, which cannot descend and re-roots instead -- for exactly the
-	// nodes legacy ran it for, the `range_dependent` ones. E1's carry list records this as owed to
-	// task 9.
-	if (child.range_dependent && !ensure_first_range(ctx_)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
+	// (`sound_editor.cpp:1993-1997`), ahead of every one of its arms, plus legacy's
+	// `MUST_SELECT_RANGE` substitution (`:1857-1858`): both factored into
+	// `enter_range_picker_if_needed`, which `handle()`'s button-focus code shares -- see its own
+	// doc for why the two callers need the same piece. E1's carry list records the allocation as
+	// owed to task 9; task 2 (E-note-family) is what actually shares it with a second caller.
+	if (enter_range_picker_if_needed(child)) {
 		return;
 	}
-
-	switch (permission_for(child, ctx_)) {
-	case Permission::No:
+	if (permission_for(child, ctx_) == Permission::No) {
 		return;
-	case Permission::MustSelectRange:
-		// `sound_editor.cpp:1857-1858`: `multiRangeMenu.menuItemHeadingTo = newItem;` and then the
-		// picker is opened *instead of* the item. `pending_after_range` is `menuItemHeadingTo`, and
-		// `nodes::multi_range_chain` is what reads it back on the picker's own select press.
-		//
-		// `descend_to`, not `enter_child`: the picker is not itself `range_dependent` (see
-		// `nodes/multi_range.h` for why that matters -- it would recurse), but going back through the
-		// permission gate for a node that no submenu names would be asking a question with no caller.
-		st_.range_picker_pending = true;
-		st_.pending_after_range = &child;
-		descend_to(nodes::multi_range);
-		return;
-	case Permission::Yes:
-		break;
 	}
 
 	// The picker's job is done the moment the item it was heading to opens -- legacy drops
@@ -1418,55 +1564,21 @@ Result MenuScene::after_render() {
 	}
 
 	// The horizontal menu's notification popup, `HorizontalMenu::displayNotification`
-	// (`gui/menu_item/horizontal_menu.cpp:335-343`): it shows the item's *name* alongside its value,
-	// and legacy raises it on a focus move (`:327-328`, `selectMenuItem`), on a value change
-	// (`:326-328`, `selectEncoderAction`) and on a press that does not open anything
-	// (`:657-661`, `handleItemAction`) -- all three, not just the focus move.
+	// (`gui/menu_item/horizontal_menu.cpp:335-343`): it shows the item's *name* alongside its
+	// value. Legacy raises it on a value change (`:326-328`, `selectEncoderAction`) and on a
+	// button focus move or an already-focused button press that does not open anything
+	// (`handleInstrumentButtonPress`'s tail `:436`, `handleItemAction` `:666` -- both ported in
+	// `handle()`'s button code, which calls `notify_column` itself). **Not** on a select press on
+	// a value column (`Submenu::selectButtonPress` never calls `displayNotification` at all --
+	// `column_press` used to be listed here by mistake, see `MenuState::column_press`'s doc).
 	//
-	// `notify::Notice` carries one text field, so the pair is joined here. `notice_text` copies into
-	// the queue's own 48-byte slot, so the stack buffer below is enough; `notices().push` is the
-	// wrong call -- it is `[[nodiscard]]` and drops silently (`notify/notice_queue.h:46`).
-	//
-	// **`Notice::Kind::Console`, not the default `Text`.** Legacy's `OLED::displayNotification`
-	// (`hid/display/oled.cpp:744-756`) draws a single-row banner across the top of the panel *over*
-	// the running UI -- the menu underneath keeps rendering and keeps its input. The shell's
-	// `Text` notice becomes the full `PopupScene`, which is **not** `oled_transparent` for `Main`
-	// (`shell/notices.cpp:118-120`); the shell then renders from the popup upwards, `MenuScene`
-	// does not render at all, and with no render there is no `after_render` and no claims -- so the
-	// menu would freeze for the popup's whole lifetime every time a knob moved. `ConsoleScene` is
-	// the shipped overlay with legacy's composition: drawn over, transparent to both the surface
-	// beneath and to input (`notices.h:150,175`).
+	// `notify_column` is `notice_text`'s call, factored out so `handle()`'s button code raises the
+	// same notification through the same text-building rules -- see its own doc for why the
+	// legacy call sites split across two functions of this class.
 	const bool horizontal = node->kind == Kind::Submenu && node->layout == Layout::Horizontal;
-	if (horizontal && (st_.render_resp.changed || st_.value_changed || st_.column_press)) {
+	if (horizontal && (st_.render_resp.changed || st_.value_changed)) {
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
-			char value_buf[16];
-			std::string_view value;
-			if (column->kind == Kind::Decimal) {
-				value = format_decimal(bindings::read(*column, ctx_), column->bind.decimal_places, value_buf,
-				                       sizeof(value_buf));
-			}
-			else {
-				value = format_int(bindings::read(*column, ctx_), value_buf, sizeof(value_buf));
-			}
-			TextScratch name_scratch;
-			const std::string_view name = text_of(column->name, name_scratch);
-			char line[48];
-			size_t out = 0;
-			for (const char c : name) {
-				if (out < sizeof(line)) {
-					line[out++] = c;
-				}
-			}
-			if (out + 1 < sizeof(line)) {
-				line[out++] = ':';
-				line[out++] = ' ';
-			}
-			for (const char c : value) {
-				if (out < sizeof(line)) {
-					line[out++] = c;
-				}
-			}
-			deluge::notify::notice_text(std::string_view{line, out}, deluge::notify::Notice::Kind::Console);
+			notify_column(*column);
 		}
 	}
 
@@ -1496,6 +1608,22 @@ Result MenuScene::after_render() {
 			// same thing from the widget's side -- a press reports `entered` and leaves `changed`
 			// false, so this must not flip the value (`ui/oled/values.h:169`).
 			ascend();
+		}
+	}
+	else if (st_.column_press) {
+		// `Submenu::selectButtonPress` forwarding to the focused item, on a horizontal page's value
+		// column (`gui/menu_item/submenu.cpp:187-194`): enter its `select_chain` target, or
+		// `ascend()` when it names none -- the same two arms the leaf's own select press takes
+		// above, because `SoundEditor::buttonAction`'s SELECT arm is the one caller both go through
+		// (`gui/ui/sound_editor.cpp:394-424`). No notification: `Submenu::selectButtonPress` never
+		// calls `displayNotification` (see `MenuState::column_press`'s doc for the call it is not).
+		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
+			if (const Node* chained = column->select_chain != nullptr ? column->select_chain(ctx_, st_) : nullptr) {
+				enter_child(*chained);
+			}
+			else {
+				ascend();
+			}
 		}
 	}
 	else if (st_.back_claimed) {
@@ -1623,6 +1751,98 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	if (const Node* focused_node = focused();
 	    focused_node != nullptr && focused_node->kind == Kind::Custom && focused_node->custom != nullptr) {
 		if (Result r = focused_node->custom->handle(event, ctx, ctx_, st_); r.handled) {
+			return r;
+		}
+	}
+
+	// SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page -- `HorizontalMenu::buttonAction`
+	// (`gui/menu_item/horizontal_menu.cpp:70-107`). Checked before the shortcut-pad jump: these six
+	// are never shortcut-pad buttons, but placing this ahead keeps every button arm together and
+	// matches legacy's own precedence (`buttonAction` is `MenuItem`'s override, reached before
+	// `SoundEditor::buttonAction`'s own switch ever sees SELECT/BACK/etc).
+	if (event.kind == UiEvent::Kind::Button && event.on && on_horizontal_page()) {
+		const int32_t button = instrument_button_index(event.button); // Synth 0, Kit 1, Midi 2, Cv 3, else -1
+		const int32_t page_dir = event.button == ButtonId::CrossScreen ? 1 : event.button == ButtonId::Scale ? -1 : 0;
+		if (button >= 0 || page_dir != 0) {
+			// `:77-82`: one 140 ms debounce shared by all six buttons, one shared timestamp updated
+			// only on a press this arm accepts (`:100`).
+			if (ctx.now_ms - st_.nav_press_ms <= kNavButtonDebounceMs) {
+				Result r;
+				r.handled = true;
+				return r;
+			}
+			st_.nav_press_ms = ctx.now_ms;
+
+			const Node* node = focused();
+			const Node* kids[kMaxMenuColumns];
+			deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+			TextScratch label_scratch[kMaxMenuColumns];
+			const size_t n = build_column_list(*node, std::span<const Node*>{kids, kMaxMenuColumns},
+			                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+			                                   std::span<TextScratch>{label_scratch, kMaxMenuColumns});
+			const int32_t focused_col =
+			    n == 0 ? 0 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
+
+			Result r;
+			r.handled = true;
+			bool repaint = false;
+
+			if (page_dir != 0) {
+				// `:85-94`, `switchVisiblePage` (`:345-366`). SHIFT + CROSS_SCREEN/SCALE at depth 0
+				// switches the *chained* menu in legacy (`switchHorizontalMenu`, `:368-398`), which
+				// this port has no data for (spec E-note-family §3.3, ruling 3) -- so it does
+				// nothing there. At depth > 0 legacy has no chain either, and page-switches exactly
+				// as the unshifted case does.
+				if (!(st_.depth == 0 && ctx.shift) && n > 0) {
+					const int32_t target = deluge::ui::oled::page_switch(
+					    std::span<const deluge::ui::oled::Column>{cols, n}, focused_col, page_dir);
+					if (target != focused_col) {
+						st_.columns[st_.depth].focused = static_cast<int8_t>(target);
+						repaint = true;
+					}
+				}
+			}
+			else if (n > 0) {
+				const int32_t target = deluge::ui::oled::column_under_button(
+				    std::span<const deluge::ui::oled::Column>{cols, n}, focused_col, button);
+				// `layout == FIXED && !isItemRelevant(item)` (`:404-406`): a disabled column under
+				// the button does nothing at all, not even a focus change.
+				if (target >= 0 && cols[target].relevant) {
+					if (target == focused_col) {
+						// `handleItemAction` (`:663-679`): the already-focused column's own press.
+						const Node& col_node = *kids[target];
+						if (col_node.kind == Kind::Submenu) {
+							enter_child(col_node);
+						}
+						else {
+							// `MenuItem::selectButtonPress`'s only override any shipped horizontal
+							// column reaches is `Toggle`'s flip (`gui/menu_item/toggle.h`); every
+							// other kind's base is a no-op. No `select_chain` here -- legacy's
+							// `handleItemAction` calls `selectButtonPress()` directly, never
+							// `enterSubmenu`, for this arm.
+							if (col_node.kind == Kind::Toggle) {
+								bindings::write(col_node, ctx_, bindings::read(col_node, ctx_) == 0 ? 1 : 0);
+							}
+							notify_column(col_node);
+						}
+						repaint = true;
+					}
+					else {
+						// `handleInstrumentButtonPress`'s new-focus tail (`:424-437`): `current_item_`
+						// is assigned before the range check, so the focus below happens whether or
+						// not the picker ends up opening over it.
+						st_.columns[st_.depth].focused = static_cast<int8_t>(target);
+						if (!enter_range_picker_if_needed(*kids[target])) {
+							notify_column(*kids[target]);
+						}
+						repaint = true;
+					}
+				}
+			}
+
+			if (repaint) {
+				(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+			}
 			return r;
 		}
 	}

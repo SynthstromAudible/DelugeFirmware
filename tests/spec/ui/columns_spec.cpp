@@ -480,40 +480,31 @@ describe columns_w("ui::oled::columns", $ {
 		expect(r64.lit(2, 39)).to_be_false();
 	});
 
-	it("moves focus one relevant column per detent, and reports it", _ {
+	it("does not move focus on a turn", _ {
+		// `HorizontalMenu::selectEncoderAction` (`horizontal_menu.cpp:309-326`) edits the focused
+		// column's value and never moves focus; `columns` no longer walks focus on the turn at
+		// all -- the scene owns the encoder now (`MenuScene::render_horizontal`).
 		uitest::Rig48 r;
 		Page p{four_columns()};
 		ColumnsState state{};
 
 		r.input.turn = 1;
-		const Response moved = columns(r.frame, r.frame.bounds(), state, p.span());
-		expect(moved.changed).to_be_true();
-		expect(static_cast<int32_t>(state.focused)).to_equal(1);
-		expect(static_cast<int32_t>(state.page)).to_equal(0);
+		const Response resp = columns(r.frame, r.frame.bounds(), state, p.span());
+		expect(resp.changed).to_be_false();
+		expect(static_cast<int32_t>(state.focused)).to_equal(0);
 
-		// ... and the highlight follows it: the second column's label box inverts, the first
-		// one's does not.
-		expect(r.lit(2, 39)).to_be_false();
-		expect(r.lit(34, 39)).to_be_true();
+		// The highlight stays on the first column.
+		expect(r.lit(2, 39)).to_be_true();
+		expect(r.lit(34, 39)).to_be_false();
 
-		// A detent that changes nothing reports nothing: turning back off the left end.
+		// A negative turn does nothing either.
 		uitest::Rig48 r2;
 		Page p2{four_columns()};
-		ColumnsState at_start{};
+		ColumnsState at_start{.focused = 2};
 		r2.input.turn = -1;
 		const Response stuck = columns(r2.frame, r2.frame.bounds(), at_start, p2.span());
 		expect(stuck.changed).to_be_false();
-		expect(static_cast<int32_t>(at_start.focused)).to_equal(0);
-
-		// An irrelevant column is stepped over, not landed on.
-		std::vector<legacy::Item> with_gap = four_columns();
-		with_gap[1].relevant = false;
-		uitest::Rig48 r3;
-		Page p3{with_gap};
-		ColumnsState skip{};
-		r3.input.turn = 1;
-		columns(r3.frame, r3.frame.bounds(), skip, p3.span());
-		expect(static_cast<int32_t>(skip.focused)).to_equal(2);
+		expect(static_cast<int32_t>(at_start.focused)).to_equal(2);
 	});
 
 	it("draws an irrelevant column as the legacy dash", _ {
@@ -572,27 +563,50 @@ describe columns_w("ui::oled::columns", $ {
 		expect(anything).to_be_false();
 	});
 
-	it("crosses to the next page when the turn runs off the end of this one", _ {
-		std::vector<legacy::Item> six = four_columns();
-		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});
-		six.push_back(legacy::Item{.label = "MIX", .kind = legacy::Item::TOGGLE, .on = true});
+	it("finds the column under an instrument button on the focused page", _ {
+		// `HorizontalMenu::handleInstrumentButtonPress`: walk the visible page's items,
+		// accumulating occupied slots, and take the one whose [start, start + slots) covers the
+		// button.
+		std::vector<legacy::Item> items = {
+		    legacy::Item{.label = "A", .kind = legacy::Item::KNOB},
+		    legacy::Item{.label = "B", .kind = legacy::Item::KNOB, .slots = 2},
+		    legacy::Item{.label = "C", .kind = legacy::Item::KNOB},
+		};
+		Page p{items};
+		expect(column_under_button(p.span(), 0, 0)).to_equal(0);
+		expect(column_under_button(p.span(), 0, 1)).to_equal(1);
+		expect(column_under_button(p.span(), 0, 2)).to_equal(1);
+		expect(column_under_button(p.span(), 0, 3)).to_equal(2);
+	});
 
-		uitest::Rig48 r;
-		Page p{six};
-		ColumnsState state{.focused = 3, .page = 0};
-		r.input.turn = 1;
-		const Response crossed = columns(r.frame, r.frame.bounds(), state, p.span(), "FILTER");
-		expect(crossed.changed).to_be_true();
-		expect(static_cast<int32_t>(state.focused)).to_equal(4);
-		expect(static_cast<int32_t>(state.page)).to_equal(1);
-		expect(static_cast<int32_t>(paging_of(p.span(), state.focused).focused_on_page)).to_equal(0);
+	it("finds nothing under a button past the page's slots", _ {
+		std::vector<legacy::Item> items = {
+		    legacy::Item{.label = "A", .kind = legacy::Item::KNOB},
+		    legacy::Item{.label = "B", .kind = legacy::Item::KNOB},
+		    legacy::Item{.label = "C", .kind = legacy::Item::KNOB},
+		};
+		Page p{items};
+		expect(column_under_button(p.span(), 0, 3)).to_equal(-1);
+	});
 
-		// The second page holds two columns, and the two empty slots get the legacy dotted
-		// placeholder frames.
-		legacy::renderOLED(r.reference, "FILTER", p.page(4, 6), 0, 1, 2, 128, 48, r.frame.origin.y,
-		                   r.style.invert_highlight, r.style.rounded);
-		expect(r.pbm()).to_equal(r.reference_pbm());
-		expect_golden(self, "../ui/widgets/columns_page2_48.pbm", r.pbm());
+	it("switches page with wrap, keeping the position on the page", _ {
+		// `switchVisiblePage` (`horizontal_menu.cpp:345-366`) wraps; `selectMenuItem` keeps
+		// `selectedItemPositionOnPage`, falling back to the closest relevant item.
+		std::vector<legacy::Item> eight;
+		for (int i = 0; i < 8; i++) {
+			eight.push_back(legacy::Item{.label = "X", .kind = legacy::Item::KNOB});
+		}
+		Page p{eight};
+		// Two pages of four; focused = 2 is position 2 on page 0.
+		expect(page_switch(p.span(), 2, 1)).to_equal(6);   // position 2 on page 1
+		expect(page_switch(p.span(), 6, 1)).to_equal(2);   // wraps back to page 0, position 2
+		expect(page_switch(p.span(), 1, -1)).to_equal(5);  // wraps to page 1, position 1
+	});
+
+	it("does not switch when there is one page", _ {
+		Page p{four_columns()};
+		expect(page_switch(p.span(), 1, 1)).to_equal(1);
+		expect(page_switch(p.span(), 1, -1)).to_equal(1);
 	});
 
 	it("highlights the whole slot for a submenu or an unlabelled column", _ {

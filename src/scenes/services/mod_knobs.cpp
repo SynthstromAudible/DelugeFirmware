@@ -351,7 +351,11 @@ bool ModKnobs::popup_suppressed(const ModTurn& turn) const {
 	if (&stack_.input_top() != static_cast<const deluge::ui::shell::Scene*>(&menu_scene())) {
 		return false;
 	}
-	const menu::Node* focused = menu_scene().focused();
+	// `focused_value()`, not `focused()`: legacy's same-param test forwards through a horizontal
+	// page to the focused value column (`Submenu::shouldForwardButtons`,
+	// `gui/menu_item/submenu.cpp:181-185`) -- the page node itself has no `bind.param` to compare
+	// against, so `focused()` alone would never suppress the popup on a horizontal menu at all.
+	const menu::Node* focused = menu_scene().focused_value();
 	if (focused == nullptr || !focused->bind.param.valid()) {
 		return false;
 	}

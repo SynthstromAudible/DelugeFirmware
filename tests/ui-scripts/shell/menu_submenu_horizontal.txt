@@ -1,13 +1,34 @@
-# Level-2 acceptance (task-11 brief): a horizontal Submenu (nodes::lpf), opened directly.
-0     snapshot idle
+# Level-2 acceptance (task-11 brief; rewritten for note-family task 2's fix): a horizontal Submenu
+# (nodes::lpf), opened directly.
+#
+# **Rewritten.** Legacy's select turn edits the focused column and never moves focus
+# (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`); focus moves only by
+# instrument button (`buttonAction`'s `select_map`, `:97`), and the gold knobs never touch a
+# horizontal page at all -- they fall through to `services::ModKnobs`, exactly as they do over any
+# other view. All three replace what this script used to pin: a select turn walking the focus from
+# MODE to FREQ, a select press that stayed and raised a notification, and a gold turn editing FREQ.
+0     snapshot idle                  # MODE focused (column 0), an Enum
 100   encoder Select +1
-120   snapshot after_select_turn
-200   button SelectEnc down
-220   button SelectEnc up
-240   snapshot after_select_press
+120   snapshot after_select_turn     # the select turn edits MODE in place -- the option text steps
+                                     # by one -- and focus stays on column 0
+                                     # (`state().columns[0].focused == 0`)
+200   button Kit down
+220   button Kit up
+240   snapshot after_kit_press       # KIT names column 1 directly (`select_map`, `:97`): focus moves
+                                     # to FREQ, one press, not a walk
 300   encoder GoldUpper +2
-320   snapshot after_gold_turn
-400   button Back down
-420   button Back up
-440   snapshot after_back
-500   quit
+# No snapshot for this step: unclaimed by the menu now, it reaches the real (unseeded) `ModKnobs`,
+# which has no target -- the frame is byte-identical to `after_kit_press`, and a golden that
+# records nothing is a golden that can never fail for the right reason (same rule
+# `menu_range_permission.txt`/`menu_shortcut.txt` already follow). The step stays because the C++
+# spec asserts FREQ did NOT move.
+400   button SelectEnc down
+420   button SelectEnc up
+440   snapshot after_select_press    # FREQ is a `PatchedParam` with a patch-chain
+                                     # (`with_patch_chain`): the select press on the focused value
+                                     # column follows it into the source-selection page, exactly as
+                                     # a leaf's own select press would -- not a notify-and-stay
+500   button Back down
+520   button Back up
+540   snapshot after_back            # the LPF page again, FREQ still focused (`focusChild`'s port)
+600   quit

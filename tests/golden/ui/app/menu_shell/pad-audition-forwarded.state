@@ -1,7 +1,6 @@
 led AffectEntire on
 led Clip on
 led Mod1 on
-led Scale on
 led Synth on
 pad 16 0 0 255 6
 pad 16 1 0 255 6

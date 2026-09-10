@@ -159,12 +159,14 @@ void render_slot(OledFrame& f, Rect value_rect, const Column& col, bool focused)
 	//     caller-supplied function pointer and the widgets a scene reaches for there (`list`,
 	//     `enum_value`, `toggle`) have no `focused` parameter at all, so the mask is their only
 	//     "be inert" switch; without it, an unfocused column's enum would move on the very detent
-	//     that walked the focus past it.
-	//   - the focused column is granted everything *but the turn*. `columns` spends the select
-	//     encoder on walking the column focus (see `columns` below), so passing the same detent
-	//     on to the column it lands on would make one detent do two things: move focus and edit
-	//     the value it lands on. The gold knobs, the press and the back button do go through:
-	//     they are what a horizontal menu's value is edited and entered with.
+	//     the scene spent editing the focused one.
+	//   - the focused column is granted everything *but the turn*. The select encoder edits the
+	//     focused column's value, but that edit happens one level up, in the scene that calls
+	//     `columns` (`MenuScene::render_horizontal`, `HorizontalMenu::selectEncoderAction`'s
+	//     port): it reads and claims the turn *before* building the column list, so passing the
+	//     same detent on to the column's own render here would make one detent edit the value
+	//     twice. The gold knobs, the press and the back button do go through: nothing else here
+	//     reads them.
 	//
 	// `col.render`'s own `focused` argument stays: a renderer still has to know it is the current
 	// column in order to *draw* itself that way. The clock and `shift` are never masked, so every
@@ -245,34 +247,6 @@ PageWindow window_of(std::span<const Column> cols, int32_t focused) {
 	return w;
 }
 
-/// `list`'s cursor walk over columns: one *relevant* column per detent, stopping at either end
-/// rather than wrapping. Legacy moved the horizontal menu's focus with the instrument buttons and
-/// gave the select encoder to the value, so there is no legacy turn behaviour to port here; this
-/// reuses `list`'s walk instead.
-int32_t move_focus(int32_t focused, int32_t turn, std::span<const Column> cols) {
-	const int32_t n = static_cast<int32_t>(cols.size());
-	int32_t last_ok = focused;
-	while (turn > 0) {
-		if (++focused >= n) {
-			return last_ok;
-		}
-		if (cols[focused].relevant) {
-			last_ok = focused;
-			turn--;
-		}
-	}
-	while (turn < 0) {
-		if (--focused < 0) {
-			return last_ok;
-		}
-		if (cols[focused].relevant) {
-			last_ok = focused;
-			turn++;
-		}
-	}
-	return focused;
-}
-
 /// Ports legacy `HorizontalMenu::renderMenuItems`, over one page's columns.
 void render_page(OledFrame& f, Rect rect, std::span<const Column> cols, const PageWindow& w, int32_t focused) {
 	// Legacy's base_y is a literal `14 + OLED_MAIN_TOPMOST_PIXEL` with no panel-height branch, so
@@ -337,6 +311,62 @@ Paging paging_of(std::span<const Column> cols, int32_t focused) {
 	return window_of(cols, focused).paging;
 }
 
+int32_t column_under_button(std::span<const Column> cols, int32_t focused, int32_t button) {
+	const PageWindow w = window_of(cols, focused);
+	int32_t x = 0;
+	for (int32_t i = w.first; i < w.last; i++) {
+		const int32_t slots = std::max<int32_t>(1, cols[i].slots);
+		if (button >= x && button < x + slots) {
+			return i;
+		}
+		x += slots;
+	}
+	return -1;
+}
+
+int32_t page_switch(std::span<const Column> cols, int32_t focused, int32_t direction) {
+	const PageWindow w = window_of(cols, focused);
+	const int32_t total = w.paging.total_pages;
+	if (total <= 1) {
+		return focused; // legacy's `totalPages <= 1` early return
+	}
+	int32_t target_page = (w.paging.page + direction) % total;
+	if (target_page < 0) {
+		target_page += total;
+	}
+
+	// `selectMenuItem`'s walk, with `window_of`'s own page-break rule (gated on `relevant`)
+	// rather than `selectMenuItem`'s own ungated one -- see the header note on why the two are
+	// not the same rule and why this reuses the former.
+	const int32_t n = static_cast<int32_t>(cols.size());
+	int32_t page = 0;
+	int32_t acquired = 0;
+	int32_t pos_on_page = 0;
+	int32_t candidate = -1;
+	for (int32_t i = 0; i < n; i++) {
+		const int32_t slots = std::max<int32_t>(1, cols[i].slots);
+		if (acquired + slots > kPageSlots && cols[i].relevant) {
+			if (page == target_page) {
+				break; // walked off the target page with a candidate already in hand
+			}
+			page++;
+			acquired = 0;
+			pos_on_page = 0;
+		}
+		if (page == target_page) {
+			if (cols[i].relevant) {
+				candidate = i;
+			}
+			if (pos_on_page >= w.paging.focused_on_page) {
+				break;
+			}
+		}
+		acquired += slots;
+		pos_on_page++;
+	}
+	return candidate >= 0 ? candidate : focused;
+}
+
 void title_paged(OledFrame& f, std::string_view s, bool paged) {
 	char buf[kTextBufferSize];
 	std::string_view out = s;
@@ -394,18 +424,17 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(cols.size());
 
-	// This control owns the select encoder: it walks the column focus with it, and `render_slot`
-	// grants the focused column every input except that one. The *press* is only ours when it
-	// enters a submenu -- on a value column it passes through the slot's mask to the widget in
-	// the slot, which claims it there -- so that claim sits with the `entered` computation below.
-	f.claim_turn();
+	// This control does NOT own the select encoder: the scene reads and claims the turn itself,
+	// to edit the focused column's value (`HorizontalMenu::selectEncoderAction`'s port,
+	// `MenuScene::render_horizontal`) -- focus moves by instrument button instead
+	// (`HorizontalMenu::buttonAction`'s port, `column_under_button`/`page_switch` above). The
+	// *press* is only ours when it enters a submenu -- on a value column it passes through the
+	// slot's mask to the widget in the slot, which claims it there -- so that claim sits with the
+	// `entered` computation below.
 	int32_t focused = std::clamp<int32_t>(state.focused, 0, std::max<int32_t>(0, n - 1));
-	if (f.turn() != 0 && n > 0) {
-		focused = move_focus(focused, f.turn(), cols);
-	}
-	// "focus moved" includes the clamp: a scene whose column list shrank under a stale
-	// `state.focused` gets one `changed` frame as the index is pulled back into range with no
-	// turn. That is the same bound `list` puts on its cursor.
+	// "focus moved" is the clamp alone now: a scene whose column list shrank under a stale
+	// `state.focused` gets one `changed` frame as the index is pulled back into range. That is
+	// the same bound `list` puts on its cursor.
 	resp.changed = focused != state.focused;
 	state.focused = static_cast<int8_t>(focused);
 	if (resp.changed) {

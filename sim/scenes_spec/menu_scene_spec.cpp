@@ -321,6 +321,14 @@ constexpr uint8_t kGoldUpper = 4;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 constexpr uint8_t kShiftX = 8, kShiftY = 0;
+/// The four instrument-button columns, and the two page-switch buttons -- all six of
+/// `HorizontalMenu::buttonAction`'s (`horizontal_menu.cpp:70-107`).
+constexpr uint8_t kSynthX = 5, kSynthY = 0;
+constexpr uint8_t kKitX = 5, kKitY = 1;
+constexpr uint8_t kMidiX = 5, kMidiY = 2;
+constexpr uint8_t kCvX = 5, kCvY = 3;
+constexpr uint8_t kCrossScreenX = 6, kCrossScreenY = 2;
+constexpr uint8_t kScaleX = 6, kScaleY = 0;
 
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's own scene registry installed.
 struct Rig {
@@ -1342,7 +1350,11 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(NUM_SYNC_VALUES - 1);
 	});
 
-	it("the horizontal page edits the focused column through the gold knobs", _ {
+	it("the horizontal page edits the focused column through the select encoder", _ {
+		// `HorizontalMenu::selectEncoderAction` (`horizontal_menu.cpp:309-326`): the select turn
+		// edits the focused column and never moves focus. Re-derived from the gold-knob version
+		// this replaces (E-note-family task 2): the gold knobs no longer touch a horizontal page at
+		// all -- they fall through to `services::ModKnobs` (spec §3.2's fourth bullet).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1353,7 +1365,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		expect(menu_scene().focused() == &lpf_page).to_be_true();
 
 		const int32_t before = menu::bindings::read(lpf_freq, ctx);
-		r.gold(kGoldUpper, -1, 30);
+		r.turn(-1, 30);
 		r.shell.tick(40);
 		expect(menu::bindings::read(lpf_freq, ctx)).to_equal(before - 1);
 		expect(deluge::notify::dirty().has(deluge::notify::Dirty::ParamAutomation)).to_be_true();
@@ -1440,7 +1452,11 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 		expect(depth_of()).to_equal(1);
 		expect(r.double_claimed()).to_be_false();
 
-		r.gold(kGoldUpper, 1, 120); // an edit and a focus walk in the same tick
+		// The gold knob falls through to `services::ModKnobs` on a horizontal page now (no menu
+		// effect); the select turn is what edits the focused column
+		// (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`) -- both claimed in
+		// the same tick, still with no double-claim.
+		r.gold(kGoldUpper, 1, 120);
 		r.turn(1, 130);
 		r.shell.tick(140);
 		expect(r.double_claimed()).to_be_false();
@@ -1673,24 +1689,38 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 });
 
 describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
-	/// @brief Open the LPF page and walk the column focus to \p column.
+	/// @brief Open the LPF page and focus column \p column (0 = FREQ .. 3 = MORPH).
 	///
 	/// Shared by the formatting cases below and by the goldens, so both start from exactly the
-	/// same state.
+	/// same state. Re-derived for E-note-family task 2: legacy moves horizontal focus by
+	/// instrument button, never by turn (`HorizontalMenu::selectEncoderAction`,
+	/// `horizontal_menu.cpp:309-326`, edits and never moves focus), and SYNTH/KIT/MIDI/CV name a
+	/// page's four columns directly (`select_map`, `:97`) rather than being walked to one at a
+	/// time -- so a single press reaches any column, where the old version turned once per column.
 	static const auto open_lpf = [](Rig& r, int32_t column, uint32_t base_ms) {
 		r.shell.tick(0);
 		r.enter(base_ms);
 		r.shell.tick(base_ms + 10);
-		uint32_t at = base_ms + 20;
-		for (int32_t i = 0; i < column; i++) {
-			r.turn(1, at);
-			r.shell.tick(at + 10);
-			at += 20;
+
+		if (column > 0) {
+			// The press lands 200 ms past `base_ms`, clearing the six buttons' shared 140 ms
+			// debounce off `MenuState::nav_press_ms`'s zero default (`:77-82`) -- this is the
+			// first of them pressed since `open()` reset it.
+			constexpr uint8_t kX[] = {kSynthX, kKitX, kMidiX, kCvX};
+			constexpr uint8_t kY[] = {kSynthY, kKitY, kMidiY, kCvY};
+			const uint32_t press = base_ms + 200;
+			r.button(kX[column], kY[column], true, press);
+			r.shell.tick(press + 10);
+			r.button(kX[column], kY[column], false, press + 20);
+			r.shell.tick(press + 30);
 		}
-		// One more tick with no input: a render pass draws the screen it was *entered* with, and
-		// `after_render` moves the path afterwards, so the page itself is only drawn on the tick
-		// after the one that entered it -- which the scene asks for with `RepaintAll`.
-		r.shell.tick(at);
+
+		// One more tick with no input: a render pass draws the screen it was *entered* with (or
+		// last focused), and `after_render` moves the path afterwards, so a freshly focused screen
+		// is only drawn on the tick after the one that focused it -- which the scene asks for with
+		// `RepaintAll`. Column 0 needs no button at all: `descend_to` already resets
+		// `columns[depth].focused` to 0.
+		r.shell.tick(base_ms + 260);
 	};
 
 	/// @brief The text of the notice the last tick raised, or "" if none.
@@ -1716,12 +1746,16 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		expect(static_cast<int>(menu_scene().state().columns[1].page)).to_equal(0);
 	});
 
-	it("walks the column focus one relevant column per detent", _ {
+	it("focuses a column directly by its instrument button", _ {
+		// `HorizontalMenu::buttonAction`'s `select_map` (`horizontal_menu.cpp:97`): SYNTH/KIT/MIDI/CV
+		// name columns 0-3 of the visible page directly, in one press. Replaces a test of "one
+		// column per detent" -- that walk is gone; the select turn edits the focused column now and
+		// never moves it (`selectEncoderAction`, `:309-326`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		open_lpf(r, 3, 10);
+		open_lpf(r, 3, 10); // CV -> column 3, MORPH
 
 		expect(static_cast<int>(menu_scene().state().columns[1].focused)).to_equal(3);
 		expect(static_cast<int>(menu_scene().state().columns[1].page)).to_equal(0); // four columns, one page
@@ -1732,7 +1766,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(settings_root);
-		open_lpf(r, 3, 10); // MORPH, two decimal places
+		open_lpf(r, 3, 10); // MORPH, two decimal places, CV's column
 
 		// Legacy pads to `places + 1` digits before placing the point
 		// (`Decimal::drawPixelsForOled`, `gui/menu_item/decimal.cpp:129-153`), so a value smaller
@@ -1742,19 +1776,28 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			const char* text;
 		};
 		constexpr Case kCases[] = {{5, "0.05"}, {0, "0.00"}, {-5, "-0.05"}, {1234, "12.34"}};
-		uint32_t at = 200;
+		uint32_t at = 600;
 		for (const Case& c : kCases) {
 			g_morph = c.value;
 			(void)last_notice(); // drain
-			// A select press on a *value* column raises the notification and navigates nowhere
-			// (`HorizontalMenu::handleItemAction`, `horizontal_menu.cpp:657-661`).
-			r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
-			r.enter(at + 1);
-			r.shell.tick(at + 2);
+			// A select press on a value column no longer raises this notification -- it follows the
+			// column's `select_chain`, or ascends, and stays silent either way (spec E-note-family
+			// §3.2's third bullet). The already-focused CV press does instead:
+			// `handleItemAction` (`horizontal_menu.cpp:663-679`) runs the column's own press (a
+			// no-op here -- only `Toggle` overrides `selectButtonPress`) and notifies, without
+			// touching the value, which is exactly what this case wants formatted.
+			r.button(kCvX, kCvY, true, at);
+			r.shell.tick(at + 10);
 			expect(depth_of()).to_equal(1);
+			// Read the notice off the same tick that raised it: `Shell::tick` drains
+			// `notify::notices()` into its own `NoticesController` at the *start* of the next tick
+			// (`shell.cpp:327`), so a second tick here (the button's release) would consume it
+			// before this can.
 			const std::string notice = last_notice();
 			expect(notice.find(c.text) != std::string::npos).to_be_true();
-			at += 10;
+			r.button(kCvX, kCvY, false, at + 20);
+			r.shell.tick(at + 30);
+			at += 200; // past the six buttons' shared 140 ms debounce
 		}
 	});
 

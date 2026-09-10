@@ -38,6 +38,9 @@
 ///     compared here.
 
 #include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node.h"
+#include "scenes/menu/node_id.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/registry.h"
 #include "scenes/services/mod_knobs.h"
@@ -48,6 +51,7 @@
 #include "shell/scene_stack.h"
 
 #include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
@@ -55,6 +59,7 @@
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
+#include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
@@ -383,6 +388,24 @@ struct RouteRig {
 	}
 };
 
+// ---------------------------------------------------------------------------------------------
+// A one-column horizontal page bound to `LOCAL_LPF_RESONANCE` -- `modKnobs[1][0]`'s param
+// (`processing/sound/sound.cpp:98`), which is what `GoldLower` actually edits on the
+// `SoundInstrument` `spec::make_synth_song()` builds: measured (not assumed) against the fixture's
+// own default mod-knob mode, which is 1 (the FILTER page), not 0. Built to test
+// `ModKnobs::popup_suppressed`'s horizontal-page forwarding (`mod_knobs.cpp:342`): the menu's own
+// focused *column*, not the page node, is what the same-param guard has to compare against.
+namespace mod_knobs_spec_nodes {
+inline constexpr deluge::scenes::menu::Node res_col = deluge::scenes::menu::param(
+    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_RESONANCE),
+    {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE});
+inline constexpr const deluge::scenes::menu::Node* kResPageChildren[] = {&res_col};
+inline constexpr deluge::scenes::menu::Node res_page =
+    deluge::scenes::menu::submenu(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LPF), kResPageChildren,
+                                  deluge::scenes::menu::Layout::Horizontal);
+inline constexpr const deluge::scenes::menu::Node* kRoots[] = {&res_page};
+} // namespace mod_knobs_spec_nodes
+
 /// @brief A live `ModKnobs` over a real (empty) scene stack and a real `InputLowering`.
 struct KnobRig {
 	SceneRegistry reg = scene_registry();
@@ -688,6 +711,42 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.stack.depth()).to_equal(size_t(1));
 		expect(rig.stack.id_at(0).kind == overlay::kParamPopupSceneKind).to_be_true();
 		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
+	});
+
+	it("suppresses the popup when the menu is focused on a horizontal page's same-param column",
+	   _ {
+		// `ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp:342`) now compares against
+		// `MenuScene::focused_value()`, not `focused()`: legacy's same-param test forwards through a
+		// horizontal page to the focused *column* (`Submenu::shouldForwardButtons`,
+		// `gui/menu_item/submenu.cpp:181-185`), and the page node itself has no `bind.param` to
+		// ever match against -- so the un-fixed version could never suppress on a horizontal page,
+		// only on a full-page leaf. `GoldLower` edits `LOCAL_LPF_RESONANCE` on this fixture (see
+		// `mod_knobs_spec_nodes`'s own note), which `res_page`'s one column is bound to, so this is
+		// `LOCAL_LPF_RESONANCE` on both sides of the comparison.
+		StubDisplay stub;
+		display = &stub;
+		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+
+		spec::SongFixture f = spec::make_synth_song();
+		KnobRig rig;
+		rig.knobs.set_song(f.song);
+		rig.knobs.set_target_with_timeline(f.clip, false);
+		rig.knobs.set_mod_region();
+
+		const menu::MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, false, false);
+		(void)menu::assign_node_ids(mod_knobs_spec_nodes::kRoots);
+		menu_scene().open(mod_knobs_spec_nodes::res_page, ctx);
+		expect(rig.stack.push(SceneId{SceneKind::FirstApp, menu::node_id(mod_knobs_spec_nodes::res_page)}))
+		    .to_be_true();
+		expect(rig.stack.depth()).to_equal(size_t(1));
+		expect(menu_scene().focused_value() == &mod_knobs_spec_nodes::res_col).to_be_true();
+
+		for (uint32_t i = 0; i < 5; i++) {
+			DirectCtx c{2000 + i * 200};
+			(void)rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 1), c.ctx);
+		}
+		// No popup pushed: the stack still holds only the menu.
+		expect(rig.stack.depth()).to_equal(size_t(1));
 	});
 
 	it("files an OLED repaint for every COMMITTED popup update, not only the first", _ {
