@@ -998,7 +998,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 
 				writer.writeOpeningTagBeginning("patchCable", true);
 				writer.writeAttribute("source", sourceToString(patchCables[d].from));
-				writer.writeAttribute("polarity", polarityToString(patchCables[c].polarity).data());
+				writer.writeAttribute("polarity", polarityToString(patchCables[d].polarity).data());
 				writer.insertCommaIfNeeded();
 				writer.write("\n");
 				writer.printIndents();
