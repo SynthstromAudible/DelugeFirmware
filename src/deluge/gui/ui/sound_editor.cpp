@@ -259,6 +259,9 @@ bool SoundEditor::opened() {
 	// we don't want to process select button release when entering menu
 	Buttons::selectButtonPressUsedUp = true;
 
+	// Belt and braces: no variant-slot audition override should survive from a previous session.
+	MultisampleRange::clearAuditionSlot();
+
 	bool success = beginScreen(); // Could fail for instance if going into WaveformView but sample not found on card, or
 	                              // going into SampleBrowser but card not present
 	if (!success) {
@@ -364,12 +367,26 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 							if (result != MenuPermission::NO) {
 								if (result == MenuPermission::MUST_SELECT_RANGE) {
+									// The note-range picker operates on currentSource. Reached through
+									// menu navigation alone (the shortcut-pad path pins the source in
+									// beginSessionForItem() instead), currentSource may still point at
+									// the other oscillator - pin it to the item's own source first.
+									int32_t rangeSourceIndex = newItem->getSourceIndexForRangeSelection();
+									if (rangeSourceIndex >= 0 && currentSound != nullptr) {
+										setCurrentSource(rangeSourceIndex);
+									}
 									currentMultiRange = nullptr;
 									menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
 									newItem = &menu_item::multiRangeMenu;
 								}
 								else {
-									HorizontalMenu* parent = maybeGetParentMenu(newItem);
+									// Coming back from the note-range picker, a value item wants to land on its
+									// horizontal menu page with itself highlighted, ready for the encoder. A
+									// submenu wants opening instead - redirecting it to the parent page means it
+									// never opens at all, and pushes that page onto the stack a second time, so
+									// Back then goes from the page to the same page.
+									HorizontalMenu* parent =
+									    newItem->isSubmenu() ? nullptr : maybeGetParentMenu(newItem);
 									if (parent != nullptr && parent != currentMenuItem && parent->focusChild(newItem)) {
 										navigatedBackwardFrom = newItem;
 										newItem = parent;
@@ -453,9 +470,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (Buttons::isShiftButtonPressed()) {
-				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-					menu_item::multiRangeMenu.deletePress();
-				}
+				getCurrentMenuItem()->deletePress();
 			}
 			else {
 				openUI(&saveInstrumentPresetUI);
@@ -721,6 +736,9 @@ ActionResult SoundEditor::exitCompletely() {
 
 	// end current menu item session before exiting
 	endScreen();
+
+	// Any variant-slot audition override belongs to the menu session that just ended.
+	MultisampleRange::clearAuditionSlot();
 
 	display->setNextTransitionDirection(-1);
 	close();
@@ -2102,6 +2120,74 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	}
 
 	currentMenuItem->renderOLED();
+}
+
+// Zone-scoped menus carry the picked zone in their own title (see submenu::ActualSource and
+// sample::RoundRobinSlot) rather than drawing it separately - the top-right corner of the title row
+// is already taken by the horizontal menu's page counter.
+int32_t SoundEditor::getCurrentZoneIndex(int32_t sourceId) {
+	if (currentSound == nullptr) {
+		return -1;
+	}
+	Source& source = currentSound->sources[sourceId];
+	int32_t numRanges = source.ranges.getNumElements();
+	if (numRanges == 0) {
+		return -1;
+	}
+	if (numRanges == 1) {
+		return 0;
+	}
+
+	// The zone picked for this editing session, while the editor still holds it.
+	if (currentSourceIndex == sourceId && currentMultiRange != nullptr && currentMultiRangeIndex >= 0
+	    && currentMultiRangeIndex < numRanges) {
+		return currentMultiRangeIndex;
+	}
+
+	// Otherwise the source's own record of its current zone. currentMultiRange is transient - several
+	// navigation paths clear it (Submenu::beginSession, switching between chained horizontal menus,
+	// selecting an item by instrument button) and only some put it back, which used to leave the
+	// menus behaving as though no zone had ever been picked. defaultRangeI outlives all of that; the
+	// note-range picker writes it when a zone is chosen, and playback keeps it pointed at the zone
+	// the last note landed in.
+	if (source.defaultRangeI >= 0 && source.defaultRangeI < numRanges) {
+		return source.defaultRangeI;
+	}
+	return -1;
+}
+
+void SoundEditor::appendCurrentZoneDescription(std::string& out, int32_t sourceId) {
+	if (currentSound == nullptr) {
+		return;
+	}
+	Source& source = currentSound->sources[sourceId];
+	int32_t numRanges = source.ranges.getNumElements();
+	int32_t zoneIndex = getCurrentZoneIndex(sourceId);
+	// Nothing to say on a single-zone source: there is no other zone to distinguish it from.
+	if (numRanges <= 1 || zoneIndex < 0) {
+		return;
+	}
+
+	// Same vocabulary the note-range picker itself uses: "-C4" for the bottom zone, "C#4-" for the
+	// top one, "C3-F#4" in between.
+	char zoneText[12];
+	char* pos = zoneText;
+	if (zoneIndex > 0) {
+		noteCodeToString(source.ranges.getElement(zoneIndex - 1)->topNote + 1, pos);
+		pos = zoneText + strlen(zoneText);
+	}
+	*(pos++) = '-';
+	*pos = 0;
+	if (zoneIndex < numRanges - 1) {
+		noteCodeToString(source.ranges.getElement(zoneIndex)->topNote, pos);
+	}
+
+	out += " ";
+	out += zoneText;
+}
+
+bool SoundEditor::inNoteRangePicker() {
+	return getCurrentMenuItem() == &menu_item::multiRangeMenu;
 }
 
 /*

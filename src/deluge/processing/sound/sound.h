@@ -210,7 +210,8 @@ public:
 	bool isNoiseActiveEver(ParamManagerForTimeline* paramManager);
 	void noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode,
 	            int16_t const* mpeValues, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	            uint32_t samplesLate = 0, int32_t velocity = 64, int32_t fromMIDIChannel = 16);
+	            uint32_t samplesLate = 0, int32_t velocity = 64, int32_t fromMIDIChannel = 16,
+	            bool noteMightBeConstant = false);
 	void noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCode);
 	void allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator);
 
@@ -218,7 +219,7 @@ public:
 	void noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	                           int32_t newNoteCodeAfterArpeggiation, int32_t velocity, int16_t const* mpeValues,
 	                           uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-	                           int32_t fromMIDIChannel = 16);
+	                           int32_t fromMIDIChannel = 16, bool noteMightBeConstant = false);
 	void polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
 	                                              int32_t channelOrNoteNumber,
 	                                              MIDICharacteristic whichCharacteristic) override;

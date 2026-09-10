@@ -5519,6 +5519,9 @@ doDisplayError:
 		}
 	}
 	else {
+		sampleBrowser.targetRoundRobinSlot =
+		    0; // Reset stale slot index — this path bypasses FileSelector::beginSession()
+
 		success = openUI(&sampleBrowser);
 		if (success) {
 			PadLEDs::skipGreyoutFade(); // Greyout can't be done at same time as horizontal scroll, which is now

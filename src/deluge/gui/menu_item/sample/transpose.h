@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/formatted_title.h"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/menu_item/source/transpose.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
@@ -136,10 +137,21 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return source_id_; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
 		const auto sound = static_cast<Sound*>(modControllable);
-		if (Source& source = sound->sources[source_id_];
-		    source.oscType == OscType::SAMPLE || source.oscType == OscType::WAVETABLE) {
+		Source& source = sound->sources[source_id_];
+		if (source.oscType == OscType::SAMPLE) {
+			if (!source.hasAtLeastOneAudioFileLoaded()) {
+				return false;
+			}
+			// Once any zone on this oscillator has alternates loaded, this OSC-level entry would edit the
+			// exact same transpose/cents fields as the per-variant Transpose item, so it steps aside for
+			// every zone alike - see sample::sourceUsesVariants().
+			return !sourceUsesVariants(source);
+		}
+		if (source.oscType == OscType::WAVETABLE) {
 			return source.hasAtLeastOneAudioFileLoaded();
 		}
 		return true;
