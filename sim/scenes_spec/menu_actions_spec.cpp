@@ -1033,23 +1033,18 @@ int32_t choose_screensaver(Rig& r, const Node& child, bool enum_item, int32_t ta
 	};
 	int32_t value = read();
 	for (uint32_t step = 0; value != target && step < 80; step++) {
-		// **Two different encoders, because the two widgets read two different ones.** `enum_value`
-		// owns the select encoder (`f.turn()`); `int_value` owns the two gold knobs
-		// (`f.claim_edit(0)`/`(1)`, `ui/oled/values.cpp:87-89`) and leaves the select encoder to the
-		// scene. Legacy reaches both items' `writeCurrentValue` from `Value<T>::selectEncoderAction`
-		// instead; that divergence is the port's and predates this task -- see the group's note.
+		// **The same encoder now, for both.** `enum_value` has always owned the select encoder
+		// (`f.turn()`); `int_value` used to own the two gold knobs instead and now owns the select
+		// encoder too (`ui/oled/values.cpp`'s `select_delta`) -- exactly what legacy's own
+		// `Value<T>::selectEncoderAction` does for both items, closing the divergence this helper's
+		// note used to record.
 		//
-		// The loop runs until the value lands rather than counting detents, and for the gold knob it
-		// has to: `action_gold_turn` **swallows the first turn after a pause** and only records its
-		// direction (`shell/input_lowering.cpp:214-225`), legacy's own anti-wiggle rule. So the first
-		// iteration is normally a no-op and the walk simply takes one more step.
+		// The loop still runs until the value lands rather than counting detents: the select
+		// encoder is not `Accelerating` and does not swallow a first turn the way the gold knobs
+		// did, so in practice this now lands in exactly `abs(target - value)` iterations, but the
+		// loop makes no assumption about that.
 		const int32_t d = target > value ? 1 : -1;
-		if (enum_item) {
-			r.turn(d, 120 + step * 10);
-		}
-		else {
-			r.gold(d, 120 + step * 10);
-		}
+		r.turn(d, 120 + step * 10);
 		r.shell.tick(125 + step * 10);
 		value = read();
 	}
@@ -1798,11 +1793,11 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 		expect(scene().focused() == &nodes::screensaver_timeout).to_be_true();
 		expect(static_cast<int>(scene().state().depth)).to_equal(1);
 
-		// And a second detent still lands, which an ascend would have made impossible. Timed within
-		// `LoweringConfig::short_press_ms` (500, `shell/input_lowering.h:26`) of the walk's last
-		// turn, so `action_gold_turn`'s anti-wiggle rule acts on it rather than swallowing it as a
-		// first-turn-after-a-pause (`shell/input_lowering.cpp:214-225`) -- see `choose_screensaver`.
-		r.gold(1, 200);
+		// And a second detent still lands, which an ascend would have made impossible. `int_value`
+		// reads the select encoder now, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`);
+		// the select encoder is not `EncoderKind::Accelerating` the way the gold knobs are, so it
+		// needs no anti-wiggle timing against the walk's last turn -- see `choose_screensaver`.
+		r.turn(1, 200);
 		r.shell.tick(210);
 		deluge::gui::ui::dispatchShellActions();
 		expect(scene().state().edit_int).to_equal(int32_t(8));

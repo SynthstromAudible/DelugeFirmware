@@ -894,15 +894,16 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 		st_.value_changed = true;
 		st_.value_node = &node;
 	}
-	// `int_value` owns the gold knobs and nothing else, so the select press that leaves the item
-	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is this scene's to claim.
+	// `int_value` owns the select encoder now -- legacy edits the value with it on a number screen
+	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1122`), and so does this port
+	// (`ui/oled/values.cpp`'s `select_delta`). The select *press* that leaves the item
+	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is still this scene's to
+	// claim -- `int_value` never reads `select_pressed()`.
 	if (f.select_pressed()) {
 		st_.render_resp.entered = true;
 	}
-	// And the select *encoder*: legacy edits the value with it on a number screen
-	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1122`). This port leaves the editing to
-	// the gold knobs, but the input still belongs to this screen -- left unclaimed it would fall out
-	// of `route_post_render` into whatever service is registered.
+	// This claim is idempotent (`ui/core/frame_context.h` rule 2): `int_value` already claimed the
+	// turn above while editing. Kept so the ownership reads here too.
 	f.claim_turn();
 }
 
@@ -927,12 +928,13 @@ void MenuScene::render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& no
 		st_.value_changed = true;
 		st_.value_node = &node;
 	}
-	// `range_value` owns the gold knobs and the horizontal encoder; the select press that leaves the
-	// item is this scene's, exactly as on a number screen.
+	// `range_value` owns the select and horizontal encoders now, not the gold knobs (`values.h`'s
+	// note on the two `selectEncoderAction`s it ports); the select press that leaves the item is
+	// this scene's, exactly as on a number screen.
 	if (f.select_pressed()) {
 		st_.render_resp.entered = true;
 	}
-	f.claim_turn();
+	f.claim_turn(); // idempotent (`ui/core/frame_context.h` rule 2): `range_value` already claimed it above.
 }
 
 void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& node) {
@@ -953,7 +955,8 @@ void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& 
 	if (f.select_pressed()) {
 		st_.render_resp.entered = true;
 	}
-	f.claim_turn(); // as `render_leaf_int`: the number screen owns the select encoder
+	// Idempotent, as `render_leaf_int`: `decimal_value` already claimed the turn above while editing.
+	f.claim_turn();
 }
 
 void MenuScene::render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& node) {
@@ -1095,7 +1098,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		// whole scene (20 or 180 ms, `MenuScene::next_timer`) while `ms_to_phase_change` names the
 		// milliseconds to the *next* edge of an unequal 20/180 cycle. A frame drawn at phase 190
 		// wants 10 ms, not 180. The shell's arm is the safety net; this one is the timing.
-		// Same shape every animated widget uses -- `decimal_value` (`ui/oled/values.cpp:179`),
+		// Same shape every animated widget uses -- `decimal_value` (`ui/oled/values.cpp:178`),
 		// `popup`, `scroll_text`, `grid::gesture`.
 		f.gate().request_repaint_after(ms_to_phase_change(phase), now);
 	}

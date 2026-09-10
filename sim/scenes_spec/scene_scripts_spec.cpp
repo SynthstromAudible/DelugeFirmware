@@ -693,12 +693,32 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 
 	// ---- a menu and a real ModKnobs in the same run ---------------------------------------------
 
-	it("a gold turn in a MENU with the real services: the scene claims it, ModKnobs never sees it, "
-	   "and no popup is pushed", _ {
-		// **E4 final-review fix wave, the ruling's step 1.** Every menu golden in
-		// `menu_scripts_spec.cpp` was recorded with `Services{}` -- three `NullService`s -- so none
-		// of them can show what a menu does with a service that also wants gold-knob turns present.
-		// This is that frame, on the same node `menu_int.txt` opens.
+	it("a gold turn in a MENU with the real services now reaches ModKnobs, and pushes a popup", _ {
+		// **E4 final-review fix wave, the ruling's step 1** -- and now also the note-family task 1
+		// fix this header was rewritten for. Every menu golden in `menu_scripts_spec.cpp` was
+		// recorded with `Services{}` -- three `NullService`s -- so none of them can show what a menu
+		// does with a service that also wants gold-knob turns present. This is that frame, on the
+		// same node `menu_int.txt` opens.
+		//
+		// **What changed, and why this script now pins the opposite of its old name.** Legacy edits
+		// a menu value with the *select* encoder; the gold knobs never touch a menu at all --
+		// `SoundEditor::modEncoderAction` falls through to `View::modEncoderAction`
+		// (`gui/views/view.cpp:835`), which edits the mod-controllable's param instead. The port
+		// used to have `int_value` read the gold pair, under a comment that (wrongly) called that a
+		// port of `Integer::selectEncoderAction` -- the defect note-family task 1 fixed. `int_value`
+		// now claims only the select turn (`ui/oled/values.cpp`'s `select_delta`), so the two
+		// `GoldUpper` turns below are unclaimed by `MenuScene` and reach `services::ModKnobs`
+		// through the same held-back path `View::modEncoderAction` names.
+		//
+		// **Why a popup, where `menu_int.txt` still says none is pushed there.** `ModKnobs`'s port
+		// of "let's see if we're editing the same param in the menu, if so, don't show pop-up"
+		// (`view.cpp:893-900`) is `ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp:342`):
+		// it compares the turn's param against `menu_scene().focused()->bind.param`. `nodes::saturation`
+		// is built with `int_item()` (`nodes/sound_fx.h:318`), which never sets `bind.param` at all
+		// (`node.h`'s `int_item` builder) -- so `bind.param.valid()` is false, `popup_suppressed`
+		// returns false unconditionally, and the popup goes up. A node built with `param()` instead,
+		// showing the exact modulation param GoldUpper points at, would suppress it; this node
+		// can't, by construction, which is the case this script now pins.
 		reset_globals();
 		install_display();
 		SceneReset reset;
@@ -728,22 +748,28 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		    uitest::expect_script_goldens(self, "menu_gold_turn", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{3});
 
-		// **The scene got the turn.** `+2` detents through `MenuScene`'s `int_value` widget is the
-		// same arithmetic `menu_int`'s block derives: `edges_per_detent`(2) * 2 = 4 raw edges, and
-		// `int_value`'s coarse step is `range.step` (1), clamped to `IntRange{0,15,1}`. The `+1` at
-		// 100 ms is swallowed by `pretend_knobs_untouched()`, so it contributes nothing -- if that
-		// debounce ever stops applying, this total is what notices.
-		expect(bindings::read(nodes::saturation, ctx)).to_equal(std::min(before + 4, 15));
+		// **`nodes::saturation` itself never moves.** `int_value` claims only the select turn now,
+		// so the `+1`/`+2` `GoldUpper` steps below are entirely unclaimed by `MenuScene` -- and
+		// `int_item()` never gave this node a `bind.param` for `ModKnobs` to write through even if
+		// they did reach it (it has its own `get`/`set` pair instead, `nodes/sound_fx.h:318`). So the
+		// node this script opens is not, and cannot be, the thing a gold turn here moves.
+		expect(bindings::read(nodes::saturation, ctx)).to_equal(before);
 
-		// **`ModKnobs` never saw it, so nothing was pushed.** The gold turn is one of the six
-		// widget-owned inputs the shell holds back and delivers after render, skipping any input
-		// `ctx().claims` shows a widget already took (`shell/README.md`, `Router::route_post_render`)
-		// -- and `MenuScene`'s `int_value` widget takes this one. So the service is never reached,
-		// and `ParamPopupScene` stays off the stack: `idle` and `after_gold_turn` carry exactly one
-		// `scene` line and `after_back` carries none, which is the recorded half of this claim (a
-		// popup pushed by the turn would still be stacked at `after_back`, since its 2000 ms
-		// lifetime outlasts the run).
-		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
+		// **`ModKnobs` DOES see the turn now, and shows it.** With `int_value` claiming only the
+		// turn, the two `GoldUpper` steps reach `services::ModKnobs::mod_encoder_action`, the port of
+		// `View::modEncoderAction` (`view.cpp:835`) -- the `+1` at 100 ms is swallowed by
+		// `pretend_knobs_untouched()` exactly as before, and the `+2` at 150 ms edits whatever real
+		// modulation param GoldUpper is currently pointed at (not `nodes::saturation`, per above),
+		// moving that param's own knob-indicator ring: `idle`'s `indicator upper` is `16`, and
+		// `after_gold_turn`'s is `36`. `ModKnobs::popup_suppressed` (`mod_knobs.cpp:342`), the port
+		// of legacy's same-param popup guard (`view.cpp:893-900`), compares the turn's param against
+		// `menu_scene().focused()->bind.param` -- and `nodes::saturation` has none (see above), so
+		// the guard cannot suppress here and the popup goes up: `idle` carries one `scene` line,
+		// `after_gold_turn` carries two (the popup pushed over the menu), and `after_back` carries
+		// one again -- not zero, and not the menu's: the Back at depth 0 closes `MenuScene`
+		// entirely, and the popup outlives it, its 2000 ms lifetime still running when the script's
+		// own last tick (`quit` at 400 ms, 250 ms after the 150 ms push) ends the run.
+		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{1750});
 		expect(overlay::param_popup_scene().has_pending()).to_be_false();
 		// ---------------------------------------------------------------------------------------
 		// **This is NOT a guard on the router's chain order, and that was measured rather than
@@ -764,9 +790,12 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		// scene that does -- and a recorded frame for it cannot exist until a ported scene has such
 		// an arm. That is the finding, and it is in this fix wave's report.
 		//
-		// What this DOES pin is still worth its three goldens: installing the real services does
-		// not silently steal a menu's edit encoder. That is a claim no `Services{}` golden can
-		// make, and it is the one that will break first if the widget-claim path changes.
+		// What this DOES pin is still worth its three goldens: a gold turn taken inside a menu now
+		// reaches the real `ModKnobs` and moves a real mod-controllable param, exactly as it does
+		// everywhere else in the firmware -- and pushes the same popup it would over any other view,
+		// because this particular node has nothing to suppress it with. That is a claim no
+		// `Services{}` golden can make, and it is the one that will break first if `int_value` ever
+		// starts claiming the gold knobs again.
 	});
 
 	// ---- ScreensaverScene, pushed by shell::Screensaver -----------------------------------------

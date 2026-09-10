@@ -10,11 +10,13 @@
 
 namespace deluge::ui::oled {
 
-/// @brief Bounds an edited value is held inside, and the amount one detent of the primary edit
-///        encoder moves it.
+/// @brief Bounds an edited value is held inside, and the amount one select detent moves it.
 ///
-/// @note `step` is the coarse-encoder amount used by `int_value`; see its fine/coarse note for
-///       how `decimal_value` uses this field differently.
+/// @note `step` is the amount one select detent moves an integer (`int_value`) or a range
+///       (`range_value`) -- legacy's `Integer`/`IntegerRange` step, added raw (`* coarse_step`).
+///       `decimal_value` does not read this field at all: its detent moves by `10^edit_pos`
+///       instead (see its own doc). There is no fine knob -- the toolkit had one, briefly, and it
+///       had no legacy counterpart.
 struct Range {
 	int32_t min, max, step = 1;
 };
@@ -44,12 +46,13 @@ static_assert(kMaxWindowRows >= kDelugeStyle48.menu_rows && kMaxWindowRows >= kD
 ///       @p focused is "am I the current control in my pane", `OledFrame::focused` is "is my pane
 ///       live", and the widget reads input only when both hold -- @see ui/core/frame_context.h,
 ///       rules 2 and 3.
-///   - `f.edit(0)` (GoldUpper) moves the value by `range.step` per detent -- the coarse knob.
-///   - `f.edit(1)` (GoldLower) moves it by one unit per detent -- the fine knob.
 ///
-/// @note `decimal_value`'s coarse amount is `10^edit_pos` and `range.step` is its *fine* amount,
-///       so `step` plays opposite roles in the two widgets -- they coincide only at the default
-///       `step == 1`.
+/// Ports legacy `Integer::selectEncoderAction` (`gui/menu_item/integer.cpp:25`): `f.turn()` moves
+/// the value by `range.step` per detent, multiplied by 5 while `f.shift()` is held -- the select
+/// encoder's own acceleration, `SoundEditor::selectEncoderAction`'s `scaledOffset`
+/// (`gui/ui/sound_editor.cpp:1072`). The gold knobs are never read: legacy's `SoundEditor::
+/// modEncoderAction` (`:1638`) falls through to `View::modEncoderAction` (`gui/views/view.cpp:835`),
+/// which edits the mod-controllable's param instead of the menu item.
 ///
 /// The sum is clamped to `[range.min, range.max]`; the value is never snapped to a multiple of
 /// `step`.
@@ -57,9 +60,9 @@ static_assert(kMaxWindowRows >= kDelugeStyle48.menu_rows && kMaxWindowRows >= kD
 /// @param f       Frame to render into and read input from.
 /// @param rect    Rect the digits are laid out relative to.
 /// @param value   Edited value, in/out.
-/// @param range   Value's bounds and coarse step.
+/// @param range   Value's bounds and the select detent's step.
 /// @param style   Unit suffix and zero-as-"OFF" presentation.
-/// @param focused Whether this control currently owns the edit encoders.
+/// @param focused Whether this control currently owns the select encoder.
 /// @return `Response::changed` set when @p value actually moved this tick (a detent into a
 ///         clamped end changes nothing); `Response::focused` echoes @p focused.
 Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range range, ValueStyle style = {},
@@ -95,8 +98,10 @@ Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range ran
 /// cursor right (floored at 0), a negative tick moves it left only while the next place up is
 /// still reachable inside `range.max`.
 ///
-/// `f.edit(0)` moves the value by `10^edit_pos` per detent and `f.edit(1)` by `range.step`, the
-/// fine amount -- both only while @p focused.
+/// Ports legacy `Decimal::selectEncoderAction` (`gui/menu_item/decimal.cpp:57`): `f.turn()` moves
+/// the value by `10^edit_pos` per detent, multiplied by 5 while `f.shift()` is held -- only while
+/// @p focused. `range.step` plays no part here; unlike `int_value` this widget does not read it at
+/// all. The gold knobs are never read, for the reason `int_value`'s doc gives.
 ///
 /// @note The clamp applies to both ends of `[range.min, range.max]` at once, regardless of turn
 ///       direction -- an incoming value already outside the range gets pulled back in even on a
@@ -105,11 +110,11 @@ Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range ran
 /// @param f        Frame to render into and read input from.
 /// @param rect     Rect the digits are laid out relative to (horizontally only -- see above).
 /// @param value    Edited value, in/out.
-/// @param range    Value's bounds and fine step.
+/// @param range    Value's bounds. `range.step` is unused here -- see above.
 /// @param places   Number of decimal places to zero-pad and place the period after.
-/// @param edit_pos Digit position the cursor and coarse edit amount are anchored to, in/out.
+/// @param edit_pos Digit position the cursor and select edit amount are anchored to, in/out.
 /// @param blink    Cursor blink phase state, armed and advanced by this widget.
-/// @param focused  Whether this control currently owns the horizontal and edit encoders.
+/// @param focused  Whether this control currently owns the horizontal and select encoders.
 /// @param layout   Face, horizontal-anchor and row overrides, or null for the full-panel default.
 ///                 Passing one switches the rows from canvas-absolute to `rect`-relative -- see
 ///                 `DecimalLayout::text_dy`.
@@ -285,11 +290,13 @@ inline constexpr size_t kRangeTextMax = 12;
 ///   - the highlight inverts one end plus a 1px margin above and below (`:120-123`), and nothing at
 ///     all when @p edge is `Off`.
 ///
-/// @note **The encoders are this toolkit's, not legacy's.** Legacy edits the value with the *select*
-///       encoder and picks the edge with the horizontal one. Here the gold knobs edit and the
-///       horizontal encoder picks -- exactly the split `decimal_value` already makes for the same
-///       reason (the select encoder walks lists in this stack). `f.edit(0)` moves by `range.step`,
-///       `f.edit(1)` by one.
+/// @note Ports the two `selectEncoderAction`s together with `horizontalEncoderAction`: legacy edits
+///       the value with the *select* encoder (`IntegerRange::selectEncoderAction`,
+///       `integer_range.cpp:33`; `KeyRange::selectEncoderAction`, `key_range.cpp:28`) and picks the
+///       edge with the horizontal one (`Range::horizontalEncoderAction`, `range.cpp:35`), and this
+///       widget reads the same two. `f.turn()` moves the selected edge by `range.step` per detent,
+///       multiplied by 5 while `f.shift()` is held, for the reason `int_value`'s doc gives; the
+///       gold knobs are never read.
 ///
 /// @note Legacy's `horizontalEncoderAction` refuses to act while shift is held (`range.cpp:37-39`)
 ///       and consults `mayEditRangeEdge` before selecting an edge (`:52`, `:73`). Neither is ported:
@@ -302,11 +309,11 @@ inline constexpr size_t kRangeTextMax = 12;
 /// @param rect    Rect the string is laid out relative to and centred across.
 /// @param lower   The low end, in/out.
 /// @param upper   The high end, in/out.
-/// @param range   The bounds both ends live inside, and the coarse knob's step.
+/// @param range   The bounds both ends live inside, and the select detent's step.
 /// @param edge    Which end is being edited, in/out. The horizontal encoder moves it.
 /// @param format  How to spell one end.
 /// @param clamp   Which of legacy's two crossing rules applies (`RangeClamp`).
-/// @param focused Whether this control currently owns the encoders.
+/// @param focused Whether this control currently owns the select and horizontal encoders.
 /// @return `changed` when @p lower, @p upper or @p edge actually moved this tick; `focused` echoes
 ///         @p focused.
 Response range_value(OledFrame& f, gfx::oled::Rect rect, int32_t& lower, int32_t& upper, Range range, RangeEdge& edge,

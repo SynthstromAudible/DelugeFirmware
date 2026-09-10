@@ -25,11 +25,12 @@ int32_t add_clamped(int32_t value, int64_t delta, Range range) {
 	return static_cast<int32_t>(std::clamp<int64_t>(next, range.min, range.max));
 }
 
-/// The `edit[]` pair as one signed amount: `edit[0]` (GoldUpper) at \p coarse per detent and
-/// `edit[1]` (GoldLower) at \p fine. See the fine/coarse note in values.h. Read through the
-/// frame, so an unfocused frame contributes nothing.
-int64_t edit_delta(const OledFrame& f, int32_t coarse, int32_t fine) {
-	return static_cast<int64_t>(f.edit(0)) * coarse + static_cast<int64_t>(f.edit(1)) * fine;
+/// The select encoder's detents for a value edit, as `SoundEditor::selectEncoderAction`
+/// (`gui/ui/sound_editor.cpp:1072`) hands them to a non-submenu item: multiplied by 5 while SHIFT
+/// is held. Read through the frame, so an unfocused frame contributes nothing.
+int64_t select_delta(const OledFrame& f) {
+	const int64_t detents = f.turn();
+	return f.shift() ? detents * 5 : detents;
 }
 
 /// A `step` of 0 would freeze the coarse knob, so it is read as the default (1) rather than
@@ -84,9 +85,8 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 
 	if (focused) {
 		// Ports legacy `Integer::selectEncoderAction`: add, then clamp to [min, max].
-		f.claim_edit(0);
-		f.claim_edit(1);
-		const int64_t delta = edit_delta(f, coarse_step(range), 1);
+		f.claim_turn();
+		const int64_t delta = select_delta(f) * coarse_step(range);
 		if (delta != 0) {
 			const int32_t next = add_clamped(value, delta, range);
 			if (next != value) {
@@ -136,8 +136,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 		// Ports legacy `Decimal::horizontalEncoderAction`: one place per tick, right when
 		// positive, left when the next place up is still inside the range.
 		f.claim_horizontal();
-		f.claim_edit(0);
-		f.claim_edit(1);
+		f.claim_turn();
 		const int8_t horizontal = f.horizontal();
 		// A tick still restarts the blink lit even when blocked by either bound below (matches
 		// the legacy ordering, where the moving-cursor flag is set unconditionally after the
@@ -152,7 +151,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 
 		// Ports legacy `Decimal::selectEncoderAction`: the value moves by 10^edit_pos per detent,
 		// then clamps.
-		const int64_t delta = edit_delta(f, pow10(edit_pos), coarse_step(range));
+		const int64_t delta = select_delta(f) * pow10(edit_pos);
 		if (delta != 0) {
 			const int32_t next = add_clamped(value, delta, range);
 			if (next != value) {
@@ -351,9 +350,8 @@ Response range_value(OledFrame& f, Rect rect, int32_t& lower, int32_t& upper, Ra
 			}
 		}
 
-		f.claim_edit(0);
-		f.claim_edit(1);
-		const int64_t delta = edit_delta(f, coarse_step(range), 1);
+		f.claim_turn();
+		const int64_t delta = select_delta(f) * coarse_step(range);
 		if (delta != 0) {
 			const int32_t was_lower = lower;
 			const int32_t was_upper = upper;

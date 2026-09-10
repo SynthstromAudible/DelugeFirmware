@@ -256,7 +256,7 @@ struct EditCase {
 	int32_t start_lower;
 	int32_t start_upper;
 	RangeEdit edge;
-	int32_t detents; // one gold-upper detent == `Range::step`, which is 1 for all three items
+	int32_t detents; // one select detent == `Range::step`, which is 1 for all three items
 };
 
 } // namespace
@@ -425,7 +425,12 @@ describe menu_range_edit("scenes::menu Kind::Range -- editing, against legacy", 
 			}
 			expect(static_cast<int>(scene().state().edit_edge)).to_equal(static_cast<int>(c.edge));
 
-			r.gold(kGoldUpper, static_cast<int16_t>(c.detents), at);
+			// `range_value` edits the selected edge on the select encoder now, as legacy's
+			// `IntegerRange::selectEncoderAction` does (`ui/oled/values.cpp`'s `select_delta`) -- so
+			// this is driven on `kSelectEncoder`, not `kGoldUpper`. `detent()` already multiplies by
+			// `edges_per_detent` (2), so `c.detents` select detents is exactly the offset
+			// `defaultTempoMenu.selectEncoderAction(c.detents)` was called with above.
+			r.detent(kSelectEncoder, c.detents, at);
 			r.shell.tick(at + 5);
 
 			expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower).to_equal(legacy_lower);
@@ -470,7 +475,9 @@ describe menu_range_edit("scenes::menu Kind::Range -- editing, against legacy", 
 			}
 			expect(static_cast<int>(scene().state().edit_edge)).to_equal(static_cast<int>(c.edge));
 
-			r.gold(kGoldUpper, static_cast<int16_t>(c.detents), at);
+			// As the `IntegerRange` block above: driven on `kSelectEncoder`, matching legacy's
+			// `KeyRange::selectEncoderAction` now that `range_value` reads the select encoder.
+			r.detent(kSelectEncoder, c.detents, at);
 			r.shell.tick(at + 5);
 
 			expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].lower).to_equal(legacy_lower);

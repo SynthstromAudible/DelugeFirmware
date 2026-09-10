@@ -1212,7 +1212,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 });
 
 describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
-	it("a gold-knob detent on an Int leaf commits through bindings::write", _ {
+	it("a select-encoder detent on an Int leaf commits through bindings::write", _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1228,7 +1228,9 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		expect(menu_scene().focused() == &int_leaf).to_be_true();
 		expect(menu::bindings::read(int_leaf, ctx)).to_equal(3);
 
-		r.gold(kGoldUpper, 2, 50);
+		// `int_value` edits on the select encoder now, not the gold knobs
+		// (`ui/oled/values.cpp`'s `select_delta`) -- legacy's `Integer::selectEncoderAction`.
+		r.turn(2, 50);
 		r.shell.tick(60);
 		expect(g_int).to_equal(5);
 		expect(menu::bindings::read(int_leaf, ctx)).to_equal(5);
@@ -1296,8 +1298,9 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &decimal_leaf).to_be_true();
 
-		// `decimal_value`'s coarse amount is 10^edit_pos, and `edit_pos` starts at 0.
-		r.gold(kGoldUpper, 1, 120);
+		// `decimal_value`'s select-detent amount is 10^edit_pos, and `edit_pos` starts at 0; it
+		// reads the select encoder now, not the gold knobs (`ui/oled/values.cpp`'s `select_delta`).
+		r.turn(1, 120);
 		r.shell.tick(130);
 		expect(menu::bindings::read(decimal_leaf, ctx)).to_equal(1235);
 	});

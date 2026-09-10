@@ -189,45 +189,55 @@ describe values_w("ui::oled::values", $ {
 		expect(long_unit.pbm()).to_equal(long_unit.reference_pbm());
 	});
 
-	it("applies edit[0] only when focused and clamps to the range", _ {
+	it("applies the select turn only when focused and clamps to the range", _ {
+		// Legacy `Integer::selectEncoderAction` (`gui/menu_item/integer.cpp:25`): add, then clamp.
 		uitest::Rig48 r;
-		int32_t value = 41;
-		r.input.edit[0] = 1;
-		const Response up = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 42});
-		expect(value).to_equal(42);
-		expect(up.changed).to_be_true();       // getValue() + offset
+		int32_t value = 125;
+		r.input.turn = 3;
+		const Response up = int_value(r.frame, r.frame.bounds(), value, Range{.min = 1, .max = 127});
+		expect(value).to_equal(127);
+		expect(up.changed).to_be_true();       // getValue() + offset, clamped to maxValue
 
-		const Response at_max = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 42});
-		expect(value).to_equal(42);            // clamps to maxValue
+		const Response at_max = int_value(r.frame, r.frame.bounds(), value, Range{.min = 1, .max = 127});
+		expect(value).to_equal(127);            // still clamped
 		expect(at_max.changed).to_be_false();
 
-		int32_t low = 0;
-		r.input.edit[0] = -3;
-		const Response down = int_value(r.frame, r.frame.bounds(), low, Range{.min = 0, .max = 42});
-		expect(low).to_equal(0);               // clamps to minValue
+		int32_t low = 1;
+		r.input.turn = -3;
+		const Response down = int_value(r.frame, r.frame.bounds(), low, Range{.min = 1, .max = 127});
+		expect(low).to_equal(1);                // clamps to minValue
 		expect(down.changed).to_be_false();
 
-		int32_t unfocused = 41;
-		r.input.edit[0] = 1;
-		const Response blurred = int_value(r.frame, r.frame.bounds(), unfocused, Range{.min = 0, .max = 42}, {}, false);
-		expect(unfocused).to_equal(41);        // edit[] moves only the *focused* value
+		int32_t unfocused = 125;
+		r.input.turn = 3;
+		const Response blurred = int_value(r.frame, r.frame.bounds(), unfocused, Range{.min = 1, .max = 127}, {}, false);
+		expect(unfocused).to_equal(125);       // the select turn moves only the *focused* value
 		expect(blurred.changed).to_be_false();
 		expect(blurred.focused).to_be_false();
 	});
 
-	it("splits the two edit encoders into a coarse and a fine step", _ {
-		// Decimal::getNumberEditSize is legacy's only two-granularity number edit: a coarse step
-		// and a 1-unit fine one. edit[0] takes range.step, edit[1] takes 1.
+	it("scales the select turn by 5 while shift is held", _ {
+		// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1072`) multiplies a
+		// non-submenu item's offset by 5 while SHIFT is held.
 		uitest::Rig48 r;
-		int32_t value = 100;
-		r.input.edit[0] = 1;
-		int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 1000, .step = 10});
-		expect(value).to_equal(110);
+		int32_t value = 10;
+		r.input.turn = 1;
+		r.input.shift = true;
+		const Response resp = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 1000});
+		expect(value).to_equal(15);
+		expect(resp.changed).to_be_true();
+	});
 
-		r.input.edit[0] = 0;
-		r.input.edit[1] = -1;
-		int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 1000, .step = 10});
-		expect(value).to_equal(109);
+	it("ignores the gold knobs", _ {
+		// Legacy's gold knobs never reach a menu item: `SoundEditor::modEncoderAction` falls through
+		// to `View::modEncoderAction` (`gui/views/view.cpp:835`), which edits a param.
+		uitest::Rig48 r;
+		int32_t value = 10;
+		r.input.edit[0] = 4;
+		r.input.edit[1] = 4;
+		const Response resp = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 1000});
+		expect(value).to_equal(10);
+		expect(resp.changed).to_be_false();
 	});
 
 	// ------------------------------------------------------------ decimal_value
@@ -386,37 +396,40 @@ describe values_w("ui::oled::values", $ {
 		expect(small.lit(32, 41)).to_be_false();
 	});
 
-	it("moves the value by 10^edit_pos per edit detent", _ {
+	it("moves a decimal by 10^edit_pos per select detent", _ {
+		// Legacy `Decimal::selectEncoderAction` (`gui/menu_item/decimal.cpp:57`).
 		uitest::Rig48 r;
-		int32_t value = 1234;
-		int8_t edit_pos = 2;
+		int32_t value = 100;
+		int8_t edit_pos = 1;
 		Blink blink;
-		r.input.edit[0] = 1;
+		r.input.turn = 2;
 		const Response resp = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
-		expect(value).to_equal(1334);          // offset * getNumberEditSize()
+		expect(value).to_equal(120);           // offset * 10^edit_pos
 		expect(resp.changed).to_be_true();
 
-		r.input.edit[0] = 100;                 // way past the top: clamps
+		edit_pos = 3;                           // 10^3 per detent now, so a max int8_t turn clamps
+		r.input.turn = 127;                    // way past the top: clamps
 		const Response clamped = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(value).to_equal(9999);
 		expect(clamped.changed).to_be_true();
 
 		const Response stuck = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
-		expect(value).to_equal(9999);
+		expect(value).to_equal(9999);           // already at the top: nothing left to move
 		expect(stuck.changed).to_be_false();
 
-		// edit[1] is the fine knob and takes range.step -- note that is the opposite role step
-		// plays in int_value, where it is the coarse amount (values.h says so).
-		int32_t fine = 1234;
-		int8_t fine_pos = 2;
-		Blink fine_blink;
-		r.input.edit[0] = 0;
-		r.input.edit[1] = -1;
-		decimal_value(r.frame, r.frame.bounds(), fine, Range{.min = 0, .max = 9999, .step = 5}, 2, fine_pos,
-		              fine_blink);
-		expect(fine).to_equal(1229);
+		// The gold knobs never reach a decimal either.
+		r.input.turn = 0;
+		int32_t ignored = 1234;
+		int8_t ignored_pos = 2;
+		Blink ignored_blink;
+		r.input.edit[0] = 3;
+		r.input.edit[1] = 3;
+		decimal_value(r.frame, r.frame.bounds(), ignored, Range{.min = 0, .max = 9999}, 2, ignored_pos, ignored_blink);
+		expect(ignored).to_equal(1234);
 
+		r.input.edit[0] = 0;
 		r.input.edit[1] = 0;
+		r.input.turn = 3;
 		int32_t unfocused = 1234;
 		int8_t pos = 2;
 		Blink b;
@@ -797,12 +810,37 @@ describe values_w("ui::oled::values", $ {
 		}
 	});
 
+	it("moves the selected range edge on the select turn", _ {
+		// Legacy `IntegerRange::selectEncoderAction` (`gui/menu_item/integer_range.cpp:33`).
+		uitest::Rig48 r;
+		int32_t lower = 3, upper = 9;
+		RangeEdge edge = RangeEdge::Left;
+		r.input.turn = 2;
+		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 99}, edge,
+		                                  fmt_int, RangeClamp::Push);
+		expect(lower).to_equal(5);
+		expect(resp.changed).to_be_true();
+	});
+
+	it("ignores the gold knobs on a range too", _ {
+		uitest::Rig48 r;
+		int32_t lower = 90, upper = 150;
+		RangeEdge edge = RangeEdge::Left;
+		r.input.edit[0] = 5;
+		r.input.edit[1] = 5;
+		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
+		                                  fmt_int, RangeClamp::Push);
+		expect(lower).to_equal(90);
+		expect(upper).to_equal(150);
+		expect(resp.changed).to_be_false();
+	});
+
 	it("reads nothing at all when unfocused", _ {
 		uitest::Rig48 r;
 		int32_t lower = 90, upper = 150;
 		RangeEdge edge = RangeEdge::Left;
 		r.input.horizontal = 1;
-		r.input.edit[0] = 3;
+		r.input.turn = 3;
 		const Response resp = range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge,
 		                                  fmt_int, RangeClamp::Push, /*focused=*/false);
 		expect(resp.focused).to_be_false();
@@ -822,7 +860,7 @@ describe values_w("ui::oled::values", $ {
 			uitest::Rig48 r;
 			int32_t lower = 100, upper = 100;
 			RangeEdge edge = RangeEdge::Left;
-			r.input.edit[0] = 5;
+			r.input.turn = 5;
 			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
 			                   RangeClamp::Push)
 			           .changed)
@@ -834,7 +872,7 @@ describe values_w("ui::oled::values", $ {
 			uitest::Rig48 r;
 			int32_t lower = 100, upper = 100;
 			RangeEdge edge = RangeEdge::Right;
-			r.input.edit[0] = -5;
+			r.input.turn = -5;
 			range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
 			            RangeClamp::Push);
 			expect(upper).to_equal(95);
@@ -844,7 +882,7 @@ describe values_w("ui::oled::values", $ {
 			uitest::Rig48 r;   // and it still clamps at the outer bounds
 			int32_t lower = 60, upper = 240;
 			RangeEdge edge = RangeEdge::Left;
-			r.input.edit[0] = -1;
+			r.input.turn = -1;
 			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
 			                   RangeClamp::Push)
 			           .changed)
@@ -861,7 +899,7 @@ describe values_w("ui::oled::values", $ {
 			uitest::Rig48 r;
 			int32_t lower = 5, upper = 5;
 			RangeEdge edge = RangeEdge::Left;
-			r.input.edit[0] = 1;
+			r.input.turn = 1;
 			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 11}, edge, fmt_int,
 			                   RangeClamp::Bound)
 			           .changed)
@@ -873,7 +911,7 @@ describe values_w("ui::oled::values", $ {
 			uitest::Rig48 r;
 			int32_t lower = 2, upper = 9;
 			RangeEdge edge = RangeEdge::Left;
-			r.input.edit[0] = 100;   // way past the upper end
+			r.input.turn = 100;   // way past the upper end
 			range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 11}, edge, fmt_int,
 			            RangeClamp::Bound);
 			expect(lower).to_equal(9);
@@ -883,7 +921,7 @@ describe values_w("ui::oled::values", $ {
 			uitest::Rig48 r;
 			int32_t lower = 2, upper = 9;
 			RangeEdge edge = RangeEdge::Right;
-			r.input.edit[0] = -100;
+			r.input.turn = -100;
 			range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 0, .max = 11}, edge, fmt_int,
 			            RangeClamp::Bound);
 			expect(upper).to_equal(2);
@@ -899,7 +937,7 @@ describe values_w("ui::oled::values", $ {
 			uitest::Rig48 r;
 			int32_t lower = 100, upper = 100;
 			RangeEdge edge = RangeEdge::Off;
-			r.input.edit[1] = 3;   // the fine knob, one unit per detent
+			r.input.turn = 3;   // one select detent, one unit per detent at the default step
 			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
 			                   RangeClamp::Push)
 			           .changed)
@@ -911,7 +949,7 @@ describe values_w("ui::oled::values", $ {
 			uitest::Rig48 r;
 			int32_t lower = 90, upper = 150;
 			RangeEdge edge = RangeEdge::Off;
-			r.input.edit[0] = 5;
+			r.input.turn = 5;
 			expect(range_value(r.frame, r.frame.bounds(), lower, upper, Range{.min = 60, .max = 240}, edge, fmt_int,
 			                   RangeClamp::Push)
 			           .changed)

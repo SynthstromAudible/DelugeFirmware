@@ -60,8 +60,9 @@ struct PadMask {
 ///
 /// Lowered by the shell; the only input a widget can read.
 struct InputSnapshot {
-	int8_t turn;    // Select encoder detents: navigate / move focus
-	int8_t edit[2]; // GoldUpper, GoldLower detents: edit the focused value
+	int8_t turn;    // Select encoder detents: move a list cursor, or edit the focused value
+	int8_t edit[2]; // GoldUpper, GoldLower detents: not read by any menu widget -- they reach
+	                // services::ModKnobs
 	int8_t horizontal, vertical;
 
 	/// @name Edges vs. levels
