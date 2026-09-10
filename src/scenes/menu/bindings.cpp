@@ -93,6 +93,7 @@
 #include "scenes/menu/bindings.h"
 
 #include "scenes/menu/context.h"
+#include "scenes/menu/note_bridge.h"
 #include "scenes/profile.h"
 
 #include "definitions_cxx.hpp"
@@ -842,11 +843,46 @@ bool has_instrument_clip(const MenuContext& ctx) {
 	return ctx.song != nullptr && ctx.clip != nullptr && !ctx.is_audio_clip;
 }
 
+// Task 6: `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`),
+// gated by `soundEditor.selectedNoteRow` in legacy rather than transcribed as a model read.
+//
+// **The equivalence argument.** `selectedNoteRow` is latched exactly once, at
+// `Direction::checkPermissionToBeginSession`'s else-if (`sequence/direction.h:117-119`):
+// `soundEditor.selectedNoteRow = isUIModeActive(UI_MODE_AUDITIONING);`, reached only when the
+// output is not a kit. Every route that begins a session on this item does so with the current UI
+// mode already decided by the caller, and there are exactly two shapes of caller:
+//   * The eight gated `openShellMenu` sites (`gui/ui/shell_menu_entry.cpp`'s table): six open with
+//     `currentUIMode == UI_MODE_NONE` outright, and the two that could differ do not reach this
+//     item with anything else -- site 7 (`AutomationView::handleSelectEncoderButtonAction`) runs
+//     under `UI_MODE_NONE` or `UI_MODE_NOTES_PRESSED`, and its `NOTES_PRESSED` case is the
+//     unported note-editor root, never this one. So the latch reads `false` on every one of them.
+//   * `InstrumentClipView::enterNoteRowEditor`'s own guard (`instrument_clip_view.cpp:3736`),
+//     `getNumNoteRowsAuditioning() == 1`, requires one row already auditioning before it calls
+//     `soundEditor.setup` -- the only caller that can open with `UI_MODE_AUDITIONING` already
+//     active. A row only ever becomes "auditioning" through `InstrumentClipView::startAuditioningRow`
+//     entering that UI mode itself (`instrument_clip_view.cpp:5441`) the moment a row's audition pad
+//     goes down, so the one row counted by `getNumNoteRowsAuditioning() == 1` cannot exist without
+//     that mode already being active.
+// `enterNoteRowEditor` is this port's `Root::NoteRowEditor`, and nothing else opens with the latch
+// true -- so `ctx.root == Root::NoteRowEditor` on a non-kit clip is `selectedNoteRow`'s exact
+// port-side equivalent, with no UI-mode read required.
+bool note_row_bridge_direction(const MenuContext& ctx, int32_t* value) {
+	return ctx.root == MenuContext::Root::NoteRowEditor && !ctx.is_kit && note_bridge() != nullptr
+	       && note_bridge()->row_sequence_direction(value);
+}
+
 } // namespace
 
 int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 	if (from_note_row != nullptr) {
 		*from_note_row = false;
+	}
+	int32_t bridged = 0;
+	if (note_row_bridge_direction(ctx, &bridged)) { // `:50-60`, through `NoteBridge`
+		if (from_note_row != nullptr) {
+			*from_note_row = true;
+		}
+		return bridged;
 	}
 	if (!has_instrument_clip(ctx)) {
 		return 0;
@@ -863,6 +899,12 @@ int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
 }
 
 void write_sequence_direction(const MenuContext& ctx, int32_t value) {
+	int32_t existing = 0;
+	if (note_row_bridge_direction(ctx, &existing)) { // `:78-90`, through `NoteBridge`
+		note_bridge()->set_row_sequence_direction(value);
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
+		return;
+	}
 	if (!has_instrument_clip(ctx)) {
 		return;
 	}

@@ -331,6 +331,9 @@ struct Layers {
 /// * `Performance` / `Song` -- `paramShortcutsForSongView`, legacy's `!rootUIIsClipMinderScreen()`.
 /// * `KitGlobalFx` -- `paramShortcutsForKitGlobalFX` (`setupKitGlobalFXMenu`).
 /// * `Settings` -- nothing, per `updatePadLightsFor`'s `!inSettingsMenu()` guard.
+/// * `NoteEditor` / `NoteRowEditor` -- nothing either: `padAction`'s own gate
+///   (`sound_editor.cpp:1467`) skips `potentialShortcutPadAction` on both, exactly as it does for
+///   `Settings`, so neither root's blink or press table is ever consulted.
 ///
 /// The three MIDI/CV-and-drum roots additionally carry `kMidiExtraCells` as a resolve-only overlay.
 constexpr Layers kByRootV3[static_cast<size_t>(MenuContext::Root::Count)] = {
@@ -344,6 +347,8 @@ constexpr Layers kByRootV3[static_cast<size_t>(MenuContext::Root::Count)] = {
     {&kSongCells, &kSongCells},                                                  // Song
     {&kKitGlobalFxCells, &kKitGlobalFxCells, nullptr, kit_global_fx_press_gate}, // KitGlobalFx
     {&kNoCells, &kNoCells},                                                      // Settings
+    {&kNoCells, &kNoCells},                                                      // NoteEditor
+    {&kNoCells, &kNoCells},                                                      // NoteRowEditor
 };
 
 /// @brief The same table under `SHORTCUTS_VERSION_1`.
@@ -361,6 +366,8 @@ constexpr Layers kByRootV1[static_cast<size_t>(MenuContext::Root::Count)] = {
     {&kSongCells, &kSongCells},                                                  // Song
     {&kKitGlobalFxCells, &kKitGlobalFxCells, nullptr, kit_global_fx_press_gate}, // KitGlobalFx
     {&kNoCells, &kNoCells},                                                      // Settings
+    {&kNoCells, &kNoCells},                                                      // NoteEditor
+    {&kNoCells, &kNoCells},                                                      // NoteRowEditor
 };
 
 /// The layout in force. A file-scope value rather than a `MenuContext` field because it is a global

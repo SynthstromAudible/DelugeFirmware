@@ -260,12 +260,19 @@ bool drum_allows_note_tails(const MenuContext& ctx, Drum* drum);
 ///                      option, NONE (`direction.h:83-86`).
 /// @return The `SequenceDirection` as an `int32_t`.
 ///
-/// @note **Partial, deliberately.** Legacy's `getIndividualNoteRow` (`direction.h:29-52`) has a
-///       third arm for a non-kit clip, reached only when `soundEditor.selectedNoteRow` is set, that
-///       reads `instrumentClipView.lastAuditionedYDisplay` and creates a note row if none exists.
-///       Both are UI state `src/scenes` may not read; that arm belongs to spec E's `NoteClipScene`.
-///       Everything else -- the kit-row arm and the "no note row, use the clip's own mode"
-///       fallback -- is transcribed exactly.
+/// @note **The third arm is ported too, as of Task 6.** Legacy's `getIndividualNoteRow` has a
+///       non-kit arm reached only when `soundEditor.selectedNoteRow` is set (`direction.h:50-60`),
+///       which reads `instrumentClipView.lastAuditionedYDisplay` and creates a note row if none
+///       exists. `soundEditor.selectedNoteRow` is itself a UI-state latch this layer may not read
+///       directly, set only by `checkPermissionToBeginSession`'s else-if (`:117-119`,
+///       `isUIModeActive(UI_MODE_AUDITIONING)`), but every path into that latch other than
+///       `InstrumentClipView::enterNoteRowEditor` opens with `UI_MODE_NONE` (`bindings.cpp`'s own
+///       comment on this function works the argument in full), so `ctx.root ==
+///       MenuContext::Root::NoteRowEditor` on a non-kit clip is the port's equivalent condition.
+///       That arm goes through `note_bridge()`'s `row_sequence_direction`
+///       (`scenes/menu/note_bridge.h`); a kit clip, or no bridge answer, falls through to the
+///       kit-row arm and the "no note row, use the clip's own mode" fallback below, transcribed
+///       exactly as before.
 int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nullptr);
 
 /// @brief Commit a play-direction change (`sequence::Direction::writeCurrentValue`,

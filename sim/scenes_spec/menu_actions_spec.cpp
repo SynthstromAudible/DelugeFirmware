@@ -499,7 +499,7 @@ struct GlobalGuestGuard {
 /// **This is the only thing in this file that touches `shellHostUI`, and it has to be.**
 /// `closePortedMenu` removes the menu scene from `shellHostUI.shell().stack()` (see
 /// `gui/ui/shell_action_dispatch.cpp`), because the guest is a singleton with one open site
-/// (`gui/ui/shell_menu_entry.cpp:169`) and this seam's sibling reads the same global for the same
+/// (`gui/ui/shell_menu_entry.cpp:191`) and this seam's sibling reads the same global for the same
 /// kind of question (`menuIsFrontmost`, `gui/ui/shell_guest_services.cpp:190-192`). A local
 /// `GuestRig` has its own `Shell`, so its stack is not the one production empties -- an example
 /// built on one could only ever assert that nothing happened to it.
@@ -532,7 +532,7 @@ bool open_global_guest(const Node& root, spec::SongFixture& song) {
 /// current could not tell a working guard from a broken one -- it would take the early return in
 /// both worlds and pass vacuously.
 ///
-/// `openUI(&shellHostUI)` is production's own call (`gui/ui/shell_menu_entry.cpp:169`) and
+/// `openUI(&shellHostUI)` is production's own call (`gui/ui/shell_menu_entry.cpp:191`) and
 /// `menu_entry_spec.cpp:147` already drives the global this way. It runs `opened()` itself, so this
 /// does NOT call `opened()` first the way `open_global_guest` does -- doing both would push the
 /// initial scene twice.

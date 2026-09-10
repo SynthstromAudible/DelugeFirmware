@@ -62,9 +62,11 @@ struct MenuContext {
 	///
 	/// `Count` is the enumerator count, not a root.
 	///
-	/// @note `setup()`'s two `currentUIMode`-driven roots -- `noteEditorRootMenu` (`:1719`) and
-	///       `noteRowEditorRootMenu` (`:1722`) -- have no enumerator here: they are selected from a
-	///       UI mode this layer may not read, so they stay with the caller (spec E's `NoteClipScene`).
+	/// @note `setup()` picks `NoteEditor`/`NoteRowEditor` from a `currentUIMode` this layer may not
+	///       read (`noteEditorRootMenu` `:1719`, `noteRowEditorRootMenu` `:1722`) -- so, unlike every
+	///       other enumerator here, `context_for` never assigns either one; a caller that wants one
+	///       (`gui/ui/shell_menu_entry.cpp`'s `openShellMenu`, `NoteMode`) sets `ctx.root` itself
+	///       after resolving the rest of the context (spec E-note-family task 6).
 	enum class Root : uint8_t {
 		Sound,
 		Drum,
@@ -76,6 +78,8 @@ struct MenuContext {
 		Song,
 		KitGlobalFx,
 		Settings,
+		NoteEditor,
+		NoteRowEditor,
 		Count,
 	};
 

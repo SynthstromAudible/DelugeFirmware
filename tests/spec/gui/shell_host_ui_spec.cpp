@@ -747,7 +747,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
-		// (`scenes/menu/menu_scene.cpp:2096`), and legacy's false means "obey UI under me"
+		// (`scenes/menu/menu_scene.cpp:2100`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
 		// the next UI down is about to be asked with (`gui/ui/ui.cpp:73-83`), so a false answer must
 		// leave them alone.

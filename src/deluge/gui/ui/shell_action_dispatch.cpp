@@ -125,7 +125,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// (`endScreen()`, `:759`) and closes the menu UI (`close()`, `:761`, which is `closeUI(this)`,
 /// `gui/ui/ui.cpp:57-59`). Under the guest **the thing that is open is `ShellHostUI`, not
 /// `soundEditor`** -- `openShellMenu` opens this UI in `SoundEditor`'s place
-/// (`gui/ui/shell_menu_entry.cpp:169`) and nothing on that path opens `soundEditor` at all.
+/// (`gui/ui/shell_menu_entry.cpp:191`) and nothing on that path opens `soundEditor` at all.
 ///
 /// So calling `soundEditor.exitCompletely()` here would not be a harmless no-op. `closeUI`'s search
 /// loop stops at `u >= 1` (`gui/ui/ui.cpp:183`); given a UI that is not on the stack it falls out
@@ -168,7 +168,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///
 /// @par The `shellHostUI` global, deliberately
 ///
-/// The guest is a singleton -- one object, one open site (`gui/ui/shell_menu_entry.cpp:169`) -- and
+/// The guest is a singleton -- one object, one open site (`gui/ui/shell_menu_entry.cpp:191`) -- and
 /// this seam's sibling reaches for it the same way for the same kind of question: `menuIsFrontmost`
 /// (`gui/ui/shell_guest_services.cpp:190-192`) reads `shellHostUI.shell().stack()` and calls itself
 /// "the port of `getCurrentUI() == &soundEditor`". `SceneStack::remove` is a documented no-op when

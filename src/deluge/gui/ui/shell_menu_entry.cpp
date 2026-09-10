@@ -19,7 +19,9 @@
 
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/views/view.h"
 #include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "scenes/menu/context.h"
@@ -105,7 +107,7 @@ bool shellMenuEnabled() {
 }
 
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
-                   bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node) {
+                   bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node, NoteMode noteMode) {
 	if (currentSong == nullptr) {
 		return false;
 	}
@@ -115,9 +117,8 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 		return false;
 	}
 
-	const menu::MenuContext ctx =
-	    menu::context_for(*currentSong, clip, static_cast<int8_t>(sourceIndex), performanceView, sessionOrArrangerRoot,
-	                      sessionViewRoot, kitGlobalFx);
+	menu::MenuContext ctx = menu::context_for(*currentSong, clip, static_cast<int8_t>(sourceIndex), performanceView,
+	                                          sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
 	// `MenuContext::resolved` is where `setup()`'s two outright refusals live -- a kit whose selected
 	// `SoundDrum` has no note row (`gui/ui/sound_editor.cpp:1719-1721`) and a kit with neither
 	// affect-entire nor a selected drum (`:1716-1722`). Both are `return false` in legacy, and both
@@ -125,6 +126,16 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// open.
 	if (!ctx.resolved) {
 		return false;
+	}
+
+	// Task 6: `enterNoteEditor`/`enterNoteRowEditor` pass an explicit item to `soundEditor.setup`
+	// rather than letting it infer one from `currentUIMode` -- `NoteMode` is this call's equivalent,
+	// applied only after `context_for` has resolved everything else (`ctx.affect_entire` above still
+	// reads the clip as it stood before the clear below, exactly as legacy's own
+	// `soundEditor.setup` call runs before its `if (clip->affectEntire)` clear).
+	if (noteMode != NoteMode::None) {
+		ctx.root = noteMode == NoteMode::NoteEditor ? menu::MenuContext::Root::NoteEditor
+		                                            : menu::MenuContext::Root::NoteRowEditor;
 	}
 
 	const std::span<const menu::Node* const> roots = menu::MenuScene::roots();
@@ -153,6 +164,16 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// source had no ranges yet, while the toggle-OFF leg opened it.
 	if (node == ShellMenuNode::ContextRoot && clip != nullptr) {
 		actionLogger.deleteAllLogs();
+	}
+
+	// Task 6: the kit `affectEntire` clear both note entries do once `soundEditor.setup` has
+	// succeeded and before `openUI` -- `InstrumentClipView::enterNoteEditor`
+	// (`instrument_clip_view.cpp:3592-3597`) and `enterNoteRowEditor` (`:3760-3765`), the same three
+	// statements in both. `ctx.affect_entire` is `ctx.is_kit && affectEntire` (`context.cpp:314`),
+	// so testing it alone is legacy's nested `if (KIT) { if (affectEntire) {` collapsed to one test.
+	if (noteMode != NoteMode::None && ctx.affect_entire) {
+		static_cast<InstrumentClip*>(clip)->affectEntire = false;
+		view.setActiveModControllableTimelineCounter(clip);
 	}
 
 	// The root passed here is **not** what decides where the menu lands -- `MenuScene::on_enter`

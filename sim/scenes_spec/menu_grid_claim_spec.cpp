@@ -67,6 +67,23 @@ describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's 
 		expect(scene.grid_pad_claim()).to_equal(GridPadClaim::None);
 	});
 
+	it("answers None on the note editor and the note-row editor roots", _ {
+		// Task 6: `:1467`'s other two predicates, `!inNoteEditor()` and `!inNoteRowEditor()`, are the
+		// other half of the same gate `Root::Settings` above pins -- both roots skip the shortcut
+		// arm exactly as the settings root does.
+		spec::SongFixture fx = spec::make_synth_song();
+		auto& scene = menu_scene();
+		MenuContext ctx = sound_context(fx);
+
+		ctx.root = MenuContext::Root::NoteEditor;
+		scene.open(nodes::note_editor_root, ctx);
+		expect(scene.grid_pad_claim()).to_equal(GridPadClaim::None);
+
+		ctx.root = MenuContext::Root::NoteRowEditor;
+		scene.open(nodes::note_row_editor_root, ctx);
+		expect(scene.grid_pad_claim()).to_equal(GridPadClaim::None);
+	});
+
 	it("answers All for a scene that does not override it", _ {
 		// The default is the safe direction: a scene that forgets to answer forwards nothing,
 		// rather than forwarding something it wanted.

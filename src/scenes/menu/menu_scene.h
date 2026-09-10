@@ -511,14 +511,15 @@ public:
 	bool dims_grid() const override { return false; }
 	/// @brief `SoundEditor::padAction`'s gate at `gui/ui/sound_editor.cpp:1467`, as a declaration.
 	///
-	/// `inSettingsMenu()` (`:1912-1914`) is one of that gate's three predicates, so on a settings
-	/// root legacy never reaches `potentialShortcutPadAction` and every pad -- shift or not --
-	/// falls through to the forwarding switch and the tail. The other two predicates name roots
-	/// this port does not have yet (`MenuContext::Root` has no note-editor value; sites 12 and 13
-	/// are migration §10.2 item 2's remaining work), so `None`'s second producer is future work.
+	/// Three predicates there, `!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()`, decide
+	/// whether `potentialShortcutPadAction` even runs; on any of the three failing, every pad --
+	/// shift or not -- falls through to the forwarding switch and the tail instead. `inSettingsMenu`
+	/// is `Root::Settings`; Task 6 gives the other two their roots.
 	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
-		return ctx_.root == MenuContext::Root::Settings ? deluge::ui::shell::GridPadClaim::None
-		                                                : deluge::ui::shell::GridPadClaim::ShortcutsOnly;
+		return (ctx_.root == MenuContext::Root::Settings || ctx_.root == MenuContext::Root::NoteEditor
+		        || ctx_.root == MenuContext::Root::NoteRowEditor)
+		           ? deluge::ui::shell::GridPadClaim::None
+		           : deluge::ui::shell::GridPadClaim::ShortcutsOnly;
 	}
 	/// @brief False for every role: a menu covers the Main panel.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
@@ -621,11 +622,12 @@ public:
 	/// @}
 	/// @brief The application's root menus, indexed by `MenuContext::Root`.
 	///
-	/// @note All ten entries are filled in (`menu_scene.cpp`'s `kRoots`, Tasks 6-8): the sound
+	/// @note All twelve entries are filled in (`menu_scene.cpp`'s `kRoots`, Tasks 6-8): the sound
 	///       root, the drum/MIDI-drum/gate-drum roots, MIDI-or-CV, the audio-clip, performance,
-	///       song and kit-global-FX roots, and the settings root. `on_enter(arg == 0)` therefore
-	///       resolves a real root from `MenuContext::root`; a caller may still name a node
-	///       directly through `open()` or through `SceneId::arg`.
+	///       song and kit-global-FX roots, the settings root, and (Task 6) the note-editor and
+	///       note-row-editor roots. `on_enter(arg == 0)` therefore resolves a real root from
+	///       `MenuContext::root`; a caller may still name a node directly through `open()` or
+	///       through `SceneId::arg`.
 	static std::span<const Node* const> roots();
 
 	/// @brief The live interpreter state.

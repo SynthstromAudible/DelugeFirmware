@@ -359,7 +359,7 @@ namespace deluge::gui::ui {
 ///     (`hid/buttons.cpp:250`); the shell reads `LoweringConfig::shift_is_sticky`, which this class
 ///     constructs as its default **false** (`shell/input_lowering.h:29-31`) and nothing sets. With
 ///     the setting on, legacy latches shift on a tap and this shell does not -- and `ctx.shift` is
-///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:1631`), so under
+///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:1635`), so under
 ///     the toggle a sticky-shift user loses shortcut pads. **A release blocker for the toggle**,
 ///     and it belongs with the boot wiring: `LoweringConfig` is construction-time
 ///     (`shell/shell.h:27-29`) and this object is a static-init global that cannot read flash.

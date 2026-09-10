@@ -149,6 +149,25 @@ enum class ShellMenuNode : uint8_t {
 	Osc0FileSelector,
 };
 
+/// @brief Which of the two `currentUIMode`-driven roots (spec E-note-family task 6) a caller
+///        wants, in place of whatever `context_for` resolved -- the note editor and note-row
+///        editor have no `ShellMenuNode` of their own because they are roots
+///        (`MenuContext::Root::NoteEditor`/`NoteRowEditor`), not leaves the way
+///        `Osc0FileSelector` is.
+///
+/// `openShellMenu` sets `ctx.root` from this after resolving the rest of the context, exactly as
+/// `InstrumentClipView::enterNoteEditor`/`enterNoteRowEditor` pass an explicit item to
+/// `SoundEditor::setup` instead of letting it infer one from `currentUIMode`
+/// (`gui/views/instrument_clip_view.cpp:3590`, `:3758`).
+enum class NoteMode : uint8_t {
+	/// @brief Use whatever root `context_for` resolved -- every caller except the note family.
+	None,
+	/// @brief `MenuContext::Root::NoteEditor`.
+	NoteEditor,
+	/// @brief `MenuContext::Root::NoteRowEditor`.
+	NoteRowEditor,
+};
+
 /// @brief Is the ported menu the one the fourteen entry points should open?
 ///
 /// `RuntimeFeatureSettingType::ShellMenu`, default Off
@@ -173,9 +192,14 @@ bool shellMenuEnabled();
 /// @param sessionViewRoot        `getRootUI() == &sessionView`, the narrower fact two items read.
 /// @param kitGlobalFx            `setup()`'s `setupKitGlobalFXMenu` member.
 /// @param node                   Which node to land on; `ContextRoot` for the resolved root.
+/// @param noteMode               Task 6: override the resolved root with `NoteEditor`/
+///                               `NoteRowEditor`, the way `enterNoteEditor`/`enterNoteRowEditor`
+///                               name an explicit item instead of letting `setup()` infer one from
+///                               `currentUIMode`. `None` for every other caller.
 /// @return Whether the guest is now open. False means nothing was opened and nothing was left
 ///         half-open: the caller should behave as it does when `soundEditor.setup()` returns false.
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,
-                   bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node = ShellMenuNode::ContextRoot);
+                   bool sessionViewRoot, bool kitGlobalFx, ShellMenuNode node = ShellMenuNode::ContextRoot,
+                   NoteMode noteMode = NoteMode::None);
 
 } // namespace deluge::gui::ui

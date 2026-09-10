@@ -346,10 +346,13 @@ std::span<const Node* const> MenuScene::roots() {
 	// Task 8: one node per `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the
 	// MIDI-titled spelling of that root -- the title `menus.cpp`'s constructor gives it; a caller
 	// on a CV output takes `nodes::midi_or_cv_root(ctx)` instead (`nodes/roots.h`'s note).
+	// Task 6 appends `NoteEditor`/`NoteRowEditor`: a menu opened with `ctx.root` set to either
+	// (`openShellMenu`'s `NoteMode`) re-roots here through `on_enter`'s `arg == 0` path
+	// (`menu_scene.h:472-490`'s warning), exactly as every other root does.
 	static const Node* const kRoots[static_cast<size_t>(MenuContext::Root::Count)] = {
 	    &nodes::sound_root,         &nodes::root_drum,       &nodes::root_midi_or_cv,  &nodes::root_midi_drum,
 	    &nodes::root_gate_drum,     &nodes::root_audio_clip, &nodes::root_performance, &nodes::root_song,
-	    &nodes::root_kit_global_fx, &nodes::root_settings,
+	    &nodes::root_kit_global_fx, &nodes::root_settings,   &nodes::note_editor_root, &nodes::note_row_editor_root,
 	};
 	return kRoots;
 }
@@ -2095,11 +2098,9 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	// `SoundEditor::getGreyoutColsAndRows` (`sound_editor.cpp:252-294`), with the arms this layer
-	// can decide. The KEYBOARD_SCREEN, AUTOMATION and note-editor arms all branch on the root UI's
-	// type or on a `currentUIMode`, neither of which `src/scenes` may read (the same wall that
-	// kept `setup()`'s two `currentUIMode` roots out of `MenuContext::Root`); they stay with the
-	// scene that owns those views. `doGreyout == false` is spelled as an all-zero mask, which
-	// `greyout()` already reads as "grey nothing".
+	// can decide. The KEYBOARD_SCREEN and AUTOMATION arms branch on the root UI's type, which
+	// `src/scenes` may not read; they stay with the scene that owns those views. `doGreyout ==
+	// false` is spelled as an all-zero mask, which `greyout()` already reads as "grey nothing".
 	// Same reason as `leds()`: with no path there is no menu on screen, so greying the grid under
 	// it would leave the base view dimmed with nothing over it.
 	if (focused() == nullptr) {
@@ -2108,8 +2109,16 @@ deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	if (ctx_.is_performance) {
 		return {}; // `:248` PERFORMANCE
 	}
+	// `:274-277` INSTRUMENT_CLIP's `inNoteEditor()` sub-arm: grey the sidebar only.
+	if (ctx_.root == MenuContext::Root::NoteEditor) {
+		return {0x03, 0};
+	}
+	// `:278-281` INSTRUMENT_CLIP's `inNoteRowEditor()` sub-arm: don't grey out the note row editor.
+	if (ctx_.root == MenuContext::Root::NoteRowEditor) {
+		return {};
+	}
 	if (ctx_.clip != nullptr && !ctx_.is_song_view && !ctx_.is_audio_clip) {
-		return {0xFFFFFFFEu, 0}; // `:236` INSTRUMENT_CLIP, the plain sound-editor arm
+		return {0xFFFFFFFEu, 0}; // `:236` / `:283` INSTRUMENT_CLIP, the plain sound-editor arm
 	}
 	// `:252` default -- which is where an AUDIO_CLIP root UI lands too: legacy's switch has no
 	// `UIType::AUDIO_CLIP` case, so an audio clip greys everything including the sidebar. Testing
@@ -2119,11 +2128,11 @@ deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	//
 	// **Task 7 (batch 2) audit: no new arm.** Everything batch 2 declares hangs off
 	// `soundEditorRootMenu`, opened from `Root::Sound` or `Root::Drum` -- both the INSTRUMENT_CLIP
-	// arm above. The three arms still missing are the ones this layer cannot decide, unchanged:
-	// KEYBOARD_SCREEN (`:224`) and AUTOMATION (`:229`) branch on the root UI's type, and
-	// INSTRUMENT_CLIP's two note-editor sub-arms (`:237-244`) on `currentUIMode`. Task 8's roots
-	// (song, performance, audio clip, kit global FX) are the next candidates, and they land on the
-	// PERFORMANCE and default arms already written.
+	// arm above. Two arms are still missing, and they are the ones this layer cannot decide:
+	// KEYBOARD_SCREEN (`:224`) and AUTOMATION (`:229`) branch on the root UI's type, which
+	// `src/scenes` may not read. INSTRUMENT_CLIP's two note-editor sub-arms (`:274-281`), the third
+	// candidate this note used to name, are done above (spec E-note-family task 6): they no longer
+	// depend on `currentUIMode` at all, because `MenuContext::Root` now names both roots directly.
 	return {0xFFFFFFFFu, 0};
 }
 
