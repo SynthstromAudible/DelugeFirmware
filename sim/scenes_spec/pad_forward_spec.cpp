@@ -70,7 +70,7 @@ struct UiStackGuard {
 
 /// @brief Empty the GLOBAL guest's scene stack, whichever way the one example that touches it ends.
 ///        `menu_actions_spec.cpp`'s `GlobalGuestGuard`, unchanged: `shellHostUI` is a singleton with
-///        one open site (`gui/ui/shell_menu_entry.cpp:191`), and `closePortedMenu` reads that same
+///        one open site (`gui/ui/shell_menu_entry.cpp:190`), and `closePortedMenu` reads that same
 ///        global (`gui/ui/shell_action_dispatch.cpp`), so an example proving it empties the stack has
 ///        to use the real one.
 struct GlobalGuestGuard {

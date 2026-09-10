@@ -769,7 +769,7 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		// rather than closed (`src/scenes/README.md`'s carry table, item 3). Past what remains of
 		// the gate legacy claims unconditionally, even where no shortcut table has an entry
 		// (`:1431`) -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad
-		// die (`menu_scene.cpp:2040`). The two agree; see spec §3.1.
+		// die (`menu_scene.cpp:2044`). The two agree; see spec §3.1.
 		return velocity != 0 && x < kDisplayWidth && Buttons::isShiftButtonPressed();
 	}
 	return true; // `-Werror=switch` makes this unreachable; it is here for the enum's future.
