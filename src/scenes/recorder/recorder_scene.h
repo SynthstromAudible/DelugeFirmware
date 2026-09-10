@@ -5,7 +5,7 @@
 ///
 /// The port of `AudioRecorder` (`gui/ui/audio_recorder.{h,cpp}`), which the sample-recorder page's
 /// two items open (`gui/menu_item/osc/audio_recorder.h:36 beginSession`; the ported nodes are
-/// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h:303`, `:307`).
+/// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h:313`, `:317`).
 ///
 /// @par Legacy's menu item drives the UI, and that is the shape this replaces
 ///

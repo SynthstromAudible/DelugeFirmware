@@ -40,7 +40,7 @@ bool led_is_on(const LedState& s, uint32_t now_ms);
 /// declared `Kind::Blink` simply froze at whatever phase the last tick left it in. That was live:
 /// `MenuScene::leds` declares `Back` and `Learn` as `Blink(kFlashTime)` unconditionally
 /// (`scenes/menu/menu_scene.cpp:1333`, `:1340`) while `MenuScene::next_timer`
-/// (`scenes/menu/menu_scene.cpp:2141-2155`) returns `std::nullopt` for any focused node with
+/// (`scenes/menu/menu_scene.cpp:2142-2156`) returns `std::nullopt` for any focused node with
 /// neither source pads nor a shortcut position -- which is most of the tree. `Shell::tick`'s
 /// wake loop now asks this for every entry in the composed frame, so the phase moves on its own.
 ///

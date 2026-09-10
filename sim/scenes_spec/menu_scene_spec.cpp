@@ -1870,8 +1870,8 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			// `after_render` moves the path only *after* the render that entered it, so the panel
 			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
-			// the next one (`menu_scene.cpp:1702-1704`; `open_lpf` above needs the identical extra
-			// tick for the same reason).
+			// the next one (`descend_to`'s `st_.path[st_.depth] = &child`, `menu_scene.cpp:1458`;
+			// `open_lpf` above needs the identical extra tick for the same reason).
 			r.shell.tick(120);
 			expect_golden(self, "../ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));
 		}

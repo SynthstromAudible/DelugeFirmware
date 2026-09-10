@@ -1098,7 +1098,7 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	// declared blink froze at whatever phase the last tick left it in for as long as nothing else
 	// happened -- and that was live rather than theoretical: `MenuScene::leds` declares BACK and
 	// LEARN as `Blink(kFlashTime)` unconditionally (`scenes/menu/menu_scene.cpp:1333`, `:1340`) while
-	// `MenuScene::next_timer` (`scenes/menu/menu_scene.cpp:2141-2155`) answers `nullopt` for any
+	// `MenuScene::next_timer` (`scenes/menu/menu_scene.cpp:2142-2156`) answers `nullopt` for any
 	// focused node with neither source pads nor a shortcut position.
 	//
 	// Read from the frame `derive_leds` composed a few lines earlier in `tick()`, so this is the
