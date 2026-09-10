@@ -420,11 +420,9 @@ bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDis
                                             bool drawUndefinedArea) {
 	if (shouldRenderShortcutsOverview()) {
 		renderedShortcutOverview = true;
-		D_PRINTLN("rendering shortcuts for %x", view.activeModControllableModelStack.modControllable);
-		return true;
-		SoundEditor::renderMainShortcutsOnly(
-		    (ModControllableAudio*)view.activeModControllableModelStack.modControllable, image, occupancyMask,
-		    SoundEditor::shouldEditKitAffectEntire());
+		D_PRINTLN("rendering shortcuts for %x", getModControllableAudioOrNone());
+		SoundEditor::renderMainShortcutsOnly(getModControllableAudioOrNone(), image, occupancyMask,
+		                                     SoundEditor::shouldEditKitAffectEntire());
 		return true;
 	}
 	if (renderedShortcutOverview) {

@@ -354,6 +354,18 @@ bool SoundEditor::editingNonAudioDrumRow() {
 	return selectedDrumType == DrumType::MIDI || selectedDrumType == DrumType::GATE;
 }
 
+/// edge case of having a kit but no drum selected and not affect entire
+bool SoundEditor::editingNothing()
+{
+	auto* kit = getCurrentKit();
+	auto* clip = getCurrentInstrumentClip();
+	if (kit != nullptr and kit->selectedDrum == nullptr and (clip != nullptr) and not clip->affectEntire)
+	{
+		return true;
+	}
+	return false;
+}
+
 bool SoundEditor::editingMidiDrumRow() {
 	auto* kit = getCurrentKit();
 	if (kit == nullptr || kit->selectedDrum == nullptr) {
@@ -1374,7 +1386,7 @@ std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, in
 			item = nullptr;
 		}
 	}
-	else
+	else if (not editingNothing())
 	{
 		item = paramShortcutsForSounds[x][y];
 		do_sound_checks = true;

@@ -150,6 +150,7 @@ public:
 	static std::tuple<MenuItem*, bool> get_basic_shortcut_action(int32_t x, int32_t y, bool doKitAffectEntire);
 	static bool editingCVOrMIDIClip();
 	static bool editingNonAudioDrumRow();
+	static bool editingNothing();
 	static bool editingMidiDrumRow();
 	static bool editingGateDrumRow();
 	bool isUntransposedNoteWithinRange(int32_t noteCode);

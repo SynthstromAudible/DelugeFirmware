@@ -21,6 +21,7 @@
 #include "hid/button.h"
 
 class Action;
+class ModControllableAudio;
 
 class ClipView : public ClipNavigationTimelineView {
 public:
@@ -36,6 +37,7 @@ public:
 
 protected:
 	int32_t getTickSquare();
+	virtual ModControllableAudio* getModControllableAudioOrNone() { return nullptr; }
 
 	Action* lengthenClip(int32_t newLength);
 	Action* shortenClip(int32_t newLength);

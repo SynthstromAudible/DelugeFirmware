@@ -5536,6 +5536,36 @@ doDisplayError:
 	}
 }
 
+ModControllableAudio* InstrumentClipView::getModControllableAudioOrNone() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	auto output = clip->output;
+	auto type = output->type;
+
+	switch (type) {
+		using enum OutputType;
+
+	case SYNTH:
+		return static_cast<SoundInstrument*>(output);
+	case KIT: {
+		if (getAffectEntire()) {
+			return static_cast<ModControllableAudio*>(output->toModControllable());
+		}
+		if (selectedDrum != nullptr) {
+			if (selectedDrum->type == DrumType::SOUND)
+				return static_cast<SoundDrum*>(selectedDrum);
+		}
+		break;
+	}
+	case MIDI_OUT:
+	case CV:
+	case AUDIO:
+	case NONE:
+		break;
+	}
+
+	return nullptr;
+}
+
 void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
 	Kit* kit = getCurrentKit();
