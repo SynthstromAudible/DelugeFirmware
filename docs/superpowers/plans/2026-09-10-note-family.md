@@ -694,7 +694,7 @@ navigation record is a crash — it must be a gated pair.
   are on; on release the reverse; only when the target's `shouldEnterSubmenu()` passes (Task 5's
   `permitted` guard, which raises "Select Note"); enter = descend, release = `goUpOneLevel`. Legacy's
   `inNoteRowEditor()` stays true throughout the hold (`record[0]` is unchanged), so **`activeNoteMode()`
-  must keep answering `NoteRowEditor` while the note menu is entered from the row editor** — pin it.
+  must keep answering `NoteRowEditor` while the note menu is entered from the row editor** — pin it. Task 7 keys `activeNoteMode()` on `menu_scene().menu_context().root`, and `ctx_` is replaced only by `MenuScene::open` (`scenes/menu/menu_scene.cpp:332-335`) and a song swap (`:572-576`), so the port must move between the row and note menus **without calling `MenuScene::open()`** — that would reassign `ctx_.root` and flip the mode to `NoteEditor` mid-hold.
   Read `runtimeFeatureSettings` `HorizontalMenus` exactly as legacy does.
 
 No new UI/UX: every port equivalent is a legacy statement's port, cited. If a row has no faithful port
