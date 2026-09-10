@@ -35,11 +35,30 @@ public:
 	}
 	bool canSeeViewUnderneath() final { return false; }
 	ActionResult timerCallback() override;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	/// @name Input while a save is running
+	/// A save spans many ticks with the UI live, and each of these could take the save screen away
+	/// mid-save -- after which the save's own close() ran against a UI stack it was no longer on. They
+	/// are refused while any save is in flight, and they are final so no save screen can bypass that.
+	/// @{
+	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
+	ActionResult exitUI() final;
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) final;
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) final;
+	ActionResult horizontalEncoderAction(int32_t offset) final;
+	void selectEncoderAction(int8_t offset) final;
+	/// @}
+
+	/// @brief Whether any save -- a staged document or the song save -- is still running.
+	[[nodiscard]] static bool anySaveInFlight();
 
 protected:
 	// void displayText(bool blinkImmediately) final;
 	void enterKeyPress() final;
+	/// @brief A save screen's own button handling, reached only when no save is in flight.
+	///
+	/// Override THIS, not buttonAction(): buttonAction() is final so that the in-flight refusal cannot be
+	/// skipped by a screen that handles BACK itself before forwarding.
+	virtual ActionResult saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	static bool currentFolderIsEmpty;
 
 	/// The save round-trip gate drives the REAL ENTER gesture rather than the save machinery underneath

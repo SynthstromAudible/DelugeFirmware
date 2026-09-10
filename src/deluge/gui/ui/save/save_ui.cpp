@@ -100,10 +100,22 @@ void SaveUI::enterKeyPress() {
 	}
 }
 
-ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-	using namespace deluge::hid::button;
+bool SaveUI::anySaveInFlight() {
+	return saveInFlight_ || saveSongUI.collectInFlight() || saveSongUI.docInFlight();
+}
 
-	FileItem* currentFileItem = getCurrentFileItem();
+ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	if (anySaveInFlight()) {
+		// The save screen ignores the press, but it is NOT dealt with: the global handlers behind this still
+		// run. None of them can close this screen, and swallowing them would lose a SHIFT release -- leaving
+		// shift held after the save -- and take PLAY and RECORD away for as long as a save runs.
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	return saveScreenButtonAction(b, on, inCardRoutine);
+}
+
+ActionResult SaveUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	using namespace deluge::hid::button;
 
 	// Save button
 	if (b == SAVE && !Buttons::isShiftButtonPressed()) {
@@ -111,11 +123,43 @@ ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 	}
 
 	// Pressing on select encoder button will go through here
-	else {
-		return SlotBrowser::buttonAction(b, on, inCardRoutine);
-	}
+	return SlotBrowser::buttonAction(b, on, inCardRoutine);
+}
 
-	return ActionResult::DEALT_WITH;
+ActionResult SaveUI::exitUI() {
+	// The long-press BACK timer reaches the screen through here, not through buttonAction().
+	if (anySaveInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
+	return SlotBrowser::exitUI();
+}
+
+ActionResult SaveUI::padAction(int32_t x, int32_t y, int32_t velocity) {
+	if (anySaveInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
+	return SlotBrowser::padAction(x, y, velocity);
+}
+
+ActionResult SaveUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	if (anySaveInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
+	return SlotBrowser::verticalEncoderAction(offset, inCardRoutine);
+}
+
+ActionResult SaveUI::horizontalEncoderAction(int32_t offset) {
+	if (anySaveInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
+	return SlotBrowser::horizontalEncoderAction(offset);
+}
+
+void SaveUI::selectEncoderAction(int8_t offset) {
+	if (anySaveInFlight()) {
+		return;
+	}
+	SlotBrowser::selectEncoderAction(offset);
 }
 
 ActionResult SaveUI::timerCallback() {

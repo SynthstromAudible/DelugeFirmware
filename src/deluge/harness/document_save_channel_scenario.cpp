@@ -26,6 +26,7 @@
 #include "gui/ui/save/save_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
+#include "hid/button.h"
 #include "io/file.hpp"
 #include "memory/heaps.h"
 #include "model/instrument/instrument.h"
@@ -65,6 +66,10 @@ public:
 	static bool listingInProgress() { return Browser::isListingInProgress(); }
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveInstrumentPresetUI.enterKeyPress(); }
+	static void pressBack() {
+		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, true, false);
+		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, false, false);
+	}
 	static std::string targetPath() { return Browser::currentDir + "/" + Browser::enteredText + ".XML"; }
 	static bool overwritePromptOpen() { return getCurrentUI() == &deluge::gui::context_menu::overwriteFile; }
 	/// @return Whether the save screen OPENED -- not whether its listing has finished. The listing is
@@ -84,6 +89,7 @@ enum class Stage : uint8_t {
 	Fixture,
 	FixtureWait,
 	Save,
+	SaveBack,
 	SaveWait,
 	Verify,
 	OccupiedOpen,
@@ -203,6 +209,38 @@ void runTick() {
 			g_nameBefore = instrument->name;
 		}
 		DocumentSaveChannelProbe::pressEnter();
+		g_stage = Stage::SaveBack;
+		break;
+	}
+	case Stage::SaveBack: {
+		// DS-BACKMIDSAVE / DS-EXITMIDSAVE. The staged preset save spans ticks too, and ends in close() just
+		// as the song save does, so leaving its screen mid-save carries the same hazard.
+		const bool inFlight = SaveUI::saveInFlight();
+		DocumentSaveChannelProbe::pressBack();
+		const bool backBlocked = getCurrentUI() == &saveInstrumentPresetUI;
+		printf("DS-BACKMIDSAVE inFlight=%d back=%d\n", (int)inFlight, (int)backBlocked);
+		if (!inFlight) {
+			printf("DS-BACKMIDSAVE FAIL the save had already finished; nothing was pressed mid-save, so this proves "
+			       "nothing\n");
+			g_failures++;
+		}
+		else if (!backBlocked) {
+			printf("DS-BACKMIDSAVE FAIL BACK closed the preset save screen while the save was still running\n");
+			g_failures++;
+		}
+		if (backBlocked) {
+			(void)saveInstrumentPresetUI.exitUI();
+			const bool exitBlocked = getCurrentUI() == &saveInstrumentPresetUI;
+			printf("DS-EXITMIDSAVE exit=%d\n", (int)exitBlocked);
+			if (!exitBlocked) {
+				printf(
+				    "DS-EXITMIDSAVE FAIL a long-press exit closed the preset save screen while the save was running\n");
+				g_failures++;
+			}
+		}
+		else {
+			printf("DS-EXITMIDSAVE exit=skipped\n");
+		}
 		g_stage = Stage::SaveWait;
 		break;
 	}

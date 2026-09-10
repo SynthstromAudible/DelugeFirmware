@@ -27,6 +27,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "hid/button.h"
 #include "io/file.hpp"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -63,6 +64,10 @@ public:
 	static bool listingInProgress() { return Browser::isListingInProgress(); }
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveSongUI.enterKeyPress(); }
+	static void pressBack() {
+		(void)saveSongUI.buttonAction(deluge::hid::button::BACK, true, false);
+		(void)saveSongUI.buttonAction(deluge::hid::button::BACK, false, false);
+	}
 	static bool overwritePromptOpen() { return getCurrentUI() == &deluge::gui::context_menu::overwriteFile; }
 	static void confirmOverwrite() { (void)deluge::gui::context_menu::overwriteFile.acceptCurrentOption(); }
 };
@@ -82,6 +87,7 @@ enum class Stage : uint8_t {
 	Fixture,
 	FixtureWait,
 	SaveFirst,
+	SaveFirstBack,
 	SaveFirstWait,
 	SaveFirstCheck,
 	ParseWait,
@@ -250,6 +256,39 @@ void runTick() {
 	case Stage::SaveFirst: {
 		SongSaveChannelProbe::typeName(kSaveName);
 		SongSaveChannelProbe::pressEnter();
+		g_stage = Stage::SaveFirstBack;
+		break;
+	}
+	case Stage::SaveFirstBack: {
+		// SS-BACKMIDSAVE / SS-EXITMIDSAVE. Leave the save screen while the save is still running, both ways a
+		// user can: a BACK press, and the long-press exit the BACK timer fires. A song save spans many ticks
+		// with the UI live, and leaving used to close the save screen mid-save -- after which the save's own
+		// close() ran against a UI stack it was no longer on and read uiNavigationHierarchy[-1].
+		const bool inFlight = saveSongUI.collectInFlight() || saveSongUI.docInFlight() || SaveUI::saveInFlight();
+		SongSaveChannelProbe::pressBack();
+		const bool backBlocked = getCurrentUI() == &saveSongUI;
+		printf("SS-BACKMIDSAVE inFlight=%d back=%d\n", (int)inFlight, (int)backBlocked);
+		if (!inFlight) {
+			printf("SS-BACKMIDSAVE FAIL the save had already finished; nothing was pressed mid-save, so this proves "
+			       "nothing\n");
+			g_failures++;
+		}
+		else if (!backBlocked) {
+			printf("SS-BACKMIDSAVE FAIL BACK closed the save screen while the save was still running\n");
+			g_failures++;
+		}
+		if (backBlocked) {
+			(void)saveSongUI.exitUI();
+			const bool exitBlocked = getCurrentUI() == &saveSongUI;
+			printf("SS-EXITMIDSAVE exit=%d\n", (int)exitBlocked);
+			if (!exitBlocked) {
+				printf("SS-EXITMIDSAVE FAIL a long-press exit closed the save screen while the save was running\n");
+				g_failures++;
+			}
+		}
+		else {
+			printf("SS-EXITMIDSAVE exit=skipped\n");
+		}
 		g_waitTicks = 0;
 		g_stage = Stage::SaveFirstWait;
 		break;

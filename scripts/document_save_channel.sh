@@ -87,7 +87,7 @@ run_leg() {
 	fi
 	# An abort or a wedge exits before this line is printed, which is what turns a freeze into a gate
 	# failure rather than a silently truncated log.
-	for marker in DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-VERIFIED DS-SUMMARY DS-RESULT; do
+	for marker in DS-BACKMIDSAVE DS-EXITMIDSAVE DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-VERIFIED DS-SUMMARY DS-RESULT; do
 		if ! grep -q "^$marker " "$OUT/$name.txt"; then
 			echo "FAIL [$name] — no $marker line; that stage did not run"
 			grep -E '^DS-' "$OUT/$name.txt"
@@ -151,6 +151,13 @@ for leg in off on; do
 		echo "FAIL DS-VERIFIED — the $leg leg reported $(grep '^DS-VERIFIED ' "$OUT/$leg.txt" || echo 'no DS-VERIFIED line')"
 		fail=1
 	fi
+done
+
+# DS-BACKMIDSAVE / DS-EXITMIDSAVE. The staged preset save spans ticks and ends in close(); leaving its screen
+# mid-save must be refused, and must be attempted while the save is genuinely running.
+for leg in off on; do
+	grep -q '^DS-BACKMIDSAVE inFlight=1 back=1$' "$OUT/$leg.txt" || { echo "FAIL DS-BACKMIDSAVE — the $leg leg: $(grep '^DS-BACKMIDSAVE ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
+	grep -q '^DS-EXITMIDSAVE exit=1$' "$OUT/$leg.txt" || { echo "FAIL DS-EXITMIDSAVE — the $leg leg: $(grep '^DS-EXITMIDSAVE ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
 done
 
 # DS-FINISHED / DS-KITFINISHED / DS-GUARD. What a save does AFTER the document lands, and what it

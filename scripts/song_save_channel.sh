@@ -113,7 +113,7 @@ run_leg() {
 	fi
 	# An abort or a wedge exits before these lines are printed, which is what turns a freeze into a
 	# gate failure rather than a silently truncated log.
-	for marker in SS-GREW SS-SAVED SS-VERIFIED SS-PARSES SS-INTACT SS-SUMMARY SS-RESULT; do
+	for marker in SS-BACKMIDSAVE SS-EXITMIDSAVE SS-GREW SS-SAVED SS-VERIFIED SS-PARSES SS-INTACT SS-SUMMARY SS-RESULT; do
 		if ! grep -q "^$marker " "$OUT/$name.txt"; then
 			echo "FAIL [$name] — no $marker line; that stage did not run"
 			grep -E '^SS-' "$OUT/$name.txt"
@@ -205,6 +205,15 @@ if [ -z "$off_saved" ] || [ "$off_saved" != "$on_saved" ]; then
 	echo "  [on]  $on_saved"
 	fail=1
 fi
+
+# SS-BACKMIDSAVE / SS-EXITMIDSAVE. A song save spans many ticks with the UI live. Leaving the save screen
+# mid-save -- BACK, or the long-press exit -- used to close it, and the save's own close() then indexed off
+# the end of the UI stack. Both must be refused while the save runs, and both must actually be tried while
+# it IS running, or the check proves nothing.
+for leg in off on; do
+	grep -q '^SS-BACKMIDSAVE inFlight=1 back=1$' "$OUT/$leg.txt" || { echo "FAIL SS-BACKMIDSAVE — the $leg leg: $(grep '^SS-BACKMIDSAVE ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
+	grep -q '^SS-EXITMIDSAVE exit=1$' "$OUT/$leg.txt" || { echo "FAIL SS-EXITMIDSAVE — the $leg leg: $(grep '^SS-EXITMIDSAVE ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
+done
 
 grep -E '^SS-' "$OUT/off.txt" | sed 's/^/[off] /'
 grep -E '^SS-' "$OUT/on.txt" | sed 's/^/[on]  /'

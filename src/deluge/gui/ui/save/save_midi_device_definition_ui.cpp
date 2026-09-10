@@ -139,7 +139,7 @@ void SaveMidiDeviceDefinitionUI::afterStagedSave(const deluge::storage::SaveRequ
 	close();
 }
 
-ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveMidiDeviceDefinitionUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -156,7 +156,7 @@ ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 			}
 		}
 
-		return SaveUI::buttonAction(b, on, inCardRoutine);
+		return SaveUI::saveScreenButtonAction(b, on, inCardRoutine);
 	}
 }
 

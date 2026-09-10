@@ -1053,8 +1053,10 @@ void SaveSongUI::runDocFinishPhase() {
 	// Carried across from the old tail unchanged. `anyErrorMovingTempFiles_` chose between two popup
 	// strings there, but nothing ever displayed the result -- upstream `main` has the same dead
 	// local -- so preserving behaviour means not adding a popup here.
-	currentSong->name = enteredText;
-	currentSong->dirPath = currentDir;
+	// The name and folder the save was STARTED with, not whatever the browser holds now: the save spans
+	// many ticks, and reading the live values would record something typed while it ran.
+	currentSong->name = existsRequest_.enteredText;
+	currentSong->dirPath = existsRequest_.dirPath;
 
 	// Both of these choose their own arm: they use the byte channel when it is running and hand the
 	// work to the storage owner when it is not, so calling them from here does not block this tier.
