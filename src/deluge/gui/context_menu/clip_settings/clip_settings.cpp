@@ -37,6 +37,7 @@ char const* ClipSettingsMenu::getTitle() {
 
 std::span<char const*> ClipSettingsMenu::getOptions() {
 	using enum l10n::String;
+	// Routing lives in the per-track AUX menu now, not here.
 	if (clip->type == ClipType::AUDIO) {
 		static const char* optionsls[] = {
 		    l10n::get(STRING_FOR_CLIP_MODE),
@@ -78,7 +79,7 @@ bool ClipSettingsMenu::acceptCurrentOption() {
 			launchStyle.setupAndCheckAvailability();
 			openUI(&launchStyle);
 		}
-		else {
+		else if (option == 1) {
 			currentUIMode = UI_MODE_NONE;
 			renameClipUI.clip = clip;
 			openUI(&renameClipUI);

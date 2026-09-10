@@ -1005,6 +1005,14 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_HORIZONTAL_MENU, "Horizontal Menu"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_ROW, "Chord Row Mode"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN, "Chord Column Mode"},
+        {STRING_FOR_CLIP_OUTPUT_MAIN, "Main"},
+        {STRING_FOR_CLIP_OUTPUT_STEREO_SPLIT, "Stereo Split"},
+        {STRING_FOR_OUTPUT_LEVEL_CV1, "CV1 Level"},
+        {STRING_FOR_OUTPUT_LEVEL_CV2, "CV2 Level"},
+        {STRING_FOR_AUX, "Aux Sends"},
+        {STRING_FOR_CV_SEND, "CV Send"},
+        {STRING_FOR_CV1_SEND, "CV1 Send"},
+        {STRING_FOR_CV2_SEND, "CV2 Send"},
     },
 };
 } // namespace deluge::l10n::built_in

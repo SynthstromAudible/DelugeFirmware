@@ -20,6 +20,7 @@
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_audio_stream.h"
 #include "util/comparison.h"
 #include "util/functions.h"
 #include <math.h>
@@ -199,6 +200,14 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	// if we have a physical oled then we need to send via the pic
 	if (deluge::hid::display::have_oled_screen) {
 		enqueueCVMessage(channel, output);
+	}
+	else if (deluge::processing::engines::cvStreamIsRunning()) {
+		// The audio stream's DMA is continuously driving this same SPI data register to feed
+		// the CV sockets. A direct write here would race it and land as one wrong sample in
+		// the stream, audible as a click on whichever socket the DMA happened to be mid-word
+		// on. A CV/gate note and an active send are mutually exclusive uses of the same DAC
+		// channel, so drop the note-voltage write rather than corrupt the stream.
+		cvOutPending = false;
 	}
 	else {
 		R_RSPI_SendBasic32(SPI_CHANNEL_CV, output);
