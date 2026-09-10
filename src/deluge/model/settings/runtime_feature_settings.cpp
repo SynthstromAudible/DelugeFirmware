@@ -204,6 +204,10 @@ void RuntimeFeatureSettings::init() {
 	// Rounded Corners
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
 	                  "roundedCorners", RuntimeFeatureStateToggle::On);
+
+	// Step Record
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::StepRecord], STRING_FOR_COMMUNITY_FEATURE_STEP_RECORD,
+	                  "stepRecord", RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {

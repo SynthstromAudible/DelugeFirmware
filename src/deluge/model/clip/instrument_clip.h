@@ -23,6 +23,8 @@
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
 
+#include <optional>
+
 class Song;
 
 class NoteRow;
@@ -95,8 +97,17 @@ public:
 	NoteRow* getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_t* getIndex = nullptr);
 	bool currentlyScrollableAndZoomable() override;
 	void recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, bool forcePos0 = false,
-	                  int16_t const* mpeValuesOrNull = nullptr, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
+	                  int16_t const* mpeValuesOrNull = nullptr, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE,
+	                  std::optional<int32_t> forcePos = std::nullopt);
 	void recordNoteOff(ModelStackWithNoteRow* modelStack, int32_t velocity = kDefaultLiftValue);
+	/// Advance the step record cursor by `by` ticks, wrapping at the clip end.
+	void advanceStepCursor(int32_t by);
+	/// Place a note at the step record cursor with length exactly one step (extended only by ties). Returns whether a
+	/// note was created - it won't be if an existing note overlaps the cursor.
+	bool stepRecordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, int32_t stepLength, Action* action,
+	                      int16_t const* mpeValuesOrNull = nullptr, int32_t fromMIDIChannel = MIDI_CHANNEL_NONE);
+	/// Extend the note at `notePos` (if it exists) by one step. Returns whether a note was extended.
+	bool stepRecordTieNote(ModelStackWithNoteRow* modelStack, int32_t notePos, int32_t stepLength, Action* action);
 
 	void copyBasicsFrom(Clip const* otherClip) override;
 
@@ -121,6 +132,9 @@ public:
 
 	bool wrapEditing;
 	uint32_t wrapEditLevel{};
+
+	/// Tick position of the step record cursor. Interaction state only - not written to song files.
+	int32_t stepRecordCursor{};
 
 	// These *only* store a valid preset number for the instrument-types that the Clip is not currently on
 	int8_t backedUpInstrumentSlot[4]{};

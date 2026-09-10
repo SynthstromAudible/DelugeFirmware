@@ -1518,13 +1518,18 @@ goingToRecordNoteOnEarly:
 
 		if (!thisNoteRow || !thisNoteRow->sequenced) {
 
-			if (thisNoteRow && shouldRecordNoteOn) {
+			int16_t const* mpeValuesOrNull = nullptr;
+			if (cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+				mpeValuesOrNull = mpeValues;
+			}
 
-				int16_t const* mpeValuesOrNull = nullptr;
-
-				if (cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
-					mpeValuesOrNull = mpeValues;
-				}
+			// Step record: place the drum at the step cursor instead of the live position, bypassing the normal
+			// recording gate (which needs a running clock).
+			if (isUIModeActive(UI_MODE_STEP_RECORD) && instrumentClip == getCurrentInstrumentClip()) {
+				instrumentClipView.stepRecordMidiNoteOn(note, velocity, modelStackWithNoteRow, mpeValuesOrNull,
+				                                        MIDI_CHANNEL_NONE);
+			}
+			else if (thisNoteRow && shouldRecordNoteOn) {
 
 				instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, false, mpeValuesOrNull);
 				if (getRootUI()) {
@@ -1546,9 +1551,14 @@ goingToRecordNoteOnEarly:
 	// Note-off
 	else {
 		if (thisNoteRow) {
-			if (shouldRecordNotes && thisDrum->auditioned
-			    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT && instrumentClip->isArrangementOnlyClip())
-			        || currentSong->isClipActive(instrumentClip))) {
+			// Step record: advance the cursor when the last held MIDI note is released.
+			if (isUIModeActive(UI_MODE_STEP_RECORD) && instrumentClip == getCurrentInstrumentClip()) {
+				instrumentClipView.stepRecordMidiNoteOff(note);
+			}
+			else if (shouldRecordNotes && thisDrum->auditioned
+			         && ((playbackHandler.recording == RecordingMode::ARRANGEMENT
+			              && instrumentClip->isArrangementOnlyClip())
+			             || currentSong->isClipActive(instrumentClip))) {
 
 				if (playbackHandler.recording == RecordingMode::ARRANGEMENT
 				    && !instrumentClip->isArrangementOnlyClip()) {}

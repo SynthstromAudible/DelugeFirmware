@@ -1,0 +1,64 @@
+---
+title: Step Record
+---
+
+import { Badge } from "@astrojs/starlight/components"
+
+<Badge text="c1.4 Feature" variant="tip" />
+
+## Description
+
+Step Record lets you enter notes into a clip one step at a time while the
+transport is stopped. Instead of recording at the live playhead position, each
+note you play lands at a **step cursor**, and the cursor advances one step when
+you release the note - so you can build up a sequence deliberately, note by
+note, in the style of a step sequencer (KeyStep Pro / MPC style).
+
+It works from the audition pads, the keyboard view, or a MIDI controller, on
+both melodic and kit clips.
+
+### Community Feature Setting
+
+Enable the `Step Record (STEP)` community setting (Community Features menu) to
+use the mode. It defaults to **Off**.
+
+## Entering and Exiting
+
+- **Enter**: in clip view, hold :key[Record] and press :key[Keyboard]. The clip
+  is armed and the cursor starts at the beginning of the clip.
+- **Exit**: press :key[Back]. The cursor position is remembered for the next
+  time you enter.
+
+While in the mode, the current step shows as a blinking column on the grid (a
+tick square on the keyboard screen), the grid auto-scrolls to keep the cursor
+visible, and the **Record** and **Keyboard** button lights blink as a reminder
+that the mode is active.
+
+## Playing Notes
+
+A note lands at the current step when you press its pad / key, and the cursor
+advances one step when you release it.
+
+- **Chords**: notes held and released together land on the same step and
+  advance the cursor once.
+- **Kit clips**: drums you hit while holding stack on the current step; empty
+  drum slots are ignored (add a drum, then re-enter the mode).
+- **Velocity**: the audition pads are not velocity-sensitive (they use the
+  instrument's default velocity); the keyboard view and MIDI capture live
+  velocity.
+
+## Ties and Rests
+
+- **Tie**: while holding one or more notes, press :key[Record]. The held notes
+  extend by one step and the cursor advances - so pressing RECORD again while
+  holding the note makes it longer. Works on melodic and kit clips alike: a kit
+  pad can be a long-lived atmospheric sample, so a held drum note ties too.
+- **Rest**: with no notes held, press :key[Record] to advance the cursor one
+  step without placing a note - the same press as a tie, but with nothing to
+  tie.
+
+## Wrap
+
+When the cursor reaches the end of the clip it wraps back to the start. Placing
+a note on a step that already has a note does nothing - the existing note is
+kept and the cursor still advances on release.

@@ -21,6 +21,7 @@
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/clip/step_record.h"
 #include "model/iterance/iterance.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
@@ -168,6 +169,21 @@ public:
 	bool startAuditioningRow(int32_t velocity, int32_t yDisplay, bool shiftButtonDown, bool isKit,
 	                         NoteRow* noteRowOnActiveClip, Drum* drum, bool displayNoteCode = true);
 	void finishAuditioningRow(int32_t yDisplay, ModelStackWithNoteRow* modelStack, NoteRow* noteRowOnActiveClip);
+	// Step record mode
+	void enterStepRecordMode();
+	void exitStepRecordMode();
+	void stepRecordNoteOn(int32_t velocity, int32_t yDisplay,
+	                      ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+	                      ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip);
+	void stepRecordNoteOff(int32_t yDisplay);
+	void stepRecordTieHeldNotes();
+	void stepRecordMidiNoteOn(int32_t note, int32_t velocity, ModelStackWithNoteRow* modelStackWithNoteRow,
+	                          int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel);
+	void stepRecordMidiNoteOff(int32_t note);
+	bool stepRecordMidiNotesHeld();
+	void advanceStepRecordCursor(int32_t by);
+	void stepRecordEnsureCursorVisible();
+	int32_t getStepRecordStepLength();
 	void enterScaleMode(uint8_t yDisplay = 255);
 	void exitScaleMode();
 	void drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], uint8_t thisOccupancyMask[]);
@@ -256,6 +272,18 @@ public:
 	uint8_t numEditPadPresses;
 	uint32_t timeLastEditPadPress;
 	uint32_t timeFirstEditPadPress{};
+	// While step record is active, per held note row: the tick position the held note was placed at, and whether its
+	// step advance has been consumed by a tie.
+	int32_t stepRecordNotePos[kDisplayHeight]{};
+	bool stepRecordNoteTied[kDisplayHeight]{};
+	// While step record is active, per held MIDI note (0-127): the tick position it was placed at (-1 = not held), the
+	// note row id it was placed on (-1 = none; needed to tie MIDI notes on kit clips, where the row is the drum's),
+	// and whether its step advance has been consumed by a tie.
+	int32_t stepRecordMidiNotePos[kNumMidiNotes]{};
+	int32_t stepRecordMidiNoteRowId[kNumMidiNotes]{};
+	bool stepRecordMidiNoteTied[kNumMidiNotes]{};
+	// The clip's armedForRecording state before step record auto-armed it, restored on exit.
+	bool stepRecordArmedStateBefore{};
 	// Only to be looked at if shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress is true after they
 	// rotated a NoteRow and might now be wanting to instead edit its length after releasing the knob
 	uint32_t timeHorizontalKnobLastReleased{};

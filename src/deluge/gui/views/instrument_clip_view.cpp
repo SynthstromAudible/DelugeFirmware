@@ -175,6 +175,14 @@ void InstrumentClipView::displayOrLanguageChanged() {
 }
 
 void InstrumentClipView::setLedStates() {
+	if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+		// Step record mode: blink the Record and Keyboard lights as a mode indicator.
+		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+		InstrumentClipMinder::setLedStates();
+		// playbackHandler.setLedStates() (called above) resets the Record light, so re-blink it afterwards.
+		indicator_leds::blinkLed(IndicatorLED::RECORD);
+		return;
+	}
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, false);
 	InstrumentClipMinder::setLedStates();
 }
@@ -312,12 +320,39 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 	// Keyboard button
 	else if (b == KEYBOARD) {
-		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		if (on) {
+			// While in step record mode, KEYBOARD alone (no notes held) opens the keyboard view with the mode still
+			// active (melodic clips only - the kit drum keyboard is not part of step record). A rest is just RECORD
+			// with no notes held, handled above.
+			if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+				if (!Buttons::isButtonPressed(RECORD) && !getNumNoteRowsAuditioning() && !stepRecordMidiNotesHeld()
+				    && getCurrentOutputType() != OutputType::KIT) {
+					if (inCardRoutine) {
+						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+					}
+					changeRootUI(&keyboardScreen);
+				}
 			}
 
-			changeRootUI(&keyboardScreen);
+			// RECORD+KEYBOARD enters step record mode (melodic and kit clips).
+			else if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(RECORD)
+			         && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::StepRecord)) {
+				if (inCardRoutine) {
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
+
+				enterStepRecordMode();
+				Buttons::recordButtonPressUsedUp = true;
+			}
+
+			// Otherwise, go to the keyboard screen.
+			else if (currentUIMode == UI_MODE_NONE) {
+				if (inCardRoutine) {
+					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+				}
+
+				changeRootUI(&keyboardScreen);
+			}
 		}
 	}
 
@@ -344,6 +379,24 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 				setLedStates();
 			}
 		}
+	}
+
+	// Record button while in step record mode: ties held notes, or advances as a rest if none are held. Works on
+	// melodic and kit clips (a kit pad can be a long-lived sample, so drums tie too).
+	else if (b == RECORD && isUIModeActive(UI_MODE_STEP_RECORD)) {
+		if (on) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			if (getNumNoteRowsAuditioning() || stepRecordMidiNotesHeld()) {
+				stepRecordTieHeldNotes();
+			}
+			else {
+				advanceStepRecordCursor(getStepRecordStepLength());
+			}
+			Buttons::recordButtonPressUsedUp = true;
+		}
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Record button if holding audition pad
@@ -421,6 +474,17 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 				openUI(&context_menu::cancelStemExport);
 			}
 		}
+	}
+
+	// Back button exits step record mode (normally BACK would be undo)
+	else if (b == BACK && isUIModeActive(UI_MODE_STEP_RECORD)) {
+		if (on) {
+			if (inCardRoutine) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			exitStepRecordMode();
+		}
+		return ActionResult::DEALT_WITH;
 	}
 
 	// Back button if adding Drum
@@ -1854,6 +1918,7 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
                                              UI_MODE_RECORD_COUNT_IN,
                                              UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
                                              UI_MODE_HOLDING_LOAD_BUTTON,
+                                             UI_MODE_STEP_RECORD,
                                              0};
 
 ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
@@ -4419,7 +4484,8 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOffAuditionedNotes(bool
 
 			if (noteRow) {
 				// If recording, record a note-off for this NoteRow, if one exists
-				if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
+				if (!isUIModeActive(UI_MODE_STEP_RECORD) && playbackHandler.shouldRecordNotesNow()
+				    && currentClipIsActive) {
 					clip->recordNoteOff(modelStackWithNoteRow);
 				}
 			}
@@ -4517,7 +4583,8 @@ void InstrumentClipView::scrollVertical_potentiallySwitchOnAuditionedNotes(
 					else {
 
 						// Record note-on if we're recording
-						if (playbackHandler.shouldRecordNotesNow() && currentClipIsActive) {
+						if (!isUIModeActive(UI_MODE_STEP_RECORD) && playbackHandler.shouldRecordNotesNow()
+						    && currentClipIsActive) {
 
 							// If no NoteRow existed before, try creating one
 							if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
@@ -5072,8 +5139,18 @@ ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDi
 		potentiallyUpdateMultiRangeMenu(velocity, yDisplay, instrument);
 	}
 
-	potentiallyRecordAuditionPadAction(clipIsActiveOnInstrument, velocity, yDisplay, instrument, isKit,
-	                                   modelStackWithTimelineCounter, modelStackWithNoteRowOnCurrentClip, drum);
+	// In step record mode, note entry bypasses the normal live-record path: note-ons place a note at the step cursor
+	// (length one step, extended by ties); note-offs just end the audition - the advance-on-release is handled in
+	// finishAuditioningRow(). Works for melodic and kit clips (kit drums hit while held stack on the current step).
+	if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+		if (velocity != 0) {
+			stepRecordNoteOn(velocity, yDisplay, modelStackWithTimelineCounter, modelStackWithNoteRowOnCurrentClip);
+		}
+	}
+	else {
+		potentiallyRecordAuditionPadAction(clipIsActiveOnInstrument, velocity, yDisplay, instrument, isKit,
+		                                   modelStackWithTimelineCounter, modelStackWithNoteRowOnCurrentClip, drum);
+	}
 
 	NoteRow* noteRowOnActiveClip = getNoteRowOnActiveClip(yDisplay, instrument, clipIsActiveOnInstrument,
 	                                                      modelStackWithNoteRowOnCurrentClip, drum);
@@ -5132,6 +5209,264 @@ void InstrumentClipView::potentiallyRecordAuditionPadAction(
 	}
 }
 
+// Step record mode -----------------------------------------------------------
+
+void InstrumentClipView::enterStepRecordMode() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) {
+		return;
+	}
+	clip->stepRecordCursor = 0;
+	memset(stepRecordNoteTied, 0, sizeof(stepRecordNoteTied));
+	// stepRecordNotePos / stepRecordMidiNotePos / stepRecordMidiNoteRowId use -1 as "not a held step record note".
+	memset(stepRecordNotePos, 0xFF, sizeof(stepRecordNotePos));
+	memset(stepRecordMidiNoteTied, 0, sizeof(stepRecordMidiNoteTied));
+	memset(stepRecordMidiNotePos, 0xFF, sizeof(stepRecordMidiNotePos));
+	memset(stepRecordMidiNoteRowId, 0xFF, sizeof(stepRecordMidiNoteRowId));
+	stepRecordArmedStateBefore = getCurrentClip()->armedForRecording;
+	getCurrentClip()->armedForRecording = true;
+	enterUIMode(UI_MODE_STEP_RECORD);
+	setLedStates(); // Blinks the Record and Keyboard lights while the mode is active.
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STEP_RECORD));
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+}
+
+void InstrumentClipView::exitStepRecordMode() {
+	exitUIMode(UI_MODE_STEP_RECORD);
+	memset(stepRecordNoteTied, 0, sizeof(stepRecordNoteTied));
+	memset(stepRecordNotePos, 0xFF, sizeof(stepRecordNotePos));
+	memset(stepRecordMidiNoteTied, 0, sizeof(stepRecordMidiNoteTied));
+	memset(stepRecordMidiNotePos, 0xFF, sizeof(stepRecordMidiNotePos));
+	memset(stepRecordMidiNoteRowId, 0xFF, sizeof(stepRecordMidiNoteRowId));
+	getCurrentClip()->armedForRecording = stepRecordArmedStateBefore;
+	setLedStates(); // Restore the Record and Keyboard lights to their normal state.
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+}
+
+int32_t InstrumentClipView::getStepRecordStepLength() {
+	return currentSong->xZoom[NAVIGATION_CLIP];
+}
+
+void InstrumentClipView::stepRecordNoteOn(int32_t velocity, int32_t yDisplay,
+                                          ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
+                                          ModelStackWithNoteRow* modelStackWithNoteRowOnCurrentClip) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) {
+		return;
+	}
+
+	// May need to create NoteRow if there wasn't one previously
+	if (!modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
+		modelStackWithNoteRowOnCurrentClip = createNoteRowForYDisplay(modelStackWithTimelineCounter, yDisplay);
+	}
+	if (!modelStackWithNoteRowOnCurrentClip->getNoteRowAllowNull()) {
+		return;
+	}
+
+	stepRecordNotePos[yDisplay] = clip->stepRecordCursor;
+	stepRecordNoteTied[yDisplay] = false;
+
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
+
+	if (!clip->stepRecordNoteOn(modelStackWithNoteRowOnCurrentClip,
+	                            (velocity == USE_DEFAULT_VELOCITY) ? getCurrentInstrument()->defaultVelocity : velocity,
+	                            getStepRecordStepLength(), action)) {
+		stepRecordNotePos[yDisplay] = -1; // Note wasn't placed (e.g. overlap) - it doesn't drive the cursor.
+	}
+
+	actionLogger.closeAction(ActionType::RECORD);
+
+	// Show the placed note on the grid immediately.
+	if (!(currentUIMode & UI_MODE_HORIZONTAL_SCROLL)) {
+		uiNeedsRendering(getRootUI(), 1 << yDisplay, 0);
+	}
+}
+
+void InstrumentClipView::stepRecordNoteOff(int32_t yDisplay) {
+	// A note that was never placed doesn't drive the cursor.
+	if (stepRecordNotePos[yDisplay] < 0) {
+		stepRecordNotePos[yDisplay] = -1;
+		stepRecordNoteTied[yDisplay] = false;
+		return;
+	}
+	// A tie already consumed this note's advance.
+	if (stepRecordNoteTied[yDisplay]) {
+		stepRecordNoteTied[yDisplay] = false;
+		return;
+	}
+	// One advance per note: the cursor advances when this untied note's release leaves no untied placed note held
+	// (notes released together share one advance).
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		if (auditionPadIsPressed[y] && stepRecordNotePos[y] >= 0 && !stepRecordNoteTied[y]) {
+			return;
+		}
+	}
+	advanceStepRecordCursor(getStepRecordStepLength());
+}
+
+void InstrumentClipView::stepRecordTieHeldNotes() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) {
+		return;
+	}
+
+	int32_t stepLength = getStepRecordStepLength();
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
+
+	bool extendedAny = false;
+	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+		if (!auditionPadIsPressed[yDisplay]) {
+			continue;
+		}
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
+		if (!modelStackWithNoteRow || !modelStackWithNoteRow->getNoteRowAllowNull()) {
+			continue;
+		}
+		// The held note is where it was placed - the cursor may already have advanced past it.
+		if (clip->stepRecordTieNote(modelStackWithNoteRow, stepRecordNotePos[yDisplay], stepLength, action)) {
+			stepRecordNoteTied[yDisplay] = true;
+			extendedAny = true;
+		}
+	}
+
+	// MIDI-held notes. Use the note row the note was placed on (for kit clips this is the drum's note row, not the
+	// row for MIDI note number n).
+	for (int32_t n = 0; n < kNumMidiNotes; n++) {
+		if (stepRecordMidiNotePos[n] < 0 || stepRecordMidiNoteRowId[n] < 0) {
+			continue;
+		}
+		NoteRow* noteRow = clip->getNoteRowFromId(stepRecordMidiNoteRowId[n]);
+		if (!noteRow) {
+			continue;
+		}
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(stepRecordMidiNoteRowId[n], noteRow);
+		if (clip->stepRecordTieNote(modelStackWithNoteRow, stepRecordMidiNotePos[n], stepLength, action)) {
+			stepRecordMidiNoteTied[n] = true;
+			extendedAny = true;
+		}
+	}
+
+	actionLogger.closeAction(ActionType::RECORD);
+
+	// The tie both extends the held notes by a step and advances the cursor, consuming the release's advance.
+	if (extendedAny) {
+		advanceStepRecordCursor(stepLength);
+	}
+
+	// Show the extended notes on the grid immediately.
+	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
+}
+
+void InstrumentClipView::stepRecordMidiNoteOn(int32_t note, int32_t velocity,
+                                              ModelStackWithNoteRow* modelStackWithNoteRow,
+                                              int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip || note < 0 || note >= kNumMidiNotes) {
+		return;
+	}
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
+
+	// For a melodic clip, resolve/create the note row for this note; for a kit, the caller passes the drum's note row.
+	if (clip->output->type != OutputType::KIT) {
+		bool scaleAltered = false;
+		modelStackWithNoteRow = clip->getOrCreateNoteRowForYNote(note, modelStack, action, &scaleAltered);
+		if (modelStackWithNoteRow->getNoteRowAllowNull() && action && scaleAltered) {
+			action->updateYScrollClipViewAfter();
+		}
+	}
+	if (!modelStackWithNoteRow || !modelStackWithNoteRow->getNoteRowAllowNull()) {
+		actionLogger.closeAction(ActionType::RECORD); // Don't leave an empty action open to merge with the next note.
+		return;
+	}
+
+	stepRecordMidiNotePos[note] = clip->stepRecordCursor;
+	stepRecordMidiNoteRowId[note] = modelStackWithNoteRow->noteRowId;
+	stepRecordMidiNoteTied[note] = false;
+
+	if (!clip->stepRecordNoteOn(modelStackWithNoteRow, velocity, getStepRecordStepLength(), action, mpeValuesOrNull,
+	                            fromMIDIChannel)) {
+		stepRecordMidiNotePos[note] = -1; // Note wasn't placed (e.g. overlap) - it doesn't drive the cursor.
+	}
+
+	actionLogger.closeAction(ActionType::RECORD);
+
+	// Show the placed note on the grid immediately (the MIDI note could be on any note row).
+	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
+}
+
+void InstrumentClipView::stepRecordMidiNoteOff(int32_t note) {
+	if (note < 0 || note >= kNumMidiNotes) {
+		return;
+	}
+	// A note that was never placed doesn't drive the cursor.
+	if (stepRecordMidiNotePos[note] < 0) {
+		stepRecordMidiNotePos[note] = -1;
+		stepRecordMidiNoteRowId[note] = -1;
+		stepRecordMidiNoteTied[note] = false;
+		return;
+	}
+	// A tie already consumed this note's advance.
+	if (stepRecordMidiNoteTied[note]) {
+		stepRecordMidiNotePos[note] = -1;
+		stepRecordMidiNoteRowId[note] = -1;
+		stepRecordMidiNoteTied[note] = false;
+		return;
+	}
+	stepRecordMidiNotePos[note] = -1;
+	stepRecordMidiNoteRowId[note] = -1;
+	stepRecordMidiNoteTied[note] = false;
+	// One advance per note: the cursor advances when this untied note's release leaves no untied placed note held
+	// (MIDI notes released together share one advance).
+	for (int32_t n = 0; n < kNumMidiNotes; n++) {
+		if (stepRecordMidiNotePos[n] >= 0 && !stepRecordMidiNoteTied[n]) {
+			return;
+		}
+	}
+	advanceStepRecordCursor(getStepRecordStepLength());
+}
+
+bool InstrumentClipView::stepRecordMidiNotesHeld() {
+	for (int32_t n = 0; n < kNumMidiNotes; n++) {
+		if (stepRecordMidiNotePos[n] >= 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void InstrumentClipView::advanceStepRecordCursor(int32_t by) {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) {
+		return;
+	}
+	clip->advanceStepCursor(by);
+	stepRecordEnsureCursorVisible();
+}
+
+void InstrumentClipView::stepRecordEnsureCursorVisible() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) {
+		return;
+	}
+	int32_t stepLength = getStepRecordStepLength();
+	int32_t cursorSquare = getSquareFromPos(clip->stepRecordCursor);
+	if (cursorSquare >= kDisplayWidth) {
+		currentSong->xScroll[NAVIGATION_CLIP] += stepLength * kDisplayWidth;
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+	else if (cursorSquare < 0) {
+		// Cursor wrapped back past the start of the visible window.
+		currentSong->xScroll[NAVIGATION_CLIP] = (clip->stepRecordCursor / stepLength) * stepLength;
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	}
+}
+
 // sub-function of AuditionPadAction
 // if we're in a kit clip, get the drum that were trying to audition
 Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, bool shiftButtonDown,
@@ -5149,6 +5484,11 @@ Drum* InstrumentClipView::getAuditionedDrum(int32_t velocity, int32_t yDisplay, 
 
 	// If drum or noterow doesn't exist here, we'll see about creating one
 	if (drum == nullptr) {
+		// In step record mode, only existing drums can be step-recorded - don't start the drum-creation flow.
+		if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+			return drum;
+		}
+
 		// But not if we're actually not on this screen
 		if (getCurrentUI() != this) {
 			return drum;
@@ -5385,8 +5725,8 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 		potentiallyRefreshNoteRowMenu();
 	}
 
-	// Begin resampling / output-recording
-	if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
+	// Begin resampling / output-recording (unless in step record mode, where RECORD is the tie/rest gesture)
+	if (!isUIModeActive(UI_MODE_STEP_RECORD) && Buttons::isButtonPressed(deluge::hid::button::RECORD)
 	    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
 		audioRecorder.beginOutputRecording();
 		Buttons::recordButtonPressUsedUp = true;
@@ -5441,6 +5781,12 @@ void InstrumentClipView::finishAuditioningRow(int32_t yDisplay, ModelStackWithNo
 	someAuditioningHasEnded(true); // lastAuditionedYDisplay == yDisplay);
 	actionLogger.closeAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT);
 	actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
+
+	// Step record: one advance per chord - advance when the last held note is released, unless a tie already consumed
+	// the advance.
+	if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+		stepRecordNoteOff(yDisplay);
+	}
 }
 
 void InstrumentClipView::cancelAllAuditioning() {
@@ -7138,6 +7484,20 @@ void InstrumentClipView::graphicsRoutine() {
 	}
 
 	if (PadLEDs::flashCursor == FLASH_CURSOR_OFF) {
+		return;
+	}
+
+	// Step record: show the step cursor as a blinking column covering all note rows.
+	if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+		int32_t cursorSquare = getSquareFromPos(clip->stepRecordCursor);
+		if (cursorSquare < 0 || cursorSquare >= kDisplayWidth) {
+			cursorSquare = 255;
+		}
+		uint8_t cursorTickSquares[kDisplayHeight];
+		memset(cursorTickSquares, cursorSquare, kDisplayHeight);
+		uint8_t cursorColours[kDisplayHeight];
+		memset(cursorColours, 0, kDisplayHeight);
+		PadLEDs::setTickSquares(cursorTickSquares, cursorColours);
 		return;
 	}
 
