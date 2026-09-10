@@ -157,6 +157,16 @@ public:
 	/// @return True if at least one line is `active` and not yet past its `expire_ms`.
 	bool any_active(uint32_t now_ms) const;
 
+	/// @brief Deactivate every line immediately -- the port of `OLED::removePopup()`
+	///        (`hid/display/oled.cpp:253-258`) as `HorizontalMenu::endSession`/`switchVisiblePage`
+	///        call it (`gui/menu_item/horizontal_menu.cpp:587-589`, `:363-365`): "cancel whatever
+	///        notification is showing right now", not "let the lines already up run out their own
+	///        timers". Setting `active` false rather than clearing `lines_` outright keeps the text
+	///        (harmless -- nothing reads an inactive line) and matches `any_active`'s own test, so a
+	///        `Notices::tick()` running immediately after sees the same "nothing left to show" this
+	///        call already decided.
+	void cancel();
+
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Always transparent: the console draws only its own strip and leaves the rest of the
 	///        surface for the scene beneath, which must still be drawn.
@@ -295,7 +305,14 @@ public:
 	/// not `pop`: a popup is `input_transparent()`, so an application `Push` can legitimately land
 	/// above a live one, and cancelling the popup must not take that scene down with it -- it excises
 	/// just the popup and closes the gap, leaving whatever else is on the stack exactly where it was.
-	/// A no-op when no popup is stacked at all.
+	/// A no-op when no popup is stacked at all. `Kind::CancelConsole` does the same for the console
+	/// scene -- the port's `display->cancelPopup()` equivalent for the notification strip, which
+	/// legacy's own `cancelPopup()`/`removePopup()` also clears (they are the same `oledPopupWidth`/
+	/// `popupType` slot on the device; the port keeps the two as separate scenes, so cancelling one
+	/// does not touch the other). Added for `MenuScene`'s horizontal-page notification
+	/// (`HorizontalMenu::endSession`, `gui/menu_item/horizontal_menu.cpp:587-589`;
+	/// `switchVisiblePage`, `:363-365`) -- the one raiser of `Kind::Console` this file knows of that
+	/// ever needs to take its own notice back before its timer would have.
 	///
 	/// Every string id and error code here is resolved through `BoardProfile::text_or_digits` /
 	/// `error_text_or_digits`, so a profile with no l10n bridge shows the id's digits rather than

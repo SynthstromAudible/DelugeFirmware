@@ -95,6 +95,12 @@ class FileBrowserItem final : public SampleSceneItem {
 public:
 	explicit FileBrowserItem(int8_t source_index) : SampleSceneItem{source_index} {}
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+
+	/// `FileSelector::selectButtonPress` opens the browser outright, bypassing every permission and
+	/// range check (`file_selector.cpp:49-52`) -- see `CustomItem::opens_directly_on_horizontal_
+	/// select`'s own doc. `MarkerItem` and `AudioRecorderItem` take no such override: their legacy
+	/// classes inherit the base `selectButtonPress()`, so a select press on them just ascends.
+	bool opens_directly_on_horizontal_select() const override { return true; }
 };
 
 /// @brief `sample::Start` / `sample::End` / `audio_clip::SampleMarkerEditor` -- opens the sample

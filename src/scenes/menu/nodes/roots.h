@@ -443,7 +443,8 @@ inline constexpr Node specific_output_selector =
 // because the legacy item overrides none -- its refusal is `checkPermissionToBeginSession`'s null
 // `sampleHolder.audioFile` test (`audio_clip/sample_marker_editor.cpp:35-38`), which is
 // `marker::MarkerScene::can`'s audio-clip arm.
-inline constexpr Node audio_clip_waveform = custom(sid(String::STRING_FOR_WAVEFORM), &kAudioClipWaveform);
+inline constexpr Node audio_clip_waveform =
+    with_allow_session_from_horizontal(custom(sid(String::STRING_FOR_WAVEFORM), &kAudioClipWaveform));
 
 inline constexpr const Node* kAudioClipDistortionChildren[] = {&saturation, &bitcrush, &decimation};
 inline constexpr Node audio_clip_distortion =

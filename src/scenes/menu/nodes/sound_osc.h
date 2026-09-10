@@ -202,8 +202,8 @@ inline constexpr IntRange kTimeStretchRange{-48, 48, 1};
 	    with_title(dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_TYPE), osc##i##_type_names,                \
 	                                   get_osc##i##_type, set_osc##i##_type, relevance::not_fm),                       \
 	               sid(deluge::l10n::String::STRING_FOR_OSC_TYPE_MENU_TITLE));                                         \
-	inline constexpr Node file##i##_selector = with_range_dependent(custom(                                            \
-	    sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER), &kFile##i##Selector, relevance::osc##i##_file_selector));  \
+	inline constexpr Node file##i##_selector = with_allow_session_from_horizontal(with_range_dependent(custom(         \
+	    sid(deluge::l10n::String::STRING_FOR_FILE_BROWSER), &kFile##i##Selector, relevance::osc##i##_file_selector))); \
 	inline constexpr Node source##i##_transpose = with_patch_chain(with_range_dependent(with_learn_param(              \
 	    with_title(decimal_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), get_source##i##_transpose,            \
 	                            set_source##i##_transpose, kTransposeRange, 2, relevance::osc##i##_transpose),         \
@@ -251,10 +251,10 @@ inline constexpr IntRange kTimeStretchRange{-48, 48, 1};
 	    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_INTERPOLATION), kInterpolationNames,               \
 	                           get_sample##i##_interp, set_sample##i##_interp, relevance::osc##i##_interpolation),     \
 	               sid(deluge::l10n::String::STRING_FOR_SAMP_INTERP_MENU_TITLE));                                      \
-	inline constexpr Node sample##i##_start = with_range_dependent(                                                    \
-	    custom(sid(deluge::l10n::String::STRING_FOR_START_POINT), &kSample##i##Start, relevance::osc##i##_is_sample)); \
-	inline constexpr Node sample##i##_end = with_range_dependent(                                                      \
-	    custom(sid(deluge::l10n::String::STRING_FOR_END_POINT), &kSample##i##End, relevance::osc##i##_is_sample));     \
+	inline constexpr Node sample##i##_start = with_allow_session_from_horizontal(with_range_dependent(custom(          \
+	    sid(deluge::l10n::String::STRING_FOR_START_POINT), &kSample##i##Start, relevance::osc##i##_is_sample)));       \
+	inline constexpr Node sample##i##_end = with_allow_session_from_horizontal(with_range_dependent(                   \
+	    custom(sid(deluge::l10n::String::STRING_FOR_END_POINT), &kSample##i##End, relevance::osc##i##_is_sample)));    \
 	inline constexpr const Node* kSource##i##Children[] = {                                                            \
 	    &osc##i##_type,        &file##i##_selector,       &source##i##_transpose,   &source##i##_wave_index,           \
 	    &osc##i##_pulse_width, &source##i##_feedback,     &osc##i##_phase,          &sample##i##_reverse,              \
@@ -310,14 +310,14 @@ inline constexpr Node modulator1 = submenu(sid(deluge::l10n::String::STRING_FOR_
 
 // The recorder page (`g_menus.inc:55-61`). Two slots wide each --
 // `AudioRecorder::getOccupiedSlots()` (`osc/audio_recorder.h:77`).
-inline constexpr Node sample0_recorder =
-    with_slots(with_range_dependent(custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kSample0Recorder,
-                                           relevance::is_subtractive)),
-               2);
-inline constexpr Node sample1_recorder =
-    with_slots(with_range_dependent(custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kSample1Recorder,
-                                           relevance::is_subtractive)),
-               2);
+inline constexpr Node sample0_recorder = with_slots(
+    with_allow_session_from_horizontal(with_range_dependent(
+        custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kSample0Recorder, relevance::is_subtractive))),
+    2);
+inline constexpr Node sample1_recorder = with_slots(
+    with_allow_session_from_horizontal(with_range_dependent(
+        custom(sid(deluge::l10n::String::STRING_FOR_RECORD_TO_SAMPLE), &kSample1Recorder, relevance::is_subtractive))),
+    2);
 inline constexpr const Node* kRecorderChildren[] = {&sample0_recorder, &sample1_recorder};
 inline constexpr Node recorder =
     submenu(sid(deluge::l10n::String::STRING_FOR_SAMPLE_RECORDER), kRecorderChildren, Layout::Horizontal);

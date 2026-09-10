@@ -214,7 +214,7 @@ struct MenuState {
 	/// `last_navigation_buttons_press_time`, a `static double` shared by all six buttons
 	/// (`gui/menu_item/horizontal_menu.cpp:77`). `handle()`'s button arm is the only writer,
 	/// updated only on a press it accepts (`kNavButtonDebounceMs` below governs the accept test),
-	/// exactly where legacy's own assignment sits (`:100`, after the two `if` arms and before
+	/// exactly where legacy's own assignment sits (`:102`, after the two `if` arms and before
 	/// returning `DEALT_WITH`). Zero-initialised, matching legacy's own `0.0`, so the first press
 	/// of a session is always accepted.
 	uint32_t nav_press_ms = 0;
@@ -234,7 +234,7 @@ struct MenuState {
 	/// set at `depth > 0` -- see `MenuScene::render_oled`.
 	bool back_claimed = false;
 	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
-	/// claims the press only for a submenu column, `ui/oled/columns.cpp:419-423`). `after_render`
+	/// claims the press only for a submenu column, `ui/oled/columns.cpp:448-452`). `after_render`
 	/// answers it the way a leaf's own select press is answered, not the way this field's name
 	/// suggests: `Submenu::selectButtonPress` forwards to the focused item
 	/// (`gui/menu_item/submenu.cpp:187-194`), whose own `select_chain` is entered if it names one
@@ -802,9 +802,12 @@ private:
 	/// @brief Emit the horizontal-page notification for @p column -- the pair
 	///        `HorizontalMenu::displayNotification` prints (`horizontal_menu.cpp:335-343`), name
 	///        and formatted value on one line. Shared by `after_render`'s value-edit arm and
-	///        `handle()`'s button-focus code, which is where legacy's own two call sites are
-	///        (`selectEncoderAction` `:327`, `handleInstrumentButtonPress`/`handleItemAction`
-	///        `:436`, `:666`, `:678`... the descend arms return before reaching it).
+	///        `handle()`'s button-focus code, which is where legacy's own three call sites are:
+	///        `selectEncoderAction` (`:328`), `handleInstrumentButtonPress`'s new-focus tail
+	///        (`:437`), and `handleItemAction`'s plain-column arm (`:666`). `handleItemAction`'s
+	///        other arm -- a submenu, or an `allowToBeginSessionFromHorizontalMenu` column, already
+	///        focused -- calls `enterSubmenu` instead (`:678`) and never reaches
+	///        `displayNotification` at all; that is `enter_horizontal_item`, not this method.
 	void notify_column(const Node& column);
 	/// @brief `checkPermissionToBeginSessionForRangeSpecificParam`'s allocation
 	///        (`sound_editor.cpp:1993-1997`) plus legacy's `MUST_SELECT_RANGE` substitution --
@@ -818,11 +821,25 @@ private:
 	///        consults `initializeItem`'s return for anything but `MUST_SELECT_RANGE` -- a button
 	///        focus proceeds regardless of `Yes`/`No`, which is why this helper answers only the
 	///        range question and leaves `No` to whichever caller cares.
-	/// @param child The node a session is about to begin on.
+	/// @param child               The node a session is about to begin on.
+	/// @param suppress_when_allowed When true, and `child.allow_session_from_horizontal` is set,
+	///         skip the `MUST_SELECT_RANGE` check entirely and answer false -- the port of
+	///         `handleInstrumentButtonPress`'s own extra condition
+	///         (`!(*current_item_)->allowToBeginSessionFromHorizontalMenu()`, `:427-428`), which
+	///         no other caller of this helper has. See `Node::allow_session_from_horizontal`'s own
+	///         doc for the two legacy call sites and why only one of them suppresses.
 	/// @return True if @p child must not be entered/focused as itself this tick -- the range
 	///         picker was opened instead, or the allocation failed and a notice was shown. False
-	///         (permission `Yes` or `No`) means the caller proceeds with its own next step.
-	bool enter_range_picker_if_needed(const Node& child);
+	///         (permission `Yes` or `No`, or the range check was suppressed) means the caller
+	///         proceeds with its own next step.
+	bool enter_range_picker_if_needed(const Node& child, bool suppress_when_allowed);
+	/// @brief `HorizontalMenu::handleItemAction`'s else-path (`horizontal_menu.cpp:669-677`): a
+	///        submenu, or an `allow_session_from_horizontal` value column, pressed while already
+	///        focused. Runs the range check unconditionally (unlike the button-focus arm) and then
+	///        always enters -- `handleItemAction` never reads `Permission::No` at all, unlike
+	///        `enter_child`'s general descend.
+	/// @param child The already-focused column being pressed again.
+	void enter_horizontal_item(const Node& child);
 
 	void render_vertical(deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_horizontal(deluge::ui::oled::OledFrame& f, const Node& node);

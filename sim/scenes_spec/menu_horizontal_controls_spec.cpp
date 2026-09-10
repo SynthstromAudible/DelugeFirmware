@@ -76,17 +76,22 @@ constexpr uint16_t sid(String s) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The tree under test: a six-column, two-page horizontal page.
+// The tree under test: a seven-column, two-page horizontal page.
 //
 // Page 1 (four one-slot columns, buttons SYNTH/KIT/MIDI/CV in order):
 //   0 SYNTH  ENUM_COL    Kind::Enum, no chain      -- turn-edits-value, and the "ascends" half of
 //                                                     the select-press test
-//   1 KIT    TOGGLE_COL  Kind::Toggle               -- the already-focused-press/notify example
-//   2 MIDI   SUBMENU_COL Kind::Submenu              -- the turn-does-nothing example
+//   1 KIT    TOGGLE_COL  Kind::Toggle               -- the already-focused-press/notify example,
+//                                                     and the select-press flip-and-stay example
+//   2 MIDI   SUBMENU_COL Kind::Submenu              -- the turn-does-nothing example, and the
+//                                                     no-notification-on-focus example
 //   3 CV     CHAIN_COL   Kind::Int, with select_chain -- the "enters the chain target" half
-// Page 2 (two one-slot columns, SYNTH/KIT again once paged across):
+// Page 2 (three one-slot columns, SYNTH/KIT/MIDI again once paged across):
 //   4 SYNTH  RANGE_COL   Kind::Int, range_dependent -- the MustSelectRange button-focus example
-//   5 KIT    FILLER_COL  Kind::Int, plain           -- pads the page so there are two of them
+//   5 KIT    FILLER_COL  Kind::Int, plain           -- pads the page, and a neutral stop between
+//                                                     RANGE_COL and SESSION_COL below
+//   6 MIDI   SESSION_COL Kind::Int, range_dependent AND allow_session_from_horizontal -- the
+//                                                     button-focus/already-focused-press pair
 
 int32_t g_enum_col = 0;
 constexpr uint16_t kEnumColNames[] = {sid(String::STRING_FOR_DISABLED), sid(String::STRING_FOR_ENABLED),
@@ -158,10 +163,19 @@ void set_filler_col(const MenuContext&, int32_t v) {
 constexpr Node filler_col =
     menu::int_item(sid(String::STRING_FOR_FEEDBACK), get_filler_col, set_filler_col, deluge::ui::oled::Range{0, 50, 1});
 
+// A range-dependent column with `allow_session_from_horizontal` also set -- the port of one of
+// `FileSelector`/`osc::AudioRecorder`/`sample::Start`/`sample::End`/`audio_clip::SampleMarkerEditor`
+// (`Node::allow_session_from_horizontal`'s own doc). Shares `range_col`'s param on purpose: the two
+// columns differ only in this one bit, so a test can hold everything else equal.
+constexpr Node session_col = menu::with_allow_session_from_horizontal(menu::with_range_dependent(
+    menu::param(sid(String::STRING_FOR_TRANSPOSE),
+                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ})));
+
 constexpr Node enum_col = menu::enumeration(sid(String::STRING_FOR_MODE), kEnumColNames, get_enum_col, set_enum_col);
 constexpr Node toggle_col = menu::toggle_item(sid(String::STRING_FOR_MONOPHONIC), get_toggle_col, set_toggle_col);
 
-constexpr const Node* kHorizChildren[] = {&enum_col, &toggle_col, &submenu_col, &chain_col, &range_col, &filler_col};
+constexpr const Node* kHorizChildren[] = {&enum_col,  &toggle_col, &submenu_col, &chain_col,
+                                          &range_col, &filler_col, &session_col};
 constexpr Node horiz_page = menu::submenu(sid(String::STRING_FOR_LPF), kHorizChildren, menu::Layout::Horizontal);
 
 // A single four-slot value column, for the LED "one wide item" exception.
@@ -289,15 +303,21 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("a select turn on a focused submenu column does nothing", _ {
-		// `:315-318`: `if (child->isSubmenu()) return;` -- no action at all.
+		// `horizontal_menu.cpp:315-318`: `if (child->isSubmenu()) return;` -- no action at all.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
+		(void)last_notice(); // drain
 		r.press(kMidiX, kMidiY, 200); // focus SUBMENU_COL (column 2)
 		r.shell.tick(220);
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(2);
+		// `Submenu::showNotification()` is false (`submenu.h:67`), and `displayNotification` returns
+		// early for it (`horizontal_menu.cpp:336-338`) -- a button focus onto a submenu column raises
+		// no banner, unlike every value column's own new-focus notification (see the KIT/toggle test
+		// below).
+		expect(last_notice().empty()).to_be_true();
 
 		r.turn(1, 400);
 		r.shell.tick(410);
@@ -331,8 +351,37 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(last_notice().empty()).to_be_false();
 	});
 
+	it("a select press on a focused toggle column flips and stays -- not ascend", _ {
+		// `Toggle::selectButtonPress` (`gui/menu_item/toggle.h:38-42`): toggles and returns
+		// `NO_NAVIGATION` when the page, not the toggle, is the current item, so
+		// `SoundEditor::buttonAction`'s SELECT arm does nothing further (`sound_editor.cpp:394-419`)
+		// -- no chain, no ascend. Every other `NO_NAVIGATION`-returning `selectButtonPress` override
+		// in `gui/menu_item/` either has no ported column kind (`Selection`'s conditional
+		// `isToggle()`, `ActiveScalesItem`, `PerformEditorItem`, `ActionItem`, `ContextMenuItem`,
+		// `SourceSelectionItem`) or is vertical-only, so `Toggle` is the one live example.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+		g_toggle_col = false;
+		r.press(kKitX, kKitY, 200); // focus TOGGLE_COL (column 1)
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+
+		r.enter(500);
+		r.shell.tick(510);
+		expect(g_toggle_col).to_be_true();
+		expect(depth_of()).to_equal(0); // stayed -- no ascend
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+
+		r.enter(800);
+		r.shell.tick(810);
+		expect(g_toggle_col).to_be_false(); // flips right back
+		expect(depth_of()).to_equal(0);
+	});
+
 	it("two navigation presses inside 140 ms: the second is ignored", _ {
-		// `:77-82`, one debounce shared by all six buttons.
+		// `horizontal_menu.cpp:77-82`, one debounce shared by all six buttons.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -465,6 +514,41 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// And the page's own focus was still assigned to RANGE_COL first, exactly as
 		// `handleInstrumentButtonPress` assigns `current_item_` before the range check.
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(4);
+	});
+
+	it("allow_session_from_horizontal: new focus skips MustSelectRange, an already-focused press "
+	   "does not",
+	   _ {
+		// `Node::allow_session_from_horizontal`'s two call sites, both read on SESSION_COL --
+		// identical to RANGE_COL except for this one bit:
+		//   * `handleInstrumentButtonPress`'s new-focus tail (`horizontal_menu.cpp:427-428`):
+		//     `MUST_SELECT_RANGE && !allowToBeginSessionFromHorizontalMenu()` -- the bit suppresses
+		//     the picker entirely, so a first press onto this column just focuses it.
+		//   * `handleItemAction`'s already-focused press (`:663-677`): the bit does NOT suppress
+		//     the same check here -- permission is read unconditionally, and `MUST_SELECT_RANGE`
+		//     still opens the picker, exactly as it would for an ordinary range-dependent column.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1); // two ranges: MustSelectRange, not Yes
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+
+		r.press(kCrossScreenX, kCrossScreenY, 200); // page 1: RANGE_COL, FILLER_COL, SESSION_COL
+		r.press(kKitX, kKitY, 500); // FILLER_COL first, so the MIDI press below is a genuine
+		                           // new-focus transition onto SESSION_COL
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(5);
+
+		r.press(kMidiX, kMidiY, 800); // new focus onto SESSION_COL: picker suppressed
+		expect(depth_of()).to_equal(0);
+		expect(menu_scene().state().range_picker_pending).to_be_false();
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(6);
+
+		r.press(kMidiX, kMidiY, 1100); // already focused: permission checked unconditionally
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().state().range_picker_pending).to_be_true();
 	});
 
 	it("LEDs: SYNTH/KIT/MIDI/CV light the focused column's slots", _ {

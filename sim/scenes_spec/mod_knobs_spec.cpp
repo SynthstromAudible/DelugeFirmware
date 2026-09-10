@@ -717,10 +717,11 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	   _ {
 		// `ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp:342`) now compares against
 		// `MenuScene::focused_value()`, not `focused()`: legacy's same-param test forwards through a
-		// horizontal page to the focused *column* (`Submenu::shouldForwardButtons`,
-		// `gui/menu_item/submenu.cpp:181-185`), and the page node itself has no `bind.param` to
-		// ever match against -- so the un-fixed version could never suppress on a horizontal page,
-		// only on a full-page leaf. `GoldLower` edits `LOCAL_LPF_RESONANCE` on this fixture (see
+		// horizontal page to the focused *column* (`Submenu::getParamKind`/`getParamIndex`,
+		// `gui/menu_item/submenu.cpp:205-219`, both gated on `shouldForwardButtons`, `:181-185`),
+		// and the page node itself has no `bind.param` to ever match against -- so the un-fixed
+		// version could never suppress on a horizontal page, only on a full-page leaf. `GoldLower`
+		// edits `LOCAL_LPF_RESONANCE` on this fixture (see
 		// `mod_knobs_spec_nodes`'s own note), which `res_page`'s one column is bound to, so this is
 		// `LOCAL_LPF_RESONANCE` on both sides of the comparison.
 		StubDisplay stub;

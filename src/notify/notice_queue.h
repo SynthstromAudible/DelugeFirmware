@@ -8,7 +8,7 @@ namespace deluge::notify {
 
 /// @brief One raised notice: an error, a message, or a display-state request, copied by value.
 struct Notice {
-	enum class Kind : uint8_t { Error, Text, Console, Working, ClearWorking, CancelPopup };
+	enum class Kind : uint8_t { Error, Text, Console, Working, ClearWorking, CancelPopup, CancelConsole };
 	enum class Severity : uint8_t { Info, Warn, Error };
 	Kind kind = Kind::Text;
 	Severity severity = Severity::Info;
@@ -71,7 +71,7 @@ NoticeQueue& notices();
 void notice_text(std::string_view short_text, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 void notice_string(uint16_t string_id, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 void notice_error_code(int16_t code);
-void notice_kind(Notice::Kind k, uint8_t popup_type = 0); // Working/ClearWorking/CancelPopup
+void notice_kind(Notice::Kind k, uint8_t popup_type = 0); // Working/ClearWorking/CancelPopup/CancelConsole
 
 /// @brief Number of notices the helpers above have overwritten because the queue was full, since boot.
 /// @note Relaxed: it is a diagnostic counter, ordered against nothing, and the helpers may run [any].

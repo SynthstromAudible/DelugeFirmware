@@ -85,6 +85,8 @@ const char* notice_kind_name(notify::Notice::Kind k) {
 		return "ClearWorking";
 	case notify::Notice::Kind::CancelPopup:
 		return "CancelPopup";
+	case notify::Notice::Kind::CancelConsole:
+		return "CancelConsole";
 	}
 	return "Text";
 }
@@ -127,6 +129,12 @@ void ConsoleScene::append(std::string_view line, uint32_t now_ms) {
 	copy_bounded(l.text, sizeof(l.text), line);
 	l.expire_ms = now_ms + kConsoleLineMs;
 	l.active = true;
+}
+
+void ConsoleScene::cancel() {
+	for (Line& line : lines_) {
+		line.active = false;
+	}
 }
 
 bool ConsoleScene::any_active(uint32_t now_ms) const {
@@ -286,6 +294,15 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// cancelled. `remove(kind)` excises only the popup and closes the gap; a no-op when
 			// no popup is stacked at all.
 			stack_.remove(SceneKind::Popup);
+			break;
+		case notify::Notice::Kind::CancelConsole:
+			// Same shape as `CancelPopup`, for the console strip: `cancel()` first, so a scene
+			// pushed above a still-live console (again legitimately, `Console` is
+			// `input_transparent()` too) does not see the cancelled line reappear if something
+			// re-pushes `SceneKind::Console` before this tick's own removal -- `any_active()` and
+			// `cancel()` agree the moment this returns.
+			console_.cancel();
+			stack_.remove(SceneKind::Console);
 			break;
 		}
 	}

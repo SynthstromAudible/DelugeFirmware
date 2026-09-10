@@ -563,6 +563,23 @@ describe columns_w("ui::oled::columns", $ {
 		expect(anything).to_be_false();
 	});
 
+	it("draws the second page when focus is on it", _ {
+		// The render check does not depend on the turn focus walk (`columns()` no longer claims or
+		// walks the select turn -- see this file's own note on the "does not move focus on a turn"
+		// example above): seed `ColumnsState{.focused = 4}` directly, with no turn at all, and
+		// `paging_of` still lands the widget on page 1 for it (`state.page = w.paging.page` in
+		// `columns.cpp`).
+		std::vector<legacy::Item> six = four_columns();
+		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});
+		six.push_back(legacy::Item{.label = "MIX", .kind = legacy::Item::TOGGLE, .on = true});
+
+		Page p{six};
+		uitest::Rig48 r;
+		ColumnsState state{.focused = 4};
+		matches_legacy(self, r, p, state, 4, 6, 2, "FILTER");
+		expect_golden(self, "../ui/widgets/columns_page2_48.pbm", r.pbm());
+	});
+
 	it("finds the column under an instrument button on the focused page", _ {
 		// `HorizontalMenu::handleInstrumentButtonPress`: walk the visible page's items,
 		// accumulating occupied slots, and take the one whose [start, start + slots) covers the

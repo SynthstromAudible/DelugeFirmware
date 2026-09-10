@@ -445,6 +445,25 @@ struct CustomItem {
 	///       firing a one-shot verb.
 	virtual bool on_focus_is_press() const { return false; }
 
+	/// @brief Does a select-encoder press on this item, while it is the focused column of a
+	///        horizontal page, open it directly -- no permission check, no range check, no
+	///        notification?
+	///
+	/// The port of `FileSelector::selectButtonPress` (`gui/menu_item/file_selector.cpp:49-52`):
+	/// `beginSession(nullptr); return NO_NAVIGATION;`, called by `Submenu::selectButtonPress`'s
+	/// horizontal forward (`submenu.cpp:187-194`) with **no call to `checkPermissionToBeginSession`
+	/// at all** -- unlike every other way into this item (a button focus, an already-focused button
+	/// press) which does check it (`horizontal_menu.cpp:427-428`, `:663-668`). `Node::
+	/// allow_session_from_horizontal`'s own doc explains why a select press never reads that bit;
+	/// this is the one place its answer differs by item, so it is a hook rather than a second
+	/// `Node` flag.
+	///
+	/// Only `FileBrowserItem` overrides this to true. The other eight `allow_session_from_horizontal`
+	/// nodes (`MarkerItem`, `AudioRecorderItem`) inherit the base `MenuItem::selectButtonPress()`
+	/// (returns null), so a select press on them ascends -- identical to any ordinary value column
+	/// with no `select_chain` -- and needs no override here at all.
+	virtual bool opens_directly_on_horizontal_select() const { return false; }
+
 	/// @name MIDI-learn hooks -- the port of `MenuItem`'s own learn overrides.
 	///
 	/// Legacy declares these on `MenuItem` itself (`gui/menu_item/menu_item.h:194-199`:
@@ -578,6 +597,39 @@ struct Node {
 	/// same rule through `checkPermissionToBeginSessionForRangeSpecificParam` without the override,
 	/// and set this too.
 	bool range_dependent = false;
+
+	/// @brief Does this item open itself directly from a horizontal page, bypassing the normal
+	///        range-picker gate and column-press notification? The port of
+	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()`
+	///        (`gui/menu_item/menu_item.h:314`, default false).
+	///
+	/// Five legacy classes override it to true, every one a scene opener:
+	/// `FileSelector` (`gui/menu_item/file_selector.h:35`), `osc::AudioRecorder`
+	/// (`osc/audio_recorder.h:76`), `sample::Start` / `sample::End` (`sample/start.h:25`,
+	/// `sample/end.h:25`) and `audio_clip::SampleMarkerEditor`
+	/// (`audio_clip/sample_marker_editor.h:34`) -- the nine nodes `nodes/sample.h` builds from
+	/// `FileBrowserItem`/`MarkerItem`/`AudioRecorderItem` all set this.
+	///
+	/// Two legacy call sites read it, both on a `Layout::Horizontal` page's *button* paths, and
+	/// answer two different questions with it:
+	///
+	///   - `HorizontalMenu::handleInstrumentButtonPress`'s new-focus tail (`horizontal_menu.cpp:
+	///     427-428`): `MUST_SELECT_RANGE && !allowToBeginSessionFromHorizontalMenu()` opens the
+	///     range picker. When this is true the picker is skipped entirely -- the column is simply
+	///     focused and notified, exactly as `Permission::Yes`/`No` are -- because the item is about
+	///     to open *itself*, not the value the picker would have been for.
+	///   - `HorizontalMenu::handleItemAction`'s already-focused press (`:663-677`): a plain value
+	///     column (this bit false, not a submenu) has its own `selectButtonPress()` called and
+	///     stays; a submenu OR a column with this bit true is instead entered -- permission,
+	///     `MUST_SELECT_RANGE` (unconditionally here; the bit does not suppress *this* range check,
+	///     only the new-focus one above), then `enterSubmenu`.
+	///
+	/// A select press (the encoder, not a button) never consults this at all -- `Submenu::
+	/// selectButtonPress`'s horizontal forward (`submenu.cpp:187-194`) calls the focused column's
+	/// own `selectButtonPress()` directly, and for these nine that override is `FileSelector`'s own
+	/// (opens the browser outright); the other four inherit the base `MenuItem::selectButtonPress()`
+	/// (returns null, i.e. ascends, same as any other value column with no `select_chain`).
+	bool allow_session_from_horizontal = false;
 };
 
 /// @brief `n` with `range_dependent` set -- a `constexpr` post-hoc modifier rather than a trailing
@@ -589,6 +641,15 @@ struct Node {
 /// `static_assert` changes.
 constexpr Node with_range_dependent(Node n) {
 	n.range_dependent = true;
+	return n;
+}
+
+/// @brief `n` with `allow_session_from_horizontal` set -- the port of
+///        `MenuItem::allowToBeginSessionFromHorizontalMenu() { return true; }`, a post-hoc
+///        modifier for the same reason `with_range_dependent` is one: nine nodes in the whole tree
+///        set it, so the other builders keep their signatures.
+constexpr Node with_allow_session_from_horizontal(Node n) {
+	n.allow_session_from_horizontal = true;
 	return n;
 }
 

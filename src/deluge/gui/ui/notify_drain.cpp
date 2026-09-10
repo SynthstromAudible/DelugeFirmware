@@ -157,6 +157,15 @@ void drain_notifications() {
 		case Notice::Kind::CancelPopup:
 			display->cancelPopup();
 			break;
+		case Notice::Kind::CancelConsole:
+			// Legacy's own `HorizontalMenu::displayNotification` shows through
+			// `OLED::displayNotification`, which sets the *same* `oledPopupWidth`/`popupType`
+			// slot a framed popup does (`PopupType::NOTIFICATION`) -- so the ShellMenu-off leg's
+			// cancel is the identical `display->cancelPopup()` call `Notice::Kind::CancelPopup`
+			// above already makes; the port's two are only split because `ConsoleScene` and
+			// `PopupScene` are separate scenes.
+			display->cancelPopup();
+			break;
 		}
 	}
 }

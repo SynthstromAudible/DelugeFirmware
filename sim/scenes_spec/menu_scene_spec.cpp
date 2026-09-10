@@ -1453,9 +1453,11 @@ describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
 		expect(r.double_claimed()).to_be_false();
 
 		// The gold knob falls through to `services::ModKnobs` on a horizontal page now (no menu
-		// effect); the select turn is what edits the focused column
-		// (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`) -- both claimed in
-		// the same tick, still with no double-claim.
+		// effect, so `MenuScene` claims nothing for it); the select turn is what edits the focused
+		// column (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`), and is the
+		// only one of the two `MenuScene` claims here. Landing both in the same tick still cannot
+		// double-claim: `kGoldUpper` and `kSelectEncoder` are separate encoder indices, so nothing
+		// in this Rig ever asks one input to be claimed twice.
 		r.gold(kGoldUpper, 1, 120);
 		r.turn(1, 130);
 		r.shell.tick(140);
@@ -1704,8 +1706,8 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 
 		if (column > 0) {
 			// The press lands 200 ms past `base_ms`, clearing the six buttons' shared 140 ms
-			// debounce off `MenuState::nav_press_ms`'s zero default (`:77-82`) -- this is the
-			// first of them pressed since `open()` reset it.
+			// debounce off `MenuState::nav_press_ms`'s zero default (`horizontal_menu.cpp:77-82`) --
+			// this is the first of them pressed since `open()` reset it.
 			constexpr uint8_t kX[] = {kSynthX, kKitX, kMidiX, kCvX};
 			constexpr uint8_t kY[] = {kSynthY, kKitY, kMidiY, kCvY};
 			const uint32_t press = base_ms + 200;

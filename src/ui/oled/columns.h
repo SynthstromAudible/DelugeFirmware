@@ -83,7 +83,7 @@ Paging paging_of(std::span<const Column> cols, int32_t focused);
 /// @brief The column covering instrument button \p button (0-3) on \p focused's visible page.
 ///
 /// @note Ports legacy `HorizontalMenu::handleInstrumentButtonPress`'s search loop
-///       (`horizontal_menu.cpp:394-419`): walk the visible page's columns in order, accumulating
+///       (`horizontal_menu.cpp:405-441`): walk the visible page's columns in order, accumulating
 ///       occupied slots, and take the one whose `[start, start + slots)` covers \p button. The
 ///       page itself is `window_of(cols, focused)` -- the same page computation `paging_of` and
 ///       `columns` already use, reused rather than re-derived, and relevance plays no part here:
