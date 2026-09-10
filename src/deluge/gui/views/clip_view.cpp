@@ -47,6 +47,8 @@ void ClipView::focusRegained() {
 ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	maybeStartShortcutOverview(b, on);
+
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently
 	// accessible
 	if (b == X_ENC && on && !getCurrentClip()->currentlyScrollableAndZoomable()) {}
@@ -145,6 +147,7 @@ Action* ClipView::shortenClip(int32_t newLength) {
 
 ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
+	stopShortcutOverview();
 	// Shift button pressed - edit length
 	if (isNoUIModeActive() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)
 	    && Buttons::isShiftButtonPressed()) {
@@ -386,4 +389,55 @@ int32_t ClipView::getTickSquare() {
 	}
 
 	return newTickSquare;
+}
+
+void ClipView::maybeStartShortcutOverview(deluge::hid::Button b, bool on) {
+	// ignore whether it was on to handle sticky shift (shift off doesn't mean sticky shift is off)
+	if (b == hid::button::SHIFT && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)) {
+		exitedShortcutOverview = false;
+		uiNeedsRendering(this);
+	}
+	else {
+		stopShortcutOverview();
+	}
+}
+
+void ClipView::stopShortcutOverview() {
+	exitedShortcutOverview = true;
+
+	if (renderedShortcutOverview) {
+		uiNeedsRendering(this);
+	}
+}
+
+bool ClipView::shouldRenderShortcutsOverview() const {
+	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay) && Buttons::isShiftButtonPressed()
+	       and not exitedShortcutOverview;
+}
+
+bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                            bool drawUndefinedArea) {
+	if (shouldRenderShortcutsOverview()) {
+		renderedShortcutOverview = true;
+		D_PRINTLN("rendering shortcuts for %x", view.activeModControllableModelStack.modControllable);
+		return true;
+		SoundEditor::renderMainShortcutsOnly(
+		    (ModControllableAudio*)view.activeModControllableModelStack.modControllable, image, occupancyMask,
+		    SoundEditor::shouldEditKitAffectEntire());
+		return true;
+	}
+	if (renderedShortcutOverview) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			if (whichRows & (1 << yDisplay)) {
+				// clear this row of the pad image
+				std::fill(image[yDisplay], image[yDisplay] + kDisplayWidth + kSideBarWidth, gui::colours::black);
+				if (occupancyMask) {
+					memset(occupancyMask[yDisplay], 0, kDisplayWidth + kSideBarWidth);
+				}
+			}
+		}
+		renderedShortcutOverview = false;
+	}
+	return false;
 }

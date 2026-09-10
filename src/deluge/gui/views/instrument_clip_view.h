@@ -193,7 +193,6 @@ public:
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun() override;
 	void openedInBackground();
-	bool shouldRenderShortcutsOverview() const;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
@@ -265,7 +264,6 @@ public:
 	// Because in this case we can assume that if they press a main pad while auditioning, they're not intending to do
 	// that shortcut into the SoundEditor!
 	bool editedAnyPerNoteRowStuffSinceAuditioningBegan{};
-	bool renderedShortcutPads;
 	// made these public so they can be accessed by the automation clip view
 
 	// ui
@@ -358,7 +356,6 @@ public:
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress{};
 	bool offsettingNudgeNumberDisplay{};
-	bool exitedShortcutsView{};
 
 	uint8_t flashScaleModeLedErrorCount{};
 

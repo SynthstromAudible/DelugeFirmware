@@ -40,4 +40,12 @@ protected:
 	Action* lengthenClip(int32_t newLength);
 	Action* shortenClip(int32_t newLength);
 	uint32_t changeClipLength(int32_t offset, uint32_t oldLength, Action*& action);
+
+	void maybeStartShortcutOverview(deluge::hid::Button b, bool on);
+	void stopShortcutOverview();
+	bool shouldRenderShortcutsOverview() const;
+	bool maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea);
+	bool renderedShortcutOverview{false};
+	bool exitedShortcutOverview{false};
 };

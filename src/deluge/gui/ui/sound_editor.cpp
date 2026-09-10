@@ -226,8 +226,8 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	}
 
 	D_PRINTLN("rendering pad colours");
-	
-	renderMainShortcutsOnly(currentSound, image, occupancyMask, editingKitAffectEntire());
+
+	renderMainShortcutsOnly(currentModControllable, image, occupancyMask, editingKitAffectEntire());
 
 
 	MenuItem* item = getCurrentMenuItem();
@@ -909,6 +909,7 @@ ActionResult SoundEditor::exitCompletely() {
 	patchCablesMenu.options.clear();
 
 	setupKitGlobalFXMenu = false;
+	currentSound = nullptr;
 
 	currentUIMode = UI_MODE_NONE;
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
@@ -1310,26 +1311,67 @@ std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, in
 {
 	MenuItem* item = nullptr;
 	bool do_sound_checks = false;
-	if (!rootUIIsClipMinderScreen()) {
-		if (x <= (kDisplayWidth - 2)) {
+	if (!rootUIIsClipMinderScreen())
+	{
+		if (x <= (kDisplayWidth - 2))
+		{
 			item = paramShortcutsForSongView[x][y];
 		}
 	}
 
 	// For Kit Instrument Clip with Affect Entire Enabled
-	else if (doKitAffectEntire) {
+	else if (doKitAffectEntire)
+	{
 		// only handle the shortcut for velocity in the mod sources column
-		if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
+		if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1))
+		{
 			item = paramShortcutsForKitGlobalFX[x][y];
 		}
-
 	}
 
 	// AudioClips - there are just a few shortcuts
-	else if (getCurrentClip()->type == ClipType::AUDIO) {
-
-		if (x <= 14) {
+	else if (getCurrentClip()->type == ClipType::AUDIO)
+	{
+		if (x <= 14)
+		{
 			item = paramShortcutsForAudioClips[x][y];
+		}
+	}
+	else if (editingCVOrMIDIClip() || editingNonAudioDrumRow())
+	{
+		if (x == 11)
+		{
+			item = editingGateDrumRow() ? gateDrumParamShortcuts[y] : midiOrCVParamShortcuts[y];
+			if (editingNonAudioDrumRow() && item == &editNameMenu)
+			{
+				item = &drumNameEditMenu;
+			}
+		}
+		else if (x == 15)
+		{
+			// Randomizer shortcuts for MIDI / CV clips
+			item = [&]
+			{
+				switch (y)
+				{
+				case 1:
+					return static_cast<MenuItem*>(&spreadVelocityMenuMIDIOrCV);
+				case 2:
+					return static_cast<MenuItem*>(&randomizerLockMenu);
+				case 3:
+					return static_cast<MenuItem*>(&randomizerNoteProbabilityMenuMIDIOrCV);
+				default:
+					return static_cast<MenuItem*>(nullptr);
+				}
+			}();
+		}
+		else if (x == 4 && y == 7)
+		{
+			item = &sequenceDirectionMenu;
+		}
+		else
+		{
+			item = nullptr;
 		}
 	}
 	else
@@ -1343,6 +1385,13 @@ std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, in
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
+	// a bunch of other views call this, in which case we actually want to know if we *would* edit kit affect entire
+	// if we were to open a menu. There's a weird edge case in kits otherwise where trying to open a kit param that doesn't
+	// exist in the current selected drum row (like if a filter is off or different modfx) otherwise
+	if (not isUIOpen(this))
+	{
+		setupKitGlobalFXMenu = shouldEditKitAffectEntire();
+	}
 	bool ignoreAction = false;
 	bool modulationItemFound = false;
 	if (!Buttons::isShiftButtonPressed()) {
@@ -1490,36 +1539,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			{
 				//< randomizer shortcuts
 
-				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
-					if (x == 11) {
-						item = editingGateDrumRow() ? gateDrumParamShortcuts[y] : midiOrCVParamShortcuts[y];
-						if (editingNonAudioDrumRow() && item == &editNameMenu) {
-							item = &drumNameEditMenu;
-						}
-					}
-					else if (x == 15) {
-						// Randomizer shortcuts for MIDI / CV clips
-						item = [&] {
-							switch (y) {
-							case 1:
-								return static_cast<MenuItem*>(&spreadVelocityMenuMIDIOrCV);
-							case 2:
-								return static_cast<MenuItem*>(&randomizerLockMenu);
-							case 3:
-								return static_cast<MenuItem*>(&randomizerNoteProbabilityMenuMIDIOrCV);
-							default:
-								return static_cast<MenuItem*>(nullptr);
-							}
-						}();
-					}
-					else if (x == 4 && y == 7) {
-						item = &sequenceDirectionMenu;
-					}
-					else {
-						item = nullptr;
-					}
-				}
-				else {
+
 					item = paramShortcutsForSounds[x][y];
 					if (getCurrentOutputType() == OutputType::KIT && item == &editNameMenu) {
 						item = &drumNameEditMenu;
@@ -1538,7 +1558,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 							item = secondLayerItem;
 						}
 					}
-				}
+
 			}
 		}
 
