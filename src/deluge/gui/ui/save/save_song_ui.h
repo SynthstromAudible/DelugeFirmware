@@ -132,6 +132,25 @@ private:
 	/// @brief Everything the save does after its samples are in place.
 	bool finishSaveAfterCollection();
 
+	/// @brief The serialiser this build writes documents through.
+	///
+	/// `writeJsonFlag` is a build constant, but both branches exist because both serialisers do.
+	/// Returns the FileWriter base, which is where the memory-based surface lives -- `GetSerializer()`
+	/// returns the `Serializer` base and cannot reach it.
+	static FileWriter& activeSongWriter();
+
+	/// @brief Build the whole song document into the shared serialiser's memory buffer.
+	///
+	/// Pure computation: touches no storage, which is what makes it legal on the interaction tier.
+	/// @return false if the document could not be built, in which case nothing was staged.
+	[[nodiscard]] bool serializeSongToBuffer();
+
+	/// @brief Hand the shared serialiser back to writing through a file.
+	///
+	/// MUST run on every exit path. The serialiser is global; left memory-based it silently stops
+	/// reaching the card for every writer after this save.
+	void releaseSongWriter();
+
 	CollectPhase collectPhase_{CollectPhase::NONE};
 	std::vector<PlannedTransfer> transfers_;
 	size_t transferCursor_{};
@@ -145,6 +164,13 @@ private:
 	bool ownerTransferOk_{};
 	bool ownerFinishDispatched_{};
 	bool ownerFinishDone_{};
+
+	/// @brief The staged song document, pointing into the shared serialiser's buffer.
+	///
+	/// Borrowed, not owned: the buffer belongs to the serialiser, which is handed back by
+	/// releaseSongWriter(). Valid only between serializeSongToBuffer() and that release.
+	const uint8_t* stagedDocument_{};
+	uint32_t stagedLength_{};
 
 	/// Locals the save used to keep on its stack. It no longer finishes inside one call.
 	std::string pendingFilePath_;

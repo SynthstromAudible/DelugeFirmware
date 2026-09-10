@@ -920,6 +920,47 @@ void SaveSongUI::applyTransfers() {
 	}
 }
 
+FileWriter& SaveSongUI::activeSongWriter() {
+	if (writeJsonFlag) {
+		return static_cast<FileWriter&>(smJsonSerializer);
+	}
+	return static_cast<FileWriter&>(smSerializer);
+}
+
+bool SaveSongUI::serializeSongToBuffer() {
+	FileWriter& writer = activeSongWriter();
+
+	// No prologue and no closing tag here. Song::writeToFile() calls GetSerializer().reset() itself,
+	// writes the XML declaration, and closes with writeClosingTag("song") -- writing either here
+	// would duplicate it. This is the difference from the staged PRESET saves, whose serialisers do
+	// not write their own header because createXMLFile() used to do it as it opened the file.
+	//
+	// setMemoryBased() survives that internal reset(): reset() clears the buffer position, the byte
+	// count and the failure flag, and nothing else.
+	writer.setMemoryBased();
+	currentSong->writeToFile();
+
+	const int32_t written = writer.bytesWritten();
+	if (written <= 0) {
+		// An empty document is a FAILED save, not a small one.
+		releaseSongWriter();
+		return false;
+	}
+	stagedDocument_ = reinterpret_cast<const uint8_t*>(writer.getBufferPtr());
+	stagedLength_ = static_cast<uint32_t>(written);
+	return true;
+}
+
+void SaveSongUI::releaseSongWriter() {
+	stagedDocument_ = nullptr;
+	stagedLength_ = 0;
+	// The two halves come from different bases: XMLSerializer inherits Serializer AND FileWriter, and
+	// the memory-based surface is on the FileWriter side while reset() is virtual on the Serializer
+	// side. GetSerializer() reaches only the latter, which is why activeSongWriter() exists at all.
+	activeSongWriter().clearMemoryBased();
+	GetSerializer().reset();
+}
+
 bool SaveSongUI::finishSaveAfterCollection() {
 	// The save's card work did not stop when performSave() returned -- it moved HERE, and this
 	// function blocks: an unbounded existence-check loop looking for a free temp name, a streaming
