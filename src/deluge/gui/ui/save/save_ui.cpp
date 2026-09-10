@@ -208,6 +208,10 @@ void SaveUI::saveRoutine() {
 	if (saveSongUI.collectInFlight()) {
 		saveSongUI.collectRoutine();
 	}
+	// The song's document write runs on a machine of its own, entered when the collection finishes.
+	if (saveSongUI.docInFlight()) {
+		saveSongUI.docRoutine();
+	}
 	if (phaseOwner_ == nullptr) {
 		return;
 	}

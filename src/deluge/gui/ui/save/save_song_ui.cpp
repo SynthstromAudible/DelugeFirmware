@@ -26,6 +26,7 @@
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
+#include "libdeluge/file_write.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -616,48 +617,16 @@ void SaveSongUI::collectRoutine() {
 	case CollectPhase::APPLY:
 		applyTransfers();
 		transfers_.clear();
-		ownerFinishDispatched_ = false;
-		ownerFinishDone_ = false;
 		collectStallTicks_ = 0;
 		collectPhase_ = CollectPhase::FINISH;
 		return;
 	case CollectPhase::FINISH:
-		runFinishPhaseOnOwner();
-		return;
-	}
-}
-
-void SaveSongUI::runFinishPhaseOnOwner() {
-	// The document write is BLOCKING work -- a temp-name search that asks the card once per attempt,
-	// a streaming write, an unlink and a rename -- so it runs where blocking is legal. This routine
-	// is driven by a repeating task on the interaction tier, which is not that place.
-	if (ownerFinishDone_) {
+		// The document write is no longer a blocking owner call, so it is no longer dispatched: the
+		// machine it starts picks an arm per step.
 		collectPhase_ = CollectPhase::NONE;
+		(void)finishSaveAfterCollection();
 		return;
 	}
-	if (!ownerFinishDispatched_) {
-		if (!deluge::storage::Owner::run(&SaveSongUI::runFinishOnOwner, this)) {
-			// Refused, not failed: nothing was queued, so ask again next tick.
-			if (!deferCollection()) {
-				abandonCollection();
-			}
-			return;
-		}
-		ownerFinishDispatched_ = true;
-		collectStallTicks_ = 0;
-		return;
-	}
-	if (!deferCollection()) {
-		abandonCollection();
-	}
-}
-
-void SaveSongUI::runFinishOnOwner(void* self) {
-	auto* ui = static_cast<SaveSongUI*>(self);
-	// The return value is deliberately dropped: finishSaveAfterCollection() closes the UI on success
-	// and displays its own error otherwise, so the save is over either way.
-	(void)ui->finishSaveAfterCollection();
-	ui->ownerFinishDone_ = true;
 }
 
 bool SaveSongUI::deferCollection() {
@@ -920,6 +889,549 @@ void SaveSongUI::applyTransfers() {
 	}
 }
 
+namespace {
+/// How many consecutive deferrals one document step tolerates without progress. A bound, not a
+/// timeout: an unbounded retry is not patience, it is a wedge that presents as the device hanging.
+constexpr int32_t kMaxDocStallTicks = 600;
+/// The TEMP + four-digit name space. Exhausting it fails the save; it does not keep asking.
+constexpr int32_t kMaxTempNameAttempts = 10000;
+} // namespace
+
+bool SaveSongUI::docOnOwner() {
+	return deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+}
+
+bool SaveSongUI::docMayUseChannel() {
+	return !docOnOwner() && deluge_file_bytes_async_active();
+}
+
+bool SaveSongUI::docMayUseWriteChannel() {
+	return !docOnOwner() && deluge_file_write_async_active();
+}
+
+bool SaveSongUI::deferDocument() {
+	return ++docStallTicks_ <= kMaxDocStallTicks;
+}
+
+void SaveSongUI::abandonDocument(Error error) {
+	// Nothing destructive has run unless UNLINK completed, and UNLINK runs only after the temp file
+	// has been written AND verified -- so on the overwrite path the user's existing song is still
+	// there. That ordering is the whole reason the temp dance survives this conversion.
+	releaseSongWriter();
+	docPhase_ = DocPhase::NONE;
+	docVerifyStage_ = DocVerify::LENGTH;
+	display->removeLoadingAnimation();
+	display->displayError(error);
+}
+
+void SaveSongUI::docRoutine() {
+	switch (docPhase_) {
+	case DocPhase::NONE:
+		return;
+	case DocPhase::SERIALIZE:
+		runSerializePhase();
+		return;
+	case DocPhase::TEMPNAME:
+		runTempNamePhase();
+		return;
+	case DocPhase::WRITE:
+		runWritePhase();
+		return;
+	case DocPhase::VERIFY:
+		runVerifyPhase();
+		return;
+	case DocPhase::UNLINK:
+		runUnlinkPhase();
+		return;
+	case DocPhase::RENAME:
+		runRenamePhase();
+		return;
+	case DocPhase::FINISH:
+		runDocFinishPhase();
+		return;
+	}
+}
+
+void SaveSongUI::runSerializePhase() {
+	// No card contact whatsoever. This is the half of a save that never needed the owner.
+	const uint32_t capacityBefore = activeSongWriter().bufferCapacity();
+	if (!serializeSongToBuffer()) {
+		abandonDocument(Error::WRITE_FAIL);
+		return;
+	}
+	// Count the doublings, so a gate can tell a song that exercised the growth path from one that
+	// fitted the initial buffer and proved nothing about it.
+	stagedDocumentGrowths_ = 0;
+	for (uint32_t c = capacityBefore; c < activeSongWriter().bufferCapacity(); c *= 2) {
+		stagedDocumentGrowths_++;
+	}
+
+	docTempNumber_ = 0;
+	docStallTicks_ = 0;
+	docVerifyStage_ = DocVerify::LENGTH;
+	if (pendingFileAlreadyExisted_) {
+		docPhase_ = DocPhase::TEMPNAME;
+	}
+	else {
+		docWritePath_ = pendingFilePath_;
+		docPhase_ = DocPhase::WRITE;
+	}
+}
+
+void SaveSongUI::runTempNamePhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	if (docTempNumber_ >= kMaxTempNameAttempts) {
+		// Every candidate name is taken. Fail rather than keep asking: this is a bound on the name
+		// space, separate from the per-request stall bound above it.
+		abandonDocument(Error::SD_CARD);
+		return;
+	}
+
+	docWritePath_ = "SONGS/TEMP";
+	docWritePath_.append(deluge::string::fromInt(docTempNumber_, 4));
+	docWritePath_.append(writeJsonFlag ? ".Json" : ".XML");
+
+	if (docOnOwner() || !docMayUseChannel()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	++offOwnerDocumentTicks_;
+	DelugeStatus status = DELUGE_OK;
+	bool present = false;
+	switch (deluge::storage::bytes::collectExists(docWritePath_.c_str(), &present, &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestExists(docWritePath_.c_str()) == ByteIo::Failed) {
+			abandonDocument(Error::SD_CARD);
+		}
+		else if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Pending:
+		if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Failed:
+		// The card did not answer. Treating an unanswerable name as free would write over whatever
+		// is there -- the same rule the target's existence check follows.
+		abandonDocument(Error::SD_CARD);
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		docStallTicks_ = 0;
+		if (present) {
+			docTempNumber_++; // Taken; try the next one on the next tick.
+			return;
+		}
+		docPhase_ = DocPhase::WRITE;
+		return;
+	}
+}
+
+void SaveSongUI::runWritePhase() {
+	if (docOnOwner() || !docMayUseWriteChannel()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	// The WRITE channel, not the byte channel every other phase here uses. The byte channel copies
+	// into a fixed staging buffer and refuses anything over 8 KiB; this one passes the pointer
+	// across. No song has ever fitted the first: the smallest measured is 11.5 KB and the largest
+	// 1.10 MB. The staged buffer must stay alive and unmodified until the collect is terminal, which
+	// is why nothing releases the serialiser before FINISH.
+	++offOwnerDocumentTicks_;
+
+	if (!docWriteIssued_) {
+		// may_overwrite is false in both cases: on the overwrite path this is a temp name just found
+		// free, and on the direct path the target name was free or we would be on the temp path. A
+		// refusal is safer than a race either way.
+		if (!deluge_file_write_request_write_file(docWritePath_.c_str(), stagedDocument_, stagedLength_, false)) {
+			// Refused, not failed: nothing was queued, so ask again next tick.
+			if (!deferDocument()) {
+				abandonDocument(Error::WRITE_FAIL);
+			}
+			return;
+		}
+		docWriteIssued_ = true;
+		docStallTicks_ = 0;
+		return;
+	}
+
+	uint32_t writtenLen = 0;
+	uint8_t exists = 0;
+	const uint8_t collected = deluge_file_write_collect_write_file(docWritePath_.c_str(), &writtenLen, &exists);
+	if (collected == DELUGE_FILE_WRITE_PENDING) {
+		if (!deferDocument()) {
+			abandonDocument(Error::WRITE_FAIL);
+		}
+		return;
+	}
+	if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+		// Never keyed, so nothing is coming. Re-issue rather than wait forever.
+		docWriteIssued_ = false;
+		if (!deferDocument()) {
+			abandonDocument(Error::WRITE_FAIL);
+		}
+		return;
+	}
+	docWriteIssued_ = false;
+	if (collected == DELUGE_FILE_WRITE_FAILED || writtenLen != stagedLength_) {
+		// A short write is a card error, never a smaller document.
+		abandonDocument(Error::WRITE_FAIL);
+		return;
+	}
+	++documentChannelServedOps_;
+	++documentSteps_;
+	docStallTicks_ = 0;
+	docPhase_ = DocPhase::VERIFY;
+	docVerifyStage_ = DocVerify::LENGTH;
+}
+
+void SaveSongUI::runVerifyPhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	if (docOnOwner() || !docMayUseChannel()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	const char* head = writeJsonFlag ? kSongHeadJson : kSongHeadXml;
+	const auto headLen = static_cast<uint32_t>(strlen(head));
+	// JSON has no closing string: JsonSerializer::closeFileAfterWriting passes NULL for it, so there
+	// is nothing to compare a tail against on that build.
+	const uint32_t tailLen = writeJsonFlag ? 0 : static_cast<uint32_t>(strlen(kSongTailXml));
+
+	++offOwnerDocumentTicks_;
+	DelugeStatus status = DELUGE_OK;
+	char buffer[64];
+
+	if (docVerifyStage_ == DocVerify::LENGTH) {
+		uint32_t size = 0;
+		switch (deluge::storage::bytes::collectStat(docWritePath_.c_str(), &size, &status)) {
+		case ByteIo::Unknown:
+			if (deluge::storage::bytes::requestStat(docWritePath_.c_str()) == ByteIo::Failed) {
+				abandonDocument(Error::WRITE_FAIL);
+			}
+			else if (!deferDocument()) {
+				abandonDocument(Error::WRITE_FAIL);
+			}
+			return;
+		case ByteIo::Pending:
+			if (!deferDocument()) {
+				abandonDocument(Error::WRITE_FAIL);
+			}
+			return;
+		case ByteIo::Failed:
+			abandonDocument(Error::WRITE_FAIL);
+			return;
+		case ByteIo::Ready:
+			++documentChannelServedOps_;
+			++documentSteps_;
+			docStallTicks_ = 0;
+			// A document whose length on the card differs from the length we built is a short write,
+			// and a short song parses as a smaller one -- the quiet corruption this whole class of
+			// bug exists to avoid.
+			if (size != stagedLength_) {
+				abandonDocument(Error::WRITE_FAIL);
+				return;
+			}
+			docVerifyStage_ = DocVerify::HEAD;
+			return;
+		}
+		return;
+	}
+
+	const bool doingHead = docVerifyStage_ == DocVerify::HEAD;
+	const uint32_t offset = doingHead ? 0 : stagedLength_ - tailLen;
+	const uint32_t want = doingHead ? headLen : tailLen;
+	uint32_t got = 0;
+
+	switch (deluge::storage::bytes::collectReadAt(docWritePath_.c_str(), buffer, sizeof(buffer), &got, &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestReadAt(docWritePath_.c_str(), offset, want) == ByteIo::Failed) {
+			abandonDocument(Error::WRITE_FAIL);
+		}
+		else if (!deferDocument()) {
+			abandonDocument(Error::WRITE_FAIL);
+		}
+		return;
+	case ByteIo::Pending:
+		if (!deferDocument()) {
+			abandonDocument(Error::WRITE_FAIL);
+		}
+		return;
+	case ByteIo::Failed:
+		abandonDocument(Error::WRITE_FAIL);
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		docStallTicks_ = 0;
+		// Compared against BOTH the constant and the staged buffer: the constant says the document
+		// is shaped like a song, and the buffer says the card holds what we actually built.
+		if (got != want || memcmp(buffer, doingHead ? head : kSongTailXml, want) != 0
+		    || memcmp(buffer, stagedDocument_ + offset, want) != 0) {
+			abandonDocument(Error::WRITE_FAIL);
+			return;
+		}
+		if (doingHead && tailLen > 0) {
+			docVerifyStage_ = DocVerify::TAIL;
+			return;
+		}
+		docVerifyStage_ = DocVerify::LENGTH;
+		docPhase_ = pendingFileAlreadyExisted_ ? DocPhase::UNLINK : DocPhase::FINISH;
+		return;
+	}
+}
+
+void SaveSongUI::runUnlinkPhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	if (docOnOwner() || !docMayUseChannel()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	++offOwnerDocumentTicks_;
+	DelugeStatus status = DELUGE_OK;
+	switch (deluge::storage::bytes::collectUnlink(pendingFilePath_.c_str(), &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestUnlink(pendingFilePath_.c_str()) == ByteIo::Failed) {
+			abandonDocument(Error::SD_CARD);
+		}
+		else if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Pending:
+		if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Failed:
+		abandonDocument(Error::SD_CARD);
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		docStallTicks_ = 0;
+		docPhase_ = DocPhase::RENAME;
+		return;
+	}
+}
+
+void SaveSongUI::runRenamePhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	if (docOnOwner() || !docMayUseChannel()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	++offOwnerDocumentTicks_;
+	DelugeStatus status = DELUGE_OK;
+	switch (deluge::storage::bytes::collectRename(pendingFilePath_.c_str(), &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestRename(docWritePath_.c_str(), pendingFilePath_.c_str()) == ByteIo::Failed) {
+			abandonDocument(Error::SD_CARD);
+		}
+		else if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Pending:
+		if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Failed:
+		abandonDocument(Error::SD_CARD);
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		docStallTicks_ = 0;
+		docPhase_ = DocPhase::FINISH;
+		return;
+	}
+}
+
+void SaveSongUI::runDocFinishPhase() {
+	// Hand the shared serialiser back BEFORE anything else: it is global, and the two settings
+	// writes below reach code that writes files through it.
+	releaseSongWriter();
+	docPhase_ = DocPhase::NONE;
+	docVerifyStage_ = DocVerify::LENGTH;
+
+	display->removeWorkingAnimation();
+
+	// Carried across from the old tail unchanged. `anyErrorMovingTempFiles_` chose between two popup
+	// strings there, but nothing ever displayed the result -- upstream `main` has the same dead
+	// local -- so preserving behaviour means not adding a popup here.
+	currentSong->name = enteredText;
+	currentSong->dirPath = currentDir;
+
+	// Both of these choose their own arm: they use the byte channel when it is running and hand the
+	// work to the storage owner when it is not, so calling them from here does not block this tier.
+	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
+		runtimeFeatureSettings.writeSettingsToFile();
+	}
+	// While we're at it, save MIDI devices if there's anything new to save.
+	MIDIDeviceManager::writeDevicesToFile();
+
+	close();
+}
+
+bool SaveSongUI::runOneDocStep() {
+	if (docOnOwner()) {
+		// Blocking is legal here, and asking the channel would be worse than pointless: a request
+		// issued from a context that will not yield can never be answered.
+		++documentOwnerServedOps_;
+		++documentSteps_;
+		if (!docStepSynchronously()) {
+			abandonDocument(Error::WRITE_FAIL);
+			return false;
+		}
+		return true;
+	}
+
+	// Off the owner with no channel to ask. Hand the step to the owner, which may block.
+	if (ownerDocDone_) {
+		ownerDocDone_ = false;
+		ownerDocDispatched_ = false;
+		if (!ownerDocOk_) {
+			abandonDocument(Error::WRITE_FAIL);
+			return false;
+		}
+		docStallTicks_ = 0;
+		return true;
+	}
+	if (!ownerDocDispatched_) {
+		if (!deluge::storage::Owner::run(&SaveSongUI::runDocStepOnOwner, this)) {
+			// Refused, not failed: nothing was queued, so ask again next tick.
+			if (!deferDocument()) {
+				abandonDocument(Error::WRITE_FAIL);
+			}
+			return false;
+		}
+		ownerDocDispatched_ = true;
+		docStallTicks_ = 0;
+		return false;
+	}
+	if (!deferDocument()) {
+		abandonDocument(Error::WRITE_FAIL);
+	}
+	return false;
+}
+
+void SaveSongUI::runDocStepOnOwner(void* self) {
+	auto* ui = static_cast<SaveSongUI*>(self);
+	++documentOwnerServedOps_;
+	++documentSteps_;
+	ui->ownerDocOk_ = ui->docStepSynchronously();
+	ui->ownerDocDone_ = true;
+}
+
+bool SaveSongUI::docStepSynchronously() {
+	switch (docPhase_) {
+	case DocPhase::TEMPNAME: {
+		switch (deluge::storage::save_action(StorageManager::fileExists(docWritePath_.c_str()), false)) {
+		case deluge::storage::SaveAction::Write:
+			docPhase_ = DocPhase::WRITE;
+			return true;
+		case deluge::storage::SaveAction::Occupied:
+			docTempNumber_++;
+			return true;
+		case deluge::storage::SaveAction::Refuse:
+			return false;
+		}
+		return false;
+	}
+	case DocPhase::WRITE: {
+		StorageManager::buildPathToFile(docWritePath_.c_str());
+		auto created = StorageManager::createFile(docWritePath_.c_str(), false);
+		if (!created) {
+			return false;
+		}
+		auto written = created->write(
+		    std::span<const std::byte>(reinterpret_cast<const std::byte*>(stagedDocument_), stagedLength_));
+		const bool ok = written.has_value() && *written == stagedLength_;
+		(void)created->close();
+		if (!ok) {
+			return false;
+		}
+		docPhase_ = DocPhase::VERIFY;
+		docVerifyStage_ = DocVerify::LENGTH;
+		return true;
+	}
+	case DocPhase::VERIFY: {
+		// All three comparisons in one blocking pass, which is what the streaming writer did after
+		// closing the file it had just written.
+		const char* head = writeJsonFlag ? kSongHeadJson : kSongHeadXml;
+		const auto headLen = static_cast<uint32_t>(strlen(head));
+		const uint32_t tailLen = writeJsonFlag ? 0 : static_cast<uint32_t>(strlen(kSongTailXml));
+
+		auto opened = deluge::io::File::open(docWritePath_.c_str(), DELUGE_FILE_READ);
+		if (!opened) {
+			return false;
+		}
+		auto size = opened->size();
+		if (!size || *size != stagedLength_) {
+			(void)opened->close();
+			return false;
+		}
+		char buffer[64];
+		auto readHead = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(buffer), headLen));
+		if (!readHead || readHead->size() != headLen || memcmp(buffer, head, headLen) != 0
+		    || memcmp(buffer, stagedDocument_, headLen) != 0) {
+			(void)opened->close();
+			return false;
+		}
+		if (tailLen > 0) {
+			if (!opened->seek(stagedLength_ - tailLen)) {
+				(void)opened->close();
+				return false;
+			}
+			auto readTail = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(buffer), tailLen));
+			if (!readTail || readTail->size() != tailLen || memcmp(buffer, kSongTailXml, tailLen) != 0
+			    || memcmp(buffer, stagedDocument_ + stagedLength_ - tailLen, tailLen) != 0) {
+				(void)opened->close();
+				return false;
+			}
+		}
+		(void)opened->close();
+		docPhase_ = pendingFileAlreadyExisted_ ? DocPhase::UNLINK : DocPhase::FINISH;
+		return true;
+	}
+	case DocPhase::UNLINK: {
+		deluge_file_invalidate_cache();
+		if (!deluge::io::unlink(pendingFilePath_).has_value()) {
+			return false;
+		}
+		docPhase_ = DocPhase::RENAME;
+		return true;
+	}
+	case DocPhase::RENAME: {
+		deluge_file_invalidate_cache();
+		if (!deluge::io::rename(docWritePath_, pendingFilePath_).has_value()) {
+			return false;
+		}
+		docPhase_ = DocPhase::FINISH;
+		return true;
+	}
+	case DocPhase::NONE:
+	case DocPhase::SERIALIZE:
+	case DocPhase::FINISH:
+		// Never dispatched: SERIALIZE and FINISH touch no card, and NONE is not a step.
+		return true;
+	}
+	return false;
+}
+
 FileWriter& SaveSongUI::activeSongWriter() {
 	if (writeJsonFlag) {
 		return static_cast<FileWriter&>(smJsonSerializer);
@@ -962,127 +1474,13 @@ void SaveSongUI::releaseSongWriter() {
 }
 
 bool SaveSongUI::finishSaveAfterCollection() {
-	// The save's card work did not stop when performSave() returned -- it moved HERE, and this
-	// function blocks: an unbounded existence-check loop looking for a free temp name, a streaming
-	// document write, then an unlink and a rename. Recording the tier here rather than only at
-	// performSave()'s entry is the difference between measuring where a save STARTS and where it
-	// actually does its work. Once the two were separated, the entry alone stopped describing it.
-	noteSaveTier();
-
-	Error error = Error::NONE;
-	if (error != Error::NONE) {
-gotError:
-		display->removeLoadingAnimation();
-		display->displayError(error);
-		return false;
-	}
-
-	std::string filePathDuringWrite;
-
-	// If we're overwriting an existing file, we'll write to a temp file first. Find one that doesn't already exist
-	if (pendingFileAlreadyExisted_) {
-
-		int32_t tempFileNumber = 0;
-
-		while (true) {
-			filePathDuringWrite = "SONGS/TEMP";
-			filePathDuringWrite.append(deluge::string::fromInt(tempFileNumber, 4));
-			if (writeJsonFlag) {
-				filePathDuringWrite.append(".Json");
-				error = Error::NONE;
-			}
-			else {
-				filePathDuringWrite.append(".XML");
-				error = Error::NONE;
-			}
-			if (error != Error::NONE) {
-				goto gotError;
-			}
-
-			// Same rule as the overwrite check above. `Refuse` must NOT fall into the "this name is
-			// free" branch: picking a temp name we could not see would write over whatever is there.
-			bool nameIsFree = false;
-			switch (deluge::storage::save_action(StorageManager::fileExists(filePathDuringWrite.c_str()), false)) {
-			case deluge::storage::SaveAction::Write:
-				nameIsFree = true;
-				break;
-			case deluge::storage::SaveAction::Occupied:
-				break; // taken; try tempFileNumber + 1
-			case deluge::storage::SaveAction::Refuse:
-				error = Error::SD_CARD;
-				goto gotError;
-			}
-			if (nameIsFree) {
-				break;
-			}
-
-			tempFileNumber++;
-		}
-	}
-	else {
-		filePathDuringWrite = pendingFilePath_;
-	}
-
-	D_PRINTLN("creating:  %s", filePathDuringWrite.c_str());
-
-	if (writeJsonFlag) {
-		// Write the actual song file
-		error = StorageManager::createJsonFile(filePathDuringWrite.c_str(), smJsonSerializer, false, false);
-		if (error != Error::NONE) {
-			goto gotError;
-		}
-	}
-	else {
-		error = StorageManager::createXMLFile(filePathDuringWrite.c_str(), smSerializer, false, false);
-		if (error != Error::NONE) {
-			goto gotError;
-		}
-	}
-
-	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
-	// for either overwriting or not.
-
-	currentSong->writeToFile();
-
-	error = GetSerializer().closeFileAfterWriting(
-	    filePathDuringWrite.c_str(),
-	    writeJsonFlag ? "{\"song\": {\n" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
-
-	// If "overwriting an existing file"...
-	if (pendingFileAlreadyExisted_) {
-
-		// Delete the old file
-		deluge_file_invalidate_cache();
-		if (auto removed = deluge::io::unlink(pendingFilePath_); !removed.has_value()) {
-			error = delugeStatusToError(deluge::io::to_deluge_status(removed.error()));
-			goto gotError;
-		}
-
-		// Rename the new file
-		deluge_file_invalidate_cache();
-		if (auto renamed = deluge::io::rename(filePathDuringWrite, pendingFilePath_); !renamed.has_value()) {
-			error = delugeStatusToError(deluge::io::to_deluge_status(renamed.error()));
-			goto gotError;
-		}
-	}
-
-	display->removeWorkingAnimation();
-	char const* message = anyErrorMovingTempFiles_
-	                          ? (deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_MOVING_TEMP_FILES))
-	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));
-	// Update all of these
-	currentSong->name = enteredText;
-	currentSong->dirPath = currentDir;
-
-	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
-		runtimeFeatureSettings.writeSettingsToFile();
-	}
-	// While we're at it, save MIDI devices if there's anything new to save.
-	MIDIDeviceManager::writeDevicesToFile();
-
-	close();
+	// No noteSaveTier() here any more. The card work this function used to do has moved into the
+	// document machine, whose steps each choose their own arm; what is left is bookkeeping and runs
+	// legally wherever it is called from.
+	docPhase_ = DocPhase::SERIALIZE;
+	docVerifyStage_ = DocVerify::LENGTH;
+	ownerDocDispatched_ = false;
+	ownerDocDone_ = false;
+	docStallTicks_ = 0;
 	return true;
 }

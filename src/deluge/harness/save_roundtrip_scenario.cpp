@@ -124,7 +124,11 @@ constexpr int32_t kMaxSaveWaitTicks = 200000;
 /// the keypress. It stopped being true the moment the collection stopped being kicked off inline,
 /// and the gate reported "the save wrote no file" for a save that was merely still running.
 bool saveMachineryIdle() {
-	return !saveSongUI.collectInFlight() && !SaveUI::saveInFlight();
+	// Three machines now, not two: the sample collection, the staged document write the song save
+	// runs on a machine of its own, and the staged-save machine the base class runs. Miss any one of
+	// them and this reads the card while the save is still going, which is how this check failed the
+	// last two times the save was split further.
+	return !saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight();
 }
 
 uint32_t crc32(const void* data, size_t len) {

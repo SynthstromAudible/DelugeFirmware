@@ -87,6 +87,31 @@ public:
 	/// @brief Whether a sample collection is in flight. NOT the same as the save UI being open.
 	[[nodiscard]] bool collectInFlight() const { return collectPhase_ != CollectPhase::NONE; }
 
+	/// @brief Drive the staged document write one step.
+	void docRoutine();
+
+	/// @brief Whether a staged document write is in flight. NOT the same as the UI being open.
+	[[nodiscard]] bool docInFlight() const { return docPhase_ != DocPhase::NONE; }
+
+	/// @brief Document steps the CHANNEL served, and the ones the storage OWNER served.
+	///
+	/// Reported together and held to account for each other by the gate: on a build where half the
+	/// steps quietly took the other arm, either number alone reads as a success.
+	[[nodiscard]] static int32_t documentChannelServedOps() { return documentChannelServedOps_; }
+	[[nodiscard]] static int32_t documentOwnerServedOps() { return documentOwnerServedOps_; }
+
+	/// @brief Card steps the staged document write took, whichever arm carried them.
+	[[nodiscard]] static int32_t documentSteps() { return documentSteps_; }
+
+	/// @brief Ticks on which a document step ran off the storage owner. The rung's claim.
+	[[nodiscard]] static int32_t offOwnerDocumentTicks() { return offOwnerDocumentTicks_; }
+
+	/// @brief How many times the staging buffer doubled for the last staged document.
+	///
+	/// Reported because a fixture whose song never exceeds the buffer's initial 32768 bytes leaves
+	/// the growth path unexercised and every growth check vacuous.
+	[[nodiscard]] static int32_t stagedDocumentGrowths() { return stagedDocumentGrowths_; }
+
 	/// @brief Transfers the CHANNEL served, and steps that ran off the storage owner.
 	[[nodiscard]] static int32_t transferChannelServedOps() { return transferChannelServedOps_; }
 	[[nodiscard]] static int32_t offOwnerTransferTicks() { return offOwnerTransferTicks_; }
@@ -107,24 +132,35 @@ private:
 		NONE,     ///< No collection in flight.
 		TRANSFER, ///< Moving and copying, one entry at a time.
 		APPLY,    ///< Writing the decided paths back, in one step.
-		FINISH,   ///< Writing the document and closing the save, on the storage owner.
+		FINISH,   ///< Handing the save on to the document machine.
 	};
+
+	/// Which part of the staged document write runs next.
+	///
+	/// Separate from CollectPhase for the reason the collection's enum is separate from the staged
+	/// preset save's: the flows differ, and sharing one would make both harder to follow. TEMPNAME,
+	/// UNLINK and RENAME have no counterpart in a preset save.
+	enum class DocPhase : uint8_t {
+		NONE,      ///< No staged document write in flight.
+		SERIALIZE, ///< Building the document in memory, on the interaction tier.
+		TEMPNAME,  ///< Looking for a free SONGS/TEMPnnnn name. Overwrite path only.
+		WRITE,     ///< One whole-document write.
+		VERIFY,    ///< Reading the written file back: length, head and tail.
+		UNLINK,    ///< Removing the file being replaced. Overwrite path only.
+		RENAME,    ///< Moving the temp file onto the target. Overwrite path only.
+		FINISH,    ///< Closing the save and reporting to the user.
+	};
+
+	/// Which part of the read-back check runs next. The streaming writer did all three in one
+	/// blocking call after closing the file; asked through the channel they are three round trips.
+	enum class DocVerify : uint8_t { LENGTH, HEAD, TAIL };
 
 	void runTransferPhase();
 	void applyTransfers();
 	/// @brief End the collection having applied NOTHING, and fail the save.
 	void abandonCollection();
 	/// @brief The owner-side arm of one transfer, for builds without the channel.
-	/// @brief Drive the closing document write, dispatching it onto the owner.
-	void runFinishPhaseOnOwner();
 	static void runTransferOnOwner(void* self);
-	/// @brief The dispatched op for the save's closing document write.
-	///
-	/// `finishSaveAfterCollection()` BLOCKS -- an unbounded existence-check loop, a streaming
-	/// document write, an unlink and a rename -- so it belongs on the owner, which may block. It
-	/// used to be reached inside `performSave()`, which is owner-dispatched; splitting the tail out
-	/// left it running on the repeating task until this restored it.
-	static void runFinishOnOwner(void* self);
 	/// @brief Perform the current entry with blocking calls. Legal ONLY on the storage owner.
 	bool transferOneSynchronously();
 	/// @brief Defer one more tick, or give up if the collection has stopped making progress.
@@ -151,6 +187,35 @@ private:
 	/// reaching the card for every writer after this save.
 	void releaseSongWriter();
 
+	void runSerializePhase();
+	void runTempNamePhase();
+	void runWritePhase();
+	void runVerifyPhase();
+	void runUnlinkPhase();
+	void runRenamePhase();
+	void runDocFinishPhase();
+	/// @brief End the staged write having failed, releasing the serialiser and reporting the error.
+	void abandonDocument(Error error);
+	/// @brief Retry next tick, or give up if the stall bound is exhausted.
+	[[nodiscard]] bool deferDocument();
+	/// @brief Whether this step must run inline because it is already on the owner (or none exists).
+	[[nodiscard]] static bool docOnOwner();
+	/// @brief Whether this step may ask the byte channel: existence, stat, read-back, unlink, rename.
+	[[nodiscard]] static bool docMayUseChannel();
+	/// @brief Whether the document write may use the WRITE channel.
+	///
+	/// A different channel from the one above, and the distinction is load-bearing. The byte channel
+	/// COPIES into a fixed staging buffer and refuses anything over 8 KiB; the write channel passes
+	/// the pointer across instead, which is what lets a whole song through. The smallest real song
+	/// measured is 11.5 KB and the largest 1.10 MB, so no song has ever fitted the copying channel.
+	[[nodiscard]] static bool docMayUseWriteChannel();
+	/// @brief Run the current phase on the owner, advancing it. @return false if still waiting.
+	[[nodiscard]] bool runOneDocStep();
+	/// @brief The dispatched op for one document step, run synchronously on the owner.
+	static void runDocStepOnOwner(void* self);
+	/// @brief One document step, blocking. Only legal on the storage owner.
+	[[nodiscard]] bool docStepSynchronously();
+
 	CollectPhase collectPhase_{CollectPhase::NONE};
 	std::vector<PlannedTransfer> transfers_;
 	size_t transferCursor_{};
@@ -162,8 +227,6 @@ private:
 	bool ownerTransferDispatched_{};
 	bool ownerTransferDone_{};
 	bool ownerTransferOk_{};
-	bool ownerFinishDispatched_{};
-	bool ownerFinishDone_{};
 
 	/// @brief The staged song document, pointing into the shared serialiser's buffer.
 	///
@@ -171,6 +234,30 @@ private:
 	/// releaseSongWriter(). Valid only between serializeSongToBuffer() and that release.
 	const uint8_t* stagedDocument_{};
 	uint32_t stagedLength_{};
+
+	DocPhase docPhase_{DocPhase::NONE};
+	DocVerify docVerifyStage_{DocVerify::LENGTH};
+	std::string docWritePath_; ///< Where the bytes actually go: the temp name, or the target.
+	int32_t docTempNumber_{};
+	int32_t docStallTicks_{};
+	bool docWriteIssued_{};
+	bool ownerDocDispatched_{};
+	bool ownerDocDone_{};
+	bool ownerDocOk_{};
+
+	/// The bytes the head and tail must match, copied verbatim from the strings the streaming writer
+	/// passed to closeFileAfterWriting -- including their newlines. The tail's LEADING and trailing
+	/// newline are both load-bearing: the document's last byte is a newline, so a comparison against
+	/// a bare "</song>" reads seven bytes ending one short and never matches.
+	static constexpr const char* kSongHeadXml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n";
+	static constexpr const char* kSongHeadJson = "{\"song\": {\n";
+	static constexpr const char* kSongTailXml = "\n</song>\n";
+
+	static inline int32_t documentChannelServedOps_{};
+	static inline int32_t documentOwnerServedOps_{};
+	static inline int32_t documentSteps_{};
+	static inline int32_t offOwnerDocumentTicks_{};
+	static inline int32_t stagedDocumentGrowths_{};
 
 	/// Locals the save used to keep on its stack. It no longer finishes inside one call.
 	std::string pendingFilePath_;
