@@ -19,7 +19,7 @@
 - **`git add` named paths only.** Never `git add -A` / `git add .` — an untracked `release-blockers.md` sits in the working tree and must never be committed.
 - **snake_case** under `src/shell`, `src/scenes` and `src/ui`; **camelCase** under `src/deluge`.
 - **No new UI/UX.** Every behaviour is a port of a named legacy statement. A comment saying "legacy has none" or "spec design, not a port" is a defect to report.
-- **Legacy bug fixes are Kate's call.** Do not change the behaviour of any file under `src/deluge/gui/menu_item/`, `src/deluge/gui/ui/sound_editor.cpp` or `src/deluge/gui/views/` except where a task names the exact edit (the two entry gates in Task 8). Porting a legacy predicate into port-side code is not a legacy fix.
+- **Legacy bug fixes are Kate's call.** Do not change the behaviour of any file under `src/deluge/gui/menu_item/`, `src/deluge/gui/ui/sound_editor.cpp` or `src/deluge/gui/views/` except where a task names the exact edit (the two entry gates in Task 8, and Task 7a's inventory of legacy's note-editor reads and navigation calls). Porting a legacy predicate into port-side code is not a legacy fix.
 - **`./dbt build Debug` is never evidence.** The device link fails on a known pre-existing toolchain skew.
 - **Verification gates, run for every task:**
   ```bash
@@ -611,6 +611,120 @@ git add src/deluge/gui/ui/shell_note_mode.h src/deluge/gui/ui/shell_note_mode.cp
         tests/spec/gui/support/fake_legacy_ui.h tests/spec/gui/support/fake_legacy_ui.cpp scripts/check_layer_rules.py \
         sim/scenes_spec/note_mode_spec.cpp sim/scenes_spec/pad_forward_spec.cpp tests/spec/gui/shell_host_ui_spec.cpp
 git commit -m "feat(guest): route the note modes' buttons, encoders, pads and exit as SoundEditor does"
+```
+
+---
+
+### Task 7a: The note mode at legacy's own reads and navigation calls
+
+*Inserted by controller ruling during execution (ledger, "spec gap"), after Task 7 and before Task 8.
+Task 7 provides `activeNoteMode()`; Task 8 opens the ported note editors on device, which is the
+first commit where any of the paths below is reachable. This task must land before Task 8.*
+
+**Why.** Legacy decides "a note editor is open" with
+`getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()` (or `inNoteRowEditor()`), where
+`inNoteEditor()` reads `menuItemNavigationRecord[0]` (`gui/ui/sound_editor.cpp:1916-1922`). Under the
+guest, the current UI is `ShellHostUI` and the navigation record is never written, so **both halves
+are false** everywhere, and `soundEditor.getCurrentMenuItem()` (`sound_editor.cpp:1908-1910`,
+`menuItemNavigationRecord[navigationDepth]`) is **null**. Spec §4 counts only SoundEditor's own eight
+sites. The legacy functions the note mode forwards into (Task 7) and writes through (Task 4's bridge)
+contain many more such reads, and several dereference the navigation record directly. Measured by
+Task 4's review: with no popup, `adjustNoteParameterValue` swallows the first turn and raises a legacy
+PROBABILITY popup (`gui/views/instrument_clip_view.cpp:3066`, `:3117`); `adjustVelocity`
+(`:2852-2858`) and `setNoteRowParameterValue` (`:4063-4066`) are gated the same way.
+
+**Files:**
+- Modify: `src/deluge/gui/ui/shell_note_mode.h`, `src/deluge/gui/ui/shell_note_mode.cpp`
+- Modify (named, predicate-only or gated-pair edits — this brief is the naming): `src/deluge/gui/views/instrument_clip_view.cpp`, `src/deluge/gui/views/view.cpp`, `src/deluge/gui/views/timeline_view.cpp`, `src/deluge/model/action/action_logger.cpp`, `src/deluge/model/note/note_row.cpp`, `src/deluge/gui/ui/notify_drain.cpp`
+- Modify: `src/scenes/menu/menu_scene.h`, `src/scenes/menu/menu_scene.cpp` (public navigation entry points, only if no existing public one fits)
+- Modify: `scripts/check_layer_rules.py` (only if a seam entry changes)
+- Test: `sim/scenes_spec/note_mode_reads_spec.cpp` (create); extend `sim/scenes_spec/note_bridge_spec.cpp` (the note-mode arm of the offset gate)
+- NOT modified: `src/deluge/gui/menu_item/**`, `src/deluge/gui/ui/sound_editor.cpp`.
+
+**Interfaces:**
+- Consumes (Task 7): `deluge::gui::ui::NoteModeKind activeNoteMode();` — `None` unless the ported menu is on the guest's stack with a note root. Consumes (Task 4): `NoteBridge` entries and `note_bridge_spec.cpp`'s real-view setup (spec-local `currentPlaybackMode`/`display` seeds, `editPadAction` note selection).
+- Produces, in `deluge::gui::ui` (camelCase, `src/deluge`):
+  ```cpp
+  bool noteEditorOpen();    // (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor())    || activeNoteMode() == NoteModeKind::NoteEditor
+  bool noteRowEditorOpen(); // (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor()) || activeNoteMode() == NoteModeKind::NoteRowEditor
+  ```
+  With the ported menu closed, each is exactly legacy's expression — **the legacy leg must not change**,
+  and the level-3 A/B (`ui_app_scripts_menu_ab`) must stay green.
+
+**The inventory — re-derive it first, and report any difference from this list:**
+```bash
+grep -rnE "soundEditor\.(inNoteEditor|inNoteRowEditor)\(\)|soundEditor\.selectedNoteRow|soundEditor\.getCurrentMenuItem\(\)|soundEditor\.goUpOneLevel\(\)|soundEditor\.toggleNoteEditorParamMenu" src/deluge | grep -v "^src/deluge/gui/ui/shell_"
+```
+A. **Predicate reads** (controller's grep at 8933bd9e1, 21 lines in 7 files):
+`instrument_clip_view.cpp` :2379 (editPadAction), :2852+:2930 (adjustVelocity), :2982 (displayVelocity),
+:3066 and :3249 (adjustNoteParameterValue), :4063 (setNoteRowParameterValue), :4202 (mutePadPress),
+:4347 (scrollVertical), :5040 (setSelectedDrum), :5479 (potentiallyRefreshNoteRowMenu — `selectedNoteRow`),
+:6072 (drawAuditionSquare), :6190 (verticalEncoderAction), :6827 (nudgeNotes); `view.cpp:340`;
+`timeline_view.cpp:158`; `model/action/action_logger.cpp:99`; `model/note/note_row.cpp:1997`;
+`gui/ui/notify_drain.cpp:48`; `gui/menu_item/sequence/direction.h` :35, :51, :118.
+B. **Navigation-record dereferences on paths the note mode reaches** (each null under the guest):
+`instrument_clip_view.cpp` :3655 `getCurrentMenuItem()->readValueAgain()` (handleNoteEditorEditPadAction);
+:3690-3691 `getCurrentMenuItem() != &noteEditorRootMenu` → `goUpOneLevel()` (deselectNoteAndGoUpOneLevel,
+called by both note-editor encoder handlers :3695, :3705); :3836 `toggleNoteEditorParamMenu(on)` and
+:3842 `readValueAgain()` (handleNoteRowEditorMainPadAction); :3878 `readValueAgain()`
+(handleNoteRowEditorAuditionPadAction); :3905-3907 (handleNoteRowEditorVerticalEncoderAction); and
+whatever the bodies behind A's :3249, :5479-5480 and :6955-6963 (nudgeNotes' `goUpOneLevel`) do.
+:3716 and :3956 (SYNTH/KIT/MIDI/CV) are unreachable — Task 7 returns `nullopt` for those buttons; say so.
+`enterNoteEditor`/`enterNoteRowEditor` (:3590-3598, :3758-3766) are Task 8's gates — not yours.
+
+**Classify every row** in a table in your report: *widen* (replace only the predicate expression with
+`noteEditorOpen()`/`noteRowEditorOpen()`), *gated pair* (the site then touches soundEditor navigation:
+`if (activeNoteMode() != NoteModeKind::None) { <port equivalent> } else { <legacy statements unchanged> }`,
+spelled like site 6, `model/clip/instrument_clip_minder.cpp:399-424`), or *leave* (with the reason — e.g.
+`direction.h` is a legacy menu item the ported `sequence_direction` node replaces (its names,
+`sequence_direction_names`, `scenes/menu/nodes/sound_actions.cpp:38`); prove it unreachable under the guest). Every row cites its line,
+and the port equivalent cites the legacy statement it ports. A *widen* whose body then dereferences the
+navigation record is a crash — it must be a gated pair.
+
+**Port equivalents** (confirm each against legacy before using it):
+- `getCurrentMenuItem()->readValueAgain()` → `deluge::scenes::menu_scene().read_value_again()` (public,
+  `scenes/menu/menu_scene.h:569`) — reached through a `gui/ui` seam, not an include from `gui/views`.
+- `goUpOneLevel()` → one level up in the ported menu; at depth 0 legacy exits completely
+  (`sound_editor.cpp:710-718`) → `closePortedMenu()` (`gui/ui/shell_action_dispatch.h:153`).
+  `MenuScene::ascend()` is private (`menu_scene.h:906`); add the smallest public entry that ports
+  `goUpOneLevel`, documented against `:710-728`.
+- `getCurrentMenuItem() != &noteEditorRootMenu` → "the ported menu is not at its root level".
+- `toggleNoteEditorParamMenu(on)` (`sound_editor.cpp:1925-1975`) → its port: on press, row
+  probability/iterance/fill → the note versions, and the row root → the note root when horizontal menus
+  are on; on release the reverse; only when the target's `shouldEnterSubmenu()` passes (Task 5's
+  `permitted` guard, which raises "Select Note"); enter = descend, release = `goUpOneLevel`. Legacy's
+  `inNoteRowEditor()` stays true throughout the hold (`record[0]` is unchanged), so **`activeNoteMode()`
+  must keep answering `NoteRowEditor` while the note menu is entered from the row editor** — pin it.
+  Read `runtimeFeatureSettings` `HorizontalMenus` exactly as legacy does.
+
+No new UI/UX: every port equivalent is a legacy statement's port, cited. If a row has no faithful port
+equivalent, do not invent one — classify it *carried*, state the divergence, and report it as
+DONE_WITH_CONCERNS.
+
+- [ ] **Step 1: Failing examples** (`note_mode_reads_spec.cpp`, real `instrumentClipView` over the song
+  fixture, ported menu opened on the guest's stack the way Task 7's `note_mode_spec.cpp` does):
+  - `noteEditorOpen()`/`noteRowEditorOpen()` false with the ported menu closed, true per root when open;
+  - the offset gate's note-mode arm: with the note editor open and **no popup**, one
+    `adjust_note_probability` turn through the bridge lands and raises no legacy popup; the same for
+    velocity (`adjustVelocity`) and one row entry (`adjust_row_probability`) under the row editor —
+    extending Task 4's legacy-gate example in `note_bridge_spec.cpp`, which must stay green;
+  - each gated pair: its port equivalent observed (menu level after `goUpOneLevel`'s port; menu closed
+    at depth 0; note menu entered/left on `toggleNoteEditorParamMenu`'s press/release, with
+    `activeNoteMode()` still `NoteRowEditor`), and no crash — run the forwarded handler for real;
+  - one legacy-leg example per edited file where a spec can reach it: ported menu closed → legacy's
+    arm, unchanged.
+- [ ] **Step 2: Implement.** Predicate-only edits; gated pairs keep legacy's statements byte-identical in
+  the `else`. Keep every existing comment.
+- [ ] **Step 3: Whole gate block** (the plan's Global Constraints), including the level-3 A/B, which must
+  be green with **no golden changes** — this task changes nothing the legacy leg or today's script reaches.
+- [ ] **Step 4: Commit** named paths only:
+```bash
+git add src/deluge/gui/ui/shell_note_mode.h src/deluge/gui/ui/shell_note_mode.cpp \
+        src/deluge/gui/views/instrument_clip_view.cpp src/deluge/gui/views/view.cpp src/deluge/gui/views/timeline_view.cpp \
+        src/deluge/model/action/action_logger.cpp src/deluge/model/note/note_row.cpp src/deluge/gui/ui/notify_drain.cpp \
+        sim/scenes_spec/note_mode_reads_spec.cpp sim/scenes_spec/note_bridge_spec.cpp
+# plus src/scenes/menu/menu_scene.{h,cpp} and scripts/check_layer_rules.py only if touched
+git commit -m "feat(guest): legacy's note-editor reads and menu calls see the ported note mode"
 ```
 
 ---

@@ -23,6 +23,7 @@ revision makes on the evidence, each stated where it lands:
 | 4 | the bridge follows `wireShellGuestServices`' precedent | that function installs *data*; the hook precedent is `bindings::FeedbackHook` | §5.4 |
 | 5 | reusing `sequence_direction` under the note-row root is free | legacy edits the **auditioned row** there, an arm the port never wrote | §5.5 |
 | 6 | (not addressed) | a select press on a horizontal value column follows **that column's** chain or goes up a level; the port only raises a notification | §3.1-3.2 |
+| 7 | (not addressed) — only SoundEditor's eight sites branch on the note mode | legacy's forwarded handlers and offset functions ask `getCurrentUI() == &soundEditor && inNote*Editor()` **21 more times** and dereference the null navigation record for `readValueAgain`/`goUpOneLevel`/`toggleNoteEditorParamMenu` | §4 |
 
 And one site the first version thought needed code needs none: site 5 (§4).
 
@@ -195,6 +196,22 @@ several can open or close UIs. `ui/pads-1`'s rule applies: nothing touches guest
 without re-checking, arm the tick only while the guest is current, and **return the handler's own
 `ActionResult`** — `REMIND_ME_OUTSIDE_CARD_ROUTINE` included, which `ui/pads-1`'s final review found
 the forward path discarding.
+
+**Beyond the eight sites — correction 7, found during execution (Task 4's review).** The eight sites
+are SoundEditor's own. The legacy functions sites 2, 6, 7 and 8 forward into, and the offset functions
+the bridge (§5.4) writes through, ask the same question themselves:
+`getCurrentUI() == &soundEditor && soundEditor.inNote*Editor()` — 21 lines in 7 files
+(`instrument_clip_view.cpp` ×14, `view.cpp:340`, `timeline_view.cpp:158`, `action_logger.cpp:99`,
+`note_row.cpp:1997`, `notify_drain.cpp:48`, `menu_item/sequence/direction.h` ×3). Under the guest both
+halves are false, so each takes its not-in-editor arm: `adjustNoteParameterValue` swallows the first
+turn and raises a legacy popup (`instrument_clip_view.cpp:3066`, `:3117`). Several forwarded handlers
+also dereference `soundEditor.getCurrentMenuItem()` — `menuItemNavigationRecord[navigationDepth]`,
+null under the guest — for `readValueAgain`, `goUpOneLevel` and `toggleNoteEditorParamMenu`
+(`:3655`, `:3690-3691`, `:3836`, `:3842`, `:3878`, `:3905-3907`). Approach A holds only if those
+reads see the ported mode and those calls reach the ported menu: two legacy-side predicates,
+`noteEditorOpen()`/`noteRowEditorOpen()`, replace the pure reads; each navigation call becomes a
+gated pair in site 6's spelling whose port arm is the legacy call's port. The legacy leg is unchanged
+whenever the ported menu is closed. The plan's Task 7a carries it.
 
 ## 5. The menu side
 
