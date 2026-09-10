@@ -22,6 +22,7 @@ revision makes on the evidence, each stated where it lands:
 | 3 | site 3 (AFFECT_ENTIRE) is a subtraction | it is swallowed in the note editor but **acts** in the note-row editor on a kit | §4 |
 | 4 | the bridge follows `wireShellGuestServices`' precedent | that function installs *data*; the hook precedent is `bindings::FeedbackHook` | §5.4 |
 | 5 | reusing `sequence_direction` under the note-row root is free | legacy edits the **auditioned row** there, an arm the port never wrote | §5.5 |
+| 6 | (not addressed) | a select press on a horizontal value column follows **that column's** chain or goes up a level; the port only raises a notification | §3.1-3.2 |
 
 And one site the first version thought needed code needs none: site 5 (§4).
 
@@ -69,7 +70,12 @@ CROSS_SCREEN/SCALE switch pages (`:85-94`). The gold knobs never touch a menu:
 the menu is showing that same param (`:893-900`). The horizontal encoder does nothing to a menu —
 `MenuItem::horizontalEncoderAction` is an empty base (`menu_item.h:84`) that neither `Submenu` nor
 `HorizontalMenu` overrides — except inside `Decimal` (digit cursor, `decimal.cpp:83`) and `Range`
-(edge choice, `range.cpp:35`).
+(edge choice, `range.cpp:35`). A select press is acted on at release by `SoundEditor::buttonAction`'s
+SELECT arm (`sound_editor.cpp:385`), where `Submenu::selectButtonPress` forwards to a focused value
+column (`submenu.cpp:187-194`): a returned menu is entered — which is how both CUSTOM iterance
+pages are reached — and `nullptr` goes up a level. `HorizontalMenu` does not override
+`selectButtonPress`, and `handleItemAction`'s one caller is the instrument-button path
+(`horizontal_menu.cpp:420`).
 
 **Port.** The input contract itself states the swap: `InputSnapshot::turn` is documented as "navigate
 / move focus" and `edit[2]` as "edit the focused value" (`ui/core/input.h:63-64`). `int_value`
@@ -80,7 +86,9 @@ do the same and add a fine gold knob legacy has no counterpart for. `render_hori
 (`:772-773`) while `columns()` walks focus on `turn()` (`ui/oled/columns.cpp:401-404`). The two
 number screens claim the turn and discard it (`menu_scene.cpp`'s `render_leaf_decimal`,
 `render_leaf_range`, `render_leaf_int`). SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE appear only in
-`MenuScene::leds`' forced-off list (`:1125-1126`). There is no SHIFT acceleration anywhere.
+`MenuScene::leds`' forced-off list (`:1125-1126`). There is no SHIFT acceleration anywhere. A select press on a value column raises the notification
+and stays (`menu_scene.cpp:874`), under a comment attributing that to `handleItemAction`
+(`menu_scene.h:218-221`) — the instrument-button path, not the select press.
 
 **Measured, not only read:** the level-2 golden `tests/golden/ui/shell/menu_submenu_horizontal`
 changes the column label band on a select turn and the value band on a gold turn. `enum_value` and
@@ -101,6 +109,10 @@ leaf edits on select, an Int leaf on gold. It is recorded nowhere.
   CROSS_SCREEN/SCALE switch page with wrap, keeping the position on the page (`switchVisiblePage`,
   `:345-366`). A button focus onto a range-dependent column runs the existing `MustSelectRange`
   check, as `handleInstrumentButtonPress` does.
+- **A select press on a value column follows that column.** Its `select_chain` target is entered;
+  with none, the page goes up a level. The notification moves to where legacy raises it: the
+  already-focused instrument-button press, which runs the column's own press side effect (a
+  toggle flips), discards any chain target, and notifies (`handleItemAction`, `:663-678`).
 - **LEDs.** SYNTH/KIT/MIDI/CV light the columns the focused item covers, with legacy's single-item
   exception (`updateSelectedMenuItemLED`, `:546-572`); SCALE and CROSS_SCREEN light while the page
   count exceeds one (`renderOLED`, `:118-119`). Vertical pages keep today's off state.
