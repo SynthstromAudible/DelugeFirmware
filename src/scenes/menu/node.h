@@ -639,10 +639,10 @@ struct Node {
 	/// `Selection::selectButtonPress()` (`gui/menu_item/selection.h:54-63`) has the same shape as `Toggle::
 	/// selectButtonPress` (`toggle.h:38-42`): when the page, not the item, is current, it calls
 	/// `toggleValue()` (`:44-50`, a no-op unless `isToggle()`) and returns `NO_NAVIGATION`. Six
-	/// legacy classes override `isToggle()` to true: `arpeggiator::PresetMode`
+	/// legacy classes override `isToggle()` to true: `arpeggiator::Mode`
 	/// (`arpeggiator/mode.h:100`), `arpeggiator::IncludeInKitArp` (`arpeggiator/
 	/// include_in_kit_arp.h:88`) and `runtime_feature::SettingToggle` (`runtime_feature/setting.h:
-	/// 39-48`, the `isToggle()` override at `:45`) sit
+	/// 40-49`, the `isToggle()` override at `:45`) sit
 	/// only on vertical pages in the shipped tree and are never reached as a horizontal column; the
 	/// three that do are `delay::PingPong` (`delay/ping_pong.h:30`, ported `delay_ping_pong`,
 	/// on `delay`/`global_delay`), `randomizer::RandomizerLock` (`randomizer/randomizer_lock.h:62`,

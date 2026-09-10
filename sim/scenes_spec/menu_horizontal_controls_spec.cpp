@@ -376,7 +376,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `gui/menu_item/` either has no ported column kind (`ActiveScalesItem`, `PerformEditorItem`,
 		// `ActionItem`, `ContextMenuItem`, `SourceSelectionItem`) or sits only on a vertical page in
 		// the shipped tree (`Selection::isToggle()`'s other three overriders --
-		// `arpeggiator::PresetMode`, `arpeggiator::IncludeInKitArp`, `runtime_feature::Setting`).
+		// `arpeggiator::Mode`, `arpeggiator::IncludeInKitArp`, `runtime_feature::SettingToggle`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

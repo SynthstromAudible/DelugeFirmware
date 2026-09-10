@@ -334,10 +334,15 @@ public:
 	/// notification (`HorizontalMenu::endSession`, `gui/menu_item/horizontal_menu.cpp:587-589`;
 	/// `switchVisiblePage`, `:363-365`), raised with `ui::shell::kPopupTypeNotification` -- the one
 	/// raiser of `Kind::Console` this file knows of that ever needs to take its own notice back
-	/// before its timer would have, and legacy's own `cancelPopup()`/`removePopup()`
-	/// (`oled.cpp:253-260`) is exactly this scoped too: it clears the *popup* slot
-	/// (`PopupType::NOTIFICATION`), never `consoleText()`'s own lines, which is why this cancel
-	/// must not simply clear every `Kind::Console` line either.
+	/// before its timer would have. Legacy's own `cancelPopup()`/`removePopup()`
+	/// (`oled.cpp:253-260`) is not itself type-scoped -- it clears whatever popup is up,
+	/// unconditionally, with no `PopupType` check inside it at all. The `NOTIFICATION` scoping
+	/// comes from its two callers instead: `HorizontalMenu::endSession`/`switchVisiblePage` each
+	/// guard the call with `hasPopupOfType(PopupType::NOTIFICATION)` first
+	/// (`horizontal_menu.cpp:587-589`, `:363-365`; ported as the same guard in
+	/// `notify_drain.cpp`'s `CancelConsole` case) -- so the *popup* slot they touch is never
+	/// `consoleText()`'s own lines either way (legacy has no call that clears those from here),
+	/// which is why this cancel must not simply clear every `Kind::Console` line.
 	///
 	/// Every string id and error code here is resolved through `BoardProfile::text_or_digits` /
 	/// `error_text_or_digits`, so a profile with no l10n bridge shows the id's digits rather than
