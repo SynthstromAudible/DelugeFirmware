@@ -281,6 +281,37 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		expect(g_adjust_last_offset).to_equal(2);
 	});
 
+	it("on_enter() discards a staged offset through retarget(), unmasked by open()'s own reset", _ {
+		// Fix round 1, Important 1's regression, `retarget()`'s half (fix round 3): `on_enter` is
+		// public (`menu_scene.h:501`) and, on its `arg == 0` fallback (`menu_scene.cpp:490-496`),
+		// reads `ctx_.root` -- already set by `r.open()` below -- looks up `roots()[ctx_.root]`, and
+		// calls `retarget(*target)` (`:500`) with **no preceding `st_ = MenuState{}`**. That is the
+		// difference from `open()`, whose own full reset (`:333-335`) runs before its own
+		// `retarget()` call and would mask `retarget`'s reset being missing entirely. `on_enter`'s
+		// `arg == 0` branch re-roots onto whatever `nodes::sound_root` (or similar) `ctx_.root`
+		// names, not back onto `adjust_page` -- fine here, since the assertion is only about
+		// `edit_offset`, not about which node ends up focused.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(adjust_page);
+
+		// Stage an offset exactly as the `on_resume` example above does.
+		deluge::ui::test::Rig48 rig48;
+		rig48.begin_tick(0);
+		rig48.input.turn = 3;
+		menu_scene().render_oled(SurfaceRole::Main, rig48.frame);
+
+		// Confirms the staging actually happened, so the assertion below cannot pass vacuously
+		// (an already-zero `edit_offset` would make `on_enter` look like it cleared something it
+		// never saw).
+		expect(menu_scene().state().edit_offset != 0).to_be_true();
+
+		menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0});
+
+		expect(menu_scene().state().edit_offset).to_equal(0);
+	});
+
 	it("three separate turns before a settle still commit once, with the sum of the detents", _ {
 		// `render_horizontal`'s edit block accumulates into `MenuState::edit_offset` on every turn;
 		// `commit_value` applies it once and clears it. Three turns between ticks exercise the
