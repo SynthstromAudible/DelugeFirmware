@@ -54,13 +54,17 @@
 ///       choice `nodes/sound_arp.h` makes for `arp_preset_chain`, because the function needs the
 ///       address of a `Node` declared alongside it.
 ///
-/// @note **The "OFF becomes 1of1" conversion.** `IteranceDivisor::writeCurrentValue` and
-///       `IteranceStepToggle::readCurrentValue`/`writeCurrentValue`/`isRelevant` all convert a note
-///       or row's `kDefaultIteranceValue` ("OFF") to `kCustomIteranceValue` ("1of1") before editing
-///       from it, so the custom-iterance page always has a concrete divisor and step set to edit
-///       (`note/iterance_divisor.h:45-49`, `note/iterance_step_toggle.h:39-43,52-56`, and their row
-///       twins). `IteranceStepToggle::isRelevant` alone reads the **unconverted** value, because it
-///       tests for `kDefaultIteranceValue` directly (`note/iterance_step_toggle.h:71-80`).
+/// @note **The "OFF becomes 1of1" conversion.** `IteranceDivisor::readCurrentValue`/
+///       `writeCurrentValue` and `IteranceStepToggle::readCurrentValue`/`writeCurrentValue` all
+///       convert a note or row's `kDefaultIteranceValue` ("OFF") to `kCustomIteranceValue` ("1of1")
+///       before reading or editing from it, so the custom-iterance page always has a concrete
+///       divisor and step set to work with (`note/iterance_divisor.h:45-49,59-63`,
+///       `note/iterance_step_toggle.h:39-43,52-56`, `note_row/iterance_divisor.h:49-53,68-72`,
+///       `note_row/iterance_step_toggle.h:62-66,80-84`). `IteranceStepToggle::isRelevant` is the one
+///       exception in either family: it reads the **unconverted** value, because it tests for
+///       `kDefaultIteranceValue` directly, and returns false outright with no leftmost note (note
+///       family, `note/iterance_step_toggle.h:71-80`, false arm at `:79`) or no note row (row
+///       family, `note_row/iterance_step_toggle.h:98-110`, false arm at `:109`).
 ///
 /// @note **`note_editor_probability`, not `note_probability`.** `nodes::note_probability` already
 ///       names `sound_randomizer.h`'s `randomizerNoteProbabilityMenu` (the *randomizer's* per-note
@@ -102,7 +106,9 @@ ValueText value_text_fill(const MenuContext& ctx, int32_t value, ValueTextUse us
 
 // -------------------------------------------------------------------------------------------
 // The note editor. Hook bodies in the `.cpp`, except the two select-chain functions (see the
-// file-level note).
+// file-level note). `.cpp` shares one body per hook kind between the note and note-row families
+// (a small `NoteBridge` member-pointer accessor); only the sixteen distinct exported symbols below
+// -- one address per step, for `Node`'s function-pointer fields -- are per-family.
 // -------------------------------------------------------------------------------------------
 
 int32_t get_note_velocity(const MenuContext& ctx);
@@ -113,10 +119,13 @@ int32_t get_note_iterance(const MenuContext& ctx);
 void adjust_note_iterance(const MenuContext& ctx, int32_t offset);
 
 /// @brief `get_note_iterance(ctx) == kCustomIterancePreset`, null-bridge-safe -- what
-///        `chain_note_iterance` needs. A thin wrapper rather than inlining the check in `chain_note_iterance`
-///        itself (see that function's own note on why it is declared in this header rather than the
-///        `.cpp`): `note_bridge()` is only reachable from the `.cpp`, and `validate_tree`'s whole-tree
-///        `select_chain` sweep (`tables_3_spec.cpp`) calls this hook with no bridge installed at all.
+///        `chain_note_iterance` needs. A thin wrapper rather than inlining the check in
+///        `chain_note_iterance` itself (see that function's own note on why it is declared in this
+///        header rather than the `.cpp`): `note_bridge()` is only reachable from the `.cpp`, and it
+///        has to be null-safe there because `tables_3_spec.cpp`'s whole-tree "never lets a
+///        select_chain hook name a node outside its own chain_targets" sweep calls every reachable
+///        node's `select_chain` -- this one included -- with no bridge installed at all (that spec
+///        validates the whole sound tree; it never touches the note family).
 bool note_iterance_is_custom(const MenuContext& ctx);
 int32_t get_note_fill(const MenuContext& ctx);
 void adjust_note_fill(const MenuContext& ctx, int32_t offset);
@@ -124,27 +133,50 @@ void adjust_note_fill(const MenuContext& ctx, int32_t offset);
 int32_t get_note_iterance_divisor(const MenuContext& ctx);
 void set_note_iterance_divisor(const MenuContext& ctx, int32_t value);
 
-/// @brief One custom-iterance step toggle, both families. A macro for the reason
-///        `nodes/sound_osc.h`'s `DELUGE_OSC_SOURCE` is one: the `get`/`set`/`relevant` hooks are
-///        plain function pointers with no room for legacy's `index` constructor argument
-///        (`note/iterance_step_toggle.h:30-32`), so each of the sixteen steps needs its own triple.
-///        Bodies in the `.cpp` (`DELUGE_NOTE_STEP_HOOKS`/`DELUGE_NOTE_ROW_STEP_HOOKS`), each a thin
-///        wrapper over one shared `index`-taking implementation.
-/// @{
-#define DELUGE_NOTE_STEP_DECL(i)                                                                                       \
-	int32_t get_note_iterance_step##i(const MenuContext& ctx);                                                         \
-	void set_note_iterance_step##i(const MenuContext& ctx, int32_t value);                                             \
-	bool relevant_note_iterance_step##i(const MenuContext& ctx)
+int32_t get_note_row_probability(const MenuContext& ctx);
+void adjust_note_row_probability(const MenuContext& ctx, int32_t offset);
+int32_t get_note_row_iterance(const MenuContext& ctx);
 
-DELUGE_NOTE_STEP_DECL(1);
-DELUGE_NOTE_STEP_DECL(2);
-DELUGE_NOTE_STEP_DECL(3);
-DELUGE_NOTE_STEP_DECL(4);
-DELUGE_NOTE_STEP_DECL(5);
-DELUGE_NOTE_STEP_DECL(6);
-DELUGE_NOTE_STEP_DECL(7);
-DELUGE_NOTE_STEP_DECL(8);
-#undef DELUGE_NOTE_STEP_DECL
+/// @brief `get_note_row_iterance(ctx) == kCustomIterancePreset`, null-bridge-safe. See
+///        `note_iterance_is_custom`'s own doc.
+bool note_row_iterance_is_custom(const MenuContext& ctx);
+void adjust_note_row_iterance(const MenuContext& ctx, int32_t offset);
+int32_t get_note_row_fill(const MenuContext& ctx);
+void adjust_note_row_fill(const MenuContext& ctx, int32_t offset);
+
+int32_t get_note_row_iterance_divisor(const MenuContext& ctx);
+void set_note_row_iterance_divisor(const MenuContext& ctx, int32_t value);
+
+/// @brief One custom-iterance step toggle, both families -- sixteen distinct symbols (one
+///        `get`/`set`/`relevant` triple per step, per family) because `Node`'s function-pointer
+///        fields need a distinct address each, but every one of the sixteen is a one-line call into
+///        the `.cpp`'s single family-parameterised implementation. A macro for the reason
+///        `nodes/sound_osc.h`'s `DELUGE_OSC_SOURCE` is one: legacy's own `index` constructor
+///        argument (`note/iterance_step_toggle.h:30-32`) has nowhere to live on a plain function
+///        pointer.
+/// @{
+#define DELUGE_ITERANCE_STEP_DECL(prefix, i)                                                                           \
+	int32_t get_##prefix##_iterance_step_##i(const MenuContext& ctx);                                                  \
+	void set_##prefix##_iterance_step_##i(const MenuContext& ctx, int32_t value);                                      \
+	bool relevant_##prefix##_iterance_step_##i(const MenuContext& ctx)
+
+DELUGE_ITERANCE_STEP_DECL(note, 1);
+DELUGE_ITERANCE_STEP_DECL(note, 2);
+DELUGE_ITERANCE_STEP_DECL(note, 3);
+DELUGE_ITERANCE_STEP_DECL(note, 4);
+DELUGE_ITERANCE_STEP_DECL(note, 5);
+DELUGE_ITERANCE_STEP_DECL(note, 6);
+DELUGE_ITERANCE_STEP_DECL(note, 7);
+DELUGE_ITERANCE_STEP_DECL(note, 8);
+DELUGE_ITERANCE_STEP_DECL(note_row, 1);
+DELUGE_ITERANCE_STEP_DECL(note_row, 2);
+DELUGE_ITERANCE_STEP_DECL(note_row, 3);
+DELUGE_ITERANCE_STEP_DECL(note_row, 4);
+DELUGE_ITERANCE_STEP_DECL(note_row, 5);
+DELUGE_ITERANCE_STEP_DECL(note_row, 6);
+DELUGE_ITERANCE_STEP_DECL(note_row, 7);
+DELUGE_ITERANCE_STEP_DECL(note_row, 8);
+#undef DELUGE_ITERANCE_STEP_DECL
 /// @}
 
 inline constexpr Node note_iterance_divisor =
@@ -152,24 +184,24 @@ inline constexpr Node note_iterance_divisor =
                             set_note_iterance_divisor, IntRange{1, 8, 1}),
                    permitted_note);
 
-#define DELUGE_NOTE_STEP_NODE(i)                                                                                       \
-	inline constexpr Node note_iterance_step##i =                                                                      \
-	    toggle_item(sid(deluge::l10n::String::STRING_FOR_ITERATION_STEP_##i), get_note_iterance_step##i,               \
-	                set_note_iterance_step##i, relevant_note_iterance_step##i)
+/// @brief One custom-iterance step `Node`, both families -- see the prototypes' own doc.
+#define DELUGE_ITERANCE_STEP_NODE(prefix, i)                                                                           \
+	inline constexpr Node prefix##_iterance_step_##i =                                                                 \
+	    toggle_item(sid(deluge::l10n::String::STRING_FOR_ITERATION_STEP_##i), get_##prefix##_iterance_step_##i,        \
+	                set_##prefix##_iterance_step_##i, relevant_##prefix##_iterance_step_##i)
 
-DELUGE_NOTE_STEP_NODE(1);
-DELUGE_NOTE_STEP_NODE(2);
-DELUGE_NOTE_STEP_NODE(3);
-DELUGE_NOTE_STEP_NODE(4);
-DELUGE_NOTE_STEP_NODE(5);
-DELUGE_NOTE_STEP_NODE(6);
-DELUGE_NOTE_STEP_NODE(7);
-DELUGE_NOTE_STEP_NODE(8);
-#undef DELUGE_NOTE_STEP_NODE
+DELUGE_ITERANCE_STEP_NODE(note, 1);
+DELUGE_ITERANCE_STEP_NODE(note, 2);
+DELUGE_ITERANCE_STEP_NODE(note, 3);
+DELUGE_ITERANCE_STEP_NODE(note, 4);
+DELUGE_ITERANCE_STEP_NODE(note, 5);
+DELUGE_ITERANCE_STEP_NODE(note, 6);
+DELUGE_ITERANCE_STEP_NODE(note, 7);
+DELUGE_ITERANCE_STEP_NODE(note, 8);
 
 inline constexpr const Node* kNoteCustomIteranceChildren[] = {
-    &note_iterance_divisor, &note_iterance_step1, &note_iterance_step2, &note_iterance_step3, &note_iterance_step4,
-    &note_iterance_step5,   &note_iterance_step6, &note_iterance_step7, &note_iterance_step8,
+    &note_iterance_divisor, &note_iterance_step_1, &note_iterance_step_2, &note_iterance_step_3, &note_iterance_step_4,
+    &note_iterance_step_5,  &note_iterance_step_6, &note_iterance_step_7, &note_iterance_step_8,
 };
 inline constexpr Node note_custom_iterance_root =
     submenu(sid(deluge::l10n::String::STRING_FOR_CUSTOM), kNoteCustomIteranceChildren, Layout::Vertical);
@@ -223,59 +255,25 @@ inline constexpr Node note_editor_root =
 // The note-row editor. Same shape, through the row half of the bridge.
 // -------------------------------------------------------------------------------------------
 
-int32_t get_note_row_probability(const MenuContext& ctx);
-void adjust_note_row_probability(const MenuContext& ctx, int32_t offset);
-int32_t get_note_row_iterance(const MenuContext& ctx);
-
-/// @brief `get_note_row_iterance(ctx) == kCustomIterancePreset`, null-bridge-safe. See
-///        `note_iterance_is_custom`'s own doc.
-bool note_row_iterance_is_custom(const MenuContext& ctx);
-void adjust_note_row_iterance(const MenuContext& ctx, int32_t offset);
-int32_t get_note_row_fill(const MenuContext& ctx);
-void adjust_note_row_fill(const MenuContext& ctx, int32_t offset);
-
-int32_t get_note_row_iterance_divisor(const MenuContext& ctx);
-void set_note_row_iterance_divisor(const MenuContext& ctx, int32_t value);
-
-#define DELUGE_NOTE_ROW_STEP_DECL(i)                                                                                   \
-	int32_t get_note_row_iterance_step##i(const MenuContext& ctx);                                                     \
-	void set_note_row_iterance_step##i(const MenuContext& ctx, int32_t value);                                         \
-	bool relevant_note_row_iterance_step##i(const MenuContext& ctx)
-
-DELUGE_NOTE_ROW_STEP_DECL(1);
-DELUGE_NOTE_ROW_STEP_DECL(2);
-DELUGE_NOTE_ROW_STEP_DECL(3);
-DELUGE_NOTE_ROW_STEP_DECL(4);
-DELUGE_NOTE_ROW_STEP_DECL(5);
-DELUGE_NOTE_ROW_STEP_DECL(6);
-DELUGE_NOTE_ROW_STEP_DECL(7);
-DELUGE_NOTE_ROW_STEP_DECL(8);
-#undef DELUGE_NOTE_ROW_STEP_DECL
-
 inline constexpr Node note_row_iterance_divisor =
     with_permitted(int_item(sid(deluge::l10n::String::STRING_FOR_ITERANCE_DIVISOR), get_note_row_iterance_divisor,
                             set_note_row_iterance_divisor, IntRange{1, 8, 1}),
                    permitted_row);
 
-#define DELUGE_NOTE_ROW_STEP_NODE(i)                                                                                   \
-	inline constexpr Node note_row_iterance_step##i =                                                                  \
-	    toggle_item(sid(deluge::l10n::String::STRING_FOR_ITERATION_STEP_##i), get_note_row_iterance_step##i,           \
-	                set_note_row_iterance_step##i, relevant_note_row_iterance_step##i)
-
-DELUGE_NOTE_ROW_STEP_NODE(1);
-DELUGE_NOTE_ROW_STEP_NODE(2);
-DELUGE_NOTE_ROW_STEP_NODE(3);
-DELUGE_NOTE_ROW_STEP_NODE(4);
-DELUGE_NOTE_ROW_STEP_NODE(5);
-DELUGE_NOTE_ROW_STEP_NODE(6);
-DELUGE_NOTE_ROW_STEP_NODE(7);
-DELUGE_NOTE_ROW_STEP_NODE(8);
-#undef DELUGE_NOTE_ROW_STEP_NODE
+DELUGE_ITERANCE_STEP_NODE(note_row, 1);
+DELUGE_ITERANCE_STEP_NODE(note_row, 2);
+DELUGE_ITERANCE_STEP_NODE(note_row, 3);
+DELUGE_ITERANCE_STEP_NODE(note_row, 4);
+DELUGE_ITERANCE_STEP_NODE(note_row, 5);
+DELUGE_ITERANCE_STEP_NODE(note_row, 6);
+DELUGE_ITERANCE_STEP_NODE(note_row, 7);
+DELUGE_ITERANCE_STEP_NODE(note_row, 8);
+#undef DELUGE_ITERANCE_STEP_NODE
 
 inline constexpr const Node* kNoteRowCustomIteranceChildren[] = {
-    &note_row_iterance_divisor, &note_row_iterance_step1, &note_row_iterance_step2,
-    &note_row_iterance_step3,   &note_row_iterance_step4, &note_row_iterance_step5,
-    &note_row_iterance_step6,   &note_row_iterance_step7, &note_row_iterance_step8,
+    &note_row_iterance_divisor, &note_row_iterance_step_1, &note_row_iterance_step_2,
+    &note_row_iterance_step_3,  &note_row_iterance_step_4, &note_row_iterance_step_5,
+    &note_row_iterance_step_6,  &note_row_iterance_step_7, &note_row_iterance_step_8,
 };
 inline constexpr Node note_row_custom_iterance_root =
     submenu(sid(deluge::l10n::String::STRING_FOR_CUSTOM), kNoteRowCustomIteranceChildren, Layout::Vertical);

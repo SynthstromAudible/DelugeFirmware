@@ -13243,56 +13243,56 @@
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_iterance_step_1",
                 "id": 508,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_iterance_step_2",
                 "id": 509,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_iterance_step_3",
                 "id": 510,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_iterance_step_4",
                 "id": 511,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_iterance_step_5",
                 "id": 512,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_iterance_step_6",
                 "id": 513,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_iterance_step_7",
                 "id": 514,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_iterance_step_8",
                 "id": 515,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
@@ -13347,56 +13347,56 @@
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_row_iterance_step_1",
                 "id": 522,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_row_iterance_step_2",
                 "id": 523,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_row_iterance_step_3",
                 "id": 524,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_row_iterance_step_4",
                 "id": 525,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_row_iterance_step_5",
                 "id": 526,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_row_iterance_step_6",
                 "id": 527,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_row_iterance_step_7",
                 "id": 528,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
-                "available_when": "?",
+                "available_when": "nodes::relevant_note_row_iterance_step_8",
                 "id": 529,
                 "name": "Iteration 8",
                 "title": "Iteration 8",

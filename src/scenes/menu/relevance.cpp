@@ -513,6 +513,42 @@ bool is_session_view(const MenuContext& ctx) {
 // `static_assert` on the row count below, which forces a deliberate edit; `name_of` answering "?"
 // for an unregistered predicate; and `tables_1_spec`, which asserts every predicate the tables
 // actually use resolves to a real name and that the count is what this file says.
+//
+// **The sixteen `nodes::relevant_*_iterance_step_*` rows below are the one exception to "declared
+// in `relevance.h`".** They are `scenes/menu/nodes/note.h`'s (spec E-note-family task 5), not this
+// header's, but `name_of` is the only mechanism that turns a `RelevantFn` into a printable name --
+// `deluge_menu_dump`'s "available_when" field calls it on every node's `relevant`, note family
+// included -- and an unregistered predicate there prints `"?"`, not silence: fix round 1 caught
+// sixteen `"?"` entries in the committed dump this way
+// (`website/src/data/generated/menu-hierarchies.json`) that no *running* spec had noticed, because
+// every spec that asserts "no `?`" walks a lockstep pairing against the ten `MenuContext::Root`
+// fixtures (`tables_1_spec.cpp`'s `all_pairs()`, `tables_2_spec.cpp`/`tables_3_spec.cpp`'s
+// `tree().pairs`), and the note family has no `Root` of its own to be paired through. Forward
+// declared here rather than pulled in through `nodes/note.h`, to avoid dragging that header's own
+// (unrelated) dependency closure into this one just for sixteen function addresses.
+
+} // namespace deluge::scenes::menu::relevance
+
+namespace deluge::scenes::menu::nodes {
+bool relevant_note_iterance_step_1(const MenuContext&);
+bool relevant_note_iterance_step_2(const MenuContext&);
+bool relevant_note_iterance_step_3(const MenuContext&);
+bool relevant_note_iterance_step_4(const MenuContext&);
+bool relevant_note_iterance_step_5(const MenuContext&);
+bool relevant_note_iterance_step_6(const MenuContext&);
+bool relevant_note_iterance_step_7(const MenuContext&);
+bool relevant_note_iterance_step_8(const MenuContext&);
+bool relevant_note_row_iterance_step_1(const MenuContext&);
+bool relevant_note_row_iterance_step_2(const MenuContext&);
+bool relevant_note_row_iterance_step_3(const MenuContext&);
+bool relevant_note_row_iterance_step_4(const MenuContext&);
+bool relevant_note_row_iterance_step_5(const MenuContext&);
+bool relevant_note_row_iterance_step_6(const MenuContext&);
+bool relevant_note_row_iterance_step_7(const MenuContext&);
+bool relevant_note_row_iterance_step_8(const MenuContext&);
+} // namespace deluge::scenes::menu::nodes
+
+namespace deluge::scenes::menu::relevance {
 
 namespace {
 
@@ -521,7 +557,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 62> kRegistry{
+constexpr std::array<NamedPredicate, 78> kRegistry{
     DELUGE_RELEVANCE_ROW(has_lpf),
     DELUGE_RELEVANCE_ROW(has_hpf),
     DELUGE_RELEVANCE_ROW(is_fm),
@@ -584,13 +620,33 @@ constexpr std::array<NamedPredicate, 62> kRegistry{
     DELUGE_RELEVANCE_ROW(battery_shown),
     DELUGE_RELEVANCE_ROW(audio_source_is_specific),
     DELUGE_RELEVANCE_ROW(is_session_view),
+    // spec E-note-family task 5, fix round 1 -- see this section's own note above.
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_1),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_2),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_3),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_4),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_5),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_6),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_7),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_8),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_1),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_2),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_3),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_4),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_5),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_6),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_7),
+    DELUGE_RELEVANCE_ROW(nodes::relevant_note_row_iterance_step_8),
 };
 
 #undef DELUGE_RELEVANCE_ROW
 
 // One row per predicate declared in `relevance.h`: batch 1's seven sound-wide and ten per-source
-// pairs (27), plus batch 2's thirty, plus batch 3's four, plus Task 9's `is_session_view`.
-static_assert(kRegistry.size() == 62);
+// pairs (27), plus batch 2's thirty, plus batch 3's four, plus Task 9's `is_session_view` (62).
+// Plus the sixteen `nodes::relevant_*_iterance_step_*` rows (fix round 1): declared in
+// `nodes/note.h`, not `relevance.h`, but registered here for the reason this section's own note
+// gives. 62 + 16 = 78.
+static_assert(kRegistry.size() == 78);
 
 } // namespace
 
