@@ -35,6 +35,7 @@
 #include "storage/existence_policy.h"
 #include "storage/flash_storage.h"
 #include "storage/owner.h"
+#include "storage/readback_check.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "sync/sd_access.h"
@@ -919,7 +920,6 @@ void SaveSongUI::abandonDocument(Error error) {
 	// there. That ordering is the whole reason the temp dance survives this conversion.
 	releaseSongWriter();
 	docPhase_ = DocPhase::NONE;
-	docVerifyStage_ = DocVerify::LENGTH;
 	display->removeLoadingAnimation();
 	display->displayError(error);
 }
@@ -968,7 +968,6 @@ void SaveSongUI::runSerializePhase() {
 
 	docTempNumber_ = 0;
 	docStallTicks_ = 0;
-	docVerifyStage_ = DocVerify::LENGTH;
 	if (pendingFileAlreadyExisted_) {
 		docPhase_ = DocPhase::TEMPNAME;
 	}
@@ -1088,101 +1087,38 @@ void SaveSongUI::runWritePhase() {
 	++documentSteps_;
 	docStallTicks_ = 0;
 	docPhase_ = DocPhase::VERIFY;
-	docVerifyStage_ = DocVerify::LENGTH;
+	docReadBack_.begin(songReadBackExpectation());
 }
 
 void SaveSongUI::runVerifyPhase() {
-	using deluge::storage::bytes::ByteIo;
+	using deluge::storage::ReadBackTick;
 
 	if (docOnOwner() || !docMayUseChannel()) {
 		(void)runOneDocStep();
 		return;
 	}
 
-	const char* head = writeJsonFlag ? kSongHeadJson : kSongHeadXml;
-	const auto headLen = static_cast<uint32_t>(strlen(head));
-	// JSON has no closing string: JsonSerializer::closeFileAfterWriting passes NULL for it, so there
-	// is nothing to compare a tail against on that build.
-	const uint32_t tailLen = writeJsonFlag ? 0 : static_cast<uint32_t>(strlen(kSongTailXml));
-
 	++offOwnerDocumentTicks_;
-	DelugeStatus status = DELUGE_OK;
-	char buffer[64];
-
-	if (docVerifyStage_ == DocVerify::LENGTH) {
-		uint32_t size = 0;
-		switch (deluge::storage::bytes::collectStat(docWritePath_.c_str(), &size, &status)) {
-		case ByteIo::Unknown:
-			if (deluge::storage::bytes::requestStat(docWritePath_.c_str()) == ByteIo::Failed) {
-				abandonDocument(Error::WRITE_FAIL);
-			}
-			else if (!deferDocument()) {
-				abandonDocument(Error::WRITE_FAIL);
-			}
-			return;
-		case ByteIo::Pending:
-			if (!deferDocument()) {
-				abandonDocument(Error::WRITE_FAIL);
-			}
-			return;
-		case ByteIo::Failed:
-			abandonDocument(Error::WRITE_FAIL);
-			return;
-		case ByteIo::Ready:
-			++documentChannelServedOps_;
-			++documentSteps_;
-			docStallTicks_ = 0;
-			// A document whose length on the card differs from the length we built is a short write,
-			// and a short song parses as a smaller one -- the quiet corruption this whole class of
-			// bug exists to avoid.
-			if (size != stagedLength_) {
-				abandonDocument(Error::WRITE_FAIL);
-				return;
-			}
-			docVerifyStage_ = DocVerify::HEAD;
-			return;
-		}
-		return;
-	}
-
-	const bool doingHead = docVerifyStage_ == DocVerify::HEAD;
-	const uint32_t offset = doingHead ? 0 : stagedLength_ - tailLen;
-	const uint32_t want = doingHead ? headLen : tailLen;
-	uint32_t got = 0;
-
-	switch (deluge::storage::bytes::collectReadAt(docWritePath_.c_str(), buffer, sizeof(buffer), &got, &status)) {
-	case ByteIo::Unknown:
-		if (deluge::storage::bytes::requestReadAt(docWritePath_.c_str(), offset, want) == ByteIo::Failed) {
-			abandonDocument(Error::WRITE_FAIL);
-		}
-		else if (!deferDocument()) {
-			abandonDocument(Error::WRITE_FAIL);
-		}
-		return;
-	case ByteIo::Pending:
+	switch (docReadBack_.step(docWritePath_.c_str())) {
+	case ReadBackTick::Waiting:
 		if (!deferDocument()) {
 			abandonDocument(Error::WRITE_FAIL);
 		}
 		return;
-	case ByteIo::Failed:
+	case ReadBackTick::Failed:
+		// A document whose length or ends differ from what was built is a short or wrong write, and a
+		// short song parses as a smaller one -- the quiet corruption this check exists to catch.
 		abandonDocument(Error::WRITE_FAIL);
 		return;
-	case ByteIo::Ready:
+	case ReadBackTick::Advanced:
 		++documentChannelServedOps_;
 		++documentSteps_;
 		docStallTicks_ = 0;
-		// Compared against BOTH the constant and the staged buffer: the constant says the document
-		// is shaped like a song, and the buffer says the card holds what we actually built.
-		if (got != want || memcmp(buffer, doingHead ? head : kSongTailXml, want) != 0
-		    || memcmp(buffer, stagedDocument_ + offset, want) != 0) {
-			abandonDocument(Error::WRITE_FAIL);
-			return;
-		}
-		if (doingHead && tailLen > 0) {
-			docVerifyStage_ = DocVerify::TAIL;
-			return;
-		}
-		docVerifyStage_ = DocVerify::LENGTH;
+		return;
+	case ReadBackTick::Passed:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		docStallTicks_ = 0;
 		docPhase_ = pendingFileAlreadyExisted_ ? DocPhase::UNLINK : DocPhase::FINISH;
 		return;
 	}
@@ -1265,7 +1201,6 @@ void SaveSongUI::runDocFinishPhase() {
 	// writes below reach code that writes files through it.
 	releaseSongWriter();
 	docPhase_ = DocPhase::NONE;
-	docVerifyStage_ = DocVerify::LENGTH;
 	// Reaching here is the only evidence a save SUCCEEDED. Every failure path abandons after the
 	// file has already been written, so the file's presence proves nothing on its own.
 	++documentSavesCompleted_;
@@ -1368,45 +1303,13 @@ bool SaveSongUI::docStepSynchronously() {
 			return false;
 		}
 		docPhase_ = DocPhase::VERIFY;
-		docVerifyStage_ = DocVerify::LENGTH;
+		docReadBack_.begin(songReadBackExpectation());
 		return true;
 	}
 	case DocPhase::VERIFY: {
-		// All three comparisons in one blocking pass, which is what the streaming writer did after
-		// closing the file it had just written.
-		const char* head = writeJsonFlag ? kSongHeadJson : kSongHeadXml;
-		const auto headLen = static_cast<uint32_t>(strlen(head));
-		const uint32_t tailLen = writeJsonFlag ? 0 : static_cast<uint32_t>(strlen(kSongTailXml));
-
-		auto opened = deluge::io::File::open(docWritePath_.c_str(), DELUGE_FILE_READ);
-		if (!opened) {
+		if (!deluge::storage::readBackSynchronously(docWritePath_.c_str(), songReadBackExpectation())) {
 			return false;
 		}
-		auto size = opened->size();
-		if (!size || *size != stagedLength_) {
-			(void)opened->close();
-			return false;
-		}
-		char buffer[64];
-		auto readHead = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(buffer), headLen));
-		if (!readHead || readHead->size() != headLen || memcmp(buffer, head, headLen) != 0
-		    || memcmp(buffer, stagedDocument_, headLen) != 0) {
-			(void)opened->close();
-			return false;
-		}
-		if (tailLen > 0) {
-			if (!opened->seek(stagedLength_ - tailLen)) {
-				(void)opened->close();
-				return false;
-			}
-			auto readTail = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(buffer), tailLen));
-			if (!readTail || readTail->size() != tailLen || memcmp(buffer, kSongTailXml, tailLen) != 0
-			    || memcmp(buffer, stagedDocument_ + stagedLength_ - tailLen, tailLen) != 0) {
-				(void)opened->close();
-				return false;
-			}
-		}
-		(void)opened->close();
 		docPhase_ = pendingFileAlreadyExisted_ ? DocPhase::UNLINK : DocPhase::FINISH;
 		return true;
 	}
@@ -1433,6 +1336,14 @@ bool SaveSongUI::docStepSynchronously() {
 		return true;
 	}
 	return false;
+}
+
+deluge::storage::ReadBackExpectation SaveSongUI::songReadBackExpectation() const {
+	// JSON has no closing string to compare: JsonSerializer::closeFileAfterWriting passed NULL for it.
+	return {.staged = stagedDocument_,
+	        .length = stagedLength_,
+	        .head = writeJsonFlag ? kSongHeadJson : kSongHeadXml,
+	        .tail = writeJsonFlag ? nullptr : kSongTailXml};
 }
 
 FileWriter& SaveSongUI::activeSongWriter() {
@@ -1481,7 +1392,6 @@ bool SaveSongUI::finishSaveAfterCollection() {
 	// document machine, whose steps each choose their own arm; what is left is bookkeeping and runs
 	// legally wherever it is called from.
 	docPhase_ = DocPhase::SERIALIZE;
-	docVerifyStage_ = DocVerify::LENGTH;
 	ownerDocDispatched_ = false;
 	ownerDocDone_ = false;
 	docStallTicks_ = 0;

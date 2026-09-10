@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/ui/save/save_ui.h"
+#include "storage/readback_check.h"
 
 class AudioFile;
 #include <string>
@@ -157,10 +158,6 @@ private:
 		FINISH,    ///< Closing the save and reporting to the user.
 	};
 
-	/// Which part of the read-back check runs next. The streaming writer did all three in one
-	/// blocking call after closing the file; asked through the channel they are three round trips.
-	enum class DocVerify : uint8_t { LENGTH, HEAD, TAIL };
-
 	void runTransferPhase();
 	void applyTransfers();
 	/// @brief End the collection having applied NOTHING, and fail the save.
@@ -197,6 +194,8 @@ private:
 	void runTempNamePhase();
 	void runWritePhase();
 	void runVerifyPhase();
+	/// @brief What the written song must match: its own head, and its closing tag when it has one.
+	[[nodiscard]] deluge::storage::ReadBackExpectation songReadBackExpectation() const;
 	void runUnlinkPhase();
 	void runRenamePhase();
 	void runDocFinishPhase();
@@ -242,7 +241,8 @@ private:
 	uint32_t stagedLength_{};
 
 	DocPhase docPhase_{DocPhase::NONE};
-	DocVerify docVerifyStage_{DocVerify::LENGTH};
+	/// The channel read-back of the written document. The stall bound stays in deferDocument().
+	deluge::storage::ReadBackCheck docReadBack_;
 	std::string docWritePath_; ///< Where the bytes actually go: the temp name, or the target.
 	int32_t docTempNumber_{};
 	int32_t docStallTicks_{};
