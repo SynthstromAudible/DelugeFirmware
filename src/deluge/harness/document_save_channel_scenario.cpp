@@ -28,6 +28,8 @@
 #include "gui/views/arranger_view.h"
 #include "io/file.hpp"
 #include "memory/heaps.h"
+#include "model/instrument/instrument.h"
+#include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -84,11 +86,16 @@ enum class Stage : uint8_t {
 	Save,
 	SaveWait,
 	Verify,
+	OccupiedOpen,
+	OccupiedOpenWait,
 	Occupied,
 	OccupiedWait,
 	OccupiedCheck,
 	KitOpen,
 	KitOpenWait,
+	KitGuard,
+	KitGuardWait,
+	KitGuardCheck,
 	KitSave,
 	KitSaveWait,
 	KitCheck,
@@ -105,6 +112,7 @@ uint32_t g_crc = 0;
 size_t g_bytes = 0;
 std::string g_path;
 std::string g_kitPath;
+SoundDrum* g_kitDrum = nullptr;
 
 /// A save spans ticks by construction; this bound exists so a save that never lands ends the run with
 /// a REPORT rather than a silent timeout.
@@ -157,7 +165,10 @@ bool buildKitRowFixture() {
 		return false;
 	}
 	auto* drum = new (memory) SoundDrum();
-	drum->drumName = kKitRowName;
+	// Deliberately NOT the name it is saved under: the save must give the drum its new name, and a
+	// fixture that already carried it would pass that check without the save doing anything.
+	drum->drumName = "KITFIXTR";
+	g_kitDrum = drum;
 	Sound::initParams(&paramManager);
 	drum->setupAsBlankSynth(&paramManager);
 	saveKitRowUI.setup(drum, &paramManager);
@@ -229,7 +240,34 @@ void runTick() {
 			g_failures++;
 		}
 		printf("DS-SAVED path=%s bytes=%zu crc=%08X\n", g_path.c_str(), g_bytes, g_crc);
-		g_stage = Stage::Occupied;
+		{
+			// DS-FINISHED. A save is not over when the document lands: it closes the screen and gives the
+			// instrument its new name. Staging the save once skipped every step of that without any
+			// gate noticing -- this one re-saved on a screen a finished save would have closed.
+			const bool closed = getCurrentUI() != &saveInstrumentPresetUI;
+			Instrument* instrument = getCurrentInstrument();
+			const bool named = instrument != nullptr && instrument->name == kSaveName;
+			printf("DS-FINISHED closed=%d named=%d\n", (int)closed, (int)named);
+			if (!closed || !named) {
+				printf("DS-FINISHED FAIL the preset was written but the save never finished\n");
+				g_failures++;
+			}
+		}
+		g_stage = Stage::OccupiedOpen;
+		break;
+	}
+	case Stage::OccupiedOpen: {
+		// A finished save closes its screen, so saving again means opening it again, as a user would.
+		(void)DocumentSaveChannelProbe::openOn();
+		g_stage = Stage::OccupiedOpenWait;
+		break;
+	}
+	case Stage::OccupiedOpenWait: {
+		// Type on a LATER tick than the open: the listing settles asynchronously and picks a fresh
+		// name when it does, which would overwrite a name typed any earlier.
+		if (!DocumentSaveChannelProbe::listingInProgress()) {
+			g_stage = Stage::Occupied;
+		}
 		break;
 	}
 	case Stage::Occupied: {
@@ -281,8 +319,59 @@ void runTick() {
 		// Type on a LATER tick than the open: the listing settles asynchronously and picks a fresh
 		// name when it does, which would overwrite a name typed any earlier.
 		if (!DocumentSaveChannelProbe::listingInProgress()) {
-			g_stage = Stage::KitSave;
+			g_stage = Stage::KitGuard;
 		}
+		break;
+	}
+	case Stage::KitGuard: {
+		// DS-GUARD. Save the kit row under the name the preset was JUST saved as. Once the preset save
+		// finishes, that instrument holds the slot SYNTHS/DSTEST01 in the song, and a kit row may not
+		// take a slot another instrument already holds -- so this must be refused before anything is
+		// written. It depends on the preset rename actually happening, which is the point: the check
+		// and the bookkeeping it relies on were both lost together.
+		DocumentSaveChannelProbe::typeName(kSaveName);
+		DocumentSaveChannelProbe::pressEnterKitRow();
+		g_waitTicks = 0;
+		g_stage = Stage::KitGuardWait;
+		break;
+	}
+	case Stage::KitGuardWait: {
+		if (!SaveUI::saveInFlight()) {
+			g_stage = Stage::KitGuardCheck;
+			break;
+		}
+		if (++g_waitTicks > kMaxWaitTicks) {
+			printf("DS-GUARD FAIL the refused save never ended (%d ticks)\n", g_waitTicks);
+			g_failures++;
+			g_stage = Stage::Report;
+		}
+		break;
+	}
+	case Stage::KitGuardCheck: {
+		// Refused means: still on the kit-row screen (not closed by a finished save, not replaced by the
+		// overwrite prompt a write attempt would raise), and no save counted.
+		const bool refused = getCurrentUI() == &saveKitRowUI && SaveUI::stagedSavesCompleted() == 1;
+		std::vector<uint8_t> bytes;
+		const bool stillThere = readWholeFile(g_path.c_str(), bytes);
+		const bool unchanged = stillThere && crc32(bytes.data(), bytes.size()) == g_crc;
+		printf("DS-GUARD refused=%d unchanged=%d\n", (int)refused, (int)unchanged);
+		if (!refused) {
+			printf("DS-GUARD FAIL a kit row was allowed to take a slot another instrument in the song holds\n");
+			g_failures++;
+		}
+		if (!unchanged) {
+			printf("DS-GUARD FAIL the preset occupying that slot was modified\n");
+			g_failures++;
+		}
+		if (getCurrentUI() != &saveKitRowUI) {
+			// Whatever took the screen (the overwrite prompt, on a build without the guard), the next
+			// stage needs the kit-row screen back to save under a free name.
+			changeRootUI(&arrangerView);
+			(void)DocumentSaveChannelProbe::openKitRow();
+			g_stage = Stage::KitOpenWait;
+			break;
+		}
+		g_stage = Stage::KitSave;
 		break;
 	}
 	case Stage::KitSave: {
@@ -322,6 +411,16 @@ void runTick() {
 			printf("DS-KITROW FAIL the kit-row save did not complete a verified save (completed=%d verified=%d)\n",
 			       (int)SaveUI::stagedSavesCompleted(), (int)SaveUI::stagedSavesVerified());
 			g_failures++;
+		}
+		{
+			const bool closed = getCurrentUI() != &saveKitRowUI;
+			const bool named = g_kitDrum != nullptr && g_kitDrum->drumName == kKitRowName;
+			const char* path = g_kitDrum != nullptr ? g_kitDrum->path.c_str() : "";
+			printf("DS-KITFINISHED closed=%d named=%d path=%s\n", (int)closed, (int)named, path);
+			if (!closed || !named) {
+				printf("DS-KITFINISHED FAIL the kit row was written but the save never finished\n");
+				g_failures++;
+			}
 		}
 		g_stage = Stage::Report;
 		break;
@@ -369,6 +468,7 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_bytes = 0;
 	g_path.clear();
 	g_kitPath.clear();
+	g_kitDrum = nullptr;
 }
 
 bool deluge_scenario_document_save_channel_complete(void) {

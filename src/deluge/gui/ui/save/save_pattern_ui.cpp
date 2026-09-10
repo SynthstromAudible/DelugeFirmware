@@ -130,22 +130,18 @@ ActionResult SavePatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	}
 }
 
-bool SavePatternUI::performSave(bool mayOverwrite) {
-	noteSaveTier();
-	std::string filePath = getCurrentFilePath();
-	Error error = Error::NONE;
-	if (error != Error::NONE) {
-fail:
-		display->displayError(error);
-		return false;
-	}
-
-	// The document is already written and stored by the time this runs: SaveUI builds it on the
-	// interaction tier and stores it in one operation. Nothing is left here but telling the user.
+void SavePatternUI::afterStagedSave(const deluge::storage::SaveRequest& /*request*/) {
 	display->removeWorkingAnimation();
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PATTERN_SAVED));
 	close();
-	return true;
+}
+
+bool SavePatternUI::performSave(bool mayOverwrite) {
+	// Never reached. SaveUI::dispatchSave() sends a staged save down the staged path and never calls
+	// performSave(); this save's checks are beforeStagedWrite() and its follow-up afterStagedSave().
+	// Leaving them duplicated here is how they came to run nowhere at all after staging.
+	(void)mayOverwrite;
+	return false;
 }
 
 bool SavePatternUI::serializeForSave(XMLSerializer& into) {

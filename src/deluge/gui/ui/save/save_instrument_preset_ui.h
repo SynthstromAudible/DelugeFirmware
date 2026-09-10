@@ -32,6 +32,8 @@ public:
 	bool performSave(bool mayOverwrite) override;
 	bool serializeForSave(XMLSerializer& into) override;
 	[[nodiscard]] bool savesStagedDocument() const override { return true; }
+	[[nodiscard]] bool beforeStagedWrite(const deluge::storage::SaveRequest& request) override;
+	void afterStagedSave(const deluge::storage::SaveRequest& request) override;
 	/// @brief The tail the streaming writer verified this preset against, chosen by output type.
 	/// @return nullptr for output types that never had one -- never an indeterminate pointer, which is
 	///         what the pre-staging code passed for AUDIO, CV and NONE.

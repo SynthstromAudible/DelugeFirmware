@@ -166,6 +166,14 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 	// not go to the owner to begin with. Everything else -- the song save, whose save copies samples
 	// around the card -- keeps the path it has always had.
 	if (savesStagedDocument()) {
+		if (!beforeStagedWrite(request)) {
+			// Refused before anything was built or written, exactly as performSave() returning false
+			// did: release the guard, and let the caller's completion close whatever it had opened.
+			saveInFlight_ = false;
+			runSaveCompletion(request, false);
+			return true;
+		}
+		stagedWroteDocument_ = false;
 		phaseOwner_ = this;
 		savePhase_ = SavePhase::SERIALIZE;
 		writeIssued_ = false;
@@ -466,6 +474,7 @@ void SaveUI::finishStagedVerify(bool passed) {
 	}
 	++stagedSavesVerified_;
 	++stagedSavesCompleted_;
+	stagedWroteDocument_ = true;
 	endStagedSave(true);
 }
 
@@ -501,6 +510,7 @@ void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
 	// A save that never verified. Counted HERE and not in endStagedSave(true), which the overwrite
 	// prompt branch above also calls having written nothing.
 	++stagedSavesCompleted_;
+	stagedWroteDocument_ = true;
 	endStagedSave(true);
 }
 
@@ -515,6 +525,13 @@ void SaveUI::runFinishPhase() {
 	// legitimately start another save (confirming the overwrite prompt is one), and it must not be
 	// refused by this save's own guard.
 	saveInFlight_ = false;
+
+	// Only a save whose document genuinely landed does its follow-up. `succeeded` is not that signal:
+	// opening the overwrite prompt ends a staged save with it set, having written nothing at all.
+	if (stagedWroteDocument_) {
+		stagedWroteDocument_ = false;
+		ui->afterStagedSave(request);
+	}
 
 	ui->runSaveCompletion(request, succeeded);
 }

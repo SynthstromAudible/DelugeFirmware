@@ -109,6 +109,23 @@ public:
 	/// never verified returns nullptr and gains nothing it did not have.
 	[[nodiscard]] virtual const char* verifyTailForSave() const { return nullptr; }
 
+	/// @brief Run this save's checks BEFORE its document is built, and refuse if they fail.
+	///
+	/// Where a staged save's preconditions live -- a preset may not take a slot another instrument in
+	/// the song already holds. Staging moved every one of these saves off performSave(), which was the
+	/// only place such checks ran, and for a while they ran nowhere.
+	/// @param request The dispatched save.
+	/// @return false to refuse; the save then ends as failed and writes nothing.
+	[[nodiscard]] virtual bool beforeStagedWrite(const deluge::storage::SaveRequest& /*request*/) { return true; }
+
+	/// @brief What this save does once its document is genuinely on the card.
+	///
+	/// Closing the screen, confirming, and giving the saved object its new name. Runs only after a
+	/// completed write -- never after a refused one, and never after the overwrite prompt opens, which
+	/// also ends a staged save "successfully" having written nothing.
+	/// @param request The dispatched save.
+	virtual void afterStagedSave(const deluge::storage::SaveRequest& /*request*/) {}
+
 	/// @brief Staged saves that wrote their document and, where they verify, passed the read-back.
 	///
 	/// NOT the number of times a staged save ended "successfully": a save that opens the overwrite
@@ -182,6 +199,8 @@ private:
 	static inline bool ownerVerifyOk_{};
 	static inline deluge::storage::ReadBackCheck stagedReadBack_{};
 	static inline int32_t stagedSavesCompleted_{};
+	/// Whether the in-flight staged save genuinely put its document on the card. Gates afterStagedSave().
+	static inline bool stagedWroteDocument_{};
 	static inline int32_t stagedSavesVerified_{};
 	static inline int32_t verifyChannelServedOps_{};
 	static inline int32_t verifyOwnerServedOps_{};

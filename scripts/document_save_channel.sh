@@ -87,7 +87,7 @@ run_leg() {
 	fi
 	# An abort or a wedge exits before this line is printed, which is what turns a freeze into a gate
 	# failure rather than a silently truncated log.
-	for marker in DS-SAVED DS-OCCUPIED DS-VERIFIED DS-KITROW DS-SUMMARY DS-RESULT; do
+	for marker in DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-VERIFIED DS-SUMMARY DS-RESULT; do
 		if ! grep -q "^$marker " "$OUT/$name.txt"; then
 			echo "FAIL [$name] — no $marker line; that stage did not run"
 			grep -E '^DS-' "$OUT/$name.txt"
@@ -151,6 +151,16 @@ for leg in off on; do
 		echo "FAIL DS-VERIFIED — the $leg leg reported $(grep '^DS-VERIFIED ' "$OUT/$leg.txt" || echo 'no DS-VERIFIED line')"
 		fail=1
 	fi
+done
+
+# DS-FINISHED / DS-KITFINISHED / DS-GUARD. What a save does AFTER the document lands, and what it
+# refuses BEFORE. Staging the saves skipped all of it -- close, confirm, rename, and the check that
+# refuses a slot another instrument in the song already holds -- and every byte on the card was still
+# correct, so nothing that compared bytes could see it.
+for leg in off on; do
+	grep -q '^DS-FINISHED closed=1 named=1$' "$OUT/$leg.txt" || { echo "FAIL DS-FINISHED — the $leg leg: $(grep '^DS-FINISHED ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
+	grep -q '^DS-KITFINISHED closed=1 named=1 path=SYNTHS$' "$OUT/$leg.txt" || { echo "FAIL DS-KITFINISHED — the $leg leg: $(grep '^DS-KITFINISHED ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
+	grep -q '^DS-GUARD refused=1 unchanged=1$' "$OUT/$leg.txt" || { echo "FAIL DS-GUARD — the $leg leg: $(grep '^DS-GUARD ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
 done
 
 # DS-VERIFY-ARM. The read-back takes the same arm the write does: the channel on the on leg, the owner

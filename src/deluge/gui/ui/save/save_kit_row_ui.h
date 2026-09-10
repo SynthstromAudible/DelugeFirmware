@@ -36,6 +36,8 @@ public:
 	bool performSave(bool mayOverwrite) override;
 	bool serializeForSave(XMLSerializer& into) override;
 	[[nodiscard]] bool savesStagedDocument() const override { return true; }
+	[[nodiscard]] bool beforeStagedWrite(const deluge::storage::SaveRequest& request) override;
+	void afterStagedSave(const deluge::storage::SaveRequest& request) override;
 	/// @brief A kit row saves a sound, and the streaming writer verified it ends like one.
 	[[nodiscard]] const char* verifyTailForSave() const override { return "\n</sound>\n"; }
 

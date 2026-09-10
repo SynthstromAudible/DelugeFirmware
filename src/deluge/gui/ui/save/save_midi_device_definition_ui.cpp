@@ -128,52 +128,23 @@ void SaveMidiDeviceDefinitionUI::onBrowserOpened() {
 	focusRegained();
 }
 
-bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
-	noteSaveTier();
-	MIDIInstrument* midiInstrumentToSave = (MIDIInstrument*)getCurrentInstrument();
-
-	std::string filePath = getCurrentFilePath();
-	Error error = Error::NONE;
-	if (error != Error::NONE) {
-fail:
-		display->displayError(error);
-		return false;
-	}
-
-	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
-
-	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
-
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
-
-		if (available) { // Will always be true.
-			openUI(&gui::context_menu::overwriteFile);
-			return true;
-		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto fail;
-		}
-	}
-
-	else if (error != Error::NONE) {
-		goto fail;
-	}
-
-	// The document is already written and stored by the time this runs.
-
+void SaveMidiDeviceDefinitionUI::afterStagedSave(const deluge::storage::SaveRequest& request) {
 	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
-
 	// Link the instrument with the definition file saved
-	midiInstrumentToSave->deviceDefinitionFileName = filePath.c_str();
-
+	if (auto* midiInstrumentToSave = static_cast<MIDIInstrument*>(getCurrentInstrument());
+	    midiInstrumentToSave != nullptr) {
+		midiInstrumentToSave->deviceDefinitionFileName = request.filePath.c_str();
+	}
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_SAVED));
 	close();
-	return true;
+}
+
+bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
+	// Never reached. SaveUI::dispatchSave() sends a staged save down the staged path and never calls
+	// performSave(); this save's checks are beforeStagedWrite() and its follow-up afterStagedSave().
+	// Leaving them duplicated here is how they came to run nowhere at all after staging.
+	(void)mayOverwrite;
+	return false;
 }
 
 ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
