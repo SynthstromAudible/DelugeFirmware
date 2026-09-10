@@ -74,18 +74,18 @@ column, and its `automationView`-shaped arm falls to the tail **conditionally**,
 site 7's own arm uses below. A site with two reachable arms out of three is a reachable site, not an
 unreachable one.
 
-At the other six site/root pairings a plain main-grid press falls to the tail **unconditionally** at
+At the other six sites a plain main-grid press falls to the tail **unconditionally** at
 `sessionView` (site 2), `arrangerView` (site 3), `audioClipView` (site 8,
 `views/audio_clip_view.cpp:415`) and `instrumentClipView` (site 5, plus site 6's matching fan-out
 arm above); at `automationView` (site 7, `views/automation_view.cpp:1617`, plus site 6's matching
 fan-out arm above) it falls to the tail only **conditionally** — when the pad is on the main grid and
 the ported menu is not showing the very param automation view is editing
-(`menuShowsAutomationParam()`). That is seven site/root pairings in total (site 6 counted once, over
-its two reachable arms), matching the seven reachable sites. Site 1 (`views/view.cpp:471`) is
-root-agnostic — its own comment (`:466-470`) says it opens over whatever root is already on screen,
+(`menuShowsAutomationParam()`). That is six sites in total (site 6 counted once, over
+its two reachable arms). Site 1 (`views/view.cpp:471`) is the seventh, matching the seven reachable
+sites, and it gets there differently: it is root-agnostic — its own comment (`:466-470`) says it opens over whatever root is already on screen,
 and one of its own examples is the settings root, which answers `GridPadClaim::None`
 (§3's table) — so it inherits whichever of the above answers that root gives, and is reachable
-whenever that root is one of the seven above.
+whenever that root is one of the six above.
 
 **Kate's ruling, 2026-09-09: *"legacy is correct, we need to close on pad press."*** The target is
 legacy's behaviour, and the divergence is a defect to fix rather than a behaviour to preserve. This
@@ -109,8 +109,8 @@ guest swallows them, and swallows the other three the same way.
 
 ## 3. The seam
 
-**One new `Scene` virtual**, joining the family at `src/shell/scene.h` — `is_grid_overlay()` (`:385`),
-`occludes_grid()` (`:387`), `input_transparent()` (`:423`):
+**One new `Scene` virtual**, joining the family at `src/shell/scene.h` — `is_grid_overlay()` (`:406`),
+`occludes_grid()` (`:408`), `input_transparent()` (`:444`):
 
 ```cpp
 enum class GridPadClaim : uint8_t { All, ShortcutsOnly, None };

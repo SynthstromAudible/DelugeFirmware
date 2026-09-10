@@ -258,7 +258,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
 	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:1697-1729`,
 	// against `gui/ui/sound_editor.cpp:252-294`). Every arm of legacy's switch that leaves
-	// `doGreyout` true also writes a non-zero `*cols` (`:232`, `:237`, `:245`, `:252`), so
+	// `doGreyout` true also writes a non-zero `*cols` (`:270`, `:275`, `:283`, `:290`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
 	// one place that equivalence is turned back into legacy's two-out-parameters-plus-bool shape.
 	//
@@ -474,7 +474,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
 	// (`scenes/menu/menu_scene.h:623-651`), and it announces nothing: "`after_render` returns no
 	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
-	// tick, or requests are dropped or stale**" (`:627-628`). This line is the polling for the
+	// tick, or requests are dropped or stale**" (`:626-628`). This line is the polling for the
 	// **menu's** outbox. `dispatchShellActions` performs whatever it finds.
 	//
 	// (This used to say "and it is the only one in the firmware". F3 task 1 made that false:
@@ -539,7 +539,7 @@ ActionResult ShellHostUI::timerCallback() {
 	// `exitUI`'s path.
 	//
 	// What that left is precisely the state `opened()` refuses to create -- "An empty guest is worse
-	// than no guest: it would swallow every pad while drawing nothing" (`:135-137`). Measured on the
+	// than no guest: it would swallow every pad while drawing nothing" (`:138-140`). Measured on the
 	// F1 task 11 A/B: with the toggle on, Back from the ported menu's root left `shellHostUI`
 	// current with an empty stack, `renderOLED` painting nothing over legacy's cleared frame, and
 	// every later button (Session, Select) swallowed. The toggle-off leg of the same script exited
@@ -583,8 +583,8 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// current does not delay this guest's tick, it **delivers this guest's tick to a stranger**.
 	//
 	// This branch already says so three times, and enforced it nowhere until now. `opened()` says it
-	// for a refused open (`:165-170`), `timerCallback`'s close check says it for the short-Back exit
-	// (`:547-552`), and `closePortedMenu` says it to rule out `closeGuest()` as an implementation
+	// for a refused open (`:167-172`), `timerCallback`'s close check says it for the short-Back exit
+	// (`:549-554`), and `closePortedMenu` says it to rule out `closeGuest()` as an implementation
 	// (`gui/ui/shell_action_dispatch.cpp:155-165`). The path none of the three covers is the one F2
 	// tasks 2 and 4 created between them: **three of the seven `MenuAction` arms end in
 	// `openUI(...)`** -- `grep -n "openUI(" gui/ui/shell_action_dispatch.cpp` gives exactly three
@@ -608,12 +608,12 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// **Returning early cannot strand the guest, and that is by construction rather than by luck.**
 	// When the UI opened above it closes, `closeUI` unsets `UI_SPECIFIC` (`gui/ui/ui.cpp:197`) and
 	// calls `newUI->focusRegained()` (`:199`) -- which for this guest is an **unconditional**
-	// `armTickSoon()` (`:189-194`), written for exactly this shape of disarm. So the guest sleeps
+	// `armTickSoon()` (`:191-196`), written for exactly this shape of disarm. So the guest sleeps
 	// while it is covered and re-arms the instant it is uncovered.
 	//
 	// The guard is here rather than at the one call site because arming a timer that will be
 	// delivered elsewhere violates *this function's* contract, not its caller's -- and because the
-	// early-return branch below arms a second time for the SD poll (`:637`), which a call-site guard
+	// early-return branch below arms a second time for the SD poll (`:644`), which a call-site guard
 	// would leave uncovered on the day someone adds a third. `armTickSoon` is mostly unguarded by
 	// design: of its eleven call sites, ten -- the other input hooks, `opened()`,
 	// `displayOrLanguageChanged()` and `exitUI()` -- are on which the guest is current by
@@ -1038,10 +1038,10 @@ ActionResult ShellHostUI::exitUI() {
 	// **One divergence from legacy remains, recorded rather than fixed.**
 	//
 	//      The guest can never return `REMIND_ME_OUTSIDE_CARD_ROUTINE`, which `exitCompletely` can
-	//      (`gui/ui/sound_editor.cpp:733-747`, the return at `:698`) when the settings menu is
+	//      (`gui/ui/sound_editor.cpp:733-747`, the return at `:736`) when the settings menu is
 	//      exiting while `isSDRoutineActive()`. It is the tail of a larger gap in the same block:
 	//      leaving the *settings* menu is what writes `FlashStorage`, the MIDI devices file, the
-	//      runtime-feature settings and the MIDI-follow defaults (`:703-709`), and **nothing on the
+	//      runtime-feature settings and the MIDI-follow defaults (`:743-746`), and **nothing on the
 	//      guest's exit path does any of that**. The guest cannot know it is in a settings root --
 	//      that is a `MenuScene`/entry-point fact -- so it belongs with F1 task 9, which maps the
 	//      fourteen callers to `SceneId`s and is the first place that knows. Under the toggle,
@@ -1138,7 +1138,7 @@ bool ShellHostUI::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int3
 }
 
 bool ShellHostUI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
-	// **The menu first**, which is `SoundEditor::noteOnReceivedForMidiLearn` (`:1595-1597`): the
+	// **The menu first**, which is `SoundEditor::noteOnReceivedForMidiLearn` (`:1612-1614`): the
 	// focused item's own answer, no mode guard, and a `true` is what makes legacy skip its `else`.
 	if (shellGuestMenuLearnNoteOn(cable, channel, note)) {
 		return true;

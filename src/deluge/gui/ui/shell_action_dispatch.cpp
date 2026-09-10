@@ -101,7 +101,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 	}
 
 	// `editing_mode.h:86-93`, guard and reason included: reset the view when the mode changes, but
-	// not in param-editing mode, "cause that would reset param assignments to FX columns" (`:65`).
+	// not in param-editing mode, "cause that would reset param assignments to FX columns" (`:88`).
 	if (!performanceView.editingParam) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
@@ -159,7 +159,7 @@ void openPerformanceView(PerformanceEditingMode mode) {
 ///     bullet is why it exists. Unguarded it armed `TimerName::UI_SPECIFIC` for a UI that is no
 ///     longer current, and `UITimerManager::routine` dispatches that timer to `getCurrentUI()`
 ///     (`gui/ui_timer_manager.cpp:142-148`), i.e. to the root view underneath -- the hazard
-///     `ShellHostUI::closeGuest`'s own comment names (`:1109-1113`). What survives the guard and
+///     `ShellHostUI::closeGuest`'s own comment names (`:1110-1114`). What survives the guard and
 ///     still rules this alternative out is simpler: it closes the UI while leaving the ported menu
 ///     on the shell stack, so the next open would resume a menu session this one was supposed to
 ///     have ended. That is not `exitCompletely()`.
@@ -347,7 +347,7 @@ void dispatchShellActions() {
 		// `audioClipView` being the open view; `SetClipLengthEqualToSampleLength::selectButtonPress`
 		// relies on the item being reachable only under the audio-clip root, which
 		// `SoundEditor::setup` picks from its `clip` argument's type (`gui/ui/sound_editor.cpp:1773`'s
-		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip` at `:1794-1796`).
+		// `if`, the `else` that assigns `soundEditorRootMenuAudioClip` at `:1811-1813`).
 		//
 		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
 		// `audio_clip_actions`, which hangs off `root_audio_clip` (`scenes/menu/nodes/roots.h:430-433`,
