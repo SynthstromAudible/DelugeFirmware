@@ -131,3 +131,10 @@ extern "C" void consoleTextIfAllBootedUp(char const* text) {
 		display->consoleText(text);
 	}
 }
+
+// TEMP DIAGNOSTIC: show text on the OLED even during the boot USB init window
+extern "C" void usbDebugConsoleText(char const* text) {
+	if (display != nullptr) {
+		display->consoleText(text);
+	}
+}
