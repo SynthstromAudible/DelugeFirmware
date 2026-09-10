@@ -13215,5 +13215,213 @@
     ],
     "title": "Note range",
     "type": "basic"
+  },
+  {
+    "children": [
+      {
+        "id": 503,
+        "name": "Velocity",
+        "title": "Velocity",
+        "type": "basic"
+      },
+      {
+        "id": 504,
+        "name": "Probability",
+        "title": "Probability",
+        "type": "basic"
+      },
+      {
+        "id": 505,
+        "name": "Iterance",
+        "select_chain": [
+          {
+            "children": [
+              {
+                "id": 507,
+                "name": "Divisor",
+                "title": "Divisor",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 508,
+                "name": "Iteration 1",
+                "title": "Iteration 1",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 509,
+                "name": "Iteration 2",
+                "title": "Iteration 2",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 510,
+                "name": "Iteration 3",
+                "title": "Iteration 3",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 511,
+                "name": "Iteration 4",
+                "title": "Iteration 4",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 512,
+                "name": "Iteration 5",
+                "title": "Iteration 5",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 513,
+                "name": "Iteration 6",
+                "title": "Iteration 6",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 514,
+                "name": "Iteration 7",
+                "title": "Iteration 7",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 515,
+                "name": "Iteration 8",
+                "title": "Iteration 8",
+                "type": "basic"
+              }
+            ],
+            "id": 506,
+            "name": "Custom",
+            "title": "Custom",
+            "type": "submenu"
+          }
+        ],
+        "title": "Iterance",
+        "type": "basic"
+      },
+      {
+        "id": 516,
+        "name": "Fill",
+        "title": "Fill",
+        "type": "basic"
+      }
+    ],
+    "id": 502,
+    "name": "Note Editor",
+    "title": "Note Editor",
+    "type": "submenu"
+  },
+  {
+    "children": [
+      {
+        "id": 232,
+        "name": "Play direction",
+        "title": "Play direction",
+        "type": "basic"
+      },
+      {
+        "id": 518,
+        "name": "Probability",
+        "title": "Probability",
+        "type": "basic"
+      },
+      {
+        "id": 519,
+        "name": "Iterance",
+        "select_chain": [
+          {
+            "children": [
+              {
+                "id": 521,
+                "name": "Divisor",
+                "title": "Divisor",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 522,
+                "name": "Iteration 1",
+                "title": "Iteration 1",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 523,
+                "name": "Iteration 2",
+                "title": "Iteration 2",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 524,
+                "name": "Iteration 3",
+                "title": "Iteration 3",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 525,
+                "name": "Iteration 4",
+                "title": "Iteration 4",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 526,
+                "name": "Iteration 5",
+                "title": "Iteration 5",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 527,
+                "name": "Iteration 6",
+                "title": "Iteration 6",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 528,
+                "name": "Iteration 7",
+                "title": "Iteration 7",
+                "type": "basic"
+              },
+              {
+                "available_when": "?",
+                "id": 529,
+                "name": "Iteration 8",
+                "title": "Iteration 8",
+                "type": "basic"
+              }
+            ],
+            "id": 520,
+            "name": "Custom",
+            "title": "Custom",
+            "type": "submenu"
+          }
+        ],
+        "title": "Iterance",
+        "type": "basic"
+      },
+      {
+        "id": 530,
+        "name": "Fill",
+        "title": "Fill",
+        "type": "basic"
+      }
+    ],
+    "id": 517,
+    "name": "Row Editor",
+    "title": "Row Editor",
+    "type": "submenu"
   }
 ]

@@ -2148,7 +2148,13 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		// (`mpe/direction_selector.cpp:31-33`) -> `mpe_zone_num_member_channels`
 		// (`mpe/zone_selector.cpp:32-34`). All three are unconditional, so all three are swept here
 		// under every context and every one lands inside its own one-element span.
-		expect(chaining_nodes).to_equal(size_t(71));
+		//
+		// **73 after spec E-note-family task 5**: `nodes::note_iterance` and
+		// `nodes::note_row_iterance` each chain to their own custom-iterance root on
+		// `kCustomIterancePreset` (`note/iterance_preset.h:59-67`,
+		// `note_row/iterance_preset.h:72-80`) -- the two new nodes `nodes/note.h` appends to
+		// `kAllRootArray`'s reachable set. 71 + 2 = 73.
+		expect(chaining_nodes).to_equal(size_t(73));
 		expect(answers > size_t(0)).to_be_true();
 	});
 

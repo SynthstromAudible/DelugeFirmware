@@ -39,6 +39,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/multi_range.h"
+#include "scenes/menu/nodes/note.h"
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/roots.h"
 #include "scenes/menu/nodes/settings.h"
@@ -141,9 +142,20 @@ inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecision
 /// it would be an unnumbered, unvalidated, undumped page that `SceneId::arg` could never name.
 /// `MenuScene::roots()` is unaffected: it is indexed by `MenuContext::Root` and still has ten
 /// entries.
+///
+/// **Spec E-note-family task 5 appends a thirteenth and fourteenth**, `note_editor_root` and
+/// `note_row_editor_root` (`nodes/note.h`): legacy opens both from a `currentUIMode` this layer may
+/// not read (`context.h`'s own note on `MenuContext::Root`), so -- like `multi_range` -- neither
+/// has a `Root` enumerator and neither is named by any submenu literal. Appended after
+/// `multi_range` rather than inserted anywhere earlier so every pre-existing node keeps the id
+/// `assign_node_ids`'s pre-order walk already gave it. The two custom-iterance roots underneath
+/// them are reached only through `chain_targets` (their own `IterancePreset::selectButtonPress()`
+/// port) and so do not appear here themselves, exactly as `arpOctaveModeToNoteModeMenu` and its
+/// three relatives do not.
 inline constexpr const Node* kAllRootArray[] = {
-    &sound_root,       &root_drum, &root_midi_or_cv,    &root_midi_drum, &root_gate_drum, &root_audio_clip,
-    &root_performance, &root_song, &root_kit_global_fx, &root_settings,  &root_cv,        &multi_range,
+    &sound_root,      &root_drum,        &root_midi_or_cv,  &root_midi_drum,       &root_gate_drum,
+    &root_audio_clip, &root_performance, &root_song,        &root_kit_global_fx,   &root_settings,
+    &root_cv,         &multi_range,      &note_editor_root, &note_row_editor_root,
 };
 inline constexpr std::span<const Node* const> kAllRoots{kAllRootArray};
 
