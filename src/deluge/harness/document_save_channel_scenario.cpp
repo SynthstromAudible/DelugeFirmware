@@ -96,6 +96,7 @@ enum class Stage : uint8_t {
 	KitGuard,
 	KitGuardWait,
 	KitGuardCheck,
+	KitReopenWait,
 	KitSave,
 	KitSaveWait,
 	KitCheck,
@@ -112,6 +113,9 @@ uint32_t g_crc = 0;
 size_t g_bytes = 0;
 std::string g_path;
 std::string g_kitPath;
+/// The instrument's name before the preset save. If it already equals the name being saved, the
+/// rename check could pass without the save renaming anything, so the check has to know.
+std::string g_nameBefore;
 SoundDrum* g_kitDrum = nullptr;
 
 /// A save spans ticks by construction; this bound exists so a save that never lands ends the run with
@@ -195,6 +199,9 @@ void runTick() {
 		g_path = DocumentSaveChannelProbe::targetPath();
 		// Start from a known-absent target so this is genuinely the "free name" case.
 		(void)deluge::io::unlink(g_path.c_str());
+		if (Instrument* instrument = getCurrentInstrument(); instrument != nullptr) {
+			g_nameBefore = instrument->name;
+		}
 		DocumentSaveChannelProbe::pressEnter();
 		g_stage = Stage::SaveWait;
 		break;
@@ -246,7 +253,16 @@ void runTick() {
 			// gate noticing -- this one re-saved on a screen a finished save would have closed.
 			const bool closed = getCurrentUI() != &saveInstrumentPresetUI;
 			Instrument* instrument = getCurrentInstrument();
-			const bool named = instrument != nullptr && instrument->name == kSaveName;
+			// named is only EVIDENCE if the name was not already this before the save. A card image left
+			// behind by an earlier failed run can boot an instrument already carrying it -- which once
+			// reported named=1 on a build where nothing renamed anything.
+			const bool alreadyNamed = g_nameBefore == kSaveName;
+			const bool named = !alreadyNamed && instrument != nullptr && instrument->name == kSaveName;
+			if (alreadyNamed) {
+				printf("DS-FINISHED FAIL the instrument was already named %s before saving; the rename check "
+				       "cannot tell anything and the fixture is contaminated\n",
+				       kSaveName);
+			}
 			printf("DS-FINISHED closed=%d named=%d\n", (int)closed, (int)named);
 			if (!closed || !named) {
 				printf("DS-FINISHED FAIL the preset was written but the save never finished\n");
@@ -364,14 +380,22 @@ void runTick() {
 			g_failures++;
 		}
 		if (getCurrentUI() != &saveKitRowUI) {
-			// Whatever took the screen (the overwrite prompt, on a build without the guard), the next
-			// stage needs the kit-row screen back to save under a free name.
+			// Whatever took the screen (the overwrite prompt, on a build without the guard), put the
+			// kit-row screen back ONCE and go straight on to the free-name save. Routing back through
+			// KitOpenWait re-entered KitGuard, which retried a guard that was not there until the run
+			// hit its wedge deadline -- a failure that should have been reported once, and moved past.
 			changeRootUI(&arrangerView);
 			(void)DocumentSaveChannelProbe::openKitRow();
-			g_stage = Stage::KitOpenWait;
+			g_stage = Stage::KitReopenWait;
 			break;
 		}
 		g_stage = Stage::KitSave;
+		break;
+	}
+	case Stage::KitReopenWait: {
+		if (!DocumentSaveChannelProbe::listingInProgress()) {
+			g_stage = Stage::KitSave;
+		}
 		break;
 	}
 	case Stage::KitSave: {
@@ -469,6 +493,7 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_path.clear();
 	g_kitPath.clear();
 	g_kitDrum = nullptr;
+	g_nameBefore.clear();
 }
 
 bool deluge_scenario_document_save_channel_complete(void) {
