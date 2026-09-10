@@ -22,11 +22,16 @@
 #include "gui/context_menu/overwrite_file.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
+#include "gui/ui/save/save_kit_row_ui.h"
 #include "gui/ui/save/save_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "io/file.hpp"
+#include "memory/heaps.h"
+#include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include <cstdio>
@@ -60,11 +65,18 @@ public:
 	static void pressEnter() { saveInstrumentPresetUI.enterKeyPress(); }
 	static std::string targetPath() { return Browser::currentDir + "/" + Browser::enteredText + ".XML"; }
 	static bool overwritePromptOpen() { return getCurrentUI() == &deluge::gui::context_menu::overwriteFile; }
+	/// @return Whether the save screen OPENED -- not whether its listing has finished. The listing is
+	///         asynchronous and settles on a later tick, which is KitOpenWait's job; treating an
+	///         in-flight listing as a failure here is what made the first run report that a screen
+	///         which had opened perfectly well "did not open".
+	static bool openKitRow() { return openUI(&saveKitRowUI); }
+	static void pressEnterKitRow() { saveKitRowUI.enterKeyPress(); }
 };
 
 namespace {
 
 constexpr const char* kSaveName = "DSTEST01";
+constexpr const char* kKitRowName = "DSKITROW";
 
 enum class Stage : uint8_t {
 	Fixture,
@@ -75,6 +87,11 @@ enum class Stage : uint8_t {
 	Occupied,
 	OccupiedWait,
 	OccupiedCheck,
+	KitOpen,
+	KitOpenWait,
+	KitSave,
+	KitSaveWait,
+	KitCheck,
 	Report,
 	Done,
 };
@@ -87,6 +104,7 @@ int32_t g_waitTicks = 0;
 uint32_t g_crc = 0;
 size_t g_bytes = 0;
 std::string g_path;
+std::string g_kitPath;
 
 /// A save spans ticks by construction; this bound exists so a save that never lands ends the run with
 /// a REPORT rather than a silent timeout.
@@ -117,6 +135,33 @@ bool readWholeFile(const char* path, std::vector<uint8_t>& out) {
 	auto read = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(out.data()), *size));
 	(void)opened->close();
 	return read.has_value() && read->size() == *size;
+}
+
+/// Build a sound drum to save, the way shipping code builds kit drums (slicer.cpp,
+/// sample_browser.cpp) -- never from hand-written XML, which the preview gate found corrupts the heap
+/// once the loader meets a preset with no parameter collections.
+///
+/// No kit: SaveKitRowUI reads only the drum and its ParamManager. setupAsBlankSynth rather than the
+/// slicer's setupAsSample, because this is a synth drum, not a slice. The drum is deliberately leaked,
+/// as writeBlankSynthPresetFile's Instrument is -- nothing else ever scans it.
+bool buildKitRowFixture() {
+	// Outlives the save: the document is serialised on a later tick than this runs.
+	static ParamManagerForTimeline paramManager;
+	if (paramManager.setupWithPatching() != Error::NONE) {
+		printf("DS-KITROW FAIL could not set up the drum's ParamManager\n");
+		return false;
+	}
+	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
+	if (memory == nullptr) {
+		printf("DS-KITROW FAIL no memory for the drum\n");
+		return false;
+	}
+	auto* drum = new (memory) SoundDrum();
+	drum->drumName = kKitRowName;
+	Sound::initParams(&paramManager);
+	drum->setupAsBlankSynth(&paramManager);
+	saveKitRowUI.setup(drum, &paramManager);
+	return true;
 }
 
 void runTick() {
@@ -174,6 +219,15 @@ void runTick() {
 			printf("DS-SAVED FAIL the written document is short or has no prolog (%zu bytes)\n", bytes.size());
 			g_failures++;
 		}
+		// The file being here says nothing about whether the save SUCCEEDED: a save rejected by its
+		// read-back has already written it. Only the counters taken where a save genuinely completes
+		// can say that.
+		if (SaveUI::stagedSavesCompleted() != 1 || SaveUI::stagedSavesVerified() != 1) {
+			printf("DS-VERIFIED FAIL the preset save left a file but did not complete a verified save "
+			       "(completed=%d verified=%d)\n",
+			       (int)SaveUI::stagedSavesCompleted(), (int)SaveUI::stagedSavesVerified());
+			g_failures++;
+		}
 		printf("DS-SAVED path=%s bytes=%zu crc=%08X\n", g_path.c_str(), g_bytes, g_crc);
 		g_stage = Stage::Occupied;
 		break;
@@ -207,17 +261,85 @@ void runTick() {
 			printf("DS-OCCUPIED FAIL the existing document was modified without the user agreeing\n");
 			g_failures++;
 		}
+		g_stage = Stage::KitOpen;
+		break;
+	}
+	case Stage::KitOpen: {
+		// The occupied stage leaves the overwrite prompt up, unanswered. Start from a clean UI stack
+		// rather than stacking a second save screen on top of it.
+		changeRootUI(&arrangerView);
+		if (!buildKitRowFixture() || !DocumentSaveChannelProbe::openKitRow()) {
+			printf("DS-KITROW FAIL the kit-row save screen did not open\n");
+			g_failures++;
+			g_stage = Stage::Report;
+			break;
+		}
+		g_stage = Stage::KitOpenWait;
+		break;
+	}
+	case Stage::KitOpenWait: {
+		// Type on a LATER tick than the open: the listing settles asynchronously and picks a fresh
+		// name when it does, which would overwrite a name typed any earlier.
+		if (!DocumentSaveChannelProbe::listingInProgress()) {
+			g_stage = Stage::KitSave;
+		}
+		break;
+	}
+	case Stage::KitSave: {
+		DocumentSaveChannelProbe::typeName(kKitRowName);
+		g_kitPath = DocumentSaveChannelProbe::targetPath();
+		(void)deluge::io::unlink(g_kitPath.c_str());
+		DocumentSaveChannelProbe::pressEnterKitRow();
+		g_waitTicks = 0;
+		g_stage = Stage::KitSaveWait;
+		break;
+	}
+	case Stage::KitSaveWait: {
+		if (!SaveUI::saveInFlight()) {
+			g_stage = Stage::KitCheck;
+			break;
+		}
+		if (++g_waitTicks > kMaxWaitTicks) {
+			printf("DS-KITROW FAIL the kit-row save never finished (%d ticks)\n", g_waitTicks);
+			g_failures++;
+			g_stage = Stage::Report;
+		}
+		break;
+	}
+	case Stage::KitCheck: {
+		std::vector<uint8_t> bytes;
+		if (!readWholeFile(g_kitPath.c_str(), bytes)) {
+			printf("DS-KITROW FAIL nothing was written to %s\n", g_kitPath.c_str());
+			g_failures++;
+			g_stage = Stage::Report;
+			break;
+		}
+		printf("DS-KITROW path=%s bytes=%zu crc=%08X\n", g_kitPath.c_str(), bytes.size(),
+		       crc32(bytes.data(), bytes.size()));
+		// Two completed, two verified: the preset and this. The occupied save between them opened a
+		// prompt and wrote nothing, so a third would itself be the counting defect.
+		if (SaveUI::stagedSavesCompleted() != 2 || SaveUI::stagedSavesVerified() != 2) {
+			printf("DS-KITROW FAIL the kit-row save did not complete a verified save (completed=%d verified=%d)\n",
+			       (int)SaveUI::stagedSavesCompleted(), (int)SaveUI::stagedSavesVerified());
+			g_failures++;
+		}
 		g_stage = Stage::Report;
 		break;
 	}
 	case Stage::Report: {
-		printf("DS-SUMMARY served=%d offOwnerTicks=%d\n", (int)SaveUI::writeChannelServedOps(),
-		       (int)SaveUI::offOwnerSaveTicks());
+		printf("DS-VERIFIED completedSaves=%d verified=%d\n", (int)SaveUI::stagedSavesCompleted(),
+		       (int)SaveUI::stagedSavesVerified());
+		printf("DS-SUMMARY served=%d offOwnerTicks=%d verifyServed=%d verifyOwner=%d\n",
+		       (int)SaveUI::writeChannelServedOps(), (int)SaveUI::offOwnerSaveTicks(),
+		       (int)SaveUI::verifyChannelServedOps(), (int)SaveUI::verifyOwnerServedOps());
 		printf("DS-RESULT failures=%d\n", g_failures);
 		// Leave the card as we found it: these images are fingerprint-keyed and SHARED between gates,
 		// and a file left behind here changes what another gate's browser listing sees.
 		if (!g_path.empty()) {
 			(void)deluge::io::unlink(g_path.c_str());
+		}
+		if (!g_kitPath.empty()) {
+			(void)deluge::io::unlink(g_kitPath.c_str());
 		}
 		fflush(stdout);
 		g_summaryPrinted = true;
@@ -246,6 +368,7 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_crc = 0;
 	g_bytes = 0;
 	g_path.clear();
+	g_kitPath.clear();
 }
 
 bool deluge_scenario_document_save_channel_complete(void) {

@@ -24,6 +24,10 @@
 #   DS-CHANNEL    the on leg's staging read was SERVED by the channel -- the async arm ran.
 #   DS-GATED      the off leg served ZERO, so the feature gate actually gates.
 #   DS-OFFOWNER   the on leg's staging ran OFF the storage owner. The rung's actual claim.
+#   DS-VERIFIED   both checked saves COMPLETED a read-back -- counted where a save genuinely succeeds,
+#                 because a rejected write has already left its file on the card.
+#   DS-VERIFY-ARM the read-back ran through the channel on one leg and the owner on the other.
+#   DS-KITROW     a kit row was saved and verified. No gate had ever saved one before.
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
 set -euo pipefail
@@ -83,7 +87,7 @@ run_leg() {
 	fi
 	# An abort or a wedge exits before this line is printed, which is what turns a freeze into a gate
 	# failure rather than a silently truncated log.
-	for marker in DS-SAVED DS-OCCUPIED DS-SUMMARY DS-RESULT; do
+	for marker in DS-SAVED DS-OCCUPIED DS-VERIFIED DS-KITROW DS-SUMMARY DS-RESULT; do
 		if ! grep -q "^$marker " "$OUT/$name.txt"; then
 			echo "FAIL [$name] — no $marker line; that stage did not run"
 			grep -E '^DS-' "$OUT/$name.txt"
@@ -103,6 +107,8 @@ run_leg on "$CHAN_BIN"
 
 served_of() { sed -n 's/^DS-SUMMARY served=\([0-9]*\) .*/\1/p' "$1"; }
 offowner_of() { sed -n 's/^DS-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$1"; }
+vserved_of() { sed -n 's/^DS-SUMMARY .*verifyServed=\([0-9]*\).*/\1/p' "$1"; }
+vowner_of() { sed -n 's/^DS-SUMMARY .*verifyOwner=\([0-9]*\).*/\1/p' "$1"; }
 
 off_served="$(served_of "$OUT/off.txt")"
 on_served="$(served_of "$OUT/on.txt")"
@@ -134,6 +140,37 @@ if [ -z "$off_saved" ] || [ "$off_saved" != "$on_saved" ]; then
 	echo "FAIL DS-IDENTICAL — the two arms wrote different documents:"
 	echo "  [off] $off_saved"
 	echo "  [on]  $on_saved"
+	fail=1
+fi
+
+# DS-VERIFIED. Both saves that were checked before staging are checked again, and both completed. The
+# counters are taken where a save genuinely succeeds, so a save that wrote its file and was then
+# rejected by the read-back cannot be counted -- which a check on the file's presence alone would miss.
+for leg in off on; do
+	if ! grep -q '^DS-VERIFIED completedSaves=2 verified=2$' "$OUT/$leg.txt"; then
+		echo "FAIL DS-VERIFIED — the $leg leg reported $(grep '^DS-VERIFIED ' "$OUT/$leg.txt" || echo 'no DS-VERIFIED line')"
+		fail=1
+	fi
+done
+
+# DS-VERIFY-ARM. The read-back takes the same arm the write does: the channel on the on leg, the owner
+# on the off leg, and never both on one leg.
+if [ "$(vserved_of "$OUT/on.txt")" = "0" ] || [ "$(vowner_of "$OUT/on.txt")" != "0" ]; then
+	echo "FAIL DS-VERIFY-ARM — the channel leg's read-back did not run through the channel (verifyServed=$(vserved_of "$OUT/on.txt") verifyOwner=$(vowner_of "$OUT/on.txt"))"
+	fail=1
+fi
+if [ "$(vserved_of "$OUT/off.txt")" != "0" ] || [ "$(vowner_of "$OUT/off.txt")" = "0" ]; then
+	echo "FAIL DS-VERIFY-ARM — the owner leg's read-back did not run on the owner (verifyServed=$(vserved_of "$OUT/off.txt") verifyOwner=$(vowner_of "$OUT/off.txt"))"
+	fail=1
+fi
+
+# DS-KITROW-IDENTICAL. The first gate ever to save a kit row; both arms must write the same one.
+off_kit="$(grep '^DS-KITROW ' "$OUT/off.txt" || true)"
+on_kit="$(grep '^DS-KITROW ' "$OUT/on.txt" || true)"
+if [ -z "$off_kit" ] || [ "$off_kit" != "$on_kit" ]; then
+	echo "FAIL DS-KITROW-IDENTICAL — the two arms wrote different kit rows:"
+	echo "  [off] $off_kit"
+	echo "  [on]  $on_kit"
 	fail=1
 fi
 
