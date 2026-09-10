@@ -32,7 +32,14 @@
 #   SS-PARSES     it loads back as a SONG. Bytes of the right length are not the claim, and a
 #                 document broken identically on both legs would pass every comparison between them.
 #   SS-INTACT     after saving over an existing song, a song is still there and still loads. The
-#                 property that justifies writing to a temp name and renaming.
+#                 property that justifies writing to a temp name at all -- but note precisely WHERE
+#                 it holds. Nothing destructive runs until the replacement is written AND verified,
+#                 so a save that fails up to that point leaves the original untouched, and failing
+#                 the read-back is what demonstrates it. It does NOT hold across the unlink-then-
+#                 rename pair at the end: a rename that fails after the unlink succeeded leaves the
+#                 song gone and the new content stranded at the temp name. That window is inherited
+#                 from the streaming save, which made the same two calls in the same order, and this
+#                 conversion preserves it rather than widening or closing it.
 #   SS-IDENTICAL  both legs wrote the same document.
 #   SS-CHANNEL    the on leg's steps were SERVED by a channel -- the async arm ran.
 #   SS-GATED      the off leg served ZERO, so the feature gate actually gates.
@@ -45,8 +52,10 @@
 # cannot show that, because it counts only assertions that DID run.
 #
 # What this gate does NOT prove on its own: that the temp-file ordering is load-bearing. Only the
-# neutering does that -- fail the rename and SS-INTACT must stay green while the save fails; unlink
-# before verifying and it must go red.
+# neutering does that -- fail the read-back and the save must fail while SS-INTACT stays green,
+# which is what says the original survives a failure. Failing the RENAME instead turns SS-INTACT
+# red, and that is not a defect in this gate: it is the inherited unlink-then-rename window,
+# reported rather than papered over.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
