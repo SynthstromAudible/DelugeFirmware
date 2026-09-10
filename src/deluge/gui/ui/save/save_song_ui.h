@@ -103,6 +103,12 @@ public:
 	/// @brief Card steps the staged document write took, whichever arm carried them.
 	[[nodiscard]] static int32_t documentSteps() { return documentSteps_; }
 
+	/// @brief Staged saves that ran all the way to completion.
+	///
+	/// A save that fails its read-back has ALREADY written its file, so the file being present says
+	/// nothing about whether the save succeeded. Only reaching the end says that.
+	[[nodiscard]] static int32_t documentSavesCompleted() { return documentSavesCompleted_; }
+
 	/// @brief Ticks on which a document step ran off the storage owner. The rung's claim.
 	[[nodiscard]] static int32_t offOwnerDocumentTicks() { return offOwnerDocumentTicks_; }
 
@@ -256,6 +262,7 @@ private:
 	static inline int32_t documentChannelServedOps_{};
 	static inline int32_t documentOwnerServedOps_{};
 	static inline int32_t documentSteps_{};
+	static inline int32_t documentSavesCompleted_{};
 	static inline int32_t offOwnerDocumentTicks_{};
 	static inline int32_t stagedDocumentGrowths_{};
 

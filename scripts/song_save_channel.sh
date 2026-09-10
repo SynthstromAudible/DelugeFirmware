@@ -25,9 +25,10 @@
 #                 fixture that fits the initial 32 KiB buffer exercises the growth path not at all,
 #                 and every check about it would then be a check that cannot fail.
 #   SS-SAVED      the document is on the card, with its length and checksum. Both legs.
-#   SS-VERIFIED   the read-back check ran: length, head and tail. This is the check the streaming
-#                 writer did by reopening the file it had just closed, and which building in memory
-#                 skips silently.
+#   SS-VERIFIED   the save COMPLETED, which it can only do after its read-back check -- length, head
+#                 and tail -- has passed. A save that fails that check abandons AFTER writing its
+#                 file, so SS-SAVED alone cannot tell success from a rejected write left on the card.
+#                 Truncating the document by one byte is what proved that distinction was needed.
 #   SS-PARSES     it loads back as a SONG. Bytes of the right length are not the claim, and a
 #                 document broken identically on both legs would pass every comparison between them.
 #   SS-INTACT     after saving over an existing song, a song is still there and still loads. The

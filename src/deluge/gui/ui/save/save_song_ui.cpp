@@ -1266,6 +1266,9 @@ void SaveSongUI::runDocFinishPhase() {
 	releaseSongWriter();
 	docPhase_ = DocPhase::NONE;
 	docVerifyStage_ = DocVerify::LENGTH;
+	// Reaching here is the only evidence a save SUCCEEDED. Every failure path abandons after the
+	// file has already been written, so the file's presence proves nothing on its own.
+	++documentSavesCompleted_;
 
 	display->removeWorkingAnimation();
 

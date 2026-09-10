@@ -34,6 +34,7 @@
 #include "model/song/song.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
+#include "util/string.h"
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -217,6 +218,16 @@ void runTick() {
 	switch (g_stage) {
 	case Stage::Inflate: {
 		(void)deluge::io::unlink(kSavePath);
+		// The card image is keyed by the fixture's fingerprint and SHARED between runs, so anything a
+		// previous run left behind is still here. A save that abandons leaves its temp file, which
+		// makes the next run's temp-name search take more attempts and its step count drift -- so the
+		// run starts by clearing them rather than by hoping.
+		for (int32_t t = 0; t < 16; t++) {
+			std::string temp = "SONGS/TEMP";
+			temp.append(deluge::string::fromInt(t, 4));
+			temp.append(writeJsonFlag ? ".Json" : ".XML");
+			(void)deluge::io::unlink(temp);
+		}
 		inflateSong();
 		g_stage = (g_failures == 0) ? Stage::Fixture : Stage::Report;
 		break;
@@ -276,7 +287,18 @@ void runTick() {
 		g_crcFirst = crc32(bytes.data(), bytes.size());
 		g_bytesFirst = bytes.size();
 		printf("SS-SAVED bytes=%zu crc=%08X\n", g_bytesFirst, g_crcFirst);
-		printf("SS-VERIFIED length=ok head=ok tail=ok\n");
+
+		// SS-VERIFIED. The read-back check runs INSIDE the save, and a save that fails it abandons --
+		// after having already written the file. So the file being here says nothing; only the save
+		// reaching its end does. Reporting the real count rather than a fixed string is the
+		// difference between a check and a decoration.
+		const int32_t completed = SaveSongUI::documentSavesCompleted();
+		printf("SS-VERIFIED completedSaves=%d\n", completed);
+		if (completed != 1) {
+			printf("SS-VERIFIED FAIL the save wrote a file but never completed; its read-back check"
+			       " rejected what it had written\n");
+			g_failures++;
+		}
 
 		if (!beginSavedSongLoad(kSavePath)) {
 			printf("SS-PARSES FAIL the saved document could not even be opened for loading\n");
