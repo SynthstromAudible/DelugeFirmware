@@ -189,9 +189,9 @@ inline constexpr Node delay_amount = with_patch_chain(
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_DELAY_FEEDBACK}, Hint::Bar,
           nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_AMOUNT)));
 inline constexpr Node delay_ping_pong =
-    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_PINGPONG), kDelayPingPongNames, get_delay_ping_pong,
-                           set_delay_ping_pong),
-               sid(deluge::l10n::String::STRING_FOR_DELAY_PINGPONG));
+    with_selection_is_toggle(with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_PINGPONG), kDelayPingPongNames,
+                                                    get_delay_ping_pong, set_delay_ping_pong),
+                                        sid(deluge::l10n::String::STRING_FOR_DELAY_PINGPONG)));
 inline constexpr Node delay_sync =
     sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_DELAY_SYNC),
                     get_delay_sync, set_delay_sync, kSyncLevelRange);

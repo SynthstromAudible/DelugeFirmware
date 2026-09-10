@@ -19,6 +19,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/detail.h" // with_slots
+#include "scenes/menu/nodes/nodes.h"  // the real `nodes::randomizer`/`randomizer_lock`
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
@@ -64,6 +65,7 @@ using deluge::ui::shell::UiEvent;
 namespace {
 
 namespace menu = deluge::scenes::menu;
+namespace nodes = deluge::scenes::menu::nodes;
 
 void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
@@ -310,14 +312,23 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)r.open(horiz_page);
 		r.shell.tick(0);
 		(void)last_notice(); // drain
-		r.press(kMidiX, kMidiY, 200); // focus SUBMENU_COL (column 2)
-		r.shell.tick(220);
+		r.press(kMidiX, kMidiY, 200); // focus SUBMENU_COL (column 2); `press()`'s own internal
+		                              // tick (`at_ms + 5`) is where a notice would be raised
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(2);
 		// `Submenu::showNotification()` is false (`submenu.h:67`), and `displayNotification` returns
 		// early for it (`horizontal_menu.cpp:336-338`) -- a button focus onto a submenu column raises
 		// no banner, unlike every value column's own new-focus notification (see the KIT/toggle test
 		// below).
+		//
+		// **Must be read right here, before any further tick.** `Shell::tick` drains
+		// `notify::notices()` at the *start* of the next tick (`shell.cpp:327`), so an extra
+		// `r.shell.tick(220)` here (as an earlier version of this test had) would silently eat any
+		// notice raised at `press()`'s own internal tick before `last_notice()` ever read it --
+		// making this assertion pass whether or not a banner was actually raised. Verified by
+		// mutation: temporarily deleting `notify_column`'s `Kind::Submenu` guard made this fail
+		// (see task-2-report.md's fix-round-2 section for the failing output).
 		expect(last_notice().empty()).to_be_true();
+		r.shell.tick(220);
 
 		r.turn(1, 400);
 		r.shell.tick(410);
@@ -355,10 +366,17 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// `Toggle::selectButtonPress` (`gui/menu_item/toggle.h:38-42`): toggles and returns
 		// `NO_NAVIGATION` when the page, not the toggle, is the current item, so
 		// `SoundEditor::buttonAction`'s SELECT arm does nothing further (`sound_editor.cpp:394-419`)
-		// -- no chain, no ascend. Every other `NO_NAVIGATION`-returning `selectButtonPress` override
-		// in `gui/menu_item/` either has no ported column kind (`Selection`'s conditional
-		// `isToggle()`, `ActiveScalesItem`, `PerformEditorItem`, `ActionItem`, `ContextMenuItem`,
-		// `SourceSelectionItem`) or is vertical-only, so `Toggle` is the one live example.
+		// -- no chain, no ascend. `Selection::selectButtonPress` (`gui/menu_item/selection.h:54-63`) has the
+		// identical shape when `isToggle()` is true -- ported as `Node::selection_is_toggle`, whose
+		// own doc names the three live examples on shipped horizontal pages
+		// (`delay::PingPong`/`delay_ping_pong`, `randomizer::RandomizerLock`/`randomizer_lock`,
+		// `sample::PitchSpeed`/`sample<i>_pitch_speed`); a dedicated example on `randomizer_lock`
+		// covers that column kind below (`TOGGLE_COL` here is `Kind::Toggle` itself, not one of the
+		// three). Every OTHER `NO_NAVIGATION`-returning `selectButtonPress` override in
+		// `gui/menu_item/` either has no ported column kind (`ActiveScalesItem`, `PerformEditorItem`,
+		// `ActionItem`, `ContextMenuItem`, `SourceSelectionItem`) or sits only on a vertical page in
+		// the shipped tree (`Selection::isToggle()`'s other three overriders --
+		// `arpeggiator::PresetMode`, `arpeggiator::IncludeInKitArp`, `runtime_feature::Setting`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -378,6 +396,122 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(810);
 		expect(g_toggle_col).to_be_false(); // flips right back
 		expect(depth_of()).to_equal(0);
+	});
+
+	it("a select press on the real randomizer_lock column flips and stays -- Selection::isToggle, "
+	   "not Kind::Toggle",
+	   _ {
+		// `randomizer_lock` (`nodes/sound_randomizer.h`) is `Kind::Enum` with `Node::
+		// selection_is_toggle` set, the port of `randomizer::RandomizerLock::isToggle() { return
+		// true; }` (`gui/menu_item/randomizer/randomizer_lock.h:62`) -- one of the three live
+		// examples `Node::selection_is_toggle`'s doc names, and the first column
+		// (`kRandomizerChildren[0]`, SYNTH) of the real, shipped `randomizer` horizontal page.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		// Not `r.open()`: that assigns ids over this file's own local `kRoots`, not the real tree
+		// `nodes::randomizer` lives in.
+		const MenuContext ctx =
+		    menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::randomizer, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::randomizer)});
+		r.shell.tick(0);
+		ctx.arp->randomizerLock = false;
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0); // default focus
+
+		r.enter(100);
+		r.shell.tick(110);
+		expect(ctx.arp->randomizerLock).to_be_true();
+		expect(depth_of()).to_equal(0); // stayed -- no ascend, no chain
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
+
+		r.enter(400);
+		r.shell.tick(410);
+		expect(ctx.arp->randomizerLock).to_be_false(); // flips right back
+	});
+
+	it("SYNTH focuses randomizer_lock; pressing SYNTH again flips it and notifies -- the "
+	   "already-focused-press half",
+	   _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx =
+		    menu::context_for(*r.song.song, r.song.clip, 0, false, false, false, /*kit_global_fx=*/false);
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		menu_scene().open(nodes::randomizer, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::randomizer)});
+		r.shell.tick(0);
+		ctx.arp->randomizerLock = false;
+
+		r.press(kKitX, kKitY, 200); // move focus off column 0 first (spread_gate, column 1)
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+
+		(void)last_notice(); // drain
+		r.press(kSynthX, kSynthY, 500); // new focus onto randomizer_lock: notifies, does not flip
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
+		expect(ctx.arp->randomizerLock).to_be_false();
+		expect(last_notice().empty()).to_be_false();
+
+		(void)last_notice(); // drain
+		r.press(kSynthX, kSynthY, 800); // already focused: flips and notifies
+		expect(ctx.arp->randomizerLock).to_be_true();
+		expect(last_notice().empty()).to_be_false();
+	});
+
+	it("Back at depth 0 on a horizontal page cancels its notification too", _ {
+		// `SoundEditor::goUpOneLevel` runs `endScreen()` (-> `HorizontalMenu::endSession`'s cancel)
+		// **before** its depth-0 arm's `exitCompletely()` (`sound_editor.cpp:711-716`) -- the one
+		// path `descend_to`/`ascend`'s own cancels do not cover, since neither runs for a Back that
+		// closes the whole menu. Ships for real: `reroot_to_scene_opener_page()` lands a claimed
+		// file selector's browser back at depth 0.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+
+		r.turn(1, 100); // a select turn on ENUM_COL (column 0) notifies unconditionally
+		r.shell.tick(110); // pump_input raises the notice (queued, not yet drained --
+		                   // `Shell::tick` step 2 drains what a PRIOR tick queued, `shell.cpp:327`)
+		r.shell.tick(120); // this tick's step 2 drains it, pushing `SceneKind::Console`
+		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_true();
+
+		r.button(kBackX, kBackY, true, 200);
+		r.button(kBackX, kBackY, false, 220);
+		r.shell.tick(230); // pump_input runs the depth-0 Back arm, queuing `CancelConsole`
+		r.shell.tick(240); // this tick's step 2 drains it, removing `SceneKind::Console`
+		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_false();
+	});
+
+	it("an unrelated Console notice survives a menu cancel", _ {
+		// `ConsoleScene::cancel`'s own doc (fix round 2): Undo/Redo (`action_logger.cpp:827`,
+		// `:840`) and the startup banner are `Kind::Console` too, raised with the default
+		// `popup_type` (0, GENERAL) rather than `ui::shell::kPopupTypeNotification` (10) --
+		// `notify_column` is the one raiser that uses the latter. Cancelling the menu's own
+		// notification must not take an unrelated line down with it, and the scene itself must
+		// stay up for as long as the unrelated line has left.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(horiz_page);
+		r.shell.tick(0);
+
+		(void)deluge::notify::notice_text("UNRELATED", deluge::notify::Notice::Kind::Console);
+		r.shell.tick(50); // queues it
+		r.shell.tick(60); // drains it -- pushes `SceneKind::Console`
+		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_true();
+
+		r.turn(1, 100); // the menu's own notification, `kPopupTypeNotification`
+		r.shell.tick(110);
+		r.shell.tick(120);
+
+		r.button(kBackX, kBackY, true, 200);
+		r.button(kBackX, kBackY, false, 220);
+		r.shell.tick(230); // queues `CancelConsole` for `kPopupTypeNotification` only
+		r.shell.tick(240); // drains it -- the menu's own line goes inactive, "UNRELATED" does not
+		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_true();
 	});
 
 	it("two navigation presses inside 140 ms: the second is ignored", _ {

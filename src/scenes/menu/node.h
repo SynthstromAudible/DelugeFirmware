@@ -630,6 +630,33 @@ struct Node {
 	/// (opens the browser outright); the other four inherit the base `MenuItem::selectButtonPress()`
 	/// (returns null, i.e. ascends, same as any other value column with no `select_chain`).
 	bool allow_session_from_horizontal = false;
+
+	/// @brief Does a select press or an already-focused button press flip this column's value in
+	///        place and stay, rather than chaining or ascending? The port of `Selection::isToggle()`
+	///        (`gui/menu_item/selection.h:36`, default false) for the subclasses that override it to
+	///        true.
+	///
+	/// `Selection::selectButtonPress()` (`gui/menu_item/selection.h:54-63`) has the same shape as `Toggle::
+	/// selectButtonPress` (`toggle.h:38-42`): when the page, not the item, is current, it calls
+	/// `toggleValue()` (`:44-50`, a no-op unless `isToggle()`) and returns `NO_NAVIGATION`. Six
+	/// legacy classes override `isToggle()` to true: `arpeggiator::PresetMode`
+	/// (`arpeggiator/mode.h:100`), `arpeggiator::IncludeInKitArp` (`arpeggiator/
+	/// include_in_kit_arp.h:88`) and `runtime_feature::SettingToggle` (`runtime_feature/setting.h:
+	/// 39-48`, the `isToggle()` override at `:45`) sit
+	/// only on vertical pages in the shipped tree and are never reached as a horizontal column; the
+	/// three that do are `delay::PingPong` (`delay/ping_pong.h:30`, ported `delay_ping_pong`,
+	/// on `delay`/`global_delay`), `randomizer::RandomizerLock` (`randomizer/randomizer_lock.h:62`,
+	/// ported `randomizer_lock`, on `randomizer`) and `sample::PitchSpeed`
+	/// (`sample/pitch_speed.h:80`, ported `sample<i>_pitch_speed`, on `source<i>`/
+	/// `audio_clip_sample`) -- all three `Kind::Enum`, which is why this cannot simply be folded
+	/// into `Kind::Toggle`'s own existing check: the flip itself is identical (write the bound
+	/// value's logical negation), but the `Kind` these three carry is `Enum`, for their two-option
+	/// text (`kOffOnNames` and the like), not `Toggle`'s dedicated switch glyph.
+	///
+	/// Consulted in exactly the same two places `Kind::Toggle` already was: the `column_press` arm
+	/// (a select press) and `handle()`'s already-focused button press, both alongside `column->kind
+	/// == Kind::Toggle` rather than replacing it -- a `Kind::Toggle` node does not also set this.
+	bool selection_is_toggle = false;
 };
 
 /// @brief `n` with `range_dependent` set -- a `constexpr` post-hoc modifier rather than a trailing
@@ -650,6 +677,14 @@ constexpr Node with_range_dependent(Node n) {
 ///        set it, so the other builders keep their signatures.
 constexpr Node with_allow_session_from_horizontal(Node n) {
 	n.allow_session_from_horizontal = true;
+	return n;
+}
+
+/// @brief `n` with `selection_is_toggle` set -- the port of `Selection::isToggle() { return true;
+///        }`, a post-hoc modifier for the same reason `with_range_dependent` is one: three nodes
+///        in the whole tree set it.
+constexpr Node with_selection_is_toggle(Node n) {
+	n.selection_is_toggle = true;
 	return n;
 }
 

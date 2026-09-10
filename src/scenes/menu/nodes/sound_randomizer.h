@@ -55,6 +55,9 @@
 /// @note **`RandomizerLock` draws a padlock icon** rather than a checkbox
 ///       (`randomizer_lock.h:52-56`), and is an `isToggle()` `Selection` like the arpeggiator's own
 ///       mode toggle. Same call as `sound_arp.h`'s: `Kind::Enum` with the two options, no `Hint`.
+///       Unlike the arpeggiator's, `randomizer` is a `Layout::Horizontal` page, so
+///       `randomizer_lock` sets `Node::selection_is_toggle` -- see its own definition below and
+///       `node.h`'s doc.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -95,9 +98,10 @@ void set_randomizer_lock(const MenuContext& ctx, int32_t value);
 	          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::param_id}, hint, rel,    \
 	          sid(deluge::l10n::String::title_id))
 
-inline constexpr Node randomizer_lock = with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK),
-                                                               kOffOnNames, get_randomizer_lock, set_randomizer_lock),
-                                                   sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE));
+inline constexpr Node randomizer_lock =
+    with_selection_is_toggle(with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK), kOffOnNames,
+                                                    get_randomizer_lock, set_randomizer_lock),
+                                        sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE)));
 
 // `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:31-42`) -- the non-global
 // ids need the arpeggiator on, the three global ones do not.

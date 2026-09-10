@@ -163,8 +163,14 @@ void drain_notifications() {
 			// slot a framed popup does (`PopupType::NOTIFICATION`) -- so the ShellMenu-off leg's
 			// cancel is the identical `display->cancelPopup()` call `Notice::Kind::CancelPopup`
 			// above already makes; the port's two are only split because `ConsoleScene` and
-			// `PopupScene` are separate scenes.
-			display->cancelPopup();
+			// `PopupScene` are separate scenes. Guarded exactly as legacy's own two call sites are
+			// (`HorizontalMenu::endSession`/`switchVisiblePage`, `horizontal_menu.cpp:587-589`,
+			// `:363-365`: `if (display->hasPopupOfType(PopupType::NOTIFICATION)) { cancelPopup(); }`)
+			// -- this arm is dead while `MenuScene` runs the toggle-on leg, but the port of the
+			// check belongs here rather than assumed away.
+			if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
+				display->cancelPopup();
+			}
 			break;
 		}
 	}

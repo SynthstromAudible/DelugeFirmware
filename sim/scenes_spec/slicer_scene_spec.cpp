@@ -1123,8 +1123,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		//
 		// The popup here is raised by the scene's own Y_ENC arm (`slicer.cpp:301`), and the 800 ms
 		// is `kPopupTimeoutMs` (`shell/notices.cpp:31`), returned by `Notices::timeout_for`
-		// (`notices.cpp:369-372`); the push is `Notices::show_popup_with_timeout`
-		// (`notices.cpp:318-342`) and the removal `Notices::tick` (`notices.cpp:344-367`).
+		// (`notices.cpp:376-379`); the push is `Notices::show_popup_with_timeout`
+		// (`notices.cpp:325-349`) and the removal `Notices::tick` (`notices.cpp:351-374`).
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);

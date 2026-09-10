@@ -140,9 +140,11 @@ public:
 	SceneKind kind() const override { return SceneKind::Console; }
 
 	/// @brief Append one line, evicting the oldest once more than `kMaxLines` are live.
-	/// @param line   The text to show; copied into a 48-byte buffer, truncated if longer.
-	/// @param now_ms The tick's wall clock; this line stops drawing at `now_ms + kConsoleLineMs`.
-	void append(std::string_view line, uint32_t now_ms);
+	/// @param line       The text to show; copied into a 48-byte buffer, truncated if longer.
+	/// @param now_ms     The tick's wall clock; this line stops drawing at `now_ms + kConsoleLineMs`.
+	/// @param popup_type The notice's own `Notice::popup_type` -- carried per line so `cancel()`
+	///                   can tell which lines it is entitled to touch. See `cancel()`'s own doc.
+	void append(std::string_view line, uint32_t now_ms, uint8_t popup_type);
 
 	/// @brief Does any line still have time left to show?
 	///
@@ -157,15 +159,30 @@ public:
 	/// @return True if at least one line is `active` and not yet past its `expire_ms`.
 	bool any_active(uint32_t now_ms) const;
 
-	/// @brief Deactivate every line immediately -- the port of `OLED::removePopup()`
-	///        (`hid/display/oled.cpp:253-258`) as `HorizontalMenu::endSession`/`switchVisiblePage`
-	///        call it (`gui/menu_item/horizontal_menu.cpp:587-589`, `:363-365`): "cancel whatever
-	///        notification is showing right now", not "let the lines already up run out their own
-	///        timers". Setting `active` false rather than clearing `lines_` outright keeps the text
-	///        (harmless -- nothing reads an inactive line) and matches `any_active`'s own test, so a
-	///        `Notices::tick()` running immediately after sees the same "nothing left to show" this
-	///        call already decided.
-	void cancel();
+	/// @brief Deactivate every line carrying @p popup_type immediately -- the port of
+	///        `OLED::removePopup()` (`hid/display/oled.cpp:253-258`) as `HorizontalMenu::
+	///        endSession`/`switchVisiblePage` call it (`gui/menu_item/horizontal_menu.cpp:587-589`,
+	///        `:363-365`): "cancel whatever notification is showing right now", not "let the lines
+	///        already up run out their own timers".
+	///
+	/// **Scoped to @p popup_type, not every line -- fix round 2's correction.** Legacy's
+	/// `cancelPopup()`/`removePopup()` only ever removes the *popup* slot
+	/// (`OLED::displayNotification`'s `PopupType::NOTIFICATION`, `oled.cpp:768`); it has no
+	/// equivalent call that touches `consoleText()`'s own lines at all -- Undo/Redo
+	/// (`action_logger.cpp:827`, `:840`) and the startup banner are `consoleText` too, and legacy
+	/// never clears those when a horizontal menu's notification is cancelled. The port's first cut
+	/// of this method cleared every line regardless of what raised it, because `Kind::Console`
+	/// carries both under one `Notice::Kind` where legacy has two separate display calls -- this
+	/// parameter is what tells them apart on the one call that needs to, matching `append`'s own
+	/// per-line `popup_type` against the canceller's.
+	///
+	/// Setting `active` false rather than clearing the line outright keeps the text (harmless --
+	/// nothing reads an inactive line) and matches `any_active`'s own test, so a `Notices::tick()`
+	/// running immediately after sees the same "nothing left to show" this call already decided --
+	/// for the lines it touched. A line whose `popup_type` differs is untouched: still active,
+	/// still counted by `any_active()`, still keeping `SceneKind::Console` on the stack.
+	/// @param popup_type Only lines appended with this `Notice::popup_type` are deactivated.
+	void cancel(uint8_t popup_type);
 
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Always transparent: the console draws only its own strip and leaves the rest of the
@@ -203,6 +220,7 @@ private:
 		char text[48] = {};
 		uint32_t expire_ms = 0;
 		bool active = false;
+		uint8_t popup_type = 0; // the raising `Notice::popup_type` -- see `cancel()`'s own doc.
 	};
 	/// Index 0 is the most recently appended line; `append` shifts the rest down.
 	Line lines_[kMaxLines]{};
@@ -305,14 +323,21 @@ public:
 	/// not `pop`: a popup is `input_transparent()`, so an application `Push` can legitimately land
 	/// above a live one, and cancelling the popup must not take that scene down with it -- it excises
 	/// just the popup and closes the gap, leaving whatever else is on the stack exactly where it was.
-	/// A no-op when no popup is stacked at all. `Kind::CancelConsole` does the same for the console
-	/// scene -- the port's `display->cancelPopup()` equivalent for the notification strip, which
-	/// legacy's own `cancelPopup()`/`removePopup()` also clears (they are the same `oledPopupWidth`/
-	/// `popupType` slot on the device; the port keeps the two as separate scenes, so cancelling one
-	/// does not touch the other). Added for `MenuScene`'s horizontal-page notification
-	/// (`HorizontalMenu::endSession`, `gui/menu_item/horizontal_menu.cpp:587-589`;
-	/// `switchVisiblePage`, `:363-365`) -- the one raiser of `Kind::Console` this file knows of that
-	/// ever needs to take its own notice back before its timer would have.
+	/// A no-op when no popup is stacked at all.
+	///
+	/// `Kind::CancelConsole` is scoped, not a console-wide `CancelPopup` -- fix round 2's
+	/// correction, `ConsoleScene::cancel(uint8_t)`'s own doc has the full argument. In short:
+	/// `console_.cancel(n.popup_type)` deactivates only the lines this notice's own `popup_type`
+	/// matches, and `stack_.remove(SceneKind::Console)` runs only once `!console_.any_active(
+	/// now_ms)` -- an unrelated `consoleText` line (Undo/Redo, the startup banner) is untouched and
+	/// keeps the scene up for as long as it has left. Added for `MenuScene`'s horizontal-page
+	/// notification (`HorizontalMenu::endSession`, `gui/menu_item/horizontal_menu.cpp:587-589`;
+	/// `switchVisiblePage`, `:363-365`), raised with `ui::shell::kPopupTypeNotification` -- the one
+	/// raiser of `Kind::Console` this file knows of that ever needs to take its own notice back
+	/// before its timer would have, and legacy's own `cancelPopup()`/`removePopup()`
+	/// (`oled.cpp:253-260`) is exactly this scoped too: it clears the *popup* slot
+	/// (`PopupType::NOTIFICATION`), never `consoleText()`'s own lines, which is why this cancel
+	/// must not simply clear every `Kind::Console` line either.
 	///
 	/// Every string id and error code here is resolved through `BoardProfile::text_or_digits` /
 	/// `error_text_or_digits`, so a profile with no l10n bridge shows the id's digits rather than

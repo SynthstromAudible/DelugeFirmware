@@ -84,11 +84,14 @@
 ///       `submenu::ActualSource::getTitle()` swaps to `STRING_FOR_OSC_SAMPLE_MENU_TITLE` once the
 ///       source is a sample and the page number is past the first (`submenu/actual_source.h:29-40`);
 ///       `osc::source::Volume`, `ModulatorLevel` and `osc::AudioRecorder` all render a
-///       `FormattedTitle` with the index substituted in; `sample::PitchSpeed::isToggle()` is true
-///       (`sample/pitch_speed.h:80`) so legacy toggles it in place from a submenu rather than
-///       opening it, while the node is a plain two-option `Kind::Enum`; and
+///       `FormattedTitle` with the index substituted in; and
 ///       `osc::Type`/`osc::AudioRecorder` return false from `showColumnLabel()`/`showNotification()`
 ///       (`osc/type.h:127`, `audio_recorder.h:78-79`), which `Node` cannot express.
+///       `sample::PitchSpeed::isToggle()` is true (`sample/pitch_speed.h:80`), and DOES have a
+///       `Node` spelling as of fix round 2 -- `Node::selection_is_toggle`
+///       (`sample##i##_pitch_speed`'s own definition sets it) -- so legacy toggling it in place
+///       from a submenu, on a plain two-option `Kind::Enum`, is what a select press or an
+///       already-focused button press on this column now does too.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -244,9 +247,9 @@ inline constexpr IntRange kTimeStretchRange{-48, 48, 1};
 	    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_SPEED), get_sample##i##_speed, set_sample##i##_speed, \
 	                        kTimeStretchRange, Hint::None, relevance::osc##i##_is_sample),                             \
 	               sid(deluge::l10n::String::STRING_FOR_SAMP_SPEED_MENU_TITLE));                                       \
-	inline constexpr Node sample##i##_pitch_speed =                                                                    \
+	inline constexpr Node sample##i##_pitch_speed = with_selection_is_toggle(                                          \
 	    enumeration(sid(deluge::l10n::String::STRING_FOR_PITCH_SPEED), kPitchSpeedNames, get_sample##i##_pitch_speed,  \
-	                set_sample##i##_pitch_speed, relevance::osc##i##_pitch_speed);                                     \
+	                set_sample##i##_pitch_speed, relevance::osc##i##_pitch_speed));                                    \
 	inline constexpr Node sample##i##_interpolation =                                                                  \
 	    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_INTERPOLATION), kInterpolationNames,               \
 	                           get_sample##i##_interp, set_sample##i##_interp, relevance::osc##i##_interpolation),     \

@@ -806,7 +806,7 @@ private:
 	///        `selectEncoderAction` (`:328`), `handleInstrumentButtonPress`'s new-focus tail
 	///        (`:437`), and `handleItemAction`'s plain-column arm (`:666`). `handleItemAction`'s
 	///        other arm -- a submenu, or an `allowToBeginSessionFromHorizontalMenu` column, already
-	///        focused -- calls `enterSubmenu` instead (`:678`) and never reaches
+	///        focused -- calls `enterSubmenu` instead (`:677`) and never reaches
 	///        `displayNotification` at all; that is `enter_horizontal_item`, not this method.
 	void notify_column(const Node& column);
 	/// @brief `checkPermissionToBeginSessionForRangeSpecificParam`'s allocation

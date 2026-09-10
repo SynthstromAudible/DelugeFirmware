@@ -121,7 +121,7 @@ bool PopupScene::oled_transparent(SurfaceRole role) const {
 	return role != SurfaceRole::Main;
 }
 
-void ConsoleScene::append(std::string_view line, uint32_t now_ms) {
+void ConsoleScene::append(std::string_view line, uint32_t now_ms, uint8_t popup_type) {
 	for (size_t i = kMaxLines - 1; i > 0; i--) {
 		lines_[i] = lines_[i - 1];
 	}
@@ -129,11 +129,14 @@ void ConsoleScene::append(std::string_view line, uint32_t now_ms) {
 	copy_bounded(l.text, sizeof(l.text), line);
 	l.expire_ms = now_ms + kConsoleLineMs;
 	l.active = true;
+	l.popup_type = popup_type;
 }
 
-void ConsoleScene::cancel() {
+void ConsoleScene::cancel(uint8_t popup_type) {
 	for (Line& line : lines_) {
-		line.active = false;
+		if (line.popup_type == popup_type) {
+			line.active = false;
+		}
 	}
 }
 
@@ -237,7 +240,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 		case notify::Notice::Kind::Console: {
 			const std::string_view text =
 			    n.string_id ? profile_.text_or_digits(n.string_id, scratch) : std::string_view{n.text};
-			console_.append(text, now_ms);
+			console_.append(text, now_ms, n.popup_type);
 			// Legacy has no scene stack at all: `OLED::sendMainImage` (`oled.cpp:364-376`)
 			// unconditionally composites the console strip into every frame, so a console line is
 			// always potentially visible the instant it is appended. The port's equivalent is
@@ -296,13 +299,17 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			stack_.remove(SceneKind::Popup);
 			break;
 		case notify::Notice::Kind::CancelConsole:
-			// Same shape as `CancelPopup`, for the console strip: `cancel()` first, so a scene
-			// pushed above a still-live console (again legitimately, `Console` is
-			// `input_transparent()` too) does not see the cancelled line reappear if something
-			// re-pushes `SceneKind::Console` before this tick's own removal -- `any_active()` and
-			// `cancel()` agree the moment this returns.
-			console_.cancel();
-			stack_.remove(SceneKind::Console);
+			// Scoped to this notice's own `popup_type` -- fix round 2's correction, see
+			// `ConsoleScene::cancel`'s own doc for why a console-wide `CancelPopup` was wrong.
+			// `cancel()` first, so a scene pushed above a still-live console (again legitimately,
+			// `Console` is `input_transparent()` too) does not see a cancelled line reappear if
+			// something re-pushes `SceneKind::Console` before this tick's own removal -- and the
+			// removal itself is now conditional: an unrelated line of a different `popup_type` may
+			// still be active, and the scene must stay up for it.
+			console_.cancel(n.popup_type);
+			if (!console_.any_active(now_ms)) {
+				stack_.remove(SceneKind::Console);
+			}
 			break;
 		}
 	}

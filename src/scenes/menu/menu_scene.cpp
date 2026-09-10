@@ -41,6 +41,7 @@
 #include "model/sync.h"      // syncValueToString -- Kind::SyncLevel's value text
 #include "notify/notice_queue.h"
 #include "shell/leds.h"
+#include "shell/notices.h"   // deluge::ui::shell::kPopupTypeNotification
 #include "ui/core/metrics.h" // kSyncValueY -- Kind::SyncLevel's value band baseline
 #include "ui/oled/columns.h"
 #include "ui/oled/list.h"
@@ -770,7 +771,8 @@ void MenuScene::notify_column(const Node& column) {
 			line[out++] = c;
 		}
 	}
-	deluge::notify::notice_text(std::string_view{line, out}, deluge::notify::Notice::Kind::Console);
+	deluge::notify::notice_text(std::string_view{line, out}, deluge::notify::Notice::Kind::Console,
+	                            deluge::ui::shell::kPopupTypeNotification);
 }
 
 bool MenuScene::enter_range_picker_if_needed(const Node& child, bool suppress_when_allowed) {
@@ -929,7 +931,7 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 		const int32_t moved = clamp_to(bindings::read(target, ctx_) + detents * step, range.min, range.max);
 		// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)`
 		// and `displayNotification(child)` unconditionally once it has decided the turn is permitted
-		// (`selectEncoderActionIsPermitted()`, `:318-319`) -- it never re-reads the value first to
+		// (`selectEncoderActionIsPermitted()`, `:321`) -- it never re-reads the value first to
 		// see whether the clamp actually moved it (`:326-328`). Gating this on `moved != current`
 		// dropped the notification on a turn already at an endpoint; `commit_value` writing the same
 		// value back at a clamp is harmless, exactly as legacy's own re-write is.
@@ -1452,7 +1454,8 @@ void MenuScene::descend_to(const Node& child) {
 	// (`:587-589`) -- every other `MenuItem::endSession` (`menu_item.cpp:81`) is a no-op. This is
 	// "entering a child" from a horizontal page.
 	if (on_horizontal_page()) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole);
+		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole,
+		                            deluge::ui::shell::kPopupTypeNotification);
 	}
 	st_.depth++;
 	st_.path[st_.depth] = &child;
@@ -1513,7 +1516,8 @@ void MenuScene::ascend() {
 	// "ascending off a horizontal page". Read before the loop pops anything, while `focused()`
 	// still names the page being left.
 	if (st_.depth != 0 && on_horizontal_page()) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole);
+		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole,
+		                            deluge::ui::shell::kPopupTypeNotification);
 	}
 	do {
 		if (st_.depth == 0) {
@@ -1664,15 +1668,18 @@ Result MenuScene::after_render() {
 		// `Submenu::selectButtonPress` forwarding to the focused item, on a horizontal page's value
 		// column (`gui/menu_item/submenu.cpp:187-194`): the column's own `selectButtonPress()`
 		// override runs FIRST, as the horizontal forward's own call -- not a separate arm bolted on
-		// after. No notification either way: neither `Toggle::selectButtonPress` nor the
-		// chain/ascend arms below call `displayNotification` (see `MenuState::column_press`'s doc
-		// for the call this used to be attributed to by mistake).
+		// after. No notification either way: neither `Toggle`'s/`Selection`'s `selectButtonPress`
+		// nor the chain/ascend arms below call `displayNotification` (see `MenuState::
+		// column_press`'s doc for the call this used to be attributed to by mistake).
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
-			if (column->kind == Kind::Toggle) {
-				// `Toggle::selectButtonPress` (`toggle.h:38-42`): flip and return `NO_NAVIGATION`,
-				// so `SoundEditor::buttonAction`'s SELECT arm does nothing further
-				// (`sound_editor.cpp:394-419`) -- no chain, no ascend, the same "stays put" shape
-				// the already-focused button press's own toggle flip has.
+			if (column->kind == Kind::Toggle || column->selection_is_toggle) {
+				// `Toggle::selectButtonPress` (`toggle.h:38-42`) and `Selection::selectButtonPress`
+				// (`gui/menu_item/selection.h:54-63`, when `isToggle()`) have the identical shape: flip and
+				// return `NO_NAVIGATION`, so `SoundEditor::buttonAction`'s SELECT arm does nothing
+				// further (`sound_editor.cpp:394-419`) -- no chain, no ascend, the same "stays put"
+				// shape the already-focused button press's own flip has. `Node::
+				// selection_is_toggle`'s own doc names the three live examples -- this is not
+				// `Toggle`-only.
 				bindings::write(*column, ctx_, bindings::read(*column, ctx_) == 0 ? 1 : 0);
 				repaint = true;
 			}
@@ -1874,7 +1881,8 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 						// `switchVisiblePage` cancels the notification unconditionally once past its
 						// own `totalPages <= 1` guard (`:363-365`) -- `page_switch` returning a
 						// different column already implies that guard passed.
-						deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole);
+						deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole,
+						                            deluge::ui::shell::kPopupTypeNotification);
 						repaint = true;
 					}
 				}
@@ -1903,12 +1911,14 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 							}
 						}
 						else {
-							// `MenuItem::selectButtonPress`'s only override any other ported column
-							// kind reaches is `Toggle`'s flip (`gui/menu_item/toggle.h:38-42`); every
-							// other kind's base is a no-op. No `select_chain` here -- legacy's
+							// `MenuItem::selectButtonPress`'s overrides any other ported column kind
+							// reaches are `Toggle`'s flip (`gui/menu_item/toggle.h:38-42`) and
+							// `Selection`'s (`gui/menu_item/selection.h:54-63`, when `isToggle()`) -- see
+							// `Node::selection_is_toggle`'s own doc for the three live examples;
+							// every other kind's base is a no-op. No `select_chain` here -- legacy's
 							// `handleItemAction` calls `selectButtonPress()` directly, never
 							// `enterSubmenu`, for this arm.
-							if (col_node.kind == Kind::Toggle) {
+							if (col_node.kind == Kind::Toggle || col_node.selection_is_toggle) {
 								bindings::write(col_node, ctx_, bindings::read(col_node, ctx_) == 0 ? 1 : 0);
 							}
 							notify_column(col_node);
@@ -1993,6 +2003,16 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// (`shell/notices.cpp`'s `Kind::Console` fix): with `Null`, pressing Back while that notice was
 	// still showing closed the console strip and left the menu itself on the stack.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && event.on && st_.depth == 0) {
+		// `SoundEditor::goUpOneLevel` runs `endScreen()` (-> `currentMenuItem->endSession()`)
+		// **before** its depth-0 arm's `exitCompletely()` (`sound_editor.cpp:711-716`) -- the same
+		// cancel `descend_to`/`ascend` make, just reached by the one path neither of them covers: a
+		// depth-0 horizontal page closing the whole menu rather than navigating within it.
+		// `reroot_to_scene_opener_page()` puts a claimed file selector's browser back here at
+		// depth 0, so this is a shipped path, not a hypothetical one.
+		if (on_horizontal_page()) {
+			deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole,
+			                            deluge::ui::shell::kPopupTypeNotification);
+		}
 		Result r;
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});

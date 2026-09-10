@@ -386,12 +386,12 @@ describe shell_notices("shell::Notices", $ {
 		// something" check above) cannot tell a clipped `E` from a clipped `F` -- both lose the same
 		// row and come out identical -- but a full-frame comparison can, and must.
 		ConsoleScene e;
-		e.append("E", 0);
+		e.append("E", 0, 0);
 		deluge::ui::test::Rig48 e_frame;
 		e.render_oled(SurfaceRole::Main, e_frame.frame);
 
 		ConsoleScene f;
-		f.append("F", 0);
+		f.append("F", 0, 0);
 		deluge::ui::test::Rig48 f_frame;
 		f.render_oled(SurfaceRole::Main, f_frame.frame);
 
