@@ -87,8 +87,7 @@ void SaveUI::enterKeyPress() {
 	else if (enteredText.empty()) {} // Previously had &&currentFolderIsEmpty ... why?
 
 	else {
-		// Reads and writes the card, so it runs on the storage owner. Nothing followed this call:
-		// performSave() closes the UI itself on success and displays its own error otherwise, so
+		// Nothing followed this call: the save closes the UI itself on success and displays its own error otherwise, so
 		// runSaveCompletion()'s EnterKey arm has no tail to run.
 		(void)dispatchSave({
 		    .consumer = deluge::storage::SaveConsumer::EnterKey,
@@ -139,20 +138,6 @@ ActionResult SaveUI::timerCallback() {
 	}
 }
 
-void SaveUI::noteSaveTier() {
-	// Boot is the one legal exception: it writes before any interaction tier exists. Owner::started()
-	// is the same monotonic latch the TIR1-TIR4 reader checks use.
-	if (!deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
-		// Counted as well as frozen: the count is what let the gate report "3 saves on the
-		// interaction tier" BEFORE the conversion, which is the evidence that the conversion did
-		// something. The freeze is what keeps it from coming back.
-		interactionTierSaves_++;
-		if (ALPHA_OR_BETA_VERSION) {
-			FREEZE_WITH_ERROR("TIR5");
-		}
-	}
-}
-
 bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 	// Single-flight by REFUSAL, not by superseding (see dispatchSave()'s doc). The caller treats
 	// false exactly as it treats a full owner queue: nothing was written, and nothing was promised.
@@ -167,7 +152,7 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 	// around the card -- keeps the path it has always had.
 	if (savesStagedDocument()) {
 		if (!beforeStagedWrite(request)) {
-			// Refused before anything was built or written, exactly as performSave() returning false
+			// Refused before anything was built or written, exactly as an unstaged save refused at its start is
 			// did: release the guard, and let the caller's completion close whatever it had opened.
 			saveInFlight_ = false;
 			runSaveCompletion(request, false);
@@ -291,9 +276,8 @@ void SaveUI::runWritePhase() {
 		// A build without the channel. Writing from here would block the very tier the card needs
 		// running to answer, so the WRITE -- and only the write -- goes to the owner.
 		//
-		// Not runSaveOp(): that calls performSave(), and for a staged save performSave() no longer
-		// stores anything. Sending the document there would end the save reporting success having
-		// written nothing at all.
+		// Only the one blocking write goes to the owner: every other step of this save is already staged
+		// here, and the owner is the tier that may block.
 		if (ownerWriteDone_) {
 			ownerWriteDispatched_ = false;
 			ownerWriteDone_ = false;
@@ -522,7 +506,7 @@ void SaveUI::runFinishPhase() {
 
 	savePhase_ = SavePhase::NONE;
 	phaseOwner_ = nullptr;
-	// Released BEFORE the completion, exactly as runSaveOp() releases it: a completion may
+	// Released BEFORE the completion, exactly as endUnstagedDispatch() releases it: a completion may
 	// legitimately start another save (confirming the overwrite prompt is one), and it must not be
 	// refused by this save's own guard.
 	saveInFlight_ = false;
@@ -568,8 +552,8 @@ void SaveUI::runSaveCompletion(const deluge::storage::SaveRequest& request, bool
 	using deluge::storage::SaveConsumer;
 	switch (request.consumer) {
 	case SaveConsumer::EnterKey:
-		// Nothing followed the call at enterKeyPress(): performSave() closed the UI on success and
-		// displayed its own error otherwise.
+		// Nothing followed the call at enterKeyPress(): a finished save closes the UI itself, and a
+		// failed one displays its own error.
 		break;
 	case SaveConsumer::OverwriteAccept:
 	case SaveConsumer::OverwritePad:

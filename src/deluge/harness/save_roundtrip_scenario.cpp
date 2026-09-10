@@ -45,7 +45,7 @@
 #endif
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate must drive the REAL gesture, not
-/// `performSave` underneath it, or it would keep testing the unconverted path forever. Mirrors
+/// the save machinery underneath it, or it would keep testing the unconverted path forever. Mirrors
 /// `BrowserListingAbProbe`'s friendship in `browser.h`.
 class SaveRoundtripProbe {
 public:
@@ -59,7 +59,7 @@ public:
 		Browser::currentDir = dir;
 		Browser::enteredText.clear();
 		// openUI() rather than beginListing() alone, unlike song_preview's openSaveBrowserOn():
-		// performSave() ENDS in close(), which pops the UI stack, so the save UI has to actually be
+		// a finished save ENDS in close(), which pops the UI stack, so the save UI has to actually be
 		// on it or the success path underflows. That is why Fixture sets a root UI first.
 		if (!openUI(&saveSongUI)) {
 			return false;
@@ -98,7 +98,7 @@ enum class Stage : uint8_t {
 	Confirm,
 	ConfirmWait,
 	ConfirmCheck,
-	Tier,
+	Report,
 	Done,
 };
 
@@ -272,7 +272,7 @@ void runTick() {
 		// Start from a known-absent target so the first save is genuinely the "free name" case.
 		(void)deluge::io::mkdir(kSaveDir);
 		(void)deluge::io::unlink(kSavePath);
-		// performSave() pushes the overwrite context menu with openUI(), which needs a root UI
+		// the save pushes the overwrite context menu with openUI(), which needs a root UI
 		// beneath it -- this harness boots without one (see openOn()'s note).
 		changeRootUI(&arrangerView);
 		(void)SaveRoundtripProbe::openOn(kSaveDir);
@@ -350,7 +350,7 @@ void runTick() {
 		break;
 	}
 	case Stage::SaveSecond: {
-		// The SAME name, deliberately: performSave writes currentSong->name = enteredText, so saving
+		// The SAME name, deliberately: a finished song save writes currentSong->name = enteredText, so saving
 		// under a different name would differ for a reason that is not a defect. Overwriting keeps
 		// every name-derived field identical, and makes this the occupied-prompt case too.
 		SaveRoundtripProbe::typeName(kSaveName);
@@ -370,7 +370,7 @@ void runTick() {
 		if (++g_saveWaitTicks > kMaxSaveWaitTicks) {
 			printf("SR-SEAM FAIL the occupied save never answered (%d ticks)\n", g_saveWaitTicks);
 			g_failures++;
-			g_stage = Stage::Tier;
+			g_stage = Stage::Report;
 		}
 		break;
 	}
@@ -381,7 +381,7 @@ void runTick() {
 			       Browser::enteredText.c_str(), readWholeFile(kSavePath, probe) ? 1 : 0);
 			printf("SR-SEAM FAIL occupied prompted=0 -- an existing file did not prompt\n");
 			g_failures++;
-			g_stage = Stage::Tier; // nothing to confirm; skip the confirmation case
+			g_stage = Stage::Report; // nothing to confirm; skip the confirmation case
 			break;
 		}
 		printf("SR-SEAM occupied prompted=1\n");
@@ -452,17 +452,10 @@ void runTick() {
 		else {
 			printf("SR-SEAM confirmed changed=1 closed=1\n");
 		}
-		g_stage = Stage::Tier;
+		g_stage = Stage::Report;
 		break;
 	}
-	case Stage::Tier: {
-		// Armed once the tier assertions land in the conversion task: until then performSave carries
-		// no check, so this reports 0 whatever happens and proves nothing.
-		printf("SR-TIER violations=%d\n", SaveUI::interactionTierSaves());
-		if (SaveUI::interactionTierSaves() != 0) {
-			printf("SR-TIER FAIL %d save(s) ran on the interaction tier\n", SaveUI::interactionTierSaves());
-			g_failures++;
-		}
+	case Stage::Report: {
 		g_stage = Stage::Done;
 		printf("SR-RESULT failures=%d\n", g_failures);
 		fflush(stdout);

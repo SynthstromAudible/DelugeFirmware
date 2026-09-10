@@ -375,15 +375,14 @@ enum class IoTier : uint8_t {
 /// @brief How many of `which`'s file operations have begun on the INTERACTION tier.
 ///
 /// Counted rather than only frozen so a gate can report the number BEFORE a conversion as well as
-/// after: that before/after is each rung's evidence that anything changed. Mirrors
-/// `SaveUI::interactionTierSaves()`, which is what made rung 6's 3 -> 0 legible.
+/// after: that before/after is each rung's evidence that anything changed.
 [[nodiscard]] int32_t interactionTierIo(IoTier which);
 
 /// @brief Record one entry. Call as the FIRST statement of each consumer's io path.
 ///
 /// Boot is the one legal exception: `deluge.cpp` reads all three settings files before any
 /// interaction tier exists, measured `on_owner=0 started=0`. `Owner::started()` is the same
-/// monotonic latch the `TIR1`-`TIR6` reader and save checks use.
+/// monotonic latch the TIR reader checks use.
 void noteIoTier(IoTier which);
 
 /// @}

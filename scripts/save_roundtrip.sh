@@ -14,7 +14,6 @@
 #   SR-SEAM       the prompt decisions. A save that silently overwrote would still round-trip fine.
 #   SR-ROUNDTRIP  the written bytes. A CRC, not a length -- a save that truncated or reordered
 #                 would pass a length check.
-#   SR-TIER       that performSave never ran on the interaction tier.
 #   SL-NOSTREAM   that no streaming document reader has come back. A SOURCE check, and unusually so:
 #                 a gate cannot observe a path that is not compiled, so noticing the deletion being
 #                 undone is the only way to keep it deleted. A runtime path that can block the
@@ -67,7 +66,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-# An abort (a tier assertion firing) exits before this line is ever printed, which is what turns a
+# An abort (an assertion firing) exits before this line is ever printed, which is what turns a
 # freeze into a gate failure rather than a silently truncated log.
 if ! grep -q '^SR-RESULT ' "$OUT/run.txt"; then
 	echo "FAIL — no SR-RESULT line; the scenario did not run to completion"
@@ -75,7 +74,7 @@ if ! grep -q '^SR-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in SR-SEAM SR-ROUNDTRIP SR-TIER; do
+for marker in SR-SEAM SR-ROUNDTRIP; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SR-' "$OUT/run.txt"

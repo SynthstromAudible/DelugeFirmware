@@ -28,7 +28,7 @@
 ///
 /// ## Why the second save overwrites the SAME name
 ///
-/// `performSave` writes `currentSong->name = enteredText` as part of a successful save, so saving
+/// a finished song save writes `currentSong->name = enteredText` as part of a successful save, so saving
 /// the reloaded song under a DIFFERENT name would legitimately produce different bytes and the
 /// comparison would fail for a reason that is not a defect. Overwriting the same name keeps every
 /// name-derived field identical, so a difference can only come from the round trip losing something.

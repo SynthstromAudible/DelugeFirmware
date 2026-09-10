@@ -42,14 +42,14 @@
 #endif
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate drives the REAL gesture rather
-/// than `performSave` underneath it. Mirrors `SaveRoundtripProbe` in the save round-trip scenario.
+/// than the save machinery underneath it. Mirrors `SaveRoundtripProbe` in the save round-trip scenario.
 class SongLoadChannelProbe {
 public:
 	/// Put the save browser on a folder, exactly as reaching the save screen does.
 	static bool openOn(const char* dir) {
 		Browser::currentDir = dir;
 		Browser::enteredText.clear();
-		// openUI() rather than beginListing() alone: performSave() ENDS in close(), which pops the UI
+		// openUI() rather than beginListing() alone: a finished save ENDS in close(), which pops the UI
 		// stack, so the save UI has to actually be on it or the success path underflows.
 		if (!openUI(&saveSongUI)) {
 			return false;

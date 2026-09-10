@@ -31,7 +31,7 @@
 ///
 /// ## Why the assertion is a VALUE from inside the song
 ///
-/// The two cheaper signals are both known-bad. The song's NAME is written by `performSave` from the
+/// The two cheaper signals are both known-bad. The song's NAME is written by the finished song save from the
 /// entered text, so it matches whether or not the load happened. Object IDENTITY -- "is `currentSong`
 /// a different object afterwards" -- returns false even on a clean tree in the save round-trip's
 /// shape, so it cannot separate a real load from a retained one either.

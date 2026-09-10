@@ -24,7 +24,7 @@ namespace deluge::storage {
 
 /// @brief Which caller's follow-up a completed save runs.
 ///
-/// One caller, one value, one completion. Two of these callers consume `performSave`'s bool to
+/// One caller, one value, one completion. Two of these callers consume the save's bool to
 /// decide whether their context menu closes, and they do not want the same tail.
 ///
 /// @warning Switch on this enum exhaustively, with no `default:` label. `-Werror=switch` then

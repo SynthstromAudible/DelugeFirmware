@@ -37,7 +37,7 @@ std::span<char const*> OverwriteFile::getOptions() {
 
 bool OverwriteFile::acceptCurrentOption() {
 	// Return "accepted" so this menu stays put; SaveUI::runSaveCompletion() closes it, on success via
-	// performSave()'s own close() and on failure via the OverwriteAccept arm. A refusal (a save
+	// the finished save's own close() and on failure via the OverwriteAccept arm. A refusal (a save
 	// already in flight) returns false and closes the menu, which is what the synchronous path did
 	// when nothing was written.
 	return currentSaveUI->dispatchSave({

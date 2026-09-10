@@ -161,7 +161,7 @@ ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 }
 
 bool SaveMidiDeviceDefinitionUI::serializeForSave(XMLSerializer& into) {
-	// Derived the same way performSave() derives it: this UI holds no member for it.
+	// Derived the same way the save derives it: this UI holds no member for it.
 	auto* midiInstrumentToSave = static_cast<MIDIInstrument*>(getCurrentInstrument());
 	if (midiInstrumentToSave == nullptr) {
 		return false;

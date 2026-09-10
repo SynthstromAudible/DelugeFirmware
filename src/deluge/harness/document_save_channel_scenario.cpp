@@ -49,7 +49,7 @@
 #endif
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate drives the REAL gesture rather
-/// than performSave() underneath it. Mirrors SaveRoundtripProbe and SongLoadChannelProbe.
+/// than the save machinery underneath it. Mirrors SaveRoundtripProbe and SongLoadChannelProbe.
 class DocumentSaveChannelProbe {
 public:
 	static bool openOn() {

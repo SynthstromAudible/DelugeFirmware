@@ -45,7 +45,7 @@
 #undef printf
 #endif
 
-/// Reaches the protected ENTER gesture. A save made by calling `performSave()` directly would not be
+/// Reaches the protected ENTER gesture. A save made by calling into the save machinery directly would not be
 /// the save a user makes, and this gate exists to test the one they make.
 class SongSaveChannelProbe {
 public:
@@ -234,7 +234,7 @@ void runTick() {
 		break;
 	}
 	case Stage::Fixture: {
-		// performSave() pushes the overwrite context menu with openUI(), which needs a root UI
+		// the save pushes the overwrite context menu with openUI(), which needs a root UI
 		// beneath it -- this harness boots without one.
 		changeRootUI(&arrangerView);
 		(void)SongSaveChannelProbe::openOn(kSaveDir);

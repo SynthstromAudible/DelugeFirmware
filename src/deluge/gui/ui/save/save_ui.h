@@ -42,11 +42,11 @@ protected:
 	void enterKeyPress() final;
 	static bool currentFolderIsEmpty;
 
-	/// The save round-trip gate drives the REAL ENTER gesture rather than performSave() underneath
+	/// The save round-trip gate drives the REAL ENTER gesture rather than the save machinery underneath
 	/// it, so it needs the protected entry. Mirrors BrowserListingAbProbe's friendship in browser.h.
 	friend class SaveRoundtripProbe;
 	/// The song-load channel gate saves a song to load back, and drives the same real gesture for the
-	/// same reason: a save made by calling performSave() directly would not be the save a user makes.
+	/// same reason: a save made by calling into the save machinery directly would not be the save a user makes.
 	friend class SongLoadChannelProbe;
 	/// @brief End an unstaged save's dispatch: release the single-flight guard, then run the completion.
 	///
@@ -88,15 +88,6 @@ public:
 	///        request, so it needs a way to read it without knowing the subclass.
 	[[nodiscard]] virtual bool collectingSamplesForDispatch() const { return false; }
 
-	/// @brief How many times a performSave() body has begun on the INTERACTION tier.
-	///
-	/// Writing the card from there is the violation this rung exists to remove, so the gate asserts
-	/// this is zero. Counting rather than freezing lets the gate report the number before the
-	/// conversion as well as after it; the hard assertion lands alongside.
-	[[nodiscard]] static int32_t interactionTierSaves() { return interactionTierSaves_; }
-	/// @brief Record one performSave() entry. Call as the FIRST statement of every override.
-	static void noteSaveTier();
-
 	/// @brief Serialise this save's document into @p into.
 	///
 	/// Runs on the INTERACTION tier and must touch no storage whatsoever -- building a document is
@@ -120,8 +111,8 @@ public:
 	/// @brief Run this save's checks BEFORE its document is built, and refuse if they fail.
 	///
 	/// Where a staged save's preconditions live -- a preset may not take a slot another instrument in
-	/// the song already holds. Staging moved every one of these saves off performSave(), which was the
-	/// only place such checks ran, and for a while they ran nowhere.
+	/// the song already holds. Staging moved every one of these saves off the function that used to run them, which was
+	/// the only place such checks ran, and for a while they ran nowhere.
 	/// @param request The dispatched save.
 	/// @return false to refuse; the save then ends as failed and writes nothing.
 	[[nodiscard]] virtual bool beforeStagedWrite(const deluge::storage::SaveRequest& /*request*/) { return true; }
@@ -189,7 +180,6 @@ private:
 	/// @brief Defer one more tick, or give up if this save has stopped making progress.
 	static bool deferStagedSave();
 
-	static inline int32_t interactionTierSaves_{};
 	static inline int32_t writeChannelServedOps_{};
 	static inline int32_t offOwnerSaveTicks_{};
 	static inline SavePhase savePhase_{SavePhase::NONE};

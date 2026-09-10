@@ -80,7 +80,7 @@ public:
 	///
 	/// @param into               Receives one entry per file that needs work.
 	/// @param collectingSamples  Whether this save is collecting media into the song's own folder.
-	/// @param songAlternatePath  The song's alternate-media folder, as performSave built it.
+	/// @param songAlternatePath  The song's alternate-media folder, as the existence resolution built it.
 	/// @param alternateDirLength Its length, which setupAlternateAudioFilePath wants.
 	/// @return false if a path could not be built, which fails the save exactly as it did before.
 	[[nodiscard]] bool planTransfers(std::vector<PlannedTransfer>& into, bool collectingSamples,

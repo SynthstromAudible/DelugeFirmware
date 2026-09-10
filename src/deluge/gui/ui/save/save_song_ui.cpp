@@ -438,7 +438,7 @@ void SaveSongUI::resolveExists(const std::expected<bool, deluge::io::Status>& pr
 	copyIssued_ = false;
 	renameSucceeded_ = true;
 	collectPhase_ = CollectPhase::TRANSFER;
-	// "Dealt with", the answer performSave gave once it had started the collection.
+	// "Dealt with": the collection has started, and finishes on later ticks.
 	endUnstagedDispatch(request, true);
 }
 
@@ -1231,7 +1231,7 @@ void SaveSongUI::releaseSongWriter() {
 }
 
 bool SaveSongUI::finishSaveAfterCollection() {
-	// No noteSaveTier() here any more. The card work this function used to do has moved into the
+	// The card work this function used to do has moved into the
 	// document machine, whose steps each choose their own arm; what is left is bookkeeping and runs
 	// legally wherever it is called from.
 	docPhase_ = DocPhase::SERIALIZE;

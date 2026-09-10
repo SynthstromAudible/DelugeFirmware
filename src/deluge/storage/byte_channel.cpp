@@ -672,7 +672,7 @@ int32_t interactionTierIo(IoTier which) {
 
 void noteIoTier(IoTier which) {
 	if (!deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
-		// Counted as well as frozen, for the reason `SaveUI::noteSaveTier()` gives: the count is what
+		// Counted as well as frozen: the count is what
 		// let each gate report its pre-conversion number, which is the evidence that the conversion
 		// did something. The freeze is what keeps it from coming back.
 		g_interactionTierIo[static_cast<size_t>(which)]++;
