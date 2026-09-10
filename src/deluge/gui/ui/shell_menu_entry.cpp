@@ -145,7 +145,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	}
 
 	// **`SoundEditor::setup`'s one side effect that is neither UI nor context, picked up here.**
-	// `sound_editor.cpp:1771` wipes the undo history on every menu open, in exactly the `item ==
+	// `sound_editor.cpp:1769-1771` wipes the undo history on every menu open, in exactly the `item ==
 	// nullptr && clip != nullptr` arm this condition spells. `scenes/menu/context.cpp:44` records it
 	// as "owed to E2 ... has no owner yet, and will silently change if nothing picks it up when
 	// `MenuScene` lands" -- this is the call site that lands, so it picks it up. Without it a user
@@ -162,7 +162,17 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// where F3 task 4 put it. Site 8 -- the only site here that names a leaf -- was the one this
 	// showed up on: without it the ported file selector's browser refused to open on a synth whose
 	// source had no ranges yet, while the toggle-OFF leg opened it.
-	if (node == ShellMenuNode::ContextRoot && clip != nullptr) {
+	//
+	// **Pre-review fix: `noteMode != NoteMode::None` must not wipe either.** `enterNoteEditor`
+	// (`instrument_clip_view.cpp:3590`) and `enterNoteRowEditor` (`:3758`) each call
+	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
+	// -- an explicit item, never `nullptr` -- so legacy's `item == nullptr` arm above never runs for
+	// either, and the undo log survives a note-editor/note-row-editor open. `NoteMode` is spelled as
+	// an *override of the resolved root*, not as a `ShellMenuNode` leaf, so `node` alone (still
+	// `ContextRoot` for both note roots) cannot carry this distinction; `noteMode` has to gate the
+	// wipe directly, the same way it already gates the root override and the `affectEntire` clear
+	// below.
+	if (node == ShellMenuNode::ContextRoot && clip != nullptr && noteMode == NoteMode::None) {
 		actionLogger.deleteAllLogs();
 	}
 

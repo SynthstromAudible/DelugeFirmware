@@ -17,6 +17,7 @@
 #include "util/shell_menu_entry.h"
 
 #include "definitions_cxx.hpp"
+#include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -294,11 +295,78 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		closeGuest();
 	});
 });
+
+describe note_roots_undo_log("pre-review fix: openShellMenu's NoteMode must not wipe the undo log", $ {
+	// `SoundEditor::setup`'s undo-log wipe (`sound_editor.cpp:1769-1771`) is inside its `item ==
+	// nullptr` arm only. `enterNoteEditor`/`enterNoteRowEditor` never take that arm -- each calls
+	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
+	// (`instrument_clip_view.cpp:3590`, `:3758`), an explicit item -- so legacy never wipes on a
+	// note-editor/note-row-editor open. `openShellMenu`'s own wipe (`gui/ui/shell_menu_entry.cpp`)
+	// used to fire whenever `node == ShellMenuNode::ContextRoot && clip != nullptr`, which is true
+	// for every `NoteMode` call too (neither note root has its own `ShellMenuNode`), so it wiped
+	// where legacy does not. Fixed by adding `&& noteMode == NoteMode::None` to that condition.
+
+	it("NoteMode::NoteEditor leaves an existing undo log intact", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		spec::SongFixture fx = spec::make_synth_song();
+
+		// Seed a real logged action while SOME guest is open -- `ActionLogger::getNewAction` refuses
+		// unless `getCurrentUI() == getRootUI()` (`model/action/action_logger.cpp:98-102`), exactly
+		// `menu_entry_spec.cpp`'s own undo-log examples note -- then close it again.
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+
+		// The note editor, opened on a real clip: the log must survive.
+		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
+		                            entry::NoteMode::NoteEditor))
+		    .to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+	});
+
+	it("NoteMode::NoteRowEditor leaves an existing undo log intact", _ {
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		spec::SongFixture fx = spec::make_synth_song();
+
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+
+		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false, entry::ShellMenuNode::ContextRoot,
+		                            entry::NoteMode::NoteRowEditor))
+		    .to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+	});
+
+	it("NoteMode::None on the same shape still wipes it -- the pre-existing behaviour, pinned", _ {
+		// The control: identical seed, identical clip, only `noteMode` different. Without it, "the
+		// two examples above pass because nothing ever wipes" would also pass.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		spec::SongFixture fx = spec::make_synth_song();
+
+		expect(entry::openShellMenu(nullptr, 0, false, false, false, false)).to_be_true();
+		actionLogger.deleteAllLogs();
+		(void)actionLogger.getNewAction(ActionType::MISC, ActionAddition::NOT_ALLOWED);
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
+		closeGuest();
+
+		expect(entry::openShellMenu(fx.clip, 0, false, false, false, false)).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		closeGuest();
+	});
+});
 // clang-format on
 
 int note_roots_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(note_roots_table, note_roots_sequence_direction, note_roots_open_shell_menu)
+	               .add_specs(note_roots_table, note_roots_sequence_direction, note_roots_open_shell_menu,
+	                          note_roots_undo_log)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

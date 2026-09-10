@@ -195,7 +195,10 @@ bool shellMenuEnabled();
 /// @param noteMode               Task 6: override the resolved root with `NoteEditor`/
 ///                               `NoteRowEditor`, the way `enterNoteEditor`/`enterNoteRowEditor`
 ///                               name an explicit item instead of letting `setup()` infer one from
-///                               `currentUIMode`. `None` for every other caller.
+///                               `currentUIMode`. `None` for every other caller. Also stands the
+///                               undo-log wipe down for either value (pre-review fix): legacy's
+///                               explicit-item call never takes `setup()`'s `item == nullptr` arm,
+///                               so a note-editor/note-row-editor open must not wipe either.
 /// @return Whether the guest is now open. False means nothing was opened and nothing was left
 ///         half-open: the caller should behave as it does when `soundEditor.setup()` returns false.
 bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool sessionOrArrangerRoot,

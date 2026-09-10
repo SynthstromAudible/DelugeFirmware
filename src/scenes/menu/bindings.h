@@ -247,7 +247,7 @@ bool allows_note_tails(const MenuContext& ctx);
 /// @param drum The drum to ask. Null answers true (nothing to refuse).
 bool drum_allows_note_tails(const MenuContext& ctx, Drum* drum);
 
-/// @brief Read the play direction `sequence::Direction` would show (`sequence/direction.h:54-64`).
+/// @brief Read the play direction `sequence::Direction` would show (`sequence/direction.h:65-76`).
 ///
 /// Lives here, not in the node table, for the reason `SoundTarget::stack` does: resolving the
 /// individual note row a clip's play direction may live on needs a `ModelStackWithNoteRow`, and
@@ -257,7 +257,7 @@ bool drum_allows_note_tails(const MenuContext& ctx, Drum* drum);
 /// @param ctx           What is being edited.
 /// @param from_note_row Optional out-parameter: true when an individual note row supplied the
 ///                      value, which is also the condition under which legacy offers the fourth
-///                      option, NONE (`direction.h:83-86`).
+///                      option, NONE (`direction.h:103-105`).
 /// @return The `SequenceDirection` as an `int32_t`.
 ///
 /// @note **The third arm is ported too, as of Task 6.** Legacy's `getIndividualNoteRow` has a
@@ -276,7 +276,7 @@ bool drum_allows_note_tails(const MenuContext& ctx, Drum* drum);
 int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nullptr);
 
 /// @brief Commit a play-direction change (`sequence::Direction::writeCurrentValue`,
-///        `sequence/direction.h:66-77`), through `NoteRow::setSequenceDirectionMode` or
+///        `sequence/direction.h:78-90`), through `NoteRow::setSequenceDirectionMode` or
 ///        `InstrumentClip::setSequenceDirectionMode` as legacy chooses between them.
 ///
 /// @param ctx   What is being edited.
