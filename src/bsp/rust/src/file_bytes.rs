@@ -56,6 +56,7 @@
 //! `UNKNOWN` and asks again.
 
 use core::ffi::{CStr, c_char};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 #[cfg(feature = "async_file_bytes_active")]
@@ -254,6 +255,52 @@ impl BytesSlot {
     }
     pub fn is_empty(&self) -> bool {
         self.entry.is_none()
+    }
+}
+
+/// What [`copy_out`] did with one answer's bytes.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CopyOut {
+    /// All `len` bytes reached the destination.
+    Copied(u32),
+    /// The destination is shorter than the answer. Nothing was written: a settings file cut short
+    /// parses as one whose remaining settings were absent.
+    TooBig,
+    /// The answer claims more bytes than its buffer holds. No producer can publish that; nothing was
+    /// written, and the collect reports `UNKNOWN` rather than panicking on the interaction tier.
+    Invalid,
+}
+
+/// Copy the first `len` bytes of `src` into the front of `dst`, or nothing at all.
+///
+/// Every collect that hands bytes to C++ goes through here, so "never a partial copy" is decided
+/// once. `Invalid` is checked first: an impossible answer must not be mistaken for a real file that
+/// merely does not fit.
+pub fn copy_out(src: &[u8], len: u32, dst: &mut [u8]) -> CopyOut {
+    let Some(bytes) = src.get(..len as usize) else {
+        return CopyOut::Invalid;
+    };
+    let Some(into) = dst.get_mut(..len as usize) else {
+        return CopyOut::TooBig;
+    };
+    into.copy_from_slice(bytes);
+    CopyOut::Copied(len)
+}
+
+/// A one-time grant: the first [`claim`](Self::claim) succeeds and every later one fails.
+///
+/// What hands the byte channel's work buffer to its task. A pure type rather than a bare flag beside
+/// the buffer, so the rule is compiled and tested on every build, including those with no task.
+pub struct ClaimOnce(AtomicBool);
+
+impl ClaimOnce {
+    pub const fn new() -> Self {
+        Self(AtomicBool::new(false))
+    }
+
+    /// `true` the first time only.
+    pub fn claim(&self) -> bool {
+        !self.0.swap(true, Ordering::AcqRel)
     }
 }
 

@@ -13,8 +13,8 @@
 mod file_bytes;
 
 use file_bytes::{
-    BlockBuf, ByteBuf, ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot,
-    FileTimestamp, drain, publish_into, take_from,
+    BlockBuf, ByteBuf, ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, ClaimOnce,
+    CopyOut, FileTimestamp, copy_out, drain, publish_into, take_from,
 };
 
 /// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let
@@ -372,4 +372,51 @@ fn a_copy_is_keyed_on_its_destination() {
         request.key_owned(),
         (ByteOp::Copy, BytesPath::try_from(SETTINGS).expect("fits"))
     );
+}
+
+/// Every collect that hands bytes to C++ goes through `copy_out`. It copies exactly the answer and
+/// leaves the rest of the caller's buffer alone.
+#[test]
+fn a_copy_out_copies_exactly_the_answer() {
+    let src = *b"<settings/>....";
+    let mut dst = [0xAAu8; 16];
+    assert_eq!(copy_out(&src, 11, &mut dst), CopyOut::Copied(11));
+    assert_eq!(&dst[..11], b"<settings/>");
+    assert!(
+        dst[11..].iter().all(|&b| b == 0xAA),
+        "bytes past the answer must be left alone"
+    );
+}
+
+/// A caller buffer too small for the answer gets NOTHING: a settings file cut short parses as one
+/// whose remaining settings were absent, which silently resets them.
+#[test]
+fn a_copy_out_into_too_small_a_buffer_writes_nothing() {
+    let src = *b"<settings/>";
+    let mut dst = [0xAAu8; 4];
+    assert_eq!(copy_out(&src, 11, &mut dst), CopyOut::TooBig);
+    assert_eq!(dst, [0xAA; 4]);
+}
+
+/// An answer claiming more bytes than its buffer holds cannot be produced. If one appears it writes
+/// nothing, and it is reported as `Invalid` even when the destination is ALSO too small -- the
+/// collect turns `Invalid` into UNKNOWN, never into a terminal failure for a real file.
+#[test]
+fn a_copy_out_longer_than_its_source_is_invalid_and_writes_nothing() {
+    let src = *b"<s/>";
+    let mut dst = [0xAAu8; 16];
+    assert_eq!(copy_out(&src, 5, &mut dst), CopyOut::Invalid);
+    assert_eq!(dst, [0xAA; 16]);
+    let mut small = [0xAAu8; 2];
+    assert_eq!(copy_out(&src, 5, &mut small), CopyOut::Invalid);
+    assert_eq!(small, [0xAA; 2]);
+}
+
+/// What hands the work buffer to the task: one claim, ever.
+#[test]
+fn a_claim_once_grants_exactly_one_claim() {
+    let grant = ClaimOnce::new();
+    assert!(grant.claim(), "the first claim is granted");
+    assert!(!grant.claim(), "a second claim would alias the buffer");
+    assert!(!grant.claim());
 }
