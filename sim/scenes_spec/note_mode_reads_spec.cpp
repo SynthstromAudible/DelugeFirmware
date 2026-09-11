@@ -143,6 +143,19 @@ struct OutputPeek : Output {
 	static Clip*& active_clip(Output& output) { return output.*(&OutputPeek::activeClip); }
 };
 
+/// @brief Seed an output's active clip for an example, and put the previous one back on scope exit --
+///        the suite's guard idiom (`FeatureSetting`, `HeldButton`, `HeldShift`) for `OutputPeek`'s write.
+struct ActiveClipSeed {
+	Output& output;
+	Clip* saved;
+	ActiveClipSeed(Output& o, Clip* clip) : output(o), saved(OutputPeek::active_clip(o)) {
+		OutputPeek::active_clip(output) = clip;
+	}
+	~ActiveClipSeed() { OutputPeek::active_clip(output) = saved; }
+	ActiveClipSeed(const ActiveClipSeed&) = delete;
+	ActiveClipSeed& operator=(const ActiveClipSeed&) = delete;
+};
+
 /// @brief Set one runtime feature setting for an example, and put it back.
 struct FeatureSetting {
 	RuntimeFeatureSettingType type;
@@ -693,7 +706,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		// `makeCurrentClipActiveOnInstrumentIfPossible` (`model/clip/instrument_clip_minder.cpp:587-598`) runs
 		// `Kit::setActiveClip`, which services the audio routine for a SOUND drum (`model/instrument/kit.cpp:1059`)
 		// and faults in a spec process, as `note_bridge_spec.cpp`'s `ActionLogGuard` records.
-		OutputPeek::active_clip(*kit) = fx.clip;
+		ActiveClipSeed active_clip(*kit, fx.clip);
 		LegacyViewGuard::audition_row(0);
 		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
 		view.setActiveModControllableTimelineCounter(fx.clip, false);
