@@ -1634,8 +1634,8 @@ void MidiFollow::writeDefaultsToFile() {
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
 			return;
 		}
-		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
-		// is the thing this must not do. The owner arm below still writes it, just synchronously.
+		// Not taken: too large for the channel. A busy channel queues the write rather than refusing it, so
+		// no settings change is lost either way; the owner arm below writes this one synchronously.
 	}
 	deluge::storage::bytes::runOnStorageOwner([](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsOnOwner(); },
 	                                          this);
@@ -1825,7 +1825,8 @@ void MidiFollow::readDefaultsFromFile() {
 		                                       &MidiFollow::writeDefaultsAbsent, this)) {
 			return;
 		}
-		// Refused: the owner arm below repeats the setup harmlessly and does the read itself.
+		// Not taken (a busy channel queues instead): the owner arm below repeats the setup harmlessly and
+		// does the read itself.
 	}
 	deluge::storage::bytes::runOnStorageOwner([](void* ctx) { static_cast<MidiFollow*>(ctx)->readDefaultsOnOwner(); },
 	                                          this);

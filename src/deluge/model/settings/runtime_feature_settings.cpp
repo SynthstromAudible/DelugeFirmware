@@ -191,10 +191,9 @@ void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
-	// The channel first: it does the read in Rust, so nothing blocks anywhere. A false means the
-	// channel is not in use here (boot, or a build without it) or is already busy, and the owner arm
-	// below does the same work where blocking is legal -- so a refusal costs a slower read, never a
-	// lost one.
+	// The channel first: it does the read in Rust, so nothing blocks anywhere. A false means the channel is
+	// not the place for this read here (boot, the owner, or a build without it) -- a busy channel queues it
+	// instead -- and the owner arm below does the same work where blocking is legal.
 	if (deluge::storage::bytes::submitRead(RUNTIME_FEATURE_SETTINGS_FILE, LEGACY_RUNTIME_FEATURE_SETTINGS_FILE,
 	                                       &RuntimeFeatureSettings::parseSettingsBytes,
 	                                       /*onAbsent=*/nullptr, this)) {
@@ -322,8 +321,8 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
 			return;
 		}
-		// REFUSED -- the channel is busy. Not retried and not queued: superseding a settings change
-		// is the thing this must not do. The owner arm below still writes it, just synchronously.
+		// Not taken: too large for the channel. A busy channel queues the write rather than refusing it, so
+		// no settings change is lost either way; the owner arm below writes this one synchronously.
 	}
 	deluge::storage::bytes::runOnStorageOwner(
 	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->writeSettingsOnOwner(); }, this);

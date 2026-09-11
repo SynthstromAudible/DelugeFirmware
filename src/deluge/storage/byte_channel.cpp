@@ -25,7 +25,9 @@
 
 #include <cstddef>
 #include <cstring>
+#include <deque>
 #include <string>
+#include <vector>
 
 namespace deluge::storage::bytes {
 
@@ -207,9 +209,8 @@ enum class Step : uint8_t {
 
 /// The one operation in flight, if any.
 ///
-/// One rather than a queue because the channel underneath is single-flight, and because a second
-/// submission is REFUSED rather than queued -- see `submitWrite`'s doc on why superseding is wrong
-/// here.
+/// One because the channel underneath is single-flight. Everything submitted behind it waits in
+/// @ref g_waiting, and is promoted here by @ref serviceRoutine when this slot is idle.
 struct PendingOp {
 	Step step = Step::Idle;
 	/// The operation's path, COPIED. The four settings files were compile-time literals, but a
@@ -251,6 +252,47 @@ constexpr int32_t kMaxPendingTicks = 600;
 /// own bound, so anything the channel will carry fits here and nothing has to be refused twice for
 /// the same reason.
 char g_buffer[DELUGE_FILE_BYTES_MAX_BYTES];
+
+/// One submission waiting behind the operation in flight.
+///
+/// Owns everything the operation needs, so its submitter can return at once: the path is copied, and a write's
+/// bytes are copied onto the heap -- the on-chip @ref g_buffer holds only the operation in flight.
+struct WaitingOp {
+	Step first = Step::Idle; ///< `ReadRequest`, `WriteRequest` or `MkdirAllRequest`
+	std::string path;
+	const char* legacyPath = nullptr;
+	ParseFn parse = nullptr;
+	AbsentFn onAbsent = nullptr;
+	DoneFn onDone = nullptr;
+	void* ctx = nullptr;
+	std::vector<char> bytes;
+};
+
+/// Submissions behind the operation in flight, oldest first. Only a write can replace an entry instead of
+/// appending -- see @ref submitWrite.
+std::deque<WaitingOp> g_waiting;
+
+/// Move the oldest waiting submission into the in-flight slot, when that slot is idle.
+void promoteHead() {
+	if (g_pending.step != Step::Idle || g_waiting.empty()) {
+		return;
+	}
+	WaitingOp next = std::move(g_waiting.front());
+	g_waiting.pop_front();
+	g_pending = PendingOp{};
+	g_pendingTicks = 0;
+	holdPath(next.path.c_str());
+	g_pending.legacyPath = next.legacyPath;
+	g_pending.parse = next.parse;
+	g_pending.onAbsent = next.onAbsent;
+	g_pending.onDone = next.onDone;
+	g_pending.ctx = next.ctx;
+	if (next.first == Step::WriteRequest) {
+		std::memcpy(g_buffer, next.bytes.data(), next.bytes.size());
+		g_pending.writeLen = static_cast<uint32_t>(next.bytes.size());
+	}
+	g_pending.step = next.first;
+}
 
 /// Give up on the pending operation and go idle.
 ///
@@ -354,41 +396,49 @@ void deliver(uint32_t len) {
 } // namespace
 
 bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx, DoneFn onDone) {
-	if (!usingByteChannel() || g_pending.step != Step::Idle || !keyable(path)) {
+	if (!usingByteChannel() || !keyable(path)) {
 		return false;
 	}
-	g_pending.step = Step::ReadRequest;
-	holdPath(path);
-	g_pending.legacyPath = legacyPath;
-	g_pending.parse = parse;
-	g_pending.onAbsent = onAbsent;
-	g_pending.onDone = onDone;
-	g_pending.ctx = ctx;
+	g_waiting.push_back(WaitingOp{.first = Step::ReadRequest,
+	                              .path = path,
+	                              .legacyPath = legacyPath,
+	                              .parse = parse,
+	                              .onAbsent = onAbsent,
+	                              .onDone = onDone,
+	                              .ctx = ctx});
 	return true;
 }
 
-bool submitMkdirAll(const char* path) {
-	if (!usingByteChannel() || g_pending.step != Step::Idle || !keyable(path)) {
+bool submitMkdirAll(const char* path, DoneFn onDone, void* ctx) {
+	if (!usingByteChannel() || !keyable(path)) {
 		return false;
 	}
-	g_pending.step = Step::MkdirAllRequest;
-	holdPath(path);
+	g_waiting.push_back(WaitingOp{.first = Step::MkdirAllRequest, .path = path, .onDone = onDone, .ctx = ctx});
 	return true;
 }
 
 bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDone, void* ctx) {
-	if (!usingByteChannel() || g_pending.step != Step::Idle || !keyable(path)) {
+	if (!usingByteChannel() || !keyable(path)) {
 		return false;
 	}
 	if (bytes == nullptr || len > sizeof(g_buffer)) {
 		return false;
 	}
-	memcpy(g_buffer, bytes, len);
-	g_pending.step = Step::WriteRequest;
-	holdPath(path);
-	g_pending.writeLen = len;
-	g_pending.onDone = onDone;
-	g_pending.ctx = ctx;
+	// A newer whole file supersedes a WAITING write to the same file: it already carries every change the older
+	// one did. Only when both would tell the same submitter the same thing, or a replaced callback would never
+	// fire. The operation in flight is never in `g_waiting`, so it is never replaced.
+	for (WaitingOp& waiting : g_waiting) {
+		if (waiting.first == Step::WriteRequest && waiting.path == path && waiting.onDone == onDone
+		    && waiting.ctx == ctx) {
+			waiting.bytes.assign(bytes, bytes + len);
+			return true;
+		}
+	}
+	g_waiting.push_back(WaitingOp{.first = Step::WriteRequest,
+	                              .path = path,
+	                              .onDone = onDone,
+	                              .ctx = ctx,
+	                              .bytes = std::vector<char>(bytes, bytes + len)});
 	return true;
 }
 
@@ -416,6 +466,10 @@ void runOnStorageOwner(OwnerFn fn, void* ctx) {
 void serviceRoutine() {
 	DelugeStatus status = DELUGE_OK;
 	uint32_t len = 0;
+
+	// The oldest waiting submission starts here, and only here: a callback that submits from inside the step
+	// machine below only appends, so nothing re-enters it.
+	promoteHead();
 
 	// One tick's grace accounting, before any of the steps below. A step that returns without
 	// finishing has spent a tick; enough of those and the channel is not going to answer.
@@ -580,7 +634,7 @@ int32_t channelServedOps() {
 }
 
 bool idle() {
-	return g_pending.step == Step::Idle;
+	return g_pending.step == Step::Idle && g_waiting.empty();
 }
 
 int32_t ownerFallbacks() {

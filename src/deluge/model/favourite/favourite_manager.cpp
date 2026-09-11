@@ -268,7 +268,7 @@ void FavouritesManager::issueNext() {
 		if (taken) {
 			return;
 		}
-		// Refused: busy, or too large for the channel. The owner arm does the same work.
+		// Not taken: too large for the channel (a busy channel queues instead). The owner arm does the same work.
 	}
 
 	// Dispatched here rather than through runOnStorageOwner(), which silently drops an operation when the owner

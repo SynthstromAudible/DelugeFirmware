@@ -315,11 +315,10 @@ using DoneFn = void (*)(void* ctx, SettingsOutcome outcome);
 /// @param ctx        Passed through to @p parse, @p onAbsent and @p onDone.
 /// @param onDone     Called exactly once when the operation ends, however it ends -- including a stalled
 ///                   channel. May be nullptr.
-/// @return true when the channel took it and @p onDone (if any) will be called later. **false when the
-///         caller must do the read itself**, either because the channel is not in use here, because it is
-///         already busy with another operation, or because @p path does not fit
-///         `DELUGE_FILE_BYTES_MAX_PATH`. A false is never a lost read: the caller falls through to
-///         @ref runOnStorageOwner, which does the same work where blocking is legal.
+/// @return true when the channel took it -- in flight or queued behind what is -- and @p onDone (if any) will
+///         be called later. **false when the caller must do the read itself**, because the channel is not the
+///         place for it here (switch off, on the owner, before boot) or @p path does not fit
+///         `DELUGE_FILE_BYTES_MAX_PATH`. A busy channel is never a false: it queues.
 ///
 /// @note The path is COPIED; the caller's string may be a temporary.
 bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx,
@@ -333,9 +332,12 @@ bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentF
 /// and never collecting would leave the answer in the slot and the outcome unlearned; this hands the
 /// collect to the pump instead.
 ///
-/// @return true when the channel took it. **false when the caller must create the directories
-///         itself**, either because the channel is not in use here or because it is already busy.
-bool submitMkdirAll(const char* path);
+/// @param path   The directory path to create, every segment. COPIED.
+/// @param onDone Called exactly once when the creation ends. May be nullptr.
+/// @param ctx    Passed through to @p onDone.
+/// @return true when the channel took it, in flight or queued. **false when the caller must create the
+///         directories itself**, because the channel is not the place for it here or @p path does not fit.
+bool submitMkdirAll(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr);
 
 /// @brief Take a write through the channel, if the channel is the right place for it.
 ///
@@ -345,21 +347,23 @@ bool submitMkdirAll(const char* path);
 /// @param len    Byte count.
 /// @param onDone Called exactly once when the write ends: `Written` or `WriteFailed`. May be nullptr.
 /// @param ctx    Passed through to @p onDone.
-/// @return true when the channel took it. **false when the caller must do the write itself** -- the
-///         channel is not in use here, is busy, or @p len / @p path exceed the channel's bounds.
+/// @return true when the channel took it, in flight or queued. **false when the caller must do the write
+///         itself** -- the channel is not the place for it here, or @p len / @p path exceed its bounds. A busy
+///         channel is never a false.
 ///
-/// @note A false here is a REFUSAL, not a queue. That is the no-coalescing rule: two rapid toggles
-///       are two distinct settings changes, and superseding the first would lose one the user watched
-///       themselves make. The caller falls through to @ref runOnStorageOwner rather than retrying, so
-///       the second intent still reaches the card -- just synchronously, on a tier where blocking is
-///       legal.
+/// @note No change is ever lost. A write to a path that already has a write WAITING, with the same @p onDone
+///       and @p ctx, replaces that write's bytes in place: every write here is a whole file serialised from
+///       current state, so the newer one carries every change the older did. A write already in flight is
+///       never replaced, and with different callbacks the new write is appended, so each accepted submission's
+///       @p onDone still fires exactly once.
 bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDone = nullptr, void* ctx = nullptr);
 
 /// @brief Run @p fn where blocking on the card is legal: on the storage owner, or inline if already
 ///        there.
 ///
-/// The fallback arm for every consumer, and the whole of the fix on a build with no channel. It is
-/// what takes settings I/O off the interaction tier even when nothing has been relocated into Rust.
+/// The arm for a consumer whose operation does not belong on the channel here -- the switch is off, the caller is
+/// on the owner, it is boot, or the operation exceeds the channel's bounds. Never a busy fallback: a busy channel
+/// queues. Counted in @ref ownerFallbacks when it really dispatches.
 void runOnStorageOwner(OwnerFn fn, void* ctx);
 
 /// @brief How many settings operations the CHANNEL has carried to completion.
@@ -397,10 +401,11 @@ void runOnStorageOwner(OwnerFn fn, void* ctx);
 /// inline there, so the operation does not happen. Anything nonzero here is a lost operation.
 [[nodiscard]] int32_t ownerDispatchesDropped();
 
-/// @brief Drive whatever @ref submitRead or @ref submitWrite handed over.
+/// @brief Drive whatever @ref submitRead, @ref submitWrite and @ref submitMkdirAll handed over, one operation
+///        at a time, oldest first.
 ///
-/// Registered as a repeating task in `deluge.cpp` beside `loadSongUI.loadRoutine()`, and called by
-/// the settings-channel gate's own tick. Cheap and reentrant when there is nothing pending.
+/// Registered as a repeating task in `deluge.cpp`, and called by the settings-channel gate's own tick. Cheap and
+/// reentrant when there is nothing pending.
 void serviceRoutine();
 
 /// @}
