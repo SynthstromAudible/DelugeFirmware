@@ -2350,11 +2350,22 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
                                   ArpReturnInstruction instruction) {
 	if (instruction.arpNoteOn) {
-		instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
+		// The melodic arp's arp-off path marks its returned note PLAYING before
+		// we have actually started it. Restore that pending state, but do not
+		// retrigger the first note of a chord whose other notes are still pending.
+		if (!instruction.arpNoteOn->isPending()) {
+			instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
+		}
 
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
+			}
+			if (instruction.arpNoteOn->noteStatus[n] != ArpNoteStatus::PENDING) {
+				continue;
+			}
+			if (!AudioEngine::allowedToStartVoice()) {
+				break; // Leave the remaining notes pending for the next render.
 			}
 			invertReversed = instruction.invertReversed;
 
