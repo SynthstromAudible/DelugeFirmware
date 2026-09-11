@@ -93,6 +93,7 @@
 #include "spec/support/spec_main.h"
 
 namespace menu = deluge::scenes::menu;
+using deluge::scenes::spec::open_note_mode_over_clip_view;
 
 namespace {
 
@@ -170,23 +171,6 @@ struct ActionLogGuard {
 	ActionLogGuard() = default;
 	~ActionLogGuard() { actionLogger.closeAction(ActionType::NOTE_EDIT); }
 };
-
-/// @brief An open ported note mode in production's shape: `instrumentClipView` as the root UI, the
-///        guest opened over it with `openUI`, and the ported menu the only scene on its stack at @p root.
-///
-/// `note_mode_spec.cpp`'s repaint example opens the guest the same way (`openUI` runs `opened()`,
-/// which starts the guest's stack at the initial scene). Tear down with `UiStackGuard` and
-/// `GlobalGuestGuard`.
-bool open_note_mode_over_clip_view(deluge::scenes::spec::SongFixture& fx, menu::MenuContext::Root root) {
-	setRootUILowLevel(&instrumentClipView);
-	const menu::Node& node = deluge::scenes::spec::menu_node_for_root(root);
-	const menu::Node* const roots[] = {&node};
-	(void)menu::assign_node_ids(roots);
-	deluge::scenes::menu_scene().open(node, deluge::scenes::spec::menu_context_at(fx, root));
-	shellHostUI.setInitialScene(
-	    deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)});
-	return openUI(&shellHostUI);
-}
 
 } // namespace
 

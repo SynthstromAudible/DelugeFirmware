@@ -948,6 +948,18 @@ public:
 	/// without asking `checkPermissionToBeginSession` (`:957-976`) -- so this is `descend_to`, which
 	/// asks no permission either, and nothing more. **`menu_context()` is untouched**: unlike `open()`,
 	/// this never replaces `ctx_`.
+	///
+	/// @note **A recorded divergence: the focus the entered page lands on.** Legacy's `beginScreen`
+	///       begins the entered item's session (`gui/ui/sound_editor.cpp:959`), and the toggle names no
+	///       item to navigate back from (`:1968`). For a `HorizontalMenu` that is
+	///       `HorizontalMenu::beginSession` (`gui/menu_item/horizontal_menu.cpp:40-48`) ->
+	///       `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`) -> `focusChild(nullptr)`
+	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold
+	///       lands on the column last focused. `descend_to` resets `st_.list[depth]` and
+	///       `st_.columns[depth]` (`scenes/menu/menu_scene.cpp:1527-1528`), so this always lands on the
+	///       first. It is `src/scenes/README.md:1678-1697`'s carry 5 -- focus kept per depth for a
+	///       session, not per menu object for the process -- met by a descend rather than a re-open.
+	///       Recorded, not changed.
 	void enter_submenu(const Node& node);
 	/// @}
 };

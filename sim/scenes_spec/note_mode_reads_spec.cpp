@@ -43,6 +43,7 @@
 #include "model/song/song.h"
 #include "notify/notice_queue.h"
 #include "playback/mode/session.h"
+#include "processing/sound/sound_drum.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -71,6 +72,8 @@
 /// @{
 namespace Buttons {
 extern bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS];
+extern bool shiftCurrentlyPressed;
+extern bool shiftCurrentlyStuck;
 } // namespace Buttons
 /// @}
 
@@ -79,6 +82,7 @@ using deluge::gui::ui::NoteModeKind;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 using deluge::scenes::spec::GlobalGuestGuard;
+using deluge::scenes::spec::open_note_mode_over_clip_view;
 using deluge::scenes::spec::SongFixture;
 using deluge::scenes::spec::UiStackGuard;
 using deluge::ui::shell::SceneId;
@@ -102,6 +106,41 @@ struct HeldButton {
 		const auto xy = deluge::hid::button::toXY(b);
 		::Buttons::buttonStates[xy.x][xy.y] = on;
 	}
+};
+
+/// @brief Hold SHIFT for an example's lifetime: `Buttons::isShiftButtonPressed` reads
+///        `shiftCurrentlyPressed` (`hid/buttons.cpp:294-296`), not the button matrix.
+struct HeldShift {
+	HeldShift() {
+		::Buttons::shiftCurrentlyPressed = true;
+		::Buttons::shiftCurrentlyStuck = false;
+	}
+	~HeldShift() { ::Buttons::shiftCurrentlyPressed = false; }
+	HeldShift(const HeldShift&) = delete;
+	HeldShift& operator=(const HeldShift&) = delete;
+};
+
+/// @name Two spec-local pages for `MenuScene::go_up_one_level`'s refusal arm
+///
+/// A root whose `relevant` hook refuses makes `permission_for` answer `No` for it
+/// (`scenes/menu/context.cpp`'s base rule), which is the refusal `SoundEditor::goUpOneLevel`'s loop
+/// meets at `gui/ui/sound_editor.cpp:720-722`. No production root refuses at depth 0, so these stand in.
+/// @{
+bool never_relevant(const MenuContext&) {
+	return false;
+}
+constexpr std::span<const Node* const> kNoChildren{};
+constexpr Node kChildPage = menu::submenu(0, kNoChildren);
+constexpr const Node* kRootChildren[] = {&kChildPage};
+constexpr Node kOpenRoot = menu::submenu(0, kRootChildren);
+constexpr Node kRefusedRoot = menu::submenu(0, kRootChildren, menu::Layout::Vertical, never_relevant);
+/// @}
+
+/// @brief `Output::activeClip` is protected, and `Output::setActiveClip` is the very call a spec must not
+///        make (see the kit audition example). Reads it the way `note_nodes_spec.cpp`'s `SubmenuPeek`
+///        reaches `Submenu::items`: a member pointer taken in a derived class, never instantiated.
+struct OutputPeek : Output {
+	static Clip*& active_clip(Output& output) { return output.*(&OutputPeek::activeClip); }
 };
 
 /// @brief Set one runtime feature setting for an example, and put it back.
@@ -220,18 +259,6 @@ std::string drain_last_notice() {
 		text = n.text;
 	}
 	return text;
-}
-
-/// @brief The guest opened over `instrumentClipView` with the ported menu at @p root -- production's
-///        shape (`note_bridge_spec.cpp`'s helper of the same name).
-bool open_note_mode_over_clip_view(SongFixture& fx, Root root) {
-	setRootUILowLevel(&instrumentClipView);
-	const Node& node = deluge::scenes::spec::menu_node_for_root(root);
-	const Node* const roots[] = {&node};
-	(void)menu::assign_node_ids(roots);
-	menu_scene().open(node, deluge::scenes::spec::menu_context_at(fx, root));
-	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(node)});
-	return openUI(&shellHostUI);
 }
 
 /// @brief Is the ported menu on the global guest's stack at all?
@@ -461,6 +488,29 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(drain_last_notice()).to_equal(std::string{"Select Row"});
 	});
 
+	it("with no note selected, a press on the row's probability item stays put, raises \"Select Note\" and leaves "
+	   "activeNoteMode() NoteRowEditor -- the toggle's press refusal", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		LegacyViewGuard::audition_row(0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
+		menu_scene().enter_submenu(nodes::note_row_probability);
+		expect(instrumentClipView.lastSelectedNoteXDisplay).to_equal(int32_t{kNoSelection});
+		(void)drain_last_notice();
+
+		// The port directly, not through the pad handler: every real press that holds a note also selects
+		// it (`gui/views/instrument_clip_view.cpp:2512-2513`, `:2705-2706`), so no press reaches `:3851` with
+		// nothing selected. This is the call that line makes.
+		guest::noteModeToggleNoteEditorParamMenu(1);
+
+		expect(menu_scene().state().depth).to_equal(uint8_t{1});
+		expect(menu_scene().focused() == &nodes::note_row_probability).to_be_true();
+		expect(drain_last_notice()).to_equal(std::string{"Select Note"});
+		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
+	});
+
 	it("releasing one of two held notes re-reads the focused item for the note still held -- "
 	   "handleNoteRowEditorMainPadAction's readValueAgain", _ {
 		UiStackGuard ui_guard;
@@ -564,6 +614,97 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		expect(kit->selectedDrum == other).to_be_true();
 	});
 
+	it("a main pad on a kit y with no NoteRow creates no row and leaves the selected drum alone -- editPadAction's "
+	   "`inNoteRowEditor`", _ {
+		// `gui/views/instrument_clip_view.cpp:2381-2384` returns before `:2387-2391` creates a row (or, failing
+		// that, clears the kit's selected drum).
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_kit_song();
+		fx.clip->yScroll = 0; // `note_bridge_spec.cpp`'s kit example says why
+		auto* drum = deluge::scenes::spec::add_drum<GateDrum>(fx);
+		Kit* const kit = static_cast<Kit*>(fx.clip->output);
+		kit->selectedDrum = drum;
+		const auto rows = std::ssize(fx.clip->noteRows);
+		expect(fx.clip->getNoteRowOnScreen(1, currentSong) == nullptr).to_be_true();
+		LegacyViewGuard::audition_row(0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
+
+		expect(guest::noteModeLegacyCalls().noteRowEditorPad(0, 1, 1)).to_be_true();
+		legacy.pressed.push_back({0, 1});
+
+		expect(std::ssize(fx.clip->noteRows) == rows).to_be_true();
+		expect(kit->selectedDrum == drum).to_be_true();
+	});
+
+	it("a vertical turn past the kit's last row with that row auditioning does not scroll -- scrollVertical's "
+	   "`preventOverScrolling`", _ {
+		// `gui/views/instrument_clip_view.cpp:4392` into `scrollVertical_limit`'s `:4468-4475`: no row at the
+		// auditioned y once scrolled, so no scroll.
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_kit_song();
+		fx.clip->yScroll = 0;
+		(void)deluge::scenes::spec::add_drum<GateDrum>(fx);
+		(void)deluge::scenes::spec::add_drum<GateDrum>(fx);
+		expect(fx.clip->getNoteRowOnScreen(2, currentSong) == nullptr).to_be_true();
+		LegacyViewGuard::audition_row(1);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
+
+		(void)guest::forwardNoteVerticalEncoder(1, false);
+		expect(fx.clip->yScroll).to_equal(int32_t{0});
+	});
+
+	it("SHIFT with a vertical turn does not shift the clip's colour -- verticalEncoderAction's `inNoteRowEditor`", _ {
+		// `gui/views/instrument_clip_view.cpp:6270-6274`: no colour shifting in the note-row editor; the turn
+		// falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift (`:6501-6503`).
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		LegacyViewGuard::audition_row(0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
+		const auto colour = fx.clip->colourOffset;
+		HeldShift shift;
+
+		(void)guest::forwardNoteVerticalEncoder(1, false);
+		expect(fx.clip->colourOffset == colour).to_be_true();
+	});
+
+	it("an audition on another drum's row gives the gold knobs that drum -- setSelectedDrum's "
+	   "`inNoteOrNoteRowEditor`", _ {
+		// `startAuditioningRow` selects the row's drum (`gui/views/instrument_clip_view.cpp:5500-5502`), and
+		// `:5103-5104` then re-targets the active mod-controllable (`:5116`).
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_kit_song();
+		fx.clip->yScroll = 0;
+		fx.clip->affectEntire = false;
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
+		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
+		Drum* const row0 = fx.clip->getNoteRowOnScreen(0, currentSong)->drum;
+		Drum* const row1 = fx.clip->getNoteRowOnScreen(1, currentSong)->drum;
+		Kit* const kit = static_cast<Kit*>(fx.clip->output);
+		kit->selectedDrum = row0;
+		// The clip already active on its kit, as a booted session has it: otherwise the audition's
+		// `makeCurrentClipActiveOnInstrumentIfPossible` (`model/clip/instrument_clip_minder.cpp:587-598`) runs
+		// `Kit::setActiveClip`, which services the audio routine for a SOUND drum (`model/instrument/kit.cpp:1059`)
+		// and faults in a spec process, as `note_bridge_spec.cpp`'s `ActionLogGuard` records.
+		OutputPeek::active_clip(*kit) = fx.clip;
+		LegacyViewGuard::audition_row(0);
+		expect(open_note_mode_over_clip_view(fx, Root::NoteRowEditor)).to_be_true();
+		view.setActiveModControllableTimelineCounter(fx.clip, false);
+		expect(view.activeModControllableModelStack.modControllable == row0->toModControllable()).to_be_true();
+
+		expect(guest::noteModeLegacyCalls().noteRowEditorPad(kDisplayWidth + 1, 1, 1)).to_be_true();
+
+		expect(kit->selectedDrum == row1).to_be_true();
+		expect(view.activeModControllableModelStack.modControllable == row1->toModControllable()).to_be_true();
+	});
+
 	it("nudging a held note out of its square goes up one level -- nudgeNotes' goUpOneLevel", _ {
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -588,7 +729,32 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 	});
 });
 
-describe note_mode_reads_legacy_leg("the legacy arm of each edited file, with the ported menu closed", $ {
+describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submenu -- the two entries Task 7a added", $ {
+	it("go_up_one_level answers false at depth 0, steps up otherwise, and answers false when the step lands on a "
+	   "refused root -- goUpOneLevel's two exitCompletely passes", _ {
+		// `gui/ui/sound_editor.cpp:714-722`: `exitCompletely` on the loop's first pass at depth 0, and again
+		// on a later pass when `:720-722` refuses the level it stepped down to.
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		const MenuContext ctx = deluge::scenes::spec::menu_context_at(fx, Root::Song);
+
+		menu_scene().open(kOpenRoot, ctx);
+		expect(menu_scene().go_up_one_level()).to_be_false(); // first pass, at depth 0
+		menu_scene().enter_submenu(kChildPage);
+		expect(menu_scene().state().depth).to_equal(uint8_t{1});
+		expect(menu_scene().go_up_one_level()).to_be_true();
+		expect(menu_scene().state().depth).to_equal(uint8_t{0});
+		expect(menu_scene().focused() == &kOpenRoot).to_be_true();
+
+		menu_scene().open(kRefusedRoot, ctx);
+		menu_scene().enter_submenu(kChildPage); // no permission asked, as `enterSubmenu` asks none
+		expect(menu_scene().state().depth).to_equal(uint8_t{1});
+		expect(menu_scene().go_up_one_level()).to_be_false(); // a later pass, refused at depth 0
+		expect(menu_scene().state().depth).to_equal(uint8_t{0});
+		expect(menu_scene().menu_context().root == Root::Song).to_be_true(); // neither entry touches the context
+	});
+});
+
+describe note_mode_reads_legacy_leg("each edited file's legacy arm with the ported menu closed, beside its note-mode twin", $ {
 	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
 
 	it("instrument_clip_view.cpp: adjust_note_probability's first turn with no popup changes nothing and raises the "
@@ -628,7 +794,27 @@ describe note_mode_reads_legacy_leg("the legacy arm of each edited file, with th
 		expect(kit->selectedDrum == row_drum).to_be_true();
 	});
 
-	it("action_logger.cpp: getNewAction refuses under a current UI that is not the root unless a note mode is open", _ {
+	it("action_logger.cpp: menu closed, getNewAction allows under the root and refuses under any other current UI", _ {
+		// Legacy's gate, `model/action/action_logger.cpp:98-102`, with no ported menu on the guest's stack.
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		setRootUILowLevel(&instrumentClipView);
+		expect(menu_on_guest_stack()).to_be_false();
+		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED) == nullptr).to_be_false();
+
+		// The guest current over the root, the menu then taken off its stack: a current UI that is neither
+		// the root, the sound editor nor `loadPatternUI`.
+		expect(open_note_mode_over_clip_view(fx, Root::NoteEditor)).to_be_true();
+		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
+		expect(menu_on_guest_stack()).to_be_false();
+		expect(getCurrentUI() == static_cast<UI*>(&shellHostUI)).to_be_true();
+		expect(actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED) == nullptr).to_be_true();
+	});
+
+	it("action_logger.cpp: the note-mode twin -- with the guest current, getNewAction refuses at a non-note root "
+	   "and allows at a note root", _ {
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -679,7 +865,7 @@ describe note_mode_reads_legacy_leg("the legacy arm of each edited file, with th
 int note_mode_reads_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(note_mode_reads_predicates, note_mode_reads_note_editor, note_mode_reads_note_row_editor,
-	                          note_mode_reads_legacy_leg)
+	                          note_mode_reads_menu_entries, note_mode_reads_legacy_leg)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

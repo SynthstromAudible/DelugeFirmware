@@ -247,10 +247,10 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 	}
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 	    == RuntimeFeatureStateSyncScalingAction::Fill) { // `:335-336`
-		// `:339-342` (the sound-editor note editor / note row editor) and `:345-353` (the two
-		// `instrumentClipView` note-fill adjustments) name `soundEditor` and `instrumentClipView`,
-		// both on `scenes-no-root-ui`'s list, and neither the note editor nor `InstrumentClipScene`
-		// is ported.
+		// `gui/views/view.cpp:340-343` (the note editor / note-row editor test) needs no port here: in a
+		// ported note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp:907`)
+		// and gives it to the mode's handler (`gui/ui/shell_note_mode.cpp:187-191`), which reaches that test.
+		// The fill adjustments (`gui/views/view.cpp:345-354`) name `instrumentClipView`: E5's, unported.
 		//
 		// @warning **Not ported.** In this port the arm always takes legacy's "otherwise" branch,
 		//          so SYNC_SCALING under the Fill setting toggles fill mode even in the two cases

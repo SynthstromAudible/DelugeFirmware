@@ -9,8 +9,9 @@
 /// has to be on the singleton guest's stack -- a spec-local `ShellHostUI` would not be seen.
 
 #include "gui/ui/shell_host_ui.h" // shellHostUI
-#include "gui/ui/ui.h"            // nullifyUIs
+#include "gui/ui/ui.h"            // nullifyUIs, setRootUILowLevel, openUI
 #include "gui/ui_timer_manager.h"
+#include "gui/views/instrument_clip_view.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -112,6 +113,35 @@ inline bool open_menu_on_global_guest_at(SongFixture& fx, menu::MenuContext::Roo
 	shellHostUI.setInitialScene(
 	    deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)});
 	return shellHostUI.opened();
+}
+
+/// @brief The ported menu open at @p root in production's shape: `instrumentClipView` as the root UI
+///        and the guest opened over it as the current UI.
+///
+/// **What this establishes, beyond `open_menu_on_global_guest_at`:** `open_menu_on_global_guest_at`'s
+/// menu, context and node ids, and then the guest on `uiNavigationHierarchy` -- `setRootUILowLevel(
+/// &instrumentClipView)` followed by `openUI(&shellHostUI)`, which runs `opened()` itself and so starts
+/// the guest's stack at the initial scene. `getCurrentUI()` is `&shellHostUI` and `getRootUI()` is
+/// `&instrumentClipView`, exactly as when `openShellMenu` opens a note editor from the clip view.
+///
+/// **Why the guest must be current over `instrumentClipView`.** `ActionLogger::getNewAction` refuses
+/// an action whenever the current UI is not the root, unless a note editor is open
+/// (`model/action/action_logger.cpp:98-102`) -- the gate every note-mode edit is written through. With no
+/// UI seated, `getRootUI()` is null and `getCurrentUI()` is whatever `nullifyUIs` last left
+/// (`gui/ui/ui.cpp:136-150`), so the gate's answer would be an accident of the previous example rather
+/// than the question production asks. And `instrumentClipView` is the root every note-mode handler
+/// runs under. Tear down with `UiStackGuard` and `GlobalGuestGuard`.
+///
+/// @return What `openUI` returned: false only if the guest refused to open.
+inline bool open_note_mode_over_clip_view(SongFixture& fx, menu::MenuContext::Root root) {
+	setRootUILowLevel(&instrumentClipView);
+	const menu::Node& node = menu_node_for_root(root);
+	const menu::Node* const roots[] = {&node};
+	(void)menu::assign_node_ids(roots);
+	menu_scene().open(node, menu_context_at(fx, root));
+	shellHostUI.setInitialScene(
+	    deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)});
+	return openUI(&shellHostUI);
 }
 
 } // namespace deluge::scenes::spec

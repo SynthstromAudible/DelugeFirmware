@@ -354,7 +354,15 @@ LEGACY_PORT_SEAMS = (
     # (`gui/ui/sound_editor.cpp:1916-1922`). And it names `instrumentClipView`, whose note handlers
     # `SoundEditor::buttonAction`, its two encoder hooks and `exitCompletely` forward to
     # (`:617-623`, `:1047-1052`, `:1593-1598`, `:749-756`). That is the same pair of names
-    # `shell_pad_forward.cpp` above is listed for, and the same side of the wall. Its HEADER
+    # `shell_pad_forward.cpp` above is listed for, and the same side of the wall.
+    #
+    # Note-family Task 7a widened what it names on both sides. Legacy side: `soundEditor` (the legacy
+    # half of `util/note_editor_open.h`'s two predicates, defined here), `closePortedMenu()`
+    # (`gui/ui/shell_action_dispatch.h`) and `runtimeFeatureSettings` (the toggle's `HorizontalMenus`
+    # read). Port side: the `deluge::scenes::menu::nodes::*` note and row nodes plus
+    # `sequence_direction` (`scenes/menu/nodes/note.h`), and `MenuScene::focused`, `read_value_again`,
+    # `go_up_one_level` and `enter_submenu` -- the ports of the note-mode handlers' own
+    # `readValueAgain` / `goUpOneLevel` / `toggleNoteEditorParamMenu` calls. Its HEADER
     # (`shell_note_mode.h`) is deliberately NOT listed: it names no `scenes/` or `shell/` type --
     # `NoteModeKind` is its own enum, and every call takes `hid::Button`, integers and bools -- so
     # `shell_host_ui.cpp` and the host spec suite's fake reach it without the `deluge_scenes`
