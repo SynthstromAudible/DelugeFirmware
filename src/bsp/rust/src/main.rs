@@ -327,13 +327,6 @@ unsafe extern "C" {
     fn deluge_app_init(board: *const sys::DelugeBoard);
 }
 
-/// Rust-side SRAM heap pool. The C++ app's GeneralMemoryAllocator owns the rest
-/// of SRAM (`[__heap_start, program_stack_start)`), so the Rust heap is a small,
-/// dedicated static pool that can't overlap it. Nothing on the Rust side
-/// allocates from SRAM yet; sized small.
-#[cfg(target_os = "none")]
-static mut RUST_SRAM_POOL: [u8; 64 * 1024] = [0; 64 * 1024];
-
 /// `#[global_allocator]` binding for `extern crate alloc` — required as
 /// soon as any dependency needs it, which `fat_block_device.rs`'s
 /// `embedded-fatfs` (`alloc` feature) is the first to on this target; nothing
@@ -342,7 +335,7 @@ static mut RUST_SRAM_POOL: [u8; 64 * 1024] = [0; 64 * 1024];
 /// engine's C ABI, but a DISTINCT instance/arena (its own `DelugeHeap`, not
 /// shared with `deluge_resource`'s). Aliased to the `fs_alloc` crate name to
 /// avoid colliding with the sibling deluge-sdk `deluge-alloc` crate
-/// (`RUST_SRAM_POOL`/`allocator`, above) — both would otherwise normalize to
+/// (`allocator`, above) — both would otherwise normalize to
 /// the identifier `deluge_alloc`.
 ///
 /// NOT YET INITIALISED with a real backing arena (`fs_alloc::DelugeGlobalAlloc
@@ -520,11 +513,11 @@ pub extern "C" fn main() -> ! {
     }
     log::info!("deluge-rust: boot — Rust/Embassy BSP for RZ/A1L");
 
-    // Initialise the Rust-side SRAM heap over its dedicated static pool.
-    unsafe {
-        let p = core::ptr::addr_of_mut!(RUST_SRAM_POOL);
-        allocator::SRAM.init(p as *mut u8, core::mem::size_of_val(&*p));
-    }
+    // No Rust-side SRAM heap. Nothing here allocates from on-chip SRAM -- the SDK crate that would
+    // make `deluge_alloc::SRAM` a global allocator is not linked -- and the 64 KiB static pool it used
+    // to be initialised over came straight out of the C++ app's fast on-chip heap, which starts at
+    // the image end rounded up to 64 KiB. `deluge_alloc::SRAM` stays uninitialised, so an allocation
+    // from it fails rather than landing anywhere; give it a real arena before anything needs it.
 
     // CPG/PLL, MMU, L1+L2 caches, SDRAM controller, GIC, and the embassy-time
     // (OSTM) driver — the whole platform bring-up, owned by the BSP.
