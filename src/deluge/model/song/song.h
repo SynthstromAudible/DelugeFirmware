@@ -274,7 +274,8 @@ public:
 	void loadNextSong();
 	void setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip = true);
 	void doubleClipLength(InstrumentClip* clip, Action* action = nullptr);
-	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr);
+	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr,
+	                        bool require_compatible_param_manager = false);
 	Error readFromFile(Deserializer& reader);
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true);
@@ -329,7 +330,8 @@ public:
 	void setHibernatingMIDIInstrument(MIDIInstrument* newInstrument);
 	void deleteHibernatingMIDIInstrument();
 	MIDIInstrument* grabHibernatingMIDIInstrument(int32_t newSlot, int32_t newSubSlot);
-	NoteRow* findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = nullptr);
+	NoteRow* findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip = nullptr,
+	                            bool requireCompatibleParamManager = false);
 
 	bool anyOutputsSoloingInArrangement;
 	bool getAnyOutputsSoloingInArrangement();

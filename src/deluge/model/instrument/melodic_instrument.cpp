@@ -733,33 +733,3 @@ void MelodicInstrument::polyphonicExpressionEventPossiblyToRecord(ModelStackWith
 
 	expressionValueChangesMustBeDoneSmoothly = false;
 }
-
-ModelStackWithAutoParam* MelodicInstrument::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack,
-                                                                   Clip* clip, int32_t paramID,
-                                                                   deluge::modulation::params::Kind paramKind,
-                                                                   bool affectEntire, bool useMenuStack) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
-
-	if (modelStackWithThreeMainThings) {
-		if (paramKind == deluge::modulation::params::Kind::PATCHED) {
-			modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-		}
-
-		else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
-			modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-		}
-
-		else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
-			modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
-		}
-		else if (paramKind == deluge::modulation::params::Kind::EXPRESSION) {
-
-			modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);
-		}
-	}
-
-	return modelStackWithParam;
-}

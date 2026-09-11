@@ -332,7 +332,7 @@ doReadDrum:
 		selectedDrum = getDrumFromIndex(selectedDrumIndex);
 	}
 
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (paramManager.matches_type(required_param_manager_type())) {
 		compensateInstrumentVolumeForResonance(&paramManager, song);
 		song->backUpParamManager(this, clip, &paramManager, true);
 	}
@@ -1535,8 +1535,9 @@ goingToRecordNoteOnEarly:
 			// get updated by the subsequent MPE that will come in. Or does that not matter?
 
 			if (thisNoteRow && thisDrum->type == DrumType::SOUND
-			    && !thisNoteRow->paramManager.containsAnyMainParamCollections()) {
-				FREEZE_WITH_ERROR("E326"); // Trying to catch an E313 that Vinz got
+			    && !thisNoteRow->paramManager.matches_type(
+			        thisDrum->toModControllable()->required_param_manager_type())) {
+				FREEZE_WITH_ERROR("PM37"); // was E326. Trying to catch a PM36 that Vinz got
 			}
 
 			beginAuditioningforDrum(modelStackWithNoteRow, thisDrum, velocity, mpeValues, channel);
@@ -1927,8 +1928,9 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 		}
 
 		paramManagerForDrum = &noteRow->paramManager;
-		if (!paramManagerForDrum->containsAnyMainParamCollections() && drum->type == DrumType::SOUND) {
-			FREEZE_WITH_ERROR("E313"); // Vinz got this!
+		if (drum->type == DrumType::SOUND
+		    && !paramManagerForDrum->matches_type(drum->toModControllable()->required_param_manager_type())) {
+			FREEZE_WITH_ERROR("PM36"); // Vinz got this (as E313)!
 		}
 	}
 	else {
@@ -1936,7 +1938,7 @@ void Kit::beginAuditioningforDrum(ModelStackWithNoteRow* modelStack, Drum* drum,
 			paramManagerForDrum = modelStack->song->getBackedUpParamManagerPreferablyWithClip((SoundDrum*)drum, NULL);
 			if (!paramManagerForDrum) {
 				// Ron got this, June 2020, while "dragging" a row vertically in arranger
-				FREEZE_WITH_ERROR("E314");
+				FREEZE_WITH_ERROR("PM38"); // was E314
 			}
 		}
 	}
@@ -1997,83 +1999,3 @@ gotParamManager:
 }
 
 // for (Drum* drum = firstDrum; drum; drum = drum->next) {
-
-/// for a kit we have two types of automation: with Affect Entire and without Affect Entire
-ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                     int32_t paramID, params::Kind paramKind, bool affectEntire,
-                                                     bool useMenuStack) {
-	if (affectEntire) {
-		return getModelStackWithParamForKit(modelStack, clip, paramID, paramKind, useMenuStack);
-	}
-	else {
-		return getModelStackWithParamForKitRow(modelStack, clip, paramID, paramKind, useMenuStack);
-	}
-}
-
-/// for a kit we have two types of automation: with Affect Entire and without Affect Entire
-/// for a kit with affect entire on, we are automating information at the kit level
-ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                           int32_t paramID, params::Kind paramKind, bool useMenuStack) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
-
-	if (useMenuStack) {
-		modelStackWithThreeMainThings = modelStack->addOtherTwoThingsButNoNoteRow(soundEditor.currentModControllable,
-		                                                                          soundEditor.currentParamManager);
-	}
-	else {
-		modelStackWithThreeMainThings =
-		    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
-	}
-
-	if (modelStackWithThreeMainThings) {
-		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-	}
-
-	return modelStackWithParam;
-}
-
-/// for a kit we have two types of automation: with Affect Entire and without Affect Entire
-/// for a kit with affect entire off, we are automating information at the noterow level
-ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                              int32_t paramID, params::Kind paramKind,
-                                                              bool useMenuStack) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (selectedDrum && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
-
-		ModelStackWithNoteRow* modelStackWithNoteRow = ((InstrumentClip*)clip)->getNoteRowForSelectedDrum(modelStack);
-
-		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
-
-			if (useMenuStack) {
-				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThings(
-				    soundEditor.currentModControllable, soundEditor.currentParamManager);
-			}
-			else {
-				modelStackWithThreeMainThings = modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
-			}
-
-			if (modelStackWithThreeMainThings) {
-				if (paramKind == deluge::modulation::params::Kind::PATCHED) {
-					modelStackWithParam = modelStackWithThreeMainThings->getPatchedAutoParamFromId(paramID);
-				}
-
-				else if (paramKind == deluge::modulation::params::Kind::UNPATCHED_SOUND) {
-					modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-				}
-
-				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
-					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
-				}
-				else if (paramKind == params::Kind::EXPRESSION) {
-					modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);
-				}
-			}
-		}
-	}
-
-	return modelStackWithParam;
-}

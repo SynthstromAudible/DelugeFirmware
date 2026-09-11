@@ -324,6 +324,7 @@ public:
 	                           ArpReturnInstruction instruction);
 
 	virtual const char* getName() { return nullptr; }
+	ParamManagerType required_param_manager_type() const override { return ParamManagerType::SOUND; }
 
 private:
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);

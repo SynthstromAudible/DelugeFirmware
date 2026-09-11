@@ -3,7 +3,9 @@
 #include "RZA1/cpu_specific.h"
 #include "RZA1/system/r_typedefs.h"
 
+#ifndef ALPHA_OR_BETA_VERSION
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
+#endif
 
 #if !defined(NDEBUG)
 #define ENABLE_SEQUENTIALITY_TESTS 1

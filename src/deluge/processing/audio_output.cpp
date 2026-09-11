@@ -366,7 +366,7 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 		}
 	}
 
-	if (paramManager.containsAnyMainParamCollections()) {
+	if (paramManager.matches_type(required_param_manager_type())) {
 		song->backUpParamManager(this, NULL, &paramManager);
 	}
 
@@ -390,7 +390,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E422"); // Trying to diversify Leo's E410
+		FREEZE_WITH_ERROR("PM2A"); // was E422. Trying to diversify Leo's PM02 (was E410)
 	}
 #endif
 
@@ -425,19 +425,4 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManag
                                          int32_t* highestReverbAmountFound) {
 	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
 	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
-}
-
-ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                             int32_t paramID, params::Kind paramKind, bool affectEntire,
-                                                             bool useMenuStack) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-	    modelStack->addOtherTwoThingsButNoNoteRow(toModControllable(), &clip->paramManager);
-
-	if (modelStackWithThreeMainThings) {
-		modelStackWithParam = modelStackWithThreeMainThings->getUnpatchedAutoParamFromId(paramID);
-	}
-
-	return modelStackWithParam;
 }

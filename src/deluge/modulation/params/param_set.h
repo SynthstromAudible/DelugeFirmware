@@ -59,7 +59,8 @@ public:
 	void appendParamCollection(ModelStackWithParamCollection* modelStack,
 	                           ModelStackWithParamCollection* otherModelStack, int32_t oldLength,
 	                           int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) final;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                ParamCollectionSummary* summary = nullptr) override;
 	void cloneFrom(ParamCollection* otherParamSet, bool copyAutomation);
 	void copyOverridingFrom(ParamSet* otherParamSet);
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
@@ -98,7 +99,8 @@ private:
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                ParamCollectionSummary* summary = nullptr) override;
 	bool shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
@@ -116,7 +118,8 @@ private:
 class PatchedParamSet final : public ParamSet {
 public:
 	PatchedParamSet(ParamCollectionSummary* summary);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                ParamCollectionSummary* summary = nullptr) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
@@ -131,7 +134,8 @@ private:
 class ExpressionParamSet final : public ParamSet {
 public:
 	ExpressionParamSet(ParamCollectionSummary* summary, bool forDrum = false);
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
+	                ParamCollectionSummary* summary = nullptr) override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
 	bool mayParamInterpolate(int32_t paramId) override { return false; }

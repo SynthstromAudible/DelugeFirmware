@@ -114,7 +114,9 @@ InstrumentClip::~InstrumentClip() {
 }
 
 void InstrumentClip::deleteBackedUpParamManagerMIDI() {
-	if (backedUpParamManagerMIDI.containsAnyMainParamCollections()) {
+	// ANY, not ANY_MAIN - this is teardown, so anything allocated needs freeing, even a lone leftover expression
+	// collection that restoreBackedUpParamManagerMIDI() can leave behind.
+	if (backedUpParamManagerMIDI.matches_type(ParamManagerType::ANY)) {
 		backedUpParamManagerMIDI.destructAndForgetParamCollections();
 	}
 }
@@ -684,8 +686,8 @@ void InstrumentClip::pingpongOccurred(ModelStackWithTimelineCounter* modelStack)
 	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 
-		if (thisNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()
-		    && !thisNoteRow->hasIndependentPlayPos()) {
+		// ANY - just need something here to notify, regardless of shape.
+		if (thisNoteRow->paramManager.matches_type(ParamManagerType::ANY) && !thisNoteRow->hasIndependentPlayPos()) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 			    modelStack->addNoteRowAndExtraStuff(i, thisNoteRow);
 			thisNoteRow->paramManager.notifyPingpongOccurred(modelStackWithThreeMainThings);
@@ -1059,12 +1061,22 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowForDrumName(ModelStackWithTimel
 
 	for (i = 0; i < noteRows.getNumElements(); i++) {
 		thisNoteRow = noteRows.getElement(i);
-		if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyMainParamCollections()
-		    && thisNoteRow->drum->type == DrumType::SOUND) {
-			SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
+		if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND) {
+#if ALPHA_OR_BETA_VERSION
+			// Main collections of the wrong shape would make this NoteRow invisible to name lookup.
+			if (!thisNoteRow->paramManager.matches_type(
+			        thisNoteRow->drum->toModControllable()->required_param_manager_type())
+			    && !thisNoteRow->paramManager.matches_type(ParamManagerType::NONE)) {
+				FREEZE_WITH_ERROR("PM34");
+			}
+#endif
+			if (thisNoteRow->paramManager.matches_type(
+			        thisNoteRow->drum->toModControllable()->required_param_manager_type())) {
+				SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
 
-			if (deluge::string::caselessEquals(thisDrum->drumName, name)) {
-				goto foundIt;
+				if (deluge::string::caselessEquals(thisDrum->drumName, name)) {
+					goto foundIt;
+				}
 			}
 		}
 	}
@@ -1160,14 +1172,16 @@ void InstrumentClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// ANY - just need something here to tick down, regardless of shape.
+	if (paramManager.matches_type(ParamManagerType::ANY)) {
 		paramManager.expectNoFurtherTicks(modelStackWithThreeMainThings);
 	}
 
 	if (output->type == OutputType::KIT) {
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
-			if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+			// ANY - same as above, but per-Drum NoteRow.
+			if (thisNoteRow->drum && thisNoteRow->paramManager.matches_type(ParamManagerType::ANY)) {
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
 				    modelStack->addNoteRow(i, thisNoteRow)
 				        ->addOtherTwoThings(thisNoteRow->drum->toModControllable(), &thisNoteRow->paramManager);
@@ -1614,7 +1628,10 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 	// Maybe this function should have the ability to do something equivalent to solicitParamManager(), for the purpose
 	// of getting bend ranges from other Clips with same Instrument? Though it's an obscure requirement that's probably
 	// hardly needed.
-	if (newParamManager) {
+	if (newParamManager
+	    && (newParamManager->matches_type(newInstrument->toModControllable()->required_param_manager_type())
+	        || newParamManager->matches_type(ParamManagerType::NONE))) {
+		paramManager.destructMainParamCollections();
 		paramManager.stealParamCollectionsFrom(newParamManager, true);
 	}
 
@@ -1623,15 +1640,19 @@ Error InstrumentClip::setNonAudioInstrument(Instrument* newInstrument, Song* son
 		ModelStackWithModControllable* modelStack =
 		    setupModelStackWithModControllable(modelStackMemory, song, this, newInstrument->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStack);
-		if (!paramManager.containsAnyMainParamCollections()) {
+		if (!paramManager.matches_type(newInstrument->toModControllable()->required_param_manager_type())) {
 			Error error = paramManager.setupMIDI();
 			if (error != Error::NONE) {
 				if (ALPHA_OR_BETA_VERSION) {
-					FREEZE_WITH_ERROR("E052");
+					FREEZE_WITH_ERROR("PM23"); // was E052
 				}
 				return error;
 			}
 		}
+	}
+	if (newInstrument->type == OutputType::CV) {
+		// CV has no main collections; retain only clip-level expression.
+		paramManager.destructMainParamCollections();
 	}
 	output = newInstrument;
 	affectEntire = true; // Moved here from changeInstrument, March 2021
@@ -1746,12 +1767,17 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 
 		SoundInstrument* synth = (SoundInstrument*)newInstrument;
 
-		// Guard against a null PatchCableSet. Can occur when converting a duplicated MIDI clip to
-		// Synth (#4014) — the paramManager ends up without patch cables in that path.
-		PatchCableSet* pcs = paramManager.getPatchCableSetAllowJibberish();
-		if (pcs != nullptr) {
-			pcs->grabVelocityToLevelFromMIDIInput(&synth->midiInput); // Should happen before setupPatching().
+		// setInstrument() -> solicitParamManager() guarantees a full sound layout, but a null PatchCableSet here used
+		// to crash when converting a duplicated MIDI clip to Synth (#4014), so don't dereference it blindly.
+		if (paramManager.matches_type(newInstrument->toModControllable()->required_param_manager_type())) {
+			paramManager.getPatchCableSet()->grabVelocityToLevelFromMIDIInput(
+			    &synth->midiInput); // Should happen before setupPatching().
 		}
+#if ALPHA_OR_BETA_VERSION
+		else {
+			FREEZE_WITH_ERROR("PM24");
+		}
+#endif
 
 		// Set up patching now. If a Kit, we do the drums individually below.
 		synth->setupPatching(modelStack);
@@ -2147,10 +2173,18 @@ void InstrumentClip::unassignAllNoteRowsFromDrums(ModelStackWithTimelineCounter*
 			// If we're retaining links to Sounds, like if we're undo-ably "deleting" a Clip, just backup (and remove
 			// link to) the paramManager
 			if (shouldRetainLinksToSounds) {
-				if (thisNoteRow->paramManager.containsAnyMainParamCollections()) {
+				if (thisNoteRow->drum->type == DrumType::SOUND
+				    && thisNoteRow->paramManager.matches_type(
+				        thisNoteRow->drum->toModControllable()->required_param_manager_type())) {
 					modelStack->song->backUpParamManager((SoundDrum*)thisNoteRow->drum, this,
 					                                     &thisNoteRow->paramManager, shouldBackUpExpressionParamsToo);
 				}
+#if ALPHA_OR_BETA_VERSION
+				// Main collections of the wrong shape would be dropped instead of backed up.
+				else if (!thisNoteRow->paramManager.matches_type(ParamManagerType::NONE)) {
+					FREEZE_WITH_ERROR("PM33");
+				}
+#endif
 			}
 
 			// Or, the more normal thing...
@@ -2195,7 +2229,9 @@ Error InstrumentClip::undoUnassignmentOfAllNoteRowsFromDrums(ModelStackWithTimel
 // Do *not* use this function to set it to NULL if you don't want to completely delete the old one
 // I should make this "steal".
 void InstrumentClip::setBackedUpParamManagerMIDI(ParamManagerForTimeline* newOne) {
-	if (backedUpParamManagerMIDI.containsAnyMainParamCollections()) {
+	// ANY_MAIN - stealParamCollectionsFrom() below would overwrite a real main collection here without freeing it, so
+	// only that (not a lone leftover expression, which steal preserves) needs pre-destroying.
+	if (backedUpParamManagerMIDI.matches_type(ParamManagerType::ANY_MAIN)) {
 		// Delete the old one
 		backedUpParamManagerMIDI.destructAndForgetParamCollections();
 	}
@@ -2203,10 +2239,13 @@ void InstrumentClip::setBackedUpParamManagerMIDI(ParamManagerForTimeline* newOne
 }
 
 void InstrumentClip::restoreBackedUpParamManagerMIDI(ModelStackWithModControllable* modelStack) {
-	if (!backedUpParamManagerMIDI.containsAnyMainParamCollections()) {
+	// Full required-type check, not just ANY_MAIN - we're about to steal this into the live paramManager, so it must
+	// actually be a valid, correctly-shaped MIDI manager, not just "has some main collection".
+	if (!backedUpParamManagerMIDI.matches_type(modelStack->modControllable->required_param_manager_type())) {
 		return;
 	}
 
+	paramManager.destructMainParamCollections();
 	paramManager.stealParamCollectionsFrom(&backedUpParamManagerMIDI);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2229,11 +2268,15 @@ void InstrumentClip::detachFromOutput(ModelStackWithTimelineCounter* modelStack,
 	}
 
 	if (output->type == OutputType::MIDI_OUT) {
-		if (paramManager.containsAnyMainParamCollections()) { // Wouldn't this always be? Or is there some case where we
-			                                                  // might be calling this just after it's been created, and
-			                                                  // no paramManager yet?
+		if (paramManager.matches_type(output->toModControllable()->required_param_manager_type())) {
 			setBackedUpParamManagerMIDI(&paramManager);
 		}
+#if ALPHA_OR_BETA_VERSION
+		// Main collections of the wrong shape would be dropped instead of backed up for re-attachment.
+		else if (!paramManager.matches_type(ParamManagerType::NONE)) {
+			FREEZE_WITH_ERROR("PM25");
+		}
+#endif
 	}
 	else if (output->type != OutputType::CV) {
 
@@ -2271,9 +2314,9 @@ Error InstrumentClip::undoDetachmentFromOutput(ModelStackWithTimelineCounter* mo
 		    modelStack->addModControllableButNoNoteRow(output->toModControllable());
 		restoreBackedUpParamManagerMIDI(modelStackWithModControllable);
 
-		if (!paramManager.containsAnyMainParamCollections()) {
+		if (!paramManager.matches_type(output->toModControllable()->required_param_manager_type())) {
 			if (ALPHA_OR_BETA_VERSION) {
-				FREEZE_WITH_ERROR("E230");
+				FREEZE_WITH_ERROR("PM22"); // was E230
 			}
 			return Error::BUG;
 		}
@@ -2937,7 +2980,8 @@ doReadBendRange:
 		if (output->type != OutputType::MIDI_OUT && output->type != OutputType::CV) {
 
 			// If we didn't get a paramManager (means pre-September-2016 song)
-			if (!paramManager.containsAnyMainParamCollections()) {
+			if (!paramManager.matches_type(output->toModControllable()->required_param_manager_type())) {
+				paramManager.destructMainParamCollections();
 
 				// Try grabbing the Instrument's "backed up" one
 				ModControllable* modControllable = output->toModControllable();
@@ -2970,8 +3014,8 @@ doReadBendRange:
 
 					else {
 						if (!instrumentWasLoadedByReferenceFromClip
-						    || !instrumentWasLoadedByReferenceFromClip->paramManager
-						            .containsAnyMainParamCollections()) {
+						    || !instrumentWasLoadedByReferenceFromClip->paramManager.matches_type(
+						        output->toModControllable()->required_param_manager_type())) {
 							error = Error::FILE_CORRUPTED;
 							goto someError;
 						}
@@ -3461,7 +3505,8 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	// ANY - just need something here to iterate over, regardless of shape.
+	if (paramManager.matches_type(ParamManagerType::ANY)) {
 		ParamCollectionSummary* summary = paramManager.summaries;
 
 		int32_t i = 0;
@@ -3628,8 +3673,9 @@ void InstrumentClip::compensateVolumeForResonance(ModelStackWithTimelineCounter*
 
 		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
 			NoteRow* thisNoteRow = noteRows.getElement(i);
-			if (thisNoteRow->drum && thisNoteRow->paramManager.containsAnyMainParamCollections()
-			    && thisNoteRow->drum->type == DrumType::SOUND) {
+			if (thisNoteRow->drum && thisNoteRow->drum->type == DrumType::SOUND
+			    && thisNoteRow->paramManager.matches_type(
+			        thisNoteRow->drum->toModControllable()->required_param_manager_type())) {
 				SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
 				ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 				    modelStack->addNoteRow(i, thisNoteRow)->addOtherTwoThings(thisDrum, &thisNoteRow->paramManager);
@@ -3993,8 +4039,10 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 				// If we didn't get a paramManager (means pre-September-2016 song). TODO: this whole section would lead
 				// to an ugly mess if the right stuff wasn't in the file. Or if not enough RAM
-				if (!thisNoteRow->paramManager.containsAnyMainParamCollections()
-				    && thisNoteRow->drum->type == DrumType::SOUND) {
+				if (thisNoteRow->drum->type == DrumType::SOUND
+				    && !thisNoteRow->paramManager.matches_type(
+				        thisNoteRow->drum->toModControllable()->required_param_manager_type())) {
+					thisNoteRow->paramManager.destructMainParamCollections();
 
 					modelStackWithNoteRow = modelStack->addNoteRow(i, thisNoteRow);
 
@@ -4084,7 +4132,7 @@ haveNoDrum:
 
 		// And...
 		if (output->type == OutputType::MIDI_OUT) {
-			if (!paramManager.containsAnyMainParamCollections()) {
+			if (!paramManager.matches_type(output->toModControllable()->required_param_manager_type())) {
 				Error error = paramManager.setupMIDI();
 				if (error != Error::NONE) {
 					return error;

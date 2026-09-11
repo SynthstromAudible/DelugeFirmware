@@ -41,7 +41,10 @@ public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
 	virtual ~ParamCollection();
 
-	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0) = 0;
+	// summary, when supplied, contains the destination flags copied by ParamManager.
+	// Implementations may clear flags for automation that could not be cloned.
+	virtual void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength = 0,
+	                        ParamCollectionSummary* summary = nullptr) = 0;
 
 	/// tick interpolation by a number of ticks
 	virtual void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) = 0;

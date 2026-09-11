@@ -1954,7 +1954,8 @@ void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 	if (length && activeModControllableModelStack.timelineCounterIsSet()
 	    && activeModControllableModelStack.modControllable && activeModControllableModelStack.paramManager
 	    && !playbackHandler.isEitherClockActive()
-	    && activeModControllableModelStack.paramManager->containsAnyMainParamCollections()) {
+	    && activeModControllableModelStack.paramManager->matches_type(
+	        activeModControllableModelStack.modControllable->required_param_manager_type())) {
 
 		activeModControllableModelStack.paramManager->toForTimeline()->grabValuesFromPos(
 		    pos, &activeModControllableModelStack);
