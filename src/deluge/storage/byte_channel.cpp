@@ -33,7 +33,7 @@ namespace {
 
 /// How many of each consumer's file operations have begun on the interaction tier. Indexed by
 /// @ref IoTier. See @ref interactionTierIo.
-int32_t g_interactionTierIo[3] = {0, 0, 0};
+int32_t g_interactionTierIo[4] = {0, 0, 0, 0};
 
 /// Whether a violation by this consumer is a hard freeze yet. Indexed by @ref IoTier.
 ///
@@ -42,10 +42,11 @@ int32_t g_interactionTierIo[3] = {0, 0, 0};
 /// what happened the moment the startup fail-safe's sites were instrumented against an already-armed
 /// freeze. Counting is what proves the sites are reachable; freezing is what keeps them from coming
 /// back, and it is only truthful once there is a converted path for them to come back FROM.
-constexpr bool kFreezeOnViolation[3] = {
-    true, // Settings: converted, so any violation is now a regression.
-    true, // Startup: converted, likewise.
-    true, // Browser: converted, likewise.
+constexpr bool kFreezeOnViolation[4] = {
+    true,  // Settings: converted, so any violation is now a regression.
+    true,  // Startup: converted, likewise.
+    true,  // Browser: converted, likewise.
+    false, // Favourites: NOT converted yet -- its gate must be able to count today's violations.
 };
 
 /// Translate the C ABI's `uint32_t`-shaped status byte into the type the callers switch on.
@@ -205,18 +206,23 @@ enum class Step : uint8_t {
 /// here.
 struct PendingOp {
 	Step step = Step::Idle;
-	/// A compile-time literal in every caller (`SETTINGS/CommunityFeatures.XML` and its three
-	/// siblings), so holding the pointer rather than a copy is safe and the buffer below can be spent
-	/// entirely on contents.
-	const char* path = nullptr;
+	/// The operation's path, COPIED. The four settings files were compile-time literals, but a
+	/// favourites bank's path is built at run time, and the channel keys on the characters.
+	char path[DELUGE_FILE_BYTES_MAX_PATH] = {};
 	const char* legacyPath = nullptr;
 	ParseFn parse = nullptr;
 	AbsentFn onAbsent = nullptr;
+	DoneFn onDone = nullptr;
 	void* ctx = nullptr;
 	uint32_t writeLen = 0;
 };
 
 PendingOp g_pending;
+
+/// Copy a submission's path into the pending slot. Callers check @ref keyable first.
+void holdPath(const char* path) {
+	std::memcpy(g_pending.path, path, std::strlen(path) + 1);
+}
 
 /// How many ticks the pending operation has spent waiting for an answer. See @ref kMaxPendingTicks.
 int32_t g_pendingTicks = 0;
@@ -253,6 +259,16 @@ void finish() {
 	g_pendingTicks = 0;
 }
 
+/// End the pending operation and tell its submitter how it ended.
+void finishWith(SettingsOutcome outcome) {
+	DoneFn onDone = g_pending.onDone;
+	void* ctx = g_pending.ctx;
+	finish();
+	if (onDone != nullptr) {
+		onDone(ctx, outcome);
+	}
+}
+
 /// Give up on the channel for the operation in flight, doing it on the owner instead where that is
 /// possible, and go idle.
 ///
@@ -274,13 +290,27 @@ void abandonChannel() {
 			    (void)deluge::io::mkdir(path.c_str());
 		    },
 		    nullptr);
-		break;
+		finish();
+		return;
 	}
-	default:
-		// Nothing to salvage -- see the doc above.
-		break;
+	case Step::WriteRequest:
+	case Step::WriteCollect:
+		finishWith(SettingsOutcome::WriteFailed);
+		return;
+	case Step::ReadRequest:
+	case Step::ReadCollect:
+	case Step::RenameRequest:
+	case Step::RenameCollect:
+	case Step::ReadRetryRequest:
+	case Step::ReadRetryCollect:
+		// A read's bytes have nowhere to go once abandoned; its settings consumers keep their in-memory
+		// defaults, and a consumer that asked to be told is told it could not read.
+		finishWith(SettingsOutcome::Unreadable);
+		return;
+	case Step::Idle:
+		finish();
+		return;
 	}
-	finish();
 }
 
 /// End a read whose file is genuinely absent, telling the consumer so.
@@ -290,49 +320,58 @@ void abandonChannel() {
 /// have them overwrite settings that are still on the card.
 void finishAbsent() {
 	AbsentFn onAbsent = g_pending.onAbsent;
+	DoneFn onDone = g_pending.onDone;
 	void* ctx = g_pending.ctx;
 	finish();
 	if (onAbsent != nullptr) {
 		onAbsent(ctx);
+	}
+	if (onDone != nullptr) {
+		onDone(ctx, SettingsOutcome::Absent);
 	}
 }
 
 /// Hand a collected read to its consumer, then go idle.
 void deliver(uint32_t len) {
 	ParseFn parse = g_pending.parse;
+	DoneFn onDone = g_pending.onDone;
 	void* ctx = g_pending.ctx;
 	finish();
 	if (parse != nullptr) {
 		parse(ctx, g_buffer, len);
 	}
+	if (onDone != nullptr) {
+		onDone(ctx, SettingsOutcome::Parsed);
+	}
 }
 
 } // namespace
 
-bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx) {
-	if (!usingByteChannel() || g_pending.step != Step::Idle) {
+bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx, DoneFn onDone) {
+	if (!usingByteChannel() || g_pending.step != Step::Idle || !keyable(path)) {
 		return false;
 	}
 	g_pending.step = Step::ReadRequest;
-	g_pending.path = path;
+	holdPath(path);
 	g_pending.legacyPath = legacyPath;
 	g_pending.parse = parse;
 	g_pending.onAbsent = onAbsent;
+	g_pending.onDone = onDone;
 	g_pending.ctx = ctx;
 	return true;
 }
 
 bool submitMkdirAll(const char* path) {
-	if (!usingByteChannel() || g_pending.step != Step::Idle) {
+	if (!usingByteChannel() || g_pending.step != Step::Idle || !keyable(path)) {
 		return false;
 	}
 	g_pending.step = Step::MkdirAllRequest;
-	g_pending.path = path;
+	holdPath(path);
 	return true;
 }
 
-bool submitWrite(const char* path, const char* bytes, uint32_t len) {
-	if (!usingByteChannel() || g_pending.step != Step::Idle) {
+bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDone, void* ctx) {
+	if (!usingByteChannel() || g_pending.step != Step::Idle || !keyable(path)) {
 		return false;
 	}
 	if (bytes == nullptr || len > sizeof(g_buffer)) {
@@ -340,8 +379,10 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len) {
 	}
 	memcpy(g_buffer, bytes, len);
 	g_pending.step = Step::WriteRequest;
-	g_pending.path = path;
+	holdPath(path);
 	g_pending.writeLen = len;
+	g_pending.onDone = onDone;
+	g_pending.ctx = ctx;
 	return true;
 }
 
@@ -389,7 +430,7 @@ void serviceRoutine() {
 			return; // Refused this tick; ask again on the next one.
 		case ByteIo::Ready:
 		case ByteIo::Failed:
-			finish(); // Unkeyable path: re-requesting will never help.
+			finishWith(SettingsOutcome::Unreadable); // Unkeyable path: re-requesting will never help.
 			return;
 		}
 		return;
@@ -420,7 +461,7 @@ void serviceRoutine() {
 				finishAbsent();
 				return;
 			}
-			finish();
+			finishWith(SettingsOutcome::Unreadable);
 			return;
 		}
 		return;
@@ -434,7 +475,7 @@ void serviceRoutine() {
 			return; // Refused this tick; ask again on the next one.
 		case ByteIo::Ready:
 		case ByteIo::Failed:
-			finish();
+			finishWith(SettingsOutcome::Unreadable);
 			return;
 		}
 		return;
@@ -499,7 +540,7 @@ void serviceRoutine() {
 			return; // Refused this tick; the payload is still held, so ask again on the next one.
 		case ByteIo::Ready:
 		case ByteIo::Failed:
-			finish();
+			finishWith(SettingsOutcome::WriteFailed); // Unkeyable path: re-requesting will never help.
 			return;
 		}
 		return;
@@ -507,10 +548,12 @@ void serviceRoutine() {
 	case Step::WriteCollect:
 		switch (collectWrite(g_pending.path, &status)) {
 		case ByteIo::Ready:
+			finishWith(SettingsOutcome::Written);
+			return;
 		case ByteIo::Failed:
 			// A failed write is terminal and is NOT retried. Retrying a write that the card refuses
 			// would re-issue it every tick for as long as the card stays refusing.
-			finish();
+			finishWith(SettingsOutcome::WriteFailed);
 			return;
 		case ByteIo::Pending:
 			return;

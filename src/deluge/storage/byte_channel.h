@@ -284,6 +284,24 @@ using AbsentFn = void (*)(void* ctx);
 /// @brief A consumer's existing synchronous body, to run where blocking is legal.
 using OwnerFn = void (*)(void* ctx);
 
+/// @brief How an operation the channel ACCEPTED ended. Reported once, through @ref DoneFn.
+///
+/// Settings files never needed this -- a consumer that hears nothing keeps its in-memory defaults --
+/// but a consumer that must not act until it knows, like the favourites bank, cannot tell "still going"
+/// from "gave up" without it.
+enum class SettingsOutcome : uint8_t {
+	Parsed,      ///< a read delivered its bytes to `parse`
+	Absent,      ///< a read found the file genuinely absent (`DELUGE_ERR_NOT_FOUND`); `onAbsent` ran first
+	Unreadable,  ///< a read ended any other way: an unreadable card, a file too large, a stalled channel
+	Written,     ///< a write's collect reported success
+	WriteFailed, ///< a write ended any other way: the card refused it, or the channel stalled
+};
+
+/// @brief Told, exactly once, how an accepted operation ended.
+/// @param ctx     The pointer passed at submission, unexamined.
+/// @param outcome How it ended. Fired AFTER `parse` / `onAbsent` where those apply.
+using DoneFn = void (*)(void* ctx, SettingsOutcome outcome);
+
 /// @brief Take a read through the channel, if the channel is the right place for it.
 ///
 /// @param path       The file to read.
@@ -294,12 +312,18 @@ using OwnerFn = void (*)(void* ctx);
 /// @param onAbsent   Called instead of @p parse when the file is genuinely absent -- after the legacy
 ///                   migration has been tried and also come up empty. May be nullptr for a consumer
 ///                   that does nothing on absence. NOT called for an unreadable card.
-/// @param ctx        Passed through to @p parse and @p onAbsent.
-/// @return true when the channel took it and one of the two callbacks will be called later. **false when the caller
-///         must do the read itself**, either because the channel is not in use here or because it is
-///         already busy with another operation. A false is never a lost read: the caller falls
-///         through to @ref runOnStorageOwner, which does the same work where blocking is legal.
-bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx);
+/// @param ctx        Passed through to @p parse, @p onAbsent and @p onDone.
+/// @param onDone     Called exactly once when the operation ends, however it ends -- including a stalled
+///                   channel. May be nullptr.
+/// @return true when the channel took it and @p onDone (if any) will be called later. **false when the
+///         caller must do the read itself**, either because the channel is not in use here, because it is
+///         already busy with another operation, or because @p path does not fit
+///         `DELUGE_FILE_BYTES_MAX_PATH`. A false is never a lost read: the caller falls through to
+///         @ref runOnStorageOwner, which does the same work where blocking is legal.
+///
+/// @note The path is COPIED; the caller's string may be a temporary.
+bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx,
+                DoneFn onDone = nullptr);
 
 /// @brief Take a whole-path directory creation through the channel, driven to completion by
 ///        @ref serviceRoutine.
@@ -315,18 +339,21 @@ bool submitMkdirAll(const char* path);
 
 /// @brief Take a write through the channel, if the channel is the right place for it.
 ///
-/// @param path  The file to write. Its parent directory is created if absent.
-/// @param bytes The serialised contents. Copied out before this returns, so the caller's serialiser
-///              may be destroyed immediately afterwards.
-/// @param len   Byte count.
-/// @return true when the channel took it. **false when the caller must do the write itself.**
+/// @param path   The file to write. Its parent directory is created if absent. COPIED.
+/// @param bytes  The serialised contents. Copied out before this returns, so the caller's serialiser
+///               may be destroyed immediately afterwards.
+/// @param len    Byte count.
+/// @param onDone Called exactly once when the write ends: `Written` or `WriteFailed`. May be nullptr.
+/// @param ctx    Passed through to @p onDone.
+/// @return true when the channel took it. **false when the caller must do the write itself** -- the
+///         channel is not in use here, is busy, or @p len / @p path exceed the channel's bounds.
 ///
 /// @note A false here is a REFUSAL, not a queue. That is the no-coalescing rule: two rapid toggles
 ///       are two distinct settings changes, and superseding the first would lose one the user watched
 ///       themselves make. The caller falls through to @ref runOnStorageOwner rather than retrying, so
 ///       the second intent still reaches the card -- just synchronously, on a tier where blocking is
 ///       legal.
-bool submitWrite(const char* path, const char* bytes, uint32_t len);
+bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDone = nullptr, void* ctx = nullptr);
 
 /// @brief Run @p fn where blocking on the card is legal: on the storage owner, or inline if already
 ///        there.
@@ -363,13 +390,14 @@ void serviceRoutine();
 
 /// @brief Which consumer's tier count to read or bump.
 ///
-/// Two counters rather than one, because two gates read them independently: the settings gate's
+/// One counter per consumer family, because the gates read them independently: the settings gate's
 /// `SC-TIER` must stay 0 while the startup gate is driving `SF-TIER` non-zero, and a shared counter
 /// would make each gate fail for the other's reasons.
 enum class IoTier : uint8_t {
-	Settings, ///< runtime feature settings, the MIDI device table, MIDI follow, performance view
-	Startup,  ///< the startup song fail-safe
-	Browser,  ///< the browser's folder creation: the context-menu gesture and the UI-open pre-creates
+	Settings,   ///< runtime feature settings, the MIDI device table, MIDI follow, performance view
+	Startup,    ///< the startup song fail-safe
+	Browser,    ///< the browser's folder creation: the context-menu gesture and the UI-open pre-creates
+	Favourites, ///< the favourites bank: every browser visit, favourite pad, bank pad and browser close
 };
 
 /// @brief How many of `which`'s file operations have begun on the INTERACTION tier.
