@@ -43,16 +43,16 @@ struct TextEditState {
 ///       edge (`qwerty_ui.cpp:156-170`) -- legacy's *only* mid-string cursor presentation, not a
 ///       predictive-text overlay (`enteredTextEditPos` is plainly the cursor throughout this
 ///       routine). Unconditional, like its legacy call -- `state.cursor_lit` is not consulted
-///       here, so this presentation never flashes off. Ported following `f.style.invert_highlight`,
+///       here, so this presentation never flashes off. Ported following `f.style.highlighting`,
 ///       exactly the way `list` and `columns` already port the same legacy primitive
 ///       (`invertLeftEdgeForMenuHighlighting`,
-///       named in `list.cpp`'s D1 comment): `true` inverts the rounded box
-///       (`invertAreaRounded`, legacy's `FULL_INVERSION`/`PARTIAL_INVERSION`), `false` draws a
+///       named in `list.cpp`'s D1 comment): `!= NoInversion` inverts the rounded box
+///       (`invertAreaRounded`, legacy's `FULL_INVERSION`/`PARTIAL_INVERSION`), `NoInversion` draws a
 ///       single-column rule (`draw_vertical_line`, legacy's `NO_INVERSION`). The highlight's left
 ///       edge starts in the 1px gap *after* the previous character
 ///       (`rect.x + kTextSpacingX * scroll_amount - 1`), not on top of its last column --
 ///       otherwise the inversion eats a pixel column out of the letter before the cursor -- except
-///       legacy's own special case, `!invert_highlight && scroll_amount == 0`, which starts the
+///       legacy's own special case, `NoInversion && scroll_amount == 0`, which starts the
 ///       rule at the panel's own left edge rather than one pixel short of the box; generalised
 ///       here to the rect's own left edge (`rect.x`), the same "whole panel" -> "this rect"
 ///       substitution every other edge in this widget (and `gfx::oled::kEdge`/`kCentre`) makes.

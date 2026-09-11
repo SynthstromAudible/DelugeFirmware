@@ -966,7 +966,7 @@ describe browser_choice_reroot(
 	    //       overridden true by `FileSelector`, `gui/menu_item/file_selector.h:35`), so a select
 	    //       press on the file selector's column of the horizontal `source0` page raises the
 	    //       notification instead of opening the browser (`MenuScene::render_horizontal`'s
-	    //       `column_press`, and `ui/oled/columns.cpp:419` behind it). The shortcut pad is what is
+	    //       `column_press`, and `ui/oled/columns.cpp:422` behind it). The shortcut pad is what is
 	    //       left, and it re-roots to depth 0 (`handle`'s `Replace` arm). Reported, not fixed here.
 
 	    before_each([] {

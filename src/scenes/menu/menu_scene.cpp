@@ -1065,7 +1065,7 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 	                                            std::span<const deluge::ui::oled::Column>{cols, n},
 	                                            text_of(node.title, title_scratch));
 
-	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:448-452`), so a
+	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:451-455`), so a
 	// press on a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress`
 	// forwarding to the focused item does (`gui/menu_item/submenu.cpp:187-194`): enter its
 	// `select_chain` target, or `ascend()` -- see `MenuState::column_press`'s own doc for why that

@@ -158,11 +158,11 @@ inline constexpr int32_t kOptionWindowRows = 2;
 /// one -- with the same clear-then-outline result its `clearAreaExact` + `drawRectangle` pair
 /// produces.
 ///
-/// @note **The focus highlight follows `style.invert_highlight`**, exactly as `list` and
-///       `text_edit` port the same legacy primitive (`invertLeftEdgeForMenuHighlighting`): true
-///       inverts the rounded 84px band from x 22, false draws a single-column rule there instead
-///       and shifts every label right by one `kTextSpacingX` -- legacy's own
-///       `MenuHighlighting::NO_INVERSION` arm.
+/// @note **The focus highlight follows `style.highlighting`**, exactly as `list` and
+///       `text_edit` port the same legacy primitive (`invertLeftEdgeForMenuHighlighting`):
+///       `!= NoInversion` inverts the rounded 84px band from x 22, `NoInversion` draws a
+///       single-column rule there instead and shifts every label right by one `kTextSpacingX` --
+///       legacy's own `MenuHighlighting::NO_INVERSION` arm.
 ///
 /// @note **Nothing here is claimed.** Render-only, as `text_edit` is: the select encoder's turn
 ///       and the accept button are the scene's (`ContextMenu::selectEncoderAction` /
@@ -288,8 +288,9 @@ void progress(OledFrame& f, gfx::oled::Rect rect, int32_t num, int32_t den);
 ///       `std::string_view::remove_suffix(1)` on an empty view is undefined behaviour, so the
 ///       truncation loop here stops at an empty title instead. No shipped caller's title/value
 ///       pair is long enough to reach it either way.
-/// @note The inversion-vs-dotted-rule split follows `f.style.invert_highlight`, exactly as
-///       `option_window`/`list`/`text_edit` already port the same legacy accessibility branch
+/// @note The inversion-vs-dotted-rule split follows `f.style.highlighting == Highlighting::
+///       NoInversion`, exactly as `option_window`/`list`/`text_edit` already port the same legacy
+///       accessibility branch
 ///       (`FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION`).
 ///
 /// @param f     Target frame.

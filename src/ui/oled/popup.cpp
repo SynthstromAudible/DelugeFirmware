@@ -248,7 +248,7 @@ void option_window(OledFrame& f, std::string_view heading, std::span<const std::
 		const int32_t invert_x = p.x + kOptionInvertX;
 		const int32_t invert_w = p.w - kOptionInvertRightInset;
 		// `textPixelX = invertStartX + 1`, plus one character cell in legacy's NO_INVERSION mode.
-		const int32_t text_x = invert_x + 1 + (f.style.invert_highlight ? 0 : spacing_x);
+		const int32_t text_x = invert_x + 1 + (f.style.highlighting != Highlighting::NoInversion ? 0 : spacing_x);
 		const int32_t text_end = p.x + p.w - kOptionTextRightInset;
 
 		for (int32_t o = 0; o < kOptionWindowRows && start + o < n; o++) {
@@ -263,7 +263,7 @@ void option_window(OledFrame& f, std::string_view heading, std::span<const std::
 			// separate because legacy's is a *different, wider* rectangle than the text box, which
 			// `scroll_text`'s own `highlight` flag cannot express.
 			scroll_text(f, box, options[static_cast<size_t>(cursor)], font, label, allow_motion, /*highlight=*/false);
-			if (f.style.invert_highlight) {
+			if (f.style.highlighting != Highlighting::NoInversion) {
 				f.invert_rounded(Rect{invert_x, y, invert_w, 9});
 			}
 			else {
@@ -368,7 +368,7 @@ void notification(OledFrame& f, std::string_view title, std::string_view value) 
 
 	popup_frame(f, Rect{start_x, start_y, width - 1, height}, PopupStyle::Notification);
 
-	const bool no_inversion = !f.style.invert_highlight;
+	const bool no_inversion = f.style.highlighting == Highlighting::NoInversion;
 	const int32_t title_start_x = padding_left;
 	const int32_t title_start_y = no_inversion ? start_y : start_y + 1;
 	f.glyphs(title_buf, title_start_x, title_start_y, spacing_x, line_h);

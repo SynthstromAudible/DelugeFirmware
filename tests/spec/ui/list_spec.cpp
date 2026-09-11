@@ -292,13 +292,13 @@ describe list_w("ui::oled::list", $ {
 		expect(st.rows_last).to_equal(int16_t(5));
 	});
 
-	it("draws the left-edge rule instead of an inverted row when invert_highlight is off", _ {
+	it("draws the left-edge rule instead of an inverted row when highlighting is NoInversion", _ {
 		// The non-inverting branch of invertLeftEdgeForMenuHighlighting is
 		// draw_vertical_line(xMin, startY, endY) -- one column, no rounding, nothing else.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
-		plain.invert_highlight = false;
+		plain.highlighting = Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		ListState st; ScrollText sc;
 		list(f, menu_rect(f), st, rows, sc);
@@ -346,7 +346,7 @@ describe list_w("ui::oled::list", $ {
 		const ListRow rows[] = {{longest}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
-		plain.invert_highlight = false;
+		plain.highlighting = Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		ListState st; ScrollText sc;
 		const Rect m = menu_rect(f);

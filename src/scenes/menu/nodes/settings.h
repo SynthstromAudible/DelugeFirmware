@@ -97,8 +97,10 @@
 /// @note **Three write side effects stay behind, and are gaps, not omissions.**
 ///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`
 ///       (`defaults/pad_brightness.h:26`), the accessibility highlighting item also pokes
-///       `Canvas::menuHighlightingInverts` (`accessibility_menu_highlighting.h:14-15`), and
-///       `ShiftIsSticky` also calls `Buttons::clearShiftSticky()`
+///       `Canvas::menuHighlightingInverts` (`accessibility_menu_highlighting.h:14-15`) -- the
+///       toolkit's own counterpart is `Style::highlighting` (`ui/core/style.h`), a `constexpr`
+///       profile value (`shell/profiles/deluge.cpp:96`), so writing this item does not move it
+///       either -- and `ShiftIsSticky` also calls `Buttons::clearShiftSticky()`
 ///       (`runtime_feature/shift_is_sticky.cpp:26`). All three are `hid/`. The `FlashStorage` /
 ///       `runtimeFeatureSettings` half of each write IS transcribed, so the setting persists; only
 ///       the immediate apply is missing, and it belongs to whoever owns those globals once E2 has

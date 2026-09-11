@@ -169,9 +169,12 @@ int32_t page_switch(std::span<const Column> cols, int32_t focused, int32_t direc
 /// @note An empty \p cols still draws: the placeholder loop still runs, drawing four dotted
 ///       frames under the title, and `Paging::total_pages` is 0, so no counters are drawn.
 ///
-/// The focus highlight follows `style.invert_highlight`: true inverts (rounded) over the label
-/// alone, or over the whole slot when the column has no label or is a submenu; false draws a rule
-/// under the slot instead. A page holding a single 4-slot column is never highlighted.
+/// The focus highlight follows `style.highlighting`: `FullInversion` inverts (rounded) over the
+/// label alone, or over the whole slot when the column has no label or is a submenu;
+/// `PartialInversion` and `NoInversion` both draw a rule under the slot instead --
+/// `horizontal_menu.cpp:278-281` falls `PARTIAL_INVERSION` through into `NO_INVERSION`, reaching
+/// the same line-draw, so this widget has no separate `NoInversion` arm either. A page holding a
+/// single 4-slot column is never highlighted.
 ///
 /// @param f          Target frame.
 /// @param rect       Region to lay the page out in; `f.bounds()` for the legacy-reproducing rect.

@@ -268,8 +268,8 @@ void renderTitle(Canvas& image, std::string title, int32_t totalPages, int32_t w
 /// replaces with `Column::slots`. `items` is legacy's `paging.visiblePageItems` and `current`
 /// the index of the current item within it.
 /// `full_inversion` is `FlashStorage::accessibilityMenuHighlighting == FULL_INVERSION` and
-/// `rounded` is the canvas's `roundedCornersEnabled` -- `style.invert_highlight` and
-/// `style.rounded` in the port.
+/// `rounded` is the canvas's `roundedCornersEnabled` -- `style.highlighting == Highlighting::
+/// FullInversion` and `style.rounded` in the port.
 void renderMenuItems(Canvas& image, std::span<const Item> items, int32_t current, int32_t width, int32_t height,
                      int32_t topmost, bool full_inversion, bool rounded) {
 	const int32_t base_y = 14 + topmost; // a literal on every panel, not list's kMenuBaseY48/64
@@ -419,7 +419,23 @@ void matches_legacy(Self& self, Rig& r, Page& p, ColumnsState& state, size_t fir
 	columns(r.frame, r.frame.bounds(), state, p.span(), title == nullptr ? std::string_view{} : title);
 	legacy::renderOLED(r.reference, title, p.page(first, last), state.focused - static_cast<int32_t>(first), state.page,
 	                   total_pages, r.canvas.geometry().width, r.canvas.geometry().height, r.frame.origin.y,
-	                   r.style.invert_highlight, r.style.rounded);
+	                   r.style.highlighting == Highlighting::FullInversion, r.style.rounded);
+	expect(r.pbm()).to_equal(r.reference_pbm());
+}
+
+/// As `matches_legacy`, but pinned to `Highlighting::FullInversion` regardless of \p r's own
+/// (now `PartialInversion`) style -- for the two examples that still exercise legacy's
+/// `FULL_INVERSION` arm.
+template <class Self, class Rig>
+void matches_legacy_full_inversion(Self& self, Rig& r, Page& p, ColumnsState& state, size_t first, size_t last,
+                                   int32_t total_pages, const char* title) {
+	Style full = kDelugeStyle48;
+	full.highlighting = Highlighting::FullInversion;
+	OledFrame f = root_frame(r.canvas, full, r.ctx);
+	columns(f, f.bounds(), state, p.span(), title == nullptr ? std::string_view{} : title);
+	legacy::renderOLED(r.reference, title, p.page(first, last), state.focused - static_cast<int32_t>(first), state.page,
+	                   total_pages, r.canvas.geometry().width, r.canvas.geometry().height, f.origin.y,
+	                   /*full_inversion=*/true, full.rounded);
 	expect(r.pbm()).to_equal(r.reference_pbm());
 }
 
@@ -446,10 +462,16 @@ describe columns_w("ui::oled::columns", $ {
 		// rows 35..43, i.e. 5 + 14 + 25 - 9. The focused column's label box is inverted, so its
 		// background pixels are the ones that light up, and they stop exactly at the row
 		// boundaries.
+		//
+		// Pinned to FullInversion: the shipped profile now ships PartialInversion (the
+		// underline), but this example still exercises legacy's FULL_INVERSION arm.
 		uitest::Rig48 r;
+		Style full48 = kDelugeStyle48;
+		full48.highlighting = Highlighting::FullInversion;
+		OledFrame f = root_frame(r.canvas, full48, r.ctx);
 		Page p{four_columns()};
 		ColumnsState state{};
-		columns(r.frame, r.frame.bounds(), state, p.span());
+		columns(f, f.bounds(), state, p.span());
 
 		expect(r.lit(2, 34)).to_be_false(); // one row above the label box
 		expect(r.lit(2, 35)).to_be_true();  // first row of it
@@ -471,9 +493,12 @@ describe columns_w("ui::oled::columns", $ {
 		// And on a 64-row panel with no bezel, the same literal base_y puts the label row at
 		// 14 + 25 - 9 = 30..38 -- one row *above* where list's kMenuBaseY64 would have put it.
 		uitest::Rig64 r64;
+		Style full64 = kDelugeStyle64;
+		full64.highlighting = Highlighting::FullInversion;
+		OledFrame f64 = root_frame(r64.canvas, full64, r64.ctx);
 		Page p64{four_columns()};
 		ColumnsState s64{};
-		columns(r64.frame, r64.frame.bounds(), s64, p64.span());
+		columns(f64, f64.bounds(), s64, p64.span());
 		expect(r64.lit(2, 29)).to_be_false();
 		expect(r64.lit(2, 30)).to_be_true();
 		expect(r64.lit(2, 38)).to_be_true();
@@ -493,9 +518,11 @@ describe columns_w("ui::oled::columns", $ {
 		expect(resp.changed).to_be_false();
 		expect(static_cast<int32_t>(state.focused)).to_equal(0);
 
-		// The highlight stays on the first column.
-		expect(r.lit(2, 39)).to_be_true();
-		expect(r.lit(34, 39)).to_be_false();
+		// The highlight stays on the first column: the shipped profile ships PartialInversion, so
+		// this is the row-45 rule (see "draws the underline highlight on PartialInversion" above),
+		// not an inverted label box.
+		expect(r.lit(0, 45)).to_be_true();
+		expect(r.lit(34, 45)).to_be_false();
 
 		// A negative turn does nothing either.
 		uitest::Rig48 r2;
@@ -629,10 +656,13 @@ describe columns_w("ui::oled::columns", $ {
 	it("highlights the whole slot for a submenu or an unlabelled column", _ {
 		// A submenu column (or one with no label) inverts the whole 25px box from base_y - 1,
 		// not just the label row.
+		//
+		// Pinned to FullInversion: the shipped profile now ships PartialInversion (the
+		// underline), but this example still exercises legacy's FULL_INVERSION arm.
 		uitest::Rig48 r;
 		Page p{four_columns()};
 		ColumnsState state{.focused = 3};
-		matches_legacy(self, r, p, state, 0, 4, 1, nullptr);
+		matches_legacy_full_inversion(self, r, p, state, 0, 4, 1, nullptr);
 		// The box is `invertAreaRounded(current_x + 1, box_width - 3, base_y - 1, base_y + 24)`,
 		// i.e. canvas x 97..125 and rows 18..43, with the four corner pixels cleared back off by
 		// the SMALL radius.
@@ -648,14 +678,16 @@ describe columns_w("ui::oled::columns", $ {
 		uitest::Rig48 r2;
 		Page p2{bare};
 		ColumnsState s2{};
-		matches_legacy(self, r2, p2, s2, 0, 4, 1, nullptr);
+		matches_legacy_full_inversion(self, r2, p2, s2, 0, 4, 1, nullptr);
 	});
 
-	it("draws the underline highlight when invert_highlight is off", _ {
-		// The PARTIAL_INVERSION / NO_INVERSION arm.
+	it("draws the underline highlight on PartialInversion (the shipped default)", _ {
+		// The PARTIAL_INVERSION / NO_INVERSION arm -- see `matches_legacy` above for the default
+		// rig, which already ships `PartialInversion`; this example pins it explicitly and reads
+		// the pixels.
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
-		plain.invert_highlight = false;
+		plain.highlighting = Highlighting::PartialInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		Page p{four_columns()};
 		ColumnsState state{};
@@ -669,6 +701,33 @@ describe columns_w("ui::oled::columns", $ {
 		expect(r.lit(30, 45)).to_be_true();
 		expect(r.lit(31, 45)).to_be_false();
 		expect(r.lit(2, 39)).to_be_false();
+	});
+
+	it("draws the same underline on NoInversion as on PartialInversion, per legacy's own "
+	   "fallthrough", _ {
+		// `horizontal_menu.cpp:268-283` (the whole switch): `case MenuHighlighting::
+		// PARTIAL_INVERSION:` (`:278`) falls through into `case MenuHighlighting::NO_INVERSION:`
+		// (`:279`), both reaching the same `drawHorizontalLine` call (`:281`). So `columns` has no
+		// `NoInversion`-specific arm of its own to write -- its `!= FullInversion` branch already
+		// *is* legacy's shared one -- and this pins that down as an example rather than leaving it
+		// implicit: NoInversion's pixels must equal PartialInversion's, byte for byte.
+		uitest::Rig48 r;
+		Style no_inv = kDelugeStyle48;
+		no_inv.highlighting = Highlighting::NoInversion;
+		OledFrame f = root_frame(r.canvas, no_inv, r.ctx);
+		Page p{four_columns()};
+		ColumnsState state{};
+		columns(f, f.bounds(), state, p.span());
+
+		uitest::Rig48 partial;
+		Style partial_style = kDelugeStyle48;
+		partial_style.highlighting = Highlighting::PartialInversion;
+		OledFrame pf = root_frame(partial.canvas, partial_style, partial.ctx);
+		Page pp{four_columns()};
+		ColumnsState pstate{};
+		columns(pf, pf.bounds(), pstate, pp.span());
+
+		expect(r.pbm()).to_equal(partial.pbm());
 	});
 
 	it("gives a multi-slot column the legacy side ticks", _ {
@@ -789,7 +848,7 @@ describe columns_w("ui::oled::columns", $ {
 		expect(static_cast<int32_t>(state.page)).to_equal(0);
 
 		legacy::renderOLED(r.reference, "FILTER", std::span<const legacy::Item>{}, 0, 0, 0, 128, 48, r.frame.origin.y,
-		                   r.style.invert_highlight, r.style.rounded);
+		                   r.style.highlighting == Highlighting::FullInversion, r.style.rounded);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "../ui/widgets/columns_empty_48.pbm", r.pbm());
 

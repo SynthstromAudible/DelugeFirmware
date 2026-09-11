@@ -240,11 +240,11 @@ describe option_window_w("ui::oled::option_window", $ {
 
 	it("draws the NO_INVERSION highlight as a left-edge rule, with the label a cell further right", _ {
 		// `MenuHighlighting::NO_INVERSION` (`FlashStorage::accessibilityMenuHighlighting`), which
-		// this layer reads as `style.invert_highlight` -- the same substitution `list`,
-		// `columns` and `text_edit` make for the same legacy primitive.
+		// this layer reads as `style.highlighting == Highlighting::NoInversion` -- the same
+		// substitution `list`, `columns` and `text_edit` make for the same legacy primitive.
 		uitest::Rig48 r;
 		Style plain = deluge::ui::kDelugeStyle48;
-		plain.invert_highlight = false;
+		plain.highlighting = Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		ScrollText label;
 		option_window(f, kAreYouSure, three(), 1, 0, label);

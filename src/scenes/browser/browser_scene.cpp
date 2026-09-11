@@ -47,6 +47,7 @@ namespace deluge::scenes::browser {
 
 using deluge::l10n::String;
 using deluge::storage::FileCatalogue;
+using deluge::ui::Highlighting;
 using deluge::ui::kFlashTime;
 using deluge::ui::kTextSpacingX;
 using deluge::ui::kTextSpacingY;
@@ -955,10 +956,11 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 	// `canvas.drawScreenTitle(title)` (`browser.cpp:926`).
 	deluge::ui::oled::title(f, descriptor(id_).title);
 
-	// `browser.cpp:928-938`. The `NO_INVERSION` step is `Style::invert_highlight` here -- the same
-	// mapping `list`, `columns`, `popup` and `text_edit` already make for the same flash setting.
-	const int32_t icon_x = f.style.invert_highlight ? kRowIconX : f.style.inset_x;
-	const int32_t text_x = kRowTextX + (f.style.invert_highlight ? 0 : f.style.inset_x);
+	// `browser.cpp:928-938`. The `NO_INVERSION` step is `Style::highlighting == Highlighting::
+	// NoInversion` here -- the same mapping `list`, `columns`, `popup` and `text_edit` already
+	// make for the same flash setting.
+	const int32_t icon_x = f.style.highlighting != Highlighting::NoInversion ? kRowIconX : f.style.inset_x;
+	const int32_t text_x = kRowTextX + (f.style.highlighting != Highlighting::NoInversion ? 0 : f.style.inset_x);
 	const int32_t width = f.bounds().w;
 
 	// Legacy reads `display->getNumBrowserAndMenuLines()`, which is a hard-coded 3 on every panel

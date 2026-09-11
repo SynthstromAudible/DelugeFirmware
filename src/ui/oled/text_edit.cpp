@@ -63,11 +63,11 @@ void text_edit(OledFrame& f, Rect rect, std::string_view s, TextEditState& state
 	// qwerty_ui.cpp:156-170: legacy's *only* mid-string cursor presentation -- not a
 	// predictive-text overlay, `enteredTextEditPos` is plainly the cursor throughout this
 	// routine -- so it is ported, not skipped: invert from the cursor to the rect's right edge,
-	// following `f.style.invert_highlight` exactly the way `list`/`columns` already port the same
-	// legacy primitive (`invertLeftEdgeForMenuHighlighting`).
+	// following `f.style.highlighting != Highlighting::NoInversion` exactly the way
+	// `list`/`columns` already port the same legacy primitive (`invertLeftEdgeForMenuHighlighting`).
 	const int32_t scroll_amount = cursor - scroll; // == enteredTextEditPos - scrollPosHorizontal
 	int32_t highlight_start_x;
-	if (!f.style.invert_highlight && scroll_amount == 0) {
+	if (f.style.highlighting == Highlighting::NoInversion && scroll_amount == 0) {
 		// Legacy's NO_INVERSION special case starts the rule at the panel's own left edge (x =
 		// 0) rather than one pixel short of the box -- generalised here to the rect's own left
 		// edge, the same "whole panel" -> "this rect" substitution every other edge in this
@@ -81,7 +81,7 @@ void text_edit(OledFrame& f, Rect rect, std::string_view s, TextEditState& state
 		highlight_start_x = rect.x + kTextSpacingX * scroll_amount - 1;
 	}
 
-	if (f.style.invert_highlight) {
+	if (f.style.highlighting != Highlighting::NoInversion) {
 		f.invert_rounded(Rect{highlight_start_x, rect.y, rect.right() - highlight_start_x, kTextSpacingY});
 	}
 	else {

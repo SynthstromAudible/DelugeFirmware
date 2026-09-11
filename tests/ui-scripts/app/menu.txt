@@ -237,7 +237,7 @@
 # Site 8, in two presses. `auditioning` is the held audition pad; `file-selector` is the panel this
 # whole plan exists to compare -- legacy's `SampleBrowser` (title "Audio files",
 # `sample_browser.cpp:89`) against the ported `browser::BrowserScene` on the `Sample` descriptor
-# (the same title, `scenes/browser/browser_scene.cpp:293`), both listing the fixture's one file.
+# (the same title, `scenes/browser/browser_scene.cpp:294`), both listing the fixture's one file.
 #
 # **`file-selector.state` differs between the legs and the reason is already recorded.** The panels
 # are byte-identical; the *pads* are not. Legacy `SampleBrowser` opens with the keyboard hidden and

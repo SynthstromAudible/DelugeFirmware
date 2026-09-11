@@ -154,7 +154,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 			// incremental redraw would leave is not reproduced. The +4 clear padding is for the
 			// non-inverting (left-edge-rule) branch.
 			scroll_text(f, label_box, row.label, font, scroll_label, allow_motion, false,
-			            f.style.invert_highlight ? 0 : kIconGapX);
+			            f.style.highlighting != Highlighting::NoInversion ? 0 : kIconGapX);
 		}
 		else {
 			// Drawn at label_x, clipped to content_end.
@@ -168,7 +168,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 		}
 		// Inverts the full row when inversion is on, rounded per style.rounded; otherwise just
 		// draws the rule down the left edge.
-		if (f.style.invert_highlight) {
+		if (f.style.highlighting != Highlighting::NoInversion) {
 			f.invert_rounded(Rect{rect.x, y, rect.w, 9});
 		}
 		else {

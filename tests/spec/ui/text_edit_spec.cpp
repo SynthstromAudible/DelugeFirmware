@@ -100,7 +100,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 	});
 
 	it("matches qwerty_ui.cpp's mid-string cursor presentation: an inverted, rounded tail from "
-	   "the cursor to the rect's right edge, following style.invert_highlight (qwerty_ui.cpp:"
+	   "the cursor to the rect's right edge, following style.highlighting (qwerty_ui.cpp:"
 	   "156-170, list.cpp's D1 primitive)", _ {
 		// cursor == 30, length == 36, max_num_chars == 21: minXScroll = min(30+3-21, 36-21+0) =
 		// min(12, 15) = 12; maxXScroll = min(36-21+0, 30-3) = min(15, 27) = 15. scroll settles at
@@ -108,9 +108,10 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		// atVeryEnd is false (30 != 36): this is legacy's *only* mid-string cursor case, not a
 		// predictive-text overlay. scrollAmount = cursor - scroll = 18, so
 		// highlightStartX = 0 + 6*18 - 1 = 107, one pixel into the gap after the visible '3'
-		// (canvas columns 102-106) -- not on top of its ink. kDelugeStyle48/64 both set
-		// invert_highlight = true, so this inverts a rounded box from column 107 to the rect's
-		// right edge (127), 9 rows tall (the whole text cell, not just the 3-row underline band).
+		// (canvas columns 102-106) -- not on top of its ink. kDelugeStyle48/64 both ship
+		// highlighting != NoInversion (PartialInversion), so this inverts a rounded box from
+		// column 107 to the rect's right edge (127), 9 rows tall (the whole text cell, not just
+		// the 3-row underline band).
 		uitest::Rig48 r;
 		TextEditState st{.cursor = 30, .scroll = 0};
 		text_edit(r.frame, r.frame.bounds(), kLongString, st);
@@ -136,7 +137,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		expect_golden(self, "../ui/widgets/text_edit_scrolled_64.pbm", r.pbm());
 	});
 
-	it("draws the left-edge rule instead of an inverted tail when invert_highlight is off, "
+	it("draws the left-edge rule instead of an inverted tail when highlighting is NoInversion, "
 	   "starting in the gap after the previous character", _ {
 		// qwerty_ui.cpp:166: "Start the highlight in the 1px gap that follows the previous
 		// character... otherwise the inversion eats a pixel column out of the letter before the
@@ -149,7 +150,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		// which columns the 'B'/'C' glyphs themselves light up.
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
-		plain.invert_highlight = false;
+		plain.highlighting = Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		TextEditState st{.cursor = 2, .scroll = 0};
 		text_edit(f, Rect{20, 10, 60, 20}, "ABC", st);
@@ -160,7 +161,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 	});
 
-	it("starts the rule at the rect's own left edge when invert_highlight is off and the cursor "
+	it("starts the rule at the rect's own left edge when highlighting is NoInversion and the cursor "
 	   "sits at the window's own start (qwerty_ui.cpp's NO_INVERSION && !scrollAmount special "
 	   "case)", _ {
 		// Without this special case the formula below would place the rule at rect.x - 1 == 19,
@@ -169,7 +170,7 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		// rect's own left edge the same way every other panel-edge constant in this widget is.
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
-		plain.invert_highlight = false;
+		plain.highlighting = Highlighting::NoInversion;
 		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		TextEditState st{.cursor = 0, .scroll = 0}; // scrollAmount == cursor - scroll == 0
 		text_edit(f, Rect{20, 10, 60, 20}, "ABC", st);
@@ -186,9 +187,9 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		// from that arm). The mid-string invertLeftEdgeForMenuHighlighting call is unconditional
 		// in legacy and must still appear here even while cursor_lit is false -- exactly the case
 		// a caller blinking the end-of-string bar elsewhere in the same scene will produce the
-		// moment its cursor is mid-string instead. Same rect/string/cursor as the invert_highlight
-		// == true case above (rect = {20,10,60,20}, "ABC", cursor == 2), but with the default
-		// (invert_highlight == true) style, so this exercises invert_rounded, not the rule.
+		// moment its cursor is mid-string instead. Same rect/string/cursor as the highlighting
+		// != NoInversion case above (rect = {20,10,60,20}, "ABC", cursor == 2), but with the default
+		// (highlighting == PartialInversion) style, so this exercises invert_rounded, not the rule.
 		uitest::Rig48 r;
 		TextEditState st{.cursor = 2, .scroll = 0, .cursor_lit = false};
 		text_edit(r.frame, Rect{20, 10, 60, 20}, "ABC", st);

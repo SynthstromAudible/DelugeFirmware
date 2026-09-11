@@ -183,7 +183,7 @@ using SampleClaimDispatch = bool (*)(void (*)(void*), void*);
 ///
 /// @par For specs, and it is a requirement rather than a convenience
 ///
-/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:383-391`) is the same shape one
+/// `BrowserScene::set_dispatch` (`scenes/browser/browser_scene.h:384-392`) is the same shape one
 /// layer down -- and only the shape: that one swaps the dispatcher on the scene's **`Listing`**, the
 /// directory read, and there is no claim seam anywhere in `BrowserScene`. The claim happens here, so
 /// the settable dispatcher has to be here too.

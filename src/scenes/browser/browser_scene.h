@@ -276,13 +276,14 @@ inline constexpr size_t kMaxEnteredChars = 128;
 inline constexpr deluge::ui::shell::SceneKind kBrowserSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 3);
 
-/// @brief `Browser::renderOLED`'s two x origins, on the shipped `invert_highlight` profile.
+/// @brief `Browser::renderOLED`'s two x origins, on the shipped `PartialInversion` profile.
 ///
 /// Legacy: `textStartX = 14`, `iconStartX = 1`, each stepped by one `kTextSpacingX` when
 /// `FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION`
-/// (`browser.cpp:928-933`). That setting is what this toolkit spells as `Style::invert_highlight`
-/// -- the same mapping `list`, `columns`, `popup` and `text_edit` already make -- so the scene
-/// reads the profile rather than the flash byte, and both shipped profiles set it true.
+/// (`browser.cpp:928-933`). That setting is what this toolkit spells as `Style::highlighting ==
+/// Highlighting::NoInversion` -- the same mapping `list`, `columns`, `popup` and `text_edit`
+/// already make -- so the scene reads the profile rather than the flash byte, and both shipped
+/// profiles ship `PartialInversion`, so this stays on the `!= NoInversion` arm.
 /// @{
 inline constexpr int32_t kRowTextX = 14;
 inline constexpr int32_t kRowIconX = 1;

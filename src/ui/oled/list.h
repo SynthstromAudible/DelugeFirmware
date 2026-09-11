@@ -96,9 +96,9 @@ int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible);
 ///       `enum_value` and `toggle` borrow it for its looks alone.
 ///
 /// The selected row's label goes through `scroll_text` with @p scroll_label, so a label too wide
-/// for its box ping-pongs. The highlight follows `style.invert_highlight`: true inverts the whole
-/// row (rounded per `style.rounded`); false draws only the left-edge rule and gives `scroll_text`
-/// a `+4` clear-only padding, which exists precisely for that case.
+/// for its box ping-pongs. The highlight follows `style.highlighting`: `!= NoInversion` inverts
+/// the whole row (rounded per `style.rounded`); `NoInversion` draws only the left-edge rule and
+/// gives `scroll_text` a `+4` clear-only padding, which exists precisely for that case.
 ///
 /// @note The label is drawn *before* the inversion -- the order a full redraw uses. This widget
 ///       always renders the authoritative full-redraw result at every scroll position; it does

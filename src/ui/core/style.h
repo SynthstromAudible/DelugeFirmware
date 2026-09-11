@@ -5,6 +5,20 @@
 
 namespace deluge::ui {
 
+/// @brief Mirrors legacy `MenuHighlighting` (`definitions_cxx.hpp:261`): the focused-column/row
+///        highlight a board profile draws, read from `FlashStorage::accessibilityMenuHighlighting`
+///        in legacy and from `Style::highlighting` here.
+///
+/// - `FullInversion` inverts (rounded, per `Style::rounded`) the focused area.
+/// - `PartialInversion` draws a 1px rule instead, and is legacy's default
+///   (`storage/flash_storage.cpp:365`, inside `resetSettings()`).
+/// - `NoInversion` also draws the rule for every reader except `columns`: legacy's own switch
+///   (`gui/menu_item/horizontal_menu.cpp:280-283`) falls `PARTIAL_INVERSION` and `NO_INVERSION`
+///   through to the same line-draw arm, so `columns` need not (and does not) special-case it.
+///   Everywhere else, legacy reads this setting as `!= NO_INVERSION`
+///   (`hid/display/oled.cpp:771`, restated), so those readers keep that same test.
+enum class Highlighting : uint8_t { FullInversion, PartialInversion, NoInversion };
+
 /// @brief Per-frame OLED style parameters for a board profile, passed by const& into every frame.
 ///
 /// "Menu line count", "menu base row" and "rounded corners" are values here, not globals on the
@@ -40,7 +54,8 @@ struct Style {
 	/// `columns` uses and which is 14 on every panel -- see the note on that constant in
 	/// `core/metrics.h`.
 	int32_t menu_base_y;
-	bool rounded, invert_highlight;
+	bool rounded;
+	Highlighting highlighting;
 	gfx::oled::FontId title_font, row_font, value_font, big_font;
 };
 
@@ -51,7 +66,7 @@ inline constexpr Style kDelugeStyle48{.title_height = kTitleSeparatorY,
                                       .menu_rows = 3,
                                       .menu_base_y = kMenuBaseY48,
                                       .rounded = true,
-                                      .invert_highlight = true,
+                                      .highlighting = Highlighting::PartialInversion,
                                       .title_font = gfx::oled::FontId::MetricBold9,
                                       .row_font = gfx::oled::FontId::Apple7,
                                       .value_font = gfx::oled::FontId::MetricBold20,
@@ -64,7 +79,7 @@ inline constexpr Style kDelugeStyle64{.title_height = kTitleSeparatorY,
                                       .menu_rows = 5,
                                       .menu_base_y = kMenuBaseY64,
                                       .rounded = true,
-                                      .invert_highlight = true,
+                                      .highlighting = Highlighting::PartialInversion,
                                       .title_font = gfx::oled::FontId::MetricBold9,
                                       .row_font = gfx::oled::FontId::Apple7,
                                       .value_font = gfx::oled::FontId::MetricBold20,

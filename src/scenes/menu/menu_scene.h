@@ -240,7 +240,7 @@ struct MenuState {
 	/// set at `depth > 0` -- see `MenuScene::render_oled`.
 	bool back_claimed = false;
 	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
-	/// claims the press only for a submenu column, `ui/oled/columns.cpp:448-452`). `after_render`
+	/// claims the press only for a submenu column, `ui/oled/columns.cpp:451-455`). `after_render`
 	/// answers it the way a leaf's own select press is answered, not the way this field's name
 	/// suggests: `Submenu::selectButtonPress` forwards to the focused item
 	/// (`gui/menu_item/submenu.cpp:187-194`), whose own `select_chain` is entered if it names one

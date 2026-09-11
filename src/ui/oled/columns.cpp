@@ -284,17 +284,20 @@ void render_page(OledFrame& f, Rect rect, std::span<const Column> cols, const Pa
 
 		// Highlight the focused column, unless it is the page's only column and fills the page.
 		if (is_selected && (page_columns > 1 || std::max<int32_t>(1, cols[w.first].slots) < kPageSlots)) {
-			if (f.style.invert_highlight) { // legacy's MenuHighlighting::FULL_INVERSION
+			if (f.style.highlighting == Highlighting::FullInversion) { // horizontal_menu.cpp:269-276
 				const bool whole_slot = !col.show_label || col.is_submenu;
 				const int32_t start_y = whole_slot ? base_y - 1 : label_y;
 				const int32_t end_y = whole_slot ? base_y + kHorizontalBoxHeight - 1 : label_y + kLabelHeight - 1;
 				f.invert_rounded(Rect{current_x + 1, start_y, box_width - 3, end_y - start_y + 1});
 			}
 			else {
-				// Legacy's PARTIAL_INVERSION/NO_INVERSION row is `OLED_MAIN_VISIBLE_HEIGHT + 2`
-				// in canvas coordinates, i.e. three rows up from the bottom of the visible area;
-				// taken frame-relative here, because the canvas-absolute reading falls off the
-				// bottom of a panel with no bezel.
+				// horizontal_menu.cpp:278-281: `PARTIAL_INVERSION` falls through into
+				// `NO_INVERSION`, both reaching this same line-draw -- so this `else` covers both
+				// arms with no `NoInversion`-specific branch of its own, exactly as legacy has
+				// none. The row is `OLED_MAIN_VISIBLE_HEIGHT + 2` in canvas coordinates, i.e.
+				// three rows up from the bottom of the visible area; taken frame-relative here,
+				// because the canvas-absolute reading falls off the bottom of a panel with no
+				// bezel.
 				f.hline(rect.bottom() - 3, current_x, current_x + box_width - 2);
 			}
 		}
