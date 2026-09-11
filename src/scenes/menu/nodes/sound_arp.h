@@ -34,7 +34,7 @@
 ///
 /// Everything here reads and writes `ArpeggiatorSettings` -- `MenuContext::arp`, which
 /// `context_for` resolves to the drum's, the kit's or the clip's settings exactly as
-/// `SoundEditor::setup` did (`context.cpp:176`, `:195`, `:201`, `:225`).
+/// `SoundEditor::setup` did (`context.cpp:251`, `:270`, `:276`, `:300`).
 ///
 /// @note **`isToggle()` is not a `Kind`.** `arpeggiator::Mode` and `IncludeInKitArp` are
 ///       `Selection`s with two options that legacy draws as a checkbox (`mode.h:100`,

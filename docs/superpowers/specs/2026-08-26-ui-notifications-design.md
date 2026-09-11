@@ -180,7 +180,7 @@ Catalogued here; relocated by the shell (D), scenes (E) and commands (I) specs.
 | `getRootUI()->renderSidebar(...)` in `instrument_clip.h:237`, `audio_clip.h:119` | model headers | deleted; the scene's grid view renders the sidebar |
 | `changeRootUI(...)` ×14 and `action->view` (`UI*`) in `action_logger.cpp` | undo restore | **commands track**: `Action` records a `SceneId` POD tag. Until then `LegacySceneAdapter` maps `UI*` → `SceneId`. |
 | `instrument_clip_minder.cpp`, `clip_minder.cpp` | — | **moved to `deluge-scenes`** wholesale; they are scene code |
-| `uiTimerManager.routine()` re-entered from SD loops (`sample_recorder.cpp:1386`, `storage_manager.cpp:858`, `deluge.cpp:600`) | recorder, storage | **scheduler yield**; the UI tick is a scheduler task, not something storage pumps |
+| `uiTimerManager.routine()` re-entered from SD loops (`sample_recorder.cpp:1387`, `storage_manager.cpp:858`, `deluge.cpp:597`) | recorder, storage | **scheduler yield**; the UI tick is a scheduler task, not something storage pumps |
 
 ## 6. Context rules
 

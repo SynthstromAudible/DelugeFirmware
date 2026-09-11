@@ -871,8 +871,8 @@ sessions; `Kind::Custom` receiving raw input (today's `CustomItem` interface ren
 placeholder never routes input to it — the shipped mechanism is `nodes::kPending` /
 `CustomItem::is_placeholder()` / `Issue::Kind::PlaceholderCustom`, the last of these with no
 suppressing option since E3 task 7; the `DELUGE_SCENES_E1_PARTIAL` macro the plan
-proposed was never built); and gold-knob acceleration
-(`calcNextKnobSpeed`).
+proposed was never built); and menu-side acceleration of a horizontal page's select turn
+(`HorizontalMenu::calcNextKnobSpeed`, applied at `gui/menu_item/horizontal_menu.cpp:326`).
 
 *E3 amendment (task 8) — the count moves for the first time by* addition. The per-device MIDI page
 (`menu/nodes/midi_device.h`, the carry-list row below) adds **three** bespoke items —
@@ -1203,7 +1203,8 @@ two context-dependent blink suppressions; settings-root shortcut jumps (blocked 
 `MenuContext` gaining `background_root`); the four `hid/`-side write side effects; `osc0_type`/
 `osc1_type` → `dxMenu` (waits on the DX browser); `Submenu::shouldForwardButtons()` forwarding;
 `Automation::selectButtonPress`'s shift-held automation delete; per-node cursor memory across
-sessions; and gold-knob acceleration (`calcNextKnobSpeed`).
+sessions; and menu-side acceleration of a horizontal page's select turn (`HorizontalMenu::calcNextKnobSpeed`,
+applied at `gui/menu_item/horizontal_menu.cpp:326`).
 
 ## 15. Amendments closing E3 (2026-09-02, Tasks 1–12 of `2026-09-02-ui-scenes-menus-3.md`)
 

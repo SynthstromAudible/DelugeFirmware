@@ -754,8 +754,8 @@ Matches the brief's stated expectation exactly.
 
 Per the brief, the invocation was *found*, not guessed: no `sim/CMakeLists.txt`/`tests/`/`scripts/`
 hit gave a literal command line, so the real one came from this same plan family's prior practice
-(`docs/superpowers/plans/2026-08-06-r4-phaseC-followups.md:18`, and confirmed working in
-`.superpowers/sdd/2026-08-06-r4-phaseC-followups/task-8-report.md`, gate 3):
+(the r4 phase-C follow-ups plan and its task-8 report's gate 3, which confirmed it working --
+neither file is in this repository's history, so they are named here rather than cited by line):
 `./deluge_loadcheck --project <dir with SAMPLES/A.WAV> --file SAMPLES/A.WAV`, run against a scratch
 project directory seeded with a real WAV file already present in the tree
 (`toolchain/v25/linux-x86_64/arm-none-eabi-gcc/lib/python3.13/test/audiodata/pluck-pcm16.wav`, copied to

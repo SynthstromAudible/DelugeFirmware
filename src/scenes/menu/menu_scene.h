@@ -957,7 +957,7 @@ public:
 	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold
 	///       lands on the column last focused. `descend_to` resets `st_.list[depth]` and
 	///       `st_.columns[depth]` (`scenes/menu/menu_scene.cpp:1510-1511`), so this always lands on the
-	///       first. It is `src/scenes/README.md:1678-1697`'s carry 5 -- focus kept per depth for a
+	///       first. It is `src/scenes/README.md:1709-1735`'s carry 5 -- focus kept per depth for a
 	///       session, not per menu object for the process -- met by a descend rather than a re-open.
 	///       Recorded, not changed.
 	void enter_submenu(const Node& node);

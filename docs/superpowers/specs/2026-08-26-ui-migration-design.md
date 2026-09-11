@@ -1826,7 +1826,10 @@ SHIFT and hands the offset to the item -- `Integer::selectEncoderAction` (`gui/m
 `Decimal::selectEncoderAction` (`gui/menu_item/decimal.cpp:57`), and on a horizontal page
 `HorizontalMenu::selectEncoderAction` (`gui/menu_item/horizontal_menu.cpp:309-328`), which edits the
 focused column and never moves focus. Focus on a horizontal page moves only by SYNTH/KIT/MIDI/CV and
-the page by CROSS_SCREEN/SCALE (`horizontal_menu.cpp:70-107`); the gold knobs never touch a menu.
+the page by CROSS_SCREEN/SCALE (`horizontal_menu.cpp:70-107`); the gold knobs never edit a menu value --
+`SoundEditor::modEncoderAction` hands them to `automationView` when it is the root (`gui/ui/sound_editor.cpp:1639-1640`),
+teaches the focused item the knob under `UI_MODE_MIDI_LEARN` (`:1644-1654`), and otherwise calls `UI::modEncoderAction` (`:1659`),
+whose base forwards to `View::modEncoderAction` (`gui/ui/ui.cpp:35-37`).
 Before this work the toolkit contract said the opposite -- `InputSnapshot::turn` "navigate / move
 focus", `edit[2]` "edit the focused value" -- and the widgets followed it: `int_value`,
 `decimal_value` and `range_value` edited on the two gold knobs (a coarse and a fine one, the fine a

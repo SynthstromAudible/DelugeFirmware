@@ -79,7 +79,7 @@ pages are reached — and `nullptr` goes up a level. `HorizontalMenu` does not o
 `selectButtonPress`, and `handleItemAction`'s one caller is the instrument-button path
 (`horizontal_menu.cpp:420`).
 
-**Port.** (At `20aca8e4f`, before this work: this paragraph's and the next one's line numbers are that commit's.) The input contract itself states the swap: `InputSnapshot::turn` is documented as "navigate
+**Port.** (This paragraph and the next describe the port as it stood at `20aca8e4f`, before this work: their present tense is that commit's, and so are their line numbers.) The input contract itself states the swap: `InputSnapshot::turn` is documented as "navigate
 / move focus" and `edit[2]` as "edit the focused value" (`ui/core/input.h:63-64`). `int_value`
 reads the gold pair (`ui/oled/values.cpp:81`, the claims at `:87-88`) **under a comment that says it
 ports `Integer::selectEncoderAction`** (`:86`); `decimal_value` (`:126`) and `range_value` (`:332`)

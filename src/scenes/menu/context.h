@@ -200,7 +200,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 /// @pre @p ctx came from `context_for` with `ctx.resolved == true`, and either `ctx.is_song_view` or
 ///      `ctx.clip != nullptr`. A settings-root context (no clip, no song view) has no timeline
 ///      counter and would yield a stack over a null one; legacy failed the same case louder, by
-///      dereferencing a null `instrument` at `:1989`.
+///      dereferencing a null `instrument` at `sound_editor.cpp:2039-2044`.
 /// @param memory `MODEL_STACK_MAX_SIZE` bytes supplied by the caller (a `ModelStack` is built in
 ///               place, never allocated -- this library takes no heap).
 ///

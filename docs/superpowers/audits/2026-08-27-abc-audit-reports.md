@@ -2,6 +2,8 @@
 
 Four independent reviews (deluge-sdk comparison, spark comparison, architecture, C++ idiom), run on ui/toolkit tip a8f12aa06. Synthesis follows; the four full reports are appended.
 
+*Line citations below are the reviews' own, as read on 2026-08-27 -- against `a8f12aa06` here, and against deluge-sdk and spark for their paths -- and are not maintained. Most `src/ui/README.md` and spec citations resolve at `a8f12aa06`; four `src/ui/README.md` ranges (`:163-165`, `:171-178`, `:179-184`, `:207-213`) do not resolve at `a8f12aa06` or at this document's own commit, `8e8c73374`. Read any of them against its file's history, not against today's tree.*
+
 
 ---
 
