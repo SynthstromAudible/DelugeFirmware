@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "model/action/action_logger.h"
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -49,6 +48,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
+#include "util/note_editor_open.h"
 #include "util/notify.h"
 #include <iterator>
 #include <new>
@@ -96,7 +96,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 	// Exception for sound editor note row editor UI which can edit note rows on the grid
 	// Exception for loadPatternUI which does edit note rows on the grid
 	if ((getCurrentUI() != getRootUI())
-	    && (!(getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor())))
+	    && (!(deluge::gui::ui::noteEditorOpen() || deluge::gui::ui::noteRowEditorOpen()))
 	    && (getCurrentUI() != &loadPatternUI)) {
 		return nullptr;
 	}

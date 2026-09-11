@@ -19,8 +19,8 @@
 /// `MenuScene` opened at `Root::NoteEditor` / `Root::NoteRowEditor` on the global guest's own stack,
 /// because `activeNoteMode()` reads exactly that. Their performer is pinned without running either
 /// legacy handler: `setNoteModeLegacyCalls` replaces the two `instrumentClipView` calls with
-/// recorders, because both handlers reach `soundEditor.getCurrentMenuItem()` -- null under the guest
-/// (`gui/views/instrument_clip_view.cpp:3655`, `:3836`, `:3842`, `:3878`) -- on paths a pad takes.
+/// recorders. (Task 7a gated both handlers' `soundEditor` navigation calls -- the legacy arms are now
+/// `gui/views/instrument_clip_view.cpp:3660`, `:3854`, `:3865`, `:3906` -- and `note_mode_reads_spec.cpp` runs them.)
 ///
 /// What this deliberately does not cover: the tail's firmware-version diagnostics, out of scope for
 /// this switch -- `shell_pad_forward.h`'s own note says why. And nothing here asks

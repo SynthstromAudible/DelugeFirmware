@@ -13,8 +13,8 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/c_string.h"
+#include "util/note_editor_open.h"
 #include "util/notify.h"
-
 // Notice::popup_type is a plain uint8_t whose 0 means "unspecified" -- and today PopupType::NONE
 // happens to be 0 while GENERAL is 1, so a raw cast would turn every default notice into NONE.
 // Map 0 to GENERAL at this boundary.
@@ -45,7 +45,7 @@ void drain_notifications() {
 					// Only re-dispatch when the root UI is on screen, with the exception of the
 					// note / note-row editor, so note edits stay audible.
 					const bool in_note_editor =
-					    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+					    deluge::gui::ui::noteEditorOpen() || deluge::gui::ui::noteRowEditorOpen();
 					if (root && (getCurrentUI() == root || in_note_editor)) {
 						root->notifyPlaybackBegun();
 					}

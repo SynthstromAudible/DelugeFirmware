@@ -11,7 +11,7 @@
 /// `editPadAction` (`gui/views/instrument_clip_view.cpp:2345`).
 ///
 /// `editPadAction`'s "regular create-or-select press" branch unconditionally calls
-/// `reassessAuditionStatus` (`:2702`), which calls `getVelocityForAudition` (`:4746`), which calls
+/// `reassessAuditionStatus` (`:2702`), which calls `getVelocityForAudition` (`:4784`), which calls
 /// `InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible`
 /// (`model/clip/instrument_clip_minder.cpp:591`) -- and THAT dereferences `currentPlaybackMode`, a
 /// global only `deluge_boot()` sets (`deluge.cpp:659`), null under every `song_fixture.h`
@@ -30,21 +30,28 @@
 ///
 /// **The offset-write gate, pinned rather than assumed.** `adjustVelocity` only actually changes a
 /// note when `display->hasPopup() || inAutomationView || inSoundEditor`
-/// (`instrument_clip_view.cpp:2852-2858`); outside all three (this fixture's own state: no popup,
+/// (`instrument_clip_view.cpp:2852-2859`); outside all three (this fixture's own state: no popup,
 /// `getCurrentUI()` is neither `&automationView` nor `&soundEditor`), the write is a no-op --  but
 /// `adjustVelocity`'s own tail unconditionally calls `displayVelocity`
-/// (`:2930-2934`), which raises a popup regardless of whether anything changed. So the FIRST
+/// (`:2931-2935`), which raises a popup regardless of whether anything changed. So the FIRST
 /// `adjust_note_velocity` turn with no popup up leaves `note_velocity()` unchanged and leaves
 /// `display->hasPopup()` true afterward; the SECOND turn, now satisfying the gate, actually commits
 /// the change. `adjustNoteProbabilityWithOffset`/`adjustNoteIteranceWithOffset`/
 /// `adjustNoteFillWithOffset` and every note-ROW `adjust_*`/`set_*` share the identical shape
-/// through `adjustNoteParameterValue`'s `hasPopup || inNoteEditor` (`:3066`, `:3117`) and
-/// `setNoteRowParameterValue`'s `hasPopup || inNoteRowEditor` (`:4063`, `:4066`) -- not re-pinned
-/// here one entry at a time; velocity's gate is the stated sample for all of them. **The ported
-/// note mode's own arm through this gate -- so a guest turn commits on its first press, the way a
-/// user expects -- is a later task's** (a widened predicate that recognises the guest as legacy
-/// recognises `soundEditor`); this bridge transcribes legacy's functions exactly as they stand
-/// today, gate included, and must not paper over it.
+/// through `adjustNoteParameterValue`'s `hasPopup || inNoteEditor` (`:3067`, `:3118`) and
+/// `setNoteRowParameterValue`'s `hasPopup || inNoteRowEditor` (`:4101`, `:4104`) -- not re-pinned
+/// here one entry at a time; velocity's gate is the stated sample for all of them. That example opens no
+/// ported menu, so it is legacy's arm, and it stays exactly as Task 4 pinned it.
+///
+/// **The note-mode arm of the same gate (note-family Task 7a).** With the ported menu on the guest's
+/// stack at a note root, `util/note_editor_open.h`'s `noteEditorOpen()`/`noteRowEditorOpen()` answer
+/// true, so `adjustVelocity`'s `inSoundEditor` (`:2852`), `adjustNoteParameterValue`'s `inNoteEditor`
+/// (`:3067`) and `setNoteRowParameterValue`'s `inNoteRowEditor` (`:4101`) all hold with no popup up:
+/// the FIRST turn commits, and the popup each function raises only outside a note editor
+/// (`:2933-2935`, `:3497`, `:4209`) is not raised. Three examples pin it, one per function, each with
+/// the guest opened over `instrumentClipView` the way production opens it -- which is also what makes
+/// `ActionLogger::getNewAction`'s own current-UI gate (`model/action/action_logger.cpp:98-102`) a
+/// real question here rather than one a spec-empty UI stack answers for free.
 ///
 /// **Uncovered, reported rather than faked:** `note_probability`/`adjust_note_probability`,
 /// `note_iterance`/`adjust_note_iterance`/`set_note_iterance`, `note_fill`/`adjust_note_fill`,
@@ -56,6 +63,15 @@
 #include "gui/ui/shell_note_bridge.h"
 #include "scenes/menu/note_bridge.h"
 
+#include "gui/ui/shell_host_ui.h" // shellHostUI
+#include "gui/ui/ui.h"            // setRootUILowLevel, openUI
+#include "model/action/action_logger.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/registry.h"
+#include "shell/scene.h"
+
 #include "definitions_cxx.hpp"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -66,6 +82,7 @@
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 
+#include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -114,7 +131,7 @@ struct RealNoteSelectionGuard {
 		                              modelStackWithNoteRow, /*action=*/nullptr);
 
 		// `InstrumentClipView::editPadAction`'s own callers pass `currentSong->xZoom[NAVIGATION_CLIP]`
-		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3651`); square 0 is where the
+		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3652`); square 0 is where the
 		// note above was just placed.
 		instrumentClipView.editPadAction(/*state=*/true, /*yDisplay=*/0, /*xDisplay=*/0,
 		                                 currentSong->xZoom[NAVIGATION_CLIP]);
@@ -141,6 +158,36 @@ struct RestoreLastAuditionedY {
 	~RestoreLastAuditionedY() { instrumentClipView.lastAuditionedYDisplay = saved; }
 };
 
+/// @brief Close the undo action an example's committed edit opened, however it ends.
+///
+/// `actionLogger` is a process singleton, and `ActionAddition::ALLOWED` lets a later example's edit
+/// join a still-open action whose clip belongs to this example's song. `closeAction` is legacy's own
+/// way to end one. **Not `deleteAllLogs()`**: freeing an action's consequences services the audio
+/// routine between deletions (`model/action/action.cpp:101`), which faults in a spec process.
+struct ActionLogGuard {
+	ActionLogGuard(const ActionLogGuard&) = delete;
+	ActionLogGuard& operator=(const ActionLogGuard&) = delete;
+	ActionLogGuard() = default;
+	~ActionLogGuard() { actionLogger.closeAction(ActionType::NOTE_EDIT); }
+};
+
+/// @brief An open ported note mode in production's shape: `instrumentClipView` as the root UI, the
+///        guest opened over it with `openUI`, and the ported menu the only scene on its stack at @p root.
+///
+/// `note_mode_spec.cpp`'s repaint example opens the guest the same way (`openUI` runs `opened()`,
+/// which starts the guest's stack at the initial scene). Tear down with `UiStackGuard` and
+/// `GlobalGuestGuard`.
+bool open_note_mode_over_clip_view(deluge::scenes::spec::SongFixture& fx, menu::MenuContext::Root root) {
+	setRootUILowLevel(&instrumentClipView);
+	const menu::Node& node = deluge::scenes::spec::menu_node_for_root(root);
+	const menu::Node* const roots[] = {&node};
+	(void)menu::assign_node_ids(roots);
+	deluge::scenes::menu_scene().open(node, deluge::scenes::spec::menu_context_at(fx, root));
+	shellHostUI.setInitialScene(
+	    deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(node)});
+	return openUI(&shellHostUI);
+}
+
 } // namespace
 
 // clang-format off
@@ -162,7 +209,7 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 	});
 
 	it("adjust_note_velocity leaves the model unchanged and raises legacy's popup on the first turn "
-	   "with no popup up, and commits on the second -- instrument_clip_view.cpp:2852-2858's gate", _ {
+	   "with no popup up, and commits on the second -- instrument_clip_view.cpp:2852-2859's gate", _ {
 		RealNoteSelectionGuard guard;
 		auto f = deluge::scenes::spec::make_synth_song();
 		guard.select_note(80);
@@ -181,6 +228,69 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 		bridge->adjust_note_velocity(1);
 		// The popup `displayVelocity` raised above now satisfies the gate, so this turn commits.
 		expect(bridge->note_velocity()).to_equal(81);
+	});
+
+	it("the note-mode arm: with the ported note editor open and no popup, adjust_note_velocity commits on the "
+	   "FIRST turn and raises no popup -- :2852's inSoundEditor sees the mode", _ {
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		ActionLogGuard logs;
+		RealNoteSelectionGuard guard;
+		auto f = deluge::scenes::spec::make_synth_song();
+		guard.select_note(80);
+		expect(open_note_mode_over_clip_view(f, menu::MenuContext::Root::NoteEditor)).to_be_true();
+
+		const menu::NoteBridge* bridge = menu::note_bridge();
+		expect(display->hasPopup()).to_be_false();
+		const int32_t default_velocity = getCurrentInstrument()->defaultVelocity;
+
+		bridge->adjust_note_velocity(1);
+		expect(bridge->note_velocity()).to_equal(81);
+		// `:2931-2935`: `displayVelocity` runs only outside the note editor -- neither its popup nor its
+		// `defaultVelocity` write (`:2984`) happens here.
+		expect(display->hasPopup()).to_be_false();
+		expect(static_cast<int32_t>(getCurrentInstrument()->defaultVelocity)).to_equal(default_velocity);
+	});
+
+	it("the note-mode arm: with the ported note editor open and no popup, adjust_note_probability commits on the "
+	   "FIRST turn and raises no PROBABILITY popup -- :3067/:3118", _ {
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		ActionLogGuard logs;
+		RealNoteSelectionGuard guard;
+		auto f = deluge::scenes::spec::make_synth_song();
+		guard.select_note(80);
+		expect(open_note_mode_over_clip_view(f, menu::MenuContext::Root::NoteEditor)).to_be_true();
+
+		const menu::NoteBridge* bridge = menu::note_bridge();
+		expect(display->hasPopup()).to_be_false();
+		const int32_t before = bridge->note_probability();
+
+		bridge->adjust_note_probability(-1);
+		expect(bridge->note_probability()).to_equal(before - 1);
+		// `:3497`: the probability popup is raised only when `!inNoteEditor`.
+		expect(display->hasPopup()).to_be_false();
+	});
+
+	it("the note-mode arm: with the ported note-row editor open and no popup, adjust_row_probability commits on "
+	   "the FIRST turn and raises no popup -- :4101/:4104", _ {
+		deluge::scenes::spec::UiStackGuard ui_guard;
+		deluge::scenes::spec::GlobalGuestGuard guest_guard;
+		ActionLogGuard logs;
+		RestoreLastAuditionedY restore_y;
+		RealNoteSelectionGuard guard; // the `display` and `currentPlaybackMode` seeds; no note is pressed
+		auto f = deluge::scenes::spec::make_synth_song();
+		instrumentClipView.lastAuditionedYDisplay = 1;
+		expect(open_note_mode_over_clip_view(f, menu::MenuContext::Root::NoteRowEditor)).to_be_true();
+
+		const menu::NoteBridge* bridge = menu::note_bridge();
+		expect(display->hasPopup()).to_be_false();
+		const int32_t before = bridge->row_probability(); // creates the row at y 1, as legacy's read does
+
+		bridge->adjust_row_probability(-1);
+		expect(bridge->row_probability()).to_equal(before - 1);
+		// `:4209`: the row's popup is raised only when `!inNoteRowEditor`.
+		expect(display->hasPopup()).to_be_false();
 	});
 
 	it("row_probability creates a note row on a non-kit clip at an auditioned y with none yet", _ {

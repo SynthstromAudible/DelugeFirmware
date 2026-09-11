@@ -387,7 +387,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 
 	it("the note editor's real handler swallows AFFECT_ENTIRE on a kit: DEALT_WITH, affectEntire untouched", _ {
 		// `handleNoteEditorButtonAction` names no AFFECT_ENTIRE arm and falls to
-		// `instrument_clip_view.cpp:3731`.
+		// `instrument_clip_view.cpp:3745`.
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);

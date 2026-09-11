@@ -2252,4 +2252,22 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 	return std::nullopt;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Navigation for callers outside the scene (note-family Task 7a). At the end of the file so that
+// adding them moved no line the tree already cites.
+
+bool MenuScene::go_up_one_level() {
+	if (st_.depth == 0) {
+		return false; // `sound_editor.cpp:715-717`, on the loop's first pass
+	}
+	ascend();
+	// `:715-717` on a later pass: `ascend()` stepped down to depth 0 and `:720-722` refused that level
+	// too, so its loop came round to depth 0 again and returned without landing.
+	return !(st_.depth == 0 && st_.path[0] != nullptr && permission_for(*st_.path[0], ctx_) == Permission::No);
+}
+
+void MenuScene::enter_submenu(const Node& node) {
+	descend_to(node); // `sound_editor.cpp:364-368`
+}
+
 } // namespace deluge::scenes::menu

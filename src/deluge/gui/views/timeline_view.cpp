@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "gui/views/timeline_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -30,6 +29,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "util/etl_string.h"
+#include "util/note_editor_open.h"
 #include <algorithm>
 #include <string.h>
 
@@ -155,7 +155,7 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 	// exception to usual checks for zooming and scrolling
 	// if you're in the note row editor, UI mode auditioning will always be active
 	// in addition, if shift is enabled, we allow zooming and scrolling
-	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+	bool inNoteRowEditor = deluge::gui::ui::noteRowEditorOpen();
 
 	// Encoder button pressed, zoom.
 	if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {

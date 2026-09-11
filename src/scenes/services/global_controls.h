@@ -141,13 +141,13 @@
 ///     RECORD tap dismisses it and does nothing else, while this port falls through to
 ///     `PlaybackHandler::recordButtonPressed()` and toggles recording. Recorded in the E4 task-4
 ///     report's owed list.
-///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`):
-///     `soundEditor.inNoteEditor()`/`inNoteRowEditor()`,
-///     `instrumentClipView.adjustNoteFillWithOffset(1)` and
-///     `instrumentClipView.setNoteRowFillWithOffset(1)`. All three name globals on
-///     `scenes-no-root-ui`'s list, and neither the note editor nor `InstrumentClipScene` is ported
-///     (E5). What survives is `currentSong->changeFillMode(on)` (`:356`), which is the arm's
-///     "otherwise" and the only half that is not a view call.
+///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`). The note-editor test
+///     (`:340-343`) needs no port here: it holds only in a note mode, and the ported note mode never lets
+///     this service see the press -- `gui::ui::forwardNoteButton` hands it to the mode's own handler,
+///     whose `return buttonAction(b, on, inCardRoutine)` reaches legacy's test itself, which asks
+///     `gui::ui::noteEditorOpen()`/`noteRowEditorOpen()` (note-family Task 7a). The two fill adjustments
+///     (`:345-354`) name `instrumentClipView`, on `scenes-no-root-ui`'s list, and `InstrumentClipScene`
+///     is not ported (E5). What survives is the arm's "otherwise", `currentSong->changeFillMode(on)`.
 ///   * **`deluge_signal_write(DELUGE_SIGNAL_SYNC_LED, ...)`** (`playback_handler.cpp:2508-2509`).
 ///     The external-clock LED is a board *signal*, not an `IndicatorLED`, so it has no `ButtonId`
 ///     and therefore no `ui::LedId` (`shell/profiles/deluge.h`: "LedId values = ButtonId values").

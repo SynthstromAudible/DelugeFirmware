@@ -916,6 +916,40 @@ private:
 	///        clears the whole of that on a re-root, and an action already filed must still be
 	///        delivered even if the path moves in the same tick.
 	MenuActionRequest taken_action_{};
+
+public:
+	/// @name The two navigation steps a caller outside the scene takes (note-family Task 7a)
+	///
+	/// Declared here, after the members, only so that adding them moved no line of this header that
+	/// the tree already cites. They belong beside `read_value_again()` in spirit.
+	/// @{
+	/// @brief One level up the path -- `SoundEditor::goUpOneLevel` (`gui/ui/sound_editor.cpp:710-729`), for a
+	///        caller outside the scene.
+	///
+	/// Added by note-family Task 7a, for the note-mode handlers that call `soundEditor.goUpOneLevel()`
+	/// themselves (`gui/views/instrument_clip_view.cpp`'s `deselectNoteAndGoUpOneLevel` and `nudgeNotes`,
+	/// and `SoundEditor::toggleNoteEditorParamMenu`'s release arm). The step is `ascend()`, which is
+	/// already this scene's port of the loop at `:714-722` and of `beginScreen(oldItem)` at `:728`.
+	///
+	/// @return **false where legacy exits completely instead**, having moved nothing in the first case:
+	///         the loop's `if (navigationDepth == 0) { exitCompletely(); return; }` (`:715-717`) fires
+	///         either on the first pass, at depth 0, or on a later pass, when the loop has stepped down to
+	///         depth 0 and `:720-722` refuses that level too. Closing the whole editor is the
+	///         application's act, not the scene's -- `gui::ui::closePortedMenu()` -- so the caller does it
+	///         on false. `ascend()` alone returns silently at depth 0 (its own recorded divergence), which
+	///         is why this does not simply forward to it.
+	bool go_up_one_level();
+	/// @brief Push @p node one level below the focused node -- `SoundEditor::enterSubmenu`
+	///        (`gui/ui/sound_editor.cpp:362-369`), for a caller outside the scene.
+	///
+	/// Added by note-family Task 7a for `SoundEditor::toggleNoteEditorParamMenu`'s press arm
+	/// (`:1967-1969`). Legacy's body is `endScreen()`, `navigationDepth++`, the record write and
+	/// `beginScreen(navigatedBackwardFrom)` (`:364-368`), and `beginScreen` begins the item's session
+	/// without asking `checkPermissionToBeginSession` (`:957-976`) -- so this is `descend_to`, which
+	/// asks no permission either, and nothing more. **`menu_context()` is untouched**: unlike `open()`,
+	/// this never replaces `ctx_`.
+	void enter_submenu(const Node& node);
+	/// @}
 };
 
 } // namespace deluge::scenes::menu

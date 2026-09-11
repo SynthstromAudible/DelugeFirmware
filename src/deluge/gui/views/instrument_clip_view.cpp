@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "gui/views/instrument_clip_view.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
@@ -33,6 +32,7 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
+#include "gui/ui/shell_note_mode.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -2376,7 +2376,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 				return;
 			}
 
-			bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+			bool inNoteRowEditor = deluge::gui::ui::noteRowEditorOpen();
 
 			// if you're in note row editor, don't create new note row's for kit's
 			if (inNoteRowEditor && instrument->type == OutputType::KIT) {
@@ -2849,7 +2849,8 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 
 	UI* currentUI = getCurrentUI();
 	bool inAutomationView = currentUI == &automationView;
-	bool inSoundEditor = currentUI == &soundEditor;
+	bool inSoundEditor =
+	    currentUI == &soundEditor || deluge::gui::ui::noteEditorOpen() || deluge::gui::ui::noteRowEditorOpen();
 
 	Action* action;
 	// Sean: we're only going to adjust velocity when there's a pop-up or we're in automation velocity editing view
@@ -2927,7 +2928,7 @@ void InstrumentClipView::adjustVelocity(int32_t velocityChange) {
 		}
 	}
 
-	bool inNoteEditor = inSoundEditor && soundEditor.inNoteEditor();
+	bool inNoteEditor = deluge::gui::ui::noteEditorOpen();
 
 	if (!inNoteEditor) {
 		displayVelocity(velocityValue, velocityChange);
@@ -2979,7 +2980,7 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 		else {
 			UI* currentUI = getCurrentUI();
 			bool inAutomationView = currentUI == &automationView;
-			bool inNoteEditor = currentUI == &soundEditor && soundEditor.inNoteEditor();
+			bool inNoteEditor = deluge::gui::ui::noteEditorOpen();
 			getCurrentInstrument()->defaultVelocity = velocityValue;
 			if (!inAutomationView && !inNoteEditor) {
 				strcpy(buffer, "Velocity: ");
@@ -3063,7 +3064,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	bool inNoteEditor = getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+	bool inNoteEditor = deluge::gui::ui::noteEditorOpen() || deluge::gui::ui::noteRowEditorOpen();
 
 	bool hasPopup = display->hasPopupOfType(PopupType::PROBABILITY) || display->hasPopupOfType(PopupType::ITERANCE)
 	                || display->hasPopupOfType(PopupType::FILL);
@@ -3246,7 +3247,7 @@ void InstrumentClipView::adjustNoteParameterValue(int32_t withOffset, int32_t wi
 					                                     changeType, parameterValue);
 
 					// if we're in the note editor, refresh grid to show edited note
-					if (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+					if (deluge::gui::ui::noteEditorOpen()) {
 						uiNeedsRendering(this, 1 << editPadPresses[i].yDisplay, 0);
 					}
 				}
@@ -3652,7 +3653,12 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 					dontDeleteNotesOnDepress();
 
 					// update menu selection
-					soundEditor.getCurrentMenuItem()->readValueAgain();
+					if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
+						deluge::gui::ui::noteModeReadValueAgain(); // Task 7a: see `gui/ui/shell_note_mode.h`
+					}
+					else {
+						soundEditor.getCurrentMenuItem()->readValueAgain();
+					}
 					blinkSelectedNote();
 				}
 			}
@@ -3687,8 +3693,16 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 // if we're in a submenu or horizontal menu, we'll need to go up a level
 void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 	exitNoteEditor();
-	if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
-		soundEditor.goUpOneLevel();
+	if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
+		// Task 7a: see `gui/ui/shell_note_mode.h`
+		if (!deluge::gui::ui::noteModeCurrentMenuItemIs(deluge::gui::ui::NoteModeMenuItem::NoteEditorRoot)) {
+			deluge::gui::ui::noteModeGoUpOneLevel();
+		}
+	}
+	else {
+		if (soundEditor.getCurrentMenuItem() != &noteEditorRootMenu) {
+			soundEditor.goUpOneLevel();
+		}
 	}
 }
 
@@ -3833,13 +3847,23 @@ bool InstrumentClipView::handleNoteRowEditorMainPadAction(int32_t x, int32_t y, 
 
 	if (toggleMenu) {
 		// toggle showing note editor param menu while holding / release note pad
-		soundEditor.toggleNoteEditorParamMenu(on);
+		if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
+			deluge::gui::ui::noteModeToggleNoteEditorParamMenu(on); // Task 7a: see `gui/ui/shell_note_mode.h`
+		}
+		else {
+			soundEditor.toggleNoteEditorParamMenu(on);
+		}
 	}
 	else {
 		// if you were holding a note and are still holding a note
 		// it means you were holding more than one note and released one
 		// so refresh parameter menu so it reflects the note remaining
-		soundEditor.getCurrentMenuItem()->readValueAgain();
+		if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
+			deluge::gui::ui::noteModeReadValueAgain(); // Task 7a: see `gui/ui/shell_note_mode.h`
+		}
+		else {
+			soundEditor.getCurrentMenuItem()->readValueAgain();
+		}
 	}
 
 	return true;
@@ -3875,7 +3899,12 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 			auditionPadAction(1, y, true);
 
 			// update menu selection
-			soundEditor.getCurrentMenuItem()->readValueAgain();
+			if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
+				deluge::gui::ui::noteModeReadValueAgain(); // Task 7a: see `gui/ui/shell_note_mode.h`
+			}
+			else {
+				soundEditor.getCurrentMenuItem()->readValueAgain();
+			}
 			blinkSelectedNoteRow();
 		}
 	}
@@ -3902,9 +3931,18 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 	// if you're not pressing vertical encoder, then you did some vertical scrolling
 	// if you're in a parameter menu or in the horizontal note row editor menu, update value displayed
 	if (!isHoldingVerticalEncoder) {
-		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
-		if (isInHorizontalMenu || currentMenuItem != &noteRowEditorRootMenu) {
-			currentMenuItem->readValueAgain();
+		if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
+			// Task 7a: see `gui/ui/shell_note_mode.h`
+			if (isInHorizontalMenu
+			    || !deluge::gui::ui::noteModeCurrentMenuItemIs(deluge::gui::ui::NoteModeMenuItem::NoteRowEditorRoot)) {
+				deluge::gui::ui::noteModeReadValueAgain();
+			}
+		}
+		else {
+			MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
+			if (isInHorizontalMenu || currentMenuItem != &noteRowEditorRootMenu) {
+				currentMenuItem->readValueAgain();
+			}
 		}
 	}
 	return result;
@@ -4060,7 +4098,7 @@ int32_t InstrumentClipView::setNoteRowParameterValue(int32_t withOffset, int32_t
 		parameter_has_been_edited = original_parameter != withFinalValue;
 	}
 
-	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+	bool inNoteRowEditor = deluge::gui::ui::noteRowEditorOpen();
 
 	// If editing, continue edit
 	if (hasPopup || inNoteRowEditor) {
@@ -4198,8 +4236,8 @@ void InstrumentClipView::mutePadPress(uint8_t yDisplay) {
 	// because the selected drum for note editing is the last auditioned note row and we don't want
 	// these two to get out of sync.
 	// Same if you're in the note row editor menu
-	bool inNoteEditor = (getRootUI() == &automationView && automationView.inNoteEditor())
-	                    || (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor());
+	bool inNoteEditor =
+	    (getRootUI() == &automationView && automationView.inNoteEditor()) || deluge::gui::ui::noteRowEditorOpen();
 
 	// Try getting existing NoteRow.
 	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(yDisplay, modelStack);
@@ -4344,7 +4382,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 
 	bool inSoundEditor = getCurrentUI() == &soundEditor;
 	bool inAutomationView = getRootUI() == &automationView;
-	bool inNoteRowEditor = inSoundEditor && soundEditor.inNoteRowEditor();
+	bool inNoteRowEditor = deluge::gui::ui::noteRowEditorOpen();
 	bool inAutomationNoteEditor = inAutomationView && automationView.inNoteEditor();
 
 	bool draggingNote = (numEditPadPresses > 0);
@@ -5036,8 +5074,7 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 	bool drumSelectionChanged = false;
 
-	bool inNoteOrNoteRowEditor =
-	    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+	bool inNoteOrNoteRowEditor = deluge::gui::ui::noteEditorOpen() || deluge::gui::ui::noteRowEditorOpen();
 
 	// is the drum the same as the currently selected drum in the kit?
 	// if so, no need to reselect it or redraw the clip or resend midi feedback
@@ -5475,14 +5512,25 @@ bool InstrumentClipView::startAuditioningRow(int32_t velocity, int32_t yDisplay,
 // if you're in the sequence direction menu,
 // pressing audition pad will change the note row selected in the menu
 void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
-	// are we in the sound editor menu for a selected note row?
-	if (getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow) {
-		MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
-		// are we in the play direction menu?
-		if (currentMenuItem == &sequenceDirectionMenu) {
-			// if yes to all the above, then we want to refresh the menu
-			// to update play direction for the newly selected note row
-			currentMenuItem->readValueAgain();
+	if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
+		// Task 7a: see `gui/ui/shell_note_mode.h`. `soundEditor.selectedNoteRow` needs no port here: its
+		// one caller passes only a non-kit clip, and under the note-row editor on a non-kit clip the latch
+		// is always true (`scenes/menu/bindings.cpp`'s note on `note_row_bridge_direction`); the note
+		// editor's tree has no Play Direction item, so the test below is false there.
+		if (deluge::gui::ui::noteModeCurrentMenuItemIs(deluge::gui::ui::NoteModeMenuItem::SequenceDirection)) {
+			deluge::gui::ui::noteModeReadValueAgain();
+		}
+	}
+	else {
+		// are we in the sound editor menu for a selected note row?
+		if (getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow) {
+			MenuItem* currentMenuItem = soundEditor.getCurrentMenuItem();
+			// are we in the play direction menu?
+			if (currentMenuItem == &sequenceDirectionMenu) {
+				// if yes to all the above, then we want to refresh the menu
+				// to update play direction for the newly selected note row
+				currentMenuItem->readValueAgain();
+			}
 		}
 	}
 }
@@ -5597,7 +5645,7 @@ doDisplayError:
 
 	if (!success) {
 		// F1 task 9, site 14 of 14: **not gated**, and not for want of a node -- the item is
-		// `file0SelectorMenu` (`:5581`), the same one site 8 maps. It is not gated because this is a
+		// `file0SelectorMenu` (`:5629`), the same one site 8 maps. It is not gated because this is a
 		// *fallback*: it runs only when `openUI(&audioRecorder)`/`openUI(&sampleBrowser)` has just
 		// refused, and the ported node's own hook would answer that by asking the shell to push the
 		// ported browser. See `gui/ui/shell_menu_entry.cpp`'s table.
@@ -6069,7 +6117,7 @@ void InstrumentClipView::drawAuditionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 
 	else if ((getRootUI() == &automationView && automationView.inNoteEditor())
-	         || (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor())) {
+	         || deluge::gui::ui::noteRowEditorOpen()) {
 		if (noteRowFlashOn && yDisplay == lastAuditionedYDisplay) {
 			thisColour = rowColour[yDisplay].forBlur();
 		}
@@ -6187,7 +6235,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 
-	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+	bool inNoteRowEditor = deluge::gui::ui::noteRowEditorOpen();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -6824,7 +6872,7 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 	offset = std::clamp(offset, (int32_t)-1, (int32_t)1);
 
 	// if we're in note row editor and we nudge a note we're holding
-	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
+	bool inNoteRowEditor = deluge::gui::ui::noteRowEditorOpen();
 
 	shouldIgnoreHorizontalScrollKnobActionIfNotAlsoPressedForThisNotePress = true;
 
@@ -6955,12 +7003,26 @@ doCompareNote:
 				if (inNoteRowEditor) {
 					int32_t yDisplay = editPadPresses[i].yDisplay;
 					noteRow->getRowSquareInfo(modelStackWithNoteRow->getLoopLength(), gridSquareInfo[yDisplay]);
-					if (soundEditor.getCurrentMenuItem() != &noteRowEditorRootMenu) {
-						int32_t xDisplay = editPadPresses[i].xDisplay;
-						// if the note is no longer in the square we're pressing,
-						// go back up a level to row editor
-						if (!gridSquareInfo[yDisplay][xDisplay].firstNote) {
-							soundEditor.goUpOneLevel();
+					if (deluge::gui::ui::activeNoteMode() != deluge::gui::ui::NoteModeKind::None) {
+						// Task 7a: see `gui/ui/shell_note_mode.h`
+						if (!deluge::gui::ui::noteModeCurrentMenuItemIs(
+						        deluge::gui::ui::NoteModeMenuItem::NoteRowEditorRoot)) {
+							int32_t xDisplay = editPadPresses[i].xDisplay;
+							// if the note is no longer in the square we're pressing,
+							// go back up a level to row editor
+							if (!gridSquareInfo[yDisplay][xDisplay].firstNote) {
+								deluge::gui::ui::noteModeGoUpOneLevel();
+							}
+						}
+					}
+					else {
+						if (soundEditor.getCurrentMenuItem() != &noteRowEditorRootMenu) {
+							int32_t xDisplay = editPadPresses[i].xDisplay;
+							// if the note is no longer in the square we're pressing,
+							// go back up a level to row editor
+							if (!gridSquareInfo[yDisplay][xDisplay].firstNote) {
+								soundEditor.goUpOneLevel();
+							}
 						}
 					}
 				}

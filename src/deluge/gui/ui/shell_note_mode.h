@@ -41,6 +41,7 @@
 
 #include "definitions_cxx.hpp" // ActionResult
 #include "hid/button.h"
+#include "util/note_editor_open.h" // noteEditorOpen(), noteRowEditorOpen(), for the gated pairs' callers
 
 #include <cstdint>
 #include <optional>
@@ -88,13 +89,46 @@ std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset, bool inCa
 /// today, which a future `is_root()` override on a scene the guest hosts would break.
 void exitNoteModeBeforeClose();
 
+/// @name The note-mode handlers' own menu calls, ported (note-family Task 7a)
+///
+/// Several `InstrumentClipView` functions the note mode forwards into talk to `soundEditor`'s
+/// navigation record directly (design spec §4, correction 7). Under the guest that record is never
+/// written, so each such statement is a gated pair at its call site -- `activeNoteMode() !=
+/// NoteModeKind::None` takes the port, the `else` keeps legacy's statement -- and these are the ports.
+/// The `.cpp` names the ported menu, which is why they are here rather than in `gui/views/`.
+/// @{
+
+/// @brief The three legacy menu items a note-mode handler compares
+///        `soundEditor.getCurrentMenuItem()` against, named without naming `src/scenes`.
+enum class NoteModeMenuItem : uint8_t {
+	/// `noteEditorRootMenu` (`gui/ui/menus.cpp:1880`) -- `nodes::note_editor_root`.
+	NoteEditorRoot,
+	/// `noteRowEditorRootMenu` (`gui/ui/menus.cpp:1927`) -- `nodes::note_row_editor_root`.
+	NoteRowEditorRoot,
+	/// `sequenceDirectionMenu` (`gui/ui/menus.cpp:935`) -- `nodes::sequence_direction`.
+	SequenceDirection,
+};
+
+/// @brief `soundEditor.getCurrentMenuItem() == &item`, asked of the ported menu's focused node.
+bool noteModeCurrentMenuItemIs(NoteModeMenuItem item);
+
+/// @brief `soundEditor.getCurrentMenuItem()->readValueAgain()`, ported.
+void noteModeReadValueAgain();
+
+/// @brief `soundEditor.goUpOneLevel()` (`gui/ui/sound_editor.cpp:710-729`), ported.
+void noteModeGoUpOneLevel();
+
+/// @brief `soundEditor.toggleNoteEditorParamMenu(on)` (`gui/ui/sound_editor.cpp:1925-1975`), ported.
+void noteModeToggleNoteEditorParamMenu(int32_t on);
+
+/// @}
+
 /// @brief Every legacy call the note mode makes into `instrumentClipView`, as replaceable pointers.
 ///
-/// `shell_pad_forward.h`'s `setPadForwardPerform`, for the same reason and one more: several of
-/// these handlers dereference `soundEditor.getCurrentMenuItem()`, which is null under the guest
-/// (`gui/views/instrument_clip_view.cpp:3655`, `:3690-3691`, `:3836`, `:3842`, `:3878`,
-/// `:3905-3907`), so a spec cannot drive them with the ported menu open until legacy's side sees
-/// the ported mode. The decisions around them are what a spec pins through these.
+/// `shell_pad_forward.h`'s `setPadForwardPerform`, for the same reason: the decisions around these
+/// calls are what a spec pins through them. The handlers themselves no longer need standing in for:
+/// Task 7a gave each of their navigation-record calls a gated pair whose port arm is one of the
+/// `noteMode*` functions above, and `sim/scenes_spec/note_mode_reads_spec.cpp` drives them for real.
 struct NoteModeLegacyCalls {
 	/// `InstrumentClipView::handleNoteEditorButtonAction`.
 	ActionResult (*noteEditorButton)(deluge::hid::Button b, bool on, bool inCardRoutine);

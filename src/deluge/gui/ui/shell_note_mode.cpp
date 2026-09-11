@@ -21,12 +21,18 @@
 
 #include "gui/ui/shell_note_mode.h"
 
-#include "gui/ui/shell_host_ui.h" // shellHostUI
-#include "gui/ui/ui.h"            // uiNeedsRendering
+#include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
+#include "gui/ui/shell_host_ui.h"         // shellHostUI
+#include "gui/ui/sound_editor.h"          // soundEditor
+#include "gui/ui/ui.h"                    // uiNeedsRendering
 #include "gui/views/instrument_clip_view.h"
+#include "model/settings/runtime_feature_settings.h"
+#include "util/note_editor_open.h"
 
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node.h"
+#include "scenes/menu/nodes/note.h"
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
@@ -34,6 +40,8 @@ namespace deluge::gui::ui {
 namespace {
 
 using deluge::scenes::menu::MenuContext;
+using deluge::scenes::menu::Node;
+namespace nodes = deluge::scenes::menu::nodes;
 
 // The real calls, one per `instrumentClipView` member `SoundEditor` names for the mode.
 
@@ -243,6 +251,128 @@ void exitNoteModeBeforeClose() {
 		break;
 	case NoteModeKind::None:
 		break;
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// `util/note_editor_open.h` (note-family Task 7a)
+
+bool noteEditorOpen() {
+	// Legacy's expression, then its port for the guest: `inNoteEditor()` reads
+	// `menuItemNavigationRecord[0]` (`gui/ui/sound_editor.cpp:1916-1918`), which no guest path writes,
+	// and `activeNoteMode()` is that read's port. Off the guest's stack the second half is false.
+	return (getCurrentUI() == &soundEditor && soundEditor.inNoteEditor())
+	       || activeNoteMode() == NoteModeKind::NoteEditor;
+}
+
+bool noteRowEditorOpen() {
+	// `noteEditorOpen`'s shape, over `inNoteRowEditor()` (`gui/ui/sound_editor.cpp:1920-1922`).
+	return (getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor())
+	       || activeNoteMode() == NoteModeKind::NoteRowEditor;
+}
+
+// ---------------------------------------------------------------------------------------------
+// The note-mode handlers' own menu calls (note-family Task 7a)
+
+namespace {
+
+/// @brief `MenuItem::shouldEnterSubmenu()` for the eight items `toggleNoteEditorParamMenu` can target.
+///
+/// The six note and row leaves are `note::SelectedNote`s and `note_row::SelectedNoteRow`s, whose
+/// `selectEncoderActionIsPermitted()` is `return shouldEnterSubmenu();` (`note/selected_note.h:42`,
+/// `note_row/selected_note_row.h:43`) -- and `Binding::permitted` is that function's port
+/// (`scenes/menu/nodes/note.h`'s note on the two guards), popup included. The two roots are
+/// `HorizontalMenu`s, which take `MenuItem`'s `return true` (`gui/menu_item/menu_item.h:271`); their
+/// nodes carry no `permitted` hook, and that answers the same.
+bool shouldEnterSubmenu(const Node& item, const MenuContext& ctx) {
+	return item.bind.permitted == nullptr || item.bind.permitted(ctx);
+}
+
+} // namespace
+
+bool noteModeCurrentMenuItemIs(NoteModeMenuItem item) {
+	// `getCurrentMenuItem()` is `menuItemNavigationRecord[navigationDepth]`
+	// (`gui/ui/sound_editor.cpp:1908-1910`); `MenuScene::focused()` is `path[depth]`, its port.
+	const Node* const focused = deluge::scenes::menu_scene().focused();
+	switch (item) {
+	case NoteModeMenuItem::NoteEditorRoot:
+		return focused == &nodes::note_editor_root;
+	case NoteModeMenuItem::NoteRowEditorRoot:
+		return focused == &nodes::note_row_editor_root;
+	case NoteModeMenuItem::SequenceDirection:
+		return focused == &nodes::sequence_direction;
+	}
+	return false;
+}
+
+void noteModeReadValueAgain() {
+	// `MenuScene::read_value_again` is `MenuItem::readValueAgain`'s port, the one
+	// `services::ModKnobs` already calls for `gui/views/view.cpp:1392`'s own `readValueAgain()`.
+	deluge::scenes::menu_scene().read_value_again();
+}
+
+void noteModeGoUpOneLevel() {
+	if (!deluge::scenes::menu_scene().go_up_one_level()) {
+		// `gui/ui/sound_editor.cpp:715-717`'s `exitCompletely()`, ported as `shell_pad_forward.cpp`
+		// ports `:1545`'s: remove the menu, and let the guest close itself (`closePortedMenu`'s own
+		// docblock). The note arm of that exit runs from `closeGuest` (`exitNoteModeBeforeClose`).
+		closePortedMenu();
+	}
+}
+
+void noteModeToggleNoteEditorParamMenu(int32_t on) {
+	deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	const Node* const currentMenuItem = menu.focused();                         // `sound_editor.cpp:1926`
+	const Node* newMenuItem = nullptr;                                          // `:1927`
+	const bool inHorizontalMenu = runtimeFeatureSettings.isOn(HorizontalMenus); // `:1928`
+
+	// if you're holding down a note
+	// see if you're currently editing a row param
+	// if so, enter the note editor menu for that param
+	if (on) {
+		if (currentMenuItem == &nodes::note_row_probability) { // `:1934-1936`
+			newMenuItem = &nodes::note_editor_probability;
+		}
+		else if (currentMenuItem == &nodes::note_row_iterance) { // `:1937-1939`
+			newMenuItem = &nodes::note_iterance;
+		}
+		else if (currentMenuItem == &nodes::note_row_fill) { // `:1940-1942`
+			newMenuItem = &nodes::note_fill;
+		}
+		else if (currentMenuItem == &nodes::note_row_editor_root && inHorizontalMenu) { // `:1943-1945`
+			newMenuItem = &nodes::note_editor_root;
+		}
+	}
+	// if you're release a note
+	// see if you're currently editing a note param
+	// if so, enter the note row editor menu for that param
+	else {
+		if (currentMenuItem == &nodes::note_editor_probability) { // `:1951-1953`
+			newMenuItem = &nodes::note_row_probability;
+		}
+		else if (currentMenuItem == &nodes::note_iterance) { // `:1954-1956`
+			newMenuItem = &nodes::note_row_iterance;
+		}
+		else if (currentMenuItem == &nodes::note_fill) { // `:1957-1959`
+			newMenuItem = &nodes::note_row_fill;
+		}
+		else if (currentMenuItem == &nodes::note_editor_root && inHorizontalMenu) { // `:1960-1962`
+			newMenuItem = &nodes::note_row_editor_root;
+		}
+	}
+
+	if (newMenuItem != nullptr && shouldEnterSubmenu(*newMenuItem, menu.menu_context())) { // `:1965`
+		// holding down note pad, enter note param menu
+		if (on) {
+			// `:1968`'s `enterSubmenu`. **Not `MenuScene::open()`**, which would replace the context and
+			// with it the root `activeNoteMode()` answers from: legacy's `inNoteRowEditor()` stays true
+			// through the hold because `enterSubmenu` leaves `menuItemNavigationRecord[0]` alone.
+			menu.enter_submenu(*newMenuItem);
+		}
+		// release note pad, go back to previous row menu
+		else {
+			noteModeGoUpOneLevel(); // `:1972`
+		}
 	}
 }
 

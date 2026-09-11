@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
@@ -42,6 +41,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/note_editor_open.h"
 #include "util/notify.h"
 #include <new>
 #include <string.h>
@@ -1994,7 +1994,7 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 				// if you're in the note editor, identify the notes that have non-default parameters
-				else if (drewNote && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+				else if (drewNote && deluge::gui::ui::noteEditorOpen()) {
 					// if note has non-default settings for probability, iterance or fill
 					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
 					    || note->getFill() != FillMode::OFF) {
