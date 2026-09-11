@@ -32,7 +32,7 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return getCurrentAudioClip() != nullptr || isSampleModeSample(modControllable, source_id_);
 	}
 

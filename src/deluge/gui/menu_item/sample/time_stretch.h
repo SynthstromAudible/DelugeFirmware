@@ -33,7 +33,7 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) const override {
 		return isSampleModeSample(modControllable, source_id_);
 	}
 

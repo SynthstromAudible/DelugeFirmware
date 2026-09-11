@@ -54,7 +54,7 @@ public:
 			soundEditor.currentModControllable->stutterConfig.quantized = current_value;
 		}
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.currentModControllable->isSong()
 		       || !soundEditor.currentModControllable->stutterConfig.useSongStutter;
 	}

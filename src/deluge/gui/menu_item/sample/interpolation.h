@@ -58,7 +58,7 @@ public:
 		}
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) const override {
 		if (getCurrentAudioClip() != nullptr) {
 			return true;
 		}

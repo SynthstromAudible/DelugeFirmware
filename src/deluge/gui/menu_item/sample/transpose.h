@@ -136,7 +136,7 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		if (Source& source = sound->sources[source_id_];
 		    source.oscType == OscType::SAMPLE || source.oscType == OscType::WAVETABLE) {

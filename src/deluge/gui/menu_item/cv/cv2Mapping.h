@@ -56,7 +56,7 @@ public:
 
 		return {o, y, a, v};
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		// not relevant for cv
 		const auto type = getCurrentOutputType();
 		return (type == OutputType::CV && ((CVInstrument*)getCurrentOutput())->getChannel() == both);

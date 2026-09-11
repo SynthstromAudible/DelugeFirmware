@@ -33,6 +33,6 @@ public:
 
 protected:
 	uint8_t source_id_;
-	uint8_t getP() final { return p + source_id_; }
+	uint8_t getP() const final { return p + source_id_; }
 };
 } // namespace deluge::gui::menu_item::source

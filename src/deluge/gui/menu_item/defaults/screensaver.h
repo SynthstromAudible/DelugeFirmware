@@ -48,7 +48,9 @@ public:
 		        l10n::getView(l10n::String::STRING_FOR_SCREENSAVER_MODE_STARSCAPE),
 		        l10n::getView(l10n::String::STRING_FOR_SCREENSAVER_MODE_DELUGE)};
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override { return display->haveOLED(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		return display->haveOLED();
+	}
 };
 
 /// @brief Sets the number of minutes without physical input before the screensaver appears.
@@ -63,7 +65,9 @@ public:
 		hid::display::Screensaver::settingsChanged();
 	}
 	const char* getUnit() override { return " MIN"; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override { return display->haveOLED(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		return display->haveOLED();
+	}
 };
 
 /// @brief Holds the screensaver settings, and hides the whole submenu on 7SEG units rather than
@@ -71,7 +75,9 @@ public:
 class ScreensaverSubmenu final : public Submenu {
 public:
 	using Submenu::Submenu;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override { return display->haveOLED(); }
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		return display->haveOLED();
+	}
 };
 
 } // namespace deluge::gui::menu_item::defaults

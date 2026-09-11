@@ -28,7 +28,7 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return (sound->getSynthMode() == SynthMode::FM || sound->sources[source_id_].oscType == OscType::DX7);
 	}

@@ -68,7 +68,7 @@ public:
 
 	uint8_t index;
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Note* leftMostNote = instrumentClipView.getLeftMostNotePressed();
 
 		if (leftMostNote) {
