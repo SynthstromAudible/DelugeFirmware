@@ -54,6 +54,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -96,6 +97,12 @@ std::array<FileSlot, kMaxAuxHandles> g_files{};
 // report a real not-mounted -> mounted transition on the first call (the host image itself needs no
 // bring-up, but callers still need to see exactly one "fresh mount" at boot).
 bool g_mounted = false;
+
+// How many times the filesystem has become mounted, read through deluge_efatfs_mount_generation. The C++
+// side watches it for an unmounted -> mounted EDGE (StorageManager::noticeCardMount), which drives
+// AudioFileManager::firstCardRead(). Bumped only on the transition, exactly as the Rust backends do, so a
+// repeated mount is not a second edge. Atomic because the host sim runs more than one OS thread.
+std::atomic<uint32_t> g_mountGeneration{0};
 
 FileSlot* file_slot(uint32_t handle) {
 	if (handle == 0 || handle > kMaxAuxHandles) {
@@ -481,12 +488,19 @@ bool deluge_efatfs_mount(void) {
 	// -- there is no separate Rust-owned FS object here -- but g_mounted still tracks whether this
 	// has run before, so deluge_efatfs_is_mounted can report one real not-mounted->mounted
 	// transition (callers use it to fire one-time "fresh card" setup, matching the device backend).
-	g_mounted = true;
+	if (!g_mounted) {
+		g_mounted = true;
+		g_mountGeneration.fetch_add(1, std::memory_order_release);
+	}
 	return true;
 }
 
 bool deluge_efatfs_is_mounted(void) {
 	return g_mounted;
+}
+
+uint32_t deluge_efatfs_mount_generation(void) {
+	return g_mountGeneration.load(std::memory_order_acquire);
 }
 
 bool deluge_efatfs_remount(void) {
