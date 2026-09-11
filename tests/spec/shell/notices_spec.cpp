@@ -523,7 +523,28 @@ describe shell_notices("shell::Notices", $ {
 		expect(r.stack.depth()).to_equal(size_t(0));
 	});
 
-	it("a second Notification replaces the banner in place and restarts its 2000 ms", _ {
+	it("a banner raised while the working animation runs outlives its 2000 ms until ClearWorking "
+	   "takes it down", _ {
+		// `OLED::timerRoutine` (`oled.cpp:929-937`): while a working animation runs, the `DISPLAY`
+		// timer's expiry animates instead of calling `removePopup()`, and the banner stays until
+		// `removeWorkingAnimation` takes a `NOTIFICATION` popup down (`:735-736`).
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
+		(void)r.queue.push(make_notification("Probability", "100%"));
+		r.notices.drain(r.queue, 0);
+		expect(r.working.armed()).to_be_true();
+
+		r.notices.tick(NotificationScene::kNotificationMs + 500, 0);
+		expect(stacked(r, SceneKind::Notification)).to_be_true(); // held past 2000 ms
+
+		(void)r.queue.push(make_notice(Notice::Kind::ClearWorking));
+		r.notices.drain(r.queue, NotificationScene::kNotificationMs + 600);
+		r.notices.tick(NotificationScene::kNotificationMs + 600, 0);
+		expect(r.working.armed()).to_be_false();
+		expect(stacked(r, SceneKind::Notification)).to_be_false();
+	});
+
+	it("a second Notification replaces the banner and restarts its 2000 ms", _ {
 		// One popup slot: `setupPopup` overwrites it (`oled.cpp:122-132`) and `setTimer` re-arms
 		// `DISPLAY` (`:794`).
 		Rig r;

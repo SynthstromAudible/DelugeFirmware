@@ -2,7 +2,7 @@
 /// @brief Note-family Task 8b: the horizontal-menu notification's two consumers in the application.
 ///
 /// In the application two consumers pop the one notice queue: legacy's `drain_notifications`
-/// (`gui/ui/ui.cpp:387`) and the shell's `Notices::drain` (`shell/shell.cpp:327`). A
+/// (`gui/ui/ui.cpp:387`) and the shell's `Notices::drain` (`shell/shell.cpp:330`). A
 /// `Notice::Kind::Notification` must end in the same legacy call whichever pops it --
 /// `display->displayNotification(title, value)`, the call `HorizontalMenu::displayNotification`
 /// makes itself (`gui/menu_item/horizontal_menu.cpp:342`) -- so legacy's one popup slot holds a

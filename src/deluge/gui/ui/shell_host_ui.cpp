@@ -1180,10 +1180,10 @@ void ShellHostUI::closeGuest() {
 	//     wins is the scheduler's call: any other `Kind::Console` notice this shell pops still pushes
 	//     `SceneKind::Console` (`shell/notices.cpp:294-302`), which is input-transparent
 	//     (`shell/notices.h:215`) and is removed only once its lines expire
-	//     (`shell/notices.cpp:457-458`, `kConsoleLineMs` at `:46`).
+	//     (`shell/notices.cpp:460-461`, `kConsoleLineMs` at `:46`).
 	//   * **The popup.** The note modes' select guards raise "Select Note" / "Select Row" as `Text`
 	//     notices (`scenes/menu/nodes/note.cpp:174`, `:182`), which the same race turns into a popup
-	//     scene on the stack (`shell/notices.cpp:425-433`), also input-transparent (`shell/notices.h:111`).
+	//     scene on the stack (`shell/notices.cpp:428-436`), also input-transparent (`shell/notices.h:111`).
 	//   * **The screensaver.** `shell::Screensaver` pushes its scene on idle
 	//     (`shell/screensaver.cpp:60`). That scene is input-transparent
 	//     (`scenes/overlay/screensaver_scene.h:180`), and only input fed through

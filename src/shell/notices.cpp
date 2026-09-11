@@ -422,6 +422,9 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 	// scene may have been legitimately `Push`ed above a live popup (it is `input_transparent()`, so
 	// that scene still has input), and testing `top()` alone would read that scene's kind, not the
 	// popup's, and push a second `SceneKind::Popup` entry pointing at this same instance.
+	// (Recorded, not changed: re-targeting in place changes no stack, so on a tick with no input the
+	// panel can keep the old text until something else asks for a frame -- Task 8b's gap, closed
+	// for the banner in `drain()`'s `Notification` case by removing and pushing again.)
 	bool popup_stacked = false;
 	for (Scene* scene : stack_.scenes()) {
 		if (scene->kind() == SceneKind::Popup) {
@@ -458,8 +461,10 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 		stack_.remove(SceneKind::Console);
 	}
 	// The banner's 2000 ms `DISPLAY` timer: `OLED::timerRoutine`'s `removePopup()` on expiry
-	// (`gui/ui_timer_manager.cpp:91-93`, `oled.cpp:936`). A no-op when no banner is stacked.
-	if (notification_.expired(now_ms)) {
+	// (`gui/ui_timer_manager.cpp:91-93`), which runs only when no working animation is running
+	// (`oled.cpp:929-937`) -- while one is, the banner stays until `removeWorkingAnimation` takes it
+	// down (`:735-736`), `drain()`'s `ClearWorking` case. A no-op when no banner is stacked.
+	if (!working_.armed() && notification_.expired(now_ms)) {
 		stack_.remove(SceneKind::Notification);
 	}
 }

@@ -324,12 +324,15 @@ const NotificationSink* notification_sink();
 ///     `+ kTextSpacingY + 1` (`oled.cpp:750-751`), inverted (`:788`).
 ///   * **Lifetime.** `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (`oled.cpp:794`), whose
 ///     expiry runs `OLED::timerRoutine` (`gui/ui_timer_manager.cpp:91-93`) and, with no working
-///     animation, `removePopup()` (`oled.cpp:936`). `kNotificationMs`; `Notices::tick` removes the
-///     scene once `expired()`.
+///     animation, `removePopup()` (`oled.cpp:929-937`). `kNotificationMs`; `Notices::tick` removes the
+///     scene once `expired()` **and** the working animation is not armed -- while one runs,
+///     `timerRoutine` animates instead, and the banner stays until `removeWorkingAnimation` takes it
+///     down (`oled.cpp:735-736`), which is `Notices::drain`'s `ClearWorking` case.
 ///   * **Replacement.** `setupPopup` overwrites the one slot's `oledPopupWidth`/`popupType` and
 ///     clears the area (`oled.cpp:122-132`), and `setTimer` re-arms `DISPLAY`: a second
-///     notification replaces the first in place and restarts the 2000 ms. See `Notices::drain` for
-///     the slot it shares with `PopupScene`.
+///     notification rewrites the banner and restarts the 2000 ms, and `Notices::drain` removes the
+///     scene and pushes it again so the shell repaints (`markChanged()`, `oled.cpp:793`). See
+///     `Notices::drain` for the slot it shares with `PopupScene`.
 class NotificationScene final : public Scene {
 public:
 	/// Legacy's `TimerName::DISPLAY` duration for a notification (`oled.cpp:794`).
@@ -426,7 +429,8 @@ public:
 	/// `NotificationSink` installed it calls `sink->show(title, value)` and pushes nothing -- the
 	/// application's sink is that legacy call, which legacy's own `drain_notifications` makes for the
 	/// same kind, so the result does not depend on which consumer popped the notice. With none, it
-	/// shows `NotificationScene` (replaced in place, lifetime re-armed, when already up). Legacy has
+	/// shows `NotificationScene` (rewritten, lifetime re-armed, and removed and pushed again when
+	/// already up, so the rewrite reaches the panel on a tick with no input). Legacy has
 	/// one popup slot shared by `displayPopup` and `displayNotification` (`OLED::setupPopup`,
 	/// `oled.cpp:122-132`), so without a sink the banner and `PopupScene` displace each other: a
 	/// notification removes a live popup, and `Error`/`Text` (through `show_popup_with_timeout`)
@@ -477,7 +481,9 @@ public:
 	///
 	/// If the popup scene is already stacked anywhere -- top or not, a scene may legitimately sit
 	/// above a live popup -- this only replaces its text/type/timeout in place (no second push);
-	/// otherwise it pushes the popup scene.
+	/// otherwise it pushes the popup scene. (Recorded, not changed: an in-place rewrite does not
+	/// change the stack, so on a tick with no input the panel can keep the old text until something
+	/// else asks for a frame -- the gap Task 8b found and closed for `NotificationScene`.)
 	/// @param text       The resolved text to show.
 	/// @param popup_type The legacy `PopupType` value, as a bare `uint8_t`; 0 is folded to
 	///                    `General`, exactly as `notify_drain.cpp`'s `popup_type_of` does.

@@ -342,7 +342,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0); // still ENUM_COL
 
 		// ...and notifies (`:328` -> `displayNotification`, `:342`). Read before any further tick:
-		// the next tick's step 2 would drain it (`shell.cpp:327`).
+		// the next tick's step 2 would drain it (`shell.cpp:330`).
 		const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
 		expect(std::string(n.notification_title())).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MODE)));
 		expect(std::string(n.notification_value()).empty()).to_be_false();
