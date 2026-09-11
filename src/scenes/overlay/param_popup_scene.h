@@ -191,7 +191,7 @@ public:
 	///        are (`shell/scene.h`'s `dims_grid` note) -- it must not halve the brightness of a grid
 	///        it never touches.
 	bool dims_grid() const override { return false; }
-	/// @brief False: this popup never takes input, so the scene beneath keeps its own input focus.
+	/// @brief True: this popup never takes input, so the scene beneath keeps its own input focus.
 	bool input_transparent() const override { return true; }
 
 	/// @name Observable state

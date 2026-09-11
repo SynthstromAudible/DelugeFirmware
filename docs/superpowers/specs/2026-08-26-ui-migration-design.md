@@ -520,7 +520,7 @@ rather than a thing that is half-done:
    the replacement: `src/deluge/**` is held to zero, less the eight files in `LEGACY_PORT_SEAMS`
    that are the argued seams, and the second row exists because this tree names a symbol through a
    bare `extern` precisely when the include is forbidden.
-2. ~~**No entry point.**~~ **Closed for eight of the fourteen, by F1 tasks 5-7 and 9, behind a
+2. ~~**No entry point.**~~ **Closed for ten of the fourteen, by F1 tasks 5-7 and 9 and note-family task 8, behind a
    runtime toggle that is Off by default.** `ShellHostUI` (`src/deluge/gui/ui/shell_host_ui.{h,cpp}`)
    is §2.1's guest: a `UI` subclass pushed with `openUI`, forwarding buttons, pads and encoders into
    `Shell`, rendering through `GuestSurfaceSet` into legacy's own `OLED::main` and `PadLEDs::image`,
@@ -530,17 +530,26 @@ rather than a thing that is half-done:
    directory is inside `check_layer_rules.py`'s `NON_UI` glob, so the move is judged by the very
    rule it is about rather than hidden from it.
 
-   **Six of the fourteen are still open, and each is a node with no port**, listed with its reason
-   in `shell_menu_entry.cpp`'s own fourteen-entry-point table. With the toggle on the firmware has
+   **Four of the fourteen are still open** (sites 9, 10, 11 and 14), each listed with its reason
+   in `shell_menu_entry.cpp`'s own fourteen-entry-point table (`:38-69`). With the toggle on the firmware has
    *both* menus, reachable by different gestures; with it off — the default — every gated site runs
-   the exact legacy statements it ran before, which F1 task 9 verified line by line at all eight
-   sites.
+   the exact legacy statements it ran before, which F1 task 9 verified line by line at the first eight
+   sites and note-family task 8's review at sites 12 and 13.
 
    **F3 unblocked one of the six and did not take it, so the count is still 8 of 14.** Site 10
    (`SampleBrowser::claimCurrentFile`) was unmapped because it wants `parentMenuHeadingTo` focused on
    `menuItemHeadingTo`, a pair with no port. Item 4's re-rooting **is** that pair's port, so the
    stated reason is spent and the table's row now says so. Gating it is a decision of its own rather
    than a node lookup and F3 did not make it. The other five are unchanged.
+
+   **Note-family task 8 gated sites 12 and 13, so the count is 10 of 14.**
+   `InstrumentClipView::enterNoteEditor` and `enterNoteRowEditor` (`gui/views/instrument_clip_view.cpp:3595`,
+   `:3797`) open the ported note editor and note-row editor through `openShellMenu`'s `NoteMode`, which
+   overrides the resolved root because `src/scenes` may not read the `currentUIMode` legacy picks
+   them by (`gui/ui/sound_editor.cpp:1774-1779`). Site 13 is gated only when the legacy sound editor
+   is not the current UI (`:3797`): `gui/ui/sound_editor.cpp:1401-1409` also calls it from inside a
+   legacy editor. The four left are sites 9, 10, 11 and 14. Both new sites sit in
+   `instrumentClipView`, already one of the seven roots counted below, so that count is unchanged.
 
    **Grid-pad forwarding measured a correction to how the eight gated sites are counted: seven
    distinct legacy roots, not eight views' worth of one.** Six of the eight are each their own root
@@ -1808,3 +1817,48 @@ is blocked by a divergence in the port that is recorded, reproducible and not ye
 are the same discipline — the number grows by *fixing the thing the number is bounded by*, not by
 writing more script. Here that thing is `render_horizontal`'s fourth column, and it is one carried
 row away.
+
+### 10.11 The menu input mapping: what it was, why it survived, and what fixed it (2026-09-11, closing the note family)
+
+**What it was.** The ported menus swapped legacy's controls. Legacy edits a value with the select
+encoder: `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1072`) multiplies by 5 under
+SHIFT and hands the offset to the item -- `Integer::selectEncoderAction` (`gui/menu_item/integer.cpp:25`),
+`Decimal::selectEncoderAction` (`gui/menu_item/decimal.cpp:57`), and on a horizontal page
+`HorizontalMenu::selectEncoderAction` (`gui/menu_item/horizontal_menu.cpp:309-328`), which edits the
+focused column and never moves focus. Focus on a horizontal page moves only by SYNTH/KIT/MIDI/CV and
+the page by CROSS_SCREEN/SCALE (`horizontal_menu.cpp:70-107`); the gold knobs never touch a menu.
+Before this work the toolkit contract said the opposite -- `InputSnapshot::turn` "navigate / move
+focus", `edit[2]` "edit the focused value" -- and the widgets followed it: `int_value`,
+`decimal_value` and `range_value` edited on the two gold knobs (a coarse and a fine one, the fine a
+toolkit invention), `MenuScene::render_horizontal` edited the focused column from the gold knobs,
+and `columns()` walked focus on the select turn. The instrument buttons did nothing on a ported page.
+
+**It was the default everywhere.** Not an edge case: every horizontal page and every full-page
+number screen in the ported tree (the note family's own spec, §3.1, measured it at `20aca8e4f`).
+`enum_value` and `toggle` already read the turn, so an Enum leaf edited on select beside an Int
+leaf that edited on gold.
+
+**Why it survived.** No A/B ever made the gesture. The level-3 script before this branch turned the
+select encoder only to move a cursor and the upper gold knob once, on the SOUND root's list
+(`tests/ui-scripts/app/menu.txt` at `20aca8e4f`, `:57`, `:64`, `:164`, `:322`), and pressed no instrument
+button inside a menu; the level-2 scripts that did turn knobs on value screens are port-only goldens
+with no legacy leg, so they recorded the swap as correct. This is §10.2's lesson again: an A/B covers
+the gestures it makes.
+
+**What fixed it.** Note-family task 1 moved the three value widgets onto `f.turn()` with legacy's ×5
+under shift and dropped the gold-knob claims (`ui/oled/values.cpp:31-34`, `:88-89`); task 2 made
+`render_horizontal` edit the focused column from the turn (`scenes/menu/menu_scene.cpp:923-947`),
+stopped `columns()` reading it, and ported SYNTH/KIT/MIDI/CV focus, CROSS_SCREEN/SCALE paging, the
+140 ms debounce and the already-focused press (`scenes/menu/menu_scene.cpp:1884-1997`,
+`kNavButtonDebounceMs` at `menu_scene.h:79`). The input contract now says what the encoders do
+(`ui/core/input.h:63-65`). Level-2 menu goldens that turned a knob re-recorded; the level-3 A/B now
+turns the select encoder and presses KIT inside the note editor on both legs.
+
+**Carried, not fixed** -- each a row in `src/scenes/README.md`'s carry table: chained horizontal
+menus and `HorizontalMenuGroup`, SHIFT + CROSS_SCREEN/SCALE at depth 0, automation retargeting on a
+column focus change, `currentUIMode` gating of select editing, the select press acting at press
+rather than release, `shouldForwardButtons`' `buttonAction` forward, and menu-side acceleration on a
+horizontal page's turn. Extending the level-3 A/B into the note editor then found two render
+divergences of the same kind -- the focused column's highlight and the column notification's slot --
+fixed by note-family tasks 8a and 8b (the note-family spec's correction 8).
+

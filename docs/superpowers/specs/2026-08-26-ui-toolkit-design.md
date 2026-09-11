@@ -65,8 +65,8 @@ struct PadMask {
 
 /// Input as the toolkit sees it for one tick. Lowered by the shell; the only input a widget can read.
 struct InputSnapshot {
-	int8_t turn;                        // Select encoder detents: navigate / move focus
-	int8_t edit[2];                     // GoldUpper, GoldLower detents: edit the focused value
+	int8_t turn;                        // Select encoder detents: move a cursor, or edit the focused value (§14)
+	int8_t edit[2];                     // GoldUpper, GoldLower detents: read by no menu widget (§14)
 	int8_t horizontal, vertical;
 	bool select_pressed, back_pressed, shift;   // the two presses are EDGES; shift is a level
 	std::span<const PadEvent> pads;     // this tick's pad events; grid frames filter by region
@@ -105,7 +105,8 @@ struct WaveformState{ int32_t scroll_cols = 0; uint8_t zoom = 0; };
 /// "rounded corners" are values here, not globals on the rasteriser.
 struct Style {
 	int32_t title_height, row_height, inset_x, scrollbar_w, menu_rows, menu_base_y;
-	bool rounded, invert_highlight;
+	bool rounded;
+	Highlighting highlighting;          // FullInversion / PartialInversion / NoInversion (§14)
 	gfx::oled::FontId title_font, row_font, value_font, big_font;
 };
 
@@ -123,8 +124,9 @@ public:
 } // namespace deluge::ui
 ```
 
-Encoder semantics: `turn` moves focus/cursor; `edit[]` changes the focused value with **no
-modal edit state**. A widget that needs an explicit edit mode (text entry) uses
+Encoder semantics (§14): `turn` moves a list's cursor and edits a focused value widget, as legacy's
+select encoder does; `edit[]`, the gold knobs, is read by no menu widget. There is **no modal edit
+state**. A widget that needs an explicit edit mode (text entry) uses
 `ListState::editing`.
 
 Button semantics: `select_pressed` and `back_pressed` are **edges** — true only on the tick the
@@ -294,10 +296,12 @@ spec D §3, §7.
   for the four-slot page -- but "forwards turn to it" is no longer only a convention a scene has
   to get right: a container grants its current child exactly the inputs it may consume
   (`region(rect, InputMask{...}, body)`), and everything else reads zero/false and its claims are
-  no-ops. `columns` is the worked example (toolkit-fixes task-5 fix round 2): it keeps the turn
-  for itself (`InputMask{.turn = false}` handed to the focused slot) to walk the column focus, and
-  grants that slot everything else, so one detent either walks the column focus or edits the
-  value, never both -- `InputClaims::double_claim` would flag it if a scene got the split wrong.
+  no-ops. `columns` was the worked example (toolkit-fixes task-5 fix round 2): it kept the turn
+  for itself to walk the column focus and granted the focused slot everything else. **Since
+  note-family task 2 it does not read the turn at all** (§14): the scene edits the focused column
+  from the turn before `columns` draws, and focus moves only by the instrument buttons, as legacy's
+  does. The focused slot's mask still withholds the turn, so `InputClaims::double_claim` still flags
+  a scene that gets the split wrong.
 - `list()` clamps `turn` against **this frame's own row count**, counted before drawing, not
   last frame's (toolkit-fixes task-8): `rows_last` is published every frame but is now documented
   as a pure cache for a caller that windows against it (`enum_value`), never read back by `list`
@@ -326,9 +330,9 @@ and ink bounds would shift all of them.
 | `title(f, text, underline)` | `drawScreenTitle` | `style.title_font` |
 | `text(f, rect, text, TextStyle)` | the `drawString*` family (20+ call shapes) | `align ∈ {Left, Centre, Right}`, `shrink` = shrink-to-fit |
 | `scroll_text(f, rect, s, FontId font, ScrollText&, allow_motion=true, highlight=false, clear_pad_x=0)` | `setupSideScroller` + `scrollingAndBlinkingTimerEvent` | ping-pong when wider than `rect`; the first arm is a `kScrollTime` pause, not a step; `clear_pad_x` reproduces legacy's clear-only `endX += 4` (submenu icon rows); `allow_motion=false` freezes and resets; `request_repaint_after` |
-| `list(f, rect, ListState&, span<ListRow>, ScrollText& scroll_label, allow_motion=true)`, `ListRow{label, value, const Icon*, selectable}` | `drawItemsForOled`, submenu rendering, browser lists, `invertLeftEdgeForMenuHighlighting` | applies `turn`; keeps cursor visible; highlight per `style.invert_highlight`; **draws no scrollbar** (neither legacy menu renderer has one -- the caller composes `scrollbar` below); `entered` on select press; `menu_rect(f)` gives the legacy menu rect |
+| `list(f, rect, ListState&, span<ListRow>, ScrollText& scroll_label, allow_motion=true)`, `ListRow{label, value, const Icon*, selectable}` | `drawItemsForOled`, submenu rendering, browser lists, `invertLeftEdgeForMenuHighlighting` | applies `turn`; keeps cursor visible; highlight per `style.highlighting` (§14); **draws no scrollbar** (neither legacy menu renderer has one -- the caller composes `scrollbar` below); `entered` on select press; `menu_rect(f)` gives the legacy menu rect |
 | `scrollbar(f, rect, first, visible, total)` | ad hoc | for non-list views |
-| `int_value(f, rect, int32_t&, Range{min,max,step=1}, ValueStyle, focused=true)` / `decimal_value(f, rect, int32_t&, Range, places, int8_t& edit_pos, Blink&, focused=true)` | `integer.cpp`, `decimal.cpp`, `number.h` | applies `edit[]` when focused; `changed`; `decimal_value` keeps its canvas-absolute y (legacy quirk: its digits and cursor are literal canvas rows, not offset by the frame's origin like every other widget -- `f.bounds()` is the rect that reproduces legacy) |
+| `int_value(f, rect, int32_t&, Range{min,max,step=1}, ValueStyle, focused=true)` / `decimal_value(f, rect, int32_t&, Range, places, int8_t& edit_pos, Blink&, focused=true)` | `integer.cpp`, `decimal.cpp`, `number.h` | applies the select `turn` when focused (×5 under shift; `range.step` per detent, `10^edit_pos` for `decimal_value`); `changed`; `decimal_value` keeps its canvas-absolute y (legacy quirk: its digits and cursor are literal canvas rows, not offset by the frame's origin like every other widget -- `f.bounds()` is the rect that reproduces legacy) |
 | `enum_value(f, rect, int32_t& index, span<string_view> names, ListState&, ScrollText& scroll_label, wrap=false)` | `enumeration`, `selection`, `sync_level`, `type.h`… | wraps only when `wrap`; **no arrows** -- `Selection::drawPixelsForOled` hands its options straight to the menu-item renderer, which draws labels and the highlight and nothing else |
 | `toggle(f, rect, bool& value, off_label, on_label, ScrollText& scroll_label)` | `toggle.cpp` | a two-row `list` (off/on); `turn` flips the value (`setValue(offset > 0)`); a select press reports `entered` and never flips it -- this screen's press goes up a menu level, not into the value |
 | `unipolar_bar(f, rect, norm)` / `pan(f, rect, value)` | `param.cpp` variants, `patch_cable_strength` | `pan` draws `unipolar_bar`'s outline plus a centre tick and notches |
@@ -337,7 +341,7 @@ and ink bounds would shift all of them.
 | `envelope(f, rect, a, d, s, r)` / `envelope_stage(f, rect, norm, StageKind)` | `envelope/`, `Number::drawAttack`/`drawRelease` | `envelope` is spec-driven, with no combined legacy renderer to match (golden only); `envelope_stage` is the single-stage horizontal-menu port |
 | `filter_curve(f, rect, norm, FilterKind kind)` | `filter/`, `Number::drawLpf`/`drawHpf` | |
 | `waveform(f, rect, WaveformData{peaks, markers}, WaveformState&)` | `sample_marker_editor`, slicer, overview | **deferred to spec E's sample-view scene; `WaveformState` retained for it** — its data shape depends on `WaveformRenderData`, which is model-side. Not implemented in this toolkit |
-| `columns(f, rect, ColumnsState&, span<Column>, title_text={})`, `Column{label, slots=1, show_label=true, relevant=true, is_submenu=false, render(OledFrame&, bool focused)}` | `horizontal_menu.cpp` (`Paging`, `SlotPosition`, labels, page dots) | four slots, focus by `turn` over *relevant* columns, paging via `paging_of`; base y is `kHorizontalMenuBaseY` (14) on **both** panels -- `renderMenuItems`'s literal has no panel-height branch, unlike `list`'s; an empty span still draws the title plus four placeholder frames; `title_paged` draws the (possibly abbreviated) title; ready-made `Column::render`s: `meter_column`, `text_column`, `submenu_column`, `toggle_column` |
+| `columns(f, rect, ColumnsState&, span<Column>, title_text={})`, `Column{label, slots=1, show_label=true, relevant=true, is_submenu=false, render(OledFrame&, bool focused)}` | `horizontal_menu.cpp` (`Paging`, `SlotPosition`, labels, page dots) | four slots, focus set by the scene (the instrument buttons, `page_switch` for CROSS_SCREEN/SCALE) over *relevant* columns and never by `turn`, the focused column underlined or inverted per `style.highlighting`, paging via `paging_of`; base y is `kHorizontalMenuBaseY` (14) on **both** panels -- `renderMenuItems`'s literal has no panel-height branch, unlike `list`'s; an empty span still draws the title plus four placeholder frames; `title_paged` draws the (possibly abbreviated) title; ready-made `Column::render`s: `meter_column`, `text_column`, `submenu_column`, `toggle_column` |
 | `popup_frame(f, rect, PopupStyle)` / `popup_rect_for(f, content, style)` | `setupPopup`, `drawPermanentPopupLookingText` | border + cleared interior; caller draws content in `f.region`; **centres on the whole canvas geometry height** (legacy divides `OLED_MAIN_HEIGHT_PIXELS`, i.e. 48 including the 5 bezel-hidden rows), not on the frame's visible bounds |
 | `progress(f, rect, num, den)` | none -- spec-driven | no legacy progress bar exists anywhere in the tree; this is `Number::drawHorizontalBar`'s geometry with `min=0` |
 | `working(f, rect, word, Blink&)` | `displayWorkingAnimation` | **no word or dots are drawn** -- legacy only tests `word` to pick a direction, and prints nothing; corner-placed against `rect`'s top-right, legacy's `kWorkingStepMs`/`kWorkingPauseMs` (70 / 350 ms) timing |
@@ -394,7 +398,7 @@ alongside this decision -- or `local_events()` for the full tick.
 - A frame is ~40 bytes; regions nest by value; no heap anywhere.
 - Tests (host, CppSpec, same harness as the gfx plan): for every widget, (a) golden
   PBM/state frames from literal data at 128×48 and 128×64; (b) state-transition tests through
-  a null-canvas frame — cursor clamp, scroll-into-view, `edit[]` applied only when focused,
+  a null-canvas frame — cursor clamp, scroll-into-view, the select turn applied only when focused,
   gate deadlines; (c) `GridFrame::region` routes one pad event to exactly one pane.
 - Migration hook: `list`/`int_value`/`enum_value`/`toggle`/`columns` are what `MenuScene`
   (spec E) is built from; their goldens are compared with the legacy `MenuItem` renderers
@@ -668,3 +672,31 @@ Two toolkit rules were tested by these and held:
   `kApple7Height7YAdjust` in `ui/core/metrics.h` rather than folding an unexplained `-1` into a
   file-local literal — 29 legacy call sites use `kTextSizeYUpdated` across five files and two are
   still unported, so the next porter would otherwise rediscover it through a one-row-wrong golden.
+
+---
+
+## 14. Amendment from the note family (2026-09-11): the value widgets' encoder, `columns`' turn, and the highlight
+
+Three contracts above were rewritten, each to match legacy rather than to add anything.
+
+* **Value editing moved from the gold knobs to the select encoder** (note-family task 1).
+  `int_value`, `decimal_value` and `range_value` read `f.turn()`, multiplied by 5 while `f.shift()`
+  is held (`ui/oled/values.cpp:31-34`'s `select_delta`; legacy's `scaledOffset`,
+  `gui/ui/sound_editor.cpp:1073-1077`), and no longer claim `edit[]`. The draft's contract split a
+  coarse knob (`edit[0]`) from a fine one (`edit[1]`); the fine knob had no legacy counterpart and is
+  gone, and `range.step` now scales the select detent (`int_value`, `range_value`) where
+  `decimal_value` moves by `10^edit_pos` (`gui/menu_item/decimal.cpp:57`). The gold knobs reach
+  `services::ModKnobs` instead (`ui/core/input.h:63-65`).
+* **`columns` no longer owns the turn** (note-family task 2). Legacy's
+  `HorizontalMenu::selectEncoderAction` edits the focused column and never moves focus
+  (`gui/menu_item/horizontal_menu.cpp:309-328`); focus moves by SYNTH/KIT/MIDI/CV and the page by
+  CROSS_SCREEN/SCALE (`:70-107`). `MenuScene::render_horizontal` reads and claims the turn before
+  `columns` draws (`scenes/menu/menu_scene.cpp:923-925`), and `columns` draws the focus it is given.
+* **`Style::invert_highlight` became `Style::highlighting`** (note-family task 8a): a three-way
+  `Highlighting` (`ui/core/style.h:20`) mirroring legacy's `MenuHighlighting`. Both shipped styles set
+  `PartialInversion`, legacy's default (`storage/flash_storage.cpp:365`). `columns` underlines the
+  focused column on `PartialInversion` and `NoInversion`, as legacy's switch falls through
+  (`gui/menu_item/horizontal_menu.cpp:268-283`), and inverts it only on `FullInversion`; every other
+  reader keeps its inverted arm on anything but `NoInversion`. The setting is not followed live
+  (`src/scenes/README.md`'s carry table).
+

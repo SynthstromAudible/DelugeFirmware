@@ -703,6 +703,23 @@ walking a horizontal page.** Both are carried rows in `src/scenes/README.md`; ne
 because closing either moves every horizontal golden. Recorded here rather than left as an omission
 because this passage names the symbol and reads as settled, which is worse than silence.
 
+**Correction (note-family tasks 1-2): both paragraphs above misread `handleItemAction`, and the port
+they describe no longer exists.** `handleItemAction`'s one caller is the instrument-button path -- a
+SYNTH/KIT/MIDI/CV press on the column already focused (`gui/menu_item/horizontal_menu.cpp:419-420`)
+-- not the select press. A select press reaches `SoundEditor::buttonAction`'s SELECT arm at release
+(`gui/ui/sound_editor.cpp:385-389`), where `Submenu::selectButtonPress` forwards to the focused value
+column (`gui/menu_item/submenu.cpp:187-194`): the column's own override decides, so a chaining column
+**does** navigate -- select on the UNISON page's NUM column opens the spread page -- a plain one goes
+up a level, and neither raises a notification. Since note-family task 2 the port does the same:
+`render_horizontal` records a value column's press (`scenes/menu/menu_scene.cpp:1059-1062`), and
+`after_render` flips a toggle column, opens a direct-opening custom column, enters the column's
+`select_chain` target or ascends (`:1714-1747`). `handle()`'s instrument-button arm ports
+`HorizontalMenu::buttonAction` and `handleItemAction` (`:1884-1997`), and
+`Node::allow_session_from_horizontal` (`menu/node.h`) is the bit the F3 correction above said had no
+port. What stays carried is in `src/scenes/README.md`'s carry table: the press acts at press rather
+than at release, the fixed `Node::layout`, and `shouldForwardButtons`' `buttonAction` forward to a
+focused custom column.
+
 **Amendment (F3 task 5): the sentence above said "reachable only by the shortcut pad", and that is
 one route too few.** The other is a legacy entry point rather than a gesture inside the port: **site
 8** of the fourteen (`gui/views/instrument_clip_view.cpp:496-519`, gated at `:502`, the legacy pair
