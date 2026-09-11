@@ -33,7 +33,6 @@ std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
 int pad_forwards = 0;
 PadCall last_pad_forward{};
-deluge::gui::ui::NoteModeKind active_note_mode = deluge::gui::ui::NoteModeKind::None;
 int note_button_forwards = 0;
 NoteButtonCall last_note_button{};
 std::optional<ActionResult> note_button_answer{};
@@ -85,7 +84,6 @@ void reset() {
 	choice_dispatches = 0;
 	pad_forwards = 0;
 	last_pad_forward = PadCall{};
-	active_note_mode = deluge::gui::ui::NoteModeKind::None;
 	note_button_forwards = 0;
 	last_note_button = NoteButtonCall{};
 	note_button_answer = std::nullopt;
@@ -380,10 +378,6 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 // `fake_legacy_ui.h` names rather than a fixed one. The real ones read
 // `deluge::scenes::menu_scene()` and call `instrumentClipView` -- which arm they take is
 // `sim/scenes_spec/note_mode_spec.cpp`'s.
-NoteModeKind activeNoteMode() {
-	return fakelegacyui::active_note_mode;
-}
-
 std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	fakelegacyui::note_button_forwards++;
 	fakelegacyui::last_note_button = fakelegacyui::NoteButtonCall{b, on, inCardRoutine};

@@ -182,7 +182,7 @@ struct PadCall {
 extern PadCall last_pad_forward;
 /// @}
 
-/// @name `gui/ui/shell_note_mode.h`'s four guest-facing functions, plus `activeNoteMode`
+/// @name `gui/ui/shell_note_mode.h`'s four guest-facing functions
 ///
 /// The same terms as `forwardGridPad` above, with the difference the guest makes of the answer:
 /// `ShellHostUI`'s three input hooks **act** on what these return -- a value is returned in place of
@@ -192,10 +192,6 @@ extern PadCall last_pad_forward;
 /// `sim/scenes_spec/note_mode_spec.cpp`'s. What is assertable here is the guest's side: that each hook
 /// consults its function, with which arguments, and what it does with either answer.
 /// @{
-/// What the fake `activeNoteMode()` answers. `ShellHostUI` does not call it today; it is faked so the
-/// whole header links here, and so a later guest caller cannot silently reach the real one.
-extern deluge::gui::ui::NoteModeKind active_note_mode;
-
 /// @brief The arguments of one `forwardNoteButton()` call.
 struct NoteButtonCall {
 	deluge::hid::Button b = 0;

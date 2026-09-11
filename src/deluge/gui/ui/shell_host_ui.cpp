@@ -1155,6 +1155,40 @@ void ShellHostUI::closeGuest() {
 	// `UI_MODE_CLIP_PRESSED_IN_SONG_VIEW` / `UI_MODE_HOLDING_ARRANGEMENT_ROW` is active, so a guest
 	// closed during either leaves the rings dark until the next thing that sets levels.
 	//
+	// **A second residual, and this one is a known divergence, recorded rather than fixed**
+	// (note-family Task 7, fix round 1). Legacy's note exit runs the instant `exitCompletely` does
+	// (`gui/ui/sound_editor.cpp:749-761`). Here it runs from this function, which the tick calls only
+	// once the stack is empty (`:556`), so a note-mode exit that removes the menu from under another
+	// scene waits for that scene to leave. `closePortedMenu()` removes the menu and nothing else
+	// (`gui/ui/shell_action_dispatch.cpp:190`), and it is what the note modes' own pad exits perform:
+	// the note editor's sidebar `Exit` and `NoteRowEditor`'s `false` (`gui/ui/shell_pad_forward.cpp`).
+	// A pad reaches those arms whatever input-transparent scene sits over the menu, because
+	// `claimsGridPad` asks `input_top()` (`:764`), which skips such scenes (`shell/scene_stack.h:146-155`),
+	// and both note roots claim no pad (`scenes/menu/menu_scene.h:518-522`). Measured reachable three
+	// ways:
+	//
+	//   * **The console strip.** `MenuScene::notify_column` raises a `Kind::Console` notice for a value
+	//     change or a column focus in a horizontal menu (`scenes/menu/menu_scene.cpp:1700`, `:1995`,
+	//     `:2005`), and both note roots are horizontal. If this shell drains it (`shell/shell.cpp:327`)
+	//     before legacy's `drain_notifications` does (`gui/ui/ui.cpp:387`, run from a repeating task,
+	//     `deluge.cpp:561`) -- the two pop the same queue, so which one wins is the scheduler's call --
+	//     `ConsoleScene` is pushed (`shell/notices.cpp:261-267`). It is input-transparent
+	//     (`shell/notices.h:215`) and is removed only once its lines expire (`shell/notices.cpp:371-373`,
+	//     `kConsoleLineMs` at `:46`).
+	//   * **The popup.** The note modes' select guards raise "Select Note" / "Select Row" as `Text`
+	//     notices (`scenes/menu/nodes/note.cpp:174`, `:182`), which the same race turns into a popup
+	//     scene on the stack (`shell/notices.cpp:341-347`), also input-transparent (`shell/notices.h:111`).
+	//   * **The screensaver.** `shell::Screensaver` pushes its scene on idle
+	//     (`shell/screensaver.cpp:60`). That scene is input-transparent
+	//     (`scenes/overlay/screensaver_scene.h:180`), and only input fed through
+	//     `Shell::on_board_event` / `on_encoder_edges` wakes it (`shell/shell.cpp:270`, `:276`) -- which
+	//     a forwarded pad never is.
+	//
+	// In each case `activeNoteMode()` answers `None` from that pad onwards, while `exitNoteEditor()` /
+	// `exitNoteRowEditor()` waits: for a console line's lifetime, a popup's, or the next fed input.
+	// The close mechanism is deliberately unchanged: this function is the plan's home for site 4, and
+	// moving the exit is a ruling rather than a fix.
+	//
 	// (This function used to say it was "the only close path the guest owns". It is now the *body*
 	// of both of the guest's own close paths -- `exitUI`'s long-press Back and `timerCallback`'s
 	// short one -- which is what F1 task 11's A/B forced. A `closeUI(&shellHostUI)` from somewhere

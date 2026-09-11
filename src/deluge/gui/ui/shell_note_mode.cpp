@@ -210,10 +210,24 @@ std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset, bool inCa
 void exitNoteModeBeforeClose() {
 	// **The root alone, and why that is still this session's root.** Both of `ShellHostUI`'s close
 	// paths reach `closeGuest` with the menu already gone from the stack, so `activeNoteMode()` would
-	// answer `None` on every real close. `menu_context().root` outlives the stack, and it cannot be a
-	// previous session's: the guest has one open site, `openShellMenu`, which runs
-	// `menu_scene().open(...)` before `openUI(&shellHostUI)` (`gui/ui/shell_menu_entry.cpp:206-208`),
-	// and a song swap in between resets the root to `Settings` (`scenes/menu/menu_scene.cpp:576-579`).
+	// answer `None` on every real close. `menu_context().root` outlives the stack, so what matters is
+	// every writer that could replace it between this session's open and its close. There are three:
+	//
+	//   * `openShellMenu`, the guest's one open site, runs `menu_scene().open(...)` before
+	//     `openUI(&shellHostUI)` (`gui/ui/shell_menu_entry.cpp:206-208`), so every session begins by
+	//     writing its own root.
+	//   * `GlobalControls::handle_settings_menu` (`scenes/services/global_controls.cpp:307`), the port
+	//     of Shift+Select, re-opens the menu at `Root::Settings` (`:337`), and the guest's shell does
+	//     install `GlobalControls` (`gui/ui/shell_guest_services.cpp:173-174`). It cannot run during a
+	//     guest session today: its arm is reached only when the input-taking scene is a root scene,
+	//     `stack_.input_top().is_root()` (`global_controls.cpp:580`). `Scene::is_root` defaults to false
+	//     (`shell/scene.h:526`), and neither `MenuScene` nor `LoadingScene` overrides it. The one
+	//     override that answers true, `AudioClipScene` (`scenes/audio_clip/audio_clip_scene.h:423`), is
+	//     in the guest's registry but no production path pushes it onto the guest's stack. **A future
+	//     `is_root()` override on a scene the guest hosts would break this key**: Shift+Select over
+	//     that scene would re-root a note-mode session at `Settings`, and this function would skip the
+	//     note exit on close.
+	//   * A song swap resets the root to `Settings` (`scenes/menu/menu_scene.cpp:576-579`).
 	switch (modeForRoot(deluge::scenes::menu_scene().menu_context().root)) {
 	case NoteModeKind::NoteEditor:
 		noteModeLegacyCalls().exitNoteEditor(); // `gui/ui/sound_editor.cpp:750`

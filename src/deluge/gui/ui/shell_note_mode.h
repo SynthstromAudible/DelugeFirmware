@@ -82,7 +82,10 @@ std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset, bool inCa
 /// Keyed on `menu_context().root` alone, **not** on `activeNoteMode()`, and that is forced: both of
 /// the guest's close paths reach `closeGuest` after the menu has already left the stack --
 /// `exitUI` pops first (`gui/ui/shell_host_ui.cpp`), and `timerCallback` closes on an empty stack.
-/// See the `.cpp` for why the root is still this session's there.
+/// The key holds only while nothing else re-opens the menu mid-session. The `.cpp` names every writer
+/// of the menu's context -- `openShellMenu`, `GlobalControls::handle_settings_menu` (Shift+Select)
+/// and a song swap -- and the `Scene::is_root` gate that keeps the second out of a guest session
+/// today, which a future `is_root()` override on a scene the guest hosts would break.
 void exitNoteModeBeforeClose();
 
 /// @brief Every legacy call the note mode makes into `instrumentClipView`, as replaceable pointers.

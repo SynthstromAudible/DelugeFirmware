@@ -48,6 +48,7 @@
 #include "scenes/registry.h"
 #include "shell/scene.h" // SceneKind
 
+#include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -62,35 +63,11 @@ using deluge::ui::shell::SceneId;
 using deluge::ui::shell::SceneKind;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace params = deluge::modulation::params;
+using deluge::scenes::spec::GlobalGuestGuard;
+using deluge::scenes::spec::open_menu_on_global_guest_at;
+using deluge::scenes::spec::UiStackGuard;
 
 namespace {
-
-/// @brief Put the legacy UI hierarchy back to "nothing open" after an example seats a root with
-///        `setRootUILowLevel`. `menu_actions_spec.cpp`'s `UiStackGuard`, unchanged: `nullifyUIs()`
-///        is what legacy itself calls to tear the hierarchy down (`gui/ui/ui.cpp:257-261`), and
-///        `closeUI` is not safe here for the same `[-1]` reason that file's copy of this note gives.
-struct UiStackGuard {
-	UiStackGuard(const UiStackGuard&) = delete;
-	UiStackGuard& operator=(const UiStackGuard&) = delete;
-	UiStackGuard() = default;
-	~UiStackGuard() { nullifyUIs(); }
-};
-
-/// @brief Empty the GLOBAL guest's scene stack, whichever way the one example that touches it ends.
-///        `menu_actions_spec.cpp`'s `GlobalGuestGuard`, unchanged: `shellHostUI` is a singleton with
-///        one open site (`gui/ui/shell_menu_entry.cpp:208`), and `closePortedMenu` reads that same
-///        global (`gui/ui/shell_action_dispatch.cpp`), so an example proving it empties the stack has
-///        to use the real one.
-struct GlobalGuestGuard {
-	GlobalGuestGuard(const GlobalGuestGuard&) = delete;
-	GlobalGuestGuard& operator=(const GlobalGuestGuard&) = delete;
-	GlobalGuestGuard() = default;
-	~GlobalGuestGuard() {
-		while (shellHostUI.shell().stack().depth() > 0) {
-			shellHostUI.shell().stack().pop(SceneKind::Null);
-		}
-	}
-};
 
 /// @brief Open a real `MenuScene` at `nodes::root_song` on the global guest's OWN scene stack --
 ///        `menu_actions_spec.cpp`'s `open_global_guest`, narrowed to the one root this file needs.
@@ -110,24 +87,6 @@ bool open_menu_on_global_guest(Song& song) {
 	(void)menu::assign_node_ids(roots);
 	menu_scene().open(nodes::root_song, ctx);
 	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::root_song)});
-	return shellHostUI.opened();
-}
-
-/// @brief `open_menu_on_global_guest`, at one of the two note roots.
-///
-/// `openShellMenu`'s `NoteMode` is what sets these roots in production (`gui/ui/shell_menu_entry.cpp`,
-/// `ctx.root = ...` after `context_for`); this sets `ctx.root` the same way without the entry point's
-/// other side effects (the kit `affectEntire` clear, the undo-log rule), which no pad example here is
-/// about.
-bool open_note_mode_on_global_guest(spec::SongFixture& fx, MenuContext::Root root) {
-	MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, /*session_or_arranger_root=*/false,
-	                                    /*session_view_root=*/false, /*kit_global_fx=*/false);
-	ctx.root = root;
-	const Node& node = root == MenuContext::Root::NoteEditor ? nodes::note_editor_root : nodes::note_row_editor_root;
-	const Node* const roots[] = {&node};
-	(void)menu::assign_node_ids(roots);
-	menu_scene().open(node, ctx);
-	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(node)});
 	return shellHostUI.opened();
 }
 
@@ -349,7 +308,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, MenuContext::Root::NoteEditor)).to_be_true();
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 
@@ -375,7 +334,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 
@@ -398,7 +357,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, MenuContext::Root::NoteEditor)).to_be_true();
 		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
 		expect(menu_scene().menu_context().root == MenuContext::Root::NoteEditor).to_be_true();
 		setRootUILowLevel(&instrumentClipView);
@@ -415,7 +374,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
 		currentUIMode = UI_MODE_NONE;
 
 		setRootUILowLevel(&keyboardScreen);
@@ -435,7 +394,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, MenuContext::Root::NoteEditor)).to_be_true();
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 
@@ -462,7 +421,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		spec::SongFixture fx = spec::make_synth_song();
-		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 

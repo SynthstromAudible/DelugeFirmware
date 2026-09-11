@@ -42,9 +42,11 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/overlay/param_popup_scene.h"
 #include "scenes/registry.h"
 #include "shell/scene.h"
 
+#include "support/global_guest_menu.h"
 #include "support/song_fixture.h"
 
 #include "cppspec.hpp"
@@ -69,71 +71,14 @@ using deluge::ui::shell::SceneKind;
 namespace nodes = deluge::scenes::menu::nodes;
 namespace button = deluge::hid::button;
 namespace guest = deluge::gui::ui;
+using deluge::scenes::spec::GlobalGuestGuard;
+using deluge::scenes::spec::menu_context_at;
+using deluge::scenes::spec::open_menu_on_global_guest_at;
+using deluge::scenes::spec::UiStackGuard;
 
 namespace {
 
 using Root = MenuContext::Root;
-
-/// @brief `pad_forward_spec.cpp`'s `UiStackGuard`, unchanged.
-struct UiStackGuard {
-	UiStackGuard(const UiStackGuard&) = delete;
-	UiStackGuard& operator=(const UiStackGuard&) = delete;
-	UiStackGuard() = default;
-	~UiStackGuard() { nullifyUIs(); }
-};
-
-/// @brief `pad_forward_spec.cpp`'s `GlobalGuestGuard`, plus the `UI_SPECIFIC` unset
-///        `menu_actions_spec.cpp`'s `UiSpecificTimerGuard` makes: `opened()` arms it.
-struct GlobalGuestGuard {
-	GlobalGuestGuard(const GlobalGuestGuard&) = delete;
-	GlobalGuestGuard& operator=(const GlobalGuestGuard&) = delete;
-	GlobalGuestGuard() = default;
-	~GlobalGuestGuard() {
-		empty_guest_stack();
-		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
-	}
-	static void empty_guest_stack() {
-		while (shellHostUI.shell().stack().depth() > 0) {
-			shellHostUI.shell().stack().pop(SceneKind::Null);
-		}
-	}
-};
-
-/// @brief The node a root opens at: the two note roots' own, and `root_song` for every other root.
-///
-/// `root_song` stands in for the rest because `activeNoteMode` and `exitNoteModeBeforeClose` read the
-/// context's root and nothing about the node, and `root_song`'s items need nothing but a `Song` --
-/// unlike, say, `Root::Drum`'s, which would need a drum this fixture does not build.
-const Node& node_for(Root root) {
-	switch (root) {
-	case Root::NoteEditor:
-		return nodes::note_editor_root;
-	case Root::NoteRowEditor:
-		return nodes::note_row_editor_root;
-	default:
-		return nodes::root_song;
-	}
-}
-
-/// @brief The context `openShellMenu`'s `NoteMode` builds -- `context_for`, then `ctx.root` set
-///        (`gui/ui/shell_menu_entry.cpp:136-139`) -- for any root.
-MenuContext context_at(deluge::scenes::spec::SongFixture& fx, Root root) {
-	MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, /*session_or_arranger_root=*/false,
-	                                    /*session_view_root=*/false, /*kit_global_fx=*/false);
-	ctx.root = root;
-	return ctx;
-}
-
-/// @brief Open a real `MenuScene` at @p root on the global guest's OWN scene stack --
-///        `pad_forward_spec.cpp`'s `open_menu_on_global_guest`, for any root.
-bool open_on_guest(deluge::scenes::spec::SongFixture& fx, Root root) {
-	const Node& node = node_for(root);
-	const Node* const roots[] = {&node};
-	(void)menu::assign_node_ids(roots);
-	menu_scene().open(node, context_at(fx, root));
-	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(node)});
-	return shellHostUI.opened();
-}
 
 /// @brief Every root that is neither note root.
 constexpr std::array kOtherRoots{Root::Sound,     Root::Drum,        Root::MidiOrCv, Root::MidiDrum,    Root::GateDrum,
@@ -245,11 +190,11 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 
-		expect(open_on_guest(fx, Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 		expect(guest::activeNoteMode() == NoteModeKind::NoteEditor).to_be_true();
 
 		GlobalGuestGuard::empty_guest_stack();
-		expect(open_on_guest(fx, Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 		expect(guest::activeNoteMode() == NoteModeKind::NoteRowEditor).to_be_true();
 	});
 
@@ -258,7 +203,7 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : kOtherRoots) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			expect(menu_scene().menu_context().root == root).to_be_true();
 			expect(guest::activeNoteMode() == NoteModeKind::None).to_be_true();
 		}
@@ -270,7 +215,7 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		// and a song swap), so reading the root alone would leave the mode on after the menu is gone.
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(open_on_guest(fx, Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 
 		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
 		expect(menu_scene().menu_context().root == Root::NoteEditor).to_be_true();
@@ -283,7 +228,7 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		// which is why this is "on the stack" and not `menuIsFrontmost`'s `input_top()`.
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(open_on_guest(fx, Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 
 		// `SceneKind::Loading` is the loading scene the shell registers for itself
 		// (`shell/shell.cpp:184`), and it takes input -- `input_transparent()` is false
@@ -295,9 +240,13 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		    .to_be_false();
 		expect(guest::activeNoteMode() == NoteModeKind::NoteEditor).to_be_true();
 
-		// `FirstApp + 6` is `overlay::param_popup_scene()` (`scenes/registry.h`), input-transparent.
-		const auto popup = static_cast<SceneKind>(static_cast<uint8_t>(SceneKind::FirstApp) + 6);
-		expect(shellHostUI.shell().stack().push(SceneId{popup, 0})).to_be_true();
+		// The mod-encoder value popup, named by its own registration constant
+		// (`scenes/overlay/param_popup_scene.h:109-110`) and asserted to BE that scene once pushed, so
+		// a registry reorder cannot silently retarget this half at another kind. It is
+		// input-transparent (`param_popup_scene.h:195`).
+		expect(shellHostUI.shell().stack().push(SceneId{overlay::kParamPopupSceneKind, 0})).to_be_true();
+		expect(&shellHostUI.shell().stack().top() == static_cast<deluge::ui::shell::Scene*>(&overlay::param_popup_scene()))
+		    .to_be_true();
 		expect(guest::activeNoteMode() == NoteModeKind::NoteEditor).to_be_true();
 	});
 
@@ -306,7 +255,7 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		// whose root is `Settings` (`scenes/menu/context.h:162`).
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(open_on_guest(fx, Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
 		deluge::notify::DirtySet dirty;
 		dirty.raise(deluge::notify::Dirty::SongSwapped);
@@ -321,7 +270,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(open_on_guest(fx, Root::Sound)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::Sound)).to_be_true();
 
 		for (deluge::hid::Button b : kAllButtons) {
 			expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_false();
@@ -337,7 +286,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : {Root::NoteEditor, Root::NoteRowEditor}) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::SELECT_ENC, button::BACK, button::SAVE, button::LEARN,
 			                              button::KEYBOARD, button::SESSION_VIEW}) {
 				expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_false();
@@ -356,7 +305,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : {Root::NoteEditor, Root::NoteRowEditor}) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::SYNTH, button::KIT, button::MIDI, button::CV}) {
 				expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_false();
 			}
@@ -372,7 +321,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : {Root::NoteEditor, Root::NoteRowEditor}) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::PLAY, button::SHIFT, button::MOD_ENCODER_0, button::MOD_ENCODER_1}) {
 				expect(guest::forwardNoteButton(b, true, false).has_value()).to_be_false();
 			}
@@ -390,7 +339,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : {Root::NoteEditor, Root::NoteRowEditor}) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::X_ENC, button::SYNC_SCALING}) {
 				g_rec = Recorder{};
 				g_rec.answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -423,7 +372,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : {Root::NoteEditor, Root::NoteRowEditor}) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::AFFECT_ENTIRE, button::CROSS_SCREEN_EDIT, button::SCALE_MODE,
 			                              button::CLIP_VIEW, button::LOAD, button::TAP_TEMPO, button::TRIPLETS,
 			                              button::RECORD, button::Y_ENC, button::TEMPO_ENC}) {
@@ -443,7 +392,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = false;
-		expect(open_on_guest(fx, Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 
 		const std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true, false);
 		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
@@ -457,7 +406,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = false;
-		expect(open_on_guest(fx, Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
 		std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true, false);
 		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
@@ -477,7 +426,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		fx.clip->affectEntire = false;
-		expect(open_on_guest(fx, Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
 		const std::optional<ActionResult> result = guest::forwardNoteButton(button::AFFECT_ENTIRE, true, false);
 		expect(result.has_value() && *result == ActionResult::DEALT_WITH).to_be_true();
@@ -491,7 +440,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : {Root::NoteEditor, Root::NoteRowEditor}) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			for (deluge::hid::Button b : {button::CROSS_SCREEN_EDIT, button::SCALE_MODE, button::CLIP_VIEW,
 			                              button::LOAD, button::TAP_TEMPO, button::TRIPLETS, button::RECORD,
 			                              button::Y_ENC, button::TEMPO_ENC}) {
@@ -508,7 +457,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
 		fx.clip->affectEntire = false;
-		expect(open_on_guest(fx, Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 
 		expect(shellHostUI.buttonAction(button::AFFECT_ENTIRE, true, false) == ActionResult::DEALT_WITH).to_be_true();
 		expect(fx.clip->affectEntire).to_be_true();
@@ -521,7 +470,7 @@ describe note_mode_encoders("gui::ui::forwardNote*Encoder -- SoundEditor's two e
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(open_on_guest(fx, Root::Sound)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::Sound)).to_be_true();
 
 		expect(guest::forwardNoteHorizontalEncoder(1).has_value()).to_be_false();
 		expect(guest::forwardNoteVerticalEncoder(-1, false).has_value()).to_be_false();
@@ -535,7 +484,7 @@ describe note_mode_encoders("gui::ui::forwardNote*Encoder -- SoundEditor's two e
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : {Root::NoteEditor, Root::NoteRowEditor}) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			g_rec = Recorder{};
 			g_rec.answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 
@@ -554,7 +503,7 @@ describe note_mode_encoders("gui::ui::forwardNote*Encoder -- SoundEditor's two e
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : {Root::NoteEditor, Root::NoteRowEditor}) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			const Call call = root == Root::NoteEditor ? Call::EditorVertical : Call::RowVertical;
 
 			g_rec = Recorder{};
@@ -582,13 +531,13 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 
-		expect(open_on_guest(fx, Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 		guest::exitNoteModeBeforeClose();
 		expect(g_rec.count(Call::ExitEditor)).to_equal(1);
 		expect(g_rec.total()).to_equal(1);
 
 		GlobalGuestGuard::empty_guest_stack();
-		expect(open_on_guest(fx, Root::NoteRowEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
 		guest::exitNoteModeBeforeClose();
 		expect(g_rec.count(Call::ExitRow)).to_equal(1);
 		expect(g_rec.total()).to_equal(2);
@@ -600,7 +549,7 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		for (Root root : kOtherRoots) {
 			GlobalGuestGuard::empty_guest_stack();
-			expect(open_on_guest(fx, root)).to_be_true();
+			expect(open_menu_on_global_guest_at(fx, root)).to_be_true();
 			guest::exitNoteModeBeforeClose();
 		}
 		expect(g_rec.total()).to_equal(0);
@@ -613,7 +562,7 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
-		expect(open_on_guest(fx, Root::NoteEditor)).to_be_true();
+		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
 		expect(guest::activeNoteMode() == NoteModeKind::None).to_be_true();
 
@@ -638,7 +587,7 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 		// `open_global_guest_on_ui_stack`: `openUI` runs `opened()` itself.
 		const Node* const roots[] = {&nodes::note_editor_root};
 		(void)menu::assign_node_ids(roots);
-		menu_scene().open(nodes::note_editor_root, context_at(fx, Root::NoteEditor));
+		menu_scene().open(nodes::note_editor_root, menu_context_at(fx, Root::NoteEditor));
 		shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(nodes::note_editor_root)});
 		expect(openUI(&shellHostUI)).to_be_true();
 
@@ -647,7 +596,7 @@ describe note_mode_exit("gui::ui::exitNoteModeBeforeClose -- SoundEditor::exitCo
 		expect(whichMainRowsNeedRendering).to_equal(0xFFFFFFFFu);
 		expect(whichSideRowsNeedRendering).to_equal(0u);
 
-		menu_scene().open(nodes::note_row_editor_root, context_at(fx, Root::NoteRowEditor));
+		menu_scene().open(nodes::note_row_editor_root, menu_context_at(fx, Root::NoteRowEditor));
 		clearPendingUIRendering();
 		guest::exitNoteModeBeforeClose();
 		expect(g_rec.count(Call::ExitRow)).to_equal(1);
