@@ -708,7 +708,8 @@ equivalent, do not invent one — classify it *carried*, state the divergence, a
 DONE_WITH_CONCERNS.
 
 - [ ] **Step 1: Failing examples** (`note_mode_reads_spec.cpp`, real `instrumentClipView` over the song
-  fixture, ported menu opened on the guest's stack the way Task 7's `note_mode_spec.cpp` does):
+  fixture, ported menu opened on the guest's stack with Task 7's shared helper `open_menu_on_global_guest_at` under `UiStackGuard` / `GlobalGuestGuard`
+  (`sim/scenes_spec/support/global_guest_menu.h`; read its doc comment for exactly what state it establishes)):
   - `noteEditorOpen()`/`noteRowEditorOpen()` false with the ported menu closed, true per root when open;
   - the offset gate's note-mode arm: with the note editor open and **no popup**, one
     `adjust_note_probability` turn through the bridge lands and raises no legacy popup; the same for
