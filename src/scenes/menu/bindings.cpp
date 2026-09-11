@@ -873,11 +873,11 @@ bool has_instrument_clip(const MenuContext& ctx) {
 // / `Root::MidiOrCv`.** `sequenceDirectionMenu` also sits in the *regular* sound-editor roots
 // (`soundEditorRootMenu`, `gui/ui/menus.cpp:1774`/`:1802`; `soundEditorRootMenuMIDIOrCV`, `:1952`/
 // `:1964`), and `SoundEditor::padAction` forwards audition-pad presses to `instrumentClipView` while
-// any *other* item of that root is focused (`gui/ui/sound_editor.cpp:1490-1494`, "allow user to
+// any *other* item of that root is focused (`gui/ui/sound_editor.cpp:1499-1503`, "allow user to
 // interact with audition pads while in regular sound editor"). So a user can hold an audition pad,
 // select-press down into Play Direction while still holding it, and land with `selectedNoteRow`
 // latched true under `Root::Sound`/`Root::MidiOrCv` -- and `InstrumentClipView::
-// potentiallyRefreshNoteRowMenu` (`instrument_clip_view.cpp:5474-5487`) then re-reads the item on
+// potentiallyRefreshNoteRowMenu` (`instrument_clip_view.cpp:5474-5488`) then re-reads the item on
 // every later audition press, letting the user switch which row Play Direction edits without leaving
 // the menu. This is a real legacy behaviour this port does not build: nothing in `src/scenes` names
 // `Root::Sound`/`Root::MidiOrCv` in this arm, and this comment records the gap rather than closing
