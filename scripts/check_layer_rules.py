@@ -347,6 +347,19 @@ LEGACY_PORT_SEAMS = (
     # one translation unit wide -- exactly the line `shell_choice_dispatch.h` and
     # `shell_pad_forward.h` draw above.
     "src/deluge/gui/ui/shell_note_bridge.cpp",
+    # Note-family Task 7: the note modes' routing through the guest. It names
+    # `deluge::scenes::menu_scene()` (`scenes/registry.h`) and reads its `menu_context().root`
+    # (`scenes/menu/menu_scene.h`), and walks `shellHostUI`'s `deluge::ui::shell::SceneStack` for the
+    # menu's identity -- the port's side of `SoundEditor::inNoteEditor()` / `inNoteRowEditor()`
+    # (`gui/ui/sound_editor.cpp:1916-1922`). And it names `instrumentClipView`, whose note handlers
+    # `SoundEditor::buttonAction`, its two encoder hooks and `exitCompletely` forward to
+    # (`:617-623`, `:1047-1052`, `:1593-1598`, `:749-756`). That is the same pair of names
+    # `shell_pad_forward.cpp` above is listed for, and the same side of the wall. Its HEADER
+    # (`shell_note_mode.h`) is deliberately NOT listed: it names no `scenes/` or `shell/` type --
+    # `NoteModeKind` is its own enum, and every call takes `hid::Button`, integers and bools -- so
+    # `shell_host_ui.cpp` and the host spec suite's fake reach it without the `deluge_scenes`
+    # closure, and this seam too is one translation unit wide.
+    "src/deluge/gui/ui/shell_note_mode.cpp",
 )
 
 RULES = [

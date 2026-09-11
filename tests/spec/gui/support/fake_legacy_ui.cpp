@@ -1,6 +1,7 @@
 #include "fake_legacy_ui.h"
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/shell_note_mode.h"
 #include "gui/ui/shell_pad_forward.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -32,6 +33,19 @@ std::function<void()> on_action_dispatch{};
 int choice_dispatches = 0;
 int pad_forwards = 0;
 PadCall last_pad_forward{};
+deluge::gui::ui::NoteModeKind active_note_mode = deluge::gui::ui::NoteModeKind::None;
+int note_button_forwards = 0;
+NoteButtonCall last_note_button{};
+std::optional<ActionResult> note_button_answer{};
+int note_horizontal_forwards = 0;
+int32_t last_note_horizontal_offset = 0;
+std::optional<ActionResult> note_horizontal_answer{};
+int note_vertical_forwards = 0;
+NoteVerticalCall last_note_vertical{};
+std::optional<ActionResult> note_vertical_answer{};
+int note_mode_exits = 0;
+bool note_exit_saw_close = false;
+bool note_exit_saw_knob_clear = false;
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
 
@@ -71,6 +85,19 @@ void reset() {
 	choice_dispatches = 0;
 	pad_forwards = 0;
 	last_pad_forward = PadCall{};
+	active_note_mode = deluge::gui::ui::NoteModeKind::None;
+	note_button_forwards = 0;
+	last_note_button = NoteButtonCall{};
+	note_button_answer = std::nullopt;
+	note_horizontal_forwards = 0;
+	last_note_horizontal_offset = 0;
+	note_horizontal_answer = std::nullopt;
+	note_vertical_forwards = 0;
+	last_note_vertical = NoteVerticalCall{};
+	note_vertical_answer = std::nullopt;
+	note_mode_exits = 0;
+	note_exit_saw_close = false;
+	note_exit_saw_knob_clear = false;
 	timer_arms.clear();
 	timer_unsets.clear();
 	for (int32_t i = 0; i < util::to_underlying(TimerName::NUM_TIMERS); i++) {
@@ -346,6 +373,42 @@ PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	fakelegacyui::pad_forwards++;
 	fakelegacyui::last_pad_forward = fakelegacyui::PadCall{x, y, velocity};
 	return PadForwardTarget::None;
+}
+
+// `gui/ui/shell_note_mode.cpp`'s share, on the same terms as `forwardGridPad` above except for the
+// answer: the guest acts on what these return, so each answers the settable value
+// `fake_legacy_ui.h` names rather than a fixed one. The real ones read
+// `deluge::scenes::menu_scene()` and call `instrumentClipView` -- which arm they take is
+// `sim/scenes_spec/note_mode_spec.cpp`'s.
+NoteModeKind activeNoteMode() {
+	return fakelegacyui::active_note_mode;
+}
+
+std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	fakelegacyui::note_button_forwards++;
+	fakelegacyui::last_note_button = fakelegacyui::NoteButtonCall{b, on, inCardRoutine};
+	return fakelegacyui::note_button_answer;
+}
+
+std::optional<ActionResult> forwardNoteHorizontalEncoder(int32_t offset) {
+	fakelegacyui::note_horizontal_forwards++;
+	fakelegacyui::last_note_horizontal_offset = offset;
+	return fakelegacyui::note_horizontal_answer;
+}
+
+std::optional<ActionResult> forwardNoteVerticalEncoder(int32_t offset, bool inCardRoutine) {
+	fakelegacyui::note_vertical_forwards++;
+	fakelegacyui::last_note_vertical = fakelegacyui::NoteVerticalCall{offset, inCardRoutine};
+	return fakelegacyui::note_vertical_answer;
+}
+
+void exitNoteModeBeforeClose() {
+	fakelegacyui::note_mode_exits++;
+	// The order, recorded the way `clearKnobIndicatorLevels` records its own: legacy's note arms run
+	// before `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:749-761`), and `closeGuest` puts
+	// the call below the indicator clear.
+	fakelegacyui::note_exit_saw_close = !fakelegacyui::closed.empty();
+	fakelegacyui::note_exit_saw_knob_clear = fakelegacyui::knob_indicator_clears > 0;
 }
 } // namespace deluge::gui::ui
 

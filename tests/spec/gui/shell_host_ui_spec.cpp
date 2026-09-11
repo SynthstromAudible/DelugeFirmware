@@ -1197,6 +1197,158 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		fakelegacyui::current_ui = &r.guest; // never leave a dangling pointer behind (see `Rig`)
 	});
 
+	// ---- input: the note modes (`gui/ui/shell_note_mode.h`) --------------------------------------
+	//
+	// `SoundEditor` forwards a button, a turn and its own exit to `instrumentClipView` while a note
+	// mode is on (`gui/ui/sound_editor.cpp:617-623`, `:1047-1052`, `:1593-1598`, `:749-755`). What the
+	// forward decides is `sim/scenes_spec/note_mode_spec.cpp`'s; what these pin is the guest's half,
+	// against fakes that answer whatever an example sets: a value is returned and nothing is fed,
+	// `std::nullopt` feeds exactly as before, and the tick is armed only while the guest is current.
+
+	it("consults the note mode for a button, and feeds the shell as before when it answers nothing", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+
+		const ActionResult result = r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		r.guest.shell().tick(1);
+
+		expect(fakelegacyui::note_button_forwards).to_equal(1);
+		expect(fakelegacyui::last_note_button
+		       == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, true, false})
+		    .to_be_true();
+		expect(r.base.seen.size()).to_equal(size_t(1));
+		expect(result == ActionResult::NOT_DEALT_WITH).to_be_true();
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+	});
+
+	it("returns the note mode's own answer for a button and feeds nothing -- "
+	   "REMIND_ME_OUTSIDE_CARD_ROUTINE included", _ {
+		// Spec §4's re-entrancy rule: the handler's own `ActionResult`, and
+		// `REMIND_ME_OUTSIDE_CARD_ROUTINE` in particular, which `Buttons::buttonAction` acts on
+		// (`hid/buttons.cpp:136-138`). The same press as the example above, varying only the answer.
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+
+		fakelegacyui::note_button_answer = ActionResult::DEALT_WITH;
+		expect(r.guest.buttonAction(deluge::hid::button::LOAD, true, false) == ActionResult::DEALT_WITH)
+		    .to_be_true();
+		fakelegacyui::note_button_answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		expect(r.guest.buttonAction(deluge::hid::button::LOAD, false, false)
+		       == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE)
+		    .to_be_true();
+		r.guest.shell().tick(1);
+		expect(r.base.seen.empty()).to_be_true();
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+
+		// `inCardRoutine` reaches the forward as legacy passed it: the handlers take it
+		// (`gui/views/instrument_clip_view.h:288`, `:330`).
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, true);
+		expect(fakelegacyui::note_button_forwards).to_equal(3);
+		expect(fakelegacyui::last_note_button
+		       == fakelegacyui::NoteButtonCall{deluge::hid::button::LOAD, true, true})
+		    .to_be_true();
+	});
+
+	it("does not consult the note mode for the two gold-knob pushes, whose early return comes first", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		fakelegacyui::note_button_answer = ActionResult::DEALT_WITH;
+
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_0, true, false)
+		       == ActionResult::NOT_DEALT_WITH)
+		    .to_be_true();
+		expect(r.guest.buttonAction(deluge::hid::button::MOD_ENCODER_1, false, false)
+		       == ActionResult::NOT_DEALT_WITH)
+		    .to_be_true();
+		expect(fakelegacyui::note_button_forwards).to_equal(0);
+	});
+
+	it("consults the note mode for a horizontal turn: feeds when it answers nothing, returns its "
+	   "answer otherwise", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+
+		expect(r.guest.horizontalEncoderAction(3) == ActionResult::DEALT_WITH).to_be_true();
+		r.guest.shell().tick(1);
+		expect(fakelegacyui::note_horizontal_forwards).to_equal(1);
+		expect(fakelegacyui::last_note_horizontal_offset).to_equal(int32_t(3));
+		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(turn != nullptr).to_be_true();
+		expect(turn != nullptr && turn->ev.encoder == deluge::ui::EncoderRole::Horizontal).to_be_true();
+
+		r.base.seen.clear();
+		fakelegacyui::note_horizontal_answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		expect(r.guest.horizontalEncoderAction(-2) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE).to_be_true();
+		r.guest.shell().tick(2);
+		expect(fakelegacyui::note_horizontal_forwards).to_equal(2);
+		expect(fakelegacyui::last_note_horizontal_offset).to_equal(int32_t(-2));
+		expect(r.base.seen.empty()).to_be_true();
+	});
+
+	it("consults the note mode for a vertical turn, passing inCardRoutine through, the same way", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		r.base.seen.clear();
+		fakelegacyui::reset();
+
+		expect(r.guest.verticalEncoderAction(-2, false) == ActionResult::DEALT_WITH).to_be_true();
+		r.guest.shell().tick(1);
+		expect(fakelegacyui::last_note_vertical == fakelegacyui::NoteVerticalCall{-2, false}).to_be_true();
+		const PatternScene::Seen* turn = first_of(r.base, UiEvent::Kind::Encoder);
+		expect(turn != nullptr && turn->ev.encoder == deluge::ui::EncoderRole::Vertical).to_be_true();
+
+		r.base.seen.clear();
+		fakelegacyui::note_vertical_answer = ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		expect(r.guest.verticalEncoderAction(4, true) == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE).to_be_true();
+		expect(fakelegacyui::last_note_vertical == fakelegacyui::NoteVerticalCall{4, true}).to_be_true();
+		// With the lock released, so an empty scene means "not fed" rather than "deferred".
+		fakelegacyui::note_vertical_answer = ActionResult::ACTIONED_AND_CAUSED_CHANGE;
+		expect(r.guest.verticalEncoderAction(5, false) == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		r.guest.shell().tick(2);
+		expect(fakelegacyui::note_vertical_forwards).to_equal(3);
+		expect(r.base.seen.empty()).to_be_true();
+	});
+
+	it("arms the tick after a forward only while the guest is still current, on all three hooks", _ {
+		// The legacy handlers are called from inside the guest's hooks and can open or close UIs
+		// (design spec §4, "Re-entrancy"), and `TimerName::UI_SPECIFIC` is delivered to whoever is
+		// current (`gui/ui_timer_manager.cpp:143`) -- `padAction`'s I1 guard, for the same reason,
+		// stood in for the same way.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		fakelegacyui::note_button_answer = ActionResult::DEALT_WITH;
+		fakelegacyui::note_horizontal_answer = ActionResult::DEALT_WITH;
+		fakelegacyui::note_vertical_answer = ActionResult::DEALT_WITH;
+
+		OtherUI someone_else;
+		fakelegacyui::current_ui = &someone_else;
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
+		(void)r.guest.horizontalEncoderAction(1);
+		(void)r.guest.verticalEncoderAction(1, false);
+		expect(fakelegacyui::note_button_forwards).to_equal(1);
+		expect(fakelegacyui::note_horizontal_forwards).to_equal(1);
+		expect(fakelegacyui::note_vertical_forwards).to_equal(1);
+		expect(fakelegacyui::timer_arms.empty()).to_be_true();
+
+		// Control: the guest current again, the same three calls, one arm each.
+		fakelegacyui::current_ui = &r.guest;
+		(void)r.guest.buttonAction(deluge::hid::button::LOAD, false, false);
+		expect(fakelegacyui::timer_arms.size()).to_equal(size_t(1));
+		(void)r.guest.horizontalEncoderAction(1);
+		expect(fakelegacyui::timer_arms.size()).to_equal(size_t(2));
+		(void)r.guest.verticalEncoderAction(1, false);
+		expect(fakelegacyui::timer_arms.size()).to_equal(size_t(3));
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+	});
+
 	// ---- input: the card routine ---------------------------------------------------------------
 
 	it("defers a press that arrives during the card routine, and replays it in order when it ends", _ {
@@ -1504,6 +1656,42 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::knob_indicator_clears).to_equal(1);
 		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		expect(fakelegacyui::knob_clear_saw_close).to_be_false();
+	});
+
+	it("runs the note mode's exit on both close paths, after the indicator clear and before close()", _ {
+		// `SoundEditor::exitCompletely`'s note arms (`gui/ui/sound_editor.cpp:749-755`) run before its
+		// `close()` (`:761`); `closeGuest` is the body of both of the guest's close paths, so both
+		// must reach it, and neither survive path may.
+		{
+			Rig r;
+			expect(r.open(kBase)).to_be_true();
+			expect(r.guest.shell().stack().push(SceneId{kOver, 0})).to_be_true();
+
+			expect(r.guest.exitUI() == ActionResult::DEALT_WITH).to_be_true();
+			expect(fakelegacyui::note_mode_exits).to_equal(0);
+
+			expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+			expect(fakelegacyui::note_mode_exits).to_equal(1);
+			expect(fakelegacyui::note_exit_saw_knob_clear).to_be_true();
+			expect(fakelegacyui::note_exit_saw_close).to_be_false();
+			expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+		}
+		{
+			// The short-Back path: the scene removes itself inside the tick (`timerCallback`'s
+			// `depth() == 0` close).
+			Rig r;
+			expect(r.open()).to_be_true();
+			r.base.remove_self_on_event = true;
+			(void)r.guest.buttonAction(deluge::hid::button::BACK, true, false);
+			fakelegacyui::reset();
+			expect(fakelegacyui::note_mode_exits).to_equal(0);
+
+			expect(r.guest.timerCallback()).to_equal(ActionResult::DEALT_WITH);
+			expect(fakelegacyui::note_mode_exits).to_equal(1);
+			expect(fakelegacyui::note_exit_saw_knob_clear).to_be_true();
+			expect(fakelegacyui::note_exit_saw_close).to_be_false();
+			expect(fakelegacyui::closed.size()).to_equal(size_t(1));
+		}
 	});
 
 	it("does not feed the two gold-knob pushes, which legacy delivers twice", _ {

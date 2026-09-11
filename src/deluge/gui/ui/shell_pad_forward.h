@@ -28,10 +28,8 @@
 /// (`gui/ui/sound_editor.cpp:1474-1517`) and its tail (`:1520-1545`) -- the part of that function
 /// that runs only once `potentialShortcutPadAction` (`:1468`) has already said no.
 ///
-/// **What deliberately stays on the other side of the wall.** The two note-editor arms inside the
-/// `instrumentClipView` case (`:1481-1498`) are keyed on `SoundEditor::inNoteEditor()` /
-/// `inNoteRowEditor()`, which read a `SoundEditor` member no guest path writes -- see the plan's own
-/// ruling. The firmware-version diagnostics inside the tail (`:1521-1543`) are a **partial** gap
+/// **What deliberately stays on the other side of the wall.** The firmware-version diagnostics
+/// inside the tail (`:1521-1543`) are a **partial** gap
 /// (I2): the three popups themselves (reading `sram_size()`, `AudioEngine::getNumVoices()`,
 /// `picFirmwareVersion` and calling `display->displayPopup`) are this task's own deliberate gap --
 /// ported behaviour the plan's task 2 brief did not ask this switch to carry, named here rather
@@ -42,9 +40,13 @@
 /// arm (`:1507-1512`) is **not** a
 /// gap: task 3 ports it, as `PadForwardTarget::Automation` -- see `menuShowsAutomationParam` in the
 /// `.cpp` for why that arm asks the ported menu rather than calling
-/// `SoundEditor::handleAutomationViewPadAction` directly. None of the six arms below asks anything
-/// Task 1's `GridPadClaim` answers -- that question is Task 4's,
-/// asked by the caller before this function is ever reached.
+/// `SoundEditor::handleAutomationViewPadAction` directly. The two note-mode arms inside the
+/// `instrumentClipView` case (`:1481-1498`) are not a gap either, though they were until note-family
+/// Task 7: they are keyed on `SoundEditor::inNoteEditor()` / `inNoteRowEditor()`, which read a
+/// `SoundEditor` member no guest path writes, so they are ported as `PadForwardTarget::NoteEditorEdit`
+/// and `PadForwardTarget::NoteRowEditor`, asked of `activeNoteMode()` (`gui/ui/shell_note_mode.h`)
+/// instead. None of the arms below asks anything Task 1's `GridPadClaim` answers -- that question is
+/// Task 4's, asked by the caller before this function is ever reached.
 ///
 /// @par Why this is its own translation unit, and why it is in `gui/ui/`
 ///
@@ -78,8 +80,15 @@ enum class PadForwardTarget : uint8_t {
 	Automation,
 	/// `:1545` -- `exitCompletely()`, ported as `closePortedMenu()`. Not returned for the three
 	/// firmware-version diagnostic pads (`:1521-1543`, I2) -- `None` is, instead, so the menu stays
-	/// open there as it does in legacy.
+	/// open there as it does in legacy. Also the note editor's sidebar half (`:1487-1489`), which
+	/// is the same `exitCompletely()` with no `on` or UI-mode test in front of it.
 	Exit,
+	/// `:1483-1485` -- `instrumentClipView.handleNoteEditorEditPadAction`, the main grid only, while
+	/// the note editor is on. Performed through `noteModeLegacyCalls()` (`gui/ui/shell_note_mode.h`).
+	NoteEditorEdit,
+	/// `:1492-1497` -- `instrumentClipView.handleNoteRowEditorPadAction`, every coordinate, while the
+	/// note-row editor is on; `closePortedMenu()` when it answers false (`:1494-1496`).
+	NoteRowEditor,
 };
 
 /// @brief What performs a decided forward. See `setPadForwardPerform`.

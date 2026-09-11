@@ -20,6 +20,7 @@
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_choice_dispatch.h"
 #include "gui/ui/shell_guest_services.h"
+#include "gui/ui/shell_note_mode.h"
 #include "gui/ui/shell_pad_forward.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/button.h"
@@ -615,7 +616,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// delivered elsewhere violates *this function's* contract, not its caller's -- and because the
 	// early-return branch below arms a second time for the SD poll (`:644`), which a call-site guard
 	// would leave uncovered on the day someone adds a third. `armTickSoon` is mostly unguarded by
-	// design: of its eleven call sites, ten -- the other input hooks, `opened()`,
+	// design: of its fourteen call sites, ten -- the other input hooks, `opened()`,
 	// `displayOrLanguageChanged()` and `exitUI()` -- are on which the guest is current by
 	// construction, and `focusRegained`'s is the one arm that MUST fire while this guard is
 	// suppressing, so guarding it too would be the wedge this one avoids. **The eleventh is not**:
@@ -623,7 +624,9 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// `performanceView.padAction` and `keyboardScreen.padAction` can both `openUI(&soundEditor)`
 	// (`gui/views/performance_view.cpp:1038`, `gui/ui/keyboard/keyboard_screen.cpp:106`) -- so that
 	// one site carries its own `getCurrentUI() == this` guard rather than relying on this
-	// precondition; see the comment there.
+	// precondition; see the comment there. Nor are the three note-mode forwards note-family Task 7
+	// added to `buttonAction`, `horizontalEncoderAction` and `verticalEncoderAction`, which call legacy
+	// handlers from inside this guest's hooks in the same way, and carry the same guard.
 	if (getCurrentUI() != this) {
 		return;
 	}
@@ -675,6 +678,12 @@ void ShellHostUI::armTickSoon() {
 // in arrival order, each with the clock it arrived at, when the lock is released
 // (`shell/input_lowering.cpp:134-156`). So the guest **defers rather than drops**, and it never
 // returns `REMIND_ME_OUTSIDE_CARD_ROUTINE`.
+//
+// **The forwarded paths are the exception, because they are not fed.** A pad the scene does not
+// claim goes to a legacy view, and refuses during the card routine the way `SoundEditor::padAction`
+// does (C1, in `padAction`). The note modes' buttons and turns go to legacy's note handlers and
+// return the handler's own `ActionResult`, `REMIND_ME_OUTSIDE_CARD_ROUTINE` included (note-family
+// Task 7, in `buttonAction`). Nothing on either path enters the shell's queue, so nothing is deferred.
 //
 // **The release is time-driven, as of F1 task 7.** The hooks below still ask on every input, but
 // `timerCallback` asks too, and `rearmTimer` keeps the timer armed at `kMinRearmMs` for as long as
@@ -876,6 +885,32 @@ ActionResult ShellHostUI::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
+	// **A note mode's button is legacy's handler's, not the shell's** -- note-family Task 7, the port of
+	// `SoundEditor::buttonAction`'s two note arms (`gui/ui/sound_editor.cpp:617-623`).
+	// `forwardNoteButton` (`gui/ui/shell_note_mode.h`) is the whole classification: `std::nullopt` for
+	// every button that is not the mode's -- outside the note modes, the six legacy's chain takes
+	// first, the four the ported menu's column focus owns, and the four the handlers answer
+	// `NOT_DEALT_WITH` -- which falls through to the feed below exactly as before; otherwise the
+	// handler's own `ActionResult`, returned as it is. That includes `REMIND_ME_OUTSIDE_CARD_ROUTINE`,
+	// which `Buttons::buttonAction` acts on (`hid/buttons.cpp:136-138`) and design spec §4's
+	// re-entrancy rule names.
+	//
+	// Below the gold-knob early return rather than above it: those two are `std::nullopt` either way
+	// (`gui/views/instrument_clip_view.cpp:3727-3729`, `:3975-3977`), and above it the drop's own
+	// argument would have to be made twice.
+	//
+	// **The handler may have opened or closed a UI by the time it returns**, so nothing after it
+	// touches this guest's state except through `padAction`'s I1 guard, for I1's reason:
+	// `TimerName::UI_SPECIFIC` is delivered to whoever is current (`gui/ui_timer_manager.cpp:143`). The
+	// arm itself is still wanted while the guest is current, for the gold-knob arm's reason above --
+	// `set_sd_busy(inCardRoutine)` may have released a lock and replayed deferred events.
+	if (const std::optional<ActionResult> result = forwardNoteButton(b, on, inCardRoutine)) {
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
+
 	// The exact inverse of `deluge.cpp:255`'s `deluge::hid::button::fromXY(ev.x, ev.y)`: a
 	// `hid::Button` is `9 * (y + kDisplayHeight * 2) + x` and `toXY` undoes it
 	// (`hid/button.h:9-15`, `hid/button.cpp:8-13`). Feeding matrix coordinates rather than a
@@ -934,6 +969,17 @@ ActionResult ShellHostUI::horizontalEncoderAction(int32_t offset) {
 	// the routine (`hid/encoder_input.cpp:96-102`), so the read here is really about *releasing* a
 	// lock a button press took.
 	shell_.set_sd_busy(isSDRoutineActive());
+	// Note-family Task 7: `SoundEditor::horizontalEncoderAction`'s note arms, which come before
+	// anything else it does (`gui/ui/sound_editor.cpp:1047-1052`). `buttonAction`'s note-mode block has
+	// the argument, including the guard. A forwarded `REMIND_ME_OUTSIDE_CARD_ROUTINE` is the one value
+	// `interpretEncoders` acts on (`hid/encoder_input.cpp:129-132`), so it is returned rather than
+	// replaced with the `DEALT_WITH` below.
+	if (const std::optional<ActionResult> result = forwardNoteHorizontalEncoder(offset)) {
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
 	feedDetents(EncoderRole::Horizontal, offset);
 	// `DEALT_WITH`, the base's value. `interpretEncoders` tests the result for exactly one thing --
 	// `REMIND_ME_OUTSIDE_CARD_ROUTINE`, on which it re-arms the encoder and hands the detents back
@@ -948,6 +994,14 @@ ActionResult ShellHostUI::verticalEncoderAction(int32_t offset, bool inCardRouti
 	// skip (`hid/encoder_input.cpp:95-102`, `isScrollY` at `:95`) and passes `skipActioning` down
 	// as this parameter (`:140`). So the deferral matters here in a way it does not for horizontal.
 	shell_.set_sd_busy(inCardRoutine);
+	// Note-family Task 7: `SoundEditor::verticalEncoderAction`'s note arms (`gui/ui/sound_editor.cpp:1593-1598`),
+	// both handlers taking `inCardRoutine`. The same shape as `horizontalEncoderAction`'s.
+	if (const std::optional<ActionResult> result = forwardNoteVerticalEncoder(offset, inCardRoutine)) {
+		if (getCurrentUI() == this) {
+			armTickSoon();
+		}
+		return *result;
+	}
 	feedDetents(EncoderRole::Vertical, offset);
 	armTickSoon();
 	return ActionResult::DEALT_WITH;
@@ -1106,6 +1160,20 @@ void ShellHostUI::closeGuest() {
 	// short one -- which is what F1 task 11's A/B forced. A `closeUI(&shellHostUI)` from somewhere
 	// else still has no hook to run it from, since `UI` declares none.)
 	indicator_leds::clearKnobIndicatorLevels();
+
+	// **Then the note mode's own exit, which `SoundEditor::exitCompletely` runs before its `close()`**:
+	// `instrumentClipView.exitNoteEditor()` and a grid repaint, or `exitNoteRowEditor()`
+	// (`gui/ui/sound_editor.cpp:749-756`), and `close()` at `:761`. `exitNoteModeBeforeClose`
+	// (`gui/ui/shell_note_mode.h`) is that arm. It keys on the menu's root rather than on the stack,
+	// because on both paths into this function the menu has already left the stack. Here, below the
+	// indicator clear and immediately before `close()`, because a close first would run the root
+	// view's `focusRegained` (`gui/ui/ui.cpp:199`) while the note selection legacy clears first was
+	// still set.
+	//
+	// **`close()` is not re-checked against what the exit did**, which is legacy's order too:
+	// `exitCompletely` asks nothing between its note arms and its `close()`, and `closeUI` searches the
+	// hierarchy for this guest rather than assuming it is on top (`gui/ui/ui.cpp:183-192`).
+	exitNoteModeBeforeClose();
 
 	// No arm on the close path: `close()` is `closeUI(this)` (`gui/ui/ui.cpp:57-59`), which unsets
 	// `TimerName::UI_SPECIFIC` itself (`gui/ui/ui.cpp:197`) before handing focus to the UI beneath

@@ -15,6 +15,13 @@
 /// directly rather than on the guest's stack) because `menuShowsAutomationParam` reads
 /// `menu_scene().focused()` -- there is no other way to give it an answer.
 ///
+/// The two note-mode arms (`sound_editor.cpp:1481-1498`, note-family Task 7) are asked of a real
+/// `MenuScene` opened at `Root::NoteEditor` / `Root::NoteRowEditor` on the global guest's own stack,
+/// because `activeNoteMode()` reads exactly that. Their performer is pinned without running either
+/// legacy handler: `setNoteModeLegacyCalls` replaces the two `instrumentClipView` calls with
+/// recorders, because both handlers reach `soundEditor.getCurrentMenuItem()` -- null under the guest
+/// (`gui/views/instrument_clip_view.cpp:3655`, `:3836`, `:3842`, `:3878`) -- on paths a pad takes.
+///
 /// What this deliberately does not cover: the tail's firmware-version diagnostics, out of scope for
 /// this switch -- `shell_pad_forward.h`'s own note says why. And nothing here asks
 /// `Scene::grid_pad_claim()` (Task 1): that question is asked by this function's caller, a later
@@ -26,7 +33,8 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_host_ui.h" // shellHostUI
-#include "gui/ui/ui.h"            // setRootUILowLevel, nullifyUIs, currentUIMode, UI_MODE_*
+#include "gui/ui/shell_note_mode.h"
+#include "gui/ui/ui.h" // setRootUILowLevel, nullifyUIs, currentUIMode, UI_MODE_*
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
@@ -105,6 +113,79 @@ bool open_menu_on_global_guest(Song& song) {
 	return shellHostUI.opened();
 }
 
+/// @brief `open_menu_on_global_guest`, at one of the two note roots.
+///
+/// `openShellMenu`'s `NoteMode` is what sets these roots in production (`gui/ui/shell_menu_entry.cpp`,
+/// `ctx.root = ...` after `context_for`); this sets `ctx.root` the same way without the entry point's
+/// other side effects (the kit `affectEntire` clear, the undo-log rule), which no pad example here is
+/// about.
+bool open_note_mode_on_global_guest(spec::SongFixture& fx, MenuContext::Root root) {
+	MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, /*session_or_arranger_root=*/false,
+	                                    /*session_view_root=*/false, /*kit_global_fx=*/false);
+	ctx.root = root;
+	const Node& node = root == MenuContext::Root::NoteEditor ? nodes::note_editor_root : nodes::note_row_editor_root;
+	const Node* const roots[] = {&node};
+	(void)menu::assign_node_ids(roots);
+	menu_scene().open(node, ctx);
+	shellHostUI.setInitialScene(SceneId{SceneKind::FirstApp, menu::node_id(node)});
+	return shellHostUI.opened();
+}
+
+/// @brief What the two note-mode pad handlers were handed, standing in for `instrumentClipView`'s.
+struct NotePadSeen {
+	int calls = 0;
+	int32_t x = -1;
+	int32_t y = -1;
+	int32_t velocity = -1;
+};
+NotePadSeen g_edit_pad{};
+NotePadSeen g_row_pad{};
+/// What the recording `noteRowEditorPad` answers -- legacy's `handled`.
+bool g_row_pad_handled = true;
+
+ActionResult unused_button(deluge::hid::Button, bool, bool) {
+	return ActionResult::DEALT_WITH;
+}
+ActionResult unused_horizontal(int32_t) {
+	return ActionResult::DEALT_WITH;
+}
+ActionResult unused_vertical(int32_t, bool) {
+	return ActionResult::DEALT_WITH;
+}
+void unused_exit() {
+}
+
+/// @brief Every legacy note-mode call, with the two pad handlers recording and the rest inert.
+const deluge::gui::ui::NoteModeLegacyCalls kRecordingNotePads{
+    .noteEditorButton = unused_button,
+    .noteRowEditorButton = unused_button,
+    .noteEditorHorizontal = unused_horizontal,
+    .noteRowEditorHorizontal = unused_horizontal,
+    .noteEditorVertical = unused_vertical,
+    .noteRowEditorVertical = unused_vertical,
+    .noteEditorEditPad = [](int32_t x, int32_t y, int32_t v) { g_edit_pad = {g_edit_pad.calls + 1, x, y, v}; },
+    .noteRowEditorPad =
+        [](int32_t x, int32_t y, int32_t v) {
+	        g_row_pad = {g_row_pad.calls + 1, x, y, v};
+	        return g_row_pad_handled;
+        },
+    .exitNoteEditor = unused_exit,
+    .exitNoteRowEditor = unused_exit,
+};
+
+/// @brief Install `kRecordingNotePads` for one example, and put the real calls back however it ends.
+struct RecordingNotePads {
+	RecordingNotePads(const RecordingNotePads&) = delete;
+	RecordingNotePads& operator=(const RecordingNotePads&) = delete;
+	RecordingNotePads() {
+		g_edit_pad = NotePadSeen{};
+		g_row_pad = NotePadSeen{};
+		g_row_pad_handled = true;
+		deluge::gui::ui::setNoteModeLegacyCalls(&kRecordingNotePads);
+	}
+	~RecordingNotePads() { deluge::gui::ui::setNoteModeLegacyCalls(nullptr); }
+};
+
 /// @brief `menu_scene_spec.cpp`'s `Rig::open`, narrowed to a bare node rather than a root: the
 ///        four `menuShowsAutomationParam` examples below need `menu_scene().focused()` to answer a
 ///        specific node, not a working menu tree, so this skips `assign_node_ids` and the shell
@@ -166,14 +247,14 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("lets a main-grid pad on a clip root fall through to the tail", _ {
 		// `:1500`'s `else if` not taken -> the comment `// fall through below` at `:1504` -> the
-		// tail at `:1520-1545`. M3: this is NOT the note-editor arms' gap -- neither `inNoteEditor()`
-		// nor `inNoteRowEditor()` is true here (no guest path ever sets that state, so they can't
-		// be), and design spec §2.1 (`docs/.../2026-09-09-guest-pad-forwarding-design.md:104-106`)
-		// says those two arms are exactly the ones that are **not** reachable with the toggle on,
-		// for that reason -- nothing ships from an arm nothing can reach. This example is ordinary
-		// behaviour 3 (§2.1) at site 5/one of site 6's fan-out arms: `instrumentClipView` matches no
-		// coordinate-gated arm above it for a plain main-grid pad, so both legacy and the port fall
-		// to the tail the same way -- no divergence in this example.
+		// tail at `:1520-1545`. M3: this is NOT the note-editor arms -- no ported menu is on the
+		// global guest's stack here, so `activeNoteMode()` answers `None`, which is the port of
+		// neither `inNoteEditor()` nor `inNoteRowEditor()` holding. (When this example was written
+		// no guest path could set either mode; note-family Task 7 ported both arms, and the examples
+		// under "the note modes" below are theirs.) This example is ordinary behaviour 3 (§2.1) at
+		// site 5/one of site 6's fan-out arms: `instrumentClipView` matches no coordinate-gated arm
+		// above it for a plain main-grid pad, so both legacy and the port fall to the tail the same
+		// way -- no divergence in this example.
 		UiStackGuard ui_guard;
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
@@ -254,6 +335,153 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		setRootUILowLevel(&instrumentClipView);
 		currentUIMode = UI_MODE_NONE;
 		(void)deluge::gui::ui::forwardGridPad(3, 4, 64);
+		expect(shellHostUI.shell().stack().depth()).to_equal(0u);
+	});
+
+	// ---- the note modes (`sound_editor.cpp:1481-1498`) ----------------------------------------------
+
+	it("under the note editor over the clip view, sends a main-grid pad to its edit action and a "
+	   "sidebar pad to Exit", _ {
+		// The edit action's own `if (on)` is the handler's (`instrument_clip_view.cpp:3626`). The arm
+		// itself, `sound_editor.cpp:1481-1490`, tests neither `on` nor `currentUIMode`, and its exit is
+		// unconditional -- so a release and a UI mode take the same arms, which is what separates this
+		// Exit from the tail's (`:1520`), and the audition column is the note arm's, not `:1499`'s.
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteEditor)).to_be_true();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::NoteEditorEdit).to_be_true();
+		expect(seen == PadForwardTarget::NoteEditorEdit).to_be_true();
+		expect(seen_x).to_equal(3);
+		expect(seen_y).to_equal(4);
+		expect(seen_v).to_equal(64);
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth - 1, 7, 0) == PadForwardTarget::NoteEditorEdit)
+		    .to_be_true();
+
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 64) == PadForwardTarget::Exit).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64) == PadForwardTarget::Exit).to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 0) == PadForwardTarget::Exit).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 2, 64) == PadForwardTarget::Exit).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("under the note-row editor over the clip view, sends every pad to the note-row editor", _ {
+		// `sound_editor.cpp:1492-1497`: no coordinate test, no `on` test, no mode test -- the handler decides, and
+		// the note-row editor normally runs with a row auditioned (`UI_MODE_AUDITIONING`).
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::NoteRowEditor).to_be_true();
+		expect(seen_x).to_equal(3);
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 64) == PadForwardTarget::NoteRowEditor)
+		    .to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64) == PadForwardTarget::NoteRowEditor)
+		    .to_be_true();
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 0) == PadForwardTarget::NoteRowEditor).to_be_true();
+		currentUIMode = UI_MODE_AUDITIONING;
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::NoteRowEditor).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+	});
+
+	it("takes the note arms only while the ported menu is on the guest's stack", _ {
+		// Control for the two examples above, varying one thing: the same menu, same root and same
+		// root UI, with the menu removed from the stack. `menu_context().root` still reads
+		// `NoteEditor`; the arms must not.
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteEditor)).to_be_true();
+		expect(shellHostUI.shell().stack().remove(SceneKind::FirstApp)).to_be_true();
+		expect(menu_scene().menu_context().root == MenuContext::Root::NoteEditor).to_be_true();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::Exit).to_be_true(); // the tail
+		expect(deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64) == PadForwardTarget::AuditionColumn)
+		    .to_be_true();
+	});
+
+	it("keeps the note arms inside the clip view's case: another root takes its own arm", _ {
+		// `sound_editor.cpp:1474` comes before `:1480`, and `:1515` is a separate root: the note arms are nested in
+		// `rootUI == &instrumentClipView`, so a note root over another root view changes nothing.
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
+		currentUIMode = UI_MODE_NONE;
+
+		setRootUILowLevel(&keyboardScreen);
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::Keyboard).to_be_true();
+		setRootUILowLevel(&performanceView);
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::Performance).to_be_true();
+		setRootUILowLevel(&sessionView);
+		expect(deluge::gui::ui::forwardGridPad(3, 4, 64) == PadForwardTarget::Exit).to_be_true();
+	});
+
+	it("the real performer hands a NoteEditorEdit pad to the note editor's edit action and leaves the "
+	   "menu open", _ {
+		// `sound_editor.cpp:1484`, then `:1490`'s `return DEALT_WITH` -- no exit. The sidebar half is `:1488`'s
+		// `exitCompletely()`, which is the `Exit` arm's `closePortedMenu()`.
+		deluge::gui::ui::setPadForwardPerform(nullptr);
+		RecordingNotePads recording;
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteEditor)).to_be_true();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+
+		(void)deluge::gui::ui::forwardGridPad(3, 4, 64);
+		expect(g_edit_pad.calls).to_equal(1);
+		expect(g_edit_pad.x).to_equal(3);
+		expect(g_edit_pad.y).to_equal(4);
+		expect(g_edit_pad.velocity).to_equal(64);
+		expect(shellHostUI.shell().stack().depth()).to_equal(1u);
+
+		(void)deluge::gui::ui::forwardGridPad(kDisplayWidth, 4, 64);
+		expect(g_edit_pad.calls).to_equal(1);
+		expect(shellHostUI.shell().stack().depth()).to_equal(0u);
+	});
+
+	it("the real performer closes the menu when the note-row editor's handler returns false, and "
+	   "only then", _ {
+		// Both answers are the recorder's, because the real handler returns true on every path
+		// (`instrument_clip_view.cpp:3796-3813`) -- but the false arm is legacy's, kept rather than
+		// folded away: `sound_editor.cpp:1493-1496`, `bool handled = ...; if (!handled) {
+		// exitCompletely(); }`.
+		deluge::gui::ui::setPadForwardPerform(nullptr);
+		RecordingNotePads recording;
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		spec::SongFixture fx = spec::make_synth_song();
+		expect(open_note_mode_on_global_guest(fx, MenuContext::Root::NoteRowEditor)).to_be_true();
+		setRootUILowLevel(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+
+		g_row_pad_handled = true;
+		(void)deluge::gui::ui::forwardGridPad(3, 4, 64);
+		expect(g_row_pad.calls).to_equal(1);
+		expect(g_row_pad.x).to_equal(3);
+		expect(g_row_pad.y).to_equal(4);
+		expect(g_row_pad.velocity).to_equal(64);
+		expect(shellHostUI.shell().stack().depth()).to_equal(1u);
+
+		// A main-grid release, deliberately: without the note arm this pad reaches the tail rather
+		// than `AuditionColumn`'s real `instrumentClipView.padAction`, so a missing arm fails the
+		// expectations below instead of taking the whole binary down with it.
+		g_row_pad_handled = false;
+		(void)deluge::gui::ui::forwardGridPad(5, 2, 0);
+		expect(g_row_pad.calls).to_equal(2);
+		expect(g_row_pad.x).to_equal(5);
+		expect(g_row_pad.velocity).to_equal(0);
 		expect(shellHostUI.shell().stack().depth()).to_equal(0u);
 	});
 

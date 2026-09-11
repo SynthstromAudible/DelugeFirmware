@@ -24,6 +24,7 @@
 #include "definitions_cxx.hpp" // kDisplayWidth, the same include sound_editor.cpp itself uses
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/shell_action_dispatch.h" // closePortedMenu()
+#include "gui/ui/shell_note_mode.h"       // activeNoteMode(), noteModeLegacyCalls()
 #include "gui/ui/ui.h"                    // getRootUI(), currentUIMode, UI_MODE_NONE
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -114,6 +115,18 @@ void performForward(PadForwardTarget target, int32_t x, int32_t y, int32_t veloc
 	case PadForwardTarget::Exit:
 		closePortedMenu(); // `:1545`'s `exitCompletely()`; see that function's own docblock
 		break;
+	case PadForwardTarget::NoteEditorEdit:
+		noteModeLegacyCalls().noteEditorEditPad(x, y, velocity); // `:1484`
+		break;
+	case PadForwardTarget::NoteRowEditor:
+		// The handler may have changed what is open by the time it answers; `closePortedMenu()` is
+		// safe whatever it did, because it only asks this guest's stack to remove the menu, which
+		// touches nothing when the menu is not there (`shell/scene_stack.h:99-100`). The arm is
+		// `sound_editor.cpp:1493-1496`: `bool handled = ...; if (!handled) { exitCompletely(); }`.
+		if (!noteModeLegacyCalls().noteRowEditorPad(x, y, velocity)) {
+			closePortedMenu();
+		}
+		break;
 	case PadForwardTarget::None:
 		break;
 	}
@@ -125,15 +138,26 @@ PadForwardPerform perform = &performForward;
 
 PadForwardTarget forwardGridPad(int32_t x, int32_t y, int32_t velocity) {
 	RootUI* root = getRootUI();
+	const NoteModeKind noteMode = activeNoteMode();
 
 	PadForwardTarget target = PadForwardTarget::None;
 	if (root == &keyboardScreen) {
 		target = PadForwardTarget::Keyboard; // `:1474-1477`
 	}
+	else if (root == &instrumentClipView && noteMode == NoteModeKind::NoteEditor) {
+		// `:1481-1490`: the main grid to the note editor's edit action, the sidebar -- both columns,
+		// the audition column included -- to `exitCompletely()`. Neither half tests `on` or
+		// `currentUIMode`, so neither does this, and the tail's `currentUIMode == UI_MODE_NONE && on`
+		// (`:1520`) is never reached: legacy `return`s at `:1490`. The mode is folded into this
+		// `else if`'s condition for the reason the `automationView` arm below gives.
+		target = x < kDisplayWidth ? PadForwardTarget::NoteEditorEdit : PadForwardTarget::Exit;
+	}
+	else if (root == &instrumentClipView && noteMode == NoteModeKind::NoteRowEditor) {
+		// `:1492-1497`: every pad to the note-row editor's handler, which decides the exit itself.
+		target = PadForwardTarget::NoteRowEditor;
+	}
 	else if (root == &instrumentClipView && x == kDisplayWidth + 1) {
-		// `:1499-1502`. The two note-editor arms above it (`:1481`, `:1492`) are deliberately
-		// absent -- see `shell_pad_forward.h`'s own note: they are keyed on `inNoteEditor()` /
-		// `inNoteRowEditor()`, which read a `SoundEditor` member no guest path writes.
+		// `:1499-1502`, below the two note arms, as in legacy.
 		target = PadForwardTarget::AuditionColumn;
 	}
 	else if (root == &automationView && (x >= kDisplayWidth || menuShowsAutomationParam())) {

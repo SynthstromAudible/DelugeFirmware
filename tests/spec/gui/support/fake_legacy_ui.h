@@ -1,8 +1,10 @@
 #pragma once
+#include "gui/ui/shell_note_mode.h" // NoteModeKind, ActionResult, hid::Button
 #include "gui/ui_timer_manager.h"
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <vector>
 
 class MIDICable;
@@ -178,6 +180,64 @@ struct PadCall {
 	bool operator==(const PadCall&) const = default;
 };
 extern PadCall last_pad_forward;
+/// @}
+
+/// @name `gui/ui/shell_note_mode.h`'s four guest-facing functions, plus `activeNoteMode`
+///
+/// The same terms as `forwardGridPad` above, with the difference the guest makes of the answer:
+/// `ShellHostUI`'s three input hooks **act** on what these return -- a value is returned in place of
+/// feeding the shell, `std::nullopt` feeds it -- so each fake answers a settable value rather than a
+/// fixed one. The real functions read `deluge::scenes::menu_scene()` and call `instrumentClipView`,
+/// neither of which this suite builds; which arm the real classification takes is
+/// `sim/scenes_spec/note_mode_spec.cpp`'s. What is assertable here is the guest's side: that each hook
+/// consults its function, with which arguments, and what it does with either answer.
+/// @{
+/// What the fake `activeNoteMode()` answers. `ShellHostUI` does not call it today; it is faked so the
+/// whole header links here, and so a later guest caller cannot silently reach the real one.
+extern deluge::gui::ui::NoteModeKind active_note_mode;
+
+/// @brief The arguments of one `forwardNoteButton()` call.
+struct NoteButtonCall {
+	deluge::hid::Button b = 0;
+	bool on = false;
+	bool in_card_routine = false;
+	bool operator==(const NoteButtonCall&) const = default;
+};
+/// How many times `forwardNoteButton()` was called.
+extern int note_button_forwards;
+/// The arguments of the last `forwardNoteButton()` call.
+extern NoteButtonCall last_note_button;
+/// What `forwardNoteButton()` answers. `std::nullopt` -- "not the note mode's" -- by default.
+extern std::optional<ActionResult> note_button_answer;
+
+/// How many times `forwardNoteHorizontalEncoder()` was called.
+extern int note_horizontal_forwards;
+/// The `offset` of the last `forwardNoteHorizontalEncoder()` call.
+extern int32_t last_note_horizontal_offset;
+/// What `forwardNoteHorizontalEncoder()` answers. `std::nullopt` by default.
+extern std::optional<ActionResult> note_horizontal_answer;
+
+/// @brief The arguments of one `forwardNoteVerticalEncoder()` call.
+struct NoteVerticalCall {
+	int32_t offset = 0;
+	bool in_card_routine = false;
+	bool operator==(const NoteVerticalCall&) const = default;
+};
+/// How many times `forwardNoteVerticalEncoder()` was called.
+extern int note_vertical_forwards;
+/// The arguments of the last `forwardNoteVerticalEncoder()` call.
+extern NoteVerticalCall last_note_vertical;
+/// What `forwardNoteVerticalEncoder()` answers. `std::nullopt` by default.
+extern std::optional<ActionResult> note_vertical_answer;
+
+/// How many times `exitNoteModeBeforeClose()` was called.
+extern int note_mode_exits;
+/// Whether `closeUI` had already run when `exitNoteModeBeforeClose()` was called. Must be false:
+/// legacy's note arms run before `exitCompletely`'s `close()` (`gui/ui/sound_editor.cpp:749-761`).
+extern bool note_exit_saw_close;
+/// Whether `clearKnobIndicatorLevels()` had already run when `exitNoteModeBeforeClose()` was called.
+/// Must be true: the exit goes below the existing indicator clear in `ShellHostUI::closeGuest`.
+extern bool note_exit_saw_knob_clear;
 /// @}
 
 /// @brief Which `UI` this suite's `getCurrentUI()` answers -- i.e. **who owns
