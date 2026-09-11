@@ -13,8 +13,8 @@
 mod file_bytes;
 
 use file_bytes::{
-    BlockBuf, ByteBuf, ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, ClaimOnce,
-    CopyOut, FileTimestamp, copy_out, drain, publish_into, take_from,
+    ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, ClaimOnce, CopyOut,
+    FileTimestamp, copy_out, drain, publish_into, take_from,
 };
 
 /// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let
@@ -29,8 +29,11 @@ const NOT_FOUND: i8 = -8;
 
 const SETTINGS: &str = "SETTINGS/CommunityFeatures.XML";
 
+/// A read's answer. Its bytes live in the channel's result buffer, not in the outcome, which carries
+/// only their length -- so these slot tests pin keying, stamps and displacement, and the harness
+/// gates (settings-channel, favourites-channel, offset-io) pin the bytes themselves.
 fn bytes(text: &str) -> ByteOutcome {
-    ByteOutcome::Bytes(ByteBuf::from_slice(text.as_bytes()).expect("fits"))
+    ByteOutcome::Bytes(text.len() as u32)
 }
 
 #[test]
@@ -351,12 +354,12 @@ fn an_empty_block_is_an_answer_not_a_failure() {
         &mut slot,
         ByteOp::ReadAt,
         SETTINGS,
-        ByteOutcome::Block(BlockBuf::new()),
+        ByteOutcome::Block(0),
         CARD,
     );
     assert_eq!(
         take_from(&mut slot, ByteOp::ReadAt, SETTINGS, CARD),
-        ByteTake::Ready(ByteOutcome::Block(BlockBuf::new()))
+        ByteTake::Ready(ByteOutcome::Block(0))
     );
 }
 
@@ -419,4 +422,33 @@ fn a_claim_once_grants_exactly_one_claim() {
     assert!(grant.claim(), "the first claim is granted");
     assert!(!grant.claim(), "a second claim would alias the buffer");
     assert!(!grant.claim());
+}
+
+/// A write carries its LENGTH; its bytes are copied into the request buffer at submit. Only the two
+/// writes own any of that buffer, which is what the task's take-time copy keys on.
+#[test]
+fn a_write_request_carries_its_length_not_its_bytes() {
+    let write = ByteRequest::Write {
+        path: BytesPath::try_from(SETTINGS).expect("fits"),
+        len: 11,
+    };
+    assert_eq!(write.key(), (ByteOp::Write, SETTINGS));
+    assert_eq!(write.payload_len(), Some(11));
+
+    let write_at = ByteRequest::WriteAt {
+        path: BytesPath::try_from(SETTINGS).expect("fits"),
+        offset: 4096,
+        len: 512,
+    };
+    assert_eq!(write_at.key(), (ByteOp::WriteAt, SETTINGS));
+    assert_eq!(write_at.payload_len(), Some(512));
+
+    let read = ByteRequest::Read {
+        path: BytesPath::try_from(SETTINGS).expect("fits"),
+    };
+    assert_eq!(
+        read.payload_len(),
+        None,
+        "a read owns none of the request buffer"
+    );
 }
