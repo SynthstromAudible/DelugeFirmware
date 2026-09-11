@@ -696,7 +696,7 @@ bool chain_targets_contain(const Node& node, const Node* target) {
 ///
 /// @note **This is an exclusion from comparison, and it is structural.** It is not "not driven
 ///       yet": `SelectChainFn` is `const Node* (*)(const MenuContext&, const MenuState&)`
-///       (`scenes/menu/node.h:268`) and is passed no button state at all, so no node in this tree
+///       (`scenes/menu/node.h:350`) and is passed no button state at all, so no node in this tree
 ///       can express the shift arm however the spec drives it. The `static_assert` below is the
 ///       pin: the day `SelectChainFn` grows a parameter that could carry shift, this exclusion has
 ///       to be re-argued rather than silently inherited. The divergence is also recorded in the

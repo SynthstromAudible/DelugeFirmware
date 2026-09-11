@@ -451,7 +451,7 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expect(same_field(scene.rainfall(), expected)).to_be_true();
 
 		// The shell's very first tick reports `dt == 0` deliberately (`Shell::tick`,
-		// `shell.cpp:298-302`: a shell first ticked at a non-zero clock must not fast-forward every
+		// `shell.cpp:301-305`: a shell first ticked at a non-zero clock must not fast-forward every
 		// animation by the boot time), so the clock starts here.
 		r.tick(0);
 		expect(scene.since_frame_ms()).to_equal(0u);

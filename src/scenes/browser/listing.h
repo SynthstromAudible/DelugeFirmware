@@ -20,7 +20,7 @@
 /// its entries from afterwards.
 ///
 /// **The busy indicator is not invented here.** `request()` raises a `notify::Notice::Kind::Working`
-/// and completion raises `Kind::ClearWorking`; the shell's `Notices` (`shell/notices.cpp:260-269`)
+/// and completion raises `Kind::ClearWorking`; the shell's `Notices` (`shell/notices.cpp:306-315`)
 /// turns those into pushing and removing `SceneKind::Working`. A failed listing raises
 /// `notice_error_code`, which `Notices` turns into the same popup legacy's
 /// `Browser::onListingFailed` (`browser.cpp:166 onListingFailed`) shows via `display->displayError`.
@@ -28,7 +28,7 @@
 ///
 /// @warning **`ClearWorking` is global and unrefcounted, and that is already live.**
 ///          `Notices::drain`'s `Kind::ClearWorking` case calls `working_.clear()` unconditionally
-///          (`shell/notices.cpp:266-269`) -- there is one `WorkingScene` and no count of who armed
+///          (`shell/notices.cpp:312-315`) -- there is one `WorkingScene` and no count of who armed
 ///          it. So if a listing overlaps with any other `Kind::Working` raiser, whichever finishes
 ///          first takes the other's animation down. This is not a hypothetical future collision:
 ///          `PlaybackHandler::doSongSwap` raises one today through the same queue
@@ -40,7 +40,7 @@
 /// @par Delivery contract (read this before using the seam)
 ///
 /// This is **not** the one-slot mailbox with a silent overwrite that `MenuScene::take_action()`
-/// (`scenes/menu/menu_scene.h:655 take_action`) is, and the difference is deliberate. That mailbox carries a
+/// (`scenes/menu/menu_scene.h:704 take_action`) is, and the difference is deliberate. That mailbox carries a
 /// *request the caller may repeat*; this one guards a *process-global resource*. There is exactly
 /// one `FileCatalogue` -- one `fileItems` vector, one `currentDir`, one cull window -- so two
 /// listings running over it would not merely lose a request, they would interleave two directory

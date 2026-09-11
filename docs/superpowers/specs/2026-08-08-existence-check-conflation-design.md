@@ -43,7 +43,7 @@ Grouped by **what the `false` branch does**, which is the only grouping that mat
 | 1 | **Anti-clobber guards** | `audio_file_manager.cpp:376`, `:386`; `stem_export.cpp:1004` | Defeats a *deliberate* guard: overwrite an existing recording take; reuse an occupied stem-export folder |
 | 2 | **Sticky wrong negative** | `audio_file_manager.cpp:594` | Caches `alternateLoadDirStatus = NOT_FOUND`, turning a transient `BUSY` into a permanent wrong answer for the session |
 | 3 | **Settings bootstrap** (7) | `performance_view.cpp:1891`, `:1902`; `midi_follow.cpp:1812`; `midi_device_manager.cpp:533`, `:544`; `runtime_feature_settings.cpp:190`, `:201` | "absent → write defaults" overwrites the user's settings file |
-| 4 | **Boot / failsafe** | `deluge.cpp:423`, `:428`, `:452`, `:463` | Wrong failsafe and default-song decisions at boot |
+| 4 | **Boot / failsafe** | `deluge.cpp:424`, `:433`, `:459`, `:472` | Wrong failsafe and default-song decisions at boot |
 | 5 | **Save** | `save_song_ui.cpp:156`, `:444`; `save_instrument_preset_ui.cpp:120` | Overwrite-confirmation prompt skipped |
 | 6 | **Load / browse** | `load_song_ui.cpp:561`; `load_instrument_preset_ui.cpp:481`, `:684`, `:1045`; `browser.cpp:460` | Silently skips a MIDI device definition; reports a present preset as missing |
 | 7 | **Favourites** | `favourite_manager.cpp:70` | — |
@@ -56,7 +56,7 @@ correctness work rather than tidying.
 
 ### 3.0 Class 3 is LIVE on the Rust BSP — and reveals a previously unrecorded device bug
 
-All four class-3 readers are called in sequence from `deluge.cpp:735-739`:
+All four class-3 readers are called in sequence from `deluge.cpp:742-746`:
 `runtimeFeatureSettings.readSettingsFromFile()`, `MIDIDeviceManager::readDevicesFromFile()`,
 `midiFollow.readDefaultsFromFile()` (and `PerformanceView::readDefaultsFromFile()` from `:285`/`:1779`).
 

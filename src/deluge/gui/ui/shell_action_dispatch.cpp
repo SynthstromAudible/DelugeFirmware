@@ -142,19 +142,19 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
-/// (`scenes/menu/menu_scene.cpp:1684-1689`). `SceneStack::remove` and not `pop`, for the reason
-/// recorded there (`:1671-1682`): `pop` would take a `Working` animation or a `Popup` sitting over
+/// (`scenes/menu/menu_scene.cpp:2057-2071`). `SceneStack::remove` and not `pop`, for the reason
+/// recorded there (`:2044-2056`): `pop` would take a `Working` animation or a `Popup` sitting over
 /// the menu down with it, and "close the editor" should not mean that. This is that same statement,
 /// reached by a different press, so the two exits of the ported menu agree by construction.
 ///
 /// Emptying the stack is the whole of it, because `ShellHostUI::timerCallback` closes the guest
-/// itself the moment the stack is empty (`gui/ui/shell_host_ui.cpp:555-558`) -- F1 task 11's fix,
-/// and the only close path the guest has besides `exitUI`'s (`:1073`). The two alternatives were
+/// itself the moment the stack is empty (`gui/ui/shell_host_ui.cpp:556-559`) -- F1 task 11's fix,
+/// and the only close path the guest has besides `exitUI`'s (`:1127`). The two alternatives were
 /// both tried on paper and both are broken:
 ///
 ///   * **`closeGuest()` from here, without emptying the stack.** The stack is still occupied, so
-///     `:555` does not fire and `rearmTimer` at `:564` runs. **The timer half of this is now
-///     guarded** -- `rearmTimer` refuses when this guest is not the current UI (`:627`) --
+///     `:556` does not fire and `rearmTimer` at `:565` runs. **The timer half of this is now
+///     guarded** -- `rearmTimer` refuses when this guest is not the current UI (`:630`) --
 ///     but read the rest, because the guard was added for a sibling of this exact mistake and the
 ///     bullet is why it exists. Unguarded it armed `TimerName::UI_SPECIFIC` for a UI that is no
 ///     longer current, and `UITimerManager::routine` dispatches that timer to `getCurrentUI()`
@@ -205,8 +205,8 @@ namespace {
 /// the precondition this whole argument stands on and is worth saying out loud: `openUI` writes
 /// `uiNavigationHierarchy[numUIsOpen]` and increments (`:227-231`), so with `numUIsOpen == 0` the
 /// guest would land at index 0 and `getRootUI()` would answer the guest itself. `openShellMenu`
-/// cannot get there -- it refuses on `currentSong == nullptr` (`gui/ui/shell_menu_entry.cpp:109-111`)
-/// and every path that opens it (`:162`) runs from a root view -- but an argument whose precondition
+/// cannot get there -- it refuses on `currentSong == nullptr` (`gui/ui/shell_menu_entry.cpp:111-113`)
+/// and every path that opens it (`:208`) runs from a root view -- but an argument whose precondition
 /// is unstated is one nobody can re-check. With a root view open, both legacy's `soundEditor` and
 /// this guest sit *above* it, never at it.
 ///
@@ -227,7 +227,7 @@ namespace {
 /// @par The one ordering divergence, named rather than absorbed
 ///
 /// Legacy closes and *then* exports. Here the removal is filed first but the guest is popped by
-/// `timerCallback` (`gui/ui/shell_host_ui.cpp:555-558`), after this function has returned, so on a
+/// `timerCallback` (`gui/ui/shell_host_ui.cpp:556-559`), after this function has returned, so on a
 /// BSP where `deluge::storage::Owner::run` is inline the export body runs *between* the two
 /// (`OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp:101-104`). On the shipping Embassy BSP
 /// `startStemExportProcess` only queues (`processing/stem_export/stem_export.cpp:87-96`,
@@ -297,10 +297,10 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
-	// the request and clears it in the same call (`scenes/menu/menu_scene.h:653-654`). So an early
+	// the request and clears it in the same call (`scenes/menu/menu_scene.h:702-703`). So an early
 	// return above this line would not be "nothing to do", it would be "the request stays in the
 	// outbox until something else asks", which is the stale delivery the mailbox's own warning
-	// describes (`:612-617`).
+	// describes (`:672-677`).
 	const MenuActionRequest req = menu_scene().take_action();
 	if (!req.engaged()) {
 		return;
@@ -351,10 +351,10 @@ void dispatchShellActions() {
 		//
 		// **The port inherits that reliance exactly, including its gap.** `set_clip_length` hangs off
 		// `audio_clip_actions`, which hangs off `root_audio_clip` (`scenes/menu/nodes/roots.h:430-433`,
-		// `:483-487`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
-		// (`scenes/menu/context.cpp:330-358`, the assignment at `:357`, reached because `ClipType` has
+		// `:484-488`); `menu::context_for` picks `Root::AudioClip` on the same `clip->type` test
+		// (`scenes/menu/context.cpp:330-363`, the assignment at `:361`, reached because `ClipType` has
 		// only `INSTRUMENT` and `AUDIO`, `definitions_cxx.hpp:1095-1098`); and `openShellMenu` is the
-		// one opener (`gui/ui/shell_menu_entry.cpp:107-170`, the context at `:118-120`). The gap both
+		// one opener (`gui/ui/shell_menu_entry.cpp:109-209`, the context at `:120-121`). The gap both
 		// sides share is that the argument and `currentSong->getCurrentClip()` are two different
 		// reads: legacy resolves the root from the `clip` it was handed and the callee resolves the
 		// clip from the song. Closing that here -- with a null test, or by reading the argument --
@@ -403,7 +403,7 @@ void dispatchShellActions() {
 		// because this is the call that would close the loop if it ever did.
 		// `setShortcutsVersion` mirrors back into the port -- `:149-151` calls
 		// `deluge::scenes::menu::set_shortcuts_version`, F1 task 8's fix. That callee assigns one
-		// file-scope variable in `scenes/menu/shortcuts.cpp:450-452`. It is **not**
+		// file-scope variable in `scenes/menu/shortcuts.cpp:457-459`. It is **not**
 		// `nodes::set_shortcuts_version`, the item hook that filed this request; it writes no
 		// `MenuState`, files nothing, and calls nothing. One lap, then it stops.
 		//

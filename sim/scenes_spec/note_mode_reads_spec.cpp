@@ -514,7 +514,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		(void)drain_last_notice();
 
 		// The port directly, not through the pad handler: every real press that holds a note also selects
-		// it (`gui/views/instrument_clip_view.cpp:2512-2513`, `:2705-2706`), so no press reaches `:3851` with
+		// it (`gui/views/instrument_clip_view.cpp:2512-2513`, `:2705-2706`), so no press reaches `:3891` with
 		// nothing selected. This is the call that line makes.
 		guest::noteModeToggleNoteEditorParamMenu(1);
 
@@ -653,7 +653,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("a vertical turn past the kit's last row with that row auditioning does not scroll -- scrollVertical's "
 	   "`preventOverScrolling`", _ {
-		// `gui/views/instrument_clip_view.cpp:4392` into `scrollVertical_limit`'s `:4468-4475`: no row at the
+		// `gui/views/instrument_clip_view.cpp:4432` into `scrollVertical_limit`'s `:4508-4515`: no row at the
 		// auditioned y once scrolled, so no scroll.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -671,8 +671,8 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 	});
 
 	it("SHIFT with a vertical turn does not shift the clip's colour -- verticalEncoderAction's `inNoteRowEditor`", _ {
-		// `gui/views/instrument_clip_view.cpp:6270-6274`: no colour shifting in the note-row editor; the turn
-		// falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift (`:6501-6503`).
+		// `gui/views/instrument_clip_view.cpp:6310-6314`: no colour shifting in the note-row editor; the turn
+		// falls to the scroll arm instead of `commandShiftColour`'s whole-clip shift (`:6541-6543`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;
@@ -688,8 +688,8 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 
 	it("an audition on another drum's row gives the gold knobs that drum -- setSelectedDrum's "
 	   "`inNoteOrNoteRowEditor`", _ {
-		// `startAuditioningRow` selects the row's drum (`gui/views/instrument_clip_view.cpp:5500-5502`), and
-		// `:5103-5104` then re-targets the active mod-controllable (`:5116`).
+		// `startAuditioningRow` selects the row's drum (`gui/views/instrument_clip_view.cpp:5540-5542`), and
+		// `:5143-5144` then re-targets the active mod-controllable (`:5156`).
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
 		LegacyViewGuard legacy;

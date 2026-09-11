@@ -34,7 +34,7 @@ using deluge::l10n::String;
 
 int32_t get_voice_priority(const MenuContext& ctx) {
 	// `voice::Priority::readCurrentValue` (`voice/priority.h:32`) reads `*currentPriority`, which is
-	// the sound's own on a synth and the audio clip's on an audio clip (`context.cpp:308`, `:338`).
+	// the sound's own on a synth and the audio clip's on an audio clip (`context.cpp:389`, `:419`).
 	return ctx.priority != nullptr ? static_cast<int32_t>(*ctx.priority) : 0;
 }
 

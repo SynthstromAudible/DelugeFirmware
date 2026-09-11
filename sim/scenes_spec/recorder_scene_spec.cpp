@@ -814,7 +814,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("notices completion while its own clipping popup is up, through the grid pass", _ {
 		// `PopupScene` is not `oled_transparent`, so `Shell::render_oled`'s walk stops at it
-		// (`shell/shell.cpp:503-506`) and this scene is still not drawn on the panel. It is,
+		// (`shell/shell.cpp:629-633`) and this scene is still not drawn on the panel. It is,
 		// however, the grid **base** under a popup -- an overlay that composites nothing -- and
 		// `Shell::tick`'s step 8b arms EVERY surface a scene is on at its `next_timer()` deadline,
 		// so the grid gate fires at `kRecorderPollMs`, `render_grid` appends this scene to

@@ -201,7 +201,7 @@ defaults moved from `true` to `false`, so a designated initializer arms only the
 
 `Shell` is the whole UI once per tick, replacing the legacy `doAnyPendingUIRendering` /
 `uiTimerManager.routine` / UI half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet
-(`deluge.cpp:594-626`). It owns the stack, the lowering, the router, the three overlay scenes and
+(`deluge.cpp:596-628`). It owns the stack, the lowering, the router, the three overlay scenes and
 `Notices`; it borrows the `SurfaceSet` and the board profile, and allocates nothing.
 
 `tick(now_ms)` runs spec D §7's order exactly:
@@ -423,7 +423,7 @@ the application's; `src/shell` is untouched by both.
 What a shell contributor needs from them anyway is the **ordering constraint they put on the host**,
 because it is not expressible in the shell's own contracts, and it is the same constraint twice.
 Each poll sits *after* `Shell::tick` — an action is filed by `MenuScene::after_render`, which the
-tick runs as its step 7 (`shell/shell.cpp:399-407`), and a choice is filed while the tick *routes*
+tick runs as its step 7 (`shell/shell.cpp:402-410`), and a choice is filed while the tick *routes*
 the press, so polling first is always one tick late — and *above* the close check that returns early
 without re-arming the timer, or a request filed on the tick the guest closes would be stranded until
 something reopened it. Neither position is enforced by anything: neither outbox announces that it is

@@ -23,7 +23,7 @@
 ///
 /// The producing half is `src/scenes`': a ported menu item asks for a piece of legacy behaviour it
 /// may not perform, `MenuScene::after_render` moves the request into a one-slot outbox, and
-/// `MenuScene::take_action()` (`scenes/menu/menu_scene.h:655`) hands it out.
+/// `MenuScene::take_action()` (`scenes/menu/menu_scene.h:704`) hands it out.
 ///
 /// **Seven verbs, and they are not all one shape.** Five are root-UI behaviour filed by writing
 /// `MenuState::pending_action` directly, and they are tabulated at `scenes/menu/action.h:13-19`.
@@ -61,17 +61,17 @@ namespace deluge::gui::ui {
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
 /// `MenuScene::take_action()` is **a one-slot mailbox with a silent overwrite, not an exactly-once
-/// queue** (`scenes/menu/menu_scene.h:623-651`), and the consequence stated there is a requirement
+/// queue** (`scenes/menu/menu_scene.h:672-700`), and the consequence stated there is a requirement
 /// on this function's caller rather than on this function: "`after_render` returns no `Action`
 /// announcing that one is waiting, so nothing enforces the polling: **poll after every tick, or
-/// requests are dropped or stale**" (`:627-628`). Nothing in the shell will complain if a tick
+/// requests are dropped or stale**" (`:676-677`). Nothing in the shell will complain if a tick
 /// skips the poll; the request simply arrives whenever someone next asks, against whatever state
 /// exists then.
 ///
 /// So the one call site (`ShellHostUI::timerCallback`) makes the poll unconditional, and sits
 /// **after** `Shell::tick` and **above** the close check that can return early. After the tick,
 /// because a request is filed by `MenuScene::after_render`, which the tick runs as its step 7
-/// (`shell/shell.cpp:399-407`) -- polling first would always be one tick late. Above the close
+/// (`shell/shell.cpp:402-410`) -- polling first would always be one tick late. Above the close
 /// check, because that arm returns without re-arming the timer (`ShellHostUI::timerCallback`), so a
 /// poll below it would be skipped on the very tick the guest closes, and the request stranded for
 /// however long it is until something opens the guest again.

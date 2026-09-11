@@ -238,7 +238,7 @@ void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity) {
 	}
 	had_input_ = true;
 	if (velocity != 0) {
-		// `deluge.cpp:243-245` calls `Buttons::ignoreCurrentShiftForSticky()` on every pad press,
+		// `deluge.cpp:245-247` calls `Buttons::ignoreCurrentShiftForSticky()` on every pad press,
 		// so shift held over a pad press does not latch when shift is then tapped off.
 		consider_shift_release_for_sticky_ = false;
 	}

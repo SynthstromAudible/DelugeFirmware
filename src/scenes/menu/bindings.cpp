@@ -404,7 +404,7 @@ ModelStackWithAutoParam* add_param(ModelStackWithThreeMainThings* stack, const N
 	}
 }
 
-/// @brief Is @p ctx one `model_stack_for` will accept? Its precondition (`context.h:155-157`): a
+/// @brief Is @p ctx one `model_stack_for` will accept? Its precondition (`context.h:200-203`): a
 ///        resolved context that is either the song view or has a clip.
 bool has_model_stack(const MenuContext& ctx) {
 	return ctx.resolved && (ctx.is_song_view || ctx.clip != nullptr);
@@ -585,7 +585,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 	}
 
 	// `patched_param/integer.cpp:39-40` / `unpatched_param.cpp:47-48`, with `soundEditor.getCurrentModelStack`
-	// replaced by `model_stack_for` (context.h:159 -- the one sanctioned route). Ruling 6: the
+	// replaced by `model_stack_for` (context.h:218 -- the one sanctioned route). Ruling 6: the
 	// buffer is this frame's, not a shared static.
 	alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* stack = add_param(model_stack_for(ctx, stack_memory), node);
@@ -852,16 +852,16 @@ bool has_instrument_clip(const MenuContext& ctx) {
 // output is not a kit, and read every session this item begins. What is true is narrower than "every
 // other caller opens with `UI_MODE_NONE`": under `Root::NoteRowEditor` specifically, the latch is
 // ALWAYS true, and nothing else can make it true from this port's own entry points:
-//   * `InstrumentClipView::enterNoteRowEditor`'s own guard (`instrument_clip_view.cpp:3736`),
+//   * `InstrumentClipView::enterNoteRowEditor`'s own guard (`instrument_clip_view.cpp:3767`),
 //     `getNumNoteRowsAuditioning() == 1`, requires one row already auditioning before it calls
 //     `soundEditor.setup` -- the only caller that can open with `UI_MODE_AUDITIONING` already
 //     active. A row only ever becomes "auditioning" through `InstrumentClipView::startAuditioningRow`
-//     entering that UI mode itself (`instrument_clip_view.cpp:5441`) the moment a row's audition pad
+//     entering that UI mode itself (`instrument_clip_view.cpp:5518`) the moment a row's audition pad
 //     goes down, so the one row counted by `getNumNoteRowsAuditioning() == 1` cannot exist without
 //     that mode already being active.
 //   * Once inside the note-row editor, `handleNoteRowEditorPadAction`'s sidebar arm
-//     (`instrument_clip_view.cpp:3801-3811`) only ever calls `handleNoteRowEditorAuditionPadAction`
-//     on a press (`if (on)`, `:3803`); a pad release is silently dropped rather than exiting the UI
+//     (`instrument_clip_view.cpp:3855-3865`) only ever calls `handleNoteRowEditorAuditionPadAction`
+//     on a press (`if (on)`, `:3857`); a pad release is silently dropped rather than exiting the UI
 //     mode, so `UI_MODE_AUDITIONING` never lapses for as long as the note-row editor stays open.
 //   * The eight gated `openShellMenu` sites (`gui/ui/shell_menu_entry.cpp`'s table) all open with
 //     `currentUIMode == UI_MODE_NONE` or `UI_MODE_NOTES_PRESSED` (site 7's arranger arm), and neither
@@ -877,7 +877,7 @@ bool has_instrument_clip(const MenuContext& ctx) {
 // interact with audition pads while in regular sound editor"). So a user can hold an audition pad,
 // select-press down into Play Direction while still holding it, and land with `selectedNoteRow`
 // latched true under `Root::Sound`/`Root::MidiOrCv` -- and `InstrumentClipView::
-// potentiallyRefreshNoteRowMenu` (`instrument_clip_view.cpp:5474-5488`) then re-reads the item on
+// potentiallyRefreshNoteRowMenu` (`instrument_clip_view.cpp:5551-5576`) then re-reads the item on
 // every later audition press, letting the user switch which row Play Direction edits without leaving
 // the menu. This is a real legacy behaviour this port does not build: nothing in `src/scenes` names
 // `Root::Sound`/`Root::MidiOrCv` in this arm, and this comment records the gap rather than closing

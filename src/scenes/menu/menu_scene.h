@@ -15,11 +15,11 @@
 /// `HorizontalMenu::renderOLED` / `renderMenuItems` / `switchVisiblePage` / `selectMenuItem` /
 /// `preparePaging` (`gui/menu_item/horizontal_menu.cpp:477`, called at `:114` and `:378`) -- all four already
 /// pinned by the `list` / `columns` widgets, which this scene composes rather than re-implements;
-/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1072`), `buttonAction` (`:333`,
-/// back -> `goUpOneLevel` `:672`, which exits at depth 0 via `exitCompletely` `:678`),
-/// `horizontalEncoderAction` (`:1008`), `padAction` (`:1405`) with `potentialShortcutPadAction`
-/// (`:1111`), `enterSubmenu` (`:324`), `setupShortcutBlink` (`:959`) / `blinkShortcut`
-/// (`:974-1000`), `getGreyoutColsAndRows` (`:214`), and the `MultiRange` redirect -> spec E
+/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1072`), `buttonAction` (`:371`,
+/// back -> `goUpOneLevel` `:710`, which exits at depth 0 via `exitCompletely` `:716`),
+/// `horizontalEncoderAction` (`:1046`), `padAction` (`:1460`) with `potentialShortcutPadAction`
+/// (`:1166`), `enterSubmenu` (`:362`), `setupShortcutBlink` (`:997`) / `blinkShortcut`
+/// (`:1012-1038`), `getGreyoutColsAndRows` (`:252`), and the `MultiRange` redirect -> spec E
 /// §4.1's `Permission::MustSelectRange`.
 ///
 /// **What this scene may not do.** It never calls an `OledFrame` drawing primitive
@@ -168,13 +168,13 @@ struct MenuState {
 	// --- typed per-kind edit storage: the widgets do not share one int32 ---
 	/// `Kind::Int` and `Kind::Decimal`: `int_value` / `decimal_value` take an `int32_t&`.
 	int32_t edit_int = 0;
-	/// `Kind::Toggle`: `toggle()` takes a `bool&` (`ui/oled/values.h:169`).
+	/// `Kind::Toggle`: `toggle()` takes a `bool&` (`ui/oled/values.h:216-217`).
 	bool edit_bool = false;
 	/// `Kind::Enum`: `enum_value()` takes an `int32_t& index` ...
 	int32_t enum_index = 0;
 	/// ... plus its own `ListState` ...
 	deluge::ui::ListState enum_list{};
-	/// ... plus its own `ScrollText` (`ui/oled/values.h:143`).
+	/// ... plus its own `ScrollText` (`ui/oled/values.h:190-191`).
 	deluge::ui::ScrollText enum_scroll{};
 	/// `Kind::Range`: `range_value` takes two `int32_t&`s -- `edit_int` is the **lower** edge and
 	/// this is the upper (`node.h`'s `RangeSpec`).
@@ -461,7 +461,7 @@ struct MenuSavedState {
 	int16_t focus = 0;
 };
 static_assert(sizeof(MenuSavedState) <= 32);
-static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:60 -- 256
+static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:61 -- 256
 
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).
@@ -524,7 +524,7 @@ public:
 	/// @brief False for every role: a menu covers the Main panel.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
 	// `input_transparent()` stays at its default false: `MenuScene` IS the `input_top()`
-	// (`shell/scene.h:444`), which is what makes its frames the focused ones.
+	// (`shell/scene.h:445`), which is what makes its frames the focused ones.
 
 	deluge::ui::grid::GreyoutMask greyout_mask() const override;
 	void save_state(deluge::ui::shell::SceneState& state) const override;
@@ -956,7 +956,7 @@ public:
 	///       `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`) -> `focusChild(nullptr)`
 	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold
 	///       lands on the column last focused. `descend_to` resets `st_.list[depth]` and
-	///       `st_.columns[depth]` (`scenes/menu/menu_scene.cpp:1527-1528`), so this always lands on the
+	///       `st_.columns[depth]` (`scenes/menu/menu_scene.cpp:1510-1511`), so this always lands on the
 	///       first. It is `src/scenes/README.md:1678-1697`'s carry 5 -- focus kept per depth for a
 	///       session, not per menu object for the process -- met by a descend rather than a re-open.
 	///       Recorded, not changed.

@@ -418,7 +418,7 @@ void MenuScene::retarget(const Node& node) {
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
-	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:67`),
+	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:68`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
 	const Node* target = nullptr;
@@ -440,7 +440,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// (`handle`'s `Replace` arm), both arrived with `ctx_.range` still null on a source with no
 		// ranges yet. **Measured** at level 3 on a fresh synth clip: the toggle-OFF leg opened the
 		// sample browser and the toggle-ON leg did not, because `browser::sample_can` refuses a
-		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp:151-163`) and the push was
+		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp:152-164`) and the push was
 		// declined, leaving the menu parked on the file selector's own title page.
 		//
 		// **The range gate in full, but NOT `permission_for` around it.** Legacy's gate here is the
@@ -942,7 +942,7 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 			else {
 				const IntRange range = bindings::range(target, ctx_);
 				// The toolkit's own guard: a zero `step` would give a dead select knob
-				// (`ui/oled/values.cpp:37-39`'s `coarse_step`).
+				// (`ui/oled/values.cpp:38-40`'s `coarse_step`).
 				const int32_t step = range.step != 0 ? range.step : 1;
 				const int32_t moved = clamp_to(bindings::read(target, ctx_) + detents * step, range.min, range.max);
 				// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)`
@@ -1129,7 +1129,7 @@ void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& 
 	deluge::ui::oled::title(f, text_of(node.title, scratch));
 
 	// `f.bounds()`, NOT `menu_rect(f)`: `decimal_value` draws at a canvas-absolute y and honours
-	// the rect horizontally only (`ui/oled/values.h:115`), and its goldens were recorded that way.
+	// the rect horizontally only (`ui/oled/values.h:111`), and its goldens were recorded that way.
 	const deluge::ui::Response r =
 	    deluge::ui::oled::decimal_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_),
 	                                    node.bind.decimal_places, st_.decimal_pos, st_.cursor_blink,
@@ -1155,7 +1155,7 @@ void MenuScene::render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& nod
 	const size_t n = bindings::names(node, ctx_, names_buf, names_scratch);
 
 	// `enum_value` takes a `ListState` AND a `ScrollText` of its own and has no `focused`
-	// parameter -- it owns the turn and the select itself (`ui/oled/values.h:143`).
+	// parameter -- it owns the turn and the select itself (`ui/oled/values.h:190-191`).
 	const deluge::ui::Response r =
 	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), st_.enum_index,
 	                                 std::span<const std::string_view>{names_buf, n}, st_.enum_list, st_.enum_scroll,
@@ -1177,7 +1177,7 @@ void MenuScene::render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& n
 	const std::string_view on = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ON), on_scratch);
 
 	// A `bool&`, no `focused`; a select press reports `entered` and leaves `changed` false
-	// (`ui/oled/values.h:169`).
+	// (`ui/oled/values.h:202-206`).
 	const deluge::ui::Response r =
 	    deluge::ui::oled::toggle(f, deluge::ui::oled::menu_rect(f), st_.edit_bool, off, on, st_.scroll[st_.depth]);
 	st_.render_resp = r;
@@ -1222,7 +1222,7 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
 	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's
 	// `SyncLevel::drawPixelsForOled` does not clear its band either -- `Shell::render_oled` already
-	// clears the whole canvas before any scene draws (`shell/shell.cpp:680`), which is what makes
+	// clears the whole canvas before any scene draws (`shell/shell.cpp:683`), which is what makes
 	// that safe for a full-panel screen like this one.
 	constexpr deluge::gfx::oled::FontId kFont = deluge::gfx::oled::FontId::MetricBold13;
 	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
@@ -1660,7 +1660,7 @@ Result MenuScene::after_render() {
 		// The write raises its own `notify::Dirty` facts (`bindings.cpp`), which repaint the
 		// surfaces those name; `RepaintAll` covers what a commit changed *off* this surface (a
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
-		// which is a documented no-op (`shell/scene.h:213`).
+		// which is a documented no-op (`shell/scene.h:206`).
 		repaint = true;
 	}
 
@@ -1707,7 +1707,7 @@ Result MenuScene::after_render() {
 			// A leaf's select press goes up, it does not re-enter: `MenuItem::selectButtonPress`
 			// returns nullptr and `SoundEditor` reads that as "up". `toggle`'s own doc says the
 			// same thing from the widget's side -- a press reports `entered` and leaves `changed`
-			// false, so this must not flip the value (`ui/oled/values.h:169`).
+			// false, so this must not flip the value (`ui/oled/values.h:202-206`).
 			ascend();
 		}
 	}
@@ -2039,7 +2039,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	// (b) Back at the root. `render_oled` deliberately never claimed it at depth 0, so the shell
 	// delivers it post-render and this closes the editor -- `sound_editor.cpp:456`'s BACK case ->
-	// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`.
+	// `:471` `goUpOneLevel()` -> `:716` `exitCompletely()`.
 	//
 	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
 	// pops the topmost scene of that kind *and everything above it* (`scene_stack.cpp:63-95`), so

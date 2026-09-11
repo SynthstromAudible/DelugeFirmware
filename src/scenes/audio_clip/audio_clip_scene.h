@@ -410,7 +410,7 @@ public:
 	///
 	/// All three are notifications in legacy too -- the model calls them, they are not asked. Two of
 	/// the three have **no body left** once the redraw is the shell's: `Shell::apply_dirty`
-	/// (`shell/shell.cpp:520-545`) already arms the grid gate for `Dirty::ClipContent` and, through
+	/// (`shell/shell.cpp:543-568`) already arms the grid gate for `Dirty::ClipContent` and, through
 	/// `has_untargeted_fact`, for `Dirty::SampleReady` and `Dirty::PlaybackState`, so
 	/// `uiNeedsRendering(this, 0xFFFFFFFF, 0)` needs nothing here. What is genuinely the scene's is
 	/// `clipNeedsReRendering`'s *other* half, the scroll-back-left at `:713-715` -- and legacy's own
@@ -429,7 +429,7 @@ public:
 	///        (`gui/ui/ui.cpp:321-348`) stops as soon as both instruction words are used up -- so
 	///        nothing below this in the hierarchy renders.
 	///
-	/// @note Its one consumer is `Shell::tick_stack` (`shell/shell.cpp:591-605`), which stops
+	/// @note Its one consumer is `Shell::tick_stack` (`shell/shell.cpp:594-608`), which stops
 	///       advancing clocks *beneath* a scene that claims it. A root scene sits at the bottom of
 	///       the stack, so today this changes nothing either way; it is declared from legacy's
 	///       answer rather than from that observation, because the observation is about the stack
@@ -461,7 +461,7 @@ public:
 	///     the case `Scene::next_timer`'s own contract now spells out -- for as long as the cursor
 	///     is live; the shell's own
 	///     router arms repaints with exactly `request_repaint_after(0, now_ms)`
-	///     (`shell/shell.cpp:397-411`) and the grid flush diffs against `last_sent`, so a tick on
+	///     (`shell/shell.cpp:420-434`) and the grid flush diffs against `last_sent`, so a tick on
 	///     which the column did not move costs a repaint and no blit.
 	///   * **the marker blink.** `timerCallback` re-arms `TimerName::UI_SPECIFIC` at
 	///     `kSampleMarkerBlinkTime` (`audio_clip_view.cpp:228`), and only the two marker columns

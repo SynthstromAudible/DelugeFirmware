@@ -242,7 +242,7 @@ extern bool note_exit_saw_knob_clear;
 /// There is no `uiNavigationHierarchy` in this suite, which the timer-manager note above already
 /// records as the reason `routine()` cannot dispatch. `ShellHostUI::rearmTimer` nevertheless has to
 /// ask, because it refuses to arm `UI_SPECIFIC` for a UI that is no longer current
-/// (`gui/ui/shell_host_ui.cpp:627`) -- the guard that stops an arm whose `openUI(...)` has just put
+/// (`gui/ui/shell_host_ui.cpp:630`) -- the guard that stops an arm whose `openUI(...)` has just put
 /// something else on top from handing this guest's tick to that something else.
 ///
 /// So each `Rig` sets this to its own `guest`, and that is not a convenience: it is the precondition

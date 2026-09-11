@@ -129,7 +129,7 @@ NoteModeKind activeNoteMode() {
 	for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
 		if (scene == menu) {
 			// `menu_context()` (`scenes/menu/menu_scene.h:653`) is replaced only by `MenuScene::open`
-			// (`scenes/menu/menu_scene.cpp:332-336`) and by a song swap (`:576-579`, which resets the
+			// (`scenes/menu/menu_scene.cpp:331-335`) and by a song swap (`:575-578`, which resets the
 			// root to `Settings`), so while the menu is stacked this is the root it was opened at.
 			return modeForRoot(deluge::scenes::menu_scene().menu_context().root);
 		}
@@ -161,7 +161,7 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on, bo
 
 	// **SYNTH, KIT, MIDI and CV: the column focus, which is the ported menu's.** Both handlers send
 	// these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
-	// (`gui/views/instrument_clip_view.cpp:3715-3717`, `:3955-3957`), whose target is the horizontal
+	// (`gui/views/instrument_clip_view.cpp:3746-3748`, `:4033-4035`), whose target is the horizontal
 	// menu's column focus -- design spec §3's, which `MenuScene` carries. Forwarding them would also
 	// dereference that navigation record, which no guest path writes.
 	if (b == SYNTH || b == KIT || b == MIDI || b == CV) {
@@ -180,10 +180,10 @@ std::optional<ActionResult> forwardNoteButton(deluge::hid::Button b, bool on, bo
 	// here at all because `SoundEditor`'s own AFFECT_ENTIRE arm is guarded on `!inNoteEditor() &&
 	// !inNoteRowEditor()` (`gui/ui/sound_editor.cpp:540`, design spec §4 site 3). In the handlers,
 	// X_ENC and SYNC_SCALING reach `InstrumentClipView::buttonAction` through their `return
-	// buttonAction(...)` arms (`gui/views/instrument_clip_view.cpp:3721-3723`, `:3961-3963`);
-	// AFFECT_ENTIRE toggles a kit clip's `affectEntire` in the note-row editor (`:3965-3971`) and is
+	// buttonAction(...)` arms (`gui/views/instrument_clip_view.cpp:3752-3754`, `:4039-4041`);
+	// AFFECT_ENTIRE toggles a kit clip's `affectEntire` in the note-row editor (`:4043-4049`) and is
 	// swallowed in the note editor; every other button, CROSS_SCREEN and SCALE included, is swallowed
-	// as `DEALT_WITH` (`:3731`, `:3979`).
+	// as `DEALT_WITH` (`:3762`, `:4057`).
 	const NoteModeLegacyCalls& calls = noteModeLegacyCalls();
 	if (mode == NoteModeKind::NoteEditor) {
 		return calls.noteEditorButton(b, on, inCardRoutine); // `sound_editor.cpp:617-619`
@@ -229,13 +229,13 @@ void exitNoteModeBeforeClose() {
 	//     install `GlobalControls` (`gui/ui/shell_guest_services.cpp:173-174`). It cannot run during a
 	//     guest session today: its arm is reached only when the input-taking scene is a root scene,
 	//     `stack_.input_top().is_root()` (`global_controls.cpp:580`). `Scene::is_root` defaults to false
-	//     (`shell/scene.h:526`), and neither `MenuScene` nor `LoadingScene` overrides it. The one
+	//     (`shell/scene.h:527`), and neither `MenuScene` nor `LoadingScene` overrides it. The one
 	//     override that answers true, `AudioClipScene` (`scenes/audio_clip/audio_clip_scene.h:423`), is
 	//     in the guest's registry but no production path pushes it onto the guest's stack. **A future
 	//     `is_root()` override on a scene the guest hosts would break this key**: Shift+Select over
 	//     that scene would re-root a note-mode session at `Settings`, and this function would skip the
 	//     note exit on close.
-	//   * A song swap resets the root to `Settings` (`scenes/menu/menu_scene.cpp:576-579`).
+	//   * A song swap resets the root to `Settings` (`scenes/menu/menu_scene.cpp:575-578`).
 	switch (modeForRoot(deluge::scenes::menu_scene().menu_context().root)) {
 	case NoteModeKind::NoteEditor:
 		noteModeLegacyCalls().exitNoteEditor(); // `gui/ui/sound_editor.cpp:750`

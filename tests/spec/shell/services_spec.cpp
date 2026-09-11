@@ -60,10 +60,10 @@ std::array<Scene*, 18> table_for(Scene& base) {
 ///        it is routed to.
 ///
 /// The four counters are the four hooks a `Shell` reaches a service through: `handle()` via
-/// `Router` (`shell.cpp:586`'s `router_.route`), and `tick()`, `leds()` and `next_timer()` via
-/// `service_list_` (`Shell::tick_stack` at `:602`, `Shell::derive_leds` -> `LedCompose::compose` at
-/// `:877`, `Shell::compute_next_wake` at `:1090`). The list has a fourth reader, `Shell::tick`'s
-/// step 8c at `:512`, which also calls `next_timer()` -- but only for a service whose
+/// `Router` (`shell.cpp:589`'s `router_.route`), and `tick()`, `leds()` and `next_timer()` via
+/// `service_list_` (`Shell::tick_stack` at `:605`, `Shell::derive_leds` -> `LedCompose::compose` at
+/// `:880`, `Shell::compute_next_wake` at `:1093`). The list has a fourth reader, `Shell::tick`'s
+/// step 8c at `:515`, which also calls `next_timer()` -- but only for a service whose
 /// `timer_repaints()` claims a surface, and this double leaves that hook at its `{false, false}`
 /// default, so it contributes no count here. A service installed correctly is reachable through all
 /// four hooks; the dedup rule is that a service in two slots is reached through each of the last
@@ -196,8 +196,8 @@ describe shell_services("shell::Shell::set_services", $ {
 		expect(r.global_controls.led_calls).to_equal(1);
 		expect(r.midi_learn.led_calls).to_equal(1);
 		// Exactly one `next_timer()` per tick, and from one caller: `Shell::compute_next_wake`'s
-		// unguarded loop over `service_list_` (`shell.cpp:1090`). `Shell::tick`'s step 8c reads the
-		// same list (`:512`) but asks `next_timer()` only for a service whose `timer_repaints()`
+		// unguarded loop over `service_list_` (`shell.cpp:1093`). `Shell::tick`'s step 8c reads the
+		// same list (`:515`) but asks `next_timer()` only for a service whose `timer_repaints()`
 		// claims a surface, and `Service::timer_repaints()`'s default claims none.
 		expect(r.mod_knobs.timer_queries).to_equal(1);
 	});

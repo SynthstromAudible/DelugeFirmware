@@ -148,9 +148,9 @@ void select_language() {
 /// Board encoder index (`kDelugeEncoders`, `shell/profiles/deluge.cpp`): 3 = Select.
 constexpr uint8_t kSelectEncoder = 3;
 /// The same table's 4 = `EncoderRole::GoldUpper` (`shell/profiles/deluge.cpp:69-76`), which lowers to
-/// `InputSnapshot::edit[0]` (`shell/input_lowering.cpp:80`) -- the coarse knob `int_value` reads
-/// (`ui/oled/values.cpp:87-89`). It is what moves an `Kind::Int` leaf: that widget claims the two
-/// gold knobs and leaves the select encoder to the scene (`scenes/menu/menu_scene.cpp:889-901`).
+/// `InputSnapshot::edit[0]` (`shell/input_lowering.cpp:80`). It no longer moves a `Kind::Int` leaf:
+/// since note-family task 1 `int_value` claims the select turn instead (`ui/oled/values.cpp:88-89`),
+/// as `render_leaf_int` records (`scenes/menu/menu_scene.cpp:1084-1086`).
 constexpr uint8_t kGoldUpperEncoder = 4;
 /// Matrix coordinates of the select-encoder button (`kMatrix`, `shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
@@ -277,7 +277,7 @@ struct GuestRig {
 
 	/// The select-encoder press, through the guest's own hook rather than the shell's -- which is
 	/// the point: `buttonAction` only queues, and `Shell::pump_input` inside a tick is what routes
-	/// (`shell/shell.cpp:579-589`).
+	/// (`shell/shell.cpp:582-592`).
 	void press_enter() { (void)ui.buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
 
 	/// One detent of the select encoder, through the guest's own hook. `ShellHostUI::selectEncoderAction`
@@ -556,7 +556,7 @@ bool open_global_guest_on_ui_stack(const Node& root, spec::SongFixture& song) {
 ///
 /// Unset rather than restored to its exact deadline: the timer is a shared one-shot whose resting
 /// state between guest sessions is "not armed" (`ShellHostUI::rearmTimer`'s own no-deadline arm
-/// leaves it alone, `gui/ui/shell_host_ui.cpp:632-647`), and every path that can wake the guest
+/// leaves it alone, `gui/ui/shell_host_ui.cpp:635-650`), and every path that can wake the guest
 /// re-arms it through `armTickSoon`. Leaving it armed would hand the next example a timer pointing
 /// at a UI this one tore down.
 struct UiSpecificTimerGuard {
@@ -938,7 +938,7 @@ int32_t choose_shortcuts_version(Rig& r, int32_t index) {
 ///
 /// They ARE the enum's numbers -- `enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE,
 /// DELUGE }` (`definitions_cxx.hpp:1108`), and `nodes::kScreensaverModeNames`
-/// (`scenes/menu/nodes/settings.h:936-941`) lists the four strings in that order, as
+/// (`scenes/menu/nodes/settings.h:938-943`) lists the four strings in that order, as
 /// `ScreensaverModeMenu::getOptions`' own `@warning` requires (`defaults/screensaver.h:42-43`).
 /// Spelled as cursor indices because what the examples drive is a cursor.
 constexpr int32_t kModeOffIndex = 0;
@@ -1014,7 +1014,7 @@ int32_t choose_screensaver(Rig& r, const Node& child, bool enum_item, int32_t ta
 	(void)scene().take_action(); // opening the page files nothing; the group asserts that separately
 
 	// `kScreensaverChildren` is `{&screensaver_mode, &screensaver_timeout}`
-	// (`scenes/menu/nodes/settings.h:947`), but the row is resolved rather than assumed -- a
+	// (`scenes/menu/nodes/settings.h:949`), but the row is resolved rather than assumed -- a
 	// `relevant` hook added to either would move it, and that must be seen and not walked past.
 	const int32_t row = visible_index_of(nodes::screensaver, child, ctx);
 	if (row < 0) {
@@ -1672,17 +1672,17 @@ describe menu_action_screensaver("gui::ui::dispatchShellActions -- ScreensaverSe
 	// `entry::openShellMenu` and asserts the stand-down wakes it and re-arms at the FULL idle period.
 	// This task changes *when* `settingsChanged` runs and touches neither `timerEvent` nor that group.
 	//
-	// **Two items, two encoders, and one of them is why the guest-tick example drives the mode.**
-	// The port routes the two widgets differently from legacy: `enum_value` owns the select encoder,
-	// while `int_value` claims the two gold knobs and leaves the select encoder alone
-	// (`ui/oled/values.cpp:87-89`), where legacy reaches BOTH items' `writeCurrentValue` from
+	// **Two items, one encoder now, and why the guest-tick example still drives the mode.** Until
+	// note-family task 1 the port routed the two widgets differently from legacy: `enum_value` owned
+	// the select encoder while `int_value` claimed the two gold knobs. Both now edit on the select
+	// turn (`ui/oled/values.cpp:88-89`), as legacy reaches BOTH items' `writeCurrentValue` from
 	// `Value<T>::selectEncoderAction` (`gui/menu_item/value.h:64-69`). `Rig` can drive either,
-	// because it feeds board encoder indices straight into a `Shell`. `GuestRig` cannot drive the
-	// gold ones: `ShellHostUI` overrides `selectEncoderAction` and deliberately does NOT override
-	// `modEncoderAction` (F1 task 6, argued at `gui/ui/shell_host_ui.h:207`), so no gold detent ever
-	// reaches the guest's `Shell`. That is a **pre-existing gap this task neither creates nor
-	// closes** -- it is the reason the composition example below turns the mode item -- and it is
-	// reported with the task rather than papered over here.
+	// because it feeds board encoder indices straight into a `Shell`. When this was written `GuestRig`
+	// could not reach the timeout item: `ShellHostUI` overrides `selectEncoderAction` and deliberately
+	// does NOT override `modEncoderAction` (F1 task 6, argued at `gui/ui/shell_host_ui.h:207`), so no
+	// gold detent ever reaches the guest's `Shell`. That gap is why the composition example below
+	// turns the mode item; task 1 moved the timeout item onto the select turn without changing what
+	// that example pins.
 
 	it("changing the timeout re-arms both screensavers, with no reboot", _ {
 		select_language();
@@ -2216,12 +2216,12 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// `soundEditor`. The dispatcher's answer is `SceneStack::remove(SceneKind::FirstApp)` on the
 		// guest's own stack -- the same statement `MenuScene::handle` already uses for the short-Back
 		// exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
-		// (`scenes/menu/menu_scene.cpp:1684-1689`; `gui/ui/sound_editor.cpp:710-717`, the call at
+		// (`scenes/menu/menu_scene.cpp:2057-2071`; `gui/ui/sound_editor.cpp:710-717`, the call at
 		// `:716`). The full argument, including why neither `closeUI` nor `closeGuest()` can be
 		// called from there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
 		//
 		// The guest is ticked through `Shell::tick` and NOT through `timerCallback`, on purpose: it
-		// is `timerCallback`'s empty-stack arm (`gui/ui/shell_host_ui.cpp:555-558`) that performs
+		// is `timerCallback`'s empty-stack arm (`gui/ui/shell_host_ui.cpp:556-559`) that performs
 		// the actual `closeUI`, and running that here would put a real root view's `focusRegained`
 		// inside the example. What this pins is the dispatcher's half -- the stack -- which is the
 		// half the dispatcher owns.
@@ -2482,7 +2482,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 		// `PerformanceView::timerCallback` forwards into `sessionView`/`arrangerView`
 		// (`gui/views/performance_view.cpp:383-391`).
 		//
-		// The guard is in `ShellHostUI::rearmTimer` (`gui/ui/shell_host_ui.cpp:627`), and this
+		// The guard is in `ShellHostUI::rearmTimer` (`gui/ui/shell_host_ui.cpp:630`), and this
 		// example is what reddens without it -- measured, not assumed.
 		select_language();
 		PerformViewGuard perform_guard;
@@ -2495,7 +2495,7 @@ describe menu_action_three_verbs("gui::ui::dispatchShellActions -- the three one
 			// nothing, opens nothing, and the guest is still current when `rearmTimer` runs. The
 			// timer IS armed here. Without this leg the subject's `to_be_false()` would also pass on
 			// a `rearmTimer` that never arms in this rig at all -- e.g. if `Shell::next_wake()`
-			// answered `nullopt` and took the early return (`shell_host_ui.cpp:632-647`).
+			// answered `nullopt` and took the early return (`shell_host_ui.cpp:635-650`).
 			GlobalGuestGuard control_guard;
 			spec::SongFixture control_song = spec::make_synth_song();
 			setRootUILowLevel(&sessionView);

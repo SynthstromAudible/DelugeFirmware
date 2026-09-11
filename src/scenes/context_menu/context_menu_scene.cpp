@@ -26,7 +26,7 @@
 #include "ui/core/metrics.h"
 #include "ui/oled/popup.h"
 
-// `Deluge::factoryReset` (`deluge.cpp:222-228`). `deluge.h` is a ROOT-LEVEL app header, so it is named
+// `Deluge::factoryReset` (`deluge.cpp:223-229`). `deluge.h` is a ROOT-LEVEL app header, so it is named
 // explicitly in this layer's include allow-list (`src/scenes/CMakeLists.txt`) the way
 // `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. Fix
 // round 1, Minor 2: included rather than re-declared locally, and re-implementing its body here (a

@@ -23,7 +23,7 @@
 /// The plan's prose calls it one; it is not. `class Slicer final : public UI` (`gui/ui/slicer.h:33`)
 /// -- a plain `UI`, opened with `openUI(&slicer)` from `gui/ui/browser/sample_browser.cpp:378` and
 /// `gui/context_menu/sample_browser/kit.cpp:77`, and `grep "public RootUI"` finds exactly two
-/// classes in the tree, `TimelineView` and `KeyboardScreen` (`shell/scene.h:507-510`, which already
+/// classes in the tree, `TimelineView` and `KeyboardScreen` (`shell/scene.h:508-511`, which already
 /// records this). So `is_root()` is false, and `services::GlobalControls` correctly gates the
 /// `View::buttonAction` group of legacy's global button arms off it: with the slicer up, those arms
 /// are unreachable in legacy too, because `UI::buttonAction`'s base returns `NOT_DEALT_WITH`
@@ -44,7 +44,7 @@
 ///     `doAnyPendingGridRendering`'s top-down walk (`gui/ui/ui.cpp:305-349`) keeps going and the
 ///     sidebar beneath paints -- exactly `MarkerScene`'s situation. The predicate's own definition
 ///     is "covers the grid COMPLETELY, so scenes beneath need not render" (`shell/scene.h`), and its
-///     one consumer is `Shell::tick_stack` (`shell/shell.cpp:591-605`), which stops advancing clocks
+///     one consumer is `Shell::tick_stack` (`shell/shell.cpp:594-608`), which stops advancing clocks
 ///     beneath a scene that claims it; claiming it here would stop the clock of the scene that owns
 ///     the sidebar.
 ///   * **`dims_grid() -> false`** -- the fifth, and the one that is easy to miss, because its
@@ -170,7 +170,7 @@
 ///     `lengthInSamples`, which `horizontalEncoderAction`'s clamp (`:220-221`) allows -- and column
 ///     16 is the first sidebar column. Legacy composes the grid **top-down**
 ///     (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`), so the sidebar UI beneath overwrites that pad later in
-///     the same pass; the shell composes **bottom-up** (`Shell::render_grid`, `shell/shell.cpp:700-834`: base first,
+///     the same pass; the shell composes **bottom-up** (`Shell::render_grid`, `shell/shell.cpp:741-857`: base first,
 ///     then overlays), so reproducing the write here would leave the stray pad visible where legacy's is not. The port
 ///     therefore paints the slice marks inside the main-column region, which clips it. Behaviour
 ///     preserved by clipping, not by transcription -- the one place in this file where those differ.

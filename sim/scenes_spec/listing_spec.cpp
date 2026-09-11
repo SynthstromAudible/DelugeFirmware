@@ -406,7 +406,7 @@ describe listing("the async listing seam", $ {
 		expect(outcome_of(listing.request(open_request()))).to_equal(kAccepted);
 		// Legacy shows its loading animation here (`browser.cpp:111
 		// displayLoadingAnimationText("Working")`); the port raises the notice `Notices::drain`
-		// turns into a pushed `SceneKind::Working` (`shell/notices.cpp:260-265`).
+		// turns into a pushed `SceneKind::Working` (`shell/notices.cpp:306-311`).
 		NoticeTally after_request = drain_notices();
 		expect(after_request.working).to_equal(1);
 		expect(after_request.clear_working).to_equal(0);

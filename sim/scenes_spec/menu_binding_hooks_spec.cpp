@@ -294,10 +294,10 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 
 	it("on_enter() discards a staged offset through retarget(), unmasked by open()'s own reset", _ {
 		// Fix round 1, Important 1's regression, `retarget()`'s half (fix round 3): `on_enter` is
-		// public (`menu_scene.h:501`) and, on its `arg == 0` fallback (`menu_scene.cpp:490-496`),
+		// public (`menu_scene.h:501`) and, on its `arg == 0` fallback (`menu_scene.cpp:492-498`),
 		// reads `ctx_.root` -- already set by `r.open()` below -- looks up `roots()[ctx_.root]`, and
-		// calls `retarget(*target)` (`:500`) with **no preceding `st_ = MenuState{}`**. That is the
-		// difference from `open()`, whose own full reset (`:333-335`) runs before its own
+		// calls `retarget(*target)` (`:502`) with **no preceding `st_ = MenuState{}`**. That is the
+		// difference from `open()`, whose own full reset (`:333`) runs before its own
 		// `retarget()` call and would mask `retarget`'s reset being missing entirely. `on_enter`'s
 		// `arg == 0` branch re-roots onto whatever `nodes::sound_root` (or similar) `ctx_.root`
 		// names, not back onto `adjust_page` -- fine here, since the assertion is only about
@@ -361,7 +361,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		r.shell.tick(20);
 
 		// Read right here, before any further tick: `Shell::tick` drains `notify::notices()` at
-		// the *start* of the next tick (`shell.cpp:327`), so a second tick before this read would
+		// the *start* of the next tick (`shell.cpp:330`), so a second tick before this read would
 		// silently eat any notice raised at the tick above, whether or not one actually was --
 		// making the assertion pass either way. `menu_horizontal_controls_spec.cpp`'s "a select
 		// turn on a focused submenu column does nothing" example names the same trap (fix round 1,

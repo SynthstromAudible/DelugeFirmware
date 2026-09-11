@@ -317,18 +317,18 @@ later doc task.
   own types, spec B), not new types the menus layer declares — the widgets that render a `Hint` or
   a `Range` already have their own names for these shapes, and a second, menus-only enum would be a
   translation step with nothing on either side to translate.
-- `Binding` gained **`ValueStyle style`** (`deluge::ui::oled::ValueStyle`, `node.h:169`) — the
+- `Binding` gained **`ValueStyle style`** (`deluge::ui::oled::ValueStyle`, `node.h:287`) — the
   per-widget rendering style (units, precision) the draft's `Binding` sketch has no field for.
-- `MenuContext` gained an explicit **`Permission`** enum (`context.h:179`, `permission_for()`'s
+- `MenuContext` gained an explicit **`Permission`** enum (`context.h:393`, `permission_for()`'s
   return type) rather than the draft's bare description of "18 `checkPermissionToBeginSession`
   overrides collapse to one rule" — `Permission::{Yes, No, MustSelectRange}` is the actual shape,
-  named so `MenuScene::descend_if_allowed` (`menu_scene.h:269`) can switch on it.
+  named so `MenuScene::enter_child` can act on it (`menu_scene.cpp:1528`, and `enter_range_picker_if_needed` at `:793`).
 - `MenuState` (§4.1) carries **typed per-kind edit storage** (`edit_int`, `edit_bool`,
   `enum_index` + its own `ListState`/`ScrollText`, `decimal_pos`, `cursor_blink`) rather than one
   shared `int32_t` the draft's sketch implies — the widgets take different reference types
   (`int32_t&`, `bool&`, an index plus its own list-cursor state), so a single shared slot would
   need an unsafe reinterpretation at every call site instead of one field per kind.
-- **`MenuSavedState`** (`menu_scene.h:175`, `static_assert(sizeof(MenuSavedState) <=
+- **`MenuSavedState`** (`menu_scene.h:453`, `static_assert(sizeof(MenuSavedState) <=
   deluge::ui::shell::kSceneStateBytes)`) is a new type the draft does not name: what a
   `replace_root` must preserve is a small subset of `MenuState` (child *indices*, not pointers, so
   a table edit between save and restore cannot resurrect a stale pointer), not the whole
@@ -375,11 +375,11 @@ through two registries.
 hand count).
 
 **Range-dependent items** — `MustSelectRange` (§4.1) is driven by an explicit `Node::range_dependent`
-flag (`node.h:255`, set via `with_range_dependent(...)`, ported from legacy's
+flag (`node.h:681`, set via `with_range_dependent(...)`, ported from legacy's
 `MenuItem::isRangeDependent()`), not by "any node whose `Binding` carries a param" as an earlier
 pass assumed — only the ten osc-subtree nodes legacy actually marks (sample transpose, loop point,
 the file selector, the audio recorder, …) carry the flag; `validate_tree`'s
-`expected_range_dependent` parameter (`validate.h:141`) audits the flag is set on exactly that set
+`expected_range_dependent` parameter (`validate.h:242`) audits the flag is set on exactly that set
 and no others.
 
 **`Binding::Scaling`** — `Binding` gained an explicit `Scaling{Standard, HalfPrecision, Pan}`
@@ -388,23 +388,23 @@ universal. Missed in an earlier pass and caught reviewing the port against
 `value_scaling.cpp:36` — **`Scaling::HalfPrecision`** covers osc pulse width and the compressor
 params, whose legacy scaling halves precision to make room for negative stored values
 `Scaling::Standard` cannot represent; **`Scaling::Pan`** covers the two pan params, which
-`bindings.cpp:207-214` additionally infers as a backstop when a node's `ParamRef` names one of them
+`bindings.cpp:208-215` additionally infers as a backstop when a node's `ParamRef` names one of them
 and no scaling was set explicitly.
 
 **`Binding::updates_reverb_params` and the `ReverbUpdateWithHook` validator rule** — a node whose
 write must additionally poke `AudioEngine::reverb`'s live parameters (the sidechain/reverb params,
-`sound_sidechain.h:14`, `roots.h:44`) sets `Binding::updates_reverb_params` (`node.h:189`);
+`sound_sidechain.h:14`, `roots.h:44`) sets `Binding::updates_reverb_params` (`node.h:311`);
 `validate_tree` now rejects (`Issue::Kind::FlagMismatch`, detail `Flag::ReverbUpdateWithHook`,
-`validate.cpp:277-279`) a node that sets both `updates_reverb_params` **and** a `set` hook, because
+`validate.cpp:305-307`) a node that sets both `updates_reverb_params` **and** a `set` hook, because
 `bindings::write` runs the `set` hook and returns without ever reaching the
-`updates_reverb_params` branch (`bindings.cpp:611` sits after the `set`-hook dispatch) — the flag
+`updates_reverb_params` branch (`bindings.cpp:616` sits after the `set`-hook dispatch) — the flag
 would silently never fire on such a node, and the two mechanisms were never meant to combine on the
 same item.
 
 **`bindings::serves_param` and `Serves{unpatched, patched}`** — Task 6's ruling: `serves_param`
-(`bindings.cpp:329`) takes an explicit `Serves` struct (`{bool unpatched; bool patched;}`,
-`bindings.cpp:247`) derived from the *resolved* `MenuContext` (`serves_for(ctx)`,
-`bindings.cpp:304`: `.unpatched = holds_unpatched_params(ctx)`, `.patched = ctx.sound != nullptr`)
+(`bindings.cpp:332`) takes an explicit `Serves` struct (`{bool unpatched; bool patched;}`,
+`bindings.cpp:248`) derived from the *resolved* `MenuContext` (`serves_for(ctx)`,
+`bindings.cpp:307`: `.unpatched = holds_unpatched_params(ctx)`, `.patched = ctx.sound != nullptr`)
 rather than asked of the `ParamManager` directly, because **`ParamManager` has no structural
 discriminator of its own** between an `UnpatchedParamSet` and a `MIDIParamCollection` in
 `summaries[0]`, nor between a `PatchedParamSet` and an `ExpressionParamSet` in `summaries[1]`
@@ -425,7 +425,7 @@ users). The shipped `Kind` enum is `{Submenu, Toggle, Enum, Int, Decimal, SyncLe
 consumer (a bespoke action item E1's ten roots have no need for).
 
 **`DuplicateName`'s co-visibility qualifier** — `validate_tree`'s `DuplicateName` rule
-(`validate.cpp:167-180, :336`) is qualified: two siblings sharing a `(name, parent)` are flagged
+(`validate.cpp:209-221, :364-375`) is qualified: two siblings sharing a `(name, parent)` are flagged
 only when both could actually be on screen at once (their `relevant` predicates are not mutually
 exclusive) — a flat "no two children share a name" rule would reject legacy's own **nine blessed
 `FormattedTitle` collisions** (e.g. both sample recorders under different contexts), which are
@@ -456,7 +456,7 @@ porting Task 9:
   by press yet still blink, since the blink scan has no such guard.
 
 **Blink cadence** — the shortcut-pad blink is legacy's **200 ms two-phase cycle**
-(`menu_scene.h:70-72`, `menu_scene.cpp:873-875`): a 20 ms re-arm on the source-pad phase and a
+(`menu_scene.h:96-97`, `menu_scene.cpp:96-102`): a 20 ms re-arm on the source-pad phase and a
 180 ms re-arm on the focused-param phase, not a symmetric period — a `Blink`'s single symmetric
 period cannot represent this, which is why `MenuState` carries `blink_anchor_ms`/`blink_node`
 instead of a `Blink` for this one purpose. The **visible DUTY cycle within each phase is not
@@ -540,7 +540,7 @@ the changelog where a release note will find it.
 this leaf opens *that* menu" is a per-item `MenuItem* selectButtonPress()` override returning
 another `MenuItem*`; `SoundEditor` navigates to whatever comes back
 (`gui/ui/sound_editor.cpp`'s select handling). E1 had no `Node` spelling for it at all:
-`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:1094-1098`, which
+`MenuScene::after_render` ascended on **any** leaf select press (E1's leaf arm, which
 transcribed only the `return nullptr` = "go up" arm of the base class), and until fix round 2's I5
 the difference lived only in four scattered header comments. The complete sweep of
 `grep -rn selectButtonPress src/deluge/gui/menu_item/`, in three groups:
@@ -659,7 +659,7 @@ focused child, which `enter_child` does — **except** its `shouldForwardButtons
 forwards the press to the focused child instead, and which is not ported;
 `Toggle`/`Selection::selectButtonPress` (`toggle.h:33-45`, `selection.h:54-64`) toggle in place when
 the item is not itself the open menu, which this generation's widgets own rather than the
-interpreter (`ui/oled/values.h:169`); and `Automation::selectButtonPress`
+interpreter (`ui/oled/values.h:202-206`); and `Automation::selectButtonPress`
 (`automation/automation.cpp:37`), inherited by every `Param`/`UnpatchedParam` item,
 **deletes the parameter's automation when shift is held** — a second dropped behaviour, listed here
 because the sweep found it, owed to E2 alongside the chaining. (A `PatchedParam` item reaches that
@@ -695,7 +695,7 @@ from the horizontal page.**
 
 The port has no equivalent of the bit. `Column::is_submenu` is `kid.kind == Kind::Submenu`
 (`scenes/menu/menu_scene.cpp`'s `render_horizontal`) and `columns` claims the press only for a
-submenu column (`ui/oled/columns.cpp:419-423`), so a select press on the FILE BROWSER column of
+submenu column (`ui/oled/columns.cpp:451-455`), so a select press on the FILE BROWSER column of
 `source0` raises the notification and opens nothing. Combined with the port's fixed `Node::layout`
 (legacy renders these pages vertically when the `HorizontalMenus` feature is off,
 `horizontal_menu.cpp:596-601`), the consequence is that **a file selector cannot be reached by
@@ -707,7 +707,7 @@ because this passage names the symbol and reads as settled, which is worse than 
 one route too few.** The other is a legacy entry point rather than a gesture inside the port: **site
 8** of the fourteen (`gui/views/instrument_clip_view.cpp:496-519`, gated at `:502`, the legacy pair
 it replaces at `:515-519`) calls `openShellMenu` with `ShellMenuNode::Osc0FileSelector`, which
-resolves to `menu::node_id(menu::nodes::file0_selector)` (`gui/ui/shell_menu_entry.cpp:95`). That is
+resolves to `menu::node_id(menu::nodes::file0_selector)` (`gui/ui/shell_menu_entry.cpp:97`). That is
 `MenuScene::on_enter`'s `SceneId::arg` **deep link**, not a descent and not a shortcut pad. It was
 already mapped when this correction was written and it did not work — the deep link skipped the
 range gate legacy runs on the same route, so the browser refused to open; F3 task 4 fixed that and
@@ -723,7 +723,7 @@ the distinct-instance count of the whole shipped tree is **1** and the rule coul
 many custom nodes a table added — it would have begun counting only once E2 replaced the
 placeholders one by one, i.e. it was switched off for exactly the phase it existed to police.
 Meanwhile `src/scenes/README.md` told the next contributor the cap was enforced. The rule now counts
-**nodes that point at a custom item** (`validate.h`'s `kMaxCustomNodes`, `validate.cpp:343`). The
+**nodes that point at a custom item** (`validate.h`'s `kMaxCustomNodes`, `validate.cpp:379`). The
 real number: E1's tree had **59** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, and the
 cap was set to **60**, one above reality — a ratchet against the escape hatch growing unnoticed, not
 spec E's number and not a claim that ten was ever reachable for a faithful port of legacy's tree.
@@ -1063,7 +1063,7 @@ it no longer does.
   five-class `gui/ui/rename/` directory: the four subclasses differ only in `getCurrentName()`,
   `trySetName()` and `allowEmpty()`/`canRename()`, so those become a `rename::Target` table indexed
   by `SceneId::arg`. **Three** targets, not four — `renameMidiCCUI`'s only opener is
-  `gui/views/automation_view.cpp:1663` and no `Node` reaches it, so it is deliberately absent rather
+  `gui/views/automation_view.cpp:1664` and no `Node` reaches it, so it is deliberately absent rather
   than shipped untested. Rejection is popup-and-stay-open via `Action::Kind::Popup`, matching legacy,
   because no `Severity::Warn` path exists (notify's raise helpers take no severity).
 * **`context_menu::ContextMenuScene` (tasks 6, 7, 11b)**, `SceneKind::FirstApp + 2`. §6's sketch is
@@ -1173,7 +1173,7 @@ carries the same table with pointers into the code.
 |---|---|---|
 | ~~**The file/sample family** — 11 nodes still `nodes::kPending`~~ **CLOSED by E3 tasks 6 and 7.** (Accurate as E2 history: at the close of E2 these eleven were still placeholders. `kPendingCustomNodes` is now **0** — see the E3 amendments in §11.) | needed the card; every other item family was reachable without it | was the largest remaining group. `validate.h`'s `kPendingCustomNodes` names the exact set, pinned by node identity so closing it was a deliberate spec change |
 | ~~**`midiDeviceMenu`'s subtree** (`gui/ui/menus.cpp:1444-1453`)~~ — **CLOSED by E3 task 8** (`menu/nodes/midi_device.{h,cpp}`): eight nodes, the four-hook per-cable family over `MenuContext::midi_cable`, the three-item MPE arm with its two onward chains, and `midi_devices`' own `select_chain`. | was size, and only size. Tasks 3 and 9 each declared a *single* chain-target page; this was several times that | landed as ~8 nodes, 3 bespoke, exactly as estimated. `whichDirection`/`whichZone` went to `MenuState` (not `MenuContext`) by the mapping rule the patch-cable trio set: a `soundEditor.current*` member is context, a menu-item member another page reads is scene state |
-| ~~**Splitting session from arranger**~~ — **CLOSED by E3 task 9**, and the costing was wrong twice: it needed **two** bools, not three (nothing distinguishes the arranger from song automation, because no legacy `isRelevant` does), and the call sites were **85**, not ~62. See §15.6. | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1782 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:265` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
+| ~~**Splitting session from arranger**~~ — **CLOSED by E3 task 9**, and the costing was wrong twice: it needed **two** bools, not three (nothing distinguishes the arranger from song automation, because no legacy `isRelevant` does), and the call sites were **85**, not ~62. See §15.6. | `MenuContext` cannot tell them apart, and a predicate meaning "either" would be a tautology today (the song root is unreachable from clip-minder contexts) that moved the committed JSON for nothing. It is really a **three-way** conflation: `sound_editor.cpp:1762-1782 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView` | ~half a day: one `context_for` parameter, one `MenuContext` field, one predicate, an audit of 9 `is_song_view` reads where `bindings.cpp:266` must keep meaning "either", ~62 positional-bool call-site updates, plus a JSON regen since the nodes gain `available_when`. No architectural ripple |
 | **Mod-matrix pad blinking** — `PatchCables::blinkShortcuts`/`blinkShortcutsSoon`/`timerCallback`, the three `shouldBlinkPatchingSourceShortcut` overrides and `patchingSourceShortcutPress` | `MenuScene::render_grid` owns one blink cycle keyed off the focused *node*; consulting the focused `CustomItem` needs a hook on `CustomItem` and a second blink source | same shape of change as routing MIDI to `MenuScene::learn_*` |
 | ~~**The row-scrolling path is untested, not missing**~~ — **CLOSED by E3 task 10**: a real focused over-long node driven through `MenuScene` itself, mutation-checked against `list.cpp`'s selected-row draw. | every over-long row in the recorded goldens is *unselected*, which legacy truncates too. (Legacy does **not** side-scroll long *titles*: `draw_screen_title` is a plain clipped `draw_string`, so a truncated title is faithful) | one level-2 script parking the cursor on a long row across quiet ticks |
 | ~~**Seven self-duplicate goldens**~~ — **CLOSED by E3 task 10**, with a correction: only **five** are duplicates of both halves. `menu_int`'s two match `idle`'s `.pbm` but not its `.state`, so they did record a fact (the shortcut blink appearing) that the kept `after_gold_turn` also carries. Original row: — `menu_int/{after_select_press,after_select_turn}`, `menu_enum/{after_select_press,after_gold_turn}`, `menu_toggle/{after_select_press,after_gold_turn}`, `menu_shortcut/after_select_turn` each equal their own `idle` | pre-existing; each is named for an event it does not show | cleanup. E2 task 9 deleted three of exactly this kind, so leaving seven is an inconsistency, not a policy |
@@ -1356,7 +1356,7 @@ it, and `relevance::is_session_view` guards both nodes.
 Two corrections to that row's other numbers, recorded because they are the kind an estimate gets
 wrong in the same direction every time: the positional-bool call sites were **85**, not the ~62
 estimated; and of the nine `is_song_view` occurrences the row asked to audit, only **three** are
-behavioural reads (the fourth the row named, `bindings.cpp:265`, is a comment) and all three
+behavioural reads (the fourth the row named, `bindings.cpp:266`, is a comment) and all three
 correctly stay wide, because legacy's `getCurrentModelStack` is verbatim the wide expression — so
 narrowing them would have *been* the regression. The gain is real: `tables_3_spec`'s
 `relevance_needs_ui` exclusion is gone, and both nodes now compare against legacy directly.
@@ -1462,7 +1462,7 @@ that moved code.
 `finish_recording()` reaches `AudioEngine::discardRecorder`, which frees. Legacy states the hazard on
 its *other* caller, `AudioRecorder::slowRoutine` (`gui/ui/audio_recorder.cpp:168-176`): a recorder
 suspended part-way through its own `cardRoutine()` is left running on freed memory and then freed a
-second time. That caller is registered `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:572-574`)
+second time. That caller is registered `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:574-576`)
 **and** carries the explicit `isSDRoutineActive() || deluge::sync::sd_busy()` test; `after_render()`
 runs from `Shell::tick` and has neither.
 
@@ -1630,7 +1630,7 @@ the input top, so a scene that genuinely regained the input top got nothing. Now
   per site, so an assertion about one arm cannot be satisfied by another.
 * **Scene kinds are `FirstApp + 6`** (param popup), **`+ 7`** (count-in), **`+ 8`** (slicer),
   **`+ 9`** (audio clip); `ScreensaverScene` registers at the shell's own `SceneKind::Screensaver`,
-  because the service pushes it by name and `shell/shell.cpp:176-183` deliberately leaves that slot alone.
+  because the service pushes it by name and `shell/shell.cpp:178-185` deliberately leaves that slot alone.
 * **`SlicerScene`'s five predicates**, which took two corrections: `is_root()` false,
   `is_grid_overlay()` true, `occludes_grid()` **false**, `oled_transparent(Main)` true,
   `dims_grid()` **overridden** to false. The `occludes_grid()` ruling was `true` twice before it was

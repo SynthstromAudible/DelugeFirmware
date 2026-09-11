@@ -60,7 +60,7 @@ public:
 	/// `Browser::getCurrentFileItem()` for itself, which is what `getCurrentFilePath()` (`:538-549`)
 	/// composes. Browsing normally leaves both set, so `enterKeyPress` never has to. The ported
 	/// `BrowserScene` hands its dispatcher a *path* and has already closed — and `BrowserScene::on_exit`
-	/// empties the shared catalogue (`scenes/browser/browser_scene.cpp:401`, via
+	/// empties the shared catalogue (`scenes/browser/browser_scene.cpp:402`, via
 	/// `FileCatalogue::emptyFileItems`) exactly as `Browser::close()` does — so the state legacy would
 	/// have left behind has to be rebuilt from the path before the claim can read it.
 	///

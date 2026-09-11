@@ -38,7 +38,7 @@
 ///     `oled.h:156`), which takes the `else` branch (`oled.cpp:640-643`) and *cancels* any pending
 ///     timeout.
 ///     `grep -rn blinkSpeed src/deluge` turns up no reader anywhere in the tree, and `alignRight`'s
-///     only other use is an unrelated local in `instrument_clip_view.cpp:7009`.
+///     only other use is an unrelated local in `instrument_clip_view.cpp:7111`.
 ///
 ///   So on the shipped OLED-only build the digit is centred, not right-aligned, and it never
 ///   blinks. This scene reproduces the real, observable behaviour -- centred, static -- not the

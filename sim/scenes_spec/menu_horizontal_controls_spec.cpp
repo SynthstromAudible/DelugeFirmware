@@ -365,7 +365,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// below).
 		//
 		// **Must be read right here, before any further tick.** `Shell::tick` drains
-		// `notify::notices()` at the *start* of the next tick (`shell.cpp:327`), so an extra
+		// `notify::notices()` at the *start* of the next tick (`shell.cpp:330`), so an extra
 		// `r.shell.tick(220)` here (as an earlier version of this test had) would silently eat any
 		// notice raised at `press()`'s own internal tick before `last_notice()` ever read it --
 		// making this assertion pass whether or not a banner was actually raised. Verified by
@@ -393,7 +393,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		// `press()` already settles with its own internal tick; reading the notice after a
 		// SECOND tick would drain it first (`Shell::tick` drains `notify::notices()` at the start
-		// of the next tick, `shell.cpp:327`), so it must be read right after `press()` returns.
+		// of the next tick, `shell.cpp:330`), so it must be read right after `press()` returns.
 		(void)last_notice(); // drain
 		r.press(kKitX, kKitY, 200); // new focus: notifies, does not flip
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
@@ -534,7 +534,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		r.turn(1, 100); // a select turn on ENUM_COL (column 0) notifies unconditionally
 		r.shell.tick(110); // pump_input raises the notice (queued, not yet drained --
-		                   // `Shell::tick` step 2 drains what a PRIOR tick queued, `shell.cpp:327`)
+		                   // `Shell::tick` step 2 drains what a PRIOR tick queued, `shell.cpp:330`)
 		r.shell.tick(120); // this tick's step 2 drains it, pushing `SceneKind::Notification` (no sink)
 		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_true();
 		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_false();

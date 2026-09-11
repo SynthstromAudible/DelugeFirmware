@@ -86,7 +86,7 @@
 /// indicator LEDs from the same phase. Here it is `tick()` + `next_timer()` + `flash_on()`, with
 /// `timer_repaints()` claiming **the grid only**: every reader of `midiLearnFlashOn` in the tree
 /// is a pad renderer (`gui/views/session_view.cpp:1548`, `:2550`, `:3237`,
-/// `gui/views/instrument_clip_view.cpp:5992`, `:6036`, `gui/views/arranger_view.cpp:675`,
+/// `gui/views/instrument_clip_view.cpp:6080`, `:6124`, `gui/views/arranger_view.cpp:675`,
 /// `gui/views/view.cpp:2636`), and arming an OLED surface that never changes is an unconditional
 /// blit at 60 ms forever (`Scene::timer_repaints`'s own account; shell spec §15.1, §15.3).
 ///
@@ -113,7 +113,7 @@
 ///     `->addParamCollection(...)` and calls `ExpressionParamSet::clearValues(modelStack)`.
 ///     `model/model_stack.h` is confined to `menu/context.cpp` and `menu/bindings.cpp`
 ///     (`scenes-model-stack-outside-context`), and the one seam out of that confinement,
-///     `menu::model_stack_for(const MenuContext&, void*)` (`scenes/menu/context.h:212`), builds a
+///     `menu::model_stack_for(const MenuContext&, void*)` (`scenes/menu/context.h:218`), builds a
 ///     `ModelStackWithThreeMainThings` from a *menu* context -- not this stack, and not from an
 ///     `Instrument` alone. Counted by `unported_calls(UnportedCall::ClearMonoExpression)` rather
 ///     than silently dropped, following `GlobalControls::unported_opens`'s precedent: the counter
@@ -333,7 +333,7 @@ public:
 	///        `learnedThing` (`gui/views/view.h:108`, `:113`).
 	///
 	/// Read by the scenes that paint a held pad brighter (`gui/views/session_view.cpp:2931-2943`,
-	/// `gui/views/instrument_clip_view.cpp:6055-6059`), which compare both the kind and the
+	/// `gui/views/instrument_clip_view.cpp:6143-6147`), which compare both the kind and the
 	/// `LearnedMIDI` address.
 	/// @return The target, `kind == NONE` when nothing is held.
 	const LearnTarget& pressed() const { return pressed_; }

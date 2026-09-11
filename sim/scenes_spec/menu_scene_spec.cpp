@@ -67,7 +67,7 @@ using deluge::ui::shell::SurfaceRole;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:91`) -- declared bare and at
+// The real global `battery_level`'s `CustomItem` reads (`deluge.cpp:93`) -- declared bare and at
 // global scope, exactly as `settings.cpp` and `sound_editor.cpp:1458` both do (a declaration
 // inside this file's own anonymous namespace below would name a different, unlinked variable).
 extern uint16_t batteryMV;
@@ -1017,7 +1017,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// shortcut-pad jump, which re-enters through `Action::Kind::Replace` carrying the same
 		// `arg`. Measured at level 3 before the fix: the ported file selector's browser refused to
 		// open on a fresh synth clip -- `browser::sample_can` wants a non-null `AudioFileHolder`
-		// (`scenes/browser/browser_scene.cpp:151-163`) and `ctx.range` was still null -- while the
+		// (`scenes/browser/browser_scene.cpp:152-164`) and `ctx.range` was still null -- while the
 		// toggle-OFF leg opened it. `tests/ui-scripts/app/menu.txt`'s `file-selector` snapshot is
 		// that measurement; this is the same claim at fixture level.
 		select_language();
@@ -1261,7 +1261,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &toggle_leaf).to_be_true();
 
-		// `values.h:169`: a select press reports `entered` and leaves `changed` false.
+		// `values.h:202-206`: a select press reports `entered` and leaves `changed` false.
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
 		r.shell.tick(140);
@@ -1802,7 +1802,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			expect(depth_of()).to_equal(1);
 			// Read the notice off the same tick that raised it: `Shell::tick` drains
 			// `notify::notices()` into its own `NoticesController` at the *start* of the next tick
-			// (`shell.cpp:327`), so a second tick here (the button's release) would consume it
+			// (`shell.cpp:330`), so a second tick here (the button's release) would consume it
 			// before this can.
 			const deluge::notify::Notice notice = last_raised_notice();
 			expect(notice.kind == deluge::notify::Notice::Kind::Notification).to_be_true();
@@ -1880,7 +1880,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			// `after_render` moves the path only *after* the render that entered it, so the panel
 			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
-			// the next one (`descend_to`'s `st_.path[st_.depth] = &child`, `menu_scene.cpp:1458`;
+			// the next one (`descend_to`'s `st_.path[st_.depth] = &child`, `menu_scene.cpp:1509`;
 			// `open_lpf` above needs the identical extra tick for the same reason).
 			r.shell.tick(120);
 			expect_golden(self, "../ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));

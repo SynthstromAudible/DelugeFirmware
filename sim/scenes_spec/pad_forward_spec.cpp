@@ -301,7 +301,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("under the note editor over the clip view, sends a main-grid pad to its edit action and a "
 	   "sidebar pad to Exit", _ {
-		// The edit action's own `if (on)` is the handler's (`instrument_clip_view.cpp:3626`). The arm
+		// The edit action's own `if (on)` is the handler's (`instrument_clip_view.cpp:3644`). The arm
 		// itself, `sound_editor.cpp:1481-1490`, tests neither `on` nor `currentUIMode`, and its exit is
 		// unconditional -- so a release and a UI mode take the same arms, which is what separates this
 		// Exit from the tail's (`:1520`), and the audition column is the note arm's, not `:1499`'s.
@@ -413,7 +413,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	it("the real performer closes the menu when the note-row editor's handler returns false, and "
 	   "only then", _ {
 		// Both answers are the recorder's, because the real handler returns true on every path
-		// (`instrument_clip_view.cpp:3796-3813`) -- but the false arm is legacy's, kept rather than
+		// (`instrument_clip_view.cpp:3850-3867`) -- but the false arm is legacy's, kept rather than
 		// folded away: `sound_editor.cpp:1493-1496`, `bool handled = ...; if (!handled) {
 		// exitCompletely(); }`.
 		deluge::gui::ui::setPadForwardPerform(nullptr);

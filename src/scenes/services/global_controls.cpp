@@ -256,7 +256,7 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 		//          so SYNC_SCALING under the Fill setting toggles fill mode even in the two cases
 		//          legacy redirects it to a note-fill adjustment. Recorded in the E4 task-4
 		//          report's owed list.
-		song_->changeFillMode(on); // `:356`
+		song_->changeFillMode(on); // `:357`
 		return;
 	}
 
@@ -656,7 +656,7 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	// minder and legacy has CLIP_VIEW lit -- `SoundEditor::setLedStates` (`gui/ui/sound_editor.cpp:
 	// 340-354`) clears SAVE, SYNTH, KIT, MIDI, CV, CROSS_SCREEN and SCALE and never touches
 	// CLIP_VIEW, so opening the legacy menu leaves it on. `MenuScene::leds` ports exactly that list
-	// (`scenes/menu/menu_scene.cpp:1123-1126`) and so declares no CLIP_VIEW to outrank this line --
+	// (`scenes/menu/menu_scene.cpp:1316-1371`) and so declares no CLIP_VIEW to outrank this line --
 	// and this line then puts the LED out. Measured on `tests/ui-scripts/app/menu.txt`: every
 	// toggle-off menu frame has `led Clip on` and every toggle-on one does not, while `boot` and
 	// `menu-exit` agree.

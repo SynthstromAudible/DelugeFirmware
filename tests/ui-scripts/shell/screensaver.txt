@@ -5,7 +5,7 @@
 # stops touching anything. `shell::Screensaver::tick` arms an idle deadline on its first tick and
 # pushes `SceneKind::Screensaver` when the deadline passes (`shell/screensaver.cpp`), and
 # `scenes::scene_registry()` is what registers a real scene at that kind -- the shell registers none
-# (`shell/shell.cpp:177-184`). The spec sets `ShellConfig::screensaver_idle_ms = 200`;
+# (`shell/shell.cpp:179-187`). The spec sets `ShellConfig::screensaver_idle_ms = 200`;
 # **`RunOptions` had no way to set it before this task**, which is why no level-2 script has ever
 # had a screensaver in it (`shell/screensaver.h`: "`idle_ms == 0` disables the service outright").
 #
@@ -26,7 +26,7 @@
 700   pad 15 3 down 64
 720   pad 15 3 up
 800   snapshot after_wake        # `Screensaver::note_activity` runs BEFORE the event is lowered
-                                 # (`shell/shell.cpp:246-252`), so the pad both dismissed the
+                                 # (`shell/shell.cpp:269-275`), so the pad both dismissed the
                                  # screensaver AND reached the clip view under it -- which raised
                                  # the end marker on column 15. That red column is the evidence the
                                  # waking press was not swallowed

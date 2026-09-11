@@ -51,7 +51,7 @@ namespace deluge::gui::ui {
 ///    `clearMainImage()` across `src/deluge`, less its declaration and its definition), including
 ///    `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp:351-371`), which clears it immediately before
 ///    asking each open UI to re-render. The shell is retained-mode: `Shell::flush`
-///    (`shell/shell.cpp:920-1049`) blits only a surface whose `blit_pending` a repaint raised. An
+///    (`shell/shell.cpp:923-1052`) blits only a surface whose `blit_pending` a repaint raised. An
 ///    aliased buffer that legacy zeroed between two shell renders would go blank with nothing to
 ///    tell the shell to paint it again.
 ///
@@ -65,7 +65,7 @@ public:
 	///
 	/// **This is a per-tick cost, not a per-second one, and deliberately stated that way.** The OLED
 	/// path has no diff -- `Shell::flush` blits a surface unconditionally once it has rendered, which
-	/// `shell/shell.cpp:453-460` records as the reason the OLED half may not over-arm the way the
+	/// `shell/shell.cpp:456-463` records as the reason the OLED half may not over-arm the way the
 	/// grid half may. So the cost is 768 B on every tick in which the panel re-rendered, and the
 	/// only ceiling is the host's tick rate: several `next_timer()` overrides return 0 ("as soon as
 	/// possible"), so there is no millisecond floor to quote. The fastest *fixed* cadence in the
@@ -95,7 +95,7 @@ public:
 	/// (`src/scenes/audio_clip/audio_clip_scene.cpp:1203`) with `{.oled = false, .grid = true}`
 	/// (`audio_clip_scene.h:477`), so the grid gate arms on **every tick** and there is no
 	/// millisecond ceiling to name. What makes that free is that `Shell::flush` diffs each pair
-	/// against `last_sent` before calling `send_columns` at all (`shell/shell.cpp:977-993`): a tick
+	/// against `last_sent` before calling `send_columns` at all (`shell/shell.cpp:980-996`): a tick
 	/// in which no pad changed colour costs zero bytes however fast the ticks come, and the 432 B
 	/// above is the cost of a *full repaint*, not of a tick. The real figure is 48 B x (pairs whose
 	/// colours actually changed).

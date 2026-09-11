@@ -722,9 +722,9 @@ Result AudioClipScene::nav_horizontal_encoder_action(int32_t offset, const UiCon
 	// `InputLowering::set_sd_busy`'s, and the other two guard a re-entrancy legacy's own comment at
 	// `:141-142` doubts, which an immediate-mode scene called once per event cannot have.
 	//
-	// `:158`'s `inNoteRowEditor` is `getCurrentUI() == &soundEditor` -- a `scenes-no-root-ui` read,
-	// and false for this view in legacy too unless the sound editor is open over it. Constant false
-	// here, which is what makes both `|| inNoteRowEditor` disjuncts below drop out.
+	// `:158`'s `inNoteRowEditor` is `deluge::gui::ui::noteRowEditorOpen()` -- a `gui/ui` read this
+	// layer may not make, and false for this view in legacy too unless a note-row editor is open over
+	// it. Constant false here, which is what makes both `|| inNoteRowEditor` disjuncts below drop out.
 
 	if (ui_mode_active(kUiModeHoldingHorizontalEncoder)) { // `:161`
 		if (ui_mode_ == kUiModeHoldingHorizontalEncoder) { // `:163`, exclusively
@@ -1144,7 +1144,7 @@ void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
 void AudioClipScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 	// `clipNeedsReRendering` (`audio_clip_view.cpp:725-736`), `sampleNeedsReRendering` (`:738-742`)
 	// and `playbackEnded` (`:703-705`). Two of the three are pure `uiNeedsRendering` calls, which
-	// `Shell::apply_dirty` (`shell/shell.cpp:520-545`) already does for these facts; what is left is
+	// `Shell::apply_dirty` (`shell/shell.cpp:543-568`) already does for these facts; what is left is
 	// the scroll-back-left legacy hides inside `clipNeedsReRendering`.
 	if (!dirty.has(deluge::notify::Dirty::ClipContent) || clip_ == nullptr || song_ == nullptr) {
 		return;

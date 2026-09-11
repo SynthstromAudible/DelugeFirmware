@@ -9,7 +9,7 @@ behaves like legacy's when a pad is pressed under it.
 
 ## 1. Why this exists
 
-`ShellHostUI::padAction` (`src/deluge/gui/ui/shell_host_ui.cpp:778`) feeds every pad to the shell and
+`ShellHostUI::padAction` (`src/deluge/gui/ui/shell_host_ui.cpp:787`) feeds every pad to the shell and
 returns `DEALT_WITH` unconditionally. Legacy's equivalent, `SoundEditor::padAction`
 (`src/deluge/gui/ui/sound_editor.cpp:1460`), does four things, and the port does one of them.
 
@@ -28,7 +28,7 @@ script never presses a grid pad while a menu is open (§6.3).
 
 | # | behaviour | legacy | ported today |
 |---|---|---|---|
-| 1 | **Shortcut pads.** Tried first, and **skipped entirely** in settings, note editor and note-row editor | `:1468` `potentialShortcutPadAction(x, y, on)` | **yes** — `src/scenes/menu/menu_scene.cpp:1631`, shift-gated |
+| 1 | **Shortcut pads.** Tried first, and **skipped entirely** in settings, note editor and note-row editor | `:1468` `potentialShortcutPadAction(x, y, on)` | **yes** — `src/scenes/menu/menu_scene.cpp:2004`, shift-gated |
 | 2 | **Six root-forwarding paths**, by `getRootUI()` identity | see below | **no** |
 | 3 | **Exit on any unclaimed pad**, when `currentUIMode == UI_MODE_NONE && on` | `:1545` `exitCompletely()` | **no** |
 | 4 | **Firmware-version diagnostics**, `y == 7` on `&firmwareVersionMenu` | `:1521-1543`, `x == 15` SRAM, `x == 14` voices, `x == 13` PIC version | **no** |
@@ -46,7 +46,7 @@ The six forwarding paths (behaviour 2):
 | `automationView` | `SoundEditor::handleAutomationViewPadAction` (`:1551`) | `:1508` |
 | `performanceView` | `performanceView.padAction` | `:1516` |
 
-**Of the six, exactly one is recorded.** `shell_host_ui.cpp:1008-1009` notes of the keyboard screen
+**Of the six, exactly one is recorded.** `shell_host_ui.cpp:1062-1063` notes of the keyboard screen
 that forwarding is *"what this guest does **not** do."* That file names `automationView`,
 `performanceView`, `instrumentClipView` and `audition` **zero times**.
 
@@ -56,7 +56,7 @@ that forwarding is *"what this guest does **not** do."* That file names `automat
 all eight.** Open the Song menu over the session view and press any grid pad: legacy falls past
 every forwarding arm (`sessionView` matches none) to the tail at `:1545` and **closes the menu**.
 Under the guest the pad reaches `MenuScene`, which ignores anything without shift
-(`menu_scene.cpp:1631`), and the menu stays open. Dismissing a menu with a pad — a hand already on
+(`menu_scene.cpp:2004`), and the menu stays open. Dismissing a menu with a pad — a hand already on
 the grid — is an ordinary gesture, not an edge case.
 
 **Site 4 is the sole whole-site exclusion.** `performanceView` (`views/performance_view.cpp:892`)
@@ -77,7 +77,7 @@ unreachable one.
 At the other six sites a plain main-grid press falls to the tail **unconditionally** at
 `sessionView` (site 2), `arrangerView` (site 3), `audioClipView` (site 8,
 `views/audio_clip_view.cpp:415`) and `instrumentClipView` (site 5, plus site 6's matching fan-out
-arm above); at `automationView` (site 7, `views/automation_view.cpp:1617`, plus site 6's matching
+arm above); at `automationView` (site 7, `views/automation_view.cpp:1618`, plus site 6's matching
 fan-out arm above) it falls to the tail only **conditionally** — when the pad is on the main grid and
 the ported menu is not showing the very param automation view is editing
 (`menuShowsAutomationParam()`). That is six sites in total (site 6 counted once, over
@@ -94,7 +94,7 @@ settles the second open question below: behaviour 3 ships in this plan, not a se
 **Four of behaviour 2's six paths are reachable today — not one.** The eight gated entry sites are
 `views/view.cpp:471`, `views/session_view.cpp:563`, `views/arranger_view.cpp:340`,
 `views/performance_view.cpp:892`, `views/instrument_clip_view.cpp:507`,
-`views/audio_clip_view.cpp:415`, `views/automation_view.cpp:1617` and
+`views/audio_clip_view.cpp:415`, `views/automation_view.cpp:1618` and
 `model/clip/instrument_clip_minder.cpp:408`. **The last of those is the one that widens the set**:
 `InstrumentClipMinder::buttonAction` (`:297`) is inherited by three root views, and all three call
 it — `keyboard_screen.cpp:585`, `automation_view.cpp:1209`, `instrument_clip_view.cpp:867`. So a
@@ -148,11 +148,11 @@ the gate is three conditions (`:1169-1186`):
 
 The port takes the first two and shift; the auditioning half is a `currentUIMode` read `src/scenes`
 may not make, and `MenuScene` already drops it with that reason recorded
-(`menu_scene.cpp:1627-1630`). So `ShortcutsOnly` means the host feeds the scene when
+(`menu_scene.cpp:2000-2003`). So `ShortcutsOnly` means the host feeds the scene when
 `on && x < kDisplayWidth && shift`, and forwards otherwise.
 
 **The two halves agree where it matters.** With shift held on a main-grid pad that maps to no node,
-`MenuScene::handle` returns `Result::unhandled()` (`menu_scene.cpp:1664`) and the pad is swallowed —
+`MenuScene::handle` returns `Result::unhandled()` (`menu_scene.cpp:2037`) and the pad is swallowed —
 and legacy swallows it too, via that unconditional `DEALT_WITH`. The coarse declaration is exact
 here, not an approximation.
 
@@ -205,7 +205,7 @@ argues at length why it is `stack().remove(SceneKind::FirstApp)` and not
 `soundEditor.exitCompletely()` — the latter would run `closeUI` on a UI that is not on the stack and
 read `uiNavigationHierarchy[-1]`. The tail calls that function. It must not also call `closeGuest()`:
 `ShellHostUI::timerCallback` closes the guest itself once the stack is empty
-(`shell_host_ui.cpp:555-558`), and doing both closes twice.
+(`shell_host_ui.cpp:556-559`), and doing both closes twice.
 
 ### 3.4 The automation arm cannot be a bare forward
 
@@ -221,7 +221,7 @@ This is F3 task 4's defect exactly: a legacy helper reading `SoundEditor` state 
 populates. The fix there was to supply the state; here it must be to **port the question**, because
 the question is "is the menu showing the same param automation view is editing" and under the toggle
 the menu is `MenuScene`, not `SoundEditor`. The answer comes from `MenuScene::focused()`'s
-`bind.param` (`scenes/menu/node.h:130-131`, `:216-217`) against
+`bind.param` (`scenes/menu/node.h:130-131`, `:279-280`) against
 `automationView.onArrangerView ? currentSong->lastSelectedParam* : clip->lastSelectedParam*`.
 
 The ported predicate also gets the null-clip guard that migration §10.5 banked for legacy's copy

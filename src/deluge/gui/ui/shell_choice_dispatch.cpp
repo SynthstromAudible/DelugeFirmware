@@ -64,7 +64,7 @@ SampleClaimDispatch claimDispatch = &deluge::storage::Owner::run_or_inline;
 /// set them because the user browsed there; this dispatcher is handed a `BrowserChoice::path`
 /// (`scenes/browser/browser_scene.h:251-256`) by a scene that has **already closed**, and
 /// `BrowserScene::on_exit` empties the shared catalogue on the way out
-/// (`scenes/browser/browser_scene.cpp:401`) exactly as `Browser::close()` does. So the state legacy
+/// (`scenes/browser/browser_scene.cpp:402`) exactly as `Browser::close()` does. So the state legacy
 /// would have left behind is rebuilt from the path first, by
 /// `SampleBrowser::selectFileForClaim` -- a legacy-side accessor, argued at its own declaration
 /// (`gui/ui/browser/sample_browser.h:56-99`), because `fileIndexSelected` and
@@ -77,7 +77,7 @@ SampleClaimDispatch claimDispatch = &deluge::storage::Owner::run_or_inline;
 /// Because on this BSP `Owner::run_or_inline` runs the op on the caller's stack
 /// (`storage/owner.h:28-30`, and again at `:40`), and every example that presses a real file gets
 /// here: `BrowserScene::enter` always appends a non-empty `FileItem::filename`
-/// (`scenes/browser/browser_scene.cpp:879-883`), so `sampleClaimTargetFor` always engages. Without a
+/// (`scenes/browser/browser_scene.cpp:880-884`), so `sampleClaimTargetFor` always engages. Without a
 /// settable seam, `sim/scenes_spec/browser_choice_spec.cpp`'s guest-tick example would run a real
 /// `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:814`) inside its assertion. See
 /// `setSampleClaimDispatch`.
@@ -104,7 +104,7 @@ SampleClaimDispatch claimDispatch = &deluge::storage::Owner::run_or_inline;
 ///              `STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT` when it does not (`:381-382`).
 ///              `Descriptor::accept` carries no shift bit (`scenes/browser/browser_scene.h:239`)
 ///              and `sample_accept` answers `Defer` unconditionally
-///              (`scenes/browser/browser_scene.cpp:209-218`), so **shift+select on a file loads the
+///              (`scenes/browser/browser_scene.cpp:210-219`), so **shift+select on a file loads the
 ///              sample instead of opening the slicer**. `SlicerScene`
 ///              (`scenes/slicing/slicer_scene.h`) exists, so this is a missing *route*, not a
 ///              missing port. It cannot be recovered from here either: this runs a tick after the
@@ -209,7 +209,7 @@ std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
 	}
 	// A trailing separator names a directory, not a file. `BrowserScene::enter` cannot build one --
 	// it appends `item->filename`, which a `FileItem` never has empty
-	// (`scenes/browser/browser_scene.cpp:879-883`) -- so this is defence in depth against a caller
+	// (`scenes/browser/browser_scene.cpp:880-884`) -- so this is defence in depth against a caller
 	// that is not the scene, in the same spirit as `openPerformanceView`'s `DISABLED` arm
 	// (`gui/ui/shell_action_dispatch.cpp:86-88`) and unreachable for the same kind of reason.
 	const std::string_view name = path.substr(slash + 1);
@@ -221,7 +221,7 @@ std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
 
 void dispatchShellChoices() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_choice()` moves the
-	// choice out and resets the member in the same call (`scenes/browser/browser_scene.cpp:416-420`).
+	// choice out and resets the member in the same call (`scenes/browser/browser_scene.cpp:417-421`).
 	// So an early return above this line would not be "nothing to do", it would be "the choice stays
 	// in the outbox until something else asks", which is the stale delivery the header describes.
 	const std::optional<BrowserChoice> choice = browser_scene().take_choice();
@@ -231,7 +231,7 @@ void dispatchShellChoices() {
 
 	switch (choice->id) {
 	case BrowserId::Sample:
-		// The only descriptor that defers (`scenes/browser/browser_scene.cpp:209-218`). The split is
+		// The only descriptor that defers (`scenes/browser/browser_scene.cpp:210-219`). The split is
 		// made before anything acts, so `sim/scenes_spec/browser_choice_spec.cpp` can pin the
 		// decision over every path shape without the arm below it having to be reachable.
 		if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice->path)) {
@@ -248,8 +248,8 @@ void dispatchShellChoices() {
 
 	case BrowserId::Count:
 		// Not a browser -- it is the table's size (`scenes/browser/browser_scene.h:118`). Unreachable:
-		// `BrowserScene::enter` files `id_` (`browser_scene.cpp:896`), and `BrowserScene::on_enter`
-		// refuses the scene outright before assigning it (`:356-360`, the guard at `:357-359`) rather
+		// `BrowserScene::enter` files `id_` (`browser_scene.cpp:897`), and `BrowserScene::on_enter`
+		// refuses the scene outright before assigning it (`:357-361`, the guard at `:358-360`) rather
 		// than letting an out-of-range arg through. Spelled out because `-Werror=switch` counts it, and the
 		// alternative is the `default:` the header rules out.
 		break;

@@ -341,7 +341,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
 		in.begin_tick(0);
 		in.on_board_event(button_ev(8, 0, true), 0);      // shift down
-		in.on_board_event(pad_ev(3, 5, 90), 10);          // deluge.cpp:241-243
+		in.on_board_event(pad_ev(3, 5, 90), 10);          // deluge.cpp:244-247
 		in.on_board_event(button_ev(8, 0, false), 20);    // released well inside hold_time_ms
 		expect(in.sticky()).to_be_false();
 		expect(in.shift()).to_be_false();

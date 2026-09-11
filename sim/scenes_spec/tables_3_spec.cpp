@@ -991,7 +991,7 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 	// Both global queues first. An undrained `Kind::Text` notice -- a `CANT_LEARN_PC` refusal from a
 	// previous iteration, or a stray fact from an earlier describe block in this same process --
 	// becomes a `PopupScene` on this Rig's very first tick, which is not `oled_transparent` for
-	// `Main` and takes the input top with it (`shell/notices.cpp:118-120`). The select press below
+	// `Main` and takes the input top with it (`shell/notices.cpp:124-126`). The select press below
 	// would then never reach the menu, and the descent would silently not happen.
 	// `tables_3_reset_items` and `tables_3_pixels` drain for exactly this reason.
 	deluge::notify::dirty().drain();

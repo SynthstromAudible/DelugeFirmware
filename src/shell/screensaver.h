@@ -33,7 +33,7 @@ namespace deluge::ui::shell {
 ///       `push_refused() == 0` end to end through a real `Shell`. The behaviour above is kept
 ///       exactly as it was, because it is still the correct answer for a **profile or spec that
 ///       registers nothing** at that slot: the `SceneRegistry` is the application's, the shell does
-///       not fill this kind in for it (`shell.cpp:177-184`), and several shell specs build a
+///       not fill this kind in for it (`shell.cpp:179-187`), and several shell specs build a
 ///       registry with the slot empty on purpose. `push_refused()` is therefore now a real
 ///       diagnostic for a wiring mistake rather than a description of the default.
 class Screensaver final : public Service {
@@ -58,7 +58,7 @@ public:
 	/// `Shell::on_board_event`/`on_encoder_edges` call this before lowering the event, never
 	/// instead of it: legacy's `dispatchInputEvent` calls `noteActivity()` first and then
 	/// unconditionally continues into `padAction`/`buttonAction` for the very same event
-	/// (`deluge.cpp:240,254`; the encoder path is the same shape, `hid/encoder_input.cpp:208`), so
+	/// (`deluge.cpp:242,256`; the encoder path is the same shape, `hid/encoder_input.cpp:208`), so
 	/// the press that wakes the screensaver is never swallowed by waking it.
 	/// @param now_ms The wall clock the input arrived at.
 	void note_activity(uint32_t now_ms);

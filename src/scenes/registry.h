@@ -4,12 +4,12 @@
 ///
 /// One `SceneRegistry` for the whole application. The shell installs its own
 /// `Popup`/`Console`/`Working`/`Loading`/`Notification` instances over whatever the registry reported
-/// (`shell/shell.h:133-136`), so an entry in one of those five slots is simply ignored.
+/// (`shell/shell.h:133-137`), so an entry in one of those five slots is simply ignored.
 ///
 /// `SceneKind::Screensaver` is the exception among the shell's own kinds, and the one entry here
 /// that is not an application kind: the shell owns no screensaver *scene* -- `shell::Screensaver`
 /// is a `Service` that pushes the kind by name (`shell/screensaver.cpp:60`) and deliberately does
-/// not overwrite the slot (`shell/shell.cpp:177-184`) -- so `overlay::screensaver_scene()` is
+/// not overwrite the slot (`shell/shell.cpp:179-187`) -- so `overlay::screensaver_scene()` is
 /// registered there, by `overlay::kScreensaverSceneKind`. Every other kind runs
 /// from `SceneKind::FirstApp` (== 16) upwards: `FirstApp` is the menu interpreter, `FirstApp + 1`
 /// the rename editor (`rename::kRenameSceneKind`), `FirstApp + 2` the context menu
@@ -94,8 +94,8 @@ uint16_t assigned_node_ids();
 ///   * **The three services are installed** -- `services::ModKnobs`, `services::GlobalControls`,
 ///     `services::MidiLearn`. Each is constructed from a `SceneStack&` (the first two also from an
 ///     `InputLowering&`) and each *uses* it: `ModKnobs::show_popup` pushes
-///     `overlay::ParamPopupScene` onto that stack (`services/mod_knobs.cpp:413`) and
-///     `ModKnobs::popup_suppressed` (`:351`) and `ModKnobs::mod_encoder_button_action` (`:564`)
+///     `overlay::ParamPopupScene` onto that stack (`services/mod_knobs.cpp:417`) and
+///     `ModKnobs::popup_suppressed` (`:351`) and `ModKnobs::mod_encoder_button_action` (`:568`)
 ///     read `stack_.input_top()`; `GlobalControls::handle` gates its whole `View::buttonAction`
 ///     group on `stack_.input_top().is_root()` (`services/global_controls.cpp:580`);
 ///     `MidiLearn::handle` reads the same (`services/midi_learn.cpp:491`). The only `SceneStack`

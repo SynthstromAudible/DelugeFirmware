@@ -31,7 +31,7 @@ And one site the first version thought needed code needs none: site 5 (§4).
 ## 1. Why this exists
 
 Two of the six ungated legacy entry points are `InstrumentClipView::enterNoteEditor`
-(`gui/views/instrument_clip_view.cpp:3590`) and `enterNoteRowEditor` (`:3758`). F1 task 9 left both
+(`gui/views/instrument_clip_view.cpp:3607`) and `enterNoteRowEditor` (`:3811`). F1 task 9 left both
 ungated because `MenuContext::Root` has no enumerator for their roots, which legacy chooses from
 `currentUIMode` at `gui/ui/sound_editor.cpp:1774-1779`. **Both sites' comments cite that choice at
 `:1757-1759` / `:1760-1762`** — stale since F1, in a comment no checker resolves. This work repoints
@@ -79,7 +79,7 @@ pages are reached — and `nullptr` goes up a level. `HorizontalMenu` does not o
 `selectButtonPress`, and `handleItemAction`'s one caller is the instrument-button path
 (`horizontal_menu.cpp:420`).
 
-**Port.** The input contract itself states the swap: `InputSnapshot::turn` is documented as "navigate
+**Port.** (At `20aca8e4f`, before this work: this paragraph's and the next one's line numbers are that commit's.) The input contract itself states the swap: `InputSnapshot::turn` is documented as "navigate
 / move focus" and `edit[2]` as "edit the focused value" (`ui/core/input.h:63-64`). `int_value`
 reads the gold pair (`ui/oled/values.cpp:81`, the claims at `:87-88`) **under a comment that says it
 ports `Integer::selectEncoderAction`** (`:86`); `decimal_value` (`:126`) and `range_value` (`:332`)
@@ -174,7 +174,7 @@ SESSION_VIEW first (`sound_editor.cpp:385`, `:456`, `:488`, `:505`, `:564`, `:60
 outer `else if` on the button alone, so it consumes the press even when its inner test fails. Every
 other button reaches the note handler.
 
-**What the note handlers do with them** (`instrument_clip_view.cpp:3711`, `:3951`): SYNTH/KIT/MIDI/CV
+**What the note handlers do with them** (`instrument_clip_view.cpp:3742`, `:4029`): SYNTH/KIT/MIDI/CV
 go to `soundEditor.getCurrentMenuItem()->buttonAction(...)` — **a read of the same never-written
 navigation record that made `ui/pads-1`'s automation arm a null dereference** — whose target is
 `HorizontalMenu::buttonAction`, i.e. §3's column focus. So under the guest those four are fed to
@@ -187,8 +187,8 @@ CROSS_SCREEN/SCALE — **except AFFECT_ENTIRE in the note-row editor on a kit**,
 on a kit. The forward carries both, and the test must show the kit toggle as well as the swallow.
 
 **Site 5 needs no code.** `shortcut_pos` finds nothing in `kNoCells` (`scenes/menu/shortcuts.cpp:94`)
-and `source_shortcut_pads` returns `{}` unconditionally (`:454-458`), so `render_grid` lights no pad
-once both new roots map to `{&kNoCells, &kNoCells}` in `kByRootV3`/`kByRootV1` (`:336`, `:353`).
+and `source_shortcut_pads` returns `{}` unconditionally (`:461-465`), so `render_grid` lights no pad
+once both new roots map to `{&kNoCells, &kNoCells}` in `kByRootV3`/`kByRootV1` (`:339`, `:358`).
 Those entries are required anyway: the arrays are aggregate-initialised to `Root::Count`, and a
 missing entry would be a null `Cells*`.
 
@@ -205,10 +205,10 @@ the bridge (§5.4) writes through, ask the same question themselves:
 (`instrument_clip_view.cpp` ×14, `view.cpp:340`, `timeline_view.cpp:158`, `action_logger.cpp:99`,
 `note_row.cpp:1997`, `notify_drain.cpp:48`, `menu_item/sequence/direction.h` ×3). Under the guest both
 halves are false, so each takes its not-in-editor arm: `adjustNoteParameterValue` swallows the first
-turn and raises a legacy popup (`instrument_clip_view.cpp:3066`, `:3117`). Several forwarded handlers
+turn and raises a legacy popup (`instrument_clip_view.cpp:3067`, `:3118`). Several forwarded handlers
 also dereference `soundEditor.getCurrentMenuItem()` — `menuItemNavigationRecord[navigationDepth]`,
 null under the guest — for `readValueAgain`, `goUpOneLevel` and `toggleNoteEditorParamMenu`
-(`:3655`, `:3690-3691`, `:3836`, `:3842`, `:3878`, `:3905-3907`). Approach A holds only if those
+(`:3677`, `:3720-3721`, `:3894`, `:3905`, `:3946`, `:3982-3984`). Approach A holds only if those
 reads see the ported mode and those calls reach the ported menu: two legacy-side predicates,
 `noteEditorOpen()`/`noteRowEditorOpen()`, replace the pure reads; each navigation call becomes a
 gated pair in site 6's spelling whose port arm is the legacy call's port. The legacy leg is unchanged
@@ -221,20 +221,20 @@ whenever the ported menu is closed. The plan's Task 7a carries it.
 ### 5.1 Where the mode lives
 
 Two enumerators, `MenuContext::Root::NoteEditor` and `NoteRowEditor`, appended after `Settings`
-(`scenes/menu/context.h:68-80`), whose doc note is rewritten. `openShellMenu`
-(`util/shell_menu_entry.h:178`) gains `NoteMode { None, NoteEditor, NoteRowEditor }`, defaulted so the
+(`scenes/menu/context.h:70-84`), whose doc note is rewritten. `openShellMenu`
+(`util/shell_menu_entry.h:204`) gains `NoteMode { None, NoteEditor, NoteRowEditor }`, defaulted so the
 eight existing sites are unchanged, and overrides `ctx.root` after `context_for` — sites 12/13 pass
 the item explicitly (`setup(clip, &noteEditorRootMenu)`), which `context.cpp` records as "the
 caller's own choice".
 
 **The kit toggle moves inside that branch**, between context resolution and the open: legacy
-toggles `affectEntire` after `setup()` and before `openUI` (`instrument_clip_view.cpp:3590-3598`),
+toggles `affectEntire` after `setup()` and before `openUI` (`instrument_clip_view.cpp:3607-3615`),
 and toggling before `context_for` would change the context it resolves. Everything after the open —
 `blinkSelectedNote()`, the repaint, site 13's silent re-audition — stays with the caller.
 
 **No existing node id changes.** Ids come from a pre-order walk of `nodes::kAllRoots` in declaration
 order (`scenes/menu/node_id.h:14-18`), so both roots are appended at the end of `kAllRootArray`
-(`nodes/nodes.h:144-147`). `sequence_direction` is reached first through its existing parent and
+(`nodes/nodes.h:155-159`). `sequence_direction` is reached first through its existing parent and
 keeps its id. The committed menu dump grows two entries and is regenerated.
 
 ### 5.2 Offset writes: `Binding::adjust`
@@ -244,7 +244,7 @@ Velocity, probability, iterance and fill, in both families, write by offset:
 itself, and `gridSquareInfo[y][x].averageVelocity` is an average for that reason. A value `set`
 would flatten them; probability's latching bit and iterance's preset/custom toggle also live inside
 the offset functions. `Kind::Custom` cannot carry them: the tree has 55 custom nodes against
-`kMaxCustomNodes = 56` (`scenes/menu/validate.h:156`), whose standing rule is one above the count,
+`kMaxCustomNodes = 56` (`scenes/menu/validate.h:167`), whose standing rule is one above the count,
 and a `CustomItem` column on a horizontal page never receives `handle` anyway.
 
 So `Binding` gains `void (*adjust)(const MenuContext&, int32_t offset)`. When set, the edit path
@@ -253,7 +253,7 @@ writing the result; `read` stays `get`. The validator requires `get` beside `adj
 
 ### 5.3 Bespoke value text and the guard: `value_text`, `permitted`
 
-The horizontal notification prints `name: <number>` (`menu_scene.cpp:1437-1467`). Legacy prints
+The horizontal notification prints `name: <number>` (`menu_scene.cpp:733-777`). Legacy prints
 `getNotificationValue`: `35%` / `35% ltch` for probability, `3 of 4` / `OFF` / `CUSTOM` for iterance,
 `OFF` / `NOT FILL` / `FILL` for fill — and the columns draw `35%` / `35L`, `3:4`, and `FILL` struck
 through for `NOT_FILL`. So `Binding` gains a value-text hook used by the column and the notification,
@@ -275,9 +275,9 @@ which live in `util/lookuptables/lookuptables.cpp:508` — also outside what `sr
 Fill's strings need no bridge: `FillMode` is in `definitions_cxx.hpp:723`.
 
 A struct of function pointers, declared in `src/scenes/menu/`, installed once at boot from a new
-`gui/ui/` translation unit beside `deluge.cpp:804`'s `wireShellGuestServices()` call. **Corrected
+`gui/ui/` translation unit beside `deluge.cpp:818`'s `wireShellGuestServices()` call. **Corrected
 precedent:** `wireShellGuestServices` installs data (songs, view-state structs), not hooks. The
-hook precedent is `bindings::FeedbackHook` (`scenes/menu/bindings.h:270-275`) — which, measured,
+hook precedent is `bindings::FeedbackHook` (`scenes/menu/bindings.h:296-300`) — which, measured,
 **nothing in the tree ever installs** (`set_feedback_hook` has no caller outside its own spec). That
 is a separate finding recorded in §8, not fixed here. The bridge must be synchronous: legacy calls
 `readValueAgain()` on the line after each write.

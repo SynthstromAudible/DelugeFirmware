@@ -279,7 +279,7 @@ std::string last_notice() {
 describe rename_targets("scenes::rename target table", $ {
 	it("covers exactly the three targets the ported menu tree reaches", _ {
 		// Legacy has four `RenameUI` subclasses. `renameMidiCCUI` is deliberately absent: its only
-		// opener is `automation_view.cpp:1663`, and no node in `nodes::kAllRoots` reaches it.
+		// opener is `automation_view.cpp:1664`, and no node in `nodes::kAllRoots` reaches it.
 		expect(static_cast<int>(TargetId::Count)).to_equal(3);
 	});
 
@@ -545,7 +545,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// Fix round 2. The regression test for the gate-arm in `render_oled`, and it has to drive
 		// *quiet* ticks to be one. `Shell::tick` renders an OLED surface only when
 		// `s.gate.needs_frame(now, had_input_, false)`, the shell-wide widgets gate, or
-		// `router_.repaint_requested(role)` says so (`shell/shell.cpp:352-361`). On a tick with no
+		// `router_.repaint_requested(role)` says so (`shell/shell.cpp:375-383`). On a tick with no
 		// input none of those fire on their own here: nothing in this scene arms the widgets gate
 		// (`text_edit` is render-only and owns no clock, `ui/oled/text_edit.h`), and no `Repaint`
 		// action is in flight. So the scene's own `request_repaint_after` is the *only* thing that
@@ -681,7 +681,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		r.tick(r.clock);
 
 		// `Action::Kind::Popup` reaches `Notices::show_popup`, which stacks a `SceneKind::Popup`
-		// over whatever is there (`shell/notices.cpp:283-312`) rather than queueing a notice -- so
+		// over whatever is there (`shell/notices.cpp:408-438`) rather than queueing a notice -- so
 		// the visible proof is the popup ON the stack, not the notice ring.
 		bool popup_stacked = false;
 		for (const deluge::ui::shell::Scene* scene : r.shell.stack().scenes()) {

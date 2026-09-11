@@ -22,37 +22,37 @@
 /// **What did NOT come across** (task-3 ruling 2 -- `setup()` is half context resolution, half UI
 /// choreography, and only the first half belongs in `src/scenes`). UI side, not ported:
 ///
-///   * `:1629` `getCurrentUI()`, `:1632` `rootUIIsClipMinderScreen()`, `:1654`
-///     `setupKitGlobalFXMenu`, `:1719`/`:1722` `currentUIMode`, `:1761`/`:1764` the
+///   * `:1684` `getCurrentUI()`, `:1687` `rootUIIsClipMinderScreen()`, `:1709`
+///     `setupKitGlobalFXMenu`, `:1774`/`:1777` `currentUIMode`, `:1816`/`:1819` the
 ///     `currentUI ==` comparisons and `Buttons::isShiftButtonPressed()` -- reduced to
 ///     `context_for`'s three `bool` arguments.
-///   * `:1679-1682` the "select a row or affect entire" popup, `:1794` the "parameter not
-///     applicable" popup, `:1809` `display->cancelPopup()` -- every `display->` call.
-///   * `:1726`/`:1731` retitling the shared `soundEditorRootMenuMIDIOrCV` singleton -- an artefact
+///   * `:1734-1737` the "select a row or affect entire" popup, `:1849` the "parameter not
+///     applicable" popup, `:1864` `display->cancelPopup()` -- every `display->` call.
+///   * `:1781`/`:1786` retitling the shared `soundEditorRootMenuMIDIOrCV` singleton -- an artefact
 ///     of one menu object serving MIDI and CV; `Root::MidiOrCv` plus `MenuContext::output` carries
 ///     the same information as data.
-///   * `:1781-1782`/`:1805-1807` `maybeGetParentMenu` / `focusChild` (horizontal-menu focusing),
-///     `:1802` `multiRangeMenu.menuItemHeadingTo`, `:1803` substituting the range picker for the
+///   * `:1836-1837`/`:1860-1862` `maybeGetParentMenu` / `focusChild` (horizontal-menu focusing),
+///     `:1857` `multiRangeMenu.menuItemHeadingTo`, `:1858` substituting the range picker for the
 ///     chosen item -- navigation, which is `MenuScene`'s job (spec E §4.1).
-///   * `:1811-1816` `allowsNoteTails` -- a `SoundEditor` render flag, not part of what is edited.
-///   * `:1844-1849` `endScreen()`, `navigationDepth`, `shouldGoUpOneLevelOnBegin`,
+///   * `:1866-1871` `allowsNoteTails` -- a `SoundEditor` render flag, not part of what is edited.
+///   * `:1899-1904` `endScreen()`, `navigationDepth`, `shouldGoUpOneLevelOnBegin`,
 ///     `menuItemNavigationRecord` -- `MenuState`, which belongs to the interpreter.
 ///
 /// **Owed to E2** -- behaviour of `setup()` that is neither UI nor context, has no owner yet, and
 /// will silently change if nothing picks it up when `MenuScene` lands (fix round 1, Minor 5):
 ///
-///   * `:1716` `actionLogger.deleteAllLogs()` -- a mutation of undo history on every menu open.
-///   * `:1784-1788` remembering the previously selected `MultiRange` across sessions, and dropping
+///   * `:1771` `actionLogger.deleteAllLogs()` -- a mutation of undo history on every menu open.
+///   * `:1839-1843` remembering the previously selected `MultiRange` across sessions, and dropping
 ///     it when the UI or the source index changed. `MenuContext::range` is the field it feeds; see
 ///     `permission_for`'s already-selected arm.
-///   * `:1938` `Source::getOrCreateFirstRange()` -- the legacy permission check *creates* a first
+///   * `:1993` `Source::getOrCreateFirstRange()` -- the legacy permission check *creates* a first
 ///     range (and can fail with `INSUFFICIENT_RAM`). `permission_for` is a pure predicate and does
 ///     not; whoever opens a range-dependent item must do the allocation.
 ///
 /// **`currentSong` references in this file: 0.** Ruling 3 confines the global to this translation
 /// unit and Task 12 ratchets the count; every place `setup()` and `getCurrentModelStack()` reached
-/// for `currentSong` (`:1635`, `:1987`, `:1990`, `:2004`) or for a `getCurrent*()` helper that
-/// reads it (`:1983`, `:1984`, `:2004`) takes it from `MenuContext::song` here instead, which is
+/// for `currentSong` (`:1690`, `:2042`, `:2045`, `:2059`) or for a `getCurrent*()` helper that
+/// reads it (`:2038`, `:2039`, `:2059`) takes it from `MenuContext::song` here instead, which is
 /// the `Song&` the caller passed to `context_for`. The baseline Task 12 should record is 0.
 
 #include "scenes/menu/context.h"
@@ -88,8 +88,8 @@ namespace deluge::scenes::menu {
 namespace {
 
 /// @brief `Source::ranges` holds `MultiRange*` by base pointer; element 0 is what `setup()`'s
-///        auto-selection (`:1834`) and `checkPermissionToBeginSessionForRangeSpecificParam`'s
-///        single-range shortcut (`:1950`) both reach for.
+///        auto-selection (`:1889`) and `checkPermissionToBeginSessionForRangeSpecificParam`'s
+///        single-range shortcut (`:2005`) both reach for.
 MultiRange* first_range(Source& source) {
 	return source.ranges.empty() ? nullptr : static_cast<MultiRange*>(source.ranges.getElement(0));
 }
@@ -97,7 +97,7 @@ MultiRange* first_range(Source& source) {
 } // namespace
 
 int32_t range_count(const MenuContext& ctx) {
-	// `std::ssize(source->ranges)` at `:1950`.
+	// `std::ssize(source->ranges)` at `:2005`.
 	return ctx.source != nullptr ? static_cast<int32_t>(std::ssize(ctx.source->ranges)) : 0;
 }
 
@@ -112,11 +112,11 @@ bool ensure_first_range(MenuContext& ctx) {
 	if (ctx.source == nullptr) {
 		return true;
 	}
-	MultiRange* first = ctx.source->getOrCreateFirstRange(); // `:1938`
+	MultiRange* first = ctx.source->getOrCreateFirstRange(); // `:1993`
 	if (first == nullptr) {
-		return false; // `:1939-1942` -- INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`
+		return false; // `:1994-1997` -- INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`
 	}
-	// `:1950-1952` -- the same unambiguous cases `context_for` resolves, re-applied now that a range
+	// `:2005-2007` -- the same unambiguous cases `context_for` resolves, re-applied now that a range
 	// is guaranteed to exist. A source that had none until a moment ago now has exactly one.
 	if (ctx.is_kit || range_count(ctx) == 1) {
 		ctx.range = first;
@@ -129,7 +129,7 @@ void select_range(MenuContext& ctx, int32_t index) {
 	if (ctx.source == nullptr || index < 0 || index >= range_count(ctx)) {
 		return;
 	}
-	// `SoundEditor::setCurrentMultiRange` (`:1928-1931`).
+	// `SoundEditor::setCurrentMultiRange` (`:1983-1986`).
 	ctx.range = static_cast<MultiRange*>(ctx.source->ranges.getElement(index));
 	ctx.range_index = static_cast<int16_t>(index);
 	// `MultiRange::selectEncoderAction`'s own `defaultRangeI` write (`multi_range.cpp:239`), which
@@ -141,7 +141,7 @@ void select_source(MenuContext& ctx, int8_t index) {
 	if (ctx.sound == nullptr || index < 0 || index >= kNumSources) {
 		return;
 	}
-	// `SoundEditor::setup`'s `:1786-1788`, folded in here because this is the port of the one place
+	// `SoundEditor::setup`'s `:1841-1843`, folded in here because this is the port of the one place
 	// legacy changes source index mid-menu. A range remembered for the *other* source names a
 	// different sample entirely, and every caller of this is about to hand the context to a scene
 	// that dereferences `ctx.range`.
@@ -151,7 +151,7 @@ void select_source(MenuContext& ctx, int8_t index) {
 	// the remembered range whenever the menu is being *entered* rather than navigated within, which
 	// it has to do because `currentMultiRange` is a `SoundEditor` member that outlives every visit.
 	// `MenuContext` is not: `context_for` builds a fresh one per entry and resolves `range` from
-	// scratch (`:1832-1836`'s arm below), so there is no stale range for that half to clear. It is
+	// scratch (`:1887-1891`'s arm below), so there is no stale range for that half to clear. It is
 	// also a UI read this layer may not make (`scenes-no-root-ui`). The surviving half is the one
 	// that fires *inside* a session, which is exactly what this function is for.
 	if (ctx.source_index != index) {
@@ -159,9 +159,9 @@ void select_source(MenuContext& ctx, int8_t index) {
 		ctx.range_index = -1;
 	}
 	ctx.source_index = index;
-	ctx.source = &ctx.sound->sources[index];                   // `:205`
-	ctx.sample_controls = &ctx.source->sampleControls;         // `:207`
-	if (ctx.range == nullptr && !ctx.source->ranges.empty()) { // `:209-211`
+	ctx.source = &ctx.sound->sources[index];                   // `:243`
+	ctx.sample_controls = &ctx.source->sampleControls;         // `:245`
+	if (ctx.range == nullptr && !ctx.source->ranges.empty()) { // `:247-249`
 		ctx.range = static_cast<MultiRange*>(ctx.source->ranges.getElement(0));
 		ctx.range_index = 0;
 	}
@@ -175,7 +175,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	ctx.source_index = source_index;
 	ctx.is_song_view = session_or_arranger_root;
 	// The second, narrower root-UI fact -- `getRootUI() == &sessionView` rather than
-	// `!rootUIIsClipMinderScreen()`. It steers no branch in this function: `:1764-1767` funnels the
+	// `!rootUIIsClipMinderScreen()`. It steers no branch in this function: `:1819-1822` funnels the
 	// session, arranger and song-automation views into one root, and only `relevance::is_session_view`
 	// (the two `song::` items' `isRelevant`) ever asks which of the three it was.
 	ctx.is_session_view = session_view_root;
@@ -186,7 +186,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	OutputType output_type = OutputType::NONE;
 
 	// ---------------------------------------------------------------------------------------
-	// Part 1: which sound / param manager / arp / mod controllable (`:1631-1707`).
+	// Part 1: which sound / param manager / arp / mod controllable (`:1686-1762`).
 	//
 	// Note the asymmetry with part 2, transcribed as-is: part 1 keys off
 	// `!rootUIIsClipMinderScreen()` FIRST and only then looks at `clip`, while part 2 keys off
@@ -195,14 +195,14 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	//
 	// Part 3 inherits the same asymmetry in one more place: its audio-clip arm is guarded by
 	// `ctx.is_audio_clip`, which only part 1's `else if (clip != nullptr)` arm ever sets, whereas
-	// legacy `:1838` tests `clip->type` unguarded. So in the session-root-with-an-audio-clip case
+	// legacy `:1893` tests `clip->type` unguarded. So in the session-root-with-an-audio-clip case
 	// legacy still fills `currentSampleControls`/`currentPriority` and this port leaves them null.
-	// Deliberate, and the trade runs the other way too: legacy `:1838` dereferences `clip` when
+	// Deliberate, and the trade runs the other way too: legacy `:1893` dereferences `clip` when
 	// `clip == nullptr` (the settings root with no sound), a latent null-deref this port does not
 	// inherit -- so do NOT "restore fidelity" by dropping the guard.
 	// ---------------------------------------------------------------------------------------
 
-	// `:1631-1640` -- performance / session / arranger: the song's own param manager and global
+	// `:1686-1695` -- performance / session / arranger: the song's own param manager and global
 	// effectable, read off a song-as-timeline-counter stack.
 	if (session_or_arranger_root) {
 		alignas(ModelStackWithAutoParam) char stack_memory[MODEL_STACK_MAX_SIZE];
@@ -213,22 +213,22 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		}
 	}
 
-	// `:1641-1707`
+	// `:1696-1762`
 	else if (clip != nullptr) {
-		ctx.output = clip->output;      // `:1642`
-		output_type = ctx.output->type; // `:1643`
+		ctx.output = clip->output;      // `:1697`
+		output_type = ctx.output->type; // `:1698`
 		ctx.is_kit = output_type == OutputType::KIT;
 		ctx.is_audio_clip = clip->type == ClipType::AUDIO;
 
-		// `:1645-1700` -- InstrumentClips.
+		// `:1700-1755` -- InstrumentClips.
 		if (clip->type == ClipType::INSTRUMENT) {
-			instrument_clip = static_cast<InstrumentClip*>(clip); // `:1647`
+			instrument_clip = static_cast<InstrumentClip*>(clip); // `:1702`
 
-			// `:1649-1685` -- Kit.
+			// `:1704-1740` -- Kit.
 			if (ctx.is_kit) {
-				Drum* selected_drum = static_cast<Kit*>(ctx.output)->selectedDrum; // `:1651`
+				Drum* selected_drum = static_cast<Kit*>(ctx.output)->selectedDrum; // `:1706`
 
-				// `:1653-1658` -- affect-entire ("kit global FX"): the kit itself is the mod
+				// `:1708-1713` -- affect-entire ("kit global FX"): the kit itself is the mod
 				// controllable and the clip's own param manager is what is edited.
 				//
 				// `setup()` gates this on its `setupKitGlobalFXMenu` member, which is the fourth
@@ -236,7 +236,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 				// `affectEntire`: the member is only ever set true (from
 				// `outputType == KIT && instrumentClip->affectEntire` --
 				// `model/clip/instrument_clip_minder.cpp:393-417`,
-				// `gui/views/automation_view.cpp:1622-1624`) and is cleared on menu exit
+				// `gui/views/automation_view.cpp:1623-1625`) and is cleared on menu exit
 				// (`sound_editor.cpp:189`, `:768`), so the kit-row grid-shortcut path
 				// (`sound_editor.cpp:1205-1213`) enters with it false while `affectEntire` is true,
 				// and legacy edits the row's params rather than the kit's. Deriving the branch from
@@ -252,15 +252,15 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 					ctx.is_kit_global_fx = true;
 				}
 
-				// `:1660-1675` -- a selected drum.
+				// `:1715-1730` -- a selected drum.
 				else if (selected_drum != nullptr) {
 					ctx.is_drum = true;
 
-					// `:1662-1671` -- a SoundDrum: its note row holds the param manager.
+					// `:1717-1726` -- a SoundDrum: its note row holds the param manager.
 					if (selected_drum->type == DrumType::SOUND) {
-						NoteRow* note_row = instrument_clip->getNoteRowForDrum(selected_drum); // `:1663`
+						NoteRow* note_row = instrument_clip->getNoteRowForDrum(selected_drum); // `:1718`
 						if (note_row == nullptr) {
-							ctx.resolved = false; // `:1664-1666` -- `setup()` returns false
+							ctx.resolved = false; // `:1719-1721` -- `setup()` returns false
 						}
 						else {
 							auto* sound_drum = static_cast<SoundDrum*>(selected_drum);
@@ -271,13 +271,13 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 						}
 					}
 
-					// `:1672-1674` -- a MIDI or gate drum: an arpeggiator and nothing else.
+					// `:1727-1729` -- a MIDI or gate drum: an arpeggiator and nothing else.
 					else if (selected_drum->type == DrumType::MIDI || selected_drum->type == DrumType::GATE) {
 						ctx.arp = &static_cast<NonAudioDrum*>(selected_drum)->arpSettings;
 					}
 				}
 
-				// `:1677-1684` -- a kit with neither affect-entire nor a selected drum: nothing to
+				// `:1732-1739` -- a kit with neither affect-entire nor a selected drum: nothing to
 				// edit. (`setup()` also pops up "select a row or affect entire" for the sequence
 				// direction item; UI side, not ported.)
 				else {
@@ -285,23 +285,23 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 				}
 			}
 
-			// `:1687-1699` -- synth, MIDI or CV.
+			// `:1742-1754` -- synth, MIDI or CV.
 			else {
-				// `:1689-1693` -- Synth.
+				// `:1744-1748` -- Synth.
 				if (output_type == OutputType::SYNTH) {
 					auto* synth = static_cast<SoundInstrument*>(ctx.output);
 					ctx.sound = synth;
 					ctx.mod = synth;
 				}
 
-				// `:1695` -- CV or MIDI: not much happens (no sound, no mod controllable).
+				// `:1750` -- CV or MIDI: not much happens (no sound, no mod controllable).
 
-				ctx.params = &clip->paramManager;        // `:1697`
-				ctx.arp = &instrument_clip->arpSettings; // `:1698`
+				ctx.params = &clip->paramManager;        // `:1752`
+				ctx.arp = &instrument_clip->arpSettings; // `:1753`
 			}
 		}
 
-		// `:1702-1706` -- AudioClips.
+		// `:1757-1761` -- AudioClips.
 		else {
 			ctx.params = &clip->paramManager;
 			ctx.mod = static_cast<ModControllableAudio*>(ctx.output->toModControllable());
@@ -376,19 +376,19 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	}
 
 	// ---------------------------------------------------------------------------------------
-	// Part 3: the derived `current*` fields (`:1818-1842`).
+	// Part 3: the derived `current*` fields (`:1873-1897`).
 	// ---------------------------------------------------------------------------------------
 
-	if (ctx.mod != nullptr) { // `:1822-1824`
+	if (ctx.mod != nullptr) { // `:1877-1879`
 		ctx.sidechain = &ctx.mod->sidechain;
 	}
 
-	if (ctx.sound != nullptr) {                             // `:1826-1837`
-		ctx.source = &ctx.sound->sources[ctx.source_index]; // `:1828`
-		ctx.sample_controls = &ctx.source->sampleControls;  // `:1829`
-		ctx.priority = &ctx.sound->voicePriority;           // `:1830`
+	if (ctx.sound != nullptr) {                             // `:1881-1892`
+		ctx.source = &ctx.sound->sources[ctx.source_index]; // `:1883`
+		ctx.sample_controls = &ctx.source->sampleControls;  // `:1884`
+		ctx.priority = &ctx.sound->voicePriority;           // `:1885`
 
-		// `:1832-1836` -- auto-select the first range. `setup()` does this only once
+		// `:1887-1891` -- auto-select the first range. `setup()` does this only once
 		// `checkPermissionToBeginSession` has returned YES for the *specific item* being opened,
 		// which `context_for` has no item to ask. So the selection is made exactly where the
 		// permission rule itself would be unambiguous
@@ -396,7 +396,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		// and left null when a choice is genuinely pending; `permission_for()` below then reports
 		// `MustSelectRange` for that case, as it must.
 		//
-		// That this is narrower than `:1832` costs nothing observable (fix round 1, Minor 3): the
+		// That this is narrower than `:1887` costs nothing observable (fix round 1, Minor 3): the
 		// only consumers of `currentMultiRange` in legacy are the range-dependent items
 		// (`Node::range_dependent` -- sample transpose, loop point, the file selector, the audio
 		// recorder, the picker) plus `getCurrentAudioFileHolder`/`isUntransposedNoteWithinRange`,
@@ -405,15 +405,15 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		// source is invisible to every node that is not asking for a range in the first place.
 		//
 		// `ctx.range` is therefore the *selected/remembered* range, i.e. the input `permission_for`
-		// reads, matching legacy's `newRange` at `:1784-1788` rather than its post-permission
-		// assignment at `:1834`.
+		// reads, matching legacy's `newRange` at `:1839-1843` rather than its post-permission
+		// assignment at `:1889`.
 		const std::ptrdiff_t ranges = std::ssize(ctx.source->ranges);
 		if (ranges == 1 || (ctx.is_kit && ranges > 0)) {
 			ctx.range = first_range(*ctx.source);
 			ctx.range_index = 0;
 		}
 	}
-	else if (ctx.is_audio_clip) { // `:1838-1842`
+	else if (ctx.is_audio_clip) { // `:1893-1897`
 		auto* audio_clip = static_cast<AudioClip*>(clip);
 		ctx.sample_controls = &audio_clip->sampleControls;
 		ctx.priority = &audio_clip->voicePriority;
@@ -423,13 +423,13 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 }
 
 ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* memory) {
-	// `:1986-1988` -- not a clip-minder screen: the song is the timeline counter and brings its own
+	// `:2041-2043` -- not a clip-minder screen: the song is the timeline counter and brings its own
 	// param manager and global effectable.
 	if (ctx.is_song_view) {
 		return ctx.song->setupModelStackWithSongAsTimelineCounter(memory);
 	}
 
-	// `:1989-1993` -- kit with affect-entire: the clip is the timeline counter, and the context's
+	// `:2044-2048` -- kit with affect-entire: the clip is the timeline counter, and the context's
 	// own mod controllable + param manager are attached with no note row.
 	//
 	// Keyed on `is_kit_global_fx` rather than `affect_entire` for the same reason part 2's root arms
@@ -440,10 +440,10 @@ ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* mem
 		return stack->addOtherTwoThingsButNoNoteRow(ctx.mod, ctx.params);
 	}
 
-	// `:1994-2004` -- everything else: a note row too, when a kit drum is selected.
+	// `:2049-2059` -- everything else: a note row too, when a kit drum is selected.
 	//
 	// `noteRowIndex` is left uninitialised by `getCurrentModelStack` when there is no selected drum
-	// (`:1996`); it is zero-initialised here, since `addNoteRow(id, nullptr)` stores the id either
+	// (`:2051`); it is zero-initialised here, since `addNoteRow(id, nullptr)` stores the id either
 	// way and an indeterminate value is a real (if currently harmless) UB read.
 	NoteRow* note_row = nullptr;
 	int32_t note_row_index = 0;

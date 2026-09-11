@@ -71,7 +71,7 @@ const char* scene_kind_name(SceneKind k);
 ///        stack, render every surface that needs a frame, and derive the LEDs.
 ///
 /// One object replacing the legacy `doAnyPendingUIRendering` / `uiTimerManager.routine` / the UI
-/// half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet (`deluge.cpp:594-626`). It owns
+/// half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet (`deluge.cpp:596-628`). It owns
 /// the scene stack, the input lowering, the router, the three overlay scenes and the `Notices`
 /// service that drives them; it *borrows* the `SurfaceSet` (the only hardware seam) and the board
 /// profile. Nothing here is global, and nothing on the tick path allocates -- `state_lines()`,
@@ -152,8 +152,8 @@ public:
 	/// and the only instances of either in an application are the ones this shell **owns**
 	/// (`stack_`, `lowering_`, reachable through `stack()`/`lowering()`). Each of the three really
 	/// uses what it is handed: `ModKnobs::show_popup` pushes the param popup onto that stack
-	/// (`scenes/services/mod_knobs.cpp:413`), and `ModKnobs::popup_suppressed` (`:351`) and
-	/// `ModKnobs::mod_encoder_button_action` (`:564`) both read `stack_.input_top()`;
+	/// (`scenes/services/mod_knobs.cpp:417`), and `ModKnobs::popup_suppressed` (`:351`) and
+	/// `ModKnobs::mod_encoder_button_action` (`:568`) both read `stack_.input_top()`;
 	/// `GlobalControls::handle` gates its `View::buttonAction` group on
 	/// `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
 	/// `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:491`). So a real
@@ -185,7 +185,7 @@ public:
 	/// @brief Prepare the surfaces for the first frame, with nothing on the stack.
 	///
 	/// Ports legacy's boot sequence, which is only `renderUIsForOled` marking the OLED dirty
-	/// (`deluge.cpp:119,132,370`, now `raise(Dirty::Oled)`): a repaint requested on every surface,
+	/// (`deluge.cpp:121,134,372`, now `raise(Dirty::Oled)`): a repaint requested on every surface,
 	/// so the first `tick()` after this call draws regardless of any gate's prior state.
 	///
 	/// **It pushes no scene, deliberately.** The stack stays empty until the application pushes its
@@ -589,7 +589,7 @@ private:
 	uint32_t last_ms_ = 0;
 	/// Whether the lowering accepted anything this tick -- `RepaintGate::needs_frame`'s
 	/// `had_input`, and the place Task 4 parked "set where legacy sets `anything`"
-	/// (`deluge.cpp:611-614`).
+	/// (`deluge.cpp:613-616`).
 	bool had_input_ = false;
 	/// Whether the lowering's tick window is open; see the class note on the tick window.
 	bool tick_open_ = false;

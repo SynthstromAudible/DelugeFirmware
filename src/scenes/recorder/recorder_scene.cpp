@@ -261,7 +261,7 @@ Result RecorderScene::after_render() {
 		// caller, `AudioRecorder::slowRoutine` (`:168-176`): the recorder may be suspended part-way
 		// through its own `cardRoutine()`, so freeing it there leaves that `cardRoutine()` running
 		// on freed memory and then frees it a second time. `slowRoutine` is registered
-		// `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:572-574`) *and* carries this same
+		// `RESOURCE_SD | RESOURCE_SD_ROUTINE` (`deluge.cpp:574-576`) *and* carries this same
 		// explicit test, for the one call path that bypasses the scheduler.
 		//
 		// `process()` (`:194-243`) is NOT a precedent for going unguarded, though it calls

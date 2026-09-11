@@ -11,15 +11,15 @@
 /// `readValueAgain()` on the line after each write, so every `adjust_*`/`set_*` entry here calls
 /// the same legacy offset function its menu item's `selectEncoderAction` calls, and the caller is
 /// expected to re-read afterward. **Those offset functions are themselves gated by legacy on a
-/// popup being up or `soundEditor` being the current UI in a note (row) editor** --
+/// popup being up or a note (row) editor being open** --
 /// `adjustVelocity`'s `display->hasPopup() || inAutomationView || inSoundEditor`
-/// (`gui/views/instrument_clip_view.cpp:2852-2858`), `adjustNoteParameterValue`'s
-/// `hasPopup || inNoteEditor` where `inNoteEditor = getCurrentUI() == &soundEditor && (...)`
-/// (`:3066`, `:3117`), and `setNoteRowParameterValue` likewise (`:4063`, `:4066`) -- so a write
+/// (`gui/views/instrument_clip_view.cpp:2852-2859`), `adjustNoteParameterValue`'s
+/// `hasPopup || inNoteEditor` where `inNoteEditor = noteEditorOpen() || noteRowEditorOpen()`
+/// (`:3067`, `:3118`), and `setNoteRowParameterValue` likewise (`:4141`, `:4144`) -- so a write
 /// through this bridge with neither satisfied leaves the model unchanged and raises legacy's own
-/// popup (`sim/scenes_spec/note_bridge_spec.cpp` pins exactly that shape). The ported note mode's
-/// arm through that gate is a later task's (a widened predicate that recognises the guest); this
-/// bridge does not and must not paper over the gap.
+/// popup (`sim/scenes_spec/note_bridge_spec.cpp` pins exactly that shape). Note-family task 7a
+/// widened those predicates to see the ported note mode (`util/note_editor_open.h`); this bridge
+/// still does not paper over the gate itself.
 ///
 /// **Reads that allocate.** The note-row entries create a `NoteRow` for a non-kit clip when none
 /// exists yet, the way `SelectedNoteRow::getIndividualNoteRow` does

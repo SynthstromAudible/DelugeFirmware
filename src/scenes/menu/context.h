@@ -170,24 +170,24 @@ struct MenuContext {
 /// @param clip                    the clip being edited, or null for a song-level / settings menu.
 /// @param source_index            which of a `Sound`'s two sources the menu addresses
 ///                                (`setup()`'s `sourceIndex`).
-/// @param performance_view        `setup()`'s `currentUI == &performanceView && !shift` (`:1761`).
-/// @param session_or_arranger_root `setup()`'s `!rootUIIsClipMinderScreen()` (`:1632`) -- true when
+/// @param performance_view        `setup()`'s `currentUI == &performanceView && !shift` (`:1816`).
+/// @param session_or_arranger_root `setup()`'s `!rootUIIsClipMinderScreen()` (`:1687`) -- true when
 ///                                the root UI is the session, arranger, song-automation or
-///                                performance view. Also stands in for `:1764`'s
+///                                performance view. Also stands in for `:1819`'s
 ///                                `currentUI == &sessionView || &arrangerView || &automationView`
 ///                                with shift not held.
 /// @param session_view_root       `getRootUI() == &sessionView` -- the *narrower* fact
 ///                                `session_or_arranger_root` cannot carry, and the only thing that
-///                                separates the three views `:1764-1767` funnels into one song root.
+///                                separates the three views `:1819-1822` funnels into one song root.
 ///                                See `MenuContext::is_session_view`. Implies
 ///                                `session_or_arranger_root`; passing it true with that false is a
 ///                                caller bug this function does not police.
-/// @param kit_global_fx           `setup()`'s `setupKitGlobalFXMenu` member (`:1654`). True to edit
+/// @param kit_global_fx           `setup()`'s `setupKitGlobalFXMenu` member (`:1709`). True to edit
 ///                                the kit's own global FX, false to edit the selected row. Callers
 ///                                normally pass the clip's `affectEntire`, which is exactly what
 ///                                both writers of that member set it from
 ///                                (`model/clip/instrument_clip_minder.cpp:393-417`,
-///                                `gui/views/automation_view.cpp:1622-1624`); the kit-row grid
+///                                `gui/views/automation_view.cpp:1623-1625`); the kit-row grid
 ///                                shortcut (`sound_editor.cpp:1205-1213`) is the caller that passes
 ///                                false with affect-entire on, and it is why this is an argument
 ///                                rather than a re-read of the clip.

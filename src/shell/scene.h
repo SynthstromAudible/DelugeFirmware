@@ -568,7 +568,7 @@ public:
 	/// `RepaintGate::request_repaint_after(0, now_ms)`, which sets the deadline to `now_ms` --
 	/// due on the following tick, since `needs_frame` tests `now_ms - deadline >= 0` -- and it is
 	/// the same idiom `Shell::tick`'s own step 8a already uses to turn a router `Repaint` into a
-	/// wake (`shell.cpp:397-411`). It is not a busy loop: the shell still only ticks when its host
+	/// wake (`shell.cpp:413-434`). It is not a busy loop: the shell still only ticks when its host
 	/// asks it to, and the grid's flush diffs against `last_sent`, so a repaint that changed no
 	/// pixel costs no blit. It IS a per-tick blit on an OLED surface, which has no such diff, so a
 	/// scene that returns zero should claim `{.oled = false}` in `timer_repaints()` unless its OLED

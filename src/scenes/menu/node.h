@@ -104,7 +104,7 @@ enum class Layout : uint8_t { Vertical, Horizontal };
 using Hint = deluge::ui::oled::Hint;
 
 /// @brief An edited value's bounds and coarse step -- an alias, not a new type
-///        (`ui/oled/values.h:18`).
+///        (`ui/oled/values.h:20`).
 using IntRange = deluge::ui::oled::Range;
 
 /// @brief Which arithmetic converts a `ParamRef`'s stored `int32_t` to and from the menu units the

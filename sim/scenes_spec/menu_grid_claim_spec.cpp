@@ -10,7 +10,7 @@
 /// What it deliberately cannot see: nothing reads `grid_pad_claim()` yet. There is no forwarding
 /// path, no `ShellHostUI::claimsGridPad`, and no grid-pad test through a `Shell` -- those are later
 /// tasks. This file only opens a real `MenuScene` on a real root (`MenuScene::open` writes `ctx_`
-/// and resets `st_` without needing a `Shell` at all, `scenes/menu/menu_scene.cpp:314-318`) and
+/// and resets `st_` without needing a `Shell` at all, `scenes/menu/menu_scene.cpp:331-335`) and
 /// reads the new virtual straight off it.
 
 #include "scenes/menu/context.h"
@@ -36,7 +36,7 @@ namespace {
 
 /// @brief The context `SoundEditor::setup` resolves for a synth instrument clip: no kit, no
 ///        performance view, no session/arranger root -- `context_for`'s branch that lands on
-///        `MenuContext::Root::Sound` (`scenes/menu/context.cpp:353`).
+///        `MenuContext::Root::Sound` (`scenes/menu/context.cpp:357`).
 MenuContext sound_context(spec::SongFixture& fx) {
 	return menu::context_for(*fx.song, fx.clip, 0, false, false, false, /*kit_global_fx=*/false);
 }

@@ -486,7 +486,7 @@ struct Rig {
 	/// @brief Run the parked listing op and settle the scene on its result.
 	///
 	/// **Two ticks, and the second is not padding.** `Shell::tick` renders at steps 5-6 and calls
-	/// `after_render()` at step 7 (`shell/shell.cpp:352-382`), so the tick that *collects* the
+	/// `after_render()` at step 7 (`shell/shell.cpp:374-410`), so the tick that *collects* the
 	/// listing draws the state from before it landed; the `RepaintAll` that collection files is for
 	/// the tick after. Anything comparing pixels needs both.
 	void land() {
@@ -864,7 +864,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		r.tick(0);
 
 		// `Listing::request` raises `Notice::Kind::Working`, which E1's `Notices` turns into a
-		// pushed `SceneKind::Working` (`shell/notices.cpp:260-265`). Nothing in this scene draws a
+		// pushed `SceneKind::Working` (`shell/notices.cpp:306-311`). Nothing in this scene draws a
 		// spinner; the busy indicator is the seam's.
 		expect(browser_scene().listing_in_flight()).to_be_true();
 		expect(r.working_shown()).to_be_true();
@@ -961,7 +961,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 	it("collects a listing that lands on a tick with NO input at all", _ {
 		// The quiet-tick example, and it has to be one: `after_render()` -- the only hook that can
 		// collect a result or file an action -- runs only for scenes the shell actually *rendered*
-		// this tick (`shell/shell.cpp:378-382`). With no input arriving, nothing else asks for a
+		// this tick (`shell/shell.cpp:408-410`). With no input arriving, nothing else asks for a
 		// frame, so `render_oled`'s `kListingPollMs` gate arm and `next_timer()`'s matching answer
 		// are the ONLY things that bring the browser back. A spec that supplied input on every tick
 		// would pass with both deleted.

@@ -539,8 +539,8 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   loop that reads it), before either task had been dispatched: `InputLowering` instead owns one
   `RepaintGate widgets_gate_` (`input_lowering.h:420 widgets_gate_`, exposed as `widgets_gate()`,
   referenced by the one shared `FrameContext` at `:421`), and `Shell::tick` calls `needs_frame()` on it **exactly
-  once per tick**, into a local (`widgets_want_frame`, `shell.cpp:349`), OR'd into every surface's
-  own decision (`shell.cpp:346-362`; `README.md`'s "The widgets' gate is evaluated once per tick"
+  once per tick**, into a local (`widgets_want_frame`, `shell.cpp:373`), OR'd into every surface's
+  own decision (`shell.cpp:373-395`; `README.md`'s "The widgets' gate is evaluated once per tick"
   line). The rejected alternative — cache the bool across ticks instead of re-deriving it fresh
   each tick — would have widened the bug rather than fixed it: a widget's animation would then
   repaint only whichever surface happened to ask first, on every subsequent tick too, instead of
@@ -1042,8 +1042,8 @@ from four of its own arms — and forty hand-placed slices disappeared 800 ms af
 overlay (`OLED::popupText`), drawn into the OLED image on its way out and never a `UI` on
 `uiNavigationHierarchy`, so it can never reach `closeUI` and `focusRegained` never runs for one. In
 the shell a popup **is a scene**: `Notices::show_popup_with_timeout` pushes `SceneKind::Popup`
-(`shell/notices.cpp:301-325`) and `Notices::tick` removes it once `kPopupTimeoutMs` — 800 ms
-(`notices.cpp:31`) — has elapsed (`notices.cpp:327-350`). Every scene spec was green throughout,
+(`shell/notices.cpp:408-438`) and `Notices::tick` removes it once `kPopupTimeoutMs` — 800 ms
+(`notices.cpp:31`) — has elapsed (`notices.cpp:440-470`). Every scene spec was green throughout,
 because no example had a popup and a stateful `on_resume` in the same run.
 
 Three separate defects, of which two are fixed here.
@@ -1076,12 +1076,12 @@ the stack with no notice that it is back. `changeUIAtLevel`'s own failure path d
 (`gui/ui/ui.cpp:96-101`).
 
 **What it cost in shipped code.** `SlicerScene` is the scene that paid: its `on_resume` was emptied
-for one task and is now restored. `MenuScene` was taking the spurious edge too — it raises
-`Notice::Kind::Console` itself (`menu_scene.cpp:1466`, `menu/bindings.cpp:372`), `ConsoleScene` is
+for one task and is now restored. `MenuScene` was taking the spurious edge too — it raised
+`Notice::Kind::Console` itself (its column notification until note-family task 8b made it a `Kind::Notification`, and `menu/bindings.cpp:373`), `ConsoleScene` is
 `input_transparent()`, and `MenuScene::on_resume`'s `go_up_on_resume` flag guards only the `ascend()`
 (`:332-335`) while the tail resets `render_resp`, `value_changed`, `value_node`, `back_claimed` and
 `column_press` unconditionally (`:337-341`). **It cost nothing**, and the reason is the tick order:
-`Notices` is a `Service`, so `Notices::tick` runs at `Shell::tick` step 4 (`shell/shell.cpp:322-323`),
+`Notices` is a `Service`, so `Notices::tick` runs at `Shell::tick` step 4 (`shell/shell.cpp:325-326`),
 before step 5's OLED render and step 7's `after_render`. All five fields are per-tick observations
 written during render, read by `after_render` and drained at its tail (`:1358-1362`), with
 `render_oled` re-zeroing two of them at its own head (`:482-483`) — so every one of them was already
@@ -1178,8 +1178,8 @@ correctly and whose one path to using it did not exist.
 body, under a comment that said so — "the services are fixed at construction". That was true, and it
 was the defect. The three real services each take the shell's own `SceneStack&`, and two of them its
 `InputLowering&`, and each *uses* what it is handed: `ModKnobs::show_popup` pushes the param popup
-onto that stack (`src/scenes/services/mod_knobs.cpp:413`) while `ModKnobs::popup_suppressed` (`:351`)
-and `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`;
+onto that stack (`src/scenes/services/mod_knobs.cpp:417`) while `ModKnobs::popup_suppressed` (`:351`)
+and `ModKnobs::mod_encoder_button_action` (`:568`) read `stack_.input_top()`;
 `GlobalControls::handle` gates its whole `View::buttonAction` group on `stack_.input_top().is_root()`
 (`src/scenes/services/global_controls.cpp:580`); `MidiLearn::handle` gates its four `View` arms on
 the same (`src/scenes/services/midi_learn.cpp:491`). The only `SceneStack` and `InputLowering` in an
@@ -1208,9 +1208,9 @@ together —
    routing actually reads (`Router::route` consults `services_.mod_knobs` and its two siblings, never
    `service_list_`);
 3. `Shell::service_list_`, the deduplicated `FixedVector<Service*, 5>` that four sites iterate:
-   `Shell::tick`'s step 8c timer fold (`shell.cpp:512`), `Shell::tick_stack` (`:602`),
-   `Shell::derive_leds` via `LedCompose::compose` (`:877`), and `Shell::compute_next_wake`
-   (`:1090`).
+   `Shell::tick`'s step 8c timer fold (`shell.cpp:515`), `Shell::tick_stack` (`:605`),
+   `Shell::derive_leds` via `LedCompose::compose` (`:880`), and `Shell::compute_next_wake`
+   (`:1093`).
 
 A change that updated two of the three leaves a shell that either ticks services it never routes to
 or routes to services it never ticks, and **each half passes the other half's tests** — which is why
@@ -1285,7 +1285,7 @@ legacy is the hardware; the guest ignores `index`, since legacy's gate is not pe
 `SurfaceSet` doc's phrasing ("still transferring a previous blit") remains true of the hardware
 backend and is now the narrower of the two readings, not the definition.
 
-Fixed by replacing the comment at `shell.cpp:923` with the account above. No code moved: `flush`
+Fixed by replacing the comment at `shell.cpp:926` with the account above. No code moved: `flush`
 already asked the backend rather than assuming an answer, which is why the wrong comment cost
 nothing beyond the risk of the next backend copying it.
 
@@ -1312,7 +1312,7 @@ halves of that are false, which task 4 established rather than assumed:
 So it copies, measured: 768 B per OLED blit, 48 B per changed column pair, 432 B for a full grid,
 with the constants derived from legacy's macros and `static_assert`ed against `kDelugeOled.bytes()`
 and `sizeof(PadLEDs::image)`. The bound on the grid is `Shell::flush`'s per-pair diff against
-`last_sent` (`src/shell/shell.cpp:979`), not a cadence — a tick where no pad changed costs nothing however fast ticks
+`last_sent` (`src/shell/shell.cpp:982`), not a cadence — a tick where no pad changed costs nothing however fast ticks
 arrive — and the OLED has no diff at all, so its cost is per re-rendered tick.
 
 **`next_wake()`'s "the shell only ticks when its host asks it to" now has a host that asks at 1

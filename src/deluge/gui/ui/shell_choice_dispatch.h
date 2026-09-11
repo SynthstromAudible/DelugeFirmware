@@ -22,10 +22,10 @@
 ///        `gui/ui/shell_action_dispatch.h` is the verb half of.
 ///
 /// The producing half is `src/scenes`': `BrowserScene`'s `Sample` descriptor answers
-/// `AcceptOutcome::Defer` (`scenes/browser/browser_scene.cpp:209-218`, the `return` at `:217`),
+/// `AcceptOutcome::Defer` (`scenes/browser/browser_scene.cpp:210-219`, the `return` at `:218`),
 /// `BrowserScene::enter` parks the chosen path and closes the scene in one statement
-/// (`:895-897`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:381`,
-/// defined `browser_scene.cpp:416-420`) hands it out exactly once.
+/// (`:896-898`), and `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:382`,
+/// defined `browser_scene.cpp:417-421`) hands it out exactly once.
 ///
 /// **Why it is deferred at all.** `SampleBrowser::enterKeyPress`'s file arm is one dispatch onto the
 /// storage owner (`gui/ui/browser/sample_browser.cpp:333 enterKeyPress`, the dispatch at `:392`),
@@ -58,7 +58,7 @@ namespace deluge::gui::ui {
 /// This is `SampleBrowser::getCurrentFilePath()` (`gui/ui/browser/sample_browser.cpp:539-550`) run
 /// backwards. That function is `currentDir`, a separator when `currentDir` is non-empty, then
 /// `currentFileItem->filename` with its extension (`:540-547`), and `BrowserScene::enter` builds the
-/// parked path with the same three statements (`scenes/browser/browser_scene.cpp:879-883`) precisely
+/// parked path with the same three statements (`scenes/browser/browser_scene.cpp:880-884`) precisely
 /// so the two spellings agree. Splitting it back apart is what any performer of the claim has to do
 /// first, because `claimCurrentFile` reads the browser's own `currentDir` and selected item rather
 /// than taking a path.
@@ -191,7 +191,7 @@ using SampleClaimDispatch = bool (*)(void (*)(void*), void*);
 /// Without it a spec cannot reach `dispatchShellChoices()` at all. `Owner::run_or_inline` runs the op
 /// on the caller's stack on this BSP (`storage/owner.h:28-30`, and again at `:40`), and
 /// `BrowserScene::enter` always appends a non-empty `FileItem::filename`
-/// (`scenes/browser/browser_scene.cpp:879-883`), so every example that presses a real file reaches a
+/// (`scenes/browser/browser_scene.cpp:880-884`), so every example that presses a real file reaches a
 /// real `SampleBrowser::claimCurrentFile` (`sample_browser.cpp:814`): the "Working" animation
 /// (`:824`), a card read down through `Sample::determinePitch`, an `AudioFileManager` allocation, and
 /// the `openUI(&soundEditor)` tail (`:1112-1119`). With it, an example asserts something stronger
@@ -210,9 +210,9 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
 /// `BrowserScene::take_choice()` is a one-slot outbox that announces nothing -- `enter` files it and
-/// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:895-897`), so no `Action` says a
+/// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:896-898`), so no `Action` says a
 /// choice is waiting and nothing enforces the polling. That is `MenuScene::take_action()`'s hazard
-/// (`scenes/menu/menu_scene.h:623-628`, the poll at `:655`) in the same shape, and it lands as the same requirement on
+/// (`scenes/menu/menu_scene.h:672-677`, the poll at `:704`) in the same shape, and it lands as the same requirement on
 /// this function's *caller*: poll after every tick, or a choice is delivered whenever something next
 /// asks, against whatever song and clip exist then.
 ///
@@ -223,8 +223,8 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 /// @par The scene is already gone by the time this runs, and that is the point
 ///
 /// `Defer` **parks and closes in the same statement**: `choice_ = BrowserChoice{...}` then
-/// `return close()` (`scenes/browser/browser_scene.cpp:896-897`), and `close()` is
-/// `Action::Kind::Remove` naming the browser's own kind (`:917-926`). The router applies that inside
+/// `return close()` (`scenes/browser/browser_scene.cpp:897-898`), and `close()` is
+/// `Action::Kind::Remove` naming the browser's own kind (`:918-927`). The router applies that inside
 /// the same `Shell::tick` that routed the press, so by the time this drain runs the browser is off
 /// the stack and the ported menu underneath is frontmost again. Nothing here may assume otherwise --
 /// there is no state in which a choice is pending *and* the browser is still up.
@@ -233,8 +233,8 @@ void setSampleClaimDispatch(SampleClaimDispatch dispatch);
 ///
 /// Both drains run after `Shell::tick`, actions first. **Yes, both can be pending on the same
 /// tick**, and the path is real rather than theoretical: the browser's `Remove` is applied at
-/// `Shell::tick`'s step 3 (`shell/shell.cpp:329`), so the menu underneath is frontmost again by
-/// steps 5-6 and gets its own `after_render()` at step 7 (`:399-407`) -- on the very tick the choice
+/// `Shell::tick`'s step 3 (`shell/shell.cpp:332`), so the menu underneath is frontmost again by
+/// steps 5-6 and gets its own `after_render()` at step 7 (`:402-410`) -- on the very tick the choice
 /// was filed. A `MenuActionRequest` filed by that resume sits in the menu's outbox beside the choice
 /// in the browser's.
 ///

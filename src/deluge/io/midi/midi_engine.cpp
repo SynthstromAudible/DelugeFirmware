@@ -502,7 +502,7 @@ void MidiEngine::checkIncomingUsbMidi() {
 	if (!usbCurrentlyInitialized
 	    || deluge::sync::sd_busy()) { // hack to avoid SysEx handlers clashing with other sd-card activity.
 		// D_PRINTLN("checkIncomingUsbMidi seeing sd_busy()"); -- left commented out on purpose. This is
-		// the "midi routine" task, scheduled at a 0.001s target / 0.0005s backoff (deluge.cpp:542-543),
+		// the "midi routine" task, scheduled at a 0.001s target / 0.0005s backoff (deluge.cpp:544-545),
 		// i.e. close to 1kHz -- and ENABLE_TEXT_OUTPUT is on for Debug/RelWithDebInfo (CMakeLists.txt),
 		// the config that actually gets flashed. Restoring this line, even briefly, emitted on the order
 		// of 1-2k formatted UART lines/sec during a song load or streaming burst, and the resulting UART

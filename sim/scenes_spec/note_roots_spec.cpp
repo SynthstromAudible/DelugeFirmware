@@ -92,7 +92,7 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 		menu::set_shortcuts_version(saved);
 
 		// Fix round 1, IMPORTANT 3: `render_grid` only ever paints `shortcut_pos(ctx_.root,
-		// *focused())` and that node's source pads (`menu_scene.cpp:1268-1310`). `note_editor_root`
+		// *focused())` and that node's source pads (`menu_scene.cpp:1252-1294`). `note_editor_root`
 		// itself is in NO root's table, so opening the scene on it (the original shape of this
 		// example) could never observe a leak -- it would pass even if `kByRootV3`/`kByRootV1`'s
 		// note-root slots pointed at a real table by mistake. `nodes::lpf_freq` is a real cell under
@@ -285,7 +285,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 
 	it("on a kit with affectEntire true, leaves affectEntire false in both the clip and the "
 	   "installed context", _ {
-		// `instrument_clip_view.cpp:3590-3598`: a note is selected on a kit row (so `context_for`
+		// `instrument_clip_view.cpp:3607-3615`: a note is selected on a kit row (so `context_for`
 		// resolves through the drum arm, not the kit-global-fx one -- `kitGlobalFx` here is false,
 		// exactly as the kit-row shortcut path's own call is), while the clip's OWN `affectEntire`
 		// is independently true. Both facts at once is the case `context.h`'s own note on
@@ -367,7 +367,7 @@ describe note_roots_undo_log("pre-review fix: openShellMenu's NoteMode must not 
 	// `SoundEditor::setup`'s undo-log wipe (`sound_editor.cpp:1769-1771`) is inside its `item ==
 	// nullptr` arm only. `enterNoteEditor`/`enterNoteRowEditor` never take that arm -- each calls
 	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
-	// (`instrument_clip_view.cpp:3590`, `:3758`), an explicit item -- so legacy never wipes on a
+	// (`instrument_clip_view.cpp:3607`, `:3811`), an explicit item -- so legacy never wipes on a
 	// note-editor/note-row-editor open. `openShellMenu`'s own wipe (`gui/ui/shell_menu_entry.cpp`)
 	// used to fire whenever `node == ShellMenuNode::ContextRoot && clip != nullptr`, which is true
 	// for every `NoteMode` call too (neither note root has its own `ShellMenuNode`), so it wiped

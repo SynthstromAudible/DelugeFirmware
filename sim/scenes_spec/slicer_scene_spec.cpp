@@ -261,8 +261,8 @@ struct Rig {
 	/// @brief One tick to deliver the turn, one to draw its consequence.
 	///
 	/// `Shell::tick` delivers encoder events at **step 8**, after step 5/6 have already built this
-	/// tick's frames (`shell/shell.cpp:388-389`), and the `Repaint` the arm files is therefore for
-	/// the tick after (`shell.cpp:397-404`). So a pixel comparison taken one tick after a turn shows
+	/// tick's frames (`shell/shell.cpp:411-412`), and the `Repaint` the arm files is therefore for
+	/// the tick after (`shell.cpp:413-419`). So a pixel comparison taken one tick after a turn shows
 	/// the value from *before* it -- found by writing exactly that and watching the panel read 17
 	/// where legacy read 20. Every gesture below therefore settles before anything is read.
 	void settle(uint32_t at_ms) {
@@ -328,13 +328,13 @@ struct Rig {
 	/// @return The text the shell's popup service last showed.
 	///
 	/// @warning This is a *record*, not a level -- `Notices::last_popup_text()` is "the text last
-	///          shown" and survives the popup's removal (`shell/notices.h:358-361`). Ask
+	///          shown" and survives the popup's removal (`shell/notices.h:524-527`). Ask
 	///          `popup_showing()` whether one is on screen.
 	std::string popup() { return shell.notices().last_popup_text(); }
 
 	/// @return Is a popup scene on the stack right now? `Notices` pushes `SceneKind::Popup` for one
 	///         and `SceneStack::remove`s it on cancel (`Notices::drain`'s `CancelPopup` case,
-	///         `shell/notices.cpp:282-289`) or on timeout (`Notices::tick`, `notices.cpp:327-350`).
+	///         `shell/notices.cpp:331-395`) or on timeout (`Notices::tick`, `notices.cpp:440-470`).
 	bool popup_showing() {
 		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
 			if (s->kind() == SceneKind::Popup) {

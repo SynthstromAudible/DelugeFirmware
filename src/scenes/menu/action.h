@@ -191,7 +191,7 @@ enum class MenuAction : uint8_t {
 	///
 	/// **This does not loop.** `settingsChanged()` writes no menu state and files no request: its
 	/// only reach back into this layer is `Shell::set_screensaver_idle_ms`, which sets one number on
-	/// a `shell::Screensaver` service (`shell/shell.h:222-228`). Nothing on that path touches
+	/// a `shell::Screensaver` service (`shell/shell.h:223-229`). Nothing on that path touches
 	/// `MenuState`, so the round trip is hook -> request -> notify, and it stops.
 	ScreensaverSettingsChanged,
 };

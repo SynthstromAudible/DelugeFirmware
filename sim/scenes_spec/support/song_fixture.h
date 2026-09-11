@@ -6,7 +6,7 @@
 /// **Why direct construction and not the loadcheck shape** (task-3 ruling 1): the legacy bring-up
 /// that precedes a song, `deluge_boot()` (`src/deluge/deluge.cpp:639`), is almost entirely device
 /// bring-up -- OLED probe, control surface, CV DAC, USB host/peripheral, PIC boot info -- and it
-/// ends by calling `setupBlankSong()` (`:746`), whose song is built out of `Song`'s own members
+/// ends by calling `setupBlankSong()` (`:748`), whose song is built out of `Song`'s own members
 /// plus `Song::ensureAtLeastOneSessionClip()` (`model/song/song.cpp:337`). Only two things in that
 /// path are actually load-bearing for owning a `Song`:
 ///
@@ -66,7 +66,7 @@ inline T* place(Args&&... args) {
 	return memory != nullptr ? new (memory) T(static_cast<Args&&>(args)...) : nullptr;
 }
 
-/// @brief `setupBlankSong()`'s song half (`deluge.cpp:374-385`) minus its two UI calls
+/// @brief `setupBlankSong()`'s song half (`deluge.cpp:376-387`) minus its two UI calls
 ///        (`setRootUILowLevel`, `setUIForLoadedSong`) and minus `AudioEngine`'s reverb pull.
 inline Song* make_bare_song() {
 	Song* song = place<Song>();

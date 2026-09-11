@@ -400,7 +400,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 				// The same fact legacy puts in `setupKitGlobalFXMenu`, passed as an argument instead
 				// (`scenes/menu/context.h`'s `kit_global_fx`, whose doc names this very line as one
 				// of its two writers). The root is then one of six, and `context_for` runs the same
-				// six tests in the same order (`scenes/menu/context.cpp:330-358`); the two UI-mode
+				// six tests in the same order (`scenes/menu/context.cpp:339-358`); the two UI-mode
 				// roots legacy could otherwise pick are unreachable here because this arm is
 				// `currentUIMode == UI_MODE_NONE` (`:397`).
 				const bool kitGlobalFx =

@@ -76,8 +76,8 @@ GuestServices& guestServices() {
 /// `ModKnobs` keeps the same six pointers as POD (`scenes/services/mod_target.h`) and nothing sets
 /// them for it, so an installed-but-unseeded `ModKnobs` reports `mode() == -1` and
 /// `target_.mod_controllable == nullptr` -- which makes its `leds()` declare **all eight mod LEDs
-/// off** (`services/mod_knobs.cpp:725-735`) and its `declare_indicators` declare **level 0 on both
-/// gold knobs** (`:684-690`, the port of `indicator_leds::clearKnobIndicatorLevels`). Both are
+/// off** (`services/mod_knobs.cpp:729-739`) and its `declare_indicators` declare **level 0 on both
+/// gold knobs** (`:687-694`, the port of `indicator_leds::clearKnobIndicatorLevels`). Both are
 /// written every tick the guest runs, so an unseeded service is not inert: it blanks the mod LEDs
 /// and the two indicator rings that legacy is showing. Seeding is what makes the guest's LEDs equal
 /// `SoundEditor`'s (plan F1, global constraint 1), not a nicety.

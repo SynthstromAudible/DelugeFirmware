@@ -37,8 +37,8 @@
 ///   * **The `THRESHOLD_RECORDING_MODE` popup arm** (`hid/buttons.cpp:190-192`). Not ported, and
 ///     it is a behaviour difference rather than a missing call; there is no port-side state that
 ///     could be driven into it.
-///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`). `soundEditor` and
-///     `instrumentClipView` are unported globals this layer may not name.
+///   * **The `SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`). The note-editor test
+///     needs no port (`global_controls.h`); the fill adjustments name `instrumentClipView`, unported.
 ///   * **`View::buttonAction`'s four MIDI-learn arms** (`:148-166`, `:185-196`, `:199-212`,
 ///     `:215-228`). E4 task 5's; this spec asserts only that they are declined here, and that the
 ///     transport arms they share a button with are correctly suppressed while learn is active.

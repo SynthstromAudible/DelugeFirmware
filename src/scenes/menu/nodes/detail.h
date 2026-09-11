@@ -66,7 +66,7 @@ constexpr Node with_range(Node n, IntRange r) {
 
 /// @brief @p n with an explicit `Binding::style` -- the unit suffix, or "OFF" in place of 0.
 ///
-/// `int_value`/`decimal_value` take a `ValueStyle` (`ui/oled/values.h:23-28`) and
+/// `int_value`/`decimal_value` take a `ValueStyle` (`ui/oled/values.h:25-30`) and
 /// `MenuScene::render_leaf_int` hands it `node.bind.style`, but no builder has an argument for one.
 /// The port of legacy's presentation *subclasses* of `Integer`: `IntegerWithOff` draws 0 as "OFF"
 /// (`gui/menu_item/integer.cpp:41-50`), which is `off_at_zero`.

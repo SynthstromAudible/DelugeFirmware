@@ -40,7 +40,7 @@ namespace deluge::gui::ui {
 ///
 /// **Nothing the input hooks do is synchronous.** `Shell::on_board_event` and
 /// `Shell::on_encoder_edges` push into `InputLowering`'s queues; routing to a scene happens in
-/// `Shell::pump_input`, which only `Shell::tick` calls (`shell/shell.cpp:579-589`). So a hook can
+/// `Shell::pump_input`, which only `Shell::tick` calls (`shell/shell.cpp:582-592`). So a hook can
 /// never report what a scene did with a press, and every return value below is decided statically
 /// from what legacy does with it -- see each hook's note. The tick that drains the queue is
 /// `timerCallback`, and every one of those hooks arms it through `armTickSoon` -- see
@@ -91,8 +91,8 @@ namespace deluge::gui::ui {
 ///
 /// **Nothing inside the guest routes, renders, or lights an LED except `Shell::tick`.** The input
 /// hooks below only push into `InputLowering`'s queues; routing happens in `Shell::pump_input`,
-/// which only `tick()` calls (`shell/shell.cpp:579-589`), and the LEDs are composed and sent by
-/// `Shell::derive_leds`/`Shell::flush` at step 9 of that same function (`shell/shell.cpp:530-532`).
+/// which only `tick()` calls (`shell/shell.cpp:582-592`), and the LEDs are composed and sent by
+/// `Shell::derive_leds`/`Shell::flush` at step 9 of that same function (`shell/shell.cpp:533-535`).
 /// So a guest whose timer is not armed is a guest that is frozen, however much legacy is feeding
 /// it -- which is why the arm is re-established in every place legacy can leave it unarmed, not
 /// only in `opened()`.
@@ -108,17 +108,17 @@ namespace deluge::gui::ui {
 ///
 /// @par The unit mismatch: an absolute deadline against a duration
 ///
-/// `Shell::next_wake()` is an **absolute** millisecond deadline (`shell/shell.h:378`), recomputed at
-/// the bottom of every tick (`shell/shell.cpp:533`). `UITimerManager::setTimer` takes a **duration**
+/// `Shell::next_wake()` is an **absolute** millisecond deadline (`shell/shell.h:379`), recomputed at
+/// the bottom of every tick (`shell/shell.cpp:536`). `UITimerManager::setTimer` takes a **duration**
 /// and converts it to audio samples with `ms * 44` (`gui/ui_timer_manager.cpp:253-255`). The
 /// conversion is therefore `in = (int32_t)(deadline - now)`, in the wrap-safe difference form
-/// `Shell::compute_next_wake` and `RepaintGate` both use (`shell/shell.cpp:1053-1061`,
+/// `Shell::compute_next_wake` and `RepaintGate` both use (`shell/shell.cpp:1056-1064`,
 /// `ui/core/repaint_gate.cpp:7`) -- a plain `<` across the ~49.7-day `uint32_t` wrap picks the wrong
 /// one of two straddling deadlines -- and then clamped to `kMinRearmMs .. kMaxRearmMs`.
 ///
 ///  - **A deadline already past** (`in <= 0`) arms `kMinRearmMs`, not zero. It is not an error: the
 ///    shell asks for `now_ms` routinely (a router repaint armed at a zero-millisecond deadline,
-///    `shell/shell.cpp:417-431`), and there is nothing to catch up on -- the tick that just ran was
+///    `shell/shell.cpp:420-434`), and there is nothing to catch up on -- the tick that just ran was
 ///    the one it was waiting for.
 ///  - **Arming earlier than asked is always safe; arming later is not.** The next tick recomputes
 ///    `next_wake()` from scratch, so an early wake costs one tick and corrects itself. That is why
@@ -127,7 +127,7 @@ namespace deluge::gui::ui {
 /// @par Why the floor is 1 ms and not 0 -- the busy loop this shell has shipped before
 ///
 /// `Scene::next_timer()` may legally return **0**, meaning "next tick"
-/// (`shell/scene.h:542-594`), and `AudioClipScene::next_timer()` returns it for the whole of
+/// (`shell/scene.h:543-595`), and `AudioClipScene::next_timer()` returns it for the whole of
 /// playback (`scenes/audio_clip/audio_clip_scene.cpp:1197-1203`). `Shell::next_wake()`'s own
 /// `@warning` records that a host cannot tell that apart from "wake once, immediately", and that the
 /// shell "only ticks when its host asks it to" -- **this class is that host**, so the answer is here.
@@ -168,15 +168,15 @@ namespace deluge::gui::ui {
 ///
 /// **There is no `LedSink`, and this class implements no LED sink.** Spec F §2.1 says "the guest's
 /// `derive_leds` writes through an `indicator_leds` `LedSink`"; `grep -rn LedSink src/` has no hits,
-/// `derive_leds` is a private member of `Shell` (`shell/shell.h:507`) rather than of the guest, and
-/// the writing is done by `Shell::flush`, not by `derive_leds` (`shell/shell.cpp:1002-1028`). The seam
+/// `derive_leds` is a private member of `Shell` (`shell/shell.h:508`) rather than of the guest, and
+/// the writing is done by `Shell::flush`, not by `derive_leds` (`shell/shell.cpp:1005-1031`). The seam
 /// that actually exists is `SurfaceSet::set_led`/`set_indicator`, implemented for the guest by F1
 /// task 4 (`gui/ui/shell_guest_surfaces.cpp:175`, `:189`). What this task adds is the *tick* that
 /// makes any of it run.
 ///
 ///  - **An LED a scene declares is the guest's.** `Shell::flush`'s diff loop only ever calls
 ///    `set_led` for an id with `desired_declared` set (`shell/leds.cpp:75-80`), which
-///    `Shell::derive_leds` sets only from the composed `LedFrame` (`shell/shell.cpp:874-893`). The
+///    `Shell::derive_leds` sets only from the composed `LedFrame` (`shell/shell.cpp:877-896`). The
 ///    guest then takes the LED away from legacy's blinker for as long as it holds it:
 ///    `GuestSurfaceSet::set_led` calls `indicator_leds::setLedState` with the default
 ///    `allowContinuedBlinking = false`, whose first act is `stopLedBlinking(led)`
@@ -194,8 +194,8 @@ namespace deluge::gui::ui {
 ///    legacy write of the level the shadow still holds (`hid/led/indicator_leds.cpp:187-191`).
 ///    **This went live with F1 task 8, which is what task 7 said would make it live.** The one
 ///    declarer is `services::ModKnobs` (`grep -rn "frame.indicator(" src/scenes` --
-///    `scenes/services/mod_knobs.cpp:687`, `:696`, `:703`), `Shell::flush` calls `set_indicator`
-///    only for an indicator declared this tick (`shell/shell.cpp:1032-1044`), and the guest now has a
+///    `scenes/services/mod_knobs.cpp:691`, `:700`, `:707`), `Shell::flush` calls `set_indicator`
+///    only for an indicator declared this tick (`shell/shell.cpp:1035-1047`), and the guest now has a
 ///    `ModKnobs` in its `Services`. The fix task 7 named is in: `closeGuest()`, the body BOTH of
 ///    the guest's close paths run (`exitUI`'s long-press Back and `timerCallback`'s short one, F1
 ///    task 11), calls `indicator_leds::clearKnobIndicatorLevels()` (`hid/led/indicator_leds.h:88`)
@@ -210,7 +210,7 @@ namespace deluge::gui::ui {
 /// into the shell's `InputLowering`". Doing that would corrupt the value, arithmetically:
 ///
 ///  - The shell's only encoder entry points take **raw A-pin edges**
-///    (`Shell::on_encoder_edges`, `shell/shell.h:294`; `DELUGE_EVENT_ENCODER`'s `value`,
+///    (`Shell::on_encoder_edges`, `shell/shell.h:295`; `DELUGE_EVENT_ENCODER`'s `value`,
 ///    `shell/input_lowering.h:133-138`), and legacy has already turned a gold knob's edges into an
 ///    accelerated magnitude before it calls: `interpretEncoders` hands over
 ///    `offset * encoder.calcNextKnobSpeed(offset)` (`hid/encoder_input.cpp:192-194`), where
@@ -345,7 +345,7 @@ namespace deluge::gui::ui {
 /// §2.1's rule is that legacy `Buttons::` state is *read* into `UiContext`, not duplicated.
 /// **There is no seam to read it through.** `UiContext` is built by `Shell::make_context`, which is
 /// private and fills `.shift`/`.sticky` from the lowering's own fields
-/// (`shell/shell.cpp:567-577`), and `InputLowering` has no shift setter -- only
+/// (`shell/shell.cpp:570-580`), and `InputLowering` has no shift setter -- only
 /// `clear_shift_sticky()` (`shell/input_lowering.h:214`) and `set_shift_is_sticky()` (`:221`). So the
 /// guest's only lever is *which events it feeds*, and the two machines stay in step only because
 /// `buttonAction` below feeds every button legacy hands it, `padAction` feeds every pad, and
@@ -359,7 +359,7 @@ namespace deluge::gui::ui {
 ///     (`hid/buttons.cpp:250`); the shell reads `LoweringConfig::shift_is_sticky`, which this class
 ///     constructs as its default **false** (`shell/input_lowering.h:29-31`) and nothing sets. With
 ///     the setting on, legacy latches shift on a tap and this shell does not -- and `ctx.shift` is
-///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:2023`), so under
+///     the whole gate on the menu's shortcut-pad jump (`scenes/menu/menu_scene.cpp:2004`), so under
 ///     the toggle a sticky-shift user loses shortcut pads. **A release blocker for the toggle**,
 ///     and it belongs with the boot wiring: `LoweringConfig` is construction-time
 ///     (`shell/shell.h:27-29`) and this object is a static-init global that cannot read flash.
@@ -384,7 +384,7 @@ class ShellHostUI final : public ::UI {
 public:
 	/// @brief Build the guest over \p board and \p registry.
 	/// @param registry The application's scene table. `Shell` copies the pointers out of it into its
-	///                 own table (`shell/shell.cpp:174-176`), so a temporary is fine.
+	///                 own table (`shell/shell.cpp:176-178`), so a temporary is fine.
 	/// @param board    Board capability descriptor; the real Deluge unless a spec says otherwise.
 	/// @param profile  The matching board profile. The pair is a parameter rather than a constant
 	///                 for one reason: `canOpen()`'s refusal has to be drivable, and the only board
@@ -481,7 +481,7 @@ private:
 	/// of this mapping for the phase-5 adapter -- `is_grid_overlay()` is `!renderMainPads()` -- so
 	/// this is that same equivalence read in the guest direction.
 	///
-	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:473-474`), so the first
+	/// `MenuScene::is_grid_overlay()` is true (`scenes/menu/menu_scene.h:505-506`), so the first
 	/// tenant answers **false** here, which is exactly what `SoundEditor` answers: it does not
 	/// override either hook, so it takes `UI`'s `return false`.
 	bool opaque();
@@ -511,7 +511,7 @@ private:
 	/// multiplies back up. Feeding the detent count straight through would halve every turn.
 	///
 	/// @warning **The `int8_t` ceiling, and why this saturates instead of wrapping.**
-	///          `Shell::on_encoder_edges` takes an `int8_t` (`shell/shell.h:294`), so the product
+	///          `Shell::on_encoder_edges` takes an `int8_t` (`shell/shell.h:295`), so the product
 	///          must fit in -128..127; the lowering's own warning records what happens when it does
 	///          not (`shell/input_lowering.h:407-430`). **The guest can exceed it.** Legacy's
 	///          `detentDelta` is an `int32_t` accumulated in `DetentedEncoder::pos` across however
@@ -543,7 +543,7 @@ private:
 	/// @brief Re-arm `TimerName::UI_SPECIFIC` from the shell's own deadline.
 	///
 	/// Called from `timerCallback` and nowhere else, because `Shell::next_wake()` is only
-	/// authoritative immediately after a `tick()` recomputed it (`shell/shell.cpp:533`).
+	/// authoritative immediately after a `tick()` recomputed it (`shell/shell.cpp:536`).
 	/// See `@par The unit mismatch` on the class for the conversion and both clamps.
 	///
 	/// A `std::nullopt` deadline means "nothing is armed; sleep until the next input" -- so nothing
@@ -569,7 +569,7 @@ private:
 	/// The body both of the guest's close paths share: `exitUI()`'s long-press Back, and
 	/// `timerCallback()`'s "the shell's stack emptied during the tick", which is what a *short* Back
 	/// at the ported menu's root produces (`MenuScene`'s `Action::Kind::Remove`,
-	/// `scenes/menu/menu_scene.cpp:1684-1689`). Neither the ring hand-back nor the close may be
+	/// `scenes/menu/menu_scene.cpp:2057-2071`). Neither the ring hand-back nor the close may be
 	/// skipped on either path; see the definition for why the order between them is fixed.
 	///
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
@@ -579,7 +579,7 @@ private:
 	/// @brief Does the scene that would receive this pad claim it? Spec §3.1's predicate.
 	///
 	/// `input_top()`, not `top()`: a passive overlay (popup, console, working animation) is
-	/// `input_transparent()` and is not the scene whose grid this is (`shell/scene.h:444`). Asking
+	/// `input_transparent()` and is not the scene whose grid this is (`shell/scene.h:445`). Asking
 	/// `top()` would let such an overlay's default `All` swallow a pad the menu beneath it would
 	/// have forwarded.
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);

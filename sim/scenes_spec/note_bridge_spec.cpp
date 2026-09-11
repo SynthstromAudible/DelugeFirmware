@@ -39,16 +39,16 @@
 /// the change. `adjustNoteProbabilityWithOffset`/`adjustNoteIteranceWithOffset`/
 /// `adjustNoteFillWithOffset` and every note-ROW `adjust_*`/`set_*` share the identical shape
 /// through `adjustNoteParameterValue`'s `hasPopup || inNoteEditor` (`:3067`, `:3118`) and
-/// `setNoteRowParameterValue`'s `hasPopup || inNoteRowEditor` (`:4101`, `:4104`) -- not re-pinned
+/// `setNoteRowParameterValue`'s `hasPopup || inNoteRowEditor` (`:4141`, `:4144`) -- not re-pinned
 /// here one entry at a time; velocity's gate is the stated sample for all of them. That example opens no
 /// ported menu, so it is legacy's arm, and it stays exactly as Task 4 pinned it.
 ///
 /// **The note-mode arm of the same gate (note-family Task 7a).** With the ported menu on the guest's
 /// stack at a note root, `util/note_editor_open.h`'s `noteEditorOpen()`/`noteRowEditorOpen()` answer
 /// true, so `adjustVelocity`'s `inSoundEditor` (`:2852`), `adjustNoteParameterValue`'s `inNoteEditor`
-/// (`:3067`) and `setNoteRowParameterValue`'s `inNoteRowEditor` (`:4101`) all hold with no popup up:
+/// (`:3067`) and `setNoteRowParameterValue`'s `inNoteRowEditor` (`:4141`) all hold with no popup up:
 /// the FIRST turn commits, and the popup each function raises only outside a note editor
-/// (`:2933-2935`, `:3497`, `:4209`) is not raised. Three examples pin it, one per function, each with
+/// (`:2933-2935`, `:3497`, `:4249`) is not raised. Three examples pin it, one per function, each with
 /// the guest opened over `instrumentClipView` the way production opens it -- which is also what makes
 /// `ActionLogger::getNewAction`'s own current-UI gate (`model/action/action_logger.cpp:98-102`) a
 /// real question here rather than one a spec-empty UI stack answers for free.
@@ -132,7 +132,7 @@ struct RealNoteSelectionGuard {
 		                              modelStackWithNoteRow, /*action=*/nullptr);
 
 		// `InstrumentClipView::editPadAction`'s own callers pass `currentSong->xZoom[NAVIGATION_CLIP]`
-		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3652`); square 0 is where the
+		// (`handleNoteEditorEditPadAction`, `instrument_clip_view.cpp:3669`); square 0 is where the
 		// note above was just placed.
 		instrumentClipView.editPadAction(/*state=*/true, /*yDisplay=*/0, /*xDisplay=*/0,
 		                                 currentSong->xZoom[NAVIGATION_CLIP]);

@@ -64,9 +64,9 @@ the hook it belongs to.
   the play flash through it (`playback/mode/session.cpp:1295`). `Slicer` holds the two at opposite
   values on one object — `oledShowsUIUnderneath = true` at `gui/ui/slicer.h:35`,
   `canSeeViewUnderneath() { return false; }` at `:38` — which is proof in the shipped tree that they are
-  independent questions. The guest maps it to `!top().occludes_grid()` (`shell/scene.h:407-408`).
+  independent questions. The guest maps it to `!top().occludes_grid()` (`shell/scene.h:408-409`).
   **The regression the wrong mapping would have shipped:** `MenuScene::oled_transparent` is false
-  (`scenes/menu/menu_scene.h:492`) where `SoundEditor::canSeeViewUnderneath` is true
+  (`scenes/menu/menu_scene.h:525`) where `SoundEditor::canSeeViewUnderneath` is true
   (`gui/ui/sound_editor.h:121`), so the clip view under an open menu would have stopped animating.
 - **`exitUI()`'s return value pops nothing.** The row says it returns `NOT_DEALT_WITH` on an empty
   shell stack "so `closeUI` pops the guest". Neither of its two readers does that, and every legacy
@@ -113,7 +113,7 @@ the hook it belongs to.
     settings root, so this belongs with F1 task 9, which maps the fourteen callers to `SceneId`s and is
     the first place that does.
 - **`opened()` is `Shell::init(SceneId)`, not `Shell::push(initial)`.** There is no `Shell::push`;
-  `init` is `stack_.push(initial)` with the result dropped (`shell/shell.cpp:226-228`), which is why the
+  `init` is `stack_.push(initial)` with the result dropped (`shell/shell.cpp:229-231`), which is why the
   guest checks the depth afterwards rather than trusting the call.
 - **"aliases" is "serves", in both render rows**, following F1 task 4's §3 correction: the guest copies
   the shell's Main surface into the canvas legacy hands `renderOLED`, and copies the shell's grid rows
@@ -124,7 +124,7 @@ the hook it belongs to.
 
 - **`modEncoderAction` must NOT be forwarded into `InputLowering`, and neither may the other two mod
   hooks.** The shell's encoder entry points take **raw A-pin edges** (`Shell::on_encoder_edges`,
-  `shell/shell.h:294`), while legacy has already turned a gold knob's edges into an accelerated
+  `shell/shell.h:295`), while legacy has already turned a gold knob's edges into an accelerated
   magnitude before it calls: `interpretEncoders` passes `offset * encoder.calcNextKnobSpeed(offset)`
   (`hid/encoder_input.cpp:192-194`) where `calcNextKnobSpeed` returns `clamp(speed, 1.0, 3.0)`
   (`hid/encoders.cpp:76`). **The lowering does not re-accelerate it — `ModKnobs` does.** The
@@ -165,7 +165,7 @@ the hook it belongs to.
   Recorded as a divergence with the real condition on it, not claimed as parity.
 - **"legacy `Buttons::` state is *read* into `UiContext`, not duplicated" is not implementable.**
   `UiContext` is built by `Shell::make_context`, which is private and fills `.shift`/`.sticky` from
-  `InputLowering`'s own fields (`shell/shell.cpp:567-577`); `InputLowering` has no shift setter, only
+  `InputLowering`'s own fields (`shell/shell.cpp:570-580`); `InputLowering` has no shift setter, only
   `clear_shift_sticky()` (`shell/input_lowering.h:214`) and `set_shift_is_sticky()` (`:221`). There
   are therefore two shift state machines, and the guest's only lever is which events it feeds. They
   stay in step because the guest feeds every button and every pad legacy hands it and
@@ -177,13 +177,13 @@ the hook it belongs to.
      deferred it to task 8 for a reason that was false.** `InputLowering::set_shift_is_sticky` exists
      (`shell/input_lowering.cpp:334-341`) precisely because "the settings menu toggles it live"
      (`shell/input_lowering.h:29-30`), and `Shell::lowering()` is public and non-const
-     (`shell/shell.h:383`) — so nothing about `LoweringConfig` being construction-time applies to
+     (`shell/shell.h:384`) — so nothing about `LoweringConfig` being construction-time applies to
      *this* field. `ShellHostUI::opened()` now seeds it from
      `runtimeFeatureSettings.get(ShiftIsSticky)`, and `ShiftIsSticky::writeCurrentValue`
      (`gui/menu_item/runtime_feature/shift_is_sticky.cpp:23-49`) mirrors it live, alongside the
      `Buttons::clearShiftSticky()` it already had to pair with. Left unfixed this was a real
      regression: `ctx.shift` is the whole gate on the menu's shortcut-pad jump
-     (`scenes/menu/menu_scene.cpp:1631`), so a sticky-shift user would have lost shortcut pads under
+     (`scenes/menu/menu_scene.cpp:2004`), so a sticky-shift user would have lost shortcut pads under
      the toggle.
   2. ~~**`hold_time_ms` is the one that genuinely is construction-time.**~~ **Closed by F1 task 8.**
      The tap threshold is `FlashStorage::holdTime` in legacy — audio samples, re-read *live* at
@@ -202,7 +202,7 @@ the hook it belongs to.
 **Two more facts about the input row that the table cannot carry** (F1 task 6):
 
 - **The hooks feed; they do not answer.** Routing happens in `Shell::pump_input`, which only
-  `Shell::tick` calls (`shell/shell.cpp:579-589`), so no hook can report what a scene did with a
+  `Shell::tick` calls (`shell/shell.cpp:582-592`), so no hook can report what a scene did with a
   press and every return value is decided statically. `buttonAction` returns `NOT_DEALT_WITH`, which
   is what keeps `Buttons::buttonAction`'s tail running: `commandToggleShift` (`hid/buttons.cpp:169-171`),
   the transport, and the mod-encoder-button dispatch at `:226-231`, which is itself gated on that
@@ -222,16 +222,16 @@ The rows that held up unchanged: `renderMainPads`/`renderSidebar` really do retu
 opacity, and §2.2's dual for it (`is_grid_overlay()` is `!renderMainPads()`) is the mapping the guest
 implements; `focusRegained` really is `on_resume`, with the one refinement that it goes to
 `SceneStack::input_top()` rather than `top()`, because that is what `Scene::on_resume`'s own contract
-says (`shell/scene.h:380-395`) and what the stack itself does (`shell/scene_stack.h:38-46`);
+says (`shell/scene.h:381-396`) and what the stack itself does (`shell/scene_stack.h:38-46`);
 `getGreyoutColsAndRows` really is the top scene's `greyout_mask()`, with `doGreyout == false` spelled
-as an all-zero mask (`scenes/menu/menu_scene.cpp:1697-1729`).
+as an all-zero mask (`scenes/menu/menu_scene.cpp:2079-2117`).
 
 **One phase-4 topology defect the table does not mention and cannot be read off it: the greyout is
 applied twice.** Legacy greys once, in the send path — `prepareColour` (`hid/led/pad_leds.cpp:283-298`,
 the tint at `:293-296`) reads the masks `reassessGreyout` took from `getUIGreyoutColsAndRows`
 (`:734-735`) and never mutates `PadLEDs::image`. The shell has no send stage to hook, so it greys its
-own grid in place (`Shell::render_grid`, `shell/shell.cpp:789-795`, over the whole stack's OR at
-`:328-334`); those already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
+own grid in place (`Shell::render_grid`, `shell/shell.cpp:792-798`, over the whole stack's OR at
+`:349-355`); those already-greyed colours then reach the pads through `GuestSurfaceSet::send_columns`,
 which writes `image` and calls `sortLedsForCol` — back through `prepareColour`, which greys them again
 for whatever the guest just reported. A greyed pad is darker under the guest than under `SoundEditor`.
 Answering `false` here is not the fix: `gui/ui/ui.cpp:73-83` would then take the mask from the UI
@@ -246,8 +246,8 @@ at the code.
 
 - **`next_wake_` is an absolute deadline; `setTimer` takes a duration.** The row does not say which,
   and the two are different units. `Shell::next_wake()` returns `std::optional<uint32_t>`, an
-  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:378`,
-  `shell/shell.cpp:533`); `UITimerManager::setTimer(which, ms)` is a duration and converts it with
+  absolute millisecond clock recomputed at the bottom of every tick (`shell/shell.h:379`,
+  `shell/shell.cpp:536`); `UITimerManager::setTimer(which, ms)` is a duration and converts it with
   `ms * 44` into audio samples (`gui/ui_timer_manager.cpp:253-255`). The guest converts with the
   wrap-safe difference `(int32_t)(deadline - now)` — the form `compute_next_wake` and `RepaintGate`
   both use, because a plain `<` across the ~49.7-day `uint32_t` wrap picks the later of two
@@ -284,9 +284,9 @@ at the code.
   all five input hooks — and deliberately **not** from `exitUI()`'s close path, where `closeUI` is
   about to unset it and where an arm would deliver this guest's callback to the UI beneath.
 - **There is no `LedSink`.** `grep -rn LedSink src/` has no hits. `derive_leds` is a private member
-  of `Shell` (`shell/shell.h:507`), not of the guest, and it does not write anything: it composes the
-  frame and fills the `desired_*` shadows (`shell/shell.cpp:874-893`), and `Shell::flush` is what
-  calls `SurfaceSet::set_led` (`shell/shell.cpp:1002-1028`). The `indicator_leds` half of the sentence
+  of `Shell` (`shell/shell.h:508`), not of the guest, and it does not write anything: it composes the
+  frame and fills the `desired_*` shadows (`shell/shell.cpp:877-896`), and `Shell::flush` is what
+  calls `SurfaceSet::set_led` (`shell/shell.cpp:1005-1031`). The `indicator_leds` half of the sentence
   is right and was already built by F1 task 4 (`GuestSurfaceSet::set_led`). What task 7 adds is the
   *tick*, without which none of it ever runs.
 - **The ownership rule holds, and it is one-sided in the guest's favour.** An id no scene declared
@@ -297,7 +297,7 @@ at the code.
   (`setLedState` keeps `ledStates[]` true) and **not** for knob indicators, whose
   `knobIndicatorLevels[]` shadow `GuestSurfaceSet::set_indicator` cannot update — but that is not
   live in phase 4 as built: the only `frame.indicator(...)` declarer in the tree is `ModKnobs`
-  (`scenes/services/mod_knobs.cpp:687`), a service, and the guest is constructed with `Services{}`.
+  (`scenes/services/mod_knobs.cpp:691`), a service, and the guest is constructed with `Services{}`.
   F1 task 8 is what makes it live, and `indicator_leds::clearKnobIndicatorLevels()` on the close path
   is the fix that belongs with it.
 - **The double greyout above is NOT the tick's, and is re-homed.** Task 5 recorded it as belonging
@@ -379,7 +379,7 @@ correction is the interesting part.** The first version of this paragraph quoted
 fastest grid gate, 20 ms". There is no such ceiling, and two shipped scenes already exceed it:
 `RecorderScene` polls at `kRecorderPollMs = 10` (`src/scenes/recorder/recorder_scene.h:180`) and does
 not override `timer_repaints()`, so it takes `Scene`'s `{.oled = true, .grid = true}` default
-(`src/shell/scene.h:661`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
+(`src/shell/scene.h:662`) — a 10 ms gate on **both** surfaces; and `AudioClipScene::next_timer()`
 returns `0u` for as long as the playhead is live
 (`src/scenes/audio_clip/audio_clip_scene.cpp:1203`) with `{.grid = true}`
 (`audio_clip_scene.h:477`), so the grid gate arms every tick and no millisecond figure bounds it at
@@ -389,11 +389,11 @@ no cadence ceiling to quote for either surface.
 The bounds that are actually true:
 
 - **Grid: the per-pair diff, not a cadence.** `Shell::flush` compares each pair against `last_sent`
-  before calling `send_columns` at all (`src/shell/shell.cpp:977-993`), so a tick in which no pad
+  before calling `send_columns` at all (`src/shell/shell.cpp:980-996`), so a tick in which no pad
   changed colour costs **zero bytes**, however fast the ticks come. 432 B is the price of a full
   repaint, not of a tick.
 - **OLED: per tick that rendered, because there is no diff.** `flush` blits a surface
-  unconditionally once it has rendered (`src/shell/shell.cpp:453-460` is the ruling that says so, and
+  unconditionally once it has rendered (`src/shell/shell.cpp:456-463` is the ruling that says so, and
   says why the OLED half may not over-arm the way the grid half may). 768 B per re-rendered tick,
   bounded only by the host's tick rate; the 10 ms `RecorderScene` gate gives 76.8 kB/s as a **floor**
   for a busy panel, not a ceiling.
@@ -547,7 +547,7 @@ rather than a thing that is half-done:
    by construction — `gui/views/session_view.cpp:563` (`sessionView`),
    `gui/views/arranger_view.cpp:340` (`arrangerView`), `gui/views/performance_view.cpp:892`
    (`performanceView`), `gui/views/instrument_clip_view.cpp:507` (`instrumentClipView`),
-   `gui/views/audio_clip_view.cpp:415` (`audioClipView`), `gui/views/automation_view.cpp:1617`
+   `gui/views/audio_clip_view.cpp:415` (`audioClipView`), `gui/views/automation_view.cpp:1618`
    (`automationView`). The seventh comes from `model/clip/instrument_clip_minder.cpp:408` (site 6's
    own gated call, the SELECT arm of `InstrumentClipMinder::buttonAction`), inherited by three root
    views and called by all three — `gui/ui/keyboard/keyboard_screen.cpp:585`,
@@ -595,8 +595,8 @@ rather than a thing that is half-done:
    miscounted as a whole exclusion in two earlier passes at this sentence —
    `docs/superpowers/specs/2026-09-09-guest-pad-forwarding-design.md` §2.1 has the full per-site
    account. **Fixed by `ui/pads-1`**: `Scene::grid_pad_claim()`
-   (`src/shell/scene.h:455`) plus `ShellHostUI::claimsGridPad` (`gui/ui/shell_host_ui.cpp:754-776`)
-   and `forwardGridPad`'s tail (`gui/ui/shell_pad_forward.cpp:154-162`) now call
+   (`src/shell/scene.h:456`) plus `ShellHostUI::claimsGridPad` (`gui/ui/shell_host_ui.cpp:763-785`)
+   and `forwardGridPad`'s tail (`gui/ui/shell_pad_forward.cpp:178-186`) now call
    `closePortedMenu()` (`gui/ui/shell_action_dispatch.cpp:189-191`) on the same condition legacy's
    tail tests. **Why it survived five task reviews and three whole-branch reviews**: the level-3
    acceptance script (`tests/ui-scripts/app/menu.txt`) had never made the gesture before this branch
@@ -607,7 +607,7 @@ rather than a thing that is half-done:
    Legacy's static `Submenu::focusChild` (`gui/menu_item/submenu.cpp:21-34`) leaves `current_item_`
    alone when called with `nullptr` on a re-open of the process-lifetime static object, so the real
    device reopens a menu on the row it was last left on. `MenuScene::open`
-   (`scenes/menu/menu_scene.cpp:314-318`) resets `st_ = MenuState{}` unconditionally on every open,
+   (`scenes/menu/menu_scene.cpp:331-335`) resets `st_ = MenuState{}` unconditionally on every open,
    so the port always reopens on the first row. Shipped and player-visible with the toggle on: scroll
    a menu off its first row, back out, reopen, and the two legs land on different rows. Recorded
    rather than fixed — the state-cache change is bigger than this branch's scope — in
@@ -692,7 +692,7 @@ rather than a thing that is half-done:
 
      The mechanism is unchanged by the narrowing: `Descriptor::accept` carries no shift bit
      (`scenes/browser/browser_scene.h:239`) and `sample_accept` answers `Defer` unconditionally
-     (`browser_scene.cpp:209-218`), so the shift is dropped before a choice is ever filed — and **F3's
+     (`browser_scene.cpp:210-219`), so the shift is dropped before a choice is ever filed — and **F3's
      dispatcher cannot recover it honestly**, because it runs a tick *after* the press, so
      `Buttons::isShiftButtonPressed()` read from there is a different moment than the one that filed
      the choice. The fix is the shift state on `BrowserChoice`, and so on `Descriptor::accept`. **A
@@ -861,8 +861,8 @@ rather than a thing that is half-done:
    **Installing is not sufficient, which task 8 found by reading what the services then declare.**
    `ModKnobs` keeps its own `ModTarget` where legacy keeps `View::activeModControllableModelStack`,
    and an unseeded one reports `mode() == -1`: its `leds()` declares all eight mod LEDs **off**
-   (`scenes/services/mod_knobs.cpp:725-735`) and `declare_indicators` declares level **0** on both
-   gold knobs (`:683-690`), every tick the guest runs. So the wiring re-seeds `currentSong`,
+   (`scenes/services/mod_knobs.cpp:729-739`) and `declare_indicators` declares level **0** on both
+   gold knobs (`:687-694`), every tick the guest runs. So the wiring re-seeds `currentSong`,
    `View`'s active mod controllable and mod region and both `ViewState` blocks, at boot and on every
    open. Seeding it in turn made a latent double-dispatch live — legacy delivers MOD_ENCODER_0/1
    both to `buttonAction` and to the tail's `modEncoderButtonAction`, whose base forwards to `view`,
@@ -1510,8 +1510,8 @@ what a deletion loses outright.
   sides, because `spec::QuietAudio` holds `AudioEngine::audioRoutineLocked` for the whole process,
   so what is asserted is the `shouldSaveSettingsAfterMidiLearn` decision rather than the write.
 * **`GlobalControls`' `THRESHOLD_RECORDING_MODE` popup arm** (`hid/buttons.cpp:190-192`), the
-  **`SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`, which need `soundEditor` and
-  `instrumentClipView`), the **dedicated undo/redo buttons** (`view.cpp:424-447`, dead code behind
+  **`SYNC_SCALING` fill-mode arm's note halves** (`view.cpp:340-354`: the note-editor test at `:340-343` needs no port since note-family task 7a, and
+  the fill adjustments at `:345-354` need `instrumentClipView`), the **dedicated undo/redo buttons** (`view.cpp:424-447`, dead code behind
   `#ifdef undoButtonX`, defined nowhere in the tree), and the **UNDO-vs-REDO choice** at `:414-415`
   (`playbackHandler.slowRoutine()` consumes the pending command inside the same call and a spec
   cannot make `deluge::sync::sd_busy()` true, so both spellings read `NONE` by the time control

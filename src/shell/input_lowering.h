@@ -132,7 +132,7 @@ public:
 	///
 	/// `DELUGE_EVENT_PAD`, `DELUGE_EVENT_BUTTON` and `DELUGE_EVENT_NO_PRESSES` are the device's
 	/// three shapes. `DELUGE_EVENT_ENCODER` never arrives on this channel on the Deluge
-	/// (`deluge.cpp:278`) but the host injector uses it; its `x` is the encoder index and its
+	/// (`deluge.cpp:280`) but the host injector uses it; its `x` is the encoder index and its
 	/// `value` is a signed count of A-pin *edges*, the same unit `deluge_encoder_take_edges`
 	/// reports, so it is handed straight to the encoder path.
 	/// @param ev     The event.
@@ -311,7 +311,7 @@ public:
 	/// While set, `on_board_event` queues instead of lowering; releasing it replays the queue in
 	/// arrival order, each event with the clock it arrived at. `DELUGE_EVENT_NO_PRESSES` is
 	/// deferred like everything else rather than dropped -- dropping it strands whatever the
-	/// firmware still believes is held (issue #3168, `deluge.cpp:264-273`).
+	/// firmware still believes is held (issue #3168, `deluge.cpp:266-275`).
 	///
 	/// @note Dropping the oldest can separate a press from its release, so a scene that pairs the
 	///       two may see a release for a button it never saw pressed. `held()` stays correct

@@ -8,20 +8,20 @@
 ///
 /// **Through a recording seam, mostly, and why.** The legacy handlers these functions forward into
 /// dereference `soundEditor.getCurrentMenuItem()` -- `menuItemNavigationRecord[navigationDepth]`,
-/// null under the guest -- on most of their paths: `readValueAgain` (`instrument_clip_view.cpp:3655`,
-/// `:3842`, `:3878`, `:3905-3907`), `goUpOneLevel` (`:3690-3691`) and `toggleNoteEditorParamMenu`
-/// (`:3836`). Design spec §4's correction 7 gives legacy's side the ported mode in a later task; until
-/// then no example here may drive a handler down one of those paths with the ported menu open, and
-/// none does. `setNoteModeLegacyCalls` replaces every `instrumentClipView` call with a recorder that
+/// null under the guest -- on most of their paths: `readValueAgain` (`instrument_clip_view.cpp:3677`,
+/// `:3905`, `:3946`, `:3982-3984`), `goUpOneLevel` (`:3720-3721`) and `toggleNoteEditorParamMenu`
+/// (`:3894`). Task 7a put an `activeNoteMode()` arm ahead of each, and `note_mode_reads_spec.cpp`
+/// drives those; this file predates it, so no example here takes a handler down one of those paths
+/// with the ported menu open. `setNoteModeLegacyCalls` replaces every `instrumentClipView` call with a recorder that
 /// answers a settable `ActionResult`, and the routing is pinned through it.
 ///
 /// **Driven for real, and why each is safe:** the two button handlers on the paths that touch no
 /// navigation record -- AFFECT_ENTIRE in both modes (`handleNoteEditorButtonAction`'s fall-through,
-/// `:3731`; `handleNoteRowEditorButtonAction`'s kit toggle, `:3965-3971`) and every swallowed button
-/// (`:3731`, `:3979`). X_ENC and SYNC_SCALING are pinned through the seam only: their `return
-/// buttonAction(...)` arm (`:3721-3723`) reaches `InstrumentClipView::buttonAction`, whose SYNC_SCALING fill arm asks
-/// `getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()` (`gui/views/view.cpp:340`) -- one of
-/// correction 7's reads, which answers the not-in-editor arm under the guest today.
+/// `:3762`; `handleNoteRowEditorButtonAction`'s kit toggle, `:4043-4049`) and every swallowed button
+/// (`:3762`, `:4057`). X_ENC and SYNC_SCALING are pinned through the seam only: their `return
+/// buttonAction(...)` arm (`:3752-3754`) reaches `InstrumentClipView::buttonAction`, whose SYNC_SCALING fill arm asks
+/// `noteEditorOpen() || noteRowEditorOpen()` (`gui/views/view.cpp:340`) -- one of correction 7's
+/// reads, which Task 7a widened to see the ported note mode, so it takes the in-editor arm now.
 ///
 /// **Not covered here:** that a hook feeds the shell when a function answers `std::nullopt` and not
 /// when it answers a value -- `tests/spec/gui/shell_host_ui_spec.cpp`'s, against fakes.
@@ -231,7 +231,7 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 
 		// `SceneKind::Loading` is the loading scene the shell registers for itself
-		// (`shell/shell.cpp:184`), and it takes input -- `input_transparent()` is false
+		// (`shell/shell.cpp:187`), and it takes input -- `input_transparent()` is false
 		// (`shell/loading_scene.h:33`) -- so with it on top, the menu is on the stack and NOT the input
 		// top.
 		expect(shellHostUI.shell().stack().push(SceneId{SceneKind::Loading, 0})).to_be_true();
@@ -298,7 +298,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 
 	it("answers nothing in either mode for SYNTH, KIT, MIDI and CV -- the column focus is the menu's", _ {
 		// Both handlers send these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
-		// (`instrument_clip_view.cpp:3715-3717`, `:3955-3957`), i.e. to the horizontal menu's column
+		// (`instrument_clip_view.cpp:3746-3748`, `:4033-4035`), i.e. to the horizontal menu's column
 		// focus -- design spec §3's, which `MenuScene` owns -- through a record that is null here.
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
@@ -331,7 +331,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 
 	it("forwards X_ENC and SYNC_SCALING to the mode's own handler with the press's arguments, and "
 	   "returns its result", _ {
-		// Both handlers' `:3721-3723` / `:3961-3963` arm is `return buttonAction(b, on, inCardRoutine)`
+		// Both handlers' `:3752-3754` / `:4039-4041` arm is `return buttonAction(b, on, inCardRoutine)`
 		// -- `InstrumentClipView::buttonAction`, whose answer is the handler's answer. Seam only: see
 		// the file's note on `view.cpp:340`.
 		RecordingCalls recording;
@@ -387,7 +387,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 
 	it("the note editor's real handler swallows AFFECT_ENTIRE on a kit: DEALT_WITH, affectEntire untouched", _ {
 		// `handleNoteEditorButtonAction` names no AFFECT_ENTIRE arm and falls to
-		// `instrument_clip_view.cpp:3745`.
+		// `instrument_clip_view.cpp:3762`.
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);
@@ -400,8 +400,8 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 	});
 
 	it("the note-row editor's real handler toggles a kit clip's affectEntire on the press, not the release", _ {
-		// `instrument_clip_view.cpp:3965-3971`: `if (on && b == AFFECT_ENTIRE)`, then `if (KIT) { affectEntire = !affectEntire;
-		// view.setActiveModControllableTimelineCounter(clip); }`, and `DEALT_WITH` at `:3979`.
+		// `instrument_clip_view.cpp:4043-4049`: `if (on && b == AFFECT_ENTIRE)`, then `if (KIT) { affectEntire = !affectEntire;
+		// view.setActiveModControllableTimelineCounter(clip); }`, and `DEALT_WITH` at `:4057`.
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_kit_song();
 		(void)deluge::scenes::spec::add_drum<SoundDrum>(fx);

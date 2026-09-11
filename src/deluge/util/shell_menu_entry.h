@@ -158,7 +158,7 @@ enum class ShellMenuNode : uint8_t {
 /// `openShellMenu` sets `ctx.root` from this after resolving the rest of the context, exactly as
 /// `InstrumentClipView::enterNoteEditor`/`enterNoteRowEditor` pass an explicit item to
 /// `SoundEditor::setup` instead of letting it infer one from `currentUIMode`
-/// (`gui/views/instrument_clip_view.cpp:3590`, `:3758`).
+/// (`gui/views/instrument_clip_view.cpp:3607`, `:3811`).
 enum class NoteMode : uint8_t {
 	/// @brief Use whatever root `context_for` resolved -- every caller except the note family.
 	None,

@@ -166,12 +166,12 @@
 ///     (E4 tasks 2 and 3).
 ///   * `:109-113`'s `AFFECT_ENTIRE` -> `display->cancelPopup()` -- **not ported**. It belongs to
 ///     the notice seam (`notify::Notice::Kind::CancelPopup`), not to this service.
-///   * `:114-120`'s `BACK` -> `TimerName::BACK_MENU_EXIT` long-press, whose callback is
+///   * `:114-121`'s `BACK` -> `TimerName::BACK_MENU_EXIT` long-press, whose callback is
 ///     `getCurrentUI()->exitUI()` (`gui/ui_timer_manager.cpp:149-155`) -- **not ported**. It is a
 ///     scene-exit gesture, so it belongs to whoever owns "hold BACK to leave", not here.
 ///   * `:122-127`'s `CROSS_SCREEN_EDIT` arming `considerCrossScreenReleaseForCrossScreenMode` --
 ///     **not ported**. Cross-screen mode is a clip-view fact (E5).
-///   * `:128-131`'s `selectButtonPressUsedUp = false` -- ported, and generalised: `InputLowering`
+///   * `:128-132`'s `selectButtonPressUsedUp = false` -- ported, and generalised: `InputLowering`
 ///     clears the used-up bit for **every** button on its own press
 ///     (`input_lowering.cpp:283`), which subsumes both this and `buttons.cpp:178`'s
 ///     `recordButtonPressUsedUp = false`.

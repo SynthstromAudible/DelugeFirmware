@@ -5,7 +5,7 @@
 ///
 /// The port of `AudioRecorder` (`gui/ui/audio_recorder.{h,cpp}`), which the sample-recorder page's
 /// two items open (`gui/menu_item/osc/audio_recorder.h:36 beginSession`; the ported nodes are
-/// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h:313`, `:317`).
+/// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h:316`, `:320`).
 ///
 /// @par Legacy's menu item drives the UI, and that is the shape this replaces
 ///
@@ -40,7 +40,7 @@
 ///
 /// `after_render()` is the hook the poll has to live in, for `BrowserScene`'s reason: it is the only
 /// one that can file an `Action`, and the shell calls it only for a scene that actually *drew* this
-/// tick (`shell/shell.cpp:378-382`). So `next_timer()` asks the shell back at `kRecorderPollMs`, and
+/// tick (`shell/shell.cpp:408-410`). So `next_timer()` asks the shell back at `kRecorderPollMs`, and
 /// `Shell::tick`'s step 8b turns that answer into a repaint of every surface this scene both claims
 /// and is not covered on -- which is what makes the woken tick actually render, and therefore call
 /// `after_render()`.
@@ -79,7 +79,7 @@
 /// other eight are `hid/buttons.cpp:147,180` (shift+RECORD must not start an *output* recording on
 /// top of a live mic one), `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
 /// `playback/playback_handler.cpp:2503` (the RECORD LED), `playback/mode/arrangement.cpp:328`,
-/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:354,5458` and
+/// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:354,5535` and
 /// `gui/ui/browser/sample_browser.cpp:492`.
 ///
 /// This layer may not name `audioRecorder` (`check_layer_rules.py`, `scenes-no-root-ui`), so both
@@ -120,7 +120,7 @@
 /// @par The completion poll used to stall under this scene's own popup, and no longer does
 ///
 /// `PopupScene` is not `oled_transparent` (`shell/notices.h`), so `Shell::render_oled`'s
-/// transparency walk stops at it (`shell/shell.cpp:503-506`): while a popup is up **this scene is
+/// transparency walk stops at it (`shell/shell.cpp:629-633`): while a popup is up **this scene is
 /// still not drawn on the OLED**. That much is unchanged, and it is why the `render_oled` gate arm
 /// above cannot be the poll's only lifeline -- a recording that finished while this scene's own
 /// clipping popup was on screen went unnoticed until the popup expired (`kPopupTimeoutMs`, 800 ms),
@@ -230,7 +230,7 @@ public:
 	/// The scene itself paints no pads at all (legacy overrides neither `renderMainPads` nor
 	/// `renderSidebar`), so it is not a grid overlay and occludes nothing: what is beneath keeps
 	/// drawing, greyed. `Shell::tick` ORs this mask over every scene on the stack
-	/// (`shell/shell.cpp:329-335`), which is where the greying happens.
+	/// (`shell/shell.cpp:332-338`), which is where the greying happens.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
 
 	/// @name Observable state

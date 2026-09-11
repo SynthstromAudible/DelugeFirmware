@@ -49,10 +49,10 @@
 /// | 1 | `gui/views/view.cpp:477-478` `View::buttonAction` | `soundEditor.setup()` with SHIFT held, so `setup()`'s three view tests (`sound_editor.cpp:1816`, `:1819`) are all false and the root is `settingsRootMenu` (`:1824`) | `MenuContext::Root::Settings`, i.e. all four UI arguments false. The same reading, for the same arm, that `services::GlobalControls::handle_settings_menu` already made (`scenes/services/global_controls.cpp:319-331`) |
 /// | 2 | `gui/views/session_view.cpp:569-570` `SessionView::buttonAction` | `soundEditor.setup()` with no shift from the session view -> `soundEditorRootMenuSongView` (`gui/ui/sound_editor.cpp:1821`) | `Root::Song`; `sessionViewRoot` true, which is the *only* thing two items in that root read (`MenuContext::is_session_view`) |
 /// | 3 | `gui/views/arranger_view.cpp:346-347` `ArrangerView::buttonAction` | the same call from the arranger -> the same `soundEditorRootMenuSongView` | `Root::Song`, `sessionViewRoot` **false** |
-/// | 4 | `gui/views/performance_view.cpp:898-901` `PerformanceView::buttonAction` | `soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)` -- an explicitly named root | `Root::Performance`, which `context_for` picks from `performance_view` (`context.cpp:361-363`). Named by fact rather than by pointer, and they agree because this arm is `SELECT_ENC && !shift` inside `PerformanceView` |
-/// | 5 | `gui/views/audio_clip_view.cpp:423-426` `AudioClipView::buttonAction` | `soundEditor.setup(getCurrentClip())` on an `AudioClip` -> `soundEditorRootMenuAudioClip` (`gui/ui/sound_editor.cpp:1812`) | `Root::AudioClip` (`context.cpp:356-358`) |
-/// | 6 | `model/clip/instrument_clip_minder.cpp:416-423` `InstrumentClipMinder::buttonAction` | `setupKitGlobalFXMenu` from `KIT && affectEntire`, then `soundEditor.setup(getCurrentClip())` -- the root is then one of six, chosen by output type, affect-entire and the selected drum's type (`gui/ui/sound_editor.cpp:1780-1808`) | whichever of `MidiOrCv` / `KitGlobalFx` / `MidiDrum` / `GateDrum` / `Drum` / `Sound` `context_for` picks -- the same six tests in the same order (`context.cpp:330-358`) |
-/// | 7 | `gui/views/automation_view.cpp:1622-1630` `AutomationView::handleSelectEncoderButtonAction` | the same, except the clip is `nullptr` on the arranger (so: the song root) **and** the arm also runs under `UI_MODE_NOTES_PRESSED` | the same six, or `Root::Song` when `onArrangerView`. **Only under `UI_MODE_NONE`**: see the note below |
+/// | 4 | `gui/views/performance_view.cpp:898-901` `PerformanceView::buttonAction` | `soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)` -- an explicitly named root | `Root::Performance`, which `context_for` picks from `performance_view` (`context.cpp:365-367`). Named by fact rather than by pointer, and they agree because this arm is `SELECT_ENC && !shift` inside `PerformanceView` |
+/// | 5 | `gui/views/audio_clip_view.cpp:423-426` `AudioClipView::buttonAction` | `soundEditor.setup(getCurrentClip())` on an `AudioClip` -> `soundEditorRootMenuAudioClip` (`gui/ui/sound_editor.cpp:1812`) | `Root::AudioClip` (`context.cpp:360-362`) |
+/// | 6 | `model/clip/instrument_clip_minder.cpp:416-423` `InstrumentClipMinder::buttonAction` | `setupKitGlobalFXMenu` from `KIT && affectEntire`, then `soundEditor.setup(getCurrentClip())` -- the root is then one of six, chosen by output type, affect-entire and the selected drum's type (`gui/ui/sound_editor.cpp:1780-1808`) | whichever of `MidiOrCv` / `KitGlobalFx` / `MidiDrum` / `GateDrum` / `Drum` / `Sound` `context_for` picks -- the same six tests in the same order (`context.cpp:339-358`) |
+/// | 7 | `gui/views/automation_view.cpp:1623-1631` `AutomationView::handleSelectEncoderButtonAction` | the same, except the clip is `nullptr` on the arranger (so: the song root) **and** the arm also runs under `UI_MODE_NOTES_PRESSED` | the same six, or `Root::Song` when `onArrangerView`. **Only under `UI_MODE_NONE`**: see the note below |
 /// | 8 | `gui/views/instrument_clip_view.cpp:515-519` `InstrumentClipView::buttonAction` | `soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)` -- a named *leaf*, not a root | `Root::Sound` plus `SceneId::arg = node_id(nodes::file0_selector)`, the ported `file0SelectorMenu` (`scenes/menu/nodes/sound_osc.h:17`). The one site that exercises a non-zero `arg` |
 /// | 12 | `gui/views/instrument_clip_view.cpp:3607-3615` `InstrumentClipView::enterNoteEditor` | `soundEditor.setup(clip, &noteEditorRootMenu)` -- an explicitly named root, the one `setup()` would itself pick under `UI_MODE_NOTES_PRESSED` (`sound_editor.cpp:1774-1776`) | `Root::NoteEditor`, since note-family task 8. `context_for` never assigns it, because `src/scenes` may not read `currentUIMode`; the gate passes `NoteMode::NoteEditor` instead, and `openShellMenu` overrides the resolved root with it (`:136-139`) |
 /// | 13 | `gui/views/instrument_clip_view.cpp:3811-3819` `InstrumentClipView::enterNoteRowEditor` | `soundEditor.setup(clip, &noteRowEditorRootMenu)` -- the same, under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp:1777-1779`) | `Root::NoteRowEditor` through `NoteMode::NoteRowEditor`, since note-family task 8. **Only when `getCurrentUI() != &soundEditor`**: `sound_editor.cpp:1403-1409` also calls this from inside a legacy sound editor (audition + the sequence-direction shortcut, in an editor SHIFT+pad opened through ungated site 9), and there the guest would stack on `soundEditor` and diverge after the first BACK, so that case keeps opening the legacy editor |
@@ -86,7 +86,7 @@ namespace menu = deluge::scenes::menu;
 ///
 /// @return `false` when a named node has no id, which means `scenes::assigned_node_ids()` never
 ///         ran over a tree containing it. Refusing is deliberate: id 0 means "the context's root"
-///         to `MenuScene::on_enter` (`scenes/menu/menu_scene.cpp:401-474`), so a silently-zero id
+///         to `MenuScene::on_enter` (`scenes/menu/menu_scene.cpp:425-498`), so a silently-zero id
 ///         would open the wrong menu rather than none.
 bool resolveNodeId(ShellMenuNode node, uint16_t& out) {
 	switch (node) {
@@ -121,7 +121,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	                                          sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
 	// `MenuContext::resolved` is where `setup()`'s two outright refusals live -- a kit whose selected
 	// `SoundDrum` has no note row (`gui/ui/sound_editor.cpp:1719-1721`) and a kit with neither
-	// affect-entire nor a selected drum (`:1716-1722`). Both are `return false` in legacy, and both
+	// affect-entire nor a selected drum (`:1733-1739`). Both are `return false` in legacy, and both
 	// happen *before* the undo-log wipe below, which is why this test is above it and not beside the
 	// open.
 	if (!ctx.resolved) {
@@ -164,7 +164,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// source had no ranges yet, while the toggle-OFF leg opened it.
 	//
 	// **Pre-review fix: `noteMode != NoteMode::None` must not wipe either.** `enterNoteEditor`
-	// (`instrument_clip_view.cpp:3590`) and `enterNoteRowEditor` (`:3758`) each call
+	// (`instrument_clip_view.cpp:3607`) and `enterNoteRowEditor` (`:3811`) each call
 	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
 	// -- an explicit item, never `nullptr` -- so legacy's `item == nullptr` arm above never runs for
 	// either, and the undo log survives a note-editor/note-row-editor open. `NoteMode` is spelled as
@@ -178,7 +178,7 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 
 	// Task 6: the kit `affectEntire` clear both note entries do once `soundEditor.setup` has
 	// succeeded and before `openUI` -- `InstrumentClipView::enterNoteEditor`
-	// (`instrument_clip_view.cpp:3592-3597`) and `enterNoteRowEditor` (`:3760-3765`), the same three
+	// (`instrument_clip_view.cpp:3609-3614`) and `enterNoteRowEditor` (`:3813-3818`), the same three
 	// statements in both. `ctx.affect_entire` is `ctx.is_kit && affectEntire` (`context.cpp:314`),
 	// so testing it alone is legacy's nested `if (KIT) { if (affectEntire) {` collapsed to one test.
 	if (noteMode != NoteMode::None && ctx.affect_entire) {

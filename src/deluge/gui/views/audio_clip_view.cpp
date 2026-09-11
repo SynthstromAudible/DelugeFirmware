@@ -409,7 +409,7 @@ dontDeactivateMarker:
 			if (deluge::gui::ui::shellMenuEnabled()) {
 				// An `AudioClip` under a clip-minder root, so `setup()` lands on
 				// `soundEditorRootMenuAudioClip` (`gui/ui/sound_editor.cpp:1794-1796`) and
-				// `context_for` lands on `Root::AudioClip` (`scenes/menu/context.cpp:356-358`).
+				// `context_for` lands on `Root::AudioClip` (`scenes/menu/context.cpp:360-362`).
 				// `openShellMenu` returning false stands in for `setup()` returning false, which is
 				// what this arm's early return is written against.
 				if (!deluge::gui::ui::openShellMenu(getCurrentClip(), /*sourceIndex=*/0,

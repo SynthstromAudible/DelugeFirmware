@@ -7,7 +7,7 @@
 #
 # There is no env var and no new script verb for the toggle, and that is deliberate.
 # `shellMenuEnabled()` reads `runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu)`
-# (`gui/ui/shell_menu_entry.cpp:103-105`); the setting is registered with xmlName "shellMenu" and
+# (`gui/ui/shell_menu_entry.cpp:105-107`); the setting is registered with xmlName "shellMenu" and
 # default Off (`model/settings/runtime_feature_settings.cpp:175-178`) and read from
 # `SETTINGS/CommunityFeatures.XML` on the card (`RuntimeFeatureSettings::readSettingsFromFile`,
 # `:194-222`). So the toggle-on leg is a genuine boot-from-settings on the mechanism the device
@@ -247,7 +247,7 @@
 # `SampleBrowser::renderMainPads` at `:2129`), swapping between the two as the selection moves; the
 # ported scene always draws the text keyboard, because the swap needs `AudioEngine::previewSample`,
 # `PadLEDs`' scroll transition and the marker editor. That is `BrowserScene::render_grid`'s own
-# note (`scenes/browser/browser_scene.cpp:1029-1037`), seen here for the first time at level 3. The
+# note (`scenes/browser/browser_scene.cpp:1031-1039`), seen here for the first time at level 3. The
 # LED lines differ too, in the direction every menu golden above already differs.
 9900   pad 17 4 down
 10200  snapshot auditioning
@@ -306,7 +306,7 @@
 # `Submenu::focusChild` keeps whatever `current_item_` a previous visit left
 # (`gui/menu_item/submenu.cpp:21-34`) -- a real, deliberate legacy feature (the device remembers
 # where you left a menu). `MenuScene::open` does not port it: `openShellMenu` calls it directly
-# and it unconditionally resets (`st_ = MenuState{}`, `scenes/menu/menu_scene.cpp:314-318`), so
+# and it unconditionally resets (`st_ = MenuState{}`, `scenes/menu/menu_scene.cpp:331-335`), so
 # the ON leg always reopens at the first row. Without this turn the OFF leg would reopen on
 # MASTER and the ON leg on ACTIONS, and `pad-menu-open.oled0.pbm` would differ between the legs
 # for a reason that has nothing to do with grid-pad forwarding -- measured: recording without this

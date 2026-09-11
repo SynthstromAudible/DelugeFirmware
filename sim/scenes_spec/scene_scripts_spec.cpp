@@ -12,7 +12,7 @@
 /// |---|---|---|
 /// | `audio_clip` | `audio_clip::AudioClipScene` (E4 tasks 11-12) | `RunOptions::initial_scene` -- it is a ROOT scene, and a root is what the shell is booted onto |
 /// | `slicer` | `slicing::SlicerScene` (E4 tasks 9-10) | `RunOptions::initial_scene`, after `slicer_scene().open(sample)` -- legacy's `SampleBrowser` opens it the same way, `open()` first and the push second |
-/// | `param_popup` | `overlay::ParamPopupScene` (E4 task 1) **pushed by `services::ModKnobs`** (task 2) | nothing in the script pushes it: a gold-knob turn reaches the service, and `ModKnobs::show_popup` pushes the scene (`services/mod_knobs.cpp:413`) |
+/// | `param_popup` | `overlay::ParamPopupScene` (E4 task 1) **pushed by `services::ModKnobs`** (task 2) | nothing in the script pushes it: a gold-knob turn reaches the service, and `ModKnobs::show_popup` pushes the scene (`services/mod_knobs.cpp:417`) |
 /// | `screensaver` | `overlay::ScreensaverScene` (E4 task 7) **pushed by `shell::Screensaver`** | nothing in the script pushes it either: the script simply stops touching anything for longer than `ShellConfig::screensaver_idle_ms` |
 /// | `count_in` | `overlay::CountInScene` (E4 task 6) | **the spec pushes it**, from `RunOptions::before_tick`, over an `AudioClipScene` root. Nothing in the tree pushes this kind -- see the honesty note below |
 /// | `menu_gold_turn` | `menu::MenuScene` and a real `services::ModKnobs` in one run (E4 final review) | `RunOptions::initial_scene` at `nodes::saturation`, exactly as `menu_scripts_spec.cpp` opens a menu. The only recorded frame on this stack with a menu and a real service together |
@@ -38,8 +38,8 @@
 ///   * `services::ModKnobs`, `GlobalControls` and `MidiLearn` each take a `SceneStack&` and (for
 ///     the first two) an `InputLowering&` at construction, and they *use* them --
 ///     `ModKnobs::show_popup` pushes the param popup onto that stack
-///     (`scenes/services/mod_knobs.cpp:413`), and `ModKnobs::popup_suppressed` (`:351`) and
-///     `ModKnobs::mod_encoder_button_action` (`:564`) read `stack_.input_top()`;
+///     (`scenes/services/mod_knobs.cpp:417`), and `ModKnobs::popup_suppressed` (`:351`) and
+///     `ModKnobs::mod_encoder_button_action` (`:568`) read `stack_.input_top()`;
 ///     `GlobalControls::handle` gates its `View::buttonAction` group on
 ///     `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
 ///     `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:491`).

@@ -43,7 +43,7 @@
 ///     `scenes/registry.h`'s boot-wiring record.
 ///   * **The inhibitors** (`screensaver.cpp:141-157`): a permanent popup, the working animation or
 ///     a running stem export wakes the screensaver and re-arms, re-checked every tick. The port's
-///     popup/working scenes are the shell's own (`Notices`, `shell/shell.h:133-136`) and stack
+///     popup/working scenes are the shell's own (`Notices`, `shell/shell.h:133-137`) and stack
 ///     *above* whatever is showing, so the question "is one present" is the shell's to ask, not
 ///     this scene's. This is the reason `kInhibitRecheckMS`'s 1000 ms re-arm has no port either --
 ///     it exists only to run that check (`screensaver.cpp:52-55`'s own note says so), so a blank
@@ -57,7 +57,7 @@
 ///     is showing starts animating within a second, where this scene -- reporting no timer -- stays
 ///     blank for ever. It is unreachable in practice rather than merely unlikely: the only way to
 ///     change the setting is a menu (legacy's, `gui/menu_item/defaults/screensaver.h:34-41`, or the
-///     ported `screensaver_mode` item, `scenes/menu/nodes/settings.h:942-943`), reaching either
+///     ported `screensaver_mode` item, `scenes/menu/nodes/settings.h:944-945`), reaching either
 ///     needs physical input, and input runs `shell::Screensaver::note_activity` first, which pops
 ///     this scene (`shell/screensaver.cpp:9-17`) -- so the mode cannot change while it is up. The
 ///     next push re-reads the mode and scatters the right field.
@@ -75,7 +75,7 @@
 /// `shell::Screensaver` pushes `SceneId{SceneKind::Screensaver, seed}` by name
 /// (`shell/screensaver.cpp:60`). The kind is one of the shell's own six, and -- unlike
 /// `Popup`/`Console`/`Working`/`Loading` -- the shell deliberately does **not** overwrite the
-/// registry slot for it (`shell/shell.cpp:177-184`), precisely so an application can register this.
+/// registry slot for it (`shell/shell.cpp:179-187`), precisely so an application can register this.
 ///
 /// @warning **Must not raise `Action::Kind::LockInput`**, and does not -- see the warning on
 ///          `Action` in `shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
@@ -125,7 +125,7 @@ public:
 	///
 	/// The port of `Screensaver::timerEvent`'s `else` arm (`hid/display/screensaver.cpp:174-189`)
 	/// plus the `setTimer(..., kFrameIntervalMS)` re-arm at `:161-162`. The shell calls `tick()`
-	/// every tick rather than only at a deadline (`Shell::tick_stack`, `shell.cpp:571-581`), so the
+	/// every tick rather than only at a deadline (`Shell::tick_stack`, `shell.cpp:594-604`), so the
 	/// deadline is kept here: elapsed time accumulates and the counter is **reset to zero**, not
 	/// decremented by the interval, because legacy re-arms its timer from the moment the timer
 	/// fired -- a late tick is one frame there, and must be one frame here.
@@ -175,7 +175,7 @@ public:
 	bool dims_grid() const override { return false; }
 	/// @brief True: legacy's screensaver is a canvas override, not a `UI`. Input reaches it only
 	///        through `shell::Screensaver::note_activity`, which pops this scene *before* the event
-	///        is lowered (`shell/shell.cpp:248-250`), exactly as legacy's `dispatchInputEvent`
+	///        is lowered (`shell/shell.cpp:271-274`), exactly as legacy's `dispatchInputEvent`
 	///        calls `noteActivity()` and then continues into the real UI's handler.
 	bool input_transparent() const override { return true; }
 

@@ -736,7 +736,7 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		// objects and re-reads the card; none of that reaches a witness field. Asserting the
 		// witness is *unchanged* is still a real discriminator, because `Deluge::factoryReset`
 		// (the only other undriven action) calls `FlashStorage::factoryReset` among its four
-		// (`deluge.cpp:221-227`) and would therefore move the flash fields -- so a
+		// (`deluge.cpp:223-229`) and would therefore move the flash fields -- so a
 		// ResetMidiDevices/ResetAll swap fails right here.
 		const ResetWitness legacy = run_legacy(deluge::gui::context_menu::ResetSettingsAction::MidiDevices);
 		const auto [ported, depth] = run_ported(f, DescriptorId::ResetMidiDevices);
@@ -751,7 +751,7 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 
 	it("cannot drive the full factory reset, and pins it by elimination instead", _ {
 		// **The one exclusion.** `Deluge::factoryReset()` is the other four actions back to back
-		// (`deluge.cpp:221-227`), so driving it would run `MIDIDeviceManager::factoryReset`'s
+		// (`deluge.cpp:223-229`), so driving it would run `MIDIDeviceManager::factoryReset`'s
 		// placement-new over the global MIDI cables AND `FlashStorage::resetSettings`' ~60 global
 		// writes in one go -- far more than `ResetWitness` restores, and it would leave this
 		// process' MIDI singletons rebuilt underneath every later example. Not driven.

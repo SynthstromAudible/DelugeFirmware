@@ -111,7 +111,7 @@ RequestOutcome Listing::request(ListingRequest req) {
 	state_.store(State::InFlight, std::memory_order_release);
 
 	// The busy indicator, raised the way E1 built it: `Notices::drain` arms `WorkingScene` and
-	// pushes `SceneKind::Working` on this notice (`shell/notices.cpp:260-265`). "Working" is
+	// pushes `SceneKind::Working` on this notice (`shell/notices.cpp:306-311`). "Working" is
 	// legacy's own word here -- `beginListing` calls
 	// `display->displayLoadingAnimationText("Working", /*delayed=*/true)` (`browser.cpp:112`).
 	notify::notice_text("Working", notify::Notice::Kind::Working);

@@ -78,7 +78,7 @@ public:
 	/// @brief One routed event, with the parts of the `UiContext` that came with it.
 	///
 	/// The context is captured rather than the reference kept: `UiContext` is an aggregate of
-	/// borrowed references built on the stack per event (`shell/scene.h:160-162`) and does not
+	/// borrowed references built on the stack per event (`shell/scene.h:161-163`) and does not
 	/// outlive the `handle()` call.
 	struct Seen {
 		UiEvent ev;
@@ -90,7 +90,7 @@ public:
 	Result handle(const UiEvent& ev, const UiContext& ctx) override {
 		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
 		if (remove_self_on_event) {
-			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:2073`),
+			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:2057`),
 			// reduced to the one thing this suite is about: a scene that takes itself off the
 			// stack from inside `Shell::tick`'s routing. Off by default so every other example
 			// keeps the delivery-only behaviour below.
@@ -348,8 +348,8 @@ const PatternScene::Seen* first_of(const PatternScene& scene, UiEvent::Kind kind
 /// @brief A `Service` that declares one knob indicator, standing in for `ModKnobs`.
 ///
 /// `Shell::flush` calls `SurfaceSet::set_indicator` only for an indicator declared this tick
-/// (`shell/shell.cpp:1032-1044`), and the only declarer in the shipped tree is
-/// `scenes::services::ModKnobs` (`scenes/services/mod_knobs.cpp:687`) -- a *service*, which F1 task 8
+/// (`shell/shell.cpp:1035-1047`), and the only declarer in the shipped tree is
+/// `scenes::services::ModKnobs` (`scenes/services/mod_knobs.cpp:691`) -- a *service*, which F1 task 8
 /// installs and this guest does not have. This is the smallest thing that stands where `ModKnobs`
 /// will stand, so "the guest writes no indicator" can be shown to be about the declaration rather
 /// than about the guest.
@@ -468,7 +468,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.guest.focusRegained();
 
 		// `top()` is the passive layer; `input_top()` is the scene that genuinely gets input back,
-		// and `Scene::on_resume`'s contract is about the latter (`shell/scene.h:380-395`).
+		// and `Scene::on_resume`'s contract is about the latter (`shell/scene.h:381-396`).
 		expect(r.guest.shell().stack().top().kind() == kOver).to_be_true();
 		expect(r.base.resumes).to_equal(1);
 		expect(r.over.resumes).to_equal(0);
@@ -533,7 +533,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// (F1 task 5 review round, Important 1): the *first* tick after opening must draw, and it
 		// does, because `SceneStack::reset` and the push both set `changed_`
 		// (`shell/scene_stack.cpp:201-202`, `:39`) and `Shell::tick` re-arms every gate on
-		// `changed_since_last_query()` before it renders (`shell/shell.cpp:346-358`). The `boot()`
+		// `changed_since_last_query()` before it renders (`shell/shell.cpp:349-361`). The `boot()`
 		// call that used to sit in `opened()` was removed and this stayed green, which is the
 		// evidence it was dead.
 		r.guest.shell().tick(0);
@@ -747,7 +747,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
-		// (`scenes/menu/menu_scene.cpp:2100`), and legacy's false means "obey UI under me"
+		// (`scenes/menu/menu_scene.cpp:2082-2083`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
 		// the next UI down is about to be asked with (`gui/ui/ui.cpp:73-83`), so a false answer must
 		// leave them alone.
@@ -1036,7 +1036,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		const ActionResult result = r.guest.padAction(5, 3, 137);
 
 		// **Nothing is routed by the hook itself.** `Shell::on_board_event` feeds the lowering;
-		// `Shell::pump_input` is what routes, and only `tick` calls it (`shell/shell.cpp:579-589`).
+		// `Shell::pump_input` is what routes, and only `tick` calls it (`shell/shell.cpp:582-592`).
 		expect(r.base.seen.empty()).to_be_true();
 
 		r.guest.shell().tick(250);
@@ -1159,7 +1159,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 	it("still arms the tick after a forward", _ {
 		// Load-bearing, not housekeeping: the `Exit` arm empties the guest's shell stack, and
-		// `ShellHostUI::timerCallback` is what then closes the guest (`shell_host_ui.cpp:555-558`).
+		// `ShellHostUI::timerCallback` is what then closes the guest (`shell_host_ui.cpp:556-559`).
 		// With no tick armed, the guest would sit open over an empty stack.
 		Rig r;
 		expect(r.open()).to_be_true();
@@ -1358,7 +1358,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// Legacy's answer here is `REMIND_ME_OUTSIDE_CARD_ROUTINE`
 		// (`gui/ui/sound_editor.cpp:1460-1463`), which `dispatchInputEvent` turns into one stashed
-		// event replayed after the routine (`deluge.cpp:247-250`, `:295-305`). The port is
+		// event replayed after the routine (`deluge.cpp:248-251`, `:299-309`). The port is
 		// `InputLowering::set_sd_busy`, so the press must be **deferred, not dropped**.
 		fakelegacyui::sd_routine_active = true;
 		(void)r.guest.padAction(4, 2, 255);
@@ -1384,9 +1384,9 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// The example above covers the **fed** path, where `InputLowering::set_sd_busy` is the
 		// port and the press is deferred rather than dropped. The **forwarded** path is different:
 		// `performForward` calls straight into a legacy view's `padAction`
-		// (`gui/ui/shell_pad_forward.cpp:82-102`) and discards whatever it returns, so a target's
+		// (`gui/ui/shell_pad_forward.cpp:101-133`) and discards whatever it returns, so a target's
 		// own `REMIND_ME_OUTSIDE_CARD_ROUTINE` (`keyboard_screen.cpp:101-102`,
-		// `automation_view.cpp:1638-1639`, `instrument_clip_view.cpp:5110-5111`) never reaches this
+		// `automation_view.cpp:1639-1640`, `instrument_clip_view.cpp:5187-5188`) never reaches this
 		// caller -- the exact shape `SoundEditor::padAction`'s own opening statement
 		// (`gui/ui/sound_editor.cpp:1461-1463`) exists to prevent. So a claim that would forward
 		// must answer `REMIND_ME_OUTSIDE_CARD_ROUTINE` **before** `forwardGridPad` is ever called,
@@ -1411,7 +1411,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.seen.clear();
 
 		// `buttonAction` takes `inCardRoutine` rather than reading the scheduler, because that is
-		// the caller's own answer (`deluge.cpp:256`). So the *parameter* is what must gate this,
+		// the caller's own answer (`deluge.cpp:258`). So the *parameter* is what must gate this,
 		// and `sd_routine_active` is left false to prove the parameter is being read.
 		expect(fakelegacyui::sd_routine_active).to_be_false();
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, true);
@@ -1470,7 +1470,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// Legacy reads `ShiftIsSticky` at shift-release time (`hid/buttons.cpp:250`); the shell reads
 		// its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's
 		// latched shift is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad
-		// jump (`scenes/menu/menu_scene.cpp:2020`).
+		// jump (`scenes/menu/menu_scene.cpp:2004`).
 		Rig on;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(on.open()).to_be_true();
@@ -1813,7 +1813,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		// The ceiling, with the arithmetic: `Shell::on_encoder_edges` takes an `int8_t`
-		// (`shell/shell.h:294`) and the Deluge is two edges per detent, so 63 detents (126 edges)
+		// (`shell/shell.h:295`) and the Deluge is two edges per detent, so 63 detents (126 edges)
 		// is the largest that fits and 64 (128 edges) narrows to -128, i.e. **-64 detents**.
 		// The guest can be handed more than 63: legacy's `detentDelta` accumulates in
 		// `DetentedEncoder::pos` across every pass `interpretEncoders` skips during the SD routine
@@ -1894,7 +1894,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		fakelegacyui::system_time_s = 1.5; // nowMs() == 1500
 		(void)r.guest.buttonAction(deluge::hid::button::LOAD, true, false);
 		// `end_tick` re-stamps the snapshot with the tick's own clock, which is what a scene reads
-		// as `ctx.now_ms` (`shell/shell.cpp:567-577`, `:579-589`). The **feed's** clock is what the
+		// as `ctx.now_ms` (`shell/shell.cpp:570-580`, `:582-592`). The **feed's** clock is what the
 		// press keeps, and that one comes from `nowMs()` -- so the two numbers being different is
 		// what proves the hook stamped its own rather than borrowing the tick's.
 		r.guest.shell().tick(1700);
@@ -1983,7 +1983,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	});
 
 	it("arms NOTHING when it is no longer the current UI, however loudly the shell asks for a wake", _ {
-		// **The guard at `ShellHostUI::rearmTimer`'s top** (`gui/ui/shell_host_ui.cpp:627`).
+		// **The guard at `ShellHostUI::rearmTimer`'s top** (`gui/ui/shell_host_ui.cpp:630`).
 		// `TimerName::UI_SPECIFIC` is the *current* UI's timer -- `UITimerManager::routine` dispatches
 		// it to `getCurrentUI()->timerCallback()` and never to whatever armed it
 		// (`gui/ui_timer_manager.cpp:142-148`) -- so arming it while something else is current hands
@@ -2001,7 +2001,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		// A scene that wants a wake on every tick, so "nothing was armed" cannot be the shell simply
 		// having nothing to ask for -- `next_wake()` answering `nullopt` takes a different early
-		// return (`gui/ui/shell_host_ui.cpp:632-647`) and would make this example vacuous.
+		// return (`gui/ui/shell_host_ui.cpp:635-650`) and would make this example vacuous.
 		r.base.timer = 120;
 		expect(r.open()).to_be_true();
 
@@ -2034,7 +2034,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 	it("arms the floor -- not zero -- for a deadline that is already now, and does not wedge there", _ {
 		Rig r;
 		// `Scene::next_timer()` may legally answer 0, meaning "next tick"
-		// (`shell/scene.h:542-594`); `AudioClipScene` answers it for the whole of playback
+		// (`shell/scene.h:543-595`); `AudioClipScene` answers it for the whole of playback
 		// (`scenes/audio_clip/audio_clip_scene.cpp:1197-1203`). `next_wake()` is then `now_ms` on
 		// every tick, for ever.
 		r.base.timer = 0;
@@ -2130,7 +2130,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(uiTimerManager.isTimerSet(TimerName::UI_SPECIFIC)).to_be_false();
 
 		// `Shell::boot()` calls `request_repaint()`, which fires a gate but arms no deadline
-		// (`shell/shell.cpp:230-239`), so `compute_next_wake` has nothing to report and the repaint
+		// (`shell/shell.cpp:233-242`), so `compute_next_wake` has nothing to report and the repaint
         // would wait for an unrelated wake that never comes.
 		r.guest.displayOrLanguageChanged();
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
@@ -2280,7 +2280,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 
 		// **Exactly ONE further tick runs, and that is the mechanism rather than a limitation.** With
 		// nothing declared the composed `LedFrame` is empty, so `compute_next_wake`'s blink loop
-		// (`shell/shell.cpp:1113-1117`) has no source, `next_wake()` is `std::nullopt` and the chain
+		// (`shell/shell.cpp:1116-1120`) has no source, `next_wake()` is `std::nullopt` and the chain
 		// ends -- which is itself the ownership rule showing through the wake computation. One tick
 		// is all this assertion needs: it is the tick on which the flip would have been written.
 		expect(after.size()).to_equal(size_t(1));
@@ -2298,8 +2298,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		(void)run_quiet(r.guest, now, 5);
 
 		// `Shell::flush` calls `set_indicator` only for an indicator declared this tick
-		// (`shell/shell.cpp:1032-1044`), and the only declarer in the tree is `ModKnobs`
-		// (`scenes/services/mod_knobs.cpp:687`), which is a *service* -- and this guest is built
+		// (`shell/shell.cpp:1035-1047`), and the only declarer in the tree is `ModKnobs`
+		// (`scenes/services/mod_knobs.cpp:691`), which is a *service* -- and this guest is built
 		// with `Services{}`. So legacy's `knobIndicatorLevels[]` shadow, which
 		// `GuestSurfaceSet::set_indicator` cannot keep true, cannot go stale until F1 task 8
 		// installs that service. This example is what makes that a measurement rather than a

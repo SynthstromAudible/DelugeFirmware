@@ -6,7 +6,7 @@
 # `view` fallback), `AudioClipScene` declines it explicitly ("the two gold knobs and the tempo
 # encoder are `services::ModKnobs`'s", `audio_clip_scene.cpp:247-251`), and
 # `ModKnobs::mod_encoder_action` then writes the param and calls `show_popup`, which ends by running
-# `stack_.push(SceneId{kParamPopupSceneKind})` (`services/mod_knobs.cpp:413`). **This script
+# `stack_.push(SceneId{kParamPopupSceneKind})` (`services/mod_knobs.cpp:417`). **This script
 # cannot exist with `Services{}`**: with a null mod-knob service the turn is dropped and no popup
 # frame is ever produced. It is the one script here whose whole subject is a service.
 #
@@ -52,7 +52,7 @@
 400   snapshot popup_moved       # twenty-five more detents on the SAME param: the strip's value
                                  # moves and the knob's indicator ring with it. Nothing is pushed a
                                  # second time (`show_popup`'s already-stacked guard,
-                                 # `mod_knobs.cpp:408-412`), so `.state` still has exactly two
+                                 # `mod_knobs.cpp:412-416`), so `.state` still has exactly two
                                  # `scene` lines -- what changed is the text and the ring
 # +2100 ms of quiet ticks, no input at all. `kPopupLifetimeMs` is 2000 ms from the last commit
 # (`param_popup_scene.cpp:37`), so the deadline falls at ~2300.

@@ -231,7 +231,7 @@ ValueText value_text_iterance(const MenuContext&, int32_t value, ValueTextUse us
 
 /// `Fill::renderInHorizontalMenu` (`note/fill.h:62-80`): the column draws only `"OFF"`/`"FILL"`,
 /// struck through on `NOT_FILL`. `Fill::getNotificationValue` (`:82-84`) and
-/// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp:3563-3576`) spell the
+/// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp:3564-3577`) spell the
 /// notification's three values. `note_row::Fill` is byte-identical (`note_row/fill.h:32-97`).
 ValueText value_text_fill(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Column) {
