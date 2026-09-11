@@ -509,34 +509,6 @@ Error StorageManager::loadPatternFile(char const* path, std::string* fileName, b
 }
 
 // Returns error status
-Error StorageManager::loadFavouriteFile(char const* path, std::string* fileName) {
-
-	AudioEngine::logAction("loadFavouriteFile");
-
-	Error error = openFavouriteFile(path);
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	AudioEngine::logAction("readFavouriteFile");
-
-	error = favouritesManager.loadFavouritesFromFile(*activeDeserializer);
-
-	bool fileSuccess = activeDeserializer->closeWriter();
-	releaseDocumentStaging();
-
-	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
-		if (fileSuccess) {
-			error = Error::SD_CARD;
-		}
-
-		return error;
-	}
-
-	return Error::NONE;
-}
-
 /**
  * Special function to read a synth preset into a sound drum
  */

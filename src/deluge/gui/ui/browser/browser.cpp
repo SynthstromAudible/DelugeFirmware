@@ -1923,6 +1923,18 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 			if (isSDRoutineActive()) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
+			// The bank this row shows may still be arriving, or may not have been readable. Neither may be
+			// edited -- saving a bank that never loaded replaces the favourites still on the card -- and
+			// recalling from one would recall nothing.
+			switch (favouritesManager.bankState()) {
+			case deluge::favourites::BankState::Loading:
+				return ActionResult::DEALT_WITH;
+			case deluge::favourites::BankState::Unavailable:
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_SD_CARD_ERROR));
+				return ActionResult::DEALT_WITH;
+			case deluge::favourites::BankState::Loaded:
+				break;
+			}
 			if (Buttons::isShiftButtonPressed()) {
 				std::string filePath = getCurrentFilePath();
 				if (favouritesManager.isEmpty(x)) {
@@ -1972,7 +1984,10 @@ void Browser::favouritesChanged() {
 ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	if (isFavouritesVisible()) {
 		if (Buttons::isShiftButtonPressed()) {
-			if (favouritesManager.currentFavouriteNumber.has_value()) {
+			if (favouritesManager.bankState() == deluge::favourites::BankState::Unavailable) {
+				display->displayPopup(l10n::get(l10n::String::STRING_FOR_SD_CARD_ERROR));
+			}
+			else if (favouritesManager.currentFavouriteNumber.has_value()) {
 				favouritesManager.changeColour(favouritesManager.currentFavouriteNumber.value(), offset);
 				favouritesChanged();
 			}

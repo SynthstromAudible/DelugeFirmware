@@ -152,6 +152,7 @@ public:
 	}
 	bool isFavouritesVisible() override;
 	bool isBanksVisible() override;
+	void favouritesBankApplied() override { favouritesChanged(); }
 
 protected:
 	Error setEnteredTextFromCurrentFilename();

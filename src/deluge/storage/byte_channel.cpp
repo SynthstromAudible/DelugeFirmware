@@ -43,10 +43,10 @@ int32_t g_interactionTierIo[4] = {0, 0, 0, 0};
 /// freeze. Counting is what proves the sites are reachable; freezing is what keeps them from coming
 /// back, and it is only truthful once there is a converted path for them to come back FROM.
 constexpr bool kFreezeOnViolation[4] = {
-    true,  // Settings: converted, so any violation is now a regression.
-    true,  // Startup: converted, likewise.
-    true,  // Browser: converted, likewise.
-    false, // Favourites: NOT converted yet -- its gate must be able to count today's violations.
+    true, // Settings: converted, so any violation is now a regression.
+    true, // Startup: converted, likewise.
+    true, // Browser: converted, likewise.
+    true, // Favourites: converted, likewise.
 };
 
 /// Translate the C ABI's `uint32_t`-shaped status byte into the type the callers switch on.

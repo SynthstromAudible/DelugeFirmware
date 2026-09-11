@@ -58,6 +58,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/favourite/favourite_manager.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -466,8 +467,14 @@ void registerTasks() {
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
 	// the same reason: both are request/collect state machines whose caller returned long ago, and
 	// neither has a UI tick of its own to resume from.
-	addRepeatingTask([]() { deluge::storage::bytes::serviceRoutine(); }, p++, 0.001, 0.005, 0.02, "settings io",
-	                 RESOURCE_NONE);
+	addRepeatingTask(
+	    []() {
+		    deluge::storage::bytes::serviceRoutine();
+		    // The favourites bank rides the same channel and applies what an operation produced on THIS tier, so
+		    // it runs straight after the channel has been driven.
+		    favouritesManager.serviceRoutine();
+	    },
+	    p++, 0.001, 0.005, 0.02, "settings io", RESOURCE_NONE);
 
 	// Advances the startup fail-safe's phases. Beside the two above for the same reason: it is a
 	// request/collect state machine whose caller returned long ago, and it has no UI tick of its own

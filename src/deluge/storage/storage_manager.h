@@ -576,7 +576,6 @@ Error loadPatternFile(char const* path, std::string* fileName, bool overwriteExi
                       bool selectedDrumOnly);
 
 Error openFavouriteFile(char const* path);
-Error loadFavouriteFile(char const* path, std::string* fileName);
 
 Drum* createNewDrum(DrumType drumType);
 Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
