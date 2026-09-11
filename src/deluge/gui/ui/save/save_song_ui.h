@@ -105,6 +105,12 @@ public:
 	[[nodiscard]] static int32_t documentChannelServedOps() { return documentChannelServedOps_; }
 	[[nodiscard]] static int32_t documentOwnerServedOps() { return documentOwnerServedOps_; }
 
+	/// @brief Document steps the WRITE channel served: the document write itself, and nothing else.
+	///
+	/// Every other document step rides the byte channel, which has no feature switch. The write channel still
+	/// has one, so this is the count the song-save gate holds to zero on its write-channel-off leg.
+	[[nodiscard]] static int32_t documentWriteChannelServedOps() { return documentWriteChannelServedOps_; }
+
 	/// @brief Card steps the staged document write took, whichever arm carried them.
 	[[nodiscard]] static int32_t documentSteps() { return documentSteps_; }
 
@@ -276,6 +282,7 @@ private:
 
 	static inline int32_t documentChannelServedOps_{};
 	static inline int32_t documentOwnerServedOps_{};
+	static inline int32_t documentWriteChannelServedOps_{};
 	static inline int32_t documentSteps_{};
 	static inline int32_t documentSavesCompleted_{};
 	static inline int32_t offOwnerDocumentTicks_{};

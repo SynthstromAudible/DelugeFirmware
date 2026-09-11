@@ -21,9 +21,10 @@
 #
 # ## Why TWO legs
 #
-# The off leg proves a build with no byte channel still collects, through the owner; the on leg
-# proves the channel arm runs and runs off the owner. One leg alone leaves either the fallback or
-# the rung's claim untested.
+# The legs differ only in the WRITE channel. The collection's transfers ride the byte channel, which has
+# no feature switch, so BOTH legs must copy every file through it, off the owner. The save around the
+# collection stages its document on the owner (off leg) or through the write channel (on leg), and
+# SC-IDENTICAL requires the two to collect the same bytes either way.
 #
 # What the checks cover:
 #   SC-COPIED     every referenced sample is AT its collected destination, byte-identical to the
@@ -39,12 +40,10 @@
 #                 vector BETWEEN two transfers, and SC-ORDERED cannot see that window because the
 #                 apply pass tidies it away before the end. A path mutated during the planning walk
 #                 passes SC-ORDERED and fails this.
-#   SC-CHANNEL    the on leg's transfers were SERVED by the byte channel -- the async arm ran.
-#   SC-GATED      the off leg served ZERO, so the feature gate actually gates.
-#   SC-ACCOUNTED  the two arms account for every collected file between them, and only ONE of them
-#                 ran on each leg. Neither SC-CHANNEL nor SC-COPIED can see which arm carried which
-#                 file, so a leg where half of them quietly took the other arm passes both.
-#   SC-OFFOWNER   the on leg's transfers ran OFF the storage owner. The rung's actual claim.
+#   SC-CHANNEL    both legs' transfers were SERVED by the byte channel -- the async arm ran.
+#   SC-ACCOUNTED  on both legs the channel served every collected file and the owner served none.
+#                 Neither SC-CHANNEL nor SC-COPIED can see which arm carried which file.
+#   SC-OFFOWNER   both legs' transfers ran OFF the storage owner.
 #   SC-IDENTICAL  both legs collected the same bytes to the same places.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
@@ -77,11 +76,10 @@ if [ "${NO_BUILD:-0}" != "1" ]; then
 	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
 		deluge_foundation deluge_midi
 	(cd "$CRATE_DIR" && cargo build --release --target-dir "$REPO_ROOT/$TARGET_DIR")
-	# BOTH channel features on the on leg. The collection asks the BYTE channel to rename and copy,
-	# but the save it runs inside stages its document through the WRITE channel, so a leg with one
-	# and not the other tests a configuration the code refuses to enter.
+	# The on leg turns the WRITE channel on, which the save around the collection stages its document
+	# through. The byte channel the collection copies through is on in every build.
 	(cd "$CRATE_DIR" && cargo build --release \
-		--features async_file_write_active,async_file_bytes_active \
+		--features async_file_write_active \
 		--target-dir "$REPO_ROOT/$CHAN_TARGET_DIR")
 fi
 
@@ -137,52 +135,33 @@ owner_of() { sed -n 's/^SC-SUMMARY .*ownerServed=\([0-9]*\).*/\1/p' "$1"; }
 offowner_of() { sed -n 's/^SC-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$1"; }
 copies_of() { grep -c '^SC-COPIED to=' "$1" || true; }
 
-off_served="$(served_of "$OUT/off.txt")"
-on_served="$(served_of "$OUT/on.txt")"
-off_owner="$(owner_of "$OUT/off.txt")"
-on_owner="$(owner_of "$OUT/on.txt")"
-on_offowner="$(offowner_of "$OUT/on.txt")"
-off_copies="$(copies_of "$OUT/off.txt")"
-on_copies="$(copies_of "$OUT/on.txt")"
 
-# SC-CHANNEL. The async arm actually RAN. Nothing else in the tree drives collectCopy through the
-# channel, so without this leg that code has never executed anywhere.
-if [ -z "${on_served:-}" ] || [ "$on_served" -eq 0 ]; then
-	echo "FAIL SC-CHANNEL — the channel-on leg served ${on_served:-no} transfer(s); the async arm never ran"
-	fail=1
-fi
-
-# SC-GATED. The feature gate actually gates: with the byte channel off, every transfer must go to
-# the owner instead.
-if [ -z "${off_served:-}" ] || [ "$off_served" -ne 0 ]; then
-	echo "FAIL SC-GATED — the channel-OFF leg served ${off_served:-no} transfer(s); the feature gate is not gating"
-	fail=1
-fi
-
-# SC-ACCOUNTED. The two arms must account for EVERY collected file between them, and on each leg
-# only one of them may have run. Without this, a leg where half the files quietly took the other arm
-# reads as a pass: SC-CHANNEL only asks whether the channel served ANY, and SC-COPIED only asks
-# whether the files arrived -- neither can see WHICH arm carried each one.
-if [ "${off_owner:-0}" -ne "$off_copies" ]; then
-	echo "FAIL SC-ACCOUNTED — the channel-OFF leg copied $off_copies file(s) but the owner served ${off_owner:-no}"
-	fail=1
-fi
-if [ "${on_owner:-1}" -ne 0 ]; then
-	echo "FAIL SC-ACCOUNTED — the channel-ON leg sent ${on_owner} transfer(s) to the owner; they should all go to the channel"
-	fail=1
-fi
-if [ "${on_served:-0}" -ne "$on_copies" ]; then
-	echo "FAIL SC-ACCOUNTED — the channel-ON leg copied $on_copies file(s) but the channel served ${on_served:-no}"
-	fail=1
-fi
-
-# SC-OFFOWNER. The rung's actual claim. This number counts ONLY ticks that took the channel arm
-# while genuinely off the owner -- work done on the owner is not counted here, or the number would
-# be saying "off the owner" about work that ran on it.
-if [ -z "${on_offowner:-}" ] || [ "$on_offowner" -eq 0 ]; then
-	echo "FAIL SC-OFFOWNER — no transfer ever ran off the storage owner"
-	fail=1
-fi
+# SC-CHANNEL, SC-ACCOUNTED and SC-OFFOWNER, held on BOTH legs: the transfers ride the byte channel,
+# which has no feature switch, so neither leg may send a file to the owner, and each leg's channel must
+# have served exactly the files that arrived.
+for leg in off on; do
+	f="$OUT/$leg.txt"
+	served="$(served_of "$f")"
+	owner="$(owner_of "$f")"
+	offowner="$(offowner_of "$f")"
+	copies="$(copies_of "$f")"
+	if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
+		echo "FAIL SC-CHANNEL — the $leg leg served ${served:-no} transfer(s); the async arm never ran"
+		fail=1
+	fi
+	if [ "${owner:-1}" -ne 0 ]; then
+		echo "FAIL SC-ACCOUNTED — the $leg leg sent ${owner:-an unknown number of} transfer(s) to the owner"
+		fail=1
+	fi
+	if [ "${served:-0}" -ne "$copies" ]; then
+		echo "FAIL SC-ACCOUNTED — the $leg leg copied $copies file(s) but the channel served ${served:-no}"
+		fail=1
+	fi
+	if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
+		echo "FAIL SC-OFFOWNER — no transfer on the $leg leg ever ran off the storage owner"
+		fail=1
+	fi
+done
 
 # SC-IDENTICAL. The two arms must collect the same bytes to the same destinations; the per-file
 # checksum lines are what say so.

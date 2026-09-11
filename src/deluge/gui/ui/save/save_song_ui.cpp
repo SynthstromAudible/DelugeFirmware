@@ -927,6 +927,7 @@ void SaveSongUI::runWritePhase() {
 		return;
 	}
 	++documentChannelServedOps_;
+	++documentWriteChannelServedOps_;
 	++documentSteps_;
 	docStallTicks_ = 0;
 	docPhase_ = DocPhase::VERIFY;

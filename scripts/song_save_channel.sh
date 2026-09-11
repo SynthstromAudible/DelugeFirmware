@@ -16,9 +16,10 @@
 #
 # ## Why TWO legs
 #
-# The off leg proves a build with no channels still saves through the owner; the on leg proves the
-# channel arm runs and runs off the owner. One leg alone leaves either the fallback or the claim
-# untested.
+# The legs differ only in the WRITE channel. The byte channel has no feature switch, so the temp-name
+# search, the read-back, the unlink and the rename ride it on both legs. The off leg proves a build with
+# the write channel off still writes the document, through the owner; the on leg proves the write
+# channel arm runs and runs off the owner.
 #
 # What the checks cover:
 #   SS-GREW       the song really did outgrow the staging buffer, at least twice. FIRST, because a
@@ -42,8 +43,10 @@
 #                 conversion preserves it rather than widening or closing it.
 #   SS-IDENTICAL  both legs wrote the same document.
 #   SS-CHANNEL    the on leg's steps were SERVED by a channel -- the async arm ran.
-#   SS-GATED      the off leg served ZERO, so the feature gate actually gates.
-#   SS-ACCOUNTED  the two arms account for every card step between them, and only ONE ran per leg.
+#   SS-GATED      the off leg's WRITE channel served zero and the owner wrote the document, so the
+#                 write channel's feature gate actually gates.
+#   SS-ACCOUNTED  the owner and the channels account for every card step between them on each leg, and
+#                 the on leg sent nothing to the owner.
 #                 Neither SS-CHANNEL nor SS-SAVED can see WHICH arm carried which step, so a leg
 #                 where half of them quietly took the other arm passes both.
 #   SS-OFFOWNER   the on leg's steps ran OFF the storage owner. The rung's actual claim.
@@ -76,11 +79,10 @@ if [ "${NO_BUILD:-0}" != "1" ]; then
 	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
 		deluge_foundation deluge_midi
 	(cd "$CRATE_DIR" && cargo build --release --target-dir "$REPO_ROOT/$TARGET_DIR")
-	# BOTH channels on the on leg, and that is not belt-and-braces: the document write asks the WRITE
-	# channel while the temp-name search, the read-back, the unlink and the rename ask the BYTE
-	# channel, so a leg with one and not the other tests a configuration the save never takes.
+	# The on leg turns the WRITE channel on. The byte channel, which the temp-name search, the read-back,
+	# the unlink and the rename ask, is on in every build.
 	(cd "$CRATE_DIR" && cargo build --release \
-		--features async_file_write_active,async_file_bytes_active \
+		--features async_file_write_active \
 		--target-dir "$REPO_ROOT/$CHAN_TARGET_DIR")
 fi
 
@@ -136,6 +138,7 @@ owner_of() { sed -n 's/^SS-SUMMARY .*ownerServed=\([0-9]*\).*/\1/p' "$1"; }
 offowner_of() { sed -n 's/^SS-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$1"; }
 steps_of() { sed -n 's/^SS-SUMMARY .*steps=\([0-9]*\).*/\1/p' "$1"; }
 doublings_of() { sed -n 's/^SS-GREW doublings=\([0-9]*\).*/\1/p' "$1"; }
+write_of() { sed -n 's/^SS-SUMMARY .*writeServed=\([0-9]*\).*/\1/p' "$1"; }
 
 off_served="$(served_of "$OUT/off.txt")"
 on_served="$(served_of "$OUT/on.txt")"
@@ -143,6 +146,7 @@ off_owner="$(owner_of "$OUT/off.txt")"
 on_owner="$(owner_of "$OUT/on.txt")"
 on_offowner="$(offowner_of "$OUT/on.txt")"
 off_steps="$(steps_of "$OUT/off.txt")"
+off_write="$(write_of "$OUT/off.txt")"
 on_steps="$(steps_of "$OUT/on.txt")"
 
 # SS-CHANNEL. The async arm actually RAN. Nothing else in the tree drives a whole-song document
@@ -152,9 +156,14 @@ if [ -z "${on_served:-}" ] || [ "$on_served" -eq 0 ]; then
 	fail=1
 fi
 
-# SS-GATED. The feature gate actually gates: with the channels off, every step must take the owner.
-if [ -z "${off_served:-}" ] || [ "$off_served" -ne 0 ]; then
-	echo "FAIL SS-GATED — the channel-OFF leg served ${off_served:-no} step(s); the feature gate is not gating"
+# SS-GATED. The write channel's feature gate actually gates: with it off, the write channel serves nothing
+# and the document write takes the owner. The byte channel has no gate, so it is not counted here.
+if [ -z "${off_write:-}" ] || [ "$off_write" -ne 0 ]; then
+	echo "FAIL SS-GATED — the write-channel-OFF leg's write channel served ${off_write:-no} step(s); the feature gate is not gating"
+	fail=1
+fi
+if [ "${off_owner:-0}" -eq 0 ]; then
+	echo "FAIL SS-GATED — the write-channel-OFF leg sent no step to the owner, so its document write went nowhere"
 	fail=1
 fi
 
@@ -165,8 +174,8 @@ fi
 if [ -z "${off_steps:-}" ] || [ "${off_steps:-0}" -eq 0 ]; then
 	echo "FAIL SS-ACCOUNTED — the channel-OFF leg reported no card steps at all"
 	fail=1
-elif [ "${off_owner:-0}" -ne "${off_steps}" ]; then
-	echo "FAIL SS-ACCOUNTED — the OFF leg took ${off_steps} card step(s) but the owner served ${off_owner:-no}"
+elif [ $(( ${off_owner:-0} + ${off_served:-0} )) -ne "${off_steps}" ]; then
+	echo "FAIL SS-ACCOUNTED — the OFF leg took ${off_steps} card step(s) but the owner served ${off_owner:-no} and the channels ${off_served:-no}"
 	fail=1
 fi
 if [ "${on_owner:-1}" -ne 0 ]; then

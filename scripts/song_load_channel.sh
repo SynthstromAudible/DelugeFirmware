@@ -50,7 +50,7 @@ if [ "${NO_BUILD:-0}" != "1" ]; then
 	# buffer with the byte channel's stat and fills it with the write channel's read, so a leg with one
 	# and not the other tests a configuration the code now refuses to enter.
 	(cd "$CRATE_DIR" && cargo build --release \
-		--features async_file_write_active,async_file_bytes_active \
+		--features async_file_write_active \
 		--target-dir "$REPO_ROOT/$CHAN_TARGET_DIR")
 fi
 
