@@ -1011,6 +1011,8 @@ before writing it; these were measured during execution and lines may have moved
     `shell_note_mode.{h,cpp}` and `sim/scenes_spec/note_mode_spec.cpp`.
   - Task 8a's edits moved ~15-20 citations into `src/scenes/browser/browser_scene.cpp`/`.h` that still land on non-blank lines (the strict checker cannot see them).
   - Task 8b's +3 in `src/shell/shell.cpp` moved `Notices::drain` from `:327` to `:330`: collateral citations still at `:327` in `sim/scenes_spec/menu_binding_hooks_spec.cpp:364`, `menu_horizontal_controls_spec.cpp:368`, `:396`, `:537`, and `menu_scene_spec.cpp:1805`. `sim/scenes_spec/support/song_fixture.h:69`'s `deluge.cpp:374-385` now starts on a blank line (`setupBlankSong` is `:375`), and `:7`'s `:746` should be `:748` (`setupBlankSong();`).
+  - **Task 8's gates (119c66c6c)** shifted `src/deluge/gui/views/instrument_clip_view.cpp` by +17 after site 12 and +40 after site 13, so citations past `:3587` moved without `--strict` noticing (some were already stale). Task 8's report (`.superpowers/sdd/2026-09-10-note-family/task-8-report.md`, §R3) lists them: `sim/scenes_spec/note_mode_spec.cpp` :11, :301, :390, :403; `note_roots_spec.cpp` :288, :370; `note_bridge_spec.cpp` :135; `pad_forward_spec.cpp` :304, :416; `note_mode_reads_spec.cpp` :656, :674, :691; `src/scenes/menu/bindings.cpp` :855, :859, :863, :880; `src/scenes/README.md:1183`; `src/scenes/services/midi_learn.h` :89, :336; `src/scenes/overlay/count_in_scene.h:41`; `tests/spec/gui/shell_host_ui_spec.cpp:1389`; `src/deluge/util/shell_menu_entry.h:161`; `src/deluge/gui/ui/shell_menu_entry.cpp` :167, :181; `src/deluge/gui/ui/shell_host_ui.cpp:899`; `src/deluge/gui/ui/shell_note_mode.cpp` :164, :183.
+  - **`shell_menu_entry.cpp`'s table row 14** cited `instrument_clip_view.cpp:5646-5653` / `:5629` (now `:5681-5688` / `:5664` after Task 8's +35 above them) — check whether Task 8's resume fixed it; fix if not.
 - **Scope:** the sweep will touch files outside this brief's Files list (`src/`, `sim/`, `tests/`, `docs/`). Commit each by name.
 
 **C. Hand-checks the shift checker cannot see.** These were stale before its base.
@@ -1019,6 +1021,8 @@ before writing it; these were measured during execution and lines may have moved
 - `src/scenes/services/global_controls.h`'s "pre-UI section" cites `hid/buttons.cpp` `:88-95`, `:100-107`, `:109-113`,
   `:114-120`, `:122-127`, `:128-131`. The AFFECT_ENTIRE arm is actually `:108-112`, so all of these are likely one line stale.
 - `src/scenes/services/global_controls.cpp:259` cites `:356`, which is one line above `changeFillMode`.
+- `src/deluge/gui/ui/shell_menu_entry.cpp:123-124` cites `sound_editor.cpp:1716-1722`; that arm is `:1733-1739`.
+- `src/scenes/menu/context.cpp`'s file header and its Part 1 / Part 3 bare `sound_editor.cpp` citations, ~55 lines behind (Task 8 re-pinned only the `context_for` root block).
 
 **D. A pre-existing doc/code mismatch to record or fix.** `src/scenes/overlay/param_popup_scene.h:194-195`'s docstring says the
 popup never takes input (`:194`), but `input_transparent()` returns `true` (`:195`) — path and lines verified by the controller.
