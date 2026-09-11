@@ -38,7 +38,7 @@
 ///
 /// @par Why the header is in `util/` and the implementation in `gui/ui/`
 ///
-/// **One of the eight call sites is `model/clip/instrument_clip_minder.cpp`**, and that file is
+/// **One of the ten call sites is `model/clip/instrument_clip_minder.cpp`**, and that file is
 /// inside `check_layer_rules.py`'s `NON_UI` glob -- so a `gui/ui/` header there would raise the
 /// `model-includes-ui` ratchet, which plan F1's global constraint 8 says may only shrink. Keeping
 /// the count level by *displacing* another `gui/` include (the first version of this file did that,
@@ -118,7 +118,7 @@
 ///     (§10.2 item 5.3) is unwired in both directions and reaches no menu item, so it is not a
 ///     thing a user can do wrong from behind this toggle. It is recorded at §10.2 and in
 ///     `src/scenes/README.md`'s boot-wiring section, where it belongs.
-///  5. **Six of the fourteen entry points still open the legacy `SoundEditor`** -- see
+///  5. **Four of the fourteen entry points still open the legacy `SoundEditor`** -- see
 ///     `shell_menu_entry.cpp`'s table for which, and why each one's node has no port. So with the
 ///     toggle on the firmware has *both* menus, reachable by different gestures.
 ///

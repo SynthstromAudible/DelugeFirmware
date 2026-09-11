@@ -3799,7 +3799,7 @@ bool InstrumentClipView::enterNoteRowEditor() {
 				                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
 				                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::ContextRoot,
 				                                   deluge::gui::ui::NoteMode::NoteRowEditor)) {
-					if (!auditioningSilently) {
+					if (!auditioningSilently) { // why: legacy's own comment in the `else` below, `:3820-3822`
 						auditionPadAction(0, lastAuditionedYDisplay, true);
 						auditionPadAction(1, lastAuditionedYDisplay, true);
 					}
