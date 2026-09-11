@@ -994,6 +994,11 @@ before writing it; these were measured during execution and lines may have moved
 8. **The dual notice drain for every kind other than the column notification.** In the app, legacy's `drain_notifications` (`gui/ui/ui.cpp:387`) and the shell's `Notices::drain` (`src/shell/shell.cpp:327`) pop the same queue and race; Task 8b settles it only for `Notice::Kind::Notification`. Recorded at `src/deluge/gui/ui/shell_host_ui.cpp` (~`:1170-1177`, updated by 8b).
 9. **Audition + shortcut pad is swallowed inside the ported menu** (pre-existing, `ui/pads-1`). Legacy's `[audition pad] + [sequence direction pad]` opens the note-row editor from inside a sound-editor menu (`gui/ui/sound_editor.cpp:1403-1409`); under the guest `ShellHostUI::claimsGridPad` claims only shifted main-grid pads and `forwardGridPad`'s tail needs `UI_MODE_NONE`, so the gesture is dropped. Recorded at `shell_host_ui.cpp` (~`:770-773`).
 10. **The live highlight setting.** Task 8a ships `PartialInversion` as the profile style; following the user's accessibility setting live stays the gap `src/scenes/menu/nodes/settings.h` (~`:98-101`) records.
+11. **An enum column's notification value is its index, not legacy's option text** (pre-existing). Legacy's `lpfModeMenu` is a `FilterModeSelection` (`gui/menu_item/filter/mode.h:34`), and `Selection::getNotificationValue` appends `getOptions()[getValue()]` (`gui/menu_item/selection.cpp:62-64`), e.g. "Drive" (`filter/mode.h:73-80`). The port's `lpf_mode` is an `enumeration(...)` (`scenes/menu/nodes/sound_filters.h:100-102`) with no `value_text` (`scenes/menu/node.h:866-876`), so `notify_column` formats the integer: the level-2 golden `ui/shell/menu_submenu_horizontal/after_select_turn` shows "MODE: 2". Closing it: a notification `value_text` for `Selection`-backed enumerations. Verify every line first.
+12. **`PopupScene`'s in-place rewrite can leave the panel stale on a quiet tick** (found by Task 8b, recorded at its re-target site in `src/shell/notices.cpp`/`notices.h`); Task 8b's banner re-pushes instead.
+13. **The notification's 2000 ms `DISPLAY` timer starts when a consumer pops the notice, not when legacy raises it** (`gui/menu_item/horizontal_menu.cpp:342` is synchronous) — a pre-existing lag a level-3 snapshot near expiry could expose.
+14. **Title truncation width edge:** the notice queue caps title+value at 46 bytes, while `OLED::displayNotification` measures its first width from the untruncated title (`hid/display/oled.cpp:756`); a title over 30 bytes with a 16-byte value could truncate differently from a direct call. No shipped name is that long.
+15. **`PopupScene` is removed on schedule while a working animation runs;** legacy holds every popup until the animation ends (`hid/display/oled.cpp:929-937`). Task 8b ported the hold for the notification banner only (found in its fix round 1).
 
 **B. The branch-wide citation sweep (controller ruling, ledgered): Task 9 owns it, after the last code change.**
 - **Exit criterion:** `python3 scripts/check_citation_shift.py 23aae2ef2..HEAD` reports **zero** moved endpoints. In addition,
@@ -1004,6 +1009,8 @@ before writing it; these were measured during execution and lines may have moved
   - `src/deluge/gui/ui/shell_host_ui.cpp` shifted by +1…+68 (Task 7).
   - Task 7a's insertions moved `README.md:1183`, `midi_learn.h:89`, and Task 7's `instrument_clip_view.cpp` lines in
     `shell_note_mode.{h,cpp}` and `sim/scenes_spec/note_mode_spec.cpp`.
+  - Task 8a's edits moved ~15-20 citations into `src/scenes/browser/browser_scene.cpp`/`.h` that still land on non-blank lines (the strict checker cannot see them).
+  - Task 8b's +3 in `src/shell/shell.cpp` moved `Notices::drain` from `:327` to `:330`: collateral citations still at `:327` in `sim/scenes_spec/menu_binding_hooks_spec.cpp:364`, `menu_horizontal_controls_spec.cpp:368`, `:396`, `:537`, and `menu_scene_spec.cpp:1805`. `sim/scenes_spec/support/song_fixture.h:69`'s `deluge.cpp:374-385` now starts on a blank line (`setupBlankSong` is `:375`), and `:7`'s `:746` should be `:748` (`setupBlankSong();`).
 - **Scope:** the sweep will touch files outside this brief's Files list (`src/`, `sim/`, `tests/`, `docs/`). Commit each by name.
 
 **C. Hand-checks the shift checker cannot see.** These were stale before its base.
@@ -1016,9 +1023,10 @@ before writing it; these were measured during execution and lines may have moved
 **D. A pre-existing doc/code mismatch to record or fix.** `src/scenes/overlay/param_popup_scene.h:194-195`'s docstring says the
 popup never takes input (`:194`), but `input_transparent()` returns `true` (`:195`) — path and lines verified by the controller.
 
+**E. Dead code and a test-runner limit from Task 8b.** `notify::Notice::Kind::CancelConsole` has no raiser left in `src`, `sim` or `tests` (its arms: `src/notify/notice_queue.h`, `gui/ui/notify_drain.cpp`, `src/shell/notices.cpp`; `ConsoleScene::cancel` and its `popup_type` scoping are now untested) — remove the kind and its arms, or record why it stays. And `tests/spec/shell/support/script_runner.h`'s `notice_kind_by_name` (~`:295`) stops at `CancelPopup`, so scripts cannot name `Notification`, `CancelNotification` or `CancelConsole` — extend it or record the limit.
+
 **Already fixed, so do not redo:** `global_controls.h:144-150` and `global_controls.cpp:250-253`'s note-editor records, and the
 `LEGACY_PORT_SEAMS` comment for `shell_note_mode.cpp` (Task 7a).
-
 ---
 
 ## Self-review
