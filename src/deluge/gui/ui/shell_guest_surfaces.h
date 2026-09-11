@@ -71,7 +71,7 @@ public:
 	/// possible"), so there is no millisecond floor to quote. The fastest *fixed* cadence in the
 	/// tree that arms an OLED gate is `RecorderScene`'s `kRecorderPollMs = 10`
 	/// (`src/scenes/recorder/recorder_scene.h:180`), which takes `Scene::timer_repaints()`'s
-	/// `{.oled = true, .grid = true}` default (`shell/scene.h:661`) because it does not override it
+	/// `{.oled = true, .grid = true}` default (`shell/scene.h:662`) because it does not override it
 	/// -- 768 B x 100/s = 76.8 kB/s on one panel, and a floor rather than a ceiling.
 	///
 	/// For scale, legacy already memcpys up to this whole image per frame in

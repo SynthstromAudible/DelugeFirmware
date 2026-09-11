@@ -14,7 +14,7 @@
 /// `reassessAuditionStatus` (`:2702`), which calls `getVelocityForAudition` (`:4784`), which calls
 /// `InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible`
 /// (`model/clip/instrument_clip_minder.cpp:591`) -- and THAT dereferences `currentPlaybackMode`, a
-/// global only `deluge_boot()` sets (`deluge.cpp:659`), null under every `song_fixture.h`
+/// global only `deluge_boot()` sets (`deluge.cpp:660`), null under every `song_fixture.h`
 /// direct-construction fixture. `RealNoteSelectionGuard` below seeds it with the real `session`,
 /// exactly the precedent `audio_clip_scene_spec.cpp` already sets (`:349`), and seeds `display`
 /// with a local `OLED`, exactly `count_in_spec.cpp`'s precedent (`:185-187`) -- both restored on

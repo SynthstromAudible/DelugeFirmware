@@ -39,7 +39,7 @@
 ///      `DEALT_WITH`. Placing this service last is what keeps that abstention live rather than
 ///      dead code, and it is the seam task 4 built.
 ///   3. **LED composition requires last.** `LedCompose::compose` runs services in `Shell`'s own
-///      order (`shell/shell.cpp:190`: `mod_knobs`, `global_controls`, `midi_learn`, notices,
+///      order (`shell/shell.cpp:213-214`: `mod_knobs`, `global_controls`, `midi_learn`, notices,
 ///      screensaver) and the last writer wins. `View::midiLearnFlash` (`view.cpp:821-832`)
 ///      *overwrites* the PLAY, RECORD and TAP_TEMPO LEDs that `PlaybackHandler::setLedStates`
 ///      (`playback/playback_handler.cpp:2499-2512`, i.e. `GlobalControls::leds`) had just set, and

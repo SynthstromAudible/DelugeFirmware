@@ -23,6 +23,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_note_bridge.h"
+#include "gui/ui/shell_notification_sink.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -802,6 +803,12 @@ static void deluge_boot(const DelugeBoard* board) {
 	// include. It holds function pointers and no `Song`, so unlike the call below it has no
 	// ordering constraint of its own -- see `shell_note_bridge.h`.
 	deluge::gui::ui::wireShellNoteBridge();
+
+	// Install the notification sink (note-family Task 8b): the shell's `Notice::Kind::Notification`
+	// consumer, pointed at the same `display->displayNotification` call legacy's own
+	// `drain_notifications` makes for that kind -- so whichever of the two pops a horizontal-menu
+	// notification, legacy's popup slot holds it. Function pointers only, like the bridge above.
+	deluge::gui::ui::wireShellNotificationSink();
 
 	// Build the three real services over the guest's own `Shell` and install them -- migration
 	// §10.2 item 7's boot half, and the first call `Shell::set_services` has ever had outside a

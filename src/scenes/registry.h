@@ -3,8 +3,8 @@
 /// @brief The application's scene table -- what `Shell` is constructed with.
 ///
 /// One `SceneRegistry` for the whole application. The shell installs its own
-/// `Popup`/`Console`/`Working`/`Loading` instances over whatever the registry reported
-/// (`shell/shell.h:133-136`), so an entry in one of those four slots is simply ignored.
+/// `Popup`/`Console`/`Working`/`Loading`/`Notification` instances over whatever the registry reported
+/// (`shell/shell.h:133-136`), so an entry in one of those five slots is simply ignored.
 ///
 /// `SceneKind::Screensaver` is the exception among the shell's own kinds, and the one entry here
 /// that is not an application kind: the shell owns no screensaver *scene* -- `shell::Screensaver`

@@ -46,6 +46,7 @@ enum class SceneKind : uint8_t {
 	Working,       ///< The "busy, please wait" indicator.
 	Loading,       ///< Shown while a song is being read.
 	Screensaver,   ///< The idle animation.
+	Notification,  ///< The one-line top banner legacy's `displayNotification` draws.
 	FirstApp = 16, ///< The first kind an application may register; application kinds run upwards.
 };
 

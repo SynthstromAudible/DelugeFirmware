@@ -58,9 +58,11 @@
 900    snapshot menu-scrolled
 
 # One edit gesture, and the popup it raises. `GoldUpper` is encoder index 4 = mod1 = the UPPER gold
-# knob (`src/bsp/host/host_script_tables.c`'s `k_encoder_roles`). Under the toggle this is
-# `services::ModKnobs`; with it off it is `View::modEncoderAction` through `UI`'s base forward,
-# which `ShellHostUI` deliberately does not override (F1 task 6).
+# knob (`src/bsp/host/host_script_tables.c`'s `k_encoder_roles`). Both legs reach legacy's
+# `View::modEncoderAction`: with the toggle off through `SoundEditor::modEncoderAction`'s innermost
+# `else` (`gui/ui/sound_editor.cpp:1659`), and under the toggle through `UI`'s base forward
+# (`gui/ui/ui.cpp:35-37`), which `ShellHostUI` deliberately does not override
+# (`gui/ui/shell_host_ui.h:66`, F1 task 6). `services::ModKnobs` is not reached on either leg.
 1000   encoder GoldUpper +2
 1200   snapshot gold-turn
 

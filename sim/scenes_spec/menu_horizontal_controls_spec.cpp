@@ -44,6 +44,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <vector>
 
 #include "spec/support/spec_main.h"
 
@@ -272,6 +273,42 @@ std::string last_notice() {
 	return text;
 }
 
+/// @brief Pop every queued notice, in raise order -- for the examples that pin the *kind* a raise
+///        used, not only that something was raised.
+std::vector<deluge::notify::Notice> raised_notices() {
+	std::vector<deluge::notify::Notice> out;
+	deluge::notify::Notice n;
+	while (deluge::notify::notices().pop(n)) {
+		out.push_back(n);
+	}
+	return out;
+}
+
+/// @return How many of @p raised are of kind @p kind.
+size_t count_kind(const std::vector<deluge::notify::Notice>& raised, deluge::notify::Notice::Kind kind) {
+	size_t n = 0;
+	for (const deluge::notify::Notice& notice : raised) {
+		n += notice.kind == kind ? 1 : 0;
+	}
+	return n;
+}
+
+/// @brief The column notification legacy's `HorizontalMenu::displayNotification` makes is one
+///        `display->displayNotification(title, value)` call (`horizontal_menu.cpp:342`) -- so the
+///        port raises exactly one `Notification` and no `Console` line. Returns that notice.
+template <typename Self>
+deluge::notify::Notice expect_one_notification(Self& self, const std::vector<deluge::notify::Notice>& raised) {
+	using Kind = deluge::notify::Notice::Kind;
+	expect(count_kind(raised, Kind::Notification)).to_equal(size_t{1});
+	expect(count_kind(raised, Kind::Console)).to_equal(size_t{0});
+	for (const deluge::notify::Notice& notice : raised) {
+		if (notice.kind == Kind::Notification) {
+			return notice;
+		}
+	}
+	return deluge::notify::Notice{};
+}
+
 /// @brief Whether \p f declared \p b's LED `On` this frame -- `LedFrame` has no query accessor of
 ///        its own, only `entries()`, so this scans it.
 bool led_on(const deluge::ui::LedFrame& f, ButtonId b) {
@@ -297,11 +334,18 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(0);
 		g_enum_col = 0;
 
+		(void)raised_notices(); // drain
 		r.turn(1, 10);
 		r.shell.tick(20);
 
 		expect(g_enum_col).to_equal(1);
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0); // still ENUM_COL
+
+		// ...and notifies (`:328` -> `displayNotification`, `:342`). Read before any further tick:
+		// the next tick's step 2 would drain it (`shell.cpp:327`).
+		const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+		expect(std::string(n.notification_title())).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MODE)));
+		expect(std::string(n.notification_value()).empty()).to_be_false();
 	});
 
 	it("a select turn on a focused submenu column does nothing", _ {
@@ -354,12 +398,20 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kKitX, kKitY, 200); // new focus: notifies, does not flip
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(g_toggle_col).to_be_false();
-		expect(last_notice().empty()).to_be_false(); // new-focus notification
+		const std::string monophonic{deluge::l10n::get(String::STRING_FOR_MONOPHONIC)};
+		{ // new-focus notification (`:437` -> `:342`)
+			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+			expect(std::string(n.notification_title())).to_equal(monophonic);
+			expect(std::string(n.notification_value()).empty()).to_be_false();
+		}
 
 		(void)last_notice(); // drain
 		r.press(kKitX, kKitY, 500); // already focused: the column's own press
 		expect(g_toggle_col).to_be_true();
-		expect(last_notice().empty()).to_be_false();
+		{
+			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+			expect(std::string(n.notification_title())).to_equal(monophonic);
+		}
 	});
 
 	it("a select press on a focused toggle column flips and stays -- not ascend", _ {
@@ -452,12 +504,20 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kSynthX, kSynthY, 500); // new focus onto randomizer_lock: notifies, does not flip
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
 		expect(ctx.arp->randomizerLock).to_be_false();
-		expect(last_notice().empty()).to_be_false();
+		std::string title;
+		{
+			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+			title = n.notification_title();
+			expect(title.empty()).to_be_false();
+		}
 
 		(void)last_notice(); // drain
 		r.press(kSynthX, kSynthY, 800); // already focused: flips and notifies
 		expect(ctx.arp->randomizerLock).to_be_true();
-		expect(last_notice().empty()).to_be_false();
+		{
+			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
+			expect(std::string(n.notification_title())).to_equal(title); // the same column, notified again
+		}
 	});
 
 	it("Back at depth 0 on a horizontal page cancels its notification too", _ {
@@ -475,23 +535,23 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.turn(1, 100); // a select turn on ENUM_COL (column 0) notifies unconditionally
 		r.shell.tick(110); // pump_input raises the notice (queued, not yet drained --
 		                   // `Shell::tick` step 2 drains what a PRIOR tick queued, `shell.cpp:327`)
-		r.shell.tick(120); // this tick's step 2 drains it, pushing `SceneKind::Console`
-		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_true();
+		r.shell.tick(120); // this tick's step 2 drains it, pushing `SceneKind::Notification` (no sink)
+		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_true();
+		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_false();
 
 		r.button(kBackX, kBackY, true, 200);
 		r.button(kBackX, kBackY, false, 220);
-		r.shell.tick(230); // pump_input runs the depth-0 Back arm, queuing `CancelConsole`
-		r.shell.tick(240); // this tick's step 2 drains it, removing `SceneKind::Console`
-		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_false();
+		r.shell.tick(230); // pump_input runs the depth-0 Back arm, queuing `CancelNotification`
+		r.shell.tick(240); // this tick's step 2 drains it, removing `SceneKind::Notification`
+		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_false();
 	});
 
 	it("an unrelated Console notice survives a menu cancel", _ {
-		// `ConsoleScene::cancel`'s own doc (fix round 2): Undo/Redo (`action_logger.cpp:827`,
-		// `:840`) and the startup banner are `Kind::Console` too, raised with the default
-		// `popup_type` (0, GENERAL) rather than `ui::shell::kPopupTypeNotification` (10) --
-		// `notify_column` is the one raiser that uses the latter. Cancelling the menu's own
-		// notification must not take an unrelated line down with it, and the scene itself must
-		// stay up for as long as the unrelated line has left.
+		// Undo/Redo (`action_logger.cpp:827`, `:840`) and the startup banner are `Kind::Console`
+		// lines, and legacy's cancel of the menu's notification never touches the console:
+		// `cancelPopup` -> `removePopup` clears only the popup slot (`oled.h:164`,
+		// `oled.cpp:253-258`). The menu's notification is its own `Notification` banner now, so
+		// cancelling it must take the banner down and leave the unrelated line, and its scene, up.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -503,14 +563,16 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(60); // drains it -- pushes `SceneKind::Console`
 		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_true();
 
-		r.turn(1, 100); // the menu's own notification, `kPopupTypeNotification`
+		r.turn(1, 100); // the menu's own notification
 		r.shell.tick(110);
 		r.shell.tick(120);
+		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_true();
 
 		r.button(kBackX, kBackY, true, 200);
 		r.button(kBackX, kBackY, false, 220);
-		r.shell.tick(230); // queues `CancelConsole` for `kPopupTypeNotification` only
-		r.shell.tick(240); // drains it -- the menu's own line goes inactive, "UNRELATED" does not
+		r.shell.tick(230); // queues `CancelNotification`
+		r.shell.tick(240); // drains it -- the banner goes, "UNRELATED" does not
+		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_false();
 		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_true();
 	});
 

@@ -8,7 +8,25 @@ namespace deluge::notify {
 
 /// @brief One raised notice: an error, a message, or a display-state request, copied by value.
 struct Notice {
-	enum class Kind : uint8_t { Error, Text, Console, Working, ClearWorking, CancelPopup, CancelConsole };
+	/// `Notification`/`CancelNotification` are appended rather than inserted, so every earlier
+	/// kind keeps its numeric value.
+	enum class Kind : uint8_t {
+		Error,
+		Text,
+		Console,
+		Working,
+		ClearWorking,
+		CancelPopup,
+		CancelConsole,
+		/// Legacy's `display->displayNotification(title, value)` (`hid/display/oled.cpp:744`): the
+		/// one-line top banner typed `PopupType::NOTIFICATION`. `text` holds the title, then a NUL,
+		/// then the value -- see `value_at`, `notice_notification` and the two accessors below.
+		Notification,
+		/// Take down a `Notification`: legacy's guarded `if (display->hasPopupOfType(
+		/// PopupType::NOTIFICATION)) { display->cancelPopup(); }`
+		/// (`gui/menu_item/horizontal_menu.cpp:363-365`, `:587-589`).
+		CancelNotification,
+	};
 	enum class Severity : uint8_t { Info, Warn, Error };
 	Kind kind = Kind::Text;
 	Severity severity = Severity::Info;
@@ -20,6 +38,17 @@ struct Notice {
 	// with room to spare, and nothing else in the model exceeds 47 characters.
 	char text[48] = {};
 	uint8_t popup_type = 0; // today's PopupType value; 0 = GENERAL
+	// Kind::Notification: the offset in `text` of the value's first byte. `text` is
+	// "<title>\0<value>\0", so both halves are NUL-terminated C strings -- which legacy's
+	// `OLED::displayNotification` needs, since it measures `param_title.data()` and
+	// `param_value.value().data()` as C strings (`hid/display/oled.cpp:756-758`).
+	uint8_t value_at = 0;
+
+	/// @return Kind::Notification's title: the NUL-terminated first half of `text`.
+	const char* notification_title() const { return text; }
+	/// @return Kind::Notification's value: the NUL-terminated second half of `text`, empty for a
+	///         title-only notification.
+	const char* notification_value() const { return text + value_at; }
 };
 
 constexpr size_t kNoticeCapacity = 16;
@@ -71,7 +100,18 @@ NoticeQueue& notices();
 void notice_text(std::string_view short_text, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 void notice_string(uint16_t string_id, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 void notice_error_code(int16_t code);
-void notice_kind(Notice::Kind k, uint8_t popup_type = 0); // Working/ClearWorking/CancelPopup/CancelConsole
+void notice_kind(Notice::Kind k, uint8_t popup_type = 0); // Working/ClearWorking/CancelPopup/CancelConsole/
+                                                          // CancelNotification
+
+/// @brief Raise a `Notice::Kind::Notification`: legacy's `display->displayNotification(title, value)`
+///        pair, carried in the one `text` buffer as "<title>\0<value>\0".
+///
+/// When the pair does not fit, the **value keeps priority** and the title is cut from its end --
+/// the same priority legacy's own truncation loop gives them (`hid/display/oled.cpp:760-766`: it
+/// shortens `titleBuf` until the value fits beside it, and never touches the value).
+/// @param title The notification's title (legacy's `param_title`).
+/// @param value The value text, or empty for a title-only notification.
+void notice_notification(std::string_view title, std::string_view value);
 
 /// @brief Number of notices the helpers above have overwritten because the queue was full, since boot.
 /// @note Relaxed: it is a diagnostic counter, ordered against nothing, and the helpers may run [any].

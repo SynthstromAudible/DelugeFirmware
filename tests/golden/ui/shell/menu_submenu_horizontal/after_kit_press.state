@@ -1,4 +1,4 @@
-scene Console
+scene Notification
 scene app16/76
 led Back blink 110
 led Kit on

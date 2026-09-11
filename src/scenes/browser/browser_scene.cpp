@@ -1191,7 +1191,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// `Browser::selectEncoderAction` (`browser.cpp:549`), applied here rather than parked for
 			// `after_render`. The turn is one of the shell's widget-owned shapes, so it is delivered
 			// **after** the render pass and after every `after_render()` call for the tick
-			// (`Shell::tick` step 8, `shell/shell.cpp:408-409 deliver_post_render_input`) -- parking it
+			// (`Shell::tick` step 8, `shell/shell.cpp:411-412 deliver_post_render_input`) -- parking it
 			// would cost a whole tick per detent, which a level-2 script would have found as a
 			// browser that lags one click behind the encoder. The frame is already built either way,
 			// which is what the `Repaint` below is for.

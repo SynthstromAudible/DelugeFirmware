@@ -160,6 +160,8 @@ const char* scene_kind_name(SceneKind k) {
 		return "Loading";
 	case SceneKind::Screensaver:
 		return "Screensaver";
+	case SceneKind::Notification:
+		return "Notification";
 	default:
 		return nullptr;
 	}
@@ -170,7 +172,7 @@ Shell::Shell(SurfaceSet& surfaces, const BoardProfile& profile, const SceneRegis
     : surfaces_(surfaces), profile_(profile), config_(config), services_(services),
       registry_{std::span<Scene* const>{table_}}, stack_(registry_), lowering_(profile, config.lowering),
       router_(stack_, services, lowering_), screensaver_(stack_, config.screensaver_idle_ms, config.seed),
-      notices_(stack_, profile_, popup_, console_, working_) {
+      notices_(stack_, profile_, popup_, console_, working_, notification_) {
 	for (size_t i = 0; i < table_.size(); i++) {
 		table_[i] = registry.find(static_cast<SceneKind>(i));
 	}
@@ -181,6 +183,7 @@ Shell::Shell(SurfaceSet& surfaces, const BoardProfile& profile, const SceneRegis
 	table_[static_cast<size_t>(SceneKind::Popup)] = &popup_;
 	table_[static_cast<size_t>(SceneKind::Console)] = &console_;
 	table_[static_cast<size_t>(SceneKind::Working)] = &working_;
+	table_[static_cast<size_t>(SceneKind::Notification)] = &notification_;
 	table_[static_cast<size_t>(SceneKind::Loading)] = &loading_;
 
 	rebuild_service_list();
@@ -289,7 +292,7 @@ bool Shell::route_midi(const UiEvent& event, uint32_t now_ms) {
 	//
 	// The screensaver: legacy does not wake it for MIDI either. `Screensaver::noteActivity()`
 	// (`hid/display/screensaver.cpp:85`) has exactly three callers -- the two board-event arms of
-	// `deluge_control_poll_event`'s dispatch (`deluge.cpp:240`, `:254`) and
+	// `deluge_control_poll_event`'s dispatch (`deluge.cpp:241`, `:255`) and
 	// `Encoders::interpretEncoders` (`hid/encoder_input.cpp:208`) -- and none of `PlaybackHandler`'s
 	// MIDI dispatchers is one. A MIDI message is not a user touching the box.
 	return router_.route(event, make_context(now_ms));
@@ -1097,8 +1100,8 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	// `led_is_on` derives its phase from `now_ms` alone (`shell/leds.cpp`). So without this loop a
 	// declared blink froze at whatever phase the last tick left it in for as long as nothing else
 	// happened -- and that was live rather than theoretical: `MenuScene::leds` declares BACK and
-	// LEARN as `Blink(kFlashTime)` unconditionally (`scenes/menu/menu_scene.cpp:1386`, `:1393`) while
-	// `MenuScene::next_timer` (`scenes/menu/menu_scene.cpp:2229-2244`) answers `nullopt` for any
+	// LEARN as `Blink(kFlashTime)` unconditionally (`scenes/menu/menu_scene.cpp:1373`, `:1380`) while
+	// `MenuScene::next_timer` (`scenes/menu/menu_scene.cpp:2218-2233`) answers `nullopt` for any
 	// focused node with neither source pads nor a shortcut position.
 	//
 	// Read from the frame `derive_leds` composed a few lines earlier in `tick()`, so this is the

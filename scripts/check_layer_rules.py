@@ -368,6 +368,17 @@ LEGACY_PORT_SEAMS = (
     # `shell_host_ui.cpp` and the host spec suite's fake reach it without the `deluge_scenes`
     # closure, and this seam too is one translation unit wide.
     "src/deluge/gui/ui/shell_note_mode.cpp",
+    # Note-family Task 8b: the notification sink's installer. It names
+    # `deluge::ui::shell::NotificationSink` and `deluge::ui::shell::set_notification_sink`
+    # (`shell/notices.h`) to point the shell's `Notice::Kind::Notification` consumer at
+    # `showNoticeNotification` / `cancelNoticeNotification` (`gui/ui/notify_drain.h`) -- the legacy
+    # display calls `drain_notifications` itself makes for the same two kinds, so the application's
+    # two queue consumers end in one call. Naming both is the whole job, which is why it cannot live
+    # in `notify_drain.cpp` (not a seam, and it should stay one). Its HEADER
+    # (`shell_notification_sink.h`) is deliberately NOT listed: it names no `shell/` type, only the
+    # no-arguments `wireShellNotificationSink()`, so this seam too is one translation unit wide --
+    # exactly the line `shell_note_bridge.h` draws above.
+    "src/deluge/gui/ui/shell_notification_sink.cpp",
 )
 
 RULES = [

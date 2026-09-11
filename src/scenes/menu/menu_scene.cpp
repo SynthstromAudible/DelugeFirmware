@@ -41,7 +41,6 @@
 #include "model/sync.h"      // syncValueToString -- Kind::SyncLevel's value text
 #include "notify/notice_queue.h"
 #include "shell/leds.h"
-#include "shell/notices.h"   // deluge::ui::shell::kPopupTypeNotification
 #include "ui/core/metrics.h" // kSyncValueY -- Kind::SyncLevel's value band baseline
 #include "ui/oled/columns.h"
 #include "ui/oled/list.h"
@@ -732,26 +731,28 @@ size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kid
 }
 
 void MenuScene::notify_column(const Node& column) {
-	// `notify::Notice` carries one text field, so the pair is joined below. `notice_text` copies
-	// into the queue's own 48-byte slot, so the stack buffer is enough; `notices().push` is the
-	// wrong call -- it is `[[nodiscard]]` and drops silently (`notify/notice_queue.h:46`).
+	// Legacy's `HorizontalMenu::displayNotification` (`horizontal_menu.cpp:335-343`) ends in one
+	// call, `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
+	// (`:342`): a one-line banner across the top of the panel, in the display's single popup slot,
+	// typed `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`). `notify::notice_notification`
+	// carries exactly that (title, value) pair, and both of its consumers end in that slot or its
+	// port: legacy's `drain_notifications` calls the same function, and `shell::Notices::drain`
+	// reaches it through the application's `NotificationSink` -- or, with no sink installed, draws
+	// `shell::NotificationScene`, which is transparent over the menu and takes no input
+	// (`shell/notices.h`). It copies into the queue's own slot, so the stack buffers below are
+	// enough.
 	//
-	// **`Notice::Kind::Console`, not the default `Text`.** Legacy's `OLED::displayNotification`
-	// (`hid/display/oled.cpp:744-756`) draws a single-row banner across the top of the panel *over*
-	// the running UI -- the menu underneath keeps rendering and keeps its input. The shell's `Text`
-	// notice becomes the full `PopupScene`, which is **not** `oled_transparent` for `Main`
-	// (`shell/notices.cpp:118-120`); the shell then renders from the popup upwards, `MenuScene`
-	// does not render at all, and with no render there is no `after_render` and no claims -- so the
-	// menu would freeze for the popup's whole lifetime every time a knob moved. `ConsoleScene` is
-	// the shipped overlay with legacy's composition: drawn over, transparent to both the surface
-	// beneath and to input (`notices.h:150,175`).
+	// (Until note-family Task 8b this was a `Kind::Console` line, joined as "name: value". It drew
+	// at the bottom rather than at the top, and in the application legacy's drain and the shell's
+	// raced for it, so on the ported leg legacy's slot held no `NOTIFICATION` -- which
+	// `View::displayModEncoderValuePopup`'s arbitration keys on, `gui/views/view.cpp:1220`.)
 	//
 	// **`showNotification()`, not "every column".** `displayNotification` itself refuses first
 	// (`horizontal_menu.cpp:336-338`), and `Submenu::showNotification()` is the one override any
 	// ported column kind reaches (`submenu.h:67`) -- `Column::is_submenu` is exactly
 	// `kid.kind == Kind::Submenu` (`render_horizontal`), so this is that same test. Centralised
 	// here rather than at each call site: `handle()`'s new-focus button arm used to call this
-	// unconditionally and light a Console banner over a submenu column legacy never would.
+	// unconditionally and light a banner over a submenu column legacy never would.
 	if (column.kind == Kind::Submenu) {
 		return;
 	}
@@ -772,24 +773,7 @@ void MenuScene::notify_column(const Node& column) {
 	}
 	TextScratch name_scratch;
 	const std::string_view name = text_of(column.name, name_scratch);
-	char line[48];
-	size_t out = 0;
-	for (const char c : name) {
-		if (out < sizeof(line)) {
-			line[out++] = c;
-		}
-	}
-	if (out + 1 < sizeof(line)) {
-		line[out++] = ':';
-		line[out++] = ' ';
-	}
-	for (const char c : value) {
-		if (out < sizeof(line)) {
-			line[out++] = c;
-		}
-	}
-	deluge::notify::notice_text(std::string_view{line, out}, deluge::notify::Notice::Kind::Console,
-	                            deluge::ui::shell::kPopupTypeNotification);
+	deluge::notify::notice_notification(name, value);
 }
 
 bool MenuScene::enter_range_picker_if_needed(const Node& child, bool suppress_when_allowed) {
@@ -1519,8 +1503,7 @@ void MenuScene::descend_to(const Node& child) {
 	// (`:587-589`) -- every other `MenuItem::endSession` (`menu_item.cpp:81`) is a no-op. This is
 	// "entering a child" from a horizontal page.
 	if (on_horizontal_page()) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole,
-		                            deluge::ui::shell::kPopupTypeNotification);
+		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 	}
 	st_.depth++;
 	st_.path[st_.depth] = &child;
@@ -1581,8 +1564,7 @@ void MenuScene::ascend() {
 	// "ascending off a horizontal page". Read before the loop pops anything, while `focused()`
 	// still names the page being left.
 	if (st_.depth != 0 && on_horizontal_page()) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole,
-		                            deluge::ui::shell::kPopupTypeNotification);
+		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 	}
 	do {
 		if (st_.depth == 0) {
@@ -1952,8 +1934,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 						// `switchVisiblePage` cancels the notification unconditionally once past its
 						// own `totalPages <= 1` guard (`:363-365`) -- `page_switch` returning a
 						// different column already implies that guard passed.
-						deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole,
-						                            deluge::ui::shell::kPopupTypeNotification);
+						deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 						repaint = true;
 					}
 				}
@@ -2081,8 +2062,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// `reroot_to_scene_opener_page()` puts a claimed file selector's browser back here at
 		// depth 0, so this is a shipped path, not a hypothetical one.
 		if (on_horizontal_page()) {
-			deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelConsole,
-			                            deluge::ui::shell::kPopupTypeNotification);
+			deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
 		}
 		Result r;
 		r.handled = true;

@@ -131,9 +131,10 @@ public:
 	/// @param surfaces The hardware seam; borrowed, and must outlive the shell.
 	/// @param profile  The board's tables; copied (a `BoardProfile` is a handful of spans).
 	/// @param registry The application's scene table. Copied into the shell's own table, which
-	///                 additionally holds the shell's own `Popup`/`Console`/`Working` scenes: the
-	///                 shell owns those three kinds and `Notices` drives its own instances of
-	///                 them, so an entry an application put in one of those slots is not used.
+	///                 additionally holds the shell's own `Popup`/`Console`/`Working`/`Notification`
+	///                 scenes: the shell owns those four kinds and `Notices` drives its own
+	///                 instances of them, so an entry an application put in one of those slots is
+	///                 not used.
 	/// @param services The mod-knob/global-controls/MIDI-learn services; unfilled slots default to
 	///                 `null_service()`.
 	/// @param config   Lowering and screensaver settings.
@@ -534,7 +535,7 @@ private:
 	BoardProfile profile_;
 	ShellConfig config_;
 	Services services_;
-	/// The shell's own scene table: the application's, plus the three overlay scenes below.
+	/// The shell's own scene table: the application's, plus the four overlay scenes below.
 	std::array<Scene*, kMaxSceneKinds> table_{};
 	SceneRegistry registry_;
 	SceneStack stack_;
@@ -543,6 +544,9 @@ private:
 	PopupScene popup_;
 	ConsoleScene console_;
 	WorkingScene working_;
+	/// The horizontal-menu notification banner `Notices` draws when no `NotificationSink` is
+	/// installed; installed into `table_` beside the three above.
+	NotificationScene notification_;
 	/// The shell's own boot splash and song-loading scenes, installed into `table_` alongside
 	/// `popup_`/`console_`/`working_` above -- unlike `SceneKind::Screensaver`, which names no
 	/// shell-owned scene at all (see `screensaver_`'s own doc).

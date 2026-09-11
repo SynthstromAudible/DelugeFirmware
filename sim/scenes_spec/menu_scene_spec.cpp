@@ -1725,6 +1725,15 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		r.shell.tick(base_ms + 260);
 	};
 
+	/// @brief The last notice raised, whole -- the Decimal example reads a `Notification`'s value half.
+	static const auto last_raised_notice = []() -> deluge::notify::Notice {
+		deluge::notify::Notice n;
+		deluge::notify::Notice last{};
+		while (deluge::notify::notices().pop(n)) {
+			last = n;
+		}
+		return last;
+	};
 	/// @brief The text of the notice the last tick raised, or "" if none.
 	static const auto last_notice = []() -> std::string {
 		deluge::notify::Notice n;
@@ -1795,8 +1804,9 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			// `notify::notices()` into its own `NoticesController` at the *start* of the next tick
 			// (`shell.cpp:327`), so a second tick here (the button's release) would consume it
 			// before this can.
-			const std::string notice = last_notice();
-			expect(notice.find(c.text) != std::string::npos).to_be_true();
+			const deluge::notify::Notice notice = last_raised_notice();
+			expect(notice.kind == deluge::notify::Notice::Kind::Notification).to_be_true();
+			expect(std::string(notice.notification_value())).to_equal(std::string(c.text));
 			r.button(kCvX, kCvY, false, at + 20);
 			r.shell.tick(at + 30);
 			at += 200; // past the six buttons' shared 140 ms debounce

@@ -85,8 +85,8 @@ using ShellAction = deluge::ui::shell::Action;
 /// globals the *legacy* renderer reads, pinned to their defaults so the oracle below cannot be
 /// steered by whatever ran before it. `Canvas::menuHighlightingInverts` is the flag
 /// `invertLeftEdgeForMenuHighlighting` branches on and `FlashStorage::accessibilityMenuHighlighting`
-/// is what `ContextMenu::renderOLED` reads for the label's x -- the pair `style.invert_highlight`
-/// stands in for on the port's side.
+/// is what `ContextMenu::renderOLED` reads for the label's x -- the pair
+/// `style.highlighting != Highlighting::NoInversion` stands in for on the port's side.
 void reset_globals() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 	deluge::notify::Notice discard;

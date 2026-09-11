@@ -211,6 +211,17 @@ std::string last_notice() {
 	return text;
 }
 
+/// @brief Pop every queued notice and return the last one, whole -- for the examples that read a
+///        `Notice::Kind::Notification`'s (title, value) pair rather than a single text.
+deluge::notify::Notice last_raised_notice() {
+	deluge::notify::Notice n;
+	deluge::notify::Notice last{};
+	while (deluge::notify::notices().pop(n)) {
+		last = n;
+	}
+	return last;
+}
+
 } // namespace
 
 // clang-format off
@@ -379,7 +390,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		expect(g_permit_set_calls > 0).to_be_true();
 	});
 
-	it("a value_text node's post-edit notification is 'name: ' + its Notification text", _ {
+	it("a value_text node's post-edit notification is (name, its Notification text)", _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -391,11 +402,15 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		r.turn(1, 10);
 		r.shell.tick(20);
 
-		const std::string notice = last_notice();
+		// Legacy's `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
+		// (`horizontal_menu.cpp:342`): the pair, as one `Notification`.
+		const deluge::notify::Notice notice = last_raised_notice();
 		deluge::ui::shell::TextScratch name_scratch;
 		const std::string expected_name(
 		    deluge::scenes::deluge_profile().text_or_digits(sid(String::STRING_FOR_FILL), name_scratch));
-		expect(notice == (expected_name + ": 35% ltch")).to_be_true();
+		expect(notice.kind == deluge::notify::Notice::Kind::Notification).to_be_true();
+		expect(std::string(notice.notification_title())).to_equal(expected_name);
+		expect(std::string(notice.notification_value())).to_equal(std::string("35% ltch"));
 	});
 
 	it("value_text's Column strikethrough reaches the rendered column", _ {

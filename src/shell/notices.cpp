@@ -87,6 +87,10 @@ const char* notice_kind_name(notify::Notice::Kind k) {
 		return "CancelPopup";
 	case notify::Notice::Kind::CancelConsole:
 		return "CancelConsole";
+	case notify::Notice::Kind::Notification:
+		return "Notification";
+	case notify::Notice::Kind::CancelNotification:
+		return "CancelNotification";
 	}
 	return "Text";
 }
@@ -178,6 +182,37 @@ void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 			ui::oled::text(region, region.bounds(), line.text, ui::oled::TextStyle{gfx::oled::FontId::Apple7});
 		});
 	}
+}
+
+namespace {
+/// The one installed `NotificationSink`, or null -- see `set_notification_sink`.
+const NotificationSink* g_notification_sink = nullptr;
+} // namespace
+
+void set_notification_sink(const NotificationSink* sink) {
+	g_notification_sink = sink;
+}
+
+const NotificationSink* notification_sink() {
+	return g_notification_sink;
+}
+
+void NotificationScene::show(std::string_view title, std::string_view value, uint32_t now_ms) {
+	copy_bounded(title_, sizeof(title_), title);
+	copy_bounded(value_, sizeof(value_), value);
+	deadline_ms_ = now_ms + kNotificationMs;
+}
+
+bool NotificationScene::expired(uint32_t now_ms) const {
+	// Difference form for the clock-wrap reason `PopupScene::expired` gives.
+	return static_cast<int32_t>(now_ms - deadline_ms_) >= 0;
+}
+
+void NotificationScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
+	if (role != SurfaceRole::Main) {
+		return;
+	}
+	ui::oled::notification(frame, title_, value_);
 }
 
 void WorkingScene::arm(std::string_view word, uint32_t now_ms) {
@@ -289,6 +324,9 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// a subsystem that did not arm the current animation is ignored -- deliberately not
 			// done as a drive-by here, because it changes the meaning of every existing raise.
 			working_.clear();
+			// `OLED::removeWorkingAnimation` also takes down a `NOTIFICATION` popup
+			// (`oled.cpp:733-737`), so the banner goes with it -- a no-op when none is stacked.
+			stack_.remove(SceneKind::Notification);
 			break;
 		case notify::Notice::Kind::CancelPopup:
 			// `remove`, not `pop`: a popup is `input_transparent()`, so a scene pushed above a
@@ -297,8 +335,14 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// cancelled. `remove(kind)` excises only the popup and closes the gap; a no-op when
 			// no popup is stacked at all.
 			stack_.remove(SceneKind::Popup);
+			// Legacy's `cancelPopup()` is `removePopup()` (`oled.h:164`), which clears the one popup
+			// slot whatever its type (`oled.cpp:253-258`) -- so it takes the banner down too.
+			stack_.remove(SceneKind::Notification);
 			break;
 		case notify::Notice::Kind::CancelConsole:
+			// (Its one raiser, `MenuScene`'s horizontal-page cancel, is `CancelNotification` since
+			// note-family Task 8b; this arm is kept unchanged.)
+			//
 			// Scoped to this notice's own `popup_type` -- fix round 2's correction, see
 			// `ConsoleScene::cancel`'s own doc for why a console-wide `CancelPopup` was wrong.
 			// `cancel()` first, so a scene pushed above a still-live console (again legitimately,
@@ -311,6 +355,45 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 				stack_.remove(SceneKind::Console);
 			}
 			break;
+		case notify::Notice::Kind::Notification: {
+			// Legacy's `display->displayNotification(title, value)` (`horizontal_menu.cpp:342`). With a
+			// sink installed this *is* that call, in legacy's own popup slot -- the same call legacy's
+			// `drain_notifications` makes for this kind, so it does not matter which consumer popped
+			// it. With none, the port's banner stands in for the slot. See `NotificationSink`.
+			const NotificationSink* sink = g_notification_sink;
+			if (sink != nullptr && sink->show != nullptr) {
+				sink->show(n.notification_title(), n.notification_value());
+				break;
+			}
+			notification_.show(n.notification_title(), n.notification_value(), now_ms);
+			// One popup slot: `setupPopup(PopupType::NOTIFICATION, ...)` (`oled.cpp:768`) overwrites
+			// whatever popup held it (`:122-132`), so a live `PopupScene` goes.
+			stack_.remove(SceneKind::Popup);
+			// Pushed -- and, when a banner is already up, removed first and pushed again, where the
+			// popup case re-targets its entry in place. Legacy's replacement is a redraw as well as a
+			// rewrite (`displayNotification` ends in `markChanged()`, `oled.cpp:793`), and a stack
+			// change is what makes the shell repaint on a tick with no input
+			// (`Shell::tick`'s `changed_since_last_query`); an in-place rewrite would leave the old
+			// title on the panel until something else asked for a frame. It also lands the banner on
+			// top, where legacy composites its popup: after the console, last (`oled.cpp:364-376`).
+			// `remove` is a no-op, and flags nothing, when no banner is stacked.
+			stack_.remove(SceneKind::Notification);
+			stack_.push(SceneId{SceneKind::Notification});
+			break;
+		}
+		case notify::Notice::Kind::CancelNotification: {
+			// Legacy's guarded cancel, `if (display->hasPopupOfType(PopupType::NOTIFICATION))
+			// { display->cancelPopup(); }` (`horizontal_menu.cpp:363-365`, `:587-589`). With a sink,
+			// that call; with none, removing the banner is the same guard -- it can only ever take
+			// down a notification, never a `PopupScene` or a console line.
+			const NotificationSink* sink = g_notification_sink;
+			if (sink != nullptr && sink->cancel != nullptr) {
+				sink->cancel();
+				break;
+			}
+			stack_.remove(SceneKind::Notification);
+			break;
+		}
 		}
 	}
 }
@@ -325,6 +408,9 @@ void Notices::show_popup(std::string_view text, uint8_t popup_type, uint32_t now
 void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms,
                                       notify::Notice::Kind kind) {
 	last_notice_kind_ = kind;
+	// One popup slot: `popupText` -> `setupPopup` overwrites a `NOTIFICATION` popup like any other
+	// (`oled.cpp:605-618`, `:122-132`), so a live banner goes.
+	stack_.remove(SceneKind::Notification);
 	// `PopupScene::show` fully overwrites text/type/timeout on every call, whatever the previous
 	// call's persistence was -- exactly as legacy's OLED::popupText unconditionally sets or unsets
 	// TimerName::DISPLAY for *this* call (oled.cpp:636-643), never consulting the popup's prior
@@ -370,6 +456,11 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	// are, just phrased over three lines instead of one.
 	if (!console_.any_active(now_ms)) {
 		stack_.remove(SceneKind::Console);
+	}
+	// The banner's 2000 ms `DISPLAY` timer: `OLED::timerRoutine`'s `removePopup()` on expiry
+	// (`gui/ui_timer_manager.cpp:91-93`, `oled.cpp:936`). A no-op when no banner is stacked.
+	if (notification_.expired(now_ms)) {
+		stack_.remove(SceneKind::Notification);
 	}
 }
 

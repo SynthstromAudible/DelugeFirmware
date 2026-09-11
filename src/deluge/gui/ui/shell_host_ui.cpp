@@ -133,7 +133,7 @@ bool ShellHostUI::opened() {
 
 	const size_t before = shell_.stack().depth();
 	shell_.init(initial_);
-	// `Shell::init` is `stack_.push(initial)` with the result dropped (`shell/shell.cpp:226-228`),
+	// `Shell::init` is `stack_.push(initial)` with the result dropped (`shell/shell.cpp:229-231`),
 	// and `SceneStack::push` refuses an unregistered kind (`shell/scene_stack.h:61-67`) -- which is
 	// exactly what a caller that never called `setInitialScene` gets, since a default `SceneId` is
 	// `SceneKind::Null`. An empty guest is worse than no guest: it would swallow every pad
@@ -1167,21 +1167,27 @@ void ShellHostUI::closeGuest() {
 	// and both note roots claim no pad (`scenes/menu/menu_scene.h:518-522`). Measured reachable three
 	// ways:
 	//
-	//   * **The console strip.** `MenuScene::notify_column` raises a `Kind::Console` notice for a value
-	//     change or a column focus in a horizontal menu (`scenes/menu/menu_scene.cpp:1700`, `:1995`,
-	//     `:2005`), and both note roots are horizontal. If this shell drains it (`shell/shell.cpp:327`)
-	//     before legacy's `drain_notifications` does (`gui/ui/ui.cpp:387`, run from a repeating task,
-	//     `deluge.cpp:561`) -- the two pop the same queue, so which one wins is the scheduler's call --
-	//     `ConsoleScene` is pushed (`shell/notices.cpp:261-267`). It is input-transparent
-	//     (`shell/notices.h:215`) and is removed only once its lines expire (`shell/notices.cpp:371-373`,
-	//     `kConsoleLineMs` at `:46`).
+	//   * **The console strip -- no longer from the column notification** (note-family Task 8b).
+	//     `MenuScene::notify_column` fires for a value change or a column focus in a horizontal menu
+	//     (`scenes/menu/menu_scene.cpp:1682`, `:1976`, `:1986`), and both note roots are horizontal.
+	//     It used to raise a `Kind::Console` notice that this shell's drain (`shell/shell.cpp:330`) and
+	//     legacy's `drain_notifications` (`gui/ui/ui.cpp:387`, run from a repeating task,
+	//     `deluge.cpp:562`) raced for. It now raises `Kind::Notification`, and that kind does not race:
+	//     both consumers end in the same `showNoticeNotification` call (`gui/ui/notify_drain.h:29`) --
+	//     legacy's drain directly (`gui/ui/notify_drain.cpp:179`), this shell's through the sink
+	//     `wireShellNotificationSink()` installs at boot (`shell/notices.cpp:363-367`) -- and neither
+	//     pushes a scene. Every other kind still races, since the two pop the same queue and which one
+	//     wins is the scheduler's call: any other `Kind::Console` notice this shell pops still pushes
+	//     `SceneKind::Console` (`shell/notices.cpp:294-302`), which is input-transparent
+	//     (`shell/notices.h:215`) and is removed only once its lines expire
+	//     (`shell/notices.cpp:457-458`, `kConsoleLineMs` at `:46`).
 	//   * **The popup.** The note modes' select guards raise "Select Note" / "Select Row" as `Text`
 	//     notices (`scenes/menu/nodes/note.cpp:174`, `:182`), which the same race turns into a popup
-	//     scene on the stack (`shell/notices.cpp:341-347`), also input-transparent (`shell/notices.h:111`).
+	//     scene on the stack (`shell/notices.cpp:425-433`), also input-transparent (`shell/notices.h:111`).
 	//   * **The screensaver.** `shell::Screensaver` pushes its scene on idle
 	//     (`shell/screensaver.cpp:60`). That scene is input-transparent
 	//     (`scenes/overlay/screensaver_scene.h:180`), and only input fed through
-	//     `Shell::on_board_event` / `on_encoder_edges` wakes it (`shell/shell.cpp:270`, `:276`) -- which
+	//     `Shell::on_board_event` / `on_encoder_edges` wakes it (`shell/shell.cpp:273`, `:279`) -- which
 	//     a forwarded pad never is.
 	//
 	// In each case `activeNoteMode()` answers `None` from that pad onwards, while `exitNoteEditor()` /

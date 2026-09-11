@@ -137,7 +137,7 @@ public:
 	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:243-257`) and the two
 	/// per-mode renderers it dispatches to (`:225-248`). Legacy's leading `canvas_.clear()`
 	/// (`:210`) has no counterpart here because `Shell::render_oled` clears the canvas before the
-	/// pass (`shell.cpp:660`).
+	/// pass (`shell.cpp:683`).
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
 
 	/// @brief The screensaver routes nothing: legacy's is a canvas override, never a `UI`.

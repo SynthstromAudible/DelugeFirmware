@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 
 using namespace deluge::notify;
 
@@ -89,6 +90,47 @@ describe notice_queue("notify::NoticeQueue", $ {
 		expect(std::strlen(out.text)).to_equal(sizeof(Notice::text) - 1);
 		expect(std::string(out.text)).to_equal("THIS PRESET NAME IS VERY MUCH LONGER THAN FORTY");
 		expect(int(out.popup_type)).to_equal(3);
+	});
+
+	it("notice_notification carries legacy's (title, value) pair, each half NUL-terminated", _ {
+		// `HorizontalMenu::displayNotification`'s call, `display->displayNotification(
+		// menuItem->getName(), notificationValueBuf.data())` (`horizontal_menu.cpp:342`).
+		Notice drained{};
+		while (notices().pop(drained)) {}
+		notice_notification("Probability", "100%");
+		Notice out{};
+		expect(notices().pop(out)).to_be_true();
+		expect(out.kind == Notice::Kind::Notification).to_be_true();
+		expect(std::string(out.notification_title())).to_equal("Probability");
+		expect(std::string(out.notification_value())).to_equal("100%");
+		expect(int(out.popup_type)).to_equal(0);
+		expect(notices().pop(out)).to_be_false(); // one notice, not a title notice and a value notice
+	});
+
+	it("notice_notification with an empty value is a title-only notification", _ {
+		Notice drained{};
+		while (notices().pop(drained)) {}
+		notice_notification("Probability", "");
+		Notice out{};
+		expect(notices().pop(out)).to_be_true();
+		expect(std::string(out.notification_title())).to_equal("Probability");
+		expect(std::string(out.notification_value())).to_equal("");
+	});
+
+	it("notice_notification gives the value priority when the pair does not fit, as legacy's "
+	   "truncation loop does", _ {
+		// `OLED::displayNotification` shortens `titleBuf` until the value fits beside it and never
+		// shortens the value (`hid/display/oled.cpp:760-766`).
+		Notice drained{};
+		while (notices().pop(drained)) {}
+		const std::string title(40, 'T');
+		const std::string value(20, 'V');
+		notice_notification(title, value);
+		Notice out{};
+		expect(notices().pop(out)).to_be_true();
+		expect(std::string(out.notification_value())).to_equal(value);
+		// 48 bytes: the title, its NUL, the 20-byte value and its NUL.
+		expect(std::string(out.notification_title())).to_equal(std::string(sizeof(Notice::text) - 2 - 20, 'T'));
 	});
 });
 

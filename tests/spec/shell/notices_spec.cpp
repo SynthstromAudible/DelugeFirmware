@@ -3,6 +3,7 @@
 #include "shell/notices.h"
 #include "shell/scene_stack.h"
 #include "ui/grid/frame.h"
+#include "ui/oled/text.h"
 
 #include "cppspec.hpp"
 
@@ -11,6 +12,7 @@
 #include <cstdint>
 #include <cstring>
 #include <span>
+#include <string>
 #include <string_view>
 
 #include "../support/spec_main.h"
@@ -84,6 +86,7 @@ struct Rig {
 	PopupScene popup;
 	ConsoleScene console;
 	WorkingScene working;
+	NotificationScene notification;
 	OtherScene other;
 	/// Indices 1=Popup, 2=Console, 3=Working (Null is 0, unused) and `FirstApp` for the stand-in.
 	/// Full length rather than "just the slots used": `FirstApp` is 16, and a shorter array made
@@ -91,7 +94,7 @@ struct Rig {
 	std::array<Scene*, deluge::ui::shell::kMaxSceneKinds> table{};
 	SceneRegistry reg{};
 	SceneStack stack{reg};
-	Notices notices{stack, profile, popup, console, working};
+	Notices notices{stack, profile, popup, console, working, notification};
 	NoticeQueue queue;
 
 	/// @param p The board profile `Notices` resolves ids through; the default has both lookups
@@ -101,6 +104,7 @@ struct Rig {
 		table[static_cast<size_t>(SceneKind::Popup)] = &popup;
 		table[static_cast<size_t>(SceneKind::Console)] = &console;
 		table[static_cast<size_t>(SceneKind::Working)] = &working;
+		table[static_cast<size_t>(SceneKind::Notification)] = &notification;
 		table[static_cast<size_t>(SceneKind::FirstApp)] = &other;
 		reg.by_kind = std::span<Scene* const>{table};
 	}
@@ -108,6 +112,60 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 };
+
+/// @brief A `Notice::Kind::Notification` carrying @p title and @p value, built by hand in the
+///        "<title>\0<value>\0" layout `Notice::value_at` documents -- not through
+///        `notify::notice_notification`, so these examples pin what `Notices::drain` reads, not
+///        whatever the helper happens to write.
+Notice make_notification(std::string_view title, std::string_view value) {
+	Notice n{};
+	n.kind = Notice::Kind::Notification;
+	std::memcpy(n.text, title.data(), title.size());
+	n.text[title.size()] = '\0';
+	n.value_at = static_cast<uint8_t>(title.size() + 1);
+	std::memcpy(n.text + n.value_at, value.data(), value.size());
+	n.text[n.value_at + value.size()] = '\0';
+	return n;
+}
+
+/// @brief Records every call a `NotificationSink` receives.
+struct SinkSpy {
+	static inline int shows = 0;
+	static inline int cancels = 0;
+	static inline std::string title;
+	static inline std::string value;
+	static void show(const char* t, const char* v) {
+		shows++;
+		title = t;
+		value = v;
+	}
+	static void cancel() { cancels++; }
+};
+
+/// @brief Installs `SinkSpy` for one example's scope, and always takes it back down.
+struct InstalledSink {
+	NotificationSink sink{.show = &SinkSpy::show, .cancel = &SinkSpy::cancel};
+	InstalledSink() {
+		SinkSpy::shows = 0;
+		SinkSpy::cancels = 0;
+		SinkSpy::title.clear();
+		SinkSpy::value.clear();
+		set_notification_sink(&sink);
+	}
+	~InstalledSink() { set_notification_sink(nullptr); }
+	InstalledSink(const InstalledSink&) = delete;
+	InstalledSink& operator=(const InstalledSink&) = delete;
+};
+
+/// @return Whether a scene of kind @p kind is anywhere on @p r's stack.
+bool stacked(Rig& r, SceneKind kind) {
+	for (Scene* scene : r.stack.scenes()) {
+		if (scene->kind() == kind) {
+			return true;
+		}
+	}
+	return false;
+}
 
 } // namespace
 
@@ -332,7 +390,7 @@ describe shell_notices("shell::Notices", $ {
 		// `render_grid` of its own -- would leave the pads black. Legacy's popups, console lines
 		// and working animation are OLED-only (`OLED::sendMainImage`, `oled.cpp:364-376`): the
 		// pads keep showing the view underneath.
-		Scene* const all[] = {&r.popup, &r.console, &r.working};
+		Scene* const all[] = {&r.popup, &r.console, &r.working, &r.notification};
 		for (Scene* scene : all) {
 			expect(scene->is_grid_overlay()).to_be_true();
 			expect(scene->occludes_grid()).to_be_false();
@@ -406,6 +464,180 @@ describe shell_notices("shell::Notices", $ {
 			bottom_row_lit = bottom_row_lit || e_frame.lit(x, bottom_row);
 		}
 		expect(bottom_row_lit).to_be_true();
+	});
+
+	it("a Notification with no sink pushes the banner: top-pinned, transparent, input-transparent, "
+	   "drawn with ui::oled::notification", _ {
+		expect(notification_sink() == nullptr).to_be_true();
+		Rig r;
+		(void)r.queue.push(make_notification("Probability", "100%"));
+		r.notices.drain(r.queue, 0);
+
+		expect(r.stack.depth()).to_equal(size_t(1));
+		expect(r.stack.top().kind() == SceneKind::Notification).to_be_true();
+		expect(std::string(r.notification.title())).to_equal(std::string("Probability"));
+		expect(std::string(r.notification.value())).to_equal(std::string("100%"));
+		expect(std::string(notice_kind_name(Notice::Kind::Notification))).to_equal(std::string("Notification"));
+		expect(std::string(notice_kind_name(Notice::Kind::CancelNotification)))
+		    .to_equal(std::string("CancelNotification"));
+
+		// Legacy composites the popup over the running UI's image (`oled.cpp:364-376`) and routes
+		// it no input.
+		expect(r.notification.oled_transparent(SurfaceRole::Main)).to_be_true();
+		expect(r.notification.input_transparent()).to_be_true();
+
+		// Drawn with the widget that ports `OLED::displayNotification`, and nothing else.
+		deluge::ui::test::Rig48 banner;
+		r.notification.render_oled(SurfaceRole::Main, banner.frame);
+		deluge::ui::test::Rig48 widget;
+		deluge::ui::oled::notification(widget.frame, "Probability", "100%");
+		deluge::ui::test::Rig48 blank;
+		expect(banner.pbm() != blank.pbm()).to_be_true();
+		expect(banner.pbm() == widget.pbm()).to_be_true();
+
+		// Top-pinned: legacy's band is `OLED_MAIN_TOPMOST_PIXEL` to `+ kTextSpacingY + 1`
+		// (`oled.cpp:750-751`), so nothing below that band is lit.
+		const int32_t top = banner.frame.origin.y;
+		const int32_t end_y = deluge::ui::oled::text_height_for(banner.frame.style.row_font) + 1;
+		bool lit_below = false;
+		for (int32_t y = top + end_y + 1; y < top + banner.frame.bounds().h; y++) {
+			for (int32_t x = 0; x < banner.frame.bounds().w; x++) {
+				lit_below = lit_below || banner.lit(x, y);
+			}
+		}
+		expect(lit_below).to_be_false();
+	});
+
+	it("the banner lives legacy's 2000 ms DISPLAY timer, then tick() removes it", _ {
+		// `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (`oled.cpp:794`); its expiry runs
+		// `OLED::timerRoutine` -> `removePopup()` (`gui/ui_timer_manager.cpp:91-93`, `oled.cpp:936`).
+		Rig r;
+		(void)r.queue.push(make_notification("Probability", "100%"));
+		r.notices.drain(r.queue, 100);
+		expect(NotificationScene::kNotificationMs).to_equal(uint32_t{2000});
+
+		r.notices.tick(100 + NotificationScene::kNotificationMs - 1, 0);
+		expect(stacked(r, SceneKind::Notification)).to_be_true();
+		r.notices.tick(100 + NotificationScene::kNotificationMs, 0);
+		expect(stacked(r, SceneKind::Notification)).to_be_false();
+		expect(r.stack.depth()).to_equal(size_t(0));
+	});
+
+	it("a second Notification replaces the banner in place and restarts its 2000 ms", _ {
+		// One popup slot: `setupPopup` overwrites it (`oled.cpp:122-132`) and `setTimer` re-arms
+		// `DISPLAY` (`:794`).
+		Rig r;
+		(void)r.queue.push(make_notification("Probability", "100%"));
+		r.notices.drain(r.queue, 0);
+		(void)r.queue.push(make_notification("Iterance", "OFF"));
+		r.notices.drain(r.queue, 1500);
+
+		expect(r.stack.depth()).to_equal(size_t(1)); // replaced, not pushed twice
+		expect(std::string(r.notification.title())).to_equal(std::string("Iterance"));
+		expect(std::string(r.notification.value())).to_equal(std::string("OFF"));
+
+		r.notices.tick(2000, 0); // the first banner's deadline no longer counts
+		expect(stacked(r, SceneKind::Notification)).to_be_true();
+		r.notices.tick(1500 + NotificationScene::kNotificationMs - 1, 0);
+		expect(stacked(r, SceneKind::Notification)).to_be_true();
+
+		// A title-only replacement leaves no stale value behind.
+		(void)r.queue.push(make_notification("Fill", ""));
+		r.notices.drain(r.queue, 3000);
+		expect(std::string(r.notification.title())).to_equal(std::string("Fill"));
+		expect(std::string(r.notification.value())).to_equal(std::string(""));
+
+		r.notices.tick(3000 + NotificationScene::kNotificationMs, 0);
+		expect(stacked(r, SceneKind::Notification)).to_be_false();
+	});
+
+	it("with a sink installed, a Notification calls it once with (title, value) and pushes nothing", _ {
+		Rig r;
+		InstalledSink installed;
+		(void)r.queue.push(make_notification("Probability", "100%"));
+		r.notices.drain(r.queue, 0);
+
+		expect(SinkSpy::shows).to_equal(1);
+		expect(SinkSpy::title).to_equal(std::string("Probability"));
+		expect(SinkSpy::value).to_equal(std::string("100%"));
+		expect(SinkSpy::cancels).to_equal(0);
+		expect(r.stack.depth()).to_equal(size_t(0));
+	});
+
+	it("CancelNotification with no sink removes only the banner: a popup, a Console line and a scene "
+	   "above all stay", _ {
+		// Legacy's cancel is guarded on the slot holding a NOTIFICATION
+		// (`horizontal_menu.cpp:363-365`, `:587-589`), and `removePopup` never touches the console
+		// (`oled.cpp:253-258`).
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+		r.notices.drain(r.queue, 0);
+		(void)r.queue.push(make_notice(Notice::Kind::CancelNotification));
+		r.notices.drain(r.queue, 5);
+		expect(stacked(r, SceneKind::Popup)).to_be_true(); // no NOTIFICATION up: nothing to cancel
+
+		Rig q;
+		(void)q.queue.push(make_notice(Notice::Kind::Console, "UNRELATED"));
+		(void)q.queue.push(make_notification("Probability", "100%"));
+		q.notices.drain(q.queue, 0);
+		expect(q.stack.push(SceneId{SceneKind::FirstApp})).to_be_true();
+		expect(q.stack.depth()).to_equal(size_t(3));
+
+		(void)q.queue.push(make_notice(Notice::Kind::CancelNotification));
+		q.notices.drain(q.queue, 10);
+		expect(stacked(q, SceneKind::Notification)).to_be_false();
+		expect(stacked(q, SceneKind::Console)).to_be_true();
+		expect(q.stack.top().kind() == SceneKind::FirstApp).to_be_true();
+		expect(q.stack.depth()).to_equal(size_t(2));
+	});
+
+	it("CancelNotification with a sink calls the sink's cancel once and touches no scene", _ {
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Console, "UNRELATED"));
+		r.notices.drain(r.queue, 0);
+		InstalledSink installed;
+		(void)r.queue.push(make_notice(Notice::Kind::CancelNotification));
+		r.notices.drain(r.queue, 10);
+
+		expect(SinkSpy::cancels).to_equal(1);
+		expect(SinkSpy::shows).to_equal(0);
+		expect(r.stack.depth()).to_equal(size_t(1));
+		expect(r.stack.top().kind() == SceneKind::Console).to_be_true();
+	});
+
+	it("the banner shares legacy's one popup slot: a popup replaces it, it replaces a popup, and "
+	   "CancelPopup and ClearWorking take it down", _ {
+		{ // `popupText` -> `setupPopup` overwrites the slot (`oled.cpp:605-618`, `:122-132`).
+			Rig r;
+			(void)r.queue.push(make_notification("Probability", "100%"));
+			(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+			r.notices.drain(r.queue, 0);
+			expect(stacked(r, SceneKind::Notification)).to_be_false();
+			expect(stacked(r, SceneKind::Popup)).to_be_true();
+		}
+		{ // `displayNotification` -> `setupPopup` overwrites it the other way (`oled.cpp:768`).
+			Rig r;
+			(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+			(void)r.queue.push(make_notification("Probability", "100%"));
+			r.notices.drain(r.queue, 0);
+			expect(stacked(r, SceneKind::Popup)).to_be_false();
+			expect(stacked(r, SceneKind::Notification)).to_be_true();
+		}
+		{ // `cancelPopup` -> `removePopup` has no type test (`oled.h:164`, `oled.cpp:253-258`).
+			Rig r;
+			(void)r.queue.push(make_notification("Probability", "100%"));
+			(void)r.queue.push(make_notice(Notice::Kind::CancelPopup));
+			r.notices.drain(r.queue, 0);
+			expect(stacked(r, SceneKind::Notification)).to_be_false();
+		}
+		{ // `removeWorkingAnimation` removes a NOTIFICATION popup (`oled.cpp:733-737`).
+			Rig r;
+			(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
+			(void)r.queue.push(make_notification("Probability", "100%"));
+			(void)r.queue.push(make_notice(Notice::Kind::ClearWorking));
+			r.notices.drain(r.queue, 0);
+			expect(stacked(r, SceneKind::Notification)).to_be_false();
+		}
 	});
 
 	it("CancelPopup pops only a popup", _ {

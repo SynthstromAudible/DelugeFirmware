@@ -158,6 +158,9 @@ void drain_notifications() {
 			display->cancelPopup();
 			break;
 		case Notice::Kind::CancelConsole:
+			// (Its one raiser, `MenuScene`'s horizontal-page cancel, is `CancelNotification` since
+			// note-family Task 8b, below; this arm is kept unchanged.)
+			//
 			// Legacy's own `HorizontalMenu::displayNotification` shows through
 			// `OLED::displayNotification`, which sets the *same* `oledPopupWidth`/`popupType`
 			// slot a framed popup does (`PopupType::NOTIFICATION`) -- so the ShellMenu-off leg's
@@ -172,6 +175,25 @@ void drain_notifications() {
 				display->cancelPopup();
 			}
 			break;
+		case Notice::Kind::Notification:
+			showNoticeNotification(n.notification_title(), n.notification_value());
+			break;
+		case Notice::Kind::CancelNotification:
+			cancelNoticeNotification();
+			break;
 		}
+	}
+}
+
+void showNoticeNotification(const char* title, const char* value) {
+	// `HorizontalMenu::displayNotification`'s own call (`gui/menu_item/horizontal_menu.cpp:342`).
+	display->displayNotification(title, value);
+}
+
+void cancelNoticeNotification() {
+	// `HorizontalMenu::switchVisiblePage`/`endSession`'s own guarded cancel
+	// (`gui/menu_item/horizontal_menu.cpp:363-365`, `:587-589`).
+	if (display->hasPopupOfType(PopupType::NOTIFICATION)) {
+		display->cancelPopup();
 	}
 }

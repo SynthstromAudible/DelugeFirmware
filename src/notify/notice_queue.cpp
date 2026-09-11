@@ -74,6 +74,26 @@ void notice_error_code(int16_t code) {
 	push_counting_drops(n);
 }
 
+void notice_notification(std::string_view title, std::string_view value) {
+	Notice n{};
+	n.kind = Notice::Kind::Notification;
+	// "<title>\0<value>\0" in `text`: two NULs, and the value keeps priority over the title (see the
+	// declaration's doc for legacy's own truncation order).
+	const size_t room = sizeof(n.text) - 2;
+	const size_t value_len = value.size() < room ? value.size() : room;
+	const size_t title_len = title.size() < room - value_len ? title.size() : room - value_len;
+	if (title_len != 0) {
+		std::memcpy(n.text, title.data(), title_len);
+	}
+	n.text[title_len] = 0;
+	n.value_at = static_cast<uint8_t>(title_len + 1);
+	if (value_len != 0) {
+		std::memcpy(n.text + n.value_at, value.data(), value_len);
+	}
+	n.text[n.value_at + value_len] = 0;
+	push_counting_drops(n);
+}
+
 void notice_kind(Notice::Kind k, uint8_t popup_type) {
 	Notice n{};
 	n.kind = k;
