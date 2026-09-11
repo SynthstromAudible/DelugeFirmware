@@ -256,7 +256,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	//
 	// The port spells `doGreyout == false` as an **all-zero mask**, deliberately and at the code:
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
-	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:2096-2128`,
+	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:2099-2137`,
 	// against `gui/ui/sound_editor.cpp:252-294`). Every arm of legacy's switch that leaves
 	// `doGreyout` true also writes a non-zero `*cols` (`:270`, `:275`, `:283`, `:290`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
@@ -769,7 +769,7 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		// rather than closed (`src/scenes/README.md`'s carry table, item 3). Past what remains of
 		// the gate legacy claims unconditionally, even where no shortcut table has an entry
 		// (`:1431`) -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad
-		// die (`menu_scene.cpp:2044`). The two agree; see spec §3.1.
+		// die (`menu_scene.cpp:2056`). The two agree; see spec §3.1.
 		return velocity != 0 && x < kDisplayWidth && Buttons::isShiftButtonPressed();
 	}
 	return true; // `-Werror=switch` makes this unreachable; it is here for the enum's future.

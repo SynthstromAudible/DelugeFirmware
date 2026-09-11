@@ -79,7 +79,8 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 		expect(r[static_cast<size_t>(MenuContext::Root::NoteRowEditor)] == &nodes::note_row_editor_root).to_be_true();
 	});
 
-	it("both roots' shortcut layers are empty in both shortcut versions, and lights no pad", _ {
+	it("both roots' shortcut layers are empty in both shortcut versions, and light no pad even for "
+	   "a node with a real shortcut elsewhere", _ {
 		const menu::ShortcutsVersion saved = menu::shortcuts_version();
 		for (menu::ShortcutsVersion version : {menu::ShortcutsVersion::V1, menu::ShortcutsVersion::V3}) {
 			menu::set_shortcuts_version(version);
@@ -90,24 +91,53 @@ describe note_roots_table("scenes::menu MenuContext::Root::NoteEditor / NoteRowE
 		}
 		menu::set_shortcuts_version(saved);
 
-		// `sound_editor.cpp:1467`'s three predicates skip the shortcut arm on either root anyway
-		// (`menu_grid_claim_spec.cpp` pins `grid_pad_claim()`), but the table itself is empty too:
-		// opening the scene on the note-editor root and rendering the grid lights nothing.
+		// Fix round 1, IMPORTANT 3: `render_grid` only ever paints `shortcut_pos(ctx_.root,
+		// *focused())` and that node's source pads (`menu_scene.cpp:1268-1310`). `note_editor_root`
+		// itself is in NO root's table, so opening the scene on it (the original shape of this
+		// example) could never observe a leak -- it would pass even if `kByRootV3`/`kByRootV1`'s
+		// note-root slots pointed at a real table by mistake. `nodes::lpf_freq` is a real cell under
+		// `Root::Sound` (`shortcuts_spec.cpp` pins it at (8, 7)), so focusing on IT under each note
+		// root is what actually exercises the table lookup this claim is about.
 		spec::SongFixture fx = spec::make_synth_song();
 		MenuContext ctx = menu::context_for(*fx.song, fx.clip, 0, false, false, false, false);
-		ctx.root = MenuContext::Root::NoteEditor;
 		auto& scene = menu_scene();
-		scene.open(nodes::note_editor_root, ctx);
 
-		deluge::ui::test::GridRig grid;
-		grid.begin_tick(0);
-		scene.render_grid(grid.frame);
-		for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
-			for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
-				const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
-				expect(c.r == 0 && c.g == 0 && c.b == 0).to_be_true();
+		// A render at tick 0 falls in the cycle's SOURCE phase (`phase < kSourceBlinkMs`), which
+		// suppresses the focused-param pad regardless of the table (`render_grid`'s `!source_phase`
+		// guard) -- so it could never light anything and would pass vacuously. But the cycle's own
+		// anchor is (re-)zeroed at `now` the first time a newly-focused node renders at all
+		// (`render_grid`'s `st_.blink_node != node` arm), so the FIRST render after `open()` is
+		// always phase 0 no matter which tick it is asked for. A second render, `kSourceBlinkMs + 1`
+		// after that same anchor, is what actually reaches the param-flash phase.
+		auto any_pad_lit = [&](const menu::Node& node, MenuContext::Root root) {
+			ctx.root = root;
+			scene.open(node, ctx);
+			deluge::ui::test::GridRig warmup;
+			warmup.begin_tick(0);
+			scene.render_grid(warmup.frame); // anchors the cycle at t = 0
+			const uint32_t anchor = scene.state().blink_anchor_ms;
+
+			deluge::ui::test::GridRig grid;
+			grid.begin_tick(anchor + menu::kSourceBlinkMs + 1);
+			scene.render_grid(grid.frame);
+			for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
+				for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
+					const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+					if (c.r != 0 || c.g != 0 || c.b != 0) {
+						return true;
+					}
+				}
 			}
-		}
+			return false;
+		};
+
+		// Positive control: the identical node and tick, under the root it REALLY belongs to --
+		// proves the harness lights a pad when the table says to, so the two `false`s below are not
+		// vacuous (a broken `GridRig`/timing setup would fail this one too).
+		expect(any_pad_lit(nodes::lpf_freq, MenuContext::Root::Sound)).to_be_true();
+
+		expect(any_pad_lit(nodes::lpf_freq, MenuContext::Root::NoteEditor)).to_be_false();
+		expect(any_pad_lit(nodes::lpf_freq, MenuContext::Root::NoteRowEditor)).to_be_false();
 	});
 
 	it("greyout_mask is {0x03, 0} on the note editor and empty on the note-row editor", _ {
@@ -188,24 +218,23 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 
 		NoteRow* row = fx.clip->getNoteRowForDrum(drum);
 		expect(row != nullptr).to_be_true();
+		if (row == nullptr) {
+			return; // fix round 1, minor c: a broken fixture must fail loudly, not skip silently
+		}
 
 		spec::FakeNoteBridgeGuard bridge;
 		bridge.fake.row_sequence_direction_value = true; // would answer wrongly if ever consulted
 
 		bool from_note_row = false;
 		const int32_t read = menu::bindings::read_sequence_direction(ctx, &from_note_row);
-		if (row != nullptr) {
-			expect(read).to_equal(static_cast<int32_t>(row->sequenceDirectionMode));
-		}
+		expect(read).to_equal(static_cast<int32_t>(row->sequenceDirectionMode));
 		expect(from_note_row).to_be_true(); // the kit-row arm's own note row, not the bridge's
 		expect(bridge.fake.row_sequence_direction_calls).to_equal(0);
 
 		menu::bindings::write_sequence_direction(ctx, static_cast<int32_t>(SequenceDirection::PINGPONG));
 		expect(bridge.fake.set_row_sequence_direction_calls).to_equal(0);
-		if (row != nullptr) {
-			expect(static_cast<int32_t>(row->sequenceDirectionMode))
-			    .to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
-		}
+		expect(static_cast<int32_t>(row->sequenceDirectionMode))
+		    .to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
 	});
 
 	it("under any other root, is unchanged: the bridge is never consulted", _ {
@@ -254,13 +283,20 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		closeGuest();
 	});
 
-	it("on a kit with affectEntire true, leaves affectEntire false and resolved the context before "
-	   "the toggle", _ {
+	it("on a kit with affectEntire true, leaves affectEntire false in both the clip and the "
+	   "installed context", _ {
 		// `instrument_clip_view.cpp:3590-3598`: a note is selected on a kit row (so `context_for`
 		// resolves through the drum arm, not the kit-global-fx one -- `kitGlobalFx` here is false,
 		// exactly as the kit-row shortcut path's own call is), while the clip's OWN `affectEntire`
 		// is independently true. Both facts at once is the case `context.h`'s own note on
 		// `affect_entire` names.
+		//
+		// Fix round 1, IMPORTANT 1: `ctx.affect_entire` must follow the clear, not merely the clip's
+		// own member -- `sequence::Direction::getIndividualNoteRow` reads `clip->affectEntire` LIVE
+		// (`gui/menu_item/sequence/direction.h:44`), after legacy's identical clear, so a stale
+		// `true` left in the installed context would make `bindings::individual_note_row`
+		// (`bindings.cpp:832`) keep reading/writing the kit's own mode instead of the selected
+		// drum's row -- see the dedicated example below.
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
@@ -269,11 +305,8 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		expect(entry::openShellMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
 		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteEditor))
 		    .to_be_true();
-		// The toggle happened...
 		expect(fx.clip->affectEntire).to_be_false();
-		// ...but the context installed still reports what it resolved BEFORE that toggle ran: the
-		// clip's own `affectEntire`, read once by `context_for` ahead of the clear below it.
-		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_false();
 		expect(deluge::scenes::menu_scene().menu_context().root == MenuContext::Root::NoteEditor).to_be_true();
 		closeGuest();
 	});
@@ -290,8 +323,42 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteRowEditor))
 		    .to_be_true();
 		expect(fx.clip->affectEntire).to_be_false();
-		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_true();
+		expect(deluge::scenes::menu_scene().menu_context().affect_entire).to_be_false();
 		expect(deluge::scenes::menu_scene().menu_context().root == MenuContext::Root::NoteRowEditor).to_be_true();
+		closeGuest();
+	});
+
+	it("a kit note-row editor edits the selected drum's row, not the kit's own mode, once "
+	   "affectEntire is cleared", _ {
+		// The load-bearing consequence of the fix above, driven through the real binding rather than
+		// just read back off `MenuContext`: `bindings::read_sequence_direction`
+		// (`bindings.cpp:892-915`) tests `ctx.root == Root::NoteRowEditor && !ctx.is_kit` first (the
+		// non-kit bridge arm), then falls through to `individual_note_row`'s kit-row arm
+		// (`bindings.cpp:832`, `!ctx.affect_entire && ctx.is_kit`) -- which only takes the SELECTED
+		// DRUM's row when `ctx.affect_entire` is false, exactly as legacy's live
+		// `clip->affectEntire` read does after its own clear.
+		ToggleGuard on{RuntimeFeatureStateToggle::On};
+		spec::SongFixture fx = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(fx);
+		fx.clip->affectEntire = true;
+		NoteRow* row = fx.clip->getNoteRowForDrum(drum);
+		expect(row != nullptr).to_be_true();
+		if (row == nullptr) {
+			closeGuest();
+			return;
+		}
+		row->sequenceDirectionMode = SequenceDirection::PINGPONG;
+		fx.clip->sequenceDirectionMode = SequenceDirection::REVERSE; // must NOT be what gets read
+
+		expect(entry::openShellMenu(fx.clip, 0, false, false, false, /*kitGlobalFx=*/false,
+		                            entry::ShellMenuNode::ContextRoot, entry::NoteMode::NoteRowEditor))
+		    .to_be_true();
+
+		bool from_note_row = false;
+		const int32_t read =
+		    menu::bindings::read_sequence_direction(deluge::scenes::menu_scene().menu_context(), &from_note_row);
+		expect(from_note_row).to_be_true();
+		expect(read).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
 		closeGuest();
 	});
 });

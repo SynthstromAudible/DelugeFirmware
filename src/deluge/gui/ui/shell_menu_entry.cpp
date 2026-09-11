@@ -183,6 +183,14 @@ bool openShellMenu(Clip* clip, int32_t sourceIndex, bool performanceView, bool s
 	// so testing it alone is legacy's nested `if (KIT) { if (affectEntire) {` collapsed to one test.
 	if (noteMode != NoteMode::None && ctx.affect_entire) {
 		static_cast<InstrumentClip*>(clip)->affectEntire = false;
+		// Fix round 1, IMPORTANT 1: `ctx.affect_entire` is a snapshot taken by `context_for` above,
+		// and nothing re-resolves it after this clear -- but `sequence::Direction::getIndividualNoteRow`
+		// reads `clip->affectEntire` LIVE (`gui/menu_item/sequence/direction.h:44`), after legacy's own
+		// identical clear. So the installed context must agree with the clip it just edited, or
+		// `bindings::individual_note_row`'s `!ctx.affect_entire && ctx.is_kit` test
+		// (`bindings.cpp:832`) would still read `true` and the note-row editor would keep editing the
+		// kit's own `sequenceDirectionMode` instead of the selected drum's row.
+		ctx.affect_entire = false;
 		view.setActiveModControllableTimelineCounter(clip);
 	}
 
