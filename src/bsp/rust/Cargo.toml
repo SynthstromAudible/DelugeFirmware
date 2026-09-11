@@ -216,7 +216,7 @@ embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = f
 embedded-io-async = { version = "0.7.0", optional = true }
 
 [features]
-default = ["rtt", "async_streaming_loader", "async_audio_load", "efatfs_streaming"]
+default = ["rtt", "async_streaming_loader", "async_audio_load", "efatfs_streaming", "async_file_bytes_active"]
 
 ## RTT (SEGGER Real-Time Transfer) logging over a debug probe: selects the
 ## rza1l_rtt.x linker script (via build.rs) and registers the log logger.
