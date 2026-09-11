@@ -378,6 +378,25 @@ void runOnStorageOwner(OwnerFn fn, void* ctx);
 /// answered it, which is what this measures.
 [[nodiscard]] int32_t channelServedOps();
 
+/// @brief Whether the seam has nothing in flight and nothing waiting.
+///
+/// What a caller that must know its operations have landed waits on -- never on a file appearing, which is a
+/// proxy for an operation finishing and not the thing itself.
+[[nodiscard]] bool idle();
+
+/// @brief How many operations @ref runOnStorageOwner has dispatched to the storage owner after boot.
+///
+/// Counted only for a real dispatch: not the inline boot path (`!Owner::started()`) and not a caller already on
+/// the owner. With the channel in use this should never move -- a nonzero count there means a consumer took its
+/// owner arm when the channel was the right place for the work.
+[[nodiscard]] int32_t ownerFallbacks();
+
+/// @brief How many of those dispatches the storage owner's queue DROPPED because it was full.
+///
+/// The owner's queue holds four operations and refuses a fifth; @ref runOnStorageOwner cannot block or run the work
+/// inline there, so the operation does not happen. Anything nonzero here is a lost operation.
+[[nodiscard]] int32_t ownerDispatchesDropped();
+
 /// @brief Drive whatever @ref submitRead or @ref submitWrite handed over.
 ///
 /// Registered as a repeating task in `deluge.cpp` beside `loadSongUI.loadRoutine()`, and called by

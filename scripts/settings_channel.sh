@@ -11,6 +11,10 @@
 #   SC-TIER       that no settings operation ran on the interaction tier. This is the EVIDENCE half.
 #                 It is deliberately non-zero before the conversion, so the gate FAILS then; the
 #                 transition to zero is the only thing that proves anything moved.
+#   SC-BURST      a burst of three writes, the first already in flight, lands the last value in exactly two card
+#                 writes on the channel leg: the waiting write is replaced, the in-flight one never is.
+#   SC-ORDER      a read queued behind a write to the same file sees that write.
+#   SC-FALLBACK   with the channel in use, a busy channel queues -- nothing reaches the storage owner.
 #
 # Rung 6 is why both halves exist. Its round trip passed identically before and after, so the tier
 # count going 3 -> 0 was the entire proof; a gate with only a round trip would have reported success
@@ -77,7 +81,7 @@ if ! grep -q '^SC-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in SC-ROUNDTRIP SC-TIER; do
+for marker in SC-ROUNDTRIP SC-BURST SC-ORDER SC-FALLBACK SC-TIER; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SC-' "$OUT/run.txt"
@@ -124,6 +128,14 @@ if ! grep -q '^SC-RESULT failures=0$' "$OUT/chan.txt"; then
 	grep -E '^SC-' "$OUT/chan.txt"
 	exit 1
 fi
+
+for marker in SC-ROUNDTRIP SC-BURST SC-ORDER SC-FALLBACK SC-TIER; do
+	if ! grep -q "^$marker " "$OUT/chan.txt"; then
+		echo "FAIL — no $marker line on the channel-on leg; that stage did not run"
+		grep -E '^SC-' "$OUT/chan.txt"
+		exit 1
+	fi
+done
 
 served="$(sed -n 's/^SC-CHANNEL served=\([0-9]*\)$/\1/p' "$OUT/chan.txt")"
 if [ -z "$served" ]; then

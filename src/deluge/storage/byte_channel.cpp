@@ -83,6 +83,12 @@ bool keyable(const char* path) {
 /// See @ref channelServedOps.
 int32_t g_channelServed = 0;
 
+/// See @ref ownerFallbacks.
+int32_t g_ownerFallbacks = 0;
+
+/// See @ref ownerDispatchesDropped.
+int32_t g_ownerDispatchesDropped = 0;
+
 /// Count one channel operation that reached a terminal status, and pass that status through.
 ///
 /// Counted HERE, at the collect wrappers, rather than in the submit machine below -- because not
@@ -397,7 +403,9 @@ void runOnStorageOwner(OwnerFn fn, void* ctx) {
 		fn(ctx);
 		return;
 	}
+	g_ownerFallbacks++;
 	if (!deluge::storage::Owner::run_or_inline(fn, ctx)) {
+		g_ownerDispatchesDropped++;
 		// The owner queue is full. Running it here would be the tier violation this whole rung exists
 		// to remove, so the operation does not happen -- and `noteIoTier()` inside the body is
 		// what would have reported it if it had.
@@ -569,6 +577,18 @@ void serviceRoutine() {
 
 int32_t channelServedOps() {
 	return g_channelServed;
+}
+
+bool idle() {
+	return g_pending.step == Step::Idle;
+}
+
+int32_t ownerFallbacks() {
+	return g_ownerFallbacks;
+}
+
+int32_t ownerDispatchesDropped() {
+	return g_ownerDispatchesDropped;
 }
 
 ByteIo requestUnlink(const char* path) {
