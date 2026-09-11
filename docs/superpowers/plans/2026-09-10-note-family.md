@@ -651,10 +651,12 @@ PROBABILITY popup (`gui/views/instrument_clip_view.cpp:3066`, `:3117`); `adjustV
   With the ported menu closed, each is exactly legacy's expression — **the legacy leg must not change**,
   and the level-3 A/B (`ui_app_scripts_menu_ab`) must stay green.
 
-**The inventory — re-derive it first, and report any difference from this list:**
+**The inventory — re-derive it first, and report any difference from this list.** Row A comes from the predicate grep, which the controller re-ran at 6921ba557 and which reproduces the 21 lines below exactly:
 ```bash
-grep -rnE "soundEditor\.(inNoteEditor|inNoteRowEditor)\(\)|soundEditor\.selectedNoteRow|soundEditor\.getCurrentMenuItem\(\)|soundEditor\.goUpOneLevel\(\)|soundEditor\.toggleNoteEditorParamMenu" src/deluge | grep -v "^src/deluge/gui/ui/shell_"
+grep -rnE "soundEditor\.(inNoteEditor|inNoteRowEditor)\(\)|soundEditor\.selectedNoteRow" src/deluge | grep -v "^src/deluge/gui/ui/shell_"
 ```
+Row B is **not** a grep: `soundEditor.getCurrentMenuItem()` / `goUpOneLevel()` also appear at ~30 legacy sites that no note-mode path reaches (menu items, keyboard, `view.cpp:896-897`, `:1392`, `:1763`, `ui_timer_manager.cpp:164`). Row B is the navigation calls inside the functions the note mode forwards into or writes through, listed below with lines measured at 6921ba557. If you find another on such a path, add it and say how it is reached; do not classify the unrelated sites.
+**Three reads that are safe only while unwidened:** `instrument_clip_view.cpp:4640` (in `scrollVertical`), `:5347` and `:6146` each test `getCurrentUI() == &soundEditor` *before* dereferencing `getCurrentMenuItem()` (multi-range / `isRangeDependent` checks, irrelevant to note items). Under the guest the first half is false and short-circuits. Do not widen them; say so in the table.
 A. **Predicate reads** (controller's grep at 8933bd9e1, 21 lines in 7 files):
 `instrument_clip_view.cpp` :2379 (editPadAction), :2852+:2930 (adjustVelocity), :2982 (displayVelocity),
 :3066 and :3249 (adjustNoteParameterValue), :4063 (setNoteRowParameterValue), :4202 (mutePadPress),
@@ -668,7 +670,7 @@ B. **Navigation-record dereferences on paths the note mode reaches** (each null 
 called by both note-editor encoder handlers :3695, :3705); :3836 `toggleNoteEditorParamMenu(on)` and
 :3842 `readValueAgain()` (handleNoteRowEditorMainPadAction); :3878 `readValueAgain()`
 (handleNoteRowEditorAuditionPadAction); :3905-3907 (handleNoteRowEditorVerticalEncoderAction); and
-whatever the bodies behind A's :3249, :5479-5480 and :6955-6963 (nudgeNotes' `goUpOneLevel`) do.
+whatever the bodies behind A's :3249 and :5479-5480 do, and nudgeNotes' `getCurrentMenuItem() != &noteRowEditorRootMenu` / `goUpOneLevel()` at :6958 / :6963.
 :3716 and :3956 (SYNTH/KIT/MIDI/CV) are unreachable — Task 7 returns `nullopt` for those buttons; say so.
 `enterNoteEditor`/`enterNoteRowEditor` (:3590-3598, :3758-3766) are Task 8's gates — not yours.
 
@@ -683,10 +685,10 @@ navigation record is a crash — it must be a gated pair.
 
 **Port equivalents** (confirm each against legacy before using it):
 - `getCurrentMenuItem()->readValueAgain()` → `deluge::scenes::menu_scene().read_value_again()` (public,
-  `scenes/menu/menu_scene.h:569`) — reached through a `gui/ui` seam, not an include from `gui/views`.
+  `scenes/menu/menu_scene.h:570`) — reached through a `gui/ui` seam, not an include from `gui/views`.
 - `goUpOneLevel()` → one level up in the ported menu; at depth 0 legacy exits completely
   (`sound_editor.cpp:710-718`) → `closePortedMenu()` (`gui/ui/shell_action_dispatch.h:153`).
-  `MenuScene::ascend()` is private (`menu_scene.h:906`); add the smallest public entry that ports
+  `MenuScene::ascend()` is private (`menu_scene.h:908`); add the smallest public entry that ports
   `goUpOneLevel`, documented against `:710-728`.
 - `getCurrentMenuItem() != &noteEditorRootMenu` → "the ported menu is not at its root level".
 - `toggleNoteEditorParamMenu(on)` (`sound_editor.cpp:1925-1975`) → its port: on press, row
@@ -694,7 +696,7 @@ navigation record is a crash — it must be a gated pair.
   are on; on release the reverse; only when the target's `shouldEnterSubmenu()` passes (Task 5's
   `permitted` guard, which raises "Select Note"); enter = descend, release = `goUpOneLevel`. Legacy's
   `inNoteRowEditor()` stays true throughout the hold (`record[0]` is unchanged), so **`activeNoteMode()`
-  must keep answering `NoteRowEditor` while the note menu is entered from the row editor** — pin it. Task 7 keys `activeNoteMode()` on `menu_scene().menu_context().root`, and `ctx_` is replaced only by `MenuScene::open` (`scenes/menu/menu_scene.cpp:332-335`) and a song swap (`:572-576`), so the port must move between the row and note menus **without calling `MenuScene::open()`** — that would reassign `ctx_.root` and flip the mode to `NoteEditor` mid-hold.
+  must keep answering `NoteRowEditor` while the note menu is entered from the row editor** — pin it. Task 7 keys `activeNoteMode()` on `menu_scene().menu_context().root`, and `ctx_` is replaced only by `MenuScene::open` (`scenes/menu/menu_scene.cpp:332-336`) and a song swap (`:576-579`), so the port must move between the row and note menus **without calling `MenuScene::open()`** — that would reassign `ctx_.root` and flip the mode to `NoteEditor` mid-hold.
   Read `runtimeFeatureSettings` `HorizontalMenus` exactly as legacy does.
 
 **A recorded divergence this inventory touches.** Row A's `instrument_clip_view.cpp:5479` (`potentiallyRefreshNoteRowMenu`, keyed on `soundEditor.selectedNoteRow`) also serves a legacy path that is not the note mode: in the regular sound editor, holding an audition pad (`gui/ui/sound_editor.cpp:1499-1503`) while in Play Direction (`sequenceDirectionMenu`, `gui/ui/menus.cpp:1774`, `:1802`, `:1952`, `:1964`) latches `selectedNoteRow` and edits that row. Task 6 records that case as a divergence under the `Sound`/`MidiOrCv` roots (`scenes/menu/bindings.cpp`'s sequence-direction note). Classify `:5479` for the note mode only, and do not build the sound-root audition case here: it is recorded, and porting it is Kate's call.
@@ -748,7 +750,7 @@ git commit -m "feat(guest): legacy's note-editor reads and menu calls see the po
 
 In each function, replace only `soundEditor.setup(clip, &noteEditorRootMenu)` + the kit toggle + `openUI(&soundEditor)` with the gated pair — `if (shellMenuEnabled()) { ok = openShellMenu(clip, 0, false, false, false, false, ShellMenuNode::ContextRoot, NoteMode::NoteEditor); } else { <the legacy statements unchanged> }` — and keep every statement after the open on both legs: `blinkSelectedNote()` and the repaint for site 12; the silent re-audition and `blinkSelectedNoteRow()` for site 13. Follow site 6's spelling (`model/clip/instrument_clip_minder.cpp:399-424`).
 
-Repoint the stale citations: both sites cite `sound_editor.cpp:1757-1759` / `:1760-1762`, which are `:1774-1779`; so do `gui/views/automation_view.cpp`'s site-7 comment and `scenes/menu/context.cpp`'s note on the note-editor roots. Update rows 12 and 13 of `shell_menu_entry.cpp`'s table: gated, and to what.
+Repoint the stale citations: both sites cite `sound_editor.cpp:1757-1759` / `:1760-1762`, which are `:1774-1779`; so do `gui/views/automation_view.cpp`'s site-7 comment and `scenes/menu/context.cpp`'s note on the note-editor roots. **Measured at 6921ba557 (controller):** the stale sites are exactly `gui/views/instrument_clip_view.cpp:3588` (`:1757-1759`), `:3757` (`:1760-1762`), `gui/views/automation_view.cpp:1605` (`:1757-1759`), and `scenes/menu/context.cpp:330-336` — whose citations are **bare** (`:1715`, `:1719-1724`, `:1725-1729`, invisible to both checkers) and ~55 lines stale against `sound_editor.cpp`'s `setup` (`if (clip)` is `:1770`, the note-editor choice `:1774-1779`, MIDI_OUT from `:1780`; `:1719-1724` is now the SoundDrum no-note-row return). `context.cpp:332-333` also says the note-editor roots are "UI side, not ported"; since Task 6 the caller supplies them through `NoteMode` (`util/shell_menu_entry.h`) — rewrite the claim, and re-pin every bare citation in that block and its header comment (`:1735`, `:1150-1158` nearby), each opened with `sed -n`. Update rows 12 and 13 of `shell_menu_entry.cpp`'s table: gated, and to what.
 
 - [ ] **Step 2: Append the gestures**
 
