@@ -999,6 +999,9 @@ before writing it; these were measured during execution and lines may have moved
 13. **The notification's 2000 ms `DISPLAY` timer starts when a consumer pops the notice, not when legacy raises it** (`gui/menu_item/horizontal_menu.cpp:342` is synchronous) — a pre-existing lag a level-3 snapshot near expiry could expose.
 14. **Title truncation width edge:** the notice queue caps title+value at 46 bytes, while `OLED::displayNotification` measures its first width from the untruncated title (`hid/display/oled.cpp:756`); a title over 30 bytes with a 16-byte value could truncate differently from a direct call. No shipped name is that long.
 15. **`PopupScene` is removed on schedule while a working animation runs;** legacy holds every popup until the animation ends (`hid/display/oled.cpp:929-937`). Task 8b ported the hold for the notification banner only (found in its fix round 1).
+16. **Sidebar pads in the note editor: legacy dims them, the ported leg does not** (found by Task 8's review, pads are outside the level-3 A/B). `tests/golden/ui/app/menu/note-editor-open.state:5-14` shows `pad 16 y 5 96 7` where `menu_shell/note-editor-open.state` shows `0 255 6`, in steps 1-4 but not in the note-row editor (step 6). Spec §4 site 1 says the note editor greys the sidebar (`gui/ui/sound_editor.cpp:274-281`, `*cols = 0x03`) and Task 6 ported it as `greyout_mask()` `{0x03, 0}` — so either that mask is not reaching the ported leg's pad output, or the dim is drawn some other way. Sidebar-pad differences already exist on pre-branch panels (`menu-root.state`). The final whole-branch review is asked to check this; record what it finds.
+17. **`led Scale on` on the ported leg only** in note-editor steps 1-4 and 6, and **`led Back`** differing by step (ported-only in steps 1 and 4, legacy-only in step 3, plausibly blink phase) — source not traced; record, or trace if cheap.
+18. **`openShellMenu` clears a kit's `affectEntire` before its fallible `return openUI(&shellHostUI)`** (`src/deluge/gui/ui/shell_menu_entry.cpp:184-195` vs `:208`), so a refused `openUI` leaves `affectEntire` cleared while the gate returns false; legacy ignores `openUI(&soundEditor)`'s result and returns true. Task 6's ordering; record it.
 
 **B. The branch-wide citation sweep (controller ruling, ledgered): Task 9 owns it, after the last code change.**
 - **Exit criterion:** `python3 scripts/check_citation_shift.py 23aae2ef2..HEAD` reports **zero** moved endpoints. In addition,
@@ -1022,7 +1025,7 @@ before writing it; these were measured during execution and lines may have moved
   `:114-120`, `:122-127`, `:128-131`. The AFFECT_ENTIRE arm is actually `:108-112`, so all of these are likely one line stale.
 - `src/scenes/services/global_controls.cpp:259` cites `:356`, which is one line above `changeFillMode`.
 - `src/deluge/gui/ui/shell_menu_entry.cpp:123-124` cites `sound_editor.cpp:1716-1722`; that arm is `:1733-1739`.
-- `src/scenes/menu/context.cpp`'s file header and its Part 1 / Part 3 bare `sound_editor.cpp` citations, ~55 lines behind (Task 8 re-pinned only the `context_for` root block).
+- `src/scenes/menu/context.cpp`'s file header and its Part 1 / Part 3 bare `sound_editor.cpp` citations, ~55 lines behind (Task 8 re-pinned only the `context_for` root block). Specifically Part 3's header (`:567`, citing `:1818-1842`) and `:570` (`:1822-1824`).
 
 **D. A pre-existing doc/code mismatch to record or fix.** `src/scenes/overlay/param_popup_scene.h:194-195`'s docstring says the
 popup never takes input (`:194`), but `input_transparent()` returns `true` (`:195`) — path and lines verified by the controller.
