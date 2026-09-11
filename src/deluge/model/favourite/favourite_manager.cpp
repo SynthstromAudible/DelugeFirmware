@@ -16,6 +16,7 @@
  */
 
 #include "model/favourite/favourite_manager.h"
+#include "storage/byte_channel.h"
 #include <cstdint>
 #include <string.h>
 
@@ -60,11 +61,16 @@ void FavouritesManager::setCategory(const std::string& category) {
 	loadFavouritesBank();
 }
 
+std::string FavouritesManager::bankPath(const std::string& category, uint8_t bank) {
+	return "SETTINGS/FAVOURITES/" + category + "_Bank" + std::to_string(bank) + ".xml";
+}
+
 std::string FavouritesManager::getFilenameForSave() const {
-	return "SETTINGS/FAVOURITES/" + currentCategory + "_Bank" + std::to_string(currentBankNumber) + ".xml";
+	return bankPath(currentCategory, currentBankNumber);
 }
 
 void FavouritesManager::loadFavouritesBank() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Favourites);
 	resetFavourites();
 	std::string filePath = getFilenameForSave();
 	// TODO(conflation-batch-4): unknown is being treated as absent here; the load/browse/favourites
@@ -121,6 +127,7 @@ Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
 }
 
 void FavouritesManager::saveFavouriteBank() const {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Favourites);
 	if (currentCategory.empty()) {
 		return;
 	}

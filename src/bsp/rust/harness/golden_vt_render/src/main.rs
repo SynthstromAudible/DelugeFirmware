@@ -327,6 +327,12 @@ unsafe extern "C" {
     fn deluge_scenario_settings_channel_step_done() -> bool;
     fn deluge_scenario_settings_channel_failures() -> i32;
 
+    fn deluge_scenario_favourites_channel_begin();
+    fn deluge_scenario_favourites_channel_complete() -> bool;
+    fn deluge_scenario_favourites_channel_dispatch_step();
+    fn deluge_scenario_favourites_channel_step_done() -> bool;
+    fn deluge_scenario_favourites_channel_failures() -> i32;
+
     fn deluge_scenario_startup_failsafe_begin();
     fn deluge_scenario_startup_failsafe_complete() -> bool;
     fn deluge_scenario_startup_failsafe_dispatch_step();
@@ -1368,6 +1374,65 @@ async fn run_settings_channel_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
+/// The `GOLDEN_SCENARIO=favourites_channel` scenario: drive the favourites bank through its real
+/// entry points and require that no bank is ever written with less than it held -- while counting
+/// every favourites card operation that began on the interaction tier.
+///
+/// Stepped for the same reason as the settings gate: a bank operation is only QUEUED when its entry
+/// point runs, so each check must read its result on a later tick.
+#[embassy_executor::task]
+async fn run_favourites_channel_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_favourites_channel_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_favourites_channel_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_favourites_channel_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the favourites channel gate did not complete within the 600s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_favourites_channel_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_favourites_channel_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_favourites_channel_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the favourites channel gate FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: favourites channel gate completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=song_save_channel` scenario: inflate the song until its document outgrows
 /// the staging buffer, save it through the real ENTER gesture, and require that what landed loads
 /// back as a song and that overwriting it leaves a song behind either way.
@@ -1841,6 +1906,7 @@ fn main() {
     let sample_collect_mode = scenario == "sample_collect";
     let song_save_mode = scenario == "song_save_channel";
     let settings_channel_mode = scenario == "settings_channel";
+    let favourites_channel_mode = scenario == "favourites_channel";
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
     let offset_io_mode = scenario == "offset_io";
@@ -1980,6 +2046,8 @@ fn main() {
         spawner.spawn(run_sample_collect_scenario(&DONE).unwrap());
     } else if settings_channel_mode {
         spawner.spawn(run_settings_channel_scenario(&DONE).unwrap());
+    } else if favourites_channel_mode {
+        spawner.spawn(run_favourites_channel_scenario(&DONE).unwrap());
     } else if startup_failsafe_mode {
         spawner.spawn(run_startup_failsafe_scenario(&DONE).unwrap());
     } else if path_operations_mode {

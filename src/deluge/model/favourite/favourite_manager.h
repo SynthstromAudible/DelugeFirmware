@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/favourite/favourites_policy.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
 #include <functional>
@@ -51,6 +52,20 @@ public:
 	void changeColour(uint8_t position, int32_t offset);
 	const std::string& getFavoriteFilename(uint8_t position);
 	static constexpr uint8_t favouriteDefaultColor = 4;
+
+	/// @brief The file holding @p category's bank @p bank.
+	[[nodiscard]] static std::string bankPath(const std::string& category, uint8_t bank);
+
+	/// @name What the favourites-channel gate reads
+	/// Today every operation completes inside the call that asks for it, so these report exactly that.
+	/// @{
+	void serviceRoutine() {}
+	[[nodiscard]] deluge::favourites::BankState bankState() const { return deluge::favourites::BankState::Loaded; }
+	[[nodiscard]] bool idle() const { return true; }
+	[[nodiscard]] int32_t intentsIssued() const { return 0; }
+	[[nodiscard]] int32_t channelCompletions() const { return 0; }
+	[[nodiscard]] int32_t ownerCompletions() const { return 0; }
+	/// @}
 
 	uint8_t currentBankNumber{};
 	std::optional<uint8_t> currentFavouriteNumber{};
