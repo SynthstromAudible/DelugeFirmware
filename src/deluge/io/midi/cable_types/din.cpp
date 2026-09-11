@@ -15,12 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-extern "C" {
-#include "RZA1/uart/sio_char.h"
-}
-
 #include "din.h"
-#include "drivers/uart/uart.h"
 #include "gui/l10n/l10n.h"
 #include "io/midi/midi_engine.h"
 #include "storage/storage_manager.h"
@@ -43,18 +38,11 @@ void MIDICableDINPorts::sendMessage(MIDIMessage message) {
 }
 
 size_t MIDICableDINPorts::sendBufferSpace() const {
-	return uartGetTxBufferSpace(UART_ITEM_MIDI);
+	return midiEngine.serialSendBufferSpace();
 }
 
 void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
-	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
-		return;
-	}
-
-	// NB: beware of MIDI_TX_BUFFER_SIZE
-	for (int32_t i = 0; i < len; i++) {
-		bufferMIDIUart(data[i]);
-	}
+	midiEngine.sendSerialSysex(data, len);
 }
 
 bool MIDICableDINPorts::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {
