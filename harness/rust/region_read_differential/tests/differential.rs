@@ -78,6 +78,17 @@ extern "C" fn EXIT_CRITICAL_SECTION() {}
 extern "C" fn deluge_in_interrupt() -> bool {
     false
 }
+// `deluge_resource` asks two more things of its host since 2026-08-16: whether it is standing on the
+// audio render context (to skip its critical section there -- never true here, so it always masks), and
+// the audio sample timer for its loader-latency stats (instrumentation only; nothing here reads them).
+#[unsafe(no_mangle)]
+extern "C" fn deluge_in_audio_context() -> bool {
+    false
+}
+#[unsafe(no_mangle)]
+extern "C" fn deluge_debug_now_frames() -> u32 {
+    0
+}
 
 /// `deluge_sample_reader::reader::Reader`'s synchronous card-read primitive
 /// (`include/libdeluge/streaming_fill.h`). Unconditionally fails, without touching `dst` — this
