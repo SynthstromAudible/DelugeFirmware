@@ -468,7 +468,9 @@ fn stream_sgi_handler() {
         feature = "async_streaming_loader",
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
-        feature = "async_file_directory_active"
+        feature = "async_file_directory_active",
+        feature = "async_file_bytes_active",
+        feature = "async_file_write_active"
     )
 ))]
 #[embassy_executor::task]
@@ -610,10 +612,16 @@ pub extern "C" fn main() -> ! {
     // not be enabled before the executor its handler drives exists. Spawned via
     // `stream_bootstrap` — see that task's doc for why a SendSpawner cannot take the fill task
     // directly.
+    // Every task this executor can host is listed, not just the ones that happened to be on when it was
+    // written: a channel switched on without its entry here would have its task spawned onto an executor
+    // nobody started -- a dead channel that every consumer's owner arm would then hide.
     #[cfg(any(
         feature = "async_streaming_loader",
         feature = "async_audio_load_active",
-        feature = "async_file_prefix_active"
+        feature = "async_file_prefix_active",
+        feature = "async_file_directory_active",
+        feature = "async_file_bytes_active",
+        feature = "async_file_write_active"
     ))]
     STREAM_EXEC
         .start(STREAM_SGI)
@@ -621,7 +629,10 @@ pub extern "C" fn main() -> ! {
     #[cfg(not(any(
         feature = "async_streaming_loader",
         feature = "async_audio_load_active",
-        feature = "async_file_prefix_active"
+        feature = "async_file_prefix_active",
+        feature = "async_file_directory_active",
+        feature = "async_file_bytes_active",
+        feature = "async_file_write_active"
     )))]
     let _ = STREAM_EXEC.start(STREAM_SGI);
     unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
