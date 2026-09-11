@@ -25,6 +25,7 @@ revision makes on the evidence, each stated where it lands:
 | 6 | (not addressed) | a select press on a horizontal value column follows **that column's** chain or goes up a level; the port only raises a notification | §3.1-3.2 |
 | 7 | (not addressed) — only SoundEditor's eight sites branch on the note mode | legacy's forwarded handlers and offset functions ask `getCurrentUI() == &soundEditor && inNote*Editor()` **21 more times** and dereference the null navigation record for `readValueAgain`/`goUpOneLevel`/`toggleNoteEditorParamMenu` | §4 |
 | 8 | (not addressed) — the ported horizontal page renders like legacy's | Task 8's level-3 A/B: the port **inverts** the focused column where legacy (at its default) **underlines** it, and draws the column notification as a console line at the bottom where legacy draws a top banner in its `NOTIFICATION` popup slot — which legacy's gold-knob popup also consults | §4 |
+| 9 | a gold turn inside a ported menu falls through to `services::ModKnobs`, whose popup rule a horizontal page must correct, and level 3 shows it on both legs (§3.2, §6) | under the guest a gold turn never reaches the shell: `ShellHostUI` does not override `modEncoderAction` (`gui/ui/shell_host_ui.h:66`), so `UI::modEncoderAction` hands it to legacy's `View::modEncoderAction` on both legs (`gui/ui/ui.cpp:35-37`; `tests/ui-scripts/app/menu.txt:60-65`), and `popup_suppressed`'s focused-column compare (`scenes/services/mod_knobs.cpp:354-358`) is reachable at level 2 only | §3.2, §6 |
 
 And one site the first version thought needed code needs none: site 5 (§4).
 
@@ -123,6 +124,12 @@ leaf edits on select, an Int leaf on gold. It is recorded nowhere.
   through a horizontal page to the focused value column (`Submenu::shouldForwardButtons`,
   `gui/menu_item/submenu.cpp:181-185`), so `popup_suppressed` must compare against the focused
   column, not the page node.
+  **Correction 9 (final review):** true of the shell's own routing, and so at level 2, but not in the
+  application. `ShellHostUI` does not override `modEncoderAction` (`gui/ui/shell_host_ui.h:66`), so
+  under the guest a gold turn goes through `UI::modEncoderAction` to legacy's `View::modEncoderAction`
+  (`gui/ui/ui.cpp:35-37`) on both legs and `services::ModKnobs` never sees it. The focused-column
+  compare (`scenes/services/mod_knobs.cpp:354-358`) is therefore reached only by the shell-level
+  examples (`sim/scenes_spec/mod_knobs_spec.cpp`).
 
 ### 3.3 What this deliberately does not change, and why each is carried
 
@@ -202,7 +209,7 @@ the forward path discarding.
 are SoundEditor's own. The legacy functions sites 2, 6, 7 and 8 forward into, and the offset functions
 the bridge (§5.4) writes through, ask the same question themselves:
 `getCurrentUI() == &soundEditor && soundEditor.inNote*Editor()` — 21 lines in 7 files
-(`instrument_clip_view.cpp` ×14, `view.cpp:340`, `timeline_view.cpp:158`, `action_logger.cpp:99`,
+(`instrument_clip_view.cpp` ×13, `view.cpp:340`, `timeline_view.cpp:158`, `action_logger.cpp:99`,
 `note_row.cpp:1997`, `notify_drain.cpp:48`, `menu_item/sequence/direction.h` ×3). Under the guest both
 halves are false, so each takes its not-in-editor arm: `adjustNoteParameterValue` swallows the first
 turn and raises a legacy popup (`instrument_clip_view.cpp:3067`, `:3118`). Several forwarded handlers
@@ -327,9 +334,13 @@ gets the "Select Row" guard and legacy's extra `NONE` option when a row exists (
   kit toggle proved as an effect, not an absence.
 - **Level 3** (`tests/ui-scripts/app/menu.txt`): enter and exit both modes by the legacy gestures
   (a held note pad + SELECT; a held audition pad + SELECT), a select turn that edits a column, and a
-  SYNTH press that moves focus. **Not covered at level 3:** both encoder routes into
+  KIT press that moves focus (`tests/ui-scripts/app/menu.txt:366-367`; SYNTH on column 0 is the
+  already-focused press). **Not covered at level 3:** both encoder routes into
   `instrumentClipView` and the pad lights. The level-3 script must also turn a gold knob inside a
   menu, which it never has, so the fall-through to `ModKnobs` is seen on both legs.
+  **Correction 9:** it now does (`tests/ui-scripts/app/menu.txt:385`), and on both legs that turn reaches
+  legacy's `View::modEncoderAction`, not `ModKnobs` (`gui/ui/shell_host_ui.h:66`, `gui/ui/ui.cpp:35-37`),
+  so level 3 pins the legacy path; the focused-column popup rule is level 2's alone.
 
 ## 7. Open questions this revision does not answer
 

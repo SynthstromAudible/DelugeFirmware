@@ -664,6 +664,7 @@ A. **Predicate reads** (controller's grep at 8933bd9e1, 21 lines in 7 files):
 :6072 (drawAuditionSquare), :6190 (verticalEncoderAction), :6827 (nudgeNotes); `view.cpp:340`;
 `timeline_view.cpp:158`; `model/action/action_logger.cpp:99`; `model/note/note_row.cpp:1997`;
 `gui/ui/notify_drain.cpp:48`; `gui/menu_item/sequence/direction.h` :35, :51, :118.
+*(Final review note: `:2852` is the `inSoundEditor = currentUI == &soundEditor` local that `:2930` reads -- the grep above matches `:2930`, not `:2852`, and gives 13 `instrument_clip_view.cpp` lines at `20aca8e4f`.)*
 B. **Navigation-record dereferences on paths the note mode reaches** (each null under the guest):
 `instrument_clip_view.cpp` :3655 `getCurrentMenuItem()->readValueAgain()` (handleNoteEditorEditPadAction);
 :3690-3691 `getCurrentMenuItem() != &noteEditorRootMenu` → `goUpOneLevel()` (deselectNoteAndGoUpOneLevel,
