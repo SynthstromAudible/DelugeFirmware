@@ -110,8 +110,10 @@ if [ -f "$OUT/off.txt" ] && [ -f "$OUT/on.txt" ]; then
 	fi
 fi
 
-[ -f "$OUT/off.txt" ] && grep -E '^FV-' "$OUT/off.txt" | sed 's/^/[off] /'
-[ -f "$OUT/on.txt" ] && grep -E '^FV-' "$OUT/on.txt" | sed 's/^/[on]  /'
+# `|| true`: under pipefail a leg that printed no FV- line (an abort) would otherwise end the script here,
+# before the other leg's lines -- the ones that say what DID happen -- are ever shown.
+[ -f "$OUT/off.txt" ] && grep -E '^FV-' "$OUT/off.txt" | sed 's/^/[off] /' || true
+[ -f "$OUT/on.txt" ] && grep -E '^FV-' "$OUT/on.txt" | sed 's/^/[on]  /' || true
 
 if [ "$fail" -ne 0 ]; then
 	exit 1
