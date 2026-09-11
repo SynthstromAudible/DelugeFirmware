@@ -313,7 +313,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 
 	it("the same kit affectEntire clear applies to NoteRowEditor too", _ {
 		// Resolution 1: legacy does the identical clear in `enterNoteRowEditor`
-		// (`instrument_clip_view.cpp:3760-3765`), after `soundEditor.setup` and before `openUI`.
+		// (`instrument_clip_view.cpp:3813-3818`), after `soundEditor.setup` and before `openUI`.
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);

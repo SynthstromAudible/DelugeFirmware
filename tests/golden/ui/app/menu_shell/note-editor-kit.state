@@ -1,0 +1,18 @@
+led AffectEntire on
+led Clip on
+led Kit on
+led Mod1 on
+led Scale on
+pad 16 0 0 255 6
+pad 16 1 0 255 6
+pad 16 2 0 255 6
+pad 16 3 0 255 6
+pad 16 4 0 255 6
+pad 16 5 0 255 6
+pad 16 6 0 255 6
+pad 16 7 0 255 6
+pad 17 0 0 46 209
+pad 17 7 0 226 29
+pad 2 4 0 100 60
+indicator lower 72 0 0 0
+indicator upper 255 255 36 0

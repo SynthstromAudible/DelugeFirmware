@@ -314,59 +314,63 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	ctx.affect_entire = ctx.is_kit && instrument_clip != nullptr && instrument_clip->affectEntire;
 
 	// ---------------------------------------------------------------------------------------
-	// Part 2: which root menu (`:1711-1772`, the `item == nullptr` arm -- an explicitly requested
+	// Part 2: which root menu (`:1769-1827`, the `item == nullptr` arm -- an explicitly requested
 	// `item` is the caller's own choice and has no analogue here).
 	//
-	// The three kit arms below are spelled with `is_kit_global_fx` where legacy `:1735`/`:1739`/
-	// `:1745` spell `instrumentClip->affectEntire`. Inside this arm's own domain the two are the
-	// same fact: `:1735` is only ever evaluated when `item == nullptr`, and every caller that
+	// The three kit arms below are spelled with `is_kit_global_fx` where legacy `:1790`/`:1794`/
+	// `:1800` spell `instrumentClip->affectEntire`. Inside this arm's own domain the two are the
+	// same fact: `:1790` is only ever evaluated when `item == nullptr`, and every caller that
 	// passes no item sets `setupKitGlobalFXMenu` from `affectEntire`, while the one caller where
-	// they differ -- the kit-row grid shortcut (`:1150-1158`) -- always passes an item and so never
+	// they differ -- the kit-row grid shortcut (`:1205-1213`) -- always passes an item and so never
 	// reaches here. Outside it, this spelling is what keeps the root consistent with the
 	// `params`/`mod`/`arp` part 1 just resolved: a shortcut caller editing one row gets `Drum`
 	// (or `MidiDrum`/`GateDrum`), not `KitGlobalFx` over row params.
 	// ---------------------------------------------------------------------------------------
 
-	if (clip != nullptr) { // `:1715`
+	if (clip != nullptr) { // `:1770`
 		if (clip->type == ClipType::INSTRUMENT) {
-			// `:1719-1724` -- `UI_MODE_NOTES_PRESSED` / `UI_MODE_AUDITIONING` note-editor roots:
-			// UI side, not ported (see the file header).
+			// `:1774-1779` -- the `UI_MODE_NOTES_PRESSED` / `UI_MODE_AUDITIONING` note-editor roots
+			// are not chosen here: legacy reads `currentUIMode` for them (`:1774`, `:1777`), which is UI
+			// side, so this function never assigns `Root::NoteEditor`/`Root::NoteRowEditor`. The caller
+			// names them instead, through `NoteMode` (`util/shell_menu_entry.h`), and `openShellMenu`
+			// overrides `ctx.root` with it after this function returns
+			// (`gui/ui/shell_menu_entry.cpp:136-139`).
 
-			if (output_type == OutputType::MIDI_OUT) { // `:1725-1729`
+			if (output_type == OutputType::MIDI_OUT) { // `:1780-1784`
 				ctx.root = MenuContext::Root::MidiOrCv;
 			}
-			else if (output_type == OutputType::CV) { // `:1730-1733`, the `goto doMIDIOrCV` arm
+			else if (output_type == OutputType::CV) { // `:1785-1788`, the `goto doMIDIOrCV` arm
 				ctx.root = MenuContext::Root::MidiOrCv;
 			}
-			else if (ctx.is_kit && ctx.is_kit_global_fx) { // `:1735-1737`
+			else if (ctx.is_kit && ctx.is_kit_global_fx) { // `:1790-1792`
 				ctx.root = MenuContext::Root::KitGlobalFx;
 			}
 			else if (ctx.is_kit && !ctx.is_kit_global_fx && ctx.is_drum
-			         && static_cast<Kit*>(ctx.output)->selectedDrum->type == DrumType::MIDI) { // `:1739-1743`
+			         && static_cast<Kit*>(ctx.output)->selectedDrum->type == DrumType::MIDI) { // `:1794-1798`
 				ctx.root = MenuContext::Root::MidiDrum;
 			}
 			else if (ctx.is_kit && !ctx.is_kit_global_fx && ctx.is_drum
-			         && static_cast<Kit*>(ctx.output)->selectedDrum->type == DrumType::GATE) { // `:1745-1749`
+			         && static_cast<Kit*>(ctx.output)->selectedDrum->type == DrumType::GATE) { // `:1800-1804`
 				ctx.root = MenuContext::Root::GateDrum;
 			}
-			else { // `:1751-1753`
+			else { // `:1806-1808`
 				ctx.root = ctx.is_kit ? MenuContext::Root::Drum : MenuContext::Root::Sound;
 			}
 		}
-		else { // `:1756-1758`
+		else { // `:1811-1813`
 			ctx.root = MenuContext::Root::AudioClip;
 		}
 	}
 	else {
-		if (performance_view) { // `:1761-1763`
+		if (performance_view) { // `:1816-1818`
 			ctx.root = MenuContext::Root::Performance;
 		}
-		// `:1764-1767` -- the WIDE bool on purpose: legacy's three views share one root menu, and
+		// `:1819-1822` -- the WIDE bool on purpose: legacy's three views share one root menu, and
 		// `session_view_root` only narrows what is *relevant* inside it, never which root is picked.
 		else if (session_or_arranger_root) {
 			ctx.root = MenuContext::Root::Song;
 		}
-		else { // `:1768-1770`
+		else { // `:1823-1825`
 			ctx.root = MenuContext::Root::Settings;
 		}
 	}

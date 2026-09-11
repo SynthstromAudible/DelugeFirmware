@@ -1602,9 +1602,10 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 		// F1 task 9, site 7 of 14 (`gui/ui/shell_menu_entry.cpp`'s table), and the one that is
 		// **conditionally** gated. This arm also runs under `UI_MODE_NOTES_PRESSED &&
 		// padSelectionOn` (`:1593`), where `setup(clip)` picks `noteEditorRootMenu`
-		// (`gui/ui/sound_editor.cpp:1757-1759`) -- a root `MenuContext::Root` deliberately has no
-		// enumerator for, because legacy chooses it from a UI mode `src/scenes` may not read. So
-		// that case falls through to the legacy statements, which are otherwise unchanged.
+		// (`gui/ui/sound_editor.cpp:1774-1776`) from a UI mode `src/scenes` may not read. The ported
+		// menu reaches that root only through `NoteMode` (`util/shell_menu_entry.h`), which
+		// `InstrumentClipView::enterNoteEditor` passes (site 12) and this arm does not. So that case
+		// falls through to the legacy statements, which are otherwise unchanged.
 		if (deluge::gui::ui::shellMenuEnabled() && currentUIMode == UI_MODE_NONE) {
 			// `onArrangerView` is both halves of the mapping at once: it is why the clip is null,
 			// and it is `!rootUIIsClipMinderScreen()` -- the automation view is a clip minder only

@@ -23,13 +23,13 @@
 /// Spec F §2.1's *first tenant*: every place legacy enters `soundEditor` today becomes
 /// `openUI(&shellHostUI)` plus a `Menu{node}` push, **behind
 /// `RuntimeFeatureSettingType::ShellMenu`**. There are fourteen such places
-/// (`grep -rn "openUI(&soundEditor)" src/deluge`); eight of them route here and six stay on the
+/// (`grep -rn "openUI(&soundEditor)" src/deluge`); ten of them route here and four stay on the
 /// legacy path because the node they want has no port. The table is in
 /// `gui/ui/shell_menu_entry.cpp`.
 ///
 /// @par Why this is its own translation unit
 ///
-/// The same reason `gui/ui/shell_guest_services.h` gives, one layer out: the eight call sites are
+/// The same reason `gui/ui/shell_guest_services.h` gives, one layer out: the ten call sites are
 /// ordinary legacy views, and making each of them name `deluge::scenes::menu::context_for`,
 /// `MenuScene::roots()` and `SceneId` would put `src/scenes` includes into eight `gui/views/` and
 /// `model/clip/` translation units for four lines of work apiece. `ShellMenuNode` below exists for

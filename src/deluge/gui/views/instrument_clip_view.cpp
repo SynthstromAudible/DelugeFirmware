@@ -3584,23 +3584,40 @@ bool InstrumentClipView::enterNoteEditor() {
 	    && lastSelectedNoteYDisplay != kNoSelection) {
 		dontDeleteNotesOnDepress();
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		// F1 task 9, site 12 of 14: **not gated.** `noteEditorRootMenu` has no ported root --
-		// `MenuContext::Root` has no enumerator for it on purpose, because legacy selects it from
-		// `currentUIMode` (`gui/ui/sound_editor.cpp:1757-1759`), which `src/scenes` may not read.
-		// See `gui/ui/shell_menu_entry.cpp`'s table.
-		if (soundEditor.setup(clip, &noteEditorRootMenu)) {
-			// if it's a kit with affect entire enabled, toggle it off when entering note editor
-			if (clip->output->type == OutputType::KIT) {
-				if (clip->affectEntire) {
-					clip->affectEntire = false;
-					view.setActiveModControllableTimelineCounter(clip);
-				}
+		// F1 task 9, site 12 of 14 (`gui/ui/shell_menu_entry.cpp`'s table): **gated.** Legacy names
+		// `noteEditorRootMenu` explicitly, the root `setup()` would itself pick under
+		// `UI_MODE_NOTES_PRESSED` (`gui/ui/sound_editor.cpp:1774-1776`) -- a UI mode `src/scenes` may not
+		// read, so the ported leg names it as `NoteMode::NoteEditor` (`util/shell_menu_entry.h`), and
+		// `openShellMenu` does the kit `affectEntire` clear below itself, before its own open
+		// (`gui/ui/shell_menu_entry.cpp:184-195`). Spelled like site 6
+		// (`model/clip/instrument_clip_minder.cpp:399-424`): the `else` is the legacy block unchanged, and
+		// the shell leg repeats the statements after legacy's open, so both legs blink the note and repaint.
+		if (deluge::gui::ui::shellMenuEnabled()) {
+			if (deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+			                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+			                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::ContextRoot,
+			                                   deluge::gui::ui::NoteMode::NoteEditor)) {
+				blinkSelectedNote();
+				// refresh grid to potentially highlight already edited notes
+				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				return true;
 			}
-			openUI(&soundEditor);
-			blinkSelectedNote();
-			// refresh grid to potentially highlight already edited notes
-			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-			return true;
+		}
+		else {
+			if (soundEditor.setup(clip, &noteEditorRootMenu)) {
+				// if it's a kit with affect entire enabled, toggle it off when entering note editor
+				if (clip->output->type == OutputType::KIT) {
+					if (clip->affectEntire) {
+						clip->affectEntire = false;
+						view.setActiveModControllableTimelineCounter(clip);
+					}
+				}
+				openUI(&soundEditor);
+				blinkSelectedNote();
+				// refresh grid to potentially highlight already edited notes
+				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+				return true;
+			}
 		}
 	}
 	else {
@@ -3767,26 +3784,49 @@ bool InstrumentClipView::enterNoteRowEditor() {
 		// does note row exist?
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			InstrumentClip* clip = getCurrentInstrumentClip();
-			// F1 task 9, site 13 of 14: **not gated**, for site 12's reason with the other UI mode
-			// (`UI_MODE_AUDITIONING`, `gui/ui/sound_editor.cpp:1760-1762`).
-			if (soundEditor.setup(clip, &noteRowEditorRootMenu)) {
-				// if it's a kit with affect entire enabled, toggle it off when entering note row editor
-				if (clip->output->type == OutputType::KIT) {
-					if (clip->affectEntire) {
-						clip->affectEntire = false;
-						view.setActiveModControllableTimelineCounter(clip);
+			// F1 task 9, site 13 of 14 (`gui/ui/shell_menu_entry.cpp`'s table): **gated**, as site 12 is and
+			// for its reason with the other UI mode -- `setup()` would itself pick `noteRowEditorRootMenu`
+			// under `UI_MODE_AUDITIONING` (`gui/ui/sound_editor.cpp:1777-1779`), so the ported leg names it
+			// as `NoteMode::NoteRowEditor`. **Not while the legacy `soundEditor` is the current UI**: this
+			// function is also called from inside it (`gui/ui/sound_editor.cpp:1403-1409`, audition + the
+			// sequence-direction shortcut in a sound editor SHIFT+pad opened through ungated site 9), where the
+			// guest would stack on `soundEditor` and part from legacy after the first BACK -- so that case
+			// keeps the legacy block, as it did before this gate. The `else` is the legacy block unchanged;
+			// the shell leg repeats the statements after legacy's open -- the silent re-audition and
+			// `blinkSelectedNoteRow()`.
+			if (deluge::gui::ui::shellMenuEnabled() && getCurrentUI() != &soundEditor) {
+				if (deluge::gui::ui::openShellMenu(clip, /*sourceIndex=*/0, /*performanceView=*/false,
+				                                   /*sessionOrArrangerRoot=*/false, /*sessionViewRoot=*/false,
+				                                   /*kitGlobalFx=*/false, deluge::gui::ui::ShellMenuNode::ContextRoot,
+				                                   deluge::gui::ui::NoteMode::NoteRowEditor)) {
+					if (!auditioningSilently) {
+						auditionPadAction(0, lastAuditionedYDisplay, true);
+						auditionPadAction(1, lastAuditionedYDisplay, true);
 					}
+					blinkSelectedNoteRow();
+					return true;
 				}
-				openUI(&soundEditor);
-				// if we weren't auditioning silently when we entered note row editor
-				// let's cancel the previous audition and re-audition silently
-				// this prevents any re-auditioning from happening
-				if (!auditioningSilently) {
-					auditionPadAction(0, lastAuditionedYDisplay, true);
-					auditionPadAction(1, lastAuditionedYDisplay, true);
+			}
+			else {
+				if (soundEditor.setup(clip, &noteRowEditorRootMenu)) {
+					// if it's a kit with affect entire enabled, toggle it off when entering note row editor
+					if (clip->output->type == OutputType::KIT) {
+						if (clip->affectEntire) {
+							clip->affectEntire = false;
+							view.setActiveModControllableTimelineCounter(clip);
+						}
+					}
+					openUI(&soundEditor);
+					// if we weren't auditioning silently when we entered note row editor
+					// let's cancel the previous audition and re-audition silently
+					// this prevents any re-auditioning from happening
+					if (!auditioningSilently) {
+						auditionPadAction(0, lastAuditionedYDisplay, true);
+						auditionPadAction(1, lastAuditionedYDisplay, true);
+					}
+					blinkSelectedNoteRow();
+					return true;
 				}
-				blinkSelectedNoteRow();
-				return true;
 			}
 		}
 		else {
@@ -5645,7 +5685,7 @@ doDisplayError:
 
 	if (!success) {
 		// F1 task 9, site 14 of 14: **not gated**, and not for want of a node -- the item is
-		// `file0SelectorMenu` (`:5629`), the same one site 8 maps. It is not gated because this is a
+		// `file0SelectorMenu` (`:5669`), the same one site 8 maps. It is not gated because this is a
 		// *fallback*: it runs only when `openUI(&audioRecorder)`/`openUI(&sampleBrowser)` has just
 		// refused, and the ported node's own hook would answer that by asking the shell to push the
 		// ported browser. See `gui/ui/shell_menu_entry.cpp`'s table.

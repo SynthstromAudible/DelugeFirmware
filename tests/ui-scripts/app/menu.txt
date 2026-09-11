@@ -341,4 +341,71 @@
 18500  pad 3 3 down
 18700  pad 3 3 up
 19000  snapshot pad-menu-closed
-20000  quit
+
+# ---------------------------------------------------------------------------------------------
+# Note-family task 8: **sites 12 and 13 of `gui/ui/shell_menu_entry.cpp`'s table, the note editor
+# and the note-row editor.** Both are gated from this commit, and this is the first run in which
+# the ported leg reaches either one.
+#
+# Root here is `InstrumentClipView` with no menu open, and the clip has no notes: `pad-menu-closed`
+# lights only the sidebar (x=16 on every row, x=17 on rows 0 and 7), identically on both legs.
+#
+# 1. Hold an empty main-grid pad -- the press creates the note -- and press SELECT with it still
+# held. `InstrumentClipView::buttonAction`'s SELECT_ENC arm, under `UI_MODE_NOTES_PRESSED`
+# (`gui/views/instrument_clip_view.cpp:852`): `if (enterNoteEditor())` (`:853`). Legacy opens
+# `noteEditorRootMenu` (`gui/ui/menus.cpp:1880-1886`: velocity, probability, iterance, fill).
+19500  pad 2 4 down
+19800  button SelectEnc down
+19820  button SelectEnc up
+20100  snapshot note-editor-open
+
+# 2. KIT. `SoundEditor::buttonAction` hands every button to `handleNoteEditorButtonAction` while
+# the note editor is open (`gui/ui/sound_editor.cpp:617-619`), which forwards SYNTH/KIT/MIDI/CV to
+# the horizontal menu (`gui/views/instrument_clip_view.cpp:3746-3748`), whose `select_map` maps KIT
+# to column 1 (`gui/menu_item/horizontal_menu.cpp:96-97`): probability.
+20500  button Kit down
+20520  button Kit up
+20800  snapshot note-editor-kit
+
+# 3. One select detent DOWN on the focused column. `SoundEditor::selectEncoderAction` runs under
+# `UI_MODE_NOTES_PRESSED` (`gui/ui/sound_editor.cpp:1069`, `:1089`) and hands the turn to the menu
+# (`:1122`); the probability leaf edits the held note (`gui/menu_item/note/probability.h:52-55`),
+# and the notification spells legacy's string (`:81-89`). **Down, not up:** the note is created at
+# 100%, which is `kNumProbabilityValues`, the ceiling `adjustNoteProbabilityWithOffset` passes
+# (`gui/views/instrument_clip_view.cpp:3003`). Measured: `+1` left the column and the banner at 100%
+# on both legs, so the snapshot showed no edit. `-1` takes the decrement arm (`:3171-3187`).
+21200  encoder Select -1
+21500  snapshot note-editor-probability
+
+# 4. One upper gold detent, still holding the note. Not a menu input: both legs reach legacy's
+# `View::modEncoderAction`, with the toggle off through `SoundEditor::modEncoderAction`'s innermost
+# `else` (`gui/ui/sound_editor.cpp:1659`), and under the toggle through `UI`'s base forward
+# (`gui/ui/ui.cpp:35-37`), which `ShellHostUI` deliberately does not override
+# (`gui/ui/shell_host_ui.h:66`). `services::ModKnobs` is not reached on either leg.
+22000  encoder GoldUpper +1
+22300  snapshot note-editor-gold
+
+# 5. A short BACK closes the note editor, and the exit calls `instrumentClipView.exitNoteEditor()`
+# and repaints the grid to unhighlight the edited note (`gui/ui/sound_editor.cpp:749-753`). Then
+# release the pad.
+22800  button Back down
+22820  button Back up
+23100  pad 2 4 up
+23400  snapshot note-editor-closed
+
+# 6. Hold the audition pad and press SELECT with it still held: the same SELECT_ENC arm, under
+# `UI_MODE_AUDITIONING` (`gui/views/instrument_clip_view.cpp:857`): `if (enterNoteRowEditor())`
+# (`:858`). Legacy opens `noteRowEditorRootMenu` (`gui/ui/menus.cpp:1927-1933`: sequence direction,
+# probability, iterance, fill).
+23800  pad 17 4 down
+24100  button SelectEnc down
+24120  button SelectEnc up
+24400  snapshot note-row-editor-open
+
+# 7. A short BACK closes it through `exitNoteRowEditor()` (`gui/ui/sound_editor.cpp:754-756`). Then
+# release the audition pad.
+24800  button Back down
+24820  button Back up
+25100  pad 17 4 up
+25400  snapshot note-row-editor-closed
+26400  quit

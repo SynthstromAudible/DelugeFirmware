@@ -1616,7 +1616,12 @@ here because a task report is not where a reviewer looks.** `ShellHostUI::padAct
 of `SoundEditor::padAction`'s six root-forwarding arms and its exit tail; what follows is what did
 not come with them.
 
-1. **The two note-editor forwarding arms are not ported.** `gui/ui/sound_editor.cpp:1484`
+1. ~~**The two note-editor forwarding arms are not ported.**~~ **Ported, and reachable since note-family task 8.**
+   The note roots have `MenuContext::Root` enumerators, and `MenuScene::grid_pad_claim` answers
+   `GridPadClaim::None` for both (`scenes/menu/menu_scene.h:518-523`). The guest forwards the two
+   arms by `activeNoteMode()` (`gui/ui/shell_pad_forward.cpp:147`, `:155`). Task 8 gates sites 12
+   and 13 (`gui/ui/shell_menu_entry.cpp`'s table), which is what opens those roots. The record as it
+   was written follows. `gui/ui/sound_editor.cpp:1484`
    (`instrumentClipView.handleNoteEditorEditPadAction`) and `:1493`
    (`instrumentClipView.handleNoteRowEditorPadAction`) are keyed on `inNoteEditor()` /
    `inNoteRowEditor()` (`sound_editor.cpp:1916-1918`, `:1920-1922`), which read

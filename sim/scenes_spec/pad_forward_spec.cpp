@@ -20,7 +20,7 @@
 /// because `activeNoteMode()` reads exactly that. Their performer is pinned without running either
 /// legacy handler: `setNoteModeLegacyCalls` replaces the two `instrumentClipView` calls with
 /// recorders. (Task 7a gated both handlers' `soundEditor` navigation calls -- the legacy arms are now
-/// `gui/views/instrument_clip_view.cpp:3660`, `:3854`, `:3865`, `:3906` -- and `note_mode_reads_spec.cpp` runs them.)
+/// `gui/views/instrument_clip_view.cpp:3677`, `:3894`, `:3905`, `:3946` -- and `note_mode_reads_spec.cpp` runs them.)
 ///
 /// What this deliberately does not cover: the tail's firmware-version diagnostics, out of scope for
 /// this switch -- `shell_pad_forward.h`'s own note says why. And nothing here asks
