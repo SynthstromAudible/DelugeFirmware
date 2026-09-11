@@ -59,9 +59,7 @@ use core::ffi::{CStr, c_char};
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-#[cfg(feature = "async_file_bytes_active")]
 use embassy_sync::mutex::Mutex;
-#[cfg(feature = "async_file_bytes_active")]
 use embassy_sync::mutex::MutexGuard;
 use embassy_sync::signal::Signal;
 
@@ -377,7 +375,6 @@ pub fn drain(slot: &mut BytesSlot) {
 
 /// The filesystem operations this channel needs, behind a trait so the module compiles and is
 /// tested in carriers that have no `crate::efatfs_fs`.
-#[cfg(feature = "async_file_bytes")]
 pub trait ByteOps {
     /// Read the whole of `path` into the front of `into`, returning its length, or the status that
     /// stopped it. A file longer than [`MAX_BYTES`] must report `NO_MEMORY` and NOT a truncated
@@ -515,7 +512,6 @@ impl ByteRequest {
 /// Deliberately trivial. It exists so this channel's shape matches `file_directory::dir_io_once`,
 /// `file_prefix::prefix_io_once` and `audio_loader::load_io_once` -- one named function that is the
 /// whole of the channel's card contact -- rather than because the mapping is subtle.
-#[cfg(feature = "async_file_bytes")]
 pub async fn bytes_io_once<O: ByteOps>(
     ops: &O,
     request: &ByteRequest,
@@ -578,18 +574,15 @@ pub static BYTES_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 ///
 /// A single slot rather than a queue, and unlike `file_directory`'s a newer request never REPLACES
 /// an older one: see the module doc on why a dropped write is not a dropped listing.
-#[cfg(feature = "async_file_bytes_active")]
 static REQUEST: Mutex<CriticalSectionRawMutex, Option<ByteRequest>> = Mutex::new(None);
 
 /// The `(kind, key)` running right now, if any. Exists so the collects can answer `PENDING` rather
 /// than `UNKNOWN` in the window between a request leaving [`REQUEST`] and its answer reaching
 /// [`RESULT`] -- an `UNKNOWN` there would tell the caller to re-request work that is already
 /// running, and it would do so on every tick.
-#[cfg(feature = "async_file_bytes_active")]
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<(ByteOp, BytesPath)>> = Mutex::new(None);
 
 /// The finished operation waiting to be collected. See [`BytesSlot`].
-#[cfg(feature = "async_file_bytes_active")]
 static RESULT: Mutex<CriticalSectionRawMutex, BytesSlot> = Mutex::new(BytesSlot::new());
 
 /// A submitted write's bytes, from the submit until the task copies them into its work buffer.
@@ -601,7 +594,6 @@ static RESULT: Mutex<CriticalSectionRawMutex, BytesSlot> = Mutex::new(BytesSlot:
 /// slots stay on-chip and only the bytes move. On-chip SRAM grows in 64 KiB steps of the C++ fast
 /// heap, so these buffers -- and the task future that used to carry copies of them -- do not belong
 /// there.
-#[cfg(feature = "async_file_bytes_active")]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut REQUEST_BYTES: [u8; MAX_BYTES] = [0; MAX_BYTES];
 
@@ -610,13 +602,11 @@ static mut REQUEST_BYTES: [u8; MAX_BYTES] = [0; MAX_BYTES];
 ///
 /// Its own buffer, not the request buffer, because an eject clears the running mark while the
 /// operation may still be running, and a new write can then be admitted into the request buffer.
-#[cfg(feature = "async_file_bytes_active")]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut WORK_BYTES: [u8; MAX_BYTES] = [0; MAX_BYTES];
 
 /// A published read's bytes, paired with the entry in [`RESULT`]. Reached only through
 /// [`result_bytes`], which demands the `RESULT` guard. Placed as [`REQUEST_BYTES`] is.
-#[cfg(feature = "async_file_bytes_active")]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut RESULT_BYTES: [u8; MAX_BYTES] = [0; MAX_BYTES];
 
@@ -624,7 +614,6 @@ static mut RESULT_BYTES: [u8; MAX_BYTES] = [0; MAX_BYTES];
 ///
 /// Taking the `REQUEST` guard by `&mut` is the point: the borrow checker then proves the lock is held
 /// for every use of the bytes, and that no two references to them are live at once.
-#[cfg(feature = "async_file_bytes_active")]
 fn request_bytes<'g>(
     _guard: &'g mut MutexGuard<'_, CriticalSectionRawMutex, Option<ByteRequest>>,
 ) -> &'g mut [u8; MAX_BYTES] {
@@ -635,7 +624,6 @@ fn request_bytes<'g>(
 }
 
 /// The result buffer, for as long as `guard` is borrowed. See [`request_bytes`].
-#[cfg(feature = "async_file_bytes_active")]
 fn result_bytes<'g>(
     _guard: &'g mut MutexGuard<'_, CriticalSectionRawMutex, BytesSlot>,
 ) -> &'g mut [u8; MAX_BYTES] {
@@ -644,22 +632,16 @@ fn result_bytes<'g>(
 }
 
 /// Grants [`WORK_BYTES`] once.
-#[cfg(all(
-    feature = "async_file_bytes_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 static WORK_CLAIM: ClaimOnce = ClaimOnce::new();
 
 /// The work buffer, to the first caller only. `file_bytes_task` claims it once, at start.
-#[cfg(all(
-    feature = "async_file_bytes_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 fn claim_work_bytes() -> Option<&'static mut [u8; MAX_BYTES]> {
     if !WORK_CLAIM.claim() {
@@ -679,7 +661,6 @@ fn claim_work_bytes() -> Option<&'static mut [u8; MAX_BYTES]> {
 /// carries the generation of the card that has gone and is therefore uncollectable, not
 /// stale-but-live. Unlike `file_directory` there is no scarce handle to strand, so a skipped clear
 /// here costs nothing at all until the next publish overwrites it.
-#[cfg(feature = "async_file_bytes_active")]
 pub(crate) fn flush_tables() {
     if let Ok(mut request) = REQUEST.try_lock() {
         *request = None;
@@ -692,17 +673,12 @@ pub(crate) fn flush_tables() {
     }
 }
 
-/// No byte channel on this build: the statics do not exist and nothing was ever published, so there
-/// is nothing to discard.
-#[cfg(not(feature = "async_file_bytes_active"))]
-pub(crate) fn flush_tables() {}
-
-/// Whether the Rust byte channel backs `file_bytes.h` on this BSP/config -- the switch the C++ side
-/// asks before choosing the async path over doing the I/O itself. The symbol must always exist so
-/// that call site links regardless of which config produced this image; only the return value moves.
+/// Whether the Rust byte channel backs `file_bytes.h` -- always, on this BSP. The C++ side still asks,
+/// because a C++-only build links `file_bytes_abi.cpp`'s weak definition instead, which answers
+/// `false` and keeps that build on its inline path.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_bytes_async_active() -> bool {
-    cfg!(feature = "async_file_bytes_active")
+    true
 }
 
 // ── The request entry points ────────────────────────────────────────────────
@@ -944,7 +920,6 @@ pub unsafe extern "C" fn deluge_file_bytes_request_copy(
 /// `payload` is the request's bytes, empty for every kind but the two writes. It is copied into the
 /// request buffer in the same lock hold that stores the request, so the task can never take a
 /// request whose bytes have not arrived.
-#[cfg(feature = "async_file_bytes_active")]
 fn enqueue_request(request: ByteRequest, payload: &[u8]) -> bool {
     let Ok(mut slot) = REQUEST.try_lock() else {
         return false; // Contended; the caller retries.
@@ -966,20 +941,11 @@ fn enqueue_request(request: ByteRequest, payload: &[u8]) -> bool {
 ///
 /// Contention reports NOT idle, for the same reason [`enqueue_request`] refuses on contention: it is
 /// the direction whose worst case is a retry rather than a request that vanishes.
-#[cfg(feature = "async_file_bytes_active")]
 fn in_flight_idle() -> bool {
     match IN_FLIGHT.try_lock() {
         Ok(in_flight) => in_flight.is_none(),
         Err(_) => false,
     }
-}
-
-/// No driver on this build: drop it. Nothing reaches here in practice -- the C++ side gates on
-/// [`deluge_file_bytes_async_active`], which is false in this configuration. Reports `false` so a
-/// caller that somehow did reach it takes its synchronous arm rather than polling forever.
-#[cfg(not(feature = "async_file_bytes_active"))]
-fn enqueue_request(_request: ByteRequest, _payload: &[u8]) -> bool {
-    false
 }
 
 // ── The collect entry points ────────────────────────────────────────────────
@@ -1381,7 +1347,6 @@ enum Probe<R> {
 /// Reading in the reverse order can report `UNKNOWN` for an operation that has already landed, so
 /// the caller re-requests work that is done -- and for a WRITE, re-running a write is not merely
 /// wasteful, it is a second trip to the card for a change already made.
-#[cfg(feature = "async_file_bytes_active")]
 fn probe_with<R>(
     op: ByteOp,
     path: &str,
@@ -1406,17 +1371,6 @@ fn probe_with<R>(
     }
 }
 
-/// No driver on this build: nothing was ever requested, so nothing is coming. `Unknown`, never
-/// `Pending` -- `Pending` would tell a caller to keep asking forever.
-#[cfg(not(feature = "async_file_bytes_active"))]
-fn probe_with<R>(
-    _op: ByteOp,
-    _path: &str,
-    _ready: impl FnOnce(ByteOutcome, &[u8; MAX_BYTES]) -> R,
-) -> Probe<R> {
-    Probe::Unknown
-}
-
 /// [`probe_with`] for the collects that carry no bytes: just the outcome.
 fn probe(op: ByteOp, path: &str) -> Probe<ByteOutcome> {
     probe_with(op, path, |outcome, _| outcome)
@@ -1428,7 +1382,6 @@ fn probe(op: ByteOp, path: &str) -> Probe<ByteOutcome> {
 /// request in flight while still holding this lock, so a collect racing that handoff finds the lock
 /// taken -- mapping it to `false` here would report `UNKNOWN` for a request mid-handoff, which is
 /// exactly the bug the probe order exists to prevent. Do not "simplify" this branch.
-#[cfg(feature = "async_file_bytes_active")]
 fn is_requested(op: ByteOp, path: &str) -> bool {
     match REQUEST.try_lock() {
         Ok(request) => request.as_ref().is_some_and(|r| r.key() == (op, path)),
@@ -1438,7 +1391,6 @@ fn is_requested(op: ByteOp, path: &str) -> bool {
 
 /// Whether `(op, path)` is the operation running right now. Contention reports `true`, for the same
 /// reason as [`is_requested`] -- and with the same warning.
-#[cfg(feature = "async_file_bytes_active")]
 fn is_in_flight(op: ByteOp, path: &str) -> bool {
     match IN_FLIGHT.try_lock() {
         Ok(in_flight) => in_flight
@@ -1474,12 +1426,9 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 /// The efatfs file operations behind the production ops: the device mount on device, the host shim
 /// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
 /// `file_directory::backing` uses, and for the same reason.
-#[cfg(all(
-    feature = "async_file_bytes",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 mod backing {
     #[cfg(target_os = "none")]
@@ -1498,21 +1447,15 @@ mod backing {
 
 /// The real [`ByteOps`], wired to the efatfs task-context file table. Holds no state: every
 /// operation is keyed by path.
-#[cfg(all(
-    feature = "async_file_bytes",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 pub struct ProdByteOps;
 
-#[cfg(all(
-    feature = "async_file_bytes",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 impl ProdByteOps {
     pub fn new() -> Self {
@@ -1568,12 +1511,9 @@ impl ProdByteOps {
     }
 }
 
-#[cfg(all(
-    feature = "async_file_bytes",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 impl ByteOps for ProdByteOps {
     async fn read_all(&self, path: &str, into: &mut [u8; MAX_BYTES]) -> Result<usize, i8> {
@@ -1830,12 +1770,9 @@ impl ByteOps for ProdByteOps {
 /// published failure ends that: it is terminal, exactly as a published answer is, and it carries the
 /// status so the caller can tell "no such file, write the defaults" from "the card is unreadable,
 /// write nothing".
-#[cfg(all(
-    feature = "async_file_bytes_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 #[embassy_executor::task]
 pub async fn file_bytes_task() {
@@ -1874,12 +1811,9 @@ pub async fn file_bytes_task() {
 /// before any I/O, because that is what makes it mean "the card this operation is touching". Reading
 /// it later -- at publish time -- reads the value a flush has already installed and defeats the
 /// check entirely.
-#[cfg(all(
-    feature = "async_file_bytes_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<(ByteRequest, u32)> {
     let mut slot = REQUEST.lock().await;
@@ -1901,7 +1835,6 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<(ByteRequest, u
 ///
 /// Also the seam the host tests drive to exercise the collects' IN_FLIGHT branch, which no test
 /// could reach otherwise because no test runs the task.
-#[cfg(feature = "async_file_bytes_active")]
 pub async fn mark_in_flight(entry: Option<(ByteOp, BytesPath)>) {
     *IN_FLIGHT.lock().await = entry;
 }
@@ -1923,7 +1856,6 @@ pub async fn mark_in_flight(entry: Option<(ByteOp, BytesPath)>) {
 /// A `Bytes` or `Block` answer's bytes are copied from `work` into the result buffer in the same
 /// lock hold as the entry, so no collect can pair this entry with the previous answer's bytes, or
 /// the previous entry with these.
-#[cfg(feature = "async_file_bytes_active")]
 pub async fn publish_result(
     op: ByteOp,
     key: &str,

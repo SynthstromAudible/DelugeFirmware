@@ -6,7 +6,6 @@
 //! `tests/file_directory_host.rs` and `tests/file_prefix_host.rs` use. Like the directory channel it
 //! borrows nothing from `audio_loader`: reading a whole file and writing one back are not `LoadOps`'s
 //! four operations, so it declares its own three-operation trait and comes along alone.
-#![cfg(feature = "async_file_bytes")]
 #![cfg(not(target_os = "none"))]
 
 #[path = "../src/file_bytes.rs"]

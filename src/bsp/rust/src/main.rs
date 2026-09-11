@@ -220,8 +220,8 @@ mod fiber;
 /// storage tier and hand the BYTES to a caller that must not wait on the card. Gated identically to
 /// `file_directory` above, and to `card` — which reaches this module's `flush_tables` and so must
 /// never be compiled without it. The four settings consumers (runtime feature settings, the MIDI
-/// device table, MIDI follow's defaults, performance view) only enter this channel when
-/// `async_file_bytes_active` is on; both of the features are off by default.
+/// device table, MIDI follow's defaults, performance view) always enter this channel after boot: it
+/// has no feature switch.
 ///
 /// Unlike `file_prefix` it borrows nothing from `audio_loader`: reading a whole file and writing one
 /// back are not `LoadOps`'s four operations, so it declares its own three-operation trait.
@@ -462,7 +462,7 @@ fn stream_sgi_handler() {
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
         feature = "async_file_directory_active",
-        feature = "async_file_bytes_active",
+        feature = "efatfs_streaming",
         feature = "async_file_write_active"
     )
 ))]
@@ -487,7 +487,7 @@ async fn stream_bootstrap() {
     spawner.spawn(file_directory::file_directory_task().unwrap());
     // And again: every one of `task_file_open`/`_read_exact`/`_write`/`_truncate` and `task_rename`
     // goes through `with_fs`, so this task holds the FS mutex across an SD await too.
-    #[cfg(all(feature = "async_file_bytes_active", feature = "efatfs_streaming"))]
+    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(file_bytes::file_bytes_task().unwrap());
     // The recorder's cluster write. Same reason as its neighbours: `stream_write_at` goes through
     // `with_fs`, so this task holds the FS mutex across an SD await.
@@ -613,7 +613,7 @@ pub extern "C" fn main() -> ! {
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
         feature = "async_file_directory_active",
-        feature = "async_file_bytes_active",
+        feature = "efatfs_streaming",
         feature = "async_file_write_active"
     ))]
     STREAM_EXEC
@@ -624,7 +624,7 @@ pub extern "C" fn main() -> ! {
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
         feature = "async_file_directory_active",
-        feature = "async_file_bytes_active",
+        feature = "efatfs_streaming",
         feature = "async_file_write_active"
     )))]
     let _ = STREAM_EXEC.start(STREAM_SGI);
@@ -1261,7 +1261,6 @@ fn main() {
                         spawner.spawn(file_prefix::file_prefix_task().unwrap());
                         #[cfg(feature = "async_file_directory_active")]
                         spawner.spawn(file_directory::file_directory_task().unwrap());
-                        #[cfg(feature = "async_file_bytes_active")]
                         spawner.spawn(file_bytes::file_bytes_task().unwrap());
                         #[cfg(feature = "async_file_write_active")]
                         spawner.spawn(file_write::file_write_task().unwrap());

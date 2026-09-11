@@ -216,7 +216,7 @@ embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = f
 embedded-io-async = { version = "0.7.0", optional = true }
 
 [features]
-default = ["rtt", "async_streaming_loader", "async_audio_load", "efatfs_streaming", "async_file_bytes_active"]
+default = ["rtt", "async_streaming_loader", "async_audio_load", "efatfs_streaming"]
 
 ## RTT (SEGGER Real-Time Transfer) logging over a debug probe: selects the
 ## rza1l_rtt.x linker script (via build.rs) and registers the log logger.
@@ -359,29 +359,6 @@ async_file_directory = []
 ## Implies `async_file_directory`, so the switch cannot be turned on in a build
 ## where the task that serves the request was never compiled.
 async_file_directory_active = ["async_file_directory"]
-
-## BUILD the Rust whole-file driver (`file_bytes.rs`) -- the read/write/rename
-## behind `include/libdeluge/file_bytes.h`, which carries a whole small file's
-## BYTES to a caller rather than making it spin in `deluge_efatfs_file_*`'s
-## `block_on`. Off by default, for the same reason the two above are: the four
-## settings consumers only enter this channel when `async_file_bytes_active`
-## below is on, so compiling the driver everywhere would widen the default build
-## for a path nothing reaches.
-##
-## Implies NOTHING, like `async_file_directory`: reading a whole file and writing
-## one back are not the audio loader's `LoadOps`, so this module declares its own
-## three-operation trait and pulls in no sibling.
-async_file_bytes = []
-
-## THE SWITCH: the sole input to `deluge_file_bytes_async_active()`, and the only
-## thing that makes the slot statics and the task exist at all. Off by default,
-## and separate from `async_file_bytes` above for the same reason every other
-## pair is separated -- compiling the driver is a build-hygiene question, routing
-## real settings reads and writes through it is a behavioural flip.
-##
-## Implies `async_file_bytes`, so the switch cannot be turned on in a build where
-## the task that serves the request was never compiled.
-async_file_bytes_active = ["async_file_bytes"]
 
 [build-dependencies]
 # Generate Rust signatures + POD types from the canonical libdeluge C headers so
