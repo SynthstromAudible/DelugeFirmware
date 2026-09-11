@@ -736,6 +736,139 @@ git commit -m "feat(guest): legacy's note-editor reads and menu calls see the po
 
 ---
 
+### Task 8a: The focused column's highlight follows legacy's three-way setting
+
+*Inserted by controller ruling during execution (ledger, "Ruling (A)"), before Task 8 resumes. The evidence is
+`.superpowers/sdd/2026-09-10-note-family/task-8-investigation.md` §(A). Read it first.*
+
+**Why.** Task 8's level-3 A/B compares the two legs' OLED byte for byte, and it fails on every note-editor panel. Legacy's
+horizontal menu picks its focused-column highlight from a three-way setting (`gui/menu_item/horizontal_menu.cpp:268-283`).
+The level-3 legacy leg runs with the default `PARTIAL_INVERSION` (`storage/flash_storage.cpp:365`; the sim's flash reads as
+erased, and gdb showed `hl=1` on both legs), which draws an **underline**. The port has a single bool,
+`Style::invert_highlight = true` (`src/ui/core/style.h:54`, `:67`). `src/ui/oled/columns.cpp:287` reads that bool as
+`FULL_INVERSION`, while every other reader (lists, popups, `text_edit`, the browser, the notification strip) reads it as "not
+`NO_INVERSION`". The FULL reading for columns came from `ui/toolkit` (`41f14521c`, `a909ae306`) and no spec or plan records
+deciding it.
+
+**Files** (from the investigation's option 1; confirm each against the tree):
+- Modify: `src/ui/core/style.h` (the field), `src/shell/profiles/deluge.cpp` (`:96`, the `constexpr` profile style) and any
+  other profile.
+- Modify: `src/ui/oled/columns.cpp`, `columns.h`.
+- Modify (spelling only, behaviour unchanged): `src/ui/oled/list.cpp` (`:157`, `:171`), `popup.cpp` (`:251`, `:266`, `:371`),
+  `text_edit.cpp` (`:70`, `:84`), `src/scenes/browser/browser_scene.cpp` (`:960-961`). Also update their headers' docs.
+- Test: `tests/spec/ui/columns_spec.cpp`. Spelling updates in `list_spec` (`:301`, `:349`), `text_edit_spec` (`:152`,
+  `:172`) and `option_window_spec` (`:247`).
+- Goldens re-recorded: **exactly these 12**. Any other golden change is a finding: stop and report.
+  - Toolkit: `tests/golden/ui/widgets/columns_four_48`, `columns_four_64`, `columns_page2_48`, `columns_paged_48`,
+    `columns_wide_48`.
+  - Scenes spec: `ui/menu/menu_lpf_columns_48`, `menu_lpf_columns_64`, `ui/menu/tables1_lpf_48`.
+  - Level 2: `ui/shell/menu_submenu_horizontal/idle`, `after_select_turn`, `after_kit_press`, `after_back`.
+
+**Interfaces.**
+- **The field:** a three-way enum in `deluge::ui` mirroring legacy's `MenuHighlighting` — `NoInversion`, `PartialInversion`,
+  `FullInversion`, spelled per `src/ui` naming. It replaces `invert_highlight`. The shipped profile value is
+  `PartialInversion`.
+- **Columns:** invert the focused label only on `FullInversion`. Draw the underline on `PartialInversion`. On `NoInversion`,
+  do exactly what legacy does; port its arm from `horizontal_menu.cpp:268-283`, cited.
+- **Everything else** that read the bool: invert on `!= NoInversion`. That is today's behaviour, so their pixels must not change.
+
+- [ ] **Step 1: Failing examples** in `columns_spec.cpp`:
+  - the underline on `PartialInversion`;
+  - inversion kept on `FullInversion` (re-pin the current inversion assertions at `:444-466` and `:629-650` to a
+    `FullInversion` rig, so FULL keeps its coverage);
+  - `NoInversion` per legacy.
+
+  `matches_legacy` (`:421-422`, `:791-792`) must derive legacy's `full_inversion` from `== FullInversion`. The existing
+  underline example at `:654-672` stays valid; re-spell it.
+- [ ] **Step 2: Implement.** One field, all readers re-spelled, and the profile ships `PartialInversion`.
+- [ ] **Step 3: Re-record.** Run with `GFX_GOLDEN_UPDATE=1`, then without, twice. **Read every changed golden.** Only the 12 may
+  change, and in each the only difference is the focused column's inverted label becoming an underline (plus any label glyphs
+  that were drawn inverted). Describe each golden in your report. **No level-3 golden may change**, because no committed
+  level-3 panel shows a focused horizontal column. `git status --short tests/fixtures/` must be clean.
+- [ ] **Step 4: Record the gap you do not close.** `src/scenes/menu/nodes/settings.h:98-101` already records that the port
+  does not follow the user's live highlight setting. Reword that note to name the new field. Do not build the live follow.
+- [ ] **Step 5: Whole gate block, then commit** named paths only (the files above plus the 12 goldens by name):
+  `git commit -m "fix(ui): the focused column's highlight follows legacy's three-way setting, shipped at partial inversion"`
+
+---
+
+### Task 8b: The horizontal-menu notification occupies legacy's notification slot
+
+*Inserted by controller ruling during execution (ledger, "Ruling (B)+(C)"), after Task 8a and before Task 8 resumes. The
+evidence is `.superpowers/sdd/2026-09-10-note-family/task-8-investigation.md` §(B) and §(C). Read both first.*
+
+**Why.**
+- **Legacy.** `HorizontalMenu` raises the column notification (on a KIT/SYNTH/MIDI/CV focus press and on a select turn) as
+  a **top banner** typed `PopupType::NOTIFICATION`, in the display's single popup slot (`OLED::displayNotification`; see the
+  investigation's B.1 for the exact lines).
+- **Port.** `MenuScene::notify_column` (`src/scenes/menu/menu_scene.cpp:~791`) raises it as a `Notice::Kind::Console` notice
+  scoped by `kPopupTypeNotification`.
+- **Two consumers race.** In the app, that notice has two consumers that pop the same queue: legacy's `drain_notifications`
+  (`gui/ui/ui.cpp:387` → `gui/ui/notify_drain.cpp:146-147` → `display->consoleText`) and the shell's `Notices::drain`
+  (`src/shell/shell.cpp:327` → `ConsoleScene`, unframed at the bottom, `src/shell/notices.cpp:159-179`). Which one wins is the
+  scheduler's call; the race is recorded at `src/deluge/gui/ui/shell_host_ui.cpp:1170-1177`.
+- **Consequence for Task 8's A/B.** The banner lands in the wrong place.
+- **(C) follows from the missing popup.** On the gold turn, legacy's `View::modEncoderAction` suppresses its "LPF frequency"
+  popup only while a `NOTIFICATION` popup is up (`gui/views/view.cpp:1220`, `:1300-1302`). Legacy's column banner is that
+  popup. The port's console line is not, so the port draws the param popup, and the leftover console line garbles the columns.
+
+**The design (controller ruling — build this, not an alternative):**
+1. **A notice kind for it.** Add `Notice::Kind::Notification`, carrying a title and a value (the legacy
+   `displayNotification(title, value)` pair), in `src/notify/notice_queue.h`, with a matching raise helper beside
+   `notice_text`. `notify_column` raises it, and no longer raises a Console notice.
+2. **The legacy consumer** (`src/deluge/gui/ui/notify_drain.cpp`) maps it to `display->displayNotification(title, value)`.
+3. **The shell consumer** (`src/shell/notices.cpp`):
+   - if a **notification sink** is installed, call it with (title, value) and push nothing;
+   - otherwise push a **transparent, top-pinned, input-transparent banner scene** drawn with the existing widget
+     `deluge::ui::oled::notification(frame, title, value)` (`src/ui/oled/popup.h:269-301`), with legacy's lifetime and
+     replacement semantics for `displayNotification` (cite them).
+   The sink is a plain function pointer in `src/shell` (no legacy include), installed once at boot from a `gui/ui` translation
+   unit. Put the call beside `deluge.cpp`'s `wireShellNoteBridge()`. The sink routes to `display->displayNotification`, following
+   the note bridge's installer shape (`gui/ui/shell_note_bridge.cpp`).
+4. **Why this settles the race for this kind.** In the app, whichever consumer pops the notice, the result is the same legacy
+   call, so legacy's `NOTIFICATION` slot is occupied deterministically. That fixes (C)'s banner half, and with no console line
+   left, the garble is gone too. In level-2 and scenes-only builds (no sink, no legacy display), the port banner scene draws it.
+5. **The cancel.** Migrate `kPopupTypeNotification`'s scoped cancel, the `CancelConsole` scoping Task 2 added in `5dfe02adf`,
+   to the new kind. With the sink, legacy's equivalent is `display->cancelPopup()` when `hasPopupOfType(NOTIFICATION)`; cite
+   where legacy cancels the column banner. Without the sink, the shell removes its banner scene. Keep every other `CancelConsole`
+   use unchanged.
+6. **Out of scope** (record, don't build). The general dual-drain race for every *other* notice kind stays as recorded; update
+   the note at `shell_host_ui.cpp:1170-1177` to say column notifications no longer race and why. Task 9 carries the rest.
+
+**Files:** `src/notify/notice_queue.h` (plus its `.cpp`); `src/scenes/menu/menu_scene.cpp` (`notify_column` and the cancel);
+`src/shell/notices.h`/`.cpp` (the drain arm, the sink, the banner scene; a new scene file if the existing pattern puts scenes in
+their own files); `src/deluge/gui/ui/notify_drain.cpp`; a `gui/ui` installer (a new small TU or an existing seam, argued, and
+added to `scripts/check_layer_rules.py`'s `LEGACY_PORT_SEAMS` if it names both sides); `src/deluge/deluge.cpp` (the boot call);
+`sim/scenes_spec/menu_horizontal_controls_spec.cpp` (its examples at `:340`, `:434`, `:463`, `:488` exercise the Console route
+and cancel: migrate them); the shell and notify specs that pin notice kinds (find them); `tests/spec/gui/` for the legacy
+consumer arm, if that suite covers `notify_drain` (`notify_drain_mapping.cpp` is built there).
+
+**Goldens:** exactly **2** committed level-2 goldens may change: `tests/golden/ui/shell/menu_submenu_horizontal/after_select_turn`
+and `after_kit_press`. The strip over the columns becomes a top banner. Task 8a will already have re-recorded these for the
+underline, so read them against 8a's versions. Any other golden change is a finding: stop and report. No level-3 golden may
+change, because no committed level-3 panel shows the notification.
+
+- [ ] **Step 1: Failing examples.**
+  - `notify_column` raises `Notification` (title, value) on the focus press and the select turn, and no Console notice.
+  - The shell drain with no sink pushes the banner scene: top-pinned, transparent, input-transparent, drawn with
+    `ui::oled::notification`.
+  - The shell drain with a sink calls it once with (title, value) and pushes nothing.
+  - The legacy consumer calls `displayNotification` (in the gui suite, if `notify_drain` is covered there; otherwise argue it and
+    pin the mapping).
+  - The migrated cancel removes the banner (no sink) and calls the sink-side cancel (sink), and leaves other Console lines alone.
+  - Replacement and lifetime per legacy.
+- [ ] **Step 2: Implement.**
+- [ ] **Step 3: Re-record and read.** Run with `GFX_GOLDEN_UPDATE=1`, then twice without. Only the 2 goldens may change; describe
+  each. The level-3 A/B (`ui_app_scripts_menu_ab`) must stay green at HEAD's script. Task 8's gestures are parked and not in the
+  tree. `git status --short tests/fixtures/` must be clean.
+- [ ] **Step 4: Fix the two stale script comments** that say the toggle-on gold turn goes to `services::ModKnobs`:
+  `tests/ui-scripts/app/menu.txt:62` (HEAD). The gold turn stays on legacy `View` under the guest (`shell_host_ui.h:66`). This
+  is a comment change only, with no golden change.
+- [ ] **Step 5: Whole gate block, then commit** named paths only:
+  `git commit -m "fix(menu): the horizontal notification occupies legacy's notification slot, in both drains"`
+
+---
+
 ### Task 8: Gate sites 12 and 13, and let the A/B see both modes
 
 **Files:**
@@ -796,6 +929,15 @@ git add src/deluge/gui/views/instrument_clip_view.cpp src/deluge/gui/ui/shell_me
 git commit -m "feat(guest): gate sites 12 and 13 -- the note editors open ported, and the A/B drives them"
 ```
 
+
+### Task 8 resume notes (controller rulings after the BLOCKED run; ledger "Ruling (D)", "Ruling (order)")
+
+- The first run is parked in `git stash` (`8ce4c6a8a`) with backups in the workspace; the controller restores it before you resume. Its `menu_shell/` goldens recorded wrong ported output and are re-recorded, not kept.
+- Tasks 8a (the focused column's three-way highlight) and 8b (the column notification in legacy's `NOTIFICATION` slot, both drains) land first; the A/B failures (A), (B), (C) in `task-8-investigation.md` are theirs.
+- **Gate 13 also requires the legacy sound editor not to be the current UI:** `shellMenuEnabled() && getCurrentUI() != &soundEditor`. Otherwise `gui/ui/sound_editor.cpp:1403-1409` (audition + pad (4,7) inside a legacy sound editor opened by SHIFT+pad, ungated site 9) stacks the guest on `soundEditor` and diverges after the first Back (investigation §(D), option 1; 0 goldens). Say so in table row 13.
+- Fix `tests/ui-scripts/app/menu.txt`'s new-gesture comment (~`:377` in the parked run) that says the gold turn goes to `services::ModKnobs`: under the guest it stays on legacy `View` (`shell_host_ui.h:66`). 8b fixes the pre-existing one at `:62`.
+- Re-record all 28 goldens on both legs after 8a and 8b, read every panel, and the A/B must pass; then determinism, both mutations, the gate block.
+
 ---
 
 ### Task 9: Record what shipped, in the tree
@@ -821,6 +963,61 @@ git add src/scenes/README.md docs/superpowers/specs/2026-08-26-ui-migration-desi
         docs/superpowers/specs/2026-08-26-ui-scenes-menus-design.md docs/superpowers/specs/2026-08-26-ui-toolkit-design.md
 git commit -m "docs: what the note family and the menu input mapping carry, defer and fixed"
 ```
+
+---
+
+### Controller additions (from the execution ledger; the plan's Task 9 text predates them)
+
+**A. More carry rows for Step 1** — each with its legacy citation and what closing it needs. Verify every line with `sed -n`
+before writing it; these were measured during execution and lines may have moved since.
+1. **Shell LED send-on-change vs legacy direct LED writes.** The shell records LED state and sends only on change
+   (`led_send_needed`, `src/shell/leds.cpp:75-80`, verified by the controller), while legacy writes LEDs directly without updating that record, so an Off can go unsent. The
+   level-3 port leg keeps `led Synth on` where legacy has it off. Pre-existing.
+2. **Legacy edits the auditioned row under the sound roots.** In the regular sound editor, holding an audition pad
+   (`gui/ui/sound_editor.cpp:1499-1503`) while in Play Direction (`sequenceDirectionMenu`, `gui/ui/menus.cpp:1774`, `:1802`,
+   `:1952`, `:1964`) latches `selectedNoteRow` (`gui/menu_item/sequence/direction.h:118`), and legacy edits that row
+   (`potentiallyRefreshNoteRowMenu`, `gui/views/instrument_clip_view.cpp` — find its current lines). Under `Root::Sound`/`MidiOrCv`
+   the port shows the clip-wide value. Recorded in `scenes/menu/bindings.cpp`'s sequence-direction note. Porting it is Kate's call.
+3. **The deferred note exit.** When a scene covers the menu (console strip, "Select Note"/"Select Row" popup, screensaver) at a
+   sidebar or note-row-editor pad close, `exitNoteEditor`/`exitNoteRowEditor` waits for `closeGuest` while `activeNoteMode()`
+   already answers `None`. Legacy exits at once (`gui/ui/sound_editor.cpp:749-761`). Recorded at
+   `src/deluge/gui/ui/shell_host_ui.cpp` (`closeGuest`'s doc block, ~`:1157-1189`). The evidence is source reading and
+   scheduler-dependent.
+4. **Forwarded input never wakes the shell screensaver.** The pad forward (from `ui/pads-1`) and the note mode's button,
+   encoder and pad forwards act while the screensaver stays up; legacy wakes it on every input and still delivers it.
+5. **The note-menu toggle's column memory.** Entering the note menu from the note-row editor always lands on column 0, while
+   legacy's `HorizontalMenu` keeps `current_item_` (`gui/menu_item/horizontal_menu.cpp:40-48`, `submenu.cpp:11-34`). The same
+   mechanism as carry 5. Recorded at `src/scenes/menu/menu_scene.h` (`enter_submenu`'s doc, ~`:952-963`). Add a row, or extend
+   carry 5's row to name this second path.
+6. **`MenuScene::open`'s cursor-memory divergence** (from `ui/pads-1`) is **already carry 5** (`src/scenes/README.md`, ~`:1678-1697`, verified by the controller: "the port always reopens on the first row", with the level-3 `17100 encoder Select -5` convergence gesture). Do not add a row; item 5 extends carry 5 with the note-menu toggle as a second path.
+7. **Pads-1's** `bindings::FeedbackHook` row is already in Step 1's list, so don't add it twice.
+8. **The dual notice drain for every kind other than the column notification.** In the app, legacy's `drain_notifications` (`gui/ui/ui.cpp:387`) and the shell's `Notices::drain` (`src/shell/shell.cpp:327`) pop the same queue and race; Task 8b settles it only for `Notice::Kind::Notification`. Recorded at `src/deluge/gui/ui/shell_host_ui.cpp` (~`:1170-1177`, updated by 8b).
+9. **Audition + shortcut pad is swallowed inside the ported menu** (pre-existing, `ui/pads-1`). Legacy's `[audition pad] + [sequence direction pad]` opens the note-row editor from inside a sound-editor menu (`gui/ui/sound_editor.cpp:1403-1409`); under the guest `ShellHostUI::claimsGridPad` claims only shifted main-grid pads and `forwardGridPad`'s tail needs `UI_MODE_NONE`, so the gesture is dropped. Recorded at `shell_host_ui.cpp` (~`:770-773`).
+10. **The live highlight setting.** Task 8a ships `PartialInversion` as the profile style; following the user's accessibility setting live stays the gap `src/scenes/menu/nodes/settings.h` (~`:98-101`) records.
+
+**B. The branch-wide citation sweep (controller ruling, ledgered): Task 9 owns it, after the last code change.**
+- **Exit criterion:** `python3 scripts/check_citation_shift.py 23aae2ef2..HEAD` reports **zero** moved endpoints. In addition,
+  bare `(:NNN)` self-citations near every edited hunk are hand-checked.
+- **Known movers:**
+  - `src/deluge/deluge.cpp` shifted +1 after line 25 (Task 4's include). About 36 citations are affected, including
+    `sim/scenes_spec/support/song_fixture.h:9`'s bare `:746` and the note-family spec/plan's `deluge.cpp:804`.
+  - `src/deluge/gui/ui/shell_host_ui.cpp` shifted by +1…+68 (Task 7).
+  - Task 7a's insertions moved `README.md:1183`, `midi_learn.h:89`, and Task 7's `instrument_clip_view.cpp` lines in
+    `shell_note_mode.{h,cpp}` and `sim/scenes_spec/note_mode_spec.cpp`.
+- **Scope:** the sweep will touch files outside this brief's Files list (`src/`, `sim/`, `tests/`, `docs/`). Commit each by name.
+
+**C. Hand-checks the shift checker cannot see.** These were stale before its base.
+- `src/scenes/menu/menu_scene.h:19` cites `goUpOneLevel :672` / `exitCompletely :678` in `sound_editor.cpp` (stale since
+  2026-08-29).
+- `src/scenes/services/global_controls.h`'s "pre-UI section" cites `hid/buttons.cpp` `:88-95`, `:100-107`, `:109-113`,
+  `:114-120`, `:122-127`, `:128-131`. The AFFECT_ENTIRE arm is actually `:108-112`, so all of these are likely one line stale.
+- `src/scenes/services/global_controls.cpp:259` cites `:356`, which is one line above `changeFillMode`.
+
+**D. A pre-existing doc/code mismatch to record or fix.** `src/scenes/overlay/param_popup_scene.h:194-195`'s docstring says the
+popup never takes input (`:194`), but `input_transparent()` returns `true` (`:195`) — path and lines verified by the controller.
+
+**Already fixed, so do not redo:** `global_controls.h:144-150` and `global_controls.cpp:250-253`'s note-editor records, and the
+`LEGACY_PORT_SEAMS` comment for `shell_note_mode.cpp` (Task 7a).
 
 ---
 

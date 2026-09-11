@@ -24,6 +24,7 @@ revision makes on the evidence, each stated where it lands:
 | 5 | reusing `sequence_direction` under the note-row root is free | legacy edits the **auditioned row** there, an arm the port never wrote | §5.5 |
 | 6 | (not addressed) | a select press on a horizontal value column follows **that column's** chain or goes up a level; the port only raises a notification | §3.1-3.2 |
 | 7 | (not addressed) — only SoundEditor's eight sites branch on the note mode | legacy's forwarded handlers and offset functions ask `getCurrentUI() == &soundEditor && inNote*Editor()` **21 more times** and dereference the null navigation record for `readValueAgain`/`goUpOneLevel`/`toggleNoteEditorParamMenu` | §4 |
+| 8 | (not addressed) — the ported horizontal page renders like legacy's | Task 8's level-3 A/B: the port **inverts** the focused column where legacy (at its default) **underlines** it, and draws the column notification as a console line at the bottom where legacy draws a top banner in its `NOTIFICATION` popup slot — which legacy's gold-knob popup also consults | §4 |
 
 And one site the first version thought needed code needs none: site 5 (§4).
 
@@ -212,6 +213,8 @@ reads see the ported mode and those calls reach the ported menu: two legacy-side
 `noteEditorOpen()`/`noteRowEditorOpen()`, replace the pure reads; each navigation call becomes a
 gated pair in site 6's spelling whose port arm is the legacy call's port. The legacy leg is unchanged
 whenever the ported menu is closed. The plan's Task 7a carries it.
+
+**Found by the level-3 A/B — correction 8.** Task 8 put the note editors in front of the A/B and five panels failed on causes older than this branch. (A) `Style::invert_highlight` is read as full inversion by the columns only (`src/ui/oled/columns.cpp`), while legacy's default `PARTIAL_INVERSION` underlines (`gui/menu_item/horizontal_menu.cpp:268-283`, `storage/flash_storage.cpp:365`). (B) the column notification is a `Console` notice that legacy's and the shell's drains race for, instead of legacy's top `NOTIFICATION` banner. (C) with no `NOTIFICATION` popup up, legacy's own gold-knob arbitration draws a popup the legacy leg suppresses (`gui/views/view.cpp:1220`, `:1300-1302`). The plan's Tasks 8a and 8b carry (A) and (B)+(C); Task 8's gate 13 also stays legacy while the legacy sound editor is the current UI. Evidence: `.superpowers/sdd/2026-09-10-note-family/task-8-investigation.md`.
 
 ## 5. The menu side
 
