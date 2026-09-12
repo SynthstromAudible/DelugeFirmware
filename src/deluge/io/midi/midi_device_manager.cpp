@@ -479,8 +479,14 @@ bool anythingWorthWriting() {
 }
 
 void writeDevicesToFile() {
-	// The "nothing worth writing" test comes FIRST, and stays on the owner arm when it fires: its
-	// action is an UNLINK, which this channel does not carry. Everything past it is a real write.
+	if (deluge::storage::bytes::usingByteChannel() && anyChangesToSave && !anythingWorthWriting()) {
+		// Nothing worth keeping: remove the file -- the unlink the owner arm below makes inline, carried by the channel
+		// instead. A file that is already gone counts as removed.
+		if (deluge::storage::bytes::submitUnlink(MIDI_DEVICES_XML)) {
+			anyChangesToSave = false;
+			return;
+		}
+	}
 	if (deluge::storage::bytes::usingByteChannel() && anyChangesToSave && anythingWorthWriting()) {
 		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
 		// dies at the end of this scope, which is safe because `submitWrite` copies.

@@ -205,6 +205,10 @@ enum class Step : uint8_t {
 	/// Wait for it. A creation nobody waited for would leave its answer in the slot and its failure
 	/// unnoticed -- see `submitMkdirAll`.
 	MkdirAllCollect,
+	/// Ask for a file to be removed.
+	UnlinkRequest,
+	/// Wait for the removal. A file that was never there is success, not failure -- see `submitUnlink`.
+	UnlinkCollect,
 };
 
 /// The one operation in flight, if any.
@@ -258,7 +262,7 @@ char g_buffer[DELUGE_FILE_BYTES_MAX_BYTES];
 /// Owns everything the operation needs, so its submitter can return at once: the path is copied, and a write's
 /// bytes are copied onto the heap -- the on-chip @ref g_buffer holds only the operation in flight.
 struct WaitingOp {
-	Step first = Step::Idle; ///< `ReadRequest`, `WriteRequest` or `MkdirAllRequest`
+	Step first = Step::Idle; ///< `ReadRequest`, `WriteRequest`, `MkdirAllRequest` or `UnlinkRequest`
 	std::string path;
 	const char* legacyPath = nullptr;
 	ParseFn parse = nullptr;
@@ -343,6 +347,8 @@ void abandonChannel() {
 	}
 	case Step::WriteRequest:
 	case Step::WriteCollect:
+	case Step::UnlinkRequest:
+	case Step::UnlinkCollect:
 		finishWith(SettingsOutcome::WriteFailed);
 		return;
 	case Step::ReadRequest:
@@ -414,6 +420,14 @@ bool submitMkdirAll(const char* path, DoneFn onDone, void* ctx) {
 		return false;
 	}
 	g_waiting.push_back(WaitingOp{.first = Step::MkdirAllRequest, .path = path, .onDone = onDone, .ctx = ctx});
+	return true;
+}
+
+bool submitUnlink(const char* path, DoneFn onDone, void* ctx) {
+	if (!usingByteChannel() || !keyable(path)) {
+		return false;
+	}
+	g_waiting.push_back(WaitingOp{.first = Step::UnlinkRequest, .path = path, .onDone = onDone, .ctx = ctx});
 	return true;
 }
 
@@ -623,6 +637,38 @@ void serviceRoutine() {
 			// Displaced before we took it. The bytes are still held, so re-issue -- writing the same
 			// bytes twice reaches the same state.
 			g_pending.step = Step::WriteRequest;
+			return;
+		}
+		return;
+
+	case Step::UnlinkRequest:
+		switch (requestUnlink(g_pending.path)) {
+		case ByteIo::Pending:
+			g_pending.step = Step::UnlinkCollect;
+			return;
+		case ByteIo::Unknown:
+			return; // Refused this tick; ask again on the next one.
+		case ByteIo::Ready:
+		case ByteIo::Failed:
+			finishWith(SettingsOutcome::WriteFailed); // Unkeyable path: re-requesting will never help.
+			return;
+		}
+		return;
+
+	case Step::UnlinkCollect:
+		switch (collectUnlink(g_pending.path, &status)) {
+		case ByteIo::Ready:
+			finishWith(SettingsOutcome::Written);
+			return;
+		case ByteIo::Failed:
+			// A file that was never there is exactly the state a removal asks for.
+			finishWith(status == DELUGE_ERR_NOT_FOUND ? SettingsOutcome::Written : SettingsOutcome::WriteFailed);
+			return;
+		case ByteIo::Pending:
+			return;
+		case ByteIo::Unknown:
+			// Displaced before we took it. Removing a file twice reaches the same state.
+			g_pending.step = Step::UnlinkRequest;
 			return;
 		}
 		return;

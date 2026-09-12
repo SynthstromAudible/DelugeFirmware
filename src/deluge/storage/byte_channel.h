@@ -358,6 +358,16 @@ bool submitMkdirAll(const char* path, DoneFn onDone = nullptr, void* ctx = nullp
 ///       @p onDone still fires exactly once.
 bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDone = nullptr, void* ctx = nullptr);
 
+/// @brief Take a file removal through the channel, driven to completion by @ref serviceRoutine.
+///
+/// @param path   The file to remove. COPIED.
+/// @param onDone Called exactly once when the removal ends: `Written` when the file is gone -- including when it was
+///               never there, which is what a removal wants -- or `WriteFailed`. May be nullptr.
+/// @param ctx    Passed through to @p onDone.
+/// @return true when the channel took it, in flight or queued. **false when the caller must remove the file itself**,
+///         because the channel is not the place for it here or @p path does not fit. A busy channel is never a false.
+bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr);
+
 /// @brief Run @p fn where blocking on the card is legal: on the storage owner, or inline if already
 ///        there.
 ///

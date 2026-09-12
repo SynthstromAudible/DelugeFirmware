@@ -19,6 +19,7 @@
 
 #include "gui/views/performance_view.h"
 #include "io/file.hpp"
+#include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
 #include "libdeluge/file_bytes.h"
@@ -97,6 +98,9 @@ enum class Stage : uint8_t {
 	HeadWrite,
 	HeadWait,
 	HeadCheck,
+	UnlinkWrite,
+	UnlinkWait,
+	UnlinkCheck,
 	Fallback,
 	Restore,
 	RestoreWait,
@@ -128,6 +132,18 @@ int32_t g_markerDropsBefore = 0;
 /// The DIN ports' clock setting as the scenario found it. The head stage changes it to make the MIDI device table
 /// worth writing; the restore puts it back.
 bool g_originalSendClock = true;
+/// Upstream USB cable 2's MPE zones as the scenario found them, input then output port. That cable is constructed with
+/// MPE on, which alone makes the device table worth writing; the unlink stage turns the zones off and the restore puts
+/// them back.
+uint8_t g_originalCable2Lower[2] = {0, 0};
+uint8_t g_originalCable2Upper[2] = {15, 15};
+/// The rest of upstream USB cable 2's worth-writing state as the scenario found it. It is constructed not receiving
+/// clock, which also makes it worth writing.
+bool g_originalCable2SendClock = true;
+bool g_originalCable2ReceiveClock = true;
+bool g_originalCable2Relative = false;
+bool g_originalCable2Thru = false;
+int32_t g_originalCable2Velocity = 0;
 
 /// 1 present, 0 genuinely absent, -1 could not tell.
 int32_t presence(const char* path) {
@@ -355,6 +371,79 @@ void runTick() {
 			printf("SC-HEAD FAIL %d settings file(s) do not begin with the XML declaration\n", missing);
 			g_failures++;
 		}
+		g_stage = Stage::UnlinkWrite;
+		break;
+	}
+
+	case Stage::UnlinkWrite:
+		// Back to nothing worth keeping, and a save: the table must remove its file -- through the channel, not the
+		// owner. `sendClock = true` is the default, and the head stage left nothing else worth writing.
+		MIDIDeviceManager::dinMIDIPorts.sendClock = true;
+		// Upstream USB cable 2 is constructed with MPE zones on, and a port with zones is worth writing -- so on a
+		// default device the table is never empty. Turn them off, as a user clearing them would.
+		for (auto& port : MIDIDeviceManager::upstreamUSBMIDICable2.ports) {
+			port.mpeLowerZoneLastMemberChannel = 0;
+			port.mpeUpperZoneLastMemberChannel = 15;
+		}
+		// It is also constructed not receiving clock. Everything else a cable can hold is cleared too, so the
+		// precondition does not depend on what an earlier run left in the reused card image's settings.
+		MIDIDeviceManager::upstreamUSBMIDICable2.sendClock = true;
+		MIDIDeviceManager::upstreamUSBMIDICable2.receiveClock = true;
+		MIDIDeviceManager::upstreamUSBMIDICable2.is_relative = false;
+		MIDIDeviceManager::upstreamUSBMIDICable2.midi_thru = false;
+		MIDIDeviceManager::upstreamUSBMIDICable2.defaultVelocityToLevel = 0;
+		MIDIDeviceManager::anyChangesToSave = true;
+		{
+			// The stage's precondition, printed and required: a table that still holds something worth keeping is
+			// WRITTEN, not removed, and the check below would then be testing the wrong branch.
+			const bool din = MIDIDeviceManager::dinMIDIPorts.worthWritingToFile();
+			const bool up1 = MIDIDeviceManager::upstreamUSBMIDICable1.worthWritingToFile();
+			const bool up2 = MIDIDeviceManager::upstreamUSBMIDICable2.worthWritingToFile();
+			size_t hostedWorth = 0;
+			for (auto* device : MIDIDeviceManager::hostedMIDIDevices) {
+				hostedWorth += device->worthWritingToFile() ? 1 : 0;
+			}
+			printf(
+			    "SC-UNLINK-PRE din=%d up1=%d up2=%d hosted=%zu/%zu up2SendClock=%d up2ReceiveClock=%d up2Relative=%d "
+			    "up2Thru=%d up2Velocity=%d\n",
+			    (int)din, (int)up1, (int)up2, hostedWorth, MIDIDeviceManager::hostedMIDIDevices.size(),
+			    (int)MIDIDeviceManager::upstreamUSBMIDICable2.sendClock,
+			    (int)MIDIDeviceManager::upstreamUSBMIDICable2.receiveClock,
+			    (int)MIDIDeviceManager::upstreamUSBMIDICable2.is_relative,
+			    (int)MIDIDeviceManager::upstreamUSBMIDICable2.midi_thru,
+			    (int)MIDIDeviceManager::upstreamUSBMIDICable2.defaultVelocityToLevel);
+			if (din || up1 || up2 || hostedWorth != 0) {
+				printf("SC-UNLINK FAIL precondition: the MIDI device table still holds something worth writing\n");
+				g_failures++;
+			}
+		}
+		g_servedBefore = deluge::storage::bytes::channelServedOps();
+		g_fallbacksBefore = deluge::storage::bytes::ownerFallbacks();
+		MIDIDeviceManager::writeDevicesToFile();
+		g_waitTicks = 0;
+		g_stage = Stage::UnlinkWait;
+		break;
+
+	case Stage::UnlinkWait:
+		waitIdleThen("SC-UNLINK", Stage::UnlinkCheck, Stage::Restore);
+		break;
+
+	case Stage::UnlinkCheck: {
+		const int32_t there = presence("SETTINGS/MIDIDevices.XML");
+		const int32_t served = deluge::storage::bytes::channelServedOps() - g_servedBefore;
+		const int32_t fallbacks = deluge::storage::bytes::ownerFallbacks() - g_fallbacksBefore;
+		printf("SC-UNLINK file=%d served=%d fallbacks=%d\n", there, served, fallbacks);
+		if (there != 0) {
+			printf(
+			    "SC-UNLINK FAIL the MIDI device file is still there (presence %d) after a save with nothing to keep\n",
+			    there);
+			g_failures++;
+		}
+		if (served < 1 || fallbacks != 0) {
+			printf("SC-UNLINK FAIL the removal did not go through the channel (served %d, owner fallbacks %d)\n",
+			       served, fallbacks);
+			g_failures++;
+		}
 		g_stage = Stage::Fallback;
 		break;
 	}
@@ -383,6 +472,15 @@ void runTick() {
 		runtimeFeatureSettings.set(kProbeSetting, g_original);
 		runtimeFeatureSettings.writeSettingsToFile();
 		MIDIDeviceManager::dinMIDIPorts.sendClock = g_originalSendClock;
+		for (size_t i = 0; i < 2; i++) {
+			MIDIDeviceManager::upstreamUSBMIDICable2.ports[i].mpeLowerZoneLastMemberChannel = g_originalCable2Lower[i];
+			MIDIDeviceManager::upstreamUSBMIDICable2.ports[i].mpeUpperZoneLastMemberChannel = g_originalCable2Upper[i];
+		}
+		MIDIDeviceManager::upstreamUSBMIDICable2.sendClock = g_originalCable2SendClock;
+		MIDIDeviceManager::upstreamUSBMIDICable2.receiveClock = g_originalCable2ReceiveClock;
+		MIDIDeviceManager::upstreamUSBMIDICable2.is_relative = g_originalCable2Relative;
+		MIDIDeviceManager::upstreamUSBMIDICable2.midi_thru = g_originalCable2Thru;
+		MIDIDeviceManager::upstreamUSBMIDICable2.defaultVelocityToLevel = g_originalCable2Velocity;
 		g_waitTicks = 0;
 		g_stage = Stage::RestoreWait;
 		break;
@@ -438,6 +536,15 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_read = 0;
 	g_original = runtimeFeatureSettings.get(kProbeSetting);
 	g_originalSendClock = MIDIDeviceManager::dinMIDIPorts.sendClock;
+	for (size_t i = 0; i < 2; i++) {
+		g_originalCable2Lower[i] = MIDIDeviceManager::upstreamUSBMIDICable2.ports[i].mpeLowerZoneLastMemberChannel;
+		g_originalCable2Upper[i] = MIDIDeviceManager::upstreamUSBMIDICable2.ports[i].mpeUpperZoneLastMemberChannel;
+	}
+	g_originalCable2SendClock = MIDIDeviceManager::upstreamUSBMIDICable2.sendClock;
+	g_originalCable2ReceiveClock = MIDIDeviceManager::upstreamUSBMIDICable2.receiveClock;
+	g_originalCable2Relative = MIDIDeviceManager::upstreamUSBMIDICable2.is_relative;
+	g_originalCable2Thru = MIDIDeviceManager::upstreamUSBMIDICable2.midi_thru;
+	g_originalCable2Velocity = MIDIDeviceManager::upstreamUSBMIDICable2.defaultVelocityToLevel;
 	g_waitTicks = 0;
 	g_burstServed = 0;
 	g_burstFallbacks = 0;
