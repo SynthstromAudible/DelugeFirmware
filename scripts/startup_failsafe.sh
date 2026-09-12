@@ -10,6 +10,10 @@
 #   SF-TIER     that no fail-safe file operation ran on the interaction tier. This is the EVIDENCE.
 #   SF-CHANNEL  that the async arm was EXECUTED, not merely compiled. Required non-zero: a channel that is
 #               compiled but never runs would otherwise leave this gate green.
+#   SF-ILLEGAL  that no fail-safe operation was refused for want of a legal place to run.
+#   SF-GIVEUP   with the channel holding the machine's first request far past the stall bound, the machine
+#               gives up: exactly one refused operation, no canary written, no interaction-tier I/O, finished
+#               within its bound.
 #
 # The fail-safe's happy path ends in openUI(&loadSongUI), and this harness has no UI stack, so the
 # scenario drives the song-missing path instead: the canary creation, the existence checks and the
@@ -69,7 +73,7 @@ if ! grep -q '^SF-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in SF-ORDER SF-CHANNEL SF-TIER; do
+for marker in SF-ORDER SF-CHANNEL SF-TIER SF-ILLEGAL SF-GIVEUP; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SF-' "$OUT/run.txt"

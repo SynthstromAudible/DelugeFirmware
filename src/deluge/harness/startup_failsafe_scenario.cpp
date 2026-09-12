@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "io/file.hpp"
+#include "libdeluge/file_bytes.h"
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/owner.h"
@@ -52,6 +53,9 @@ enum class Stage : uint8_t {
 	Drive,
 	DriveCheck,
 	Tier,
+	GiveUpArm,
+	GiveUpDrive,
+	GiveUpCheck,
 	Summary,
 	Done,
 };
@@ -64,6 +68,14 @@ enum class Stage : uint8_t {
 /// costs harness ticks in runs that are failing anyway.
 constexpr int32_t kMaxDriveTicks = 5000;
 
+/// How long the give-up stage holds every byte-channel operation, in milliseconds of the harness's virtual clock. Far
+/// past the machine's 600-tick stall bound (each tick sleeps at least 1 ms) and past the stage's own drive bound below,
+/// so a machine that gives up finishes well inside that bound and one that keeps waiting runs into it.
+constexpr uint32_t kGiveUpLatencyMs = 30000;
+
+/// How many ticks the give-up stage gets: well above the 600-tick stall bound, well below the latency above.
+constexpr int32_t kMaxGiveUpTicks = 2000;
+
 Stage g_stage = Stage::Fixture;
 int32_t g_driveTicks = 0;
 /// Whether the machine has been observed in its canary-write phase yet.
@@ -71,6 +83,11 @@ bool g_sawCanaryPhase = false;
 /// Whether the canary was readable ON THE CARD at the instant the machine left that phase. -1 until
 /// the transition is observed, so a run that never reached it cannot look like a pass.
 int32_t g_canaryOnCard = -1;
+/// `illegalInline()` when the stage being measured began.
+int32_t g_illegalBefore = 0;
+/// Ticks the give-up stage's machine has run, and the interaction-tier count it started from.
+int32_t g_giveUpTicks = 0;
+int32_t g_giveUpTierBefore = 0;
 
 /// Observe the ordering guarantee: by the time the machine leaves its canary-write phase, everything
 /// downstream leads to the load, so the canary must ALREADY be on the card.
@@ -116,6 +133,7 @@ void runTick() {
 		// The REAL entry point, never the layer underneath it: the whole subject of this rung is which
 		// tier that entry point does its I/O on, so a gate that reached past it would keep testing the
 		// unconverted path forever.
+		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		deluge::storage::armStartupSong();
 		g_stage = Stage::DriveCheck;
 		break;
@@ -165,6 +183,72 @@ void runTick() {
 			printf("SF-TIER FAIL startup fail-safe I/O ran on the interaction tier\n");
 			g_failures++;
 		}
+		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
+		printf("SF-ILLEGAL illegal=%d\n", illegal);
+		if (illegal != 0) {
+			printf("SF-ILLEGAL FAIL a fail-safe operation was refused for want of a legal place to run\n");
+			g_failures++;
+		}
+		g_stage = Stage::GiveUpArm;
+		break;
+	}
+
+	case Stage::GiveUpArm:
+		// The channel accepts the machine's first request and then sits on it far past the stall bound. After boot,
+		// off the owner, there is nowhere legal to redo it, so the machine must give up: presence Unusable, no canary
+		// written, and the machine finished.
+#ifdef DELUGE_HOST
+		// This scenario is compiled into every app build, but the knob exists only on the host.
+		deluge_file_bytes_set_latency_ms(kGiveUpLatencyMs);
+#endif
+		(void)deluge::io::unlink(deluge::storage::startupSongCanaryPath());
+		g_illegalBefore = deluge::storage::bytes::illegalInline();
+		g_giveUpTierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup);
+		g_giveUpTicks = 0;
+		deluge::storage::armStartupSong();
+		g_stage = Stage::GiveUpDrive;
+		break;
+
+	case Stage::GiveUpDrive:
+		if (!deluge::storage::startupSongIdle() && ++g_giveUpTicks < kMaxGiveUpTicks) {
+			break;
+		}
+		g_stage = Stage::GiveUpCheck;
+		break;
+
+	case Stage::GiveUpCheck: {
+#ifdef DELUGE_HOST
+		deluge_file_bytes_set_latency_ms(0);
+#endif
+		const bool finished = g_giveUpTicks < kMaxGiveUpTicks;
+		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
+		const int32_t tier =
+		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup) - g_giveUpTierBefore;
+		auto canary = deluge::io::File::open(deluge::storage::startupSongCanaryPath(), DELUGE_FILE_READ);
+		const bool canaryOnCard = canary.has_value();
+		if (canary.has_value()) {
+			(void)canary->close();
+		}
+		printf("SF-GIVEUP ticks=%d finished=%d illegal=%d tier=%d canary=%d latencyMs=%u\n", g_giveUpTicks,
+		       (int)finished, illegal, tier, (int)canaryOnCard, (unsigned)kGiveUpLatencyMs);
+		if (!finished) {
+			printf("SF-GIVEUP FAIL the fail-safe did not give up on a stalled channel within %d ticks\n",
+			       kMaxGiveUpTicks);
+			g_failures++;
+		}
+		if (illegal != 1) {
+			printf("SF-GIVEUP FAIL expected exactly one refused operation (the stalled existence check), got %d\n",
+			       illegal);
+			g_failures++;
+		}
+		if (tier != 0) {
+			printf("SF-GIVEUP FAIL startup fail-safe I/O ran on the interaction tier while giving up\n");
+			g_failures++;
+		}
+		if (canaryOnCard) {
+			printf("SF-GIVEUP FAIL a canary is on the card though the machine could not tell whether one was there\n");
+			g_failures++;
+		}
 		g_stage = Stage::Summary;
 		break;
 	}
@@ -197,6 +281,9 @@ void deluge_scenario_startup_failsafe_begin(void) {
 	g_driveTicks = 0;
 	g_sawCanaryPhase = false;
 	g_canaryOnCard = -1;
+	g_illegalBefore = 0;
+	g_giveUpTicks = 0;
+	g_giveUpTierBefore = 0;
 }
 
 bool deluge_scenario_startup_failsafe_complete(void) {

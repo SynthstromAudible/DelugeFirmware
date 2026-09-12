@@ -42,13 +42,13 @@ namespace {
 /// The template song, and the fallback when the recorded startup song has gone.
 constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 
-/// How many consecutive unproductive attempts before falling back to the storage owner.
+/// How many consecutive unproductive attempts before the machine stops asking the channel.
 ///
 /// The channel is single-flight across all operation kinds, so a settings write in flight refuses
-/// this machine's request. Retrying is right -- the machine is already ticking, and retrying keeps
-/// the relocation that falling back forfeits -- but an unbounded retry would let a busy channel wedge
-/// boot. After this many the machine takes `runOnStorageOwner`, which is tier-safe and ordered, just
-/// not relocated.
+/// this machine's request. Retrying is right -- the machine is already ticking -- but an unbounded
+/// retry would let a busy channel wedge boot. After this many the machine runs the operation inline
+/// where blocking is legal; after boot, off the owner, that is refused, and the operation fails
+/// through the machine's own cautious paths.
 ///
 /// **It counts re-asks as well as refusals, and that is the half that matters.** A refusal is a
 /// `false` from a request that returns one; but the read and existence requests return nothing at
@@ -56,10 +56,11 @@ constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 /// result -- just `UNKNOWN` forever, and a machine that re-asks forever. That is exactly the livelock
 /// shape an earlier rung shipped, and it is what a dead channel looks like from here.
 ///
-/// Eight because this routine ticks at roughly the song-load routine's rate and the channel
-/// serialises one small operation at a time: eight consecutive unproductive attempts means something
-/// is wrong, not busy.
-constexpr int32_t kMaxAttemptsWithoutProgress = 8;
+/// As many as the stall bound below, and for the same reason. After boot there is no owner to fall
+/// back to, so giving up on a channel that is merely busy would skip a startup song that would have
+/// loaded a few ticks later: only a channel that has made no progress for as long as a stalled one is
+/// given up on.
+constexpr int32_t kMaxAttemptsWithoutProgress = 600;
 
 /// How many ticks one channel operation may sit PENDING before the machine gives up on the channel.
 ///
@@ -93,10 +94,10 @@ int32_t g_attemptsWithoutProgress = 0;
 int32_t g_pendingTicks = 0;
 /// @}
 
-/// @name The owner arm's answers
+/// @name The synchronous arm's answers
 ///
-/// The synchronous arm dispatches onto the storage owner and the answer arrives on a later tick, so
-/// it cannot be returned from the call that issued it. These hold it in between.
+/// The synchronous arm runs inline where blocking is legal, or is refused, and the collect reads its
+/// answer on the next tick either way. These hold it in between.
 /// @{
 bool g_ownerDone = false;
 std::expected<bool, deluge::io::Status> g_ownerPresence;
@@ -125,7 +126,7 @@ void enter(StartupPhase phase) {
 	g_ownerDone = false;
 }
 
-/// Whether the channel should carry this operation, or the owner arm should.
+/// Whether the channel should carry this operation, or the synchronous arm should.
 ///
 /// Falls back permanently once `kMaxAttemptsWithoutProgress` consecutive unproductive attempts have
 /// been seen for the current phase -- see that constant.
@@ -143,7 +144,7 @@ bool stillWaiting() {
 	if (++g_pendingTicks < kMaxPendingTicks) {
 		return true;
 	}
-	g_requested = false; // re-issue, on the owner arm this time
+	g_requested = false; // re-issue, on the synchronous arm this time
 	return false;
 }
 
@@ -158,18 +159,23 @@ void issueExists(const char* path) {
 		}
 		return;
 	}
-	// The owner arm. `noteIoTier` lives inside the dispatched body, not here: what the gate counts is
-	// where the card is touched, and the entry point is on the interaction tier either way.
+	// The synchronous arm, where blocking is legal. `noteIoTier` lives inside the body, not here: what
+	// the gate counts is where the card is touched.
 	static std::string ownerPath;
 	ownerPath = path;
 	g_ownerDone = false;
-	deluge::storage::bytes::runOnStorageOwner(
-	    [](void*) {
-		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-		    g_ownerPresence = StorageManager::fileExists(ownerPath.c_str());
-		    g_ownerDone = true;
-	    },
-	    nullptr);
+	if (!deluge::storage::bytes::runInlineWhereLegal(
+	        [](void*) {
+		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
+		        g_ownerPresence = StorageManager::fileExists(ownerPath.c_str());
+		        g_ownerDone = true;
+	        },
+	        nullptr)) {
+		// Refused: after boot, off the owner, only a stalled channel reaches here. The question has no
+		// answer -- "could not tell", which `startup_action` reads as Unusable and the policy never acts on.
+		g_ownerPresence = std::unexpected(deluge::io::Status::TIMEOUT);
+		g_ownerDone = true;
+	}
 	g_requested = true;
 }
 
@@ -218,20 +224,25 @@ void issueCanaryWrite() {
 		return;
 	}
 	g_ownerDone = false;
-	deluge::storage::bytes::runOnStorageOwner(
-	    [](void*) {
-		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-		    auto canary = deluge::io::File::open(g_canaryPath, DELUGE_FILE_WRITE_CREATE);
-		    if (canary.has_value()) {
-			    (void)canary->close(); // RAII would close anyway; explicit for parity with f_close
-			    g_ownerOk = true;
-		    }
-		    else {
-			    g_ownerOk = false;
-		    }
-		    g_ownerDone = true;
-	    },
-	    nullptr);
+	if (!deluge::storage::bytes::runInlineWhereLegal(
+	        [](void*) {
+		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
+		        auto canary = deluge::io::File::open(g_canaryPath, DELUGE_FILE_WRITE_CREATE);
+		        if (canary.has_value()) {
+			        (void)canary->close(); // RAII would close anyway; explicit for parity with f_close
+			        g_ownerOk = true;
+		        }
+		        else {
+			        g_ownerOk = false;
+		        }
+		        g_ownerDone = true;
+	        },
+	        nullptr)) {
+		// Refused: no canary. The machine already treats that as "skip the startup song", with nothing to
+		// clean up.
+		g_ownerOk = false;
+		g_ownerDone = true;
+	}
 	g_requested = true;
 }
 
@@ -285,13 +296,17 @@ void issueUnlink(const std::string& path) {
 	static std::string ownerPath;
 	ownerPath = path;
 	g_ownerDone = false;
-	deluge::storage::bytes::runOnStorageOwner(
-	    [](void*) {
-		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-		    (void)deluge::io::unlink(ownerPath);
-		    g_ownerDone = true;
-	    },
-	    nullptr);
+	if (!deluge::storage::bytes::runInlineWhereLegal(
+	        [](void*) {
+		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
+		        (void)deluge::io::unlink(ownerPath);
+		        g_ownerDone = true;
+	        },
+	        nullptr)) {
+		// Refused: the canary stays. The next boot takes the cautious route -- a skipped song, never a
+		// crash loop.
+		g_ownerDone = true;
+	}
 	g_requested = true;
 }
 
@@ -522,11 +537,18 @@ void finishStartupSong() {
 			g_startupFailSafePath.clear();
 			return;
 		}
-		// Refused: fall through to the owner arm rather than dropping the cleanup.
+		// Refused because the channel is busy. Hand the cleanup to the machine's own unlink phase, which
+		// keeps asking within its bounds: dropping it here would leave a canary that skips the startup song
+		// on the next boot.
+		g_canaryPath = g_startupFailSafePath;
+		g_startupFailSafePath.clear();
+		enter(StartupPhase::UnlinkCanary);
+		return;
 	}
+	// On the owner, or during boot: blocking is legal here, so the body always runs.
 	static std::string path;
 	path = g_startupFailSafePath;
-	deluge::storage::bytes::runOnStorageOwner(
+	(void)deluge::storage::bytes::runInlineWhereLegal(
 	    [](void*) {
 		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 		    (void)deluge::io::unlink(path);
