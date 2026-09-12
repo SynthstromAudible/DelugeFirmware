@@ -23,6 +23,7 @@
 #include "io/file.hpp"
 #include "storage/existence_policy.h"
 #include "storage/owner.h"
+#include "storage/storage_manager.h"
 
 #include <cstdint>
 #include <span>
@@ -125,7 +126,7 @@ std::string FavouritesManager::serialiseBank() const {
 	writer.setMemoryBased();
 	// The owner arm used to get this head from createXMLFile. Both arms now write this same snapshot, head
 	// included, so the two legs' files are byte-identical.
-	writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+	writer.write(StorageManager::kXmlDocumentHead);
 	writer.writeArrayStart("favourites");
 	for (const auto& fav : favourites) {
 		if (fav.colour.has_value()) {

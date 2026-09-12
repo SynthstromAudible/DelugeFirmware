@@ -316,6 +316,7 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
+		writer.write(StorageManager::kXmlDocumentHead); // the owner arm gets this from createXMLFile
 		serialiseSettings(writer);
 		if (deluge::storage::bytes::submitWrite(RUNTIME_FEATURE_SETTINGS_FILE, writer.getBufferPtr(),
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {

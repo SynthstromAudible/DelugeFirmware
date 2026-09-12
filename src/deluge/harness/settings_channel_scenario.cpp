@@ -17,12 +17,19 @@
 
 #include "harness/settings_channel_scenario.h"
 
+#include "gui/views/performance_view.h"
+#include "io/file.hpp"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_follow.h"
 #include "libdeluge/file_bytes.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/byte_channel.h"
 #include "storage/owner.h"
 
 #include <cstdio>
+#include <cstring>
+#include <span>
+#include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
 // `printf_`. That implementation emits through `putchar_`, which only the C host BSP defines -- this
@@ -57,6 +64,18 @@ constexpr uint32_t kScrubValue = 99;
 /// A bound on every idle wait, so a channel that never settles ends the run with a report.
 constexpr int32_t kMaxWaitTicks = 20000;
 
+/// What every settings document must begin with. Spelled out here rather than taken from the code under test, so
+/// a change that altered the constant and the check together could not pass.
+constexpr const char* kXmlHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+
+/// Every settings file the channel writes, one per consumer.
+constexpr const char* kSettingsFiles[] = {
+    "SETTINGS/CommunityFeatures.XML",
+    "SETTINGS/MIDIFollow.XML",
+    "SETTINGS/PerformanceView.XML",
+    "SETTINGS/MIDIDevices.XML",
+};
+
 /// Every stage has a `*Check` successor that runs one tick later.
 ///
 /// Not decoration. A settings operation is only ENQUEUED when the consumer's entry point runs -- it
@@ -75,6 +94,9 @@ enum class Stage : uint8_t {
 	OrderSubmit,
 	OrderWait,
 	OrderCheck,
+	HeadWrite,
+	HeadWait,
+	HeadCheck,
 	Fallback,
 	Restore,
 	RestoreWait,
@@ -103,6 +125,43 @@ int32_t g_markerDrops = 0;
 bool g_markerPending = false;
 int32_t g_dropsBefore = 0;
 int32_t g_markerDropsBefore = 0;
+/// The DIN ports' clock setting as the scenario found it. The head stage changes it to make the MIDI device table
+/// worth writing; the restore puts it back.
+bool g_originalSendClock = true;
+
+/// 1 present, 0 genuinely absent, -1 could not tell.
+int32_t presence(const char* path) {
+	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
+	if (opened.has_value()) {
+		(void)opened->close();
+		return 1;
+	}
+	return opened.error() == deluge::io::Status::NOT_FOUND ? 0 : -1;
+}
+
+/// Read `path` whole, synchronously. The scenario is the observer, not the subject, so it may block.
+bool readWholeFile(const char* path, std::vector<uint8_t>& out) {
+	out.clear();
+	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
+	if (!opened.has_value()) {
+		return false;
+	}
+	auto size = opened->size();
+	if (!size.has_value()) {
+		(void)opened->close();
+		return false;
+	}
+	out.resize(*size);
+	if (!out.empty()) {
+		auto got = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(out.data()), out.size()));
+		if (!got.has_value() || got->size() != out.size()) {
+			(void)opened->close();
+			return false;
+		}
+	}
+	(void)opened->close();
+	return true;
+}
 
 /// Advance to `next` once the seam is idle; report and move to the restore if it never is.
 void waitIdleThen(const char* marker, Stage next, Stage onTimeout) {
@@ -258,6 +317,44 @@ void runTick() {
 			printf("SC-ORDER FAIL the channel carried %d operations for one write and one read\n", g_orderServed);
 			g_failures++;
 		}
+		g_stage = Stage::HeadWrite;
+		break;
+	}
+
+	case Stage::HeadWrite:
+		// Every settings file the channel carries, each through its consumer's real entry point. The MIDI device
+		// table writes only when something in it is worth keeping, so give it one thing: DIN ports that do not
+		// send clock.
+		runtimeFeatureSettings.writeSettingsToFile();
+		midiFollow.writeDefaultsToFile();
+		performanceView.savePerformanceViewLayout();
+		MIDIDeviceManager::dinMIDIPorts.sendClock = false;
+		MIDIDeviceManager::anyChangesToSave = true;
+		MIDIDeviceManager::writeDevicesToFile();
+		g_waitTicks = 0;
+		g_stage = Stage::HeadWait;
+		break;
+
+	case Stage::HeadWait:
+		waitIdleThen("SC-HEAD", Stage::HeadCheck, Stage::Restore);
+		break;
+
+	case Stage::HeadCheck: {
+		const size_t headLen = std::strlen(kXmlHead);
+		int32_t missing = 0;
+		for (const char* path : kSettingsFiles) {
+			std::vector<uint8_t> bytes;
+			const bool read = readWholeFile(path, bytes);
+			const bool head = read && bytes.size() >= headLen && std::memcmp(bytes.data(), kXmlHead, headLen) == 0;
+			printf("SC-HEAD file=%s read=%d head=%d\n", path, (int)read, (int)head);
+			if (!head) {
+				missing++;
+			}
+		}
+		if (missing != 0) {
+			printf("SC-HEAD FAIL %d settings file(s) do not begin with the XML declaration\n", missing);
+			g_failures++;
+		}
 		g_stage = Stage::Fallback;
 		break;
 	}
@@ -285,6 +382,7 @@ void runTick() {
 		// The card image is shared with other gates that read this file at boot: leave the setting as it was.
 		runtimeFeatureSettings.set(kProbeSetting, g_original);
 		runtimeFeatureSettings.writeSettingsToFile();
+		MIDIDeviceManager::dinMIDIPorts.sendClock = g_originalSendClock;
 		g_waitTicks = 0;
 		g_stage = Stage::RestoreWait;
 		break;
@@ -339,6 +437,7 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_wrote = 0;
 	g_read = 0;
 	g_original = runtimeFeatureSettings.get(kProbeSetting);
+	g_originalSendClock = MIDIDeviceManager::dinMIDIPorts.sendClock;
 	g_waitTicks = 0;
 	g_burstServed = 0;
 	g_burstFallbacks = 0;

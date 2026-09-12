@@ -1629,6 +1629,7 @@ void MidiFollow::writeDefaultsToFile() {
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
+		writer.write(StorageManager::kXmlDocumentHead); // the owner arm gets this from createXMLFile
 		serialiseDefaults(writer);
 		if (deluge::storage::bytes::submitWrite(MIDI_FOLLOW_XML, writer.getBufferPtr(),
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {

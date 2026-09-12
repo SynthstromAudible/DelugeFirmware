@@ -179,7 +179,7 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	writer.file = std::move(created.value());
 	writer.reset();
 	if (!writeJsonFlag) {
-		writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+		writer.write(kXmlDocumentHead);
 	}
 	return Error::NONE;
 }

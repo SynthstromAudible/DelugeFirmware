@@ -383,6 +383,12 @@ extern FileDeserializer* activeDeserializer;
 
 namespace StorageManager {
 
+/// @brief The XML declaration every XML document the firmware writes begins with.
+///
+/// `createXMLFile` writes it for a document streamed to the card; a document serialised into memory for the byte
+/// channel writes it itself, so both arms produce the same bytes.
+inline constexpr const char* kXmlDocumentHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+
 std::expected<deluge::io::File, Error> createFile(char const* filePath, bool mayOverwrite);
 Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
 Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,
