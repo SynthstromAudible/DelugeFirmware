@@ -213,15 +213,13 @@ if [ "$offowner" -eq 0 ]; then
 fi
 
 # RW-DRAIN: the offline stem-export path drains the recorder through the loop a change to the write
-# path could break. A non-terminating drain shows up as a timeout. The renderer writes its stems into
-# the repo's golden_stems/ directory, so restore those afterwards -- this gate measures that the drain
-# TERMINATES, and must never leave a re-baselined golden behind.
+# path could break. A non-terminating drain shows up as a timeout. This gate measures that the drain
+# TERMINATES, so the stems it renders go to this run's own temporary directory and nowhere else.
 echo "recorder write: running the offline drain"
 set +e
-timeout 900 "$BIN" >"$OUT/drain.txt" 2>"$OUT/drain.err"
+GOLDEN_STEM_OUT="$OUT/drain-stems" timeout 900 "$BIN" >"$OUT/drain.txt" 2>"$OUT/drain.err"
 drain_status=$?
 set -e
-git -C "$REPO_ROOT" checkout -- golden_stems/ 2>/dev/null || true
 if [ "$drain_status" -ne 0 ]; then
 	echo "FAIL RW-DRAIN — the offline render exited $drain_status (124 = it never drained)"
 	sed -n '1,20p' "$OUT/drain.err" >&2

@@ -129,6 +129,14 @@ render_pad() {
 		echo "  render (pad=$pad) produced no WAV — log: $out.log" >&2
 		return
 	fi
+	# A MIXDOWN export writes exactly one WAV. Anything else came from a folder this render did not write -- an
+	# earlier export left on the shared card image -- and hashing it would measure that file, not this render.
+	local n
+	n="$(find "$out" -iname '*.wav' | wc -l)"
+	if [ "$n" -ne 1 ] || ! basename "$w" | grep -qi '^MIXDOWN_'; then
+		echo "  render (pad=$pad) copied $n WAV(s), first $(basename "$w"), not this render's one MIXDOWN — the stems were read from the wrong folder — log: $out.log" >&2
+		return
+	fi
 	echo "$w"
 }
 
@@ -166,7 +174,7 @@ fi
 # check / update: a single render at pad=0 (or a one-off PAD override).
 wav="$(render_pad "${PAD:-0}" render)"
 if [ -z "$wav" ]; then
-	echo "FAIL — golden_vt_render produced no WAV for fixture=$FIXTURE"
+	echo "FAIL — golden_vt_render produced no usable MIXDOWN WAV for fixture=$FIXTURE (see the line above)"
 	trap - EXIT
 	exit 1
 fi

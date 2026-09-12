@@ -167,8 +167,11 @@ void deluge_scenario_start_stem_export(int32_t mode);
 /// @return True once the export has fully completed (or aborted).
 bool deluge_scenario_stem_export_done();
 
-/// @brief Copy every `.WAV` the just-finished export wrote (`StemExport::lastFolderNameForStemExport`)
-///        out of the mounted card image to a real host directory.
+/// @brief Copy every `.WAV` the just-finished export wrote (`StemExport::lastExportFolderPath`) out of the
+///        mounted card image to a real host directory, then remove them and that folder from the image.
+///
+/// The removal keeps the cached, shared card image from filling up across runs, and keeps every render of a
+/// song landing in the same unnumbered folder.
 ///
 /// Mirrors `host_render_main.cpp`'s `copy_stems_out`: reads each stem via the C
 /// FatFS API (the same one `StemExport`/`AudioRecorder` wrote through) and writes

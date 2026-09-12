@@ -62,3 +62,6 @@ __pycache__/
 
 # Local deluge-sdk path override for the Rust BSP (see src/bsp/rust/local-sdk.toml)
 /src/bsp/rust/local-sdk.toml
+
+# Stems golden_vt_render copies out of its card image when GOLDEN_STEM_OUT is unset
+/golden_stems/

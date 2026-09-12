@@ -96,6 +96,7 @@ StemExport::StemExport() {
 	timeThereWasLastSomeActivity = 0xFFFFFFFF;
 
 	lastFolderNameForStemExport.clear();
+	lastExportFolderPath.clear();
 }
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
@@ -1133,6 +1134,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 
 		// copy folder path created above into the filePath so it can be used by the caller
 		(*filePath) = tempPathForSearch.c_str();
+		lastExportFolderPath = *filePath;
 	}
 	else {
 		// if folder number is -1, it means this is the first time we're running the stem export
@@ -1154,6 +1156,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 
 		// copy folder path created above into the filePath so it can be used by the caller
 		(*filePath) = tempPath.c_str();
+		lastExportFolderPath = *filePath;
 	}
 
 	// save current folder name as last folder name exported

@@ -41,6 +41,7 @@
 #include <strings.h> // strcasecmp
 #include <sys/stat.h>
 #include <unistd.h>
+#include <vector>
 
 namespace {
 
@@ -207,7 +208,10 @@ int32_t deluge_scenario_recorder_roundtrip_failures() {
 }
 
 void deluge_scenario_copy_stems_out(const char* out_dir) {
-	const char* folder = stemExport.lastFolderNameForStemExport.c_str();
+	// The folder this export wrote, not `lastFolderNameForStemExport`: that is only the search key, and on an image
+	// that already held an export of this song it names the FIRST export's folder.
+	const std::string exportFolder = stemExport.lastExportFolderPath;
+	const char* folder = exportFolder.c_str();
 	if (folder == nullptr || folder[0] == '\0') {
 		fprintf(stderr, "[golden-scenario] no stem folder recorded; nothing to copy\n");
 		return;
@@ -215,63 +219,82 @@ void deluge_scenario_copy_stems_out(const char* out_dir) {
 
 	mkdir(out_dir, 0755); // host POSIX output dir; best-effort, ignore EEXIST
 
-	auto dir = deluge::io::Directory::open(folder);
-	if (!dir.has_value()) {
-		fprintf(stderr, "[golden-scenario] cannot open stem folder '%s' in image\n", folder);
-		return;
-	}
-
+	// Entries are unlinked only once the listing is closed: removing them while it is open would change what it
+	// is walking.
+	std::vector<std::string> copied;
 	static char buf[65536];
 	int count = 0;
-	while (true) {
-		auto entry = dir->read();
-		if (!entry.has_value() || !entry->has_value()) {
-			break; // read error OR end-of-directory
-		}
-		const DelugeDirEntry& e = **entry;
-		if (e.is_directory) {
-			continue;
-		}
-		size_t len = strlen(e.name);
-		if (len < 4 || strcasecmp(e.name + len - 4, ".WAV") != 0) {
-			continue;
+	{
+		auto dir = deluge::io::Directory::open(folder);
+		if (!dir.has_value()) {
+			fprintf(stderr, "[golden-scenario] cannot open stem folder '%s' in image\n", folder);
+			return;
 		}
 
-		char src[600];
-		char dst[700];
-		snprintf(src, sizeof src, "%s/%s", folder, e.name);
-		snprintf(dst, sizeof dst, "%s/%s", out_dir, e.name);
-
-		auto in = deluge::io::File::open(src, DELUGE_FILE_READ);
-		if (!in.has_value()) {
-			fprintf(stderr, "[golden-scenario] cannot read '%s'\n", src);
-			continue;
-		}
-		int ofd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (ofd < 0) {
-			fprintf(stderr, "[golden-scenario] cannot create '%s'\n", dst);
-			continue; // `in` auto-closes (RAII)
-		}
 		while (true) {
-			auto chunk = in->read(std::span<std::byte>(reinterpret_cast<std::byte*>(buf), sizeof buf));
-			if (!chunk.has_value() || chunk->empty()) {
-				break; // read error OR EOF
+			auto entry = dir->read();
+			if (!entry.has_value() || !entry->has_value()) {
+				break; // read error OR end-of-directory
 			}
-			size_t off = 0;
-			size_t br = chunk->size();
-			while (off < br) {
-				ssize_t w = write(ofd, buf + off, br - off);
-				if (w <= 0) {
-					break;
+			const DelugeDirEntry& e = **entry;
+			if (e.is_directory) {
+				continue;
+			}
+			size_t len = strlen(e.name);
+			if (len < 4 || strcasecmp(e.name + len - 4, ".WAV") != 0) {
+				continue;
+			}
+
+			char src[600];
+			char dst[700];
+			snprintf(src, sizeof src, "%s/%s", folder, e.name);
+			snprintf(dst, sizeof dst, "%s/%s", out_dir, e.name);
+
+			auto in = deluge::io::File::open(src, DELUGE_FILE_READ);
+			if (!in.has_value()) {
+				fprintf(stderr, "[golden-scenario] cannot read '%s'\n", src);
+				continue;
+			}
+			int ofd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+			if (ofd < 0) {
+				fprintf(stderr, "[golden-scenario] cannot create '%s'\n", dst);
+				continue; // `in` auto-closes (RAII)
+			}
+			while (true) {
+				auto chunk = in->read(std::span<std::byte>(reinterpret_cast<std::byte*>(buf), sizeof buf));
+				if (!chunk.has_value() || chunk->empty()) {
+					break; // read error OR EOF
 				}
-				off += static_cast<size_t>(w);
+				size_t off = 0;
+				size_t br = chunk->size();
+				while (off < br) {
+					ssize_t w = write(ofd, buf + off, br - off);
+					if (w <= 0) {
+						break;
+					}
+					off += static_cast<size_t>(w);
+				}
 			}
+			close(ofd);
+			count++;
+			copied.emplace_back(src);
+			fprintf(stderr, "[golden-scenario]   %s\n", dst);
 		}
-		close(ofd);
-		count++;
-		fprintf(stderr, "[golden-scenario]   %s\n", dst);
 	}
 	fprintf(stderr, "[golden-scenario] copied %d stem(s) to %s\n", count, out_dir);
+
+	// Give the image back what this render wrote. The card image is cached and SHARED between runs and gates, so
+	// an export left behind fills it -- a full image fails every later save and load on it -- and a folder left
+	// behind moves the next export of this song to a numbered one.
+	int removed = 0;
+	for (const std::string& path : copied) {
+		if (deluge::io::unlink(path).has_value()) {
+			removed++;
+		}
+	}
+	const bool folderRemoved = deluge::io::unlink(exportFolder).has_value();
+	fprintf(stderr, "[golden-scenario] removed %d of %d stem(s) and %s the folder %s from the image\n", removed, count,
+	        folderRemoved ? "removed" : "could NOT remove", folder);
 }
 
 } // extern "C"

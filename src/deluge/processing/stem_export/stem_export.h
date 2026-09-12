@@ -207,6 +207,12 @@ public:
 	int32_t stemSearchStallTicks_ = 0;
 	/// @}
 	std::string lastFolderNameForStemExport{};
+	/// @brief The folder the most recent export wrote into: `.../TRACKS`, or `.../TRACKS-NN` once that song has
+	///        been exported before.
+	///
+	/// Not `lastFolderNameForStemExport`, which is only the base name the folder search compares against to
+	/// tell a repeat export of the same song from a new one, and never carries the number.
+	std::string lastExportFolderPath{};
 	/// returns false if no valid file name could be built (e.g. the output / drum names are too long
 	/// for the file system), in which case the stem must not be exported
 	[[nodiscard]] bool setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
