@@ -11,6 +11,7 @@
 #   PO-MKDIRALL  that a nested path with all three segments missing is created by ONE request, and
 #                that a second creation of an existing path is success rather than EXISTS.
 #   PO-TIER      that no browser folder creation ran on the interaction tier.
+#   PO-ILLEGAL   that no folder creation was refused for want of a legal place to run.
 #   PO-CHANNEL   that the async arm was EXECUTED. Required non-zero: smsysex's tier count reads zero
 #                whichever arm carries it, so this counter is the whole of its evidence.
 #
@@ -67,7 +68,7 @@ if ! grep -q '^PO-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in PO-SYSEX PO-MKDIRALL PO-CHANNEL PO-TIER; do
+for marker in PO-SYSEX PO-MKDIRALL PO-CHANNEL PO-TIER PO-ILLEGAL; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^PO-' "$OUT/run.txt"

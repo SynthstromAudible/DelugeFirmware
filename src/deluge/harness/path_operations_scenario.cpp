@@ -279,6 +279,13 @@ void runTick() {
 			printf("PO-TIER FAIL browser folder creation ran on the interaction tier\n");
 			g_failures++;
 		}
+
+		const int32_t illegal = deluge::storage::bytes::illegalInline();
+		printf("PO-ILLEGAL illegal=%d\n", illegal);
+		if (illegal != 0) {
+			printf("PO-ILLEGAL FAIL a folder creation was refused for want of a legal place to run\n");
+			g_failures++;
+		}
 		g_stage = Stage::Summary;
 		break;
 	}

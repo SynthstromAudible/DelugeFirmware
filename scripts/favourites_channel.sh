@@ -14,6 +14,7 @@
 #   FV-TIER       no favourites card I/O began on the interaction tier
 #   FV-CHANNEL    the bank's operations went through the byte channel
 #   FV-ACCOUNTED  every issued operation ended on exactly one arm
+#   FV-ILLEGAL    no operation was refused for want of a legal place to run
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count cannot
 # show that, because it counts only assertions that DID run.
@@ -58,7 +59,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in FV-SEED FV-ABSENT FV-REFUSE FV-ROUNDTRIP FV-ORDER FV-STALE FV-TIER FV-CHANNEL FV-ACCOUNTED FV-RESULT; do
+for marker in FV-SEED FV-ABSENT FV-REFUSE FV-ROUNDTRIP FV-ORDER FV-STALE FV-TIER FV-CHANNEL FV-ACCOUNTED FV-ILLEGAL FV-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^FV-' "$OUT/run.txt"

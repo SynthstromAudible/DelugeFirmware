@@ -269,20 +269,17 @@ void FavouritesManager::issueNext() {
 		if (taken) {
 			return;
 		}
-		// Not taken: too large for the channel (a busy channel queues instead). The owner arm does the same work.
+		// Not taken: too large for the channel (a busy channel queues instead).
 	}
 
-	// Dispatched here rather than through runOnStorageOwner(), which silently drops an operation when the owner
-	// queue is full -- and a dropped operation would leave this bank in flight forever.
-	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
-		runIntentOnOwner(this);
+	if (bytes::runInlineWhereLegal(&runIntentOnOwner, this)) {
 		return;
 	}
-	if (!deluge::storage::Owner::run(&runIntentOnOwner, this)) {
-		inFlight_.outcome =
-		    intent.kind == FavouritesIntent::Kind::Load ? SettingsOutcome::Unreadable : SettingsOutcome::WriteFailed;
-		inFlight_.resultReady.store(true, std::memory_order_release);
-	}
+	// Refused: off the owner after boot, with an intent the channel would not take. End it now, as a failure, so the
+	// bank is never left in flight and a failed save still shows the card error.
+	inFlight_.outcome =
+	    intent.kind == FavouritesIntent::Kind::Load ? SettingsOutcome::Unreadable : SettingsOutcome::WriteFailed;
+	inFlight_.resultReady.store(true, std::memory_order_release);
 }
 
 void FavouritesManager::parseBankBytes(void* ctx, char* bytes, uint32_t len) {

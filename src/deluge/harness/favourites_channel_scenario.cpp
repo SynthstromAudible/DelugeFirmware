@@ -385,6 +385,13 @@ void runTick() {
 			printf("FV-ACCOUNTED FAIL every issued card operation must end on exactly one arm\n");
 			g_failures++;
 		}
+		// No legal place to run is a refusal, and a refused intent ends on neither arm above.
+		const int32_t illegal = deluge::storage::bytes::illegalInline();
+		printf("FV-ILLEGAL illegal=%d\n", illegal);
+		if (illegal != 0) {
+			printf("FV-ILLEGAL FAIL a card operation was refused for want of a legal place to run\n");
+			g_failures++;
+		}
 		g_stage = Stage::Summary;
 		break;
 	}

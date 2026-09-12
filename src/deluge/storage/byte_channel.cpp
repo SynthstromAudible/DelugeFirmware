@@ -324,30 +324,16 @@ void finishWith(SettingsOutcome outcome) {
 	}
 }
 
-/// Give up on the channel for the operation in flight, doing it on the owner instead where that is
-/// possible, and go idle.
+/// Give up on the channel for the operation in flight, tell its submitter it failed, and go idle.
 ///
-/// Only a write-shaped operation can be salvaged this way: a READ's bytes have nowhere to go once the
-/// caller's callback has been abandoned, and its consumer's documented behaviour for "no answer" is
-/// already that its in-memory defaults stand. A directory creation, by contrast, is worth completing
-/// -- its caller was told the channel had taken it and is not coming back.
+/// Nothing is redone elsewhere: after boot, off the owner, the channel is the only legal place for card I/O.
 void abandonChannel() {
 	switch (g_pending.step) {
 	case Step::MkdirAllRequest:
-	case Step::MkdirAllCollect: {
-		static std::string path;
-		path = g_pending.path;
-		runOnStorageOwner(
-		    [](void*) {
-			    // One level, matching what the callers' synchronous form did. The channel arm creates
-			    // every segment; this arm is the fallback, and its caller's own owner arm walks
-			    // segments when it takes that path instead.
-			    (void)deluge::io::mkdir(path.c_str());
-		    },
-		    nullptr);
-		finish();
+	case Step::MkdirAllCollect:
+		// The folder is not created; its listing reports it missing.
+		finishWith(SettingsOutcome::WriteFailed);
 		return;
-	}
 	case Step::WriteRequest:
 	case Step::WriteCollect:
 	case Step::UnlinkRequest:
