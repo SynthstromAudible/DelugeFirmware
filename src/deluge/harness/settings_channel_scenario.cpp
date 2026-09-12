@@ -40,6 +40,14 @@
 #undef printf
 #endif
 
+/// The gate's view into state the settings consumers keep private, befriended by each consumer it reaches. Every
+/// check still drives the consumer's real entry point; the probe only arranges and observes.
+struct SettingsChannelProbe {
+	static void forgetPerformanceDefaults() { performanceView.successfullyReadDefaultsFromFile = false; }
+	static void readPerformanceDefaults() { performanceView.readDefaultsFromFile(); }
+	static bool performanceDefaultsLoaded() { return performanceView.successfullyReadDefaultsFromFile; }
+};
+
 namespace {
 
 /// The setting the round trip carries. `RuntimeFeatureSettingType` values are plain integers in the
@@ -101,6 +109,9 @@ enum class Stage : uint8_t {
 	UnlinkWrite,
 	UnlinkWait,
 	UnlinkCheck,
+	PerfRead,
+	PerfWait,
+	PerfCheck,
 	Fallback,
 	Restore,
 	RestoreWait,
@@ -442,6 +453,39 @@ void runTick() {
 		if (served < 1 || fallbacks != 0) {
 			printf("SC-UNLINK FAIL the removal did not go through the channel (served %d, owner fallbacks %d)\n",
 			       served, fallbacks);
+			g_failures++;
+		}
+		g_stage = Stage::PerfRead;
+		break;
+	}
+
+	case Stage::PerfRead:
+		// The view reads its defaults when it is opened: after boot, off the owner. Forget the read that already
+		// happened and ask again through the entry point `focusRegained()` uses.
+		SettingsChannelProbe::forgetPerformanceDefaults();
+		g_servedBefore = deluge::storage::bytes::channelServedOps();
+		g_fallbacksBefore = deluge::storage::bytes::ownerFallbacks();
+		SettingsChannelProbe::readPerformanceDefaults();
+		g_waitTicks = 0;
+		g_stage = Stage::PerfWait;
+		break;
+
+	case Stage::PerfWait:
+		waitIdleThen("SC-PERF", Stage::PerfCheck, Stage::Restore);
+		break;
+
+	case Stage::PerfCheck: {
+		const bool loaded = SettingsChannelProbe::performanceDefaultsLoaded();
+		const int32_t served = deluge::storage::bytes::channelServedOps() - g_servedBefore;
+		const int32_t fallbacks = deluge::storage::bytes::ownerFallbacks() - g_fallbacksBefore;
+		printf("SC-PERF loaded=%d served=%d fallbacks=%d\n", (int)loaded, served, fallbacks);
+		if (!loaded) {
+			printf("SC-PERF FAIL the performance defaults were not loaded\n");
+			g_failures++;
+		}
+		if (served < 1 || fallbacks != 0) {
+			printf("SC-PERF FAIL the read did not go through the channel (served %d, owner fallbacks %d)\n", served,
+			       fallbacks);
 			g_failures++;
 		}
 		g_stage = Stage::Fallback;

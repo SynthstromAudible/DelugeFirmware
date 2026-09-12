@@ -1830,15 +1830,60 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 
 /// read defaults from XML
 void PerformanceView::readDefaultsFromFile() {
-	// The owner arm, where blocking is legal. The read itself no longer streams: the document is
-	// staged whole and the walk below runs over memory, so nothing here holds the card open across a
-	// parse. It runs once per session behind `successfullyReadDefaultsFromFile`.
-	//
-	// The six places this walk reached `smDeserializer` by name now go through `activeDeserializer`,
-	// which is where the staged reader lives -- the same substitution the instrument, pattern and
-	// favourite loads took, and not the parser refactor it was once feared to be.
+	// The channel first. The view reads its defaults when it is opened -- after boot, off the owner -- and the owner
+	// dispatch this replaces was already deferred, so the layout lands a few ticks after the view opens either way.
+	if (deluge::storage::bytes::usingByteChannel()) {
+		if (successfullyReadDefaultsFromFile) {
+			return;
+		}
+		// The pre-1.3 file at the card root is migrated by the channel, as the owner arm renames it.
+		if (deluge::storage::bytes::submitRead(PERFORM_DEFAULTS_XML, "PerformanceView.XML",
+		                                       &PerformanceView::parseDefaultsBytes, &PerformanceView::defaultsAbsent,
+		                                       this, &PerformanceView::defaultsReadDone)) {
+			return;
+		}
+	}
+	// The body where blocking is legal. The document is staged whole and walked over memory through
+	// `activeDeserializer`, so nothing here holds the card open across a parse.
 	deluge::storage::bytes::runOnStorageOwner(
 	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsOnOwner(); }, this);
+}
+
+void PerformanceView::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
+	// `activeDeserializer` goes back on EVERY path, the failed open included -- see
+	// `RuntimeFeatureSettings::parseSettingsBytes`, which carries the full reasoning.
+	auto* self = static_cast<PerformanceView*>(ctx);
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, PERFORM_DEFAULTS_TAG)
+	    != Error::NONE) {
+		// A document that will not open lands on the default layout, as the owner arm's failed open does.
+		activeDeserializer = previous;
+		self->loadDefaultLayout();
+		return;
+	}
+	Deserializer& reader = *activeDeserializer;
+	char const* tagName;
+	// step into the <defaultFXValues> tag
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
+			self->readDefaultFXValuesFromFile();
+		}
+		reader.exitTag();
+	}
+	activeDeserializer = previous;
+	self->successfullyReadDefaultsFromFile = true;
+}
+
+void PerformanceView::defaultsAbsent(void* ctx) {
+	// Absent in both locations: the owner arm's `WriteDefaults` case, which ends on the default layout.
+	static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
+}
+
+void PerformanceView::defaultsReadDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome) {
+	// An unreadable card is the owner arm's `UseInMemoryOnly`: the default layout for this session, nothing written.
+	if (outcome == deluge::storage::bytes::SettingsOutcome::Unreadable) {
+		static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
+	}
 }
 
 void PerformanceView::readDefaultsOnOwner() {
