@@ -234,9 +234,11 @@ void runTick() {
 		break;
 
 	case Stage::WriteCheck:
-		// Nothing to assert here yet -- the write's own outcome is what the read proves. This stage
-		// exists to spend the tick the enqueued write needs.
-		g_stage = Stage::Read;
+		// Nothing to assert here yet -- the write's own outcome is what the read proves. This stage waits for
+		// the write to COMPLETE, not for a tick to pass: the entry point only queues it, and how many ticks it
+		// takes depends on everything else the harness runs. Spending exactly one tick passed only while
+		// something else happened to slow the step down, and read the scrub below once nothing did.
+		waitIdleThen("SC-ROUNDTRIP", Stage::Read, Stage::Restore);
 		break;
 
 	case Stage::Read:
@@ -249,6 +251,11 @@ void runTick() {
 		break;
 
 	case Stage::ReadCheck:
+		// Likewise the read: a value taken before its parse lands is the scrub above, not the file.
+		if (!deluge::storage::bytes::idle()) {
+			waitIdleThen("SC-ROUNDTRIP", Stage::ReadCheck, Stage::Restore);
+			break;
+		}
 		g_read = runtimeFeatureSettings.get(kProbeSetting);
 		printf("SC-ROUNDTRIP subsystem=runtime_features wrote=%u read=%u\n", g_wrote, g_read);
 		if (g_read != g_wrote) {
