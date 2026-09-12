@@ -368,12 +368,10 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDon
 ///         because the channel is not the place for it here or @p path does not fit. A busy channel is never a false.
 bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr);
 
-/// @brief Run @p fn where blocking on the card is legal: on the storage owner, or inline if already
-///        there.
+/// @brief Run @p fn on the storage owner, or inline if already there or before the owner has started.
 ///
-/// The arm for a consumer whose operation does not belong on the channel here -- the switch is off, the caller is
-/// on the owner, it is boot, or the operation exceeds the channel's bounds. Never a busy fallback: a busy channel
-/// queues. Counted in @ref ownerFallbacks when it really dispatches.
+/// One caller is left: the directory listing's arm for a build with the directory channel off, which goes with that
+/// channel's flip. Everything the byte channel carries uses @ref runInlineWhereLegal instead, which never dispatches.
 void runOnStorageOwner(OwnerFn fn, void* ctx);
 
 /// @brief Run @p fn inline where blocking on the card is legal, and nowhere else.
@@ -392,10 +390,9 @@ void runOnStorageOwner(OwnerFn fn, void* ctx);
 
 /// @brief How many settings operations the CHANNEL has carried to completion.
 ///
-/// The check that the async arm is executed at all. Every consumer falls back to
-/// @ref runOnStorageOwner when the channel refuses, and that fallback is correct and silent -- so a
-/// channel that never worked would leave every gate passing and every file intact, which is exactly
-/// how a previous rung's livelock survived review. This number is the difference between the channel
+/// The check that the async arm is executed at all. When every consumer could still fall back to the
+/// storage owner, a channel that never worked left every gate passing and every file intact, which is
+/// exactly how a previous livelock survived review. This number is the difference between the channel
 /// being used and the channel merely being compiled.
 ///
 /// Counted at the COLLECT wrappers, not in the submit machine, because not every consumer uses that
@@ -411,19 +408,6 @@ void runOnStorageOwner(OwnerFn fn, void* ctx);
 /// What a caller that must know its operations have landed waits on -- never on a file appearing, which is a
 /// proxy for an operation finishing and not the thing itself.
 [[nodiscard]] bool idle();
-
-/// @brief How many operations @ref runOnStorageOwner has dispatched to the storage owner after boot.
-///
-/// Counted only for a real dispatch: not the inline boot path (`!Owner::started()`) and not a caller already on
-/// the owner. With the channel in use this should never move -- a nonzero count there means a consumer took its
-/// owner arm when the channel was the right place for the work.
-[[nodiscard]] int32_t ownerFallbacks();
-
-/// @brief How many of those dispatches the storage owner's queue DROPPED because it was full.
-///
-/// The owner's queue holds four operations and refuses a fifth; @ref runOnStorageOwner cannot block or run the work
-/// inline there, so the operation does not happen. Anything nonzero here is a lost operation.
-[[nodiscard]] int32_t ownerDispatchesDropped();
 
 /// @brief Drive whatever @ref submitRead, @ref submitWrite and @ref submitMkdirAll handed over, one operation
 ///        at a time, oldest first.

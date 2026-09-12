@@ -85,14 +85,8 @@ bool keyable(const char* path) {
 /// See @ref channelServedOps.
 int32_t g_channelServed = 0;
 
-/// See @ref ownerFallbacks.
-int32_t g_ownerFallbacks = 0;
-
 /// See @ref illegalInline.
 int32_t g_illegalInline = 0;
-
-/// See @ref ownerDispatchesDropped.
-int32_t g_ownerDispatchesDropped = 0;
 
 /// Count one channel operation that reached a terminal status, and pass that status through.
 ///
@@ -456,14 +450,9 @@ void runOnStorageOwner(OwnerFn fn, void* ctx) {
 		fn(ctx);
 		return;
 	}
-	g_ownerFallbacks++;
-	if (!deluge::storage::Owner::run_or_inline(fn, ctx)) {
-		g_ownerDispatchesDropped++;
-		// The owner queue is full. Running it here would be the tier violation this whole rung exists
-		// to remove, so the operation does not happen -- and `noteIoTier()` inside the body is
-		// what would have reported it if it had.
-		return;
-	}
+	// A full owner queue drops the operation. Running it here instead would be a card write on the
+	// interaction tier, and the listing retry this serves reports a folder it still cannot open.
+	(void)deluge::storage::Owner::run_or_inline(fn, ctx);
 }
 
 void serviceRoutine() {
@@ -672,10 +661,6 @@ bool idle() {
 	return g_pending.step == Step::Idle && g_waiting.empty();
 }
 
-int32_t ownerFallbacks() {
-	return g_ownerFallbacks;
-}
-
 bool runInlineWhereLegal(OwnerFn fn, void* ctx) {
 	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
 		fn(ctx);
@@ -687,10 +672,6 @@ bool runInlineWhereLegal(OwnerFn fn, void* ctx) {
 
 int32_t illegalInline() {
 	return g_illegalInline;
-}
-
-int32_t ownerDispatchesDropped() {
-	return g_ownerDispatchesDropped;
 }
 
 ByteIo requestUnlink(const char* path) {
