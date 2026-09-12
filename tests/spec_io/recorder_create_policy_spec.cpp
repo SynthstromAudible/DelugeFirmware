@@ -1,5 +1,6 @@
 // tests/spec_io/recorder_create_policy_spec.cpp
 #include "model/sample/recorder_create_policy.h"
+#include "model/sample/recorder_write_policy.h"
 
 #include "libdeluge/file_write.h"
 
@@ -7,11 +8,12 @@
 
 using deluge::storage::CreateInputs;
 using deluge::storage::CreatePhase;
+using deluge::storage::kMaxUnproductiveTicks;
 using deluge::storage::nextCreatePhase;
 
 namespace {
 CreateInputs at(CreatePhase p) {
-	return CreateInputs{p, DELUGE_FILE_WRITE_UNKNOWN, false, false, false, false};
+	return CreateInputs{p, DELUGE_FILE_WRITE_UNKNOWN, false, false, false, false, 0, false};
 }
 CreateInputs ready(CreatePhase p) {
 	CreateInputs in = at(p);
@@ -92,6 +94,41 @@ describe recorder_create_policy("creating a recording's file advances only on an
 		CreateInputs in = at(CreatePhase::MakeFolder);
 		in.collected = DELUGE_FILE_WRITE_FAILED;
 		expect(nextCreatePhase(in) == CreatePhase::Failed).to_equal(true);
+	});
+
+	// Refused, never keyed, or displaced: the caller asks again, and at the bound nothing is outstanding, so
+	// the create fails.
+	it("fails a refused or unkeyed operation at the bound, and not before", _ {
+		CreateInputs opening = at(CreatePhase::Open);
+		opening.unproductiveTicks = kMaxUnproductiveTicks - 1;
+		expect(nextCreatePhase(opening) == CreatePhase::Open).to_equal(true);
+		opening.unproductiveTicks = kMaxUnproductiveTicks;
+		expect(nextCreatePhase(opening) == CreatePhase::Failed).to_equal(true);
+		CreateInputs folder = at(CreatePhase::MakeFolder);
+		folder.unproductiveTicks = kMaxUnproductiveTicks;
+		expect(nextCreatePhase(folder) == CreatePhase::Failed).to_equal(true);
+	});
+
+	// A pending open may yet hand back a stream, so the machine waits for it however long it takes.
+	it("waits for a pending answer even past the bound", _ {
+		CreateInputs in = at(CreatePhase::Open);
+		in.collected = DELUGE_FILE_WRITE_PENDING;
+		in.unproductiveTicks = kMaxUnproductiveTicks + 100;
+		in.failing = true;
+		expect(nextCreatePhase(in) == CreatePhase::Open).to_equal(true);
+	});
+
+	// Fail now, release later: the answer to an operation that went past the bound ends the wait, not the
+	// failure -- even a READY open, and even a NOT_FOUND that would otherwise earn the folder retry.
+	it("fails on the terminal answer to an operation that went past the bound", _ {
+		CreateInputs opened = ready(CreatePhase::Open);
+		opened.failing = true;
+		expect(nextCreatePhase(opened) == CreatePhase::Failed).to_equal(true);
+		CreateInputs missing = at(CreatePhase::Open);
+		missing.collected = DELUGE_FILE_WRITE_FAILED;
+		missing.openNotFound = true;
+		missing.failing = true;
+		expect(nextCreatePhase(missing) == CreatePhase::Failed).to_equal(true);
 	});
 
 	it("is terminal at Done and Failed", _ {

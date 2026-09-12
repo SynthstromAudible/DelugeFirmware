@@ -1,5 +1,6 @@
 // tests/spec_io/recorder_finalize_policy_spec.cpp
 #include "model/sample/recorder_finalize_policy.h"
+#include "model/sample/recorder_write_policy.h"
 
 #include "libdeluge/file_write.h"
 
@@ -7,12 +8,13 @@
 
 using deluge::storage::FinalizeInputs;
 using deluge::storage::FinalizePhase;
+using deluge::storage::kMaxUnproductiveTicks;
 using deluge::storage::nextFinalizePhase;
 
 namespace {
 // A tick on which nothing is in flight: UNKNOWN is what a collect reports when no request is keyed.
 FinalizeInputs at(FinalizePhase p) {
-	return FinalizeInputs{p, DELUGE_FILE_WRITE_UNKNOWN, false, false, false, false, false, false};
+	return FinalizeInputs{p, DELUGE_FILE_WRITE_UNKNOWN, false, false, false, false, false, false, 0, false};
 }
 FinalizeInputs ready(FinalizePhase p) {
 	FinalizeInputs in = at(p);
@@ -116,6 +118,51 @@ describe recorder_finalize_policy("finalize advances only on answers it actually
 	it("re-issues on UNKNOWN rather than advancing", _ {
 		FinalizeInputs in = at(FinalizePhase::HeaderWrite);
 		expect(nextFinalizePhase(in) == FinalizePhase::HeaderWrite).to_equal(true);
+	});
+
+	// Refused, never keyed, or displaced, from every I/O phase: ask again until the bound, then fail. Nothing
+	// is outstanding, so nothing the driver holds is released early.
+	it("fails a refused or unkeyed operation at the bound from every I/O phase", _ {
+		const FinalizePhase ioPhases[] = {
+		    FinalizePhase::DrainClusters, FinalizePhase::WriteFinalPartial,
+		    FinalizePhase::CloseBeforeAlter, FinalizePhase::OpenForAlter, FinalizePhase::HeaderRead,
+		    FinalizePhase::HeaderWrite, FinalizePhase::BatchRead, FinalizePhase::BatchWrite,
+		    FinalizePhase::Truncate, FinalizePhase::Close,
+		};
+		for (FinalizePhase p : ioPhases) {
+			FinalizeInputs in = at(p);
+			in.unproductiveTicks = kMaxUnproductiveTicks - 1;
+			expect(nextFinalizePhase(in) == p).to_equal(true);
+			in.unproductiveTicks = kMaxUnproductiveTicks;
+			expect(nextFinalizePhase(in) == FinalizePhase::Failed).to_equal(true);
+		}
+	});
+
+	// A pending batch write still owns the batch buffer, so advancing -- or failing and letting the recorder
+	// be freed -- would pull it out from under the driver.
+	it("holds position on a pending answer even past the bound", _ {
+		FinalizeInputs in = at(FinalizePhase::BatchWrite);
+		in.collected = DELUGE_FILE_WRITE_PENDING;
+		in.unproductiveTicks = kMaxUnproductiveTicks + 100;
+		in.failing = true;
+		expect(nextFinalizePhase(in) == FinalizePhase::BatchWrite).to_equal(true);
+	});
+
+	it("fails on the terminal answer to an operation that went past the bound", _ {
+		FinalizeInputs closed = ready(FinalizePhase::Close);
+		closed.failing = true;
+		expect(nextFinalizePhase(closed) == FinalizePhase::Failed).to_equal(true);
+		FinalizeInputs header = ready(FinalizePhase::HeaderRead);
+		header.failing = true;
+		expect(nextFinalizePhase(header) == FinalizePhase::Failed).to_equal(true);
+	});
+
+	// The pure phases issue nothing, so no channel bound applies to them.
+	it("does not apply the bound to the pure phases", _ {
+		FinalizeInputs decide = at(FinalizePhase::Decide);
+		decide.altering = true;
+		decide.unproductiveTicks = kMaxUnproductiveTicks;
+		expect(nextFinalizePhase(decide) == FinalizePhase::CloseBeforeAlter).to_equal(true);
 	});
 
 	it("is terminal at Done and Failed", _ {

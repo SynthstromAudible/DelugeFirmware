@@ -21,28 +21,35 @@
 
 namespace deluge::storage {
 
-WriteStep nextWriteStep(bool channelActive, bool haveInFlight, uint8_t collected, int32_t pendingTicks) {
-	if (!channelActive) {
+bool stalledPastBound(uint8_t collected, int32_t unproductiveTicks) {
+	return collected == DELUGE_FILE_WRITE_PENDING && unproductiveTicks >= kMaxUnproductiveTicks;
+}
+
+WriteStep nextWriteStep(bool channelUsable, bool issued, uint8_t collected, int32_t unproductiveTicks) {
+	if (!channelUsable) {
 		return WriteStep::Inline;
 	}
-	if (!haveInFlight) {
-		return WriteStep::Issue;
+	const bool exhausted = unproductiveTicks >= kMaxUnproductiveTicks;
+	if (!issued) {
+		// Owed: never asked, or refused. Nothing is outstanding, so giving up releases nothing the driver holds.
+		return exhausted ? WriteStep::Failed : WriteStep::Issue;
 	}
-	// Terminal answers are checked BEFORE the stall bound. A READY arriving on the tick the bound
-	// expires still means the bytes are on the card, and discarding it would rewrite the cluster
-	// from a buffer the completion path is about to recycle.
+	// Terminal answers are checked BEFORE the bound. A READY past it still means the bytes are on the card,
+	// and the answer is what makes the buffer safe to release.
 	switch (collected) {
 	case DELUGE_FILE_WRITE_READY:
 		return WriteStep::Complete;
 	case DELUGE_FILE_WRITE_FAILED:
 		return WriteStep::Failed;
 	case DELUGE_FILE_WRITE_UNKNOWN:
-		// "Request again", NOT "keep waiting" -- the request was never keyed.
-		return WriteStep::Issue;
+		// "Request again", NOT "keep waiting" -- the request is not queued or running. At the bound nothing is
+		// outstanding, so it fails.
+		return exhausted ? WriteStep::Failed : WriteStep::Issue;
 	default:
 		break;
 	}
-	return pendingTicks >= kMaxPendingTicks ? WriteStep::Inline : WriteStep::Wait;
+	// Still in flight. Past the bound the take fails now, and the buffer is released later.
+	return stalledPastBound(collected, unproductiveTicks) ? WriteStep::StalledWait : WriteStep::Wait;
 }
 
 } // namespace deluge::storage

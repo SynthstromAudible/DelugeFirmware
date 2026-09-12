@@ -16,6 +16,7 @@
  */
 
 #include "model/sample/recorder_finalize_policy.h"
+#include "model/sample/recorder_write_policy.h"
 
 #include "libdeluge/file_write.h"
 
@@ -50,14 +51,18 @@ FinalizePhase nextFinalizePhase(FinalizeInputs in) {
 			// that did not happen.
 			return FinalizePhase::Failed;
 		case DELUGE_FILE_WRITE_PENDING:
-			// Hold position: advancing here would issue the next operation while this one still owns
-			// the caller's buffer.
+			// Hold position, even past the bound: advancing here would issue the next operation while this
+			// one still owns the caller's buffer. `failing` ends it on the answer.
 			return in.phase;
 		case DELUGE_FILE_WRITE_UNKNOWN:
-			// The request was never keyed. Stay so the caller re-issues -- NOT the same as PENDING,
-			// and conflating them strands finalize waiting for an answer nobody owes it.
-			return in.phase;
+			// Never keyed, refused, or displaced. Stay so the caller re-issues -- NOT the same as PENDING,
+			// and conflating them strands finalize waiting for an answer nobody owes it -- until the bound.
+			return in.unproductiveTicks >= kMaxUnproductiveTicks ? FinalizePhase::Failed : in.phase;
 		default:
+			if (in.failing) {
+				// READY, but to an operation that went past the bound: finalize has already failed.
+				return FinalizePhase::Failed;
+			}
 			break; // READY: fall through to the per-phase transitions.
 		}
 	}

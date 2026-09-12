@@ -54,6 +54,12 @@ struct CreateInputs {
 	bool openNotFound;
 	/// `MakeFolder` has already run once for this create.
 	bool triedMakeFolder;
+	/// Consecutive unproductive ticks (refused, UNKNOWN, PENDING) before this one. See
+	/// @ref kMaxUnproductiveTicks.
+	int32_t unproductiveTicks;
+	/// An operation of this phase was still PENDING past the bound. It fails on its terminal answer,
+	/// not before: until then the driver may still be using what it was given.
+	bool failing;
 };
 
 /// @brief Decide the next phase. PURE -- no I/O, no globals, no clock.

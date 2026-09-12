@@ -16,6 +16,7 @@
  */
 
 #include "model/sample/recorder_create_policy.h"
+#include "model/sample/recorder_write_policy.h"
 
 #include "libdeluge/file_write.h"
 
@@ -25,10 +26,19 @@ CreatePhase nextCreatePhase(CreateInputs in) {
 	if (in.phase == CreatePhase::Done || in.phase == CreatePhase::Failed) {
 		return in.phase;
 	}
-	if (in.collected == DELUGE_FILE_WRITE_PENDING || in.collected == DELUGE_FILE_WRITE_UNKNOWN) {
-		// PENDING: the answer is coming. UNKNOWN: it was never asked. Both mean stay -- the caller
-		// re-issues on UNKNOWN and simply waits on PENDING.
+	if (in.collected == DELUGE_FILE_WRITE_PENDING) {
+		// The answer is coming, even past the bound: the driver may still be using what it was given, so the
+		// machine waits for it, and `failing` fails it then.
 		return in.phase;
+	}
+	if (in.collected == DELUGE_FILE_WRITE_UNKNOWN) {
+		// Never asked, refused, or displaced: the caller asks again, until the bound. Nothing is outstanding.
+		return in.unproductiveTicks >= kMaxUnproductiveTicks ? CreatePhase::Failed : in.phase;
+	}
+	if (in.failing) {
+		// A terminal answer to an operation that went past the bound. The create has already failed; the answer
+		// only ends the wait.
+		return CreatePhase::Failed;
 	}
 	if (in.collected == DELUGE_FILE_WRITE_FAILED) {
 		// A missing parent folder is the one failure worth acting on, and exactly once. Every other

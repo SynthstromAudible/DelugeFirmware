@@ -1155,6 +1155,8 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 	    pathReady,
 	    createOpenNotFound_,
 	    createTriedMakeFolder_,
+	    0,
+	    false,
 	});
 	if (next != createPhase_) {
 		createIssued_ = false;
@@ -1472,6 +1474,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 	    alterFramesDone_ < alterNumFrames_,
 	    finalizeNeedTruncate_,
 	    finalizeNeedHeaderPatch_,
+	    0,
+	    false,
 	});
 	if (next != finalizePhase_) {
 		finalizeIssued_ = false;
@@ -1569,6 +1573,7 @@ bool SampleRecorder::pumpInFlightWrite() {
 		hadCardError = true;
 		return false;
 
+	case deluge::storage::WriteStep::StalledWait:
 	case deluge::storage::WriteStep::Issue:
 	case deluge::storage::WriteStep::Inline:
 		// Either the channel never keyed the request (UNKNOWN) or it accepted one and stopped
