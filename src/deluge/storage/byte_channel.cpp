@@ -88,6 +88,9 @@ int32_t g_channelServed = 0;
 /// See @ref ownerFallbacks.
 int32_t g_ownerFallbacks = 0;
 
+/// See @ref illegalInline.
+int32_t g_illegalInline = 0;
+
 /// See @ref ownerDispatchesDropped.
 int32_t g_ownerDispatchesDropped = 0;
 
@@ -685,6 +688,19 @@ bool idle() {
 
 int32_t ownerFallbacks() {
 	return g_ownerFallbacks;
+}
+
+bool runInlineWhereLegal(OwnerFn fn, void* ctx) {
+	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
+		fn(ctx);
+		return true;
+	}
+	g_illegalInline++;
+	return false;
+}
+
+int32_t illegalInline() {
+	return g_illegalInline;
 }
 
 int32_t ownerDispatchesDropped() {

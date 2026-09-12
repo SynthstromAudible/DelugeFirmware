@@ -12,9 +12,11 @@
 #                 card writes: the waiting write is replaced, the in-flight one never is.
 #   SC-ORDER      a read queued behind a write to the same file sees that write.
 #   SC-HEAD       every settings file the channel writes begins with the XML declaration.
+#   SC-FITS       every settings document fits the channel's 8 KiB bound.
 #   SC-UNLINK     a MIDI device table with nothing worth keeping removes its file through the channel.
 #   SC-PERF       performance view's defaults, read after boot, are read through the channel.
-#   SC-FALLBACK   a busy channel queues -- nothing reaches the storage owner.
+#   SC-OVERSIZE   a settings write over that bound is refused after boot: counted, not written, not dispatched.
+#   SC-FALLBACK   a busy channel queues -- nothing a burst submits is refused.
 #   SC-CHANNEL    the channel SERVED operations. The byte channel has no feature switch, so there is no
 #                 second build to compare against; this counter is what says the async arm ran rather than
 #                 merely compiled -- the first channel-on run of this gate reported `served=0` because the
@@ -73,7 +75,7 @@ if ! grep -q '^SC-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in SC-ROUNDTRIP SC-BURST SC-ORDER SC-HEAD SC-UNLINK SC-PERF SC-FALLBACK SC-TIER SC-CHANNEL; do
+for marker in SC-ROUNDTRIP SC-BURST SC-ORDER SC-HEAD SC-FITS SC-UNLINK SC-PERF SC-OVERSIZE SC-FALLBACK SC-TIER SC-CHANNEL; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SC-' "$OUT/run.txt"

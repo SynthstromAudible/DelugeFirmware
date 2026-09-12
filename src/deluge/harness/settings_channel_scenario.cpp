@@ -30,6 +30,7 @@
 #include <cstdio>
 #include <cstring>
 #include <span>
+#include <string>
 #include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
@@ -43,6 +44,11 @@
 /// The gate's view into state the settings consumers keep private, befriended by each consumer it reaches. Every
 /// check still drives the consumer's real entry point; the probe only arranges and observes.
 struct SettingsChannelProbe {
+	static void addUnknownSetting(std::string name, uint32_t value) {
+		runtimeFeatureSettings.unknownSettings.push_back(UnknownSetting{.name = std::move(name), .value = value});
+	}
+	static size_t unknownSettingCount() { return runtimeFeatureSettings.unknownSettings.size(); }
+	static void truncateUnknownSettings(size_t count) { runtimeFeatureSettings.unknownSettings.resize(count); }
 	static void forgetPerformanceDefaults() { performanceView.successfullyReadDefaultsFromFile = false; }
 	static void readPerformanceDefaults() { performanceView.readDefaultsFromFile(); }
 	static bool performanceDefaultsLoaded() { return performanceView.successfullyReadDefaultsFromFile; }
@@ -72,6 +78,9 @@ constexpr uint32_t kOrderValue = 5;
 constexpr uint32_t kScrubValue = 99;
 /// A bound on every idle wait, so a channel that never settles ends the run with a report.
 constexpr int32_t kMaxWaitTicks = 20000;
+/// Unknown settings the oversize stage adds. Each serialises to roughly 55 bytes, so 600 is far past the channel's
+/// 8 KiB bound; real settings files measure 66 to 1,957 bytes.
+constexpr int32_t kOversizeEntries = 600;
 
 /// What every settings document must begin with. Spelled out here rather than taken from the code under test, so
 /// a change that altered the constant and the check together could not pass.
@@ -112,6 +121,9 @@ enum class Stage : uint8_t {
 	PerfRead,
 	PerfWait,
 	PerfCheck,
+	OversizeWrite,
+	OversizeWait,
+	OversizeCheck,
 	Fallback,
 	Restore,
 	RestoreWait,
@@ -129,17 +141,21 @@ uint32_t g_read = 0;
 uint32_t g_original = 0;
 int32_t g_waitTicks = 0;
 int32_t g_servedBefore = 0;
-int32_t g_fallbacksBefore = 0;
+int32_t g_illegalBefore = 0;
 int32_t g_burstServed = 0;
-int32_t g_burstFallbacks = 0;
-int32_t g_orderFallbacks = 0;
+int32_t g_burstIllegal = 0;
+int32_t g_orderIllegal = 0;
 int32_t g_orderServed = 0;
 /// Harness markers the owner queue refused. A refused marker ends a step before its owner work has run.
 int32_t g_markerDrops = 0;
 /// A marker the owner queue refused, still to be enqueued. See deluge_scenario_settings_channel_step_done.
 bool g_markerPending = false;
-int32_t g_dropsBefore = 0;
 int32_t g_markerDropsBefore = 0;
+/// What the oversize stage found before it wrote: whether the community-features file was there, and its bytes.
+bool g_oversizeHadFile = false;
+std::vector<uint8_t> g_oversizeBefore;
+size_t g_unknownBefore = 0;
+int32_t g_tierBefore = 0;
 /// The DIN ports' clock setting as the scenario found it. The head stage changes it to make the MIDI device table
 /// worth writing; the restore puts it back.
 bool g_originalSendClock = true;
@@ -249,8 +265,7 @@ void runTick() {
 			break;
 		}
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
-		g_fallbacksBefore = deluge::storage::bytes::ownerFallbacks();
-		g_dropsBefore = deluge::storage::bytes::ownerDispatchesDropped();
+		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		g_markerDropsBefore = g_markerDrops;
 		runtimeFeatureSettings.set(kProbeSetting, kBurstFirst);
 		runtimeFeatureSettings.writeSettingsToFile();
@@ -275,7 +290,7 @@ void runTick() {
 			break;
 		}
 		g_burstServed = deluge::storage::bytes::channelServedOps() - g_servedBefore;
-		g_burstFallbacks = deluge::storage::bytes::ownerFallbacks() - g_fallbacksBefore;
+		g_burstIllegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		runtimeFeatureSettings.set(kProbeSetting, kScrubValue);
 		runtimeFeatureSettings.readSettingsFromFile();
 		g_stage = Stage::BurstReadWait;
@@ -288,8 +303,7 @@ void runTick() {
 	case Stage::BurstCheck: {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
 		const bool channel = deluge_file_bytes_async_active();
-		printf("SC-BURST value=%u served=%d fallbacks=%d drops=%d markerDrops=%d\n", value, g_burstServed,
-		       g_burstFallbacks, deluge::storage::bytes::ownerDispatchesDropped() - g_dropsBefore,
+		printf("SC-BURST value=%u served=%d illegal=%d markerDrops=%d\n", value, g_burstServed, g_burstIllegal,
 		       g_markerDrops - g_markerDropsBefore);
 		if (value != kBurstThird) {
 			printf("SC-BURST FAIL the last write of the burst did not land (read %u, wanted %u)\n", value, kBurstThird);
@@ -316,7 +330,7 @@ void runTick() {
 		// settings when it RUNS, not when it was called, so a scrub made in this tick would be what it wrote.
 		// A read that started ahead of the write would load the file's previous value over this one, which
 		// is what the check below catches; the served count is what shows the read ran at all.
-		g_fallbacksBefore = deluge::storage::bytes::ownerFallbacks();
+		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
 		runtimeFeatureSettings.set(kProbeSetting, kOrderValue);
 		runtimeFeatureSettings.writeSettingsToFile();
@@ -331,7 +345,7 @@ void runTick() {
 
 	case Stage::OrderCheck: {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
-		g_orderFallbacks = deluge::storage::bytes::ownerFallbacks() - g_fallbacksBefore;
+		g_orderIllegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		g_orderServed = deluge::storage::bytes::channelServedOps() - g_servedBefore;
 		const bool channel = deluge_file_bytes_async_active();
 		printf("SC-ORDER value=%u served=%d\n", value, g_orderServed);
@@ -376,6 +390,13 @@ void runTick() {
 			printf("SC-HEAD file=%s read=%d head=%d\n", path, (int)read, (int)head);
 			if (!head) {
 				missing++;
+			}
+			// Every settings document must fit the channel: after boot, one that does not has no way onto the card.
+			const size_t bound = DELUGE_FILE_BYTES_MAX_BYTES;
+			printf("SC-FITS file=%s bytes=%zu bound=%zu\n", path, bytes.size(), bound);
+			if (!read || bytes.size() > bound) {
+				printf("SC-FITS FAIL %s does not fit the channel\n", path);
+				g_failures++;
 			}
 		}
 		if (missing != 0) {
@@ -429,7 +450,7 @@ void runTick() {
 			}
 		}
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
-		g_fallbacksBefore = deluge::storage::bytes::ownerFallbacks();
+		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		MIDIDeviceManager::writeDevicesToFile();
 		g_waitTicks = 0;
 		g_stage = Stage::UnlinkWait;
@@ -442,17 +463,17 @@ void runTick() {
 	case Stage::UnlinkCheck: {
 		const int32_t there = presence("SETTINGS/MIDIDevices.XML");
 		const int32_t served = deluge::storage::bytes::channelServedOps() - g_servedBefore;
-		const int32_t fallbacks = deluge::storage::bytes::ownerFallbacks() - g_fallbacksBefore;
-		printf("SC-UNLINK file=%d served=%d fallbacks=%d\n", there, served, fallbacks);
+		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
+		printf("SC-UNLINK file=%d served=%d illegal=%d\n", there, served, illegal);
 		if (there != 0) {
 			printf(
 			    "SC-UNLINK FAIL the MIDI device file is still there (presence %d) after a save with nothing to keep\n",
 			    there);
 			g_failures++;
 		}
-		if (served < 1 || fallbacks != 0) {
-			printf("SC-UNLINK FAIL the removal did not go through the channel (served %d, owner fallbacks %d)\n",
-			       served, fallbacks);
+		if (served < 1 || illegal != 0) {
+			printf("SC-UNLINK FAIL the removal did not go through the channel (served %d, refused inline %d)\n", served,
+			       illegal);
 			g_failures++;
 		}
 		g_stage = Stage::PerfRead;
@@ -464,7 +485,7 @@ void runTick() {
 		// happened and ask again through the entry point `focusRegained()` uses.
 		SettingsChannelProbe::forgetPerformanceDefaults();
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
-		g_fallbacksBefore = deluge::storage::bytes::ownerFallbacks();
+		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		SettingsChannelProbe::readPerformanceDefaults();
 		g_waitTicks = 0;
 		g_stage = Stage::PerfWait;
@@ -477,15 +498,55 @@ void runTick() {
 	case Stage::PerfCheck: {
 		const bool loaded = SettingsChannelProbe::performanceDefaultsLoaded();
 		const int32_t served = deluge::storage::bytes::channelServedOps() - g_servedBefore;
-		const int32_t fallbacks = deluge::storage::bytes::ownerFallbacks() - g_fallbacksBefore;
-		printf("SC-PERF loaded=%d served=%d fallbacks=%d\n", (int)loaded, served, fallbacks);
+		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
+		printf("SC-PERF loaded=%d served=%d illegal=%d\n", (int)loaded, served, illegal);
 		if (!loaded) {
 			printf("SC-PERF FAIL the performance defaults were not loaded\n");
 			g_failures++;
 		}
-		if (served < 1 || fallbacks != 0) {
-			printf("SC-PERF FAIL the read did not go through the channel (served %d, owner fallbacks %d)\n", served,
-			       fallbacks);
+		if (served < 1 || illegal != 0) {
+			printf("SC-PERF FAIL the read did not go through the channel (served %d, refused inline %d)\n", served,
+			       illegal);
+			g_failures++;
+		}
+		g_stage = Stage::OversizeWrite;
+		break;
+	}
+
+	case Stage::OversizeWrite:
+		// A settings document over the channel's bound, through the real entry point. After boot, off the owner, it
+		// has no legal place to be written, so it must be refused: counted, not written, not dispatched.
+		g_oversizeHadFile = readWholeFile("SETTINGS/CommunityFeatures.XML", g_oversizeBefore);
+		g_unknownBefore = SettingsChannelProbe::unknownSettingCount();
+		for (int32_t i = 0; i < kOversizeEntries; i++) {
+			SettingsChannelProbe::addUnknownSetting("scOversizeProbe" + std::to_string(i), static_cast<uint32_t>(i));
+		}
+		g_illegalBefore = deluge::storage::bytes::illegalInline();
+		g_servedBefore = deluge::storage::bytes::channelServedOps();
+		g_tierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings);
+		runtimeFeatureSettings.writeSettingsToFile();
+		g_waitTicks = 0;
+		g_stage = Stage::OversizeWait;
+		break;
+
+	case Stage::OversizeWait:
+		waitIdleThen("SC-OVERSIZE", Stage::OversizeCheck, Stage::OversizeCheck);
+		break;
+
+	case Stage::OversizeCheck: {
+		std::vector<uint8_t> after;
+		const bool hasFile = readWholeFile("SETTINGS/CommunityFeatures.XML", after);
+		// The entries come out only now. An owner arm serialises when it RUNS, so taking them out in the submitting
+		// tick would let a dispatched write put an ordinary document on the card and pass this check.
+		SettingsChannelProbe::truncateUnknownSettings(g_unknownBefore);
+		const bool unchanged = hasFile == g_oversizeHadFile && after == g_oversizeBefore;
+		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
+		const int32_t served = deluge::storage::bytes::channelServedOps() - g_servedBefore;
+		const int32_t tier =
+		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings) - g_tierBefore;
+		printf("SC-OVERSIZE illegal=%d served=%d tier=%d unchanged=%d\n", illegal, served, tier, (int)unchanged);
+		if (illegal != 1 || served != 0 || tier != 0 || !unchanged) {
+			printf("SC-OVERSIZE FAIL an oversize settings write was not refused cleanly\n");
 			g_failures++;
 		}
 		g_stage = Stage::Fallback;
@@ -494,17 +555,11 @@ void runTick() {
 
 	case Stage::Fallback: {
 		const bool channel = deluge_file_bytes_async_active();
-		printf("SC-FALLBACK burst=%d order=%d dropped=%d\n", g_burstFallbacks, g_orderFallbacks,
-		       deluge::storage::bytes::ownerDispatchesDropped());
-		// Channel leg: a busy channel must queue, so nothing reaches the owner. Off leg: every submission does --
-		// three burst writes, then the order stage's write and read -- which is also the evidence the switch is
-		// really off there.
-		const bool dropsOk = deluge::storage::bytes::ownerDispatchesDropped() == 0;
-		const bool ok = dropsOk
-		                && (channel ? (g_burstFallbacks == 0 && g_orderFallbacks == 0)
-		                            : (g_burstFallbacks == 3 && g_orderFallbacks == 2));
+		printf("SC-FALLBACK burst=%d order=%d\n", g_burstIllegal, g_orderIllegal);
+		// A busy channel queues: nothing the burst or the ordered write-then-read submitted was refused.
+		const bool ok = !channel || (g_burstIllegal == 0 && g_orderIllegal == 0);
 		if (!ok) {
-			printf("SC-FALLBACK FAIL owner dispatches were not what this leg requires\n");
+			printf("SC-FALLBACK FAIL a settings operation was refused instead of queued behind a busy channel\n");
 			g_failures++;
 		}
 		g_stage = Stage::Restore;
@@ -591,8 +646,8 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_originalCable2Velocity = MIDIDeviceManager::upstreamUSBMIDICable2.defaultVelocityToLevel;
 	g_waitTicks = 0;
 	g_burstServed = 0;
-	g_burstFallbacks = 0;
-	g_orderFallbacks = 0;
+	g_burstIllegal = 0;
+	g_orderIllegal = 0;
 	g_markerDrops = 0;
 	g_markerPending = false;
 }

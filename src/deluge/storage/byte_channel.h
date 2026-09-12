@@ -376,6 +376,20 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// queues. Counted in @ref ownerFallbacks when it really dispatches.
 void runOnStorageOwner(OwnerFn fn, void* ctx);
 
+/// @brief Run @p fn inline where blocking on the card is legal, and nowhere else.
+///
+/// Legal means on the storage owner, or before the owner has started: boot, and every C++-only build, whose worker is
+/// inline and never reports started. Anywhere else the byte channel is the only place card I/O may start from, so an
+/// operation that reaches here there is one the channel could not carry (a document over its bound). It is not run,
+/// not dispatched, and it is counted in @ref illegalInline.
+/// @param fn  The consumer's synchronous body.
+/// @param ctx Passed through to @p fn.
+/// @return true when @p fn ran; false when it was refused.
+[[nodiscard]] bool runInlineWhereLegal(OwnerFn fn, void* ctx);
+
+/// @brief How many operations @ref runInlineWhereLegal refused because the caller was off the owner after boot.
+[[nodiscard]] int32_t illegalInline();
+
 /// @brief How many settings operations the CHANNEL has carried to completion.
 ///
 /// The check that the async arm is executed at all. Every consumer falls back to

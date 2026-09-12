@@ -1635,11 +1635,11 @@ void MidiFollow::writeDefaultsToFile() {
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
 			return;
 		}
-		// Not taken: too large for the channel. A busy channel queues the write rather than refusing it, so
-		// no settings change is lost either way; the owner arm below writes this one synchronously.
+		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
+		// blocking is legal; after boot, off the owner, it is refused and nothing is written.
 	}
-	deluge::storage::bytes::runOnStorageOwner([](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsOnOwner(); },
-	                                          this);
+	(void)deluge::storage::bytes::runInlineWhereLegal(
+	    [](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsOnOwner(); }, this);
 }
 
 void MidiFollow::writeDefaultsOnOwner() {
@@ -1826,11 +1826,11 @@ void MidiFollow::readDefaultsFromFile() {
 		                                       &MidiFollow::writeDefaultsAbsent, this)) {
 			return;
 		}
-		// Not taken (a busy channel queues instead): the owner arm below repeats the setup harmlessly and
-		// does the read itself.
+		// Not taken (a busy channel queues instead): the body below runs only where blocking is legal, which
+		// here is nowhere, so the defaults set up above stand.
 	}
-	deluge::storage::bytes::runOnStorageOwner([](void* ctx) { static_cast<MidiFollow*>(ctx)->readDefaultsOnOwner(); },
-	                                          this);
+	(void)deluge::storage::bytes::runInlineWhereLegal(
+	    [](void* ctx) { static_cast<MidiFollow*>(ctx)->readDefaultsOnOwner(); }, this);
 }
 
 void MidiFollow::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {

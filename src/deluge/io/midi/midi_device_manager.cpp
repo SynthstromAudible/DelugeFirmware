@@ -502,10 +502,11 @@ void writeDevicesToFile() {
 			anyChangesToSave = false;
 			return;
 		}
-		// Not taken: too large for the channel. A busy channel queues the write rather than refusing it, so
-		// no settings change is lost either way; the owner arm below writes this one synchronously.
+		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
+		// blocking is legal; after boot, off the owner, it is refused and nothing is written.
 	}
-	deluge::storage::bytes::runOnStorageOwner([](void*) { writeDevicesOnOwner(); }, nullptr);
+	// A refusal leaves `anyChangesToSave` set, so the next save retries.
+	(void)deluge::storage::bytes::runInlineWhereLegal([](void*) { writeDevicesOnOwner(); }, nullptr);
 }
 
 void writeDevicesOnOwner() {
@@ -587,10 +588,10 @@ void readDevicesFromFile() {
 		                                       /*onAbsent=*/nullptr, nullptr)) {
 			return;
 		}
-		// Not taken (a busy channel queues instead): the owner arm below repeats the early-out harmlessly and
-		// does the read itself.
+		// Not taken (a busy channel queues instead): the body below runs only where blocking is legal, which
+		// here is nowhere, so the table in memory stands.
 	}
-	deluge::storage::bytes::runOnStorageOwner([](void*) { readDevicesOnOwner(); }, nullptr);
+	(void)deluge::storage::bytes::runInlineWhereLegal([](void*) { readDevicesOnOwner(); }, nullptr);
 }
 
 void parseDevicesBytes(void* /*ctx*/, char* bytes, uint32_t len) {
