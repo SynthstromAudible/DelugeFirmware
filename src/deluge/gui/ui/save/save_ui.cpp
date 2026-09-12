@@ -183,9 +183,12 @@ ActionResult SaveUI::timerCallback() {
 }
 
 bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
-	// Single-flight by REFUSAL, not by superseding (see dispatchSave()'s doc). The caller treats
-	// false exactly as it treats a full owner queue: nothing was written, and nothing was promised.
-	if (saveInFlight_) {
+	// Single-flight by REFUSAL, not by superseding (see dispatchSave()'s doc), and across EVERY save. A song save
+	// releases saveInFlight_ once its name is known to be free, and its collection and document machines run on
+	// for many ticks after that: a preset save started then would serialise into the shared serialiser under the
+	// song's staged document. The caller treats false exactly as it treats a full owner queue: nothing was
+	// written, and nothing was promised.
+	if (anySaveInFlight()) {
 		return false;
 	}
 	saveInFlight_ = true;

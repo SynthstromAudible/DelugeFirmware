@@ -22,6 +22,8 @@
 #                 because a rejected write has already left its file on the card.
 #   DS-VERIFY-ARM the read-back ran through the channel and never on the owner.
 #   DS-KITROW     a kit row was saved and verified. No gate had ever saved one before.
+#   DS-GUARD-SONG a preset save dispatched while a song save's collection or document machine runs -- with
+#                 the save guard already released -- is refused, and the song document still lands whole.
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
 set -euo pipefail
@@ -68,7 +70,7 @@ if [ "$status" -ne 0 ]; then
 fi
 # An abort or a wedge exits before these lines are printed, which is what turns a freeze into a gate
 # failure rather than a silently truncated log.
-for marker in DS-BACKMIDSAVE DS-EXITMIDSAVE DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-VERIFIED DS-SUMMARY DS-RESULT; do
+for marker in DS-BACKMIDSAVE DS-EXITMIDSAVE DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-GUARD-SONG DS-VERIFIED DS-SUMMARY DS-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^DS-' "$OUT/run.txt"
@@ -117,6 +119,7 @@ grep -q '^DS-EXITMIDSAVE exit=1$' "$OUT/run.txt" || { echo "FAIL DS-EXITMIDSAVE 
 grep -q '^DS-FINISHED closed=1 named=1$' "$OUT/run.txt" || { echo "FAIL DS-FINISHED — $(grep '^DS-FINISHED ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 grep -q '^DS-KITFINISHED closed=1 named=1 path=SYNTHS$' "$OUT/run.txt" || { echo "FAIL DS-KITFINISHED — $(grep '^DS-KITFINISHED ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 grep -q '^DS-GUARD refused=1 unchanged=1$' "$OUT/run.txt" || { echo "FAIL DS-GUARD — $(grep '^DS-GUARD ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
+grep -q '^DS-GUARD-SONG tried=1 refused=1 songSaved=1 presetWritten=0$' "$OUT/run.txt" || { echo "FAIL DS-GUARD-SONG — $(grep '^DS-GUARD-SONG ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 
 # DS-VERIFY-ARM. The read-back rides the channel, and nothing goes to the owner.
 if [ "${vserved:-0}" = "0" ] || [ "${vowner:-1}" != "0" ]; then

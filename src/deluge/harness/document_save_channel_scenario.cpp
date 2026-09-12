@@ -23,11 +23,14 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_kit_row_ui.h"
+#include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/save/save_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "hid/button.h"
 #include "io/file.hpp"
+#include "libdeluge/file_bytes.h"
+#include "libdeluge/file_write.h"
 #include "memory/heaps.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
@@ -38,6 +41,7 @@
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -78,12 +82,39 @@ public:
 	///         which had opened perfectly well "did not open".
 	static bool openKitRow() { return openUI(&saveKitRowUI); }
 	static void pressEnterKitRow() { saveKitRowUI.enterKeyPress(); }
+	/// Open the song save screen on SONGS, the way SongSaveChannelProbe does.
+	static bool openSongSave() {
+		Browser::currentDir = "SONGS";
+		Browser::enteredText.clear();
+		return openUI(&saveSongUI);
+	}
+	static void pressEnterSong() { saveSongUI.enterKeyPress(); }
+	/// Dispatch a preset save the way the overwrite prompt and the save-song-or-instrument menu do: straight
+	/// into dispatchSave(), which is the guard under test. The save screen's own buttons are already refused
+	/// while any save runs.
+	static bool dispatchPresetSave(const char* name) {
+		return saveInstrumentPresetUI.dispatchSave({
+		    .consumer = deluge::storage::SaveConsumer::EnterKey,
+		    .mayOverwrite = false,
+		    .collectingSamples = false,
+		    .filePath = std::string("SYNTHS/") + name + ".XML",
+		    .enteredText = name,
+		    .dirPath = "SYNTHS",
+		});
+	}
 };
 
 namespace {
 
 constexpr const char* kSaveName = "DSTEST01";
 constexpr const char* kKitRowName = "DSKITROW";
+constexpr const char* kSongGuardName = "DSSONG01";
+constexpr const char* kSongGuardPath = "SONGS/DSSONG01.XML";
+constexpr const char* kSongGuardPresetName = "DSGUARD1";
+constexpr const char* kSongGuardPresetPath = "SYNTHS/DSGUARD1.XML";
+/// Byte- and write-channel latency while the song save runs, so its collection and document machines span
+/// many ticks and the preset save can be dispatched while they do.
+constexpr uint32_t kSongGuardLatencyMs = 20;
 
 enum class Stage : uint8_t {
 	Fixture,
@@ -106,6 +137,12 @@ enum class Stage : uint8_t {
 	KitSave,
 	KitSaveWait,
 	KitCheck,
+	SongGuardOpen,
+	SongGuardOpenWait,
+	SongGuardSave,
+	SongGuardDispatch,
+	SongGuardWait,
+	SongGuardCheck,
 	Report,
 	Done,
 };
@@ -123,6 +160,11 @@ std::string g_kitPath;
 /// rename check could pass without the save renaming anything, so the check has to know.
 std::string g_nameBefore;
 SoundDrum* g_kitDrum = nullptr;
+/// DS-GUARD-SONG: whether the preset dispatch happened inside the window, and what dispatchSave() said.
+bool g_songGuardTried = false;
+bool g_songGuardRefused = false;
+/// Staged saves completed before the song-guard stage, so a preset save that slipped through is seen.
+int32_t g_completedBeforeSongGuard = 0;
 
 /// A save spans ticks by construction; this bound exists so a save that never lands ends the run with
 /// a REPORT rather than a silent timeout.
@@ -484,6 +526,105 @@ void runTick() {
 				g_failures++;
 			}
 		}
+		g_stage = Stage::SongGuardOpen;
+		break;
+	}
+	case Stage::SongGuardOpen: {
+		// DS-GUARD-SONG. A song save releases the save guard as soon as its name is known to be free, and its
+		// collection and document machines then run for many more ticks. A preset save started in that window
+		// would serialise into the shared serialiser under the song's staged document.
+		(void)deluge::io::unlink(kSongGuardPath);
+		(void)deluge::io::unlink(kSongGuardPresetPath);
+		changeRootUI(&arrangerView);
+		if (!DocumentSaveChannelProbe::openSongSave()) {
+			printf("DS-GUARD-SONG FAIL the song save screen did not open\n");
+			g_failures++;
+			g_stage = Stage::Report;
+			break;
+		}
+		g_stage = Stage::SongGuardOpenWait;
+		break;
+	}
+	case Stage::SongGuardOpenWait: {
+		if (!DocumentSaveChannelProbe::listingInProgress()) {
+			g_stage = Stage::SongGuardSave;
+		}
+		break;
+	}
+	case Stage::SongGuardSave: {
+		g_completedBeforeSongGuard = SaveUI::stagedSavesCompleted();
+		g_songGuardTried = false;
+		g_songGuardRefused = false;
+		deluge_file_bytes_set_latency_ms(kSongGuardLatencyMs);
+		deluge_file_write_set_latency_ms(kSongGuardLatencyMs);
+		DocumentSaveChannelProbe::typeName(kSongGuardName);
+		DocumentSaveChannelProbe::pressEnterSong();
+		g_waitTicks = 0;
+		g_stage = Stage::SongGuardDispatch;
+		break;
+	}
+	case Stage::SongGuardDispatch: {
+		const bool songRunning = saveSongUI.collectInFlight() || saveSongUI.docInFlight();
+		if (songRunning && !SaveUI::saveInFlight()) {
+			// The window: the song save is still running, and the guard dispatchSave() used to check is down.
+			g_songGuardTried = true;
+			g_songGuardRefused = !DocumentSaveChannelProbe::dispatchPresetSave(kSongGuardPresetName);
+			g_stage = Stage::SongGuardWait;
+			break;
+		}
+		if (!songRunning && !SaveUI::saveInFlight()) {
+			// The song save ended without the window ever opening; SongGuardCheck reports that nothing was tested.
+			g_stage = Stage::SongGuardWait;
+			break;
+		}
+		if (++g_waitTicks > kMaxWaitTicks) {
+			printf("DS-GUARD-SONG FAIL the song save never reached its collection or document machine (%d ticks)\n",
+			       g_waitTicks);
+			g_failures++;
+			g_stage = Stage::SongGuardWait;
+		}
+		break;
+	}
+	case Stage::SongGuardWait: {
+		if (!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight()) {
+			deluge_file_bytes_set_latency_ms(0);
+			deluge_file_write_set_latency_ms(0);
+			g_stage = Stage::SongGuardCheck;
+			break;
+		}
+		if (++g_waitTicks > kMaxWaitTicks) {
+			printf("DS-GUARD-SONG FAIL the song save never finished (%d ticks)\n", g_waitTicks);
+			g_failures++;
+			g_stage = Stage::Report;
+		}
+		break;
+	}
+	case Stage::SongGuardCheck: {
+		std::vector<uint8_t> song;
+		const bool songSaved =
+		    readWholeFile(kSongGuardPath, song) && song.size() > 64 && std::memcmp(song.data(), "<?xml", 5) == 0;
+		std::vector<uint8_t> preset;
+		const bool presetWritten =
+		    readWholeFile(kSongGuardPresetPath, preset) || SaveUI::stagedSavesCompleted() != g_completedBeforeSongGuard;
+		printf("DS-GUARD-SONG tried=%d refused=%d songSaved=%d presetWritten=%d\n", (int)g_songGuardTried,
+		       (int)g_songGuardRefused, (int)songSaved, (int)presetWritten);
+		if (!g_songGuardTried) {
+			printf("DS-GUARD-SONG FAIL no preset save was dispatched while the song save ran with the guard down; "
+			       "this proves nothing\n");
+			g_failures++;
+		}
+		else if (!g_songGuardRefused) {
+			printf("DS-GUARD-SONG FAIL a preset save was accepted while a song save was still running\n");
+			g_failures++;
+		}
+		if (!songSaved) {
+			printf("DS-GUARD-SONG FAIL the song save did not leave a whole document at %s\n", kSongGuardPath);
+			g_failures++;
+		}
+		if (presetWritten) {
+			printf("DS-GUARD-SONG FAIL the refused preset save wrote a file or counted a save\n");
+			g_failures++;
+		}
 		g_stage = Stage::Report;
 		break;
 	}
@@ -502,6 +643,10 @@ void runTick() {
 		if (!g_kitPath.empty()) {
 			(void)deluge::io::unlink(g_kitPath.c_str());
 		}
+		(void)deluge::io::unlink(kSongGuardPath);
+		(void)deluge::io::unlink(kSongGuardPresetPath);
+		deluge_file_bytes_set_latency_ms(0);
+		deluge_file_write_set_latency_ms(0);
 		fflush(stdout);
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;
@@ -532,6 +677,9 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_kitPath.clear();
 	g_kitDrum = nullptr;
 	g_nameBefore.clear();
+	g_songGuardTried = false;
+	g_songGuardRefused = false;
+	g_completedBeforeSongGuard = 0;
 }
 
 bool deluge_scenario_document_save_channel_complete(void) {

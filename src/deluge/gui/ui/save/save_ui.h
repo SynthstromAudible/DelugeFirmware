@@ -86,8 +86,9 @@ public:
 	///       requests, which for a repaint is fine and for a save is a lost file.
 	///
 	/// @param request The snapshot; see SaveRequest.
-	/// @return true if the save was started, or ended at once having been dealt with; false only if a
-	///         save was already in flight, in which case nothing was written.
+	/// @return true if the save was started, or ended at once having been dealt with; false only if any
+	///         save was already in flight -- a staged document, or a song save still collecting or writing
+	///         its document -- in which case nothing was written.
 	[[nodiscard]] bool dispatchSave(const deluge::storage::SaveRequest& request);
 
 	/// @brief Start a save that is not a staged document -- the song save.
