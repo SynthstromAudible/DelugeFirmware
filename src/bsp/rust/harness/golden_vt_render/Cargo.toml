@@ -220,8 +220,6 @@ async_file_prefix_active = ["async_file_prefix"]
 # open is not one of `LoadOps`'s four file operations.
 async_file_directory = []
 async_file_directory_active = ["async_file_directory"]
-async_file_write = []
-async_file_write_active = ["async_file_write"]
 
 [build-dependencies]
 bindgen = "0.70"

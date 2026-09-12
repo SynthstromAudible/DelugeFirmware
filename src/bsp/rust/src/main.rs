@@ -245,10 +245,8 @@ mod file_directory;
 /// `async_file_prefix_active` is on; both of the features are off by default.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod file_prefix;
-/// The recorder's async stream-write driver: a request/collect pair over `stream_write_at`, the
-/// future `deluge_efatfs_stream_write_at` otherwise blocks on. Compiled under `async_file_write`;
-/// routed through only under `async_file_write_active`.
-#[cfg(feature = "async_file_write")]
+/// The write channel: request/collect over the recorder's stream-write handles and the whole-file
+/// write and read. Compiled unconditionally; the channel has no feature switch.
 mod file_write;
 /// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
 mod flash;
@@ -462,8 +460,7 @@ fn stream_sgi_handler() {
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
         feature = "async_file_directory_active",
-        feature = "efatfs_streaming",
-        feature = "async_file_write_active"
+        feature = "efatfs_streaming"
     )
 ))]
 #[embassy_executor::task]
@@ -491,7 +488,7 @@ async fn stream_bootstrap() {
     spawner.spawn(file_bytes::file_bytes_task().unwrap());
     // The recorder's cluster write. Same reason as its neighbours: `stream_write_at` goes through
     // `with_fs`, so this task holds the FS mutex across an SD await.
-    #[cfg(all(feature = "async_file_write_active", feature = "efatfs_streaming"))]
+    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(file_write::file_write_task().unwrap());
 }
 
@@ -613,8 +610,7 @@ pub extern "C" fn main() -> ! {
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
         feature = "async_file_directory_active",
-        feature = "efatfs_streaming",
-        feature = "async_file_write_active"
+        feature = "efatfs_streaming"
     ))]
     STREAM_EXEC
         .start(STREAM_SGI)
@@ -624,8 +620,7 @@ pub extern "C" fn main() -> ! {
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
         feature = "async_file_directory_active",
-        feature = "efatfs_streaming",
-        feature = "async_file_write_active"
+        feature = "efatfs_streaming"
     )))]
     let _ = STREAM_EXEC.start(STREAM_SGI);
     unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
@@ -1262,7 +1257,6 @@ fn main() {
                         #[cfg(feature = "async_file_directory_active")]
                         spawner.spawn(file_directory::file_directory_task().unwrap());
                         spawner.spawn(file_bytes::file_bytes_task().unwrap());
-                        #[cfg(feature = "async_file_write_active")]
                         spawner.spawn(file_write::file_write_task().unwrap());
                         log::info!(
                             "deluge-bsp-rust: host streaming executor up on thread {:?}",

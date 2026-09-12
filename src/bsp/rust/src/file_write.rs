@@ -19,8 +19,6 @@
 //! The pointer is stored as a `usize` rather than a `*const u8` so the request is `Send`; it is
 //! reconstituted only inside the task, and only for the duration of one `stream_write_at`.
 
-#![cfg(feature = "async_file_write")]
-
 use core::ffi::{CStr, c_char};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -162,9 +160,6 @@ fn op_key(op: &StreamOp) -> (OpKind, u32) {
 /// and reports its own work as done -- a bug this channel has already shipped once, caught only by a
 /// byte-level readback.
 fn accept(op: StreamOp, path: &str) -> bool {
-    if !deluge_file_write_async_active() {
-        return false;
-    }
     let (Ok(mut req), Ok(in_flight), Ok(mut result)) =
         (REQUEST.try_lock(), IN_FLIGHT.try_lock(), RESULT.try_lock())
     else {
@@ -334,10 +329,25 @@ pub unsafe extern "C" fn deluge_file_write_collect_write_file(
     status
 }
 
-/// C-ABI: is the driver running?
+/// C-ABI: is the driver running? Always, on the Rust BSP: the write channel has no feature switch.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_write_async_active() -> bool {
-    cfg!(feature = "async_file_write_active")
+    true
+}
+
+/// Milliseconds `file_write_task` waits before each operation. Host harness only; see
+/// [`deluge_file_write_set_latency_ms`].
+#[cfg(feature = "host_app")]
+static LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make every write-channel operation wait `ms` milliseconds before it touches the card, so a gate
+/// can hold an operation in flight while a consumer does something else. 0, the default, means no wait.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_write_set_latency_ms(ms: u32) {
+    LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
 }
 
 /// C-ABI: ask for a write.
@@ -536,6 +546,15 @@ pub async fn file_write_task() {
             };
             let (kind, handle) = op_key(&op);
             *IN_FLIGHT.lock().await = Some((kind, handle));
+            // After marking it in flight, so a collect during the wait answers PENDING, exactly as it would while
+            // a slow card was working.
+            #[cfg(feature = "host_app")]
+            {
+                let ms = LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
+                if ms > 0 {
+                    embassy_time::Timer::after_millis(u64::from(ms)).await;
+                }
+            }
             let result = match op {
                 StreamOp::Open { mode } => open_mounted(path.as_str(), mode).await.ok_or(0),
                 StreamOp::ReadAt {

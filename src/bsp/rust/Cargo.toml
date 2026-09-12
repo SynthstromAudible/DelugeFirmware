@@ -317,15 +317,6 @@ async_audio_load_active = ["async_audio_load"]
 ## calls into C++" has to hold.
 async_file_prefix = ["async_audio_load"]
 
-## Compile the recorder's async stream-write driver (`file_write.rs`). Does NOT turn it on --
-## `deluge_file_write_async_active()` reads `async_file_write_active` below, so a build can carry
-## the driver without routing any write through it.
-async_file_write = []
-
-## Turn the async stream-write path ON. Implies `async_file_write`, so flipping the switch cannot
-## produce a build with the switch on and the driver absent.
-async_file_write_active = ["async_file_write"]
-
 ## THE SWITCH: the sole input to `deluge_file_prefix_async_active()`, and the
 ## only thing that makes the slot/queue statics and the task exist at all. Off by
 ## default, and separate from `async_file_prefix` above for the same reason the

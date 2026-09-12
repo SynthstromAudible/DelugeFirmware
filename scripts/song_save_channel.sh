@@ -14,24 +14,19 @@
 # measured being 11.5 KB and the largest 1.10 MB. The write channel passes the pointer instead. A
 # build that sent a song down the copying channel failed every time and simply produced no file.
 #
-# ## Why TWO legs
-#
-# The legs differ only in the WRITE channel. The byte channel has no feature switch, so the temp-name
-# search, the read-back, the unlink and the rename ride it on both legs. The off leg proves a build with
-# the write channel off still writes the document, through the owner; the on leg proves the write
-# channel arm runs and runs off the owner.
+# One leg: neither channel has a feature switch. The document write rides the write channel; the
+# temp-name search, the read-back, the unlink and the rename ride the byte channel.
 #
 # What the checks cover:
 #   SS-GREW       the song really did outgrow the staging buffer, at least twice. FIRST, because a
 #                 fixture that fits the initial 32 KiB buffer exercises the growth path not at all,
 #                 and every check about it would then be a check that cannot fail.
-#   SS-SAVED      the document is on the card, with its length and checksum. Both legs.
+#   SS-SAVED      the document is on the card, with its length and checksum.
 #   SS-VERIFIED   the save COMPLETED, which it can only do after its read-back check -- length, head
 #                 and tail -- has passed. A save that fails that check abandons AFTER writing its
 #                 file, so SS-SAVED alone cannot tell success from a rejected write left on the card.
 #                 Truncating the document by one byte is what proved that distinction was needed.
-#   SS-PARSES     it loads back as a SONG. Bytes of the right length are not the claim, and a
-#                 document broken identically on both legs would pass every comparison between them.
+#   SS-PARSES     it loads back as a SONG. Bytes of the right length are not the claim.
 #   SS-INTACT     after saving over an existing song, a song is still there and still loads. The
 #                 property that justifies writing to a temp name at all -- but note precisely WHERE
 #                 it holds. Nothing destructive runs until the replacement is written AND verified,
@@ -41,15 +36,10 @@
 #                 song gone and the new content stranded at the temp name. That window is inherited
 #                 from the streaming save, which made the same two calls in the same order, and this
 #                 conversion preserves it rather than widening or closing it.
-#   SS-IDENTICAL  both legs wrote the same document.
-#   SS-CHANNEL    the on leg's steps were SERVED by a channel -- the async arm ran.
-#   SS-GATED      the off leg's WRITE channel served zero and the owner wrote the document, so the
-#                 write channel's feature gate actually gates.
-#   SS-ACCOUNTED  the owner and the channels account for every card step between them on each leg, and
-#                 the on leg sent nothing to the owner.
-#                 Neither SS-CHANNEL nor SS-SAVED can see WHICH arm carried which step, so a leg
-#                 where half of them quietly took the other arm passes both.
-#   SS-OFFOWNER   the on leg's steps ran OFF the storage owner. The rung's actual claim.
+#   SS-CHANNEL    the steps were SERVED by the channels, and the document write by the WRITE channel.
+#   SS-ACCOUNTED  the channels account for every card step, and nothing was sent to the owner. Neither
+#                 SS-CHANNEL nor SS-SAVED can see WHICH arm carried which step.
+#   SS-OFFOWNER   the steps ran OFF the storage owner. The rung's actual claim.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
@@ -67,7 +57,6 @@ cd "$REPO_ROOT"
 BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
 CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
 TARGET_DIR="${TARGET_DIR:-$CRATE_DIR/target/song-save-channel}"
-CHAN_TARGET_DIR="${CHAN_TARGET_DIR:-$CRATE_DIR/target/song-save-channel-on}"
 
 if [ "${NO_BUILD:-0}" != "1" ]; then
 	[ -d "$BUILD_DIR" ] || {
@@ -79,139 +68,84 @@ if [ "${NO_BUILD:-0}" != "1" ]; then
 	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
 		deluge_foundation deluge_midi
 	(cd "$CRATE_DIR" && cargo build --release --target-dir "$REPO_ROOT/$TARGET_DIR")
-	# The on leg turns the WRITE channel on. The byte channel, which the temp-name search, the read-back,
-	# the unlink and the rename ask, is on in every build.
-	(cd "$CRATE_DIR" && cargo build --release \
-		--features async_file_write_active \
-		--target-dir "$REPO_ROOT/$CHAN_TARGET_DIR")
 fi
 
 BIN="$TARGET_DIR/release/golden_vt_render"
-CHAN_BIN="$CHAN_TARGET_DIR/release/golden_vt_render"
-for b in "$BIN" "$CHAN_BIN"; do
-	[ -x "$b" ] || {
-		echo "ERROR: '$b' not built (see NO_BUILD)"
-		exit 2
-	}
-done
+[ -x "$BIN" ] || {
+	echo "ERROR: '$BIN' not built (see NO_BUILD)"
+	exit 2
+}
 
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/song_save_channel.XXXXXX")"
 trap 'rm -rf "$OUT"' EXIT
 fail=0
 
-run_leg() {
-	local name="$1" bin="$2"
-	echo "song save channel: running $name leg"
-	set +e
-	GOLDEN_SCENARIO=song_save_channel "$bin" >"$OUT/$name.txt" 2>"$OUT/$name.err"
-	local status=$?
-	set -e
-	if [ "$status" -ne 0 ]; then
-		echo "FAIL [$name] — the run exited $status"
-		grep -E '^SS-' "$OUT/$name.txt" || sed -n '1,40p' "$OUT/$name.txt"
-		sed -n '1,40p' "$OUT/$name.err" >&2
-		fail=1
-		return
+echo "song save channel: running"
+set +e
+GOLDEN_SCENARIO=song_save_channel "$BIN" >"$OUT/run.txt" 2>"$OUT/run.err"
+status=$?
+set -e
+if [ "$status" -ne 0 ]; then
+	echo "FAIL — the run exited $status"
+	grep -E '^SS-' "$OUT/run.txt" || sed -n '1,40p' "$OUT/run.txt"
+	sed -n '1,40p' "$OUT/run.err" >&2
+	exit 1
+fi
+# An abort or a wedge exits before these lines are printed, which is what turns a freeze into a
+# gate failure rather than a silently truncated log.
+for marker in SS-BACKMIDSAVE SS-EXITMIDSAVE SS-GREW SS-SAVED SS-VERIFIED SS-PARSES SS-INTACT SS-SUMMARY SS-RESULT; do
+	if ! grep -q "^$marker " "$OUT/run.txt"; then
+		echo "FAIL — no $marker line; that stage did not run"
+		grep -E '^SS-' "$OUT/run.txt"
+		exit 1
 	fi
-	# An abort or a wedge exits before these lines are printed, which is what turns a freeze into a
-	# gate failure rather than a silently truncated log.
-	for marker in SS-BACKMIDSAVE SS-EXITMIDSAVE SS-GREW SS-SAVED SS-VERIFIED SS-PARSES SS-INTACT SS-SUMMARY SS-RESULT; do
-		if ! grep -q "^$marker " "$OUT/$name.txt"; then
-			echo "FAIL [$name] — no $marker line; that stage did not run"
-			grep -E '^SS-' "$OUT/$name.txt"
-			fail=1
-			return
-		fi
-	done
-	if ! grep -q '^SS-RESULT failures=0$' "$OUT/$name.txt"; then
-		echo "FAIL [$name] — $(grep '^SS-RESULT' "$OUT/$name.txt")"
-		grep -E '^SS-' "$OUT/$name.txt"
-		fail=1
-	fi
-}
-
-run_leg off "$BIN"
-run_leg on "$CHAN_BIN"
-
-served_of() { sed -n 's/^SS-SUMMARY served=\([0-9]*\) .*/\1/p' "$1"; }
-owner_of() { sed -n 's/^SS-SUMMARY .*ownerServed=\([0-9]*\).*/\1/p' "$1"; }
-offowner_of() { sed -n 's/^SS-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$1"; }
-steps_of() { sed -n 's/^SS-SUMMARY .*steps=\([0-9]*\).*/\1/p' "$1"; }
-doublings_of() { sed -n 's/^SS-GREW doublings=\([0-9]*\).*/\1/p' "$1"; }
-write_of() { sed -n 's/^SS-SUMMARY .*writeServed=\([0-9]*\).*/\1/p' "$1"; }
-
-off_served="$(served_of "$OUT/off.txt")"
-on_served="$(served_of "$OUT/on.txt")"
-off_owner="$(owner_of "$OUT/off.txt")"
-on_owner="$(owner_of "$OUT/on.txt")"
-on_offowner="$(offowner_of "$OUT/on.txt")"
-off_steps="$(steps_of "$OUT/off.txt")"
-off_write="$(write_of "$OUT/off.txt")"
-on_steps="$(steps_of "$OUT/on.txt")"
-
-# SS-CHANNEL. The async arm actually RAN. Nothing else in the tree drives a whole-song document
-# write through a channel, so without this leg that code has never executed anywhere.
-if [ -z "${on_served:-}" ] || [ "$on_served" -eq 0 ]; then
-	echo "FAIL SS-CHANNEL — the channel-on leg served ${on_served:-no} step(s); the async arm never ran"
+done
+if ! grep -q '^SS-RESULT failures=0$' "$OUT/run.txt"; then
+	echo "FAIL — $(grep '^SS-RESULT' "$OUT/run.txt")"
 	fail=1
 fi
 
-# SS-GATED. The write channel's feature gate actually gates: with it off, the write channel serves nothing
-# and the document write takes the owner. The byte channel has no gate, so it is not counted here.
-if [ -z "${off_write:-}" ] || [ "$off_write" -ne 0 ]; then
-	echo "FAIL SS-GATED — the write-channel-OFF leg's write channel served ${off_write:-no} step(s); the feature gate is not gating"
+served="$(sed -n 's/^SS-SUMMARY served=\([0-9]*\) .*/\1/p' "$OUT/run.txt")"
+owner="$(sed -n 's/^SS-SUMMARY .*ownerServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+offowner="$(sed -n 's/^SS-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+steps="$(sed -n 's/^SS-SUMMARY .*steps=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+write="$(sed -n 's/^SS-SUMMARY .*writeServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+doublings="$(sed -n 's/^SS-GREW doublings=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+
+# SS-CHANNEL. The async arms actually RAN, and the document itself went through the WRITE channel.
+if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
+	echo "FAIL SS-CHANNEL — the save served ${served:-no} step(s); the async arm never ran"
 	fail=1
 fi
-if [ "${off_owner:-0}" -eq 0 ]; then
-	echo "FAIL SS-GATED — the write-channel-OFF leg sent no step to the owner, so its document write went nowhere"
+if [ -z "${write:-}" ] || [ "$write" -eq 0 ]; then
+	echo "FAIL SS-CHANNEL — the write channel served ${write:-no} document write(s)"
 	fail=1
 fi
 
-# SS-ACCOUNTED. The two arms must account for EVERY card step between them, and on each leg only one
-# of them may have run. Without this a leg where half the steps quietly took the other arm reads as a
-# pass: SS-CHANNEL only asks whether a channel served ANY, and SS-SAVED only asks whether the file
-# arrived -- neither can see WHICH arm carried each step.
-if [ -z "${off_steps:-}" ] || [ "${off_steps:-0}" -eq 0 ]; then
-	echo "FAIL SS-ACCOUNTED — the channel-OFF leg reported no card steps at all"
-	fail=1
-elif [ $(( ${off_owner:-0} + ${off_served:-0} )) -ne "${off_steps}" ]; then
-	echo "FAIL SS-ACCOUNTED — the OFF leg took ${off_steps} card step(s) but the owner served ${off_owner:-no} and the channels ${off_served:-no}"
+# SS-ACCOUNTED. The channels must account for EVERY card step, and none may have gone to the owner.
+if [ -z "${steps:-}" ] || [ "${steps:-0}" -eq 0 ]; then
+	echo "FAIL SS-ACCOUNTED — the save reported no card steps at all"
 	fail=1
 fi
-if [ "${on_owner:-1}" -ne 0 ]; then
-	echo "FAIL SS-ACCOUNTED — the ON leg sent ${on_owner} step(s) to the owner; they should all go to a channel"
+if [ "${owner:-1}" -ne 0 ]; then
+	echo "FAIL SS-ACCOUNTED — the save sent ${owner} step(s) to the owner; they should all go to a channel"
 	fail=1
 fi
-if [ -z "${on_steps:-}" ] || [ "${on_served:-0}" -ne "${on_steps:-0}" ]; then
-	echo "FAIL SS-ACCOUNTED — the ON leg took ${on_steps:-no} card step(s) but the channels served ${on_served:-no}"
+if [ "${served:-0}" -ne "${steps:-0}" ]; then
+	echo "FAIL SS-ACCOUNTED — the save took ${steps:-no} card step(s) but the channels served ${served:-no}"
 	fail=1
 fi
 
-# SS-OFFOWNER. The rung's actual claim. This counts ONLY ticks that took a channel arm while
-# genuinely off the owner -- work done on the owner is not counted here, or the number would be
-# saying "off the owner" about work that ran on it.
-if [ -z "${on_offowner:-}" ] || [ "$on_offowner" -eq 0 ]; then
+# SS-OFFOWNER. The rung's actual claim. This counts ONLY ticks that took a channel arm while genuinely
+# off the owner.
+if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
 	echo "FAIL SS-OFFOWNER — no document step ever ran off the storage owner"
 	fail=1
 fi
 
-# SS-GROWTH. Both legs must have exercised the buffer growth, or every growth check proved nothing.
-for leg in off on; do
-	d="$(doublings_of "$OUT/$leg.txt")"
-	if [ -z "${d:-}" ] || [ "$d" -lt 2 ]; then
-		echo "FAIL SS-GROWTH — the $leg leg's song doubled the buffer ${d:-no} time(s); the growth path was not exercised"
-		fail=1
-	fi
-done
-
-# SS-IDENTICAL. Both arms must write the same document. The temp name embeds a counter rather than a
-# random suffix, so these lines compare as written.
-off_saved="$(grep '^SS-SAVED ' "$OUT/off.txt" || true)"
-on_saved="$(grep '^SS-SAVED ' "$OUT/on.txt" || true)"
-if [ -z "$off_saved" ] || [ "$off_saved" != "$on_saved" ]; then
-	echo "FAIL SS-IDENTICAL — the two arms wrote different documents:"
-	echo "  [off] $off_saved"
-	echo "  [on]  $on_saved"
+# SS-GROWTH. The song must have exercised the buffer growth, or every growth check proved nothing.
+if [ -z "${doublings:-}" ] || [ "$doublings" -lt 2 ]; then
+	echo "FAIL SS-GROWTH — the song doubled the buffer ${doublings:-no} time(s); the growth path was not exercised"
 	fail=1
 fi
 
@@ -219,16 +153,13 @@ fi
 # mid-save -- BACK, or the long-press exit -- used to close it, and the save's own close() then indexed off
 # the end of the UI stack. Both must be refused while the save runs, and both must actually be tried while
 # it IS running, or the check proves nothing.
-for leg in off on; do
-	grep -q '^SS-BACKMIDSAVE inFlight=1 back=1$' "$OUT/$leg.txt" || { echo "FAIL SS-BACKMIDSAVE — the $leg leg: $(grep '^SS-BACKMIDSAVE ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
-	grep -q '^SS-EXITMIDSAVE exit=1$' "$OUT/$leg.txt" || { echo "FAIL SS-EXITMIDSAVE — the $leg leg: $(grep '^SS-EXITMIDSAVE ' "$OUT/$leg.txt" || echo 'no line')"; fail=1; }
-done
+grep -q '^SS-BACKMIDSAVE inFlight=1 back=1$' "$OUT/run.txt" || { echo "FAIL SS-BACKMIDSAVE — $(grep '^SS-BACKMIDSAVE ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
+grep -q '^SS-EXITMIDSAVE exit=1$' "$OUT/run.txt" || { echo "FAIL SS-EXITMIDSAVE — $(grep '^SS-EXITMIDSAVE ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 
-grep -E '^SS-' "$OUT/off.txt" | sed 's/^/[off] /'
-grep -E '^SS-' "$OUT/on.txt" | sed 's/^/[on]  /'
+grep -E '^SS-' "$OUT/run.txt"
 
 if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
-echo "PASS — both arms built the same song document in memory and placed it on the card, it read"
-echo "       back and loaded as a song, and the channel arm did the work off the storage owner"
+echo "PASS — the song document was built in memory, placed on the card through the write channel off"
+echo "       the storage owner, read back, and loaded as a song"

@@ -126,4 +126,10 @@ __attribute__((weak)) bool deluge_file_write_async_active(void) noexcept {
 	return false;
 }
 
+#ifdef DELUGE_HOST
+__attribute__((weak)) void deluge_file_write_set_latency_ms(uint32_t /*ms*/) noexcept {
+	// A host build without the Rust write channel has no operations to delay.
+}
+#endif
+
 } // extern "C"

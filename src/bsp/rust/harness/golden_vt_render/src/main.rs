@@ -206,7 +206,6 @@ mod file_prefix;
 /// is: this binary is a separate package, so a module missing from this list resolves to the C++
 /// weak fallback and every write quietly takes the synchronous arm — which is exactly how the
 /// settings channel first shipped a green run reporting nothing served.
-#[cfg(feature = "async_file_write")]
 #[path = "../../../src/file_write.rs"]
 mod file_write;
 #[path = "../../../src/flash.rs"]
@@ -1602,9 +1601,8 @@ async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
 /// it back through the real `LoadSongUI`, and report both whether the value returned and whether the
 /// storage channel served the read off the owner.
 ///
-/// Two legs are built from this one scenario -- with and without `async_file_write_active` -- because
-/// until this gate existed, `recorder_write.sh` was the ONLY script that built that feature, so the
-/// whole-file staging read had never executed under any harness at all.
+/// Until this gate existed, `recorder_write.sh` was the only script that built the write channel, so
+/// the whole-file staging read had never executed under any harness at all.
 #[embassy_executor::task]
 async fn run_song_load_channel_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_song_load_channel_scenario: awaiting boot+mount");
@@ -2017,9 +2015,7 @@ fn main() {
     // The whole-file worker, always. Without this the channel's collects answer UNKNOWN forever and
     // every settings operation would stall -- `SC-CHANNEL served=` is what tells the difference.
     spawner.spawn(file_bytes::file_bytes_task().unwrap());
-    // Same again for the recorder's cluster write: without this spawn the channel is compiled,
-    // answers UNKNOWN forever, and every cluster is written on the owner arm.
-    #[cfg(feature = "async_file_write_active")]
+    // And the write channel's worker, always: without this spawn its collects answer UNKNOWN forever.
     spawner.spawn(file_write::file_write_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
