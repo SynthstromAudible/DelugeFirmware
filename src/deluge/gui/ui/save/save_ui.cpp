@@ -401,7 +401,10 @@ void SaveUI::runStagedVerifyPhase() {
 		return;
 	}
 
-	switch (stagedReadBack_.step(path)) {
+	const ReadBackTick tick = stagedReadBack_.step(path);
+	// Every answer the channel gave counts, including the one that failed the check.
+	verifyChannelServedOps_ += stagedReadBack_.takeServedOps();
+	switch (tick) {
 	case ReadBackTick::Waiting:
 		if (!deferStagedSave()) {
 			endStagedSave(false);
@@ -411,11 +414,9 @@ void SaveUI::runStagedVerifyPhase() {
 		finishStagedVerify(false);
 		return;
 	case ReadBackTick::Advanced:
-		++verifyChannelServedOps_;
 		stallTicks_ = 0;
 		return;
 	case ReadBackTick::Passed:
-		++verifyChannelServedOps_;
 		stallTicks_ = 0;
 		finishStagedVerify(true);
 		return;

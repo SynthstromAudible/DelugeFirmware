@@ -34,8 +34,10 @@ ReadBackTick ReadBackCheck::step(const char* path) {
 		case ByteIo::Pending:
 			return ReadBackTick::Waiting;
 		case ByteIo::Failed:
+			++servedOps_;
 			return ReadBackTick::Failed;
 		case ByteIo::Ready:
+			++servedOps_;
 			if (!readBackLengthMatches(size, expect_)) {
 				return ReadBackTick::Failed;
 			}
@@ -60,8 +62,10 @@ ReadBackTick ReadBackCheck::step(const char* path) {
 	case ByteIo::Pending:
 		return ReadBackTick::Waiting;
 	case ByteIo::Failed:
+		++servedOps_;
 		return ReadBackTick::Failed;
 	case ByteIo::Ready:
+		++servedOps_;
 		if (!readBackBytesMatch(stage_, expect_, buffer, got)) {
 			return ReadBackTick::Failed;
 		}

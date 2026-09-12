@@ -858,7 +858,12 @@ void SaveSongUI::runVerifyPhase() {
 	}
 
 	++offOwnerDocumentTicks_;
-	switch (docReadBack_.step(docWritePath_.c_str())) {
+	const ReadBackTick tick = docReadBack_.step(docWritePath_.c_str());
+	// Every answer the channel gave counts, including the one that failed the check.
+	const int32_t served = docReadBack_.takeServedOps();
+	documentChannelServedOps_ += served;
+	documentSteps_ += served;
+	switch (tick) {
 	case ReadBackTick::Waiting:
 		if (!deferDocument()) {
 			abandonDocument(Error::WRITE_FAIL);
@@ -870,13 +875,9 @@ void SaveSongUI::runVerifyPhase() {
 		abandonDocument(Error::WRITE_FAIL);
 		return;
 	case ReadBackTick::Advanced:
-		++documentChannelServedOps_;
-		++documentSteps_;
 		docStallTicks_ = 0;
 		return;
 	case ReadBackTick::Passed:
-		++documentChannelServedOps_;
-		++documentSteps_;
 		docStallTicks_ = 0;
 		docPhase_ = pendingFileAlreadyExisted_ ? DocPhase::UNLINK : DocPhase::FINISH;
 		return;

@@ -115,6 +115,10 @@ constexpr const char* kSongGuardPresetPath = "SYNTHS/DSGUARD1.XML";
 /// Byte- and write-channel latency while the song save runs, so its collection and document machines span
 /// many ticks and the preset save can be dispatched while they do.
 constexpr uint32_t kSongGuardLatencyMs = 20;
+constexpr const char* kAccountName = "DSACCT01";
+/// Byte-channel latency while the accounting save verifies: long enough to remove the file between the write
+/// landing and the read-back's first answer.
+constexpr uint32_t kAccountLatencyMs = 50;
 
 enum class Stage : uint8_t {
 	Fixture,
@@ -143,6 +147,12 @@ enum class Stage : uint8_t {
 	SongGuardDispatch,
 	SongGuardWait,
 	SongGuardCheck,
+	AccountOpen,
+	AccountOpenWait,
+	AccountSave,
+	AccountTamper,
+	AccountWait,
+	AccountCheck,
 	Report,
 	Done,
 };
@@ -165,6 +175,12 @@ bool g_songGuardTried = false;
 bool g_songGuardRefused = false;
 /// Staged saves completed before the song-guard stage, so a preset save that slipped through is seen.
 int32_t g_completedBeforeSongGuard = 0;
+/// DS-ACCOUNTED: counters at the save, whether the file was removed under the read-back, and its path.
+int32_t g_writeServedBefore = 0;
+int32_t g_verifyServedBefore = 0;
+int32_t g_verifiedBefore = 0;
+bool g_tampered = false;
+std::string g_accountPath;
 
 /// A save spans ticks by construction; this bound exists so a save that never lands ends the run with
 /// a REPORT rather than a silent timeout.
@@ -625,6 +641,79 @@ void runTick() {
 			printf("DS-GUARD-SONG FAIL the refused preset save wrote a file or counted a save\n");
 			g_failures++;
 		}
+		g_stage = Stage::AccountOpen;
+		break;
+	}
+	case Stage::AccountOpen: {
+		// DS-ACCOUNTED. A read-back that ends Failed after a real channel answer still used the channel, and the
+		// served count has to say so. The file is removed between the write landing and the read-back's first
+		// answer, so the length stage collects NOT_FOUND -- one served operation -- and fails the save.
+		changeRootUI(&arrangerView);
+		(void)DocumentSaveChannelProbe::openOn();
+		g_stage = Stage::AccountOpenWait;
+		break;
+	}
+	case Stage::AccountOpenWait: {
+		if (!DocumentSaveChannelProbe::listingInProgress()) {
+			g_stage = Stage::AccountSave;
+		}
+		break;
+	}
+	case Stage::AccountSave: {
+		DocumentSaveChannelProbe::typeName(kAccountName);
+		g_accountPath = DocumentSaveChannelProbe::targetPath();
+		(void)deluge::io::unlink(g_accountPath.c_str());
+		g_writeServedBefore = SaveUI::writeChannelServedOps();
+		g_verifyServedBefore = SaveUI::verifyChannelServedOps();
+		g_verifiedBefore = SaveUI::stagedSavesVerified();
+		g_tampered = false;
+		deluge_file_bytes_set_latency_ms(kAccountLatencyMs);
+		DocumentSaveChannelProbe::pressEnter();
+		g_waitTicks = 0;
+		g_stage = Stage::AccountTamper;
+		break;
+	}
+	case Stage::AccountTamper: {
+		if (SaveUI::writeChannelServedOps() > g_writeServedBefore) {
+			// The write has landed and the read-back has begun; its stat is held by the latency.
+			(void)deluge::io::unlink(g_accountPath.c_str());
+			g_tampered = true;
+			g_stage = Stage::AccountWait;
+			break;
+		}
+		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
+			// Ended before its write landed: nothing to remove. AccountCheck reports that nothing was tested.
+			g_stage = Stage::AccountWait;
+		}
+		break;
+	}
+	case Stage::AccountWait: {
+		if (!SaveUI::saveInFlight()) {
+			deluge_file_bytes_set_latency_ms(0);
+			g_stage = Stage::AccountCheck;
+			break;
+		}
+		if (++g_waitTicks > kMaxWaitTicks) {
+			printf("DS-ACCOUNTED FAIL the save never finished (%d ticks)\n", g_waitTicks);
+			g_failures++;
+			g_stage = Stage::Report;
+		}
+		break;
+	}
+	case Stage::AccountCheck: {
+		const bool failed = SaveUI::stagedSavesVerified() == g_verifiedBefore;
+		const int32_t verifyServed = SaveUI::verifyChannelServedOps() - g_verifyServedBefore;
+		printf("DS-ACCOUNTED tampered=%d failed=%d verifyServed=%d\n", (int)g_tampered, (int)failed, (int)verifyServed);
+		if (!g_tampered || !failed) {
+			printf("DS-ACCOUNTED FAIL the read-back was not made to fail, so the count proves nothing\n");
+			g_failures++;
+		}
+		else if (verifyServed != 1) {
+			printf("DS-ACCOUNTED FAIL the read-back's length stat was answered and failed the save, but the served "
+			       "count moved by %d, not 1\n",
+			       (int)verifyServed);
+			g_failures++;
+		}
 		g_stage = Stage::Report;
 		break;
 	}
@@ -645,6 +734,9 @@ void runTick() {
 		}
 		(void)deluge::io::unlink(kSongGuardPath);
 		(void)deluge::io::unlink(kSongGuardPresetPath);
+		if (!g_accountPath.empty()) {
+			(void)deluge::io::unlink(g_accountPath.c_str());
+		}
 		deluge_file_bytes_set_latency_ms(0);
 		deluge_file_write_set_latency_ms(0);
 		fflush(stdout);
@@ -680,6 +772,11 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_songGuardTried = false;
 	g_songGuardRefused = false;
 	g_completedBeforeSongGuard = 0;
+	g_writeServedBefore = 0;
+	g_verifyServedBefore = 0;
+	g_verifiedBefore = 0;
+	g_tampered = false;
+	g_accountPath.clear();
 }
 
 bool deluge_scenario_document_save_channel_complete(void) {

@@ -24,6 +24,7 @@ public:
 	void begin(const ReadBackExpectation& expect) {
 		expect_ = expect;
 		stage_ = ReadBackStage::Length;
+		servedOps_ = 0;
 	}
 
 	/// @brief Advance by at most one channel operation.
@@ -33,9 +34,23 @@ public:
 	/// @brief The stage the next step will run.
 	[[nodiscard]] ReadBackStage stage() const { return stage_; }
 
+	/// @brief How many channel answers this check has collected since the last call, whatever they said, and
+	///        reset the count.
+	///
+	/// Counted at the collect, not per tick: a read-back that ends Failed after the channel answered still used
+	/// the channel, and a caller counting only the ticks that advanced would undercount it. A path that cannot be
+	/// keyed collects nothing and counts nothing.
+	[[nodiscard]] int32_t takeServedOps() {
+		const int32_t served = servedOps_;
+		servedOps_ = 0;
+		return served;
+	}
+
 private:
 	ReadBackExpectation expect_{};
 	ReadBackStage stage_{ReadBackStage::Length};
+	/// Answers collected since the last takeServedOps().
+	int32_t servedOps_{0};
 };
 
 /// @brief The same checks, blocking, by reopening the file. Legal ONLY on the storage owner.
