@@ -189,6 +189,12 @@ extern "C" __attribute__((weak)) bool deluge_file_bytes_async_active() noexcept 
 	return false;
 }
 
+#ifdef DELUGE_HOST
+extern "C" __attribute__((weak)) void deluge_file_bytes_set_latency_ms(uint32_t /*ms*/) noexcept {
+	// A host build without the Rust byte channel has no operations to delay.
+}
+#endif
+
 extern "C" __attribute__((weak)) void deluge_file_bytes_request_read(const char* /*path*/) noexcept {
 	// No byte channel on this BSP/config; the caller never reaches here because
 	// deluge_file_bytes_async_active() is false. Dropping the request (rather than pretending to have

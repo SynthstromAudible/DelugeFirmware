@@ -681,6 +681,21 @@ pub extern "C" fn deluge_file_bytes_async_active() -> bool {
     true
 }
 
+/// Milliseconds `file_bytes_task` waits before each operation. Host harness only; see
+/// [`deluge_file_bytes_set_latency_ms`].
+#[cfg(feature = "host_app")]
+static LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make every byte-channel operation wait `ms` milliseconds before it touches the card, so a gate
+/// can hold an operation in flight while a consumer does something else. 0, the default, means no wait.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_bytes_set_latency_ms(ms: u32) {
+    LATENCY_MS.store(ms, Ordering::Relaxed);
+}
+
 // ── The request entry points ────────────────────────────────────────────────
 
 /// Request the whole of `path` be read, and wake the driver. See `file_bytes.h`.
@@ -1784,6 +1799,15 @@ pub async fn file_bytes_task() {
     let ops = ProdByteOps::new();
     loop {
         while let Some((request, generation)) = take_next_request(work).await {
+            // After the take, so the operation is already marked in flight: a collect during the wait answers
+            // PENDING, exactly as it would while a slow card was working.
+            #[cfg(feature = "host_app")]
+            {
+                let ms = LATENCY_MS.load(Ordering::Relaxed);
+                if ms > 0 {
+                    embassy_time::Timer::after_millis(u64::from(ms)).await;
+                }
+            }
             let outcome = bytes_io_once(&ops, &request, work).await;
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly in both tables,
             // which is harmless, whereas the reverse leaves a window in which it is in neither and a

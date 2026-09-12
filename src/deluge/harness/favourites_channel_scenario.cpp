@@ -18,6 +18,7 @@
 #include "harness/favourites_channel_scenario.h"
 
 #include "io/file.hpp"
+#include "libdeluge/file_bytes.h"
 #include "model/favourite/favourite_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/owner.h"
@@ -49,6 +50,10 @@ constexpr uint8_t kSlotB = 4;
 constexpr uint8_t kRefusedSlot = 7;
 constexpr uint8_t kBanks = 4;
 constexpr int32_t kMaxWaitTicks = 200000;
+/// How long every byte-channel operation waits during the order stage. Long enough that the save is still in flight
+/// when the bank is selected away and back; without it the save lands within the same tick and the stage cannot see
+/// whether anything waited for it.
+constexpr uint32_t kOrderLatencyMs = 50;
 
 enum class Stage : uint8_t {
 	Prepare,
@@ -271,6 +276,10 @@ void runTick() {
 
 	case Stage::OrderEdit:
 		// All three in one tick: the save must land before the bank is read back, whichever arm carries it.
+#ifdef DELUGE_HOST
+		// This scenario is compiled into every app build, but the knob exists only on the host.
+		deluge_file_bytes_set_latency_ms(kOrderLatencyMs);
+#endif
 		favouritesManager.setFavorite(kSlotB, 2, kPathB);
 		favouritesManager.selectFavouritesBank(1);
 		favouritesManager.selectFavouritesBank(0);
@@ -281,7 +290,11 @@ void runTick() {
 		const bool newKept = favouritesManager.getFavoriteFilename(kSlotB) == kPathB;
 		const bool oldKept = favouritesManager.getFavoriteFilename(kSlotA) == kPathA;
 		const BankState state = favouritesManager.bankState();
-		printf("FV-ORDER new=%d old=%d state=%s\n", (int)newKept, (int)oldKept, stateName(state));
+#ifdef DELUGE_HOST
+		deluge_file_bytes_set_latency_ms(0);
+#endif
+		printf("FV-ORDER new=%d old=%d state=%s latencyMs=%u\n", (int)newKept, (int)oldKept, stateName(state),
+		       kOrderLatencyMs);
 		if (!newKept || !oldKept || state != BankState::Loaded) {
 			printf("FV-ORDER FAIL a favourite set just before switching away and back was lost: the bank was read "
 			       "before its save landed\n");

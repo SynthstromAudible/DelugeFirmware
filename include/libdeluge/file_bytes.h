@@ -401,6 +401,15 @@ uint8_t deluge_file_bytes_collect_copy(const char* to, DelugeStatus* out_status)
 ///         polled would wait forever, and must take its synchronous arm instead.
 bool deluge_file_bytes_async_active(void) DELUGE_NOEXCEPT;
 
+#ifdef DELUGE_HOST
+/// @brief Host harness only: make every byte-channel operation wait @p ms milliseconds before it touches the card.
+///
+/// Lets a gate hold an operation in flight while a consumer does something else. 0 (the default) means no wait.
+/// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
+/// @param ms Milliseconds of simulated delay per operation.
+void deluge_file_bytes_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+#endif
+
 #ifdef __cplusplus
 }
 #endif
