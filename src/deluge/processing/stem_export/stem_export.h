@@ -203,6 +203,8 @@ public:
 	std::string stemSearchBasePath_{};
 	std::string stemSearchCandidatePath_{};
 	int32_t stemSearchCandidatesTried_ = 0;
+	/// Consecutive calls the current candidate's channel operation has gone unanswered.
+	int32_t stemSearchStallTicks_ = 0;
 	/// @}
 	std::string lastFolderNameForStemExport{};
 	/// returns false if no valid file name could be built (e.g. the output / drum names are too long

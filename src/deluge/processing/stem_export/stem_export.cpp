@@ -1018,8 +1018,14 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 			stemSearchPhase_ = deluge::storage::StemSearchPhase::ProbeCandidate;
 			stemSearchIssued_ = false;
 			stemSearchCandidatesTried_ = 0;
+			stemSearchStallTicks_ = 0;
 			stemSearchCandidatePath_ = tempPathForSearch;
 		}
+
+		// How many calls one candidate's channel operation may go unanswered before the search gives up. After boot
+		// there is no owner to redo the operation on, so a channel that stopped answering ends the search -- as
+		// Failed, the refusal every other unanswerable question here already gets.
+		constexpr int32_t kMaxStemSearchStallTicks = 600;
 
 		const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
 		                           && deluge_file_bytes_async_active();
@@ -1037,12 +1043,17 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					bool present = false;
 					const deluge::storage::bytes::ByteIo io =
 					    deluge::storage::bytes::collectExists(stemSearchCandidatePath_.c_str(), &present, &outStatus);
-					if (io == deluge::storage::bytes::ByteIo::Unknown) {
-						(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
-						return Error::LISTING_DEFERRED;
-					}
-					if (io == deluge::storage::bytes::ByteIo::Pending) {
-						return Error::LISTING_DEFERRED;
+					if (io == deluge::storage::bytes::ByteIo::Unknown
+					    || io == deluge::storage::bytes::ByteIo::Pending) {
+						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
+							if (io == deluge::storage::bytes::ByteIo::Unknown) {
+								(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
+							}
+							return Error::LISTING_DEFERRED;
+						}
+						// Stalled: could not tell, which the policy refuses rather than reuse a folder.
+						candidate = deluge::storage::Presence::Undeterminable;
+						break;
 					}
 					candidate = (io == deluge::storage::bytes::ByteIo::Ready)
 					                ? (present ? deluge::storage::Presence::Present : deluge::storage::Presence::Absent)
@@ -1061,12 +1072,17 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					DelugeStatus outStatus = DELUGE_OK;
 					const deluge::storage::bytes::ByteIo io =
 					    deluge::storage::bytes::collectMkdirAll(stemSearchCandidatePath_.c_str(), &outStatus);
-					if (io == deluge::storage::bytes::ByteIo::Unknown) {
-						(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
-						return Error::LISTING_DEFERRED;
-					}
-					if (io == deluge::storage::bytes::ByteIo::Pending) {
-						return Error::LISTING_DEFERRED;
+					if (io == deluge::storage::bytes::ByteIo::Unknown
+					    || io == deluge::storage::bytes::ByteIo::Pending) {
+						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
+							if (io == deluge::storage::bytes::ByteIo::Unknown) {
+								(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
+							}
+							return Error::LISTING_DEFERRED;
+						}
+						// Stalled: a folder that could not be made, which ends the search.
+						collected = DELUGE_FILE_WRITE_FAILED;
+						break;
 					}
 					collected = (io == deluge::storage::bytes::ByteIo::Ready) ? DELUGE_FILE_WRITE_READY
 					                                                          : DELUGE_FILE_WRITE_FAILED;
@@ -1100,6 +1116,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 				stemSearchCandidatePath_.append("-");
 				stemSearchCandidatePath_.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
 			}
+			stemSearchStallTicks_ = 0;
 			stemSearchPhase_ = next;
 		}
 
