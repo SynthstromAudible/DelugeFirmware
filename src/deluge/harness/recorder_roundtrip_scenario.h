@@ -21,7 +21,7 @@
 ///        BOTH on the C-host `deluge_recorder_roundtrip` binary AND on the Rust/Embassy host BSP
 ///        (golden_vt_render's `GOLDEN_SCENARIO=recorder_roundtrip` mode).
 ///
-/// The whole geometry matrix + alterFile characterization + the two readback probes, minus the
+/// The whole geometry matrix + the two readback probes, minus the
 /// host-side image formatting and process exit (the caller owns those). Assumes `DELUGE_SD_IMAGE`
 /// is already mounted (boot mounts it). Reads back through `deluge::io::File` (drain-independent)
 /// except the `finalized_multicluster` probe, whose fill drain routes unconditionally onto
@@ -53,8 +53,8 @@ int32_t deluge_scenario_run_recorder_roundtrip();
 /// @param mode Which case:
 ///             - 0 `recording`: mono, finished normally.
 ///             - 1 `alterfile`: stereo with a silent right channel and alteration permitted, so finalize
-///               takes its REMOVE_RIGHT_CHANNEL branch. The three alterFile cases in the oracle call
-///               `alterFile()` DIRECTLY, so without this the batch machine is never run.
+///               takes its REMOVE_RIGHT_CHANNEL branch. No other case permits alteration, so without this
+///               the batch machine is never run.
 ///             - 2 `abort`: abandoned part-way, so the abort machine runs.
 ///             - 3 `busy`: another write-channel operation keeps taking the channel, so the recorder's
 ///               requests are refused and asked again. Prints `RW-BUSY`.

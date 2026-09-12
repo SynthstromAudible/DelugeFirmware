@@ -69,20 +69,6 @@ public:
 	void feedAudio(std::span<StereoSample> input, bool applyGain = false, uint8_t gainToApply = 5);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
-	/// @brief Post-capture WAV alteration: downmix/normalize the recorded audio in place on disk.
-	///
-	/// Public (rather than an internal helper finalizeRecordedFile() alone calls) so the host-sim
-	/// byte-exact characterization harness (host_recorder_roundtrip_main.cpp) can drive this
-	/// post-capture file transform directly, with an explicit action/lshiftAmount/geometry, bypassing
-	/// finalizeRecordedFile()'s auto-detection heuristics -- SUBTRACT_RIGHT_CHANNEL in particular needs
-	/// a plugged-in line-input jack the host sim can't simulate.
-	/// @param action                    Channel-combining/removal operation to apply.
-	/// @param lshiftAmount              Normalization left-shift applied to each sample.
-	/// @param idealFileSizeBeforeAction Total file size (bytes) before this alteration.
-	/// @param dataLengthAfterAction     Audio data length (bytes) expected after this alteration.
-	/// @return Error::NONE on success.
-	Error alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
-	                uint64_t dataLengthAfterAction);
 	bool inputLooksDifferential();
 	bool inputHasNoRightChannel();
 	void removeFromOutput() {
@@ -239,7 +225,7 @@ private:
 private:
 	/// @param mayUseChannel false forces the synchronous arm. The channel is used only when this is true, the
 	///        caller is off the storage owner, and the owner has started: an owner that spins never lets the
-	///        driver answer. `writeAnyCompletedClusters()` passes false because it loops until drained.
+	///        driver answer.
 	Error writeCluster(int32_t clusterIndex, size_t numBytes, bool mayUseChannel);
 	/// @brief Ask the channel for the owed write.
 	/// @return Whether the channel accepted it. A refusal leaves the write owed and counts an unproductive tick.
@@ -404,14 +390,11 @@ private:
 	Error writeClusterSynchronously(int32_t clusterIndex, size_t numBytes);
 	/// @brief Recycle a written cluster's buffer and clear its table slot.
 	void finishCluster(int32_t clusterIndex);
-	Error finalizeRecordedFile();
 	Error createNextCluster();
-	Error writeAnyCompletedClusters();
 	void finishCapturing();
 	void updateDataLengthInHeader(std::span<std::byte> headerBuf);
 	void totalSampleLengthNowKnown(uint32_t totalLength, uint32_t loopEndPointSamples = 0);
 	void detachSample();
-	Error truncateFileDownToSize(uint32_t newFileSize);
 	Error writeOneCompletedCluster(bool mayUseChannel);
 
 	/// @brief Minimal fixed-capacity lock-free SPSC ring of recycled buffer pointers.

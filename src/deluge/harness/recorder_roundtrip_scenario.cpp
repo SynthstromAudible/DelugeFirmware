@@ -284,149 +284,12 @@ bool runCase(const Case& c) {
 	return verifyRecordedFile(path, c.channels, c.frames, c.extraMargins);
 }
 
-// Byte-exact characterization of `SampleRecorder::alterFile()` — the post-capture, in-place file
-// transform that downmixes/normalizes a just-recorded WAV (sample_recorder.cpp, currently
-// cluster-based; being re-expressed as a positional file->file transform). Records a KNOWN ramp
-// through the SAME trusted feedAudio()/finalize() pipeline the round-trip cases above use
-// (`allowFileAlterationAfter` left false, so finalizeRecordedFile() takes its no-alteration branch
-// and the file lands on disk exactly as fed — already proven byte-exact by the cases above), then
-// calls `alterFile()` DIRECTLY with an explicit action/lshiftAmount/geometry, bypassing
-// finalizeRecordedFile()'s auto-detection heuristics entirely (SUBTRACT_RIGHT_CHANNEL in particular
-// needs a plugged-in line-input jack the host sim can't simulate). The expected output bytes are
-// computed HERE, independently, straight from the per-frame algorithm alterFile() implements
-// (read a 24-bit little-endian sample with its low byte cleared, combine per `action`, left-shift by
-// `lshiftAmount`, keep the top 3 bytes) — not by calling alterFile() itself — so a byte-for-byte
-// match proves the implementation matches the spec, not just "does what its own code does".
-bool runAlterFileCase(const char* name, MonitoringAction action, int32_t lshiftAmount, uint8_t channels,
-                      uint32_t frames) {
-	printf("CASE alterFile_%s (channels=%u frames=%u lshift=%d)\n", name, channels, frames, lshiftAmount);
-	g_cases++;
-
-	std::vector<StereoSample> input(frames);
-	for (uint32_t i = 0; i < frames; i++) {
-		input[i].l = rampSample(i, 0);
-		input[i].r = (channels == 2) ? rampSample(i, 1) : 0;
-	}
-
-	SampleRecorder rec;
-	Error err = rec.setup(channels, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
-	                      /*shouldRecordExtraMargins=*/false, AudioRecordingFolder::RESAMPLE,
-	                      /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
-	if (err != Error::NONE) {
-		fprintf(stderr, "  FAIL: setup() returned error %d\n", static_cast<int>(err));
-		return false;
-	}
-
-	rec.feedAudio(std::span<StereoSample>(input));
-	rec.endSyncedRecording(0); // MIX-mode, no button latency -> finishCapturing() runs synchronously.
-
-	if (!pumpToComplete(rec)) {
-		return false;
-	}
-
-	std::string path = rec.filePathCreated;
-	if (path.empty()) {
-		fprintf(stderr, "  FAIL: no file path recorded\n");
-		return false;
-	}
-
-	// Read back the as-recorded (pre-alteration) file. Its header and audio bytes are already
-	// proven byte-exact by the plain round-trip cases above, so it's a trustworthy baseline for the
-	// header fields alterFile() does NOT touch (RIFF/WAVE/fmt tags, sample rate, bits-per-sample).
-	std::vector<std::byte> recorded;
-	if (!readWholeFile(path, recorded)) {
-		return false;
-	}
-
-	const uint32_t headerLen = 44; // shouldRecordExtraMargins=false above.
-	const uint32_t frameBytesIn = static_cast<uint32_t>(channels) * 3;
-	const uint32_t dataLenBefore = frames * frameBytesIn;
-	const uint32_t idealFileSizeBeforeAction = headerLen + dataLenBefore;
-	const uint32_t dataLenAfter = (action != MonitoringAction::NONE) ? (dataLenBefore >> 1) : dataLenBefore;
-
-	if (recorded.size() != idealFileSizeBeforeAction) {
-		fprintf(stderr, "  FAIL: pre-alteration file size %zu != expected %u\n", recorded.size(),
-		        idealFileSizeBeforeAction);
-		return false;
-	}
-
-	// --- Build the expected POST-alteration file, analytically, independent of alterFile() itself. ---
-	std::vector<std::byte> expected(headerLen + dataLenAfter);
-	std::memcpy(expected.data(), recorded.data(), headerLen);
-
-	if (action != MonitoringAction::NONE) {
-		uint16_t numCh = 1;
-		std::memcpy(expected.data() + 22, &numCh, 2);
-		uint32_t dataRate = kSampleRate * 1 * 3;
-		std::memcpy(expected.data() + 28, &dataRate, 4);
-		uint16_t blockSize = 1 * 3;
-		std::memcpy(expected.data() + 32, &blockSize, 2);
-	}
-	// updateDataLengthInHeader() always runs, regardless of `action`.
-	uint32_t riffSize = dataLenAfter + headerLen - 8;
-	std::memcpy(expected.data() + 4, &riffSize, 4);
-	std::memcpy(expected.data() + (headerLen - 4), &dataLenAfter, 4);
-
-	// Audio: per-frame transform per alterFile()'s documented algorithm. `rampSample(i, ch)` is
-	// exactly the int32 value alterFile() reconstructs when it reads the stored 3 bytes back
-	// (`*(int32_t*)(readPos-1) & 0xFFFFFF00`) — the round-trip cases above already establish the
-	// on-disk 3 bytes are the top 3 bytes of `rampSample(i, ch)` byte-for-byte, and its low byte is
-	// always 0 already, so no information is lost reconstructing it.
-	for (uint32_t i = 0; i < frames; i++) {
-		int32_t left = rampSample(i, 0);
-		int32_t value = left;
-		if (action == MonitoringAction::SUBTRACT_RIGHT_CHANNEL) {
-			int32_t right = rampSample(i, 1);
-			value = (left >> 1) - (right >> 1);
-		}
-		// REMOVE_RIGHT_CHANNEL discards the right channel without reading it into `value`; NONE never
-		// has a right channel to begin with (channels == 1 for that case).
-		uint32_t processed = static_cast<uint32_t>(value) << lshiftAmount;
-		uint32_t topBytes = processed >> 8; // bytes [1,2,3] of `processed`, little-endian.
-		std::byte* out = expected.data() + headerLen + static_cast<size_t>(i) * 3;
-		out[0] = static_cast<std::byte>(topBytes & 0xFF);
-		out[1] = static_cast<std::byte>((topBytes >> 8) & 0xFF);
-		out[2] = static_cast<std::byte>((topBytes >> 16) & 0xFF);
-	}
-
-	Error alterErr = rec.alterFile(action, lshiftAmount, idealFileSizeBeforeAction, dataLenAfter);
-	if (alterErr != Error::NONE) {
-		fprintf(stderr, "  FAIL: alterFile() returned error %d\n", static_cast<int>(alterErr));
-		return false;
-	}
-
-	std::vector<std::byte> got;
-	if (!readWholeFile(path, got)) {
-		return false;
-	}
-
-	bool ok = true;
-	if (got.size() != expected.size()) {
-		fprintf(stderr, "  FAIL: altered file size %zu != expected %zu\n", got.size(), expected.size());
-		ok = false;
-	}
-	else if (std::memcmp(got.data(), expected.data(), expected.size()) != 0) {
-		size_t firstDiff = 0;
-		for (; firstDiff < expected.size(); firstDiff++) {
-			if (got[firstDiff] != expected[firstDiff]) {
-				break;
-			}
-		}
-		fprintf(stderr, "  FAIL: byte mismatch at offset %zu (got 0x%02x expected 0x%02x)\n", firstDiff,
-		        static_cast<unsigned>(got[firstDiff]), static_cast<unsigned>(expected[firstDiff]));
-		ok = false;
-	}
-
-	printf("  %s\n", ok ? "PASS" : "FAIL");
-	return ok;
-}
-
 } // namespace
 
 namespace {
 
 /// The off-owner recording case: a real `SampleRecorder` driven ENTIRELY from a non-fiber context,
-/// which is the shape the device actually uses and the one the eleven cases above cannot reach.
+/// which is the shape the device actually uses and the one the eight cases above cannot reach.
 ///
 /// They cannot reach it because `deluge_scenario_start_recorder_roundtrip` dispatches the whole
 /// oracle onto the fiber -- it has to, because the finalized probe's streaming drain must block and
@@ -442,7 +305,7 @@ struct OffOwnerCase {
 	std::unique_ptr<SampleRecorder> rec;
 	/// Whether this run records stereo with a silent right channel and permits alteration, so
 	/// finalize takes its REMOVE_RIGHT_CHANNEL branch. Without a case that does, the whole batch
-	/// machine is dead code: the three alterFile characterizations call the old function DIRECTLY.
+	/// machine is dead code: no other case permits alteration.
 	bool alter = false;
 	/// Whether this run aborts mid-recording instead of finishing, so the abort machine runs and its
 	/// close-before-unlink ordering is exercised.
@@ -783,22 +646,6 @@ extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
 		if (!runCase(c)) {
 			g_failures++;
 		}
-	}
-
-	// alterFile() byte-exact characterization: one case per MonitoringAction, each spanning several
-	// clusters (audio bytes > 2 * clusterSize) so a cluster-boundary-straddling frame is genuinely
-	// exercised against the current cluster-based implementation.
-	if (!runAlterFileCase("remove_right_channel", MonitoringAction::REMOVE_RIGHT_CHANNEL, /*lshiftAmount=*/0,
-	                      /*channels=*/2, framesForBytes(44, 6, 3 * clusterSize) + 777)) {
-		g_failures++;
-	}
-	if (!runAlterFileCase("subtract_right_channel", MonitoringAction::SUBTRACT_RIGHT_CHANNEL, /*lshiftAmount=*/0,
-	                      /*channels=*/2, framesForBytes(44, 6, 3 * clusterSize) + 555)) {
-		g_failures++;
-	}
-	if (!runAlterFileCase("none_with_lshift", MonitoringAction::NONE, /*lshiftAmount=*/4, /*channels=*/1,
-	                      framesForBytes(44, 3, 3 * clusterSize) + 999)) {
-		g_failures++;
 	}
 
 	printf("%d/%d cases passed\n", g_cases - g_failures, g_cases);

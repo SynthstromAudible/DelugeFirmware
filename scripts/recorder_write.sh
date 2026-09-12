@@ -23,7 +23,7 @@
 #                 -- but it does catch a cleanup that fails to delete at all.
 #   RW-OFFOWNER-CASE  that a whole recording driven from a NON-fiber context -- the shape the device
 #                 actually uses -- still reads back byte-for-byte identical to the on-fiber ones, and
-#                 that its cluster writes went through the channel. The eleven on-fiber cases cannot
+#                 that its cluster writes went through the channel. The eight on-fiber cases cannot
 #                 show this: the oracle is dispatched onto the fiber wholesale, so every one of them
 #                 measures on_owner=1 and takes the synchronous arm.
 #   RW-TIER       how many synchronous card operations the recorder began off the storage owner after
@@ -100,7 +100,7 @@ if ! grep -q '^RW-ACTIVE asyncActive=1$' "$OUT/run.txt"; then
 	echo "FAIL RW-ACTIVE — $(grep '^RW-ACTIVE' "$OUT/run.txt" || echo 'no RW-ACTIVE line'); the write driver is not reachable"
 	fail=1
 fi
-if ! grep -q '^11/11 cases passed' "$OUT/run.txt"; then
+if ! grep -q '^8/8 cases passed' "$OUT/run.txt"; then
 	echo "FAIL RW-ROUNDTRIP — a recording did not read back correctly"
 	grep -E '^CASE|FAIL' "$OUT/run.txt" | head -20
 	fail=1
@@ -111,7 +111,7 @@ if ! grep -q '^RW-RESULT failures=0' "$OUT/run.txt"; then
 fi
 
 # The off-owner cases run AFTER the on-fiber oracle has printed RW-SUMMARY, so their evidence is
-# their own lines. There are three, and each covers a shape the eleven on-fiber cases cannot.
+# their own lines. There are three, and each covers a shape the eight on-fiber cases cannot.
 #
 # The alteration case exists because nothing else sets allowFileAlterationAfter, so without it
 # finalize's whole batch machine would have no coverage.

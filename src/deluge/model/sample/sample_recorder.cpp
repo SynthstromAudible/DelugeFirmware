@@ -534,29 +534,6 @@ allDoneForNow:
 	return error;
 }
 
-Error SampleRecorder::writeAnyCompletedClusters() {
-	while (firstUnwrittenClusterIndex < currentRecordClusterIndex.load(std::memory_order_acquire)) {
-
-		Error error = writeOneCompletedCluster(/*mayUseChannel=*/false);
-
-		// On error, just return -- the buffer writeOneCompletedCluster() couldn't flush stays put in
-		// bufferTable_ (never recycled) rather than being freed here.
-		if (error != Error::NONE) {
-			return error;
-		}
-
-		// Every caller of this function reaches it from finalizeRecordedFile(), which only ever runs
-		// on the storage owner -- so writeCluster() took its synchronous arm and the cluster is
-		// genuinely on the card. If that stopped being true this loop would spin without progress,
-		// writing nothing, so say so rather than trust it.
-		if (writePending()) {
-			return Error::SD_CARD;
-		}
-	}
-
-	return Error::NONE;
-}
-
 Error SampleRecorder::writeOneCompletedCluster(bool mayUseChannel) {
 	int32_t writingClusterIndex = firstUnwrittenClusterIndex;
 
@@ -2137,7 +2114,7 @@ bool SampleRecorder::inputHasNoRightChannel() {
 }
 
 namespace {
-/// @brief Reconstruct the int32 value `alterFile()`'s per-frame transform operates on from a
+/// @brief Reconstruct the int32 value the finalize batch transform operates on from a
 ///        stored 24-bit little-endian sample: bytes [0,1,2] of @p src become bits [8,31] of the
 ///        result, with bits [0,7] always 0.
 int32_t read24AsShiftedInt32(const std::byte* src) {
@@ -2148,7 +2125,7 @@ int32_t read24AsShiftedInt32(const std::byte* src) {
 }
 
 /// @brief Inverse of the above: write bytes [1,2,3] of @p processed (its top 3 bytes, little-endian)
-///        to @p dst as a 3-byte frame -- the exact bytes `alterFile()`'s normalize/downmix gain
+///        to @p dst as a 3-byte frame -- the exact bytes the batch transform's normalize/downmix gain
 ///        produces per output frame.
 void writeShiftedInt32As24(int32_t processed, std::byte* dst) {
 	uint32_t u = static_cast<uint32_t>(processed);
@@ -2182,176 +2159,4 @@ void SampleRecorder::transformBatchInPlace(uint32_t batchFrames) {
 		// why this cannot clobber a frame a later iteration has yet to read.
 		writeShiftedInt32As24(processed, alterBatchBuf_.data() + static_cast<size_t>(i) * 3);
 	}
-}
-
-Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
-                                uint64_t dataLengthAfterAction) {
-
-	D_PRINTLN("altering file");
-
-	// This function's SD writes go through a persistent write context -- opened here, at
-	// the top, and held open for the WHOLE alteration. Every write below reuses it via
-	// Stream::write_at, and it's closed exactly once: either by the end-of-alteration truncate
-	// block, or, if that branch doesn't run (no truncation was needed), right before this function
-	// returns. The recorder is efatfs-only.
-	//
-	// This whole function is a positional file->file transform over two independent
-	// byte cursors on the SAME open stream -- an input read cursor and an output write cursor, both
-	// starting at `audioDataStartPosBytes`. Output is never longer than input (mono output frames are
-	// <= the mono/stereo input frames they're derived from), so in-place positional writes never
-	// clobber input the read cursor hasn't reached yet -- no cluster residency, no get_cluster/
-	// num_reasons bookkeeping, and no cluster-straddle "extra bytes" juggling: positional
-	// `read_at_via`/`write_at` read and write any byte range directly, so there's no 32768-byte
-	// window to straddle in the first place.
-	auto openedStream = deluge::io::Stream::open(sample->filePath, DELUGE_STREAM_WRITE_APPEND);
-	if (!openedStream) {
-		return Error::SD_CARD;
-	}
-	this->file = std::move(openedStream.value());
-
-	// Header fixups: read the header back through this SAME write context, patch it in a small
-	// scratch buffer, and write it straight back. `audioDataStartPosBytes` is always 44 or 112 (see
-	// setup()), well within this buffer.
-	std::array<std::byte, 128> headerScratch{};
-	if (ALPHA_OR_BETA_VERSION && sample->audioDataStartPosBytes > headerScratch.size()) {
-		FREEZE_WITH_ERROR("E286");
-	}
-	std::span<std::byte> headerBuf(headerScratch.data(), sample->audioDataStartPosBytes);
-	auto headerReadResult = file->read_at_via(0, headerBuf);
-	if (!headerReadResult || *headerReadResult != headerBuf.size()) {
-		return Error::SD_CARD;
-	}
-
-	audioDataLengthBytesAsWrittenToFile = dataLengthAfterAction;
-	loopEndSampleAsWrittenToFile = sample->fileLoopEndSamples;
-	updateDataLengthInHeader(headerBuf);
-
-	if (action != MonitoringAction::NONE) {
-		// Write num channels
-		uint16_t data16 = 1;
-		memcpy(headerBuf.data() + 22, &data16, 2);
-
-		// Data rate
-		uint32_t data32 = kSampleRate * 1 * 3;
-		memcpy(headerBuf.data() + 28, &data32, 4);
-
-		// Data block size
-		data16 = 1 * 3;
-		memcpy(headerBuf.data() + 32, &data16, 2);
-	}
-
-	auto headerWriteResult = file->write_at(0, headerBuf);
-	if (!headerWriteResult || *headerWriteResult != headerBuf.size()) {
-		return Error::SD_CARD;
-	}
-
-	// Input region: `idealFileSizeBeforeAction` total bytes from the start of the file, i.e.
-	// `idealFileSizeBeforeAction - audioDataStartPosBytes` audio bytes, in frames of
-	// `inputFrameBytes` each (mono in for NONE, stereo in for the two channel-combining actions).
-	const uint32_t inputFrameBytes = (action == MonitoringAction::NONE) ? 3 : 6;
-	const uint32_t audioInputBytes = idealFileSizeBeforeAction - sample->audioDataStartPosBytes;
-	const uint32_t numFrames = audioInputBytes / inputFrameBytes;
-
-	// Process in frame-aligned batches -- big enough to make the SD traffic efficient, small enough
-	// to keep the periodic cooperative yield (every 256 frames, as before) meaningful.
-	constexpr uint32_t kBatchFrames = 256;
-	std::array<std::byte, kBatchFrames * 6> inputScratch{};
-	std::array<std::byte, kBatchFrames * 3> outputScratch{};
-
-	uint32_t readCursor = sample->audioDataStartPosBytes;
-	uint32_t writeCursor = sample->audioDataStartPosBytes;
-	uint32_t framesDone = 0;
-
-	while (framesDone < numFrames) {
-		AudioEngine::routineWithClusterLoading();
-		uiTimerManager.routine();
-		deluge_control_flush();
-
-		uint32_t batchFrames = std::min(kBatchFrames, numFrames - framesDone);
-		uint32_t inputBytesThisBatch = batchFrames * inputFrameBytes;
-		uint32_t outputBytesThisBatch = batchFrames * 3;
-
-		auto readResult = file->read_at_via(readCursor, std::span<std::byte>(inputScratch.data(), inputBytesThisBatch));
-		if (!readResult || *readResult != inputBytesThisBatch) {
-			return Error::SD_CARD;
-		}
-
-		for (uint32_t i = 0; i < batchFrames; i++) {
-			const std::byte* in = inputScratch.data() + static_cast<size_t>(i) * inputFrameBytes;
-
-			int32_t value = read24AsShiftedInt32(in);
-			if (action == MonitoringAction::SUBTRACT_RIGHT_CHANNEL) {
-				int32_t right = read24AsShiftedInt32(in + 3);
-				value = (value >> 1) - (right >> 1);
-			}
-			// REMOVE_RIGHT_CHANNEL reads only the left channel above and discards the right (in + 3)
-			// entirely; NONE never has a right channel to begin with (mono input).
-
-			int32_t processed = value << lshiftAmount;
-			writeShiftedInt32As24(processed, outputScratch.data() + static_cast<size_t>(i) * 3);
-		}
-
-		auto writeResult =
-		    file->write_at(writeCursor, std::span<const std::byte>(outputScratch.data(), outputBytesThisBatch));
-		if (!writeResult || *writeResult != outputBytesThisBatch) {
-			return Error::SD_CARD;
-		}
-
-		readCursor += inputBytesThisBatch;
-		writeCursor += outputBytesThisBatch;
-		framesDone += batchFrames;
-	}
-
-	if (action != MonitoringAction::NONE || capturedTooMuch) {
-
-		// `this->file` has been open -- receiving every write_at call above -- for the whole
-		// alteration, opened at the top of this function, so there's nothing to reopen here.
-
-		Error error = truncateFileDownToSize(dataLengthAfterAction + sample->audioDataStartPosBytes);
-		if (error != Error::NONE) {
-			return error;
-		}
-
-		auto closeResult = this->file->close();
-		this->file.reset();
-		if (!closeResult) {
-			return Error::SD_CARD;
-		}
-	}
-
-	// The write context (opened at the top of this function) is closed exactly once. The
-	// truncate branch above already closed it (and reset `this->file`) whenever it ran; if it didn't
-	// run -- no truncation was needed -- close it here.
-	if (this->file) {
-		auto closeResult = this->file->close();
-		this->file.reset();
-		if (!closeResult) {
-			return Error::SD_CARD;
-		}
-	}
-
-	return Error::NONE;
-}
-
-// You must still have the file open when you call this
-Error SampleRecorder::truncateFileDownToSize(uint32_t newFileSize) {
-
-	// Update the Sample object to indicate the correct size. Do this before we risk errors below
-
-	uint64_t numClustersAfterAction = ((newFileSize - 1) >> Cluster::size_magnitude) + 1;
-
-	// Guard on the PHYSICAL cache size, not num_clusters(): resizeOverviewCache() shrinks the actual
-	// overviewCache_ storage, so the "am I really shrinking?" test must observe overviewCacheSize().
-	// num_clusters() is derived and doesn't track the cache's physical size, so comparing against it
-	// would mis-gate this shrink (matching the finalize-grow guard in the same file).
-	if (numClustersAfterAction < sample->overviewCacheSize()) {
-		sample->resizeOverviewCache(numClustersAfterAction);
-	}
-
-	auto truncateResult = file->truncate(newFileSize);
-	if (!truncateResult) {
-		return Error::SD_CARD;
-	}
-
-	return Error::NONE;
 }
