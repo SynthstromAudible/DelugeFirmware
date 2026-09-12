@@ -183,7 +183,8 @@ void AudioRecorder::slowRoutine() {
 			FREEZE_WITH_ERROR("E250");
 			return;
 		}
-		if (recorder->status >= RecorderStatus::COMPLETE) {
+		// Settled, not merely terminal: an aborted recorder may still be closing its file.
+		if (recorder->settled()) {
 			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
 			finishRecording();
 		}
@@ -203,8 +204,15 @@ void AudioRecorder::process() {
 
 		AudioEngine::slowRoutine();
 
+		// A card error ends the take. Stop capturing, then wait for the recorder to close its file and for the
+		// driver to answer anything it was given: freeing it any earlier frees memory the driver may still be
+		// writing from.
+		if (recorder->hadCardError) {
+			endRecordingSoon(kInternalButtonPressLatency);
+		}
+
 		// If recording has finished...
-		if (recorder->status >= RecorderStatus::COMPLETE || recorder->hadCardError) {
+		if (recorder->settled()) {
 
 			if (recorder->status == RecorderStatus::ABORTED || recorder->hadCardError) {}
 

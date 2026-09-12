@@ -10,8 +10,9 @@
 #                 and broke the recording on the way. It earned its keep here: a recycled stream
 #                 handle collecting a previous recorder's answer showed up as exactly this, and
 #                 nothing else in the run noticed.
-#   RW-CHANNEL    that the async arm was EXECUTED. Required non-zero. Every fallback in this path is
-#                 silent, so a channel that never worked would leave the round trip green.
+#   RW-CHANNEL    that the async arm was EXECUTED by the off-owner recordings: they must serve more
+#                 writes than the on-fiber oracle. The oracle stands on the owner, which writes
+#                 synchronously -- an owner that spins never lets the driver answer -- so it serves none.
 #   RW-OFFOWNER   that the drain ran OFF the storage owner. This is the gate's real subject. Without
 #                 it RW-CHANNEL can be non-zero while every write was still served on the owner.
 #   RW-OFFOWNER-CREATE  that CREATING the recording's file ran off the storage owner.
@@ -27,6 +28,12 @@
 #                 measures on_owner=1 and takes the synchronous arm.
 #   RW-TIER       how many synchronous card operations the recorder began off the storage owner after
 #                 boot, over every off-owner case, and how many of its channel requests were refused.
+#                 Required 0: off the owner every recorder operation goes through a channel.
+#   RW-BUSY       that a recording made while another write-channel operation keeps taking the channel
+#                 is refused, asks again, never writes synchronously, and still reads back exactly.
+#   RW-STALL      that a cluster write held past the recorder's bound fails the take while the write is
+#                 still outstanding, keeps its buffer until the answer, closes the file through the
+#                 channel, and never writes synchronously.
 #   RW-DRAIN      that the offline stem-export path still drains to completion. That loop calls the
 #                 card routine in a bounded loop expecting each call to COMPLETE a write.
 #
@@ -76,10 +83,12 @@ set +e
 GOLDEN_SCENARIO=recorder_roundtrip "$BIN" >"$OUT/run.txt" 2>"$OUT/run.err"
 status=$?
 set -e
+# A failed run is still judged line by line: the give-up cases fail without stopping the tier report, and a
+# freeze aborts the process, so the lines that did print say which check went red.
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
 	sed -n '1,40p' "$OUT/run.err" >&2
-	exit 1
+	fail=1
 fi
 # An abort exits before this line is printed, which is what turns a freeze into a gate failure
 # rather than a silently truncated log.
@@ -144,8 +153,7 @@ elif ! grep -q '^OO-LEAK .*ok=1' "$OUT/run.txt"; then
 	fail=1
 fi
 
-# RW-TIER: reported, and required to be present. Not yet required to be zero: the give-up paths are what
-# take the recorder off its synchronous arms.
+# RW-TIER: reported, and required to be zero.
 tier_line=$(grep '^RW-TIER ' "$OUT/run.txt" || true)
 tier=$(printf '%s\n' "$tier_line" | sed -n 's/^RW-TIER violations=\([0-9]*\).*/\1/p')
 if [ -z "$tier" ]; then
@@ -154,7 +162,25 @@ if [ -z "$tier" ]; then
 	tier=0
 else
 	echo "$tier_line"
+	if [ "$tier" -ne 0 ]; then
+		echo "FAIL RW-TIER — the recorder began $tier synchronous card operation(s) off the storage owner"
+		fail=1
+	fi
 fi
+
+for check in RW-BUSY RW-STALL; do
+	line=$(grep "^$check " "$OUT/run.txt" || true)
+	if [ -z "$line" ]; then
+		echo "FAIL $check — no $check line; the case did not finish"
+		fail=1
+	else
+		echo "$line"
+		if ! printf '%s\n' "$line" | grep -q "^$check ok=1 "; then
+			echo "FAIL $check — see the line above"
+			fail=1
+		fi
+	fi
+done
 
 # RW-OFFOWNER-CREATE: creating the file was the LAST thing this recorder dispatched to the owner, so
 # this reading zero means the recorder is back to blocking there.
@@ -177,10 +203,6 @@ offowner=$(sed -n 's/^RW-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.tx
 }
 [ -n "$offowner" ] || offowner=0
 
-if [ "$served" -eq 0 ]; then
-	echo "FAIL RW-CHANNEL — the run served 0 writes; the async arm never ran"
-	fail=1
-fi
 if [ "$oo_served" -le "$served" ]; then
 	echo "FAIL RW-CHANNEL — the off-owner recording served nothing beyond the on-fiber oracle's $served"
 	fail=1

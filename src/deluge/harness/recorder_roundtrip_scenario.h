@@ -50,10 +50,17 @@ int32_t deluge_scenario_run_recorder_roundtrip();
 /// case exists to cover what that cannot: a recorder driven from where the device actually drives
 /// one, so the async cluster write is exercised and `cardRoutine`'s dispatch of its BLOCKING ticks
 /// back to the owner is load-bearing rather than dead code.
-/// @param alter non-zero to record stereo with a silent right channel and permit alteration, so
-///              finalize takes its REMOVE_RIGHT_CHANNEL branch. The three alterFile cases in the
-///              oracle call `alterFile()` DIRECTLY, so without this the batch machine is never run.
-void deluge_scenario_offowner_begin(int32_t alter);
+/// @param mode Which case:
+///             - 0 `recording`: mono, finished normally.
+///             - 1 `alterfile`: stereo with a silent right channel and alteration permitted, so finalize
+///               takes its REMOVE_RIGHT_CHANNEL branch. The three alterFile cases in the oracle call
+///               `alterFile()` DIRECTLY, so without this the batch machine is never run.
+///             - 2 `abort`: abandoned part-way, so the abort machine runs.
+///             - 3 `busy`: another write-channel operation keeps taking the channel, so the recorder's
+///               requests are refused and asked again. Prints `RW-BUSY`.
+///             - 4 `stall`: a cluster write is held past the recorder's bound, so the take fails without a
+///               synchronous write. Prints `RW-STALL`.
+void deluge_scenario_offowner_begin(int32_t mode);
 
 /// @brief Advance the off-owner case by one tick. Call from the SAME non-fiber context.
 ///

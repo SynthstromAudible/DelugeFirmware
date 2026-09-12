@@ -105,26 +105,24 @@ public:
 
 	int32_t firstUnwrittenClusterIndex = 0;
 
-	/// The cluster index whose write is in flight on the channel, or -1 when none is.
+	/// The cluster index whose write is owed to the channel or in flight on it, or -1 when none is.
 	///
-	/// Its buffer stays in `bufferTable_` and must NOT be recycled or freed until the collect is
-	/// terminal -- the channel holds a raw pointer into it rather than a copy. `cardRoutine()`
-	/// settles this before anything else runs, which is the whole of the buffer-lifetime contract:
-	/// every path through this recorder passes through there, including the abort path, whose
-	/// `detachSample()` frees capture buffers well before the stream is closed.
+	/// Its buffer stays in `bufferTable_` and must NOT be recycled or freed until the write is settled -- the
+	/// channel holds a raw pointer into it rather than a copy. `cardRoutine()` settles this before anything
+	/// else runs, which is the whole of the buffer-lifetime contract: every path through this recorder passes
+	/// through there, including the abort path, whose `detachSample()` frees capture buffers well before the
+	/// stream is closed.
 	int32_t inFlightClusterIndex_ = -1;
-	/// Byte count of the write in flight, so the collect can tell a complete write from a short one
-	/// without the caller having to remember what it asked for.
+	/// Byte count of the owed write, so the collect can tell a complete write from a short one without the
+	/// caller having to remember what it asked for.
 	uint32_t inFlightNumBytes_ = 0;
-	/// Consecutive ticks the in-flight write has read PENDING. Bounded by
-	/// `deluge::storage::kMaxPendingTicks`; see `recorder_write_policy.h` for why a stall bound is
-	/// not optional.
-	int32_t writePendingTicks_ = 0;
-	/// Set once this recorder gives up on the channel (a stall, or a request the channel never
-	/// keyed). Latched for the rest of the recording rather than retried: a driver that stopped
-	/// answering once will keep costing a full stall bound per cluster, and the synchronous arm is
-	/// always correct.
-	bool channelAbandoned_ = false;
+	/// Whether the channel has accepted the owed write. False while it is only owed: not asked yet, refused,
+	/// or answered UNKNOWN.
+	bool inFlightIssued_ = false;
+	/// Consecutive unproductive ticks for the owed write: refusals, UNKNOWNs and PENDINGs. Bounded by
+	/// `deluge::storage::kMaxUnproductiveTicks`; see `recorder_write_policy.h` for why a stall bound is not
+	/// optional.
+	int32_t writeUnproductiveTicks_ = 0;
 
 	/// @brief Index of the cluster currently being written to. Starts at -1 so a recorder destructed
 	///        before any recording began is still in a valid state.
@@ -208,7 +206,7 @@ public:
 	std::optional<deluge::io::Stream> file;
 
 public:
-	/// @brief Whether a cluster write is in flight on the channel right now.
+	/// @brief Whether a cluster write is owed to the channel or in flight on it right now.
 	[[nodiscard]] bool writePending() const { return inFlightClusterIndex_ >= 0; }
 
 	/// Diagnostic accessors, for the harness's wedge reporting only.
@@ -229,12 +227,23 @@ public:
 	/// being measured.
 	[[nodiscard]] static int32_t channelRefusals();
 
+	/// @brief Whether this recorder may be freed: its status is terminal, no cluster write is owed, its file
+	///        is closed, and any abort cleanup has finished.
+	///
+	/// A terminal status alone is not enough. A card error ends a take while its last write may still be
+	/// outstanding, and freeing the recorder then frees the buffer the driver is writing from; a recorder
+	/// freed with its file open closes it synchronously.
+	[[nodiscard]] bool settled() const;
+
 private:
 private:
-	/// @param mayUseChannel false forces the synchronous arm. Set by the callers that need the
-	///        cluster to be ON THE CARD when they return -- `writeAnyCompletedClusters()`, which
-	///        loops until drained and would otherwise spin issuing without completing.
+	/// @param mayUseChannel false forces the synchronous arm. The channel is used only when this is true, the
+	///        caller is off the storage owner, and the owner has started: an owner that spins never lets the
+	///        driver answer. `writeAnyCompletedClusters()` passes false because it loops until drained.
 	Error writeCluster(int32_t clusterIndex, size_t numBytes, bool mayUseChannel);
+	/// @brief Ask the channel for the owed write.
+	/// @return Whether the channel accepted it. A refusal leaves the write owed and counts an unproductive tick.
+	bool issueOwedWrite();
 	/// @brief Settle the in-flight cluster write, if there is one.
 	///
 	/// Call as the FIRST thing in `cardRoutine()`. Nothing that could free a capture buffer or close
@@ -251,6 +260,12 @@ private:
 	/// `cutRecordingFolderPathAndTryCreating` encoded retry state in control flow, where the phase
 	/// enum states it somewhere @ref deluge::storage::nextCreatePhase can be tested against.
 	CreateStep advanceCreate();
+	/// @brief The channel accepted this phase's request: collect it from the next tick.
+	CreateStep createAccepted();
+	/// @brief The channel refused this phase's request: ask again next tick, or fail at the bound.
+	CreateStep createRefused();
+	/// @brief Run deluge::storage::nextCreatePhase on this tick's answer; a phase change restarts the bound.
+	CreateStep createTransition(uint8_t collected, bool spaceExhausted = false, bool pathReady = false);
 
 	/// @name Create machine state
 	/// @{
@@ -258,6 +273,10 @@ private:
 	bool createIssued_ = false;
 	bool createTriedMakeFolder_ = false;
 	bool createOpenNotFound_ = false;
+	/// Consecutive unproductive ticks for this phase's request. See deluge::storage::kMaxUnproductiveTicks.
+	int32_t createUnproductiveTicks_ = 0;
+	/// This phase's request was still pending past the bound: the create fails on its answer.
+	bool createFailing_ = false;
 	/// The resolved recording path, and the temp path when one applies. Members because they are
 	/// produced by PathSearch and consumed after Open, several ticks later.
 	std::string createFilePath_{};
@@ -283,6 +302,12 @@ private:
 	/// operation and returns, so the whole of finishing a recording -- header patch, alteration,
 	/// truncate and close -- happens off the storage owner.
 	FinalizeStep advanceFinalize();
+	/// @brief The channel accepted this phase's request: collect it from the next tick.
+	FinalizeStep finalizeAccepted();
+	/// @brief The channel refused this phase's request: ask again next tick, or fail at the bound.
+	FinalizeStep finalizeRefused();
+	/// @brief Run deluge::storage::nextFinalizePhase on this tick's answer; a phase change restarts the bound.
+	FinalizeStep finalizeTransition(uint8_t collected);
 
 	/// @brief Where the abort cleanup has got to.
 	enum class AbortPhase : uint8_t {
@@ -303,6 +328,18 @@ private:
 	AbortPhase abortPhase_ = AbortPhase::Detach;
 	/// Whether the current abort phase has issued its operation yet.
 	bool abortIssued_ = false;
+	/// Consecutive refused or unkeyed unlink requests. The close has no such bound; see advanceAbort().
+	int32_t abortUnproductiveTicks_ = 0;
+
+	/// @brief Close a failed take's file, through the channel wherever the channel is usable. Never blocks
+	///        off the owner.
+	///
+	/// A take that failed skips finalize, so nothing else closes its stream, and the stream's destructor would
+	/// close it synchronously on whatever tier frees the recorder.
+	/// @return true while the close is outstanding -- come back next tick.
+	bool closeFailedTake();
+	/// Whether @ref closeFailedTake has issued its close and not yet collected it.
+	bool failedCloseIssued_ = false;
 
 	/// @name Finalize phase bodies
 	/// Each holds code moved verbatim out of the old single-call finalize.
@@ -326,6 +363,10 @@ private:
 	/// Whether the current phase has issued its operation yet. Distinguishes "issue it" from
 	/// "collect it" without needing a second phase per operation.
 	bool finalizeIssued_ = false;
+	/// Consecutive unproductive ticks for this phase's request. See deluge::storage::kMaxUnproductiveTicks.
+	int32_t finalizeUnproductiveTicks_ = 0;
+	/// This phase's request was still pending past the bound: finalize fails on its answer.
+	bool finalizeFailing_ = false;
 	bool finalizeAltering_ = false;
 	bool finalizeNeedTruncate_ = false;
 	bool finalizeNeedHeaderPatch_ = false;
@@ -358,8 +399,8 @@ private:
 	/// into it asynchronously -- a stack buffer would be freed under the driver.
 	std::array<std::byte, 512> headerScratch_{};
 	/// @}
-	/// @brief Write a cluster on the storage owner, blocking. The arm that shipped before the
-	///        channel existed, and the fallback every refusal and stall returns to.
+	/// @brief Write a cluster synchronously, blocking. The arm that shipped before the channel existed; legal
+	///        only on the storage owner, or before the owner has started.
 	Error writeClusterSynchronously(int32_t clusterIndex, size_t numBytes);
 	/// @brief Recycle a written cluster's buffer and clear its table slot.
 	void finishCluster(int32_t clusterIndex);

@@ -507,6 +507,12 @@ gotError:
 			}
 		}
 
+		// A failed take still gives its file back, and through the channel: the stream's destructor would close
+		// it synchronously, on whatever tier frees this recorder.
+		if (hadCardError && closeFailedTake()) {
+			return error;
+		}
+
 		if (reachedMaxFileSize) {
 			if (autoDeleteWhenDone) {
 				abort();
@@ -611,9 +617,11 @@ Error SampleRecorder::finalizeWriteFinalPartial() {
 
 		int32_t bytesToWrite = writePos - reinterpret_cast<char*>(currentRecordBuffer);
 		if (bytesToWrite > 0) { // Will always be true
-			// Finalize: this cluster must be on the card before the header patch-back below reads the file.
+			// Through the channel wherever the channel is usable. The header read-back that follows waits for
+			// it: `pumpInFlightWrite()` at the top of cardRoutine() settles this write before finalize runs
+			// again, and a failed one ends the take there.
 			Error error = writeCluster(currentRecordClusterIndex.load(std::memory_order_relaxed), bytesToWrite,
-			                           /*mayUseChannel=*/false);
+			                           /*mayUseChannel=*/true);
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -825,14 +833,24 @@ bool SampleRecorder::advanceAbort() {
 	}
 
 	case AbortPhase::CloseStream: {
-		if (filePathCreated.empty() || !file) {
-			// Nothing was ever opened (an abort before the file existed), or it is already closed.
-			abortPhase_ = filePathCreated.empty() ? AbortPhase::Done : AbortPhase::Unlink;
+		// The unlink follows the close, unless no file was ever created.
+		const AbortPhase afterClose = filePathCreated.empty() ? AbortPhase::Done : AbortPhase::Unlink;
+		if (!file) {
+			// Nothing was ever opened, or it is already closed.
+			abortPhase_ = afterClose;
 			return abortPhase_ != AbortPhase::Done;
 		}
 		if (!abortIssued_) {
-			if (mayUseChannel && file->request_close()) {
-				abortIssued_ = true;
+			if (mayUseChannel) {
+				// Refused, however often: ask again. The only ways past a close the channel will not take are
+				// closing here, which blocks this tier on the card, and unlinking under an open handle, which is
+				// the hazard this ordering exists to prevent. An abort has nothing to show, so it waits.
+				if (file->request_close()) {
+					abortIssued_ = true;
+				}
+				else {
+					g_channelRefusals++;
+				}
 				return true;
 			}
 			noteRecorderIo();
@@ -841,46 +859,64 @@ bool SampleRecorder::advanceAbort() {
 			// A failed close still proceeds to the unlink: a file we are deleting must not survive
 			// because its close reported an error. This is the opposite of finalize, deliberately.
 			(void)closeResult;
-			abortPhase_ = AbortPhase::Unlink;
+			abortPhase_ = afterClose;
 			abortIssued_ = false;
-			return true;
+			return abortPhase_ != AbortPhase::Done;
 		}
 		const uint8_t collected = file->collect_close();
 		if (collected == DELUGE_FILE_WRITE_PENDING) {
 			return true; // NOT terminal yet -- the unlink must not go out.
 		}
+		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+			// Never keyed, or its answer was displaced: the handle is still open, so ask again.
+			abortIssued_ = false;
+			return true;
+		}
 		file.reset();
-		abortPhase_ = AbortPhase::Unlink;
+		abortPhase_ = afterClose;
 		abortIssued_ = false;
-		return true;
+		return abortPhase_ != AbortPhase::Done;
 	}
 
 	case AbortPhase::Unlink: {
 		bool unlinked = false;
+		using deluge::storage::bytes::ByteIo;
 		if (!abortIssued_) {
 			deluge_file_invalidate_cache();
-			if (mayUseChannel
-			    && deluge::storage::bytes::requestUnlink(filePathCreated.c_str())
-			           == deluge::storage::bytes::ByteIo::Pending) {
-				abortIssued_ = true;
-				return true;
+			if (mayUseChannel) {
+				const ByteIo io = deluge::storage::bytes::requestUnlink(filePathCreated.c_str());
+				if (io == ByteIo::Pending) {
+					abortIssued_ = true;
+					abortUnproductiveTicks_ = 0;
+					return true;
+				}
+				// Refused: ask again, until the bound. Giving up leaves the file where it is, exactly as a failed
+				// delete does; an unkeyable path cannot be deleted at all.
+				if (io == ByteIo::Unknown && abortUnproductiveTicks_++ < deluge::storage::kMaxUnproductiveTicks) {
+					g_channelRefusals++;
+					return true;
+				}
 			}
-			noteRecorderIo();
-			unlinked = deluge::io::unlink(filePathCreated).has_value();
+			else {
+				noteRecorderIo();
+				unlinked = deluge::io::unlink(filePathCreated).has_value();
+			}
 		}
 		else {
 			DelugeStatus outStatus = DELUGE_OK;
-			const deluge::storage::bytes::ByteIo io =
-			    deluge::storage::bytes::collectUnlink(filePathCreated.c_str(), &outStatus);
-			if (io == deluge::storage::bytes::ByteIo::Pending) {
+			const ByteIo io = deluge::storage::bytes::collectUnlink(filePathCreated.c_str(), &outStatus);
+			if (io == ByteIo::Pending) {
+				// Waited out however long it takes: the path is in the driver's hands, and an abort has nothing
+				// to show.
 				return true;
 			}
-			if (io == deluge::storage::bytes::ByteIo::Unknown) {
-				// Never keyed -- ask again next tick rather than treating it as a failed delete.
+			if (io == ByteIo::Unknown && abortUnproductiveTicks_++ < deluge::storage::kMaxUnproductiveTicks) {
+				// Never keyed, or its answer was displaced -- ask again next tick rather than treating it as a
+				// failed delete.
 				abortIssued_ = false;
 				return true;
 			}
-			unlinked = (io == deluge::storage::bytes::ByteIo::Ready);
+			unlinked = (io == ByteIo::Ready);
 		}
 
 		// If this was the most recent recording in this category, tick the counter backwards - so long as
@@ -901,6 +937,40 @@ bool SampleRecorder::advanceAbort() {
 	case AbortPhase::Done:
 		return false;
 	}
+	return false;
+}
+
+bool SampleRecorder::closeFailedTake() {
+	if (!file) {
+		return false;
+	}
+	const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
+	if (!failedCloseIssued_) {
+		if (mayUseChannel) {
+			// Refused, however often: ask again, for the reason advanceAbort() gives. The take has already failed
+			// and said so; this only gives its file back.
+			if (file->request_close()) {
+				failedCloseIssued_ = true;
+			}
+			else {
+				g_channelRefusals++;
+			}
+			return true;
+		}
+		noteRecorderIo();
+		(void)file->close();
+		file.reset();
+		return false;
+	}
+	const uint8_t collected = file->collect_close();
+	if (collected == DELUGE_FILE_WRITE_PENDING) {
+		return true;
+	}
+	failedCloseIssued_ = false;
+	if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+		return true; // Never keyed, or displaced: the handle is still open, so ask again.
+	}
+	file.reset();
 	return false;
 }
 
@@ -942,9 +1012,7 @@ bool mkdirAllSynchronously(const std::string& path) {
 // spec can check it without a filesystem.
 
 SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
-	using deluge::storage::CreateInputs;
 	using deluge::storage::CreatePhase;
-	using deluge::storage::nextCreatePhase;
 
 	// The channel is usable only from a context that will YIELD before asking again -- see
 	// advanceFinalize() for why. On the owner the caller spins and the Rust driver never runs.
@@ -983,10 +1051,10 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				break;
 			}
 			if (deluge_file_write_request_stats()) {
-				createIssued_ = true;
-				return CreateStep::Pending;
+				return createAccepted();
 			}
-			break; // Refused: treat as "space available" and carry on.
+			g_channelRefusals++;
+			break; // Refused: treat as "space available" and carry on. A query that cannot run is not a full card.
 		}
 
 		case CreatePhase::PathSearch: {
@@ -1047,9 +1115,11 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			// a later cache-hit read the pre-overwrite file's stale sclust/objsize.
 			deluge_file_invalidate_cache();
 			createOpenNotFound_ = false;
-			if (mayUseChannel && deluge::io::Stream::request_open(filePathCreated, createStreamMode_)) {
-				createIssued_ = true;
-				return CreateStep::Pending;
+			if (mayUseChannel) {
+				// Refused: nothing was queued, so ask again next tick, until the bound. Opening here instead would
+				// block this tier on the card.
+				const bool accepted = deluge::io::Stream::request_open(filePathCreated, createStreamMode_);
+				return accepted ? createAccepted() : createRefused();
 			}
 			noteRecorderIo();
 			auto openedStream = deluge::io::Stream::open(filePathCreated, createStreamMode_);
@@ -1076,11 +1146,15 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			createFolderPath_.resize(slashPos);
 			// ONE mkdir_all, not one level at a time: the byte channel walks the segments in Rust,
 			// which is the same collapse the browser's folder creation got.
-			if (mayUseChannel
-			    && deluge::storage::bytes::requestMkdirAll(createFolderPath_.c_str())
-			           == deluge::storage::bytes::ByteIo::Pending) {
-				createIssued_ = true;
-				return CreateStep::Pending;
+			if (mayUseChannel) {
+				switch (deluge::storage::bytes::requestMkdirAll(createFolderPath_.c_str())) {
+				case deluge::storage::bytes::ByteIo::Pending:
+					return createAccepted();
+				case deluge::storage::bytes::ByteIo::Unknown:
+					return createRefused(); // Busy: nothing was queued.
+				default:
+					return CreateStep::Failed; // The path cannot be keyed at all.
+				}
 			}
 			noteRecorderIo();
 			if (!mkdirAllSynchronously(createFolderPath_)) {
@@ -1141,25 +1215,58 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			break;
 		}
 		if (collected == DELUGE_FILE_WRITE_PENDING) {
+			// Still in flight, even past the bound: an open may yet hand back a stream, so wait for the answer,
+			// and fail on it if this went past the bound.
+			if (deluge::storage::stalledPastBound(collected, createUnproductiveTicks_)) {
+				createFailing_ = true;
+			}
+			createUnproductiveTicks_++;
 			return CreateStep::Pending;
+		}
+		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+			// Never keyed, or its answer was displaced: ask again next tick, until the bound.
+			createIssued_ = false;
+			const CreateStep step = createTransition(collected);
+			createUnproductiveTicks_++;
+			return step;
 		}
 		if (createPhase_ == CreatePhase::PathSearch) {
 			pathReady = true;
 		}
 	}
 
-	const CreatePhase next = nextCreatePhase(CreateInputs{
+	return createTransition(collected, spaceExhausted, pathReady);
+}
+
+SampleRecorder::CreateStep SampleRecorder::createAccepted() {
+	createIssued_ = true;
+	createUnproductiveTicks_ = 0;
+	return CreateStep::Pending;
+}
+
+SampleRecorder::CreateStep SampleRecorder::createRefused() {
+	g_channelRefusals++;
+	const CreateStep step = createTransition(DELUGE_FILE_WRITE_UNKNOWN);
+	createUnproductiveTicks_++;
+	return step;
+}
+
+SampleRecorder::CreateStep SampleRecorder::createTransition(uint8_t collected, bool spaceExhausted, bool pathReady) {
+	using deluge::storage::CreatePhase;
+	const CreatePhase next = deluge::storage::nextCreatePhase(deluge::storage::CreateInputs{
 	    createPhase_,
 	    collected,
 	    spaceExhausted,
 	    pathReady,
 	    createOpenNotFound_,
 	    createTriedMakeFolder_,
-	    0,
-	    false,
+	    createUnproductiveTicks_,
+	    createFailing_,
 	});
 	if (next != createPhase_) {
 		createIssued_ = false;
+		createUnproductiveTicks_ = 0;
+		createFailing_ = false;
 	}
 	createPhase_ = next;
 
@@ -1173,9 +1280,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 }
 
 SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
-	using deluge::storage::FinalizeInputs;
 	using deluge::storage::FinalizePhase;
-	using deluge::storage::nextFinalizePhase;
 
 	// ACQUIRE: cardRoutine() decision read (debug assertion, same fiber path as the flip observation
 	// above).
@@ -1228,13 +1333,13 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			if (!file) {
 				return FinalizeStep::Failed;
 			}
-			if (finalizeMayUseChannel && file->request_truncate(finalizeTruncateTo_)) {
-				finalizeIssued_ = true;
-				return FinalizeStep::Pending;
+			if (finalizeMayUseChannel) {
+				// Refused: nothing was queued, so ask again next tick, until the bound. Every phase below does the
+				// same; doing it here instead would block this tier on the card.
+				return file->request_truncate(finalizeTruncateTo_) ? finalizeAccepted() : finalizeRefused();
 			}
-			// Refused -- the channel is off, or busy with another operation. Do it here. Every phase
-			// below keeps this arm for the same reason: a refusal must never fail a recording, and
-			// this is the path that shipped before the channel existed.
+			// On the owner, or before the owner has started: blocking is legal there, and it is the only arm that
+			// makes progress.
 			noteRecorderIo();
 			if (!file->truncate(finalizeTruncateTo_)) {
 				return FinalizeStep::Failed;
@@ -1247,9 +1352,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			}
 			const uint32_t headerWant = finalizeAltering_ ? sample->audioDataStartPosBytes : kHeaderSectorBytes;
 			std::span<std::byte> dst(headerScratch_.data(), headerWant);
-			if (finalizeMayUseChannel && file->request_read_at(0, dst)) {
-				finalizeIssued_ = true;
-				return FinalizeStep::Pending;
+			if (finalizeMayUseChannel) {
+				return file->request_read_at(0, dst) ? finalizeAccepted() : finalizeRefused();
 			}
 			noteRecorderIo();
 			auto readResult = file->read_at_via(0, dst);
@@ -1279,9 +1383,9 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				data16 = 1 * 3;
 				memcpy(headerBytes.data() + 32, &data16, 2);
 			}
-			if (finalizeMayUseChannel && file->request_write_at(0, std::span<const std::byte>(headerBytes))) {
-				finalizeIssued_ = true;
-				return FinalizeStep::Pending;
+			if (finalizeMayUseChannel) {
+				const std::span<const std::byte> src(headerBytes);
+				return file->request_write_at(0, src) ? finalizeAccepted() : finalizeRefused();
 			}
 			// The old path ignored a failed header write here ("that's a shame, but we don't need to
 			// do anything"), and that judgement is preserved: the audio is on the card either way.
@@ -1294,9 +1398,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			if (!file) {
 				break; // Already closed by the alteration path; nothing to wait for.
 			}
-			if (finalizeMayUseChannel && file->request_close()) {
-				finalizeIssued_ = true;
-				return FinalizeStep::Pending;
+			if (finalizeMayUseChannel) {
+				return file->request_close() ? finalizeAccepted() : finalizeRefused();
 			}
 			noteRecorderIo();
 			auto closeResult = file->close();
@@ -1314,9 +1417,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			if (!file) {
 				break;
 			}
-			if (finalizeMayUseChannel && file->request_close()) {
-				finalizeIssued_ = true;
-				return FinalizeStep::Pending;
+			if (finalizeMayUseChannel) {
+				return file->request_close() ? finalizeAccepted() : finalizeRefused();
 			}
 			noteRecorderIo();
 			auto closeResult = file->close();
@@ -1328,10 +1430,9 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 		}
 
 		case FinalizePhase::OpenForAlter: {
-			if (finalizeMayUseChannel
-			    && deluge::io::Stream::request_open(sample->filePath, DELUGE_STREAM_WRITE_APPEND)) {
-				finalizeIssued_ = true;
-				return FinalizeStep::Pending;
+			if (finalizeMayUseChannel) {
+				const bool accepted = deluge::io::Stream::request_open(sample->filePath, DELUGE_STREAM_WRITE_APPEND);
+				return accepted ? finalizeAccepted() : finalizeRefused();
 			}
 			noteRecorderIo();
 			auto openedStream = deluge::io::Stream::open(sample->filePath, DELUGE_STREAM_WRITE_APPEND);
@@ -1348,9 +1449,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			if (!file) {
 				return FinalizeStep::Failed;
 			}
-			if (finalizeMayUseChannel && file->request_read_at(alterReadCursor_, dst)) {
-				finalizeIssued_ = true;
-				return FinalizeStep::Pending;
+			if (finalizeMayUseChannel) {
+				return file->request_read_at(alterReadCursor_, dst) ? finalizeAccepted() : finalizeRefused();
 			}
 			noteRecorderIo();
 			auto readResult = file->read_at_via(alterReadCursor_, dst);
@@ -1369,9 +1469,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			if (!file) {
 				return FinalizeStep::Failed;
 			}
-			if (finalizeMayUseChannel && file->request_write_at(alterWriteCursor_, src)) {
-				finalizeIssued_ = true;
-				return FinalizeStep::Pending;
+			if (finalizeMayUseChannel) {
+				return file->request_write_at(alterWriteCursor_, src) ? finalizeAccepted() : finalizeRefused();
 			}
 			noteRecorderIo();
 			auto writeResult = file->write_at(alterWriteCursor_, src);
@@ -1461,11 +1560,42 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			break;
 		}
 		if (collected == DELUGE_FILE_WRITE_PENDING) {
+			// Still in flight, even past the bound: the driver may be using this recorder's header or batch
+			// buffer, so wait for the answer, and fail on it if this went past the bound.
+			if (deluge::storage::stalledPastBound(collected, finalizeUnproductiveTicks_)) {
+				finalizeFailing_ = true;
+			}
+			finalizeUnproductiveTicks_++;
 			return FinalizeStep::Pending;
+		}
+		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+			// Never keyed, or its answer was displaced: ask again next tick, until the bound.
+			finalizeIssued_ = false;
+			const FinalizeStep step = finalizeTransition(collected);
+			finalizeUnproductiveTicks_++;
+			return step;
 		}
 	}
 
-	const FinalizePhase next = nextFinalizePhase(FinalizeInputs{
+	return finalizeTransition(collected);
+}
+
+SampleRecorder::FinalizeStep SampleRecorder::finalizeAccepted() {
+	finalizeIssued_ = true;
+	finalizeUnproductiveTicks_ = 0;
+	return FinalizeStep::Pending;
+}
+
+SampleRecorder::FinalizeStep SampleRecorder::finalizeRefused() {
+	g_channelRefusals++;
+	const FinalizeStep step = finalizeTransition(DELUGE_FILE_WRITE_UNKNOWN);
+	finalizeUnproductiveTicks_++;
+	return step;
+}
+
+SampleRecorder::FinalizeStep SampleRecorder::finalizeTransition(uint8_t collected) {
+	using deluge::storage::FinalizePhase;
+	const FinalizePhase next = deluge::storage::nextFinalizePhase(deluge::storage::FinalizeInputs{
 	    finalizePhase_,
 	    collected,
 	    firstUnwrittenClusterIndex < currentRecordClusterIndex.load(std::memory_order_acquire),
@@ -1474,11 +1604,13 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 	    alterFramesDone_ < alterNumFrames_,
 	    finalizeNeedTruncate_,
 	    finalizeNeedHeaderPatch_,
-	    0,
-	    false,
+	    finalizeUnproductiveTicks_,
+	    finalizeFailing_,
 	});
 	if (next != finalizePhase_) {
 		finalizeIssued_ = false;
+		finalizeUnproductiveTicks_ = 0;
+		finalizeFailing_ = false;
 	}
 	finalizePhase_ = next;
 
@@ -1528,6 +1660,15 @@ int32_t SampleRecorder::channelRefusals() {
 	return g_channelRefusals;
 }
 
+bool SampleRecorder::settled() const {
+	// ACQUIRE: the same decision read cardRoutine() makes.
+	const RecorderStatus current = status.load(std::memory_order_acquire);
+	if (current < RecorderStatus::COMPLETE || writePending() || file.has_value()) {
+		return false;
+	}
+	return current != RecorderStatus::ABORTED || abortPhase_ == AbortPhase::Done;
+}
+
 void SampleRecorder::finishCluster(int32_t clusterIndex) {
 	// writeCluster() recycles this buffer's memory back to the free-list once the write succeeds --
 	// no separate "reason" to drop; we privately own it outright.
@@ -1541,53 +1682,74 @@ void SampleRecorder::finishCluster(int32_t clusterIndex) {
 }
 
 bool SampleRecorder::pumpInFlightWrite() {
+	using deluge::storage::WriteStep;
+
 	if (inFlightClusterIndex_ < 0) {
 		return false;
 	}
 
 	const int32_t index = inFlightClusterIndex_;
-	const uint32_t expected = inFlightNumBytes_;
 	uint32_t written = 0;
-	const uint8_t collected = file->collect_write_at(&written);
+	const uint8_t collected = inFlightIssued_ ? file->collect_write_at(&written) : DELUGE_FILE_WRITE_UNKNOWN;
 
-	switch (
-	    deluge::storage::nextWriteStep(/*channelActive=*/true, /*haveInFlight=*/true, collected, writePendingTicks_)) {
-	case deluge::storage::WriteStep::Wait:
-		writePendingTicks_++;
+	const WriteStep step =
+	    deluge::storage::nextWriteStep(/*channelUsable=*/true, inFlightIssued_, collected, writeUnproductiveTicks_);
+	switch (step) {
+	case WriteStep::Wait:
+		writeUnproductiveTicks_++;
 		return true; // Still outstanding: nothing that could free this buffer may run.
 
-	case deluge::storage::WriteStep::Complete:
-		inFlightClusterIndex_ = -1;
-		writePendingTicks_ = 0;
-		if (written != expected) {
+	case WriteStep::StalledWait:
+		// Fail now, release later. The take has failed and issues nothing more, but the driver was handed a
+		// pointer into this buffer and may still write from it, so the buffer stays until the answer comes.
+		hadCardError = true;
+		writeUnproductiveTicks_++;
+		return true;
+
+	case WriteStep::Issue:
+		// Owed: refused last time, or answered UNKNOWN. Ask again. Either way it is still outstanding, so
+		// nothing below may run this tick.
+		inFlightIssued_ = false;
+		(void)issueOwedWrite();
+		return true;
+
+	case WriteStep::Complete:
+		if (written != inFlightNumBytes_) {
 			hadCardError = true; // A short write is a card error, exactly as the synchronous arm says.
 		}
-		else {
-			finishCluster(index);
-		}
-		return false;
+		break;
 
-	case deluge::storage::WriteStep::Failed:
-		inFlightClusterIndex_ = -1;
-		writePendingTicks_ = 0;
+	case WriteStep::Failed:
+		// FAILED, or given up at the bound with nothing outstanding.
 		hadCardError = true;
-		return false;
+		break;
 
-	case deluge::storage::WriteStep::StalledWait:
-	case deluge::storage::WriteStep::Issue:
-	case deluge::storage::WriteStep::Inline:
-		// Either the channel never keyed the request (UNKNOWN) or it accepted one and stopped
-		// answering (the stall bound). Both mean these bytes are NOT on the card, so write them here
-		// and stop trusting the channel for the rest of this recording -- a driver that stalled once
-		// would otherwise cost a full stall bound per cluster.
-		inFlightClusterIndex_ = -1;
-		writePendingTicks_ = 0;
-		channelAbandoned_ = true;
-		if (writeClusterSynchronously(index, expected) != Error::NONE) {
-			hadCardError = true;
-		}
-		return false;
+	case WriteStep::Inline:
+		// Unreachable: a write is owed to the channel only where the channel is usable. Fail rather than block.
+		hadCardError = true;
+		break;
 	}
+
+	// Settled: the driver holds nothing of this buffer any more, whatever became of the write.
+	inFlightClusterIndex_ = -1;
+	inFlightIssued_ = false;
+	writeUnproductiveTicks_ = 0;
+	finishCluster(index);
+	return false;
+}
+
+bool SampleRecorder::issueOwedWrite() {
+	const uint32_t byteOffset = static_cast<uint32_t>(inFlightClusterIndex_) << Cluster::size_magnitude;
+	const std::span<const std::byte> bytes(bufferTable_[inFlightClusterIndex_], inFlightNumBytes_);
+	if (file->request_write_at(byteOffset, bytes)) {
+		inFlightIssued_ = true;
+		writeUnproductiveTicks_ = 0;
+		g_writeChannelServed++;
+		return true;
+	}
+	// Refused: nothing was queued. The cluster stays owed and its buffer stays put.
+	g_channelRefusals++;
+	writeUnproductiveTicks_++;
 	return false;
 }
 
@@ -1604,28 +1766,19 @@ Error SampleRecorder::writeClusterSynchronously(int32_t clusterIndex, size_t num
 }
 
 Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes, bool mayUseChannel) {
-	// Deliberately NOT gated on `!on_owner()`, unlike the byte channel's selector. That term exists
-	// to keep the INTERACTION tier off the card, and this cluster has no tier problem to solve --
-	// every one of its sites was measured on the owner before this rung. Gating on it here would
-	// mean the write keeps blocking the owner wherever it already runs, which is exactly the thing
-	// that stops the owner ever being removable. `started()` stays: it keeps anything running before
-	// the worker exists on the arm it has always used.
-	const bool channelActive = mayUseChannel && !channelAbandoned_ && deluge::storage::Owner::started();
-
-	if (channelActive && inFlightClusterIndex_ < 0) {
-		const uint32_t byteOffset = static_cast<uint32_t>(clusterIndex) << Cluster::size_magnitude;
-		if (file->request_write_at(byteOffset, std::span<const std::byte>(bufferTable_[clusterIndex], numBytes))) {
-			inFlightClusterIndex_ = clusterIndex;
-			inFlightNumBytes_ = static_cast<uint32_t>(numBytes);
-			writePendingTicks_ = 0;
-			g_writeChannelServed++;
-			// Issued, not written. `pumpInFlightWrite()` collects it on a later tick and recycles the
-			// buffer then; recycling here would hand the card a buffer the audio thread has reused.
-			return Error::NONE;
-		}
-		// Refused. Fall through rather than dropping the cluster: a refused write that is not
-		// retried is lost audio.
-		g_channelRefusals++;
+	// The same selector as create, finalize and abort. Off the owner once it has started, the channel is the
+	// only arm: a refusal leaves the write owed rather than falling back to blocking here. On the owner the
+	// write is synchronous from the start: an owner that spins -- the offline stem-export drain, the
+	// harness's own pump -- never lets the driver answer, and blocking there is legal.
+	if (mayUseChannel && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
+		inFlightClusterIndex_ = clusterIndex;
+		inFlightNumBytes_ = static_cast<uint32_t>(numBytes);
+		inFlightIssued_ = false;
+		writeUnproductiveTicks_ = 0;
+		// Asking now saves a tick. Either way `pumpInFlightWrite()` collects it on a later tick and recycles
+		// the buffer then; recycling here would hand the card a buffer the audio thread has reused.
+		(void)issueOwedWrite();
+		return Error::NONE;
 	}
 
 	return writeClusterSynchronously(clusterIndex, numBytes);

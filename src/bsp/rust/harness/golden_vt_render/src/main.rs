@@ -281,7 +281,7 @@ unsafe extern "C" {
     fn deluge_scenario_start_recorder_roundtrip();
     fn deluge_scenario_recorder_roundtrip_done() -> bool;
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
-    fn deluge_scenario_offowner_begin(alter: i32);
+    fn deluge_scenario_offowner_begin(mode: i32);
     fn deluge_scenario_offowner_tick() -> i32;
     fn deluge_scenario_offowner_report();
     fn deluge_scenario_audio_load_ab_begin();
@@ -734,9 +734,40 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         hard_exit(1);
     }
 
+    // The give-up cases: the channel busy with someone else's operation, then a cluster write held past
+    // the recorder's bound. Each prints its own line, and a failure stops neither the other case nor the
+    // tier report, so the script sees all three.
+    let mut give_up_failed = false;
+    for (mode, name) in [(3, "busy"), (4, "stall")] {
+        // SAFETY: same C-ABI contract as above.
+        unsafe { deluge_scenario_offowner_begin(mode) };
+        let deadline = Instant::now() + Duration::from_secs(300);
+        let result = loop {
+            // SAFETY: as above.
+            let state = unsafe { deluge_scenario_offowner_tick() };
+            if state != 0 {
+                break state;
+            }
+            if Instant::now() >= deadline {
+                log::error!(
+                    "golden_vt_render: off-owner {name} case did not complete within 300s — wedged"
+                );
+                hard_exit(2);
+            }
+            Timer::after_millis(1).await;
+        };
+        if result != 1 {
+            log::error!("golden_vt_render: off-owner {name} case FAILED — see the log above");
+            give_up_failed = true;
+        }
+    }
+
     // Over every off-owner case: a synchronous card operation is a violation whichever case made it.
     // SAFETY: same C-ABI contract as above.
     unsafe { deluge_scenario_offowner_report() };
+    if give_up_failed {
+        hard_exit(1);
+    }
 
     log::info!("golden_vt_render: recorder round-trip PASSED (0 failures); exiting cleanly");
     done.store(true, Ordering::Release);
