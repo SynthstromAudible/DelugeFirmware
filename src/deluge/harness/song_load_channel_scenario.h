@@ -24,7 +24,7 @@
 ///
 /// ## Why this gate exists at all
 ///
-/// `scripts/recorder_write.sh` was the ONLY harness that built `async_file_write_active`. The
+/// `scripts/recorder_write.sh` was the ONLY harness that built the write channel. The
 /// whole-file staging read the song load now depends on had therefore never executed under any gate:
 /// it could have been broken in any way at all and every gate would still have been green, because
 /// every one of them ran the build where that code is compiled out. This gate runs it.

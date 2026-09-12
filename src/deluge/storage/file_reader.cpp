@@ -255,27 +255,15 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 
 	// An async request issued from a context that will not YIELD can never complete: the driver only
 	// runs when this caller returns to its executor. On the owner we therefore fill synchronously,
-	// which is legal there and is what shipped before this channel existed.
+	// which is legal there. Off it both channels are always there: the byte channel's stat sizes the
+	// buffer and the write channel's whole-file read fills it.
 	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
-	// BOTH channels, and that is not belt-and-braces. This arm sizes the buffer with the BYTE
-	// channel's stat and then fills it with the write channel's whole-file read. With the byte channel
-	// off, `requestStat` still answers Pending -- it calls a weak fallback that never replies -- so a
-	// build carrying only the write channel would enter here and defer forever.
-	const bool mayUseChannel = !onOwner && deluge_file_write_async_active() && deluge_file_bytes_async_active();
-
-	// Off the owner with no channel to ask, there is no legal fill left. The synchronous one blocks
-	// THIS context, and on a BSP whose card is served by an executor this context has to return to,
-	// blocking here does not wait -- it wedges. Refuse, rather than pick the arm that deadlocks; the
-	// caller takes the work to the owner and stages there instead.
-	if (!onOwner && !mayUseChannel) {
-		return StagedOpen::NotHere;
-	}
 
 	if (!onOwner) {
 		AudioEngine::noteOffOwnerSongStageTick();
 	}
 
-	if (!mayUseChannel) {
+	if (onOwner) {
 		if (state->buffer == nullptr && readWholeFileSynchronously(path, state) != Error::NONE) {
 			return StagedOpen::Failed;
 		}

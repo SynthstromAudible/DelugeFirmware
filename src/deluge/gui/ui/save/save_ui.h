@@ -170,7 +170,7 @@ private:
 	enum class SavePhase : uint8_t {
 		NONE,      ///< No staged save in flight.
 		SERIALIZE, ///< Building the document in memory, on the interaction tier.
-		WRITE,     ///< One whole-document write, through the channel or handed to the owner.
+		WRITE,     ///< One whole-document write: through the channel, or inline on the owner.
 		VERIFY,    ///< Reading the written document back: length, head and tail.
 		FINISH,    ///< Running the caller's completion.
 	};
@@ -182,12 +182,8 @@ private:
 	void handleWriteOutcome(bool alreadyExists, bool ok);
 	/// @brief Store the staged document with a blocking write. Legal ONLY on the storage owner.
 	void writeStagedSynchronously(bool& alreadyExists, bool& ok);
-	/// @brief The owner-side arm of a staged write, for builds without the channel.
-	static void runStagedWriteOp(void* self);
 	/// @brief Drive the read-back of the written document. Named apart from SaveSongUI's own verify.
 	void runStagedVerifyPhase();
-	/// @brief The owner-side read-back, for builds without the channel.
-	static void runStagedVerifyOp(void* self);
 	/// @brief End the save on the read-back's verdict.
 	void finishStagedVerify(bool passed);
 	/// @brief What the written document must match.
@@ -206,14 +202,6 @@ private:
 	/// single-flight, so this says which instance the static state belongs to.
 	static inline SaveUI* phaseOwner_{nullptr};
 	static inline bool writeIssued_{};
-	/// The owner-side write, for builds with no channel: dispatched once, then collected.
-	static inline bool ownerWriteDispatched_{};
-	static inline bool ownerWriteDone_{};
-	static inline bool ownerWriteExists_{};
-	static inline bool ownerWriteOk_{};
-	static inline bool ownerVerifyDispatched_{};
-	static inline bool ownerVerifyDone_{};
-	static inline bool ownerVerifyOk_{};
 	static inline deluge::storage::ReadBackCheck stagedReadBack_{};
 	static inline int32_t stagedSavesCompleted_{};
 	/// Whether the in-flight staged save genuinely put its document on the card. Gates afterStagedSave().

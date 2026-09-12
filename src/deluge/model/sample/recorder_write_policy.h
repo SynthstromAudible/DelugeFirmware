@@ -49,7 +49,8 @@ constexpr int32_t kMaxPendingTicks = 600;
 /// Pure so every ruling above is testable without fault injection, which is what made the startup
 /// phase machine's conflation rulings provable rather than argued.
 ///
-/// @param channelActive `deluge_file_write_async_active()` AND the caller is off the storage owner.
+/// @param channelActive Whether this write may use the write channel: the caller allows it and the owner has
+///                      started.
 /// @param haveInFlight  Whether this recorder issued a request it has not yet collected.
 /// @param collected     The `DELUGE_FILE_WRITE_*` value from the collect, or
 ///                      `DELUGE_FILE_WRITE_UNKNOWN` when nothing was collected this tick.

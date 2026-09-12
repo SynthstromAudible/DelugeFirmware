@@ -435,14 +435,6 @@ enum class StagedOpen : uint8_t {
 	Opened,
 	/// The document could not be staged or did not parse. Any buffer has been released.
 	Failed,
-	/// This context cannot stage: it is off the storage owner and the channel is not running, so the
-	/// only fill left is the blocking one -- and blocking HERE stops the very tier the card needs
-	/// running to answer, which wedges rather than waits. The caller must take the work to the owner
-	/// and stage there.
-	///
-	/// NEVER means "the file was unreadable". This is the BUILD-configuration fallback: it disappears
-	/// when the channel becomes unconditional, and nothing chooses it because staging failed.
-	NotHere,
 };
 
 /// @brief Cross-tick state for one staged open. One per concurrent staging caller.
@@ -466,9 +458,8 @@ struct StagingState {
 
 /// @brief Read the whole of @p path into a freshly allocated buffer, blocking until it is there.
 ///
-/// The OWNER arm of openDocumentStaged(). It runs only where blocking was always legal, and it is a
-/// BUILD-configuration fallback rather than a runtime one: it retires when the channel becomes
-/// unconditional, and nothing chooses it because staging failed.
+/// The OWNER arm of openDocumentStaged(). It runs only where blocking is legal: on the storage owner, or
+/// before the owner has started. Nothing chooses it because staging failed.
 ///
 /// @param path NUL-terminated path.
 /// @param out  Receives the buffer and its size on success; untouched on failure.
@@ -528,7 +519,7 @@ void releaseDocumentStaging();
 /// @brief Whole-file staging reads the CHANNEL has completed.
 ///
 /// The evidence that the async arm executed at all. It shipped with no harness building
-/// `async_file_write_active`, so until this counter had a gate reading it, nothing had ever run it.
+/// the write channel, so until this counter had a gate reading it, nothing had ever run it.
 [[nodiscard]] int32_t stagingChannelServedOps();
 Error initSD();
 

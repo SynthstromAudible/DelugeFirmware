@@ -668,10 +668,6 @@ bool SaveSongUI::docOnOwner() {
 	return deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
 }
 
-bool SaveSongUI::docMayUseWriteChannel() {
-	return !docOnOwner() && deluge_file_write_async_active();
-}
-
 bool SaveSongUI::deferDocument() {
 	return ++docStallTicks_ <= kMaxDocStallTicks;
 }
@@ -794,7 +790,7 @@ void SaveSongUI::runTempNamePhase() {
 }
 
 void SaveSongUI::runWritePhase() {
-	if (docOnOwner() || !docMayUseWriteChannel()) {
+	if (docOnOwner()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -990,54 +986,15 @@ void SaveSongUI::runDocFinishPhase() {
 }
 
 bool SaveSongUI::runOneDocStep() {
-	if (docOnOwner()) {
-		// Blocking is legal here, and asking the channel would be worse than pointless: a request
-		// issued from a context that will not yield can never be answered.
-		++documentOwnerServedOps_;
-		++documentSteps_;
-		if (!docStepSynchronously()) {
-			abandonDocument(Error::WRITE_FAIL);
-			return false;
-		}
-		return true;
-	}
-
-	// Off the owner with the write channel off -- the document write is the only step that still comes here.
-	// Hand it to the owner, which may block.
-	if (ownerDocDone_) {
-		ownerDocDone_ = false;
-		ownerDocDispatched_ = false;
-		if (!ownerDocOk_) {
-			abandonDocument(Error::WRITE_FAIL);
-			return false;
-		}
-		docStallTicks_ = 0;
-		return true;
-	}
-	if (!ownerDocDispatched_) {
-		if (!deluge::storage::Owner::run(&SaveSongUI::runDocStepOnOwner, this)) {
-			// Refused, not failed: nothing was queued, so ask again next tick.
-			if (!deferDocument()) {
-				abandonDocument(Error::WRITE_FAIL);
-			}
-			return false;
-		}
-		ownerDocDispatched_ = true;
-		docStallTicks_ = 0;
-		return false;
-	}
-	if (!deferDocument()) {
-		abandonDocument(Error::WRITE_FAIL);
-	}
-	return false;
-}
-
-void SaveSongUI::runDocStepOnOwner(void* self) {
-	auto* ui = static_cast<SaveSongUI*>(self);
+	// Only ever on the owner, where blocking is legal: every phase off it goes through a channel, and both
+	// channels are always there.
 	++documentOwnerServedOps_;
 	++documentSteps_;
-	ui->ownerDocOk_ = ui->docStepSynchronously();
-	ui->ownerDocDone_ = true;
+	if (!docStepSynchronously()) {
+		abandonDocument(Error::WRITE_FAIL);
+		return false;
+	}
+	return true;
 }
 
 bool SaveSongUI::docStepSynchronously() {
@@ -1158,8 +1115,6 @@ bool SaveSongUI::finishSaveAfterCollection() {
 	// document machine, whose steps each choose their own arm; what is left is bookkeeping and runs
 	// legally wherever it is called from.
 	docPhase_ = DocPhase::SERIALIZE;
-	ownerDocDispatched_ = false;
-	ownerDocDone_ = false;
 	docStallTicks_ = 0;
 	return true;
 }

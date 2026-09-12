@@ -494,13 +494,6 @@ void LoadSongUI::runStageSegment() {
 	case StorageManager::StagedOpen::Deferred:
 		return; // Ask again next pass.
 
-	case StorageManager::StagedOpen::NotHere:
-		// A build without the channel. Staging cannot happen on this tier, so hand the whole job to
-		// the owner exactly as it was handed before any of this existed; startLoad() stages there.
-		loadPhase_ = LoadPhase::START;
-		dispatchLoadSegment(&startLoadTrampoline);
-		return;
-
 	case StorageManager::StagedOpen::Failed:
 		// Nothing has been destroyed yet, so there is nothing to recover -- say so and stop, leaving
 		// the browser open so the user can pick another song.
@@ -569,9 +562,9 @@ void LoadSongUI::startLoad() {
 	}
 
 	// Usually already open, over songStaging_'s bytes: STAGE read it on the interaction tier before
-	// this stretch was dispatched. On a build without the channel STAGE could not read there at all,
-	// so the same staging happens here instead -- on the owner, where blocking is legal. Either way
-	// the parse below runs over memory and `activeDeserializer` points at the memory reader.
+	// this stretch was dispatched. When it is not, the staging happens here instead -- on the owner,
+	// where blocking is legal. Either way the parse below runs over memory and `activeDeserializer`
+	// points at the memory reader.
 	//
 	// stagingPrevious_ is what that global gets put back to at every exit. Not hygiene: the memory
 	// reader's fileClusterBuffer IS the staged buffer, and code downstream writes through the global
@@ -584,9 +577,8 @@ void LoadSongUI::startLoad() {
 		case StorageManager::StagedOpen::Opened:
 			break;
 		case StorageManager::StagedOpen::Deferred:
-		case StorageManager::StagedOpen::NotHere:
-			// Neither is reachable on the owner: the synchronous fill answers in one call. Treat a
-			// surprise as the error it would be rather than carrying on with no document.
+			// Not reachable on the owner: the synchronous fill answers in one call. Treat a surprise
+			// as the error it would be rather than carrying on with no document.
 		case StorageManager::StagedOpen::Failed:
 			activeDeserializer = stagingPrevious_;
 			releaseSongStaging();

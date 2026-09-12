@@ -206,8 +206,6 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 		phaseOwner_ = this;
 		savePhase_ = SavePhase::SERIALIZE;
 		writeIssued_ = false;
-		ownerWriteDispatched_ = false;
-		ownerWriteDone_ = false;
 		stagedSucceeded_ = false;
 		stallTicks_ = 0;
 		// Attempt it once here rather than waiting for the next saveRoutine() pass, for the reason
@@ -312,38 +310,6 @@ void SaveUI::runWritePhase() {
 	const bool mayOverwrite = inFlightRequest_.mayOverwrite;
 
 	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
-	// BOTH channels: the write goes through one and this arm's siblings size themselves with the
-	// other, and an arm that needs two and is given one defers forever.
-	const bool mayUseChannel = !onOwner && deluge_file_write_async_active() && deluge_file_bytes_async_active();
-
-	if (!onOwner && !mayUseChannel) {
-		// A build without the channel. Writing from here would block the very tier the card needs
-		// running to answer, so the WRITE -- and only the write -- goes to the owner.
-		//
-		// Only the one blocking write goes to the owner: every other step of this save is already staged
-		// here, and the owner is the tier that may block.
-		if (ownerWriteDone_) {
-			ownerWriteDispatched_ = false;
-			ownerWriteDone_ = false;
-			handleWriteOutcome(ownerWriteExists_, ownerWriteOk_);
-			return;
-		}
-		if (!ownerWriteDispatched_) {
-			if (!deluge::storage::Owner::run(&SaveUI::runStagedWriteOp, this)) {
-				if (!deferStagedSave()) {
-					endStagedSave(false);
-				}
-				return;
-			}
-			ownerWriteDispatched_ = true;
-			stallTicks_ = 0;
-			return;
-		}
-		if (!deferStagedSave()) {
-			endStagedSave(false);
-		}
-		return;
-	}
 
 	if (onOwner) {
 		// Blocking is legal here, and the driver could not run anyway: a request issued from a
@@ -413,12 +379,6 @@ void SaveUI::writeStagedSynchronously(bool& alreadyExists, bool& ok) {
 	(void)created->close();
 }
 
-void SaveUI::runStagedWriteOp(void* self) {
-	auto* ui = static_cast<SaveUI*>(self);
-	ui->writeStagedSynchronously(ownerWriteExists_, ownerWriteOk_);
-	ownerWriteDone_ = true;
-}
-
 deluge::storage::ReadBackExpectation SaveUI::stagedReadBackExpectation() const {
 	return {.staged = reinterpret_cast<const uint8_t*>(smSerializer.getBufferPtr()),
 	        .length = static_cast<uint32_t>(smSerializer.bytesWritten()),
@@ -431,32 +391,6 @@ void SaveUI::runStagedVerifyPhase() {
 
 	const char* path = inFlightRequest_.filePath.c_str();
 	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
-	const bool mayUseChannel = !onOwner && deluge_file_write_async_active() && deluge_file_bytes_async_active();
-
-	if (!onOwner && !mayUseChannel) {
-		// No channel: the read-back goes to the owner, which may block, exactly as the write did.
-		if (ownerVerifyDone_) {
-			ownerVerifyDispatched_ = false;
-			ownerVerifyDone_ = false;
-			finishStagedVerify(ownerVerifyOk_);
-			return;
-		}
-		if (!ownerVerifyDispatched_) {
-			if (!deluge::storage::Owner::run(&SaveUI::runStagedVerifyOp, this)) {
-				if (!deferStagedSave()) {
-					endStagedSave(false);
-				}
-				return;
-			}
-			ownerVerifyDispatched_ = true;
-			stallTicks_ = 0;
-			return;
-		}
-		if (!deferStagedSave()) {
-			endStagedSave(false);
-		}
-		return;
-	}
 
 	if (onOwner) {
 		++verifyOwnerServedOps_;
@@ -483,14 +417,6 @@ void SaveUI::runStagedVerifyPhase() {
 		finishStagedVerify(true);
 		return;
 	}
-}
-
-void SaveUI::runStagedVerifyOp(void* self) {
-	auto* ui = static_cast<SaveUI*>(self);
-	++verifyOwnerServedOps_;
-	ownerVerifyOk_ =
-	    deluge::storage::readBackSynchronously(inFlightRequest_.filePath.c_str(), ui->stagedReadBackExpectation());
-	ownerVerifyDone_ = true;
 }
 
 void SaveUI::finishStagedVerify(bool passed) {
@@ -530,8 +456,6 @@ void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
 		// Before endStagedSave(), which releases the shared serialiser and with it the staged bytes this
 		// check compares against.
 		stagedReadBack_.begin(stagedReadBackExpectation());
-		ownerVerifyDispatched_ = false;
-		ownerVerifyDone_ = false;
 		stallTicks_ = 0;
 		savePhase_ = SavePhase::VERIFY;
 		return;
@@ -570,10 +494,6 @@ void SaveUI::endStagedSave(bool succeeded) {
 	// passes through this function, and leaving it borrowed breaks the next save that wants a file.
 	releaseStagedWriter();
 	writeIssued_ = false;
-	ownerWriteDispatched_ = false;
-	ownerWriteDone_ = false;
-	ownerVerifyDispatched_ = false;
-	ownerVerifyDone_ = false;
 	stallTicks_ = 0;
 	stagedSucceeded_ = succeeded;
 	savePhase_ = SavePhase::FINISH;

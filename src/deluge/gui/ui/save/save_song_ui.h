@@ -107,8 +107,8 @@ public:
 
 	/// @brief Document steps the WRITE channel served: the document write itself, and nothing else.
 	///
-	/// Every other document step rides the byte channel, which has no feature switch. The write channel still
-	/// has one, so this is the count the song-save gate holds to zero on its write-channel-off leg.
+	/// Every other document step rides the byte channel. The song-save gate requires this above zero: the
+	/// document write went through the write channel.
 	[[nodiscard]] static int32_t documentWriteChannelServedOps() { return documentWriteChannelServedOps_; }
 
 	/// @brief Card steps the staged document write took, whichever arm carried them.
@@ -222,17 +222,8 @@ private:
 	[[nodiscard]] bool deferDocument();
 	/// @brief Whether this step must run inline because it is already on the owner (or none exists).
 	[[nodiscard]] static bool docOnOwner();
-	/// @brief Whether the document write may use the WRITE channel.
-	///
-	/// A different channel from the byte channel the other steps use, and the distinction is load-bearing. The byte
-	/// channel COPIES into a fixed staging buffer and refuses anything over 8 KiB; the write channel passes the pointer
-	/// across instead, which is what lets a whole song through. The smallest real song measured is 11.5 KB and the
-	/// largest 1.10 MB, so no song has ever fitted the copying channel.
-	[[nodiscard]] static bool docMayUseWriteChannel();
-	/// @brief Run the current phase on the owner, advancing it. @return false if still waiting.
+	/// @brief Run the current phase synchronously, on the owner. @return false if the step failed.
 	[[nodiscard]] bool runOneDocStep();
-	/// @brief The dispatched op for one document step, run synchronously on the owner.
-	static void runDocStepOnOwner(void* self);
 	/// @brief One document step, blocking. Only legal on the storage owner.
 	[[nodiscard]] bool docStepSynchronously();
 
@@ -259,9 +250,6 @@ private:
 	int32_t docTempNumber_{};
 	int32_t docStallTicks_{};
 	bool docWriteIssued_{};
-	bool ownerDocDispatched_{};
-	bool ownerDocDone_{};
-	bool ownerDocOk_{};
 
 	/// The bytes the head and tail must match, copied verbatim from the strings the streaming writer
 	/// passed to closeFileAfterWriting -- including their newlines. The tail's LEADING and trailing

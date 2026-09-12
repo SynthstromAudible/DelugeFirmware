@@ -769,8 +769,7 @@ bool SampleRecorder::advanceAbort() {
 	// The channel is usable only from a context that will yield before asking again -- see
 	// advanceFinalize() for why. On the owner the synchronous arm is both legal and the only one
 	// that can make progress.
-	const bool mayUseChannel =
-	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+	const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
 
 	switch (abortPhase_) {
 
@@ -930,8 +929,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 
 	// The channel is usable only from a context that will YIELD before asking again -- see
 	// advanceFinalize() for why. On the owner the caller spins and the Rust driver never runs.
-	const bool mayUseChannel =
-	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+	const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
 
 	if (!deluge::storage::Owner::on_owner()) {
 		AudioEngine::noteOffOwnerCreateTick();
@@ -1167,8 +1165,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 	// and the Rust driver never gets to run, so an issued request would stay PENDING forever. There
 	// blocking is legal anyway, so take the synchronous arm. `started()` keeps anything running
 	// before the worker exists on the arm it has always used.
-	const bool finalizeMayUseChannel =
-	    !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_write_async_active();
+	const bool finalizeMayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
 
 	if (!deluge::storage::Owner::on_owner()) {
 		AudioEngine::noteOffOwnerFinalizeTick();
@@ -1573,8 +1570,7 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes, bool m
 	// mean the write keeps blocking the owner wherever it already runs, which is exactly the thing
 	// that stops the owner ever being removable. `started()` stays: it keeps anything running before
 	// the worker exists on the arm it has always used.
-	const bool channelActive =
-	    mayUseChannel && !channelAbandoned_ && deluge::storage::Owner::started() && deluge_file_write_async_active();
+	const bool channelActive = mayUseChannel && !channelAbandoned_ && deluge::storage::Owner::started();
 
 	if (channelActive && inFlightClusterIndex_ < 0) {
 		const uint32_t byteOffset = static_cast<uint32_t>(clusterIndex) << Cluster::size_magnitude;

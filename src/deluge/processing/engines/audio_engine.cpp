@@ -40,7 +40,7 @@
 #include "io/midi/midi_engine.h"
 #include "libdeluge/app.h"
 #include "libdeluge/audio_io.h"
-#include "libdeluge/file_write.h" // deluge_file_write_async_active (is the recorder drain relocatable)
+#include "libdeluge/file_write.h"
 #include "libdeluge/signals.h"
 #include "libdeluge/storage_owner.h"  // deluge_storage_on_owner
 #include "libdeluge/streaming_fill.h" // deluge_streaming_resource_manager()
@@ -1756,11 +1756,10 @@ void requestRecorderCardRoutines() {
 		return;
 	}
 
-	// Off the owner with the channel live: run the drain HERE. cardRoutine()'s cluster write is
-	// request/collect now and its blocking ticks dispatch themselves to the owner, so there is
-	// nothing left to block on — and dispatching the whole drain onto the owner would leave every
-	// converted write taking its owner arm forever, which is a conversion that relocates nothing.
-	if (deluge::storage::Owner::started() && deluge_file_write_async_active()) {
+	// Off the owner once it has started: run the drain HERE. cardRoutine()'s card operations go through
+	// the write channel, which is always there, so there is nothing left to hand the owner. Only a caller
+	// before the owner has started reaches the coalescer below.
+	if (deluge::storage::Owner::started()) {
 		g_recorderOffOwnerTicks++;
 		doRecorderCardRoutines();
 		return;
