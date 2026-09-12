@@ -62,6 +62,13 @@ void deluge_scenario_offowner_begin(int32_t alter);
 /// @return 0 while running, 1 when it passed, 2 when it failed.
 int32_t deluge_scenario_offowner_tick(void);
 
+/// @brief Print `RW-TIER`: how many synchronous card operations the recorder began off the storage owner
+///        after boot, and how many of its channel requests were refused, over every off-owner case.
+///
+/// Process-wide on purpose: a synchronous operation is a violation whichever case made it. Call once,
+/// after the last case.
+void deluge_scenario_offowner_report(void);
+
 } // extern "C"
 
 #endif // DELUGE_HOST

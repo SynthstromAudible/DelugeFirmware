@@ -26,6 +26,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "storage/owner.h"
 
@@ -462,6 +463,11 @@ constexpr uint32_t kOffOwnerFrames = 33153;
 /// `SampleRecorder::AbortPhase::Done`, as the diagnostic accessor reports it.
 constexpr uint8_t kAbortPhaseDone = 3;
 
+/// Synchronous card operations the recorder has begun off the storage owner after boot, process-wide.
+int32_t recorderTier() {
+	return deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Recorder);
+}
+
 } // namespace
 
 extern "C" void deluge_scenario_offowner_begin(int32_t alter) {
@@ -596,6 +602,11 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		return 2;
 	}
 	return 0;
+}
+
+extern "C" void deluge_scenario_offowner_report() {
+	printf("RW-TIER violations=%d refusals=%d\n", (int)recorderTier(), (int)SampleRecorder::channelRefusals());
+	fflush(nullptr);
 }
 
 extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {

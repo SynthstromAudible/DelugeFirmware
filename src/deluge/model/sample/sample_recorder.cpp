@@ -52,8 +52,25 @@ static_assert(std::atomic<int32_t>::is_always_lock_free,
 
 #define MAX_FILE_SIZE_MAGNITUDE 32
 
+namespace {
+/// How many of the recorder's channel requests were refused, process-wide. See
+/// SampleRecorder::channelRefusals.
+int32_t g_channelRefusals = 0;
+
+/// Count one synchronous card operation by the recorder. Off the storage owner after boot that is a
+/// violation; see deluge::storage::bytes::noteIoTier.
+void noteRecorderIo() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Recorder);
+}
+} // namespace
+
 SampleRecorder::~SampleRecorder() {
 	D_PRINTLN("~SampleRecorder()");
+	if (file) {
+		// The stream's destructor closes it synchronously. A recorder freed with its file still open skipped
+		// its own close.
+		noteRecorderIo();
+	}
 	if (sample != nullptr) {
 		detachSample();
 	}
@@ -818,6 +835,7 @@ bool SampleRecorder::advanceAbort() {
 				abortIssued_ = true;
 				return true;
 			}
+			noteRecorderIo();
 			auto closeResult = file->close();
 			file.reset();
 			// A failed close still proceeds to the unlink: a file we are deleting must not survive
@@ -847,6 +865,7 @@ bool SampleRecorder::advanceAbort() {
 				abortIssued_ = true;
 				return true;
 			}
+			noteRecorderIo();
 			unlinked = deluge::io::unlink(filePathCreated).has_value();
 		}
 		else {
@@ -949,6 +968,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			// at boot -- and break a card inserted afterwards. Running it on the channel arm would
 			// block for something about to happen anyway.
 			if (!mayUseChannel) {
+				noteRecorderIo();
 				Error initError = StorageManager::initSD();
 				if (initError != Error::NONE) {
 					return CreateStep::Failed;
@@ -1031,6 +1051,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				createIssued_ = true;
 				return CreateStep::Pending;
 			}
+			noteRecorderIo();
 			auto openedStream = deluge::io::Stream::open(filePathCreated, createStreamMode_);
 			if (openedStream) {
 				file = std::move(openedStream.value());
@@ -1061,6 +1082,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				createIssued_ = true;
 				return CreateStep::Pending;
 			}
+			noteRecorderIo();
 			if (!mkdirAllSynchronously(createFolderPath_)) {
 				return CreateStep::Failed;
 			}
@@ -1211,6 +1233,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			// Refused -- the channel is off, or busy with another operation. Do it here. Every phase
 			// below keeps this arm for the same reason: a refusal must never fail a recording, and
 			// this is the path that shipped before the channel existed.
+			noteRecorderIo();
 			if (!file->truncate(finalizeTruncateTo_)) {
 				return FinalizeStep::Failed;
 			}
@@ -1226,6 +1249,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				finalizeIssued_ = true;
 				return FinalizeStep::Pending;
 			}
+			noteRecorderIo();
 			auto readResult = file->read_at_via(0, dst);
 			if (!readResult) {
 				return FinalizeStep::Failed;
@@ -1259,6 +1283,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			}
 			// The old path ignored a failed header write here ("that's a shame, but we don't need to
 			// do anything"), and that judgement is preserved: the audio is on the card either way.
+			noteRecorderIo();
 			(void)file->write_at(0, std::span<const std::byte>(headerBytes));
 			break;
 		}
@@ -1271,6 +1296,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				finalizeIssued_ = true;
 				return FinalizeStep::Pending;
 			}
+			noteRecorderIo();
 			auto closeResult = file->close();
 			file.reset();
 			if (!closeResult) {
@@ -1290,6 +1316,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				finalizeIssued_ = true;
 				return FinalizeStep::Pending;
 			}
+			noteRecorderIo();
 			auto closeResult = file->close();
 			file.reset();
 			if (!closeResult) {
@@ -1304,6 +1331,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				finalizeIssued_ = true;
 				return FinalizeStep::Pending;
 			}
+			noteRecorderIo();
 			auto openedStream = deluge::io::Stream::open(sample->filePath, DELUGE_STREAM_WRITE_APPEND);
 			if (!openedStream) {
 				return FinalizeStep::Failed;
@@ -1322,6 +1350,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				finalizeIssued_ = true;
 				return FinalizeStep::Pending;
 			}
+			noteRecorderIo();
 			auto readResult = file->read_at_via(alterReadCursor_, dst);
 			// A short read mid-transform means the file is not what finalize believes it is.
 			if (!readResult || *readResult != bytes) {
@@ -1342,6 +1371,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				finalizeIssued_ = true;
 				return FinalizeStep::Pending;
 			}
+			noteRecorderIo();
 			auto writeResult = file->write_at(alterWriteCursor_, src);
 			if (!writeResult || *writeResult != outBytes) {
 				return FinalizeStep::Failed;
@@ -1490,6 +1520,10 @@ int32_t SampleRecorder::writeChannelServedOps() {
 	return g_writeChannelServed;
 }
 
+int32_t SampleRecorder::channelRefusals() {
+	return g_channelRefusals;
+}
+
 void SampleRecorder::finishCluster(int32_t clusterIndex) {
 	// writeCluster() recycles this buffer's memory back to the free-list once the write succeeds --
 	// no separate "reason" to drop; we privately own it outright.
@@ -1553,6 +1587,7 @@ bool SampleRecorder::pumpInFlightWrite() {
 }
 
 Error SampleRecorder::writeClusterSynchronously(int32_t clusterIndex, size_t numBytes) {
+	noteRecorderIo();
 	std::byte* buffer = bufferTable_[clusterIndex];
 	const uint32_t byteOffset = static_cast<uint32_t>(clusterIndex) << Cluster::size_magnitude;
 	auto writeResult = file->write_at(byteOffset, std::span<const std::byte>(buffer, numBytes));
@@ -1585,6 +1620,7 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes, bool m
 		}
 		// Refused. Fall through rather than dropping the cluster: a refused write that is not
 		// retried is lost audio.
+		g_channelRefusals++;
 	}
 
 	return writeClusterSynchronously(clusterIndex, numBytes);

@@ -223,6 +223,12 @@ public:
 	/// gate green and every recording intact.
 	[[nodiscard]] static int32_t writeChannelServedOps();
 
+	/// @brief How many of the recorder's channel requests were refused, process-wide.
+	///
+	/// The busy gate's evidence that the recorder really was refused, so the arm it took next is the one
+	/// being measured.
+	[[nodiscard]] static int32_t channelRefusals();
+
 private:
 private:
 	/// @param mayUseChannel false forces the synchronous arm. Set by the callers that need the

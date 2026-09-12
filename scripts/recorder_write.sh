@@ -25,6 +25,8 @@
 #                 that its cluster writes went through the channel. The eleven on-fiber cases cannot
 #                 show this: the oracle is dispatched onto the fiber wholesale, so every one of them
 #                 measures on_owner=1 and takes the synchronous arm.
+#   RW-TIER       how many synchronous card operations the recorder began off the storage owner after
+#                 boot, over every off-owner case, and how many of its channel requests were refused.
 #   RW-DRAIN      that the offline stem-export path still drains to completion. That loop calls the
 #                 card routine in a bounded loop expecting each call to COMPLETE a write.
 #
@@ -142,6 +144,18 @@ elif ! grep -q '^OO-LEAK .*ok=1' "$OUT/run.txt"; then
 	fail=1
 fi
 
+# RW-TIER: reported, and required to be present. Not yet required to be zero: the give-up paths are what
+# take the recorder off its synchronous arms.
+tier_line=$(grep '^RW-TIER ' "$OUT/run.txt" || true)
+tier=$(printf '%s\n' "$tier_line" | sed -n 's/^RW-TIER violations=\([0-9]*\).*/\1/p')
+if [ -z "$tier" ]; then
+	echo "FAIL RW-TIER — no RW-TIER line; the off-owner cases did not report"
+	fail=1
+	tier=0
+else
+	echo "$tier_line"
+fi
+
 # RW-OFFOWNER-CREATE: creating the file was the LAST thing this recorder dispatched to the owner, so
 # this reading zero means the recorder is back to blocking there.
 oo_create=$(grep '^OO-RESULT ' "$OUT/run.txt" | sed -n 's/.*offOwnerCreateTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
@@ -196,4 +210,4 @@ if [ "$fail" -ne 0 ]; then
 	echo "recorder write: FAILED"
 	exit 1
 fi
-echo "recorder write: OK (served=$served->${oo_served} offOwner drain=$offowner finalize=$oo_fin create=$oo_create)"
+echo "recorder write: OK (served=$served->${oo_served} offOwner drain=$offowner finalize=$oo_fin create=$oo_create tier=$tier)"

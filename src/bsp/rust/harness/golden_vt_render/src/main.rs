@@ -283,6 +283,7 @@ unsafe extern "C" {
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
     fn deluge_scenario_offowner_begin(alter: i32);
     fn deluge_scenario_offowner_tick() -> i32;
+    fn deluge_scenario_offowner_report();
     fn deluge_scenario_audio_load_ab_begin();
     fn deluge_scenario_audio_load_ab_complete() -> bool;
     fn deluge_scenario_audio_load_ab_dispatch_step();
@@ -732,6 +733,10 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         log::error!("golden_vt_render: off-owner abort FAILED — see the log above");
         hard_exit(1);
     }
+
+    // Over every off-owner case: a synchronous card operation is a violation whichever case made it.
+    // SAFETY: same C-ABI contract as above.
+    unsafe { deluge_scenario_offowner_report() };
 
     log::info!("golden_vt_render: recorder round-trip PASSED (0 failures); exiting cleanly");
     done.store(true, Ordering::Release);
