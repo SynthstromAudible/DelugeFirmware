@@ -277,8 +277,6 @@ bool SaveSongUI::beginUnstagedSave(const deluge::storage::SaveRequest& request) 
 	// the new song's folder BEFORE the document is written, so learning at the write that the name was
 	// taken would be too late.
 	existsRequest_ = request;
-	ownerExistsDispatched_ = false;
-	ownerExistsDone_ = false;
 	collectStallTicks_ = 0;
 	collectPhase_ = CollectPhase::EXISTS;
 	return true;
@@ -299,31 +297,8 @@ void SaveSongUI::runExistsPhase() {
 		return;
 	}
 
-	if (!deluge_file_bytes_async_active()) {
-		// No channel: the question goes to the owner, which may block, as the startup fail-safe does it.
-		if (ownerExistsDone_) {
-			ownerExistsDone_ = false;
-			ownerExistsDispatched_ = false;
-			resolveExists(ownerExistsPresence_);
-			return;
-		}
-		if (!ownerExistsDispatched_) {
-			if (!deluge::storage::Owner::run(&SaveSongUI::runExistsOnOwner, this)) {
-				if (!deferCollection()) {
-					abandonExists();
-				}
-				return;
-			}
-			ownerExistsDispatched_ = true;
-			collectStallTicks_ = 0;
-			return;
-		}
-		if (!deferCollection()) {
-			abandonExists();
-		}
-		return;
-	}
-
+	// Off the owner after boot, so the byte channel is here: the Rust BSP always has it, and a C++-only build
+	// never starts the owner, so it never reaches this line.
 	++offOwnerDocumentTicks_;
 	bool present = false;
 	DelugeStatus status = DELUGE_OK;
@@ -356,14 +331,6 @@ void SaveSongUI::runExistsPhase() {
 		resolveExists(std::expected<bool, deluge::io::Status>(present));
 		return;
 	}
-}
-
-void SaveSongUI::runExistsOnOwner(void* self) {
-	auto* ui = static_cast<SaveSongUI*>(self);
-	++documentOwnerServedOps_;
-	++documentSteps_;
-	ui->ownerExistsPresence_ = StorageManager::fileExists(ui->existsRequest_.filePath.c_str());
-	ui->ownerExistsDone_ = true;
 }
 
 void SaveSongUI::abandonExists() {
@@ -500,43 +467,6 @@ void SaveSongUI::runTransferPhase() {
 	PlannedTransfer& entry = transfers_[transferCursor_];
 
 	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
-	const bool mayUseChannel = !onOwner && deluge_file_bytes_async_active();
-
-	// A build without the byte channel has no way to ask for a transfer from here, and blocking on
-	// this tier would stop the very thing the card needs running to answer. The whole entry goes to
-	// the owner, which may block legally -- the same build-configuration fallback the song load and
-	// the document save use, and it retires when the channel becomes unconditional.
-	//
-	// Without this the collection deferred until its stall bound and abandoned, so a build with the
-	// channel compiled out could never collect a sample at all.
-	if (!onOwner && !mayUseChannel) {
-		if (ownerTransferDone_) {
-			ownerTransferDone_ = false;
-			ownerTransferDispatched_ = false;
-			if (!ownerTransferOk_) {
-				abandonCollection();
-				return;
-			}
-			++transferCursor_;
-			collectStallTicks_ = 0;
-			return;
-		}
-		if (!ownerTransferDispatched_) {
-			if (!deluge::storage::Owner::run(&SaveSongUI::runTransferOnOwner, this)) {
-				if (!deferCollection()) {
-					abandonCollection();
-				}
-				return;
-			}
-			ownerTransferDispatched_ = true;
-			collectStallTicks_ = 0;
-			return;
-		}
-		if (!deferCollection()) {
-			abandonCollection();
-		}
-		return;
-	}
 
 	if (onOwner) {
 		// Blocking is legal here, and asking the channel would be worse than pointless: a request
@@ -634,13 +564,6 @@ void SaveSongUI::runTransferPhase() {
 	copyIssued_ = false;
 	renameSucceeded_ = true;
 	collectStallTicks_ = 0;
-}
-
-void SaveSongUI::runTransferOnOwner(void* self) {
-	auto* ui = static_cast<SaveSongUI*>(self);
-	++transferOwnerServedOps_;
-	ui->ownerTransferOk_ = ui->transferOneSynchronously();
-	ui->ownerTransferDone_ = true;
 }
 
 bool SaveSongUI::transferOneSynchronously() {
@@ -745,10 +668,6 @@ bool SaveSongUI::docOnOwner() {
 	return deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
 }
 
-bool SaveSongUI::docMayUseChannel() {
-	return !docOnOwner() && deluge_file_bytes_async_active();
-}
-
 bool SaveSongUI::docMayUseWriteChannel() {
 	return !docOnOwner() && deluge_file_write_async_active();
 }
@@ -834,7 +753,7 @@ void SaveSongUI::runTempNamePhase() {
 	docWritePath_.append(deluge::string::fromInt(docTempNumber_, 4));
 	docWritePath_.append(writeJsonFlag ? ".Json" : ".XML");
 
-	if (docOnOwner() || !docMayUseChannel()) {
+	if (docOnOwner()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -937,7 +856,7 @@ void SaveSongUI::runWritePhase() {
 void SaveSongUI::runVerifyPhase() {
 	using deluge::storage::ReadBackTick;
 
-	if (docOnOwner() || !docMayUseChannel()) {
+	if (docOnOwner()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -971,7 +890,7 @@ void SaveSongUI::runVerifyPhase() {
 void SaveSongUI::runUnlinkPhase() {
 	using deluge::storage::bytes::ByteIo;
 
-	if (docOnOwner() || !docMayUseChannel()) {
+	if (docOnOwner()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -1007,7 +926,7 @@ void SaveSongUI::runUnlinkPhase() {
 void SaveSongUI::runRenamePhase() {
 	using deluge::storage::bytes::ByteIo;
 
-	if (docOnOwner() || !docMayUseChannel()) {
+	if (docOnOwner()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -1083,7 +1002,8 @@ bool SaveSongUI::runOneDocStep() {
 		return true;
 	}
 
-	// Off the owner with no channel to ask. Hand the step to the owner, which may block.
+	// Off the owner with the write channel off -- the document write is the only step that still comes here.
+	// Hand it to the owner, which may block.
 	if (ownerDocDone_) {
 		ownerDocDone_ = false;
 		ownerDocDispatched_ = false;

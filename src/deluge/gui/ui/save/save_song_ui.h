@@ -177,14 +177,10 @@ private:
 	void resolveExists(const std::expected<bool, deluge::io::Status>& presence);
 	/// @brief End an existence check that stopped making progress, failing the dispatch.
 	void abandonExists();
-	/// @brief The owner-side existence check, for builds without the byte channel.
-	static void runExistsOnOwner(void* self);
 	void runTransferPhase();
 	void applyTransfers();
 	/// @brief End the collection having applied NOTHING, and fail the save.
 	void abandonCollection();
-	/// @brief The owner-side arm of one transfer, for builds without the channel.
-	static void runTransferOnOwner(void* self);
 	/// @brief Perform the current entry with blocking calls. Legal ONLY on the storage owner.
 	bool transferOneSynchronously();
 	/// @brief Defer one more tick, or give up if the collection has stopped making progress.
@@ -226,14 +222,12 @@ private:
 	[[nodiscard]] bool deferDocument();
 	/// @brief Whether this step must run inline because it is already on the owner (or none exists).
 	[[nodiscard]] static bool docOnOwner();
-	/// @brief Whether this step may ask the byte channel: existence, stat, read-back, unlink, rename.
-	[[nodiscard]] static bool docMayUseChannel();
 	/// @brief Whether the document write may use the WRITE channel.
 	///
-	/// A different channel from the one above, and the distinction is load-bearing. The byte channel
-	/// COPIES into a fixed staging buffer and refuses anything over 8 KiB; the write channel passes
-	/// the pointer across instead, which is what lets a whole song through. The smallest real song
-	/// measured is 11.5 KB and the largest 1.10 MB, so no song has ever fitted the copying channel.
+	/// A different channel from the byte channel the other steps use, and the distinction is load-bearing. The byte
+	/// channel COPIES into a fixed staging buffer and refuses anything over 8 KiB; the write channel passes the pointer
+	/// across instead, which is what lets a whole song through. The smallest real song measured is 11.5 KB and the
+	/// largest 1.10 MB, so no song has ever fitted the copying channel.
 	[[nodiscard]] static bool docMayUseWriteChannel();
 	/// @brief Run the current phase on the owner, advancing it. @return false if still waiting.
 	[[nodiscard]] bool runOneDocStep();
@@ -250,9 +244,6 @@ private:
 	/// Whether the CURRENT entry's rename succeeded, which decides where its copy reads from.
 	bool renameSucceeded_{true};
 	int32_t collectStallTicks_{};
-	bool ownerTransferDispatched_{};
-	bool ownerTransferDone_{};
-	bool ownerTransferOk_{};
 
 	/// @brief The staged song document, pointing into the shared serialiser's buffer.
 	///
@@ -294,10 +285,6 @@ private:
 	/// The dispatch this song save is resolving. Held from beginUnstagedSave() until the existence
 	/// answer ends it, because the answer arrives on a later tick than the request.
 	deluge::storage::SaveRequest existsRequest_{};
-	bool ownerExistsDispatched_{};
-	bool ownerExistsDone_{};
-	/// The owner arm's answer, in the shape save_action() takes.
-	std::expected<bool, deluge::io::Status> ownerExistsPresence_{false};
 	bool anyErrorMovingTempFiles_{};
 
 	static inline int32_t transferChannelServedOps_{};
