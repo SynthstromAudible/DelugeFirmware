@@ -66,7 +66,7 @@ enum class PathOp : uint8_t {
 /// "collect".
 [[nodiscard]] bool pathOpPending();
 
-/// @brief Start `op`, issuing it on the channel or dispatching it to the storage owner.
+/// @brief Start `op`, issuing it on the channel, or running it inline where blocking is legal.
 ///
 /// @param op    Which operation.
 /// @param a     The path, or the rename SOURCE.

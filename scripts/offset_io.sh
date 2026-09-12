@@ -13,6 +13,9 @@
 #                finished reports the same err=0 a correct one does.
 #   OI-DIR       that the directory listing verb answers.
 #   OI-CHANNEL   that the async arm was EXECUTED. Required non-zero.
+#   OI-ILLEGAL   that no SysEx operation above was refused for want of a legal place to run.
+#   OI-GIVEUP    that a copy whose channel operation is held far past the stall bound is answered with an
+#                error: exactly one refused operation, and nothing copied.
 #
 # Note: OI-TRANSFER re-reads the card file directly, never the bytes a channel block read returned; the
 # block-read copy is covered by song-save-channel's and document-save-channel's read-back checks.
@@ -70,7 +73,7 @@ if ! grep -q '^OI-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in OI-TRANSFER OI-COPY OI-DIR OI-CHANNEL; do
+for marker in OI-TRANSFER OI-COPY OI-DIR OI-CHANNEL OI-ILLEGAL OI-GIVEUP; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^OI-' "$OUT/run.txt"

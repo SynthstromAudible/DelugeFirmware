@@ -19,6 +19,7 @@
 
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"
+#include "libdeluge/file_bytes.h"
 #include "storage/byte_channel.h"
 #include "storage/owner.h"
 #include "storage/smsysex.h"
@@ -67,6 +68,7 @@ constexpr const char* kTransferPath = "OI_TEST/XFER.BIN";
 constexpr const char* kCopySrc = "OI_TEST/SRC.BIN";
 constexpr const char* kCopyDst = "OI_TEST/DST.BIN";
 constexpr const char* kMissing = "OI_TEST/never-existed.bin";
+constexpr const char* kGiveUpDst = "OI_TEST/GIVEUP.BIN";
 
 /// One transfer block. Matches `smsysex`'s `blockBufferMax`, which is what a single SysEx message can
 /// carry.
@@ -79,6 +81,13 @@ constexpr uint32_t kBlockCount = 3;
 /// How many ticks one verb gets to produce its reply before the gate calls it wedged. Comfortably
 /// above the handler's worst case once its channel arm has a stall bound.
 constexpr int32_t kMaxVerbTicks = 5000;
+
+/// How long the give-up stage holds every byte-channel operation, in milliseconds of the harness's virtual clock. Far
+/// past the handler's 600-tick stall bound (each tick sleeps at least 1 ms) and past the stage's own reply bound below.
+constexpr uint32_t kGiveUpLatencyMs = 30000;
+
+/// How many ticks the give-up stage waits for its reply: well above the stall bound, well below the latency above.
+constexpr int32_t kMaxGiveUpTicks = 2000;
 
 /// The byte pattern block `index` carries. Distinct per block, so a block written at the wrong offset
 /// or lost to a truncation is visible rather than merely absent.
@@ -108,6 +117,8 @@ enum class Stage : uint8_t {
 	Dir,
 	DirCheck,
 	Report,
+	GiveUp,
+	GiveUpCheck,
 	Summary,
 	Done,
 };
@@ -125,6 +136,8 @@ int32_t g_matched = 0;
 int32_t g_copySame = -1;
 int32_t g_copyMissingReports = -1;
 int32_t g_dirListed = -1;
+/// `illegalInline()` when the give-up stage began.
+int32_t g_illegalBefore = 0;
 uint8_t g_scratch[kBlock];
 
 /// Pull an integer attribute out of a captured reply, or -1 if absent.
@@ -196,6 +209,7 @@ void runTick() {
 		(void)deluge::io::unlink(kTransferPath);
 		(void)deluge::io::unlink(kCopyDst);
 		(void)deluge::io::unlink(kMissing);
+		(void)deluge::io::unlink(kGiveUpDst);
 		// A multi-block source for the copy stage, built with the synchronous API: this is the gate's
 		// own setup, not the code under test.
 		auto src = deluge::io::File::open(kCopySrc, DELUGE_FILE_WRITE_CREATE);
@@ -466,6 +480,68 @@ void runTick() {
 		}
 
 		printf("OI-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
+
+		{
+			// Every verb above ran after boot, off the owner: none may have been refused.
+			const int32_t illegal = deluge::storage::bytes::illegalInline();
+			printf("OI-ILLEGAL illegal=%d\n", illegal);
+			if (illegal != 0) {
+				printf("OI-ILLEGAL FAIL a SysEx operation was refused for want of a legal place to run\n");
+				g_failures++;
+			}
+		}
+		g_stage = Stage::GiveUp;
+		break;
+	}
+
+	case Stage::GiveUp:
+		// A copy whose channel operation is held far past the handler's stall bound. After boot, off the owner,
+		// there is nowhere legal to redo it, so the handler must give up and say so -- not copy on the owner, and not
+		// leave the host waiting for a reply that never comes.
+#ifdef DELUGE_HOST
+		// This scenario is compiled into every app build, but the knob exists only on the host.
+		deluge_file_bytes_set_latency_ms(kGiveUpLatencyMs);
+#endif
+		g_illegalBefore = deluge::storage::bytes::illegalInline();
+		g_repliesBefore = g_cable.replies;
+		g_verbTicks = 0;
+		sendJson(std::string(R"({"copy":{"from":")") + kCopySrc + R"(","to":")" + kGiveUpDst + R"("}})");
+		g_stage = Stage::GiveUpCheck;
+		break;
+
+	case Stage::GiveUpCheck: {
+		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxGiveUpTicks) {
+			break;
+		}
+#ifdef DELUGE_HOST
+		deluge_file_bytes_set_latency_ms(0);
+#endif
+		const bool replied = g_cable.replies > g_repliesBefore;
+		const int32_t err = replied ? replyAttr(g_cable.lastReply, "err") : -1;
+		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
+		auto dst = deluge::io::File::open(kGiveUpDst, DELUGE_FILE_READ);
+		const bool copied = dst.has_value();
+		if (dst.has_value()) {
+			(void)dst->close();
+		}
+		printf("OI-GIVEUP replied=%d err=%d illegal=%d copied=%d ticks=%d latencyMs=%u\n", (int)replied, err, illegal,
+		       (int)copied, g_verbTicks, (unsigned)kGiveUpLatencyMs);
+		if (!replied) {
+			printf("OI-GIVEUP FAIL the handler never replied to a copy whose channel stopped answering\n");
+			g_failures++;
+		}
+		if (replied && err <= 0) {
+			printf("OI-GIVEUP FAIL the handler reported success for a copy it could not make\n");
+			g_failures++;
+		}
+		if (illegal != 1) {
+			printf("OI-GIVEUP FAIL expected exactly one refused operation, got %d\n", illegal);
+			g_failures++;
+		}
+		if (copied) {
+			printf("OI-GIVEUP FAIL the copy was made anyway\n");
+			g_failures++;
+		}
 		g_stage = Stage::Summary;
 		break;
 	}
@@ -503,6 +579,7 @@ void deluge_scenario_offset_io_begin(void) {
 	g_copySame = -1;
 	g_copyMissingReports = -1;
 	g_dirListed = -1;
+	g_illegalBefore = 0;
 	g_cable.replies = 0;
 	g_cable.lastReply.clear();
 }

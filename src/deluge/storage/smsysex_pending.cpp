@@ -27,12 +27,16 @@ namespace deluge::storage {
 
 namespace {
 
-/// How many consecutive refusals before falling back to the storage owner.
+/// How many consecutive refusals before this stops asking the channel.
 ///
 /// The channel is single-flight across all operation kinds, so another consumer's operation in
 /// flight refuses this one. Retrying is right -- the handler is re-entered every tick anyway -- but
 /// an unbounded retry would let a busy channel stall the SysEx queue behind one request.
-constexpr int32_t kMaxRefusals = 8;
+///
+/// As many as the stall bound below. After boot, off the owner, there is no owner to fall back to,
+/// so giving up on a channel that is merely busy would answer the host with an error for a request
+/// that would have succeeded a few ticks later.
+constexpr int32_t kMaxRefusals = 600;
 
 /// How many ticks one operation may sit PENDING before this gives up on the channel.
 ///
@@ -65,11 +69,11 @@ bool g_issued = false;
 int32_t g_refusals = 0;
 int32_t g_pendingTicks = 0;
 
-/// The owner arm's answer, which arrives on a later tick than the dispatch that asked for it.
+/// The synchronous arm's answer, read on the tick after the one that ran (or refused) it.
 bool g_ownerDone = false;
 deluge::io::Status g_ownerStatus = deluge::io::Status::OK;
 
-/// Whether the channel should carry this operation, or the owner arm should.
+/// Whether the channel should carry this operation, or the synchronous arm should.
 bool viaChannel() {
 	return deluge::storage::bytes::usingByteChannel() && g_refusals < kMaxRefusals && g_pendingTicks < kMaxPendingTicks;
 }
@@ -115,8 +119,8 @@ deluge::io::Status copyOnOwner(const std::string& from, const std::string& to) {
 	return status;
 }
 
-/// Run the operation synchronously. The body of the owner arm's dispatch, and never called anywhere
-/// a card wait is disallowed.
+/// Run the operation synchronously. Reached only through `runInlineWhereLegal`, so never anywhere a
+/// card wait is disallowed.
 void runOnOwner() {
 	std::expected<void, deluge::io::Status> result{};
 	switch (g_op) {
@@ -274,7 +278,12 @@ void issue() {
 		return;
 	}
 	g_ownerDone = false;
-	deluge::storage::bytes::runOnStorageOwner([](void*) { runOnOwner(); }, nullptr);
+	if (!deluge::storage::bytes::runInlineWhereLegal([](void*) { runOnOwner(); }, nullptr)) {
+		// Refused: after boot, off the owner, only a channel that stopped answering reaches here. The host
+		// is told the operation timed out rather than left waiting for a reply that never comes.
+		g_ownerStatus = deluge::io::Status::TIMEOUT;
+		g_ownerDone = true;
+	}
 	g_issued = true;
 }
 
@@ -400,8 +409,8 @@ std::optional<deluge::io::Status> pathOpCollect() {
 		return deluge::io::to_status(status);
 	case ByteIo::Pending:
 		if (++g_pendingTicks >= kMaxPendingTicks) {
-			// The channel accepted and never answered. Re-issue on the owner arm, which `viaChannel`
-			// now refuses to bypass.
+			// The channel accepted and never answered. Re-issue on the synchronous arm, which
+			// `viaChannel` now refuses to bypass.
 			g_issued = false;
 		}
 		return std::nullopt;

@@ -969,8 +969,8 @@ void smSysex::handleNextSysEx() {
 	// Called DIRECTLY rather than dispatched onto the storage owner, and that is the whole point of
 	// this conversion: `usingByteChannel()` is false on the owner by design, so an owner-side handler
 	// would take the synchronous arm and nothing would be relocated. Parsing and replying touch no
-	// card; each path operation goes through the channel, or through `runOnStorageOwner` when it will
-	// not -- see `smsysex_pending.h`.
+	// card; each path operation goes through the channel, or runs inline where blocking is legal -- see
+	// `smsysex_pending.h`.
 	//
 	// The single-flight guard that used to sit here is gone WITH the dispatch, and the two must go
 	// together. A direct call cannot overlap itself, so the guard is redundant here -- but restoring
