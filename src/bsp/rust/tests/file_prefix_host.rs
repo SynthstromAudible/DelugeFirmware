@@ -36,15 +36,22 @@ const CARD: u32 = 3;
 #[test]
 fn a_published_prefix_is_taken_exactly_once() {
     let mut slot = PrefixSlot::default();
-    publish_into(&mut slot, "SONGS/A.XML", b"<song preview=\"00\"", CARD);
+    let mut store = [0u8; PREFIX_CAPACITY];
+    publish_into(
+        &mut slot,
+        &mut store,
+        "SONGS/A.XML",
+        b"<song preview=\"00\"",
+        CARD,
+    );
     let mut out = [0u8; 64];
     let PrefixTake::Bytes(n) =
-        take_from(&mut slot, "SONGS/A.XML", CARD, &mut out).expect("published")
+        take_from(&mut slot, &store, "SONGS/A.XML", CARD, &mut out).expect("published")
     else {
         panic!("a published prefix must take as bytes, never as a failure");
     };
     assert_eq!(&out[..n], b"<song preview=\"00\"");
-    assert!(take_from(&mut slot, "SONGS/A.XML", CARD, &mut out).is_none());
+    assert!(take_from(&mut slot, &store, "SONGS/A.XML", CARD, &mut out).is_none());
 }
 
 /// A different path is absent, not a mis-served neighbour. With one slot this is the whole of the
@@ -52,9 +59,10 @@ fn a_published_prefix_is_taken_exactly_once() {
 #[test]
 fn a_prefix_for_another_path_is_absent() {
     let mut slot = PrefixSlot::default();
-    publish_into(&mut slot, "SONGS/A.XML", b"aaa", CARD);
+    let mut store = [0u8; PREFIX_CAPACITY];
+    publish_into(&mut slot, &mut store, "SONGS/A.XML", b"aaa", CARD);
     let mut out = [0u8; 64];
-    assert!(take_from(&mut slot, "SONGS/B.XML", CARD, &mut out).is_none());
+    assert!(take_from(&mut slot, &store, "SONGS/B.XML", CARD, &mut out).is_none());
 }
 
 /// The belt: a prefix read from the previous card is dropped at the TAKE, and does not stay resident
@@ -62,9 +70,10 @@ fn a_prefix_for_another_path_is_absent() {
 #[test]
 fn a_prefix_from_a_previous_card_is_dropped_not_returned() {
     let mut slot = PrefixSlot::default();
-    publish_into(&mut slot, "SONGS/A.XML", b"old card", CARD);
+    let mut store = [0u8; PREFIX_CAPACITY];
+    publish_into(&mut slot, &mut store, "SONGS/A.XML", b"old card", CARD);
     let mut out = [0u8; 64];
-    assert!(take_from(&mut slot, "SONGS/A.XML", CARD + 1, &mut out).is_none());
+    assert!(take_from(&mut slot, &store, "SONGS/A.XML", CARD + 1, &mut out).is_none());
     assert!(
         slot.is_empty(),
         "the stale prefix must be removed, not merely withheld"
@@ -77,9 +86,10 @@ fn a_prefix_from_a_previous_card_is_dropped_not_returned() {
 #[test]
 fn a_prefix_stamped_before_a_flush_cannot_be_taken_after_it() {
     let mut slot = PrefixSlot::default();
-    publish_into(&mut slot, "SONGS/A.XML", b"landed late", CARD); // stamped pre-bump
+    let mut store = [0u8; PREFIX_CAPACITY];
+    publish_into(&mut slot, &mut store, "SONGS/A.XML", b"landed late", CARD); // stamped pre-bump
     let mut out = [0u8; 64];
-    assert!(take_from(&mut slot, "SONGS/A.XML", CARD + 1, &mut out).is_none());
+    assert!(take_from(&mut slot, &store, "SONGS/A.XML", CARD + 1, &mut out).is_none());
     assert!(slot.is_empty());
 }
 
@@ -94,10 +104,11 @@ fn a_prefix_stamped_before_a_flush_cannot_be_taken_after_it() {
 #[test]
 fn a_too_small_out_buffer_consumes_the_prefix_and_takes_nothing() {
     let mut slot = PrefixSlot::default();
-    publish_into(&mut slot, "SONGS/A.XML", b"0123456789", CARD);
+    let mut store = [0u8; PREFIX_CAPACITY];
+    publish_into(&mut slot, &mut store, "SONGS/A.XML", b"0123456789", CARD);
     let mut out = [0u8; 4];
     assert_eq!(
-        take_from(&mut slot, "SONGS/A.XML", CARD, &mut out),
+        take_from(&mut slot, &store, "SONGS/A.XML", CARD, &mut out),
         Some(PrefixTake::Bytes(0))
     );
     assert!(
@@ -121,9 +132,10 @@ fn a_too_small_out_buffer_consumes_the_prefix_and_takes_nothing() {
 #[test]
 fn a_stale_prefix_meeting_a_short_buffer_is_refused_not_blanked() {
     let mut slot = PrefixSlot::default();
-    publish_into(&mut slot, "SONGS/A.XML", b"0123456789", CARD);
+    let mut store = [0u8; PREFIX_CAPACITY];
+    publish_into(&mut slot, &mut store, "SONGS/A.XML", b"0123456789", CARD);
     let mut out = [0u8; 4];
-    assert!(take_from(&mut slot, "SONGS/A.XML", CARD + 1, &mut out).is_none());
+    assert!(take_from(&mut slot, &store, "SONGS/A.XML", CARD + 1, &mut out).is_none());
     assert!(slot.is_empty());
 }
 
@@ -135,10 +147,11 @@ fn a_stale_prefix_meeting_a_short_buffer_is_refused_not_blanked() {
 #[test]
 fn a_published_failure_is_taken_as_a_failure_exactly_once() {
     let mut slot = PrefixSlot::default();
+    let store = [0u8; PREFIX_CAPACITY];
     publish_failure_into(&mut slot, "SONGS/A.XML", CARD);
     let mut out = [0xEEu8; 64];
     assert_eq!(
-        take_from(&mut slot, "SONGS/A.XML", CARD, &mut out),
+        take_from(&mut slot, &store, "SONGS/A.XML", CARD, &mut out),
         Some(PrefixTake::Failed)
     );
     assert_eq!(
@@ -146,7 +159,7 @@ fn a_published_failure_is_taken_as_a_failure_exactly_once() {
         "a failure writes nothing into the taker's buffer"
     );
     assert!(slot.is_empty());
-    assert!(take_from(&mut slot, "SONGS/A.XML", CARD, &mut out).is_none());
+    assert!(take_from(&mut slot, &store, "SONGS/A.XML", CARD, &mut out).is_none());
 }
 
 /// The distinction the whole `PrefixTake` split exists for: an EMPTY FILE and a FAILED READ are
@@ -158,17 +171,19 @@ fn a_published_failure_is_taken_as_a_failure_exactly_once() {
 #[test]
 fn an_empty_file_and_a_failed_read_are_different_answers() {
     let mut empty = PrefixSlot::default();
-    publish_into(&mut empty, "SONGS/A.XML", b"", CARD);
+    let mut empty_store = [0u8; PREFIX_CAPACITY];
+    publish_into(&mut empty, &mut empty_store, "SONGS/A.XML", b"", CARD);
     let mut failed = PrefixSlot::default();
+    let failed_store = [0u8; PREFIX_CAPACITY];
     publish_failure_into(&mut failed, "SONGS/A.XML", CARD);
 
     let mut out = [0u8; 64];
     assert_eq!(
-        take_from(&mut empty, "SONGS/A.XML", CARD, &mut out),
+        take_from(&mut empty, &empty_store, "SONGS/A.XML", CARD, &mut out),
         Some(PrefixTake::Bytes(0))
     );
     assert_eq!(
-        take_from(&mut failed, "SONGS/A.XML", CARD, &mut out),
+        take_from(&mut failed, &failed_store, "SONGS/A.XML", CARD, &mut out),
         Some(PrefixTake::Failed)
     );
 }
@@ -179,9 +194,10 @@ fn an_empty_file_and_a_failed_read_are_different_answers() {
 #[test]
 fn a_failure_from_a_previous_card_is_dropped_not_returned() {
     let mut slot = PrefixSlot::default();
+    let store = [0u8; PREFIX_CAPACITY];
     publish_failure_into(&mut slot, "SONGS/A.XML", CARD);
     let mut out = [0u8; 64];
-    assert!(take_from(&mut slot, "SONGS/A.XML", CARD + 1, &mut out).is_none());
+    assert!(take_from(&mut slot, &store, "SONGS/A.XML", CARD + 1, &mut out).is_none());
     assert!(
         slot.is_empty(),
         "a stale failure must be removed, not merely withheld"
@@ -201,15 +217,42 @@ fn the_slot_holds_a_dx7_bank() {
         "a DX7 32-voice bank is {DX7_32_VOICE_BANK} bytes and must survive the slot whole"
     );
     let mut slot = PrefixSlot::default();
+    let mut store = [0u8; PREFIX_CAPACITY];
     let bank = vec![0xA5u8; DX7_32_VOICE_BANK];
-    publish_into(&mut slot, "DX7/BANK.SYX", &bank, CARD);
+    publish_into(&mut slot, &mut store, "DX7/BANK.SYX", &bank, CARD);
     let mut out = [0u8; PREFIX_CAPACITY];
     assert_eq!(
-        take_from(&mut slot, "DX7/BANK.SYX", CARD, &mut out),
+        take_from(&mut slot, &store, "DX7/BANK.SYX", CARD, &mut out),
         Some(PrefixTake::Bytes(DX7_32_VOICE_BANK)),
         "the whole bank, not a truncation"
     );
     assert_eq!(&out[..DX7_32_VOICE_BANK], &bank[..]);
+}
+
+/// A publish writes its bytes into the STORE, not into the slot. On the device the store is the SDRAM
+/// buffer, so a publish that left it untouched would hand every take whatever bytes were there before.
+#[test]
+fn a_publish_writes_its_bytes_into_the_store() {
+    let mut slot = PrefixSlot::default();
+    let mut store = [0u8; PREFIX_CAPACITY];
+    publish_into(&mut slot, &mut store, "SONGS/A.XML", b"<song preview", CARD);
+    assert_eq!(&store[..13], b"<song preview");
+}
+
+/// A take copies out of the STORE it is given, not out of anything the slot kept: overwrite the store
+/// between the publish and the take, and the take hands back the overwritten bytes.
+#[test]
+fn a_take_copies_its_bytes_out_of_the_store() {
+    let mut slot = PrefixSlot::default();
+    let mut store = [0u8; PREFIX_CAPACITY];
+    publish_into(&mut slot, &mut store, "SONGS/A.XML", b"abc", CARD);
+    store[..3].copy_from_slice(b"xyz");
+    let mut out = [0u8; 64];
+    assert_eq!(
+        take_from(&mut slot, &store, "SONGS/A.XML", CARD, &mut out),
+        Some(PrefixTake::Bytes(3))
+    );
+    assert_eq!(&out[..3], b"xyz");
 }
 
 // ── The driver ──────────────────────────────────────────────────────────────

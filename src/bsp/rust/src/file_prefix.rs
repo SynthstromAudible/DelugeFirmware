@@ -55,11 +55,11 @@
 //!   `__attribute__((weak))` fallbacks. Every other BSP never links this crate, resolves those
 //!   fallbacks, and always takes the synchronous path.
 //! - Behind `async_file_prefix`: the driver ([`prefix_io_once`]).
-//! - Behind `async_file_prefix_active`: the statics and the task, so a build with the switch off
-//!   holds none of the ~8 KB the channel needs (a [`PREFIX_CAPACITY`] slot in `.bss` plus the
-//!   task's own read buffer). These live in on-chip SRAM, which the C++ allocator's `FAST_INTERNAL`
-//!   heap shares a budget with — paying that for an unreachable path is what the audio loader's
-//!   own gating already refused to do.
+//! - Behind `async_file_prefix_active`: the statics and the task. The slots hold metadata only and
+//!   live in on-chip SRAM. The two [`PREFIX_CAPACITY`] byte buffers -- the published prefix
+//!   ([`RESULT_BYTES`]) and the read in progress ([`WORK_BYTES`]) -- are in `.sdram_bss` on the
+//!   device: on-chip SRAM shares a budget with the C++ allocator's `FAST_INTERNAL` heap and grows in
+//!   64 KiB steps of it, so 8 KiB buffers do not belong there.
 
 // The `#[cfg]`s below name features this module's OTHER carriers do not all declare; each of them
 // lists these in its own `[features]` or check-cfg so nothing here needs an exception.
@@ -68,7 +68,7 @@ use core::ffi::{CStr, c_char};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 #[cfg(feature = "async_file_prefix_active")]
-use embassy_sync::mutex::Mutex;
+use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_sync::signal::Signal;
 
 #[cfg(feature = "async_file_prefix")]
@@ -143,7 +143,7 @@ const _: () = {
 struct PrefixEntry {
     key: PrefixPath,
     generation: u32,
-    /// How many of `bytes` are the prefix, or `None` when the READ FAILED.
+    /// How many bytes of the store are the prefix, or `None` when the READ FAILED.
     ///
     /// A failure is an entry rather than an absence for the same reason a successful read is: the
     /// slot's only two answers to a taker are "here it is" and "never heard of it", and the second
@@ -151,7 +151,6 @@ struct PrefixEntry {
     /// re-read on every tick. It is terminal, and it is DISTINCT from `Some(0)` — an empty file —
     /// because the caller shows the user an error for one and blank artwork for the other.
     len: Option<usize>,
-    bytes: [u8; PREFIX_CAPACITY],
 }
 
 /// What [`take_from`] found in the slot for the path it was asked about.
@@ -170,6 +169,10 @@ pub enum PrefixTake {
 /// Passed to [`publish_into`]/[`take_from`] by reference rather than reached for as a static, so
 /// the slot logic is compiled and unit-tested on every build — including the ones where [`RESULT`]
 /// does not exist at all.
+///
+/// It holds the entry and nothing else. The bytes live in a store passed beside it -- on the device
+/// [`RESULT_BYTES`], in SDRAM -- because an 8 KiB array inside the `Mutex` would sit in on-chip
+/// SRAM, and an empty `Option` is not all-zero bytes, so the slot itself cannot go to `.sdram_bss`.
 #[derive(Default)]
 pub struct PrefixSlot {
     entry: Option<PrefixEntry>,
@@ -199,11 +202,20 @@ impl PrefixSlot {
 /// artwork with nothing to say why.
 ///
 /// A key too long to store is refused the same way — see [`new_entry`].
-pub fn publish_into(slot: &mut PrefixSlot, key: &str, bytes: &[u8], generation: u32) {
+///
+/// The bytes go into `store`, which [`take_from`] copies them back out of. Both halves are written in
+/// the one call, so a take never pairs this entry with another publish's bytes.
+pub fn publish_into(
+    slot: &mut PrefixSlot,
+    store: &mut [u8; PREFIX_CAPACITY],
+    key: &str,
+    bytes: &[u8],
+    generation: u32,
+) {
     debug_assert!(bytes.len() <= PREFIX_CAPACITY);
     let len = bytes.len().min(PREFIX_CAPACITY);
-    if let Some(entry) = new_entry(slot, key, generation, Some(len)) {
-        entry.bytes[..len].copy_from_slice(&bytes[..len]);
+    if new_entry(slot, key, generation, Some(len)) {
+        store[..len].copy_from_slice(&bytes[..len]);
     }
 }
 
@@ -221,33 +233,28 @@ pub fn publish_failure_into(slot: &mut PrefixSlot, key: &str, generation: u32) {
     let _ = new_entry(slot, key, generation, None);
 }
 
-/// Install a fresh entry under `key` and hand it back for its bytes to be filled in, or clear the
-/// slot and return `None` when the key does not fit.
+/// Install a fresh entry under `key` and return `true`, or clear the slot and return `false` when the
+/// key does not fit.
 ///
 /// A key too long to store is refused, and the slot is CLEARED rather than left holding its previous
 /// entry: unreachable through the FFI (which refuses an over-long path before it ever reaches the
 /// driver), but a prefix nobody can key is a prefix nobody can ever take, and leaving a stale
 /// neighbour resident in its place is strictly worse than an empty slot.
-fn new_entry<'s>(
-    slot: &'s mut PrefixSlot,
-    key: &str,
-    generation: u32,
-    len: Option<usize>,
-) -> Option<&'s mut PrefixEntry> {
+fn new_entry(slot: &mut PrefixSlot, key: &str, generation: u32, len: Option<usize>) -> bool {
     let Ok(key) = PrefixPath::try_from(key) else {
         slot.entry = None;
-        return None;
+        return false;
     };
     slot.entry = Some(PrefixEntry {
         key,
         generation,
         len,
-        bytes: [0u8; PREFIX_CAPACITY],
     });
-    slot.entry.as_mut()
+    true
 }
 
-/// Take `path`'s entry if the slot holds one stamped `generation` AND `out` is big enough.
+/// Take `path`'s entry if the slot holds one stamped `generation` AND `out` is big enough, copying its
+/// bytes out of `store` -- the store [`publish_into`] wrote them to.
 ///
 /// Removing on success is the point: a second collect must report `UNKNOWN`, or a caller could act
 /// on the same bytes twice. A published FAILURE ([`PrefixTake::Failed`]) is removed on exactly the
@@ -288,6 +295,7 @@ fn new_entry<'s>(
 /// release build degrades to one song's artwork missing rather than to hammering the card.
 pub fn take_from(
     slot: &mut PrefixSlot,
+    store: &[u8; PREFIX_CAPACITY],
     path: &str,
     generation: u32,
     out: &mut [u8],
@@ -312,7 +320,7 @@ pub fn take_from(
         slot.entry = None;
         return Some(PrefixTake::Bytes(0));
     }
-    out[..len].copy_from_slice(&entry.bytes[..len]);
+    out[..len].copy_from_slice(&store[..len]);
     slot.entry = None;
     Some(PrefixTake::Bytes(len))
 }
@@ -354,6 +362,71 @@ static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<PrefixPath>> = Mutex::ne
 /// The finished prefix waiting to be collected. See [`PrefixSlot`].
 #[cfg(feature = "async_file_prefix_active")]
 static RESULT: Mutex<CriticalSectionRawMutex, PrefixSlot> = Mutex::new(PrefixSlot::new());
+
+/// The published prefix's bytes, paired with the entry in [`RESULT`]. Reached only through
+/// [`result_parts`], which demands the `RESULT` guard.
+///
+/// In `.sdram_bss` on the device, like the byte channel's buffers: NOLOAD, and zeroed by
+/// `boot_mem::init_sdram_memory()` before any task runs. A byte array is valid when zeroed; the
+/// `Mutex` slots above are not, which is why they stay on-chip and only the bytes move.
+#[cfg(feature = "async_file_prefix_active")]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
+static mut RESULT_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
+
+/// The slot and its bytes, for as long as `guard` is borrowed.
+///
+/// Taking the `RESULT` guard by `&mut` is the point: the borrow checker then proves the lock is held
+/// for every use of the bytes, and the slot and the store come back as two disjoint borrows, so a
+/// publish or a take writes both halves in one lock hold.
+#[cfg(feature = "async_file_prefix_active")]
+fn result_parts<'g>(
+    guard: &'g mut MutexGuard<'_, CriticalSectionRawMutex, PrefixSlot>,
+) -> (&'g mut PrefixSlot, &'g mut [u8; PREFIX_CAPACITY]) {
+    // SAFETY: nothing else names RESULT_BYTES, and a reference is handed out only while an exclusive
+    // borrow of the RESULT guard is held -- RESULT is the only lock guarding a `PrefixSlot` in this
+    // module -- so this is the only live reference.
+    let store = unsafe { &mut *core::ptr::addr_of_mut!(RESULT_BYTES) };
+    (&mut **guard, store)
+}
+
+/// The read in progress, before it is published. [`file_prefix_task`]'s alone -- see
+/// [`claim_work_bytes`]. Placed as [`RESULT_BYTES`] is.
+#[cfg(all(
+    feature = "async_file_prefix_active",
+    any(
+        all(target_os = "none", feature = "efatfs_streaming"),
+        feature = "host_app"
+    )
+))]
+#[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
+static mut WORK_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
+
+/// Grants [`WORK_BYTES`] once.
+#[cfg(all(
+    feature = "async_file_prefix_active",
+    any(
+        all(target_os = "none", feature = "efatfs_streaming"),
+        feature = "host_app"
+    )
+))]
+static WORK_CLAIM: super::file_bytes::ClaimOnce = super::file_bytes::ClaimOnce::new();
+
+/// The work buffer, to the first caller only. [`file_prefix_task`] claims it once, at start.
+#[cfg(all(
+    feature = "async_file_prefix_active",
+    any(
+        all(target_os = "none", feature = "efatfs_streaming"),
+        feature = "host_app"
+    )
+))]
+fn claim_work_bytes() -> Option<&'static mut [u8; PREFIX_CAPACITY]> {
+    if !WORK_CLAIM.claim() {
+        return None;
+    }
+    // SAFETY: WORK_CLAIM grants exactly one claim for the life of the program and nothing else names
+    // WORK_BYTES, so this is the only reference that will ever exist.
+    Some(unsafe { &mut *core::ptr::addr_of_mut!(WORK_BYTES) })
+}
 
 /// Drop what this channel is holding. The card generation's bump belongs to the CALLER
 /// (`card.rs`'s `deluge_card_flush`), which performs it before calling here.
@@ -536,7 +609,8 @@ fn probe(path: &str, out: &mut [u8]) -> Probe {
     // view of which card is in the slot right now, and deciding from it is what makes a prefix's
     // fate independent of whether the flush that invalidated it managed to take this lock. See
     // [`take_from`].
-    match take_from(&mut result, path, deluge_card_generation::current(), out) {
+    let (slot, store) = result_parts(&mut result);
+    match take_from(slot, store, path, deluge_card_generation::current(), out) {
         Some(PrefixTake::Bytes(len)) => Probe::Ready(len),
         Some(PrefixTake::Failed) => Probe::Failed,
         None => Probe::Unknown,
@@ -712,20 +786,26 @@ async fn read_prefix<O: LoadOps>(
 pub async fn file_prefix_task() {
     PREFIX_WAKE.wait().await;
     let ops = super::audio_loader::ProdOps::new();
-    // One buffer for the life of the task rather than one per read: it is `PREFIX_CAPACITY` bytes,
-    // which belongs in the task's own storage and not on a stack this executor shares.
-    let mut buffer = [0u8; PREFIX_CAPACITY];
+    // One buffer for the life of the task, and not in the task: an 8 KiB array held across the awaits
+    // below would sit in this task's pool, in on-chip SRAM. See `WORK_BYTES`.
+    let Some(work) = claim_work_bytes() else {
+        debug_assert!(
+            false,
+            "file_prefix_task claims its work buffer once; its pool size is 1"
+        );
+        return;
+    };
     loop {
         while let Some((request, generation)) = take_next_request().await {
             // `None` is a failed read, and it is published AS a failure -- see this task's doc.
-            let read = prefix_io_once(&ops, &request.path, request.max_bytes, &mut buffer).await;
+            let read = prefix_io_once(&ops, &request.path, request.max_bytes, &mut work[..]).await;
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly in both tables,
             // which is harmless, whereas the reverse leaves a window in which it is in neither and
             // `collect` would report `UNKNOWN` for a read that just succeeded.
             //
             // `generation` was sampled before the I/O above, so a card pulled during it is what
             // makes this publish a no-op.
-            publish_result(&request.path, read.map(|len| &buffer[..len]), generation).await;
+            publish_result(&request.path, read.map(|len| &work[..len]), generation).await;
             mark_in_flight(None).await;
         }
         PREFIX_WAKE.wait().await;
@@ -795,8 +875,9 @@ pub async fn publish_result(key: &str, bytes: Option<&[u8]>, generation: u32) {
         // screen for a file nobody has tried to read yet.
         return;
     }
+    let (slot, store) = result_parts(&mut result);
     match bytes {
-        Some(bytes) => publish_into(&mut result, key, bytes, generation),
-        None => publish_failure_into(&mut result, key, generation),
+        Some(bytes) => publish_into(slot, store, key, bytes, generation),
+        None => publish_failure_into(slot, key, generation),
     }
 }
