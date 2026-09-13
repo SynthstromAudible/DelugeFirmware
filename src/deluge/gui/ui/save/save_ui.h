@@ -22,6 +22,7 @@
 #include "hid/button.h"
 #include "storage/readback_check.h"
 #include "storage/save_dispatch.h"
+#include "storage/temp_swap.h"
 
 class SaveUI : public SlotBrowser {
 public:
@@ -165,10 +166,11 @@ public:
 	/// @brief Whole-document writes the CHANNEL has served, and staged steps that ran off the owner.
 	[[nodiscard]] static int32_t writeChannelServedOps() { return writeChannelServedOps_; }
 	[[nodiscard]] static int32_t offOwnerSaveTicks() { return offOwnerSaveTicks_; }
-	/// @brief Where the in-flight staged save writes its document, or the last one wrote it.
-	[[nodiscard]] static const std::string& stagedWritePath() { return inFlightRequest_.filePath; }
+	/// @brief Where the in-flight staged save writes its document, or the last one wrote it: the target, or its
+	///        temp file when the save replaces an existing document.
+	[[nodiscard]] static const std::string& stagedWritePath() { return stagedWritePath_; }
 	/// @brief Byte-channel answers the temp-file swaps have collected: the target's delete and the rename.
-	[[nodiscard]] static int32_t swapChannelServedOps() { return 0; }
+	[[nodiscard]] static int32_t swapChannelServedOps() { return swapChannelServedOps_; }
 
 private:
 	/// @brief Which part of a staged save runs next.
@@ -177,12 +179,19 @@ private:
 		SERIALIZE, ///< Building the document in memory, on the interaction tier.
 		WRITE,     ///< One whole-document write: through the channel, or inline on the owner.
 		VERIFY,    ///< Reading the written document back: length, head and tail.
+		SWAP,      ///< Replacing the target with the verified temp file: delete it, then rename. Overwrites only.
 		FINISH,    ///< Running the caller's completion.
 	};
 
 	void runSerializePhase();
 	void runWritePhase();
 	void runFinishPhase();
+	/// @brief Drive the swap of a temp save's verified document onto its target.
+	void runSwapPhase();
+	/// @brief A written, and where this save checks, verified document: swap it into place, or finish.
+	void completeStagedWrite();
+	/// @brief Count the document as saved and end the save successfully.
+	void finishStagedDocument();
 	/// @brief Turn one write's outcome into a prompt, an error, or a success.
 	void handleWriteOutcome(bool alreadyExists, bool ok);
 	/// @brief Store the staged document with a blocking write. Legal ONLY on the storage owner.
@@ -208,6 +217,14 @@ private:
 	static inline SaveUI* phaseOwner_{nullptr};
 	static inline bool writeIssued_{};
 	static inline deluge::storage::ReadBackCheck stagedReadBack_{};
+	/// Where this staged save writes: the target, or `tempPathFor(target)` when it replaces an existing document.
+	static inline std::string stagedWritePath_{};
+	/// Whether this staged save writes a temp file and swaps it into place. Set from `mayOverwrite` at dispatch.
+	static inline bool stagedToTemp_{};
+	/// Whether the swap has begun. From then on a failure keeps the temp file, which may be the only good copy.
+	static inline bool swapStarted_{};
+	static inline deluge::storage::TempSwap stagedSwap_{};
+	static inline int32_t swapChannelServedOps_{};
 	static inline int32_t stagedSavesCompleted_{};
 	/// Whether the in-flight staged save genuinely put its document on the card. Gates afterStagedSave().
 	static inline bool stagedWroteDocument_{};

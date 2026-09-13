@@ -30,6 +30,7 @@
 #include "storage/file_item.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
+#include "storage/temp_swap.h"
 #include <optional>
 #include <span>
 
@@ -206,6 +207,10 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 			return true;
 		}
 		stagedWroteDocument_ = false;
+		// A confirmed overwrite writes a temp file beside its target and swaps it in only once it is known good.
+		stagedToTemp_ = request.mayOverwrite;
+		swapStarted_ = false;
+		stagedWritePath_.clear();
 		phaseOwner_ = this;
 		savePhase_ = SavePhase::SERIALIZE;
 		writeIssued_ = false;
@@ -266,6 +271,9 @@ void SaveUI::saveRoutine() {
 	case SavePhase::VERIFY:
 		phaseOwner_->runStagedVerifyPhase();
 		return;
+	case SavePhase::SWAP:
+		phaseOwner_->runSwapPhase();
+		return;
 	case SavePhase::FINISH:
 		phaseOwner_->runFinishPhase();
 		return;
@@ -295,6 +303,16 @@ void SaveUI::runSerializePhase() {
 		endStagedSave(false);
 		return;
 	}
+	// Where the document goes. A confirmed overwrite writes beside its target, so the document it replaces survives
+	// a failed write or read-back.
+	stagedWritePath_ =
+	    stagedToTemp_ ? deluge::storage::tempPathFor(inFlightRequest_.filePath) : inFlightRequest_.filePath;
+	if (stagedWritePath_.empty()) {
+		// No temp name fits the channels' path bound, and rewriting the target in place is what the temp file avoids.
+		display->displayError(Error::WRITE_FAIL);
+		endStagedSave(false);
+		return;
+	}
 	savePhase_ = SavePhase::WRITE;
 	stallTicks_ = 0;
 }
@@ -309,7 +327,8 @@ void SaveUI::releaseStagedWriter() {
 void SaveUI::runWritePhase() {
 	const auto* bytes = reinterpret_cast<const uint8_t*>(smSerializer.getBufferPtr());
 	const auto len = static_cast<uint32_t>(smSerializer.bytesWritten());
-	const char* path = inFlightRequest_.filePath.c_str();
+	const char* path = stagedWritePath_.c_str();
+	// A temp save overwrites only its own leftover from an earlier failed save; a direct save never overwrites.
 	const bool mayOverwrite = inFlightRequest_.mayOverwrite;
 
 	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
@@ -372,7 +391,7 @@ void SaveUI::writeStagedSynchronously(bool& alreadyExists, bool& ok) {
 	ok = false;
 	const auto* bytes = reinterpret_cast<const uint8_t*>(smSerializer.getBufferPtr());
 	const auto len = static_cast<uint32_t>(smSerializer.bytesWritten());
-	auto created = StorageManager::createFile(inFlightRequest_.filePath.c_str(), inFlightRequest_.mayOverwrite);
+	auto created = StorageManager::createFile(stagedWritePath_.c_str(), inFlightRequest_.mayOverwrite);
 	if (!created) {
 		alreadyExists = created.error() == Error::FILE_ALREADY_EXISTS;
 		return;
@@ -392,7 +411,7 @@ deluge::storage::ReadBackExpectation SaveUI::stagedReadBackExpectation() const {
 void SaveUI::runStagedVerifyPhase() {
 	using deluge::storage::ReadBackTick;
 
-	const char* path = inFlightRequest_.filePath.c_str();
+	const char* path = stagedWritePath_.c_str();
 	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
 
 	if (onOwner) {
@@ -425,16 +444,14 @@ void SaveUI::runStagedVerifyPhase() {
 
 void SaveUI::finishStagedVerify(bool passed) {
 	if (!passed) {
-		// The file is already on the card; this stops it being reported as a saved preset. Presets have
-		// no temp file, so a confirmed overwrite has already replaced what was there before.
+		// The written file failed its check. A direct save wrote a free name, and this stops it being reported as a
+		// saved document; a temp save's target is untouched, and endStagedSave() discards the temp file.
 		display->displayError(Error::WRITE_FAIL);
 		endStagedSave(false);
 		return;
 	}
 	++stagedSavesVerified_;
-	++stagedSavesCompleted_;
-	stagedWroteDocument_ = true;
-	endStagedSave(true);
+	completeStagedWrite();
 }
 
 void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
@@ -464,11 +481,66 @@ void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
 		savePhase_ = SavePhase::VERIFY;
 		return;
 	}
-	// A save that never verified. Counted HERE and not in endStagedSave(true), which the overwrite
-	// prompt branch above also calls having written nothing.
+	// A save that never verifies. Counted in finishStagedDocument() and not in endStagedSave(true), which the
+	// overwrite prompt branch above also calls having written nothing.
+	completeStagedWrite();
+}
+
+void SaveUI::completeStagedWrite() {
+	if (!stagedToTemp_) {
+		finishStagedDocument();
+		return;
+	}
+	// The temp file is written and, where this save checks, verified. Only now is the target touched.
+	stagedSwap_.begin(inFlightRequest_.filePath, stagedWritePath_);
+	stallTicks_ = 0;
+	savePhase_ = SavePhase::SWAP;
+}
+
+void SaveUI::finishStagedDocument() {
 	++stagedSavesCompleted_;
 	stagedWroteDocument_ = true;
 	endStagedSave(true);
+}
+
+void SaveUI::runSwapPhase() {
+	using deluge::storage::SwapTick;
+
+	// From here a failure keeps the temp file: once the target is deleted it is the only good copy.
+	swapStarted_ = true;
+	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	if (onOwner) {
+		if (!deluge::storage::swapSynchronously(inFlightRequest_.filePath, stagedWritePath_)) {
+			display->displayError(Error::SD_CARD);
+			endStagedSave(false);
+			return;
+		}
+		finishStagedDocument();
+		return;
+	}
+
+	++offOwnerSaveTicks_;
+	const SwapTick tick = stagedSwap_.step();
+	swapChannelServedOps_ += stagedSwap_.takeServedOps();
+	switch (tick) {
+	case SwapTick::Waiting:
+		if (!deferStagedSave()) {
+			display->displayError(Error::SD_CARD);
+			endStagedSave(false);
+		}
+		return;
+	case SwapTick::Advanced:
+		stallTicks_ = 0;
+		return;
+	case SwapTick::Done:
+		stallTicks_ = 0;
+		finishStagedDocument();
+		return;
+	case SwapTick::Failed:
+		display->displayError(Error::SD_CARD);
+		endStagedSave(false);
+		return;
+	}
 }
 
 void SaveUI::runFinishPhase() {
@@ -494,6 +566,11 @@ void SaveUI::runFinishPhase() {
 }
 
 void SaveUI::endStagedSave(bool succeeded) {
+	if (!succeeded && stagedToTemp_ && !swapStarted_ && !stagedWritePath_.empty()) {
+		// Failed before the swap: the target is untouched, and the temp file is at best a copy that failed its check.
+		// Best effort; a leftover is hidden from every browser.
+		deluge::storage::discardTemp(stagedWritePath_);
+	}
 	// The shared serialiser is handed back here and not one tick later: every path out of a save
 	// passes through this function, and leaving it borrowed breaks the next save that wants a file.
 	releaseStagedWriter();
