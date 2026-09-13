@@ -301,12 +301,21 @@ void LoadInstrumentPresetUI::onBrowserOpened() {
 
 void LoadInstrumentPresetUI::onListingFailed(Error error) {
 	if (changingOutputType_) {
-		// changeOutputType()'s original synchronous path silently reverted outputTypeToLoad on failure
-		// and left the browser open - no displayError(), no close(). Preserve that instead of falling
-		// through to the base Browser::onListingFailed() (displayError + close()).
 		changingOutputType_ = false;
 		outputTypeToLoad = outputTypeBeforeChange_;
-		return;
+		if (!listingRestored_) {
+			// No copy of what the change replaced, for want of memory: changeOutputType()'s original synchronous
+			// path, which silently reverted outputTypeToLoad and left the browser open.
+			return;
+		}
+		// The failed listing put back the previous type's folder, list and entered text. setupForOutputType() puts
+		// back that type's title, icon, lights and file prefix, which the change replaced, but it also picks a folder
+		// and entered text of its own: keep the restored ones. The base then shows the error and stays open.
+		std::string dir = std::move(currentDir);
+		std::string text = std::move(enteredText);
+		(void)setupForOutputType();
+		currentDir = std::move(dir);
+		enteredText = std::move(text);
 	}
 	Browser::onListingFailed(error);
 }
@@ -697,6 +706,9 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 
 	// Or, for normal synths, kits and midi
 	else {
+		// Copied before setupForOutputType() changes the folder and entered text, so a failed listing puts back the
+		// previous type's, not a mixture of the two. beginListing() below keeps this copy.
+		captureListingRestore();
 		OutputType oldOutputType = outputTypeToLoad;
 		outputTypeToLoad = newOutputType;
 

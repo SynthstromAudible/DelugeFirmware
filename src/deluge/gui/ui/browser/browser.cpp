@@ -104,6 +104,10 @@ Browser::ListingState Browser::listing_;
 Browser::PredictionState Browser::prediction_;
 std::optional<Browser::PredictionTarget> Browser::pendingPrediction_;
 Browser::ListingRequest Browser::pendingListing_;
+bool Browser::listingShown_;
+std::optional<Browser::ListingRestore> Browser::listingRestore_;
+bool Browser::listingRestoreTaken_;
+bool Browser::listingRestored_;
 int32_t Browser::pendingReloadCatalogSearchDirection_;
 bool Browser::pendingReloadSearchFromEnd_;
 
@@ -129,6 +133,11 @@ Browser::Browser() {
 
 bool Browser::beginListing(ListingRequest req) {
 	pendingListing_ = std::move(req);
+	listingRestored_ = false;
+	if (!listingRestoreTaken_) {
+		captureListingRestore(); // unless the caller already copied, before changing anything itself
+	}
+	listingRestoreTaken_ = false;
 	listingInProgress_ = true;
 	display->displayLoadingAnimationText("Working", /*delayed=*/true);
 
@@ -255,6 +264,59 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 	}
 }
 
+void Browser::captureListingRestore() {
+	listingRestoreTaken_ = true;
+	if (listingInProgress_) {
+		return; // keep the copy the listing in flight took before it changed anything
+	}
+	listingRestore_.reset();
+	if (!listingShown_) {
+		return; // this listing opens the browser: a failure closes it, and there is nothing to put back
+	}
+	try {
+		listingRestore_ = ListingRestore{
+		    .currentDir = currentDir,
+		    .fileItems = fileItems,
+		    .fileIndexSelected = fileIndexSelected,
+		    .scrollPosVertical = scrollPosVertical,
+		    .scrollPosHorizontal = scrollPosHorizontal,
+		    .enteredText = enteredText,
+		    .enteredTextEditPos = enteredTextEditPos,
+		    .arrivedAtFileByTyping = arrivedAtFileByTyping,
+		    .qwertyVisible = qwertyVisible,
+		    .numFileItemsDeletedAtStart = numFileItemsDeletedAtStart,
+		    .numFileItemsDeletedAtEnd = numFileItemsDeletedAtEnd,
+		    .firstFileItemRemaining = firstFileItemRemaining,
+		    .lastFileItemRemaining = lastFileItemRemaining,
+		};
+	} catch (deluge::exception&) {
+		// No memory for the copy: this listing's failure closes the browser, as every failure used to.
+		listingRestore_.reset();
+	}
+}
+
+bool Browser::restoreListing() {
+	if (!listingRestore_.has_value()) {
+		return false;
+	}
+	ListingRestore& saved = *listingRestore_;
+	currentDir = std::move(saved.currentDir);
+	fileItems = std::move(saved.fileItems);
+	fileIndexSelected = saved.fileIndexSelected;
+	scrollPosVertical = saved.scrollPosVertical;
+	scrollPosHorizontal = saved.scrollPosHorizontal;
+	enteredText = std::move(saved.enteredText);
+	enteredTextEditPos = saved.enteredTextEditPos;
+	arrivedAtFileByTyping = saved.arrivedAtFileByTyping;
+	qwertyVisible = saved.qwertyVisible;
+	numFileItemsDeletedAtStart = saved.numFileItemsDeletedAtStart;
+	numFileItemsDeletedAtEnd = saved.numFileItemsDeletedAtEnd;
+	firstFileItemRemaining = std::move(saved.firstFileItemRemaining);
+	lastFileItemRemaining = std::move(saved.lastFileItemRemaining);
+	listingRestore_.reset();
+	return true;
+}
+
 void Browser::runPendingListing() {
 	// A listing spans however many ticks its opens need, and `listing_` carries where it is up to. A
 	// re-entry while one is active RESUMES the machine — it must NOT re-run the action's *Impl, which
@@ -278,12 +340,19 @@ void Browser::runPendingListing() {
 
 	display->removeLoadingAnimation();
 	if (error == Error::NONE) {
+		// A completed listing is on screen from here on, so a listing begun inside this browser can fall back to it.
+		// Set before the hooks, which may close the browser and clear it again.
+		listingShown_ = true;
+		listingRestore_.reset();
 		if (pendingListing_.action == ListingAction::Open) {
 			onBrowserOpened();
 		}
 		// folderContentsReady already ran inside the listing machine for success.
 	}
 	else {
+		// A listing begun inside an open browser puts back what it replaced before the failure is reported, so the
+		// browser can stay open on it. Every failure path has already left listing_ inactive. See onListingFailed().
+		listingRestored_ = restoreListing();
 		onListingFailed(error);
 	}
 	listingInProgress_ = false;
@@ -342,6 +411,16 @@ void Browser::onListingFailed(Error error) {
 	g_listingFailures++;
 	g_lastListingFailure = error;
 	display->displayError(error);
+	if (listingRestored_) {
+		// The listing began inside an open browser, and what it replaced is back: stay open on it, so the user can try
+		// again or go somewhere else. A reload moves the scroll position to an edge marker before it begins, so the
+		// copy can carry that marker; clamping turns it back into a real position.
+		clampFileSelectionAndScroll();
+		displayText();
+		renderUIsForOled();
+		renderingNeededRegardlessOfUI();
+		return;
+	}
 	// close(), not exitAction(): exitAction() is virtual and some subclasses override it with side
 	// effects a plain listing failure shouldn't trigger (e.g. LoadSongUI::exitAction() shows a
 	// different popup and may not close; LoadInstrumentPresetUI's calls revertToInitialPreset()).
@@ -353,6 +432,11 @@ void Browser::onListingFailed(Error error) {
 }
 
 bool Browser::opened() {
+	// A browser opening has nothing on screen yet, so its first listing closes it on failure, whatever the last visit
+	// left: a visit that ended in a load rather than close() never cleared these.
+	listingShown_ = false;
+	listingRestore_.reset();
+	listingRestoreTaken_ = false;
 	numCharsInPrefix = 0; // For most browsers, this just stays at 0.
 	arrivedAtFileByTyping = false;
 	allowedFileExtensions = allowedFileExtensionsXML;
@@ -383,6 +467,9 @@ void Browser::close() {
 	listingInProgress_ = false;
 	listingOnTickSurface_ = false;
 	listing_.active = false;
+	listingShown_ = false;
+	listingRestore_.reset();
+	listingRestoreTaken_ = false;
 
 	emptyFileItems();
 	favouritesManager.close();

@@ -27,6 +27,7 @@
 #include "util/containers.h"
 
 #include <expected>
+#include <optional>
 #include <string>
 
 class Instrument;
@@ -218,6 +219,49 @@ protected:
 	/// tick surface would run one listing twice, on two tiers, over one static fileItems.
 	static bool listingOnTickSurface_;
 	static ListingRequest pendingListing_;
+
+	/// @brief What a listing begun inside an open browser may replace, kept so a failure can put it back.
+	///
+	/// A listing started while a completed listing is on screen -- into a folder, up a level, a favourite by path, a
+	/// change of output type, a reload -- changes the directory and entered text before it reads anything, and a read
+	/// that succeeds replaces the file list before a later step can still fail. The browser can stay open on a failure
+	/// only by showing what was there before, so all of it is copied when the listing begins. `FileItem` owns nothing,
+	/// so the copy is a plain one.
+	struct ListingRestore {
+		std::string currentDir;
+		deluge::vector<FileItem> fileItems;
+		int32_t fileIndexSelected{};
+		int32_t scrollPosVertical{};
+		int32_t scrollPosHorizontal{};
+		std::string enteredText;
+		int16_t enteredTextEditPos{};
+		bool arrivedAtFileByTyping{};
+		bool qwertyVisible{};
+		int32_t numFileItemsDeletedAtStart{};
+		int32_t numFileItemsDeletedAtEnd{};
+		std::string firstFileItemRemaining;
+		std::string lastFileItemRemaining;
+	};
+	/// @brief Whether a completed listing is on screen. Set when a listing succeeds; cleared by opened() and close().
+	static bool listingShown_;
+	/// @brief What to put back if the listing in progress fails. Empty for a listing that opens the browser, which
+	///        closes it on failure instead, and for one there was no memory to copy for.
+	static std::optional<ListingRestore> listingRestore_;
+	/// @brief Whether @ref captureListingRestore has already run for the next beginListing(), which then keeps that
+	///        copy rather than taking its own.
+	static bool listingRestoreTaken_;
+	/// @brief Whether the failure being reported put the previous listing back. Read by @ref onListingFailed.
+	static bool listingRestored_;
+	/// @brief Copy what the next listing may replace, if a completed listing is on screen.
+	///
+	/// beginListing() calls this itself. A caller that changes browser state before calling beginListing() calls this
+	/// first instead, and must then reach beginListing() without returning in between. While a listing is in progress
+	/// it keeps the copy it has: that listing may already have changed the directory or emptied the list, and the copy
+	/// it took before changing anything is still the one to put back.
+	static void captureListingRestore();
+	/// @brief Put back what the failed listing replaced.
+	/// @return Whether there was anything to put back.
+	static bool restoreListing();
 
 	/// @brief The parameters of ONE directory read.
 	///
@@ -434,7 +478,9 @@ protected:
 
 	// Completion hooks (run inside the op, on the fiber):
 	virtual void onBrowserOpened() {} ///< Open-only bespoke tail (default empty).
-	/// @brief Default handling for a failed listing: displayError() + close() (not exitAction()).
+	/// @brief Default handling for a failed listing: displayError(), then close() (not exitAction()) -- unless the
+	///        listing began inside an open browser and put back what it replaced, in which case the browser stays
+	///        open on it.
 	/// @param error The failure reported by the listing.
 	virtual void onListingFailed(Error error);
 

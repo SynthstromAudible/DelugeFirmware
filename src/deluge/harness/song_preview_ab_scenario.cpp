@@ -2594,8 +2594,8 @@ void runAcquireTick() {
 // the old completion tail tested `fileIndexSelected > fileItems.size()`, but `searchFileItems` returns an INSERTION
 // POINT, always <= size, so a deleted file fell straight through and the browser opened whatever sorted into its place.
 //
-// Through a load browser that is really on the UI stack, because the absent case ends in onListingFailed()'s close(),
-// which pops it. After the acquire stage, which runs with no UI stack at all, so nothing it relies on changes.
+// Through a load browser that is really on the UI stack, because whether a failed listing leaves it open is part of
+// what is checked. After the acquire stage, which runs with no UI stack at all, so nothing it relies on changes.
 
 /// A song the fixture made, the name opening it by path must select, and a song it never made.
 constexpr const char* kByPathPresent = "LISTTEST/SONG005.XML";
@@ -2606,6 +2606,13 @@ enum class ByPathStep : uint8_t { Open, OpenWait, Present, PresentWait, Absent, 
 ByPathStep g_byPathStep = ByPathStep::Open;
 int32_t g_byPathTicks = 0;
 int32_t g_listingFailuresBefore = 0;
+/// What the load browser showed before a listing that is expected to fail, to check that it is put back.
+ListingSnapshot g_byPathBefore;
+
+/// Whether two snapshots show the same listing: directory, entered text, selection and names.
+bool sameListing(const ListingSnapshot& a, const ListingSnapshot& b) {
+	return a.dir == b.dir && a.entered == b.entered && a.selected == b.selected && a.names == b.names;
+}
 
 /// End the stage, releasing the hold.
 void finishByPathStage() {
@@ -2697,6 +2704,7 @@ void runByPathTick() {
 		markCounters();
 		g_byPathTicks = 0;
 		g_listingFailuresBefore = Browser::listingFailures();
+		g_byPathBefore = takeListingSnapshot();
 		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kByPathAbsent);
 		g_byPathStep = ByPathStep::AbsentWait;
 		return;
@@ -2707,15 +2715,17 @@ void runByPathTick() {
 		}
 		const int32_t failed = Browser::listingFailures() - g_listingFailuresBefore;
 		const Error error = Browser::lastListingFailure();
-		const bool closed = getCurrentUI() != &loadSongUI;
-		printf("SP-BYPATH absent failed=%d error=%d closed=%d opens=%d requests=%d\n", failed, static_cast<int>(error),
-		       closed ? 1 : 0, runOpens(), runRequests());
+		const bool open = getCurrentUI() == &loadSongUI;
+		const bool restored = sameListing(takeListingSnapshot(), g_byPathBefore);
+		printf("SP-BYPATH absent failed=%d error=%d open=%d restored=%d opens=%d requests=%d\n", failed,
+		       static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0, runOpens(), runRequests());
 		checkResumed("bypath(absent)");
-		if (failed != 1 || error != Error::FILE_NOT_FOUND || !closed) {
+		if (failed != 1 || error != Error::FILE_NOT_FOUND || !open || !restored) {
 			printf(
-			    "SP-BYPATH FAIL a file that does not exist was not refused: failed=%d error=%d closed=%d, wanted one "
-			    "FILE_NOT_FOUND and a closed browser -- the browser would open whatever sorted into its place\n",
-			    failed, static_cast<int>(error), closed ? 1 : 0);
+			    "SP-BYPATH FAIL a file that does not exist was not refused in place: failed=%d error=%d open=%d "
+			    "restored=%d, wanted one FILE_NOT_FOUND with the browser still open on the listing it had -- it must "
+			    "neither open whatever sorted into the missing file's place nor throw the user out of the browser\n",
+			    failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
 			g_failures++;
 		}
 		finishByPathStage();
@@ -2815,6 +2825,7 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_byPathStep = ByPathStep::Open;
 	g_byPathTicks = 0;
 	g_listingFailuresBefore = 0;
+	g_byPathBefore = {};
 	g_acquireStep = AcquireStep::Fixture;
 	g_acqLoads = 0;
 	g_acqReferenceName.clear();
