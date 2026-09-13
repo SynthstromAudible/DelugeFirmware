@@ -8,7 +8,7 @@
 //! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this
 //! recompiles `src/audio_loader.rs` unmodified into this test binary via
 //! `#[path]`, the same convention `tests/streaming_fill_host.rs` and
-//! `tests/owner_host.rs` use. Only the `async_audio_load`-gated driver and the
+//! `tests/owner_host.rs` use. Only the driver and the
 //! always-compiled request/collect tier are needed — the `prod` submodule (the
 //! efatfs backing) is gated on device/`host_app` and stays uncompiled, so this
 //! test never needs the C++ app linked.
@@ -20,11 +20,9 @@
 //! card survives that card being ejected, including a load that was still in
 //! flight when it went and one that publishes into a table the flush could not
 //! clear.
-#![cfg(feature = "async_audio_load")]
 #![cfg(not(target_os = "none"))]
 
 use std::cell::{Cell, RefCell};
-#[cfg(feature = "async_audio_load_active")]
 use std::ffi::CString;
 
 #[path = "../src/audio_loader.rs"]
@@ -51,11 +49,17 @@ mod card;
 mod file_prefix;
 
 /// The third loader `card.rs` flushes, here for exactly the same reason as `file_prefix` above:
-/// `deluge_card_flush` names all three of its siblings, so a carrier that provides only two does
+/// `deluge_card_flush` names every one of its siblings, so a carrier that leaves one out does
 /// not compile. Its own slot logic is tested in `tests/file_directory_host.rs`.
 #[allow(dead_code)]
 #[path = "../src/file_directory.rs"]
 mod file_directory;
+
+/// The fourth loader `card.rs` flushes, here for the same reason. Its own slot logic is tested in
+/// `tests/file_bytes_host.rs`.
+#[allow(dead_code)]
+#[path = "../src/file_bytes.rs"]
+mod file_bytes;
 
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
@@ -65,16 +69,12 @@ use audio_loader::{
     publish_into, take_from,
 };
 
-// The live request/collect pipeline only exists where its storage does. See the
-// `live_pipeline` module below.
-#[cfg(feature = "async_audio_load_active")]
+// The live request/collect pipeline. See the `live_pipeline` module below.
 use audio_loader::{
     DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
     deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
 };
-#[cfg(feature = "async_audio_load_active")]
 use card::deluge_card_flush;
-#[cfg(feature = "async_audio_load_active")]
 use deluge_card_generation::current as current_generation;
 
 /// One call `FakeOps` observed, in order.
@@ -775,12 +775,8 @@ fn a_zero_length_window_is_still_read_and_fed() {
 // ── The result table: what carries a result between the halves ──────────────
 //
 // These run against a LOCAL `ResultTable`, not the process-wide `RESULTS`
-// static, so they are compiled and run on every build — including the default one
-// where that static does not exist at all (its storage now follows
-// `async_audio_load_active`; see the module doc). That is deliberate: the
-// `remove_at` ordering bug lived in exactly this code, and coverage that
-// disappears with a feature flag is coverage that will not be there when it is
-// next needed.
+// static, so they pin the table logic apart from the live pipeline. The
+// `remove_at` ordering bug lived in exactly this code.
 
 /// The card generation the ordering tests below publish and take under.
 ///
@@ -1012,12 +1008,7 @@ fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
 
 // ── The live pipeline: request -> in flight -> collect ──────────────────────
 //
-// These drive the process-wide statics through the real C ABI, so they only exist
-// where those statics do. `cargo test --features async_audio_load_active` is a
-// standing gate for exactly this reason — with the switch off, `request` refuses
-// everything and `collect` reports UNKNOWN, so these would pass vacuously rather
-// than testing anything.
-#[cfg(feature = "async_audio_load_active")]
+// These drive the process-wide statics through the real C ABI.
 mod live_pipeline {
     use super::*;
 
@@ -1499,31 +1490,13 @@ fn the_admission_rule_matches_the_corpus_the_c_side_checks() {
     }
 }
 
-// ── The switch ──────────────────────────────────────────────────────────────
+// ── The selector ─────────────────────────────────────────────────────────────
 
-/// `deluge_audio_load_async_active()` must report false unless
-/// `async_audio_load_active` was explicitly enabled — it must NOT follow
-/// `async_audio_load`, which is on by default and only says the driver is
-/// compiled. Running under default features, this test asserts the shipped
-/// default is off; run with `--features async_audio_load_active` it asserts the
-/// flip actually reaches the selector.
-///
-/// This replaces an `objdump` check on the linked image: with no C++ caller yet,
-/// `--gc-sections` drops the symbol from the firmware entirely, so there is
-/// nothing there to disassemble. A behavioural assertion is durable where that
-/// was incidental.
+/// `deluge_audio_load_async_active()` reports true: the loader has no switch, so
+/// every build that compiles this module routes opted-in loads through it. The C++
+/// weak fallback in `audio_load_abi.cpp` still answers false for BSPs that never
+/// link this crate.
 #[test]
-fn the_async_switch_follows_only_its_own_feature() {
-    if cfg!(feature = "async_audio_load_active") {
-        assert!(
-            deluge_audio_load_async_active(),
-            "the flip must reach the selector"
-        );
-    } else {
-        assert!(
-            !deluge_audio_load_async_active(),
-            "async loading must be off unless async_audio_load_active is set, even though \
-             async_audio_load (which only compiles the driver) is on by default"
-        );
-    }
+fn the_loader_is_always_active() {
+    assert!(deluge_audio_load_async_active());
 }

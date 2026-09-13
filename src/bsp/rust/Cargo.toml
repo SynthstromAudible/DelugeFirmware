@@ -178,9 +178,10 @@ corosensei = "0.3"
 # dup-handler risk). Optional + gated by `host_app` so a plain host build never
 # pulls it in.
 deluge_resource = { path = "../../../crates/deluge_resource", optional = true }
-# Host sibling of the device dependency above -- the host-built C++ `deluge_app` calls the same
-# `deluge_audio_header_*` C ABI. Optional + gated on `host_app`, like `deluge_resource` here.
-deluge_audio_format = { path = "../../../crates/deluge_audio_format", optional = true }
+# Host sibling of the device dependency above: the host-built C++ `deluge_app` calls the same
+# `deluge_audio_header_*` C ABI, and the async audio loader, compiled in every build, walks headers
+# through it. A plain dependency for that reason, not `host_app`-gated.
+deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
 
 # SR2d-5 Task 4: host-side sibling of the device dep above. `abi.rs`'s strong symbols are gated
 # `cfg(any(target_os = "none", feature = "host_app"))`, so this crate's OWN `host_app` feature (forwarded
@@ -216,7 +217,7 @@ embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = f
 embedded-io-async = { version = "0.7.0", optional = true }
 
 [features]
-default = ["rtt", "async_streaming_loader", "async_audio_load", "efatfs_streaming"]
+default = ["rtt", "async_streaming_loader", "efatfs_streaming"]
 
 ## RTT (SEGGER Real-Time Transfer) logging over a debug probe: selects the
 ## rza1l_rtt.x linker script (via build.rs) and registers the log logger.
@@ -234,7 +235,6 @@ sanitize = ["corosensei/sanitizer"]
 ## storage stack `efatfs_host_shim`/`efatfs_core` need on host. Off by default.
 host_app = [
     "dep:deluge_resource",
-    "dep:deluge_audio_format",
     "dep:deluge_sample_source",
     "deluge_sample_source/host_app",
     "dep:deluge_sample_reader",
@@ -273,34 +273,6 @@ sim_latency = []
 ## (false ⇒ `loader.cpp`'s fiber pump behaves exactly as before). On by default;
 ## opt out with --no-default-features.
 async_streaming_loader = []
-
-## BUILD the Rust async audio-file load task (`audio_loader.rs`) -- the driver
-## that opens a card sample's candidate path, sizes it, and walks its header
-## between the two I/O-free halves of `include/libdeluge/audio_load.h`. On by
-## default so every build compiles and links the driver, and so the host test
-## (`tests/audio_loader_host.rs`) is exercised by a plain `cargo test`.
-##
-## This feature does NOT turn async loading on -- see `async_audio_load_active`
-## below. Building the task is inert on its own: nothing enqueues into it while
-## the switch is off, so it waits on `LOAD_WAKE` forever.
-##
-## Also enables the header decoder on host: `deluge_audio_format` is a required
-## dependency on device but an optional, `host_app`-gated one on host, and the
-## driver needs `HeaderParser` in the plain-host build the integration tests use.
-async_audio_load = ["dep:deluge_audio_format"]
-
-## THE SWITCH: the sole input to `deluge_audio_load_async_active()`, which is
-## what the C++ side asks before choosing the async path over the synchronous
-## one. **Off by default, and deliberately separate from `async_audio_load`
-## above**: whether the driver is *compiled* is a build-convenience question
-## (it keeps the host test running and the device link honest), whereas whether
-## card samples actually load through it is a behavioural change that has to be
-## an explicit, reversible flip rather than a side effect of landing the code.
-##
-## Implies `async_audio_load`, so turning the switch on cannot produce a build
-## where the C++ side dispatches to a task that was never spawned -- which would
-## queue every load and load none of them.
-async_audio_load_active = ["async_audio_load"]
 
 [build-dependencies]
 # Generate Rust signatures + POD types from the canonical libdeluge C headers so

@@ -7,9 +7,6 @@
 //! reuses its [`LoadOps`] rather than declaring a second four-operation filesystem trait; it is a
 //! SIBLING module here, which is what makes `file_prefix.rs`'s `super::audio_loader` path resolve
 //! in this binary exactly as it does in the firmware.
-// Gated on the loader this reuses, not on a prefix feature: the channel has none, but its driver
-// needs `audio_loader`'s `LoadOps`, which exists only under `async_audio_load` (a default).
-#![cfg(feature = "async_audio_load")]
 #![cfg(not(target_os = "none"))]
 
 use std::cell::{Cell, RefCell};

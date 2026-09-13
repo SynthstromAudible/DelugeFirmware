@@ -143,8 +143,8 @@ mod audio_host;
 /// no C++ itself; see its module doc for the two constraints that force that. Compiled
 /// on the Embassy BSP unconditionally (device, or host under `host_app`) so
 /// `deluge_audio_load_async_active`/`_request`/`_collect` always resolve to this
-/// crate's strong symbols rather than `audio_load_abi.cpp`'s weak fallbacks; the driver and the task itself stay gated behind
-/// `async_audio_load` — see its module doc's "Two compilation tiers".
+/// crate's strong symbols rather than `audio_load_abi.cpp`'s weak fallbacks. The loader has no switch -- see its module
+/// doc's "Always on".
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod audio_loader;
 /// board.h — capability descriptor + GPIO/audio/CV bring-up. Compiled on host
@@ -455,11 +455,7 @@ fn stream_sgi_handler() {
 /// and on the same terms.
 #[cfg(all(
     target_os = "none",
-    any(
-        feature = "async_streaming_loader",
-        feature = "async_audio_load_active",
-        feature = "efatfs_streaming"
-    )
+    any(feature = "async_streaming_loader", feature = "efatfs_streaming")
 ))]
 #[embassy_executor::task]
 async fn stream_bootstrap() {
@@ -469,7 +465,7 @@ async fn stream_bootstrap() {
     let spawner = unsafe { Spawner::for_current_executor() }.await;
     #[cfg(feature = "async_streaming_loader")]
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
-    #[cfg(all(feature = "async_audio_load_active", feature = "efatfs_streaming"))]
+    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(audio_loader::audio_load_task().unwrap());
     // Here rather than on the thread-mode executor for the same reason as the load task above: it
     // holds the FS mutex across an SD await, and the storage fiber's non-yielding
@@ -603,19 +599,11 @@ pub extern "C" fn main() -> ! {
     // Every task this executor can host is listed, not just the ones that happened to be on when it was
     // written: a channel switched on without its entry here would have its task spawned onto an executor
     // nobody started -- a dead channel that every consumer's owner arm would then hide.
-    #[cfg(any(
-        feature = "async_streaming_loader",
-        feature = "async_audio_load_active",
-        feature = "efatfs_streaming"
-    ))]
+    #[cfg(any(feature = "async_streaming_loader", feature = "efatfs_streaming"))]
     STREAM_EXEC
         .start(STREAM_SGI)
         .spawn(stream_bootstrap().unwrap());
-    #[cfg(not(any(
-        feature = "async_streaming_loader",
-        feature = "async_audio_load_active",
-        feature = "efatfs_streaming"
-    )))]
+    #[cfg(not(any(feature = "async_streaming_loader", feature = "efatfs_streaming")))]
     let _ = STREAM_EXEC.start(STREAM_SGI);
     unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
 
@@ -1228,10 +1216,6 @@ fn main() {
         // `STREAM_EXEC` on device: it too holds the FS mutex across an SD await, so it must not
         // live where a non-yielding storage spin could starve it. See `audio_loader`'s module
         // doc.
-        #[cfg(any(
-            feature = "async_streaming_loader",
-            feature = "async_audio_load_active"
-        ))]
         {
             let stream_ready = Arc::new(Barrier::new(2));
             let stream_barrier = Arc::clone(&stream_ready);
@@ -1242,7 +1226,6 @@ fn main() {
                     executor.run(|spawner: Spawner| {
                         #[cfg(feature = "async_streaming_loader")]
                         spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
-                        #[cfg(feature = "async_audio_load_active")]
                         spawner.spawn(audio_loader::audio_load_task().unwrap());
                         spawner.spawn(file_prefix::file_prefix_task().unwrap());
                         spawner.spawn(file_directory::file_directory_task().unwrap());

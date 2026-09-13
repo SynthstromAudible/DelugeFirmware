@@ -98,48 +98,22 @@
 //! evicted or asked for. Deliberately not swept: it is uncollectable either way,
 //! and with [`RESULT_SLOTS`] slots the cost is at most one redundant header read.
 //!
-//! ## Two compilation tiers
+//! ## Always on
 //!
-//! Same shape, and for the same reason, as `streaming_loader.rs`: the selector
-//! the C++ side calls (`deluge_audio_load_async_active`) must resolve on the
-//! Embassy BSP whether or not the async backing is enabled, because a cargo
-//! feature cannot reach a C++ `#define`.
+//! Everything here is compiled wherever this module is -- the Embassy BSP: device,
+//! or host under `host_app` (see the `mod audio_loader;` cfg in `main.rs`): the
+//! request/collect C ABI ([`deluge_audio_load_request`],
+//! [`deluge_audio_load_collect`], [`deluge_audio_load_async_active`]), the
+//! queue/result tables behind it, the parse driver ([`LoadOps`], [`load_io_once`])
+//! and, where a backing is linked, `ProdOps` and [`audio_load_task`]. These override
+//! the `__attribute__((weak))` C++ fallbacks in `audio_load_abi.cpp`; every other
+//! BSP (legacy/cooperative sim, rza1) never links this crate, resolves those
+//! fallbacks, and always takes the synchronous path.
 //!
-//! - Always compiled whenever this module is (the Embassy BSP: device, or host
-//!   under `host_app` — see the `mod audio_loader;` cfg in `main.rs`): the
-//!   request/collect C ABI ([`deluge_audio_load_request`],
-//!   [`deluge_audio_load_collect`], [`deluge_audio_load_async_active`]) and the
-//!   queue/result tables behind it. These override the `__attribute__((weak))`
-//!   C++ fallbacks in `audio_load_abi.cpp`; every other BSP (legacy/cooperative
-//!   sim, rza1) never links this crate, resolves those fallbacks, and always
-//!   takes the synchronous path.
-//! - Feature-gated behind `async_audio_load`: the parse driver itself
-//!   ([`LoadOps`], [`load_io_once`], `ProdOps`, [`audio_load_task`]).
-//!
-//! Compiling the driver and *using* it are two different switches.
-//! `async_audio_load` (on by default) only builds the driver;
-//! `async_audio_load_active` (off by default) is the sole input to
-//! [`deluge_audio_load_async_active`], and therefore the only thing that makes
-//! the C++ side dispatch a load here at all.
-//!
-//! ## What the off build costs: nothing
-//!
-//! The switch gates the STORAGE and the task, not just the behaviour. With it
-//! off, `QUEUE`/`RESULTS`/`IN_FLIGHT` do not exist, the task is neither compiled
-//! nor spawned, and [`deluge_audio_load_request`]/[`deluge_audio_load_collect`]
-//! refuse exactly as `audio_load_abi.cpp`'s weak fallbacks do.
-//!
-//! That distinction is not cosmetic. These statics live in `.bss` — **on-chip
-//! SRAM**, not the SDRAM the app's bulk globals sit in — and they shared a budget
-//! with the C++ allocator's `FAST_INTERNAL` heap, whose size steps down as the
-//! image grows. Holding ~16 KB of that for a feature nothing can enter was paying
-//! a scarce resource for an unreachable path.
-//!
-//! What stays compiled with the switch off is the *code*: the driver, `ProdOps`,
-//! the layout assertions and the FFI entry points, so the default build still
-//! type-checks this module against `efatfs_fs` and still exports strong symbols
-//! over the weak C++ fallbacks. The task itself is type-checked by the
-//! switch-on build, which is a standing gate.
+//! There is no switch. The tables and the task's pool live in `.bss`, which is
+//! on-chip SRAM shared with the C++ allocator's `FAST_INTERNAL` heap: about 17 KB
+//! when the loader became mandatory, which stepped that heap down one 64 KiB block.
+//! That cost was accepted rather than moved to SDRAM.
 //!
 //! ## Why the driver is generic over [`LoadOps`]
 //!
@@ -149,40 +123,22 @@
 //! that to `crate::efatfs_fs` / `crate::efatfs_host_shim`, and
 //! `tests/audio_loader_host.rs` wires it to an in-memory double.
 
-// `async_audio_load_active` gates the accepting `enqueue_request` and the
-// QUEUE/IN_FLIGHT/RESULTS statics; `audio_load_task` (the only thing that drains
-// them) additionally needs a backing to do I/O through, and on device that is
-// `efatfs_streaming`. Turned on without one, this crate builds cleanly, accepts
-// every request, and drains none of them: the C++ collector reports
-// LOAD_IN_PROGRESS forever, on every tick, for every sample -- silence with no
-// error, which is the exact failure shape the request path's permanent-decline
-// handling exists to avoid. Unreachable through the default features (which carry
-// `efatfs_streaming`), but nothing stopped `--no-default-features --features
-// async_audio_load_active` on a device build, so refuse it at compile time rather
-// than leaving the livelock as a latent build configuration.
-//
-// Scoped to the DEVICE build deliberately. On host the module is reached two ways:
-// through `main.rs` under `host_app` (which is itself a backing, so the condition
-// is already satisfied), and through `tests/audio_loader_host.rs`, which
-// `#[path]`-recompiles this file with neither backing and for which
-// `cargo test --features async_audio_load_active` is a standing gate -- it drives
-// the queue/result statics by hand and needs no task at all.
-#[cfg(all(
-    feature = "async_audio_load_active",
-    target_os = "none",
-    not(feature = "efatfs_streaming")
-))]
+// `audio_load_task` is the only drain for the request queue, and it needs a backing to do I/O through: on
+// device that is `efatfs_streaming`. A device build without it would compile cleanly, accept every request and
+// drain none, so the C++ collector would report LOAD_IN_PROGRESS forever, for every sample -- silence with no
+// error. Refused at compile time instead. On host the module is reached through `main.rs` under `host_app`
+// (itself a backing) and through `tests/audio_loader_host.rs`, which drives the tables by hand and needs no task.
+#[cfg(all(target_os = "none", not(feature = "efatfs_streaming")))]
 compile_error!(
-    "feature `async_audio_load_active` needs `efatfs_streaming` on device: `audio_load_task` is \
-     the only drain for the request queue and is not compiled without it, so every accepted \
-     request would stay queued forever and the C++ side would see LOAD_IN_PROGRESS on every tick."
+    "the async audio loader needs `efatfs_streaming` on device: `audio_load_task` is the only drain for \
+     the request queue and is not compiled without it, so every request would stay queued forever and \
+     the C++ side would see LOAD_IN_PROGRESS on every tick."
 );
 
 use core::ffi::{CStr, c_char};
 use core::mem::MaybeUninit;
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-#[cfg(feature = "async_audio_load_active")]
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
@@ -452,7 +408,6 @@ pub type RequestQueue = heapless::Deque<LoadRequest, LOAD_QUEUE_DEPTH>;
 /// The result table's storage type. See [`RequestQueue`].
 pub type ResultTable = heapless::Deque<PendingResult, RESULT_SLOTS>;
 
-#[cfg(feature = "async_audio_load_active")]
 static QUEUE: Mutex<CriticalSectionRawMutex, RequestQueue> = Mutex::new(heapless::Deque::new());
 
 /// The path the task is parsing right now, if any. Exists so
@@ -460,7 +415,6 @@ static QUEUE: Mutex<CriticalSectionRawMutex, RequestQueue> = Mutex::new(heapless
 /// the window between a request leaving [`QUEUE`] and its result reaching
 /// [`RESULTS`] — an `UNKNOWN` there would tell the C++ side to re-request work
 /// that is already running, and it would do so on every tick.
-#[cfg(feature = "async_audio_load_active")]
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(None);
 
 /// Finished parses waiting to be collected, oldest at the front.
@@ -480,7 +434,6 @@ static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(
 /// collected or evicted. A repeat request for a path already in the table
 /// replaces that entry rather than adding a second, so a coalescing caller
 /// cannot grow the table with duplicates.
-#[cfg(feature = "async_audio_load_active")]
 static RESULTS: Mutex<CriticalSectionRawMutex, ResultTable> = Mutex::new(heapless::Deque::new());
 
 /// Drop the tables this loader keeps. The card generation's bump belongs to the
@@ -515,7 +468,6 @@ static RESULTS: Mutex<CriticalSectionRawMutex, ResultTable> = Mutex::new(heaples
 /// on device but a plain `std::thread` under `host_app`, so any claim of the form
 /// "these two cannot run at once" is false on some configuration that builds this
 /// file.
-#[cfg(feature = "async_audio_load_active")]
 pub(crate) fn flush_tables() {
     if let Ok(mut queue) = QUEUE.try_lock() {
         queue.clear();
@@ -528,27 +480,15 @@ pub(crate) fn flush_tables() {
     }
 }
 
-/// No loader on this build: the tables do not exist and nothing was ever
-/// published, so there is nothing to discard. Matches `card_abi.cpp`'s weak
-/// fallback. The generation bump still happens in the caller — it is not this
-/// loader's, and another loader on this build may well need it.
-#[cfg(not(feature = "async_audio_load_active"))]
-pub(crate) fn flush_tables() {}
-
-/// Whether the Rust async loader backs sample loads on this BSP/config — the
-/// switch the C++ side asks before choosing the async path over the synchronous
-/// one. The symbol itself must always exist so that call site links regardless of
-/// which config produced this BSP image; only the return value moves.
+/// Whether the Rust async loader backs sample loads — what the C++ side asks
+/// before choosing the async path over the synchronous one.
 ///
-/// Keyed on `async_audio_load_active`, NOT on `async_audio_load`, and the
-/// separation is deliberate. `async_audio_load` says the driver is *compiled*
-/// (which keeps the host test running under a plain `cargo test` and keeps the
-/// device link honest); this says card samples actually *load through it*, which
-/// is a behavioural change and must be an explicit, reversible flip rather than a
-/// side effect of the code landing. Off by default.
+/// Always `true` wherever this module is compiled: the loader has no switch. The
+/// symbol is what overrides `audio_load_abi.cpp`'s weak `false`, which every BSP
+/// without this crate resolves, and those builds keep the synchronous path.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_load_async_active() -> bool {
-    cfg!(feature = "async_audio_load_active")
+    true
 }
 
 /// Queue `file_path` for the async loader and wake it. See `audio_load.h`.
@@ -611,7 +551,6 @@ pub unsafe extern "C" fn deluge_audio_load_request(
 ///
 /// `try_lock` rather than a block: this is called synchronously from C++ in
 /// whatever context the app happens to be in, and must never wait.
-#[cfg(feature = "async_audio_load_active")]
 fn enqueue_request(request: LoadRequest) -> bool {
     let Ok(mut queue) = QUEUE.try_lock() else {
         return false;
@@ -622,19 +561,6 @@ fn enqueue_request(request: LoadRequest) -> bool {
     drop(queue);
     LOAD_WAKE.signal(());
     true
-}
-
-/// No loader on this build: refuse, exactly as `audio_load_abi.cpp`'s weak
-/// fallback does. Nothing reaches here in practice — the C++ side gates on
-/// [`deluge_audio_load_async_active`], which is false in this configuration —
-/// and refusing is what keeps a caller that ignores the selector from waiting
-/// for a result nothing will produce.
-///
-/// The queue and result tables do not exist here at all; see the module doc's
-/// "What the off build costs".
-#[cfg(not(feature = "async_audio_load_active"))]
-fn enqueue_request(_request: LoadRequest) -> bool {
-    false
 }
 
 /// Collect the finished parse for `file_path`, if one is ready. See
@@ -749,7 +675,6 @@ enum Probe {
 /// One forward pass: QUEUE, then IN_FLIGHT, then RESULTS. See
 /// [`deluge_audio_load_collect`]'s doc for why the order and the contention
 /// mapping are both load-bearing.
-#[cfg(feature = "async_audio_load_active")]
 fn probe(path: &str, out: &mut MaybeUninit<LoadResult>) -> Probe {
     if is_queued(path) || is_in_flight(path) {
         return Probe::Pending;
@@ -773,14 +698,6 @@ fn probe(path: &str, out: &mut MaybeUninit<LoadResult>) -> Probe {
     }
 }
 
-/// No loader on this build: nothing was ever requested, so nothing is coming.
-/// `Unknown`, never `Pending` — `Pending` would tell a caller to keep asking
-/// forever. Matches `audio_load_abi.cpp`'s weak fallback.
-#[cfg(not(feature = "async_audio_load_active"))]
-fn probe(_path: &str, _out: &mut MaybeUninit<LoadResult>) -> Probe {
-    Probe::Unknown
-}
-
 /// Whether `path` is still waiting in [`QUEUE`].
 ///
 /// **Contention reports `true`, and that is load-bearing, not defensive.** The
@@ -788,7 +705,6 @@ fn probe(_path: &str, _out: &mut MaybeUninit<LoadResult>) -> Probe {
 /// racing that handoff finds the lock taken — mapping it to `false` here would
 /// report `UNKNOWN` for a request mid-handoff, which is exactly the bug the probe
 /// order exists to prevent. Do not "simplify" this branch.
-#[cfg(feature = "async_audio_load_active")]
 fn is_queued(path: &str) -> bool {
     match QUEUE.try_lock() {
         Ok(queue) => queue.iter().any(|request| request.path == path),
@@ -798,7 +714,6 @@ fn is_queued(path: &str) -> bool {
 
 /// Whether `path` is the load being parsed right now. Contention reports `true`,
 /// for the same reason as [`is_queued`] — and with the same warning.
-#[cfg(feature = "async_audio_load_active")]
 fn is_in_flight(path: &str) -> bool {
     match IN_FLIGHT.try_lock() {
         Ok(in_flight) => in_flight.as_deref() == Some(path),
@@ -813,7 +728,6 @@ fn is_in_flight(path: &str) -> bool {
 /// table. Also the seam the host tests drive to exercise
 /// [`deluge_audio_load_collect`]'s IN_FLIGHT branch, which no test could reach
 /// otherwise because no test runs the task.
-#[cfg(feature = "async_audio_load_active")]
 pub async fn mark_in_flight(path: Option<LoadPath>) {
     *IN_FLIGHT.lock().await = path;
 }
@@ -931,7 +845,6 @@ pub fn take_from(table: &mut ResultTable, path: &str, generation: u32) -> Option
 ///
 /// The check happens with the table lock already held, not before acquiring it, so
 /// that it is at least ordered against a flush that DID take the lock.
-#[cfg(feature = "async_audio_load_active")]
 pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) {
     let mut table = RESULTS.lock().await;
     if generation != deluge_card_generation::current() {
@@ -988,7 +901,6 @@ pub(crate) unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
 
 // ── The parse driver ────────────────────────────────────────────────────────
 
-#[cfg(feature = "async_audio_load")]
 mod driver {
     use super::{
         DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE, DELUGE_ERROR_FILE_UNSUPPORTED,
@@ -1224,25 +1136,21 @@ mod driver {
 // Re-exported for `tests/audio_loader_host.rs`, which recompiles this file
 // through `#[path]`: `driver` itself is private, and the bin target needs only
 // some of these, so the rest read as unused here.
-#[cfg(feature = "async_audio_load")]
 #[allow(unused_imports)]
 pub use driver::{LoadOps, OpenVerdict, error_code_for, load_io_once};
 
 // ── Production wiring ───────────────────────────────────────────────────────
 // Only compiled where the efatfs backing is actually linked: on device under
 // `efatfs_streaming`, and on host under `host_app`. Kept separate from the driver
-// above (which compiles under `async_audio_load` alone) so the
+// above (which compiles with no backing at all) so the
 // `#[path]`-recompiled host test never emits a reference to an undefined symbol.
 //
 // Note what is NOT here: any `extern "C"` block. This half calls no C++ at all —
 // see the module doc.
 
-#[cfg(all(
-    feature = "async_audio_load",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 mod prod {
     use super::driver::LoadOps;
@@ -1258,11 +1166,6 @@ mod prod {
     /// The real [`LoadOps`], wired to the efatfs streaming handle table. Holds no
     /// state: every operation is keyed by handle.
     ///
-    /// Compiled under `async_audio_load` even when the switch is off, so the
-    /// default build still type-checks this wiring against `efatfs_fs` — the
-    /// link-checking value of building the module at all. Unused in that
-    /// configuration, hence the allow.
-    #[allow(dead_code)]
     pub struct ProdOps;
 
     impl ProdOps {
@@ -1306,12 +1209,9 @@ mod prod {
     }
 }
 
-#[cfg(all(
-    feature = "async_audio_load",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 #[allow(unused_imports)]
 pub use prod::ProdOps;
@@ -1322,12 +1222,9 @@ pub use prod::ProdOps;
 /// [`IN_FLIGHT`] is set before the I/O and cleared only after the result is
 /// published, so [`deluge_audio_load_collect`] never sees a gap where a running
 /// load looks unknown.
-#[cfg(all(
-    feature = "async_audio_load_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 #[embassy_executor::task]
 pub async fn audio_load_task() {
@@ -1364,12 +1261,9 @@ pub async fn audio_load_task() {
 /// task and therefore before any I/O, because that is what makes it mean "the
 /// card this load is reading". Reading it later — at publish time — reads the
 /// value a flush has already installed and defeats the check entirely.
-#[cfg(all(
-    feature = "async_audio_load_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 async fn take_next_request() -> Option<(LoadRequest, u32)> {
     let mut queue = QUEUE.lock().await;

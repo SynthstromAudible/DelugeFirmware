@@ -34,26 +34,6 @@ path = "src/lib.rs"
 test = false
 doctest = false
 
-[features]
-# Both on by default, unlike the BSP. There the split is a shipping decision --
-# `async_audio_load` builds the driver, `async_audio_load_active` is THE SWITCH
-# that routes real card loads through it, and it ships off. Here neither feature
-# reaches a firmware image; they only select how much of the test file compiles.
-# The whole file is `#![cfg(feature = "async_audio_load")]`, and its
-# `live_pipeline` module (the request/collect FFI tier) is gated on
-# `async_audio_load_active`, so with defaults off this package would build clean
-# and run zero tests -- the exact silent-no-coverage failure it exists to end.
-default = [
-    "async_audio_load",
-    "async_audio_load_active",
-]
-
-## Compile the parse driver. Mirrors the BSP feature of the same name.
-async_audio_load = []
-## Compile the live request/collect tier as well. Mirrors the BSP feature of the
-## same name; here it is a compilation switch only, never a shipping one.
-async_audio_load_active = ["async_audio_load"]
-
 [dependencies]
 # The loader's queue/result statics: `Mutex<CriticalSectionRawMutex, _>` and
 # `Signal`.

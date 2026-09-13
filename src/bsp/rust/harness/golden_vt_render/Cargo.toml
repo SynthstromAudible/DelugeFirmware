@@ -157,7 +157,6 @@ default = [
     "host_app",
     "async_streaming_loader",
     "efatfs_streaming",
-    "async_audio_load",
 ]
 host_app = []
 sim_latency = []
@@ -182,24 +181,6 @@ rtt = []
 # conditionals need zero edits when `#[path]`-included here). See `main.rs`'s
 # `mod streaming_loader` doc comment for how this package spawns the task.
 async_streaming_loader = []
-# Mirrors `../Cargo.toml`'s two audio-load features exactly (same spellings, so
-# `audio_loader.rs`'s own `#[cfg(feature = ...)]` conditionals need zero edits when
-# `#[path]`-included here).
-#
-# `async_audio_load` is in `default`. The file-prefix channel has no switch, so every build of this
-# package carries it, as every firmware image does -- and its driver reuses the loader's `LoadOps` and
-# `ProdOps`, so every build compiles the loader's driver too. That also compiles `card.rs`, so an
-# ejection here clears every channel's tables and bumps the card generation, exactly as on the device,
-# rather than resolving `card_abi.cpp`'s do-nothing fallback.
-#
-# `async_audio_load_active` stays out of `default`. `async_audio_load` alone = the driver compiled,
-# the switch OFF: the SYNCHRONOUS leg of the audio-load A/B, and the shape the firmware actually
-# ships. `async_audio_load_active` = the switch on, the Rust `audio_load_task` spawned: the ASYNC leg.
-# They cannot both be true in one process -- `deluge_audio_load_async_active()` is
-# `cfg!(feature = ...)`, a compile-time constant -- which is exactly why that A/B is a diff of two
-# builds.
-async_audio_load = []
-async_audio_load_active = ["async_audio_load"]
 
 [build-dependencies]
 bindgen = "0.70"

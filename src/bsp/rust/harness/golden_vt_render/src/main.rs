@@ -135,20 +135,14 @@ mod audio_host;
 /// card sample's load (open a candidate, size it, walk its header), publishing a result the
 /// C++ collector picks up on its own tier.
 ///
-/// Gated on `async_audio_load`, which is in this package's default features: the file-prefix
-/// channel below reuses its `LoadOps`/`ProdOps`, and that channel has no switch. See `Cargo.toml`'s
-/// feature comment.
-#[cfg(feature = "async_audio_load")]
+/// Compiled unconditionally: the loader has no switch, and the file-prefix channel below reuses its
+/// `LoadOps`/`ProdOps`.
 #[path = "../../../src/audio_loader.rs"]
 mod audio_loader;
 #[path = "../../../src/board.rs"]
 mod board;
 /// `deluge_card_flush` — the ejection hook that bumps the shared card generation and then clears
-/// the loader's tables. Gated with `audio_loader` above rather than with `../src/main.rs`'s
-/// device/`host_app` pair, because it calls into that module: without the loader compiled there is
-/// nothing here to clear, and `card_abi.cpp`'s weak fallback in the `deluge_app` object closure
-/// resolves the symbol instead.
-#[cfg(feature = "async_audio_load")]
+/// every loader's tables. Compiled unconditionally, like the loaders it clears.
 #[path = "../../../src/card.rs"]
 mod card;
 #[path = "../../../src/control.rs"]
@@ -186,15 +180,10 @@ mod file_bytes;
 /// above: the channel has no feature switch, and a build without it would let the C++ weak fallback answer every
 /// listing's request with UNKNOWN forever. `deluge_card_flush` names it too, so `card` cannot be compiled without
 /// it; the reverse does not hold, and a build without `card` has no caller for its `flush_tables`.
-#[cfg_attr(not(feature = "async_audio_load"), allow(dead_code))]
 #[path = "../../../src/file_directory.rs"]
 mod file_directory;
-/// The single-slot file-prefix channel and its request/collect C ABI. Gated with `card` above
-/// rather than on a feature of its own, and that is structural, not a preference:
-/// `deluge_card_flush` names BOTH loaders it flushes, so a build that compiles `card.rs` without
-/// this module does not compile at all. The channel has no switch: every default build of this
-/// package carries its statics and spawns `file_prefix_task`.
-#[cfg(feature = "async_audio_load")]
+/// The single-slot file-prefix channel and its request/collect C ABI. Compiled unconditionally: the
+/// channel has no switch, and `deluge_card_flush` names it, so `card.rs` does not compile without it.
 #[path = "../../../src/file_prefix.rs"]
 mod file_prefix;
 /// The recorder's async stream-write driver. Included here for the same reason every module above
@@ -1819,11 +1808,9 @@ async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
 /// sample list through `AudioFileManager::getAudioFileFromFilename`, printing each file's resolved
 /// identity and geometry as a diffable `AB-CASE` line.
 ///
-/// This binary is ONE leg. Which leg it is depends on how it was built — `async_audio_load` alone
-/// (synchronous) or `async_audio_load_active` (the Rust `audio_load_task` spawned in `main` below,
-/// serving every load through the request/collect ABI). `scripts/audio_load_ab.sh` builds both and
-/// diffs their `AB-CASE` lines; the two builds' `AB-SUMMARY` lines are expected to differ and are
-/// not diffed.
+/// One build, one run: every case loads twice in process, first through the synchronous card path as
+/// the reference and then through the Rust `audio_load_task` spawned in `main` below, and the scenario
+/// requires the two to agree. `scripts/audio_load_ab.sh` checks its markers.
 ///
 /// The step machine is not ceremony. A deferred load answers `Error::LOAD_IN_PROGRESS` and its
 /// caller must RETURN to its own loop; on this single-executor substrate the C++ worker fiber is
@@ -1933,26 +1920,6 @@ fn main() {
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
     let offset_io_mode = scenario == "offset_io";
-    if song_preview_ab_mode && !cfg!(feature = "async_audio_load") {
-        // Refusing beats running: without `async_audio_load` this binary has neither the prefix
-        // channel nor the loader driver it reuses, so every preview would wait on nothing.
-        eprintln!(
-            "golden_vt_render: GOLDEN_SCENARIO=song_preview_ab needs the default features (async_audio_load)"
-        );
-        std::process::exit(2);
-    }
-    if audio_load_ab_mode && !cfg!(feature = "async_audio_load") {
-        // Refusing beats running: without `async_audio_load` this binary has no `audio_loader`
-        // module at all, so the "synchronous leg" it would produce is one built from a DIFFERENT
-        // configuration than the async leg it gets diffed against — the two would differ in more
-        // than the switch under test, which is precisely the vacuous comparison this gate exists
-        // to avoid.
-        eprintln!(
-            "golden_vt_render: GOLDEN_SCENARIO=audio_load_ab needs --features async_audio_load \
-             (synchronous leg) or --features async_audio_load_active (async leg)"
-        );
-        std::process::exit(2);
-    }
 
     log::info!(
         "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode} \
@@ -2026,12 +1993,11 @@ fn main() {
     // inert otherwise.
     #[cfg(feature = "async_streaming_loader")]
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
-    #[cfg(feature = "async_audio_load_active")]
+    // The audio loader, always: without this spawn every sample load that opts in waits on a request
+    // nothing serves.
     spawner.spawn(audio_loader::audio_load_task().unwrap());
-    // The prefix reader, on the same executor, in every build that compiles the channel -- every
-    // default build. Without this spawn every preview and cartridge load waits on a request nothing
-    // serves.
-    #[cfg(feature = "async_audio_load")]
+    // The prefix reader, on the same executor, always. Without this spawn every preview and cartridge
+    // load waits on a request nothing serves.
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
     // The directory opener, always: every listing off the storage owner opens through it, and without this spawn
     // each one waits on a request nothing serves.
