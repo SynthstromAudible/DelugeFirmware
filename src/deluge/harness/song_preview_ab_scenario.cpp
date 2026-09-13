@@ -548,8 +548,6 @@ SwapStep g_swapStep = SwapStep::RehearseRequest;
 int32_t g_swapWaited = 0;
 int32_t g_swapCollectDeferrals = 0;
 bool g_swapFailed = false;
-/// Whether the file backing has been asked afresh for the post-swap song. One ask, not one per tick.
-bool g_swapCollectAsked = false;
 
 size_t g_caseIndex = 0;
 size_t g_corpusIndex = 0;
@@ -657,11 +655,8 @@ const char* outcomeName(SongPreviewOutcome outcome) {
 	return "?";
 }
 
-/// Print one preview's whole outcome as a single stable, diffable line.
-///
-/// Every field here must match between the two builds. Nothing that legitimately differs between
-/// them (deferral counts, which backing ran) appears on this line -- those go to `SP-DEFER` and
-/// `SP-SUMMARY`, which the diff does not cover.
+/// Print one preview's whole outcome as a single stable line: the browser's half of the comparison
+/// with `SP-REFERENCE`.
 void printCaseLine(const char* tag, const char* label, const char* path, uint32_t crc) {
 	printf("%s %-9s | path=\"%s\" | outcome=%s | error=%d | crc=%08X\n", tag, label, path,
 	       outcomeName(SongPreviewAbProbe::outcome()), static_cast<int>(SongPreviewAbProbe::error()), crc);
@@ -784,27 +779,6 @@ void checkRendered(const char* label, uint32_t crc) {
 	}
 }
 
-/// Per-case deferral discipline, asserted for each case in turn.
-///
-/// Only the FILE leg is checked, and deliberately. On the prefix leg a nonzero count is guaranteed by
-/// construction rather than by anything under test: `startCase()`'s drive is the first this channel
-/// has ever heard of the path, so its collect answers UNKNOWN, which arms a deferral before
-/// `driveCase()` has ticked once -- so tick 1 always counts one and `deferrals == 0` is unreachable.
-/// A check that cannot fail is assurance this file does not actually provide, so it is not written.
-/// The property it looked like it covered is covered for real elsewhere: a channel that never answers
-/// wedges the case at `kMaxCaseTicks`, and a leg that drew nothing is caught by the poison witness
-/// (`checkRendered()`) and by the absolute image CRC.
-void checkDeferrals(const char* label, int32_t deferrals) {
-	if (deluge_file_prefix_async_active()) {
-		return;
-	}
-	if (deferrals != 0) {
-		printf("FAIL [songPreviewAB/%s]: the file backing deferred %d time(s), which it has no way to do\n", label,
-		       deferrals);
-		g_failures++;
-	}
-}
-
 /// Has the case in progress finished -- nothing queued for a re-ask, and no op outstanding?
 bool caseSettled() {
 	return !SongPreviewAbProbe::pending() && !SongPreviewAbProbe::inFlight();
@@ -871,7 +845,6 @@ void runCasesTick() {
 	checkRendered(c.label, crc);
 	checkCase(c.label, c, crc);
 	checkAgainstReference(c.label, crc);
-	checkDeferrals(c.label, g_caseDeferrals);
 	g_deferralsByCase[g_caseIndex] = g_caseDeferrals;
 
 	g_caseStarted = false;
@@ -882,7 +855,7 @@ void runCasesTick() {
 	}
 }
 
-/// The read-window case: the one place the two backings must DIFFER, and each says so absolutely.
+/// The read-window case: the one song the browser must NOT draw as the file read does.
 void runWindowTick() {
 	if (!g_caseStarted) {
 		startCase(kSongsDir, kWindowFilename);
@@ -900,20 +873,17 @@ void runWindowTick() {
 
 	const bool async = deluge_file_prefix_async_active();
 	const uint32_t crc = imageCrc();
-	// NOT a diffed line: this is the one case whose two legs legitimately disagree, so it is printed
-	// under its own tag and each leg is held to its own expectation instead.
+	// Its own tag rather than SP-CASE: the one song the browser must not draw as its reference does, so each
+	// half is held to its own absolute expectation instead.
 	printf("SP-WINDOW asyncActive=%d | outcome=%s | error=%d | crc=%08X | deferrals=%d\n", async ? 1 : 0,
 	       outcomeName(SongPreviewAbProbe::outcome()), static_cast<int>(SongPreviewAbProbe::error()), crc,
 	       g_caseDeferrals);
 	checkRendered(kWindowLabel, crc);
 
-	const Case expected =
-	    async ? Case{kWindowLabel, kWindowFilename, SongPreviewOutcome::Truncated, Error::NONE, ExpectedImage::Blank, 0}
-	          : Case{kWindowLabel, kWindowFilename,        SongPreviewOutcome::Rendered,
-	                 Error::NONE,  ExpectedImage::Uniform, kLatePad};
+	const Case expected{kWindowLabel, kWindowFilename,      SongPreviewOutcome::Truncated,
+	                    Error::NONE,  ExpectedImage::Blank, 0};
 	checkCase(kWindowLabel, expected, crc);
-	checkAgainstReference(kWindowLabel, crc, /*expectTruncated=*/async);
-	checkDeferrals(kWindowLabel, g_caseDeferrals);
+	checkAgainstReference(kWindowLabel, crc, /*expectTruncated=*/true);
 	g_windowDeferrals = g_caseDeferrals;
 
 	g_caseStarted = false;
@@ -1028,7 +998,6 @@ void runCorpusTick() {
 	printCaseLine("SP-CASE", filename.c_str(), path.c_str(), crc);
 	checkRendered(filename.c_str(), crc);
 	checkAgainstReference(filename.c_str(), crc);
-	checkDeferrals(filename.c_str(), g_caseDeferrals);
 	g_deferralsByCorpusCase[g_corpusIndex] = g_caseDeferrals;
 	if (SongPreviewAbProbe::outcome() == SongPreviewOutcome::Rendered) {
 		g_corpusRendered++;
@@ -1094,14 +1063,6 @@ void finishSwapStage() {
 	const bool async = deluge_file_prefix_async_active();
 	printf("SP-SWAP-SUMMARY asyncActive=%d swapped=%d collectDeferrals=%d\n", async ? 1 : 0, g_swapFailed ? 0 : 1,
 	       g_swapCollectDeferrals);
-	if (!async) {
-		if (g_swapCollectDeferrals != 0) {
-			printf("FAIL [songPreviewAB/swap]: the file backing deferred %d time(s) after the swap\n",
-			       g_swapCollectDeferrals);
-			g_failures++;
-		}
-		return;
-	}
 	// The direct witness that the stale prefix was REFUSED rather than served, and the threshold is
 	// two rather than one for a reason that a run with the belt removed made plain:
 	//
@@ -1170,8 +1131,7 @@ void runSwapTick() {
 
 	case SwapStep::Arm:
 		// Ask again, and this time never collect: the result this produces is the one that has to go
-		// stale. On the file backing this simply re-renders the same song, which is harmless -- that
-		// backing holds no card-derived state to invalidate, which is what makes it the oracle here.
+		// stale.
 		poisonImage();
 		SongPreviewAbProbe::select(kSongsDir, kSwapFilename);
 		SongPreviewAbProbe::draw();
@@ -1190,16 +1150,6 @@ void runSwapTick() {
 		return;
 
 	case SwapStep::Collect: {
-		if (!deluge_file_prefix_async_active() && !g_swapCollectAsked) {
-			g_swapCollectAsked = true;
-			// The file backing has nothing pending -- its Arm render finished inline, against the OLD
-			// card. It is the oracle for the diffed line below, so ask it afresh for the song that is at
-			// that path NOW.
-			poisonImage();
-			SongPreviewAbProbe::select(kSongsDir, kSwapFilename);
-			SongPreviewAbProbe::draw();
-			return;
-		}
 		if (!g_caseSettled) {
 			if (!driveCase("swap")) {
 				return;
@@ -2969,9 +2919,8 @@ void runByPathTick() {
 
 // ── Stage: the DX cartridge load ────────────────────────────────────────────
 //
-// The prefix channel's other consumer. A cartridge picked in the DX browser is read whole -- through the storage owner
-// on the file leg, through the channel on the prefix leg -- and parsed into `dxCartridge`. Both legs must end the same
-// way, and the script diffs their SP-DX lines.
+// The prefix channel's other consumer. A cartridge picked in the DX browser is read whole through the channel and
+// parsed into `dxCartridge`, and SP-DX requires what the fixture holds.
 //
 // The bank is a real 32-voice DX7 dump with a correct checksum, and a SysEx ID the parser refuses. The refusal is
 // deliberate. It comes after the checksum, so a bank that reaches it arrived whole and in order, and the patch count
@@ -3093,8 +3042,7 @@ void runDxTick() {
 		return;
 
 	case DxStep::LoadWait: {
-		// The prefix leg's collect runs in the browser's tick. On the file leg the owner op clears the flag, and the
-		// tick is inert.
+		// The collect runs in the browser's tick.
 		if (DxSyxBrowser::cartridgeLoadInFlight()) {
 			dxBrowser.graphicsRoutine();
 			if (DxSyxBrowser::cartridgeLoadInFlight()) {
@@ -3189,7 +3137,6 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_swapWaited = 0;
 	g_swapCollectDeferrals = 0;
 	g_swapFailed = false;
-	g_swapCollectAsked = false;
 	g_caseIndex = 0;
 	g_corpusIndex = 0;
 	g_corpusRan = 0;

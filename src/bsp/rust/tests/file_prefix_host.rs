@@ -7,7 +7,9 @@
 //! reuses its [`LoadOps`] rather than declaring a second four-operation filesystem trait; it is a
 //! SIBLING module here, which is what makes `file_prefix.rs`'s `super::audio_loader` path resolve
 //! in this binary exactly as it does in the firmware.
-#![cfg(feature = "async_file_prefix")]
+// Gated on the loader this reuses, not on a prefix feature: the channel has none, but its driver
+// needs `audio_loader`'s `LoadOps`, which exists only under `async_audio_load` (a default).
+#![cfg(feature = "async_audio_load")]
 #![cfg(not(target_os = "none"))]
 
 use std::cell::{Cell, RefCell};
@@ -547,25 +549,21 @@ fn a_failure_after_the_open_still_closes_the_handle() {
 ///
 /// It reaches its loaders through `super::`, which is what makes it resolve both here (at this
 /// crate's root) and one module deeper in `crates/deluge_audio_loader_host`.
-#[cfg(feature = "async_file_prefix_active")]
 #[path = "../src/card.rs"]
 mod card;
 
-/// The third sibling `card.rs` names. Gated with `card` above, not on a feature of its own: a
-/// carrier that compiles the flush without every module it flushes does not compile at all.
+/// The third sibling `card.rs` names: a carrier that compiles the flush without every module it
+/// flushes does not compile at all.
 #[allow(dead_code)]
-#[cfg(feature = "async_file_prefix_active")]
 #[path = "../src/file_directory.rs"]
 mod file_directory;
 
-/// The fourth sibling `card.rs` names, gated with `card` for the same reason as `file_directory` above. It was added
-/// to `card.rs` without being added here, and this carrier stopped compiling.
+/// The fourth sibling `card.rs` names. It was added to `card.rs` without being added here, and this
+/// carrier stopped compiling.
 #[allow(dead_code)]
-#[cfg(feature = "async_file_prefix_active")]
 #[path = "../src/file_bytes.rs"]
 mod file_bytes;
 
-#[cfg(feature = "async_file_prefix_active")]
 mod live_pipeline {
     use super::file_prefix::{
         DELUGE_FILE_PREFIX_FAILED, DELUGE_FILE_PREFIX_PENDING, DELUGE_FILE_PREFIX_READY,
@@ -646,8 +644,7 @@ mod live_pipeline {
         ));
     }
 
-    /// The switch is what the C++ side asks before using this channel at all, and this build has it
-    /// on — otherwise every test below would be driving storage the firmware never reaches.
+    /// The C++ side still asks before using this channel, and the Rust BSP always answers yes.
     #[test]
     fn the_switch_reports_active_on_this_build() {
         assert!(deluge_file_prefix_async_active());

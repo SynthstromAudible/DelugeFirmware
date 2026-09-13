@@ -135,9 +135,9 @@ mod audio_host;
 /// card sample's load (open a candidate, size it, walk its header), publishing a result the
 /// C++ collector picks up on its own tier.
 ///
-/// Gated on `async_audio_load` rather than compiled unconditionally the way `../src/main.rs`
-/// compiles it, so the default build of this package — the golden stem-export/recorder gate —
-/// is unchanged by this module's existence. See `Cargo.toml`'s feature comment.
+/// Gated on `async_audio_load`, which is in this package's default features: the file-prefix
+/// channel below reuses its `LoadOps`/`ProdOps`, and that channel has no switch. See `Cargo.toml`'s
+/// feature comment.
 #[cfg(feature = "async_audio_load")]
 #[path = "../../../src/audio_loader.rs"]
 mod audio_loader;
@@ -192,8 +192,8 @@ mod file_directory;
 /// The single-slot file-prefix channel and its request/collect C ABI. Gated with `card` above
 /// rather than on a feature of its own, and that is structural, not a preference:
 /// `deluge_card_flush` names BOTH loaders it flushes, so a build that compiles `card.rs` without
-/// this module does not compile at all. Its own two features stay off here, so all that lands in
-/// the golden binary is the slot logic and the C ABI over an empty channel.
+/// this module does not compile at all. The channel has no switch: every default build of this
+/// package carries its statics and spawns `file_prefix_task`.
 #[cfg(feature = "async_audio_load")]
 #[path = "../../../src/file_prefix.rs"]
 mod file_prefix;
@@ -1752,10 +1752,9 @@ async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
 /// real `LoadSongUI`, printing each one's image fingerprint and decode outcome as a diffable
 /// `SP-CASE` line.
 ///
-/// This binary is ONE leg. Which leg it is depends on how it was built -- `async_file_prefix` alone
-/// (the file backing, which is what ships) or `async_file_prefix_active` (the Rust prefix channel,
-/// with `file_prefix_task` spawned in `main` below). `scripts/song_preview_ab.sh` builds both and
-/// diffs their `SP-CASE` lines.
+/// The previews go through the prefix channel, with `file_prefix_task` spawned in `main` below, and
+/// the scenario holds each one to the same file decoded the synchronous way on the storage owner.
+/// `scripts/song_preview_ab.sh` builds and runs it once.
 ///
 /// The step machine is not ceremony: a preview whose prefix has not arrived is answered on a later
 /// tick, and on this single-executor substrate the C++ worker fiber is what runs while the executor
@@ -1934,14 +1933,11 @@ fn main() {
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
     let offset_io_mode = scenario == "offset_io";
-    if song_preview_ab_mode && !cfg!(feature = "async_file_prefix") {
-        // Refusing beats running, for the reason the audio-load check below gives: without
-        // `async_file_prefix` this binary has no prefix channel compiled at all, so the "file
-        // backing leg" it would produce is built from a DIFFERENT configuration than the leg it gets
-        // diffed against.
+    if song_preview_ab_mode && !cfg!(feature = "async_audio_load") {
+        // Refusing beats running: without `async_audio_load` this binary has neither the prefix
+        // channel nor the loader driver it reuses, so every preview would wait on nothing.
         eprintln!(
-            "golden_vt_render: GOLDEN_SCENARIO=song_preview_ab needs --features async_file_prefix \
-             (file-backed leg) or --features async_file_prefix_active (prefix-channel leg)"
+            "golden_vt_render: GOLDEN_SCENARIO=song_preview_ab needs the default features (async_audio_load)"
         );
         std::process::exit(2);
     }
@@ -2032,10 +2028,10 @@ fn main() {
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
     #[cfg(feature = "async_audio_load_active")]
     spawner.spawn(audio_loader::audio_load_task().unwrap());
-    // The prefix reader, on the same executor. Owns the channel only once
-    // `deluge_file_prefix_async_active()` reports true (i.e. only under this feature); inert
-    // otherwise, since with the feature off the module has no statics for it to serve.
-    #[cfg(feature = "async_file_prefix_active")]
+    // The prefix reader, on the same executor, in every build that compiles the channel -- every
+    // default build. Without this spawn every preview and cartridge load waits on a request nothing
+    // serves.
+    #[cfg(feature = "async_audio_load")]
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
     // The directory opener, always: every listing off the storage owner opens through it, and without this spawn
     // each one waits on a request nothing serves.

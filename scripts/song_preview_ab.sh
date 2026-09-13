@@ -1,58 +1,48 @@
 #!/usr/bin/env bash
-# song_preview_ab.sh — the file-backed-vs-prefix-channel song-preview A/B gate.
+# song_preview_ab.sh — the song-preview gate: the prefix channel against the file read.
 #
-# Builds the Embassy host harness TWICE from one source — once with the Rust prefix channel compiled
-# but its switch off (`async_file_prefix`), once with the switch on and the reader task spawned
-# (`async_file_prefix_active`) — draws the same fixture card's song artwork through the REAL
-# `LoadSongUI` in both, and requires their per-song output to be byte-identical.
+# Builds the Embassy host harness once, draws the fixture card's song artwork through the REAL
+# `LoadSongUI` over the prefix channel, and holds every song to the same file decoded the synchronous
+# way on the storage owner, in the same process. The channel has no switch, so there is no second
+# build to compare against: the reference decode is what that build used to provide.
 #
-# Why two builds rather than two passes in one process: `deluge_file_prefix_async_active()` is
-# `cfg!(feature = "async_file_prefix_active")` on the Rust side, a COMPILE-TIME constant. There is no
-# runtime switch to flip mid-run, so an in-process A/B is not merely inconvenient, it does not exist.
-#
-# What the diff covers (src/deluge/harness/song_preview_ab_scenario.cpp writes the lines):
+# What the run checks (src/deluge/harness/song_preview_ab_scenario.cpp writes the lines):
 #   SP-CASE   one per song: the decode's `SongPreviewOutcome`, the `Error` it put on screen, and a
-#             CRC of the rendered pad image. Diffed. Any difference is the gate failing.
+#             CRC of the rendered pad image. Held to SP-REFERENCE and to its absolute expectation.
 #
-#             The OUTCOME is diffed, not just the image, and that is the point rather than a detail:
+#             The OUTCOME is compared, not just the image, and that is the point rather than a detail:
 #             an unreadable song, a song with no artwork and a preview that falls past the read
 #             window all draw an IDENTICAL blank screen. A gate comparing only pixels passed while
 #             one backing showed the user an error popup and the other silently showed nothing —
 #             which is the state the two backings were in when this gate was written.
 #   SP-EJECT  the card-swap property: a prefix is read and left uncollected, the card is ejected, a
-#             DIFFERENT song is put at the same path, and the preview is asked for again. Diffed like
-#             SP-CASE — the file backing is the oracle, since it holds no card-derived state to go
+#             DIFFERENT song is put at the same path, and the preview is asked for again. Held to a
+#             reference decode of the file now at that path, which holds no card-derived state to go
 #             stale. The scenario ALSO asserts the post-swap artwork absolutely, against the known
 #             second image: an inequality check ("not the first image") passes when both reads fail.
-#   SP-WINDOW the ONE case whose two legs must legitimately DIFFER: a song whose `preview` sits past
-#             `kSongPreviewWindow`. The file backing walks the whole document and renders it; the
-#             prefix backing runs out of bytes and reports Truncated, drawing blank WITHOUT claiming
-#             the song has no artwork. Not diffed — each leg asserts its own expected outcome
-#             absolutely, which is stronger here than a diff would be (a backing that reported
-#             Truncated for everything, or Rendered for everything, fails).
+#   SP-WINDOW the ONE song the browser must NOT draw as the file read does: its `preview` sits past
+#             `kSongPreviewWindow`. The reference walks the whole document and renders it; the prefix
+#             channel runs out of bytes and reports Truncated, drawing blank WITHOUT claiming the song has
+#             no artwork. Both halves are asserted absolutely.
 #   SP-REFERENCE
 #             one per song, beside its SP-CASE: the same file decoded the synchronous way on the storage owner.
-#             Each leg requires the browser's outcome, error and image CRC to equal it; for the read-window
+#             The run requires the browser's outcome, error and image CRC to equal it; for the read-window
 #             song the reference must render the late artwork instead. Not diffed.
 #   SP-DEFER / SP-SUMMARY / SP-SWAP-SUMMARY
-#             which backing ran and how many times each song's preview deferred. EXPECTED to differ,
-#             so not diffed — but each leg asserts its own consistency in-process, PER CASE: every
-#             song on the async leg must have deferred at least once, or its preview was answered
-#             without the async path being reached and it is not under test in that leg at all. A
-#             run-wide total would be satisfied by one deferral anywhere.
+#             how many times each song's preview deferred, and the channel's state. Read, not compared,
+#             except that SP-SUMMARY must report asyncActive=1.
 #   SP-LISTING / SP-PREDICT / SP-NEWNAME / SP-SLOT / SP-BYPATH / SP-TIER
 #             the browser's listings, typing prediction, brand-new slot name, one-sided slot read and by-path
 #             opens, each driven through the directory channel as steps of the scenario's tick machine and
 #             checked in-process against what its fixture implies, with exactly one channel request per open (a
-#             listing that restarted would ask again). Not diffed: both legs carry the same channel. SP-TIER
+#             listing that restarted would ask again). SP-TIER
 #             requires no synchronous browser directory operation off the storage owner.
 #   SP-LISTING-STALL
 #             a listing whose directory open is held far past the browser's 600-tick bound gives up with the
 #             card error: begun inside the open browser, it leaves the browser open on what it had; opening
 #             the browser, it closes it.
-#   SP-DX     one DX7 bank picked in the DX browser, read through the storage owner on the file leg and the prefix
-#             channel on the prefix leg, and parsed. Diffed: both legs must report the same file, patch count and
-#             first patch name. SP-DX-WAIT, the ticks the load took, legitimately differs and is not compared.
+#   SP-DX     one DX7 bank picked in the DX browser, read through the prefix channel and parsed. The run
+#             requires the fixture's file, 32 patches and first patch name. SP-DX-WAIT prints the ticks it took.
 #
 # Usage: scripts/song_preview_ab.sh
 #
@@ -70,41 +60,34 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$REPO/build-embassy-hostapp}"
 CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 
-# Two target dirs, never one. The two legs differ only by a cargo feature, so sharing a target dir
-# would make every run rebuild the whole crate to swap features back and forth — and would clobber
-# whichever leg was built last, so a stale binary could silently be diffed against itself.
+# Its own target dir, so this gate's build never replaces another gate's binary.
 TARGET_BASE="${CARGO_TARGET_DIR:-$CRATE_DIR/target}"
-SYNC_TARGET="$TARGET_BASE/song-preview-ab-file"
-ASYNC_TARGET="$TARGET_BASE/song-preview-ab-prefix"
+TARGET="$TARGET_BASE/song-preview-ab"
 
 if [ "${NO_BUILD:-0}" != 1 ]; then
 	[ -d "$BUILD_DIR" ] || {
 		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
 		exit 2
 	}
-	# Cargo does not track the C++ sources the harness links against (the A/B scenario itself is one
-	# of them), so force the object closure first — same reason audio_load_ab.sh does.
+	# Cargo does not track the C++ sources the harness links against (the scenario itself is one of
+	# them), so force the object closure first — same reason audio_load_ab.sh does.
 	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
 		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release --features async_file_prefix --target-dir "$SYNC_TARGET")
-	(cd "$CRATE_DIR" && cargo build --release --features async_file_prefix_active --target-dir "$ASYNC_TARGET")
+	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET")
 fi
 
-SYNC_BIN="$SYNC_TARGET/release/golden_vt_render"
-ASYNC_BIN="$ASYNC_TARGET/release/golden_vt_render"
-for b in "$SYNC_BIN" "$ASYNC_BIN"; do
-	[ -x "$b" ] || {
-		echo "ERROR: '$b' not built (see NO_BUILD)"
-		exit 2
-	}
-done
+BIN="$TARGET/release/golden_vt_render"
+[ -x "$BIN" ] || {
+	echo "ERROR: '$BIN' not built (see NO_BUILD)"
+	exit 2
+}
 
 OUT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/song_preview_ab.XXXXXX")"
 IMG_GLOB="${TMPDIR:-/tmp}/deluge-streaming-scenario-*.img"
 
-# Every run packs TWO 2.5 GB sparse FAT images, one per leg, and nothing else removes them:
+# Every run packs a 2.5 GB sparse FAT image, and nothing else removes it:
 # `sd_image_path::fingerprint_dir` hashes path/length/mtime rather than content and the fixture is
-# rewritten on each process start, so the legs never share a cached image. Left alone they accumulate
+# rewritten on each process start, so no run reuses a cached image. Left alone they accumulate
 # under exactly the prefix this project's golden invocations all begin by clearing — and a full /tmp
 # is a known way to make an unrelated stem export hang forever.
 #
@@ -161,88 +144,38 @@ run_leg() {
 	done
 }
 
-echo "song-preview A/B: running the file-backed leg (async_file_prefix, switch off)"
-run_leg "$SYNC_BIN" file
-echo "song-preview A/B: running the prefix-channel leg (async_file_prefix_active, reader task spawned)"
-run_leg "$ASYNC_BIN" prefix
+echo "song-preview: running the harness (the prefix channel, held to an in-process file read)"
+run_leg "$BIN" prefix
 
-# The acquisition must reach the same instrument on every leg. Compared against the file leg,
-# which never touches the channel, so a difference can only come from the conversion.
-for tag in prefix; do
-	ref=$(grep '^SP-ACQUIRE converted ' "$OUT_ROOT/file.txt" | head -1)
-	got=$(grep '^SP-ACQUIRE converted ' "$OUT_ROOT/$tag.txt" | head -1)
-	# Compare the name field only; the dispatch count legitimately differs between legs.
-	if [ "${ref%% dispatches=*}" != "${got%% dispatches=*}" ]; then
-		echo "FAIL — the $tag leg acquired a different instrument:"
-		echo "  file: $ref"
-		echo "  $tag: $got"
-		exit 1
-	fi
-done
-
-# Each leg must be the leg it claims to be. The file leg with asyncActive=1 (or the reverse) means
-# the two binaries were built the same way and the comparison is a build against itself.
-grep -q '^SP-SUMMARY asyncActive=0 ' "$OUT_ROOT/file.txt" || {
-	echo "FAIL — the 'file-backed' leg reports the prefix channel ACTIVE; both legs were built the same way"
-	grep '^SP-SUMMARY ' "$OUT_ROOT/file.txt"
-	exit 1
-}
+# The run must have gone through the channel. A binary without it would take the inline file read for
+# every preview, which matches its own reference trivially.
 grep -q '^SP-SUMMARY asyncActive=1 ' "$OUT_ROOT/prefix.txt" || {
-	echo "FAIL — the 'prefix-channel' leg reports the channel INACTIVE; both legs were built the same way"
+	echo "FAIL — the run reports the prefix channel INACTIVE, so no preview went through it"
 	grep '^SP-SUMMARY ' "$OUT_ROOT/prefix.txt"
 	exit 1
 }
 
-grep '^SP-CASE ' "$OUT_ROOT/file.txt" >"$OUT_ROOT/file.cases"
 grep '^SP-CASE ' "$OUT_ROOT/prefix.txt" >"$OUT_ROOT/prefix.cases"
-if ! diff -u "$OUT_ROOT/file.cases" "$OUT_ROOT/prefix.cases"; then
-	echo "FAIL — the two backings did not draw the same artwork, or did not report the same outcome, for the same song (diff above: -file +prefix)"
-	exit 1
-fi
 
 # A floor on the case count, so a future edit that shrinks the fixture cannot keep printing PASS over
 # a comparison that no longer covers the shapes this gate was built for. Counts the SYNTHETIC cases
 # only: the corpus is the maintainer's and may legitimately be absent. Bump it deliberately when
 # cases are added; never lower it to make a run go green.
 MIN_CASES=6
-CASES="$(wc -l <"$OUT_ROOT/file.cases")"
-SYNTHETIC="$(grep -cE '^SP-CASE (render|json|noprev|missing|corrupt|empty) ' "$OUT_ROOT/file.cases")"
+CASES="$(wc -l <"$OUT_ROOT/prefix.cases")"
+SYNTHETIC="$(grep -cE '^SP-CASE (render|json|noprev|missing|corrupt|empty) ' "$OUT_ROOT/prefix.cases")"
 if [ "$SYNTHETIC" -lt "$MIN_CASES" ]; then
 	echo "FAIL — only $SYNTHETIC synthetic case(s) ran, fewer than the $MIN_CASES this gate requires; kCases was shrunk"
 	exit 1
 fi
 
-# The card-swap stage's diffed line, kept out of the case files above so MIN_CASES keeps counting
-# only the case list.
-grep '^SP-EJECT ' "$OUT_ROOT/file.txt" >"$OUT_ROOT/file.eject"
-grep '^SP-EJECT ' "$OUT_ROOT/prefix.txt" >"$OUT_ROOT/prefix.eject"
-if ! diff -u "$OUT_ROOT/file.eject" "$OUT_ROOT/prefix.eject"; then
-	echo "FAIL — after a card swap the two backings did not draw the same artwork (diff above: -file +prefix)"
+# Every song drawn has its reference beside it: each SP-CASE, the read-window song and the swapped song.
+REFERENCES="$(grep -c '^SP-REFERENCE ' "$OUT_ROOT/prefix.txt")"
+if [ "$REFERENCES" -ne $((CASES + 2)) ]; then
+	echo "FAIL — $REFERENCES reference decode(s) for $CASES case(s), the read-window song and the swap; wanted $((CASES + 2))"
 	exit 1
 fi
 
-# The DX cartridge stage: the same bank through the owner and through the channel must parse the same.
-grep '^SP-DX ' "$OUT_ROOT/file.txt" >"$OUT_ROOT/file.dx"
-grep '^SP-DX ' "$OUT_ROOT/prefix.txt" >"$OUT_ROOT/prefix.dx"
-if ! diff -u "$OUT_ROOT/file.dx" "$OUT_ROOT/prefix.dx"; then
-	echo "FAIL — the two backings did not parse the same DX7 bank the same way (diff above: -file +prefix)"
-	exit 1
-fi
-
-# The read-window case is the one line that must NOT match, and its legs are asserted individually
-# in-process. Requiring the difference here as well is what stops the fixture quietly losing the
-# case: if both legs ever agree, the long-attribute song is no longer past the window and the
-# Truncated arm is untested.
-if diff -q <(grep '^SP-WINDOW ' "$OUT_ROOT/file.txt" | sed 's/asyncActive=[01] //') \
-	<(grep '^SP-WINDOW ' "$OUT_ROOT/prefix.txt" | sed 's/asyncActive=[01] //') >/dev/null; then
-	echo "FAIL — the read-window song produced the SAME result on both backings, so its preview no longer falls past the window and the Truncated outcome is not under test"
-	grep -h '^SP-WINDOW ' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"
-	exit 1
-fi
-
-echo "PASS — both backings drew all $CASES song(s) identically, agreed on every outcome, agreed across a card swap, and parsed the same DX7 bank"
-grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY ' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"
-# The listing lines from both legs. Both carry the directory channel, so neither is a synchronous control: each leg
-# asserts its own listing results in-process, and these lines are here to be read.
-grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-DX|^SP-TIER' "$OUT_ROOT/file.txt" | sed 's/^/ file    /'
-grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-DX|^SP-TIER' "$OUT_ROOT/prefix.txt" | sed 's/^/ prefix  /'
+echo "PASS — the prefix channel drew all $CASES song(s) as the file read does, agreed on every outcome, held across a card swap, and parsed the DX7 bank"
+grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY ' "$OUT_ROOT/prefix.txt"
+grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-DX|^SP-TIER' "$OUT_ROOT/prefix.txt" | sed 's/^/ run     /'

@@ -176,6 +176,15 @@ uint8_t deluge_file_prefix_collect(const char* file_path, uint8_t* out_buf, uint
 ///         and @ref deluge_file_prefix_collect always reports UNKNOWN.
 bool deluge_file_prefix_async_active(void) DELUGE_NOEXCEPT;
 
+#ifdef DELUGE_HOST
+/// @brief Host harness only: make every prefix read wait @p ms milliseconds after it is marked in flight.
+///
+/// Lets a gate hold a read in flight while a consumer keeps collecting PENDING. 0 (the default) means no wait.
+/// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
+/// @param ms Milliseconds of simulated delay per read.
+void deluge_file_prefix_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+#endif
+
 #ifdef __cplusplus
 }
 #endif

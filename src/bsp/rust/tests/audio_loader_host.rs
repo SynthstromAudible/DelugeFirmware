@@ -45,8 +45,7 @@ mod card;
 
 /// The other loader `card.rs` flushes, recompiled here for the same reason: `deluge_card_flush`
 /// names BOTH of its siblings, so a carrier that provides only one does not compile. Its own slot
-/// logic is tested in `tests/file_prefix_host.rs`; here it exists to be linked, and its
-/// `flush_tables` is a no-op unless `async_file_prefix_active` is on.
+/// logic is tested in `tests/file_prefix_host.rs`; here it exists to be linked.
 #[allow(dead_code)]
 #[path = "../src/file_prefix.rs"]
 mod file_prefix;

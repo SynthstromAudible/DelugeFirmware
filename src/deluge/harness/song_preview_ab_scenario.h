@@ -17,14 +17,13 @@
 
 #pragma once
 
-/// @brief Host-only C ABI for the song-preview A/B: draw every fixture song's artwork through the
-///        REAL `LoadSongUI`, under one of the two preview backings, and print each song's rendered
-///        image and decode outcome as a stable, diffable line.
+/// @brief Host-only C ABI for the song-preview gate: draw every fixture song's artwork through the
+///        REAL `LoadSongUI` over the prefix channel, and hold each song's rendered image and decode
+///        outcome to the same file decoded the synchronous way on the storage owner.
 ///
-/// Which backing serves the preview is not a runtime choice: `deluge_file_prefix_async_active()` is
-/// `cfg!(feature = "async_file_prefix_active")` on the Rust side, a compile-time constant. So the
-/// A/B is across two BUILDS of the host harness, not two passes inside one process, and the
-/// comparison is a diff of the two runs' `SP-CASE` lines. `scripts/song_preview_ab.sh` runs it.
+/// The channel has no switch, so there is one build and one run: the reference a file-backed second
+/// build used to provide is decoded in-process instead (`SP-REFERENCE`, beside each `SP-CASE`).
+/// `scripts/song_preview_ab.sh` runs it.
 ///
 /// ## What is compared, and why pixels alone are not enough
 ///
@@ -75,8 +74,7 @@ void deluge_scenario_song_preview_ab_dispatch_step(void);
 /// @brief True once the work queued by the last dispatch_step() has returned.
 bool deluge_scenario_song_preview_ab_step_done(void);
 
-/// @brief Number of in-process assertion failures. 0 = this run is internally consistent; the
-///        cross-build diff is a separate, and the primary, check.
+/// @brief Number of in-process assertion failures, the reference comparisons among them. 0 = the run passed.
 int32_t deluge_scenario_song_preview_ab_failures(void);
 
 } // extern "C"

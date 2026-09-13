@@ -95,3 +95,9 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_prefix_collect(const char* 
 	// touched, which is exactly what the header promises for any status but READY.
 	return DELUGE_FILE_PREFIX_UNKNOWN;
 }
+
+#ifdef DELUGE_HOST
+extern "C" __attribute__((weak)) void deluge_file_prefix_set_latency_ms(uint32_t /*ms*/) noexcept {
+	// A host build without the Rust prefix channel has no reads to delay.
+}
+#endif

@@ -7,10 +7,9 @@
 //! resolves against the including file's real location, so the extra nesting needs no help from
 //! here.
 //!
-//! Its own package cannot run it on a CI checkout — `src/bsp/rust`'s `[patch]` redirects
-//! `deluge-bsp`/`rza1l-hal` to a sibling `deluge-sdk` tree that is not there — and it needs
-//! `--features async_file_prefix`, which no job passes. Without this shim the suite would be
-//! unreachable by CI on both counts.
+//! Its own package cannot run it on a CI checkout: `src/bsp/rust`'s `[patch]` redirects
+//! `deluge-bsp`/`rza1l-hal` to a sibling `deluge-sdk` tree that is not there. Without this shim the
+//! suite would be unreachable by CI.
 //!
 //! # Do not remove the `#[rustfmt::skip]` below
 //!

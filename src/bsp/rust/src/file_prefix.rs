@@ -45,33 +45,29 @@
 //! `std::thread` under `host_app`, so any "these two cannot run at once" claim is false on some
 //! configuration that builds this file.
 //!
-//! ## Two compilation tiers
+//! ## What compiles where
 //!
-//! Same shape as `audio_loader.rs`:
+//! The channel has no feature switch.
 //!
-//! - Always compiled wherever this module is: the slot logic ([`PrefixSlot`], [`publish_into`],
-//!   [`take_from`]) and the C ABI ([`deluge_file_prefix_request`], [`deluge_file_prefix_collect`],
-//!   [`deluge_file_prefix_async_active`]), which override `file_prefix_abi.cpp`'s
-//!   `__attribute__((weak))` fallbacks. Every other BSP never links this crate, resolves those
-//!   fallbacks, and always takes the synchronous path.
-//! - Behind `async_file_prefix`: the driver ([`prefix_io_once`]).
-//! - Behind `async_file_prefix_active`: the statics and the task. The slots hold metadata only and
-//!   live in on-chip SRAM. The two [`PREFIX_CAPACITY`] byte buffers -- the published prefix
-//!   ([`RESULT_BYTES`]) and the read in progress ([`WORK_BYTES`]) -- are in `.sdram_bss` on the
-//!   device: on-chip SRAM shares a budget with the C++ allocator's `FAST_INTERNAL` heap and grows in
-//!   64 KiB steps of it, so 8 KiB buffers do not belong there.
-
-// The `#[cfg]`s below name features this module's OTHER carriers do not all declare; each of them
-// lists these in its own `[features]` or check-cfg so nothing here needs an exception.
+//! - Everywhere this module is: the slot logic ([`PrefixSlot`], [`publish_into`], [`take_from`]),
+//!   the driver ([`prefix_io_once`]), the statics, and the C ABI ([`deluge_file_prefix_request`],
+//!   [`deluge_file_prefix_collect`], [`deluge_file_prefix_async_active`]), which overrides
+//!   `file_prefix_abi.cpp`'s `__attribute__((weak))` fallbacks. Every other BSP never links this
+//!   crate, resolves those fallbacks, and reads files itself.
+//! - Where the storage executor runs (the device under `efatfs_streaming`, the host under
+//!   `host_app`): the task and its work buffer.
+//!
+//! The slots hold metadata only and live in on-chip SRAM. The two [`PREFIX_CAPACITY`] byte buffers
+//! -- the published prefix ([`RESULT_BYTES`]) and the read in progress ([`WORK_BYTES`]) -- are in
+//! `.sdram_bss` on the device: on-chip SRAM shares a budget with the C++ allocator's
+//! `FAST_INTERNAL` heap and grows in 64 KiB steps of it, so 8 KiB buffers do not belong there.
 
 use core::ffi::{CStr, c_char};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-#[cfg(feature = "async_file_prefix_active")]
 use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_sync::signal::Signal;
 
-#[cfg(feature = "async_file_prefix")]
 use super::audio_loader::{LoadOps, OpenVerdict};
 
 /// How many bytes one prefix request may ask for. Sized from the channel's LARGEST consumer, which
@@ -326,7 +322,6 @@ pub fn take_from(
 }
 
 /// One request waiting to be read.
-#[cfg(feature = "async_file_prefix_active")]
 struct PrefixRequest {
     path: PrefixPath,
     /// Already clamped to [`PREFIX_CAPACITY`] by [`deluge_file_prefix_request`].
@@ -349,18 +344,15 @@ pub static PREFIX_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 /// single-flight shape stated as storage: a browser cursor that has moved on does not want the path
 /// it left behind, and the caller of a dropped request reads `UNKNOWN` — "request it (again)" — on
 /// its next tick, which it will only do if it still wants it.
-#[cfg(feature = "async_file_prefix_active")]
 static REQUEST: Mutex<CriticalSectionRawMutex, Option<PrefixRequest>> = Mutex::new(None);
 
 /// The path being read right now, if any. Exists so [`deluge_file_prefix_collect`] can answer
 /// `PENDING` rather than `UNKNOWN` in the window between a request leaving [`REQUEST`] and its
 /// bytes reaching [`RESULT`] — an `UNKNOWN` there would tell the caller to re-request work that is
 /// already running, and it would do so on every tick.
-#[cfg(feature = "async_file_prefix_active")]
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<PrefixPath>> = Mutex::new(None);
 
 /// The finished prefix waiting to be collected. See [`PrefixSlot`].
-#[cfg(feature = "async_file_prefix_active")]
 static RESULT: Mutex<CriticalSectionRawMutex, PrefixSlot> = Mutex::new(PrefixSlot::new());
 
 /// The published prefix's bytes, paired with the entry in [`RESULT`]. Reached only through
@@ -369,7 +361,6 @@ static RESULT: Mutex<CriticalSectionRawMutex, PrefixSlot> = Mutex::new(PrefixSlo
 /// In `.sdram_bss` on the device, like the byte channel's buffers: NOLOAD, and zeroed by
 /// `boot_mem::init_sdram_memory()` before any task runs. A byte array is valid when zeroed; the
 /// `Mutex` slots above are not, which is why they stay on-chip and only the bytes move.
-#[cfg(feature = "async_file_prefix_active")]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut RESULT_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 
@@ -378,7 +369,6 @@ static mut RESULT_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 /// Taking the `RESULT` guard by `&mut` is the point: the borrow checker then proves the lock is held
 /// for every use of the bytes, and the slot and the store come back as two disjoint borrows, so a
 /// publish or a take writes both halves in one lock hold.
-#[cfg(feature = "async_file_prefix_active")]
 fn result_parts<'g>(
     guard: &'g mut MutexGuard<'_, CriticalSectionRawMutex, PrefixSlot>,
 ) -> (&'g mut PrefixSlot, &'g mut [u8; PREFIX_CAPACITY]) {
@@ -391,33 +381,24 @@ fn result_parts<'g>(
 
 /// The read in progress, before it is published. [`file_prefix_task`]'s alone -- see
 /// [`claim_work_bytes`]. Placed as [`RESULT_BYTES`] is.
-#[cfg(all(
-    feature = "async_file_prefix_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut WORK_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 
 /// Grants [`WORK_BYTES`] once.
-#[cfg(all(
-    feature = "async_file_prefix_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 static WORK_CLAIM: super::file_bytes::ClaimOnce = super::file_bytes::ClaimOnce::new();
 
 /// The work buffer, to the first caller only. [`file_prefix_task`] claims it once, at start.
-#[cfg(all(
-    feature = "async_file_prefix_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 fn claim_work_bytes() -> Option<&'static mut [u8; PREFIX_CAPACITY]> {
     if !WORK_CLAIM.claim() {
@@ -438,7 +419,6 @@ fn claim_work_bytes() -> Option<&'static mut [u8; PREFIX_CAPACITY]> {
 /// stale-but-live; a surviving in-flight mark reports `PENDING` for one more collect and is cleared
 /// by the read that set it; a surviving request has done no I/O yet, so whenever it runs it reads
 /// whatever card is in the slot then and is stamped accordingly.
-#[cfg(feature = "async_file_prefix_active")]
 pub(crate) fn flush_tables() {
     if let Ok(mut request) = REQUEST.try_lock() {
         *request = None;
@@ -451,19 +431,27 @@ pub(crate) fn flush_tables() {
     }
 }
 
-/// No prefix channel on this build: the statics do not exist and nothing was ever published, so
-/// there is nothing to discard. The generation bump still happens in the caller — it is not this
-/// channel's, and another loader on this build may well need it.
-#[cfg(not(feature = "async_file_prefix_active"))]
-pub(crate) fn flush_tables() {}
-
-/// Whether the Rust prefix channel backs `file_prefix.h` on this BSP/config — the switch the C++
-/// side asks before choosing the async path over reading the file itself. The symbol must always
-/// exist so that call site links regardless of which config produced this image; only the return
-/// value moves.
+/// Whether the Rust prefix channel backs `file_prefix.h` -- always, on this BSP. The symbol stays
+/// because a C++-only build links `file_prefix_abi.cpp`'s weak definition instead, which answers
+/// `false`.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_prefix_async_active() -> bool {
-    cfg!(feature = "async_file_prefix_active")
+    true
+}
+
+/// Milliseconds `file_prefix_task` waits after marking each read in flight. Host harness only; see
+/// [`deluge_file_prefix_set_latency_ms`].
+#[cfg(feature = "host_app")]
+static LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make every prefix read wait `ms` milliseconds after it is marked in flight, so
+/// a gate can hold a read while a consumer keeps collecting `PENDING`. 0, the default, means no wait.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_prefix_set_latency_ms(ms: u32) {
+    LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
 }
 
 /// Request the first `max_bytes` of `file_path` and wake the reader. See `file_prefix.h`.
@@ -492,7 +480,6 @@ pub unsafe extern "C" fn deluge_file_prefix_request(file_path: *const c_char, ma
 ///
 /// `try_lock` rather than a block: this is called synchronously from C++ in whatever context the
 /// app happens to be in, and must never wait.
-#[cfg(feature = "async_file_prefix_active")]
 fn enqueue_request(path: PrefixPath, max_bytes: u32) {
     let Ok(mut request) = REQUEST.try_lock() else {
         return; // Contended; the caller re-requests on its next tick.
@@ -501,12 +488,6 @@ fn enqueue_request(path: PrefixPath, max_bytes: u32) {
     drop(request);
     PREFIX_WAKE.signal(());
 }
-
-/// No reader on this build: drop it, exactly as `file_prefix_abi.cpp`'s weak fallback does. Nothing
-/// reaches here in practice — the C++ side gates on [`deluge_file_prefix_async_active`], which is
-/// false in this configuration.
-#[cfg(not(feature = "async_file_prefix_active"))]
-fn enqueue_request(_path: PrefixPath, _max_bytes: u32) {}
 
 /// Collect the prefix read for `file_path`, if one is ready. See `file_prefix.h`.
 ///
@@ -595,7 +576,6 @@ enum Probe {
 
 /// One forward pass: REQUEST, then IN_FLIGHT, then RESULT. See [`deluge_file_prefix_collect`]'s doc
 /// for why the order and the contention mapping are both load-bearing.
-#[cfg(feature = "async_file_prefix_active")]
 fn probe(path: &str, out: &mut [u8]) -> Probe {
     if is_requested(path) || is_in_flight(path) {
         return Probe::Pending;
@@ -617,21 +597,12 @@ fn probe(path: &str, out: &mut [u8]) -> Probe {
     }
 }
 
-/// No reader on this build: nothing was ever requested, so nothing is coming. `Unknown`, never
-/// `Pending` -- `Pending` would tell a caller to keep asking forever. Matches
-/// `file_prefix_abi.cpp`'s weak fallback.
-#[cfg(not(feature = "async_file_prefix_active"))]
-fn probe(_path: &str, _out: &mut [u8]) -> Probe {
-    Probe::Unknown
-}
-
 /// Whether `path` is the request not yet picked up.
 ///
 /// **Contention reports `true`, and that is load-bearing, not defensive.** The reader marks a
 /// request in flight while still holding this lock, so a collect racing that handoff finds the lock
 /// taken — mapping it to `false` here would report `UNKNOWN` for a request mid-handoff, which is
 /// exactly the bug the probe order exists to prevent. Do not "simplify" this branch.
-#[cfg(feature = "async_file_prefix_active")]
 fn is_requested(path: &str) -> bool {
     match REQUEST.try_lock() {
         Ok(request) => request.as_ref().is_some_and(|r| r.path == path),
@@ -641,7 +612,6 @@ fn is_requested(path: &str) -> bool {
 
 /// Whether `path` is the read running right now. Contention reports `true`, for the same reason as
 /// [`is_requested`] — and with the same warning.
-#[cfg(feature = "async_file_prefix_active")]
 fn is_in_flight(path: &str) -> bool {
     match IN_FLIGHT.try_lock() {
         Ok(in_flight) => in_flight.as_deref() == Some(path),
@@ -683,7 +653,6 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<PrefixPath> {
 /// tell an unreadable song from one with no artwork. It drew blank for both while the synchronous
 /// backing it stands in for put an error on screen for the first. Collapsing them again undoes
 /// that, and does it silently — the two answers are the same length and draw the same pads.
-#[cfg(feature = "async_file_prefix")]
 pub async fn prefix_io_once<O: LoadOps>(
     ops: &O,
     path: &str,
@@ -730,7 +699,6 @@ pub async fn prefix_io_once<O: LoadOps>(
 }
 
 /// Fill `out` from the front of the file behind `handle`. Never closes it — see [`prefix_io_once`].
-#[cfg(feature = "async_file_prefix")]
 async fn read_prefix<O: LoadOps>(
     ops: &O,
     handle: u32,
@@ -775,12 +743,9 @@ async fn read_prefix<O: LoadOps>(
 /// this channel was built for shows the user an error for one and blank artwork for the other. It
 /// could not, and the popups the synchronous backing shows would have gone missing the moment the
 /// channel was switched on.
-#[cfg(all(
-    feature = "async_file_prefix_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 #[embassy_executor::task]
 pub async fn file_prefix_task() {
@@ -797,6 +762,15 @@ pub async fn file_prefix_task() {
     };
     loop {
         while let Some((request, generation)) = take_next_request().await {
+            // After the request is marked in flight, so a collect during the hold answers PENDING,
+            // exactly as it would while a slow card was reading the file.
+            #[cfg(feature = "host_app")]
+            {
+                let ms = LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
+                if ms > 0 {
+                    embassy_time::Timer::after_millis(u64::from(ms)).await;
+                }
+            }
             // `None` is a failed read, and it is published AS a failure -- see this task's doc.
             let read = prefix_io_once(&ops, &request.path, request.max_bytes, &mut work[..]).await;
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly in both tables,
@@ -823,12 +797,9 @@ pub async fn file_prefix_task() {
 /// before any I/O, because that is what makes it mean "the card this read is reading". Reading it
 /// later — at publish time — reads the value a flush has already installed and defeats the check
 /// entirely.
-#[cfg(all(
-    feature = "async_file_prefix_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 async fn take_next_request() -> Option<(PrefixRequest, u32)> {
     let mut request = REQUEST.lock().await;
@@ -843,7 +814,6 @@ async fn take_next_request() -> Option<(PrefixRequest, u32)> {
 ///
 /// Also the seam the host tests drive to exercise [`deluge_file_prefix_collect`]'s IN_FLIGHT
 /// branch, which no test could reach otherwise because no test runs the task.
-#[cfg(feature = "async_file_prefix_active")]
 pub async fn mark_in_flight(path: Option<PrefixPath>) {
     *IN_FLIGHT.lock().await = path;
 }
@@ -862,7 +832,6 @@ pub async fn mark_in_flight(path: Option<PrefixPath>) {
 ///
 /// The check happens with the lock already held, not before acquiring it, so that it is at least
 /// ordered against a flush that DID take the lock.
-#[cfg(feature = "async_file_prefix_active")]
 pub async fn publish_result(key: &str, bytes: Option<&[u8]>, generation: u32) {
     let mut result = RESULT.lock().await;
     if generation != deluge_card_generation::current() {

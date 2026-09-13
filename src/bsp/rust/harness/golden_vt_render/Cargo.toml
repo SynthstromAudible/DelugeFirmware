@@ -157,6 +157,7 @@ default = [
     "host_app",
     "async_streaming_loader",
     "efatfs_streaming",
+    "async_audio_load",
 ]
 host_app = []
 sim_latency = []
@@ -183,35 +184,22 @@ rtt = []
 async_streaming_loader = []
 # Mirrors `../Cargo.toml`'s two audio-load features exactly (same spellings, so
 # `audio_loader.rs`'s own `#[cfg(feature = ...)]` conditionals need zero edits when
-# `#[path]`-included here). NEITHER is in this package's `default` set, and that is
-# deliberate in a way the streaming pair above is not: with `async_audio_load` off,
-# `mod audio_loader` is not compiled at all, so the golden stem-export/recorder builds this
-# package exists for are byte-for-byte the same binary they were before the A/B scenario
-# landed. The `GOLDEN_SCENARIO=audio_load_ab` gate turns them on explicitly.
+# `#[path]`-included here).
 #
-# `async_audio_load` alone = the driver compiled, the switch OFF: the SYNCHRONOUS leg of the
-# A/B, and the shape the firmware actually ships. `async_audio_load_active` = the switch on,
-# the Rust `audio_load_task` spawned: the ASYNC leg. They cannot both be true in one process
-# -- `deluge_audio_load_async_active()` is `cfg!(feature = ...)`, a compile-time constant --
-# which is exactly why the A/B is a diff of two builds.
+# `async_audio_load` is in `default`. The file-prefix channel has no switch, so every build of this
+# package carries it, as every firmware image does -- and its driver reuses the loader's `LoadOps` and
+# `ProdOps`, so every build compiles the loader's driver too. That also compiles `card.rs`, so an
+# ejection here clears every channel's tables and bumps the card generation, exactly as on the device,
+# rather than resolving `card_abi.cpp`'s do-nothing fallback.
+#
+# `async_audio_load_active` stays out of `default`. `async_audio_load` alone = the driver compiled,
+# the switch OFF: the SYNCHRONOUS leg of the audio-load A/B, and the shape the firmware actually
+# ships. `async_audio_load_active` = the switch on, the Rust `audio_load_task` spawned: the ASYNC leg.
+# They cannot both be true in one process -- `deluge_audio_load_async_active()` is
+# `cfg!(feature = ...)`, a compile-time constant -- which is exactly why that A/B is a diff of two
+# builds.
 async_audio_load = []
 async_audio_load_active = ["async_audio_load"]
-# Mirrors `../Cargo.toml`'s two file-prefix features exactly (same spellings, so
-# `file_prefix.rs`'s own `#[cfg(feature = ...)]` conditionals need zero edits when
-# `#[path]`-included here). Neither is in `default`, and that is deliberate in the same way the
-# audio-load pair above is: the golden stem-export/recorder builds are byte-for-byte what they were
-# before the prefix channel existed, and with both off `file_prefix.rs` is compiled only because
-# `card.rs`'s flush names it -- so what lands there is the slot logic and the C ABI over a channel
-# with no statics and no task.
-#
-# `scripts/song_preview_ab.sh` turns them on explicitly, one per leg, and `main.rs` spawns
-# `file_prefix_task` under `async_file_prefix_active`: `async_file_prefix` alone = the channel
-# compiled with the switch OFF, which is the SYNCHRONOUS leg of the song-preview A/B and the shape
-# the firmware actually ships; `async_file_prefix_active` = the switch on, the reader task spawned.
-# They cannot both be true in one process (`deluge_file_prefix_async_active()` is
-# `cfg!(feature = ...)`, a compile-time constant), which is why that A/B is a diff of two builds too.
-async_file_prefix = ["async_audio_load"]
-async_file_prefix_active = ["async_file_prefix"]
 
 [build-dependencies]
 bindgen = "0.70"

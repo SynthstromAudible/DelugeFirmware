@@ -302,31 +302,6 @@ async_audio_load = ["dep:deluge_audio_format"]
 ## queue every load and load none of them.
 async_audio_load_active = ["async_audio_load"]
 
-## BUILD the Rust file-prefix driver (`file_prefix.rs`) -- the read behind
-## `include/libdeluge/file_prefix.h`, which hands the first N bytes of a file
-## back to a caller that must not block on the card. Off by default, unlike
-## `async_audio_load` above: `LoadSongUI` is the one caller, and it only enters
-## this channel when `async_file_prefix_active` below is on -- with the feature
-## off it takes its synchronous owner arm instead -- so compiling the driver
-## everywhere would only widen the default build for a path nothing reaches.
-##
-## Implies `async_audio_load` because the driver REUSES that module's `LoadOps`
-## trait and `ProdOps` wiring rather than declaring a second four-operation
-## filesystem trait and a second efatfs binding. The reuse is the point: one
-## trait means one place where "everything on this executor awaits, and nothing
-## calls into C++" has to hold.
-async_file_prefix = ["async_audio_load"]
-
-## THE SWITCH: the sole input to `deluge_file_prefix_async_active()`, and the
-## only thing that makes the slot/queue statics and the task exist at all. Off by
-## default, and separate from `async_file_prefix` above for the same reason the
-## audio loader's pair is separated -- compiling the driver is a build-hygiene
-## question, routing real reads through it is a behavioural flip.
-##
-## Implies `async_file_prefix`, so the switch cannot be turned on in a build
-## where the task that drains the request was never compiled.
-async_file_prefix_active = ["async_file_prefix"]
-
 [build-dependencies]
 # Generate Rust signatures + POD types from the canonical libdeluge C headers so
 # the boundary can't drift (type mismatch = compile error).
