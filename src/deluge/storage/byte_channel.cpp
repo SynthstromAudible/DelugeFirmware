@@ -440,22 +440,6 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDon
 	return true;
 }
 
-void runOnStorageOwner(OwnerFn fn, void* ctx) {
-	// `!started()` is the boot case, and running INLINE there is not an optimisation -- it is the only
-	// thing that works. `Owner::run` QUEUES when the worker has not started, and nothing pumps that
-	// queue yet, so dispatching here would silently drop `deluge.cpp`'s three boot reads and the
-	// device would come up with defaults for every setting. `midi_device_manager.cpp` already carried
-	// a comment saying exactly this about its own read; this is that rule, moved to the one place
-	// every consumer now goes through.
-	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
-		fn(ctx);
-		return;
-	}
-	// A full owner queue drops the operation. Running it here instead would be a card write on the
-	// interaction tier, and the listing retry this serves reports a folder it still cannot open.
-	(void)deluge::storage::Owner::run_or_inline(fn, ctx);
-}
-
 void serviceRoutine() {
 	DelugeStatus status = DELUGE_OK;
 	uint32_t len = 0;

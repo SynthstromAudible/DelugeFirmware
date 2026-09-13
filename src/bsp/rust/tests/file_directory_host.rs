@@ -7,7 +7,6 @@
 //! `tests/file_prefix_host.rs` and `tests/audio_loader_host.rs` use. Unlike the prefix channel this
 //! module borrows nothing from `audio_loader`: its one I/O operation is a directory open, which is
 //! not in `LoadOps`, so it declares its own two-operation trait and comes along alone.
-#![cfg(feature = "async_file_directory")]
 #![cfg(not(target_os = "none"))]
 
 #[path = "../src/file_directory.rs"]

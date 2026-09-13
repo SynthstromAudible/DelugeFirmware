@@ -56,7 +56,14 @@ public:
 		}
 		return !Browser::isListingInProgress();
 	}
-	static bool listingInProgress() { return Browser::isListingInProgress(); }
+	/// Tick the browser just opened while its listing runs, and say whether it still is. Nothing else in the
+	/// headless harness ticks a browser, and the listing runs on the browser's tick surface.
+	static bool listingInProgress() {
+		if (Browser::isListingInProgress()) {
+			getCurrentUI()->graphicsRoutine();
+		}
+		return Browser::isListingInProgress();
+	}
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void collectMedia() { saveSongUI.collectingSamples = true; }
 	static void pressEnter() { saveSongUI.enterKeyPress(); }

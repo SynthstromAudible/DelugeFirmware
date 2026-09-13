@@ -327,30 +327,6 @@ async_file_prefix = ["async_audio_load"]
 ## where the task that drains the request was never compiled.
 async_file_prefix_active = ["async_file_prefix"]
 
-## BUILD the Rust directory-open driver (`file_directory.rs`) -- the open behind
-## `include/libdeluge/file_directory.h`, which hands a caller an OPEN directory
-## handle rather than making it spin in `deluge_efatfs_dir_open`'s `block_on`.
-## Off by default, for the same reason `async_file_prefix` is: `Browser` is the
-## one caller and it only enters this channel when `async_file_directory_active`
-## below is on, so compiling the driver everywhere would widen the default build
-## for a path nothing reaches.
-##
-## Unlike `async_file_prefix` this implies NOTHING. The prefix driver reuses the
-## audio loader's `LoadOps` because it reads a file; a directory open is not one
-## of those four operations, so this module declares its own two-operation trait
-## and pulls in no sibling.
-async_file_directory = []
-
-## THE SWITCH: the sole input to `deluge_file_directory_async_active()`, and the
-## only thing that makes the slot statics and the task exist at all. Off by
-## default, and separate from `async_file_directory` above for the same reason
-## both other pairs are separated -- compiling the driver is a build-hygiene
-## question, routing real listings through it is a behavioural flip.
-##
-## Implies `async_file_directory`, so the switch cannot be turned on in a build
-## where the task that serves the request was never compiled.
-async_file_directory_active = ["async_file_directory"]
-
 [build-dependencies]
 # Generate Rust signatures + POD types from the canonical libdeluge C headers so
 # the boundary can't drift (type mismatch = compile error).

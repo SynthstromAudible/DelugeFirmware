@@ -20,9 +20,9 @@
 /// @file
 /// @brief Weak, synchronous-backing definitions for `libdeluge/file_directory.h`.
 ///
-/// A BSP without the Rust directory channel resolves these, and every caller then takes its own
-/// synchronous arm -- `deluge_file_directory_async_active()` returns false, which is the whole of
-/// what a caller consults. The Rust Embassy BSP overrides all three in `file_directory.rs`.
+/// A BSP without the Rust directory channel resolves these. No caller reaches them: every caller selects the
+/// channel only once the storage owner has started, which such a build never reports, and takes its synchronous arm
+/// instead. The Rust Embassy BSP overrides all of them in `file_directory.rs`.
 ///
 /// Every function here is `noexcept`, like every function in `file_prefix_abi.cpp`,
 /// `audio_load_abi.cpp` and `card_abi.cpp`: the repo's allocators throw
@@ -85,9 +85,9 @@ extern "C" __attribute__((weak)) bool deluge_file_directory_async_active() noexc
 
 extern "C" __attribute__((weak)) void deluge_file_directory_request(const char* /*dir_path*/,
                                                                     bool /*create_if_missing*/) noexcept {
-	// No directory channel on this BSP/config; the caller never reaches here because
-	// deluge_file_directory_async_active() is false. Dropping the request (rather than pretending to
-	// have accepted it) is what the collect below already reports.
+	// No directory channel on this BSP/config. No caller reaches here: every caller selects the channel only once
+	// the storage owner has started, which a build linking this fallback never reports. Dropping the request
+	// (rather than pretending to have accepted it) is what the collect below already reports.
 }
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_directory_collect(const char* /*dir_path*/,
@@ -98,3 +98,9 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_directory_collect(const cha
 	// output is touched, which is exactly what the header promises for any status but READY/FAILED.
 	return DELUGE_FILE_DIRECTORY_UNKNOWN;
 }
+
+#ifdef DELUGE_HOST
+extern "C" __attribute__((weak)) void deluge_file_directory_set_latency_ms(uint32_t /*ms*/) noexcept {
+	// A host build without the Rust directory channel has no opens to delay.
+}
+#endif

@@ -230,8 +230,8 @@ mod file_bytes;
 /// file_directory.h — the single-slot directory channel: open a directory on the storage tier and
 /// hand the ready handle to a caller that must not wait on the card. Gated identically to
 /// `file_prefix` below, and to `card` — which reaches this module's `flush_tables` and so must
-/// never be compiled without it. `Browser` is the one caller, and it only enters this channel when
-/// `async_file_directory_active` is on; both of the features are off by default.
+/// never be compiled without it. It has no feature switch: after boot, every browser listing, SysEx directory
+/// request and recording-folder scan off the storage owner opens its directory through it.
 ///
 /// Unlike `file_prefix` it borrows nothing from `audio_loader`: a directory open is not one of
 /// `LoadOps`'s four file operations, so it declares its own two-operation trait.
@@ -459,7 +459,6 @@ fn stream_sgi_handler() {
         feature = "async_streaming_loader",
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
-        feature = "async_file_directory_active",
         feature = "efatfs_streaming"
     )
 ))]
@@ -480,7 +479,7 @@ async fn stream_bootstrap() {
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
     // Here for the same reason again: `task_dir_open` goes through `with_fs`, so it holds the FS
     // mutex across an SD await.
-    #[cfg(all(feature = "async_file_directory_active", feature = "efatfs_streaming"))]
+    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(file_directory::file_directory_task().unwrap());
     // And again: every one of `task_file_open`/`_read_exact`/`_write`/`_truncate` and `task_rename`
     // goes through `with_fs`, so this task holds the FS mutex across an SD await too.
@@ -609,7 +608,6 @@ pub extern "C" fn main() -> ! {
         feature = "async_streaming_loader",
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
-        feature = "async_file_directory_active",
         feature = "efatfs_streaming"
     ))]
     STREAM_EXEC
@@ -619,7 +617,6 @@ pub extern "C" fn main() -> ! {
         feature = "async_streaming_loader",
         feature = "async_audio_load_active",
         feature = "async_file_prefix_active",
-        feature = "async_file_directory_active",
         feature = "efatfs_streaming"
     )))]
     let _ = STREAM_EXEC.start(STREAM_SGI);
@@ -1237,8 +1234,7 @@ fn main() {
         #[cfg(any(
             feature = "async_streaming_loader",
             feature = "async_audio_load_active",
-            feature = "async_file_prefix_active",
-            feature = "async_file_directory_active"
+            feature = "async_file_prefix_active"
         ))]
         {
             let stream_ready = Arc::new(Barrier::new(2));
@@ -1254,7 +1250,6 @@ fn main() {
                         spawner.spawn(audio_loader::audio_load_task().unwrap());
                         #[cfg(feature = "async_file_prefix_active")]
                         spawner.spawn(file_prefix::file_prefix_task().unwrap());
-                        #[cfg(feature = "async_file_directory_active")]
                         spawner.spawn(file_directory::file_directory_task().unwrap());
                         spawner.spawn(file_bytes::file_bytes_task().unwrap());
                         spawner.spawn(file_write::file_write_task().unwrap());

@@ -78,6 +78,11 @@ bool deluge_scenario_begin_song_load(const char* full_path) {
 }
 
 bool deluge_scenario_song_listing_in_progress() {
+	// The listing runs on the browser's tick surface, and nothing else in this headless harness ticks the browser:
+	// the app's graphics pump is held off by the pad output queue. So each poll is also the tick.
+	if (LoadSongUI::isListingInProgress()) {
+		loadSongUI.graphicsRoutine();
+	}
 	return LoadSongUI::isListingInProgress();
 }
 

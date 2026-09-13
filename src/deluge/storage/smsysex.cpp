@@ -626,8 +626,8 @@ errorFound:;
 ///         two are told apart by `*outCode`.
 std::optional<deluge::io::Directory> smSysex::openDirectoryForSysex(const char* path, FsWireStatus* outCode) {
 	*outCode = FsWireStatus::Ok;
-	if (deluge::storage::Owner::on_owner() || !deluge_file_directory_async_active()) {
-		// Blocking is legal on the owner, and with no channel there is nothing to wait for.
+	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
+		// Blocking is legal on the owner, and before it starts there is no channel driver running to wait for.
 		auto opened = deluge::io::Directory::open(path);
 		if (!opened.has_value()) {
 			*outCode = toWireStatus(opened.error());

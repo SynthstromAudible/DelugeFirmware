@@ -61,7 +61,14 @@ public:
 		}
 		return !Browser::isListingInProgress();
 	}
-	static bool listingInProgress() { return Browser::isListingInProgress(); }
+	/// Tick the browser just opened while its listing runs, and say whether it still is. Nothing else in the
+	/// headless harness ticks a browser, and the listing runs on the browser's tick surface.
+	static bool listingInProgress() {
+		if (Browser::isListingInProgress()) {
+			getCurrentUI()->graphicsRoutine();
+		}
+		return Browser::isListingInProgress();
+	}
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveSongUI.enterKeyPress(); }
 	static void pressBack() {
@@ -113,6 +120,8 @@ int32_t g_waitTicks = 0;
 int32_t g_notesAdded = 0;
 uint32_t g_crcFirst = 0;
 size_t g_bytesFirst = 0;
+/// Whether the load a wait stage is driving has started, or is still waiting on the load browser's own listing.
+bool g_loadBegun = false;
 
 constexpr int32_t kMaxWaitTicks = 200000;
 
@@ -214,11 +223,26 @@ bool saveMachineryIdle() {
 /// spun here could never see one finish, however long it waited.
 bool beginSavedSongLoad(const char* path) {
 	currentSong->setSongFullPath(path);
-	if (!openUI(&loadSongUI)) {
-		return false;
+	g_loadBegun = false;
+	return openUI(&loadSongUI);
+}
+
+/// Drive the load beginSavedSongLoad() opened, one tick at a time.
+///
+/// The load browser's own listing lands first, as a LOAD press waits for it: loading over a listing still suspended
+/// would leave its machine active for the next browser to resume as its own. Only then does the load start, once.
+/// @return Whether the load is still running.
+bool savedSongLoadRunning() {
+	if (!g_loadBegun) {
+		if (Browser::isListingInProgress()) {
+			loadSongUI.graphicsRoutine();
+			return true;
+		}
+		loadSongUI.beginLoad();
+		g_loadBegun = true;
+		return true;
 	}
-	loadSongUI.beginLoad();
-	return true;
+	return loadSongUI.isLoadingSong();
 }
 
 void runTick() {
@@ -351,7 +375,7 @@ void runTick() {
 		break;
 	}
 	case Stage::ParseWait: {
-		if (!loadSongUI.isLoadingSong()) {
+		if (!savedSongLoadRunning()) {
 			g_stage = Stage::ParseCheck;
 			break;
 		}
@@ -451,7 +475,7 @@ void runTick() {
 		break;
 	}
 	case Stage::IntactWait: {
-		if (!loadSongUI.isLoadingSong()) {
+		if (!savedSongLoadRunning()) {
 			g_stage = Stage::IntactCheck;
 			break;
 		}

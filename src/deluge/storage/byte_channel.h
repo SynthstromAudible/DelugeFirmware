@@ -368,12 +368,6 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDon
 ///         because the channel is not the place for it here or @p path does not fit. A busy channel is never a false.
 bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr);
 
-/// @brief Run @p fn on the storage owner, or inline if already there or before the owner has started.
-///
-/// One caller is left: the directory listing's arm for a build with the directory channel off, which goes with that
-/// channel's flip. Everything the byte channel carries uses @ref runInlineWhereLegal instead, which never dispatches.
-void runOnStorageOwner(OwnerFn fn, void* ctx);
-
 /// @brief Run @p fn inline where blocking on the card is legal, and nowhere else.
 ///
 /// Legal means on the storage owner, or before the owner has started: boot, and every C++-only build, whose worker is
@@ -428,7 +422,8 @@ void serviceRoutine();
 enum class IoTier : uint8_t {
 	Settings,   ///< runtime feature settings, the MIDI device table, MIDI follow, performance view
 	Startup,    ///< the startup song fail-safe
-	Browser,    ///< the browser's folder creation: the context-menu gesture and the UI-open pre-creates
+	Browser,    ///< the browser's folder creation (the context-menu gesture, the UI-open pre-creates) and its directory
+	            ///< opens
 	Favourites, ///< the favourites bank: every browser visit, favourite pad, bank pad and browser close
 	Recorder,   ///< the sample recorder: its cluster writes, and creating, finalizing, aborting and closing its file
 };

@@ -131,11 +131,21 @@ uint8_t deluge_file_directory_collect(const char* dir_path, uint32_t* out_handle
                                       DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Whether the Rust async directory channel backs this header on this BSP/config.
-/// @return true if a request will actually be opened; false if every caller must open the directory
-///         itself, synchronously. When this is false, @ref deluge_file_directory_request does
-///         nothing and @ref deluge_file_directory_collect always reports UNKNOWN -- so a caller that
-///         only polled would never list anything, and must take its synchronous arm instead.
+/// @return true on the Rust BSP, always: the channel has no feature switch. false only where this header's weak
+///         fallback is linked, a C++-only build, in which @ref deluge_file_directory_request does nothing and
+///         @ref deluge_file_directory_collect always reports UNKNOWN.
+/// @note Callers select on `Owner::started()` rather than on this. An owner that has started means the Rust BSP and
+///       so a running driver; a C++-only build's owner never starts, and its callers open synchronously.
 bool deluge_file_directory_async_active(void) DELUGE_NOEXCEPT;
+
+#ifdef DELUGE_HOST
+/// @brief Host harness only: make every directory open wait @p ms milliseconds before it touches the card.
+///
+/// Lets a gate hold an open in flight while a consumer keeps ticking. 0 (the default) means no wait.
+/// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
+/// @param ms Milliseconds of simulated delay per open.
+void deluge_file_directory_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+#endif
 
 #ifdef __cplusplus
 }

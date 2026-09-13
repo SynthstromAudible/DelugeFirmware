@@ -62,14 +62,6 @@ async_file_prefix = ["async_audio_load"]
 ## Compile the prefix channel's slot/request statics too. Mirrors the BSP
 ## feature; here, again, a compilation switch only.
 async_file_prefix_active = ["async_file_prefix"]
-## Compile the directory channel's open driver, and its statics. Mirrors the BSP
-## features of the same names. Deliberately NOT in `default`: this package hosts
-## the audio-loader suite, and the directory channel's own suite is
-## `src/bsp/rust/tests/file_directory_host.rs`. They exist here only so that
-## `file_directory.rs` -- which comes along because `card.rs`'s flush names it --
-## can spell its conditionals without tripping the unexpected-cfg lint.
-async_file_directory = []
-async_file_directory_active = ["async_file_directory"]
 
 [dependencies]
 # The loader's queue/result statics: `Mutex<CriticalSectionRawMutex, _>` and

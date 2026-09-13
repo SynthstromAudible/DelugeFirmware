@@ -43,7 +43,6 @@
 use core::ffi::{CStr, c_char};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-#[cfg(feature = "async_file_directory_active")]
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
@@ -252,7 +251,6 @@ pub fn drain(slot: &mut DirectorySlot) -> Option<u32> {
 /// Two operations, not one: the close is here because the DRIVER may need it (a publish that
 /// displaces a live answer orphans a handle on the task side too), and routing it through the same
 /// trait keeps "everything on this executor awaits, and nothing calls into C++" in one place.
-#[cfg(feature = "async_file_directory")]
 pub trait DirOps {
     /// Open `path` for iteration, resolving to an efatfs directory handle or the status that
     /// stopped it.
@@ -271,7 +269,6 @@ pub trait DirOps {
 /// Deliberately trivial. It exists so the driver's shape matches `file_prefix::prefix_io_once` and
 /// `audio_loader::load_io_once` -- one named function that is the whole of this channel's card
 /// contact -- rather than because the mapping is subtle.
-#[cfg(feature = "async_file_directory")]
 pub async fn dir_io_once<O: DirOps>(ops: &O, path: &str, create: bool) -> DirOutcome {
     if create {
         // On the storage tier, where a card WRITE belongs. This is the browser's missing-folder
@@ -297,11 +294,9 @@ pub static DIRECTORY_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 /// shape stated as storage. A browser cursor that has moved on does not want the folder it left
 /// behind, and the caller of a dropped request reads `UNKNOWN` on its next tick, which it will only
 /// do if it still wants it.
-#[cfg(feature = "async_file_directory_active")]
 static REQUEST: Mutex<CriticalSectionRawMutex, Option<DirRequest>> = Mutex::new(None);
 
 /// One outstanding request: which directory, and whether to create it first.
-#[cfg(feature = "async_file_directory_active")]
 #[derive(Clone)]
 struct DirRequest {
     path: DirPath,
@@ -312,11 +307,9 @@ struct DirRequest {
 /// `PENDING` rather than `UNKNOWN` in the window between a request leaving [`REQUEST`] and its
 /// handle reaching [`RESULT`] -- an `UNKNOWN` there would tell the caller to re-request work that is
 /// already running, and it would do so on every tick.
-#[cfg(feature = "async_file_directory_active")]
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<DirPath>> = Mutex::new(None);
 
 /// The finished open waiting to be collected. See [`DirectorySlot`].
-#[cfg(feature = "async_file_directory_active")]
 static RESULT: Mutex<CriticalSectionRawMutex, DirectorySlot> = Mutex::new(DirectorySlot::new());
 
 /// Drop what this channel is holding, closing any handle that leaves behind. The card generation's
@@ -332,7 +325,6 @@ static RESULT: Mutex<CriticalSectionRawMutex, DirectorySlot> = Mutex::new(Direct
 /// The clears are not free of RESOURCE, though, which is why this one closes. A surviving entry
 /// holds one of eight directory handles that nothing will ever take, so the housekeeping this
 /// channel skips is a leak rather than a nuisance -- see the module doc.
-#[cfg(feature = "async_file_directory_active")]
 pub(crate) fn flush_tables() {
     if let Ok(mut request) = REQUEST.try_lock() {
         *request = None;
@@ -347,24 +339,15 @@ pub(crate) fn flush_tables() {
     }
 }
 
-/// No directory channel on this build: the statics do not exist and nothing was ever published, so
-/// there is nothing to discard. The generation bump still happens in the caller -- it is not this
-/// channel's, and another loader on this build may well need it.
-#[cfg(not(feature = "async_file_directory_active"))]
-pub(crate) fn flush_tables() {}
-
 /// Close an orphaned directory handle from a context that cannot await.
 ///
 /// `task_dir_close` is FS-free (it only removes a row from `DIR_HANDLES`), so a `try_lock` is enough
 /// and no card I/O is involved. A contended table means one of the eight slots leaks until the next
 /// mount -- bounded, rare, and strictly better than the alternative, which is blocking the
 /// interaction tier inside `deluge_card_flush`.
-#[cfg(all(
-    feature = "async_file_directory_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 fn close_handle_now(handle: u32) {
     backing::try_close_dir(handle);
@@ -372,22 +355,31 @@ fn close_handle_now(handle: u32) {
 
 /// No efatfs backing linked into this carrier, so there is no table to close against. Reached only
 /// by the `#[path]` test carriers, where every handle is a number the test made up.
-#[cfg(all(
-    feature = "async_file_directory_active",
-    not(any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    ))
-))]
+#[cfg(not(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
+)))]
 fn close_handle_now(_handle: u32) {}
 
-/// Whether the Rust directory channel backs `file_directory.h` on this BSP/config -- the switch the
-/// C++ side asks before choosing the async path over opening the directory itself. The symbol must
-/// always exist so that call site links regardless of which config produced this image; only the
-/// return value moves.
+/// C-ABI: is the driver running? Always, on the Rust BSP: the directory channel has no feature switch.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_directory_async_active() -> bool {
-    cfg!(feature = "async_file_directory_active")
+    true
+}
+
+/// Milliseconds `file_directory_task` waits before each open. Host harness only; see
+/// [`deluge_file_directory_set_latency_ms`].
+#[cfg(feature = "host_app")]
+static LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make every directory open wait `ms` milliseconds before it touches the card, so a gate can
+/// hold an open in flight while a consumer keeps ticking. 0, the default, means no wait.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_directory_set_latency_ms(ms: u32) {
+    LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
 }
 
 /// Request `dir_path` be opened, and wake the driver. See `file_directory.h`.
@@ -415,7 +407,6 @@ pub unsafe extern "C" fn deluge_file_directory_request(
 ///
 /// `try_lock` rather than a block: this is called synchronously from C++ in whatever context the
 /// app happens to be in, and must never wait.
-#[cfg(feature = "async_file_directory_active")]
 fn enqueue_request(path: DirPath, create: bool) {
     let Ok(mut request) = REQUEST.try_lock() else {
         return; // Contended; the caller re-requests on its next tick.
@@ -424,12 +415,6 @@ fn enqueue_request(path: DirPath, create: bool) {
     drop(request);
     DIRECTORY_WAKE.signal(());
 }
-
-/// No driver on this build: drop it, exactly as `file_directory_abi.cpp`'s weak fallback does.
-/// Nothing reaches here in practice -- the C++ side gates on
-/// [`deluge_file_directory_async_active`], which is false in this configuration.
-#[cfg(not(feature = "async_file_directory_active"))]
-fn enqueue_request(_path: DirPath, _create: bool) {}
 
 /// Collect the directory opened for `dir_path`, if one is ready. See `file_directory.h`.
 ///
@@ -502,7 +487,6 @@ enum Probe {
 
 /// One forward pass: REQUEST, then IN_FLIGHT, then RESULT. See [`deluge_file_directory_collect`]'s
 /// doc for why the order and the contention mapping are both load-bearing.
-#[cfg(feature = "async_file_directory_active")]
 fn probe(path: &str) -> Probe {
     if is_requested(path) || is_in_flight(path) {
         return Probe::Pending;
@@ -530,21 +514,12 @@ fn probe(path: &str) -> Probe {
     }
 }
 
-/// No driver on this build: nothing was ever requested, so nothing is coming. `Unknown`, never
-/// `Pending` -- `Pending` would tell a caller to keep asking forever. Matches
-/// `file_directory_abi.cpp`'s weak fallback.
-#[cfg(not(feature = "async_file_directory_active"))]
-fn probe(_path: &str) -> Probe {
-    Probe::Unknown
-}
-
 /// Whether `path` is the request not yet picked up.
 ///
 /// **Contention reports `true`, and that is load-bearing, not defensive.** The driver marks a
 /// request in flight while still holding this lock, so a collect racing that handoff finds the lock
 /// taken -- mapping it to `false` here would report `UNKNOWN` for a request mid-handoff, which is
 /// exactly the bug the probe order exists to prevent. Do not "simplify" this branch.
-#[cfg(feature = "async_file_directory_active")]
 fn is_requested(path: &str) -> bool {
     match REQUEST.try_lock() {
         Ok(request) => request.as_ref().is_some_and(|r| r.path == path),
@@ -554,7 +529,6 @@ fn is_requested(path: &str) -> bool {
 
 /// Whether `path` is the open running right now. Contention reports `true`, for the same reason as
 /// [`is_requested`] -- and with the same warning.
-#[cfg(feature = "async_file_directory_active")]
 fn is_in_flight(path: &str) -> bool {
     match IN_FLIGHT.try_lock() {
         Ok(in_flight) => in_flight.as_deref() == Some(path),
@@ -587,12 +561,9 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<DirPath> {
 /// The efatfs directory table behind the production ops: the device mount on device, the host shim
 /// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
 /// `audio_loader::prod` uses, and for the same reason.
-#[cfg(all(
-    feature = "async_file_directory",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 mod backing {
     #[cfg(target_os = "none")]
@@ -607,21 +578,15 @@ mod backing {
 
 /// The real [`DirOps`], wired to the efatfs directory-handle table. Holds no state: both operations
 /// are keyed by path or handle.
-#[cfg(all(
-    feature = "async_file_directory",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 pub struct ProdDirOps;
 
-#[cfg(all(
-    feature = "async_file_directory",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 impl ProdDirOps {
     pub fn new() -> Self {
@@ -629,12 +594,9 @@ impl ProdDirOps {
     }
 }
 
-#[cfg(all(
-    feature = "async_file_directory",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 impl DirOps for ProdDirOps {
     async fn open_dir(&self, path: &str) -> Result<u32, i8> {
@@ -686,12 +648,9 @@ impl DirOps for ProdDirOps {
 /// forever, for as long as the browser sits on it. A published failure ends that: it is terminal,
 /// exactly as a published handle is, and it carries the status so `onListingFailed` can say which
 /// failure it was.
-#[cfg(all(
-    feature = "async_file_directory_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 #[embassy_executor::task]
 pub async fn file_directory_task() {
@@ -699,6 +658,15 @@ pub async fn file_directory_task() {
     let ops = ProdDirOps::new();
     loop {
         while let Some((request, generation)) = take_next_request().await {
+            // After the request is marked in flight, so a collect during the hold answers PENDING, exactly as it
+            // would while a slow card was opening the directory.
+            #[cfg(feature = "host_app")]
+            {
+                let ms = LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
+                if ms > 0 {
+                    embassy_time::Timer::after_millis(u64::from(ms)).await;
+                }
+            }
             let outcome = dir_io_once(&ops, &request.path, request.create).await;
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly in both tables,
             // which is harmless, whereas the reverse leaves a window in which it is in neither and
@@ -725,12 +693,9 @@ pub async fn file_directory_task() {
 /// before any I/O, because that is what makes it mean "the card this open is opening". Reading it
 /// later -- at publish time -- reads the value a flush has already installed and defeats the check
 /// entirely.
-#[cfg(all(
-    feature = "async_file_directory_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 async fn take_next_request() -> Option<(DirRequest, u32)> {
     let mut request = REQUEST.lock().await;
@@ -745,7 +710,6 @@ async fn take_next_request() -> Option<(DirRequest, u32)> {
 ///
 /// Also the seam the host tests drive to exercise [`deluge_file_directory_collect`]'s IN_FLIGHT
 /// branch, which no test could reach otherwise because no test runs the task.
-#[cfg(feature = "async_file_directory_active")]
 pub async fn mark_in_flight(path: Option<DirPath>) {
     *IN_FLIGHT.lock().await = path;
 }
@@ -767,12 +731,9 @@ pub async fn mark_in_flight(path: Option<DirPath>) {
 ///
 /// The check happens with the lock already held, not before acquiring it, so that it is at least
 /// ordered against a flush that DID take the lock.
-#[cfg(all(
-    feature = "async_file_directory_active",
-    any(
-        all(target_os = "none", feature = "efatfs_streaming"),
-        feature = "host_app"
-    )
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
 ))]
 pub async fn publish_result<O: DirOps>(ops: &O, key: &str, outcome: DirOutcome, generation: u32) {
     let mut result = RESULT.lock().await;

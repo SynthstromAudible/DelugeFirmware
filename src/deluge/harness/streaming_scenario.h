@@ -59,8 +59,11 @@ extern "C" {
 ///         `deluge_boot()`'s `setupBlankSong()`).
 bool deluge_scenario_begin_song_load(const char* full_path);
 
-/// @brief Whether the async listing dispatched by deluge_scenario_begin_song_load() is
-///        still in flight.
+/// @brief Tick the load browser's listing, and say whether it is still in flight.
+///
+/// The listing runs on the browser's tick surface, and in this headless harness nothing else ticks the
+/// browser, so the caller's poll is what drives it. Poll with a yield between calls, so the directory
+/// channel's driver can answer.
 /// @return True while the listing is in progress.
 bool deluge_scenario_song_listing_in_progress();
 

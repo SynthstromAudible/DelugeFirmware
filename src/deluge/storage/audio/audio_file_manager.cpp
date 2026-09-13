@@ -332,8 +332,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 		// `std::optional` rather than the `std::expected` this used to be: both answer `has_value()`
 		// and `operator->`, so the loop is untouched either way.
 		std::optional<deluge::io::Directory> dir;
-		const bool useDirChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
-		                           && deluge_file_directory_async_active();
+		const bool useDirChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
 		if (!useDirChannel) {
 			auto opened = deluge::io::Directory::open(audioRecordingFolderNames[folderID]);
 			if (opened.has_value()) {

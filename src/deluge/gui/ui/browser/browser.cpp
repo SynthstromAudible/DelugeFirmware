@@ -115,16 +115,12 @@ bool Browser::beginListing(ListingRequest req) {
 	listingInProgress_ = true;
 	display->displayLoadingAnimationText("Working", /*delayed=*/true);
 
-	// `deferAtOpenNumber_` is the second disjunct so that the idempotence gate can exercise the
-	// re-entry path on a build where the directory channel is not compiled in at all. What that gate
-	// checks -- that a listing re-run from the top finishes identically to one that never deferred --
-	// is a property of the listing, not of the channel, and it is the riskiest half of this rung.
 	// Only the actions that run through the listing machine may take the tick surface. Reload does
 	// its own read (readFileItemsFromFolderAndMemory, not arrivedInNewFolder), so it has no machine to
 	// suspend into — running it here would block the interaction tier on the card, which is the exact
 	// thing this rung exists to stop. It keeps the storage owner until it is converted in turn.
 	const bool machineBacked = pendingListing_.action != ListingAction::Reload;
-	listingOnTickSurface_ = machineBacked && (deluge_file_directory_async_active() || deferAtOpenNumber_ != 0);
+	listingOnTickSurface_ = machineBacked;
 	if (listingOnTickSurface_) {
 		// The attempt runs on the INTERACTION tier, in graphicsRoutine(), start to finish, and it
 		// never blocks there: every directory open goes through the channel and every enumeration is
@@ -140,9 +136,6 @@ bool Browser::beginListing(ListingRequest req) {
 		//
 		//  - StorageManager::initSD(), a flag check on an already-mounted card but real blocking work
 		//    on a re-mount (the ejection path, which already blocks).
-		//  - deluge::io::mkdir(defaultDirToAlsoTry) on the FOLDER_DOESNT_EXIST fallback — a card
-		//    WRITE, through a blocking spin, routinely reached by the Save UIs when their default
-		//    folder is absent.
 		//  - StorageManager::fileExists() in setFileByFullPathImpl, so on every ByPath listing.
 		//
 		// And one that is not a call but a loss: the success tail (folderContentsReady /
@@ -182,17 +175,14 @@ static Error directoryOpenError(DelugeStatus status) {
 }
 
 bool Browser::usingDirectoryChannel() {
-	// Every caller that reaches readFileItemsForFolder from the interaction tier can now suspend:
-	// listings and typing predictions resume from graphicsRoutine(), and instrument acquisition runs
-	// on the storage owner instead (rung 5), where the on_owner() term below already excludes it --
-	// a recursive subfolder descent cannot be split across deferrals at all (rung 5 spec, section
-	// 2b), so it must never reach the channel. `inConvertedCaller` used to gate this to just the
-	// listing/prediction pair, because those three readers had nowhere to put a deferral; now that
-	// they run on the owner instead, the gate is deletable rather than needing a replacement.
+	// Every caller that reaches readFileItemsForFolder from the interaction tier can suspend: listings and typing
+	// predictions resume from graphicsRoutine(). Instrument acquisition runs on the storage owner, which on_owner()
+	// excludes -- a recursive subfolder descent cannot be split across deferrals at all, so it must never reach the
+	// channel.
 	//
-	// The selector is last because with the channel absent the weak collect answers UNKNOWN forever,
-	// so a caller that consulted it would defer every tick and never read anything.
-	return !deluge::storage::Owner::on_owner() && deluge_file_directory_async_active();
+	// started() is the other half. Before the owner starts there is no driver running to answer, and a C++-only
+	// build's owner never starts; both open directly, which is legal there.
+	return !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
 }
 
 std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path, bool createIfMissing) {
@@ -206,6 +196,9 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 	}
 
 	if (!usingDirectoryChannel()) {
+		// Counted, and frozen in alpha and beta builds, if it is ever reached off the storage owner after boot. The
+		// selector above rules that out; this keeps it ruled out.
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 		auto opened = deluge::io::Directory::open(path);
 		if (!opened.has_value()) {
 			return std::unexpected(directoryOpenError(deluge::io::to_deluge_status(opened.error())));
@@ -817,23 +810,17 @@ Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder)
 			return error;
 		}
 		triedCreatingFolder = true;
-		if (deluge_file_directory_async_active()) {
+		if (usingDirectoryChannel()) {
 			// Ask the CHANNEL to create it, on the storage tier, as part of the next open. Doing it
-			// here would be a card WRITE on the interaction tier, which the listing now runs on — no
+			// here would be a card WRITE on the interaction tier, which the listing runs on — no
 			// more allowed than a read. Same number of opens either way; only the tier moves.
 			read.createIfMissing = true;
 			continue;
 		}
-		// No channel arm here: the channel arm of this function set `createIfMissing` above and never
-		// reaches this line. What it needs is the TIER, so the mkdir moves onto the owner and the
-		// failure it used to report becomes one the following listing attempt reports instead.
-		g_ownerCreatePath = read.defaultDirToAlsoTry;
-		deluge::storage::bytes::runOnStorageOwner(
-		    [](void*) {
-			    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-			    (void)deluge::io::mkdir(g_ownerCreatePath.c_str());
-		    },
-		    nullptr);
+		// On the storage owner, or before it has started. Blocking is legal here, and the synchronous open this loop
+		// makes next ignores `createIfMissing`, so the folder has to be made now or it is never made.
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
+		(void)deluge::io::mkdir(read.defaultDirToAlsoTry);
 	}
 
 	if (currentSong && read.outputType != OutputType::NONE) {
@@ -889,16 +876,14 @@ void Browser::graphicsRoutine() {
 	// finishes the listing or defers on an open that is not ready, and a deferred pass leaves
 	// listingInProgress_ set so the next tick runs the attempt again from the top.
 	// Gated on the SELECTOR, not on attempt_.active: the first pass has not begun an attempt yet, so
-	// that condition would never let one start. The selector is exact, because it is the same thing
-	// beginListing() consulted -- with the channel on it dispatched nothing and the listing is ours to
-	// run; with it off the owner has it, and running it here as well would run one listing twice, on
-	// two tiers, over one static fileItems.
+	// that condition would never let one start. The flag is exact, because it is what beginListing()
+	// decided -- a listing on the tick surface dispatched nothing and is ours to run; a Reload went to the
+	// owner, and running it here as well would run one listing twice, on two tiers, over one static
+	// fileItems.
 	// The mount edge, collected wherever the browser ticks. The channel's driver mounts on the storage
 	// tier without telling anyone, so this is what still runs firstCardRead() -- handed to the storage
 	// owner, because it opens every resident sample and may not run here.
-	if (deluge_file_directory_async_active()) {
-		StorageManager::noticeCardMount(/*mayRunHere=*/false);
-	}
+	StorageManager::noticeCardMount(/*mayRunHere=*/false);
 
 	// Re-ask for a prediction whose folder read has not arrived.
 	//

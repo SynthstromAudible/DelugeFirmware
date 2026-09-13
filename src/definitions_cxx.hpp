@@ -495,9 +495,8 @@ enum class Error {
 	/// Not a failure: a folder listing needs a directory the async directory channel has not opened
 	/// yet. The caller got no listing *this* time and should let the browser's per-tick surface run
 	/// the attempt again -- it must NOT re-request, report a failure, or commit anything on the
-	/// strength of it. Only produced by Browser's listing path when
-	/// `deluge_file_directory_async_active()` (libdeluge/file_directory.h); the synchronous path
-	/// never returns it.
+	/// strength of it. Only produced off the storage owner after boot, where every directory open goes
+	/// through libdeluge/file_directory.h; the synchronous path never returns it.
 	///
 	/// Deliberately NOT LOAD_IN_PROGRESS, even though the contract is word for word the same:
 	/// `addInstrumentsToFileItems` runs INSIDE a listing and can itself reach the sample loader, so

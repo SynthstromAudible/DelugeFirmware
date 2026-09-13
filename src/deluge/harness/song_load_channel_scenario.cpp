@@ -59,7 +59,14 @@ public:
 		}
 		return !Browser::isListingInProgress();
 	}
-	static bool listingInProgress() { return Browser::isListingInProgress(); }
+	/// Tick the browser just opened while its listing runs, and say whether it still is. Nothing else in the
+	/// headless harness ticks a browser, and the listing runs on the browser's tick surface.
+	static bool listingInProgress() {
+		if (Browser::isListingInProgress()) {
+			getCurrentUI()->graphicsRoutine();
+		}
+		return Browser::isListingInProgress();
+	}
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveSongUI.enterKeyPress(); }
 };
@@ -85,6 +92,7 @@ enum class Stage : uint8_t {
 	SaveCheck,
 	Decoy,
 	LoadBack,
+	LoadBackListing,
 	LoadBackWait,
 	Report,
 	Done,
@@ -174,6 +182,21 @@ void runTick() {
 	case Stage::LoadBack: {
 		currentSong->setSongFullPath(kSavePath);
 		(void)openUI(&loadSongUI);
+		g_stage = Stage::LoadBackListing;
+		break;
+	}
+	case Stage::LoadBackListing: {
+		// The browser's own listing lands first, as a LOAD press waits for it. Loading over a listing still
+		// suspended would leave its machine active for the next browser to resume as its own.
+		if (Browser::isListingInProgress()) {
+			loadSongUI.graphicsRoutine();
+			if (++g_loadTicks > kMaxLoadTicks) {
+				printf("SL-LOADED FAIL the load browser's listing never finished (%d ticks)\n", g_loadTicks);
+				g_failures++;
+				g_stage = Stage::Report;
+			}
+			break;
+		}
 		loadSongUI.beginLoad();
 		g_stage = Stage::LoadBackWait;
 		break;
