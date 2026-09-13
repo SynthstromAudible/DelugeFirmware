@@ -42,15 +42,10 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
 
-void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength, ParamCollectionSummary* summary) {
+void ParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
 		params[p].beenCloned(copyAutomation, reverseDirectionWithLength);
-		if (summary && !params[p].isAutomated()) {
-			uint32_t mask = ~(uint32_t{1} << (p & 31));
-			summary->whichParamsAreAutomated[p >> 5] &= mask;
-			summary->whichParamsAreInterpolating[p >> 5] &= mask;
-		}
 	}
 }
 
@@ -250,12 +245,6 @@ void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
 	FOR_EACH_FLAGGED_PARAM(
 	    otherModelStack->summary->whichParamsAreAutomated); // Iterate through the *other* ParamManager's stuff
 	params[p].appendParam(&otherParamSet->params[p], oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-	if (params[p].isAutomated()) {
-		paramHasAutomationNow(modelStack->summary, p);
-	}
-	else {
-		paramHasNoAutomationNow(modelStack, p);
-	}
 	FOR_EACH_PARAM_END
 
 	ticksTilNextEvent = 0;
@@ -401,13 +390,12 @@ UnpatchedParamSet::UnpatchedParamSet(ParamCollectionSummary* summary) : ParamSet
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                   ParamCollectionSummary* summary) {
+void UnpatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
@@ -483,13 +471,12 @@ PatchedParamSet::PatchedParamSet(ParamCollectionSummary* summary) : ParamSet(siz
 	topUintToRepParams = (numParams_ - 1) >> 5;
 }
 
-void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                 ParamCollectionSummary* summary) {
+void PatchedParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
@@ -599,13 +586,12 @@ ExpressionParamSet::ExpressionParamSet(ParamCollectionSummary* summary, bool for
 	    forDrum ? bendRanges[BEND_RANGE_MAIN] : FlashStorage::defaultBendRange[BEND_RANGE_FINGER_LEVEL];
 }
 
-void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                    ParamCollectionSummary* summary) {
+void ExpressionParamSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params = params_.data();
 	numParams_ = static_cast<int32_t>(params_.size());
 	topUintToRepParams = (numParams_ - 1) >> 5;
 
-	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength, summary);
+	ParamSet::beenCloned(copyAutomation, reverseDirectionWithLength);
 }
 
 void ExpressionParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,

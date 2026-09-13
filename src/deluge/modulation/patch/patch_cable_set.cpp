@@ -743,8 +743,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 	}
 }
 
-void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                               ParamCollectionSummary* summary) {
+void PatchCableSet::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	int32_t c;
 	for (c = 0; c < numUsablePatchCables; c++) {
 		patchCables[c].param.beenCloned(copyAutomation, reverseDirectionWithLength);

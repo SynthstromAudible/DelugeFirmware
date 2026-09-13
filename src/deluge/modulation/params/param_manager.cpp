@@ -229,8 +229,10 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 
 		memcpy(newSummary->paramCollection, otherSummary->paramCollection, otherSummary->paramCollection->objectSize);
 
+		newSummary->paramCollection->beenCloned(
+		    copyAutomation, reverseDirectionWithLength); // Ignore error - just means automation doesn't get cloned.
+
 		newSummary->cloneFlagsFrom(otherSummary);
-		newSummary->paramCollection->beenCloned(copyAutomation, reverseDirectionWithLength, newSummary);
 
 		newSummary++;
 		otherSummary++;
@@ -539,20 +541,21 @@ void ParamManagerForTimeline::appendParamManager(ModelStackWithThreeMainThings* 
 #endif
 
 	ParamCollectionSummary* otherSummary = otherModelStack->paramManager->summaries;
-	ParamCollectionSummary* summary = summaries;
-	do {
-		if (otherSummary->containsAutomation()) {
-			auto* destinationStack = modelStack->addParamCollectionSummary(summary);
-			auto* sourceStack = otherModelStack->addParamCollectionSummary(otherSummary);
-			summary->paramCollection->appendParamCollection(destinationStack, sourceStack, oldLength,
-			                                                reverseThisRepeatWithLength, pingpongingGenerally);
-		}
-		summary++;
-		otherSummary++;
-	} while (summary->paramCollection);
+	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
 
-	ticksTilNextEvent = 0; // Should probably really call expectEvent(), but we're only called when a tick is just about
-	                       // to happen anyway, so shouldn't matter
+	ModelStackWithParamCollection* otherModelStackWithParamCollection =
+	    otherModelStack->addParamCollectionSummary(otherSummary);
+	summary->paramCollection->appendParamCollection(modelStackWithParamCollection, otherModelStackWithParamCollection,
+	                                                oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+}
+summary++;
+otherSummary++;
+}
+while (summary->paramCollection)
+	;
+
+ticksTilNextEvent = 0; // Should probably really call expectEvent(), but we're only called when a tick is just about to
+                       // happen anyway, so shouldn't matter
 }
 
 // Note: you must only call this if playbackHandler.isEitherClockActive()

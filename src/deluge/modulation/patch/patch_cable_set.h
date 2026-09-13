@@ -71,8 +71,7 @@ public:
 	void shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount, int32_t effectiveLength) override;
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) override;
-	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-	                ParamCollectionSummary* summary = nullptr) override;
+	void beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) override;
 	ParamManagerForTimeline* getParamManager();
 
 	void writePatchCablesToFile(Serializer& writer, bool writeAutomation);

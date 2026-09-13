@@ -73,8 +73,7 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 	}
 }
 
-void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength,
-                                     ParamCollectionSummary* summary) {
+void MIDIParamCollection::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLength) {
 	params.beenCloned(); // Copies memory for all of params
 
 	// And now, copy the memory for the automation data that each member of params references
