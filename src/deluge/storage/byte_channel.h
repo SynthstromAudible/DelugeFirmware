@@ -291,7 +291,7 @@ using OwnerFn = void (*)(void* ctx);
 /// from "gave up" without it.
 enum class SettingsOutcome : uint8_t {
 	Parsed,      ///< a read delivered its bytes to `parse`
-	Absent,      ///< a read found the file genuinely absent (`DELUGE_ERR_NOT_FOUND`); `onAbsent` ran first
+	Absent,      ///< the file is absent (`DELUGE_ERR_NOT_FOUND`): a read ran `onAbsent` first; an unlink found nothing
 	Unreadable,  ///< a read ended any other way: an unreadable card, a file too large, a stalled channel
 	Written,     ///< a write's collect reported success
 	WriteFailed, ///< a write ended any other way: the card refused it, or the channel stalled
@@ -361,8 +361,8 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDon
 /// @brief Take a file removal through the channel, driven to completion by @ref serviceRoutine.
 ///
 /// @param path   The file to remove. COPIED.
-/// @param onDone Called exactly once when the removal ends: `Written` when the file is gone -- including when it was
-///               never there, which is what a removal wants -- or `WriteFailed`. May be nullptr.
+/// @param onDone Called exactly once when the removal ends: `Written` when it removed the file, `Absent` when the file
+///               was already gone, or `WriteFailed` -- the card refused it, or the channel stalled. May be nullptr.
 /// @param ctx    Passed through to @p onDone.
 /// @return true when the channel took it, in flight or queued. **false when the caller must remove the file itself**,
 ///         because the channel is not the place for it here or @p path does not fit. A busy channel is never a false.

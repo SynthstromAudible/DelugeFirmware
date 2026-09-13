@@ -206,7 +206,7 @@ enum class Step : uint8_t {
 	MkdirAllCollect,
 	/// Ask for a file to be removed.
 	UnlinkRequest,
-	/// Wait for the removal. A file that was never there is success, not failure -- see `submitUnlink`.
+	/// Wait for the removal. A file that was never there answers `Absent`, not `WriteFailed` -- see `submitUnlink`.
 	UnlinkCollect,
 };
 
@@ -625,8 +625,9 @@ void serviceRoutine() {
 			finishWith(SettingsOutcome::Written);
 			return;
 		case ByteIo::Failed:
-			// A file that was never there is exactly the state a removal asks for.
-			finishWith(status == DELUGE_ERR_NOT_FOUND ? SettingsOutcome::Written : SettingsOutcome::WriteFailed);
+			// A file that was never there is the state a removal asks for, but not the same answer as removing it: the
+			// browser's delete tells the two apart.
+			finishWith(status == DELUGE_ERR_NOT_FOUND ? SettingsOutcome::Absent : SettingsOutcome::WriteFailed);
 			return;
 		case ByteIo::Pending:
 			return;
