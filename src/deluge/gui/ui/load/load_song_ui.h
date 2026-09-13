@@ -221,6 +221,20 @@ private:
 	/// `currentFileChanged` ticked again, so two columns were copied out of an unfilled store.
 	int32_t pendingScrollDirection_{0};
 
+	/// @brief Consecutive collects that found the current preview's read unanswered (UNKNOWN or PENDING), and the
+	///        attempt they were counted for.
+	///
+	/// At @ref kMaxPreviewWaitTicks the preview gives up with the card error: the pads cannot stay scrolled out for
+	/// as long as a card takes not to answer. A different attempt, or an answered read, starts the count again.
+	/// @{
+	int32_t previewWaitTicks_{0};
+	uint32_t previewWaitGeneration_{0};
+	std::string previewWaitPath_;
+	/// @}
+
+	/// @brief How many unanswered collects a preview is given: the bound every channel consumer on this ladder uses.
+	static constexpr int32_t kMaxPreviewWaitTicks = 600;
+
 	/// @brief Set up and start the scroll-in from `imageStore`. Call only once it is filled.
 	void beginPreviewScrollIn(int32_t movementDirection);
 

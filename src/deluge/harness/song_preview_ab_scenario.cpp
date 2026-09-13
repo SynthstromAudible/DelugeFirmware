@@ -125,6 +125,11 @@ public:
 	static SongPreviewOutcome outcome() { return loadSongUI.lastPreviewOutcome_; }
 	static Error error() { return loadSongUI.lastPreviewError_; }
 	/// @}
+
+	/// Park a scroll-in direction, as a cursor move onto a song does before it asks for the preview.
+	static void parkScrollIn(int32_t direction) { loadSongUI.pendingScrollDirection_ = direction; }
+	/// The scroll-in direction still owed, or 0 once a render has released it.
+	static int32_t parkedScrollIn() { return loadSongUI.pendingScrollDirection_; }
 };
 
 /// Reaches Browser's listing internals. Declared a friend by `Browser`; defined here because this
@@ -539,7 +544,19 @@ constexpr int32_t kMaxCaseTicks = 2000;
 // ── State ───────────────────────────────────────────────────────────────────
 
 /// Which stage `dispatch_step` is in, in order.
-enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Listing, Acquire, Dx, ByPath, Done };
+enum class Stage : uint8_t {
+	Cases,
+	Window,
+	CorpusCount,
+	Corpus,
+	Swap,
+	Listing,
+	Acquire,
+	Dx,
+	PreviewStall,
+	ByPath,
+	Done
+};
 Stage g_stage = Stage::Cases;
 
 /// Where the swap stage is in the sequence above.
@@ -3082,6 +3099,57 @@ void runDxTick() {
 	}
 }
 
+// ── Stage: a preview whose read never answers ───────────────────────────────
+//
+// SP-PREVIEW-STALL. A song's prefix read held far past the preview's 600-tick bound, with a scroll-in parked as a
+// cursor move parks one: the browser must give up with the card error, draw blank, and release the scroll-in, rather
+// than leave the pads scrolled out. After the DX stage, which leaves prefix reads alone or held; before the by-path
+// stage, which uses only the directory channel.
+
+enum class PreviewStallStep : uint8_t { Start, Wait, Finished };
+PreviewStallStep g_previewStallStep = PreviewStallStep::Start;
+
+void runPreviewStallTick() {
+	switch (g_previewStallStep) {
+	case PreviewStallStep::Start:
+		deluge_file_prefix_set_latency_ms(kStallHoldMs);
+		SongPreviewAbProbe::parkScrollIn(1);
+		startCase(kSongsDir, kCases[0].filename);
+		g_previewStallStep = PreviewStallStep::Wait;
+		return;
+
+	case PreviewStallStep::Wait: {
+		if (!driveCase("preview-stall")) {
+			return;
+		}
+		const uint32_t crc = imageCrc();
+		const bool blank = crc == blankImageCrc();
+		const int32_t scroll = SongPreviewAbProbe::parkedScrollIn();
+		printf("SP-PREVIEW-STALL outcome=%s error=%d blank=%d scroll=%d ticks=%d\n",
+		       outcomeName(SongPreviewAbProbe::outcome()), static_cast<int>(SongPreviewAbProbe::error()), blank ? 1 : 0,
+		       scroll, g_caseTicks);
+		if (SongPreviewAbProbe::outcome() != SongPreviewOutcome::Error || SongPreviewAbProbe::error() != Error::SD_CARD
+		    || !blank || scroll != 0) {
+			printf("SP-PREVIEW-STALL FAIL a preview whose read never answered did not give up: outcome=%s error=%d "
+			       "blank=%d scroll=%d, wanted error/%d, a blank image and the scroll-in released\n",
+			       outcomeName(SongPreviewAbProbe::outcome()), static_cast<int>(SongPreviewAbProbe::error()),
+			       blank ? 1 : 0, scroll, static_cast<int>(Error::SD_CARD));
+			g_failures++;
+		}
+		// The released scroll-in set the UI mode, and the stages after this one gate on UI_MODE_NONE.
+		currentUIMode = UI_MODE_NONE;
+		deluge_file_prefix_set_latency_ms(0);
+		g_caseStarted = false;
+		g_caseSettled = false;
+		g_previewStallStep = PreviewStallStep::Finished;
+		return;
+	}
+
+	case PreviewStallStep::Finished:
+		return;
+	}
+}
+
 void printSummary() {
 	const bool async = deluge_file_prefix_async_active();
 	printf("SP-SUMMARY asyncActive=%d cases=%zu corpus=%zu failures=%d\n", async ? 1 : 0, kCases.size(), g_corpusRan,
@@ -3175,6 +3243,7 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_byPathBefore = {};
 	g_dxStep = DxStep::Fixture;
 	g_dxTicks = 0;
+	g_previewStallStep = PreviewStallStep::Start;
 	g_acquireStep = AcquireStep::Fixture;
 	g_acqLoads = 0;
 	g_acqReferenceName.clear();
@@ -3234,6 +3303,12 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 	case Stage::Dx:
 		runDxTick();
 		if (g_dxStep == DxStep::Finished) {
+			g_stage = Stage::PreviewStall;
+		}
+		break;
+	case Stage::PreviewStall:
+		runPreviewStallTick();
+		if (g_previewStallStep == PreviewStallStep::Finished) {
 			g_stage = Stage::ByPath;
 		}
 		break;

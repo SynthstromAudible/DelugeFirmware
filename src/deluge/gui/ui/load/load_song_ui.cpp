@@ -1089,21 +1089,41 @@ void LoadSongUI::drivePreview() {
 }
 
 bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt) {
+	if (attempt.generation != previewWaitGeneration_ || attempt.target.path != previewWaitPath_) {
+		// A different attempt: its wait starts from nothing.
+		previewWaitGeneration_ = attempt.generation;
+		previewWaitPath_ = attempt.target.path;
+		previewWaitTicks_ = 0;
+	}
+
 	uint32_t length = 0;
 	const uint8_t status = deluge_file_prefix_collect(attempt.target.path.c_str(), songPreviewPrefix.data(),
 	                                                  static_cast<uint32_t>(songPreviewPrefix.size()), &length);
 
-	if (status == DELUGE_FILE_PREFIX_PENDING) {
-		return true; // requested or being read: ask again next tick, and do NOT re-request
-	}
-	if (status == DELUGE_FILE_PREFIX_UNKNOWN) {
-		// "The caller should request it (again)" -- the documented meaning, and never a failure to
-		// report. This is also where the FIRST request for a target is issued: drawSongPreview() names
-		// a song the channel has not been told about, so its opening drive lands here.
-		deluge_file_prefix_request(attempt.target.path.c_str(), deluge::storage::kSongPreviewWindow);
-		return true;
+	if (status == DELUGE_FILE_PREFIX_PENDING || status == DELUGE_FILE_PREFIX_UNKNOWN) {
+		if (++previewWaitTicks_ < kMaxPreviewWaitTicks) {
+			if (status == DELUGE_FILE_PREFIX_UNKNOWN) {
+				// "The caller should request it (again)" -- the documented meaning, and never a failure to
+				// report. This is also where the FIRST request for a target is issued: drawSongPreview() names
+				// a song the channel has not been told about, so its opening drive lands here.
+				deluge_file_prefix_request(attempt.target.path.c_str(), deluge::storage::kSongPreviewWindow);
+			}
+			return true; // requested or being read: ask again next tick
+		}
+		// The channel has left this read unanswered for the whole bound. Give up as a read that could not reach the
+		// card: blank, with the card error, and the scroll-in the cursor move owed released rather than left parked.
+		// Nothing to clean up: the channel copied the path, and a late answer is displaced by the next publish. The
+		// next visit to this song asks again.
+		previewWaitTicks_ = 0;
+		PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
+		if (imageStore != nullptr) {
+			reportPreviewOutcome(deluge::storage::SongPreviewOutcome::Error, Error::SD_CARD);
+		}
+		finishPreviewRender();
+		return false;
 	}
 
+	previewWaitTicks_ = 0; // answered: READY or FAILED
 	PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
 
 	if (status == DELUGE_FILE_PREFIX_FAILED) {
