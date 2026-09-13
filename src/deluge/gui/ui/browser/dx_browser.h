@@ -47,6 +47,11 @@ public:
 	/// namespace.
 	static bool cartridgeLoadInFlight();
 
+	/// @brief How many cartridge loads gave up because the channel left their read unanswered for 600 ticks.
+	///
+	/// For the song-preview gate, like @ref cartridgeLoadInFlight.
+	static int32_t cartridgeGiveUps();
+
 	// ui
 	UIType getUIType() override { return UIType::DX_BROWSER; }
 };

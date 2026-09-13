@@ -2951,9 +2951,10 @@ constexpr const char* kDxBankPath = "DX7/BADID.SYX";
 /// The first voice's name, exactly as `DX7Cartridge::getProgramName` normalises it: ten printable characters.
 constexpr const char* kDxFirstName = "SPDXBANK01";
 
-enum class DxStep : uint8_t { Fixture, Open, ListingWait, Enter, LoadWait, Finished };
+enum class DxStep : uint8_t { Fixture, Open, ListingWait, Enter, LoadWait, StallEnter, StallWait, Finished };
 DxStep g_dxStep = DxStep::Fixture;
 int32_t g_dxTicks = 0;
+int32_t g_dxGiveUpsBefore = 0;
 
 /// The bank: the sysex header with its ID byte changed, 32 voices of in-range data (never 0xF7, which the parser takes
 /// as the end of the message), the first voice's name, the checksum over the 4096 voice bytes, and EOX.
@@ -3088,6 +3089,51 @@ void runDxTick() {
 			printf("SP-DX FAIL the bank did not arrive whole: file=%s patches=%d first=%s open=%d, wanted file=%s "
 			       "patches=32 first=%s open=1\n",
 			       file.c_str(), patches, first, open ? 1 : 0, kDxBankName, kDxFirstName);
+			g_failures++;
+		}
+		if (!open) {
+			finishDxStage();
+			return;
+		}
+		g_dxStep = DxStep::StallEnter;
+		return;
+	}
+
+	case DxStep::StallEnter:
+		// SP-DX-STALL. The same bank, with every prefix read held far past the load's 600-tick bound: Enter must give
+		// up with the read-error popup, clear the flag and leave the browser open. The hold outlasts this stage, and
+		// the preview stall after it wants one too.
+		deluge_file_prefix_set_latency_ms(kStallHoldMs);
+		g_dxTicks = 0;
+		g_dxGiveUpsBefore = DxSyxBrowser::cartridgeGiveUps();
+		dxBrowser.enterKeyPress();
+		if (!DxSyxBrowser::cartridgeLoadInFlight()) {
+			printf("SP-DX-STALL FAIL Enter on the listed bank started no load\n");
+			g_failures++;
+			finishDxStage();
+			return;
+		}
+		g_dxStep = DxStep::StallWait;
+		return;
+
+	case DxStep::StallWait: {
+		if (DxSyxBrowser::cartridgeLoadInFlight()) {
+			dxBrowser.graphicsRoutine();
+			if (DxSyxBrowser::cartridgeLoadInFlight()) {
+				if (++g_dxTicks > kMaxStallTicks) {
+					printf("SP-DX-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_dxTicks);
+					g_failures++;
+					finishDxStage();
+				}
+				return;
+			}
+		}
+		const int32_t giveUps = DxSyxBrowser::cartridgeGiveUps() - g_dxGiveUpsBefore;
+		const bool open = getCurrentUI() == &dxBrowser;
+		printf("SP-DX-STALL giveUps=%d inFlight=0 open=%d ticks=%d\n", giveUps, open ? 1 : 0, g_dxTicks);
+		if (giveUps != 1 || !open) {
+			printf("SP-DX-STALL FAIL giveUps=%d open=%d, wanted one give-up with the browser still open\n", giveUps,
+			       open ? 1 : 0);
 			g_failures++;
 		}
 		finishDxStage();
@@ -3243,6 +3289,7 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_byPathBefore = {};
 	g_dxStep = DxStep::Fixture;
 	g_dxTicks = 0;
+	g_dxGiveUpsBefore = 0;
 	g_previewStallStep = PreviewStallStep::Start;
 	g_acquireStep = AcquireStep::Fixture;
 	g_acqLoads = 0;

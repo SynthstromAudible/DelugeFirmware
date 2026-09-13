@@ -46,6 +46,9 @@
 #             the card error, draws blank, and releases the scroll-in it owed.
 #   SP-DX     one DX7 bank picked in the DX browser, read through the prefix channel and parsed. The run
 #             requires the fixture's file, 32 patches and first patch name. SP-DX-WAIT prints the ticks it took.
+#   SP-DX-STALL
+#             the same bank with its read held far past the load's 600-tick bound: Enter gives up with the
+#             read-error popup, clears the load's flag and leaves the browser open.
 #
 # Usage: scripts/song_preview_ab.sh
 #
@@ -131,7 +134,7 @@ run_leg() {
 	fi
 	if ! grep -q '^SP-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-PREVIEW-STALL|SP-DX|SP-REFERENCE|SP-TIER) ' \
+		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-PREVIEW-STALL|SP-DX|SP-DX-STALL|SP-REFERENCE|SP-TIER) ' \
 			"$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
@@ -139,7 +142,7 @@ run_leg() {
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
 	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-PREDICT-SUMMARY SP-NEWNAME \
-		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-PREVIEW-STALL SP-DX SP-REFERENCE SP-TIER; do
+		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-PREVIEW-STALL SP-DX SP-DX-STALL SP-REFERENCE SP-TIER; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1

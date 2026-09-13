@@ -58,6 +58,12 @@ PLACE_SDRAM_BSS std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> g_cartridgeBuff
 /// g_cartridgeLoadPath before the collect reads it: the browser stays open until the load
 /// succeeds, so a second enterKeyPress can land while one is already in flight.
 bool g_cartridgeLoadInFlight = false;
+/// Consecutive ticks the load in flight has found its read unanswered (UNKNOWN or PENDING).
+int32_t g_cartridgeWaitTicks = 0;
+/// How many unanswered ticks a cartridge load is given: the bound every channel consumer on this ladder uses.
+constexpr int32_t kMaxCartridgeWaitTicks = 600;
+/// Loads that gave up at the bound. See DxSyxBrowser::cartridgeGiveUps().
+int32_t g_cartridgeGiveUps = 0;
 
 /// After a cartridge loaded: enter its submenu, then close the browser. Both arms end here.
 ///
@@ -169,6 +175,7 @@ void DxSyxBrowser::enterKeyPress() {
 		// opening ask and every re-ask are one code path.
 		g_cartridgeLoadPath = std::move(path);
 		g_cartridgeLoadInFlight = true;
+		g_cartridgeWaitTicks = 0;
 	}
 }
 
@@ -180,6 +187,7 @@ void DxSyxBrowser::close() {
 	// !g_cartridgeLoadInFlight check and silently does nothing, and re-entering the browser collects
 	// the stale path's bytes and jumps into the cartridge submenu for a file the user never chose.
 	g_cartridgeLoadInFlight = false;
+	g_cartridgeWaitTicks = 0;
 	Browser::close();
 }
 
@@ -191,6 +199,21 @@ void DxSyxBrowser::browserGraphicsRoutine() {
 	uint32_t length = 0;
 	const uint8_t status = deluge_file_prefix_collect(g_cartridgeLoadPath.c_str(), g_cartridgeBuffer.data(),
 	                                                  static_cast<uint32_t>(g_cartridgeBuffer.size()), &length);
+	if (status == DELUGE_FILE_PREFIX_PENDING || status == DELUGE_FILE_PREFIX_UNKNOWN) {
+		if (++g_cartridgeWaitTicks >= kMaxCartridgeWaitTicks) {
+			// The channel has left this read unanswered for the whole bound. Give up as a read that failed does: the
+			// popup, and the browser left up so another file can be picked. Nothing to clean up: the channel copied
+			// the path, and a late answer is displaced by the next publish.
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR));
+			g_cartridgeLoadInFlight = false;
+			g_cartridgeWaitTicks = 0;
+			g_cartridgeGiveUps++;
+			return;
+		}
+	}
+	else {
+		g_cartridgeWaitTicks = 0; // answered: READY or FAILED
+	}
 	switch (status) {
 	case DELUGE_FILE_PREFIX_PENDING:
 		return; // being read; ask again next tick and do NOT re-request
@@ -221,6 +244,10 @@ void DxSyxBrowser::browserGraphicsRoutine() {
 
 bool DxSyxBrowser::cartridgeLoadInFlight() {
 	return g_cartridgeLoadInFlight;
+}
+
+int32_t DxSyxBrowser::cartridgeGiveUps() {
+	return g_cartridgeGiveUps;
 }
 
 DxSyxBrowser dxBrowser{};
