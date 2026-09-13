@@ -26,6 +26,11 @@
 #                 the save guard already released -- is refused, and the song document still lands whole.
 #   DS-ACCOUNTED  a read-back the channel answered, and that then failed the save, still counts as served:
 #                 the file is removed between the write landing and the read-back's first answer.
+#   DS-OVERWRITE  a confirmed overwrite writes a temp file beside its target, verifies it there, and swaps it into
+#                 place: the name holds a whole document and no temp file is left.
+#   DS-OVERWRITE-FAIL
+#                 a confirmed overwrite whose temp file is truncated before its read-back fails the save, leaves the
+#                 document it was replacing byte-for-byte intact, and removes the temp file.
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
 set -euo pipefail
@@ -72,7 +77,7 @@ if [ "$status" -ne 0 ]; then
 fi
 # An abort or a wedge exits before these lines are printed, which is what turns a freeze into a gate
 # failure rather than a silently truncated log.
-for marker in DS-BACKMIDSAVE DS-EXITMIDSAVE DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-GUARD-SONG DS-ACCOUNTED DS-VERIFIED DS-SUMMARY DS-RESULT; do
+for marker in DS-BACKMIDSAVE DS-EXITMIDSAVE DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-GUARD-SONG DS-ACCOUNTED DS-OVERWRITE DS-OVERWRITE-FAIL DS-VERIFIED DS-SUMMARY DS-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^DS-' "$OUT/run.txt"
@@ -101,10 +106,11 @@ if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
 	fail=1
 fi
 
-# DS-VERIFIED. Both saves that were checked before staging are checked again, and both completed. The
+# DS-VERIFIED. The preset, the kit row and the confirmed overwrite are checked, and all three completed. The
 # counters are taken where a save genuinely succeeds, so a save that wrote its file and was then
-# rejected by the read-back cannot be counted -- which a check on the file's presence alone would miss.
-if ! grep -q '^DS-VERIFIED completedSaves=2 verified=2$' "$OUT/run.txt"; then
+# rejected by the read-back -- DS-ACCOUNTED's and DS-OVERWRITE-FAIL's -- cannot be counted, which a check on
+# the file's presence alone would miss.
+if ! grep -q '^DS-VERIFIED completedSaves=3 verified=3$' "$OUT/run.txt"; then
 	echo "FAIL DS-VERIFIED — $(grep '^DS-VERIFIED ' "$OUT/run.txt" || echo 'no DS-VERIFIED line')"
 	fail=1
 fi
@@ -135,5 +141,6 @@ grep -E '^DS-' "$OUT/run.txt"
 if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
-echo "PASS — the document was written whole off the storage owner and read back through the channel, and"
-echo "       a taken name was refused rather than replaced"
+echo "PASS — the document was written whole off the storage owner and read back through the channel, a taken"
+echo "       name was refused rather than replaced, and a confirmed overwrite kept the old document until its"
+echo "       replacement was verified"

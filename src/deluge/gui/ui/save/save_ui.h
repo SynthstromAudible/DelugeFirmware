@@ -165,6 +165,10 @@ public:
 	/// @brief Whole-document writes the CHANNEL has served, and staged steps that ran off the owner.
 	[[nodiscard]] static int32_t writeChannelServedOps() { return writeChannelServedOps_; }
 	[[nodiscard]] static int32_t offOwnerSaveTicks() { return offOwnerSaveTicks_; }
+	/// @brief Where the in-flight staged save writes its document, or the last one wrote it.
+	[[nodiscard]] static const std::string& stagedWritePath() { return inFlightRequest_.filePath; }
+	/// @brief Byte-channel answers the temp-file swaps have collected: the target's delete and the rename.
+	[[nodiscard]] static int32_t swapChannelServedOps() { return 0; }
 
 private:
 	/// @brief Which part of a staged save runs next.

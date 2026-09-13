@@ -38,6 +38,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/byte_channel.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include <cstdio>
@@ -83,6 +84,8 @@ public:
 	}
 	static std::string targetPath() { return Browser::currentDir + "/" + Browser::enteredText + ".XML"; }
 	static bool overwritePromptOpen() { return getCurrentUI() == &deluge::gui::context_menu::overwriteFile; }
+	/// Confirm the open overwrite prompt, as its OK does. Mirrors SongSaveChannelProbe::confirmOverwrite().
+	static void confirmOverwrite() { (void)deluge::gui::context_menu::overwriteFile.acceptCurrentOption(); }
 	/// @return Whether the save screen OPENED -- not whether its listing has finished. The listing is
 	///         asynchronous and settles on a later tick, which is KitOpenWait's job; treating an
 	///         in-flight listing as a failure here is what made the first run report that a screen
@@ -126,6 +129,9 @@ constexpr const char* kAccountName = "DSACCT01";
 /// Byte-channel latency while the accounting save verifies: long enough to remove the file between the write
 /// landing and the read-back's first answer.
 constexpr uint32_t kAccountLatencyMs = 50;
+/// DS-OVERWRITE-FAIL: the byte channel's hold while the confirmed overwrite verifies. DS-ACCOUNTED's, for its reason:
+/// long enough to truncate the temp file between its write landing and the read-back's first answer.
+constexpr uint32_t kOverwriteLatencyMs = kAccountLatencyMs;
 
 enum class Stage : uint8_t {
 	Fixture,
@@ -160,6 +166,20 @@ enum class Stage : uint8_t {
 	AccountTamper,
 	AccountWait,
 	AccountCheck,
+	OverwriteOpen,
+	OverwriteOpenWait,
+	OverwriteSave,
+	OverwritePrompt,
+	OverwriteWait,
+	OverwriteCheck,
+	OverwriteFailOpen,
+	OverwriteFailOpenWait,
+	OverwriteFailSave,
+	OverwriteFailPrompt,
+	OverwriteFailTamper,
+	OverwriteFailWait,
+	OverwriteFailDrain,
+	OverwriteFailCheck,
 	Report,
 	Done,
 };
@@ -188,6 +208,14 @@ int32_t g_verifyServedBefore = 0;
 int32_t g_verifiedBefore = 0;
 bool g_tampered = false;
 std::string g_accountPath;
+/// DS-OVERWRITE / DS-OVERWRITE-FAIL: the counters before each confirmed overwrite, and what the failing one found.
+int32_t g_overwriteCompletedBefore = 0;
+int32_t g_overwriteVerifiedBefore = 0;
+int32_t g_swapServedBefore = 0;
+int32_t g_overwriteWriteServedBefore = 0;
+bool g_overwriteTampered = false;
+bool g_overwriteTargetBefore = false;
+uint32_t g_overwriteCrcBefore = 0;
 
 /// A save spans ticks by construction; this bound exists so a save that never lands ends the run with
 /// a REPORT rather than a silent timeout.
@@ -218,6 +246,21 @@ bool readWholeFile(const char* path, std::vector<uint8_t>& out) {
 	auto read = opened->read(std::span<std::byte>(reinterpret_cast<std::byte*>(out.data()), *size));
 	(void)opened->close();
 	return read.has_value() && read->size() == *size;
+}
+
+/// Whether `path` names a file that is there, empty or not. `readWholeFile` reads an empty file as absent.
+bool fileOnCard(const char* path) {
+	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
+	if (!opened.has_value()) {
+		return false;
+	}
+	(void)opened->close();
+	return true;
+}
+
+bool endsWith(const std::string& s, const char* suffix) {
+	const size_t n = strlen(suffix);
+	return s.size() >= n && s.compare(s.size() - n, n, suffix) == 0;
 }
 
 /// Build a sound drum to save, the way shipping code builds kit drums (slicer.cpp,
@@ -721,6 +764,216 @@ void runTick() {
 			       (int)verifyServed);
 			g_failures++;
 		}
+		g_stage = Stage::OverwriteOpen;
+		break;
+	}
+	case Stage::OverwriteOpen: {
+		// DS-OVERWRITE. Last, after every stage that counts staged saves absolutely: DS-GUARD and DS-KITROW read
+		// `stagedSavesCompleted()` as 1 and 2. Save onto the preset's own name again, and confirm the prompt that
+		// raises.
+		changeRootUI(&arrangerView);
+		(void)DocumentSaveChannelProbe::openOn();
+		g_stage = Stage::OverwriteOpenWait;
+		break;
+	}
+	case Stage::OverwriteOpenWait: {
+		// Type on a later tick than the open, for DS-OCCUPIED's reason: the listing picks a fresh name when it settles.
+		if (!DocumentSaveChannelProbe::listingInProgress()) {
+			g_stage = Stage::OverwriteSave;
+		}
+		break;
+	}
+	case Stage::OverwriteSave: {
+		DocumentSaveChannelProbe::typeName(kSaveName);
+		DocumentSaveChannelProbe::pressEnter();
+		g_waitTicks = 0;
+		g_stage = Stage::OverwritePrompt;
+		break;
+	}
+	case Stage::OverwritePrompt: {
+		if (SaveUI::saveInFlight() && ++g_waitTicks <= kMaxWaitTicks) {
+			break;
+		}
+		if (!DocumentSaveChannelProbe::overwritePromptOpen()) {
+			printf("DS-OVERWRITE FAIL fixture: saving onto %s again did not prompt\n", kSaveName);
+			g_failures++;
+			g_stage = Stage::OverwriteFailOpen;
+			break;
+		}
+		g_overwriteCompletedBefore = SaveUI::stagedSavesCompleted();
+		g_overwriteVerifiedBefore = SaveUI::stagedSavesVerified();
+		g_swapServedBefore = SaveUI::swapChannelServedOps();
+		DocumentSaveChannelProbe::confirmOverwrite();
+		g_waitTicks = 0;
+		g_stage = Stage::OverwriteWait;
+		break;
+	}
+	case Stage::OverwriteWait: {
+		if (SaveUI::saveInFlight() && ++g_waitTicks <= kMaxWaitTicks) {
+			break;
+		}
+		g_stage = Stage::OverwriteCheck;
+		break;
+	}
+	case Stage::OverwriteCheck: {
+		std::vector<uint8_t> bytes;
+		const bool present = readWholeFile(g_path.c_str(), bytes);
+		const bool whole = present && bytes.size() >= 100 && memcmp(bytes.data(), "<?xml", 5) == 0;
+		const bool tmpLeft = fileOnCard((g_path + ".tmp").c_str());
+		const bool usedTemp = endsWith(SaveUI::stagedWritePath(), ".tmp");
+		const int32_t completed = SaveUI::stagedSavesCompleted() - g_overwriteCompletedBefore;
+		const int32_t verified = SaveUI::stagedSavesVerified() - g_overwriteVerifiedBefore;
+		const int32_t swapServed = SaveUI::swapChannelServedOps() - g_swapServedBefore;
+		const bool promptClosed = !isUIOpen(&deluge::gui::context_menu::overwriteFile);
+		printf("DS-OVERWRITE completed=%d verified=%d usedTemp=%d swapServed=%d whole=%d tmpLeft=%d promptClosed=%d\n",
+		       (int)completed, (int)verified, (int)usedTemp, (int)swapServed, (int)whole, (int)tmpLeft,
+		       (int)promptClosed);
+		if (SaveUI::saveInFlight()) {
+			printf("DS-OVERWRITE FAIL the confirmed overwrite never finished (%d ticks)\n", g_waitTicks);
+			g_failures++;
+		}
+		if (completed != 1 || verified != 1) {
+			printf("DS-OVERWRITE FAIL the confirmed overwrite did not complete a verified save\n");
+			g_failures++;
+		}
+		if (!usedTemp) {
+			printf("DS-OVERWRITE FAIL the confirmed overwrite wrote straight onto the document it replaces, not a temp "
+			       "file\n");
+			g_failures++;
+		}
+		if (swapServed < 2) {
+			printf("DS-OVERWRITE FAIL the temp file was not swapped into place through the byte channel\n");
+			g_failures++;
+		}
+		if (!whole) {
+			printf("DS-OVERWRITE FAIL %s holds no whole document after the overwrite\n", g_path.c_str());
+			g_failures++;
+		}
+		if (tmpLeft) {
+			printf("DS-OVERWRITE FAIL the temp file is still on the card after a successful overwrite\n");
+			g_failures++;
+		}
+		if (!promptClosed) {
+			printf("DS-OVERWRITE FAIL the overwrite prompt is still open after the save finished\n");
+			g_failures++;
+		}
+		g_stage = Stage::OverwriteFailOpen;
+		break;
+	}
+	case Stage::OverwriteFailOpen: {
+		// DS-OVERWRITE-FAIL. Start from a clean UI stack: a failed DS-OVERWRITE may have left its screens up, and a
+		// finished one closed them.
+		changeRootUI(&arrangerView);
+		(void)DocumentSaveChannelProbe::openOn();
+		g_stage = Stage::OverwriteFailOpenWait;
+		break;
+	}
+	case Stage::OverwriteFailOpenWait: {
+		if (!DocumentSaveChannelProbe::listingInProgress()) {
+			g_stage = Stage::OverwriteFailSave;
+		}
+		break;
+	}
+	case Stage::OverwriteFailSave: {
+		DocumentSaveChannelProbe::typeName(kSaveName);
+		DocumentSaveChannelProbe::pressEnter();
+		g_waitTicks = 0;
+		g_stage = Stage::OverwriteFailPrompt;
+		break;
+	}
+	case Stage::OverwriteFailPrompt: {
+		if (SaveUI::saveInFlight() && ++g_waitTicks <= kMaxWaitTicks) {
+			break;
+		}
+		if (!DocumentSaveChannelProbe::overwritePromptOpen()) {
+			printf("DS-OVERWRITE-FAIL FAIL fixture: saving onto %s again did not prompt\n", kSaveName);
+			g_failures++;
+			g_stage = Stage::Report;
+			break;
+		}
+		std::vector<uint8_t> bytes;
+		g_overwriteTargetBefore = readWholeFile(g_path.c_str(), bytes);
+		g_overwriteCrcBefore = g_overwriteTargetBefore ? crc32(bytes.data(), bytes.size()) : 0;
+		g_overwriteVerifiedBefore = SaveUI::stagedSavesVerified();
+		g_overwriteWriteServedBefore = SaveUI::writeChannelServedOps();
+		g_overwriteTampered = false;
+		// Hold the read-back's first answer, so the temp file can be truncated after its write lands and before it
+		// is checked.
+		deluge_file_bytes_set_latency_ms(kOverwriteLatencyMs);
+		DocumentSaveChannelProbe::confirmOverwrite();
+		g_waitTicks = 0;
+		g_stage = Stage::OverwriteFailTamper;
+		break;
+	}
+	case Stage::OverwriteFailTamper: {
+		if (SaveUI::writeChannelServedOps() > g_overwriteWriteServedBefore) {
+			// The write has landed and the read-back has begun; its first answer is held by the latency.
+			const std::string temp = g_path + ".tmp";
+			if (fileOnCard(temp.c_str())) {
+				auto truncated = deluge::io::File::open(temp.c_str(), DELUGE_FILE_WRITE_CREATE);
+				if (truncated.has_value()) {
+					(void)truncated->close();
+					g_overwriteTampered = true;
+				}
+			}
+			g_stage = Stage::OverwriteFailWait;
+			break;
+		}
+		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
+			// Ended before its write landed: nothing to truncate. OverwriteFailCheck reports that nothing was tested.
+			g_stage = Stage::OverwriteFailWait;
+		}
+		break;
+	}
+	case Stage::OverwriteFailWait: {
+		if (SaveUI::saveInFlight()) {
+			if (++g_waitTicks > kMaxWaitTicks) {
+				printf("DS-OVERWRITE-FAIL FAIL the save never finished (%d ticks)\n", g_waitTicks);
+				g_failures++;
+				g_stage = Stage::Report;
+			}
+			break;
+		}
+		deluge_file_bytes_set_latency_ms(0);
+		g_waitTicks = 0;
+		g_stage = Stage::OverwriteFailDrain;
+		break;
+	}
+	case Stage::OverwriteFailDrain: {
+		// A failed save queues the temp file's removal on the byte channel; let it run before looking for the file.
+		if (!deluge::storage::bytes::idle() && ++g_waitTicks <= kMaxWaitTicks) {
+			break;
+		}
+		g_stage = Stage::OverwriteFailCheck;
+		break;
+	}
+	case Stage::OverwriteFailCheck: {
+		std::vector<uint8_t> bytes;
+		const bool present = readWholeFile(g_path.c_str(), bytes);
+		const bool unchanged =
+		    g_overwriteTargetBefore && present && crc32(bytes.data(), bytes.size()) == g_overwriteCrcBefore;
+		const bool failed = SaveUI::stagedSavesVerified() == g_overwriteVerifiedBefore;
+		const bool tmpLeft = fileOnCard((g_path + ".tmp").c_str());
+		printf("DS-OVERWRITE-FAIL tampered=%d failed=%d targetUnchanged=%d tmpLeft=%d\n", (int)g_overwriteTampered,
+		       (int)failed, (int)unchanged, (int)tmpLeft);
+		if (!g_overwriteTampered) {
+			printf("DS-OVERWRITE-FAIL FAIL the read-back was not made to fail: there was no temp file to truncate, so "
+			       "nothing was tested\n");
+			g_failures++;
+		}
+		if (!failed) {
+			printf("DS-OVERWRITE-FAIL FAIL a confirmed overwrite whose read-back was made to fail still counted as "
+			       "verified\n");
+			g_failures++;
+		}
+		if (!unchanged) {
+			printf("DS-OVERWRITE-FAIL FAIL the document a failed overwrite was replacing is gone or changed\n");
+			g_failures++;
+		}
+		if (tmpLeft) {
+			printf("DS-OVERWRITE-FAIL FAIL the temp file of a failed overwrite is still on the card\n");
+			g_failures++;
+		}
 		g_stage = Stage::Report;
 		break;
 	}
@@ -735,6 +988,7 @@ void runTick() {
 		// and a file left behind here changes what another gate's browser listing sees.
 		if (!g_path.empty()) {
 			(void)deluge::io::unlink(g_path.c_str());
+			(void)deluge::io::unlink((g_path + ".tmp").c_str());
 		}
 		if (!g_kitPath.empty()) {
 			(void)deluge::io::unlink(g_kitPath.c_str());
@@ -784,6 +1038,13 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_verifiedBefore = 0;
 	g_tampered = false;
 	g_accountPath.clear();
+	g_overwriteCompletedBefore = 0;
+	g_overwriteVerifiedBefore = 0;
+	g_swapServedBefore = 0;
+	g_overwriteWriteServedBefore = 0;
+	g_overwriteTampered = false;
+	g_overwriteTargetBefore = false;
+	g_overwriteCrcBefore = 0;
 }
 
 bool deluge_scenario_document_save_channel_complete(void) {
