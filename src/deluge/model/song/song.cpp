@@ -3935,6 +3935,9 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 				ModControllableAudio* modControllable = backedUp->modControllable;
 
 				// We have to delete that element...
+				// The main-only steal above retains any expression collection in
+				// the removed element, and this raw vector does not run destructors.
+				backedUp->~BackedUpParamManager();
 				backedUpParamManagers.deleteAtIndex(i);
 
 				// ...and then go find the first one that had this ModControllable
