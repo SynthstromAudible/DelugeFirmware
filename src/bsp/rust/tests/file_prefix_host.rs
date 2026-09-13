@@ -515,6 +515,13 @@ mod card;
 #[path = "../src/file_directory.rs"]
 mod file_directory;
 
+/// The fourth sibling `card.rs` names, gated with `card` for the same reason as `file_directory` above. It was added
+/// to `card.rs` without being added here, and this carrier stopped compiling.
+#[allow(dead_code)]
+#[cfg(feature = "async_file_prefix_active")]
+#[path = "../src/file_bytes.rs"]
+mod file_bytes;
+
 #[cfg(feature = "async_file_prefix_active")]
 mod live_pipeline {
     use super::file_prefix::{
