@@ -269,11 +269,13 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFr
 }
 
 ModelStackWithAutoParam* ModelStackWithThreeMainThings::getExpressionAutoParamFromID(int32_t newParamId) {
-	if (newParamId >= kNumExpressionDimensions) {
+	if (!paramManager || newParamId < 0 || newParamId >= kNumExpressionDimensions) {
 		return addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
-	paramManager->ensureExpressionParamSetExists(); // Allowed to fail
+	if (!paramManager->ensureExpressionParamSetExists()) {
+		return addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr);
+	}
 	ParamCollectionSummary* summary = paramManager->getExpressionParamSetSummary();
 	ModelStackWithParamId* modelStackWithParamId =
 	    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
