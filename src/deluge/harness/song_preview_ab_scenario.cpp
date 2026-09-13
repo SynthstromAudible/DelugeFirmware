@@ -221,6 +221,13 @@ public:
 	/// `Browser::fileIndexSelected` is protected; the snapshot needs it, and it is half of what
 	/// "the listing finished the same way" means.
 	static int32_t selectedIndex() { return Browser::fileIndexSelected; }
+	/// Name the next free song slot in `dir`, as creating a new song does. Call on the storage owner.
+	static std::string unusedSlotIn(const char* dir) {
+		Browser::currentDir = dir;
+		std::string name;
+		const Error error = saveSongUI.getUnusedSlot(OutputType::NONE, &name, "SONG");
+		return error == Error::NONE ? name : "error " + std::to_string(static_cast<int>(error));
+	}
 
 	/// Drives ArrangerView's REAL new-instrument pad gesture, rather than restating its callee
 	/// (createNewInstrument) directly. Dispatches onto the storage owner (rung 5, task 3); see
@@ -1207,7 +1214,20 @@ constexpr const char* kBigDir = "BIGLIST";
 constexpr int32_t kBigEntries = 300;
 static_assert(kBigEntries > 230, "the case must exceed the arena threshold it exists to guard");
 
-enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Fallback, Create, Mount, Finished };
+/// What the reference listing of kListingDir holds: the fixture's first nine songs, in order, with the first selected.
+/// Measured (2026-09-12) with the read's edge trims in place. Without them the window held SONG000-009 and then
+/// SONG020-023: entries read after a cull that sorted into the region it had just deleted.
+constexpr std::array<const char*, 9> kReferenceNames = {"SONG000.XML", "SONG001.XML", "SONG002.XML",
+                                                        "SONG003.XML", "SONG004.XML", "SONG005.XML",
+                                                        "SONG006.XML", "SONG007.XML", "SONG008.XML"};
+
+/// The slot-naming fixture: two numbered songs, and one whose name sorts AFTER getUnusedSlot's "SONG:" search key.
+/// That read keeps only what sorts before the key and numbers the next slot from the last entry kept, so the one-sided
+/// trim is what keeps SONGZZZ from being that entry. Without it the slot comes out as SONG1.
+constexpr const char* kSlotDir = "SLOTTEST";
+constexpr const char* kSlotExpected = "SONG003";
+
+enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Fallback, Create, Slot, Mount, Finished };
 ListingStep g_listingStep = ListingStep::Fixture;
 int32_t g_listingDeferAt = 0;  ///< which N the sweep is on; 0 = the reference run
 int32_t g_listingOpens = 0;    ///< how many opens the reference run performed
@@ -1222,6 +1242,9 @@ uint32_t g_mountNoticesBefore = 0;
 size_t g_itemsWhenRunBegan = 0;
 /// Set if a suspended listing was ever seen with an empty list it should have been preserving.
 bool g_sawBlankWhileSuspended = false;
+bool g_slotRan = false;  ///< the owner op naming the slot has run
+std::string g_slotName;  ///< what it named
+int32_t g_slotTicks = 0; ///< tick budget guard for it
 
 ListingSnapshot takeListingSnapshot() {
 	ListingSnapshot snap;
@@ -1232,6 +1255,47 @@ ListingSnapshot takeListingSnapshot() {
 		snap.names.push_back(item.filename);
 	}
 	return snap;
+}
+
+/// The names in `snap`, comma-separated, for a failure message.
+std::string joinNames(const ListingSnapshot& snap) {
+	std::string all;
+	for (const std::string& name : snap.names) {
+		if (!all.empty()) {
+			all += ',';
+		}
+		all += name;
+	}
+	return all;
+}
+
+/// Whether `snap` is the reference listing: exactly kReferenceNames, with the first of them selected and named.
+bool matchesReferenceNames(const ListingSnapshot& snap) {
+	if (snap.names.size() != kReferenceNames.size()) {
+		return false;
+	}
+	for (size_t i = 0; i < kReferenceNames.size(); i++) {
+		if (snap.names[i] != kReferenceNames[i]) {
+			return false;
+		}
+	}
+	return snap.entered == "SONG000" && snap.selected == 0;
+}
+
+/// Build kSlotDir. Idempotent, like buildFixtureDir: a reused image already has the files.
+void buildSlotFixture() {
+	(void)deluge::io::mkdir(kSlotDir);
+	for (const char* name : {"SONG001.XML", "SONG002.XML", "SONGZZZ.XML"}) {
+		char path[64];
+		snprintf(path, sizeof(path), "%s/%s", kSlotDir, name);
+		auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE_NEW);
+		if (!file.has_value()) {
+			continue; // already present from a previous run
+		}
+		const char body[] = "<song firmwareVersion=\"c1.3.0\"></song>";
+		(void)file->write(std::as_bytes(std::span{body, sizeof(body) - 1}));
+		(void)file->close();
+	}
 }
 
 /// Create a directory of `count` tiny song files. Idempotent: a re-run of the harness against a
@@ -1527,17 +1591,19 @@ void runListingTick() {
 			runPredictionCases();
 			runBrandNewNameCases();
 
-			// Now with the filesystem UNMOUNTED. Mounting is real card I/O, so on the channel arm it
-			// belongs to the driver, not to StorageManager::initSD() running on the interaction tier.
-			// The listing has to succeed anyway, and -- the half that is invisible in its result -- the
-			// unmounted->mounted edge has to reach firstCardRead() exactly once, even though nothing
-			// in C++ did the mounting.
-			g_mountNoticesBefore = StorageManager::cardMountNotices();
-			deluge_efatfs_unmount();
-			BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
-			g_listingRunning = true;
-			g_listingTicks = 0;
-			g_listingStep = ListingStep::Mount;
+			// Slot naming, on the storage owner, where creating a new song names one. Here rather than earlier
+			// because everything above leaves no file selected: getUnusedSlot empties the list, and a selection
+			// left pointing into an empty list is dereferenced by the next prediction.
+			buildSlotFixture();
+			g_slotRan = false;
+			g_slotTicks = 0;
+			(void)deluge::storage::Owner::run(
+			    [](void*) {
+				    g_slotName = BrowserListingAbProbe::unusedSlotIn(kSlotDir);
+				    g_slotRan = true;
+			    },
+			    nullptr);
+			g_listingStep = ListingStep::Slot;
 			return;
 		}
 
@@ -1599,6 +1665,13 @@ void runListingTick() {
 			// by a direct open and the leg tested nothing.
 			printf("SP-LISTING reference entries=%zu opens=%d deferrals=%d\n", g_listingReference.names.size(),
 			       g_listingOpens, BrowserListingAbProbe::deferrals());
+			if (!matchesReferenceNames(g_listingReference)) {
+				printf(
+				    "SP-LISTING FAIL reference listed %s entered=%s sel=%d, wanted SONG000-008 entered=SONG000 sel=0\n",
+				    joinNames(g_listingReference).c_str(), g_listingReference.entered.c_str(),
+				    g_listingReference.selected);
+				g_failures++;
+			}
 			if (g_listingOpens < 2) {
 				printf("SP-LISTING FAIL only %d open(s) -- the sweep would cover no retry path\n", g_listingOpens);
 				g_failures++;
@@ -1684,6 +1757,31 @@ void runListingTick() {
 		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
 		g_listingRunning = true;
 		g_listingTicks = 0;
+		return;
+	case ListingStep::Slot:
+		// The marker op behind this step's dispatch makes one tick enough; bounded anyway.
+		if (!g_slotRan && ++g_slotTicks < 200) {
+			return;
+		}
+		printf("SP-SLOT dir=%s name=%s\n", kSlotDir, g_slotRan ? g_slotName.c_str() : "(never ran)");
+		if (!g_slotRan || g_slotName != kSlotExpected) {
+			printf("SP-SLOT FAIL named %s, wanted %s -- an entry sorting after the search key stayed in the read, "
+			       "and the slot was numbered from it\n",
+			       g_slotRan ? g_slotName.c_str() : "(never ran)", kSlotExpected);
+			g_failures++;
+		}
+
+		// Now with the filesystem UNMOUNTED. Mounting is real card I/O, so on the channel arm it
+		// belongs to the driver, not to StorageManager::initSD() running on the interaction tier.
+		// The listing has to succeed anyway, and -- the half that is invisible in its result -- the
+		// unmounted->mounted edge has to reach firstCardRead() exactly once, even though nothing
+		// in C++ did the mounting.
+		g_mountNoticesBefore = StorageManager::cardMountNotices();
+		deluge_efatfs_unmount();
+		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
+		g_listingRunning = true;
+		g_listingTicks = 0;
+		g_listingStep = ListingStep::Mount;
 		return;
 	case ListingStep::Reference:
 	case ListingStep::Finished:
@@ -2665,6 +2763,9 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_listingReference = ListingSnapshot{};
 	g_itemsWhenRunBegan = 0;
 	g_sawBlankWhileSuspended = false;
+	g_slotRan = false;
+	g_slotName.clear();
+	g_slotTicks = 0;
 	g_acquireStep = AcquireStep::Fixture;
 	g_acqLoads = 0;
 	g_acqReferenceName.clear();

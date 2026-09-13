@@ -63,7 +63,7 @@ std::string Browser::lastFileItemRemaining;
 OutputType Browser::outputTypeToLoad;
 char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
-char const* Browser::filenameToStartSearchAt;
+std::string Browser::filenameToStartSearchAt;
 
 namespace {
 /// See Browser::unusedSlotCalls().
@@ -461,7 +461,7 @@ deleteFromRightSide:
 
 		shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 		octaveStartsFromA = false;
-		int32_t foundIndex = searchFileItems(filenameToStartSearchAt);
+		int32_t foundIndex = searchFileItems(filenameToStartSearchAt.c_str());
 
 		// If search-item is in second half, delete from start.
 		if ((foundIndex << 1) >= static_cast<int32_t>(fileItems.size())) {
@@ -582,7 +582,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	lastFileItemRemaining.clear();
 	catalogSearchDirection = newCatalogSearchDirection;
 	maxNumFileItemsNow = newMaxNumFileItems;
-	filenameToStartSearchAt = filenameToStartAt;
+	filenameToStartSearchAt = filenameToStartAt != nullptr ? filenameToStartAt : "";
 
 	while (true) {
 		AudioEngine::logAction("while loop");
@@ -2245,6 +2245,64 @@ void Browser::sortFileItems() {
 	std::sort(fileItems.begin(), fileItems.end(), [](FileItem const& a, FileItem const& b) {
 		return strcmpspecial(a.displayName().c_str(), b.displayName().c_str()) < 0;
 	});
+
+	// A read that searches one way from a name keeps only that side of it.
+	if (!filenameToStartSearchAt.empty()) {
+		char const* searchName = filenameToStartSearchAt.c_str();
+		if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
+			bool foundExact = false;
+			int32_t searchIndex = searchFileItems(searchName, &foundExact);
+			// Check for duplicates.
+			if (foundExact) {
+				int32_t prevIndex = searchIndex - 1;
+				if (prevIndex >= 0 && !strcmpspecial(fileItems[prevIndex].displayName().c_str(), searchName)) {
+					searchIndex = prevIndex;
+				}
+			}
+			int32_t numToDelete = static_cast<int32_t>(fileItems.size()) - searchIndex;
+			if (numToDelete > 0) {
+				deleteSomeFileItems(searchIndex, static_cast<int32_t>(fileItems.size()));
+				numFileItemsDeletedAtEnd += numToDelete;
+			}
+		}
+		else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
+			bool foundExact = false;
+			int32_t searchIndex = searchFileItems(searchName, &foundExact);
+			// Check for duplicates.
+			if (foundExact) {
+				int32_t nextIndex = searchIndex + 1;
+				if (nextIndex < static_cast<int32_t>(fileItems.size())
+				    && !strcmpspecial(fileItems[nextIndex].displayName().c_str(), searchName)) {
+					searchIndex = nextIndex;
+				}
+			}
+			int32_t numToDelete = searchIndex + static_cast<int32_t>(foundExact);
+			if (numToDelete > 0) {
+				deleteSomeFileItems(0, numToDelete);
+				numFileItemsDeletedAtStart += numToDelete;
+			}
+		}
+	}
+
+	// A cull earlier in this read deleted entries from one end or both. An entry read after that cull which sorts into
+	// a deleted region is dropped here too, or the window has a hole in it: a 25-song folder read from its start
+	// would hold SONG000-009 and then SONG020-023, because 010-019 were culled before 020-024 arrived.
+	if (!lastFileItemRemaining.empty()) {
+		int32_t searchIndex = searchFileItems(lastFileItemRemaining.c_str());
+		int32_t itemsToDeleteAtEnd = static_cast<int32_t>(fileItems.size()) - searchIndex - 1;
+		if (itemsToDeleteAtEnd > 0) {
+			deleteSomeFileItems(searchIndex + 1, static_cast<int32_t>(fileItems.size()));
+			numFileItemsDeletedAtEnd += itemsToDeleteAtEnd;
+		}
+	}
+
+	if (!firstFileItemRemaining.empty()) {
+		int32_t itemsToDeleteAtStart = searchFileItems(firstFileItemRemaining.c_str());
+		if (itemsToDeleteAtStart > 0) {
+			deleteSomeFileItems(0, itemsToDeleteAtStart);
+			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
+		}
+	}
 }
 
 int32_t Browser::searchFileItems(char const* searchString, bool* foundExact) {

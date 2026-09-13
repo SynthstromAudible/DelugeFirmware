@@ -119,7 +119,12 @@ public:
 	static std::string lastFileItemRemaining;
 
 	static OutputType outputTypeToLoad;
-	static char const* filenameToStartSearchAt;
+	/// @brief The search name of the read in progress, empty for a read with none.
+	///
+	/// Owned rather than borrowed. sortFileItems() trims against it, and it is called again after the read that set
+	/// it has returned -- getUnusedSlot() and LoadInstrumentPresetUI's readers both sort once more -- by which time
+	/// the ListingRead whose string a pointer would name is gone.
+	static std::string filenameToStartSearchAt;
 
 	/// @brief True while an async listing (beginListing()'s dispatch onto the storage-owner fiber)
 	///        is in flight.

@@ -138,13 +138,13 @@ run_leg() {
 	fi
 	if ! grep -q '^SP-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING) ' "$OUT_ROOT/$tag.txt"
+		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-SLOT) ' "$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
 	# Each stage prints exactly one of these. Its absence means the run reached SP-RESULT without
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
-	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-ACQUIRE-SUMMARY; do
+	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-SLOT SP-ACQUIRE-SUMMARY; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1
