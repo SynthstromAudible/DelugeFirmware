@@ -28,7 +28,6 @@
 #include "hid/display/oled.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
-#include "libdeluge/audio_load.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -164,10 +163,9 @@ void Slicer::graphicsRoutine() {
 	// Re-ask for a deferred audition. This surface (every ~15 ms while the slicer is up) is the only
 	// thing that ever finishes one.
 	//
-	// take_pending() takes the target OUT before driving it, not after: where drivePreview() runs the
-	// attempt inline (the async loader, and the owner arm on legacy/host where Owner::run is inline)
-	// it completes — and can arm a SECOND deferral — before it returns, which clearing afterwards
-	// would wipe.
+	// take_pending() takes the target OUT before driving it, not after: drivePreview() runs the attempt
+	// inline, so it completes — and can arm a SECOND deferral — before it returns, which clearing
+	// afterwards would wipe.
 	if (auto target = previewLoad_.take_pending(); target.has_value()) {
 		(void)drivePreview(*target);
 	}
@@ -438,8 +436,8 @@ void Slicer::stopAnyPreviewing() {
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
 	// Snapshot the request — plain values only, no pointers into manualSlicePoints[] or any other
-	// live UI state survive past this call — and hand it to drivePreview(), which decides whether the
-	// audition runs here or on the storage owner. A burst of pad taps converges on whichever
+	// live UI state survive past this call — and hand it to drivePreview(), which runs the audition
+	// here and arms a re-ask when its load defers. A burst of pad taps converges on whichever
 	// slice/on-off state the finger is actually on either way, because `previewLoad_` is latest-wins.
 	PreviewTarget target{
 	    .startPoint = startPoint,
@@ -457,31 +455,6 @@ bool Slicer::drivePreview(const PreviewTarget& target) {
 		return false;
 	}
 
-	if (!deluge_audio_load_async_active()) {
-		// The synchronous loader backs sample loads on this BSP/config, so previewForTarget()'s
-		// loadFile() does not answer "not yet" -- it opens the card and reads, and on the Rust BSP
-		// deluge_efatfs_* HOLDS the calling context for the whole transfer rather than yielding it
-		// (src/bsp/rust/src/efatfs_fs.rs). preview() is reached from padAction() and from
-		// graphicsRoutine(), both on the interaction tier, so run inline that read stalls the UI.
-		// Dispatch to the owner instead, which is what this audition did before the async arm existed.
-		//
-		// The residency argument (the sliced sample is already resident, so the load returns from the
-		// in-memory search) is why this is rarely a cold read -- but it rests on
-		// waveformBasicNavigator holding a raw Sample* with no reason, which is an invariant nothing
-		// enforces. It is not a licence to do card I/O on this tier.
-		previewOpDeferred_ = false; // cleared BEFORE the dispatch; see the member's doc
-		if (!deluge::storage::Owner::run(&Slicer::runPreviewOp, this)) {
-			// The owner queue was full, so the op will never run and would wedge single-flight
-			// forever. Release the guard; release_dispatch() arms the target for graphicsRoutine()
-			// to ask for again, which is what this reports.
-			previewLoad_.release_dispatch();
-			return true;
-		}
-		// Where Owner::run was inline (legacy/host) the op has already reported; where it queued
-		// (Embassy) nothing has deferred YET, and false says exactly that.
-		return previewOpDeferred_;
-	}
-
 	bool deferred = false;
 	for (;;) {
 		const auto attempt = previewLoad_.attempt();
@@ -489,7 +462,7 @@ bool Slicer::drivePreview(const PreviewTarget& target) {
 		// is_current() gates the WORK, not merely the recording of a deferral: sounding a slice into a
 		// slicer the user has left is the damage, and a stale re-ask is only the mechanism.
 		//
-		// On THIS arm it has no reachable false branch, and states the invariant rather than closing a
+		// It has no reachable false branch, and states the invariant rather than closing a
 		// window. attempt() is the line above, and every path that stamps a target current
 		// (request()'s dispatch arm, complete()'s hand-off arm) does so immediately before it, in a
 		// drive that never yields between the two -- so nothing can bump the generation in that gap.
@@ -497,9 +470,6 @@ bool Slicer::drivePreview(const PreviewTarget& target) {
 		// and a cancel lands either before request() or after this check has already passed. What
 		// refuses a cancelled attempt is complete()'s `deferred && is_current(a)` five lines down,
 		// and that is what tests/unit/slicer_preview_tests.cpp pins.
-		//
-		// On the owner arm above the same check is load-bearing rather than a restatement, because
-		// a queued dispatch really can run after a cancellation; see runPreviewOp().
 		deferred = previewLoad_.is_current(attempt) && previewForTarget(attempt);
 
 		// A deferral is armed for graphicsRoutine() to re-drive — that surface is the ONLY thing
@@ -512,26 +482,6 @@ bool Slicer::drivePreview(const PreviewTarget& target) {
 		if (!previewLoad_.complete(attempt, deferred).has_value()) {
 			return deferred;
 		}
-	}
-}
-
-void Slicer::runPreviewOp(void* self) {
-	auto* slicer = static_cast<Slicer*>(self);
-	const auto attempt = slicer->previewLoad_.attempt();
-
-	// Checked BEFORE the work, not merely before recording its result: between the dispatch and this
-	// running, the user can have left the slicer or switched slicing mode, neither of which dispatches
-	// a replacement target, so latest-wins supersession never fires. Sounding a slice of the sample
-	// that visit was slicing, into a UI that is gone, is the damage.
-	const bool deferred = slicer->previewLoad_.is_current(attempt) && slicer->previewForTarget(attempt);
-	slicer->previewOpDeferred_ = deferred;
-
-	// Latest-wins hand-off, the dispatched shape of drivePreview()'s loop: a newer target that queued
-	// while this op ran is re-dispatched rather than run here, because the point of this arm is that
-	// the audition's card read happens on the owner.
-	if (slicer->previewLoad_.complete(attempt, deferred).has_value()
-	    && !deluge::storage::Owner::run(&Slicer::runPreviewOp, self)) {
-		slicer->previewLoad_.release_dispatch(); // re-dispatch dropped (see drivePreview)
 	}
 }
 

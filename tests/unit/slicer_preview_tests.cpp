@@ -55,8 +55,6 @@ public:
 	[[nodiscard]] bool previewIsPending() const { return slicer_.previewLoad_.pending(); }
 	[[nodiscard]] int32_t auditionNotesSent() const { return deluge::test::auditionNoteCount; }
 	[[nodiscard]] int32_t lastAuditionOn() const { return deluge::test::lastAuditionOn; }
-	/// How many storage-owner dispatches the auditions above made.
-	[[nodiscard]] int32_t ownerRuns() const { return deluge::test::ownerRunCount; }
 
 private:
 	Slicer slicer_{};
@@ -76,33 +74,6 @@ TEST(SlicerPreview, aReleaseNeverDefersAndAlwaysSoundsItsNoteOff) {
 	CHECK_FALSE(probe.deferred());
 	CHECK_EQUAL(1, probe.auditionNotesSent());
 	CHECK_EQUAL(0, probe.lastAuditionOn());
-}
-
-/// The audition's card read happens on the storage owner, not on the tier that pressed the pad.
-///
-/// This binary is built at the shipping default -- `deluge_audio_load_async_active()` false -- where
-/// `previewForTarget()`'s `loadFile()` is a real blocking card read, and `preview()` is reached from
-/// `padAction()` and `graphicsRoutine()`, both on the interaction tier. On the Rust BSP the efatfs
-/// entry points HOLD the calling context for the whole transfer rather than yielding it, so a cold
-/// audition run inline there stalls the UI outright.
-///
-/// Asserted rather than left to the arms looking alike: `Owner::run()` is INLINE on this host, so an
-/// audition that ran the load on the caller's tier produces byte-identical results in every other
-/// spec in this file. The dispatch count is the only thing that can tell them apart.
-///
-/// The residency argument -- the sliced sample is normally already loaded, so the load returns from
-/// the in-memory search without touching the card -- is why this is rarely a cold read. It is not a
-/// reason to skip the dispatch: it rests on `waveformBasicNavigator` holding a raw `Sample*` with no
-/// reason held, which nothing enforces.
-TEST(SlicerPreview, theAuditionsCardReadRunsOnTheStorageOwner) {
-	SlicerPreviewProbe probe;
-	CHECK_EQUAL(0, probe.ownerRuns());
-
-	probe.press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
-
-	CHECK_EQUAL(1, probe.auditionNotesSent());
-	CHECK_EQUAL(1, probe.lastAuditionOn());
-	CHECK_EQUAL(1, probe.ownerRuns());
 }
 
 /// A cold press defers, sounds nothing yet, and is re-driven by the tick surface -- at which point

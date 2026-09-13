@@ -107,14 +107,12 @@ bool forceLoadInProgress = false;
 void (*duringNextLoadFile)() = nullptr;
 int32_t auditionNoteCount = 0;
 int32_t lastAuditionOn = -1;
-int32_t ownerRunCount = 0;
 
 void resetSlicerEnv() {
 	forceLoadInProgress = false;
 	duringNextLoadFile = nullptr;
 	auditionNoteCount = 0;
 	lastAuditionOn = -1;
-	ownerRunCount = 0;
 
 	g_kit.zero();
 	g_drum.zero();
@@ -192,25 +190,15 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 	deluge::test::lastAuditionOn = on ? 1 : 0;
 }
 
-/// The synchronous sample loader backs this build, which is the SHIPPING default: the switch is
-/// `async_audio_load_active` on the Rust BSP and off everywhere else, and `audio_load_abi.cpp`'s weak
-/// fallback (the one every non-Embassy BSP resolves) returns false exactly like this. So the specs
-/// drive `drivePreview()`'s owner arm -- the arm the firmware actually ships -- not its async arm.
-extern "C" bool deluge_audio_load_async_active() noexcept {
-	return false;
-}
-
 namespace deluge::storage {
 /// Owner::run, with the legacy/host semantics `owner.h` documents: "on legacy/host it runs inline on
 /// the caller's stack". Not a stub -- running the op is what makes this build's Owner faithful, and it
 /// is the same thing `owner.cpp` does via `deluge_worker_run` on a BSP with no worker fiber. The real
 /// owner.cpp is not linked here because it would drag `libdeluge/worker.h`'s whole ABI in.
 ///
-/// The queue-full return (false) therefore never happens in these specs, so `drivePreview()`'s
-/// `release_dispatch()` recovery is unexercised -- the same coverage boundary the Embassy-only fiber
-/// queue has everywhere else in the tree.
+/// The queue-full return (false) therefore never happens in these specs -- the same coverage boundary the
+/// Embassy-only fiber queue has everywhere else in the tree.
 bool Owner::run(void (*fn)(void*), void* ctx) {
-	deluge::test::ownerRunCount++;
 	fn(ctx);
 	return true;
 }

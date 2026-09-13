@@ -59,15 +59,6 @@ extern int32_t auditionNoteCount;
 /// The `on` argument of the most recent `sendAuditionNote()` call (1 = note-on, 0 = note-off).
 extern int32_t lastAuditionOn;
 
-/// How many times `deluge::storage::Owner::run()` has been called.
-///
-/// The audition's tier is a property, not an implementation detail: with the synchronous loader --
-/// the shipping default this binary is built at -- `previewForTarget()`'s `loadFile()` reads the
-/// card, and on the Rust BSP that read HOLDS the calling context, so run on the interaction tier it
-/// stalls the UI. Counting the dispatch is what lets a spec state that, since `Owner::run()` is
-/// inline here and an audition that skipped it would otherwise look identical.
-extern int32_t ownerRunCount;
-
 /// Rebuild the fake kit/drum/sample world and zero the counters. Call at the top of every spec.
 void resetSlicerEnv();
 
