@@ -560,6 +560,8 @@ size_t g_corpusExpected = 0;
 bool g_corpusCountDispatched = false;
 bool g_corpusCountFailed = false;
 bool g_caseStarted = false;
+/// Whether the case in progress has settled and is waiting only for its reference decode.
+bool g_caseSettled = false;
 int32_t g_caseTicks = 0;
 int32_t g_caseDeferrals = 0;
 int32_t g_failures = 0;
@@ -665,6 +667,87 @@ void printCaseLine(const char* tag, const char* label, const char* path, uint32_
 	       outcomeName(SongPreviewAbProbe::outcome()), static_cast<int>(SongPreviewAbProbe::error()), crc);
 }
 
+// ── The in-process reference ────────────────────────────────────────────────
+//
+// What every song the browser previews must match: the same file decoded the synchronous way, on the storage owner,
+// into an image of its own. `decodeSongPreviewFromFile` walks the whole document and holds no card-derived state, so it
+// is the reference the prefix channel is held to -- the comparison this gate's second build makes, made in one process.
+
+/// The reference decode of one song.
+struct Reference {
+	std::string path;
+	SongPreviewOutcome outcome = SongPreviewOutcome::NoPreview;
+	Error error = Error::NONE;
+	uint32_t crc = 0;
+	/// Set on the storage owner once the decode has run.
+	bool done = false;
+};
+Reference g_reference;
+bool g_referenceDispatched = false;
+/// The reference decode's destination, the same shape the browser renders into. Cleared before each decode, as
+/// `beginPreviewRender` clears the browser's.
+RGB g_referenceImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
+
+/// Decode `g_reference.path` from the card. Runs on the STORAGE OWNER, the one place this blocking read is allowed.
+void runReferenceDecode(void*) {
+	std::memset(g_referenceImage, 0, kImageBytes);
+	Error error = Error::NONE;
+	g_reference.outcome =
+	    deluge::storage::decodeSongPreviewFromFile(g_reference.path.c_str(), g_referenceImage, &error);
+	// What LoadSongUI::reportPreviewOutcome() records: an error only behind an Error outcome.
+	g_reference.error = (g_reference.outcome == SongPreviewOutcome::Error) ? error : Error::NONE;
+	g_reference.crc = crc32(&g_referenceImage[0][0], kImageBytes);
+	g_reference.done = true;
+}
+
+/// Ask for the reference decode of `path`, once.
+/// @return Whether it has landed. Call again on each tick until it has: the owner runs it before the step's marker op.
+bool referenceReady(const std::string& path) {
+	if (!g_referenceDispatched) {
+		g_referenceDispatched = true;
+		g_reference = Reference{.path = path};
+		if (!deluge::storage::Owner::run(&runReferenceDecode, nullptr)) {
+			printf("FAIL [songPreviewAB/reference]: the storage owner would not take the reference decode of '%s'\n",
+			       path.c_str());
+			g_failures++;
+			// Truncated is never a reference outcome, so every comparison against this one fails.
+			g_reference.outcome = SongPreviewOutcome::Truncated;
+			g_reference.done = true;
+		}
+		return false;
+	}
+	return g_reference.done;
+}
+
+/// Print the reference's line and hold the browser's result to it, then clear the reference for the next song.
+///
+/// @param expectTruncated For the read-window song, the one place the two must differ: the reference must render the
+///        late artwork, and the browser's own result is held to its absolute expectation by the caller instead.
+void checkAgainstReference(const char* label, uint32_t crc, bool expectTruncated = false) {
+	printf("SP-REFERENCE %-9s | outcome=%s | error=%d | crc=%08X\n", label, outcomeName(g_reference.outcome),
+	       static_cast<int>(g_reference.error), g_reference.crc);
+	g_referenceDispatched = false;
+	if (expectTruncated) {
+		if (g_reference.outcome != SongPreviewOutcome::Rendered || g_reference.crc != uniformImageCrc(kLatePad)) {
+			printf("FAIL [songPreviewAB/%s]: the file read of the read-window song did not render its late artwork "
+			       "(outcome=%s crc=%08X) -- its preview no longer sits past the window, and Truncated is not under "
+			       "test\n",
+			       label, outcomeName(g_reference.outcome), g_reference.crc);
+			g_failures++;
+		}
+		return;
+	}
+	if (SongPreviewAbProbe::outcome() != g_reference.outcome || SongPreviewAbProbe::error() != g_reference.error
+	    || crc != g_reference.crc) {
+		printf("FAIL [songPreviewAB/%s]: the browser and the file read disagree: outcome=%s/%s error=%d/%d "
+		       "crc=%08X/%08X (browser/file)\n",
+		       label, outcomeName(SongPreviewAbProbe::outcome()), outcomeName(g_reference.outcome),
+		       static_cast<int>(SongPreviewAbProbe::error()), static_cast<int>(g_reference.error), crc,
+		       g_reference.crc);
+		g_failures++;
+	}
+}
+
 /// The absolute half of a case's check: what BOTH backings must independently produce.
 void checkCase(const char* label, const Case& expected, uint32_t crc) {
 	if (SongPreviewAbProbe::outcome() != expected.outcome) {
@@ -730,6 +813,7 @@ bool caseSettled() {
 /// Start one case: select the song and make the ONE user-driven call.
 void startCase(const char* dir, const char* filename) {
 	g_caseStarted = true;
+	g_caseSettled = false;
 	g_caseTicks = 0;
 	g_caseDeferrals = 0;
 	poisonImage();
@@ -771,19 +855,27 @@ void runCasesTick() {
 		startCase(kSongsDir, c.filename);
 		return;
 	}
-	if (!driveCase(c.label)) {
+	if (!g_caseSettled) {
+		if (!driveCase(c.label)) {
+			return;
+		}
+		g_caseSettled = true;
+	}
+	const std::string path = songPath(kSongsDir, c.filename);
+	if (!referenceReady(path)) {
 		return;
 	}
 
-	const std::string path = songPath(kSongsDir, c.filename);
 	const uint32_t crc = imageCrc();
 	printCaseLine("SP-CASE", c.label, path.c_str(), crc);
 	checkRendered(c.label, crc);
 	checkCase(c.label, c, crc);
+	checkAgainstReference(c.label, crc);
 	checkDeferrals(c.label, g_caseDeferrals);
 	g_deferralsByCase[g_caseIndex] = g_caseDeferrals;
 
 	g_caseStarted = false;
+	g_caseSettled = false;
 	g_caseIndex++;
 	if (g_caseIndex == kCases.size()) {
 		g_stage = Stage::Window;
@@ -796,7 +888,13 @@ void runWindowTick() {
 		startCase(kSongsDir, kWindowFilename);
 		return;
 	}
-	if (!driveCase(kWindowLabel)) {
+	if (!g_caseSettled) {
+		if (!driveCase(kWindowLabel)) {
+			return;
+		}
+		g_caseSettled = true;
+	}
+	if (!referenceReady(songPath(kSongsDir, kWindowFilename))) {
 		return;
 	}
 
@@ -814,10 +912,12 @@ void runWindowTick() {
 	          : Case{kWindowLabel, kWindowFilename,        SongPreviewOutcome::Rendered,
 	                 Error::NONE,  ExpectedImage::Uniform, kLatePad};
 	checkCase(kWindowLabel, expected, crc);
+	checkAgainstReference(kWindowLabel, crc, /*expectTruncated=*/async);
 	checkDeferrals(kWindowLabel, g_caseDeferrals);
 	g_windowDeferrals = g_caseDeferrals;
 
 	g_caseStarted = false;
+	g_caseSettled = false;
 	g_stage = Stage::CorpusCount;
 }
 
@@ -914,13 +1014,20 @@ void runCorpusTick() {
 		startCase(kCorpusDir, filename.c_str());
 		return;
 	}
-	if (!driveCase(filename.c_str())) {
+	if (!g_caseSettled) {
+		if (!driveCase(filename.c_str())) {
+			return;
+		}
+		g_caseSettled = true;
+	}
+	if (!referenceReady(path)) {
 		return;
 	}
 
 	const uint32_t crc = imageCrc();
 	printCaseLine("SP-CASE", filename.c_str(), path.c_str(), crc);
 	checkRendered(filename.c_str(), crc);
+	checkAgainstReference(filename.c_str(), crc);
 	checkDeferrals(filename.c_str(), g_caseDeferrals);
 	g_deferralsByCorpusCase[g_corpusIndex] = g_caseDeferrals;
 	if (SongPreviewAbProbe::outcome() == SongPreviewOutcome::Rendered) {
@@ -937,6 +1044,7 @@ void runCorpusTick() {
 	}
 
 	g_caseStarted = false;
+	g_caseSettled = false;
 	g_corpusRan++;
 	g_corpusIndex++;
 }
@@ -1092,10 +1200,17 @@ void runSwapTick() {
 			SongPreviewAbProbe::draw();
 			return;
 		}
-		if (!driveCase("swap")) {
+		if (!g_caseSettled) {
+			if (!driveCase("swap")) {
+				return;
+			}
+			g_caseSettled = true;
+			g_swapCollectDeferrals = g_caseDeferrals;
+		}
+		// The reference reads the file now at the swap path: the new card's song.
+		if (!referenceReady(songPath(kSongsDir, kSwapFilename))) {
 			return;
 		}
-		g_swapCollectDeferrals = g_caseDeferrals;
 
 		const uint32_t crc = imageCrc();
 		printCaseLine("SP-EJECT", "swap", songPath(kSongsDir, kSwapFilename).c_str(), crc);
@@ -1105,6 +1220,8 @@ void runSwapTick() {
 		const Case after{"swap",      kSwapFilename,          SongPreviewOutcome::Rendered,
 		                 Error::NONE, ExpectedImage::Uniform, kSwapPadB};
 		checkCase("swap", after, crc);
+		checkAgainstReference("swap", crc);
+		g_caseSettled = false;
 		g_swapStep = SwapStep::Finished;
 		return;
 	}
@@ -3081,9 +3198,12 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_corpusCountDispatched = false;
 	g_corpusCountFailed = false;
 	g_caseStarted = false;
+	g_caseSettled = false;
 	g_caseTicks = 0;
 	g_caseDeferrals = 0;
 	g_windowDeferrals = 0;
+	g_reference = Reference{};
+	g_referenceDispatched = false;
 	g_failures = 0;
 	g_stepDone = true;
 	g_summaryPrinted = false;

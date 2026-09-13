@@ -30,6 +30,10 @@
 #             the song has no artwork. Not diffed — each leg asserts its own expected outcome
 #             absolutely, which is stronger here than a diff would be (a backing that reported
 #             Truncated for everything, or Rendered for everything, fails).
+#   SP-REFERENCE
+#             one per song, beside its SP-CASE: the same file decoded the synchronous way on the storage owner.
+#             Each leg requires the browser's outcome, error and image CRC to equal it; for the read-window
+#             song the reference must render the late artwork instead. Not diffed.
 #   SP-DEFER / SP-SUMMARY / SP-SWAP-SUMMARY
 #             which backing ran and how many times each song's preview deferred. EXPECTED to differ,
 #             so not diffed — but each leg asserts its own consistency in-process, PER CASE: every
@@ -141,7 +145,7 @@ run_leg() {
 	fi
 	if ! grep -q '^SP-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-DX|SP-TIER) ' \
+		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-DX|SP-REFERENCE|SP-TIER) ' \
 			"$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
@@ -149,7 +153,7 @@ run_leg() {
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
 	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-PREDICT-SUMMARY SP-NEWNAME \
-		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-DX SP-TIER; do
+		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-DX SP-REFERENCE SP-TIER; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1
