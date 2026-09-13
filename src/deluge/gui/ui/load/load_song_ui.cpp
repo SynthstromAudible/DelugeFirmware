@@ -45,6 +45,7 @@
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h" // noteIoTier, for the inline preview read
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/owner.h" // deluge::storage::Owner::run — run the load on the worker fiber
@@ -898,7 +899,7 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 		                                     // loaded
 
 		// The scroll-in reads imageStore, so it may only start once the preview has actually filled it.
-		// Off the owner this render is DISPATCHED, so starting the scroll here would copy two columns
+		// Off the owner this render lands on a later tick, so starting the scroll here would copy two columns
 		// (setupScroll ticks once itself, plus the explicit renderScroll) out of an unfilled store --
 		// which is what left every entry's first two columns showing the previous song.
 		if (drawSongPreview()) {
@@ -1053,28 +1054,19 @@ void LoadSongUI::dispatchPreview(const PreviewTarget& target) {
 }
 
 void LoadSongUI::drivePreview() {
-	if (!deluge_file_prefix_async_active()) {
-		// No prefix channel on this BSP/config, so the bytes have to be read the blocking way -- which
-		// belongs on the storage owner. drawSongPreview() is reached from the scroll path on the
-		// interaction tier, and reading there is wrong for two reasons that both still hold. Single
-		// ownership: FatFS is not reentrant and the owner is the one serialised context for it.
-		// Responsiveness: on the Rust BSP the efatfs entry points HOLD the calling context for the
-		// whole transfer rather than yielding it (src/bsp/rust/src/efatfs_fs.rs), so a read run here
-		// stalls the UI for as long as the card takes.
-		//
-		// NOT because the BSP refuses an off-owner open -- it used to, and that refusal (surfaced by
-		// openXMLFile() as Error::FILE_NOT_FOUND) is how every scrolled entry once claimed "FILE NOT
-		// FOUND" for songs that load fine, but those on_fiber() guards were deliberately removed
-		// precisely because they made off-owner work fail. Off-owner reads now SUCCEED, slowly and
-		// unserialised, which is why this dispatch has to be a discipline rather than a thing the
-		// platform enforces -- and why Slicer::drivePreview() needs the same arm for the same reason.
-		// Dispatch and let the owner render.
-		if (!deluge::storage::Owner::run(&LoadSongUI::runPreviewOp, this)) {
-			// The owner queue was full, so the op will never run and would wedge single-flight forever.
-			// Release the guard and leave the target for graphicsRoutine() to ask for again.
-			previewLoad_.release_dispatch();
+	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
+		// Read the file inline. On the storage owner a blocking read belongs there; before the owner starts -- which
+		// on a C++-only build, with no Rust prefix channel, is always -- nothing would ever answer a request. Off the
+		// owner after boot this arm would hold the interaction tier for the whole read (the efatfs entry points do
+		// not yield), which is why it is noted as a tier violation, and why it is unreachable there.
+		for (;;) {
+			const auto attempt = previewLoad_.attempt();
+			deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
+			renderPreviewFromFile(attempt.target);
+			if (!previewLoad_.complete(attempt, /*deferred=*/false).has_value()) {
+				return;
+			}
 		}
-		return;
 	}
 
 	// The prefix channel never touches the card on this side, so the collect runs inline on whatever
@@ -1082,13 +1074,11 @@ void LoadSongUI::drivePreview() {
 	// a target only if a newer one queued while this one ran, and nothing reachable from a collect asks
 	// for a preview, so in practice it runs once.
 	for (;;) {
-		// No is_current() guard, unlike runPreviewOp(): there is no gap here for a cancellation to land
-		// in. request() (or the previous complete()) made this target current on the line above, and
-		// the collect runs to completion before anything else can execute. (Slicer::drivePreview()'s
-		// matching inline arm keeps the guard as an invariant restatement with the same unreachable
-		// false branch -- the two are the same judgement written from opposite ends, not a
-		// disagreement. Both keep it for real on their owner arm, where a queued dispatch genuinely
-		// can run after a cancellation.) What refuses a cancelled attempt on both is complete()'s
+		// No is_current() guard: there is no gap here for a cancellation to land in. request() (or the
+		// previous complete()) made this target current on the line above, and the collect runs to
+		// completion before anything else can execute. (Slicer::drivePreview()'s matching inline arm keeps
+		// the guard as an invariant restatement with the same unreachable false branch -- the same
+		// judgement written from the other end.) What refuses a cancelled attempt is complete()'s
 		// `deferred && is_current(a)`, below.
 		const auto attempt = previewLoad_.attempt();
 		const bool deferred = collectPreview(attempt);
@@ -1149,32 +1139,11 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 	return false;
 }
 
-void LoadSongUI::runPreviewOp(void* self) {
-	auto* ui = static_cast<LoadSongUI*>(self);
-	const auto attempt = ui->previewLoad_.attempt();
-
-	// Checked BEFORE the work, not merely before recording its result: between the dispatch and this
-	// running, the cursor can have moved somewhere with no preview at all (a folder, an empty list, or
-	// out of the browser), which asks for no replacement and so supersedes nothing. Painting the song
-	// the cursor has left is the damage.
-	if (ui->previewLoad_.is_current(attempt)) {
-		ui->renderPreviewFromFile(attempt.target);
-	}
-
-	// Never deferred: this backing blocks until it has the answer. If a newer target arrived while the
-	// read ran, it is dispatched instead (latest-wins) -- which is what the hand-rolled previewPending_
-	// catch-up used to do, badly, because Coalescer::request() had dropped that newer target outright.
-	if (ui->previewLoad_.complete(attempt, /*deferred=*/false).has_value()
-	    && !deluge::storage::Owner::run(&LoadSongUI::runPreviewOp, self)) {
-		ui->previewLoad_.release_dispatch(); // re-dispatch dropped (see drivePreview)
-	}
-}
-
 void LoadSongUI::renderPreviewFromFile(const PreviewTarget& target) {
 	PreviewImage imageStore = beginPreviewRender(target.toStore);
 	if (imageStore != nullptr) {
-		// We are on the owner, so a failure here is a real one about this file, not the storage tier
-		// declining to answer -- worth showing.
+		// A blocking read that failed is a real failure about this file, not the storage tier declining
+		// to answer -- worth showing.
 		Error error = Error::NONE;
 		const auto outcome = deluge::storage::decodeSongPreviewFromFile(target.path.c_str(), imageStore, &error);
 		reportPreviewOutcome(outcome, error);
@@ -1218,9 +1187,7 @@ void LoadSongUI::browserGraphicsRoutine() {
 	//
 	// take_pending() takes the target OUT before dispatching, not after: the drive runs INLINE from
 	// here (a collect touches no card), so it completes before dispatchPreview() returns and may arm a
-	// SECOND deferral -- which clearing afterwards would wipe, leaving the preview to never finish. A
-	// dispatch the storage owner could not take re-arms it itself (drivePreview -> release_dispatch),
-	// so it is asked for again next tick rather than dropped.
+	// SECOND deferral -- which clearing afterwards would wipe, leaving the preview to never finish.
 	if (auto target = previewLoad_.take_pending(); target.has_value()) {
 		dispatchPreview(*target);
 	}

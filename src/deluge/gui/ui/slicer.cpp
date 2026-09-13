@@ -463,8 +463,7 @@ bool Slicer::drivePreview(const PreviewTarget& target) {
 		// deluge_efatfs_* HOLDS the calling context for the whole transfer rather than yielding it
 		// (src/bsp/rust/src/efatfs_fs.rs). preview() is reached from padAction() and from
 		// graphicsRoutine(), both on the interaction tier, so run inline that read stalls the UI.
-		// Dispatch to the owner instead, which is what this audition did before the async arm existed
-		// and what LoadSongUI::drivePreview()'s own synchronous arm still does.
+		// Dispatch to the owner instead, which is what this audition did before the async arm existed.
 		//
 		// The residency argument (the sliced sample is already resident, so the load returns from the
 		// in-memory search) is why this is rarely a cold read -- but it rests on

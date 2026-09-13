@@ -31,18 +31,17 @@ public:
 	/// @brief Collect a cartridge read that is in flight on the file prefix channel.
 	///
 	/// Overrides the subclass hook, never `graphicsRoutine()` — which is `final` on `Browser` so that
-	/// the listing pump cannot be skipped. Inert on the synchronous arm, where the load runs as one
-	/// storage-owner op and nothing is ever in flight across a tick.
+	/// the listing pump cannot be skipped. Inert while no load is in flight: the inline arm, on the
+	/// storage owner or before it starts, reads and parses in enterKeyPress() itself.
 	void browserGraphicsRoutine() override;
 
 	/// @brief Cancel an in-flight cartridge read as the browser goes away.
 	///
-	/// The async arm leaves the browser up while the read runs, so the read can outlive it. See the
+	/// The browser stays up while the read runs, so the read can outlive it. See the
 	/// definition for what a stale in-flight flag does.
 	void close() override;
 
-	/// @brief Whether a cartridge load is in flight: dispatched to the storage owner, or waiting on the file prefix
-	///        channel.
+	/// @brief Whether a cartridge load is waiting on the file prefix channel.
 	///
 	/// For the song-preview A/B harness, which cannot reach the flag: it lives in `dx_browser.cpp`'s anonymous
 	/// namespace.

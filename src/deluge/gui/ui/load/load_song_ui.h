@@ -105,10 +105,10 @@ private:
 
 	/// @brief Ask for the highlighted song's saved pad layout, and draw it if it is already to hand.
 	///
-	/// Never blocks and never reads the card on the calling tier. The bytes are asked for through the
-	/// prefix channel and collected by @ref graphicsRoutine on a later tick; where that channel is not
-	/// backed (@ref deluge_file_prefix_async_active false) the read is dispatched onto the storage
-	/// owner instead. Either way the render lands later than this call.
+	/// Off the storage owner after boot it never blocks and never reads the card on the calling tier: the
+	/// bytes are asked for through the prefix channel and collected by @ref graphicsRoutine on a later
+	/// tick, so the render lands later than this call. On the owner, or before it starts, the file is
+	/// read inline instead.
 	///
 	/// @param toStore true to render into PadLEDs::imageStore (behind a scroll), false for the live image.
 	/// @return true if `imageStore` is filled and a scroll may start from it now. False means the fill
@@ -127,12 +127,11 @@ private:
 	/// single-flight and the next request supersedes whatever is outstanding.
 	///
 	/// It also drops @ref pendingScrollDirection_, and that half is not tidiness. A cancel is the one
-	/// way a parked direction can outlive the render that was going to consume it: the owner op skips
-	/// @ref finishPreviewRender for a stale attempt, and a dropped deferral means the collect never
-	/// runs -- while @ref currentFileChanged parks a direction on EVERY move onto a song, so one is
-	/// parked for the whole preview window. Left behind it survives into the next visit (there is one
-	/// LoadSongUI, and @ref opened cancels), where the first render's @ref finishPreviewRender would
-	/// start a horizontal scroll on top of the vertical scroll-in and abandon it half-drawn.
+	/// way a parked direction can outlive the render that was going to consume it: a dropped deferral means the collect
+	/// never runs -- while @ref currentFileChanged parks a direction on EVERY move onto a song, so one is parked for
+	/// the whole preview window. Left behind it survives into the next visit (there is one LoadSongUI, and @ref opened
+	/// cancels), where the first render's @ref finishPreviewRender would start a horizontal scroll on top of the
+	/// vertical scroll-in and abandon it half-drawn.
 	void cancelPreview() {
 		previewLoad_.cancel();
 		pendingScrollDirection_ = 0;
@@ -151,11 +150,8 @@ private:
 	/// @return true if the bytes are not here yet and the target must be asked for again.
 	[[nodiscard]] bool collectPreview(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt);
 
-	/// @brief The storage-owner op behind the synchronous backing: read the file and render inline.
-	/// @param self The LoadSongUI instance.
-	static void runPreviewOp(void* self);
-
-	/// @brief The synchronous backing's render: read @p target's file and draw it. Owner-only.
+	/// @brief The inline arm's render: read @p target's file, blocking, and draw it. Only on the storage
+	///        owner, or before it starts.
 	void renderPreviewFromFile(const PreviewTarget& target);
 
 	/// @brief Turn a finished decode into what the user sees, and record it. Both backings end here.
@@ -177,8 +173,8 @@ private:
 
 	/// @brief What the last finished preview render produced, and the error it reported.
 	///
-	/// Kept deliberately, and not only as diagnostics: it is the A/B gate's comparison point. The two
-	/// backings must agree on the OUTCOME as well as on the pads, and an out-of-process gate has no
+	/// Kept deliberately, and not only as diagnostics: it is the song-preview gate's comparison point. The
+	/// channel must agree with the file read on the OUTCOME as well as on the pads, and a gate has no
 	/// other way to see that -- "unreadable song", "song with no artwork" and "preview past the read
 	/// window" all draw an identical blank screen.
 	/// @{
@@ -186,8 +182,8 @@ private:
 	Error lastPreviewError_{Error::NONE};
 	/// @}
 
-	/// The host A/B gate, which drives the real drawSongPreview()/graphicsRoutine() pair against both
-	/// backings and compares the two members above. See src/deluge/harness/song_preview_ab_scenario.cpp.
+	/// The host song-preview gate, which drives the real drawSongPreview()/graphicsRoutine() pair and holds
+	/// the two members above to a reference decode. See src/deluge/harness/song_preview_ab_scenario.cpp.
 	friend class SongPreviewAbProbe;
 
 	/// A row-major pad image of the shape both preview decoders write into.
