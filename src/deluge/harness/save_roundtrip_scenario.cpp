@@ -51,16 +51,14 @@ class SaveRoundtripProbe {
 public:
 	/// Put the save browser on a folder, exactly as reaching the save screen does.
 	///
-	/// Drives beginListing() rather than openUI(&saveSongUI), for the reason song_preview's
-	/// openSaveBrowserOn() does: this headless scenario never builds a UI stack, so openUI() indexes
-	/// off the end of it. The gesture below reads getCurrentFileItem(), so the listing is not
-	/// optional -- setting currentDir alone leaves fileItems empty and the gesture runs off the end.
+	/// The gesture below reads getCurrentFileItem(), so the listing is not optional -- setting
+	/// currentDir alone leaves fileItems empty and the gesture runs off the end.
 	static bool openOn(const char* dir) {
 		Browser::currentDir = dir;
 		Browser::enteredText.clear();
-		// openUI() rather than beginListing() alone, unlike song_preview's openSaveBrowserOn():
-		// a finished save ENDS in close(), which pops the UI stack, so the save UI has to actually be
-		// on it or the success path underflows. That is why Fixture sets a root UI first.
+		// openUI() rather than beginListing() alone: a finished save ENDS in close(), which pops the UI
+		// stack, so the save UI has to actually be on it or the success path underflows. That is why
+		// Fixture sets a root UI first.
 		if (!openUI(&saveSongUI)) {
 			return false;
 		}

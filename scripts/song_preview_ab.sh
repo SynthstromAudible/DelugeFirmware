@@ -36,6 +36,12 @@
 #             song on the async leg must have deferred at least once, or its preview was answered
 #             without the async path being reached and it is not under test in that leg at all. A
 #             run-wide total would be satisfied by one deferral anywhere.
+#   SP-LISTING / SP-PREDICT / SP-NEWNAME / SP-SLOT / SP-BYPATH / SP-TIER
+#             the browser's listings, typing prediction, brand-new slot name, one-sided slot read and by-path
+#             opens, each driven through the directory channel as steps of the scenario's tick machine and
+#             checked in-process against what its fixture implies, with exactly one channel request per open (a
+#             listing that restarted would ask again). Not diffed: both legs carry the same channel. SP-TIER
+#             requires no synchronous browser directory operation off the storage owner.
 #
 # Usage: scripts/song_preview_ab.sh
 #
@@ -128,13 +134,15 @@ run_leg() {
 	fi
 	if ! grep -q '^SP-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-SLOT) ' "$OUT_ROOT/$tag.txt"
+		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-TIER) ' \
+			"$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
 	# Each stage prints exactly one of these. Its absence means the run reached SP-RESULT without
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
-	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-SLOT SP-ACQUIRE-SUMMARY; do
+	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-PREDICT-SUMMARY SP-NEWNAME \
+		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-TIER; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1
@@ -217,5 +225,5 @@ echo "PASS — both backings drew all $CASES song(s) identically, agreed on ever
 grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY ' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"
 # The listing lines from both legs. Both carry the directory channel, so neither is a synchronous control: each leg
 # asserts its own listing results in-process, and these lines are here to be read.
-grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-TIER' "$OUT_ROOT/file.txt" | sed 's/^/ file    /'
-grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-TIER' "$OUT_ROOT/prefix.txt" | sed 's/^/ prefix  /'
+grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-TIER' "$OUT_ROOT/file.txt" | sed 's/^/ file    /'
+grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-TIER' "$OUT_ROOT/prefix.txt" | sed 's/^/ prefix  /'

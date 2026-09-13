@@ -151,6 +151,19 @@ public:
 	/// catch. This one is never reset, so redone opens show up as a higher total.
 	[[nodiscard]] static int32_t totalDirectoryOpens();
 
+	/// @brief Every directory-channel request the browser has issued. For gates only.
+	///
+	/// A request goes out only when the channel answers UNKNOWN for the open in hand, which for a listing or prediction
+	/// that resumes is once per open. One that restarted from the top would ask again for an open it had already made,
+	/// so a gate that counts more requests than opens has caught a restart.
+	[[nodiscard]] static int32_t directoryRequests();
+
+	/// @brief How many listings have failed through @ref onListingFailed. For gates only.
+	[[nodiscard]] static int32_t listingFailures();
+
+	/// @brief The error the most recent of those failures reported. For gates only.
+	[[nodiscard]] static Error lastListingFailure();
+
 	ActionResult exitUI() override {
 		exitAction();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
@@ -291,8 +304,8 @@ protected:
 		/// Whether the read that just completed had a search string — the selection tail branches on
 		/// it, and by then `read.filenameToStartAt` may already have been rewritten.
 		bool readHadSearchString{};
-		/// Which open this listing is on, across the WHOLE listing rather than per resumption. The
-		/// defer seam counts on it.
+		/// How many opens this listing has made, across the WHOLE listing rather than per resumption. A gate
+		/// compares it with the requests the listing issued.
 		int32_t opensThisListing{};
 		/// Whether the selection found the search string EXACTLY. `ListingAction::ByPath` is the one
 		/// caller that needs to know, and it needs it as an existence answer: a favourite naming a file
@@ -379,12 +392,6 @@ protected:
 	/// @brief Nominate a brand-new name if one was not already, asking for the re-read it forces.
 	[[nodiscard]] std::expected<SelectionOutcome, Error> pickBrandNewName();
 
-	/// @brief Test seam: make the Nth open of a listing defer ONCE, instead of opening. 0 = never.
-	///
-	/// Cleared as it fires, which is what makes it model the channel: an open that deferred is
-	/// answered on the next ask. With the machine above, a deferred open is retried as the SAME step
-	/// against the same slot — which is exactly what the real channel serves.
-	static int32_t deferAtOpenNumber_;
 	friend class BrowserListingAbProbe;
 	friend class PathOperationsBrowserProbe;
 

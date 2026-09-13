@@ -32,7 +32,7 @@
 #include "hid/led/pad_leds.h"           // the image both backings render into
 #include "hid/matrix/matrix_driver.h"   // padStates, which the audition-pad completion asks about
 #include "io/file.hpp"                  // the card swap's unlink + rename
-#include "libdeluge/file_directory.h"   // deluge_file_directory_async_active
+#include "libdeluge/file_directory.h"   // deluge_file_directory_set_latency_ms
 #include "libdeluge/file_prefix.h"      // deluge_file_prefix_async_active
 #include "model/clip/instrument_clip.h" // the boot song's session clip, driven by the View gestures
 #include "model/mod_controllable/mod_controllable_audio.h" // the cast writeToFile's backed-up-paramManager lookup needs
@@ -42,6 +42,7 @@
 #include "modulation/params/param_manager.h"               // ParamManagerForTimeline, for the preset fixture writer
 #include "processing/sound/sound_instrument.h"             // setupAsBlankSynth(), for the preset fixture writer
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/file_item.h"
 #include "storage/owner.h"
 #include "storage/song_preview.h"
@@ -135,9 +136,7 @@ public:
 	///   setEnteredTextAndUseFoundFile and never reaches the re-read either. Also opens=1.
 	///
 	/// Only a name that sorts into the middle of the folder and is not there takes `noExactFileFound`
-	/// with entries culled from the start, which is the condition the second open exists for. The
-	/// stage refuses to run its sweep at opens < 2 rather than reporting a green run over one N that
-	/// covers no retry path.
+	/// with entries culled from the start, which is the condition the second open exists for.
 	static void beginOpenListing(const char* dir, const char* filenameToStartAt, const char* defaultDir = "") {
 		Browser::currentDir = dir;
 		Browser::enteredText.clear();
@@ -147,76 +146,42 @@ public:
 		                               .defaultDir = defaultDir,
 		                               .folderOrPath = ""});
 	}
-	static void tick() { loadSongUI.graphicsRoutine(); }
-	static bool inProgress() { return Browser::isListingInProgress(); }
-	/// How many opens the listing that just finished performed. Read after a non-deferring run.
-	static int32_t opensPerformed() { return Browser::listing_.opensThisListing; }
-	static void deferAtOpen(int32_t n) { Browser::deferAtOpenNumber_ = n; }
-	/// Run a ByPath listing's MACHINE to completion and report whether it matched exactly.
-	///
-	/// Drives `startPendingListing` rather than `beginListing`, so `runPendingListing`'s completion
-	/// tail never runs: that tail's failure path calls `onListingFailed` -> `close()`, and this
-	/// headless driver never pushed a browser onto the UI stack, so a deliberate miss would abort the
-	/// process instead of reporting. What is under test is the existence ANSWER, which is the flag.
-	static bool byPathMatchesExactly(const char* fullPath) {
-		Browser::pendingListing_ = Browser::ListingRequest{.action = Browser::ListingAction::ByPath,
-		                                                   .direction = 0,
-		                                                   .filenameToStartAt = "",
-		                                                   .defaultDir = "",
-		                                                   .folderOrPath = fullPath};
-		(void)loadSongUI.startPendingListing();
-		return Browser::listing_.foundExactMatch;
-	}
-	/// Whether the finished listing matched its search string EXACTLY. For a ByPath listing this IS
-	/// the existence answer the retired fileExists() used to give.
-	static bool foundExactMatch() { return Browser::listing_.foundExactMatch; }
-	/// Open the SAVE browser on `dir` and drive it to completion.
+	/// Start the SAVE browser's listing of `dir`, to be driven by @ref tickSave.
 	///
 	/// saveSongUI, not loadSongUI: `mayDefaultToBrandNewNameOnEntry` is set only by SaveUI's
 	/// constructor, and without it a listing never reaches `pickBrandNewName` at all.
-	/// @return Whether the listing COMPLETED and named a slot, rather than failing.
-	static bool openSaveBrowserOn(const char* dir) {
+	static void beginSaveListing(const char* dir) {
 		Browser::currentDir = dir;
+		Browser::enteredText.clear(); // the pickBrandNewName precondition
 		(void)saveSongUI.beginListing({.action = Browser::ListingAction::Open,
 		                               .direction = 0,
 		                               .filenameToStartAt = "",
 		                               .defaultDir = "",
 		                               .folderOrPath = ""});
-		for (int32_t t = 0; Browser::isListingInProgress() && t < 200; t++) {
-			saveSongUI.graphicsRoutine();
-		}
-		return !Browser::isListingInProgress() && !Browser::enteredText.empty();
 	}
+	static void tick() { loadSongUI.graphicsRoutine(); }
+	static void tickSave() { saveSongUI.graphicsRoutine(); }
+	static bool inProgress() { return Browser::isListingInProgress(); }
+	/// Whether the finished listing matched its search string EXACTLY. For a ByPath listing this IS
+	/// the existence answer the retired fileExists() used to give.
+	static bool foundExactMatch() { return Browser::listing_.foundExactMatch; }
 
-	struct PredictionOutcome {
-		std::string enteredText;
-		int32_t fileIndexSelected;
-		int32_t reads;   ///< reads that reached the filesystem, across resumptions
-		int32_t editPos; ///< enteredTextEditPos afterwards — what the retraction cases assert on
-	};
-
-	/// Drive the REAL predictExtendedText and the REAL tick surface, never a restatement of the loop:
-	/// a probe that reimplemented it would pass against a browser that never re-asks.
-	static PredictionOutcome predictWith(int32_t deferAtRead, const char* dir, const char* prefix,
-	                                     std::optional<int32_t> undoPos) {
+	/// Start the REAL predictExtendedText on `dir`, typed as far as `prefix`, to be finished by @ref tick. Never a
+	/// restatement of its loop: a probe that reimplemented it would pass against a browser that never re-asks.
+	///
+	/// It searches whatever list the browser already holds, as a keystroke does.
+	static void beginPrediction(const char* dir, const char* prefix, std::optional<int32_t> undoPos) {
 		Browser::currentDir = dir;
 		Browser::enteredText = prefix;
 		Browser::enteredTextEditPos = static_cast<int32_t>(strlen(prefix));
-		Browser::deferAtOpenNumber_ = deferAtRead;
-		const int32_t before = Browser::totalDirectoryOpens();
 		(void)loadSongUI.predictExtendedText(undoPos);
-		for (int32_t t = 0; Browser::prediction_.active && t < 200; t++) {
-			loadSongUI.graphicsRoutine();
-		}
-		Browser::deferAtOpenNumber_ = 0;
-		return PredictionOutcome{.enteredText = Browser::enteredText,
-		                         .fileIndexSelected = Browser::fileIndexSelected,
-		                         .reads = Browser::totalDirectoryOpens() - before,
-		                         .editPos = Browser::enteredTextEditPos};
 	}
+	/// Whether a prediction is still running. One that suspended stays active until the tick finishes it.
+	static bool predicting() { return Browser::prediction_.active; }
+	/// enteredTextEditPos afterwards -- what the retraction cases assert on.
+	static int32_t editPos() { return Browser::enteredTextEditPos; }
 
-	/// How many times the listing that just finished suspended. Zero on the synchronous arm by
-	/// construction, so requiring it non-zero proves the channel was actually reached.
+	/// How many times the listing that just finished suspended.
 	static int32_t deferrals() { return Browser::listing_.deferrals; }
 	/// `Browser::fileIndexSelected` is protected; the snapshot needs it, and it is half of what
 	/// "the listing finished the same way" means.
@@ -366,8 +331,8 @@ public:
 	/// picker leaves behind and going through exitTrackCreation()'s real funnel.
 	///
 	/// The picker itself is NOT opened: setupTrackCreation() calls openUI() on a context menu, and
-	/// this headless scenario never set up a UI stack for one to be pushed onto (the same reason
-	/// openSaveBrowserOn() drives beginListing rather than opening a browser). Everything the
+	/// this stage runs with no UI stack for one to be pushed onto (the same reason the listing stage
+	/// starts its listings with beginListing rather than opening a browser). Everything the
 	/// conversion touches lives below that -- finishGridNewTrackClip() -> dispatch ->
 	/// completeNewTrackGridEnter() -> gridNewTrackClipEntered() -- so the pending state the picker
 	/// would have set is written directly and the funnel is entered for real.
@@ -569,7 +534,7 @@ constexpr int32_t kMaxCaseTicks = 2000;
 // ── State ───────────────────────────────────────────────────────────────────
 
 /// Which stage `dispatch_step` is in, in order.
-enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Listing, Acquire, Done };
+enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Listing, Acquire, ByPath, Done };
 Stage g_stage = Stage::Cases;
 
 /// Where the swap stage is in the sequence above.
@@ -1147,19 +1112,16 @@ void runSwapTick() {
 /// Print the per-run facts that are EXPECTED to differ between the two builds, and assert the one
 /// thing each build must independently be able to say about itself: that the backing it was built
 /// with is the backing that actually ran.
-// ── Stage: listing idempotence ──────────────────────────────────────────────
+// ── Stage: listing ──────────────────────────────────────────────────────────
 //
-// A folder listing performs up to four directory opens, and a listing whose Nth open is not ready
-// is RE-RUN FROM THE TOP on a later tick rather than resumed. That is only sound if the second pass
-// sees the first pass's inputs rather than its outputs, and three of the listing's own mutations
-// break it -- currentDir is overwritten on the fallback path, enteredText is advanced by
-// nextDefaultName, and triedCreatingFolder used to be a local that reset. Browser::ListingAttempt
-// restores them; this is what proves it, and each of the three breaks a different N.
+// A folder listing performs up to four directory opens and a typing prediction up to five reads, and every one of
+// them goes through the directory channel: the open is requested, the run suspends until the channel answers, and it
+// resumes at the open it was waiting for. Each run below is a step of this scenario's own tick machine, so the
+// channel's driver really answers between ticks; a tight loop here would never yield to it.
 //
-// Driven WITHOUT the directory channel compiled in, on purpose. What is under test is a property of
-// the listing, not of the channel: `Browser::deferAtOpenNumber_` makes the Nth open defer and the
-// browser's own per-tick surface is what re-runs the attempt. Nothing here runs a retry loop of its
-// own, so a browser that stopped re-asking would hang this stage rather than be rescued by it.
+// Every run is checked twice over: its RESULT against what the fixture implies, and that it RESUMED rather than
+// restarted. A run that restarts asks again for opens it has already made, so requests must equal opens. A hold on
+// every open keeps each one pending across several ticks, so every run resumes from PENDING as well as UNKNOWN.
 
 /// Everything a finished listing leaves behind that a caller can observe.
 struct ListingSnapshot {
@@ -1167,26 +1129,10 @@ struct ListingSnapshot {
 	std::string entered;
 	int32_t selected = -1;
 	deluge::vector<std::string> names;
-
-	bool operator==(const ListingSnapshot& other) const {
-		if (dir != other.dir || entered != other.entered || selected != other.selected
-		    || names.size() != other.names.size()) {
-			return false;
-		}
-		for (size_t i = 0; i < names.size(); i++) {
-			if (names[i] != other.names[i]) {
-				return false;
-			}
-		}
-		return true;
-	}
 };
 
-/// The fixture directory. Deliberately more than FILE_ITEMS_MAX_NUM_ELEMENTS (20) entries, because
-/// that is what makes `cullSomeFileItems` fire and `arrivedInNewFolder`'s numFileItemsDeletedAtStart
-/// re-read happen -- the SECOND open, and the common case this stage exists to cover. A fixture of
-/// 20 or fewer would list in one open and the sweep would have exactly one N to check, silently
-/// covering none of the retry paths.
+/// The fixture directory. More than FILE_ITEMS_MAX_NUM_ELEMENTS (20) entries, because that is what makes
+/// `cullSomeFileItems` fire and `arrivedInNewFolder`'s numFileItemsDeletedAtStart re-read happen: the SECOND open.
 constexpr const char* kListingDir = "LISTTEST";
 constexpr int32_t kListingEntries = 25;
 /// Mid-folder AND deliberately absent -- see beginOpenListing for why both halves matter.
@@ -1194,29 +1140,24 @@ constexpr const char* kListingStartAt = "SONG012Z.XML";
 static_assert(kListingEntries > FILE_ITEMS_MAX_NUM_ELEMENTS,
               "the fixture must overflow the file-item window, or no re-read is ever provoked");
 
-/// A directory comfortably past the ~230 entries that once panicked the readdir snapshot arena and
-/// bricked the device on open. This rung holds that snapshot across a request/collect gap, which is
-/// exactly what makes the arena's window longer, so the case is the rung's own regression check
-/// rather than a rider on somebody else's corpus.
-/// The fallback's CREATE case: a default directory deliberately not present, so the fallback has to
-/// make it. Removed before the case runs -- a leftover from a previous run would let the fallback's
-/// first attempt succeed and the case would test nothing.
+/// The fallback's CREATE case: a default directory deliberately not present, so the fallback has to make it. Removed
+/// before the case runs -- a leftover from a previous run would let the fallback's first attempt succeed.
 constexpr const char* kMakeDir = "MADEDIR";
 
-/// EMPTY on purpose: `pickBrandNewName` is only reached when a listing finds no files at all, and it
-/// is the path whose getUnusedSlot read defers from INSIDE the listing.
+/// EMPTY on purpose: `pickBrandNewName` is only reached when a listing finds no files at all, and it is the path whose
+/// getUnusedSlot read defers from INSIDE the listing.
 constexpr const char* kEmptyDir = "EMPTYDIR";
-/// Higher than any listing's open count, so arming the seam with it selects the tick surface without
-/// ever firing.
-constexpr int32_t kNeverDefers = 99;
 
+/// A directory comfortably past the ~230 entries that once panicked the readdir snapshot arena and bricked the device
+/// on open. The channel holds that snapshot across a request/collect gap, which is exactly what makes the arena's
+/// window longer.
 constexpr const char* kBigDir = "BIGLIST";
 constexpr int32_t kBigEntries = 300;
 static_assert(kBigEntries > 230, "the case must exceed the arena threshold it exists to guard");
 
-/// What the reference listing of kListingDir holds: the fixture's first nine songs, in order, with the first selected.
-/// Measured (2026-09-12) with the read's edge trims in place. Without them the window held SONG000-009 and then
-/// SONG020-023: entries read after a cull that sorted into the region it had just deleted.
+/// What a listing of LISTTEST or BIGLIST from its start holds: the fixture's first nine songs, in order, with the
+/// first selected. Measured (2026-09-12) with the read's edge trims in place. Without them the window held
+/// SONG000-009 and then SONG020-023: entries read after a cull that sorted into the region it had just deleted.
 constexpr std::array<const char*, 9> kReferenceNames = {"SONG000.XML", "SONG001.XML", "SONG002.XML",
                                                         "SONG003.XML", "SONG004.XML", "SONG005.XML",
                                                         "SONG006.XML", "SONG007.XML", "SONG008.XML"};
@@ -1227,18 +1168,57 @@ constexpr std::array<const char*, 9> kReferenceNames = {"SONG000.XML", "SONG001.
 constexpr const char* kSlotDir = "SLOTTEST";
 constexpr const char* kSlotExpected = "SONG003";
 
-enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Fallback, Create, Slot, Mount, Finished };
+/// Reaching prediction's SECOND read takes a big folder, and that is the point rather than an awkwardness of the
+/// fixture. The re-read happens when a search runs off the end of the CACHED window. In the 300-entry folder the
+/// window holds twenty, so the extra-zeroes branch (which clears `doneNewRead`) walks the extended string off the
+/// cached end and reads again -- exactly the #4584 case the re-read exists for.
+constexpr const char* kPredictDir = kBigDir;
+constexpr const char* kPredictPrefix = "SONG0129";
+/// Where that prediction lands from the list the reference listing leaves, measured (2026-09-12): the first entry of
+/// its final window.
+constexpr const char* kPredictText = "SONG281";
+constexpr int32_t kPredictSelected = 0;
+/// Fewer reads than this and the prediction never resumed across a second read.
+constexpr int32_t kPredictMinReads = 2;
+/// Matches nothing however many zeroes are appended, so the prediction FAILS -- which is what the retraction cases
+/// need.
+constexpr const char* kMissingPrefix = "ZZZZNOPE";
+
+/// The name the save browser gives a brand-new song in EMPTYDIR, and the opens it takes: the listing's read, the
+/// slot-naming read from inside its selection, and the re-read for the new name. Measured (2026-09-12).
+constexpr const char* kNewName = "SONG1";
+constexpr int32_t kNewNameOpens = 3;
+
+/// How long every directory open is held in flight while the listing and by-path stages run, in milliseconds of the
+/// harness's virtual clock. Long enough that each open is still pending when it is asked for again on the next ticks.
+constexpr uint32_t kDirectoryHoldMs = 5;
+/// Ticks one run gets before it is called wedged. A run here takes a few dozen.
+constexpr int32_t kMaxRunTicks = 400;
+
+enum class ListingStep : uint8_t {
+	Fixture,
+	Reference,
+	Predict,
+	RetractUndone,
+	RetractKept,
+	BigFolder,
+	Fallback,
+	Create,
+	NewName,
+	Slot,
+	Mount,
+	Finished,
+};
 ListingStep g_listingStep = ListingStep::Fixture;
-int32_t g_listingDeferAt = 0;  ///< which N the sweep is on; 0 = the reference run
-int32_t g_listingOpens = 0;    ///< how many opens the reference run performed
-bool g_listingRunning = false; ///< a listing is in flight and being ticked
-int32_t g_listingTicks = 0;    ///< tick budget guard for the run in flight
-ListingSnapshot g_listingReference;
-int32_t g_listingCasesRun = 0;
+bool g_listingRunning = false;   ///< a run is in flight and being ticked
+int32_t g_listingTicks = 0;      ///< tick budget guard for the run in flight
+int32_t g_listingRuns = 0;       ///< runs that finished
+int32_t g_runRequestsBefore = 0; ///< Browser::directoryRequests() when the run in flight began
+int32_t g_runOpensBefore = 0;    ///< Browser::totalDirectoryOpens() when the run in flight began
+int32_t g_slotCallsBefore = 0;   ///< Browser::unusedSlotCalls() when the new-name run began
 uint32_t g_mountNoticesBefore = 0;
-/// How many items the list held when the run in flight started. A suspended listing must not blank
-/// the list it is replacing -- but only where there WAS one, so the very first listing (with nothing
-/// to preserve) is not counted as a violation.
+/// How many items the list held when the run in flight started. A suspended listing must not blank the list it is
+/// replacing -- but only where there WAS one, so a listing with nothing to preserve is not counted as a violation.
 size_t g_itemsWhenRunBegan = 0;
 /// Set if a suspended listing was ever seen with an empty list it should have been preserving.
 bool g_sawBlankWhileSuspended = false;
@@ -1269,8 +1249,8 @@ std::string joinNames(const ListingSnapshot& snap) {
 	return all;
 }
 
-/// Whether `snap` is the reference listing: exactly kReferenceNames, with the first of them selected and named.
-bool matchesReferenceNames(const ListingSnapshot& snap) {
+/// Whether `snap` lists exactly kReferenceNames.
+bool listsReferenceNames(const ListingSnapshot& snap) {
 	if (snap.names.size() != kReferenceNames.size()) {
 		return false;
 	}
@@ -1279,7 +1259,7 @@ bool matchesReferenceNames(const ListingSnapshot& snap) {
 			return false;
 		}
 	}
-	return snap.entered == "SONG000" && snap.selected == 0;
+	return true;
 }
 
 /// Build kSlotDir. Idempotent, like buildFixtureDir: a reused image already has the files.
@@ -1314,9 +1294,8 @@ bool buildFixtureDir(const char* dir, int32_t count) {
 		(void)file->close();
 	}
 	// Prove the fixture is what the case needs rather than assuming it. A directory that came back
-	// short would make the sweep trivially true, and would make the big-folder case stop exercising
-	// the arena threshold entirely while still reporting a green run -- the "gate that covers
-	// nothing" shape this branch has hit twice.
+	// short would make the big-folder case stop exercising the arena threshold while still reporting
+	// a green run -- the "gate that covers nothing" shape this branch has hit twice.
 	auto opened = deluge::io::Directory::open(dir);
 	if (!opened.has_value()) {
 		printf("SP-LISTING FAIL could not open fixture %s\n", dir);
@@ -1339,425 +1318,344 @@ bool buildFixtureDir(const char* dir, int32_t count) {
 	return true;
 }
 
-/// A ByPath listing must answer "is this file still there?" -- the question the blocking
-/// `StorageManager::fileExists` pre-flight used to answer before every favourite open.
-///
-/// The absent case is the regression the pre-flight was hiding: the old completion tail tested
-/// `fileIndexSelected > fileItems.size()`, but `searchFileItems` returns an INSERTION POINT, which is
-/// always <= size -- so a file that had been deleted fell straight through and the browser opened
-/// whatever sorted into its place.
-///
-/// Synchronous leg only. Which comparison answers the existence question is not an async property,
-/// and running it on the channel leg would need the tick loop for no added coverage.
-void runByPathCases() {
-	if (deluge_file_directory_async_active()) {
-		printf("SP-LISTING bypath skipped on the channel leg (not an async property)\n");
-		return;
-	}
-	char path[64];
-	snprintf(path, sizeof(path), "%s/SONG005.XML", kListingDir); // the fixture created this one
-	const bool hit = BrowserListingAbProbe::byPathMatchesExactly(path);
-	snprintf(path, sizeof(path), "%s/SONG999.XML", kListingDir); // and deliberately not this one
-	const bool miss = BrowserListingAbProbe::byPathMatchesExactly(path);
-	printf("SP-LISTING bypath present=%d absent=%d\n", hit ? 1 : 0, miss ? 1 : 0);
-	if (!hit) {
-		printf("SP-LISTING FAIL bypath: a file that exists did not match exactly\n");
+/// Note where the counters stand, so a finished run's own requests and opens can be told from everything before it.
+void markCounters() {
+	g_runRequestsBefore = Browser::directoryRequests();
+	g_runOpensBefore = Browser::totalDirectoryOpens();
+}
+
+int32_t runRequests() {
+	return Browser::directoryRequests() - g_runRequestsBefore;
+}
+
+int32_t runOpens() {
+	return Browser::totalDirectoryOpens() - g_runOpensBefore;
+}
+
+/// Require the finished run to have RESUMED at every open: exactly one channel request per open, and at least one
+/// open. A run that restarted from the top asks again for the opens it had already made.
+void checkResumed(const char* label) {
+	const int32_t requests = runRequests();
+	const int32_t opens = runOpens();
+	if (opens == 0) {
+		printf("SP-LISTING FAIL %s made no open at all\n", label);
 		g_failures++;
 	}
-	if (miss) {
-		printf("SP-LISTING FAIL bypath: a file that does not exist matched -- the browser would open "
-		       "whatever sorted into its place\n");
+	else if (requests != opens) {
+		printf("SP-LISTING FAIL %s made %d request(s) for %d open(s) -- an open was asked for again, so the run "
+		       "restarted instead of resuming\n",
+		       label, requests, opens);
 		g_failures++;
 	}
 }
 
-/// A listing that finds NO files names a brand-new slot, and naming it reads the folder again
-/// (`getUnusedSlot`) from INSIDE the listing. A deferral there must SUSPEND the listing, not fail it:
-/// before the fix it propagated out of `pickBrandNewName` as an ordinary error, and `stepListing`
-/// turned that into emptyFileItems() + onListingFailed -- an error popup and a closed browser, on a
-/// folder that is perfectly readable.
-///
-/// The resumption must also not re-name. `pickBrandNewName`'s `enteredText.empty()` guard is what
-/// prevents it; a guard asserted rather than measured is how this rung's earlier drafts went wrong,
-/// so the call count is checked.
-void runBrandNewNameCases() {
-	if (deluge_file_directory_async_active()) {
-		// Synchronous leg only, like the ByPath cases. What is under test is a property of the listing
-		// MACHINE -- that a deferral arising inside its selection tail suspends it rather than
-		// restarting it -- and the seam exercises that without the channel. Driving it on the channel
-		// leg would need this case to become a step of the scenario's own machine, because a tight
-		// tick loop here never yields to the driver thread.
-		printf("SP-NEWNAME skipped on the channel leg (a machine property, not an async one)\n");
-		return;
-	}
-	Browser::enteredText.clear();
-	// Armed with a number no listing reaches, so the reference takes the TICK SURFACE like the sweep
-	// runs do but never actually defers. `beginListing` chooses the tick surface on `deferAtOpenNumber_
-	// != 0`, and with 0 it dispatches to the storage owner instead -- which this probe's loop does not
-	// pump, so the listing would simply never run. Reference and sweep must travel the same path or
-	// the comparison is between two different things.
-	BrowserListingAbProbe::deferAtOpen(kNeverDefers);
-	const int32_t openBefore = Browser::totalDirectoryOpens();
-	if (!BrowserListingAbProbe::openSaveBrowserOn(kEmptyDir)) {
-		printf("SP-NEWNAME FAIL the reference listing did not name a slot\n");
-		g_failures++;
-		return;
-	}
-	const std::string referenceName = Browser::enteredText;
-	// The TOTAL, not listing_.opensThisListing: a restart re-arms listing_ and resets that member, so
-	// it cannot see the very restart this case exists to catch.
-	const int32_t referenceOpens = Browser::totalDirectoryOpens() - openBefore;
-	printf("SP-NEWNAME reference name=%s opens=%d\n", referenceName.c_str(), referenceOpens);
-	if (referenceOpens < 2) {
-		printf("SP-NEWNAME FAIL only %d open(s) -- getUnusedSlot's read was never reached\n", referenceOpens);
-		g_failures++;
-		return;
-	}
-
-	for (int32_t k = 1; k <= referenceOpens; k++) {
-		Browser::enteredText.clear(); // the pickBrandNewName precondition
-		BrowserListingAbProbe::deferAtOpen(k);
-		const int32_t slotCallsBefore = Browser::unusedSlotCalls();
-		const int32_t before = Browser::totalDirectoryOpens();
-		const bool ok = BrowserListingAbProbe::openSaveBrowserOn(kEmptyDir);
-		const int32_t opens = Browser::totalDirectoryOpens() - before;
-		// slotCalls is reported, not asserted: a naming read that deferred and was then re-run is
-		// legitimately two calls. It is here because it is what first exposed the restart, when an
-		// open count that resets on re-arm could not see it.
-		printf("SP-NEWNAME deferAt=%d ok=%d opens=%d slotCalls=%d name=%s\n", k, ok ? 1 : 0, opens,
-		       Browser::unusedSlotCalls() - slotCallsBefore, Browser::enteredText.c_str());
-		if (!ok || Browser::enteredText != referenceName) {
-			printf("SP-NEWNAME FAIL deferAt=%d named %s, the reference named %s\n", k, Browser::enteredText.c_str(),
-			       referenceName.c_str());
-			g_failures++;
-		}
-		// The property, and the one an identical-name check cannot see: a deferral inside the
-		// SELECTION must suspend the listing where it stands. stepListing used to clear
-		// listing_.active on its way out, so the pump found no active listing and called
-		// startPendingListing() -- restarting from the top and redoing every open before the
-		// deferral. Against the real channel, one slot and consumed at take, that livelocks.
-		if (opens != referenceOpens) {
-			printf("SP-NEWNAME FAIL deferAt=%d made %d opens, the reference made %d -- the listing "
-			       "restarted instead of resuming\n",
-			       k, opens, referenceOpens);
-			g_failures++;
-		}
-	}
-	BrowserListingAbProbe::deferAtOpen(0);
+/// Begin the run for `step`. Call immediately BEFORE starting it: a prediction makes its first request inline.
+void beginRun(ListingStep step) {
+	g_listingStep = step;
+	markCounters();
+	g_itemsWhenRunBegan = Browser::fileItems.size();
+	g_listingTicks = 0;
+	g_listingRunning = true;
 }
 
-/// Reaching prediction's SECOND read takes a big folder, and that is the point rather than an
-/// awkwardness of the fixture.
-///
-/// The re-read happens when a search runs off the end of the CACHED window. In a 25-entry folder the
-/// whole folder fits, so a prefix either matches, or sorts past everything and hits `notFound` with
-/// `doneNewRead` already set — one read either way, and a sweep over one read covers no resumption.
-/// In the 300-entry folder the window holds twenty, so the extra-zeroes branch (which clears
-/// `doneNewRead`) walks the extended string off the cached end and reads again. That is exactly the
-/// #4584 case the re-read exists for.
-///
-/// Measured, not assumed: over the 25-entry fixture every candidate tried gave reads<=1; over the
-/// 300-entry one this gives 2.
-constexpr const char* kPredictDir = kBigDir;
-constexpr const char* kPredictPrefix = "SONG0129";
-/// Matches nothing however many zeroes are appended, so the prediction FAILS — which is what the
-/// retraction cases need.
-constexpr const char* kMissingPrefix = "ZZZZNOPE";
+/// End the stage, releasing the hold so nothing after it runs with its opens delayed.
+void finishListingStage() {
+	deluge_file_directory_set_latency_ms(0);
+	g_listingRunning = false;
+	g_listingStep = ListingStep::Finished;
+}
 
-/// Prediction must survive being suspended at ANY of its reads and finish identically.
-///
-/// Synchronous leg only, like the other machine-level cases: what is under test is that the loop
-/// RESUMES rather than restarts, which the seam exercises without the channel. On the channel leg a
-/// tight tick loop here would never yield to the driver thread.
-void runPredictionCases() {
-	if (deluge_file_directory_async_active()) {
-		printf("SP-PREDICT skipped on the channel leg (a machine property, not an async one)\n");
+const char* listingStepName(ListingStep step) {
+	switch (step) {
+	case ListingStep::Fixture:
+		return "fixture";
+	case ListingStep::Reference:
+		return "reference";
+	case ListingStep::Predict:
+		return "predict";
+	case ListingStep::RetractUndone:
+		return "retraction(undone)";
+	case ListingStep::RetractKept:
+		return "retraction(kept)";
+	case ListingStep::BigFolder:
+		return "big";
+	case ListingStep::Fallback:
+		return "fallback";
+	case ListingStep::Create:
+		return "create";
+	case ListingStep::NewName:
+		return "newname";
+	case ListingStep::Slot:
+		return "slot";
+	case ListingStep::Mount:
+		return "mount";
+	case ListingStep::Finished:
+		return "finished";
+	}
+	return "?";
+}
+
+/// One tick of the run in flight. @return Whether it has finished.
+bool tickRun() {
+	switch (g_listingStep) {
+	case ListingStep::Predict:
+	case ListingStep::RetractUndone:
+	case ListingStep::RetractKept:
+		// A prediction that suspended stays active until the load browser's tick finishes it.
+		if (BrowserListingAbProbe::predicting()) {
+			BrowserListingAbProbe::tick();
+		}
+		return !BrowserListingAbProbe::predicting();
+	case ListingStep::NewName:
+		if (BrowserListingAbProbe::inProgress()) {
+			BrowserListingAbProbe::tickSave();
+		}
+		return !BrowserListingAbProbe::inProgress();
+	default:
+		// Checked BEFORE the tick, so it observes the state a user would see between frames.
+		if (g_itemsWhenRunBegan > 0 && BrowserListingAbProbe::inProgress() && Browser::fileItems.empty()) {
+			g_sawBlankWhileSuspended = true;
+		}
+		if (BrowserListingAbProbe::inProgress()) {
+			BrowserListingAbProbe::tick();
+		}
+		return !BrowserListingAbProbe::inProgress();
+	}
+}
+
+/// Check the run that just finished, then start the next one.
+void finishRun() {
+	const ListingSnapshot got = takeListingSnapshot();
+	switch (g_listingStep) {
+	case ListingStep::Reference: {
+		const int32_t deferrals = BrowserListingAbProbe::deferrals();
+		printf("SP-LISTING reference entries=%zu opens=%d requests=%d deferrals=%d\n", got.names.size(), runOpens(),
+		       runRequests(), deferrals);
+		checkResumed("reference");
+		if (runOpens() < 2) {
+			printf("SP-LISTING FAIL reference made only %d open(s) -- the re-read after the cull never happened\n",
+			       runOpens());
+			g_failures++;
+		}
+		// Each request is one UNKNOWN answer, and so one deferral. Deferrals beyond that are PENDING answers: an open
+		// still in flight when asked again. None at all means the hold kept nothing pending and resuming from PENDING
+		// went untested.
+		if (deferrals <= runRequests()) {
+			printf("SP-LISTING FAIL reference deferred %d time(s) for %d request(s) -- no open was ever still pending "
+			       "when asked again\n",
+			       deferrals, runRequests());
+			g_failures++;
+		}
+		if (!listsReferenceNames(got) || got.entered != "SONG000" || got.selected != 0) {
+			printf("SP-LISTING FAIL reference listed %s entered=%s sel=%d, wanted SONG000-008 entered=SONG000 sel=0\n",
+			       joinNames(got).c_str(), got.entered.c_str(), got.selected);
+			g_failures++;
+		}
+		// A prediction searches the list a listing leaves, as a keystroke does, so it runs straight after this one.
+		beginRun(ListingStep::Predict);
+		BrowserListingAbProbe::beginPrediction(kPredictDir, kPredictPrefix, std::nullopt);
 		return;
 	}
 
-	const auto reference = BrowserListingAbProbe::predictWith(0, kPredictDir, kPredictPrefix, std::nullopt);
-	printf("SP-PREDICT reference text=%s selected=%d reads=%d\n", reference.enteredText.c_str(),
-	       reference.fileIndexSelected, reference.reads);
-	if (reference.reads < 2) {
-		printf("SP-PREDICT FAIL only %d read(s) -- the sweep would cover no resumption\n", reference.reads);
-		g_failures++;
+	case ListingStep::Predict:
+		printf("SP-PREDICT text=%s selected=%d reads=%d requests=%d\n", got.entered.c_str(), got.selected, runOpens(),
+		       runRequests());
+		checkResumed("predict");
+		if (got.entered != kPredictText || got.selected != kPredictSelected || runOpens() < kPredictMinReads) {
+			printf("SP-PREDICT FAIL text=%s selected=%d reads=%d, wanted %s selected=%d reads>=%d\n",
+			       got.entered.c_str(), got.selected, runOpens(), kPredictText, kPredictSelected, kPredictMinReads);
+			g_failures++;
+		}
+		// Only the pad-typing caller undoes. Its undo must happen even when the prediction fails on a LATER tick, long
+		// after that caller returned true and moved on.
+		beginRun(ListingStep::RetractUndone);
+		BrowserListingAbProbe::beginPrediction(kPredictDir, kMissingPrefix,
+		                                       static_cast<int32_t>(strlen(kMissingPrefix)) - 1);
+		return;
+
+	case ListingStep::RetractUndone: {
+		const int32_t wanted = static_cast<int32_t>(strlen(kMissingPrefix)) - 1;
+		printf("SP-PREDICT retraction undone editPos=%d wanted=%d reads=%d requests=%d\n",
+		       BrowserListingAbProbe::editPos(), wanted, runOpens(), runRequests());
+		checkResumed("retraction(undone)");
+		if (BrowserListingAbProbe::editPos() != wanted) {
+			printf("SP-PREDICT FAIL the pad site's failure left editPos=%d, wanted %d\n",
+			       BrowserListingAbProbe::editPos(), wanted);
+			g_failures++;
+		}
+		beginRun(ListingStep::RetractKept);
+		BrowserListingAbProbe::beginPrediction(kPredictDir, kMissingPrefix, std::nullopt);
 		return;
 	}
 
-	for (int32_t k = 1; k <= reference.reads; k++) {
-		const auto got = BrowserListingAbProbe::predictWith(k, kPredictDir, kPredictPrefix, std::nullopt);
-		printf("SP-PREDICT deferAt=%d text=%s selected=%d reads=%d\n", k, got.enteredText.c_str(),
-		       got.fileIndexSelected, got.reads);
-		if (got.enteredText != reference.enteredText || got.fileIndexSelected != reference.fileIndexSelected) {
-			printf("SP-PREDICT FAIL deferAt=%d text=%s/%s selected=%d/%d\n", k, got.enteredText.c_str(),
-			       reference.enteredText.c_str(), got.fileIndexSelected, reference.fileIndexSelected);
+	case ListingStep::RetractKept: {
+		const int32_t wanted = static_cast<int32_t>(strlen(kMissingPrefix));
+		printf("SP-PREDICT retraction kept editPos=%d wanted=%d reads=%d requests=%d\n",
+		       BrowserListingAbProbe::editPos(), wanted, runOpens(), runRequests());
+		checkResumed("retraction(kept)");
+		if (BrowserListingAbProbe::editPos() != wanted) {
+			printf("SP-PREDICT FAIL a non-pad failure moved editPos to %d, wanted %d\n",
+			       BrowserListingAbProbe::editPos(), wanted);
 			g_failures++;
 		}
-		// The property an identical-result check cannot see: a suspended prediction RESUMED at the
-		// read that deferred rather than starting over. A deferral reads nothing, so a suspended run
-		// makes exactly as many reads as the reference; a restart would redo every read before it.
-		if (got.reads != reference.reads) {
-			printf("SP-PREDICT FAIL deferAt=%d made %d reads, the reference made %d -- it did not resume "
-			       "where it suspended\n",
-			       k, got.reads, reference.reads);
-			g_failures++;
-		}
+		printf("SP-PREDICT-SUMMARY runs=3\n");
+		// Surviving the open at all is the property of the next run: >230 entries once panicked the snapshot arena on
+		// open and bricked the device.
+		beginRun(ListingStep::BigFolder);
+		BrowserListingAbProbe::beginOpenListing(kBigDir, kListingStartAt);
+		return;
 	}
 
-	// Only the pad-typing caller undoes. Its undo must happen even when the prediction failed on a
-	// LATER tick, long after that caller returned true and moved on.
-	const int32_t posAtCall = static_cast<int32_t>(strlen(kMissingPrefix));
-	const auto undone = BrowserListingAbProbe::predictWith(1, kPredictDir, kMissingPrefix, posAtCall - 1);
-	const auto kept = BrowserListingAbProbe::predictWith(1, kPredictDir, kMissingPrefix, std::nullopt);
-	printf("SP-PREDICT retraction undone=%d kept=%d wanted=%d/%d\n", undone.editPos, kept.editPos, posAtCall - 1,
-	       posAtCall);
-	if (undone.editPos != posAtCall - 1) {
-		printf("SP-PREDICT FAIL the pad site's failure left editPos=%d, wanted %d\n", undone.editPos, posAtCall - 1);
-		g_failures++;
+	case ListingStep::BigFolder:
+		printf("SP-LISTING big entries=%d listed=%zu requests=%d deferrals=%d\n", kBigEntries, got.names.size(),
+		       runRequests(), BrowserListingAbProbe::deferrals());
+		checkResumed("big");
+		if (!listsReferenceNames(got) || got.entered != "SONG000" || got.selected != 0) {
+			printf("SP-LISTING FAIL big listed %s entered=%s sel=%d, wanted SONG000-008 entered=SONG000 sel=0\n",
+			       joinNames(got).c_str(), got.entered.c_str(), got.selected);
+			g_failures++;
+		}
+		// The missing-folder fallback, landing on a directory big enough to CULL, entered WITH a search string. All
+		// three matter. The fallback drops the search string, and dropping it without also resetting
+		// catalogSearchDirection sends the cull into a search for a name that is no longer there. So this case covers
+		// both halves: that the fallback happens at all, and that it does not take that fault with it.
+		beginRun(ListingStep::Fallback);
+		BrowserListingAbProbe::beginOpenListing("NOSUCHDIR", kListingStartAt, kBigDir);
+		return;
+
+	case ListingStep::Fallback:
+		printf("SP-LISTING fallback dir=%s listed=%zu requests=%d deferrals=%d\n", got.dir.c_str(), got.names.size(),
+		       runRequests(), BrowserListingAbProbe::deferrals());
+		checkResumed("fallback");
+		if (!deluge::string::caselessEquals(got.dir, kBigDir) || !listsReferenceNames(got)) {
+			printf("SP-LISTING FAIL fallback landed on dir=%s listing %s, wanted %s listing SONG000-008\n",
+			       got.dir.c_str(), joinNames(got).c_str(), kBigDir);
+			g_failures++;
+		}
+		// Now the same fallback against a default directory that does NOT exist, so it has to be created. Off the
+		// storage owner the creation rides the channel's request, on the storage tier, with the open.
+		(void)deluge::io::unlink(kMakeDir);
+		if (deluge::io::Directory::open(kMakeDir).has_value()) {
+			printf("SP-LISTING FAIL fixture: %s still exists, the create case would test nothing\n", kMakeDir);
+			g_failures++;
+			finishListingStage();
+			return;
+		}
+		beginRun(ListingStep::Create);
+		BrowserListingAbProbe::beginOpenListing("NOSUCHDIR2", kListingStartAt, kMakeDir);
+		return;
+
+	case ListingStep::Create: {
+		const bool exists = deluge::io::Directory::open(kMakeDir).has_value();
+		printf("SP-LISTING create dir=%s exists=%d requests=%d deferrals=%d\n", got.dir.c_str(), exists ? 1 : 0,
+		       runRequests(), BrowserListingAbProbe::deferrals());
+		checkResumed("create");
+		if (!exists || !deluge::string::caselessEquals(got.dir, kMakeDir) || !got.names.empty()) {
+			printf("SP-LISTING FAIL create: landed on %s listing %zu entries, %s exists=%d\n", got.dir.c_str(),
+			       got.names.size(), kMakeDir, exists ? 1 : 0);
+			g_failures++;
+		}
+		// A listing that finds NO files names a brand-new slot, and naming it reads the folder again (getUnusedSlot)
+		// from INSIDE the listing. A deferral there must SUSPEND the listing, not fail it and not restart it --
+		// `pickBrandNewName`'s `enteredText.empty()` guard is what stops a resumption naming twice.
+		g_slotCallsBefore = Browser::unusedSlotCalls();
+		beginRun(ListingStep::NewName);
+		BrowserListingAbProbe::beginSaveListing(kEmptyDir);
+		return;
 	}
-	if (kept.editPos != posAtCall) {
-		printf("SP-PREDICT FAIL a non-pad failure moved editPos to %d, wanted %d\n", kept.editPos, posAtCall);
-		g_failures++;
+
+	case ListingStep::NewName:
+		// slotCalls is reported, not asserted: a naming read that deferred and was then re-run is legitimately two
+		// calls. It is here because it is what first exposed a restart, when an open count that reset on re-arm could
+		// not see one.
+		printf("SP-NEWNAME name=%s opens=%d requests=%d slotCalls=%d deferrals=%d\n", got.entered.c_str(), runOpens(),
+		       runRequests(), Browser::unusedSlotCalls() - g_slotCallsBefore, BrowserListingAbProbe::deferrals());
+		checkResumed("newname");
+		if (got.entered != kNewName || runOpens() != kNewNameOpens) {
+			printf("SP-NEWNAME FAIL the save browser named %s in %d open(s), wanted %s in %d\n", got.entered.c_str(),
+			       runOpens(), kNewName, kNewNameOpens);
+			g_failures++;
+		}
+		// Slot naming, on the storage owner, where creating a new song names one. Here, after a listing that leaves no
+		// file selected: getUnusedSlot empties the list, and a selection left pointing into an empty list is
+		// dereferenced by the next prediction.
+		buildSlotFixture();
+		g_slotRan = false;
+		g_slotTicks = 0;
+		(void)deluge::storage::Owner::run(
+		    [](void*) {
+			    g_slotName = BrowserListingAbProbe::unusedSlotIn(kSlotDir);
+			    g_slotRan = true;
+		    },
+		    nullptr);
+		g_listingStep = ListingStep::Slot;
+		return;
+
+	case ListingStep::Mount: {
+		// One notice, not zero and not two. Zero is the hazard the mount generation exists for: a driver that mounts
+		// silently leaves is_mounted() true, and an edge detector that sampled that would skip the notification
+		// forever. Two is the other side of it -- both initSD() and the tick surface noticing the same mount.
+		const uint32_t notices = StorageManager::cardMountNotices() - g_mountNoticesBefore;
+		printf("SP-LISTING mount listed=%zu notices=%u requests=%d deferrals=%d\n", got.names.size(), notices,
+		       runRequests(), BrowserListingAbProbe::deferrals());
+		checkResumed("mount");
+		if (!listsReferenceNames(got)) {
+			printf("SP-LISTING FAIL mount: listed %s from an unmounted card, wanted SONG000-008\n",
+			       joinNames(got).c_str());
+			g_failures++;
+		}
+		if (notices != 1) {
+			printf("SP-LISTING FAIL mount: the mount edge fired %u times, wanted exactly 1\n", notices);
+			g_failures++;
+		}
+		if (g_sawBlankWhileSuspended) {
+			printf("SP-LISTING FAIL a suspended listing blanked the folder it was replacing\n");
+			g_failures++;
+		}
+		printf("SP-LISTING-SUMMARY runs=%d big=%d blanked=%d\n", g_listingRuns, kBigEntries,
+		       g_sawBlankWhileSuspended ? 1 : 0);
+		finishListingStage();
+		return;
 	}
-	printf("SP-PREDICT-SUMMARY reads=%d sweeps=%d\n", reference.reads, reference.reads);
+
+	case ListingStep::Fixture:
+	case ListingStep::Slot:
+	case ListingStep::Finished:
+		finishListingStage();
+		return;
+	}
 }
 
 void runListingTick() {
 	if (g_listingRunning) {
-		// Checked BEFORE the tick, so it observes the state a user would see between frames.
-		// readFileItemsForFolder clears the list before it opens, so a suspended listing blanks the
-		// folder it is replacing -- invisible for the listing itself, which hides behind
-		// listingInProgress_, but the typing prediction reaches the same function with no such gate.
-		if (g_itemsWhenRunBegan > 0 && BrowserListingAbProbe::inProgress() && Browser::fileItems.empty()) {
-			g_sawBlankWhileSuspended = true;
-		}
-		BrowserListingAbProbe::tick();
-		if (++g_listingTicks > 200) {
-			printf("SP-LISTING FAIL deferAt=%d never finished -- nothing re-asked\n", g_listingDeferAt);
-			g_failures++;
-			g_listingStep = ListingStep::Finished;
-			g_listingRunning = false;
-			return;
-		}
-		if (BrowserListingAbProbe::inProgress()) {
-			return; // still deferring; the tick surface will run it again
+		if (!tickRun()) {
+			if (++g_listingTicks > kMaxRunTicks) {
+				printf("SP-LISTING FAIL %s never finished -- nothing re-asked\n", listingStepName(g_listingStep));
+				g_failures++;
+				finishListingStage();
+			}
+			return; // still waiting on the channel; the tick surface runs it again
 		}
 		g_listingRunning = false;
-
-		if (g_listingStep == ListingStep::Mount) {
-			const ListingSnapshot got = takeListingSnapshot();
-			// One notice, not zero and not two. Zero is the hazard the mount generation exists for: a
-			// driver that mounts silently leaves is_mounted() true, and an edge detector that sampled
-			// that would skip the notification forever. Two is the other side of it -- both initSD()
-			// and the tick surface noticing the same mount.
-			const uint32_t notices = StorageManager::cardMountNotices() - g_mountNoticesBefore;
-			printf("SP-LISTING mount listed=%zu notices=%u deferrals=%d\n", got.names.size(), notices,
-			       BrowserListingAbProbe::deferrals());
-			if (got.names.size() != g_listingReference.names.size()) {
-				printf("SP-LISTING FAIL mount: listed %zu entries from an unmounted card, wanted %zu\n",
-				       got.names.size(), g_listingReference.names.size());
-				g_failures++;
-			}
-			if (notices != 1) {
-				printf("SP-LISTING FAIL mount: the mount edge fired %u times, wanted exactly 1\n", notices);
-				g_failures++;
-			}
-			if (g_sawBlankWhileSuspended) {
-				printf("SP-LISTING FAIL a suspended listing blanked the folder it was replacing\n");
-				g_failures++;
-			}
-			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d blanked=%d\n", g_listingOpens, g_listingCasesRun,
-			       kBigEntries, g_sawBlankWhileSuspended ? 1 : 0);
-			g_listingStep = ListingStep::Finished;
-			return;
-		}
-
-		if (g_listingStep == ListingStep::Create) {
-			// The fallback had to CREATE its default directory. On the synchronous arm that mkdir runs
-			// inline on the storage owner; on the channel arm it rides the request and runs on the
-			// storage tier with the open, because a card WRITE is no more allowed on the interaction
-			// tier than a read is. Either way the directory must exist afterwards and the listing must
-			// have landed on it.
-			const ListingSnapshot got = takeListingSnapshot();
-			const bool exists = deluge::io::Directory::open(kMakeDir).has_value();
-			printf("SP-LISTING create dir=%s exists=%d deferrals=%d\n", got.dir.c_str(), exists ? 1 : 0,
-			       BrowserListingAbProbe::deferrals());
-			if (!exists || !deluge::string::caselessEquals(got.dir, kMakeDir)) {
-				printf("SP-LISTING FAIL create: landed on %s, %s exists=%d\n", got.dir.c_str(), kMakeDir,
-				       exists ? 1 : 0);
-				g_failures++;
-			}
-			runByPathCases();
-			runPredictionCases();
-			runBrandNewNameCases();
-
-			// Slot naming, on the storage owner, where creating a new song names one. Here rather than earlier
-			// because everything above leaves no file selected: getUnusedSlot empties the list, and a selection
-			// left pointing into an empty list is dereferenced by the next prediction.
-			buildSlotFixture();
-			g_slotRan = false;
-			g_slotTicks = 0;
-			(void)deluge::storage::Owner::run(
-			    [](void*) {
-				    g_slotName = BrowserListingAbProbe::unusedSlotIn(kSlotDir);
-				    g_slotRan = true;
-			    },
-			    nullptr);
-			g_listingStep = ListingStep::Slot;
-			return;
-		}
-
-		if (g_listingStep == ListingStep::Fallback) {
-			// The listing must have SUCCEEDED, against the default directory rather than the one that
-			// does not exist. Before the directory open got its own error mapping this could not
-			// happen: the open reported FILE_NOT_FOUND, the fallback tests FOLDER_DOESNT_EXIST, and
-			// the listing simply failed.
-			const ListingSnapshot got = takeListingSnapshot();
-			if (got.names.empty() || !deluge::string::caselessEquals(got.dir, kBigDir)) {
-				printf("SP-LISTING FAIL fallback landed on dir=%s with %zu entries, wanted %s\n", got.dir.c_str(),
-				       got.names.size(), kBigDir);
-				g_failures++;
-			}
-			else {
-				printf("SP-LISTING fallback dir=%s listed=%zu deferrals=%d\n", got.dir.c_str(), got.names.size(),
-				       BrowserListingAbProbe::deferrals());
-			}
-			// Now the same fallback against a default directory that does NOT exist, so it has to be
-			// created.
-			(void)deluge::io::unlink(kMakeDir);
-			if (deluge::io::Directory::open(kMakeDir).has_value()) {
-				printf("SP-LISTING FAIL fixture: %s still exists, the create case would test nothing\n", kMakeDir);
-				g_failures++;
-				g_listingStep = ListingStep::Finished;
-				return;
-			}
-			BrowserListingAbProbe::beginOpenListing("NOSUCHDIR2", kListingStartAt, kMakeDir);
-			g_listingRunning = true;
-			g_listingTicks = 0;
-			g_listingStep = ListingStep::Create;
-			return;
-		}
-
-		if (g_listingStep == ListingStep::BigFolder) {
-			// Surviving the open at all is the property: >230 entries once panicked the snapshot arena
-			// on open and bricked the device. Reaching here means the open, the enumeration and the
-			// close all completed.
-			printf("SP-LISTING big entries=%d listed=%zu deferrals=%d\n", kBigEntries,
-			       takeListingSnapshot().names.size(), BrowserListingAbProbe::deferrals());
-			// The missing-folder fallback, landing on a directory big enough to CULL, entered WITH a
-			// search string. All three matter. The fallback drops the search string, and dropping it
-			// without also resetting catalogSearchDirection sends the cull into
-			// searchFileItems(filenameToStartSearchAt) -- now null -- and straight to strcmpspecial.
-			// So this case covers both halves of the revival: that the fallback happens at all, and
-			// that it does not take the crash with it.
-			BrowserListingAbProbe::beginOpenListing("NOSUCHDIR", kListingStartAt, kBigDir);
-			g_listingRunning = true;
-			g_listingTicks = 0;
-			g_listingStep = ListingStep::Fallback;
-			return;
-		}
-
-		if (g_listingStep == ListingStep::Reference) {
-			g_listingReference = takeListingSnapshot();
-			g_listingOpens = BrowserListingAbProbe::opensPerformed();
-			// `deferrals` is what separates the two legs. On the synchronous arm it is 0 by
-			// construction; on the channel leg it must be non-zero, or the listing was quietly served
-			// by a direct open and the leg tested nothing.
-			printf("SP-LISTING reference entries=%zu opens=%d deferrals=%d\n", g_listingReference.names.size(),
-			       g_listingOpens, BrowserListingAbProbe::deferrals());
-			if (!matchesReferenceNames(g_listingReference)) {
-				printf(
-				    "SP-LISTING FAIL reference listed %s entered=%s sel=%d, wanted SONG000-008 entered=SONG000 sel=0\n",
-				    joinNames(g_listingReference).c_str(), g_listingReference.entered.c_str(),
-				    g_listingReference.selected);
-				g_failures++;
-			}
-			if (g_listingOpens < 2) {
-				printf("SP-LISTING FAIL only %d open(s) -- the sweep would cover no retry path\n", g_listingOpens);
-				g_failures++;
-				g_listingStep = ListingStep::Finished;
-				return;
-			}
-			g_listingDeferAt = 0;
-			g_listingStep = ListingStep::Sweep;
-			return;
-		}
-
-		// A sweep run just finished.
-		const ListingSnapshot got = takeListingSnapshot();
-		g_listingCasesRun++;
-
-		// The state machine's central property, and the one an identical-result check alone cannot
-		// see: a listing that suspended RESUMED at the pending open rather than starting over, so no
-		// open was made twice. A deferral opens nothing, so a suspended run makes exactly as many
-		// opens as the reference; a run that restarted from the top would redo every open before the
-		// deferral and make more.
-		//
-		// This is what the earlier restart-on-defer design failed on, invisibly: the seam disarms
-		// after firing, so a restart still converges here and an identical-result check passes. It is
-		// against the REAL channel -- one slot, answer consumed at take -- that a restart livelocks,
-		// re-asking for open #1 forever. Counting opens is what makes that visible without the
-		// channel.
-		const int32_t opens = BrowserListingAbProbe::opensPerformed();
-		if (opens != g_listingOpens) {
-			printf("SP-LISTING FAIL deferAt=%d made %d opens, the reference made %d -- an open was redone\n",
-			       g_listingDeferAt, opens, g_listingOpens);
-			g_failures++;
-		}
-		if (!(got == g_listingReference)) {
-			printf("SP-LISTING FAIL deferAt=%d dir=%s/%s entered=%s/%s sel=%d/%d n=%zu/%zu\n", g_listingDeferAt,
-			       got.dir.c_str(), g_listingReference.dir.c_str(), got.entered.c_str(),
-			       g_listingReference.entered.c_str(), got.selected, g_listingReference.selected, got.names.size(),
-			       g_listingReference.names.size());
-			g_failures++;
-		}
+		g_listingRuns++;
+		finishRun();
 		return;
 	}
 
 	switch (g_listingStep) {
 	case ListingStep::Fixture:
-		if (!buildFixtureDir(kListingDir, kListingEntries)) {
+		// Every fixture up front: the prediction runs straight after the reference listing and searches BIGLIST.
+		if (!buildFixtureDir(kListingDir, kListingEntries) || !buildFixtureDir(kEmptyDir, 0)
+		    || !buildFixtureDir(kBigDir, kBigEntries)) {
 			g_failures++;
-			g_listingStep = ListingStep::Finished;
+			finishListingStage();
 			return;
 		}
-		BrowserListingAbProbe::deferAtOpen(0);
+		deluge_file_directory_set_latency_ms(kDirectoryHoldMs);
+		beginRun(ListingStep::Reference);
 		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
-		g_listingRunning = true;
-		g_listingTicks = 0;
-		g_listingStep = ListingStep::Reference;
 		return;
-	case ListingStep::Sweep:
-		if (deluge_file_directory_async_active()) {
-			// The channel leg does not sweep. Its deferrals come from the real channel -- one slot,
-			// answer consumed at take -- which is the thing the seam only models, so arming the seam on
-			// top would defer twice at one open and prove nothing the reference run has not already
-			// proved. What this leg contributes is that the listing COMPLETES against that channel and
-			// lands on the same result as the synchronous leg, which is what the script diffs.
-			printf("SP-LISTING sweep skipped: the channel supplies the deferrals on this leg\n");
-			g_listingDeferAt = g_listingOpens;
-		}
-		if (g_listingDeferAt >= g_listingOpens) {
-			BrowserListingAbProbe::deferAtOpen(0);
-			// The big folder is listed LAST, so a panic in it cannot be mistaken for a sweep failure.
-			if (!buildFixtureDir(kEmptyDir, 0) || !buildFixtureDir(kBigDir, kBigEntries)) {
-				g_failures++;
-				g_listingStep = ListingStep::Finished;
-				return;
-			}
-			BrowserListingAbProbe::beginOpenListing(kBigDir, kListingStartAt);
-			g_listingRunning = true;
-			g_listingTicks = 0;
-			g_listingStep = ListingStep::BigFolder;
-			return;
-		}
-		g_listingDeferAt++;
-		BrowserListingAbProbe::deferAtOpen(g_listingDeferAt);
-		g_itemsWhenRunBegan = Browser::fileItems.size();
-		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
-		g_listingRunning = true;
-		g_listingTicks = 0;
-		return;
+
 	case ListingStep::Slot:
 		// The marker op behind this step's dispatch makes one tick enough; bounded anyway.
 		if (!g_slotRan && ++g_slotTicks < 200) {
@@ -1771,20 +1669,17 @@ void runListingTick() {
 			g_failures++;
 		}
 
-		// Now with the filesystem UNMOUNTED. Mounting is real card I/O, so on the channel arm it
-		// belongs to the driver, not to StorageManager::initSD() running on the interaction tier.
-		// The listing has to succeed anyway, and -- the half that is invisible in its result -- the
-		// unmounted->mounted edge has to reach firstCardRead() exactly once, even though nothing
-		// in C++ did the mounting.
+		// Now with the filesystem UNMOUNTED. Mounting is real card I/O, so it belongs to the channel's driver, not to
+		// StorageManager::initSD() on the interaction tier. The listing has to succeed anyway, and -- the half that is
+		// invisible in its result -- the unmounted->mounted edge has to reach firstCardRead() exactly once, even though
+		// nothing in C++ did the mounting.
 		g_mountNoticesBefore = StorageManager::cardMountNotices();
 		deluge_efatfs_unmount();
+		beginRun(ListingStep::Mount);
 		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
-		g_listingRunning = true;
-		g_listingTicks = 0;
-		g_listingStep = ListingStep::Mount;
 		return;
-	case ListingStep::Reference:
-	case ListingStep::Finished:
+
+	default:
 		return;
 	}
 }
@@ -2692,6 +2587,146 @@ void runAcquireTick() {
 	}
 }
 
+// ── Stage: listing by path ──────────────────────────────────────────────────
+//
+// A ByPath listing must answer "is this file still there?" -- the question the blocking StorageManager::fileExists
+// pre-flight used to answer before every favourite open. The absent case is the regression that pre-flight was hiding:
+// the old completion tail tested `fileIndexSelected > fileItems.size()`, but `searchFileItems` returns an INSERTION
+// POINT, always <= size, so a deleted file fell straight through and the browser opened whatever sorted into its place.
+//
+// Through a load browser that is really on the UI stack, because the absent case ends in onListingFailed()'s close(),
+// which pops it. After the acquire stage, which runs with no UI stack at all, so nothing it relies on changes.
+
+/// A song the fixture made, the name opening it by path must select, and a song it never made.
+constexpr const char* kByPathPresent = "LISTTEST/SONG005.XML";
+constexpr const char* kByPathPresentName = "SONG005";
+constexpr const char* kByPathAbsent = "LISTTEST/SONG999.XML";
+
+enum class ByPathStep : uint8_t { Open, OpenWait, Present, PresentWait, Absent, AbsentWait, Finished };
+ByPathStep g_byPathStep = ByPathStep::Open;
+int32_t g_byPathTicks = 0;
+int32_t g_listingFailuresBefore = 0;
+
+/// End the stage, releasing the hold.
+void finishByPathStage() {
+	deluge_file_directory_set_latency_ms(0);
+	g_byPathStep = ByPathStep::Finished;
+}
+
+/// Tick the load browser while its listing runs. @return Whether the listing has finished; reports a wedge itself.
+bool byPathListingSettled(const char* label) {
+	if (!BrowserListingAbProbe::inProgress()) {
+		return true;
+	}
+	BrowserListingAbProbe::tick();
+	if (!BrowserListingAbProbe::inProgress()) {
+		return true;
+	}
+	if (++g_byPathTicks > kMaxRunTicks) {
+		printf("SP-BYPATH FAIL %s never finished -- nothing re-asked\n", label);
+		g_failures++;
+		finishByPathStage();
+	}
+	return false;
+}
+
+void runByPathTick() {
+	switch (g_byPathStep) {
+	case ByPathStep::Open:
+		// openUI() needs a root UI beneath it, and this harness boots without one.
+		changeRootUI(&arrangerView);
+		deluge_file_directory_set_latency_ms(kDirectoryHoldMs);
+		g_byPathTicks = 0;
+		if (!openUI(&loadSongUI)) {
+			printf("SP-BYPATH FAIL the load browser did not open\n");
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::OpenWait;
+		return;
+
+	case ByPathStep::OpenWait:
+		// Its own listing first: a second listing begun over one still in flight would take over its machine.
+		if (!byPathListingSettled("the load browser's own listing")) {
+			return;
+		}
+		if (g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		if (getCurrentUI() != &loadSongUI) {
+			printf("SP-BYPATH FAIL the load browser's own listing failed (error %d) and closed it\n",
+			       static_cast<int>(Browser::lastListingFailure()));
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::Present;
+		return;
+
+	case ByPathStep::Present:
+		markCounters();
+		g_byPathTicks = 0;
+		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kByPathPresent);
+		g_byPathStep = ByPathStep::PresentWait;
+		return;
+
+	case ByPathStep::PresentWait: {
+		if (!byPathListingSettled("the present file's listing") || g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		const bool exact = BrowserListingAbProbe::foundExactMatch();
+		const bool open = getCurrentUI() == &loadSongUI;
+		printf("SP-BYPATH present exact=%d entered=%s open=%d opens=%d requests=%d\n", exact ? 1 : 0,
+		       Browser::enteredText.c_str(), open ? 1 : 0, runOpens(), runRequests());
+		checkResumed("bypath(present)");
+		if (!exact || Browser::enteredText != kByPathPresentName || !open) {
+			printf("SP-BYPATH FAIL a file that exists did not open by path: exact=%d entered=%s open=%d\n",
+			       exact ? 1 : 0, Browser::enteredText.c_str(), open ? 1 : 0);
+			g_failures++;
+		}
+		if (!open) {
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::Absent;
+		return;
+	}
+
+	case ByPathStep::Absent:
+		markCounters();
+		g_byPathTicks = 0;
+		g_listingFailuresBefore = Browser::listingFailures();
+		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kByPathAbsent);
+		g_byPathStep = ByPathStep::AbsentWait;
+		return;
+
+	case ByPathStep::AbsentWait: {
+		if (!byPathListingSettled("the absent file's listing") || g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		const int32_t failed = Browser::listingFailures() - g_listingFailuresBefore;
+		const Error error = Browser::lastListingFailure();
+		const bool closed = getCurrentUI() != &loadSongUI;
+		printf("SP-BYPATH absent failed=%d error=%d closed=%d opens=%d requests=%d\n", failed, static_cast<int>(error),
+		       closed ? 1 : 0, runOpens(), runRequests());
+		checkResumed("bypath(absent)");
+		if (failed != 1 || error != Error::FILE_NOT_FOUND || !closed) {
+			printf(
+			    "SP-BYPATH FAIL a file that does not exist was not refused: failed=%d error=%d closed=%d, wanted one "
+			    "FILE_NOT_FOUND and a closed browser -- the browser would open whatever sorted into its place\n",
+			    failed, static_cast<int>(error), closed ? 1 : 0);
+			g_failures++;
+		}
+		finishByPathStage();
+		return;
+	}
+
+	case ByPathStep::Finished:
+		return;
+	}
+}
+
 void printSummary() {
 	const bool async = deluge_file_prefix_async_active();
 	printf("SP-SUMMARY asyncActive=%d cases=%zu corpus=%zu failures=%d\n", async ? 1 : 0, kCases.size(), g_corpusRan,
@@ -2722,6 +2757,16 @@ void printSummary() {
 		g_failures++;
 	}
 	printf("SP-ACQUIRE-SUMMARY loads=%d dispatches=%d\n", g_acqLoads, acqDispatches());
+
+	// No synchronous browser directory operation may begin off the storage owner after boot. Every listing above went
+	// through the channel; a count here means one of them did not. (In an alpha or beta build the first one freezes
+	// the run instead, which fails it just as surely.)
+	const int32_t tier = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
+	printf("SP-TIER browser=%d\n", tier);
+	if (tier != 0) {
+		printf("SP-TIER FAIL %d browser directory operation(s) began off the storage owner after boot\n", tier);
+		g_failures++;
+	}
 
 	printf("SP-RESULT failures=%d\n", g_failures);
 	fflush(stdout);
@@ -2755,17 +2800,21 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_deferralsByCase.fill(0);
 	g_deferralsByCorpusCase.fill(0);
 	g_listingStep = ListingStep::Fixture;
-	g_listingDeferAt = 0;
-	g_listingOpens = 0;
 	g_listingRunning = false;
 	g_listingTicks = 0;
-	g_listingCasesRun = 0;
-	g_listingReference = ListingSnapshot{};
+	g_listingRuns = 0;
+	g_runRequestsBefore = 0;
+	g_runOpensBefore = 0;
+	g_slotCallsBefore = 0;
+	g_mountNoticesBefore = 0;
 	g_itemsWhenRunBegan = 0;
 	g_sawBlankWhileSuspended = false;
 	g_slotRan = false;
 	g_slotName.clear();
 	g_slotTicks = 0;
+	g_byPathStep = ByPathStep::Open;
+	g_byPathTicks = 0;
+	g_listingFailuresBefore = 0;
 	g_acquireStep = AcquireStep::Fixture;
 	g_acqLoads = 0;
 	g_acqReferenceName.clear();
@@ -2819,6 +2868,12 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 	case Stage::Acquire:
 		runAcquireTick();
 		if (g_acquireStep == AcquireStep::Finished) {
+			g_stage = Stage::ByPath;
+		}
+		break;
+	case Stage::ByPath:
+		runByPathTick();
+		if (g_byPathStep == ByPathStep::Finished) {
 			g_stage = Stage::Done;
 			printSummary();
 			g_summaryPrinted = true;

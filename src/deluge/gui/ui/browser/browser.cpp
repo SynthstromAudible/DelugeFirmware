@@ -70,6 +70,12 @@ namespace {
 int32_t g_unusedSlotCalls = 0;
 /// See Browser::totalDirectoryOpens().
 int32_t g_totalDirectoryOpens = 0;
+/// See Browser::directoryRequests().
+int32_t g_directoryRequests = 0;
+/// See Browser::listingFailures().
+int32_t g_listingFailures = 0;
+/// See Browser::lastListingFailure().
+Error g_lastListingFailure = Error::NONE;
 } // namespace
 
 int32_t Browser::unusedSlotCalls() {
@@ -80,12 +86,23 @@ int32_t Browser::totalDirectoryOpens() {
 	return g_totalDirectoryOpens;
 }
 
+int32_t Browser::directoryRequests() {
+	return g_directoryRequests;
+}
+
+int32_t Browser::listingFailures() {
+	return g_listingFailures;
+}
+
+Error Browser::lastListingFailure() {
+	return g_lastListingFailure;
+}
+
 bool Browser::listingInProgress_;
 bool Browser::listingOnTickSurface_;
 Browser::ListingState Browser::listing_;
 Browser::PredictionState Browser::prediction_;
 std::optional<Browser::PredictionTarget> Browser::pendingPrediction_;
-int32_t Browser::deferAtOpenNumber_ = 0;
 Browser::ListingRequest Browser::pendingListing_;
 int32_t Browser::pendingReloadCatalogSearchDirection_;
 bool Browser::pendingReloadSearchFromEnd_;
@@ -216,6 +233,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		// where the FIRST request for a path is issued: the attempt names a directory the channel has
 		// not been told about, so its opening drive lands here.
 		deluge_file_directory_request(path, createIfMissing);
+		g_directoryRequests++;
 		listing_.deferrals++;
 		return std::unexpected(Error::LISTING_DEFERRED);
 	case DELUGE_FILE_DIRECTORY_PENDING:
@@ -321,6 +339,8 @@ Error Browser::finishPendingListing() {
 }
 
 void Browser::onListingFailed(Error error) {
+	g_listingFailures++;
+	g_lastListingFailure = error;
 	display->displayError(error);
 	// close(), not exitAction(): exitAction() is virtual and some subclasses override it with side
 	// effects a plain listing failure shouldn't trigger (e.g. LoadSongUI::exitAction() shows a
@@ -509,31 +529,18 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		}
 	}
 
-	// Every open a LISTING makes is counted, so a gate can force the Nth one to defer and check that
-	// the finished listing is identical either way. Counted here rather than at the call sites
-	// because this is the ONLY place the browser opens a directory.
+	// Every open a LISTING or a PREDICTION makes is counted, across resumptions, so a gate can check that a suspended
+	// machine resumed at the open it was waiting for instead of redoing the ones before it. Counted here rather than at
+	// the call sites because this is the ONLY place the browser opens a directory. Every other caller that reaches this
+	// function runs on the storage owner -- `LoadInstrumentPresetUI`'s readers and
+	// `InstrumentClipMinder::createNewInstrument()`'s Browser::getUnusedSlot() read -- and has its own dispatch-count
+	// instrumentation (presetAcquisitionsRun()) rather than this counter.
 	//
-	// Gated on `listing_.active`, and that is deliberate rather than a gap: `opensSoFar` only tracks
-	// the two state machines that resume THROUGH graphicsRoutine() -- a listing from the pump, a
-	// prediction from a keystroke -- because those are the only callers this per-open counter needs
-	// to force a specific Nth open to defer for. Every other caller that reaches this function now
-	// dispatches onto the storage owner instead (rung 5): `LoadInstrumentPresetUI`'s readers and
-	// `InstrumentClipMinder::createNewInstrument()`'s Browser::getUnusedSlot() read both run there,
-	// where a defer is a fiber yield, not a LISTING_DEFERRED handed back to a caller with nowhere to
-	// put it -- they have their own dispatch-count instrumentation (presetAcquisitionsRun()) rather
-	// than this counter.
-	// Whichever converted caller is active. Only one can be: a listing runs from the pump, a
-	// prediction from a keystroke, and neither nests inside the other.
+	// Whichever converted caller is active. Only one can be: a listing runs from the pump, a prediction from a
+	// keystroke, and neither nests inside the other.
 	int32_t* opensSoFar = listing_.active      ? &listing_.opensThisListing
 	                      : prediction_.active ? &prediction_.opensThisPrediction
 	                                           : nullptr;
-	if (opensSoFar != nullptr && deferAtOpenNumber_ != 0 && *opensSoFar + 1 == deferAtOpenNumber_) {
-		// Disarmed as it fires: a real channel answers the next ask, so a seam that stayed armed would
-		// defer this same open on every resumption and the listing would never finish.
-		deferAtOpenNumber_ = 0;
-		listing_.deferrals++;
-		return Error::LISTING_DEFERRED;
-	}
 
 	// Local RAII handle: the destructor closes it on every return path below, so there's no manual
 	// close() to forget or double up on. (Historically this contrasted with a shared
@@ -550,7 +557,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// Counted here, AFTER the deferral check, so it means "opens that actually reached the
 	// filesystem" rather than "times we asked". A deferral opens nothing, so a listing that suspends
 	// and resumes makes exactly as many opens as one that never suspended -- which is the whole
-	// property the machine exists for, and what lets the two harness legs be compared directly. The
+	// property the machine exists for, and what a gate compares with the requests the browser issued. The
 	// counter also spans resumptions, so a design that restarted from the top would show MORE opens
 	// than the reference and be caught by the gate rather than by reasoning.
 	if (opensSoFar != nullptr) {
