@@ -273,6 +273,7 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getExpressionAutoParamFr
 		return addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr); // "No param"
 	}
 
+	// if it fails to allocate then we would be accessing a null param collection below
 	if (!paramManager->ensureExpressionParamSetExists()) {
 		return addParamCollectionAndId(nullptr, nullptr, 0)->addAutoParam(nullptr);
 	}
