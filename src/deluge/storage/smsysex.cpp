@@ -14,6 +14,7 @@
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
+#include "storage/byte_channel.h"
 #include "storage/fs_status.h"
 #include "storage/owner.h"
 #include "storage/smsysex_pending.h"
@@ -32,6 +33,11 @@ uint32_t dirOffsetCounter;
 
 JsonSerializer jWriter;
 std::string activeDirName;
+/// Consecutive ticks the directory open for the front `dir` request has gone unanswered. See smSysex::getDirEntries().
+int32_t dirOpenWaitTicks = 0;
+/// How many unanswered ticks that open is given before the request is answered with a timeout: the bound every channel
+/// consumer on this ladder uses.
+constexpr int32_t kMaxDirOpenWaitTicks = 600;
 const size_t blockBufferMax = 1024;
 const size_t sysexBufferMax = blockBufferMax + 256;
 uint8_t* writeBlockBuffer = nullptr;
@@ -559,10 +565,20 @@ bool smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 		auto opened = openDirectoryForSysex(path.c_str(), &errCode);
 		if (!opened.has_value()) {
 			if (errCode == FsWireStatus::Ok) {
-				return false; // still opening; re-entered next tick
+				// Still opening, so this request stays at the front and is re-entered next tick -- but not for good. An
+				// open the channel never answers would leave it, and every request queued behind it, unanswered.
+				if (++dirOpenWaitTicks < kMaxDirOpenWaitTicks) {
+					return false;
+				}
+				errCode = FsWireStatus::Timeout;
 			}
+			dirOpenWaitTicks = 0;
+			// The reply carries no entries: nothing of an earlier listing may go back as this request's contents.
+			sxDir.reset();
+			activeDirName.clear();
 			goto errorFound;
 		}
+		dirOpenWaitTicks = 0;
 		sxDir = std::move(*opened);
 		dirOffsetCounter = 0;
 		activeDirName = path;
@@ -628,6 +644,7 @@ std::optional<deluge::io::Directory> smSysex::openDirectoryForSysex(const char* 
 	*outCode = FsWireStatus::Ok;
 	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
 		// Blocking is legal on the owner, and before it starts there is no channel driver running to wait for.
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Sysex);
 		auto opened = deluge::io::Directory::open(path);
 		if (!opened.has_value()) {
 			*outCode = toWireStatus(opened.error());

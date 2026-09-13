@@ -426,6 +426,7 @@ enum class IoTier : uint8_t {
 	            ///< opens
 	Favourites, ///< the favourites bank: every browser visit, favourite pad, bank pad and browser close
 	Recorder,   ///< the sample recorder: its cluster writes, and creating, finalizing, aborting and closing its file
+	Sysex,      ///< SMSysex's directory listing: its synchronous directory open
 };
 
 /// @brief How many of `which`'s file operations have begun on the INTERACTION tier.

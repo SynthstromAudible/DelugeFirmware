@@ -20,7 +20,9 @@
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"
 #include "libdeluge/file_bytes.h"
+#include "libdeluge/file_directory.h"
 #include "storage/byte_channel.h"
+#include "storage/fs_status.h"
 #include "storage/owner.h"
 #include "storage/smsysex.h"
 #include "util/pack.h"
@@ -119,6 +121,8 @@ enum class Stage : uint8_t {
 	Report,
 	GiveUp,
 	GiveUpCheck,
+	DirStall,
+	DirStallCheck,
 	Summary,
 	Done,
 };
@@ -540,6 +544,53 @@ void runTick() {
 		}
 		if (copied) {
 			printf("OI-GIVEUP FAIL the copy was made anyway\n");
+			g_failures++;
+		}
+		g_stage = Stage::DirStall;
+		break;
+	}
+
+	case Stage::DirStall:
+		// A directory listing whose open is held far past the handler's stall bound. It must be answered with a timeout
+		// and no entries, and popped, so the requests queued behind it are not left waiting too.
+#ifdef DELUGE_HOST
+		deluge_file_directory_set_latency_ms(kGiveUpLatencyMs);
+#endif
+		g_repliesBefore = g_cable.replies;
+		g_verbTicks = 0;
+		sendJson(R"({"dir":{"path":"OI_TEST","offset":0,"lines":8}})");
+		g_stage = Stage::DirStallCheck;
+		break;
+
+	case Stage::DirStallCheck: {
+		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxGiveUpTicks) {
+			break;
+		}
+#ifdef DELUGE_HOST
+		deluge_file_directory_set_latency_ms(0);
+#endif
+		const bool replied = g_cable.replies > g_repliesBefore;
+		const int32_t err = replied ? replyAttr(g_cable.lastReply, "err") : -1;
+		const bool listed = replied && g_cable.lastReply.find("SRC.BIN") != std::string::npos;
+		const int32_t timeout = static_cast<int32_t>(deluge::storage::FsWireStatus::Timeout);
+		printf("OI-DIR-STALL replied=%d err=%d listed=%d ticks=%d latencyMs=%u\n", (int)replied, err, (int)listed,
+		       g_verbTicks, (unsigned)kGiveUpLatencyMs);
+		if (!replied) {
+			printf("OI-DIR-STALL FAIL the handler never replied to a listing whose open never answered\n");
+			g_failures++;
+		}
+		else if (err != timeout) {
+			printf("OI-DIR-STALL FAIL the reply's err=%d, wanted the timeout (%d)\n", err, timeout);
+			g_failures++;
+		}
+		if (listed) {
+			printf("OI-DIR-STALL FAIL the timeout reply listed an earlier listing's entries\n");
+			g_failures++;
+		}
+		const int32_t tier = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Sysex);
+		printf("OI-TIER sysex=%d\n", tier);
+		if (tier != 0) {
+			printf("OI-TIER FAIL %d SysEx directory open(s) began synchronously off the storage owner\n", tier);
 			g_failures++;
 		}
 		g_stage = Stage::Summary;

@@ -16,6 +16,9 @@
 #   OI-ILLEGAL   that no SysEx operation above was refused for want of a legal place to run.
 #   OI-GIVEUP    that a copy whose channel operation is held far past the stall bound is answered with an
 #                error: exactly one refused operation, and nothing copied.
+#   OI-DIR-STALL that a directory listing whose open is held far past the handler's stall bound is answered with
+#                the timeout (15) and no entries, instead of holding the SysEx queue for good.
+#   OI-TIER      that SMSysex opened no directory synchronously off the storage owner. Required 0.
 #
 # Note: OI-TRANSFER re-reads the card file directly, never the bytes a channel block read returned; the
 # block-read copy is covered by song-save-channel's and document-save-channel's read-back checks.
@@ -73,7 +76,7 @@ if ! grep -q '^OI-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in OI-TRANSFER OI-COPY OI-DIR OI-CHANNEL OI-ILLEGAL OI-GIVEUP; do
+for marker in OI-TRANSFER OI-COPY OI-DIR OI-CHANNEL OI-ILLEGAL OI-GIVEUP OI-DIR-STALL OI-TIER; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^OI-' "$OUT/run.txt"
