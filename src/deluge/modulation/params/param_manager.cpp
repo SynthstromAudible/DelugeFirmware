@@ -116,6 +116,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 		FREEZE_WITH_ERROR("E413");
 	}
 #endif
+	// don't steal from ourselves
 	if (other == this) {
 		return;
 	}
