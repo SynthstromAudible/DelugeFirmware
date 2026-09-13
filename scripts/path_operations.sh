@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # path_operations.sh — the path-operations gate.
 #
-# Drives real SysEx path requests and the browser's folder creation.
+# Drives real SysEx path requests, the browser's folder creation, and deleting a file from a browser.
 #
 # What the checks below cover, and why each is separate:
 #   PO-SYSEX     that the protocol still ANSWERS. A real request for each converted verb must produce
@@ -14,8 +14,17 @@
 #                that a read on the storage owner, entered on a missing folder whose default folder is missing
 #                too, creates the default folder and lists it. No shipped listing reaches that arm, and the
 #                synchronous open it makes ignores the directory channel's create flag.
-#   PO-TIER      that no browser folder creation ran on the interaction tier.
-#   PO-ILLEGAL   that no folder creation was refused for want of a legal place to run.
+#   PO-DELETE    that a file deleted from a browser goes through the byte channel: the delete is still pending a
+#                step after the menu accepts it, input that would close the menu is refused meanwhile, and then
+#                the file is gone from the card and the listing.
+#   PO-DELETE-ABSENT
+#                that deleting a listed file already gone from the card ends as missing, not removed, and a
+#                plain file stays listed, as it always has.
+#   PO-DELETE-STALL
+#                that a delete the channel never answers ends as failed, with the file still listed and the menu
+#                closed.
+#   PO-TIER      that no browser folder creation or delete ran on the interaction tier.
+#   PO-ILLEGAL   that no folder creation or delete was refused for want of a legal place to run.
 #   PO-CHANNEL   that the async arm was EXECUTED. Required non-zero: smsysex's tier count reads zero
 #                whichever arm carries it, so this counter is the whole of its evidence.
 #
@@ -72,7 +81,8 @@ if ! grep -q '^PO-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in PO-SYSEX PO-MKDIRALL PO-OWNER-FALLBACK PO-CHANNEL PO-TIER PO-ILLEGAL; do
+for marker in PO-SYSEX PO-MKDIRALL PO-OWNER-FALLBACK PO-DELETE PO-DELETE-ABSENT PO-DELETE-STALL PO-CHANNEL \
+	PO-TIER PO-ILLEGAL; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^PO-' "$OUT/run.txt"
@@ -94,5 +104,5 @@ if [ -z "$served" ] || [ "$served" -eq 0 ]; then
 fi
 
 grep -E '^PO-' "$OUT/run.txt"
-echo "PASS — the protocol replied, no browser folder creation ran on the interaction tier, and the"
-echo "       byte channel served $served operation(s)"
+echo "PASS — the protocol replied, browser deletes went through the byte channel, no browser folder creation or"
+echo "       delete ran on the interaction tier, and the byte channel served $served operation(s)"

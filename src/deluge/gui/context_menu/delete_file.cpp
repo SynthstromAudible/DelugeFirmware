@@ -63,15 +63,18 @@ bool DeleteFile::acceptCurrentOption() {
 
 		// The file might not exist on the card in the first place, in which case whatever
 		if (removed.has_value()) {
+			++removed_;
 			display->displayPopup(l10n::get(STRING_FOR_FILE_DELETED));
 			browser->currentFileDeleted();
 			existed = true;
 		}
 		else if (removed.error() == deluge::io::Status::NOT_FOUND) {
+			++missing_;
 			existed = false;
 		}
 		// If didn't work
 		else {
+			++failed_;
 			display->displayPopup(l10n::get(STRING_FOR_ERROR_DELETING_FILE));
 			existed = true;
 			// But we'll still go back to the Browser

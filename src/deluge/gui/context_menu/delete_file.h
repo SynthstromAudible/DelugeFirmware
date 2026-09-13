@@ -28,6 +28,25 @@ public:
 	bool acceptCurrentOption() override;
 
 	char const* getTitle() override;
+
+	/// @name How deletes ended
+	/// Counted when an outcome is applied. Read by the path-operations gate.
+	/// @{
+	/// @brief Deletes that removed the file.
+	[[nodiscard]] static int32_t deletesRemoved() { return removed_; }
+	/// @brief Deletes that found the file already gone.
+	[[nodiscard]] static int32_t deletesMissing() { return missing_; }
+	/// @brief Deletes the card refused.
+	[[nodiscard]] static int32_t deletesFailed() { return failed_; }
+	/// @brief Whether a delete has been handed over and not yet answered.
+	[[nodiscard]] static bool deletePending() { return pending_; }
+	/// @}
+
+private:
+	static inline int32_t removed_ = 0;
+	static inline int32_t missing_ = 0;
+	static inline int32_t failed_ = 0;
+	static inline bool pending_ = false;
 };
 
 extern DeleteFile deleteFile;

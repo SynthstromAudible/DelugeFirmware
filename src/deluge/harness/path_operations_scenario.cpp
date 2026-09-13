@@ -17,10 +17,16 @@
 
 #include "harness/path_operations_scenario.h"
 
+#include "gui/context_menu/delete_file.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/save/save_song_ui.h"
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
+#include "hid/button.h"
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"
+#include "libdeluge/file_bytes.h"
+#include "model/song/song.h"
 #include "storage/byte_channel.h"
 #include "storage/owner.h"
 #include "storage/smsysex.h"
@@ -52,6 +58,77 @@ public:
 		return saveSongUI.readFileItemsFromFolderAndMemory(nullptr, OutputType::NONE, "SONG", nullptr, fallback, true);
 	}
 	static std::string currentDir() { return Browser::currentDir; }
+
+	/// @name The delete stages
+	/// @{
+	/// Put the save browser on the UI stack over a root UI, listing `dir`. The delete menu's close pops the stack, so
+	/// the browser has to actually be on it, and this harness boots without a root UI. A save browser lists the song's
+	/// own folder, so the song is pointed at `dir` first. A by-path listing cannot stand in for that: a save browser
+	/// that finds the exact file swaps in a new name and leaves nothing selected.
+	static bool openSaveBrowserOn(const char* dir) {
+		changeRootUI(&arrangerView);
+		currentSong->dirPath = dir;
+		return openUI(&saveSongUI);
+	}
+	/// Tick the browser while its listing runs, and say whether it still is. Nothing else in the headless harness ticks
+	/// a browser, and the listing runs on the browser's tick.
+	static bool listingInProgress() {
+		if (Browser::isListingInProgress()) {
+			getCurrentUI()->graphicsRoutine();
+		}
+		return Browser::isListingInProgress();
+	}
+	/// Whether a file named `name` is in the listing.
+	static bool listed(const char* name) {
+		for (const FileItem& item : Browser::fileItems) {
+			if (deluge::string::caselessEquals(item.displayName(), name)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	/// Select the listed file named `name`, as scrolling to it does. False when it is not listed.
+	static bool select(const char* name) {
+		for (size_t i = 0; i < Browser::fileItems.size(); i++) {
+			if (deluge::string::caselessEquals(Browser::fileItems[i].displayName(), name)) {
+				Browser::fileIndexSelected = static_cast<int32_t>(i);
+				(void)saveSongUI.setEnteredTextFromCurrentFilename();
+				return true;
+			}
+		}
+		return false;
+	}
+	/// Open the real delete menu on the selected file, through the gesture's own entry.
+	static bool openDeleteMenu() {
+		saveSongUI.goIntoDeleteFileContextMenu();
+		return getCurrentUI() == &deluge::gui::context_menu::deleteFile;
+	}
+	/// Accept the delete menu, as the select button does.
+	static void acceptDelete() { (void)getCurrentUI()->buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
+	/// A BACK press and release, a pad press and release, and a select-encoder turn: each would otherwise close the
+	/// menu or move it. Stops as soon as the menu is no longer on top, so nothing reaches the browser underneath.
+	static void pokeDeleteMenu() {
+		using namespace deluge::hid::button;
+		UI* menu = &deluge::gui::context_menu::deleteFile;
+		if (getCurrentUI() == menu) {
+			(void)menu->buttonAction(BACK, true, false);
+		}
+		if (getCurrentUI() == menu) {
+			(void)menu->buttonAction(BACK, false, false);
+		}
+		if (getCurrentUI() == menu) {
+			(void)menu->padAction(0, 0, 64);
+		}
+		if (getCurrentUI() == menu) {
+			(void)menu->padAction(0, 0, 0);
+		}
+		if (getCurrentUI() == menu) {
+			menu->selectEncoderAction(1);
+		}
+	}
+	/// Whether the delete menu is anywhere on the UI stack.
+	static bool deleteMenuOpen() { return isUIOpen(&deluge::gui::context_menu::deleteFile); }
+	/// @}
 };
 
 namespace {
@@ -130,6 +207,33 @@ constexpr int32_t kMaxNestedTicks = 900;
 constexpr const char* kOwnerMissingDir = "PO_TEST/NOSUCH";
 constexpr const char* kOwnerDefaultDir = "PO_TEST/OWNDEF";
 
+/// The delete stages: the folder they list and the file each deletes. `.XML` because the save browser lists nothing
+/// else, and `SlotBrowser::getCurrentFilePath()` puts that extension back on the selected name.
+constexpr const char* kDeleteDir = "PO_TEST/DELETE";
+constexpr const char* kDeleteA = "DELA.XML";
+constexpr const char* kDeleteB = "DELB.XML";
+constexpr const char* kDeleteC = "DELC.XML";
+constexpr const char* kDeleteAPath = "PO_TEST/DELETE/DELA.XML";
+constexpr const char* kDeleteBPath = "PO_TEST/DELETE/DELB.XML";
+constexpr const char* kDeleteCPath = "PO_TEST/DELETE/DELC.XML";
+constexpr const char* kDeletePaths[] = {kDeleteAPath, kDeleteBPath, kDeleteCPath};
+
+/// How long the byte channel holds PO-DELETE's removal, so the delete is seen pending and input is sent while it is.
+/// Measured in this harness's virtual time: a hold of H ms stays pending for about H/2 steps, and holds up to 1600 ms
+/// all finished as removals, so 100 ms is about 50 steps pending and a sixteenth of the longest hold that did not
+/// stall.
+constexpr uint32_t kPendingHoldMs = 100;
+
+/// How long PO-DELETE-STALL's removal is held: far past the stall bound, as startup-failsafe holds its first request.
+constexpr uint32_t kStallHoldMs = 30000;
+
+/// How long a delete stage waits for a listing or an answer before calling it wedged.
+constexpr int32_t kMaxDeleteTicks = 5000;
+
+/// How long PO-DELETE-STALL waits for the delete to give up. Measured: the channel gave up on a 30 s hold after 1797
+/// steps (3.6 s virtual), so this is about 2.8 times that, and 10 s of the run's 60 s virtual budget.
+constexpr int32_t kMaxStallTicks = 5000;
+
 enum class Stage : uint8_t {
 	Fixture,
 	FixtureCheck,
@@ -139,6 +243,22 @@ enum class Stage : uint8_t {
 	NestedCheck,
 	OwnerFallback,
 	OwnerFallbackCheck,
+	DeleteOpen,
+	DeleteList,
+	DeleteListWait,
+	DeleteAccept,
+	DeleteRefuse,
+	DeleteWait,
+	DeleteCheck,
+	AbsentRemove,
+	AbsentRemoveWait,
+	AbsentAccept,
+	AbsentWait,
+	AbsentCheck,
+	StallAccept,
+	StallWait,
+	StallCheck,
+	DeleteClose,
 	Report,
 	Summary,
 	Done,
@@ -159,6 +279,35 @@ bool g_ownerFallbackRan = false;
 bool g_ownerFallbackOnOwner = false;
 Error g_ownerFallbackError = Error::NONE;
 std::string g_ownerFallbackDir;
+
+using deluge::gui::context_menu::DeleteFile;
+
+/// What a delete stage reads, taken before it starts so each stage sees only its own delete.
+struct DeleteCounts {
+	int32_t removed;
+	int32_t missing;
+	int32_t failed;
+	int32_t served;
+};
+
+DeleteCounts deleteCountsNow() {
+	return {DeleteFile::deletesRemoved(), DeleteFile::deletesMissing(), DeleteFile::deletesFailed(),
+	        deluge::storage::bytes::channelServedOps()};
+}
+
+DeleteCounts deleteCountsSince(const DeleteCounts& before) {
+	const DeleteCounts now = deleteCountsNow();
+	return {now.removed - before.removed, now.missing - before.missing, now.failed - before.failed,
+	        now.served - before.served};
+}
+
+int32_t g_deleteTicks = 0;
+DeleteCounts g_deleteBefore{};
+bool g_sawPending = false;
+bool g_openWhilePending = false;
+bool g_listedWhilePending = false;
+/// The song's folder before the delete stages pointed it at theirs; put back when they end.
+std::string g_songDirBefore;
 
 /// Pull the `err` attribute out of a captured reply, or -1 if it has none.
 ///
@@ -195,6 +344,45 @@ void sendVerb(const VerbCase& verb) {
 	smSysex::sysexReceived(g_cable, buffer, static_cast<int32_t>(jsonLen + 2));
 }
 
+/// Whether `path` names a file that is there. The gate's own check, made with the synchronous API.
+bool fileOnCard(const char* path) {
+	auto file = deluge::io::File::open(path, DELUGE_FILE_READ);
+	if (!file.has_value()) {
+		return false;
+	}
+	(void)file->close();
+	return true;
+}
+
+/// Hold every byte-channel operation for `ms` before it reaches the card. The knob exists only on the host.
+void setChannelHold(uint32_t ms) {
+#ifdef DELUGE_HOST
+	deluge_file_bytes_set_latency_ms(ms);
+#else
+	(void)ms;
+#endif
+}
+
+/// Select `name`, open the real delete menu on it, hold the channel for `holdMs`, and accept the menu. The counts are
+/// taken first. False, with the stage's failure printed, when the menu could not be reached.
+bool startDelete(const char* marker, const char* name, uint32_t holdMs) {
+	g_deleteBefore = deleteCountsNow();
+	g_deleteTicks = 0;
+	if (!PathOperationsBrowserProbe::select(name)) {
+		printf("%s FAIL fixture: %s is not listed\n", marker, name);
+		g_failures++;
+		return false;
+	}
+	if (!PathOperationsBrowserProbe::openDeleteMenu()) {
+		printf("%s FAIL the delete menu did not open on %s\n", marker, name);
+		g_failures++;
+		return false;
+	}
+	setChannelHold(holdMs);
+	PathOperationsBrowserProbe::acceptDelete();
+	return true;
+}
+
 void runTick() {
 	switch (g_stage) {
 	case Stage::Fixture: {
@@ -214,6 +402,14 @@ void runTick() {
 		(void)deluge::io::unlink(kNestedPath);
 		(void)deluge::io::unlink("PO_TEST/A");
 		(void)deluge::io::unlink(kOwnerDefaultDir);
+		// One file per delete stage.
+		(void)deluge::io::mkdir(kDeleteDir);
+		for (const char* path : kDeletePaths) {
+			auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE);
+			if (file.has_value()) {
+				(void)file->close();
+			}
+		}
 		g_stage = Stage::FixtureCheck;
 		break;
 	}
@@ -290,7 +486,7 @@ void runTick() {
 			printf("PO-OWNER-FALLBACK FAIL fixture: %s still exists, so nothing would have to be created\n",
 			       kOwnerDefaultDir);
 			g_failures++;
-			g_stage = Stage::Report;
+			g_stage = Stage::DeleteOpen;
 			break;
 		}
 		g_ownerFallbackRan = false;
@@ -306,7 +502,7 @@ void runTick() {
 		        nullptr)) {
 			printf("PO-OWNER-FALLBACK FAIL the owner queue refused the read\n");
 			g_failures++;
-			g_stage = Stage::Report;
+			g_stage = Stage::DeleteOpen;
 			break;
 		}
 		g_stage = Stage::OwnerFallbackCheck;
@@ -331,9 +527,217 @@ void runTick() {
 			       "its default folder\n");
 			g_failures++;
 		}
-		g_stage = Stage::Report;
+		g_stage = Stage::DeleteOpen;
 		break;
 	}
+
+	case Stage::DeleteOpen:
+		g_deleteTicks = 0;
+		g_songDirBefore = currentSong->dirPath;
+		if (!PathOperationsBrowserProbe::openSaveBrowserOn(kDeleteDir)) {
+			printf("PO-DELETE FAIL fixture: the save browser did not open\n");
+			g_failures++;
+			g_stage = Stage::DeleteClose;
+			break;
+		}
+		g_stage = Stage::DeleteList;
+		break;
+
+	case Stage::DeleteList:
+		// The browser lists the song's folder, which DeleteOpen pointed at the delete folder.
+		if (PathOperationsBrowserProbe::listingInProgress() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		g_deleteTicks = 0;
+		g_stage = Stage::DeleteListWait;
+		break;
+
+	case Stage::DeleteListWait:
+		if (PathOperationsBrowserProbe::listingInProgress() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		if (!PathOperationsBrowserProbe::listed(kDeleteA) || !PathOperationsBrowserProbe::listed(kDeleteB)
+		    || !PathOperationsBrowserProbe::listed(kDeleteC)) {
+			printf("PO-DELETE FAIL fixture: the listing of %s lacks a delete file (listing %s)\n", kDeleteDir,
+			       PathOperationsBrowserProbe::currentDir().c_str());
+			g_failures++;
+			g_stage = Stage::DeleteClose;
+			break;
+		}
+		g_stage = Stage::DeleteAccept;
+		break;
+
+	case Stage::DeleteAccept:
+		// PO-DELETE. The channel holds the removal long enough to see it pending, and well short of its stall bound.
+		g_stage = startDelete("PO-DELETE", kDeleteA, kPendingHoldMs) ? Stage::DeleteRefuse : Stage::AbsentRemove;
+		break;
+
+	case Stage::DeleteRefuse:
+		// A step after the accept, the removal is still held. The delete must be pending, and the menu must stay open,
+		// with DELA still listed, through input that would otherwise close it.
+		g_sawPending = DeleteFile::deletePending();
+		if (g_sawPending) {
+			PathOperationsBrowserProbe::pokeDeleteMenu();
+		}
+		g_openWhilePending = PathOperationsBrowserProbe::deleteMenuOpen();
+		g_listedWhilePending = PathOperationsBrowserProbe::listed(kDeleteA);
+		g_deleteTicks = 0;
+		g_stage = Stage::DeleteWait;
+		break;
+
+	case Stage::DeleteWait:
+		if (DeleteFile::deletePending() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		setChannelHold(0);
+		g_stage = Stage::DeleteCheck;
+		break;
+
+	case Stage::DeleteCheck: {
+		const DeleteCounts d = deleteCountsSince(g_deleteBefore);
+		const bool onCard = fileOnCard(kDeleteAPath);
+		const bool listed = PathOperationsBrowserProbe::listed(kDeleteA);
+		const bool open = PathOperationsBrowserProbe::deleteMenuOpen();
+		printf("PO-DELETE pending=%d openWhilePending=%d listedWhilePending=%d removed=%d missing=%d failed=%d "
+		       "onCard=%d listed=%d open=%d served=%d holdMs=%u\n",
+		       g_sawPending ? 1 : 0, g_openWhilePending ? 1 : 0, g_listedWhilePending ? 1 : 0, d.removed, d.missing,
+		       d.failed, onCard ? 1 : 0, listed ? 1 : 0, open ? 1 : 0, d.served, kPendingHoldMs);
+		if (!g_sawPending) {
+			printf("PO-DELETE FAIL the delete was never pending: nothing was handed to the byte channel\n");
+			g_failures++;
+		}
+		else if (!g_openWhilePending || !g_listedWhilePending) {
+			printf("PO-DELETE FAIL input closed the menu, or the list changed, while the delete was pending\n");
+			g_failures++;
+		}
+		if (d.removed != 1 || d.missing != 0 || d.failed != 0) {
+			printf("PO-DELETE FAIL the delete did not end as removed\n");
+			g_failures++;
+		}
+		if (onCard || listed || open) {
+			printf("PO-DELETE FAIL after the delete, DELA is still on the card or listed, or the menu is still open\n");
+			g_failures++;
+		}
+		if (d.served < 1) {
+			printf("PO-DELETE FAIL the byte channel served nothing for the delete\n");
+			g_failures++;
+		}
+		g_stage = Stage::AbsentRemove;
+		break;
+	}
+
+	case Stage::AbsentRemove:
+		// PO-DELETE-ABSENT. Remove DELB behind the listing's back, through the channel with no callback, as the MIDI
+		// device table removes its file.
+		g_deleteTicks = 0;
+		if (!deluge::storage::bytes::submitUnlink(kDeleteBPath)) {
+			printf("PO-DELETE-ABSENT FAIL fixture: the byte channel refused DELB's removal\n");
+			g_failures++;
+			g_stage = Stage::StallAccept;
+			break;
+		}
+		g_stage = Stage::AbsentRemoveWait;
+		break;
+
+	case Stage::AbsentRemoveWait:
+		if (!deluge::storage::bytes::idle() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		if (fileOnCard(kDeleteBPath)) {
+			printf("PO-DELETE-ABSENT FAIL fixture: DELB is still on the card after its removal\n");
+			g_failures++;
+			g_stage = Stage::StallAccept;
+			break;
+		}
+		g_stage = Stage::AbsentAccept;
+		break;
+
+	case Stage::AbsentAccept:
+		// DELB is still in the listing, which was read before it went: the delete finds nothing to remove.
+		g_stage = startDelete("PO-DELETE-ABSENT", kDeleteB, 0) ? Stage::AbsentWait : Stage::StallAccept;
+		break;
+
+	case Stage::AbsentWait:
+		if (DeleteFile::deletePending() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		g_stage = Stage::AbsentCheck;
+		break;
+
+	case Stage::AbsentCheck: {
+		const DeleteCounts d = deleteCountsSince(g_deleteBefore);
+		const bool listed = PathOperationsBrowserProbe::listed(kDeleteB);
+		const bool open = PathOperationsBrowserProbe::deleteMenuOpen();
+		printf("PO-DELETE-ABSENT removed=%d missing=%d failed=%d listed=%d open=%d served=%d\n", d.removed, d.missing,
+		       d.failed, listed ? 1 : 0, open ? 1 : 0, d.served);
+		if (d.missing != 1 || d.removed != 0 || d.failed != 0) {
+			printf("PO-DELETE-ABSENT FAIL a delete of a file already gone did not end as missing\n");
+			g_failures++;
+		}
+		if (!listed) {
+			printf("PO-DELETE-ABSENT FAIL DELB left the list: a plain file already gone stays listed\n");
+			g_failures++;
+		}
+		if (open) {
+			printf("PO-DELETE-ABSENT FAIL the menu is still open after the delete ended\n");
+			g_failures++;
+		}
+		g_stage = Stage::StallAccept;
+		break;
+	}
+
+	case Stage::StallAccept:
+		// PO-DELETE-STALL. The channel sits on the removal far past its stall bound.
+		g_stage = startDelete("PO-DELETE-STALL", kDeleteC, kStallHoldMs) ? Stage::StallWait : Stage::DeleteClose;
+		break;
+
+	case Stage::StallWait:
+		if (DeleteFile::deletePending() && ++g_deleteTicks < kMaxStallTicks) {
+			break;
+		}
+		setChannelHold(0);
+		g_stage = Stage::StallCheck;
+		break;
+
+	case Stage::StallCheck: {
+		const DeleteCounts d = deleteCountsSince(g_deleteBefore);
+		const bool pending = DeleteFile::deletePending();
+		const bool listed = PathOperationsBrowserProbe::listed(kDeleteC);
+		const bool open = PathOperationsBrowserProbe::deleteMenuOpen();
+		printf("PO-DELETE-STALL ticks=%d pending=%d removed=%d missing=%d failed=%d listed=%d open=%d holdMs=%u\n",
+		       g_deleteTicks, pending ? 1 : 0, d.removed, d.missing, d.failed, listed ? 1 : 0, open ? 1 : 0,
+		       kStallHoldMs);
+		if (pending) {
+			printf("PO-DELETE-STALL FAIL still pending after %d ticks: the delete never gave up\n", g_deleteTicks);
+			g_failures++;
+		}
+		if (d.failed != 1 || d.removed != 0 || d.missing != 0) {
+			printf("PO-DELETE-STALL FAIL a delete the channel never answered did not end as failed\n");
+			g_failures++;
+		}
+		if (!listed) {
+			printf("PO-DELETE-STALL FAIL DELC left the list after a delete that failed\n");
+			g_failures++;
+		}
+		if (open) {
+			printf("PO-DELETE-STALL FAIL the menu is still open after the delete gave up\n");
+			g_failures++;
+		}
+		g_stage = Stage::DeleteClose;
+		break;
+	}
+
+	case Stage::DeleteClose:
+		// Leave the UI stack as the delete stages found it. A failed stage may have left the menu over the browser.
+		if (getCurrentUI() == &deluge::gui::context_menu::deleteFile) {
+			deluge::gui::context_menu::deleteFile.close();
+		}
+		if (getCurrentUI() == &saveSongUI) {
+			saveSongUI.close();
+		}
+		currentSong->dirPath = g_songDirBefore;
+		g_stage = Stage::Report;
+		break;
 
 	case Stage::Report: {
 		printf("PO-MKDIRALL created=%d idempotent=%d\n", g_nestedCreated, g_nestedIdempotent);
@@ -357,14 +761,14 @@ void runTick() {
 		if (violations != 0) {
 			// Before the conversion this is the DEFECT the rung exists to remove, and the gate is
 			// expected to fail on it. After the conversion a non-zero count is a regression.
-			printf("PO-TIER FAIL browser folder creation ran on the interaction tier\n");
+			printf("PO-TIER FAIL a browser folder creation or delete ran on the interaction tier\n");
 			g_failures++;
 		}
 
 		const int32_t illegal = deluge::storage::bytes::illegalInline();
 		printf("PO-ILLEGAL illegal=%d\n", illegal);
 		if (illegal != 0) {
-			printf("PO-ILLEGAL FAIL a folder creation was refused for want of a legal place to run\n");
+			printf("PO-ILLEGAL FAIL a folder creation or delete was refused for want of a legal place to run\n");
 			g_failures++;
 		}
 		g_stage = Stage::Summary;
@@ -402,6 +806,11 @@ void deluge_scenario_path_operations_begin(void) {
 	g_nestedTicks = 0;
 	g_nestedCreated = -1;
 	g_nestedIdempotent = -1;
+	g_deleteTicks = 0;
+	g_deleteBefore = {};
+	g_sawPending = false;
+	g_openWhilePending = false;
+	g_listedWhilePending = false;
 	g_cable.replies = 0;
 	g_cable.lastReply.clear();
 }
