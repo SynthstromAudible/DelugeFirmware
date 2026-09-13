@@ -21,6 +21,8 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/clip_settings/new_clip_type.h" // the picker's chosen type, set by the grid ENTER probe
+#include "gui/menu_item/dx/cartridge.h"                   // dxCartridge, the bank the DX stage reads back
+#include "gui/ui/browser/dx_browser.h"                    // dxBrowser, driven by the DX stage
 #include "gui/ui/load/load_instrument_preset_ui.h"        // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"   // the converted caller, driven end to end below
@@ -41,6 +43,7 @@
 #include "model/song/song.h"                               // currentSong, getNonAudioInstrumentToSwitchTo
 #include "modulation/params/param_manager.h"               // ParamManagerForTimeline, for the preset fixture writer
 #include "processing/sound/sound_instrument.h"             // setupAsBlankSynth(), for the preset fixture writer
+#include "storage/DX7Cartridge.h"                          // the bank's layout and checksum
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/file_item.h"
@@ -50,10 +53,12 @@
 #include "util/functions.h" // getInstrumentFolder, to pin kAcqDir against drift
 #include "util/string.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <span>
 #include <string>
 
@@ -534,7 +539,7 @@ constexpr int32_t kMaxCaseTicks = 2000;
 // ── State ───────────────────────────────────────────────────────────────────
 
 /// Which stage `dispatch_step` is in, in order.
-enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Listing, Acquire, ByPath, Done };
+enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Listing, Acquire, Dx, ByPath, Done };
 Stage g_stage = Stage::Cases;
 
 /// Where the swap stage is in the sequence above.
@@ -2595,7 +2600,8 @@ void runAcquireTick() {
 // POINT, always <= size, so a deleted file fell straight through and the browser opened whatever sorted into its place.
 //
 // Through a load browser that is really on the UI stack, because whether a failed listing leaves it open is part of
-// what is checked. After the acquire stage, which runs with no UI stack at all, so nothing it relies on changes.
+// what is checked. After the acquire and DX stages: the DX stage closes the one browser it opened, so nothing this
+// stage relies on changes.
 
 /// A song the fixture made, the name opening it by path must select, and a song it never made.
 constexpr const char* kByPathPresent = "LISTTEST/SONG005.XML";
@@ -2844,6 +2850,173 @@ void runByPathTick() {
 	}
 }
 
+// ── Stage: the DX cartridge load ────────────────────────────────────────────
+//
+// The prefix channel's other consumer. A cartridge picked in the DX browser is read whole -- through the storage owner
+// on the file leg, through the channel on the prefix leg -- and parsed into `dxCartridge`. Both legs must end the same
+// way, and the script diffs their SP-DX lines.
+//
+// The bank is a real 32-voice DX7 dump with a correct checksum, and a SysEx ID the parser refuses. The refusal is
+// deliberate. It comes after the checksum, so a bank that reaches it arrived whole and in order, and the patch count
+// and first name are read from the bytes that arrived. And it stops the load before the success tail, which enters the
+// cartridge submenu: that submenu loads the patch through `soundEditor.currentSource`, which no headless scenario sets.
+
+/// The folder the DX browser lists, and the one bank in it.
+constexpr const char* kDxDir = "DX7";
+constexpr const char* kDxBankName = "BADID.SYX";
+constexpr const char* kDxBankPath = "DX7/BADID.SYX";
+/// The first voice's name, exactly as `DX7Cartridge::getProgramName` normalises it: ten printable characters.
+constexpr const char* kDxFirstName = "SPDXBANK01";
+
+enum class DxStep : uint8_t { Fixture, Open, ListingWait, Enter, LoadWait, Finished };
+DxStep g_dxStep = DxStep::Fixture;
+int32_t g_dxTicks = 0;
+
+/// The bank: the sysex header with its ID byte changed, 32 voices of in-range data (never 0xF7, which the parser takes
+/// as the end of the message), the first voice's name, the checksum over the 4096 voice bytes, and EOX.
+std::array<std::byte, kSysexSize> makeDxBank() {
+	std::array<std::byte, kSysexSize> bank{};
+	std::ranges::copy(kSysexHeader, bank.begin());
+	bank[1] = std::byte{0x44}; // Yamaha's is 0x43: refused after the checksum, see the stage comment
+	for (size_t i = 0; i < 4096; i++) {
+		bank[6 + i] = static_cast<std::byte>((i * 7 + 3) & 0x7F);
+	}
+	std::memcpy(&bank[6 + 118], kDxFirstName, 10); // voice 0's name, in the packed cartridge layout
+	bank[4102] = sysexChecksum({&bank[6], 4096});
+	bank[4103] = std::byte{0xF7};
+	return bank;
+}
+
+/// Write the bank into kDxDir, and prove it is there whole. Idempotent: a reused image already has it.
+bool buildDxFixture() {
+	(void)deluge::io::mkdir(kDxDir);
+	auto created = deluge::io::File::open(kDxBankPath, DELUGE_FILE_WRITE_CREATE_NEW);
+	if (created.has_value()) {
+		const auto bank = makeDxBank();
+		(void)created->write(std::span<const std::byte>{bank});
+		(void)created->close();
+	}
+	auto opened = deluge::io::File::open(kDxBankPath, DELUGE_FILE_READ);
+	if (!opened.has_value()) {
+		return false;
+	}
+	const auto size = opened->size();
+	(void)opened->close();
+	return size.has_value() && *size == kSysexSize;
+}
+
+/// End the stage, leaving no browser on the UI stack.
+void finishDxStage() {
+	if (getCurrentUI() == &dxBrowser) {
+		dxBrowser.close();
+	}
+	g_dxStep = DxStep::Finished;
+}
+
+void runDxTick() {
+	switch (g_dxStep) {
+	case DxStep::Fixture:
+		if (!buildDxFixture()) {
+			printf("SP-DX FAIL the fixture bank %s could not be written whole\n", kDxBankPath);
+			g_failures++;
+			finishDxStage();
+			return;
+		}
+		g_dxStep = DxStep::Open;
+		return;
+
+	case DxStep::Open:
+		// openUI() needs a root UI beneath it, and the acquire stage before this one runs without one. Before the
+		// by-path stage, not after: its stall cases leave a 30 s directory-channel hold in flight, and the DX
+		// browser's listing would queue behind it.
+		changeRootUI(&arrangerView);
+		g_dxTicks = 0;
+		if (!openUI(&dxBrowser)) {
+			printf("SP-DX FAIL the DX browser did not open\n");
+			g_failures++;
+			finishDxStage();
+			return;
+		}
+		g_dxStep = DxStep::ListingWait;
+		return;
+
+	case DxStep::ListingWait:
+		// Nothing ticks a browser in this harness unless the scenario does.
+		if (BrowserListingAbProbe::inProgress()) {
+			dxBrowser.graphicsRoutine();
+			if (BrowserListingAbProbe::inProgress()) {
+				if (++g_dxTicks > kMaxRunTicks) {
+					printf("SP-DX FAIL the DX browser's listing never finished\n");
+					g_failures++;
+					finishDxStage();
+				}
+				return;
+			}
+		}
+		if (getCurrentUI() != &dxBrowser) {
+			printf("SP-DX FAIL the DX browser's listing failed (error %d) and closed it\n",
+			       static_cast<int>(Browser::lastListingFailure()));
+			g_failures++;
+			g_dxStep = DxStep::Finished;
+			return;
+		}
+		g_dxStep = DxStep::Enter;
+		return;
+
+	case DxStep::Enter:
+		g_dxTicks = 0;
+		dxBrowser.enterKeyPress();
+		if (!DxSyxBrowser::cartridgeLoadInFlight()) {
+			printf("SP-DX FAIL Enter on the listed bank started no load\n");
+			g_failures++;
+			finishDxStage();
+			return;
+		}
+		g_dxStep = DxStep::LoadWait;
+		return;
+
+	case DxStep::LoadWait: {
+		// The prefix leg's collect runs in the browser's tick. On the file leg the owner op clears the flag, and the
+		// tick is inert.
+		if (DxSyxBrowser::cartridgeLoadInFlight()) {
+			dxBrowser.graphicsRoutine();
+			if (DxSyxBrowser::cartridgeLoadInFlight()) {
+				if (++g_dxTicks > kMaxRunTicks) {
+					printf("SP-DX FAIL the cartridge load never finished\n");
+					g_failures++;
+					finishDxStage();
+				}
+				return;
+			}
+		}
+		const int32_t selected = BrowserListingAbProbe::selectedIndex();
+		const std::string file = (selected >= 0 && selected < static_cast<int32_t>(Browser::fileItems.size()))
+		                             ? Browser::fileItems[selected].filename
+		                             : std::string{"-"};
+		DX7Cartridge* pd = deluge::gui::menu_item::dxCartridge.pd;
+		const int32_t patches = pd != nullptr ? pd->numPatches() : 0;
+		char first[11] = "-";
+		if (pd != nullptr) {
+			pd->getProgramName(0, first);
+		}
+		const bool open = getCurrentUI() == &dxBrowser;
+		printf("SP-DX file=%s inFlight=0 patches=%d first=%s open=%d\n", file.c_str(), patches, first, open ? 1 : 0);
+		printf("SP-DX-WAIT ticks=%d\n", g_dxTicks);
+		if (file != kDxBankName || patches != 32 || strcmp(first, kDxFirstName) != 0 || !open) {
+			printf("SP-DX FAIL the bank did not arrive whole: file=%s patches=%d first=%s open=%d, wanted file=%s "
+			       "patches=32 first=%s open=1\n",
+			       file.c_str(), patches, first, open ? 1 : 0, kDxBankName, kDxFirstName);
+			g_failures++;
+		}
+		finishDxStage();
+		return;
+	}
+
+	case DxStep::Finished:
+		return;
+	}
+}
+
 void printSummary() {
 	const bool async = deluge_file_prefix_async_active();
 	printf("SP-SUMMARY asyncActive=%d cases=%zu corpus=%zu failures=%d\n", async ? 1 : 0, kCases.size(), g_corpusRan,
@@ -2933,6 +3106,8 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_byPathTicks = 0;
 	g_listingFailuresBefore = 0;
 	g_byPathBefore = {};
+	g_dxStep = DxStep::Fixture;
+	g_dxTicks = 0;
 	g_acquireStep = AcquireStep::Fixture;
 	g_acqLoads = 0;
 	g_acqReferenceName.clear();
@@ -2986,6 +3161,12 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 	case Stage::Acquire:
 		runAcquireTick();
 		if (g_acquireStep == AcquireStep::Finished) {
+			g_stage = Stage::Dx;
+		}
+		break;
+	case Stage::Dx:
+		runDxTick();
+		if (g_dxStep == DxStep::Finished) {
 			g_stage = Stage::ByPath;
 		}
 		break;

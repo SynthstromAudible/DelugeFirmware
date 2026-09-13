@@ -245,4 +245,8 @@ void DxSyxBrowser::browserGraphicsRoutine() {
 	}
 }
 
+bool DxSyxBrowser::cartridgeLoadInFlight() {
+	return g_cartridgeLoadInFlight;
+}
+
 DxSyxBrowser dxBrowser{};

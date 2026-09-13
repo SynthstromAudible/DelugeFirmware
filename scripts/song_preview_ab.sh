@@ -46,6 +46,9 @@
 #             a listing whose directory open is held far past the browser's 600-tick bound gives up with the
 #             card error: begun inside the open browser, it leaves the browser open on what it had; opening
 #             the browser, it closes it.
+#   SP-DX     one DX7 bank picked in the DX browser, read through the storage owner on the file leg and the prefix
+#             channel on the prefix leg, and parsed. Diffed: both legs must report the same file, patch count and
+#             first patch name. SP-DX-WAIT, the ticks the load took, legitimately differs and is not compared.
 #
 # Usage: scripts/song_preview_ab.sh
 #
@@ -138,7 +141,7 @@ run_leg() {
 	fi
 	if ! grep -q '^SP-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-TIER) ' \
+		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-DX|SP-TIER) ' \
 			"$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
@@ -146,7 +149,7 @@ run_leg() {
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
 	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-PREDICT-SUMMARY SP-NEWNAME \
-		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-TIER; do
+		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-DX SP-TIER; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1
@@ -214,6 +217,14 @@ if ! diff -u "$OUT_ROOT/file.eject" "$OUT_ROOT/prefix.eject"; then
 	exit 1
 fi
 
+# The DX cartridge stage: the same bank through the owner and through the channel must parse the same.
+grep '^SP-DX ' "$OUT_ROOT/file.txt" >"$OUT_ROOT/file.dx"
+grep '^SP-DX ' "$OUT_ROOT/prefix.txt" >"$OUT_ROOT/prefix.dx"
+if ! diff -u "$OUT_ROOT/file.dx" "$OUT_ROOT/prefix.dx"; then
+	echo "FAIL — the two backings did not parse the same DX7 bank the same way (diff above: -file +prefix)"
+	exit 1
+fi
+
 # The read-window case is the one line that must NOT match, and its legs are asserted individually
 # in-process. Requiring the difference here as well is what stops the fixture quietly losing the
 # case: if both legs ever agree, the long-attribute song is no longer past the window and the
@@ -225,9 +236,9 @@ if diff -q <(grep '^SP-WINDOW ' "$OUT_ROOT/file.txt" | sed 's/asyncActive=[01] /
 	exit 1
 fi
 
-echo "PASS — both backings drew all $CASES song(s) identically, agreed on every outcome, and agreed across a card swap"
+echo "PASS — both backings drew all $CASES song(s) identically, agreed on every outcome, agreed across a card swap, and parsed the same DX7 bank"
 grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY ' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"
 # The listing lines from both legs. Both carry the directory channel, so neither is a synchronous control: each leg
 # asserts its own listing results in-process, and these lines are here to be read.
-grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-TIER' "$OUT_ROOT/file.txt" | sed 's/^/ file    /'
-grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-TIER' "$OUT_ROOT/prefix.txt" | sed 's/^/ prefix  /'
+grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-DX|^SP-TIER' "$OUT_ROOT/file.txt" | sed 's/^/ file    /'
+grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-DX|^SP-TIER' "$OUT_ROOT/prefix.txt" | sed 's/^/ prefix  /'

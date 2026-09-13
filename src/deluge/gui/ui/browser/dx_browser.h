@@ -41,6 +41,13 @@ public:
 	/// definition for what a stale in-flight flag does.
 	void close() override;
 
+	/// @brief Whether a cartridge load is in flight: dispatched to the storage owner, or waiting on the file prefix
+	///        channel.
+	///
+	/// For the song-preview A/B harness, which cannot reach the flag: it lives in `dx_browser.cpp`'s anonymous
+	/// namespace.
+	static bool cartridgeLoadInFlight();
+
 	// ui
 	UIType getUIType() override { return UIType::DX_BROWSER; }
 };
