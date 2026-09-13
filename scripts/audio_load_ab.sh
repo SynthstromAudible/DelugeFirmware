@@ -1,49 +1,35 @@
 #!/usr/bin/env bash
-# audio_load_ab.sh — the sync-vs-async load A/B gate.
+# audio_load_ab.sh — the audio-load A/B gate.
 #
-# Builds the Embassy host harness TWICE from one source — once with the Rust audio loader compiled
-# but its switch off (`async_audio_load`), once with the switch on and the loader task spawned
-# (`async_audio_load_active`) — runs the same fixture card through both, and requires their
-# per-file output to be byte-identical.
+# Builds the Embassy host harness once and runs the fixture card through it. The Rust audio loader is
+# always on, and the scenario holds it to an in-process reference: every sample is loaded first
+# through the synchronous C++ card path (`mayLoadAsync=false`) and then through the loader, and the
+# two must agree on every field.
 #
-# Why two builds rather than two passes in one process: `deluge_audio_load_async_active()` is
-# `cfg!(feature = "async_audio_load_active")` on the Rust side, a COMPILE-TIME constant. There is no
-# runtime switch to flip mid-run, so an in-process A/B is not merely inconvenient, it does not
-# exist.
-#
-# What the diff covers (src/deluge/harness/audio_load_ab_scenario.cpp writes the lines):
+# What the checks cover (src/deluge/harness/audio_load_ab_scenario.cpp writes the lines):
 #   AB-CASE   one per sample: the Error, the file actually chosen (`file`/`alt`/`asked`), the whole
-#             parsed geometry, and a CRC of the bytes read back through the Sample's own stream.
-#             Diffed. Any difference is the gate failing.
-#   AB-PREVIEW
-#             the converted CALLER, driven end to end: SampleBrowser is asked to preview one file
-#             ONCE and then driven only by its per-tick surface (graphicsRoutine), with no further
-#             input. It must eventually draw. EXPECTED to differ (the synchronous leg never defers,
-#             so it re-drives nothing), so not diffed — but each leg asserts its own consistency,
-#             and this is the only check on either side that fails if the caller stops re-asking
-#             for a deferred load. Everything else here drives the loader through the HARNESS's own
-#             retry loop, which is precisely the handler the shipped caller was missing.
-#   AB-EJECT  the card-swap property: a header is parsed from one card and left uncollected, the
-#             card is ejected, a DIFFERENT file is put at the same path, and the load is asked for
-#             again. Diffed, like AB-CASE — the synchronous leg is the oracle, since it holds no
-#             parsed-but-uncollected state to go stale. A stale collect shows up here as the wrong
-#             geometry against the same file, which is the "loads clean, plays the wrong thing"
-#             shape the whole boundary exists to keep out.
+#             parsed geometry, and a CRC of the bytes read back through the Sample's own stream. The
+#             scenario compares it with the synchronous reference in process, and prints AB-REF with a
+#             FAIL on any difference.
+#   AB-EJECT  the card-swap property: a header is parsed from one card and left uncollected, the card
+#             is ejected, a DIFFERENT file is put at the same path, and the load is asked for again. It
+#             must match a synchronous load of the file now at that path. A stale collect shows up here
+#             as the wrong geometry against the same file.
 #   AB-EJECT-SUMMARY
-#             that stage's deferral counts. EXPECTED to differ, so not diffed — but each leg
-#             asserts its own consistency, and the async leg's post-swap collect having deferred
-#             ZERO times is itself the bug (a flushed path reports UNKNOWN and is asked for again;
-#             a stale one is READY on the first ask).
-#   AB-CANCEL the converse property, on the same caller: a preview is asked for and then ABANDONED
-#             before the storage owner runs its load (what a cursor move onto a folder does — the
-#             one move that dispatches no replacement, so nothing supersedes the load in flight).
-#             Nothing may load, draw or stay pending. EXPECTED to agree between the legs but not
-#             diffed; each leg asserts it in-process. Without it, a cancelled preview is re-driven
-#             every frame and then rendered over whatever the user moved onto.
-#   AB-SUMMARY / AB-BEGIN
-#             which backing ran and how many loads were deferred. EXPECTED to differ, so not
-#             diffed — but each leg asserts its own consistency in-process (an "async" run that
-#             never deferred is a run that never reached the collector, and fails there).
+#             that stage's deferral counts. A post-swap collect that deferred ZERO times is itself the
+#             bug (a flushed path reports UNKNOWN and is asked for again; a stale one is READY on the
+#             first ask).
+#   AB-PREVIEW
+#             the converted CALLER, driven end to end: SampleBrowser previews one file ONCE and is then
+#             driven only by its per-tick surface. It must defer at least once and eventually draw.
+#   AB-CANCEL a preview asked for and then abandoned before its load runs: nothing may load, draw or
+#             stay pending.
+#   AB-SUMMARY / AB-DEFER
+#             that the loader was active and that every case deferred at least once, so no case was
+#             quietly answered on the synchronous path.
+#
+# A missing marker fails the run: a stage that never ran asserts nothing, and the failure count cannot
+# show that, because it counts only assertions that DID run.
 #
 # Usage: scripts/audio_load_ab.sh
 #
@@ -58,14 +44,10 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$REPO/build-embassy-hostapp}"
 CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 
-# Two target dirs, never one. The two legs differ only by a cargo feature, so sharing a target dir
-# would make every run rebuild the whole crate to swap features back and forth — and would clobber
-# whichever leg was built last, so a stale binary could silently be diffed against itself.
-# Honours CARGO_TARGET_DIR the way golden_embassy_diff.sh does: `dbt harness run` points every rig
-# at a shared target tree, and these two live under it rather than beside it.
+# Honours CARGO_TARGET_DIR the way golden_embassy_diff.sh does: `dbt harness run` points every rig at a
+# shared target tree, and this one lives under it rather than beside it.
 TARGET_BASE="${CARGO_TARGET_DIR:-$CRATE_DIR/target}"
-SYNC_TARGET="$TARGET_BASE/audio-load-ab-sync"
-ASYNC_TARGET="$TARGET_BASE/audio-load-ab-async"
+TARGET="$TARGET_BASE/audio-load-ab"
 
 if [ "${NO_BUILD:-0}" != 1 ]; then
 	[ -d "$BUILD_DIR" ] || {
@@ -76,32 +58,26 @@ if [ "${NO_BUILD:-0}" != 1 ]; then
 	# of them), so force the object closure first — same reason golden_embassy_diff.sh does.
 	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
 		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release --features async_audio_load --target-dir "$SYNC_TARGET")
-	(cd "$CRATE_DIR" && cargo build --release --features async_audio_load_active --target-dir "$ASYNC_TARGET")
+	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET")
 fi
 
-SYNC_BIN="$SYNC_TARGET/release/golden_vt_render"
-ASYNC_BIN="$ASYNC_TARGET/release/golden_vt_render"
-for b in "$SYNC_BIN" "$ASYNC_BIN"; do
-	[ -x "$b" ] || {
-		echo "ERROR: '$b' not built (see NO_BUILD)"
-		exit 2
-	}
-done
+BIN="$TARGET/release/golden_vt_render"
+[ -x "$BIN" ] || {
+	echo "ERROR: '$BIN' not built (see NO_BUILD)"
+	exit 2
+}
 
 OUT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/audio_load_ab.XXXXXX")"
 IMG_GLOB="${TMPDIR:-/tmp}/deluge-streaming-scenario-*.img"
 
-# Every run of this gate packs TWO 2.5 GB sparse FAT images, one per leg, and nothing else removes
-# them: `sd_image_path::fingerprint_dir` hashes path/length/mtime rather than content, and the
-# fixture is rewritten on each process start, so the legs never share a cached image and never reuse
-# a previous run's. Left alone they accumulate under exactly the prefix this project's golden
-# invocations all begin by clearing — and a full /tmp is a known way to make an unrelated stem
-# export hang forever, presenting as a firmware wedge rather than a disk problem.
+# A run of this gate packs a 2.5 GB sparse FAT image, and nothing else removes it:
+# `sd_image_path::fingerprint_dir` hashes path/length/mtime rather than content, and the fixture is
+# rewritten on each process start, so it never reuses a previous run's image. Left alone they
+# accumulate under exactly the prefix this project's golden invocations all begin by clearing -- and
+# a full /tmp is a known way to make an unrelated stem export hang forever.
 #
-# Only images that appeared DURING this run are removed. A blanket `rm` of the glob would delete
-# other rigs' cached corpus images (packing one of those is minutes of work), so the set is
-# snapshotted first and differenced at exit.
+# Only images that appeared DURING this run are removed. A blanket `rm` of the glob would delete other
+# rigs' cached corpus images, so the set is snapshotted first and differenced at exit.
 IMGS_BEFORE="$OUT_ROOT/.imgs_before"
 ls -1 $IMG_GLOB 2>/dev/null | sort >"$IMGS_BEFORE" || true
 
@@ -115,98 +91,57 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Run one leg. $1 = binary, $2 = tag. Echoes nothing; writes $OUT_ROOT/$2.txt.
-run_leg() {
-	local bin="$1" tag="$2"
-	set +e
-	GOLDEN_SCENARIO=audio_load_ab "$bin" >"$OUT_ROOT/$tag.txt" 2>"$OUT_ROOT/$tag.err"
-	local status=$?
-	set -e
-	if [ "$status" -ne 0 ]; then
-		echo "FAIL — the $tag leg exited $status"
-		sed -n '1,60p' "$OUT_ROOT/$tag.txt"
-		sed -n '1,20p' "$OUT_ROOT/$tag.err" >&2
-		exit 1
-	fi
-	# An empty body means the scenario never ran (a wedge that still exited 0, a scenario name that
-	# did not match). Diffing two empty files would "pass" and prove nothing — the exact failure
-	# mode this whole gate exists to avoid.
-	if ! grep -q '^AB-RESULT ' "$OUT_ROOT/$tag.txt"; then
-		echo "FAIL — the $tag leg produced no AB-RESULT line; it did not run the scenario to completion"
-		sed -n '1,60p' "$OUT_ROOT/$tag.txt"
-		exit 1
-	fi
-	if ! grep -q '^AB-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
-		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|AB-PREVIEW|AB-CANCEL|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/$tag.txt"
-		exit 1
-	fi
-	# The preview stage prints exactly one of these, and prints it before the summary. Its absence
-	# means the run reached AB-RESULT without ever driving the caller — which the failure count
-	# above cannot show, because a stage that never ran asserts nothing.
-	if ! grep -q '^AB-PREVIEW ' "$OUT_ROOT/$tag.txt"; then
-		echo "FAIL — the $tag leg produced no AB-PREVIEW line; the preview re-drive stage did not run"
-		exit 1
-	fi
-	# Same reasoning for the cancellation stage: it asserts that NOTHING happened, so a stage that
-	# never ran satisfies every one of its checks and contributes nothing to the failure count.
-	if ! grep -q '^AB-CANCEL ' "$OUT_ROOT/$tag.txt"; then
-		echo "FAIL — the $tag leg produced no AB-CANCEL line; the preview cancellation stage did not run"
-		exit 1
-	fi
-	# And for the card-ejection stage. Its AB-EJECT line is diffed below, and two files that are both
-	# missing diff clean — so absence has to be an error here rather than something the diff notices.
-	if ! grep -q '^AB-EJECT ' "$OUT_ROOT/$tag.txt"; then
-		echo "FAIL — the $tag leg produced no AB-EJECT line; the card-ejection stage did not run"
-		exit 1
-	fi
-}
-
-echo "audio-load A/B: running the synchronous leg (async_audio_load, switch off)"
-run_leg "$SYNC_BIN" sync
-echo "audio-load A/B: running the async leg (async_audio_load_active, Rust loader task spawned)"
-run_leg "$ASYNC_BIN" async
-
-# Each leg must be the leg it claims to be. The sync leg with asyncActive=1 (or the reverse) means
-# the two binaries were built the same way and the comparison is a build against itself.
-grep -q '^AB-SUMMARY asyncActive=0 ' "$OUT_ROOT/sync.txt" || {
-	echo "FAIL — the 'synchronous' leg reports the async backing ACTIVE; both legs were built the same way"
-	grep '^AB-SUMMARY ' "$OUT_ROOT/sync.txt"
-	exit 1
-}
-grep -q '^AB-SUMMARY asyncActive=1 ' "$OUT_ROOT/async.txt" || {
-	echo "FAIL — the 'async' leg reports the async backing INACTIVE; both legs were built the same way"
-	grep '^AB-SUMMARY ' "$OUT_ROOT/async.txt"
-	exit 1
-}
-
-grep '^AB-CASE ' "$OUT_ROOT/sync.txt" >"$OUT_ROOT/sync.cases"
-grep '^AB-CASE ' "$OUT_ROOT/async.txt" >"$OUT_ROOT/async.cases"
-if ! diff -u "$OUT_ROOT/sync.cases" "$OUT_ROOT/async.cases"; then
-	echo "FAIL — the two backings did not load the same files the same way (diff above: -sync +async)"
+echo "audio-load A/B: running (every case against its in-process synchronous reference)"
+set +e
+GOLDEN_SCENARIO=audio_load_ab "$BIN" >"$OUT_ROOT/run.txt" 2>"$OUT_ROOT/run.err"
+status=$?
+set -e
+if [ "$status" -ne 0 ]; then
+	echo "FAIL — the run exited $status"
+	grep -E '^(FAIL|AB-)' "$OUT_ROOT/run.txt" || sed -n '1,60p' "$OUT_ROOT/run.txt"
+	sed -n '1,20p' "$OUT_ROOT/run.err" >&2
 	exit 1
 fi
+
+# An empty body means the scenario never ran (a wedge that still exited 0, a scenario name that did not
+# match), and every check below would pass over nothing.
+if ! grep -q '^AB-RESULT ' "$OUT_ROOT/run.txt"; then
+	echo "FAIL — no AB-RESULT line; the scenario did not run to completion"
+	sed -n '1,60p' "$OUT_ROOT/run.txt"
+	exit 1
+fi
+if ! grep -q '^AB-RESULT failures=0$' "$OUT_ROOT/run.txt"; then
+	echo "FAIL — in-process failures:"
+	grep -E '^(FAIL|AB-REF|AB-PREVIEW|AB-CANCEL|AB-EJECT-SUMMARY|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/run.txt"
+	exit 1
+fi
+
+for marker in AB-PREVIEW AB-CANCEL AB-EJECT AB-EJECT-SUMMARY AB-DEFER AB-SUMMARY; do
+	if ! grep -q "^$marker " "$OUT_ROOT/run.txt"; then
+		echo "FAIL — no $marker line; that stage did not run"
+		grep -E '^AB-' "$OUT_ROOT/run.txt"
+		exit 1
+	fi
+done
+
+# The loader must be the one that ran. `asyncActive=0` means this binary resolved the weak C++ fallback,
+# and every load was answered by the very path it is compared against.
+grep -q '^AB-SUMMARY asyncActive=1 ' "$OUT_ROOT/run.txt" || {
+	echo "FAIL — the async loader was not active; every load took the synchronous path it is compared with"
+	grep '^AB-SUMMARY ' "$OUT_ROOT/run.txt"
+	exit 1
+}
 
 # A floor on the case count, so a future edit that shrinks `kCases` cannot keep printing PASS over a
 # comparison that no longer covers the properties this gate was built for. Bump it deliberately when
 # cases are added; never lower it to make a run go green.
 MIN_CASES=10
-CASES="$(wc -l <"$OUT_ROOT/sync.cases")"
+CASES="$(grep -c '^AB-CASE ' "$OUT_ROOT/run.txt")"
 if [ "$CASES" -lt "$MIN_CASES" ]; then
 	echo "FAIL — only $CASES case(s) ran, fewer than the $MIN_CASES this gate requires; kCases was shrunk"
 	exit 1
 fi
 
-# The card-ejection stage's one diffed line, kept out of the case files above so MIN_CASES keeps
-# counting only the case list. The synchronous leg is the oracle: it holds no parsed-but-uncollected
-# result, so what it reports here is simply the file that is on the card after the swap.
-grep '^AB-EJECT ' "$OUT_ROOT/sync.txt" >"$OUT_ROOT/sync.eject"
-grep '^AB-EJECT ' "$OUT_ROOT/async.txt" >"$OUT_ROOT/async.eject"
-if ! diff -u "$OUT_ROOT/sync.eject" "$OUT_ROOT/async.eject"; then
-	echo "FAIL — after a card swap the two backings did not load the same file the same way (diff above: -sync +async)"
-	exit 1
-fi
-
-echo "PASS — both backings loaded all $CASES sample(s) identically, and agreed across a card swap"
-grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL \|^AB-EJECT-SUMMARY ' "$OUT_ROOT/sync.txt" \
-	"$OUT_ROOT/async.txt"
+echo "PASS — the async loader loaded all $CASES sample(s) as the synchronous path does, and agreed with it across a"
+echo "       card swap"
+grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL \|^AB-EJECT-SUMMARY ' "$OUT_ROOT/run.txt"

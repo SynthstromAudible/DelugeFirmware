@@ -19,15 +19,12 @@
 
 /// @brief Host-only C ABI for the sync-vs-async load A/B: run ONE whole song-shaped load of a fixed
 ///        sample list through `AudioFileManager::getAudioFileFromFilename` and print each file's
-///        resolved identity and geometry as a stable, diffable line.
+///        resolved identity and geometry as a stable line, checked against a synchronous reference.
 ///
-/// Whether that load is served by the synchronous card path or by the Rust Embassy loader
-/// (`libdeluge/audio_load.h`'s request/collect pair) is NOT a runtime choice: the selector
-/// `deluge_audio_load_async_active()` is `cfg!(feature = "async_audio_load_active")` on the Rust
-/// side, a compile-time constant. So the A/B is across two BUILDS of the host harness, not two
-/// passes inside one process, and the comparison is a diff of the two runs' `AB-CASE` lines.
-/// `AB-SUMMARY` carries the per-run facts that are expected to differ (which backing ran, how many
-/// times a load was deferred) and is deliberately not part of the diffed body.
+/// Every case loads twice in one process: first through the synchronous card path (`mayLoadAsync=false`), as the
+/// reference, and then through the Rust Embassy loader (`libdeluge/audio_load.h`'s request/collect pair). The async
+/// load's `AB-CASE` line must equal the reference's. `AB-SUMMARY` carries the per-run facts, such as deferral counts,
+/// that the reference has no counterpart for.
 ///
 /// The whole point is that everything else must be identical: same file chosen, same alternate-dir
 /// resolution, same geometry, same `Error` on failure, same bytes readable back through the
@@ -64,9 +61,9 @@ void deluge_scenario_audio_load_ab_dispatch_step(void);
 /// @brief True once the attempt queued by the last dispatch_step() has returned.
 bool deluge_scenario_audio_load_ab_step_done(void);
 
-/// @brief Number of in-process assertion failures (invariant breaches, wedged loads, an inert
-///        backing that never actually deferred). 0 = this run is internally consistent; the
-///        cross-build diff is a separate, and the primary, check.
+/// @brief Number of in-process assertion failures (a load that differs from its synchronous
+///        reference, invariant breaches, wedged loads, a case that never actually deferred).
+///        0 = the run passed.
 int32_t deluge_scenario_audio_load_ab_failures(void);
 
 } // extern "C"

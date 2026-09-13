@@ -42,7 +42,7 @@
 // `printf_`. That implementation emits through `putchar_`, which only the C host BSP defines
 // (`src/bsp/host/host_platform.c`) -- this harness links the Rust BSP and has no provider, so the
 // alias turns every line this file writes into an undefined symbol at link time. Every one of those
-// lines IS the gate's output (the script diffs them), so they must go to real stdout regardless of
+// lines IS the gate's output (the script reads them), so they must go to real stdout regardless of
 // which headers a future edit pulls in.
 #ifdef printf
 #undef printf
@@ -119,6 +119,9 @@ constexpr int32_t kMaxDeferrals = 2000;
 size_t g_caseIndex = 0;
 /// Deferrals recorded for the current case.
 int32_t g_deferralsThisCase = 0;
+/// The current case's reference line, from its synchronous load, and whether it has been taken yet.
+std::string g_referenceLine{};
+bool g_referenceTaken = false;
 /// Deferrals recorded across the whole run.
 int32_t g_deferralsTotal = 0;
 /// Deferrals recorded PER CASE, kept after the case settles.
@@ -128,7 +131,7 @@ int32_t g_deferralsTotal = 0;
 /// path, a candidate list that could not be formed, a truncation sentinel), and
 /// `collectAsyncSampleLoad` passes an UNKNOWN-after-decline straight through to the SYNCHRONOUS
 /// path -- correctly, since a permanently refused request would otherwise never complete. So a
-/// single case can quietly fall through to the same synchronous code the other leg runs. Its
+/// single case can quietly fall through to the same synchronous code its reference runs. Its
 /// AB-CASE line is then trivially identical, the run-wide total is still non-zero because the other
 /// cases deferred, and the gate passes green with that case no longer under test at all. Concretely:
 /// tighten the admission rule so `both2` declines and the candidate-ORDER property disappears from
@@ -149,13 +152,13 @@ static_assert(std::string_view{kCases[kSelfdirIndex].path} == kSelfdirAlternate,
               "kSelfdirIndex no longer names the self-directory case; kCases was reordered");
 /// What `selfdir` recorded in `loadedFromAlternatePath`.
 ///
-/// The diffed AB-CASE lines cannot require this. `selfdir`'s winning candidate stringifies to
+/// The AB-CASE comparison cannot require this. `selfdir`'s winning candidate stringifies to
 /// EXACTLY its nominal path, so "both backings say the same thing" is satisfied just as well by both
 /// saying nothing -- which is what a backing that decided "an alternate won" by comparing paths
 /// rather than by candidate SLOT does. And the case is only meaningful under the promoted
 /// alternate-dir status, so it has to sit after `only_alt` in the list; move it above and the status
 /// is still unresolved, only the regular path is proposed, both backings report an empty alternate,
-/// and the diff still matches with the property gone. An empty value here is what
+/// and the comparison still matches with the property gone. An empty value here is what
 /// `save_song_ui.cpp` gates the collect-media copy on: the sample is silently left out of a saved
 /// song's folder.
 std::string g_selfdirAlternatePath{};
@@ -178,16 +181,15 @@ bool g_summaryPrinted = false;
 // (`SampleBrowser::previewFile`) ONCE, and from then on drives only
 // `SampleBrowser::graphicsRoutine()` -- the per-tick surface, with no further
 // "user input" of any kind. If the browser ever stops re-asking for a deferred
-// preview, the async leg simply never lands and this fails; the synchronous leg,
-// which never defers, is unaffected either way.
+// preview, it simply never lands and this fails.
 
 /// The file the preview stage loads. Exists only at its regular path, and is
 /// asked for by nothing above, so it is never resident when this stage starts.
 constexpr const char* kPreviewPath = "SAMPLES/PREVIEW.WAV";
 
 /// Ticks the preview stage may take before it is called wedged. Each is one
-/// graphicsRoutine() call plus a dispatch round trip, so this is generous: the
-/// synchronous leg lands on tick 1, a healthy async one within a few.
+/// graphicsRoutine() call plus a dispatch round trip, so this is generous: a
+/// healthy load lands within a few.
 constexpr int32_t kMaxPreviewTicks = 2000;
 
 // ── The preview cancellation stage ──────────────────────────────────────────
@@ -206,9 +208,7 @@ constexpr int32_t kMaxPreviewTicks = 2000;
 // The order below is the defect exactly: preview a file, and before the storage
 // owner has run the op, cancel. If the op renders anyway, the browser draws (and
 // on a real device sounds) a file the cursor has left, over a folder — and it
-// re-arms itself, so it keeps trying every ~15 ms until the load lands. Both
-// legs are held to this: the owner queue is FIFO, so the cancellation lands
-// before the op on the synchronous leg too.
+// re-arms itself, so it keeps trying every ~15 ms until the load lands.
 
 /// The file the cancellation stage asks for and then abandons. Its own file, asked for by
 /// nothing else, so "it drew" and "it loaded" can only be this stage's doing.
@@ -232,7 +232,7 @@ constexpr int32_t kCancelTicks = 64;
 //
 // This stage reproduces exactly that sequence and requires it NOT to happen:
 //
-//   1. Ask for kSwapPath once. On the async leg that queues a request and returns
+//   1. Ask for kSwapPath once. That queues a request and returns
 //      LOAD_IN_PROGRESS; the stage then stops asking, so the result the loader
 //      produces sits in its table UNCOLLECTED -- which is the state the hazard
 //      needs and which no other stage here ever creates.
@@ -264,9 +264,9 @@ constexpr const char* kSwapReplacementPath = "SAMPLES/SWAPB.WAV";
 /// second, drained second -- see the block comment above.
 constexpr const char* kWitnessPath = "SAMPLES/WITNESS.WAV";
 
-// The replacement file's geometry, asserted ABSOLUTELY rather than only diffed.
-// The diff alone would not be enough on its own: a defect that fed BOTH legs the
-// stale result would agree perfectly. These numbers differ from the pre-swap
+// The replacement file's geometry, asserted ABSOLUTELY rather than only compared
+// with the reference. The comparison alone would not be enough: a defect that fed
+// the reference the same stale state would agree perfectly. These numbers differ from the pre-swap
 // file's in both fields (1 channel/2 bytes there, 2/3 here), so a stale geometry
 // cannot coincide with a correct one.
 constexpr uint8_t kSwapReplacementChannels = 2;
@@ -287,14 +287,16 @@ int32_t g_ejectTicks = 0;
 /// The single most direct witness this gate has that the flush ran. With it, the
 /// post-swap collect reports UNKNOWN, re-requests, and therefore defers at least
 /// once; without it, the stale result is READY on the very first ask and this
-/// stays zero. Asserted on the async leg.
+/// stays zero.
 int32_t g_ejectCollectDeferrals = 0;
 /// Set if the swap itself could not be performed, so a stage that never created
 /// the hazard cannot report having survived it.
 bool g_ejectSwapFailed = false;
-/// Whether the pre-eject request ever deferred on the async leg -- i.e. whether
+/// Whether the pre-eject request ever deferred -- i.e. whether
 /// there was an uncollected result to go stale at all.
 int32_t g_ejectRequestDeferrals = 0;
+/// The swapped file's reference line, from a synchronous load taken right after the re-insertion.
+std::string g_ejectReferenceLine{};
 
 /// Which stage `dispatch_step` is in, in order. `Eject` sits between the case list and the
 /// browser-driven stages deliberately — see runOneStep()'s hand-off for why it cannot follow them.
@@ -347,23 +349,23 @@ uint32_t streamFingerprint(Sample& s, bool& readable) {
 	return crc32(probe.data(), probe.size());
 }
 
-/// Print one load's whole outcome as a single stable, diffable line.
+/// One load's whole outcome as a single stable line: the Error, the file chosen, the whole parsed geometry, a CRC of
+/// the bytes read back through the Sample's own stream, and the alternate-dir status the load left behind.
 ///
-/// Every field here must match between the two builds. Nothing that legitimately differs between
-/// them (deferral counts, which backing ran, timings, pointers) appears on this line — those go to
-/// `AB-SUMMARY`, which the diff does not cover.
+/// Every field must match between the in-process synchronous reference and the async load of the same file. Nothing
+/// that legitimately differs between them (deferral counts, timings, pointers) appears on this line.
 ///
-/// @param tag   The line prefix, which is also what the gate script diffs on: `AB-CASE` for the case
-///              list, `AB-EJECT` for the card-swap stage. Kept separate rather than folding the swap
-///              into `kCases` because the two are counted independently — `MIN_CASES` guards the
-///              case list against being quietly shrunk, and a swap line inflating that count would
-///              hide exactly the shrink it exists to catch.
+/// @param tag   The line prefix: `AB-CASE` for the case list, `AB-EJECT` for the card-swap stage. Kept apart because
+///              the script counts `AB-CASE` lines against a floor, and a swap line would hide a shrunk case list.
 /// @param label Short, stable, and independent of the path.
-void printCaseLine(const char* tag, const char* label, AudioFile* file, Error error, const std::string& fileNameAfter) {
+std::string caseLine(const char* tag, const char* label, AudioFile* file, Error error,
+                     const std::string& fileNameAfter) {
+	char line[1024];
 	if (file == nullptr) {
-		printf("%s %-9s | error=%d | file=none | asked=\"%s\" | altDirStatus=%d\n", tag, label, static_cast<int>(error),
-		       fileNameAfter.c_str(), static_cast<int>(audioFileManager.alternateLoadDirStatus));
-		return;
+		snprintf(line, sizeof(line), "%s %-9s | error=%d | file=none | asked=\"%s\" | altDirStatus=%d", tag, label,
+		         static_cast<int>(error), fileNameAfter.c_str(),
+		         static_cast<int>(audioFileManager.alternateLoadDirStatus));
+		return line;
 	}
 
 	auto& s = static_cast<Sample&>(*file);
@@ -376,25 +378,55 @@ void printCaseLine(const char* tag, const char* label, AudioFile* file, Error er
 		g_failures++;
 	}
 
-	printf("%s %-9s | error=%d | file=\"%s\" | alt=\"%s\" | asked=\"%s\" | channels=%u byteDepth=%u "
-	       "rawFormat=%u rate=%u dataStart=%u dataLen=%llu lengthSamples=%llu loop=%u/%u wtCycle=%u midiNote=%.4f | "
-	       "readable=%d streamCrc=%08X | altDirStatus=%d\n",
-	       tag, label, static_cast<int>(error), s.filePath.c_str(), s.loadedFromAlternatePath.c_str(),
-	       fileNameAfter.c_str(), s.numChannels, s.byteDepth, static_cast<unsigned>(s.rawDataFormat), s.sampleRate,
-	       s.audioDataStartPosBytes, static_cast<unsigned long long>(s.audioDataLengthBytes),
-	       static_cast<unsigned long long>(s.lengthInSamples), s.fileLoopStartSamples, s.fileLoopEndSamples,
-	       s.waveTableCycleSize, static_cast<double>(s.midiNoteFromFile), readable ? 1 : 0, fingerprint,
-	       static_cast<int>(audioFileManager.alternateLoadDirStatus));
+	snprintf(line, sizeof(line),
+	         "%s %-9s | error=%d | file=\"%s\" | alt=\"%s\" | asked=\"%s\" | channels=%u byteDepth=%u "
+	         "rawFormat=%u rate=%u dataStart=%u dataLen=%llu lengthSamples=%llu loop=%u/%u wtCycle=%u midiNote=%.4f | "
+	         "readable=%d streamCrc=%08X | altDirStatus=%d",
+	         tag, label, static_cast<int>(error), s.filePath.c_str(), s.loadedFromAlternatePath.c_str(),
+	         fileNameAfter.c_str(), s.numChannels, s.byteDepth, static_cast<unsigned>(s.rawDataFormat), s.sampleRate,
+	         s.audioDataStartPosBytes, static_cast<unsigned long long>(s.audioDataLengthBytes),
+	         static_cast<unsigned long long>(s.lengthInSamples), s.fileLoopStartSamples, s.fileLoopEndSamples,
+	         s.waveTableCycleSize, static_cast<double>(s.midiNoteFromFile), readable ? 1 : 0, fingerprint,
+	         static_cast<int>(audioFileManager.alternateLoadDirStatus));
+	return line;
 }
 
-/// Print the per-run facts that are EXPECTED to differ between the two builds, and assert the one
-/// thing each build must independently be able to say about itself: that the backing it was built
-/// with is the backing that actually ran.
+/// Load @p path through the synchronous card path, as the reference its async load must match, and drop it again.
 ///
-/// This is what stops the A/B being vacuous. Two runs of the synchronous path agree perfectly and
-/// prove nothing; the async run has to show that it went through the collector — that at least one
-/// load came back LOAD_IN_PROGRESS and was answered on a later tick — rather than having been
-/// served synchronously (or from memory) with the loader never consulted.
+/// Runs on the storage-owner worker fiber, where a blocking card read is legal. `alternateLoadDirStatus` is put back
+/// afterwards: it is per-load state that each load moves, and the async load has to start from the state this one
+/// started from, or the two would be proposed different candidates.
+std::string referenceLine(const char* tag, const char* label, const char* path) {
+	const AlternateLoadDirStatus statusBefore = audioFileManager.alternateLoadDirStatus;
+	std::string fileName = path;
+	Error error = Error::NONE;
+	AudioFile* file =
+	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	                                              /*makeWaveTableWorkAtAllCosts=*/false,
+	                                              /*mayLoadAsync=*/false);
+	std::string line = caseLine(tag, label, file, error, fileName);
+	if (file != nullptr) {
+		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path);
+	}
+	audioFileManager.alternateLoadDirStatus = statusBefore;
+	return line;
+}
+
+/// Print the async load's line, and fail if it differs from the reference taken before it.
+void printAgainstReference(const std::string& line, const std::string& reference, const char* label) {
+	printf("%s\n", line.c_str());
+	if (line != reference) {
+		printf("AB-REF %s\n", reference.c_str());
+		printf("FAIL [audioLoadAB/%s]: the async load differs from the in-process synchronous load of the same file "
+		       "(AB-REF above is the reference)\n",
+		       label);
+		g_failures++;
+	}
+}
+
+/// Print the per-run facts the reference has no counterpart for, and assert that the loads really went through the
+/// async loader: that it is active, and that every case answered LOAD_IN_PROGRESS at least once before settling,
+/// rather than being served synchronously (or from memory) with the loader never consulted.
 void printSummary() {
 	const bool active = deluge_audio_load_async_active();
 	printf("AB-SUMMARY asyncActive=%d cases=%zu deferrals=%d failures=%d\n", active ? 1 : 0, kCases.size(),
@@ -412,14 +444,14 @@ void printSummary() {
 		for (size_t i = 0; i < kCases.size(); i++) {
 			if (g_deferralsByCase[i] == 0) {
 				printf("FAIL [audioLoadAB]: the async backing is active but case '%s' never deferred -- it was "
-				       "answered on the synchronous path, so it is not under test in this leg at all\n",
+				       "answered on the synchronous path, so it is not under test at all\n",
 				       kCases[i].label);
 				g_failures++;
 			}
 		}
 	}
-	// Absolute, not comparative: see g_selfdirAlternatePath. Required of BOTH legs, because both
-	// resolve this candidate positionally and a regression in the shared resolver would take the two
+	// Absolute, not comparative: see g_selfdirAlternatePath. The reference and the async load both
+	// resolve this candidate positionally, and a regression in the shared resolver would take the two
 	// of them down together, agreeing perfectly.
 	// The VALUE, not merely non-emptiness: a case that happens to resolve from some other alternate
 	// candidate would satisfy "not empty" while proving nothing about this one.
@@ -431,9 +463,8 @@ void printSummary() {
 		       kSelfdirAlternate.data());
 		g_failures++;
 	}
-	if (!active && g_deferralsTotal != 0) {
-		printf("FAIL [audioLoadAB]: the async backing is inactive but %d load(s) reported LOAD_IN_PROGRESS\n",
-		       g_deferralsTotal);
+	if (!active) {
+		printf("FAIL [audioLoadAB]: the async loader is not active, so no load in this run went through it\n");
 		g_failures++;
 	}
 	// Reprint with the summary's own failures folded in, so a reader of the last line sees the real
@@ -449,6 +480,15 @@ void printSummary() {
 /// residency so nothing later is answered from memory, and advance.
 void runOneStep() {
 	const Case& c = kCases[g_caseIndex];
+
+	if (!g_referenceTaken) {
+		// The reference first, before this case's first async ask, so both start from the same state.
+		g_referenceLine = referenceLine("AB-CASE", c.label, c.path);
+		if (!checkLoadInvariants(c.label)) {
+			g_failures++;
+		}
+		g_referenceTaken = true;
+	}
 
 	// getAudioFileFromFilename may REWRITE fileName to the location the file was actually found at,
 	// so it takes a fresh copy each attempt and the rewritten value is printed as `asked=`.
@@ -474,7 +514,7 @@ void runOneStep() {
 		error = Error::LOAD_IN_PROGRESS;
 	}
 
-	printCaseLine("AB-CASE", c.label, file, error, fileName);
+	printAgainstReference(caseLine("AB-CASE", c.label, file, error, fileName), g_referenceLine, c.label);
 
 	if (g_caseIndex == kSelfdirIndex && file != nullptr) {
 		g_selfdirAlternatePath = static_cast<Sample&>(*file).loadedFromAlternatePath;
@@ -493,6 +533,7 @@ void runOneStep() {
 	g_deferralsByCase[g_caseIndex] = g_deferralsThisCase;
 	g_caseIndex++;
 	g_deferralsThisCase = 0;
+	g_referenceTaken = false;
 
 	if (g_caseIndex == kCases.size()) {
 		// The ejection stage next, not the browser ones. It runs on this same worker fiber, and it has
@@ -534,10 +575,9 @@ void runOnePreviewTick() {
 	sampleBrowser.graphicsRoutine();
 }
 
-/// Print the preview stage's outcome and assert what both legs must satisfy.
+/// Print the preview stage's outcome and assert it.
 ///
-/// The counts differ between the legs (the synchronous one never defers, so it re-drives nothing),
-/// which is why this line is NOT diffed -- like AB-SUMMARY, each leg asserts its own consistency.
+/// Not compared against a reference: the synchronous path never defers, so its re-drive counts have nothing to say.
 void finishPreviewStage(bool drawn) {
 	printf("AB-PREVIEW asyncActive=%d drawn=%d ticks=%d redrives=%d pending=%d\n",
 	       deluge_audio_load_async_active() ? 1 : 0, drawn ? 1 : 0, g_previewTicks, g_previewRedrives,
@@ -557,18 +597,12 @@ void finishPreviewStage(bool drawn) {
 		       "over whatever the user looks at next\n");
 		g_failures++;
 	}
-	// The async leg must have gone through the deferred path at least once, or this stage compared
+	// The preview must have gone through the deferred path at least once, or this stage tested
 	// nothing: a preview that landed synchronously exercises no re-drive at all, and the check would
 	// pass with the surface it exists to guard removed entirely.
-	if (deluge_audio_load_async_active() && g_previewRedrives == 0) {
-		printf("FAIL [audioLoadAB/preview]: the async backing is active but the preview never deferred, so the "
-		       "re-drive was never under test in this leg\n");
-		g_failures++;
-	}
-	if (!deluge_audio_load_async_active() && g_previewRedrives != 0) {
-		printf("FAIL [audioLoadAB/preview]: the synchronous backing deferred a preview (%d re-drive(s)), which "
-		       "it has no way to do\n",
-		       g_previewRedrives);
+	if (g_previewRedrives == 0) {
+		printf("FAIL [audioLoadAB/preview]: the preview never deferred, so the re-drive was never under "
+		       "test\n");
 		g_failures++;
 	}
 }
@@ -587,7 +621,7 @@ bool cancelledHasDrawn() {
 ///
 /// `lastFilePathLoaded` is assigned at the very top of `renderPreviewForTarget`, before the load
 /// and before anything is drawn -- so it witnesses the op having done the work at all, which is
-/// the half `cancelledHasDrawn()` misses on a leg whose first attempt defers.
+/// the half `cancelledHasDrawn()` misses when the first attempt defers.
 /// `AudioEngine::previewSample`, which that same function calls, is what starts the note.
 bool cancelledWasLoaded() {
 	return sampleBrowser.lastFilePathLoaded == kCancelPath;
@@ -689,14 +723,15 @@ void runOneEjectTick() {
 
 	case EjectStep::Request: {
 		// kSwapPath FIRST, so the loader's FIFO queue drains it before the witness. Its outcome is
-		// deliberately discarded: on the async leg it defers, and this stage then never asks again,
+		// deliberately discarded: it defers, and this stage then never asks again,
 		// which is what leaves an uncollected result behind to go stale.
 		Error error = Error::NONE;
 		bool deferred = false;
 		AudioFile* file = ejectAttempt(kSwapPath, error, deferred);
 		g_ejectRequestDeferrals += deferred ? 1 : 0;
 		if (file != nullptr) {
-			// The synchronous leg answers immediately. Drop it so the post-swap ask is a real load.
+			// Answered at once (a declined request falls to the synchronous path). Drop it so the
+			// post-swap ask is a real load.
 			audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(kSwapPath);
 		}
 		bool witnessDeferred = false;
@@ -741,6 +776,8 @@ void runOneEjectTick() {
 		// And the re-insertion: remount against the "new" card and re-validate residents, exactly as
 		// slowRoutine() drives it on the device.
 		audioFileManager.reinitEjectedCard();
+		// The reference for the post-swap load: the file that is on the card NOW, read synchronously.
+		g_ejectReferenceLine = referenceLine("AB-EJECT", "swap", kSwapPath);
 		g_ejectStep = EjectStep::Collect;
 		g_ejectTicks = 0;
 		return;
@@ -753,9 +790,10 @@ void runOneEjectTick() {
 			g_ejectCollectDeferrals++;
 			return;
 		}
-		// The one diffed line this stage produces, and the one that carries the whole property: the
+		// The one line this stage compares with its reference, and the one that carries the whole property: the
 		// geometry printed here must be the file that is on the card NOW.
-		printCaseLine("AB-EJECT", "swap", file, error, std::string{kSwapPath});
+		printAgainstReference(caseLine("AB-EJECT", "swap", file, error, std::string{kSwapPath}), g_ejectReferenceLine,
+		                      "eject");
 		if (!checkLoadInvariants("audioLoadAB/eject")) {
 			g_failures++;
 		}
@@ -787,22 +825,11 @@ void runOneEjectTick() {
 	}
 }
 
-/// Print the ejection stage's outcome and assert what the diff cannot.
+/// Print the ejection stage's outcome and assert it.
 void finishEjectStage() {
 	const bool active = deluge_audio_load_async_active();
 	printf("AB-EJECT-SUMMARY asyncActive=%d swapped=%d requestDeferrals=%d collectDeferrals=%d\n", active ? 1 : 0,
 	       g_ejectSwapFailed ? 0 : 1, g_ejectRequestDeferrals, g_ejectCollectDeferrals);
-
-	if (!active) {
-		// The synchronous leg has no loader state to go stale — it is the oracle for the diffed
-		// AB-EJECT line, and it must not have deferred anything, which it has no way to do.
-		if (g_ejectRequestDeferrals != 0 || g_ejectCollectDeferrals != 0) {
-			printf("FAIL [audioLoadAB/eject]: the synchronous backing deferred (%d before, %d after the swap)\n",
-			       g_ejectRequestDeferrals, g_ejectCollectDeferrals);
-			g_failures++;
-		}
-		return;
-	}
 
 	// Without this, the stage could "pass" having never created the hazard at all: a pre-eject ask
 	// that was answered synchronously (a permanent request decline falls through to the sync path)
@@ -849,6 +876,9 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_ejectRequestDeferrals = 0;
 	g_ejectSwapFailed = false;
 	g_selfdirAlternatePath.clear();
+	g_referenceLine.clear();
+	g_referenceTaken = false;
+	g_ejectReferenceLine.clear();
 
 	// The preview stage must not start a voice: this harness has no audio path driving it, and the
 	// property under test is that a DEFERRED preview is asked for again, which is upstream of
@@ -865,7 +895,7 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	// `exit_group` syscall (golden_vt_render's `hard_exit`, which deliberately skips C++ static
 	// destructors), and that flushes NOTHING of C's stdio — so a block-buffered stdout, which is
 	// what stdout is whenever this harness's output is piped or redirected, discards every line
-	// this scenario printed. Losing exactly the output the gate diffs.
+	// this scenario printed. Losing exactly the output the gate reads.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	printf("AB-BEGIN asyncActive=%d cases=%zu\n", deluge_audio_load_async_active() ? 1 : 0, kCases.size());
 }
@@ -884,8 +914,8 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		// real browser calls these from, and previewFile()/graphicsRoutine() dispatch their own card
 		// work onto the owner themselves. A marker op behind them releases the latch: the owner queue
 		// is FIFO, so it runs after whatever they just queued (and immediately if they queued
-		// nothing). That FIFO ordering is also what makes the cancellation stage's window real on
-		// BOTH legs: the op previewFile() queues has not run when cancelPreview() is called.
+		// nothing). That FIFO ordering is also what makes the cancellation stage's window real: the
+		// op previewFile() queues has not run when cancelPreview() is called.
 		g_stepDone = false;
 		if (g_stage == Stage::Preview) {
 			runOnePreviewTick();
