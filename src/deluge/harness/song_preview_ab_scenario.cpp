@@ -2602,7 +2602,25 @@ constexpr const char* kByPathPresent = "LISTTEST/SONG005.XML";
 constexpr const char* kByPathPresentName = "SONG005";
 constexpr const char* kByPathAbsent = "LISTTEST/SONG999.XML";
 
-enum class ByPathStep : uint8_t { Open, OpenWait, Present, PresentWait, Absent, AbsentWait, Finished };
+/// How long the stall cases hold every directory open, in milliseconds of the harness's virtual clock: far past the
+/// browser's 600-tick bound, since each tick sleeps at least a millisecond.
+constexpr uint32_t kStallHoldMs = 30000;
+/// Ticks a stall case waits for the browser to give up: well above the bound, well below the hold.
+constexpr int32_t kMaxStallTicks = 2000;
+
+enum class ByPathStep : uint8_t {
+	Open,
+	OpenWait,
+	Present,
+	PresentWait,
+	Absent,
+	AbsentWait,
+	StallInside,
+	StallInsideWait,
+	StallEntry,
+	StallEntryWait,
+	Finished,
+};
 ByPathStep g_byPathStep = ByPathStep::Open;
 int32_t g_byPathTicks = 0;
 int32_t g_listingFailuresBefore = 0;
@@ -2726,6 +2744,95 @@ void runByPathTick() {
 			    "restored=%d, wanted one FILE_NOT_FOUND with the browser still open on the listing it had -- it must "
 			    "neither open whatever sorted into the missing file's place nor throw the user out of the browser\n",
 			    failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
+			g_failures++;
+		}
+		if (!open) {
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::StallInside;
+		return;
+	}
+
+	case ByPathStep::StallInside:
+		// SP-LISTING-STALL, inside. A favourite opened from inside the browser, with every directory open held far past
+		// the browser's bound: the listing must give up with the card error and leave the browser open on what it had.
+		deluge_file_directory_set_latency_ms(kStallHoldMs);
+		g_byPathTicks = 0;
+		g_listingFailuresBefore = Browser::listingFailures();
+		g_byPathBefore = takeListingSnapshot();
+		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kByPathPresent);
+		g_byPathStep = ByPathStep::StallInsideWait;
+		return;
+
+	case ByPathStep::StallInsideWait: {
+		if (BrowserListingAbProbe::inProgress()) {
+			BrowserListingAbProbe::tick();
+			if (BrowserListingAbProbe::inProgress()) {
+				if (++g_byPathTicks > kMaxStallTicks) {
+					printf("SP-LISTING-STALL FAIL inside: still waiting after %d ticks -- it never gave up\n",
+					       g_byPathTicks);
+					g_failures++;
+					finishByPathStage();
+				}
+				return;
+			}
+		}
+		const int32_t failed = Browser::listingFailures() - g_listingFailuresBefore;
+		const Error error = Browser::lastListingFailure();
+		const bool open = getCurrentUI() == &loadSongUI;
+		const bool restored = sameListing(takeListingSnapshot(), g_byPathBefore);
+		printf("SP-LISTING-STALL inside failed=%d error=%d open=%d restored=%d ticks=%d\n", failed,
+		       static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0, g_byPathTicks);
+		if (failed != 1 || error != Error::SD_CARD || !open || !restored) {
+			printf("SP-LISTING-STALL FAIL inside: failed=%d error=%d open=%d restored=%d, wanted one SD_CARD with the "
+			       "browser still open on the listing it had\n",
+			       failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
+			g_failures++;
+		}
+		g_byPathStep = ByPathStep::StallEntry;
+		return;
+	}
+
+	case ByPathStep::StallEntry:
+		// SP-LISTING-STALL, entry. The browser closed and opened again with the hold still on: the listing that opens
+		// it has nothing to fall back to, so it must give up with the card error and close the browser.
+		if (getCurrentUI() == &loadSongUI) {
+			loadSongUI.close();
+		}
+		g_byPathTicks = 0;
+		g_listingFailuresBefore = Browser::listingFailures();
+		if (!openUI(&loadSongUI)) {
+			printf("SP-LISTING-STALL FAIL entry: the load browser did not open\n");
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::StallEntryWait;
+		return;
+
+	case ByPathStep::StallEntryWait: {
+		if (BrowserListingAbProbe::inProgress()) {
+			BrowserListingAbProbe::tick();
+			if (BrowserListingAbProbe::inProgress()) {
+				if (++g_byPathTicks > kMaxStallTicks) {
+					printf("SP-LISTING-STALL FAIL entry: still waiting after %d ticks -- it never gave up\n",
+					       g_byPathTicks);
+					g_failures++;
+					finishByPathStage();
+				}
+				return;
+			}
+		}
+		const int32_t failed = Browser::listingFailures() - g_listingFailuresBefore;
+		const Error error = Browser::lastListingFailure();
+		const bool closed = getCurrentUI() != &loadSongUI;
+		printf("SP-LISTING-STALL entry failed=%d error=%d closed=%d ticks=%d\n", failed, static_cast<int>(error),
+		       closed ? 1 : 0, g_byPathTicks);
+		if (failed != 1 || error != Error::SD_CARD || !closed) {
+			printf("SP-LISTING-STALL FAIL entry: failed=%d error=%d closed=%d, wanted one SD_CARD and a closed "
+			       "browser\n",
+			       failed, static_cast<int>(error), closed ? 1 : 0);
 			g_failures++;
 		}
 		finishByPathStage();

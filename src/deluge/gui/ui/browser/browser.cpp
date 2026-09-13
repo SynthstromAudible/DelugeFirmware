@@ -72,6 +72,25 @@ int32_t g_unusedSlotCalls = 0;
 int32_t g_totalDirectoryOpens = 0;
 /// See Browser::directoryRequests().
 int32_t g_directoryRequests = 0;
+/// Consecutive ticks the directory open in hand has gone unanswered by the channel. See
+/// Browser::openDirectoryForListing().
+int32_t g_directoryWaitTicks = 0;
+/// How many unanswered ticks an open is given before the browser gives up on it: the bound every channel consumer on
+/// this ladder uses.
+constexpr int32_t kMaxDirectoryWaitTicks = 600;
+
+/// Count one unanswered tick of the open in hand.
+///
+/// Giving up needs no cleanup: the channel copied the path at the request, and an answer that arrives later holds one
+/// directory handle only until the next publish displaces it and the driver closes it.
+/// @return Whether the open has now gone unanswered for the whole bound, in which case the count starts again.
+bool waitedPastBound() {
+	if (++g_directoryWaitTicks < kMaxDirectoryWaitTicks) {
+		return false;
+	}
+	g_directoryWaitTicks = 0;
+	return true;
+}
 /// See Browser::listingFailures().
 int32_t g_listingFailures = 0;
 /// See Browser::lastListingFailure().
@@ -132,6 +151,9 @@ Browser::Browser() {
 // --- async-listing base machinery ---
 
 bool Browser::beginListing(ListingRequest req) {
+	// A new listing's opens start their wait from nothing: an earlier listing abandoned mid-wait does not count
+	// against them.
+	g_directoryWaitTicks = 0;
 	pendingListing_ = std::move(req);
 	listingRestored_ = false;
 	if (!listingRestoreTaken_) {
@@ -236,11 +258,17 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge_file_directory_collect(path, &handle, &status)) {
 	case DELUGE_FILE_DIRECTORY_READY:
+		g_directoryWaitTicks = 0;
 		return deluge::io::Directory::adopt(handle);
 	case DELUGE_FILE_DIRECTORY_UNKNOWN:
 		// "Request it (again)" — the documented meaning, and never a failure to report. This is also
 		// where the FIRST request for a path is issued: the attempt names a directory the channel has
 		// not been told about, so its opening drive lands here.
+		if (waitedPastBound()) {
+			// The channel has left this open unanswered for the whole bound. A listing reports the card error through
+			// onListingFailed(), and a prediction through its own error path, instead of showing "Working" for good.
+			return std::unexpected(Error::SD_CARD);
+		}
 		deluge_file_directory_request(path, createIfMissing);
 		g_directoryRequests++;
 		listing_.deferrals++;
@@ -248,12 +276,16 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 	case DELUGE_FILE_DIRECTORY_PENDING:
 		// Requested or being opened. Ask again next tick and do NOT re-request, which would replace a
 		// request that is about to be served.
+		if (waitedPastBound()) {
+			return std::unexpected(Error::SD_CARD); // see the UNKNOWN arm
+		}
 		listing_.deferrals++;
 		return std::unexpected(Error::LISTING_DEFERRED);
 	case DELUGE_FILE_DIRECTORY_FAILED:
 		// Terminal: the channel will not retry and neither may we, or a folder that cannot be opened
 		// would be re-requested on every tick for as long as the browser sits on it. Mapped exactly as
 		// the synchronous arm maps it, so the fallback fires on both.
+		g_directoryWaitTicks = 0;
 		return std::unexpected(directoryOpenError(status));
 	default:
 		// Not reachable through this header, and NOT folded into the FAILED arm above. `out_status`
@@ -448,6 +480,7 @@ bool Browser::opened() {
 }
 
 void Browser::close() {
+	g_directoryWaitTicks = 0; // an open abandoned by closing does not count against the next browser's
 	// Cancel any attempt still in flight. This rung's is_current: a listing can now span several
 	// ticks, so it can outlive the browser that asked for it, and committing into a closed browser
 	// would put one folder's contents behind another's name. Cancelling HERE rather than testing
@@ -1545,6 +1578,7 @@ Error Browser::reloadImpl(int32_t direction) {
 }
 
 bool Browser::predictExtendedText(std::optional<int32_t> editPosOnFailure) {
+	g_directoryWaitTicks = 0; // a new prediction's reads start their wait from nothing
 	arrivedAtFileByTyping = true;
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;

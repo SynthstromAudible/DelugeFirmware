@@ -466,7 +466,8 @@ protected:
 	/// @param createIfMissing Create `path` before opening it. Only the channel honours this; a direct open ignores
 	///        it, so a caller on the owner creates the folder itself.
 	/// @return The open Directory, or the Error that stopped it — which may be
-	///         @ref Error::LISTING_DEFERRED, meaning "not a failure; the attempt will be re-run".
+	///         @ref Error::LISTING_DEFERRED, meaning "not a failure; the attempt will be re-run", or
+	///         Error::SD_CARD once the channel has left one open unanswered for 600 consecutive ticks.
 	[[nodiscard]] static std::expected<deluge::io::Directory, Error> openDirectoryForListing(char const* path,
 	                                                                                         bool createIfMissing);
 

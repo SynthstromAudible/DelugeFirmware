@@ -42,6 +42,10 @@
 #             checked in-process against what its fixture implies, with exactly one channel request per open (a
 #             listing that restarted would ask again). Not diffed: both legs carry the same channel. SP-TIER
 #             requires no synchronous browser directory operation off the storage owner.
+#   SP-LISTING-STALL
+#             a listing whose directory open is held far past the browser's 600-tick bound gives up with the
+#             card error: begun inside the open browser, it leaves the browser open on what it had; opening
+#             the browser, it closes it.
 #
 # Usage: scripts/song_preview_ab.sh
 #
@@ -134,7 +138,7 @@ run_leg() {
 	fi
 	if ! grep -q '^SP-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-TIER) ' \
+		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-TIER) ' \
 			"$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
@@ -142,7 +146,7 @@ run_leg() {
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
 	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-PREDICT-SUMMARY SP-NEWNAME \
-		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-TIER; do
+		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-TIER; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1
