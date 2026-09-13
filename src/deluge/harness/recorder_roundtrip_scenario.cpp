@@ -16,6 +16,7 @@
  */
 
 #include "harness/recorder_roundtrip_scenario.h"
+#include "libdeluge/file_directory.h"
 #include "libdeluge/file_write.h"
 
 #ifdef DELUGE_HOST
@@ -26,6 +27,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "storage/owner.h"
@@ -315,6 +317,8 @@ struct OffOwnerCase {
 	bool busy = false;
 	/// Whether a cluster write is held in flight past the recorder's bound. See driveStall().
 	bool stall = false;
+	/// Whether the recording-folder scan's directory open is held past the recorder's bound. See the dirstall case.
+	bool dirStall = false;
 	/// Whether the busy case's competing operation is in flight.
 	bool neighbourHeld = false;
 	/// Whether the stall case has slowed the channel down yet.
@@ -348,7 +352,7 @@ int32_t recorderTier() {
 }
 
 /// Each case's name, indexed by the `mode` passed to deluge_scenario_offowner_begin.
-constexpr const char* kModeNames[] = {"recording", "alterfile", "abort", "busy", "stall"};
+constexpr const char* kModeNames[] = {"recording", "alterfile", "abort", "busy", "stall", "dirstall"};
 
 /// The write channel's latency in the busy case: long enough that the recorder asks while the competing
 /// operation is still in flight, and far inside the recorder's bound, so a refusal is asked again rather
@@ -358,6 +362,10 @@ constexpr uint32_t kBusyLatencyMs = 20;
 /// The write channel's latency once the stall case has had a cluster served: well past the recorder's bound
 /// of 600 ticks at one scenario tick per virtual millisecond.
 constexpr uint32_t kStallLatencyMs = 3000;
+
+/// The directory channel's latency in the dirstall case: the recording-folder scan's open stays pending well past the
+/// recorder's bound of 600 ticks, at one scenario tick per virtual millisecond.
+constexpr uint32_t kDirStallLatencyMs = 3000;
 
 /// The busy case's competing operation: a free-space query, asked again one tick after each answer. The
 /// tick's gap is what lets the recorder in; without it the neighbour takes the channel the moment it frees
@@ -419,6 +427,15 @@ int32_t finishGiveUpCase(SampleRecorder& rec) {
 		fflush(nullptr);
 		return ok ? 1 : 2;
 	}
+	if (g_offOwner.dirStall) {
+		deluge_file_directory_set_latency_ms(0);
+		// The create failed at the path search, so there is no path, no file, and no synchronous open behind it.
+		const bool ok = cardError && path.empty() && !fileOpen && tier == 0;
+		printf("RW-DIR-STALL ok=%d cardError=%d path=%s fileOpen=%d tier=%d ticks=%d\n", (int)ok, (int)cardError,
+		       path.empty() ? "-" : path.c_str(), (int)fileOpen, (int)tier, g_offOwner.ticks);
+		fflush(nullptr);
+		return ok ? 1 : 2;
+	}
 	const bool ok = cardError && g_offOwner.failedWhilePending && !pendingAtEnd && !fileOpen && tier == 0;
 	printf("RW-STALL ok=%d cardError=%d failedWhilePending=%d pendingAtEnd=%d fileOpen=%d "
 	       "served=%d tier=%d ticks=%d\n",
@@ -439,6 +456,7 @@ extern "C" void deluge_scenario_offowner_begin(int32_t mode) {
 	g_offOwner.abortRun = (mode == 2);
 	g_offOwner.busy = (mode == 3);
 	g_offOwner.stall = (mode == 4);
+	g_offOwner.dirStall = (mode == 5);
 	g_offOwner.neighbourHeld = false;
 	g_offOwner.stallArmed = false;
 	g_offOwner.failedWhilePending = false;
@@ -446,6 +464,12 @@ extern "C" void deluge_scenario_offowner_begin(int32_t mode) {
 	g_offOwner.refusalsBefore = SampleRecorder::channelRefusals();
 	g_offOwner.tierBefore = recorderTier();
 	deluge_file_write_set_latency_ms(g_offOwner.busy ? kBusyLatencyMs : 0);
+	if (g_offOwner.dirStall) {
+		// The scan an earlier case already made is cached; force it again, and hold its open past the bound.
+		audioFileManager.highestUsedAudioRecordingNumberNeedsReChecking.set(
+		    static_cast<size_t>(AudioRecordingFolder::RESAMPLE));
+		deluge_file_directory_set_latency_ms(kDirStallLatencyMs);
+	}
 	g_offOwner.freeBefore = 0;
 	{
 		uint32_t total = 0;
@@ -455,7 +479,7 @@ extern "C" void deluge_scenario_offowner_begin(int32_t mode) {
 	// stderr as well as stdout: this case runs AFTER the scenario's own fflush(nullptr), so a
 	// stdout-only line can be lost at exit -- and a case whose output vanishes is a case nobody can
 	// tell from one that never ran.
-	const char* modeName = (mode >= 0 && mode <= 4) ? kModeNames[mode] : "unknown";
+	const char* modeName = (mode >= 0 && mode <= 5) ? kModeNames[mode] : "unknown";
 	printf("CASE offowner_%s (channels=%d frames=%u onOwner=%d)\n", modeName, g_offOwner.alter ? 2 : 1, kOffOwnerFrames,
 	       (int)deluge::storage::Owner::on_owner());
 	fflush(nullptr);
@@ -547,7 +571,7 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 	}
 
 	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
-		if (g_offOwner.busy || g_offOwner.stall) {
+		if (g_offOwner.busy || g_offOwner.stall || g_offOwner.dirStall) {
 			return finishGiveUpCase(rec);
 		}
 		const std::string path = rec.filePathCreated;

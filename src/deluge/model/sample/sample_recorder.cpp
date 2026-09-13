@@ -1065,8 +1065,12 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				return CreateStep::Failed; // The abort machine takes it from here.
 			}
 			if (error == Error::LISTING_DEFERRED) {
-				// The search is waiting on its own channel answer. Come back next tick.
-				return CreateStep::Pending;
+				// The search is waiting on its own channel answer: come back next tick, but not for good. Counted like
+				// a refused request, so a folder scan whose open the channel never answers fails the create at the
+				// bound.
+				const CreateStep step = createTransition(DELUGE_FILE_WRITE_UNKNOWN);
+				createUnproductiveTicks_++;
+				return step;
 			}
 			if (error != Error::NONE) {
 				return CreateStep::Failed;

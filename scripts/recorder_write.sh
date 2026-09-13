@@ -34,6 +34,8 @@
 #   RW-STALL      that a cluster write held past the recorder's bound fails the take while the write is
 #                 still outstanding, keeps its buffer until the answer, closes the file through the
 #                 channel, and never writes synchronously.
+#   RW-DIR-STALL  that a recording whose folder scan's directory open is held past the recorder's bound fails
+#                 its create with a card error, makes no file, and never opens the folder synchronously.
 #   RW-DRAIN      that the offline stem-export path still drains to completion. That loop calls the
 #                 card routine in a bounded loop expecting each call to COMPLETE a write.
 #
@@ -168,7 +170,7 @@ else
 	fi
 fi
 
-for check in RW-BUSY RW-STALL; do
+for check in RW-BUSY RW-STALL RW-DIR-STALL; do
 	line=$(grep "^$check " "$OUT/run.txt" || true)
 	if [ -z "$line" ]; then
 		echo "FAIL $check — no $check line; the case did not finish"

@@ -733,7 +733,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     // the recorder's bound. Each prints its own line, and a failure stops neither the other case nor the
     // tier report, so the script sees all three.
     let mut give_up_failed = false;
-    for (mode, name) in [(3, "busy"), (4, "stall")] {
+    for (mode, name) in [(3, "busy"), (4, "stall"), (5, "dirstall")] {
         // SAFETY: same C-ABI contract as above.
         unsafe { deluge_scenario_offowner_begin(mode) };
         let deadline = Instant::now() + Duration::from_secs(300);

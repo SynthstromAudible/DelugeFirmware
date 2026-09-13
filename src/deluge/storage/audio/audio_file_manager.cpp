@@ -44,6 +44,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_load_abi.h" // deluge::storage::errorFromAbiByte
 #include "storage/audio/file_byte_source.h"
+#include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "storage/existence_policy.h"
 #include "storage/owner.h" // deluge::storage::Coalescer
@@ -334,6 +335,8 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 		std::optional<deluge::io::Directory> dir;
 		const bool useDirChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
 		if (!useDirChannel) {
+			// Counted, and frozen in alpha and beta builds, if it is ever reached off the storage owner after boot.
+			deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Recorder);
 			auto opened = deluge::io::Directory::open(audioRecordingFolderNames[folderID]);
 			if (opened.has_value()) {
 				dir.emplace(std::move(*opened));
