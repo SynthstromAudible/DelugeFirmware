@@ -1317,11 +1317,14 @@ AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
 		audioFile->filePath = filePath;
 		audioFile->loadedFromAlternatePath = usingAlternateLocation;
 
-		// WaveTable reads the file more normally, so open it for the deserializer to stream from. `filePath`
-		// is already the correct final resolved path (regular or alternate) at this point, and Tier 2's
-		// adapter-side directory cache makes this reopen fast even though the file was just opened once
-		// already (in tryRegularPath, to discover sizeBytes).
-		auto opened = deluge::io::File::open(filePath, DELUGE_FILE_READ);
+		// WaveTable reads the file more normally, so open it for the deserializer to stream from. Open the
+		// file sizeBytes was resolved from, as the sample branch above does: a preset's alternate-dir hit
+		// has already been rewritten into `filePath`, but a song's has not -- its collected copy is in
+		// `usingAlternateLocation`, and `filePath` names an original that need not be on the card at all.
+		// Tier 2's adapter-side directory cache makes this reopen fast even though the file was just opened
+		// once already, to discover sizeBytes.
+		const std::string& pathToOpen = usingAlternateLocation.empty() ? filePath : usingAlternateLocation;
+		auto opened = deluge::io::File::open(pathToOpen, DELUGE_FILE_READ);
 		if (!opened) {
 			*error = Error::FILE_NOT_FOUND;
 			destroyAudioFileObject(*audioFile);
