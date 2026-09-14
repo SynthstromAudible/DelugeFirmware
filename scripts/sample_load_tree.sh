@@ -20,6 +20,10 @@
 #   SLT-CRUCIAL a song loaded while playback runs: which holders its crucial-only pass bound (only what the playing
 #               clips need first), that its armed swap happened, and every holder bound to its collected copy after.
 #   LTC         the crucial load's trace, kept apart from LT so the LT lines stay comparable with earlier runs.
+#   SLT-ASYNC   each load again through the async sample load, ticked from the interaction tier with every file it
+#               binds dropped from memory first: SLTSONG2's crucial and full walks, the synth preset, and the kit
+#               preset with its abort. Each must end as its blocking load did, with no sample read from the card on
+#               the interaction tier.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #
@@ -92,7 +96,7 @@ if [ "$status" -ne 0 ]; then
 	sed -n '1,20p' "$OUT/run.err" >&2
 	exit 1
 fi
-for marker in SLT-SETUP SLT-HOLDER SLT-CLIP SLT-SONG SLT-SYNTH SLT-KIT SLT-CRUCIAL SLT-CRUCIAL-SUMMARY SLT-SUMMARY \
+for marker in SLT-SETUP SLT-HOLDER SLT-CLIP SLT-SONG SLT-SYNTH SLT-KIT SLT-CRUCIAL SLT-CRUCIAL-SUMMARY SLT-ASYNC SLT-SUMMARY \
 	SLT-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
@@ -109,4 +113,5 @@ fi
 grep -E '^SLT-' "$OUT/run.txt"
 echo "PASS — every holder resolved where the fixture put its file, the abort stopped the kit load, and the"
 echo "       audio clip kept its sample's name; a load while playing bound only what the playing clips need"
-echo "       first, and the rest after its armed swap"
+echo "       first, and the rest after its armed swap; and each load, again through the async sample load,"
+echo "       ended the same way without reading a sample on the interaction tier"

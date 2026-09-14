@@ -434,10 +434,9 @@ std::string referenceLine(const char* tag, const char* label, const char* path) 
 	deluge::storage::AudioLoadContext referenceContext = g_loadContext;
 	std::string fileName = path;
 	Error error = Error::NONE;
-	AudioFile* file =
-	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-	                                              /*makeWaveTableWorkAtAllCosts=*/false,
-	                                              /*mayLoadAsync=*/false, &referenceContext);
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(
+	    fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::Blocking, &referenceContext);
 	std::string line = caseLine(tag, label, file, error, fileName, referenceContext.alternateDirStatus);
 	if (file != nullptr) {
 		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path);
@@ -527,10 +526,9 @@ void runOneStep() {
 	// so it takes a fresh copy each attempt and the rewritten value is printed as `asked=`.
 	std::string fileName = c.path;
 	Error error = Error::NONE;
-	AudioFile* file =
-	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-	                                              /*makeWaveTableWorkAtAllCosts=*/false,
-	                                              /*mayLoadAsync=*/true, &g_loadContext);
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(
+	    fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking, &g_loadContext);
 
 	if (error == Error::LOAD_IN_PROGRESS) {
 		g_deferralsThisCase++;
@@ -789,10 +787,9 @@ void finishStallStage() {
 AudioFile* ejectAttempt(const char* path, Error& error, bool& deferred) {
 	std::string fileName = path;
 	error = Error::NONE;
-	AudioFile* file =
-	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-	                                              /*makeWaveTableWorkAtAllCosts=*/false,
-	                                              /*mayLoadAsync=*/true, &g_loadContext);
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(
+	    fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking, &g_loadContext);
 	deferred = (error == Error::LOAD_IN_PROGRESS);
 	return file;
 }

@@ -79,7 +79,7 @@ void BlockingSampleLoad::demand(const SampleDemand& demand) {
 	Error error = Error::NONE;
 	// Bound only once it is fully set up, so the audio routine never sounds a file that is still being built.
 	if (AudioFile* file = demand.holder->acquire(mayReadCard_, &error, demand.makeWaveTableWorkAtAllCosts,
-	                                             /*mayLoadAsync=*/false, context_)) {
+	                                             AsyncLoadMode::Blocking, context_)) {
 		demand.holder->setAudioFile(file, demand.reversed, /*manuallySelected=*/false, demand.clusterLoadInstruction);
 	}
 	if (demand.clipToName != nullptr) {

@@ -827,16 +827,17 @@ AudioFile* AudioFileManager::matchingResidentAudioFile(int32_t audioFileI, const
 
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       AudioFileType type, bool makeWaveTableWorkAtAllCosts,
-                                                      bool mayLoadAsync, deluge::storage::AudioLoadContext* context) {
+                                                      deluge::storage::AsyncLoadMode asyncMode,
+                                                      deluge::storage::AudioLoadContext* context) {
 	// A lookup that belongs to no load gets an empty context of its own, which nothing the lookup does can change.
 	deluge::storage::AudioLoadContext noLoad;
 	deluge::storage::AudioLoadContext& loadContext = (context != nullptr) ? *context : noLoad;
 	DELUGE_LOAD_TRACE("get path=%s type=%d read=%d async=%d alt=%s status=%d thing=%d", filePath.c_str(),
-	                  static_cast<int>(type), mayReadCard ? 1 : 0, mayLoadAsync ? 1 : 0,
+	                  static_cast<int>(type), mayReadCard ? 1 : 0, static_cast<int>(asyncMode),
 	                  loadContext.alternateDir.c_str(), static_cast<int>(loadContext.alternateDirStatus),
 	                  static_cast<int>(loadContext.thing));
 	AudioFile* file = getAudioFileFromFilenameUntraced(loadContext, filePath, mayReadCard, error, type,
-	                                                   makeWaveTableWorkAtAllCosts, mayLoadAsync);
+	                                                   makeWaveTableWorkAtAllCosts, asyncMode);
 	DELUGE_LOAD_TRACE("got path=%s error=%d file=%d", filePath.c_str(), static_cast<int>(*error),
 	                  file != nullptr ? 1 : 0);
 	return file;
@@ -845,7 +846,7 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::AudioLoadContext& context,
                                                               std::string& filePath, bool mayReadCard, Error* error,
                                                               AudioFileType type, bool makeWaveTableWorkAtAllCosts,
-                                                              bool mayLoadAsync) {
+                                                              deluge::storage::AsyncLoadMode asyncMode) {
 
 	*error = Error::NONE;
 
@@ -909,11 +910,31 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 	// caller allowed the card to be read at all (!mayReadCard means "in-memory lookup only", and a
 	// request is card I/O on another tier), and only while the card is usable (a disabled card must
 	// still report Error::SD_CARD from resolveFileSize, not sit in LOAD_IN_PROGRESS forever).
-	if (mayLoadAsync && mayReadCard && !cardDisabled && type == AudioFileType::SAMPLE
-	    && deluge_audio_load_async_active()) {
-		if (std::optional<AudioFile*> collected = collectAsyncSampleLoad(context, filePath, error)) {
+	// AsyncOnly adds one rule to all of that: a sample it may read is never read here. Whatever the loader cannot be
+	// asked for is answered as a failure rather than falling through to resolveFileSize.
+	const bool asyncOnlySample =
+	    asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly && mayReadCard && type == AudioFileType::SAMPLE;
+	if (asyncMode != deluge::storage::AsyncLoadMode::Blocking && mayReadCard && !cardDisabled
+	    && type == AudioFileType::SAMPLE && deluge_audio_load_async_active()) {
+		if (std::optional<AudioFile*> collected = collectAsyncSampleLoad(context, filePath, error, asyncMode)) {
 			return *collected;
 		}
+		if (asyncOnlySample) {
+			// No request can ever be formed for this path (see requestAsyncSampleLoad).
+			*error = Error::FILE_UNREADABLE;
+			return nullptr;
+		}
+	}
+	else if (asyncOnlySample) {
+		// A disabled card, or no loader to ask.
+		*error = Error::SD_CARD;
+		return nullptr;
+	}
+
+	if (asyncOnlySample) {
+		// Unreachable: every AsyncOnly sample lookup is answered above. Counted, so a change that lets one through to
+		// the card read below shows in sample-load-tree's async legs.
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::SampleLoad);
 	}
 
 	uint64_t sizeBytes;
@@ -939,13 +960,22 @@ Error failureErrorFromAbiByte(uint8_t abiError) {
 } // namespace
 
 std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::storage::AudioLoadContext& context,
-                                                                   const std::string& filePath, Error* error) {
+                                                                   std::string& filePath, Error* error,
+                                                                   deluge::storage::AsyncLoadMode asyncMode) {
 	DelugeAudioLoadResult result{};
 	switch (deluge_audio_load_collect(filePath.c_str(), &result)) {
 
 	case DELUGE_AUDIO_LOAD_READY:
 		if (result.error != static_cast<uint8_t>(Error::NONE)) {
-			return answerFailedLoadResult(context, filePath, result.error, error);
+			return answerFailedLoadResult(context, filePath, result.error, error, asyncMode);
+		}
+		// The rule resolveFileSize applies to a file a synth's or kit's load found in its own folder: the file takes
+		// that path as its own, and is not an alternate. Without it the holder keeps naming the path the file is not
+		// at, and the file is published as an alternate of it.
+		if ((context.thing == ThingType::SYNTH || context.thing == ThingType::KIT)
+		    && result.alternate_path[0] != '\0') {
+			filePath = result.alternate_path;
+			result.alternate_path[0] = '\0';
 		}
 		// The bytes are already in hand: build and publish the Sample right here, synchronously.
 		return buildSampleFromLoadResult(filePath, result, error);
@@ -959,13 +989,14 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
 	case DELUGE_AUDIO_LOAD_UNKNOWN:
 	default:
 		// Never requested, or its result was collected/evicted already. Ask (again).
-		return requestAsyncSampleLoad(context, filePath, error);
+		return requestAsyncSampleLoad(context, filePath, error, asyncMode);
 	}
 }
 
 std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::storage::AudioLoadContext& context,
                                                                    const std::string& filePath, uint8_t resultError,
-                                                                   Error* error) {
+                                                                   Error* error,
+                                                                   deluge::storage::AsyncLoadMode asyncMode) {
 	// A FULL efatfs handle table, which is not a verdict about the file at all -- nothing was even
 	// attempted. It reaches here under its own identity rather than folded into FILE_UNREADABLE
 	// precisely so it can take THIS recovery instead of the alternate-dir probe below: the loader
@@ -987,10 +1018,15 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::stora
 	// synchronous path rather than being answered with a failure it need not have.
 	if (failureErrorFromAbiByte(resultError) == Error::TOO_MANY_OPEN_STREAMS) {
 		if (releaseUnleasedAudioFiles() > 0) {
-			return requestAsyncSampleLoad(context, filePath, error);
+			return requestAsyncSampleLoad(context, filePath, error, asyncMode);
 		}
 		*error = Error::TOO_MANY_OPEN_STREAMS;
 		return nullptr;
+	}
+
+	if (asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly
+	    && failureErrorFromAbiByte(resultError) == Error::FILE_UNREADABLE) {
+		return answerUnreadableAsyncOnly(context, filePath, error);
 	}
 
 	// Only "no candidate opened" earns another attempt, and Error::FILE_UNREADABLE is exactly that:
@@ -1029,12 +1065,44 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::stora
 		// exactly what resolveFileSize does at this same point. A decline here is passed straight
 		// through (std::nullopt), so the load still reaches the synchronous path rather than being
 		// answered with a failure it never had to have.
-		return requestAsyncSampleLoad(context, filePath, error);
+		return requestAsyncSampleLoad(context, filePath, error, asyncMode);
 	}
 
 	// Otherwise this is the loader's verdict on the file itself, carrying the same identity the
 	// synchronous path produces. Nothing was built, so there is nothing to close out here.
 	*error = failureErrorFromAbiByte(resultError);
+	return nullptr;
+}
+
+std::optional<AudioFile*> AudioFileManager::answerUnreadableAsyncOnly(deluge::storage::AudioLoadContext& context,
+                                                                      const std::string& filePath, Error* error) {
+	// Nothing opened for this path. Under MIGHT_EXIST that is the load's first word on whether its folder exists, so
+	// probe it here, where the synchronous path probes after its own miss.
+	if (context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::SampleLoadProbe);
+		Error probeError = Error::NONE;
+		(void)resolveAlternateLoadDirStatus(context, &probeError);
+		if (context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
+			// Could not tell, which is not absence: the status stays unresolved and this lookup reports the card.
+			*error = (probeError != Error::NONE) ? probeError : Error::SD_CARD;
+			return nullptr;
+		}
+	}
+
+	auto& listed = context.requestedUnresolved;
+	const auto entry = std::ranges::find(listed, filePath);
+	const bool wasListed = (entry != listed.end());
+	if (wasListed) {
+		listed.erase(entry);
+	}
+
+	// A request made before the folder was known carried only the file's own path, so its miss says nothing about the
+	// folder: ask again with the folder's candidates. A request made after that already carried them, so its miss is
+	// final -- which is also what bounds this to one retry per path.
+	if (wasListed && context.alternateDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
+		return requestAsyncSampleLoad(context, filePath, error, deluge::storage::AsyncLoadMode::AsyncOnly);
+	}
+	*error = Error::FILE_UNREADABLE;
 	return nullptr;
 }
 
@@ -1123,8 +1191,9 @@ bool AudioFileManager::admissibleAsyncCandidates(const char* candidates, uint32_
 	return true;
 }
 
-std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const deluge::storage::AudioLoadContext& context,
-                                                                   const std::string& filePath, Error* error) {
+std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(deluge::storage::AudioLoadContext& context,
+                                                                   const std::string& filePath, Error* error,
+                                                                   deluge::storage::AsyncLoadMode asyncMode) {
 	// A path the loader can never accept must never become a request. deluge_audio_load_request
 	// refuses a path (or a candidate) that is not valid UTF-8 or does not fit its fixed-capacity
 	// buffer, and unlike a full queue those refusals are PERMANENT: reporting LOAD_IN_PROGRESS for one
@@ -1168,6 +1237,13 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const deluge:
 		return std::nullopt; // the same permanent refusal as above, one level down
 	}
 
+	if (asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly
+	    && context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
+	    && std::ranges::find(context.requestedUnresolved, filePath) == context.requestedUnresolved.end()) {
+		// This request carries only the file's own path. If it misses once the folder is known to exist,
+		// answerUnreadableAsyncOnly() asks again with the folder's candidates.
+		context.requestedUnresolved.push_back(filePath);
+	}
 	(void)deluge_audio_load_request(filePath.c_str(), candidates.data(), numCandidates);
 
 	// A dropped request (a full queue) is reported exactly like an accepted one, by contract: the

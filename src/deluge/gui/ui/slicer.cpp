@@ -536,7 +536,7 @@ bool Slicer::previewForTarget(const deluge::storage::DeferredLoad<PreviewTarget>
 		}
 		if (differentSample || range->sampleHolder.audioFile == nullptr) {
 			const Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE, false,
-			                                                 /*mayLoadAsync=*/true);
+			                                                 deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 			if (error == Error::LOAD_IN_PROGRESS) {
 				// Deferred, not failed. Return BEFORE the params and the note: the load, the params
 				// and the audition note stay one group, and graphicsRoutine() re-drives it.

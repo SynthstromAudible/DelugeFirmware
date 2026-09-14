@@ -135,10 +135,9 @@ bool readWholeFile(const char* path, std::vector<uint8_t>& out) {
 void makeReferenced(const char* path) {
 	std::string fileName = path;
 	Error error = Error::NONE;
-	AudioFile* file =
-	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-	                                              /*makeWaveTableWorkAtAllCosts=*/false,
-	                                              /*mayLoadAsync=*/false);
+	AudioFile* file = audioFileManager.getAudioFileFromFilename(
+	    fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::Blocking);
 	if (file == nullptr) {
 		printf("SC-SETUP FAIL %s did not load (error %d)\n", path, static_cast<int>(error));
 		g_failures++;

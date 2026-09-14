@@ -21,7 +21,7 @@
 ///        sample list through `AudioFileManager::getAudioFileFromFilename` and print each file's
 ///        resolved identity and geometry as a stable line, checked against a synchronous reference.
 ///
-/// Every case loads twice in one process: first through the synchronous card path (`mayLoadAsync=false`), as the
+/// Every case loads twice in one process: first through the synchronous card path (`AsyncLoadMode::Blocking`), as the
 /// reference, and then through the Rust Embassy loader (`libdeluge/audio_load.h`'s request/collect pair). The async
 /// load's `AB-CASE` line must equal the reference's. `AB-SUMMARY` carries the per-run facts, such as deferral counts,
 /// that the reference has no counterpart for.

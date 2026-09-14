@@ -582,7 +582,7 @@ extern "C" bool deluge_audio_load_request(const char* file_path, const char* can
 namespace {
 
 /// Pin the C++ collector: the miss path AudioFileManager::getAudioFileFromFilename takes when a
-/// caller opts into the async loader (mayLoadAsync) and the loader is backing loads.
+/// caller opts into the async loader (AsyncLoadMode::AsyncOrBlocking) and the loader is backing loads.
 ///
 /// Needs no app boot and no card fixture -- it serves its own two-file "card" out of a temp directory
 /// (DELUGE_SD_ROOT), which is what lets the one genuinely blocking step, binding the Sample's read
@@ -676,18 +676,16 @@ bool checkAsyncCollector() {
 		g_asyncStub = {};
 		std::string syncPath = "SAMPLES/NOT_THERE.WAV";
 		Error syncError = Error::NONE;
-		AudioFile* syncFile =
-		    audioFileManager.getAudioFileFromFilename(syncPath, /*mayReadCard=*/true, &syncError, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/false);
+		AudioFile* syncFile = audioFileManager.getAudioFileFromFilename(
+		    syncPath, /*mayReadCard=*/true, &syncError, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::Blocking);
 		std::string asyncPath = "SAMPLES/NOT_THERE.WAV";
 		Error asyncError = Error::NONE;
-		AudioFile* asyncFile = audioFileManager.getAudioFileFromFilename(asyncPath, /*mayReadCard=*/true, &asyncError,
-		                                                                 AudioFileType::SAMPLE,
-		                                                                 /*makeWaveTableWorkAtAllCosts=*/false,
-		                                                                 /*mayLoadAsync=*/true);
+		AudioFile* asyncFile = audioFileManager.getAudioFileFromFilename(
+		    asyncPath, /*mayReadCard=*/true, &asyncError, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (syncFile != asyncFile || syncError != asyncError || syncPath != asyncPath) {
-			printf("FAIL [asyncCollector]: mayLoadAsync changed the synchronous miss path with the loader "
+			printf("FAIL [asyncCollector]: asyncMode changed the synchronous miss path with the loader "
 			       "inactive (file %p vs %p, error %d vs %d)\n",
 			       static_cast<void*>(syncFile), static_cast<void*>(asyncFile), static_cast<int>(syncError),
 			       static_cast<int>(asyncError));
@@ -708,7 +706,8 @@ bool checkAsyncCollector() {
 		std::string path = "SAMPLES/NOT_THERE.WAV";
 		Error error = Error::NONE;
 		(void)audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::WAVETABLE,
-		                                                /*makeWaveTableWorkAtAllCosts=*/false, /*mayLoadAsync=*/true);
+		                                                /*makeWaveTableWorkAtAllCosts=*/false,
+		                                                deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (g_asyncStub.collectCalls != 0) {
 			printf("FAIL [asyncCollector]: a WAVETABLE load consulted the sample loader\n");
 			ok = false;
@@ -732,10 +731,9 @@ bool checkAsyncCollector() {
 		const size_t before = audioFileManager.audioFiles.size();
 		std::string path = "SAMPLES/FOLDER/kick.wav";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true, &context);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking, &context);
 		if (file != nullptr || error != Error::LOAD_IN_PROGRESS) {
 			printf("FAIL [asyncCollector]: an UNKNOWN path should report LOAD_IN_PROGRESS, got file=%p error=%d\n",
 			       static_cast<void*>(file), static_cast<int>(error));
@@ -779,10 +777,9 @@ bool checkAsyncCollector() {
 		g_asyncStub.requestAccepted = false;
 		std::string path = "SAMPLES/REFUSED.WAV";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (file != nullptr || error != Error::LOAD_IN_PROGRESS) {
 			printf("FAIL [asyncCollector]: a dropped request should still report LOAD_IN_PROGRESS, got file=%p "
 			       "error=%d\n",
@@ -799,10 +796,9 @@ bool checkAsyncCollector() {
 		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_PENDING;
 		std::string path = "SAMPLES/PENDING.WAV";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (file != nullptr || error != Error::LOAD_IN_PROGRESS) {
 			printf("FAIL [asyncCollector]: a PENDING path should report LOAD_IN_PROGRESS, got file=%p error=%d\n",
 			       static_cast<void*>(file), static_cast<int>(error));
@@ -838,10 +834,9 @@ bool checkAsyncCollector() {
 
 		std::string path = "SAMPLES/TABLEFULL.WAV";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true, &context);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking, &context);
 		if (file != nullptr || error != Error::TOO_MANY_OPEN_STREAMS) {
 			printf("FAIL [asyncCollector]: a full handle table with nothing to reclaim should report "
 			       "TOO_MANY_OPEN_STREAMS, got file=%p error=%d\n",
@@ -867,10 +862,9 @@ bool checkAsyncCollector() {
 		{
 			std::string path = "SAMPLES/RECLAIM.WAV";
 			Error error = Error::NONE;
-			AudioFile* resident =
-			    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-			                                              /*makeWaveTableWorkAtAllCosts=*/false,
-			                                              /*mayLoadAsync=*/false);
+			AudioFile* resident = audioFileManager.getAudioFileFromFilename(
+			    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+			    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::Blocking);
 			if (resident == nullptr) {
 				printf("FAIL [asyncCollector]: could not make a reclaimable resident (error=%d); the reclaim "
 				       "half of the full-table check would pass vacuously\n",
@@ -885,10 +879,9 @@ bool checkAsyncCollector() {
 
 		std::string path = "SAMPLES/TABLEFULL2.WAV";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (file != nullptr || error != Error::LOAD_IN_PROGRESS) {
 			printf("FAIL [asyncCollector]: a full handle table with something reclaimable should reclaim and "
 			       "ask again (LOAD_IN_PROGRESS), got file=%p error=%d\n",
@@ -920,10 +913,9 @@ bool checkAsyncCollector() {
 		const size_t before = audioFileManager.audioFiles.size();
 		std::string path = "SAMPLES/UNSUPPORTED.WAV";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (file != nullptr || error != Error::FILE_UNSUPPORTED) {
 			printf("FAIL [asyncCollector]: a failed parse should surface as its own error, got file=%p error=%d\n",
 			       static_cast<void*>(file), static_cast<int>(error));
@@ -946,10 +938,9 @@ bool checkAsyncCollector() {
 		g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::NONE), "");
 		std::string path = "SAMPLES/ASYNC.WAV";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (file == nullptr || error != Error::NONE) {
 			printf("FAIL [asyncCollector]: a READY result did not build a Sample (file=%p error=%d)\n",
 			       static_cast<void*>(file), static_cast<int>(error));
@@ -992,10 +983,9 @@ bool checkAsyncCollector() {
 			const int collectsBefore = g_asyncStub.collectCalls;
 			std::string againPath = "SAMPLES/ASYNC.WAV";
 			Error againError = Error::NONE;
-			AudioFile* again = audioFileManager.getAudioFileFromFilename(againPath, /*mayReadCard=*/true, &againError,
-			                                                             AudioFileType::SAMPLE,
-			                                                             /*makeWaveTableWorkAtAllCosts=*/false,
-			                                                             /*mayLoadAsync=*/true);
+			AudioFile* again = audioFileManager.getAudioFileFromFilename(
+			    againPath, /*mayReadCard=*/true, &againError, AudioFileType::SAMPLE,
+			    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 			if (again != file || againError != Error::NONE || g_asyncStub.collectCalls != collectsBefore) {
 				printf("FAIL [asyncCollector]: a resident sample was not served from memory (file=%p vs %p, "
 				       "error=%d, %d extra collect(s))\n",
@@ -1033,10 +1023,9 @@ bool checkAsyncCollector() {
 			g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_UNKNOWN;
 			std::string path = c.path;
 			Error error = Error::NONE;
-			AudioFile* file =
-			    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-			                                              /*makeWaveTableWorkAtAllCosts=*/false,
-			                                              /*mayLoadAsync=*/true);
+			AudioFile* file = audioFileManager.getAudioFileFromFilename(
+			    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+			    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 			if (file != nullptr || error == Error::LOAD_IN_PROGRESS) {
 				printf("FAIL [asyncCollector]: %s must fall through to the synchronous path, not wait forever "
 				       "for a request that is refused permanently (file=%p error=%d)\n",
@@ -1076,10 +1065,9 @@ bool checkAsyncCollector() {
 
 			std::string path = "SAMPLES/ODD.WAV";
 			Error error = Error::NONE;
-			AudioFile* file =
-			    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-			                                              /*makeWaveTableWorkAtAllCosts=*/false,
-			                                              /*mayLoadAsync=*/true, &context);
+			AudioFile* file = audioFileManager.getAudioFileFromFilename(
+			    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+			    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking, &context);
 			if (file == nullptr || error != Error::NONE) {
 				printf("FAIL [asyncCollector]: a re-request that could not be formed answered the load instead "
 				       "of falling through to the synchronous path (file=%p error=%d)\n",
@@ -1109,10 +1097,9 @@ bool checkAsyncCollector() {
 		g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::NONE), "");
 		std::string path = "SAMPLES/NOT_RESIDENT.WAV"; // a miss, so the gate is what decides
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/false, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/false, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (file != nullptr || error != Error::NONE || g_asyncStub.collectCalls != 0) {
 			printf("FAIL [asyncCollector]: mayReadCard=false reached the loader (file=%p error=%d %d collect(s))\n",
 			       static_cast<void*>(file), static_cast<int>(error), g_asyncStub.collectCalls);
@@ -1130,10 +1117,9 @@ bool checkAsyncCollector() {
 		audioFileManager.cardDisabled = true;
 		std::string path = "SAMPLES/DISABLED.WAV";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		audioFileManager.cardDisabled = false;
 		if (file != nullptr || error != Error::SD_CARD || g_asyncStub.collectCalls != 0) {
 			printf("FAIL [asyncCollector]: a disabled card should report SD_CARD from the synchronous path "
@@ -1177,10 +1163,9 @@ bool checkAsyncCollector() {
 				g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::NONE), "SAMPLES/ASYNC.WAV");
 				std::string path = sharedPath;
 				Error error = Error::NONE;
-				AudioFile* sample =
-				    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-				                                              /*makeWaveTableWorkAtAllCosts=*/false,
-				                                              /*mayLoadAsync=*/true);
+				AudioFile* sample = audioFileManager.getAudioFileFromFilename(
+				    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+				    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 				if (sample == nullptr || error != Error::NONE || sample->type != AudioFileType::SAMPLE) {
 					printf("FAIL [asyncCollector]: collecting a SAMPLE where a WaveTable is resident at the same "
 					       "path did not produce a Sample (file=%p type=%d error=%d)\n",
@@ -1196,8 +1181,7 @@ bool checkAsyncCollector() {
 					Error residentError = Error::NONE;
 					AudioFile* residentSample = audioFileManager.getAudioFileFromFilename(
 					    residentPath, /*mayReadCard=*/true, &residentError, AudioFileType::SAMPLE,
-					    /*makeWaveTableWorkAtAllCosts=*/false,
-					    /*mayLoadAsync=*/true);
+					    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 					if (residentSample != sample || g_asyncStub.collectCalls != collectsBefore) {
 						printf("FAIL [asyncCollector]: the resident SAMPLE at a path a WaveTable also occupies was "
 						       "not returned (file=%p vs %p, type=%d, %d extra collect(s))\n",
@@ -1210,8 +1194,7 @@ bool checkAsyncCollector() {
 					Error waveTableError = Error::NONE;
 					AudioFile* residentWaveTable = audioFileManager.getAudioFileFromFilename(
 					    waveTablePath, /*mayReadCard=*/true, &waveTableError, AudioFileType::WAVETABLE,
-					    /*makeWaveTableWorkAtAllCosts=*/false,
-					    /*mayLoadAsync=*/false);
+					    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::Blocking);
 					if (residentWaveTable != waveTable) {
 						printf("FAIL [asyncCollector]: the resident WAVETABLE at that same path was not returned "
 						       "(file=%p vs %p)\n",
@@ -1272,10 +1255,9 @@ bool checkAsyncCollector() {
 
 				std::string path = c.path;
 				Error error = Error::NONE;
-				AudioFile* file =
-				    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-				                                              /*makeWaveTableWorkAtAllCosts=*/false,
-				                                              /*mayLoadAsync=*/true);
+				AudioFile* file = audioFileManager.getAudioFileFromFilename(
+				    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+				    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 				if (file != nullptr || error != c.expectedError) {
 					printf("FAIL [asyncCollector]: a %s must fail the load with error=%d; iteration %d got "
 					       "file=%p error=%d\n",
@@ -1315,10 +1297,10 @@ bool checkAsyncCollector() {
 }
 
 /// Pin that every existing loadFile-family call site -- all but previewSample's, which is the one this
-/// task changed to pass true -- keeps taking the synchronous backing when mayLoadAsync is left at its
-/// default, on BOTH layers that default it. `AudioFileHolder::loadFile` forwards its own mayLoadAsync
+/// task changed to pass AsyncOrBlocking -- keeps taking the synchronous backing when asyncMode is left at its
+/// default, on BOTH layers that default it. `AudioFileHolder::loadFile` forwards its own asyncMode
 /// argument straight to `AudioFileManager::getAudioFileFromFilename` (see audio_file_holder.cpp), and
-/// each has its own `= false` default -- so a regression in EITHER one has to be independently
+/// each has its own `= Blocking` default -- so a regression in EITHER one has to be independently
 /// reachable from this check, or it is not actually guarding that default.
 ///
 /// Two layers, two calling shapes:
@@ -1330,17 +1312,17 @@ bool checkAsyncCollector() {
 ///    go through at all. A check that only exercises the holder would leave this one, and its own
 ///    default, completely unwatched.
 ///
-/// The async gate is `mayLoadAsync && ... && deluge_audio_load_async_active()`: with the loader
-/// INACTIVE (the shipping default), that whole conjunction is false regardless of what mayLoadAsync
+/// The async gate is `asyncMode != Blocking && ... && deluge_audio_load_async_active()`: with the loader
+/// INACTIVE (the shipping default), that whole conjunction is false regardless of what asyncMode
 /// holds, so a check that never arms the stub cannot tell "the default is false" from "the default is
 /// true but nothing is listening" -- it would pass either way. This check therefore arms
 /// `g_asyncStub.active = true` itself (checkAsyncCollector, which runs immediately before this in the
 /// gate list, resets the stub to inactive on its own exit, and this check resets it again on ITS OWN
 /// exit so nothing after it inherits an armed loader either), and for each layer runs the SAME file
-/// through the SAME active stub twice: once with mayLoadAsync omitted (must stay synchronous, zero
-/// loader calls), and once with it explicit `true` (must reach the loader and report
+/// through the SAME active stub twice: once with asyncMode omitted (must stay synchronous, zero
+/// loader calls), and once with it explicit `AsyncOrBlocking` (must reach the loader and report
 /// LOAD_IN_PROGRESS). That contrast, run per layer, is what makes the check able to fail: flip either
-/// default to `true` on its own and the corresponding omitted-argument call starts behaving like the
+/// default to `AsyncOrBlocking` on its own and the corresponding omitted-argument call starts behaving like the
 /// explicit one.
 bool checkLoadFileDefaultStaysSynchronous() {
 	bool ok = true;
@@ -1377,7 +1359,7 @@ bool checkLoadFileDefaultStaysSynchronous() {
 	g_asyncStub = {};
 	g_asyncStub.active = true;
 
-	// mayLoadAsync omitted from AudioFileHolder::loadFile itself, exactly as the nine untouched call
+	// asyncMode omitted from AudioFileHolder::loadFile itself, exactly as the nine untouched call
 	// sites invoke it. Even with the loader active, it must still take the synchronous backing and
 	// never touch the loader at all.
 	{
@@ -1397,7 +1379,7 @@ bool checkLoadFileDefaultStaysSynchronous() {
 			ok = false;
 		}
 		if (g_asyncStub.requestCalls != 0 || g_asyncStub.collectCalls != 0) {
-			printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile's default (mayLoadAsync omitted) "
+			printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile's default (asyncMode omitted) "
 			       "consulted the async loader anyway (%d request(s), %d collect(s))\n",
 			       g_asyncStub.requestCalls, g_asyncStub.collectCalls);
 			ok = false;
@@ -1413,7 +1395,7 @@ bool checkLoadFileDefaultStaysSynchronous() {
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DEFAULT.WAV");
 
 	// The contrast: the SAME file, the SAME active stub, through AudioFileHolder::loadFile again,
-	// differing only in mayLoadAsync being explicit true instead of omitted. This MUST reach the loader
+	// differing only in asyncMode being explicit AsyncOrBlocking instead of omitted. This MUST reach the loader
 	// and report LOAD_IN_PROGRESS -- if it doesn't, the call above proved nothing, because the async
 	// branch would be unreachable either way.
 	{
@@ -1424,9 +1406,9 @@ bool checkLoadFileDefaultStaysSynchronous() {
 		holder.audioFileType = AudioFileType::SAMPLE;
 		Error error = holder.loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true,
 		                              CLUSTER_ENQUEUE, /*makeWaveTableWorkAtAllCosts=*/false,
-		                              /*mayLoadAsync=*/true);
+		                              deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (holder.audioFile != nullptr || error != Error::LOAD_IN_PROGRESS) {
-			printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile(..., mayLoadAsync=true) did not "
+			printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile(..., asyncMode=AsyncOrBlocking) did not "
 			       "reach the async path with the loader active (audioFile=%p error=%d) -- the "
 			       "default-vs-explicit contrast this check exists to see is broken\n",
 			       static_cast<void*>(holder.audioFile), static_cast<int>(error));
@@ -1434,7 +1416,7 @@ bool checkLoadFileDefaultStaysSynchronous() {
 		}
 		if (g_asyncStub.requestCalls != 1) {
 			printf("FAIL [loadFileDefault]: expected exactly one async request for the explicit "
-			       "mayLoadAsync=true call (holder layer), got %d\n",
+			       "asyncMode=AsyncOrBlocking call (holder layer), got %d\n",
 			       g_asyncStub.requestCalls);
 			ok = false;
 		}
@@ -1444,10 +1426,10 @@ bool checkLoadFileDefaultStaysSynchronous() {
 	// ---- Layer 2: AudioFileManager::getAudioFileFromFilename, called directly ----
 	//
 	// sample_browser.cpp's folder-load path (loadAllSamplesInFolder) calls this with no
-	// AudioFileHolder in between and no mayLoadAsync argument at all -- so its own default has to be
+	// AudioFileHolder in between and no asyncMode argument at all -- so its own default has to be
 	// exercised here too, not just inferred from the holder's forwarding.
 
-	// mayLoadAsync omitted, exactly as that call site invokes it. Even with the loader active, it must
+	// asyncMode omitted, exactly as that call site invokes it. Even with the loader active, it must
 	// still take the synchronous backing and never touch the loader at all.
 	{
 		g_asyncStub = {};
@@ -1468,7 +1450,7 @@ bool checkLoadFileDefaultStaysSynchronous() {
 			ok = false;
 		}
 		if (g_asyncStub.requestCalls != 0 || g_asyncStub.collectCalls != 0) {
-			printf("FAIL [loadFileDefault]: getAudioFileFromFilename's default (mayLoadAsync omitted) "
+			printf("FAIL [loadFileDefault]: getAudioFileFromFilename's default (asyncMode omitted) "
 			       "consulted the async loader anyway (%d request(s), %d collect(s))\n",
 			       g_asyncStub.requestCalls, g_asyncStub.collectCalls);
 			ok = false;
@@ -1478,19 +1460,18 @@ bool checkLoadFileDefaultStaysSynchronous() {
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DEFAULT.WAV");
 
 	// The contrast for this layer: the SAME file, the SAME active stub, calling
-	// getAudioFileFromFilename directly again, differing only in mayLoadAsync being explicit true
+	// getAudioFileFromFilename directly again, differing only in asyncMode being explicit AsyncOrBlocking
 	// instead of omitted. This MUST reach the loader and report LOAD_IN_PROGRESS.
 	{
 		g_asyncStub = {};
 		g_asyncStub.active = true;
 		std::string path = "SAMPLES/DEFAULT.WAV";
 		Error error = Error::NONE;
-		AudioFile* file =
-		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		AudioFile* file = audioFileManager.getAudioFileFromFilename(
+		    path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		    /*makeWaveTableWorkAtAllCosts=*/false, deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 		if (file != nullptr || error != Error::LOAD_IN_PROGRESS) {
-			printf("FAIL [loadFileDefault]: getAudioFileFromFilename(..., mayLoadAsync=true) did not "
+			printf("FAIL [loadFileDefault]: getAudioFileFromFilename(..., asyncMode=AsyncOrBlocking) did not "
 			       "reach the async path with the loader active (file=%p error=%d) -- the "
 			       "default-vs-explicit contrast this check exists to see is broken\n",
 			       static_cast<void*>(file), static_cast<int>(error));
@@ -1498,7 +1479,7 @@ bool checkLoadFileDefaultStaysSynchronous() {
 		}
 		if (g_asyncStub.requestCalls != 1) {
 			printf("FAIL [loadFileDefault]: expected exactly one async request for the explicit "
-			       "mayLoadAsync=true call (manager layer), got %d\n",
+			       "asyncMode=AsyncOrBlocking call (manager layer), got %d\n",
 			       g_asyncStub.requestCalls);
 			ok = false;
 		}
@@ -1639,10 +1620,12 @@ bool checkAsyncAlternateDirOrder() {
 			for (int tick = 0; tick < 4; tick++) {
 				identity.error = Error::NONE;
 				identity.ticks = tick + 1;
-				file = audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &identity.error,
-				                                                 AudioFileType::SAMPLE,
-				                                                 /*makeWaveTableWorkAtAllCosts=*/false,
-				                                                 /*mayLoadAsync=*/useAsync, &context);
+				file = audioFileManager.getAudioFileFromFilename(
+				    path, /*mayReadCard=*/true, &identity.error, AudioFileType::SAMPLE,
+				    /*makeWaveTableWorkAtAllCosts=*/false,
+				    useAsync ? deluge::storage::AsyncLoadMode::AsyncOrBlocking
+				             : deluge::storage::AsyncLoadMode::Blocking,
+				    &context);
 				if (identity.error != Error::LOAD_IN_PROGRESS) {
 					break;
 				}
@@ -1793,7 +1776,7 @@ bool checkAsyncAlternateDirOrder() {
 			error = Error::NONE;
 			(void)audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 			                                                /*makeWaveTableWorkAtAllCosts=*/false,
-			                                                /*mayLoadAsync=*/true, &context);
+			                                                deluge::storage::AsyncLoadMode::AsyncOrBlocking, &context);
 			if (error != Error::LOAD_IN_PROGRESS) {
 				break;
 			}

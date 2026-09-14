@@ -35,7 +35,7 @@ namespace {
 
 /// How many of each consumer's file operations have begun on the interaction tier. Indexed by
 /// @ref IoTier. See @ref interactionTierIo.
-int32_t g_interactionTierIo[6] = {0, 0, 0, 0, 0, 0};
+int32_t g_interactionTierIo[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 /// Whether a violation by this consumer is a hard freeze yet. Indexed by @ref IoTier.
 ///
@@ -44,13 +44,15 @@ int32_t g_interactionTierIo[6] = {0, 0, 0, 0, 0, 0};
 /// what happened the moment the startup fail-safe's sites were instrumented against an already-armed
 /// freeze. Counting is what proves the sites are reachable; freezing is what keeps them from coming
 /// back, and it is only truthful once there is a converted path for them to come back FROM.
-constexpr bool kFreezeOnViolation[6] = {
-    true, // Settings: converted, so any violation is now a regression.
-    true, // Startup: converted, likewise.
-    true, // Browser: converted, likewise.
-    true, // Favourites: converted, likewise.
-    true, // Recorder: converted, likewise.
-    true, // Sysex: converted, likewise.
+constexpr bool kFreezeOnViolation[8] = {
+    true,  // Settings: converted, so any violation is now a regression.
+    true,  // Startup: converted, likewise.
+    true,  // Browser: converted, likewise.
+    true,  // Favourites: converted, likewise.
+    true,  // Recorder: converted, likewise.
+    true,  // Sysex: converted, likewise.
+    false, // SampleLoad: counted for sample-load-tree's async legs; nothing on the device uses AsyncOnly yet.
+    false, // SampleLoadProbe: likewise, and the folder probe is still a blocking open.
 };
 
 /// Translate the C ABI's `uint32_t`-shaped status byte into the type the callers switch on.

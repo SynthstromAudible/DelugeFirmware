@@ -1518,7 +1518,8 @@ Error previewSample(std::string_view path, bool shouldActuallySound) {
 	//
 	// Enqueueing never blocks. The note-on then sees LOADING and defers (VoiceUnisonPartSource), so the
 	// preview starts a few ms late instead of either stalling audio or dropping the voice.
-	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE, false, /*mayLoadAsync=*/true);
+	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE, false,
+	                                           deluge::storage::AsyncLoadMode::AsyncOrBlocking);
 
 	if (error == Error::LOAD_IN_PROGRESS) {
 		// Not a failure and not an outcome: the async loader has this file and has not finished. There

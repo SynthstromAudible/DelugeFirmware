@@ -30,6 +30,7 @@
 #include "gui/views/session_view.h"
 #include "io/file.hpp"
 #include "libdeluge/app.h"
+#include "libdeluge/audio_load.h"
 #include "libdeluge/types.h"
 #include "memory/fast_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -45,22 +46,28 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/audio/async_sample_load.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/load_trace.h"
+#include "storage/audio/sample_load_walk.h"
+#include "storage/byte_channel.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
 // `putchar_` for -- every line below would become an undefined symbol at link time.
@@ -152,6 +159,14 @@ constexpr int32_t kSynthRoutines = 2;
 constexpr int32_t kKitRoutines = 3;
 constexpr int32_t kCrucialRoutines = 102;
 
+/// Milliseconds the loader holds each load during an async leg, so each load spans several scenario ticks.
+constexpr uint32_t kAsyncLatencyMs = 20;
+/// Scenario ticks an async leg may take before it is called wedged. Probe 1 measured every leg well inside this.
+constexpr int32_t kMaxAsyncTicks = 4000;
+/// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit): one per wavetable
+/// holder its walk reaches. Measured, and pinned.
+constexpr std::array<int32_t, 4> kAsyncWavetableReads{1, 1, 0, 0};
+
 enum class Stage : uint8_t {
 	SongKit,
 	Build,
@@ -179,6 +194,11 @@ enum class Stage : uint8_t {
 	CrucialListing,
 	CrucialWait,
 	CrucialCheck,
+	AsyncReference,
+	AsyncRelease,
+	AsyncBegin,
+	AsyncWait,
+	AsyncCheck,
 	Report,
 	Done,
 };
@@ -424,6 +444,70 @@ bool writePresets() {
 	return writeKitPreset(kKitPresetPath, {{"SLTPKA", kKitPresetSampleA}, {"SLTPKB", kKitPresetSampleB}});
 }
 
+// ── Holder outcomes ──────────────────────────────────────────────────────────
+
+/// Records every demand a walk reports, and loads nothing: a root's holders, in load order.
+class DemandCollector final : public deluge::storage::SampleLoadVisitor {
+public:
+	std::vector<deluge::storage::SampleDemand> demands;
+
+	deluge::storage::Walk rangeCheckpoint(int32_t /*rangeIndex*/) override { return deluge::storage::Walk::Continue; }
+	deluge::storage::Walk drumCheckpoint() override { return deluge::storage::Walk::Continue; }
+	void clipCheckpoint() override {}
+	void beginInstrumentScope(std::string_view /*dirPath*/, std::string_view /*name*/, ThingType /*thing*/,
+	                          deluge::storage::ScopeRule /*rule*/) override {}
+	void endInstrumentScope() override {}
+	void demand(const deluge::storage::SampleDemand& demand) override { demands.push_back(demand); }
+};
+
+std::vector<deluge::storage::SampleDemand> songDemands(Song& song) {
+	DemandCollector collector;
+	song.walkSampleDemands(collector);
+	return std::move(collector.demands);
+}
+
+std::vector<deluge::storage::SampleDemand> outputDemands(Output& output) {
+	DemandCollector collector;
+	(void)output.walkSampleDemands(collector);
+	return std::move(collector.demands);
+}
+
+/// What a load left in one holder: the path it names, whether a file is bound, where that file was read from, and,
+/// for an audio clip, the clip's name.
+struct HolderOutcome {
+	std::string path;
+	bool bound = false;
+	std::string alt;
+	std::string clipName;
+
+	bool operator==(const HolderOutcome&) const = default;
+};
+
+std::vector<HolderOutcome> snapshot(const std::vector<deluge::storage::SampleDemand>& demands) {
+	std::vector<HolderOutcome> outcomes;
+	outcomes.reserve(demands.size());
+	for (const deluge::storage::SampleDemand& demand : demands) {
+		const AudioFile* file = demand.holder->audioFile;
+		outcomes.push_back({.path = demand.holder->filePath,
+		                    .bound = file != nullptr,
+		                    .alt = (file != nullptr) ? file->loadedFromAlternatePath : std::string{},
+		                    .clipName = (demand.clipToName != nullptr) ? demand.clipToName->name : std::string{}});
+	}
+	return outcomes;
+}
+
+void unbindAll(const std::vector<deluge::storage::SampleDemand>& demands) {
+	for (const deluge::storage::SampleDemand& demand : demands) {
+		demand.holder->setAudioFile(nullptr);
+	}
+}
+
+/// Each preset as its blocking load left it, and the instrument it was loaded into.
+std::vector<HolderOutcome> g_refSynth;
+std::vector<HolderOutcome> g_refKit;
+Instrument* g_refSynthInstrument = nullptr;
+Instrument* g_refKitInstrument = nullptr;
+
 // ── Checks ───────────────────────────────────────────────────────────────────
 
 void reportHolder(const char* load, const char* owner, AudioFileHolder* holder, const char* wantPath, bool wantBound,
@@ -517,6 +601,8 @@ void loadSynthPreset() {
 	}
 	reportHolder("synth", "preset-sample", firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0]),
 	             kSynthPresetResolved, true, "");
+	g_refSynthInstrument = instrument;
+	g_refSynth = snapshot(outputDemands(*instrument));
 }
 
 void loadKitPresetWithAbort() {
@@ -563,6 +649,8 @@ void loadKitPresetWithAbort() {
 			reportHolder("kit", "preset-drum-b", holder, kKitPresetSampleB, false, "");
 		}
 	}
+	g_refKitInstrument = instrument;
+	g_refKit = snapshot(outputDemands(*instrument));
 }
 
 // ── The crucial-only load ────────────────────────────────────────────────────
@@ -792,6 +880,315 @@ void checkCrucialLoad() {
 	}
 }
 
+// ── The async loads ──────────────────────────────────────────────────────────
+//
+// Each load above runs again through AsyncSampleLoad, ticked from dispatch_step on the interaction tier rather than
+// on the storage owner: SLTSONG2's crucial walk and full walk, the synth preset, and the kit preset with its abort.
+// Before each, every file the load binds is dropped from memory, so each must come through the async loader, and the
+// loader holds every load kAsyncLatencyMs so each spans several ticks. Each must end as its blocking load did.
+
+enum class AsyncLeg : uint8_t { Crucial, Song, Synth, Kit, Done };
+
+const char* asyncLegName(AsyncLeg leg) {
+	switch (leg) {
+	case AsyncLeg::Crucial:
+		return "crucial";
+	case AsyncLeg::Song:
+		return "song";
+	case AsyncLeg::Synth:
+		return "synth";
+	case AsyncLeg::Kit:
+		return "kit";
+	case AsyncLeg::Done:
+		break;
+	}
+	return "done";
+}
+
+const char* asyncStateName(deluge::storage::AsyncSampleLoad::State state) {
+	using State = deluge::storage::AsyncSampleLoad::State;
+	switch (state) {
+	case State::Loading:
+		return "Loading";
+	case State::Loaded:
+		return "Loaded";
+	case State::Failed:
+		return "Failed";
+	}
+	return "?";
+}
+
+const char* asyncReasonName(deluge::storage::AsyncSampleLoad::Reason reason) {
+	using Reason = deluge::storage::AsyncSampleLoad::Reason;
+	switch (reason) {
+	case Reason::None:
+		return "None";
+	case Reason::Aborted:
+		return "Aborted";
+	}
+	return "?";
+}
+
+AsyncLeg g_asyncLeg = AsyncLeg::Crucial;
+/// SLTSONG2 as its blocking load left it: the full walk's holders, in load order.
+std::vector<HolderOutcome> g_refSong;
+/// The instrument an async preset leg loads, read again from its preset file.
+Instrument* g_asyncInstrument = nullptr;
+deluge::storage::AudioLoadContext g_asyncContext{};
+std::optional<deluge::storage::AsyncSampleLoad> g_asyncLoad;
+int32_t g_asyncTicks = 0;
+int32_t g_sampleOpensBefore = 0;
+int32_t g_probesBefore = 0;
+/// The leg's AsyncOnly sample lookups that reached the blocking card read, and that probed the folder, on the
+/// interaction tier.
+int32_t g_asyncSampleOpens = 0;
+int32_t g_asyncProbes = 0;
+
+/// Drop the reference instrument's files, and read the preset again into a fresh instrument for the async leg.
+void reloadPreset(Instrument* reference, const char* residentPath, OutputType type, const char* path,
+                  const char* presetName, const char* presetDir) {
+	if (reference != nullptr) {
+		unbindAll(outputDemands(*reference));
+	}
+	if (!audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(residentPath)) {
+		printf("SLT-ASYNC FAIL %s is still referenced and could not be released\n", residentPath);
+		g_failures++;
+	}
+	std::string name = presetName;
+	std::string dir = presetDir;
+	g_asyncInstrument = nullptr;
+	const Error error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, type, false, &g_asyncInstrument,
+	                                                           path, &name, &dir);
+	if (error != Error::NONE || g_asyncInstrument == nullptr) {
+		printf("SLT-ASYNC FAIL leg=%s the preset could not be read again (error %d)\n", asyncLegName(g_asyncLeg),
+		       static_cast<int>(error));
+		g_failures++;
+		g_asyncInstrument = nullptr;
+	}
+}
+
+/// On the storage owner: drop what the leg's load will bind.
+void releaseForAsyncLeg() {
+	switch (g_asyncLeg) {
+	case AsyncLeg::Crucial:
+	case AsyncLeg::Song:
+		releaseCrucialSongFiles();
+		break;
+	case AsyncLeg::Synth:
+		reloadPreset(g_refSynthInstrument, kSynthPresetResolved, OutputType::SYNTH, kSynthPresetPath, kSynthPresetName,
+		             kSynthPresetDir);
+		break;
+	case AsyncLeg::Kit:
+		reloadPreset(g_refKitInstrument, kKitPresetResolvedA, OutputType::KIT, kKitPresetPath, kKitPresetName,
+		             kKitPresetDir);
+		break;
+	case AsyncLeg::Done:
+		break;
+	}
+}
+
+/// Build the leg's load. False when there is nothing to load.
+bool beginAsyncLeg() {
+	using deluge::storage::AsyncSampleLoad;
+	switch (g_asyncLeg) {
+	case AsyncLeg::Crucial:
+		g_asyncContext = deluge::storage::AudioLoadContext::forSong(kSongDir, kCrucialSongName);
+		g_asyncLoad.emplace(AsyncSampleLoad::forCrucialSong(*currentSong, &g_asyncContext));
+		break;
+	case AsyncLeg::Song:
+		g_asyncContext = deluge::storage::AudioLoadContext::forSong(kSongDir, kCrucialSongName);
+		g_asyncLoad.emplace(AsyncSampleLoad::forSong(*currentSong, &g_asyncContext));
+		break;
+	case AsyncLeg::Synth:
+	case AsyncLeg::Kit:
+		if (g_asyncInstrument == nullptr) {
+			return false;
+		}
+		// No context: the preset's own folder is the load's, as it is for the blocking preset load.
+		g_asyncLoad.emplace(AsyncSampleLoad::forOutput(*g_asyncInstrument, nullptr));
+		break;
+	case AsyncLeg::Done:
+		return false;
+	}
+	if (g_asyncLeg == AsyncLeg::Kit) {
+		// The same abort as the blocking kit load: raised the first time a holder is bound with a file.
+		openTrace("async-kit", "LTA");
+		QwertyUI::predictionInterrupted = false;
+		g_abortArmed = true;
+		g_abortRaised = false;
+	}
+	g_sampleOpensBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad);
+	g_probesBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoadProbe);
+	deluge_audio_load_set_latency_ms(kAsyncLatencyMs);
+	g_asyncTicks = 0;
+	return true;
+}
+
+/// One tick of the leg's load, on the interaction tier. True once the load has ended, or has run past its bound.
+bool tickAsyncLeg() {
+	const auto modeBefore = currentUIMode;
+	if (g_asyncLeg == AsyncLeg::Kit) {
+		// The preset browser's load mode, in which shouldAbortLoading() sees the abort.
+		currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
+	}
+	const deluge::storage::AsyncSampleLoad::Progress progress = g_asyncLoad->tick();
+	currentUIMode = modeBefore;
+	g_asyncTicks++;
+	const bool ended = (progress.state != deluge::storage::AsyncSampleLoad::State::Loading);
+	if (!ended && g_asyncTicks < kMaxAsyncTicks) {
+		return false;
+	}
+	deluge_audio_load_set_latency_ms(0);
+	if (g_asyncLeg == AsyncLeg::Kit) {
+		g_abortArmed = false;
+		QwertyUI::predictionInterrupted = false;
+		(void)closeTrace();
+	}
+	g_asyncSampleOpens =
+	    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad) - g_sampleOpensBefore;
+	g_asyncProbes =
+	    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoadProbe) - g_probesBefore;
+	if (!ended) {
+		printf("SLT-ASYNC FAIL leg=%s the load had not ended after %d ticks\n", asyncLegName(g_asyncLeg), g_asyncTicks);
+		g_failures++;
+	}
+	return true;
+}
+
+/// Print every holder the async load left, and fail each that differs from what the blocking load left.
+void compareOutcomes(const char* leg, const std::vector<HolderOutcome>& want, const std::vector<HolderOutcome>& got) {
+	for (size_t i = 0; i < got.size(); i++) {
+		const HolderOutcome& outcome = got[i];
+		printf("SLT-ASYNC holder leg=%s index=%zu path=%s bound=%d alt=%s name=%s\n", leg, i, outcome.path.c_str(),
+		       outcome.bound ? 1 : 0, outcome.alt.c_str(), outcome.clipName.c_str());
+		if (i < want.size() && !(outcome == want[i])) {
+			const HolderOutcome& wanted = want[i];
+			printf("SLT-ASYNC FAIL leg=%s index=%zu wanted path=%s bound=%d alt=%s name=%s, as the blocking load left "
+			       "it\n",
+			       leg, i, wanted.path.c_str(), wanted.bound ? 1 : 0, wanted.alt.c_str(), wanted.clipName.c_str());
+			g_failures++;
+		}
+	}
+	if (got.size() != want.size()) {
+		printf("SLT-ASYNC FAIL leg=%s walked %zu holders; the blocking load walked %zu\n", leg, got.size(),
+		       want.size());
+		g_failures++;
+	}
+}
+
+/// The crucial leg against the crucial pass's snapshot: the same holders bound, each to its collected copy.
+void checkAsyncCrucial() {
+	std::array<int32_t, kCrucialHolders.size()> found{};
+	forEachSongHolder(*currentSong, [&found](AudioFileHolder* holder) {
+		for (size_t i = 0; i < kCrucialHolders.size(); i++) {
+			const CrucialHolder& entry = kCrucialHolders[i];
+			if (holder->filePath != entry.path) {
+				continue;
+			}
+			found[i]++;
+			const AudioFile* file = holder->audioFile;
+			const std::string alt = (file != nullptr) ? file->loadedFromAlternatePath : std::string{};
+			const std::string collectedCopy =
+			    std::string(kCrucialSongFolder) + "/" + (entry.path + std::strlen("SAMPLES/"));
+			printf("SLT-ASYNC holder leg=crucial owner=%s path=%s bound=%d alt=%s\n", entry.owner, entry.path,
+			       file != nullptr ? 1 : 0, alt.c_str());
+			const bool wantBound = (g_crucialBound[i] == 1);
+			if ((file != nullptr) != wantBound || (wantBound && alt != collectedCopy)) {
+				printf("SLT-ASYNC FAIL leg=crucial owner=%s wanted bound=%d alt=%s, as the crucial pass left it\n",
+				       entry.owner, wantBound ? 1 : 0, wantBound ? collectedCopy.c_str() : "");
+				g_failures++;
+			}
+		}
+	});
+	for (size_t i = 0; i < kCrucialHolders.size(); i++) {
+		if (found[i] != 1) {
+			printf("SLT-ASYNC FAIL leg=crucial owner=%s found %d times in the song\n", kCrucialHolders[i].owner,
+			       found[i]);
+			g_failures++;
+		}
+	}
+}
+
+/// The kit leg: stopped by its abort after as many drums as the blocking load bound, each from the kit's own folder.
+/// Which drum binds first depends on which result the loader returns first, so its identity is reported, not required.
+void checkAsyncKit() {
+	const std::vector<HolderOutcome> got = snapshot(outputDemands(*g_asyncInstrument));
+	const auto wantBound = std::ranges::count_if(g_refKit, [](const HolderOutcome& outcome) { return outcome.bound; });
+	int32_t gotBound = 0;
+	for (size_t i = 0; i < got.size(); i++) {
+		const HolderOutcome& outcome = got[i];
+		printf("SLT-ASYNC holder leg=kit index=%zu path=%s bound=%d alt=%s\n", i, outcome.path.c_str(),
+		       outcome.bound ? 1 : 0, outcome.alt.c_str());
+		if (!outcome.bound) {
+			continue;
+		}
+		gotBound++;
+		if (!outcome.path.starts_with("KITS/SLTPKIT/") || !outcome.alt.empty()) {
+			printf("SLT-ASYNC FAIL leg=kit index=%zu bound a file that is not its copy in the kit's folder\n", i);
+			g_failures++;
+		}
+	}
+	if (gotBound != wantBound || got.size() != g_refKit.size()) {
+		printf("SLT-ASYNC FAIL leg=kit bound %d of %zu drums; the blocking load bound %d of %zu\n", gotBound,
+		       got.size(), static_cast<int32_t>(wantBound), g_refKit.size());
+		g_failures++;
+	}
+}
+
+void checkAsyncLeg() {
+	using deluge::storage::AsyncSampleLoad;
+	const char* leg = asyncLegName(g_asyncLeg);
+	if (!g_asyncLoad.has_value()) {
+		printf("SLT-ASYNC leg=%s state=none\n", leg);
+		printf("SLT-ASYNC FAIL leg=%s had nothing to load\n", leg);
+		g_failures++;
+		return;
+	}
+	const AsyncSampleLoad::Progress& progress = g_asyncLoad->progress();
+	const auto index = static_cast<size_t>(g_asyncLeg);
+	printf("SLT-ASYNC leg=%s state=%s reason=%s ticks=%d bound=%d empty=%d inFlight=%d wavetableReads=%d "
+	       "sampleOpens=%d probes=%d\n",
+	       leg, asyncStateName(progress.state), asyncReasonName(progress.reason), progress.ticks, progress.bound,
+	       progress.emptyHolders, progress.inFlight, progress.wavetableReads, g_asyncSampleOpens, g_asyncProbes);
+
+	const bool wantAborted = (g_asyncLeg == AsyncLeg::Kit);
+	const bool endedRight = wantAborted ? (progress.state == AsyncSampleLoad::State::Failed
+	                                       && progress.reason == AsyncSampleLoad::Reason::Aborted)
+	                                    : (progress.state == AsyncSampleLoad::State::Loaded);
+	if (!endedRight) {
+		printf("SLT-ASYNC FAIL leg=%s ended %s/%s; the blocking load ended %s\n", leg, asyncStateName(progress.state),
+		       asyncReasonName(progress.reason), wantAborted ? "by its abort" : "loaded");
+		g_failures++;
+	}
+	if (g_asyncSampleOpens != 0) {
+		printf("SLT-ASYNC FAIL leg=%s %d sample lookup(s) read the card on the interaction tier\n", leg,
+		       g_asyncSampleOpens);
+		g_failures++;
+	}
+	if (progress.wavetableReads != kAsyncWavetableReads[index]) {
+		printf("SLT-ASYNC FAIL leg=%s wavetableReads=%d pinned=%d\n", leg, progress.wavetableReads,
+		       kAsyncWavetableReads[index]);
+		g_failures++;
+	}
+
+	switch (g_asyncLeg) {
+	case AsyncLeg::Crucial:
+		checkAsyncCrucial();
+		break;
+	case AsyncLeg::Song:
+		compareOutcomes(leg, g_refSong, snapshot(songDemands(*currentSong)));
+		break;
+	case AsyncLeg::Synth:
+		compareOutcomes(leg, g_refSynth, snapshot(outputDemands(*g_asyncInstrument)));
+		break;
+	case AsyncLeg::Kit:
+		checkAsyncKit();
+		break;
+	case AsyncLeg::Done:
+		break;
+	}
+}
+
 /// Queue @p fn on the storage owner: the builds and preset loads do card I/O, which belongs there.
 void onOwner(void (*fn)()) {
 	if (!deluge::storage::Owner::run([](void* ctx) { reinterpret_cast<void (*)()>(ctx)(); },
@@ -1013,7 +1410,31 @@ void runTick() {
 		break;
 	case Stage::CrucialCheck:
 		checkCrucialLoad();
-		g_stage = Stage::Report;
+		g_stage = Stage::AsyncReference;
+		break;
+	case Stage::AsyncReference:
+		// SLTSONG2 as its blocking load left it, before any async leg drops a file.
+		g_refSong = snapshot(songDemands(*currentSong));
+		g_asyncLeg = AsyncLeg::Crucial;
+		g_stage = Stage::AsyncRelease;
+		break;
+	case Stage::AsyncRelease:
+		onOwner(releaseForAsyncLeg);
+		g_stage = Stage::AsyncBegin;
+		break;
+	case Stage::AsyncBegin:
+		g_asyncLoad.reset();
+		g_stage = beginAsyncLeg() ? Stage::AsyncWait : Stage::AsyncCheck;
+		break;
+	case Stage::AsyncWait:
+		if (tickAsyncLeg()) {
+			g_stage = Stage::AsyncCheck;
+		}
+		break;
+	case Stage::AsyncCheck:
+		checkAsyncLeg();
+		g_asyncLeg = static_cast<AsyncLeg>(static_cast<uint8_t>(g_asyncLeg) + 1);
+		g_stage = (g_asyncLeg == AsyncLeg::Done) ? Stage::Report : Stage::AsyncRelease;
 		break;
 	case Stage::Report:
 		printf("SLT-SUMMARY songRoutines=%d synthRoutines=%d kitRoutines=%d\n", g_songRoutines, g_synthRoutines,
@@ -1057,6 +1478,15 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_crucialSwapTick = -1;
 	g_crucialSnapshotTaken = false;
 	g_crucialBound.fill(-1);
+	g_asyncLeg = AsyncLeg::Crucial;
+	g_refSong.clear();
+	g_refSynth.clear();
+	g_refKit.clear();
+	g_refSynthInstrument = nullptr;
+	g_refKitInstrument = nullptr;
+	g_asyncInstrument = nullptr;
+	g_asyncLoad.reset();
+	g_asyncTicks = 0;
 }
 
 bool deluge_scenario_sample_load_tree_complete(void) {

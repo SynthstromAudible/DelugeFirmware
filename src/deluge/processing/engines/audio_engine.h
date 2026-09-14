@@ -143,7 +143,7 @@ void runRoutine();
 void init();
 /// @brief Load the sample at @p path into the preview drum and, if @p shouldActuallySound, sound it.
 ///
-/// Opts into the async loader (AudioFileHolder::loadFile's `mayLoadAsync`), so the load may not be
+/// Opts into the async loader (AudioFileHolder::loadFile's AsyncLoadMode::AsyncOrBlocking), so the load may not be
 /// finished when this returns.
 ///
 /// @param path                The file to preview. Resolved fresh, like any other path-based open.

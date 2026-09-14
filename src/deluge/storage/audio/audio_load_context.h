@@ -19,8 +19,10 @@
 
 #include "definitions_cxx.hpp"
 
+#include <cstdint>
 #include <string>
 #include <string_view>
+#include <vector>
 
 /// @brief What a load knows about its alternate directory.
 enum class AlternateLoadDirStatus {
@@ -34,6 +36,19 @@ enum class AlternateLoadDirStatus {
 struct DelugeAudioLoadContext;
 
 namespace deluge::storage {
+
+/// @brief How a lookup may use the async loader (libdeluge/audio_load.h) for a sample that is not in memory.
+enum class AsyncLoadMode : uint8_t {
+	/// Never: a miss is read from the card on the calling tier.
+	Blocking,
+	/// Ask the loader, and read from the card on the calling tier only when no request can be formed. The caller must
+	/// handle Error::LOAD_IN_PROGRESS by asking again on a later tick.
+	AsyncOrBlocking,
+	/// Ask the loader, and never read a sample from the card on the calling tier: a path no request can be formed for
+	/// answers Error::FILE_UNREADABLE, and a disabled card or an absent loader Error::SD_CARD. The caller must handle
+	/// Error::LOAD_IN_PROGRESS as for AsyncOrBlocking. What AsyncSampleLoad (storage/audio/async_sample_load.h) uses.
+	AsyncOnly,
+};
 
 /// @brief The state one load of a song, synth or kit carries while it finds its audio files.
 ///
@@ -51,12 +66,17 @@ struct AudioLoadContext {
 	/// What is being loaded. For SYNTH and KIT, a file found in the alternate directory takes that path as its own.
 	/// For SONG, the in-memory search under the alternate directory's name is skipped.
 	ThingType thing = ThingType::NONE;
+	/// Paths an AsyncLoadMode::AsyncOnly lookup asked the loader for while @ref alternateDirStatus was still
+	/// MIGHT_EXIST. Each of those requests carried only the file's own path, so a miss collected once the folder is
+	/// known to exist is asked for again with the folder's candidates rather than taken as final. At most one entry
+	/// per path; freed with the context.
+	std::vector<std::string> requestedUnresolved{};
 
 	/// @brief The context a song's load starts with.
 	/// @param songDir  The folder the song file is in, e.g. "SONGS".
 	/// @param songName The song file's name without its extension.
 	[[nodiscard]] static AudioLoadContext forSong(std::string_view songDir, std::string_view songName) {
-		return {alternateDirFor(songDir, songName), AlternateLoadDirStatus::MIGHT_EXIST, ThingType::SONG};
+		return {alternateDirFor(songDir, songName), AlternateLoadDirStatus::MIGHT_EXIST, ThingType::SONG, {}};
 	}
 
 	/// @brief The context a synth's or kit's load starts with, when it is not part of a song's load.
@@ -65,7 +85,7 @@ struct AudioLoadContext {
 	/// @param thing   ThingType::SYNTH or ThingType::KIT.
 	[[nodiscard]] static AudioLoadContext forInstrument(std::string_view dirPath, std::string_view name,
 	                                                    ThingType thing) {
-		return {alternateDirFor(dirPath, name), AlternateLoadDirStatus::MIGHT_EXIST, thing};
+		return {alternateDirFor(dirPath, name), AlternateLoadDirStatus::MIGHT_EXIST, thing, {}};
 	}
 
 	/// @brief Whether @p context names no alternate directory: null, or never made for a load.

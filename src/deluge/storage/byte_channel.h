@@ -427,6 +427,8 @@ enum class IoTier : uint8_t {
 	Favourites, ///< the favourites bank: every browser visit, favourite pad, bank pad and browser close
 	Recorder,   ///< the sample recorder: its cluster writes, and creating, finalizing, aborting and closing its file
 	Sysex,      ///< SMSysex's directory listing: its synchronous directory open
+	SampleLoad, ///< an AsyncLoadMode::AsyncOnly sample lookup reaching the blocking card read: never, by construction
+	SampleLoadProbe, ///< an AsyncLoadMode::AsyncOnly sample lookup probing its load's folder with a blocking open
 };
 
 /// @brief How many of `which`'s file operations have begun on the INTERACTION tier.

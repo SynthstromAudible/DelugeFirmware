@@ -170,8 +170,8 @@ MultiRange* Source::getOrCreateFirstRange() {
 /// The one seam that matters: a card miss that has not landed yet answers LOAD_IN_PROGRESS, and a
 /// hit assigns an audio file, exactly as the real holder does.
 Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-                                int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts, bool mayLoadAsync,
-                                deluge::storage::AudioLoadContext* context) {
+                                int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts,
+                                deluge::storage::AsyncLoadMode asyncMode, deluge::storage::AudioLoadContext* context) {
 	if (deluge::test::duringNextLoadFile != nullptr) {
 		// Cleared BEFORE the call, not after: the hook re-enters the slicer, which reaches this
 		// function again, and a hook that re-armed itself would recurse without bound.
