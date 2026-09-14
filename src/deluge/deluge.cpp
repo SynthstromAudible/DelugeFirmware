@@ -552,7 +552,7 @@ void registerTasks() {
 	                                                128 / 44100., "audio  routine", RESOURCE_NONE);
 	addRepeatingTask(MidiEngine::check_incoming_usb, p++, 0.0005, 0.0005, 0.001, "check usb midi", RESOURCE_USB);
 
-	// this will block itself unless an encoder is actually moved so can have a fast rate
+	// Polling both phases catches slow B-only transitions; A-edge IRQs still capture fast movement promptly.
 	encoders::EncoderTaskID = addRepeatingTask(&(encoders::interpretEncodersTask), p++, 0.001, 0.001, 0.002,
 	                                           "interpret encoders fast", RESOURCE_NONE);
 	// formerly part of audio routine, updates midi and clock
