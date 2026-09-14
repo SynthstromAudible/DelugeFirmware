@@ -493,6 +493,7 @@ bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnIns
 					if (arp_note->isStartablePending()) {
 						instruction->arpNoteOn = arp_note;
 						ARP_PRINTLN("found a pending a live note, starting it");
+						// arp note status will be marked playing after it is started
 						return true;
 					}
 					// Pending, but with nothing to actually play
