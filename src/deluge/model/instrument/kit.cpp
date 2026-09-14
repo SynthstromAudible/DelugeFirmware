@@ -361,44 +361,36 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 	return Error::NONE;
 }
 
-// Returns true if more loading needed later
-Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+deluge::storage::Walk Kit::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	// A kit read on its own also looks for its samples in its own folder. Within a song's load, in the song's.
-	deluge::storage::AudioLoadContext ownFolder;
-	if (mayActuallyReadFiles && deluge::storage::AudioLoadContext::isNone(context)) {
-		ownFolder = deluge::storage::AudioLoadContext::forInstrument(dirPath.c_str(), name.c_str(), ThingType::KIT);
-		context = &ownFolder;
-	}
-
+	visitor.beginInstrumentScope(dirPath, name, ThingType::KIT, deluge::storage::ScopeRule::WhenReading);
 	AudioEngine::logAction("Kit::loadAllSamples");
+	deluge::storage::Walk walk = deluge::storage::Walk::Continue;
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			return Error::ABORTED_BY_USER;
-		}
-		Error error = thisDrum->loadAllSamples(mayActuallyReadFiles, context);
-		if (error != Error::NONE) {
-			return error;
+		if (visitor.drumCheckpoint() == deluge::storage::Walk::Stop
+		    || thisDrum->walkSampleDemands(visitor) == deluge::storage::Walk::Stop) {
+			walk = deluge::storage::Walk::Stop;
+			break;
 		}
 	}
+	visitor.endInstrumentScope();
 
-	return Error::NONE;
+	return walk;
 }
 
 // Caller must check that there is an activeClip.
-void Kit::loadCrucialAudioFilesOnly(deluge::storage::AudioLoadContext* context) {
-	deluge::storage::AudioLoadContext ownFolder;
-	if (deluge::storage::AudioLoadContext::isNone(context)) {
-		ownFolder = deluge::storage::AudioLoadContext::forInstrument(dirPath.c_str(), name.c_str(), ThingType::KIT);
-		context = &ownFolder;
-	}
-
+deluge::storage::Walk Kit::walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	visitor.beginInstrumentScope(dirPath, name, ThingType::KIT, deluge::storage::ScopeRule::Always);
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
 	for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
 		NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 		if (!thisNoteRow->muted && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
-			thisNoteRow->drum->loadAllSamples(true, context); // Why don't we deal with the error?
+			(void)thisNoteRow->drum->walkSampleDemands(visitor); // Why don't we deal with the error?
 		}
 	}
+	visitor.endInstrumentScope();
+
+	return deluge::storage::Walk::Continue;
 }
 
 void Kit::addDrum(Drum* newDrum) {

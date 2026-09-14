@@ -4309,18 +4309,17 @@ int16_t Sound::getMinOscTranspose() {
 }
 
 // Returns true if more loading needed later
-Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisitor& visitor) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
-			Error error = sources[s].loadAllSamples(mayActuallyReadFiles, context);
-			if (error != Error::NONE) {
-				return error;
+			if (sources[s].walkSampleDemands(visitor) == deluge::storage::Walk::Stop) {
+				return deluge::storage::Walk::Stop;
 			}
 		}
 	}
 
-	return Error::NONE;
+	return deluge::storage::Walk::Continue;
 }
 
 bool Sound::envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager) {

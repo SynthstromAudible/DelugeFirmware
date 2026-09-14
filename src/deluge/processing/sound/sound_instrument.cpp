@@ -199,15 +199,13 @@ yesTickParamManagerForClip:
 	}
 }
 
-Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+deluge::storage::Walk SoundInstrument::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	// A synth read on its own also looks for its samples in its own folder. Within a song's load, in the song's.
-	deluge::storage::AudioLoadContext ownFolder;
-	if (mayActuallyReadFiles && deluge::storage::AudioLoadContext::isNone(context)) {
-		ownFolder = deluge::storage::AudioLoadContext::forInstrument(dirPath.c_str(), name.c_str(), ThingType::SYNTH);
-		context = &ownFolder;
-	}
+	visitor.beginInstrumentScope(dirPath, name, ThingType::SYNTH, deluge::storage::ScopeRule::WhenReading);
+	const deluge::storage::Walk walk = walkSourceDemands(visitor);
+	visitor.endInstrumentScope();
 
-	return Sound::loadAllAudioFiles(mayActuallyReadFiles, context);
+	return walk;
 }
 
 void SoundInstrument::resyncLFOs() {
@@ -389,8 +387,8 @@ void SoundInstrument::compensateInstrumentVolumeForResonance(ModelStackWithThree
 	Sound::compensateVolumeForResonance(modelStack);
 }
 
-void SoundInstrument::loadCrucialAudioFilesOnly(deluge::storage::AudioLoadContext* context) {
-	loadAllAudioFiles(true, context);
+deluge::storage::Walk SoundInstrument::walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	return walkSampleDemands(visitor);
 }
 
 // Any time it gets edited, we want to grab the default arp settings from the activeClip

@@ -46,8 +46,20 @@ public:
 	AudioFileHolder& operator=(AudioFileHolder const&) = delete;
 	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
 	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
-	/// @brief Load the file at `filePath` (already set by the caller) via AudioFileManager, taking on a
-	///        reason and calling setAudioFile() if one was found.
+	/// @brief Acquisition: find the file at `filePath` (already set by the caller), in memory or on the card,
+	///        without binding it.
+	///
+	/// @param mayActuallyReadFile         false confines the lookup to files already resident in memory.
+	/// @param error                       Set to Error::NONE, then to the lookup's failure if it fails.
+	/// @param makeWaveTableWorkAtAllCosts Interpret the file as a wavetable even without its usual markers.
+	/// @param mayLoadAsync                As for loadFile().
+	/// @param context                     As for loadFile().
+	/// @return The file, not yet bound; or nullptr: this holder already has a file or names none, the file is not
+	///         in memory and the card may not be read, or the lookup failed (see @p error).
+	AudioFile* acquire(bool mayActuallyReadFile, Error* error, bool makeWaveTableWorkAtAllCosts = false,
+	                   bool mayLoadAsync = false, deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Load the file at `filePath` (already set by the caller): acquire() it, then bind it with
+	///        setAudioFile() if one was found.
 	///
 	/// @param mayActuallyReadFile false confines the lookup to files already resident in memory -- see
 	///                            getAudioFileFromFilename's `mayReadCard`.

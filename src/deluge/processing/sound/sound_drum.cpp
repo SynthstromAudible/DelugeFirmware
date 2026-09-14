@@ -112,8 +112,8 @@ void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForDrum(this);
 }
 
-Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
-	return Sound::loadAllAudioFiles(mayActuallyReadFiles, context);
+deluge::storage::Walk SoundDrum::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	return walkSourceDemands(visitor);
 }
 
 void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramManager) {

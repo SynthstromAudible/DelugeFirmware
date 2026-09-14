@@ -28,6 +28,23 @@ AudioFileHolder::AudioFileHolder() {
 AudioFileHolder::~AudioFileHolder() {
 }
 
+AudioFile* AudioFileHolder::acquire(bool mayActuallyReadFile, Error* error, bool makeWaveTableWorkAtAllCosts,
+                                    bool mayLoadAsync, deluge::storage::AudioLoadContext* context) {
+	*error = Error::NONE;
+
+	// See if this AudioFile object already all loaded up
+	if (audioFile != nullptr) {
+		return nullptr;
+	}
+
+	if (filePath.empty()) {
+		return nullptr; // This could happen if the filename tag wasn't present in the file
+	}
+
+	return audioFileManager.getAudioFileFromFilename(filePath, mayActuallyReadFile, error, audioFileType,
+	                                                 makeWaveTableWorkAtAllCosts, mayLoadAsync, context);
+}
+
 // Loads file from filePath, which would already be set.
 // Returns error, but Error::NONE doesn't necessarily mean there's now a file loaded - it might be that filePath was
 // NULL, but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that
@@ -39,27 +56,12 @@ AudioFileHolder::~AudioFileHolder() {
 Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
                                 int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts, bool mayLoadAsync,
                                 deluge::storage::AudioLoadContext* context) {
-
-	// See if this AudioFile object already all loaded up
-	if (audioFile != nullptr) {
-		return Error::NONE;
+	Error error = Error::NONE;
+	// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of
+	// the audio routine trying to sound it before it's all set up.
+	if (AudioFile* file = acquire(mayActuallyReadFile, &error, makeWaveTableWorkAtAllCosts, mayLoadAsync, context)) {
+		setAudioFile(file, reversed, manuallySelected, clusterLoadInstruction);
 	}
-
-	if (filePath.empty()) {
-		return Error::NONE; // This could happen if the filename tag wasn't present in the file
-	}
-
-	Error error;
-	AudioFile* maybeNewAudioFile = audioFileManager.getAudioFileFromFilename(
-	    filePath, mayActuallyReadFile, &error, audioFileType, makeWaveTableWorkAtAllCosts, mayLoadAsync, context);
-	// If we found it...
-	if (maybeNewAudioFile != nullptr) {
-
-		// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of
-		// the audio routine trying to sound it before it's all set up.
-		setAudioFile(maybeNewAudioFile, reversed, manuallySelected, clusterLoadInstruction);
-	}
-
 	return error;
 }
 

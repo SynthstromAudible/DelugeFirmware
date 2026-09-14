@@ -59,6 +59,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "storage/audio/blocking_sample_load.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
@@ -2340,40 +2341,43 @@ readClip:
 // Needs to be in a separate function than the above because the main song XML file needs to be closed first before
 // this is called, because this will open other (sample) files
 void Song::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
+	walkSampleDemands(load);
+}
 
+void Song::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->loadAllAudioFiles(mayActuallyReadFiles, context);
+		(void)thisOutput->walkSampleDemands(visitor); // An abort stops only that output's walk.
 	}
 
 	// NOTE: Using AllClips instead of AudioClips to ensure we call into the audio engine during
 	// the scan, instead of only when we find audio clips!
-	uint32_t c = 0;
 	for (Clip* clip : AllClips::everywhere(this)) {
-		// If not reading files, high chance that we'll be searching through memory a lot and not reading the card
-		// (which would call the audio routine), so we'd better call the audio routine here.
-		if (!mayActuallyReadFiles && !(c++ & 7)) { // 31 bad. 15 seems to pass. 7 to be safe
-			AudioEngine::logAction("Song::loadAllSamples");
-			AudioEngine::routineWithClusterLoading();
-		}
+		visitor.clipCheckpoint();
 		if (clip->type == ClipType::AUDIO) {
-			((AudioClip*)clip)->loadSample(mayActuallyReadFiles, context);
+			(void)((AudioClip*)clip)->walkSampleDemands(visitor);
 		}
 	}
 }
 
 void Song::loadCrucialSamplesOnly(deluge::storage::AudioLoadContext* context) {
+	deluge::storage::BlockingSampleLoad load{true, context};
+	walkCrucialSampleDemands(load);
+}
+
+void Song::walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	// TODO: This searches just as much as loadAllSamples, why does this not need to call into the
 	// audio engine? Is the searching actually ok, and only the loadSample() counts should be considered
 	// for calling into the audio engine?
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->getActiveClip() && isClipActive(thisOutput->getActiveClip())) {
-			thisOutput->loadCrucialAudioFilesOnly(context);
+			(void)thisOutput->walkCrucialSampleDemands(visitor);
 		}
 	}
 
 	for (AudioClip* clip : AudioClips::everywhere(this)) {
 		if (clip->isActiveOnOutput()) {
-			clip->loadSample(true, context);
+			(void)clip->walkSampleDemands(visitor);
 		}
 	}
 }

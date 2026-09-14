@@ -231,7 +231,9 @@ public:
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
-	Error loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Report the files of every sample or wavetable source to @p visitor, in source order. Loads nothing.
+	/// @return Walk::Stop if a checkpoint stopped the walk.
+	deluge::storage::Walk walkSourceDemands(deluge::storage::SampleLoadVisitor& visitor);
 	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
 	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);

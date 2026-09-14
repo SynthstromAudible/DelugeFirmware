@@ -50,7 +50,7 @@ public:
 	Drum* getDrumFromIndex(int32_t index);
 	Drum* getDrumFromIndexAllowNull(int32_t index);
 
-	Error loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr) override;
+	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	void cutAllSound() override;
 	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
@@ -118,7 +118,7 @@ public:
 	void deleteBackedUpParamManagers(Song* song) override;
 	void prepareForHibernationOrDeletion() override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
-	void loadCrucialAudioFilesOnly(deluge::storage::AudioLoadContext* context = nullptr) override;
+	deluge::storage::Walk walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	GateDrum* getGateDrumForChannel(int32_t gateChannel);
 	void resetDrumTempValues();
 	void setupWithoutActiveClip(ModelStack* modelStack) override;

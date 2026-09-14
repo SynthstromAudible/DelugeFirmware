@@ -22,6 +22,7 @@
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "storage/audio/audio_load_context.h"
+#include "storage/audio/sample_load_walk.h"
 #include <cstdint>
 
 class Clip;
@@ -73,8 +74,12 @@ public:
 	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 
-	virtual Error loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr) {
-		return Error::NONE;
+	/// @brief Load every audio file this drum's sound names, on this tier, before returning.
+	/// @return Error::ABORTED_BY_USER if the user aborted the load; otherwise Error::NONE.
+	Error loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Report every audio file this drum's sound names to @p visitor, in load order. Loads nothing.
+	virtual deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+		return deluge::storage::Walk::Continue;
 	}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 

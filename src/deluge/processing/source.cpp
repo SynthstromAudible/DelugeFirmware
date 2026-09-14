@@ -99,20 +99,18 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-Error Source::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
-		AudioEngine::logAction("Source::loadAllSamples");
-		if (!(e & 3)) { // 3 works, 7 occasionally drops voices - for multisampled synths
-			AudioEngine::routineWithClusterLoading();
+		if (visitor.rangeCheckpoint(e) == deluge::storage::Walk::Stop) {
+			return deluge::storage::Walk::Stop;
 		}
-		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			return Error::ABORTED_BY_USER;
-		}
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(
-		    sampleControls.isCurrentlyReversed(), false, mayActuallyReadFiles, CLUSTER_ENQUEUE, true, false, context);
+		visitor.demand({.holder = ranges.getElement(e)->getAudioFileHolder(),
+		                .reversed = sampleControls.isCurrentlyReversed(),
+		                .clusterLoadInstruction = CLUSTER_ENQUEUE,
+		                .makeWaveTableWorkAtAllCosts = true});
 	}
 
-	return Error::NONE;
+	return deluge::storage::Walk::Continue;
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE

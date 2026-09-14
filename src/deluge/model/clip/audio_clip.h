@@ -51,6 +51,9 @@ public:
 	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false) override;
 	Error claimOutput(ModelStackWithTimelineCounter* modelStack) override;
 	void loadSample(bool mayActuallyReadFile, deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Report the clip's sample to @p visitor, with naming the clip after it as the after-bind step. Loads
+	///        nothing.
+	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	bool wantsToBeginLinearRecording(Song* song) override;
 	bool isAbandonedOverdub() override;
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,

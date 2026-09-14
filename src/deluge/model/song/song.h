@@ -275,6 +275,9 @@ public:
 	Error readFromFile(Deserializer& reader);
 	void writeToFile();
 	void loadAllSamples(bool mayActuallyReadFiles = true, deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Report every audio file the song names to @p visitor, in load order: each output's, then each audio
+	///        clip's, with a checkpoint before every clip. Loads nothing.
+	void walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	Clip* syncScalingClip;
@@ -309,6 +312,8 @@ public:
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
 	void deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name);
 	void loadCrucialSamplesOnly(deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief As walkSampleDemands(), but only what the active clips need to sound, with no clip checkpoints.
+	void walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	Clip* getSessionClipWithOutput(Output* output, int32_t requireSection = -1, Clip* excludeClip = nullptr,
 	                               int32_t* clipIndex = nullptr, bool excludePendingOverdubs = false);
 	void restoreClipStatesBeforeArrangementPlay();

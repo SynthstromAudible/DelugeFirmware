@@ -23,6 +23,7 @@
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
 #include "storage/audio/audio_load_context.h"
+#include "storage/audio/sample_load_walk.h"
 #include "util/c_string.h"
 #include <cstdint>
 
@@ -160,11 +161,21 @@ public:
 	virtual bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
 	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 
-	virtual Error loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr) {
-		return Error::NONE;
+	/// @brief Load every audio file this output's sounds name, on this tier, before returning.
+	/// @param mayActuallyReadFiles false confines the load to files already in memory.
+	/// @param context              The load this belongs to, or null: a kit or synth then also looks in its own
+	///                             folder, when reading.
+	/// @return Error::ABORTED_BY_USER if the user aborted the load; otherwise Error::NONE.
+	Error loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Report every audio file this output's sounds name to @p visitor, in load order. Loads nothing.
+	virtual deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+		return deluge::storage::Walk::Continue;
 	}
-	// Caller must check that there is an activeClip.
-	virtual void loadCrucialAudioFilesOnly(deluge::storage::AudioLoadContext* context = nullptr) {}
+	/// @brief As walkSampleDemands(), but only what this output's active clip needs to sound. Caller must check that
+	///        there is an activeClip.
+	virtual deluge::storage::Walk walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+		return deluge::storage::Walk::Continue;
+	}
 
 	// No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
 	virtual void resyncLFOs() {};
