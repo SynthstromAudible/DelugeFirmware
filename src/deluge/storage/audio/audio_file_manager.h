@@ -315,6 +315,12 @@ public:
 	[[nodiscard]] size_t proposeLoadCandidates(const std::string& filePath, std::string* out, size_t max) const;
 
 private:
+	/// @brief getAudioFileFromFilename() without its host-only load trace (see storage/audio/load_trace.h). The
+	///        public function traces its entry and exit and calls this.
+	AudioFile* getAudioFileFromFilenameUntraced(std::string& fileName, bool mayReadCard, Error* error,
+	                                            AudioFileType type, bool makeWaveTableWorkAtAllCosts,
+	                                            bool mayLoadAsync);
+
 	/// The bare-filename alternate-dir candidate shared by proposeLoadCandidates() and
 	/// getAudioFileFromFilename()'s in-memory search. Deliberately just the string construction, not a
 	/// routed call to proposeLoadCandidates(): that function's alternate candidates only exist when

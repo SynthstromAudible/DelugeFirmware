@@ -44,6 +44,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_load_abi.h" // deluge::storage::errorFromAbiByte
 #include "storage/audio/file_byte_source.h"
+#include "storage/audio/load_trace.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "storage/existence_policy.h"
@@ -836,6 +837,20 @@ AudioFile* AudioFileManager::matchingResidentAudioFile(int32_t audioFileI, const
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       AudioFileType type, bool makeWaveTableWorkAtAllCosts,
                                                       bool mayLoadAsync) {
+	DELUGE_LOAD_TRACE("get path=%s type=%d read=%d async=%d alt=%s status=%d thing=%d", filePath.c_str(),
+	                  static_cast<int>(type), mayReadCard ? 1 : 0, mayLoadAsync ? 1 : 0,
+	                  alternateAudioFileLoadPath.c_str(), static_cast<int>(alternateLoadDirStatus),
+	                  static_cast<int>(thingTypeBeingLoaded));
+	AudioFile* file =
+	    getAudioFileFromFilenameUntraced(filePath, mayReadCard, error, type, makeWaveTableWorkAtAllCosts, mayLoadAsync);
+	DELUGE_LOAD_TRACE("got path=%s error=%d file=%d", filePath.c_str(), static_cast<int>(*error),
+	                  file != nullptr ? 1 : 0);
+	return file;
+}
+
+AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(std::string& filePath, bool mayReadCard, Error* error,
+                                                              AudioFileType type, bool makeWaveTableWorkAtAllCosts,
+                                                              bool mayLoadAsync) {
 
 	*error = Error::NONE;
 

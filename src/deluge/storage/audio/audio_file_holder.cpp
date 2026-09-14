@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/audio/load_trace.h"
 
 AudioFileHolder::AudioFileHolder() {
 	audioFile = nullptr;
@@ -64,6 +65,9 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 // For if we've already got a pointer to the AudioFile in memory.
 void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
                                    int32_t clusterLoadInstruction) {
+	DELUGE_LOAD_TRACE("bind path=%s file=%d reversed=%d manual=%d cluster=%d", filePath.c_str(),
+	                  newAudioFile != nullptr ? 1 : 0, reversed ? 1 : 0, manuallySelected ? 1 : 0,
+	                  static_cast<int>(clusterLoadInstruction));
 	if (audioFile) {
 		unassignAllClusterReasons();
 #if ALPHA_OR_BETA_VERSION

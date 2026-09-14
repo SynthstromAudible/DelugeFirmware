@@ -32,6 +32,8 @@ class ContextMenu;
 class SaveSongUI final : public SaveUI {
 	/// The sample-collect gate drives the real ENTER gesture and turns collect-media on.
 	friend class SampleCollectProbe;
+	/// The sample-load tree gate saves its fixture song through the same gesture, with collect-media on.
+	friend class SampleLoadTreeProbe;
 
 public:
 	SaveSongUI();

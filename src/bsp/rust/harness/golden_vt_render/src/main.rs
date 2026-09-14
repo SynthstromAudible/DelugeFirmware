@@ -329,6 +329,11 @@ unsafe extern "C" {
     fn deluge_scenario_offset_io_dispatch_step();
     fn deluge_scenario_offset_io_step_done() -> bool;
     fn deluge_scenario_offset_io_failures() -> i32;
+    fn deluge_scenario_sample_load_tree_begin();
+    fn deluge_scenario_sample_load_tree_complete() -> bool;
+    fn deluge_scenario_sample_load_tree_dispatch_step();
+    fn deluge_scenario_sample_load_tree_step_done() -> bool;
+    fn deluge_scenario_sample_load_tree_failures() -> i32;
     fn deluge_scenario_song_preview_ab_begin();
     fn deluge_scenario_song_preview_ab_complete() -> bool;
     fn deluge_scenario_song_preview_ab_dispatch_step();
@@ -828,6 +833,34 @@ fn pack_sample_collect_image() -> std::path::PathBuf {
     write_test_wav(&samples.join("COLL2.WAV"), 2, 16, 1024, 0x42);
     write_test_wav(&recordings.join("REC12345.WAV"), 1, 16, 768, 0x43);
     write_test_wav(&recordings.join("REC123450.WAV"), 1, 16, 640, 0x44);
+    sd_image::pack_image(&root)
+}
+
+/// Stage the sample-load tree scenario's card and pack it into a FAT image.
+///
+/// - `SAMPLES/SLTSYN.WAV`, `SLTWT.WAV`, `SLTKIT.WAV` and `SLTAUD.WAV` are the song's samples: the synth's sample
+///   source, its wavetable source (2048 samples, one wavetable-length cycle), the kit drum and the audio clip. The
+///   scenario collects them into the song's folder when it saves, then removes the first three from here, so the
+///   song load can only find their collected copies.
+/// - `SYNTHS/SLTPSYN/SLTPSYN.WAV` and `KITS/SLTPKIT/SLTPKA.WAV` / `SLTPKB.WAV` are the presets' samples. Each preset
+///   names its sample under `SAMPLES/`, where no such file exists, so the load has to find it in the preset's own
+///   folder and rewrite the holder's path there.
+fn pack_sample_load_tree_image() -> std::path::PathBuf {
+    let root = std::env::temp_dir().join("deluge-sample-load-tree-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES");
+    let synth_folder = root.join("SYNTHS").join("SLTPSYN");
+    let kit_folder = root.join("KITS").join("SLTPKIT");
+    for dir in [&samples, &synth_folder, &kit_folder, &root.join("SONGS")] {
+        std::fs::create_dir_all(dir).expect("creating the sample-load tree fixture directories");
+    }
+    write_test_wav(&samples.join("SLTSYN.WAV"), 1, 16, 4096, 0x51);
+    write_test_wav(&samples.join("SLTWT.WAV"), 1, 16, 4096, 0x52);
+    write_test_wav(&samples.join("SLTKIT.WAV"), 1, 16, 3072, 0x53);
+    write_test_wav(&samples.join("SLTAUD.WAV"), 1, 16, 2048, 0x54);
+    write_test_wav(&synth_folder.join("SLTPSYN.WAV"), 1, 16, 2048, 0x55);
+    write_test_wav(&kit_folder.join("SLTPKA.WAV"), 1, 16, 2048, 0x56);
+    write_test_wav(&kit_folder.join("SLTPKB.WAV"), 1, 16, 2048, 0x57);
     sd_image::pack_image(&root)
 }
 
@@ -1559,6 +1592,59 @@ async fn run_sample_collect_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
+/// The `GOLDEN_SCENARIO=sample_load_tree` scenario: build a song, save it with collected media and load it back, then
+/// load a synth preset and a kit preset, and report where every holder's file came from.
+#[embassy_executor::task]
+async fn run_sample_load_tree_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_sample_load_tree_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_sample_load_tree_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_sample_load_tree_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the sample-load tree run did not complete within 600s — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_sample_load_tree_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_sample_load_tree_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_sample_load_tree_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the sample-load tree run FAILED ({failures} in-process failure(s))"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: sample-load tree run completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=document_save_channel` scenario: save a preset through the real ENTER
 /// gesture, require the written document to be whole, and report whether the storage channel served
 /// the write off the owner.
@@ -1924,6 +2010,7 @@ fn main() {
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
     let offset_io_mode = scenario == "offset_io";
+    let sample_load_tree_mode = scenario == "sample_load_tree";
 
     log::info!(
         "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode} \
@@ -1953,6 +2040,8 @@ fn main() {
             pack_song_save_image()
         } else if sample_collect_mode {
             pack_sample_collect_image()
+        } else if sample_load_tree_mode {
+            pack_sample_load_tree_image()
         } else {
             sd_image::pack_golden_fixture(&repo_root, &fixture)
         };
@@ -2037,6 +2126,8 @@ fn main() {
         spawner.spawn(run_path_operations_scenario(&DONE).unwrap());
     } else if offset_io_mode {
         spawner.spawn(run_offset_io_scenario(&DONE).unwrap());
+    } else if sample_load_tree_mode {
+        spawner.spawn(run_sample_load_tree_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {

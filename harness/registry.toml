@@ -290,6 +290,22 @@ requires = ["cargo", "build-embassy-hostapp"]
 ci = "nightly"
 runtime = "~10m"
 
+# The one rig that loads a whole song, and presets, through the model tree's sample loads and checks where every
+# holder's file came from. Its fixture documents are written by the firmware inside the scenario, never by hand.
+# It also prints a trace of every call into the load path's leaf functions (LT lines), which the script writes to
+# $SAMPLE_LOAD_TREE_TRACE when set, so a restructuring of the load path can be compared call for call.
+[[harness]]
+name = "sample-load-tree"
+path = "."
+kind = "property"
+status = "gate"
+gates = "a song with a sample synth, a wavetable, a sample kit drum and an audio clip, saved with collected media, must load back with each holder bound to its collected copy in the song's folder once the originals are gone, and with the audio clip's still-resident sample claimed from memory and the clip named after it. A synth preset and a kit preset whose samples exist only in the preset's own folder must load with each holder's path rewritten to that folder. An abort raised after the kit preset's first drum binds must stop the load with ABORTED_BY_USER and leave the second drum empty. Each load's routineWithClusterLoading count is reported."
+build = []
+run = ["scripts/sample_load_tree.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~5m"
+
 [[harness]]
 name = "song-save-channel"
 path = "."

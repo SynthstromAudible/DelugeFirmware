@@ -65,6 +65,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include "scheduler_api.h"
+#include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/owner.h" // deluge::storage::Coalescer (SD-routine dispatch)
@@ -409,6 +410,7 @@ int32_t getNumVoices() {
 
 void routineWithClusterLoading() {
 	logAction("AudioDriver::routineWithClusterLoading");
+	DELUGE_LOAD_TRACE("routine");
 
 	routineBeenCalled = false;
 

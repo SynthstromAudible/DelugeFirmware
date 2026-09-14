@@ -27,6 +27,7 @@
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
+#include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h"
@@ -1767,8 +1768,10 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 }
 
 bool shouldAbortLoading() {
-	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	        && (encoders::select.pending() || QwertyUI::predictionInterrupted));
+	const bool abort = (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
+	                    && (encoders::select.pending() || QwertyUI::predictionInterrupted));
+	DELUGE_LOAD_TRACE("abort=%d", abort ? 1 : 0);
+	return abort;
 }
 
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {
