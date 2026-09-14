@@ -24,6 +24,9 @@
 #             driven only by its per-tick surface. It must defer at least once and eventually draw.
 #   AB-CANCEL a preview asked for and then abandoned before its load runs: nothing may load, draw or
 #             stay pending.
+#   AB-PREVIEW-STALL
+#             a preview whose load is held far past the browser's 600-attempt bound: it must give up
+#             once, with nothing pending and nothing drawn, and stay given up once the hold is lifted.
 #   AB-SUMMARY / AB-DEFER
 #             that the loader was active and that every case deferred at least once, so no case was
 #             quietly answered on the synchronous path.
@@ -112,11 +115,11 @@ if ! grep -q '^AB-RESULT ' "$OUT_ROOT/run.txt"; then
 fi
 if ! grep -q '^AB-RESULT failures=0$' "$OUT_ROOT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^(FAIL|AB-REF|AB-PREVIEW|AB-CANCEL|AB-EJECT-SUMMARY|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/run.txt"
+	grep -E '^(FAIL|AB-REF|AB-PREVIEW|AB-CANCEL|AB-PREVIEW-STALL|AB-EJECT-SUMMARY|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/run.txt"
 	exit 1
 fi
 
-for marker in AB-PREVIEW AB-CANCEL AB-EJECT AB-EJECT-SUMMARY AB-DEFER AB-SUMMARY; do
+for marker in AB-PREVIEW AB-CANCEL AB-PREVIEW-STALL AB-EJECT AB-EJECT-SUMMARY AB-DEFER AB-SUMMARY; do
 	if ! grep -q "^$marker " "$OUT_ROOT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^AB-' "$OUT_ROOT/run.txt"
@@ -143,5 +146,5 @@ if [ "$CASES" -lt "$MIN_CASES" ]; then
 fi
 
 echo "PASS — the async loader loaded all $CASES sample(s) as the synchronous path does, and agreed with it across a"
-echo "       card swap"
-grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL \|^AB-EJECT-SUMMARY ' "$OUT_ROOT/run.txt"
+echo "       card swap, and a preview held past its bound gave up"
+grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL \|^AB-PREVIEW-STALL \|^AB-EJECT-SUMMARY ' "$OUT_ROOT/run.txt"

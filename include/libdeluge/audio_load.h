@@ -420,6 +420,15 @@ uint8_t deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* 
 /// @return true if async loading is active; false if every load takes the synchronous path.
 bool deluge_audio_load_async_active(void) DELUGE_NOEXCEPT;
 
+#ifdef DELUGE_HOST
+/// @brief Host harness only: make every audio load wait @p ms milliseconds after it is marked in flight.
+///
+/// Lets a gate hold a load in flight while a consumer keeps collecting PENDING. 0 (the default) means no wait.
+/// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
+/// @param ms Milliseconds of simulated delay per load.
+void deluge_audio_load_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+#endif
+
 #ifdef __cplusplus
 }
 #endif

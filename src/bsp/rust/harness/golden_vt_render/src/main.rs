@@ -861,17 +861,18 @@ fn pack_sample_collect_image() -> std::path::PathBuf {
 ///   but per-tick calls driving it.
 /// - `SAMPLES/CANCEL.WAV` belongs to the cancellation stage, which asserts the converse: it is
 ///   asked for and then abandoned before its load runs, and must never load or draw at all.
+/// - `SAMPLES/STALL.WAV` belongs to the stall stage: it is previewed while the loader holds every
+///   load far past the browser's bound, and the preview must give up without loading or drawing it.
 /// - `SAMPLES/SWAP.WAV`, `SAMPLES/SWAPB.WAV` and `SAMPLES/WITNESS.WAV` belong to the card-ejection
 ///   stage: the first is parsed and left uncollected, the second is moved onto its path once the
 ///   card has been marked ejected, and the third is what tells the stage the first has finished
 ///   parsing. Their geometries are deliberately unlike each other.
 ///
-/// Both legs stage byte-IDENTICAL content, which is what makes the comparison sound. They do NOT
-/// share one image: `sd_image_path::fingerprint_dir` hashes path/length/mtime, not bytes, and this
-/// function rewrites every file on each process start, so the two legs necessarily fingerprint
-/// differently and each packs its own 2.5 GB sparse image. `scripts/audio_load_ab.sh` removes both
-/// afterwards — an accumulation of those under `/tmp/deluge-streaming-scenario-*.img` is a known way
-/// to wedge an unrelated stem export on this project.
+/// The fixture is rewritten on every process start: `sd_image_path::fingerprint_dir` hashes
+/// path/length/mtime, not bytes, so every run packs its own 2.5 GB sparse image.
+/// `scripts/audio_load_ab.sh` removes it afterwards — an accumulation of those under
+/// `/tmp/deluge-streaming-scenario-*.img` is a known way to wedge an unrelated stem export on this
+/// project.
 fn pack_audio_load_ab_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-audio-load-ab-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -904,13 +905,16 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     write_test_wav(&alt.join("SELFDIR.WAV"), 1, 16, 1280, 0xBB);
     // The preview stage's file (see the same scenario's kPreviewPath): regular path
     // only, and asked for by no case above, so it is never resident when that stage
-    // begins and its load necessarily goes through the loader on the async leg.
+    // begins and its load necessarily goes through the loader.
     write_test_wav(&samples.join("PREVIEW.WAV"), 1, 16, 2816, 0xCC);
     // The cancellation stage's file (kCancelPath): asked for once and then abandoned before the
     // storage owner runs the load. It is a real, loadable file on purpose -- the stage asserts that
     // NOTHING loaded or drew it, and a file that could not have loaded anyway would let that pass
     // for the wrong reason.
     write_test_wav(&samples.join("CANCEL.WAV"), 1, 16, 3328, 0xDD);
+    // The stall stage's file (kStallPath): previewed while the loader holds every load, so it must
+    // never load or draw. A real, loadable file for the same reason as `CANCEL.WAV`.
+    write_test_wav(&samples.join("STALL.WAV"), 1, 16, 3840, 0xDE);
 
     // The card-ejection stage's three files (see `audio_load_ab_scenario.cpp`'s kSwapPath block
     // comment). `SWAP.WAV` is the file the loader parses BEFORE the ejection; `SWAPB.WAV` is the

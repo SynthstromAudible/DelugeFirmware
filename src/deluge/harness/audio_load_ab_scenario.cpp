@@ -25,7 +25,7 @@
 #include "gui/waveform/waveform_basic_navigator.h" // proof the preview actually DREW
 #include "harness/load_invariants.h"               // checkLoadInvariants -- shared with deluge_loadcheck
 #include "io/file.hpp"                             // the card swap's unlink + rename
-#include "libdeluge/audio_load.h"                  // deluge_audio_load_async_active
+#include "libdeluge/audio_load.h"                  // deluge_audio_load_async_active, _set_latency_ms
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/owner.h"
@@ -221,6 +221,27 @@ constexpr const char* kCancelPath = "SAMPLES/CANCEL.WAV";
 /// several times over — a healthy load takes one or two dispatch round trips.
 constexpr int32_t kCancelTicks = 64;
 
+// ── The preview stall stage ─────────────────────────────────────────────────
+//
+// AB-PREVIEW-STALL. The preview stage proves a deferred preview is asked for again until it lands; this one
+// proves that asking again ENDS. A preview whose load is held far past the browser's 600-attempt bound must give
+// up -- nothing pending, nothing drawn, one give-up counted -- rather than be asked for on every frame for as long
+// as the card takes not to answer. The hold is the loader's host latency knob, which delays each load after it is
+// marked in flight, so every collect during it answers PENDING, as a card that never answers would.
+
+/// The file the stall stage previews. Its own file, asked for by nothing else, so a draw of it can only be this
+/// stage's doing.
+constexpr const char* kStallPath = "SAMPLES/STALL.WAV";
+
+/// How long the loader holds each load during the stall: far past the bound, at about 2 virtual ms a tick.
+constexpr uint32_t kStallHoldMs = 30000;
+
+/// graphicsRoutine() calls the stall stage may make before the preview is called wedged. Far past the bound.
+constexpr int32_t kMaxStallTicks = 2000;
+
+/// graphicsRoutine() calls after the wait ends, with the hold lifted, in which nothing may be pending again.
+constexpr int32_t kStallSettleTicks = 64;
+
 // ── The card-ejection stage ─────────────────────────────────────────────────
 //
 // Everything the async loader holds is keyed by the nominal PATH, and a
@@ -300,7 +321,7 @@ std::string g_ejectReferenceLine{};
 
 /// Which stage `dispatch_step` is in, in order. `Eject` sits between the case list and the
 /// browser-driven stages deliberately — see runOneStep()'s hand-off for why it cannot follow them.
-enum class Stage : uint8_t { Cases, Eject, Preview, Cancel, Done };
+enum class Stage : uint8_t { Cases, Eject, Preview, Cancel, Stall, Done };
 Stage g_stage = Stage::Cases;
 /// Whether previewFile() has been called. It is called exactly once.
 bool g_previewStarted = false;
@@ -312,6 +333,17 @@ int32_t g_previewRedrives = 0;
 bool g_cancelStarted = false;
 /// graphicsRoutine() calls made since then.
 int32_t g_cancelTicks = 0;
+/// Where the stall stage is.
+enum class StallStep : uint8_t { Start, Wait, Settle, Finished };
+StallStep g_stallStep = StallStep::Start;
+/// graphicsRoutine() calls made while the stalled preview was pending.
+int32_t g_stallTicks = 0;
+/// graphicsRoutine() calls made after the wait ended.
+int32_t g_stallSettleTicks = 0;
+/// SampleBrowser::previewGiveUps() when the stage began.
+int32_t g_stallGiveUpsBefore = 0;
+/// Whether the preview was still pending when the wait ended.
+bool g_stallPendingAtEnd = false;
 
 /// Plain CRC32 (IEEE 802.3, reflected) — a stable fingerprint of the bytes read back through the
 /// Sample's own stream. Same routine host_loadcheck_main.cpp uses for band data.
@@ -674,6 +706,77 @@ void finishCancelStage() {
 	}
 }
 
+/// Has anything drawn the stalled file's waveform? Same witness as previewHasDrawn().
+bool stallHasDrawn() {
+	const Sample* drawn = waveformBasicNavigator.sample;
+	return drawn != nullptr && drawn->filePath == kStallPath;
+}
+
+/// One tick of the stall stage. See the block comment above kStallPath.
+void runOneStallTick() {
+	switch (g_stallStep) {
+	case StallStep::Start:
+		deluge_audio_load_set_latency_ms(kStallHoldMs);
+		g_stallGiveUpsBefore = sampleBrowser.previewGiveUps();
+		// The ONE user-driven action of this stage. The load it asks for is held from here on.
+		sampleBrowser.previewFile(kStallPath, /*movementDirection=*/0);
+		g_stallStep = StallStep::Wait;
+		return;
+
+	case StallStep::Wait:
+		// Read at the top of the tick, before the re-drive: the op graphicsRoutine() queues runs after this
+		// returns, so "pending" is only settled here.
+		if (sampleBrowser.previewLoadPending() && g_stallTicks < kMaxStallTicks) {
+			g_stallTicks++;
+			sampleBrowser.graphicsRoutine();
+			return;
+		}
+		g_stallPendingAtEnd = sampleBrowser.previewLoadPending();
+		deluge_audio_load_set_latency_ms(0);
+		g_stallStep = StallStep::Settle;
+		return;
+
+	case StallStep::Settle:
+		if (g_stallSettleTicks < kStallSettleTicks) {
+			g_stallSettleTicks++;
+			sampleBrowser.graphicsRoutine();
+			return;
+		}
+		g_stallStep = StallStep::Finished;
+		return;
+
+	case StallStep::Finished:
+		return;
+	}
+}
+
+/// Print the stall stage's outcome and assert it.
+void finishStallStage() {
+	const int32_t giveUps = sampleBrowser.previewGiveUps() - g_stallGiveUpsBefore;
+	const bool drawn = stallHasDrawn();
+	const bool pendingAfter = sampleBrowser.previewLoadPending();
+	printf("AB-PREVIEW-STALL ticks=%d giveUps=%d pendingAtEnd=%d drawn=%d pendingAfter=%d\n", g_stallTicks, giveUps,
+	       g_stallPendingAtEnd ? 1 : 0, drawn ? 1 : 0, pendingAfter ? 1 : 0);
+
+	if (g_stallPendingAtEnd || giveUps != 1) {
+		printf("FAIL [audioLoadAB/stall]: a preview whose load was held %u ms did not give up once (pending=%d after "
+		       "%d graphicsRoutine() tick(s), %d give-up(s)) -- a load that never answers would be asked for on every "
+		       "frame, silent and undrawn, for as long as the card takes\n",
+		       static_cast<unsigned>(kStallHoldMs), g_stallPendingAtEnd ? 1 : 0, g_stallTicks, giveUps);
+		g_failures++;
+	}
+	if (drawn) {
+		printf("FAIL [audioLoadAB/stall]: '%s' was drawn, but its load was held for the whole stage\n", kStallPath);
+		g_failures++;
+	}
+	if (pendingAfter) {
+		printf("FAIL [audioLoadAB/stall]: a preview that gave up is pending again after %d tick(s) with the hold "
+		       "lifted -- it re-armed itself\n",
+		       g_stallSettleTicks);
+		g_failures++;
+	}
+}
+
 /// One load attempt for the ejection stage. Returns the resolved file (or nullptr), and reports
 /// through @p deferred whether the loader answered LOAD_IN_PROGRESS instead of settling.
 ///
@@ -870,6 +973,11 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_previewRedrives = 0;
 	g_cancelStarted = false;
 	g_cancelTicks = 0;
+	g_stallStep = StallStep::Start;
+	g_stallTicks = 0;
+	g_stallSettleTicks = 0;
+	g_stallGiveUpsBefore = 0;
+	g_stallPendingAtEnd = false;
 	g_ejectStep = EjectStep::Request;
 	g_ejectTicks = 0;
 	g_ejectCollectDeferrals = 0;
@@ -909,8 +1017,8 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		return;
 	}
 
-	if (g_stage == Stage::Preview || g_stage == Stage::Cancel) {
-		// Both browser-driven stages run on the UI tier, not the worker fiber -- that is where the
+	if (g_stage == Stage::Preview || g_stage == Stage::Cancel || g_stage == Stage::Stall) {
+		// The browser-driven stages run on the UI tier, not the worker fiber -- that is where the
 		// real browser calls these from, and previewFile()/graphicsRoutine() dispatch their own card
 		// work onto the owner themselves. A marker op behind them releases the latch: the owner queue
 		// is FIFO, so it runs after whatever they just queued (and immediately if they queued
@@ -925,10 +1033,17 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 				g_stage = Stage::Cancel;
 			}
 		}
-		else {
+		else if (g_stage == Stage::Cancel) {
 			runOneCancelTick();
 			if (g_cancelTicks >= kCancelTicks) {
 				finishCancelStage();
+				g_stage = Stage::Stall;
+			}
+		}
+		else {
+			runOneStallTick();
+			if (g_stallStep == StallStep::Finished) {
+				finishStallStage();
 				g_stage = Stage::Done;
 				printSummary();
 				g_summaryPrinted = true;

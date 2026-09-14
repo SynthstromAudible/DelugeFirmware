@@ -604,16 +604,41 @@ void SampleBrowser::runPreviewOp(void* self) {
 	// this running, the cursor can have moved somewhere with no preview at all (a folder, an empty
 	// list), which dispatches no replacement and so supersedes nothing. Rendering the file the
 	// cursor has left -- drawing its waveform and sounding it over a folder -- is the damage.
-	const bool deferred = browser->previewLoad_.is_current(attempt) && browser->renderPreviewForTarget(attempt.target);
+	const bool deferred = browser->boundPreviewWait(attempt, browser->previewLoad_.is_current(attempt)
+	                                                             && browser->renderPreviewForTarget(attempt.target));
 
 	// A deferral is recorded for graphicsRoutine() to re-drive (that surface runs every ~15 ms
-	// while this UI is up, and is the ONLY thing that finishes a deferred preview); if a newer
-	// target arrived while this ran, that one is dispatched instead (latest-wins).
+	// while this UI is up, and is the ONLY thing that finishes a deferred preview), unless it has
+	// deferred for the whole bound; if a newer target arrived while this ran, that one is
+	// dispatched instead (latest-wins).
 	if (auto next = browser->previewLoad_.complete(attempt, deferred); next.has_value()) {
 		if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, self)) {
 			browser->previewLoad_.release_dispatch(); // re-dispatch dropped (see dispatchPreview)
 		}
 	}
+}
+
+bool SampleBrowser::boundPreviewWait(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt,
+                                     bool deferred) {
+	if (!deferred) {
+		previewWaitAttempts_ = 0; // answered (loaded or failed), or not run at all
+		return false;
+	}
+	if (attempt.generation != previewWaitGeneration_ || attempt.target.path != previewWaitPath_) {
+		// A different attempt: its wait starts from nothing.
+		previewWaitGeneration_ = attempt.generation;
+		previewWaitPath_ = attempt.target.path;
+		previewWaitAttempts_ = 0;
+	}
+	if (++previewWaitAttempts_ < kMaxPreviewWaitAttempts) {
+		return true; // still loading: ask again next tick
+	}
+	// The loader has left this load unanswered for the whole bound. Give up as a load that could not reach the
+	// card: the card error, the display left as it is, and no re-ask armed. The next move onto this file asks again.
+	previewWaitAttempts_ = 0;
+	previewGiveUps_++;
+	display->displayError(Error::SD_CARD);
+	return false;
 }
 
 void SampleBrowser::browserGraphicsRoutine() {

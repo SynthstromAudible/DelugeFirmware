@@ -102,6 +102,12 @@ public:
 	/// nothing will ever finish it" -- from outside, the two look identical.
 	[[nodiscard]] bool previewLoadPending() const { return previewLoad_.pending(); }
 
+	/// @brief How many previews gave up on a load that never answered.
+	///
+	/// A preview whose load answers "still loading" for 600 attempts in a row gives up with the card error; see
+	/// boundPreviewWait(). Exposed for the A/B gate, which holds a load far past the bound.
+	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
+
 	std::string lastFilePathLoaded{};
 
 	// menus to open when a sample file is selected
@@ -177,6 +183,35 @@ private:
 	/// A deferred re-ask holds the ORIGINAL target, movementDirection included, so when the re-drive
 	/// lands the entry animation is the one the cursor move asked for, a few ms late.
 	deluge::storage::DeferredLoad<PreviewTarget> previewLoad_{};
+
+	/// @brief Count one attempt of a preview's load against the bound, and say whether to ask again.
+	///
+	/// A deferred attempt counts. An attempt for a different path, or after a cancellation, starts the count
+	/// again, and an attempt that did not defer clears it. At @ref kMaxPreviewWaitAttempts in a row the preview
+	/// gives up: the card error is shown, the display is left as it is, and nothing is re-armed. Nothing needs
+	/// cleaning up: the loader copied the request, and a result nobody collects is evicted.
+	///
+	/// Keyed on the path, not on the attempt alone, because the re-drive re-enters through `request()` exactly as a
+	/// cursor move does.
+	/// @param attempt  The attempt the op ran.
+	/// @param deferred Whether its load answered "still loading".
+	/// @return Whether to arm the re-ask: @p deferred, unless this attempt reached the bound.
+	[[nodiscard]] bool boundPreviewWait(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt,
+	                                    bool deferred);
+
+	/// @brief Consecutive deferred attempts of a preview's load, and the attempt they were counted for.
+	/// @{
+	int32_t previewWaitAttempts_{0};
+	uint32_t previewWaitGeneration_{0};
+	std::string previewWaitPath_{};
+	/// @}
+
+	/// @brief Previews that gave up at the bound. See previewGiveUps().
+	int32_t previewGiveUps_{0};
+
+	/// @brief How many deferred attempts in a row a preview's load is given: the bound every channel consumer on
+	///        this ladder uses.
+	static constexpr int32_t kMaxPreviewWaitAttempts = 600;
 
 	/// @brief The dispatched op for the direct pad-tap load (enterKeyPress).
 	///

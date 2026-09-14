@@ -561,3 +561,9 @@ extern "C" __attribute__((weak)) uint8_t deluge_audio_load_collect(const char* /
 	// Same as above. UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever.
 	return DELUGE_AUDIO_LOAD_UNKNOWN;
 }
+
+#ifdef DELUGE_HOST
+extern "C" __attribute__((weak)) void deluge_audio_load_set_latency_ms(uint32_t /*ms*/) noexcept {
+	// A host build without the Rust loader has no loads to delay.
+}
+#endif

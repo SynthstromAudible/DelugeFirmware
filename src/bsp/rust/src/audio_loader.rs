@@ -491,6 +491,21 @@ pub extern "C" fn deluge_audio_load_async_active() -> bool {
     true
 }
 
+/// Milliseconds `audio_load_task` waits after marking each load in flight. Host harness only; see
+/// [`deluge_audio_load_set_latency_ms`].
+#[cfg(feature = "host_app")]
+static LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make every audio load wait `ms` milliseconds after it is marked in flight, so
+/// a gate can hold a load while a consumer keeps collecting `PENDING`. 0, the default, means no wait.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_load_set_latency_ms(ms: u32) {
+    LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
+}
+
 /// Queue `file_path` for the async loader and wake it. See `audio_load.h`.
 ///
 /// # Stack cost on the calling tier
@@ -1232,6 +1247,15 @@ pub async fn audio_load_task() {
     let ops = ProdOps::new();
     loop {
         while let Some((request, generation)) = take_next_request().await {
+            // After the request is marked in flight, so a collect during the hold answers PENDING,
+            // exactly as it would while a slow card was reading the file.
+            #[cfg(feature = "host_app")]
+            {
+                let ms = LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
+                if ms > 0 {
+                    embassy_time::Timer::after_millis(u64::from(ms)).await;
+                }
+            }
             let key = request.path.clone();
             let result = load_io_once(&ops, &request).await;
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly
