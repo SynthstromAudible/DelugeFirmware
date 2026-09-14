@@ -29,14 +29,20 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "io/file.hpp"
+#include "libdeluge/app.h"
+#include "libdeluge/types.h"
 #include "memory/fast_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file.h"
@@ -47,6 +53,7 @@
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
 
+#include <array>
 #include <cstdio>
 #include <cstring>
 #include <initializer_list>
@@ -112,6 +119,30 @@ constexpr const char* kKitPresetSampleA = "SAMPLES/SLTPKA.WAV";
 constexpr const char* kKitPresetResolvedA = "KITS/SLTPKIT/SLTPKA.WAV";
 constexpr const char* kKitPresetSampleB = "SAMPLES/SLTPKB.WAV";
 
+// The crucial-only load's song, SLTSONG2: SLTSONG1's synth, kit and audio clip (all playing), plus a second kit whose
+// three drums cover the kit filter, a second synth whose clip is not playing, and a second audio clip that is not
+// playing but is still its track's active clip.
+constexpr const char* kCrucialSongName = "SLTSONG2";
+constexpr const char* kCrucialSongPath = "SONGS/SLTSONG2.XML";
+constexpr const char* kCrucialSongFolder = "SONGS/SLTSONG2";
+/// The kit preset the new-kit-track gesture picks up for the second kit: it sorts before every other kit preset.
+constexpr const char* kCrucialKitPath = "KITS/SLTCKIT.XML";
+constexpr const char* kCrucialDrumA = "SLTCDA"; ///< Its row has notes and is not muted.
+constexpr const char* kCrucialDrumB = "SLTCDB"; ///< Its row has notes and is muted.
+constexpr const char* kCrucialDrumC = "SLTCDC"; ///< Its row has no notes.
+constexpr const char* kCrucialKitSampleA = "SAMPLES/SLTCKA.WAV";
+constexpr const char* kCrucialKitSampleB = "SAMPLES/SLTCKB.WAV";
+constexpr const char* kCrucialKitSampleC = "SAMPLES/SLTCKC.WAV";
+constexpr const char* kCrucialSynthSample = "SAMPLES/SLTCSB.WAV";
+constexpr const char* kCrucialClipSample = "SAMPLES/SLTCAB.WAV";
+
+/// How long the crucial load may take, armed swap included. Probe 1 measured it finishing well inside this.
+constexpr int32_t kMaxCrucialWaitTicks = 20000;
+/// Audio rendered per scenario tick while the crucial load waits for its armed swap. This harness renders nothing on
+/// its own after boot, so without it the playback clock never reaches the swap.
+constexpr int32_t kRenderBlocksPerTick = 4;
+constexpr uint32_t kRenderBlockFrames = 128;
+
 constexpr int32_t kMaxWaitTicks = 200000;
 
 /// routineWithClusterLoading calls each load makes, measured on the fixture: the cadence that keeps audio running
@@ -119,6 +150,7 @@ constexpr int32_t kMaxWaitTicks = 200000;
 constexpr int32_t kSongRoutines = 45;
 constexpr int32_t kSynthRoutines = 2;
 constexpr int32_t kKitRoutines = 3;
+constexpr int32_t kCrucialRoutines = 102;
 
 enum class Stage : uint8_t {
 	SongKit,
@@ -135,6 +167,18 @@ enum class Stage : uint8_t {
 	Presets,
 	SynthPreset,
 	KitPreset,
+	CrucialKit,
+	CrucialBuild,
+	CrucialSaveOpen,
+	CrucialSaveOpenWait,
+	CrucialSave,
+	CrucialSaveWait,
+	CrucialRelease,
+	CrucialPlay,
+	CrucialLoadOpen,
+	CrucialListing,
+	CrucialWait,
+	CrucialCheck,
 	Report,
 	Done,
 };
@@ -147,36 +191,50 @@ int32_t g_waitTicks = 0;
 int32_t g_songRoutines = -1;
 int32_t g_synthRoutines = -1;
 int32_t g_kitRoutines = -1;
+int32_t g_crucialRoutines = -1;
+bool g_crucialClockAtLoad = false;
+int32_t g_crucialRendered = 0;
+int32_t g_crucialSwapTick = -1;
 
 // ── The load trace ───────────────────────────────────────────────────────────
 
 const char* g_traceLabel = "";
+/// "LT" for the song and preset windows, whose lines are compared with the saved baseline; "LTC" for the crucial load,
+/// whose lines go to a file of their own.
+const char* g_tracePrefix = "LT";
 int32_t g_traceRoutines = 0;
 /// Raise the abort the first time a holder is bound with a file, so a walk that checks for it stops after one load.
 bool g_abortArmed = false;
 bool g_abortRaised = false;
 
+void snapshotCrucial();
+
 void traceSink(const char* line) {
 	if (std::strcmp(line, "routine") == 0) {
 		g_traceRoutines++;
 	}
-	printf("LT %s %s\n", g_traceLabel, line);
+	printf("%s %s %s\n", g_tracePrefix, g_traceLabel, line);
+	// LoadSongUI traces "crucial end" right after the crucial-only pass, before any later pass can bind anything.
+	if (std::strcmp(line, "crucial end") == 0) {
+		snapshotCrucial();
+	}
 	if (g_abortArmed && !g_abortRaised && std::strncmp(line, "bind ", 5) == 0 && std::strstr(line, " file=1")) {
 		QwertyUI::predictionInterrupted = true;
 		g_abortRaised = true;
 	}
 }
 
-void openTrace(const char* label) {
+void openTrace(const char* label, const char* prefix = "LT") {
+	g_tracePrefix = prefix;
 	g_traceLabel = label;
 	g_traceRoutines = 0;
 	(void)deluge::storage::load_trace::setSink(&traceSink);
-	printf("LT %s begin\n", label);
+	printf("%s %s begin\n", prefix, label);
 }
 
 int32_t closeTrace() {
 	(void)deluge::storage::load_trace::setSink(nullptr);
-	printf("LT %s end routines=%d\n", g_traceLabel, g_traceRoutines);
+	printf("%s %s end routines=%d\n", g_tracePrefix, g_traceLabel, g_traceRoutines);
 	return g_traceRoutines;
 }
 
@@ -507,6 +565,233 @@ void loadKitPresetWithAbort() {
 	}
 }
 
+// ── The crucial-only load ────────────────────────────────────────────────────
+
+/// A holder of SLTSONG2, and whether the crucial-only pass must bind it.
+struct CrucialHolder {
+	const char* owner;
+	const char* path;
+	bool boundAfterCrucialPass;
+};
+
+/// The crucial pass binds a sound only when its track's active clip is playing, a kit drum only when its row is
+/// unmuted and has notes, and an audio clip whenever it is the active clip on its track, playing or not.
+constexpr std::array<CrucialHolder, 9> kCrucialHolders{{
+    {"synth-a-sample", kSynthSample, true},
+    {"synth-a-wavetable", kWaveTable, true},
+    {"synth-b-sample", kCrucialSynthSample, false},
+    {"kit1-drum", kKitSample, false},
+    {"kit2-drum-a", kCrucialKitSampleA, true},
+    {"kit2-drum-b", kCrucialKitSampleB, false},
+    {"kit2-drum-c", kCrucialKitSampleC, false},
+    {"audio-a", kClipSample, true},
+    {"audio-b", kCrucialClipSample, true},
+}};
+
+/// Each holder's bound state right after the crucial pass: 1 bound, 0 not, -1 not found.
+std::array<int8_t, kCrucialHolders.size()> g_crucialBound{};
+bool g_crucialSnapshotTaken = false;
+
+/// Visit every sample holder of @p song: each synth's source ranges, each kit's sound drums, each session audio clip.
+template <typename Visit>
+void forEachSongHolder(Song& song, Visit visit) {
+	for (Output* output = song.firstOutput; output != nullptr; output = output->next) {
+		if (output->type == OutputType::SYNTH) {
+			auto* synth = static_cast<SoundInstrument*>(output);
+			for (int32_t s = 0; s < kNumSources; s++) {
+				for (int32_t r = 0; r < std::ssize(synth->sources[s].ranges); r++) {
+					visit(synth->sources[s].ranges.getElement(r)->getAudioFileHolder());
+				}
+			}
+		}
+		else if (output->type == OutputType::KIT) {
+			for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+				if (drum->type != DrumType::SOUND) {
+					continue;
+				}
+				auto* soundDrum = static_cast<SoundDrum*>(drum);
+				for (int32_t r = 0; r < std::ssize(soundDrum->sources[0].ranges); r++) {
+					visit(soundDrum->sources[0].ranges.getElement(r)->getAudioFileHolder());
+				}
+			}
+		}
+	}
+	for (Clip* clip : song.sessionClips) {
+		if (clip->type == ClipType::AUDIO) {
+			visit(&static_cast<AudioClip*>(clip)->sampleHolder);
+		}
+	}
+}
+
+/// Called from the trace sink at "crucial end", on the storage owner, while the song being loaded is preLoadedSong.
+void snapshotCrucial() {
+	g_crucialBound.fill(-1);
+	g_crucialSnapshotTaken = (preLoadedSong != nullptr);
+	if (preLoadedSong == nullptr) {
+		return;
+	}
+	forEachSongHolder(*preLoadedSong, [](AudioFileHolder* holder) {
+		for (size_t i = 0; i < kCrucialHolders.size(); i++) {
+			if (holder->filePath == kCrucialHolders[i].path) {
+				g_crucialBound[i] = (holder->audioFile != nullptr) ? 1 : 0;
+			}
+		}
+	});
+}
+
+/// SLTSONG2, built from the loaded SLTSONG1 through the firmware's own gestures. Every holder is loaded, so the
+/// collect-media save copies every file.
+bool buildCrucialSong() {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+
+	// A second kit, from kCrucialKitPath: drum A's row gets a note, drum B's gets a note and is muted, drum C's stays
+	// empty. Playing.
+	Clip* kitClipBase = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 3);
+	if (kitClipBase == nullptr || kitClipBase->output == nullptr || kitClipBase->output->type != OutputType::KIT) {
+		return fail("no kit clip could be created from the crucial kit preset");
+	}
+	auto* kitClip = static_cast<InstrumentClip*>(kitClipBase);
+	kitClip->activeIfNoSolo = true;
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, kitClip);
+	int32_t drums = 0;
+	for (Drum* drum = static_cast<Kit*>(kitClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
+		if (drum->type != DrumType::SOUND) {
+			continue;
+		}
+		const std::string& name = static_cast<SoundDrum*>(drum)->drumName;
+		if (name != kCrucialDrumA && name != kCrucialDrumB && name != kCrucialDrumC) {
+			continue;
+		}
+		drums++;
+		if (name == kCrucialDrumC) {
+			continue;
+		}
+		ModelStackWithNoteRow* rowStack = kitClip->getNoteRowForDrum(modelStack, drum);
+		NoteRow* row = (rowStack != nullptr) ? rowStack->getNoteRowAllowNull() : nullptr;
+		if (row == nullptr) {
+			return fail("a crucial kit drum has no note row");
+		}
+		if (row->attemptNoteAdd(0, 1, 64, row->getDefaultProbability(), row->getDefaultIterance(),
+		                        row->getDefaultFill(rowStack), rowStack, nullptr)
+		    == 0) {
+			return fail("a note could not be added to a crucial kit row");
+		}
+		row->muted = (name == kCrucialDrumB);
+	}
+	if (drums != 3) {
+		return fail("the crucial kit clip does not have its three drums");
+	}
+
+	// A second synth, from whichever synth preset the gesture picks, on its own sample. Not playing.
+	Clip* synthClipBase = sessionView.reproCreateNewInstrumentClip(OutputType::SYNTH, 4);
+	if (synthClipBase == nullptr || synthClipBase->output == nullptr
+	    || synthClipBase->output->type != OutputType::SYNTH) {
+		return fail("no second synth clip could be created");
+	}
+	synthClipBase->activeIfNoSolo = false;
+	auto* synthB = static_cast<SoundInstrument*>(synthClipBase->output);
+	synthB->sources[0].setOscType(OscType::SAMPLE);
+	AudioFileHolder* synthBHolder = firstHolder(synthB->sources[0]);
+	if (synthBHolder == nullptr) {
+		return fail("the second synth has no sample range");
+	}
+	synthBHolder->setAudioFile(nullptr);
+	synthBHolder->filePath = kCrucialSynthSample;
+	(void)synthBHolder->loadFile(false, false, true);
+
+	// A second audio clip, on a track of its own: its track's active clip, but not playing.
+	Clip* audioClipBase = sessionView.createNewClip(OutputType::AUDIO, 5);
+	if (audioClipBase == nullptr || audioClipBase->type != ClipType::AUDIO) {
+		return fail("no second audio clip could be created");
+	}
+	auto* audioClipB = static_cast<AudioClip*>(audioClipBase);
+	audioClipB->activeIfNoSolo = false;
+	audioClipB->sampleHolder.filePath = kCrucialClipSample;
+	audioClipB->loadSample(true);
+
+	int32_t playing = 0;
+	for (Clip* clip : currentSong->sessionClips) {
+		playing += currentSong->isClipActive(clip) ? 1 : 0;
+	}
+	printf("SLT-CRUCIAL setup clips=%d playing=%d kitDrums=%d synthB=%d audioB=%d audioBActiveOnTrack=%d\n",
+	       static_cast<int>(currentSong->sessionClips.size()), playing, drums,
+	       synthBHolder->audioFile != nullptr ? 1 : 0, audioClipB->sampleHolder.audioFile != nullptr ? 1 : 0,
+	       audioClipB->isActiveOnOutput() ? 1 : 0);
+	return true;
+}
+
+/// Drop every holder's file, delete each from memory and remove every original the card still has, so the crucial
+/// load finds nothing in memory and only the collected copies in SLTSONG2's folder on the card.
+void releaseCrucialSongFiles() {
+	forEachSongHolder(*currentSong, [](AudioFileHolder* holder) { holder->setAudioFile(nullptr); });
+	for (const CrucialHolder& entry : kCrucialHolders) {
+		if (!audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(entry.path)) {
+			printf("SLT-CRUCIAL FAIL %s is still referenced and could not be released\n", entry.path);
+			g_failures++;
+		}
+		(void)deluge::io::unlink(entry.path);
+	}
+}
+
+/// Render kRenderBlocksPerTick blocks through the app's render entry, as the device's audio task would, so the
+/// playback clock moves toward the armed swap. The output is discarded.
+void renderWhileArmed() {
+	static DelugeStereoSample silence[kRenderBlockFrames]{};
+	static DelugeStereoSample output[kRenderBlockFrames]{};
+	for (int32_t block = 0; block < kRenderBlocksPerTick; block++) {
+		deluge_app_render(silence, output, kRenderBlockFrames);
+		g_crucialRendered++;
+	}
+}
+
+void checkCrucialLoad() {
+	printf("SLT-CRUCIAL-SUMMARY clockAtLoad=%d swapAfterTicks=%d renderedBlocks=%d routines=%d snapshot=%d\n",
+	       g_crucialClockAtLoad ? 1 : 0, g_crucialSwapTick, g_crucialRendered, g_crucialRoutines,
+	       g_crucialSnapshotTaken ? 1 : 0);
+	if (!g_crucialClockAtLoad) {
+		printf("SLT-CRUCIAL FAIL playback was not running when the load began\n");
+		g_failures++;
+	}
+	if (!g_crucialSnapshotTaken) {
+		printf("SLT-CRUCIAL FAIL the load never traced \"crucial end\": it did not take the crucial-only pass\n");
+		g_failures++;
+	}
+	if (g_crucialSwapTick < 0) {
+		printf("SLT-CRUCIAL FAIL the load finished without its armed swap\n");
+		g_failures++;
+	}
+	for (size_t i = 0; i < kCrucialHolders.size(); i++) {
+		const CrucialHolder& entry = kCrucialHolders[i];
+		printf("SLT-CRUCIAL pass holder=%s path=%s bound=%d\n", entry.owner, entry.path, g_crucialBound[i]);
+		if (g_crucialSnapshotTaken && g_crucialBound[i] != (entry.boundAfterCrucialPass ? 1 : 0)) {
+			printf("SLT-CRUCIAL FAIL holder=%s wanted bound=%d after the crucial pass\n", entry.owner,
+			       entry.boundAfterCrucialPass ? 1 : 0);
+			g_failures++;
+		}
+	}
+	// After the swap and the load's later passes, every holder is bound to its collected copy.
+	std::array<int32_t, kCrucialHolders.size()> found{};
+	forEachSongHolder(*currentSong, [&found](AudioFileHolder* holder) {
+		for (size_t i = 0; i < kCrucialHolders.size(); i++) {
+			const CrucialHolder& entry = kCrucialHolders[i];
+			if (holder->filePath != entry.path) {
+				continue;
+			}
+			found[i]++;
+			const std::string alt = std::string(kCrucialSongFolder) + "/" + (entry.path + std::strlen("SAMPLES/"));
+			reportHolder("crucial", entry.owner, holder, entry.path, true, alt.c_str());
+		}
+	});
+	for (size_t i = 0; i < kCrucialHolders.size(); i++) {
+		if (found[i] != 1) {
+			printf("SLT-CRUCIAL FAIL holder=%s found %d times in the loaded song\n", kCrucialHolders[i].owner,
+			       found[i]);
+			g_failures++;
+		}
+	}
+}
+
 /// Queue @p fn on the storage owner: the builds and preset loads do card I/O, which belongs there.
 void onOwner(void (*fn)()) {
 	if (!deluge::storage::Owner::run([](void* ctx) { reinterpret_cast<void (*)()>(ctx)(); },
@@ -624,6 +909,110 @@ void runTick() {
 		break;
 	case Stage::KitPreset:
 		onOwner(loadKitPresetWithAbort);
+		g_stage = Stage::CrucialKit;
+		break;
+	case Stage::CrucialKit:
+		onOwner([] {
+			if (!writeKitPreset(kCrucialKitPath, {{kCrucialDrumA, kCrucialKitSampleA},
+			                                      {kCrucialDrumB, kCrucialKitSampleB},
+			                                      {kCrucialDrumC, kCrucialKitSampleC}})) {
+				g_stage = Stage::Report;
+			}
+		});
+		g_stage = Stage::CrucialBuild;
+		break;
+	case Stage::CrucialBuild:
+		onOwner([] {
+			if (!buildCrucialSong()) {
+				g_stage = Stage::Report;
+			}
+		});
+		g_stage = Stage::CrucialSaveOpen;
+		break;
+	case Stage::CrucialSaveOpen:
+		// Saved from the session view: a song saved from the arranger view records its arrangement position, and a
+		// load while playing then prepares it for arranger playback, which moves every session clip's playing state
+		// aside and leaves the crucial-only pass nothing to bind but audio clips.
+		changeRootUI(&sessionView);
+		(void)SampleLoadTreeProbe::openSongSave(kSongDir);
+		g_stage = Stage::CrucialSaveOpenWait;
+		break;
+	case Stage::CrucialSaveOpenWait:
+		if (!SampleLoadTreeProbe::listingInProgress()) {
+			g_stage = Stage::CrucialSave;
+		}
+		break;
+	case Stage::CrucialSave:
+		SampleLoadTreeProbe::typeName(kCrucialSongName);
+		SampleLoadTreeProbe::collectMedia();
+		SampleLoadTreeProbe::pressEnter();
+		g_waitTicks = 0;
+		g_stage = Stage::CrucialSaveWait;
+		break;
+	case Stage::CrucialSaveWait:
+		if (!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight()) {
+			g_stage = Stage::CrucialRelease;
+		}
+		else if (++g_waitTicks > kMaxWaitTicks) {
+			printf("SLT-CRUCIAL FAIL the crucial song's save never finished\n");
+			g_failures++;
+			g_stage = Stage::Report;
+		}
+		break;
+	case Stage::CrucialRelease:
+		onOwner(releaseCrucialSongFiles);
+		g_stage = Stage::CrucialPlay;
+		break;
+	case Stage::CrucialPlay:
+		// Session playback of SLTSONG2 as saved: its playing clips are what the armed swap will sync to.
+		changeRootUI(&sessionView);
+		playbackHandler.playButtonPressed(kInternalButtonPressLatency);
+		g_stage = Stage::CrucialLoadOpen;
+		break;
+	case Stage::CrucialLoadOpen:
+		currentSong->setSongFullPath(kCrucialSongPath);
+		(void)openUI(&loadSongUI);
+		g_waitTicks = 0;
+		g_stage = Stage::CrucialListing;
+		break;
+	case Stage::CrucialListing:
+		if (Browser::isListingInProgress()) {
+			loadSongUI.graphicsRoutine();
+			if (++g_waitTicks > kMaxWaitTicks) {
+				printf("SLT-CRUCIAL FAIL the load browser's listing never finished\n");
+				g_failures++;
+				g_stage = Stage::Report;
+			}
+			break;
+		}
+		g_crucialClockAtLoad = playbackHandler.isEitherClockActive();
+		openTrace("crucial", "LTC");
+		loadSongUI.beginLoad();
+		g_waitTicks = 0;
+		g_stage = Stage::CrucialWait;
+		break;
+	case Stage::CrucialWait:
+		if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
+		    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+			renderWhileArmed();
+		}
+		else if (g_crucialRendered > 0 && g_crucialSwapTick < 0) {
+			g_crucialSwapTick = g_waitTicks;
+		}
+		if (!loadSongUI.loadInFlight()) {
+			g_crucialRoutines = closeTrace();
+			playbackHandler.endPlayback();
+			g_stage = Stage::CrucialCheck;
+		}
+		else if (++g_waitTicks > kMaxCrucialWaitTicks) {
+			(void)closeTrace();
+			printf("SLT-CRUCIAL FAIL the crucial song's load never finished\n");
+			g_failures++;
+			g_stage = Stage::Report;
+		}
+		break;
+	case Stage::CrucialCheck:
+		checkCrucialLoad();
 		g_stage = Stage::Report;
 		break;
 	case Stage::Report:
@@ -631,7 +1020,8 @@ void runTick() {
 		       g_kitRoutines);
 		for (const auto& [load, got, pinned] :
 		     {std::tuple{"song", g_songRoutines, kSongRoutines}, std::tuple{"synth", g_synthRoutines, kSynthRoutines},
-		      std::tuple{"kit", g_kitRoutines, kKitRoutines}}) {
+		      std::tuple{"kit", g_kitRoutines, kKitRoutines},
+		      std::tuple{"crucial", g_crucialRoutines, kCrucialRoutines}}) {
 			if (got != pinned) {
 				printf("SLT-CADENCE FAIL load=%s routines=%d pinned=%d\n", load, got, pinned);
 				g_failures++;
@@ -661,6 +1051,12 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_songRoutines = -1;
 	g_synthRoutines = -1;
 	g_kitRoutines = -1;
+	g_crucialRoutines = -1;
+	g_crucialClockAtLoad = false;
+	g_crucialRendered = 0;
+	g_crucialSwapTick = -1;
+	g_crucialSnapshotTaken = false;
+	g_crucialBound.fill(-1);
 }
 
 bool deluge_scenario_sample_load_tree_complete(void) {

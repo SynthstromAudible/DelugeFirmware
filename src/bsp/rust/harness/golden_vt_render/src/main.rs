@@ -845,6 +845,9 @@ fn pack_sample_collect_image() -> std::path::PathBuf {
 /// - `SYNTHS/SLTPSYN/SLTPSYN.WAV` and `KITS/SLTPKIT/SLTPKA.WAV` / `SLTPKB.WAV` are the presets' samples. Each preset
 ///   names its sample under `SAMPLES/`, where no such file exists, so the load has to find it in the preset's own
 ///   folder and rewrite the holder's path there.
+/// - `SAMPLES/SLTCKA.WAV`, `SLTCKB.WAV`, `SLTCKC.WAV`, `SLTCSB.WAV` and `SLTCAB.WAV` belong to the crucial-only load's
+///   song: a second kit's three drums, a second synth and a second audio clip. The scenario collects them into that
+///   song's folder too, and removes them from here before loading it.
 fn pack_sample_load_tree_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-sample-load-tree-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -858,6 +861,11 @@ fn pack_sample_load_tree_image() -> std::path::PathBuf {
     write_test_wav(&samples.join("SLTWT.WAV"), 1, 16, 4096, 0x52);
     write_test_wav(&samples.join("SLTKIT.WAV"), 1, 16, 3072, 0x53);
     write_test_wav(&samples.join("SLTAUD.WAV"), 1, 16, 2048, 0x54);
+    write_test_wav(&samples.join("SLTCKA.WAV"), 1, 16, 2048, 0x61);
+    write_test_wav(&samples.join("SLTCKB.WAV"), 1, 16, 2048, 0x62);
+    write_test_wav(&samples.join("SLTCKC.WAV"), 1, 16, 2048, 0x63);
+    write_test_wav(&samples.join("SLTCSB.WAV"), 1, 16, 2048, 0x64);
+    write_test_wav(&samples.join("SLTCAB.WAV"), 1, 16, 2048, 0x65);
     write_test_wav(&synth_folder.join("SLTPSYN.WAV"), 1, 16, 2048, 0x55);
     write_test_wav(&kit_folder.join("SLTPKA.WAV"), 1, 16, 2048, 0x56);
     write_test_wav(&kit_folder.join("SLTPKB.WAV"), 1, 16, 2048, 0x57);

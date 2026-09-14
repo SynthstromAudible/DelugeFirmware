@@ -17,6 +17,9 @@
 #   SLT-SONG / SLT-SYNTH / SLT-KIT
 #               how many times each load called routineWithClusterLoading, the cadence that keeps audio running.
 #   LT          the load trace: one line per call into the traced leaf functions, while a load runs.
+#   SLT-CRUCIAL a song loaded while playback runs: which holders its crucial-only pass bound (only what the playing
+#               clips need first), that its armed swap happened, and every holder bound to its collected copy after.
+#   LTC         the crucial load's trace, kept apart from LT so the LT lines stay comparable with earlier runs.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #
@@ -26,6 +29,7 @@
 #   BUILD_DIR               the build-embassy-hostapp C++ object-closure build dir (default: build-embassy-hostapp)
 #   NO_BUILD=1              skip the ninja/cargo rebuild steps
 #   SAMPLE_LOAD_TREE_TRACE  if set, a file to write the run's LT lines to
+#   SAMPLE_LOAD_TREE_CRUCIAL_TRACE  if set, a file to write the run's LTC lines to
 #
 set -euo pipefail
 
@@ -78,6 +82,9 @@ set -e
 if [ -n "${SAMPLE_LOAD_TREE_TRACE:-}" ]; then
 	grep '^LT ' "$OUT/run.txt" >"$SAMPLE_LOAD_TREE_TRACE" || true
 fi
+if [ -n "${SAMPLE_LOAD_TREE_CRUCIAL_TRACE:-}" ]; then
+	grep '^LTC ' "$OUT/run.txt" >"$SAMPLE_LOAD_TREE_CRUCIAL_TRACE" || true
+fi
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
@@ -85,7 +92,8 @@ if [ "$status" -ne 0 ]; then
 	sed -n '1,20p' "$OUT/run.err" >&2
 	exit 1
 fi
-for marker in SLT-SETUP SLT-HOLDER SLT-CLIP SLT-SONG SLT-SYNTH SLT-KIT SLT-SUMMARY SLT-RESULT; do
+for marker in SLT-SETUP SLT-HOLDER SLT-CLIP SLT-SONG SLT-SYNTH SLT-KIT SLT-CRUCIAL SLT-CRUCIAL-SUMMARY SLT-SUMMARY \
+	SLT-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SLT-' "$OUT/run.txt"
@@ -100,4 +108,5 @@ fi
 
 grep -E '^SLT-' "$OUT/run.txt"
 echo "PASS — every holder resolved where the fixture put its file, the abort stopped the kit load, and the"
-echo "       audio clip kept its sample's name"
+echo "       audio clip kept its sample's name; a load while playing bound only what the playing clips need"
+echo "       first, and the rest after its armed swap"
