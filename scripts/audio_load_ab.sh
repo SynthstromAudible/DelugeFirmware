@@ -40,6 +40,9 @@
 #   BUILD_DIR   the build-embassy-hostapp C++ object-closure build dir
 #               (default: <repo>/build-embassy-hostapp)
 #   NO_BUILD=1  skip the ninja/cargo rebuild steps
+#   AUDIO_LOAD_AB_LINES
+#               if set, a file to write the run's AB-CASE, AB-EJECT and AB-REF lines to. The log shows
+#               only the summaries; a change to how loads resolve is compared case by case against these.
 #
 set -euo pipefail
 
@@ -99,6 +102,9 @@ set +e
 GOLDEN_SCENARIO=audio_load_ab "$BIN" >"$OUT_ROOT/run.txt" 2>"$OUT_ROOT/run.err"
 status=$?
 set -e
+if [ -n "${AUDIO_LOAD_AB_LINES:-}" ]; then
+	grep -E '^AB-(CASE|EJECT|REF) ' "$OUT_ROOT/run.txt" >"$AUDIO_LOAD_AB_LINES" || true
+fi
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
 	grep -E '^(FAIL|AB-)' "$OUT_ROOT/run.txt" || sed -n '1,60p' "$OUT_ROOT/run.txt"
