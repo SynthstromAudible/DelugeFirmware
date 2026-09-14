@@ -183,6 +183,7 @@ pub enum ByteOp {
     Rename,
     Unlink,
     Exists,
+    DirExists,
     MkdirAll,
     SetTime,
     ReadAt,
@@ -393,6 +394,12 @@ pub trait ByteOps {
     /// `Ok(true)` and `Ok(false)` are both ANSWERS; `Err` means the question could not be answered,
     /// which is not the same as "no" and must never be collapsed into one.
     async fn exists(&self, path: &str) -> Result<bool, i8>;
+    /// Whether `path` exists as a DIRECTORY. [`Self::exists`] opens its path as a file, which a directory is not,
+    /// so it cannot answer for one.
+    ///
+    /// The same three states: `Ok(true)`, `Ok(false)` for `NOT_FOUND`, and `Err` when the question could not be
+    /// answered.
+    async fn dir_exists(&self, path: &str) -> Result<bool, i8>;
     /// Create `path` and every missing directory above it. An existing path is SUCCESS.
     async fn mkdir_all(&self, path: &str) -> Result<(), i8>;
     /// Set `path`'s modification time.
@@ -432,6 +439,9 @@ pub enum ByteRequest {
     Exists {
         path: BytesPath,
     },
+    DirExists {
+        path: BytesPath,
+    },
     MkdirAll {
         path: BytesPath,
     },
@@ -469,6 +479,7 @@ impl ByteRequest {
             Self::Rename { to, .. } => (ByteOp::Rename, to.as_str()),
             Self::Unlink { path } => (ByteOp::Unlink, path.as_str()),
             Self::Exists { path } => (ByteOp::Exists, path.as_str()),
+            Self::DirExists { path } => (ByteOp::DirExists, path.as_str()),
             Self::MkdirAll { path } => (ByteOp::MkdirAll, path.as_str()),
             Self::SetTime { path, .. } => (ByteOp::SetTime, path.as_str()),
             Self::ReadAt { path, .. } => (ByteOp::ReadAt, path.as_str()),
@@ -488,6 +499,7 @@ impl ByteRequest {
             Self::Rename { to, .. } => (ByteOp::Rename, to.clone()),
             Self::Unlink { path } => (ByteOp::Unlink, path.clone()),
             Self::Exists { path } => (ByteOp::Exists, path.clone()),
+            Self::DirExists { path } => (ByteOp::DirExists, path.clone()),
             Self::MkdirAll { path } => (ByteOp::MkdirAll, path.clone()),
             Self::SetTime { path, .. } => (ByteOp::SetTime, path.clone()),
             Self::ReadAt { path, .. } => (ByteOp::ReadAt, path.clone()),
@@ -554,6 +566,10 @@ pub async fn bytes_io_once<O: ByteOps>(
             Err(status) => Err(status),
         },
         ByteRequest::Exists { path } => match ops.exists(path).await {
+            Ok(present) => return ByteOutcome::Exists(present),
+            Err(status) => Err(status),
+        },
+        ByteRequest::DirExists { path } => match ops.dir_exists(path).await {
             Ok(present) => return ByteOutcome::Exists(present),
             Err(status) => Err(status),
         },
@@ -798,6 +814,22 @@ pub unsafe extern "C" fn deluge_file_bytes_request_exists(path: *const c_char) {
         return;
     };
     let _ = enqueue_request(ByteRequest::Exists { path }, &[]);
+}
+
+/// Request a directory-existence check on `path`, and wake the driver. See `file_bytes.h`.
+///
+/// Dropped rather than refused, as [`deluge_file_bytes_request_exists`] is.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. It is copied out before this returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_dir_exists(path: *const c_char) {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return;
+    };
+    let _ = enqueue_request(ByteRequest::DirExists { path }, &[]);
 }
 
 /// Request `path` and every missing directory above it be created, and wake the driver. See
@@ -1097,6 +1129,36 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_exists(
     out_present: *mut bool,
     out_status: *mut i8,
 ) -> u8 {
+    // SAFETY: the caller's contract, above.
+    unsafe { collect_presence(ByteOp::Exists, path, out_present, out_status) }
+}
+
+/// Collect the directory-existence answer for `path`, if there is one. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// As [`deluge_file_bytes_collect_exists`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_dir_exists(
+    path: *const c_char,
+    out_present: *mut bool,
+    out_status: *mut i8,
+) -> u8 {
+    // SAFETY: the caller's contract, above.
+    unsafe { collect_presence(ByteOp::DirExists, path, out_present, out_status) }
+}
+
+/// The body both existence collects share: `op`'s three-state answer for `path`.
+///
+/// # Safety
+///
+/// As [`deluge_file_bytes_collect_exists`].
+unsafe fn collect_presence(
+    op: ByteOp,
+    path: *const c_char,
+    out_present: *mut bool,
+    out_status: *mut i8,
+) -> u8 {
     if out_present.is_null() || out_status.is_null() {
         return DELUGE_FILE_BYTES_UNKNOWN;
     }
@@ -1104,7 +1166,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_exists(
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
         return DELUGE_FILE_BYTES_UNKNOWN;
     };
-    match probe(ByteOp::Exists, &path) {
+    match probe(op, &path) {
         Probe::Ready(ByteOutcome::Exists(present)) => {
             // SAFETY: non-null (checked above); written only on READY, as the header promises.
             unsafe { *out_present = present };
@@ -1116,7 +1178,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_exists(
             DELUGE_FILE_BYTES_FAILED
         }
         // Neither can be filed under Exists -- `bytes_io_once` produces `Exists` or `Failed` for this
-        // op, and the take matched on `ByteOp::Exists`. Reported as UNKNOWN rather than asserted
+        // op, and the take matched on an existence op. Reported as UNKNOWN rather than asserted
         // because the alternative is READY with `out_present` left uninitialised.
         Probe::Ready(ByteOutcome::Bytes(_))
         | Probe::Ready(ByteOutcome::Done)
@@ -1448,15 +1510,15 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
-        mount, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
-        task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
-        task_set_time, task_unlink,
+        mount, task_dir_close, task_dir_open, task_file_close, task_file_open,
+        task_file_read_exact, task_file_seek, task_file_size, task_file_truncate, task_file_write,
+        task_mkdir, task_rename, task_set_time, task_unlink,
     };
     #[cfg(not(target_os = "none"))]
     pub(super) use crate::efatfs_host_shim::{
-        mount, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
-        task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
-        task_set_time, task_unlink,
+        mount, task_dir_close, task_dir_open, task_file_close, task_file_open,
+        task_file_read_exact, task_file_seek, task_file_size, task_file_truncate, task_file_write,
+        task_mkdir, task_rename, task_set_time, task_unlink,
     };
 }
 
@@ -1489,6 +1551,20 @@ impl ProdByteOps {
             Err(NO_FILESYSTEM) => {
                 backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
                 backing::task_file_open(path, mode)
+                    .await
+                    .map_err(|status| status as i8)
+            }
+            other => other.map_err(|status| status as i8),
+        }
+    }
+
+    /// Open `path` as a directory, mounting first if the volume is not mounted yet. As
+    /// [`Self::open_mounted`], for the directory table.
+    async fn open_dir_mounted(path: &str) -> Result<u32, i8> {
+        match backing::task_dir_open(path).await {
+            Err(NO_FILESYSTEM) => {
+                backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+                backing::task_dir_open(path)
                     .await
                     .map_err(|status| status as i8)
             }
@@ -1611,6 +1687,20 @@ impl ByteOps for ProdByteOps {
         match ProdByteOps::open_mounted(path, OPEN_READ).await {
             Ok(handle) => {
                 backing::task_file_close(handle).await;
+                Ok(true)
+            }
+            Err(NOT_FOUND) => Ok(false),
+            Err(status) => Err(status),
+        }
+    }
+
+    async fn dir_exists(&self, path: &str) -> Result<bool, i8> {
+        // Open as a directory and close it again at once: the handle never leaves this function, so none of the
+        // directory table's eight handles is held past the answer. NOT_FOUND is the ANSWER "no"; every other failure
+        // is "could not tell", as for `exists`.
+        match ProdByteOps::open_dir_mounted(path).await {
+            Ok(handle) => {
+                backing::task_dir_close(handle).await;
                 Ok(true)
             }
             Err(NOT_FOUND) => Ok(false),

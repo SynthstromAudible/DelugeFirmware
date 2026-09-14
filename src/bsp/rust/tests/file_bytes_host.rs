@@ -258,6 +258,45 @@ fn an_exists_request_is_keyed_on_its_path() {
 }
 
 #[test]
+fn a_dir_exists_request_is_keyed_on_its_path() {
+    let request = ByteRequest::DirExists {
+        path: BytesPath::try_from(SETTINGS).expect("fits"),
+    };
+    assert_eq!(request.key(), (ByteOp::DirExists, SETTINGS));
+    assert_eq!(
+        request.key_owned(),
+        (
+            ByteOp::DirExists,
+            BytesPath::try_from(SETTINGS).expect("fits")
+        )
+    );
+}
+
+/// A folder's answer and a file's answer for the same path are different questions: a file check must never be
+/// handed a folder check's `true`, and the async sample load's folder probe must never be handed a file check's
+/// `Failed`, which is what a file check answers for every folder.
+#[test]
+fn a_dir_exists_answer_is_not_an_exists_answer_for_the_same_path() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::DirExists,
+        SETTINGS,
+        ByteOutcome::Exists(true),
+        CARD,
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::Exists, SETTINGS, CARD),
+        ByteTake::Absent,
+        "the file existence collect must not be handed the folder check's answer"
+    );
+    assert_eq!(
+        take_from(&mut slot, ByteOp::DirExists, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Exists(true))
+    );
+}
+
+#[test]
 fn an_unlink_request_is_keyed_on_its_path() {
     let request = ByteRequest::Unlink {
         path: BytesPath::try_from(SETTINGS).expect("fits"),

@@ -267,6 +267,29 @@ void deluge_file_bytes_request_exists(const char* path) DELUGE_NOEXCEPT;
 ///       `existence_policy.h`'s `StartupPresence`, which is this distinction given a name.
 uint8_t deluge_file_bytes_collect_exists(const char* path, bool* out_present, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
+/// @brief Ask whether `path` exists as a DIRECTORY, and return immediately.
+///
+/// @ref deluge_file_bytes_request_exists opens its path as a file, which a directory is not, so it answers FAILED for
+/// every directory. This one opens the path as a directory and closes it again before answering, so no directory
+/// handle is held past the answer. Otherwise it behaves as that request: a request for a path already in flight is a
+/// no-op, and an unusable request is dropped.
+///
+/// @param path NUL-terminated path. Copied out before this returns.
+void deluge_file_bytes_request_dir_exists(const char* path) DELUGE_NOEXCEPT;
+
+/// @brief Collect the directory-existence answer for `path`, if there is one.
+///
+/// @param path        NUL-terminated path, matched exactly against the one requested.
+/// @param out_present Written **only** on @ref DELUGE_FILE_BYTES_READY: true if the directory is there, false if it is
+///                    known not to be. Untouched on every other status.
+/// @param out_status  Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
+///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @note Three-state, exactly as @ref deluge_file_bytes_collect_exists: FAILED is "could not establish", which is NOT
+///       absence.
+uint8_t deluge_file_bytes_collect_dir_exists(const char* path, bool* out_present,
+                                             DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
 /// @brief Ask for `path` and every missing directory above it to be created, and return immediately.
 ///
 /// Whole-path, not one segment. A caller that walked segments itself would need a phase machine per

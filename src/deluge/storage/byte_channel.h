@@ -177,6 +177,18 @@ ByteIo requestExists(const char* path);
 ///       here — that verb exists to keep the two apart.
 ByteIo collectExists(const char* path, bool* outPresent, DelugeStatus* outStatus);
 
+/// @brief Ask whether `path` exists as a directory. @ref requestExists opens its path as a file, so it cannot answer
+///        for a folder.
+/// @return `Pending` when accepted; `Failed` when the path cannot be keyed at all.
+ByteIo requestDirExists(const char* path);
+
+/// @brief Collect the directory-existence answer for `path`, if there is one. Three-state, exactly as
+///        @ref collectExists.
+/// @param path       NUL-terminated path, matched exactly against the one requested.
+/// @param outPresent Written **only** on `Ready`: true if the directory is there, false if it is known not to be.
+/// @param outStatus  Written **only** on `Failed`.
+ByteIo collectDirExists(const char* path, bool* outPresent, DelugeStatus* outStatus);
+
 /// @}
 /// @name Directory creation and timestamps
 /// @{

@@ -117,6 +117,17 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_exists(const 
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
+extern "C" __attribute__((weak)) void deluge_file_bytes_request_dir_exists(const char* /*path*/) noexcept {
+	// No byte channel on this BSP/config; see deluge_file_bytes_request_exists.
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_dir_exists(const char* /*path*/,
+                                                                              bool* /*out_present*/,
+                                                                              DelugeStatus* /*out_status*/) noexcept {
+	// UNKNOWN, not FAILED, for the reason deluge_file_bytes_collect_exists gives.
+	return DELUGE_FILE_BYTES_UNKNOWN;
+}
+
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_mkdir_all(const char* /*path*/) noexcept {
 	// REFUSED. Reporting the refusal honestly matters: a caller told `true` for a creation that will
 	// never happen waits for a collect that never turns terminal.

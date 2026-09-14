@@ -697,6 +697,21 @@ ByteIo collectExists(const char* path, bool* outPresent, DelugeStatus* outStatus
 	return counted(fromAbi(deluge_file_bytes_collect_exists(path, outPresent, outStatus)));
 }
 
+ByteIo requestDirExists(const char* path) {
+	if (!keyable(path)) {
+		return ByteIo::Failed;
+	}
+	deluge_file_bytes_request_dir_exists(path);
+	return ByteIo::Pending;
+}
+
+ByteIo collectDirExists(const char* path, bool* outPresent, DelugeStatus* outStatus) {
+	if (!keyable(path) || outPresent == nullptr || outStatus == nullptr) {
+		return ByteIo::Failed;
+	}
+	return counted(fromAbi(deluge_file_bytes_collect_dir_exists(path, outPresent, outStatus)));
+}
+
 ByteIo requestMkdirAll(const char* path) {
 	if (!keyable(path)) {
 		return ByteIo::Failed;
