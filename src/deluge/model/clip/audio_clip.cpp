@@ -1240,8 +1240,9 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 	return Error::NONE;
 }
 
-void AudioClip::loadSample(bool mayActuallyReadFile) {
-	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile);
+void AudioClip::loadSample(bool mayActuallyReadFile, deluge::storage::AudioLoadContext* context) {
+	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile,
+	                                    CLUSTER_ENQUEUE, false, false, context);
 	name = sampleHolder.filePath.c_str();
 	if (error != Error::NONE) {
 		display->displayError(error);

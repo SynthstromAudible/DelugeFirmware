@@ -199,24 +199,15 @@ yesTickParamManagerForClip:
 	}
 }
 
-Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
-
-	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
-	if (doingAlternatePath) {
-		Error error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return error;
-		}
+Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+	// A synth read on its own also looks for its samples in its own folder. Within a song's load, in the song's.
+	deluge::storage::AudioLoadContext ownFolder;
+	if (mayActuallyReadFiles && deluge::storage::AudioLoadContext::isNone(context)) {
+		ownFolder = deluge::storage::AudioLoadContext::forInstrument(dirPath.c_str(), name.c_str(), ThingType::SYNTH);
+		context = &ownFolder;
 	}
 
-	Error error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
-
-	if (doingAlternatePath) {
-		audioFileManager.thingFinishedLoading();
-	}
-
-	return error;
+	return Sound::loadAllAudioFiles(mayActuallyReadFiles, context);
 }
 
 void SoundInstrument::resyncLFOs() {
@@ -398,8 +389,8 @@ void SoundInstrument::compensateInstrumentVolumeForResonance(ModelStackWithThree
 	Sound::compensateVolumeForResonance(modelStack);
 }
 
-void SoundInstrument::loadCrucialAudioFilesOnly() {
-	loadAllAudioFiles(true);
+void SoundInstrument::loadCrucialAudioFilesOnly(deluge::storage::AudioLoadContext* context) {
+	loadAllAudioFiles(true, context);
 }
 
 // Any time it gets edited, we want to grab the default arp settings from the activeClip

@@ -21,6 +21,7 @@
 #include "io/midi/learned_midi.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
+#include "storage/audio/audio_load_context.h"
 #include <cstdint>
 
 class Clip;
@@ -72,7 +73,9 @@ public:
 	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 
-	virtual Error loadAllSamples(bool mayActuallyReadFiles) { return Error::NONE; }
+	virtual Error loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr) {
+		return Error::NONE;
+	}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
 	virtual void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) = 0;

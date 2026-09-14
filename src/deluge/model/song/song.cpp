@@ -2339,10 +2339,10 @@ readClip:
 
 // Needs to be in a separate function than the above because the main song XML file needs to be closed first before
 // this is called, because this will open other (sample) files
-void Song::loadAllSamples(bool mayActuallyReadFiles) {
+void Song::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
 
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->loadAllAudioFiles(mayActuallyReadFiles);
+		thisOutput->loadAllAudioFiles(mayActuallyReadFiles, context);
 	}
 
 	// NOTE: Using AllClips instead of AudioClips to ensure we call into the audio engine during
@@ -2356,24 +2356,24 @@ void Song::loadAllSamples(bool mayActuallyReadFiles) {
 			AudioEngine::routineWithClusterLoading();
 		}
 		if (clip->type == ClipType::AUDIO) {
-			((AudioClip*)clip)->loadSample(mayActuallyReadFiles);
+			((AudioClip*)clip)->loadSample(mayActuallyReadFiles, context);
 		}
 	}
 }
 
-void Song::loadCrucialSamplesOnly() {
+void Song::loadCrucialSamplesOnly(deluge::storage::AudioLoadContext* context) {
 	// TODO: This searches just as much as loadAllSamples, why does this not need to call into the
 	// audio engine? Is the searching actually ok, and only the loadSample() counts should be considered
 	// for calling into the audio engine?
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->getActiveClip() && isClipActive(thisOutput->getActiveClip())) {
-			thisOutput->loadCrucialAudioFilesOnly();
+			thisOutput->loadCrucialAudioFilesOnly(context);
 		}
 	}
 
 	for (AudioClip* clip : AudioClips::everywhere(this)) {
 		if (clip->isActiveOnOutput()) {
-			clip->loadSample(true);
+			clip->loadSample(true, context);
 		}
 	}
 }

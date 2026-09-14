@@ -695,25 +695,20 @@ gotErrorAfterCreatingSong:
 	const auto lastDot = leaf.rfind('.');
 	std::string currentFilenameWithoutExtension{(lastDot == std::string_view::npos) ? leaf : leaf.substr(0, lastDot)};
 
-	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(),
-	                                                    currentFilenameWithoutExtension.c_str());
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
-
-	audioFileManager.thingBeginningLoading(ThingType::SONG);
+	sampleLoadContext_ =
+	    deluge::storage::AudioLoadContext::forSong(currentDir.c_str(), currentFilenameWithoutExtension.c_str());
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
 	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we
 	// might actually want
-	preLoadedSong->loadAllSamples(false);
+	preLoadedSong->loadAllSamples(false, &sampleLoadContext_);
 
 	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
 	if (playbackHandler.isEitherClockActive()) {
-		preLoadedSong->loadCrucialSamplesOnly();
+		preLoadedSong->loadCrucialSamplesOnly(&sampleLoadContext_);
 	}
 	else {
-		preLoadedSong->loadAllSamples(true);
+		preLoadedSong->loadAllSamples(true, &sampleLoadContext_);
 	}
 
 	// The new song's essential clusters still have to finish arriving before the swap. Park here and let
@@ -755,7 +750,7 @@ void LoadSongUI::armOrSwap() {
 		// rest of the samples which weren't needed right away. (though we might run out of RAM cos we haven't discarded
 		// all the old samples yet)
 		AudioEngine::logAction("asking for samples");
-		preLoadedSong->loadAllSamples(true);
+		preLoadedSong->loadAllSamples(true, &sampleLoadContext_);
 		AudioEngine::logAction("waiting for samples");
 		// Park until currentUIMode leaves the two loading modes - the arming, or the swap the arming
 		// launches, is what moves it, and neither can happen while we sit on the owner.
@@ -785,11 +780,11 @@ void LoadSongUI::finishLoad() {
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 
 	// Try one more time to load all AudioFiles - there might be more RAM free now
-	currentSong->loadAllSamples();
+	currentSong->loadAllSamples(true, &sampleLoadContext_);
 	AudioEngine::logAction("done loading new song");
 	currentSong->markAllInstrumentsAsEdited();
 
-	audioFileManager.thingFinishedLoading();
+	sampleLoadContext_ = {};
 
 	PadLEDs::doGreyoutInstantly(); // This will get faded out of just below
 	setUIForLoadedSong(currentSong);

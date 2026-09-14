@@ -99,7 +99,7 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-Error Source::loadAllSamples(bool mayActuallyReadFiles) {
+Error Source::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		AudioEngine::logAction("Source::loadAllSamples");
 		if (!(e & 3)) { // 3 works, 7 occasionally drops voices - for multisampled synths
@@ -108,8 +108,8 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
 			return Error::ABORTED_BY_USER;
 		}
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.isCurrentlyReversed(), false,
-		                                                     mayActuallyReadFiles, CLUSTER_ENQUEUE, true);
+		ranges.getElement(e)->getAudioFileHolder()->loadFile(
+		    sampleControls.isCurrentlyReversed(), false, mayActuallyReadFiles, CLUSTER_ENQUEUE, true, false, context);
 	}
 
 	return Error::NONE;

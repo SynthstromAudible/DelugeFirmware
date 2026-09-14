@@ -109,6 +109,11 @@ typedef struct DelugeSampleBuild DelugeSampleBuild;
 /// ignores it -- and only C++ may cast it back (to `AudioFile*`).
 typedef struct DelugeAudioFile DelugeAudioFile;
 
+/// Opaque handle to the load a lookup belongs to (C++: `deluge::storage::AudioLoadContext`): its alternate
+/// directory, what the load knows about that directory, and what is being loaded. The caller owns it for the whole
+/// load. NULL means the lookup belongs to no load, so there is no alternate directory.
+typedef struct DelugeAudioLoadContext DelugeAudioLoadContext;
+
 /// @brief Allocate and construct a `Sample` from an already-resolved size. No I/O.
 ///
 /// Adopts the object and gives it a protect-during-setup reason before returning, so from here the
@@ -138,7 +143,7 @@ DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, const char* al
 /// **Call this AFTER a load has missed, never before its first `deluge_audio_load_candidates`.** The
 /// tempting reading -- "resolve first so the candidate list is complete" -- is the defect this
 /// wording replaced, and re-introducing it is a behaviour change for loads that never touch this
-/// path at all. `alternateLoadDirStatus` is per-LOAD shared state: promoting it up front makes every
+/// path at all. The context's status is per-LOAD shared state: promoting it up front makes every
 /// LATER sample of the same load try the alternate directory first, including the ones taking the
 /// synchronous path, which still promotes only after a real miss. So the load's effective try order
 /// flips out from under callers this function never runs for.
@@ -153,6 +158,8 @@ DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, const char* al
 /// A no-op, doing no I/O, once the status is already resolved (from an earlier call in the same
 /// load, or because nothing is loading) -- safe to call speculatively.
 ///
+/// @param context   The load whose alternate directory to probe; its status is updated. NULL: no load, so
+///                  nothing to probe.
 /// @param error_out Written unconditionally (if non-NULL) with a Deluge `Error` code (as `uint8_t`):
 ///                  `Error::NONE` whenever this returns true (already resolved, or newly resolved as
 ///                  present); `Error::FILE_UNREADABLE` if the probe finds the dir genuinely absent, or
@@ -160,7 +167,7 @@ DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, const char* al
 ///                  NULL if the caller does not need the code.
 /// @return true once the alternate dir is known to exist (already, or newly resolved); false
 ///         otherwise.
-bool deluge_audio_load_resolve_alternate_dir(uint8_t* error_out) DELUGE_NOEXCEPT;
+bool deluge_audio_load_resolve_alternate_dir(DelugeAudioLoadContext* context, uint8_t* error_out) DELUGE_NOEXCEPT;
 
 /// @brief Write the candidate paths for @p file_path, in try order, into @p out. No I/O -- alternate-
 ///        load-dir policy only, including the SYNTH/KIT naming rules and the bare-filename fallback.
@@ -168,6 +175,7 @@ bool deluge_audio_load_resolve_alternate_dir(uint8_t* error_out) DELUGE_NOEXCEPT
 /// Call `deluge_audio_load_resolve_alternate_dir` first (see its doc comment) or this proposes only
 /// the regular path even when an alternate dir exists.
 ///
+/// @param context        The load whose policy applies. NULL: no load, so the regular path alone.
 /// @param file_path      The nominal path a load was asked for. Must not be NULL.
 /// @param out            Caller-owned buffer of at least `max_candidates * DELUGE_MAX_PATH` bytes; each
 ///                       slot holds one NUL-terminated path, in try order. Must not be NULL.
@@ -178,7 +186,8 @@ bool deluge_audio_load_resolve_alternate_dir(uint8_t* error_out) DELUGE_NOEXCEPT
 ///         `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` if @p out is not trustworthy at all (a candidate
 ///         that would have been written did not fit in `DELUGE_MAX_PATH` bytes, or an internal
 ///         allocation failed) -- the caller must not read @p out in that case.
-uint32_t deluge_audio_load_candidates(const char* file_path, char* out, uint32_t max_candidates) DELUGE_NOEXCEPT;
+uint32_t deluge_audio_load_candidates(const DelugeAudioLoadContext* context, const char* file_path, char* out,
+                                      uint32_t max_candidates) DELUGE_NOEXCEPT;
 
 /// @brief Open the Sample's streaming read handle: the actual file the audio engine reads clusters
 ///        from during playback. I/O.

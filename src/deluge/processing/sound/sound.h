@@ -231,7 +231,7 @@ public:
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
-	Error loadAllAudioFiles(bool mayActuallyReadFiles);
+	Error loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
 	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
 	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);

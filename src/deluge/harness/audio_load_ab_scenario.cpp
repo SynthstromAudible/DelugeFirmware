@@ -52,7 +52,7 @@ namespace {
 
 /// One sample the load asks for, in the order the load asks for it.
 ///
-/// The order is behaviour, not presentation. `alternateLoadDirStatus` is per-LOAD state that each
+/// The order is behaviour, not presentation. The load context's alternate-dir status is per-LOAD state that each
 /// sample MUTATES as it goes (a regular-path miss is what earns the alternate-dir probe), so the
 /// try order for every later sample depends on what the earlier ones did. A list that resolved
 /// every file from the regular directory would never exercise that at all.
@@ -66,7 +66,7 @@ struct Case {
 /// The load, in order. Deliberately mixed, and the mix is the fixture's whole content:
 ///
 /// - `both` exists in the regular directory AND the alternate one, and is asked for FIRST — while
-///   `alternateLoadDirStatus` is still MIGHT_EXIST, so only the regular path is even proposed.
+///   the context's alternate-dir status is still MIGHT_EXIST, so only the regular path is even proposed.
 /// - `only_alt` exists only in the alternate directory. Its regular-path miss is what probes that
 ///   directory and promotes the status for everything after it.
 /// - `both2` is the same two-locations shape as `both`, but asked for AFTER that promotion, so its
@@ -82,7 +82,7 @@ struct Case {
 ///   duplicate and the three-candidate order collapses to two. All three locations exist here, with
 ///   three different lengths, so a wrongly constructed flattened name or a swap between candidates 1
 ///   and 2 changes which file is chosen.
-/// - `selfdir` LIVES IN THE ALTERNATE DIRECTORY ITSELF, so `alternateAudioFileLoadPath` equals its
+/// - `selfdir` LIVES IN THE ALTERNATE DIRECTORY ITSELF, so the context's `alternateDir` equals its
 ///   own directory and the bare-name alternate candidate stringifies to EXACTLY the nominal path.
 ///   That is the only shape in which "which candidate won" cannot be decided by comparing strings:
 ///   `resolveFileSize` decides by SLOT and calls it an alternate hit, so `loadedFromAlternatePath`
@@ -164,6 +164,8 @@ static_assert(std::string_view{kCases[kSelfdirIndex].path} == kSelfdirAlternate,
 std::string g_selfdirAlternatePath{};
 /// In-process assertion failures.
 int32_t g_failures = 0;
+/// The load every case belongs to: a song's, whose alternate directory is SAMPLES/ALT. Set by begin().
+deluge::storage::AudioLoadContext g_loadContext{};
 /// Set false by dispatch_step(), true by the dispatched closure on its way out.
 bool g_stepDone = true;
 /// Set once the summary has been printed, so complete() latches.
@@ -390,13 +392,13 @@ uint32_t streamFingerprint(Sample& s, bool& readable) {
 /// @param tag   The line prefix: `AB-CASE` for the case list, `AB-EJECT` for the card-swap stage. Kept apart because
 ///              the script counts `AB-CASE` lines against a floor, and a swap line would hide a shrunk case list.
 /// @param label Short, stable, and independent of the path.
-std::string caseLine(const char* tag, const char* label, AudioFile* file, Error error,
-                     const std::string& fileNameAfter) {
+/// @param altDirStatus The alternate-dir status the load left behind.
+std::string caseLine(const char* tag, const char* label, AudioFile* file, Error error, const std::string& fileNameAfter,
+                     AlternateLoadDirStatus altDirStatus) {
 	char line[1024];
 	if (file == nullptr) {
 		snprintf(line, sizeof(line), "%s %-9s | error=%d | file=none | asked=\"%s\" | altDirStatus=%d", tag, label,
-		         static_cast<int>(error), fileNameAfter.c_str(),
-		         static_cast<int>(audioFileManager.alternateLoadDirStatus));
+		         static_cast<int>(error), fileNameAfter.c_str(), static_cast<int>(altDirStatus));
 		return line;
 	}
 
@@ -419,28 +421,27 @@ std::string caseLine(const char* tag, const char* label, AudioFile* file, Error 
 	         s.audioDataStartPosBytes, static_cast<unsigned long long>(s.audioDataLengthBytes),
 	         static_cast<unsigned long long>(s.lengthInSamples), s.fileLoopStartSamples, s.fileLoopEndSamples,
 	         s.waveTableCycleSize, static_cast<double>(s.midiNoteFromFile), readable ? 1 : 0, fingerprint,
-	         static_cast<int>(audioFileManager.alternateLoadDirStatus));
+	         static_cast<int>(altDirStatus));
 	return line;
 }
 
 /// Load @p path through the synchronous card path, as the reference its async load must match, and drop it again.
 ///
-/// Runs on the storage-owner worker fiber, where a blocking card read is legal. `alternateLoadDirStatus` is put back
-/// afterwards: it is per-load state that each load moves, and the async load has to start from the state this one
-/// started from, or the two would be proposed different candidates.
+/// Runs on the storage-owner worker fiber, where a blocking card read is legal. It loads under a copy of the load's
+/// context: the context is per-load state that each load moves, and the async load has to start from the state this
+/// one started from, or the two would be proposed different candidates.
 std::string referenceLine(const char* tag, const char* label, const char* path) {
-	const AlternateLoadDirStatus statusBefore = audioFileManager.alternateLoadDirStatus;
+	deluge::storage::AudioLoadContext referenceContext = g_loadContext;
 	std::string fileName = path;
 	Error error = Error::NONE;
 	AudioFile* file =
 	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 	                                              /*makeWaveTableWorkAtAllCosts=*/false,
-	                                              /*mayLoadAsync=*/false);
-	std::string line = caseLine(tag, label, file, error, fileName);
+	                                              /*mayLoadAsync=*/false, &referenceContext);
+	std::string line = caseLine(tag, label, file, error, fileName, referenceContext.alternateDirStatus);
 	if (file != nullptr) {
 		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(path);
 	}
-	audioFileManager.alternateLoadDirStatus = statusBefore;
 	return line;
 }
 
@@ -529,7 +530,7 @@ void runOneStep() {
 	AudioFile* file =
 	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 	                                              /*makeWaveTableWorkAtAllCosts=*/false,
-	                                              /*mayLoadAsync=*/true);
+	                                              /*mayLoadAsync=*/true, &g_loadContext);
 
 	if (error == Error::LOAD_IN_PROGRESS) {
 		g_deferralsThisCase++;
@@ -546,7 +547,8 @@ void runOneStep() {
 		error = Error::LOAD_IN_PROGRESS;
 	}
 
-	printAgainstReference(caseLine("AB-CASE", c.label, file, error, fileName), g_referenceLine, c.label);
+	printAgainstReference(caseLine("AB-CASE", c.label, file, error, fileName, g_loadContext.alternateDirStatus),
+	                      g_referenceLine, c.label);
 
 	if (g_caseIndex == kSelfdirIndex && file != nullptr) {
 		g_selfdirAlternatePath = static_cast<Sample&>(*file).loadedFromAlternatePath;
@@ -790,7 +792,7 @@ AudioFile* ejectAttempt(const char* path, Error& error, bool& deferred) {
 	AudioFile* file =
 	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 	                                              /*makeWaveTableWorkAtAllCosts=*/false,
-	                                              /*mayLoadAsync=*/true);
+	                                              /*mayLoadAsync=*/true, &g_loadContext);
 	deferred = (error == Error::LOAD_IN_PROGRESS);
 	return file;
 }
@@ -895,8 +897,9 @@ void runOneEjectTick() {
 		}
 		// The one line this stage compares with its reference, and the one that carries the whole property: the
 		// geometry printed here must be the file that is on the card NOW.
-		printAgainstReference(caseLine("AB-EJECT", "swap", file, error, std::string{kSwapPath}), g_ejectReferenceLine,
-		                      "eject");
+		printAgainstReference(
+		    caseLine("AB-EJECT", "swap", file, error, std::string{kSwapPath}, g_loadContext.alternateDirStatus),
+		    g_ejectReferenceLine, "eject");
 		if (!checkLoadInvariants("audioLoadAB/eject")) {
 			g_failures++;
 		}
@@ -995,9 +998,9 @@ void deluge_scenario_audio_load_ab_begin(void) {
 
 	// The state a song load starts from, which is the only state in which the alternate-dir ordering
 	// this compares means anything: the directory MIGHT exist, and nothing has probed it yet.
-	audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
-	audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
-	audioFileManager.thingTypeBeingLoaded = ThingType::SONG;
+	g_loadContext = {.alternateDir = "SAMPLES/ALT",
+	                 .alternateDirStatus = AlternateLoadDirStatus::MIGHT_EXIST,
+	                 .thing = ThingType::SONG};
 
 	// Line-buffer stdout for the rest of the run. The platform driver ends the process with a raw
 	// `exit_group` syscall (golden_vt_render's `hard_exit`, which deliberately skips C++ static

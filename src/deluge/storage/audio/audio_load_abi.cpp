@@ -397,10 +397,12 @@ extern "C" DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, con
 	}
 }
 
-extern "C" bool deluge_audio_load_resolve_alternate_dir(uint8_t* error_out) noexcept {
+extern "C" bool deluge_audio_load_resolve_alternate_dir(DelugeAudioLoadContext* context, uint8_t* error_out) noexcept {
 	try {
 		Error error = Error::NONE;
-		const bool exists = audioFileManager.resolveAlternateLoadDirStatus(&error);
+		deluge::storage::AudioLoadContext noLoad;
+		const bool exists = audioFileManager.resolveAlternateLoadDirStatus(
+		    (context != nullptr) ? *deluge::storage::fromAbi(context) : noLoad, &error);
 		if (error_out != nullptr) {
 			*error_out = static_cast<uint8_t>(error);
 		}
@@ -413,11 +415,15 @@ extern "C" bool deluge_audio_load_resolve_alternate_dir(uint8_t* error_out) noex
 	}
 }
 
-extern "C" uint32_t deluge_audio_load_candidates(const char* file_path, char* out, uint32_t max_candidates) noexcept {
+extern "C" uint32_t deluge_audio_load_candidates(const DelugeAudioLoadContext* context, const char* file_path,
+                                                 char* out, uint32_t max_candidates) noexcept {
 	try {
 		std::string candidates[AudioFileManager::kMaxLoadCandidates];
 		const size_t capacity = std::min<size_t>(max_candidates, AudioFileManager::kMaxLoadCandidates);
-		const size_t count = audioFileManager.proposeLoadCandidates(std::string{file_path}, candidates, capacity);
+		const deluge::storage::AudioLoadContext noLoad;
+		const size_t count =
+		    audioFileManager.proposeLoadCandidates((context != nullptr) ? *deluge::storage::fromAbi(context) : noLoad,
+		                                           std::string{file_path}, candidates, capacity);
 		const size_t written = std::min(count, capacity);
 		for (size_t i = 0; i < written; i++) {
 			if (candidates[i].size() + 1 > DELUGE_MAX_PATH) {

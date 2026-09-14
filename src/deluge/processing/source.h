@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_controls.h"
+#include "storage/audio/audio_load_context.h"
 #include "storage/multi_range/multi_range_array.h"
 #include "util/phase_increment_fine_tuner.h"
 
@@ -57,7 +58,7 @@ public:
 	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
-	Error loadAllSamples(bool mayActuallyReadFiles);
+	Error loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
 	void setReversed(bool newReversed);
 	int32_t getRangeIndex(int32_t note);
 	MultiRange* getRange(int32_t note);

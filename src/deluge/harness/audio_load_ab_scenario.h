@@ -47,7 +47,7 @@
 extern "C" {
 
 /// @brief Reset the case cursor and install the song-shaped alternate-dir state one load starts
-///        from (`alternateAudioFileLoadPath` = "SAMPLES/ALT", status MIGHT_EXIST, thing type SONG).
+///        from (a load context naming "SAMPLES/ALT", status MIGHT_EXIST, thing type SONG).
 /// @note Call once, before the first dispatch_step(). Safe on any context (no I/O).
 void deluge_scenario_audio_load_ab_begin(void);
 

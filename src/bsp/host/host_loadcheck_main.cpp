@@ -76,6 +76,8 @@
 #include <unistd.h>
 #include <vector>
 
+using deluge::storage::AudioLoadContext;
+
 extern "C" int32_t deluge_main(void);
 extern TaskHandle startupConditionalTask;
 
@@ -164,10 +166,10 @@ bool checkProposeLoadCandidates() {
 		// the async loader opens candidates in the order this function returns them. For a single-level
 		// "SAMPLES/..." path the flattened and bare alternate names coincide, so this exercises the
 		// 2-distinct-candidate shape (duplicate alt name, then the regular path).
-		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+		const AudioLoadContext context{.alternateDir = "SAMPLES/ALT",
+		                               .alternateDirStatus = AlternateLoadDirStatus::DOES_EXIST};
 		Candidates c;
-		size_t count = audioFileManager.proposeLoadCandidates("SAMPLES/kick.wav", c.data(), c.size());
+		size_t count = audioFileManager.proposeLoadCandidates(context, "SAMPLES/kick.wav", c.data(), c.size());
 		if (count != 3) {
 			printf("FAIL [proposeLoadCandidates]: expected 3 candidates for a single-level SAMPLES/ path, got %zu\n",
 			       count);
@@ -196,10 +198,10 @@ bool checkProposeLoadCandidates() {
 	// path -- this is the case a two-candidate policy previously dropped (the bare-name-in-alt-dir
 	// fallback), so it's the one that most needs pinning.
 	{
-		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+		const AudioLoadContext context{.alternateDir = "SAMPLES/ALT",
+		                               .alternateDirStatus = AlternateLoadDirStatus::DOES_EXIST};
 		Candidates c;
-		size_t count = audioFileManager.proposeLoadCandidates("SAMPLES/FOLDER/kick.wav", c.data(), c.size());
+		size_t count = audioFileManager.proposeLoadCandidates(context, "SAMPLES/FOLDER/kick.wav", c.data(), c.size());
 		if (count != 3) {
 			printf("FAIL [proposeLoadCandidates]: expected 3 candidates for a nested SAMPLES/ path, got %zu\n", count);
 			ok = false;
@@ -228,10 +230,10 @@ bool checkProposeLoadCandidates() {
 
 	// a path outside SAMPLES/ skips the flattened-name candidate: bare alt name, then regular path.
 	{
-		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+		const AudioLoadContext context{.alternateDir = "SAMPLES/ALT",
+		                               .alternateDirStatus = AlternateLoadDirStatus::DOES_EXIST};
 		Candidates c;
-		size_t count = audioFileManager.proposeLoadCandidates("PRESETS/SYNTHS/kick.xml", c.data(), c.size());
+		size_t count = audioFileManager.proposeLoadCandidates(context, "PRESETS/SYNTHS/kick.xml", c.data(), c.size());
 		if (count != 2) {
 			printf("FAIL [proposeLoadCandidates]: expected 2 candidates for a non-SAMPLES/ path, got %zu\n", count);
 			ok = false;
@@ -253,9 +255,9 @@ bool checkProposeLoadCandidates() {
 
 	// proposes only the regular path when no alternate directory exists
 	{
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+		const AudioLoadContext context{};
 		Candidates c;
-		size_t count = audioFileManager.proposeLoadCandidates("SAMPLES/kick.wav", c.data(), c.size());
+		size_t count = audioFileManager.proposeLoadCandidates(context, "SAMPLES/kick.wav", c.data(), c.size());
 		if (count != 1) {
 			printf("FAIL [proposeLoadCandidates]: expected 1 candidate with no alternate dir known, got %zu\n", count);
 			ok = false;
@@ -266,10 +268,6 @@ bool checkProposeLoadCandidates() {
 			ok = false;
 		}
 	}
-
-	// Leave the manager in its default (no-alternate-dir-known) state for the real loads below.
-	audioFileManager.alternateAudioFileLoadPath.clear();
-	audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 
 	return ok;
 }
@@ -491,7 +489,7 @@ AsyncLoaderStub g_asyncStub;
 ///
 /// Positional, never a string comparison against the nominal path, and this stub has to get that
 /// right or the differential it feeds cannot see the case that matters: when
-/// `alternateAudioFileLoadPath` is the file's own directory, the bare-name alternate candidate
+/// the load context's `alternateDir` is the file's own directory, the bare-name alternate candidate
 /// stringifies to exactly the nominal path, and only the SLOT distinguishes an alternate-dir hit from
 /// a regular one. `proposeLoadCandidates` guarantees the regular path is last, and `resolveFileSize`
 /// relies on that; so does the real loader.
@@ -728,8 +726,8 @@ bool checkAsyncCollector() {
 		g_asyncStub = {};
 		g_asyncStub.active = true;
 		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_UNKNOWN;
-		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+		AudioLoadContext context{.alternateDir = "SAMPLES/ALT",
+		                         .alternateDirStatus = AlternateLoadDirStatus::MIGHT_EXIST};
 
 		const size_t before = audioFileManager.audioFiles.size();
 		std::string path = "SAMPLES/FOLDER/kick.wav";
@@ -737,7 +735,7 @@ bool checkAsyncCollector() {
 		AudioFile* file =
 		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		                                              /*mayLoadAsync=*/true, &context);
 		if (file != nullptr || error != Error::LOAD_IN_PROGRESS) {
 			printf("FAIL [asyncCollector]: an UNKNOWN path should report LOAD_IN_PROGRESS, got file=%p error=%d\n",
 			       static_cast<void*>(file), static_cast<int>(error));
@@ -759,10 +757,10 @@ bool checkAsyncCollector() {
 			printf(")\n");
 			ok = false;
 		}
-		if (audioFileManager.alternateLoadDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
+		if (context.alternateDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
 			printf("FAIL [asyncCollector]: requesting promoted the alternate-dir status (to %d) before anything "
 			       "missed\n",
-			       static_cast<int>(audioFileManager.alternateLoadDirStatus));
+			       static_cast<int>(context.alternateDirStatus));
 			ok = false;
 		}
 		if (audioFileManager.audioFiles.size() != before) {
@@ -770,8 +768,6 @@ bool checkAsyncCollector() {
 			       audioFileManager.audioFiles.size());
 			ok = false;
 		}
-		audioFileManager.alternateAudioFileLoadPath.clear();
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	}
 
 	// A request the loader drops (its queue is full) is still LOAD_IN_PROGRESS: the caller asks again
@@ -823,7 +819,7 @@ bool checkAsyncCollector() {
 	// The loader opens through the same 128-slot table SampleStream::open_read_stream uses, which
 	// sample_stream.cpp documents filling up by construction under browser preview. Reported as
 	// FILE_UNREADABLE it would hit the collector's retry gate: probe the alternate directory, promote
-	// alternateLoadDirStatus for every later sample of the load, and possibly answer with a
+	// the load's alternate-dir status for every later sample, and possibly answer with a
 	// same-named file from there -- where the synchronous path reclaims and reports
 	// TOO_MANY_OPEN_STREAMS. These two blocks pin both halves of the recovery.
 	//
@@ -837,30 +833,28 @@ bool checkAsyncCollector() {
 		g_asyncStub.active = true;
 		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
 		g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::TOO_MANY_OPEN_STREAMS), "");
-		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+		AudioLoadContext context{.alternateDir = "SAMPLES/ALT",
+		                         .alternateDirStatus = AlternateLoadDirStatus::MIGHT_EXIST};
 
 		std::string path = "SAMPLES/TABLEFULL.WAV";
 		Error error = Error::NONE;
 		AudioFile* file =
 		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 		                                              /*makeWaveTableWorkAtAllCosts=*/false,
-		                                              /*mayLoadAsync=*/true);
+		                                              /*mayLoadAsync=*/true, &context);
 		if (file != nullptr || error != Error::TOO_MANY_OPEN_STREAMS) {
 			printf("FAIL [asyncCollector]: a full handle table with nothing to reclaim should report "
 			       "TOO_MANY_OPEN_STREAMS, got file=%p error=%d\n",
 			       static_cast<void*>(file), static_cast<int>(error));
 			ok = false;
 		}
-		if (audioFileManager.alternateLoadDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
+		if (context.alternateDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
 			printf("FAIL [asyncCollector]: a full handle table probed the alternate dir and promoted the "
 			       "status (to %d) -- it is a resource failure, not a candidate miss, and the promotion "
 			       "would change the try order for every later sample of the load\n",
-			       static_cast<int>(audioFileManager.alternateLoadDirStatus));
+			       static_cast<int>(context.alternateDirStatus));
 			ok = false;
 		}
-		audioFileManager.alternateAudioFileLoadPath.clear();
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	}
 
 	// Half 2: with something reclaimable, the reclaim runs and the load is asked AGAIN rather than
@@ -1076,16 +1070,16 @@ bool checkAsyncCollector() {
 			g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
 			// "Nothing opened" -- which is what earns the alternate-dir probe and the re-request.
 			g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::FILE_UNREADABLE), "");
-			audioFileManager.alternateAudioFileLoadPath = "SAMPLES/\xFFALT";
-			audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
-			audioFileManager.thingTypeBeingLoaded = ThingType::SONG;
+			AudioLoadContext context{.alternateDir = "SAMPLES/\xFFALT",
+			                         .alternateDirStatus = AlternateLoadDirStatus::MIGHT_EXIST,
+			                         .thing = ThingType::SONG};
 
 			std::string path = "SAMPLES/ODD.WAV";
 			Error error = Error::NONE;
 			AudioFile* file =
 			    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 			                                              /*makeWaveTableWorkAtAllCosts=*/false,
-			                                              /*mayLoadAsync=*/true);
+			                                              /*mayLoadAsync=*/true, &context);
 			if (file == nullptr || error != Error::NONE) {
 				printf("FAIL [asyncCollector]: a re-request that could not be formed answered the load instead "
 				       "of falling through to the synchronous path (file=%p error=%d)\n",
@@ -1099,9 +1093,6 @@ bool checkAsyncCollector() {
 				ok = false;
 			}
 			audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/ODD.WAV");
-			audioFileManager.alternateAudioFileLoadPath.clear();
-			audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
-			audioFileManager.thingTypeBeingLoaded = ThingType::NONE;
 		}
 		unlink(oddSample.c_str());
 		rmdir(oddAltDir.c_str());
@@ -1531,7 +1522,7 @@ bool checkLoadFileDefaultStaysSynchronous() {
 /// place is found there either way, so the two agree for the wrong reason. Here they can disagree, and
 /// the difference is which file the user hears.
 ///
-/// It runs a load, not a sample, because `alternateLoadDirStatus` is per-LOAD state that both paths
+/// It runs a load, not a sample, because the context's alternate-dir status is per-LOAD state that both paths
 /// share and that each load MUTATES as it goes: the synchronous path promotes it only after a regular
 /// open misses, so a collector that promotes it earlier changes the try order for every later sample
 /// of that load -- including samples that never go near the collector. One sample per leg cannot see
@@ -1571,7 +1562,7 @@ bool checkAsyncAlternateDirOrder() {
 	    && writeTestWav(altDir + "/ALT_ONLY.WAV", 2800, 0x55)
 	    && writeTestWav(altDir + "/BAD.WAV", 3600, 0x66)
 	    // SELF.WAV lives IN the alternate directory and is asked for by that path, so
-	    // `alternateAudioFileLoadPath` IS its own directory: proposeLoadCandidates' bare-name
+	    // the context's `alternateDir` IS its own directory: proposeLoadCandidates' bare-name
 	    // alternate candidate (slot 1) and its regular path (slot 2) are the SAME string. Only the
 	    // SLOT can tell the resulting hit apart, and getting that wrong leaves
 	    // `loadedFromAlternatePath` empty -- which is what save_song_ui.cpp gates the collect-media
@@ -1615,7 +1606,7 @@ bool checkAsyncAlternateDirOrder() {
 
 	// One load of three samples, either synchronously or through the collector. The async leg asks
 	// again on LOAD_IN_PROGRESS exactly as its caller is required to, rather than assuming one tick.
-	const auto runLoad = [&](bool useAsync) {
+	const auto runLoad = [&](bool useAsync, AudioLoadContext& context) {
 		g_asyncStub = {};
 		if (useAsync) {
 			g_asyncStub.active = true;
@@ -1638,9 +1629,6 @@ bool checkAsyncAlternateDirOrder() {
 				ok = false;
 			}
 		}
-		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
-		audioFileManager.thingTypeBeingLoaded = ThingType::SONG;
 
 		std::vector<LoadedIdentity> loaded;
 		for (const char* name : kFixtureNames) {
@@ -1654,7 +1642,7 @@ bool checkAsyncAlternateDirOrder() {
 				file = audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &identity.error,
 				                                                 AudioFileType::SAMPLE,
 				                                                 /*makeWaveTableWorkAtAllCosts=*/false,
-				                                                 /*mayLoadAsync=*/useAsync);
+				                                                 /*mayLoadAsync=*/useAsync, &context);
 				if (identity.error != Error::LOAD_IN_PROGRESS) {
 					break;
 				}
@@ -1673,12 +1661,18 @@ bool checkAsyncAlternateDirOrder() {
 		return loaded;
 	};
 
-	const std::vector<LoadedIdentity> synchronous = runLoad(/*useAsync=*/false);
-	const AlternateLoadDirStatus statusAfterSync = audioFileManager.alternateLoadDirStatus;
+	// A song load: the alternate dir might exist, and nothing has probed it yet.
+	const AudioLoadContext songLoad{.alternateDir = "SAMPLES/ALT",
+	                                .alternateDirStatus = AlternateLoadDirStatus::MIGHT_EXIST,
+	                                .thing = ThingType::SONG};
+	AudioLoadContext syncContext = songLoad;
+	const std::vector<LoadedIdentity> synchronous = runLoad(/*useAsync=*/false, syncContext);
+	const AlternateLoadDirStatus statusAfterSync = syncContext.alternateDirStatus;
 	const int syncRequests = g_asyncStub.requestCalls;
 	const int syncCollects = g_asyncStub.collectCalls;
-	const std::vector<LoadedIdentity> asynchronous = runLoad(/*useAsync=*/true);
-	const AlternateLoadDirStatus statusAfterAsync = audioFileManager.alternateLoadDirStatus;
+	AudioLoadContext asyncContext = songLoad;
+	const std::vector<LoadedIdentity> asynchronous = runLoad(/*useAsync=*/true, asyncContext);
+	const AlternateLoadDirStatus statusAfterAsync = asyncContext.alternateDirStatus;
 	const int asyncRequests = g_asyncStub.requestCalls;
 	const int asyncCollects = g_asyncStub.collectCalls;
 
@@ -1792,23 +1786,22 @@ bool checkAsyncAlternateDirOrder() {
 		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_UNKNOWN;
 		g_asyncStub.resolveAgainstRoot = root;
 		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DUP.WAV");
-		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
-		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+		AudioLoadContext context = songLoad;
 		std::string path = "SAMPLES/DUP.WAV";
 		Error error = Error::NONE;
 		for (int tick = 0; tick < 4; tick++) {
 			error = Error::NONE;
 			(void)audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
 			                                                /*makeWaveTableWorkAtAllCosts=*/false,
-			                                                /*mayLoadAsync=*/true);
+			                                                /*mayLoadAsync=*/true, &context);
 			if (error != Error::LOAD_IN_PROGRESS) {
 				break;
 			}
 		}
-		if (audioFileManager.alternateLoadDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
+		if (context.alternateDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
 			printf("FAIL [asyncAltDirOrder]: a sample found at its regular path promoted the alternate-dir "
 			       "status (to %d) -- that leaks a changed try order into the rest of the load\n",
-			       static_cast<int>(audioFileManager.alternateLoadDirStatus));
+			       static_cast<int>(context.alternateDirStatus));
 			ok = false;
 		}
 		const std::vector<std::string> expected{"SAMPLES/DUP.WAV"};
@@ -1824,9 +1817,6 @@ bool checkAsyncAlternateDirOrder() {
 	for (const char* name : kFixtureNames) {
 		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(name);
 	}
-	audioFileManager.alternateAudioFileLoadPath.clear();
-	audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
-	audioFileManager.thingTypeBeingLoaded = ThingType::NONE;
 	removeTempCard();
 	if (hadPreviousRoot) {
 		setenv("DELUGE_SD_ROOT", previousRoot.c_str(), 1);

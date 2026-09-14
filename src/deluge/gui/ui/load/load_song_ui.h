@@ -19,6 +19,7 @@
 
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
+#include "storage/audio/audio_load_context.h"
 #include "storage/deferred_load.h"
 #include "storage/song_preview.h" // SongPreviewOutcome, held as the last render's result
 
@@ -261,6 +262,10 @@ private:
 
 	/// @brief getSystemTime() value past which SETTLE stops waiting and swaps anyway.
 	double settleDeadline_{0.};
+
+	/// @brief The load's sample context: the song's own folder, where its collected samples may be, and what the
+	///        load has learnt about that folder. Made once the song is read; every sample pass of the load uses it.
+	deluge::storage::AudioLoadContext sampleLoadContext_{};
 
 	/// @brief The song's bytes, held from STAGE until the deserializer is finished in startLoad().
 	///

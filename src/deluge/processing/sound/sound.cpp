@@ -4309,11 +4309,11 @@ int16_t Sound::getMinOscTranspose() {
 }
 
 // Returns true if more loading needed later
-Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles) {
+Error Sound::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sources[s].oscType == OscType::SAMPLE || sources[s].oscType == OscType::WAVETABLE) {
-			Error error = sources[s].loadAllSamples(mayActuallyReadFiles);
+			Error error = sources[s].loadAllSamples(mayActuallyReadFiles, context);
 			if (error != Error::NONE) {
 				return error;
 			}

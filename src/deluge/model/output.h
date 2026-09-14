@@ -22,6 +22,7 @@
 #include "model/clip/clip_instance_vector.h"
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
+#include "storage/audio/audio_load_context.h"
 #include "util/c_string.h"
 #include <cstdint>
 
@@ -159,8 +160,11 @@ public:
 	virtual bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly,
 	                             Song* song); // Returns true if it's ended the opening tag and gone into the sub-tags
 
-	virtual Error loadAllAudioFiles(bool mayActuallyReadFiles) { return Error::NONE; }
-	virtual void loadCrucialAudioFilesOnly() {} // Caller must check that there is an activeClip.
+	virtual Error loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr) {
+		return Error::NONE;
+	}
+	// Caller must check that there is an activeClip.
+	virtual void loadCrucialAudioFilesOnly(deluge::storage::AudioLoadContext* context = nullptr) {}
 
 	// No activeClip needed. Call anytime the Instrument comes into existence on the main list thing
 	virtual void resyncLFOs() {};

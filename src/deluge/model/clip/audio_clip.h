@@ -50,7 +50,7 @@ public:
 	                       int32_t noteRowIndexStart = 0, int32_t noteRowIndexEnd = 2147483647, int32_t xStart = 0,
 	                       int32_t xEnd = kDisplayWidth, bool allowBlur = true, bool drawRepeats = false) override;
 	Error claimOutput(ModelStackWithTimelineCounter* modelStack) override;
-	void loadSample(bool mayActuallyReadFile);
+	void loadSample(bool mayActuallyReadFile, deluge::storage::AudioLoadContext* context = nullptr);
 	bool wantsToBeginLinearRecording(Song* song) override;
 	bool isAbandonedOverdub() override;
 	void finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,

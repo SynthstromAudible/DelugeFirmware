@@ -373,19 +373,17 @@ void SaveSongUI::resolveExists(const std::expected<bool, deluge::io::Status>& pr
 
 	// We might want to copy some samples around - either because we're "collecting" them to a folder, or
 	// because they were loaded in from a collected folder and we now need to put them in the main samples folder.
-	std::string newSongAlternatePath;
-	Error error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, request.dirPath.c_str(),
-	                                                          request.enteredText.c_str());
-	if (error == Error::NONE) {
-		newSongAlternatePath.append("/");
-		const int32_t dirPathLengthNew = static_cast<int32_t>(newSongAlternatePath.size());
-		// Decide everything first, then perform it a tick at a time. The list of audio files is sorted by
-		// path and searched by bisection, and the transfers rewrite paths -- so nothing is applied until
-		// every transfer has finished.
-		transfers_.clear();
-		if (!planTransfers(transfers_, request.collectingSamples, newSongAlternatePath, dirPathLengthNew)) {
-			error = Error::UNSPECIFIED;
-		}
+	std::string newSongAlternatePath =
+	    deluge::storage::AudioLoadContext::alternateDirFor(request.dirPath.c_str(), request.enteredText.c_str());
+	newSongAlternatePath.append("/");
+	const int32_t dirPathLengthNew = static_cast<int32_t>(newSongAlternatePath.size());
+	// Decide everything first, then perform it a tick at a time. The list of audio files is sorted by
+	// path and searched by bisection, and the transfers rewrite paths -- so nothing is applied until
+	// every transfer has finished.
+	transfers_.clear();
+	Error error = Error::NONE;
+	if (!planTransfers(transfers_, request.collectingSamples, newSongAlternatePath, dirPathLengthNew)) {
+		error = Error::UNSPECIFIED;
 	}
 	if (error != Error::NONE) {
 		collectPhase_ = CollectPhase::NONE;

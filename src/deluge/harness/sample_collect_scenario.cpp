@@ -257,13 +257,7 @@ void runTick() {
 			// RECORDINGS, which get a generated name. An ordinary sample is copied into the song's
 			// folder without the file object remembering that, so asking the object would report
 			// "never collected" for a collection that worked perfectly.
-			std::string expected;
-			if (audioFileManager.setupAlternateAudioFileDir(expected, kSaveDir, kSaveName) != Error::NONE) {
-				printf("SC-COPIED FAIL could not work out where %s should have been collected to\n",
-				       file->filePath.c_str());
-				g_failures++;
-				continue;
-			}
+			std::string expected = deluge::storage::AudioLoadContext::alternateDirFor(kSaveDir, kSaveName);
 			expected += "/";
 			const int32_t dirLength = static_cast<int32_t>(expected.size());
 			if (audioFileManager.setupAlternateAudioFilePath(expected, dirLength, file->filePath) != Error::NONE) {

@@ -979,7 +979,7 @@ mod driver {
     /// alternate-dir probe), while "the handle table is full" is a RESOURCE
     /// verdict that says nothing at all about where the file lives. Reported as a
     /// miss, a full table sent the load probing the alternate directory,
-    /// promoted `alternateLoadDirStatus` for every later sample of the load, and
+    /// promoted the load's alternate-dir status for every later sample, and
     /// could answer with a same-named file from the alternate directory — where
     /// the synchronous path reports `Error::TOO_MANY_OPEN_STREAMS` and reclaims.
     /// The two must stay distinguishable all the way out to the collector.
@@ -1037,7 +1037,7 @@ mod driver {
     /// By POSITION, never by string equality. `proposeLoadCandidates` always
     /// pushes the regular path LAST and says so in its own comment, and
     /// `resolveFileSize` classifies on that position for a reason: when
-    /// `alternateAudioFileLoadPath` happens to be the file's own directory, the
+    /// the load context's `alternateDir` happens to be the file's own directory, the
     /// bare-name alternate candidate stringifies to exactly the nominal path. A
     /// `winning_path != request.path` test then calls that hit "regular", leaves
     /// `alternate_path` empty, and `Sample::loadedFromAlternatePath` stays empty

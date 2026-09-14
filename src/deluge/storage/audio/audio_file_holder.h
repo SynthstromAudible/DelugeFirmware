@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "definitions_cxx.hpp"
+#include "storage/audio/audio_load_context.h"
 #include "util/c_string.h"
 
 class Sample;
@@ -58,12 +59,14 @@ public:
 	///                            on a later tick, without re-requesting or reporting a failure. Defaulted
 	///                            off: every caller but AudioEngine::previewSample keeps the synchronous
 	///                            behaviour it was written against.
+	/// @param context             The load this file belongs to, as AudioFileManager::getAudioFileFromFilename
+	///                            takes it. Null for a file loaded on its own.
 	/// @return Error::NONE does not necessarily mean a file is now loaded -- see the two silent-miss
 	///         cases in the .cpp. Otherwise the failure, or Error::LOAD_IN_PROGRESS (not a failure --
 	///         see mayLoadAsync).
 	Error loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
 	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, bool makeWaveTableWorkAtAllCosts = false,
-	               bool mayLoadAsync = false);
+	               bool mayLoadAsync = false, deluge::storage::AudioLoadContext* context = nullptr);
 	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
 	std::string filePath{};

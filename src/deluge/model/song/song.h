@@ -274,7 +274,7 @@ public:
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr);
 	Error readFromFile(Deserializer& reader);
 	void writeToFile();
-	void loadAllSamples(bool mayActuallyReadFiles = true);
+	void loadAllSamples(bool mayActuallyReadFiles = true, deluge::storage::AudioLoadContext* context = nullptr);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	Clip* syncScalingClip;
@@ -308,7 +308,7 @@ public:
 	void deleteBackedUpParamManagersForClip(Clip* clip);
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
 	void deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name);
-	void loadCrucialSamplesOnly();
+	void loadCrucialSamplesOnly(deluge::storage::AudioLoadContext* context = nullptr);
 	Clip* getSessionClipWithOutput(Output* output, int32_t requireSection = -1, Clip* excludeClip = nullptr,
 	                               int32_t* clipIndex = nullptr, bool excludePendingOverdubs = false);
 	void restoreClipStatesBeforeArrangementPlay();

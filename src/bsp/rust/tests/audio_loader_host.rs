@@ -593,7 +593,7 @@ fn the_regular_path_winning_reports_no_alternate_location() {
 /// alternate candidate stringifies to exactly the nominal path.
 ///
 /// This is the case that separates the two ways of deciding "did an alternate
-/// win". `alternateAudioFileLoadPath` = `SAMPLES/ALT` and a file already at
+/// win". A load context whose `alternateDir` is `SAMPLES/ALT`, and a file already at
 /// `SAMPLES/ALT/A.wav` gives candidates whose slot 1 (bare name in the alternate
 /// dir) and slot 2 (regular path) are the SAME string. `resolveFileSize`
 /// classifies by SLOT and calls the slot-1 hit an alternate; a
@@ -604,7 +604,7 @@ fn the_regular_path_winning_reports_no_alternate_location() {
 #[test]
 fn a_bare_name_candidate_equal_to_the_nominal_path_is_still_an_alternate() {
     // What proposeLoadCandidates produces for SAMPLES/ALT/A.wav with
-    // alternateAudioFileLoadPath == "SAMPLES/ALT": the flattened form, the bare
+    // an alternate directory of "SAMPLES/ALT": the flattened form, the bare
     // name in the alternate dir, then the regular path -- the last two identical.
     let candidates = [
         "SAMPLES/ALT/ALT_A.wav",
@@ -634,7 +634,7 @@ fn a_bare_name_candidate_equal_to_the_nominal_path_is_still_an_alternate() {
 /// `sample_stream.cpp` documents it filling up by construction under browser
 /// preview -- this rung's own workload. Reported as a miss it becomes
 /// `FILE_UNREADABLE`, which is the collector's retry gate: the load probes the
-/// alternate directory, promotes `alternateLoadDirStatus` for every later sample,
+/// alternate directory, promotes the load's alternate-dir status for every later sample,
 /// and can answer with a same-named file from there. The synchronous path instead
 /// reports `TOO_MANY_OPEN_STREAMS` and runs `releaseUnleasedAudioFiles()`.
 #[test]

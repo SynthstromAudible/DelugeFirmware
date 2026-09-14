@@ -547,18 +547,6 @@ bool AudioFileManager::ensureEnoughMemoryForOneMoreAudioFile() {
 	}
 }
 
-Error AudioFileManager::setupAlternateAudioFileDir(std::string& newPath, char const* rootDir,
-                                                   const char* songFilenameWithoutExtension) {
-
-	newPath = rootDir;
-
-	newPath.append("/");
-
-	newPath.append(songFilenameWithoutExtension);
-
-	return Error::NONE;
-}
-
 Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength,
                                                     const std::string& oldPath) const {
 	newPath.resize(dirPathLength);
@@ -584,14 +572,16 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 	return Error::NONE;
 }
 
-std::string AudioFileManager::alternateDirBareNameCandidate(const std::string& filePath) const {
-	std::string candidate = alternateAudioFileLoadPath;
+std::string AudioFileManager::alternateDirBareNameCandidate(const deluge::storage::AudioLoadContext& context,
+                                                            const std::string& filePath) const {
+	std::string candidate = context.alternateDir;
 	candidate.append("/");
 	candidate.append(getFileNameFromEndOfPath(filePath.c_str()));
 	return candidate;
 }
 
-size_t AudioFileManager::proposeLoadCandidates(const std::string& filePath, std::string* out, size_t max) const {
+size_t AudioFileManager::proposeLoadCandidates(const deluge::storage::AudioLoadContext& context,
+                                               const std::string& filePath, std::string* out, size_t max) const {
 	// `proposed` counts every candidate this call considers, independent of whether it fit in `out` --
 	// the snprintf-style contract documented on the declaration. Never silently drop the tail: a caller
 	// that under-sized `max` can tell, by comparing the return value against `max`, rather than quietly
@@ -604,7 +594,7 @@ size_t AudioFileManager::proposeLoadCandidates(const std::string& filePath, std:
 		proposed++;
 	};
 
-	if (alternateLoadDirStatus != AlternateLoadDirStatus::DOES_EXIST) {
+	if (context.alternateDirStatus != AlternateLoadDirStatus::DOES_EXIST) {
 		pushCandidate(std::string{filePath});
 		return proposed;
 	}
@@ -621,7 +611,7 @@ size_t AudioFileManager::proposeLoadCandidates(const std::string& filePath, std:
 			// error code a caller sees when this leaves `out` empty.
 			return 0;
 		}
-		std::string flattenedCandidate = alternateAudioFileLoadPath;
+		std::string flattenedCandidate = context.alternateDir;
 		flattenedCandidate.append("/");
 		flattenedCandidate.append(flattenedName);
 		pushCandidate(std::move(flattenedCandidate));
@@ -631,7 +621,7 @@ size_t AudioFileManager::proposeLoadCandidates(const std::string& filePath, std:
 	// applied and missed, since it also lets users drop files straight into an instrument's alternate
 	// folder. Shared with getAudioFileFromFilename()'s in-memory search via alternateDirBareNameCandidate
 	// (see its doc comment for why that search isn't routed through this function wholesale).
-	pushCandidate(alternateDirBareNameCandidate(filePath));
+	pushCandidate(alternateDirBareNameCandidate(context, filePath));
 
 	// Candidate 3: the regular path. Always pushed last -- resolveFileSize relies on that position
 	// (not string equality) to tell an alternate-dir hit from a regular one.
@@ -640,8 +630,9 @@ size_t AudioFileManager::proposeLoadCandidates(const std::string& filePath, std:
 	return proposed;
 }
 
-bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, std::string& usingAlternateLocation,
-                                       uint64_t& sizeBytes, Error* error) {
+bool AudioFileManager::resolveFileSize(deluge::storage::AudioLoadContext& context, std::string& filePath,
+                                       bool mayReadCard, std::string& usingAlternateLocation, uint64_t& sizeBytes,
+                                       Error* error) {
 	if (!mayReadCard) {
 		return false; // NB: leaves *error untouched (caller initialised it to NONE) — a "silently absent" miss.
 	}
@@ -683,7 +674,7 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 		}
 		else {
 			usingAlternateLocation = candidate;
-			if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
+			if (context.thing == ThingType::SYNTH || context.thing == ThingType::KIT) {
 				// Special rule for loading presets with files in their dedicated "alternate" folder: point
 				// the AudioFile's filePath at that location and then treat it as normal (not alternate).
 				filePath = usingAlternateLocation;
@@ -696,7 +687,7 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 	// Sized to kMaxLoadCandidates, the true upper bound proposeLoadCandidates ever proposes, so `count`
 	// below always equals the full proposed list -- this call site never truncates.
 	std::array<std::string, kMaxLoadCandidates> candidates{};
-	size_t count = proposeLoadCandidates(filePath, candidates.data(), candidates.size());
+	size_t count = proposeLoadCandidates(context, filePath, candidates.data(), candidates.size());
 
 	// If we already know the alternate dir exists there's a high chance the file is in it, so
 	// proposeLoadCandidates puts its candidates first; otherwise it proposes only the regular path. The
@@ -709,8 +700,8 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 
 	// Nothing above hit, and the alternate dir's existence wasn't known yet (so it wasn't among the
 	// candidates above) — probe it once and remember the answer.
-	if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
-		if (!resolveAlternateLoadDirStatus(error)) {
+	if (context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
+		if (!resolveAlternateLoadDirStatus(context, error)) {
 			return false;
 		}
 
@@ -718,7 +709,7 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 		// regular path) was already tried above and failed, so skip it here -- by position, not string
 		// equality (see tryOpenCandidate's doc note).
 		std::array<std::string, kMaxLoadCandidates> altCandidates{};
-		size_t altCount = proposeLoadCandidates(filePath, altCandidates.data(), altCandidates.size());
+		size_t altCount = proposeLoadCandidates(context, filePath, altCandidates.data(), altCandidates.size());
 		for (size_t i = 0; i + 1 < altCount; i++) {
 			if (tryOpenCandidate(altCandidates[i], /*isRegularPath=*/false)) {
 				return true;
@@ -732,17 +723,17 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 
 // Split out of resolveFileSize (its only other caller) so a direct caller -- the C ABI, later -- can
 // run the probe on its own before proposeLoadCandidates(); see the declaration's doc comment.
-bool AudioFileManager::resolveAlternateLoadDirStatus(Error* error) {
-	if (alternateLoadDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
+bool AudioFileManager::resolveAlternateLoadDirStatus(deluge::storage::AudioLoadContext& context, Error* error) {
+	if (context.alternateDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
 		// Already known (or never set): nothing to probe. Only DOES_EXIST counts as "exists".
-		return alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST;
+		return context.alternateDirStatus == AlternateLoadDirStatus::DOES_EXIST;
 	}
 
 	switch (deluge::storage::presence_of(
-	    deluge::io::presence_from_open(deluge::io::Directory::open(alternateAudioFileLoadPath.c_str())))) {
+	    deluge::io::presence_from_open(deluge::io::Directory::open(context.alternateDir.c_str())))) {
 	case deluge::storage::Presence::Absent:
 		// Genuinely not there: worth remembering, so later lookups skip it.
-		alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
+		context.alternateDirStatus = AlternateLoadDirStatus::NOT_FOUND;
 		*error = Error::FILE_UNREADABLE;
 		return false;
 	case deluge::storage::Presence::Undeterminable:
@@ -751,7 +742,7 @@ bool AudioFileManager::resolveAlternateLoadDirStatus(Error* error) {
 		*error = Error::SD_CARD;
 		return false;
 	case deluge::storage::Presence::Present:
-		alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+		context.alternateDirStatus = AlternateLoadDirStatus::DOES_EXIST;
 		return true;
 	}
 	return false; // unreachable -- silences -Wreturn-type on the (exhaustive) enum switch above
@@ -836,19 +827,23 @@ AudioFile* AudioFileManager::matchingResidentAudioFile(int32_t audioFileI, const
 
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       AudioFileType type, bool makeWaveTableWorkAtAllCosts,
-                                                      bool mayLoadAsync) {
+                                                      bool mayLoadAsync, deluge::storage::AudioLoadContext* context) {
+	// A lookup that belongs to no load gets an empty context of its own, which nothing the lookup does can change.
+	deluge::storage::AudioLoadContext noLoad;
+	deluge::storage::AudioLoadContext& loadContext = (context != nullptr) ? *context : noLoad;
 	DELUGE_LOAD_TRACE("get path=%s type=%d read=%d async=%d alt=%s status=%d thing=%d", filePath.c_str(),
 	                  static_cast<int>(type), mayReadCard ? 1 : 0, mayLoadAsync ? 1 : 0,
-	                  alternateAudioFileLoadPath.c_str(), static_cast<int>(alternateLoadDirStatus),
-	                  static_cast<int>(thingTypeBeingLoaded));
-	AudioFile* file =
-	    getAudioFileFromFilenameUntraced(filePath, mayReadCard, error, type, makeWaveTableWorkAtAllCosts, mayLoadAsync);
+	                  loadContext.alternateDir.c_str(), static_cast<int>(loadContext.alternateDirStatus),
+	                  static_cast<int>(loadContext.thing));
+	AudioFile* file = getAudioFileFromFilenameUntraced(loadContext, filePath, mayReadCard, error, type,
+	                                                   makeWaveTableWorkAtAllCosts, mayLoadAsync);
 	DELUGE_LOAD_TRACE("got path=%s error=%d file=%d", filePath.c_str(), static_cast<int>(*error),
 	                  file != nullptr ? 1 : 0);
 	return file;
 }
 
-AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(std::string& filePath, bool mayReadCard, Error* error,
+AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::AudioLoadContext& context,
+                                                              std::string& filePath, bool mayReadCard, Error* error,
                                                               AudioFileType type, bool makeWaveTableWorkAtAllCosts,
                                                               bool mayLoadAsync) {
 
@@ -863,14 +858,14 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(std::string& fileP
 	// If that didn't find it and we're loading a preset (not a Song, not just browsing), also search in memory
 	// for the alternate path.
 	if (!foundExact
-	    && (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
-	        || alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST)
-	    && thingTypeBeingLoaded != ThingType::SONG) {
+	    && (context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
+	        || context.alternateDirStatus == AlternateLoadDirStatus::DOES_EXIST)
+	    && context.thing != ThingType::SONG) {
 		// Same bare-name rule proposeLoadCandidates() uses for its alternate-dir candidate (see
 		// alternateDirBareNameCandidate()'s doc comment for why this in-memory search isn't just a call
 		// to that function instead): a free sorted-vector lookup, so it's worth trying under MIGHT_EXIST
 		// too, not just the known-DOES_EXIST case an actual card open would require.
-		std::string searchPath = alternateDirBareNameCandidate(filePath);
+		std::string searchPath = alternateDirBareNameCandidate(context, filePath);
 
 		audioFileI = audioFiles.search(searchPath.c_str(), &foundExact);
 		if (foundExact) {
@@ -916,14 +911,14 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(std::string& fileP
 	// still report Error::SD_CARD from resolveFileSize, not sit in LOAD_IN_PROGRESS forever).
 	if (mayLoadAsync && mayReadCard && !cardDisabled && type == AudioFileType::SAMPLE
 	    && deluge_audio_load_async_active()) {
-		if (std::optional<AudioFile*> collected = collectAsyncSampleLoad(filePath, error)) {
+		if (std::optional<AudioFile*> collected = collectAsyncSampleLoad(context, filePath, error)) {
 			return *collected;
 		}
 	}
 
 	uint64_t sizeBytes;
 	std::string usingAlternateLocation;
-	if (!resolveFileSize(filePath, mayReadCard, usingAlternateLocation, sizeBytes, error)) {
+	if (!resolveFileSize(context, filePath, mayReadCard, usingAlternateLocation, sizeBytes, error)) {
 		return nullptr;
 	}
 
@@ -943,13 +938,14 @@ Error failureErrorFromAbiByte(uint8_t abiError) {
 }
 } // namespace
 
-std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(const std::string& filePath, Error* error) {
+std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::storage::AudioLoadContext& context,
+                                                                   const std::string& filePath, Error* error) {
 	DelugeAudioLoadResult result{};
 	switch (deluge_audio_load_collect(filePath.c_str(), &result)) {
 
 	case DELUGE_AUDIO_LOAD_READY:
 		if (result.error != static_cast<uint8_t>(Error::NONE)) {
-			return answerFailedLoadResult(filePath, result.error, error);
+			return answerFailedLoadResult(context, filePath, result.error, error);
 		}
 		// The bytes are already in hand: build and publish the Sample right here, synchronously.
 		return buildSampleFromLoadResult(filePath, result, error);
@@ -963,11 +959,12 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(const std::st
 	case DELUGE_AUDIO_LOAD_UNKNOWN:
 	default:
 		// Never requested, or its result was collected/evicted already. Ask (again).
-		return requestAsyncSampleLoad(filePath, error);
+		return requestAsyncSampleLoad(context, filePath, error);
 	}
 }
 
-std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(const std::string& filePath, uint8_t resultError,
+std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::storage::AudioLoadContext& context,
+                                                                   const std::string& filePath, uint8_t resultError,
                                                                    Error* error) {
 	// A FULL efatfs handle table, which is not a verdict about the file at all -- nothing was even
 	// attempted. It reaches here under its own identity rather than folded into FILE_UNREADABLE
@@ -990,7 +987,7 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(const std::st
 	// synchronous path rather than being answered with a failure it need not have.
 	if (failureErrorFromAbiByte(resultError) == Error::TOO_MANY_OPEN_STREAMS) {
 		if (releaseUnleasedAudioFiles() > 0) {
-			return requestAsyncSampleLoad(filePath, error);
+			return requestAsyncSampleLoad(context, filePath, error);
 		}
 		*error = Error::TOO_MANY_OPEN_STREAMS;
 		return nullptr;
@@ -1025,14 +1022,14 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(const std::st
 	// than by counting: the retry only happens when the probe actually moved the status, so the guard
 	// above is necessarily false next time round.
 	if (failureErrorFromAbiByte(resultError) == Error::FILE_UNREADABLE
-	    && alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
-	    && deluge_audio_load_resolve_alternate_dir(nullptr)
-	    && alternateLoadDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
+	    && context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
+	    && deluge_audio_load_resolve_alternate_dir(deluge::storage::toAbi(context), nullptr)
+	    && context.alternateDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
 		// The alternate dir exists after all, so there are candidates this request did not carry --
 		// exactly what resolveFileSize does at this same point. A decline here is passed straight
 		// through (std::nullopt), so the load still reaches the synchronous path rather than being
 		// answered with a failure it never had to have.
-		return requestAsyncSampleLoad(filePath, error);
+		return requestAsyncSampleLoad(context, filePath, error);
 	}
 
 	// Otherwise this is the loader's verdict on the file itself, carrying the same identity the
@@ -1126,7 +1123,8 @@ bool AudioFileManager::admissibleAsyncCandidates(const char* candidates, uint32_
 	return true;
 }
 
-std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const std::string& filePath, Error* error) {
+std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const deluge::storage::AudioLoadContext& context,
+                                                                   const std::string& filePath, Error* error) {
 	// A path the loader can never accept must never become a request. deluge_audio_load_request
 	// refuses a path (or a candidate) that is not valid UTF-8 or does not fit its fixed-capacity
 	// buffer, and unlike a full queue those refusals are PERMANENT: reporting LOAD_IN_PROGRESS for one
@@ -1151,7 +1149,8 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const std::st
 	// candidate resolveFileSize tries first from the same state.
 	std::array<char, kMaxLoadCandidates * DELUGE_MAX_PATH> candidates{};
 	const uint32_t proposed =
-	    deluge_audio_load_candidates(filePath.c_str(), candidates.data(), static_cast<uint32_t>(kMaxLoadCandidates));
+	    deluge_audio_load_candidates(deluge::storage::toAbi(context), filePath.c_str(), candidates.data(),
+	                                 static_cast<uint32_t>(kMaxLoadCandidates));
 	if (proposed == DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED || proposed == 0) {
 		// No trustworthy candidate list to hand over: a candidate too long to fit, or a candidate
 		// construction that failed. Decline rather than request, and let the synchronous path -- which
@@ -1487,16 +1486,4 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 
 bool AudioFileManager::cardUnavailableForStreaming() const {
 	return cardEjected || cardDisabled || !StorageManager::checkSDInitialized();
-}
-
-// Caller must also set alternateAudioFileLoadPath.
-void AudioFileManager::thingBeginningLoading(ThingType newThingType) {
-	alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
-	thingTypeBeingLoaded = newThingType;
-}
-
-void AudioFileManager::thingFinishedLoading() {
-	alternateAudioFileLoadPath.clear();
-	alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
-	thingTypeBeingLoaded = ThingType::NONE;
 }

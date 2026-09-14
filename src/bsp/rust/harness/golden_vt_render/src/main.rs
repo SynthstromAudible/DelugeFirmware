@@ -879,7 +879,7 @@ fn pack_sample_load_tree_image() -> std::path::PathBuf {
 ///   this file and only this file — which is how the gate was shown to be able to fail on file
 ///   identity rather than only on geometry.
 /// - `SAMPLES/ONLYALT.WAV` exists ONLY in `SAMPLES/ALT`. It is the file that the alternate-dir probe
-///   has to find, and the one whose miss promotes `alternateLoadDirStatus` for every later case.
+///   has to find, and the one whose miss promotes the load's alternate-dir status for every later case.
 /// - `SAMPLES/ONLYREG.WAV` and `SAMPLES/STEREO24.WAV` come after that promotion, so they are the
 ///   cases that see the changed try order — and `STEREO24.WAV`'s geometry (2 channels, 24-bit)
 ///   differs in both fields the comparison names first.
@@ -929,7 +929,7 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     write_test_wav(&alt.join("KIT_SNARE.WAV"), 1, 16, 2304, 0x99);
     write_test_wav(&alt.join("SNARE.WAV"), 1, 16, 3072, 0xAA);
     // The self-directory case: the file lives IN the alternate directory, so
-    // `alternateAudioFileLoadPath` is its own directory and the bare-name alternate
+    // the load context's `alternateDir` is its own directory and the bare-name alternate
     // candidate stringifies to exactly the nominal path. Only a positional reading of
     // "which candidate won" calls that an alternate hit -- see the `selfdir` entry in
     // `audio_load_ab_scenario.cpp`'s kCases. There is deliberately NO flattened

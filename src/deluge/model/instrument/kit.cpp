@@ -362,60 +362,42 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 }
 
 // Returns true if more loading needed later
-Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
-
-	Error error = Error::NONE;
-
-	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
-	if (doingAlternatePath) {
-		error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return error;
-		}
+Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+	// A kit read on its own also looks for its samples in its own folder. Within a song's load, in the song's.
+	deluge::storage::AudioLoadContext ownFolder;
+	if (mayActuallyReadFiles && deluge::storage::AudioLoadContext::isNone(context)) {
+		ownFolder = deluge::storage::AudioLoadContext::forInstrument(dirPath.c_str(), name.c_str(), ThingType::KIT);
+		context = &ownFolder;
 	}
 
 	AudioEngine::logAction("Kit::loadAllSamples");
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			error = Error::ABORTED_BY_USER;
-			goto getOut;
+			return Error::ABORTED_BY_USER;
 		}
-		error = thisDrum->loadAllSamples(mayActuallyReadFiles);
+		Error error = thisDrum->loadAllSamples(mayActuallyReadFiles, context);
 		if (error != Error::NONE) {
-			goto getOut;
+			return error;
 		}
 	}
 
-getOut:
-	if (doingAlternatePath) {
-		audioFileManager.thingFinishedLoading();
-	}
-
-	return error;
+	return Error::NONE;
 }
 
 // Caller must check that there is an activeClip.
-void Kit::loadCrucialAudioFilesOnly() {
-
-	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
-	if (doingAlternatePath) {
-		Error error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return;
-		}
+void Kit::loadCrucialAudioFilesOnly(deluge::storage::AudioLoadContext* context) {
+	deluge::storage::AudioLoadContext ownFolder;
+	if (deluge::storage::AudioLoadContext::isNone(context)) {
+		ownFolder = deluge::storage::AudioLoadContext::forInstrument(dirPath.c_str(), name.c_str(), ThingType::KIT);
+		context = &ownFolder;
 	}
 
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
 	for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
 		NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 		if (!thisNoteRow->muted && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
-			thisNoteRow->drum->loadAllSamples(true); // Why don't we deal with the error?
+			thisNoteRow->drum->loadAllSamples(true, context); // Why don't we deal with the error?
 		}
-	}
-
-	if (doingAlternatePath) {
-		audioFileManager.thingFinishedLoading();
 	}
 }
 

@@ -49,7 +49,7 @@ public:
 		return Sound::offerReceivedPitchBendToLearnedParams(cable, channel, data1, data2, modelStack);
 	}
 
-	Error loadAllAudioFiles(bool mayActuallyReadFiles) override;
+	Error loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr) override;
 	void resyncLFOs() override;
 	ModControllable* toModControllable() override;
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
@@ -72,7 +72,7 @@ public:
 	void prepareForHibernationOrDeletion() override;
 	void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) override;
 	bool isSkippingRendering() override { return skippingRendering; }
-	void loadCrucialAudioFilesOnly() override;
+	void loadCrucialAudioFilesOnly(deluge::storage::AudioLoadContext* context = nullptr) override;
 	void beenEdited(bool shouldMoveToEmptySlot = true) override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
 	void setupWithoutActiveClip(ModelStack* modelStack) override;

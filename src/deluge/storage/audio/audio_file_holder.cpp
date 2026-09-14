@@ -37,7 +37,8 @@ AudioFileHolder::~AudioFileHolder() {
 // Error::LOAD_IN_PROGRESS come back out of this function and treat it as "ask again later", not a
 // failure.
 Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-                                int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts, bool mayLoadAsync) {
+                                int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts, bool mayLoadAsync,
+                                deluge::storage::AudioLoadContext* context) {
 
 	// See if this AudioFile object already all loaded up
 	if (audioFile != nullptr) {
@@ -50,7 +51,7 @@ Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayAc
 
 	Error error;
 	AudioFile* maybeNewAudioFile = audioFileManager.getAudioFileFromFilename(
-	    filePath, mayActuallyReadFile, &error, audioFileType, makeWaveTableWorkAtAllCosts, mayLoadAsync);
+	    filePath, mayActuallyReadFile, &error, audioFileType, makeWaveTableWorkAtAllCosts, mayLoadAsync, context);
 	// If we found it...
 	if (maybeNewAudioFile != nullptr) {
 
