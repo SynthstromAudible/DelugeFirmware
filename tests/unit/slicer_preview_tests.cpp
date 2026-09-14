@@ -17,6 +17,7 @@
 
 #include "CppUTest/TestHarness.h"
 
+#include "display_mock.h"
 #include "gui/ui/slicer.h"
 #include "slicer_env_mock.h"
 
@@ -27,7 +28,10 @@
 /// rescued by a retry loop the test brought with it.
 class SlicerPreviewProbe {
 public:
-	SlicerPreviewProbe() { deluge::test::resetSlicerEnv(); }
+	SlicerPreviewProbe() {
+		deluge::test::resetSlicerEnv();
+		deluge::test::lastDisplayedError = Error::NONE;
+	}
 
 	void forceLoadMiss(bool on) { deluge::test::forceLoadInProgress = on; }
 
@@ -55,6 +59,7 @@ public:
 	[[nodiscard]] bool previewIsPending() const { return slicer_.previewLoad_.pending(); }
 	[[nodiscard]] int32_t auditionNotesSent() const { return deluge::test::auditionNoteCount; }
 	[[nodiscard]] int32_t lastAuditionOn() const { return deluge::test::lastAuditionOn; }
+	[[nodiscard]] int32_t previewGiveUps() const { return slicer_.previewGiveUps(); }
 
 private:
 	Slicer slicer_{};
@@ -96,6 +101,37 @@ TEST(SlicerPreview, aColdPressDefersThenSoundsOnTheNextTick) {
 
 	probe.forceLoadMiss(false);
 	probe.graphicsRoutine();
+	CHECK_EQUAL(1, probe.auditionNotesSent());
+	CHECK_EQUAL(1, probe.lastAuditionOn());
+}
+
+/// A load that never lands gives up at the bound, rather than being asked for on every tick forever.
+///
+/// The bound is 600 deferred attempts in a row, the press included: 599 still wait, the 600th gives up. At the
+/// give-up nothing is re-armed, no audition note is sent, the card error is shown and the give-up is counted. The
+/// next press asks again, so a card that does answer later still auditions.
+TEST(SlicerPreview, aLoadThatNeverLandsGivesUpAtTheBound) {
+	SlicerPreviewProbe probe;
+	probe.forceLoadMiss(true);
+	probe.press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1}); // attempt 1
+	for (int32_t tick = 0; tick < 598; tick++) {
+		probe.graphicsRoutine(); // attempts 2 to 599
+	}
+	CHECK(probe.previewIsPending());
+	CHECK_EQUAL(0, probe.previewGiveUps());
+
+	probe.graphicsRoutine(); // attempt 600: the bound
+	CHECK_FALSE(probe.previewIsPending());
+	CHECK_EQUAL(1, probe.previewGiveUps());
+	CHECK_EQUAL(0, probe.auditionNotesSent());
+	CHECK(deluge::test::lastDisplayedError == Error::SD_CARD);
+
+	probe.graphicsRoutine(); // nothing left to ask for
+	CHECK_EQUAL(0, probe.auditionNotesSent());
+	CHECK_EQUAL(1, probe.previewGiveUps());
+
+	probe.forceLoadMiss(false);
+	probe.press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
 	CHECK_EQUAL(1, probe.auditionNotesSent());
 	CHECK_EQUAL(1, probe.lastAuditionOn());
 }

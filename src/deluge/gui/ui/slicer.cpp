@@ -470,7 +470,10 @@ bool Slicer::drivePreview(const PreviewTarget& target) {
 		// and a cancel lands either before request() or after this check has already passed. What
 		// refuses a cancelled attempt is complete()'s `deferred && is_current(a)` five lines down,
 		// and that is what tests/unit/slicer_preview_tests.cpp pins.
-		deferred = previewLoad_.is_current(attempt) && previewForTarget(attempt);
+		//
+		// boundPreviewWait() ends a wait that has deferred for the whole bound: it answers "not deferred", so
+		// nothing is re-armed and no note sounds.
+		deferred = boundPreviewWait(attempt, previewLoad_.is_current(attempt) && previewForTarget(attempt));
 
 		// A deferral is armed for graphicsRoutine() to re-drive — that surface is the ONLY thing
 		// that finishes a deferred audition.
@@ -483,6 +486,28 @@ bool Slicer::drivePreview(const PreviewTarget& target) {
 			return deferred;
 		}
 	}
+}
+
+bool Slicer::boundPreviewWait(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt, bool deferred) {
+	if (!deferred) {
+		previewWaitAttempts_ = 0; // answered (loaded or failed), or not run at all
+		return false;
+	}
+	if (attempt.generation != previewWaitGeneration_ || attempt.target != previewWaitTarget_) {
+		// A different attempt: its wait starts from nothing.
+		previewWaitGeneration_ = attempt.generation;
+		previewWaitTarget_ = attempt.target;
+		previewWaitAttempts_ = 0;
+	}
+	if (++previewWaitAttempts_ < kMaxPreviewWaitAttempts) {
+		return true; // still loading: ask again next tick
+	}
+	// The loader has left this load unanswered for the whole bound. Give up as a load that could not reach the
+	// card: the card error, no note, and no re-ask armed. The next press asks again.
+	previewWaitAttempts_ = 0;
+	previewGiveUps_++;
+	display->displayError(Error::SD_CARD);
+	return false;
 }
 
 bool Slicer::previewForTarget(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt) {

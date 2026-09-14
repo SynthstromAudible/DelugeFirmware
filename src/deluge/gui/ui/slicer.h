@@ -55,22 +55,26 @@ public:
 	void stopAnyPreviewing();
 	/// @brief Trigger a pad-hold/tap audition: snapshot the slice/on-off request and drive it.
 	///
-	/// The only I/O an audition does is the `loadFile()` for a sample that isn't already resident,
-	/// and WHERE that runs depends on which loader backs it. With the async loader active the load
-	/// answers "not yet" without touching the card, so the whole group (load, slice params,
-	/// audition note) is driven inline through `previewLoad_` and re-driven by `graphicsRoutine()`
-	/// until it lands. With the loader off — the shipping default — the same `loadFile()` reads the
-	/// card and blocks, so the group is dispatched to the storage owner instead; see
+	/// The only I/O an audition does is the `loadFile()` for a sample that isn't already resident. The
+	/// async loader answers "not yet" without touching the card, so the whole group (load, slice
+	/// params, audition note) is driven inline through `previewLoad_` and re-driven by
+	/// `graphicsRoutine()` until it lands, or until it has deferred for the whole bound; see
 	/// `drivePreview()`.
 	///
-	/// Either way the request is snapshotted here and the audition is latest-wins, so a burst of pad
-	/// taps converges on whichever slice/on-off state the finger is actually on.
+	/// The request is snapshotted here and the audition is latest-wins, so a burst of pad taps
+	/// converges on whichever slice/on-off state the finger is actually on.
 	/// @param startPoint Sample-frame position where the audition slice starts.
 	/// @param endPoint   Sample-frame position where the audition slice ends; -1 leaves the
 	///                   current end position unchanged.
 	/// @param transpose  Transpose to apply to the audition note.
 	/// @param on         Nonzero to start/continue the audition, zero to silence it.
 	void preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on);
+
+	/// @brief How many auditions gave up on a load that never answered.
+	///
+	/// An audition whose load answers "still loading" for 600 attempts in a row gives up with the card error;
+	/// see boundPreviewWait().
+	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
 
 	int32_t numManualSlice{};
 	int32_t currentSlice{};
@@ -108,6 +112,8 @@ private:
 		int64_t endPoint;
 		int32_t transpose;
 		int32_t on;
+
+		bool operator==(const PreviewTarget&) const = default;
 	};
 
 	/// @brief Drive one audition attempt: request @p target, act on it, and arm a re-ask if its
@@ -140,6 +146,32 @@ private:
 	void cancelPreview() { previewLoad_.cancel(); }
 
 	deluge::storage::DeferredLoad<PreviewTarget> previewLoad_{};
+
+	/// @brief Count one attempt of an audition's load against the bound, and say whether to ask again.
+	///
+	/// A deferred attempt counts. An attempt for a different target, or after a cancellation, starts the count
+	/// again, and an attempt that did not defer clears it. At @ref kMaxPreviewWaitAttempts in a row the audition
+	/// gives up: the card error is shown, no note is sent and nothing is re-armed. The next press asks again.
+	/// Nothing needs cleaning up: the loader copied the request, and a result nobody collects is evicted.
+	/// @param attempt  The attempt the drive ran.
+	/// @param deferred Whether its load answered "still loading".
+	/// @return Whether to arm the re-ask: @p deferred, unless this attempt reached the bound.
+	[[nodiscard]] bool boundPreviewWait(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt,
+	                                    bool deferred);
+
+	/// @brief Consecutive deferred attempts of an audition's load, and the attempt they were counted for.
+	/// @{
+	int32_t previewWaitAttempts_{0};
+	uint32_t previewWaitGeneration_{0};
+	PreviewTarget previewWaitTarget_{};
+	/// @}
+
+	/// @brief Auditions that gave up at the bound. See previewGiveUps().
+	int32_t previewGiveUps_{0};
+
+	/// @brief How many deferred attempts in a row an audition's load is given: the bound every channel consumer on
+	///        this ladder uses.
+	static constexpr int32_t kMaxPreviewWaitAttempts = 600;
 
 	/// @brief Snapshot of the SELECT_ENC "commit slice" gesture, captured in `buttonAction()` at
 	///        dispatch time.
