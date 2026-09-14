@@ -45,8 +45,9 @@ namespace deluge::storage {
 /// - a wavetable is looked up synchronously, on the calling tier, once the previous tick's walk left no sample in
 ///   flight. Its lookup may probe the load's folder on a miss, which must not happen before the samples have asked.
 ///
-/// The load ends Loaded when a walk leaves nothing in flight, and Failed when the user aborts it or the card cannot be
-/// read; holders bound before then stay bound. The end sticks: later ticks return it without walking.
+/// The load ends Loaded when a walk leaves nothing in flight, and Failed when the user aborts it, the card cannot be
+/// read, or kMaxStalledTicks walks in a row settle nothing; holders bound before then stay bound. The end sticks: later
+/// ticks return it without walking.
 ///
 /// The consumer owns the object, the root and the context, keeps all three alive while ticking, and does not change
 /// the root's tree between ticks. Dropping the object cancels the load; a request still in flight stays with the
@@ -65,6 +66,7 @@ public:
 		None,         ///< It did not.
 		Aborted,      ///< The user aborted it: shouldAbortLoading() answered true at a checkpoint.
 		CardUnusable, ///< The card cannot be read (ejected, disabled or not mounted), or no async loader backs loads.
+		Stalled,      ///< kMaxStalledTicks walks in a row left something in flight and settled nothing new.
 	};
 
 	/// @brief What a tick reports.
@@ -76,7 +78,17 @@ public:
 		int32_t inFlight = 0;       ///< Demands the last walk left still loading.
 		int32_t wavetableReads = 0; ///< Synchronous wavetable lookups, over the whole load.
 		int32_t ticks = 0;          ///< Ticks that walked.
+		int32_t stalledTicks =
+		    0; ///< Walks in a row, up to the last, that left something in flight and settled nothing.
 	};
+
+	/// @brief Walks in a row that may leave something in flight and settle nothing new before the load ends Failed,
+	///        Reason::Stalled.
+	///
+	/// The bound the sample browser's preview and the slicer's audition give a load (their kMaxPreviewWaitAttempts),
+	/// counted here for the whole load rather than per file: any demand that settles, bound or empty, starts the count
+	/// again, so a large load on a slow card keeps loading, and only a load that has stopped moving ends.
+	static constexpr int32_t kMaxStalledTicks = 600;
 
 	/// @brief Every sample a song needs: each output's, then each audio clip's.
 	[[nodiscard]] static AsyncSampleLoad forSong(Song& song, AudioLoadContext* context);
@@ -145,6 +157,8 @@ private:
 	int32_t samplesInFlight_{0};
 	/// Whether this walk met an abort.
 	bool aborted_{false};
+	/// How many demands had settled, bound or empty, after the previous walk.
+	int32_t settledBefore_{0};
 	Progress progress_{};
 };
 

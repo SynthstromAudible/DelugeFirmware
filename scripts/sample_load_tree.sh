@@ -27,6 +27,9 @@
 #               sample request has come back (each miss must wait for it), and with the card ejected while the probe
 #               is out (the load must end on the unusable card, and a second load on the same context must bind
 #               everything once the card is back, never taking the old card's answer for the new card's).
+#               And the synth preset with the loader held past the stall bound: that load must end Failed/Stalled on
+#               the bound's walk with nothing bound, and a second load must bind the preset's sample once the hold is
+#               lifted.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #

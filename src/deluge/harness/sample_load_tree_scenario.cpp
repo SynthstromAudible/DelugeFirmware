@@ -165,14 +165,17 @@ constexpr int32_t kCrucialRoutines = 102;
 constexpr uint32_t kAsyncLatencyMs = 20;
 /// Scenario ticks an async leg may take before it is called wedged. Probe 1 measured every leg well inside this.
 constexpr int32_t kMaxAsyncTicks = 4000;
-/// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit, race, card-gone): one
-/// per wavetable holder its walk reaches. Measured, and pinned.
-constexpr std::array<int32_t, 6> kAsyncWavetableReads{1, 1, 0, 0, 1, 1};
+/// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit, race, card-gone,
+/// stall): one per wavetable holder its walk reaches. Measured, and pinned.
+constexpr std::array<int32_t, 7> kAsyncWavetableReads{1, 1, 0, 0, 1, 1, 0};
 /// Milliseconds the byte channel holds each operation in the probe-race leg: long enough that every sample request of
 /// the song comes back while the folder's exists probe is still out.
 constexpr uint32_t kRaceProbeLatencyMs = 600;
 /// Milliseconds the byte channel holds each operation in the card-gone leg, so the probe is still out at the eject.
 constexpr uint32_t kCardGoneProbeLatencyMs = 400;
+/// Milliseconds the loader holds each load in the stall leg: longer than AsyncSampleLoad::kMaxStalledTicks scenario
+/// ticks, so the first load stalls, and over well before a second load's bound runs out.
+constexpr uint32_t kStallHoldMs = 1600;
 
 enum class Stage : uint8_t {
 	SongKit,
@@ -920,7 +923,7 @@ void checkCrucialLoad() {
 // Before each, every file the load binds is dropped from memory, so each must come through the async loader, and the
 // loader holds every load kAsyncLatencyMs so each spans several ticks. Each must end as its blocking load did.
 
-enum class AsyncLeg : uint8_t { Crucial, Song, Synth, Kit, Race, CardGone, Done };
+enum class AsyncLeg : uint8_t { Crucial, Song, Synth, Kit, Race, CardGone, Stall, Done };
 
 const char* asyncLegName(AsyncLeg leg) {
 	switch (leg) {
@@ -936,6 +939,8 @@ const char* asyncLegName(AsyncLeg leg) {
 		return "race";
 	case AsyncLeg::CardGone:
 		return "card-gone";
+	case AsyncLeg::Stall:
+		return "stall";
 	case AsyncLeg::Done:
 		break;
 	}
@@ -964,6 +969,8 @@ const char* asyncReasonName(deluge::storage::AsyncSampleLoad::Reason reason) {
 		return "Aborted";
 	case Reason::CardUnusable:
 		return "CardUnusable";
+	case Reason::Stalled:
+		return "Stalled";
 	}
 	return "?";
 }
@@ -991,6 +998,15 @@ CardGoneStep g_cardGoneStep = CardGoneStep::AwaitProbing;
 deluge::storage::AsyncSampleLoad::State g_cardGoneFirstState = deluge::storage::AsyncSampleLoad::State::Loading;
 deluge::storage::AsyncSampleLoad::Reason g_cardGoneFirstReason = deluge::storage::AsyncSampleLoad::Reason::None;
 AlternateLoadDirStatus g_cardGoneStatusAfter = AlternateLoadDirStatus::NONE_SET;
+
+/// The synth leg's instrument, which holds the preset's file until the stall leg reads the preset again.
+Instrument* g_asyncSynthInstrument = nullptr;
+/// Where the stall leg is: its first load is ticked until it ends, then the loader's hold is lifted and a second load
+/// of the same instrument runs to its end.
+enum class StallStep : uint8_t { AwaitFirst, AwaitSecond };
+StallStep g_stallStep = StallStep::AwaitFirst;
+/// How the stall leg's first load ended.
+deluge::storage::AsyncSampleLoad::Progress g_stallFirst{};
 
 /// Drop the reference instrument's files, and read the preset again into a fresh instrument for the async leg.
 void reloadPreset(Instrument* reference, const char* residentPath, OutputType type, const char* path,
@@ -1027,10 +1043,16 @@ void releaseForAsyncLeg() {
 	case AsyncLeg::Synth:
 		reloadPreset(g_refSynthInstrument, kSynthPresetResolved, OutputType::SYNTH, kSynthPresetPath, kSynthPresetName,
 		             kSynthPresetDir);
+		g_asyncSynthInstrument = g_asyncInstrument;
 		break;
 	case AsyncLeg::Kit:
 		reloadPreset(g_refKitInstrument, kKitPresetResolvedA, OutputType::KIT, kKitPresetPath, kKitPresetName,
 		             kKitPresetDir);
+		break;
+	case AsyncLeg::Stall:
+		// The synth leg's instrument still holds the preset's file; the stall leg reads the preset into another.
+		reloadPreset(g_asyncSynthInstrument, kSynthPresetResolved, OutputType::SYNTH, kSynthPresetPath,
+		             kSynthPresetName, kSynthPresetDir);
 		break;
 	case AsyncLeg::Done:
 		break;
@@ -1053,6 +1075,7 @@ bool beginAsyncLeg() {
 		break;
 	case AsyncLeg::Synth:
 	case AsyncLeg::Kit:
+	case AsyncLeg::Stall:
 		if (g_asyncInstrument == nullptr) {
 			return false;
 		}
@@ -1081,9 +1104,10 @@ bool beginAsyncLeg() {
 		deluge_file_bytes_set_latency_ms((g_asyncLeg == AsyncLeg::Race) ? kRaceProbeLatencyMs
 		                                                                : kCardGoneProbeLatencyMs);
 	}
+	g_stallStep = StallStep::AwaitFirst;
 	g_sampleOpensBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad);
 	g_probesBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoadProbe);
-	deluge_audio_load_set_latency_ms(kAsyncLatencyMs);
+	deluge_audio_load_set_latency_ms((g_asyncLeg == AsyncLeg::Stall) ? kStallHoldMs : kAsyncLatencyMs);
 	g_asyncTicks = 0;
 	return true;
 }
@@ -1120,6 +1144,24 @@ bool stepCardGone(const deluge::storage::AsyncSampleLoad::Progress& progress) {
 	return true;
 }
 
+/// The stall leg's step around a tick of its load. False while the leg is between its two loads.
+bool stepStall(const deluge::storage::AsyncSampleLoad::Progress& progress) {
+	using deluge::storage::AsyncSampleLoad;
+	if (g_stallStep == StallStep::AwaitSecond) {
+		return true;
+	}
+	if (progress.state == AsyncSampleLoad::State::Loading) {
+		return false;
+	}
+	// The first load has ended. Lift the hold and load the same instrument again: the request the first load left in
+	// flight answers once its hold runs out, well inside the second load's bound.
+	g_stallFirst = progress;
+	deluge_audio_load_set_latency_ms(0);
+	g_asyncLoad.emplace(AsyncSampleLoad::forOutput(*g_asyncInstrument, nullptr));
+	g_stallStep = StallStep::AwaitSecond;
+	return false;
+}
+
 /// One tick of the leg's load, on the interaction tier. True once the load has ended, or has run past its bound.
 bool tickAsyncLeg() {
 	const auto modeBefore = currentUIMode;
@@ -1136,6 +1178,9 @@ bool tickAsyncLeg() {
 	currentUIMode = modeBefore;
 	g_asyncTicks++;
 	if (g_asyncLeg == AsyncLeg::CardGone && !stepCardGone(progress) && g_asyncTicks < kMaxAsyncTicks) {
+		return false;
+	}
+	if (g_asyncLeg == AsyncLeg::Stall && !stepStall(progress) && g_asyncTicks < kMaxAsyncTicks) {
 		return false;
 	}
 	const bool ended = (progress.state != deluge::storage::AsyncSampleLoad::State::Loading);
@@ -1269,6 +1314,30 @@ void checkCardGone() {
 	}
 }
 
+/// The stall leg's first load: held far past the bound, it ended Failed/Stalled on exactly the bound's walk, with
+/// nothing bound. The second load, once the hold was lifted, is compared with the blocking load by the caller.
+void checkStall() {
+	using deluge::storage::AsyncSampleLoad;
+	printf("SLT-ASYNC probe leg=stall first=%s/%s ticks=%d stalledTicks=%d bound=%d inFlight=%d\n",
+	       asyncStateName(g_stallFirst.state), asyncReasonName(g_stallFirst.reason), g_stallFirst.ticks,
+	       g_stallFirst.stalledTicks, g_stallFirst.bound, g_stallFirst.inFlight);
+	if (g_stallFirst.state != AsyncSampleLoad::State::Failed
+	    || g_stallFirst.reason != AsyncSampleLoad::Reason::Stalled) {
+		printf("SLT-ASYNC FAIL leg=stall the held load did not end Failed/Stalled\n");
+		g_failures++;
+	}
+	if (g_stallFirst.stalledTicks != AsyncSampleLoad::kMaxStalledTicks
+	    || g_stallFirst.ticks != AsyncSampleLoad::kMaxStalledTicks) {
+		printf("SLT-ASYNC FAIL leg=stall the held load did not end on the bound's walk (%d)\n",
+		       AsyncSampleLoad::kMaxStalledTicks);
+		g_failures++;
+	}
+	if (g_stallFirst.bound != 0) {
+		printf("SLT-ASYNC FAIL leg=stall the held load bound a holder\n");
+		g_failures++;
+	}
+}
+
 void checkAsyncLeg() {
 	using deluge::storage::AsyncSampleLoad;
 	const char* leg = asyncLegName(g_asyncLeg);
@@ -1334,6 +1403,10 @@ void checkAsyncLeg() {
 	case AsyncLeg::CardGone:
 		compareOutcomes(leg, g_refSong, snapshot(songDemands(*currentSong)));
 		checkCardGone();
+		break;
+	case AsyncLeg::Stall:
+		compareOutcomes(leg, g_refSynth, snapshot(outputDemands(*g_asyncInstrument)));
+		checkStall();
 		break;
 	case AsyncLeg::Done:
 		break;
@@ -1643,6 +1716,9 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_firstProbeAnswerArmed = false;
 	g_firstProbeAnswer = -1;
 	g_cardGoneStep = CardGoneStep::AwaitProbing;
+	g_asyncSynthInstrument = nullptr;
+	g_stallStep = StallStep::AwaitFirst;
+	g_stallFirst = {};
 }
 
 bool deluge_scenario_sample_load_tree_complete(void) {
