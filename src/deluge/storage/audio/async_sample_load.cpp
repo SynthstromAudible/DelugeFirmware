@@ -18,11 +18,13 @@
 #include "storage/audio/async_sample_load.h"
 
 #include "hid/display/display.h"
+#include "libdeluge/audio_load.h"
 #include "model/clip/audio_clip.h"
 #include "model/drum/drum.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "storage/audio/audio_file_holder.h"
+#include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
 
 #include <algorithm>
@@ -70,6 +72,13 @@ AsyncSampleLoad AsyncSampleLoad::forHolder(const SampleDemand& demand, AudioLoad
 
 AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	if (progress_.state != State::Loading) {
+		return progress_;
+	}
+
+	if (!deluge_audio_load_async_active() || audioFileManager.cardUnavailableForStreaming()) {
+		// Nothing in flight can arrive from a card that cannot be read, and nothing new can be asked for: end.
+		progress_.state = State::Failed;
+		progress_.reason = Reason::CardUnusable;
 		return progress_;
 	}
 
@@ -171,7 +180,9 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	}
 
 	const bool waveTable = (holder.audioFileType == AudioFileType::WAVETABLE);
-	if (waveTable && !samplesSettled_) {
+	// A wavetable's blocking lookup reads the folder's status as it is, and PROBING reads as "does not exist".
+	const bool probing = (context_ != nullptr && context_->alternateDirStatus == AlternateLoadDirStatus::PROBING);
+	if (waveTable && (!samplesSettled_ || probing)) {
 		progress_.inFlight++;
 		return;
 	}

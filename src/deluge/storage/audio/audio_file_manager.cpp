@@ -729,6 +729,9 @@ bool AudioFileManager::resolveAlternateLoadDirStatus(deluge::storage::AudioLoadC
 		return context.alternateDirStatus == AlternateLoadDirStatus::DOES_EXIST;
 	}
 
+	// Counted: a blocking open on the interaction tier is what the async sample load's legs require never to happen.
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::SampleLoadProbe);
+
 	switch (deluge::storage::presence_of(
 	    deluge::io::presence_from_open(deluge::io::Directory::open(context.alternateDir.c_str())))) {
 	case deluge::storage::Presence::Absent:
@@ -860,7 +863,8 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 	// for the alternate path.
 	if (!foundExact
 	    && (context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
-	        || context.alternateDirStatus == AlternateLoadDirStatus::DOES_EXIST)
+	        || context.alternateDirStatus == AlternateLoadDirStatus::DOES_EXIST
+	        || context.alternateDirStatus == AlternateLoadDirStatus::PROBING)
 	    && context.thing != ThingType::SONG) {
 		// Same bare-name rule proposeLoadCandidates() uses for its alternate-dir candidate (see
 		// alternateDirBareNameCandidate()'s doc comment for why this in-memory search isn't just a call
@@ -916,6 +920,10 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 	    asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly && mayReadCard && type == AudioFileType::SAMPLE;
 	if (asyncMode != deluge::storage::AsyncLoadMode::Blocking && mayReadCard && !cardDisabled
 	    && type == AudioFileType::SAMPLE && deluge_audio_load_async_active()) {
+		// A folder probe that is out is collected first, so the lookups that follow see its answer.
+		if (asyncOnlySample && !collectFolderProbe(context, error)) {
+			return nullptr;
+		}
 		if (std::optional<AudioFile*> collected = collectAsyncSampleLoad(context, filePath, error, asyncMode)) {
 			return *collected;
 		}
@@ -988,6 +996,15 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
 
 	case DELUGE_AUDIO_LOAD_UNKNOWN:
 	default:
+		if (asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly
+		    && context.alternateDirStatus == AlternateLoadDirStatus::PROBING
+		    && std::ranges::find(context.requestedUnresolved, filePath) != context.requestedUnresolved.end()) {
+			// Its miss came back while the folder probe is out. Asked again now, it would carry only its own path
+			// again: wait for the probe.
+			DELUGE_LOAD_TRACE("probe wait path=%s", filePath.c_str());
+			*error = Error::LOAD_IN_PROGRESS;
+			return nullptr;
+		}
 		// Never requested, or its result was collected/evicted already. Ask (again).
 		return requestAsyncSampleLoad(context, filePath, error, asyncMode);
 	}
@@ -1077,16 +1094,19 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::stora
 std::optional<AudioFile*> AudioFileManager::answerUnreadableAsyncOnly(deluge::storage::AudioLoadContext& context,
                                                                       const std::string& filePath, Error* error) {
 	// Nothing opened for this path. Under MIGHT_EXIST that is the load's first word on whether its folder exists, so
-	// probe it here, where the synchronous path probes after its own miss.
-	if (context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
-		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::SampleLoadProbe);
-		Error probeError = Error::NONE;
-		(void)resolveAlternateLoadDirStatus(context, &probeError);
-		if (context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
-			// Could not tell, which is not absence: the status stays unresolved and this lookup reports the card.
-			*error = (probeError != Error::NONE) ? probeError : Error::SD_CARD;
-			return nullptr;
+	// ask for the folder's probe here, where the synchronous path probes after its own miss.
+	if (context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST && !startFolderProbe(context, error)) {
+		return nullptr;
+	}
+	if (context.alternateDirStatus == AlternateLoadDirStatus::PROBING) {
+		// The probe has not answered, so this miss says nothing yet. It stays listed: once the folder is known it is
+		// asked for again with the folder's candidates, or taken as final.
+		if (std::ranges::find(context.requestedUnresolved, filePath) == context.requestedUnresolved.end()) {
+			context.requestedUnresolved.push_back(filePath);
 		}
+		DELUGE_LOAD_TRACE("probe wait path=%s", filePath.c_str());
+		*error = Error::LOAD_IN_PROGRESS;
+		return nullptr;
 	}
 
 	auto& listed = context.requestedUnresolved;
@@ -1104,6 +1124,49 @@ std::optional<AudioFile*> AudioFileManager::answerUnreadableAsyncOnly(deluge::st
 	}
 	*error = Error::FILE_UNREADABLE;
 	return nullptr;
+}
+
+bool AudioFileManager::startFolderProbe(deluge::storage::AudioLoadContext& context, Error* error) {
+	const deluge::storage::bytes::ByteIo request =
+	    deluge::storage::bytes::requestDirExists(context.alternateDir.c_str());
+	DELUGE_LOAD_TRACE("probe start dir=%s request=%d", context.alternateDir.c_str(), static_cast<int>(request));
+	if (request == deluge::storage::bytes::ByteIo::Failed) {
+		// A folder path the channel cannot key: nothing will ever answer, and that is not absence either.
+		context.alternateDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+		*error = Error::SD_CARD;
+		return false;
+	}
+	context.alternateDirStatus = AlternateLoadDirStatus::PROBING;
+	return true;
+}
+
+bool AudioFileManager::collectFolderProbe(deluge::storage::AudioLoadContext& context, Error* error) {
+	if (context.alternateDirStatus != AlternateLoadDirStatus::PROBING) {
+		return true;
+	}
+	bool present = false;
+	DelugeStatus status = DELUGE_OK;
+	const deluge::storage::bytes::ByteIo answer =
+	    deluge::storage::bytes::collectDirExists(context.alternateDir.c_str(), &present, &status);
+	DELUGE_LOAD_TRACE("probe collect dir=%s answer=%d present=%d", context.alternateDir.c_str(),
+	                  static_cast<int>(answer), present ? 1 : 0);
+	switch (answer) {
+	case deluge::storage::bytes::ByteIo::Pending:
+		return true;
+	case deluge::storage::bytes::ByteIo::Ready:
+		context.alternateDirStatus = present ? AlternateLoadDirStatus::DOES_EXIST : AlternateLoadDirStatus::NOT_FOUND;
+		return true;
+	case deluge::storage::bytes::ByteIo::Unknown:
+		// Never asked, dropped because the channel was busy, or a stale answer from a card that has gone, removed at
+		// the collect. None of them says anything about this card's folder: ask again.
+		return startFolderProbe(context, error);
+	case deluge::storage::bytes::ByteIo::Failed:
+		// Could not tell, which is not absence: unresolved again, and this lookup reports the card.
+		context.alternateDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+		*error = Error::SD_CARD;
+		return false;
+	}
+	return true;
 }
 
 AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
@@ -1237,12 +1300,20 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(deluge::stora
 		return std::nullopt; // the same permanent refusal as above, one level down
 	}
 
-	if (asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly
-	    && context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
-	    && std::ranges::find(context.requestedUnresolved, filePath) == context.requestedUnresolved.end()) {
-		// This request carries only the file's own path. If it misses once the folder is known to exist,
-		// answerUnreadableAsyncOnly() asks again with the folder's candidates.
-		context.requestedUnresolved.push_back(filePath);
+	if (asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly) {
+		auto& listed = context.requestedUnresolved;
+		const auto entry = std::ranges::find(listed, filePath);
+		const bool unresolved = context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
+		                        || context.alternateDirStatus == AlternateLoadDirStatus::PROBING;
+		if (unresolved && entry == listed.end()) {
+			// This request carries only the file's own path. If it misses once the folder is known to exist,
+			// answerUnreadableAsyncOnly() asks again with the folder's candidates.
+			listed.push_back(filePath);
+		}
+		else if (!unresolved && entry != listed.end()) {
+			// This request carries every candidate the folder's status allows, so its miss is final.
+			listed.erase(entry);
+		}
 	}
 	(void)deluge_audio_load_request(filePath.c_str(), candidates.data(), numCandidates);
 

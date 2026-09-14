@@ -52,7 +52,7 @@ constexpr bool kFreezeOnViolation[8] = {
     true,  // Recorder: converted, likewise.
     true,  // Sysex: converted, likewise.
     false, // SampleLoad: counted for sample-load-tree's async legs; nothing on the device uses AsyncOnly yet.
-    false, // SampleLoadProbe: likewise, and the folder probe is still a blocking open.
+    false, // SampleLoadProbe: likewise; an AsyncOnly lookup probes through the byte channel instead.
 };
 
 /// Translate the C ABI's `uint32_t`-shaped status byte into the type the callers switch on.

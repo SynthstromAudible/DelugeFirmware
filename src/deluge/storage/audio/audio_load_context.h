@@ -30,6 +30,8 @@ enum class AlternateLoadDirStatus {
 	NOT_FOUND,   ///< Probed, and absent.
 	MIGHT_EXIST, ///< Named but not yet probed. Every song, synth and kit load starts here.
 	DOES_EXIST,  ///< Probed, and present.
+	PROBING,     ///< An AsyncLoadMode::AsyncOnly lookup has asked the byte channel whether it exists, and no lookup has
+	             ///< collected the answer yet.
 };
 
 /// libdeluge/audio_load.h's opaque handle for a deluge::storage::AudioLoadContext.
@@ -66,10 +68,10 @@ struct AudioLoadContext {
 	/// What is being loaded. For SYNTH and KIT, a file found in the alternate directory takes that path as its own.
 	/// For SONG, the in-memory search under the alternate directory's name is skipped.
 	ThingType thing = ThingType::NONE;
-	/// Paths an AsyncLoadMode::AsyncOnly lookup asked the loader for while @ref alternateDirStatus was still
-	/// MIGHT_EXIST. Each of those requests carried only the file's own path, so a miss collected once the folder is
-	/// known to exist is asked for again with the folder's candidates rather than taken as final. At most one entry
-	/// per path; freed with the context.
+	/// Paths an AsyncLoadMode::AsyncOnly lookup asked the loader for while @ref alternateDirStatus was still ///
+	/// MIGHT_EXIST or PROBING. Each of those requests carried only the file's own path, so a miss collected once the
+	/// folder is known to exist is asked for again with the folder's candidates rather than taken as final. At most one
+	/// entry per path; freed with the context.
 	std::vector<std::string> requestedUnresolved{};
 
 	/// @brief The context a song's load starts with.

@@ -45,8 +45,8 @@ namespace deluge::storage {
 /// - a wavetable is looked up synchronously, on the calling tier, once the previous tick's walk left no sample in
 ///   flight. Its lookup may probe the load's folder on a miss, which must not happen before the samples have asked.
 ///
-/// The load ends Loaded when a walk leaves nothing in flight, and Failed when the user aborts it; holders bound
-/// before an abort stay bound. The end sticks: later ticks return it without walking.
+/// The load ends Loaded when a walk leaves nothing in flight, and Failed when the user aborts it or the card cannot be
+/// read; holders bound before then stay bound. The end sticks: later ticks return it without walking.
 ///
 /// The consumer owns the object, the root and the context, keeps all three alive while ticking, and does not change
 /// the root's tree between ticks. Dropping the object cancels the load; a request still in flight stays with the
@@ -62,8 +62,9 @@ public:
 
 	/// @brief Why a load ended early.
 	enum class Reason : uint8_t {
-		None,    ///< It did not.
-		Aborted, ///< The user aborted it: shouldAbortLoading() answered true at a checkpoint.
+		None,         ///< It did not.
+		Aborted,      ///< The user aborted it: shouldAbortLoading() answered true at a checkpoint.
+		CardUnusable, ///< The card cannot be read (ejected, disabled or not mounted), or no async loader backs loads.
 	};
 
 	/// @brief What a tick reports.

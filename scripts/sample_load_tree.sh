@@ -23,7 +23,10 @@
 #   SLT-ASYNC   each load again through the async sample load, ticked from the interaction tier with every file it
 #               binds dropped from memory first: SLTSONG2's crucial and full walks, the synth preset, and the kit
 #               preset with its abort. Each must end as its blocking load did, with no sample read from the card on
-#               the interaction tier.
+#               the interaction tier. Then the song twice more: with the folder's exists probe held until every
+#               sample request has come back (each miss must wait for it), and with the card ejected while the probe
+#               is out (the load must end on the unusable card, and a second load on the same context must bind
+#               everything once the card is back, never taking the old card's answer for the new card's).
 #
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #

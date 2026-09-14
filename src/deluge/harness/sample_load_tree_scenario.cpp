@@ -31,6 +31,7 @@
 #include "io/file.hpp"
 #include "libdeluge/app.h"
 #include "libdeluge/audio_load.h"
+#include "libdeluge/file_bytes.h"
 #include "libdeluge/types.h"
 #include "memory/fast_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -60,6 +61,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <initializer_list>
 #include <iterator>
@@ -163,9 +165,14 @@ constexpr int32_t kCrucialRoutines = 102;
 constexpr uint32_t kAsyncLatencyMs = 20;
 /// Scenario ticks an async leg may take before it is called wedged. Probe 1 measured every leg well inside this.
 constexpr int32_t kMaxAsyncTicks = 4000;
-/// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit): one per wavetable
-/// holder its walk reaches. Measured, and pinned.
-constexpr std::array<int32_t, 4> kAsyncWavetableReads{1, 1, 0, 0};
+/// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit, race, card-gone): one
+/// per wavetable holder its walk reaches. Measured, and pinned.
+constexpr std::array<int32_t, 6> kAsyncWavetableReads{1, 1, 0, 0, 1, 1};
+/// Milliseconds the byte channel holds each operation in the probe-race leg: long enough that every sample request of
+/// the song comes back while the folder's exists probe is still out.
+constexpr uint32_t kRaceProbeLatencyMs = 600;
+/// Milliseconds the byte channel holds each operation in the card-gone leg, so the probe is still out at the eject.
+constexpr uint32_t kCardGoneProbeLatencyMs = 400;
 
 enum class Stage : uint8_t {
 	SongKit,
@@ -229,7 +236,33 @@ bool g_abortRaised = false;
 
 void snapshotCrucial();
 
+/// While the probe-race and card-gone legs run, only the folder probe's trace lines are printed.
+bool g_probeLinesOnly = false;
+/// Lookups that waited for the folder probe ("probe wait"), since the last reset.
+int32_t g_probeWaits = 0;
+/// Set to catch the next "probe collect" line's answer in g_firstProbeAnswer (a bytes::ByteIo value; -1 for none).
+bool g_firstProbeAnswerArmed = false;
+int32_t g_firstProbeAnswer = -1;
+
+void noteProbeLine(const char* line) {
+	if (std::strncmp(line, "probe wait ", 11) == 0) {
+		g_probeWaits++;
+	}
+	const char* answer = std::strstr(line, " answer=");
+	if (g_firstProbeAnswerArmed && std::strncmp(line, "probe collect ", 14) == 0 && answer != nullptr) {
+		g_firstProbeAnswer = std::atoi(answer + std::strlen(" answer="));
+		g_firstProbeAnswerArmed = false;
+	}
+}
+
 void traceSink(const char* line) {
+	const bool probeLine = (std::strncmp(line, "probe ", 6) == 0);
+	if (probeLine) {
+		noteProbeLine(line);
+	}
+	if (g_probeLinesOnly && !probeLine) {
+		return;
+	}
 	if (std::strcmp(line, "routine") == 0) {
 		g_traceRoutines++;
 	}
@@ -887,7 +920,7 @@ void checkCrucialLoad() {
 // Before each, every file the load binds is dropped from memory, so each must come through the async loader, and the
 // loader holds every load kAsyncLatencyMs so each spans several ticks. Each must end as its blocking load did.
 
-enum class AsyncLeg : uint8_t { Crucial, Song, Synth, Kit, Done };
+enum class AsyncLeg : uint8_t { Crucial, Song, Synth, Kit, Race, CardGone, Done };
 
 const char* asyncLegName(AsyncLeg leg) {
 	switch (leg) {
@@ -899,6 +932,10 @@ const char* asyncLegName(AsyncLeg leg) {
 		return "synth";
 	case AsyncLeg::Kit:
 		return "kit";
+	case AsyncLeg::Race:
+		return "race";
+	case AsyncLeg::CardGone:
+		return "card-gone";
 	case AsyncLeg::Done:
 		break;
 	}
@@ -925,6 +962,8 @@ const char* asyncReasonName(deluge::storage::AsyncSampleLoad::Reason reason) {
 		return "None";
 	case Reason::Aborted:
 		return "Aborted";
+	case Reason::CardUnusable:
+		return "CardUnusable";
 	}
 	return "?";
 }
@@ -943,6 +982,15 @@ int32_t g_probesBefore = 0;
 /// interaction tier.
 int32_t g_asyncSampleOpens = 0;
 int32_t g_asyncProbes = 0;
+
+/// Where the card-gone leg is. Its first load is ticked until the folder probe is out, then the card is ejected and it
+/// is ticked once more; then the card is put back and a second load on the same context runs to its end.
+enum class CardGoneStep : uint8_t { AwaitProbing, EjectAndTick, AwaitSecond };
+CardGoneStep g_cardGoneStep = CardGoneStep::AwaitProbing;
+/// How the card-gone leg's first load ended, and its context's folder status right after.
+deluge::storage::AsyncSampleLoad::State g_cardGoneFirstState = deluge::storage::AsyncSampleLoad::State::Loading;
+deluge::storage::AsyncSampleLoad::Reason g_cardGoneFirstReason = deluge::storage::AsyncSampleLoad::Reason::None;
+AlternateLoadDirStatus g_cardGoneStatusAfter = AlternateLoadDirStatus::NONE_SET;
 
 /// Drop the reference instrument's files, and read the preset again into a fresh instrument for the async leg.
 void reloadPreset(Instrument* reference, const char* residentPath, OutputType type, const char* path,
@@ -972,6 +1020,8 @@ void releaseForAsyncLeg() {
 	switch (g_asyncLeg) {
 	case AsyncLeg::Crucial:
 	case AsyncLeg::Song:
+	case AsyncLeg::Race:
+	case AsyncLeg::CardGone:
 		releaseCrucialSongFiles();
 		break;
 	case AsyncLeg::Synth:
@@ -996,6 +1046,8 @@ bool beginAsyncLeg() {
 		g_asyncLoad.emplace(AsyncSampleLoad::forCrucialSong(*currentSong, &g_asyncContext));
 		break;
 	case AsyncLeg::Song:
+	case AsyncLeg::Race:
+	case AsyncLeg::CardGone:
 		g_asyncContext = deluge::storage::AudioLoadContext::forSong(kSongDir, kCrucialSongName);
 		g_asyncLoad.emplace(AsyncSampleLoad::forSong(*currentSong, &g_asyncContext));
 		break;
@@ -1017,10 +1069,54 @@ bool beginAsyncLeg() {
 		g_abortArmed = true;
 		g_abortRaised = false;
 	}
+	if (g_asyncLeg == AsyncLeg::Race || g_asyncLeg == AsyncLeg::CardGone) {
+		// Only the folder probe's lines: the race leg counts the lookups that waited for the probe, and the card-gone
+		// leg reads the first answer its second load collects.
+		g_probeLinesOnly = true;
+		g_probeWaits = 0;
+		g_firstProbeAnswerArmed = false;
+		g_firstProbeAnswer = -1;
+		g_cardGoneStep = CardGoneStep::AwaitProbing;
+		openTrace(asyncLegName(g_asyncLeg), "LTP");
+		deluge_file_bytes_set_latency_ms((g_asyncLeg == AsyncLeg::Race) ? kRaceProbeLatencyMs
+		                                                                : kCardGoneProbeLatencyMs);
+	}
 	g_sampleOpensBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad);
 	g_probesBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoadProbe);
 	deluge_audio_load_set_latency_ms(kAsyncLatencyMs);
 	g_asyncTicks = 0;
+	return true;
+}
+
+void onOwner(void (*fn)());
+
+/// The card-gone leg's steps around a tick of its load. False while the leg is still between its steps.
+bool stepCardGone(const deluge::storage::AsyncSampleLoad::Progress& progress) {
+	using deluge::storage::AsyncSampleLoad;
+	switch (g_cardGoneStep) {
+	case CardGoneStep::AwaitProbing:
+		if (progress.state == AsyncSampleLoad::State::Loading
+		    && g_asyncContext.alternateDirStatus == AlternateLoadDirStatus::PROBING) {
+			g_cardGoneStep = CardGoneStep::EjectAndTick;
+			return false;
+		}
+		// A load that ended before its probe went out is reported by the check.
+		return progress.state != AsyncSampleLoad::State::Loading;
+	case CardGoneStep::EjectAndTick:
+		g_cardGoneFirstState = progress.state;
+		g_cardGoneFirstReason = progress.reason;
+		g_cardGoneStatusAfter = g_asyncContext.alternateDirStatus;
+		// The card back, on the owner as the card-detect routine puts it back; the probe's hold lifted; and a second
+		// load on the same context, whose first folder answer is the one this leg is about.
+		onOwner([] { audioFileManager.reinitEjectedCard(); });
+		deluge_file_bytes_set_latency_ms(0);
+		g_firstProbeAnswerArmed = true;
+		g_asyncLoad.emplace(AsyncSampleLoad::forSong(*currentSong, &g_asyncContext));
+		g_cardGoneStep = CardGoneStep::AwaitSecond;
+		return false;
+	case CardGoneStep::AwaitSecond:
+		break;
+	}
 	return true;
 }
 
@@ -1031,14 +1127,28 @@ bool tickAsyncLeg() {
 		// The preset browser's load mode, in which shouldAbortLoading() sees the abort.
 		currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
 	}
+	if (g_asyncLeg == AsyncLeg::CardGone && g_cardGoneStep == CardGoneStep::EjectAndTick) {
+		// The eject, on this tier and in the same step as the tick after it, so nothing puts the card back in between.
+		// setCardEjected() flushes the loader's and the byte channel's tables, as the card-detect routine's call does.
+		audioFileManager.setCardEjected();
+	}
 	const deluge::storage::AsyncSampleLoad::Progress progress = g_asyncLoad->tick();
 	currentUIMode = modeBefore;
 	g_asyncTicks++;
+	if (g_asyncLeg == AsyncLeg::CardGone && !stepCardGone(progress) && g_asyncTicks < kMaxAsyncTicks) {
+		return false;
+	}
 	const bool ended = (progress.state != deluge::storage::AsyncSampleLoad::State::Loading);
 	if (!ended && g_asyncTicks < kMaxAsyncTicks) {
 		return false;
 	}
 	deluge_audio_load_set_latency_ms(0);
+	if (g_asyncLeg == AsyncLeg::Race || g_asyncLeg == AsyncLeg::CardGone) {
+		deluge_file_bytes_set_latency_ms(0);
+		g_probeLinesOnly = false;
+		g_firstProbeAnswerArmed = false;
+		(void)closeTrace();
+	}
 	if (g_asyncLeg == AsyncLeg::Kit) {
 		g_abortArmed = false;
 		QwertyUI::predictionInterrupted = false;
@@ -1135,6 +1245,30 @@ void checkAsyncKit() {
 	}
 }
 
+/// The card-gone leg: its first load ended on the ejected card with its probe still out, and the second load's first
+/// folder answer was the stale one, removed at the collect -- so the probe that went out on the old card was never
+/// taken as an answer about the new one.
+void checkCardGone() {
+	using deluge::storage::AsyncSampleLoad;
+	printf("SLT-ASYNC probe leg=card-gone first=%s/%s statusAfter=%d firstAnswer=%d\n",
+	       asyncStateName(g_cardGoneFirstState), asyncReasonName(g_cardGoneFirstReason),
+	       static_cast<int>(g_cardGoneStatusAfter), g_firstProbeAnswer);
+	if (g_cardGoneFirstState != AsyncSampleLoad::State::Failed
+	    || g_cardGoneFirstReason != AsyncSampleLoad::Reason::CardUnusable) {
+		printf("SLT-ASYNC FAIL leg=card-gone the first load did not end Failed/CardUnusable on the ejected card\n");
+		g_failures++;
+	}
+	if (g_cardGoneStatusAfter != AlternateLoadDirStatus::PROBING) {
+		printf("SLT-ASYNC FAIL leg=card-gone the first load did not end with its folder probe still out\n");
+		g_failures++;
+	}
+	if (g_firstProbeAnswer != static_cast<int32_t>(deluge::storage::bytes::ByteIo::Unknown)) {
+		printf("SLT-ASYNC FAIL leg=card-gone the second load's first folder answer was not the stale one, so this leg "
+		       "proves nothing\n");
+		g_failures++;
+	}
+}
+
 void checkAsyncLeg() {
 	using deluge::storage::AsyncSampleLoad;
 	const char* leg = asyncLegName(g_asyncLeg);
@@ -1165,6 +1299,11 @@ void checkAsyncLeg() {
 		       g_asyncSampleOpens);
 		g_failures++;
 	}
+	if (g_asyncProbes != 0) {
+		printf("SLT-ASYNC FAIL leg=%s %d folder probe(s) opened the card on the interaction tier\n", leg,
+		       g_asyncProbes);
+		g_failures++;
+	}
 	if (progress.wavetableReads != kAsyncWavetableReads[index]) {
 		printf("SLT-ASYNC FAIL leg=%s wavetableReads=%d pinned=%d\n", leg, progress.wavetableReads,
 		       kAsyncWavetableReads[index]);
@@ -1183,6 +1322,18 @@ void checkAsyncLeg() {
 		break;
 	case AsyncLeg::Kit:
 		checkAsyncKit();
+		break;
+	case AsyncLeg::Race:
+		compareOutcomes(leg, g_refSong, snapshot(songDemands(*currentSong)));
+		printf("SLT-ASYNC probe leg=race waits=%d\n", g_probeWaits);
+		if (g_probeWaits == 0) {
+			printf("SLT-ASYNC FAIL leg=race no lookup waited for the folder probe, so the race never happened\n");
+			g_failures++;
+		}
+		break;
+	case AsyncLeg::CardGone:
+		compareOutcomes(leg, g_refSong, snapshot(songDemands(*currentSong)));
+		checkCardGone();
 		break;
 	case AsyncLeg::Done:
 		break;
@@ -1487,6 +1638,11 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_asyncInstrument = nullptr;
 	g_asyncLoad.reset();
 	g_asyncTicks = 0;
+	g_probeLinesOnly = false;
+	g_probeWaits = 0;
+	g_firstProbeAnswerArmed = false;
+	g_firstProbeAnswer = -1;
+	g_cardGoneStep = CardGoneStep::AwaitProbing;
 }
 
 bool deluge_scenario_sample_load_tree_complete(void) {

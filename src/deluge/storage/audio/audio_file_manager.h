@@ -378,18 +378,40 @@ private:
 
 	/// @brief Answer an AsyncLoadMode::AsyncOnly lookup whose request opened no candidate.
 	///
-	/// Under MIGHT_EXIST the load does not yet know whether its folder exists, so this probes it, as the synchronous
-	/// path probes after its own miss. A request listed in the context's requestedUnresolved carried only the file's
-	/// own path, so once the folder is known to exist it is asked for again with the folder's candidates; any other
-	/// miss is final.
+	/// Under MIGHT_EXIST the load does not yet know whether its folder exists, so this starts the folder's probe
+	/// (startFolderProbe()), where the synchronous path probes after its own miss. While the probe is out the miss
+	/// waits, listed. A request listed in the context's requestedUnresolved carried only the file's own path, so once
+	/// the folder is known to exist it is asked for again with the folder's candidates; any other miss is final.
 	///
 	/// @param context  The load. Its status is updated if this probes, and the path leaves its list.
 	/// @param filePath The nominal path being loaded.
-	/// @param error    Set to Error::LOAD_IN_PROGRESS if this asks again; to Error::SD_CARD if the probe could not
-	///                 tell whether the folder exists; otherwise to Error::FILE_UNREADABLE.
+	/// @param error    Set to Error::LOAD_IN_PROGRESS if this asks again or waits for the probe; to Error::SD_CARD if
+	///                 the probe could not be asked for; otherwise to Error::FILE_UNREADABLE.
 	/// @return std::nullopt if the re-request could not be formed; otherwise nullptr with @p error set.
 	std::optional<AudioFile*> answerUnreadableAsyncOnly(deluge::storage::AudioLoadContext& context,
 	                                                    const std::string& filePath, Error* error);
+
+	/// @brief Ask the byte channel whether a load's folder exists, and put the context in PROBING.
+	///
+	/// No card I/O on the calling tier: the answer is collected by the next AsyncLoadMode::AsyncOnly lookup that
+	/// finds the context in PROBING (collectFolderProbe()).
+	///
+	/// @param context The load. PROBING once the request is out; MIGHT_EXIST if it could not be made.
+	/// @param error   Set to Error::SD_CARD when the request could not be made (a folder path the channel cannot key).
+	/// @return false when the request could not be made, and the lookup must answer @p error.
+	bool startFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
+
+	/// @brief Collect a PROBING context's folder answer, if there is one. Does nothing in any other status.
+	///
+	/// - Pending: still out.
+	/// - Ready: DOES_EXIST or NOT_FOUND.
+	/// - Unknown (never asked, dropped by a busy channel, or a stale answer from a card that has gone): ask again.
+	/// - Failed: could not tell, which is not absence: back to MIGHT_EXIST.
+	///
+	/// @param context The load.
+	/// @param error   Set to Error::SD_CARD when the answer was Failed or could not be asked for again.
+	/// @return false when the lookup must answer @p error.
+	bool collectFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
 
 	/// @brief Build and publish a Sample from a collected parse result. No I/O beyond the one
 	///        read-stream open (see deluge_audio_load_bind_read_stream).

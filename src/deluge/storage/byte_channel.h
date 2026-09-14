@@ -440,7 +440,7 @@ enum class IoTier : uint8_t {
 	Recorder,   ///< the sample recorder: its cluster writes, and creating, finalizing, aborting and closing its file
 	Sysex,      ///< SMSysex's directory listing: its synchronous directory open
 	SampleLoad, ///< an AsyncLoadMode::AsyncOnly sample lookup reaching the blocking card read: never, by construction
-	SampleLoadProbe, ///< an AsyncLoadMode::AsyncOnly sample lookup probing its load's folder with a blocking open
+	SampleLoadProbe, ///< a load's folder probed with a blocking open (resolveAlternateLoadDirStatus)
 };
 
 /// @brief How many of `which`'s file operations have begun on the INTERACTION tier.
