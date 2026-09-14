@@ -78,6 +78,9 @@ struct PendingNoteOn {
 	uint8_t velocity;
 	Iterance iterance;
 	uint8_t fill;
+	// True when this is a droning note and is being evaluated against probability/iteration/fill
+	// A passing condition sustains it without retriggering; a failing condition must turn it off.
+	bool is_sounding_drone;
 };
 
 struct PendingNoteOnList {
@@ -244,6 +247,8 @@ public:
 private:
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,
 	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = nullptr);
+	bool store_pending_note_on(ModelStackWithNoteRow* model_stack, Note* this_note, int32_t ticks_late,
+	                           PendingNoteOnList* pending_note_on_list, bool is_sounding_drone = false);
 	void playNextNote(InstrumentClip*, bool, bool noteMightBeConstant = false,
 	                  PendingNoteOnList* pendingNoteOnList = nullptr);
 	void findNextNoteToPlay(uint32_t);
