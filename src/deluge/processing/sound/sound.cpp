@@ -2350,11 +2350,18 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
                                   ArpReturnInstruction instruction) {
 	if (instruction.arpNoteOn) {
-		instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
-
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// do we have a note to start? if no, exit early
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
+			}
+			// has the note already started? if yes, skip it
+			if (instruction.arpNoteOn->noteStatus[n] != ArpNoteStatus::PENDING) {
+				continue;
+			}
+			// note is pending, are we allowing to start it? if no, exit early
+			if (!AudioEngine::allowedToStartVoice()) {
+				break; // Leave the remaining notes pending for the next render.
 			}
 			invertReversed = instruction.invertReversed;
 
