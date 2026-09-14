@@ -30,6 +30,8 @@
 #               And the synth preset with the loader held past the stall bound: that load must end Failed/Stalled on
 #               the bound's walk with nothing bound, and a second load must bind the preset's sample once the hold is
 #               lifted.
+#               Last, a song load dropped with its folder probe still out, and a load of only its wavetable on the same
+#               context: the wavetable must still bind to its collected copy, with no sample left to collect the answer.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #

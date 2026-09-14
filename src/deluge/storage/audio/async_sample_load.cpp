@@ -191,7 +191,15 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 
 	const bool waveTable = (holder.audioFileType == AudioFileType::WAVETABLE);
 	// A wavetable's blocking lookup reads the folder's status as it is, and PROBING reads as "does not exist".
-	const bool probing = (context_ != nullptr && context_->alternateDirStatus == AlternateLoadDirStatus::PROBING);
+	bool probing = (context_ != nullptr && context_->alternateDirStatus == AlternateLoadDirStatus::PROBING);
+	if (waveTable && probing) {
+		// Only a lookup collects the probe's answer. A sample waiting on the probe is one, but a load with no sample
+		// left to look up would wait for ever, so a waiting wavetable collects it too. An answer that could not tell
+		// leaves the status unresolved again, and the wavetable's own lookup then settles it.
+		Error probeError = Error::NONE;
+		(void)audioFileManager.collectFolderProbe(*context_, &probeError);
+		probing = (context_->alternateDirStatus == AlternateLoadDirStatus::PROBING);
+	}
 	if (waveTable && (!samplesSettled_ || probing)) {
 		progress_.inFlight++;
 		return;

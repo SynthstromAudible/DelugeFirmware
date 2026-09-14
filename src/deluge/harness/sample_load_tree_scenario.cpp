@@ -165,9 +165,9 @@ constexpr int32_t kCrucialRoutines = 102;
 constexpr uint32_t kAsyncLatencyMs = 20;
 /// Scenario ticks an async leg may take before it is called wedged. Probe 1 measured every leg well inside this.
 constexpr int32_t kMaxAsyncTicks = 4000;
-/// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit, race, card-gone,
-/// stall): one per wavetable holder its walk reaches. Measured, and pinned.
-constexpr std::array<int32_t, 7> kAsyncWavetableReads{1, 1, 0, 0, 1, 1, 0};
+/// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit, race, card-gone, stall,
+/// probe-orphan): one per wavetable holder its walk reaches. Measured, and pinned.
+constexpr std::array<int32_t, 8> kAsyncWavetableReads{1, 1, 0, 0, 1, 1, 0, 1};
 /// Milliseconds the byte channel holds each operation in the probe-race leg: long enough that every sample request of
 /// the song comes back while the folder's exists probe is still out.
 constexpr uint32_t kRaceProbeLatencyMs = 600;
@@ -923,7 +923,7 @@ void checkCrucialLoad() {
 // Before each, every file the load binds is dropped from memory, so each must come through the async loader, and the
 // loader holds every load kAsyncLatencyMs so each spans several ticks. Each must end as its blocking load did.
 
-enum class AsyncLeg : uint8_t { Crucial, Song, Synth, Kit, Race, CardGone, Stall, Done };
+enum class AsyncLeg : uint8_t { Crucial, Song, Synth, Kit, Race, CardGone, Stall, Orphan, Done };
 
 const char* asyncLegName(AsyncLeg leg) {
 	switch (leg) {
@@ -941,6 +941,8 @@ const char* asyncLegName(AsyncLeg leg) {
 		return "card-gone";
 	case AsyncLeg::Stall:
 		return "stall";
+	case AsyncLeg::Orphan:
+		return "probe-orphan";
 	case AsyncLeg::Done:
 		break;
 	}
@@ -1008,6 +1010,13 @@ StallStep g_stallStep = StallStep::AwaitFirst;
 /// How the stall leg's first load ended.
 deluge::storage::AsyncSampleLoad::Progress g_stallFirst{};
 
+/// Where the probe-orphan leg is: a song load is ticked until its folder probe is out, then dropped for a load of only
+/// the song's wavetable holder on the same context.
+enum class OrphanStep : uint8_t { AwaitProbing, AwaitWavetable };
+OrphanStep g_orphanStep = OrphanStep::AwaitProbing;
+/// The song's wavetable holder, as its walk demands it.
+deluge::storage::SampleDemand g_orphanDemand{};
+
 /// Drop the reference instrument's files, and read the preset again into a fresh instrument for the async leg.
 void reloadPreset(Instrument* reference, const char* residentPath, OutputType type, const char* path,
                   const char* presetName, const char* presetDir) {
@@ -1038,6 +1047,7 @@ void releaseForAsyncLeg() {
 	case AsyncLeg::Song:
 	case AsyncLeg::Race:
 	case AsyncLeg::CardGone:
+	case AsyncLeg::Orphan:
 		releaseCrucialSongFiles();
 		break;
 	case AsyncLeg::Synth:
@@ -1073,6 +1083,19 @@ bool beginAsyncLeg() {
 		g_asyncContext = deluge::storage::AudioLoadContext::forSong(kSongDir, kCrucialSongName);
 		g_asyncLoad.emplace(AsyncSampleLoad::forSong(*currentSong, &g_asyncContext));
 		break;
+	case AsyncLeg::Orphan:
+		g_orphanDemand = {};
+		for (const deluge::storage::SampleDemand& demand : songDemands(*currentSong)) {
+			if (demand.holder->audioFileType == AudioFileType::WAVETABLE) {
+				g_orphanDemand = demand;
+			}
+		}
+		if (g_orphanDemand.holder == nullptr) {
+			return false;
+		}
+		g_asyncContext = deluge::storage::AudioLoadContext::forSong(kSongDir, kCrucialSongName);
+		g_asyncLoad.emplace(AsyncSampleLoad::forSong(*currentSong, &g_asyncContext));
+		break;
 	case AsyncLeg::Synth:
 	case AsyncLeg::Kit:
 	case AsyncLeg::Stall:
@@ -1105,6 +1128,11 @@ bool beginAsyncLeg() {
 		                                                                : kCardGoneProbeLatencyMs);
 	}
 	g_stallStep = StallStep::AwaitFirst;
+	if (g_asyncLeg == AsyncLeg::Orphan) {
+		// Held, so the probe is still out when the song's load is dropped.
+		g_orphanStep = OrphanStep::AwaitProbing;
+		deluge_file_bytes_set_latency_ms(kCardGoneProbeLatencyMs);
+	}
 	g_sampleOpensBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad);
 	g_probesBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoadProbe);
 	deluge_audio_load_set_latency_ms((g_asyncLeg == AsyncLeg::Stall) ? kStallHoldMs : kAsyncLatencyMs);
@@ -1162,6 +1190,28 @@ bool stepStall(const deluge::storage::AsyncSampleLoad::Progress& progress) {
 	return false;
 }
 
+/// The probe-orphan leg's step around a tick of its load. False while the leg is between its two loads.
+bool stepOrphan(const deluge::storage::AsyncSampleLoad::Progress& progress) {
+	using deluge::storage::AsyncSampleLoad;
+	switch (g_orphanStep) {
+	case OrphanStep::AwaitProbing:
+		if (progress.state == AsyncSampleLoad::State::Loading
+		    && g_asyncContext.alternateDirStatus == AlternateLoadDirStatus::PROBING) {
+			// Drop the song's load with its probe out, lift the probe's hold, and load only the song's wavetable on the
+			// same context: no sample is left to collect the probe's answer.
+			deluge_file_bytes_set_latency_ms(0);
+			g_asyncLoad.emplace(AsyncSampleLoad::forHolder(g_orphanDemand, &g_asyncContext));
+			g_orphanStep = OrphanStep::AwaitWavetable;
+			return false;
+		}
+		// A load that ended before its probe went out is reported by the check.
+		return progress.state != AsyncSampleLoad::State::Loading;
+	case OrphanStep::AwaitWavetable:
+		break;
+	}
+	return true;
+}
+
 /// One tick of the leg's load, on the interaction tier. True once the load has ended, or has run past its bound.
 bool tickAsyncLeg() {
 	const auto modeBefore = currentUIMode;
@@ -1183,11 +1233,17 @@ bool tickAsyncLeg() {
 	if (g_asyncLeg == AsyncLeg::Stall && !stepStall(progress) && g_asyncTicks < kMaxAsyncTicks) {
 		return false;
 	}
+	if (g_asyncLeg == AsyncLeg::Orphan && !stepOrphan(progress) && g_asyncTicks < kMaxAsyncTicks) {
+		return false;
+	}
 	const bool ended = (progress.state != deluge::storage::AsyncSampleLoad::State::Loading);
 	if (!ended && g_asyncTicks < kMaxAsyncTicks) {
 		return false;
 	}
 	deluge_audio_load_set_latency_ms(0);
+	if (g_asyncLeg == AsyncLeg::Orphan) {
+		deluge_file_bytes_set_latency_ms(0);
+	}
 	if (g_asyncLeg == AsyncLeg::Race || g_asyncLeg == AsyncLeg::CardGone) {
 		deluge_file_bytes_set_latency_ms(0);
 		g_probeLinesOnly = false;
@@ -1338,6 +1394,21 @@ void checkStall() {
 	}
 }
 
+/// The probe-orphan leg: the wavetable-only load ended bound to its collected copy in the song's folder.
+void checkOrphan() {
+	const AudioFile* file = g_orphanDemand.holder->audioFile;
+	const std::string alt = (file != nullptr) ? file->loadedFromAlternatePath : std::string{};
+	const std::string collectedCopy = std::string(kCrucialSongFolder) + "/" + (kWaveTable + std::strlen("SAMPLES/"));
+	printf("SLT-ASYNC holder leg=probe-orphan path=%s bound=%d alt=%s status=%d\n",
+	       g_orphanDemand.holder->filePath.c_str(), file != nullptr ? 1 : 0, alt.c_str(),
+	       static_cast<int>(g_asyncContext.alternateDirStatus));
+	if (file == nullptr || alt != collectedCopy) {
+		printf("SLT-ASYNC FAIL leg=probe-orphan the wavetable was not bound to its collected copy %s\n",
+		       collectedCopy.c_str());
+		g_failures++;
+	}
+}
+
 void checkAsyncLeg() {
 	using deluge::storage::AsyncSampleLoad;
 	const char* leg = asyncLegName(g_asyncLeg);
@@ -1407,6 +1478,9 @@ void checkAsyncLeg() {
 	case AsyncLeg::Stall:
 		compareOutcomes(leg, g_refSynth, snapshot(outputDemands(*g_asyncInstrument)));
 		checkStall();
+		break;
+	case AsyncLeg::Orphan:
+		checkOrphan();
 		break;
 	case AsyncLeg::Done:
 		break;
@@ -1719,6 +1793,8 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_asyncSynthInstrument = nullptr;
 	g_stallStep = StallStep::AwaitFirst;
 	g_stallFirst = {};
+	g_orphanStep = OrphanStep::AwaitProbing;
+	g_orphanDemand = {};
 }
 
 bool deluge_scenario_sample_load_tree_complete(void) {

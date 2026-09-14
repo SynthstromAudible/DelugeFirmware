@@ -304,6 +304,21 @@ public:
 	[[nodiscard]] size_t proposeLoadCandidates(const deluge::storage::AudioLoadContext& context,
 	                                           const std::string& filePath, std::string* out, size_t max) const;
 
+	/// @brief Collect a PROBING context's folder answer, if there is one. Does nothing in any other status.
+	///
+	/// Called by every AsyncLoadMode::AsyncOnly sample lookup, and by the async sample load for a wavetable that waits
+	/// on the probe, which may be the only demand left to collect it.
+	///
+	/// - Pending: still out.
+	/// - Ready: DOES_EXIST or NOT_FOUND.
+	/// - Unknown (never asked, dropped by a busy channel, or a stale answer from a card that has gone): ask again.
+	/// - Failed: could not tell, which is not absence: back to MIGHT_EXIST.
+	///
+	/// @param context The load.
+	/// @param error   Set to Error::SD_CARD when the answer was Failed or could not be asked for again.
+	/// @return false when the lookup must answer @p error.
+	bool collectFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
+
 private:
 	/// @brief getAudioFileFromFilename() without its host-only load trace (see storage/audio/load_trace.h). The
 	///        public function traces its entry and exit and calls this.
@@ -400,18 +415,6 @@ private:
 	/// @param error   Set to Error::SD_CARD when the request could not be made (a folder path the channel cannot key).
 	/// @return false when the request could not be made, and the lookup must answer @p error.
 	bool startFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
-
-	/// @brief Collect a PROBING context's folder answer, if there is one. Does nothing in any other status.
-	///
-	/// - Pending: still out.
-	/// - Ready: DOES_EXIST or NOT_FOUND.
-	/// - Unknown (never asked, dropped by a busy channel, or a stale answer from a card that has gone): ask again.
-	/// - Failed: could not tell, which is not absence: back to MIGHT_EXIST.
-	///
-	/// @param context The load.
-	/// @param error   Set to Error::SD_CARD when the answer was Failed or could not be asked for again.
-	/// @return false when the lookup must answer @p error.
-	bool collectFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
 
 	/// @brief Build and publish a Sample from a collected parse result. No I/O beyond the one
 	///        read-stream open (see deluge_audio_load_bind_read_stream).
