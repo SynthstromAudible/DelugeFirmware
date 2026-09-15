@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+# sample_claim.sh — the sample-claim gate.
+#
+# Claims files from the real sample browser into the boot song's synth, a kit drum and an audio clip, and slices a
+# kit, through the gestures a user makes: the sound editor's file selector opens the browser, a by-path listing
+# selects the file, and the Select encoder claims it.
+#
+# What the checks cover (src/deluge/harness/sample_claim_scenario.cpp writes the lines):
+#   SC-SETUP   per leg: whether the sound editor could be set up and the sample browser opened on it.
+#   SC-SELECT  per leg: the file the by-path listing selected.
+#   SC-SYNTH   the synth claim: the file bound, the oscillator type, the repeat mode and the transpose.
+#   SC-WAVETABLE
+#              the synth context menu's WaveTable claim of a single-cycle file: bound, as a wavetable oscillator.
+#   SC-FALLBACK
+#              a stereo file claimed into a wavetable oscillator: bound, as a sample oscillator instead.
+#   SC-KIT     the kit drum claim: the file bound, the repeat mode, the drum's name and its side-chain send.
+#   SC-AUDIOCLIP
+#              the audio clip claim: the file bound, and the clip's loop length and attack.
+#   SC-SLICE   the slicer's four-region slice: how many drums the kit ends with, how many are bound to the sliced
+#              sample, and how many NoteRows have a drum.
+#
+# A missing marker fails the run: a stage that never ran asserts nothing.
+#
+# Usage: scripts/sample_claim.sh
+#
+# Environment:
+#   BUILD_DIR   the build-embassy-hostapp C++ object-closure build dir (default: build-embassy-hostapp)
+#   NO_BUILD=1  skip the ninja/cargo rebuild steps
+#
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
+CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
+TARGET_BASE="${CARGO_TARGET_DIR:-$REPO_ROOT/$CRATE_DIR/target}"
+TARGET_DIR="$TARGET_BASE/sample-claim"
+
+if [ "${NO_BUILD:-0}" != "1" ]; then
+	[ -d "$BUILD_DIR" ] || {
+		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
+		exit 2
+	}
+	# Cargo does not track the C++ sources the harness links against, so force the object closure first.
+	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
+		deluge_foundation deluge_midi
+	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET_DIR")
+fi
+
+BIN="$TARGET_DIR/release/golden_vt_render"
+[ -x "$BIN" ] || {
+	echo "ERROR: '$BIN' not built (see NO_BUILD)"
+	exit 2
+}
+
+OUT="$(mktemp -d "${TMPDIR:-/tmp}/sample_claim.XXXXXX")"
+IMG_GLOB="${TMPDIR:-/tmp}/deluge-streaming-scenario-*.img"
+# Only the image this run packs is removed; other rigs' cached images are left alone.
+IMGS_BEFORE="$OUT/.imgs_before"
+ls -1 $IMG_GLOB 2>/dev/null | sort >"$IMGS_BEFORE" || true
+cleanup() {
+	if [ -f "$IMGS_BEFORE" ]; then
+		ls -1 $IMG_GLOB 2>/dev/null | sort | comm -13 "$IMGS_BEFORE" - | while read -r img; do
+			rm -f "$img"
+		done
+	fi
+	rm -rf "$OUT" "${TMPDIR:-/tmp}/deluge-sample-claim-card"
+}
+trap cleanup EXIT
+
+echo "sample claim: running"
+set +e
+GOLDEN_SCENARIO=sample_claim "$BIN" >"$OUT/run.txt" 2>"$OUT/run.err"
+status=$?
+set -e
+
+if [ "$status" -ne 0 ]; then
+	echo "FAIL — the run exited $status"
+	grep -E '^SC-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	tail -20 "$OUT/run.err"
+	exit 1
+fi
+
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-KIT SC-AUDIOCLIP SC-SLICE SC-RESULT; do
+	if ! grep -q "^$marker " "$OUT/run.txt"; then
+		echo "FAIL — no $marker line: a stage never ran"
+		grep -E '^SC-' "$OUT/run.txt"
+		exit 1
+	fi
+done
+
+if ! grep -q '^SC-RESULT failures=0$' "$OUT/run.txt"; then
+	echo "FAIL — in-process failures:"
+	grep -E '^SC-' "$OUT/run.txt"
+	exit 1
+fi
+
+echo "PASS — every claim bound what a user's claim binds"
+grep -E '^SC-' "$OUT/run.txt"

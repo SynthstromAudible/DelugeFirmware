@@ -1,0 +1,596 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "harness/sample_claim_scenario.h"
+
+#ifdef DELUGE_HOST
+
+#include "definitions_cxx.hpp"
+#include "gui/context_menu/sample_browser/synth.h"
+#include "gui/menu_item/file_selector.h"
+#include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/slicer.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
+#include "gui/views/audio_clip_view.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
+#include "gui/waveform/waveform_basic_navigator.h"
+#include "hid/button.h"
+#include "hid/led/pad_leds.h"
+#include "libdeluge/control_surface.h"
+#include "memory/fast_allocator.h"
+#include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
+#include "model/note/note_row.h"
+#include "model/output.h"
+#include "model/sample/sample.h"
+#include "model/sample/sample_holder_for_voice.h"
+#include "model/song/song.h"
+#include "modulation/params/param_manager.h"
+#include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
+#include "processing/source.h"
+#include "storage/audio/audio_file.h"
+#include "storage/audio/audio_file_holder.h"
+#include "storage/multi_range/multi_range.h"
+#include "storage/owner.h"
+#include "storage/storage_manager.h"
+
+#include <cstdio>
+#include <iterator>
+#include <string>
+
+// The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
+// `putchar_` for -- every line below would become an undefined symbol at link time.
+#ifdef printf
+#undef printf
+#endif
+
+namespace {
+
+/// Each leg's file, asked for by that leg only (see pack_sample_claim_image in the harness).
+constexpr const char* kSynthSample = "SAMPLES/SCSYN.WAV";
+constexpr const char* kCycleSample = "SAMPLES/SCCYCLE.WAV";
+constexpr const char* kStereoSample = "SAMPLES/SCSTER.WAV";
+/// The synth context menu's WaveTable option: Multisamples 0, Basic 1, Single-cycle 2, WaveTable 3.
+constexpr int32_t kWaveTableOption = 3;
+constexpr const char* kKitPresetSample = "SAMPLES/SCKITD.WAV";
+constexpr const char* kKickSample = "SAMPLES/SCKICK.WAV";
+constexpr const char* kClipSample = "SAMPLES/SCAUD.WAV";
+constexpr const char* kSliceSample = "SAMPLES/SCSLICE.WAV";
+
+/// The one-drum kit preset the new-kit-track gesture picks up: the only kit preset on the card.
+constexpr const char* kKitPresetPath = "KITS/SCKIT.XML";
+constexpr const char* kKitDrumName = "SCD1";
+
+/// How many regions the slice leg cuts the sample into.
+constexpr int32_t kSliceRegions = 4;
+
+/// Scenario ticks a browser listing may take before it is called wedged.
+constexpr int32_t kMaxListingTicks = 20000;
+/// Scenario ticks a claim or a slice may take before it is called wedged.
+constexpr int32_t kMaxLegTicks = 2000;
+
+enum class Leg : uint8_t { Synth, WaveTable, Fallback, Kit, AudioClip, Slice, Done };
+enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
+
+Leg g_leg = Leg::Synth;
+Step g_step = Step::Prepare;
+bool g_stepDone = false;
+bool g_summaryPrinted = false;
+int32_t g_failures = 0;
+int32_t g_waitTicks = 0;
+SoundInstrument* g_synth = nullptr;
+Clip* g_kitClip = nullptr;
+Clip* g_audioClip = nullptr;
+
+const char* legName(Leg leg) {
+	switch (leg) {
+	case Leg::Synth:
+		return "synth";
+	case Leg::WaveTable:
+		return "wavetable";
+	case Leg::Fallback:
+		return "fallback";
+	case Leg::Kit:
+		return "kit";
+	case Leg::AudioClip:
+		return "audioclip";
+	case Leg::Slice:
+		return "slice";
+	case Leg::Done:
+		return "done";
+	}
+	return "?";
+}
+
+bool fail(const char* leg, const char* what) {
+	printf("SC-SETUP FAIL leg=%s %s\n", leg, what);
+	g_failures++;
+	return false;
+}
+
+/// Queue @p fn on the storage owner: the fixture builds read and write the card, which belongs there.
+void onOwner(void (*fn)()) {
+	if (!deluge::storage::Owner::run([](void* ctx) { reinterpret_cast<void (*)()>(ctx)(); },
+	                                 reinterpret_cast<void*>(fn))) {
+		fail(legName(g_leg), "the storage owner's queue was full");
+	}
+}
+
+AudioFileHolder* firstHolder(Source& source) {
+	MultiRange* range = source.getOrCreateFirstRange();
+	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
+}
+
+// ── Fixture construction ─────────────────────────────────────────────────────
+
+/// A sample drum, the way the slicer builds one, added to @p kit.
+SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
+	ParamManagerForTimeline paramManager;
+	if (paramManager.setupWithPatching() != Error::NONE) {
+		fail("kit", "a drum's ParamManager could not be set up");
+		return nullptr;
+	}
+	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
+	if (memory == nullptr) {
+		fail("kit", "no memory for a drum");
+		return nullptr;
+	}
+	auto* drum = new (memory) SoundDrum();
+	drum->drumName = name;
+	Sound::initParams(&paramManager);
+	kit.addDrum(drum);
+	drum->setupAsSample(&paramManager);
+	drum->sources[0].setOscType(OscType::SAMPLE);
+	AudioFileHolder* holder = firstHolder(drum->sources[0]);
+	if (holder == nullptr) {
+		fail("kit", "a drum has no sample range");
+		return nullptr;
+	}
+	holder->filePath = samplePath;
+	currentSong->backUpParamManager(drum, nullptr, &paramManager, true);
+	return drum;
+}
+
+/// The one-drum kit preset, written through the firmware serialiser. The kit is leaked: it is never added to the song.
+bool writeKitPreset() {
+	ParamManagerForTimeline kitParams;
+	Instrument* kitBase = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	if (kitBase == nullptr) {
+		return fail("kit", "no kit for the preset");
+	}
+	auto* kit = static_cast<Kit*>(kitBase);
+	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
+	                                true);
+	if (addSampleDrum(*kit, kKitDrumName, kKitPresetSample) == nullptr) {
+		return false;
+	}
+	Error error =
+	    StorageManager::createXMLFile(kKitPresetPath, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
+	if (error != Error::NONE) {
+		return fail("kit", "the kit preset file could not be created");
+	}
+	kit->writeToFile(nullptr, currentSong);
+	error = GetSerializer().closeFileAfterWriting(kKitPresetPath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
+	                                              "\n</kit>\n");
+	return error == Error::NONE || fail("kit", "the kit preset file could not be closed");
+}
+
+// ── Driving the browser ──────────────────────────────────────────────────────
+
+/// Tick the current UI while a browser listing runs, and say whether it still is. Nothing else in the headless harness
+/// ticks a browser.
+bool listingBusy() {
+	if (Browser::isListingInProgress()) {
+		getCurrentUI()->graphicsRoutine();
+	}
+	return Browser::isListingInProgress();
+}
+
+/// Step a pad scroll the browser started (a preview's entry animation) to its end, as PadLEDs::timerRoutine() does on
+/// the device, where the scroll ends in the current UI's scrollFinished() within a few milliseconds. Nothing steps it
+/// headless, and until it ends the browser's Select refuses a press.
+void finishScroll() {
+	int32_t steps = 0;
+	while (isUIModeActive(UI_MODE_HORIZONTAL_SCROLL) && steps <= kDisplayWidth + kSideBarWidth) {
+		PadLEDs::horizontal::renderScroll();
+		steps++;
+	}
+	printf("SC-PROBE leg=%s scroll steps=%d modeAfter=%d\n", legName(g_leg), steps, currentUIMode);
+}
+
+/// The Select encoder's press and release on the current UI, as a user's short press delivers them.
+void pressSelect() {
+	using namespace deluge::hid::button;
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, false, false);
+}
+
+/// Make @p clip current under @p rootUI, set the sound editor up on its first source's file selector, and open the
+/// sample browser: the gesture a user makes to pick a sample.
+bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = nullptr) {
+	currentSong->setCurrentClip(clip);
+	changeRootUI(rootUI);
+	if (drum != nullptr) {
+		// Selecting a drum is refused while the sound editor or the browser is the current UI, so it happens here, with
+		// only the clip view open, as a user auditions a row before opening its file selector.
+		auto* kit = static_cast<Kit*>(clip->output);
+		static_cast<InstrumentClip*>(clip)->affectEntire = false;
+		instrumentClipView.setSelectedDrum(drum, /*shouldRedrawStuff=*/false, kit, /*shouldSendMidiFeedback=*/false);
+		printf("SC-PROBE leg=%s rootOnTop=%d selected=%d\n", leg, getCurrentUI() == rootUI ? 1 : 0,
+		       kit->selectedDrum == drum ? 1 : 0);
+	}
+	const bool setup = soundEditor.setup(clip, &deluge::gui::menu_item::file0SelectorMenu, 0);
+	const bool opened = setup && openUI(&sampleBrowser);
+	printf("SC-SETUP leg=%s setup=%d opened=%d browserOnTop=%d\n", leg, setup ? 1 : 0, opened ? 1 : 0,
+	       getCurrentUI() == &sampleBrowser ? 1 : 0);
+	return opened || fail(leg, "the sample browser could not be opened");
+}
+
+SoundDrum* kitDrum() {
+	if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
+		return nullptr;
+	}
+	Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum;
+	return (drum != nullptr && drum->type == DrumType::SOUND) ? static_cast<SoundDrum*>(drum) : nullptr;
+}
+
+/// The kit clip current, its first drum selected, and the browser opened on that drum.
+bool openBrowserOnKitDrum(const char* leg) {
+	SoundDrum* drum = kitDrum();
+	if (drum == nullptr) {
+		return fail(leg, "the kit clip has no sound drum");
+	}
+	return openBrowser(leg, g_kitClip, &instrumentClipView, drum);
+}
+
+/// The boot song's synth clip current, its first oscillator set to @p osc, and the browser opened on it.
+bool openBrowserOnSynth(const char* leg, OscType osc) {
+	for (Output* output = currentSong->firstOutput; output != nullptr && g_synth == nullptr; output = output->next) {
+		if (output->type == OutputType::SYNTH) {
+			g_synth = static_cast<SoundInstrument*>(output);
+		}
+	}
+	Clip* clip = (g_synth != nullptr) ? currentSong->getClipWithOutput(g_synth) : nullptr;
+	if (clip == nullptr) {
+		return fail(leg, "the boot song has no synth clip");
+	}
+	g_synth->sources[0].setOscType(osc);
+	return openBrowser(leg, clip, &instrumentClipView);
+}
+
+// ── The legs ─────────────────────────────────────────────────────────────────
+
+void prepareLeg() {
+	switch (g_leg) {
+	case Leg::Kit:
+		onOwner([] {
+			if (writeKitPreset()) {
+				// The new-kit-track gesture, which takes the first kit preset nobody in the song is using:
+				// kKitPresetPath.
+				g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 1);
+			}
+			printf("SC-PROBE leg=kit prepared kitClip=%d\n", g_kitClip != nullptr ? 1 : 0);
+		});
+		break;
+	case Leg::AudioClip:
+		onOwner([] { g_audioClip = sessionView.createNewClip(OutputType::AUDIO, 2); });
+		break;
+	default:
+		break;
+	}
+}
+
+bool openLeg() {
+	switch (g_leg) {
+	case Leg::Synth:
+		return openBrowserOnSynth("synth", OscType::SAMPLE);
+	case Leg::WaveTable:
+		return openBrowserOnSynth("wavetable", OscType::SAMPLE);
+	case Leg::Fallback:
+		// A wavetable oscillator: the claim tries the file as a wavetable first.
+		return openBrowserOnSynth("fallback", OscType::WAVETABLE);
+	case Leg::Kit:
+	case Leg::Slice:
+		return openBrowserOnKitDrum(legName(g_leg));
+	case Leg::AudioClip:
+		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
+			return fail("audioclip", "no audio clip could be created");
+		}
+		return openBrowser("audioclip", g_audioClip, &audioClipView);
+	case Leg::Done:
+		break;
+	}
+	return false;
+}
+
+const char* legFile() {
+	switch (g_leg) {
+	case Leg::Synth:
+		return kSynthSample;
+	case Leg::WaveTable:
+		return kCycleSample;
+	case Leg::Fallback:
+		return kStereoSample;
+	case Leg::Kit:
+		return kKickSample;
+	case Leg::AudioClip:
+		return kClipSample;
+	case Leg::Slice:
+		return kSliceSample;
+	case Leg::Done:
+		break;
+	}
+	return "";
+}
+
+/// The claim's Select press, or for the slice leg the slicer opened on the selected file and its commit.
+void actLeg() {
+	finishScroll();
+	if (g_leg == Leg::WaveTable) {
+		using namespace deluge::hid::button;
+		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		(void)static_cast<UI&>(sampleBrowser).timerCallback();
+		auto& menu = deluge::gui::context_menu::sample_browser::synth;
+		const bool menuOnTop = getCurrentUI() == &menu;
+		menu.currentOption = kWaveTableOption;
+		printf("SC-SETUP leg=wavetable menuOnTop=%d\n", menuOnTop ? 1 : 0);
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		return;
+	}
+	if (g_leg != Leg::Slice) {
+		pressSelect();
+		return;
+	}
+	// What the browser's Shift+Select does for a brand-new kit (see SampleBrowser::enterKeyPress).
+	const bool opened = openUI(&slicer);
+	slicer.numClips = kSliceRegions;
+	printf("SC-SETUP leg=slice slicerOpened=%d slicerOnTop=%d\n", opened ? 1 : 0, getCurrentUI() == &slicer ? 1 : 0);
+	using namespace deluge::hid::button;
+	(void)slicer.buttonAction(SELECT_ENC, true, false);
+}
+
+/// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
+bool legEnded() {
+	if (g_leg == Leg::Slice) {
+		return !isUIOpen(&slicer);
+	}
+	return !isUIOpen(&sampleBrowser);
+}
+
+void checkLeg() {
+	switch (g_leg) {
+	case Leg::Synth: {
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		printf("SC-SYNTH bound=%d path=%s osc=%d repeat=%d transpose=%d ticks=%d\n", bound ? 1 : 0,
+		       holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(g_synth->sources[0].oscType),
+		       static_cast<int>(g_synth->sources[0].repeatMode),
+		       holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0, g_waitTicks);
+		if (!bound) {
+			printf("SC-SYNTH FAIL the claim bound no file\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::WaveTable:
+	case Leg::Fallback: {
+		const bool wantWaveTable = (g_leg == Leg::WaveTable);
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		const OscType osc = g_synth->sources[0].oscType;
+		printf("SC-%s bound=%d path=%s osc=%d modKnobMode=%d ticks=%d\n", wantWaveTable ? "WAVETABLE" : "FALLBACK",
+		       bound ? 1 : 0, holder != nullptr ? holder->filePath.c_str() : "", static_cast<int>(osc),
+		       static_cast<int>(g_synth->modKnobMode), g_waitTicks);
+		if (!bound || osc != (wantWaveTable ? OscType::WAVETABLE : OscType::SAMPLE)) {
+			printf("SC-%s FAIL the claim did not bind the file as a %s\n", wantWaveTable ? "WAVETABLE" : "FALLBACK",
+			       wantWaveTable ? "wavetable" : "sample");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::Kit: {
+		SoundDrum* drum = kitDrum();
+		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		printf("SC-KIT bound=%d path=%s repeat=%d name=%s sideChain=%d ticks=%d\n", bound ? 1 : 0,
+		       holder != nullptr ? holder->filePath.c_str() : "",
+		       drum != nullptr ? static_cast<int>(drum->sources[0].repeatMode) : -1,
+		       drum != nullptr ? drum->drumName.c_str() : "", drum != nullptr ? drum->sideChainSendLevel : 0,
+		       g_waitTicks);
+		if (!bound) {
+			printf("SC-KIT FAIL the claim bound no file\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::AudioClip: {
+		auto* clip = static_cast<AudioClip*>(g_audioClip);
+		const bool bound = clip->sampleHolder.audioFile != nullptr;
+		printf("SC-AUDIOCLIP bound=%d path=%s loopLength=%d attack=%d ticks=%d\n", bound ? 1 : 0,
+		       clip->sampleHolder.filePath.c_str(), clip->loopLength, clip->attack, g_waitTicks);
+		if (!bound) {
+			printf("SC-AUDIOCLIP FAIL the claim bound no file\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::Slice: {
+		int32_t drums = 0;
+		int32_t boundToSlice = 0;
+		for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
+			drums++;
+			if (drum->type != DrumType::SOUND) {
+				continue;
+			}
+			AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
+			if (holder != nullptr && holder->audioFile != nullptr && holder->filePath == kSliceSample) {
+				boundToSlice++;
+			}
+		}
+		auto* clip = static_cast<InstrumentClip*>(g_kitClip);
+		int32_t rowsWithDrum = 0;
+		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+			if (clip->noteRows[i].drum != nullptr) {
+				rowsWithDrum++;
+			}
+		}
+		printf("SC-SLICE drums=%d boundToSlice=%d rowsWithDrum=%d ticks=%d\n", drums, boundToSlice, rowsWithDrum,
+		       g_waitTicks);
+		if (drums != kSliceRegions || boundToSlice != kSliceRegions || rowsWithDrum < kSliceRegions) {
+			printf("SC-SLICE FAIL the slice did not end with %d drums on the sliced sample, each with a NoteRow\n",
+			       kSliceRegions);
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::Done:
+		break;
+	}
+}
+
+void nextLeg() {
+	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
+	g_step = Step::Prepare;
+	g_waitTicks = 0;
+}
+
+void runTick() {
+	if (g_leg == Leg::Done) {
+		printf("SC-RESULT failures=%d\n", g_failures);
+		fflush(stdout);
+		g_summaryPrinted = true;
+		return;
+	}
+	switch (g_step) {
+	case Step::Prepare:
+		prepareLeg();
+		g_step = Step::Open;
+		break;
+	case Step::Open:
+		g_waitTicks = 0;
+		if (openLeg()) {
+			g_step = Step::Listing;
+		}
+		else {
+			nextLeg();
+		}
+		break;
+	case Step::Listing:
+	case Step::SelectWait:
+		if (listingBusy()) {
+			if (++g_waitTicks > kMaxListingTicks) {
+				fail(legName(g_leg), "a browser listing never finished");
+				nextLeg();
+			}
+			break;
+		}
+		if (g_step == Step::Listing) {
+			g_step = Step::Select;
+			break;
+		}
+		printf("SC-SELECT leg=%s file=%s/%s\n", legName(g_leg), Browser::currentDir.c_str(),
+		       sampleBrowser.getCurrentFileItem() != nullptr ? sampleBrowser.getCurrentFileItem()->filename.c_str()
+		                                                     : "");
+		g_waitTicks = 0;
+		g_step = (g_leg == Leg::Slice) ? Step::PreviewWait : Step::Act;
+		break;
+	case Step::PreviewWait: {
+		// The slicer draws the browser's previewed waveform, so a user opens it only once the preview shows the file.
+		const Sample* drawn = waveformBasicNavigator.sample;
+		if (drawn != nullptr && drawn->filePath == legFile()) {
+			printf("SC-PROBE leg=%s preview drawn ticks=%d\n", legName(g_leg), g_waitTicks);
+			g_step = Step::Act;
+			break;
+		}
+		sampleBrowser.graphicsRoutine();
+		if (++g_waitTicks > kMaxLegTicks) {
+			fail(legName(g_leg), "the browser's preview never drew the file");
+			nextLeg();
+		}
+		break;
+	}
+	case Step::Select:
+		(void)sampleBrowser.setFileByFullPath(OutputType::NONE, legFile());
+		g_waitTicks = 0;
+		g_step = Step::SelectWait;
+		break;
+	case Step::Act:
+		actLeg();
+		g_waitTicks = 0;
+		g_step = Step::Wait;
+		break;
+	case Step::Wait:
+		if (legEnded() || ++g_waitTicks > kMaxLegTicks) {
+			checkLeg();
+			nextLeg();
+		}
+		break;
+	}
+}
+
+} // namespace
+
+extern "C" {
+
+void deluge_scenario_sample_claim_begin(void) {
+	setvbuf(stdout, nullptr, _IOLBF, 0);
+	g_leg = Leg::Synth;
+	g_step = Step::Prepare;
+	g_stepDone = false;
+	g_summaryPrinted = false;
+	g_failures = 0;
+	g_waitTicks = 0;
+	g_synth = nullptr;
+	g_kitClip = nullptr;
+	g_audioClip = nullptr;
+}
+
+bool deluge_scenario_sample_claim_complete(void) {
+	return g_summaryPrinted;
+}
+
+void deluge_scenario_sample_claim_dispatch_step(void) {
+	if (g_summaryPrinted) {
+		return;
+	}
+	g_stepDone = false;
+	runTick();
+	// A marker op behind whatever the stage queued: the owner queue is FIFO, so this runs after it.
+	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
+		g_stepDone = true;
+	}
+}
+
+bool deluge_scenario_sample_claim_step_done(void) {
+	return g_stepDone;
+}
+
+int32_t deluge_scenario_sample_claim_failures(void) {
+	return g_failures;
+}
+
+} // extern "C"
+
+#endif // DELUGE_HOST

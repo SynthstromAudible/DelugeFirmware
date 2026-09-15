@@ -306,6 +306,19 @@ requires = ["cargo", "build-embassy-hostapp"]
 ci = "nightly"
 runtime = "~5m"
 
+# The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
+[[harness]]
+name = "sample-claim"
+path = "."
+kind = "property"
+status = "gate"
+gates = "files claimed from the real sample browser, opened through the sound editor's file selector and selected by a by-path listing, must be bound by the Select encoder's claim: into the boot song's synth (a single-cycle file as a wavetable from the context menu, and a stereo file offered to a wavetable oscillator as a sample instead), into a kit drum (named after the file, a kick sent to side-chain), and into an audio clip (its loop length set from the sample). A one-drum kit sliced into four regions from the slicer must end with four drums bound to the one sample, each with a NoteRow."
+build = []
+run = ["scripts/sample_claim.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~3m"
+
 [[harness]]
 name = "song-save-channel"
 path = "."

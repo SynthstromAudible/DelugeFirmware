@@ -334,6 +334,11 @@ unsafe extern "C" {
     fn deluge_scenario_sample_load_tree_dispatch_step();
     fn deluge_scenario_sample_load_tree_step_done() -> bool;
     fn deluge_scenario_sample_load_tree_failures() -> i32;
+    fn deluge_scenario_sample_claim_begin();
+    fn deluge_scenario_sample_claim_complete() -> bool;
+    fn deluge_scenario_sample_claim_dispatch_step();
+    fn deluge_scenario_sample_claim_step_done() -> bool;
+    fn deluge_scenario_sample_claim_failures() -> i32;
     fn deluge_scenario_song_preview_ab_begin();
     fn deluge_scenario_song_preview_ab_complete() -> bool;
     fn deluge_scenario_song_preview_ab_dispatch_step();
@@ -1600,6 +1605,123 @@ async fn run_sample_collect_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
+/// Write a 16-bit PCM WAV of a sine at `freq_hz`, `frames` frames long, the same on every channel.
+///
+/// The claim's pitch detection needs a periodic signal to name a note; a constant fill names none.
+fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f64) {
+    const SAMPLE_RATE: u32 = 44_100;
+    let data_bytes = frames * u32::from(channels) * 2;
+    let block_align = channels * 2;
+    let mut bytes: Vec<u8> = Vec::with_capacity(44 + data_bytes as usize);
+    bytes.extend_from_slice(b"RIFF");
+    bytes.extend_from_slice(&(36 + data_bytes).to_le_bytes());
+    bytes.extend_from_slice(b"WAVE");
+    bytes.extend_from_slice(b"fmt ");
+    bytes.extend_from_slice(&16u32.to_le_bytes());
+    bytes.extend_from_slice(&1u16.to_le_bytes()); // PCM
+    bytes.extend_from_slice(&channels.to_le_bytes());
+    bytes.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
+    bytes.extend_from_slice(&(SAMPLE_RATE * u32::from(block_align)).to_le_bytes());
+    bytes.extend_from_slice(&block_align.to_le_bytes());
+    bytes.extend_from_slice(&16u16.to_le_bytes());
+    bytes.extend_from_slice(b"data");
+    bytes.extend_from_slice(&data_bytes.to_le_bytes());
+    for n in 0..frames {
+        let phase = f64::from(n) * freq_hz * std::f64::consts::TAU / f64::from(SAMPLE_RATE);
+        let value = (phase.sin() * 16_000.0) as i16;
+        for _ in 0..channels {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+    }
+    std::fs::write(path, &bytes).unwrap_or_else(|e| {
+        panic!(
+            "writing the sample-claim fixture WAV {}: {e}",
+            path.display()
+        )
+    });
+}
+
+/// Stage the sample-claim scenario's card and pack it into a FAT image.
+///
+/// Every file is asked for by one leg only, so a holder naming it can only be that leg's doing:
+/// - `SAMPLES/SCSYN.WAV`: a 440 Hz sine, claimed into the boot song's synth, whose pitch detection names its note.
+/// - `SAMPLES/SCCYCLE.WAV`: one 512-frame cycle of a sine, claimed as a wavetable from the context menu.
+/// - `SAMPLES/SCSTER.WAV`: stereo, claimed into a wavetable oscillator, which cannot take it and falls back to a
+///   sample.
+/// - `SAMPLES/SCKITD.WAV`: the sample the scenario's one-drum kit preset names, so the kit clip starts as a sample kit.
+/// - `SAMPLES/SCKICK.WAV`: claimed into that kit's drum. Its name holds "KICK", which the claim reads as a kick.
+/// - `SAMPLES/SCAUD.WAV`: claimed into an audio clip.
+/// - `SAMPLES/SCSLICE.WAV`: one second long, sliced into four regions of 250 ms each.
+fn pack_sample_claim_image() -> std::path::PathBuf {
+    let root = std::env::temp_dir().join("deluge-sample-claim-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES");
+    for dir in [&samples, &root.join("KITS")] {
+        std::fs::create_dir_all(dir).expect("creating the sample-claim fixture directories");
+    }
+    write_sine_wav(&samples.join("SCSYN.WAV"), 1, 22_050, 440.0);
+    write_sine_wav(&samples.join("SCCYCLE.WAV"), 1, 512, 44_100.0 / 512.0);
+    write_test_wav(&samples.join("SCSTER.WAV"), 2, 16, 8192, 0x36);
+    write_test_wav(&samples.join("SCKITD.WAV"), 1, 16, 2048, 0x32);
+    write_test_wav(&samples.join("SCKICK.WAV"), 1, 16, 4096, 0x33);
+    write_test_wav(&samples.join("SCAUD.WAV"), 1, 16, 16384, 0x34);
+    write_test_wav(&samples.join("SCSLICE.WAV"), 1, 16, 88200, 0x35);
+    sd_image::pack_image(&root)
+}
+
+/// The `GOLDEN_SCENARIO=sample_claim` scenario: claim files from the real sample browser and report what each claim
+/// bound.
+#[embassy_executor::task]
+async fn run_sample_claim_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_sample_claim_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_sample_claim_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_sample_claim_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the sample-claim run did not complete within 600s — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_sample_claim_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_sample_claim_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_sample_claim_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the sample-claim run FAILED ({failures} in-process failure(s))"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: sample-claim run completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=sample_load_tree` scenario: build a song, save it with collected media and load it back, then
 /// load a synth preset and a kit preset, and report where every holder's file came from.
 #[embassy_executor::task]
@@ -2019,6 +2141,7 @@ fn main() {
     let path_operations_mode = scenario == "path_operations";
     let offset_io_mode = scenario == "offset_io";
     let sample_load_tree_mode = scenario == "sample_load_tree";
+    let sample_claim_mode = scenario == "sample_claim";
 
     log::info!(
         "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode} \
@@ -2050,6 +2173,8 @@ fn main() {
             pack_sample_collect_image()
         } else if sample_load_tree_mode {
             pack_sample_load_tree_image()
+        } else if sample_claim_mode {
+            pack_sample_claim_image()
         } else {
             sd_image::pack_golden_fixture(&repo_root, &fixture)
         };
@@ -2136,6 +2261,8 @@ fn main() {
         spawner.spawn(run_offset_io_scenario(&DONE).unwrap());
     } else if sample_load_tree_mode {
         spawner.spawn(run_sample_load_tree_scenario(&DONE).unwrap());
+    } else if sample_claim_mode {
+        spawner.spawn(run_sample_claim_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {
