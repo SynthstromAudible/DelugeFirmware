@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "hid/button.h"
+#include "io/midi/midi_routing.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
@@ -83,7 +84,8 @@ public:
 	Output(OutputType newType);
 	virtual ~Output();
 	virtual bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
-	                           char const* dirPath) = 0;
+	                           char const* dirPath,
+	                           uint8_t outputDevice = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified) = 0;
 
 	ClipInstanceVector clipInstances;
 	[[nodiscard]] Clip* getActiveClip() const;

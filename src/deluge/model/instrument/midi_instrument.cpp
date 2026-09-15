@@ -23,6 +23,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "io/midi/midi_device_helper.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "model/action/action_logger.h"
@@ -292,7 +293,7 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 		int32_t new_value =
 		    add_saturate(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension]);
 		int32_t value_small = (new_value >> 18) + 8192;
-		midiEngine.sendPitchBend(this, masterChannel, value_small, getChannel());
+		midiEngine.sendPitchBend(this, masterChannel, value_small, getChannel(), outputDevice);
 		break;
 	}
 
@@ -306,14 +307,14 @@ void MIDIInstrument::sendMonophonicExpressionEvent(int32_t expressionDimension) 
 		int32_t newValue = std::clamp<int32_t>(polyPart + monoPart, 0, 127);
 		// send CC1 for monophonic expression - monophonic synths won't do anything useful with CC74
 
-		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, getChannel());
+		midiEngine.sendCC(this, masterChannel, CC_EXTERNAL_MOD_WHEEL, newValue, getChannel(), outputDevice);
 		break;
 	}
 	case Z_PRESSURE: {
 		int32_t new_value =
 		    add_saturate(lastCombinedPolyExpression[expressionDimension], lastMonoExpression[expressionDimension])
 		    >> 24;
-		midiEngine.sendChannelAftertouch(this, masterChannel, new_value, getChannel());
+		midiEngine.sendChannelAftertouch(this, masterChannel, new_value, getChannel(), outputDevice);
 		break;
 	}
 	default:
@@ -403,16 +404,28 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		writer.writeAttribute("yCC", (int32_t)outputMPEY);
 		writer.closeTag();
 
+		if (outputDevice != 0) {
+			writer.writeOpeningTagBeginning("outputDevice");
+			deluge::io::midi::writeDeviceToFile(writer, outputDevice, outputDeviceName, "device");
+			writer.closeTag();
+		}
+
 		writeDeviceDefinitionFile(writer, true);
 	}
 	else {
-		if (!clipForSavingOutputOnly && !midiInput.containsSomething()) {
+		if (!clipForSavingOutputOnly && !midiInput.containsSomething() && outputDevice == 0) {
 			// If we don't need to write a "device" tag, opt not to end the opening tag, unless we're saving the output
 			// since then it's the whole tag
 			return false;
 		}
 
 		writer.writeOpeningTagEnd();
+
+		if (outputDevice != 0) {
+			writer.writeOpeningTagBeginning("outputDevice");
+			deluge::io::midi::writeDeviceToFile(writer, outputDevice, outputDeviceName, "device");
+			writer.closeTag();
+		}
 	}
 
 	MelodicInstrument::writeMelodicInstrumentTagsToFile(writer, clipForSavingOutputOnly, song);
@@ -513,6 +526,9 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 	}
 	else if (!strcmp(tagName, subSlotXMLTag)) {
 		channelSuffix = reader.readTagOrAttributeValueInt();
+	}
+	else if (!strcmp(tagName, "outputDevice")) {
+		deluge::io::midi::readDeviceFromAttributes(reader, outputDevice, outputDeviceName, "device", "deviceName");
 	}
 	else if (!strcmp(tagName, "midiDevice")) {
 		readDeviceDefinitionFile(reader, true);
@@ -1074,7 +1090,7 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 		sendNoteToInternal(true, noteCodePostArp, arpNote->velocity, outputMemberChannel);
 	}
 	else {
-		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel);
+		midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, outputMemberChannel, channel, outputDevice);
 	}
 }
 
@@ -1086,19 +1102,19 @@ void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesT
 		int32_t outputValue14 = mpeValuesToUse[0] >> 2;
 		mpeOutputMemberChannels[outputMemberChannel].lastXValueSent = outputValue14;
 		int32_t outputValue14Unsigned = outputValue14 + 8192;
-		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned, channel);
+		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned, channel, outputDevice);
 	}
 
 	{ // Y
 		int32_t outputValue7 = mpeValuesToUse[1] >> 9;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[0] = outputValue7;
-		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel);
+		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel, outputDevice);
 	}
 
 	{ // Z
 		int32_t outputValue7 = mpeValuesToUse[2] >> 8;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[1] = outputValue7;
-		midiEngine.sendChannelAftertouch(this, outputMemberChannel, outputValue7, channel);
+		midiEngine.sendChannelAftertouch(this, outputMemberChannel, outputValue7, channel, outputDevice);
 	}
 }
 
@@ -1110,7 +1126,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 	}
 	// If no MPE, nice and simple
 	else if (!sendsToMPE()) {
-		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE);
+		midiEngine.sendNote(this, false, noteCodePostArp, velocity, channel, kMIDIOutputFilterNoMPE, outputDevice);
 
 		if (collapseAftertouch) {
 
@@ -1131,7 +1147,7 @@ void MIDIInstrument::noteOffPostArp(int32_t noteCodePostArp, int32_t oldOutputMe
 		mpeOutputMemberChannels[oldOutputMemberChannel].lastNoteCode = noteCodePostArp;
 		mpeOutputMemberChannels[oldOutputMemberChannel].noteOffOrder = lastNoteOffOrder++;
 
-		midiEngine.sendNote(this, false, noteCodePostArp, velocity, oldOutputMemberChannel, channel);
+		midiEngine.sendNote(this, false, noteCodePostArp, velocity, oldOutputMemberChannel, channel, outputDevice);
 
 		// And now, if this note was sharing a member channel with any others, we want to send MPE values for those new
 		// averages
@@ -1170,7 +1186,7 @@ void MIDIInstrument::allNotesOff() {
 
 	// If no MPE, nice and simple
 	if (!sendsToMPE()) {
-		midiEngine.sendAllNotesOff(this, channel, kMIDIOutputFilterNoMPE);
+		midiEngine.sendAllNotesOff(this, channel, kMIDIOutputFilterNoMPE, outputDevice);
 	}
 
 	// Otherwise, got to send message on all MPE member channels. At least I think that's right. The MPE spec talks
@@ -1185,7 +1201,7 @@ void MIDIInstrument::allNotesOff() {
 		                                   : 15;
 
 		for (int32_t c = lowestMemberChannel; c <= highestMemberChannel; c++) {
-			midiEngine.sendAllNotesOff(this, c, channel);
+			midiEngine.sendAllNotesOff(this, c, channel, outputDevice);
 		}
 	}
 }
@@ -1208,7 +1224,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			if (!collapseAftertouch) {
 				// We can only send Z - and that's as polyphonic aftertouch
 				midiEngine.sendPolyphonicAftertouch(this, channel, value32 >> 24, noteCodeAfterArpeggiation,
-				                                    kMIDIOutputFilterNoMPE);
+				                                    kMIDIOutputFilterNoMPE, outputDevice);
 				return;
 			}
 			else {
@@ -1266,21 +1282,21 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			int32_t value14 = (value32 >> 18);
 			mpeOutputMemberChannels[memberChannel].lastXValueSent = value14;
 			int32_t value14Unsigned = value14 + 8192;
-			midiEngine.sendPitchBend(this, memberChannel, value14Unsigned, channel);
+			midiEngine.sendPitchBend(this, memberChannel, value14Unsigned, channel, outputDevice);
 			break;
 		}
 
 		case 1: { // Y
 			int32_t value7 = value32 >> 25;
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[0] = value7;
-			midiEngine.sendCC(this, memberChannel, outputMPEY, value7 + 64, channel);
+			midiEngine.sendCC(this, memberChannel, outputMPEY, value7 + 64, channel, outputDevice);
 			break;
 		}
 
 		case 2: { // Z
 			int32_t value7 = value32 >> 24;
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[1] = value7;
-			midiEngine.sendChannelAftertouch(this, memberChannel, value7, channel);
+			midiEngine.sendChannelAftertouch(this, memberChannel, value7, channel, outputDevice);
 			break;
 		}
 		default:
