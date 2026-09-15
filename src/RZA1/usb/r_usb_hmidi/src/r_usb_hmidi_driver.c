@@ -433,6 +433,7 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t* mess)
             uint16_t vendorId  = *(uint16_t*)&g_p_usb_hmidi_device_table[USB_CFG_USE_USBIP][8];
             uint16_t productId = *(uint16_t*)&g_p_usb_hmidi_device_table[USB_CFG_USE_USBIP][10];
             giveDetailsOfDeviceBeingSetUp(USB_CFG_USE_USBIP, deviceName, vendorId, productId);
+            usbDebugConsoleText("USB: class matched"); // TEMP DIAGNOSTIC
 
             p_desc = g_p_usb_hmidi_config_table[mess->ip];
 
@@ -449,6 +450,7 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t* mess)
             if (USB_ERROR == retval)
             {
                 USB_PRINTF0("### Device information error 2 !\n");
+                usbDebugConsoleText("USB: pipe info fail"); // TEMP DIAGNOSTIC
 
                 /* Enumeration Sequence Complete */
                 g_usb_hmidi_enum_seq[mess->ip] = USB_HHID_ENUM_COMPLETE;
@@ -458,6 +460,9 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t* mess)
             }
             else
             {
+                USB_PRINTF0("USB: pipes OK\n");
+                usbDebugConsoleText("USB: pipes OK"); // TEMP DIAGNOSTIC
+
                 /* Enumeration Sequence Complete */
                 g_usb_hmidi_enum_seq[mess->ip] = USB_HHID_ENUM_COMPLETE;
 
@@ -794,6 +799,7 @@ void hmidi_configured(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
 
     uartPrint("configured MIDI device: ");
     uartPrintNumber(midiDeviceNum);
+    usbDebugConsoleText("USB: configured"); // TEMP DIAGNOSTIC
 
     int sendPipe    = g_usb_hmidi_tmp_ep_tbl[ptr->ip][midiDeviceNum][0];
     int isInterrupt = (sendPipe == USB_CFG_HMIDI_INT_SEND);
