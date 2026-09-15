@@ -1648,6 +1648,8 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 /// - `SAMPLES/SCCYCLE.WAV`: one 512-frame cycle of a sine, claimed as a wavetable from the context menu.
 /// - `SAMPLES/SCSTER.WAV`: stereo, claimed into a wavetable oscillator, which cannot take it and falls back to a
 ///   sample.
+/// - `SAMPLES/SCGATE.WAV` and `SAMPLES/SCSTALL.WAV`: claimed while the loader holds their loads, for the gate and the
+///   stall bound.
 /// - `SAMPLES/SCKITD.WAV`: the sample the scenario's one-drum kit preset names, so the kit clip starts as a sample kit.
 /// - `SAMPLES/SCKICK.WAV`: claimed into that kit's drum. Its name holds "KICK", which the claim reads as a kick.
 /// - `SAMPLES/SCAUD.WAV`: claimed into an audio clip.
@@ -1662,6 +1664,8 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     write_sine_wav(&samples.join("SCSYN.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCCYCLE.WAV"), 1, 512, 44_100.0 / 512.0);
     write_test_wav(&samples.join("SCSTER.WAV"), 2, 16, 8192, 0x36);
+    write_test_wav(&samples.join("SCGATE.WAV"), 1, 16, 4096, 0x37);
+    write_test_wav(&samples.join("SCSTALL.WAV"), 1, 16, 4096, 0x38);
     write_test_wav(&samples.join("SCKITD.WAV"), 1, 16, 2048, 0x32);
     write_test_wav(&samples.join("SCKICK.WAV"), 1, 16, 4096, 0x33);
     write_test_wav(&samples.join("SCAUD.WAV"), 1, 16, 16384, 0x34);

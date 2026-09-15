@@ -33,6 +33,7 @@
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "hid/button.h"
 #include "hid/led/pad_leds.h"
+#include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
 #include "libdeluge/control_surface.h"
 #include "memory/fast_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -72,6 +73,15 @@ namespace {
 constexpr const char* kSynthSample = "SAMPLES/SCSYN.WAV";
 constexpr const char* kCycleSample = "SAMPLES/SCCYCLE.WAV";
 constexpr const char* kStereoSample = "SAMPLES/SCSTER.WAV";
+/// The gate and stall legs' files: held by the loader from the moment their browser opens, so neither is in memory when
+/// its claim begins.
+constexpr const char* kGateSample = "SAMPLES/SCGATE.WAV";
+constexpr const char* kStallSample = "SAMPLES/SCSTALL.WAV";
+/// How long the loader holds each load in the gate leg: long enough that the claim is still loading when the encoder
+/// turns, and over well inside the leg's bound.
+constexpr uint32_t kGateHoldMs = 400;
+/// How long the loader holds each load in the stall leg: far past the claim's stall bound.
+constexpr uint32_t kStallHoldMs = 30000;
 /// The synth context menu's WaveTable option: Multisamples 0, Basic 1, Single-cycle 2, WaveTable 3.
 constexpr int32_t kWaveTableOption = 3;
 constexpr const char* kKitPresetSample = "SAMPLES/SCKITD.WAV";
@@ -90,8 +100,10 @@ constexpr int32_t kSliceRegions = 4;
 constexpr int32_t kMaxListingTicks = 20000;
 /// Scenario ticks a claim or a slice may take before it is called wedged.
 constexpr int32_t kMaxLegTicks = 2000;
+/// Scenario ticks the stall leg's claim may take to give up before it is called wedged: far past its stall bound.
+constexpr int32_t kMaxStallTicks = 20000;
 
-enum class Leg : uint8_t { Synth, WaveTable, Fallback, Gate, Kit, AudioClip, Slice, Done };
+enum class Leg : uint8_t { Synth, WaveTable, Fallback, Gate, Kit, AudioClip, Slice, Stall, Done };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
 
 Leg g_leg = Leg::Synth;
@@ -128,6 +140,8 @@ const char* legName(Leg leg) {
 		return "fallback";
 	case Leg::Gate:
 		return "gate";
+	case Leg::Stall:
+		return "stall";
 	case Leg::Kit:
 		return "kit";
 	case Leg::AudioClip:
@@ -391,7 +405,11 @@ bool openLeg() {
 		// A wavetable oscillator: the claim tries the file as a wavetable first.
 		return openBrowserOnSynth("fallback", OscType::WAVETABLE);
 	case Leg::Gate:
+		deluge_audio_load_set_latency_ms(kGateHoldMs);
 		return openBrowserOnSynth("gate", OscType::SAMPLE);
+	case Leg::Stall:
+		deluge_audio_load_set_latency_ms(kStallHoldMs);
+		return openBrowserOnSynth("stall", OscType::SAMPLE);
 	case Leg::Kit:
 	case Leg::Slice:
 		return openBrowserOnKitDrum(legName(g_leg));
@@ -415,7 +433,9 @@ const char* legFile() {
 	case Leg::Fallback:
 		return kStereoSample;
 	case Leg::Gate:
-		return kSynthSample;
+		return kGateSample;
+	case Leg::Stall:
+		return kStallSample;
 	case Leg::Kit:
 		return kKickSample;
 	case Leg::AudioClip:
@@ -475,6 +495,10 @@ bool legEnded() {
 	if (g_leg == Leg::Slice) {
 		return !isUIOpen(&slicer);
 	}
+	if (g_leg == Leg::Stall) {
+		// A claim that gives up leaves the browser open and releases the gate; one that binds closes the browser.
+		return !isUIOpen(&sampleBrowser) || currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	}
 	return !isUIOpen(&sampleBrowser);
 }
 
@@ -494,14 +518,38 @@ void checkLeg() {
 		}
 		break;
 	}
-	case Leg::Gate:
-		printf("SC-GATE input=selectEncoder refused=%d ticks=%d\n", g_gateMoved ? 0 : 1, g_waitTicks);
+	case Leg::Gate: {
+		deluge_audio_load_set_latency_ms(0);
+		// Released is the gate's own mode gone: a preview's scroll may hold a mode of its own.
+		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
+		printf("SC-GATE input=selectEncoder refused=%d released=%d ticks=%d\n", g_gateMoved ? 0 : 1, released ? 1 : 0,
+		       g_waitTicks);
 		if (g_gateMoved) {
 			printf("SC-GATE FAIL the select encoder moved the browser's selection while an explicit claim was in "
 			       "flight\n");
 			g_failures++;
 		}
+		if (!released) {
+			printf("SC-GATE FAIL the gate was still closed once the claim had ended\n");
+			g_failures++;
+		}
 		break;
+	}
+	case Leg::Stall: {
+		deluge_audio_load_set_latency_ms(0);
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		const bool browserOpen = isUIOpen(&sampleBrowser);
+		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
+		printf("SC-STALL bound=%d browserOpen=%d released=%d ticks=%d\n", bound ? 1 : 0, browserOpen ? 1 : 0,
+		       released ? 1 : 0, g_waitTicks);
+		if (bound || !browserOpen || !released) {
+			printf("SC-STALL FAIL a claim whose load never answered did not give up: it must leave the holder unbound, "
+			       "the browser open and the gate released\n");
+			g_failures++;
+		}
+		break;
+	}
 	case Leg::WaveTable:
 	case Leg::Fallback: {
 		const bool wantWaveTable = (g_leg == Leg::WaveTable);
@@ -650,7 +698,7 @@ void runTick() {
 		g_step = Step::Wait;
 		break;
 	case Step::Wait:
-		if (legEnded() || ++g_waitTicks > kMaxLegTicks) {
+		if (legEnded() || ++g_waitTicks > (g_leg == Leg::Stall ? kMaxStallTicks : kMaxLegTicks)) {
 			checkLeg();
 			nextLeg();
 		}
