@@ -97,12 +97,20 @@ constexpr const char* kKickSample = "SAMPLES/SCKICK.WAV";
 constexpr const char* kClipSample = "SAMPLES/SCAUD.WAV";
 constexpr const char* kSliceSample = "SAMPLES/SCSLICE.WAV";
 
-/// The one-drum kit preset the new-kit-track gesture picks up: the only kit preset on the card.
+/// The one-drum kit presets the new-kit-track gesture picks up, each the first one nobody in the song is using: the kit
+/// leg's, then the manual slice leg's. The region slice leaves the first kit with four drums, and a slice indexes the
+/// drums it makes from the kit's first.
 constexpr const char* kKitPresetPath = "KITS/SCKIT.XML";
+constexpr const char* kManualKitPresetPath = "KITS/SCKIT2.XML";
 constexpr const char* kKitDrumName = "SCD1";
 
 /// How many regions the slice leg cuts the sample into.
 constexpr int32_t kSliceRegions = 4;
+
+/// The manual slice leg's slices, each a start frame and a transpose, as pad presses on a playing voice would add them.
+constexpr SliceItem kManualSlices[] = {
+    {.startPos = 0, .transpose = 1}, {.startPos = 11025, .transpose = 2}, {.startPos = 33075, .transpose = 3}};
+constexpr int32_t kManualSliceCount = 3;
 
 /// Scenario ticks a browser listing may take before it is called wedged.
 constexpr int32_t kMaxListingTicks = 20000;
@@ -121,6 +129,7 @@ enum class Leg : uint8_t {
 	Kit,
 	AudioClip,
 	Slice,
+	SliceManual,
 	Stall,
 	Done
 };
@@ -183,6 +192,8 @@ const char* legName(Leg leg) {
 		return "audioclip";
 	case Leg::Slice:
 		return "slice";
+	case Leg::SliceManual:
+		return "slice-manual";
 	case Leg::Done:
 		return "done";
 	}
@@ -308,7 +319,8 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 }
 
 /// The one-drum kit preset, written through the firmware serialiser. The kit is leaked: it is never added to the song.
-bool writeKitPreset() {
+/// Write a one-drum kit preset to @p path through the firmware's own serialiser.
+bool writeKitPreset(const char* path) {
 	ParamManagerForTimeline kitParams;
 	Instrument* kitBase = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (kitBase == nullptr) {
@@ -320,14 +332,12 @@ bool writeKitPreset() {
 	if (addSampleDrum(*kit, kKitDrumName, kKitPresetSample) == nullptr) {
 		return false;
 	}
-	Error error =
-	    StorageManager::createXMLFile(kKitPresetPath, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
+	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
 		return fail("kit", "the kit preset file could not be created");
 	}
 	kit->writeToFile(nullptr, currentSong);
-	error = GetSerializer().closeFileAfterWriting(kKitPresetPath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-	                                              "\n</kit>\n");
+	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</kit>\n");
 	return error == Error::NONE || fail("kit", "the kit preset file could not be closed");
 }
 
@@ -420,7 +430,7 @@ void prepareLeg() {
 	switch (g_leg) {
 	case Leg::Kit:
 		onOwner([] {
-			if (writeKitPreset()) {
+			if (writeKitPreset(kKitPresetPath)) {
 				// The new-kit-track gesture, which takes the first kit preset nobody in the song is using:
 				// kKitPresetPath.
 				g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 1);
@@ -430,6 +440,23 @@ void prepareLeg() {
 		break;
 	case Leg::AudioClip:
 		onOwner([] { g_audioClip = sessionView.createNewClip(OutputType::AUDIO, 2); });
+		break;
+	case Leg::SliceManual:
+		onOwner([] {
+			// A kit of its own: the region slice left the first with four drums.
+			if (writeKitPreset(kManualKitPresetPath)) {
+				g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 3);
+			}
+			const SoundDrum* drum = kitDrum();
+			int32_t drums = 0;
+			if (g_kitClip != nullptr && g_kitClip->output != nullptr && g_kitClip->output->type == OutputType::KIT) {
+				for (Drum* d = static_cast<Kit*>(g_kitClip->output)->firstDrum; d != nullptr; d = d->next) {
+					drums++;
+				}
+			}
+			printf("SC-PROBE leg=slice-manual prepared kitClip=%d drums=%d name=%s\n", g_kitClip != nullptr ? 1 : 0,
+			       drums, drum != nullptr ? drum->drumName.c_str() : "");
+		});
 		break;
 	default:
 		break;
@@ -457,6 +484,7 @@ bool openLeg() {
 		return openBrowserOnSynth("supersede-loading", OscType::SAMPLE);
 	case Leg::Kit:
 	case Leg::Slice:
+	case Leg::SliceManual:
 		return openBrowserOnKitDrum(legName(g_leg));
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
@@ -489,6 +517,7 @@ const char* legFile() {
 	case Leg::AudioClip:
 		return kClipSample;
 	case Leg::Slice:
+	case Leg::SliceManual:
 		return kSliceSample;
 	case Leg::Done:
 		break;
@@ -550,6 +579,27 @@ void actLeg() {
 		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 		return;
 	}
+	if (g_leg == Leg::SliceManual) {
+		using namespace deluge::hid::button;
+		const bool opened = openUI(&slicer);
+		// The mode button, as a user switches the slicer to manual; the points as pad presses on a playing voice add
+		// them, which a scenario cannot sound.
+		(void)slicer.buttonAction(X_ENC, true, false);
+		for (int32_t i = 0; i < kManualSliceCount; i++) {
+			slicer.manualSlicePoints[i] = kManualSlices[i];
+		}
+		slicer.numManualSlice = kManualSliceCount;
+		slicer.currentSlice = 0;
+		printf("SC-SETUP leg=slice-manual slicerOpened=%d slicerOnTop=%d manual=%d\n", opened ? 1 : 0,
+		       getCurrentUI() == &slicer ? 1 : 0, slicer.slicerMode == SLICER_MODE_MANUAL ? 1 : 0);
+		(void)slicer.buttonAction(SELECT_ENC, true, false);
+		// The live points change before the slice runs, as an encoder turn or a pad press can while its load is out:
+		// the drums must still be painted from the points as they were when Select was pressed.
+		slicer.manualSlicePoints[0].transpose = 24;
+		slicer.manualSlicePoints[1].startPos = 5;
+		slicer.numManualSlice = 1;
+		return;
+	}
 	if (g_leg != Leg::Slice) {
 		pressSelect();
 		return;
@@ -569,7 +619,7 @@ bool legEnded() {
 		return g_supersedeFired && !deluge::gui::sampleClaim.inFlight() && holder != nullptr
 		       && holder->audioFile != nullptr && holder->filePath == supersedeSecond();
 	}
-	if (g_leg == Leg::Slice) {
+	if (g_leg == Leg::Slice || g_leg == Leg::SliceManual) {
 		return !isUIOpen(&slicer);
 	}
 	if (g_leg == Leg::Stall) {
@@ -726,6 +776,54 @@ void checkLeg() {
 		}
 		break;
 	}
+	case Leg::SliceManual: {
+		auto* kit = static_cast<Kit*>(g_kitClip->output);
+		int32_t drums = 0;
+		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
+			drums++;
+		}
+		int32_t boundToSlice = 0;
+		int32_t painted = 0;
+		for (int32_t i = 0; i < kManualSliceCount && i < drums; i++) {
+			Drum* drum = kit->getDrumFromIndex(i);
+			if (drum->type != DrumType::SOUND) {
+				continue;
+			}
+			auto* range =
+			    static_cast<MultisampleRange*>(static_cast<SoundDrum*>(drum)->sources[0].getOrCreateFirstRange());
+			if (range == nullptr || range->sampleHolder.audioFile == nullptr
+			    || !(range->sampleHolder.filePath == kSliceSample)) {
+				continue;
+			}
+			boundToSlice++;
+			const int64_t length = static_cast<Sample*>(range->sampleHolder.audioFile)->lengthInSamples;
+			const int64_t wantEnd = (i == kManualSliceCount - 1) ? length : kManualSlices[i + 1].startPos;
+			const bool match = range->sampleHolder.startPos == static_cast<uint64_t>(kManualSlices[i].startPos)
+			                   && range->sampleHolder.endPos == static_cast<uint64_t>(wantEnd)
+			                   && range->sampleHolder.transpose == kManualSlices[i].transpose;
+			printf("SC-PROBE leg=slice-manual drum=%d start=%llu end=%llu transpose=%d\n", i,
+			       static_cast<unsigned long long>(range->sampleHolder.startPos),
+			       static_cast<unsigned long long>(range->sampleHolder.endPos), range->sampleHolder.transpose);
+			painted += match ? 1 : 0;
+		}
+		auto* clip = static_cast<InstrumentClip*>(g_kitClip);
+		int32_t rowsWithDrum = 0;
+		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+			if (clip->noteRows[i].drum != nullptr) {
+				rowsWithDrum++;
+			}
+		}
+		printf("SC-SLICE-MANUAL drums=%d boundToSlice=%d painted=%d rowsWithDrum=%d ticks=%d\n", drums, boundToSlice,
+		       painted, rowsWithDrum, g_waitTicks);
+		if (drums != kManualSliceCount || boundToSlice != kManualSliceCount || painted != kManualSliceCount
+		    || rowsWithDrum < kManualSliceCount) {
+			printf("SC-SLICE-MANUAL FAIL the manual slice did not end with %d drums on the sliced sample, each with a "
+			       "NoteRow and painted from the slice points as they were when Select was pressed\n",
+			       kManualSliceCount);
+			g_failures++;
+		}
+		break;
+	}
 	case Leg::Done:
 		break;
 	}
@@ -804,7 +902,7 @@ void runTick() {
 		       sampleBrowser.getCurrentFileItem() != nullptr ? sampleBrowser.getCurrentFileItem()->filename.c_str()
 		                                                     : "");
 		g_waitTicks = 0;
-		g_step = (g_leg == Leg::Slice || isSupersede()) ? Step::PreviewWait : Step::Act;
+		g_step = (g_leg == Leg::Slice || g_leg == Leg::SliceManual || isSupersede()) ? Step::PreviewWait : Step::Act;
 		break;
 	case Step::PreviewWait: {
 		// The slicer draws the browser's previewed waveform, so a user opens it only once the preview shows the file.

@@ -28,6 +28,10 @@
 #              the audio clip claim: the file bound, and the clip's loop length and attack.
 #   SC-SLICE   the slicer's four-region slice: how many drums the kit ends with, how many are bound to the sliced
 #              sample, and how many NoteRows have a drum.
+#   SC-SLICE-MANUAL
+#              a second kit sliced in manual mode into three slices, the live slice points changed straight after
+#              Select: every drum bound to the sliced sample, with a NoteRow, and painted from the points as they
+#              were when Select was pressed.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #
@@ -92,7 +96,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^SC-' "$OUT/run.txt"
