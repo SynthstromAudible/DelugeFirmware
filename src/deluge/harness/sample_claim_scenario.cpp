@@ -24,6 +24,7 @@
 #include "gui/menu_item/file_selector.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/slicer.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -82,6 +83,13 @@ constexpr const char* kStallSample = "SAMPLES/SCSTALL.WAV";
 constexpr uint32_t kGateHoldMs = 400;
 /// How long the loader holds each load in the stall leg: far past the claim's stall bound.
 constexpr uint32_t kStallHoldMs = 30000;
+/// The supersede legs' second files. The landed leg's is in memory from the gate leg, so its preview lands in the tick
+/// the cursor reaches it; the loading leg's is not, and the loader holds its preview.
+constexpr const char* kSupersedeLanded = "SAMPLES/SCGATE.WAV";
+constexpr const char* kSupersedeLoading = "SAMPLES/SCKICK.WAV";
+/// How long the loader holds the loading leg's second preview: long enough that the claim the cursor left would finish
+/// first, were it not cancelled.
+constexpr uint32_t kSupersedeHoldMs = 400;
 /// The synth context menu's WaveTable option: Multisamples 0, Basic 1, Single-cycle 2, WaveTable 3.
 constexpr int32_t kWaveTableOption = 3;
 constexpr const char* kKitPresetSample = "SAMPLES/SCKITD.WAV";
@@ -103,7 +111,19 @@ constexpr int32_t kMaxLegTicks = 2000;
 /// Scenario ticks the stall leg's claim may take to give up before it is called wedged: far past its stall bound.
 constexpr int32_t kMaxStallTicks = 20000;
 
-enum class Leg : uint8_t { Synth, WaveTable, Fallback, Gate, Kit, AudioClip, Slice, Stall, Done };
+enum class Leg : uint8_t {
+	Synth,
+	WaveTable,
+	Fallback,
+	Gate,
+	Supersede,
+	SupersedeLoading,
+	Kit,
+	AudioClip,
+	Slice,
+	Stall,
+	Done
+};
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
 
 Leg g_leg = Leg::Synth;
@@ -130,6 +150,17 @@ TierMark g_tierMark{};
 /// Whether the gate leg's select-encoder turn moved the browser's selection while its claim was in flight.
 bool g_gateMoved = false;
 
+/// Whether the supersede leg has moved the cursor on, which it does the moment the first auto-load claim's pitch
+/// detection is out on the storage owner.
+bool g_supersedeFired = false;
+
+/// The claim's counts when a leg acted.
+int32_t g_giveUpsBefore = 0;
+int32_t g_cancelsBefore = 0;
+int32_t g_drainsBefore = 0;
+int32_t g_startsUnderOpBefore = 0;
+int32_t g_finishesBefore = 0;
+
 const char* legName(Leg leg) {
 	switch (leg) {
 	case Leg::Synth:
@@ -142,6 +173,10 @@ const char* legName(Leg leg) {
 		return "gate";
 	case Leg::Stall:
 		return "stall";
+	case Leg::Supersede:
+		return "supersede";
+	case Leg::SupersedeLoading:
+		return "supersede-loading";
 	case Leg::Kit:
 		return "kit";
 	case Leg::AudioClip:
@@ -169,8 +204,8 @@ void onOwner(void (*fn)()) {
 }
 
 TierMark markTier() {
-	return {sampleBrowser.claimLoadsOnOwner(), sampleBrowser.claimWaveTableLookupsOnOwner(),
-	        sampleBrowser.claimPitchScansOnOwner(), slicer.sliceLoadsOnOwner(),
+	return {deluge::gui::sampleClaim.loadsOnOwner(), deluge::gui::sampleClaim.waveTableLookupsOnOwner(),
+	        deluge::gui::sampleClaim.pitchScansOnOwner(), slicer.sliceLoadsOnOwner(),
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
@@ -189,6 +224,12 @@ void wantOwnerWork(Leg leg, int32_t& waveTable, int32_t& pitch) {
 	case Leg::Fallback:
 		waveTable = 1;
 		pitch = 1;
+		return;
+	case Leg::Supersede:
+	case Leg::SupersedeLoading:
+		// The cancelled claim's detection, which still runs, and the next claim's.
+		waveTable = 0;
+		pitch = 2;
 		return;
 	default:
 		waveTable = 0;
@@ -410,6 +451,10 @@ bool openLeg() {
 	case Leg::Stall:
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
 		return openBrowserOnSynth("stall", OscType::SAMPLE);
+	case Leg::Supersede:
+		return openBrowserOnSynth("supersede", OscType::SAMPLE);
+	case Leg::SupersedeLoading:
+		return openBrowserOnSynth("supersede-loading", OscType::SAMPLE);
 	case Leg::Kit:
 	case Leg::Slice:
 		return openBrowserOnKitDrum(legName(g_leg));
@@ -436,6 +481,9 @@ const char* legFile() {
 		return kGateSample;
 	case Leg::Stall:
 		return kStallSample;
+	case Leg::Supersede:
+	case Leg::SupersedeLoading:
+		return kSynthSample;
 	case Leg::Kit:
 		return kKickSample;
 	case Leg::AudioClip:
@@ -449,9 +497,33 @@ const char* legFile() {
 }
 
 /// The claim's Select press, or for the slice leg the slicer opened on the selected file and its commit.
+/// Whether the current leg is one of the two supersede legs.
+bool isSupersede() {
+	return g_leg == Leg::Supersede || g_leg == Leg::SupersedeLoading;
+}
+
+/// The file a supersede leg's cursor moves on to.
+const char* supersedeSecond() {
+	return (g_leg == Leg::Supersede) ? kSupersedeLanded : kSupersedeLoading;
+}
+
 void actLeg() {
 	finishScroll();
 	g_tierMark = markTier();
+	g_giveUpsBefore = deluge::gui::sampleClaim.giveUps();
+	g_cancelsBefore = deluge::gui::sampleClaim.cancels();
+	g_drainsBefore = deluge::gui::sampleClaim.drains();
+	g_startsUnderOpBefore = deluge::gui::sampleClaim.startsUnderOp();
+	g_finishesBefore = deluge::gui::sampleClaim.finishes();
+	if (isSupersede()) {
+		using namespace deluge::hid::button;
+		// Auto-load on (the Load button toggles it as it is released), then the file's preview asked for again, as the
+		// cursor arriving on it asks: its landing asks for the auto-load claim.
+		g_supersedeFired = false;
+		(void)getCurrentUI()->buttonAction(LOAD, false, false);
+		sampleBrowser.previewFile(legFile(), 0);
+		return;
+	}
 	if (g_leg == Leg::Gate) {
 		const auto selected = [] {
 			const FileItem* item = sampleBrowser.getCurrentFileItem();
@@ -492,6 +564,11 @@ void actLeg() {
 
 /// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
 bool legEnded() {
+	if (isSupersede()) {
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		return g_supersedeFired && !deluge::gui::sampleClaim.inFlight() && holder != nullptr
+		       && holder->audioFile != nullptr && holder->filePath == supersedeSecond();
+	}
 	if (g_leg == Leg::Slice) {
 		return !isUIOpen(&slicer);
 	}
@@ -541,9 +618,10 @@ void checkLeg() {
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const bool browserOpen = isUIOpen(&sampleBrowser);
 		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
-		printf("SC-STALL bound=%d browserOpen=%d released=%d ticks=%d\n", bound ? 1 : 0, browserOpen ? 1 : 0,
-		       released ? 1 : 0, g_waitTicks);
-		if (bound || !browserOpen || !released) {
+		const int32_t giveUps = deluge::gui::sampleClaim.giveUps() - g_giveUpsBefore;
+		printf("SC-STALL bound=%d browserOpen=%d released=%d giveUps=%d ticks=%d\n", bound ? 1 : 0, browserOpen ? 1 : 0,
+		       released ? 1 : 0, giveUps, g_waitTicks);
+		if (bound || !browserOpen || !released || giveUps != 1) {
 			printf("SC-STALL FAIL a claim whose load never answered did not give up: it must leave the holder unbound, "
 			       "the browser open and the gate released\n");
 			g_failures++;
@@ -564,6 +642,33 @@ void checkLeg() {
 			       wantWaveTable ? "wavetable" : "sample");
 			g_failures++;
 		}
+		break;
+	}
+	case Leg::Supersede:
+	case Leg::SupersedeLoading: {
+		deluge_audio_load_set_latency_ms(0);
+		const auto& claim = deluge::gui::sampleClaim;
+		const char* supersedeCase = (g_leg == Leg::Supersede) ? "landed" : "loading";
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		const int32_t cancels = claim.cancels() - g_cancelsBefore;
+		const int32_t drains = claim.drains() - g_drainsBefore;
+		const int32_t startsUnderOp = claim.startsUnderOp() - g_startsUnderOpBefore;
+		const int32_t finishes = claim.finishes() - g_finishesBefore;
+		const bool boundSecond =
+		    holder != nullptr && holder->audioFile != nullptr && holder->filePath == supersedeSecond();
+		printf("SC-SUPERSEDE case=%s underOp=%d cancels=%d drains=%d startsUnderOp=%d finishes=%d boundSecond=%d "
+		       "ticks=%d\n",
+		       supersedeCase, g_supersedeFired ? 1 : 0, cancels, drains, startsUnderOp, finishes, boundSecond ? 1 : 0,
+		       g_waitTicks);
+		if (!g_supersedeFired || cancels != 1 || drains != 1 || startsUnderOp != 0 || finishes != 1 || !boundSecond) {
+			printf("SC-SUPERSEDE FAIL case=%s an auto-load claim the cursor left with its pitch detection out must be "
+			       "cancelled once and drain before the next claim starts, and only the next file's claim may finish\n",
+			       supersedeCase);
+			g_failures++;
+		}
+		// Auto-load off again, and out of the browser, which auto-load leaves open.
+		(void)getCurrentUI()->buttonAction(deluge::hid::button::LOAD, false, false);
+		sampleBrowser.exitAndNeverDeleteDrum();
 		break;
 	}
 	case Leg::Kit: {
@@ -626,6 +731,27 @@ void checkLeg() {
 	}
 }
 
+/// One tick of a supersede leg: the browser ticked, and the moment the first auto-load claim's pitch detection is out,
+/// the cursor moved on to the second file, which cancels that claim.
+void tickSupersede() {
+	sampleBrowser.graphicsRoutine();
+	if (g_supersedeFired || !deluge::gui::sampleClaim.opOutstanding()) {
+		return;
+	}
+	g_supersedeFired = true;
+	if (g_leg == Leg::Supersede) {
+		// In memory, so its preview lands in this same tick with the detection still out -- as on the device, where
+		// detection reads the card for longer than a graphics tick -- and asks for the next claim at once.
+		sampleBrowser.previewFile(kSupersedeLanded, 0);
+		sampleBrowser.graphicsRoutine();
+	}
+	else {
+		// Its preview held: the claim the cursor left must go now, not when this preview lands.
+		deluge_audio_load_set_latency_ms(kSupersedeHoldMs);
+		sampleBrowser.previewFile(kSupersedeLoading, 0);
+	}
+}
+
 void nextLeg() {
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_step = Step::Prepare;
@@ -645,6 +771,14 @@ void runTick() {
 		g_step = Step::Open;
 		break;
 	case Step::Open:
+		// A claim still in flight from the leg before -- one that timed out -- would act on this leg's clip.
+		if (deluge::gui::sampleClaim.inFlight()) {
+			if (++g_waitTicks > kMaxLegTicks) {
+				fail(legName(g_leg), "a claim from the leg before never ended");
+				nextLeg();
+			}
+			break;
+		}
 		g_waitTicks = 0;
 		if (openLeg()) {
 			g_step = Step::Listing;
@@ -670,7 +804,7 @@ void runTick() {
 		       sampleBrowser.getCurrentFileItem() != nullptr ? sampleBrowser.getCurrentFileItem()->filename.c_str()
 		                                                     : "");
 		g_waitTicks = 0;
-		g_step = (g_leg == Leg::Slice) ? Step::PreviewWait : Step::Act;
+		g_step = (g_leg == Leg::Slice || isSupersede()) ? Step::PreviewWait : Step::Act;
 		break;
 	case Step::PreviewWait: {
 		// The slicer draws the browser's previewed waveform, so a user opens it only once the preview shows the file.
@@ -698,6 +832,9 @@ void runTick() {
 		g_step = Step::Wait;
 		break;
 	case Step::Wait:
+		if (isSupersede()) {
+			tickSupersede();
+		}
 		if (legEnded() || ++g_waitTicks > (g_leg == Leg::Stall ? kMaxStallTicks : kMaxLegTicks)) {
 			checkLeg();
 			nextLeg();
@@ -723,6 +860,7 @@ void deluge_scenario_sample_claim_begin(void) {
 	g_audioClip = nullptr;
 	g_tierMark = {};
 	g_gateMoved = false;
+	g_supersedeFired = false;
 }
 
 bool deluge_scenario_sample_claim_complete(void) {

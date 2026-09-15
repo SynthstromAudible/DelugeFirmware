@@ -16,7 +16,11 @@
 #   SC-GATE    the select encoder turned while an explicit claim's load is held: the selection must not move, and
 #              the gate must be released once the claim ends.
 #   SC-STALL   an explicit claim whose load is held past the stall bound: it must give up, leaving the holder
-#              unbound, the browser open and the gate released.
+#              unbound, the browser open and the gate released, having given up once.
+#   SC-SUPERSEDE
+#              an auto-load claim the cursor leaves while its pitch detection is out on the storage owner, for a next
+#              preview that lands at once (case=landed) and for one still loading (case=loading): it must be
+#              cancelled once and drain before the next claim starts, and only the next file's claim may finish.
 #   SC-TIER    per leg: no claim or slice began its load on the storage owner, its wavetable lookups and pitch
 #              detections all ran there, and no sample was read from the card on the interaction tier.
 #   SC-KIT     the kit drum claim: the file bound, the repeat mode, the drum's name and its side-chain send.
@@ -88,7 +92,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^SC-' "$OUT/run.txt"

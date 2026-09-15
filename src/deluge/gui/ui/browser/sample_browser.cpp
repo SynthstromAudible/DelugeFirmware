@@ -34,6 +34,7 @@
 #include "gui/menu_item/multi_range.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/slicer.h"
 #include "gui/ui/sound_editor.h"
@@ -291,6 +292,10 @@ void SampleBrowser::exitAction() {
 }
 
 ActionResult SampleBrowser::timerCallback() {
+	// Refused while an explicit claim is in flight: SampleClaim closes the browser's gate until the claim ends.
+	if (sampleClaim.explicitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 		currentUIMode = UI_MODE_NONE;
@@ -395,17 +400,25 @@ void SampleBrowser::enterKeyPress() {
 
 		// Otherwise, load it normally
 		else {
-			// Dispatch onto the storage owner so pitch-detection (Sample::determinePitch, deep
-			// inside claimCurrentFile()) doesn't block the executor on SD reads. Fire-and-forget:
-			// the result is discarded, and claimCurrentFile() handles its own loading-animation/
-			// close-on-success internally.
-			deluge::storage::Owner::run_or_inline(&SampleBrowser::runClaimCurrentFileOp, nullptr);
+			// The claim runs on this tier, as SampleClaim's phases; only its card-reading steps go to the storage
+			// owner.
+			requestClaim(1, 1, 1);
 		}
 	}
 }
 
-void SampleBrowser::runClaimCurrentFileOp(void*) {
-	sampleBrowser.claimCurrentFile();
+void SampleBrowser::requestClaim(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
+                                 void (*completion)(bool success)) {
+	sampleClaim.request({
+	    .path = getCurrentFilePath(),
+	    .enteredText = enteredText,
+	    .mayDoPitchDetection = mayDoPitchDetection,
+	    .mayDoSingleCycle = mayDoSingleCycle,
+	    .mayDoWaveTable = mayDoWaveTable,
+	    .loadWithoutExiting = false,
+	    .origin = ClaimOrigin::Explicit,
+	    .completion = completion,
+	});
 }
 
 ActionResult SampleBrowser::backButtonAction() {
@@ -421,6 +434,10 @@ ActionResult SampleBrowser::backButtonAction() {
 
 ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
+	// Refused while an explicit claim is in flight: SampleClaim closes the browser's gate until the claim ends.
+	if (sampleClaim.explicitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Save button, to delete audio file
 	if (b == SAVE && Buttons::isShiftButtonPressed()) {
@@ -566,6 +583,9 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 }
 
 void SampleBrowser::previewFile(std::string path, int32_t movementDirection) {
+	// A cursor move supersedes an auto-load claim of the file it has left.
+	sampleClaim.cancelAutoLoad();
+
 	// Only recorded: the next tick starts the load. A cursor that moves on before then replaces this at no cost, and a
 	// load already started for an earlier file is replaced when this one starts.
 	previewWanted_ = PreviewTarget{
@@ -575,6 +595,8 @@ void SampleBrowser::previewFile(std::string path, int32_t movementDirection) {
 }
 
 void SampleBrowser::cancelPreview() {
+	// Nothing previewed, nothing to auto-load: an auto-load claim of the file being left goes too.
+	sampleClaim.cancelAutoLoad();
 	previewWanted_.reset();
 	previewLoad_.cancel();
 	previewShow_.clear_queued();
@@ -682,7 +704,18 @@ void SampleBrowser::finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewT
 		AudioEngine::soundPreview();
 	}
 
-	// Auto-load's claim and the waveform draw still read the card, so they stay on the storage owner.
+	if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
+		// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
+		// as if you had confirmed with the Select encoder, but keeping the browser open.
+		sampleClaim.request({
+		    .path = outcome.payload.path,
+		    .enteredText = enteredText,
+		    .loadWithoutExiting = true,
+		    .origin = ClaimOrigin::AutoLoad,
+		});
+	}
+
+	// The waveform draw still reads the card, so it stays on the storage owner.
 	const PreviewShow show{
 	    .movementDirection = outcome.payload.movementDirection,
 	    .generation = previewGeneration_,
@@ -714,12 +747,6 @@ void SampleBrowser::runPreviewShowOp(void* self) {
 void SampleBrowser::showPreview(const PreviewShow& show) {
 
 	bool didDraw = false;
-
-	if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
-		// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
-		// as if you had confirmed with the Select encoder, but keeping the browser open.
-		claimCurrentFile(1, 1, 1, true);
-	}
 
 	// If the Sample at least loaded, even if we didn't sound it, then try to render its waveform.
 	if (std::ssize(AudioEngine::sampleForPreview->sources[0].ranges) >= 1) {
@@ -803,6 +830,10 @@ void SampleBrowser::displayCurrentFilename() {
 }
 
 ActionResult SampleBrowser::padAction(int32_t x, int32_t y, int32_t on) {
+	// Refused while an explicit claim is in flight: SampleClaim closes the browser's gate until the claim ends.
+	if (sampleClaim.explicitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Allow auditioning
 	if (x == kDisplayWidth + 1) {
@@ -870,356 +901,6 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 
 	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
 	                        CLUSTER_ENQUEUE, makeWaveTableWorkAtAllCosts);
-}
-
-Error SampleBrowser::claimAudioFileForAudioClip() {
-	soundEditor.cutSound();
-
-	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
-	holder->setAudioFile(nullptr);
-	holder->filePath = getCurrentFilePath();
-
-	bool reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
-	Error error = holder->loadFile(reversed, true, true);
-
-	// If there's a pre-margin, we want to set an attack-time
-	if (error == Error::NONE && ((SampleHolder*)holder)->startPos) {
-		getCurrentAudioClip()->attack = kAudioClipDefaultAttackIfPreMargin;
-	}
-
-	return error;
-}
-
-// This display-> any (rare) specific errors generated, then spits out just a boolean success.
-// For the "may" arguments, 0 means no; 1 means auto; 2 means do definitely as the user has specifically requested it.
-bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
-                                     bool loadWithoutExiting) {
-
-	// Counted for the sample-claim gate (SC-TIER): a claim that begins on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		claimLoadsOnOwner_++;
-	}
-
-	if (getCurrentClip()->type == ClipType::AUDIO) {
-		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_IS_RECORDING));
-			return false;
-		}
-	}
-
-	display->displayLoadingAnimationText("Working");
-
-	Error error;
-
-	// If for AudioClip...
-	if (getCurrentClip()->type == ClipType::AUDIO) {
-
-		error = claimAudioFileForAudioClip();
-		if (error != Error::NONE) {
-removeLoadingAnimationAndGetOut:
-			display->removeLoadingAnimation();
-			display->displayError(error);
-			return false;
-		}
-
-		AudioClip* clip = getCurrentAudioClip();
-
-		// load sample with time stretching
-		uint64_t lengthInSamplesAt44 = (uint64_t)clip->sampleHolder.getDurationInSamples(true) * kSampleRate
-		                               / ((Sample*)clip->sampleHolder.audioFile)->sampleRate;
-		uint32_t sampleLengthInTicks = (lengthInSamplesAt44 << 32) / currentSong->timePerTimerTickBig;
-
-		int32_t newLength = 3;
-		while (newLength * 1.41 < sampleLengthInTicks) {
-			newLength <<= 1;
-		}
-
-		int32_t oldLength = clip->loopLength;
-
-		clip->loopLength = newLength;
-		clip->originalLength = newLength;
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		clip->lengthChanged(modelStack, oldLength);
-
-		// load sample without time stretching
-		// audioClipView.adjustLoopLength(clip->sampleHolder.getLoopLengthAtSystemSampleRate(true));
-
-		clip->sampleHolder.transpose = 0;
-		clip->sampleHolder.cents = 0;
-		clip->sampleControls.reversed = false;
-		clip->sampleControls.invertReversed = false;
-	}
-
-	// Otherwise, we're something to do with an Instrument...
-	else {
-
-		soundEditor.currentSound->killAllVoices(); // We used to only do this if osc type wasn't already SAMPLE...
-
-		bool makeWaveTableWorkAtAllCosts = (mayDoWaveTable == 2) || (mayDoSingleCycle == 2)
-		                                   || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD);
-
-		int32_t numTypesTried = 0;
-
-		// If we already know we want to try doing WaveTable...
-		if (makeWaveTableWorkAtAllCosts
-		    || (mayDoWaveTable == 1 && soundEditor.currentSource->oscType == OscType::WAVETABLE)) {
-doLoadAsWaveTable:
-			numTypesTried++;
-
-			/*
-			// If multiple Ranges, then forbid the changing from Sample to WaveTable.
-			if (std::ssize(soundEditor.currentSource->ranges) > 1
-			        && soundEditor.currentSource->oscType == OscType::SAMPLE) {
-#if ALPHA_OR_BETA_VERSION
-			    if (mayDoWaveTable == 2) FREEZE_WITH_ERROR("E425");
-#endif
-			    goto doLoadAsSample;
-			}
-			*/
-			OscType current_osc_type = soundEditor.currentSource->getOscType();
-
-			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
-
-			// Counted for SC-TIER: a wavetable lookup on the storage owner.
-			if (deluge::storage::Owner::on_owner()) {
-				claimWaveTableLookupsOnOwner_++;
-			}
-			error = claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts);
-			if (error != Error::NONE) {
-				// If word has come back that this file isn't wanting to load as a WaveTable...
-				if (error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE
-				    || error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO) {
-
-					// If that was what the user really specified they wanted, and we couldn't do it, then we have to
-					// tell them no.
-					if (mayDoWaveTable == 2 || numTypesTried > 1
-					    || (soundEditor.currentSound->getSynthMode() == SynthMode::RINGMOD)) {
-						goto removeLoadingAnimationAndGetOut;
-					}
-
-					// Or if they don't really mind, just load it as a Sample.
-					else {
-						goto doLoadAsSample;
-					}
-				}
-
-				// Or any other error...
-				else {
-					goto removeLoadingAnimationAndGetOut;
-				}
-			}
-
-			// Alright, if we're still here, it was successfully loaded as a WaveTable!
-
-			// if oscillator wasn't already a wavetable, update custom knob assignments, otherwise leave as is
-			if (current_osc_type != OscType::WAVETABLE) {
-				if (soundEditor.currentSourceIndex == 0) { // Osc 1
-					soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-					    params::LOCAL_OSC_A_WAVE_INDEX);
-
-					if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
-					        params::LOCAL_OSC_B_WAVE_INDEX)) {
-						soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
-						    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1);
-					}
-				}
-				else { // Osc 2
-					soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
-					    params::LOCAL_OSC_B_WAVE_INDEX);
-				}
-				getCurrentOutput()->modKnobMode = 7;
-			}
-			view.setKnobIndicatorLevels(); // Visually update.
-			view.setModLedStates();
-		}
-
-		// Or if we want to first try doing it as a Sample (not a WaveTable)...
-		else {
-			numTypesTried++;
-doLoadAsSample:
-
-			/*
-			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
-			if (std::ssize(soundEditor.currentSource->ranges) > 1
-			        && soundEditor.currentSource->oscType == OscType::WAVETABLE) {
-#if ALPHA_OR_BETA_VERSION
-			    if (!mayDoWaveTable) FREEZE_WITH_ERROR("E426");
-#endif
-			    goto doLoadAsWaveTable;
-			}
-			*/
-
-			soundEditor.currentSource->setOscType(OscType::SAMPLE);
-
-			error = claimAudioFileForInstrument();
-			if (error != Error::NONE) {
-				goto removeLoadingAnimationAndGetOut;
-			}
-
-			Sample* sample = (Sample*)soundEditor.getCurrentAudioFileHolder()->audioFile;
-
-			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that
-			// instead.
-			if (mayDoWaveTable && numTypesTried <= 1 && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
-				goto doLoadAsWaveTable;
-			}
-
-			bool doingSingleCycleNow = false;
-
-			int32_t mSec = sample->getLengthInMSec();
-
-			// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
-			if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
-
-				// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
-				if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
-				    && sample->lengthInSamples >= kWavetableMinCycleSize
-				    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
-
-					makeWaveTableWorkAtAllCosts = true; // So that the loading functions don't just chicken out when it
-					                                    // doesn't look all that wavetabley.
-					goto doLoadAsWaveTable;
-				}
-
-				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty
-				// rare.)
-				soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
-				doingSingleCycleNow = true;
-			}
-
-			// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-			if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
-			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
-
-			// Otherwise...
-			else {
-
-				// If source file had loop points set...
-				if (sample->fileLoopEndSamples) {
-
-					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
-					// long, we can do a ONCE.
-					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
-					}
-					else {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
-					}
-				}
-
-				else {
-
-					// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-					soundEditor.currentSource->repeatMode =
-					    (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
-				}
-			}
-
-			// If Kit...
-			if (soundEditor.editingKit()) {
-
-				SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
-
-				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.c_str());
-
-				// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
-				drum->drumName.clear();
-
-				std::string newName;
-				newName = enteredText;
-
-				Kit* kit = getCurrentKit();
-
-				// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
-				if (kit->getDrumFromName(newName.c_str())) {
-
-					error = kit->makeDrumNameUnique(&newName, 2);
-					if (error != Error::NONE) {
-						goto removeLoadingAnimationAndGetOut;
-					}
-				}
-
-				drum->drumName = newName.c_str();
-			}
-
-			// If a synth...
-			else {
-
-				// Detect pitch
-				if (mayDoPitchDetection) {
-					// Counted for SC-TIER: a pitch detection on the storage owner.
-					if (deluge::storage::Owner::on_owner()) {
-						claimPitchScansOnOwner_++;
-					}
-					bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
-
-					((MultisampleRange*)soundEditor.currentMultiRange)
-					    ->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
-				}
-
-				else {
-					// Otherwise, reset pitch. Popular request, late 2022.
-					// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
-					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = 0;
-					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(0);
-				}
-			}
-
-			// Anyway, by now we know we've loaded as a Sample, not a Wavetable.
-			// So remove WaveTable gold knob assignments.
-			bool anyChange = false;
-			int32_t p = params::LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
-			if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(
-				    params::UNPATCHED_BITCRUSHING + params::UNPATCHED_START);
-				anyChange = true;
-			}
-			if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
-				soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-				    params::UNPATCHED_SAMPLE_RATE_REDUCTION + params::UNPATCHED_START);
-				anyChange = true;
-			}
-
-			if (anyChange) {
-				getCurrentOutput()->modKnobMode = 1;
-				view.setKnobIndicatorLevels(); // Visually update.
-				view.setModLedStates();
-			}
-		}
-
-		audioFileIsNowSet();
-
-		getCurrentInstrument()->beenEdited();
-
-		// If there was only one MultiRange, don't go back to the range menu (that's the BOT-TOP thing).
-		if (std::ssize(soundEditor.currentSource->ranges) <= 1 && soundEditor.navigationDepth
-		    && soundEditor.menuItemNavigationRecord[soundEditor.navigationDepth - 1] == &menu_item::multiRangeMenu) {
-			soundEditor.navigationDepth--;
-		}
-	}
-
-	if (!loadWithoutExiting) {
-		exitAndNeverDeleteDrum();
-
-		if (menuItemHeadingTo != nullptr && parentMenuHeadingTo != nullptr) {
-			if (isUIOpen(&soundEditor)) {
-				closeUI(&soundEditor);
-			}
-
-			parentMenuHeadingTo->focusChild(menuItemHeadingTo);
-			soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo;
-			soundEditor.navigationDepth = 0;
-			openUI(&soundEditor);
-
-			parentMenuHeadingTo = nullptr;
-			menuItemHeadingTo = nullptr;
-		}
-
-		uiNeedsRendering(&audioClipView);
-	}
-	display->removeWorkingAnimation();
-	return true;
 }
 
 void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName) {
@@ -2160,6 +1841,11 @@ skipNameStuff:
 static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
 
 ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
+	// Refused while an explicit claim is in flight: SampleClaim closes the browser's gate until the claim ends.
+	if (sampleClaim.explicitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Or, maybe we want to scroll or zoom around the waveform...
 	if (currentlyShowingSamplePreview
 	    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || waveformBasicNavigator.isZoomedIn())) {
@@ -2204,6 +1890,11 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 }
 
 ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	// Refused while an explicit claim is in flight: SampleClaim closes the browser's gate until the claim ends.
+	if (sampleClaim.explicitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
+
 	if (Buttons::isShiftButtonPressed()) {
 		return Browser::verticalEncoderAction(offset, false);
 	}

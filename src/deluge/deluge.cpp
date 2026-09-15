@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -464,6 +465,11 @@ void registerTasks() {
 	// song load above, it parks between steps and needs something to bring it back -- and returning to
 	// the run loop is the only reason the storage driver can make progress at all.
 	addRepeatingTask([]() { SaveUI::saveRoutine(); }, p++, 0.001, 0.005, 0.02, "document save", RESOURCE_NONE);
+	// The sample browser's claim is a phase machine on this tier, and like the save above it waits between steps and
+	// needs something to bring it back, whichever UI is on top. At the graphics routine's 15 ms, so the stall bound on
+	// its load keeps its length.
+	addRepeatingTask([]() { deluge::gui::sampleClaim.routine(); }, p++, 0.015, 0.015, 0.03, "sample claim",
+	                 RESOURCE_NONE);
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
 	// the same reason: both are request/collect state machines whose caller returned long ago, and
 	// neither has a UI tick of its own to resume from.

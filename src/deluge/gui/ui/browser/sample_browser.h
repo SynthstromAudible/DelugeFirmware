@@ -47,13 +47,21 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool canSeeViewUnderneath() override;
 	Error claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
-	Error claimAudioFileForAudioClip();
 	void scrollFinished() override;
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();
 	ActionResult timerCallback() override;
-	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1, int32_t mayDoWaveTable = 1,
-	                      bool loadWithoutExiting = false); // 0 means no. 1 means auto. 2 means yes definitely
+	/// @brief Ask the sample claim for the file the browser is on, as Enter and the synth context menu do.
+	/// @param mayDoPitchDetection For each of these three: 0 means no, 1 means auto, 2 means definitely.
+	/// @param mayDoSingleCycle    As above.
+	/// @param mayDoWaveTable      As above.
+	/// @param completion          Told how the claim ended; a cancelled claim tells it nothing.
+	void requestClaim(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
+	                  void (*completion)(bool success) = nullptr);
+	/// @brief Reset the current source's oscillator volume, if it is not automated and was at 0: after a file is set.
+	void audioFileIsNowSet();
+	/// @brief Send @p drum to side-chain when its file, named @p fileName, looks like a kick and plays once.
+	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();
@@ -109,23 +117,6 @@ public:
 	/// A preview's load belongs on the interaction tier, where the browser's per-tick surface ticks it; a step on the
 	/// owner means the load was sent there. Exposed for the A/B gate's AB-PREVIEW-TIER check, which requires none.
 	[[nodiscard]] int32_t previewLoadsOnOwner() const { return previewLoadsOnOwner_; }
-
-	/// @brief How many claims began their load on the storage owner.
-	///
-	/// A claim's load belongs on the interaction tier; a claim that begins on the owner was dispatched there. Exposed
-	/// for the sample-claim gate's SC-TIER check, which requires none.
-	[[nodiscard]] int32_t claimLoadsOnOwner() const { return claimLoadsOnOwner_; }
-
-	/// @brief How many of a claim's wavetable lookups ran on the storage owner.
-	///
-	/// A wavetable's lookup reads the card synchronously, so it belongs on the owner. Exposed for SC-TIER.
-	[[nodiscard]] int32_t claimWaveTableLookupsOnOwner() const { return claimWaveTableLookupsOnOwner_; }
-
-	/// @brief How many of a claim's pitch detections ran on the storage owner.
-	///
-	/// Pitch detection scans the sample's frames through a reader that blocks until each cluster is read, so it belongs
-	/// on the owner. Exposed for SC-TIER.
-	[[nodiscard]] int32_t claimPitchScansOnOwner() const { return claimPitchScansOnOwner_; }
 
 	std::string lastFilePathLoaded{};
 
@@ -192,7 +183,7 @@ private:
 	/// Runs on the storage owner (inline on legacy/host), latest-wins through previewShow_.
 	/// @param self The SampleBrowser instance.
 	static void runPreviewShowOp(void* self);
-	/// @brief Run auto-load's claim when it is on, then draw the preview drum's sample, or clear the preview display
+	/// @brief Draw the preview drum's sample, or clear the preview display
 	///        when the drum holds none.
 	/// @param show The show to draw.
 	void showPreview(const PreviewShow& show);
@@ -218,29 +209,11 @@ private:
 	/// @brief Preview load steps that ran on the storage owner. See previewLoadsOnOwner().
 	int32_t previewLoadsOnOwner_{0};
 
-	/// @brief Claim work on the storage owner: loads begun, wavetable lookups, pitch detections. See
-	///        claimLoadsOnOwner(), claimWaveTableLookupsOnOwner() and claimPitchScansOnOwner().
-	/// @{
-	int32_t claimLoadsOnOwner_{0};
-	int32_t claimWaveTableLookupsOnOwner_{0};
-	int32_t claimPitchScansOnOwner_{0};
-	/// @}
-
-	/// @brief The dispatched op for the direct pad-tap load (enterKeyPress).
-	///
-	/// Runs claimCurrentFile() with its default args on the storage owner. The result is
-	/// discarded (as it always was inline) — claimCurrentFile() already handles its own
-	/// loading-animation/close-on-success internally. Its unnamed `void*` parameter is the
-	/// storage-owner op signature; unused here.
-	static void runClaimCurrentFileOp(void*);
-
-	void audioFileIsNowSet();
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
 	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);
 	std::string getCurrentFilePath() override;
 	void drawKeysOverWaveform();
-	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();
 
 	bool autoLoadEnabled{};
