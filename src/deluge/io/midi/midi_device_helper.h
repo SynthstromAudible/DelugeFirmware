@@ -46,6 +46,65 @@ inline std::string_view getDeviceNameForIndex(uint8_t deviceIndex) {
 	return {};
 }
 
+// Routing index + label for the Output Device menu.
+// 0 = ALL, 1 = DIN, 2/3 = upstream USB (computer), 4+ = hosted USB MIDI.
+struct MIDIOutputDeviceOption {
+	uint8_t index;
+	std::string_view name;
+};
+
+inline bool isMIDIOutputDeviceConnected(uint8_t deviceIndex) {
+	if (deviceIndex <= 1) {
+		return true; // ALL and DIN are always available
+	}
+	MIDICable* cable = getCableForOutputIndex(deviceIndex);
+	return cable != nullptr && cable->connectionFlags != 0;
+}
+
+// Connected destinations only. Upstream USB ports appear when the Deluge is plugged into a
+// computer; hosted devices appear when they are attached. alsoIncludeIndex keeps a saved
+// selection visible if that destination is temporarily unplugged.
+inline deluge::vector<MIDIOutputDeviceOption> getVisibleMIDIOutputDevices(uint8_t alsoIncludeIndex = 255) {
+	deluge::vector<MIDIOutputDeviceOption> options;
+
+	auto maybeAdd = [&](uint8_t index) {
+		if (index != alsoIncludeIndex && !isMIDIOutputDeviceConnected(index)) {
+			return;
+		}
+		std::string_view name = getDeviceNameForIndex(index);
+		if (!name.empty()) {
+			options.push_back({index, name});
+		}
+	};
+
+	maybeAdd(0);
+	maybeAdd(1);
+	maybeAdd(2);
+	maybeAdd(3);
+	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
+		maybeAdd(static_cast<uint8_t>(i + 4));
+	}
+	return options;
+}
+
+inline uint8_t deviceIndexToMenuSlot(uint8_t deviceIndex, uint8_t alsoIncludeIndex = 255) {
+	auto options = getVisibleMIDIOutputDevices(alsoIncludeIndex);
+	for (size_t i = 0; i < options.size(); i++) {
+		if (options[i].index == deviceIndex) {
+			return static_cast<uint8_t>(i);
+		}
+	}
+	return 0;
+}
+
+inline uint8_t menuSlotToDeviceIndex(uint8_t slot, uint8_t alsoIncludeIndex = 255) {
+	auto options = getVisibleMIDIOutputDevices(alsoIncludeIndex);
+	if (slot >= options.size()) {
+		return 0;
+	}
+	return options[slot].index;
+}
+
 inline uint8_t findDeviceIndexByName(std::string_view deviceName, uint8_t fallbackIndex = 0) {
 	if (deviceName.empty() || deviceName == "ALL") {
 		return deviceName == "ALL" ? 0 : fallbackIndex;
@@ -109,19 +168,12 @@ inline void readDeviceFromAttributes(Deserializer& reader, uint8_t& outDeviceInd
 	}
 }
 
-inline deluge::vector<std::string_view> getAllMIDIDeviceNames() {
-	deluge::vector<std::string_view> options;
-	options.push_back("ALL");
-	options.push_back(MIDIDeviceManager::dinMIDIPorts.getDisplayName());
-	options.push_back(MIDIDeviceManager::upstreamUSBMIDICable1.getDisplayName());
-	options.push_back(MIDIDeviceManager::upstreamUSBMIDICable2.getDisplayName());
-	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
-		auto* cable = static_cast<MIDICable*>(MIDIDeviceManager::hostedMIDIDevices.getElement(i));
-		if (cable != nullptr) {
-			options.push_back(cable->getDisplayName());
-		}
+inline deluge::vector<std::string_view> getAllMIDIDeviceNames(uint8_t alsoIncludeIndex = 255) {
+	deluge::vector<std::string_view> names;
+	for (auto const& option : getVisibleMIDIOutputDevices(alsoIncludeIndex)) {
+		names.push_back(option.name);
 	}
-	return options;
+	return names;
 }
 
 } // namespace deluge::io::midi

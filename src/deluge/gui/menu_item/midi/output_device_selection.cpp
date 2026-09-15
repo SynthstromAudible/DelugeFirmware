@@ -14,35 +14,39 @@
 
 namespace deluge::gui::menu_item::midi {
 
+namespace {
+
+uint8_t storedOutputDeviceIndex() {
+	if (soundEditor.editingCVOrMIDIClip()) {
+		auto* instrument = ::getCurrentInstrument();
+		if (instrument != nullptr && instrument->type == OutputType::MIDI_OUT) {
+			return static_cast<MIDIInstrument*>(instrument)->outputDevice;
+		}
+	}
+	else if (soundEditor.editingKitRow()) {
+		auto* kit = ::getCurrentKit();
+		if (kit != nullptr && kit->selectedDrum != nullptr && kit->selectedDrum->type == DrumType::MIDI) {
+			return static_cast<MIDIDrum*>(kit->selectedDrum)->outputDevice;
+		}
+	}
+	return 0;
+}
+
+} // namespace
+
 void OutputDeviceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 	Selection::beginSession(navigatedBackwardFrom);
 	readCurrentValue();
 }
 
 void OutputDeviceSelection::readCurrentValue() {
-	uint8_t value = 0;
-	if (soundEditor.editingCVOrMIDIClip()) {
-		auto* instrument = ::getCurrentInstrument();
-		if (instrument != nullptr && instrument->type == OutputType::MIDI_OUT) {
-			value = static_cast<MIDIInstrument*>(instrument)->outputDevice;
-		}
-	}
-	else if (soundEditor.editingKitRow()) {
-		auto* kit = ::getCurrentKit();
-		if (kit != nullptr && kit->selectedDrum != nullptr && kit->selectedDrum->type == DrumType::MIDI) {
-			value = static_cast<MIDIDrum*>(kit->selectedDrum)->outputDevice;
-		}
-	}
-
-	auto options = deluge::io::midi::getAllMIDIDeviceNames();
-	if (value >= options.size()) {
-		value = 0;
-	}
-	this->setValue(value);
+	uint8_t stored = storedOutputDeviceIndex();
+	this->setValue(deluge::io::midi::deviceIndexToMenuSlot(stored, stored));
 }
 
 void OutputDeviceSelection::writeCurrentValue() {
-	uint8_t currentDevice = static_cast<uint8_t>(this->getValue());
+	uint8_t stored = storedOutputDeviceIndex();
+	uint8_t currentDevice = deluge::io::midi::menuSlotToDeviceIndex(static_cast<uint8_t>(this->getValue()), stored);
 	auto deviceName = deluge::io::midi::getDeviceNameForIndex(currentDevice);
 
 	if (soundEditor.editingCVOrMIDIClip()) {
@@ -69,7 +73,8 @@ void OutputDeviceSelection::writeCurrentValue() {
 
 deluge::vector<std::string_view> OutputDeviceSelection::getOptions(OptType optType) {
 	(void)optType;
-	return deluge::io::midi::getAllMIDIDeviceNames();
+	uint8_t stored = storedOutputDeviceIndex();
+	return deluge::io::midi::getAllMIDIDeviceNames(stored);
 }
 
 } // namespace deluge::gui::menu_item::midi
