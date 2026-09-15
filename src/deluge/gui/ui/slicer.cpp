@@ -688,6 +688,11 @@ void Slicer::commitSlice(const SliceCommitTarget& target) {
 
 void Slicer::doSlice(int32_t sliceCount) {
 
+	// Counted for the sample-claim gate (SC-TIER): a slice that begins on the storage owner.
+	if (deluge::storage::Owner::on_owner()) {
+		sliceLoadsOnOwner_++;
+	}
+
 	AudioEngine::stopAnyPreviewing();
 
 	Error error = sampleBrowser.claimAudioFileForInstrument();

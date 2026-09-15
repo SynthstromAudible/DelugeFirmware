@@ -51,6 +51,7 @@
 #include "processing/source.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
+#include "storage/byte_channel.h" // bytes::interactionTierIo
 #include "storage/multi_range/multi_range.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
@@ -90,7 +91,7 @@ constexpr int32_t kMaxListingTicks = 20000;
 /// Scenario ticks a claim or a slice may take before it is called wedged.
 constexpr int32_t kMaxLegTicks = 2000;
 
-enum class Leg : uint8_t { Synth, WaveTable, Fallback, Kit, AudioClip, Slice, Done };
+enum class Leg : uint8_t { Synth, WaveTable, Fallback, Gate, Kit, AudioClip, Slice, Done };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
 
 Leg g_leg = Leg::Synth;
@@ -103,6 +104,20 @@ SoundInstrument* g_synth = nullptr;
 Clip* g_kitClip = nullptr;
 Clip* g_audioClip = nullptr;
 
+/// Where a leg's card work ran, read when the leg acts: the claim's and the slice's loads begun on the storage owner,
+/// the claim's wavetable lookups and pitch detections on the owner, and the interaction tier's blocking sample reads.
+struct TierMark {
+	int32_t claimLoads = 0;
+	int32_t waveTableLookups = 0;
+	int32_t pitchScans = 0;
+	int32_t sliceLoads = 0;
+	int32_t sampleIo = 0;
+};
+TierMark g_tierMark{};
+
+/// Whether the gate leg's select-encoder turn moved the browser's selection while its claim was in flight.
+bool g_gateMoved = false;
+
 const char* legName(Leg leg) {
 	switch (leg) {
 	case Leg::Synth:
@@ -111,6 +126,8 @@ const char* legName(Leg leg) {
 		return "wavetable";
 	case Leg::Fallback:
 		return "fallback";
+	case Leg::Gate:
+		return "gate";
 	case Leg::Kit:
 		return "kit";
 	case Leg::AudioClip:
@@ -134,6 +151,69 @@ void onOwner(void (*fn)()) {
 	if (!deluge::storage::Owner::run([](void* ctx) { reinterpret_cast<void (*)()>(ctx)(); },
 	                                 reinterpret_cast<void*>(fn))) {
 		fail(legName(g_leg), "the storage owner's queue was full");
+	}
+}
+
+TierMark markTier() {
+	return {sampleBrowser.claimLoadsOnOwner(), sampleBrowser.claimWaveTableLookupsOnOwner(),
+	        sampleBrowser.claimPitchScansOnOwner(), slicer.sliceLoadsOnOwner(),
+	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
+}
+
+/// The wavetable lookups and pitch detections each leg's claim makes, every one of them on the storage owner.
+void wantOwnerWork(Leg leg, int32_t& waveTable, int32_t& pitch) {
+	switch (leg) {
+	case Leg::Synth:
+	case Leg::Gate:
+		waveTable = 0;
+		pitch = 1;
+		return;
+	case Leg::WaveTable:
+		waveTable = 1;
+		pitch = 0;
+		return;
+	case Leg::Fallback:
+		waveTable = 1;
+		pitch = 1;
+		return;
+	default:
+		waveTable = 0;
+		pitch = 0;
+		return;
+	}
+}
+
+/// SC-TIER: since the leg acted, no claim or slice may have begun its load on the storage owner, its wavetable lookups
+/// and pitch detections must all have run there, and no sample may have been read from the card on the interaction
+/// tier.
+void checkTier() {
+	const TierMark now = markTier();
+	const int32_t loads = (now.claimLoads - g_tierMark.claimLoads) + (now.sliceLoads - g_tierMark.sliceLoads);
+	const int32_t waveTable = now.waveTableLookups - g_tierMark.waveTableLookups;
+	const int32_t pitch = now.pitchScans - g_tierMark.pitchScans;
+	const int32_t sampleIo = now.sampleIo - g_tierMark.sampleIo;
+	printf("SC-TIER leg=%s loadsOnOwner=%d waveTableOnOwner=%d pitchOnOwner=%d sampleIo=%d\n", legName(g_leg), loads,
+	       waveTable, pitch, sampleIo);
+	int32_t wantWaveTable = 0;
+	int32_t wantPitch = 0;
+	wantOwnerWork(g_leg, wantWaveTable, wantPitch);
+	if (loads != 0) {
+		printf(
+		    "SC-TIER FAIL leg=%s %d load(s) began on the storage owner -- a claim's or a slice's load belongs on the "
+		    "interaction tier\n",
+		    legName(g_leg), loads);
+		g_failures++;
+	}
+	if (waveTable != wantWaveTable || pitch != wantPitch) {
+		printf("SC-TIER FAIL leg=%s wavetable lookups on the owner %d (want %d), pitch detections on the owner %d "
+		       "(want %d) -- they read the card synchronously and belong on the owner\n",
+		       legName(g_leg), waveTable, wantWaveTable, pitch, wantPitch);
+		g_failures++;
+	}
+	if (sampleIo != 0) {
+		printf("SC-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier\n", legName(g_leg),
+		       sampleIo);
+		g_failures++;
 	}
 }
 
@@ -310,6 +390,8 @@ bool openLeg() {
 	case Leg::Fallback:
 		// A wavetable oscillator: the claim tries the file as a wavetable first.
 		return openBrowserOnSynth("fallback", OscType::WAVETABLE);
+	case Leg::Gate:
+		return openBrowserOnSynth("gate", OscType::SAMPLE);
 	case Leg::Kit:
 	case Leg::Slice:
 		return openBrowserOnKitDrum(legName(g_leg));
@@ -332,6 +414,8 @@ const char* legFile() {
 		return kCycleSample;
 	case Leg::Fallback:
 		return kStereoSample;
+	case Leg::Gate:
+		return kSynthSample;
 	case Leg::Kit:
 		return kKickSample;
 	case Leg::AudioClip:
@@ -347,6 +431,21 @@ const char* legFile() {
 /// The claim's Select press, or for the slice leg the slicer opened on the selected file and its commit.
 void actLeg() {
 	finishScroll();
+	g_tierMark = markTier();
+	if (g_leg == Leg::Gate) {
+		const auto selected = [] {
+			const FileItem* item = sampleBrowser.getCurrentFileItem();
+			return std::string{item != nullptr ? item->filename.c_str() : ""};
+		};
+		const std::string before = selected();
+		pressSelect();
+		// Browser input while the claim is in flight: the select encoder, turned back one file.
+		getCurrentUI()->selectEncoderAction(-1);
+		const std::string after = selected();
+		g_gateMoved = (after != before);
+		printf("SC-PROBE leg=gate before=%s after=%s\n", before.c_str(), after.c_str());
+		return;
+	}
 	if (g_leg == Leg::WaveTable) {
 		using namespace deluge::hid::button;
 		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
@@ -380,6 +479,7 @@ bool legEnded() {
 }
 
 void checkLeg() {
+	checkTier();
 	switch (g_leg) {
 	case Leg::Synth: {
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
@@ -394,6 +494,14 @@ void checkLeg() {
 		}
 		break;
 	}
+	case Leg::Gate:
+		printf("SC-GATE input=selectEncoder refused=%d ticks=%d\n", g_gateMoved ? 0 : 1, g_waitTicks);
+		if (g_gateMoved) {
+			printf("SC-GATE FAIL the select encoder moved the browser's selection while an explicit claim was in "
+			       "flight\n");
+			g_failures++;
+		}
+		break;
 	case Leg::WaveTable:
 	case Leg::Fallback: {
 		const bool wantWaveTable = (g_leg == Leg::WaveTable);
@@ -565,6 +673,8 @@ void deluge_scenario_sample_claim_begin(void) {
 	g_synth = nullptr;
 	g_kitClip = nullptr;
 	g_audioClip = nullptr;
+	g_tierMark = {};
+	g_gateMoved = false;
 }
 
 bool deluge_scenario_sample_claim_complete(void) {

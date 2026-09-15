@@ -110,6 +110,23 @@ public:
 	/// owner means the load was sent there. Exposed for the A/B gate's AB-PREVIEW-TIER check, which requires none.
 	[[nodiscard]] int32_t previewLoadsOnOwner() const { return previewLoadsOnOwner_; }
 
+	/// @brief How many claims began their load on the storage owner.
+	///
+	/// A claim's load belongs on the interaction tier; a claim that begins on the owner was dispatched there. Exposed
+	/// for the sample-claim gate's SC-TIER check, which requires none.
+	[[nodiscard]] int32_t claimLoadsOnOwner() const { return claimLoadsOnOwner_; }
+
+	/// @brief How many of a claim's wavetable lookups ran on the storage owner.
+	///
+	/// A wavetable's lookup reads the card synchronously, so it belongs on the owner. Exposed for SC-TIER.
+	[[nodiscard]] int32_t claimWaveTableLookupsOnOwner() const { return claimWaveTableLookupsOnOwner_; }
+
+	/// @brief How many of a claim's pitch detections ran on the storage owner.
+	///
+	/// Pitch detection scans the sample's frames through a reader that blocks until each cluster is read, so it belongs
+	/// on the owner. Exposed for SC-TIER.
+	[[nodiscard]] int32_t claimPitchScansOnOwner() const { return claimPitchScansOnOwner_; }
+
 	std::string lastFilePathLoaded{};
 
 	// menus to open when a sample file is selected
@@ -200,6 +217,14 @@ private:
 
 	/// @brief Preview load steps that ran on the storage owner. See previewLoadsOnOwner().
 	int32_t previewLoadsOnOwner_{0};
+
+	/// @brief Claim work on the storage owner: loads begun, wavetable lookups, pitch detections. See
+	///        claimLoadsOnOwner(), claimWaveTableLookupsOnOwner() and claimPitchScansOnOwner().
+	/// @{
+	int32_t claimLoadsOnOwner_{0};
+	int32_t claimWaveTableLookupsOnOwner_{0};
+	int32_t claimPitchScansOnOwner_{0};
+	/// @}
 
 	/// @brief The dispatched op for the direct pad-tap load (enterKeyPress).
 	///

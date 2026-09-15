@@ -895,6 +895,11 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 bool SampleBrowser::claimCurrentFile(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
                                      bool loadWithoutExiting) {
 
+	// Counted for the sample-claim gate (SC-TIER): a claim that begins on the storage owner.
+	if (deluge::storage::Owner::on_owner()) {
+		claimLoadsOnOwner_++;
+	}
+
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		if (getCurrentClip()->getCurrentlyRecordingLinearly()) {
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_IS_RECORDING));
@@ -976,6 +981,10 @@ doLoadAsWaveTable:
 
 			soundEditor.currentSource->setOscType(OscType::WAVETABLE);
 
+			// Counted for SC-TIER: a wavetable lookup on the storage owner.
+			if (deluge::storage::Owner::on_owner()) {
+				claimWaveTableLookupsOnOwner_++;
+			}
 			error = claimAudioFileForInstrument(makeWaveTableWorkAtAllCosts);
 			if (error != Error::NONE) {
 				// If word has come back that this file isn't wanting to load as a WaveTable...
@@ -1139,6 +1148,10 @@ doLoadAsSample:
 
 				// Detect pitch
 				if (mayDoPitchDetection) {
+					// Counted for SC-TIER: a pitch detection on the storage owner.
+					if (deluge::storage::Owner::on_owner()) {
+						claimPitchScansOnOwner_++;
+					}
 					bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
 
 					((MultisampleRange*)soundEditor.currentMultiRange)

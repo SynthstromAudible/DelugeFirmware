@@ -13,6 +13,9 @@
 #              the synth context menu's WaveTable claim of a single-cycle file: bound, as a wavetable oscillator.
 #   SC-FALLBACK
 #              a stereo file claimed into a wavetable oscillator: bound, as a sample oscillator instead.
+#   SC-GATE    the select encoder turned while an explicit claim is in flight: the selection must not move.
+#   SC-TIER    per leg: no claim or slice began its load on the storage owner, its wavetable lookups and pitch
+#              detections all ran there, and no sample was read from the card on the interaction tier.
 #   SC-KIT     the kit drum claim: the file bound, the repeat mode, the drum's name and its side-chain send.
 #   SC-AUDIOCLIP
 #              the audio clip claim: the file bound, and the clip's loop length and attack.
@@ -82,7 +85,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-KIT SC-AUDIOCLIP SC-SLICE SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^SC-' "$OUT/run.txt"
