@@ -54,7 +54,8 @@ public:
 	bool mightExistOnCard = false;
 	bool shouldHibernate{true};
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
-	                   char const* otherPath) override {
+	                   char const* otherPath,
+	                   uint8_t outputDevice = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified) override {
 		bool match{false};
 		if (type == otherType) {
 

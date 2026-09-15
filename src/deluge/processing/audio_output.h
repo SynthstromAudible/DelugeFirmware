@@ -52,7 +52,9 @@ public:
 
 	void resetEnvelope();
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
-	                   char const* dirPath) override {
+	                   char const* dirPath,
+	                   uint8_t outputDevice = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified) override {
+		(void)outputDevice;
 		return false;
 	};
 

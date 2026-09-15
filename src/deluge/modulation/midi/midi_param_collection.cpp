@@ -220,11 +220,10 @@ int32_t MIDIParamCollection::autoparamValueToCC(int32_t newValue) {
 	return (newValue + roundingAmountToAdd) >> rShift;
 }
 void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int32_t cc, int32_t newValue,
-                                   int32_t midiOutputFilter) {
+                                   int32_t midiOutputFilter, uint8_t deviceFilter) {
 	int32_t newValueSmall = autoparamValueToCC(newValue);
 
-	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64,
-	                  midiOutputFilter); // TODO: get master channel
+	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64, midiOutputFilter, deviceFilter);
 }
 
 // For MIDI CCs, which prior to V2.0 did interpolation
@@ -295,7 +294,7 @@ void MIDIParamCollection::notifyParamModifiedInSomeWay(ModelStackWithAutoParam c
 			int32_t midiOutputFilter = instrument->getChannel();
 			int32_t masterChannel = instrument->getOutputMasterChannel();
 			sendMIDI(instrument, masterChannel, modelStack->paramId, modelStack->autoParam->getCurrentValue(),
-			         midiOutputFilter);
+			         midiOutputFilter, instrument->outputDevice);
 		}
 	}
 }

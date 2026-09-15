@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/reverb/model.h"
 #include "io/midi/learned_midi.h"
+#include "io/midi/midi_routing.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
 #include "model/global_effectable/global_effectable_for_song.h"
@@ -162,13 +163,15 @@ public:
 	void
 	deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
 	                 InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
-	int32_t getMaxMIDIChannelSuffix(int32_t channel);
+	int32_t getMaxMIDIChannelSuffix(int32_t channel,
+	                                uint8_t outputDevice = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified);
 	void addOutput(Output* output, bool atStart = true);
 	void deleteOutputThatIsInMainList(Output* output, bool stopAnyAuditioningFirst = true);
 	void markAllInstrumentsAsEdited();
 	Instrument* getInstrumentFromPresetSlot(OutputType outputType, int32_t presetNumber, int32_t presetSubSlotNumber,
 	                                        char const* name, char const* dirPath, bool searchHibernatingToo = true,
-	                                        bool searchNonHibernating = true);
+	                                        bool searchNonHibernating = true,
+	                                        uint8_t outputDevice = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified);
 	AudioOutput* getAudioOutputFromName(std::string_view name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
@@ -305,8 +308,11 @@ public:
 	void deleteOrHibernateOutputIfNoClips(Output* output);
 	void removeInstrumentFromHibernationList(Instrument* instrument);
 	bool doesOutputHaveActiveClipInSession(Output* output);
-	bool doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot = -1);
-	bool doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot);
+	bool
+	doesNonAudioSlotHaveActiveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot = -1,
+	                                        uint8_t outputDevice = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified);
+	bool doesNonAudioSlotHaveClipInSession(OutputType outputType, int32_t slot, int32_t subSlot,
+	                                       uint8_t outputDevice = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified);
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
 	void deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable);
