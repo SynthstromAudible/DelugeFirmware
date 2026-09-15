@@ -60,6 +60,17 @@
   -webkit-box-decoration-break: clone;
 }
 
+.page-search-result-target {
+  border-radius: 0.2rem;
+  background: color-mix(
+    in srgb,
+    var(--sl-color-accent, #60a5fa) 22%,
+    transparent
+  );
+  outline: 0.2rem solid
+    color-mix(in srgb, var(--sl-color-accent, #60a5fa) 22%, transparent);
+}
+
 .menu-hierarchy-page .menu-hierarchy-hide-7seg-toggle {
   display: inline-flex;
   align-items: center;
@@ -323,6 +334,17 @@
   align-items: center;
   line-height: 1.25;
   min-width: 0;
+}
+
+.menu-hierarchy-page .menu-hierarchy-search-target {
+  border-radius: 0.2rem;
+  background: color-mix(
+    in srgb,
+    var(--sl-color-accent, #60a5fa) 22%,
+    transparent
+  );
+  outline: 0.2rem solid
+    color-mix(in srgb, var(--sl-color-accent, #60a5fa) 22%, transparent);
 }
 
 .menu-hierarchy-page .menu-hierarchy-row-label {

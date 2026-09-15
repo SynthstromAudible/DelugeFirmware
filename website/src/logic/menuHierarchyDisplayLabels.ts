@@ -303,6 +303,105 @@ function enhanceSummaryTags(content: HTMLElement) {
   })
 }
 
+function normalizeSearchTarget(value: string) {
+  return value
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+}
+
+function getHierarchyRowsForSection(
+  content: HTMLElement,
+  sectionId: string,
+): HTMLElement[] {
+  const heading = document.getElementById(sectionId)
+  if (!(heading instanceof HTMLHeadingElement) || !content.contains(heading)) {
+    return Array.from(
+      content.querySelectorAll<HTMLElement>(".menu-hierarchy-row-content"),
+    )
+  }
+
+  const headingLevel = Number(heading.tagName.slice(1))
+  const rows: HTMLElement[] = []
+  let sibling = heading.nextElementSibling
+
+  while (sibling) {
+    if (
+      sibling instanceof HTMLHeadingElement &&
+      Number(sibling.tagName.slice(1)) <= headingLevel
+    ) {
+      break
+    }
+
+    rows.push(
+      ...sibling.querySelectorAll<HTMLElement>(".menu-hierarchy-row-content"),
+    )
+    sibling = sibling.nextElementSibling
+  }
+
+  return rows
+}
+
+function revealSearchTarget(content: HTMLElement) {
+  const searchParams = new URLSearchParams(window.location.search)
+  const searchTarget = searchParams.get("search-target")?.trim()
+  const searchContext = searchParams.get("search-context")?.trim() ?? ""
+  const searchSection = searchParams.get("search-section")?.trim() ?? ""
+  const revealKey = `${searchTarget}|${searchContext}|${searchSection}`
+
+  if (!searchTarget || content.dataset.revealedSearchTarget === revealKey) {
+    return
+  }
+
+  const terms = normalizeSearchTarget(searchTarget).split(" ").filter(Boolean)
+  const contextTerms = new Set(
+    normalizeSearchTarget(searchContext).split(" ").filter(Boolean),
+  )
+  const rows = getHierarchyRowsForSection(content, searchSection)
+  const contextMatches = rows.filter((node) => {
+    const rowTerms = new Set(
+      normalizeSearchTarget(node.textContent ?? "")
+        .split(" ")
+        .filter(Boolean),
+    )
+    return (
+      rowTerms.size >= 2 &&
+      Array.from(rowTerms).every((term) => contextTerms.has(term))
+    )
+  })
+  const exactMatches = rows.filter((node) => {
+    const text = normalizeSearchTarget(node.textContent ?? "")
+    return terms.every((term) => text.includes(term))
+  })
+  // Prefer rows that directly match the user's query. The broader Pagefind
+  // preview context is only needed when a result genuinely spans several rows.
+  const targets = exactMatches.length ? exactMatches : contextMatches
+  const target = targets[0]
+
+  if (!target) {
+    return
+  }
+
+  content
+    .querySelectorAll(".menu-hierarchy-search-target")
+    .forEach((node) => node.classList.remove("menu-hierarchy-search-target"))
+  targets.forEach((matchedTarget) => {
+    matchedTarget.classList.add("menu-hierarchy-search-target")
+
+    let ancestor = matchedTarget.closest("details")
+    while (ancestor) {
+      ancestor.open = true
+      ancestor = ancestor.parentElement?.closest("details") ?? null
+    }
+  })
+  content.dataset.revealedSearchTarget = revealKey
+
+  const scrollToTarget = () => target.scrollIntoView({ block: "center" })
+
+  requestAnimationFrame(scrollToTarget)
+  window.setTimeout(scrollToTarget, 300)
+}
+
 export function enhanceMenuHierarchyLabels() {
   if (!MENU_HIERARCHY_PATH.test(window.location.pathname)) {
     return
@@ -324,4 +423,6 @@ export function enhanceMenuHierarchyLabels() {
         enhanceNode(node)
       }
     })
+
+  revealSearchTarget(content)
 }
