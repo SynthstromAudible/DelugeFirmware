@@ -108,6 +108,13 @@ public:
 	/// boundPreviewWait(). Exposed for the A/B gate, which holds a load far past the bound.
 	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
 
+	/// @brief How many preview load steps ran on the storage owner.
+	///
+	/// A preview's load belongs on the interaction tier, where the browser's per-tick surface drives it; a step on the
+	/// owner means the load was dispatched there. Exposed for the A/B gate's AB-PREVIEW-TIER check, which requires
+	/// none.
+	[[nodiscard]] int32_t previewLoadsOnOwner() const { return previewLoadsOnOwner_; }
+
 	std::string lastFilePathLoaded{};
 
 	// menus to open when a sample file is selected
@@ -208,6 +215,9 @@ private:
 
 	/// @brief Previews that gave up at the bound. See previewGiveUps().
 	int32_t previewGiveUps_{0};
+
+	/// @brief Preview load steps that ran on the storage owner. See previewLoadsOnOwner().
+	int32_t previewLoadsOnOwner_{0};
 
 	/// @brief How many deferred attempts in a row a preview's load is given: the bound every channel consumer on
 	///        this ladder uses.

@@ -686,6 +686,11 @@ bool SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
 		}
 	}
 
+	// Counted for the A/B gate (AB-PREVIEW-TIER): a preview load step on the storage owner.
+	if (deluge::storage::Owner::on_owner()) {
+		previewLoadsOnOwner_++;
+	}
+
 	// previewSample always resolves target.path fresh, the same as any other path-based open.
 	if (AudioEngine::previewSample(target.path, shouldActuallySound) == Error::LOAD_IN_PROGRESS) {
 		// Deferred, not failed. Leave the display exactly as it is -- clearing it here would flash

@@ -28,6 +28,7 @@
 #include "libdeluge/audio_load.h"                  // deluge_audio_load_async_active, _set_latency_ms
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h" // bytes::interactionTierIo
 #include "storage/owner.h"
 
 #include <array>
@@ -347,6 +348,41 @@ int32_t g_stallGiveUpsBefore = 0;
 /// Whether the preview was still pending when the wait ended.
 bool g_stallPendingAtEnd = false;
 
+/// Where a browser stage's preview load ran, read when the stage starts: the browser's count of load steps on the
+/// storage owner, and the interaction tier's blocking sample reads.
+struct TierMark {
+	int32_t ownerLoads = 0;
+	int32_t sampleIo = 0;
+};
+TierMark g_previewTier{};
+TierMark g_cancelTier{};
+TierMark g_stallTier{};
+
+TierMark markTier() {
+	return {sampleBrowser.previewLoadsOnOwner(),
+	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
+}
+
+/// AB-PREVIEW-TIER: since @p before, no preview load step may have run on the storage owner, and no sample may have
+/// been read from the card on the interaction tier.
+void checkTier(const char* stage, const TierMark& before) {
+	const TierMark now = markTier();
+	const int32_t ownerLoads = now.ownerLoads - before.ownerLoads;
+	const int32_t sampleIo = now.sampleIo - before.sampleIo;
+	printf("AB-PREVIEW-TIER stage=%s ownerLoads=%d sampleIo=%d\n", stage, ownerLoads, sampleIo);
+	if (ownerLoads != 0) {
+		printf("FAIL [audioLoadAB/%s]: %d preview load step(s) ran on the storage owner -- a preview's load belongs on "
+		       "the interaction tier, driven by the browser's per-tick surface\n",
+		       stage, ownerLoads);
+		g_failures++;
+	}
+	if (sampleIo != 0) {
+		printf("FAIL [audioLoadAB/%s]: %d preview sample read(s) went to the card on the interaction tier\n", stage,
+		       sampleIo);
+		g_failures++;
+	}
+}
+
 /// Plain CRC32 (IEEE 802.3, reflected) — a stable fingerprint of the bytes read back through the
 /// Sample's own stream. Same routine host_loadcheck_main.cpp uses for band data.
 uint32_t crc32(const void* data, size_t len) {
@@ -595,6 +631,7 @@ void runOnePreviewTick() {
 		// The ONE user-driven action of this stage: the browser is told which file to preview,
 		// exactly as a cursor move tells it. Nothing below ever calls this again.
 		g_previewStarted = true;
+		g_previewTier = markTier();
 		sampleBrowser.previewFile(kPreviewPath, /*movementDirection=*/0);
 		return;
 	}
@@ -637,6 +674,7 @@ void finishPreviewStage(bool drawn) {
 		       "test\n");
 		g_failures++;
 	}
+	checkTier("preview", g_previewTier);
 }
 
 /// Has anything drawn the cancelled file's waveform?
@@ -663,6 +701,7 @@ bool cancelledWasLoaded() {
 void runOneCancelTick() {
 	if (!g_cancelStarted) {
 		g_cancelStarted = true;
+		g_cancelTier = markTier();
 		// The user-driven preview, exactly as a cursor move issues it. This QUEUES the op on the
 		// storage owner; nothing below runs it yet.
 		sampleBrowser.previewFile(kCancelPath, /*movementDirection=*/0);
@@ -704,6 +743,7 @@ void finishCancelStage() {
 		       g_cancelTicks);
 		g_failures++;
 	}
+	checkTier("cancel", g_cancelTier);
 }
 
 /// Has anything drawn the stalled file's waveform? Same witness as previewHasDrawn().
@@ -718,6 +758,7 @@ void runOneStallTick() {
 	case StallStep::Start:
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
 		g_stallGiveUpsBefore = sampleBrowser.previewGiveUps();
+		g_stallTier = markTier();
 		// The ONE user-driven action of this stage. The load it asks for is held from here on.
 		sampleBrowser.previewFile(kStallPath, /*movementDirection=*/0);
 		g_stallStep = StallStep::Wait;
@@ -775,6 +816,7 @@ void finishStallStage() {
 		       g_stallSettleTicks);
 		g_failures++;
 	}
+	checkTier("stall", g_stallTier);
 }
 
 /// One load attempt for the ejection stage. Returns the resolved file (or nullptr), and reports
