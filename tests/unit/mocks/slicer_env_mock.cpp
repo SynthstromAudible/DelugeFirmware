@@ -28,6 +28,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/audio/async_sample_load.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/owner.h"
 
@@ -103,14 +104,12 @@ FakeParamCollection* g_paramCollection = nullptr;
 
 namespace deluge::test {
 
-bool forceLoadInProgress = false;
-void (*duringNextLoadFile)() = nullptr;
+LoadAnswer loadAnswer = LoadAnswer::Loaded;
 int32_t auditionNoteCount = 0;
 int32_t lastAuditionOn = -1;
 
 void resetSlicerEnv() {
-	forceLoadInProgress = false;
-	duringNextLoadFile = nullptr;
+	loadAnswer = LoadAnswer::Loaded;
 	auditionNoteCount = 0;
 	lastAuditionOn = -1;
 
@@ -167,24 +166,56 @@ MultiRange* Source::getOrCreateFirstRange() {
 	return g_range.get();
 }
 
-/// The one seam that matters: a card miss that has not landed yet answers LOAD_IN_PROGRESS, and a
-/// hit assigns an audio file, exactly as the real holder does.
-Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-                                int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts,
-                                deluge::storage::AsyncLoadMode asyncMode, deluge::storage::AudioLoadContext* context) {
-	if (deluge::test::duringNextLoadFile != nullptr) {
-		// Cleared BEFORE the call, not after: the hook re-enters the slicer, which reaches this
-		// function again, and a hook that re-armed itself would recurse without bound.
-		auto* hook = deluge::test::duringNextLoadFile;
-		deluge::test::duringNextLoadFile = nullptr;
-		hook();
-	}
-	if (deluge::test::forceLoadInProgress) {
-		return Error::LOAD_IN_PROGRESS;
-	}
-	audioFile = reinterpret_cast<AudioFile*>(g_sample.get());
-	return Error::NONE;
+namespace deluge::storage {
+
+/// The one seam that matters: a load of one holder, whose every tick answers `deluge::test::loadAnswer`. A load that
+/// lands binds the mock sample, exactly as the real load binds what it finds.
+AsyncSampleLoad::AsyncSampleLoad(Root root, AudioLoadContext* context)
+    : root_(std::move(root)), callerContext_(context), context_(context) {
 }
+
+AsyncSampleLoad AsyncSampleLoad::forHolder(const SampleDemand& demand, AudioLoadContext* context) {
+	return AsyncSampleLoad(demand, context);
+}
+
+AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
+	if (progress_.state != State::Loading) {
+		return progress_;
+	}
+	progress_.ticks++;
+	switch (deluge::test::loadAnswer) {
+	case deluge::test::LoadAnswer::Loading:
+		break;
+	case deluge::test::LoadAnswer::Loaded:
+		std::get<SampleDemand>(root_).holder->audioFile = reinterpret_cast<AudioFile*>(g_sample.get());
+		progress_.state = State::Loaded;
+		break;
+	case deluge::test::LoadAnswer::Stalled:
+		progress_.state = State::Failed;
+		progress_.reason = Reason::Stalled;
+		break;
+	}
+	return progress_;
+}
+
+// The walk's callbacks. A load of one holder walks nothing; these exist because they give the class its vtable.
+Walk AsyncSampleLoad::rangeCheckpoint(int32_t /*rangeIndex*/) {
+	return Walk::Continue;
+}
+Walk AsyncSampleLoad::drumCheckpoint() {
+	return Walk::Continue;
+}
+void AsyncSampleLoad::clipCheckpoint() {
+}
+void AsyncSampleLoad::beginInstrumentScope(std::string_view /*dirPath*/, std::string_view /*name*/, ThingType /*thing*/,
+                                           ScopeRule /*rule*/) {
+}
+void AsyncSampleLoad::endInstrumentScope() {
+}
+void AsyncSampleLoad::demand(const SampleDemand& /*demand*/) {
+}
+
+} // namespace deluge::storage
 
 void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength) {
 	deluge::test::auditionNoteCount++;
@@ -278,6 +309,9 @@ DELUGE_STUB_FN(stub_paramManagerDtor, "_ZN12ParamManagerD2Ev")
 DELUGE_STUB_FN(stub_sampleHolderSetAudioFile, "_ZN12SampleHolder12setAudioFileEP9AudioFilebbi")
 DELUGE_STUB_FN(stub_sampleBrowserExitAndNeverDeleteDrum, "_ZN13SampleBrowser22exitAndNeverDeleteDrumEv")
 DELUGE_STUB_RET(stub_sampleBrowserClaimAudioFile, "_ZN13SampleBrowser27claimAudioFileForInstrumentEb", Error,
+                Error::NONE)
+DELUGE_STUB_RET(stub_audioFileHolderLoadFile,
+                "_ZN15AudioFileHolder8loadFileEbbbibN6deluge7storage13AsyncLoadModeEPNS1_16AudioLoadContextE", Error,
                 Error::NONE)
 DELUGE_STUB_RET(stub_sampleBrowserPadAction, "_ZN13SampleBrowser9padActionEiii", ActionResult, ActionResult::DEALT_WITH)
 DELUGE_STUB_FN(stub_instrumentClipAssignDrums,

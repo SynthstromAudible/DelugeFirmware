@@ -114,7 +114,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/util/semver.cpp
         ../spec_io/mock_file_io.cpp
         # For the slicer audition specs: the REAL UI translation unit, so the specs drive the
-        # shipped previewForTarget()/graphicsRoutine() instead of a restatement of them. Its world is
+        # shipped preview()/graphicsRoutine() instead of a restatement of them. Its world is
         # mocks/slicer_env_mock.cpp (globbed above).
         ../../src/deluge/gui/ui/slicer.cpp
         # For the DX cartridge window spec: the REAL sysex parser, so the spec measures what

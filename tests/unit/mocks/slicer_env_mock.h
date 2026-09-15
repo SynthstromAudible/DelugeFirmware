@@ -23,7 +23,7 @@
 /// The world `gui/ui/slicer.cpp` is compiled against in the unit-test binary.
 ///
 /// The point of this mock is that the REAL `Slicer` translation unit links and runs: the audition
-/// specs drive `Slicer::previewForTarget()` and `Slicer::graphicsRoutine()` themselves, not a
+/// specs drive `Slicer::preview()` and `Slicer::graphicsRoutine()` themselves, not a
 /// re-statement of what they are believed to do. (A spec that re-states the caller cannot notice a
 /// caller that never re-asks -- which is precisely the hole rung 1's A/B gate had.)
 ///
@@ -40,18 +40,16 @@
 /// were given theirs.
 namespace deluge::test {
 
-/// When true, every `AudioFileHolder::loadFile()` answers `Error::LOAD_IN_PROGRESS` -- the "sample
-/// is not resident and the loader has not finished fetching it" case.
-extern bool forceLoadInProgress;
+/// How a tick of the async sample load answers.
+enum class LoadAnswer : uint8_t {
+	Loading, ///< Still loading: the holder stays unbound.
+	Loaded,  ///< Loaded: the holder is bound to the mock sample.
+	Stalled, ///< Failed, `AsyncSampleLoad::Reason::Stalled`: nothing more will arrive.
+};
 
-/// Runs ONCE inside the next `AudioFileHolder::loadFile()`, before that call decides its answer,
-/// then clears itself.
-///
-/// The seam for the only interleaving a fully inline slicer drive can actually have. `loadFile()` is
-/// the one place `previewForTarget()` can yield -- on the shipping synchronous backing it blocks on
-/// the card, and the fiber pump runs -- so a second pad tap, or a BACK press, lands THERE or not at
-/// all. Nothing else in the drive gives control up.
-extern void (*duringNextLoadFile)();
+/// How every `AsyncSampleLoad::tick()` answers, until a spec changes it. The only seam between the audition and the
+/// card: the slicer's `LatestSampleLoad` ticks a load of one holder, and this decides what that tick finds.
+extern LoadAnswer loadAnswer;
 
 /// How many times `InstrumentClipView::sendAuditionNote()` has been called.
 extern int32_t auditionNoteCount;

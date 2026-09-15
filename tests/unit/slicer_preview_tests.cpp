@@ -21,11 +21,13 @@
 #include "gui/ui/slicer.h"
 #include "slicer_env_mock.h"
 
-/// Drives the real Slicer through the real entry points, with two seams: a forced load miss, and a
-/// count of audition notes. Nothing here reimplements slicer logic -- if it did, the test would pass
-/// against a UI that never works. In particular `graphicsRoutine()` is the shipped tick surface, so
-/// a Slicer that never re-asks fails `aColdPressDefersThenSoundsOnTheNextTick` rather than being
-/// rescued by a retry loop the test brought with it.
+using deluge::test::LoadAnswer;
+
+/// Drives the real Slicer through its real entry points -- a pad's press or release (`preview()`), the tick surface
+/// (`graphicsRoutine()`) and the cancel -- with two seams: how each tick of the async sample load answers, and a count
+/// of audition notes. Nothing here reimplements slicer logic -- if it did, the test would pass against a UI that never
+/// works. In particular `graphicsRoutine()` is the shipped tick surface, so a Slicer that never ticks its held load
+/// fails `aColdPressDefersThenSoundsOnTheNextTick` rather than being rescued by a loop the test brought with it.
 class SlicerPreviewProbe {
 public:
 	SlicerPreviewProbe() {
@@ -33,184 +35,132 @@ public:
 		deluge::test::lastDisplayedError = Error::NONE;
 	}
 
-	void forceLoadMiss(bool on) { deluge::test::forceLoadInProgress = on; }
+	/// How every tick of a held load answers from now on.
+	void answer(LoadAnswer answer) { deluge::test::loadAnswer = answer; }
 
-	/// Calls the shipped drive rather than restating it: `drivePreview()` is exactly what
-	/// `Slicer::preview()` runs, and it already returns the "deferred" answer the specs assert on.
-	/// Restating the request → attempt → is_current → work → complete sequence here would leave the
-	/// latest-wins hand-off loop and the is_current gate inside it unexercised -- the "spec restates
-	/// the caller" shape this whole spec file exists to avoid.
-	void previewForTarget(const Slicer::PreviewTarget& target) { deferred_ = slicer_.drivePreview(target); }
+	/// The shipped pad entry, as `padAction()` calls it for a held slice pad.
+	void press() { slicer_.preview(0, -1, 0, 1); }
+	/// The shipped pad entry, as `padAction()` calls it when the pad is lifted.
+	void release() { slicer_.preview(0, 0, 0, 0); }
 
-	/// The shipped user-driven entry -- what a pad tap calls. Used where the spec needs a SECOND
-	/// press to land while an attempt is already running, which is the one interleaving an inline
-	/// drive has (see `deluge::test::duringNextLoadFile`).
-	void press(const Slicer::PreviewTarget& target) {
-		slicer_.preview(target.startPoint, target.endPoint, target.transpose, target.on);
-	}
-
-	/// The shipped cancel -- what leaving the slicer, or switching slicing mode, calls.
+	/// The shipped cancel: what leaving the slicer, switching its mode or committing a slice calls.
 	void cancel() { slicer_.cancelPreview(); }
 
 	void graphicsRoutine() { slicer_.graphicsRoutine(); }
 
-	[[nodiscard]] bool deferred() const { return deferred_; }
-	/// Whether a deferral is armed for the next `graphicsRoutine()` -- i.e. the re-ask loop is alive.
-	[[nodiscard]] bool previewIsPending() const { return slicer_.previewLoad_.pending(); }
+	/// Whether a load is held for the tick surface to finish.
+	[[nodiscard]] bool previewIsPending() const { return slicer_.auditionLoad_.pending(); }
 	[[nodiscard]] int32_t auditionNotesSent() const { return deluge::test::auditionNoteCount; }
 	[[nodiscard]] int32_t lastAuditionOn() const { return deluge::test::lastAuditionOn; }
 	[[nodiscard]] int32_t previewGiveUps() const { return slicer_.previewGiveUps(); }
 
 private:
 	Slicer slicer_{};
-	bool deferred_{false};
 };
 
 TEST_GROUP(SlicerPreview){};
 
-/// A note-OFF does no I/O and therefore can never defer: the load sits inside `if (target.on)` while
-/// sendAuditionNote is outside it. This is asserted rather than left as a reading of the control flow,
-/// because hoisting the note into the branch would silently create a stuck-note bug -- finger up
-/// before the load lands, note-off swallowed, note sounding forever.
+/// A release loads nothing and therefore never waits: its note-off is sent at once, whatever a load is doing. This is
+/// asserted rather than left as a reading of the control flow, because a release that waited for a load would leave a
+/// note sounding after the finger lifted.
 TEST(SlicerPreview, aReleaseNeverDefersAndAlwaysSoundsItsNoteOff) {
 	SlicerPreviewProbe probe;
-	probe.forceLoadMiss(true); // every load answers LOAD_IN_PROGRESS
-	probe.previewForTarget({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 0});
-	CHECK_FALSE(probe.deferred());
+	probe.answer(LoadAnswer::Loading); // every load is still loading
+	probe.release();
+	CHECK_FALSE(probe.previewIsPending());
 	CHECK_EQUAL(1, probe.auditionNotesSent());
 	CHECK_EQUAL(0, probe.lastAuditionOn());
 }
 
-/// A cold press defers, sounds nothing yet, and is re-driven by the tick surface -- at which point
-/// the note lands. The load, the params and the note stay together; only WHEN they run moves.
+/// A cold press holds its load and sounds nothing yet; the tick surface finishes it, and the note lands with the load.
+/// The load, the params and the note stay together; only WHEN they run moves.
 TEST(SlicerPreview, aColdPressDefersThenSoundsOnTheNextTick) {
 	SlicerPreviewProbe probe;
-	probe.forceLoadMiss(true);
-	probe.previewForTarget({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
-	CHECK(probe.deferred());
+	probe.answer(LoadAnswer::Loading);
+	probe.press();
+	CHECK(probe.previewIsPending());
 	CHECK_EQUAL(0, probe.auditionNotesSent());
 
-	// Re-driven while the load STILL misses: the re-ask must ask the loader again, not walk past it.
-	// The holder's filePath was assigned before the deferred load, so a guard that asks only "is this
-	// a different sample?" answers no here and falls straight through to the audition note -- sounding
-	// a slice of a sample that never arrived. previewForTarget() also asks whether the file actually
-	// landed (`audioFile == nullptr`), which is what this pins.
+	// Ticked while the load is STILL loading: the holder already names the file, so a slicer that asked only "is this a
+	// different sample?" would sound a slice of a sample that never arrived.
 	probe.graphicsRoutine();
 	CHECK_EQUAL(0, probe.auditionNotesSent());
 	CHECK(probe.previewIsPending());
 
-	probe.forceLoadMiss(false);
+	probe.answer(LoadAnswer::Loaded);
 	probe.graphicsRoutine();
 	CHECK_EQUAL(1, probe.auditionNotesSent());
 	CHECK_EQUAL(1, probe.lastAuditionOn());
+	CHECK_FALSE(probe.previewIsPending());
 }
 
-/// A load that never lands gives up at the bound, rather than being asked for on every tick forever.
+/// A load that stops moving gives up once, rather than being asked for on every tick for ever.
 ///
-/// The bound is 600 deferred attempts in a row, the press included: 599 still wait, the 600th gives up. At the
-/// give-up nothing is re-armed, no audition note is sent, the card error is shown and the give-up is counted. The
-/// next press asks again, so a card that does answer later still auditions.
-TEST(SlicerPreview, aLoadThatNeverLandsGivesUpAtTheBound) {
+/// When to give up is the async sample load's own stall bound (600 walks, pinned by sample-load-tree's stall leg); here
+/// the load simply answers Failed/Stalled. At the give-up nothing is left held, no audition note is sent, the card
+/// error is shown and the give-up is counted. The next press asks again, so a card that does answer later still
+/// auditions.
+TEST(SlicerPreview, aStalledLoadGivesUpOnce) {
 	SlicerPreviewProbe probe;
-	probe.forceLoadMiss(true);
-	probe.press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1}); // attempt 1
-	for (int32_t tick = 0; tick < 598; tick++) {
-		probe.graphicsRoutine(); // attempts 2 to 599
-	}
+	probe.answer(LoadAnswer::Loading);
+	probe.press();
 	CHECK(probe.previewIsPending());
-	CHECK_EQUAL(0, probe.previewGiveUps());
 
-	probe.graphicsRoutine(); // attempt 600: the bound
+	probe.answer(LoadAnswer::Stalled);
+	probe.graphicsRoutine();
 	CHECK_FALSE(probe.previewIsPending());
 	CHECK_EQUAL(1, probe.previewGiveUps());
 	CHECK_EQUAL(0, probe.auditionNotesSent());
 	CHECK(deluge::test::lastDisplayedError == Error::SD_CARD);
 
-	probe.graphicsRoutine(); // nothing left to ask for
+	probe.graphicsRoutine(); // nothing left to tick
 	CHECK_EQUAL(0, probe.auditionNotesSent());
 	CHECK_EQUAL(1, probe.previewGiveUps());
 
-	probe.forceLoadMiss(false);
-	probe.press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
+	probe.answer(LoadAnswer::Loaded);
+	probe.press();
+	probe.graphicsRoutine();
 	CHECK_EQUAL(1, probe.auditionNotesSent());
 	CHECK_EQUAL(1, probe.lastAuditionOn());
 }
 
-namespace {
-/// The probe the `duringNextLoadFile` hooks below re-enter. A file-scope pointer because the hook is
-/// a plain function pointer with no capture -- which is what the mock's seam is, deliberately: a
-/// capturing hook would need an allocation on a seam that models an interrupt-time arrival.
-SlicerPreviewProbe* g_probe = nullptr;
-} // namespace
-
-/// A pad tap that lands WHILE an attempt is running is handed off inside the same drive, and
-/// actually runs.
+/// A finger lifted before its press's load lands sends its note-off, and the note-on never sounds.
 ///
-/// This is the loop in `drivePreview()`, and it is not decoration. `complete()` returning a target
-/// keeps the single-flight guard HELD -- the caller is expected to run that target itself. A drive
-/// that recursed into `drivePreview(*next)` instead of looping would call `request()` on a flight
-/// that is still open, get `false`, and silently drop the tap. (That was the first draft of this
-/// function, and nothing in the two specs above can tell the two shapes apart: neither ever has a
-/// second target arrive mid-attempt, so `complete()` never returns one and the loop never iterates.)
-///
-/// The interleaving is the real one: the second press arrives inside `loadFile()`, which on the
-/// shipping synchronous backing is where the drive blocks on the card and the fiber pump runs.
-TEST(SlicerPreview, aTapLandingDuringAnAttemptIsHandedOffInsideTheSameDrive) {
+/// The release cancels the held load. Without that, the load would land on a later tick and sound the note-on after
+/// the note-off -- on a device, a note sounding with no finger on the pad, and no note-off left to stop it.
+TEST(SlicerPreview, aReleaseBeforeTheLoadLandsNeverSoundsItsNoteOn) {
 	SlicerPreviewProbe probe;
-	g_probe = &probe;
-	// The finger lifts while the note-on's load is still running: a note-OFF supersedes the note-on.
-	deluge::test::duringNextLoadFile = [] {
-		g_probe->press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 0});
-	};
-
-	probe.previewForTarget({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
-
-	CHECK_FALSE(probe.deferred());
-	// BOTH sounded, in order: the note-on the drive was already committed to, then the note-off the
-	// hand-off picked up. One note here means the superseding target was dropped -- on a device, a
-	// note-on with no matching note-off, i.e. a stuck note.
-	CHECK_EQUAL(2, probe.auditionNotesSent());
+	probe.answer(LoadAnswer::Loading);
+	probe.press();
+	probe.release();
+	CHECK_EQUAL(1, probe.auditionNotesSent());
 	CHECK_EQUAL(0, probe.lastAuditionOn());
-	// And nothing is left armed: the hand-off ran to completion rather than parking a re-ask.
+
+	// The notes first: a held load that lands sounds a note-on here, which is the damage. Nothing held is how.
+	probe.answer(LoadAnswer::Loaded);
+	probe.graphicsRoutine();
+	CHECK_EQUAL(1, probe.auditionNotesSent());
+	CHECK_EQUAL(0, probe.lastAuditionOn());
 	CHECK_FALSE(probe.previewIsPending());
 }
 
-/// A cancel that lands while an attempt is running arms NO re-ask, and strands nothing.
+/// A cancel while a press's load is held sounds nothing, and leaves nothing that would wedge the next press.
 ///
-/// `cancel()` deliberately leaves the single-flight guard held -- an op genuinely is still out there
-/// -- and it is the stale attempt reporting back that releases it. Both halves are asserted, because
-/// getting either wrong is silent: an armed re-ask sounds a slice into a slicer the user has left
-/// (`graphicsRoutine()` keeps running the moment it is current again, and `slicer` is a file-scope
-/// singleton), and a guard never released wedges every later audition with nothing on screen to say
-/// why.
-///
-/// The cancel arrives inside `loadFile()` for the same reason the tap above does: that is the only
-/// place an inline drive gives up control.
-///
-/// @note This does NOT reach `drivePreview()`'s own `is_current()` guard, and no spec can: that
-///       check sits between `attempt()` and the work, two adjacent statements in a drive that never
-///       yields between them, so nothing can bump the generation in that window. What refuses the
-///       cancelled attempt here is `complete()`'s `deferred && is_current(a)`, one line later.
-TEST(SlicerPreview, aCancelLandingDuringAnAttemptArmsNoReAskAndStrandsNothing) {
+/// A held load that survived the cancel would sound a slice into a slicer the user has left: `slicer` is a file-scope
+/// singleton, and `graphicsRoutine()` ticks again the moment it is current.
+TEST(SlicerPreview, aCancelWhileLoadingSoundsNothingAndStrandsNothing) {
 	SlicerPreviewProbe probe;
-	g_probe = &probe;
-	probe.forceLoadMiss(true); // the press defers, so there IS something a re-ask could be armed for
-	deluge::test::duringNextLoadFile = [] { g_probe->cancel(); };
-
-	probe.previewForTarget({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
-
-	CHECK(probe.deferred());
-	CHECK_EQUAL(0, probe.auditionNotesSent());
+	probe.answer(LoadAnswer::Loading);
+	probe.press();
+	probe.cancel();
 	CHECK_FALSE(probe.previewIsPending());
 
-	// The tick surface has nothing to re-drive, and must not invent one.
+	probe.answer(LoadAnswer::Loaded);
 	probe.graphicsRoutine();
 	CHECK_EQUAL(0, probe.auditionNotesSent());
 
-	// And the next press works: the guard the cancel left held was released by the stale attempt
-	// reporting back, so this is not wedged.
-	probe.forceLoadMiss(false);
-	probe.press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
+	probe.press();
+	probe.graphicsRoutine();
 	CHECK_EQUAL(1, probe.auditionNotesSent());
 	CHECK_EQUAL(1, probe.lastAuditionOn());
 }
