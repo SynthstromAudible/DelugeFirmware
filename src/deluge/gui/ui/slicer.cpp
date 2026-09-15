@@ -108,6 +108,11 @@ void Slicer::redraw() {
 
 bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+	// closeUI() calls this with no image, asking only whether the slicer renders the main pads. A slice's commit closes
+	// the browser beneath the slicer, so every slice reaches that call.
+	if (!image) {
+		return true;
+	}
 
 	if (slicerMode == SLICER_MODE_REGION) {
 		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
