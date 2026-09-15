@@ -19,6 +19,7 @@
 
 #include "gui/menu_item/menu_item.h"
 #include "gui/menu_item/submenu.h"
+#include "hid/encoder_acceleration.h"
 #include "util/containers.h"
 #include <initializer_list>
 #include <span>
@@ -83,7 +84,7 @@ private:
 	                              bool isSelected);
 	static MenuPermission initializeItem(MenuItem* menuItem);
 
-	double currentKnobSpeed{0.0};
+	static deluge::hid::encoders::EncoderAcceleration& acceleration();
 	double calcNextKnobSpeed(int8_t offset);
 };
 } // namespace deluge::gui::menu_item

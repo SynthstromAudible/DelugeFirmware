@@ -18,6 +18,7 @@
 #pragma once
 
 #include "OSLikeStuff/scheduler_api.h"
+#include "hid/encoder_acceleration.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -25,28 +26,33 @@
 namespace deluge::hid::encoders {
 
 /// Black function encoders (SCROLL_X/Y, TEMPO, SELECT) are detented.
-/// Two A-pin edges = one quadrature cycle = one detent click.
+/// Four quadrature edges = one detent click.
 class DetentedEncoder {
 public:
 	DetentedEncoder() = default;
 	DetentedEncoder(const DetentedEncoder&) = delete;
 	DetentedEncoder& operator=(const DetentedEncoder&) = delete;
 
-	void applyEdges(int8_t edges);
+	void apply_edges(int8_t edges) {
+		edge_accumulator += edges;
+		int8_t ticks = edge_accumulator / 4;
+		edge_accumulator -= ticks * 4;
+		pos.fetch_add(ticks, std::memory_order_relaxed);
+	}
 
 	/// True if any detent steps are waiting to be consumed.
 	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
 
 	/// Returns the accumulated signed detent count and resets pos to 0.
-	int32_t take();
+	int32_t take() { return pos.exchange(0, std::memory_order_relaxed); }
 
 	/// Puts a value back (used by the SD card-routine retry path).
 	/// fetch_add rather than store so a detent that arrived from the IRQ since take() isn't clobbered.
 	void restore(int32_t val) { pos.fetch_add(val, std::memory_order_relaxed); }
 
 private:
-	int32_t edgeAccumulator = 0; ///< Accumulates A-pin edges until we have a full detent click. IRQ-only.
-	std::atomic_int32_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.
+	int32_t edge_accumulator = 0; ///< Accumulates quadrature edges until we have a full detent click.
+	std::atomic_int32_t pos = 0;  ///< Written by the IRQ (apply_edges), drained by the encoder task.
 };
 
 /// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity.
@@ -56,20 +62,20 @@ public:
 	ContinuousEncoder(const ContinuousEncoder&) = delete;
 	ContinuousEncoder& operator=(const ContinuousEncoder&) = delete;
 
-	void applyEdges(int8_t edges) { pos.fetch_add(edges, std::memory_order_relaxed); }
+	void apply_edges(int8_t edges) { pos.fetch_add(edges, std::memory_order_relaxed); }
 
 	/// True if any ticks are waiting to be consumed.
 	bool pending() const { return pos.load(std::memory_order_relaxed) != 0; }
 
 	/// Returns the accumulated tick count and resets pos to 0.
-	int8_t take();
+	int8_t take() { return pos.exchange(0, std::memory_order_relaxed); }
 
 	/// Returns multiplier for encoder offset
 	double calcNextKnobSpeed(int8_t offset);
 
 private:
-	std::atomic_int8_t pos = 0;   ///< Written by the IRQ (applyEdges), drained by the encoder task.
-	double currentKnobSpeed{0.0}; // Used for encoder acceleration
+	std::atomic_int8_t pos = 0; ///< Written by the IRQ (apply_edges), drained by the encoder task.
+	EncoderAcceleration acceleration_;
 };
 
 // ── Named encoder globals ─────────────────────────────────────────────────
@@ -98,9 +104,10 @@ extern uint32_t timeModEncoderLastTurned[];
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 
 void init();
+void poll_encoder_pins();
 
-/// Scheduler task that drains the encoders. It blocks itself after each run and is unblocked from the
-/// encoder IRQ, so it only consumes CPU when an encoder has actually moved. Set by registerTasks().
+/// Scheduler task ID. A-edge IRQs make it immediately runnable while its regular cadence polls B-only transitions.
+/// Set by registerTasks().
 extern TaskID EncoderTaskID;
 
 } // namespace deluge::hid::encoders
