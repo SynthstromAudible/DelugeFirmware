@@ -219,12 +219,15 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	}
 
 	if (file != nullptr) {
-		holder.setAudioFile(file, demand.reversed, /*manuallySelected=*/false, demand.clusterLoadInstruction);
+		holder.setAudioFile(file, demand.reversed, demand.manuallySelected, demand.clusterLoadInstruction);
 		progress_.bound++;
 	}
 	else {
 		settledEmpty_.push_back(&holder);
 		progress_.emptyHolders++;
+		if (progress_.error == Error::NONE) {
+			progress_.error = error;
+		}
 	}
 	if (demand.clipToName != nullptr) {
 		demand.clipToName->name = holder.filePath;

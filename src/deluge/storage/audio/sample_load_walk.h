@@ -45,6 +45,9 @@ struct SampleDemand {
 	AudioFileHolder* holder = nullptr;
 	/// Bind the file reversed.
 	bool reversed = false;
+	/// Bind the file as one the user picked: the zone is reset to the whole file, the loop points come from the file,
+	/// and the sample browser records the path as the last one loaded.
+	bool manuallySelected = false;
 	/// How the bound file's clusters are claimed.
 	int32_t clusterLoadInstruction = CLUSTER_ENQUEUE;
 	/// Interpret the file as a wavetable even without the tag or length that normally identify one.

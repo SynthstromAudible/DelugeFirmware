@@ -25,7 +25,7 @@
 #   AB-CANCEL a preview asked for and then abandoned before its load runs: nothing may load, draw or
 #             stay pending.
 #   AB-PREVIEW-STALL
-#             a preview whose load is held far past the browser's 600-attempt bound: it must give up
+#             a preview whose load is held far past its load's 600-walk stall bound: it must give up
 #             once, with nothing pending and nothing drawn, and stay given up once the hold is lifted.
 #   AB-PREVIEW-TIER
 #             for each of those three stages: no preview load step ran on the storage owner, and no sample was read

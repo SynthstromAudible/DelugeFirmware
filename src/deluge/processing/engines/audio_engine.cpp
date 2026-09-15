@@ -1497,66 +1497,25 @@ void registerSideChainHit(int32_t strength) {
 	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
 }
 
-Error previewSample(std::string_view path, bool shouldActuallySound) {
-	stopAnyPreviewing();
-	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
-	if (!range) {
-		// Reported here, like every other real failure this function returns -- see the declaration's
-		// contract. Leaving it to the caller would push the reporting obligation onto every future
-		// converted caller, and this one's caller compares only against LOAD_IN_PROGRESS, so the
-		// failure would reach nobody at all.
-		display->displayError(Error::INSUFFICIENT_RAM);
-		return Error::INSUFFICIENT_RAM;
-	}
-	range->sampleHolder.filePath.assign(path);
-	// CLUSTER_ENQUEUE, not CLUSTER_LOAD_IMMEDIATELY: the immediate mode reads the covered clusters from
-	// the card SYNCHRONOUSLY, measured at 38.2-40.1 ms on device. That stalls the audio path (a 9.8 ms
-	// late render, plus four more in the same second), which inflates the engine's measured render time,
-	// which makes it declare an overload and force-cull a voice -- the very preview voice the fill was
-	// warming. That is the preview-truncation bug; see the 2026-08-15 async-note-on-residency design
-	// doc, section 4b.
+void soundPreview() {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
+	    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
+	// Set BEFORE the note-on, not after. Needed - Dec 2021 - because SampleBrowser::selectEncoderAction()
+	// may have gone a while without an audio routine call, so the first render after this sees a huge
+	// apparent load and culls.
 	//
-	// Enqueueing never blocks. The note-on then sees LOADING and defers (VoiceUnisonPartSource), so the
-	// preview starts a few ms late instead of either stalling audio or dropping the voice.
-	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE, false,
-	                                           deluge::storage::AsyncLoadMode::AsyncOrBlocking);
-
-	if (error == Error::LOAD_IN_PROGRESS) {
-		// Not a failure and not an outcome: the async loader has this file and has not finished. There
-		// is no sample to note-on (sampleHolder.audioFile is still nullptr, and a note-on against it
-		// would start a voice with nothing behind it) and nothing to draw. Hand the deferral back
-		// UNREPORTED so the caller's own tick can ask again -- see the declaration's contract. Showing
-		// a popup here would tell the user a load failed that is still running; swallowing it here
-		// would leave the preview permanently silent with no error at all.
-		return error;
-	}
-
-	if (error != Error::NONE) {
-		display->displayError(error); // Rare, shouldn't cause later problems.
-	}
-
-	if (shouldActuallySound) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
-		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
-		// Set BEFORE the note-on, not after. Needed - Dec 2021 - because SampleBrowser::selectEncoderAction()
-		// may have gone a while without an audio routine call, so the first render after this sees a huge
-		// apparent load and culls.
-		//
-		// The ordering matters for a second reason: previewSample runs on the worker fiber while the audio
-		// render preempts it on the InterruptExecutor. With the assignment after the call, the preview voice
-		// was cull-eligible for the whole duration of its own note-on -- and cullVoices -> terminateOneVoice
-		// -> freeActiveVoice() erases it from Sound::voices_ while Sound::noteOn still holds a reference to
-		// that element, which is what made the E199 assertion fire on a voice something else had removed.
-		//
-		// This narrows the window; it does not close the underlying cross-tier race on voices_ (bypassCulling
-		// is cleared every render, and the race is reachable from any note-on, not just this one). See
-		// docs/superpowers/specs/2026-08-16-voices-cross-tier-race.md.
-		bypassCulling = true;
-		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
-	}
-
-	return error;
+	// The ordering matters for a second reason: this runs off the audio tier, and the audio render preempts it on
+	// the InterruptExecutor. With the assignment after the call, the preview voice was cull-eligible for the
+	// whole duration of its own note-on -- and cullVoices -> terminateOneVoice -> freeActiveVoice() erases it
+	// from Sound::voices_ while Sound::noteOn still holds a reference to that element, which is what made the
+	// E199 assertion fire on a voice something else had removed.
+	//
+	// This narrows the window; it does not close the underlying cross-tier race on voices_ (bypassCulling
+	// is cleared every render, and the race is reachable from any note-on, not just this one). See
+	// docs/superpowers/specs/2026-08-16-voices-cross-tier-race.md.
+	bypassCulling = true;
+	sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
 }
 
 void stopAnyPreviewing() {

@@ -20,7 +20,10 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "hid/button.h"
-#include "storage/deferred_load.h"
+#include "storage/audio/latest_sample_load.h"
+#include "storage/latest_wins.h"
+#include <cstdint>
+#include <optional>
 #include <string>
 
 class SoundDrum;
@@ -54,65 +57,57 @@ public:
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();
-	/// @brief Per-tick surface (every ~15 ms while this UI is up). Re-drives a preview whose load
-	///        deferred, then chains to the base.
+	/// @brief Per-tick surface (every ~15 ms while this UI is up): ticks the preview, then chains to the base.
 	///
-	/// This is the ONLY thing that finishes a deferred preview. previewIfPossible() is reached from
-	/// exactly two places -- entering the browser and moving the cursor -- so with no re-drive an
-	/// async load that answers Error::LOAD_IN_PROGRESS is never asked again, and the user gets no
-	/// sound, no waveform and no error until they happen to scroll back onto that file.
+	/// This is the ONLY thing that loads a preview. previewIfPossible() is reached from exactly two places -- entering
+	/// the browser and moving the cursor -- and only records the file; its load starts, is ticked and ends here. See
+	/// tickPreview().
 	void browserGraphicsRoutine() override;
 
-	/// @brief Preview the file at @p path: snapshot it and dispatch the load+render onto the storage
-	///        owner, coalesced latest-wins.
+	/// @brief Preview the file at @p path: record it, for the next tick to start its load.
 	///
 	/// The path-based half of previewIfPossible(), which resolves the current selection to a path and
 	/// calls this. Split out so a caller that already knows the path (the load A/B gate, which has no
-	/// browser file list) drives the same production code the browser does, re-drive included.
+	/// browser file list) drives the same production code the browser does, tick included.
 	///
 	/// @param path              The file to preview.
 	/// @param movementDirection Scroll direction driving the teardown/entry animation; 0 for none.
 	void previewFile(std::string path, int32_t movementDirection);
 
-	/// @brief Abandon any preview in progress: nothing that is loading is wanted any more.
+	/// @brief Abandon any preview in progress: nothing wanted, loading or waiting to be shown is wanted any more.
 	///
 	/// For the moves that leave nothing to preview at all: onto a folder or an empty selection
 	/// (previewIfPossible), up a directory or out of the browser (backButtonAction, exitAction,
-	/// exitAndNeverDeleteDrum), and into a fresh visit (opened). None of those dispatch a
-	/// replacement, so the ordinary latest-wins supersession never fires; without this, a load
-	/// dispatched for the file the cursor has LEFT finishes, gets re-driven by graphicsRoutine(),
-	/// and then sounds and draws that file over whatever the user actually moved to -- or, on the
-	/// exit paths, after the browser is gone.
+	/// exitAndNeverDeleteDrum), and into a fresh visit (opened). None of those asks for a replacement, so nothing
+	/// supersedes the preview; without this, a load started for the file the cursor has LEFT ends, and then sounds and
+	/// draws that file over whatever the user actually moved to -- or, on the exit paths, after the browser is gone.
 	///
-	/// Cancelling strands nothing. It abandons the RESULT, never the work: the load carries on in
-	/// the loader and is either collected by a later request for the same path or evicted. And it
-	/// keeps the single-flight guard rather than releasing it, which is safe on every path here
-	/// because each one reaches this only after a dispatch the storage owner ACCEPTED, so the op
-	/// runs and releases the guard itself (a dispatch the owner refused goes to release_dispatch(),
-	/// not here).
+	/// Clears the wanted file, drops the load, drops a show not yet dispatched, and moves the generation so that a show
+	/// already dispatched does nothing. Cancelling strands nothing: a dropped load's request stays with the loader,
+	/// where a later lookup of the same path collects it, and a result nobody collects is evicted.
 	///
 	/// Public because the A/B gate has to be able to drive it: that harness calls previewFile()
 	/// directly and never populates a file list, so it can never reach the folder branch that calls
 	/// this in the real UI.
-	void cancelPreview() { previewLoad_.cancel(); }
+	void cancelPreview();
 
-	/// @brief Whether a preview load deferred and is waiting for graphicsRoutine() to ask again.
+	/// @brief Whether a preview is wanted and not yet started, or its load has not ended.
 	///
 	/// Exposed so a gate can tell "the preview settled" apart from "the preview was dropped and
 	/// nothing will ever finish it" -- from outside, the two look identical.
-	[[nodiscard]] bool previewLoadPending() const { return previewLoad_.pending(); }
+	[[nodiscard]] bool previewLoadPending() const { return previewWanted_.has_value() || previewLoad_.pending(); }
 
-	/// @brief How many previews gave up on a load that never answered.
+	/// @brief How many previews gave up on a load that stopped moving.
 	///
-	/// A preview whose load answers "still loading" for 600 attempts in a row gives up with the card error; see
-	/// boundPreviewWait(). Exposed for the A/B gate, which holds a load far past the bound.
+	/// A preview whose load ends stalled (AsyncSampleLoad::kMaxStalledTicks walks in a row with nothing settled) gives
+	/// up with the card error; see finishPreviewLoad(). Exposed for the A/B gate, which holds a load far past the
+	/// bound.
 	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
 
 	/// @brief How many preview load steps ran on the storage owner.
 	///
-	/// A preview's load belongs on the interaction tier, where the browser's per-tick surface drives it; a step on the
-	/// owner means the load was dispatched there. Exposed for the A/B gate's AB-PREVIEW-TIER check, which requires
-	/// none.
+	/// A preview's load belongs on the interaction tier, where the browser's per-tick surface ticks it; a step on the
+	/// owner means the load was sent there. Exposed for the A/B gate's AB-PREVIEW-TIER check, which requires none.
 	[[nodiscard]] int32_t previewLoadsOnOwner() const { return previewLoadsOnOwner_; }
 
 	std::string lastFilePathLoaded{};
@@ -138,90 +133,73 @@ private:
 
 	/// @brief Snapshot of the file to preview, captured at trigger time.
 	///
-	/// Lets the dispatched op load the file the user pointed at even if the selection moves on
-	/// before it runs (fast cursor-scroll under async dispatch).
+	/// Lets the preview's tick load the file the user pointed at, and its show animate in the direction the cursor
+	/// moved, even if the selection moves on before either runs.
 	struct PreviewTarget {
 		std::string path;
 		int32_t movementDirection;
 	};
 
-	/// @brief Snapshot the current file and dispatch its preview load+render onto the storage
-	///        owner (coalesced latest-wins).
-	///
-	/// A folder or empty selection just clears the preview.
+	/// @brief Ask for the current file's preview. A folder or empty selection cancels any preview and clears it.
 	/// @param movementDirection Scroll direction driving the preview's teardown/entry animation.
 	void previewIfPossible(int32_t movementDirection = 1);
-	/// @brief Dispatch @p target onto the storage owner through the coalescer.
+
+	/// @brief What the show operation is for: the direction to animate in, and the generation its load ended in.
+	struct PreviewShow {
+		int32_t movementDirection = 0;
+		uint32_t generation = 0;
+	};
+
+	/// @brief One tick of the preview: start the wanted file's load, tick the load in hand, and act on its end.
 	///
-	/// Shared by the user-driven entry (previewFile) and the deferred-load re-drive
-	/// (graphicsRoutine), so both take the same single-flight/latest-wins path.
+	/// Runs on the interaction tier, from browserGraphicsRoutine(). No sample is read from the card here: the load
+	/// finds its file through the async loader.
+	void tickPreview();
+	/// @brief Start @p target's load, replacing any load in hand.
+	///
+	/// Records the path as the last one loaded, stops the preview sounding (which also unbinds its holder), and asks
+	/// for the file in the preview drum's first range. Moves the generation, so a show dispatched for an earlier file
+	/// does nothing and the display stays as it is until this one lands.
 	/// @param target The file to preview.
-	/// @return true if the target is now the coalescer's to run (dispatched, or queued behind an op
-	///         that will pick it up); false if the storage-owner queue was full so nothing will run
-	///         it -- the caller decides whether to drop it or ask again.
-	[[nodiscard]] bool dispatchPreview(const PreviewTarget& target);
-	/// @brief The dispatched op: load and render its attempt's target, then re-dispatch if a newer
-	///        target arrived while it ran.
+	void startPreviewLoad(PreviewTarget target);
+	/// @brief Act on the end of a preview's load.
 	///
-	/// Renders nothing if the attempt was cancelled while it sat queued -- the cursor has moved
-	/// somewhere with no preview at all, and drawing the file it has left is the damage.
+	/// A load that found its file, or settled without one, shows any lookup error, sounds the preview if the browser
+	/// should, and dispatches the show operation. A load that stalled, or found the card unusable, gives up with the
+	/// card error and leaves the display as it is; nothing is asked for again until the next move onto the file.
+	/// @param outcome How the load ended, with the target it was started for.
+	void finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewTarget>::Outcome outcome);
+	/// @brief The show operation: show the latest show asked for, unless a newer preview has started or the preview
+	///        was cancelled since.
 	///
-	/// Runs on the storage owner (inline on legacy/host).
+	/// Runs on the storage owner (inline on legacy/host), latest-wins through previewShow_.
 	/// @param self The SampleBrowser instance.
-	static void runPreviewOp(void* self);
-	/// @brief Load @p target's sample and render its waveform.
-	///
-	/// Clears the preview display if nothing loaded -- but NOT if the load merely deferred, in which
-	/// case whatever is onscreen stays put until the re-drive lands. That matches what the
-	/// synchronous path does at the same moment: it blocks inside the load, and the old content
-	/// stays up.
-	/// @param target The file to preview, snapshotted by previewIfPossible().
-	/// @return true if the load deferred (Error::LOAD_IN_PROGRESS) and has to be asked for again.
-	[[nodiscard]] bool renderPreviewForTarget(const PreviewTarget& target);
+	static void runPreviewShowOp(void* self);
+	/// @brief Run auto-load's claim when it is on, then draw the preview drum's sample, or clear the preview display
+	///        when the drum holds none.
+	/// @param show The show to draw.
+	void showPreview(const PreviewShow& show);
 	/// @brief Tear down any on-screen sample preview.
 	///
-	/// Shared by the no-file path and a failed load.
+	/// Shared by the no-file path and a show with no sample to draw.
 	/// @param movementDirection Scroll direction driving the teardown animation.
 	void clearPreviewDisplay(int32_t movementDirection);
 
-	/// @brief The one piece of preview-load state: which file is being previewed, whether an op is
-	///        out working on it, whether it deferred, and whether it is still wanted.
-	///
-	/// A deferred re-ask holds the ORIGINAL target, movementDirection included, so when the re-drive
-	/// lands the entry animation is the one the cursor move asked for, a few ms late.
-	deluge::storage::DeferredLoad<PreviewTarget> previewLoad_{};
+	/// @brief The file a cursor move asked to preview, until the next tick starts its load.
+	std::optional<PreviewTarget> previewWanted_{};
+	/// @brief The preview's load, ticked by tickPreview(). Holds the target it was started for.
+	deluge::storage::LatestSampleLoad<PreviewTarget> previewLoad_{};
+	/// @brief The show operation's single flight, latest-wins.
+	deluge::storage::LatestWins<PreviewShow> previewShow_{};
+	/// @brief Moves each time a preview's load starts or the preview is cancelled. A show from an earlier generation
+	///        does nothing.
+	uint32_t previewGeneration_{0};
 
-	/// @brief Count one attempt of a preview's load against the bound, and say whether to ask again.
-	///
-	/// A deferred attempt counts. An attempt for a different path, or after a cancellation, starts the count
-	/// again, and an attempt that did not defer clears it. At @ref kMaxPreviewWaitAttempts in a row the preview
-	/// gives up: the card error is shown, the display is left as it is, and nothing is re-armed. Nothing needs
-	/// cleaning up: the loader copied the request, and a result nobody collects is evicted.
-	///
-	/// Keyed on the path, not on the attempt alone, because the re-drive re-enters through `request()` exactly as a
-	/// cursor move does.
-	/// @param attempt  The attempt the op ran.
-	/// @param deferred Whether its load answered "still loading".
-	/// @return Whether to arm the re-ask: @p deferred, unless this attempt reached the bound.
-	[[nodiscard]] bool boundPreviewWait(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt,
-	                                    bool deferred);
-
-	/// @brief Consecutive deferred attempts of a preview's load, and the attempt they were counted for.
-	/// @{
-	int32_t previewWaitAttempts_{0};
-	uint32_t previewWaitGeneration_{0};
-	std::string previewWaitPath_{};
-	/// @}
-
-	/// @brief Previews that gave up at the bound. See previewGiveUps().
+	/// @brief Previews that gave up on a stalled load. See previewGiveUps().
 	int32_t previewGiveUps_{0};
 
 	/// @brief Preview load steps that ran on the storage owner. See previewLoadsOnOwner().
 	int32_t previewLoadsOnOwner_{0};
-
-	/// @brief How many deferred attempts in a row a preview's load is given: the bound every channel consumer on
-	///        this ladder uses.
-	static constexpr int32_t kMaxPreviewWaitAttempts = 600;
 
 	/// @brief The dispatched op for the direct pad-tap load (enterKeyPress).
 	///

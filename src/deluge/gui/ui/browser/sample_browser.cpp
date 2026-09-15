@@ -566,108 +566,100 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 }
 
 void SampleBrowser::previewFile(std::string path, int32_t movementDirection) {
-	// Snapshot the target so the dispatched op loads the file pointed at now, even if the
-	// selection moves on before it runs (fast cursor-scroll under async dispatch).
-	PreviewTarget target{
+	// Only recorded: the next tick starts the load. A cursor that moves on before then replaces this at no cost, and a
+	// load already started for an earlier file is replaced when this one starts.
+	previewWanted_ = PreviewTarget{
 	    .path = std::move(path),
 	    .movementDirection = movementDirection,
 	};
-
-	// A user-driven preview supersedes any deferred one (request() drops it): the file that one was
-	// waiting for is no longer the file the user is on, so re-driving it would land a stale
-	// waveform. Dropping it is safe -- the load itself carries on in the loader and its result is
-	// either collected by a later request for the same path or evicted, which costs the I/O and
-	// nothing else (see audio_loader.rs's RESULTS doc).
-	(void)dispatchPreview(target);
 }
 
-bool SampleBrowser::dispatchPreview(const PreviewTarget& target) {
-	// Coalesce latest-wins onto one owner op: while one preview is loading, a newer request
-	// is queued and dispatched on completion, so rapid scrolls converge on the file landed on.
-	if (!previewLoad_.request(target)) {
-		return true; // An op is already running and will pick this up on completion.
-	}
-	if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, this)) {
-		// Owner queue full → the op won't run, so release the guard (which would otherwise wedge
-		// single-flight forever) and leave the target for graphicsRoutine() to ask for again.
-		previewLoad_.release_dispatch();
-		return false;
-	}
-	return true;
-}
-
-void SampleBrowser::runPreviewOp(void* self) {
-	auto* browser = static_cast<SampleBrowser*>(self);
-	const auto attempt = browser->previewLoad_.attempt();
-
-	// Checked BEFORE the work, not merely before recording a deferral: between the dispatch and
-	// this running, the cursor can have moved somewhere with no preview at all (a folder, an empty
-	// list), which dispatches no replacement and so supersedes nothing. Rendering the file the
-	// cursor has left -- drawing its waveform and sounding it over a folder -- is the damage.
-	const bool deferred = browser->boundPreviewWait(attempt, browser->previewLoad_.is_current(attempt)
-	                                                             && browser->renderPreviewForTarget(attempt.target));
-
-	// A deferral is recorded for graphicsRoutine() to re-drive (that surface runs every ~15 ms
-	// while this UI is up, and is the ONLY thing that finishes a deferred preview), unless it has
-	// deferred for the whole bound; if a newer target arrived while this ran, that one is
-	// dispatched instead (latest-wins).
-	if (auto next = browser->previewLoad_.complete(attempt, deferred); next.has_value()) {
-		if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, self)) {
-			browser->previewLoad_.release_dispatch(); // re-dispatch dropped (see dispatchPreview)
-		}
-	}
-}
-
-bool SampleBrowser::boundPreviewWait(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt,
-                                     bool deferred) {
-	if (!deferred) {
-		previewWaitAttempts_ = 0; // answered (loaded or failed), or not run at all
-		return false;
-	}
-	if (attempt.generation != previewWaitGeneration_ || attempt.target.path != previewWaitPath_) {
-		// A different attempt: its wait starts from nothing.
-		previewWaitGeneration_ = attempt.generation;
-		previewWaitPath_ = attempt.target.path;
-		previewWaitAttempts_ = 0;
-	}
-	if (++previewWaitAttempts_ < kMaxPreviewWaitAttempts) {
-		return true; // still loading: ask again next tick
-	}
-	// The loader has left this load unanswered for the whole bound. Give up as a load that could not reach the
-	// card: the card error, the display left as it is, and no re-ask armed. The next move onto this file asks again.
-	previewWaitAttempts_ = 0;
-	previewGiveUps_++;
-	display->displayError(Error::SD_CARD);
-	return false;
+void SampleBrowser::cancelPreview() {
+	previewWanted_.reset();
+	previewLoad_.cancel();
+	previewShow_.clear_queued();
+	// A show already dispatched finds its generation passed, and does nothing.
+	previewGeneration_++;
 }
 
 void SampleBrowser::browserGraphicsRoutine() {
-	// Re-ask for a deferred preview.
-	//
-	// Deliberately re-entering through the coalescer rather than calling renderPreviewForTarget
-	// straight: the load binds a read stream, which is card I/O and belongs on the storage owner,
-	// and going through request() keeps the single-flight guard honest if the user scrolls while
-	// this is in flight. If the coalescer is already busy, request() queues this as the latest
-	// target and the running op picks it up on completion, so the re-drive is not lost there either.
-	//
-	// take_pending() takes the target OUT before dispatching, not after: where the storage owner runs
-	// its ops inline (legacy/host), runPreviewOp completes inside dispatchPreview and arms a second
-	// deferral -- and clearing afterwards would wipe exactly that. A dispatch that could not be
-	// queued re-arms it itself (dispatchPreview → release_dispatch), so it is asked for again next
-	// tick rather than dropped.
-	if (auto target = previewLoad_.take_pending(); target.has_value()) {
-		(void)dispatchPreview(*target);
-	}
+	tickPreview();
 	// No UI::graphicsRoutine() tail: Browser::graphicsRoutine() makes that call, once, after this
 	// returns. Repeating it here would run the base tick twice per frame.
 }
 
-bool SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
+void SampleBrowser::tickPreview() {
+	if (!previewWanted_.has_value() && !previewLoad_.pending()) {
+		return;
+	}
 
-	bool didDraw = false;
+	// Counted for the A/B gate (AB-PREVIEW-TIER): a preview load step on the storage owner.
+	if (deluge::storage::Owner::on_owner()) {
+		previewLoadsOnOwner_++;
+	}
 
+	if (previewWanted_.has_value()) {
+		PreviewTarget target = std::move(*previewWanted_);
+		previewWanted_.reset();
+		startPreviewLoad(std::move(target));
+	}
+
+	if (auto outcome = previewLoad_.tick(); outcome.has_value()) {
+		finishPreviewLoad(std::move(*outcome));
+	}
+}
+
+void SampleBrowser::startPreviewLoad(PreviewTarget target) {
 	// This more formally does the thing that actually was happening accidentally for ages, as found by Michael B.
 	lastFilePathLoaded = target.path;
+	previewGeneration_++;
+
+	AudioEngine::stopAnyPreviewing(); // Also unbinds the preview's holder, so the load looks the new path up.
+	MultisampleRange* range = (MultisampleRange*)AudioEngine::sampleForPreview->sources[0].getOrCreateFirstRange();
+	if (range == nullptr) {
+		previewLoad_.cancel();
+		display->displayError(Error::INSUFFICIENT_RAM);
+		return;
+	}
+	range->sampleHolder.filePath.assign(target.path);
+	// CLUSTER_ENQUEUE, not CLUSTER_LOAD_IMMEDIATELY: the immediate mode reads the covered clusters from
+	// the card SYNCHRONOUSLY, measured at 38.2-40.1 ms on device. That stalls the audio path (a 9.8 ms
+	// late render, plus four more in the same second), which inflates the engine's measured render time,
+	// which makes it declare an overload and force-cull a voice -- the very preview voice the fill was
+	// warming. That is the preview-truncation bug; see the 2026-08-15 async-note-on-residency design
+	// doc, section 4b.
+	//
+	// Enqueueing never blocks. The note-on then sees LOADING and defers (VoiceUnisonPartSource), so the
+	// preview starts a few ms late instead of either stalling audio or dropping the voice.
+	previewLoad_.request(
+	    deluge::storage::SampleDemand{
+	        .holder = &range->sampleHolder,
+	        .manuallySelected = true,
+	        .clusterLoadInstruction = CLUSTER_ENQUEUE,
+	    },
+	    /*context=*/nullptr, std::move(target));
+}
+
+void SampleBrowser::finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewTarget>::Outcome outcome) {
+	using Result = deluge::storage::LatestSampleLoad<PreviewTarget>::Result;
+	using Reason = deluge::storage::AsyncSampleLoad::Reason;
+
+	if (outcome.result == Result::Failed) {
+		// Nothing more can arrive for this load: it stopped moving, or the card cannot be read. Give up as a load that
+		// could not reach the card, leaving the display as it is. An abort shows nothing: the browser never loads in
+		// the mode that aborts on input.
+		if (outcome.reason == Reason::Stalled) {
+			previewGiveUps_++;
+		}
+		if (outcome.reason == Reason::Stalled || outcome.reason == Reason::CardUnusable) {
+			display->displayError(Error::SD_CARD);
+		}
+		return;
+	}
+
+	if (outcome.error != Error::NONE) {
+		display->displayError(outcome.error); // Rare, shouldn't cause later problems.
+	}
 
 	bool shouldActuallySound = false;
 
@@ -686,18 +678,42 @@ bool SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
 		}
 	}
 
-	// Counted for the A/B gate (AB-PREVIEW-TIER): a preview load step on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		previewLoadsOnOwner_++;
+	if (shouldActuallySound) {
+		AudioEngine::soundPreview();
 	}
 
-	// previewSample always resolves target.path fresh, the same as any other path-based open.
-	if (AudioEngine::previewSample(target.path, shouldActuallySound) == Error::LOAD_IN_PROGRESS) {
-		// Deferred, not failed. Leave the display exactly as it is -- clearing it here would flash
-		// the previous waveform away and back again a few ms later, where the synchronous path
-		// simply blocks with the old content still up. The caller re-drives.
-		return true;
+	// Auto-load's claim and the waveform draw still read the card, so they stay on the storage owner.
+	const PreviewShow show{
+	    .movementDirection = outcome.payload.movementDirection,
+	    .generation = previewGeneration_,
+	};
+	if (previewShow_.request(show) && !deluge::storage::Owner::run(&SampleBrowser::runPreviewShowOp, this)) {
+		// Owner queue full: the op won't run, so release the guard (which would otherwise wedge single-flight for ever)
+		// and drop the show. The display is left as it is.
+		previewShow_.reset();
 	}
+}
+
+void SampleBrowser::runPreviewShowOp(void* self) {
+	auto* browser = static_cast<SampleBrowser*>(self);
+	const PreviewShow show = browser->previewShow_.current();
+
+	// Checked BEFORE the work: since this was dispatched, a newer preview may have started, whose holder is already
+	// unbound, so drawing now would clear the waveform meant to stay up until the new one lands; or the cursor may have
+	// moved somewhere with no preview at all. Claiming or drawing a file the cursor has left is the damage.
+	if (show.generation == browser->previewGeneration_) {
+		browser->showPreview(show);
+	}
+
+	if (browser->previewShow_.complete().has_value()
+	    && !deluge::storage::Owner::run(&SampleBrowser::runPreviewShowOp, self)) {
+		browser->previewShow_.reset(); // re-dispatch dropped (see finishPreviewLoad)
+	}
+}
+
+void SampleBrowser::showPreview(const PreviewShow& show) {
+
+	bool didDraw = false;
 
 	if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 		// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
@@ -720,12 +736,12 @@ bool SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
 			waveformBasicNavigator.opened();
 
 			// If want scrolling animation
-			if (target.movementDirection && !qwertyAlwaysVisible) {
+			if (show.movementDirection && !qwertyAlwaysVisible) {
 				waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
 				                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
 				                                  &waveformBasicNavigator.renderData);
 				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-				PadLEDs::horizontal::setupScroll(target.movementDirection, kDisplayWidth);
+				PadLEDs::horizontal::setupScroll(show.movementDirection, kDisplayWidth);
 
 				currentUIMode = UI_MODE_HORIZONTAL_SCROLL;
 			}
@@ -750,9 +766,8 @@ bool SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
 	}
 
 	if (!didDraw) {
-		clearPreviewDisplay(target.movementDirection);
+		clearPreviewDisplay(show.movementDirection);
 	}
-	return false;
 }
 
 void SampleBrowser::clearPreviewDisplay(int32_t movementDirection) {

@@ -1296,18 +1296,16 @@ bool checkAsyncCollector() {
 	return ok;
 }
 
-/// Pin that every existing loadFile-family call site -- all but previewSample's, which is the one this
-/// task changed to pass AsyncOrBlocking -- keeps taking the synchronous backing when asyncMode is left at its
+/// Pin that every existing loadFile-family call site keeps taking the synchronous backing when asyncMode is left at its
 /// default, on BOTH layers that default it. `AudioFileHolder::loadFile` forwards its own asyncMode
 /// argument straight to `AudioFileManager::getAudioFileFromFilename` (see audio_file_holder.cpp), and
 /// each has its own `= Blocking` default -- so a regression in EITHER one has to be independently
 /// reachable from this check, or it is not actually guarding that default.
 ///
 /// Two layers, two calling shapes:
-///  - AudioFileHolder::loadFile is the level nine call sites go through (slicer.cpp x2,
-///    sample_browser.cpp's single-sample path, instrument_clip_view.cpp, audio_clip.cpp,
-///    consequence_audio_clip_set_sample.cpp, source.cpp, and audio_engine.cpp's previewSample).
-///  - getAudioFileFromFilename is called DIRECTLY, bypassing the holder, by a tenth site:
+///  - AudioFileHolder::loadFile is the level most call sites go through (slicer.cpp x2,
+///    sample_browser.cpp x2, instrument_clip_view.cpp and consequence_audio_clip_set_sample.cpp).
+///  - getAudioFileFromFilename is called DIRECTLY, bypassing the holder, by one more site:
 ///    sample_browser.cpp's folder-load path (`loadAllSamplesInFolder`), which has no AudioFileHolder to
 ///    go through at all. A check that only exercises the holder would leave this one, and its own
 ///    default, completely unwatched.

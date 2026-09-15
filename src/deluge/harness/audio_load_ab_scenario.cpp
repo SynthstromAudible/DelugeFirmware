@@ -208,10 +208,9 @@ constexpr int32_t kMaxPreviewTicks = 2000;
 // list, so it cannot reach that branch; it drives the same invalidation through
 // `SampleBrowser::cancelPreview()`, which is what that branch calls.
 //
-// The order below is the defect exactly: preview a file, and before the storage
-// owner has run the op, cancel. If the op renders anyway, the browser draws (and
-// on a real device sounds) a file the cursor has left, over a folder — and it
-// re-arms itself, so it keeps trying every ~15 ms until the load lands.
+// The order below is the defect exactly: preview a file, and before any tick has
+// started its load, cancel. If the load starts anyway, the browser draws (and on a
+// real device sounds) a file the cursor has left, over a folder.
 
 /// The file the cancellation stage asks for and then abandons. Its own file, asked for by
 /// nothing else, so "it drew" and "it loaded" can only be this stage's doing.
@@ -227,10 +226,11 @@ constexpr int32_t kCancelTicks = 64;
 // ── The preview stall stage ─────────────────────────────────────────────────
 //
 // AB-PREVIEW-STALL. The preview stage proves a deferred preview is asked for again until it lands; this one
-// proves that asking again ENDS. A preview whose load is held far past the browser's 600-attempt bound must give
-// up -- nothing pending, nothing drawn, one give-up counted -- rather than be asked for on every frame for as long
-// as the card takes not to answer. The hold is the loader's host latency knob, which delays each load after it is
-// marked in flight, so every collect during it answers PENDING, as a card that never answers would.
+// proves that asking again ENDS. A preview whose load is held far past its load's stall bound
+// (AsyncSampleLoad::kMaxStalledTicks) must give up -- nothing pending, nothing drawn, one give-up counted -- rather
+// than be asked for on every frame for as long as the card takes not to answer. The hold is the loader's host latency
+// knob, which delays each load after it is marked in flight, so every collect during it answers PENDING, as a card that
+// never answers would.
 
 /// The file the stall stage previews. Its own file, asked for by nothing else, so a draw of it can only be this
 /// stage's doing.
@@ -614,7 +614,7 @@ void runOneStep() {
 
 /// Has the preview actually DRAWN its waveform for `kPreviewPath`?
 ///
-/// `waveformBasicNavigator.sample` is assigned by `SampleBrowser::renderPreviewForTarget` on the one
+/// `waveformBasicNavigator.sample` is assigned by `SampleBrowser::showPreview` on the one
 /// path that renders the waveform, so a non-null pointer naming this file is direct evidence that
 /// the preview reached the screen -- not merely that the file became resident somewhere. That
 /// distinction is the whole point here: the defect this stage exists for left the file unloaded, the
@@ -680,7 +680,7 @@ void finishPreviewStage(bool drawn) {
 /// Has anything drawn the cancelled file's waveform?
 ///
 /// Same witness as previewHasDrawn(): `waveformBasicNavigator.sample` is assigned only on
-/// `renderPreviewForTarget`'s waveform path. It still names the PREVIOUS stage's file, which is
+/// `showPreview`'s waveform path. It still names the PREVIOUS stage's file, which is
 /// exactly right -- what must not have happened is this file replacing it.
 bool cancelledHasDrawn() {
 	const Sample* drawn = waveformBasicNavigator.sample;
@@ -689,10 +689,10 @@ bool cancelledHasDrawn() {
 
 /// Was the cancelled file loaded (and, on a device, sounded) at all?
 ///
-/// `lastFilePathLoaded` is assigned at the very top of `renderPreviewForTarget`, before the load
-/// and before anything is drawn -- so it witnesses the op having done the work at all, which is
-/// the half `cancelledHasDrawn()` misses when the first attempt defers.
-/// `AudioEngine::previewSample`, which that same function calls, is what starts the note.
+/// `lastFilePathLoaded` is assigned when the preview's tick starts the load, before anything is
+/// sounded or drawn -- so it witnesses the load having started at all, which is the half
+/// `cancelledHasDrawn()` misses while the load is still in flight. `AudioEngine::soundPreview`,
+/// called when that load ends, is what starts the note.
 bool cancelledWasLoaded() {
 	return sampleBrowser.lastFilePathLoaded == kCancelPath;
 }
@@ -702,17 +702,17 @@ void runOneCancelTick() {
 	if (!g_cancelStarted) {
 		g_cancelStarted = true;
 		g_cancelTier = markTier();
-		// The user-driven preview, exactly as a cursor move issues it. This QUEUES the op on the
-		// storage owner; nothing below runs it yet.
+		// The user-driven preview, exactly as a cursor move issues it. This only records the file;
+		// nothing starts its load until a tick.
 		sampleBrowser.previewFile(kCancelPath, /*movementDirection=*/0);
-		// And then the cursor moves onto something with nothing to preview, before that op has run.
+		// And then the cursor moves onto something with nothing to preview, before any tick has started the load.
 		sampleBrowser.cancelPreview();
 		return;
 	}
 
 	g_cancelTicks++;
 	// The per-tick surface, and the only thing driven from here on -- the same surface that
-	// re-drives a deferral. If the cancelled preview re-arms itself, this is what keeps it alive.
+	// ticks a preview's load. If the cancelled preview re-arms itself, this is what keeps it alive.
 	sampleBrowser.graphicsRoutine();
 }
 
@@ -765,8 +765,7 @@ void runOneStallTick() {
 		return;
 
 	case StallStep::Wait:
-		// Read at the top of the tick, before the re-drive: the op graphicsRoutine() queues runs after this
-		// returns, so "pending" is only settled here.
+		// Read at the top of the tick, before graphicsRoutine() ticks the load again.
 		if (sampleBrowser.previewLoadPending() && g_stallTicks < kMaxStallTicks) {
 			g_stallTicks++;
 			sampleBrowser.graphicsRoutine();
@@ -1061,11 +1060,11 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 
 	if (g_stage == Stage::Preview || g_stage == Stage::Cancel || g_stage == Stage::Stall) {
 		// The browser-driven stages run on the UI tier, not the worker fiber -- that is where the
-		// real browser calls these from, and previewFile()/graphicsRoutine() dispatch their own card
-		// work onto the owner themselves. A marker op behind them releases the latch: the owner queue
-		// is FIFO, so it runs after whatever they just queued (and immediately if they queued
-		// nothing). That FIFO ordering is also what makes the cancellation stage's window real: the
-		// op previewFile() queues has not run when cancelPreview() is called.
+		// real browser calls these from. graphicsRoutine() ticks the preview's load here and
+		// dispatches its draw onto the owner itself. A marker op behind them releases the latch: the
+		// owner queue is FIFO, so it runs after whatever they just queued (and immediately if they
+		// queued nothing). The cancellation stage's window needs no ordering: previewFile() only
+		// records the file, so cancelPreview() lands before any tick has started its load.
 		g_stepDone = false;
 		if (g_stage == Stage::Preview) {
 			runOnePreviewTick();

@@ -80,14 +80,15 @@ public:
 		int32_t ticks = 0;          ///< Ticks that walked.
 		int32_t stalledTicks =
 		    0; ///< Walks in a row, up to the last, that left something in flight and settled nothing.
+		Error error = Error::NONE; ///< The first lookup error of a holder that settled empty, over the whole load.
 	};
 
 	/// @brief Walks in a row that may leave something in flight and settle nothing new before the load ends Failed,
 	///        Reason::Stalled.
 	///
-	/// The bound the sample browser's preview and the slicer's audition give a load (their kMaxPreviewWaitAttempts),
-	/// counted here for the whole load rather than per file: any demand that settles, bound or empty, starts the count
-	/// again, so a large load on a slow card keeps loading, and only a load that has stopped moving ends.
+	/// The bound the slicer's audition gives a load (its kMaxPreviewWaitAttempts), and the sample browser's preview's
+	/// give-up, counted here for the whole load rather than per file: any demand that settles, bound or empty, starts
+	/// the count again, so a large load on a slow card keeps loading, and only a load that has stopped moving ends.
 	static constexpr int32_t kMaxStalledTicks = 600;
 
 	/// @brief Every sample a song needs: each output's, then each audio clip's.
