@@ -892,17 +892,6 @@ possiblyExit:
 	return ActionResult::DEALT_WITH;
 }
 
-Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
-	soundEditor.cutSound();
-
-	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
-	holder->setAudioFile(nullptr);
-	holder->filePath = getCurrentFilePath();
-
-	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
-	                        CLUSTER_ENQUEUE, makeWaveTableWorkAtAllCosts);
-}
-
 void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName) {
 
 	// If this looks like a kick, make it send to sidechain. Otherwise, no change

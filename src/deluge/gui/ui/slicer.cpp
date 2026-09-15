@@ -164,7 +164,14 @@ bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 void Slicer::graphicsRoutine() {
-	// This surface (every ~15 ms while the slicer is on top) is the only thing that finishes a held audition.
+	// This surface (every ~15 ms while the slicer is on top) is the only thing that finishes a slice or a held
+	// audition.
+	if (slicePhase_ == SlicePhase::Loading) {
+		tickSlice();
+		if (slicePhase_ == SlicePhase::Idle) {
+			return; // the slice ended; one that landed has closed the slicer
+		}
+	}
 	tickAudition();
 
 	int32_t newTickSquare = 255;
@@ -352,17 +359,12 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		// Snapshot the commit gesture — plain values only, no pointers into manualSlicePoints[]/
-		// numManualSlice/numClips survive past this point — before dispatch. doSlice() and, for
-		// MANUAL mode, the per-drum paint loop move into one op on the storage owner together
-		// (see SliceCommitTarget/runDoSliceOp); the op runs entirely off this snapshot, never
-		// re-reading these live members, so a concurrent encoder turn or pad press during the
-		// dispatched load can't desync what gets sliced from what gets painted.
-
 		// Committing ends in sampleBrowser.exitAndNeverDeleteDrum() → close(), i.e. the slicer is gone by the time a
 		// held audition could land, and the drums it would sound through have been rebuilt underneath it.
 		cancelPreview();
 
+		// Snapshot the gesture: the slice runs from these plain values, never from the live members, so an encoder
+		// turn or pad press while its load is out can't desync what gets sliced from what gets painted.
 		pendingSliceTarget_.isManual = (slicerMode == SLICER_MODE_MANUAL);
 		pendingSliceTarget_.sliceCount = pendingSliceTarget_.isManual ? numManualSlice : numClips;
 		if (pendingSliceTarget_.isManual) {
@@ -371,22 +373,30 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			getCurrentKit()->firstDrum->killAllVoices(); // stop
 		}
 
-		// Close the gate before dispatch, not inside the op: doSlice() ends by calling
-		// sampleBrowser.exitAndNeverDeleteDrum() -> close(), which pops this Slicer (and the
-		// SampleBrowser beneath it) off the UI navigation stack from inside the dispatched op.
-		// Without this gate, a BACK press reaching the BACK case below during that window would
-		// call close() on `this` from the executor at the same time the op is mutating the same
-		// uiNavigationHierarchy/numUIsOpen globals from the worker — a UI-stack-corruption hazard
-		// (the same shape ClearSong and LoadSongUI::performLoad guard against). A repeat
-		// SELECT_ENC would re-dispatch doSlice() mid-flight (double-slicing the same commit).
-		// currentUIMode != UI_MODE_NONE makes buttonAction() a no-op for both (top-of-function
-		// guard above) until runDoSliceOp() resets it.
-		currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
-		if (!deluge::storage::Owner::run_or_inline(&Slicer::runDoSliceOp, this)) {
-			// Dispatch dropped (owner queue full) — runDoSliceOp will never run, so release the
-			// gate we just closed here, or Slicer would be stuck (no BACK/SELECT_ENC) forever.
-			currentUIMode = UI_MODE_NONE;
+		// Counted for the sample-claim gate (SC-TIER): a slice that begins on the storage owner.
+		if (deluge::storage::Owner::on_owner()) {
+			sliceLoadsOnOwner_++;
 		}
+
+		// The gate, until tickSlice() ends the slice: the top of this function refuses BACK and a second Select while
+		// it is set, so nothing closes the slicer or slices twice while the load is out.
+		currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		AudioEngine::stopAnyPreviewing();
+
+		// The first drum names the browser's file, set once here, and the load binds it.
+		soundEditor.cutSound();
+		AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
+		holder->setAudioFile(nullptr);
+		holder->filePath = static_cast<Browser&>(sampleBrowser).getCurrentFilePath();
+		sliceLoad_.request(
+		    deluge::storage::SampleDemand{
+		        .holder = holder,
+		        .reversed = soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		        .manuallySelected = true,
+		        .clusterLoadInstruction = CLUSTER_ENQUEUE,
+		    },
+		    /*context=*/nullptr, 0);
+		slicePhase_ = SlicePhase::Loading;
 	}
 
 	else if (b == BACK) {
@@ -529,6 +539,11 @@ void Slicer::tickAudition() {
 }
 
 ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
+	// Refused while a slice's load is out: a press would point the first drum's holder at its audition under the load
+	// binding it, and the browser beneath would take a region pad.
+	if (slicePhase_ != SlicePhase::Idle) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	if (on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad on
 
@@ -614,48 +629,50 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 
-void Slicer::runDoSliceOp(void* self) {
-	auto* s = static_cast<Slicer*>(self);
-	s->commitSlice(s->pendingSliceTarget_);
-}
+void Slicer::tickSlice() {
+	using Result = deluge::storage::LatestSampleLoad<uint32_t>::Result;
 
-void Slicer::commitSlice(const SliceCommitTarget& target) {
-	doSlice(target.sliceCount);
+	const auto outcome = sliceLoad_.tick();
+	if (!outcome.has_value()) {
+		return; // still loading
+	}
+	slicePhase_ = SlicePhase::Idle;
 
-	if (target.isManual) {
-		Kit* kit = getCurrentKit();
-		for (int32_t i = 0; i < target.sliceCount; i++) {
-			Drum* drum = kit->getDrumFromIndex(i);
-			SoundDrum* soundDrum = (SoundDrum*)drum;
-			MultisampleRange* range = (MultisampleRange*)soundDrum->sources[0].getOrCreateFirstRange();
-			range->sampleHolder.startPos = target.manualPoints[i].startPos;
-			range->sampleHolder.endPos = (i == target.sliceCount - 1) ? waveformBasicNavigator.sample->lengthInSamples
-			                                                          : target.manualPoints[i + 1].startPos;
-			range->sampleHolder.transpose = target.manualPoints[i].transpose;
+	if (outcome->result == Result::Bound) {
+		const SliceCommitTarget& target = pendingSliceTarget_;
+		const Error error = doSlice(target.sliceCount);
+		if (error != Error::NONE) {
+			display->displayError(error);
+		}
+		else if (target.isManual) {
+			// The drums doSlice() made, in order: the loop indexes them, so it runs only once they all exist.
+			Kit* kit = getCurrentKit();
+			for (int32_t i = 0; i < target.sliceCount; i++) {
+				Drum* drum = kit->getDrumFromIndex(i);
+				SoundDrum* soundDrum = (SoundDrum*)drum;
+				MultisampleRange* range = (MultisampleRange*)soundDrum->sources[0].getOrCreateFirstRange();
+				range->sampleHolder.startPos = target.manualPoints[i].startPos;
+				range->sampleHolder.endPos = (i == target.sliceCount - 1)
+				                                 ? waveformBasicNavigator.sample->lengthInSamples
+				                                 : target.manualPoints[i + 1].startPos;
+				range->sampleHolder.transpose = target.manualPoints[i].transpose;
+			}
+		}
+	}
+	else {
+		// No drums were made, so nothing is painted. Kit::getDrumFromIndex() answers the first drum for an index past
+		// the end, so a paint loop here would write every slice's points onto that one drum.
+		const Error error = (outcome->result == Result::Empty) ? outcome->error : Error::SD_CARD;
+		if (error != Error::NONE) {
+			display->displayError(error);
 		}
 	}
 
-	// Release the gate buttonAction() closed before dispatch (see its comment) — every doSlice()
-	// exit path, success or its internal load-failure `getOut:` branch, lands here.
+	// Release the gate buttonAction() closed.
 	currentUIMode = UI_MODE_NONE;
 }
 
-void Slicer::doSlice(int32_t sliceCount) {
-
-	// Counted for the sample-claim gate (SC-TIER): a slice that begins on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		sliceLoadsOnOwner_++;
-	}
-
-	AudioEngine::stopAnyPreviewing();
-
-	Error error = sampleBrowser.claimAudioFileForInstrument();
-	if (error != Error::NONE) {
-getOut:
-		display->displayError(error);
-		return;
-	}
-
+Error Slicer::doSlice(int32_t sliceCount) {
 	Kit* kit = getCurrentKit();
 
 	// Do the first Drum
@@ -734,26 +751,23 @@ getOut:
 
 			// Make the Drum and its ParamManager
 			ParamManagerForTimeline paramManager;
-			error = paramManager.setupWithPatching();
+			Error error = paramManager.setupWithPatching();
 			if (error != Error::NONE) {
-				goto getOut;
+				return error;
 			}
 
 			void* drumMemory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 			if (!drumMemory) {
-ramError:
-				error = Error::INSUFFICIENT_RAM;
-				goto getOut;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			SoundDrum* newDrum = new (drumMemory) SoundDrum();
 
 			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
 			if (!range) {
-ramError2:
 				newDrum->~SoundDrum();
 				delugeDealloc(drumMemory);
-				goto ramError;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			newDrum->drumName = deluge::string::fromInt(i + 1);
@@ -771,7 +785,8 @@ ramError2:
 			    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
 
 			range->sampleHolder.filePath = sample->filePath;
-			range->sampleHolder.loadFile(false, false, true);
+			// The first drum's load bound this sample already: every other slice binds the same one, from memory.
+			range->sampleHolder.setAudioFile(sample, false, false, CLUSTER_ENQUEUE);
 
 			if (doEnvelopes) {
 				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
@@ -800,4 +815,5 @@ ramError2:
 
 	sampleBrowser.exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
+	return Error::NONE;
 }

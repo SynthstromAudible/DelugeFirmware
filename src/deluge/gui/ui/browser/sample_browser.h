@@ -46,7 +46,6 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool canSeeViewUnderneath() override;
-	Error claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
 	void scrollFinished() override;
 	bool importFolderAsKit();
 	bool importFolderAsMultisamples();

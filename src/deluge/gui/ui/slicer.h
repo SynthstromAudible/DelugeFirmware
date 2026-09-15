@@ -91,15 +91,14 @@ private:
 	// 7SEG Only
 	void redraw();
 
-	/// @brief Create the sliced drums/clips, loading the underlying sample if it isn't already
-	///        resident.
+	/// @brief The slice, once its sample is bound to the first drum: the other drums, their NoteRows, and the browser's
+	///        exit.
 	///
-	/// @param sliceCount How many slices/drums to create — `numClips` (REGION) or
-	///                   `numManualSlice` (MANUAL) at commit time, passed explicitly (not read off
-	///                   `this->numClips`) so a concurrent encoder turn during the dispatched op's
-	///                   SD-yield can't desync the slice math from `commitSlice`'s paint loop. See
-	///                   `SliceCommitTarget`.
-	void doSlice(int32_t sliceCount);
+	/// @param sliceCount How many slices/drums to create -- the commit's snapshot, not the live `numClips` or
+	///                   `numManualSlice`, so an encoder turn while the slice's load was out can't desync the slice
+	///                   math from the paint loop. See `SliceCommitTarget`.
+	/// @return Error::NONE, or why a drum could not be made.
+	Error doSlice(int32_t sliceCount);
 
 	/// @brief A pad-hold/tap audition request, snapshotted at trigger time.
 	///
@@ -134,38 +133,31 @@ private:
 	/// @brief Slices that began their load on the storage owner. See sliceLoadsOnOwner().
 	int32_t sliceLoadsOnOwner_{0};
 
-	/// @brief Snapshot of the SELECT_ENC "commit slice" gesture, captured in `buttonAction()` at
-	///        dispatch time.
+	/// @brief Snapshot of the Select "commit slice" gesture, taken as it is pressed.
 	///
-	/// Captured before the dispatched op's storage-owner yield inside `doSlice()`'s `loadFile()`
-	/// calls. `sliceCount` is `numClips` (REGION mode) or `numManualSlice` (MANUAL mode) at press
-	/// time; `isManual`/`manualPoints` are what `commitSlice()`'s MANUAL-mode per-drum
-	/// start/end/transpose paint loop needs. All plain data — no pointers into
-	/// `manualSlicePoints[]`/`numManualSlice`/`numClips` survive past dispatch, so a concurrent
-	/// encoder turn or pad press during the op's yield can't desync what gets sliced from what
-	/// gets painted onto the drums `doSlice()` creates.
+	/// `sliceCount` is `numClips` (REGION mode) or `numManualSlice` (MANUAL mode) at press time; `isManual` and
+	/// `manualPoints` are what the MANUAL-mode per-drum start/end/transpose paint loop needs. All plain data, so an
+	/// encoder turn or pad press while the slice's load is out can't desync what gets sliced from what gets painted.
 	struct SliceCommitTarget {
 		bool isManual;
 		int32_t sliceCount;
 		SliceItem manualPoints[MAX_MANUAL_SLICES];
 	};
 
-	/// @brief The dispatched op for `buttonAction()`'s SELECT_ENC "commit slice" gesture.
-	///
-	/// Runs `doSlice()` (which loads the sliced sample(s) if not already resident, off the
-	/// executor) and, for MANUAL mode, the per-drum paint loop. The two run together because the
-	/// loop indexes drums `doSlice()` creates, so it must run after `doSlice()` completes, and
-	/// `doSlice()`'s own load can yield partway through. Reads only `self->pendingSliceTarget_`
-	/// (the dispatch-time snapshot), never live UI members.
-	/// @param self The `Slicer` this op is running for.
-	static void runDoSliceOp(void* self);
-	/// @brief The commit body for `buttonAction()`'s SELECT_ENC case.
-	///
-	/// Resets `currentUIMode` back to `UI_MODE_NONE` on every exit path (success or `doSlice()`'s
-	/// internal load-failure branch) to release the gate `buttonAction()` closes before dispatch.
-	/// @param target The dispatch-time snapshot of the commit-slice gesture.
-	void commitSlice(const SliceCommitTarget& target);
+	/// @brief Where the slice is.
+	enum class SlicePhase : uint8_t {
+		Idle,    ///< No slice.
+		Loading, ///< The sliced sample's load is out; graphicsRoutine() ticks it.
+	};
 
+	/// @brief Tick the slice's load, and end the slice once the load has ended: slice and paint if it landed, show
+	///        the error if not, and release the gate either way.
+	void tickSlice();
+
+	/// @brief The slice's load of the sliced sample into the first drum. Its payload is unused.
+	deluge::storage::LatestSampleLoad<uint32_t> sliceLoad_{};
+	SlicePhase slicePhase_{SlicePhase::Idle};
+	/// @brief The gesture the slice in progress was committed with.
 	SliceCommitTarget pendingSliceTarget_{};
 };
 

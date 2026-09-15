@@ -308,11 +308,7 @@ DELUGE_STUB_RET(stub_paramManagerSetupWithPatching, "_ZN12ParamManager17setupWit
 DELUGE_STUB_FN(stub_paramManagerDtor, "_ZN12ParamManagerD2Ev")
 DELUGE_STUB_FN(stub_sampleHolderSetAudioFile, "_ZN12SampleHolder12setAudioFileEP9AudioFilebbi")
 DELUGE_STUB_FN(stub_sampleBrowserExitAndNeverDeleteDrum, "_ZN13SampleBrowser22exitAndNeverDeleteDrumEv")
-DELUGE_STUB_RET(stub_sampleBrowserClaimAudioFile, "_ZN13SampleBrowser27claimAudioFileForInstrumentEb", Error,
-                Error::NONE)
-DELUGE_STUB_RET(stub_audioFileHolderLoadFile,
-                "_ZN15AudioFileHolder8loadFileEbbbibN6deluge7storage13AsyncLoadModeEPNS1_16AudioLoadContextE", Error,
-                Error::NONE)
+
 DELUGE_STUB_RET(stub_sampleBrowserPadAction, "_ZN13SampleBrowser9padActionEiii", ActionResult, ActionResult::DEALT_WITH)
 DELUGE_STUB_FN(stub_instrumentClipAssignDrums,
                "_ZN14InstrumentClip21assignDrumsToNoteRowsEP29ModelStackWithTimelineCounterbi")
@@ -348,7 +344,10 @@ DELUGE_STUB_FN(stub_canvasDrawStringCentred, "_ZN6deluge3hid7display11oled_canva
 DELUGE_STUB_FN(stub_canvasDrawHorizontalLine, "_ZN6deluge3hid7display11oled_canvas6Canvas18drawHorizontalLineEiii")
 DELUGE_STUB_RET(stub_memoryAllocFast, "_ZN6deluge6memory10alloc_fastEjj", void*, nullptr)
 DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::string, std::string{})
-DELUGE_STUB_RET(stub_ownerRunOrInline, "_ZN6deluge7storage5Owner13run_or_inlineEPFvPvES2_", bool, true)
+
+DELUGE_STUB_FN(stub_soundEditorCutSound, "_ZN11SoundEditor8cutSoundEv")
+DELUGE_STUB_RET(stub_soundEditorGetCurrentAudioFileHolder, "_ZN11SoundEditor25getCurrentAudioFileHolderEv",
+                AudioFileHolder*, &g_range.get()->sampleHolder)
 DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeE7OscType")
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
 DELUGE_STUB_RET(stub_buttonsIsShiftButtonPressed, "_ZN7Buttons20isShiftButtonPressedEv", bool, false)

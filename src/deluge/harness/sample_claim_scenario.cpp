@@ -933,6 +933,10 @@ void runTick() {
 		if (isSupersede()) {
 			tickSupersede();
 		}
+		if ((g_leg == Leg::Slice || g_leg == Leg::SliceManual) && getCurrentUI() == &slicer) {
+			// The slice ends on the slicer's graphics routine: ticked here, as the preview wait ticks the browser's.
+			slicer.graphicsRoutine();
+		}
 		if (legEnded() || ++g_waitTicks > (g_leg == Leg::Stall ? kMaxStallTicks : kMaxLegTicks)) {
 			checkLeg();
 			nextLeg();
