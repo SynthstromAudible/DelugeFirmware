@@ -1873,8 +1873,10 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
 
 ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
-	// Drum Randomizer
-	if (x == 15 && y == 2 && velocity > 0 && currentUIMode == UI_MODE_NONE
+	// Drum Randomizer. The gesture is LOAD held, which sets UI_MODE_HOLDING_LOAD_BUTTON, so this refuses only a
+	// randomize already running -- the mode potentiallyRandomizeDrumSamples() closes over its walk. Asking for
+	// UI_MODE_NONE here refused every press instead, including its own gesture's.
+	if (x == 15 && y == 2 && velocity > 0 && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer) == RuntimeFeatureStateToggle::On
 	    && getCurrentOutputType() == OutputType::KIT && Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 
