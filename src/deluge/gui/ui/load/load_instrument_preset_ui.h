@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "model/instrument/kit.h"
@@ -33,36 +34,8 @@ class Output;
 
 class LoadInstrumentPresetUI final : public LoadUI {
 private:
-	/// @brief Snapshot of the file identity to load, recorded at dispatch time by
-	///        currentFileChanged() (mirrors SampleBrowser::PreviewTarget).
-	///
-	/// @note performLoad()/performLoadSynthToKit() take this BY VALUE COPY (never a pointer into
-	///       Browser::fileItems or a live Browser member): once the op starts running, a scroll on
-	///       the UI task during the op's own SD-yield points (loadInstrumentFromFile() calls
-	///       block_on_fiber internally) could otherwise rebuild Browser::fileItems and free a
-	///       FileItem the op still held a raw pointer to. See runScrollLoadOp()'s doc for how the
-	///       snapshot is used.
-	struct LoadTarget {
-		bool loadingSynthToKitRow = false;
-		int32_t movementDirection = 1; // Scroll-animation hint; currently unused by performLoad().
-
-		/// @brief Whether there was a current file selection at dispatch time
-		///        (getCurrentFileItem() != nullptr).
-		bool hasFile = false;
-		bool isFolder = false;
-		bool maybeExistsOnCard = true;
-
-		/// @brief FileItem::instrument at dispatch time: an already-loaded (possibly hibernating)
-		///        Instrument for this file, if any.
-		///
-		/// This is a Song-owned pointer, NOT a pointer into Browser::fileItems, so - unlike a
-		/// FileItem* - it stays valid even if the file listing is rebuilt mid-op.
-		Instrument* existingInstrument = nullptr;
-
-		std::string path;    // getCurrentFilePath() at dispatch.
-		std::string name;    // enteredText at dispatch - candidate name for the loaded Instrument/Drum.
-		std::string dirPath; // currentDir at dispatch.
-	};
+	/// InstrumentLoad runs the browser's own loads, and calls back into its card-free prologue and its swap.
+	friend class deluge::gui::InstrumentLoad;
 
 public:
 	LoadInstrumentPresetUI() = default;
@@ -71,23 +44,13 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	/// @brief Load the selected instrument preset, replacing instrumentToReplace (or cloning it).
-	///
-	/// @param doClone   If true, create a new Instrument even when the target file is already
-	///                  loaded as instrumentToReplace, instead of reusing it.
-	/// @param snapshot  If non-null, a LoadTarget captured at dispatch time (see LoadTarget) whose
-	///                  fields are used instead of live Browser state; if null, the live current
-	///                  file selection is read directly.
-	/// @return Error::NONE on success, otherwise the failure.
-	Error performLoad(bool doClone = false, const LoadTarget* snapshot = nullptr);
-	/// @brief Load the selected instrument preset as a SoundDrum into the kit row being edited
-	///        (soundDrumToReplace / noteRow).
-	///
-	/// @param snapshot If non-null, a LoadTarget captured at dispatch time (see LoadTarget) whose
-	///                 fields are used instead of live Browser state; if null, the live current
-	///                 file selection is read directly.
-	/// @return Error::NONE on success, otherwise the failure.
-	Error performLoadSynthToKit(const LoadTarget* snapshot = nullptr);
+	/// @brief Clone the selected preset: a new Instrument under an unused variation of its name, as the long-press
+	///        menu asks. The browser's gate is closed until the clone ends.
+	/// @param completion Told how the clone ended: Error::NONE once it is swapped in.
+	void requestClone(void (*completion)(Error error));
+	void selectEncoderAction(int8_t offset) override;
+	/// @brief Close the browser, cancelling any load still out: whatever last swapped in stays.
+	void close() override;
 	ActionResult timerCallback() override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
@@ -137,20 +100,8 @@ public:
 	/// @return The running acquisition-run count.
 	[[nodiscard]] static int32_t presetAcquisitionsRun() { return presetAcquisitionsRun_; }
 
-	/// @brief Whether a scroll-load is queued on, or running on, the storage owner.
-	[[nodiscard]] bool scrollLoadInFlight() const { return loadCoalescer_.in_flight(); }
-
-	/// @name Where the browser's own preset loads did their card work, for the preset-load gate's PL-TIER check.
-	/// @{
-	/// Preset documents the browser's loads read.
-	[[nodiscard]] int32_t documentReads() const { return documentReads_; }
-	/// Of those, the ones begun on the storage owner.
-	[[nodiscard]] int32_t documentReadsOnOwner() const { return documentReadsOnOwner_; }
-	/// Sample loads (a whole instrument's, or a kit row's) the browser's loads began.
-	[[nodiscard]] int32_t sampleLoads() const { return sampleLoads_; }
-	/// Of those, the ones begun on the storage owner.
-	[[nodiscard]] int32_t sampleLoadsOnOwner() const { return sampleLoadsOnOwner_; }
-	/// @}
+	/// @brief Whether a preset load is in flight or queued.
+	[[nodiscard]] bool scrollLoadInFlight() const;
 
 	/// @brief Dispatch one instrument acquisition onto the storage owner.
 	///
@@ -195,20 +146,23 @@ private:
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(std::string* oldName, std::string* newName);
 
-	/// @brief The dispatched scroll-load op: loads loadCoalescer_.current() (performLoad()/
-	///        performLoadSynthToKit()), surfaces a failure, then re-dispatches the latest-wins
-	///        target if a newer scroll arrived while it ran.
-	///
-	/// Runs on the storage owner (inline on legacy/host).
-	/// @param self The LoadInstrumentPresetUI instance.
-	static void runScrollLoadOp(void* self);
-	/// @brief The dispatched commit op (enterKeyPress).
-	///
-	/// Does its OWN authoritative performLoad()/performLoadSynthToKit() - a cache hit if a
-	/// scroll-load already warmed it - handles the error, and runs the post-load commit tail
-	/// (recalculateColours() + close()) that used to live inline in enterKeyPress().
-	/// @param self The LoadInstrumentPresetUI instance.
-	static void runCommitOp(void* self);
+	/// @brief The snapshot a load of the current file is asked for with. Taken when it is asked for, the only point
+	///        at which the browser's live list and entered text may be read for it.
+	[[nodiscard]] deluge::gui::InstrumentLoadTarget snapshotTarget(int32_t movementDirection);
+	/// @brief The card-free prologue of a load: nothing to load, reuse an existing or hibernating Instrument, or read
+	///        the preset (with a clone's name found). Reads instrumentToReplace live, as the load it follows left it.
+	deluge::gui::InstrumentLoadDecision decideLoad(const deluge::gui::InstrumentLoadRequest& request);
+	/// @brief Swap @p newInstrument in for instrumentToReplace, in one pass, as @p decision says.
+	/// @return Error::NONE, or the swap's failure.
+	Error swapInstrument(const deluge::gui::InstrumentLoadRequest& request,
+	                     const deluge::gui::InstrumentLoadDecision& decision, Instrument* newInstrument);
+	/// @brief Replace the kit row's drum with @p newDrum, in one pass.
+	/// @return Error::NONE, or FILE_CORRUPTED when the new drum has no param manager.
+	Error swapKitRow(const deluge::gui::InstrumentLoadRequest& request, SoundDrum* newDrum);
+	/// @brief A scroll-load's end: records the error, and shows it.
+	static void onScrollLoaded(Error error);
+	/// @brief A commit's end: shows an error, or recalculates a kit's colours and closes the browser.
+	static void onCommitLoaded(Error error);
 
 	/// @brief The dispatched acquisition op: counts itself in presetAcquisitionsRun(), takes the
 	///        snapshot off presetCoalescer_, sets Browser::currentDir from it, runs that request's
@@ -253,29 +207,6 @@ private:
 	int32_t noteRowIndex{};
 	NoteRow* noteRow{};
 	Error currentInstrumentLoadError;
-
-	/// @name Backing counters for documentReads(), documentReadsOnOwner(), sampleLoads() and sampleLoadsOnOwner().
-	/// @{
-	int32_t documentReads_{0};
-	int32_t documentReadsOnOwner_{0};
-	int32_t sampleLoads_{0};
-	int32_t sampleLoadsOnOwner_{0};
-	/// @}
-
-	/// @brief Count a document read or a sample load for PL-TIER, and whether it began on the storage owner.
-	void countDocumentRead() {
-		documentReads_++;
-		documentReadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
-	}
-	void countSampleLoad() {
-		sampleLoads_++;
-		sampleLoadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
-	}
-
-	// Coalesces the scroll-triggered load (currentFileChanged(), fires on every non-reload encoder
-	// tick) onto the storage worker: a fast scroll only actually loads the preset the user settles
-	// on. Mirrors SampleBrowser's previewCoalescer_.
-	deluge::storage::LatestWins<LoadTarget> loadCoalescer_{};
 
 	// Coalesces repeated acquisition gestures (a held preset-navigation encoder, a mashed
 	// output-type button) onto the storage worker, so only the gesture the user settles on

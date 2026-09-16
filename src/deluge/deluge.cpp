@@ -22,6 +22,7 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
@@ -474,6 +475,9 @@ void registerTasks() {
 	// The browser's folder import is the same kind of machine, and its context menu is on top while it runs, so it has
 	// no graphics routine of its own to be ticked from either.
 	addRepeatingTask([]() { deluge::gui::folderImport.routine(); }, p++, 0.015, 0.015, 0.03, "folder import",
+	                 RESOURCE_NONE);
+	// The preset browser's own loads are the same kind of machine; the clone menu can be on top while one is out.
+	addRepeatingTask([]() { deluge::gui::instrumentLoad.routine(); }, p++, 0.015, 0.015, 0.03, "instrument load",
 	                 RESOURCE_NONE);
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
 	// the same reason: both are request/collect state machines whose caller returned long ago, and

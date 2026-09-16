@@ -22,6 +22,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -185,8 +186,8 @@ bool fail(const char* leg, const char* what) {
 }
 
 TierMark markTier() {
-	return {loadInstrumentPresetUI.documentReads(), loadInstrumentPresetUI.documentReadsOnOwner(),
-	        loadInstrumentPresetUI.sampleLoads(), loadInstrumentPresetUI.sampleLoadsOnOwner(),
+	return {deluge::gui::instrumentLoad.documentReads(), deluge::gui::instrumentLoad.documentReadsOnOwner(),
+	        deluge::gui::instrumentLoad.sampleLoads(), deluge::gui::instrumentLoad.sampleLoadsOnOwner(),
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
@@ -614,6 +615,9 @@ void checkLeg() {
 		                              : nullptr;
 		const bool holderEmpty = holder != nullptr && holder->audioFile == nullptr;
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		// How the load ended: on the async sample load's stall bound, not on some other failure.
+		printf("PL-PROBE leg=stall giveUps=%d supersessions=%d\n", deluge::gui::instrumentLoad.giveUps(),
+		       deluge::gui::instrumentLoad.supersessions());
 		printf("PL-STALL swapped=%d holderEmpty=%d released=%d browserClosed=%d\n", swapped ? 1 : 0,
 		       holderEmpty ? 1 : 0, released ? 1 : 0, browserClosed ? 1 : 0);
 		if (!swapped || !holderEmpty || !released || !browserClosed) {

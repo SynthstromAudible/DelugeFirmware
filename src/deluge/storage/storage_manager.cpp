@@ -290,27 +290,30 @@ bool StorageManager::checkSDInitialized() {
 	return deluge_block_ready(deluge_block_sd_unit());
 }
 
+void StorageManager::instrumentDocumentTags(OutputType outputType, char const** firstTagName, char const** altTagName) {
+	*altTagName = "";
+	if (outputType == OutputType::SYNTH) {
+		*firstTagName = "sound";
+		*altTagName = "synth"; // Compatibility with old xml files
+	}
+	else if (outputType == OutputType::MIDI_OUT) {
+		*firstTagName = "midi";
+	}
+	else {
+		*firstTagName = "kit";
+	}
+}
+
 Error StorageManager::openInstrumentFile(OutputType outputType, char const* path) {
 
 	AudioEngine::logAction("openInstrumentFile");
 	char const* firstTagName;
-	char const* altTagName = "";
-
-	if (outputType == OutputType::SYNTH) {
-		firstTagName = "sound";
-		altTagName = "synth"; // Compatibility with old xml files
-	}
-	else if (outputType == OutputType::MIDI_OUT) {
-		firstTagName = "midi";
-	}
-	else {
-		firstTagName = "kit";
-	}
+	char const* altTagName;
+	instrumentDocumentTags(outputType, &firstTagName, &altTagName);
 
 	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
 	return error;
 }
-
 // Returns error status
 // clip may be NULL
 Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
@@ -326,20 +329,26 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		return error;
 	}
 
+	error = parseInstrumentDocument(song, clip, outputType, mayReadSamplesFromFiles, getInstrument, name, dirPath);
+	releaseDocumentStaging();
+	return error;
+}
+
+Error StorageManager::parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType,
+                                              bool mayReadSamplesFromFiles, Instrument** getInstrument,
+                                              std::string* name, std::string* dirPath) {
 	AudioEngine::logAction("loadInstrumentFromFile");
 	Instrument* newInstrument = createNewInstrument(outputType);
 
 	if (!newInstrument) {
 		activeDeserializer->closeWriter();
-		releaseDocumentStaging();
 		D_PRINTLN("Allocating instrument file failed -  %d", name->c_str());
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(*activeDeserializer, song, clip, 0);
+	Error error = newInstrument->readFromFile(*activeDeserializer, song, clip, 0);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
-	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -434,12 +443,18 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 		return error;
 	}
 
+	error = parseMidiDeviceDefinitionDocument(midiInstrument, fileName, updateFileName);
+	releaseDocumentStaging();
+	return error;
+}
+
+Error StorageManager::parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName,
+                                                        bool updateFileName) {
 	AudioEngine::logAction("readMidiDeviceDefinitionFile");
 
-	error = midiInstrument->readDeviceDefinitionFile(*activeDeserializer, false);
+	Error error = midiInstrument->readDeviceDefinitionFile(*activeDeserializer, false);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
-	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -515,25 +530,30 @@ Error StorageManager::loadPatternFile(char const* path, std::string* fileName, b
 Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
                                       SoundDrum** getInstrument, char const* path, std::string* name,
                                       std::string* dirPath) {
-	OutputType outputType = OutputType::SYNTH;
-	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
-	if (!newDrum) {
-		return Error::INSUFFICIENT_RAM;
-	}
-
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
-	Error error = openInstrumentFile(outputType, path);
+	Error error = openInstrumentFile(OutputType::SYNTH, path);
 	if (error != Error::NONE) {
 		return error;
 	}
 
+	error = parseSynthDrumDocument(song, clip, getInstrument);
+	releaseDocumentStaging();
+	return error;
+}
+
+Error StorageManager::parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument) {
+	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
+	if (!newDrum) {
+		activeDeserializer->closeWriter();
+		return Error::INSUFFICIENT_RAM;
+	}
+
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(*activeDeserializer, song, clip, 0);
+	Error error = newDrum->readFromFile(*activeDeserializer, song, clip, 0);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
-	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {
@@ -561,7 +581,6 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 	return error;
 }
 
-// After calling this, you must make sure you set dirPath of Instrument.
 Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamManager* paramManager) {
 
 	uint32_t instrumentSize;

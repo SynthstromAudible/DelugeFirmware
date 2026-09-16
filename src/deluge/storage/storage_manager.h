@@ -562,11 +562,28 @@ bool checkSDInitialized();
 Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = nullptr);
 Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
                              Instrument** getInstrument, char const* path, std::string* name, std::string* dirPath);
+/// @brief Read an Instrument from the document `activeDeserializer` has open, and close it.
+///
+/// The parse half of loadInstrumentFromFile(): it opens nothing and frees no staging, so a caller that staged the
+/// document itself (openDocumentStaged()) can parse it on its own tier. On any failure the Instrument it made is
+/// deleted again.
+/// @param getInstrument Receives the new Instrument on success; untouched otherwise.
+/// @param name          The Instrument's name.
+/// @param dirPath       The folder the preset is in.
+/// @return Error::NONE, or why the document could not be read into an Instrument.
+Error parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
+                              Instrument** getInstrument, std::string* name, std::string* dirPath);
+/// @brief The root tag, and its accepted alternative, of an @p outputType preset document.
+void instrumentDocumentTags(OutputType outputType, char const** firstTagName, char const** altTagName);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
 Error openMidiDeviceDefinitionFile(char const* path);
 Error loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, char const* path, std::string* fileName,
                                    bool updateFileName = true);
+/// @brief Read a device definition into @p midiInstrument from the document `activeDeserializer` has open, and close
+///        it. The parse half of loadMidiDeviceDefinitionFile(); it opens nothing and frees no staging.
+/// @return Error::NONE, or why the definition could not be read.
+Error parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName, bool updateFileName);
 
 Error openPatternFile(char const* path);
 Error loadPatternFile(char const* path, std::string* fileName, bool overwriteExisting, bool noScaling, bool previewOnly,
@@ -577,6 +594,12 @@ Error openFavouriteFile(char const* path);
 Drum* createNewDrum(DrumType drumType);
 Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
                       char const* path, std::string* name, std::string* dirPath);
+/// @brief Read a synth preset into a new SoundDrum from the document `activeDeserializer` has open, and close it.
+///
+/// The parse half of loadSynthToDrum(); it opens nothing and frees no staging. On success a drum already in
+/// @p getInstrument is deleted and replaced by the new one; on failure the new drum is deleted.
+/// @return Error::NONE, or why the document could not be read into a drum.
+Error parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument);
 
 Error checkSpaceOnCard();
 
