@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# preset_load.sh — the preset-load gate.
+#
+# Loads synth and kit presets through the real preset browser, as a user does: the clip view's LOAD gesture opens the
+# browser, a by-path listing selects the preset, and Select loads it into the clip, a kit row, or -- from the long-press
+# menu -- a clone.
+#
+# What the checks cover (src/deluge/harness/preset_load_scenario.cpp writes the lines):
+#   PL-SETUP   per leg: whether the preset browser opened on the leg's clip, and how many outputs the song had.
+#   PL-SELECT  per leg: the preset the by-path listing selected.
+#   PL-SYNTH   a synth preset loaded into the boot song's synth clip: the loaded synth, named after the preset, its
+#              sample bound, and the browser closed.
+#   PL-KIT     a kit preset loaded into a kit clip: three drums, each named and bound to its sample, with NoteRows.
+#   PL-ROW     a synth preset loaded into a kit row: the row's drum named after the preset, its sample bound.
+#   PL-CLONE   the long-press menu's clone of a synth preset: a new synth under a variation of the preset's name, its
+#              sample bound, edited, and the browser closed.
+#   PL-TIER    per load: documents read and samples loaded, none of it begun on the storage owner, and no sample read
+#              from the card on the interaction tier.
+#
+# A missing marker fails the run: a stage that never ran asserts nothing.
+#
+# Usage: scripts/preset_load.sh
+#
+# Environment:
+#   BUILD_DIR   the build-embassy-hostapp C++ object-closure build dir (default: build-embassy-hostapp)
+#   NO_BUILD=1  skip the ninja/cargo rebuild steps
+#
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
+CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
+TARGET_BASE="${CARGO_TARGET_DIR:-$REPO_ROOT/$CRATE_DIR/target}"
+TARGET_DIR="$TARGET_BASE/preset-load"
+
+if [ "${NO_BUILD:-0}" != "1" ]; then
+	[ -d "$BUILD_DIR" ] || {
+		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
+		exit 2
+	}
+	# Cargo does not track the C++ sources the harness links against, so force the object closure first.
+	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
+		deluge_foundation deluge_midi
+	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET_DIR")
+fi
+
+BIN="$TARGET_DIR/release/golden_vt_render"
+[ -x "$BIN" ] || {
+	echo "ERROR: '$BIN' not built (see NO_BUILD)"
+	exit 2
+}
+
+OUT="$(mktemp -d "${TMPDIR:-/tmp}/preset_load.XXXXXX")"
+IMG_GLOB="${TMPDIR:-/tmp}/deluge-streaming-scenario-*.img"
+# Only the image this run packs is removed; other rigs' cached images are left alone.
+IMGS_BEFORE="$OUT/.imgs_before"
+ls -1 $IMG_GLOB 2>/dev/null | sort >"$IMGS_BEFORE" || true
+cleanup() {
+	if [ -f "$IMGS_BEFORE" ]; then
+		ls -1 $IMG_GLOB 2>/dev/null | sort | comm -13 "$IMGS_BEFORE" - | while read -r img; do
+			rm -f "$img"
+		done
+	fi
+	rm -rf "$OUT" "${TMPDIR:-/tmp}/deluge-preset-load-card"
+}
+trap cleanup EXIT
+
+echo "preset load: running"
+set +e
+GOLDEN_SCENARIO=preset_load "$BIN" >"$OUT/run.txt" 2>"$OUT/run.err"
+status=$?
+set -e
+
+if [ "$status" -ne 0 ]; then
+	echo "FAIL — the run exited $status"
+	grep -E '^PL-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	tail -20 "$OUT/run.err"
+	exit 1
+fi
+
+for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RESULT; do
+	if ! grep -q "^$marker " "$OUT/run.txt"; then
+		echo "FAIL — no $marker line: a stage never ran"
+		grep -E '^PL-' "$OUT/run.txt"
+		exit 1
+	fi
+done
+
+if ! grep -q '^PL-RESULT failures=0$' "$OUT/run.txt"; then
+	echo "FAIL — in-process failures:"
+	grep -E '^PL-' "$OUT/run.txt"
+	exit 1
+fi
+
+echo "PASS — every preset load bound what a user's load binds"
+grep -E '^PL-' "$OUT/run.txt"

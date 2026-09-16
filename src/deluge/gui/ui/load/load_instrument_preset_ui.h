@@ -137,6 +137,21 @@ public:
 	/// @return The running acquisition-run count.
 	[[nodiscard]] static int32_t presetAcquisitionsRun() { return presetAcquisitionsRun_; }
 
+	/// @brief Whether a scroll-load is queued on, or running on, the storage owner.
+	[[nodiscard]] bool scrollLoadInFlight() const { return loadCoalescer_.in_flight(); }
+
+	/// @name Where the browser's own preset loads did their card work, for the preset-load gate's PL-TIER check.
+	/// @{
+	/// Preset documents the browser's loads read.
+	[[nodiscard]] int32_t documentReads() const { return documentReads_; }
+	/// Of those, the ones begun on the storage owner.
+	[[nodiscard]] int32_t documentReadsOnOwner() const { return documentReadsOnOwner_; }
+	/// Sample loads (a whole instrument's, or a kit row's) the browser's loads began.
+	[[nodiscard]] int32_t sampleLoads() const { return sampleLoads_; }
+	/// Of those, the ones begun on the storage owner.
+	[[nodiscard]] int32_t sampleLoadsOnOwner() const { return sampleLoadsOnOwner_; }
+	/// @}
+
 	/// @brief Dispatch one instrument acquisition onto the storage owner.
 	///
 	/// Mirrors currentFileChanged(): the caller builds `request` from live state HERE, the only
@@ -238,6 +253,24 @@ private:
 	int32_t noteRowIndex{};
 	NoteRow* noteRow{};
 	Error currentInstrumentLoadError;
+
+	/// @name Backing counters for documentReads(), documentReadsOnOwner(), sampleLoads() and sampleLoadsOnOwner().
+	/// @{
+	int32_t documentReads_{0};
+	int32_t documentReadsOnOwner_{0};
+	int32_t sampleLoads_{0};
+	int32_t sampleLoadsOnOwner_{0};
+	/// @}
+
+	/// @brief Count a document read or a sample load for PL-TIER, and whether it began on the storage owner.
+	void countDocumentRead() {
+		documentReads_++;
+		documentReadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
+	}
+	void countSampleLoad() {
+		sampleLoads_++;
+		sampleLoadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
+	}
 
 	// Coalesces the scroll-triggered load (currentFileChanged(), fires on every non-reload encoder
 	// tick) onto the storage worker: a fast scroll only actually loads the preset the user settles

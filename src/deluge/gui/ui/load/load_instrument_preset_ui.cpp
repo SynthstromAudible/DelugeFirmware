@@ -1093,6 +1093,7 @@ giveUsedError:
 		// synth or kit - fileName/fileDirPath are op-local copies (see top of function), so the
 		// yielding call below can't have its output params raced by a concurrent scroll mutating
 		// enteredText/currentDir.
+		countDocumentRead();
 		error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
 		                                               &newInstrument, filePath.c_str(), &fileName, &fileDirPath);
 
@@ -1110,6 +1111,7 @@ giveUsedError:
 		}
 	}
 	display->displayLoadingAnimationText("Loading", false, true);
+	countSampleLoad();
 	Error error = newInstrument->loadAllAudioFiles(true);
 
 	display->removeLoadingAnimation();
@@ -1281,6 +1283,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit(const LoadTarget* snapshot) 
 	// (see above) - loadSynthToDrum() doesn't actually read them (they're dead params below the SD
 	// yield in there today), but pass the snapshot copies regardless so this call never aliases a
 	// live Browser member across the yield, matching performLoad().
+	countDocumentRead();
 	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
 	                                              filePath.c_str(), &fileName, &fileDirPath);
 	if (error != Error::NONE) {
@@ -1288,6 +1291,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit(const LoadTarget* snapshot) 
 	}
 	// kitToLoadFor->addDrum(soundDrumToReplace);
 	display->displayLoadingAnimationText("Loading", false, true);
+	countSampleLoad();
 	soundDrumToReplace->loadAllSamples(true);
 
 	// fileName is the real on-card name now (display-agnostic), so it needs no reassembling. Taken

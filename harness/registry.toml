@@ -319,6 +319,19 @@ requires = ["cargo", "build-embassy-hostapp"]
 ci = "nightly"
 runtime = "~3m"
 
+# The preset browser's own loads, from the browser a user opens: what each load binds, and where its card work runs.
+[[harness]]
+name = "preset-load"
+path = "."
+kind = "property"
+status = "gate"
+gates = "synth and kit presets written through the firmware's serialisers, each naming samples of its own, must load through the real preset browser -- opened by the clip view's LOAD gesture, selected by a by-path listing, loaded by Select -- as a user's load binds them: a synth preset into the boot song's synth clip (the synth named after the preset, its sample bound, the browser closed), a kit preset into a kit clip (three drums named and bound to their samples, each with a NoteRow), a synth preset into a kit row (the row's drum named after the preset, its sample bound), and a clone from the long-press menu (a new synth under a variation of the preset's name, its sample bound, edited, the browser closed). PL-TIER requires, for every load, that its documents were read and its samples loaded with none of it begun on the storage owner, and no sample read from the card on the interaction tier."
+build = []
+run = ["scripts/preset_load.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~3m"
+
 [[harness]]
 name = "song-save-channel"
 path = "."
