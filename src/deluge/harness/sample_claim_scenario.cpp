@@ -30,6 +30,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/randomize_drums.h"
 #include "gui/views/session_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "hid/button.h"
@@ -276,7 +277,7 @@ void onOwner(void (*fn)()) {
 }
 
 RandomizeMark markRandomize() {
-	return {instrumentClipView.randomizeScansOnOwner(), instrumentClipView.randomizeLoadsOnOwner(),
+	return {deluge::gui::randomizeDrums.scansOnOwner(), deluge::gui::randomizeDrums.loadsOnOwner(),
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
@@ -1180,6 +1181,8 @@ void checkLeg() {
 		// Untouched: still named as the preset named it, which a randomize would have replaced with its file's name.
 		const bool thirdUntouched = third->drumName == kRandomizeDrums[2].name;
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		// How the walk ended: on the async sample load's stall bound, not on some other failure.
+		printf("SC-PROBE leg=randomize-stall giveUps=%d\n", deluge::gui::randomizeDrums.giveUps());
 		printf("RD-STALL keptFirst=%d secondUnbound=%d thirdUntouched=%d released=%d\n", keptFirst ? 1 : 0,
 		       secondUnbound ? 1 : 0, thirdUntouched ? 1 : 0, released ? 1 : 0);
 		if (!keptFirst || !secondUnbound || !thirdUntouched || !released) {

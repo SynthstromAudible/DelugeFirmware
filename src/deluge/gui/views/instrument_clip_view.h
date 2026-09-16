@@ -95,27 +95,20 @@ public:
 	// PAD ACTION pad press / release handling
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	/// @brief Snapshot the "Drum Randomizer" gesture's row-selection criteria and dispatch the
-	///        load (which drum(s) get randomized, if any) onto the storage worker.
+	/// @brief The Drum Randomizer's gesture: snapshot which rows to randomize, close the gate, and ask
+	///        deluge::gui::randomizeDrums for the walk.
 	///
-	/// The real work, including the SD-dependent directory scan/`loadFile()`, runs in
-	/// `commitRandomizeDrums()`.
-	/// @return `DEALT_WITH` once dispatched, or `NOT_DEALT_WITH` if no candidate row is eligible
-	///         (determined synchronously, without SD access — falls through to a regular edit
-	///         pad action, same as when this gesture doesn't apply).
+	/// Decides without touching the card whether any candidate row could be randomized at all.
+	/// @return `DEALT_WITH` once the walk is asked for, or `NOT_DEALT_WITH` if no candidate row is eligible, which
+	///         falls through to a regular edit pad press, as when this gesture does not apply.
 	ActionResult potentiallyRandomizeDrumSamples();
-	ActionResult potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename);
-
-	/// @brief How many of the randomizer's directory scans began on the storage owner.
+	/// @brief Whether @p drum can be randomized at all: a SoundDrum whose first range has a holder naming a file.
 	///
-	/// A scan reads the folder of a drum's current sample. Exposed for the sample-claim gate's RD-TIER check, which
-	/// requires every one of them there while the scan has no async surface.
-	[[nodiscard]] int32_t randomizeScansOnOwner() const { return randomizeScansOnOwner_; }
-	/// @brief How many of the randomizer's sample loads began on the storage owner.
-	///
-	/// A randomized drum's load belongs on the interaction tier; one that begins on the owner was dispatched there.
-	/// Exposed for RD-TIER, which requires none.
-	[[nodiscard]] int32_t randomizeLoadsOnOwner() const { return randomizeLoadsOnOwner_; }
+	/// Card-free, so the gesture can decide before any scan whether it will do anything; the walk asks it again of
+	/// each row it reaches.
+	/// @param drum Drum to test.
+	/// @return True if `drum` is a SoundDrum with a `MultiRange` and an `AudioFileHolder` with a non-empty `filePath`.
+	static bool drumIsRandomizable(Drum* drum);
 	ActionResult commandEnterNoteVelocityEditor(int32_t x, int32_t y);
 	ActionResult commandLearnMutePad(int32_t y, int32_t velocity);
 	ActionResult commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
@@ -438,54 +431,6 @@ private:
 	// Set once a held Session button passes the long-press threshold, so short presses never flash macro colours into
 	// the sidebar on their way to Session view.
 	bool sessionMacroSidebarActive{};
-
-	/// @brief Snapshot of the "Drum Randomizer" gesture's row-selection criteria, captured in
-	///        `potentiallyRandomizeDrumSamples()` before the mode gate closes and the op
-	///        dispatches.
-	///
-	/// Which rows get randomized depends on live state (`AFFECT_ENTIRE`,
-	/// `auditionPadIsPressed[]`, `UI_MODE_AUDITIONING`, `kit->selectedDrum`) that a concurrent
-	/// audition-pad *release* — not gated by `currentUIMode`, since `auditionPadActionUIModes`
-	/// passes `velocity == 0` through regardless of mode — could otherwise change mid-op.
-	/// `commitRandomizeDrums()` re-walks the (gate-protected-stable) NoteRow/Drum graph using
-	/// only this frozen criteria, never a live read of those fields.
-	struct RandomizeDrumsTarget {
-		Kit* kit;
-		InstrumentClip* instrumentClip;
-		bool randomizeAll;
-		bool auditioning;
-		uint8_t auditionPadIsPressedSnapshot[kDisplayHeight];
-		Drum* selectedDrumSnapshot;
-	};
-
-	/// @brief The dispatched op for `potentiallyRandomizeDrumSamples()`.
-	///
-	/// Reads only `self->pendingRandomizeTarget_` (the dispatch-time snapshot), never live UI
-	/// members.
-	/// @param self The `InstrumentClipView` this op is running for.
-	static void runRandomizeDrumsOp(void* self);
-	/// @brief The randomize body: for each candidate row in @p target, randomizes the drum's
-	///        sample and shows the resulting popup.
-	///
-	/// The randomize itself is a directory scan + `loadFile()`, run on the storage worker. Resets
-	/// `currentUIMode` to `UI_MODE_NONE` unconditionally on every exit path, releasing the gate
-	/// `potentiallyRandomizeDrumSamples()` closes before dispatch.
-	/// @param target The dispatch-time snapshot of eligible rows to randomize.
-	void commitRandomizeDrums(const RandomizeDrumsTarget& target);
-	/// @brief The fast, SD-free eligibility check factored out of `potentiallyRandomizeDrumSample()`'s
-	///        early guards, so the dispatch site can decide (before any SD access) whether the
-	///        gesture will do anything.
-	/// @param drum Drum to test.
-	/// @return True if `drum` is a SoundDrum with a resident `MultiRange`/`AudioFileHolder` and a
-	///         non-empty `filePath`.
-	static bool drumIsRandomizable(Drum* drum);
-
-	RandomizeDrumsTarget pendingRandomizeTarget_{};
-
-	/// @brief The randomizer's directory scans that began on the storage owner. See randomizeScansOnOwner().
-	int32_t randomizeScansOnOwner_{0};
-	/// @brief The randomizer's sample loads that began on the storage owner. See randomizeLoadsOnOwner().
-	int32_t randomizeLoadsOnOwner_{0};
 
 	std::array<RGB, kDisplayHeight> rowColour{};
 	std::array<RGB, kDisplayHeight> rowTailColour{};

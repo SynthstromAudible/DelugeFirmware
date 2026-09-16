@@ -37,6 +37,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/randomize_drums.h"
 #include "gui/views/timeline_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -162,6 +163,9 @@ void InstrumentClipView::openedInBackground() {
 // Initializes some stuff to begin a new editing session
 void InstrumentClipView::focusRegained() {
 	ClipView::focusRegained();
+
+	// A randomize left over from a previous visit would land its rows into this one.
+	deluge::gui::randomizeDrums.cancelWalk();
 
 	auditioningSilently = false; // Necessary?
 	// The Session button release that would normally clear this can be missed if the view changed while it was held.
@@ -2051,25 +2055,23 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 	InstrumentClip* instrumentClip = getCurrentInstrumentClip();
 	Kit* kit = (Kit*)instrumentClip->output;
 
-	// Snapshot the row-selection criteria now, on the executor, before any dispatch — the op
-	// (which yields to SD across possibly several drums) must never re-read these live fields.
-	RandomizeDrumsTarget target{};
-	target.kit = kit;
-	target.instrumentClip = instrumentClip;
-	target.randomizeAll = Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE);
-	target.auditioning = isUIModeActive(UI_MODE_AUDITIONING);
+	// Snapshot the row-selection criteria as the gesture is pressed: the walk spans ticks, and must never re-read these
+	// live fields.
+	deluge::gui::RandomizeRequest request{};
+	request.kit = kit;
+	request.instrumentClip = instrumentClip;
+	request.randomizeAll = Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE);
+	request.auditioning = isUIModeActive(UI_MODE_AUDITIONING);
 	for (int32_t i = 0; i < kDisplayHeight; i++) {
-		target.auditionPadIsPressedSnapshot[i] = auditionPadIsPressed[i];
+		request.auditionPadIsPressed[i] = auditionPadIsPressed[i];
 	}
-	target.selectedDrumSnapshot = kit->selectedDrum;
+	request.selectedDrum = kit->selectedDrum;
 
-	// Quick, SD-free eligibility check: is there at least one candidate row whose Drum could
-	// actually be randomized? Mirrors commitRandomizeDrums()'s row-selection loop below, but
-	// only tests drumIsRandomizable() (no directory scan/loadFile) — this decides the
-	// provisional ActionResult without touching the card. If nothing is eligible, behave
-	// exactly as before this gesture existed: fall through to a regular edit pad press.
+	// Card-free eligibility: is there at least one candidate row whose drum could be randomized at all? This decides
+	// the gesture's ActionResult without touching the card. If nothing is eligible, behave exactly as before this
+	// gesture existed: fall through to a regular edit pad press.
 	bool anyEligible = false;
-	if (target.randomizeAll) {
+	if (request.randomizeAll) {
 		int32_t nRows = std::ssize(instrumentClip->noteRows);
 		for (int32_t i = 0; i < nRows && !anyEligible; i++) {
 			NoteRow& thisNoteRow = instrumentClip->noteRows[i];
@@ -2078,9 +2080,9 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 			}
 		}
 	}
-	else if (target.auditioning) {
+	else if (request.auditioning) {
 		for (int32_t i = 0; i < kDisplayHeight && !anyEligible; i++) {
-			if (target.auditionPadIsPressedSnapshot[i]) {
+			if (request.auditionPadIsPressed[i]) {
 				NoteRow* thisNoteRow = instrumentClip->getNoteRowOnScreen(i, currentSong);
 				if (thisNoteRow != nullptr && drumIsRandomizable(thisNoteRow->drum)) {
 					anyEligible = true;
@@ -2089,7 +2091,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 		}
 	}
 	else {
-		anyEligible = drumIsRandomizable(target.selectedDrumSnapshot);
+		anyEligible = drumIsRandomizable(request.selectedDrum);
 	}
 
 	if (!anyEligible) {
@@ -2097,171 +2099,11 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 		return ActionResult::NOT_DEALT_WITH;
 	}
 
-	pendingRandomizeTarget_ = target;
-	// Gate: a repeat LOAD+pad(15,2) during the op's SD yield is checked out by padAction()'s
-	// `currentUIMode == UI_MODE_NONE` guard on the Drum Randomizer branch; edit/mute/audition
-	// pad presses and other buttons are checked out the same way (Slicer uses the same pattern)
-	// since UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES isn't in any of those branches' allowed-mode lists.
+	// The gate, until the walk ends: a repeat LOAD+pad(15,2) is refused by padAction()'s own check of this mode, and
+	// edit, mute and audition pad presses by their allowed-mode lists, which do not include it.
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
-	if (!deluge::storage::Owner::run_or_inline(&InstrumentClipView::runRandomizeDrumsOp, this)) {
-		// Dispatch dropped (owner queue full) — runRandomizeDrumsOp will never run, so release
-		// the gate we just closed here, or InstrumentClipView would be stuck forever.
-		currentUIMode = UI_MODE_NONE;
-	}
+	deluge::gui::randomizeDrums.request(request);
 	return ActionResult::DEALT_WITH;
-}
-
-void InstrumentClipView::runRandomizeDrumsOp(void* self) {
-	auto* view = static_cast<InstrumentClipView*>(self);
-	view->commitRandomizeDrums(view->pendingRandomizeTarget_);
-}
-
-void InstrumentClipView::commitRandomizeDrums(const RandomizeDrumsTarget& target) {
-	char chosenFilename[256] = "Nothing to randomize"; // not using "std::string" to avoid malloc etc. in hot loop
-	int32_t rowsRandomized = 0;
-	bool sdError = false;
-
-	auto tryRow = [&](Drum* drum) {
-		ActionResult result = potentiallyRandomizeDrumSample(target.kit, drum, chosenFilename);
-		if (result == ActionResult::DEALT_WITH) {
-			// SD_CARD directory-open error — potentiallyRandomizeDrumSample() already showed
-			// displayError(); stop processing further rows, same as the pre-dispatch code's
-			// immediate return on this branch.
-			sdError = true;
-		}
-		else if (result == ActionResult::ACTIONED_AND_CAUSED_CHANGE) {
-			rowsRandomized++;
-		}
-	};
-
-	if (target.randomizeAll) {
-		int32_t nRows = std::ssize(target.instrumentClip->noteRows);
-		for (int32_t i = 0; i < nRows && !sdError; i++) {
-			NoteRow& thisNoteRow = target.instrumentClip->noteRows[i];
-			if (thisNoteRow.muted || thisNoteRow.hasNoNotes()) {
-				continue;
-			}
-			tryRow(thisNoteRow.drum);
-		}
-	}
-	else if (target.auditioning) {
-		for (int32_t i = 0; i < kDisplayHeight && !sdError; i++) {
-			if (!target.auditionPadIsPressedSnapshot[i]) {
-				continue;
-			}
-			NoteRow* thisNoteRow = target.instrumentClip->getNoteRowOnScreen(i, currentSong);
-			if (thisNoteRow == nullptr) {
-				continue;
-			}
-			tryRow(thisNoteRow->drum);
-		}
-	}
-	else {
-		tryRow(target.selectedDrumSnapshot);
-	}
-
-	if (!sdError) {
-		switch (rowsRandomized) {
-		case 0:
-			break; // nothing eligible actually had files to randomize onto — no popup, same as before
-		case 1:
-			display->displayPopup(chosenFilename);
-			break;
-		default:
-			if (target.randomizeAll) {
-				display->displayPopup("Randomized active rows");
-			}
-			else {
-				display->displayPopup("Randomized selected rows");
-			}
-			break;
-		}
-	}
-
-	// Release the gate potentiallyRandomizeDrumSamples() closed before dispatch — unconditionally,
-	// on every exit path (success, zero-rows, or SD error).
-	currentUIMode = UI_MODE_NONE;
-}
-
-ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename) {
-	if (!drumIsRandomizable(drum)) {
-		return ActionResult::NOT_DEALT_WITH;
-	}
-	SoundDrum* soundDrum = (SoundDrum*)drum;
-	MultiRange* r = soundDrum->sources[0].getRange(0);
-	AudioFileHolder* afh = r->getAudioFileHolder();
-	char const* path = afh->filePath.c_str();
-	// Deliberately mutated below (temporarily truncated at the slash, then restored) — the backing
-	// std::string buffer is mutable. const_cast is needed because glibc's strrchr is const-correct (returns
-	// const char* for a const char* arg) whereas newlib's returns char*.
-	char* slashAddress = const_cast<char*>(strrchr(path, '/'));
-	if (slashAddress == nullptr) {
-		return ActionResult::NOT_DEALT_WITH;
-	}
-
-	// Open directory of current audio file
-	*slashAddress = 0;
-	// Counted for the sample-claim gate (RD-TIER): a randomizer scan that began on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		randomizeScansOnOwner_++;
-	}
-	auto dirOpened = deluge::io::Directory::open(path);
-	if (!dirOpened.has_value()) {
-		*slashAddress = '/';
-		display->displayError(Error::SD_CARD);
-		return ActionResult::DEALT_WITH;
-	}
-	deluge::io::Directory dir = std::move(*dirOpened);
-	*slashAddress = '/';
-
-	// Select random audio file from directory
-	int32_t fileCount = 0;
-	while (true) {
-		auto entry = dir.read();
-		if (!entry.has_value() || !entry->has_value()) {
-			break;
-		}
-		if ((*entry)->is_directory || !isAudioFilename((*entry)->name)) {
-			continue;
-		}
-		if (random(fileCount++) == 0) { // Algorithm: Reservoir Sampling with k=1
-			strncpy(chosenFilename, (*entry)->name, 256);
-		}
-	}
-
-	// Assign new audio file
-	if (fileCount) {
-		AudioEngine::stopAnyPreviewing();
-		soundDrum->killAllVoices();
-
-		afh->setAudioFile(nullptr);
-		// set the slash to 0 again
-		*slashAddress = 0;
-		afh->filePath = path;
-
-		afh->filePath.append("/");
-		afh->filePath.append(chosenFilename);
-		// Counted for the sample-claim gate (RD-TIER): a randomizer load that began on the storage owner.
-		if (deluge::storage::Owner::on_owner()) {
-			randomizeLoadsOnOwner_++;
-		}
-		afh->loadFile(false, true, true, 1, false);
-
-		char* dot = strrchr(chosenFilename, '.');
-		if (dot) {
-			// Remove the extension (e.g., ".WAV", ".AIFF") from chosenFilename before assigning as name
-			*dot = '\0';
-		}
-		soundDrum->drumName = chosenFilename;
-		kit->beenEdited();
-		*slashAddress = '/';
-
-		// we've randomized a drum sample
-		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
-	}
-
-	// we didn't randomize a drum sample
-	return ActionResult::NOT_DEALT_WITH;
 }
 
 ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32_t y) {
@@ -7123,6 +6965,9 @@ void InstrumentClipView::graphicsRoutine() {
 	if (!currentSong) {
 		return; // Briefly, if loading a song fails, during the creation of a new blank one, this could happen.
 	}
+
+	// Before any of the early returns below: a randomize walks on this routine, whatever the view is drawing.
+	deluge::gui::randomizeDrums.routine();
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
