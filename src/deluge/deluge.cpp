@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -469,6 +470,10 @@ void registerTasks() {
 	// needs something to bring it back, whichever UI is on top. At the graphics routine's 15 ms, so the stall bound on
 	// its load keeps its length.
 	addRepeatingTask([]() { deluge::gui::sampleClaim.routine(); }, p++, 0.015, 0.015, 0.03, "sample claim",
+	                 RESOURCE_NONE);
+	// The browser's folder import is the same kind of machine, and its context menu is on top while it runs, so it has
+	// no graphics routine of its own to be ticked from either.
+	addRepeatingTask([]() { deluge::gui::folderImport.routine(); }, p++, 0.015, 0.015, 0.03, "folder import",
 	                 RESOURCE_NONE);
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
 	// the same reason: both are request/collect state machines whose caller returned long ago, and

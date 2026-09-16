@@ -24,6 +24,7 @@
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/slicer.h"
@@ -355,8 +356,8 @@ void onOwner(void (*fn)()) {
 }
 
 ImportMark markImport() {
-	return {sampleBrowser.importListingsOnOwner(), sampleBrowser.importLoadsOnOwner(),
-	        sampleBrowser.importPitchOnOwner(),
+	return {deluge::gui::folderImport.listingsOnOwner(), deluge::gui::folderImport.loadsOnOwner(),
+	        deluge::gui::folderImport.pitchOnOwner(),
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
@@ -1457,6 +1458,8 @@ void checkLeg() {
 		const bool menuClosed = !isUIOpen(&deluge::gui::context_menu::sample_browser::synth);
 		const bool browserOpen = isUIOpen(&sampleBrowser);
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		// How the import ended: on the async sample load's stall bound, not on some other failure.
+		printf("SC-PROBE leg=import-stall giveUps=%d\n", deluge::gui::folderImport.giveUps());
 		printf("IM-STALL rangesKept=%d reasonsKept=%d menuClosed=%d browserOpen=%d released=%d\n", rangesKept ? 1 : 0,
 		       reasonsKept ? 1 : 0, menuClosed ? 1 : 0, browserOpen ? 1 : 0, released ? 1 : 0);
 		if (!rangesKept || !reasonsKept || !menuClosed || !browserOpen || !released) {

@@ -18,6 +18,7 @@
 #include "gui/context_menu/sample_browser/synth.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -32,16 +33,9 @@ namespace deluge::gui::context_menu::sample_browser {
 Synth synth{};
 
 namespace {
-/// The dispatched op for the Multisamples option: the folder import, on the storage owner until the importers move.
-/// On failure, closes just the ContextMenu (the import already closes everything, including this menu, on success).
-void runMultisamplesOp(void*) {
-	if (!sampleBrowser.importFolderAsMultisamples()) {
-		synth.close();
-	}
-}
 
-/// Closes just the ContextMenu when a claim it asked for fails. A claim that succeeds closes everything, including this
-/// menu, itself.
+/// Closes just the ContextMenu when a claim or the folder import it asked for fails. One that succeeds closes
+/// everything, including this menu, itself.
 void closeOnFailure(bool success) {
 	if (!success) {
 		synth.close();
@@ -104,7 +98,7 @@ bool Synth::acceptCurrentOption() {
 	// and the import, report theirs once they know it.
 	switch (currentOption) {
 	case 0: // Multisamples
-		deluge::storage::Owner::run_or_inline(&runMultisamplesOp, nullptr);
+		sampleBrowser.requestFolderImport(deluge::gui::FolderImportKind::Multisamples, &closeOnFailure);
 		break;
 	case 1: // Basic
 		sampleBrowser.requestClaim(0, 0, 0, &closeOnFailure);

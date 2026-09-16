@@ -35,6 +35,10 @@ namespace deluge::gui::menu_item {
 class HorizontalMenu;
 }
 
+namespace deluge::gui {
+enum class FolderImportKind : uint8_t;
+} // namespace deluge::gui
+
 class SampleBrowser final : public Browser {
 public:
 	SampleBrowser();
@@ -47,8 +51,6 @@ public:
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool canSeeViewUnderneath() override;
 	void scrollFinished() override;
-	bool importFolderAsKit();
-	bool importFolderAsMultisamples();
 	ActionResult timerCallback() override;
 	/// @brief Ask the sample claim for the file the browser is on, as Enter and the synth context menu do.
 	/// @param mayDoPitchDetection For each of these three: 0 means no, 1 means auto, 2 means definitely.
@@ -57,6 +59,11 @@ public:
 	/// @param completion          Told how the claim ended; a cancelled claim tells it nothing.
 	void requestClaim(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
 	                  void (*completion)(bool success) = nullptr);
+	/// @brief Ask the folder import for the folder the browser is on (its item if a folder, else the item's folder), as
+	///        the kit menu's Load All and the synth menu's Multisamples do.
+	/// @param kind       Whether the files become a kit's drums or a synth's multisample ranges.
+	/// @param completion Told how the import ended; a cancelled import tells it nothing.
+	void requestFolderImport(deluge::gui::FolderImportKind kind, void (*completion)(bool success));
 	/// @brief Reset the current source's oscillator volume, if it is not automated and was at 0: after a file is set.
 	void audioFileIsNowSet();
 	/// @brief Send @p drum to side-chain when its file, named @p fileName, looks like a kick and plays once.
@@ -116,16 +123,6 @@ public:
 	/// A preview's load belongs on the interaction tier, where the browser's per-tick surface ticks it; a step on the
 	/// owner means the load was sent there. Exposed for the A/B gate's AB-PREVIEW-TIER check, which requires none.
 	[[nodiscard]] int32_t previewLoadsOnOwner() const { return previewLoadsOnOwner_; }
-
-	/// @name Where a folder import's card work began, for the sample-claim gate's IM-TIER check.
-	/// @{
-	/// Folder listings opened on the storage owner.
-	[[nodiscard]] int32_t importListingsOnOwner() const { return importListingsOnOwner_; }
-	/// File loads begun on the storage owner; a folder import's loads belong on the interaction tier.
-	[[nodiscard]] int32_t importLoadsOnOwner() const { return importLoadsOnOwner_; }
-	/// Pitch detections run on the storage owner, where they read the card synchronously.
-	[[nodiscard]] int32_t importPitchOnOwner() const { return importPitchOnOwner_; }
-	/// @}
 
 	std::string lastFilePathLoaded{};
 
@@ -218,16 +215,8 @@ private:
 	/// @brief Preview load steps that ran on the storage owner. See previewLoadsOnOwner().
 	int32_t previewLoadsOnOwner_{0};
 
-	/// @brief Folder listings opened on the storage owner. See importListingsOnOwner().
-	int32_t importListingsOnOwner_{0};
-	/// @brief Folder-import file loads begun on the storage owner. See importLoadsOnOwner().
-	int32_t importLoadsOnOwner_{0};
-	/// @brief Folder-import pitch detections run on the storage owner. See importPitchOnOwner().
-	int32_t importPitchOnOwner_{0};
-
 	bool canImportWholeKit();
-	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
-	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);
+
 	std::string getCurrentFilePath() override;
 	void drawKeysOverWaveform();
 	void possiblySetUpBlinking();

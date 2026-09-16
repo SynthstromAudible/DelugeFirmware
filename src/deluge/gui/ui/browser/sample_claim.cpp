@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/browser/folder_import.h"
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
@@ -95,6 +96,10 @@ bool SampleClaim::explicitInFlight() const {
 }
 
 void SampleClaim::request(ClaimRequest request) {
+	if (folderImport.inFlight()) {
+		// The import is replacing the sound this would claim into; its gate refuses the presses that ask.
+		return;
+	}
 	if (request.origin == ClaimOrigin::AutoLoad && explicitInFlight()) {
 		// The explicit claim is already claiming a file; this can only come from a preview that was already loading.
 		return;
