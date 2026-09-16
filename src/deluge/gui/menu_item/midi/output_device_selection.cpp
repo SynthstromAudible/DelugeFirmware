@@ -17,14 +17,14 @@ namespace deluge::gui::menu_item::midi {
 namespace {
 
 uint8_t storedOutputDeviceIndex() {
-	if (soundEditor.editingCVOrMIDIClip()) {
-		auto* instrument = ::getCurrentInstrument();
+	if (SoundEditor::editingCVOrMIDIClip()) {
+		auto* instrument = getCurrentInstrument();
 		if (instrument != nullptr && instrument->type == OutputType::MIDI_OUT) {
 			return static_cast<MIDIInstrument*>(instrument)->outputDevice;
 		}
 	}
 	else if (soundEditor.editingKitRow()) {
-		auto* kit = ::getCurrentKit();
+		auto* kit = getCurrentKit();
 		if (kit != nullptr && kit->selectedDrum != nullptr && kit->selectedDrum->type == DrumType::MIDI) {
 			return static_cast<MIDIDrum*>(kit->selectedDrum)->outputDevice;
 		}
@@ -34,8 +34,8 @@ uint8_t storedOutputDeviceIndex() {
 
 } // namespace
 
-void OutputDeviceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
-	Selection::beginSession(navigatedBackwardFrom);
+void OutputDeviceSelection::beginSession(MenuItem* navigated_backward_from) {
+	Selection::beginSession(navigated_backward_from);
 	readCurrentValue();
 }
 
@@ -46,33 +46,34 @@ void OutputDeviceSelection::readCurrentValue() {
 
 void OutputDeviceSelection::writeCurrentValue() {
 	uint8_t stored = storedOutputDeviceIndex();
-	uint8_t currentDevice = deluge::io::midi::menuSlotToDeviceIndex(static_cast<uint8_t>(this->getValue()), stored);
-	auto deviceName = deluge::io::midi::getDeviceNameForIndex(currentDevice);
+	uint8_t current_device = deluge::io::midi::menuSlotToDeviceIndex(static_cast<uint8_t>(this->getValue()), stored);
+	auto device_name = deluge::io::midi::getDeviceNameForIndex(current_device);
 
-	if (soundEditor.editingCVOrMIDIClip()) {
-		auto* instrument = ::getCurrentInstrument();
+	if (SoundEditor::editingCVOrMIDIClip()) {
+		auto* instrument = getCurrentInstrument();
 		if (instrument != nullptr && instrument->type == OutputType::MIDI_OUT) {
-			auto* midiInstrument = static_cast<MIDIInstrument*>(instrument);
-			midiInstrument->outputDevice = currentDevice;
-			if (!deviceName.empty()) {
-				midiInstrument->outputDeviceName.set(deviceName.data());
+			auto* midi_instrument = static_cast<MIDIInstrument*>(instrument);
+			midi_instrument->outputDevice = current_device;
+			if (!device_name.empty()) {
+				midi_instrument->outputDeviceName.set(device_name.data());
 			}
 		}
 	}
 	else if (soundEditor.editingKitRow()) {
-		auto* kit = ::getCurrentKit();
+		auto* kit = getCurrentKit();
 		if (kit != nullptr && kit->selectedDrum != nullptr && kit->selectedDrum->type == DrumType::MIDI) {
-			auto* midiDrum = static_cast<MIDIDrum*>(kit->selectedDrum);
-			midiDrum->outputDevice = currentDevice;
-			if (!deviceName.empty()) {
-				midiDrum->outputDeviceName.set(deviceName.data());
+			auto* midi_drum = static_cast<MIDIDrum*>(kit->selectedDrum);
+			midi_drum->outputDevice = current_device;
+			if (!device_name.empty()) {
+				midi_drum->outputDeviceName.set(device_name.data());
 			}
 		}
 	}
 }
 
-deluge::vector<std::string_view> OutputDeviceSelection::getOptions(OptType optType) {
-	(void)optType;
+deluge::vector<std::string_view>
+OutputDeviceSelection::getOptions(OptType opt_type) { // NOLINT(readability-convert-member-functions-to-static)
+	(void)opt_type;
 	uint8_t stored = storedOutputDeviceIndex();
 	return deluge::io::midi::getAllMIDIDeviceNames(stored);
 }
