@@ -39,6 +39,13 @@
 #   RD-STALL   a randomize over three rows whose second load is held past the stall bound: the walk must end there,
 #              with the first row kept on its file, the second left unbound, the third untouched, and the gate
 #              released.
+#   IM-KIT     the kit context menu's "Load All" over a folder of its own: one drum per file in filename order, each
+#              named after its file without the folder's shared prefix, bound to it and with a NoteRow; the kit
+#              edited and the browser closed.
+#   IM-MULTI   the synth context menu's "Multisamples" over three sines an octave apart: one range per file in pitch
+#              order, each bound to its file, and the browser closed.
+#   IM-TIER    per folder import: the listing and every pitch detection ran on the storage owner, no file load began
+#              there, and no sample was read from the card on the interaction tier.
 #   SC-SLICE-MANUAL
 #              a second kit sliced in manual mode into three slices, the live slice points changed straight after
 #              Select: every drum bound to the sliced sample, with a NoteRow, and painted from the points as they
@@ -102,24 +109,24 @@ set -e
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
-	grep -E '^(SC|RD)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	grep -E '^(SC|RD|IM)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
 	tail -20 "$OUT/run.err"
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL IM-KIT IM-MULTI IM-TIER SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
-		grep -E '^(SC|RD)-' "$OUT/run.txt"
+		grep -E '^(SC|RD|IM)-' "$OUT/run.txt"
 		exit 1
 	fi
 done
 
 if ! grep -q '^SC-RESULT failures=0$' "$OUT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^(SC|RD)-' "$OUT/run.txt"
+	grep -E '^(SC|RD|IM)-' "$OUT/run.txt"
 	exit 1
 fi
 
 echo "PASS — every claim bound what a user's claim binds"
-grep -E '^(SC|RD)-' "$OUT/run.txt"
+grep -E '^(SC|RD|IM)-' "$OUT/run.txt"

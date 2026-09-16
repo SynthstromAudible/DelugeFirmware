@@ -117,6 +117,16 @@ public:
 	/// owner means the load was sent there. Exposed for the A/B gate's AB-PREVIEW-TIER check, which requires none.
 	[[nodiscard]] int32_t previewLoadsOnOwner() const { return previewLoadsOnOwner_; }
 
+	/// @name Where a folder import's card work began, for the sample-claim gate's IM-TIER check.
+	/// @{
+	/// Folder listings opened on the storage owner.
+	[[nodiscard]] int32_t importListingsOnOwner() const { return importListingsOnOwner_; }
+	/// File loads begun on the storage owner; a folder import's loads belong on the interaction tier.
+	[[nodiscard]] int32_t importLoadsOnOwner() const { return importLoadsOnOwner_; }
+	/// Pitch detections run on the storage owner, where they read the card synchronously.
+	[[nodiscard]] int32_t importPitchOnOwner() const { return importPitchOnOwner_; }
+	/// @}
+
 	std::string lastFilePathLoaded{};
 
 	// menus to open when a sample file is selected
@@ -207,6 +217,13 @@ private:
 
 	/// @brief Preview load steps that ran on the storage owner. See previewLoadsOnOwner().
 	int32_t previewLoadsOnOwner_{0};
+
+	/// @brief Folder listings opened on the storage owner. See importListingsOnOwner().
+	int32_t importListingsOnOwner_{0};
+	/// @brief Folder-import file loads begun on the storage owner. See importLoadsOnOwner().
+	int32_t importLoadsOnOwner_{0};
+	/// @brief Folder-import pitch detections run on the storage owner. See importPitchOnOwner().
+	int32_t importPitchOnOwner_{0};
 
 	bool canImportWholeKit();
 	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,

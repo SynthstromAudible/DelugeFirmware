@@ -1661,6 +1661,11 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 /// - `SAMPLES/RDK/K1.WAV`: the randomizer stall leg's first row, alone in its folder and loaded before the hold.
 /// - `SAMPLES/RDS/S1.WAV`..`S3.WAV`: the stall leg's second row, loaded by nothing, so its load is held past the stall
 ///   bound.
+/// - `SAMPLES/IMK/IMK_HAT.WAV`, `IMK_KICK.WAV` and `IMK_SNARE.WAV`: the kit folder import's folder, whose shared prefix
+///   the drum names drop.
+/// - `SYNTHS/`: empty; the multisample import leg writes its blank synth preset there.
+/// - `SAMPLES/IMM/IMM_A2.WAV`, `IMM_A3.WAV` and `IMM_A4.WAV`: the multisample folder import's folder, one-second sines
+///   at 110, 220 and 440 Hz.
 fn pack_sample_claim_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-sample-claim-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1669,13 +1674,18 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     let randomize_gate = samples.join("RDG");
     let randomize_kept = samples.join("RDK");
     let randomize_stall = samples.join("RDS");
+    let import_kit = samples.join("IMK");
+    let import_multi = samples.join("IMM");
     for dir in [
         &samples,
         &randomize,
         &randomize_gate,
         &randomize_kept,
         &randomize_stall,
+        &import_kit,
+        &import_multi,
         &root.join("KITS"),
+        &root.join("SYNTHS"),
     ] {
         std::fs::create_dir_all(dir).expect("creating the sample-claim fixture directories");
     }
@@ -1698,6 +1708,12 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     write_test_wav(&randomize_stall.join("S1.WAV"), 1, 16, 2048, 0x78);
     write_test_wav(&randomize_stall.join("S2.WAV"), 1, 16, 2560, 0x79);
     write_test_wav(&randomize_stall.join("S3.WAV"), 1, 16, 3072, 0x7a);
+    write_test_wav(&import_kit.join("IMK_HAT.WAV"), 1, 16, 2048, 0x81);
+    write_test_wav(&import_kit.join("IMK_KICK.WAV"), 1, 16, 2560, 0x82);
+    write_test_wav(&import_kit.join("IMK_SNARE.WAV"), 1, 16, 3072, 0x83);
+    write_sine_wav(&import_multi.join("IMM_A2.WAV"), 1, 44_100, 110.0);
+    write_sine_wav(&import_multi.join("IMM_A3.WAV"), 1, 44_100, 220.0);
+    write_sine_wav(&import_multi.join("IMM_A4.WAV"), 1, 44_100, 440.0);
     sd_image::pack_image(&root)
 }
 

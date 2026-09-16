@@ -1021,6 +1021,10 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 	// forget or double up on. (Historically this contrasted with a shared FatFS::Directory staticDIR
 	// global behind a port selector — both are gone: staticDIR was deleted with C-FatFS, and efatfs
 	// is the sole filesystem.)
+	// Counted for the sample-claim gate (IM-TIER): a folder listing on the storage owner.
+	if (deluge::storage::Owner::on_owner()) {
+		importListingsOnOwner_++;
+	}
 	auto dir = D_TRY_CATCH_MOVE(deluge::io::Directory::open(dirToLoad), error, {
 		display->displayError(Error::SD_CARD);
 		return false;
@@ -1106,6 +1110,10 @@ removeReasonsFromSamplesAndGetOut:
 
 		// The port's directory entries don't expose a cluster locator, so resolve fresh by path,
 		// the same as any other open.
+		// Counted for the sample-claim gate (IM-TIER): a file load begun on the storage owner.
+		if (deluge::storage::Owner::on_owner()) {
+			importLoadsOnOwner_++;
+		}
 		auto* newSample = static_cast<Sample*>(
 		    audioFileManager.getAudioFileFromFilename(filePath, true, &error, AudioFileType::SAMPLE));
 		if (error != Error::NONE || newSample == nullptr) {
@@ -1170,6 +1178,10 @@ removeReasonsFromSamplesAndGetOut:
 				}
 
 				if (detectPitch) {
+					// Counted for the sample-claim gate (IM-TIER): a pitch detection on the storage owner.
+					if (deluge::storage::Owner::on_owner()) {
+						importPitchOnOwner_++;
+					}
 					thisSample->workOutMIDINote(doingSingleCycle);
 				}
 
@@ -1379,6 +1391,10 @@ removeReasonsFromSamplesAndGetOut:
 
 			D_PRINT("redoing, limited to %d to %d", minFreqHz, maxFreqHz);
 
+			// Counted for the sample-claim gate (IM-TIER): a re-detection on the storage owner.
+			if (deluge::storage::Owner::on_owner()) {
+				importPitchOnOwner_++;
+			}
 			thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
 			// If didn't work, see if we can pretend we're looking for 1 octave higher, where there'd probably be a
@@ -1390,6 +1406,10 @@ removeReasonsFromSamplesAndGetOut:
 
 				D_PRINTLN("pretending an octave up...");
 
+				// Counted for the sample-claim gate (IM-TIER): the octave-up re-detection on the storage owner.
+				if (deluge::storage::Owner::on_owner()) {
+					importPitchOnOwner_++;
+				}
 				thisSample->workOutMIDINote(doingSingleCycle, minFreqHz, maxFreqHz, false);
 
 				if (thisSample->midiNote != MIDI_NOTE_ERROR) {

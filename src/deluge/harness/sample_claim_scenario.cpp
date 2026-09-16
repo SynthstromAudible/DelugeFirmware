@@ -20,6 +20,7 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
+#include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/ui/browser/browser.h"
@@ -143,6 +144,30 @@ constexpr const char* kRandomizeStallSample = "SAMPLES/RDS/S1.WAV";
 /// The column the gate leg's edit pad presses: empty on every row, inside the clip.
 constexpr int32_t kRandomizeGateEditX = 1;
 
+/// The folder import legs' folders, each its own: the kit import's three files share the prefix "IMK_", which the kit's
+/// drum names drop; the multisample import's three sines sit an octave apart, a second long each.
+constexpr const char* kImportKitFolder = "SAMPLES/IMK";
+constexpr const char* kImportKitFile = "SAMPLES/IMK/IMK_HAT.WAV";
+constexpr const char* kImportMultiFolder = "SAMPLES/IMM";
+constexpr const char* kImportMultiFile = "SAMPLES/IMM/IMM_A2.WAV";
+/// The kit import's drums, in filename order: the first reuses the kit's one drum.
+constexpr const char* kImportKitNames[] = {"HAT", "KICK", "SNARE"};
+constexpr int32_t kImportKitCount = 3;
+/// The multisample import's files, in pitch order.
+constexpr const char* kImportMultiFiles[] = {"SAMPLES/IMM/IMM_A2.WAV", "SAMPLES/IMM/IMM_A3.WAV",
+                                             "SAMPLES/IMM/IMM_A4.WAV"};
+constexpr int32_t kImportMultiCount = 3;
+/// Each range's top note as today's importer sets it, measured: the rounded-down midpoint between detected pitches, and
+/// the top range open-ended.
+constexpr int32_t kImportMultiTopNotes[] = {50, 62, 32767};
+/// The kit import leg's one-drum preset, the fourth the new-kit-track gesture picks up.
+constexpr const char* kImportKitPresetPath = "KITS/SCKIT4.XML";
+constexpr const char* kImportKitDrumName = "IMD1";
+/// The multisample import leg's blank synth preset, the one synth preset on the card.
+constexpr const char* kImportSynthPresetPath = "SYNTHS/SCSYN1.XML";
+/// Both context menus' first option: the kit menu's "Load All", the synth menu's "Multisamples".
+constexpr int32_t kImportOption = 0;
+
 /// How many regions the slice leg cuts the sample into.
 constexpr int32_t kSliceRegions = 4;
 
@@ -172,6 +197,8 @@ enum class Leg : uint8_t {
 	RandomizeOne,
 	RandomizeAll,
 	RandomizeGate,
+	ImportKit,
+	ImportMulti,
 	Stall,
 	RandomizeStall,
 	Done
@@ -187,6 +214,18 @@ int32_t g_waitTicks = 0;
 SoundInstrument* g_synth = nullptr;
 Clip* g_kitClip = nullptr;
 Clip* g_audioClip = nullptr;
+/// The folder import legs' clips: a one-drum kit and a synth, each of its own, so no other leg's clip is changed.
+Clip* g_importKitClip = nullptr;
+Clip* g_importSynthClip = nullptr;
+
+/// Where a folder import's card work ran, read when an import leg acts.
+struct ImportMark {
+	int32_t listings = 0;
+	int32_t loads = 0;
+	int32_t pitch = 0;
+	int32_t sampleIo = 0;
+};
+ImportMark g_importMark{};
 
 /// Where a leg's card work ran, read when the leg acts: the claim's and the slice's loads begun on the storage owner,
 /// the claim's wavetable lookups and pitch detections on the owner, and the interaction tier's blocking sample reads.
@@ -254,6 +293,10 @@ const char* legName(Leg leg) {
 		return "randomize-all";
 	case Leg::RandomizeGate:
 		return "randomize-gate";
+	case Leg::ImportKit:
+		return "import-kit";
+	case Leg::ImportMulti:
+		return "import-multi";
 	case Leg::RandomizeStall:
 		return "randomize-stall";
 	case Leg::Done:
@@ -274,6 +317,12 @@ void onOwner(void (*fn)()) {
 	                                 reinterpret_cast<void*>(fn))) {
 		fail(legName(g_leg), "the storage owner's queue was full");
 	}
+}
+
+ImportMark markImport() {
+	return {sampleBrowser.importListingsOnOwner(), sampleBrowser.importLoadsOnOwner(),
+	        sampleBrowser.importPitchOnOwner(),
+	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
 RandomizeMark markRandomize() {
@@ -413,6 +462,27 @@ bool writeKitPreset(const char* path, const KitPresetDrum* drums, int32_t count)
 	kit->writeToFile(nullptr, currentSong);
 	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</kit>\n");
 	return error == Error::NONE || fail("kit", "the kit preset file could not be closed");
+}
+
+/// A blank synth preset, written through the firmware's own new-synth and save paths (never hand-written: a
+/// content-empty preset corrupts the heap on the load that rejects it). The synth is leaked: it is never added to the
+/// song.
+bool writeSynthPreset(const char* path) {
+	ParamManagerForTimeline paramManager;
+	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	if (instrument == nullptr) {
+		return fail("import-multi", "no synth for the preset");
+	}
+	static_cast<SoundInstrument*>(instrument)->setupAsBlankSynth(&paramManager, false);
+	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
+	                                &paramManager, true);
+	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
+	if (error != Error::NONE) {
+		return fail("import-multi", "the synth preset file could not be created");
+	}
+	instrument->writeToFile(nullptr, currentSong);
+	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</sound>\n");
+	return error == Error::NONE || fail("import-multi", "the synth preset file could not be closed");
 }
 
 // ── Driving the browser ──────────────────────────────────────────────────────
@@ -646,6 +716,29 @@ void prepareLeg() {
 			       static_cast<int>(afterError));
 		});
 		break;
+	case Leg::ImportKit:
+		onOwner([] {
+			// A one-drum kit of its own: the kit menu offers "Load All" only into a kit with one drum.
+			const KitPresetDrum presetDrum{.name = kImportKitDrumName, .samplePath = kKitPresetSample};
+			if (writeKitPreset(kImportKitPresetPath, &presetDrum, 1)) {
+				g_importKitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 5);
+			}
+			printf("SC-PROBE leg=import-kit prepared kitClip=%d\n", g_importKitClip != nullptr ? 1 : 0);
+		});
+		break;
+	case Leg::ImportMulti:
+		onOwner([] {
+			// A synth of its own, from a preset of its own: the multisample import replaces its source's ranges, and
+			// the new-synth-track gesture needs a synth preset nobody in the song is using.
+			if (writeSynthPreset(kImportSynthPresetPath)) {
+				g_importSynthClip = sessionView.reproCreateNewInstrumentClip(OutputType::SYNTH, 6);
+			}
+			printf("SC-PROBE leg=import-multi prepared synthClip=%d type=%d\n", g_importSynthClip != nullptr ? 1 : 0,
+			       (g_importSynthClip != nullptr && g_importSynthClip->output != nullptr)
+			           ? static_cast<int>(g_importSynthClip->output->type)
+			           : -1);
+		});
+		break;
 	case Leg::SliceManual:
 		onOwner([] {
 			// A kit of its own: the region slice left the first with four drums.
@@ -703,6 +796,24 @@ bool openLeg() {
 	case Leg::RandomizeStall:
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
 		return openRandomizeLeg("randomize-stall", nullptr);
+	case Leg::ImportKit: {
+		if (g_importKitClip == nullptr || g_importKitClip->output == nullptr
+		    || g_importKitClip->output->type != OutputType::KIT) {
+			return fail("import-kit", "no kit clip could be created from the import preset");
+		}
+		Drum* drum = static_cast<Kit*>(g_importKitClip->output)->firstDrum;
+		if (drum == nullptr || drum->type != DrumType::SOUND) {
+			return fail("import-kit", "the import kit has no sound drum");
+		}
+		return openBrowser("import-kit", g_importKitClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
+	}
+	case Leg::ImportMulti:
+		if (g_importSynthClip == nullptr || g_importSynthClip->output == nullptr
+		    || g_importSynthClip->output->type != OutputType::SYNTH) {
+			return fail("import-multi", "no synth clip could be created");
+		}
+		static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0].setOscType(OscType::SAMPLE);
+		return openBrowser("import-multi", g_importSynthClip, &instrumentClipView);
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
 			return fail("audioclip", "no audio clip could be created");
@@ -731,6 +842,10 @@ const char* legFile() {
 		return kSynthSample;
 	case Leg::Kit:
 		return kKickSample;
+	case Leg::ImportKit:
+		return kImportKitFile;
+	case Leg::ImportMulti:
+		return kImportMultiFile;
 	case Leg::AudioClip:
 		return kClipSample;
 	case Leg::Slice:
@@ -878,6 +993,22 @@ void actLeg() {
 		const std::string after = selected();
 		g_gateMoved = (after != before);
 		printf("SC-PROBE leg=gate before=%s after=%s\n", before.c_str(), after.c_str());
+		return;
+	}
+	if (g_leg == Leg::ImportKit || g_leg == Leg::ImportMulti) {
+		using namespace deluge::hid::button;
+		g_importMark = markImport();
+		// A long press on Select opens the context menu for the kind of instrument the browser is choosing for.
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		(void)static_cast<UI&>(sampleBrowser).timerCallback();
+		deluge::gui::ContextMenu* menu =
+		    (g_leg == Leg::ImportKit)
+		        ? static_cast<deluge::gui::ContextMenu*>(&deluge::gui::context_menu::sample_browser::kit)
+		        : &deluge::gui::context_menu::sample_browser::synth;
+		const bool menuOnTop = getCurrentUI() == menu;
+		menu->currentOption = kImportOption;
+		printf("SC-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 		return;
 	}
 	if (g_leg == Leg::WaveTable) {
@@ -1140,6 +1271,98 @@ void checkLeg() {
 			       "NoteRow and painted from the slice points as they were when Select was pressed\n",
 			       kManualSliceCount);
 			g_failures++;
+		}
+		break;
+	}
+	case Leg::ImportKit:
+	case Leg::ImportMulti: {
+		const ImportMark now = markImport();
+		const int32_t listings = now.listings - g_importMark.listings;
+		const int32_t loads = now.loads - g_importMark.loads;
+		const int32_t pitch = now.pitch - g_importMark.pitch;
+		const int32_t sampleIo = now.sampleIo - g_importMark.sampleIo;
+		const int32_t files = (g_leg == Leg::ImportKit) ? kImportKitCount : kImportMultiCount;
+		const int32_t wantPitch = (g_leg == Leg::ImportKit) ? 0 : kImportMultiCount;
+		printf("IM-TIER leg=%s listingsOnOwner=%d loadsOnOwner=%d pitchOnOwner=%d sampleIo=%d\n", legName(g_leg),
+		       listings, loads, pitch, sampleIo);
+		if (loads != 0 || sampleIo != 0) {
+			printf("IM-TIER FAIL leg=%s %d of %d file load(s) began on the storage owner and %d sample read(s) went to "
+			       "the "
+			       "card on the interaction tier -- a folder import's loads belong on the interaction tier\n",
+			       legName(g_leg), loads, files, sampleIo);
+			g_failures++;
+		}
+		if (listings != 1 || pitch != wantPitch) {
+			printf(
+			    "IM-TIER FAIL leg=%s listings on the owner %d (want 1), pitch detections on the owner %d (want %d)\n",
+			    legName(g_leg), listings, pitch, wantPitch);
+			g_failures++;
+		}
+		const bool browserClosed = !isUIOpen(&sampleBrowser);
+		if (g_leg == Leg::ImportKit) {
+			auto* kit = static_cast<Kit*>(g_importKitClip->output);
+			int32_t drums = 0;
+			int32_t matched = 0;
+			for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next, drums++) {
+				if (drum->type != DrumType::SOUND) {
+					continue;
+				}
+				auto* soundDrum = static_cast<SoundDrum*>(drum);
+				AudioFileHolder* holder = firstHolder(soundDrum->sources[0]);
+				printf("SC-PROBE leg=import-kit drum=%d name=%s path=%s bound=%d repeat=%d sideChain=%d\n", drums,
+				       soundDrum->drumName.c_str(), holder != nullptr ? holder->filePath.c_str() : "",
+				       (holder != nullptr && holder->audioFile != nullptr) ? 1 : 0,
+				       static_cast<int>(soundDrum->sources[0].repeatMode), soundDrum->sideChainSendLevel);
+				if (drums < kImportKitCount && holder != nullptr && holder->audioFile != nullptr
+				    && soundDrum->drumName == kImportKitNames[drums]
+				    && holder->filePath == std::string{kImportKitFolder} + "/IMK_" + kImportKitNames[drums] + ".WAV") {
+					matched++;
+				}
+			}
+			auto* clip = static_cast<InstrumentClip*>(g_importKitClip);
+			int32_t rowsWithDrum = 0;
+			for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+				if (clip->noteRows[i].drum != nullptr) {
+					rowsWithDrum++;
+				}
+			}
+			printf("IM-KIT drums=%d matched=%d rowsWithDrum=%d edited=%d browserClosed=%d ticks=%d\n", drums, matched,
+			       rowsWithDrum, kit->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+			if (drums != kImportKitCount || matched != kImportKitCount || rowsWithDrum < kImportKitCount
+			    || !kit->editedByUser || !browserClosed) {
+				printf(
+				    "IM-KIT FAIL the kit import did not end with one drum per file in filename order, each named after "
+				    "its file without the prefix, bound to it and with a NoteRow, the kit edited and the browser "
+				    "closed\n");
+				g_failures++;
+			}
+		}
+		else {
+			auto* synth = static_cast<SoundInstrument*>(g_importSynthClip->output);
+			Source& source = synth->sources[0];
+			const int32_t ranges = std::ssize(source.ranges);
+			int32_t matched = 0;
+			for (int32_t i = 0; i < ranges; i++) {
+				auto* range = static_cast<MultisampleRange*>(source.ranges.getElement(i));
+				const bool bound = range->sampleHolder.audioFile != nullptr;
+				printf("SC-PROBE leg=import-multi range=%d top=%d path=%s bound=%d transpose=%d\n", i, range->topNote,
+				       range->sampleHolder.filePath.c_str(), bound ? 1 : 0, range->sampleHolder.transpose);
+				if (i < kImportMultiCount && bound && range->sampleHolder.filePath == kImportMultiFiles[i]
+				    && range->topNote == kImportMultiTopNotes[i]) {
+					matched++;
+				}
+			}
+			printf("IM-MULTI ranges=%d matched=%d repeat=%d osc=%d edited=%d browserClosed=%d ticks=%d\n", ranges,
+			       matched, static_cast<int>(source.repeatMode), static_cast<int>(source.oscType),
+			       synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+			if (ranges != kImportMultiCount || matched != kImportMultiCount
+			    || source.repeatMode != SampleRepeatMode::ONCE || !browserClosed) {
+				printf(
+				    "IM-MULTI FAIL the multisample import did not end with one range per file in pitch order, each "
+				    "bound to its file with the top note today's importer gives it, one-second files playing once, and "
+				    "the browser closed\n");
+				g_failures++;
+			}
 		}
 		break;
 	}
