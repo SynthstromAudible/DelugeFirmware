@@ -27,6 +27,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "hid/button.h"
+#include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
 #include "memory/fast_allocator.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
@@ -80,12 +81,38 @@ constexpr const char* kCloneName = "PLCLN";
 /// The kit clip's own one-drum preset, the one the new-kit-track gesture picks up: it sorts before kKitPreset.
 constexpr const char* kBaseKitPreset = "KITS/PLBASE.XML";
 
+/// The race leg's synth preset: cloned without waiting for the selection's scroll-load.
+constexpr const char* kRacePreset = "SYNTHS/PLRACE.XML";
+constexpr const char* kRaceSample = "SAMPLES/PL/PLRACE.WAV";
+constexpr const char* kRaceName = "PLRACE";
+/// The supersession leg's kits: a heavy one whose samples nothing loads before it, and a light one scrolled on to. Both
+/// sort after PLBASE, so neither is the kit clip's own.
+constexpr const char* kHeavyPreset = "KITS/PLHEAVY.XML";
+constexpr const char* kHeavyName = "PLHEAVY";
+constexpr const char* kHeavySamples[] = {"SAMPLES/PLH/PLHA.WAV", "SAMPLES/PLH/PLHB.WAV", "SAMPLES/PLH/PLHC.WAV"};
+constexpr const char* kHeavyDrumNames[] = {"PLHA", "PLHB", "PLHC"};
+constexpr const char* kLitePreset = "KITS/PLLITE.XML";
+constexpr const char* kLiteName = "PLLITE";
+constexpr const char* kLiteSample = "SAMPLES/PLL/PLLITE.WAV";
+/// The gate and stall legs' synth presets, each naming a sample nothing loads before it.
+constexpr const char* kGatePreset = "SYNTHS/PLGATE.XML";
+constexpr const char* kGateName = "PLGATE";
+constexpr const char* kGateSample = "SAMPLES/PLG/PLGATE.WAV";
+constexpr const char* kStallPreset = "SYNTHS/PLSTALL.XML";
+constexpr const char* kStallName = "PLSTALL";
+constexpr const char* kStallSample = "SAMPLES/PLS/PLSTALL.WAV";
+/// How long the loader holds each load in the supersession and gate legs, and in the stall leg.
+constexpr uint32_t kHoldMs = 400;
+constexpr uint32_t kStallHoldMs = 30000;
+/// Scenario ticks the stall leg's commit may take to give up before it is called wedged: far past its stall bound.
+constexpr int32_t kMaxStallTicks = 20000;
+
 /// Scenario ticks a browser listing may take before it is called wedged.
 constexpr int32_t kMaxListingTicks = 20000;
 /// Scenario ticks a load may take before it is called wedged.
 constexpr int32_t kMaxLegTicks = 2000;
 
-enum class Leg : uint8_t { Synth, Kit, Row, Clone, Done };
+enum class Leg : uint8_t { Synth, Kit, Row, Clone, Race, Supersede, Gate, Stall, Done };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, Settle, Act, Wait };
 
 Leg g_leg = Leg::Synth;
@@ -101,6 +128,20 @@ int32_t g_outputsBefore = 0;
 /// The kit row leg's NoteRow index, recorded when it opens: loading into a row replaces that row's drum, which the kit
 /// then keeps at the end of its list rather than first.
 int32_t g_rowIndex = -1;
+
+/// Whether the supersession leg saw the heavy kit swapped into the kit clip on any tick.
+bool g_heavySwapped = false;
+/// The song's orphaned param managers when the supersession leg selected the heavy kit.
+int32_t g_orphansBefore = 0;
+/// The sample loads begun when the supersession leg selected the heavy kit: it scrolls on only once the heavy kit's own
+/// has begun, so a kit has been parsed and is out loading when the scroll cancels it.
+int32_t g_heavyLoadsBefore = 0;
+/// What the gate leg saw: whether its presses were tried, whether the commit was still out, and whether each was
+/// refused.
+bool g_gateTried = false;
+bool g_gateWhileRunning = false;
+bool g_gateTypeRefused = false;
+bool g_gateEncoderRefused = false;
 
 /// Where a leg's card work ran, read when the leg opens the browser: the loads' document reads and sample loads
 /// begun on the storage owner, all of them, and the interaction tier's blocking sample reads.
@@ -123,6 +164,14 @@ const char* legName(Leg leg) {
 		return "row";
 	case Leg::Clone:
 		return "clone";
+	case Leg::Race:
+		return "race";
+	case Leg::Supersede:
+		return "supersede";
+	case Leg::Gate:
+		return "gate";
+	case Leg::Stall:
+		return "stall";
 	case Leg::Done:
 		return "done";
 	}
@@ -276,7 +325,7 @@ SoundDrum* kitFirstDrum(NoteRow** row, int32_t* rowIndex) {
 /// gestures do.
 bool openLeg() {
 	const char* leg = legName(g_leg);
-	Clip* clip = (g_leg == Leg::Kit || g_leg == Leg::Row) ? g_kitClip : g_synthClip;
+	Clip* clip = (g_leg == Leg::Kit || g_leg == Leg::Row || g_leg == Leg::Supersede) ? g_kitClip : g_synthClip;
 	if (clip == nullptr || clip->output == nullptr) {
 		return fail(leg, "the leg's clip is missing");
 	}
@@ -315,6 +364,14 @@ const char* legPreset() {
 		return kRowPreset;
 	case Leg::Clone:
 		return kClonePreset;
+	case Leg::Race:
+		return kRacePreset;
+	case Leg::Supersede:
+		return kHeavyPreset;
+	case Leg::Gate:
+		return kGatePreset;
+	case Leg::Stall:
+		return kStallPreset;
 	case Leg::Done:
 		break;
 	}
@@ -332,7 +389,12 @@ void prepareLeg() {
 		          && writeSampleSynthPreset(kClonePreset, kCloneSample)
 		          && writeKitPreset(kKitPreset, kKitDrumNames, kKitSamples, kKitDrumCount);
 		const char* baseName = "PLBASE";
-		ok = ok && writeKitPreset(kBaseKitPreset, &baseName, &kBaseKitSample, 1);
+		const char* liteName = kLiteName;
+		ok = ok && writeKitPreset(kBaseKitPreset, &baseName, &kBaseKitSample, 1)
+		     && writeSampleSynthPreset(kRacePreset, kRaceSample) && writeSampleSynthPreset(kGatePreset, kGateSample)
+		     && writeSampleSynthPreset(kStallPreset, kStallSample)
+		     && writeKitPreset(kHeavyPreset, kHeavyDrumNames, kHeavySamples, 3)
+		     && writeKitPreset(kLitePreset, &liteName, &kLiteSample, 1);
 		if (ok) {
 			// The new-kit-track gesture, which takes the first kit preset nobody in the song is using: PLBASE.
 			g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 1);
@@ -349,14 +411,90 @@ void prepareLeg() {
 	});
 }
 
+/// Whether the leg holds the loader from its selection on, and so acts without waiting for the scroll-load: the race
+/// leg because not waiting is the point, the held legs because the wait is the hold. The supersession leg waits only
+/// for the heavy kit's sample load to begin (see g_heavyLoadsBefore).
+bool actsWithoutSettling() {
+	return g_leg == Leg::Race || g_leg == Leg::Gate || g_leg == Leg::Stall;
+}
+
+/// Every instrument in the song, active or hibernating, named @p name.
+int32_t instrumentsNamed(const char* name) {
+	int32_t found = 0;
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+		found += (output->name == name) ? 1 : 0;
+	}
+	for (Output* output = currentSong->firstHibernatingInstrument; output != nullptr; output = output->next) {
+		found += (output->name == name) ? 1 : 0;
+	}
+	return found;
+}
+
+/// Whether @p owner is the song's: one of its outputs, active or hibernating, or a drum of one of its kits.
+bool ownedBySong(const ModControllableAudio* owner) {
+	for (Output* list : {currentSong->firstOutput, static_cast<Output*>(currentSong->firstHibernatingInstrument)}) {
+		for (Output* output = list; output != nullptr; output = output->next) {
+			if (static_cast<ModControllableAudio*>(output->toModControllable()) == owner) {
+				return true;
+			}
+			if (output->type == OutputType::KIT) {
+				for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+					if (drum->type == DrumType::SOUND
+					    && static_cast<ModControllableAudio*>(static_cast<SoundDrum*>(drum)) == owner) {
+						return true;
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
+/// The song's backed-up param managers whose owner is not the song's: what an Instrument parsed and then dropped
+/// without being deleted leaves behind.
+int32_t orphanedParamManagers() {
+	int32_t orphans = 0;
+	for (const auto& [key, paramManager] : currentSong->backedUpParamManagers) {
+		orphans += ownedBySong(key.first) ? 0 : 1;
+	}
+	return orphans;
+}
+
+/// The gate leg's first wait tick: while the commit is still out, an output-type button and an encoder turn.
+void tickGate() {
+	if (g_gateTried) {
+		return;
+	}
+	g_gateTried = true;
+	g_gateWhileRunning = currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	if (!g_gateWhileRunning) {
+		return;
+	}
+	using namespace deluge::hid::button;
+	const OutputType typeBefore = Browser::outputTypeToLoad;
+	(void)getCurrentUI()->buttonAction(KIT, true, false);
+	(void)getCurrentUI()->buttonAction(KIT, false, false);
+	g_gateTypeRefused = Browser::outputTypeToLoad == typeBefore;
+	const FileItem* item = loadInstrumentPresetUI.getCurrentFileItem();
+	const std::string before = item != nullptr ? item->filename.c_str() : "";
+	(void)getCurrentUI()->selectEncoderAction(-1);
+	item = loadInstrumentPresetUI.getCurrentFileItem();
+	g_gateEncoderRefused = before == (item != nullptr ? item->filename.c_str() : "");
+}
+
 void actLeg() {
 	using namespace deluge::hid::button;
-	if (g_leg == Leg::Clone) {
+	if (g_leg == Leg::Supersede) {
+		// On to the light kit before the heavy kit's samples land.
+		(void)loadInstrumentPresetUI.setFileByFullPath(OutputType::NONE, kLitePreset);
+		return;
+	}
+	if (g_leg == Leg::Clone || g_leg == Leg::Race) {
 		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
 		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 		(void)static_cast<UI&>(loadInstrumentPresetUI).timerCallback();
 		const bool menuOnTop = getCurrentUI() == &deluge::gui::context_menu::loadInstrumentPreset;
-		printf("PL-SETUP leg=clone menuOnTop=%d\n", menuOnTop ? 1 : 0);
+		printf("PL-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
 		if (menuOnTop) {
 			pressSelect();
 		}
@@ -366,6 +504,14 @@ void actLeg() {
 }
 
 bool legEnded() {
+	if (g_leg == Leg::Supersede) {
+		// The light kit's load settled, with the browser left open on it.
+		return !Browser::isListingInProgress() && !loadInstrumentPresetUI.scrollLoadInFlight()
+		       && static_cast<Instrument*>(g_kitClip->output)->name == kLiteName;
+	}
+	if (g_leg == Leg::Gate) {
+		return g_gateTried && !isUIOpen(&loadInstrumentPresetUI);
+	}
 	return !isUIOpen(&loadInstrumentPresetUI);
 }
 
@@ -402,6 +548,81 @@ void checkLeg() {
 	checkTier();
 	const bool browserClosed = !isUIOpen(&loadInstrumentPresetUI);
 	switch (g_leg) {
+	case Leg::Race: {
+		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
+		const bool isSynth = instrument->type == OutputType::SYNTH;
+		AudioFileHolder* holder =
+		    isSynth ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0]) : nullptr;
+		const bool renamed = instrument->name != kRaceName && instrument->name.starts_with(kRaceName);
+		const bool bound = boundTo(holder, kRaceSample);
+		printf("PL-PROBE leg=race name=%s edited=%d\n", instrument->name.c_str(), instrument->editedByUser ? 1 : 0);
+		printf("PL-RACE renamed=%d bound=%d edited=%d browserClosed=%d ticks=%d\n", renamed ? 1 : 0, bound ? 1 : 0,
+		       instrument->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+		if (!isSynth || !renamed || !bound || !instrument->editedByUser || !browserClosed) {
+			printf("PL-RACE FAIL a clone made while the selection's scroll-load was still out did not survive it\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::Supersede: {
+		deluge_audio_load_set_latency_ms(0);
+		auto* kit = static_cast<Instrument*>(g_kitClip->output);
+		const bool lite = kit->name == kLiteName;
+		const int32_t heavyLeft = instrumentsNamed(kHeavyName);
+		const bool outputsKept = countOutputs() == g_outputsBefore;
+		const int32_t orphansLeft = orphanedParamManagers() - g_orphansBefore;
+		printf("PL-SUPERSEDE lite=%d heavySwapped=%d heavyLeft=%d orphansLeft=%d outputsKept=%d ticks=%d\n",
+		       lite ? 1 : 0, g_heavySwapped ? 1 : 0, heavyLeft, orphansLeft, outputsKept ? 1 : 0, g_waitTicks);
+		if (!lite || g_heavySwapped || heavyLeft != 0 || orphansLeft != 0 || !outputsKept) {
+			printf("PL-SUPERSEDE FAIL a scroll that moved on before the heavy kit's samples landed still swapped the "
+			       "heavy "
+			       "kit in, or left it in the song\n");
+			g_failures++;
+		}
+		loadInstrumentPresetUI.close();
+		break;
+	}
+	case Leg::Gate: {
+		deluge_audio_load_set_latency_ms(0);
+		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
+		const bool loaded = instrument->name == kGateName;
+		printf("PL-GATE whileRunning=%d typeRefused=%d encoderRefused=%d released=%d loaded=%d browserClosed=%d "
+		       "ticks=%d\n",
+		       g_gateWhileRunning ? 1 : 0, g_gateTypeRefused ? 1 : 0, g_gateEncoderRefused ? 1 : 0, released ? 1 : 0,
+		       loaded ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
+		if (!g_gateWhileRunning) {
+			printf(
+			    "PL-GATE FAIL the commit had ended before its held sample could land: a commit must wait on its load "
+			    "with the gate closed\n");
+			g_failures++;
+		}
+		else if (!g_gateTypeRefused || !g_gateEncoderRefused || !released || !loaded || !browserClosed) {
+			printf(
+			    "PL-GATE FAIL an output-type button or an encoder turn was taken while the commit was out, or the gate "
+			    "stayed closed, or the commit did not finish\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::Stall: {
+		deluge_audio_load_set_latency_ms(0);
+		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
+		const bool swapped = instrument->name == kStallName;
+		AudioFileHolder* holder = (instrument->type == OutputType::SYNTH)
+		                              ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0])
+		                              : nullptr;
+		const bool holderEmpty = holder != nullptr && holder->audioFile == nullptr;
+		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		printf("PL-STALL swapped=%d holderEmpty=%d released=%d browserClosed=%d\n", swapped ? 1 : 0,
+		       holderEmpty ? 1 : 0, released ? 1 : 0, browserClosed ? 1 : 0);
+		if (!swapped || !holderEmpty || !released || !browserClosed) {
+			printf("PL-STALL FAIL a commit whose sample load never answered did not keep its instrument: it must be "
+			       "swapped in with that holder empty, the gate released and the browser closed\n");
+			g_failures++;
+		}
+		break;
+	}
 	case Leg::Synth:
 	case Leg::Clone: {
 		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
@@ -525,6 +746,9 @@ void runTick() {
 		break;
 	case Step::Listing:
 	case Step::SelectWait:
+		if (g_leg == Leg::Supersede && static_cast<Instrument*>(g_kitClip->output)->name == kHeavyName) {
+			g_heavySwapped = true;
+		}
 		if (listingBusy()) {
 			if (++g_waitTicks > kMaxListingTicks) {
 				fail(legName(g_leg), "a browser listing never finished");
@@ -541,12 +765,13 @@ void runTick() {
 		           ? loadInstrumentPresetUI.getCurrentFileItem()->filename.c_str()
 		           : "");
 		g_waitTicks = 0;
-		g_step = Step::Settle;
+		g_step = actsWithoutSettling() ? Step::Act : Step::Settle;
 		break;
 	case Step::Settle:
 		// The load the selection started, left to finish as a user waits for it before pressing anything: a
 		// scroll-load still queued on the owner would otherwise land after the leg's own load.
-		if (loadInstrumentPresetUI.scrollLoadInFlight()) {
+		if (g_leg == Leg::Supersede ? markTier().sampleLoads == g_heavyLoadsBefore
+		                            : loadInstrumentPresetUI.scrollLoadInFlight()) {
 			if (++g_waitTicks > kMaxLegTicks) {
 				fail(legName(g_leg), "the selection's scroll-load never finished");
 				nextLeg();
@@ -558,6 +783,20 @@ void runTick() {
 		g_step = Step::Act;
 		break;
 	case Step::Select:
+		// The held legs hold the loader from the selection on, so the scroll-load it starts is held too.
+		if (g_leg == Leg::Supersede || g_leg == Leg::Gate) {
+			deluge_audio_load_set_latency_ms(kHoldMs);
+		}
+		else if (g_leg == Leg::Stall) {
+			deluge_audio_load_set_latency_ms(kStallHoldMs);
+		}
+		g_heavySwapped = false;
+		g_orphansBefore = orphanedParamManagers();
+		g_heavyLoadsBefore = markTier().sampleLoads;
+		g_gateTried = false;
+		g_gateWhileRunning = false;
+		g_gateTypeRefused = false;
+		g_gateEncoderRefused = false;
 		(void)loadInstrumentPresetUI.setFileByFullPath(OutputType::NONE, legPreset());
 		g_waitTicks = 0;
 		g_step = Step::SelectWait;
@@ -568,7 +807,16 @@ void runTick() {
 		g_step = Step::Wait;
 		break;
 	case Step::Wait:
-		if (legEnded() || ++g_waitTicks > kMaxLegTicks) {
+		if (g_leg == Leg::Supersede) {
+			listingBusy();
+			if (static_cast<Instrument*>(g_kitClip->output)->name == kHeavyName) {
+				g_heavySwapped = true;
+			}
+		}
+		if (g_leg == Leg::Gate) {
+			tickGate();
+		}
+		if (legEnded() || ++g_waitTicks > (g_leg == Leg::Stall ? kMaxStallTicks : kMaxLegTicks)) {
 			checkLeg();
 			nextLeg();
 		}

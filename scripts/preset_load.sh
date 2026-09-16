@@ -16,6 +16,14 @@
 #              sample bound, edited, and the browser closed.
 #   PL-TIER    per load: documents read and samples loaded, none of it begun on the storage owner, and no sample read
 #              from the card on the interaction tier.
+#   PL-RACE    a clone made straight after the selection, without waiting for its scroll-load: the clone survives.
+#   PL-SUPERSEDE
+#              the loader holding every sample, a scroll onto a heavy kit and on to a light one: the heavy kit never
+#              swapped in, nothing of it left in the song, the light kit loaded.
+#   PL-GATE    a commit whose sample the loader holds: an output-type button and an encoder turn refused while it is
+#              out; once it ends, the gate released, the preset loaded and the browser closed.
+#   PL-STALL   a commit whose sample load is held past the stall bound: the synth swapped in with that holder empty,
+#              the gate released and the browser closed.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #
@@ -80,7 +88,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RESULT; do
+for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL PL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^PL-' "$OUT/run.txt"

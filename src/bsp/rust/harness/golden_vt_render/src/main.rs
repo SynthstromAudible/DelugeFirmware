@@ -1795,11 +1795,27 @@ async fn run_sample_claim_scenario(done: &'static AtomicBool) {
 /// - `PLSYN.WAV`: the synth leg's preset's sample; `PLROW.WAV` the kit row leg's; `PLCLN.WAV` the clone leg's.
 /// - `PLKA.WAV`, `PLKB.WAV`, `PLKC.WAV`: the kit leg's preset's three drums.
 /// - `PLBASE.WAV`: the one drum of the kit clip's own preset, the one the new-kit-track gesture picks up.
+/// - `PLRACE.WAV`: the race leg's preset's sample.
+/// - `SAMPLES/PLH/PLHA..PLHC.WAV`: the supersession leg's heavy kit, loaded by nothing before it;
+///   `SAMPLES/PLL/PLLITE.WAV` its light kit.
+/// - `SAMPLES/PLG/PLGATE.WAV` and `SAMPLES/PLS/PLSTALL.WAV`: the gate and stall legs' held samples.
 fn pack_preset_load_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-preset-load-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES").join("PL");
-    for dir in [&samples, &root.join("SYNTHS"), &root.join("KITS")] {
+    let heavy = root.join("SAMPLES").join("PLH");
+    let lite = root.join("SAMPLES").join("PLL");
+    let gate = root.join("SAMPLES").join("PLG");
+    let stall = root.join("SAMPLES").join("PLS");
+    for dir in [
+        &samples,
+        &heavy,
+        &lite,
+        &gate,
+        &stall,
+        &root.join("SYNTHS"),
+        &root.join("KITS"),
+    ] {
         std::fs::create_dir_all(dir).expect("creating the preset-load fixture directories");
     }
     write_sine_wav(&samples.join("PLSYN.WAV"), 1, 22_050, 440.0);
@@ -1809,6 +1825,13 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     write_test_wav(&samples.join("PLKB.WAV"), 1, 16, 2560, 0x92);
     write_test_wav(&samples.join("PLKC.WAV"), 1, 16, 3072, 0x93);
     write_test_wav(&samples.join("PLBASE.WAV"), 1, 16, 2048, 0x94);
+    write_sine_wav(&samples.join("PLRACE.WAV"), 1, 22_050, 660.0);
+    write_test_wav(&heavy.join("PLHA.WAV"), 1, 16, 8192, 0x95);
+    write_test_wav(&heavy.join("PLHB.WAV"), 1, 16, 8192, 0x96);
+    write_test_wav(&heavy.join("PLHC.WAV"), 1, 16, 8192, 0x97);
+    write_test_wav(&lite.join("PLLITE.WAV"), 1, 16, 2048, 0x98);
+    write_sine_wav(&gate.join("PLGATE.WAV"), 1, 22_050, 220.0);
+    write_sine_wav(&stall.join("PLSTALL.WAV"), 1, 22_050, 110.0);
     sd_image::pack_image(&root)
 }
 
