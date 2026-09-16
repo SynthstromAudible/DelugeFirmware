@@ -34,6 +34,11 @@
 #              that folder, and the muted and empty rows must be untouched.
 #   RD-TIER    per randomizer leg: every directory scan ran on the storage owner, no load began there, and no sample
 #              was read from the card on the interaction tier.
+#   RD-GATE    a randomize whose load the loader holds: while the walk is out, no second walk may start and an edit
+#              pad must be refused; once it ends, the gate released and the same pad taken.
+#   RD-STALL   a randomize over three rows whose second load is held past the stall bound: the walk must end there,
+#              with the first row kept on its file, the second left unbound, the third untouched, and the gate
+#              released.
 #   SC-SLICE-MANUAL
 #              a second kit sliced in manual mode into three slices, the live slice points changed straight after
 #              Select: every drum bound to the sliced sample, with a NoteRow, and painted from the points as they
@@ -102,7 +107,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^(SC|RD)-' "$OUT/run.txt"

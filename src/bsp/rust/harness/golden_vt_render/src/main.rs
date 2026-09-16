@@ -1656,12 +1656,27 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 /// - `SAMPLES/SCSLICE.WAV`: one second long, sliced into four regions of 250 ms each.
 /// - `SAMPLES/RD/RD1.WAV`, `RD2.WAV` and `RD3.WAV`: the Drum Randomizer's folder. Its kit preset names the first, and
 ///   the randomizer picks from the folder a drum's sample sits in, so these three are reachable by no other leg.
+/// - `SAMPLES/RDG/G1.WAV`..`G3.WAV`: the randomizer gate leg's folder, loaded by nothing before it, so its load reaches
+///   the loader's hold.
+/// - `SAMPLES/RDK/K1.WAV`: the randomizer stall leg's first row, alone in its folder and loaded before the hold.
+/// - `SAMPLES/RDS/S1.WAV`..`S3.WAV`: the stall leg's second row, loaded by nothing, so its load is held past the stall
+///   bound.
 fn pack_sample_claim_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-sample-claim-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
     let randomize = samples.join("RD");
-    for dir in [&samples, &randomize, &root.join("KITS")] {
+    let randomize_gate = samples.join("RDG");
+    let randomize_kept = samples.join("RDK");
+    let randomize_stall = samples.join("RDS");
+    for dir in [
+        &samples,
+        &randomize,
+        &randomize_gate,
+        &randomize_kept,
+        &randomize_stall,
+        &root.join("KITS"),
+    ] {
         std::fs::create_dir_all(dir).expect("creating the sample-claim fixture directories");
     }
     write_sine_wav(&samples.join("SCSYN.WAV"), 1, 22_050, 440.0);
@@ -1676,6 +1691,13 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     write_test_wav(&randomize.join("RD1.WAV"), 1, 16, 2048, 0x71);
     write_test_wav(&randomize.join("RD2.WAV"), 1, 16, 2560, 0x72);
     write_test_wav(&randomize.join("RD3.WAV"), 1, 16, 3072, 0x73);
+    write_test_wav(&randomize_gate.join("G1.WAV"), 1, 16, 2048, 0x74);
+    write_test_wav(&randomize_gate.join("G2.WAV"), 1, 16, 2560, 0x75);
+    write_test_wav(&randomize_gate.join("G3.WAV"), 1, 16, 3072, 0x76);
+    write_test_wav(&randomize_kept.join("K1.WAV"), 1, 16, 2048, 0x77);
+    write_test_wav(&randomize_stall.join("S1.WAV"), 1, 16, 2048, 0x78);
+    write_test_wav(&randomize_stall.join("S2.WAV"), 1, 16, 2560, 0x79);
+    write_test_wav(&randomize_stall.join("S3.WAV"), 1, 16, 3072, 0x7a);
     sd_image::pack_image(&root)
 }
 

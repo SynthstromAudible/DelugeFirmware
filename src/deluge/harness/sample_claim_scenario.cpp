@@ -131,6 +131,17 @@ constexpr int32_t kRandomizeDrumCount = 4;
 /// How many of those rows an affect-entire randomize may touch: the unmuted ones that have notes.
 constexpr int32_t kRandomizeEligible = 2;
 
+/// The gate leg's selected drum is pointed into a folder of files nothing has loaded, so its randomized load reaches
+/// the loader, whose hold keeps the walk out while the second press and the edit pad arrive.
+constexpr const char* kRandomizeGateSample = "SAMPLES/RDG/G1.WAV";
+/// The stall leg's first row: alone in its folder, and loaded before the hold, so the walk lands it without the loader.
+constexpr const char* kRandomizeStallKept = "SAMPLES/RDK/K1.WAV";
+constexpr const char* kRandomizeStallKeptName = "K1";
+/// The stall leg's second row: a folder of files nothing has loaded, so its load is held past the stall bound.
+constexpr const char* kRandomizeStallSample = "SAMPLES/RDS/S1.WAV";
+/// The column the gate leg's edit pad presses: empty on every row, inside the clip.
+constexpr int32_t kRandomizeGateEditX = 1;
+
 /// How many regions the slice leg cuts the sample into.
 constexpr int32_t kSliceRegions = 4;
 
@@ -159,7 +170,9 @@ enum class Leg : uint8_t {
 	SliceManual,
 	RandomizeOne,
 	RandomizeAll,
+	RandomizeGate,
 	Stall,
+	RandomizeStall,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
@@ -238,6 +251,10 @@ const char* legName(Leg leg) {
 		return "randomize-one";
 	case Leg::RandomizeAll:
 		return "randomize-all";
+	case Leg::RandomizeGate:
+		return "randomize-gate";
+	case Leg::RandomizeStall:
+		return "randomize-stall";
 	case Leg::Done:
 		return "done";
 	}
@@ -577,6 +594,57 @@ void prepareLeg() {
 			       runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::DrumRandomizer) ? 1 : 0);
 		});
 		break;
+	case Leg::RandomizeGate:
+		onOwner([] {
+			SoundDrum* drum = kitDrum();
+			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+			if (holder == nullptr) {
+				fail("randomize-gate", "the randomizer kit's first drum has no holder");
+				return;
+			}
+			holder->setAudioFile(nullptr);
+			holder->filePath = kRandomizeGateSample;
+		});
+		break;
+	case Leg::RandomizeStall:
+		onOwner([] {
+			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
+				fail("randomize-stall", "the randomizer kit clip is missing");
+				return;
+			}
+			Drum* first = static_cast<Kit*>(g_kitClip->output)->firstDrum;
+			Drum* second = (first != nullptr) ? first->next : nullptr;
+			Drum* third = (second != nullptr) ? second->next : nullptr;
+			AudioFileHolder* kept =
+			    (first != nullptr) ? firstHolder(static_cast<SoundDrum*>(first)->sources[0]) : nullptr;
+			AudioFileHolder* held =
+			    (second != nullptr) ? firstHolder(static_cast<SoundDrum*>(second)->sources[0]) : nullptr;
+			AudioFileHolder* after =
+			    (third != nullptr) ? firstHolder(static_cast<SoundDrum*>(third)->sources[0]) : nullptr;
+			NoteRow* afterRow =
+			    (third != nullptr) ? static_cast<InstrumentClip*>(g_kitClip)->getNoteRowForDrum(third) : nullptr;
+			if (kept == nullptr || held == nullptr || after == nullptr || afterRow == nullptr) {
+				fail("randomize-stall", "the randomizer kit's first three drums have no holders or rows");
+				return;
+			}
+			kept->setAudioFile(nullptr);
+			kept->filePath = kRandomizeStallKept;
+			// Loaded now, before the hold: the first row's only choice is already in memory when the walk reaches it.
+			const Error error =
+			    kept->loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
+			held->setAudioFile(nullptr);
+			held->filePath = kRandomizeStallSample;
+			// The third row: eligible now, and pointing at the first row's file, already in memory.
+			after->setAudioFile(nullptr);
+			after->filePath = kRandomizeStallKept;
+			const Error afterError =
+			    after->loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
+			afterRow->muted = false;
+			printf("SC-PROBE leg=randomize-stall prepared keptBound=%d error=%d afterBound=%d afterError=%d\n",
+			       kept->audioFile != nullptr ? 1 : 0, static_cast<int>(error), after->audioFile != nullptr ? 1 : 0,
+			       static_cast<int>(afterError));
+		});
+		break;
 	case Leg::SliceManual:
 		onOwner([] {
 			// A kit of its own: the region slice left the first with four drums.
@@ -628,6 +696,12 @@ bool openLeg() {
 		return openRandomizeLeg("randomize-one", kitDrum());
 	case Leg::RandomizeAll:
 		return openRandomizeLeg("randomize-all", nullptr);
+	case Leg::RandomizeGate:
+		deluge_audio_load_set_latency_ms(kGateHoldMs);
+		return openRandomizeLeg("randomize-gate", kitDrum());
+	case Leg::RandomizeStall:
+		deluge_audio_load_set_latency_ms(kStallHoldMs);
+		return openRandomizeLeg("randomize-stall", nullptr);
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
 			return fail("audioclip", "no audio clip could be created");
@@ -663,6 +737,8 @@ const char* legFile() {
 		return kSliceSample;
 	case Leg::RandomizeOne:
 	case Leg::RandomizeAll:
+	case Leg::RandomizeGate:
+	case Leg::RandomizeStall:
 		// No browser listing: the randomizer picks the file itself, from the folder the drum's sample sits in.
 		return kRandomizeFirstSample;
 	case Leg::Done:
@@ -672,9 +748,10 @@ const char* legFile() {
 }
 
 /// The claim's Select press, or for the slice leg the slicer opened on the selected file and its commit.
-/// Whether the current leg is one of the two randomizer legs.
+/// Whether the current leg is one of the randomizer legs.
 bool isRandomize() {
-	return g_leg == Leg::RandomizeOne || g_leg == Leg::RandomizeAll;
+	return g_leg == Leg::RandomizeOne || g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeGate
+	       || g_leg == Leg::RandomizeStall;
 }
 
 /// Whether the current leg is one of the two supersede legs.
@@ -687,20 +764,86 @@ const char* supersedeSecond() {
 	return (g_leg == Leg::Supersede) ? kSupersedeLanded : kSupersedeLoading;
 }
 
+/// What the gate leg saw: whether its presses were tried, whether the walk was still out when they were, whether each
+/// was refused, and whether the edit pad was taken once the walk had ended.
+bool g_rdGateTried = false;
+bool g_rdGateWhileRunning = false;
+bool g_rdGateSecondWalkRefused = false;
+bool g_rdGateEditRefused = false;
+bool g_rdGateEditTakenAfter = false;
+
+/// Every note in the randomizer kit clip's rows.
+int32_t kitClipNotes() {
+	auto* clip = static_cast<InstrumentClip*>(g_kitClip);
+	int32_t notes = 0;
+	for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+		notes += static_cast<int32_t>(clip->noteRows[i].notes.size());
+	}
+	return notes;
+}
+
+/// The display row showing the selected drum, or -1.
+int32_t selectedDrumY() {
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		NoteRow* row = static_cast<InstrumentClip*>(g_kitClip)->getNoteRowOnScreen(y, currentSong);
+		if (row != nullptr && row->drum == kitDrum()) {
+			return y;
+		}
+	}
+	return -1;
+}
+
+/// One press and release of the gate leg's edit pad; whether it changed the clip's notes.
+bool pressGateEditPad() {
+	const int32_t y = selectedDrumY();
+	if (y < 0) {
+		return false;
+	}
+	const int32_t before = kitClipNotes();
+	(void)instrumentClipView.padAction(kRandomizeGateEditX, y, 1);
+	(void)instrumentClipView.padAction(kRandomizeGateEditX, y, 0);
+	return kitClipNotes() != before;
+}
+
+/// The gate leg's first wait tick: while the walk is still out, the randomizer pressed again and the edit pad.
+void tickRandomizeGate() {
+	if (g_rdGateTried) {
+		return;
+	}
+	g_rdGateTried = true;
+	g_rdGateWhileRunning = currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	if (!g_rdGateWhileRunning) {
+		return;
+	}
+	using namespace deluge::hid::button;
+	const int32_t scansBefore = markRandomize().scans;
+	(void)Buttons::buttonAction(LOAD, true, false);
+	(void)instrumentClipView.padAction(15, 2, 1);
+	(void)instrumentClipView.padAction(15, 2, 0);
+	(void)Buttons::buttonAction(LOAD, false, false);
+	g_rdGateSecondWalkRefused = markRandomize().scans == scansBefore;
+	g_rdGateEditRefused = !pressGateEditPad();
+}
+
 void actLeg() {
 	if (isRandomize()) {
 		using namespace deluge::hid::button;
 		g_randomizeMark = markRandomize();
 		recordRandomizeRows();
+		g_rdGateTried = false;
+		g_rdGateWhileRunning = false;
+		g_rdGateSecondWalkRefused = false;
+		g_rdGateEditRefused = false;
+		g_rdGateEditTakenAfter = false;
 		// The gesture: LOAD held (which the randomizer reads through Buttons::isButtonPressed), AFFECT_ENTIRE held too
 		// for the all-rows leg, then the pad. Buttons::buttonAction is what sets the held state a press reads.
 		(void)Buttons::buttonAction(LOAD, true, false);
-		if (g_leg == Leg::RandomizeAll) {
+		if (g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeStall) {
 			(void)Buttons::buttonAction(AFFECT_ENTIRE, true, false);
 		}
 		(void)instrumentClipView.padAction(15, 2, 1);
 		(void)instrumentClipView.padAction(15, 2, 0);
-		if (g_leg == Leg::RandomizeAll) {
+		if (g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeStall) {
 			(void)Buttons::buttonAction(AFFECT_ENTIRE, false, false);
 		}
 		(void)Buttons::buttonAction(LOAD, false, false);
@@ -784,8 +927,10 @@ void actLeg() {
 /// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
 bool legEnded() {
 	if (isRandomize()) {
-		// The gesture closes the gate and the walk releases it: the leg ends when the mode is gone.
-		return currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		// The gesture closes the gate and the walk releases it: the leg ends when the mode is gone -- for the gate leg,
+		// once its presses have been tried.
+		return (g_leg != Leg::RandomizeGate || g_rdGateTried)
+		       && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	}
 	if (isSupersede()) {
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
@@ -997,6 +1142,53 @@ void checkLeg() {
 		}
 		break;
 	}
+	case Leg::RandomizeGate: {
+		deluge_audio_load_set_latency_ms(0);
+		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		if (released && g_rdGateWhileRunning) {
+			// The same pad, now the gate is open: taken, then taken away again so the clip is as it was.
+			g_rdGateEditTakenAfter = pressGateEditPad();
+			(void)pressGateEditPad();
+		}
+		printf("RD-GATE whileRunning=%d secondWalkRefused=%d editPadRefused=%d editPadTakenAfter=%d released=%d "
+		       "ticks=%d\n",
+		       g_rdGateWhileRunning ? 1 : 0, g_rdGateSecondWalkRefused ? 1 : 0, g_rdGateEditRefused ? 1 : 0,
+		       g_rdGateEditTakenAfter ? 1 : 0, released ? 1 : 0, g_waitTicks);
+		if (!g_rdGateWhileRunning) {
+			printf("RD-GATE FAIL the walk had ended before its held load could land: a randomize must wait on its load "
+			       "with the gate closed\n");
+			g_failures++;
+		}
+		else if (!g_rdGateSecondWalkRefused || !g_rdGateEditRefused || !g_rdGateEditTakenAfter || !released) {
+			printf(
+			    "RD-GATE FAIL a second randomize or the edit pad was taken while the walk was out, or the gate stayed "
+			    "closed once it ended\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::RandomizeStall: {
+		deluge_audio_load_set_latency_ms(0);
+		auto* first = static_cast<SoundDrum*>(static_cast<Kit*>(g_kitClip->output)->firstDrum);
+		auto* second = static_cast<SoundDrum*>(first->next);
+		auto* third = static_cast<SoundDrum*>(second->next);
+		AudioFileHolder* kept = firstHolder(first->sources[0]);
+		AudioFileHolder* held = firstHolder(second->sources[0]);
+		const bool keptFirst = kept != nullptr && kept->audioFile != nullptr && kept->filePath == kRandomizeStallKept
+		                       && first->drumName == kRandomizeStallKeptName;
+		const bool secondUnbound = held != nullptr && held->audioFile == nullptr;
+		// Untouched: still named as the preset named it, which a randomize would have replaced with its file's name.
+		const bool thirdUntouched = third->drumName == kRandomizeDrums[2].name;
+		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		printf("RD-STALL keptFirst=%d secondUnbound=%d thirdUntouched=%d released=%d\n", keptFirst ? 1 : 0,
+		       secondUnbound ? 1 : 0, thirdUntouched ? 1 : 0, released ? 1 : 0);
+		if (!keptFirst || !secondUnbound || !thirdUntouched || !released) {
+			printf("RD-STALL FAIL a walk whose second row's load never answered did not stop there: the first row must "
+			       "keep its file, the second must be left unbound, the third untouched, and the gate released\n");
+			g_failures++;
+		}
+		break;
+	}
 	case Leg::RandomizeOne:
 	case Leg::RandomizeAll: {
 		const RandomizeMark now = markRandomize();
@@ -1166,11 +1358,21 @@ void runTick() {
 		if (isSupersede()) {
 			tickSupersede();
 		}
+		if (isRandomize() && getCurrentUI() == &instrumentClipView) {
+			// A randomize may walk on the clip view's graphics routine: ticked here, as the slice legs tick the
+			// slicer's.
+			instrumentClipView.graphicsRoutine();
+			if (g_leg == Leg::RandomizeGate) {
+				tickRandomizeGate();
+			}
+		}
 		if ((g_leg == Leg::Slice || g_leg == Leg::SliceManual) && getCurrentUI() == &slicer) {
 			// The slice ends on the slicer's graphics routine: ticked here, as the preview wait ticks the browser's.
 			slicer.graphicsRoutine();
 		}
-		if (legEnded() || ++g_waitTicks > (g_leg == Leg::Stall ? kMaxStallTicks : kMaxLegTicks)) {
+		if (legEnded()
+		    || ++g_waitTicks
+		           > ((g_leg == Leg::Stall || g_leg == Leg::RandomizeStall) ? kMaxStallTicks : kMaxLegTicks)) {
 			checkLeg();
 			nextLeg();
 		}
