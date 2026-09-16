@@ -1663,6 +1663,9 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 ///   bound.
 /// - `SAMPLES/IMK/IMK_HAT.WAV`, `IMK_KICK.WAV` and `IMK_SNARE.WAV`: the kit folder import's folder, whose shared prefix
 ///   the drum names drop.
+/// - `SAMPLES/IMG/IMG_A.WAV`..`IMG_C.WAV`: the import gate leg's folder, loaded by nothing before it.
+/// - `SAMPLES/IMS/IMS_A.WAV`..`IMS_C.WAV`: the import stall leg's folder; the first and last are loaded in its
+///   preparation, and the middle one is held.
 /// - `SYNTHS/`: empty; the multisample import leg writes its blank synth preset there.
 /// - `SAMPLES/IMM/IMM_A2.WAV`, `IMM_A3.WAV` and `IMM_A4.WAV`: the multisample folder import's folder, one-second sines
 ///   at 110, 220 and 440 Hz.
@@ -1676,6 +1679,8 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     let randomize_stall = samples.join("RDS");
     let import_kit = samples.join("IMK");
     let import_multi = samples.join("IMM");
+    let import_gate = samples.join("IMG");
+    let import_stall = samples.join("IMS");
     for dir in [
         &samples,
         &randomize,
@@ -1684,6 +1689,8 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
         &randomize_stall,
         &import_kit,
         &import_multi,
+        &import_gate,
+        &import_stall,
         &root.join("KITS"),
         &root.join("SYNTHS"),
     ] {
@@ -1714,6 +1721,12 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     write_sine_wav(&import_multi.join("IMM_A2.WAV"), 1, 44_100, 110.0);
     write_sine_wav(&import_multi.join("IMM_A3.WAV"), 1, 44_100, 220.0);
     write_sine_wav(&import_multi.join("IMM_A4.WAV"), 1, 44_100, 440.0);
+    write_test_wav(&import_gate.join("IMG_A.WAV"), 1, 16, 2048, 0x84);
+    write_test_wav(&import_gate.join("IMG_B.WAV"), 1, 16, 2560, 0x85);
+    write_test_wav(&import_gate.join("IMG_C.WAV"), 1, 16, 3072, 0x86);
+    write_sine_wav(&import_stall.join("IMS_A.WAV"), 1, 44_100, 110.0);
+    write_sine_wav(&import_stall.join("IMS_B.WAV"), 1, 44_100, 220.0);
+    write_sine_wav(&import_stall.join("IMS_C.WAV"), 1, 44_100, 440.0);
     sd_image::pack_image(&root)
 }
 

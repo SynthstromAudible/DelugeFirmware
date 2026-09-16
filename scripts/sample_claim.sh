@@ -46,6 +46,11 @@
 #              order, each bound to its file, and the browser closed.
 #   IM-TIER    per folder import: the listing and every pitch detection ran on the storage owner, no file load began
 #              there, and no sample was read from the card on the interaction tier.
+#   IM-GATE    a kit import whose loads the loader holds: while it is out, BACK and a second Select on the menu must be
+#              refused; once it ends, the gate released and the kit holding its drums.
+#   IM-STALL   a multisample import whose second file's load is held past the stall bound: it must abort with the
+#              synth's ranges and the loaded files' reasons as they were, just the menu closed, the browser open and
+#              the gate released.
 #   SC-SLICE-MANUAL
 #              a second kit sliced in manual mode into three slices, the live slice points changed straight after
 #              Select: every drum bound to the sliced sample, with a NoteRow, and painted from the points as they
@@ -114,7 +119,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL IM-KIT IM-MULTI IM-TIER SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^(SC|RD|IM)-' "$OUT/run.txt"

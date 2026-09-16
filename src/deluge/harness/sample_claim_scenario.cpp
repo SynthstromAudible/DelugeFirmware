@@ -58,6 +58,7 @@
 #include "processing/source.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
 #include "storage/multi_range/multi_range.h"
 #include "storage/owner.h"
@@ -66,6 +67,7 @@
 #include <cstdio>
 #include <iterator>
 #include <string>
+#include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
 // `putchar_` for -- every line below would become an undefined symbol at link time.
@@ -168,6 +170,18 @@ constexpr const char* kImportSynthPresetPath = "SYNTHS/SCSYN1.XML";
 /// Both context menus' first option: the kit menu's "Load All", the synth menu's "Multisamples".
 constexpr int32_t kImportOption = 0;
 
+/// The import gate leg's folder and its one-drum kit's preset: files nothing loads before the leg, so the loader's hold
+/// keeps the import out while BACK and Select arrive.
+constexpr const char* kImportGateFile = "SAMPLES/IMG/IMG_A.WAV";
+constexpr const char* kImportGatePresetPath = "KITS/SCKIT5.XML";
+constexpr const char* kImportGateDrumName = "IMD2";
+constexpr int32_t kImportGateCount = 3;
+/// The import stall leg's folder: its first and last files are loaded in the leg's preparation and land at once; the
+/// middle one is loaded by nothing, so its load is held past the stall bound. The card lists a folder in the order its
+/// packer found the files, so with the held file in the middle one in memory is always listed before it.
+constexpr const char* kImportStallKept = "SAMPLES/IMS/IMS_A.WAV";
+constexpr const char* kImportStallKeptLast = "SAMPLES/IMS/IMS_C.WAV";
+
 /// How many regions the slice leg cuts the sample into.
 constexpr int32_t kSliceRegions = 4;
 
@@ -199,8 +213,10 @@ enum class Leg : uint8_t {
 	RandomizeGate,
 	ImportKit,
 	ImportMulti,
+	ImportGate,
 	Stall,
 	RandomizeStall,
+	ImportStall,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
@@ -217,6 +233,21 @@ Clip* g_audioClip = nullptr;
 /// The folder import legs' clips: a one-drum kit and a synth, each of its own, so no other leg's clip is changed.
 Clip* g_importKitClip = nullptr;
 Clip* g_importSynthClip = nullptr;
+/// The import gate leg's one-drum kit.
+Clip* g_importGateClip = nullptr;
+
+/// What the import gate leg saw: whether its presses were tried, whether the import was still out when they were, and
+/// whether each was refused.
+bool g_imGateTried = false;
+bool g_imGateWhileRunning = false;
+bool g_imGateSecondRefused = false;
+bool g_imGateBackRefused = false;
+
+/// The import stall leg's reference: the two files in memory and their reason counts, and the synth's range paths,
+/// before the import.
+Sample* g_imStallKept[2]{};
+uint32_t g_imStallKeptLeases[2]{};
+std::vector<std::string> g_imStallRangePaths{};
 
 /// Where a folder import's card work ran, read when an import leg acts.
 struct ImportMark {
@@ -297,6 +328,10 @@ const char* legName(Leg leg) {
 		return "import-kit";
 	case Leg::ImportMulti:
 		return "import-multi";
+	case Leg::ImportGate:
+		return "import-gate";
+	case Leg::ImportStall:
+		return "import-stall";
 	case Leg::RandomizeStall:
 		return "randomize-stall";
 	case Leg::Done:
@@ -530,6 +565,13 @@ bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = null
 		       kit->selectedDrum == drum ? 1 : 0);
 	}
 	const bool setup = soundEditor.setup(clip, &deluge::gui::menu_item::file0SelectorMenu, 0);
+	if (setup && clip->type != ClipType::AUDIO && soundEditor.currentMultiRange == nullptr
+	    && !soundEditor.currentSource->ranges.empty()) {
+		// A sound with several ranges sends its file selector to the range menu first; a user picks a range there
+		// before the browser opens, and the browser reads the range it opens on.
+		soundEditor.setCurrentMultiRange(0);
+		printf("SC-PROBE leg=%s rangePicked=0\n", leg);
+	}
 	const bool opened = setup && openUI(&sampleBrowser);
 	printf("SC-SETUP leg=%s setup=%d opened=%d browserOnTop=%d\n", leg, setup ? 1 : 0, opened ? 1 : 0,
 	       getCurrentUI() == &sampleBrowser ? 1 : 0);
@@ -739,6 +781,41 @@ void prepareLeg() {
 			           : -1);
 		});
 		break;
+	case Leg::ImportGate:
+		onOwner([] {
+			// A one-drum kit of its own: the import kit leg's kit holds three drums by now.
+			const KitPresetDrum presetDrum{.name = kImportGateDrumName, .samplePath = kKitPresetSample};
+			if (writeKitPreset(kImportGatePresetPath, &presetDrum, 1)) {
+				g_importGateClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 7);
+			}
+			printf("SC-PROBE leg=import-gate prepared kitClip=%d\n", g_importGateClip != nullptr ? 1 : 0);
+		});
+		break;
+	case Leg::ImportStall:
+		onOwner([] {
+			// The first and last files in memory before the hold, and the synth's ranges as the multisample leg left
+			// them.
+			Error error = Error::NONE;
+			const char* keptPaths[2] = {kImportStallKept, kImportStallKeptLast};
+			for (int32_t i = 0; i < 2; i++) {
+				std::string keptPath{keptPaths[i]};
+				g_imStallKept[i] = static_cast<Sample*>(
+				    audioFileManager.getAudioFileFromFilename(keptPath, true, &error, AudioFileType::SAMPLE));
+				g_imStallKeptLeases[i] = (g_imStallKept[i] != nullptr) ? g_imStallKept[i]->leaseCount() : 0;
+			}
+			g_imStallRangePaths.clear();
+			if (g_importSynthClip != nullptr && g_importSynthClip->output != nullptr) {
+				Source& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
+				for (int32_t i = 0; i < std::ssize(source.ranges); i++) {
+					g_imStallRangePaths.push_back(
+					    static_cast<MultisampleRange*>(source.ranges.getElement(i))->sampleHolder.filePath);
+				}
+			}
+			printf("SC-PROBE leg=import-stall prepared kept=%d leases=%u,%u ranges=%d error=%d\n",
+			       (g_imStallKept[0] != nullptr && g_imStallKept[1] != nullptr) ? 1 : 0, g_imStallKeptLeases[0],
+			       g_imStallKeptLeases[1], static_cast<int>(g_imStallRangePaths.size()), static_cast<int>(error));
+		});
+		break;
 	case Leg::SliceManual:
 		onOwner([] {
 			// A kit of its own: the region slice left the first with four drums.
@@ -807,6 +884,22 @@ bool openLeg() {
 		}
 		return openBrowser("import-kit", g_importKitClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
 	}
+	case Leg::ImportGate: {
+		if (g_importGateClip == nullptr || g_importGateClip->output == nullptr
+		    || g_importGateClip->output->type != OutputType::KIT) {
+			return fail("import-gate", "no kit clip could be created from the import gate preset");
+		}
+		Drum* drum = static_cast<Kit*>(g_importGateClip->output)->firstDrum;
+		if (drum == nullptr || drum->type != DrumType::SOUND) {
+			return fail("import-gate", "the import gate kit has no sound drum");
+		}
+		return openBrowser("import-gate", g_importGateClip, &instrumentClipView, static_cast<SoundDrum*>(drum));
+	}
+	case Leg::ImportStall:
+		if (g_importSynthClip == nullptr || g_importSynthClip->output == nullptr) {
+			return fail("import-stall", "the multisample leg's synth clip is missing");
+		}
+		return openBrowser("import-stall", g_importSynthClip, &instrumentClipView);
 	case Leg::ImportMulti:
 		if (g_importSynthClip == nullptr || g_importSynthClip->output == nullptr
 		    || g_importSynthClip->output->type != OutputType::SYNTH) {
@@ -846,6 +939,10 @@ const char* legFile() {
 		return kImportKitFile;
 	case Leg::ImportMulti:
 		return kImportMultiFile;
+	case Leg::ImportGate:
+		return kImportGateFile;
+	case Leg::ImportStall:
+		return kImportStallKept;
 	case Leg::AudioClip:
 		return kClipSample;
 	case Leg::Slice:
@@ -941,6 +1038,33 @@ void tickRandomizeGate() {
 	g_rdGateEditRefused = !pressGateEditPad();
 }
 
+/// Whether the current leg is one of the folder import legs.
+bool isImport() {
+	return g_leg == Leg::ImportKit || g_leg == Leg::ImportMulti || g_leg == Leg::ImportGate
+	       || g_leg == Leg::ImportStall;
+}
+
+/// The import gate leg's first wait tick: while the import is still out, BACK and Select on the kit menu.
+void tickImportGate() {
+	if (g_imGateTried) {
+		return;
+	}
+	g_imGateTried = true;
+	g_imGateWhileRunning = currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	if (!g_imGateWhileRunning) {
+		return;
+	}
+	using namespace deluge::hid::button;
+	auto& menu = deluge::gui::context_menu::sample_browser::kit;
+	const int32_t listingsBefore = markImport().listings;
+	(void)getCurrentUI()->buttonAction(BACK, true, false);
+	(void)getCurrentUI()->buttonAction(BACK, false, false);
+	g_imGateBackRefused = getCurrentUI() == &menu;
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, false, false);
+	g_imGateSecondRefused = markImport().listings == listingsBefore;
+}
+
 void actLeg() {
 	if (isRandomize()) {
 		using namespace deluge::hid::button;
@@ -995,14 +1119,25 @@ void actLeg() {
 		printf("SC-PROBE leg=gate before=%s after=%s\n", before.c_str(), after.c_str());
 		return;
 	}
-	if (g_leg == Leg::ImportKit || g_leg == Leg::ImportMulti) {
+	if (isImport()) {
 		using namespace deluge::hid::button;
 		g_importMark = markImport();
+		g_imGateTried = false;
+		g_imGateWhileRunning = false;
+		g_imGateSecondRefused = false;
+		g_imGateBackRefused = false;
+		// The held legs hold the loader only now: the browser's own preview of the selected file is not held.
+		if (g_leg == Leg::ImportGate) {
+			deluge_audio_load_set_latency_ms(kGateHoldMs);
+		}
+		else if (g_leg == Leg::ImportStall) {
+			deluge_audio_load_set_latency_ms(kStallHoldMs);
+		}
 		// A long press on Select opens the context menu for the kind of instrument the browser is choosing for.
 		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 		(void)static_cast<UI&>(sampleBrowser).timerCallback();
 		deluge::gui::ContextMenu* menu =
-		    (g_leg == Leg::ImportKit)
+		    (g_leg == Leg::ImportKit || g_leg == Leg::ImportGate)
 		        ? static_cast<deluge::gui::ContextMenu*>(&deluge::gui::context_menu::sample_browser::kit)
 		        : &deluge::gui::context_menu::sample_browser::synth;
 		const bool menuOnTop = getCurrentUI() == menu;
@@ -1058,6 +1193,14 @@ void actLeg() {
 
 /// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
 bool legEnded() {
+	if (g_leg == Leg::ImportGate) {
+		return g_imGateTried && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	}
+	if (g_leg == Leg::ImportStall) {
+		// An import that aborts closes just the menu and releases the gate; one that finishes closes the browser too.
+		return currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
+		       && getCurrentUI() != &deluge::gui::context_menu::sample_browser::synth;
+	}
 	if (isRandomize()) {
 		// The gesture closes the gate and the walk releases it: the leg ends when the mode is gone -- for the gate leg,
 		// once its presses have been tried.
@@ -1270,6 +1413,57 @@ void checkLeg() {
 			printf("SC-SLICE-MANUAL FAIL the manual slice did not end with %d drums on the sliced sample, each with a "
 			       "NoteRow and painted from the slice points as they were when Select was pressed\n",
 			       kManualSliceCount);
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::ImportGate: {
+		deluge_audio_load_set_latency_ms(0);
+		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		int32_t drums = 0;
+		for (Drum* drum = static_cast<Kit*>(g_importGateClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
+			drums++;
+		}
+		const bool completed = drums == kImportGateCount && !isUIOpen(&sampleBrowser);
+		printf("IM-GATE whileRunning=%d secondRefused=%d backRefused=%d released=%d completed=%d ticks=%d\n",
+		       g_imGateWhileRunning ? 1 : 0, g_imGateSecondRefused ? 1 : 0, g_imGateBackRefused ? 1 : 0,
+		       released ? 1 : 0, completed ? 1 : 0, g_waitTicks);
+		if (!g_imGateWhileRunning) {
+			printf("IM-GATE FAIL the import had ended before its held loads could land: an import must wait on its "
+			       "loads with the gate closed\n");
+			g_failures++;
+		}
+		else if (!g_imGateSecondRefused || !g_imGateBackRefused || !released || !completed) {
+			printf(
+			    "IM-GATE FAIL BACK or a second Select was taken while the import was out, or the gate stayed closed, "
+			    "or the import did not complete once its loads landed\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::ImportStall: {
+		deluge_audio_load_set_latency_ms(0);
+		Source& source = static_cast<SoundInstrument*>(g_importSynthClip->output)->sources[0];
+		bool rangesKept = std::ssize(source.ranges) == std::ssize(g_imStallRangePaths);
+		for (int32_t i = 0; rangesKept && i < std::ssize(source.ranges); i++) {
+			rangesKept = static_cast<MultisampleRange*>(source.ranges.getElement(i))->sampleHolder.filePath
+			             == g_imStallRangePaths[i];
+		}
+		bool reasonsKept = true;
+		for (int32_t i = 0; i < 2; i++) {
+			reasonsKept =
+			    reasonsKept && g_imStallKept[i] != nullptr && g_imStallKept[i]->leaseCount() == g_imStallKeptLeases[i];
+		}
+		const bool menuClosed = !isUIOpen(&deluge::gui::context_menu::sample_browser::synth);
+		const bool browserOpen = isUIOpen(&sampleBrowser);
+		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		printf("IM-STALL rangesKept=%d reasonsKept=%d menuClosed=%d browserOpen=%d released=%d\n", rangesKept ? 1 : 0,
+		       reasonsKept ? 1 : 0, menuClosed ? 1 : 0, browserOpen ? 1 : 0, released ? 1 : 0);
+		if (!rangesKept || !reasonsKept || !menuClosed || !browserOpen || !released) {
+			printf("IM-STALL FAIL an import whose second file's load never answered did not abort cleanly: the synth's "
+			       "ranges and the loaded files' reasons must be as they were, just the menu closed, the browser open, "
+			       "and "
+			       "the gate released\n");
 			g_failures++;
 		}
 		break;
@@ -1584,6 +1778,9 @@ void runTick() {
 		if (isSupersede()) {
 			tickSupersede();
 		}
+		if (g_leg == Leg::ImportGate) {
+			tickImportGate();
+		}
 		if (isRandomize() && getCurrentUI() == &instrumentClipView) {
 			// A randomize may walk on the clip view's graphics routine: ticked here, as the slice legs tick the
 			// slicer's.
@@ -1597,8 +1794,9 @@ void runTick() {
 			slicer.graphicsRoutine();
 		}
 		if (legEnded()
-		    || ++g_waitTicks
-		           > ((g_leg == Leg::Stall || g_leg == Leg::RandomizeStall) ? kMaxStallTicks : kMaxLegTicks)) {
+		    || ++g_waitTicks > ((g_leg == Leg::Stall || g_leg == Leg::RandomizeStall || g_leg == Leg::ImportStall)
+		                            ? kMaxStallTicks
+		                            : kMaxLegTicks)) {
 			checkLeg();
 			nextLeg();
 		}
