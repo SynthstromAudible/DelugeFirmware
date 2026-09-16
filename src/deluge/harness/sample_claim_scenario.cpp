@@ -33,6 +33,7 @@
 #include "gui/views/session_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "hid/button.h"
+#include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
 #include "libdeluge/control_surface.h"
@@ -42,10 +43,12 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_holder_for_voice.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "processing/sound/sound_drum.h"
@@ -104,6 +107,30 @@ constexpr const char* kKitPresetPath = "KITS/SCKIT.XML";
 constexpr const char* kManualKitPresetPath = "KITS/SCKIT2.XML";
 constexpr const char* kKitDrumName = "SCD1";
 
+/// The randomizer legs' kit preset, the third the new-kit-track gesture picks up, and the folder its drums name. The
+/// randomizer picks from the folder a drum's current sample sits in, so these files are the randomizer's alone: every
+/// other fixture is flat in SAMPLES/, where a pick from this folder can never reach it.
+constexpr const char* kRandomizeKitPresetPath = "KITS/SCKIT3.XML";
+constexpr const char* kRandomizeFolder = "SAMPLES/RD";
+constexpr const char* kRandomizeFirstSample = "SAMPLES/RD/RD1.WAV";
+
+/// The randomizer kit's drums, in the order the preset writes them: two rows that get a note, one muted row with a
+/// note, and one row with no notes. Only the first two are eligible for an affect-entire randomize.
+struct RandomizeDrumSpec {
+	const char* name;
+	bool note;
+	bool muted;
+};
+constexpr RandomizeDrumSpec kRandomizeDrums[] = {
+    {.name = "RDA", .note = true, .muted = false},
+    {.name = "RDB", .note = true, .muted = false},
+    {.name = "RDC", .note = true, .muted = true},
+    {.name = "RDD", .note = false, .muted = false},
+};
+constexpr int32_t kRandomizeDrumCount = 4;
+/// How many of those rows an affect-entire randomize may touch: the unmuted ones that have notes.
+constexpr int32_t kRandomizeEligible = 2;
+
 /// How many regions the slice leg cuts the sample into.
 constexpr int32_t kSliceRegions = 4;
 
@@ -130,6 +157,8 @@ enum class Leg : uint8_t {
 	AudioClip,
 	Slice,
 	SliceManual,
+	RandomizeOne,
+	RandomizeAll,
 	Stall,
 	Done
 };
@@ -155,6 +184,17 @@ struct TierMark {
 	int32_t sampleIo = 0;
 };
 TierMark g_tierMark{};
+
+/// Where the randomizer's card work ran, read when a randomizer leg acts.
+struct RandomizeMark {
+	int32_t scans = 0;
+	int32_t loads = 0;
+	int32_t sampleIo = 0;
+};
+RandomizeMark g_randomizeMark{};
+
+/// Each randomizer row's path when the leg acted: a row the gesture must not touch keeps it.
+std::string g_randomizeRowPaths[kRandomizeDrumCount];
 
 /// Whether the gate leg's select-encoder turn moved the browser's selection while its claim was in flight.
 bool g_gateMoved = false;
@@ -194,6 +234,10 @@ const char* legName(Leg leg) {
 		return "slice";
 	case Leg::SliceManual:
 		return "slice-manual";
+	case Leg::RandomizeOne:
+		return "randomize-one";
+	case Leg::RandomizeAll:
+		return "randomize-all";
 	case Leg::Done:
 		return "done";
 	}
@@ -212,6 +256,11 @@ void onOwner(void (*fn)()) {
 	                                 reinterpret_cast<void*>(fn))) {
 		fail(legName(g_leg), "the storage owner's queue was full");
 	}
+}
+
+RandomizeMark markRandomize() {
+	return {instrumentClipView.randomizeScansOnOwner(), instrumentClipView.randomizeLoadsOnOwner(),
+	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
 TierMark markTier() {
@@ -319,8 +368,13 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 }
 
 /// The one-drum kit preset, written through the firmware serialiser. The kit is leaked: it is never added to the song.
-/// Write a one-drum kit preset to @p path through the firmware's own serialiser.
-bool writeKitPreset(const char* path) {
+/// Write a kit preset of @p count drums to @p path through the firmware's own serialiser, each drum named and
+/// pointed at a sample by @p drums.
+struct KitPresetDrum {
+	const char* name;
+	const char* samplePath;
+};
+bool writeKitPreset(const char* path, const KitPresetDrum* drums, int32_t count) {
 	ParamManagerForTimeline kitParams;
 	Instrument* kitBase = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
 	if (kitBase == nullptr) {
@@ -329,8 +383,10 @@ bool writeKitPreset(const char* path) {
 	auto* kit = static_cast<Kit*>(kitBase);
 	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
 	                                true);
-	if (addSampleDrum(*kit, kKitDrumName, kKitPresetSample) == nullptr) {
-		return false;
+	for (int32_t i = 0; i < count; i++) {
+		if (addSampleDrum(*kit, drums[i].name, drums[i].samplePath) == nullptr) {
+			return false;
+		}
 	}
 	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
 	if (error != Error::NONE) {
@@ -392,12 +448,41 @@ bool openBrowser(const char* leg, Clip* clip, UI* rootUI, SoundDrum* drum = null
 	return opened || fail(leg, "the sample browser could not be opened");
 }
 
+/// Remember every randomizer row's path, so a row the gesture must leave alone can be shown to still hold it.
+void recordRandomizeRows() {
+	int32_t index = 0;
+	for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum; drum != nullptr && index < kRandomizeDrumCount;
+	     drum = drum->next, index++) {
+		AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
+		g_randomizeRowPaths[index] = (holder != nullptr) ? holder->filePath : "";
+	}
+}
+
 SoundDrum* kitDrum() {
 	if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
 		return nullptr;
 	}
 	Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum;
 	return (drum != nullptr && drum->type == DrumType::SOUND) ? static_cast<SoundDrum*>(drum) : nullptr;
+}
+
+/// The randomizer kit's clip current under the clip view, with @p drum selected when one is given. No browser: the
+/// gesture is a pad press in the clip view itself.
+bool openRandomizeLeg(const char* leg, SoundDrum* drum) {
+	if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
+		return fail(leg, "the randomizer kit clip is missing");
+	}
+	currentSong->setCurrentClip(g_kitClip);
+	changeRootUI(&instrumentClipView);
+	auto* kit = static_cast<Kit*>(g_kitClip->output);
+	static_cast<InstrumentClip*>(g_kitClip)->affectEntire = false;
+	if (drum != nullptr) {
+		instrumentClipView.setSelectedDrum(drum, /*shouldRedrawStuff=*/false, kit, /*shouldSendMidiFeedback=*/false);
+	}
+	const bool onTop = getCurrentUI() == &instrumentClipView;
+	printf("SC-SETUP leg=%s clipViewOnTop=%d selected=%d mode=%d\n", leg, onTop ? 1 : 0,
+	       (drum != nullptr && kit->selectedDrum == drum) ? 1 : 0, (int)currentUIMode);
+	return onTop || fail(leg, "the clip view could not be made current");
 }
 
 /// The kit clip current, its first drum selected, and the browser opened on that drum.
@@ -430,7 +515,8 @@ void prepareLeg() {
 	switch (g_leg) {
 	case Leg::Kit:
 		onOwner([] {
-			if (writeKitPreset(kKitPresetPath)) {
+			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
+			if (writeKitPreset(kKitPresetPath, &presetDrum, 1)) {
 				// The new-kit-track gesture, which takes the first kit preset nobody in the song is using:
 				// kKitPresetPath.
 				g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 1);
@@ -441,10 +527,61 @@ void prepareLeg() {
 	case Leg::AudioClip:
 		onOwner([] { g_audioClip = sessionView.createNewClip(OutputType::AUDIO, 2); });
 		break;
+	case Leg::RandomizeOne:
+		onOwner([] {
+			// A kit of its own, whose drums all name the randomizer folder's first file: the randomizer picks from the
+			// folder a drum's sample sits in, and every other fixture is outside it.
+			KitPresetDrum drums[kRandomizeDrumCount];
+			for (int32_t i = 0; i < kRandomizeDrumCount; i++) {
+				drums[i] = {.name = kRandomizeDrums[i].name, .samplePath = kRandomizeFirstSample};
+			}
+			if (!writeKitPreset(kRandomizeKitPresetPath, drums, kRandomizeDrumCount)) {
+				return;
+			}
+			g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 4);
+			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
+				fail("randomize-one", "no kit clip could be created from the randomizer preset");
+				return;
+			}
+			// The rows a user would have: notes on three, one of them muted, and one row left empty. An affect-entire
+			// randomize walks unmuted rows that have notes, so only the first two are eligible.
+			auto* kitClip = static_cast<InstrumentClip*>(g_kitClip);
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack =
+			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, kitClip);
+			int32_t drumIndex = 0;
+			int32_t rowsWithNotes = 0;
+			for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum;
+			     drum != nullptr && drumIndex < kRandomizeDrumCount; drum = drum->next, drumIndex++) {
+				ModelStackWithNoteRow* rowStack = kitClip->getNoteRowForDrum(modelStack, drum);
+				NoteRow* row = (rowStack != nullptr) ? rowStack->getNoteRowAllowNull() : nullptr;
+				if (row == nullptr) {
+					fail("randomize-one", "a randomizer kit drum has no note row");
+					return;
+				}
+				if (kRandomizeDrums[drumIndex].note) {
+					if (row->attemptNoteAdd(0, 1, 64, row->getDefaultProbability(), row->getDefaultIterance(),
+					                        row->getDefaultFill(rowStack), rowStack, nullptr)
+					    == 0) {
+						fail("randomize-one", "a note could not be added to a randomizer kit row");
+						return;
+					}
+					rowsWithNotes++;
+				}
+				row->muted = kRandomizeDrums[drumIndex].muted;
+			}
+			// The gesture is refused outright while the community feature is off.
+			runtimeFeatureSettings.set(RuntimeFeatureSettingType::DrumRandomizer, RuntimeFeatureStateToggle::On);
+			printf("SC-PROBE leg=randomize-one prepared kitClip=%d drums=%d rowsWithNotes=%d feature=%d\n",
+			       g_kitClip != nullptr ? 1 : 0, drumIndex, rowsWithNotes,
+			       runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::DrumRandomizer) ? 1 : 0);
+		});
+		break;
 	case Leg::SliceManual:
 		onOwner([] {
 			// A kit of its own: the region slice left the first with four drums.
-			if (writeKitPreset(kManualKitPresetPath)) {
+			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
+			if (writeKitPreset(kManualKitPresetPath, &presetDrum, 1)) {
 				g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 3);
 			}
 			const SoundDrum* drum = kitDrum();
@@ -486,6 +623,11 @@ bool openLeg() {
 	case Leg::Slice:
 	case Leg::SliceManual:
 		return openBrowserOnKitDrum(legName(g_leg));
+	case Leg::RandomizeOne:
+		// The first drum, as a user selects a row before randomizing just that one.
+		return openRandomizeLeg("randomize-one", kitDrum());
+	case Leg::RandomizeAll:
+		return openRandomizeLeg("randomize-all", nullptr);
 	case Leg::AudioClip:
 		if (g_audioClip == nullptr || g_audioClip->type != ClipType::AUDIO) {
 			return fail("audioclip", "no audio clip could be created");
@@ -519,6 +661,10 @@ const char* legFile() {
 	case Leg::Slice:
 	case Leg::SliceManual:
 		return kSliceSample;
+	case Leg::RandomizeOne:
+	case Leg::RandomizeAll:
+		// No browser listing: the randomizer picks the file itself, from the folder the drum's sample sits in.
+		return kRandomizeFirstSample;
 	case Leg::Done:
 		break;
 	}
@@ -526,6 +672,11 @@ const char* legFile() {
 }
 
 /// The claim's Select press, or for the slice leg the slicer opened on the selected file and its commit.
+/// Whether the current leg is one of the two randomizer legs.
+bool isRandomize() {
+	return g_leg == Leg::RandomizeOne || g_leg == Leg::RandomizeAll;
+}
+
 /// Whether the current leg is one of the two supersede legs.
 bool isSupersede() {
 	return g_leg == Leg::Supersede || g_leg == Leg::SupersedeLoading;
@@ -537,6 +688,24 @@ const char* supersedeSecond() {
 }
 
 void actLeg() {
+	if (isRandomize()) {
+		using namespace deluge::hid::button;
+		g_randomizeMark = markRandomize();
+		recordRandomizeRows();
+		// The gesture: LOAD held (which the randomizer reads through Buttons::isButtonPressed), AFFECT_ENTIRE held too
+		// for the all-rows leg, then the pad. Buttons::buttonAction is what sets the held state a press reads.
+		(void)Buttons::buttonAction(LOAD, true, false);
+		if (g_leg == Leg::RandomizeAll) {
+			(void)Buttons::buttonAction(AFFECT_ENTIRE, true, false);
+		}
+		(void)instrumentClipView.padAction(15, 2, 1);
+		(void)instrumentClipView.padAction(15, 2, 0);
+		if (g_leg == Leg::RandomizeAll) {
+			(void)Buttons::buttonAction(AFFECT_ENTIRE, false, false);
+		}
+		(void)Buttons::buttonAction(LOAD, false, false);
+		return;
+	}
 	finishScroll();
 	g_tierMark = markTier();
 	g_giveUpsBefore = deluge::gui::sampleClaim.giveUps();
@@ -614,6 +783,10 @@ void actLeg() {
 
 /// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
 bool legEnded() {
+	if (isRandomize()) {
+		// The gesture closes the gate and the walk releases it: the leg ends when the mode is gone.
+		return currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	}
 	if (isSupersede()) {
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
 		return g_supersedeFired && !deluge::gui::sampleClaim.inFlight() && holder != nullptr
@@ -824,6 +997,65 @@ void checkLeg() {
 		}
 		break;
 	}
+	case Leg::RandomizeOne:
+	case Leg::RandomizeAll: {
+		const RandomizeMark now = markRandomize();
+		const int32_t scans = now.scans - g_randomizeMark.scans;
+		const int32_t loads = now.loads - g_randomizeMark.loads;
+		const int32_t sampleIo = now.sampleIo - g_randomizeMark.sampleIo;
+		printf("RD-TIER leg=%s scansOnOwner=%d loadsOnOwner=%d sampleIo=%d\n", legName(g_leg), scans, loads, sampleIo);
+		if (loads != 0 || sampleIo != 0) {
+			printf("RD-TIER FAIL leg=%s %d randomizer load(s) began on the storage owner and %d sample read(s) went to "
+			       "the card on the interaction tier -- a randomized drum's load belongs on the interaction tier\n",
+			       legName(g_leg), loads, sampleIo);
+			g_failures++;
+		}
+		if (scans == 0) {
+			printf("RD-TIER FAIL leg=%s no randomizer scan ran at all\n", legName(g_leg));
+			g_failures++;
+		}
+
+		int32_t randomized = 0;
+		int32_t untouched = 0;
+		int32_t index = 0;
+		for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum;
+		     drum != nullptr && index < kRandomizeDrumCount; drum = drum->next, index++) {
+			AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
+			const bool eligible = (g_leg == Leg::RandomizeAll) ? (index < kRandomizeEligible) : (index == 0);
+			const bool inFolder =
+			    holder != nullptr && holder->audioFile != nullptr && holder->filePath.rfind(kRandomizeFolder, 0) == 0;
+			const std::string& name = static_cast<SoundDrum*>(drum)->drumName;
+			const bool namedAfterFile =
+			    inFolder && holder->filePath.rfind(name.c_str()) != std::string::npos && !name.empty();
+			printf("SC-PROBE leg=%s drum=%d path=%s name=%s\n", legName(g_leg), index,
+			       holder != nullptr ? holder->filePath.c_str() : "", name.c_str());
+			if (eligible) {
+				randomized += (inFolder && namedAfterFile) ? 1 : 0;
+			}
+			else {
+				untouched += (holder != nullptr && holder->filePath == g_randomizeRowPaths[index]) ? 1 : 0;
+			}
+		}
+		const int32_t wantRandomized = (g_leg == Leg::RandomizeAll) ? kRandomizeEligible : 1;
+		const int32_t wantUntouched = kRandomizeDrumCount - wantRandomized;
+		if (g_leg == Leg::RandomizeOne) {
+			printf("RD-ONE randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched, scans, g_waitTicks);
+			if (randomized != wantRandomized || untouched != wantUntouched) {
+				printf("RD-ONE FAIL the selected drum did not end on a file from its own folder, named after it, with "
+				       "every other row untouched\n");
+				g_failures++;
+			}
+		}
+		else {
+			printf("RD-ALL randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched, scans, g_waitTicks);
+			if (randomized != wantRandomized || untouched != wantUntouched) {
+				printf("RD-ALL FAIL an affect-entire randomize did not end with every unmuted row that has notes on a "
+				       "file from its own folder, named after it, leaving the muted and empty rows alone\n");
+				g_failures++;
+			}
+		}
+		break;
+	}
 	case Leg::Done:
 		break;
 	}
@@ -879,7 +1111,8 @@ void runTick() {
 		}
 		g_waitTicks = 0;
 		if (openLeg()) {
-			g_step = Step::Listing;
+			// The randomizer legs press a pad in the clip view: no listing, no file to select, no preview to draw.
+			g_step = isRandomize() ? Step::Act : Step::Listing;
 		}
 		else {
 			nextLeg();

@@ -28,6 +28,12 @@
 #              the audio clip claim: the file bound, and the clip's loop length and attack.
 #   SC-SLICE   the slicer's four-region slice: how many drums the kit ends with, how many are bound to the sliced
 #              sample, and how many NoteRows have a drum.
+#   RD-ONE     the Drum Randomizer on one selected drum: it must end on a file from the folder its sample sat in,
+#              named after that file, with every other row untouched.
+#   RD-ALL     the same gesture with affect-entire held: every unmuted row that has notes must end on a file from
+#              that folder, and the muted and empty rows must be untouched.
+#   RD-TIER    per randomizer leg: every directory scan ran on the storage owner, no load began there, and no sample
+#              was read from the card on the interaction tier.
 #   SC-SLICE-MANUAL
 #              a second kit sliced in manual mode into three slices, the live slice points changed straight after
 #              Select: every drum bound to the sliced sample, with a NoteRow, and painted from the points as they
@@ -91,24 +97,24 @@ set -e
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
-	grep -E '^SC-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	grep -E '^(SC|RD)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
 	tail -20 "$OUT/run.err"
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
-		grep -E '^SC-' "$OUT/run.txt"
+		grep -E '^(SC|RD)-' "$OUT/run.txt"
 		exit 1
 	fi
 done
 
 if ! grep -q '^SC-RESULT failures=0$' "$OUT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^SC-' "$OUT/run.txt"
+	grep -E '^(SC|RD)-' "$OUT/run.txt"
 	exit 1
 fi
 
 echo "PASS — every claim bound what a user's claim binds"
-grep -E '^SC-' "$OUT/run.txt"
+grep -E '^(SC|RD)-' "$OUT/run.txt"

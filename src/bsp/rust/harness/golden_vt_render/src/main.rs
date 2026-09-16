@@ -1654,11 +1654,14 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 /// - `SAMPLES/SCKICK.WAV`: claimed into that kit's drum. Its name holds "KICK", which the claim reads as a kick.
 /// - `SAMPLES/SCAUD.WAV`: claimed into an audio clip.
 /// - `SAMPLES/SCSLICE.WAV`: one second long, sliced into four regions of 250 ms each.
+/// - `SAMPLES/RD/RD1.WAV`, `RD2.WAV` and `RD3.WAV`: the Drum Randomizer's folder. Its kit preset names the first, and
+///   the randomizer picks from the folder a drum's sample sits in, so these three are reachable by no other leg.
 fn pack_sample_claim_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-sample-claim-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
-    for dir in [&samples, &root.join("KITS")] {
+    let randomize = samples.join("RD");
+    for dir in [&samples, &randomize, &root.join("KITS")] {
         std::fs::create_dir_all(dir).expect("creating the sample-claim fixture directories");
     }
     write_sine_wav(&samples.join("SCSYN.WAV"), 1, 22_050, 440.0);
@@ -1670,6 +1673,9 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     write_test_wav(&samples.join("SCKICK.WAV"), 1, 16, 4096, 0x33);
     write_test_wav(&samples.join("SCAUD.WAV"), 1, 16, 16384, 0x34);
     write_test_wav(&samples.join("SCSLICE.WAV"), 1, 16, 88200, 0x35);
+    write_test_wav(&randomize.join("RD1.WAV"), 1, 16, 2048, 0x71);
+    write_test_wav(&randomize.join("RD2.WAV"), 1, 16, 2560, 0x72);
+    write_test_wav(&randomize.join("RD3.WAV"), 1, 16, 3072, 0x73);
     sd_image::pack_image(&root)
 }
 

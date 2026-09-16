@@ -105,6 +105,17 @@ public:
 	///         pad action, same as when this gesture doesn't apply).
 	ActionResult potentiallyRandomizeDrumSamples();
 	ActionResult potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename);
+
+	/// @brief How many of the randomizer's directory scans began on the storage owner.
+	///
+	/// A scan reads the folder of a drum's current sample. Exposed for the sample-claim gate's RD-TIER check, which
+	/// requires every one of them there while the scan has no async surface.
+	[[nodiscard]] int32_t randomizeScansOnOwner() const { return randomizeScansOnOwner_; }
+	/// @brief How many of the randomizer's sample loads began on the storage owner.
+	///
+	/// A randomized drum's load belongs on the interaction tier; one that begins on the owner was dispatched there.
+	/// Exposed for RD-TIER, which requires none.
+	[[nodiscard]] int32_t randomizeLoadsOnOwner() const { return randomizeLoadsOnOwner_; }
 	ActionResult commandEnterNoteVelocityEditor(int32_t x, int32_t y);
 	ActionResult commandLearnMutePad(int32_t y, int32_t velocity);
 	ActionResult commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
@@ -470,6 +481,11 @@ private:
 	static bool drumIsRandomizable(Drum* drum);
 
 	RandomizeDrumsTarget pendingRandomizeTarget_{};
+
+	/// @brief The randomizer's directory scans that began on the storage owner. See randomizeScansOnOwner().
+	int32_t randomizeScansOnOwner_{0};
+	/// @brief The randomizer's sample loads that began on the storage owner. See randomizeLoadsOnOwner().
+	int32_t randomizeLoadsOnOwner_{0};
 
 	std::array<RGB, kDisplayHeight> rowColour{};
 	std::array<RGB, kDisplayHeight> rowTailColour{};

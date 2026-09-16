@@ -2199,6 +2199,10 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 
 	// Open directory of current audio file
 	*slashAddress = 0;
+	// Counted for the sample-claim gate (RD-TIER): a randomizer scan that began on the storage owner.
+	if (deluge::storage::Owner::on_owner()) {
+		randomizeScansOnOwner_++;
+	}
 	auto dirOpened = deluge::io::Directory::open(path);
 	if (!dirOpened.has_value()) {
 		*slashAddress = '/';
@@ -2235,6 +2239,10 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 
 		afh->filePath.append("/");
 		afh->filePath.append(chosenFilename);
+		// Counted for the sample-claim gate (RD-TIER): a randomizer load that began on the storage owner.
+		if (deluge::storage::Owner::on_owner()) {
+			randomizeLoadsOnOwner_++;
+		}
 		afh->loadFile(false, true, true, 1, false);
 
 		char* dot = strrchr(chosenFilename, '.');
