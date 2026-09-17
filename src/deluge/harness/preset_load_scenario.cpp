@@ -256,7 +256,6 @@ std::string g_revertSample{};
 bool g_revertTried = false;
 bool g_revertClosedAtOnce = false;
 bool g_revertGateClosed = false;
-int32_t g_revertSyncReadsBefore = 0;
 int32_t g_revertGiveUpsBefore = 0;
 
 /// What the gate leg saw: whether its presses were tried, whether the commit was still out, and whether each was
@@ -598,7 +597,6 @@ void prepareLeg() {
 		g_revertTried = false;
 		g_revertClosedAtOnce = false;
 		g_revertGateClosed = false;
-		g_revertSyncReadsBefore = StorageManager::synchronousDocumentReads();
 		g_revertGiveUpsBefore = deluge::gui::instrumentLoad.giveUps();
 		printf("PL-PROBE leg=%s original=%s sample=%s\n", legName(g_leg), g_revertName.c_str(), g_revertSample.c_str());
 		return;
@@ -815,13 +813,12 @@ void checkRevert() {
 	const bool bound = boundTo(holder, g_revertSample.c_str());
 	const bool holderEmpty = holder != nullptr && holder->audioFile == nullptr;
 	const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
-	const int32_t syncReads = StorageManager::synchronousDocumentReads() - g_revertSyncReadsBefore;
 	const int32_t giveUps = deluge::gui::instrumentLoad.giveUps() - g_revertGiveUpsBefore;
 	if (g_leg == Leg::RevertCard) {
-		printf("RV-CARD reverted=%d bound=%d closedAtOnce=%d gateClosed=%d released=%d syncReads=%d name=%s ticks=%d\n",
+		printf("RV-CARD reverted=%d bound=%d closedAtOnce=%d gateClosed=%d released=%d name=%s ticks=%d\n",
 		       reverted ? 1 : 0, bound ? 1 : 0, g_revertClosedAtOnce ? 1 : 0, g_revertGateClosed ? 1 : 0,
-		       released ? 1 : 0, syncReads, instrument->name.c_str(), g_waitTicks);
-		if (!reverted || !bound || !g_revertClosedAtOnce || !g_revertGateClosed || !released || syncReads != 0) {
+		       released ? 1 : 0, instrument->name.c_str(), g_waitTicks);
+		if (!reverted || !bound || !g_revertClosedAtOnce || !g_revertGateClosed || !released) {
 			printf("RV-CARD FAIL backing out did not close the browser at once and put the original back off the "
 			       "storage owner with its gate closed while it loaded\n");
 			g_failures++;
@@ -829,9 +826,9 @@ void checkRevert() {
 		return;
 	}
 	if (g_leg == Leg::RevertMemory) {
-		printf("RV-MEMORY reverted=%d bound=%d closedAtOnce=%d syncReads=%d name=%s ticks=%d\n", reverted ? 1 : 0,
-		       bound ? 1 : 0, g_revertClosedAtOnce ? 1 : 0, syncReads, instrument->name.c_str(), g_waitTicks);
-		if (!reverted || !bound || !g_revertClosedAtOnce || syncReads != 0) {
+		printf("RV-MEMORY reverted=%d bound=%d closedAtOnce=%d name=%s ticks=%d\n", reverted ? 1 : 0, bound ? 1 : 0,
+		       g_revertClosedAtOnce ? 1 : 0, instrument->name.c_str(), g_waitTicks);
+		if (!reverted || !bound || !g_revertClosedAtOnce) {
 			printf("RV-MEMORY FAIL backing out did not put the hibernating original back, with no document read at "
 			       "all\n");
 			g_failures++;
@@ -839,9 +836,9 @@ void checkRevert() {
 		return;
 	}
 	deluge_audio_load_set_latency_ms(0);
-	printf("RV-STALL reverted=%d holderEmpty=%d released=%d giveUps=%d syncReads=%d name=%s\n", reverted ? 1 : 0,
-	       holderEmpty ? 1 : 0, released ? 1 : 0, giveUps, syncReads, instrument->name.c_str());
-	if (!reverted || !holderEmpty || !released || giveUps != 1 || syncReads != 0) {
+	printf("RV-STALL reverted=%d holderEmpty=%d released=%d giveUps=%d name=%s\n", reverted ? 1 : 0,
+	       holderEmpty ? 1 : 0, released ? 1 : 0, giveUps, instrument->name.c_str());
+	if (!reverted || !holderEmpty || !released || giveUps != 1) {
 		printf("RV-STALL FAIL a revert whose sample load never answered did not put the original back with that "
 		       "holder empty on the stall bound\n");
 		g_failures++;
@@ -1131,14 +1128,9 @@ int32_t acquireActs(Leg leg) {
 	return leg == Leg::AqNavigate ? 3 : leg == Leg::AqNew ? 2 : 1;
 }
 
-/// markTier(), with the synchronous loads today's acquisitions run added in.
+/// What the acquisition legs count: InstrumentLoad's own reads and loads, which is all there is to count now.
 TierMark markAcquireTier() {
-	TierMark mark = markTier();
-	mark.documentReads += StorageManager::synchronousDocumentReads();
-	mark.documentReadsOnOwner += StorageManager::synchronousDocumentReadsOnOwner();
-	mark.sampleLoads += StorageManager::synchronousSampleLoads();
-	mark.sampleLoadsOnOwner += StorageManager::synchronousSampleLoadsOnOwner();
-	return mark;
+	return markTier();
 }
 
 std::vector<Clip*> sessionClipList() {
@@ -1509,7 +1501,6 @@ BlankStep g_blankStep{BlankStep::Prepare};
 int32_t g_blankRunsBefore = 0;
 int32_t g_blankReadsBefore = 0;
 int32_t g_blankOwnerReadsBefore = 0;
-int32_t g_blankSyncReadsBefore = 0;
 bool g_blankEdited = false;
 
 /// Whether @p leg is one of the blank-song legs, which drive no browser.
@@ -1561,11 +1552,10 @@ void checkBlankClear() {
 	const std::string name = (instrument != nullptr) ? instrument->name : "";
 	const int32_t reads = deluge::gui::instrumentLoad.documentReads() - g_blankReadsBefore;
 	const int32_t onOwner = deluge::gui::instrumentLoad.documentReadsOnOwner() - g_blankOwnerReadsBefore;
-	const int32_t syncReads = StorageManager::synchronousDocumentReads() - g_blankSyncReadsBefore;
 	if (g_leg == Leg::BlankClear) {
-		printf("BS-CLEAR name=%s bound=%d reads=%d onOwner=%d syncReads=%d outputs=%d ticks=%d\n", name.c_str(),
-		       blankBound() ? 1 : 0, reads, onOwner, syncReads, countOutputs(), g_waitTicks);
-		if (name.empty() || name == kDefaultSynthName || !blankBound() || reads < 1 || onOwner != 0 || syncReads != 0) {
+		printf("BS-CLEAR name=%s bound=%d reads=%d onOwner=%d outputs=%d ticks=%d\n", name.c_str(),
+		       blankBound() ? 1 : 0, reads, onOwner, countOutputs(), g_waitTicks);
+		if (name.empty() || name == kDefaultSynthName || !blankBound() || reads < 1 || onOwner != 0) {
 			printf("BS-CLEAR FAIL a cleared song did not land on a SYNTHS preset staged by InstrumentLoad off the "
 			       "storage owner\n");
 			g_failures++;
@@ -1574,8 +1564,8 @@ void checkBlankClear() {
 	}
 	const int32_t orphans = orphanedParamManagers();
 	const int32_t outputs = countOutputs();
-	printf("BS-EDITED name=%s edited=%d orphans=%d outputs=%d syncReads=%d ticks=%d\n", name.c_str(),
-	       g_blankEdited ? 1 : 0, orphans, outputs, syncReads, g_waitTicks);
+	printf("BS-EDITED name=%s edited=%d orphans=%d outputs=%d ticks=%d\n", name.c_str(), g_blankEdited ? 1 : 0, orphans,
+	       outputs, g_waitTicks);
 	if (name != kDefaultSynthName || !g_blankEdited || orphans != 0 || outputs != 1) {
 		printf("BS-EDITED FAIL a preset was swapped over an edited default synth, or something of it was left "
 		       "behind\n");
@@ -1609,7 +1599,6 @@ void runBlankTick() {
 		g_blankRunsBefore = LoadInstrumentPresetUI::presetAcquisitionsRun();
 		g_blankReadsBefore = deluge::gui::instrumentLoad.documentReads();
 		g_blankOwnerReadsBefore = deluge::gui::instrumentLoad.documentReadsOnOwner();
-		g_blankSyncReadsBefore = StorageManager::synchronousDocumentReads();
 		g_blankEdited = false;
 		if (g_leg == Leg::BlankEdited) {
 			// The preset's sample is held, so the default synth can be edited while the song's request is still out.

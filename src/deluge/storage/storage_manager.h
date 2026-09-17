@@ -560,25 +560,11 @@ bool checkSDPresent();
 bool checkSDInitialized();
 
 Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = nullptr);
-Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
-                             Instrument** getInstrument, char const* path, std::string* name, std::string* dirPath);
-
-/// @name Synchronous instrument loads
-/// Counted for the preset-load gate (AQ-TIER): the documents loadInstrumentFromFile() read, the sample loads
-/// Output::loadAllAudioFiles() ran with card reads allowed, and how many of each began on the storage owner.
-/// @{
-[[nodiscard]] int32_t synchronousDocumentReads();
-[[nodiscard]] int32_t synchronousDocumentReadsOnOwner();
-[[nodiscard]] int32_t synchronousSampleLoads();
-[[nodiscard]] int32_t synchronousSampleLoadsOnOwner();
-/// @brief Count one sample load run with card reads allowed, and whether it began on the storage owner.
-void countSynchronousSampleLoad();
-/// @}
 /// @brief Read an Instrument from the document `activeDeserializer` has open, and close it.
 ///
-/// The parse half of loadInstrumentFromFile(): it opens nothing and frees no staging, so a caller that staged the
-/// document itself (openDocumentStaged()) can parse it on its own tier. On any failure the Instrument it made is
-/// deleted again.
+/// The parse half of a staged read: it opens nothing and frees no staging, so a caller that staged the document itself
+/// (openDocumentStaged(), or the harness's own fixture loader) parses it on its own tier. On any failure the Instrument
+/// it made is deleted again.
 /// @param getInstrument Receives the new Instrument on success; untouched otherwise.
 /// @param name          The Instrument's name.
 /// @param dirPath       The folder the preset is in.
@@ -601,18 +587,14 @@ Error loadPatternFile(char const* path, std::string* fileName, bool overwriteExi
 Error openFavouriteFile(char const* path);
 
 Drum* createNewDrum(DrumType drumType);
-Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
-                      char const* path, std::string* name, std::string* dirPath);
 /// @brief Read a synth preset into a new SoundDrum from the document `activeDeserializer` has open, and close it.
 ///
-/// The parse half of loadSynthToDrum(); it opens nothing and frees no staging. On success a drum already in
+/// The parse half of a staged synth-to-row read; it opens nothing and frees no staging. On success a drum already in
 /// @p getInstrument is deleted and replaced by the new one; on failure the new drum is deleted.
 /// @return Error::NONE, or why the document could not be read into a drum.
 Error parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument);
 
 Error checkSpaceOnCard();
-
-Error openInstrumentFile(OutputType outputType, char const* path);
 } // namespace StorageManager
 
 extern FirmwareVersion song_firmware_version;

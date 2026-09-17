@@ -304,66 +304,6 @@ void StorageManager::instrumentDocumentTags(OutputType outputType, char const** 
 	}
 }
 
-Error StorageManager::openInstrumentFile(OutputType outputType, char const* path) {
-
-	AudioEngine::logAction("openInstrumentFile");
-	char const* firstTagName;
-	char const* altTagName;
-	instrumentDocumentTags(outputType, &firstTagName, &altTagName);
-
-	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
-	return error;
-}
-// Returns error status
-// clip may be NULL
-namespace {
-int32_t synchronousDocumentReads_ = 0;
-int32_t synchronousDocumentReadsOnOwner_ = 0;
-int32_t synchronousSampleLoads_ = 0;
-int32_t synchronousSampleLoadsOnOwner_ = 0;
-} // namespace
-
-int32_t StorageManager::synchronousDocumentReads() {
-	return synchronousDocumentReads_;
-}
-
-int32_t StorageManager::synchronousDocumentReadsOnOwner() {
-	return synchronousDocumentReadsOnOwner_;
-}
-
-int32_t StorageManager::synchronousSampleLoads() {
-	return synchronousSampleLoads_;
-}
-
-int32_t StorageManager::synchronousSampleLoadsOnOwner() {
-	return synchronousSampleLoadsOnOwner_;
-}
-
-void StorageManager::countSynchronousSampleLoad() {
-	synchronousSampleLoads_++;
-	synchronousSampleLoadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
-}
-
-Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
-                                             bool mayReadSamplesFromFiles, Instrument** getInstrument, char const* path,
-                                             std::string* name, std::string* dirPath) {
-
-	AudioEngine::logAction("loadInstrumentFromFile");
-	synchronousDocumentReads_++;
-	synchronousDocumentReadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
-	D_PRINTLN("opening instrument file -  %s %s  from path  %s", dirPath->c_str(), name->c_str(), path);
-
-	Error error = openInstrumentFile(outputType, path);
-	if (error != Error::NONE) {
-		D_PRINTLN("opening instrument file failed -  %s", name->c_str());
-		return error;
-	}
-
-	error = parseInstrumentDocument(song, clip, outputType, mayReadSamplesFromFiles, getInstrument, name, dirPath);
-	releaseDocumentStaging();
-	return error;
-}
-
 Error StorageManager::parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType,
                                               bool mayReadSamplesFromFiles, Instrument** getInstrument,
                                               std::string* name, std::string* dirPath) {
@@ -528,21 +468,6 @@ Error StorageManager::loadPatternFile(char const* path, std::string* fileName, b
 /**
  * Special function to read a synth preset into a sound drum
  */
-Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
-                                      SoundDrum** getInstrument, char const* path, std::string* name,
-                                      std::string* dirPath) {
-	AudioEngine::logAction("loadSynthDrumFromFile");
-
-	Error error = openInstrumentFile(OutputType::SYNTH, path);
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	error = parseSynthDrumDocument(song, clip, getInstrument);
-	releaseDocumentStaging();
-	return error;
-}
-
 Error StorageManager::parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument) {
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
 	if (!newDrum) {
