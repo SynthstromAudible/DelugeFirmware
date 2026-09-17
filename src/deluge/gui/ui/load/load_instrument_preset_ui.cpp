@@ -426,6 +426,12 @@ bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::Pr
 	    queued.has_value() && deluge::storage::isCreationConsumer(queued->consumer)) {
 		return false;
 	}
+	if (!deluge::storage::isCreationConsumer(request.consumer)) {
+		// A change-type or navigate: walked on the owner, loaded and applied on the interaction tier.
+		deluge::gui::instrumentLoad.request(
+		    {.kind = deluge::gui::InstrumentLoadRequest::Kind::Acquire, .preset = request});
+		return true;
+	}
 	if (!presetCoalescer_.request(request)) {
 		return true; // superseded an in-flight op; that op will pick this up via complete()
 	}
@@ -456,7 +462,7 @@ void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
 	// as they descend (spec section 6).
 	Browser::currentDir = request.dirPath;
 
-	ui->runAcquisitionFollowUp(request);
+	ui->runAcquisitionFollowUp(request, nullptr);
 
 	// If a newer gesture arrived while this ran, dispatch it (latest-wins).
 	if (auto next = ui->presetCoalescer_.complete(); next.has_value()) {
@@ -472,12 +478,91 @@ void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
 // recalculateColours()/close(), both on the owner. Every PresetConsumer is now wired; the switch is
 // exhaustive with no `default:`, so -Werror=switch makes adding a consumer without an arm a build
 // error rather than a silent no-op.
-void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request) {
+bool LoadInstrumentPresetUI::presetAcquisitionInFlight() const {
+	return presetCoalescer_.in_flight() || deluge::gui::instrumentLoad.acquisitionInFlight();
+}
+
+bool LoadInstrumentPresetUI::beginAcquisition(const deluge::storage::PresetRequest& request,
+                                              deluge::storage::AcquireWalkSpec* walk) {
+	using deluge::storage::AcquireWalk;
+	using deluge::storage::PresetConsumer;
+	if (request.oldInstrument != nullptr && !isRequestInstrumentStillLive(request.oldInstrument)) {
+		return false;
+	}
+	switch (request.consumer) {
+	case PresetConsumer::ArrangerChangeType:
+	case PresetConsumer::SessionChangeType:
+		// Song::changeOutputType()'s Synth/Kit arm: the first preset of the type nobody in the song uses.
+		*walk = {.walk = AcquireWalk::Unlaunched,
+		         .outputType = request.outputType,
+		         .availability = Availability::INSTRUMENT_UNUSED,
+		         .dirPath = getInstrumentFolder(request.outputType)};
+		return true;
+	case PresetConsumer::ViewChangeType:
+	case PresetConsumer::ViewChangeTypeMinder:
+	case PresetConsumer::SessionRowsChangeType:
+	case PresetConsumer::KeyboardChangeType: {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, request.clip);
+		return request.clip->beginChangeOutputType(modelStack, request.outputType, walk);
+	}
+	case PresetConsumer::ArrangerNavigate:
+	case PresetConsumer::SessionNavigate:
+		// Song::navigateThroughPresetsForInstrument()'s prologue.
+		actionLogger.deleteAllLogs();
+		currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
+		*walk = {.walk = AcquireWalk::Navigate,
+		         .outputType = request.oldInstrument->type,
+		         .availability = Availability::INSTRUMENT_UNUSED,
+		         .dirPath = request.oldInstrument->dirPath,
+		         .name = request.oldInstrument->name,
+		         .offset = request.offset,
+		         .oldInstrument = request.oldInstrument,
+		         .blink = true};
+		return true;
+	case PresetConsumer::ViewNavigateClipPreset: {
+		Availability availabilityRequirement;
+		(void)currentSong->shouldOldOutputBeReplaced(request.clip, &availabilityRequirement);
+		*walk = {.walk = AcquireWalk::Navigate,
+		         .outputType = request.oldInstrument->type,
+		         .availability = availabilityRequirement,
+		         .dirPath = request.oldInstrument->dirPath,
+		         .name = request.oldInstrument->name,
+		         .offset = request.offset,
+		         .oldInstrument = request.oldInstrument,
+		         .blink = false};
+		return true;
+	}
+	case PresetConsumer::ArrangerNewInstrument:
+	case PresetConsumer::SessionNewTrack:
+	case PresetConsumer::SessionNewTrackEnter:
+	case PresetConsumer::SessionNewTrackSelect:
+	case PresetConsumer::SessionNewTrackClone:
+	case PresetConsumer::MinderNewInstrument:
+	case PresetConsumer::ViewNewInstrument:
+	case PresetConsumer::KeyboardNewInstrument:
+		// A creation acquires its own on the owner (dispatchPresetAcquisition()).
+		return false;
+	}
+	return false;
+}
+
+void LoadInstrumentPresetUI::deliverAcquisition(const deluge::storage::PresetRequest& request,
+                                                const deluge::storage::AcquireResult& acquired) {
+	runAcquisitionFollowUp(request, &acquired);
+}
+
+void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request,
+                                                    const deluge::storage::AcquireResult* acquired) {
 	using deluge::storage::PresetConsumer;
 	// A coalesced request can carry a stale `oldInstrument` -- see isRequestInstrumentStillLive()'s
 	// doc. Consumers that never set it (ArrangerNewInstrument) leave it null, so the `!= nullptr`
 	// guard skips this check for them rather than abandoning every follow-up that doesn't use it.
 	if (request.oldInstrument != nullptr && !isRequestInstrumentStillLive(request.oldInstrument)) {
+		if (acquired != nullptr && acquired->loadedFromFile && acquired->instrument != nullptr) {
+			currentSong->deleteOutput(acquired->instrument); // parsed for this gesture, never added to the song
+		}
 		return;
 	}
 	switch (request.consumer) {
@@ -485,10 +570,10 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		arrangerView.completeNewInstrument(request.yPressed, request.yPressedRaw, request.renderUi);
 		break;
 	case PresetConsumer::ArrangerChangeType:
-		arrangerView.completeChangeOutputType(request.outputType, request.oldInstrument, request.yPressed);
+		arrangerView.completeChangeOutputType(request.outputType, request.oldInstrument, request.yPressed, acquired);
 		break;
 	case PresetConsumer::ArrangerNavigate:
-		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed);
+		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed, acquired);
 		break;
 	case PresetConsumer::ViewChangeType:
 	case PresetConsumer::ViewChangeTypeMinder:
@@ -497,16 +582,17 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		// All four route through the same per-consumer completion changeOutputType()'s synchronous
 		// MIDI/CV arm also uses, so each caller's redraw/LED tail runs from exactly one place either
 		// way -- see View::completeChangeOutputTypeFor()'s doc.
-		(void)view.completeChangeOutputTypeFor(request.consumer, request.outputType, request.clip, request.doBlink);
+		(void)view.completeChangeOutputTypeFor(request.consumer, request.outputType, request.clip, request.doBlink,
+		                                       acquired);
 		break;
 	case PresetConsumer::ViewNavigateClipPreset:
-		view.completeNavigateThroughPresetsForInstrumentClip(request.offset, request.clip, request.doBlink);
+		view.completeNavigateThroughPresetsForInstrumentClip(request.offset, request.clip, request.doBlink, acquired);
 		break;
 	case PresetConsumer::SessionChangeType:
-		sessionView.completeChangeOutputType(request.outputType, request.oldInstrument);
+		sessionView.completeChangeOutputType(request.outputType, request.oldInstrument, acquired);
 		break;
 	case PresetConsumer::SessionNavigate:
-		sessionView.completeNavigate(request.offset, request.oldInstrument);
+		sessionView.completeNavigate(request.offset, request.oldInstrument, acquired);
 		break;
 	case PresetConsumer::SessionNewTrack:
 		sessionView.completeNewTrack(request.outputType, request.xPressed, request.yPressed, request.clipIndex,
@@ -1511,7 +1597,9 @@ needToGrabLeftmostButHaveToReadFirst:
 /// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
 /// Caller must remove OLED working animation after calling this too.
 PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
-                                                                  Availability availabilityRequirement, bool doBlink) {
+                                                                  OutputType outputType, const std::string& fromName,
+                                                                  const std::string& fromDir,
+                                                                  Availability availabilityRequirement) {
 	// Rung 5: this reader loops over readFileItemsForFolder() with its own goto-based backtracking
 	// (readAgain/moveAgain/reachedEnd below) to walk the catalog in either direction, so like its two
 	// siblings its walk cannot be split across a deferral and must run start-to-finish on the storage
@@ -1524,15 +1612,13 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 
 	AudioEngine::logAction("doPresetNavigation");
 
-	currentDir = oldInstrument->dirPath;
-	OutputType outputType = oldInstrument->type;
+	currentDir = fromDir;
 
 	PresetNavigationResult toReturn{};
 
 	std::string oldNameString; // We only might use this later for temporary storage
-	std::string newName;
 
-	oldNameString = oldInstrument->name;
+	oldNameString = fromName;
 	oldNameString.append(".XML");
 	toReturn.error = Error::NONE;
 	if (toReturn.error != Error::NONE) {
@@ -1662,77 +1748,7 @@ doneMoving:
 		goto moveAgain;
 	}
 
+	// The name it landed on is shown, and the preset loaded, by InstrumentLoad, once this walk has landed.
 	toReturn.loadedFromFile = false;
-	bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;
-
-	if (toReturn.fileItem->instrument) {
-		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
-	}
-	else {
-		newName = toReturn.fileItem->getFilenameWithoutExtension();
-		oldNameString = toReturn.fileItem->displayName();
-		toReturn.error = Error::NONE;
-		if (toReturn.error != Error::NONE) {
-			emptyFileItems();
-			return toReturn;
-		}
-		view.drawOutputNameFromDetails(outputType, 0, 0, newName.c_str(), newName.empty(), false, doBlink);
-	}
-
-	deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
-
-	if (encoders::select.pending()) {
-		D_PRINTLN("go again 1 --------------------------");
-
-doPendingPresetNavigation:
-		offset = encoders::select.take();
-
-		if (toReturn.loadedFromFile) {
-			currentSong->deleteOutput(toReturn.fileItem->instrument);
-			toReturn.fileItem->instrument = nullptr;
-		}
-		goto moveAgain;
-	}
-
-	// Unlike in ClipMinder, there's no need to check whether we came back to the same Instrument, cos we've specified
-	// that we were looking for "unused" ones only
-	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone
-	// if anything other than unused is passed in
-	if (!toReturn.fileItem->instrument) {
-		std::string filePath = Browser::currentDir + "/" + toReturn.fileItem->getFilenameWithExtension();
-		toReturn.error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false,
-		                                                        &toReturn.fileItem->instrument, filePath.c_str(),
-		                                                        &newName, &Browser::currentDir);
-		if (toReturn.error != Error::NONE) {
-			emptyFileItems();
-			return toReturn;
-		}
-
-		toReturn.loadedFromFile = true;
-
-		if (encoders::select.pending()) {
-			D_PRINTLN("go again 2 --------------------------");
-			goto doPendingPresetNavigation;
-		}
-	}
-
-	// view.displayOutputName(toReturn.fileItem->instrument);
-
-	display->displayLoadingAnimationText("Loading", false, true);
-	int32_t oldUIMode = currentUIMode;
-	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	toReturn.fileItem->instrument->loadAllAudioFiles(true);
-	currentUIMode = oldUIMode;
-
-	// If user wants to move on...
-	if (encoders::select.pending()) {
-		D_PRINTLN("go again 3 --------------------------");
-		goto doPendingPresetNavigation;
-	}
-
-	if (isHibernating) {
-		currentSong->removeInstrumentFromHibernationList(toReturn.fileItem->instrument);
-	}
-
 	return toReturn;
 }

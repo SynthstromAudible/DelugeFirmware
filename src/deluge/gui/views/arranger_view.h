@@ -33,6 +33,9 @@ class Action;
 class Drum;
 class ModelStack;
 class ModelStackWithNoteRow;
+namespace deluge::storage {
+struct AcquireResult;
+}
 
 class ArrangerView final : public TimelineView {
 public:
@@ -93,11 +96,15 @@ public:
 	/// @param ui The UI the press came through, whose rows the repaint marks; null falls back to this
 	///        view, matching exitSubModeWithoutAction().
 	void completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui);
-	/// @brief changeOutputType()'s follow-up: on the storage owner for Synth/Kit, inline for
-	///        MIDI/CV, which read no card.
-	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed);
+	/// @brief changeOutputType()'s follow-up: inline for MIDI/CV, which read no card; for Synth/Kit, on the interaction
+	///        tier once InstrumentLoad has acquired the Instrument.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed,
+	                              const deluge::storage::AcquireResult* acquired = nullptr);
 	/// @brief navigateThroughPresets()'s follow-up; see completeChangeOutputType() for the tier split.
-	void completeNavigateThroughPresets(int32_t offset, Output* output, int32_t yPressed);
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	void completeNavigateThroughPresets(int32_t offset, Output* output, int32_t yPressed,
+	                                    const deluge::storage::AcquireResult* acquired = nullptr);
 	void exitSubModeWithoutAction(UI* ui = nullptr);
 	bool transitionToArrangementEditor();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;

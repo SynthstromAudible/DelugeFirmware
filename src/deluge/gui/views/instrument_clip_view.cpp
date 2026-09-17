@@ -1772,8 +1772,9 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType, deluge::stor
 	return InstrumentClipMinder::changeOutputType(newOutputType, consumer);
 }
 
-bool InstrumentClipView::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink) {
-	bool success = view.completeChangeOutputType(newOutputType, clip, doBlink);
+bool InstrumentClipView::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+                                                  const deluge::storage::AcquireResult* acquired) {
+	bool success = view.completeChangeOutputType(newOutputType, clip, doBlink, acquired);
 	if (success) {
 		// Qualified deliberately: InstrumentClipMinder::changeOutputType()'s old eager tail called
 		// setLedStates() from ITS OWN (non-virtual) scope, which always resolved to this base version,

@@ -284,7 +284,8 @@ public:
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @return Whether the swap actually succeeded.
-	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink);
+	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+	                              const deluge::storage::AcquireResult* acquired = nullptr);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 	bool getAffectEntire() override;

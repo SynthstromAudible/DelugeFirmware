@@ -99,7 +99,8 @@ public:
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @return Whether the swap actually succeeded.
-	bool completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink);
+	bool completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+	                                  const deluge::storage::AcquireResult* acquired = nullptr);
 
 	/// @brief The Grid-layout output-type button's follow-up -- on the storage owner for Synth/Kit,
 	///        inline for MIDI/CV.
@@ -110,14 +111,15 @@ public:
 	/// @param newOutputType The type being switched to.
 	/// @param oldInstrument The Instrument being replaced. Song-owned, so it survives the op's yields,
 	///                      and re-checked for liveness before the follow-up runs.
-	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument);
+	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument,
+	                              const deluge::storage::AcquireResult* acquired = nullptr);
 
 	/// @brief The Grid-layout preset-navigation gesture's follow-up -- on the storage owner for
 	///        Synth/Kit, inline for MIDI/CV.
 	/// @param offset    Scroll direction, as commandChangeClipPreset() received it.
 	/// @param oldOutput The Output being navigated away from. Song-owned, so it survives the op's
 	///                  yields.
-	void completeNavigate(int32_t offset, Output* oldOutput);
+	void completeNavigate(int32_t offset, Output* oldOutput, const deluge::storage::AcquireResult* acquired = nullptr);
 
 	/// @brief The empty-pad "create a clip here" gesture's follow-up (Rows layout), on the storage
 	///        owner.

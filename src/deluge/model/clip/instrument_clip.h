@@ -30,6 +30,10 @@ class NoteRow;
 class InstrumentClip;
 class Instrument;
 class ModControllable;
+namespace deluge::storage {
+struct AcquireResult;
+struct AcquireWalkSpec;
+} // namespace deluge::storage
 class Drum;
 class StereoSample;
 class ParamManagerForTimeline;
@@ -201,7 +205,22 @@ public:
 	Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	                 ModelStackWithTimelineCounter* otherModelStack) override;
 	void instrumentBeenEdited() override;
+	/// @brief Change this clip to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad: see
+	///        beginChangeOutputType() and applyChangeOutputType(); this returns nullptr for one.
 	Instrument* changeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType);
+	/// @brief A Synth or Kit change-type's card-free prologue: which preset to walk for, from where.
+	/// @param walk Filled with a Confirm walk from the type's backed-up preset.
+	/// @return false when the clip already has @p newOutputType.
+	bool beginChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+	                           deluge::storage::AcquireWalkSpec* walk);
+	/// @brief Swap in the Synth or Kit a change-type acquired.
+	/// @return The new Instrument, or nullptr when the acquisition failed (its error shown).
+	Instrument* applyChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+	                                  const deluge::storage::AcquireResult& acquired);
+	/// @brief The swap every change-type ends with: the whole Instrument, or just this clip's.
+	Instrument* finishChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+	                                   Instrument* newInstrument, bool instrumentAlreadyInSong,
+	                                   bool canReplaceWholeInstrument);
 	Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                                ModelStackWithTimelineCounter* modelStackClone) override;
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager,

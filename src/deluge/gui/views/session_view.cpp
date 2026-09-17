@@ -705,8 +705,9 @@ notDealtWith:
 	return ActionResult::DEALT_WITH;
 }
 
-bool SessionView::completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink) {
-	bool success = view.completeChangeOutputType(newOutputType, clip, doBlink);
+bool SessionView::completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+                                               const deluge::storage::AcquireResult* acquired) {
+	bool success = view.completeChangeOutputType(newOutputType, clip, doBlink, acquired);
 	// selectedClipYDisplay is read live, not carried from dispatch time: it names WHICH ROW to
 	// invalidate, not anything the acquisition itself depends on, so redrawing wherever the clip
 	// actually is now is more correct than redrawing wherever it was when the gesture was made.
@@ -714,8 +715,10 @@ bool SessionView::completeChangeOutputTypeRows(OutputType newOutputType, Instrum
 	return success;
 }
 
-void SessionView::completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument) {
-	Instrument* newInstrument = currentSong->changeOutputType(oldInstrument, newOutputType);
+void SessionView::completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument,
+                                           const deluge::storage::AcquireResult* acquired) {
+	Instrument* newInstrument = (acquired != nullptr) ? currentSong->applyChangeOutputType(oldInstrument, *acquired)
+	                                                  : currentSong->changeOutputType(oldInstrument, newOutputType);
 	if (newInstrument) {
 		view.displayOutputName(newInstrument);
 		view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
@@ -1385,8 +1388,10 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 	}
 }
 
-void SessionView::completeNavigate(int32_t offset, Output* oldOutput) {
-	Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
+void SessionView::completeNavigate(int32_t offset, Output* oldOutput, const deluge::storage::AcquireResult* acquired) {
+	Output* newOutput = (acquired != nullptr)
+	                        ? currentSong->applyNavigateThroughPresets(static_cast<Instrument*>(oldOutput), *acquired)
+	                        : currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
 	if (oldOutput != newOutput) {
 		view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
 		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);

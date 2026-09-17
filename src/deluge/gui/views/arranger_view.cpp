@@ -2683,8 +2683,11 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 
 // Runs on the storage owner for Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for
 // the tier split.
-void ArrangerView::completeNavigateThroughPresets(int32_t offset, Output* output, int32_t yPressed) {
-	output = currentSong->navigateThroughPresetsForInstrument(output, offset);
+void ArrangerView::completeNavigateThroughPresets(int32_t offset, Output* output, int32_t yPressed,
+                                                  const deluge::storage::AcquireResult* acquired) {
+	output = (acquired != nullptr)
+	             ? currentSong->applyNavigateThroughPresets(static_cast<Instrument*>(output), *acquired)
+	             : currentSong->navigateThroughPresetsForInstrument(output, offset);
 
 	outputsOnScreen[yPressed] = output;
 
@@ -2739,8 +2742,10 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 
 // Runs on the storage owner for Synth/Kit, inline for MIDI/CV. Song::changeOutputType() is
 // unchanged and does its own branch on output type.
-void ArrangerView::completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed) {
-	Instrument* newInstrument = currentSong->changeOutputType(oldInstrument, newOutputType);
+void ArrangerView::completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed,
+                                            const deluge::storage::AcquireResult* acquired) {
+	Instrument* newInstrument = (acquired != nullptr) ? currentSong->applyChangeOutputType(oldInstrument, *acquired)
+	                                                  : currentSong->changeOutputType(oldInstrument, newOutputType);
 	if (!newInstrument) {
 		return;
 	}

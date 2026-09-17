@@ -4688,30 +4688,9 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		view.displayOutputName(oldNonAudioInstrument);
 	}
 
-	// Or if we're on a Kit or Synth...
+	// A Kit or Synth: acquired by InstrumentLoad, and applied by applyNavigateThroughPresets().
 	else {
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
-		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
-removeWorkingAnimationAndGetOut: {
-	auto oled = static_cast<deluge::hid::display::OLED*>(display);
-	oled->consoleTimerEvent();
-	oled->removeWorkingAnimation();
-}
-			return output;
-		}
-		else if (results.error != Error::NONE) {
-			display->displayError(results.error);
-			goto removeWorkingAnimationAndGetOut;
-		}
-
-		Instrument* newInstrument = results.fileItem->instrument;
-		Browser::emptyFileItems();
-
-		currentSong->replaceInstrument(oldInstrument, newInstrument);
-
-		oldInstrument = newInstrument;
-		display->removeLoadingAnimation();
+		return output;
 	}
 
 	currentSong->instrumentSwapped(oldInstrument);
@@ -4719,6 +4698,31 @@ removeWorkingAnimationAndGetOut: {
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
 
 	return oldInstrument;
+}
+
+Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		if (acquired.error != Error::NO_ERROR_BUT_GET_OUT) {
+			display->displayError(acquired.error);
+		}
+		auto oled = static_cast<deluge::hid::display::OLED*>(display);
+		oled->consoleTimerEvent();
+		oled->removeWorkingAnimation();
+		return oldInstrument;
+	}
+	Instrument* newInstrument = acquired.instrument;
+	if (acquired.wasHibernating) {
+		removeInstrumentFromHibernationList(newInstrument);
+	}
+
+	replaceInstrument(oldInstrument, newInstrument);
+	display->removeLoadingAnimation();
+
+	instrumentSwapped(newInstrument);
+
+	ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
+
+	return newInstrument;
 }
 
 void Song::instrumentSwapped(Instrument* newInstrument) {
@@ -4824,48 +4828,28 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 gotAnInstrument: {}
 	}
 
-	// Synth or Kit
+	// Synth or Kit: acquired by InstrumentLoad, and applied by applyChangeOutputType().
 	else {
-		Browser::currentDir = getInstrumentFolder(newOutputType);
-
-		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-		                                     this, newOutputType, Availability::INSTRUMENT_UNUSED),
-		                                 error, {
-			                                 display->displayError(error);
-			                                 return nullptr;
-		                                 });
-
-		newInstrument = fileItem->instrument;
-		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-
-		Error error = Error::NONE;
-		if (!newInstrument) {
-			std::string newPresetName = fileItem->getFilenameWithoutExtension();
-			std::string filePath = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
-			error = StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
-			                                               filePath.c_str(), &newPresetName, &Browser::currentDir);
-		}
-
-		Browser::emptyFileItems();
-
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return nullptr;
-		}
-
-		if (isHibernating) {
-			removeInstrumentFromHibernationList(newInstrument);
-		}
-
-		display->displayLoadingAnimationText("Loading");
-
-		newInstrument->loadAllAudioFiles(true);
-
-		display->removeWorkingAnimation();
+		return nullptr;
 	}
 
-#if ALPHA_OR_BETA_VERSION
-#endif
+	replaceInstrument(oldInstrument, newInstrument);
+
+	instrumentSwapped(newInstrument);
+
+	return newInstrument;
+}
+
+Instrument* Song::applyChangeOutputType(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		display->displayError(acquired.error);
+		return nullptr;
+	}
+	Instrument* newInstrument = acquired.instrument;
+	if (acquired.wasHibernating) {
+		removeInstrumentFromHibernationList(newInstrument);
+	}
+
 	replaceInstrument(oldInstrument, newInstrument);
 
 	instrumentSwapped(newInstrument);

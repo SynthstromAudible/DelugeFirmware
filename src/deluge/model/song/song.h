@@ -41,6 +41,9 @@
 #include <utility>
 
 class MidiCommand;
+namespace deluge::storage {
+struct AcquireResult;
+}
 class Clip;
 class AudioClip;
 class Instrument;
@@ -348,9 +351,19 @@ public:
 	void resumeClipsClonedForArrangementRecording();
 	void setParamsInAutomationMode(bool newState);
 	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = nullptr);
+	/// @brief Navigate a MIDI or CV output through its channels. A Synth or Kit is acquired by InstrumentLoad and
+	///        applied by applyNavigateThroughPresets(); this returns @p output unchanged for one.
 	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
+	/// @brief Swap in the Synth or Kit a navigate acquired for @p oldInstrument.
+	/// @return The new Instrument, or @p oldInstrument when the acquisition found nothing (its error shown).
+	Output* applyNavigateThroughPresets(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired);
 	void instrumentSwapped(Instrument* newInstrument);
+	/// @brief Change @p oldInstrument to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad and
+	///        applied by applyChangeOutputType(); this returns nullptr for one.
 	Instrument* changeOutputType(Instrument* oldInstrument, OutputType newOutputType);
+	/// @brief Swap in the Synth or Kit a change-type acquired for @p oldInstrument.
+	/// @return The new Instrument, or nullptr when the acquisition failed (its error shown).
+	Instrument* applyChangeOutputType(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired);
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = nullptr);
 	/// buffer must have at least 5 characters on 7seg, or 30 for OLED

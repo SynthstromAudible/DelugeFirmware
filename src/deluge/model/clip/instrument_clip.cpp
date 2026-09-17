@@ -3753,8 +3753,6 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	Availability availabilityRequirement;
 	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this, &availabilityRequirement);
 
-	bool shouldReplaceWholeInstrument;
-
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E061", "H061");
 
 	backupPresetSlot();
@@ -3777,53 +3775,60 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		}
 	}
 
-	// Synth / Kit
+	// Synth / Kit: acquired by InstrumentLoad, see beginChangeOutputType() and applyChangeOutputType().
 	else {
-		std::string newName;
-		Error error;
-
-		newName = backedUpInstrumentName[newOutputTypeAsIdx];
-		Browser::currentDir = backedUpInstrumentDirPath[newOutputTypeAsIdx];
-
-		if (Browser::currentDir.empty()) {
-			Browser::currentDir = getInstrumentFolder(newOutputType);
-		}
-
-		FileItem* fileItem = D_TRY_CATCH(
-		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement),
-		    error, {
-			    display->displayError(error);
-			    return nullptr;
-		    });
-
-		newInstrument = fileItem->instrument;
-		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-		instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
-
-		if (!newInstrument) {
-			std::string newPresetName = fileItem->getFilenameWithoutExtension();
-			std::string filePath = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
-			error =
-			    StorageManager::loadInstrumentFromFile(modelStack->song, nullptr, newOutputType, false, &newInstrument,
-			                                           filePath.c_str(), &newPresetName, &Browser::currentDir);
-		}
-
-		Browser::emptyFileItems();
-
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return nullptr;
-		}
-
-		if (isHibernating) {
-			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
-		}
-
-		display->displayLoadingAnimationText("Loading");
-		newInstrument->loadAllAudioFiles(true);
+		return nullptr;
 	}
 
-	shouldReplaceWholeInstrument = (canReplaceWholeInstrument && !instrumentAlreadyInSong);
+	return finishChangeOutputType(modelStack, newOutputType, newInstrument, instrumentAlreadyInSong,
+	                              canReplaceWholeInstrument);
+}
+
+bool InstrumentClip::beginChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                           deluge::storage::AcquireWalkSpec* walk) {
+	if (output->type == newOutputType) {
+		return false;
+	}
+
+	actionLogger.deleteAllLogs(); // Can't undo past this!
+
+	Availability availabilityRequirement;
+	(void)modelStack->song->shouldOldOutputBeReplaced(this, &availabilityRequirement);
+
+	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E061", "H061");
+
+	backupPresetSlot();
+
+	const size_t newOutputTypeAsIdx = static_cast<size_t>(newOutputType);
+	*walk = {.walk = deluge::storage::AcquireWalk::Confirm,
+	         .outputType = newOutputType,
+	         .availability = availabilityRequirement,
+	         .dirPath = backedUpInstrumentDirPath[newOutputTypeAsIdx],
+	         .name = backedUpInstrumentName[newOutputTypeAsIdx]};
+	if (walk->dirPath.empty()) {
+		walk->dirPath = getInstrumentFolder(newOutputType);
+	}
+	return true;
+}
+
+Instrument* InstrumentClip::applyChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                                  const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		display->displayError(acquired.error);
+		return nullptr;
+	}
+	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this);
+	if (acquired.wasHibernating) {
+		modelStack->song->removeInstrumentFromHibernationList(acquired.instrument);
+	}
+	return finishChangeOutputType(modelStack, newOutputType, acquired.instrument, acquired.alreadyInSong,
+	                              canReplaceWholeInstrument);
+}
+
+Instrument* InstrumentClip::finishChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                                   Instrument* newInstrument, bool instrumentAlreadyInSong,
+                                                   bool canReplaceWholeInstrument) {
+	bool shouldReplaceWholeInstrument = (canReplaceWholeInstrument && !instrumentAlreadyInSong);
 
 	// If replacing whole Instrument
 	if (shouldReplaceWholeInstrument) {

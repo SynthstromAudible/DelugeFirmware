@@ -18,14 +18,18 @@
 #include "gui/ui/load/instrument_load.h"
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "memory/general_memory_allocator.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/file_item.h"
 #include "storage/owner.h"
 
 namespace deluge::gui {
@@ -33,6 +37,8 @@ namespace deluge::gui {
 InstrumentLoad instrumentLoad{};
 
 namespace {
+
+using Kind = InstrumentLoadRequest::Kind;
 
 void closeGate() {
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
@@ -47,8 +53,8 @@ void openGate() {
 
 /// Whether a request is a plain commit of the file @p active is already loading, and so promotes it.
 bool promotes(const InstrumentLoadRequest& request, const InstrumentLoadRequest& active) {
-	return request.commit && !request.clone && !active.commit && !active.clone
-	       && request.target.path == active.target.path;
+	return request.kind == Kind::Browse && active.kind == Kind::Browse && request.commit && !request.clone
+	       && !active.commit && !active.clone && request.target.path == active.target.path;
 }
 
 } // namespace
@@ -73,8 +79,11 @@ void InstrumentLoad::request(const InstrumentLoadRequest& request) {
 }
 
 void InstrumentLoad::cancel() {
-	coalescer_.reset();
-	if (phase_ == Phase::Idle) {
+	const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	if (queued.has_value() && queued->kind == Kind::Browse) {
+		coalescer_.clear_queued();
+	}
+	if (phase_ == Phase::Idle || active_.kind != Kind::Browse) {
 		return;
 	}
 	const bool commit = active_.commit;
@@ -83,10 +92,21 @@ void InstrumentLoad::cancel() {
 	if (commit) {
 		openGate();
 	}
+	// An acquisition queued behind the browser's load still runs.
+	std::optional<InstrumentLoadRequest> next = coalescer_.complete();
+	if (next.has_value()) {
+		start(*next);
+	}
 }
 
 void InstrumentLoad::routine() {
 	while (step()) {}
+}
+
+bool InstrumentLoad::acquisitionInFlight() const {
+	const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	return (phase_ != Phase::Idle && active_.kind == Kind::Acquire)
+	       || (queued.has_value() && queued->kind == Kind::Acquire);
 }
 
 void InstrumentLoad::start(const InstrumentLoadRequest& request) {
@@ -95,29 +115,40 @@ void InstrumentLoad::start(const InstrumentLoadRequest& request) {
 	newInstrument_ = nullptr;
 	newDrum_ = nullptr;
 	swapped_ = nullptr;
+	acquired_ = {};
+	walk_ = {};
+	walkBegun_ = false;
+	walkDispatched_ = false;
 	if (active_.commit) {
 		closeGate();
 	}
-	phase_ = Phase::Decide;
+	phase_ = (active_.kind == Kind::Acquire) ? Phase::Walk : Phase::Decide;
+}
+
+bool InstrumentLoad::supersede() {
+	const bool commit = active_.commit;
+	abandon();
+	supersessions_++;
+	if (commit) {
+		openGate();
+	}
+	start(*coalescer_.complete());
+	return true;
 }
 
 bool InstrumentLoad::step() {
-	// A newer request cancels this one at a phase boundary. The swap runs in one pass, so it never is one.
+	// A newer request cancels this one at a phase boundary. The swap runs in one pass, so it never is one; a walk's is
+	// once it has landed (stepWalk()).
 	if ((phase_ == Phase::Stage || phase_ == Phase::Samples) && coalescer_.queued().has_value()) {
-		const bool commit = active_.commit;
-		abandon();
-		supersessions_++;
-		if (commit) {
-			openGate();
-		}
-		start(*coalescer_.complete());
-		return true;
+		return supersede();
 	}
 	switch (phase_) {
 	case Phase::Idle:
 		return false;
 	case Phase::Decide:
 		return stepDecide();
+	case Phase::Walk:
+		return stepWalk();
 	case Phase::Stage:
 		return stepStage();
 	case Phase::Parse:
@@ -141,9 +172,137 @@ bool InstrumentLoad::stepDecide() {
 	return true;
 }
 
+bool InstrumentLoad::stepWalk() {
+	if (walkRunning_) {
+		return false; // a walk is out, perhaps an abandoned load's: nothing new is queued until it ends
+	}
+	if (!walkDispatched_) {
+		if (!walkBegun_) {
+			walkBegun_ = true;
+			// The gesture's card-free prologue, as the request starts: a request superseded while queued never runs it.
+			if (!loadInstrumentPresetUI.beginAcquisition(active_.preset, &walk_)) {
+				return finish(Error::NONE, false);
+			}
+			if (walk_.walk == deluge::storage::AcquireWalk::Navigate) {
+				if (originValid_) {
+					// A navigate superseding a navigate walks on from where that one's walk landed.
+					walk_.name = originName_;
+					walk_.dirPath = originDir_;
+				}
+			}
+			else {
+				originValid_ = false;
+			}
+			// Counted for song-preview-ab: an acquisition that runs, not one coalesced away.
+			LoadInstrumentPresetUI::presetAcquisitionsRun_++;
+		}
+		walkOut_ = walk_;
+		walkRunning_ = true;
+		walkDispatched_ = deluge::storage::Owner::run(&InstrumentLoad::runWalkOp, this);
+		if (!walkDispatched_) {
+			walkRunning_ = false; // the owner's queue was full: queue it on a later pass
+		}
+		return false;
+	}
+
+	// The walk has landed.
+	const bool navigate = walk_.walk == deluge::storage::AcquireWalk::Navigate;
+	if (navigate && walked_.error == Error::NONE) {
+		originValid_ = true;
+		originName_ = walked_.name;
+		originDir_ = walked_.dirPath;
+		echoNavigation();
+	}
+	if (coalescer_.queued().has_value()) {
+		return supersede();
+	}
+	if (walked_.error != Error::NONE) {
+		return finish(walked_.error);
+	}
+	acquired_.instrument = walked_.existing;
+	acquired_.alreadyInSong = walked_.existing != nullptr && walked_.alreadyInSong;
+	acquired_.wasHibernating = walked_.existing != nullptr && !walked_.alreadyInSong;
+	if (acquired_.alreadyInSong) {
+		return finish(Error::NONE);
+	}
+	if (acquired_.wasHibernating) {
+		beginSampleLoad(*walked_.existing);
+		phase_ = Phase::Samples;
+		return true;
+	}
+	phase_ = Phase::Stage;
+	return true;
+}
+
+void InstrumentLoad::runWalkOp(void* self) {
+	auto* load = static_cast<InstrumentLoad*>(self);
+	const deluge::storage::AcquireWalkSpec& spec = load->walkOut_;
+	AcquireSnapshot found{};
+	Browser::currentDir = spec.dirPath;
+	FileItem* item = nullptr;
+	switch (spec.walk) {
+	case deluge::storage::AcquireWalk::Unlaunched: {
+		auto result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
+		    currentSong, spec.outputType, spec.availability);
+		if (result.has_value()) {
+			item = *result;
+		}
+		else {
+			found.error = result.error();
+		}
+		break;
+	}
+	case deluge::storage::AcquireWalk::Confirm: {
+		std::string searchName = spec.name;
+		auto result =
+		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(spec.outputType, &searchName, spec.availability);
+		if (result.has_value()) {
+			item = *result;
+		}
+		else {
+			found.error = result.error();
+		}
+		break;
+	}
+	case deluge::storage::AcquireWalk::Navigate: {
+		PresetNavigationResult result = loadInstrumentPresetUI.doPresetNavigation(
+		    spec.offset, spec.oldInstrument, spec.outputType, spec.name, spec.dirPath, spec.availability);
+		if (result.error == Error::NONE) {
+			item = result.fileItem;
+		}
+		else {
+			found.error = result.error;
+		}
+		break;
+	}
+	}
+	if (item != nullptr) {
+		found.existing = item->instrument;
+		found.alreadyInSong = item->instrumentAlreadyInSong;
+		found.name = (item->instrument != nullptr) ? item->instrument->name : item->getFilenameWithoutExtension();
+		found.dirPath = Browser::currentDir;
+		found.path = Browser::currentDir + "/" + item->getFilenameWithExtension();
+	}
+	Browser::emptyFileItems();
+	load->walked_ = std::move(found);
+	load->walkRunning_ = false;
+}
+
+void InstrumentLoad::echoNavigation() const {
+	if (walked_.existing != nullptr) {
+		view.displayOutputName(walked_.existing, walk_.blink);
+	}
+	else {
+		view.drawOutputNameFromDetails(walk_.outputType, 0, 0, walked_.name.c_str(), walked_.name.empty(), false,
+		                               walk_.blink);
+	}
+	deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
+}
+
 StorageManager::StagedOpen InstrumentLoad::stage(const char* path, const char* firstTagName, const char* altTagName) {
 	if (!stagingOpen_) {
-		// Counted for the preset-load gate (PL-TIER): a document read, and whether it began on the storage owner.
+		// Counted for the preset-load gate (PL-TIER, AQ-TIER): a document read, and whether it began on the storage
+		// owner.
 		documentReads_++;
 		documentReadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		previousDeserializer_ = activeDeserializer;
@@ -167,13 +326,19 @@ void InstrumentLoad::releaseStaging() {
 	stagingOpen_ = false;
 }
 
+OutputType InstrumentLoad::outputTypeToParse() const {
+	if (active_.kind == Kind::Acquire) {
+		return walk_.outputType;
+	}
+	return active_.target.loadingSynthToKitRow ? OutputType::SYNTH : Browser::outputTypeToLoad;
+}
+
 bool InstrumentLoad::stepStage() {
 	const char* firstTagName = nullptr;
 	const char* altTagName = nullptr;
-	StorageManager::instrumentDocumentTags(active_.target.loadingSynthToKitRow ? OutputType::SYNTH
-	                                                                           : Browser::outputTypeToLoad,
-	                                       &firstTagName, &altTagName);
-	switch (stage(active_.target.path.c_str(), firstTagName, altTagName)) {
+	StorageManager::instrumentDocumentTags(outputTypeToParse(), &firstTagName, &altTagName);
+	const std::string& path = (active_.kind == Kind::Acquire) ? walked_.path : active_.target.path;
+	switch (stage(path.c_str(), firstTagName, altTagName)) {
 	case StorageManager::StagedOpen::Deferred:
 		return false;
 	case StorageManager::StagedOpen::Failed:
@@ -185,18 +350,27 @@ bool InstrumentLoad::stepStage() {
 	return false;
 }
 
+void InstrumentLoad::beginSampleLoad(Instrument& instrument) {
+	// Counted for the preset-load gate (PL-TIER, AQ-TIER): a sample load, and whether it began on the storage owner.
+	sampleLoads_++;
+	sampleLoadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
+	display->displayLoadingAnimationText("Loading", false, true);
+	load_.emplace(deluge::storage::AsyncSampleLoad::forOutput(instrument, nullptr));
+}
+
 bool InstrumentLoad::stepParse() {
 	Error error = Error::NONE;
-	std::string name = active_.target.name;
-	std::string dirPath = active_.target.dirPath;
-	if (active_.target.loadingSynthToKitRow) {
+	const bool acquire = active_.kind == Kind::Acquire;
+	std::string name = acquire ? walked_.name : active_.target.name;
+	std::string dirPath = acquire ? walked_.dirPath : active_.target.dirPath;
+	if (!acquire && active_.target.loadingSynthToKitRow) {
 		error = StorageManager::parseSynthDrumDocument(currentSong, loadInstrumentPresetUI.instrumentClipToLoadFor,
 		                                               &newDrum_);
 	}
 	else {
-		error =
-		    StorageManager::parseInstrumentDocument(currentSong, loadInstrumentPresetUI.instrumentClipToLoadFor,
-		                                            Browser::outputTypeToLoad, false, &newInstrument_, &name, &dirPath);
+		error = StorageManager::parseInstrumentDocument(
+		    currentSong, acquire ? nullptr : loadInstrumentPresetUI.instrumentClipToLoadFor, outputTypeToParse(), false,
+		    &newInstrument_, &name, &dirPath);
 	}
 	releaseStaging();
 	if (error != Error::NONE) {
@@ -210,15 +384,19 @@ bool InstrumentLoad::stepParse() {
 		newInstrument_->editedByUser = true;
 	}
 
-	// Counted for the preset-load gate (PL-TIER): a sample load, and whether it began on the storage owner.
-	sampleLoads_++;
-	sampleLoadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
-	display->displayLoadingAnimationText("Loading", false, true);
-	if (active_.target.loadingSynthToKitRow) {
+	if (newDrum_ != nullptr) {
+		// Counted for the preset-load gate (PL-TIER): a sample load, and whether it began on the storage owner.
+		sampleLoads_++;
+		sampleLoadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
+		display->displayLoadingAnimationText("Loading", false, true);
 		load_.emplace(deluge::storage::AsyncSampleLoad::forDrum(*newDrum_, nullptr));
 	}
 	else {
-		load_.emplace(deluge::storage::AsyncSampleLoad::forOutput(*newInstrument_, nullptr));
+		if (acquire) {
+			acquired_.instrument = newInstrument_;
+			acquired_.loadedFromFile = true;
+		}
+		beginSampleLoad(*newInstrument_);
 	}
 	phase_ = Phase::Samples;
 	return true;
@@ -233,7 +411,7 @@ bool InstrumentLoad::stepSamples() {
 		return false;
 	}
 	if (progress.state == State::Failed) {
-		// The Instrument is kept: swapped in with the holders that never answered left empty.
+		// The Instrument is kept: swapped in or handed over with the holders that never answered left empty.
 		if (progress.reason == Reason::Stalled) {
 			giveUps_++;
 		}
@@ -241,6 +419,9 @@ bool InstrumentLoad::stepSamples() {
 	}
 	load_.reset();
 	display->removeLoadingAnimation();
+	if (active_.kind == Kind::Acquire) {
+		return finish(Error::NONE);
+	}
 	phase_ = Phase::Swap;
 	return true;
 }
@@ -292,6 +473,8 @@ void InstrumentLoad::abandon() {
 		load_.reset();
 		display->removeLoadingAnimation();
 	}
+	// A walk still out ends on its own; what it finds is not read (start() clears walkDispatched_).
+	walkDispatched_ = false;
 	if (newInstrument_ != nullptr) {
 		// Parsed, never added to the song.
 		currentSong->deleteOutput(newInstrument_);
@@ -306,16 +489,29 @@ void InstrumentLoad::abandon() {
 	}
 }
 
-bool InstrumentLoad::finish(Error error) {
+bool InstrumentLoad::finish(Error error, bool deliver) {
 	const bool commit = active_.commit;
 	const auto completion = active_.completion;
+	const bool acquire = active_.kind == Kind::Acquire;
+	const deluge::storage::PresetRequest preset = acquire ? active_.preset : deluge::storage::PresetRequest{};
+	deluge::storage::AcquireResult acquired = acquired_;
+	acquired.error = error;
+	if (acquire && deliver && error == Error::NONE) {
+		newInstrument_ = nullptr; // handed over: the gesture's follow-up adds it to the song, or deletes it
+	}
 	abandon();
 	phase_ = Phase::Idle;
 	std::optional<InstrumentLoadRequest> next = coalescer_.complete();
 	if (commit) {
 		openGate();
 	}
-	if (completion != nullptr) {
+	if (acquire && deliver) {
+		if (walk_.walk == deluge::storage::AcquireWalk::Navigate) {
+			originValid_ = false; // the song's Instrument is where the walk landed now
+		}
+		loadInstrumentPresetUI.deliverAcquisition(preset, acquired);
+	}
+	else if (completion != nullptr) {
 		completion(error);
 	}
 	// The completion may have closed the browser, which cancels whatever was queued.

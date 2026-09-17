@@ -213,4 +213,37 @@ struct PresetRequest {
 	UI* renderUi{};
 };
 
+/// @brief Which of today's walkers an acquisition's walk runs, on the storage owner.
+enum class AcquireWalk : uint8_t {
+	Unlaunched, ///< findAnUnlaunchedPresetIncludingWithinSubfolders(): the first preset nobody in the song uses.
+	Confirm,    ///< confirmPresetOrNextUnlaunchedOne(): a named preset if it may be used, or the next one that may.
+	Navigate,   ///< doPresetNavigation(): the next preset along from a named one, either way.
+};
+
+/// @brief The walk an acquisition asks for, fixed by its gesture's prologue before the walk is queued.
+struct AcquireWalkSpec {
+	AcquireWalk walk{AcquireWalk::Unlaunched};
+	OutputType outputType{OutputType::SYNTH}; ///< The type walked for, and parsed.
+	Availability availability{Availability::ANY};
+	std::string dirPath; ///< The folder the walk starts in.
+	std::string name;    ///< Confirm: the preset asked for. Navigate: the preset moved on from, without extension.
+	int32_t offset{};    ///< Navigate: which way to move.
+	/// Navigate: the Instrument moved on from. The walk compares it and never reads through it.
+	Instrument* oldInstrument{};
+	bool blink{}; ///< Navigate: whether the name shown when the walk lands blinks.
+};
+
+/// @brief What an acquisition hands its gesture's follow-up.
+struct AcquireResult {
+	/// Why there is no Instrument; NO_ERROR_BUT_GET_OUT when a navigate found nowhere else to go.
+	Error error{Error::NONE};
+	/// The Instrument: parsed from the card and not yet in the song (@ref loadedFromFile), off the hibernation list
+	/// (@ref wasHibernating), or already active in the song (@ref alreadyInSong). The follow-up adds it, or deletes one
+	/// it will not use that was loaded from the card.
+	Instrument* instrument{};
+	bool alreadyInSong{};
+	bool wasHibernating{};
+	bool loadedFromFile{};
+};
+
 } // namespace deluge::storage

@@ -65,8 +65,18 @@ public:
 	                                                Availability availabilityRequirement);
 	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
 	                                                                 Availability availabilityRequirement);
-	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
-	                                          Availability availabilityRequirement, bool doBlink);
+	/// @brief The walk of a preset navigation: the next preset along from @p fromName in @p fromDir.
+	/// @param offset Which way to move.
+	/// @param oldInstrument The Instrument moved on from: compared with the list's, never read through.
+	/// @param outputType The type navigated through.
+	/// @param fromName The preset moved on from, without extension.
+	/// @param fromDir The folder it is in.
+	/// @param availabilityRequirement Which presets may be landed on.
+	/// @return The FileItem landed on, or an error (NO_ERROR_BUT_GET_OUT when there is nowhere else to go). The
+	///         caller empties the browser's list.
+	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument, OutputType outputType,
+	                                          const std::string& fromName, const std::string& fromDir,
+	                                          Availability availabilityRequirement);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
 		Browser::outputTypeToLoad = newOutputType;
@@ -100,8 +110,8 @@ public:
 	/// @return The running acquisition-run count.
 	[[nodiscard]] static int32_t presetAcquisitionsRun() { return presetAcquisitionsRun_; }
 
-	/// @brief Whether a preset acquisition is in flight or queued.
-	[[nodiscard]] bool presetAcquisitionInFlight() const { return presetCoalescer_.in_flight(); }
+	/// @brief Whether a preset acquisition is in flight or queued: on the storage owner, or on InstrumentLoad.
+	[[nodiscard]] bool presetAcquisitionInFlight() const;
 
 	/// @brief Whether a preset load is in flight or queued.
 	[[nodiscard]] bool scrollLoadInFlight() const;
@@ -177,9 +187,24 @@ private:
 	/// @param self The LoadInstrumentPresetUI instance.
 	static void runPresetAcquisitionOp(void* self);
 
-	/// @brief Runs one acquisition's consumer follow-up, on the owner. See runPresetAcquisitionOp().
+	/// @brief Runs one acquisition's consumer follow-up: on the owner for a creation (see runPresetAcquisitionOp()), or
+	///        on the interaction tier with what InstrumentLoad acquired.
 	/// @param request The snapshot the acquisition was dispatched with; see PresetRequest.
-	void runAcquisitionFollowUp(const deluge::storage::PresetRequest& request);
+	/// @param acquired A change-type's or navigate's Instrument, or nullptr for a creation, which acquires its own.
+	void runAcquisitionFollowUp(const deluge::storage::PresetRequest& request,
+	                            const deluge::storage::AcquireResult* acquired = nullptr);
+
+	/// @brief A change-type's or navigate's card-free prologue, as InstrumentLoad starts it: which walk, from where.
+	/// @param request The gesture.
+	/// @param walk Filled with the walk to run.
+	/// @return false when there is nothing to acquire (the gesture's Instrument has gone, or its clip already has the
+	///         type); the request then ends telling no one.
+	bool beginAcquisition(const deluge::storage::PresetRequest& request, deluge::storage::AcquireWalkSpec* walk);
+
+	/// @brief Hand a change-type's or navigate's acquired Instrument to its follow-up. An Instrument loaded from the
+	///        card for a gesture whose Instrument has gone since is deleted.
+	void deliverAcquisition(const deluge::storage::PresetRequest& request,
+	                        const deluge::storage::AcquireResult& acquired);
 
 	/// @brief Whether `instrument` is still one of currentSong's live outputs.
 	///

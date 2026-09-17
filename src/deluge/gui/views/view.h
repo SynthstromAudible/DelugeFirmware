@@ -97,7 +97,9 @@ public:
 	/// @param offset Scroll direction/amount, carried from the dispatching call.
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
-	void completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink);
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	void completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink,
+	                                                     const deluge::storage::AcquireResult* acquired = nullptr);
 	void navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink = false);
 	/// @brief Change `modelStack`'s clip to a new output type, on the storage owner for Synth/Kit and
 	///        inline for MIDI/CV.
@@ -121,7 +123,9 @@ public:
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @return Whether the swap actually succeeded (a real answer now, not a dispatch acknowledgement).
-	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink);
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+	                              const deluge::storage::AcquireResult* acquired = nullptr);
 	/// @brief Routes a completed (or synchronously-run) changeOutputType() to the completion its
 	///        `consumer` asked for, so the caller-specific redraw/LED tail runs from exactly ONE place
 	///        regardless of whether the acquisition was dispatched (Synth/Kit) or ran inline (MIDI/CV)
@@ -131,8 +135,10 @@ public:
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @return Whether the swap actually succeeded.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	bool completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer, OutputType newOutputType,
-	                                 InstrumentClip* clip, bool doBlink);
+	                                 InstrumentClip* clip, bool doBlink,
+	                                 const deluge::storage::AcquireResult* acquired = nullptr);
 	void drawOutputNameFromDetails(OutputType outputType, int32_t slot, int32_t subSlot, char const* name,
 	                               bool isNameEmpty, bool editedByUser, bool doBlink, Clip* clip = nullptr);
 	void startMIDILearn();
