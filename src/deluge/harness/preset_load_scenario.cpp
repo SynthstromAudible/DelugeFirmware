@@ -199,8 +199,11 @@ enum class Leg : uint8_t {
 	AqSupersede,
 	AqRefuse,
 	AqClone,
+	RevertCard,
+	RevertMemory,
 	Stall,
 	AqStall,
+	RevertStall,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, Settle, Act, Wait };
@@ -226,6 +229,15 @@ int32_t g_orphansBefore = 0;
 /// The sample loads begun when the supersession leg selected the heavy kit: it scrolls on only once the heavy kit's own
 /// has begun, so a kit has been parsed and is out loading when the scroll cancels it.
 int32_t g_heavyLoadsBefore = 0;
+/// The revert legs: the clip's original, read as the leg opens, and what the exit was seen to do.
+std::string g_revertName{};
+std::string g_revertSample{};
+bool g_revertTried = false;
+bool g_revertClosedAtOnce = false;
+bool g_revertGateClosed = false;
+int32_t g_revertSyncReadsBefore = 0;
+int32_t g_revertGiveUpsBefore = 0;
+
 /// What the gate leg saw: whether its presses were tried, whether the commit was still out, and whether each was
 /// refused.
 bool g_gateTried = false;
@@ -272,6 +284,12 @@ const char* legName(Leg leg) {
 		return "aq-refuse";
 	case Leg::AqClone:
 		return "aq-clone";
+	case Leg::RevertCard:
+		return "revert-card";
+	case Leg::RevertMemory:
+		return "revert-memory";
+	case Leg::RevertStall:
+		return "revert-stall";
 	case Leg::Stall:
 		return "stall";
 	case Leg::AqStall:
@@ -280,6 +298,11 @@ const char* legName(Leg leg) {
 		return "done";
 	}
 	return "?";
+}
+
+/// Whether the leg backs out of the browser, reverting to the clip's original.
+bool isRevertLeg(Leg leg) {
+	return leg == Leg::RevertCard || leg == Leg::RevertMemory || leg == Leg::RevertStall;
 }
 
 bool fail(const char* leg, const char* what) {
@@ -485,6 +508,11 @@ const char* legPreset() {
 	case Leg::AqStall:
 	case Leg::Done:
 		break;
+	case Leg::RevertCard:
+	case Leg::RevertMemory:
+	case Leg::RevertStall:
+		// The preset the browser scrolls to before backing out; the revert puts the original back.
+		return kSynthPreset;
 	}
 	return "";
 }
@@ -492,6 +520,25 @@ const char* legPreset() {
 // ── The legs ─────────────────────────────────────────────────────────────────
 
 void prepareLeg() {
+	if (isRevertLeg(g_leg)) {
+		auto* instrument = static_cast<Instrument*>(g_synthClip->output);
+		g_revertName = instrument->name;
+		AudioFileHolder* holder = (instrument->type == OutputType::SYNTH)
+		                              ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0])
+		                              : nullptr;
+		g_revertSample = (holder != nullptr) ? holder->filePath : "";
+		if (g_leg == Leg::RevertMemory) {
+			// An edited Instrument hibernates rather than leaves when it is replaced, so its revert needs no card.
+			instrument->editedByUser = true;
+		}
+		g_revertTried = false;
+		g_revertClosedAtOnce = false;
+		g_revertGateClosed = false;
+		g_revertSyncReadsBefore = StorageManager::synchronousDocumentReads();
+		g_revertGiveUpsBefore = deluge::gui::instrumentLoad.giveUps();
+		printf("PL-PROBE leg=%s original=%s sample=%s\n", legName(g_leg), g_revertName.c_str(), g_revertSample.c_str());
+		return;
+	}
 	if (g_leg != Leg::Synth) {
 		return;
 	}
@@ -571,6 +618,16 @@ int32_t orphanedParamManagers() {
 	return orphans;
 }
 
+/// The revert legs' first wait tick: whether the browser had already closed, and whether the revert holds the gate.
+void tickRevert() {
+	if (g_revertTried) {
+		return;
+	}
+	g_revertTried = true;
+	g_revertClosedAtOnce = !isUIOpen(&loadInstrumentPresetUI);
+	g_revertGateClosed = currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+}
+
 /// The gate leg's first wait tick: while the commit is still out, an output-type button and an encoder turn.
 void tickGate() {
 	if (g_gateTried) {
@@ -595,6 +652,11 @@ void tickGate() {
 
 void actLeg() {
 	using namespace deluge::hid::button;
+	if (isRevertLeg(g_leg)) {
+		// The mute pad, which is what backs out of the browser (padAction()'s potentiallyExit).
+		(void)getCurrentUI()->padAction(kDisplayWidth, 0, 1);
+		return;
+	}
 	if (g_leg == Leg::Supersede) {
 		// On to the light kit before the heavy kit's samples land.
 		(void)loadInstrumentPresetUI.setFileByFullPath(OutputType::NONE, kLitePreset);
@@ -615,6 +677,9 @@ void actLeg() {
 }
 
 bool legEnded() {
+	if (isRevertLeg(g_leg)) {
+		return !isUIOpen(&loadInstrumentPresetUI) && !deluge::gui::instrumentLoad.inFlight();
+	}
 	if (g_leg == Leg::Supersede) {
 		// The light kit's load settled, with the browser left open on it.
 		return !Browser::isListingInProgress() && !loadInstrumentPresetUI.scrollLoadInFlight()
@@ -655,8 +720,60 @@ bool boundTo(AudioFileHolder* holder, const char* path) {
 	return holder != nullptr && holder->audioFile != nullptr && holder->filePath == path;
 }
 
+/// The revert legs: what the exit put back, and who read it.
+void checkRevert() {
+	auto* instrument = static_cast<Instrument*>(g_synthClip->output);
+	AudioFileHolder* holder = (instrument->type == OutputType::SYNTH)
+	                              ? firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0])
+	                              : nullptr;
+	const bool reverted = instrument->name == g_revertName;
+	const bool bound = boundTo(holder, g_revertSample.c_str());
+	const bool holderEmpty = holder != nullptr && holder->audioFile == nullptr;
+	const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	const int32_t syncReads = StorageManager::synchronousDocumentReads() - g_revertSyncReadsBefore;
+	const int32_t giveUps = deluge::gui::instrumentLoad.giveUps() - g_revertGiveUpsBefore;
+	if (g_leg == Leg::RevertCard) {
+		printf("RV-CARD reverted=%d bound=%d closedAtOnce=%d gateClosed=%d released=%d syncReads=%d name=%s ticks=%d\n",
+		       reverted ? 1 : 0, bound ? 1 : 0, g_revertClosedAtOnce ? 1 : 0, g_revertGateClosed ? 1 : 0,
+		       released ? 1 : 0, syncReads, instrument->name.c_str(), g_waitTicks);
+		if (!reverted || !bound || !g_revertClosedAtOnce || !g_revertGateClosed || !released || syncReads != 0) {
+			printf("RV-CARD FAIL backing out did not close the browser at once and put the original back off the "
+			       "storage owner with its gate closed while it loaded\n");
+			g_failures++;
+		}
+		return;
+	}
+	if (g_leg == Leg::RevertMemory) {
+		printf("RV-MEMORY reverted=%d bound=%d closedAtOnce=%d syncReads=%d name=%s ticks=%d\n", reverted ? 1 : 0,
+		       bound ? 1 : 0, g_revertClosedAtOnce ? 1 : 0, syncReads, instrument->name.c_str(), g_waitTicks);
+		if (!reverted || !bound || !g_revertClosedAtOnce || syncReads != 0) {
+			printf("RV-MEMORY FAIL backing out did not put the hibernating original back, with no document read at "
+			       "all\n");
+			g_failures++;
+		}
+		return;
+	}
+	deluge_audio_load_set_latency_ms(0);
+	printf("RV-STALL reverted=%d holderEmpty=%d released=%d giveUps=%d syncReads=%d name=%s\n", reverted ? 1 : 0,
+	       holderEmpty ? 1 : 0, released ? 1 : 0, giveUps, syncReads, instrument->name.c_str());
+	if (!reverted || !holderEmpty || !released || giveUps != 1 || syncReads != 0) {
+		printf("RV-STALL FAIL a revert whose sample load never answered did not put the original back with that "
+		       "holder empty on the stall bound\n");
+		g_failures++;
+	}
+}
+
 void checkLeg() {
+	if (g_leg == Leg::RevertMemory) {
+		// Nothing is read: its original hibernates in memory.
+		checkRevert();
+		return;
+	}
 	checkTier();
+	if (isRevertLeg(g_leg)) {
+		checkRevert();
+		return;
+	}
 	const bool browserClosed = !isUIOpen(&loadInstrumentPresetUI);
 	switch (g_leg) {
 	case Leg::Race: {
@@ -1351,7 +1468,7 @@ void runTick() {
 		if (g_leg == Leg::Supersede || g_leg == Leg::Gate) {
 			deluge_audio_load_set_latency_ms(kHoldMs);
 		}
-		else if (g_leg == Leg::Stall) {
+		else if (g_leg == Leg::Stall || g_leg == Leg::RevertStall) {
 			deluge_audio_load_set_latency_ms(kStallHoldMs);
 		}
 		g_heavySwapped = false;
@@ -1380,7 +1497,11 @@ void runTick() {
 		if (g_leg == Leg::Gate) {
 			tickGate();
 		}
-		if (legEnded() || ++g_waitTicks > (g_leg == Leg::Stall ? kMaxStallTicks : kMaxLegTicks)) {
+		if (isRevertLeg(g_leg)) {
+			tickRevert();
+		}
+		if (legEnded()
+		    || ++g_waitTicks > ((g_leg == Leg::Stall || g_leg == Leg::RevertStall) ? kMaxStallTicks : kMaxLegTicks)) {
 			checkLeg();
 			nextLeg();
 		}

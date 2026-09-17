@@ -43,6 +43,13 @@
 #   AQ-TIER    per acquisition leg: documents read and samples loaded, none of it begun on the storage owner, and no
 #              sample read from the card on the interaction tier.
 #
+# The revert legs back out of the browser, which puts the clip's original preset back:
+#   RV-CARD    an original that left memory: the browser closed on the exit tick, the gate closed while the revert
+#              loaded, the original back with its sample bound, and the read the machine's.
+#   RV-MEMORY  an edited original, which hibernates: put back with no document read at all.
+#   RV-STALL   an original whose sample load is held past the stall bound: back with that holder empty, the gate
+#              released.
+#
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #
 # Usage: scripts/preset_load.sh
@@ -95,31 +102,34 @@ trap cleanup EXIT
 
 echo "preset load: running"
 set +e
-GOLDEN_SCENARIO=preset_load "$BIN" >"$OUT/run.txt" 2>"$OUT/run.err"
+# Three legs hold the loader for 30 virtual seconds each (PL-STALL, AQ-STALL, RV-STALL), which is more than the
+# runner's default 60s virtual-time budget covers.
+GOLDEN_SCENARIO=preset_load GOLDEN_VIRTUAL_BUDGET_MS=180000 "$BIN" >"$OUT/run.txt" 2>"$OUT/run.err"
 status=$?
 set -e
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
-	grep -E '^(PL|AQ)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	grep -E '^(PL|AQ|RV)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
 	tail -20 "$OUT/run.err"
 	exit 1
 fi
 
 for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
-	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-TIER PL-RESULT; do
+	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-TIER \
+	RV-CARD RV-MEMORY RV-STALL PL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
-		grep -E '^(PL|AQ)-' "$OUT/run.txt"
+		grep -E '^(PL|AQ|RV)-' "$OUT/run.txt"
 		exit 1
 	fi
 done
 
 if ! grep -q '^PL-RESULT failures=0$' "$OUT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^(PL|AQ)-' "$OUT/run.txt"
+	grep -E '^(PL|AQ|RV)-' "$OUT/run.txt"
 	exit 1
 fi
 
 echo "PASS — every preset load bound what a user's load binds"
-grep -E '^(PL|AQ)-' "$OUT/run.txt"
+grep -E '^(PL|AQ|RV)-' "$OUT/run.txt"
