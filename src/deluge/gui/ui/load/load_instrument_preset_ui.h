@@ -160,6 +160,10 @@ private:
 	/// @brief Replace the kit row's drum with @p newDrum, in one pass.
 	/// @return Error::NONE, or FILE_CORRUPTED when the new drum has no param manager.
 	Error swapKitRow(const deluge::gui::InstrumentLoadRequest& request, SoundDrum* newDrum);
+	/// @brief Put @p initialInstrument back on the clip, as @p target says: the tail every revert ends with, whether
+	/// the
+	///        original came from memory or off the card.
+	void swapRevert(const deluge::gui::RevertTarget& target, Instrument* initialInstrument);
 	/// @brief A scroll-load's end: records the error, and shows it.
 	static void onScrollLoaded(Error error);
 	/// @brief A commit's end: shows an error, or recalculates a kit's colours and closes the browser.

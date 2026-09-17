@@ -49,12 +49,26 @@ struct InstrumentLoadTarget {
 	std::string dirPath; ///< The browser's folder.
 };
 
-/// @brief One preset load: the browser's own, or an acquisition a gesture outside the browser asked for.
+/// @brief What the browser's exit reverts to: the preset it puts back, and how.
+struct RevertTarget {
+	std::string path;    ///< The original preset's full path.
+	std::string name;    ///< Its name.
+	std::string dirPath; ///< Its folder.
+	OutputType outputType{OutputType::SYNTH};
+	InstrumentClip* clip{};            ///< The clip the browser was opened for; null from the arranger.
+	Instrument* instrumentToReplace{}; ///< What the browser left on the clip, to be replaced by the original.
+	bool replaceWhole{};               ///< Replace the whole Instrument rather than change the clip's.
+	bool needToAdd{};                  ///< The original must be added to the song.
+};
+
+/// @brief One preset load: the browser's own, an acquisition a gesture outside the browser asked for, or the revert
+///        the browser's exit leaves behind.
 struct InstrumentLoadRequest {
 	/// @brief Which of the two a request is.
 	enum class Kind : uint8_t {
 		Browse,  ///< The browser's scroll-load, commit or clone, of @ref target.
 		Acquire, ///< A change-type or navigate gesture's acquisition, of what @ref preset's walk finds.
+		Revert,  ///< The browser's exit, putting @ref revert's original preset back.
 	};
 
 	InstrumentLoadTarget target{};
@@ -65,6 +79,8 @@ struct InstrumentLoadRequest {
 	Kind kind = Kind::Browse;
 	/// Acquire only: the gesture, handed to LoadInstrumentPresetUI's consumer follow-up when the Instrument is ready.
 	deluge::storage::PresetRequest preset{};
+	/// Revert only: the original to read, and the swap to make when it is ready.
+	RevertTarget revert{};
 };
 
 /// @brief What the browser decided about a load before any card work: done already, reuse an Instrument, or read one.
@@ -102,10 +118,14 @@ struct AcquireSnapshot {
 ///   hibernating Instrument has its samples loaded, and an active one is taken as it is; the gesture's follow-up is
 ///   then handed the Instrument, and applies it.
 ///
-/// Requests of both kinds share one latest-wins queue: a newer request cancels the load in flight at its next phase
+/// - **Revert** (the browser's exit, when the clip's original preset has left memory): staged, parsed and loaded as
+///   above, then swapped back by the browser's shared revert tail. The browser has already closed; the gate stays
+///   closed until it lands.
+///
+/// Requests share one latest-wins queue: a newer request cancels the load in flight at its next phase
 /// boundary (staging, samples, or a landed walk) and starts -- except a creation (a new instrument, new track or
-/// clone): one in flight is never cancelled, a newer request waiting behind it, and one queued is never replaced, what
-/// comes after it being refused. An Instrument parsed but not yet handed over is deleted,
+/// clone) and a revert: one in flight is never cancelled, a newer request waiting behind it, and one queued is never
+/// replaced, what comes after it being refused. An Instrument parsed but not yet handed over is deleted,
 /// never having been added to the song. A navigate that supersedes a navigate walks on from where the superseded one's
 /// walk landed. A commit asked for the file a scroll-load is already loading promotes that load instead of
 /// restarting it. A browser commit or clone closes UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES until it ends, released only

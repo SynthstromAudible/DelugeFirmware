@@ -892,12 +892,20 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 					return;
 				}
 
-				Error error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
-				                                                     initialOutputType, false, &initialInstrument,
-				                                                     filePath.c_str(), &initialName, &initialDirPath);
-				if (error != Error::NONE) {
-					return;
-				}
+				// Off the card, on the interaction tier: the browser closes now, and swapRevert() puts the original
+				// back when InstrumentLoad has it. The gate stays closed until then, and closing the browser does not
+				// cancel it.
+				(void)deluge::gui::instrumentLoad.request({.commit = true,
+				                                           .kind = deluge::gui::InstrumentLoadRequest::Kind::Revert,
+				                                           .revert = {.path = filePath,
+				                                                      .name = initialName,
+				                                                      .dirPath = initialDirPath,
+				                                                      .outputType = initialOutputType,
+				                                                      .clip = instrumentClipToLoadFor,
+				                                                      .instrumentToReplace = instrumentToReplace,
+				                                                      .replaceWhole = replacedWholeInstrument,
+				                                                      .needToAdd = true}});
+				return;
 			}
 
 			initialInstrument->loadAllAudioFiles(true);
@@ -905,12 +913,24 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 	}
 
 gotAnInstrument:
+	swapRevert({.outputType = initialOutputType,
+	            .clip = instrumentClipToLoadFor,
+	            .instrumentToReplace = instrumentToReplace,
+	            .replaceWhole = replacedWholeInstrument,
+	            .needToAdd = needToAddInstrumentToSong},
+	           initialInstrument);
+}
+
+void LoadInstrumentPresetUI::swapRevert(const deluge::gui::RevertTarget& target, Instrument* initialInstrument) {
+	if (initialInstrument == nullptr) {
+		return;
+	}
 
 	// If swapping whole Instrument...
-	if (replacedWholeInstrument) {
+	if (target.replaceWhole) {
 
 		// We know the Instrument hasn't been added to the Song, and this call will do it
-		currentSong->replaceInstrument(instrumentToReplace, initialInstrument);
+		currentSong->replaceInstrument(target.instrumentToReplace, initialInstrument);
 
 		replacedWholeInstrument = true;
 	}
@@ -919,19 +939,19 @@ gotAnInstrument:
 	else {
 
 		// If that Instrument wasn't already in use in the Song, copy default velocity over
-		initialInstrument->defaultVelocity = instrumentToReplace->defaultVelocity;
+		initialInstrument->defaultVelocity = target.instrumentToReplace->defaultVelocity;
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
-		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, target.clip);
 
-		Error error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, nullptr,
-		                                                        InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
+		Error error = target.clip->changeInstrument(modelStack, initialInstrument, nullptr,
+		                                            InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
-		if (needToAddInstrumentToSong) {
+		if (target.needToAdd) {
 			currentSong->addOutput(initialInstrument);
 		}
 
