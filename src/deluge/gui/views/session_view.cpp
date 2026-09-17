@@ -1629,50 +1629,68 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 }
 
-// Will now look in subfolders too if need be.
+// Will now look in subfolders too if need be. @p acquired is what InstrumentLoad acquired; with none, the preset is
+// walked for and loaded here (the host reproduction seam, reproCreateNewInstrumentClip(), which runs on the owner).
 Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
-                                   bool copyDrumsFromClip = true) {
-	Browser::currentDir = getInstrumentFolder(outputType);
+                                   bool copyDrumsFromClip = true,
+                                   const deluge::storage::AcquireResult* acquired = nullptr) {
+	Instrument* newInstrument = nullptr;
+	bool isHibernating = false;
 
-	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-	                                     currentSong, outputType, Availability::INSTRUMENT_UNUSED),
-	                                 error, { return error; });
-
-	Instrument* newInstrument = fileItem->instrument;
-	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
-
-	Error error = Error::NONE;
-	if (!newInstrument) {
-		std::string newPresetName = fileItem->getFilenameWithoutExtension();
-		std::string filePath = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
-		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
-		                                               filePath.c_str(), &newPresetName, &Browser::currentDir);
+	if (acquired != nullptr) {
+		if (acquired->error != Error::NONE) {
+			return acquired->error;
+		}
+		newInstrument = acquired->instrument;
+		isHibernating = acquired->wasHibernating;
+		*instrumentAlreadyInSong = acquired->alreadyInSong;
 	}
+	else {
+		Browser::currentDir = getInstrumentFolder(outputType);
 
-	Browser::emptyFileItems();
+		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
+		                                     currentSong, outputType, Availability::INSTRUMENT_UNUSED),
+		                                 error, { return error; });
 
-	if (error != Error::NONE) {
-		return error;
+		newInstrument = fileItem->instrument;
+		isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
+		*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
+
+		Error error = Error::NONE;
+		if (!newInstrument) {
+			std::string newPresetName = fileItem->getFilenameWithoutExtension();
+			std::string filePath = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
+			error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
+			                                               filePath.c_str(), &newPresetName, &Browser::currentDir);
+		}
+
+		Browser::emptyFileItems();
+
+		if (error != Error::NONE) {
+			return error;
+		}
 	}
 
 	if (isHibernating) {
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
-	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
+	if (acquired == nullptr) {
+		deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 
-	newInstrument->loadAllAudioFiles(true);
+		newInstrument->loadAllAudioFiles(true);
 
-	display->removeWorkingAnimation();
+		display->removeWorkingAnimation();
+	}
 
 	if (copyDrumsFromClip) {
-		error = clip->setAudioInstrument(newInstrument, currentSong, true, nullptr); // Does a setupPatching()
+		Error error = clip->setAudioInstrument(newInstrument, currentSong, true, nullptr); // Does a setupPatching()
 		if (error != Error::NONE) {
 			// setAudioInstrument failed (most likely INSUFFICIENT_RAM while loading the kit's samples). Release the
 			// Instrument we just brought in so it doesn't leak - delete it, or return it to the hibernation list if
-			// it's been edited. One that was already an active Output in the song is left untouched.
-			if (!*instrumentAlreadyInSong) {
+			// it's been edited. One that was already an active Output in the song is left untouched, and a preset
+			// InstrumentLoad parsed is released by its delivery.
+			if (!*instrumentAlreadyInSong && (acquired == nullptr || !acquired->loadedFromFile)) {
 				currentSong->deleteOrAddToHibernationListOutput(newInstrument);
 			}
 			return error;
@@ -1707,7 +1725,8 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 constexpr float colourStep = 22.5882352941;
 static float lastColour = 192 - colourStep + 1;
 
-Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay) {
+Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay,
+                                 const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = nullptr;
 	switch (outputType) {
 	case OutputType::AUDIO:
@@ -1720,10 +1739,10 @@ Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay) {
 		break;
 	default:
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			clip = gridCreateInstrumentClipWithNewTrack(outputType);
+			clip = gridCreateInstrumentClipWithNewTrack(outputType, acquired);
 		}
 		else {
-			clip = createNewInstrumentClip(outputType, yDisplay);
+			clip = createNewInstrumentClip(outputType, yDisplay, acquired);
 		}
 		break;
 	}
@@ -1782,8 +1801,8 @@ void SessionView::beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yD
 // unchanged and blocks here, which is legal on this tier -- and so its three abandon paths, and the
 // bool createNewTrackForInstrumentClip() answers them with, are untouched.
 void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex,
-                                   bool shiftHeld) {
-	Clip* clip = createNewInstrumentClip(type, yDisplay);
+                                   bool shiftHeld, const deluge::storage::AcquireResult* acquired) {
+	Clip* clip = createNewInstrumentClip(type, yDisplay, acquired);
 	if (!clip) {
 		// The gesture is over: nothing was created, so nothing will be held.
 		newTrackPressHeld_ = false;
@@ -1823,7 +1842,8 @@ void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yD
 	}
 }
 
-Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDisplay) {
+Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDisplay,
+                                           const deluge::storage::AcquireResult* acquired) {
 	actionLogger.deleteAllLogs();
 
 	// Allocate memory for instrument clip
@@ -1837,7 +1857,7 @@ Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDispl
 	InstrumentClip* newClip = new (clipMemory) InstrumentClip(currentSong);
 
 	// suss output
-	if (!createNewTrackForInstrumentClip(outputType, newClip, true)) {
+	if (!createNewTrackForInstrumentClip(outputType, newClip, true, acquired)) {
 		newClip->~InstrumentClip();
 		delugeDealloc(clipMemory);
 		return nullptr;
@@ -3514,10 +3534,11 @@ bool SessionView::createNewTrackForAudioClip(AudioClip* newClip) {
 	return true;
 }
 
-bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip) {
+bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip,
+                                                  const deluge::storage::AcquireResult* acquired) {
 	bool instrumentAlreadyInSong = false;
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
-		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
+		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip, acquired);
 		if (error != Error::NONE || instrumentAlreadyInSong) {
 			if (error != Error::NONE) {
 				display->displayError(error);
@@ -3580,7 +3601,8 @@ AudioClip* SessionView::gridCreateAudioClipWithNewTrack() {
 	return newClip;
 }
 
-InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType type) {
+InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType type,
+                                                                  const deluge::storage::AcquireResult* acquired) {
 	// Allocate new clip
 	void* memory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	if (!memory) {
@@ -3589,7 +3611,7 @@ InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType typ
 	}
 
 	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
-	if (!createNewTrackForInstrumentClip(type, newClip, true)) {
+	if (!createNewTrackForInstrumentClip(type, newClip, true, acquired)) {
 		newClip->~InstrumentClip();
 		delugeDealloc(memory);
 		return nullptr;
@@ -3680,7 +3702,8 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 }
 #pragma GCC diagnostic pop
 
-Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
+Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip,
+                                  const deluge::storage::AcquireResult* acquired) {
 	actionLogger.deleteAllLogs();
 
 	Clip* newClip = nullptr;
@@ -3719,10 +3742,11 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		return nullptr;
 	}
 
-	return gridPlaceNewClip(newClip, targetSection, targetOutput, sourceClip);
+	return gridPlaceNewClip(newClip, targetSection, targetOutput, sourceClip, acquired);
 }
 
-Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
+Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip,
+                                    const deluge::storage::AcquireResult* acquired) {
 	if (newClip == nullptr) {
 		return nullptr;
 	}
@@ -3751,7 +3775,7 @@ Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Outpu
 			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 			// Create a new track for the clip
 			if (targetOutput == nullptr) {
-				if (!createNewTrackForInstrumentClip(sourceClip->output->type, newInstrumentClip, false)) {
+				if (!createNewTrackForInstrumentClip(sourceClip->output->type, newInstrumentClip, false, acquired)) {
 					currentSong->sessionClips.erase(currentSong->sessionClips.begin() + 0);
 					newClip->~Clip();
 					delugeDealloc(newClip);
@@ -3861,8 +3885,9 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 
 // Runs on the storage owner. targetOutput is null by construction: this consumer exists only for the
 // empty-track-column arm above.
-void SessionView::completeNewTrackClone(uint32_t targetSection, Clip* sourceClip) {
-	gridCreateClip(targetSection, nullptr, sourceClip);
+void SessionView::completeNewTrackClone(uint32_t targetSection, Clip* sourceClip,
+                                        const deluge::storage::AcquireResult* acquired) {
+	gridCreateClip(targetSection, nullptr, sourceClip, acquired);
 	display->popupTextTemporary("COPIED");
 }
 
@@ -3942,8 +3967,9 @@ void SessionView::finishGridNewTrackClip() {
 	}
 }
 
-Clip* SessionView::createGridNewTrackClip(OutputType type, uint32_t packedXY) {
-	Clip* newClip = createNewClip(type, -1);
+Clip* SessionView::createGridNewTrackClip(OutputType type, uint32_t packedXY,
+                                          const deluge::storage::AcquireResult* acquired) {
+	Clip* newClip = createNewClip(type, -1, acquired);
 	if (newClip == nullptr) {
 		clipPressEnded();
 		return nullptr;
@@ -3956,8 +3982,9 @@ Clip* SessionView::createGridNewTrackClip(OutputType type, uint32_t packedXY) {
 }
 
 // Runs on the storage owner for Synth/Kit, inline for Audio/MIDI/CV.
-void SessionView::completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed) {
-	Clip* clip = createGridNewTrackClip(type, packedXY);
+void SessionView::completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed,
+                                            const deluge::storage::AcquireResult* acquired) {
+	Clip* clip = createGridNewTrackClip(type, packedXY, acquired);
 	if (clip == nullptr) {
 		return;
 	}
@@ -3965,8 +3992,9 @@ void SessionView::completeNewTrackGridEnter(OutputType type, uint32_t packedXY, 
 }
 
 // Runs on the storage owner for Synth/Kit, inline for Audio/MIDI/CV.
-void SessionView::completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed) {
-	Clip* clip = createGridNewTrackClip(type, packedXY);
+void SessionView::completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed,
+                                             const deluge::storage::AcquireResult* acquired) {
+	Clip* clip = createGridNewTrackClip(type, packedXY, acquired);
 	if (clip == nullptr) {
 		return;
 	}

@@ -1734,8 +1734,9 @@ bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_d
 	return false;
 }
 
-bool InstrumentClipView::completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx) {
-	if (InstrumentClipMinder::createNewInstrument(clip, newOutputType, is_dx)) {
+bool InstrumentClipView::completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+                                               const deluge::storage::AcquireResult& acquired) {
+	if (InstrumentClipMinder::createNewInstrument(clip, newOutputType, is_dx, acquired)) {
 		recalculateColours();
 		uiNeedsRendering(getRootUI());
 

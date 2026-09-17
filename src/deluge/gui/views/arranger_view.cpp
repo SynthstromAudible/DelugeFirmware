@@ -815,36 +815,17 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 }
 
 // Loads from file, etc - doesn't truly "create"
-Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong) {
-	Browser::currentDir = getInstrumentFolder(newOutputType);
-
-	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-	                                     currentSong, newOutputType, Availability::INSTRUMENT_UNUSED),
-	                                 error, {
-		                                 display->displayError(error);
-		                                 return nullptr;
-	                                 });
-
-	Instrument* newInstrument = fileItem->instrument;
-	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
-
-	Error error = Error::NONE;
-	if (!newInstrument) {
-		std::string newPresetName = fileItem->getFilenameWithoutExtension();
-		std::string filePath = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
-		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
-		                                               filePath.c_str(), &newPresetName, &Browser::currentDir);
-	}
-
-	Browser::emptyFileItems();
-
-	if (error != Error::NONE) {
-		display->displayError(error);
+Instrument* ArrangerView::createNewInstrument(bool* instrumentAlreadyInSong,
+                                              const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		display->displayError(acquired.error);
 		return nullptr;
 	}
 
-	if (isHibernating) {
+	Instrument* newInstrument = acquired.instrument;
+	*instrumentAlreadyInSong = acquired.alreadyInSong;
+
+	if (acquired.wasHibernating) {
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
@@ -884,13 +865,14 @@ void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed, UI* ui) {
 
 // Runs on the storage owner, dispatched by the new-instrument pad gesture. createNewInstrument()
 // itself is unchanged and blocks here, which is legal on this tier.
-void ArrangerView::completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui) {
+void ArrangerView::completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui,
+                                         const deluge::storage::AcquireResult& acquired) {
 	if (ui == nullptr) {
 		ui = this;
 	}
 	bool instrumentAlreadyInSong; // Will always end up false
 
-	Output* output = createNewInstrument(OutputType::SYNTH, &instrumentAlreadyInSong);
+	Output* output = createNewInstrument(&instrumentAlreadyInSong, acquired);
 	if (!output) {
 		return;
 	}

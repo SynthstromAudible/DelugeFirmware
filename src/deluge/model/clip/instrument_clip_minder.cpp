@@ -167,24 +167,24 @@ bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputTyp
 
 // The MinderNewInstrument completion: no extra tail, matching what the direct SYNTH-button call
 // sites this replaces did with createNewInstrument()'s bool (discarded it).
-void InstrumentClipMinder::completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx) {
-	createNewInstrument(clip, newOutputType, is_dx);
+void InstrumentClipMinder::completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+                                                 const deluge::storage::AcquireResult& acquired) {
+	createNewInstrument(clip, newOutputType, is_dx, acquired);
 }
 
 // Runs on the storage owner -- see beginNewInstrumentAcquisition() above, which is what every caller
 // now goes through instead of this directly. Otherwise unchanged: still blocks on the card read,
 // which is legal on this tier. Acts on `clip` (the dispatch-time snapshot) throughout, not
 // getCurrentInstrumentClip()/getCurrentOutput() -- see this function's doc.
-bool InstrumentClipMinder::createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx) {
+bool InstrumentClipMinder::createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+                                               const deluge::storage::AcquireResult& acquired) {
 	Error error;
 
 	OutputType oldOutputType = clip->output->type;
 
 	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(clip);
 
-	std::string newName;
-	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
-	Browser::currentDir = getInstrumentFolder(newOutputType);
+	std::string newName = acquired.name; // the unused slot the acquisition's walk found
 
 	// Reachable only via `goto gotError` from the error paths below.
 	if (false) {
@@ -193,7 +193,7 @@ gotError:
 		return false;
 	}
 
-	error = loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName);
+	error = acquired.error;
 	if (error != Error::NONE) {
 		goto gotError;
 	}

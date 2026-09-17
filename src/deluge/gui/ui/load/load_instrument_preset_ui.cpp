@@ -414,72 +414,12 @@ void LoadInstrumentPresetUI::close() {
 }
 
 bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::PresetRequest& request) {
-	// One coalescer serves every consumer, and LatestWins supersedes what is queued. That is the
-	// point for a navigate or an output-type mash -- only where the user settled matters -- but a
-	// creation gesture is not a destination: superseding the middle of three rapid new-track presses
-	// loses a clip, and because the coalescer is shared, a single encoder turn can be what overwrites
-	// a queued create. So refuse instead of overwriting. Refusing (rather than growing a real queue)
-	// is deliberate: it puts the caller on the path it already has for a full owner queue, and the
-	// gesture that is kept is the one the user made FIRST, which is the one whose UI tail their next
-	// press is already reacting to.
-	if (const auto& queued = presetCoalescer_.queued();
-	    queued.has_value() && deluge::storage::isCreationConsumer(queued->consumer)) {
-		return false;
-	}
-	if (!deluge::storage::isCreationConsumer(request.consumer)) {
-		// A change-type or navigate: walked on the owner, loaded and applied on the interaction tier.
-		deluge::gui::instrumentLoad.request(
-		    {.kind = deluge::gui::InstrumentLoadRequest::Kind::Acquire, .preset = request});
-		return true;
-	}
-	if (!presetCoalescer_.request(request)) {
-		return true; // superseded an in-flight op; that op will pick this up via complete()
-	}
-	if (!deluge::storage::Owner::run_or_inline(&LoadInstrumentPresetUI::runPresetAcquisitionOp, this)) {
-		// Owner queue was full - the op never ran, so release the guard or the coalescer would
-		// wedge single-flight forever (see LatestWins::reset()'s doc, and currentFileChanged()).
-		presetCoalescer_.reset();
-		return false;
-	}
-	return true;
+	return deluge::gui::instrumentLoad.request(
+	    {.kind = deluge::gui::InstrumentLoadRequest::Kind::Acquire, .preset = request});
 }
 
-void LoadInstrumentPresetUI::runPresetAcquisitionOp(void* self) {
-	auto* ui = static_cast<LoadInstrumentPresetUI*>(self);
-	// Counts ops that actually RUN, not dispatch attempts: a superseded request() (dispatchPresetAcquisition
-	// returning early) or a dropped run_or_inline()/run() never reach here, so this must live here and
-	// not in dispatchPresetAcquisition() for presetAcquisitionsRun() to measure what its callers need
-	// (the Coalesce/NonAudio checks in the song-preview A/B harness).
-	ui->presetAcquisitionsRun_++;
-	// By value, not by reference: complete() below overwrites presetCoalescer_'s current_ in place,
-	// so a reference into it would dangle once complete() runs while runAcquisitionFollowUp() still
-	// needs `request` (contrast runScrollLoadOp(), which is done with its target before calling
-	// complete() and so can take a reference).
-	const deluge::storage::PresetRequest request = ui->presetCoalescer_.current();
-
-	// currentDir comes from the snapshot, never from whatever the UI task left in the static:
-	// doPresetNavigation writes it from oldInstrument->dirPath on entry, and the readers mutate it
-	// as they descend (spec section 6).
-	Browser::currentDir = request.dirPath;
-
-	ui->runAcquisitionFollowUp(request, nullptr);
-
-	// If a newer gesture arrived while this ran, dispatch it (latest-wins).
-	if (auto next = ui->presetCoalescer_.complete(); next.has_value()) {
-		if (!deluge::storage::Owner::run(&LoadInstrumentPresetUI::runPresetAcquisitionOp, self)) {
-			ui->presetCoalescer_.reset(); // re-dispatch dropped - release
-		}
-	}
-}
-
-// Runs the follow-up for whichever gesture dispatched this acquisition. Every arm runs ON THE
-// OWNER, which is what makes a blocking read inside one legal, and mutating UI state from here
-// matches the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
-// recalculateColours()/close(), both on the owner. Every PresetConsumer is now wired; the switch is
-// exhaustive with no `default:`, so -Werror=switch makes adding a consumer without an arm a build
-// error rather than a silent no-op.
 bool LoadInstrumentPresetUI::presetAcquisitionInFlight() const {
-	return presetCoalescer_.in_flight() || deluge::gui::instrumentLoad.acquisitionInFlight();
+	return deluge::gui::instrumentLoad.acquisitionInFlight();
 }
 
 bool LoadInstrumentPresetUI::beginAcquisition(const deluge::storage::PresetRequest& request,
@@ -535,45 +475,63 @@ bool LoadInstrumentPresetUI::beginAcquisition(const deluge::storage::PresetReque
 		return true;
 	}
 	case PresetConsumer::ArrangerNewInstrument:
+		// ArrangerView::createNewInstrument(): the first synth preset nobody in the song uses.
+		*walk = {.walk = AcquireWalk::Unlaunched,
+		         .outputType = OutputType::SYNTH,
+		         .availability = Availability::INSTRUMENT_UNUSED,
+		         .dirPath = getInstrumentFolder(OutputType::SYNTH)};
+		return true;
 	case PresetConsumer::SessionNewTrack:
 	case PresetConsumer::SessionNewTrackEnter:
 	case PresetConsumer::SessionNewTrackSelect:
 	case PresetConsumer::SessionNewTrackClone:
+		// setPresetOrNextUnlaunchedOne(): the first preset of the type nobody in the song uses. A clone's type is its
+		// source clip's.
+		*walk = {.walk = AcquireWalk::Unlaunched,
+		         .outputType = request.outputType,
+		         .availability = Availability::INSTRUMENT_UNUSED,
+		         .dirPath = getInstrumentFolder(request.outputType)};
+		return true;
 	case PresetConsumer::MinderNewInstrument:
 	case PresetConsumer::ViewNewInstrument:
 	case PresetConsumer::KeyboardNewInstrument:
-		// A creation acquires its own on the owner (dispatchPresetAcquisition()).
-		return false;
+		// InstrumentClipMinder::createNewInstrument(): a new blank Instrument, under a slot name no preset has.
+		*walk = {.walk = AcquireWalk::UnusedSlot,
+		         .outputType = request.outputType,
+		         .dirPath = getInstrumentFolder(request.outputType)};
+		return true;
 	}
 	return false;
 }
 
 void LoadInstrumentPresetUI::deliverAcquisition(const deluge::storage::PresetRequest& request,
                                                 const deluge::storage::AcquireResult& acquired) {
-	runAcquisitionFollowUp(request, &acquired);
+	runAcquisitionFollowUp(request, acquired);
+	if (acquired.loadedFromFile && acquired.instrument != nullptr
+	    && !isInstrumentInList(acquired.instrument, currentSong->firstOutput)
+	    && !isInstrumentInList(acquired.instrument, currentSong->firstHibernatingInstrument)) {
+		currentSong->deleteOutput(acquired.instrument); // parsed for this gesture, never taken into the song
+	}
 }
 
 void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request,
-                                                    const deluge::storage::AcquireResult* acquired) {
+                                                    const deluge::storage::AcquireResult& acquired) {
 	using deluge::storage::PresetConsumer;
 	// A coalesced request can carry a stale `oldInstrument` -- see isRequestInstrumentStillLive()'s
 	// doc. Consumers that never set it (ArrangerNewInstrument) leave it null, so the `!= nullptr`
 	// guard skips this check for them rather than abandoning every follow-up that doesn't use it.
 	if (request.oldInstrument != nullptr && !isRequestInstrumentStillLive(request.oldInstrument)) {
-		if (acquired != nullptr && acquired->loadedFromFile && acquired->instrument != nullptr) {
-			currentSong->deleteOutput(acquired->instrument); // parsed for this gesture, never added to the song
-		}
 		return;
 	}
 	switch (request.consumer) {
 	case PresetConsumer::ArrangerNewInstrument:
-		arrangerView.completeNewInstrument(request.yPressed, request.yPressedRaw, request.renderUi);
+		arrangerView.completeNewInstrument(request.yPressed, request.yPressedRaw, request.renderUi, acquired);
 		break;
 	case PresetConsumer::ArrangerChangeType:
-		arrangerView.completeChangeOutputType(request.outputType, request.oldInstrument, request.yPressed, acquired);
+		arrangerView.completeChangeOutputType(request.outputType, request.oldInstrument, request.yPressed, &acquired);
 		break;
 	case PresetConsumer::ArrangerNavigate:
-		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed, acquired);
+		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed, &acquired);
 		break;
 	case PresetConsumer::ViewChangeType:
 	case PresetConsumer::ViewChangeTypeMinder:
@@ -583,29 +541,30 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		// MIDI/CV arm also uses, so each caller's redraw/LED tail runs from exactly one place either
 		// way -- see View::completeChangeOutputTypeFor()'s doc.
 		(void)view.completeChangeOutputTypeFor(request.consumer, request.outputType, request.clip, request.doBlink,
-		                                       acquired);
+		                                       &acquired);
 		break;
 	case PresetConsumer::ViewNavigateClipPreset:
-		view.completeNavigateThroughPresetsForInstrumentClip(request.offset, request.clip, request.doBlink, acquired);
+		view.completeNavigateThroughPresetsForInstrumentClip(request.offset, request.clip, request.doBlink, &acquired);
 		break;
 	case PresetConsumer::SessionChangeType:
-		sessionView.completeChangeOutputType(request.outputType, request.oldInstrument, acquired);
+		sessionView.completeChangeOutputType(request.outputType, request.oldInstrument, &acquired);
 		break;
 	case PresetConsumer::SessionNavigate:
-		sessionView.completeNavigate(request.offset, request.oldInstrument, acquired);
+		sessionView.completeNavigate(request.offset, request.oldInstrument, &acquired);
 		break;
 	case PresetConsumer::SessionNewTrack:
 		sessionView.completeNewTrack(request.outputType, request.xPressed, request.yPressed, request.clipIndex,
-		                             request.shiftHeld);
+		                             request.shiftHeld, &acquired);
 		break;
 	case PresetConsumer::SessionNewTrackEnter:
-		sessionView.completeNewTrackGridEnter(request.outputType, request.packedXY, request.padStillPressed);
+		sessionView.completeNewTrackGridEnter(request.outputType, request.packedXY, request.padStillPressed, &acquired);
 		break;
 	case PresetConsumer::SessionNewTrackSelect:
-		sessionView.completeNewTrackGridSelect(request.outputType, request.packedXY, request.padStillPressed);
+		sessionView.completeNewTrackGridSelect(request.outputType, request.packedXY, request.padStillPressed,
+		                                       &acquired);
 		break;
 	case PresetConsumer::SessionNewTrackClone:
-		sessionView.completeNewTrackClone(request.targetSection, request.sourceClip);
+		sessionView.completeNewTrackClone(request.targetSection, request.sourceClip, &acquired);
 		break;
 	case PresetConsumer::MinderNewInstrument:
 		// InstrumentClipMinder::completeNewInstrument() (the leaf underneath) reads only its `clip`
@@ -613,10 +572,11 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		// instance runs it is interchangeable; instrumentClipView is used here only because it is
 		// already referenced nearby, the same idiom completeChangeOutputTypeFor()'s ViewChangeTypeMinder
 		// arm uses for setLedStates().
-		instrumentClipView.InstrumentClipMinder::completeNewInstrument(request.clip, request.outputType, request.isDx);
+		instrumentClipView.InstrumentClipMinder::completeNewInstrument(request.clip, request.outputType, request.isDx,
+		                                                               acquired);
 		break;
 	case PresetConsumer::ViewNewInstrument:
-		instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx);
+		instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx, acquired);
 		break;
 	case PresetConsumer::KeyboardNewInstrument:
 		// Same tail as ViewNewInstrument, plus the layout refresh keyboard_screen.cpp used to run
@@ -631,7 +591,7 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		// completion running, writing through getCurrentInstrumentClip() would set the layout on the
 		// WRONG clip. request.clip already survived the liveness guard above; comparing it against
 		// what's current now is what makes the write itself safe, not just the pointer.
-		if (instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx)
+		if (instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx, acquired)
 		    && getCurrentInstrumentClip() == request.clip) {
 			keyboardScreen.completeLayoutRefresh();
 		}

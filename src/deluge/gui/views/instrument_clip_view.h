@@ -266,7 +266,9 @@ public:
 	/// @param newOutputType SYNTH or KIT.
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
 	/// @return Whether an instrument was actually created.
-	bool completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx);
+	/// @param acquired The unused slot name InstrumentLoad's walk found, or why there is none.
+	bool completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+	                           const deluge::storage::AcquireResult& acquired);
 	/// @brief Change the current clip's output type through this class's fuller tail.
 	/// @param newOutputType The type to switch to.
 	/// @param consumer Which completion runs the tail. Defaults to `ViewChangeType`, this class's own;

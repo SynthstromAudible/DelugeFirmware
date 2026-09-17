@@ -51,7 +51,9 @@ public:
 	/// @param newOutputType SYNTH or KIT (never MIDI/CV -- those never reach this function at all).
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
 	/// @return Whether an instrument was actually created.
-	bool createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx = false);
+	/// @param acquired The unused slot name InstrumentLoad's walk found, or why there is none.
+	bool createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+	                         const deluge::storage::AcquireResult& acquired);
 	/// @brief Dispatch new-instrument creation onto the storage owner. Non-virtual, matching
 	///        changeOutputType()'s shape and for the same reason: an unqualified call from a derived
 	///        class's own scope resolves to THIS version, which is exactly why `consumer` defaults to
@@ -79,7 +81,9 @@ public:
 	/// @param clip The snapshot beginNewInstrumentAcquisition() took; forwarded to createNewInstrument().
 	/// @param newOutputType SYNTH or KIT.
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
-	void completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx);
+	/// @param acquired Forwarded to createNewInstrument().
+	void completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+	                           const deluge::storage::AcquireResult& acquired);
 	void setLedStates();
 	virtual void focusRegained();
 	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);

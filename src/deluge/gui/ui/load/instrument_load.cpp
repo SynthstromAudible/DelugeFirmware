@@ -51,6 +51,11 @@ void openGate() {
 	}
 }
 
+/// Whether @p request creates a new Instrument (a new instrument, new track or clone): never cancelled, never replaced.
+bool isCreation(const InstrumentLoadRequest& request) {
+	return request.kind == Kind::Acquire && deluge::storage::isCreationConsumer(request.preset.consumer);
+}
+
 /// Whether a request is a plain commit of the file @p active is already loading, and so promotes it.
 bool promotes(const InstrumentLoadRequest& request, const InstrumentLoadRequest& active) {
 	return request.kind == Kind::Browse && active.kind == Kind::Browse && request.commit && !request.clone
@@ -59,23 +64,30 @@ bool promotes(const InstrumentLoadRequest& request, const InstrumentLoadRequest&
 
 } // namespace
 
-void InstrumentLoad::request(const InstrumentLoadRequest& request) {
+bool InstrumentLoad::request(const InstrumentLoadRequest& request) {
+	if (const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	    queued.has_value() && isCreation(*queued)) {
+		// A queued creation is never replaced: superseding the middle of three quick new-track presses would lose a
+		// track. What comes after it is refused, and the gesture kept is the one the user made first.
+		return false;
+	}
 	if (phase_ != Phase::Idle && promotes(request, active_)) {
 		// Select on the file a scroll-load is already loading: that load becomes the commit, rather than start again.
 		active_.commit = true;
 		active_.completion = request.completion;
 		coalescer_.clear_queued();
 		closeGate();
-		return;
+		return true;
 	}
 	if (request.commit) {
 		closeGate();
 	}
 	if (!coalescer_.request(request)) {
-		return; // queued: the load in flight is cancelled at its next phase boundary
+		return true; // queued: the load in flight is cancelled at its next phase boundary, unless it is a creation
 	}
 	start(coalescer_.current());
 	routine();
+	return true;
 }
 
 void InstrumentLoad::cancel() {
@@ -139,7 +151,8 @@ bool InstrumentLoad::supersede() {
 bool InstrumentLoad::step() {
 	// A newer request cancels this one at a phase boundary. The swap runs in one pass, so it never is one; a walk's is
 	// once it has landed (stepWalk()).
-	if ((phase_ == Phase::Stage || phase_ == Phase::Samples) && coalescer_.queued().has_value()) {
+	if ((phase_ == Phase::Stage || phase_ == Phase::Samples) && coalescer_.queued().has_value()
+	    && !isCreation(active_)) {
 		return supersede();
 	}
 	switch (phase_) {
@@ -213,11 +226,15 @@ bool InstrumentLoad::stepWalk() {
 		originDir_ = walked_.dirPath;
 		echoNavigation();
 	}
-	if (coalescer_.queued().has_value()) {
+	if (coalescer_.queued().has_value() && !isCreation(active_)) {
 		return supersede();
 	}
 	if (walked_.error != Error::NONE) {
 		return finish(walked_.error);
+	}
+	if (walk_.walk == deluge::storage::AcquireWalk::UnusedSlot) {
+		acquired_.name = walked_.name; // a name, and nothing to load
+		return finish(Error::NONE);
 	}
 	acquired_.instrument = walked_.existing;
 	acquired_.alreadyInSong = walked_.existing != nullptr && walked_.alreadyInSong;
@@ -262,6 +279,11 @@ void InstrumentLoad::runWalkOp(void* self) {
 		else {
 			found.error = result.error();
 		}
+		break;
+	}
+	case deluge::storage::AcquireWalk::UnusedSlot: {
+		const char* thingName = (spec.outputType == OutputType::SYNTH) ? "SYNT" : "KIT";
+		found.error = loadInstrumentPresetUI.getUnusedSlot(spec.outputType, &found.name, thingName);
 		break;
 	}
 	case deluge::storage::AcquireWalk::Navigate: {

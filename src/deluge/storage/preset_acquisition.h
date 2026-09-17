@@ -218,6 +218,7 @@ enum class AcquireWalk : uint8_t {
 	Unlaunched, ///< findAnUnlaunchedPresetIncludingWithinSubfolders(): the first preset nobody in the song uses.
 	Confirm,    ///< confirmPresetOrNextUnlaunchedOne(): a named preset if it may be used, or the next one that may.
 	Navigate,   ///< doPresetNavigation(): the next preset along from a named one, either way.
+	UnusedSlot, ///< Browser::getUnusedSlot(): a name no preset of the type has. Nothing is loaded.
 };
 
 /// @brief The walk an acquisition asks for, fixed by its gesture's prologue before the walk is queued.
@@ -244,6 +245,7 @@ struct AcquireResult {
 	bool alreadyInSong{};
 	bool wasHibernating{};
 	bool loadedFromFile{};
+	std::string name; ///< UnusedSlot: the slot name found; empty when there is none.
 };
 
 } // namespace deluge::storage

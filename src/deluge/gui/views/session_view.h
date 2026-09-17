@@ -134,7 +134,9 @@ public:
 	/// @param shiftHeld Whether SHIFT was down when the pad went down; drives the new clip's colour
 	///        (`clipWasSelectedWithShift`). Snapshotted at dispatch rather than read live here,
 	///        because "here" is now on the far side of a card read.
-	void completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex, bool shiftHeld);
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI.
+	void completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex, bool shiftHeld,
+	                      const deluge::storage::AcquireResult* acquired = nullptr);
 
 	/// @brief The grid new-track gesture's ENTER follow-up, on the storage owner.
 	/// @param type            The clip type chosen in the picker.
@@ -142,7 +144,9 @@ public:
 	/// @param padStillPressed Whether the starting pad was still down when the gesture dispatched.
 	///                        Snapshotted, because the dispatching caller resets gridFirstPressedX/Y
 	///                        immediately afterwards.
-	void completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed);
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for Audio, MIDI and CV.
+	void completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed,
+	                               const deluge::storage::AcquireResult* acquired = nullptr);
 
 	/// @brief The grid new-track gesture's SELECT follow-up, on the storage owner.
 	///
@@ -152,13 +156,17 @@ public:
 	/// @param type            The clip type chosen in the picker.
 	/// @param packedXY        The press coordinates, `y << 16 | x`.
 	/// @param padStillPressed Whether the starting pad was still down when the gesture dispatched.
-	void completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed);
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for Audio, MIDI and CV.
+	void completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed,
+	                                const deluge::storage::AcquireResult* acquired = nullptr);
 
 	/// @brief gridClonePad()'s follow-up when the copy lands in an EMPTY track column, on the storage
 	///        owner.
 	/// @param targetSection The section the copy is dropped into.
 	/// @param sourceClip    The clip being copied. Song-owned, so it survives the op's yields.
-	void completeNewTrackClone(uint32_t targetSection, Clip* sourceClip);
+	/// @param acquired What InstrumentLoad acquired for the new track.
+	void completeNewTrackClone(uint32_t targetSection, Clip* sourceClip,
+	                           const deluge::storage::AcquireResult* acquired);
 	void editNumRepeatsTilLaunch(int32_t offset);
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -231,7 +239,8 @@ public:
 	UIType getUIType() override { return UIType::SESSION; }
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::SONG; }
 
-	Clip* createNewClip(OutputType outputType, int32_t yDisplay);
+	Clip* createNewClip(OutputType outputType, int32_t yDisplay,
+	                    const deluge::storage::AcquireResult* acquired = nullptr);
 	bool createClip{false};
 	OutputType lastTypeCreated{OutputType::NONE};
 
@@ -281,10 +290,14 @@ private:
 	void setCentralLEDStates();
 
 	Clip* createNewAudioClip(int32_t yDisplay);
-	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay);
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired; nullptr walks and loads here (MIDI and CV read no card;
+	///        the host reproduction seam, reproCreateNewInstrumentClip(), runs on the owner).
+	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay,
+	                              const deluge::storage::AcquireResult* acquired = nullptr);
 
 	bool createNewTrackForAudioClip(AudioClip* newClip);
-	bool createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip);
+	bool createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip,
+	                                     const deluge::storage::AcquireResult* acquired = nullptr);
 
 	bool insertAndResyncNewClip(Clip* newClip, int32_t yDisplay);
 	void resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* modelStackWithTimelineCounter);
@@ -367,14 +380,17 @@ private:
 	Clip* gridCloneClip(Clip* sourceClip);
 	Clip* gridCreateClipInTrack(Output* targetOutput);
 	AudioClip* gridCreateAudioClipWithNewTrack();
-	InstrumentClip* gridCreateInstrumentClipWithNewTrack(OutputType type);
-	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
+	InstrumentClip* gridCreateInstrumentClipWithNewTrack(OutputType type,
+	                                                     const deluge::storage::AcquireResult* acquired = nullptr);
+	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr,
+	                     const deluge::storage::AcquireResult* acquired = nullptr);
 	/// @brief Places a freshly created clip into the song and returns it, or nullptr on failure
 	///
 	/// Section assignment, insertion into the session list, source-clip track handling, play-pos resync
 	/// and selection. Split out of gridCreateClip() because the new-track path cannot reach it until the
 	/// user has chosen a clip type, which happens on a later tick.
-	Clip* gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip);
+	Clip* gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip,
+	                       const deluge::storage::AcquireResult* acquired = nullptr);
 	// Worker-fiber jobs for the new-track grid gesture: gridCreateClip() yields for the
 	// interactive clip-type picker, which can't run synchronously on this BSP, so the
 	// create + the call site's post-logic run on the fiber. Press x/y are packed into
@@ -407,7 +423,8 @@ private:
 	/// @param type     The clip type chosen in the picker.
 	/// @param packedXY The press coordinates, `y << 16 | x`.
 	/// @return The placed clip, or nullptr if creation or placement failed.
-	Clip* createGridNewTrackClip(OutputType type, uint32_t packedXY);
+	Clip* createGridNewTrackClip(OutputType type, uint32_t packedXY,
+	                             const deluge::storage::AcquireResult* acquired = nullptr);
 
 	/// @brief ENTER continuation: play the new clip, then hold it or transition into it
 	/// @param clip            The clip that was just created and placed.

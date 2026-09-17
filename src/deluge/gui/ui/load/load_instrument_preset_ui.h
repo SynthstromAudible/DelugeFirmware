@@ -101,45 +101,33 @@ public:
 	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
 	bool canDisplayFavourites() override { return true; }
 
-	/// @brief How many preset-acquisition ops have actually RUN since boot.
+	/// @brief How many preset acquisitions have actually RUN since boot: walks InstrumentLoad has queued.
 	///
-	/// Incremented once per runPresetAcquisitionOp() execution -- not once per
-	/// dispatchPresetAcquisition() call, so a superseded or dropped dispatch is never counted. Read
-	/// by the song-preview A/B harness's acquisition stage to tell a coalesced gesture from a
-	/// dropped one, and to prove a CV switch dispatches NOTHING.
+	/// A request superseded or refused before its walk is queued is never counted. Read by the song-preview A/B
+	/// harness's acquisition stage to tell a coalesced gesture from a dropped one, and to prove a CV switch dispatches
+	/// NOTHING.
 	/// @return The running acquisition-run count.
 	[[nodiscard]] static int32_t presetAcquisitionsRun() { return presetAcquisitionsRun_; }
 
-	/// @brief Whether a preset acquisition is in flight or queued: on the storage owner, or on InstrumentLoad.
+	/// @brief Whether a preset acquisition is in flight or queued on InstrumentLoad.
 	[[nodiscard]] bool presetAcquisitionInFlight() const;
 
 	/// @brief Whether a preset load is in flight or queued.
 	[[nodiscard]] bool scrollLoadInFlight() const;
 
-	/// @brief Dispatch one instrument acquisition onto the storage owner.
+	/// @brief Ask InstrumentLoad for one instrument acquisition: its walk runs on the storage owner, its load on the
+	///        interaction tier, and the gesture's follow-up runs once the Instrument is ready.
 	///
-	/// Mirrors currentFileChanged(): the caller builds `request` from live state HERE, the only
-	/// point where reading it is safe, and the op then acts only on that snapshot.
+	/// The caller builds `request` from live state HERE, the only point where reading it is safe; the acquisition then
+	/// acts only on that snapshot. Callers ask ONLY on the Synth/Kit arm: MIDI and CV read no card.
 	///
-	/// Callers must dispatch ONLY on the Synth/Kit arm -- MIDI and CV read no card, and routing
-	/// them through here would defer a close() behind a storage round-trip (spec section 2c).
-	///
-	/// The return means "the gesture was ACCEPTED", never "the acquisition finished" -- on the
-	/// Embassy backing nothing has run yet when it comes back. It is [[nodiscard]] because callers
-	/// kept gating their UI tail on it as though it were the old synchronous answer; a caller that
-	/// genuinely has nothing to do with a dropped gesture writes an explicit `(void)`.
-	///
-	/// Nine call sites do exactly that, deliberately: for a pad press or an encoder turn there is no
-	/// recovery to offer and no state left half-applied -- the coalescer is released, the view still
-	/// shows what it showed, and the user's next press dispatches again. Silently dropping the gesture
-	/// is the accepted behaviour for this rung; the `(void)`s are there so that stays a decision in
-	/// the code rather than an oversight.
+	/// The return means "the gesture was ACCEPTED", never "the acquisition finished". A caller that has nothing to do
+	/// with a refused gesture writes an explicit `(void)`: for a pad press or an encoder turn there is nothing left
+	/// half-applied, and the user's next press asks again.
 	///
 	/// @param request The snapshot; see PresetRequest.
-	/// @return true if the op was dispatched or ran inline; false if the gesture did nothing --
-	///         either the owner queue was full (the coalescer is released in that case), or a
-	///         creation gesture was already queued and must not be superseded (see
-	///         deluge::storage::isCreationConsumer()).
+	/// @return false when the gesture is refused: a creation is already queued (see
+	///         deluge::storage::isCreationConsumer()), and is never replaced.
 	[[nodiscard]] bool dispatchPresetAcquisition(const deluge::storage::PresetRequest& request);
 
 protected:
@@ -177,32 +165,21 @@ private:
 	/// @brief A commit's end: shows an error, or recalculates a kit's colours and closes the browser.
 	static void onCommitLoaded(Error error);
 
-	/// @brief The dispatched acquisition op: counts itself in presetAcquisitionsRun(), takes the
-	///        snapshot off presetCoalescer_, sets Browser::currentDir from it, runs that request's
-	///        consumer follow-up -- which is what actually reads the directory and loads the preset,
-	///        down each gesture's own unchanged call chain -- and then re-dispatches the latest-wins
-	///        target if a newer gesture arrived while it ran.
-	///
-	/// Runs on the storage owner (inline on legacy/host).
-	/// @param self The LoadInstrumentPresetUI instance.
-	static void runPresetAcquisitionOp(void* self);
-
-	/// @brief Runs one acquisition's consumer follow-up: on the owner for a creation (see runPresetAcquisitionOp()), or
-	///        on the interaction tier with what InstrumentLoad acquired.
-	/// @param request The snapshot the acquisition was dispatched with; see PresetRequest.
-	/// @param acquired A change-type's or navigate's Instrument, or nullptr for a creation, which acquires its own.
+	/// @brief Runs one acquisition's consumer follow-up with what InstrumentLoad acquired.
+	/// @param request The snapshot the acquisition was asked for with; see PresetRequest.
+	/// @param acquired The Instrument (or, for a new instrument, the slot name), or why there is none.
 	void runAcquisitionFollowUp(const deluge::storage::PresetRequest& request,
-	                            const deluge::storage::AcquireResult* acquired = nullptr);
+	                            const deluge::storage::AcquireResult& acquired);
 
-	/// @brief A change-type's or navigate's card-free prologue, as InstrumentLoad starts it: which walk, from where.
+	/// @brief An acquisition's card-free prologue, as InstrumentLoad starts it: which walk, from where.
 	/// @param request The gesture.
 	/// @param walk Filled with the walk to run.
 	/// @return false when there is nothing to acquire (the gesture's Instrument has gone, or its clip already has the
 	///         type); the request then ends telling no one.
 	bool beginAcquisition(const deluge::storage::PresetRequest& request, deluge::storage::AcquireWalkSpec* walk);
 
-	/// @brief Hand a change-type's or navigate's acquired Instrument to its follow-up. An Instrument loaded from the
-	///        card for a gesture whose Instrument has gone since is deleted.
+	/// @brief Hand an acquired Instrument to its gesture's follow-up. A preset parsed from the card that the follow-up
+	///        did not take (its Instrument gone since, or its clip or track not made) is deleted.
 	void deliverAcquisition(const deluge::storage::PresetRequest& request,
 	                        const deluge::storage::AcquireResult& acquired);
 
@@ -236,11 +213,6 @@ private:
 	NoteRow* noteRow{};
 	Error currentInstrumentLoadError;
 
-	// Coalesces repeated acquisition gestures (a held preset-navigation encoder, a mashed
-	// output-type button) onto the storage worker, so only the gesture the user settles on
-	// actually loads. Mirrors loadCoalescer_.
-	deluge::storage::LatestWins<deluge::storage::PresetRequest> presetCoalescer_{};
-
 	int16_t initialChannel{};
 	int8_t initialChannelSuffix{};
 	OutputType initialOutputType;
@@ -251,9 +223,7 @@ private:
 	std::string initialName{};
 	std::string initialDirPath{};
 
-	/// @brief Backing counter for presetAcquisitionsRun(). Incremented once per
-	///        runPresetAcquisitionOp() execution (see its doc), not once per
-	///        dispatchPresetAcquisition() call.
+	/// @brief Backing counter for presetAcquisitionsRun(). Incremented by InstrumentLoad as it queues a walk.
 	static inline int32_t presetAcquisitionsRun_{};
 };
 

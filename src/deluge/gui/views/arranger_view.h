@@ -95,7 +95,9 @@ public:
 	///        matrix is asked about.
 	/// @param ui The UI the press came through, whose rows the repaint marks; null falls back to this
 	///        view, matching exitSubModeWithoutAction().
-	void completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui);
+	/// @param acquired The Synth InstrumentLoad acquired, or why there is none.
+	void completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui,
+	                           const deluge::storage::AcquireResult& acquired);
 	/// @brief changeOutputType()'s follow-up: inline for MIDI/CV, which read no card; for Synth/Kit, on the interaction
 	///        tier once InstrumentLoad has acquired the Instrument.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
@@ -179,7 +181,9 @@ private:
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
-	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
+	/// @brief Take the Synth a new-instrument gesture acquired: off the hibernation list, and set up without a clip.
+	/// @return The Instrument, or nullptr when the acquisition failed (its error shown).
+	Instrument* createNewInstrument(bool* instrumentAlreadyInSong, const deluge::storage::AcquireResult& acquired);
 	/// @brief The new-instrument acquisition gesture: dispatch onto the storage owner a request to
 	///        create a SYNTH Instrument for the empty row at `yPressed` and place it on screen (see
 	///        completeNewInstrument(), which runs the dispatched request).

@@ -103,7 +103,9 @@ struct AcquireSnapshot {
 ///   then handed the Instrument, and applies it.
 ///
 /// Requests of both kinds share one latest-wins queue: a newer request cancels the load in flight at its next phase
-/// boundary (staging, samples, or a landed walk) and starts. An Instrument parsed but not yet handed over is deleted,
+/// boundary (staging, samples, or a landed walk) and starts -- except a creation (a new instrument, new track or
+/// clone): one in flight is never cancelled, a newer request waiting behind it, and one queued is never replaced, what
+/// comes after it being refused. An Instrument parsed but not yet handed over is deleted,
 /// never having been added to the song. A navigate that supersedes a navigate walks on from where the superseded one's
 /// walk landed. A commit asked for the file a scroll-load is already loading promotes that load instead of
 /// restarting it. A browser commit or clone closes UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES until it ends, released only
@@ -113,7 +115,8 @@ struct AcquireSnapshot {
 class InstrumentLoad {
 public:
 	/// @brief Ask for a load, and run one pass.
-	void request(const InstrumentLoadRequest& request);
+	/// @return false when the request is refused: a creation is queued, and is never replaced.
+	bool request(const InstrumentLoadRequest& request);
 
 	/// @brief Abandon the browser's load in flight and any browser load queued behind it, telling no one. An
 	///        acquisition is not the browser's, and is left alone.
