@@ -20,6 +20,7 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
+#include "gui/context_menu/clear_song.h"
 #include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/instrument_load.h"
@@ -189,6 +190,7 @@ constexpr int32_t kMaxListingTicks = 20000;
 constexpr int32_t kMaxLegTicks = 2000;
 
 enum class Leg : uint8_t {
+	BlankBoot,
 	Synth,
 	Kit,
 	Row,
@@ -208,6 +210,8 @@ enum class Leg : uint8_t {
 	AqStall,
 	RevertStall,
 	MidiDef,
+	BlankClear,
+	BlankEdited,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, Settle, Act, Wait };
@@ -233,6 +237,11 @@ int32_t g_orphansBefore = 0;
 /// The sample loads begun when the supersession leg selected the heavy kit: it scrolls on only once the heavy kit's own
 /// has begun, so a kit has been parsed and is out loading when the scroll cancels it.
 int32_t g_heavyLoadsBefore = 0;
+/// The blank-song legs: the built-in synth a song with no preset starts on, and how long they wait for one to land
+/// once the song has been swapped in.
+constexpr const char* kDefaultSynthName = "0";
+constexpr int32_t kBlankSettleTicks = 120;
+
 /// The MIDI device-definition leg: the file it writes through the firmware, and the CC it labels in it.
 constexpr const char* kMidiDefinition = "MIDI_DEVICES/DEFINITION/MDTEST.XML";
 constexpr int32_t kMidiDefinitionCC = 74;
@@ -303,6 +312,12 @@ const char* legName(Leg leg) {
 		return "revert-stall";
 	case Leg::MidiDef:
 		return "midi-def";
+	case Leg::BlankBoot:
+		return "blank-boot";
+	case Leg::BlankClear:
+		return "blank-clear";
+	case Leg::BlankEdited:
+		return "blank-edited";
 	case Leg::Stall:
 		return "stall";
 	case Leg::AqStall:
@@ -556,6 +571,11 @@ const char* legPreset() {
 		return kSynthPreset;
 	case Leg::MidiDef:
 		return kMidiDefinition;
+	case Leg::BlankBoot:
+	case Leg::BlankClear:
+	case Leg::BlankEdited:
+		// The blank-song legs open no browser: the song asks for its own preset.
+		return "";
 	}
 	return "";
 }
@@ -1482,10 +1502,158 @@ void runAcquireTick() {
 	}
 }
 
+/// Where a blank-song leg has got to: the boot leg only ever waits.
+enum class BlankStep : uint8_t { Prepare, Act, Wait };
+BlankStep g_blankStep{BlankStep::Prepare};
+int32_t g_blankRunsBefore = 0;
+int32_t g_blankReadsBefore = 0;
+int32_t g_blankOwnerReadsBefore = 0;
+int32_t g_blankSyncReadsBefore = 0;
+bool g_blankEdited = false;
+
+/// Whether @p leg is one of the blank-song legs, which drive no browser.
+bool isBlankLeg(Leg leg) {
+	return leg == Leg::BlankBoot || leg == Leg::BlankClear || leg == Leg::BlankEdited;
+}
+
+/// The clip a blank song starts with: its first session clip. Null while a clear is between songs.
+InstrumentClip* blankClip() {
+	if (currentSong == nullptr || currentSong->sessionClips.empty()) {
+		return nullptr;
+	}
+	return static_cast<InstrumentClip*>(currentSong->sessionClips[0]);
+}
+
+/// The Instrument that clip plays.
+Instrument* blankInstrument() {
+	InstrumentClip* clip = blankClip();
+	return (clip != nullptr && clip->output != nullptr) ? static_cast<Instrument*>(clip->output) : nullptr;
+}
+
+/// Whether that Instrument is a synth with its first source bound to a file.
+bool blankBound() {
+	Instrument* instrument = blankInstrument();
+	if (instrument == nullptr || instrument->type != OutputType::SYNTH) {
+		return false;
+	}
+	AudioFileHolder* holder = firstHolder(static_cast<SoundInstrument*>(instrument)->sources[0]);
+	return holder != nullptr && !holder->filePath.empty();
+}
+
+/// BS-BOOT: the boot song starts on the default synth and asks for a preset once -- finding none, SYNTHS being empty
+/// until the first leg writes into it.
+void checkBlankBoot() {
+	Instrument* instrument = blankInstrument();
+	const bool isDefault =
+	    instrument != nullptr && instrument->type == OutputType::SYNTH && instrument->name == kDefaultSynthName;
+	const int32_t walks = LoadInstrumentPresetUI::presetAcquisitionsRun();
+	printf("BS-BOOT default=%d walks=%d outputs=%d ticks=%d\n", isDefault ? 1 : 0, walks, countOutputs(), g_waitTicks);
+	if (!isDefault || walks != 1) {
+		printf("BS-BOOT FAIL the boot song did not start on the default synth and ask for a preset exactly once\n");
+		g_failures++;
+	}
+}
+
+/// BS-CLEAR and BS-EDITED: what the cleared song's clip ended up holding, and at what cost.
+void checkBlankClear() {
+	Instrument* instrument = blankInstrument();
+	const std::string name = (instrument != nullptr) ? instrument->name : "";
+	const int32_t reads = deluge::gui::instrumentLoad.documentReads() - g_blankReadsBefore;
+	const int32_t onOwner = deluge::gui::instrumentLoad.documentReadsOnOwner() - g_blankOwnerReadsBefore;
+	const int32_t syncReads = StorageManager::synchronousDocumentReads() - g_blankSyncReadsBefore;
+	if (g_leg == Leg::BlankClear) {
+		printf("BS-CLEAR name=%s bound=%d reads=%d onOwner=%d syncReads=%d outputs=%d ticks=%d\n", name.c_str(),
+		       blankBound() ? 1 : 0, reads, onOwner, syncReads, countOutputs(), g_waitTicks);
+		if (name.empty() || name == kDefaultSynthName || !blankBound() || reads < 1 || onOwner != 0 || syncReads != 0) {
+			printf("BS-CLEAR FAIL a cleared song did not land on a SYNTHS preset staged by InstrumentLoad off the "
+			       "storage owner\n");
+			g_failures++;
+		}
+		return;
+	}
+	const int32_t orphans = orphanedParamManagers();
+	const int32_t outputs = countOutputs();
+	printf("BS-EDITED name=%s edited=%d orphans=%d outputs=%d syncReads=%d ticks=%d\n", name.c_str(),
+	       g_blankEdited ? 1 : 0, orphans, outputs, syncReads, g_waitTicks);
+	if (name != kDefaultSynthName || !g_blankEdited || orphans != 0 || outputs != 1) {
+		printf("BS-EDITED FAIL a preset was swapped over an edited default synth, or something of it was left "
+		       "behind\n");
+		g_failures++;
+	}
+}
+
+/// The blank-song legs: BS-BOOT waits for what boot asked for, and the two clear legs clear the song and wait for what
+/// the new one asks for.
+void runBlankTick() {
+	switch (g_blankStep) {
+	case BlankStep::Prepare:
+		if (g_leg == Leg::BlankBoot) {
+			g_waitTicks = 0;
+			g_blankStep = BlankStep::Wait;
+			break;
+		}
+		// The stall legs leave the loader holding, and a clear needs it moving again with nothing of theirs in flight.
+		deluge_audio_load_set_latency_ms(0);
+		if (deluge::gui::instrumentLoad.inFlight()) {
+			if (++g_waitTicks > kMaxStallTicks) {
+				fail(legName(g_leg), "a load from an earlier leg never ended");
+				nextLeg();
+			}
+			break;
+		}
+		g_waitTicks = 0;
+		g_blankStep = BlankStep::Act;
+		break;
+	case BlankStep::Act:
+		g_blankRunsBefore = LoadInstrumentPresetUI::presetAcquisitionsRun();
+		g_blankReadsBefore = deluge::gui::instrumentLoad.documentReads();
+		g_blankOwnerReadsBefore = deluge::gui::instrumentLoad.documentReadsOnOwner();
+		g_blankSyncReadsBefore = StorageManager::synchronousDocumentReads();
+		g_blankEdited = false;
+		if (g_leg == Leg::BlankEdited) {
+			// The preset's sample is held, so the default synth can be edited while the song's request is still out.
+			deluge_audio_load_set_latency_ms(kHoldMs);
+		}
+		(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();
+		printf("PL-PROBE leg=%s cleared=1\n", legName(g_leg));
+		g_waitTicks = 0;
+		g_blankStep = BlankStep::Wait;
+		break;
+	case BlankStep::Wait: {
+		// The clear runs as one operation behind the gate it closes: the gate reopening is the new song arriving.
+		const bool cleared = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		if (g_leg == Leg::BlankEdited && !g_blankEdited && cleared) {
+			// The user edits the new song's default synth while the preset it asked for is still being read.
+			Instrument* instrument = blankInstrument();
+			if (instrument != nullptr) {
+				instrument->editedByUser = true;
+				g_blankEdited = true;
+				deluge_audio_load_set_latency_ms(0);
+			}
+		}
+		const bool acquired = LoadInstrumentPresetUI::presetAcquisitionsRun() > g_blankRunsBefore;
+		const bool settled = acquired || g_waitTicks > kBlankSettleTicks;
+		const bool ready = (g_leg == Leg::BlankBoot) || cleared;
+		const bool ended = ready && settled && !deluge::gui::instrumentLoad.inFlight();
+		if (ended || ++g_waitTicks > kMaxLegTicks) {
+			if (g_leg == Leg::BlankBoot) {
+				checkBlankBoot();
+			}
+			else {
+				checkBlankClear();
+			}
+			nextLeg();
+		}
+		break;
+	}
+	}
+}
+
 void nextLeg() {
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_step = Step::Prepare;
 	g_aqStep = AqStep::Prepare;
+	g_blankStep = BlankStep::Prepare;
 	g_waitTicks = 0;
 }
 
@@ -1498,6 +1666,10 @@ void runTick() {
 	}
 	if (isAcquireLeg(g_leg)) {
 		runAcquireTick();
+		return;
+	}
+	if (isBlankLeg(g_leg)) {
+		runBlankTick();
 		return;
 	}
 	switch (g_step) {
@@ -1607,8 +1779,9 @@ extern "C" {
 
 void deluge_scenario_preset_load_begin(void) {
 	setvbuf(stdout, nullptr, _IOLBF, 0);
-	g_leg = Leg::Synth;
+	g_leg = Leg::BlankBoot;
 	g_step = Step::Prepare;
+	g_blankStep = BlankStep::Prepare;
 	g_stepDone = false;
 	g_summaryPrinted = false;
 	g_failures = 0;

@@ -53,6 +53,14 @@
 #              label on the instrument, the browser closed, and the document staged once by InstrumentLoad off the
 #              storage owner.
 #
+# The blank-song legs cover the song a Deluge starts with, and the one Create New Song makes:
+#   BS-BOOT    the boot song, before any preset is written: its clip on the default synth, having asked for a preset
+#              exactly once and found none.
+#   BS-CLEAR   clear-song with presets on the card: the new song's clip on a SYNTHS preset, its sample bound, the
+#              document staged by InstrumentLoad off the storage owner and nothing read synchronously.
+#   BS-EDITED  clear-song with the preset's sample held and the default synth edited while the request is out: the
+#              preset not swapped in, and nothing of it left in the song.
+#
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #
 # Usage: scripts/preset_load.sh
@@ -113,26 +121,26 @@ set -e
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
-	grep -E '^(PL|AQ|RV|MD)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	grep -E '^(PL|AQ|RV|MD|BS)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
 	tail -20 "$OUT/run.err"
 	exit 1
 fi
 
 for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
 	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-TIER \
-	RV-CARD RV-MEMORY RV-STALL MD-BROWSER PL-RESULT; do
+	RV-CARD RV-MEMORY RV-STALL MD-BROWSER BS-BOOT BS-CLEAR BS-EDITED PL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
-		grep -E '^(PL|AQ|RV|MD)-' "$OUT/run.txt"
+		grep -E '^(PL|AQ|RV|MD|BS)-' "$OUT/run.txt"
 		exit 1
 	fi
 done
 
 if ! grep -q '^PL-RESULT failures=0$' "$OUT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^(PL|AQ|RV|MD)-' "$OUT/run.txt"
+	grep -E '^(PL|AQ|RV|MD|BS)-' "$OUT/run.txt"
 	exit 1
 fi
 
 echo "PASS — every preset load bound what a user's load binds"
-grep -E '^(PL|AQ|RV|MD)-' "$OUT/run.txt"
+grep -E '^(PL|AQ|RV|MD|BS)-' "$OUT/run.txt"
