@@ -27,6 +27,7 @@
 #include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/slicer.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -1703,7 +1704,22 @@ void nextLeg() {
 	g_waitTicks = 0;
 }
 
+/// Whether the blank song's own preset request has landed. The boot song starts on the built-in default synth and asks
+/// InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that acted on the boot clip before
+/// that landed would be working on an Instrument about to be replaced, which no user can do.
+bool bootSettled() {
+	static int32_t waited = 0;
+	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())
+	    && ++waited < 2000) {
+		return false;
+	}
+	return true;
+}
+
 void runTick() {
+	if (!bootSettled()) {
+		return;
+	}
 	if (g_leg == Leg::Done) {
 		printf("SC-RESULT failures=%d\n", g_failures);
 		fflush(stdout);

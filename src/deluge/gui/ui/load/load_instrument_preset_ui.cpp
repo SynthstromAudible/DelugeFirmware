@@ -474,6 +474,15 @@ bool LoadInstrumentPresetUI::beginAcquisition(const deluge::storage::PresetReque
 		         .blink = false};
 		return true;
 	}
+	case PresetConsumer::BlankSongPreset:
+		// The blank song's first preset: the first SYNTHS preset there is, with the song's own default synth left out
+		// of the walk -- it is named "0", so a walk that counted it would land on it.
+		*walk = {.walk = AcquireWalk::Unlaunched,
+		         .outputType = OutputType::SYNTH,
+		         .availability = Availability::ANY,
+		         .includeSong = false,
+		         .dirPath = getInstrumentFolder(OutputType::SYNTH)};
+		return true;
 	case PresetConsumer::ArrangerNewInstrument:
 		// ArrangerView::createNewInstrument(): the first synth preset nobody in the song uses.
 		*walk = {.walk = AcquireWalk::Unlaunched,
@@ -524,6 +533,9 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		return;
 	}
 	switch (request.consumer) {
+	case PresetConsumer::BlankSongPreset:
+		currentSong->completeBlankPreset(acquired);
+		break;
 	case PresetConsumer::ArrangerNewInstrument:
 		arrangerView.completeNewInstrument(request.yPressed, request.yPressedRaw, request.renderUi, acquired);
 		break;
@@ -1355,10 +1367,8 @@ std::expected<FileItem*, Error>
 LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
                                                                         Availability availabilityRequirement) {
 	// Rung 5: this reader recurses over subfolders with backtracking, so its walk cannot be split
-	// across a deferral and must run start-to-finish on the storage owner. Boot is the one legal
-	// exception -- Song::ensureAtLeastOneSessionClip() calls straight in here before any interaction
-	// tier, or owner, exists yet (deluge.cpp's setupBlankSong() path) -- so permit that instead of
-	// audioEngineStarted, which is already true by then (AudioEngine::init() runs earlier in boot).
+	// across a deferral and must run start-to-finish on the storage owner. The started() term keeps
+	// cooperative and host builds, which never start an owner, out of the freeze.
 	//
 	// FREEZE_WITH_ERROR, not assert(): a bare assert() is compiled out of the shipping build, and on
 	// the Rust BSP abort() ends the process with nothing on the display. This is a tier invariant

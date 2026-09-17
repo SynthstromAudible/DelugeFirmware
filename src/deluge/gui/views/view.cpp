@@ -2726,6 +2726,7 @@ bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer,
 	case PresetConsumer::SessionNewTrackSelect:
 	case PresetConsumer::SessionNewTrackClone:
 	case PresetConsumer::ViewNavigateClipPreset:
+	case PresetConsumer::BlankSongPreset:
 	case PresetConsumer::MinderNewInstrument:
 	case PresetConsumer::ViewNewInstrument:
 	case PresetConsumer::KeyboardNewInstrument:

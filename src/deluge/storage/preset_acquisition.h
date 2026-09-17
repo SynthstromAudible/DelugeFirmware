@@ -89,6 +89,10 @@ enum class PresetConsumer : uint8_t {
 	                        ///< synchronous return, which this rung's dispatch removed; a shared
 	                        ///< ViewNewInstrument arm has no KeyboardScreen instance to call it on, so
 	                        ///< this exists to give the layout refresh somewhere correct to run.
+	BlankSongPreset,        ///< The song a Deluge boots with, and the one Create New Song makes: the first SYNTHS
+	                        ///< preset, asked for by InstrumentLoad::routine() when it sees
+	                        ///< Song::blankPresetPending. No gesture and no view -- the follow-up is the song's own
+	                        ///< completeBlankPreset().
 	KeyboardChangeType,     ///< View::changeOutputType(), reached via InstrumentClipView::changeOutputType()
 	                        ///< from KeyboardScreen's own KIT/SYNTH buttons when NEITHER shift nor FM is
 	                        ///< held. Runs ViewChangeType's exact tail, PLUS KeyboardScreen::selectLayout()
@@ -131,6 +135,9 @@ constexpr bool isCreationConsumer(PresetConsumer consumer) {
 	case PresetConsumer::SessionRowsChangeType:
 	case PresetConsumer::ViewChangeTypeMinder:
 	case PresetConsumer::KeyboardChangeType:
+	case PresetConsumer::BlankSongPreset:
+		// Not a creation: the clip and its default synth exist already, and a gesture the user makes meanwhile is
+		// welcome to supersede this -- completeBlankPreset() would refuse the swap anyway.
 		return false;
 	}
 	return false;
@@ -226,6 +233,9 @@ struct AcquireWalkSpec {
 	AcquireWalk walk{AcquireWalk::Unlaunched};
 	OutputType outputType{OutputType::SYNTH}; ///< The type walked for, and parsed.
 	Availability availability{Availability::ANY};
+	/// Unlaunched: whether the song's own Instruments count as using a preset. False for the blank song, whose default
+	/// synth is named "0" and would otherwise be the first thing the walk landed on.
+	bool includeSong{true};
 	std::string dirPath; ///< The folder the walk starts in.
 	std::string name;    ///< Confirm: the preset asked for. Navigate: the preset moved on from, without extension.
 	int32_t offset{};    ///< Navigate: which way to move.

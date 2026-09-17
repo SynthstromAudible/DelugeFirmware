@@ -275,6 +275,9 @@ protected:
 		char const* defaultDirToAlsoTry{}; ///< null on both re-reads: a fallback happens once
 		bool allowFolders{true};
 		int32_t catalogSearchDirection{CATALOG_SEARCH_RIGHT};
+		/// Whether the song's own Instruments are merged into the listing alongside the folder's files. The blank
+		/// song's walk clears it: its default synth is named "0" and would be the first thing the walk landed on.
+		bool includeSongInstruments{true};
 		/// Create the directory before opening it — the missing-folder fallback's `mkdir`, moved onto
 		/// the storage tier by riding the channel's request instead of running inline. Set only on the
 		/// async arm; the synchronous arm runs on the storage owner already, where an inline mkdir is

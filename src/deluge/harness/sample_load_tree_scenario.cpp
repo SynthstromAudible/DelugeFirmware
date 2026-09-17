@@ -21,6 +21,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/qwerty_ui.h"
 #include "gui/ui/save/save_song_ui.h"
@@ -1496,7 +1497,22 @@ void onOwner(void (*fn)()) {
 	}
 }
 
+/// Whether the blank song's own preset request has landed. The boot song starts on the built-in default synth and asks
+/// InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that acted on the boot clip before
+/// that landed would be working on an Instrument about to be replaced, which no user can do.
+bool bootSettled() {
+	static int32_t waited = 0;
+	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())
+	    && ++waited < 2000) {
+		return false;
+	}
+	return true;
+}
+
 void runTick() {
+	if (!bootSettled()) {
+		return;
+	}
 	switch (g_stage) {
 	case Stage::SongKit:
 		onOwner([] {

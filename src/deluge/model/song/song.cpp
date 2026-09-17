@@ -329,6 +329,26 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 	}
 }
 
+void Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
+	if (acquired.instrument == nullptr || blankPresetClip == nullptr || blankPresetInstrument == nullptr) {
+		// Nothing on the card to take: the default synth stays, and the walk's error is not shown.
+		return;
+	}
+	if (acquired.alreadyInSong || acquired.instrument == blankPresetInstrument) {
+		// The walk landed on an Instrument the song already holds: there is nothing to swap, and replaceInstrument()
+		// freezes (i009) on an Instrument already in its output list.
+		return;
+	}
+	if (blankPresetClip->output != blankPresetInstrument || blankPresetInstrument->editedByUser
+	    || sessionClips.getIndexForClip(blankPresetClip) < 0) {
+		// The user got to the clip first. The delivery's cleanup deletes the preset, which was never added here.
+		return;
+	}
+	replaceInstrument(blankPresetInstrument, acquired.instrument);
+	blankPresetInstrument = nullptr;
+	blankPresetClip = nullptr;
+}
+
 bool Song::mayDoubleTempo() {
 	return ((timePerTimerTickBig >> 33) > kMinTimePerTimerTick);
 }
@@ -349,50 +369,23 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 	ParamManager newParamManager; // Deliberate don't set up.
 
-	Instrument* newInstrument = nullptr;
+	// The built-in default synth, with no card read at all. The first SYNTHS preset replaces it once the interaction
+	// tier is running: this runs before that tier exists (boot) and inside an owner operation (clear-song), so
+	// blankPresetPending is how it asks. See InstrumentLoad::routine() and completeBlankPreset().
+	Instrument* newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
 
-	std::expected<FileItem*, Error> result;
+	// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
 
-	Error error;
-	error = StorageManager::initSD(); // Still want this here?
-	if (error != Error::NONE) {
-		goto couldntLoad;
+	// If that failed (really unlikely) we're really screwed
+	if (!newInstrument) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
 	}
 
-	Browser::currentDir = "SYNTHS";
+	newInstrument->dirPath = "SYNTHS";
+	newInstrument->name = "0";
 
-	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(nullptr, OutputType::SYNTH,
-	                                                                                Availability::ANY);
-	if (result) {
-		std::string newPresetName = result.value()->getFilenameWithoutExtension();
-		std::string filePath = Browser::currentDir + "/" + result.value()->getFilenameWithExtension();
-		error = StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
-		                                               filePath.c_str(), &newPresetName, &Browser::currentDir);
-
-		Browser::emptyFileItems();
-		if (error != Error::NONE) {
-			goto couldntLoad;
-		}
-	}
-	else {
-couldntLoad:
-		newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
-
-		// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
-
-		// If that failed (really unlikely) we're really screwed
-		if (!newInstrument) {
-			display->displayError(Error::INSUFFICIENT_RAM);
-			while (1) {}
-		}
-
-		newInstrument->dirPath = "SYNTHS";
-
-		newInstrument->name = "0";
-
-		((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
-		display->displayError(error); // E.g. show the CARD error.
-	}
+	((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
 
 	newInstrument->loadAllAudioFiles(true);
 
@@ -401,6 +394,10 @@ couldntLoad:
 	addOutput(newInstrument);
 
 	currentClip = firstClip;
+
+	blankPresetPending = true;
+	blankPresetInstrument = newInstrument;
+	blankPresetClip = firstClip;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);

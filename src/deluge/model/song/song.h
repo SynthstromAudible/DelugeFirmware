@@ -35,6 +35,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "storage/flash_storage.h"
+#include "storage/preset_acquisition.h"
 #include "util/c_string.h"
 #include "util/containers.h"
 #include "util/etl_string.h"
@@ -103,7 +104,26 @@ public:
 	Song();
 	~Song() override;
 	bool mayDoubleTempo();
+	/// @brief Build the first session Clip if the song has none, on the built-in default synth.
+	///
+	/// Reads no card: it runs before the interaction tier exists (boot) and inside an owner operation (clear-song), so
+	/// the preset that replaces the default synth is asked for later, through @ref blankPresetPending.
+	/// @return true if a Clip was created.
 	bool ensureAtLeastOneSessionClip();
+	/// @brief Take @p acquired -- the preset the blank song asked for -- in place of the default synth.
+	///
+	/// Does nothing unless the clip still holds that synth, untouched: anything else means the user got there first,
+	/// and the delivery's own cleanup deletes the preset nobody took.
+	void completeBlankPreset(const deluge::storage::AcquireResult& acquired);
+
+	/// @name The blank song's first preset
+	/// @{
+	/// Whether this song still wants the first SYNTHS preset in place of its default synth. Cleared by
+	/// InstrumentLoad::routine() as it asks for one.
+	bool blankPresetPending = false;
+	Instrument* blankPresetInstrument = nullptr; ///< The default synth the preset would replace.
+	InstrumentClip* blankPresetClip = nullptr;   ///< The clip that synth was built for.
+	/// @}
 	void transposeAllScaleModeClips(int32_t interval);
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();

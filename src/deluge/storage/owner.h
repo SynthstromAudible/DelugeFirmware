@@ -64,11 +64,8 @@ struct Owner {
 	/// process's life on Embassy. Always false on cooperative/host, where there is no separate
 	/// owner to have started (see `deluge_worker_started()`'s doc).
 	///
-	/// Exists for the one legal exception to "every reader that reaches the owner must be
-	/// `on_owner()`": `Song::ensureAtLeastOneSessionClip()` calls straight into
-	/// `LoadInstrumentPresetUI`'s readers before any interaction tier - or owner - exists yet, so
-	/// `on_owner()` alone would wrongly indict it. A caller asserts
-	/// `on_owner() || !started()` rather than `on_owner()` alone.
+	/// Exists so the directory readers' tier freezes hold only where there is an owner to be on:
+	/// a caller asserts `on_owner() || !started()` rather than `on_owner()` alone.
 	/// @return true iff the storage owner has run at least once.
 	static bool started();
 

@@ -31,6 +31,7 @@
 #include "processing/sound/sound_drum.h"
 #include "storage/file_item.h"
 #include "storage/owner.h"
+#include "util/functions.h"
 
 namespace deluge::gui {
 
@@ -119,6 +120,15 @@ void InstrumentLoad::cancel() {
 }
 
 void InstrumentLoad::routine() {
+	if (phase_ == Phase::Idle && currentSong != nullptr && currentSong->blankPresetPending) {
+		// A blank song asks for its first preset here, on this tier: its builder runs before any tier exists (boot) or
+		// inside an owner operation (clear-song), so neither can ask. Cleared first: request() runs a pass of its own.
+		currentSong->blankPresetPending = false;
+		(void)request({.kind = Kind::Acquire,
+		               .preset = {.consumer = deluge::storage::PresetConsumer::BlankSongPreset,
+		                          .outputType = OutputType::SYNTH,
+		                          .dirPath = getInstrumentFolder(OutputType::SYNTH)}});
+	}
 	while (step()) {}
 }
 
@@ -270,7 +280,7 @@ void InstrumentLoad::runWalkOp(void* self) {
 	switch (spec.walk) {
 	case deluge::storage::AcquireWalk::Unlaunched: {
 		auto result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-		    currentSong, spec.outputType, spec.availability);
+		    spec.includeSong ? currentSong : nullptr, spec.outputType, spec.availability);
 		if (result.has_value()) {
 			item = *result;
 		}

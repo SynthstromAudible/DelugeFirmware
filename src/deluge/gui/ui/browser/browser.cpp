@@ -884,8 +884,9 @@ Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputTyp
                                                 int32_t newCatalogSearchDirection) {
 	// The legacy entry point: build the carried state, run the read, discard the fallback's rewrites.
 	// Every caller here is synchronous and cannot suspend, so there is nothing for the rewrites to be
-	// resumed with. `song` is ignored in favour of `currentSong` for the same reason it always was --
-	// every call site passes exactly that.
+	// resumed with. A null `song` means what it always said it meant: read the folder, and do not merge
+	// the song's own Instruments into the listing. Every other call site passes `currentSong`, which is
+	// what the read uses -- the pointer itself is not carried.
 	ListingRead read{
 	    .outputType = outputType,
 	    .filePrefix = filePrefixHere,
@@ -893,6 +894,7 @@ Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputTyp
 	    .defaultDirToAlsoTry = defaultDirToAlsoTry,
 	    .allowFolders = allowFolders,
 	    .catalogSearchDirection = newCatalogSearchDirection,
+	    .includeSongInstruments = song != nullptr,
 	};
 	bool triedCreatingFolder = false;
 	return readFolderAndMemory(read, triedCreatingFolder);
@@ -950,7 +952,7 @@ Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder)
 		(void)deluge::io::mkdir(read.defaultDirToAlsoTry);
 	}
 
-	if (currentSong && read.outputType != OutputType::NONE) {
+	if (currentSong && read.includeSongInstruments && read.outputType != OutputType::NONE) {
 		Error error = currentSong->addInstrumentsToFileItems(read.outputType);
 		if (error != Error::NONE) {
 			return error;
