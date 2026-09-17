@@ -24,11 +24,13 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "hid/button.h"
+#include "io/file.hpp"
 #include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
 #include "memory/fast_allocator.h"
 #include "model/clip/clip.h"
@@ -36,6 +38,7 @@
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
+#include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
@@ -204,6 +207,7 @@ enum class Leg : uint8_t {
 	Stall,
 	AqStall,
 	RevertStall,
+	MidiDef,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, Settle, Act, Wait };
@@ -229,6 +233,13 @@ int32_t g_orphansBefore = 0;
 /// The sample loads begun when the supersession leg selected the heavy kit: it scrolls on only once the heavy kit's own
 /// has begun, so a kit has been parsed and is out loading when the scroll cancels it.
 int32_t g_heavyLoadsBefore = 0;
+/// The MIDI device-definition leg: the file it writes through the firmware, and the CC it labels in it.
+constexpr const char* kMidiDefinition = "MIDI_DEVICES/DEFINITION/MDTEST.XML";
+constexpr int32_t kMidiDefinitionCC = 74;
+constexpr const char* kMidiDefinitionLabel = "CUTOFF";
+int32_t g_midiDefReadsBefore = 0;
+int32_t g_midiDefOwnerReadsBefore = 0;
+
 /// The revert legs: the clip's original, read as the leg opens, and what the exit was seen to do.
 std::string g_revertName{};
 std::string g_revertSample{};
@@ -290,6 +301,8 @@ const char* legName(Leg leg) {
 		return "revert-memory";
 	case Leg::RevertStall:
 		return "revert-stall";
+	case Leg::MidiDef:
+		return "midi-def";
 	case Leg::Stall:
 		return "stall";
 	case Leg::AqStall:
@@ -419,6 +432,24 @@ bool writeKitPreset(const char* path, const char* const* names, const char* cons
 	return writeInstrumentDocument(*kit, path, "\n</kit>\n");
 }
 
+/// Write a MIDI device definition through the firmware's own serialiser: one labelled CC, and nothing else. The
+/// Instrument it is written from is leaked, as the preset fixtures' are.
+bool writeMidiDefinition(const char* path) {
+	Instrument* instrument = StorageManager::createNewNonAudioInstrument(OutputType::MIDI_OUT, 2, -1);
+	if (instrument == nullptr) {
+		return fail("midi-def", "no MIDI instrument for a definition");
+	}
+	auto* midiInstrument = static_cast<MIDIInstrument*>(instrument);
+	midiInstrument->setNameForCC(kMidiDefinitionCC, kMidiDefinitionLabel);
+	Error error = StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
+	if (error != Error::NONE) {
+		return fail("midi-def", "a definition file could not be created");
+	}
+	midiInstrument->writeDeviceDefinitionFile(GetSerializer(), /*writeFileNameToPresetOrSong=*/false);
+	error = GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n");
+	return error == Error::NONE || fail("midi-def", "a definition file could not be closed");
+}
+
 // ── Driving the browser ──────────────────────────────────────────────────────
 
 /// Tick the current UI while a browser listing runs, and say whether it still is.
@@ -452,6 +483,16 @@ SoundDrum* kitFirstDrum(NoteRow** row, int32_t* rowIndex) {
 /// gestures do.
 bool openLeg() {
 	const char* leg = legName(g_leg);
+	if (g_leg == Leg::MidiDef) {
+		// The definition browser opens on a clip minder whose Output is the MIDI Instrument.
+		currentSong->setCurrentClip(g_synthClip);
+		changeRootUI(&instrumentClipView);
+		currentUIMode = UI_MODE_NONE;
+		const bool opened = openUI(&loadMidiDeviceDefinitionUI);
+		printf("PL-SETUP leg=%s opened=%d browserOnTop=%d outputs=%d\n", leg, opened ? 1 : 0,
+		       getCurrentUI() == &loadMidiDeviceDefinitionUI ? 1 : 0, countOutputs());
+		return opened || fail(leg, "the device-definition browser could not be opened");
+	}
 	Clip* clip = (g_leg == Leg::Kit || g_leg == Leg::Row || g_leg == Leg::Supersede) ? g_kitClip : g_synthClip;
 	if (clip == nullptr || clip->output == nullptr) {
 		return fail(leg, "the leg's clip is missing");
@@ -513,6 +554,8 @@ const char* legPreset() {
 	case Leg::RevertStall:
 		// The preset the browser scrolls to before backing out; the revert puts the original back.
 		return kSynthPreset;
+	case Leg::MidiDef:
+		return kMidiDefinition;
 	}
 	return "";
 }
@@ -537,6 +580,24 @@ void prepareLeg() {
 		g_revertSyncReadsBefore = StorageManager::synchronousDocumentReads();
 		g_revertGiveUpsBefore = deluge::gui::instrumentLoad.giveUps();
 		printf("PL-PROBE leg=%s original=%s sample=%s\n", legName(g_leg), g_revertName.c_str(), g_revertSample.c_str());
+		return;
+	}
+	if (g_leg == Leg::MidiDef) {
+		onOwner([] {
+			(void)deluge::io::mkdir("MIDI_DEVICES");
+			(void)deluge::io::mkdir("MIDI_DEVICES/DEFINITION");
+			const bool written = writeMidiDefinition(kMidiDefinition);
+			// The clip becomes a MIDI one, which is what the definition browser opens on. MIDI reads no card, so this
+			// arm is synchronous.
+			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(
+			    modelStackMemory, currentSong, static_cast<InstrumentClip*>(g_synthClip));
+			Instrument* midi =
+			    static_cast<InstrumentClip*>(g_synthClip)->changeOutputType(modelStack, OutputType::MIDI_OUT);
+			printf("PL-PROBE leg=midi-def written=%d midi=%d\n", written ? 1 : 0, midi != nullptr ? 1 : 0);
+		});
+		g_midiDefReadsBefore = deluge::gui::instrumentLoad.documentReads();
+		g_midiDefOwnerReadsBefore = deluge::gui::instrumentLoad.documentReadsOnOwner();
 		return;
 	}
 	if (g_leg != Leg::Synth) {
@@ -677,6 +738,9 @@ void actLeg() {
 }
 
 bool legEnded() {
+	if (g_leg == Leg::MidiDef) {
+		return !isUIOpen(&loadMidiDeviceDefinitionUI) && !deluge::gui::instrumentLoad.inFlight();
+	}
 	if (isRevertLeg(g_leg)) {
 		return !isUIOpen(&loadInstrumentPresetUI) && !deluge::gui::instrumentLoad.inFlight();
 	}
@@ -763,7 +827,30 @@ void checkRevert() {
 	}
 }
 
+/// MD-BROWSER: the definition the browser loaded, and who staged it.
+void checkMidiDefinition() {
+	auto* output = g_synthClip->output;
+	const bool isMidi = output->type == OutputType::MIDI_OUT;
+	const bool labelled =
+	    isMidi && static_cast<MIDIInstrument*>(output)->getNameFromCC(kMidiDefinitionCC) == kMidiDefinitionLabel;
+	const bool closed = !isUIOpen(&loadMidiDeviceDefinitionUI);
+	const int32_t reads = deluge::gui::instrumentLoad.documentReads() - g_midiDefReadsBefore;
+	const int32_t onOwner = deluge::gui::instrumentLoad.documentReadsOnOwner() - g_midiDefOwnerReadsBefore;
+	printf("MD-BROWSER midi=%d labelled=%d closed=%d reads=%d onOwner=%d ticks=%d\n", isMidi ? 1 : 0, labelled ? 1 : 0,
+	       closed ? 1 : 0, reads, onOwner, g_waitTicks);
+	if (!isMidi || !labelled || !closed || reads != 1 || onOwner != 0) {
+		printf("MD-BROWSER FAIL the definition browser did not stage its file through InstrumentLoad and label the "
+		       "instrument from it\n");
+		g_failures++;
+	}
+}
+
 void checkLeg() {
+	if (g_leg == Leg::MidiDef) {
+		// Nothing of the preset kind is read: a definition carries no samples.
+		checkMidiDefinition();
+		return;
+	}
 	if (g_leg == Leg::RevertMemory) {
 		// Nothing is read: its original hibernates in memory.
 		checkRevert();
@@ -1478,7 +1565,12 @@ void runTick() {
 		g_gateWhileRunning = false;
 		g_gateTypeRefused = false;
 		g_gateEncoderRefused = false;
-		(void)loadInstrumentPresetUI.setFileByFullPath(OutputType::NONE, legPreset());
+		if (g_leg == Leg::MidiDef) {
+			(void)loadMidiDeviceDefinitionUI.setFileByFullPath(OutputType::NONE, legPreset());
+		}
+		else {
+			(void)loadInstrumentPresetUI.setFileByFullPath(OutputType::NONE, legPreset());
+		}
 		g_waitTicks = 0;
 		g_step = Step::SelectWait;
 		break;

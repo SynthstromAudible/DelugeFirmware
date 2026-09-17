@@ -49,6 +49,9 @@
 #   RV-MEMORY  an edited original, which hibernates: put back with no document read at all.
 #   RV-STALL   an original whose sample load is held past the stall bound: back with that holder empty, the gate
 #              released.
+#   MD-BROWSER a MIDI device definition written through the firmware and loaded through its own browser: the file's CC
+#              label on the instrument, the browser closed, and the document staged once by InstrumentLoad off the
+#              storage owner.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #
@@ -110,26 +113,26 @@ set -e
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
-	grep -E '^(PL|AQ|RV)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	grep -E '^(PL|AQ|RV|MD)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
 	tail -20 "$OUT/run.err"
 	exit 1
 fi
 
 for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
 	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-TIER \
-	RV-CARD RV-MEMORY RV-STALL PL-RESULT; do
+	RV-CARD RV-MEMORY RV-STALL MD-BROWSER PL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
-		grep -E '^(PL|AQ|RV)-' "$OUT/run.txt"
+		grep -E '^(PL|AQ|RV|MD)-' "$OUT/run.txt"
 		exit 1
 	fi
 done
 
 if ! grep -q '^PL-RESULT failures=0$' "$OUT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^(PL|AQ|RV)-' "$OUT/run.txt"
+	grep -E '^(PL|AQ|RV|MD)-' "$OUT/run.txt"
 	exit 1
 fi
 
 echo "PASS — every preset load bound what a user's load binds"
-grep -E '^(PL|AQ|RV)-' "$OUT/run.txt"
+grep -E '^(PL|AQ|RV|MD)-' "$OUT/run.txt"
