@@ -35,7 +35,6 @@
 #include "libdeluge/file_prefix.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
-#include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -795,24 +794,6 @@ void LoadSongUI::finishLoad() {
 	currentUIMode = UI_MODE_NONE;
 
 	display->removeWorkingAnimation();
-
-	// for the song we just loaded, let's check if there's any midi labels we should load
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput && thisOutput->type == OutputType::MIDI_OUT) {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
-			if (midiInstrument->loadDeviceDefinitionFile) {
-				// TODO(conflation-batch-4): unknown is being treated as absent here; the
-				// load/browse/favourites batch gives this site its real ruling.
-				bool fileExists =
-				    StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.c_str()).value_or(false);
-				if (fileExists) {
-					StorageManager::loadMidiDeviceDefinitionFile(midiInstrument,
-					                                             midiInstrument->deviceDefinitionFileName.c_str(),
-					                                             &midiInstrument->deviceDefinitionFileName, false);
-				}
-			}
-		}
-	}
 
 	endLoad();
 }

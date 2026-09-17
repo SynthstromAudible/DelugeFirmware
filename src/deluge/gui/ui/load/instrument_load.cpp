@@ -56,9 +56,10 @@ bool isCreation(const InstrumentLoadRequest& request) {
 	return request.kind == Kind::Acquire && deluge::storage::isCreationConsumer(request.preset.consumer);
 }
 
-/// Whether @p request is one a newer request may not cancel or replace: a creation, or the browser's exit revert.
+/// Whether @p request is one a newer request may not cancel or replace: a creation, the browser's exit revert, or a
+/// device definition.
 bool neverSuperseded(const InstrumentLoadRequest& request) {
-	return isCreation(request) || request.kind == Kind::Revert;
+	return isCreation(request) || request.kind == Kind::Revert || request.kind == Kind::MidiDefinition;
 }
 
 /// Whether a request is a plain commit of the file @p active is already loading, and so promotes it.
@@ -72,9 +73,9 @@ bool promotes(const InstrumentLoadRequest& request, const InstrumentLoadRequest&
 bool InstrumentLoad::request(const InstrumentLoadRequest& request) {
 	if (const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
 	    queued.has_value() && neverSuperseded(*queued)) {
-		// A queued creation or revert is never replaced: superseding the middle of three quick new-track presses would
-		// lose a track, and superseding a revert would leave the clip on what the user backed out of. What comes after
-		// it is refused, and the gesture kept is the one the user made first.
+		// A queued creation, revert or definition is never replaced: superseding the middle of three quick new-track
+		// presses would lose a track, and superseding a revert would leave the clip on what the user backed out of.
+		// What comes after it is refused, and the gesture kept is the one the user made first.
 		return false;
 	}
 	if (phase_ != Phase::Idle && promotes(request, active_)) {
@@ -132,7 +133,6 @@ void InstrumentLoad::start(const InstrumentLoadRequest& request) {
 	decision_ = {};
 	newInstrument_ = nullptr;
 	newDrum_ = nullptr;
-	swapped_ = nullptr;
 	acquired_ = {};
 	walk_ = {};
 	walkBegun_ = false;
@@ -140,10 +140,11 @@ void InstrumentLoad::start(const InstrumentLoadRequest& request) {
 	if (active_.commit) {
 		closeGate();
 	}
-	// A revert knows its file already: it stages it straight away.
-	phase_ = (active_.kind == Kind::Acquire)  ? Phase::Walk
-	         : (active_.kind == Kind::Revert) ? Phase::Stage
-	                                          : Phase::Decide;
+	// A revert and a definition know their file already: they read it straight away.
+	phase_ = (active_.kind == Kind::Acquire)          ? Phase::Walk
+	         : (active_.kind == Kind::Revert)         ? Phase::Stage
+	         : (active_.kind == Kind::MidiDefinition) ? Phase::MidiDef
+	                                                  : Phase::Decide;
 }
 
 bool InstrumentLoad::supersede() {
@@ -480,33 +481,27 @@ bool InstrumentLoad::stepSwap() {
 		Instrument* instrument = (decision_.reuse != nullptr) ? decision_.reuse : newInstrument_;
 		error = loadInstrumentPresetUI.swapInstrument(active_, decision_, instrument);
 		newInstrument_ = nullptr; // the song's now
-		swapped_ = instrument;
 	}
 	if (error != Error::NONE) {
 		return finish(error);
-	}
-	if (swapped_ != nullptr && swapped_->type == OutputType::MIDI_OUT
-	    && static_cast<MIDIInstrument*>(swapped_)->loadDeviceDefinitionFile) {
-		phase_ = Phase::MidiDef;
-		return true;
 	}
 	return finish(Error::NONE);
 }
 
 bool InstrumentLoad::stepMidiDef() {
-	auto* midiInstrument = static_cast<MIDIInstrument*>(swapped_);
-	switch (stage(midiInstrument->deviceDefinitionFileName.c_str(), "midiDevice", "")) {
+	switch (stage(active_.definition.path.c_str(), "midiDevice", "")) {
 	case StorageManager::StagedOpen::Deferred:
 		return false;
 	case StorageManager::StagedOpen::Failed:
-		// A definition that is not on the card is skipped, as it always was.
-		return finish(Error::NONE);
-	case StorageManager::StagedOpen::Opened:
-		midiInstrument->loadDeviceDefinitionFile = false;
-		(void)StorageManager::parseMidiDeviceDefinitionDocument(midiInstrument,
-		                                                        &midiInstrument->deviceDefinitionFileName, false);
+		return finish(Error::FILE_CORRUPTED);
+	case StorageManager::StagedOpen::Opened: {
+		// The Instrument keeps the file it was read from: the definition browser opens on it next time.
+		std::string fileName = active_.definition.path;
+		const Error error =
+		    StorageManager::parseMidiDeviceDefinitionDocument(active_.definition.instrument, &fileName, true);
 		releaseStaging();
-		return finish(Error::NONE);
+		return finish(error);
+	}
 	}
 	return false;
 }

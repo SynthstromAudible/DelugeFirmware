@@ -449,40 +449,11 @@ paramManagersMissing:
 	return Error::NONE;
 }
 
-Error StorageManager::openMidiDeviceDefinitionFile(char const* path) {
-
-	AudioEngine::logAction("openMidiDeviceDefinitionFile");
-	char const* firstTagName = "midiDevice";
-	char const* altTagName = "";
-
-	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
-	return error;
-}
-
-// Returns error status
-Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, char const* path,
-                                                   std::string* fileName, bool updateFileName) {
-	midiInstrument->loadDeviceDefinitionFile = false;
-
-	AudioEngine::logAction("loadMidiDeviceDefinitionFile");
-	D_PRINTLN("opening midi device definition file -  %s  from path  %s", fileName->c_str(), path);
-
-	Error error = openMidiDeviceDefinitionFile(path);
-	if (error != Error::NONE) {
-		D_PRINTLN("opening midi device definition file failed -  %s", fileName->c_str());
-		return error;
-	}
-
-	error = parseMidiDeviceDefinitionDocument(midiInstrument, fileName, updateFileName);
-	releaseDocumentStaging();
-	return error;
-}
-
 Error StorageManager::parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName,
                                                         bool updateFileName) {
 	AudioEngine::logAction("readMidiDeviceDefinitionFile");
 
-	Error error = midiInstrument->readDeviceDefinitionFile(*activeDeserializer, false);
+	Error error = midiInstrument->readDeviceDefinitionFile(*activeDeserializer);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
 

@@ -589,11 +589,8 @@ Error parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outpu
 void instrumentDocumentTags(OutputType outputType, char const** firstTagName, char const** altTagName);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
-Error openMidiDeviceDefinitionFile(char const* path);
-Error loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, char const* path, std::string* fileName,
-                                   bool updateFileName = true);
 /// @brief Read a device definition into @p midiInstrument from the document `activeDeserializer` has open, and close
-///        it. The parse half of loadMidiDeviceDefinitionFile(); it opens nothing and frees no staging.
+///        it. The parse half of a staged definition read; it opens nothing and frees no staging.
 /// @return Error::NONE, or why the definition could not be read.
 Error parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName, bool updateFileName);
 

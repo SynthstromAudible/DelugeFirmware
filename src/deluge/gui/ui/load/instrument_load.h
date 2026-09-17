@@ -28,6 +28,7 @@
 #include <string>
 
 class Instrument;
+class MIDIInstrument;
 class SoundDrum;
 
 namespace deluge::gui {
@@ -61,14 +62,21 @@ struct RevertTarget {
 	bool needToAdd{};                  ///< The original must be added to the song.
 };
 
-/// @brief One preset load: the browser's own, an acquisition a gesture outside the browser asked for, or the revert
-///        the browser's exit leaves behind.
+/// @brief The MIDI device definition the definition browser asked for: the file, and the Instrument it labels.
+struct MidiDefinitionTarget {
+	std::string path;             ///< The definition file's full path.
+	MIDIInstrument* instrument{}; ///< The Instrument to read it into. Song-owned, so it outlives a relisting.
+};
+
+/// @brief One preset load: the browser's own, an acquisition a gesture outside the browser asked for, the revert the
+///        browser's exit leaves behind, or a MIDI device definition.
 struct InstrumentLoadRequest {
 	/// @brief Which of the two a request is.
 	enum class Kind : uint8_t {
-		Browse,  ///< The browser's scroll-load, commit or clone, of @ref target.
-		Acquire, ///< A change-type or navigate gesture's acquisition, of what @ref preset's walk finds.
-		Revert,  ///< The browser's exit, putting @ref revert's original preset back.
+		Browse,         ///< The browser's scroll-load, commit or clone, of @ref target.
+		Acquire,        ///< A change-type or navigate gesture's acquisition, of what @ref preset's walk finds.
+		Revert,         ///< The browser's exit, putting @ref revert's original preset back.
+		MidiDefinition, ///< The definition browser's Select, of @ref definition's file.
 	};
 
 	InstrumentLoadTarget target{};
@@ -81,6 +89,8 @@ struct InstrumentLoadRequest {
 	deluge::storage::PresetRequest preset{};
 	/// Revert only: the original to read, and the swap to make when it is ready.
 	RevertTarget revert{};
+	/// MidiDefinition only: the definition file, and the MIDI Instrument it is read into.
+	MidiDefinitionTarget definition{};
 };
 
 /// @brief What the browser decided about a load before any card work: done already, reuse an Instrument, or read one.
@@ -110,8 +120,7 @@ struct AcquireSnapshot {
 /// A phase machine, advanced by request() and by routine() from its own repeating task.
 /// - **Browse** (a synth, kit or MIDI preset into the browser's clip, a synth preset into a kit row, or a clone):
 ///   the browser's prologue decides; the document is staged through the byte channel and parsed on this tier; the
-///   samples load through one AsyncSampleLoad over the new Instrument (or drum); the browser swaps it in, in one pass;
-///   a MIDI Instrument's device definition is staged and parsed the same way.
+///   samples load through one AsyncSampleLoad over the new Instrument (or drum); the browser swaps it in, in one pass.
 /// - **Acquire** (a change-type or navigate gesture outside the browser): the gesture's card-free prologue runs as the
 ///   request starts; one operation on the storage owner walks the instrument folder, as today's walkers do, and
 ///   copies out what it found; a preset from the card is staged, parsed and has its samples loaded as above, a
@@ -122,16 +131,20 @@ struct AcquireSnapshot {
 ///   above, then swapped back by the browser's shared revert tail. The browser has already closed; the gate stays
 ///   closed until it lands.
 ///
+/// - **MidiDefinition** (the definition browser's Select): the file is staged and read into the MIDI Instrument the
+///   browser was opened on, and the browser is told how it ended -- it closes on success, and stays open on a card
+///   error.
+///
 /// Requests share one latest-wins queue: a newer request cancels the load in flight at its next phase
 /// boundary (staging, samples, or a landed walk) and starts -- except a creation (a new instrument, new track or
-/// clone) and a revert: one in flight is never cancelled, a newer request waiting behind it, and one queued is never
-/// replaced, what comes after it being refused. An Instrument parsed but not yet handed over is deleted,
-/// never having been added to the song. A navigate that supersedes a navigate walks on from where the superseded one's
-/// walk landed. A commit asked for the file a scroll-load is already loading promotes that load instead of
-/// restarting it. A browser commit or clone closes UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES until it ends, released only
-/// while still that mode; a scroll-load or an acquisition never closes it. A sample load that fails or stops moving
-/// keeps the Instrument: it is swapped in or handed over with the unanswered holders empty, and the card error is shown
-/// once.
+/// clone), a revert and a device definition: one in flight is never cancelled, a newer request waiting behind it, and
+/// one queued is never replaced, what comes after it being refused. An Instrument parsed but not yet handed over is
+/// deleted, never having been added to the song. A navigate that supersedes a navigate walks on from where the
+/// superseded one's walk landed. A commit asked for the file a scroll-load is already loading promotes that load
+/// instead of restarting it. A browser commit or clone closes UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES until it ends,
+/// released only while still that mode; a scroll-load or an acquisition never closes it. A sample load that fails or
+/// stops moving keeps the Instrument: it is swapped in or handed over with the unanswered holders empty, and the card
+/// error is shown once.
 class InstrumentLoad {
 public:
 	/// @brief Ask for a load, and run one pass.
@@ -179,7 +192,7 @@ private:
 		Parse,   ///< Reading the staged document into a new Instrument or drum.
 		Samples, ///< Ticking the new Instrument's (or drum's) sample load.
 		Swap,    ///< Browse: the browser swaps it in, in one pass.
-		MidiDef, ///< Browse: staging and reading a MIDI Instrument's device definition.
+		MidiDef, ///< MidiDefinition: staging and reading the definition browser's file into its Instrument.
 	};
 
 	bool step();
@@ -230,7 +243,6 @@ private:
 	FileDeserializer* previousDeserializer_{nullptr};
 	Instrument* newInstrument_{nullptr};
 	SoundDrum* newDrum_{nullptr};
-	Instrument* swapped_{nullptr}; ///< The Instrument swapped in, for the MIDI definition.
 	std::optional<deluge::storage::AsyncSampleLoad> load_{};
 	deluge::storage::AcquireResult acquired_{}; ///< Acquire: what is handed over.
 	/// @}
