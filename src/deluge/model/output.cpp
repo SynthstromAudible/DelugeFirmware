@@ -591,6 +591,9 @@ for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
 */
 
 Error Output::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+	if (mayActuallyReadFiles) {
+		StorageManager::countSynchronousSampleLoad(); // for the preset-load gate's AQ-TIER
+	}
 	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
 	return deluge::storage::BlockingSampleLoad::errorFor(walkSampleDemands(load));
 }

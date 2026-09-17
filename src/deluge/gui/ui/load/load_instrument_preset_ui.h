@@ -100,6 +100,9 @@ public:
 	/// @return The running acquisition-run count.
 	[[nodiscard]] static int32_t presetAcquisitionsRun() { return presetAcquisitionsRun_; }
 
+	/// @brief Whether a preset acquisition is in flight or queued.
+	[[nodiscard]] bool presetAcquisitionInFlight() const { return presetCoalescer_.in_flight(); }
+
 	/// @brief Whether a preset load is in flight or queued.
 	[[nodiscard]] bool scrollLoadInFlight() const;
 

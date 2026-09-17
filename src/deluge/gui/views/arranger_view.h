@@ -207,6 +207,7 @@ private:
 	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);
 
 	friend class BrowserListingAbProbe;
+	friend class PresetAcquireProbe; // the preset-load gate's AQ legs drive the row audition's navigation
 };
 
 extern ArrangerView arrangerView;

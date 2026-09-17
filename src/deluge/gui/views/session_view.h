@@ -47,8 +47,9 @@ class SessionView final : public ClipNavigationTimelineView {
 	// The song-preview A/B gate drives this view's real gestures (grid coordinates, the Grid-layout
 	// preset-navigation command) rather than the readers underneath them, which is the only way the
 	// dispatch/completion split is actually under test. Same pattern, and the same reason, as
-	// Browser's and ArrangerView's friend declarations.
+	// Browser's and ArrangerView's friend declarations. The preset-load gate's AQ legs do the same.
 	friend class BrowserListingAbProbe;
+	friend class PresetAcquireProbe;
 
 public:
 	SessionView();

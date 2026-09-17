@@ -25,6 +25,7 @@
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "hid/button.h"
@@ -45,19 +46,90 @@
 #include "processing/source.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
+#include "storage/flash_storage.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <iterator>
 #include <string>
+#include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
 // `putchar_` for -- every line below would become an undefined symbol at link time.
 #ifdef printf
 #undef printf
 #endif
+
+/// Drives SessionView's and ArrangerView's acquisition gestures for the AQ legs: the private state a pad or encoder
+/// handler reads is written as a user's press leaves it, and then the handler itself is called.
+class PresetAcquireProbe {
+public:
+	/// An empty pad pressed in Rows layout: the new-track gesture, making a track of @p type.
+	static void pressEmptyRow(int32_t yDisplay, OutputType type = OutputType::SYNTH) {
+		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+		currentSong->songViewYScroll = 0;
+		currentUIMode = UI_MODE_NONE;
+		FlashStorage::defaultUseLastClipType = true;
+		sessionView.lastTypeCreated = type;
+		(void)sessionView.padAction(0, yDisplay, 1);
+	}
+
+	/// Let go of whatever clip press a gesture left held, and go back to Rows layout.
+	static void releasePress() {
+		sessionView.clipPressEnded();
+		sessionView.gridResetPresses(true, true);
+		currentUIMode = UI_MODE_NONE;
+		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
+	}
+
+	/// @p source's grid pad copied into the first empty track column, in its own section.
+	static bool cloneIntoEmptyColumn(Clip* source) {
+		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		currentUIMode = UI_MODE_NONE;
+		const Cartesian from = sessionView.gridXYFromClip(*source);
+		const auto column = static_cast<int32_t>(sessionView.gridTrackCount());
+		if (from.x < 0 || from.y < 0 || column >= kDisplayWidth) {
+			return false;
+		}
+		sessionView.gridClonePad(from.x, from.y, column, from.y);
+		return true;
+	}
+
+	/// The select encoder turned while @p clip's grid pad is held.
+	static bool turnInGrid(Clip* clip, int8_t offset) {
+		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeGrid;
+		const Cartesian xy = sessionView.gridXYFromClip(*clip);
+		sessionView.gridFirstPressedX = xy.x;
+		sessionView.gridFirstPressedY = xy.y;
+		if (sessionView.getClipForLayout() != clip) {
+			return false;
+		}
+		currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+		sessionView.selectEncoderAction(offset);
+		return true;
+	}
+
+	/// The select encoder turned while @p output's arranger row is auditioned.
+	static void turnInArranger(Output* output, int8_t offset) {
+		arrangerView.outputsOnScreen[0] = output;
+		arrangerView.yPressedEffective = 0;
+		currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
+		arrangerView.selectEncoderAction(offset);
+	}
+
+	/// Let go of the arranger row's audition.
+	static void endArrangerAudition() {
+		Output* output = arrangerView.outputsOnScreen[0];
+		currentUIMode = UI_MODE_NONE;
+		if (output != nullptr) {
+			arrangerView.endAudition(output);
+		}
+		arrangerView.outputsOnScreen[0] = nullptr;
+	}
+};
 
 namespace {
 
@@ -113,7 +185,24 @@ constexpr int32_t kMaxListingTicks = 20000;
 /// Scenario ticks a load may take before it is called wedged.
 constexpr int32_t kMaxLegTicks = 2000;
 
-enum class Leg : uint8_t { Synth, Kit, Row, Clone, Race, Supersede, Gate, Stall, Done };
+enum class Leg : uint8_t {
+	Synth,
+	Kit,
+	Row,
+	Clone,
+	Race,
+	Supersede,
+	Gate,
+	AqNew,
+	AqChange,
+	AqNavigate,
+	AqSupersede,
+	AqRefuse,
+	AqClone,
+	Stall,
+	AqStall,
+	Done
+};
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, Settle, Act, Wait };
 
 Leg g_leg = Leg::Synth;
@@ -171,8 +260,22 @@ const char* legName(Leg leg) {
 		return "supersede";
 	case Leg::Gate:
 		return "gate";
+	case Leg::AqNew:
+		return "aq-new";
+	case Leg::AqChange:
+		return "aq-change";
+	case Leg::AqNavigate:
+		return "aq-navigate";
+	case Leg::AqSupersede:
+		return "aq-supersede";
+	case Leg::AqRefuse:
+		return "aq-refuse";
+	case Leg::AqClone:
+		return "aq-clone";
 	case Leg::Stall:
 		return "stall";
+	case Leg::AqStall:
+		return "aq-stall";
 	case Leg::Done:
 		return "done";
 	}
@@ -373,6 +476,13 @@ const char* legPreset() {
 		return kGatePreset;
 	case Leg::Stall:
 		return kStallPreset;
+	case Leg::AqNew:
+	case Leg::AqChange:
+	case Leg::AqNavigate:
+	case Leg::AqSupersede:
+	case Leg::AqRefuse:
+	case Leg::AqClone:
+	case Leg::AqStall:
 	case Leg::Done:
 		break;
 	}
@@ -718,14 +828,460 @@ void checkLeg() {
 		}
 		break;
 	}
+	case Leg::AqNew:
+	case Leg::AqChange:
+	case Leg::AqNavigate:
+	case Leg::AqSupersede:
+	case Leg::AqRefuse:
+	case Leg::AqClone:
+	case Leg::AqStall:
 	case Leg::Done:
 		break;
+	}
+}
+
+// ── The acquisition legs ─────────────────────────────────────────────────────
+
+/// The acquisition legs' presets, written when AQ-NEW prepares (after the browser legs, whose walks they would
+/// otherwise join): a synth the new-track gesture picks up, a kit the change-type lands on and three navigated through,
+/// a heavy kit and the light one after it, and the stall leg's synth, which sorts straight after PLSTALL so a turn from
+/// the synth clip lands on it. Every other name sorts before the PL presets of its type.
+constexpr const char* kAqSynthPreset = "SYNTHS/AQSA.XML";
+constexpr const char* kAqSynthName = "AQSA";
+constexpr const char* kAqSynthSample = "SAMPLES/AQ/AQSA.WAV";
+constexpr const char* kAqKitPresets[] = {"KITS/AQKA.XML", "KITS/AQKB.XML", "KITS/AQKC.XML", "KITS/AQKD.XML"};
+constexpr const char* kAqKitNames[] = {"AQKA", "AQKB", "AQKC", "AQKD"};
+constexpr const char* kAqKitSamples[] = {"SAMPLES/AQ/AQKA.WAV", "SAMPLES/AQ/AQKB.WAV", "SAMPLES/AQ/AQKC.WAV",
+                                         "SAMPLES/AQ/AQKD.WAV"};
+constexpr int32_t kAqKitCount = 4;
+constexpr const char* kAqHeavyPreset = "KITS/AQKH.XML";
+constexpr const char* kAqHeavyName = "AQKH";
+constexpr const char* kAqHeavySamples[] = {"SAMPLES/AQH/AQHA.WAV", "SAMPLES/AQH/AQHB.WAV", "SAMPLES/AQH/AQHC.WAV"};
+constexpr const char* kAqHeavyDrumNames[] = {"AQHA", "AQHB", "AQHC"};
+constexpr const char* kAqLitePreset = "KITS/AQKL.XML";
+constexpr const char* kAqLiteName = "AQKL";
+constexpr const char* kAqLiteSample = "SAMPLES/AQ/AQKL.WAV";
+constexpr const char* kAqStallPreset = "SYNTHS/PLSTB.XML";
+constexpr const char* kAqStallName = "PLSTB";
+constexpr const char* kAqStallSample = "SAMPLES/AQS/PLSTB.WAV";
+
+enum class AqStep : uint8_t { Prepare, Act, Wait };
+AqStep g_aqStep = AqStep::Prepare;
+/// Which of the leg's gestures is out.
+int32_t g_aqAct = 0;
+/// The clip AQ-NEW's new-track gesture makes, which AQ-CHANGE, AQ-NAVIGATE, AQ-SUPERSEDE and AQ-CLONE act on.
+Clip* g_aqClip = nullptr;
+/// The session's clips, the clip's instrument name, the acquisition runs, supersessions, give-ups and orphaned param
+/// managers, read as the gesture is made.
+std::vector<Clip*> g_aqClipsBefore{};
+std::string g_aqNameBefore{};
+int32_t g_aqRunsBefore = 0;
+int32_t g_aqSupersessionsBefore = 0;
+int32_t g_aqGiveUpsBefore = 0;
+int32_t g_aqOrphansBefore = 0;
+/// AQ-SUPERSEDE: the sample loads begun before its first turn, whether its second turn has been made, and whether the
+/// heavy kit was ever the clip's.
+int32_t g_aqLoadsBefore = 0;
+bool g_aqTurned = false;
+bool g_aqHeavySwapped = false;
+TierMark g_aqTierMark{};
+
+bool isAcquireLeg(Leg leg) {
+	switch (leg) {
+	case Leg::AqNew:
+	case Leg::AqChange:
+	case Leg::AqNavigate:
+	case Leg::AqSupersede:
+	case Leg::AqRefuse:
+	case Leg::AqClone:
+	case Leg::AqStall:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/// How many gestures the leg makes, one after another.
+int32_t acquireActs(Leg leg) {
+	return leg == Leg::AqNavigate ? 3 : leg == Leg::AqNew ? 2 : 1;
+}
+
+/// markTier(), with the synchronous loads today's acquisitions run added in.
+TierMark markAcquireTier() {
+	TierMark mark = markTier();
+	mark.documentReads += StorageManager::synchronousDocumentReads();
+	mark.documentReadsOnOwner += StorageManager::synchronousDocumentReadsOnOwner();
+	mark.sampleLoads += StorageManager::synchronousSampleLoads();
+	mark.sampleLoadsOnOwner += StorageManager::synchronousSampleLoadsOnOwner();
+	return mark;
+}
+
+std::vector<Clip*> sessionClipList() {
+	std::vector<Clip*> clips;
+	for (int32_t i = 0; i < std::ssize(currentSong->sessionClips); i++) {
+		clips.push_back(currentSong->sessionClips[i]);
+	}
+	return clips;
+}
+
+/// The session clips made since the gesture, in session order.
+std::vector<Clip*> clipsAdded() {
+	std::vector<Clip*> added;
+	for (Clip* clip : sessionClipList()) {
+		if (std::find(g_aqClipsBefore.begin(), g_aqClipsBefore.end(), clip) == g_aqClipsBefore.end()) {
+			added.push_back(clip);
+		}
+	}
+	return added;
+}
+
+/// Make @p clip current under the clip view, with no mode held, as a user who has opened it does.
+bool focusClip(Clip* clip) {
+	if (clip == nullptr || clip->output == nullptr) {
+		return false;
+	}
+	currentSong->setCurrentClip(clip);
+	changeRootUI(&instrumentClipView);
+	currentUIMode = UI_MODE_NONE;
+	return true;
+}
+
+void prepareAcquire() {
+	g_aqAct = 0;
+	g_aqTierMark = markAcquireTier();
+	if (g_leg != Leg::AqNew) {
+		return;
+	}
+	onOwner([] {
+		bool ok = writeSampleSynthPreset(kAqSynthPreset, kAqSynthSample)
+		          && writeSampleSynthPreset(kAqStallPreset, kAqStallSample);
+		for (int32_t i = 0; ok && i < kAqKitCount; i++) {
+			ok = writeKitPreset(kAqKitPresets[i], &kAqKitNames[i], &kAqKitSamples[i], 1);
+		}
+		const char* liteName = kAqLiteName;
+		ok = ok && writeKitPreset(kAqHeavyPreset, kAqHeavyDrumNames, kAqHeavySamples, 3)
+		     && writeKitPreset(kAqLitePreset, &liteName, &kAqLiteSample, 1);
+		printf("AQ-PROBE prepared presets=%d\n", ok ? 1 : 0);
+	});
+}
+
+/// The first Rows-layout pad with no clip on it.
+int32_t emptyRow() {
+	return static_cast<int32_t>(std::ssize(currentSong->sessionClips));
+}
+
+/// Make the leg's gesture. False when it could not be made, recorded as a failure.
+bool actAcquire() {
+	using namespace deluge::hid::button;
+	const char* leg = legName(g_leg);
+	g_aqClipsBefore = sessionClipList();
+	g_aqRunsBefore = LoadInstrumentPresetUI::presetAcquisitionsRun();
+	g_aqSupersessionsBefore = deluge::gui::instrumentLoad.supersessions();
+	g_aqGiveUpsBefore = deluge::gui::instrumentLoad.giveUps();
+	g_aqNameBefore = (g_aqClip != nullptr && g_aqClip->output != nullptr) ? g_aqClip->output->name : "";
+	switch (g_leg) {
+	case Leg::AqNew:
+		if (g_aqAct == 0) {
+			PresetAcquireProbe::pressEmptyRow(emptyRow());
+			return true;
+		}
+		if (!focusClip(g_aqClip)) {
+			return fail(leg, "the new-track gesture made no clip");
+		}
+		// shift+SYNTH on the clip view.
+		(void)instrumentClipView.createNewInstrument(OutputType::SYNTH, false);
+		return true;
+	case Leg::AqChange:
+		if (!focusClip(g_aqClip)) {
+			return fail(leg, "the new-track gesture made no clip");
+		}
+		(void)instrumentClipView.buttonAction(KIT, true, false);
+		(void)instrumentClipView.buttonAction(KIT, false, false);
+		return true;
+	case Leg::AqNavigate:
+		if (g_aqAct == 0) {
+			if (!focusClip(g_aqClip)) {
+				return fail(leg, "the new-track gesture made no clip");
+			}
+			instrumentClipView.selectEncoderAction(1);
+			return true;
+		}
+		if (g_aqAct == 1) {
+			return PresetAcquireProbe::turnInGrid(g_aqClip, 1) || fail(leg, "the clip's grid pad could not be held");
+		}
+		PresetAcquireProbe::turnInArranger(g_aqClip->output, 1);
+		return true;
+	case Leg::AqSupersede:
+		if (!focusClip(g_aqClip)) {
+			return fail(leg, "the new-track gesture made no clip");
+		}
+		deluge_audio_load_set_latency_ms(kHoldMs);
+		g_aqOrphansBefore = orphanedParamManagers();
+		g_aqLoadsBefore = markAcquireTier().sampleLoads;
+		g_aqTurned = false;
+		g_aqHeavySwapped = false;
+		instrumentClipView.selectEncoderAction(1);
+		return true;
+	case Leg::AqRefuse:
+		// A synth track, a kit track and a synth track: a third press that replaced the queued second would leave no
+		// kit.
+		PresetAcquireProbe::pressEmptyRow(emptyRow(), OutputType::SYNTH);
+		PresetAcquireProbe::pressEmptyRow(emptyRow() + 1, OutputType::KIT);
+		PresetAcquireProbe::pressEmptyRow(emptyRow() + 2, OutputType::SYNTH);
+		return true;
+	case Leg::AqClone:
+		if (g_aqClip == nullptr) {
+			return fail(leg, "the new-track gesture made no clip");
+		}
+		PresetAcquireProbe::pressEmptyRow(emptyRow());
+		return PresetAcquireProbe::cloneIntoEmptyColumn(g_aqClip) || fail(leg, "the clip has no grid pad to copy");
+	case Leg::AqStall:
+		if (!focusClip(g_synthClip)) {
+			return fail(leg, "the synth clip is missing");
+		}
+		deluge_audio_load_set_latency_ms(kStallHoldMs);
+		g_aqNameBefore = g_synthClip->output->name;
+		instrumentClipView.selectEncoderAction(1);
+		return true;
+	default:
+		return false;
+	}
+}
+
+/// How many of @p output's first @p drums drums are sound drums bound to their sample in @p samples.
+int32_t kitDrumsBound(Output* output, const char* const* samples, int32_t drums) {
+	if (output == nullptr || output->type != OutputType::KIT) {
+		return 0;
+	}
+	int32_t bound = 0;
+	int32_t index = 0;
+	for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr && index < drums;
+	     drum = drum->next, index++) {
+		if (drum->type == DrumType::SOUND
+		    && boundTo(firstHolder(static_cast<SoundDrum*>(drum)->sources[0]), samples[index])) {
+			bound++;
+		}
+	}
+	return bound;
+}
+
+bool synthBoundTo(Output* output, const char* sample) {
+	return output != nullptr && output->type == OutputType::SYNTH
+	       && boundTo(firstHolder(static_cast<SoundInstrument*>(output)->sources[0]), sample);
+}
+
+void aqFail(const char* marker, const char* what) {
+	printf("%s FAIL %s\n", marker, what);
+	g_failures++;
+}
+
+/// Check the gesture's outcome, once its acquisition has ended.
+void checkAcquireAct() {
+	const std::vector<Clip*> added = clipsAdded();
+	const int32_t runs = LoadInstrumentPresetUI::presetAcquisitionsRun() - g_aqRunsBefore;
+	Output* output = (g_aqClip != nullptr) ? g_aqClip->output : nullptr;
+	const std::string name = (output != nullptr) ? output->name : "";
+	switch (g_leg) {
+	case Leg::AqNew: {
+		if (g_aqAct == 0) {
+			g_aqClip = (added.size() == 1) ? added[0] : nullptr;
+			Output* created = (g_aqClip != nullptr) ? g_aqClip->output : nullptr;
+			const bool named = created != nullptr && created->name == kAqSynthName;
+			const bool bound = synthBoundTo(created, kAqSynthSample);
+			printf("AQ-NEW gesture=track clipsAdded=%d named=%d bound=%d name=%s runs=%d\n",
+			       static_cast<int32_t>(added.size()), named ? 1 : 0, bound ? 1 : 0,
+			       created != nullptr ? created->name.c_str() : "", runs);
+			PresetAcquireProbe::releasePress();
+			if (added.size() != 1 || !named || !bound) {
+				aqFail("AQ-NEW", "the new-track gesture did not make one synth track on the first unused synth preset "
+				                 "with its sample bound");
+			}
+			break;
+		}
+		const bool fresh = output != nullptr && output->type == OutputType::SYNTH && name != g_aqNameBefore
+		                   && name.starts_with("SYNT");
+		printf("AQ-NEW gesture=instrument fresh=%d before=%s name=%s runs=%d\n", fresh ? 1 : 0, g_aqNameBefore.c_str(),
+		       name.c_str(), runs);
+		if (!fresh) {
+			aqFail("AQ-NEW", "shift+SYNTH did not give the clip a new synth under an unused slot name");
+		}
+		break;
+	}
+	case Leg::AqChange: {
+		const bool isKit = output != nullptr && output->type == OutputType::KIT;
+		const bool named = name == kAqKitNames[0];
+		const int32_t bound = kitDrumsBound(output, &kAqKitSamples[0], 1);
+		printf("AQ-CHANGE kit=%d named=%d bound=%d name=%s runs=%d\n", isKit ? 1 : 0, named ? 1 : 0, bound,
+		       name.c_str(), runs);
+		if (!isKit || !named || bound != 1) {
+			aqFail("AQ-CHANGE",
+			       "the KIT button did not land the clip on the first unused kit preset with its drum bound");
+		}
+		break;
+	}
+	case Leg::AqNavigate: {
+		static constexpr const char* kGestures[] = {"clip", "grid", "arranger"};
+		const bool landed = name == kAqKitNames[g_aqAct + 1];
+		const int32_t bound = kitDrumsBound(output, &kAqKitSamples[g_aqAct + 1], 1);
+		printf("AQ-NAVIGATE gesture=%s before=%s name=%s landed=%d bound=%d runs=%d\n", kGestures[g_aqAct],
+		       g_aqNameBefore.c_str(), name.c_str(), landed ? 1 : 0, bound, runs);
+		if (g_aqAct == 1) {
+			PresetAcquireProbe::releasePress();
+		}
+		if (g_aqAct == 2) {
+			PresetAcquireProbe::endArrangerAudition();
+		}
+		if (!landed || bound != 1) {
+			aqFail("AQ-NAVIGATE", "a turn did not land the clip on the next unused kit preset with its drum bound");
+		}
+		break;
+	}
+	case Leg::AqSupersede: {
+		deluge_audio_load_set_latency_ms(0);
+		const bool lite = name == kAqLiteName;
+		const int32_t heavyLeft = instrumentsNamed(kAqHeavyName);
+		const int32_t orphansLeft = orphanedParamManagers() - g_aqOrphansBefore;
+		const int32_t supersessions = deluge::gui::instrumentLoad.supersessions() - g_aqSupersessionsBefore;
+		printf("AQ-SUPERSEDE lite=%d heavySwapped=%d heavyLeft=%d orphansLeft=%d supersessions=%d name=%s runs=%d\n",
+		       lite ? 1 : 0, g_aqHeavySwapped ? 1 : 0, heavyLeft, orphansLeft, supersessions, name.c_str(), runs);
+		if (!lite || g_aqHeavySwapped || heavyLeft != 0 || orphansLeft != 0 || supersessions < 1) {
+			aqFail("AQ-SUPERSEDE",
+			       "a turn made while the heavy kit's samples were loading did not cancel it: the heavy "
+			       "kit swapped in, or something of it was left, or the clip missed the light kit");
+		}
+		break;
+	}
+	case Leg::AqRefuse: {
+		int32_t synths = 0;
+		int32_t kits = 0;
+		for (Clip* clip : added) {
+			synths += (clip->output != nullptr && clip->output->type == OutputType::SYNTH) ? 1 : 0;
+			kits += (clip->output != nullptr && clip->output->type == OutputType::KIT) ? 1 : 0;
+		}
+		printf("AQ-REFUSE clipsAdded=%d synths=%d kits=%d runs=%d\n", static_cast<int32_t>(added.size()), synths, kits,
+		       runs);
+		PresetAcquireProbe::releasePress();
+		if (added.size() != 2 || synths != 1 || kits != 1 || runs != 2) {
+			aqFail("AQ-REFUSE", "three new-track presses in one tick did not keep the in-flight and the queued one and "
+			                    "refuse the third");
+		}
+		break;
+	}
+	case Leg::AqClone: {
+		int32_t synths = 0;
+		int32_t kits = 0;
+		for (Clip* clip : added) {
+			synths += (clip->output != nullptr && clip->output->type == OutputType::SYNTH) ? 1 : 0;
+			kits += (clip->output != nullptr && clip->output->type == OutputType::KIT) ? 1 : 0;
+		}
+		printf("AQ-CLONE clipsAdded=%d synths=%d kits=%d runs=%d\n", static_cast<int32_t>(added.size()), synths, kits,
+		       runs);
+		PresetAcquireProbe::releasePress();
+		if (added.size() != 2 || synths != 1 || kits != 1 || runs != 2) {
+			aqFail("AQ-CLONE", "a new-track press and a grid clone made in one tick did not both make their track");
+		}
+		break;
+	}
+	case Leg::AqStall: {
+		deluge_audio_load_set_latency_ms(0);
+		Output* synth = g_synthClip->output;
+		const bool named = synth->name == kAqStallName;
+		AudioFileHolder* holder = (synth->type == OutputType::SYNTH)
+		                              ? firstHolder(static_cast<SoundInstrument*>(synth)->sources[0])
+		                              : nullptr;
+		const bool holderEmpty = holder != nullptr && holder->audioFile == nullptr;
+		const int32_t giveUps = deluge::gui::instrumentLoad.giveUps() - g_aqGiveUpsBefore;
+		printf("AQ-STALL named=%d holderEmpty=%d giveUps=%d before=%s name=%s runs=%d\n", named ? 1 : 0,
+		       holderEmpty ? 1 : 0, giveUps, g_aqNameBefore.c_str(), synth->name.c_str(), runs);
+		if (!named || !holderEmpty || giveUps != 1) {
+			aqFail("AQ-STALL", "a turn whose sample load never answered did not deliver the synth with that holder "
+			                   "empty on the stall bound");
+		}
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+/// AQ-TIER: since the leg began, its acquisitions read documents and loaded samples, none of it begun on the storage
+/// owner, and no sample was read from the card on the interaction tier.
+void checkAcquireTier() {
+	const TierMark now = markAcquireTier();
+	const int32_t reads = now.documentReads - g_aqTierMark.documentReads;
+	const int32_t readsOnOwner = now.documentReadsOnOwner - g_aqTierMark.documentReadsOnOwner;
+	const int32_t loads = now.sampleLoads - g_aqTierMark.sampleLoads;
+	const int32_t loadsOnOwner = now.sampleLoadsOnOwner - g_aqTierMark.sampleLoadsOnOwner;
+	const int32_t sampleIo = now.sampleIo - g_aqTierMark.sampleIo;
+	printf("AQ-TIER leg=%s documentReads=%d readsOnOwner=%d sampleLoads=%d loadsOnOwner=%d sampleIo=%d\n",
+	       legName(g_leg), reads, readsOnOwner, loads, loadsOnOwner, sampleIo);
+	if (reads == 0 || loads == 0) {
+		printf("AQ-TIER FAIL leg=%s the leg read no document or loaded no samples\n", legName(g_leg));
+		g_failures++;
+	}
+	if (readsOnOwner != 0 || loadsOnOwner != 0 || sampleIo != 0) {
+		printf("AQ-TIER FAIL leg=%s %d document read(s) and %d sample load(s) began on the storage owner, and %d "
+		       "sample read(s) went to the card on the interaction tier -- an acquisition's load belongs on the "
+		       "interaction tier\n",
+		       legName(g_leg), readsOnOwner, loadsOnOwner, sampleIo);
+		g_failures++;
+	}
+}
+
+void nextLeg();
+
+void runAcquireTick() {
+	switch (g_aqStep) {
+	case AqStep::Prepare:
+		prepareAcquire();
+		g_aqStep = AqStep::Act;
+		break;
+	case AqStep::Act:
+		g_waitTicks = 0;
+		if (!actAcquire()) {
+			nextLeg();
+			break;
+		}
+		g_aqStep = AqStep::Wait;
+		break;
+	case AqStep::Wait: {
+		if (g_leg == Leg::AqSupersede) {
+			if (g_aqClip->output->name == kAqHeavyName) {
+				g_aqHeavySwapped = true;
+			}
+			if (!g_aqTurned && markAcquireTier().sampleLoads > g_aqLoadsBefore) {
+				// On past the heavy kit, once its sample load has begun.
+				(void)focusClip(g_aqClip);
+				instrumentClipView.selectEncoderAction(1);
+				g_aqTurned = true;
+				break;
+			}
+		}
+		const int32_t maxTicks = (g_leg == Leg::AqStall) ? kMaxStallTicks : kMaxLegTicks;
+		const bool ended = g_waitTicks >= 1 && !loadInstrumentPresetUI.presetAcquisitionInFlight()
+		                   && (g_leg != Leg::AqSupersede || g_aqTurned);
+		if (!ended && ++g_waitTicks <= maxTicks) {
+			break;
+		}
+		if (!ended) {
+			fail(legName(g_leg), "an acquisition never ended");
+		}
+		checkAcquireAct();
+		if (++g_aqAct < acquireActs(g_leg)) {
+			g_aqStep = AqStep::Act;
+			break;
+		}
+		checkAcquireTier();
+		nextLeg();
+		break;
+	}
 	}
 }
 
 void nextLeg() {
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_step = Step::Prepare;
+	g_aqStep = AqStep::Prepare;
 	g_waitTicks = 0;
 }
 
@@ -734,6 +1290,10 @@ void runTick() {
 		printf("PL-RESULT failures=%d\n", g_failures);
 		fflush(stdout);
 		g_summaryPrinted = true;
+		return;
+	}
+	if (isAcquireLeg(g_leg)) {
+		runAcquireTick();
 		return;
 	}
 	switch (g_step) {
@@ -844,6 +1404,8 @@ void deluge_scenario_preset_load_begin(void) {
 	g_synthClip = nullptr;
 	g_kitClip = nullptr;
 	g_tierMark = {};
+	g_aqStep = AqStep::Prepare;
+	g_aqClip = nullptr;
 }
 
 bool deluge_scenario_preset_load_complete(void) {

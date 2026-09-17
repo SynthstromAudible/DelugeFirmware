@@ -25,6 +25,24 @@
 #   PL-STALL   a commit whose sample load is held past the stall bound: the synth swapped in with that holder empty,
 #              the gate released and the browser closed.
 #
+# The acquisition legs pick presets without the browser, by the gestures a user makes:
+#   AQ-NEW     an empty session pad pressed makes a synth track on the first unused synth preset, its sample bound; then
+#              shift+SYNTH gives that clip a new blank synth under an unused slot name.
+#   AQ-CHANGE  the clip view's KIT button on that empty clip lands on the first unused kit preset, its drum bound.
+#   AQ-NAVIGATE
+#              the select encoder turned from the clip view, a held grid pad and an auditioned arranger row: each turn
+#              lands on the next unused kit preset, its drum bound.
+#   AQ-SUPERSEDE
+#              the loader holding every sample load, a turn onto a heavy kit and a second once its sample load has begun:
+#              the light kit loaded, the heavy kit never swapped in, nothing of it left, and a supersession counted.
+#   AQ-REFUSE  three new-track presses in one tick (synth, kit, synth): the in-flight and the queued one kept, the third
+#              refused.
+#   AQ-CLONE   a new-track press and a grid clone into an empty column in one tick: both tracks made.
+#   AQ-STALL   a turn whose sample load is held past the stall bound: the synth delivered with that holder empty and one
+#              give-up counted.
+#   AQ-TIER    per acquisition leg: documents read and samples loaded, none of it begun on the storage owner, and no
+#              sample read from the card on the interaction tier.
+#
 # A missing marker fails the run: a stage that never ran asserts nothing.
 #
 # Usage: scripts/preset_load.sh
@@ -83,24 +101,25 @@ set -e
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
-	grep -E '^PL-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	grep -E '^(PL|AQ)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
 	tail -20 "$OUT/run.err"
 	exit 1
 fi
 
-for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL PL-RESULT; do
+for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
+	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-TIER PL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
-		grep -E '^PL-' "$OUT/run.txt"
+		grep -E '^(PL|AQ)-' "$OUT/run.txt"
 		exit 1
 	fi
 done
 
 if ! grep -q '^PL-RESULT failures=0$' "$OUT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^PL-' "$OUT/run.txt"
+	grep -E '^(PL|AQ)-' "$OUT/run.txt"
 	exit 1
 fi
 
 echo "PASS — every preset load bound what a user's load binds"
-grep -E '^PL-' "$OUT/run.txt"
+grep -E '^(PL|AQ)-' "$OUT/run.txt"

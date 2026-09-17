@@ -562,6 +562,18 @@ bool checkSDInitialized();
 Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = nullptr);
 Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
                              Instrument** getInstrument, char const* path, std::string* name, std::string* dirPath);
+
+/// @name Synchronous instrument loads
+/// Counted for the preset-load gate (AQ-TIER): the documents loadInstrumentFromFile() read, the sample loads
+/// Output::loadAllAudioFiles() ran with card reads allowed, and how many of each began on the storage owner.
+/// @{
+[[nodiscard]] int32_t synchronousDocumentReads();
+[[nodiscard]] int32_t synchronousDocumentReadsOnOwner();
+[[nodiscard]] int32_t synchronousSampleLoads();
+[[nodiscard]] int32_t synchronousSampleLoadsOnOwner();
+/// @brief Count one sample load run with card reads allowed, and whether it began on the storage owner.
+void countSynchronousSampleLoad();
+/// @}
 /// @brief Read an Instrument from the document `activeDeserializer` has open, and close it.
 ///
 /// The parse half of loadInstrumentFromFile(): it opens nothing and frees no staging, so a caller that staged the

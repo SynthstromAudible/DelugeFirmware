@@ -1799,6 +1799,8 @@ async fn run_sample_claim_scenario(done: &'static AtomicBool) {
 /// - `SAMPLES/PLH/PLHA..PLHC.WAV`: the supersession leg's heavy kit, loaded by nothing before it;
 ///   `SAMPLES/PLL/PLLITE.WAV` its light kit.
 /// - `SAMPLES/PLG/PLGATE.WAV` and `SAMPLES/PLS/PLSTALL.WAV`: the gate and stall legs' held samples.
+/// - `SAMPLES/AQ/AQSA.WAV`, `AQKA..AQKD.WAV` and `AQKL.WAV`: the acquisition legs' synth, navigated kits and light kit;
+///   `SAMPLES/AQH/AQHA..AQHC.WAV` their heavy kit, and `SAMPLES/AQS/PLSTB.WAV` the acquisition stall leg's held sample.
 fn pack_preset_load_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-preset-load-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1807,12 +1809,18 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     let lite = root.join("SAMPLES").join("PLL");
     let gate = root.join("SAMPLES").join("PLG");
     let stall = root.join("SAMPLES").join("PLS");
+    let aq = root.join("SAMPLES").join("AQ");
+    let aq_heavy = root.join("SAMPLES").join("AQH");
+    let aq_stall = root.join("SAMPLES").join("AQS");
     for dir in [
         &samples,
         &heavy,
         &lite,
         &gate,
         &stall,
+        &aq,
+        &aq_heavy,
+        &aq_stall,
         &root.join("SYNTHS"),
         &root.join("KITS"),
     ] {
@@ -1832,6 +1840,16 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     write_test_wav(&lite.join("PLLITE.WAV"), 1, 16, 2048, 0x98);
     write_sine_wav(&gate.join("PLGATE.WAV"), 1, 22_050, 220.0);
     write_sine_wav(&stall.join("PLSTALL.WAV"), 1, 22_050, 110.0);
+    write_sine_wav(&aq.join("AQSA.WAV"), 1, 22_050, 880.0);
+    write_test_wav(&aq.join("AQKA.WAV"), 1, 16, 2048, 0xA1);
+    write_test_wav(&aq.join("AQKB.WAV"), 1, 16, 2048, 0xA2);
+    write_test_wav(&aq.join("AQKC.WAV"), 1, 16, 2048, 0xA3);
+    write_test_wav(&aq.join("AQKD.WAV"), 1, 16, 2048, 0xA4);
+    write_test_wav(&aq.join("AQKL.WAV"), 1, 16, 2048, 0xA5);
+    write_test_wav(&aq_heavy.join("AQHA.WAV"), 1, 16, 8192, 0xA6);
+    write_test_wav(&aq_heavy.join("AQHB.WAV"), 1, 16, 8192, 0xA7);
+    write_test_wav(&aq_heavy.join("AQHC.WAV"), 1, 16, 8192, 0xA8);
+    write_sine_wav(&aq_stall.join("PLSTB.WAV"), 1, 22_050, 990.0);
     sd_image::pack_image(&root)
 }
 
