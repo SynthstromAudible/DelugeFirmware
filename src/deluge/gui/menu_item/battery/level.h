@@ -30,7 +30,7 @@ class Level final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
 	}
 	void drawPixelsForOled() override {

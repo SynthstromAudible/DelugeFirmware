@@ -24,7 +24,7 @@ class Rate final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return modControllable->getModFXType() != ModFXType::NONE;
 	}
 };

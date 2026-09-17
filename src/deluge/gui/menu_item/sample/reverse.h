@@ -31,7 +31,7 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) const override {
 		return isSampleModeSample(modControllable, source_id_);
 	}
 

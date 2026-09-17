@@ -3150,6 +3150,13 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
 
 	if (!songBeingDestroyedToo) {
+#if ALPHA_OR_BETA_VERSION
+		// Callers must remove any ClipInstances referencing this Clip first, or the arrangement is left pointing at
+		// freed memory - and pickAnActiveClipIfPossible() would pick this Clip back up mid-destruction (E411/E412).
+		if (clip->output && clip->output->clipHasInstance(clip)) {
+			FREEZE_WITH_ERROR("E455");
+		}
+#endif
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
