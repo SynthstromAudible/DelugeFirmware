@@ -36,6 +36,7 @@
 #include "gui/views/randomize_drums.h"
 #include "gui/views/session_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
+#include "harness/preset_fixture_loader.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/led/pad_leds.h"
@@ -651,7 +652,7 @@ void prepareLeg() {
 			if (writeKitPreset(kKitPresetPath, &presetDrum, 1)) {
 				// The new-kit-track gesture, which takes the first kit preset nobody in the song is using:
 				// kKitPresetPath.
-				g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 1);
+				g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1);
 			}
 			printf("SC-PROBE leg=kit prepared kitClip=%d\n", g_kitClip != nullptr ? 1 : 0);
 		});
@@ -670,7 +671,7 @@ void prepareLeg() {
 			if (!writeKitPreset(kRandomizeKitPresetPath, drums, kRandomizeDrumCount)) {
 				return;
 			}
-			g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 4);
+			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 4);
 			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
 				fail("randomize-one", "no kit clip could be created from the randomizer preset");
 				return;
@@ -765,7 +766,7 @@ void prepareLeg() {
 			// A one-drum kit of its own: the kit menu offers "Load All" only into a kit with one drum.
 			const KitPresetDrum presetDrum{.name = kImportKitDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kImportKitPresetPath, &presetDrum, 1)) {
-				g_importKitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 5);
+				g_importKitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 5);
 			}
 			printf("SC-PROBE leg=import-kit prepared kitClip=%d\n", g_importKitClip != nullptr ? 1 : 0);
 		});
@@ -775,7 +776,7 @@ void prepareLeg() {
 			// A synth of its own, from a preset of its own: the multisample import replaces its source's ranges, and
 			// the new-synth-track gesture needs a synth preset nobody in the song is using.
 			if (writeSynthPreset(kImportSynthPresetPath)) {
-				g_importSynthClip = sessionView.reproCreateNewInstrumentClip(OutputType::SYNTH, 6);
+				g_importSynthClip = deluge::harness::createNewInstrumentClip(OutputType::SYNTH, 6);
 			}
 			printf("SC-PROBE leg=import-multi prepared synthClip=%d type=%d\n", g_importSynthClip != nullptr ? 1 : 0,
 			       (g_importSynthClip != nullptr && g_importSynthClip->output != nullptr)
@@ -788,7 +789,7 @@ void prepareLeg() {
 			// A one-drum kit of its own: the import kit leg's kit holds three drums by now.
 			const KitPresetDrum presetDrum{.name = kImportGateDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kImportGatePresetPath, &presetDrum, 1)) {
-				g_importGateClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 7);
+				g_importGateClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 7);
 			}
 			printf("SC-PROBE leg=import-gate prepared kitClip=%d\n", g_importGateClip != nullptr ? 1 : 0);
 		});
@@ -823,7 +824,7 @@ void prepareLeg() {
 			// A kit of its own: the region slice left the first with four drums.
 			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kManualKitPresetPath, &presetDrum, 1)) {
-				g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 3);
+				g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 3);
 			}
 			const SoundDrum* drum = kitDrum();
 			int32_t drums = 0;

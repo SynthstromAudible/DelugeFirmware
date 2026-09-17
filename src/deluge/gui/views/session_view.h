@@ -208,32 +208,15 @@ public:
 	ActionResult gridHandlePads(int32_t x, int32_t y, int32_t on);
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
-	// Host-sim reproduction harness entry (src/bsp/host/host_debug.cpp). Runs the full "create a new instrument clip
-	// with a new track" gesture (loads the next unlaunched preset, copying drums, and inserts the clip into the song)
-	// without going through pad input — used to reproduce the kit-copy memory pressure / leak off-target.
-	//
-	// Routed through the owner seam rather than calling createNewInstrumentClip() directly: that call
-	// reaches LoadInstrumentPresetUI's readers the same way a real gesture does, and this tool is the
-	// one caller left that isn't itself dispatched by one (host-sim only, on-demand via a signal, not
-	// a pad press). `run_or_inline` is inline here regardless -- this tool only ever builds against
-	// sim/'s cooperative scheduler backing, never the Embassy one -- so this is a no-op today, but it
-	// is the discipline every other caller now goes through, and it is what keeps this tool from being
-	// the one silent exception if that ever changes.
-	Clip* reproCreateNewInstrumentClip(OutputType type, int32_t yDisplay) {
-		struct Ctx {
-			SessionView* self;
-			OutputType type;
-			int32_t yDisplay;
-			Clip* result;
-		} ctx{this, type, yDisplay, nullptr};
-		deluge::storage::Owner::run_or_inline(
-		    [](void* ctxPtr) {
-			    auto* c = static_cast<Ctx*>(ctxPtr);
-			    c->result = c->self->createNewInstrumentClip(c->type, c->yDisplay);
-		    },
-		    &ctx);
-		return ctx.result;
+#ifdef DELUGE_HOST
+	/// @brief The scenarios' entry to the new-track gesture: they acquire the preset themselves, on the storage owner
+	///        (deluge::harness::createNewInstrumentClip()), and hand the result over here -- which is what the
+	///        gesture's own acquisition does from the interaction tier. Host-only: no device image carries it.
+	Clip* createNewInstrumentClipAcquired(OutputType type, int32_t yDisplay,
+	                                      const deluge::storage::AcquireResult* acquired) {
+		return createNewInstrumentClip(type, yDisplay, acquired);
 	}
+#endif
 
 	// ui
 	UIType getUIType() override { return UIType::SESSION; }
@@ -290,8 +273,9 @@ private:
 	void setCentralLEDStates();
 
 	Clip* createNewAudioClip(int32_t yDisplay);
-	/// @param acquired Synth/Kit: what InstrumentLoad acquired; nullptr walks and loads here (MIDI and CV read no card;
-	///        the host reproduction seam, reproCreateNewInstrumentClip(), runs on the owner).
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired, or what a scenario's own fixture loader did
+	///        (deluge::harness::createNewInstrumentClip()). Required for those two types; MIDI and CV read no card and
+	///        are given none.
 	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay,
 	                              const deluge::storage::AcquireResult* acquired = nullptr);
 

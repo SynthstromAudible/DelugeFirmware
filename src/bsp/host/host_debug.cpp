@@ -32,11 +32,12 @@
 // directly. The reproduction *drivers* (kit-copy, song-load) are env-gated and always compiled, so they're useful with
 // either detector.
 
-#include "definitions_cxx.hpp"        // OutputType
-#include "gui/ui/load/load_song_ui.h" // loadSongUI
-#include "gui/ui/ui.h"                // openUI
-#include "gui/views/session_view.h"   // sessionView, reproCreateNewInstrumentClip
-#include "memory/alloc_metadata.h"    // mem_guard (self-guards on MEM_GUARD)
+#include "definitions_cxx.hpp"             // OutputType
+#include "gui/ui/load/load_song_ui.h"      // loadSongUI
+#include "gui/ui/ui.h"                     // openUI
+#include "gui/views/session_view.h"        // sessionView
+#include "harness/preset_fixture_loader.h" // deluge::harness::createNewInstrumentClip
+#include "memory/alloc_metadata.h"         // mem_guard (self-guards on MEM_GUARD)
 
 #include <csignal>
 #include <cstdio>
@@ -115,7 +116,7 @@ void runKitCopyHarnessIfDue() {
 	uint32_t snap = leakSnapshot();
 
 	for (int i = 0; i < g_kitCopyReps; i++) {
-		Clip* clip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 0);
+		Clip* clip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 0);
 		printf("[kit-copy] rep %d: clip=%p, live allocations now %u\n", i, (void*)clip, (unsigned)leakLiveCount());
 		std::fflush(stdout);
 		if (clip == nullptr) {

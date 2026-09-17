@@ -1629,58 +1629,18 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 }
 
-// Will now look in subfolders too if need be. @p acquired is what InstrumentLoad acquired; with none, the preset is
-// walked for and loaded here (the host reproduction seam, reproCreateNewInstrumentClip(), which runs on the owner).
+// @p acquired is what InstrumentLoad acquired for this gesture, or what a scenario's own fixture loader did: this
+// reads no card of its own.
 Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
-                                   bool copyDrumsFromClip = true,
-                                   const deluge::storage::AcquireResult* acquired = nullptr) {
-	Instrument* newInstrument = nullptr;
-	bool isHibernating = false;
-
-	if (acquired != nullptr) {
-		if (acquired->error != Error::NONE) {
-			return acquired->error;
-		}
-		newInstrument = acquired->instrument;
-		isHibernating = acquired->wasHibernating;
-		*instrumentAlreadyInSong = acquired->alreadyInSong;
+                                   bool copyDrumsFromClip, const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		return acquired.error;
 	}
-	else {
-		Browser::currentDir = getInstrumentFolder(outputType);
-
-		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-		                                     currentSong, outputType, Availability::INSTRUMENT_UNUSED),
-		                                 error, { return error; });
-
-		newInstrument = fileItem->instrument;
-		isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-		*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
-
-		Error error = Error::NONE;
-		if (!newInstrument) {
-			std::string newPresetName = fileItem->getFilenameWithoutExtension();
-			std::string filePath = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
-			error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
-			                                               filePath.c_str(), &newPresetName, &Browser::currentDir);
-		}
-
-		Browser::emptyFileItems();
-
-		if (error != Error::NONE) {
-			return error;
-		}
-	}
-
+	Instrument* newInstrument = acquired.instrument;
+	const bool isHibernating = acquired.wasHibernating;
+	*instrumentAlreadyInSong = acquired.alreadyInSong;
 	if (isHibernating) {
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
-	}
-
-	if (acquired == nullptr) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Loading");
-
-		newInstrument->loadAllAudioFiles(true);
-
-		display->removeWorkingAnimation();
 	}
 
 	if (copyDrumsFromClip) {
@@ -1690,7 +1650,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 			// Instrument we just brought in so it doesn't leak - delete it, or return it to the hibernation list if
 			// it's been edited. One that was already an active Output in the song is left untouched, and a preset
 			// InstrumentLoad parsed is released by its delivery.
-			if (!*instrumentAlreadyInSong && (acquired == nullptr || !acquired->loadedFromFile)) {
+			if (!*instrumentAlreadyInSong && !acquired.loadedFromFile) {
 				currentSong->deleteOrAddToHibernationListOutput(newInstrument);
 			}
 			return error;
@@ -3538,7 +3498,12 @@ bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentCli
                                                   const deluge::storage::AcquireResult* acquired) {
 	bool instrumentAlreadyInSong = false;
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
-		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip, acquired);
+		if (acquired == nullptr) {
+			// A Synth or Kit track is made from a preset something else acquired: InstrumentLoad for a gesture, the
+			// fixture loader for a scenario. Nothing walks the card from here.
+			return false;
+		}
+		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip, *acquired);
 		if (error != Error::NONE || instrumentAlreadyInSong) {
 			if (error != Error::NONE) {
 				display->displayError(error);

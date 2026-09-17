@@ -30,6 +30,7 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
+#include "harness/preset_fixture_loader.h"
 #include "hid/button.h"
 #include "io/file.hpp"
 #include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
@@ -636,7 +637,7 @@ void prepareLeg() {
 		     && writeKitPreset(kLitePreset, &liteName, &kLiteSample, 1);
 		if (ok) {
 			// The new-kit-track gesture, which takes the first kit preset nobody in the song is using: PLBASE.
-			g_kitClip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 1);
+			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1);
 		}
 		for (Output* output = currentSong->firstOutput; output != nullptr && g_synth == nullptr;
 		     output = output->next) {

@@ -29,6 +29,7 @@
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
+#include "harness/preset_fixture_loader.h"
 #include "io/file.hpp"
 #include "libdeluge/app.h"
 #include "libdeluge/audio_load.h"
@@ -364,7 +365,7 @@ bool buildSong() {
 	(void)synth->loadAllAudioFiles(true);
 
 	// The new-kit-track gesture, which takes the first kit preset nobody in the song is using: kSongKitPath.
-	Clip* kitClipBase = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 1);
+	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1);
 	if (kitClipBase == nullptr || kitClipBase->output == nullptr || kitClipBase->output->type != OutputType::KIT) {
 		return fail("no kit clip could be created from the song kit preset");
 	}
@@ -622,8 +623,8 @@ void loadSynthPreset() {
 	std::string dir = kSynthPresetDir;
 	Instrument* instrument = nullptr;
 	openTrace("synth");
-	Error error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, OutputType::SYNTH, false, &instrument,
-	                                                     kSynthPresetPath, &name, &dir);
+	Error error =
+	    deluge::harness::loadPresetFixture(currentSong, OutputType::SYNTH, &instrument, kSynthPresetPath, &name, &dir);
 	Error loadError = Error::NONE;
 	if (error == Error::NONE) {
 		loadError = instrument->loadAllAudioFiles(true);
@@ -647,8 +648,8 @@ void loadKitPresetWithAbort() {
 	std::string dir = kKitPresetDir;
 	Instrument* instrument = nullptr;
 	openTrace("kit");
-	Error error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, OutputType::KIT, false, &instrument,
-	                                                     kKitPresetPath, &name, &dir);
+	Error error =
+	    deluge::harness::loadPresetFixture(currentSong, OutputType::KIT, &instrument, kKitPresetPath, &name, &dir);
 	Error loadError = Error::NONE;
 	if (error == Error::NONE) {
 		const auto modeBefore = currentUIMode;
@@ -771,7 +772,7 @@ bool buildCrucialSong() {
 
 	// A second kit, from kCrucialKitPath: drum A's row gets a note, drum B's gets a note and is muted, drum C's stays
 	// empty. Playing.
-	Clip* kitClipBase = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 3);
+	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 3);
 	if (kitClipBase == nullptr || kitClipBase->output == nullptr || kitClipBase->output->type != OutputType::KIT) {
 		return fail("no kit clip could be created from the crucial kit preset");
 	}
@@ -809,7 +810,7 @@ bool buildCrucialSong() {
 	}
 
 	// A second synth, from whichever synth preset the gesture picks, on its own sample. Not playing.
-	Clip* synthClipBase = sessionView.reproCreateNewInstrumentClip(OutputType::SYNTH, 4);
+	Clip* synthClipBase = deluge::harness::createNewInstrumentClip(OutputType::SYNTH, 4);
 	if (synthClipBase == nullptr || synthClipBase->output == nullptr
 	    || synthClipBase->output->type != OutputType::SYNTH) {
 		return fail("no second synth clip could be created");
@@ -1031,8 +1032,7 @@ void reloadPreset(Instrument* reference, const char* residentPath, OutputType ty
 	std::string name = presetName;
 	std::string dir = presetDir;
 	g_asyncInstrument = nullptr;
-	const Error error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, type, false, &g_asyncInstrument,
-	                                                           path, &name, &dir);
+	const Error error = deluge::harness::loadPresetFixture(currentSong, type, &g_asyncInstrument, path, &name, &dir);
 	if (error != Error::NONE || g_asyncInstrument == nullptr) {
 		printf("SLT-ASYNC FAIL leg=%s the preset could not be read again (error %d)\n", asyncLegName(g_asyncLeg),
 		       static_cast<int>(error));
