@@ -2001,6 +2001,32 @@ void dispatchAcquisitionGesture() {
 	BrowserListingAbProbe::beginNewInstrumentAcquisition(kAcqRow);
 }
 
+/// Whether @p step reads a dispatched gesture's outcome, and so must wait for its acquisition to end: a change-type
+/// or navigate is walked on the storage owner and loaded on the interaction tier over several ticks.
+bool readsAcquisitionOutcome(AcquireStep step) {
+	switch (step) {
+	case AcquireStep::ReferenceCheck:
+	case AcquireStep::ConvertedCheck:
+	case AcquireStep::NestedCheck:
+	case AcquireStep::CoalesceCheck:
+	case AcquireStep::NonAudioCheck:
+	case AcquireStep::ViewNavigateCheck:
+	case AcquireStep::ViewChangeTypeCVCheck:
+	case AcquireStep::ViewChangeTypeSynthCheck:
+	case AcquireStep::SessionChangeTypeCVCheck:
+	case AcquireStep::SessionChangeTypeSynthCheck:
+	case AcquireStep::SessionNewTrackCheck:
+	case AcquireStep::SessionNavigateCheck:
+	case AcquireStep::SessionNewTrackEnterCheck:
+	case AcquireStep::ViewNewInstrumentCheck:
+	case AcquireStep::ArrangerAuditionPadCheck:
+	case AcquireStep::ArrangerAuditionReleaseCheck:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /// The row's current Output name, or "" if none. Reads back through `arrangerView.yPressedEffective`
 /// (see `kAcqRow`'s doc) -- exactly what the real pad handler reads after a completed acquisition.
 std::string currentAcquiredName() {
@@ -2026,6 +2052,9 @@ void releaseAcquiredInstrument() {
 }
 
 void runAcquireTick() {
+	if (readsAcquisitionOutcome(g_acquireStep) && loadInstrumentPresetUI.presetAcquisitionInFlight()) {
+		return; // the gesture's acquisition has not ended yet
+	}
 	switch (g_acquireStep) {
 	case AcquireStep::Fixture: {
 		// The duplicated "SYNTHS" literal (kAcqDir), pinned against the two silently drifting apart.
