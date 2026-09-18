@@ -345,6 +345,18 @@ ci = "nightly"
 runtime = "~12m"
 
 [[harness]]
+name = "clear-song-undo"
+path = "."
+kind = "property"
+status = "gate"
+gates = "Create New Song must run to completion on the tier its caller stands on, reading no card of its own. CS-TIER requires the clear to be finished when clearSong.acceptCurrentOption() returns -- a body dispatched onto the storage owner has not run yet when it does -- and requires no document read and no sample load attributable to the clear itself, on either tier. CS-SONG requires the cleared song to hold one clip whose preset came from SYNTHS through exactly one InstrumentLoad acquisition, with its sample bound: that is what proves the loadAllSamples() this rung deletes had nothing left to load. CS-GATE requires the UI-mode gate the clear closes around the song swap to be released again, because nullifyUIs() drops numUIsOpen to zero for that window and a press arriving inside it would index the UI stack out of bounds. The gate is named for both halves of Phase 4c; the undo and redo legs land in it next."
+build = []
+run = ["scripts/clear_song_undo.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~1m"
+
+[[harness]]
 name = "song-load-channel"
 path = "."
 kind = "property"

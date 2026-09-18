@@ -339,6 +339,11 @@ unsafe extern "C" {
     fn deluge_scenario_sample_claim_dispatch_step();
     fn deluge_scenario_sample_claim_step_done() -> bool;
     fn deluge_scenario_sample_claim_failures() -> i32;
+    fn deluge_scenario_clear_song_undo_begin();
+    fn deluge_scenario_clear_song_undo_complete() -> bool;
+    fn deluge_scenario_clear_song_undo_dispatch_step();
+    fn deluge_scenario_clear_song_undo_step_done() -> bool;
+    fn deluge_scenario_clear_song_undo_failures() -> i32;
     fn deluge_scenario_preset_load_begin();
     fn deluge_scenario_preset_load_complete() -> bool;
     fn deluge_scenario_preset_load_dispatch_step();
@@ -1853,6 +1858,79 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     sd_image::pack_image(&root)
 }
 
+/// The card the `GOLDEN_SCENARIO=clear_song_undo` scenario runs on: the sample its preset binds, and the empty
+/// SYNTHS folder the scenario writes that preset into through the firmware.
+fn pack_clear_song_undo_image() -> std::path::PathBuf {
+    let root = std::env::temp_dir().join("deluge-clear-song-undo-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES").join("CS");
+    for dir in [
+        &samples,
+        &root.join("SYNTHS"),
+        &root.join("KITS"),
+        &root.join("SONGS"),
+    ] {
+        std::fs::create_dir_all(dir).expect("creating the clear-song-undo fixture directories");
+    }
+    write_sine_wav(&samples.join("CSSYN.WAV"), 1, 22_050, 440.0);
+    sd_image::pack_image(&root)
+}
+
+/// The `GOLDEN_SCENARIO=clear_song_undo` scenario: clear the song the way the context menu does, and report where the
+/// work ran and what the new song landed on.
+#[embassy_executor::task]
+async fn run_clear_song_undo_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_clear_song_undo_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_clear_song_undo_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_clear_song_undo_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the clear-song-undo run did not complete within 600s — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_clear_song_undo_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_clear_song_undo_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_clear_song_undo_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the clear-song-undo run FAILED ({failures} in-process failure(s))"
+        );
+        done.store(true, Ordering::Release);
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: the clear-song-undo run passed");
+    done.store(true, Ordering::Release);
+    hard_exit(0);
+}
+
 /// The `GOLDEN_SCENARIO=preset_load` scenario: load synth and kit presets through the real preset browser and report
 /// what each load bound.
 #[embassy_executor::task]
@@ -2327,6 +2405,7 @@ fn main() {
     let sample_load_tree_mode = scenario == "sample_load_tree";
     let sample_claim_mode = scenario == "sample_claim";
     let preset_load_mode = scenario == "preset_load";
+    let clear_song_undo_mode = scenario == "clear_song_undo";
 
     log::info!(
         "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode} \
@@ -2362,6 +2441,8 @@ fn main() {
             pack_sample_claim_image()
         } else if preset_load_mode {
             pack_preset_load_image()
+        } else if clear_song_undo_mode {
+            pack_clear_song_undo_image()
         } else {
             sd_image::pack_golden_fixture(&repo_root, &fixture)
         };
@@ -2452,6 +2533,8 @@ fn main() {
         spawner.spawn(run_sample_claim_scenario(&DONE).unwrap());
     } else if preset_load_mode {
         spawner.spawn(run_preset_load_scenario(&DONE).unwrap());
+    } else if clear_song_undo_mode {
+        spawner.spawn(run_clear_song_undo_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {
