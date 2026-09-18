@@ -19,6 +19,7 @@
 
 #include "model/sample/recorder_create_policy.h"
 #include "model/sample/recorder_finalize_policy.h"
+#include "model/sample/recorder_write_policy.h"
 
 #include "definitions_cxx.hpp"
 #include "dsp/envelope_follower/absolute_value.h"
@@ -105,10 +106,10 @@ public:
 	/// Whether the channel has accepted the owed write. False while it is only owed: not asked yet, refused,
 	/// or answered UNKNOWN.
 	bool inFlightIssued_ = false;
-	/// Consecutive unproductive ticks for the owed write: refusals, UNKNOWNs and PENDINGs. Bounded by
-	/// `deluge::storage::kMaxUnproductiveTicks`; see `recorder_write_policy.h` for why a stall bound is not
+	/// How long the owed write has been unproductive: refusals, UNKNOWNs and PENDINGs. Bounded by
+	/// `deluge::storage::kMaxUnproductiveUs`; see `recorder_write_policy.h` for why a stall bound is not
 	/// optional.
-	int32_t writeUnproductiveTicks_ = 0;
+	deluge::storage::UnproductiveSpan writeSpan_;
 
 	/// @brief Index of the cluster currently being written to. Starts at -1 so a recorder destructed
 	///        before any recording began is still in a valid state.
@@ -259,8 +260,8 @@ private:
 	bool createIssued_ = false;
 	bool createTriedMakeFolder_ = false;
 	bool createOpenNotFound_ = false;
-	/// Consecutive unproductive ticks for this phase's request. See deluge::storage::kMaxUnproductiveTicks.
-	int32_t createUnproductiveTicks_ = 0;
+	/// How long this phase's request has been unproductive. See deluge::storage::kMaxUnproductiveUs.
+	deluge::storage::UnproductiveSpan createSpan_;
 	/// This phase's request was still pending past the bound: the create fails on its answer.
 	bool createFailing_ = false;
 	/// The resolved recording path, and the temp path when one applies. Members because they are
@@ -314,8 +315,8 @@ private:
 	AbortPhase abortPhase_ = AbortPhase::Detach;
 	/// Whether the current abort phase has issued its operation yet.
 	bool abortIssued_ = false;
-	/// Consecutive refused or unkeyed unlink requests. The close has no such bound; see advanceAbort().
-	int32_t abortUnproductiveTicks_ = 0;
+	/// How long the unlink has been refused or unkeyed. The close has no such bound; see advanceAbort().
+	deluge::storage::UnproductiveSpan abortSpan_;
 
 	/// @brief Close a failed take's file, through the channel wherever the channel is usable. Never blocks
 	///        off the owner.
@@ -349,8 +350,8 @@ private:
 	/// Whether the current phase has issued its operation yet. Distinguishes "issue it" from
 	/// "collect it" without needing a second phase per operation.
 	bool finalizeIssued_ = false;
-	/// Consecutive unproductive ticks for this phase's request. See deluge::storage::kMaxUnproductiveTicks.
-	int32_t finalizeUnproductiveTicks_ = 0;
+	/// How long this phase's request has been unproductive. See deluge::storage::kMaxUnproductiveUs.
+	deluge::storage::UnproductiveSpan finalizeSpan_;
 	/// This phase's request was still pending past the bound: finalize fails on its answer.
 	bool finalizeFailing_ = false;
 	bool finalizeAltering_ = false;

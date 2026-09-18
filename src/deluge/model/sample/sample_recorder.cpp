@@ -23,6 +23,7 @@
 #include "gui/ui_timer_manager.h"
 #include "io/file.hpp"
 #include "io/stream.hpp"
+#include "libdeluge/clock.h"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/file_io.h"
 #include "libdeluge/file_write.h"
@@ -864,14 +865,17 @@ bool SampleRecorder::advanceAbort() {
 				const ByteIo io = deluge::storage::bytes::requestUnlink(filePathCreated.c_str());
 				if (io == ByteIo::Pending) {
 					abortIssued_ = true;
-					abortUnproductiveTicks_ = 0;
+					abortSpan_.reset();
 					return true;
 				}
 				// Refused: ask again, until the bound. Giving up leaves the file where it is, exactly as a failed
 				// delete does; an unkeyable path cannot be deleted at all.
-				if (io == ByteIo::Unknown && abortUnproductiveTicks_++ < deluge::storage::kMaxUnproductiveTicks) {
-					g_channelRefusals++;
-					return true;
+				if (io == ByteIo::Unknown) {
+					abortSpan_.note(deluge_clock_now());
+					if (abortSpan_.elapsedUs < deluge::storage::kMaxUnproductiveUs) {
+						g_channelRefusals++;
+						return true;
+					}
 				}
 			}
 			else {
@@ -887,11 +891,14 @@ bool SampleRecorder::advanceAbort() {
 				// to show.
 				return true;
 			}
-			if (io == ByteIo::Unknown && abortUnproductiveTicks_++ < deluge::storage::kMaxUnproductiveTicks) {
-				// Never keyed, or its answer was displaced -- ask again next tick rather than treating it as a
-				// failed delete.
-				abortIssued_ = false;
-				return true;
+			if (io == ByteIo::Unknown) {
+				abortSpan_.note(deluge_clock_now());
+				if (abortSpan_.elapsedUs < deluge::storage::kMaxUnproductiveUs) {
+					// Never keyed, or its answer was displaced -- ask again next tick rather than treating it as a
+					// failed delete.
+					abortIssued_ = false;
+					return true;
+				}
 			}
 			unlinked = (io == ByteIo::Ready);
 		}
@@ -1068,9 +1075,8 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				// The search is waiting on its own channel answer: come back next tick, but not for good. Counted like
 				// a refused request, so a folder scan whose open the channel never answers fails the create at the
 				// bound.
-				const CreateStep step = createTransition(DELUGE_FILE_WRITE_UNKNOWN);
-				createUnproductiveTicks_++;
-				return step;
+				createSpan_.note(deluge_clock_now());
+				return createTransition(DELUGE_FILE_WRITE_UNKNOWN);
 			}
 			if (error != Error::NONE) {
 				return CreateStep::Failed;
@@ -1198,18 +1204,17 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 		if (collected == DELUGE_FILE_WRITE_PENDING) {
 			// Still in flight, even past the bound: an open may yet hand back a stream, so wait for the answer,
 			// and fail on it if this went past the bound.
-			if (deluge::storage::stalledPastBound(collected, createUnproductiveTicks_)) {
+			createSpan_.note(deluge_clock_now());
+			if (deluge::storage::stalledPastBound(collected, createSpan_.elapsedUs)) {
 				createFailing_ = true;
 			}
-			createUnproductiveTicks_++;
 			return CreateStep::Pending;
 		}
 		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
 			// Never keyed, or its answer was displaced: ask again next tick, until the bound.
 			createIssued_ = false;
-			const CreateStep step = createTransition(collected);
-			createUnproductiveTicks_++;
-			return step;
+			createSpan_.note(deluge_clock_now());
+			return createTransition(collected);
 		}
 		if (createPhase_ == CreatePhase::PathSearch) {
 			pathReady = true;
@@ -1221,15 +1226,14 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 
 SampleRecorder::CreateStep SampleRecorder::createAccepted() {
 	createIssued_ = true;
-	createUnproductiveTicks_ = 0;
+	createSpan_.reset();
 	return CreateStep::Pending;
 }
 
 SampleRecorder::CreateStep SampleRecorder::createRefused() {
 	g_channelRefusals++;
-	const CreateStep step = createTransition(DELUGE_FILE_WRITE_UNKNOWN);
-	createUnproductiveTicks_++;
-	return step;
+	createSpan_.note(deluge_clock_now());
+	return createTransition(DELUGE_FILE_WRITE_UNKNOWN);
 }
 
 SampleRecorder::CreateStep SampleRecorder::createTransition(uint8_t collected, bool spaceExhausted, bool pathReady) {
@@ -1241,12 +1245,12 @@ SampleRecorder::CreateStep SampleRecorder::createTransition(uint8_t collected, b
 	    pathReady,
 	    createOpenNotFound_,
 	    createTriedMakeFolder_,
-	    createUnproductiveTicks_,
+	    createSpan_.elapsedUs,
 	    createFailing_,
 	});
 	if (next != createPhase_) {
 		createIssued_ = false;
-		createUnproductiveTicks_ = 0;
+		createSpan_.reset();
 		createFailing_ = false;
 	}
 	createPhase_ = next;
@@ -1543,18 +1547,17 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 		if (collected == DELUGE_FILE_WRITE_PENDING) {
 			// Still in flight, even past the bound: the driver may be using this recorder's header or batch
 			// buffer, so wait for the answer, and fail on it if this went past the bound.
-			if (deluge::storage::stalledPastBound(collected, finalizeUnproductiveTicks_)) {
+			finalizeSpan_.note(deluge_clock_now());
+			if (deluge::storage::stalledPastBound(collected, finalizeSpan_.elapsedUs)) {
 				finalizeFailing_ = true;
 			}
-			finalizeUnproductiveTicks_++;
 			return FinalizeStep::Pending;
 		}
 		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
 			// Never keyed, or its answer was displaced: ask again next tick, until the bound.
 			finalizeIssued_ = false;
-			const FinalizeStep step = finalizeTransition(collected);
-			finalizeUnproductiveTicks_++;
-			return step;
+			finalizeSpan_.note(deluge_clock_now());
+			return finalizeTransition(collected);
 		}
 	}
 
@@ -1563,15 +1566,14 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 
 SampleRecorder::FinalizeStep SampleRecorder::finalizeAccepted() {
 	finalizeIssued_ = true;
-	finalizeUnproductiveTicks_ = 0;
+	finalizeSpan_.reset();
 	return FinalizeStep::Pending;
 }
 
 SampleRecorder::FinalizeStep SampleRecorder::finalizeRefused() {
 	g_channelRefusals++;
-	const FinalizeStep step = finalizeTransition(DELUGE_FILE_WRITE_UNKNOWN);
-	finalizeUnproductiveTicks_++;
-	return step;
+	finalizeSpan_.note(deluge_clock_now());
+	return finalizeTransition(DELUGE_FILE_WRITE_UNKNOWN);
 }
 
 SampleRecorder::FinalizeStep SampleRecorder::finalizeTransition(uint8_t collected) {
@@ -1585,12 +1587,12 @@ SampleRecorder::FinalizeStep SampleRecorder::finalizeTransition(uint8_t collecte
 	    alterFramesDone_ < alterNumFrames_,
 	    finalizeNeedTruncate_,
 	    finalizeNeedHeaderPatch_,
-	    finalizeUnproductiveTicks_,
+	    finalizeSpan_.elapsedUs,
 	    finalizeFailing_,
 	});
 	if (next != finalizePhase_) {
 		finalizeIssued_ = false;
-		finalizeUnproductiveTicks_ = 0;
+		finalizeSpan_.reset();
 		finalizeFailing_ = false;
 	}
 	finalizePhase_ = next;
@@ -1674,17 +1676,17 @@ bool SampleRecorder::pumpInFlightWrite() {
 	const uint8_t collected = inFlightIssued_ ? file->collect_write_at(&written) : DELUGE_FILE_WRITE_UNKNOWN;
 
 	const WriteStep step =
-	    deluge::storage::nextWriteStep(/*channelUsable=*/true, inFlightIssued_, collected, writeUnproductiveTicks_);
+	    deluge::storage::nextWriteStep(/*channelUsable=*/true, inFlightIssued_, collected, writeSpan_.elapsedUs);
 	switch (step) {
 	case WriteStep::Wait:
-		writeUnproductiveTicks_++;
+		writeSpan_.note(deluge_clock_now());
 		return true; // Still outstanding: nothing that could free this buffer may run.
 
 	case WriteStep::StalledWait:
 		// Fail now, release later. The take has failed and issues nothing more, but the driver was handed a
 		// pointer into this buffer and may still write from it, so the buffer stays until the answer comes.
 		hadCardError = true;
-		writeUnproductiveTicks_++;
+		writeSpan_.note(deluge_clock_now());
 		return true;
 
 	case WriteStep::Issue:
@@ -1714,7 +1716,7 @@ bool SampleRecorder::pumpInFlightWrite() {
 	// Settled: the driver holds nothing of this buffer any more, whatever became of the write.
 	inFlightClusterIndex_ = -1;
 	inFlightIssued_ = false;
-	writeUnproductiveTicks_ = 0;
+	writeSpan_.reset();
 	finishCluster(index);
 	return false;
 }
@@ -1724,13 +1726,13 @@ bool SampleRecorder::issueOwedWrite() {
 	const std::span<const std::byte> bytes(bufferTable_[inFlightClusterIndex_], inFlightNumBytes_);
 	if (file->request_write_at(byteOffset, bytes)) {
 		inFlightIssued_ = true;
-		writeUnproductiveTicks_ = 0;
+		writeSpan_.reset();
 		g_writeChannelServed++;
 		return true;
 	}
 	// Refused: nothing was queued. The cluster stays owed and its buffer stays put.
 	g_channelRefusals++;
-	writeUnproductiveTicks_++;
+	writeSpan_.note(deluge_clock_now());
 	return false;
 }
 
@@ -1755,7 +1757,7 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes, bool m
 		inFlightClusterIndex_ = clusterIndex;
 		inFlightNumBytes_ = static_cast<uint32_t>(numBytes);
 		inFlightIssued_ = false;
-		writeUnproductiveTicks_ = 0;
+		writeSpan_.reset();
 		// Asking now saves a tick. Either way `pumpInFlightWrite()` collects it on a later tick and recycles
 		// the buffer then; recycling here would hand the card a buffer the audio thread has reused.
 		(void)issueOwedWrite();
