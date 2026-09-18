@@ -8,7 +8,7 @@
 
 using deluge::storage::FinalizeInputs;
 using deluge::storage::FinalizePhase;
-using deluge::storage::kMaxUnproductiveTicks;
+using deluge::storage::kMaxUnproductiveUs;
 using deluge::storage::nextFinalizePhase;
 
 namespace {
@@ -131,9 +131,9 @@ describe recorder_finalize_policy("finalize advances only on answers it actually
 		};
 		for (FinalizePhase p : ioPhases) {
 			FinalizeInputs in = at(p);
-			in.unproductiveTicks = kMaxUnproductiveTicks - 1;
+			in.unproductiveUs = kMaxUnproductiveUs - 1;
 			expect(nextFinalizePhase(in) == p).to_equal(true);
-			in.unproductiveTicks = kMaxUnproductiveTicks;
+			in.unproductiveUs = kMaxUnproductiveUs;
 			expect(nextFinalizePhase(in) == FinalizePhase::Failed).to_equal(true);
 		}
 	});
@@ -143,7 +143,7 @@ describe recorder_finalize_policy("finalize advances only on answers it actually
 	it("holds position on a pending answer even past the bound", _ {
 		FinalizeInputs in = at(FinalizePhase::BatchWrite);
 		in.collected = DELUGE_FILE_WRITE_PENDING;
-		in.unproductiveTicks = kMaxUnproductiveTicks + 100;
+		in.unproductiveUs = kMaxUnproductiveUs + 100;
 		in.failing = true;
 		expect(nextFinalizePhase(in) == FinalizePhase::BatchWrite).to_equal(true);
 	});
@@ -161,7 +161,7 @@ describe recorder_finalize_policy("finalize advances only on answers it actually
 	it("does not apply the bound to the pure phases", _ {
 		FinalizeInputs decide = at(FinalizePhase::Decide);
 		decide.altering = true;
-		decide.unproductiveTicks = kMaxUnproductiveTicks;
+		decide.unproductiveUs = kMaxUnproductiveUs;
 		expect(nextFinalizePhase(decide) == FinalizePhase::CloseBeforeAlter).to_equal(true);
 	});
 

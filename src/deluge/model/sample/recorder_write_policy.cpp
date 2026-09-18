@@ -21,15 +21,15 @@
 
 namespace deluge::storage {
 
-bool stalledPastBound(uint8_t collected, int32_t unproductiveTicks) {
-	return collected == DELUGE_FILE_WRITE_PENDING && unproductiveTicks >= kMaxUnproductiveTicks;
+bool stalledPastBound(uint8_t collected, int32_t unproductiveUs) {
+	return collected == DELUGE_FILE_WRITE_PENDING && unproductiveUs >= kMaxUnproductiveUs;
 }
 
-WriteStep nextWriteStep(bool channelUsable, bool issued, uint8_t collected, int32_t unproductiveTicks) {
+WriteStep nextWriteStep(bool channelUsable, bool issued, uint8_t collected, int32_t unproductiveUs) {
 	if (!channelUsable) {
 		return WriteStep::Inline;
 	}
-	const bool exhausted = unproductiveTicks >= kMaxUnproductiveTicks;
+	const bool exhausted = unproductiveUs >= kMaxUnproductiveUs;
 	if (!issued) {
 		// Owed: never asked, or refused. Nothing is outstanding, so giving up releases nothing the driver holds.
 		return exhausted ? WriteStep::Failed : WriteStep::Issue;
@@ -49,7 +49,7 @@ WriteStep nextWriteStep(bool channelUsable, bool issued, uint8_t collected, int3
 		break;
 	}
 	// Still in flight. Past the bound the take fails now, and the buffer is released later.
-	return stalledPastBound(collected, unproductiveTicks) ? WriteStep::StalledWait : WriteStep::Wait;
+	return stalledPastBound(collected, unproductiveUs) ? WriteStep::StalledWait : WriteStep::Wait;
 }
 
 } // namespace deluge::storage

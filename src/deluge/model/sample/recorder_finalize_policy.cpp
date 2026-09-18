@@ -57,7 +57,7 @@ FinalizePhase nextFinalizePhase(FinalizeInputs in) {
 		case DELUGE_FILE_WRITE_UNKNOWN:
 			// Never keyed, refused, or displaced. Stay so the caller re-issues -- NOT the same as PENDING,
 			// and conflating them strands finalize waiting for an answer nobody owes it -- until the bound.
-			return in.unproductiveTicks >= kMaxUnproductiveTicks ? FinalizePhase::Failed : in.phase;
+			return in.unproductiveUs >= kMaxUnproductiveUs ? FinalizePhase::Failed : in.phase;
 		default:
 			if (in.failing) {
 				// READY, but to an operation that went past the bound: finalize has already failed.

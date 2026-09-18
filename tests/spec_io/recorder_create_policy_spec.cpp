@@ -8,7 +8,7 @@
 
 using deluge::storage::CreateInputs;
 using deluge::storage::CreatePhase;
-using deluge::storage::kMaxUnproductiveTicks;
+using deluge::storage::kMaxUnproductiveUs;
 using deluge::storage::nextCreatePhase;
 
 namespace {
@@ -100,12 +100,12 @@ describe recorder_create_policy("creating a recording's file advances only on an
 	// the create fails.
 	it("fails a refused or unkeyed operation at the bound, and not before", _ {
 		CreateInputs opening = at(CreatePhase::Open);
-		opening.unproductiveTicks = kMaxUnproductiveTicks - 1;
+		opening.unproductiveUs = kMaxUnproductiveUs - 1;
 		expect(nextCreatePhase(opening) == CreatePhase::Open).to_equal(true);
-		opening.unproductiveTicks = kMaxUnproductiveTicks;
+		opening.unproductiveUs = kMaxUnproductiveUs;
 		expect(nextCreatePhase(opening) == CreatePhase::Failed).to_equal(true);
 		CreateInputs folder = at(CreatePhase::MakeFolder);
-		folder.unproductiveTicks = kMaxUnproductiveTicks;
+		folder.unproductiveUs = kMaxUnproductiveUs;
 		expect(nextCreatePhase(folder) == CreatePhase::Failed).to_equal(true);
 	});
 
@@ -113,7 +113,7 @@ describe recorder_create_policy("creating a recording's file advances only on an
 	it("waits for a pending answer even past the bound", _ {
 		CreateInputs in = at(CreatePhase::Open);
 		in.collected = DELUGE_FILE_WRITE_PENDING;
-		in.unproductiveTicks = kMaxUnproductiveTicks + 100;
+		in.unproductiveUs = kMaxUnproductiveUs + 100;
 		in.failing = true;
 		expect(nextCreatePhase(in) == CreatePhase::Open).to_equal(true);
 	});

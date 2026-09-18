@@ -33,7 +33,7 @@ CreatePhase nextCreatePhase(CreateInputs in) {
 	}
 	if (in.collected == DELUGE_FILE_WRITE_UNKNOWN) {
 		// Never asked, refused, or displaced: the caller asks again, until the bound. Nothing is outstanding.
-		return in.unproductiveTicks >= kMaxUnproductiveTicks ? CreatePhase::Failed : in.phase;
+		return in.unproductiveUs >= kMaxUnproductiveUs ? CreatePhase::Failed : in.phase;
 	}
 	if (in.failing) {
 		// A terminal answer to an operation that went past the bound. The create has already failed; the answer
