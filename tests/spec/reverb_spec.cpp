@@ -155,6 +155,57 @@ double tailBrightness(Model& model, double seconds) {
 	return level > 0.0 ? difference / level : 0.0;
 }
 
+/// Renders the same sine through a fresh model at the given input level.
+template <typename Model>
+std::vector<int32_t> renderAt(int input_shift, double seconds) {
+	auto model = makeModel<Model>(0.5f, 0.5f);
+	std::vector<int32_t> input(kBlock);
+	std::vector<StereoSample> output(kBlock);
+	std::vector<int32_t> captured;
+
+	const auto blocks = static_cast<size_t>(seconds * kSampleRate / kBlock);
+	for (size_t block = 0; block < blocks; ++block) {
+		for (size_t i = 0; i < kBlock; ++i) {
+			const auto t = static_cast<double>(block * kBlock + i);
+			input[i] = static_cast<int32_t>(std::ldexp(1.0, input_shift) * std::sin(0.05 * t));
+		}
+		std::fill(output.begin(), output.end(), StereoSample{.l = 0, .r = 0});
+		model->process(input, output);
+
+		if (block >= blocks / 4) { // let the tank fill
+			for (const StereoSample& sample : output) {
+				captured.push_back(sample.l);
+			}
+		}
+	}
+	return captured;
+}
+
+/// Percentage of samples where an overdriven render disagrees in sign with a clean one.
+///
+/// The reverb is a linear system up to the output conversion, so a hot render and a quiet one
+/// must agree in sign everywhere. Saturation preserves that -- it only shortens a sample.
+/// An unchecked narrowing cast does not: on x86 an over-range float becomes INT32_MIN, so
+/// every clipped peak comes back inverted.
+template <typename Model>
+double overdriveSignDisagreement() {
+	const std::vector<int32_t> hot = renderAt<Model>(30, 0.6);
+	const std::vector<int32_t> quiet = renderAt<Model>(18, 0.6);
+
+	long long checked = 0;
+	long long disagreed = 0;
+	for (size_t i = 0; i < hot.size(); ++i) {
+		if (std::abs(quiet[i]) < 10000) {
+			continue; // reference too close to zero to have a meaningful sign
+		}
+		++checked;
+		if ((hot[i] < 0) != (quiet[i] < 0)) {
+			++disagreed;
+		}
+	}
+	return checked > 0 ? 100.0 * static_cast<double>(disagreed) / static_cast<double>(checked) : 0.0;
+}
+
 /// True if any delay line touched a slot outside its own reserved region while `body` ran.
 template <typename Body>
 bool readsOutOfBounds(Body body) {
@@ -261,6 +312,20 @@ describe reverb("Reverb", $ {
 			auto small = makeModel<rv::Mutable>(0.2f, 0.0f);
 			auto large = makeModel<rv::Mutable>(0.8f, 0.0f);
 			expect(rt60(*large, 20.0)).to_be_greater_than(rt60(*small, 20.0));
+		});
+	});
+
+	context("driven past full scale", _ {
+		// Both models normalise to float, run the loop, then scale back to q31. An out-of-range
+		// narrowing cast is UB, and the targets disagree about which way it goes: ARM saturates
+		// positive, x86 hands back INT32_MIN. Clamp before converting so a hot send clips
+		// rather than inverting.
+		it("clips the Mutable tail instead of inverting it", _ {
+			expect(overdriveSignDisagreement<rv::Mutable>()).to_be_less_than(0.5);
+		});
+
+		it("clips the Digital tail instead of inverting it", _ {
+			expect(overdriveSignDisagreement<rv::Digital>()).to_be_less_than(0.5);
 		});
 	});
 

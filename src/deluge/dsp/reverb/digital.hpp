@@ -71,8 +71,6 @@ public:
 		const float kdamp = lp_; // 1.f - 0.0005f;            // damping
 		const float kbandwidth = 0.9995f;
 
-		const float gain = input_gain_;
-
 		float lp_1 = lp_decay_1_;
 		float lp_2 = lp_decay_2_;
 		float lp_band = lp_band_;
@@ -81,7 +79,7 @@ public:
 			engine_.Advance();
 
 			const float input_sample = in[frame] / static_cast<float>(std::numeric_limits<int32_t>::max());
-			c.Set(input_sample); // * gain);
+			c.Set(input_sample);
 
 			c.Lp(lp_band, kbandwidth);
 
@@ -135,11 +133,8 @@ public:
 			right_sum = right_sum - dsp::OnePole(hp_r_, right_sum, hp_cutoff_);
 			right_sum = dsp::OnePole(lp_r_, right_sum, lp_cutoff_);
 
-			q31_t output_left =
-			    static_cast<int32_t>(left_sum * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
-
-			q31_t output_right =
-			    static_cast<int32_t>(right_sum * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
+			q31_t output_left = dsp::toQ31Saturating(left_sum * kOutputGain);
+			q31_t output_right = dsp::toQ31Saturating(right_sum * kOutputGain);
 
 			// Mix
 			output[frame].l += multiply_32x32_rshift32_rounded(output_left, getPanLeft());

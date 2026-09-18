@@ -49,7 +49,6 @@ public:
 		const float kap = diffusion_;
 		const float klp = lp_;
 		const float krt = reverb_time_;
-		const float gain = input_gain_;
 
 		float lp_1 = lp_decay_1_;
 		float lp_2 = lp_decay_2_;
@@ -66,8 +65,7 @@ public:
 
 			const float input_sample = in[frame] / static_cast<float>(std::numeric_limits<int32_t>::max());
 
-			c.Set(input_sample // * gain
-			);
+			c.Set(input_sample);
 
 			// Diffuse through 4 allpasses.
 			ap1.Process(c, kap);
@@ -87,8 +85,7 @@ public:
 			wet = wet - dsp::OnePole(hp_r_, wet, hp_cutoff_);
 			wet = dsp::OnePole(lp_r_, wet, lp_cutoff_);
 
-			auto output_right =
-			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
+			auto output_right = dsp::toQ31Saturating(wet * kOutputGain);
 
 			c.Set(apout);
 			del1.Interpolate(c, 4460.0f, LFO_1, 40.0f, krt);
@@ -100,8 +97,7 @@ public:
 			wet = wet - dsp::OnePole(hp_l_, wet, hp_cutoff_);
 			wet = dsp::OnePole(lp_l_, wet, lp_cutoff_);
 
-			auto output_left =
-			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
+			auto output_left = dsp::toQ31Saturating(wet * kOutputGain);
 
 			// Mix
 			s.l += multiply_32x32_rshift32_rounded(output_left, getPanLeft());
@@ -113,6 +109,10 @@ public:
 	}
 
 	inline void Clear() { engine_.Clear(); }
+
+	/// Lifts the normalised loop signal back into q31. Long spelled UINT32_MAX * 0xF; kept at
+	/// exactly that value, since it is what the models were balanced around.
+	static constexpr float kOutputGain = 15.f * 4294967296.f;
 
 	static constexpr float kReverbTimeMin = 0.01f;
 	static constexpr float kReverbTimeMax = 0.98f;
@@ -162,8 +162,6 @@ protected:
 
 	std::array<float, kBufferSize> buffer_{};
 	FxEngine engine_{buffer_, {0.5f / sample_rate, 0.3f / sample_rate}};
-
-	float input_gain_ = 0.2;
 
 	// size
 	float reverb_time_ = 0.665f;
