@@ -41,6 +41,9 @@ CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
 # same crate with the same features -- the scenario is chosen at run time by GOLDEN_SCENARIO. A per-gate
 # subdir here would relink an identical binary into a tree of its own.
 TARGET_DIR="${TARGET_DIR:-${CARGO_TARGET_DIR:-$CRATE_DIR/target}}"
+# An absolute CARGO_TARGET_DIR arrives ready to use; a relative fallback is relative to the repo
+# root, and the cargo build below runs with the crate directory as its working directory.
+case "$TARGET_DIR" in /*) ;; *) TARGET_DIR="$REPO_ROOT/$TARGET_DIR" ;; esac
 
 if [ "${NO_BUILD:-0}" != "1" ]; then
 	[ -d "$BUILD_DIR" ] || {
@@ -51,7 +54,7 @@ if [ "${NO_BUILD:-0}" != "1" ]; then
 	# so force the object closure first — same reason save_roundtrip.sh does.
 	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
 		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release --target-dir "$(cd "$REPO_ROOT" && pwd)/$TARGET_DIR")
+	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET_DIR")
 fi
 
 BIN="$TARGET_DIR/release/golden_vt_render"
