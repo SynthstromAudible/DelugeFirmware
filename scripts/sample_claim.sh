@@ -71,8 +71,7 @@ cd "$REPO_ROOT"
 
 BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
 CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
-TARGET_BASE="${CARGO_TARGET_DIR:-$REPO_ROOT/$CRATE_DIR/target}"
-TARGET_DIR="$TARGET_BASE/sample-claim"
+TARGET_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/$CRATE_DIR/target}"
 
 if [ "${NO_BUILD:-0}" != "1" ]; then
 	[ -d "$BUILD_DIR" ] || {

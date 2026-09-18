@@ -40,7 +40,10 @@ cd "$REPO_ROOT"
 
 BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
 CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
-TARGET_DIR="${TARGET_DIR:-$CRATE_DIR/target/document-save-channel}"
+# One build tree for the harness binary: `dbt harness run` sets CARGO_TARGET_DIR, and every gate builds the
+# same crate with the same features -- the scenario is chosen at run time by GOLDEN_SCENARIO. A per-gate
+# subdir here would relink an identical binary into a tree of its own.
+TARGET_DIR="${TARGET_DIR:-${CARGO_TARGET_DIR:-$CRATE_DIR/target}}"
 
 if [ "${NO_BUILD:-0}" != "1" ]; then
 	[ -d "$BUILD_DIR" ] || {

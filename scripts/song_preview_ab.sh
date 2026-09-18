@@ -67,8 +67,7 @@ BUILD_DIR="${BUILD_DIR:-$REPO/build-embassy-hostapp}"
 CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 
 # Its own target dir, so this gate's build never replaces another gate's binary.
-TARGET_BASE="${CARGO_TARGET_DIR:-$CRATE_DIR/target}"
-TARGET="$TARGET_BASE/song-preview-ab"
+TARGET="${CARGO_TARGET_DIR:-$CRATE_DIR/target}"
 
 if [ "${NO_BUILD:-0}" != 1 ]; then
 	[ -d "$BUILD_DIR" ] || {
