@@ -83,20 +83,20 @@ set -e
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
-	grep -E '^CS-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	grep -E '^(CS|UN)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
 	tail -20 "$OUT/run.err"
 	exit 1
 fi
 
-for marker in CS-PROBE CS-TIER CS-SONG CS-GATE CS-RESULT; do
+for marker in CS-PROBE CS-TIER CS-SONG CS-GATE UN-PROBE UN-SAMPLE UN-REDO UN-PLAIN UN-REFUSE UN-MISSING CS-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
-		grep -E '^CS-' "$OUT/run.txt"
+		grep -E '^(CS|UN)-' "$OUT/run.txt"
 		exit 1
 	fi
 done
 
-grep -E '^CS-' "$OUT/run.txt"
+grep -E '^(CS|UN)-' "$OUT/run.txt"
 
 if ! grep -q '^CS-RESULT failures=0$' "$OUT/run.txt"; then
 	echo "FAIL — $(grep '^CS-RESULT' "$OUT/run.txt")"

@@ -1873,6 +1873,10 @@ fn pack_clear_song_undo_image() -> std::path::PathBuf {
         std::fs::create_dir_all(dir).expect("creating the clear-song-undo fixture directories");
     }
     write_sine_wav(&samples.join("CSSYN.WAV"), 1, 22_050, 440.0);
+    // The two an AudioClip's sample change moves between, and the one the missing-file leg deletes before undoing.
+    write_sine_wav(&samples.join("CSUNA.WAV"), 1, 22_050, 330.0);
+    write_sine_wav(&samples.join("CSUNB.WAV"), 1, 22_050, 550.0);
+    write_sine_wav(&samples.join("CSGONE.WAV"), 1, 22_050, 660.0);
     sd_image::pack_image(&root)
 }
 

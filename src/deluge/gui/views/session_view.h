@@ -216,6 +216,9 @@ public:
 	                                      const deluge::storage::AcquireResult* acquired) {
 		return createNewInstrumentClip(type, yDisplay, acquired);
 	}
+	/// @brief The scenarios' entry to the new-audio-clip gesture, for the same reason: the creator is private, and a
+	///        scenario drives the gesture rather than assembling the clip by hand. Host-only.
+	Clip* createNewAudioClipForHarness(int32_t yDisplay) { return createNewAudioClip(yDisplay); }
 #endif
 
 	// ui
