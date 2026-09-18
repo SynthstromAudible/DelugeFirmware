@@ -2103,6 +2103,25 @@ async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
+/// The card the song-load gate boots on: somewhere to save, and the one sample its song carries. It packs an
+/// image of its own rather than the golden fixture because the gate saves and loads a song it writes itself, and
+/// the fixture corpus has no sample this gate can name.
+fn pack_song_load_channel_image() -> std::path::PathBuf {
+    let root = std::env::temp_dir().join("deluge-song-load-channel-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES").join("SL");
+    for dir in [
+        &samples,
+        &root.join("SYNTHS"),
+        &root.join("KITS"),
+        &root.join("SONGS"),
+    ] {
+        std::fs::create_dir_all(dir).expect("creating the song-load-channel fixture directories");
+    }
+    write_sine_wav(&samples.join("SLSONG.WAV"), 1, 22_050, 440.0);
+    sd_image::pack_image(&root)
+}
+
 /// The `GOLDEN_SCENARIO=song_load_channel` scenario: save a song carrying a distinctive value, load
 /// it back through the real `LoadSongUI`, and report both whether the value returned and whether the
 /// storage channel served the read off the owner.
@@ -2447,6 +2466,8 @@ fn main() {
             pack_preset_load_image()
         } else if clear_song_undo_mode {
             pack_clear_song_undo_image()
+        } else if song_load_channel_mode {
+            pack_song_load_channel_image()
         } else {
             sd_image::pack_golden_fixture(&repo_root, &fixture)
         };

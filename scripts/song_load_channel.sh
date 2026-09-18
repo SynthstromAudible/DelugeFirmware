@@ -72,7 +72,7 @@ if [ "$status" -ne 0 ]; then
 fi
 # An abort or a wedge exits before these lines are printed, which is what turns a freeze into a gate
 # failure rather than a silently truncated log.
-for marker in SL-SETUP SL-LOADED SL-SUMMARY SL-RESULT; do
+for marker in SL-SETUP SL-LOADED SL-TIER SL-ORDER SL-SUMMARY SL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SL-' "$OUT/run.txt"

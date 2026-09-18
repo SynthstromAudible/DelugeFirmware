@@ -69,6 +69,16 @@ struct Owner {
 	/// @return true iff the storage owner has run at least once.
 	static bool started();
 
+	/// @brief How many ops the owner has been handed since boot.
+	///
+	/// Every successful `run()`/`run_sd_routine()` counts once; a dropped dispatch does not, because nothing was
+	/// handed over. The lens the migration's gates use to ask whether a consumer still dispatches: a consumer that
+	/// has left the owner moves this number not at all.
+	///
+	/// @warning A gate reading this across an operation must subtract any ops IT dispatched in the same window --
+	///          the song-load gate, for one, queues a marker behind every tick.
+	[[nodiscard]] static uint32_t opsRun();
+
 	/// @brief Run `fn(ctx)` on the worker, but inline if already on_owner() (or on a
 	/// cooperative/host BSP). For dual-context callers: the leaf work runs on the
 	/// worker exactly once, whether reached from a UI handler (dispatched) or from

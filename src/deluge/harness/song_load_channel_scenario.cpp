@@ -25,9 +25,13 @@
 #include "gui/ui/save/save_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "io/file.hpp"
+#include "gui/views/session_view.h"
+#include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
+#include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_file_holder.h" #include "io/file.hpp"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include <cstdio>
@@ -76,6 +80,14 @@ namespace {
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SLTEST01";
 constexpr const char* kSavePath = "SONGS/SLTEST01.XML";
+/// The one sample the gate's song carries. Without it the load's sample passes walk a song that demands nothing,
+/// and every leg about them would pass by having nothing asked of it (measured: the boot song is one instrument
+/// clip and no audio clips at all).
+constexpr const char* kSongSample = "SAMPLES/SL/SLSONG.WAV";
+/// Ops the load may still hand the storage owner. Phase 4d moves the load's segments off it one plan at a
+/// time: `startLoad` goes first, leaving `armOrSwap` -- which calls `finishLoad` inline when nothing is
+/// playing, so one dispatch covers both. The next plan takes that one and this becomes 0.
+constexpr int32_t kExpectedOwnerOps = 1;
 
 /// The value stamped into the song before saving, and required back after loading. Distinctive
 /// enough that no default produces it.
@@ -106,6 +118,13 @@ int32_t g_failures = 0;
 int32_t g_expectedMagnitude = 0;
 int32_t g_loadTicks = 0;
 int32_t g_saveTicks = 0;
+/// Markers this scenario has queued behind its own ticks, so the owner-op count can subtract them.
+int32_t g_markerOps = 0;
+/// `Owner::opsRun()` and `g_markerOps` as the load began: SL-TIER is the difference of the differences.
+uint32_t g_opsAtLoad = 0;
+int32_t g_markersAtLoad = 0;
+/// Whether the fixture's sample bound before the save. A song saved without it proves nothing on the way back.
+bool g_fixtureBound = false;
 
 /// The load is staged across ticks and then runs on the owner; 200000 ticks is far past any real
 /// completion and exists only so a wedge ends as a FAILURE with output rather than as a silent
@@ -124,8 +143,18 @@ void runTick() {
 		// Start from a known-absent target so the save is genuinely the "free name" case.
 		(void)deluge::io::mkdir(kSaveDir);
 		(void)deluge::io::unlink(kSavePath);
-		// The save pushes UIs that need a root UI beneath them; this harness boots without one.
-		changeRootUI(&arrangerView);
+		// The save pushes UIs that need a root UI beneath them; this harness boots without one. Session view
+		// rather than arranger view because an AudioClip is about to become the current clip, and the clip
+		// views dereference getCurrentInstrumentClip() unconditionally when they draw (4c plan 2 found that
+		// the hard way, as a SIGSEGV inside setKnobIndicatorLevels()).
+		changeRootUI(&sessionView);
+		// Give the song its sample BEFORE the save, through the same gesture the session view's own
+		// new-audio-clip does. The saved document then names the file, and loading it back has to bind it.
+		if (auto* clip = static_cast<AudioClip*>(sessionView.createNewAudioClipForHarness(0)); clip != nullptr) {
+			clip->sampleHolder.filePath = kSongSample;
+			(void)clip->sampleHolder.loadFile(false, false, true);
+			g_fixtureBound = clip->sampleHolder.audioFile != nullptr;
+		}
 		(void)SongLoadChannelProbe::openOn(kSaveDir);
 		g_stage = Stage::FixtureWait;
 		break;
@@ -180,6 +209,8 @@ void runTick() {
 		break;
 	}
 	case Stage::LoadBack: {
+		g_opsAtLoad = deluge::storage::Owner::opsRun();
+		g_markersAtLoad = g_markerOps;
 		currentSong->setSongFullPath(kSavePath);
 		(void)openUI(&loadSongUI);
 		g_stage = Stage::LoadBackListing;
@@ -230,6 +261,33 @@ void runTick() {
 			       "memory before the load was not restored by it\n");
 			g_failures++;
 		}
+		// SL-TIER. Ops the owner was handed during the load, less the markers this scenario queued behind its
+		// own ticks. A load that runs where its caller stands hands over nothing.
+		const int32_t ownerOps =
+		    static_cast<int32_t>(deluge::storage::Owner::opsRun() - g_opsAtLoad) - (g_markerOps - g_markersAtLoad);
+		printf("SL-TIER ownerOps=%d wanted=%d\n", ownerOps, kExpectedOwnerOps);
+		if (ownerOps != kExpectedOwnerOps) {
+			printf("SL-TIER FAIL the load dispatched %d op(s) onto the storage owner, wanted %d\n", ownerOps,
+			       kExpectedOwnerOps);
+			g_failures++;
+		}
+		// SL-ORDER. The song's sample is bound by the time the load ends -- the pass that binds it moves tier in
+		// this plan, and what it achieves must not.
+		int32_t audioClips = 0;
+		int32_t boundHolders = 0;
+		if (currentSong != nullptr) {
+			for (Clip* clip : AllClips::everywhere(currentSong)) {
+				if (clip->type == ClipType::AUDIO) {
+					audioClips++;
+					boundHolders += (((AudioClip*)clip)->sampleHolder.audioFile != nullptr) ? 1 : 0;
+				}
+			}
+		}
+		printf("SL-ORDER fixtureBound=%d audioClips=%d bound=%d\n", g_fixtureBound ? 1 : 0, audioClips, boundHolders);
+		if (!g_fixtureBound || audioClips != 1 || boundHolders != 1) {
+			printf("SL-ORDER FAIL the song's sample did not come back bound\n");
+			g_failures++;
+		}
 		printf("SL-SUMMARY served=%d offOwnerTicks=%d\n", (int)StorageManager::stagingChannelServedOps(),
 		       (int)AudioEngine::offOwnerSongStageTicks());
 		// Leave the card as we found it. These harness images are keyed by fingerprint and SHARED with
@@ -268,6 +326,10 @@ void deluge_scenario_song_load_channel_begin(void) {
 	g_expectedMagnitude = 0;
 	g_loadTicks = 0;
 	g_saveTicks = 0;
+	g_markerOps = 0;
+	g_opsAtLoad = 0;
+	g_markersAtLoad = 0;
+	g_fixtureBound = false;
 }
 
 bool deluge_scenario_song_load_channel_complete(void) {
@@ -284,7 +346,10 @@ void deluge_scenario_song_load_channel_dispatch_step(void) {
 	// dispatched save or load (and immediately if nothing was dispatched). That is what makes each
 	// check stage read a result the op has actually produced. Setting g_stepDone directly here
 	// instead races the owner, and the scenario sails past work it has only just queued.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
+	if (deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
+		g_markerOps++; // counted so SL-TIER can subtract what this scenario itself handed over
+	}
+	else {
 		g_stepDone = true;
 	}
 }

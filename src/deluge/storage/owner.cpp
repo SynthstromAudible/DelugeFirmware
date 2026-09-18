@@ -21,12 +21,26 @@
 
 namespace deluge::storage {
 
+namespace {
+/// Ops handed to the owner since boot. Not atomic: it is incremented only by dispatching contexts, which are
+/// thread-mode, and read for evidence rather than for control.
+uint32_t g_opsRun = 0;
+} // namespace
+
 bool Owner::run(void (*fn)(void*), void* ctx) {
-	return deluge_worker_run(fn, ctx);
+	const bool dispatched = deluge_worker_run(fn, ctx);
+	g_opsRun += dispatched ? 1 : 0;
+	return dispatched;
+}
+
+uint32_t Owner::opsRun() {
+	return g_opsRun;
 }
 
 bool Owner::run_sd_routine(void (*fn)(void*), void* ctx) {
-	return deluge_worker_run_sd_routine(fn, ctx);
+	const bool dispatched = deluge_worker_run_sd_routine(fn, ctx);
+	g_opsRun += dispatched ? 1 : 0;
+	return dispatched;
 }
 
 bool Owner::on_owner() {
