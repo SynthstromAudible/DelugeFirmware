@@ -84,10 +84,9 @@ constexpr const char* kSavePath = "SONGS/SLTEST01.XML";
 /// and every leg about them would pass by having nothing asked of it (measured: the boot song is one instrument
 /// clip and no audio clips at all).
 constexpr const char* kSongSample = "SAMPLES/SL/SLSONG.WAV";
-/// Ops the load may still hand the storage owner. Phase 4d moves the load's segments off it one plan at a
-/// time: `startLoad` goes first, leaving `armOrSwap` -- which calls `finishLoad` inline when nothing is
-/// playing, so one dispatch covers both. The next plan takes that one and this becomes 0.
-constexpr int32_t kExpectedOwnerOps = 1;
+/// Ops the load may still hand the storage owner: none. Every segment of a song load now runs where its caller
+/// stands, so a load that dispatches anything at all is a regression.
+constexpr int32_t kExpectedOwnerOps = 0;
 
 /// The value stamped into the song before saving, and required back after loading. Distinctive
 /// enough that no default produces it.

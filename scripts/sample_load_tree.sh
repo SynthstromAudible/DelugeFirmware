@@ -103,7 +103,7 @@ if [ "$status" -ne 0 ]; then
 	sed -n '1,20p' "$OUT/run.err" >&2
 	exit 1
 fi
-for marker in SLT-SETUP SLT-HOLDER SLT-CLIP SLT-SONG SLT-SYNTH SLT-KIT SLT-CRUCIAL SLT-CRUCIAL-SUMMARY SLT-ASYNC SLT-SUMMARY \
+for marker in SLT-ARM SLT-SETUP SLT-HOLDER SLT-CLIP SLT-SONG SLT-SYNTH SLT-KIT SLT-CRUCIAL SLT-CRUCIAL-SUMMARY SLT-ASYNC SLT-SUMMARY \
 	SLT-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"

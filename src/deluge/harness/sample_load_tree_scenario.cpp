@@ -230,6 +230,10 @@ int32_t g_synthRoutines = -1;
 int32_t g_kitRoutines = -1;
 int32_t g_crucialRoutines = -1;
 bool g_crucialClockAtLoad = false;
+/// Holders still waiting for a file when the arm wait was FIRST seen, and whether that moment was ever reached.
+/// The rest of the samples are loaded here; a pass that runs to completion before the user can arm has none left.
+int32_t g_crucialUnboundAtArm = -1;
+int32_t g_crucialBoundAtArm = -1;
 int32_t g_crucialRendered = 0;
 int32_t g_crucialSwapTick = -1;
 
@@ -890,6 +894,20 @@ void checkCrucialLoad() {
 	}
 	if (g_crucialSwapTick < 0) {
 		printf("SLT-CRUCIAL FAIL the load finished without its armed swap\n");
+		g_failures++;
+	}
+	// SLT-ARM. The rest of the samples must still be arriving when the user can first arm the swap. A pass that
+	// holds the storage owner cannot do that: it runs to completion before the arm mode is ever set, so every
+	// holder already has its file and the user has been waiting on the card for all of it.
+	printf("SLT-ARM unboundAtArm=%d boundAtArm=%d reached=%d\n", g_crucialUnboundAtArm, g_crucialBoundAtArm,
+	       (g_crucialUnboundAtArm >= 0) ? 1 : 0);
+	if (g_crucialUnboundAtArm < 0) {
+		printf("SLT-ARM FAIL the load never reached the arm wait, so nothing was observed there\n");
+		g_failures++;
+	}
+	else if (g_crucialUnboundAtArm == 0) {
+		printf("SLT-ARM FAIL every sample was already in when the swap could first be armed: the rest pass ran "
+		       "to completion before the user could act\n");
 		g_failures++;
 	}
 	for (size_t i = 0; i < kCrucialHolders.size(); i++) {
@@ -1710,6 +1728,21 @@ void runTick() {
 	case Stage::CrucialWait:
 		if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
 		    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+			if (g_crucialUnboundAtArm < 0) {
+				// The first tick the user could arm on. Read the song the load is bringing in -- preLoadedSong
+				// until the swap promotes it -- and count what has a file and what is still waiting.
+				Song* loading = (preLoadedSong != nullptr) ? preLoadedSong : currentSong;
+				g_crucialUnboundAtArm = 0;
+				g_crucialBoundAtArm = 0;
+				if (loading != nullptr) {
+					forEachSongHolder(*loading, [](AudioFileHolder* holder) {
+						if (holder->filePath.empty()) {
+							return; // nothing was ever asked of this one
+						}
+						((holder->audioFile != nullptr) ? g_crucialBoundAtArm : g_crucialUnboundAtArm)++;
+					});
+				}
+			}
 			renderWhileArmed();
 		}
 		else if (g_crucialRendered > 0 && g_crucialSwapTick < 0) {
@@ -1793,6 +1826,8 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_kitRoutines = -1;
 	g_crucialRoutines = -1;
 	g_crucialClockAtLoad = false;
+	g_crucialUnboundAtArm = -1;
+	g_crucialBoundAtArm = -1;
 	g_crucialRendered = 0;
 	g_crucialSwapTick = -1;
 	g_crucialSnapshotTaken = false;
