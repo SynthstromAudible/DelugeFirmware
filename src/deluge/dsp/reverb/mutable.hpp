@@ -23,8 +23,8 @@ public:
 	void process(std::span<int32_t> in, std::span<StereoSample> output) override {
 		// This is the Griesinger topology described in the Dattorro paper
 		// (4 AP diffusers on the input, then a loop of 2x 2AP+1Delay).
-		// Modulation is applied in the loop of the first diffuser AP for additional
-		// smearing; and to the two long delays for a slow shimmer/chorus effect.
+		// Modulation is applied to the two long delays for a slow shimmer/chorus effect.
+		// Upstream also smears the first diffuser AP; that is deliberately not ported.
 		typename FxEngine::AllPass ap1(150);
 		typename FxEngine::AllPass ap2(214);
 		typename FxEngine::AllPass ap3(319);
@@ -85,7 +85,6 @@ public:
 			del1.Write(c, 2.0f);
 			wet = c.Get();
 			wet = wet - dsp::OnePole(hp_r_, wet, hp_cutoff_);
-			;
 			wet = dsp::OnePole(lp_r_, wet, lp_cutoff_);
 
 			auto output_right =
@@ -99,9 +98,7 @@ public:
 			del2.Write(c, 2.0f);
 			wet = c.Get();
 			wet = wet - dsp::OnePole(hp_l_, wet, hp_cutoff_);
-			;
 			wet = dsp::OnePole(lp_l_, wet, lp_cutoff_);
-			;
 
 			auto output_left =
 			    static_cast<int32_t>(wet * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
