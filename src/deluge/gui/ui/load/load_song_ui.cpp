@@ -48,7 +48,6 @@
 #include "storage/byte_channel.h" // noteIoTier, for the inline preview read
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
-#include "storage/owner.h" // deluge::storage::Owner::run — run the load on the worker fiber
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
 #include "util/try.h"
@@ -382,26 +381,9 @@ namespace {
 constexpr int32_t kMaxStagingWaitTicks = 2000;
 } // namespace
 
-void LoadSongUI::armOrSwapTrampoline(void*) {
-	loadSongUI.armOrSwap();
-}
-
-void LoadSongUI::finishLoadTrampoline(void*) {
-	loadSongUI.finishLoad();
-}
-
-void LoadSongUI::dispatchLoadSegment(void (*segment)(void*)) {
-	LoadPhase parked = loadPhase_;
-	loadPhase_ = LoadPhase::RUNNING;
-	if (!deluge::storage::Owner::run(segment, nullptr)) {
-		// Owner queue was full. Stay parked in the phase we came from and try again next pass -
-		// the wait we just satisfied stays satisfied, so this only costs a pass.
-		loadPhase_ = parked;
-	}
-}
-
 void LoadSongUI::endLoad() {
 	essentialLoad_.reset();
+	restLoad_.reset();
 	loadPhase_ = LoadPhase::NONE;
 	loadToDelete_ = nullptr;
 	performingLoad = false;
@@ -519,7 +501,6 @@ void LoadSongUI::releaseSongStaging() {
 void LoadSongUI::loadRoutine() {
 	switch (loadPhase_) {
 	case LoadPhase::NONE:
-	case LoadPhase::RUNNING:
 		return;
 
 	case LoadPhase::STAGE:
@@ -542,15 +523,27 @@ void LoadSongUI::loadRoutine() {
 		    && getSystemTime() < settleDeadline_) {
 			return;
 		}
-		dispatchLoadSegment(&armOrSwapTrampoline);
+		runArmSegment();
+		return;
+
+	case LoadPhase::ARM:
+		// Only reachable if runArmSegment() parked here, which it does not; kept so the switch is total.
+		runArmSegment();
 		return;
 
 	case LoadPhase::AWAIT_ARM:
+		// The rest of the samples arrive WHILE the user decides. That is the whole difference: this pass used to
+		// run to completion before the arm wait was even entered, because it held the storage owner to do it.
+		tickRest();
 		if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
 		    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
 			return;
 		}
-		dispatchLoadSegment(&finishLoadTrampoline);
+		runFinishSegment();
+		return;
+
+	case LoadPhase::FINISH:
+		tickFinish();
 		return;
 	}
 }
@@ -729,7 +722,7 @@ void LoadSongUI::tickEssential() {
 	loadPhase_ = LoadPhase::SETTLE;
 }
 
-void LoadSongUI::armOrSwap() {
+void LoadSongUI::runArmSegment() {
 	preLoadedSong->name = enteredText;
 
 	loadToDelete_ = currentSong;
@@ -743,7 +736,7 @@ void LoadSongUI::armOrSwap() {
 			// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has
 			// already occurred
 			if (!result) {
-				finishLoad();
+				runFinishSegment();
 				return;
 			}
 
@@ -762,19 +755,26 @@ void LoadSongUI::armOrSwap() {
 		// rest of the samples which weren't needed right away. (though we might run out of RAM cos we haven't discarded
 		// all the old samples yet)
 		AudioEngine::logAction("asking for samples");
-		preLoadedSong->loadAllSamples(true, &sampleLoadContext_);
-		AudioEngine::logAction("waiting for samples");
+		restLoad_.emplace(deluge::storage::AsyncSampleLoad::forSong(*preLoadedSong, &sampleLoadContext_));
 		// Park until currentUIMode leaves the two loading modes - the arming, or the swap the arming
-		// launches, is what moves it, and neither can happen while we sit on the owner.
+		// launches, is what moves it. The rest pass walks on while we wait, ticked from loadRoutine().
 		loadPhase_ = LoadPhase::AWAIT_ARM;
 		return;
 	}
 
 	playbackHandler.doSongSwap();
-	finishLoad();
+	runFinishSegment();
 }
 
-void LoadSongUI::finishLoad() {
+void LoadSongUI::tickRest() {
+	if (restLoad_.has_value() && restLoad_->tick().state != deluge::storage::AsyncSampleLoad::State::Loading) {
+		// An end is an end, whatever its reason: see tickEssential(). What did not arrive is what
+		// FINISH's pass has always been for.
+		restLoad_.reset();
+	}
+}
+
+void LoadSongUI::runFinishSegment() {
 	// To override our popup if we did one. (Still necessary?)
 	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	// The swap's been done and the first tick of the new song has been done; any samples wanting data
@@ -791,8 +791,20 @@ void LoadSongUI::finishLoad() {
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 
-	// Try one more time to load all AudioFiles - there might be more RAM free now
-	currentSong->loadAllSamples(true, &sampleLoadContext_);
+	// Try one more time to load all AudioFiles - there might be more RAM free now. The pass the arm wait started
+	// is ADOPTED rather than replaced: it is already walking this same song, and starting a second walk over it
+	// would ask the card for what is on its way. A load that never armed has none, and gets one here.
+	if (!restLoad_.has_value()) {
+		restLoad_.emplace(deluge::storage::AsyncSampleLoad::forSong(*currentSong, &sampleLoadContext_));
+	}
+	loadPhase_ = LoadPhase::FINISH;
+}
+
+void LoadSongUI::tickFinish() {
+	tickRest();
+	if (restLoad_.has_value()) {
+		return; // still walking
+	}
 	AudioEngine::logAction("done loading new song");
 	currentSong->markAllInstrumentsAsEdited();
 

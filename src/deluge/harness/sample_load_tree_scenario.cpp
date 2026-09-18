@@ -159,14 +159,15 @@ constexpr int32_t kMaxWaitTicks = 200000;
 /// routineWithClusterLoading calls each load makes, measured on the fixture: the cadence that keeps audio running
 /// while a load walks the tree. Pinned so a walk that drops or adds a call is seen.
 ///
-/// The song and crucial counts each dropped by three when song load's essential pass started ticking (Phase 4d).
-/// Those calls existed because a blocking walk holding the storage owner was the only thing that could run the
-/// audio engine; a ticked walk returns to the run loop between walks, which runs it anyway. The three that
-/// remain belong to the passes still walking synchronously.
-constexpr int32_t kSongRoutines = 42;
+/// The song and crucial counts fell twice as Phase 4d moved song load off the storage owner, for one reason both
+/// times: these calls existed because a blocking walk holding the owner was the only thing that could run the
+/// audio engine, and a ticked walk returns to the run loop, which runs it anyway. 45 -> 42 -> 39 as the essential
+/// pass and then the rest pass started ticking; the crucial count 102 -> 99 -> 85, further because the rest pass
+/// is the larger of the two.
+constexpr int32_t kSongRoutines = 39;
 constexpr int32_t kSynthRoutines = 2;
 constexpr int32_t kKitRoutines = 3;
-constexpr int32_t kCrucialRoutines = 99;
+constexpr int32_t kCrucialRoutines = 85;
 
 /// Milliseconds the loader holds each load during an async leg, so each load spans several scenario ticks.
 constexpr uint32_t kAsyncLatencyMs = 20;

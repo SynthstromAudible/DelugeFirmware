@@ -249,7 +249,8 @@ private:
 		STAGE,     ///< Reading the song into memory, OFF the owner, before any of it is parsed.
 		BEGIN,     ///< Parsing the staged song and claiming samples from RAM, on the interaction tier.
 		ESSENTIAL, ///< Loading the samples the swap needs to sound, a tick at a time.
-		RUNNING,   ///< A stretch is queued on, or running on, the storage owner.
+		ARM,       ///< Arming the swap, or taking it outright when nothing is playing.
+		FINISH,    ///< The swap is done: freeing the old song and finishing the last sample pass.
 		SETTLE,    ///< Waiting for the sample loader to settle, or for its deadline to pass.
 		AWAIT_ARM, ///< Waiting for the user to arm the swap, or for the arming to launch it.
 	};
@@ -272,6 +273,14 @@ private:
 
 	/// @brief Whether @ref essentialLoad_ is the crucial-only walk, which the load trace brackets.
 	bool essentialIsCrucial_{false};
+
+	/// @brief The samples the swap did NOT need, loading on the interaction tier.
+	///
+	/// A member rather than a phase because it outlives the one that starts it: engaged as the arm wait begins,
+	/// still walking while the user decides, and finished by FINISH rather than restarted there. Its root is
+	/// `preLoadedSong`, which the swap promotes to `currentSong` without moving it -- so the swap landing
+	/// mid-walk is safe, and is the point. Never the outgoing song, which FINISH frees.
+	std::optional<deluge::storage::AsyncSampleLoad> restLoad_{};
 
 	/// @brief The load's sample context: the song's own folder, where its collected samples may be, and what the
 	///        load has learnt about that folder. Made once the song is read; every sample pass of the load uses it.
@@ -325,14 +334,24 @@ private:
 
 	/// @name Owner-only, continued
 	/// @{
-	void armOrSwap();  ///< Arm the swap and park in AWAIT_ARM, or swap outright and carry straight on.
-	void finishLoad(); ///< Free the old song, finish loading, restore the UI, run the completion.
+	/// @brief Name the song, capture the outgoing one, and arm the swap -- or take it now, if nothing is playing.
+	///
+	/// Card-free, so it runs where its caller stands. Engages @ref restLoad_ on its way into the arm wait.
+	void runArmSegment();
+
+	/// @brief Free the outgoing song and drop temp samples, then park in FINISH to finish the last pass.
+	void runFinishSegment();
+
+	/// @brief Advance @ref restLoad_ one walk, if one is engaged.
+	void tickRest();
+
+	/// @brief Finish the last sample pass, then restore the UI and end the load.
+	void tickFinish();
 	/// @}
 
 	/// @name `Owner::run` trampolines for the three stretches above.
 	/// @{
-	static void armOrSwapTrampoline(void*);
-	static void finishLoadTrampoline(void*);
+
 	/// @}
 
 	/// @brief Queues the next stretch on the storage owner, leaving the phase alone if the queue is full.
