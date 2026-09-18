@@ -168,7 +168,17 @@ uint32_t deluge_scenario_debug_load_state() {
 	return bits;
 }
 
+namespace {
+/// Ops the storage owner had been handed when the export began; ST-TIER is the difference at the end.
+uint32_t g_stOpsAtStart = 0;
+/// Owner ops the export may still dispatch. Phase 4e moves it off the owner; until that lands this is what it
+/// measures today, so the gate is green from birth rather than red until the migration. The migration plan sets
+/// it to 0 -- see docs/superpowers/specs/2026-09-18-stem-export-evidence-design.md.
+constexpr int32_t kExpectedStemOwnerOps = 692; // measured; stable across cold and warm card images
+} // namespace
+
 void deluge_scenario_start_stem_export(int32_t mode) {
+	g_stOpsAtStart = deluge::storage::Owner::opsRun();
 	StemExportType stemMode = static_cast<StemExportType>(mode);
 	stemExport.renderOffline = true;
 	stemExport.exportToSilence = true;
@@ -227,6 +237,7 @@ void deluge_scenario_copy_stems_out(const char* out_dir) {
 	// Entries are unlinked only once the listing is closed: removing them while it is open would change what it
 	// is walking.
 	std::vector<std::string> copied;
+	long long copiedBytes = 0;
 	static char buf[65536];
 	int count = 0;
 	{
@@ -280,6 +291,12 @@ void deluge_scenario_copy_stems_out(const char* out_dir) {
 					off += static_cast<size_t>(w);
 				}
 			}
+			{
+				struct stat st{};
+				if (fstat(ofd, &st) == 0) {
+					copiedBytes += static_cast<long long>(st.st_size);
+				}
+			}
 			close(ofd);
 			count++;
 			copied.emplace_back(src);
@@ -287,6 +304,17 @@ void deluge_scenario_copy_stems_out(const char* out_dir) {
 		}
 	}
 	fprintf(stderr, "[golden-scenario] copied %d stem(s) to %s\n", count, out_dir);
+
+	// ST-BYTES. The export must have written audio. Named separately from ST-RENDER because a 0-byte WAV is
+	// exactly what a stem export produces when it runs off the storage owner today -- the recorder takes its
+	// write-channel arm and the bytes never land -- and "the export wrote nothing" must not be reported as
+	// "hash mismatch".
+	fprintf(stderr, "ST-BYTES size=%lld files=%d\n", static_cast<long long>(copiedBytes), count);
+
+	// ST-TIER. Ops the export handed the storage owner. Nothing else in this scenario dispatches, so the
+	// difference is the export's own.
+	const int32_t ownerOps = static_cast<int32_t>(deluge::storage::Owner::opsRun() - g_stOpsAtStart);
+	fprintf(stderr, "ST-TIER ownerOps=%d wanted=%d\n", ownerOps, kExpectedStemOwnerOps);
 
 	// Give the image back what this render wrote. The card image is cached and SHARED between runs and gates, so
 	// an export left behind fills it -- a full image fails every later save and load on it -- and a folder left

@@ -357,6 +357,18 @@ ci = "nightly"
 runtime = "~1m"
 
 [[harness]]
+name = "stem-export"
+path = "."
+kind = "property"
+status = "gate"
+gates = "an offline stem export must render byte-identical audio, write it, and do so from a known tier. This is NOT golden-embassy-diff and its baseline is NOT that gate's golden: that one compares the Embassy render against a C-host `deluge_render` golden this branch cannot rebuild (golden-mixdown is registered \"does not build\"), which is why it is permanently red and cannot gate a rung. This one compares the Embassy render against ITSELF, recorded in harness/stem-export-cordae.sha256, and so can go green. ST-RENDER is the regression claim. ST-BYTES is not redundant with it: run off the storage owner today, a stem export completes, reports success and writes a ZERO-BYTE file -- the recorder takes its write-channel arm and the bytes never land -- and that failure must be reported as \"the export wrote nothing\" rather than as a hash mismatch. ST-TIER counts the owner ops the export dispatches, against a target the scenario declares; Phase 4e drops it to zero. WARNING: this baseline is NOT expected to move. A walk's cadence is an implementation detail, rendered audio is not -- a red ST-RENDER is a finding to bisect, never a re-baseline."
+build = []
+run = ["scripts/stem_export.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~12s"
+
+[[harness]]
 name = "song-load-channel"
 path = "."
 kind = "property"
