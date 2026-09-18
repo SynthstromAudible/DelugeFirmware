@@ -19,8 +19,8 @@
 
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
-#include "storage/audio/audio_load_context.h"
-#include "storage/deferred_load.h"
+#include "storage/audio/async_sample_load.h"
+#include "storage/audio/audio_load_context.h" #include "storage/deferred_load.h"
 #include "storage/song_preview.h" // SongPreviewOutcome, held as the last render's result
 
 #include <cstdint>
@@ -247,7 +247,8 @@ private:
 	enum class LoadPhase : uint8_t {
 		NONE,      ///< No load in flight.
 		STAGE,     ///< Reading the song into memory, OFF the owner, before any of it is parsed.
-		START,     ///< Requested, but the owner queue was full - waiting to be dispatched.
+		BEGIN,     ///< Parsing the staged song and claiming samples from RAM, on the interaction tier.
+		ESSENTIAL, ///< Loading the samples the swap needs to sound, a tick at a time.
 		RUNNING,   ///< A stretch is queued on, or running on, the storage owner.
 		SETTLE,    ///< Waiting for the sample loader to settle, or for its deadline to pass.
 		AWAIT_ARM, ///< Waiting for the user to arm the swap, or for the arming to launch it.
@@ -262,6 +263,15 @@ private:
 
 	/// @brief getSystemTime() value past which SETTLE stops waiting and swaps anyway.
 	double settleDeadline_{0.};
+
+	/// @brief The samples the swap needs to sound, loading on the interaction tier.
+	///
+	/// Engaged for the length of the ESSENTIAL phase and empty otherwise. Its root is `preLoadedSong`, which
+	/// outlives the phase.
+	std::optional<deluge::storage::AsyncSampleLoad> essentialLoad_{};
+
+	/// @brief Whether @ref essentialLoad_ is the crucial-only walk, which the load trace brackets.
+	bool essentialIsCrucial_{false};
 
 	/// @brief The load's sample context: the song's own folder, where its collected samples may be, and what the
 	///        load has learnt about that folder. Made once the song is read; every sample pass of the load uses it.
@@ -297,7 +307,14 @@ private:
 
 	/// @name The three stretches of storage work, split at the two waits. Owner-only.
 	/// @{
-	void startLoad(); ///< Read the staged song and claim samples, then park in SETTLE.
+	/// @brief Parse the staged song and claim its samples from RAM, then park in ESSENTIAL.
+	///
+	/// Runs where its caller stands: the parse is over `songStaging_`'s bytes and the claim pass never reads the
+	/// card, so nothing here needs the storage owner.
+	void runBeginSegment();
+
+	/// @brief Advance @ref essentialLoad_ one walk. Ends the phase, and the load's first stretch, when it ends.
+	void tickEssential();
 	/// @}
 
 	/// @brief Fill @ref songStaging_ off the owner, a tick at a time. See its definition.
@@ -314,7 +331,6 @@ private:
 
 	/// @name `Owner::run` trampolines for the three stretches above.
 	/// @{
-	static void startLoadTrampoline(void*);
 	static void armOrSwapTrampoline(void*);
 	static void finishLoadTrampoline(void*);
 	/// @}

@@ -382,10 +382,6 @@ namespace {
 constexpr int32_t kMaxStagingWaitTicks = 2000;
 } // namespace
 
-void LoadSongUI::startLoadTrampoline(void*) {
-	loadSongUI.startLoad();
-}
-
 void LoadSongUI::armOrSwapTrampoline(void*) {
 	loadSongUI.armOrSwap();
 }
@@ -405,6 +401,7 @@ void LoadSongUI::dispatchLoadSegment(void (*segment)(void*)) {
 }
 
 void LoadSongUI::endLoad() {
+	essentialLoad_.reset();
 	loadPhase_ = LoadPhase::NONE;
 	loadToDelete_ = nullptr;
 	performingLoad = false;
@@ -505,8 +502,7 @@ void LoadSongUI::runStageSegment() {
 		return;
 
 	case StorageManager::StagedOpen::Opened:
-		loadPhase_ = LoadPhase::START;
-		dispatchLoadSegment(&startLoadTrampoline);
+		loadPhase_ = LoadPhase::BEGIN;
 		return;
 	}
 }
@@ -530,8 +526,12 @@ void LoadSongUI::loadRoutine() {
 		runStageSegment();
 		return;
 
-	case LoadPhase::START:
-		dispatchLoadSegment(&startLoadTrampoline);
+	case LoadPhase::BEGIN:
+		runBeginSegment();
+		return;
+
+	case LoadPhase::ESSENTIAL:
+		tickEssential();
 		return;
 
 	case LoadPhase::SETTLE:
@@ -555,17 +555,18 @@ void LoadSongUI::loadRoutine() {
 	}
 }
 
-void LoadSongUI::startLoad() {
+void LoadSongUI::runBeginSegment() {
 	actionLogger.deleteAllLogs();
 
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
 
-	// Usually already open, over songStaging_'s bytes: STAGE read it on the interaction tier before
-	// this stretch was dispatched. When it is not, the staging happens here instead -- on the owner,
-	// where blocking is legal. Either way the parse below runs over memory and `activeDeserializer`
-	// points at the memory reader.
+	// Open over songStaging_'s bytes: STAGE read them on the interaction tier before this phase began, and
+	// the parse below runs over memory with `activeDeserializer` pointing at the memory reader. This
+	// segment used to re-open the document itself when STAGE had not -- on the owner, where blocking is
+	// legal. There is no owner to fall back to now, so bytes that never arrived end the load the way a
+	// corrupt file does.
 	//
 	// stagingPrevious_ is what that global gets put back to at every exit. Not hygiene: the memory
 	// reader's fileClusterBuffer IS the staged buffer, and code downstream writes through the global
@@ -573,20 +574,11 @@ void LoadSongUI::startLoad() {
 	// 32 KiB, into it), so leaving it pointing at released bytes is heap corruption, not a stale read.
 	Error error = Error::NONE;
 	if (songStaging_.buffer == nullptr) {
-		stagingPrevious_ = activeDeserializer;
-		switch (StorageManager::openDocumentStaged(stagingPath_.c_str(), "song", "", &songStaging_)) {
-		case StorageManager::StagedOpen::Opened:
-			break;
-		case StorageManager::StagedOpen::Deferred:
-			// Not reachable on the owner: the synchronous fill answers in one call. Treat a surprise
-			// as the error it would be rather than carrying on with no document.
-		case StorageManager::StagedOpen::Failed:
-			activeDeserializer = stagingPrevious_;
-			releaseSongStaging();
-			display->displayError(Error::FILE_CORRUPTED);
-			endLoad();
-			return;
-		}
+		activeDeserializer = stagingPrevious_;
+		releaseSongStaging();
+		display->displayError(Error::FILE_CORRUPTED);
+		endLoad();
+		return;
 	}
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
@@ -703,16 +695,33 @@ gotErrorAfterCreatingSong:
 	// might actually want
 	preLoadedSong->loadAllSamples(false, &sampleLoadContext_);
 
-	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
-	if (playbackHandler.isEitherClockActive()) {
+	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds). This is
+	// the pass that read the card, and the only reason this segment was ever dispatched; it now walks a tick at
+	// a time on this tier, through the loader every other consumer uses.
+	essentialIsCrucial_ = playbackHandler.isEitherClockActive();
+	if (essentialIsCrucial_) {
 		// Traced on the host only, so a gate can see exactly what this pass bound before any later pass binds more.
 		DELUGE_LOAD_TRACE("crucial begin");
-		preLoadedSong->loadCrucialSamplesOnly(&sampleLoadContext_);
-		DELUGE_LOAD_TRACE("crucial end");
+		essentialLoad_.emplace(deluge::storage::AsyncSampleLoad::forCrucialSong(*preLoadedSong, &sampleLoadContext_));
 	}
 	else {
-		preLoadedSong->loadAllSamples(true, &sampleLoadContext_);
+		essentialLoad_.emplace(deluge::storage::AsyncSampleLoad::forSong(*preLoadedSong, &sampleLoadContext_));
 	}
+	loadPhase_ = LoadPhase::ESSENTIAL;
+}
+
+void LoadSongUI::tickEssential() {
+	// An end is an end, whatever its reason. The blocking pass had none of its own: it returned when the walk
+	// finished and left whatever would not bind empty, and finishLoad()'s pass has always been the mop-up for
+	// what did not arrive. A Failed end says the same thing here, so it displays nothing -- the per-demand
+	// errors have already been shown, by the same code that showed them before.
+	if (essentialLoad_->tick().state == deluge::storage::AsyncSampleLoad::State::Loading) {
+		return;
+	}
+	if (essentialIsCrucial_) {
+		DELUGE_LOAD_TRACE("crucial end");
+	}
+	essentialLoad_.reset();
 
 	// The new song's essential clusters still have to finish arriving before the swap. Park here and let
 	// loadRoutine() watch for it: the fill task that does the arriving cannot run while we hold the owner.
