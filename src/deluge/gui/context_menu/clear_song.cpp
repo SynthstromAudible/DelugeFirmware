@@ -28,7 +28,6 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
-#include "storage/owner.h"
 
 extern void setUIForLoadedSong(Song* song);
 extern void deleteOldSongBeforeLoadingNew();
@@ -36,25 +35,22 @@ namespace deluge::gui::context_menu {
 ClearSong clearSong{};
 
 namespace {
-/// The dispatched op for ClearSong::acceptCurrentOption(): runs "Create New Song" (default
-/// synth preset via ensureAtLeastOneSessionClip(), then loadAllSamples()) on the storage
-/// worker so it doesn't block the executor (bug B6). Unlike the Synth/Kit sample-browser
-/// context menus, there is no failure branch to mirror here: the pre-existing synchronous
-/// code already discarded ensureAtLeastOneSessionClip()'s bool and always returned true, so
-/// this is the same unconditional sequence, just moved off the executor.
+/// "Create New Song": ends playback, tears down the old song, builds a blank one and puts the UI back on it.
 ///
-/// acceptCurrentOption() sets currentUIMode to a LOADING sentinel (outside
-/// ContextMenu::buttonAndPadActionUIModes) before dispatching, and this op only resets it to
-/// UI_MODE_NONE at the very end. Why that matters: nullifyUIs() below drops numUIsOpen to 0
-/// for this op's whole in-flight window (same as LoadSongUI::performLoad()), during which
-/// getCurrentUI() falls back to lastUIBeforeNullifying — the (now-stale) clearSong singleton
-/// (ui.cpp's documented "ugly work-around to stop everything breaking"). buttons.cpp routes
-/// button presses to getCurrentUI()->buttonAction() unconditionally. Without the mode gate, a
-/// BACK press in that window would reach ContextMenu::buttonAction() -> close() ->
-/// closeUI(&clearSong), whose loop never runs with numUIsOpen==0 and then indexes
-/// uiNavigationHierarchy[-2] (OOB/UB); a repeat SELECT_ENC would re-dispatch this op
-/// mid-flight. The mode gate (isUIModeWithinRange() returns false) makes both no-ops instead.
-void runAcceptOp(void*) {
+/// Reads no card. It used to: `ensureAtLeastOneSessionClip()` walked the card for a preset and loaded it, and the
+/// `loadAllSamples()` after it loaded whatever that preset brought. Phase 4b moved the first onto the interaction
+/// tier -- the clip is built on the built-in default synth and `InstrumentLoad` acquires the preset afterwards --
+/// which left the second with a song holding one unsampled synth and nothing to do. So this runs where its caller
+/// stands, and the whole operation is over when it returns.
+///
+/// The UI-mode gate around it stays, and is still load-bearing: `nullifyUIs()` below drops `numUIsOpen` to 0, during
+/// which `getCurrentUI()` falls back to `lastUIBeforeNullifying` -- the (now-stale) clearSong singleton (ui.cpp's
+/// documented "ugly work-around to stop everything breaking"). buttons.cpp routes presses to
+/// `getCurrentUI()->buttonAction()` unconditionally, so without the mode a BACK press reaching
+/// `ContextMenu::buttonAction()` -> `close()` -> `closeUI(&clearSong)` would index `uiNavigationHierarchy[-2]`
+/// (OOB/UB). Running synchronously leaves no window for such a press to arrive in, and the mode keeps the invariant
+/// stated next to the code that nullifies the UIs.
+void runAccept() {
 	if (playbackHandler.playbackState
 	    && (playbackHandler.isInternalClockActive() || currentPlaybackMode == &arrangement)) {
 
@@ -89,10 +85,6 @@ void runAcceptOp(void*) {
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
-
-	// If for some reason the default synth preset included a sample which needs loading, and somehow there wasn't
-	// enough RAM to load it before, do it now.
-	currentSong->loadAllSamples();
 
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
@@ -131,26 +123,15 @@ void ClearSong::focusRegained() {
 }
 
 bool ClearSong::acceptCurrentOption() {
-	// Dispatch onto the storage owner so the SD-card work inside
-	// ensureAtLeastOneSessionClip()/loadAllSamples() (deep inside runAcceptOp) doesn't block
-	// the executor (bug B6). Fire-and-forget, so this can't honestly report the eventual
-	// success/failure back to ContextMenu::buttonAction() synchronously — always return true
-	// (never trigger its synchronous close()); runAcceptOp() does the whole sequence itself,
-	// including the UI teardown (there is no failure branch to preserve — see runAcceptOp()'s
-	// comment).
+	// Always true (never trigger ContextMenu::buttonAction()'s synchronous close()): runAccept() does the whole
+	// sequence itself, including the UI teardown, and there is no failure branch to report -- the pre-existing code
+	// discarded ensureAtLeastOneSessionClip()'s bool too.
 	//
-	// Close the buttonAndPadActionUIModes gate here, before dispatch, not inside the op: this
-	// must happen before any yield, with no window where a BACK/SELECT_ENC press could reach
-	// ContextMenu::buttonAction() while currentUIMode still permits it. See runAcceptOp()'s
-	// comment for what that would corrupt.
+	// The gate closes around the call rather than inside it: `runAccept()` nullifies the UIs, and a press must not
+	// reach ContextMenu::buttonAction() while that is true. See runAccept()'s comment.
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
-	if (!deluge::storage::Owner::run_or_inline(&runAcceptOp, nullptr)) {
-		// Dropped dispatch (Embassy worker ring full): runAcceptOp never runs, and it is the
-		// only thing that resets currentUIMode — leaving the UI permanently gated (reboot to
-		// recover). Release the gate here so the menu stays usable, matching the drop-reset in
-		// Slicer::doSlice / InstrumentClipView's randomize dispatch.
-		currentUIMode = UI_MODE_NONE;
-	}
+	runAccept();
+	currentUIMode = UI_MODE_NONE;
 	return true;
 }
 } // namespace deluge::gui::context_menu
