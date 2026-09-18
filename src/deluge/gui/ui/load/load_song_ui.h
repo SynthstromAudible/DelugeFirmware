@@ -20,7 +20,8 @@
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "storage/audio/async_sample_load.h"
-#include "storage/audio/audio_load_context.h" #include "storage/deferred_load.h"
+#include "storage/audio/audio_load_context.h"
+#include "storage/deferred_load.h"
 #include "storage/song_preview.h" // SongPreviewOutcome, held as the last render's result
 
 #include <cstdint>
