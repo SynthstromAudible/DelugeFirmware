@@ -24,6 +24,14 @@ constexpr T Interpolate(const T x0, const T x1, float fractional) {
 namespace deluge::dsp::reverb {
 constexpr static int32_t TAIL = -1;
 
+#if DELUGE_DSP_BOUNDS_CHECK
+namespace debug {
+/// Latched when a DelayLine touches a slot outside its own reserved region.
+/// Spec-only instrumentation; compiled out of the firmware. See tests/spec/reverb_spec.cpp.
+inline bool out_of_bounds_access = false;
+} // namespace debug
+#endif
+
 enum LFOIndex { LFO_1, LFO_2 };
 
 class FxEngine {
@@ -111,6 +119,15 @@ public: /******************** INNER CLASSES ****************/
 			if (index == TAIL) {
 				index = length - 1;
 			}
+#if DELUGE_DSP_BOUNDS_CHECK
+			// ConstructTopology reserves length + 1 slots per line, so indices 0..length are ours:
+			// index `length` is the slot written `length` frames ago. Anything past that is the
+			// next line's memory. Interpolated reads are the usual culprit, since they also
+			// touch offset + 1.
+			if (index < 0 || static_cast<size_t>(index) > length) {
+				debug::out_of_bounds_access = true;
+			}
+#endif
 			return engine_->at(this->base + index);
 		}
 
