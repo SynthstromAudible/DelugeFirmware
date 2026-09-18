@@ -23,6 +23,7 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/reversion.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -102,6 +103,8 @@ int32_t g_unAcceptedCommands = 0;
 int8_t g_unSwingBefore = 0;
 std::string g_unBoundAfter;
 bool g_unBoundToFile = false;
+int32_t g_unPreloadsBefore = 0;
+int32_t g_unPreloads = 0;
 
 /// What the clear was seen to have done by the time `acceptCurrentOption()` returned.
 bool g_swappedOnReturn = false;
@@ -280,8 +283,11 @@ void checkUndoLeg() {
 		// (IoTier::SampleLoad is a tripwire for an unreachable case, not a general count). UN-PLAIN carries the tier
 		// claim instead -- a reversion dispatched onto the owner cannot land inside the press, and one on the
 		// caller's tier does.
-		printf("UN-SAMPLE bound=%s file=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0, g_unTicks);
-		if (bound != kUndoSampleA || !g_unBoundToFile) {
+		printf("UN-SAMPLE bound=%s file=%d preloads=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0,
+		       g_unPreloads, g_unTicks);
+		// The pre-load clause arrives with the machine: before it there was nothing to count, and no leg could tell
+		// WHO read the sample -- the revert's own loadFile() brings it back either way.
+		if (bound != kUndoSampleA || !g_unBoundToFile || g_unPreloads != 1) {
 			printf("UN-SAMPLE FAIL the undo did not put the first sample back and bind it\n");
 			g_failures++;
 		}
@@ -434,6 +440,7 @@ void runTick() {
 		g_unAcceptedCommands = 0;
 		g_unLandedInPress = false;
 		g_unTicks = 0;
+		g_unPreloadsBefore = deluge::gui::reversion.preloads();
 		g_stage = Stage::UnAct;
 		break;
 	case Stage::UnAct: {
@@ -460,6 +467,7 @@ void runTick() {
 		}
 		g_unBoundAfter = boundPath();
 		g_unBoundToFile = boundToFile();
+		g_unPreloads = deluge::gui::reversion.preloads() - g_unPreloadsBefore;
 		g_stage = Stage::UnCheck;
 		break;
 	case Stage::UnCheck:

@@ -25,6 +25,7 @@
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/reversion.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -477,6 +478,8 @@ void registerTasks() {
 	addRepeatingTask([]() { deluge::gui::folderImport.routine(); }, p++, 0.015, 0.015, 0.03, "folder import",
 	                 RESOURCE_NONE);
 	// The preset browser's own loads are the same kind of machine; the clone menu can be on top while one is out.
+	// Undo and redo are the same kind of machine: the reversion's samples are loaded here before it runs.
+	addRepeatingTask([]() { deluge::gui::reversion.routine(); }, p++, 0.015, 0.015, 0.03, "reversion", RESOURCE_NONE);
 	addRepeatingTask([]() { deluge::gui::instrumentLoad.routine(); }, p++, 0.015, 0.015, 0.03, "instrument load",
 	                 RESOURCE_NONE);
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for

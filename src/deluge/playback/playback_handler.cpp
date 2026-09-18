@@ -21,6 +21,7 @@
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/reversion.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -73,7 +74,6 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
-#include "storage/owner.h" // deluge::storage::Owner::run_or_inline — run undo()/redo() on the worker
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
 #include "util/cfunctions.h"
@@ -159,45 +159,17 @@ void PlaybackHandler::routine() {
 	}
 }
 
-namespace {
-/// The dispatched op for `PlaybackHandler::slowRoutine()`'s pending UNDO/REDO handling: runs
-/// `actionLogger.undo()`/`.redo()` on the storage worker so `ConsequenceAudioClipSetSample::revert()`'s
-/// `AudioFileHolder::loadFile()` (see docs/dev/known-concurrency-bugs.md, B6) doesn't block the
-/// executor. `resumePlayback()`'s dependency on the loaded sample lives inside `revert()` itself,
-/// so it travels with the op automatically — no post-op work needed here.
-///
-/// `command` is the snapshot taken by `slowRoutine()` before dispatch (see its comment) — NOT a
-/// re-read of `pendingGlobalMIDICommand`, which `slowRoutine()` has already reset to NONE by the
-/// time this runs (possibly deferred, on the worker fiber).
-void runUndoRedoOp(void* ctx) {
-	auto command = static_cast<GlobalMIDICommand>(reinterpret_cast<intptr_t>(ctx));
-	switch (command) {
-	case GlobalMIDICommand::UNDO:
-		actionLogger.undo();
-		break;
-
-	case GlobalMIDICommand::REDO:
-		actionLogger.redo();
-		break;
-
-	// we're explicitly only interedted in UNDO and REDO
-	default:;
-	}
-}
-} // namespace
-
 void PlaybackHandler::slowRoutine() {
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
 	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !deluge::sync::sd_busy()) {
 
 		D_PRINTLN("actioning pending command -----------------------------------------");
 
-		// Snapshot which command (UNDO vs REDO) and clear the pending flag now, synchronously,
-		// before the dispatch below. undo()/redo() can load a sample (see docs/dev/known-concurrency-bugs.md,
-		// B6) and, once dispatched onto the storage worker, can outlive this call (Embassy fire-and-forget).
-		// slowRoutine() can be re-entered before that op completes — e.g. from this same repeating
-		// task's own next tick (deluge.cpp). Clearing pendingGlobalMIDICommand here means a
-		// re-entrant call sees NONE and does nothing, instead of double-dispatching the same command.
+		// Snapshot which command (UNDO vs REDO) and clear the pending flag now, before handing it over. A
+		// reversion whose samples have to be loaded outlives this call, and slowRoutine() can be re-entered
+		// before it ends — e.g. from this same repeating task's own next tick (deluge.cpp). Clearing
+		// pendingGlobalMIDICommand here means a re-entrant call sees NONE and does nothing, instead of asking
+		// for the same command twice.
 		GlobalMIDICommand command = pendingGlobalMIDICommand;
 		pendingGlobalMIDICommand = GlobalMIDICommand::NONE;
 
@@ -209,12 +181,12 @@ void PlaybackHandler::slowRoutine() {
 				display->displayPopup(buffer);
 			}
 
-			// Run the whole undo()/redo() dispatch on the storage worker (mirrors
-			// LoadSongUI::performLoad's Owner::run idiom). run_or_inline: if slowRoutine() is
-			// itself already running on the worker, run inline rather than re-dispatching onto the
-			// fiber it's already on.
-			deluge::storage::Owner::run_or_inline(&runUndoRedoOp,
-			                                      reinterpret_cast<void*>(static_cast<intptr_t>(command)));
+			// The reversion runs on the interaction tier: it loads the files its consequences will bind
+			// first, then reverts card-free. One already in flight refuses this one rather than queueing
+			// it -- see deluge::gui::Reversion.
+			(void)deluge::gui::reversion.request(command == GlobalMIDICommand::REDO
+			                                         ? deluge::gui::Reversion::Direction::Redo
+			                                         : deluge::gui::Reversion::Direction::Undo);
 		}
 	}
 }

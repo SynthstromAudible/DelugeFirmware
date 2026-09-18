@@ -26,6 +26,8 @@ class ConsequenceAudioClipSetSample final : public Consequence {
 public:
 	ConsequenceAudioClipSetSample(AudioClip* newClip);
 	Error revert(TimeType time, ModelStack* modelStack) override;
+	/// @copydoc Consequence::filePathNeededForRevert
+	[[nodiscard]] const std::string* filePathNeededForRevert() const override { return &filePathToRevertTo; }
 
 	AudioClip* clip;
 	std::string filePathToRevertTo{};
