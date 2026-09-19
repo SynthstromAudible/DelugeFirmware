@@ -29,7 +29,6 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "io/file.hpp"
-#include "libdeluge/clock.h"
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
 #include "libdeluge/file_write.h"
@@ -998,14 +997,14 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 			stemSearchPhase_ = deluge::storage::StemSearchPhase::ProbeCandidate;
 			stemSearchIssued_ = false;
 			stemSearchCandidatesTried_ = 0;
-			stemSearchSpan_.reset();
+			stemSearchStallTicks_ = 0;
 			stemSearchCandidatePath_ = tempPathForSearch;
 		}
 
-		// How long one candidate's channel operation may go unanswered before the search gives up. After boot
+		// How many calls one candidate's channel operation may go unanswered before the search gives up. After boot
 		// there is no owner to redo the operation on, so a channel that stopped answering ends the search -- as
-		// Failed, the refusal every other unanswerable question here already gets. Bounded in TIME, like every
-		// other card wait: counted in calls it meant a different wait to every caller.
+		// Failed, the refusal every other unanswerable question here already gets.
+		constexpr int32_t kMaxStemSearchStallTicks = 600;
 
 		const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
 		                           && deluge_file_bytes_async_active();
@@ -1025,8 +1024,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectExists(stemSearchCandidatePath_.c_str(), &present, &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						stemSearchSpan_.note(deluge_clock_now());
-						if (stemSearchSpan_.elapsedUs < deluge::storage::kMaxUnproductiveUs) {
+						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
 							}
@@ -1055,8 +1053,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectMkdirAll(stemSearchCandidatePath_.c_str(), &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						stemSearchSpan_.note(deluge_clock_now());
-						if (stemSearchSpan_.elapsedUs < deluge::storage::kMaxUnproductiveUs) {
+						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
 							}
@@ -1098,7 +1095,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 				stemSearchCandidatePath_.append("-");
 				stemSearchCandidatePath_.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
 			}
-			stemSearchSpan_.reset();
+			stemSearchStallTicks_ = 0;
 			stemSearchPhase_ = next;
 		}
 
