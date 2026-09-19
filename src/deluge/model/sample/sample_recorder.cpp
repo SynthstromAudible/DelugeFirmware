@@ -772,7 +772,7 @@ bool SampleRecorder::advanceAbort() {
 	// The channel is usable only from a context that will yield before asking again -- see
 	// advanceFinalize() for why. On the owner the synchronous arm is both legal and the only one
 	// that can make progress.
-	const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
+	const bool mayUseChannel = deluge::storage::Owner::started();
 
 	switch (abortPhase_) {
 
@@ -928,7 +928,7 @@ bool SampleRecorder::closeFailedTake() {
 	if (!file) {
 		return false;
 	}
-	const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
+	const bool mayUseChannel = deluge::storage::Owner::started();
 	if (!failedCloseIssued_) {
 		if (mayUseChannel) {
 			// Refused, however often: ask again, for the reason advanceAbort() gives. The take has already failed
@@ -1000,7 +1000,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 
 	// The channel is usable only from a context that will YIELD before asking again -- see
 	// advanceFinalize() for why. On the owner the caller spins and the Rust driver never runs.
-	const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
+	const bool mayUseChannel = deluge::storage::Owner::started();
 
 	if (!deluge::storage::Owner::on_owner()) {
 		AudioEngine::noteOffOwnerCreateTick();
@@ -1279,7 +1279,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 	// and the Rust driver never gets to run, so an issued request would stay PENDING forever. There
 	// blocking is legal anyway, so take the synchronous arm. `started()` keeps anything running
 	// before the worker exists on the arm it has always used.
-	const bool finalizeMayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
+	const bool finalizeMayUseChannel = deluge::storage::Owner::started();
 
 	if (!deluge::storage::Owner::on_owner()) {
 		AudioEngine::noteOffOwnerFinalizeTick();
@@ -1753,7 +1753,7 @@ Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes, bool m
 	// only arm: a refusal leaves the write owed rather than falling back to blocking here. On the owner the
 	// write is synchronous from the start: an owner that spins -- the offline stem-export drain, the
 	// harness's own pump -- never lets the driver answer, and blocking there is legal.
-	if (mayUseChannel && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
+	if (mayUseChannel && deluge::storage::Owner::started()) {
 		inFlightClusterIndex_ = clusterIndex;
 		inFlightNumBytes_ = static_cast<uint32_t>(numBytes);
 		inFlightIssued_ = false;
