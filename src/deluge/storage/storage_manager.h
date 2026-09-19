@@ -531,11 +531,10 @@ Error initSD();
 /// tier. So the unmounted→mounted edge is tracked by a counter both paths share rather than by
 /// `initSD` watching its own call.
 ///
-/// @param mayRunHere Whether the caller is somewhere `firstCardRead()` can run. It reaches
-///        `cardReinserted()`, which OPENS every resident sample to check it survived the swap — real
-///        card I/O, so on the interaction tier this must be false and the work is handed to the
-///        storage owner instead. Handing it over does not block.
-void noticeCardMount(bool mayRunHere);
+/// The work it starts no longer cares where its caller stands: `cardReinserted()` ARMS a walk that
+/// checks one resident per tick through the byte channel, rather than opening every resident sample
+/// in one blocking pass. That is why this takes no "may I run the work here?" parameter any more.
+void noticeCardMount();
 
 /// @brief How many mount edges @ref noticeCardMount has acted on. For gates only.
 ///

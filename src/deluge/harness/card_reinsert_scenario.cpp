@@ -69,7 +69,7 @@ constexpr int32_t kMaxWaitTicks = 4000;
 /// (`slowRoutine()` -> `Coalescer::request(card_init_fill)`, and `noticeCardMount` ->
 /// `Owner::run`). Phase 4f's migration drops it to 0. A gate declared at 0 before the migration
 /// would be red from birth and would poison its own estate run.
-constexpr int32_t kExpectedReinsertOwnerOps = 1;
+constexpr int32_t kExpectedReinsertOwnerOps = 0;
 
 enum class Stage : uint8_t {
 	Build,

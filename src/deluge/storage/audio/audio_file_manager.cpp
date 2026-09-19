@@ -1467,8 +1467,6 @@ namespace {
 // Plain coalesced dispatch of the card re-init onto the storage owner. No lifetime
 // coupling (unlike the recorder) → plain Owner::run, not the SD-routine flavor.
 // Single-flight so a slow initSD on the fiber can't stack across slowRoutine ticks.
-deluge::storage::Coalescer g_card_init_coalescer{/*sd_routine=*/false};
-
 void card_init_fill(void*) {
 	audioFileManager.reinitEjectedCard();
 }
@@ -1513,16 +1511,11 @@ void AudioFileManager::slowRoutine() {
 		setCardEjected();
 	}
 
-	// If we know the card's been ejected, re-init via the storage owner (inline on
-	// legacy/host → byte-identical; coalesced on the fiber on Embassy). The fill
-	// re-checks cardEjected, so a coalesced-away duplicate is a safe no-op.
+	// If we know the card's been ejected, re-init it HERE. The re-check this arms walks one resident
+	// per tick through the byte channel (deluge::storage::CardReinsert), so there is no blocking pass
+	// left to hand to the storage owner.
 	if (cardEjected && !isSDRoutineActive() && !deluge_in_interrupt()) {
-		if (deluge_storage_on_owner()) {
-			card_init_fill(nullptr);
-		}
-		else {
-			g_card_init_coalescer.request(card_init_fill, nullptr);
-		}
+		card_init_fill(nullptr);
 	}
 
 	// NOTE: (Kate) There was dead code here referencing things that no longer

@@ -1010,9 +1010,9 @@ void Browser::graphicsRoutine() {
 	// owner, and running it here as well would run one listing twice, on two tiers, over one static
 	// fileItems.
 	// The mount edge, collected wherever the browser ticks. The channel's driver mounts on the storage
-	// tier without telling anyone, so this is what still runs firstCardRead() -- handed to the storage
-	// owner, because it opens every resident sample and may not run here.
-	StorageManager::noticeCardMount(/*mayRunHere=*/false);
+	// tier without telling anyone, so this is what still runs firstCardRead() -- here, now that the
+	// re-check it arms walks one resident per tick instead of opening every sample in one pass.
+	StorageManager::noticeCardMount();
 
 	// Re-ask for a prediction whose folder read has not arrived.
 	//

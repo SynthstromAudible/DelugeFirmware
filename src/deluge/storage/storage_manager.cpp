@@ -232,15 +232,11 @@ Error StorageManager::initSD() {
 	// the ONLY thing that mounts -- and the directory channel's driver now mounts too, on the storage
 	// tier, because mounting is card I/O and its caller is on the interaction tier. Every caller of
 	// initSD() is somewhere the work can run, hence true.
-	noticeCardMount(/*mayRunHere=*/true);
+	noticeCardMount();
 	return Error::NONE;
 }
 
 namespace {
-/// Owner-op trampoline: the heavy half of a mount notification, on the storage tier.
-void runFirstCardReadOp(void*) {
-	audioFileManager.firstCardRead();
-}
 /// How many mount edges have been acted on. See StorageManager::cardMountNotices().
 uint32_t g_cardMountNotices = 0;
 } // namespace
@@ -249,7 +245,7 @@ uint32_t StorageManager::cardMountNotices() {
 	return g_cardMountNotices;
 }
 
-void StorageManager::noticeCardMount(bool mayRunHere) {
+void StorageManager::noticeCardMount() {
 	// Static rather than a member: the counter is a property of the one filesystem, and every caller
 	// is asking the same question about it.
 	static uint32_t lastSeenMountGeneration = 0;
@@ -268,17 +264,9 @@ void StorageManager::noticeCardMount(bool mayRunHere) {
 	// Taken BEFORE the work, so a second caller arriving while it is queued does not queue it twice.
 	lastSeenMountGeneration = generation;
 	g_cardMountNotices++;
-	if (mayRunHere) {
-		audioFileManager.firstCardRead(); // tell the audio file manager that we have a new card
-		return;
-	}
-	// firstCardRead() -> cardReinserted() opens every resident sample to check it survived the swap,
-	// which is card I/O and may not happen on the interaction tier. Handing it to the storage owner
-	// is a dispatch, not a wait. If the queue is full the edge is genuinely lost, so put the counter
-	// back and let the next tick try again rather than dropping the notification.
-	if (!deluge::storage::Owner::run(&runFirstCardReadOp, nullptr)) {
-		lastSeenMountGeneration = generation - 1;
-	}
+	// Runs wherever the caller stands: firstCardRead() -> cardReinserted() now ARMS a walk that checks
+	// one resident per tick through the byte channel, so there is no blocking pass to hand anywhere.
+	audioFileManager.firstCardRead();
 }
 
 bool StorageManager::checkSDPresent() {
