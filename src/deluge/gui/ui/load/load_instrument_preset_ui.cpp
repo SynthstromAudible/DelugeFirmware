@@ -41,6 +41,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/file_item.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
@@ -691,6 +692,11 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		// TODO(conflation-batch-4): unknown is being treated as absent here; the load/browse/favourites
 		// batch gives this site its real ruling.
+		//
+		// EXPERIMENT (Phase 5 entry check): fileExists() is a BLOCKING card open, and this runs from
+		// uiTimerManager -> timerCallback() on the interaction tier. Declare the tier the way every
+		// other site in this file does, and let the estate say whether it is reached.
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 		bool fileExists = StorageManager::fileExists(filePath.c_str()).value_or(false);
 		if (!fileExists) {
 			// An unsaved (in-memory only) synth preset cannot be loaded / cloned because
@@ -899,6 +905,8 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 
 				// TODO(conflation-batch-4): unknown is being treated as absent here; the
 				// load/browse/favourites batch gives this site its real ruling.
+				// EXPERIMENT (Phase 5 entry check): as above -- a blocking card open, tier undeclared.
+				deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 				bool success = StorageManager::fileExists(filePath.c_str()).value_or(false);
 				if (!success) {
 					return;
