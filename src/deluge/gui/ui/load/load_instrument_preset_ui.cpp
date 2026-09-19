@@ -688,17 +688,18 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		// We want to open the context menu to choose to reload the original file for the currently selected
 		// preset in some way. So first up, make sure there is a file at that path.
-		std::string filePath = getCurrentFilePath();
-
-		// TODO(conflation-batch-4): unknown is being treated as absent here; the load/browse/favourites
-		// batch gives this site its real ruling.
 		//
-		// EXPERIMENT (Phase 5 entry check): fileExists() is a BLOCKING card open, and this runs from
-		// uiTimerManager -> timerCallback() on the interaction tier. Declare the tier the way every
-		// other site in this file does, and let the estate say whether it is reached.
-		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-		bool fileExists = StorageManager::fileExists(filePath.c_str()).value_or(false);
-		if (!fileExists) {
+		// The listing already answered this. `maybeExistsOnCard` is false only for an item built from an
+		// unsaved in-memory instrument, which is exactly the case below -- so asking the card again told
+		// us nothing the browser did not already know, and it asked by BLOCKING: this runs from
+		// uiTimerManager -> timerCallback() on the interaction tier, where a card wait is what this
+		// ladder exists to stop. Measured: the old `StorageManager::fileExists()` here froze `preset-load`
+		// on TIR6 the moment the site declared its tier.
+		//
+		// The same swap as `delete_file.cpp`'s, and as this file's own kit-row check below. It also
+		// retires TODO(conflation-batch-4) for this site: the removed call treated "could not tell" as
+		// "absent", while the flag is a definite in-memory fact.
+		if (!currentFileItem->maybeExistsOnCard) {
 			// An unsaved (in-memory only) synth preset cannot be loaded / cloned because
 			// the XML is read from disk to create the instrument. If the preset hasn't
 			// been saved yet, there is no file on the SD card to read from.
@@ -903,14 +904,16 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 				// Try getting from file
 				std::string filePath = getCurrentFilePath();
 
-				// TODO(conflation-batch-4): unknown is being treated as absent here; the
-				// load/browse/favourites batch gives this site its real ruling.
-				// EXPERIMENT (Phase 5 entry check): as above -- a blocking card open, tier undeclared.
-				deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-				bool success = StorageManager::fileExists(filePath.c_str()).value_or(false);
-				if (!success) {
-					return;
-				}
+				// No fileExists() pre-flight any more. It was a BLOCKING card open on a path the Revert
+				// below reads anyway, and this runs from padAction() -> exitAction() on the interaction
+				// tier -- measured: it froze `preset-load` on TIR6 once the site declared its tier.
+				//
+				// It could not have been load-bearing in any case: the file can vanish between the check
+				// and the load, so InstrumentLoad has always had to handle a Revert whose file is gone.
+				// Asking first only made that handling look unnecessary.
+				//
+				// (TODO(conflation-batch-4) goes with it: the removed call treated "could not tell" as
+				// "absent", which is the same conflation browser.cpp retired at setFileByFullPathImpl.)
 
 				// Off the card, on the interaction tier: the browser closes now, and swapRevert() puts the original
 				// back when InstrumentLoad has it. The gate stays closed until then, and closing the browser does not
