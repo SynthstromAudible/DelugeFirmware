@@ -153,6 +153,9 @@ struct CaseRun {
 	std::string path;
 };
 CaseRun g_case;
+/// The case list and cursor, at file scope because the drive spans ticks now.
+std::vector<Case> g_caseList;
+size_t g_caseCursor = 0;
 
 /// One tick of the pump. Bounded exactly as `pumpToComplete()` was, and reporting the same two
 /// failures, so a wedged state machine still fails the gate rather than hanging it.
@@ -712,7 +715,11 @@ extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
 		return minFrames; // Shouldn't happen; falls back to a non-exact (still valid) case.
 	};
 
-	std::vector<Case> cases;
+	std::vector<Case>& cases = g_caseList;
+	cases.clear();
+	g_caseCursor = 0;
+	// Begin, not the default Done: the first tick must START case 0, not treat it as one that finished.
+	g_case.step = CaseStep::Begin;
 
 	// Small, well under one cluster.
 	cases.push_back({"mono_small", 1, false, 137});
@@ -732,21 +739,45 @@ extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
 	cases.push_back({"mono_extra_margins", 1, true, framesForBytes(112, 3, 2 * clusterSize) + 61});
 	cases.push_back({"stereo_extra_margins", 2, true, framesForBytes(112, 6, 2 * clusterSize) + 61});
 
-	for (const Case& c : cases) {
-		// Drives the case's steps here, which is BEHAVIOURALLY WHAT pumpToComplete() did: no yield
-		// between ticks. The split above is what makes the next step possible -- driving these from the
-		// scenario's dispatch, so the storage driver runs between ticks and the channel arm can answer.
-		// Until then this stays a spinner, and the predicate collapse stays blocked.
-		if (!beginCase(c)) {
+	// The cases are driven by deluge_scenario_recorder_cases_tick(), one step per call, so the caller
+	// can let the storage driver run in between. That is what lets them work on the CHANNEL arm --
+	// which is the arm they will be on once the fiber goes and `on_owner()` is false everywhere.
+	return 0;
+}
+
+/// Advance the case run by one step. 0 while cases remain, 1 when they are all done.
+extern "C" int32_t deluge_scenario_recorder_cases_tick() {
+	if (g_caseCursor >= g_caseList.size()) {
+		return 1;
+	}
+	if (g_case.step == CaseStep::Begin || g_case.step == CaseStep::Done || g_case.step == CaseStep::Failed) {
+		if (g_case.step != CaseStep::Begin) {
+			// The previous case finished; count it and move on.
+			if (g_case.step == CaseStep::Failed) {
+				g_failures++;
+			}
+			g_caseCursor++;
+			if (g_caseCursor >= g_caseList.size()) {
+				printf("%d/%d cases passed\n", g_cases - g_failures, g_cases);
+				return 1;
+			}
+		}
+		if (!beginCase(g_caseList[g_caseCursor])) {
 			g_case.step = CaseStep::Failed;
 		}
-		while (stepCase()) {}
-		if (g_case.step != CaseStep::Done) {
-			g_failures++;
-		}
+		return 0;
 	}
+	(void)stepCase();
+	return 0;
+}
 
-	printf("%d/%d cases passed\n", g_cases - g_failures, g_cases);
+/// The rest of the oracle: the two probes and the summary. Runs after the cases are done.
+extern "C" int32_t deluge_scenario_recorder_roundtrip_rest() {
+	const uint32_t clusterSize = static_cast<uint32_t>(Cluster::size);
+	auto framesForBytes = [](uint32_t headerLen, uint32_t frameBytes, uint32_t targetBytes) -> uint32_t {
+		uint32_t avail = (targetBytes > headerLen) ? (targetBytes - headerLen) : 0;
+		return avail / frameBytes;
+	};
 
 	// Probe live read-back of a still-recording sample on THIS target. RecordingReadSource
 	// is gone, so this must NOT resolve READY (state=1) anywhere -- a still-recording Sample has no

@@ -199,6 +199,8 @@ bool deluge_scenario_stem_export_done() {
 	return !stemExport.isExportInFlight();
 }
 
+int32_t deluge_scenario_recorder_roundtrip_rest();
+
 void deluge_scenario_start_recorder_roundtrip() {
 	g_recorder_roundtrip_dispatch_finished = false;
 	g_recorder_roundtrip_failures = -1;
@@ -209,6 +211,18 @@ void deluge_scenario_start_recorder_roundtrip() {
 	deluge::storage::Owner::run(
 	    [](void*) {
 		    g_recorder_roundtrip_failures = deluge_scenario_run_recorder_roundtrip();
+		    g_recorder_roundtrip_dispatch_finished = true;
+	    },
+	    nullptr);
+}
+
+/// The oracle's tail -- the two probes and the summary -- dispatched the same way. The CASES in
+/// between are driven by the caller, one step per tick, so the storage driver can run between them.
+void deluge_scenario_start_recorder_roundtrip_rest() {
+	g_recorder_roundtrip_dispatch_finished = false;
+	deluge::storage::Owner::run(
+	    [](void*) {
+		    g_recorder_roundtrip_failures = deluge_scenario_recorder_roundtrip_rest();
 		    g_recorder_roundtrip_dispatch_finished = true;
 	    },
 	    nullptr);

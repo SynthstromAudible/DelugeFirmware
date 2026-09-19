@@ -263,6 +263,8 @@ unsafe extern "C" {
     fn deluge_scenario_stem_export_done() -> bool;
     fn deluge_scenario_copy_stems_out(out_dir: *const c_char);
     fn deluge_scenario_start_recorder_roundtrip();
+    fn deluge_scenario_start_recorder_roundtrip_rest();
+    fn deluge_scenario_recorder_cases_tick() -> i32;
     fn deluge_scenario_recorder_roundtrip_done() -> bool;
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
     fn deluge_scenario_offowner_begin(mode: i32);
@@ -655,6 +657,42 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         if Instant::now() >= deadline {
             log::error!(
                 "golden_vt_render: recorder round-trip did not complete within the 300s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // The CASES, driven from HERE -- one step per tick with a yield between, so the storage driver can
+    // answer. They used to run inside the dispatch above, in a 200000-iteration loop that never
+    // yielded; that only ever worked because the fiber blocks and resumes. Off the fiber, on the
+    // channel arm, a caller that does not return cannot be answered -- which is the whole reason the
+    // fiber could not be deleted.
+    let case_deadline = Instant::now() + Duration::from_secs(300);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_recorder_cases_tick() } != 0 {
+            break;
+        }
+        if Instant::now() >= case_deadline {
+            log::error!("golden_vt_render: recorder cases did not finish within 300s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // The oracle's tail: the two probes and the summary, back on the fiber.
+    // SAFETY: as above.
+    unsafe { deluge_scenario_start_recorder_roundtrip_rest() };
+    let rest_deadline = Instant::now() + Duration::from_secs(300);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_recorder_roundtrip_done() } {
+            break;
+        }
+        if Instant::now() >= rest_deadline {
+            log::error!(
+                "golden_vt_render: recorder round-trip tail did not finish within 300s — wedged"
             );
             hard_exit(2);
         }
