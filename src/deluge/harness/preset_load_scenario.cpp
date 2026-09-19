@@ -26,6 +26,7 @@
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_midi_device_definition_ui.h"
+#include "gui/ui/load/preset_walk.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -209,6 +210,10 @@ constexpr int32_t kMaxLegTicks = 2000;
 enum class Leg : uint8_t {
 	BlankBoot,
 	Synth,
+	/// The SAME search as checkPresetWalk's, over the same fixture, run through PresetWalk instead of
+	/// the recursive function -- and ticked from here, on the interaction tier, which is the half the
+	/// PL-WALK legs cannot reach. Placed right after Synth because Synth's prepare writes the fixture.
+	WalkMachine,
 	Kit,
 	Row,
 	Clone,
@@ -296,6 +301,8 @@ const char* legName(Leg leg) {
 	switch (leg) {
 	case Leg::Synth:
 		return "synth";
+	case Leg::WalkMachine:
+		return "walk-machine";
 	case Leg::Kit:
 		return "kit";
 	case Leg::Row:
@@ -641,6 +648,7 @@ const char* legPreset() {
 	case Leg::AqRefuse:
 	case Leg::AqClone:
 	case Leg::AqStall:
+	case Leg::WalkMachine:
 	case Leg::Done:
 		break;
 	case Leg::RevertCard:
@@ -1590,6 +1598,150 @@ bool isBlankLeg(Leg leg) {
 	return leg == Leg::BlankBoot || leg == Leg::BlankClear || leg == Leg::BlankEdited;
 }
 
+/// @name The preset search, run through PresetWalk
+///
+/// The PL-WALK legs call `findAnUnlaunchedPresetIncludingWithinSubfolders` directly from inside an
+/// `onOwner` block, so they pin the recursive walk and CANNOT see the machine that replaces it. They
+/// are not repointed: the recursive walk survives this pilot -- `confirmPresetOrNextUnlaunchedOne`
+/// still calls it -- so it still needs its coverage. These five legs sit beside them instead, over
+/// the same fixture with the same assertions, so one run carries both drivers and the pair is a
+/// differential rather than a replacement.
+///
+/// ⚠️ PW-WALK-TIER is the one that reads differently from its PL sibling. PL-WALK-TIER passes
+/// because the walk runs ON the owner; this one passes because the machine runs on the INTERACTION
+/// tier and defers instead of blocking. Same number, opposite reason -- which is the whole point.
+/// @{
+deluge::gui::PresetWalk g_presetWalk;
+
+enum class WalkMachineStep : uint8_t { ArmFound, RunFound, ArmExhaust, RunExhaust, Report };
+WalkMachineStep g_walkStep = WalkMachineStep::ArmFound;
+std::string g_walkSavedDir;
+std::string g_walkFoundName;
+bool g_walkFound = false;
+Error g_walkExhaustError = Error::NONE;
+bool g_walkExhausted = false;
+int32_t g_walkTierBefore = 0;
+/// Ticks the search spanned. Zero would mean it never suspended, which would make PW-WALK-TIER
+/// vacuous -- a walk that finishes inside one tick has not shown it can be interrupted.
+int32_t g_walkTicks = 0;
+int32_t g_walkMaxDepth = 0;
+int32_t g_walkPagedReads = 0;
+int32_t g_walkGiveUps = 0;
+
+/// A machine that never finished is a failure, not a hang. The recursive walk over this fixture
+/// makes 26 folder reads and each one is at most a few ticks on the directory channel.
+constexpr int32_t kMaxWalkMachineTicks = 4000;
+
+void runWalkMachineTick() {
+	switch (g_walkStep) {
+	case WalkMachineStep::ArmFound:
+		g_walkSavedDir = Browser::currentDir;
+		g_walkTierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
+		Browser::currentDir = kWalkStartDir;
+		g_presetWalk.arm(loadInstrumentPresetUI, currentSong, OutputType::SYNTH, Availability::ANY);
+		g_waitTicks = 0;
+		g_walkStep = WalkMachineStep::RunFound;
+		break;
+
+	case WalkMachineStep::RunFound:
+		if (g_presetWalk.tick()) {
+			if (++g_waitTicks > kMaxWalkMachineTicks) {
+				fail(legName(g_leg), "the preset search machine never finished");
+				g_walkStep = WalkMachineStep::Report;
+			}
+			break;
+		}
+		{
+			// Copied out NOW: the FileItem* points into Browser::fileItems, which emptyFileItems()
+			// is about to drop.
+			const auto found = g_presetWalk.result();
+			g_walkFound = found.has_value() && *found != nullptr;
+			g_walkFoundName = g_walkFound ? (*found)->filename : "";
+		}
+		g_walkTicks = g_waitTicks;
+		g_walkMaxDepth = g_presetWalk.maxDepthReached();
+		g_walkPagedReads = g_presetWalk.pagedReads();
+		g_walkGiveUps = g_presetWalk.depthGiveUps();
+		g_walkStep = WalkMachineStep::ArmExhaust;
+		break;
+
+	case WalkMachineStep::ArmExhaust:
+		loadInstrumentPresetUI.emptyFileItems();
+		// A real, empty filler folder -- NOT a missing one. The PL sibling's first draft searched a
+		// folder that never existed and passed on FOLDER_DOESNT_EXIST (10), which tests a missing
+		// folder rather than an exhausted search.
+		Browser::currentDir = "SYNTHS/WALK/W01";
+		g_presetWalk.arm(loadInstrumentPresetUI, currentSong, OutputType::SYNTH, Availability::ANY);
+		g_waitTicks = 0;
+		g_walkStep = WalkMachineStep::RunExhaust;
+		break;
+
+	case WalkMachineStep::RunExhaust:
+		if (g_presetWalk.tick()) {
+			if (++g_waitTicks > kMaxWalkMachineTicks) {
+				fail(legName(g_leg), "the exhausting preset search machine never finished");
+				g_walkStep = WalkMachineStep::Report;
+			}
+			break;
+		}
+		{
+			const auto none = g_presetWalk.result();
+			g_walkExhausted = !none.has_value() && none.error() == Error::NO_FURTHER_FILES_THIS_DIRECTION;
+			g_walkExhaustError = none.has_value() ? Error::NONE : none.error();
+		}
+		g_walkStep = WalkMachineStep::Report;
+		break;
+
+	case WalkMachineStep::Report: {
+		loadInstrumentPresetUI.emptyFileItems();
+		Browser::currentDir = g_walkSavedDir;
+
+		const bool descended = g_walkFound && g_walkFoundName == std::string(kNestedFilename);
+		printf("PW-WALK-FOUND ok=%d name=%s\n", (int)g_walkFound, g_walkFound ? g_walkFoundName.c_str() : "-");
+		// Measured directly here, unlike the PL sibling: the machine counts how deep its frame stack
+		// got, so "it descended" is a fact rather than an inference from which preset came back.
+		printf("PW-WALK-DEPTH ok=%d descended=%d depth=%d\n", (int)(descended && g_walkMaxDepth >= 2), (int)descended,
+		       (int)g_walkMaxDepth);
+		printf("PW-WALK-PAGED ok=%d reads=%d giveUps=%d\n", (int)(g_walkPagedReads > 0), (int)g_walkPagedReads,
+		       (int)g_walkGiveUps);
+		printf("PW-WALK-EXHAUST ok=%d error=%d\n", (int)g_walkExhausted, (int)g_walkExhaustError);
+
+		const int32_t tierIo =
+		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser) - g_walkTierBefore;
+		// tierIo == 0 alone cannot tell "deferred properly" from "never suspended". The tick count is
+		// what separates them: a search spanning ticks did no blocking card I/O BECAUSE it gave the
+		// tier back between folders, which is the claim being made.
+		printf("PW-WALK-TIER ok=%d tierIo=%d ticks=%d\n", (int)(tierIo == 0 && g_walkTicks > 0), (int)tierIo,
+		       (int)g_walkTicks);
+
+		if (!descended) {
+			fail(legName(g_leg), "the preset search machine did not reach the nested preset");
+		}
+		if (g_walkMaxDepth < 2) {
+			fail(legName(g_leg), "the preset search machine never pushed a frame");
+		}
+		if (g_walkPagedReads == 0) {
+			fail(legName(g_leg), "the preset search machine never paged a folder");
+		}
+		if (g_walkGiveUps != 0) {
+			fail(legName(g_leg), "the preset search machine hit its depth bound on a one-deep fixture");
+		}
+		if (!g_walkExhausted) {
+			fail(legName(g_leg), "an exhausted search machine did not report NO_FURTHER_FILES_THIS_DIRECTION");
+		}
+		if (tierIo != 0) {
+			fail(legName(g_leg), "the preset search machine did card I/O on the interaction tier");
+		}
+		if (g_walkTicks == 0) {
+			fail(legName(g_leg), "the preset search machine never suspended, so its tier leg proves nothing");
+		}
+		nextLeg();
+		break;
+	}
+	}
+}
+/// @}
+
 /// The clip a blank song starts with: its first session clip. Null while a clear is between songs.
 InstrumentClip* blankClip() {
 	if (currentSong == nullptr || currentSong->sessionClips.empty()) {
@@ -1723,6 +1875,7 @@ void runBlankTick() {
 
 void nextLeg() {
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
+	g_walkStep = WalkMachineStep::ArmFound;
 	g_step = Step::Prepare;
 	g_aqStep = AqStep::Prepare;
 	g_blankStep = BlankStep::Prepare;
@@ -1742,6 +1895,10 @@ void runTick() {
 	}
 	if (isBlankLeg(g_leg)) {
 		runBlankTick();
+		return;
+	}
+	if (g_leg == Leg::WalkMachine) {
+		runWalkMachineTick();
 		return;
 	}
 	switch (g_step) {

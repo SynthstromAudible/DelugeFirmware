@@ -120,26 +120,28 @@ set -e
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"
-	grep -E '^(PL|AQ|RV|MD|BS)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
+	grep -E '^(PL|PW|AQ|RV|MD|BS)-' "$OUT/run.txt" || sed -n '1,60p' "$OUT/run.txt"
 	tail -20 "$OUT/run.err"
 	exit 1
 fi
 
 for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
 	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-TIER \
-	RV-CARD RV-MEMORY RV-STALL MD-BROWSER BS-BOOT BS-CLEAR BS-EDITED PL-RESULT; do
+	RV-CARD RV-MEMORY RV-STALL MD-BROWSER BS-BOOT BS-CLEAR BS-EDITED \
+	PL-WALK-FOUND PL-WALK-DEPTH PL-WALK-PAGED PL-WALK-EXHAUST PL-WALK-TIER \
+	PW-WALK-FOUND PW-WALK-DEPTH PW-WALK-PAGED PW-WALK-EXHAUST PW-WALK-TIER PL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
-		grep -E '^(PL|AQ|RV|MD|BS)-' "$OUT/run.txt"
+		grep -E '^(PL|PW|AQ|RV|MD|BS)-' "$OUT/run.txt"
 		exit 1
 	fi
 done
 
 if ! grep -q '^PL-RESULT failures=0$' "$OUT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^(PL|AQ|RV|MD|BS)-' "$OUT/run.txt"
+	grep -E '^(PL|PW|AQ|RV|MD|BS)-' "$OUT/run.txt"
 	exit 1
 fi
 
 echo "PASS — every preset load bound what a user's load binds"
-grep -E '^(PL|AQ|RV|MD|BS)-' "$OUT/run.txt"
+grep -E '^(PL|PW|AQ|RV|MD|BS)-' "$OUT/run.txt"
