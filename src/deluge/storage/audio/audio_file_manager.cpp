@@ -36,6 +36,7 @@
 #include "libdeluge/system.h" // deluge_in_interrupt
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
+#include "storage/audio/card_reinsert.h"
 
 #include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
 #include "model/sample/sample_cache.h"
@@ -204,57 +205,11 @@ clusterSizeChangedButItsOk:
 		Cluster::set_size(newClusterSize);
 	}
 
-	// Or if cluster size stayed the same...
+	// Or if cluster size stayed the same, every resident still has to be re-checked against the card that
+	// is now in the slot -- but one per tick, through the byte channel, rather than in one blocking pass
+	// that opened every sample's file. See deluge::storage::CardReinsert.
 	else {
-		// Go through every Sample in memory
-		for (int32_t e = 0; e < static_cast<int32_t>(audioFiles.size()); e++) {
-
-			AudioFile* thisAudioFile = audioFiles[e];
-
-			// If Sample isn't used currently, take this opportunity to remove it from memory
-			if (!thisAudioFile->isProjectReferenced()) {
-				deleteUnusedAudioFileFromMemory(*thisAudioFile, e);
-				e--;
-			}
-
-			// Or if it is still used by someone...
-			else {
-				if (thisAudioFile->type == AudioFileType::SAMPLE) {
-					// Check the Sample's file still exists
-					char const* filePath = ((Sample*)thisAudioFile)->tempFilePathForRecording.c_str();
-					if (!*filePath) {
-						filePath = thisAudioFile->filePath.c_str();
-					}
-
-					auto sampleStream = deluge::io::Stream::open(filePath, DELUGE_STREAM_READ);
-					if (!sampleStream) {
-						D_PRINTLN("couldn't open file");
-						((Sample*)thisAudioFile)->markAsUnloadable();
-						continue;
-					}
-
-					// The successful open IS the check: the file is present and readable at the path this
-					// Sample remembers, on the card that is now in the slot. sampleStream's destructor closes
-					// the handle once it goes out of scope below.
-					//
-					// This used to additionally require `sector_of(0)` to resolve, which marked EVERY
-					// project-referenced sample unloadable on EVERY re-insertion: `Stream::sector_of()` is a
-					// stub that always answers UNSUPPORTED, so the branch below was unreachable and a song's
-					// samples went silent after any card swap, however healthy the card. The check was never
-					// an identity comparison even when it resolved -- nothing was compared against a
-					// remembered sector -- so nothing is lost by dropping it. See card-reinsert's CR-SURVIVE.
-
-					// Or if we're still here, the file's fine - who knows, maybe it's even fine again after it wasn't
-					// for a while (e.g. if the user temporarily had a different card inserted)
-					if (((Sample*)thisAudioFile)->unloadable) {
-						// It just became loadable again: re-arm the background overview pre-scan so its waveform
-						// overview gets rebuilt (the scan skips unloadable samples and may have gone idle) (#4460).
-						overviewScanAllDone = false;
-					}
-					((Sample*)thisAudioFile)->unloadable = false;
-				}
-			}
-		}
+		cardReinsert.arm();
 	}
 
 	MIDIDeviceManager::readDevicesFromFile(); // Hopefully we can do this now. It'll only happen if it
@@ -1576,6 +1531,9 @@ void AudioFileManager::slowRoutine() {
 	// see
 	// https://github.com/SynthstromAudible/DelugeFirmware/blob/866a71d0394e259a5b3db9d4fde605511bd1c67d/src/deluge/storage/audio/audio_file_manager.cpp#L1238
 	// for a copy if ever needed
+
+	// One resident per pass: the re-check of a returned card runs where this routine stands.
+	(void)cardReinsert.tick();
 
 	backgroundWaveformOverviewScan();
 }
