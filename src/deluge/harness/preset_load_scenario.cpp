@@ -170,10 +170,13 @@ constexpr const char* kRacePreset = "SYNTHS/PLRACE.XML";
 /// the descent -- with a usable preset at the start folder the walk returns it and never recurses,
 /// which is why this leg cannot simply search SYNTHS.
 constexpr const char* kWalkStartDir = "SYNTHS/WALK";
-constexpr const char* kNestedPreset = "SYNTHS/WALK/NESTED/PLNEST.XML";
+constexpr const char* kNestedPreset = "SYNTHS/WALK/ZNEST/PLNEST.XML";
 constexpr const char* kNestedSample = "SAMPLES/PL/PLNEST.WAV";
 /// What the walk must return for PL-WALK-DEPTH: only a descent can produce it.
 constexpr const char* kNestedFilename = "PLNEST.XML";
+/// Subfolders the walk's start folder holds: 24 empty fillers plus ZNEST. Must stay above
+/// FILE_ITEMS_MAX_NUM_ELEMENTS or the cull never happens and paging goes untested.
+constexpr int32_t kWalkFolderCount = 25;
 constexpr const char* kRaceSample = "SAMPLES/PL/PLRACE.WAV";
 constexpr const char* kRaceName = "PLRACE";
 /// The supersession leg's kits: a heavy one whose samples nothing loads before it, and a light one scrolled on to. Both
@@ -434,13 +437,28 @@ void checkPresetWalk() {
 	printf("PL-WALK-FOUND ok=%d name=%s\n", (int)(found.has_value() && *found != nullptr),
 	       (found.has_value() && *found != nullptr) ? (*found)->filename.c_str() : "-");
 	printf("PL-WALK-DEPTH ok=%d descended=%d\n", (int)descended, (int)descended);
+
+	// PAGING, proved the same indirect way DEPTH is. `SYNTHS/WALK` holds 25 subfolders and the cap is
+	// FILE_ITEMS_MAX_NUM_ELEMENTS (20), so the first chunk CANNOT contain ZNEST -- it sorts last and is
+	// culled from the end. Only a re-read from a search name (`goto goAgain`) can reach it. Finding
+	// PLNEST therefore means the walk paged, and finding it means it also popped back out of 24 empty
+	// subfolders on the way, which is the return-from-recursion path.
+	printf("PL-WALK-PAGED ok=%d entries=%d cap=%d\n", (int)descended, (int)kWalkFolderCount,
+	       (int)FILE_ITEMS_MAX_NUM_ELEMENTS);
+	if (kWalkFolderCount <= FILE_ITEMS_MAX_NUM_ELEMENTS) {
+		fail("walk", "the walk fixture no longer exceeds the cull cap, so paging is not exercised");
+	}
 	loadInstrumentPresetUI.emptyFileItems();
 
 	// A folder with nothing usable at any depth must report exhaustion, not a false hit.
-	Browser::currentDir = "SYNTHS/WALK/NESTED/EMPTY";
+	Browser::currentDir = "SYNTHS/WALK/W01";
 	auto none = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, OutputType::SYNTH,
 	                                                                                   Availability::ANY);
-	const bool exhausted = !none.has_value();
+	// The SPECIFIC error, not merely "an error". An earlier draft of this leg searched a folder that
+	// does not exist and passed on FOLDER_DOESNT_EXIST (10) -- which tests a missing folder, not an
+	// exhausted search. W01 is a real, empty filler folder, so the only honest answer is
+	// NO_FURTHER_FILES_THIS_DIRECTION (16).
+	const bool exhausted = !none.has_value() && none.error() == Error::NO_FURTHER_FILES_THIS_DIRECTION;
 	printf("PL-WALK-EXHAUST ok=%d error=%d\n", (int)exhausted, (int)(none.has_value() ? Error::NONE : none.error()));
 	loadInstrumentPresetUI.emptyFileItems();
 	Browser::currentDir = savedDir;
@@ -455,7 +473,7 @@ void checkPresetWalk() {
 		fail("walk", "the preset search did not descend into a subfolder");
 	}
 	if (!exhausted) {
-		fail("walk", "a search with nothing usable did not report exhaustion");
+		fail("walk", "a search with nothing usable did not report NO_FURTHER_FILES_THIS_DIRECTION");
 	}
 	if (tierIo != 0) {
 		fail("walk", "the preset search did card I/O on the interaction tier");

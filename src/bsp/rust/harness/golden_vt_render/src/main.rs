@@ -1922,6 +1922,16 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     // measured 2026-09-19, every gate's walk reaches depth 1 and the reference card's SYNTHS is flat,
     // so the recursion had no coverage anywhere.
     write_sine_wav(&samples.join("PLNEST.WAV"), 1, 22_050, 770.0);
+    // 24 empty subfolders plus the one holding the preset. More than FILE_ITEMS_MAX_NUM_ELEMENTS
+    // (20), so the folder pass CULLS and the walk must page (`goto goAgain`) to see the last entry.
+    // ZNEST sorts after every W##, so the 24 empties are descended into and come back empty first --
+    // which is the return-from-recursion path, the one thing a conversion is most likely to break.
+    for i in 1..=24 {
+        std::fs::create_dir_all(root.join("SYNTHS").join("WALK").join(format!("W{i:02}")))
+            .expect("creating the preset-walk filler folders");
+    }
+    std::fs::create_dir_all(root.join("SYNTHS").join("WALK").join("ZNEST"))
+        .expect("creating the preset-walk target folder");
     write_test_wav(&heavy.join("PLHA.WAV"), 1, 16, 8192, 0x95);
     write_test_wav(&heavy.join("PLHB.WAV"), 1, 16, 8192, 0x96);
     write_test_wav(&heavy.join("PLHC.WAV"), 1, 16, 8192, 0x97);
