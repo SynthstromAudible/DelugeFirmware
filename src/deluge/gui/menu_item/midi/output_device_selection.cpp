@@ -32,6 +32,16 @@ uint8_t storedOutputDeviceIndex() {
 	return 0;
 }
 
+bool currentMidiTrackSendsToMPE() {
+	if (SoundEditor::editingCVOrMIDIClip()) {
+		auto* instrument = getCurrentInstrument();
+		if (instrument != nullptr && instrument->type == OutputType::MIDI_OUT) {
+			return static_cast<MIDIInstrument*>(instrument)->sendsToMPE();
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 void OutputDeviceSelection::beginSession(MenuItem* navigated_backward_from) {
@@ -41,12 +51,15 @@ void OutputDeviceSelection::beginSession(MenuItem* navigated_backward_from) {
 
 void OutputDeviceSelection::readCurrentValue() {
 	uint8_t stored = storedOutputDeviceIndex();
-	this->setValue(deluge::io::midi::deviceIndexToMenuSlot(stored, stored));
+	bool include_mpe = currentMidiTrackSendsToMPE();
+	this->setValue(deluge::io::midi::deviceIndexToMenuSlot(stored, stored, include_mpe));
 }
 
 void OutputDeviceSelection::writeCurrentValue() {
 	uint8_t stored = storedOutputDeviceIndex();
-	uint8_t current_device = deluge::io::midi::menuSlotToDeviceIndex(static_cast<uint8_t>(this->getValue()), stored);
+	bool include_mpe = currentMidiTrackSendsToMPE();
+	uint8_t current_device =
+	    deluge::io::midi::menuSlotToDeviceIndex(static_cast<uint8_t>(this->getValue()), stored, include_mpe);
 	auto device_name = deluge::io::midi::getDeviceNameForIndex(current_device);
 
 	if (SoundEditor::editingCVOrMIDIClip()) {
@@ -75,7 +88,8 @@ deluge::vector<std::string_view>
 OutputDeviceSelection::getOptions(OptType opt_type) { // NOLINT(readability-convert-member-functions-to-static)
 	(void)opt_type;
 	uint8_t stored = storedOutputDeviceIndex();
-	return deluge::io::midi::getAllMIDIDeviceNames(stored);
+	bool include_mpe = currentMidiTrackSendsToMPE();
+	return deluge::io::midi::getAllMIDIDeviceNames(stored, include_mpe);
 }
 
 } // namespace deluge::gui::menu_item::midi
