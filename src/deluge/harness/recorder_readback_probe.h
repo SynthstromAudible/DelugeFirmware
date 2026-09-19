@@ -52,7 +52,19 @@ extern "C" {
 /// @return The `DelugeRegionState` for cluster index 0 (`DELUGE_REGION_READY` == 1,
 ///         `DELUGE_REGION_LOADING` == 2, `DELUGE_REGION_UNAVAILABLE` == 3), or 0 if the recorder
 ///         itself could not be set up (a harness failure, not a routing-divergence finding).
+/// Set the probe up and feed it audio. Returns 1 on success, 0 if setup failed.
+///
+/// Does NOT drain: the caller drives that with @ref deluge_harness_recorder_probe_drain_tick, one
+/// tick per yield, so the storage driver can run between ticks. Draining in a tight loop here worked
+/// only on the recorder's synchronous arm and is what blocked `Owner::run` going inline.
 uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames, uint32_t pumpDrainTicks);
+
+/// One tick of the drain. Call it between yields, as many times as the caller wants to flush.
+void deluge_harness_recorder_probe_drain_tick();
+
+/// Open the region source over the still-recording Sample and take the first acquire.
+/// @return the `DelugeRegionState`, or 0 if the probe was never set up.
+uint8_t deluge_harness_recorder_probe_acquire();
 
 /// @brief Re-query the SAME open cursor's state for index 0 without acquiring again — lets a caller
 ///        poll (e.g. after letting the host_app async executor run some more ticks) to see whether a

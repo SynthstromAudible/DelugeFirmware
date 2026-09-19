@@ -29,6 +29,8 @@ unsafe extern "C" {
         num_frames: u32,
         pump_drain_ticks: u32,
     ) -> u8;
+    fn deluge_harness_recorder_probe_drain_tick();
+    fn deluge_harness_recorder_probe_acquire() -> u8;
     fn deluge_harness_recorder_probe_poll() -> u8;
     fn deluge_harness_recorder_probe_end();
 }
@@ -101,7 +103,24 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
     // 50 frames * 3 bytes = 150 bytes) so probing cluster index 0 is meaningful, and a handful of
     // C++-side drain ticks to get it flushed to the SD file before probing (mirrors the sim
     // round-trip harness's own pump pattern).
-    result.initial_state = unsafe { deluge_harness_recorder_probe(1, 50, 4) };
+    // Set up and feed, but drain NOTHING here (0 ticks): the loop below does it with a yield between
+    // ticks, which is the whole point.
+    let setup = unsafe { deluge_harness_recorder_probe(1, 50, 0) };
+    if setup == STATE_HARNESS_ERROR {
+        result.initial_state = STATE_HARNESS_ERROR;
+        return result;
+    }
+
+    // The drain, one tick per YIELD. It used to be a tight C++ loop, which only ever worked on the
+    // recorder's synchronous arm: with the channel arm the storage driver gets no chance to run
+    // between ticks, so nothing is answered and nothing lands. Awaiting here is what lets the op
+    // complete, and it is what unblocks `Owner::run` going inline.
+    for _ in 0..4 {
+        unsafe { deluge_harness_recorder_probe_drain_tick() };
+        Timer::after_millis(1).await;
+    }
+
+    result.initial_state = unsafe { deluge_harness_recorder_probe_acquire() };
 
     let mut state = result.initial_state;
     let deadline = Instant::now() + poll_window;

@@ -180,15 +180,48 @@ uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames, u
 	}
 	g_recorder->feedAudio(std::span<StereoSample>(input));
 
-	// Drive the fiber drain a few times BEFORE probing, same as the sim round-trip harness does --
-	// this is what actually flushes the fed audio to the SD file (writeOneCompletedCluster()), which
-	// is a precondition for RecordingReadSource to have anything to read on the sim's synchronous
-	// path. Deliberately do NOT call endSyncedRecording()/finalize: status stays CAPTURING_DATA, so
-	// the Sample genuinely has no efatfs read handle for the whole probe.
+	// The drain is NOT run here any more. It used to be
+	//
+	//     for (uint32_t i = 0; i < pumpDrainTicks; i++) { g_recorder->cardRoutine(); }
+	//
+	// which is a tight loop with no yield between ticks. That works only while `cardRoutine()` blocks
+	// and completes inline -- i.e. only on the recorder's SYNCHRONOUS arm. Ask the channel instead and
+	// the Rust driver never gets to run between iterations, so nothing is ever answered and the
+	// recording never lands. It is the one spinner `advanceFinalize()`'s comment was right about:
+	// "the harness's own pump".
+	//
+	// The caller drives it now, one tick per await -- `deluge_harness_recorder_probe_drain_tick()`.
+	// Deliberately still no endSyncedRecording()/finalize: status stays CAPTURING_DATA, so the Sample
+	// genuinely has no efatfs read handle for the whole probe.
+	// The ORIGINAL contract, kept for the C++ scenario caller, which has no way to await between
+	// ticks: drain inline, then acquire, and return the region state. That caller is still a spinner
+	// and still blocks `Owner::run` going inline -- it needs its own tick-spanning drive.
 	for (uint32_t i = 0; i < pumpDrainTicks; i++) {
-		g_recorder->cardRoutine();
+		(void)g_recorder->cardRoutine();
 	}
+	return deluge_harness_recorder_probe_acquire();
+}
 
+/// One tick of the drain the probe used to spin on. Returns nothing: what it flushes is observed by
+/// `_acquire()` below.
+void deluge_harness_recorder_probe_drain_tick() {
+	if (g_recorder != nullptr) {
+		(void)g_recorder->cardRoutine();
+	}
+}
+
+/// Open the region source over the still-recording Sample and take the first acquire.
+uint8_t deluge_harness_recorder_probe_acquire() {
+	if (g_recorder == nullptr) {
+		return 0;
+	}
+	// Idempotent: the drain-then-acquire caller reaches this twice (once through the inline entry with
+	// zero ticks, once after its own drain), and re-opening would leak the first source.
+	if (g_source != nullptr) {
+		DelugeSampleRegion again{};
+		return static_cast<uint8_t>(
+		    deluge_sample_region_acquire_ex(g_source, /*index=*/0, /*direction=*/+1, /*priority=*/0, &again));
+	}
 	Sample* sample = g_recorder->sample;
 	DelugeSampleGeometry geometry{};
 	geometry.audio_data_start_bytes = sample->audioDataStartPosBytes;
