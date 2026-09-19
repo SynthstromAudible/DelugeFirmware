@@ -329,6 +329,11 @@ unsafe extern "C" {
     fn deluge_scenario_offset_io_dispatch_step();
     fn deluge_scenario_offset_io_step_done() -> bool;
     fn deluge_scenario_offset_io_failures() -> i32;
+    fn deluge_scenario_card_reinsert_begin();
+    fn deluge_scenario_card_reinsert_complete() -> bool;
+    fn deluge_scenario_card_reinsert_dispatch_step();
+    fn deluge_scenario_card_reinsert_step_done() -> bool;
+    fn deluge_scenario_card_reinsert_failures() -> i32;
     fn deluge_scenario_sample_load_tree_begin();
     fn deluge_scenario_sample_load_tree_complete() -> bool;
     fn deluge_scenario_sample_load_tree_dispatch_step();
@@ -863,6 +868,24 @@ fn pack_sample_collect_image() -> std::path::PathBuf {
 /// - `SAMPLES/SLTCKA.WAV`, `SLTCKB.WAV`, `SLTCKC.WAV`, `SLTCSB.WAV` and `SLTCAB.WAV` belong to the crucial-only load's
 ///   song: a second kit's three drums, a second synth and a second audio clip. The scenario collects them into that
 ///   song's folder too, and removes them from here before loading it.
+/// Stage the card-reinsert scenario's card: three samples, one per fate the walk distinguishes.
+///
+/// `CRLOST.WAV` is REMOVED by the scenario between the ejection and the re-insertion, which is what
+/// its resident Sample must then be marked unloadable for. The other two are never touched on the
+/// card; their fates are decided by whether a project still holds them.
+fn pack_card_reinsert_image() -> std::path::PathBuf {
+    let root = std::env::temp_dir().join("deluge-card-reinsert-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES");
+    for dir in [&samples, &root.join("SONGS")] {
+        std::fs::create_dir_all(dir).expect("creating the card-reinsert fixture directories");
+    }
+    write_test_wav(&samples.join("CRSURV.WAV"), 1, 16, 4096, 0x71);
+    write_test_wav(&samples.join("CRLOST.WAV"), 1, 16, 3072, 0x72);
+    write_test_wav(&samples.join("CREVICT.WAV"), 1, 16, 2048, 0x73);
+    sd_image::pack_image(&root)
+}
+
 fn pack_sample_load_tree_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-sample-load-tree-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1988,6 +2011,59 @@ async fn run_preset_load_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
+/// The `GOLDEN_SCENARIO=card_reinsert` scenario: load samples, eject the card, remove one of their
+/// files, re-insert, and report what `cardReinserted()`'s walk did to each resident.
+#[embassy_executor::task]
+async fn run_card_reinsert_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_card_reinsert_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_card_reinsert_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_card_reinsert_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the card-reinsert run did not complete within 600s — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_card_reinsert_dispatch_step() };
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_card_reinsert_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_card_reinsert_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the card-reinsert run FAILED ({failures} in-process failure(s))"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: card-reinsert run completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=sample_load_tree` scenario: build a song, save it with collected media and load it back, then
 /// load a synth preset and a kit preset, and report where every holder's file came from.
 #[embassy_executor::task]
@@ -2425,6 +2501,7 @@ fn main() {
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
     let offset_io_mode = scenario == "offset_io";
+    let card_reinsert_mode = scenario == "card_reinsert";
     let sample_load_tree_mode = scenario == "sample_load_tree";
     let sample_claim_mode = scenario == "sample_claim";
     let preset_load_mode = scenario == "preset_load";
@@ -2458,6 +2535,8 @@ fn main() {
             pack_song_save_image()
         } else if sample_collect_mode {
             pack_sample_collect_image()
+        } else if card_reinsert_mode {
+            pack_card_reinsert_image()
         } else if sample_load_tree_mode {
             pack_sample_load_tree_image()
         } else if sample_claim_mode {
@@ -2552,6 +2631,8 @@ fn main() {
         spawner.spawn(run_path_operations_scenario(&DONE).unwrap());
     } else if offset_io_mode {
         spawner.spawn(run_offset_io_scenario(&DONE).unwrap());
+    } else if card_reinsert_mode {
+        spawner.spawn(run_card_reinsert_scenario(&DONE).unwrap());
     } else if sample_load_tree_mode {
         spawner.spawn(run_sample_load_tree_scenario(&DONE).unwrap());
     } else if sample_claim_mode {
