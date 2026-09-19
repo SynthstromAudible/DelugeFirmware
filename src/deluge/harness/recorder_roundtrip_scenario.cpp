@@ -38,6 +38,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -127,23 +128,51 @@ bool tagEquals(const std::vector<std::byte>& b, size_t off, const char* tag) {
 	return std::memcmp(b.data() + off, tag, 4) == 0;
 }
 
-// Pump cardRoutine() until the recorder reaches COMPLETE, bounded so a stuck state machine fails the
-// test instead of hanging forever.
-bool pumpToComplete(SampleRecorder& rec) {
-	for (int i = 0; i < 200000; i++) {
-		if (rec.status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
-			return true;
-		}
-		Error e = rec.cardRoutine();
-		if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
-			fprintf(stderr, "  FAIL: cardRoutine() returned error %d\n", static_cast<int>(e));
-			return false;
-		}
+/// How the case that is running now is getting on. One `cardRoutine()` per step, never a loop.
+enum class CaseStep : uint8_t {
+	Begin,  ///< Build the ramp, set the recorder up, feed it, end the recording.
+	Pump,   ///< ONE cardRoutine() per call, until COMPLETE or the bound.
+	Verify, ///< Read the file back.
+	Done,   ///< Terminal; the caller moves to the next case.
+	Failed, ///< Terminal.
+};
+
+/// The case's state, out of the stack frame because the pump now spans ticks.
+///
+/// It used to be `SampleRecorder rec;` plus a 200000-iteration `pumpToComplete()` loop, straight
+/// through. That loop never yielded, so it only ever worked on the recorder's SYNCHRONOUS arm: ask
+/// the channel instead and the driver gets no chance to run between ticks, nothing is answered, and
+/// the loop exhausts its bound. Shaped after `g_offOwner` below, which already holds its recorder
+/// this way for the same reason.
+struct CaseRun {
+	CaseStep step = CaseStep::Done;
+	const Case* c = nullptr;
+	std::optional<SampleRecorder> rec;
+	std::vector<StereoSample> input;
+	int32_t pumpTicks = 0;
+	std::string path;
+};
+CaseRun g_case;
+
+/// One tick of the pump. Bounded exactly as `pumpToComplete()` was, and reporting the same two
+/// failures, so a wedged state machine still fails the gate rather than hanging it.
+bool pumpOnce(SampleRecorder& rec) {
+	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
+		g_case.step = CaseStep::Verify;
+		return true;
 	}
-	fprintf(stderr, "  FAIL: cardRoutine() never reached COMPLETE (phase=%d issued=%d status=%d)\n",
-	        (int)rec.finalizePhaseForDiag(), (int)rec.finalizeIssuedForDiag(),
-	        (int)rec.status.load(std::memory_order_acquire));
-	return false;
+	if (++g_case.pumpTicks > 200000) {
+		fprintf(stderr, "  FAIL: cardRoutine() never reached COMPLETE (phase=%d issued=%d status=%d)\n",
+		        (int)rec.finalizePhaseForDiag(), (int)rec.finalizeIssuedForDiag(),
+		        (int)rec.status.load(std::memory_order_acquire));
+		return false;
+	}
+	Error e = rec.cardRoutine();
+	if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
+		fprintf(stderr, "  FAIL: cardRoutine() returned error %d\n", static_cast<int>(e));
+		return false;
+	}
+	return true;
 }
 
 /// Byte-exact verification of a finished recording, factored out of runCase() so the off-owner case
@@ -234,18 +263,31 @@ bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t fram
 	return ok;
 }
 
-bool runCase(const Case& c) {
+/// Start a case: everything up to the pump. The recorder and its input live in `g_case` from here,
+/// because the pump below returns between ticks.
+bool beginCase(const Case& c) {
 	printf("CASE %s (channels=%u margins=%d frames=%u)\n", c.name, c.channels, c.extraMargins, c.frames);
 	g_cases++;
 
+	// Field-by-field: SampleRecorder is neither movable nor assignable, so the struct cannot be
+	// replaced wholesale. Same reason `g_offOwner` resets its optional rather than reassigning.
+	g_case.rec.reset();
+	g_case.input.clear();
+	g_case.path.clear();
+	g_case.pumpTicks = 0;
+	g_case.step = CaseStep::Begin;
+	g_case.c = &c;
+
 	// Build the input ramp.
-	std::vector<StereoSample> input(c.frames);
+	std::vector<StereoSample>& input = g_case.input;
+	input.assign(c.frames, StereoSample{0, 0});
 	for (uint32_t i = 0; i < c.frames; i++) {
 		input[i].l = rampSample(i, 0);
 		input[i].r = (c.channels == 2) ? rampSample(i, 1) : 0;
 	}
 
-	SampleRecorder rec;
+	g_case.rec.emplace();
+	SampleRecorder& rec = *g_case.rec;
 	Error err = rec.setup(c.channels, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
 	                      /*shouldRecordExtraMargins=*/c.extraMargins, AudioRecordingFolder::RESAMPLE,
 	                      /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
@@ -273,17 +315,41 @@ bool runCase(const Case& c) {
 		rec.feedAudio(std::span<StereoSample>(silence));
 	}
 
-	if (!pumpToComplete(rec)) {
-		return false;
-	}
+	g_case.pumpTicks = 0;
+	g_case.step = CaseStep::Pump;
+	return true;
+}
 
-	std::string path = rec.filePathCreated;
-	if (path.empty()) {
+/// Finish a case once its pump has reached COMPLETE.
+bool verifyCase() {
+	SampleRecorder& rec = *g_case.rec;
+	const Case& c = *g_case.c;
+	g_case.path = rec.filePathCreated;
+	if (g_case.path.empty()) {
 		fprintf(stderr, "  FAIL: no file path recorded\n");
 		return false;
 	}
+	return verifyRecordedFile(g_case.path, c.channels, c.frames, c.extraMargins);
+}
 
-	return verifyRecordedFile(path, c.channels, c.frames, c.extraMargins);
+/// Advance the case that is running by ONE step. True while it is still going.
+bool stepCase() {
+	switch (g_case.step) {
+	case CaseStep::Pump:
+		if (!pumpOnce(*g_case.rec)) {
+			g_case.step = CaseStep::Failed;
+			return false;
+		}
+		return g_case.step != CaseStep::Verify || true;
+	case CaseStep::Verify:
+		g_case.step = verifyCase() ? CaseStep::Done : CaseStep::Failed;
+		return false;
+	case CaseStep::Begin:
+	case CaseStep::Done:
+	case CaseStep::Failed:
+		return false;
+	}
+	return false;
 }
 
 } // namespace
@@ -667,7 +733,15 @@ extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
 	cases.push_back({"stereo_extra_margins", 2, true, framesForBytes(112, 6, 2 * clusterSize) + 61});
 
 	for (const Case& c : cases) {
-		if (!runCase(c)) {
+		// Drives the case's steps here, which is BEHAVIOURALLY WHAT pumpToComplete() did: no yield
+		// between ticks. The split above is what makes the next step possible -- driving these from the
+		// scenario's dispatch, so the storage driver runs between ticks and the channel arm can answer.
+		// Until then this stays a spinner, and the predicate collapse stays blocked.
+		if (!beginCase(c)) {
+			g_case.step = CaseStep::Failed;
+		}
+		while (stepCase()) {}
+		if (g_case.step != CaseStep::Done) {
 			g_failures++;
 		}
 	}
