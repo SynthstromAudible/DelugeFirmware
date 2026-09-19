@@ -1918,6 +1918,10 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     write_test_wav(&samples.join("PLKC.WAV"), 1, 16, 3072, 0x93);
     write_test_wav(&samples.join("PLBASE.WAV"), 1, 16, 2048, 0x94);
     write_sine_wav(&samples.join("PLRACE.WAV"), 1, 22_050, 660.0);
+    // The nested preset's sample. Its preset lives at SYNTHS/NESTED/, reachable only by descending --
+    // measured 2026-09-19, every gate's walk reaches depth 1 and the reference card's SYNTHS is flat,
+    // so the recursion had no coverage anywhere.
+    write_sine_wav(&samples.join("PLNEST.WAV"), 1, 22_050, 770.0);
     write_test_wav(&heavy.join("PLHA.WAV"), 1, 16, 8192, 0x95);
     write_test_wav(&heavy.join("PLHB.WAV"), 1, 16, 8192, 0x96);
     write_test_wav(&heavy.join("PLHC.WAV"), 1, 16, 8192, 0x97);

@@ -161,6 +161,19 @@ constexpr const char* kBaseKitPreset = "KITS/PLBASE.XML";
 
 /// The race leg's synth preset: cloned without waiting for the selection's scroll-load.
 constexpr const char* kRacePreset = "SYNTHS/PLRACE.XML";
+
+/// Reachable ONLY by descending into a subfolder. The walk's recursion has no other coverage:
+/// measured 2026-09-19, every gate reaches depth 1 and the reference card's SYNTHS is flat, so a
+/// conversion that silently stopped recursing would look perfect until a user with subfolders found
+/// their presets gone.
+/// The walk starts HERE: a folder with no presets of its own, only a subfolder. That is what forces
+/// the descent -- with a usable preset at the start folder the walk returns it and never recurses,
+/// which is why this leg cannot simply search SYNTHS.
+constexpr const char* kWalkStartDir = "SYNTHS/WALK";
+constexpr const char* kNestedPreset = "SYNTHS/WALK/NESTED/PLNEST.XML";
+constexpr const char* kNestedSample = "SAMPLES/PL/PLNEST.WAV";
+/// What the walk must return for PL-WALK-DEPTH: only a descent can produce it.
+constexpr const char* kNestedFilename = "PLNEST.XML";
 constexpr const char* kRaceSample = "SAMPLES/PL/PLRACE.WAV";
 constexpr const char* kRaceName = "PLRACE";
 /// The supersession leg's kits: a heavy one whose samples nothing loads before it, and a light one scrolled on to. Both
@@ -401,6 +414,54 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	return writeInstrumentDocument(*instrument, path, "\n</sound>\n");
 }
 
+/// Drive `findAnUnlaunchedPresetIncludingWithinSubfolders` once and pin what it does TODAY.
+///
+/// Runs on the storage owner, which is where the walk is legal until it is converted -- the four TIR
+/// guards freeze otherwise, and they are what caught the fiber-inline attempt.
+///
+/// The start folder holds NO presets of its own, only `NESTED/`. That is the whole fixture: with a
+/// usable preset at the start folder the walk returns it immediately and never recurses, so the leg
+/// would pass while proving nothing. Measured 2026-09-19: no gate reached depth > 1 before this.
+void checkPresetWalk() {
+	const int32_t tierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
+
+	const std::string savedDir = Browser::currentDir;
+	Browser::currentDir = kWalkStartDir;
+	auto found = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, OutputType::SYNTH,
+	                                                                                    Availability::ANY);
+	const bool descended =
+	    found.has_value() && *found != nullptr && std::string((*found)->filename) == std::string(kNestedFilename);
+	printf("PL-WALK-FOUND ok=%d name=%s\n", (int)(found.has_value() && *found != nullptr),
+	       (found.has_value() && *found != nullptr) ? (*found)->filename.c_str() : "-");
+	printf("PL-WALK-DEPTH ok=%d descended=%d\n", (int)descended, (int)descended);
+	loadInstrumentPresetUI.emptyFileItems();
+
+	// A folder with nothing usable at any depth must report exhaustion, not a false hit.
+	Browser::currentDir = "SYNTHS/WALK/NESTED/EMPTY";
+	auto none = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, OutputType::SYNTH,
+	                                                                                   Availability::ANY);
+	const bool exhausted = !none.has_value();
+	printf("PL-WALK-EXHAUST ok=%d error=%d\n", (int)exhausted, (int)(none.has_value() ? Error::NONE : none.error()));
+	loadInstrumentPresetUI.emptyFileItems();
+	Browser::currentDir = savedDir;
+
+	const int32_t tierIo =
+	    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser) - tierBefore;
+	// Passes TODAY because the walk runs on the owner; must STILL pass after the conversion, for the
+	// opposite reason -- on the interaction tier, never blocking. Holding across both is its value.
+	printf("PL-WALK-TIER ok=%d tierIo=%d\n", (int)(tierIo == 0), (int)tierIo);
+
+	if (!descended) {
+		fail("walk", "the preset search did not descend into a subfolder");
+	}
+	if (!exhausted) {
+		fail("walk", "a search with nothing usable did not report exhaustion");
+	}
+	if (tierIo != 0) {
+		fail("walk", "the preset search did card I/O on the interaction tier");
+	}
+}
+
 /// A sample drum, the way the slicer builds one, added to @p kit.
 SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 	ParamManagerForTimeline paramManager;
@@ -629,8 +690,8 @@ void prepareLeg() {
 		const char* baseName = "PLBASE";
 		const char* liteName = kLiteName;
 		ok = ok && writeKitPreset(kBaseKitPreset, &baseName, &kBaseKitSample, 1)
-		     && writeSampleSynthPreset(kRacePreset, kRaceSample) && writeSampleSynthPreset(kGatePreset, kGateSample)
-		     && writeSampleSynthPreset(kStallPreset, kStallSample)
+		     && writeSampleSynthPreset(kNestedPreset, kNestedSample) && writeSampleSynthPreset(kRacePreset, kRaceSample)
+		     && writeSampleSynthPreset(kGatePreset, kGateSample) && writeSampleSynthPreset(kStallPreset, kStallSample)
 		     && writeKitPreset(kHeavyPreset, kHeavyDrumNames, kHeavySamples, 3)
 		     && writeKitPreset(kLitePreset, &liteName, &kLiteSample, 1);
 		if (ok) {
@@ -646,6 +707,9 @@ void prepareLeg() {
 		g_synthClip = (g_synth != nullptr) ? currentSong->getClipWithOutput(g_synth) : nullptr;
 		printf("PL-PROBE prepared presets=%d kitClip=%d synthClip=%d\n", ok ? 1 : 0, g_kitClip != nullptr ? 1 : 0,
 		       g_synthClip != nullptr ? 1 : 0);
+		if (ok) {
+			checkPresetWalk();
+		}
 	});
 }
 
