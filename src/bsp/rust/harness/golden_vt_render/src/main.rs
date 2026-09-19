@@ -265,6 +265,8 @@ unsafe extern "C" {
     fn deluge_scenario_start_recorder_roundtrip();
     fn deluge_scenario_start_recorder_roundtrip_rest();
     fn deluge_scenario_recorder_cases_tick() -> i32;
+    fn deluge_scenario_recorder_finalized_begin();
+    fn deluge_scenario_recorder_finalized_tick() -> i32;
     fn deluge_scenario_recorder_roundtrip_done() -> bool;
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
     fn deluge_scenario_offowner_begin(mode: i32);
@@ -681,7 +683,23 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // The oracle's tail: the two probes and the summary, back on the fiber.
+    // The finalized multi-cluster probe, ticked the same way and for the same reason.
+    // SAFETY: as above.
+    unsafe { deluge_scenario_recorder_finalized_begin() };
+    let fin_deadline = Instant::now() + Duration::from_secs(300);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_recorder_finalized_tick() } != 0 {
+            break;
+        }
+        if Instant::now() >= fin_deadline {
+            log::error!("golden_vt_render: finalized probe did not settle within 300s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // The oracle's tail: the live-readback probe and the summary, back on the fiber.
     // SAFETY: as above.
     unsafe { deluge_scenario_start_recorder_roundtrip_rest() };
     let rest_deadline = Instant::now() + Duration::from_secs(300);

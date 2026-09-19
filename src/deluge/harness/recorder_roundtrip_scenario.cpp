@@ -51,6 +51,8 @@ void deluge_harness_recorder_probe_end();
 
 uint8_t deluge_harness_recorder_finalized_multicluster_probe(uint8_t numChannels, uint32_t numFrames,
                                                              uint32_t regionIndex);
+uint8_t deluge_harness_recorder_finalized_multicluster_probe_tick();
+uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t regionIndex);
 uint32_t deluge_harness_recorder_finalized_multicluster_probe_table_clusters();
 uint32_t deluge_harness_recorder_finalized_multicluster_probe_expected_clusters();
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_bytes_ok();
@@ -771,6 +773,23 @@ extern "C" int32_t deluge_scenario_recorder_cases_tick() {
 	return 0;
 }
 
+/// Start the finalized multi-cluster probe. Its pump is ticked by the caller below.
+extern "C" void deluge_scenario_recorder_finalized_begin() {
+	const uint32_t clusterSize = static_cast<uint32_t>(Cluster::size);
+	const uint32_t headerLen = 44;
+	const uint32_t avail = (3 * clusterSize > headerLen) ? (3 * clusterSize - headerLen) : 0;
+	const uint32_t regressionFrames = avail / 3 + 400;
+	g_cases++;
+	printf("CASE finalized_multicluster_regression (channels=1 margins=0 frames=%u regionIndex=1)\n", regressionFrames);
+	(void)deluge_harness_recorder_finalized_multicluster_probe(/*numChannels=*/1, regressionFrames,
+	                                                           /*regionIndex=*/1);
+}
+
+/// One tick of that probe's pump. 0 = still going, non-zero = settled.
+extern "C" int32_t deluge_scenario_recorder_finalized_tick() {
+	return deluge_harness_recorder_finalized_multicluster_probe_tick();
+}
+
 /// The rest of the oracle: the two probes and the summary. Runs after the cases are done.
 extern "C" int32_t deluge_scenario_recorder_roundtrip_rest() {
 	const uint32_t clusterSize = static_cast<uint32_t>(Cluster::size);
@@ -796,11 +815,8 @@ extern "C" int32_t deluge_scenario_recorder_roundtrip_rest() {
 	// finalizeRecordedFile()'s no-alteration else-branch, the only branch AudioClip recording ever
 	// takes -- must leave the overview cache sized to the real cluster count, and region index 1+
 	// must resolve READY with correct bytes through the same port real playback uses.
-	g_cases++;
-	uint32_t regressionFrames = framesForBytes(44, 3, 3 * clusterSize) + 400;
-	printf("CASE finalized_multicluster_regression (channels=1 margins=0 frames=%u regionIndex=1)\n", regressionFrames);
-	uint8_t regressionState =
-	    deluge_harness_recorder_finalized_multicluster_probe(/*numChannels=*/1, regressionFrames, /*regionIndex=*/1);
+	// Driven by the caller now -- see deluge_scenario_recorder_finalized_*. Its pump used to spin here.
+	uint8_t regressionState = deluge_harness_recorder_finalized_multicluster_probe_finish(/*regionIndex=*/1);
 	uint32_t tableClusters = deluge_harness_recorder_finalized_multicluster_probe_table_clusters();
 	uint32_t expectedClusters = deluge_harness_recorder_finalized_multicluster_probe_expected_clusters();
 	uint8_t bytesOk = deluge_harness_recorder_finalized_multicluster_probe_bytes_ok();

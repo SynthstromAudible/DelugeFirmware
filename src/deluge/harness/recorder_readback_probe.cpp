@@ -36,6 +36,8 @@
 #include <vector>
 
 namespace {
+/// Tick budget for the finalized probe's pump, now that the caller drives it.
+int32_t g_finalizedPumpTicks = 0;
 
 SampleRecorder* g_recorder = nullptr;
 DelugeSampleSource* g_source = nullptr;
@@ -308,21 +310,35 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe(uint8_t numChannels
 	// pattern host_recorder_roundtrip_main.cpp's runCase() uses).
 	g_finalizedRecorder->endSyncedRecording(0);
 
-	// Pump cardRoutine() to RecorderStatus::COMPLETE -- this is what actually runs
-	// finalizeRecordedFile(). Bounded so a stuck state machine fails the harness instead of hanging.
-	bool completed = false;
-	for (int32_t i = 0; i < 200000; i++) {
-		if (g_finalizedRecorder->status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
-			completed = true;
-			break;
-		}
-		Error e = g_finalizedRecorder->cardRoutine();
-		if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
-			break;
-		}
+	// The pump is the CALLER's now -- `..._probe_tick()` below, one cardRoutine() per call. It used to
+	// be a 200000-iteration loop here, which never yielded and so only worked while `cardRoutine()`
+	// blocked inline on the synchronous arm. On the channel arm nothing answers a caller that does not
+	// return, which is exactly what kept the fiber alive.
+	g_finalizedPumpTicks = 0;
+	return 1; // set up; caller ticks, then calls _finish()
+}
+
+/// One tick of the finalized probe's pump. 0 = still going, 1 = COMPLETE, 2 = failed/bounded out.
+uint8_t deluge_harness_recorder_finalized_multicluster_probe_tick() {
+	if (g_finalizedRecorder == nullptr) {
+		return 2;
 	}
-	if (!completed) {
-		finalizedTeardown();
+	if (g_finalizedRecorder->status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
+		return 1;
+	}
+	if (++g_finalizedPumpTicks > 200000) {
+		return 2;
+	}
+	Error e = g_finalizedRecorder->cardRoutine();
+	if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
+		return 2;
+	}
+	return 0;
+}
+
+/// Acquire and verify, once the pump has reported COMPLETE.
+uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t regionIndex) {
+	if (g_finalizedRecorder == nullptr) {
 		return 0;
 	}
 

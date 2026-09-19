@@ -117,6 +117,13 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_poll();
 ///         captured immediately after finalize (before any acquire) -- the direct assertion for "was
 ///         the finalize-time grow left under-sized". 0 if no probe has run (harness-error state, not
 ///         a valid measurement).
+/// One tick of the finalized probe's pump. 0 = still going, 1 = COMPLETE, 2 = failed/bounded out.
+/// The caller ticks this with a yield in between, so the storage driver can answer.
+uint8_t deluge_harness_recorder_finalized_multicluster_probe_tick();
+
+/// Acquire and verify, once the pump above has reported COMPLETE.
+uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t regionIndex);
+
 uint32_t deluge_harness_recorder_finalized_multicluster_probe_table_clusters();
 
 /// @return The finalized recording's true required cluster count for the same geometry
