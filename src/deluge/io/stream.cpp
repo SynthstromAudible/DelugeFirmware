@@ -146,18 +146,6 @@ std::expected<uint32_t, Status> Stream::size() {
 	return out_size;
 }
 
-std::expected<uint32_t, Status> Stream::sector_of(uint32_t /*cluster_index*/) {
-	// The efatfs backend has no `sector_of` accessor: `SampleRecorder::writeCluster` resolves the
-	// write-side "most recently written cluster" a different way, and this function's only
-	// remaining caller (AudioFileManager's read-mode cold-path "did this file move on the
-	// reinserted card" identity check, audio_file_manager.cpp) opens fresh, for reading, with
-	// nothing written -- there is nothing such an accessor could resolve for it anyway (it could
-	// only ever answer for a context's just-completed write). Fail explicitly rather than
-	// resolving a sector: `handle_` on an efatfs-opened Stream is a boxed opaque `u32`, not a real
-	// `DelugeStream*`.
-	return std::unexpected(Status::UNSUPPORTED);
-}
-
 std::expected<void, Status> Stream::close() {
 	// NOTE: an in-flight async write must already be finished by the time anyone closes this stream.
 	// The channel holds a raw pointer into the caller's buffer, and every caller frees that buffer

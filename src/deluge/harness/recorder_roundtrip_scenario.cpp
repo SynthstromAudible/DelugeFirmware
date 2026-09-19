@@ -84,7 +84,7 @@ struct Case {
 };
 
 // Read the whole file back via deluge::io::File (open/seek/read — the general-purpose, read-capable
-// port; deluge::io::Stream's READ mode is documented sector_of()-only) into a plain host buffer.
+// port; deluge::io::Stream's READ mode reads through read_at_via()) into a plain host buffer.
 bool readWholeFile(const std::string& path, std::vector<std::byte>& out) {
 	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
 	if (!opened) {

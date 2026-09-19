@@ -233,15 +233,16 @@ clusterSizeChangedButItsOk:
 						continue;
 					}
 
-					auto firstSector = sampleStream->sector_of(0);
-					// sampleStream's destructor closes the handle once it goes out of scope below.
-
-					// If we couldn't resolve cluster 0's sector at all, the file is gone/unreadable on the
-					// reinserted card. A successful open + resolvable sector 0 is the whole check.
-					if (!firstSector) {
-						((Sample*)thisAudioFile)->markAsUnloadable();
-						continue;
-					}
+					// The successful open IS the check: the file is present and readable at the path this
+					// Sample remembers, on the card that is now in the slot. sampleStream's destructor closes
+					// the handle once it goes out of scope below.
+					//
+					// This used to additionally require `sector_of(0)` to resolve, which marked EVERY
+					// project-referenced sample unloadable on EVERY re-insertion: `Stream::sector_of()` is a
+					// stub that always answers UNSUPPORTED, so the branch below was unreachable and a song's
+					// samples went silent after any card swap, however healthy the card. The check was never
+					// an identity comparison even when it resolved -- nothing was compared against a
+					// remembered sector -- so nothing is lost by dropping it. See card-reinsert's CR-SURVIVE.
 
 					// Or if we're still here, the file's fine - who knows, maybe it's even fine again after it wasn't
 					// for a while (e.g. if the user temporarily had a different card inserted)

@@ -107,7 +107,6 @@ public:
 	std::expected<uint32_t, Status> read_at_via(uint32_t byte_offset, std::span<std::byte> dst);
 	std::expected<void, Status> truncate(uint32_t new_size);
 	std::expected<uint32_t, Status> size();
-	std::expected<uint32_t, Status> sector_of(uint32_t cluster_index);
 	std::expected<void, Status> close();
 
 private:
