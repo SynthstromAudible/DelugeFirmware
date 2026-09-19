@@ -60,6 +60,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/blocking_sample_load.h"
+#include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
@@ -1076,6 +1077,10 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 }
 
 void Song::writeTemplateSong(const char* templatePath) {
+	// createXMLFile/closeFileAfterWriting below are BLOCKING card writes, and the only caller is
+	// startupSongRoutine()'s "default song missing" branch. Declared so the tier is observable:
+	// startup-failsafe's SF-TEMPLATE leg drives exactly this branch.
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 	name = "DEFAULT";
 	Error error = StorageManager::createXMLFile(templatePath, smSerializer, false, false);
 	if (error != Error::NONE) {

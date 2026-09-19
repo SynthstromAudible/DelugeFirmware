@@ -56,6 +56,9 @@ enum class Stage : uint8_t {
 	GiveUpArm,
 	GiveUpDrive,
 	GiveUpCheck,
+	TemplateArm,
+	TemplateDrive,
+	TemplateCheck,
 	Summary,
 	Done,
 };
@@ -110,6 +113,8 @@ void observeCanaryOrdering() {
 		(void)canary->close();
 	}
 }
+int32_t g_templateTierBefore = 0;
+int32_t g_templateTicks = 0;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
 int32_t g_failures = 0;
@@ -189,7 +194,7 @@ void runTick() {
 			printf("SF-ILLEGAL FAIL a fail-safe operation was refused for want of a legal place to run\n");
 			g_failures++;
 		}
-		g_stage = Stage::GiveUpArm;
+		g_stage = Stage::TemplateArm;
 		break;
 	}
 
@@ -250,6 +255,55 @@ void runTick() {
 			g_failures++;
 		}
 		g_stage = Stage::Summary;
+		break;
+	}
+
+	case Stage::TemplateArm:
+		// The one Missing branch that WRITES. StartupSongMode::TEMPLATE makes `usingTemplate` true, which
+		// is what routes CheckCanary -> CheckTemplate at all (startup_song_policy.cpp:31); with no canary
+		// and no template on the card, CheckTemplate answers Missing and the machine CREATES the template
+		// -- `Song::writeTemplateSong`, a blocking card write.
+		//
+		// Nothing reached this before: the existing legs run LASTOPENED, so `usingTemplate` is false and
+		// CheckTemplate is skipped entirely. Measured on 2026-09-19 with a probe --
+		// writeTemplateSong was NEVER CALLED by this gate.
+		FlashStorage::defaultStartupSongMode = StartupSongMode::TEMPLATE;
+		(void)deluge::io::unlink(kDefaultSong);
+		(void)deluge::io::unlink(deluge::storage::startupSongCanaryPath());
+		g_templateTierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup);
+		g_templateTicks = 0;
+		deluge::storage::armStartupSong();
+		g_stage = Stage::TemplateDrive;
+		break;
+
+	case Stage::TemplateDrive:
+		if (!deluge::storage::startupSongIdle() && ++g_templateTicks < kMaxDriveTicks) {
+			break;
+		}
+		g_stage = Stage::TemplateCheck;
+		break;
+
+	case Stage::TemplateCheck: {
+		const bool finished = g_templateTicks < kMaxDriveTicks;
+		const bool made =
+		    deluge::io::presence_from_open(deluge::io::File::open(kDefaultSong, DELUGE_FILE_READ)).value_or(false);
+		const int32_t tier =
+		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup) - g_templateTierBefore;
+		printf("SF-TEMPLATE finished=%d created=%d tier=%d ticks=%d\n", (int)finished, (int)made, (int)tier,
+		       (int)g_templateTicks);
+		if (!finished) {
+			printf("SF-TEMPLATE FAIL the machine did not finish\n");
+			g_failures++;
+		}
+		if (!made) {
+			printf("SF-TEMPLATE FAIL no template was created, so this leg proves nothing\n");
+			g_failures++;
+		}
+		if (tier != 0) {
+			printf("SF-TEMPLATE FAIL the template write ran on the interaction tier\n");
+			g_failures++;
+		}
+		g_stage = Stage::GiveUpArm;
 		break;
 	}
 
