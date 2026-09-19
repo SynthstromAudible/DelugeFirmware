@@ -1702,8 +1702,14 @@ void runWalkMachineTick() {
 		// got, so "it descended" is a fact rather than an inference from which preset came back.
 		printf("PW-WALK-DEPTH ok=%d descended=%d depth=%d\n", (int)(descended && g_walkMaxDepth >= 2), (int)descended,
 		       (int)g_walkMaxDepth);
-		printf("PW-WALK-PAGED ok=%d reads=%d giveUps=%d\n", (int)(g_walkPagedReads > 0), (int)g_walkPagedReads,
-		       (int)g_walkGiveUps);
+		// Not `> 0`: that was too weak, and a neutering caught it. Making a failed descent give up
+		// instead of resuming the parent collapsed this from 26 reads to 2, and the leg stayed green
+		// -- while its PL sibling went red. Reaching ZNEST means climbing back out of every one of the
+		// 25 filler folders, and each pop-back re-reads the parent from a search name, so the count
+		// cannot be below the fixture's folder count. That ties the leg to the mechanism rather than
+		// to a measured magic number.
+		printf("PW-WALK-PAGED ok=%d reads=%d folders=%d giveUps=%d\n", (int)(g_walkPagedReads >= kWalkFolderCount),
+		       (int)g_walkPagedReads, (int)kWalkFolderCount, (int)g_walkGiveUps);
 		printf("PW-WALK-EXHAUST ok=%d error=%d\n", (int)g_walkExhausted, (int)g_walkExhaustError);
 
 		const int32_t tierIo =
@@ -1720,8 +1726,8 @@ void runWalkMachineTick() {
 		if (g_walkMaxDepth < 2) {
 			fail(legName(g_leg), "the preset search machine never pushed a frame");
 		}
-		if (g_walkPagedReads == 0) {
-			fail(legName(g_leg), "the preset search machine never paged a folder");
+		if (g_walkPagedReads < kWalkFolderCount) {
+			fail(legName(g_leg), "the preset search machine did not re-read a parent for every folder it left");
 		}
 		if (g_walkGiveUps != 0) {
 			fail(legName(g_leg), "the preset search machine hit its depth bound on a one-deep fixture");
