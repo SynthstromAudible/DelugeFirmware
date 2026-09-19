@@ -750,7 +750,6 @@ async fn read_prefix<O: LoadOps>(
 #[embassy_executor::task]
 pub async fn file_prefix_task() {
     PREFIX_WAKE.wait().await;
-    crate::storage_progress::note_progress();
     let ops = super::audio_loader::ProdOps::new();
     // One buffer for the life of the task, and not in the task: an 8 KiB array held across the awaits
     // below would sit in this task's pool, in on-chip SRAM. See `WORK_BYTES`.
@@ -763,7 +762,6 @@ pub async fn file_prefix_task() {
     };
     loop {
         while let Some((request, generation)) = take_next_request().await {
-            crate::storage_progress::note_progress();
             // After the request is marked in flight, so a collect during the hold answers PENDING,
             // exactly as it would while a slow card was reading the file.
             #[cfg(feature = "host_app")]

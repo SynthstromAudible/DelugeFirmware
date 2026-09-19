@@ -19,9 +19,6 @@ use std::cell::{Cell, RefCell};
 #[path = "../src/audio_loader.rs"]
 mod audio_loader;
 
-#[path = "../src/storage_progress.rs"]
-mod storage_progress;
-
 #[path = "../src/file_prefix.rs"]
 mod file_prefix;
 

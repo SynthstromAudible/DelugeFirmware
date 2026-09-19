@@ -45,9 +45,6 @@ mod card;
 /// names BOTH of its siblings, so a carrier that provides only one does not compile. Its own slot
 /// logic is tested in `tests/file_prefix_host.rs`; here it exists to be linked.
 #[allow(dead_code)]
-#[path = "../src/storage_progress.rs"]
-mod storage_progress;
-
 #[path = "../src/file_prefix.rs"]
 mod file_prefix;
 

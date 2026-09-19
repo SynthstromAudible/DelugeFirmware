@@ -1886,11 +1886,9 @@ pub async fn file_bytes_task() {
         return;
     };
     BYTES_WAKE.wait().await;
-    crate::storage_progress::note_progress();
     let ops = ProdByteOps::new();
     loop {
         while let Some((request, generation)) = take_next_request(work).await {
-            crate::storage_progress::note_progress();
             // After the take, so the operation is already marked in flight: a collect during the wait answers
             // PENDING, exactly as it would while a slow card was working.
             #[cfg(feature = "host_app")]

@@ -8,9 +8,6 @@
 //! four operations, so it declares its own three-operation trait and comes along alone.
 #![cfg(not(target_os = "none"))]
 
-#[path = "../src/storage_progress.rs"]
-mod storage_progress;
-
 #[path = "../src/file_bytes.rs"]
 mod file_bytes;
 

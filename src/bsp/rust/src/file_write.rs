@@ -540,12 +540,10 @@ async fn open_mounted(path: &str, mode: u8) -> Option<u32> {
 pub async fn file_write_task() {
     loop {
         WAKE.wait().await;
-        crate::storage_progress::note_progress();
         loop {
             let Some((op, path)) = REQUEST.lock().await.take() else {
                 break;
             };
-            crate::storage_progress::note_progress();
             let (kind, handle) = op_key(&op);
             *IN_FLIGHT.lock().await = Some((kind, handle));
             // After marking it in flight, so a collect during the wait answers PENDING, exactly as it would while

@@ -655,11 +655,9 @@ impl DirOps for ProdDirOps {
 #[embassy_executor::task]
 pub async fn file_directory_task() {
     DIRECTORY_WAKE.wait().await;
-    crate::storage_progress::note_progress();
     let ops = ProdDirOps::new();
     loop {
         while let Some((request, generation)) = take_next_request().await {
-            crate::storage_progress::note_progress();
             // After the request is marked in flight, so a collect during the hold answers PENDING, exactly as it
             // would while a slow card was opening the directory.
             #[cfg(feature = "host_app")]
