@@ -172,6 +172,8 @@ constexpr const char* kRacePreset = "SYNTHS/PLRACE.XML";
 /// which is why this leg cannot simply search SYNTHS.
 constexpr const char* kWalkStartDir = "SYNTHS/WALK";
 constexpr const char* kNestedPreset = "SYNTHS/WALK/ZNEST/PLNEST.XML";
+/// The folder the nested preset lives in: where a correct search must END.
+constexpr const char* kNestedPresetDir = "SYNTHS/WALK/ZNEST";
 constexpr const char* kNestedSample = "SAMPLES/PL/PLNEST.WAV";
 /// What the walk must return for PL-WALK-DEPTH: only a descent can produce it.
 constexpr const char* kNestedFilename = "PLNEST.XML";
@@ -1617,6 +1619,7 @@ enum class WalkMachineStep : uint8_t { ArmFound, RunFound, ArmExhaust, RunExhaus
 WalkMachineStep g_walkStep = WalkMachineStep::ArmFound;
 std::string g_walkSavedDir;
 std::string g_walkFoundName;
+std::string g_walkFoundDir;
 bool g_walkFound = false;
 Error g_walkExhaustError = Error::NONE;
 bool g_walkExhausted = false;
@@ -1657,6 +1660,13 @@ void runWalkMachineTick() {
 			const auto found = g_presetWalk.result();
 			g_walkFound = found.has_value() && *found != nullptr;
 			g_walkFoundName = g_walkFound ? (*found)->filename : "";
+			// Where the search ENDED. InstrumentLoad reads Browser::currentDir straight after the
+			// machine stops, to say which folder the preset lives in, so the machine owes it the
+			// FOUND folder rather than the one it started at. Nothing else pins that: every
+			// acquisition fixture keeps its presets at the top level, so a search that wrongly
+			// reported its start folder would look right in every gate. That gap is real and stays
+			// open for InstrumentLoad; this at least holds the machine to its half.
+			g_walkFoundDir = Browser::currentDir;
 		}
 		g_walkTicks = g_waitTicks;
 		g_walkMaxDepth = g_presetWalk.maxDepthReached();
@@ -1697,7 +1707,9 @@ void runWalkMachineTick() {
 		Browser::currentDir = g_walkSavedDir;
 
 		const bool descended = g_walkFound && g_walkFoundName == std::string(kNestedFilename);
-		printf("PW-WALK-FOUND ok=%d name=%s\n", (int)g_walkFound, g_walkFound ? g_walkFoundName.c_str() : "-");
+		const bool endedInNested = g_walkFoundDir == std::string(kNestedPresetDir);
+		printf("PW-WALK-FOUND ok=%d name=%s dir=%s\n", (int)(g_walkFound && endedInNested),
+		       g_walkFound ? g_walkFoundName.c_str() : "-", g_walkFoundDir.c_str());
 		// Measured directly here, unlike the PL sibling: the machine counts how deep its frame stack
 		// got, so "it descended" is a fact rather than an inference from which preset came back.
 		printf("PW-WALK-DEPTH ok=%d descended=%d depth=%d\n", (int)(descended && g_walkMaxDepth >= 2), (int)descended,
@@ -1722,6 +1734,9 @@ void runWalkMachineTick() {
 
 		if (!descended) {
 			fail(legName(g_leg), "the preset search machine did not reach the nested preset");
+		}
+		if (!endedInNested) {
+			fail(legName(g_leg), "the preset search machine did not leave currentDir at the folder it found");
 		}
 		if (g_walkMaxDepth < 2) {
 			fail(legName(g_leg), "the preset search machine never pushed a frame");
