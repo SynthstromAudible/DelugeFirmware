@@ -2993,8 +2993,9 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
 
-		// If it's iteration dependent...
-		if (iterance != kDefaultIteranceValue) {
+		// If it's iteration dependent and not FIRST/LAST (i.e., has a non-zero divisor)
+		// Exclude FIRST/LAST because they are event driven
+		if (iterance != kDefaultIteranceValue && iterance.divisor != 0) {
 			int32_t divisor = iterance.divisor;
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;

@@ -579,6 +579,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		transpose = reader.readTagOrAttributeValueInt();
 		reader.exitTag("transpose");
 	}
+	else if (!strcmp(tagName, "cents")) {
+		cents = reader.readTagOrAttributeValueInt();
+		reader.exitTag("cents");
+	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
 		ENSURE_PARAM_MANAGER_EXISTS
@@ -2961,6 +2965,7 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 
 void Sound::doneReadingFromFile() {
 	calculateEffectiveVolume();
+	recalculateFineTuner();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].doneReadingFromFile(this);
@@ -2972,6 +2977,17 @@ void Sound::doneReadingFromFile() {
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, nullptr);
 	}
+}
+
+// Set cents for master transpose
+void Sound::set_cents(int8_t new_cents) {
+	cents = new_cents;
+	recalculateFineTuner();
+}
+
+// Setup master transpose
+void Sound::recalculateFineTuner() {
+	fineTuner.setup((int32_t)cents * 42949672);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -4152,6 +4168,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	if (transpose != 0) {
 		writer.writeAttribute("transpose", transpose);
+	}
+	if (cents != 0) {
+		writer.writeAttribute("cents", cents);
 	}
 
 	ModControllableAudio::writeAttributesToFile(writer);
