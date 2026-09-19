@@ -134,43 +134,21 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	exportPhase = ExportPhase::NEXT_ELEMENT;
 }
 
-void StemExport::startNextElementTrampoline(void*) {
-	stemExport.startNextElement();
-}
-
-void StemExport::driveElementTrampoline(void*) {
-	stemExport.driveElement();
-}
-
-void StemExport::finishExportTrampoline(void*) {
-	stemExport.finishExport();
-}
-
-void StemExport::dispatchExportStep(void (*step)(void*)) {
-	ExportPhase parked = exportPhase;
-	exportPhase = ExportPhase::RUNNING;
-	if (!deluge::storage::Owner::run(step, nullptr)) {
-		// Owner queue was full. Stay in the phase we came from and try again next pass.
-		exportPhase = parked;
-	}
-}
-
 void StemExport::exportRoutine() {
 	switch (exportPhase) {
 	case ExportPhase::NONE:
-	case ExportPhase::RUNNING:
 		return;
 
 	case ExportPhase::NEXT_ELEMENT:
-		dispatchExportStep(&startNextElementTrampoline);
+		startNextElement();
 		return;
 
 	case ExportPhase::AWAIT_ELEMENT:
-		dispatchExportStep(&driveElementTrampoline);
+		driveElement();
 		return;
 
 	case ExportPhase::FINISH:
-		dispatchExportStep(&finishExportTrampoline);
+		finishExport();
 		return;
 	}
 }

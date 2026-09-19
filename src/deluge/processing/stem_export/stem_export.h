@@ -109,12 +109,10 @@ public:
 
 	/// @brief Where an in-flight export is parked between run-loop passes.
 	///
-	/// Only the per-element wait can span passes; each step itself runs straight through on the storage
-	/// owner. RUNNING covers a step that is queued or executing, and stops @ref exportRoutine
-	/// dispatching a second on top of it.
+	/// Each phase runs one step per @ref exportRoutine pass, on the tier its caller stands on. Only the
+	/// per-element wait spans passes.
 	enum class ExportPhase : uint8_t {
 		NONE,          ///< No export in flight.
-		RUNNING,       ///< A step is queued on, or running on, the storage owner.
 		NEXT_ELEMENT,  ///< Ready to start the next element.
 		AWAIT_ELEMENT, ///< The current element is recording; waiting for it to finish.
 		FINISH,        ///< Every element done, or the user cancelled: tear down.
@@ -136,22 +134,12 @@ public:
 	bool exportAwaitingDrain;
 	/// @}
 
-	/// @name The export's steps, each dispatched onto the storage owner. Owner-only.
+	/// @name The export's steps, each one pass of the routine. Run where the caller stands.
 	/// @{
 	void startNextElement(); ///< Fetch and start the next element, or fall through to the teardown.
 	void driveElement();     ///< One bounded slice of an offline render, then re-check for the finish.
 	void finishExport();     ///< Restore, run the completion UI, and clear the export.
 	/// @}
-
-	/// @name `Owner::run` trampolines for the three steps above.
-	/// @{
-	static void startNextElementTrampoline(void*);
-	static void driveElementTrampoline(void*);
-	static void finishExportTrampoline(void*);
-	/// @}
-
-	/// @brief Queues the next step on the storage owner, staying parked if the queue is full.
-	void dispatchExportStep(void (*step)(void*));
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);

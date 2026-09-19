@@ -174,7 +174,7 @@ uint32_t g_stOpsAtStart = 0;
 /// Owner ops the export may still dispatch. Phase 4e moves it off the owner; until that lands this is what it
 /// measures today, so the gate is green from birth rather than red until the migration. The migration plan sets
 /// it to 0 -- see docs/superpowers/specs/2026-09-18-stem-export-evidence-design.md.
-constexpr int32_t kExpectedStemOwnerOps = 692; // measured; stable across cold and warm card images
+constexpr int32_t kExpectedStemOwnerOps = 0; // the export runs where its caller stands; nothing is dispatched
 } // namespace
 
 void deluge_scenario_start_stem_export(int32_t mode) {
