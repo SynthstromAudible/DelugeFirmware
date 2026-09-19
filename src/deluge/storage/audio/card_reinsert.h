@@ -77,8 +77,6 @@ private:
 	/// Index into `AudioFileManager::audioFiles`. Not advanced after an eviction: the container
 	/// closes up behind the removed element, exactly as the old loop's `e--` accounted for.
 	int32_t cursor_{0};
-	/// Whether this resident's existence request has been issued and is awaiting its collect.
-	bool issued_{false};
 	/// A card came back while a walk was still running: restart once this resident settles.
 	bool rearm_{false};
 	/// How long the current resident's request has gone unanswered. Elapsed time, not ticks -- see

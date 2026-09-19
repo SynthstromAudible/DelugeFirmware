@@ -57,7 +57,6 @@ void CardReinsert::arm() {
 	}
 	phase_ = CardReinsertPhase::Walk;
 	cursor_ = 0;
-	issued_ = false;
 	rearm_ = false;
 	span_.reset();
 }
@@ -72,7 +71,6 @@ bool CardReinsert::tick() {
 		if (rearm_) {
 			rearm_ = false;
 			cursor_ = 0;
-			issued_ = false;
 			span_.reset();
 			return true;
 		}
@@ -125,7 +123,6 @@ bool CardReinsert::tick() {
 			break;
 		case bytes::ByteIo::Unknown:
 			(void)bytes::requestExists(path);
-			issued_ = true;
 			span_.note(deluge_clock_now());
 			break;
 		case bytes::ByteIo::Pending:
@@ -162,7 +159,6 @@ bool CardReinsert::tick() {
 	}
 
 	cursor_++;
-	issued_ = false;
 	span_.reset();
 	return true;
 }
