@@ -32,10 +32,18 @@ class Instrument;
 class InstrumentClip;
 class Output;
 
+namespace deluge::gui {
+class PresetWalk;
+} // namespace deluge::gui
+
 class LoadInstrumentPresetUI final : public LoadUI {
 private:
 	/// InstrumentLoad runs the browser's own loads, and calls back into its card-free prologue and its swap.
 	friend class deluge::gui::InstrumentLoad;
+	/// PresetWalk makes the folder reads the preset search is built out of, which are the browser's
+	/// own protected ones. It is a separate class rather than a member because it outlives a single
+	/// call -- the whole point is that it can stop between folders.
+	friend class deluge::gui::PresetWalk;
 
 public:
 	LoadInstrumentPresetUI() = default;
