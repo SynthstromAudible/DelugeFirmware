@@ -21,6 +21,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/strings.h"
+#include "model/sample/recorder_write_policy.h"
 #include "processing/sound/sound_drum.h"
 #include "util/c_string.h"
 #include <cstdint>
@@ -191,8 +192,10 @@ public:
 	std::string stemSearchBasePath_{};
 	std::string stemSearchCandidatePath_{};
 	int32_t stemSearchCandidatesTried_ = 0;
-	/// Consecutive calls the current candidate's channel operation has gone unanswered.
-	int32_t stemSearchStallTicks_ = 0;
+	/// How long the current candidate's channel operation has gone unanswered. Time, not calls: a bound
+	/// counted in calls means a different amount of waiting to every caller -- see
+	/// `deluge::storage::UnproductiveSpan`.
+	deluge::storage::UnproductiveSpan stemSearchSpan_;
 	/// @}
 	std::string lastFolderNameForStemExport{};
 	/// @brief The folder the most recent export wrote into: `.../TRACKS`, or `.../TRACKS-NN` once that song has
