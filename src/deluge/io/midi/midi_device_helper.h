@@ -47,7 +47,8 @@ inline std::string_view getDeviceNameForIndex(uint8_t deviceIndex) {
 }
 
 // Routing index + label for the Output Device menu.
-// 0 = ALL, 1 = DIN, 2/3 = upstream USB (computer), 4+ = hosted USB MIDI.
+// 0 = ALL, 1 = DIN, 2 = upstream USB port 1 (computer), 4+ = hosted USB MIDI.
+// Index 3 (upstream port 2 / MPE) is not offered — see getVisibleMIDIOutputDevices.
 struct MIDIOutputDeviceOption {
 	uint8_t index;
 	std::string_view name;
@@ -61,9 +62,13 @@ inline bool isMIDIOutputDeviceConnected(uint8_t deviceIndex) {
 	return cable != nullptr && cable->connectionFlags != 0;
 }
 
-// Connected destinations only. Upstream USB ports appear when the Deluge is plugged into a
+// Connected destinations only. Upstream USB port 1 appears when the Deluge is plugged into a
 // computer; hosted devices appear when they are attached. also_include_index keeps a saved
 // selection visible if that destination is temporarily unplugged.
+//
+// Upstream port 2 is omitted: it is the MPE-oriented computer cable (default MPE zones), so
+// normal channel MIDI from a track Output Device selection is filtered out and never arrives.
+// Port 3 is sysex-only and is already excluded from sendUsbMidi.
 inline deluge::vector<MIDIOutputDeviceOption> getVisibleMIDIOutputDevices(uint8_t also_include_index = 255) {
 	deluge::vector<MIDIOutputDeviceOption> options;
 
@@ -80,7 +85,6 @@ inline deluge::vector<MIDIOutputDeviceOption> getVisibleMIDIOutputDevices(uint8_
 	maybe_add(0);
 	maybe_add(1);
 	maybe_add(2);
-	maybe_add(3);
 	for (int32_t i = 0; i < MIDIDeviceManager::hostedMIDIDevices.getNumElements(); i++) {
 		maybe_add(static_cast<uint8_t>(i + 4));
 	}
