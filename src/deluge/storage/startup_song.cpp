@@ -16,12 +16,14 @@
  */
 
 #include "storage/startup_song.h"
+#include <cstdio>
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/display/display.h"
 #include "io/file.hpp"
+#include "libdeluge/file_write.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "storage/byte_channel.h"
@@ -81,6 +83,9 @@ constexpr int32_t kMaxPendingTicks = 600;
 StartupPhase g_phase = StartupPhase::Idle;
 /// Whether the song about to be loaded is the TEMPLATE, so the completion wipes its name.
 bool g_usingTemplate = false;
+/// The staged template document, for the synchronous arm's lambda (which takes no captures).
+const uint8_t* g_templateBytes = nullptr;
+uint32_t g_templateLength = 0;
 /// The canary for this attempt. Outlives `armStartupSong` because the load's completion removes it.
 std::string g_canaryPath;
 /// The song this attempt means to load. Reassigned when the fallback template is used.
@@ -246,6 +251,102 @@ void issueCanaryWrite() {
 	g_requested = true;
 }
 
+/// Serialise the template song into the active writer's memory buffer.
+///
+/// Same staging SaveSongUI uses (`setMemoryBased()` then `writeToFile()`): the document is built in
+/// RAM so the card only ever sees one whole-file write, which is what lets that write go through the
+/// byte channel instead of a blocking open-write-close.
+bool stageTemplateDocument(const uint8_t** outBytes, uint32_t* outLen) {
+	currentSong->name = "DEFAULT";
+	FileWriter& writer = static_cast<FileWriter&>(smSerializer);
+	writer.setMemoryBased();
+	currentSong->writeToFile();
+	const int32_t written = writer.bytesWritten();
+	if (written <= 0) {
+		return false; // An empty document is a failed write, not a small one.
+	}
+	*outBytes = reinterpret_cast<const uint8_t*>(writer.getBufferPtr());
+	*outLen = static_cast<uint32_t>(written);
+	return true;
+}
+
+/// Issue the template write on whichever arm is in force.
+void issueTemplateWrite() {
+	deluge_file_invalidate_cache();
+	const uint8_t* bytes = nullptr;
+	uint32_t len = 0;
+	const bool staged = stageTemplateDocument(&bytes, &len);
+	g_templateLength = len;
+	if (!staged) {
+		g_ownerOk = false;
+		g_ownerDone = true;
+		g_requested = true;
+		return;
+	}
+	if (viaChannel()) {
+		// The WRITE channel, not the byte channel: a song document runs to some 11 KB, and the byte
+		// channel refuses anything past DELUGE_FILE_BYTES_MAX_BYTES (8192) -- it would answer Failed
+		// forever. This is the same channel SaveSongUI puts a song document on, for the same reason.
+		if (deluge_file_write_request_write_file(kDefaultSongFullPath, bytes, len, /*may_overwrite=*/false)) {
+			g_requested = true;
+		}
+		else {
+			g_attemptsWithoutProgress++;
+		}
+		return;
+	}
+	// The synchronous arm, where blocking is legal -- boot, before the channel's task runs.
+	g_ownerDone = false;
+	g_templateBytes = bytes;
+	if (!deluge::storage::bytes::runInlineWhereLegal(
+	        [](void*) {
+		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
+		        auto file = deluge::io::File::open(kDefaultSongFullPath, DELUGE_FILE_WRITE_CREATE);
+		        if (file.has_value()) {
+			        const auto put = file->write(std::span<const std::byte>(
+			            reinterpret_cast<const std::byte*>(g_templateBytes), g_templateLength));
+			        g_ownerOk = put.has_value() && *put == g_templateLength;
+			        (void)file->close();
+		        }
+		        else {
+			        g_ownerOk = false;
+		        }
+		        g_ownerDone = true;
+	        },
+	        nullptr)) {
+		g_ownerOk = false;
+		g_ownerDone = true;
+	}
+	g_requested = true;
+}
+
+/// Collect the template write, or `nullopt` while it is still running.
+std::optional<bool> collectTemplateWrite() {
+	if (viaChannel()) {
+		uint32_t written = 0;
+		uint8_t existed = 0;
+		switch (deluge_file_write_collect_write_file(kDefaultSongFullPath, &written, &existed)) {
+		case DELUGE_FILE_WRITE_PENDING:
+			(void)stillWaiting();
+			return std::nullopt;
+		case DELUGE_FILE_WRITE_UNKNOWN:
+			// Displaced before we took it. Re-staging writes the same document again, which is safe.
+			g_requested = false;
+			g_attemptsWithoutProgress++;
+			return std::nullopt;
+		case DELUGE_FILE_WRITE_READY:
+			// A short write is a card error, not a success: the template would be half a document.
+			return written == g_templateLength;
+		default:
+			return false;
+		}
+	}
+	if (!g_ownerDone) {
+		return std::nullopt;
+	}
+	return g_ownerOk;
+}
+
 /// Collect the canary write, or `nullopt` while it is still running.
 ///
 /// **This is the ordering guarantee.** The caller advances to the load only on `true`, never on
@@ -399,9 +500,32 @@ void startupSongRoutine() {
 		}
 		if (*answer == StartupPresence::Missing) {
 			display->consoleText("Creating template");
-			currentSong->writeTemplateSong(kDefaultSongFullPath);
+			// The write itself is StartupPhase::WriteTemplate below. Done inline here it was a blocking
+			// card write on whatever tier this routine was ticking on -- measured, it froze
+			// startup-failsafe on TIR6.
 		}
 		auto step = nextStartupPhase(StartupPhase::CheckTemplate, *answer, g_usingTemplate);
+		g_usingTemplate = step.usingTemplate;
+		enter(step.next);
+		return;
+	}
+
+	case StartupPhase::WriteTemplate: {
+		if (!g_requested) {
+			issueTemplateWrite();
+			return;
+		}
+		auto landed = collectTemplateWrite();
+		if (!landed.has_value()) {
+			return;
+		}
+		if (!*landed) {
+			// Not fatal, and deliberately so: the inline version returned early on a failed create and
+			// the machine carried on to the canary regardless. The canary is what protects the load.
+			display->consoleText("Startup fault F3");
+		}
+		// The presence argument is unused for this phase -- see nextStartupPhase -- so any value does.
+		auto step = nextStartupPhase(StartupPhase::WriteTemplate, StartupPresence::Confirmed, g_usingTemplate);
 		g_usingTemplate = step.usingTemplate;
 		enter(step.next);
 		return;

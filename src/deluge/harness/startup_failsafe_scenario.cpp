@@ -115,6 +115,7 @@ void observeCanaryOrdering() {
 }
 int32_t g_templateTierBefore = 0;
 int32_t g_templateTicks = 0;
+bool g_templateCreated = false;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
 int32_t g_failures = 0;
@@ -262,11 +263,11 @@ void runTick() {
 		// The one Missing branch that WRITES. StartupSongMode::TEMPLATE makes `usingTemplate` true, which
 		// is what routes CheckCanary -> CheckTemplate at all (startup_song_policy.cpp:31); with no canary
 		// and no template on the card, CheckTemplate answers Missing and the machine CREATES the template
-		// -- `Song::writeTemplateSong`, a blocking card write.
+		// -- StartupPhase::WriteTemplate, which stages the document and writes it through the byte channel.
 		//
 		// Nothing reached this before: the existing legs run LASTOPENED, so `usingTemplate` is false and
 		// CheckTemplate is skipped entirely. Measured on 2026-09-19 with a probe --
-		// writeTemplateSong was NEVER CALLED by this gate.
+		// the template write was NEVER REACHED by this gate.
 		FlashStorage::defaultStartupSongMode = StartupSongMode::TEMPLATE;
 		(void)deluge::io::unlink(kDefaultSong);
 		(void)deluge::io::unlink(deluge::storage::startupSongCanaryPath());
@@ -277,6 +278,15 @@ void runTick() {
 		break;
 
 	case Stage::TemplateDrive:
+		// Catch the template the moment it lands, then REMOVE it again. The claim of this leg is that the
+		// write happens off the interaction tier -- but leaving the file there sends the machine on through
+		// CheckSong to BeginLoad, and `openUI` is what this harness cannot survive (see Fixture). The
+		// canary write sits between those phases, which is the window this uses.
+		if (!g_templateCreated
+		    && deluge::io::presence_from_open(deluge::io::File::open(kDefaultSong, DELUGE_FILE_READ)).value_or(false)) {
+			g_templateCreated = true;
+			(void)deluge::io::unlink(kDefaultSong);
+		}
 		if (!deluge::storage::startupSongIdle() && ++g_templateTicks < kMaxDriveTicks) {
 			break;
 		}
@@ -285,8 +295,7 @@ void runTick() {
 
 	case Stage::TemplateCheck: {
 		const bool finished = g_templateTicks < kMaxDriveTicks;
-		const bool made =
-		    deluge::io::presence_from_open(deluge::io::File::open(kDefaultSong, DELUGE_FILE_READ)).value_or(false);
+		const bool made = g_templateCreated;
 		const int32_t tier =
 		    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup) - g_templateTierBefore;
 		printf("SF-TEMPLATE finished=%d created=%d tier=%d ticks=%d\n", (int)finished, (int)made, (int)tier,

@@ -41,8 +41,9 @@ StartupStep nextStartupPhase(StartupPhase current, StartupPresence answer, bool 
 		case StartupPresence::Confirmed:
 			return {StartupPhase::WriteCanary, usingTemplate};
 		case StartupPresence::Missing:
-			// The caller creates it before advancing -- this is the one Missing branch that WRITES.
-			return {StartupPhase::WriteCanary, usingTemplate};
+			// The one Missing branch that WRITES -- and the write is its own phase, because it is card
+			// I/O: done inline here it blocked whatever tier the routine was ticking on.
+			return {StartupPhase::WriteTemplate, usingTemplate};
 		case StartupPresence::Unusable:
 			// The one ruling that would put bytes on the card: never write a template over a card
 			// that merely failed to answer.
@@ -76,6 +77,11 @@ StartupStep nextStartupPhase(StartupPhase current, StartupPresence answer, bool 
 		return {StartupPhase::UnlinkCanary, usingTemplate};
 
 	case StartupPhase::Idle:
+	case StartupPhase::WriteTemplate:
+		// However the write turned out. A template that could not be written is not a reason to skip the
+		// fail-safe -- the inline version carried on too, and the canary is what protects the load.
+		return {StartupPhase::WriteCanary, usingTemplate};
+
 	case StartupPhase::WriteCanary:
 	case StartupPhase::BeginLoad:
 	case StartupPhase::UnlinkCanary:

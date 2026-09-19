@@ -36,9 +36,20 @@ describe startup_phase("every 'could not tell' answer leaves the card alone", $ 
 	});
 
 	// Site 2 (deluge.cpp:461). Template mode checks the default song and CREATES it when missing.
+	// The creation is its own phase: it is a card WRITE, and writing it inline here blocked the
+	// interaction tier (measured -- it froze startup-failsafe on TIR6).
 	it("goes on to create the template when it is known absent", _ {
 		auto step = nextStartupPhase(StartupPhase::CheckTemplate, StartupPresence::Missing, true);
-		expect(step.next == StartupPhase::WriteCanary).to_equal(true);
+		expect(step.next == StartupPhase::WriteTemplate).to_equal(true);
+	});
+
+	// However the write turns out, the machine carries on to the canary: a template that could not be
+	// written is not a reason to skip the fail-safe, which is what the inline version did too.
+	it("goes on to the canary once the template write has settled", _ {
+		for (auto answer : {StartupPresence::Confirmed, StartupPresence::Missing, StartupPresence::Unusable}) {
+			auto step = nextStartupPhase(StartupPhase::WriteTemplate, answer, true);
+			expect(step.next == StartupPhase::WriteCanary).to_equal(true);
+		}
 	});
 
 	it("goes straight on when the template is already there", _ {

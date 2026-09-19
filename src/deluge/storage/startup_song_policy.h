@@ -32,6 +32,7 @@ enum class StartupPhase : uint8_t {
 	Idle,                  ///< Not armed. The conditional task moves it to `CheckCanary`.
 	CheckCanary,           ///< Is a canary from a previous boot still there?
 	CheckTemplate,         ///< Template mode only: does `SONGS/DEFAULT.XML` exist?
+	WriteTemplate,         ///< Template mode only: CREATE `SONGS/DEFAULT.XML`, and wait for it to land.
 	WriteCanary,           ///< Create the canary, and WAIT for it to land.
 	CheckSong,             ///< Is the song we mean to load actually there?
 	CheckFallbackTemplate, ///< The song is gone: is the template there instead?

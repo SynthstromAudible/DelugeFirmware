@@ -1076,21 +1076,6 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 	}
 }
 
-void Song::writeTemplateSong(const char* templatePath) {
-	// createXMLFile/closeFileAfterWriting below are BLOCKING card writes, and the only caller is
-	// startupSongRoutine()'s "default song missing" branch. Declared so the tier is observable:
-	// startup-failsafe's SF-TEMPLATE leg drives exactly this branch.
-	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-	name = "DEFAULT";
-	Error error = StorageManager::createXMLFile(templatePath, smSerializer, false, false);
-	if (error != Error::NONE) {
-		return;
-	}
-	writeToFile();
-	GetSerializer().closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
-	                                      "\n</song>\n");
-}
-
 void Song::writeToFile() {
 
 	setupClipIndexesForSaving();
