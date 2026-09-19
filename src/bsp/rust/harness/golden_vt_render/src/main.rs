@@ -174,6 +174,9 @@ mod fiber;
 /// and write would quietly take the inline arm while the gate reported a green run -- which is what
 /// this file did on the first channel-on run of the settings gate, and `SC-CHANNEL served=0` is what
 /// caught it.
+#[path = "../../../src/storage_progress.rs"]
+mod storage_progress;
+
 #[path = "../../../src/file_bytes.rs"]
 mod file_bytes;
 /// The single-slot directory channel and its request/collect C ABI. Compiled UNCONDITIONALLY, like `file_bytes`

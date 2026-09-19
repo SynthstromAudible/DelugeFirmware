@@ -9,6 +9,9 @@
 //! not in `LoadOps`, so it declares its own two-operation trait and comes along alone.
 #![cfg(not(target_os = "none"))]
 
+#[path = "../src/storage_progress.rs"]
+mod storage_progress;
+
 #[path = "../src/file_directory.rs"]
 mod file_directory;
 
