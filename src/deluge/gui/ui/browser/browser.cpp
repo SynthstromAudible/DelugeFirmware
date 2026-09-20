@@ -127,7 +127,7 @@ bool Browser::listingShown_;
 std::optional<Browser::ListingRestore> Browser::listingRestore_;
 bool Browser::listingRestoreTaken_;
 bool Browser::listingRestored_;
-int32_t Browser::pendingReloadCatalogSearchDirection_;
+CatalogSearch Browser::pendingReloadCatalogSearchDirection_;
 bool Browser::pendingReloadSearchFromEnd_;
 
 // 7SEG ONLY
@@ -538,7 +538,7 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 
 int32_t maxNumFileItemsNow;
 
-int32_t catalogSearchDirection;
+CatalogSearch catalogSearchDirection;
 
 FileItem* Browser::getNewFileItem() {
 	bool alreadyCulled = false;
@@ -573,14 +573,14 @@ void Browser::cullSomeFileItems() {
 	}
 
 	// If we already know what side we want to be deleting on...
-	if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
+	if (catalogSearchDirection == CatalogSearch::Left) {
 deleteFromLeftSide:
 		numFileItemsDeletedAtStart += numFileItemsDeletingNow;
 		startAt = 0;
 		stopAt = numFileItemsDeletingNow;
 		firstFileItemRemaining = (&fileItems[numFileItemsDeletingNow])->displayName();
 	}
-	else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
+	else if (catalogSearchDirection == CatalogSearch::Right) {
 deleteFromRightSide:
 		numFileItemsDeletedAtEnd += numFileItemsDeletingNow;
 		stopAt = static_cast<int32_t>(fileItems.size());
@@ -630,7 +630,7 @@ deleteFromRightSide:
 
 Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
                                       char const** allowedFileExtensionsHere, char const* filenameToStartAt,
-                                      int32_t newMaxNumFileItems, int32_t newCatalogSearchDirection) {
+                                      int32_t newMaxNumFileItems, CatalogSearch newCatalogSearchDirection) {
 
 	AudioEngine::logAction("readFileItemsForFolder");
 
@@ -881,7 +881,7 @@ Error Browser::setFileByFullPathImpl(char const* fullPath) {
 Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
                                                 char const* filenameToStartAt, char const* defaultDirToAlsoTry,
                                                 bool allowFolders, Availability availabilityRequirement,
-                                                int32_t newCatalogSearchDirection) {
+                                                CatalogSearch newCatalogSearchDirection) {
 	// The legacy entry point: build the carried state, run the read, discard the fallback's rewrites.
 	// Every caller here is synchronous and cannot suspend, so there is nothing for the rewrites to be
 	// resumed with. A null `song` means what it always said it meant: read the folder, and do not merge
@@ -1062,7 +1062,7 @@ Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStart
 	            .filenameToStartAt = haveSearchString ? filenameToStartAt : "",
 	            .defaultDirToAlsoTry = defaultDirToAlsoTry,
 	            .allowFolders = true,
-	            .catalogSearchDirection = haveSearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT,
+	            .catalogSearchDirection = haveSearchString ? CatalogSearch::Both : CatalogSearch::Right,
 	        },
 	    .direction = direction,
 	    // Spelled out rather than left to the default: the first read's selection is what chooses the
@@ -1145,7 +1145,7 @@ Error Browser::stepListing() {
 				    .filenameToStartAt = enteredText,
 				    .defaultDirToAlsoTry = nullptr,
 				    .allowFolders = true,
-				    .catalogSearchDirection = CATALOG_SEARCH_BOTH,
+				    .catalogSearchDirection = CatalogSearch::Both,
 				};
 				listing_.rerunSelectionAfterRead = false;
 				listing_.phase = ListingPhase::Read;
@@ -1292,7 +1292,7 @@ Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char c
 	strncpy(filenameToStartAt, thingName, buffer_size - 2); // Leave 2 chars for "colon + null terminator"
 	strcat(filenameToStartAt, ":");                         // Colon is the first character after the digits.
 	error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt, NULL,
-	                                         false, Availability::ANY, CATALOG_SEARCH_LEFT);
+	                                         false, Availability::ANY, CatalogSearch::Left);
 
 	if (error != Error::NONE) {
 doReturn:
@@ -1438,7 +1438,7 @@ nonNumeric:
 			if (numFileItemsDeletedAtEnd) {
 				D_PRINTLN("reloading and wrap");
 				pendingReloadSearchFromEnd_ = true;
-				pendingReloadCatalogSearchDirection_ = CATALOG_SEARCH_LEFT;
+				pendingReloadCatalogSearchDirection_ = CatalogSearch::Left;
 				beginListing({.action = ListingAction::Reload, .direction = offset});
 				return;
 			}
@@ -1464,7 +1464,7 @@ nonNumeric:
 			if (numFileItemsDeletedAtStart) {
 				D_PRINTLN("reloading and wrap");
 				pendingReloadSearchFromEnd_ = true;
-				pendingReloadCatalogSearchDirection_ = CATALOG_SEARCH_RIGHT;
+				pendingReloadCatalogSearchDirection_ = CatalogSearch::Right;
 				beginListing({.action = ListingAction::Reload, .direction = offset});
 				return;
 			}
@@ -1540,13 +1540,13 @@ Error Browser::reloadImpl(int32_t direction) {
 			return Error::NONE;
 		}
 
-		newFileIndex = (pendingReloadCatalogSearchDirection_ == CATALOG_SEARCH_LEFT)
+		newFileIndex = (pendingReloadCatalogSearchDirection_ == CatalogSearch::Left)
 		                   ? (static_cast<int32_t>(fileItems.size()) - 1)
 		                   : 0;
 	}
 	else {
 		error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.c_str(), NULL,
-		                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
+		                                         true, Availability::ANY, CatalogSearch::Both);
 		if (error == Error::LISTING_DEFERRED) {
 			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
 			// success for a listing that never happened: runPendingListing() would clear
@@ -1647,7 +1647,7 @@ doSearch:
 doNewRead:
 			error = readFileItemsFromFolderAndMemory(
 			    currentSong, outputTypeToLoad, filePrefix, target.searchString.c_str(), NULL, true, Availability::ANY,
-			    CATALOG_SEARCH_BOTH); // This could probably actually be made to work with searching left only...
+			    CatalogSearch::Both); // This could probably actually be made to work with searching left only...
 			if (error == Error::LISTING_DEFERRED) {
 				// Optimistic: the typed character STAYS and the prediction finishes on a later tick.
 				// `target` already carries the loop's progress -- which search string, how many extra
@@ -2364,7 +2364,7 @@ void Browser::sortFileItems() {
 	// A read that searches one way from a name keeps only that side of it.
 	if (!filenameToStartSearchAt.empty()) {
 		char const* searchName = filenameToStartSearchAt.c_str();
-		if (catalogSearchDirection == CATALOG_SEARCH_LEFT) {
+		if (catalogSearchDirection == CatalogSearch::Left) {
 			bool foundExact = false;
 			int32_t searchIndex = searchFileItems(searchName, &foundExact);
 			// Check for duplicates.
@@ -2380,7 +2380,7 @@ void Browser::sortFileItems() {
 				numFileItemsDeletedAtEnd += numToDelete;
 			}
 		}
-		else if (catalogSearchDirection == CATALOG_SEARCH_RIGHT) {
+		else if (catalogSearchDirection == CatalogSearch::Right) {
 			bool foundExact = false;
 			int32_t searchIndex = searchFileItems(searchName, &foundExact);
 			// Check for duplicates.

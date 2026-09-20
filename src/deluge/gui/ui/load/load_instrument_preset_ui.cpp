@@ -1627,7 +1627,7 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 	}
 
 readAgain:
-	int32_t newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
+	CatalogSearch newCatalogSearchDirection = (offset >= 0) ? CatalogSearch::Right : CatalogSearch::Left;
 readAgainWithSameOffset:
 	toReturn.error =
 	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, oldNameString.c_str(),

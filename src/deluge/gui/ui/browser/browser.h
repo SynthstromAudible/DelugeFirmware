@@ -46,9 +46,15 @@ struct Slot {
 	int8_t subSlot;
 };
 
-#define CATALOG_SEARCH_LEFT 0
-#define CATALOG_SEARCH_RIGHT 1
-#define CATALOG_SEARCH_BOTH 2
+/// @brief Which way a read searches from its search name, and so which side of it is kept.
+///
+/// Left and Right keep one side of the search name; Both keeps a window around it, and is the only
+/// mode that consults the search name during a cull.
+enum class CatalogSearch : uint8_t {
+	Left,  ///< keep what sorts before the search name
+	Right, ///< keep what sorts after it
+	Both,  ///< keep a window around it, tending towards equal counts either side
+};
 
 #define FILE_ITEMS_MAX_NUM_ELEMENTS 20
 #define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
@@ -79,7 +85,7 @@ public:
 	static FileItem* getCurrentFileItem();
 	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
 	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
-	                             int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	                             CatalogSearch newCatalogSearchDirection = CatalogSearch::Both);
 	Error setFileByFullPath(OutputType outputType, char const* fullPath);
 	void sortFileItems();
 	FileItem* getNewFileItem();
@@ -274,7 +280,7 @@ protected:
 		std::string filenameToStartAt;
 		char const* defaultDirToAlsoTry{}; ///< null on both re-reads: a fallback happens once
 		bool allowFolders{true};
-		int32_t catalogSearchDirection{CATALOG_SEARCH_RIGHT};
+		CatalogSearch catalogSearchDirection{CatalogSearch::Right};
 		/// Whether the song's own Instruments are merged into the listing alongside the folder's files. The blank
 		/// song's walk clears it: its default synth is named "0" and would be the first thing the walk landed on.
 		bool includeSongInstruments{true};
@@ -287,7 +293,7 @@ protected:
 		/// @brief Drop the search string, and the search DIRECTION that depends on it.
 		///
 		/// The two must move together or the cull dereferences a null pointer. `cullSomeFileItems`
-		/// only consults `filenameToStartSearchAt` under CATALOG_SEARCH_BOTH — the "tend towards equal
+		/// only consults `filenameToStartSearchAt` under CatalogSearch::Both — the "tend towards equal
 		/// amounts either side" branch — and it consults it by calling `searchFileItems`, which hands
 		/// it straight to `strcmpspecial`. So a read with no search string but a BOTH direction
 		/// null-derefs the moment the folder holds enough entries to cull.
@@ -302,7 +308,7 @@ protected:
 		/// is one function now so the two cannot be separated again.
 		void dropSearchString() {
 			filenameToStartAt.clear();
-			catalogSearchDirection = CATALOG_SEARCH_RIGHT;
+			catalogSearchDirection = CatalogSearch::Right;
 		}
 	};
 
@@ -446,7 +452,7 @@ protected:
 	///
 	/// The encoder offset and catalog-search-direction don't fit ListingRequest's generic fields
 	/// (which are shared across every action), so they're captured here alongside pendingListing_.
-	static int32_t pendingReloadCatalogSearchDirection_;
+	static CatalogSearch pendingReloadCatalogSearchDirection_;
 	static bool pendingReloadSearchFromEnd_;
 
 	/// @brief Dispatch `req`'s listing onto the storage owner.
@@ -511,7 +517,7 @@ protected:
 	                                       char const* filenameToStartAt, char const* defaultDirToAlsoTry,
 	                                       bool allowFoldersint,
 	                                       Availability availabilityRequirement = Availability::ANY,
-	                                       int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	                                       CatalogSearch newCatalogSearchDirection = CatalogSearch::Right);
 
 	/// @brief The one implementation behind @ref readFileItemsFromFolderAndMemory, over carried state.
 	///
