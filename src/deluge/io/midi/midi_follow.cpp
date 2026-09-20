@@ -1858,10 +1858,19 @@ void MidiFollow::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
 
 void MidiFollow::writeDefaultsAbsent(void* ctx) {
 	// Only a genuinely absent file reaches here, never an unreadable card -- see
-	// `deluge::storage::bytes::AbsentFn`. That is the same line the owner arm's
-	// `bootstrap_action()` draws between `WriteDefaults` and `UseInMemoryOnly`.
+	// `deluge::storage::bytes::AbsentFn`.
+	//
+	// ⚠️ This NO LONGER WRITES, and the name is kept only because it is the `AbsentFn` the read
+	// registers. **A read must not mutate.** Writing the defaults file from a read's completion made
+	// the next run see a different card: save-roundtrip's SL-EVICT compares a clamped-heap run
+	// against an unclamped one byte-for-byte, and on a cold card the first run created the file
+	// while the second parsed it -- different channel traffic, different eviction, different bytes.
+	// Deferring the write was tried and does not help: the asymmetry is the file's EXISTENCE, not
+	// the write's timing.
+	//
+	// Nothing is lost. The defaults in memory are already the configuration, and the file is written
+	// by the path that should write it -- `sound_editor.cpp` when the user edits a setting.
 	auto* self = static_cast<MidiFollow*>(ctx);
-	self->writeDefaultsToFile();
 	self->successfullyReadDefaultsFromFile = true;
 }
 
