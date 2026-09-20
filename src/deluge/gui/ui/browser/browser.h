@@ -292,6 +292,13 @@ protected:
 	/// search string, and the brand-new-name re-read changes the output type, the prefix AND the
 	/// search direction — so they are carried rather than recomputed from the caller's arguments.
 	struct ListingRead {
+		/// @brief The directory to read.
+		///
+		/// REWRITTEN by the missing-folder fallback, which moves the read to `defaultDirToAlsoTry`.
+		/// That is why a suspended read must resume with this same object rather than a freshly built
+		/// one: a read that deferred mid-fallback would otherwise re-run the fallback against the
+		/// directory it had already moved away from.
+		std::string dir;
 		OutputType outputType{};
 		char const* filePrefix{};
 		std::string filenameToStartAt;
@@ -306,6 +313,12 @@ protected:
 		/// async arm; the synchronous arm runs on the storage owner already, where an inline mkdir is
 		/// where it belongs.
 		bool createIfMissing{};
+		/// @brief Whether this read has already created the default folder.
+		///
+		/// Was an in-out `bool&` parameter. It is per-read state that must survive a deferral -- a
+		/// listing that deferred after creating the folder would otherwise `mkdir` it again on
+		/// resume and read the resulting EXISTS as terminal -- so it belongs with the read.
+		bool triedCreatingFolder{};
 
 		/// @brief Drop the search string, and the search DIRECTION that depends on it.
 		///
@@ -364,9 +377,6 @@ protected:
 		ListingPhase phase{ListingPhase::Read};
 		ListingRead read;
 		int32_t direction{};
-		/// Survives a suspension, and must: a listing that deferred after creating the folder would
-		/// otherwise `mkdir` it again on resume and read the resulting EXISTS as terminal.
-		bool triedCreatingFolder{};
 		/// Whether the selection tail runs after the read that is pending. TRUE by default and for the
 		/// post-cull re-read; FALSE only for the brand-new-name re-read, which falls straight through
 		/// to "no file selected" exactly as the original `goto useNonExistentFileName` did.
@@ -530,22 +540,19 @@ protected:
 	/// Returns the character just past filePrefix within `name`, or nullptr if `name` does not start with filePrefix.
 	/// Names always carry the prefix; only *rendering* strips it.
 	char const* nameAfterPrefix(char const* name) const;
-	Error readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
-	                                       char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-	                                       bool allowFoldersint,
-	                                       Availability availabilityRequirement = Availability::ANY,
-	                                       CatalogSearch newCatalogSearchDirection = CatalogSearch::Right);
-
-	/// @brief The one implementation behind @ref readFileItemsFromFolderAndMemory, over carried state.
+	/// @brief Perform one folder read into the browser's file list: the folder's files, merged with
+	///        the song's own Instruments, sorted and trimmed.
 	///
-	/// Takes `read` by reference because the missing-folder fallback REWRITES it — it moves
-	/// `currentDir` to the default directory and drops the search string — and a listing that
-	/// suspends mid-fallback has to resume with those rewrites already applied, or it will re-run the
-	/// fallback against the wrong directory with the wrong search string. The legacy entry point
-	/// above passes a temporary and throws the rewrites away, which is what its callers want.
-	/// @param read The read to perform; mutated by the fallback.
-	/// @param triedCreatingFolder Whether this listing has already created the default folder.
-	Error readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder);
+	/// Takes @p read by REFERENCE because the missing-folder fallback rewrites it — it moves the read
+	/// to `defaultDirToAlsoTry` and drops the search string — and a read that suspends mid-fallback
+	/// has to resume with those rewrites already applied, or it re-runs the fallback against the
+	/// directory it had already moved away from, with the wrong search string. A caller that does not
+	/// care about the rewrites passes a temporary and lets it go.
+	///
+	/// @param read The read to perform; MUTATED by the fallback.
+	/// @return Error::LISTING_DEFERRED when the directory channel has not answered yet — ask again
+	///         with this same @p read, and no open is ever made twice.
+	Error readFolder(ListingRead& read);
 	void favouritesChanged();
 
 	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or

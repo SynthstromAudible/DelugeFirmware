@@ -164,7 +164,7 @@ bool Browser::beginListing(ListingRequest req) {
 	display->displayLoadingAnimationText("Working", /*delayed=*/true);
 
 	// Only the actions that run through the listing machine may take the tick surface. Reload does
-	// its own read (readFileItemsFromFolderAndMemory, not arrivedInNewFolder), so it has no machine to
+	// its own read (readFolder, not arrivedInNewFolder), so it has no machine to
 	// suspend into — running it here would block the interaction tier on the card, which is the exact
 	// thing this rung exists to stop. It keeps the storage owner until it is converted in turn.
 	const bool machineBacked = pendingListing_.action != ListingAction::Reload;
@@ -876,30 +876,6 @@ Error Browser::setFileByFullPathImpl(char const* fullPath) {
 	return arrivedInNewFolder(0, fileName);
 }
 
-// song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when
-// the currentSong is not set up.
-Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
-                                                char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-                                                bool allowFolders, Availability availabilityRequirement,
-                                                CatalogSearch newCatalogSearchDirection) {
-	// The legacy entry point: build the carried state, run the read, discard the fallback's rewrites.
-	// Every caller here is synchronous and cannot suspend, so there is nothing for the rewrites to be
-	// resumed with. A null `song` means what it always said it meant: read the folder, and do not merge
-	// the song's own Instruments into the listing. Every other call site passes `currentSong`, which is
-	// what the read uses -- the pointer itself is not carried.
-	ListingRead read{
-	    .outputType = outputType,
-	    .filePrefix = filePrefixHere,
-	    .filenameToStartAt = filenameToStartAt ? filenameToStartAt : "",
-	    .defaultDirToAlsoTry = defaultDirToAlsoTry,
-	    .allowFolders = allowFolders,
-	    .catalogSearchDirection = newCatalogSearchDirection,
-	    .includeSongInstruments = song != nullptr,
-	};
-	bool triedCreatingFolder = false;
-	return readFolderAndMemory(read, triedCreatingFolder);
-}
-
 namespace {
 /// The path the owner arm is creating. Held here because the dispatched body runs after this call
 /// has returned, so it cannot read the caller's argument.
@@ -907,12 +883,17 @@ std::string g_ownerCreatePath;
 
 } // namespace
 
-Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder) {
+Error Browser::readFolder(ListingRead& read) {
 	// filenameToStartAt should have .XML at the end of it.
 	while (true) {
-		// ONE open per iteration. A deferral returns immediately with `read` and `currentDir` already
-		// carrying whatever fallback this loop had taken, so resuming continues from that open rather
-		// than re-running the ones before it.
+		// The directory being read lives in `read`, so the fallback can move it without disturbing
+		// where the BROWSER thinks it is. currentDir still has to follow it, because the open below
+		// and everything downstream of this read -- the selection, getCurrentFilePath(), the preset
+		// walks -- still read the global. Untangling those two is the next step, not this one.
+		currentDir = read.dir;
+		// ONE open per iteration. A deferral returns immediately with `read` already carrying
+		// whatever fallback this loop had taken, so resuming continues from that open rather than
+		// re-running the ones before it.
 		Error error = readFileItemsForFolder(read.filePrefix, read.allowFolders, allowedFileExtensions,
 		                                     read.filenameToStartAt.empty() ? nullptr : read.filenameToStartAt.c_str(),
 		                                     FILE_ITEMS_MAX_NUM_ELEMENTS, read.catalogSearchDirection);
@@ -928,17 +909,17 @@ Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder)
 			return error;
 		}
 		// ... only if we haven't already tried the alternative folder.
-		if (!deluge::string::caselessEquals(currentDir, read.defaultDirToAlsoTry)) {
+		if (!deluge::string::caselessEquals(read.dir, read.defaultDirToAlsoTry)) {
 			read.dropSearchString();
-			currentDir = read.defaultDirToAlsoTry;
+			read.dir = read.defaultDirToAlsoTry;
 			continue;
 		}
 		// Or if we have already tried it and it didn't exist, try creating it... but not if we
 		// already tried.
-		if (triedCreatingFolder) {
+		if (read.triedCreatingFolder) {
 			return error;
 		}
-		triedCreatingFolder = true;
+		read.triedCreatingFolder = true;
 		if (usingDirectoryChannel()) {
 			// Ask the CHANNEL to create it, on the storage tier, as part of the next open. Doing it
 			// here would be a card WRITE on the interaction tier, which the listing runs on — no
@@ -976,7 +957,7 @@ Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder)
 }
 
 // Body of ListingAction::Open, run on the fiber inside runPendingListing(). arrivedInNewFolder()
-// is the full synchronous listing body: readFileItemsFromFolderAndMemory + fileIndexSelected
+// is the full synchronous listing body: readFolder + fileIndexSelected
 // search + folderContentsReady() + render.
 Error Browser::openListingImpl(int32_t direction, char const* filenameToStartAt, char const* defaultDir) {
 	return arrivedInNewFolder(direction, filenameToStartAt, defaultDir);
@@ -1055,6 +1036,7 @@ Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStart
 	    .phase = ListingPhase::Read,
 	    .read =
 	        {
+	            .dir = currentDir,
 	            .outputType = outputTypeToLoad,
 	            .filePrefix = filePrefix,
 	            .filenameToStartAt = haveSearchString ? filenameToStartAt : "",
@@ -1138,6 +1120,7 @@ Error Browser::stepListing() {
 				// the FileItems, so they have to be fetched again. The original's parameters, which
 				// differ from the main read's in every field that matters.
 				listing_.read = ListingRead{
+				    .dir = currentDir,
 				    .outputType = OutputType::NONE,
 				    .filePrefix = "SONG",
 				    .filenameToStartAt = enteredText,
@@ -1165,7 +1148,7 @@ Error Browser::stepListing() {
 }
 
 Error Browser::performListingRead() {
-	return readFolderAndMemory(listing_.read, listing_.triedCreatingFolder);
+	return readFolder(listing_.read);
 }
 
 std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection() {
@@ -1289,8 +1272,15 @@ Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char c
 	char filenameToStartAt[buffer_size];
 	strncpy(filenameToStartAt, thingName, buffer_size - 2); // Leave 2 chars for "colon + null terminator"
 	strcat(filenameToStartAt, ":");                         // Colon is the first character after the digits.
-	error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt, NULL,
-	                                         false, Availability::ANY, CatalogSearch::Left);
+	ListingRead read{
+	    .dir = currentDir,
+	    .outputType = outputType,
+	    .filePrefix = getThingName(outputType),
+	    .filenameToStartAt = filenameToStartAt,
+	    .allowFolders = false,
+	    .catalogSearchDirection = CatalogSearch::Left,
+	};
+	error = readFolder(read);
 
 	if (error != Error::NONE) {
 doReturn:
@@ -1418,7 +1408,7 @@ nonNumeric:
 	// From here on, a reload of the folder listing off SD may be required (numFileItemsDeletedAtStart/End
 	// wraparound cases below). If so, dispatch it onto the storage owner - reloadImpl() does the reload
 	// AND then runs the shared tail (see finishSelectEncoderAction()) once it completes, on the fiber. If
-	// no reload is needed, the tail runs synchronously right here: readFileItemsFromFolderAndMemory() is
+	// no reload is needed, the tail runs synchronously right here: readFolder() is
 	// the only SD-touching call in this whole function.
 	if (newFileIndex < 0) {
 		D_PRINTLN("index below 0");
@@ -1520,8 +1510,13 @@ Error Browser::reloadImpl(int32_t direction) {
 	Error error;
 
 	if (pendingReloadSearchFromEnd_) {
-		error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, NULL, NULL, true,
-		                                         Availability::ANY, pendingReloadCatalogSearchDirection_);
+		ListingRead read{
+		    .dir = currentDir,
+		    .outputType = outputTypeToLoad,
+		    .filePrefix = filePrefix,
+		    .catalogSearchDirection = pendingReloadCatalogSearchDirection_,
+		};
+		error = readFolder(read);
 		if (error == Error::LISTING_DEFERRED) {
 			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
 			// success for a listing that never happened: runPendingListing() would clear
@@ -1543,8 +1538,14 @@ Error Browser::reloadImpl(int32_t direction) {
 		                   : 0;
 	}
 	else {
-		error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.c_str(), NULL,
-		                                         true, Availability::ANY, CatalogSearch::Both);
+		ListingRead read{
+		    .dir = currentDir,
+		    .outputType = outputTypeToLoad,
+		    .filePrefix = filePrefix,
+		    .filenameToStartAt = enteredText,
+		    .catalogSearchDirection = CatalogSearch::Both,
+		};
+		error = readFolder(read);
 		if (error == Error::LISTING_DEFERRED) {
 			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
 			// success for a listing that never happened: runPendingListing() would clear
@@ -1643,9 +1644,15 @@ doSearch:
 		// If we haven't yet done a whole new read from the SD card etc, from within this function, do that now.
 		if (!target.doneNewRead) {
 doNewRead:
-			error = readFileItemsFromFolderAndMemory(
-			    currentSong, outputTypeToLoad, filePrefix, target.searchString.c_str(), NULL, true, Availability::ANY,
-			    CatalogSearch::Both); // This could probably actually be made to work with searching left only...
+			// This could probably actually be made to work with searching left only...
+			ListingRead read{
+			    .dir = currentDir,
+			    .outputType = outputTypeToLoad,
+			    .filePrefix = filePrefix,
+			    .filenameToStartAt = target.searchString,
+			    .catalogSearchDirection = CatalogSearch::Both,
+			};
+			error = readFolder(read);
 			if (error == Error::LISTING_DEFERRED) {
 				// Optimistic: the typed character STAYS and the prediction finishes on a later tick.
 				// `target` already carries the loop's progress -- which search string, how many extra

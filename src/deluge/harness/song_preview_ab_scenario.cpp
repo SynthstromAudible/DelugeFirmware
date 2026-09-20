@@ -2538,7 +2538,7 @@ void runAcquireTick() {
 		// fix round). Deliberately LAST: it creates a genuinely new "SYNT<N>"-named Instrument and adds
 		// it to the live Song (createNewInstrument() -> currentSong->addOutput()), which earlier steps'
 		// findAnUnlaunchedPresetIncludingWithinSubfolders()-backed scans would otherwise pick up as an
-		// in-memory candidate (readFileItemsFromFolderAndMemory() merges card files with live Outputs)
+		// in-memory candidate (readFolder() merges card files with live Outputs)
 		// and land on instead of the fixture file they expect -- found by running this step earlier and
 		// watching AcquireStep::SessionNavigate fail downstream.
 		//

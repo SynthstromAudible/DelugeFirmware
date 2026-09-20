@@ -1400,8 +1400,16 @@ LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* so
 
 goAgain:
 
-	Error error = readFileItemsFromFolderAndMemory(song, outputType, getThingName(outputType),
-	                                               searchNameLocalCopy.c_str(), nullptr, true);
+	ListingRead read{
+	    .dir = currentDir,
+	    .outputType = outputType,
+	    .filePrefix = getThingName(outputType),
+	    .filenameToStartAt = searchNameLocalCopy,
+	    // A null `song` means what it always said: read the folder, do not merge the song's own
+	    // Instruments into the listing.
+	    .includeSongInstruments = song != nullptr,
+	};
+	Error error = readFolder(read);
 	if (error != Error::NONE) {
 		emptyFileItems();
 		return std::unexpected{error};
@@ -1525,9 +1533,15 @@ LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, 
 	};
 
 doReadFiles:
-	Error error =
-	    readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), searchNameLocalCopy.c_str(),
-	                                     nullptr, false, availabilityRequirement);
+	ListingRead read{
+	    .dir = currentDir,
+	    .outputType = outputType,
+	    .filePrefix = getThingName(outputType),
+	    .filenameToStartAt = searchNameLocalCopy,
+	    .allowFolders = false,
+	    .includeSongInstruments = currentSong != nullptr,
+	};
+	Error error = readFolder(read);
 
 	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
 

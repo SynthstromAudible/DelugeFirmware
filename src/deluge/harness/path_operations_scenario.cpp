@@ -55,7 +55,14 @@ public:
 	static Error readWithFallback(const char* missing, const char* fallback) {
 		Browser::currentDir = missing;
 		Browser::allowedFileExtensions = allowedFileExtensionsXML;
-		return saveSongUI.readFileItemsFromFolderAndMemory(nullptr, OutputType::NONE, "SONG", nullptr, fallback, true);
+		Browser::ListingRead read{
+		    .dir = missing,
+		    .outputType = OutputType::NONE,
+		    .filePrefix = "SONG",
+		    .defaultDirToAlsoTry = fallback,
+		    .includeSongInstruments = false,
+		};
+		return saveSongUI.readFolder(read);
 	}
 	static std::string currentDir() { return Browser::currentDir; }
 

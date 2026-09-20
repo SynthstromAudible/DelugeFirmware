@@ -89,8 +89,17 @@ bool PresetWalk::stepReadFolder() {
 	}
 	LoadInstrumentPresetUI::allowedFileExtensions = allowedFileExtensionsXML;
 
-	const Error error = ui_->readFileItemsFromFolderAndMemory(song_, outputType_, getThingName(outputType_),
-	                                                          frame.searchName.c_str(), nullptr, true);
+	// Named through LoadInstrumentPresetUI, not Browser: the type is PROTECTED, and this class is a
+	// friend of the derived UI rather than of Browser itself. Clang rejects Browser::ListingRead here;
+	// gcc accepts it, so the host build says nothing and only the device build catches it.
+	LoadInstrumentPresetUI::ListingRead read{
+	    .dir = frame.dir,
+	    .outputType = outputType_,
+	    .filePrefix = getThingName(outputType_),
+	    .filenameToStartAt = frame.searchName,
+	    .includeSongInstruments = song_ != nullptr,
+	};
+	const Error error = ui_->readFolder(read);
 	if (error == Error::LISTING_DEFERRED) {
 		return false;
 	}
