@@ -594,7 +594,7 @@ deleteFromRightSide:
 
 		shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 		octaveStartsFromA = false;
-		int32_t foundIndex = searchFileItems(filenameToStartSearchAt.c_str());
+		int32_t foundIndex = searchFileItems(filenameToStartSearchAt.c_str()).index;
 
 		// If search-item is in second half, delete from start.
 		if ((foundIndex << 1) >= static_cast<int32_t>(fileItems.size())) {
@@ -987,9 +987,7 @@ namespace {
 class BrowserFileListView final : public deluge::gui::browser::FileListView {
 public:
 	bool contains(char const* nameWithExtension) const override {
-		bool foundExact = false;
-		Browser::searchFileItems(nameWithExtension, &foundExact);
-		return foundExact;
+		return Browser::searchFileItems(nameWithExtension).exact;
 	}
 };
 } // namespace
@@ -1187,7 +1185,7 @@ std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection()
 	fileIndexSelected = 0;
 
 	if (listing_.readHadSearchString) {
-		const int32_t i = searchFileItems(listing_.read.filenameToStartAt.c_str(), &foundExact);
+		const auto [i, foundExact] = searchFileItems(listing_.read.filenameToStartAt.c_str());
 		if (foundExact) {
 			fileIndexSelected = i;
 			listing_.foundExactMatch = true;
@@ -1351,7 +1349,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 			return;
 		}
 
-		newFileIndex = searchFileItems(enteredText.c_str());
+		newFileIndex = searchFileItems(enteredText.c_str()).index;
 		if (offset < 0) {
 			newFileIndex--;
 		}
@@ -1406,7 +1404,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				pos++;
 				*pos = 0;
 			}
-			newFileIndex = searchFileItems(searchString);
+			newFileIndex = searchFileItems(searchString).index;
 			if (offset < 0) {
 				newFileIndex--;
 			}
@@ -1563,7 +1561,7 @@ Error Browser::reloadImpl(int32_t direction) {
 			return Error::NONE;
 		}
 
-		newFileIndex = searchFileItems(enteredText.c_str()) + offset;
+		newFileIndex = searchFileItems(enteredText.c_str()).index + offset;
 		D_PRINTLN("new file Index is %d", newFileIndex);
 	}
 
@@ -1637,7 +1635,7 @@ gotError:
 	// because 2 is the closest number to 1 that comes after 1. So now we just search for the string as is. The major
 	// impact is this now returns the first match instead of the last match.
 doSearch:
-	int32_t i = searchFileItems(target.searchString.c_str());
+	int32_t i = searchFileItems(target.searchString.c_str()).index;
 
 	// If that search takes us off the right-hand end of the list...
 	if (i >= static_cast<int32_t>(fileItems.size())) {
@@ -2365,10 +2363,10 @@ void Browser::sortFileItems() {
 	if (!filenameToStartSearchAt.empty()) {
 		char const* searchName = filenameToStartSearchAt.c_str();
 		if (catalogSearchDirection == CatalogSearch::Left) {
-			bool foundExact = false;
-			int32_t searchIndex = searchFileItems(searchName, &foundExact);
+			const SearchHit hit = searchFileItems(searchName);
+			int32_t searchIndex = hit.index;
 			// Check for duplicates.
-			if (foundExact) {
+			if (hit.exact) {
 				int32_t prevIndex = searchIndex - 1;
 				if (prevIndex >= 0 && !strcmpspecial(fileItems[prevIndex].displayName().c_str(), searchName)) {
 					searchIndex = prevIndex;
@@ -2381,17 +2379,17 @@ void Browser::sortFileItems() {
 			}
 		}
 		else if (catalogSearchDirection == CatalogSearch::Right) {
-			bool foundExact = false;
-			int32_t searchIndex = searchFileItems(searchName, &foundExact);
+			const SearchHit hit = searchFileItems(searchName);
+			int32_t searchIndex = hit.index;
 			// Check for duplicates.
-			if (foundExact) {
+			if (hit.exact) {
 				int32_t nextIndex = searchIndex + 1;
 				if (nextIndex < static_cast<int32_t>(fileItems.size())
 				    && !strcmpspecial(fileItems[nextIndex].displayName().c_str(), searchName)) {
 					searchIndex = nextIndex;
 				}
 			}
-			int32_t numToDelete = searchIndex + static_cast<int32_t>(foundExact);
+			int32_t numToDelete = searchIndex + static_cast<int32_t>(hit.exact);
 			if (numToDelete > 0) {
 				deleteSomeFileItems(0, numToDelete);
 				numFileItemsDeletedAtStart += numToDelete;
@@ -2403,7 +2401,7 @@ void Browser::sortFileItems() {
 	// a deleted region is dropped here too, or the window has a hole in it: a 25-song folder read from its start
 	// would hold SONG000-009 and then SONG020-023, because 010-019 were culled before 020-024 arrived.
 	if (!lastFileItemRemaining.empty()) {
-		int32_t searchIndex = searchFileItems(lastFileItemRemaining.c_str());
+		int32_t searchIndex = searchFileItems(lastFileItemRemaining.c_str()).index;
 		int32_t itemsToDeleteAtEnd = static_cast<int32_t>(fileItems.size()) - searchIndex - 1;
 		if (itemsToDeleteAtEnd > 0) {
 			deleteSomeFileItems(searchIndex + 1, static_cast<int32_t>(fileItems.size()));
@@ -2412,7 +2410,7 @@ void Browser::sortFileItems() {
 	}
 
 	if (!firstFileItemRemaining.empty()) {
-		int32_t itemsToDeleteAtStart = searchFileItems(firstFileItemRemaining.c_str());
+		int32_t itemsToDeleteAtStart = searchFileItems(firstFileItemRemaining.c_str()).index;
 		if (itemsToDeleteAtStart > 0) {
 			deleteSomeFileItems(0, itemsToDeleteAtStart);
 			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
@@ -2420,16 +2418,18 @@ void Browser::sortFileItems() {
 	}
 }
 
-int32_t Browser::searchFileItems(char const* searchString, bool* foundExact) {
+SearchHit Browser::searchFileItems(char const* searchString) {
 	// Project each item to a plain C string so the comparator is symmetric in its argument types, as
 	// ranges::lower_bound requires of a strict weak order. The projected pointer never outlives the call.
 	auto it = std::ranges::lower_bound(
 	    fileItems, searchString, [](char const* a, char const* b) { return strcmpspecial(a, b) < 0; },
 	    [](FileItem const& f) { return f.displayName().c_str(); });
-	if (foundExact != nullptr) {
-		*foundExact = (it != fileItems.end() && strcmpspecial(it->displayName().c_str(), searchString) == 0);
-	}
-	return static_cast<int32_t>(it - fileItems.begin());
+	// Exactness is always computed now, where the out-param let a caller opt out of it: one extra
+	// strcmpspecial against an already-located entry, in exchange for the pointer.
+	return {
+	    .index = static_cast<int32_t>(it - fileItems.begin()),
+	    .exact = (it != fileItems.end() && strcmpspecial(it->displayName().c_str(), searchString) == 0),
+	};
 }
 
 bool Browser::isFavouritesVisible() {

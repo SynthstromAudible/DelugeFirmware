@@ -1042,7 +1042,7 @@ addNumber:
 			(*newName).append(deluge::string::fromInt(oldNumber + 1));
 			char const* newNameChars = newName->c_str();
 
-			int32_t i = searchFileItems(newNameChars);
+			int32_t i = searchFileItems(newNameChars).index;
 			if (i >= static_cast<int32_t>(fileItems.size())) {
 				break;
 			}

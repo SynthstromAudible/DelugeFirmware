@@ -46,6 +46,16 @@ struct Slot {
 	int8_t subSlot;
 };
 
+/// @brief Where a name sits in a sorted listing, and whether it is actually there.
+///
+/// @warning `index` is an INSERTION POINT when `exact` is false, so it can equal the list's size.
+///          A caller that indexes straight into the list must check the bound -- reading past the
+///          end on a name that was not found has been a real defect here before.
+struct SearchHit {
+	int32_t index{}; ///< the match, or where the name would be inserted
+	bool exact{};    ///< whether @ref index names a real entry rather than a gap
+};
+
 /// @brief Which way a read searches from its search name, and so which side of it is kept.
 ///
 /// Left and Right keep one side of the search name; Both keeps a window around it, and is the only
@@ -114,9 +124,16 @@ public:
 
 	static std::string currentDir;
 	static deluge::vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
-	/// Mirrors CStringArray::search(): binary search by displayName using strcmpspecial; returns the matching
-	/// index, or the insertion point if not found. Set shouldInterpretNoteNames and octaveStartsFromA first.
-	static int32_t searchFileItems(char const* searchString, bool* foundExact = nullptr);
+	/// @brief Mirrors CStringArray::search(): binary search by displayName using strcmpspecial.
+	///
+	/// Set shouldInterpretNoteNames and octaveStartsFromA first.
+	///
+	/// @note `searchString` stays a `char const*` deliberately. The comparator hands it straight to
+	///       `strcmpspecial(char const*, char const*)`, so a `std::string_view` -- which carries no
+	///       guarantee of a terminator -- would be undefined behaviour for any caller that built one
+	///       from a substring, and a `const std::string&` would make the callers that already hold a
+	///       `char const*` allocate a temporary inside a folder walk.
+	[[nodiscard]] static SearchHit searchFileItems(char const* searchString);
 	static int32_t numFileItemsDeletedAtStart;
 	static int32_t numFileItemsDeletedAtEnd;
 	/// Names of the entries that bracket the culled window, remembered ACROSS the cull that erases them.
