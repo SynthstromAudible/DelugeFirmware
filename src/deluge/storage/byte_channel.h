@@ -394,6 +394,13 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// @brief How many operations @ref runInlineWhereLegal refused because the caller was off the owner after boot.
 [[nodiscard]] int32_t illegalInline();
 
+/// @brief How many operations @ref runInlineWhereLegal actually RAN inline.
+///
+/// The complement of @ref illegalInline, and the evidence a consumer needs before deleting its
+/// blocking arm: a refusal count of zero is equally consistent with the arm running every single
+/// time. Only this distinguishes "nothing reached the arm" from "everything did, legally".
+[[nodiscard]] int32_t inlineRuns();
+
 /// @brief How many settings operations the CHANNEL has carried to completion.
 ///
 /// The check that the async arm is executed at all. When every consumer could still fall back to the

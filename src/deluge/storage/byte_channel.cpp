@@ -91,6 +91,8 @@ int32_t g_channelServed = 0;
 
 /// See @ref illegalInline.
 int32_t g_illegalInline = 0;
+/// How many operations `runInlineWhereLegal` actually RAN. See its header note.
+int32_t g_inlineRuns = 0;
 
 /// Count one channel operation that reached a terminal status, and pass that status through.
 ///
@@ -652,6 +654,7 @@ bool idle() {
 
 bool runInlineWhereLegal(OwnerFn fn, void* ctx) {
 	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
+		g_inlineRuns++;
 		fn(ctx);
 		return true;
 	}
@@ -661,6 +664,10 @@ bool runInlineWhereLegal(OwnerFn fn, void* ctx) {
 
 int32_t illegalInline() {
 	return g_illegalInline;
+}
+
+int32_t inlineRuns() {
+	return g_inlineRuns;
 }
 
 ByteIo requestUnlink(const char* path) {

@@ -189,6 +189,9 @@ void runTick() {
 			printf("SF-TIER FAIL startup fail-safe I/O ran on the interaction tier\n");
 			g_failures++;
 		}
+		// ABSOLUTE, not a delta like `illegal` below: boot's settings reads run before this scenario
+		// starts, and they are exactly what this number is here to count.
+		printf("SF-INLINE ran=%d\n", (int)deluge::storage::bytes::inlineRuns());
 		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		printf("SF-ILLEGAL illegal=%d\n", illegal);
 		if (illegal != 0) {
