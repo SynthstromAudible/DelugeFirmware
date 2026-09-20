@@ -1409,7 +1409,7 @@ goAgain:
 	    // Instruments into the listing.
 	    .includeSongInstruments = song != nullptr,
 	};
-	Error error = readFolder(read);
+	Error error = readFolder(listing, read);
 	if (error != Error::NONE) {
 		emptyFileItems();
 		return std::unexpected{error};
@@ -1541,7 +1541,7 @@ doReadFiles:
 	    .allowFolders = false,
 	    .includeSongInstruments = currentSong != nullptr,
 	};
-	Error error = readFolder(read);
+	Error error = readFolder(listing, read);
 
 	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
 
@@ -1643,9 +1643,9 @@ PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset
 readAgain:
 	CatalogSearch newCatalogSearchDirection = (offset >= 0) ? CatalogSearch::Right : CatalogSearch::Left;
 readAgainWithSameOffset:
-	toReturn.error = readFileItemsForFolder(currentDir, getThingName(outputType), false, allowedFileExtensionsXML,
-	                                        oldNameString.c_str(), FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION,
-	                                        newCatalogSearchDirection);
+	toReturn.error = readFileItemsForFolder(listing, currentDir, getThingName(outputType), false,
+	                                        allowedFileExtensionsXML, oldNameString.c_str(),
+	                                        FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
 
 	if (toReturn.error != Error::NONE) {
 		return toReturn;
@@ -1653,7 +1653,7 @@ readAgainWithSameOffset:
 
 	AudioEngine::logAction("doPresetNavigation2");
 
-	toReturn.error = currentSong->addInstrumentsToFileItems(outputType);
+	toReturn.error = currentSong->addInstrumentsToFileItems(listing, outputType);
 	if (toReturn.error != Error::NONE) {
 emptyFileItemsAndReturn:
 		emptyFileItems();

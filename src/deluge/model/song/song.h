@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/reverb/model.h"
+#include "gui/ui/browser/file_listing.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
@@ -407,7 +408,9 @@ public:
 	void setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity);
 	void midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
 	                                         int32_t whichBendRange, int32_t bendSemitones);
-	Error addInstrumentsToFileItems(OutputType outputType);
+	/// @brief Merge this song's own Instruments for @p outputType into @p into, for the folder that
+	///        listing was read from.
+	Error addInstrumentsToFileItems(deluge::gui::browser::FileListing& into, OutputType outputType);
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();

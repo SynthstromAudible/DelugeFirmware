@@ -82,9 +82,10 @@ public:
 	/// @brief Read one folder's entries into @ref listing.
 	/// @param dirToRead The folder to open. Passed rather than taken from `currentDir`: a read no
 	///        longer moves the browser's navigation, so the two can legitimately differ.
-	Error readFileItemsForFolder(const std::string& dirToRead, char const* filePrefixHere, bool allowFolders,
-	                             char const** allowedFileExtensionsHere, char const* filenameToStartAt,
-	                             int32_t newMaxNumFileItems,
+	/// @param into The listing to fill.
+	Error readFileItemsForFolder(FileListing& into, const std::string& dirToRead, char const* filePrefixHere,
+	                             bool allowFolders, char const** allowedFileExtensionsHere,
+	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
 	                             CatalogSearch newCatalogSearchDirection = CatalogSearch::Both);
 	Error setFileByFullPath(OutputType outputType, char const* fullPath);
 	/// @brief Sort the listing by this browser's collation.
@@ -529,7 +530,9 @@ protected:
 	/// @param read The read to perform; MUTATED by the fallback.
 	/// @return Error::LISTING_DEFERRED when the directory channel has not answered yet — ask again
 	///         with this same @p read, and no open is ever made twice.
-	Error readFolder(ListingRead& read);
+	/// @param into The listing to fill. The browser's own for a listing, a walk's own for a walk --
+	///        which is the point: a read no longer implies whose list is being replaced.
+	Error readFolder(FileListing& into, ListingRead& read);
 	void favouritesChanged();
 
 	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or

@@ -504,9 +504,10 @@ void Browser::sortFileItems() {
 	listing.sort();
 }
 
-Error Browser::readFileItemsForFolder(const std::string& dirToRead, char const* filePrefixHere, bool allowFolders,
-                                      char const** allowedFileExtensionsHere, char const* filenameToStartAt,
-                                      int32_t newMaxNumFileItems, CatalogSearch newCatalogSearchDirection) {
+Error Browser::readFileItemsForFolder(FileListing& into, const std::string& dirToRead, char const* filePrefixHere,
+                                      bool allowFolders, char const** allowedFileExtensionsHere,
+                                      char const* filenameToStartAt, int32_t newMaxNumFileItems,
+                                      CatalogSearch newCatalogSearchDirection) {
 
 	AudioEngine::logAction("readFileItemsForFolder");
 
@@ -573,9 +574,9 @@ Error Browser::readFileItemsForFolder(const std::string& dirToRead, char const* 
 	// Everything this read needs, handed over in one call: the folder it is of, where it starts,
 	// which side of that it keeps, the cap it culls against, and how names compare. These were seven
 	// separate assignments to seven separate globals, two of which had external linkage.
-	listing.beginRead(dirToRead, filenameToStartAt != nullptr ? filenameToStartAt : "", newCatalogSearchDirection,
-	                  newMaxNumFileItems,
-	                  {.interpretNoteNames = shouldInterpretNoteNamesForThisBrowser, .octaveStartsFromA = false});
+	into.beginRead(dirToRead, filenameToStartAt != nullptr ? filenameToStartAt : "", newCatalogSearchDirection,
+	               newMaxNumFileItems,
+	               {.interpretNoteNames = shouldInterpretNoteNamesForThisBrowser, .octaveStartsFromA = false});
 
 	while (true) {
 		AudioEngine::logAction("while loop");
@@ -612,7 +613,7 @@ extensionNotSupported:
 			}
 		}
 
-		FileItem* thisItem = listing.newItem();
+		FileItem* thisItem = into.newItem();
 		if (!thisItem) {
 			error = Error::INSUFFICIENT_RAM;
 			break;
@@ -674,7 +675,7 @@ std::string g_ownerCreatePath;
 
 } // namespace
 
-Error Browser::readFolder(ListingRead& read) {
+Error Browser::readFolder(FileListing& into, ListingRead& read) {
 	// filenameToStartAt should have .XML at the end of it.
 	while (true) {
 		// The directory being read lives in `read`, and the listing records it as its provenance. The
@@ -684,7 +685,7 @@ Error Browser::readFolder(ListingRead& read) {
 		// ONE open per iteration. A deferral returns immediately with `read` already carrying
 		// whatever fallback this loop had taken, so resuming continues from that open rather than
 		// re-running the ones before it.
-		Error error = readFileItemsForFolder(read.dir, read.filePrefix, read.allowFolders, allowedFileExtensions,
+		Error error = readFileItemsForFolder(into, read.dir, read.filePrefix, read.allowFolders, allowedFileExtensions,
 		                                     read.filenameToStartAt.empty() ? nullptr : read.filenameToStartAt.c_str(),
 		                                     FILE_ITEMS_MAX_NUM_ELEMENTS, read.catalogSearchDirection);
 		if (error == Error::LISTING_DEFERRED) {
@@ -724,20 +725,20 @@ Error Browser::readFolder(ListingRead& read) {
 	}
 
 	if (currentSong && read.includeSongInstruments && read.outputType != OutputType::NONE) {
-		Error error = currentSong->addInstrumentsToFileItems(read.outputType);
+		Error error = currentSong->addInstrumentsToFileItems(into, read.outputType);
 		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	if (!listing.empty()) {
-		sortFileItems();
+	if (!into.empty()) {
+		into.sort();
 
-		if (!listing.empty()) {
+		if (!into.empty()) {
 			// Delete folders sharing name of file.
 			// And, files sharing name of in-memory Instrument.
 			if (!allowFoldersSharingNameWithFile) {
-				listing.dropFoldersAndDuplicates(
+				into.dropFoldersAndDuplicates(
 				    Availability::ANY); // I think this is right - was Availability::INSTRUMENT_UNUSED until 2023-01
 			}
 		}
@@ -943,7 +944,7 @@ Error Browser::stepListing() {
 }
 
 Error Browser::performListingRead() {
-	return readFolder(listing_.read);
+	return readFolder(listing, listing_.read);
 }
 
 std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection() {
@@ -1075,7 +1076,7 @@ Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char c
 	    .allowFolders = false,
 	    .catalogSearchDirection = CatalogSearch::Left,
 	};
-	error = readFolder(read);
+	error = readFolder(listing, read);
 
 	if (error != Error::NONE) {
 doReturn:
@@ -1311,7 +1312,7 @@ Error Browser::reloadImpl(int32_t direction) {
 		    .filePrefix = filePrefix,
 		    .catalogSearchDirection = pendingReloadCatalogSearchDirection_,
 		};
-		error = readFolder(read);
+		error = readFolder(listing, read);
 		if (error == Error::LISTING_DEFERRED) {
 			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
 			// success for a listing that never happened: runPendingListing() would clear
@@ -1338,7 +1339,7 @@ Error Browser::reloadImpl(int32_t direction) {
 		    .filenameToStartAt = enteredText,
 		    .catalogSearchDirection = CatalogSearch::Both,
 		};
-		error = readFolder(read);
+		error = readFolder(listing, read);
 		if (error == Error::LISTING_DEFERRED) {
 			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
 			// success for a listing that never happened: runPendingListing() would clear
@@ -1445,7 +1446,7 @@ doNewRead:
 			    .filenameToStartAt = target.searchString,
 			    .catalogSearchDirection = CatalogSearch::Both,
 			};
-			error = readFolder(read);
+			error = readFolder(listing, read);
 			if (error == Error::LISTING_DEFERRED) {
 				// Optimistic: the typed character STAYS and the prediction finishes on a later tick.
 				// `target` already carries the loop's progress -- which search string, how many extra

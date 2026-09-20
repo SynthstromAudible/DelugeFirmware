@@ -5636,7 +5636,7 @@ void Song::midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable
 	}
 }
 
-Error Song::addInstrumentsToFileItems(OutputType outputType) {
+Error Song::addInstrumentsToFileItems(deluge::gui::browser::FileListing& into, OutputType outputType) {
 	bool doingHibernatingOnes;
 	Output* thisOutput;
 	if (false) {
@@ -5661,11 +5661,11 @@ doHibernatingInstruments:
 		// If different path, it's not relevant.
 		// The folder being READ, not where the browser is: this merge runs from inside readFolder, and a
 		// walk reading a subfolder must not pick up Instruments from the browser's own directory.
-		if (!(thisInstrument->dirPath == Browser::listing.dir())) {
+		if (!(thisInstrument->dirPath == into.dir())) {
 			continue;
 		}
 
-		FileItem* thisItem = Browser::listing.newItem();
+		FileItem* thisItem = into.newItem();
 
 		if (!thisItem) {
 			return Error::INSUFFICIENT_RAM;

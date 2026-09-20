@@ -99,7 +99,7 @@ bool PresetWalk::stepReadFolder() {
 	    .filenameToStartAt = frame.searchName,
 	    .includeSongInstruments = song_ != nullptr,
 	};
-	const Error error = ui_->readFolder(read);
+	const Error error = ui_->readFolder(Browser::listing, read);
 	if (error == Error::LISTING_DEFERRED) {
 		return false;
 	}
