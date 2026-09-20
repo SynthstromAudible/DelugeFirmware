@@ -22,6 +22,7 @@
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "hid/display/display.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "io/file.hpp"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
@@ -529,6 +530,11 @@ void startupSongRoutine() {
 			g_settingsGaveUp = true;
 		}
 		g_settingsPhase = SettingsPhase::Done;
+		// Applied HERE, not at boot: the setting is only known once the read lands. Until then the
+		// canvas default stands, so the first frames render with rounded corners on regardless of
+		// what the card says -- the visible cost of boot no longer waiting for the card.
+		deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled =
+		    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
 		armStartupSong();
 	}
 	switch (g_phase) {

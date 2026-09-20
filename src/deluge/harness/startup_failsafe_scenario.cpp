@@ -189,9 +189,15 @@ void runTick() {
 			printf("SF-TIER FAIL startup fail-safe I/O ran on the interaction tier\n");
 			g_failures++;
 		}
-		// ABSOLUTE, not a delta like `illegal` below: boot's settings reads run before this scenario
-		// starts, and they are exactly what this number is here to count.
-		printf("SF-INLINE ran=%d\n", (int)deluge::storage::bytes::inlineRuns());
+		// ABSOLUTE, not a delta like `illegal` below: boot's settings reads ran before this scenario
+		// started, and they are exactly what this number is here to count. Measured 3 before the
+		// reads moved off boot (b414b4f40); 0 is the claim that they no longer take the arm at all.
+		const int32_t inlineRan = deluge::storage::bytes::inlineRuns();
+		printf("SF-INLINE ok=%d ran=%d\n", (int)(inlineRan == 0), (int)inlineRan);
+		if (inlineRan != 0) {
+			printf("SF-INLINE FAIL a settings read still took the blocking arm\n");
+			g_failures++;
+		}
 		const int32_t illegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		printf("SF-ILLEGAL illegal=%d\n", illegal);
 		if (illegal != 0) {

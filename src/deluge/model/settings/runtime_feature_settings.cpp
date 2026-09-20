@@ -199,9 +199,10 @@ bool RuntimeFeatureSettings::readSettingsFromFile(deluge::storage::bytes::DoneFn
 	                                       /*onAbsent=*/nullptr, this, onDone)) {
 		return true;
 	}
-	// A refusal (off the owner after boot) leaves the settings in memory as they are.
-	(void)deluge::storage::bytes::runInlineWhereLegal(
-	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->readSettingsOnOwner(); }, this);
+	// No blocking arm: boot no longer calls this, so a refusal means the channel is switched off or
+	// the path does not fit -- and either way the settings in memory stand, which is exactly what a
+	// refusal has always meant here. The settings prelude sees the refusal as a read it must not
+	// wait for.
 	return false;
 }
 

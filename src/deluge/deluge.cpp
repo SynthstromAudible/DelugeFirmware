@@ -699,12 +699,11 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	usbLock = 0;
 
-	// Hopefully we can read these files now
-	(void)runtimeFeatureSettings.readSettingsFromFile();
-	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled =
-	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
-	(void)MIDIDeviceManager::readDevicesFromFile();
-	(void)midiFollow.readDefaultsFromFile();
+	// The three settings files are NOT read here any more. They are read by the settings prelude
+	// (storage/startup_song.h) behind the same card-ready trigger as the startup song, through the
+	// byte channel. Boot therefore touches the card not at all, and the UI starts without waiting
+	// for it -- which is what lets the reads' blocking arms be deleted, and with them the boot
+	// window that `Owner::started()` exists to name.
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(startupConditionalTask, 100, isCardReady, "startup/render", RESOURCE_SD | RESOURCE_SD_ROUTINE);

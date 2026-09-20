@@ -1829,8 +1829,7 @@ bool MidiFollow::readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone) {
 		// Not taken (a busy channel queues instead): the body below runs only where blocking is legal, which
 		// here is nowhere, so the defaults set up above stand.
 	}
-	(void)deluge::storage::bytes::runInlineWhereLegal(
-	    [](void* ctx) { static_cast<MidiFollow*>(ctx)->readDefaultsOnOwner(); }, this);
+	// No blocking arm -- see readSettingsFromFile for why. The defaults set up above stand.
 	return false;
 }
 
