@@ -23,7 +23,11 @@
 #include "gui/ui/ui.h"
 #include "hid/display/display.h"
 #include "io/file.hpp"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_follow.h"
+#include "libdeluge/clock.h" // deluge_clock_now
 #include "libdeluge/file_write.h"
+#include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "storage/byte_channel.h"
@@ -77,6 +81,42 @@ constexpr int32_t kMaxAttemptsWithoutProgress = 600;
 /// the same livelock shape an earlier rung shipped. Six hundred ticks is several seconds at this
 /// routine's rate -- far beyond any real operation, far short of forever.
 constexpr int32_t kMaxPendingTicks = 600;
+
+/// @name The settings prelude
+///
+/// The three settings reads boot used to make, moved behind the same card-ready trigger the
+/// fail-safe machine already uses. They are NOT phases of `StartupPhase`: that enum is driven by a
+/// PURE policy over existence answers (`startup_song_policy.h`, unit-tested), and these are driven
+/// by completion COUNTS, which that function has no way to express.
+///
+/// The ordering they exist to make explicit: `armStartupSong` reads
+/// `runtimeFeatureSettings.getStartupSong()`, so the settings must have LANDED before it arms.
+/// In `deluge_boot()` that was guaranteed only by the order of two lines.
+/// @{
+enum class SettingsPhase : uint8_t {
+	Idle,    ///< Not armed.
+	Reading, ///< Reads submitted; waiting for every accepted one to report.
+	Done,    ///< All accounted for, or given up on. The song machine may arm.
+};
+SettingsPhase g_settingsPhase = SettingsPhase::Idle;
+/// `submitRead` calls the channel accepted -- i.e. how many completions to expect.
+int32_t g_settingsAccepted = 0;
+/// Completions reported, whatever the outcome. Absent and Unreadable both count: the prelude's job
+/// is to stop waiting, not to judge. Writing defaults because the card hiccuped would replace the
+/// user's real settings, which is the line `byte_channel.h` already draws.
+int32_t g_settingsDone = 0;
+/// How long the prelude has gone without all its completions. Elapsed time, never a tick count --
+/// a tick count means a different wait to every caller.
+UnproductiveSpan g_settingsSpan;
+/// Whether the prelude gave up rather than hearing from everything it submitted. Reported by the
+/// gate; a give-up still arms the song, because a Deluge that boots to nothing because a settings
+/// read stalled is worse than one that boots with defaults.
+bool g_settingsGaveUp = false;
+
+void settingsReadDone(void* /*ctx*/, deluge::storage::bytes::SettingsOutcome /*outcome*/) {
+	g_settingsDone++;
+}
+/// @}
 
 /// @name The machine's state
 /// @{
@@ -435,6 +475,21 @@ bool unlinkFinished(const std::string& path) {
 
 } // namespace
 
+void armStartupSettings() {
+	g_settingsAccepted = 0;
+	g_settingsDone = 0;
+	g_settingsGaveUp = false;
+	g_settingsSpan.reset();
+	g_settingsPhase = SettingsPhase::Reading;
+	// Each consumer's own entry point. It already preferred the channel and fell back to blocking
+	// only because `started()` was false during boot; from here `started()` is true, so the channel
+	// takes them. Each returns whether it was ACCEPTED -- an early-out ("we only want to do this
+	// once") submits nothing and so is not waited for.
+	g_settingsAccepted += runtimeFeatureSettings.readSettingsFromFile(&settingsReadDone) ? 1 : 0;
+	g_settingsAccepted += MIDIDeviceManager::readDevicesFromFile(&settingsReadDone) ? 1 : 0;
+	g_settingsAccepted += midiFollow.readDefaultsFromFile(&settingsReadDone) ? 1 : 0;
+}
+
 void armStartupSong() {
 	auto startupSongMode = FlashStorage::defaultStartupSongMode;
 	if (startupSongMode == StartupSongMode::BLANK) {
@@ -465,6 +520,17 @@ void armStartupSong() {
 }
 
 void startupSongRoutine() {
+	if (g_settingsPhase == SettingsPhase::Reading) {
+		if (g_settingsDone < g_settingsAccepted) {
+			g_settingsSpan.note(deluge_clock_now());
+			if (g_settingsSpan.elapsedUs <= kMaxUnproductiveUs) {
+				return; // still waiting: the song machine must NOT arm on stale settings
+			}
+			g_settingsGaveUp = true;
+		}
+		g_settingsPhase = SettingsPhase::Done;
+		armStartupSong();
+	}
 	switch (g_phase) {
 	case StartupPhase::Idle:
 	case StartupPhase::Done:

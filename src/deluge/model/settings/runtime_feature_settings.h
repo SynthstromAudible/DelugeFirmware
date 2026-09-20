@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/l10n/strings.h"
+#include "storage/byte_channel.h"
 #include "util/containers.h"
 #include <array>
 #include <cstdint>
@@ -91,6 +92,7 @@ class Serializer;
 class Deserializer;
 
 /// Encapsulating class
+
 class RuntimeFeatureSettings {
 public:
 	RuntimeFeatureSettings();
@@ -109,7 +111,10 @@ public:
 	inline const char* getStartupSong() { return startupSong.c_str(); }
 	void init();
 	void factoryReset(bool showPopup = true);
-	void readSettingsFromFile();
+	/// @brief Read the settings, preferring the channel.
+	/// @param onDone Told how the channel operation ended, when the channel took it.
+	/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
+	bool readSettingsFromFile(deluge::storage::bytes::DoneFn onDone = nullptr);
 	/// @brief readSettingsFromFile's body, run where blocking on the card is legal.
 	void readSettingsOnOwner();
 	void writeSettingsToFile();

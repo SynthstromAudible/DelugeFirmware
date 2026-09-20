@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 #include "modulation/params/param.h"
+#include "storage/byte_channel.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
 #include <array>
@@ -44,7 +45,10 @@ public:
 	void writeDefaultsToFile();
 	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
 	void writeDefaultsOnOwner();
-	void readDefaultsFromFile();
+	/// @brief Read the follow defaults, preferring the channel.
+	/// @param onDone Told how the channel operation ended, when the channel took it.
+	/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
+	bool readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone = nullptr);
 	/// @brief readDefaultsFromFile's body, run where blocking on the card is legal.
 	void readDefaultsOnOwner();
 	/// @brief Put the in-memory follow settings into their out-of-the-box state.

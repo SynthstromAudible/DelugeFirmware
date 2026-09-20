@@ -49,6 +49,12 @@ namespace deluge::storage {
 /// The `startupConditionalTask` in `deluge.cpp` points here, and that indirection must stay: the
 /// headless stem renderer (`src/bsp/host/host_render_main.cpp`) overrides that handle with its own
 /// driver before `deluge_main()` runs.
+/// @brief The card-ready entry point: read the settings, THEN arm the fail-safe machine.
+///
+/// Ahead of @ref armStartupSong because that reads `runtimeFeatureSettings.getStartupSong()`, and a
+/// song armed before the settings land loads the wrong song -- silently.
+void armStartupSettings();
+
 void armStartupSong();
 
 /// @brief Advance the fail-safe by one phase. Registered as a repeating task.

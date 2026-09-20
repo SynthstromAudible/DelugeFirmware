@@ -1813,24 +1813,25 @@ void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
 }
 
 /// read defaults from XML
-void MidiFollow::readDefaultsFromFile() {
+bool MidiFollow::readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone) {
 	if (deluge::storage::bytes::usingByteChannel()) {
 		// The early-out and the in-memory defaults happen HERE, before anything is submitted, because
 		// they are exactly what must be true whether the file turns up or not -- the owner arm sets
 		// them up before its own read for the same reason.
 		if (successfullyReadDefaultsFromFile) {
-			return;
+			return false; // nothing submitted, so nothing will report
 		}
 		resetToDefaults();
 		if (deluge::storage::bytes::submitRead(MIDI_FOLLOW_XML, /*legacyPath=*/nullptr, &MidiFollow::parseDefaultsBytes,
-		                                       &MidiFollow::writeDefaultsAbsent, this)) {
-			return;
+		                                       &MidiFollow::writeDefaultsAbsent, this, onDone)) {
+			return true;
 		}
 		// Not taken (a busy channel queues instead): the body below runs only where blocking is legal, which
 		// here is nowhere, so the defaults set up above stand.
 	}
 	(void)deluge::storage::bytes::runInlineWhereLegal(
 	    [](void* ctx) { static_cast<MidiFollow*>(ctx)->readDefaultsOnOwner(); }, this);
+	return false;
 }
 
 void MidiFollow::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {

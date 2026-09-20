@@ -22,6 +22,7 @@
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
+#include "storage/byte_channel.h"
 #include "util/containers.h"
 class Serializer;
 class Deserializer;
@@ -29,6 +30,7 @@ class MIDICableUSBHosted;
 
 #else
 #include "definitions.h"
+
 struct MIDICableUSB;
 #endif
 
@@ -83,7 +85,11 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 void recountSmallestMPEZones();
 void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);
-void readDevicesFromFile();
+
+/// @brief Read the device table, preferring the channel.
+/// @param onDone Told how the channel operation ended, when the channel took it.
+/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
+bool readDevicesFromFile(deluge::storage::bytes::DoneFn onDone = nullptr);
 void factoryReset(bool showPopup = true);
 
 extern MIDICableUSBUpstream upstreamUSBMIDICable1;

@@ -405,11 +405,12 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-// Which conditional task fires once the SD card is ready. Normally the startup-song
-// loader above; the headless stem-render utility (src/bsp/host/host_render_main.cpp)
-// overrides this with its own driver before deluge_main() runs. A plain firmware or
-// interactive-host build never touches it, so behaviour is unchanged on-device.
-TaskHandle startupConditionalTask = deluge::storage::armStartupSong;
+// Which conditional task fires once the SD card is ready. Normally the settings prelude, which
+// reads the three settings files through the channel and THEN arms the startup-song loader above;
+// the headless stem-render utility (src/bsp/host/host_render_main.cpp) overrides this with its own
+// driver before deluge_main() runs. A plain firmware or interactive-host build never touches it, so
+// behaviour is unchanged on-device.
+TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);

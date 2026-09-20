@@ -579,19 +579,20 @@ void factoryReset(bool showPopup) {
 	readDevicesFromFile();
 }
 
-void readDevicesFromFile() {
+bool readDevicesFromFile(deluge::storage::bytes::DoneFn onDone) {
 	if (deluge::storage::bytes::usingByteChannel()) {
 		if (successfullyReadDevicesFromFile) {
-			return; // Yup, we only want to do this once
+			return false; // Yup, we only want to do this once -- and nothing was submitted, so nothing will report
 		}
 		if (deluge::storage::bytes::submitRead(MIDI_DEVICES_XML, LEGACY_MIDI_DEVICES_XML, &parseDevicesBytes,
-		                                       /*onAbsent=*/nullptr, nullptr)) {
-			return;
+		                                       /*onAbsent=*/nullptr, nullptr, onDone)) {
+			return true;
 		}
 		// Not taken (a busy channel queues instead): the body below runs only where blocking is legal, which
 		// here is nowhere, so the table in memory stands.
 	}
 	(void)deluge::storage::bytes::runInlineWhereLegal([](void*) { readDevicesOnOwner(); }, nullptr);
+	return false;
 }
 
 void parseDevicesBytes(void* /*ctx*/, char* bytes, uint32_t len) {
