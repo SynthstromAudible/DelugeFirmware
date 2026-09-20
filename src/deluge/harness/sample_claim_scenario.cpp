@@ -1722,6 +1722,11 @@ void runTick() {
 		return;
 	}
 	if (g_leg == Leg::Done) {
+		// The question the on_owner() collapse turns on: did anything actually RUN on the storage
+		// owner during this gate? Every site that branches on on_owner() is only interesting while
+		// the answer is non-zero. Reporting-only for now -- the value is unmeasured.
+		printf("SC-ONOWNER trueAfterStart=%d ownerOps=%d\n", (int)deluge::storage::Owner::onOwnerTrue(),
+		       (int)deluge::storage::Owner::opsRun());
 		printf("SC-RESULT failures=%d\n", g_failures);
 		fflush(stdout);
 		g_summaryPrinted = true;

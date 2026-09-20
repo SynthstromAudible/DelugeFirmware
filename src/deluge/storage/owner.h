@@ -58,6 +58,14 @@ struct Owner {
 	/// @return true iff on the storage worker context.
 	static bool on_owner();
 
+	/// @brief How many times @ref on_owner has answered TRUE after @ref started. For gates only.
+	///
+	/// The question the whole `on_owner()` collapse turns on: every site that branches on it is only
+	/// interesting while something still RUNS there. At zero across the estate, every one of those
+	/// branches is already taking its off-owner path and the collapse is mechanical rather than a
+	/// site-by-site audit. Counted here, once, rather than at 51 call sites.
+	[[nodiscard]] static int32_t onOwnerTrue();
+
 	/// @brief True iff the owner has run at least once - i.e. an owner exists to be `on_owner()`
 	/// of at all. False only during the narrow pre-owner boot window (the synchronous
 	/// `deluge_boot()` call chain, before the worker pump's first poll); true for the rest of the

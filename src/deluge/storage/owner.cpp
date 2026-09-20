@@ -43,8 +43,21 @@ bool Owner::run_sd_routine(void (*fn)(void*), void* ctx) {
 	return dispatched;
 }
 
+namespace {
+/// How many times on_owner() has answered TRUE after the owner started. See Owner::onOwnerTrue().
+int32_t g_onOwnerTrue = 0;
+} // namespace
+
 bool Owner::on_owner() {
-	return deluge_worker_on_worker();
+	const bool onOwner = deluge_worker_on_worker();
+	if (onOwner && deluge_worker_started()) {
+		g_onOwnerTrue++;
+	}
+	return onOwner;
+}
+
+int32_t Owner::onOwnerTrue() {
+	return g_onOwnerTrue;
 }
 
 bool Owner::started() {
