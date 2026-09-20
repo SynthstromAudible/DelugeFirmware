@@ -1640,8 +1640,7 @@ void runWalkMachineTick() {
 	case WalkMachineStep::ArmFound:
 		g_walkSavedDir = Browser::currentDir;
 		g_walkTierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
-		Browser::currentDir = kWalkStartDir;
-		g_presetWalk.arm(loadInstrumentPresetUI, currentSong, OutputType::SYNTH, Availability::ANY);
+		g_presetWalk.arm(loadInstrumentPresetUI, kWalkStartDir, currentSong, OutputType::SYNTH, Availability::ANY);
 		g_waitTicks = 0;
 		g_walkStep = WalkMachineStep::RunFound;
 		break;
@@ -1680,8 +1679,7 @@ void runWalkMachineTick() {
 		// A real, empty filler folder -- NOT a missing one. The PL sibling's first draft searched a
 		// folder that never existed and passed on FOLDER_DOESNT_EXIST (10), which tests a missing
 		// folder rather than an exhausted search.
-		Browser::currentDir = "SYNTHS/WALK/W01";
-		g_presetWalk.arm(loadInstrumentPresetUI, currentSong, OutputType::SYNTH, Availability::ANY);
+		g_presetWalk.arm(loadInstrumentPresetUI, "SYNTHS/WALK/W01", currentSong, OutputType::SYNTH, Availability::ANY);
 		g_waitTicks = 0;
 		g_walkStep = WalkMachineStep::RunExhaust;
 		break;

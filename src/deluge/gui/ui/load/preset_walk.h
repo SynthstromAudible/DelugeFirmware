@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <expected>
 #include <string>
+#include <string_view>
 
 class FileItem;
 class LoadInstrumentPresetUI;
@@ -86,14 +87,17 @@ public:
 
 	/// @brief Begin a search rooted at the browser's current directory.
 	///
-	/// The caller sets `Browser::currentDir` first to say WHERE to search, as it did for the
-	/// recursive walk. It is read once, here, as an input -- the walk never writes it back.
 	/// @param ui The browser whose resumable folder read the walk drives. Its file list is NOT
 	///        touched: the walk fills its own.
+	/// @param startDir Where to search from. A PARAMETER, not `Browser::currentDir`: a caller that
+	///        had to park the directory in the global first would be writing browser state to
+	///        communicate with this class, and that write is exactly what broke the save browser --
+	///        an acquisition for "SYNTHS" moved a save browser sitting in "SONGS".
 	/// @param song Searched for already-loaded Instruments too; null reads the folder alone.
 	/// @param outputType Which kind of preset is wanted.
 	/// @param availabilityRequirement Which presets may be landed on.
-	void arm(LoadInstrumentPresetUI& ui, Song* song, OutputType outputType, Availability availabilityRequirement);
+	void arm(LoadInstrumentPresetUI& ui, std::string_view startDir, Song* song, OutputType outputType,
+	         Availability availabilityRequirement);
 
 	/// @brief Advance by at most one folder read. Returns true while there is still work.
 	bool tick();

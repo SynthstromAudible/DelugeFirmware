@@ -24,7 +24,7 @@
 
 namespace deluge::gui {
 
-void PresetWalk::arm(LoadInstrumentPresetUI& ui, Song* song, OutputType outputType,
+void PresetWalk::arm(LoadInstrumentPresetUI& ui, std::string_view startDir, Song* song, OutputType outputType,
                      Availability availabilityRequirement) {
 	ui_ = &ui;
 	song_ = song;
@@ -38,8 +38,7 @@ void PresetWalk::arm(LoadInstrumentPresetUI& ui, Song* song, OutputType outputTy
 	lastNameBeforeFiltering_.clear();
 	descendIndex_ = 0;
 
-	// The caller set currentDir; that is the root of the search, as it was for the recursive walk.
-	frames_[0] = Frame{.dir = Browser::currentDir, .searchName = {}, .doingSubfolders = false};
+	frames_[0] = Frame{.dir = std::string{startDir}, .searchName = {}, .doingSubfolders = false};
 	depth_ = 1;
 	maxDepthReached_ = 1;
 	phase_ = WalkPhase::ReadFolder;
