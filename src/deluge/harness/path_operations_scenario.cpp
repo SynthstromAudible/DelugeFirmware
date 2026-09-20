@@ -87,7 +87,7 @@ public:
 	}
 	/// Whether a file named `name` is in the listing.
 	static bool listed(const char* name) {
-		for (const FileItem& item : Browser::fileItems) {
+		for (const FileItem& item : Browser::listing.items()) {
 			if (deluge::string::caselessEquals(item.displayName(), name)) {
 				return true;
 			}
@@ -96,9 +96,9 @@ public:
 	}
 	/// Select the listed file named `name`, as scrolling to it does. False when it is not listed.
 	static bool select(const char* name) {
-		for (size_t i = 0; i < Browser::fileItems.size(); i++) {
-			if (deluge::string::caselessEquals(Browser::fileItems[i].displayName(), name)) {
-				Browser::fileIndexSelected = static_cast<int32_t>(i);
+		for (int32_t i = 0; i < Browser::listing.size(); i++) {
+			if (deluge::string::caselessEquals(Browser::listing.items()[i].displayName(), name)) {
+				Browser::fileIndexSelected = i;
 				(void)saveSongUI.setEnteredTextFromCurrentFilename();
 				return true;
 			}

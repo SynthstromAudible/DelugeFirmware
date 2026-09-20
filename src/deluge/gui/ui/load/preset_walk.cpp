@@ -112,7 +112,7 @@ bool PresetWalk::stepReadFolder() {
 	ui_->sortFileItems();
 
 	// No files at all means the end of the folder.
-	if (Browser::fileItems.empty()) {
+	if (Browser::listing.empty()) {
 		if (!frame.doingSubfolders) {
 			startDoingFolders();
 		}
@@ -124,17 +124,17 @@ bool PresetWalk::stepReadFolder() {
 
 	// Taken BEFORE filtering, because filtering is what creates the gap that paging has to resume
 	// across.
-	lastNameBeforeFiltering_ = Browser::fileItems[Browser::fileItems.size() - 1].displayName();
+	lastNameBeforeFiltering_ = Browser::listing.items()[Browser::listing.size() - 1].displayName();
 
-	Browser::deleteFolderAndDuplicateItems(availabilityRequirement_);
+	Browser::listing.dropFoldersAndDuplicates(availabilityRequirement_);
 
 	phase_ = frame.doingSubfolders ? WalkPhase::ScanFolders : WalkPhase::ScanFiles;
 	return true;
 }
 
 void PresetWalk::stepScanFiles() {
-	for (int32_t i = 0; i < static_cast<int32_t>(Browser::fileItems.size()); i++) {
-		auto* fileItem = &Browser::fileItems[i];
+	for (int32_t i = 0; i < static_cast<int32_t>(Browser::listing.size()); i++) {
+		auto* fileItem = &Browser::listing.item(i);
 		if (!fileItem->isFolder) {
 			succeed(fileItem);
 			return;
@@ -142,14 +142,14 @@ void PresetWalk::stepScanFiles() {
 	}
 
 	// None here. Is there more of this folder to read?
-	if (Browser::numFileItemsDeletedAtEnd) {
+	if (Browser::listing.numDeletedAtEnd()) {
 		pageFrom(lastNameBeforeFiltering_);
 		return;
 	}
 
 	// Every file seen and none usable, so look in subfolders. If the start of the folder was culled
 	// away, the subfolders there have to be read back in first.
-	if (Browser::numFileItemsDeletedAtStart) {
+	if (Browser::listing.numDeletedAtStart()) {
 		startDoingFolders();
 		return;
 	}
@@ -160,15 +160,15 @@ void PresetWalk::stepScanFiles() {
 }
 
 void PresetWalk::stepScanFolders() {
-	for (int32_t i = 0; i < static_cast<int32_t>(Browser::fileItems.size()); i++) {
-		if (Browser::fileItems[i].isFolder) {
+	for (int32_t i = 0; i < static_cast<int32_t>(Browser::listing.size()); i++) {
+		if (Browser::listing.items()[i].isFolder) {
 			descendIndex_ = i;
 			phase_ = WalkPhase::Descend;
 			return;
 		}
 	}
 
-	if (Browser::numFileItemsDeletedAtEnd) {
+	if (Browser::listing.numDeletedAtEnd()) {
 		pageFrom(lastNameBeforeFiltering_);
 		return;
 	}
@@ -176,13 +176,13 @@ void PresetWalk::stepScanFolders() {
 }
 
 void PresetWalk::stepDescend() {
-	auto* fileItem = &Browser::fileItems[descendIndex_];
+	auto* fileItem = &Browser::listing.items()[descendIndex_];
 	Frame& frame = top();
 
 	// Computed here, before the descent, exactly as the original did: once the child has read its own
 	// folder this level's list is gone, and whether there was more of it is no longer discoverable.
 	frame.anyMoreForLater =
-	    Browser::numFileItemsDeletedAtEnd || (descendIndex_ < static_cast<int32_t>(Browser::fileItems.size()) - 1);
+	    Browser::listing.numDeletedAtEnd() || (descendIndex_ < static_cast<int32_t>(Browser::listing.size()) - 1);
 	// Where this level resumes if the child finds nothing: at the subfolder that just failed.
 	frame.searchName = fileItem->displayName();
 

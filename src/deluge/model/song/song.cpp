@@ -5663,7 +5663,7 @@ doHibernatingInstruments:
 			continue;
 		}
 
-		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
+		FileItem* thisItem = Browser::listing.newItem();
 
 		if (!thisItem) {
 			return Error::INSUFFICIENT_RAM;

@@ -336,9 +336,9 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	do {
 		fileIndexSelected = fileIndexSelected + offset;
 		if (fileIndexSelected < 0) {
-			fileIndexSelected = static_cast<int32_t>(fileItems.size()) - 1;
+			fileIndexSelected = listing.size() - 1;
 		}
-		else if (fileIndexSelected >= static_cast<int32_t>(fileItems.size())) {
+		else if (fileIndexSelected >= listing.size()) {
 			fileIndexSelected = 0;
 		}
 		Browser::setEnteredTextFromCurrentFilename();

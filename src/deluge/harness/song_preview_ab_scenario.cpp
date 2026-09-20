@@ -87,12 +87,16 @@ public:
 	/// case cannot inherit a stale entry from the one before it.
 	static void select(const char* dir, const char* filename) {
 		Browser::currentDir = dir;
-		Browser::fileItems.clear();
+		// adopt(), not a raw push_back: standing a listing up by hand is legitimate for a fixture, and
+		// this is the one named way to do it. The items are the only thing replaced -- the read
+		// parameters stay as they were.
 		FileItem item;
 		item.filename = filename;
 		item.isFolder = false;
 		item.filenameIncludesExtension = true;
-		Browser::fileItems.push_back(item);
+		deluge::vector<FileItem> items;
+		items.push_back(item);
+		Browser::listing.adopt(std::move(items));
 		// Protected in `Browser`; reachable here because this class is a friend of `LoadSongUI`, which
 		// inherits it. Without it `getCurrentFileItem()` returns null and every case takes the
 		// nothing-to-preview branch.
@@ -1320,7 +1324,7 @@ ListingSnapshot takeListingSnapshot() {
 	snap.dir = Browser::currentDir;
 	snap.entered = Browser::enteredText;
 	snap.selected = BrowserListingAbProbe::selectedIndex();
-	for (const FileItem& item : Browser::fileItems) {
+	for (const FileItem& item : Browser::listing.items()) {
 		snap.names.push_back(item.filename);
 	}
 	return snap;
@@ -1442,7 +1446,7 @@ void checkResumed(const char* label) {
 void beginRun(ListingStep step) {
 	g_listingStep = step;
 	markCounters();
-	g_itemsWhenRunBegan = Browser::fileItems.size();
+	g_itemsWhenRunBegan = Browser::listing.size();
 	g_listingTicks = 0;
 	g_listingRunning = true;
 }
@@ -1502,7 +1506,7 @@ bool tickRun() {
 		return !BrowserListingAbProbe::inProgress();
 	default:
 		// Checked BEFORE the tick, so it observes the state a user would see between frames.
-		if (g_itemsWhenRunBegan > 0 && BrowserListingAbProbe::inProgress() && Browser::fileItems.empty()) {
+		if (g_itemsWhenRunBegan > 0 && BrowserListingAbProbe::inProgress() && Browser::listing.empty()) {
 			g_sawBlankWhileSuspended = true;
 		}
 		if (BrowserListingAbProbe::inProgress()) {
@@ -3102,8 +3106,8 @@ void runDxTick() {
 			}
 		}
 		const int32_t selected = BrowserListingAbProbe::selectedIndex();
-		const std::string file = (selected >= 0 && selected < static_cast<int32_t>(Browser::fileItems.size()))
-		                             ? Browser::fileItems[selected].filename
+		const std::string file = (selected >= 0 && selected < Browser::listing.size())
+		                             ? Browser::listing.items()[selected].filename
 		                             : std::string{"-"};
 		DX7Cartridge* pd = deluge::gui::menu_item::dxCartridge.pd;
 		const int32_t patches = pd != nullptr ? pd->numPatches() : 0;

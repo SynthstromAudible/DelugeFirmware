@@ -49,21 +49,16 @@
 using namespace deluge;
 
 std::string Browser::currentDir{};
+deluge::gui::browser::FileListing Browser::listing{};
 bool Browser::qwertyVisible;
 
-deluge::vector<FileItem> Browser::fileItems;
 int32_t Browser::scrollPosVertical;
 int32_t Browser::fileIndexSelected;
 int32_t Browser::numCharsInPrefix;
 bool Browser::arrivedAtFileByTyping;
-int32_t Browser::numFileItemsDeletedAtStart;
-int32_t Browser::numFileItemsDeletedAtEnd;
-std::string Browser::firstFileItemRemaining;
-std::string Browser::lastFileItemRemaining;
 OutputType Browser::outputTypeToLoad;
 char const** Browser::allowedFileExtensions;
 bool Browser::allowFoldersSharingNameWithFile;
-std::string Browser::filenameToStartSearchAt;
 
 namespace {
 /// See Browser::unusedSlotCalls().
@@ -188,7 +183,7 @@ bool Browser::beginListing(ListingRequest req) {
 		//
 		// And one that is not a call but a loss: the success tail (folderContentsReady /
 		// onBrowserOpened / currentFileChanged) used to be serialised on the owner alongside every
-		// other op that touches Browser::fileItems. It no longer is. All four are rung 4's, together
+		// other op that touches Browser::listing. It no longer is. All four are rung 4's, together
 		// with predictExtendedText and LoadInstrumentPresetUI.
 		return true;
 	}
@@ -308,7 +303,7 @@ void Browser::captureListingRestore() {
 	try {
 		listingRestore_ = ListingRestore{
 		    .currentDir = currentDir,
-		    .fileItems = fileItems,
+		    .listing = listing,
 		    .fileIndexSelected = fileIndexSelected,
 		    .scrollPosVertical = scrollPosVertical,
 		    .scrollPosHorizontal = scrollPosHorizontal,
@@ -316,10 +311,6 @@ void Browser::captureListingRestore() {
 		    .enteredTextEditPos = enteredTextEditPos,
 		    .arrivedAtFileByTyping = arrivedAtFileByTyping,
 		    .qwertyVisible = qwertyVisible,
-		    .numFileItemsDeletedAtStart = numFileItemsDeletedAtStart,
-		    .numFileItemsDeletedAtEnd = numFileItemsDeletedAtEnd,
-		    .firstFileItemRemaining = firstFileItemRemaining,
-		    .lastFileItemRemaining = lastFileItemRemaining,
 		};
 	} catch (deluge::exception&) {
 		// No memory for the copy: this listing's failure closes the browser, as every failure used to.
@@ -333,7 +324,7 @@ bool Browser::restoreListing() {
 	}
 	ListingRestore& saved = *listingRestore_;
 	currentDir = std::move(saved.currentDir);
-	fileItems = std::move(saved.fileItems);
+	listing = std::move(saved.listing);
 	fileIndexSelected = saved.fileIndexSelected;
 	scrollPosVertical = saved.scrollPosVertical;
 	scrollPosHorizontal = saved.scrollPosHorizontal;
@@ -341,10 +332,6 @@ bool Browser::restoreListing() {
 	enteredTextEditPos = saved.enteredTextEditPos;
 	arrivedAtFileByTyping = saved.arrivedAtFileByTyping;
 	qwertyVisible = saved.qwertyVisible;
-	numFileItemsDeletedAtStart = saved.numFileItemsDeletedAtStart;
-	numFileItemsDeletedAtEnd = saved.numFileItemsDeletedAtEnd;
-	firstFileItemRemaining = std::move(saved.firstFileItemRemaining);
-	lastFileItemRemaining = std::move(saved.lastFileItemRemaining);
 	listingRestore_.reset();
 	return true;
 }
@@ -510,122 +497,11 @@ void Browser::close() {
 }
 
 void Browser::emptyFileItems() {
-
-	AudioEngine::logAction("emptyFileItems");
-
-	// Erase in chunks from the end, keeping the audio routine fed in between - this can be thousands of items.
-	while (!fileItems.empty()) {
-		size_t chunk = std::min<size_t>(256, fileItems.size());
-		fileItems.erase(fileItems.end() - chunk, fileItems.end());
-		AudioEngine::logAction("emptyFileItems in loop");
-		AudioEngine::routineWithClusterLoading();
-	}
-	fileItems.shrink_to_fit();
-
-	AudioEngine::logAction("emptyFileItems 3");
+	listing.clear();
 }
 
-void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
-
-	// Erase in chunks from the back of the range, keeping the audio routine fed in between.
-	while (stopAt > startAt) {
-		int32_t chunkStart = std::max(startAt, stopAt - 256);
-		fileItems.erase(fileItems.begin() + chunkStart, fileItems.begin() + stopAt);
-		stopAt = chunkStart;
-		AudioEngine::routineWithClusterLoading();
-	}
-}
-
-int32_t maxNumFileItemsNow;
-
-CatalogSearch catalogSearchDirection;
-
-FileItem* Browser::getNewFileItem() {
-	bool alreadyCulled = false;
-
-	if (static_cast<int32_t>(fileItems.size()) >= maxNumFileItemsNow) {
-doCull:
-		cullSomeFileItems();
-		alreadyCulled = true;
-	}
-
-	try {
-		fileItems.push_back(FileItem());
-	} catch (deluge::exception&) {
-		if (alreadyCulled) {
-			return nullptr;
-		}
-		goto doCull;
-	}
-
-	return &fileItems.back();
-}
-
-void Browser::cullSomeFileItems() {
-	sortFileItems();
-
-	int32_t startAt, stopAt;
-
-	int32_t numFileItemsDeletingNow =
-	    static_cast<int32_t>(fileItems.size()) - (maxNumFileItemsNow >> 1); // May get modified below.
-	if (numFileItemsDeletingNow <= 0) {
-		return;
-	}
-
-	// If we already know what side we want to be deleting on...
-	if (catalogSearchDirection == CatalogSearch::Left) {
-deleteFromLeftSide:
-		numFileItemsDeletedAtStart += numFileItemsDeletingNow;
-		startAt = 0;
-		stopAt = numFileItemsDeletingNow;
-		firstFileItemRemaining = (&fileItems[numFileItemsDeletingNow])->displayName();
-	}
-	else if (catalogSearchDirection == CatalogSearch::Right) {
-deleteFromRightSide:
-		numFileItemsDeletedAtEnd += numFileItemsDeletingNow;
-		stopAt = static_cast<int32_t>(fileItems.size());
-		startAt = stopAt - numFileItemsDeletingNow;
-		lastFileItemRemaining = (&fileItems[startAt - 1])->displayName();
-	}
-
-	// Or if we've been using a search term *and* searching both directions, try to tend towards keeping equal amounts
-	// of FileIems either side.
-	else {
-
-		shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
-		octaveStartsFromA = false;
-		int32_t foundIndex = searchFileItems(filenameToStartSearchAt.c_str()).index;
-
-		// If search-item is in second half, delete from start.
-		if ((foundIndex << 1) >= static_cast<int32_t>(fileItems.size())) {
-			int32_t newNumFilesDeleting =
-			    foundIndex >> 1; // Delete half the existing items to the left of the search-item.
-			if (newNumFilesDeleting <= 0) {
-				return;
-			}
-			if (numFileItemsDeletingNow > newNumFilesDeleting) {
-				numFileItemsDeletingNow = newNumFilesDeleting;
-			}
-			goto deleteFromLeftSide;
-		}
-
-		// Or, vice versa.
-		else {
-			int32_t newNumFilesDeleting = (static_cast<int32_t>(fileItems.size()) - foundIndex)
-			                              >> 1; // Delete half the existing items to the right of the search-item.
-			if (newNumFilesDeleting <= 0) {
-				return;
-			}
-			if (numFileItemsDeletingNow > newNumFilesDeleting) {
-				numFileItemsDeletingNow = newNumFilesDeleting;
-			}
-			goto deleteFromRightSide;
-		}
-	}
-
-	if (startAt != stopAt) {
-		deleteSomeFileItems(startAt, stopAt); // Check might not be necessary?
-	}
+void Browser::sortFileItems() {
+	listing.sort();
 }
 
 Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
@@ -694,15 +570,12 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// prediction reaches this same function with no such gate and would blank the folder
 	// mid-keystroke. The walk below still starts from a clean list, which is all the original
 	// placement guaranteed.
-	emptyFileItems();
-
-	numFileItemsDeletedAtStart = 0;
-	numFileItemsDeletedAtEnd = 0;
-	firstFileItemRemaining.clear();
-	lastFileItemRemaining.clear();
-	catalogSearchDirection = newCatalogSearchDirection;
-	maxNumFileItemsNow = newMaxNumFileItems;
-	filenameToStartSearchAt = filenameToStartAt != nullptr ? filenameToStartAt : "";
+	// Everything this read needs, handed over in one call: the folder it is of, where it starts,
+	// which side of that it keeps, the cap it culls against, and how names compare. These were seven
+	// separate assignments to seven separate globals, two of which had external linkage.
+	listing.beginRead(currentDir, filenameToStartAt != nullptr ? filenameToStartAt : "", newCatalogSearchDirection,
+	                  newMaxNumFileItems,
+	                  {.interpretNoteNames = shouldInterpretNoteNamesForThisBrowser, .octaveStartsFromA = false});
 
 	while (true) {
 		AudioEngine::logAction("while loop");
@@ -739,7 +612,7 @@ extensionNotSupported:
 			}
 		}
 
-		FileItem* thisItem = getNewFileItem();
+		FileItem* thisItem = listing.newItem();
 		if (!thisItem) {
 			error = Error::INSUFFICIENT_RAM;
 			break;
@@ -759,88 +632,6 @@ extensionNotSupported:
 	return error;
 }
 
-void Browser::deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement) {
-	int32_t writeI = 0;
-	FileItem* nextItem = fileItems.data();
-
-	for (int32_t readI = 0; readI < static_cast<int32_t>(fileItems.size()); readI++) {
-		FileItem* readItem = nextItem;
-
-		// If there's a next item after "this" item, to compare it to...
-		if (readI < static_cast<int32_t>(fileItems.size()) - 1) {
-			nextItem = &fileItems[readI + 1];
-
-			// If we're a folder, and the next item is a file of the same name, delete this item.
-			if (readItem->isFolder) {
-				if (!nextItem->isFolder) {
-					int32_t nameLength = readItem->filename.size();
-					char const* nextItemFilename = nextItem->filename.c_str();
-					if (!memcasecmp(readItem->filename.c_str(), nextItemFilename, nameLength)) {
-						if (nextItemFilename[nameLength] == '.' && !strchr(&nextItemFilename[nameLength + 1], '.')) {
-							goto deleteThisItem;
-						}
-					}
-				}
-			}
-
-			// Or if we have an Instrument, and the next item is a file of the same name, delete the next item.
-			else if (readItem->instrument) {
-				if (!nextItem->instrument && !nextItem->isFolder) {
-					if (!strcasecmp(readItem->displayName().c_str(), nextItem->displayName().c_str())) {
-						// if (readItem->filename.equalsCaseIrrespective(&nextItem->filename)) {
-						readI++; // Skip the next item; it'll be overwritten by compaction or erased below.
-						nextItem = fileItems.data() + (readI + 1);
-						// That may be an out-of-range address, but in that case, it won't get read.
-					}
-				}
-
-checkAvailabilityRequirement:
-				// Check Instrument's availabilityRequirement
-				if (readItem->instrumentAlreadyInSong) {
-					if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-deleteThisItem: // Just skip it; it'll be overwritten by compaction or erased below.
-						continue;
-					}
-					else if (instrumentAvailabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-						if (currentSong->doesOutputHaveActiveClipInSession(readItem->instrument)) {
-							goto deleteThisItem;
-						}
-					}
-				}
-			}
-
-			// Or if next item has an Instrument, and we're just a file...
-			else if (nextItem->instrument) {
-				if (!strcasecmp(readItem->displayName().c_str(),
-				                nextItem->displayName().c_str())) { // And if same name...
-					goto deleteThisItem;
-				}
-			}
-		}
-		else {
-			if (readItem->instrument) {
-				goto checkAvailabilityRequirement;
-			}
-		}
-
-		if (&fileItems[writeI] != readItem) {
-			fileItems[writeI] = std::move(*readItem);
-		}
-		writeI++;
-	}
-
-	fileItems.erase(fileItems.begin() + writeI, fileItems.end());
-
-	// Our system of keeping FileItems from getting too full by deleting elements from its ends as we go could have
-	// caused bad results at the edges of the above, so delete a further one element at each end as needed.
-	if (!firstFileItemRemaining.empty()) {
-		fileItems.erase(fileItems.begin());
-	}
-	if (!lastFileItemRemaining.empty()) {
-		fileItems.pop_back();
-	}
-}
-
 Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 	beginListing({.action = ListingAction::ByPath, .direction = 0, .folderOrPath = fullPath});
 	return Error::NONE;
@@ -854,7 +645,7 @@ Error Browser::setFileByFullPathImpl(char const* fullPath) {
 	//
 	// The listing answers the same question better: it searches for this very name and records
 	// whether it matched EXACTLY, which finishPendingListing() then reads. That also retires a check
-	// that could barely fire -- the old tail tested `fileIndexSelected > fileItems.size()`, but
+	// that could barely fire -- the old tail tested `fileIndexSelected > listing.size()`, but
 	// searchFileItems returns an INSERTION POINT, which is always <= size, so a missing file fell
 	// through it and selected whatever sorted into its place.
 	//
@@ -940,14 +731,14 @@ Error Browser::readFolder(ListingRead& read) {
 		}
 	}
 
-	if (!fileItems.empty()) {
+	if (!listing.empty()) {
 		sortFileItems();
 
-		if (!fileItems.empty()) {
+		if (!listing.empty()) {
 			// Delete folders sharing name of file.
 			// And, files sharing name of in-memory Instrument.
 			if (!allowFoldersSharingNameWithFile) {
-				deleteFolderAndDuplicateItems(
+				listing.dropFoldersAndDuplicates(
 				    Availability::ANY); // I think this is right - was Availability::INSTRUMENT_UNUSED until 2023-01
 			}
 		}
@@ -964,11 +755,11 @@ Error Browser::openListingImpl(int32_t direction, char const* filenameToStartAt,
 }
 
 namespace {
-/// Adapts Browser::fileItems to the FileListView seam used by nextDefaultName().
+/// Adapts Browser::listing to the FileListView seam used by nextDefaultName().
 class BrowserFileListView final : public deluge::gui::browser::FileListView {
 public:
 	bool contains(char const* nameWithExtension) const override {
-		return Browser::searchFileItems(nameWithExtension).exact;
+		return Browser::listing.search(nameWithExtension).exact;
 	}
 };
 } // namespace
@@ -1156,7 +947,7 @@ std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection()
 	scrollPosHorizontal = 0;
 
 	bool foundExact = false;
-	if (fileItems.empty()) {
+	if (listing.empty()) {
 		// No files found at all. Can we just pick a brand new name?
 		if (!mayDefaultToBrandNewNameOnEntry || listing_.direction) {
 			enteredText.clear();
@@ -1168,7 +959,7 @@ std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection()
 	fileIndexSelected = 0;
 
 	if (listing_.readHadSearchString) {
-		const auto [i, foundExact] = searchFileItems(listing_.read.filenameToStartAt.c_str());
+		const auto [i, foundExact] = listing.search(listing_.read.filenameToStartAt.c_str());
 		if (foundExact) {
 			fileIndexSelected = i;
 			listing_.foundExactMatch = true;
@@ -1206,7 +997,7 @@ std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection()
 	// We did not find an exact file. Normally, we'll need to just use one of the ones we found.
 	// (That's just always the first one, I think...)
 	if (!mayDefaultToBrandNewNameOnEntry || listing_.direction) {
-		if (numFileItemsDeletedAtStart) {
+		if (listing.numDeletedAtStart()) {
 			return SelectionOutcome::RereadFromStart;
 		}
 		return useFoundFile();
@@ -1292,8 +1083,8 @@ doReturn:
 	{
 		int32_t freeSlotNumber = 1;
 		int32_t minNumDigits = 1;
-		if (!fileItems.empty()) {
-			FileItem* fileItem = &fileItems[fileItems.size() - 1];
+		if (!listing.empty()) {
+			FileItem* fileItem = &listing.item(listing.size() - 1);
 			// The name carries the prefix on both displays now, so read the real filename, not a display form.
 			std::string filename = fileItem->getFilenameWithoutExtension();
 			char const* readingChar = &filename.c_str()[strlen(thingName)];
@@ -1335,11 +1126,11 @@ void Browser::selectEncoderAction(int8_t offset) {
 	int32_t newFileIndex;
 
 	if (fileIndexSelected < 0) { // If no file selected and we were typing a new name?
-		if (!static_cast<int32_t>(fileItems.size())) {
+		if (!listing.size()) {
 			return;
 		}
 
-		newFileIndex = searchFileItems(enteredText.c_str()).index;
+		newFileIndex = listing.search(enteredText.c_str()).index;
 		if (offset < 0) {
 			newFileIndex--;
 		}
@@ -1394,7 +1185,7 @@ void Browser::selectEncoderAction(int8_t offset) {
 				pos++;
 				*pos = 0;
 			}
-			newFileIndex = searchFileItems(searchString).index;
+			newFileIndex = listing.search(searchString).index;
 			if (offset < 0) {
 				newFileIndex--;
 			}
@@ -1405,14 +1196,14 @@ nonNumeric:
 		}
 	}
 
-	// From here on, a reload of the folder listing off SD may be required (numFileItemsDeletedAtStart/End
+	// From here on, a reload of the folder listing off SD may be required (listing.numDeletedAtStart()/End
 	// wraparound cases below). If so, dispatch it onto the storage owner - reloadImpl() does the reload
 	// AND then runs the shared tail (see finishSelectEncoderAction()) once it completes, on the fiber. If
 	// no reload is needed, the tail runs synchronously right here: readFolder() is
 	// the only SD-touching call in this whole function.
 	if (newFileIndex < 0) {
 		D_PRINTLN("index below 0");
-		if (numFileItemsDeletedAtStart) {
+		if (listing.numDeletedAtStart()) {
 			scrollPosVertical = 9999;
 			D_PRINTLN("reloading");
 			pendingReloadSearchFromEnd_ = false;
@@ -1423,7 +1214,7 @@ nonNumeric:
 		else { // Wrap to end
 			scrollPosVertical = 0;
 
-			if (numFileItemsDeletedAtEnd) {
+			if (listing.numDeletedAtEnd()) {
 				D_PRINTLN("reloading and wrap");
 				pendingReloadSearchFromEnd_ = true;
 				pendingReloadCatalogSearchDirection_ = CatalogSearch::Left;
@@ -1431,14 +1222,14 @@ nonNumeric:
 				return;
 			}
 			else {
-				newFileIndex = static_cast<int32_t>(fileItems.size()) - 1;
+				newFileIndex = listing.size() - 1;
 			}
 		}
 	}
 
-	else if (newFileIndex >= static_cast<int32_t>(fileItems.size())) {
+	else if (newFileIndex >= listing.size()) {
 		D_PRINTLN("out of file items");
-		if (numFileItemsDeletedAtEnd) {
+		if (listing.numDeletedAtEnd()) {
 			scrollPosVertical = 0;
 			D_PRINTLN("reloading");
 			pendingReloadSearchFromEnd_ = false;
@@ -1449,7 +1240,7 @@ nonNumeric:
 		else {
 			scrollPosVertical = 9999;
 
-			if (numFileItemsDeletedAtStart) {
+			if (listing.numDeletedAtStart()) {
 				D_PRINTLN("reloading and wrap");
 				pendingReloadSearchFromEnd_ = true;
 				pendingReloadCatalogSearchDirection_ = CatalogSearch::Right;
@@ -1533,9 +1324,7 @@ Error Browser::reloadImpl(int32_t direction) {
 			return Error::NONE;
 		}
 
-		newFileIndex = (pendingReloadCatalogSearchDirection_ == CatalogSearch::Left)
-		                   ? (static_cast<int32_t>(fileItems.size()) - 1)
-		                   : 0;
+		newFileIndex = (pendingReloadCatalogSearchDirection_ == CatalogSearch::Left) ? (listing.size() - 1) : 0;
 	}
 	else {
 		ListingRead read{
@@ -1562,7 +1351,7 @@ Error Browser::reloadImpl(int32_t direction) {
 			return Error::NONE;
 		}
 
-		newFileIndex = searchFileItems(enteredText.c_str()).index + offset;
+		newFileIndex = listing.search(enteredText.c_str()).index + offset;
 		D_PRINTLN("new file Index is %d", newFileIndex);
 	}
 
@@ -1636,10 +1425,10 @@ gotError:
 	// because 2 is the closest number to 1 that comes after 1. So now we just search for the string as is. The major
 	// impact is this now returns the first match instead of the last match.
 doSearch:
-	int32_t i = searchFileItems(target.searchString.c_str()).index;
+	int32_t i = listing.search(target.searchString.c_str()).index;
 
 	// If that search takes us off the right-hand end of the list...
-	if (i >= static_cast<int32_t>(fileItems.size())) {
+	if (i >= listing.size()) {
 
 		// If we haven't yet done a whole new read from the SD card etc, from within this function, do that now.
 		if (!target.doneNewRead) {
@@ -1701,7 +1490,7 @@ notFound:
 	// The search returns the index where searchString would be inserted
 	// Now check if the file at index i actually matches our prefix. Covers any shenanigans with the weird string
 	// matching
-	FileItem* fileItem = &fileItems[i];
+	FileItem* fileItem = &listing.item(i);
 
 	// If it didn't match exactly, that's ok, but we need to try some other stuff before we accept that result.
 	if (memcasecmp(fileItem->displayName().c_str(), enteredText.c_str(), enteredTextEditPos)) {
@@ -1755,9 +1544,9 @@ void Browser::currentFileDeleted() {
 	}
 	currentFileItem->~FileItem();
 
-	fileItems.erase(fileItems.begin() + fileIndexSelected);
+	listing.eraseAt(fileIndexSelected);
 
-	if (fileIndexSelected == static_cast<int32_t>(fileItems.size())) {
+	if (fileIndexSelected == listing.size()) {
 		fileIndexSelected--; // It might go to -1 if no files left.
 		enteredText.clear();
 		enteredTextEditPos = 0;
@@ -1807,11 +1596,11 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 			{
 				int32_t i = o + scrollPosVertical;
 
-				if (i >= static_cast<int32_t>(fileItems.size())) {
+				if (i >= listing.size()) {
 					break;
 				}
 
-				FileItem* thisFile = &fileItems[i];
+				FileItem* thisFile = &listing.item(i);
 				isFolder = thisFile->isFolder;
 				displayName = thisFile->filename.c_str();
 				isSelectedIndex = (i == fileIndexSelected);
@@ -1855,7 +1644,7 @@ searchForChar:
 }
 
 void Browser::clampFileSelectionAndScroll(bool allowNoFileSelection) {
-	int32_t numFileItems = static_cast<int32_t>(fileItems.size());
+	int32_t numFileItems = listing.size();
 	if (numFileItems <= 0) {
 		// No cached files means there is no real selection, and the viewport must reset to the top.
 		fileIndexSelected = -1;
@@ -1987,7 +1776,7 @@ FileItem* Browser::getCurrentFileItem() {
 	if (fileIndexSelected == -1) {
 		return nullptr;
 	}
-	return &fileItems[fileIndexSelected];
+	return &listing.item(fileIndexSelected);
 }
 
 // This and its individual contents are frequently overridden by child classes.
@@ -2356,87 +2145,6 @@ Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
 	    },
 	    nullptr);
 	return Error::NONE;
-}
-
-void Browser::sortFileItems() {
-	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
-	octaveStartsFromA = false;
-
-	std::sort(fileItems.begin(), fileItems.end(), [](FileItem const& a, FileItem const& b) {
-		return strcmpspecial(a.displayName().c_str(), b.displayName().c_str()) < 0;
-	});
-
-	// A read that searches one way from a name keeps only that side of it.
-	if (!filenameToStartSearchAt.empty()) {
-		char const* searchName = filenameToStartSearchAt.c_str();
-		if (catalogSearchDirection == CatalogSearch::Left) {
-			const SearchHit hit = searchFileItems(searchName);
-			int32_t searchIndex = hit.index;
-			// Check for duplicates.
-			if (hit.exact) {
-				int32_t prevIndex = searchIndex - 1;
-				if (prevIndex >= 0 && !strcmpspecial(fileItems[prevIndex].displayName().c_str(), searchName)) {
-					searchIndex = prevIndex;
-				}
-			}
-			int32_t numToDelete = static_cast<int32_t>(fileItems.size()) - searchIndex;
-			if (numToDelete > 0) {
-				deleteSomeFileItems(searchIndex, static_cast<int32_t>(fileItems.size()));
-				numFileItemsDeletedAtEnd += numToDelete;
-			}
-		}
-		else if (catalogSearchDirection == CatalogSearch::Right) {
-			const SearchHit hit = searchFileItems(searchName);
-			int32_t searchIndex = hit.index;
-			// Check for duplicates.
-			if (hit.exact) {
-				int32_t nextIndex = searchIndex + 1;
-				if (nextIndex < static_cast<int32_t>(fileItems.size())
-				    && !strcmpspecial(fileItems[nextIndex].displayName().c_str(), searchName)) {
-					searchIndex = nextIndex;
-				}
-			}
-			int32_t numToDelete = searchIndex + static_cast<int32_t>(hit.exact);
-			if (numToDelete > 0) {
-				deleteSomeFileItems(0, numToDelete);
-				numFileItemsDeletedAtStart += numToDelete;
-			}
-		}
-	}
-
-	// A cull earlier in this read deleted entries from one end or both. An entry read after that cull which sorts into
-	// a deleted region is dropped here too, or the window has a hole in it: a 25-song folder read from its start
-	// would hold SONG000-009 and then SONG020-023, because 010-019 were culled before 020-024 arrived.
-	if (!lastFileItemRemaining.empty()) {
-		int32_t searchIndex = searchFileItems(lastFileItemRemaining.c_str()).index;
-		int32_t itemsToDeleteAtEnd = static_cast<int32_t>(fileItems.size()) - searchIndex - 1;
-		if (itemsToDeleteAtEnd > 0) {
-			deleteSomeFileItems(searchIndex + 1, static_cast<int32_t>(fileItems.size()));
-			numFileItemsDeletedAtEnd += itemsToDeleteAtEnd;
-		}
-	}
-
-	if (!firstFileItemRemaining.empty()) {
-		int32_t itemsToDeleteAtStart = searchFileItems(firstFileItemRemaining.c_str()).index;
-		if (itemsToDeleteAtStart > 0) {
-			deleteSomeFileItems(0, itemsToDeleteAtStart);
-			numFileItemsDeletedAtStart += itemsToDeleteAtStart;
-		}
-	}
-}
-
-SearchHit Browser::searchFileItems(char const* searchString) {
-	// Project each item to a plain C string so the comparator is symmetric in its argument types, as
-	// ranges::lower_bound requires of a strict weak order. The projected pointer never outlives the call.
-	auto it = std::ranges::lower_bound(
-	    fileItems, searchString, [](char const* a, char const* b) { return strcmpspecial(a, b) < 0; },
-	    [](FileItem const& f) { return f.displayName().c_str(); });
-	// Exactness is always computed now, where the out-param let a caller opt out of it: one extra
-	// strcmpspecial against an already-located entry, in exchange for the pointer.
-	return {
-	    .index = static_cast<int32_t>(it - fileItems.begin()),
-	    .exact = (it != fileItems.end() && strcmpspecial(it->displayName().c_str(), searchString) == 0),
-	};
 }
 
 bool Browser::isFavouritesVisible() {

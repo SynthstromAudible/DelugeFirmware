@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/file_listing.h"
 #include "gui/ui/qwerty_ui.h"
 #include "hid/button.h"
 #include "io/debug/log.h"
@@ -46,25 +47,10 @@ struct Slot {
 	int8_t subSlot;
 };
 
-/// @brief Where a name sits in a sorted listing, and whether it is actually there.
-///
-/// @warning `index` is an INSERTION POINT when `exact` is false, so it can equal the list's size.
-///          A caller that indexes straight into the list must check the bound -- reading past the
-///          end on a name that was not found has been a real defect here before.
-struct SearchHit {
-	int32_t index{}; ///< the match, or where the name would be inserted
-	bool exact{};    ///< whether @ref index names a real entry rather than a gap
-};
-
-/// @brief Which way a read searches from its search name, and so which side of it is kept.
-///
-/// Left and Right keep one side of the search name; Both keeps a window around it, and is the only
-/// mode that consults the search name during a cull.
-enum class CatalogSearch : uint8_t {
-	Left,  ///< keep what sorts before the search name
-	Right, ///< keep what sorts after it
-	Both,  ///< keep a window around it, tending towards equal counts either side
-};
+using deluge::gui::browser::CatalogSearch;
+using deluge::gui::browser::Collation;
+using deluge::gui::browser::FileListing;
+using deluge::gui::browser::SearchHit;
 
 #define FILE_ITEMS_MAX_NUM_ELEMENTS 20
 #define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
@@ -97,14 +83,15 @@ public:
 	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
 	                             CatalogSearch newCatalogSearchDirection = CatalogSearch::Both);
 	Error setFileByFullPath(OutputType outputType, char const* fullPath);
+	/// @brief Sort the listing by this browser's collation.
+	///
+	/// Stays on Browser because the collation is a Browser property -- `shouldInterpretNoteNamesForThisBrowser`
+	/// -- while the sorting itself belongs to the listing. That split is the reason this was an
+	/// instance member while its siblings were `static`.
 	void sortFileItems();
-	FileItem* getNewFileItem();
 	static void emptyFileItems();
-	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
-	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
 	Error getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName);
 	bool opened() override;
-	void cullSomeFileItems();
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
@@ -122,33 +109,20 @@ public:
 
 	// ui
 
+	/// @brief Where the browser IS: the folder the user has navigated to.
+	///
+	/// Not the same thing as `listing.dir()`, which is the folder the current items were READ from.
+	/// They agree while the browser sits still, and a walk that reads other folders is exactly when
+	/// they must not be confused for one another.
 	static std::string currentDir;
-	static deluge::vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
-	/// @brief Mirrors CStringArray::search(): binary search by displayName using strcmpspecial.
+
+	/// @brief The folder the browser is showing.
 	///
-	/// Set shouldInterpretNoteNames and octaveStartsFromA first.
-	///
-	/// @note `searchString` stays a `char const*` deliberately. The comparator hands it straight to
-	///       `strcmpspecial(char const*, char const*)`, so a `std::string_view` -- which carries no
-	///       guarantee of a terminator -- would be undefined behaviour for any caller that built one
-	///       from a substring, and a `const std::string&` would make the callers that already hold a
-	///       `char const*` allocate a temporary inside a folder walk.
-	[[nodiscard]] static SearchHit searchFileItems(char const* searchString);
-	static int32_t numFileItemsDeletedAtStart;
-	static int32_t numFileItemsDeletedAtEnd;
-	/// Names of the entries that bracket the culled window, remembered ACROSS the cull that erases them.
-	/// Owning copies, deliberately: these used to be `char const*` aliases into FileItem::filename, i.e.
-	/// pointers into vector elements this very code then erased.
-	static std::string firstFileItemRemaining;
-	static std::string lastFileItemRemaining;
+	/// One instance: one browser is open at a time, which is what the seven statics this replaces
+	/// already assumed.
+	static FileListing listing;
 
 	static OutputType outputTypeToLoad;
-	/// @brief The search name of the read in progress, empty for a read with none.
-	///
-	/// Owned rather than borrowed. sortFileItems() trims against it, and it is called again after the read that set
-	/// it has returned -- getUnusedSlot() and LoadInstrumentPresetUI's readers both sort once more -- by which time
-	/// the ListingRead whose string a pointer would name is gone.
-	static std::string filenameToStartSearchAt;
 
 	/// @brief True while an async listing (beginListing()'s dispatch onto the storage-owner fiber)
 	///        is in flight.
@@ -216,7 +190,7 @@ protected:
 	virtual void folderContentsReady(int32_t entryDirection) {}
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false) override;
-	// Keeps the selected file index and top visible browser row inside Browser::fileItems.
+	// Keeps the selected file index and top visible browser row inside Browser::listing.
 	void clampFileSelectionAndScroll(bool allowNoFileSelection = true);
 
 	// --- async-listing base machinery ---
@@ -252,7 +226,10 @@ protected:
 	/// so the copy is a plain one.
 	struct ListingRestore {
 		std::string currentDir;
-		deluge::vector<FileItem> fileItems;
+		/// The whole listing, in one field. It used to be six -- the items, both counters and both
+		/// bracket names -- copied one by one, which is the shape of a value that had not been named
+		/// yet. Restoring is now an assignment.
+		FileListing listing;
 		int32_t fileIndexSelected{};
 		int32_t scrollPosVertical{};
 		int32_t scrollPosHorizontal{};
@@ -260,10 +237,6 @@ protected:
 		int16_t enteredTextEditPos{};
 		bool arrivedAtFileByTyping{};
 		bool qwertyVisible{};
-		int32_t numFileItemsDeletedAtStart{};
-		int32_t numFileItemsDeletedAtEnd{};
-		std::string firstFileItemRemaining;
-		std::string lastFileItemRemaining;
 	};
 	/// @brief Whether a completed listing is on screen. Set when a listing succeeds; cleared by opened() and close().
 	static bool listingShown_;
@@ -323,7 +296,7 @@ protected:
 		/// @brief Drop the search string, and the search DIRECTION that depends on it.
 		///
 		/// The two must move together or the cull dereferences a null pointer. `cullSomeFileItems`
-		/// only consults `filenameToStartSearchAt` under CatalogSearch::Both — the "tend towards equal
+		/// only consults `listing.searchName()` under CatalogSearch::Both — the "tend towards equal
 		/// amounts either side" branch — and it consults it by calling `searchFileItems`, which hands
 		/// it straight to `strcmpspecial`. So a read with no search string but a BOTH direction
 		/// null-derefs the moment the folder holds enough entries to cull.
@@ -584,7 +557,7 @@ inline void printInstrumentFileList(const char* where) {
 	D_PRINT("\n");
 	D_PRINT(where);
 	D_PRINT(" List: \n");
-	for (FileItem const& fileItem : Browser::fileItems) {
+	for (FileItem const& fileItem : Browser::listing.items()) {
 		// .c_str(): displayName() returns const std::string&, and passing a
 		// non-trivial type through a variadic function is undefined behaviour.
 		D_PRINTLN(" - %s", fileItem.displayName().c_str());

@@ -23,7 +23,7 @@
 namespace deluge::gui::browser {
 
 /// Read-only view over the browser's file list, so name derivation can be tested without a card, a display, or the
-/// browser's static state. Implemented over Browser::fileItems in the firmware, and over a vector in tests.
+/// browser's static state. Implemented over Browser::listing in the firmware, and over a vector in tests.
 class FileListView {
 public:
 	virtual ~FileListView() = default;

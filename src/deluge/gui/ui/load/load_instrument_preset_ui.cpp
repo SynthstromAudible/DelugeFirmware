@@ -1042,12 +1042,12 @@ addNumber:
 			(*newName).append(deluge::string::fromInt(oldNumber + 1));
 			char const* newNameChars = newName->c_str();
 
-			int32_t i = searchFileItems(newNameChars).index;
-			if (i >= static_cast<int32_t>(fileItems.size())) {
+			int32_t i = listing.search(newNameChars).index;
+			if (i >= listing.size()) {
 				break;
 			}
 
-			FileItem* fileItem = &fileItems[i];
+			FileItem* fileItem = &listing.item(i);
 			char const* fileItemNameChars = fileItem->filename.c_str();
 			int32_t newNameLength = strlen(newNameChars);
 			if (!memcasecmp(newNameChars, fileItemNameChars, newNameLength)) {
@@ -1204,8 +1204,8 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
 	if (!isInstrumentInList(instrumentToReplace, currentSong->firstOutput)
 	    && !isInstrumentInList(instrumentToReplace, currentSong->firstHibernatingInstrument)) {
-		for (int32_t f = static_cast<int32_t>(fileItems.size()) - 1; f >= 0; f--) {
-			FileItem* fileItem = &fileItems[f];
+		for (int32_t f = listing.size() - 1; f >= 0; f--) {
+			FileItem* fileItem = &listing.item(f);
 			if (fileItem->instrument == instrumentToReplace) {
 				fileItem->instrument = nullptr;
 				break;
@@ -1383,7 +1383,7 @@ LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* so
 	//
 	// FREEZE_WITH_ERROR, not assert(): a bare assert() is compiled out of the shipping build, and on
 	// the Rust BSP abort() ends the process with nothing on the display. This is a tier invariant
-	// whose violation corrupts Browser::fileItems across two tiers, so it must be visible on the
+	// whose violation corrupts Browser::listing across two tiers, so it must be visible on the
 	// device it breaks.
 	if (ALPHA_OR_BETA_VERSION && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
 		FREEZE_WITH_ERROR("TIR1");
@@ -1418,7 +1418,7 @@ goAgain:
 	sortFileItems();
 
 	// If that folder-read gave us no files, that's gotta mean we got to the end of the folder.
-	if (!static_cast<int32_t>(fileItems.size())) {
+	if (!listing.size()) {
 
 		// If we weren't yet looking at subfolders, do that now, going back to the start of this folder's contents.
 		if (!doingSubfolders) {
@@ -1436,17 +1436,17 @@ startDoingFolders:
 
 	// Store rightmost display name before filtering, for later.
 	std::string lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = &fileItems[fileItems.size() - 1];
+	auto* rightmostFileItemBeforeFiltering = &listing.items()[listing.size() - 1];
 	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName();
 
-	deleteFolderAndDuplicateItems(availabilityRequirement);
+	listing.dropFoldersAndDuplicates(availabilityRequirement);
 
 	// If we're still looking for preset / XML files, and not subfolders yet...
 	if (!doingSubfolders) {
 
 		// Look through our list of FileItems, for a preset.
-		for (int32_t i = 0; i < static_cast<int32_t>(fileItems.size()); i++) {
-			auto* fileItem = &fileItems[i];
+		for (int32_t i = 0; i < listing.size(); i++) {
+			FileItem* fileItem = &listing.item(i);
 			if (!fileItem->isFolder) {
 				return fileItem; // We found a preset / file.
 			}
@@ -1454,14 +1454,14 @@ startDoingFolders:
 
 		// Ok, we found none. Should we do some more reading of the folder contents, to get more files, or are there no
 		// more?
-		if (numFileItemsDeletedAtEnd) {
+		if (listing.numDeletedAtEnd()) {
 			searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering; // Can't fail.
 			goto goAgain;
 		}
 
 		// Ok, we've looked at every file, and none were presets we could use. So now we want to look in subfolders. Do
 		// we still have the "start" of our folder's contents in memory?
-		if (numFileItemsDeletedAtStart) {
+		if (listing.numDeletedAtStart()) {
 			goto startDoingFolders;
 		}
 
@@ -1471,13 +1471,13 @@ startDoingFolders:
 	// Ok, do folders now.
 	int32_t i;
 	FileItem* fileItem;
-	for (i = 0; i < static_cast<int32_t>(fileItems.size()); i++) {
-		fileItem = &fileItems[i];
+	for (i = 0; i < listing.size(); i++) {
+		fileItem = &listing.item(i);
 		if (fileItem->isFolder) {
 			goto doThisFolder;
 		}
 	}
-	if (numFileItemsDeletedAtEnd) {
+	if (listing.numDeletedAtEnd()) {
 		searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering;
 		goto goAgain;
 	}
@@ -1487,7 +1487,7 @@ startDoingFolders:
 
 	if (false) {
 doThisFolder:
-		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (static_cast<int32_t>(fileItems.size()) - 1));
+		bool anyMoreForLater = listing.numDeletedAtEnd() || (i < (listing.size() - 1));
 		searchNameLocalCopy = fileItem->displayName();
 
 		currentDir.append("/");
@@ -1553,12 +1553,12 @@ doReadFiles:
 	}
 
 	sortFileItems();
-	if (!static_cast<int32_t>(fileItems.size())) {
+	if (!listing.size()) {
 		if (shouldJustGrabLeftmost) {
 			return justGetAnyPreset();
 		}
 
-		if (numFileItemsDeletedAtStart) {
+		if (listing.numDeletedAtStart()) {
 needToGrabLeftmostButHaveToReadFirst:
 			searchNameLocalCopy.clear();
 			shouldJustGrabLeftmost = true;
@@ -1571,15 +1571,15 @@ needToGrabLeftmostButHaveToReadFirst:
 
 	// Store rightmost display name before filtering, for later.
 	std::string lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = &fileItems[fileItems.size() - 1];
+	auto* rightmostFileItemBeforeFiltering = &listing.items()[listing.size() - 1];
 	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName();
 
-	deleteFolderAndDuplicateItems(availabilityRequirement);
+	listing.dropFoldersAndDuplicates(availabilityRequirement);
 
 	// If we've shot off the end of the list, that means our searched-for preset didn't exist or wasn't available, and
 	// any subsequent ones which at first made it onto the (possibly truncated) list also weren't available.
-	if (!static_cast<int32_t>(fileItems.size())) {
-		if (numFileItemsDeletedAtEnd) { // Probably couldn'g happen anymore...
+	if (!listing.size()) {
+		if (listing.numDeletedAtEnd()) { // Probably couldn'g happen anymore...
 			// We have to read more FileItems, further to the right.
 			searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering; // Can't fail.
 			goto doReadFiles;
@@ -1592,21 +1592,21 @@ needToGrabLeftmostButHaveToReadFirst:
 
 			// Otherwise, let's do that now:
 			// We might have to go back and read FileItems again from the start...
-			else if (numFileItemsDeletedAtStart) {
+			else if (listing.numDeletedAtStart()) {
 				goto needToGrabLeftmostButHaveToReadFirst;
 			}
 
 			// Or, if we've actually managed to fit the whole folder contents into our fileItems...
 			else {
 				// Well, if there's still nothing in that, then we really need to give up.
-				if (!static_cast<int32_t>(fileItems.size())) {
+				if (!listing.size()) {
 					return justGetAnyPreset();
 				}
 				// Otherwise, everything's fine and we can just take the first element.
 			}
 		}
 	}
-	return &fileItems[0];
+	return &listing.item(0);
 }
 
 /// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
@@ -1664,11 +1664,11 @@ emptyFileItemsAndReturn:
 	sortFileItems();
 	AudioEngine::logAction("doPresetNavigation4");
 
-	deleteFolderAndDuplicateItems(Availability::INSTRUMENT_AVAILABLE_IN_SESSION);
+	listing.dropFoldersAndDuplicates(Availability::INSTRUMENT_AVAILABLE_IN_SESSION);
 	AudioEngine::logAction("doPresetNavigation5");
 
 	// Now that we've deleted duplicates etc...
-	if (!static_cast<int32_t>(fileItems.size())) {
+	if (!listing.size()) {
 reachedEnd:
 		// If we've reached one end, try going again from the far other end.
 		if (!oldNameString.empty()) {
@@ -1682,24 +1682,24 @@ noErrorButGetOut:
 			return toReturn;
 		}
 	}
-	else if (static_cast<int32_t>(fileItems.size()) == 1 && (&fileItems[0])->instrument == oldInstrument) {
+	else if (listing.size() == 1 && (&listing.items()[0])->instrument == oldInstrument) {
 		goto reachedEnd;
 	}
 
-	int32_t i = (offset >= 0) ? 0 : (static_cast<int32_t>(fileItems.size()) - 1);
+	int32_t i = (offset >= 0) ? 0 : (listing.size() - 1);
 	/*
-	if (i >= static_cast<int32_t>(fileItems.size())) { // If not found *and* we'd be past the end of the list...
+	if (i >= listing.size()) { // If not found *and* we'd be past the end of the list...
 	    if (offset >= 0) i = 0;
-	    else i = static_cast<int32_t>(fileItems.size()) - 1;
+	    else i = listing.size() - 1;
 	    goto doneMoving;
 	}
 	else {
 	    int32_t oldNameLength = strlen(oldNameChars);
-	    FileItem* searchResultItem = &fileItems[i];
+	    FileItem* searchResultItem = &listing.items()[i];
 	    if (memcasecmp(oldNameChars, searchResultItem->displayName(), oldNameLength)) {
 notFound:	if (offset < 0) {
 	            i--;
-	            if (i < 0) i += static_cast<int32_t>(fileItems.size());
+	            if (i < 0) i += listing.size();
 	        }
 	        goto doneMoving;
 	    }
@@ -1721,31 +1721,31 @@ moveAgain:
 
 	// If moved left off the start of the list...
 	if (i < 0) {
-		if (numFileItemsDeletedAtStart) {
+		if (listing.numDeletedAtStart()) {
 			goto readAgain;
 		}
 		else { // Wrap to end
 			wrapped += 1;
-			if (numFileItemsDeletedAtEnd) {
+			if (listing.numDeletedAtEnd()) {
 searchFromOneEnd:
 				oldNameString.clear();
 				D_PRINTLN("reloading and wrap");
 				goto readAgain;
 			}
 			else {
-				i = static_cast<int32_t>(fileItems.size()) - 1;
+				i = listing.size() - 1;
 			}
 		}
 	}
 
 	// Or if moved right off the end of the list...
-	else if (i >= static_cast<int32_t>(fileItems.size())) {
-		if (numFileItemsDeletedAtEnd) {
+	else if (i >= listing.size()) {
+		if (listing.numDeletedAtEnd()) {
 			goto readAgain;
 		}
 		else { // Wrap to start
 			wrapped += 1;
-			if (numFileItemsDeletedAtStart) {
+			if (listing.numDeletedAtStart()) {
 				goto searchFromOneEnd;
 			}
 			else {
@@ -1755,7 +1755,7 @@ searchFromOneEnd:
 	}
 
 doneMoving:
-	toReturn.fileItem = &fileItems[i];
+	toReturn.fileItem = &listing.item(i);
 
 	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
 	// wrapped is here to prevent an infinite loop
