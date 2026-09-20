@@ -1666,7 +1666,7 @@ void runWalkMachineTick() {
 			// acquisition fixture keeps its presets at the top level, so a search that wrongly
 			// reported its start folder would look right in every gate. That gap is real and stays
 			// open for InstrumentLoad; this at least holds the machine to its half.
-			g_walkFoundDir = Browser::currentDir;
+			g_walkFoundDir = g_presetWalk.foundDir();
 		}
 		g_walkTicks = g_waitTicks;
 		g_walkMaxDepth = g_presetWalk.maxDepthReached();

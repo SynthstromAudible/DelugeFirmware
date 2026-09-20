@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/file_listing.h"
 
 #include <array>
 #include <cstdint>
@@ -72,8 +73,9 @@ enum class WalkPhase : uint8_t {
 ///          @ref Frame carries a search name, never an index, and paging and return-from-recursion
 ///          are ONE mechanism rather than two.
 ///
-/// @note The `FileItem*` handed back on success points into `Browser::fileItems`, exactly as the
-///       recursive walk's did, and is valid until the caller calls `emptyFileItems()`.
+/// @note The `FileItem*` handed back on success points into this walk's OWN listing, not the
+///       browser's, and stays valid until the walk is armed again. The recursive walk's pointer
+///       aimed into the shared list, where any listing could invalidate it.
 class PresetWalk {
 public:
 	/// How deep the search will go. Measured 2026-09-19: depth 1 in every gate, and the reference
@@ -84,8 +86,10 @@ public:
 
 	/// @brief Begin a search rooted at the browser's current directory.
 	///
-	/// The caller sets `Browser::currentDir` first, as it did for the recursive walk.
-	/// @param ui The browser whose read and file list the walk drives.
+	/// The caller sets `Browser::currentDir` first to say WHERE to search, as it did for the
+	/// recursive walk. It is read once, here, as an input -- the walk never writes it back.
+	/// @param ui The browser whose resumable folder read the walk drives. Its file list is NOT
+	///        touched: the walk fills its own.
 	/// @param song Searched for already-loaded Instruments too; null reads the folder alone.
 	/// @param outputType Which kind of preset is wanted.
 	/// @param availabilityRequirement Which presets may be landed on.
@@ -97,6 +101,12 @@ public:
 	[[nodiscard]] bool running() const {
 		return phase_ != WalkPhase::Idle && phase_ != WalkPhase::Done && phase_ != WalkPhase::Failed;
 	}
+
+	/// @brief The folder the search ENDED in -- where the preset it returned actually lives.
+	///
+	/// Read by the caller instead of `Browser::currentDir`: the walk no longer moves the browser, so
+	/// the browser's directory is no longer an answer to this question.
+	[[nodiscard]] const std::string& foundDir() const { return listing_.dir(); }
 
 	/// @brief What the search found. Only meaningful once @ref running is false.
 	[[nodiscard]] std::expected<FileItem*, Error> result() const { return result_; }
@@ -150,6 +160,14 @@ private:
 	void fail(Error error);
 
 	WalkPhase phase_{WalkPhase::Idle};
+
+	/// @brief This walk's own folder listing.
+	///
+	/// The whole point of the type. The walk reads folders without ever replacing what the browser
+	/// is showing, so it can stop between folders and nothing else can observe a half-walked list --
+	/// which is exactly what went wrong when it borrowed the browser's.
+	deluge::gui::browser::FileListing listing_;
+
 	LoadInstrumentPresetUI* ui_{};
 	Song* song_{};
 	OutputType outputType_{};
