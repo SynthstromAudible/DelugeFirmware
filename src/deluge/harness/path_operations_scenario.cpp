@@ -62,7 +62,14 @@ public:
 		    .defaultDirToAlsoTry = fallback,
 		    .includeSongInstruments = false,
 		};
-		return saveSongUI.readFolder(read);
+		const Error error = saveSongUI.readFolder(read);
+		if (error == Error::NONE) {
+			// What stepListing() does for a real listing: adopt wherever the read settled as the
+			// browser's navigation, so the fallback's move to the default folder is observable here
+			// exactly as a user would experience it.
+			Browser::currentDir = read.dir;
+		}
+		return error;
 	}
 	static std::string currentDir() { return Browser::currentDir; }
 

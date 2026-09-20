@@ -504,7 +504,7 @@ void Browser::sortFileItems() {
 	listing.sort();
 }
 
-Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFolders,
+Error Browser::readFileItemsForFolder(const std::string& dirToRead, char const* filePrefixHere, bool allowFolders,
                                       char const** allowedFileExtensionsHere, char const* filenameToStartAt,
                                       int32_t newMaxNumFileItems, CatalogSearch newCatalogSearchDirection) {
 
@@ -546,7 +546,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// A handle adopted from the directory channel lands in exactly the same RAII, which is why
 	// Directory::adopt exists: there are only eight directory handles, and one that arrived
 	// asynchronously is no less urgent to close than one this thread opened.
-	auto opened = openDirectoryForListing(currentDir.c_str(), listing_.active && listing_.read.createIfMissing);
+	auto opened = openDirectoryForListing(dirToRead.c_str(), listing_.active && listing_.read.createIfMissing);
 	if (!opened.has_value() && opened.error() == Error::LISTING_DEFERRED) {
 		return opened.error(); // nothing was opened; see Browser::ListingState
 	}
@@ -573,7 +573,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// Everything this read needs, handed over in one call: the folder it is of, where it starts,
 	// which side of that it keeps, the cap it culls against, and how names compare. These were seven
 	// separate assignments to seven separate globals, two of which had external linkage.
-	listing.beginRead(currentDir, filenameToStartAt != nullptr ? filenameToStartAt : "", newCatalogSearchDirection,
+	listing.beginRead(dirToRead, filenameToStartAt != nullptr ? filenameToStartAt : "", newCatalogSearchDirection,
 	                  newMaxNumFileItems,
 	                  {.interpretNoteNames = shouldInterpretNoteNamesForThisBrowser, .octaveStartsFromA = false});
 
@@ -677,15 +677,14 @@ std::string g_ownerCreatePath;
 Error Browser::readFolder(ListingRead& read) {
 	// filenameToStartAt should have .XML at the end of it.
 	while (true) {
-		// The directory being read lives in `read`, so the fallback can move it without disturbing
-		// where the BROWSER thinks it is. currentDir still has to follow it, because the open below
-		// and everything downstream of this read -- the selection, getCurrentFilePath(), the preset
-		// walks -- still read the global. Untangling those two is the next step, not this one.
-		currentDir = read.dir;
+		// The directory being read lives in `read`, and the listing records it as its provenance. The
+		// browser's own `currentDir` is NOT written here: a read no longer moves where the browser
+		// thinks it is, which is the whole point -- a walk can read any folder it likes without the
+		// open browser's navigation following it around.
 		// ONE open per iteration. A deferral returns immediately with `read` already carrying
 		// whatever fallback this loop had taken, so resuming continues from that open rather than
 		// re-running the ones before it.
-		Error error = readFileItemsForFolder(read.filePrefix, read.allowFolders, allowedFileExtensions,
+		Error error = readFileItemsForFolder(read.dir, read.filePrefix, read.allowFolders, allowedFileExtensions,
 		                                     read.filenameToStartAt.empty() ? nullptr : read.filenameToStartAt.c_str(),
 		                                     FILE_ITEMS_MAX_NUM_ELEMENTS, read.catalogSearchDirection);
 		if (error == Error::LISTING_DEFERRED) {
@@ -859,6 +858,11 @@ Error Browser::stepListing() {
 				listing_.active = false;
 				return error;
 			}
+			// A LISTING is the browser moving, so it adopts wherever the read settled as its own
+			// navigation -- which matters when the missing-folder fallback moved the read to the
+			// default directory: the user is now in that folder. The read itself does not do this,
+			// deliberately, so that a walk reading other folders leaves the browser where it was.
+			currentDir = listing_.read.dir;
 			listing_.phase = listing_.rerunSelectionAfterRead ? ListingPhase::Select : ListingPhase::Finalize;
 			if (listing_.phase == ListingPhase::Finalize) {
 				// The brand-new-name re-read falls straight through to "no file selected", exactly as

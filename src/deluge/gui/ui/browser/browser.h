@@ -79,8 +79,12 @@ public:
 	Error createFoldersRecursiveIfNotExists(const char* path);
 	void selectEncoderAction(int8_t offset) override;
 	static FileItem* getCurrentFileItem();
-	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
-	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
+	/// @brief Read one folder's entries into @ref listing.
+	/// @param dirToRead The folder to open. Passed rather than taken from `currentDir`: a read no
+	///        longer moves the browser's navigation, so the two can legitimately differ.
+	Error readFileItemsForFolder(const std::string& dirToRead, char const* filePrefixHere, bool allowFolders,
+	                             char const** allowedFileExtensionsHere, char const* filenameToStartAt,
+	                             int32_t newMaxNumFileItems,
 	                             CatalogSearch newCatalogSearchDirection = CatalogSearch::Both);
 	Error setFileByFullPath(OutputType outputType, char const* fullPath);
 	/// @brief Sort the listing by this browser's collation.

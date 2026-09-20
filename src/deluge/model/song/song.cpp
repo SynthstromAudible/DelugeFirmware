@@ -5659,7 +5659,9 @@ doHibernatingInstruments:
 		Instrument* thisInstrument = (Instrument*)thisOutput;
 
 		// If different path, it's not relevant.
-		if (!(thisInstrument->dirPath == Browser::currentDir)) {
+		// The folder being READ, not where the browser is: this merge runs from inside readFolder, and a
+		// walk reading a subfolder must not pick up Instruments from the browser's own directory.
+		if (!(thisInstrument->dirPath == Browser::listing.dir())) {
 			continue;
 		}
 

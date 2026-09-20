@@ -57,7 +57,8 @@ void FileListing::clear() {
 	AudioEngine::logAction("emptyFileItems 3");
 }
 
-void FileListing::adopt(deluge::vector<FileItem> items) {
+void FileListing::adopt(std::string dir, deluge::vector<FileItem> items) {
+	dir_ = std::move(dir);
 	items_ = std::move(items);
 }
 

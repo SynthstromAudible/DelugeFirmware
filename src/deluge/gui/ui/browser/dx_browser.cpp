@@ -120,7 +120,7 @@ bool DxSyxBrowser::opened() {
 
 // TODO: this is identical to SampleBrowser, move to parent class?
 std::string DxSyxBrowser::getCurrentFilePath() {
-	std::string path = currentDir;
+	std::string path{listing.dir()};
 	if (!path.empty()) {
 		path.append("/");
 	}

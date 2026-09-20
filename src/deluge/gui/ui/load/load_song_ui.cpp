@@ -466,7 +466,8 @@ void LoadSongUI::runStageSegment() {
 			}
 			return;
 		}
-		stagingPath_ = currentDir + "/" + item->getFilenameWithExtension();
+		// The folder the item was LISTED from, not where the browser happens to point now.
+		stagingPath_ = listing.dir() + "/" + item->getFilenameWithExtension();
 		stagingPrevious_ = activeDeserializer;
 	}
 
@@ -669,7 +670,7 @@ gotErrorAfterCreatingSong:
 		goto fail;
 	}
 
-	preLoadedSong->dirPath = currentDir;
+	preLoadedSong->dirPath = listing.dir();
 
 	// Taken from the path that was actually STAGED rather than from the browser's cursor. The cursor
 	// is rebuilt by other tiers and may since have moved to a different song, or off the list
@@ -681,7 +682,7 @@ gotErrorAfterCreatingSong:
 	std::string currentFilenameWithoutExtension{(lastDot == std::string_view::npos) ? leaf : leaf.substr(0, lastDot)};
 
 	sampleLoadContext_ =
-	    deluge::storage::AudioLoadContext::forSong(currentDir.c_str(), currentFilenameWithoutExtension.c_str());
+	    deluge::storage::AudioLoadContext::forSong(listing.dir().c_str(), currentFilenameWithoutExtension.c_str());
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
 	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we
@@ -1043,7 +1044,7 @@ bool LoadSongUI::drawSongPreview(bool toStore) {
 		return true; // blank, but FILLED: a scroll may start from it now
 	}
 
-	dispatchPreview(PreviewTarget{currentDir + "/" + currentFileItem->getFilenameWithExtension(), toStore});
+	dispatchPreview(PreviewTarget{listing.dir() + "/" + currentFileItem->getFilenameWithExtension(), toStore});
 	return false; // imageStore is NOT filled yet -- the caller must not scroll from it
 }
 

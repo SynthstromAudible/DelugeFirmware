@@ -86,7 +86,10 @@ public:
 	/// @{
 	/// The folder these items came from. Set only by the read that filled the listing: there is no
 	/// setter, so the items and the directory they came from cannot disagree.
-	[[nodiscard]] std::string_view dir() const noexcept { return dir_; }
+	/// @note Returns `const std::string&`, not a `std::string_view`: callers hand it to C APIs as a
+	///       `.c_str()` (`AudioLoadContext::forSong`) and concatenate it, and a view carries no
+	///       terminator guarantee. Same reasoning as @ref search's parameter.
+	[[nodiscard]] const std::string& dir() const noexcept { return dir_; }
 	[[nodiscard]] std::span<const FileItem> items() const noexcept { return items_; }
 	[[nodiscard]] bool empty() const noexcept { return items_.empty(); }
 	[[nodiscard]] int32_t size() const noexcept { return static_cast<int32_t>(items_.size()); }
@@ -148,12 +151,15 @@ public:
 	void eraseRange(int32_t startAt, int32_t stopAt);
 	void clear();
 
-	/// @brief Replace the items outright, leaving the read parameters alone.
+	/// @brief Stand a listing up without reading a card: the items, and the folder they are of.
 	///
-	/// The one legitimate way to build a listing without reading a card, for harness fixtures that
-	/// stand a list up by hand. Exists so that doing so is a named, searchable act rather than a
-	/// reason to expose the vector.
-	void adopt(deluge::vector<FileItem> items);
+	/// The one legitimate way to build a listing by hand, for harness fixtures. Exists so that doing
+	/// so is a named, searchable act rather than a reason to expose the vector.
+	///
+	/// @warning The directory is NOT optional. A listing whose items have no provenance produces
+	///          paths like "/SONG.XML" from every caller that pairs the two, which is a
+	///          file-not-found a long way from its cause -- measured, not imagined.
+	void adopt(std::string dir, deluge::vector<FileItem> items);
 	/// @}
 
 private:

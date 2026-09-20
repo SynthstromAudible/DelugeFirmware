@@ -96,7 +96,7 @@ public:
 		item.filenameIncludesExtension = true;
 		deluge::vector<FileItem> items;
 		items.push_back(item);
-		Browser::listing.adopt(std::move(items));
+		Browser::listing.adopt(dir, std::move(items));
 		// Protected in `Browser`; reachable here because this class is a friend of `LoadSongUI`, which
 		// inherits it. Without it `getCurrentFileItem()` returns null and every case takes the
 		// nothing-to-preview branch.

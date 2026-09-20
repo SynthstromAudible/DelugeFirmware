@@ -554,7 +554,10 @@ bool SampleBrowser::canImportWholeKit() {
 }
 
 std::string SampleBrowser::getCurrentFilePath() {
-	std::string path = currentDir;
+	// The folder the current item was LISTED from. Contrast SlotBrowser::getCurrentFilePath(), three
+	// identical-looking lines that mean the opposite: it appends enteredText, which on a save names a
+	// file that is in no listing, so it wants where the browser IS.
+	std::string path{listing.dir()};
 	if (!path.empty()) {
 		path.append("/");
 	}
