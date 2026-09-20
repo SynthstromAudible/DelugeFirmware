@@ -412,6 +412,23 @@ void setupBlankSong() {
 // behaviour is unchanged on-device.
 TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 
+/// @brief Opt a non-Deluge host out of the boot-settings prelude, leaving only the startup song.
+///
+/// A host that drives its own scenario and never services the byte channel cannot complete work
+/// submitted to it: the prelude's reads (and, when MIDI_FOLLOW.XML is absent, the write its
+/// `onAbsent` performs) sit in the single-slot channel forever and wedge whatever else needs it.
+/// Measured: the offline stem drain hung for 900s against a cold card image, and finished in 37s
+/// with nothing submitted.
+///
+/// `host_loadcheck_main.cpp` and `host_audio_header_dump_main.cpp` override
+/// @ref startupConditionalTask for the same reason. The render utility used to as well -- the
+/// comment above still says so -- but its main (`src/bsp/host/host_render_main.cpp`) was deleted and
+/// the override went with it. Nothing noticed, because until the prelude existed the default did no
+/// work worth servicing. This is that override, restored where the render arm can reach it.
+extern "C" void deluge_startup_skip_settings_prelude() {
+	startupConditionalTask = deluge::storage::armStartupSong;
+}
+
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
 
@@ -683,11 +700,11 @@ static void deluge_boot(const DelugeBoard* board) {
 	usbLock = 0;
 
 	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile();
+	(void)runtimeFeatureSettings.readSettingsFromFile();
 	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled =
 	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
+	(void)MIDIDeviceManager::readDevicesFromFile();
+	(void)midiFollow.readDefaultsFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(startupConditionalTask, 100, isCardReady, "startup/render", RESOURCE_SD | RESOURCE_SD_ROUTINE);

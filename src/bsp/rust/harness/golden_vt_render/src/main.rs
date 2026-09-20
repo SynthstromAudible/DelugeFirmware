@@ -236,6 +236,8 @@ mod streaming_loader;
 
 unsafe extern "C" {
     fn deluge_app_init(board: *const sys::DelugeBoard);
+    /// See deluge.cpp: opts this host out of the boot-settings prelude.
+    fn deluge_startup_skip_settings_prelude();
 }
 
 // Host-only C-ABI bridge (src/deluge/harness/streaming_scenario.{h,cpp},
@@ -393,6 +395,18 @@ async fn boot_task() {
         Err(()) => {
             log::warn!("golden_vt_render: efatfs mount failed — streaming falls back to C FatFS");
         }
+    }
+
+    // The stem-render/drain arm (GOLDEN_SCENARIO unset) is not a Deluge: it drives its own render
+    // and never services the byte channel, so anything the boot-settings prelude submits there is
+    // never completed and wedges the drain. Scenario arms DO service the channel and keep the
+    // prelude, which is what exercises it. Must precede deluge_app_init, which registers the task.
+    if std::env::var("GOLDEN_SCENARIO")
+        .unwrap_or_default()
+        .is_empty()
+    {
+        // SAFETY: plain store to a C++ global, before deluge_app_init reads it.
+        unsafe { deluge_startup_skip_settings_prelude() };
     }
 
     log::info!("golden_vt_render: deluge_app_init() (registers + spawns task runners)");
