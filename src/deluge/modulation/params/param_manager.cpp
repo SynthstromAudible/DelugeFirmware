@@ -156,6 +156,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	int32_t i;
 	for (i = 0; i < stopAtOther; i++) {
 		summaries[i] = other->summaries[i];
+		other->summaries[i] = {0};
 	}
 
 	summaries[stopAtOther] = hereMpeParamsOrNull; // Could the expression params, or NULL
