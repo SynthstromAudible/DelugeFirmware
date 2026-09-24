@@ -2997,6 +2997,9 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		// Exclude FIRST/LAST because they are event driven
 		if (iterance != kDefaultIteranceValue && iterance.divisor != 0) {
 			int32_t divisor = iterance.divisor;
+			bool first = false;
+			bool last = false;
+			divisor = std::min<int32_t>(divisor, 1);
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
@@ -3040,6 +3043,7 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 				int32_t iterationWithinDivisor = -1;
 				for (int32_t iteration = 0; iteration < 8; iteration++) {
+					if ((first and whichFullLoop == 0) or (last and whichFullLoop == newNumFullLoops)) {}
 					if (iterance.iteranceStep[iteration]) {
 						int32_t iterationWithinDivisorWithinRepeat =
 						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
