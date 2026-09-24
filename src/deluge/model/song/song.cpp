@@ -3931,12 +3931,10 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 			else {
 
 				ParamManagerForTimeline paramManager;
-				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
+				paramManager.stealParamCollectionsFrom(&backedUp->paramManager, false);
 				ModControllableAudio* modControllable = backedUp->modControllable;
 
-				// We have to delete that element...
-				// The main-only steal above retains any expression collection in
-				// the removed element, and this raw vector does not run destructors.
+				// Destruct backed up param manager in case it also had expression params
 				backedUp->~BackedUpParamManager();
 				backedUpParamManagers.deleteAtIndex(i);
 
