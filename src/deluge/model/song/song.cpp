@@ -25,7 +25,6 @@
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
-#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -3114,7 +3113,7 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
 		uint32_t xScroll = this->xScroll[NAVIGATION_ARRANGEMENT];
 		int32_t xZoom = this->xZoom[NAVIGATION_ARRANGEMENT];
-		int32_t squareStart = automationView.getPosFromSquare(arrangerView.xPressed, xScroll, xZoom);
+		int32_t squareStart = arrangerView.getPosFromSquare(arrangerView.xPressed, xScroll, xZoom);
 		int32_t length = tempoParam->autoParam->getDistanceToNextNode(tempoParam, squareStart, false);
 		tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, squareStart,
 		                                                 std::min<int32_t>(length, arrangerView.getMaxLength()));
