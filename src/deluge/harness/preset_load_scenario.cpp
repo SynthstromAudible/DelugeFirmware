@@ -1347,8 +1347,41 @@ bool focusClip(Clip* clip) {
 	return true;
 }
 
+/// PL-LISTING-EDGE: a window the read culled at its end, every entry of which the availability filter then drops.
+/// dropFoldersAndDuplicates trims one more entry off each culled edge afterwards; on an empty list that trim popped
+/// nothing that existed. Reachable in the product whenever ~10 presets in a row past a search name are in the song.
+void checkListingEdgeTrim() {
+	deluge::gui::browser::FileListing listing;
+	listing.beginRead("PLEDGE", "", deluge::gui::browser::CatalogSearch::Right, FILE_ITEMS_MAX_NUM_ELEMENTS, {});
+	// Any Instrument will do: the filter reads only whether the pointer is set, and the in-song flag.
+	auto* inSong = static_cast<Instrument*>(currentSong->firstOutput);
+	for (int32_t i = 0; i < FILE_ITEMS_MAX_NUM_ELEMENTS + 5; i++) {
+		FileItem* item = listing.newItem();
+		if (item == nullptr) {
+			break;
+		}
+		char name[16];
+		snprintf(name, sizeof(name), "E%02d.XML", static_cast<int>(i));
+		item->filename = name;
+		item->instrument = inSong;
+		item->instrumentAlreadyInSong = true;
+	}
+	listing.sort();
+	const bool culled = !listing.lastRemaining().empty();
+	listing.dropFoldersAndDuplicates(Availability::INSTRUMENT_UNUSED);
+	printf("PL-LISTING-EDGE culled=%d size=%d\n", culled ? 1 : 0, static_cast<int>(listing.size()));
+	if (!culled || listing.size() != 0) {
+		printf("PL-LISTING-EDGE FAIL a culled window that filtering emptied must stay empty, not have an edge trimmed "
+		       "off nothing\n");
+		g_failures++;
+	}
+}
+
 void prepareAcquire() {
 	g_aqAct = 0;
+	if (g_leg == Leg::AqNew && currentSong->firstOutput != nullptr) {
+		checkListingEdgeTrim();
+	}
 	if (g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall || g_leg == Leg::AqChangeStall) {
 		g_aqClip = nullptr; // the song was cleared by the blank-song legs; the act picks its own clip
 	}

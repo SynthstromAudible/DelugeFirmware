@@ -26,6 +26,8 @@
 #              the gate released and the browser closed.
 #
 # The acquisition legs pick presets without the browser, by the gestures a user makes:
+#   PL-LISTING-EDGE
+#              a culled window that the availability filter empties stays empty: the edge trim must not pop nothing.
 #   AQ-NEW     an empty session pad pressed makes a synth track on the first unused synth preset, its sample bound; then
 #              shift+SYNTH gives that clip a new blank synth under an unused slot name.
 #   AQ-CHANGE  the clip view's KIT button on that empty clip lands on the first unused kit preset, its drum bound.
@@ -146,7 +148,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
+for marker in PL-SETUP PL-LISTING-EDGE PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
 	AQ-NEW AQ-CHANGE AQ-CHANGE-TIER AQ-CHANGE-NAMED AQ-CHANGE-NEXT AQ-CHANGE-MISSING AQ-CHANGE-STALL AQ-NAVIGATE AQ-NAV-TIER AQ-NAV-WRAP AQ-NAV-STALL AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-SLOT AQ-SLOT-STALL AQ-EXT AQ-TIER \
 	RV-CARD RV-MEMORY RV-STALL MD-BROWSER BS-BOOT BS-CLEAR BS-EDITED \
 	PL-WALK-FOUND PL-WALK-DEPTH PL-WALK-PAGED PL-WALK-EXHAUST PL-WALK-TIER \

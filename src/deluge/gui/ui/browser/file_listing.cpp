@@ -312,10 +312,14 @@ deleteThisItem: // Just skip it; it'll be overwritten by compaction or erased be
 	// Deliberately NOT counted in numDeletedAtStart_/End_: those record what the READ's cull dropped,
 	// which is what paging resumes from. This extra edge trim is a different thing, and adding it to
 	// the counters would make a caller page from the wrong name.
-	if (!firstRemaining_.empty()) {
+	//
+	// Each trim only if something is left to trim: filtering can empty a culled window -- ten presets in
+	// a row past the search name, all in the song -- and popping an empty vector is undefined (on the
+	// device, a FileItem destroyed where none was).
+	if (!firstRemaining_.empty() && !items_.empty()) {
 		items_.erase(items_.begin());
 	}
-	if (!lastRemaining_.empty()) {
+	if (!lastRemaining_.empty() && !items_.empty()) {
 		items_.pop_back();
 	}
 }
