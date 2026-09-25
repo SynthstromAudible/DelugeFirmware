@@ -77,6 +77,10 @@ public:
 	/// @{
 	/// Folder listings opened on the storage owner.
 	[[nodiscard]] int32_t listingsOnOwner() const { return listingsOnOwner_; }
+
+	/// @brief Folder listings that RAN, on whatever tier. See RandomizeDrums::scansRun for why this
+	///        is separate from the owner count.
+	[[nodiscard]] int32_t listingsRun() const { return listingsRun_; }
 	/// File loads begun on the storage owner; required 0.
 	[[nodiscard]] int32_t loadsOnOwner() const { return loadsOnOwner_; }
 	/// Pitch detections run on the storage owner.
@@ -189,6 +193,7 @@ private:
 	/// @}
 
 	int32_t listingsOnOwner_{0};
+	int32_t listingsRun_{0};
 	int32_t loadsOnOwner_{0};
 	int32_t pitchOnOwner_{0};
 	int32_t giveUps_{0};

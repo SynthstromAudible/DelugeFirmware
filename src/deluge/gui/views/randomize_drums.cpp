@@ -17,6 +17,9 @@
 
 #include "gui/views/randomize_drums.h"
 
+#include "libdeluge/clock.h" // deluge_clock_now
+#include "libdeluge/file_directory.h"
+
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -105,12 +108,33 @@ bool RandomizeDrums::step() {
 		return stepAwaitLoad();
 	case Phase::Finish:
 		return stepFinish();
-	case Phase::Draining:
-		if (!opRunning_) {
-			phase_ = Phase::Idle;
-			opDispatched_ = false;
+	case Phase::Draining: {
+		// A cancelled walk may have an open outstanding. It must still be COLLECTED, because a
+		// handle that arrives and is never adopted is a handle burned for good -- there are only
+		// eight, and eight such leaks stop directory browsing working. Adopting into `dir` here
+		// means its destructor closes it, which IS the discard.
+		//
+		// ⚠️ Deliberately NOT collectOrRequestDir: that re-requests on UNKNOWN, which is right for a
+		// caller trying to OPEN and wrong for one trying to STOP -- it would keep re-opening a
+		// cancelled walk's folder for ever.
+		uint32_t handle = 0;
+		DelugeStatus st = DELUGE_OK;
+		const uint8_t answer = deluge_file_directory_collect(rowFolder_.c_str(), &handle, &st);
+		if (answer == DELUGE_FILE_DIRECTORY_READY) {
+			(void)deluge::io::Directory::adopt(handle); // closed on the spot by RAII
 		}
+		else if (answer == DELUGE_FILE_DIRECTORY_PENDING) {
+			// Bounded: a cancelled walk must not wait for an answer for ever either.
+			scanSpan_.note(deluge_clock_now());
+			if (scanSpan_.elapsedUs <= deluge::storage::kMaxUnproductiveUs) {
+				return false;
+			}
+		}
+		// UNKNOWN or FAILED: nothing is outstanding for us, or it already ended.
+		phase_ = Phase::Idle;
+		opDispatched_ = false;
 		return false;
+	}
 	}
 	return false;
 }
@@ -177,22 +201,40 @@ bool RandomizeDrums::stepScanRow() {
 		rowHolder_ = holder;
 		rowFolder_ = path.substr(0, slash);
 		scan_ = {};
-		opDispatched_ = false;
-		dispatchScan();
+		// Per ROW: the walk scans one folder for each randomizable row, so a flag left set would
+		// make the next row reuse this one's result. Nothing is dispatched -- collectOrRequestDir
+		// issues the first request itself when it reports UNKNOWN.
+		scanCollected_ = false;
+		scanSpan_.reset();
 		phase_ = Phase::AwaitScan;
 		return false;
 	}
 }
 
 bool RandomizeDrums::stepAwaitScan() {
-	if (!opDispatched_) {
-		dispatchScan();
-		return false;
+	if (!scanCollected_) {
+		std::optional<deluge::io::Directory> dir;
+		deluge::io::Status status = deluge::io::Status::OK;
+		switch (deluge::io::collectOrRequestDir(rowFolder_.c_str(), &dir, &status)) {
+		case deluge::io::DirOpen::Pending:
+			scanSpan_.note(deluge_clock_now());
+			if (scanSpan_.elapsedUs > deluge::storage::kMaxUnproductiveUs) {
+				// The open never answered. The existing body reports it as a folder that would not
+				// open, which is what a user sees either way.
+				scan_.error = Error::SD_CARD;
+				break;
+			}
+			return false;
+		case deluge::io::DirOpen::Failed:
+			scan_.error = Error::SD_CARD;
+			break;
+		case deluge::io::DirOpen::Ready:
+			// FS-free from here: the whole snapshot is drained in this tick.
+			drainScan(*dir);
+			break;
+		}
+		scanCollected_ = true;
 	}
-	if (opRunning_) {
-		return false;
-	}
-	opDispatched_ = false;
 	if (scan_.error != Error::NONE) {
 		// The folder could not be opened.
 		end(Error::SD_CARD);
@@ -287,44 +329,25 @@ void RandomizeDrums::end(Error error) {
 	opDispatched_ = false;
 }
 
-void RandomizeDrums::dispatchScan() {
-	// Marked before it is queued, so a scan that runs at once still clears it.
-	opRunning_ = true;
-	opDispatched_ = deluge::storage::Owner::run(&RandomizeDrums::runScanOp, this);
-	if (!opDispatched_) {
-		opRunning_ = false;
-	}
-}
-
-void RandomizeDrums::runScanOp(void* self) {
-	auto* walk = static_cast<RandomizeDrums*>(self);
-	// Counted for the sample-claim gate (RD-TIER): a directory scan on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		walk->scansOnOwner_++;
-	}
-	ScanResult& scan = walk->scan_;
-	auto opened = deluge::io::Directory::open(walk->rowFolder_);
-	if (!opened.has_value()) {
-		scan.error = Error::SD_CARD;
-	}
-	else {
-		deluge::io::Directory dir = std::move(*opened);
-		for (;;) {
-			auto entry = dir.read();
-			if (!entry.has_value() || !entry->has_value()) {
-				break;
-			}
-			if ((*entry)->is_directory || !isAudioFilename((*entry)->name)) {
-				continue;
-			}
-			if (random(scan.fileCount++) == 0) { // reservoir sampling, k = 1
-				std::strncpy(scan.filename.data(), (*entry)->name, scan.filename.size() - 1);
-				scan.filename.back() = '\0';
-			}
+void RandomizeDrums::drainScan(deluge::io::Directory& dir) {
+	// `scansOnOwner_` is deliberately NOT incremented here and NOT deleted: RD-TIER reporting it as
+	// zero is the evidence that this scan left the storage owner.
+	scansRun_++;
+	ScanResult& scan = scan_;
+	for (;;) {
+		auto entry = dir.read();
+		if (!entry.has_value() || !entry->has_value()) {
+			break;
+		}
+		if ((*entry)->is_directory || !isAudioFilename((*entry)->name)) {
+			continue;
+		}
+		if (random(scan.fileCount++) == 0) { // reservoir sampling, k = 1
+			std::strncpy(scan.filename.data(), (*entry)->name, scan.filename.size() - 1);
+			scan.filename.back() = '\0';
 		}
 	}
 	scan.done = true;
-	walk->opRunning_ = false;
 }
 
 } // namespace deluge::gui

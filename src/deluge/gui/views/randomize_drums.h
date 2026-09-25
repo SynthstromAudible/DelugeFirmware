@@ -18,6 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/file.hpp"
+#include "model/sample/recorder_write_policy.h" // UnproductiveSpan
 #include "storage/audio/latest_sample_load.h"
 
 #include <array>
@@ -77,6 +79,13 @@ public:
 	/// @{
 	/// Directory scans that ran on the storage owner.
 	[[nodiscard]] int32_t scansOnOwner() const { return scansOnOwner_; }
+
+	/// @brief Directory scans that RAN, on whatever tier.
+	///
+	/// Separate from @ref scansOnOwner because RD-TIER's single counter was doing two jobs: "a scan
+	/// happened" and "it happened on the owner". Once the scan leaves the owner the second goes to
+	/// zero, and a leg reading only that would quietly stop checking the first.
+	[[nodiscard]] int32_t scansRun() const { return scansRun_; }
 	/// Row loads that began on the storage owner; required 0.
 	[[nodiscard]] int32_t loadsOnOwner() const { return loadsOnOwner_; }
 	/// Walks that ended on a load that stopped moving (AsyncSampleLoad's stall bound).
@@ -118,9 +127,15 @@ private:
 	/// @brief The next row to try, advancing the cursor: an eligible drum, or nullptr once the rows are exhausted.
 	Drum* nextRow();
 	/// @brief Queue the scan on the storage owner, or leave it for the next pass if the queue is full.
-	void dispatchScan();
 
-	static void runScanOp(void* self);
+	/// @brief Drain an opened row folder, reservoir-sampling one audio file from it.
+	///
+	/// Was `runScanOp`, an `Owner::run` callback that opened the folder itself. The open now comes
+	/// from the directory channel; the loop below it is unchanged, which matters because the
+	/// reservoir sample is only uniform if it sees EVERY entry -- and the snapshot guarantees that,
+	/// being all-or-error rather than ever partial.
+	/// @param dir The adopted directory. Walking it costs no card I/O.
+	void drainScan(deluge::io::Directory& dir);
 
 	Phase phase_{Phase::Idle};
 	RandomizeRequest current_{};
@@ -145,6 +160,12 @@ private:
 
 	/// @name The scan out.
 	/// @{
+	/// Whether this ROW's folder has been opened and drained. Reset per row in stepScanRow: a flag
+	/// left set would make the next row reuse the previous row's scan.
+	bool scanCollected_{false};
+	/// How long this row's open has gone unanswered, and how long a cancelled walk has waited for
+	/// its outstanding one. Elapsed time, never ticks.
+	deluge::storage::UnproductiveSpan scanSpan_{};
 	bool opDispatched_{false};
 	/// Set as the scan is queued, and cleared by the scan as it ends: what a drain waits for.
 	bool opRunning_{false};
@@ -152,6 +173,7 @@ private:
 	/// @}
 
 	int32_t scansOnOwner_{0};
+	int32_t scansRun_{0};
 	int32_t loadsOnOwner_{0};
 	int32_t giveUps_{0};
 };

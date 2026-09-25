@@ -1057,6 +1057,7 @@ bool FolderImport::opReported() {
 void FolderImport::drainListing(deluge::io::Directory& dir) {
 	// `listingsOnOwner_` is deliberately NOT incremented here and NOT deleted: IM-TIER reporting it
 	// as zero is the evidence that this listing left the storage owner.
+	listingsRun_++;
 	for (;;) {
 		auto entry = dir.read();
 		if (!entry.has_value() || !entry->has_value()) {

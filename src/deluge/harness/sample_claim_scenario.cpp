@@ -1482,8 +1482,9 @@ void checkLeg() {
 		const int32_t sampleIo = now.sampleIo - g_importMark.sampleIo;
 		const int32_t files = (g_leg == Leg::ImportKit) ? kImportKitCount : kImportMultiCount;
 		const int32_t wantPitch = (g_leg == Leg::ImportKit) ? 0 : kImportMultiCount;
-		printf("IM-TIER leg=%s listingsOnOwner=%d loadsOnOwner=%d pitchOnOwner=%d sampleIo=%d\n", legName(g_leg),
-		       listings, loads, pitch, sampleIo);
+		const int32_t listingsRun = deluge::gui::folderImport.listingsRun();
+		printf("IM-TIER leg=%s listingsRun=%d listingsOnOwner=%d loadsOnOwner=%d pitchOnOwner=%d sampleIo=%d\n",
+		       legName(g_leg), listingsRun, listings, loads, pitch, sampleIo);
 		if (loads != 0 || sampleIo != 0) {
 			printf("IM-TIER FAIL leg=%s %d of %d file load(s) began on the storage owner and %d sample read(s) went to "
 			       "the "
@@ -1498,6 +1499,10 @@ void checkLeg() {
 		//
 		// The pitch detection is a different family and still belongs there: it streams a whole
 		// sample through SampleFrameReader with cluster loading, so `wantPitch` is unchanged.
+		if (listingsRun == 0) {
+			printf("IM-TIER FAIL leg=%s no folder listing ran at all\n", legName(g_leg));
+			g_failures++;
+		}
 		if (listings != 0 || pitch != wantPitch) {
 			printf(
 			    "IM-TIER FAIL leg=%s listings on the owner %d (want 0), pitch detections on the owner %d (want %d)\n",
@@ -1627,14 +1632,24 @@ void checkLeg() {
 		const int32_t scans = now.scans - g_randomizeMark.scans;
 		const int32_t loads = now.loads - g_randomizeMark.loads;
 		const int32_t sampleIo = now.sampleIo - g_randomizeMark.sampleIo;
-		printf("RD-TIER leg=%s scansOnOwner=%d loadsOnOwner=%d sampleIo=%d\n", legName(g_leg), scans, loads, sampleIo);
+		const int32_t scansRun = deluge::gui::randomizeDrums.scansRun();
+		printf("RD-TIER leg=%s scansRun=%d scansOnOwner=%d loadsOnOwner=%d sampleIo=%d\n", legName(g_leg), scansRun,
+		       scans, loads, sampleIo);
 		if (loads != 0 || sampleIo != 0) {
 			printf("RD-TIER FAIL leg=%s %d randomizer load(s) began on the storage owner and %d sample read(s) went to "
 			       "the card on the interaction tier -- a randomized drum's load belongs on the interaction tier\n",
 			       legName(g_leg), loads, sampleIo);
 			g_failures++;
 		}
-		if (scans == 0) {
+		// TWO claims, deliberately split. `scansOnOwner` alone used to carry both, so inverting it
+		// for the tier move would have quietly dropped the liveness half.
+		if (scans != 0) {
+			printf("RD-TIER FAIL leg=%s %d randomizer scan(s) ran on the storage owner -- a row's folder is "
+			       "opened through the directory channel now\n",
+			       legName(g_leg), scans);
+			g_failures++;
+		}
+		if (scansRun == 0) {
 			printf("RD-TIER FAIL leg=%s no randomizer scan ran at all\n", legName(g_leg));
 			g_failures++;
 		}
@@ -1663,7 +1678,10 @@ void checkLeg() {
 		const int32_t wantRandomized = (g_leg == Leg::RandomizeAll) ? kRandomizeEligible : 1;
 		const int32_t wantUntouched = kRandomizeDrumCount - wantRandomized;
 		if (g_leg == Leg::RandomizeOne) {
-			printf("RD-ONE randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched, scans, g_waitTicks);
+			// scansRun, not scansOnOwner: the latter is zero by design now, and printing it here read
+			// as "no scan happened" when a scan had in fact run on the interaction tier.
+			printf("RD-ONE randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched,
+			       (int)deluge::gui::randomizeDrums.scansRun(), g_waitTicks);
 			if (randomized != wantRandomized || untouched != wantUntouched) {
 				printf("RD-ONE FAIL the selected drum did not end on a file from its own folder, named after it, with "
 				       "every other row untouched\n");
@@ -1671,7 +1689,8 @@ void checkLeg() {
 			}
 		}
 		else {
-			printf("RD-ALL randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched, scans, g_waitTicks);
+			printf("RD-ALL randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched,
+			       (int)deluge::gui::randomizeDrums.scansRun(), g_waitTicks);
 			if (randomized != wantRandomized || untouched != wantUntouched) {
 				printf("RD-ALL FAIL an affect-entire randomize did not end with every unmuted row that has notes on a "
 				       "file from its own folder, named after it, leaving the muted and empty rows alone\n");
