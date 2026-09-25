@@ -690,10 +690,11 @@ extern "C" int32_t deluge_main(void) {
 	setPinAsInput(LINE_OUT_DETECT_L.port, LINE_OUT_DETECT_L.pin);
 	setPinAsInput(LINE_OUT_DETECT_R.port, LINE_OUT_DETECT_R.pin);
 
-	// SPI for CV
+	// SPI for CV / OLED
 	R_RSPI_Create(SPI_CHANNEL_CV,
-	              have_oled ? 10000000 // Higher than this would probably work... but let's stick to the OLED
-	                                   // datasheet's spec of 100ns (10MHz).
+	              have_oled ? 4000000 // We used to use 10MHz, which is what the OEL9M0087-W-E OLED datasheet specified
+	                                  // (well, 100ns). But as of the 2026 batch of OLEDs, despite them being the same
+	                                  // model, 8.5MHz and higher causes glitching. 4MHz appears safe.
 	                        : 30000000,
 	              0, 32);
 	R_RSPI_Start(SPI_CHANNEL_CV);
