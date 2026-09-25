@@ -74,6 +74,11 @@
 /// handler reads is written as a user's press leaves it, and then the handler itself is called.
 class PresetAcquireProbe {
 public:
+	/// The browser-wide extension filter every folder listing reads. A walk that changes it and does not put it back
+	/// leaves the next browser listing filtering for the wrong files.
+	static char const** extensions() { return Browser::allowedFileExtensions; }
+	static void setExtensions(char const** extensions) { Browser::allowedFileExtensions = extensions; }
+
 	/// An empty pad pressed in Rows layout: the new-track gesture, making a track of @p type.
 	static void pressEmptyRow(int32_t yDisplay, OutputType type = OutputType::SYNTH) {
 		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
@@ -1202,6 +1207,9 @@ int32_t g_slotScansBefore = 0;
 int32_t g_slotOnOwnerBefore = 0;
 int32_t g_slotRequestsBefore = 0;
 std::vector<std::string> g_slotListingBefore;
+/// An extension list no browser uses, parked before each AQ-NEW act; and what was there before it.
+char const* kSentinelExtensions[] = {"PLX", nullptr};
+char const** g_extensionsBefore = nullptr;
 /// The clip AQ-NEW's new-track gesture makes, which AQ-CHANGE, AQ-NAVIGATE, AQ-SUPERSEDE and AQ-CLONE act on.
 Clip* g_aqClip = nullptr;
 /// What AQ-SLOT-STALL's clip held before the gesture.
@@ -1331,6 +1339,11 @@ bool actAcquire() {
 	g_aqSupersessionsBefore = deluge::gui::instrumentLoad.supersessions();
 	g_aqGiveUpsBefore = deluge::gui::instrumentLoad.giveUps();
 	g_aqNameBefore = (g_aqClip != nullptr && g_aqClip->output != nullptr) ? g_aqClip->output->name : "";
+	if (g_leg == Leg::AqNew) {
+		// Parked for AQ-EXT: a walk that borrows the filter must put back whatever it found.
+		g_extensionsBefore = PresetAcquireProbe::extensions();
+		PresetAcquireProbe::setExtensions(kSentinelExtensions);
+	}
 	switch (g_leg) {
 	case Leg::AqNew:
 		if (g_aqAct == 0) {
@@ -1448,6 +1461,15 @@ void checkAcquireAct() {
 	const int32_t runs = LoadInstrumentPresetUI::presetAcquisitionsRun() - g_aqRunsBefore;
 	Output* output = (g_aqClip != nullptr) ? g_aqClip->output : nullptr;
 	const std::string name = (output != nullptr) ? output->name : "";
+	if (g_leg == Leg::AqNew) {
+		const bool kept = PresetAcquireProbe::extensions() == kSentinelExtensions;
+		PresetAcquireProbe::setExtensions(g_extensionsBefore);
+		printf("AQ-EXT gesture=%s kept=%d\n", g_aqAct == 0 ? "track" : "instrument", kept ? 1 : 0);
+		if (!kept) {
+			aqFail("AQ-EXT", "a preset walk left the browser's extension filter changed: the next browser listing "
+			                 "would filter for the walk's files, not its own");
+		}
+	}
 	switch (g_leg) {
 	case Leg::AqNew: {
 		if (g_aqAct == 0) {

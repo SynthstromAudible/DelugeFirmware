@@ -82,7 +82,6 @@ bool PresetWalk::stepReadFolder() {
 	// Nothing to sync: the read is told both the directory and the listing to fill, so the walk
 	// never touches the browser's navigation or its file list. That is the property this machine
 	// was reverted once for lacking.
-	LoadInstrumentPresetUI::allowedFileExtensions = allowedFileExtensionsXML;
 
 	// Named through LoadInstrumentPresetUI, not Browser: the type is PROTECTED, and this class is a
 	// friend of the derived UI rather than of Browser itself. Clang rejects Browser::ListingRead here;
@@ -94,7 +93,13 @@ bool PresetWalk::stepReadFolder() {
 	    .filenameToStartAt = frame.searchName,
 	    .includeSongInstruments = song_ != nullptr,
 	};
+	// The extension filter is browser-wide state too, and this walk spans ticks: a browser opened
+	// while it waits sets its own filter, which the walk must not leave changed. Borrowed for the
+	// one call that reads it, and put back.
+	char const** const browserExtensions = LoadInstrumentPresetUI::allowedFileExtensions;
+	LoadInstrumentPresetUI::allowedFileExtensions = allowedFileExtensionsXML;
 	const Error error = ui_->readFolder(listing_, read);
+	LoadInstrumentPresetUI::allowedFileExtensions = browserExtensions;
 	if (error == Error::LISTING_DEFERRED) {
 		return false;
 	}

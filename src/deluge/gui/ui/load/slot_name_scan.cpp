@@ -39,7 +39,6 @@ bool SlotNameScan::tick() {
 	// The key and the prefix the walk this replaces used: search LEFT of "<thing>:", the colon sorting after every
 	// digit, so the listing keeps the numbered entries and the last of them is the highest.
 	const char* thingName = (outputType_ == OutputType::SYNTH) ? "SYNT" : "KIT";
-	LoadInstrumentPresetUI::allowedFileExtensions = allowedFileExtensionsXML;
 	LoadInstrumentPresetUI::ListingRead read{
 	    .dir = dir_,
 	    .outputType = outputType_,
@@ -48,7 +47,12 @@ bool SlotNameScan::tick() {
 	    .allowFolders = false,
 	    .catalogSearchDirection = deluge::gui::browser::CatalogSearch::Left,
 	};
+	// The extension filter is browser-wide, and this scan spans ticks: borrowed for the one call that
+	// reads it and put back, so a browser opened while the scan waits keeps its own.
+	char const** const browserExtensions = LoadInstrumentPresetUI::allowedFileExtensions;
+	LoadInstrumentPresetUI::allowedFileExtensions = allowedFileExtensionsXML;
 	const Error error = ui_->readFolder(listing_, read);
+	LoadInstrumentPresetUI::allowedFileExtensions = browserExtensions;
 	if (error == Error::LISTING_DEFERRED) {
 		return true; // not ready: this same open is asked for again next tick
 	}

@@ -45,6 +45,7 @@
 #   AQ-SLOT-STALL
 #              the same gesture with the folder open held past the bound: SD_CARD, the clip keeps its instrument,
 #              nothing left in flight. The LAST leg: its held open outlives it.
+#   AQ-EXT     around each AQ-NEW act: the preset walk leaves the browser's extension filter as it found it.
 #   AQ-TIER    per acquisition leg: documents read and samples loaded, none of it begun on the storage owner, and no
 #              sample read from the card on the interaction tier.
 #
@@ -131,7 +132,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
-	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-SLOT AQ-SLOT-STALL AQ-TIER \
+	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-SLOT AQ-SLOT-STALL AQ-EXT AQ-TIER \
 	RV-CARD RV-MEMORY RV-STALL MD-BROWSER BS-BOOT BS-CLEAR BS-EDITED \
 	PL-WALK-FOUND PL-WALK-DEPTH PL-WALK-PAGED PL-WALK-EXHAUST PL-WALK-TIER \
 	PW-WALK-FOUND PW-WALK-DEPTH PW-WALK-PAGED PW-WALK-EXHAUST PW-WALK-TIER PL-RESULT; do

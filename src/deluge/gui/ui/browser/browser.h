@@ -465,6 +465,8 @@ protected:
 
 	friend class BrowserListingAbProbe;
 	friend class PathOperationsBrowserProbe;
+	/// The preset-load gate's AQ legs check that a walk leaves allowedFileExtensions as it found it.
+	friend class PresetAcquireProbe;
 
 	/// @brief Begin `req`'s listing, which graphicsRoutine() then runs on this tier until it completes.
 	///
