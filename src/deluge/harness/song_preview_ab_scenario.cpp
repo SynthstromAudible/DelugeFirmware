@@ -255,7 +255,7 @@ public:
 	static void changeOutputType(OutputType newOutputType) { arrangerView.changeOutputType(newOutputType); }
 
 	/// Drives View's REAL preset-navigation gesture on the boot song's session InstrumentClip
-	/// (rung 5, task 4), rather than calling LoadInstrumentPresetUI::doPresetNavigation directly --
+	/// (rung 5, task 4), rather than calling the navigation walk (now PresetNavigation) directly --
 	/// that helper isn't what navigateThroughPresetsForInstrumentClip() calls for MIDI/CV, so a probe
 	/// built on it would prove nothing about View's own synchronous/dispatch split. Both
 	/// `navigateThroughPresetsForInstrumentClip` and `changeOutputType` are already public on View,
@@ -2223,7 +2223,7 @@ void runAcquireTick() {
 	case AcquireStep::ViewNavigate: {
 		// View's Synth/Kit preset-navigation dispatch (rung 5, task 4), driven on the boot song's
 		// session InstrumentClip -- see g_viewClip's doc above for why this can't run through any
-		// arranger row. Reuses the SYNTHS fixture the steps above already built; doPresetNavigation()
+		// arranger row. Reuses the SYNTHS fixture the steps above already built; the navigation walk
 		// reads only the top-level folder (it does not recurse into NESTED), so nothing new needs
 		// building. ViewNavigateCheck asserts a REAL outcome (the clip's Output actually changed),
 		// not just that an op ran -- a dispatch-count-only check would pass identically with
@@ -2453,7 +2453,7 @@ void runAcquireTick() {
 		// covered by AcquireStep::ViewNavigate); this is the separate Grid arm this task converted.
 		//
 		// Driven on the clip AcquireStep::SessionNewTrack just created, not the boot clip, and sequenced
-		// after it on purpose: doPresetNavigation() walks ONE folder -- oldInstrument->dirPath -- and
+		// after it on purpose: the navigation walk (PresetNavigation) walks ONE folder -- oldInstrument->dirPath -- and
 		// never descends. Everything reachable from the top level is a single preset by construction
 		// (see kAcqTopLevelCount), so navigating from an instrument that lives THERE wraps straight back
 		// onto itself and the outcome assertion below could not tell a wired arm from an unwired one.

@@ -77,18 +77,6 @@ public:
 	                                                Availability availabilityRequirement);
 	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
 	                                                                 Availability availabilityRequirement);
-	/// @brief The walk of a preset navigation: the next preset along from @p fromName in @p fromDir.
-	/// @param offset Which way to move.
-	/// @param oldInstrument The Instrument moved on from: compared with the list's, never read through.
-	/// @param outputType The type navigated through.
-	/// @param fromName The preset moved on from, without extension.
-	/// @param fromDir The folder it is in.
-	/// @param availabilityRequirement Which presets may be landed on.
-	/// @return The FileItem landed on, or an error (NO_ERROR_BUT_GET_OUT when there is nowhere else to go). The
-	///         caller empties the browser's list.
-	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument, OutputType outputType,
-	                                          const std::string& fromName, const std::string& fromDir,
-	                                          Availability availabilityRequirement);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
 		Browser::outputTypeToLoad = newOutputType;

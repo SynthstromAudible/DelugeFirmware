@@ -36,7 +36,7 @@ namespace deluge::storage {
 ///
 /// This is also the ONLY thing that selects which directory reader the op runs: the follow-up calls
 /// its own existing reader (findAnUnlaunchedPresetIncludingWithinSubfolders(),
-/// confirmPresetOrNextUnlaunchedOne(), doPresetNavigation() or Browser::getUnusedSlot()) down its own
+/// confirmPresetOrNextUnlaunchedOne(), PresetNavigation or Browser::getUnusedSlot()) down its own
 /// unchanged call chain. There is deliberately no separate "which query" field: one existed, was set
 /// at all eleven dispatch sites and read nowhere, and implied the op dispatched on the query rather
 /// than on the consumer.
@@ -191,7 +191,7 @@ struct PresetRequest {
 	bool isDx{};
 
 	/// @brief Browser::currentDir at dispatch -- the op sets currentDir from THIS, unconditionally.
-	/// @note Most readers immediately overwrite it as they descend (doPresetNavigation() from
+	/// @note Most readers immediately overwrite it as they descend (PresetNavigation from
 	///       oldInstrument->dirPath, createNewInstrument() from getInstrumentFolder()), and that is
 	///       their business. This is the FLOOR: without it the op would inherit whatever the UI task
 	///       last happened to leave in that static, which is the one thing between the two tiers here.
@@ -224,7 +224,7 @@ struct PresetRequest {
 enum class AcquireWalk : uint8_t {
 	Unlaunched, ///< findAnUnlaunchedPresetIncludingWithinSubfolders(): the first preset nobody in the song uses.
 	Confirm,    ///< confirmPresetOrNextUnlaunchedOne(): a named preset if it may be used, or the next one that may.
-	Navigate,   ///< doPresetNavigation(): the next preset along from a named one, either way.
+	Navigate,   ///< PresetNavigation: the next preset along from a named one, either way.
 	UnusedSlot, ///< Browser::getUnusedSlot(): a name no preset of the type has. Nothing is loaded.
 };
 

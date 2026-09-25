@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/load/preset_navigation.h"
 #include "gui/ui/load/preset_walk.h"
 #include "gui/ui/load/slot_name_scan.h"
 #include "storage/audio/async_sample_load.h"
@@ -194,7 +195,7 @@ public:
 	/// Of those, the ones begun on the storage owner; required 0.
 	[[nodiscard]] int32_t navigationsOnOwner() const { return navigationsOnOwner_; }
 	/// Navigates that hit the machine's read backstop; required 0 (termination does not depend on it).
-	[[nodiscard]] int32_t navigationGiveUps() const { return navigationGiveUps_; }
+	[[nodiscard]] int32_t navigationGiveUps() const { return navigation_.giveUps(); }
 	/// @}
 
 private:
@@ -244,9 +245,8 @@ private:
 	/// @brief The walk, on the storage owner: today's walker for the walk's kind, copied out and the browser's list
 	///        emptied.
 	///
-	/// @note No longer serves AcquireWalk::Unlaunched or AcquireWalk::UnusedSlot -- those run here, through
-	///       @ref PresetWalk and @ref SlotNameScan. Confirm and Navigate still walk the card start-to-finish and so
-	///       still belong on the owner.
+	/// @note Serves only AcquireWalk::Confirm now -- the other three run here, through @ref PresetWalk,
+	///       @ref SlotNameScan and @ref PresetNavigation.
 	static void runWalkOp(void* self);
 
 	/// @brief Advance an inline walk, from routine() rather than from the phase machine.
@@ -281,7 +281,8 @@ private:
 	/// waited for before another is queued, so the two never share @ref walkOut_ and @ref walked_.
 	bool walkRunning_{false};
 	/// Whether the walk out is running HERE, through @ref walk_machine_ or @ref slot_scan_, rather than on the owner.
-	/// The Unlaunched search and the UnusedSlot scan are; Confirm and Navigate cannot yet be split across a tick.
+	/// The Unlaunched search, the UnusedSlot scan and the Navigate walk are; Confirm cannot yet be split across a
+	/// tick.
 	bool walkHere_{false};
 	/// The Unlaunched search, a folder at a time. Holds its OWN listing, so it reads folders without
 	/// touching what the browser is showing -- which is what the first attempt at this lacked.
@@ -289,6 +290,8 @@ private:
 	/// The UnusedSlot walk: one folder read naming a new instrument's slot. Like @ref walk_machine_, it holds its own
 	/// listing.
 	SlotNameScan slot_scan_{};
+	/// The Navigate walk: the preset scroll, a window at a time, into its own listing.
+	PresetNavigation navigation_{};
 	deluge::storage::AcquireWalkSpec walkOut_{}; ///< What the walk out reads; written only while no walk is out.
 	AcquireSnapshot walked_{};                   ///< What it found; read only once it has ended.
 	/// Where the last navigate's walk landed, while a navigate may still supersede it.
@@ -307,7 +310,6 @@ private:
 	int32_t slotScansOnOwner_{0};
 	int32_t navigationsRun_{0};
 	int32_t navigationsOnOwner_{0};
-	int32_t navigationGiveUps_{0};
 	Error lastError_{Error::NONE};
 };
 

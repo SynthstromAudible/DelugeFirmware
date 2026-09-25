@@ -35,13 +35,6 @@ class Instrument;
 class FileItem;
 class Song;
 
-// FIXME: std::expected<std::pair<bool, FileItem*>, Error>
-struct PresetNavigationResult {
-	FileItem* fileItem;
-	bool loadedFromFile;
-	Error error;
-};
-
 struct Slot {
 	int16_t slot;
 	int8_t subSlot;
