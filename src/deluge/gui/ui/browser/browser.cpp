@@ -125,7 +125,6 @@ int32_t Browser::reloadsOnOwner() {
 }
 
 bool Browser::listingInProgress_;
-bool Browser::listingOnTickSurface_;
 Browser::ListingState Browser::listing_;
 Browser::PredictionState Browser::prediction_;
 std::optional<Browser::PredictionTarget> Browser::pendingPrediction_;
@@ -134,8 +133,6 @@ bool Browser::listingShown_;
 std::optional<Browser::ListingRestore> Browser::listingRestore_;
 bool Browser::listingRestoreTaken_;
 bool Browser::listingRestored_;
-CatalogSearch Browser::pendingReloadCatalogSearchDirection_;
-bool Browser::pendingReloadSearchFromEnd_;
 
 // 7SEG ONLY
 int8_t Browser::numberEditPos;
@@ -170,47 +167,20 @@ bool Browser::beginListing(ListingRequest req) {
 	listingInProgress_ = true;
 	display->displayLoadingAnimationText("Working", /*delayed=*/true);
 
-	// Only the actions that run through the listing machine may take the tick surface. Reload does
-	// its own read (readFolder, not arrivedInNewFolder), so it has no machine to
-	// suspend into — running it here would block the interaction tier on the card, which is the exact
-	// thing this rung exists to stop. It keeps the storage owner until it is converted in turn.
-	const bool machineBacked = pendingListing_.action != ListingAction::Reload;
-	listingOnTickSurface_ = machineBacked;
-	if (listingOnTickSurface_) {
-		// The attempt runs on the INTERACTION tier, in graphicsRoutine(), start to finish, and it
-		// never blocks there: every directory open goes through the channel and every enumeration is
-		// FS-free (dir.read() walks the snapshot the open already took).
-		//
-		// Deliberately NOT dispatched to the owner first. An attempt that began on the owner and was
-		// re-entered from the tick surface would have two tiers touching one static ListingAttempt
-		// and one static fileItems -- a cross-tier race in exchange for nothing, since the owner is
-		// no longer where the waiting happens.
-		//
-		// The residuals, recorded rather than hidden. The directory OPEN is what this rung moved off
-		// the interaction tier; these are the card calls on the same path that it did not:
-		//
-		//  - StorageManager::initSD(), a flag check on an already-mounted card but real blocking work
-		//    on a re-mount (the ejection path, which already blocks).
-		//  - StorageManager::fileExists() in setFileByFullPathImpl, so on every ByPath listing.
-		//
-		// And one that is not a call but a loss: the success tail (folderContentsReady /
-		// onBrowserOpened / currentFileChanged) used to be serialised on the owner alongside every
-		// other op that touches Browser::listing. It no longer is. All four are rung 4's, together
-		// with predictExtendedText and LoadInstrumentPresetUI.
-		return true;
-	}
-
-	if (!deluge::storage::Owner::run(&Browser::runListingTrampoline, this)) {
-		// Owner queue full → op won't run; clear so the next HID event retries.
-		listingInProgress_ = false;
-		display->removeLoadingAnimation();
-		return false;
-	}
+	// Every action, Reload included, runs HERE: on the interaction tier, from graphicsRoutine(), start
+	// to finish. It never blocks: every directory open goes through the channel and every enumeration
+	// is FS-free (dir.read() walks the snapshot the open already took). Nothing is dispatched.
+	//
+	// The residuals, recorded rather than hidden. The directory OPEN is what moved off the interaction
+	// tier; these are the card calls on the same path that did not:
+	//
+	//  - StorageManager::initSD(), a flag check on an already-mounted card but real blocking work
+	//    on a re-mount (the ejection path, which already blocks).
+	//
+	// And one that is not a call but a loss: the success tail (folderContentsReady / onBrowserOpened /
+	// currentFileChanged) used to be serialised on the owner alongside every other op that touches
+	// Browser::listing. It no longer is.
 	return true;
-}
-
-void Browser::runListingTrampoline(void* self) {
-	static_cast<Browser*>(self)->runPendingListing();
 }
 
 /// @brief Map a DIRECTORY open's status onto an Error.
@@ -497,7 +467,6 @@ void Browser::close() {
 		display->removeLoadingAnimation();
 	}
 	listingInProgress_ = false;
-	listingOnTickSurface_ = false;
 	listing_.active = false;
 	listingShown_ = false;
 	listingRestore_.reset();
@@ -786,11 +755,8 @@ void Browser::graphicsRoutine() {
 	// nothing and every pass of the attempt runs from here, including the first. A pass either
 	// finishes the listing or defers on an open that is not ready, and a deferred pass leaves
 	// listingInProgress_ set so the next tick runs the attempt again from the top.
-	// Gated on the SELECTOR, not on attempt_.active: the first pass has not begun an attempt yet, so
-	// that condition would never let one start. The flag is exact, because it is what beginListing()
-	// decided -- a listing on the tick surface dispatched nothing and is ours to run; a Reload went to the
-	// owner, and running it here as well would run one listing twice, on two tiers, over one static
-	// fileItems.
+	// Gated on listingInProgress_, not on listing_.active: the first pass has not armed the machine
+	// yet, so that condition would never let a listing start.
 	// The mount edge, collected wherever the browser ticks. The channel's driver mounts on the storage
 	// tier without telling anyone, so this is what still runs firstCardRead() -- here, now that the
 	// re-check it arms walks one resident per tick instead of opening every sample in one pass.
@@ -810,7 +776,7 @@ void Browser::graphicsRoutine() {
 		(void)continuePrediction();
 	}
 
-	if (listingInProgress_ && listingOnTickSurface_) {
+	if (listingInProgress_) {
 		// No is_current test here: close() cancels the attempt at the moment it becomes stale, which
 		// is the precise event. See Browser::close().
 		runPendingListing();
@@ -876,6 +842,11 @@ Error Browser::stepListing() {
 			// default directory: the user is now in that folder. The read itself does not do this,
 			// deliberately, so that a walk reading other folders leaves the browser where it was.
 			currentDir = listing_.read.dir;
+			if (listing_.reload.has_value()) {
+				// A reload chooses its file by the turn that asked for it, not by the ordinary selection.
+				listing_.phase = ListingPhase::ReloadSelect;
+				break;
+			}
 			listing_.phase = listing_.rerunSelectionAfterRead ? ListingPhase::Select : ListingPhase::Finalize;
 			if (listing_.phase == ListingPhase::Finalize) {
 				// The brand-new-name re-read falls straight through to "no file selected", exactly as
@@ -941,6 +912,29 @@ Error Browser::stepListing() {
 				break;
 			}
 			break;
+		}
+
+		case ListingPhase::ReloadSelect: {
+			// The index the turn asked for, over the re-read window. Never passes through Finalize:
+			// folderContentsReady() is an arrival, and a reload is a scroll within the same folder.
+			const ReloadTail& tail = *listing_.reload;
+			const auto offset = static_cast<int8_t>(listing_.direction);
+			int32_t newFileIndex = 0;
+			if (tail.searchFromEnd) {
+				newFileIndex = (tail.searchDirection == CatalogSearch::Left) ? (listing.size() - 1) : 0;
+			}
+			else {
+				newFileIndex = listing.search(enteredText.c_str()).index + offset;
+			}
+			listing_.phase = ListingPhase::Done;
+			listing_.active = false;
+			// Its only fallible call is setEnteredTextFromCurrentFilename. Handled as the no-reload path of
+			// selectEncoderAction handles the same call: shown, and the browser stays open on the new window.
+			const Error error = finishSelectEncoderAction(newFileIndex, offset);
+			if (error != Error::NONE) {
+				display->displayError(error);
+			}
+			return Error::NONE;
 		}
 
 		case ListingPhase::Finalize:
@@ -1213,18 +1207,16 @@ nonNumeric:
 		}
 	}
 
-	// From here on, a reload of the folder listing off SD may be required (listing.numDeletedAtStart()/End
-	// wraparound cases below). If so, dispatch it onto the storage owner - reloadImpl() does the reload
-	// AND then runs the shared tail (see finishSelectEncoderAction()) once it completes, on the fiber. If
-	// no reload is needed, the tail runs synchronously right here: readFolder() is
-	// the only SD-touching call in this whole function.
+	// From here on a reload of the folder may be required (the listing.numDeletedAtStart()/End
+	// wraparound cases below). If so it begins a listing, and the machine runs the read and then
+	// finishSelectEncoderAction() on later ticks (ListingPhase::ReloadSelect). If not, the tail runs
+	// right here.
 	if (newFileIndex < 0) {
 		D_PRINTLN("index below 0");
 		if (listing.numDeletedAtStart()) {
 			scrollPosVertical = 9999;
 			D_PRINTLN("reloading");
-			pendingReloadSearchFromEnd_ = false;
-			beginListing({.action = ListingAction::Reload, .direction = offset});
+			beginListing({.action = ListingAction::Reload, .direction = offset, .reload = ReloadTail{}});
 			return;
 		}
 
@@ -1233,9 +1225,9 @@ nonNumeric:
 
 			if (listing.numDeletedAtEnd()) {
 				D_PRINTLN("reloading and wrap");
-				pendingReloadSearchFromEnd_ = true;
-				pendingReloadCatalogSearchDirection_ = CatalogSearch::Left;
-				beginListing({.action = ListingAction::Reload, .direction = offset});
+				beginListing({.action = ListingAction::Reload,
+				              .direction = offset,
+				              .reload = ReloadTail{.searchFromEnd = true, .searchDirection = CatalogSearch::Left}});
 				return;
 			}
 			else {
@@ -1249,8 +1241,7 @@ nonNumeric:
 		if (listing.numDeletedAtEnd()) {
 			scrollPosVertical = 0;
 			D_PRINTLN("reloading");
-			pendingReloadSearchFromEnd_ = false;
-			beginListing({.action = ListingAction::Reload, .direction = offset});
+			beginListing({.action = ListingAction::Reload, .direction = offset, .reload = ReloadTail{}});
 			return;
 		}
 
@@ -1259,9 +1250,9 @@ nonNumeric:
 
 			if (listing.numDeletedAtStart()) {
 				D_PRINTLN("reloading and wrap");
-				pendingReloadSearchFromEnd_ = true;
-				pendingReloadCatalogSearchDirection_ = CatalogSearch::Right;
-				beginListing({.action = ListingAction::Reload, .direction = offset});
+				beginListing({.action = ListingAction::Reload,
+				              .direction = offset,
+				              .reload = ReloadTail{.searchFromEnd = true, .searchDirection = CatalogSearch::Right}});
 				return;
 			}
 			else {
@@ -1277,8 +1268,8 @@ nonNumeric:
 }
 
 // Shared tail of selectEncoderAction(): fileIndexSelected/scroll update + setEnteredTextFromCurrentFilename +
-// currentFileChanged. Called either synchronously (no reload needed) or from reloadImpl() on the fiber once
-// a dispatched reload completes.
+// currentFileChanged. Called either synchronously (no reload needed) or from the listing machine's ReloadSelect
+// phase once a reload's read has landed.
 Error Browser::finishSelectEncoderAction(int32_t newFileIndex, int8_t offset) {
 	if (!qwertyAlwaysVisible) {
 		qwertyVisible = false;
@@ -1309,9 +1300,10 @@ Error Browser::finishSelectEncoderAction(int32_t newFileIndex, int8_t offset) {
 	return Error::NONE;
 }
 
-// Body of ListingAction::Reload, run on the fiber: reloads the folder listing off SD for one of
-// selectEncoderAction's two scroll-reload sites (pendingReloadSearchFromEnd_ selects which), then
-// runs the shared tail via finishSelectEncoderAction().
+// Body of ListingAction::Reload: arm the listing machine with the re-read one of
+// selectEncoderAction's scroll-reload sites asked for, then run it. The machine's ReloadSelect phase
+// does the rest once the read lands, so a reload that defers RESUMES there like every other action
+// rather than coming back through here.
 Error Browser::reloadImpl(int32_t direction) {
 	// Counted where the reload STARTS, which is once per reload on either arm: a resumed listing
 	// re-enters stepListing(), never this.
@@ -1319,75 +1311,28 @@ Error Browser::reloadImpl(int32_t direction) {
 	if (deluge::storage::Owner::on_owner()) {
 		g_reloadsOnOwner++;
 	}
-	int8_t offset = static_cast<int8_t>(direction);
-	int32_t newFileIndex;
-	Error error;
 
-	if (pendingReloadSearchFromEnd_) {
-		ListingRead read{
-		    .dir = currentDir,
-		    .outputType = outputTypeToLoad,
-		    .filePrefix = filePrefix,
-		    .catalogSearchDirection = pendingReloadCatalogSearchDirection_,
-		};
-		error = readFolder(listing, read);
-		if (error == Error::LISTING_DEFERRED) {
-			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
-			// success for a listing that never happened: runPendingListing() would clear
-			// listingInProgress_, nothing would re-ask, and the browser would sit on the empty
-			// fileItems this pass left behind.
-			return error;
-		}
-		if (error != Error::NONE) {
-			D_PRINTLN("error while reloading, emptying file items");
-			emptyFileItems();
-			// TODO - need to close UI or something?
-			// Reload failure stays silent (no popup, no exit) - swallow it here rather than letting it
-			// propagate to runPendingListing()/onListingFailed().
-			return Error::NONE;
-		}
-
-		newFileIndex = (pendingReloadCatalogSearchDirection_ == CatalogSearch::Left) ? (listing.size() - 1) : 0;
+	const ReloadTail tail = pendingListing_.reload.value_or(ReloadTail{});
+	ListingRead read{
+	    .dir = currentDir,
+	    .outputType = outputTypeToLoad,
+	    .filePrefix = filePrefix,
+	};
+	if (tail.searchFromEnd) {
+		read.catalogSearchDirection = tail.searchDirection;
 	}
 	else {
-		ListingRead read{
-		    .dir = currentDir,
-		    .outputType = outputTypeToLoad,
-		    .filePrefix = filePrefix,
-		    .filenameToStartAt = enteredText,
-		    .catalogSearchDirection = CatalogSearch::Both,
-		};
-		error = readFolder(listing, read);
-		if (error == Error::LISTING_DEFERRED) {
-			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
-			// success for a listing that never happened: runPendingListing() would clear
-			// listingInProgress_, nothing would re-ask, and the browser would sit on the empty
-			// fileItems this pass left behind.
-			return error;
-		}
-		if (error != Error::NONE) {
-			D_PRINTLN("error while reloading, emptying file items");
-			emptyFileItems();
-			// TODO - need to close UI or something?
-			// Reload failure stays silent (no popup, no exit) - swallow it here rather than letting it
-			// propagate to runPendingListing()/onListingFailed().
-			return Error::NONE;
-		}
-
-		newFileIndex = listing.search(enteredText.c_str()).index + offset;
-		D_PRINTLN("new file Index is %d", newFileIndex);
+		read.filenameToStartAt = enteredText;
+		read.catalogSearchDirection = CatalogSearch::Both;
 	}
-
-	error = finishSelectEncoderAction(newFileIndex, offset);
-	// No LISTING_DEFERRED arm here, deliberately: finishSelectEncoderAction re-reads nothing (its only
-	// fallible call is setEnteredTextFromCurrentFilename), so a guard for it could never fire.
-	if (error != Error::NONE) {
-		// Matches the synchronous no-reload path (selectEncoderAction()): displayError only, browser stays
-		// open. Swallow here rather than propagating to runPendingListing()/onListingFailed(), which would
-		// wrongly close() the browser on a tail error - reload failures never close the browser.
-		display->displayError(error);
-	}
-	return Error::NONE;
+	listing_ = ListingState{
+	    .active = true,
+	    .phase = ListingPhase::Read,
+	    .read = std::move(read),
+	    .direction = direction,
+	    .reload = tail,
+	};
+	return stepListing();
 }
 
 bool Browser::predictExtendedText(std::optional<int32_t> editPosOnFailure) {

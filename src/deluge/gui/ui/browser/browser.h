@@ -213,22 +213,23 @@ protected:
 	// so the pending request + flag are static too.
 	enum class ListingAction { Open, IntoFolder, UpLevel, Reload, ByPath };
 
+	/// @brief What a reload does once its read lands. Carried on the request and the machine; empty for every other
+	///        action. The turn itself is the request's `direction`, and is not repeated here.
+	struct ReloadTail {
+		bool searchFromEnd{}; ///< read from the far end rather than around the entered name
+		CatalogSearch searchDirection{CatalogSearch::Both}; ///< which end, when searchFromEnd
+	};
+
 	struct ListingRequest {
 		ListingAction action;
-		int32_t direction; ///< arrivedInNewFolder direction (0 open, ±1 nav)
-		// params captured per-action (owned copies — the op reads them on the fiber):
-		std::string filenameToStartAt; ///< Open
-		std::string defaultDir;        ///< Open
-		std::string folderOrPath;      ///< IntoFolder (folder name) / ByPath (full path)
+		int32_t direction; ///< arrivedInNewFolder direction (0 open, ±1 nav); a Reload's encoder turn
+		// params captured per-action (owned copies -- a listing outlives the call that began it):
+		std::string filenameToStartAt;    ///< Open
+		std::string defaultDir;           ///< Open
+		std::string folderOrPath;         ///< IntoFolder (folder name) / ByPath (full path)
+		std::optional<ReloadTail> reload; ///< Reload
 	};
 	static bool listingInProgress_;
-	/// @brief Whether the listing in progress is this tier's to run, decided once when it began.
-	///
-	/// Set by @ref beginListing, read by @ref graphicsRoutine. A flag rather than re-asking the
-	/// selector each tick because the two must not be able to disagree part-way through an attempt:
-	/// an attempt that started on the storage owner and then found itself also being run from the
-	/// tick surface would run one listing twice, on two tiers, over one static fileItems.
-	static bool listingOnTickSurface_;
 	static ListingRequest pendingListing_;
 
 	/// @brief What a listing begun inside an open browser may replace, kept so a failure can put it back.
@@ -349,9 +350,10 @@ protected:
 	/// Hence an explicit machine: `Read` performs the pending read, `Select` is the pure tail that
 	/// decides what to make current, and either may hand back to `Read` with new parameters.
 	enum class ListingPhase : uint8_t {
-		Read,     ///< perform ListingState::read — at most one open per entry, then advance
-		Select,   ///< the pure selection tail over whatever the read produced
-		Finalize, ///< folderContentsReady()
+		Read,         ///< perform ListingState::read — at most one open per entry, then advance
+		Select,       ///< the pure selection tail over whatever the read produced
+		ReloadSelect, ///< a reload's tail: the index its turn asked for, then finishSelectEncoderAction
+		Finalize,     ///< folderContentsReady()
 		Done,
 	};
 
@@ -384,6 +386,8 @@ protected:
 		/// gate can require it to be non-zero and know the async path was actually reached rather than
 		/// quietly answered by a direct open.
 		int32_t deferrals{};
+		/// Set for a reload: the Read phase hands over to ReloadSelect instead of the ordinary selection.
+		std::optional<ReloadTail> reload;
 	};
 	static ListingState listing_;
 
@@ -462,22 +466,11 @@ protected:
 	friend class BrowserListingAbProbe;
 	friend class PathOperationsBrowserProbe;
 
-	/// @brief Extra context for ListingAction::Reload's two selectEncoderAction call sites.
+	/// @brief Begin `req`'s listing, which graphicsRoutine() then runs on this tier until it completes.
 	///
-	/// The encoder offset and catalog-search-direction don't fit ListingRequest's generic fields
-	/// (which are shared across every action), so they're captured here alongside pendingListing_.
-	static CatalogSearch pendingReloadCatalogSearchDirection_;
-	static bool pendingReloadSearchFromEnd_;
-
-	/// @brief Dispatch `req`'s listing onto the storage owner.
-	///
-	/// Sets listingInProgress_ and shows the loading indicator; on a dropped dispatch clears the
-	/// flag (retried on the next HID event).
+	/// Sets listingInProgress_ and shows the loading indicator. Nothing is dispatched.
 	/// @param req The listing to run.
-	/// @return True if the listing was actually dispatched (queued or run inline), false if the
-	///         dispatch was dropped (owner queue full) — callers that mutate state before calling
-	///         this that only a completed listing would reconcile must check the return and revert
-	///         on false.
+	/// @return Always true: a listing can no longer be dropped. Kept for the callers that test it.
 	bool beginListing(ListingRequest req);
 	/// @brief Whether a directory open made here goes through the directory channel rather than opening directly.
 	/// @return True off the storage owner once it has started. False on the owner and before it starts (boot, and
@@ -494,10 +487,8 @@ protected:
 	[[nodiscard]] static std::expected<deluge::io::Directory, Error> openDirectoryForListing(char const* path,
 	                                                                                         bool createIfMissing);
 
-	/// @brief Owner-op entry point dispatched to run the pending listing.
-	/// @param self The active Browser* the listing was dispatched from.
-	static void runListingTrampoline(void* self);
-	/// @brief Runs on the fiber: dispatches the pending listing action and its completion hooks.
+	/// @brief Start or resume the pending listing, and run its completion hooks once it ends. Called from
+	///        graphicsRoutine() each tick while listingInProgress_.
 	void runPendingListing();
 
 	// Completion hooks (run inside the op, on the fiber):
