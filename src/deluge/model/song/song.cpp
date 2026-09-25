@@ -1023,7 +1023,8 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 	}
 }
 
-Clip* Song::getClipWithOutput(Output* output, bool mustBeActive, Clip* excludeClip) {
+Clip* Song::getClipWithOutput(Output* output, bool mustBeActive, Clip* excludeClip,
+                              bool requireCompatibleParamManager) {
 
 	// For each clip in session and arranger for specific Output
 	int32_t numElements = sessionClips.getNumElements();
@@ -1055,6 +1056,10 @@ traverseClips:
 		}
 
 		if (mustBeActive && !isClipActive(clip)) {
+			continue;
+		}
+		if (requireCompatibleParamManager
+		    && !clip->paramManager.matches_type(output->toModControllable()->required_param_manager_type())) {
 			continue;
 		}
 		return clip;
@@ -2611,7 +2616,16 @@ void Song::resyncLFOs() {
 	}
 }
 
-NoteRow* Song::findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip) {
+NoteRow* Song::findNoteRowForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip,
+                                  bool require_compatible_param_manager) {
+
+	// Drum::toModControllable() defaults to null, so a Drum with no ModControllable can't be type-checked.
+	ModControllable* mod_controllable = drum->toModControllable();
+	bool check_param_manager_type = require_compatible_param_manager && mod_controllable != nullptr;
+	// ANY when the caller didn't ask for type-checking - accept any non-empty paramManager rather than a specific
+	// shape.
+	ParamManagerType required_type =
+	    check_param_manager_type ? mod_controllable->required_param_manager_type() : ParamManagerType::ANY;
 
 	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
 	// in its clipInstances, which otherwise is a nice time-saver
@@ -2648,7 +2662,7 @@ traverseClips:
 		}
 
 		NoteRow* noteRow = instrumentClip->getNoteRowForDrum(drum);
-		if (noteRow) {
+		if (noteRow && (!check_param_manager_type || noteRow->paramManager.matches_type(required_type))) {
 			return noteRow;
 		}
 	}
@@ -2668,11 +2682,11 @@ traverseClips:
 }
 
 ParamManagerForTimeline* Song::findParamManagerForDrum(Kit* kit, Drum* drum, Clip* stopTraversalAtClip) {
-	NoteRow* noteRow = findNoteRowForDrum(kit, drum, stopTraversalAtClip);
-	if (!noteRow) {
+	NoteRow* note_row = findNoteRowForDrum(kit, drum, stopTraversalAtClip, true);
+	if (!note_row) {
 		return nullptr;
 	}
-	return &noteRow->paramManager;
+	return &note_row->paramManager;
 }
 
 void Song::setupPatchingForAllParamManagersForDrum(SoundDrum* drum) {
@@ -2735,7 +2749,7 @@ traverseClips:
 				    instrumentClip->output; // The "if" check at the start should be unnecessary... but just in case.
 			}
 
-			if (noteRow->paramManager.containsAnyMainParamCollections()) {
+			if (noteRow->paramManager.matches_type(drum->toModControllable()->required_param_manager_type())) {
 
 				ModelStackWithParamCollection* modelStackWithParamCollection = noteRow->paramManager.getPatchCableSet(
 				    modelStackWithNoteRow->addOtherTwoThings(drum, &noteRow->paramManager));
@@ -2743,6 +2757,12 @@ traverseClips:
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
 				    ->setupPatching(modelStackWithParamCollection);
 			}
+#if ALPHA_OR_BETA_VERSION
+			// Main collections of the wrong shape would leave this Drum unpatched, and so silently silent.
+			else if (!noteRow->paramManager.matches_type(ParamManagerType::NONE)) {
+				FREEZE_WITH_ERROR("PM42");
+			}
+#endif
 		}
 	}
 
@@ -3152,7 +3172,8 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 	if (!songBeingDestroyedToo) {
 #if ALPHA_OR_BETA_VERSION
 		// Callers must remove any ClipInstances referencing this Clip first, or the arrangement is left pointing at
-		// freed memory - and pickAnActiveClipIfPossible() would pick this Clip back up mid-destruction (E411/E412).
+		// freed memory - and pickAnActiveClipIfPossible() would pick this Clip back up mid-destruction (PM04/PM07, was
+		// E411/E412).
 		if (clip->output && clip->output->clipHasInstance(clip)) {
 			FREEZE_WITH_ERROR("E455");
 		}
@@ -3772,270 +3793,6 @@ void Song::setupPatchingForAllParamManagers() {
 	}
 }
 
-// Returns NULL if couldn't find one.
-// Supply stealInto to have it delete the "backed up" element, putting the contents into stealInto.
-ParamManager* Song::getBackedUpParamManagerForExactClip(ModControllableAudio* modControllable, Clip* clip,
-                                                        ParamManager* stealInto) {
-
-	uint32_t keyWords[2];
-	keyWords[0] = (uint32_t)modControllable;
-	keyWords[1] = (uint32_t)clip;
-
-	int32_t iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords);
-
-	if (iCorrectClip == -1) {
-		return nullptr;
-	}
-
-	BackedUpParamManager* elementCorrectClip =
-	    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
-
-	if (stealInto) {
-		stealInto->stealParamCollectionsFrom(
-		    &elementCorrectClip->paramManager,
-		    true); // Steal expression params too - if they're here (slightly rare case).
-		backedUpParamManagers.deleteAtIndex(iCorrectClip);
-		return stealInto;
-	}
-	else {
-		return &elementCorrectClip->paramManager;
-	}
-}
-
-// If none for the correct Clip, return one for a different Clip - prioritizing NULL Clip.
-// Returns NULL if couldn't find one.
-// Supply stealInto to have it delete the "backed up" element, putting the contents into stealInto.
-ParamManager* Song::getBackedUpParamManagerPreferablyWithClip(ModControllableAudio* modControllable, Clip* clip,
-                                                              ParamManager* stealInto) {
-
-	int32_t iAnyClip =
-	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search just by first word
-	if (iAnyClip >= backedUpParamManagers.getNumElements()) {
-		return nullptr;
-	}
-	BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-	if (elementAnyClip->modControllable != modControllable) {
-		return nullptr; // If nothing with even the correct modControllable at all, get out
-	}
-
-	int32_t iCorrectClip;
-	BackedUpParamManager* elementCorrectClip;
-
-	if (!clip || elementAnyClip->clip == clip) {
-returnFirstForModControllableEvenIfNotRightClip:
-		iCorrectClip = iAnyClip;
-		elementCorrectClip = elementAnyClip;
-	}
-	else {
-		uint32_t keyWords[2];
-		keyWords[0] = (uint32_t)modControllable;
-		keyWords[1] = (uint32_t)clip;
-		iCorrectClip = backedUpParamManagers.searchMultiWordExact(keyWords, nullptr, iAnyClip + 1);
-		if (iCorrectClip == -1) {
-			goto returnFirstForModControllableEvenIfNotRightClip;
-		}
-		elementCorrectClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iCorrectClip);
-	}
-
-	if (stealInto) {
-		stealInto->stealParamCollectionsFrom(
-		    &elementCorrectClip->paramManager,
-		    true); // Steal expression params too - if they're here (slightly rare case).
-		backedUpParamManagers.deleteAtIndex(iCorrectClip);
-		return stealInto;
-	}
-	else {
-		return &elementCorrectClip->paramManager;
-	}
-}
-
-// Steals stuff.
-// shouldStealExpressionParamsToo should only be true to save expression params from being destructed (e.g. if the
-// Clip is being destructed).
-void Song::backUpParamManager(ModControllableAudio* modControllable, Clip* clip, ParamManagerForTimeline* paramManager,
-                              bool shouldStealExpressionParamsToo) {
-
-	if (!paramManager->containsAnyMainParamCollections()) {
-		return;
-	}
-
-	uint32_t keyWords[2];
-	keyWords[0] = (uint32_t)modControllable;
-	keyWords[1] = (uint32_t)clip;
-
-	int32_t indexToInsertAt;
-
-	int32_t i = backedUpParamManagers.searchMultiWordExact(keyWords, &indexToInsertAt);
-
-	BackedUpParamManager* element;
-
-	// If one already existed...
-	if (i != -1) {
-		element = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-
-		// Let's destroy it...
-		element->paramManager.destructAndForgetParamCollections();
-
-		// ...and replace it
-doStealing:
-		element->paramManager.stealParamCollectionsFrom(paramManager, shouldStealExpressionParamsToo);
-	}
-
-	// Otherwise, insert one
-	else {
-		i = indexToInsertAt;
-		Error error = backedUpParamManagers.insertAtIndex(i);
-
-		// If RAM error...
-		if (error != Error::NONE) {
-
-			// Destroy paramManager
-			paramManager->destructAndForgetParamCollections();
-		}
-
-		// Or if that went fine...
-		else {
-			element = new (backedUpParamManagers.getElementAddress(i)) BackedUpParamManager();
-
-			element->modControllable = modControllable;
-			element->clip = clip;
-			goto doStealing;
-		}
-	}
-}
-
-void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
-
-	AudioEngine::logAction("Song::deleteBackedUpParamManagersForClip");
-
-	// Ok, this is the one sticky one where we actually do have to go through every element
-	int32_t i = 0;
-
-	while (i < backedUpParamManagers.getNumElements()) {
-
-		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-		if (backedUp->clip == clip) {
-
-			AudioEngine::routineWithClusterLoading();
-
-			// We ideally want to just set the Clip to NULL. We can just do this if the previous element didn't have
-			// the same ModControllable
-			if (i == 0
-			    || ((BackedUpParamManager*)backedUpParamManagers.getElementAddress(i - 1))->modControllable
-			           != backedUp->modControllable) {
-				backedUp->clip = nullptr;
-				i++;
-			}
-
-			// Othwerwise...
-			else {
-
-				ParamManagerForTimeline paramManager;
-				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
-				ModControllableAudio* modControllable = backedUp->modControllable;
-
-				// We have to delete that element...
-				backedUpParamManagers.deleteAtIndex(i);
-
-				// ...and then go find the first one that had this ModControllable
-				int32_t j = backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL, 0,
-				                                         i); // Search by first word only
-				BackedUpParamManager* firstElementWithModControllable =
-				    (BackedUpParamManager*)backedUpParamManagers.getElementAddress(j);
-
-				// If it already had a NULL Clip, we have to replace its ParamManager
-				if (!firstElementWithModControllable->clip) {
-					firstElementWithModControllable->paramManager.destructAndForgetParamCollections();
-
-					firstElementWithModControllable->paramManager.stealParamCollectionsFrom(&paramManager);
-
-					// Don't increment i, as we've deleted an element instead
-				}
-
-				// Otherwise, we insert before it
-				else {
-					Error error = backedUpParamManagers.insertAtIndex(j);
-
-					// If RAM error (surely would never happen since we just deleted an element)...
-					if (error != Error::NONE) {
-						// Don't increment i, as we've deleted an element instead
-					}
-
-					// Or if that went fine...
-					else {
-						BackedUpParamManager* newElement =
-						    new (backedUpParamManagers.getElementAddress(j)) BackedUpParamManager();
-
-						newElement->modControllable = modControllable;
-						newElement->clip = nullptr;
-						newElement->paramManager.stealParamCollectionsFrom(&paramManager);
-						i++; // We deleted an element, but inserted one too
-					}
-				}
-			}
-		}
-		else {
-			i++;
-		}
-	}
-
-	// Test that everything's still in order
-
-#if ALPHA_OR_BETA_VERSION
-	AudioEngine::routineWithClusterLoading();
-
-	Clip* lastClip;
-	ModControllableAudio* lastModControllable;
-
-	for (int32_t i = 0; i < backedUpParamManagers.getNumElements(); i++) {
-
-		BackedUpParamManager* backedUp = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(i);
-
-		if (i >= 1) {
-
-			if (backedUp->modControllable < lastModControllable) {
-				FREEZE_WITH_ERROR("E053");
-			}
-
-			else if (backedUp->modControllable == lastModControllable) {
-				if (backedUp->clip < lastClip) {
-					FREEZE_WITH_ERROR("E054");
-				}
-				else if (backedUp->clip == lastClip) {
-					FREEZE_WITH_ERROR("E055");
-				}
-			}
-		}
-
-		lastClip = backedUp->clip;
-		lastModControllable = backedUp->modControllable;
-	}
-
-#endif
-}
-
-void Song::deleteBackedUpParamManagersForModControllable(ModControllableAudio* modControllable) {
-
-	int32_t iAnyClip =
-	    backedUpParamManagers.search((uint32_t)modControllable, GREATER_OR_EQUAL); // Search by first word only
-
-	while (true) {
-		if (iAnyClip >= backedUpParamManagers.getNumElements()) {
-			return;
-		}
-		BackedUpParamManager* elementAnyClip = (BackedUpParamManager*)backedUpParamManagers.getElementAddress(iAnyClip);
-		if (elementAnyClip->modControllable != modControllable) {
-			return;
-		}
-
-		// Destruct paramManager
-		elementAnyClip->~BackedUpParamManager();
-
-		// Delete from Vector
-		backedUpParamManagers.deleteAtIndex(iAnyClip);
-	}
-}
-
 // TODO: should we also check whether any arranger clips active and playing in session mode? For next function
 // too...
 bool Song::doesOutputHaveActiveClipInSession(Output* output) {
@@ -4337,15 +4094,35 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 		// Ok, back to the main task - if there's no activeClip...
 		else {
 			if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
-				if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
-				                                               nullptr)) {
+				auto* mod_controllable = (ModControllableAudio*)output->toModControllable();
+				if (!getBackedUpParamManagerPreferablyWithClip(mod_controllable, nullptr)) {
+					// Deleting the Output would lose the user's preset, so first try giving it a default ParamManager
+					// of the shape it requires.
+					{
+						ParamManagerForTimeline new_param_manager;
+						bool is_synth = (output->type == OutputType::SYNTH);
+						Error error =
+						    is_synth ? new_param_manager.setupWithPatching() : new_param_manager.setupUnpatched();
+						if (error == Error::NONE) {
+							if (is_synth) {
+								Sound::initParams(&new_param_manager);
+							}
+							else {
+								GlobalEffectableForClip::initParams(&new_param_manager);
+							}
+							backUpParamManager(mod_controllable, nullptr, &new_param_manager, true);
+						}
+					}
+
+					if (!getBackedUpParamManagerPreferablyWithClip(mod_controllable, nullptr)) {
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E044");
+						display->displayPopup("PM40"); // was E044
 #endif
-					deleteOutputThatIsInMainList(output,
-					                             false); // Do *not* try to stop any auditioning first. There is
-					                                     // none, and doing so would/did cause an E170.
-					goto getOut;
+						deleteOutputThatIsInMainList(output,
+						                             false); // Do *not* try to stop any auditioning first. There is
+						                                     // none, and doing so would/did cause an E170.
+						goto getOut;
+					}
 				}
 			}
 
@@ -4359,11 +4136,10 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 			for (Drum* thisDrum = kit->firstDrum; thisDrum; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					SoundDrum* soundDrum = (SoundDrum*)thisDrum;
-					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum,
-					                                               NULL)) { // If no backedUpParamManager...
-						if (!findParamManagerForDrum(kit,
-						                             soundDrum)) { // If no ParamManager with a NoteRow somewhere...
-							FREEZE_WITH_ERROR("E102");
+					if (!getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) { // If no backedUpParamManager...
+						if (!findParamManagerForDrum(
+						        kit, soundDrum)) {     // If no patched ParamManager with a NoteRow somewhere...
+							FREEZE_WITH_ERROR("PM41"); // was E102
 						}
 					}
 				}
@@ -4510,10 +4286,19 @@ void Song::ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* error
 
 		AudioEngine::routineWithClusterLoading();
 
-		// If has Clip, that's fine
-		if (getClipWithOutput(thisOutput)) {}
+		// A clip only supplies usable parameters when its collections match the output.
+		bool has_clip = false;
+		for (Clip* clip : AllClips::everywhere(this)) {
+			if (clip->output != thisOutput) {
+				continue;
+			}
+			has_clip = true;
+			if (!clip->paramManager.matches_type(thisOutput->toModControllable()->required_param_manager_type())) {
+				FREEZE_WITH_ERROR(errorMessageNormal);
+			}
+		}
 
-		else {
+		if (!has_clip) {
 			if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput->toModControllable(),
 			                                               nullptr)) {
 				FREEZE_WITH_ERROR(errorMessageNormal);
@@ -4790,7 +4575,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 	OutputType outputType = oldInstrument->type;
 
-	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
+	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("PM11", "PM12"); // was E063 / H063
 
 	// If we're in MIDI or CV mode, easy - just change the channel
 	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
@@ -4912,7 +4697,7 @@ removeWorkingAnimationAndGetOut:
 
 	currentSong->instrumentSwapped(oldInstrument);
 
-	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
+	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("PM13", "PM14"); // was E064 / H064
 
 	return oldInstrument;
 }
@@ -6017,16 +5802,6 @@ ModelStackWithTimelineCounter* Song::setupModelStackWithCurrentClip(void* memory
 
 ModelStackWithThreeMainThings* Song::addToModelStack(ModelStack* modelStack) {
 	return modelStack->addTimelineCounter(this)->addOtherTwoThingsButNoNoteRow(&globalEffectable, &paramManager);
-}
-
-ModelStackWithAutoParam* Song::getModelStackWithParam(ModelStackWithThreeMainThings* modelStack, int32_t paramID) {
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (modelStack) {
-		modelStackWithParam = modelStack->getUnpatchedAutoParamFromId(paramID);
-	}
-
-	return modelStackWithParam;
 }
 
 void Song::updateBPMFromAutomation() {

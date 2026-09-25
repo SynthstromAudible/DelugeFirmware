@@ -32,6 +32,7 @@ class ModelStackWithAutoParam;
 class ModelStackWithThreeMainThings;
 class MIDIKnob;
 class ModelStackWithSoundFlags;
+enum class ParamManagerType : uint8_t;
 
 /// Base class for things that the internal modulation engine knows how to control.
 ///
@@ -72,6 +73,8 @@ public:
 	                                                      int32_t channelOrNoteNumber,
 	                                                      MIDICharacteristic whichCharacteristic) {}
 	virtual void monophonicExpressionEvent(int32_t newValue, int32_t expressionDimension) {}
+
+	virtual ParamManagerType required_param_manager_type() const = 0;
 
 protected:
 	/// What kind of unpatched parameters this ModControllable uses.

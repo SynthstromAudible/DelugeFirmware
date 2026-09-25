@@ -278,7 +278,7 @@ ramError:
 
 #if ALPHA_OR_BETA_VERSION
 	if (!newClip->paramManager.summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E421"); // Trying to diversify Leo's E410
+		FREEZE_WITH_ERROR("PM29"); // was E421. Trying to diversify Leo's PM02 (was E410)
 	}
 #endif
 
@@ -1338,38 +1338,22 @@ void AudioClip::setPos(ModelStackWithTimelineCounter* modelStack, int32_t newPos
 
 bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int32_t amount, bool shiftAutomation,
                                   bool shiftSequenceAndMPE) {
-	// the following code iterates through all param collections and shifts automation and MPE separately
-	// automation only gets shifted if shiftAutomation is true
-	// MPE only gets shifted if shiftSequenceAndMPE is true
+	// the following code iterates through all param collections and shifts automation, if shiftAutomation is true.
+	// Unlike InstrumentClip, an AudioClip's ParamManager never has an expression/MPE collection - nothing ever calls
+	// getOrCreateExpressionParamSet() on it - so there's no MPE special-case to handle here.
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
-	if (paramManager.containsAnyParamCollectionsIncludingExpression()) {
+	if (shiftAutomation && paramManager.matches_type(output->toModControllable()->required_param_manager_type())) {
 		ParamCollectionSummary* summary = paramManager.summaries;
-
-		int32_t i = 0;
 
 		while (summary->paramCollection) {
 
 			ModelStackWithParamCollection* modelStackWithParamCollection =
 			    modelStackWithThreeMainThings->addParamCollection(summary->paramCollection, summary);
 
-			// Special case for MPE only - not even "mono" / Clip-level expression.
-			if (i == paramManager.getExpressionParamSetOffset()) {
-				if (shiftSequenceAndMPE) {
-					((ExpressionParamSet*)summary->paramCollection)
-					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
-				}
-			}
-
-			// Normal case (non MPE automation)
-			else {
-				if (shiftAutomation) {
-					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
-				}
-			}
+			summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
 			summary++;
-			i++;
 		}
 	}
 

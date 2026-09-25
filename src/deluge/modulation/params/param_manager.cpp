@@ -27,16 +27,15 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include <algorithm>
 #include <new>
 
 ParamManager::ParamManager() {
 	summaries[0] = {0};
-#if ALPHA_OR_BETA_VERSION
 	summaries[1] = {0};
 	summaries[2] = {0};
 	summaries[3] = {0};
 	summaries[4] = {0};
-#endif
 	expressionParamSetOffset = 0;
 
 	resonanceBackwardsCompatibilityProcessed = false;
@@ -46,288 +45,20 @@ ParamManager::~ParamManager() {
 	destructAndForgetParamCollections();
 }
 
-#if ALPHA_OR_BETA_VERSION
-ParamManagerForTimeline* ParamManager::toForTimeline() {
-	FREEZE_WITH_ERROR("E407");
-	return nullptr;
-}
-
-ParamManagerForTimeline* ParamManagerForTimeline::toForTimeline() {
-	return this;
-}
-#endif
-
-Error ParamManager::setupMIDI() {
-	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(MIDIParamCollection));
-	if (!memory) {
-		return Error::INSUFFICIENT_RAM;
-	}
-
-	summaries[1] = summaries[0]; // Potentially shuffle the expression params over.
-	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
-	summaries[2] = {0};
-	expressionParamSetOffset = 1;
-	return Error::NONE;
-}
-
-Error ParamManager::setupUnpatched() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
-	if (!memoryUnpatched) {
-		return Error::INSUFFICIENT_RAM;
-	}
-
-	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
-	summaries[1] = {0};
-	expressionParamSetOffset = 1;
-	return Error::NONE;
-}
-
-Error ParamManager::setupWithPatching() {
-	void* memoryUnpatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(UnpatchedParamSet));
-	if (!memoryUnpatched) {
-		return Error::INSUFFICIENT_RAM;
-	}
-
-	void* memoryPatched = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchedParamSet));
-	if (!memoryPatched) {
-ramError2:
-		delugeDealloc(memoryUnpatched);
-		return Error::INSUFFICIENT_RAM;
-	}
-
-	void* memoryPatchCables = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(PatchCableSet));
-	if (!memoryPatchCables) {
-		delugeDealloc(memoryPatched);
-		goto ramError2;
-	}
-
-	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
-	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
-	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
-	summaries[3] = {0};
-	expressionParamSetOffset = 3;
-	return Error::NONE;
-}
-
-// Make sure other isn't NULL before you call this, you muppet.
-void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpressionParams) {
-#if ALPHA_OR_BETA_VERSION
-	if (!other) {
-		FREEZE_WITH_ERROR("E413");
-	}
-#endif
-
-	int32_t mpeParamsOffsetOther = other->getExpressionParamSetOffset();
-	int32_t mpeParamsOffsetHere = getExpressionParamSetOffset();
-	int32_t stopAtOther = mpeParamsOffsetOther;
-
-	// If we're planning to steal expression params, and yes "other" does in fact have them...
-	if (stealExpressionParams && other->summaries[stopAtOther].paramCollection) {
-
-		// If "here" has them too, we'll just keep these, and destruct "other"'s ones
-		if (summaries[mpeParamsOffsetHere].paramCollection) {
-			other->summaries[stopAtOther].paramCollection->~ParamCollection();
-			delugeDealloc(other->summaries[stopAtOther].paramCollection);
-			other->summaries[stopAtOther] = {0};
-		}
-
-		// Otherwise, yup, proceed to steal them
-		else {
-			stopAtOther++;
-		}
-	}
-
-	ParamCollectionSummary hereMpeParamsOrNull = summaries[mpeParamsOffsetHere];
-
-	int32_t i;
-	for (i = 0; i < stopAtOther; i++) {
-		summaries[i] = other->summaries[i];
-	}
-
-	summaries[stopAtOther] = hereMpeParamsOrNull; // Could the expression params, or NULL
-	if (hereMpeParamsOrNull.paramCollection) {
-		summaries[stopAtOther + 1] = {0}; // If that was expression params, write the actual terminating NULL here
-	}
-	// - but not otherwise, cos we could have overflowed past the array's size!
-	expressionParamSetOffset = mpeParamsOffsetOther;
-
-	other->summaries[0] = other->summaries[stopAtOther];
-	other->summaries[1] = {0};
-#if ALPHA_OR_BETA_VERSION
-	other->summaries[2] = {0};
-	other->summaries[3] = {0};
-	other->summaries[4] = {0};
-#endif
-	other->expressionParamSetOffset = 0;
-}
-
-Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,
-                                              bool cloneExpressionParams, int32_t reverseDirectionWithLength) {
-
-	ParamCollectionSummary mpeParamsOrNullHere = *getExpressionParamSetSummary();
-	// Paul: Prevent MPE data from not getting exchanged with a newly allocated pointer if we allocate the same params
-	// for another clip
-	if (this != other) {
-		if (mpeParamsOrNullHere.paramCollection) {
-			cloneExpressionParams = false; // If we already have expression params, then just don't clone from "other".
-		}
-	}
-
-	// First, allocate the memories
-	ParamCollectionSummary
-	    newSummaries[PARAM_COLLECTIONS_STORAGE_NUM]; // Temporary separate storage, so we can clone from self (when this
-	                                                 // function is called from beenCloned()).
-
-	ParamCollectionSummary* __restrict__ newSummary = newSummaries;
-	ParamCollectionSummary const* otherSummary =
-	    other->summaries; // Not __restrict__, because other might be the same as this!
-	ParamCollectionSummary const* otherStopAt = &other->summaries[other->expressionParamSetOffset];
-
-	if (cloneExpressionParams && otherStopAt->paramCollection) {
-		otherStopAt++;
-	}
-
-	while (otherSummary != otherStopAt) {
-		// To cut corners, we store this currently blank/undefined memory in our array of type ParamCollectionSummary
-		newSummary->paramCollection =
-		    (ParamCollection*)GeneralMemoryAllocator::get().allocMaxSpeed(otherSummary->paramCollection->objectSize);
-
-		// If that failed, deallocate all the previous memories
-		if (!newSummary->paramCollection) {
-			while (newSummary != newSummaries) {
-				newSummary--;
-				delugeDealloc(newSummary->paramCollection);
-			}
-
-			// Mark that there's nothing here
-			summaries[0] = mpeParamsOrNullHere;
-			summaries[1] = {0};
-			return Error::INSUFFICIENT_RAM;
-		}
-
-		newSummary++;
-		otherSummary++;
-	}
-
-	// Now the memories have been allocated, go through and do the cloning
-	newSummary = newSummaries;
-	otherSummary = other->summaries;
-	while (otherSummary != otherStopAt) {
-
-		memcpy(newSummary->paramCollection, otherSummary->paramCollection, otherSummary->paramCollection->objectSize);
-
-		newSummary->paramCollection->beenCloned(
-		    copyAutomation, reverseDirectionWithLength); // Ignore error - just means automation doesn't get cloned.
-
-		newSummary->cloneFlagsFrom(otherSummary);
-
-		newSummary++;
-		otherSummary++;
-	}
-
-	// Paul: If we move allocation position of the same clip mpe data was allocated above and doesn't require special
-	// treatment
-	if (this == other) {
-		*newSummary = {0}; // Mark end of list
-	}
-	else {
-		*newSummary = mpeParamsOrNullHere;
-		if (mpeParamsOrNullHere.paramCollection) { // Check first, otherwise we'll overflow the array, I think...
-			newSummary++;
-			*newSummary = {0}; // Mark end of list
-		}
-	}
-
-	// And finally, copy the pointers and flags from newSummaries to our permanent summaries array.
-	newSummary = newSummaries;
-	ParamCollectionSummary* destSummaries = summaries;
-	while (true) {
-		*destSummaries = *newSummary;
-		if (!newSummary->paramCollection) {
-			break;
-		}
-		destSummaries++;
-		newSummary++;
-	}
-
-	expressionParamSetOffset = other->expressionParamSetOffset;
-
-	return Error::NONE;
-}
-
-// This is only called once - for NoteRows after cloning an InstrumentClip.
-Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
-	return cloneParamCollectionsFrom(this, true, true, reverseDirectionWithLength); // *Does* clone expression params
-}
-
-// Does *not* forget MPE params
-void ParamManager::forgetParamCollections() {
-	summaries[0].paramCollection = getExpressionParamSet();
-	summaries[1] = {0};
-	expressionParamSetOffset = 0;
-#if ALPHA_OR_BETA_VERSION
-	summaries[2] = {0};
-	summaries[3] = {0};
-	summaries[4] = {0};
-#endif
-}
-
-// This one deletes MPE params too
-void ParamManager::destructAndForgetParamCollections() {
-	ParamCollectionSummary* summary = summaries;
-	while (summary->paramCollection) {
-		summary->paramCollection->~ParamCollection();
-		delugeDealloc(summary->paramCollection);
-		summary++;
-	}
-
-	summaries[0] = {0};
-	expressionParamSetOffset = 0;
-}
-
-// Returns whether there is one / one could be created.
-bool ParamManager::ensureExpressionParamSetExists(bool forDrum) {
-	int32_t offset = getExpressionParamSetOffset();
-	if (!summaries[offset].paramCollection) {
-
-		void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(ExpressionParamSet));
-		if (!memory) {
-			return false;
-		}
-
-		summaries[offset].paramCollection = new (memory) ExpressionParamSet(&summaries[offset], forDrum);
-		summaries[offset + 1] = {0};
-	}
-	return true;
-}
-
-ExpressionParamSet* ParamManager::getOrCreateExpressionParamSet(bool forDrum) {
-	if (!ensureExpressionParamSetExists(forDrum)) {
-		return nullptr;
-	}
-
-	return getExpressionParamSet();
-}
-
 ModelStackWithParamCollection* ParamManager::getPatchCableSet(ModelStackWithThreeMainThings const* modelStack) {
 #if ALPHA_OR_BETA_VERSION
-	if (!summaries[2].paramCollection) {
-		FREEZE_WITH_ERROR("E412");
+	if (param_kind_at_offset(2) != deluge::modulation::params::Kind::PATCH_CABLE) {
+		FREEZE_WITH_ERROR("PM08"); // was E412
 	}
 #endif
 	return modelStack->addParamCollection(summaries[2].paramCollection, &summaries[2]);
 }
 
-ParamManagerForTimeline::ParamManagerForTimeline() {
-	ticksSkipped = 0;
-	ticksTilNextEvent = 0;
-}
-
 // Even if it's just expression params.
 void ParamManagerForTimeline::ensureSomeParamCollections() {
 #if ALPHA_OR_BETA_VERSION
-	if (!summaries[0].paramCollection) {
-		FREEZE_WITH_ERROR("E408");
+	if (!matches_type(ParamManagerType::ANY) || !has_valid_layout()) {
+		FREEZE_WITH_ERROR("PM0A"); // was E408
 	}
 #endif
 }
@@ -359,48 +90,6 @@ void ParamManagerForTimeline::ensureSomeParamCollections() {
 	}                                                                                                                  \
 	summary++;                                                                                                         \
 	}
-
-// You'll usually want to call mightContainAutomation() before bothering with this, to save time.
-void ParamManagerForTimeline::processCurrentPos(ModelStackWithThreeMainThings* modelStack, int32_t ticksSinceLast,
-                                                bool reversed, bool didPingpong, bool mayInterpolate) {
-
-#if ALPHA_OR_BETA_VERSION
-	ensureSomeParamCollections(); // If you're going to delete this and allow none, make sure you replace the "do" below
-	                              // with its "while".
-#endif
-
-	ticksSkipped += ticksSinceLast;
-	ticksTilNextEvent -= ticksSinceLast;
-
-	if (ticksTilNextEvent <= 0) {
-
-		ticksTilNextEvent = 2147483647;
-
-		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
-
-		// If we can't interpolate by samples then we'll interpolate by ticks instead. This has to happen *before*
-		// processCurrentPos(), because that may reach a node and set up a new increment for the span we're about to
-		// begin - whereas the ticks we've skipped belong to the span we've just finished. Applying them to the new
-		// increment sends the value far past its target (a whole inter-node gap's worth of a few-tick ramp), which for
-		// MIDI output means expression values well outside 0-127.
-		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
-			summary->paramCollection->tickTicks(ticksSkipped, modelStackWithParamCollection);
-		}
-
-		summary->paramCollection->processCurrentPos(modelStackWithParamCollection, ticksSkipped, reversed, didPingpong,
-		                                            true);
-		// Re-check after processCurrentPos(): if a node has just started some interpolation, we need to come back every
-		// tick to advance it.
-		if (!mayInterpolate && (summary->whichParamsAreInterpolating[0] != 0u)) {
-			ticksTilNextEvent = 0;
-		}
-		ticksTilNextEvent = std::min(ticksTilNextEvent, summary->paramCollection->ticksTilNextEvent);
-
-		FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_END
-
-		ticksSkipped = 0;
-	}
-}
 
 void ParamManagerForTimeline::expectEvent(ModelStackWithThreeMainThings const* modelStack) {
 	TimelineCounter* timelineCounter = modelStack->getTimelineCounterAllowNull();
@@ -528,21 +217,21 @@ void ParamManagerForTimeline::appendParamManager(ModelStackWithThreeMainThings* 
 #endif
 
 	ParamCollectionSummary* otherSummary = otherModelStack->paramManager->summaries;
-	FOR_EACH_AUTOMATED_PARAM_COLLECTION_DEFINITELY_SOME_START
+	ParamCollectionSummary* summary = summaries;
+	do {
+		// The source may introduce automation into a previously empty collection.
+		if (otherSummary->containsAutomation()) {
+			auto* destinationStack = modelStack->addParamCollectionSummary(summary);
+			auto* sourceStack = otherModelStack->addParamCollectionSummary(otherSummary);
+			summary->paramCollection->appendParamCollection(destinationStack, sourceStack, oldLength,
+			                                                reverseThisRepeatWithLength, pingpongingGenerally);
+		}
+		summary++;
+		otherSummary++;
+	} while (summary->paramCollection);
 
-	ModelStackWithParamCollection* otherModelStackWithParamCollection =
-	    otherModelStack->addParamCollectionSummary(otherSummary);
-	summary->paramCollection->appendParamCollection(modelStackWithParamCollection, otherModelStackWithParamCollection,
-	                                                oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
-}
-summary++;
-otherSummary++;
-}
-while (summary->paramCollection)
-	;
-
-ticksTilNextEvent = 0; // Should probably really call expectEvent(), but we're only called when a tick is just about to
-                       // happen anyway, so shouldn't matter
+	ticksTilNextEvent = 0; // Should probably really call expectEvent(), but we're only called when a tick is just about
+	                       // to happen anyway, so shouldn't matter
 }
 
 // Note: you must only call this if playbackHandler.isEitherClockActive()
