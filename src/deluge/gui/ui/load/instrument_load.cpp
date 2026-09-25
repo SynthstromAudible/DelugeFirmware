@@ -147,7 +147,7 @@ void InstrumentLoad::start(const InstrumentLoadRequest& request) {
 	acquired_ = {};
 	walk_ = {};
 	walkBegun_ = false;
-	walkDispatched_ = false;
+	walkStarted_ = false;
 	if (active_.commit) {
 		closeGate();
 	}
@@ -210,7 +210,7 @@ bool InstrumentLoad::stepWalk() {
 	if (walkRunning_) {
 		return false; // a walk is out, perhaps an abandoned load's: nothing new is queued until it ends
 	}
-	if (!walkDispatched_) {
+	if (!walkStarted_) {
 		if (!walkBegun_) {
 			walkBegun_ = true;
 			// The gesture's card-free prologue, as the request starts: a request superseded while queued never runs it.
@@ -231,27 +231,12 @@ bool InstrumentLoad::stepWalk() {
 			LoadInstrumentPresetUI::presetAcquisitionsRun_++;
 		}
 		walkOut_ = walk_;
-		if (walkOut_.walk == deluge::storage::AcquireWalk::Unlaunched
-		    || walkOut_.walk == deluge::storage::AcquireWalk::UnusedSlot
-		    || walkOut_.walk == deluge::storage::AcquireWalk::Navigate) {
-			// The Unlaunched search no longer needs the owner: it spans ticks instead of blocking,
-			// and it holds its own listing, so there is nothing for it to collide with. The first
-			// attempt at this waited on Browser::isListingInProgress() because the two shared the
-			// browser's file list; they no longer share anything, so the wait is gone too. The
-			// UnusedSlot scan runs here for the same reason: one folder read, into a listing of its own. Navigate
-			// runs here too: a window at a time, into a listing of its own.
-			walkRunning_ = true;
-			walkHere_ = true;
-			walkDispatched_ = true;
-			beginWalkHere();
-			return false;
-		}
-		walkHere_ = false;
+		// Every kind runs here now, on the interaction tier, a folder at a time into a listing of its own: the
+		// Unlaunched search through PresetWalk, the slot name through SlotNameScan, the preset scroll through
+		// PresetNavigation, and the change-type through ConfirmPreset. Nothing is dispatched to the storage owner.
 		walkRunning_ = true;
-		walkDispatched_ = deluge::storage::Owner::run(&InstrumentLoad::runWalkOp, this);
-		if (!walkDispatched_) {
-			walkRunning_ = false; // the owner's queue was full: queue it on a later pass
-		}
+		walkStarted_ = true;
+		beginWalkHere();
 		return false;
 	}
 
@@ -289,16 +274,16 @@ bool InstrumentLoad::stepWalk() {
 }
 
 void InstrumentLoad::tickWalkHere() {
-	if (!walkRunning_ || !walkHere_) {
+	if (!walkRunning_) {
 		return;
 	}
-	// Driven from HERE, not from stepWalk(), and that is not a detail. abandon() states the
-	// invariant the dispatched arm relied on -- "a walk still out ends on its own" -- which held
-	// because the storage owner ran that operation whether or not this load was still interested.
-	// An inline walk has no such driver. cancel() and supersede() set phase_ = Idle while a walk is
-	// out, and step() returns at Phase::Idle without ever reaching stepWalk(), so a walk ticked only
-	// from there is stranded: walkRunning_ stays true and every later walk queues behind a search
-	// nobody is advancing. Measured: the save gate got one tick and then stopped forever.
+	// Driven from HERE, not from stepWalk(), and that is not a detail. abandon() relies on the
+	// invariant "a walk still out ends on its own" -- which the storage owner once gave for free,
+	// running its operation whether or not this load was still interested. A walk on this tier has
+	// no such driver. cancel() and supersede() set phase_ = Idle while a walk is out, and step()
+	// returns at Phase::Idle without ever reaching stepWalk(), so a walk ticked only from there is
+	// stranded: walkRunning_ stays true and every later walk queues behind a search nobody is
+	// advancing. Measured: the save gate got one tick and then stopped forever.
 	bool waiting = false;
 	switch (walkOut_.walk) {
 	case deluge::storage::AcquireWalk::UnusedSlot:
@@ -306,6 +291,9 @@ void InstrumentLoad::tickWalkHere() {
 		break;
 	case deluge::storage::AcquireWalk::Navigate:
 		waiting = navigation_.tick();
+		break;
+	case deluge::storage::AcquireWalk::Confirm:
+		waiting = confirm_.tick();
 		break;
 	default:
 		waiting = walk_machine_.tick();
@@ -333,6 +321,13 @@ void InstrumentLoad::beginWalkHere() {
 		navigation_.arm(loadInstrumentPresetUI, walkOut_);
 		return;
 	}
+	if (walkOut_.walk == deluge::storage::AcquireWalk::Confirm) {
+		// Counted for the preset-load gate (AQ-CHANGE-TIER): where the walk began.
+		confirmsRun_++;
+		confirmsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
+		confirm_.arm(loadInstrumentPresetUI, walkOut_);
+		return;
+	}
 	// The search's folder goes straight to the walk. It used to be parked in Browser::currentDir for
 	// the walk to read back -- which moved whatever browser was open: an acquisition for "SYNTHS"
 	// relocated a save browser sitting in "SONGS", and its save then wrote nothing.
@@ -342,7 +337,7 @@ void InstrumentLoad::beginWalkHere() {
 
 void InstrumentLoad::finishWalkHere() {
 	if (walkOut_.walk == deluge::storage::AcquireWalk::UnusedSlot) {
-		// The fields runWalkOp's UnusedSlot arm filled: a name, or the error, and nothing to load.
+		// A name, or the error, and nothing to load.
 		AcquireSnapshot found{};
 		const auto result = slot_scan_.result();
 		if (result.has_value()) {
@@ -355,7 +350,7 @@ void InstrumentLoad::finishWalkHere() {
 		return;
 	}
 	if (walkOut_.walk == deluge::storage::AcquireWalk::Navigate) {
-		// The fields runWalkOp's Navigate arm filled, the folder read off the walk rather than Browser::currentDir.
+		// The folder read off the walk, never Browser::currentDir.
 		AcquireSnapshot found{};
 		const auto result = navigation_.result();
 		if (result.has_value()) {
@@ -372,8 +367,24 @@ void InstrumentLoad::finishWalkHere() {
 		walked_ = std::move(found);
 		return;
 	}
-	// The same tail runWalkOp writes, over the same fields, so nothing downstream can tell which arm
-	// produced the snapshot.
+	if (walkOut_.walk == deluge::storage::AcquireWalk::Confirm) {
+		AcquireSnapshot found{};
+		const auto result = confirm_.result();
+		if (result.has_value()) {
+			FileItem* item = *result;
+			found.existing = item->instrument;
+			found.alreadyInSong = item->instrumentAlreadyInSong;
+			found.name = (item->instrument != nullptr) ? item->instrument->name : item->getFilenameWithoutExtension();
+			found.dirPath = confirm_.dir();
+			found.path = confirm_.dir() + "/" + item->getFilenameWithExtension();
+		}
+		else {
+			found.error = result.error();
+		}
+		walked_ = std::move(found);
+		return;
+	}
+	// The Unlaunched search.
 	AcquireSnapshot found{};
 	FileItem* item = nullptr;
 	const auto result = walk_machine_.result();
@@ -393,57 +404,9 @@ void InstrumentLoad::finishWalkHere() {
 		found.dirPath = walk_machine_.foundDir();
 		found.path = walk_machine_.foundDir() + "/" + item->getFilenameWithExtension();
 	}
-	// No emptyFileItems() here, unlike runWalkOp's tail: the items are in the WALK's listing, not the
-	// browser's, and clearing the browser's would blank a list this search never touched.
+	// No emptyFileItems() here: the items are in the WALK's listing, not the browser's, and clearing the
+	// browser's would blank a list this search never touched.
 	walked_ = std::move(found);
-}
-
-void InstrumentLoad::runWalkOp(void* self) {
-	auto* load = static_cast<InstrumentLoad*>(self);
-	const deluge::storage::AcquireWalkSpec& spec = load->walkOut_;
-	AcquireSnapshot found{};
-	Browser::currentDir = spec.dirPath;
-	FileItem* item = nullptr;
-	switch (spec.walk) {
-	case deluge::storage::AcquireWalk::Unlaunched:
-		// Unreachable: stepWalk() never queues this kind any more, it runs the search itself through
-		// PresetWalk. The label stays so the switch stays exhaustive, and so that re-adding the
-		// dispatch has to be a deliberate edit rather than a fall-through.
-		break;
-	case deluge::storage::AcquireWalk::Confirm: {
-		// Counted for the preset-load gate (AQ-CHANGE-TIER): where the walk began.
-		load->confirmsRun_++;
-		load->confirmsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
-		std::string searchName = spec.name;
-		auto result =
-		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(spec.outputType, &searchName, spec.availability);
-		if (result.has_value()) {
-			item = *result;
-		}
-		else {
-			found.error = result.error();
-		}
-		break;
-	}
-	case deluge::storage::AcquireWalk::UnusedSlot:
-		// Unreachable: stepWalk() runs this kind itself, through SlotNameScan. The label stays so the switch stays
-		// exhaustive, and so that re-adding the dispatch has to be a deliberate edit rather than a fall-through.
-		break;
-	case deluge::storage::AcquireWalk::Navigate:
-		// Unreachable: stepWalk() runs this kind itself, through PresetNavigation. The label stays so the switch
-		// stays exhaustive, and so that re-adding the dispatch has to be a deliberate edit rather than a fall-through.
-		break;
-	}
-	if (item != nullptr) {
-		found.existing = item->instrument;
-		found.alreadyInSong = item->instrumentAlreadyInSong;
-		found.name = (item->instrument != nullptr) ? item->instrument->name : item->getFilenameWithoutExtension();
-		found.dirPath = Browser::currentDir;
-		found.path = Browser::currentDir + "/" + item->getFilenameWithExtension();
-	}
-	Browser::emptyFileItems();
-	load->walked_ = std::move(found);
-	load->walkRunning_ = false;
 }
 
 void InstrumentLoad::echoNavigation() const {
@@ -638,8 +601,8 @@ void InstrumentLoad::abandon() {
 		load_.reset();
 		display->removeLoadingAnimation();
 	}
-	// A walk still out ends on its own; what it finds is not read (start() clears walkDispatched_).
-	walkDispatched_ = false;
+	// A walk still out ends on its own; what it finds is not read (start() clears walkStarted_).
+	walkStarted_ = false;
 	if (newInstrument_ != nullptr) {
 		// Parsed, never added to the song.
 		currentSong->deleteOutput(newInstrument_);

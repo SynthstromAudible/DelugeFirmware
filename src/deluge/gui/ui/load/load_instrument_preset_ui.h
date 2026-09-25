@@ -33,6 +33,7 @@ class InstrumentClip;
 class Output;
 
 namespace deluge::gui {
+class ConfirmPreset;
 class PresetWalk;
 class SlotNameScan;
 } // namespace deluge::gui
@@ -48,6 +49,8 @@ private:
 	/// SlotNameScan makes the one folder read a new instrument's slot name comes from -- the same protected read
 	/// PresetWalk uses, for the same reason.
 	friend class deluge::gui::SlotNameScan;
+	/// ConfirmPreset makes the change-type's folder reads -- the same protected read, for the same reason.
+	friend class deluge::gui::ConfirmPreset;
 
 public:
 	LoadInstrumentPresetUI() = default;
@@ -75,8 +78,6 @@ public:
 	std::expected<FileItem*, Error>
 	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
 	                                                Availability availabilityRequirement);
-	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
-	                                                                 Availability availabilityRequirement);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
 		Browser::outputTypeToLoad = newOutputType;

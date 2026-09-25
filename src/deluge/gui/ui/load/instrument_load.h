@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/load/confirm_preset.h"
 #include "gui/ui/load/preset_navigation.h"
 #include "gui/ui/load/preset_walk.h"
 #include "gui/ui/load/slot_name_scan.h"
@@ -201,7 +202,7 @@ public:
 	/// Of those, the ones begun on the storage owner; required 0.
 	[[nodiscard]] int32_t confirmsOnOwner() const { return confirmsOnOwner_; }
 	/// Confirms that hit the machine's read backstop; required 0.
-	[[nodiscard]] int32_t confirmGiveUps() const { return confirmGiveUps_; }
+	[[nodiscard]] int32_t confirmGiveUps() const { return confirm_.giveUps(); }
 	/// @}
 
 private:
@@ -248,18 +249,13 @@ private:
 	/// @brief Show the name a navigate's walk landed on, as the walk used to before loading it.
 	void echoNavigation() const;
 
-	/// @brief The walk, on the storage owner: today's walker for the walk's kind, copied out and the browser's list
-	///        emptied.
-	///
-	/// @note Serves only AcquireWalk::Confirm now -- the other three run here, through @ref PresetWalk,
-	///       @ref SlotNameScan and @ref PresetNavigation.
-	static void runWalkOp(void* self);
-
 	/// @brief Advance an inline walk, from routine() rather than from the phase machine.
 	void tickWalkHere();
-	/// @brief Arm the walk that runs here (the Unlaunched search or the UnusedSlot scan), on the interaction tier.
+	/// @brief Arm the walk for the load in flight -- whichever of the four machines its kind needs -- on the
+	///        interaction tier.
 	void beginWalkHere();
-	/// @brief Copy out what the walk that ran here found, in the shape @ref runWalkOp leaves behind.
+	/// @brief Copy out what the walk found: the preset (its Instrument if in memory, its name, folder and path), or
+	///        the name alone for UnusedSlot, or the error.
 	void finishWalkHere();
 
 	Phase phase_{Phase::Idle};
@@ -282,14 +278,10 @@ private:
 	/// @{
 	deluge::storage::AcquireWalkSpec walk_{}; ///< The walk the load in flight asks for.
 	bool walkBegun_{false};                   ///< The gesture's prologue has run for the load in flight.
-	bool walkDispatched_{false};              ///< The load in flight's walk is queued or has run.
+	bool walkStarted_{false};                 ///< The load in flight's walk has been started (it may still run).
 	/// Set as a walk is queued and cleared by the walk as it ends: a walk still out, perhaps an abandoned load's, is
 	/// waited for before another is queued, so the two never share @ref walkOut_ and @ref walked_.
 	bool walkRunning_{false};
-	/// Whether the walk out is running HERE, through @ref walk_machine_ or @ref slot_scan_, rather than on the owner.
-	/// The Unlaunched search, the UnusedSlot scan and the Navigate walk are; Confirm cannot yet be split across a
-	/// tick.
-	bool walkHere_{false};
 	/// The Unlaunched search, a folder at a time. Holds its OWN listing, so it reads folders without
 	/// touching what the browser is showing -- which is what the first attempt at this lacked.
 	PresetWalk walk_machine_{};
@@ -298,6 +290,8 @@ private:
 	SlotNameScan slot_scan_{};
 	/// The Navigate walk: the preset scroll, a window at a time, into its own listing.
 	PresetNavigation navigation_{};
+	/// The Confirm walk: the SYNTH/KIT change-type.
+	ConfirmPreset confirm_{};
 	deluge::storage::AcquireWalkSpec walkOut_{}; ///< What the walk out reads; written only while no walk is out.
 	AcquireSnapshot walked_{};                   ///< What it found; read only once it has ended.
 	/// Where the last navigate's walk landed, while a navigate may still supersede it.
@@ -318,7 +312,6 @@ private:
 	int32_t navigationsOnOwner_{0};
 	int32_t confirmsRun_{0};
 	int32_t confirmsOnOwner_{0};
-	int32_t confirmGiveUps_{0};
 	Error lastError_{Error::NONE};
 };
 

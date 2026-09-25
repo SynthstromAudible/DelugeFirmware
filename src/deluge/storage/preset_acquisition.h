@@ -36,7 +36,7 @@ namespace deluge::storage {
 ///
 /// This is also the ONLY thing that selects which directory reader the op runs: the follow-up calls
 /// its own existing reader (findAnUnlaunchedPresetIncludingWithinSubfolders(),
-/// confirmPresetOrNextUnlaunchedOne(), PresetNavigation or Browser::getUnusedSlot()) down its own
+/// ConfirmPreset, PresetNavigation or Browser::getUnusedSlot()) down its own
 /// unchanged call chain. There is deliberately no separate "which query" field: one existed, was set
 /// at all eleven dispatch sites and read nowhere, and implied the op dispatched on the query rather
 /// than on the consumer.
@@ -223,7 +223,7 @@ struct PresetRequest {
 /// @brief Which of today's walkers an acquisition's walk runs, on the storage owner.
 enum class AcquireWalk : uint8_t {
 	Unlaunched, ///< findAnUnlaunchedPresetIncludingWithinSubfolders(): the first preset nobody in the song uses.
-	Confirm,    ///< confirmPresetOrNextUnlaunchedOne(): a named preset if it may be used, or the next one that may.
+	Confirm,    ///< ConfirmPreset: a named preset if it may be used, or the next one that may.
 	Navigate,   ///< PresetNavigation: the next preset along from a named one, either way.
 	UnusedSlot, ///< Browser::getUnusedSlot(): a name no preset of the type has. Nothing is loaded.
 };

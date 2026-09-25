@@ -1974,9 +1974,9 @@ bool isBlankLeg(Leg leg) {
 ///
 /// The PL-WALK legs call `findAnUnlaunchedPresetIncludingWithinSubfolders` directly from inside an
 /// `onOwner` block, so they pin the recursive walk and CANNOT see the machine that replaces it. They
-/// are not repointed: the recursive walk survives this pilot -- `confirmPresetOrNextUnlaunchedOne`
-/// still calls it -- so it still needs its coverage. These five legs sit beside them instead, over
-/// the same fixture with the same assertions, so one run carries both drivers and the pair is a
+/// are not repointed: the recursive walk survives this pilot -- the fixture loader and
+/// AQ-CHANGE-MISSING's reference still call it -- so it still needs its coverage. These five legs sit beside them
+/// instead, over the same fixture with the same assertions, so one run carries both drivers and the pair is a
 /// differential rather than a replacement.
 ///
 /// ⚠️ PW-WALK-TIER is the one that reads differently from its PL sibling. PL-WALK-TIER passes

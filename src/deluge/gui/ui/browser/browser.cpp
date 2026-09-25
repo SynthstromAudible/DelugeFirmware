@@ -188,8 +188,8 @@ bool Browser::beginListing(ListingRequest req) {
 /// Exists because `delugeStatusToError` is shared with the file paths and collapses
 /// `DELUGE_ERR_NOT_FOUND` onto `Error::FILE_NOT_FOUND`. For a directory open that is the wrong
 /// answer, and not merely imprecise: `Error::FOLDER_DOESNT_EXIST` is what the missing-folder fallback
-/// tests for, and what `LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne` tests for before
-/// degrading to `justGetAnyPreset()`. Both went dead when the filesystem moved to efatfs and the
+/// tests for, and what the change-type walk (`ConfirmPreset`) tests for before degrading to the
+/// whole-type Unlaunched search. Both went dead when the filesystem moved to efatfs and the
 /// directory open started routing through the shared mapping -- silently, because "folder missing"
 /// and "file missing" both stop a listing, just with the wrong recovery and the wrong message.
 ///

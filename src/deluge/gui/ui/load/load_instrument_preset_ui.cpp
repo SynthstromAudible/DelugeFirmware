@@ -205,7 +205,7 @@ std::string LoadInstrumentPresetUI::setupForOutputType() {
 	std::string searchFilename;
 
 	// I don't have this calling arrivedInNewFolder(), because as you can see below, we want to either just display the
-	// existing preset, or call confirmPresetOrNextUnlaunchedOne() to skip any which aren't "available".
+	// existing preset, or skip any which aren't "available" (what ConfirmPreset does for the change-type).
 
 	// If same Instrument type as we already had...
 	if (instrumentToReplace && instrumentToReplace->type == outputTypeToLoad) {
@@ -1507,104 +1507,4 @@ doThisFolder:
 			                   return result;
 		                   });
 	}
-}
-
-// Caller must call emptyFileItems() at some point after calling this function.
-// And, set currentDir, before this is called.
-std::expected<FileItem*, Error>
-LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
-                                                         Availability availabilityRequirement) {
-	// Rung 5: calls findAnUnlaunchedPresetIncludingWithinSubfolders() below, so it inherits the same
-	// can't-defer-mid-walk constraint and must never run on the interaction tier. Boot is the one
-	// legal exception -- see the sibling check in findAnUnlaunchedPresetIncludingWithinSubfolders,
-	// which also explains why this is a freeze rather than a bare assert().
-	if (ALPHA_OR_BETA_VERSION && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
-		FREEZE_WITH_ERROR("TIR2");
-	}
-
-	std::string searchNameLocalCopy;
-	searchNameLocalCopy = *searchName; // Can't fail.
-	bool shouldJustGrabLeftmost = false;
-
-	// This does *not* favour the currentDir, so you should exhaust all avenues before calling this.
-	auto justGetAnyPreset = [&]() -> std::expected<FileItem*, Error> {
-		currentDir = getInstrumentFolder(outputType);
-		return findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, outputType, availabilityRequirement);
-	};
-
-doReadFiles:
-	ListingRead read{
-	    .dir = currentDir,
-	    .outputType = outputType,
-	    .filePrefix = getThingName(outputType),
-	    .filenameToStartAt = searchNameLocalCopy,
-	    .allowFolders = false,
-	    .includeSongInstruments = currentSong != nullptr,
-	};
-	Error error = readFolder(listing, read);
-
-	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
-
-	if (error == Error::FOLDER_DOESNT_EXIST) {
-		justGetAnyPreset();
-	}
-	else if (error != Error::NONE) {
-		return std::unexpected{error};
-	}
-
-	sortFileItems();
-	if (!listing.size()) {
-		if (shouldJustGrabLeftmost) {
-			return justGetAnyPreset();
-		}
-
-		if (listing.numDeletedAtStart()) {
-needToGrabLeftmostButHaveToReadFirst:
-			searchNameLocalCopy.clear();
-			shouldJustGrabLeftmost = true;
-			goto doReadFiles;
-		}
-		else {
-			return justGetAnyPreset();
-		}
-	}
-
-	// Store rightmost display name before filtering, for later.
-	std::string lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = &listing.items()[listing.size() - 1];
-	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName();
-
-	listing.dropFoldersAndDuplicates(availabilityRequirement);
-
-	// If we've shot off the end of the list, that means our searched-for preset didn't exist or wasn't available, and
-	// any subsequent ones which at first made it onto the (possibly truncated) list also weren't available.
-	if (!listing.size()) {
-		if (listing.numDeletedAtEnd()) { // Probably couldn'g happen anymore...
-			// We have to read more FileItems, further to the right.
-			searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering; // Can't fail.
-			goto doReadFiles;
-		}
-		else {
-			// If we've already been trying to grab just any preset within this folder, well that's failed.
-			if (shouldJustGrabLeftmost) {
-				return justGetAnyPreset();
-			}
-
-			// Otherwise, let's do that now:
-			// We might have to go back and read FileItems again from the start...
-			else if (listing.numDeletedAtStart()) {
-				goto needToGrabLeftmostButHaveToReadFirst;
-			}
-
-			// Or, if we've actually managed to fit the whole folder contents into our fileItems...
-			else {
-				// Well, if there's still nothing in that, then we really need to give up.
-				if (!listing.size()) {
-					return justGetAnyPreset();
-				}
-				// Otherwise, everything's fine and we can just take the first element.
-			}
-		}
-	}
-	return &listing.item(0);
 }
