@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
@@ -140,6 +141,11 @@ checkResult:
 					instrumentClipView.tempoEncoderAction(saturatedDelta,
 					                                      Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
 					                                      Buttons::isShiftButtonPressed());
+				}
+				else if ((getCurrentUI() == &arrangerView)) {
+					arrangerView.tempoEncoderAction(saturatedDelta,
+					                                Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC),
+					                                Buttons::isShiftButtonPressed());
 				}
 				else {
 					playbackHandler.tempoEncoderAction(saturatedDelta,

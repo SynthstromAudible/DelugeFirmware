@@ -3101,6 +3101,34 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 	return ActionResult::DEALT_WITH;
 }
 
+void ArrangerView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
+		// edit the tempo BPM for a specific point on the timeline by holding on a
+		// grid timeline pad while moving tempo encoder in arranger view
+		if (!playbackHandler.isExternalClockActive()) {
+			if (display->hasPopupOfType(PopupType::TEMPO) || display->haveOLED()) {
+				int32_t tempoBPM = playbackHandler.calculateBPM(currentSong->getTimePerTimerTickFloat()) + 0.5f;
+				tempoBPM += offset;
+				if (tempoBPM > 0) {
+					uint32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
+					int32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
+					int32_t squareStart = this->getPosFromSquare(arrangerView.xPressed, xScroll, xZoom);
+					currentSong->setBPM(tempoBPM, true);
+					currentSong->setTempoAutomationUntilNextNode(squareStart, tempoBPM, true);
+					playbackHandler.commandDisplayTempo();
+				}
+			}
+			else {
+				playbackHandler.commandDisplayTempo();
+			}
+		}
+	}
+	else {
+		// default tempo encoder action if we're not modifying BPM automation
+		playbackHandler.tempoEncoderAction(offset, encoderButtonPressed, shiftButtonPressed);
+	}
+}
+
 void ArrangerView::setNoSubMode() {
 	// If we were dragging a clip instance left and have a negative scroll position, snap back to 0
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW && currentSong->xScroll[NAVIGATION_ARRANGEMENT] < 0) {

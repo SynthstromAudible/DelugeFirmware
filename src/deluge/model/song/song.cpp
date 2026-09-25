@@ -22,7 +22,6 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -3107,21 +3106,27 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
+	int32_t pos = -1; // means use the live position
+	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+	setBPMInner(tempoBPM, shouldLogAction);
+}
 
-	// edit the tempo BPM for a specific point on the timeline by holding on a
-	// grid timeline pad while moving tempo encoder in arranger view
-	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-		uint32_t xScroll = this->xScroll[NAVIGATION_ARRANGEMENT];
-		int32_t xZoom = this->xZoom[NAVIGATION_ARRANGEMENT];
-		int32_t squareStart = arrangerView.getPosFromSquare(arrangerView.xPressed, xScroll, xZoom);
-		int32_t length = tempoParam->autoParam->getDistanceToNextNode(tempoParam, squareStart, false);
-		tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, squareStart,
-		                                                 std::min<int32_t>(length, arrangerView.getMaxLength()));
-	}
-	else {
-		int32_t pos = -1; // means use the live position
-		tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
-	}
+// Edit the tempo BPM for a specific point on the timeline (e.g. by holding on
+// a grid timeline pad while moving tempo encoder in arranger view).
+//
+// This fills in the tempo automation on the timeline with "tempoBPM" from
+// "pos" until the next automation event.
+void Song::setTempoAutomationUntilNextNode(int32_t pos, float tempoBPM, bool shouldLogAction) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
+	auto intTempo = (int32_t)(tempoBPM * 100);
+
+	int32_t length = tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false);
+	tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, pos,
+	                                                 std::min<int32_t>(length, arrangerView.getMaxLength()));
 
 	setBPMInner(tempoBPM, shouldLogAction);
 }
