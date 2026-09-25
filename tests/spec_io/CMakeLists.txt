@@ -22,6 +22,9 @@ function(create_specs_driver driver_name spec_dir)
     ${specs}
     mock_file_io.cpp
     ../../src/deluge/io/file.cpp
+    # The weak no-BSP fallbacks for the directory channel that io/file.cpp's
+    # collectOrRequestDir calls.
+    ../../src/deluge/storage/file_directory_abi.cpp
     ../../src/deluge/storage/existence_policy.cpp
     ../../src/deluge/storage/readback_policy.cpp
     ../../src/deluge/model/favourite/favourites_policy.cpp

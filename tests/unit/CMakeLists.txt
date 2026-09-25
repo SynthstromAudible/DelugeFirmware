@@ -106,6 +106,10 @@ file(GLOB_RECURSE deluge_SOURCES
         # the Rust channels resolves, and linking them means the host cannot drift from them.
         ../../src/deluge/storage/file_write_abi.cpp
         ../../src/deluge/storage/file_bytes_abi.cpp
+        # The weak no-BSP fallbacks for the directory channel, which io/file.cpp's
+        # collectOrRequestDir calls. Without it the link fails on
+        # deluge_file_directory_collect/_request.
+        ../../src/deluge/storage/file_directory_abi.cpp
         ../../src/deluge/storage/Deserializer.cpp
         ../../src/deluge/storage/JsonDeserializer.cpp
         ../../src/deluge/io/file.cpp
