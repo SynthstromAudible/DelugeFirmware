@@ -22,12 +22,6 @@ class Bank final : public Preset {
 public:
 	using Preset::Preset;
 	void readCurrentValue() override { this->setValue(getCurrentInstrumentClip()->midiBank); }
-	void writeCurrentValue() override {
-		auto& currentClip = *getCurrentInstrumentClip();
-		currentClip.midiBank = this->getValue();
-		if (currentClip.isActiveOnOutput()) {
-			currentClip.sendMIDIPGM();
-		}
-	}
+	void writeCurrentValue() override { getCurrentInstrumentClip()->midiBank = this->getValue(); }
 };
 } // namespace deluge::gui::menu_item::midi
