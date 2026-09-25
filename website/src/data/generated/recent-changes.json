@@ -1,22 +1,31 @@
 {
   "branch": "main",
-  "generatedAt": "2026-09-25T14:16:02+00:00",
-  "head": "1dcde1ae93bf63687d8d7c6c6eb2f701486aad84",
-  "scannedCommitCount": 110,
-  "detectedRevertCount": 0,
-  "summary": "The latest activity includes 1 feature, 8 fixes, 2 documentation updates, and 7 other changes.",
+  "generatedAt": "2026-09-13T13:52:23-04:00",
+  "head": "9e3132dc17070695b40f69bada5565a33ce428b4",
+  "scannedCommitCount": 120,
+  "detectedRevertCount": 5,
+  "summary": "The latest activity includes 2 features, 9 fixes, 5 documentation updates, and 2 maintenance updates.",
   "categories": [
     {
       "name": "Features",
       "commits": [
         {
-          "hash": "9c4161ef571fd619004145daf747858fd3452fc5",
-          "shortHash": "9c4161ef",
-          "date": "2026-08-14T22:47:53+00:00",
-          "title": "Add a per-slot volume trim to the variants menu",
+          "hash": "ff4d7f7eeef170acd56ff7d9e23785b06e931b39",
+          "shortHash": "ff4d7f7e",
+          "date": "2026-09-11T13:23:04+00:00",
+          "title": "Sound editor colours",
           "category": "Features",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/9c4161ef571fd619004145daf747858fd3452fc5",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4881",
+          "pullRequest": 4881
+        },
+        {
+          "hash": "83013cb4eb839a04bfc8affa36853d6cec80759b",
+          "shortHash": "83013cb4",
+          "date": "2026-08-31T01:48:50+00:00",
+          "title": "Add per device midi thru toggle",
+          "category": "Features",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4855",
+          "pullRequest": 4855
         }
       ]
     },
@@ -24,76 +33,85 @@
       "name": "Fixes",
       "commits": [
         {
-          "hash": "0c9b389fb1023bb9a577d24ac095111eb3e71786",
-          "shortHash": "0c9b389f",
-          "date": "2026-08-29T13:20:50+00:00",
-          "title": "Round robin: Clear the audition bookmark whenever the ranges array moves",
+          "hash": "9ed7483de8ca59e97669705a00eff4ad8bf697d4",
+          "shortHash": "9ed7483d",
+          "date": "2026-09-13T15:00:51+00:00",
+          "title": "Fix param manager error on instrument clip conversion to audio",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/0c9b389fb1023bb9a577d24ac095111eb3e71786",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4903",
+          "pullRequest": 4903
         },
         {
-          "hash": "1c34ae8d66baacc05849267df27a1ef640b24b14",
-          "shortHash": "1c34ae8d",
-          "date": "2026-08-28T17:21:32+00:00",
-          "title": "Round robin: Gate the per-slot volume trim on the community feature",
+          "hash": "52ee3623d2ce67303a0b7c0e7d7ee39eeb3e7d48",
+          "shortHash": "52ee3623",
+          "date": "2026-09-10T12:29:21+00:00",
+          "title": "Fix patch cable polarity not saving properly",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/1c34ae8d66baacc05849267df27a1ef640b24b14",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4909",
+          "pullRequest": 4909
         },
         {
-          "hash": "d573f1bd3ac50993dbf617794d90cb6fca119445",
-          "shortHash": "d573f1bd",
-          "date": "2026-08-28T15:57:26+00:00",
-          "title": "Round robin: Only suppress inherited looping for alternate slots",
+          "hash": "a23d06ee158231221450e398fe28972681595b2f",
+          "shortHash": "a23d06ee",
+          "date": "2026-09-10T12:28:46+00:00",
+          "title": "Fix expression automation getting lost between non-kit to kit to different non-kit changes",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/d573f1bd3ac50993dbf617794d90cb6fca119445",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4905",
+          "pullRequest": 4905
         },
         {
-          "hash": "89099dcb7950a199fa512e35b1b17e13c0c950f7",
-          "shortHash": "89099dcb",
-          "date": "2026-08-28T12:23:31+00:00",
-          "title": "Round robin: Give the parser test's fake holder a volume field",
+          "hash": "5a0ba489671977e33bf9fd2f114fe9ce3b3f6d80",
+          "shortHash": "5a0ba489",
+          "date": "2026-09-10T12:28:05+00:00",
+          "title": "Fix some serializer/deserializer stuff",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/89099dcb7950a199fa512e35b1b17e13c0c950f7",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4908",
+          "pullRequest": 4908
         },
         {
-          "hash": "5ec4d74b56487eb1b82cb2989d7a806efce4806b",
-          "shortHash": "5ec4d74b",
-          "date": "2026-08-28T12:23:31+00:00",
-          "title": "Round robin: Separate the import groups in the oscillator menu source",
+          "hash": "9f42f7954eb2c0d933c492d7ed29d6e3a560362e",
+          "shortHash": "9f42f795",
+          "date": "2026-09-02T16:17:23+00:00",
+          "title": "Update audio output voice count",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/5ec4d74b56487eb1b82cb2989d7a806efce4806b",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4883",
+          "pullRequest": 4883
         },
         {
-          "hash": "f13f0ae0992c241ec58fddb54b9fbf3adc5b4387",
-          "shortHash": "f13f0ae0",
-          "date": "2026-08-14T13:05:08+00:00",
-          "title": "Round robin: Let the Variants menu open after the note-range picker",
+          "hash": "7064d10b910e58bd8ee64d3ab5c21f08859ffb9c",
+          "shortHash": "7064d10b",
+          "date": "2026-08-31T22:15:15+00:00",
+          "title": "Fix Live Input Pitch Shifter Infinite Loop Freeze",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/f13f0ae0992c241ec58fddb54b9fbf3adc5b4387",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4885",
+          "pullRequest": 4885
         },
         {
-          "hash": "b7e3cb9d1bb3a4d9cbeb6f9aa6a27a4971630462",
-          "shortHash": "b7e3cb9d",
-          "date": "2026-08-14T10:53:59+00:00",
-          "title": "Round robin: Hide per-zone items oscillator-wide, keep the zone",
+          "hash": "4606fb0be3ebd7034034af78f359078afe44784e",
+          "shortHash": "4606fb0b",
+          "date": "2026-08-26T13:59:41+00:00",
+          "title": "Refactor note iterance preset display logic",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/b7e3cb9d1bb3a4d9cbeb6f9aa6a27a4971630462",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4869",
+          "pullRequest": 4869
         },
         {
-          "hash": "f8cdd3a2ed2c959071db6e7c6ee7a2f05b343b92",
-          "shortHash": "f8cdd3a2",
-          "date": "2026-08-14T08:29:38+00:00",
-          "title": "Round robin: Keep the picked zone, and name it in the title",
+          "hash": "8355e15afcb5fa9b03f1a3264f054bd213f700d4",
+          "shortHash": "8355e15a",
+          "date": "2026-08-26T02:11:08+00:00",
+          "title": "Fix issue with DX7 browser 'back' navigation",
           "category": "Fixes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/f8cdd3a2ed2c959071db6e7c6ee7a2f05b343b92",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4866",
+          "pullRequest": 4866
+        },
+        {
+          "hash": "2506643fa849ed362722b9aa1e797e726543a7dd",
+          "shortHash": "2506643f",
+          "date": "2026-08-26T02:10:43+00:00",
+          "title": "Persist audio clip names to file",
+          "category": "Fixes",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4867",
+          "pullRequest": 4867
         }
       ]
     },
@@ -101,90 +119,72 @@
       "name": "Documentation",
       "commits": [
         {
-          "hash": "a0d7d91fa77b93d53aefa1bd13a89a23769edac2",
-          "shortHash": "a0d7d91f",
-          "date": "2026-08-28T18:32:33+00:00",
-          "title": "Round robin: Check the range type, drop dead strings, re-file the docs entry",
+          "hash": "fb601559d25ecd0bea804a55b9107bc05bab6eea",
+          "shortHash": "fb601559",
+          "date": "2026-09-07T13:50:20+00:00",
+          "title": "Fix menu hierarchy generator for the revised iterance menu shape",
           "category": "Documentation",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/a0d7d91fa77b93d53aefa1bd13a89a23769edac2",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4895",
+          "pullRequest": 4895
         },
         {
-          "hash": "900158324183ff230bef9513d83847c0f7f5014d",
-          "shortHash": "90015832",
-          "date": "2026-08-14T22:05:04+00:00",
-          "title": "Correct the slot menu contents in the feature docs",
+          "hash": "a0e0b830d4e7ea29734727affbfb166b45f8e9e7",
+          "shortHash": "a0e0b830",
+          "date": "2026-09-04T17:33:53+00:00",
+          "title": "Fixes / Shortcut updates for deluge companion website",
           "category": "Documentation",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/900158324183ff230bef9513d83847c0f7f5014d",
-          "pullRequest": null
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4894",
+          "pullRequest": 4894
+        },
+        {
+          "hash": "6e5f2b21ee4644417802179c500d125a780a032a",
+          "shortHash": "6e5f2b21",
+          "date": "2026-09-03T15:16:26+00:00",
+          "title": "Fixed wrong key combination in Pattern doc page",
+          "category": "Documentation",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4893",
+          "pullRequest": 4893
+        },
+        {
+          "hash": "b6062d7215462795483c07d38764d590075755c2",
+          "shortHash": "b6062d72",
+          "date": "2026-08-31T01:49:39+00:00",
+          "title": "Clarify song-view channel-change pad and fix a typo on the CV / Gate Engine page",
+          "category": "Documentation",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4857",
+          "pullRequest": 4857
+        },
+        {
+          "hash": "3f898e953e329bc0529ab0c535fe38bab6a73536",
+          "shortHash": "3f898e95",
+          "date": "2026-08-29T00:00:58+00:00",
+          "title": "Sample edit on community page.",
+          "category": "Documentation",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4882",
+          "pullRequest": 4882
         }
       ]
     },
     {
-      "name": "Other changes",
+      "name": "Maintenance",
       "commits": [
         {
-          "hash": "1dcde1ae93bf63687d8d7c6c6eb2f701486aad84",
-          "shortHash": "1dcde1ae",
-          "date": "2026-09-25T14:16:02+00:00",
-          "title": "Merge upstream/main into Feature_Round_Robin",
-          "category": "Other changes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/1dcde1ae93bf63687d8d7c6c6eb2f701486aad84",
-          "pullRequest": null
+          "hash": "e14e8ef208c7587e17363ced3575973945e2de02",
+          "shortHash": "e14e8ef2",
+          "date": "2026-09-07T14:23:33+00:00",
+          "title": "Bump dawidd6/action-download-artifact from 23 to 24 in the all-actions group across 1 directory",
+          "category": "Maintenance",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4879",
+          "pullRequest": 4879
         },
         {
-          "hash": "0ffbd8990e68b7f906eb6f79dcb4770471f07929",
-          "shortHash": "0ffbd899",
-          "date": "2026-09-01T17:02:28+00:00",
-          "title": "Merge upstream/main into Feature_Round_Robin",
-          "category": "Other changes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/0ffbd8990e68b7f906eb6f79dcb4770471f07929",
-          "pullRequest": null
-        },
-        {
-          "hash": "64d9273480363bfe9fd74f6da46a14eaaa8a95bd",
-          "shortHash": "64d92734",
-          "date": "2026-08-29T20:15:05+00:00",
-          "title": "Merge upstream/main into Feature_Round_Robin",
-          "category": "Other changes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/64d9273480363bfe9fd74f6da46a14eaaa8a95bd",
-          "pullRequest": null
-        },
-        {
-          "hash": "eef15eea953f789c2485f091c09494ddd4d1795e",
-          "shortHash": "eef15eea",
-          "date": "2026-08-28T12:06:04+00:00",
-          "title": "Merge remote-tracking branch 'upstream/main' into Feature_Round_Robin",
-          "category": "Other changes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/eef15eea953f789c2485f091c09494ddd4d1795e",
-          "pullRequest": null
-        },
-        {
-          "hash": "4d07e93349ae26329add507a025761b30ea6621e",
-          "shortHash": "4d07e933",
-          "date": "2026-08-15T09:09:47+00:00",
-          "title": "Guard round-robin range casts against non-sample oscillators",
-          "category": "Other changes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/4d07e93349ae26329add507a025761b30ea6621e",
-          "pullRequest": null
-        },
-        {
-          "hash": "243731d14dbc33862a1a99426a4bfa0b14e4d1fa",
-          "shortHash": "243731d1",
-          "date": "2026-08-14T18:09:53+00:00",
-          "title": "Always count every zone in the VARIANTS entry on the oscillator page",
-          "category": "Other changes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/243731d14dbc33862a1a99426a4bfa0b14e4d1fa",
-          "pullRequest": null
-        },
-        {
-          "hash": "9e996fc15a3e63d058624e214538d35defcec280",
-          "shortHash": "9e996fc1",
-          "date": "2026-08-14T15:07:14+00:00",
-          "title": "Always open the note-range picker when entering VARIANTS",
-          "category": "Other changes",
-          "url": "https://github.com/SynthstromAudible/DelugeFirmware/commit/9e996fc15a3e63d058624e214538d35defcec280",
-          "pullRequest": null
+          "hash": "8481f0be9f59eb5012b3fc7b07c5484baadaeda3",
+          "shortHash": "8481f0be",
+          "date": "2026-09-04T17:27:18+00:00",
+          "title": "Cleanup dx7 memory allocation",
+          "category": "Maintenance",
+          "url": "https://github.com/SynthstromAudible/DelugeFirmware/pull/4896",
+          "pullRequest": 4896
         }
       ]
     }
