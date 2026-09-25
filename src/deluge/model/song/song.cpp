@@ -1274,6 +1274,8 @@ weAreInArrangementEditorOrInClipInstance:
 	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
 	writer.writeClosingTag("songParams");
 
+	performanceView.writeSettingsToFile(writer);
+
 	writer.writeArrayStart("instruments");
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		thisOutput->writeToFile(nullptr, this);
@@ -2065,6 +2067,10 @@ loadOutput:
 				reader.match('{');
 				GlobalEffectableForClip::readParamsFromFile(reader, &paramManager, 2147483647);
 				reader.exitTag("songParams", true);
+			}
+
+			else if (!strcmp(tagName, "performanceView")) {
+				performanceView.readSettingsFromFile(reader);
 			}
 
 			else if (!strcmp(tagName, "tracks") || !strcmp(tagName, "sessionClips")) {
