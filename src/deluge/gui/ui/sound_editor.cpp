@@ -234,9 +234,14 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	if (item)
 	{
 		auto param = item->getParamIndex();
-
-		auto patchable = item->getParamKind() == params::Kind::PATCHED;
-
+		auto kind = item->getParamKind();
+		auto patchable = kind == params::Kind::PATCHED;
+		if (kind == params::Kind::PATCH_CABLE)
+		{
+			param = soundEditor.patchingParamSelected;
+			kind = params::Kind::PATCHED;
+			patchable = true;
+		}
 		if (patchable)
 		{
 			D_PRINTLN("it's patchable");
