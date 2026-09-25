@@ -34,6 +34,7 @@ class Output;
 
 namespace deluge::gui {
 class PresetWalk;
+class SlotNameScan;
 } // namespace deluge::gui
 
 class LoadInstrumentPresetUI final : public LoadUI {
@@ -44,6 +45,9 @@ private:
 	/// own protected ones. It is a separate class rather than a member because it outlives a single
 	/// call -- the whole point is that it can stop between folders.
 	friend class deluge::gui::PresetWalk;
+	/// SlotNameScan makes the one folder read a new instrument's slot name comes from -- the same protected read
+	/// PresetWalk uses, for the same reason.
+	friend class deluge::gui::SlotNameScan;
 
 public:
 	LoadInstrumentPresetUI() = default;

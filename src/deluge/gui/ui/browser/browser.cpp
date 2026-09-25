@@ -1048,8 +1048,9 @@ Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char c
 	// and the one the conversion kept missing, because it does not look like a "preset reader" at all.
 	// It has two legal callers, and only two:
 	//
-	//  - the storage owner, where InstrumentClipMinder::createNewInstrument() runs it and a read that
-	//    is not ready is a fiber yield;
+	//  - the storage owner, where a harness probe (song-preview-ab's unusedSlotIn) runs it and a read
+	//    that is not ready is a fiber yield. A new instrument's slot name no longer comes through here:
+	//    SlotNameScan reads it on the interaction tier, into a listing of its own;
 	//  - `pickBrandNewName()`, from INSIDE an active listing, where a read that is not ready comes
 	//    back as Error::LISTING_DEFERRED and suspends the listing in its Select phase (see
 	//    stepListing()). That is why this check permits `listing_.active` and its three siblings do

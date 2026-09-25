@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/preset_walk.h"
+#include "gui/ui/load/slot_name_scan.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/latest_wins.h"
 #include "storage/preset_acquisition.h"
@@ -237,15 +238,16 @@ private:
 	/// @brief The walk, on the storage owner: today's walker for the walk's kind, copied out and the browser's list
 	///        emptied.
 	///
-	/// @note No longer serves AcquireWalk::Unlaunched -- that one runs here, through @ref PresetWalk. The other
-	///       three kinds still walk the card start-to-finish and so still belong on the owner.
+	/// @note No longer serves AcquireWalk::Unlaunched or AcquireWalk::UnusedSlot -- those run here, through
+	///       @ref PresetWalk and @ref SlotNameScan. Confirm and Navigate still walk the card start-to-finish and so
+	///       still belong on the owner.
 	static void runWalkOp(void* self);
 
 	/// @brief Advance an inline walk, from routine() rather than from the phase machine.
 	void tickWalkHere();
-	/// @brief Arm the Unlaunched search, on the interaction tier.
+	/// @brief Arm the walk that runs here (the Unlaunched search or the UnusedSlot scan), on the interaction tier.
 	void beginWalkHere();
-	/// @brief Copy out what the Unlaunched search found, in the shape @ref runWalkOp leaves behind.
+	/// @brief Copy out what the walk that ran here found, in the shape @ref runWalkOp leaves behind.
 	void finishWalkHere();
 
 	Phase phase_{Phase::Idle};
@@ -272,12 +274,15 @@ private:
 	/// Set as a walk is queued and cleared by the walk as it ends: a walk still out, perhaps an abandoned load's, is
 	/// waited for before another is queued, so the two never share @ref walkOut_ and @ref walked_.
 	bool walkRunning_{false};
-	/// Whether the walk out is running HERE, through @ref walk_machine_, rather than on the owner. Only the
-	/// Unlaunched search is; the other three kinds cannot yet be split across a tick.
+	/// Whether the walk out is running HERE, through @ref walk_machine_ or @ref slot_scan_, rather than on the owner.
+	/// The Unlaunched search and the UnusedSlot scan are; Confirm and Navigate cannot yet be split across a tick.
 	bool walkHere_{false};
 	/// The Unlaunched search, a folder at a time. Holds its OWN listing, so it reads folders without
 	/// touching what the browser is showing -- which is what the first attempt at this lacked.
 	PresetWalk walk_machine_{};
+	/// The UnusedSlot walk: one folder read naming a new instrument's slot. Like @ref walk_machine_, it holds its own
+	/// listing.
+	SlotNameScan slot_scan_{};
 	deluge::storage::AcquireWalkSpec walkOut_{}; ///< What the walk out reads; written only while no walk is out.
 	AcquireSnapshot walked_{};                   ///< What it found; read only once it has ended.
 	/// Where the last navigate's walk landed, while a navigate may still supersede it.

@@ -231,11 +231,13 @@ bool InstrumentLoad::stepWalk() {
 			LoadInstrumentPresetUI::presetAcquisitionsRun_++;
 		}
 		walkOut_ = walk_;
-		if (walkOut_.walk == deluge::storage::AcquireWalk::Unlaunched) {
+		if (walkOut_.walk == deluge::storage::AcquireWalk::Unlaunched
+		    || walkOut_.walk == deluge::storage::AcquireWalk::UnusedSlot) {
 			// The Unlaunched search no longer needs the owner: it spans ticks instead of blocking,
 			// and it holds its own listing, so there is nothing for it to collide with. The first
 			// attempt at this waited on Browser::isListingInProgress() because the two shared the
-			// browser's file list; they no longer share anything, so the wait is gone too.
+			// browser's file list; they no longer share anything, so the wait is gone too. The
+			// UnusedSlot scan runs here for the same reason: one folder read, into a listing of its own.
 			walkRunning_ = true;
 			walkHere_ = true;
 			walkDispatched_ = true;
@@ -295,7 +297,9 @@ void InstrumentLoad::tickWalkHere() {
 	// out, and step() returns at Phase::Idle without ever reaching stepWalk(), so a walk ticked only
 	// from there is stranded: walkRunning_ stays true and every later walk queues behind a search
 	// nobody is advancing. Measured: the save gate got one tick and then stopped forever.
-	if (walk_machine_.tick()) {
+	const bool waiting =
+	    (walkOut_.walk == deluge::storage::AcquireWalk::UnusedSlot) ? slot_scan_.tick() : walk_machine_.tick();
+	if (waiting) {
 		return;
 	}
 	finishWalkHere();
@@ -303,6 +307,13 @@ void InstrumentLoad::tickWalkHere() {
 }
 
 void InstrumentLoad::beginWalkHere() {
+	if (walkOut_.walk == deluge::storage::AcquireWalk::UnusedSlot) {
+		// Counted for the preset-load gate (AQ-SLOT): where the walk began.
+		slotScans_++;
+		slotScansOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
+		slot_scan_.arm(loadInstrumentPresetUI, walkOut_.dirPath, walkOut_.outputType);
+		return;
+	}
 	// The search's folder goes straight to the walk. It used to be parked in Browser::currentDir for
 	// the walk to read back -- which moved whatever browser was open: an acquisition for "SYNTHS"
 	// relocated a save browser sitting in "SONGS", and its save then wrote nothing.
@@ -311,6 +322,19 @@ void InstrumentLoad::beginWalkHere() {
 }
 
 void InstrumentLoad::finishWalkHere() {
+	if (walkOut_.walk == deluge::storage::AcquireWalk::UnusedSlot) {
+		// The fields runWalkOp's UnusedSlot arm filled: a name, or the error, and nothing to load.
+		AcquireSnapshot found{};
+		const auto result = slot_scan_.result();
+		if (result.has_value()) {
+			found.name = *result;
+		}
+		else {
+			found.error = result.error();
+		}
+		walked_ = std::move(found);
+		return;
+	}
 	// The same tail runWalkOp writes, over the same fields, so nothing downstream can tell which arm
 	// produced the snapshot.
 	AcquireSnapshot found{};
@@ -361,14 +385,10 @@ void InstrumentLoad::runWalkOp(void* self) {
 		}
 		break;
 	}
-	case deluge::storage::AcquireWalk::UnusedSlot: {
-		// Counted for the preset-load gate (AQ-SLOT): where the walk began.
-		load->slotScans_++;
-		load->slotScansOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
-		const char* thingName = (spec.outputType == OutputType::SYNTH) ? "SYNT" : "KIT";
-		found.error = loadInstrumentPresetUI.getUnusedSlot(spec.outputType, &found.name, thingName);
+	case deluge::storage::AcquireWalk::UnusedSlot:
+		// Unreachable: stepWalk() runs this kind itself, through SlotNameScan. The label stays so the switch stays
+		// exhaustive, and so that re-adding the dispatch has to be a deliberate edit rather than a fall-through.
 		break;
-	}
 	case deluge::storage::AcquireWalk::Navigate: {
 		PresetNavigationResult result = loadInstrumentPresetUI.doPresetNavigation(
 		    spec.offset, spec.oldInstrument, spec.outputType, spec.name, spec.dirPath, spec.availability);
