@@ -155,6 +155,10 @@ public:
 	static void beginOpenListing(const char* dir, const char* filenameToStartAt, const char* defaultDir = "") {
 		Browser::currentDir = dir;
 		Browser::enteredText.clear();
+		// What Browser::opened() sets, and this skips. It used to be left behind by the boot's preset walk,
+		// which set XML and never put the filter back; now that walks restore it, a cold boot reaches this
+		// with the static's initial nullptr, and the extension match dereferences it.
+		Browser::allowedFileExtensions = allowedFileExtensionsXML;
 		(void)loadSongUI.beginListing({.action = Browser::ListingAction::Open,
 		                               .direction = 0,
 		                               .filenameToStartAt = filenameToStartAt,
@@ -167,7 +171,8 @@ public:
 	/// constructor, and without it a listing never reaches `pickBrandNewName` at all.
 	static void beginSaveListing(const char* dir) {
 		Browser::currentDir = dir;
-		Browser::enteredText.clear(); // the pickBrandNewName precondition
+		Browser::allowedFileExtensions = allowedFileExtensionsXML; // what opened() sets; see beginOpenListing
+		Browser::enteredText.clear();                              // the pickBrandNewName precondition
 		(void)saveSongUI.beginListing({.action = Browser::ListingAction::Open,
 		                               .direction = 0,
 		                               .filenameToStartAt = "",
