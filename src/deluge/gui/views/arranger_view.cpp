@@ -3112,7 +3112,7 @@ void ArrangerView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, 
 				if (tempoBPM > 0) {
 					uint32_t xScroll = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 					int32_t xZoom = currentSong->xZoom[NAVIGATION_ARRANGEMENT];
-					int32_t squareStart = this->getPosFromSquare(arrangerView.xPressed, xScroll, xZoom);
+					int32_t squareStart = this->getPosFromSquare(xPressed, xScroll, xZoom);
 					currentSong->setBPM(tempoBPM, true);
 					currentSong->setTempoAutomationUntilNextNode(squareStart, tempoBPM, true);
 					playbackHandler.commandDisplayTempo();
