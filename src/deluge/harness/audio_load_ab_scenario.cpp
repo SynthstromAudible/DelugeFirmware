@@ -245,6 +245,15 @@ constexpr int32_t kMaxStallTicks = 2000;
 /// graphicsRoutine() calls after the wait ends, with the hold lifted, in which nothing may be pending again.
 constexpr int32_t kStallSettleTicks = 64;
 
+extern "C" void deluge_streaming_set_fill_latency_ms(uint32_t ms); // host harness only; streaming_loader.rs
+
+/// The preview-draw stall stage's file (see the Rust fixture): many clusters, none resident.
+constexpr const char* kDrawStallPath = "SAMPLES/DRAWSTALL.WAV";
+/// How long the streaming loader holds each drain pass in that stage: far past the redraw bound.
+constexpr uint32_t kDrawStallHoldMs = 30000;
+/// Ticks the stage may take before it is called wedged: far past the 300 ms redraw bound.
+constexpr int32_t kMaxDrawStallTicks = 20000;
+
 // ── The card-ejection stage ─────────────────────────────────────────────────
 //
 // Everything the async loader holds is keyed by the nominal PATH, and a
@@ -324,7 +333,7 @@ std::string g_ejectReferenceLine{};
 
 /// Which stage `dispatch_step` is in, in order. `Eject` sits between the case list and the
 /// browser-driven stages deliberately — see runOneStep()'s hand-off for why it cannot follow them.
-enum class Stage : uint8_t { Cases, Eject, Preview, Cancel, Stall, Done };
+enum class Stage : uint8_t { Cases, Eject, Preview, Cancel, Stall, DrawStall, Done };
 Stage g_stage = Stage::Cases;
 /// Whether previewFile() has been called. It is called exactly once.
 bool g_previewStarted = false;
@@ -339,6 +348,18 @@ int32_t g_cancelTicks = 0;
 /// Where the stall stage is.
 enum class StallStep : uint8_t { Start, Wait, Settle, Finished };
 StallStep g_stallStep = StallStep::Start;
+enum class DrawStallStep : uint8_t { Start, Wait, Move, MoveWait, Finished };
+DrawStallStep g_drawStallStep = DrawStallStep::Start;
+int32_t g_drawStallTicks = 0;
+int32_t g_dsRedrawsBefore = 0;
+int32_t g_dsGiveUpsBefore = 0;
+bool g_dsPendingAtEnd = false;
+bool g_dsMovedDrawn = false;
+/// previewDraws() before the stall preview and before the move: the stage's witnesses. Deliberately NOT
+/// waveformBasicNavigator.sample -- starting the next preview releases the sample it points at, and reading its
+/// filePath then is a use-after-free (it crashed this stage's first run).
+int32_t g_dsDrawsBefore = 0;
+int32_t g_dsMoveDrawsBefore = 0;
 /// graphicsRoutine() calls made while the stalled preview was pending.
 int32_t g_stallTicks = 0;
 /// graphicsRoutine() calls made after the wait ended.
@@ -355,6 +376,10 @@ struct TierMark {
 	int32_t sampleIo = 0;
 };
 TierMark g_previewTier{};
+int32_t g_drawsBefore = 0;
+int32_t g_drawsOnOwnerBefore = 0;
+int32_t g_redrawsBefore = 0;
+int32_t g_drawsCompleteBefore = 0;
 TierMark g_cancelTier{};
 TierMark g_stallTier{};
 
@@ -632,6 +657,10 @@ void runOnePreviewTick() {
 		// exactly as a cursor move tells it. Nothing below ever calls this again.
 		g_previewStarted = true;
 		g_previewTier = markTier();
+		g_drawsBefore = sampleBrowser.previewDraws();
+		g_drawsOnOwnerBefore = sampleBrowser.previewDrawsOnOwner();
+		g_redrawsBefore = sampleBrowser.previewRedraws();
+		g_drawsCompleteBefore = sampleBrowser.previewDrawsComplete();
 		sampleBrowser.previewFile(kPreviewPath, /*movementDirection=*/0);
 		return;
 	}
@@ -672,6 +701,17 @@ void finishPreviewStage(bool drawn) {
 	if (g_previewRedrives == 0) {
 		printf("FAIL [audioLoadAB/preview]: the preview never deferred, so the re-drive was never under "
 		       "test\n");
+		g_failures++;
+	}
+	const int32_t draws = sampleBrowser.previewDraws() - g_drawsBefore;
+	const int32_t onOwner = sampleBrowser.previewDrawsOnOwner() - g_drawsOnOwnerBefore;
+	const int32_t redraws = sampleBrowser.previewRedraws() - g_redrawsBefore;
+	const int32_t complete = sampleBrowser.previewDrawsComplete() - g_drawsCompleteBefore;
+	printf("AB-PREVIEW-DRAW draws=%d onOwner=%d redraws=%d complete=%d redrawPending=%d\n", draws, onOwner, redraws,
+	       complete, sampleBrowser.previewRedrawPending() ? 1 : 0);
+	if (draws != 1 || onOwner != 0 || complete < 1 || sampleBrowser.previewRedrawPending()) {
+		printf("FAIL [audioLoadAB/preview-draw]: the preview must be drawn once, off the storage owner, and end on a "
+		       "complete render with nothing left to redraw\n");
 		g_failures++;
 	}
 	checkTier("preview", g_previewTier);
@@ -816,6 +856,65 @@ void finishStallStage() {
 		g_failures++;
 	}
 	checkTier("stall", g_stallTier);
+}
+
+/// One tick of the preview-draw stall stage: a preview whose clusters the streaming loader holds must draw what it
+/// can, redraw, and give up once nothing more arrives -- then the browser must still preview another file.
+void runOneDrawStallTick() {
+	switch (g_drawStallStep) {
+	case DrawStallStep::Start:
+		deluge_streaming_set_fill_latency_ms(kDrawStallHoldMs);
+		g_dsRedrawsBefore = sampleBrowser.previewRedraws();
+		g_dsGiveUpsBefore = sampleBrowser.previewDrawGiveUps();
+		g_dsDrawsBefore = sampleBrowser.previewDraws();
+		sampleBrowser.previewFile(kDrawStallPath, /*movementDirection=*/0);
+		g_drawStallStep = DrawStallStep::Wait;
+		return;
+	case DrawStallStep::Wait: {
+		const bool drawnAtAll = sampleBrowser.previewDraws() > g_dsDrawsBefore;
+		const bool settled = drawnAtAll && !sampleBrowser.previewRedrawPending() && !sampleBrowser.previewLoadPending();
+		if (!settled && g_drawStallTicks < kMaxDrawStallTicks) {
+			g_drawStallTicks++;
+			sampleBrowser.graphicsRoutine();
+			return;
+		}
+		g_dsPendingAtEnd = sampleBrowser.previewRedrawPending();
+		deluge_streaming_set_fill_latency_ms(0);
+		g_drawStallStep = DrawStallStep::Move;
+		return;
+	}
+	case DrawStallStep::Move:
+		// A cursor move onto another file, with the hold lifted: the browser must still preview it.
+		g_dsMoveDrawsBefore = sampleBrowser.previewDraws();
+		sampleBrowser.previewFile(kPreviewPath, /*movementDirection=*/0);
+		g_drawStallTicks = 0;
+		g_drawStallStep = DrawStallStep::MoveWait;
+		return;
+	case DrawStallStep::MoveWait:
+		g_dsMovedDrawn = sampleBrowser.previewDraws() > g_dsMoveDrawsBefore
+		                 && sampleBrowser.lastFilePathLoaded == kPreviewPath && !sampleBrowser.previewRedrawPending();
+		if (!g_dsMovedDrawn && g_drawStallTicks < kMaxPreviewTicks) {
+			g_drawStallTicks++;
+			sampleBrowser.graphicsRoutine();
+			return;
+		}
+		g_drawStallStep = DrawStallStep::Finished;
+		return;
+	case DrawStallStep::Finished:
+		return;
+	}
+}
+
+void finishDrawStallStage() {
+	const int32_t redraws = sampleBrowser.previewRedraws() - g_dsRedrawsBefore;
+	const int32_t giveUps = sampleBrowser.previewDrawGiveUps() - g_dsGiveUpsBefore;
+	printf("AB-PREVIEW-DRAW-STALL redraws=%d giveUps=%d pendingAtEnd=%d movedDrawn=%d\n", redraws, giveUps,
+	       g_dsPendingAtEnd ? 1 : 0, g_dsMovedDrawn ? 1 : 0);
+	if (redraws < 1 || giveUps != 1 || g_dsPendingAtEnd || !g_dsMovedDrawn) {
+		printf("FAIL [audioLoadAB/preview-draw-stall]: a preview whose clusters never arrived must redraw, give up "
+		       "exactly once with nothing left pending, and leave the browser previewing the next file\n");
+		g_failures++;
+	}
 }
 
 /// One load attempt for the ejection stage. Returns the resolved file (or nullptr), and reports
@@ -1019,6 +1118,14 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_stallSettleTicks = 0;
 	g_stallGiveUpsBefore = 0;
 	g_stallPendingAtEnd = false;
+	g_drawStallStep = DrawStallStep::Start;
+	g_drawStallTicks = 0;
+	g_dsRedrawsBefore = 0;
+	g_dsGiveUpsBefore = 0;
+	g_dsPendingAtEnd = false;
+	g_dsMovedDrawn = false;
+	g_dsDrawsBefore = 0;
+	g_dsMoveDrawsBefore = 0;
 	g_ejectStep = EjectStep::Request;
 	g_ejectTicks = 0;
 	g_ejectCollectDeferrals = 0;
@@ -1058,7 +1165,8 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		return;
 	}
 
-	if (g_stage == Stage::Preview || g_stage == Stage::Cancel || g_stage == Stage::Stall) {
+	if (g_stage == Stage::Preview || g_stage == Stage::Cancel || g_stage == Stage::Stall
+	    || g_stage == Stage::DrawStall) {
 		// The browser-driven stages run on the UI tier, not the worker fiber -- that is where the
 		// real browser calls these from. graphicsRoutine() ticks the preview's load here and
 		// dispatches its draw onto the owner itself. A marker op behind them releases the latch: the
@@ -1068,7 +1176,7 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		g_stepDone = false;
 		if (g_stage == Stage::Preview) {
 			runOnePreviewTick();
-			const bool drawn = previewHasDrawn();
+			const bool drawn = previewHasDrawn() && !sampleBrowser.previewRedrawPending();
 			if (drawn || g_previewTicks >= kMaxPreviewTicks) {
 				finishPreviewStage(drawn);
 				g_stage = Stage::Cancel;
@@ -1081,13 +1189,20 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 				g_stage = Stage::Stall;
 			}
 		}
+		else if (g_stage == Stage::DrawStall) {
+			runOneDrawStallTick();
+			if (g_drawStallStep == DrawStallStep::Finished) {
+				finishDrawStallStage();
+				g_stage = Stage::Done;
+				printSummary();
+				g_summaryPrinted = true;
+			}
+		}
 		else {
 			runOneStallTick();
 			if (g_stallStep == StallStep::Finished) {
 				finishStallStage();
-				g_stage = Stage::Done;
-				printSummary();
-				g_summaryPrinted = true;
+				g_stage = Stage::DrawStall;
 			}
 		}
 		if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {

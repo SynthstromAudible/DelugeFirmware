@@ -1012,6 +1012,8 @@ fn pack_sample_load_tree_image() -> std::path::PathBuf {
 ///   asked for and then abandoned before its load runs, and must never load or draw at all.
 /// - `SAMPLES/STALL.WAV` belongs to the stall stage: it is previewed while the loader holds every
 ///   load far past the browser's bound, and the preview must give up without loading or drawing it.
+/// - `SAMPLES/DRAWSTALL.WAV` belongs to the preview-draw stall stage: previewed while the streaming loader holds every
+///   cluster fill, so its waveform can only be partly drawn and the redraw must give up.
 /// - `SAMPLES/SWAP.WAV`, `SAMPLES/SWAPB.WAV` and `SAMPLES/WITNESS.WAV` belong to the card-ejection
 ///   stage: the first is parsed and left uncollected, the second is moved onto its path once the
 ///   card has been marked ejected, and the third is what tells the stage the first has finished
@@ -1064,6 +1066,9 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     // The stall stage's file (kStallPath): previewed while the loader holds every load, so it must
     // never load or draw. A real, loadable file for the same reason as `CANCEL.WAV`.
     write_test_wav(&samples.join("STALL.WAV"), 1, 16, 3840, 0xDE);
+    // The preview-draw stall stage's file: long enough to span many clusters, so a draw made while the streaming
+    // loader holds every fill cannot find them all resident. Asked for by nothing else.
+    write_test_wav(&samples.join("DRAWSTALL.WAV"), 1, 16, 1_048_576, 0xDF);
 
     // The card-ejection stage's three files (see `audio_load_ab_scenario.cpp`'s kSwapPath block
     // comment). `SWAP.WAV` is the file the loader parses BEFORE the ejection; `SWAPB.WAV` is the

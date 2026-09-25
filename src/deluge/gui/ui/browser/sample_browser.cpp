@@ -769,6 +769,10 @@ void SampleBrowser::runPreviewShowOp(void* self) {
 }
 
 void SampleBrowser::showPreview(const PreviewShow& show) {
+	// Counted for the A/B gate (AB-PREVIEW-DRAW): a preview draw, and whether it ran on the storage owner.
+	previewDraws_++;
+	previewDrawsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
+	bool rendered = true;
 
 	bool didDraw = false;
 
@@ -788,9 +792,9 @@ void SampleBrowser::showPreview(const PreviewShow& show) {
 
 			// If want scrolling animation
 			if (show.movementDirection && !qwertyAlwaysVisible) {
-				waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-				                                  waveformBasicNavigator.xZoom, PadLEDs::imageStore,
-				                                  &waveformBasicNavigator.renderData);
+				rendered = waveformRenderer.renderFullScreen(
+				    waveformBasicNavigator.sample, waveformBasicNavigator.xScroll, waveformBasicNavigator.xZoom,
+				    PadLEDs::imageStore, &waveformBasicNavigator.renderData);
 				memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 				PadLEDs::horizontal::setupScroll(show.movementDirection, kDisplayWidth);
 
@@ -803,9 +807,9 @@ void SampleBrowser::showPreview(const PreviewShow& show) {
 					drawKeys();
 				}
 				else if (!qwertyVisible) {
-					waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
-					                                  waveformBasicNavigator.xZoom, PadLEDs::image,
-					                                  &waveformBasicNavigator.renderData);
+					rendered = waveformRenderer.renderFullScreen(
+					    waveformBasicNavigator.sample, waveformBasicNavigator.xScroll, waveformBasicNavigator.xZoom,
+					    PadLEDs::image, &waveformBasicNavigator.renderData);
 					PadLEDs::sendOutMainPadColours();
 				}
 				qwertyCurrentlyDrawnOnscreen = qwertyVisible;
@@ -814,6 +818,10 @@ void SampleBrowser::showPreview(const PreviewShow& show) {
 
 			didDraw = true;
 		}
+	}
+
+	if (didDraw && rendered) {
+		previewDrawsComplete_++;
 	}
 
 	if (!didDraw) {

@@ -620,6 +620,21 @@ mod prod {
 ))]
 pub use prod::ProdOps;
 
+/// Milliseconds the fill task waits before each drain pass. Host harness only; see
+/// [`deluge_streaming_set_fill_latency_ms`].
+#[cfg(feature = "host_app")]
+static FILL_LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make the streaming fill task wait `ms` milliseconds before each drain pass, so a gate can hold
+/// cluster fills while a consumer keeps ticking. 0, the default, means no wait.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_set_fill_latency_ms(ms: u32) {
+    FILL_LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
+}
+
 /// The fill task: wakes on [`FILL_WAKE`], drains the loader queue via the real
 /// [`ProdOps`], then goes back to sleep. Spawned in `main.rs` (device `main` +
 /// host `host_app`) under `async_streaming_loader`; the C++ enqueue path
@@ -651,6 +666,13 @@ pub async fn streaming_fill_task() {
     FILL_WAKE.wait().await;
     let ops = ProdOps::new();
     loop {
+        #[cfg(feature = "host_app")]
+        {
+            let ms = FILL_LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
+            if ms > 0 {
+                embassy_time::Timer::after_millis(u64::from(ms)).await;
+            }
+        }
         fill_once(&ops).await;
         FILL_WAKE.wait().await;
     }
