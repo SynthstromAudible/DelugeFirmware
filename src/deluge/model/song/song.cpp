@@ -3150,6 +3150,13 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
 
 	if (!songBeingDestroyedToo) {
+#if ALPHA_OR_BETA_VERSION
+		// Callers must remove any ClipInstances referencing this Clip first, or the arrangement is left pointing at
+		// freed memory - and pickAnActiveClipIfPossible() would pick this Clip back up mid-destruction (E411/E412).
+		if (clip->output && clip->output->clipHasInstance(clip)) {
+			FREEZE_WITH_ERROR("E455");
+		}
+#endif
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
@@ -3924,10 +3931,11 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 			else {
 
 				ParamManagerForTimeline paramManager;
-				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
+				paramManager.stealParamCollectionsFrom(&backedUp->paramManager, false);
 				ModControllableAudio* modControllable = backedUp->modControllable;
 
-				// We have to delete that element...
+				// Destruct backed up param manager in case it also had expression params
+				backedUp->~BackedUpParamManager();
 				backedUpParamManagers.deleteAtIndex(i);
 
 				// ...and then go find the first one that had this ModControllable

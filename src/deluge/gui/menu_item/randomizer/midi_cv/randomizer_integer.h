@@ -24,7 +24,7 @@ public:
 	using Integer::Integer;
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuValue; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow())
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}

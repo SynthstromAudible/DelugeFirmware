@@ -506,6 +506,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		else {
 			phaseIncrement = source->fineTuner.detune(phaseIncrement);
 		}
+		phaseIncrement = sound.fineTuner.detune(phaseIncrement); // master transpose
 
 		// If only one unison
 		if (sound.numUnison == 1) {
@@ -550,6 +551,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			// Cents
 			phaseIncrement = sound.modulatorTransposers[m].detune(phaseIncrement);
+			phaseIncrement = sound.fineTuner.detune(phaseIncrement); // master transpose
 
 			// If only one unison
 			if (sound.numUnison == 1) {

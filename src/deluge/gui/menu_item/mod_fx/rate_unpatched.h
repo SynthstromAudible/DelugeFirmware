@@ -23,7 +23,7 @@ class Rate_Unpatched final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {
 		return modControllable->getModFXType() != ModFXType::NONE;
 	}
 };

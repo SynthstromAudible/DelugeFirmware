@@ -73,6 +73,7 @@ public:
 	int16_t currentMultiRangeIndex;
 	MIDICable* currentMIDICable;
 	deluge::gui::menu_item::RangeEdit editingRangeEdge;
+	bool haveRenderedPads{false};
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -81,10 +82,21 @@ public:
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void scrollFinished() override;
-	bool editingKit();
-	bool editingKitAffectEntire();
+	static bool editingKit();
+
+	/// whether the sound editor is editing a kit's global stuff. Matches affect entire at time of opening
+	bool editingKitAffectEntire() const;
+
+	/// returns whether the sound editor should open to edit a kit's global stuff. Matches affect entire when called
+	static bool shouldEditKitAffectEntire();
 	bool editingKitRow();
 	void setCurrentSource(int32_t sourceIndex);
+
+	bool renderMainPads(uint32_t whichRows, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[kDisplayHeight][kDisplayWidth + kSideBarWidth],
+	                    bool drawUndefinedArea = false) override;
+	static void renderMainShortcutsOnly(ModControllableAudio* forThing, RGB image[][kDisplayWidth + kSideBarWidth],
+	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool doKitAffectEntire);
 
 	ActionResult timerCallback() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);
@@ -134,10 +146,13 @@ public:
 	bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) override;
 	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void markInstrumentAsEdited();
-	bool editingCVOrMIDIClip();
-	bool editingNonAudioDrumRow();
-	bool editingMidiDrumRow();
-	bool editingGateDrumRow();
+	/// Checks ONLY the basic top level shortcut. Does not handle layers or whether patch cables are possible
+	static std::tuple<MenuItem*, bool> get_basic_shortcut_action(int32_t x, int32_t y, bool doKitAffectEntire);
+	static bool editingCVOrMIDIClip();
+	static bool editingNonAudioDrumRow();
+	static bool editingNothing();
+	static bool editingMidiDrumRow();
+	static bool editingGateDrumRow();
 	bool isUntransposedNoteWithinRange(int32_t noteCode);
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();

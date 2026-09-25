@@ -21,7 +21,7 @@ namespace deluge::gui::menu_item::submenu {
 class ArpMpeSubmenu final : public Submenu {
 public:
 	using Submenu::Submenu;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingGateDrumRow() && !soundEditor.editingKitAffectEntire();
 	}
 };

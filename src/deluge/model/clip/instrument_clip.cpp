@@ -1697,9 +1697,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
                                        InstrumentRemoval instrumentRemovalInstruction,
                                        InstrumentClip* favourClipForCloningParamManager, bool keepNoteRowsWithMIDIInput,
                                        bool giveMidiAssignmentsToNewInstrument) {
-
-	bool shouldBackUpExpressionParamsToo = false;
-
 	// If switching to Kit
 	if (newInstrument->type == OutputType::KIT) {
 
@@ -1708,10 +1705,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 
 			// Makes sure all NoteRows onscreen are populated, and deletes any empty NoteRows not onscreen.
 			prepareToEnterKitMode(modelStack->song);
-
-			shouldBackUpExpressionParamsToo =
-			    true; // If switching from non-Kit to Kit, expression params won't get used, so store them with the
-			          // backup in case the old MelodicInstrument gets used again later. Actually is this ideal?
 		}
 	}
 
@@ -1734,9 +1727,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 		expectNoFurtherTicks(modelStack->song); // Still necessary? Probably.
 	}
 
+	// Also unassigns NoteRows and remembers Drum names.
 	detachFromOutput(modelStack, true, (newInstrument->type == OutputType::KIT), false, keepNoteRowsWithMIDIInput,
 	                 giveMidiAssignmentsToNewInstrument,
-	                 shouldBackUpExpressionParamsToo); // Will unassignAllNoteRowsFromDrums(), and remember Drum names
+	                 false); // Keep channel expression on the Clip across output-type changes.
 
 	Error error =
 	    setInstrument(newInstrument, modelStack->song, newParamManager,

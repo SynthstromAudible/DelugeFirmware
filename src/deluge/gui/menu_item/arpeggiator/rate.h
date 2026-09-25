@@ -23,7 +23,7 @@ namespace deluge::gui::menu_item::arpeggiator {
 class Rate final : public patched_param::Integer {
 public:
 	using patched_param::Integer::Integer;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow()
 		       && !soundEditor.editingKitAffectEntire();
 	}
@@ -32,7 +32,7 @@ public:
 class KitRate final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingKitAffectEntire();
 	}
 };

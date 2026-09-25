@@ -53,7 +53,7 @@ public:
 			soundEditor.currentSound->oscillatorSync = current_value;
 		}
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
 		return sound->synthMode != SynthMode::FM && sound->sources[0].oscType != OscType::SAMPLE
 		       && sound->sources[1].oscType != OscType::SAMPLE;

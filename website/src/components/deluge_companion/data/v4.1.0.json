@@ -1492,12 +1492,16 @@
         "control": 34
       },
       {
-        "action": 1,
-        "control": 35
-      },
-      {
-        "action": 0,
-        "control": 3
+        "substeps": [
+          {
+            "action": 1,
+            "control": 35
+          },
+          {
+            "action": 0,
+            "control": 3
+          }
+        ]
       }
     ],
     "views": [],
@@ -1518,7 +1522,7 @@
         ]
       }
     ],
-    "description": "Press the Load (New) button. Turn the Select (Settings) encoder. Hold the Tempo (Swing) encoder. Press the Load (New) button."
+    "description": "Press the Load (New) button. Turn the Select (Settings) encoder. Hold the Tempo (Swing) encoder, press the Load (New) button."
   },
   {
     "name": "Load song (delay song change)",
@@ -2119,7 +2123,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 6
           },
           {
@@ -2140,7 +2144,7 @@
         ]
       }
     ],
-    "description": "Press the Save (Delete) button, press the Performance button (keyboard icon)."
+    "description": "Hold the Save (Delete) button, press the Performance button (keyboard icon)."
   },
   {
     "name": "Reload Performance View Changes",
@@ -2153,7 +2157,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 3
           },
           {
@@ -2174,7 +2178,7 @@
         ]
       }
     ],
-    "description": "Press the Load (New) button, press the Performance button (keyboard icon)."
+    "description": "Hold the Load (New) button, press the Performance button (keyboard icon)."
   },
   {
     "name": "Clear Performance View Held Values",
@@ -2338,7 +2342,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
@@ -2358,7 +2362,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder."
+    "description": "Hold the Lit grid pad, turn the Select (Settings) encoder."
   },
   {
     "name": "Delete clip instance from arranger (left-most clip grid button)",
@@ -2485,7 +2489,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -2505,7 +2509,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the Grid pad (lit or unlit)."
+    "description": "Hold the Lit grid pad, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Mute / unmute track",
@@ -3333,24 +3337,6 @@
     "description": "Press the Lit grid pad."
   },
   {
-    "name": "Select clip (non-empty row / grid pad)",
-    "capability": "02-playback_session",
-    "capabilityParentId": "PLAYBACK",
-    "capabilityOrder": 3,
-    "subCapabilityTitle": "Playback Mode (Session)",
-    "subCapabilityOrder": 2,
-    "steps": [
-      {
-        "action": 0,
-        "control": 10
-      }
-    ],
-    "views": [2, 3, 4],
-    "firmware": [0, 1],
-    "paragraphs": [],
-    "description": "Press the Clip button."
-  },
-  {
     "name": "Enter last selected clip",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
@@ -3448,7 +3434,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
@@ -3460,7 +3446,7 @@
     "views": [2],
     "firmware": [0],
     "paragraphs": [],
-    "description": "Hold the Grid pad (lit or unlit), turn the Vertical (Up/Down) encoder."
+    "description": "Hold the Lit grid pad, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Clip section color - change or create new",
@@ -3571,11 +3557,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
-            "control": 36
+            "control": 37
           }
         ]
       }
@@ -3598,7 +3584,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the Grid pad (lit or unlit)."
+    "description": "Hold the Lit grid pad, press the Unlit grid pad."
   },
   {
     "name": "Delete clip",
@@ -3612,7 +3598,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -3632,7 +3618,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the Save (Delete) button."
+    "description": "Hold the Lit grid pad, press the Save (Delete) button."
   },
   {
     "name": "Solo clip - queue",
@@ -3740,7 +3726,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
@@ -3752,7 +3738,7 @@
     "views": [2],
     "firmware": [0],
     "paragraphs": [],
-    "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder."
+    "description": "Hold the Lit grid pad, turn the Select (Settings) encoder."
   },
   {
     "name": "Change existing clip to synth",
@@ -3766,7 +3752,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -3786,7 +3772,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the Synth button."
+    "description": "Hold the Lit grid pad, press the Synth button."
   },
   {
     "name": "Change existing clip to MIDI",
@@ -3800,7 +3786,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -3820,7 +3806,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the MIDI button."
+    "description": "Hold the Lit grid pad, press the MIDI button."
   },
   {
     "name": "Change existing clip to CV",
@@ -3834,7 +3820,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -3854,7 +3840,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the CV button."
+    "description": "Hold the Lit grid pad, press the CV button."
   },
   {
     "name": "Create audio track (in empty clip)",
@@ -3868,7 +3854,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -3880,10 +3866,10 @@
     "views": [2],
     "firmware": [0],
     "paragraphs": [],
-    "description": "Hold the Grid pad (lit or unlit), press the Select (Settings) encoder."
+    "description": "Hold the Lit grid pad, press the Select (Settings) encoder."
   },
   {
-    "name": "Check name and type of non-empty clip",
+    "name": "Select and check name and type of non-empty clip",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -3892,7 +3878,7 @@
     "steps": [
       {
         "action": 1,
-        "control": 36
+        "control": 38
       }
     ],
     "views": [2],
@@ -3906,7 +3892,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit)."
+    "description": "Hold the Lit grid pad."
   },
   {
     "name": "Clip Settings Menu (Session Grid View)",
@@ -3920,7 +3906,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -3932,7 +3918,7 @@
     "views": [2],
     "firmware": [1],
     "paragraphs": [],
-    "description": "Hold the Grid pad (lit or unlit), press the Select (Settings) encoder."
+    "description": "Hold the Lit grid pad, press the Select (Settings) encoder."
   },
   {
     "name": "Clip Settings Menu (Session Row View)",
@@ -3980,7 +3966,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 1,
@@ -4004,7 +3990,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), hold the Shift button, turn the Vertical (Up/Down) encoder."
+    "description": "Hold the Lit grid pad, hold the Shift button, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Change session view layout",
@@ -4090,7 +4076,7 @@
           },
           {
             "action": 0,
-            "control": 36
+            "control": 38
           }
         ]
       },
@@ -4115,7 +4101,7 @@
         ]
       }
     ],
-    "description": "Hold the Learn / Input button, press the Grid pad (lit or unlit). Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
+    "description": "Hold the Learn / Input button, press the Lit grid pad. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Change audio output mode to enable/disable monitoring and looping functionality in session view",
@@ -4126,12 +4112,16 @@
     "subCapabilityOrder": 1,
     "steps": [
       {
-        "action": 1,
-        "control": 36
-      },
-      {
-        "action": 2,
-        "control": 34
+        "substeps": [
+          {
+            "action": 1,
+            "control": 38
+          },
+          {
+            "action": 2,
+            "control": 34
+          }
+        ]
       }
     ],
     "views": [2],
@@ -4146,7 +4136,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit). Turn the Select (Settings) encoder."
+    "description": "Hold the Lit grid pad, turn the Select (Settings) encoder."
   },
   {
     "name": "Create new audio track in arranger view",
@@ -6195,7 +6185,7 @@
             "control": 4
           },
           {
-            "action": 1,
+            "action": 0,
             "control": 36
           }
         ]
@@ -6224,7 +6214,7 @@
         ]
       }
     ],
-    "description": "Hold the Shift button, hold the Grid pad (lit or unlit). Hold the Affect Entire button, turn the Select (Settings) encoder."
+    "description": "Hold the Shift button, press the Grid pad (lit or unlit). Hold the Affect Entire button, turn the Select (Settings) encoder."
   },
   {
     "name": "Select kit / instrument row silently",
@@ -6358,11 +6348,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 37
           },
           {
             "action": 0,
-            "control": 37
+            "control": 36
           }
         ]
       }
@@ -6373,12 +6363,12 @@
       {
         "spans": [
           {
-            "text": "Select two grid buttons on the same row."
+            "text": "Select two grid pads on the same row."
           }
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the Unlit grid pad."
+    "description": "Hold the Unlit grid pad, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Make long note across the next screen",
@@ -6390,7 +6380,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 36
+        "control": 37
       },
       {
         "action": 2,
@@ -6404,7 +6394,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 36
           }
         ]
       }
@@ -6415,12 +6405,12 @@
       {
         "spans": [
           {
-            "text": "Move to the next screen, then select the two grid buttons on the same row."
+            "text": "Move to the next screen, then select the grid pad on the same row."
           }
         ]
       }
     ],
-    "description": "Press the Grid pad (lit or unlit). Turn the Horizontal (Left/Right) encoder. Hold the Horizontal (Left/Right) encoder, press the Unlit grid pad."
+    "description": "Press the Unlit grid pad. Turn the Horizontal (Left/Right) encoder. Hold the Horizontal (Left/Right) encoder, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Edit Note Repeat",
@@ -6434,7 +6424,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -6458,7 +6448,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
+    "description": "Hold the Lit grid pad, press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Edit note velocity",
@@ -6472,7 +6462,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
@@ -6492,7 +6482,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), turn the Horizontal (Left/Right) encoder."
+    "description": "Hold the Lit grid pad, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Edit Note Probability or Iterance",
@@ -6506,7 +6496,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
@@ -6527,7 +6517,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder."
+    "description": "Hold the Lit grid pad, turn the Select (Settings) encoder."
   },
   {
     "name": "Edit Note Probability or Iterance for group of notes",
@@ -6541,7 +6531,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
@@ -6584,7 +6574,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder."
+    "description": "Hold the Lit grid pad, turn the Select (Settings) encoder."
   },
   {
     "name": "Copy notes",
@@ -7220,7 +7210,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 39
           },
           {
             "action": 2,
@@ -7240,7 +7230,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), turn the Horizontal (Left/Right) encoder."
+    "description": "Hold the Audition / Section button for row, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Edit Note Row Fill",
@@ -7288,7 +7278,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
@@ -7308,7 +7298,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), press the Select (Settings) encoder."
+    "description": "Hold the Lit grid pad, press the Select (Settings) encoder."
   },
   {
     "name": "Exit Note Editor",
@@ -8244,7 +8234,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
@@ -8264,7 +8254,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), turn the parameter encoders."
+    "description": "Hold the Lit grid pad, turn the parameter encoders."
   },
   {
     "name": "Enter Step Automation (with external midi)",
@@ -8278,7 +8268,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
@@ -8298,7 +8288,7 @@
         ]
       }
     ],
-    "description": "Hold the Grid pad (lit or unlit), turn the external MIDI controller."
+    "description": "Hold the Lit grid pad, turn the external MIDI controller."
   },
   {
     "name": "Enter Step Automation with Automation View Pad Selection Mode",
@@ -8645,7 +8635,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 6
           },
           {
@@ -8666,7 +8656,7 @@
         ]
       }
     ],
-    "description": "Press the Save (Delete) button, press the Record button."
+    "description": "Hold the Save (Delete) button, press the Record button."
   },
   {
     "name": "Cancel Audio Export",
@@ -9780,7 +9770,7 @@
       {
         "substeps": [
           {
-            "action": 0,
+            "action": 1,
             "control": 4
           },
           {
@@ -9801,7 +9791,7 @@
         ]
       }
     ],
-    "description": "Press the Shift button, press the Tempo (Swing) encoder."
+    "description": "Hold the Shift button, press the Tempo (Swing) encoder."
   },
   {
     "name": "Copy automation of parameter",

@@ -579,6 +579,10 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		transpose = reader.readTagOrAttributeValueInt();
 		reader.exitTag("transpose");
 	}
+	else if (!strcmp(tagName, "cents")) {
+		cents = reader.readTagOrAttributeValueInt();
+		reader.exitTag("cents");
+	}
 
 	else if (!strcmp(tagName, "noiseVolume")) {
 		ENSURE_PARAM_MANAGER_EXISTS
@@ -2350,11 +2354,18 @@ void Sound::stopParamLPF(ModelStackWithSoundFlags* modelStack) {
 void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundFlags, ArpeggiatorSettings* arpSettings,
                                   ArpReturnInstruction instruction) {
 	if (instruction.arpNoteOn) {
-		instruction.arpNoteOn->noteStatus[0] = ArpNoteStatus::PENDING;
-
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
+			// do we have a note to start? if no, exit early
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
 				break;
+			}
+			// has the note already started? if yes, skip it
+			if (instruction.arpNoteOn->noteStatus[n] != ArpNoteStatus::PENDING) {
+				continue;
+			}
+			// note is pending, are we allowing to start it? if no, exit early
+			if (!AudioEngine::allowedToStartVoice()) {
+				break; // Leave the remaining notes pending for the next render.
 			}
 			invertReversed = instruction.invertReversed;
 
@@ -2961,6 +2972,7 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 
 void Sound::doneReadingFromFile() {
 	calculateEffectiveVolume();
+	recalculateFineTuner();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].doneReadingFromFile(this);
@@ -2972,6 +2984,17 @@ void Sound::doneReadingFromFile() {
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, nullptr);
 	}
+}
+
+// Set cents for master transpose
+void Sound::set_cents(int8_t new_cents) {
+	cents = new_cents;
+	recalculateFineTuner();
+}
+
+// Setup master transpose
+void Sound::recalculateFineTuner() {
+	fineTuner.setup((int32_t)cents * 42949672);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -4152,6 +4175,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	if (transpose != 0) {
 		writer.writeAttribute("transpose", transpose);
+	}
+	if (cents != 0) {
+		writer.writeAttribute("cents", cents);
 	}
 
 	ModControllableAudio::writeAttributesToFile(writer);

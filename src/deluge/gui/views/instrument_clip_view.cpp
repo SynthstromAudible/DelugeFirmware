@@ -251,6 +251,8 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	maybeStartShortcutOverview(b, on);
+
 	// Scale mode button
 	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		return handleScaleButtonAction(on, inCardRoutine);
@@ -1769,6 +1771,8 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType) {
 
 void InstrumentClipView::selectEncoderAction(int8_t offset) {
 
+	exitedShortcutOverview = true;
+	uiNeedsRendering(this);
 	// User may be trying to edit noteCode...
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		if (Buttons::isButtonPressed(deluge::hid::button::SELECT_ENC)) {
@@ -5532,6 +5536,36 @@ doDisplayError:
 	}
 }
 
+ModControllableAudio* InstrumentClipView::getModControllableAudioOrNone() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	auto output = clip->output;
+	auto type = output->type;
+
+	switch (type) {
+		using enum OutputType;
+
+	case SYNTH:
+		return static_cast<SoundInstrument*>(output);
+	case KIT: {
+		if (getAffectEntire()) {
+			return static_cast<ModControllableAudio*>(output->toModControllable());
+		}
+		if (selectedDrum != nullptr) {
+			if (selectedDrum->type == DrumType::SOUND)
+				return static_cast<SoundDrum*>(selectedDrum);
+		}
+		break;
+	}
+	case MIDI_OUT:
+	case CV:
+	case AUDIO:
+	case NONE:
+		break;
+	}
+
+	return nullptr;
+}
+
 void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
 	Kit* kit = getCurrentKit();
@@ -6137,6 +6171,7 @@ static const uint32_t verticalScrollUIModes[] = {
 
 ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
+	exitedShortcutOverview = true;
 	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
@@ -6452,6 +6487,8 @@ shiftAllColour:
 static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
+	exitedShortcutOverview = true;
+	uiNeedsRendering(this);
 	if (sdRoutineLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
@@ -6531,6 +6568,7 @@ void InstrumentClipView::rotateNoteRowHorizontally(int32_t offset) {
 }
 
 void InstrumentClipView::tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {
+	exitedShortcutOverview = true;
 	auto quantizeType = encoderButtonPressed ? NudgeMode::QUANTIZE_ALL : NudgeMode::QUANTIZE;
 	if (isUIModeActive(UI_MODE_QUANTIZE)) {
 		commandQuantizeNotes(offset, quantizeType);
@@ -7321,6 +7359,10 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	}
 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
+		return true;
+	}
+
+	if (maybeRenderShortcutsOverview(whichRows, image, occupancyMask, drawUndefinedArea)) {
 		return true;
 	}
 

@@ -746,48 +746,89 @@ function extractIterancePresets(sourceText) {
 }
 
 function extractIteranceDisplayLiterals(sourceText) {
-  const bodies = unique([
-    ...extractMethodBodies(
-      sourceText,
-      /void\s+(?:[A-Za-z_][A-Za-z0-9_:]*::)?displayIterance\s*\([^)]*\bIterance\b[^)]*\)/g,
-    ),
-    ...extractMethodBodies(
-      sourceText,
-      /void\s+(?:[A-Za-z_][A-Za-z0-9_:]*::)?[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\bIterance\s+[A-Za-z_][A-Za-z0-9_]*\b[^)]*\)/g,
-    ),
-  ])
-  const body = bodies.find(
-    (candidate) =>
-      /\bstrcpy\s*\(\s*buffer\b/.test(candidate) &&
-      /\bsprintf\s*\(\s*buffer\b/.test(candidate),
-  )
-  if (!body) {
+  const displayBody = extractMethodBodies(
+    sourceText,
+    /void\s+(?:[A-Za-z_][A-Za-z0-9_:]*::)?displayIterance\s*\([^)]*\bIterance\b[^)]*\)/g,
+  ).find((candidate) => /\bformat_display_value\s*\(/.test(candidate))
+  const formatterBody = extractMethodBodies(
+    sourceText,
+    /void\s+(?:[A-Za-z_][A-Za-z0-9_:]*::)?format_preset_display_value\s*\([^)]*\bpreset_index\b[^)]*\)/g,
+  )[0]
+
+  if (!displayBody || !formatterBody) {
     return null
   }
 
-  const branchLabels = [
-    ...body.matchAll(
-      /(?:if|else\s+if)\s*\(([^)]+)\)\s*\{[\s\S]*?strcpy\(buffer,\s*display->haveOLED\(\)\s*\?\s*"[^"]*"\s*:\s*"([^"]+)"\)/g,
-    ),
-  ].map((match) => ({
-    condition: match[1].trim(),
-    shortLabel: match[2],
-  }))
-
-  const formatMatch =
-    /sprintf\(buffer,\s*display->haveOLED\(\)\s*\?\s*"([^"]+)"\s*:\s*"([^"]+)"\s*,/m.exec(
-      body,
-    )
+  const firstShortLabel = extractIteranceFirstShortLabel(sourceText)
+  const branchLabels = extractIteranceFormatterBranchLabels(
+    formatterBody,
+    firstShortLabel,
+  )
+  const displayOptions = extractIteranceDisplayOptions(displayBody)
 
   return {
     branchLabels,
-    oledFormat: formatMatch ? formatMatch[1] : null,
-    codeFormat: formatMatch ? formatMatch[2] : null,
+    oledFormat: displayOptions?.oledFormat ?? null,
+    codeFormat: displayOptions?.codeFormat ?? null,
+  }
+}
+
+function extractIteranceFirstShortLabel(sourceText) {
+  const body = extractMethodBodies(
+    sourceText,
+    /char\s+const\s*\*\s+get_first_label\s*\([^)]*\)/g,
+  )[0]
+  const displayTernaryMatch =
+    /display->haveOLED\(\)\s*\?\s*"([^"]+)"\s*:\s*"([^"]+)"/.exec(body ?? "")
+
+  return displayTernaryMatch ? displayTernaryMatch[2] : "1 ST"
+}
+
+function extractIteranceFormatterBranchLabels(formatterBody, firstShortLabel) {
+  return [
+    ...formatterBody.matchAll(
+      /(?:if|else\s+if)\s*\(([^)]+)\)\s*\{([\s\S]*?)\}/g,
+    ),
+  ]
+    .map((match) => {
+      const labelMatch =
+        /copy_with_prefix\s*\([^,]+,\s*[^,]+,\s*[^,]+,\s*(?:"([^"]+)"|get_first_label\s*\([^)]*\))\s*\)/.exec(
+          match[2],
+        )
+      if (!labelMatch) {
+        return null
+      }
+
+      return {
+        condition: match[1].trim(),
+        shortLabel: labelMatch[1] ?? firstShortLabel,
+      }
+    })
+    .filter(Boolean)
+}
+
+function extractIteranceDisplayOptions(displayBody) {
+  const stepFormatMatch =
+    /\.step_format\s*=\s*display->haveOLED\(\)\s*\?\s*"([^"]+)"\s*:\s*"([^"]+)"/.exec(
+      displayBody,
+    )
+  const prefixMatch =
+    /\.prefix\s*=\s*display->haveOLED\(\)\s*\?\s*"([^"]*)"\s*:\s*"([^"]*)"/.exec(
+      displayBody,
+    )
+
+  if (!stepFormatMatch) {
+    return null
+  }
+
+  return {
+    oledFormat: `${prefixMatch?.[1] ?? ""}${stepFormatMatch[1]}`,
+    codeFormat: `${prefixMatch?.[2] ?? ""}${stepFormatMatch[2]}`,
   }
 }
 
 function resolveIterancePresetIndexFromCondition(condition, valueMap) {
-  const equalityMatch = /iterancePreset\s*==\s*([^&|]+)/.exec(condition)
+  const equalityMatch = /preset_index\s*==\s*([^&|]+)/.exec(condition)
   if (!equalityMatch) {
     return null
   }

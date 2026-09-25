@@ -2994,9 +2994,12 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 		Iterance iterance = note->iterance;
 		int32_t pos = note->pos;
 
-		// If it's iteration dependent...
+		// If it's iteration dependent
 		if (iterance != kDefaultIteranceValue) {
 			int32_t divisor = iterance.divisor;
+			bool first = iterance == kFirstIteranceValue;
+			bool last = iterance == kLastIteranceValue;
+			divisor = std::max<int32_t>(divisor, 1);
 
 			int32_t newNumFullLoops = numRepeatsRounded ? newLoopLength / (uint32_t)(oldLoopLength * divisor) : 1;
 
@@ -3039,13 +3042,25 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				}
 
 				int32_t iterationWithinDivisor = -1;
-				for (int32_t iteration = 0; iteration < 8; iteration++) {
-					if (iterance.iteranceStep[iteration]) {
-						int32_t iterationWithinDivisorWithinRepeat =
-						    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
-						if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
-							iterationWithinDivisor = iteration;
-							break;
+				// if we're first or last then check that first
+				if ((first and whichFullLoop == 0) or (last and whichFullLoop == newNumFullLoops - 1)) {
+					// condition is matched so keep this one
+					iterationWithinDivisor = 0;
+				}
+				else if (first or last) {
+					// in this case the first/last condition is not matched so delete it
+					iterationWithinDivisor = -1;
+				}
+				else {
+					// otherwise check through the divisor for a match
+					for (int32_t iteration = 0; iteration < 8; iteration++) {
+						if (iterance.iteranceStep[iteration]) {
+							int32_t iterationWithinDivisorWithinRepeat =
+							    numRepeatsRounded ? ((uint32_t)iteration % (uint32_t)numRepeatsRounded) : iteration;
+							if (whichRepeatWithinLoop == iterationWithinDivisorWithinRepeat) {
+								iterationWithinDivisor = iteration;
+								break;
+							}
 						}
 					}
 				}
@@ -3065,7 +3080,11 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 				else {
 
 					Iterance newIterance;
-					if (newNumFullLoops == 0) {
+					// in this case just keep the iterance as is - first stays first, last still last no matter what
+					if (first or last) {
+						newIterance = iterance;
+					}
+					else if (newNumFullLoops == 0) {
 						// I think this bit is for, like, if we had a note doing 1of6, and we're doing two
 						// repeats total on this Clip, well then to keep it sounding the same, we'd now need the
 						// note to be a 1of3.
@@ -3085,7 +3104,7 @@ switchOff:
 
 					thisRepeatedNote->setIterance(newIterance);
 				}
-
+next:
 				whichRepeatWithinLoop++;
 				if (whichRepeatWithinLoop >= divisor) {
 					whichRepeatWithinLoop = 0;
