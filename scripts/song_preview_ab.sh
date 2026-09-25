@@ -41,6 +41,11 @@
 #             a listing whose directory open is held far past the browser's 600-tick bound gives up with the
 #             card error: begun inside the open browser, it leaves the browser open on what it had; opening
 #             the browser, it closes it.
+#   SP-RELOAD / SP-RELOAD-STALL
+#             the scroll past a culled window's edge, which re-reads the folder: forward, wrapping up from the first
+#             song, and wrapping down from the last. It must run once, off the storage owner, resume rather than
+#             restart, keep the old window on screen until it lands, and land on the right song; held past the
+#             bound it must give up with SD_CARD and put the window back.
 #   SP-PREVIEW-STALL
 #             a song preview whose prefix read is held far past the preview's 600-tick bound gives up with
 #             the card error, draws blank, and releases the scroll-in it owed.
@@ -120,7 +125,12 @@ run_leg() {
 	set -e
 	if [ "$status" -ne 0 ]; then
 		echo "FAIL — the $tag leg exited $status"
-		sed -n '1,60p' "$OUT_ROOT/$tag.txt"
+		# The binary exits non-zero whenever it counted an in-process failure, so this -- not the
+		# SP-RESULT arm below -- is where a red run lands. Its first 60 lines stop long before the later
+		# stages, so show every marker line and FAIL instead, then the tail for a run that wedged.
+		grep -E '^(FAIL|SP-[A-Z-]+ FAIL|SP-RESULT|SP-LISTING|SP-BYPATH|SP-RELOAD|SP-RELOAD-STALL|SP-PROBE reload|SP-TIER) ' \
+			"$OUT_ROOT/$tag.txt" || true
+		tail -5 "$OUT_ROOT/$tag.txt"
 		sed -n '1,20p' "$OUT_ROOT/$tag.err" >&2
 		exit 1
 	fi
@@ -133,7 +143,7 @@ run_leg() {
 	fi
 	if ! grep -q '^SP-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-PREVIEW-STALL|SP-DX|SP-DX-STALL|SP-REFERENCE|SP-TIER) ' \
+		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING|SP-PREDICT|SP-NEWNAME|SP-SLOT|SP-BYPATH|SP-LISTING-STALL|SP-PREVIEW-STALL|SP-DX|SP-DX-STALL|SP-REFERENCE|SP-TIER|SP-RELOAD|SP-RELOAD-STALL) ' \
 			"$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
@@ -141,7 +151,7 @@ run_leg() {
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
 	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY SP-PREDICT-SUMMARY SP-NEWNAME \
-		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-PREVIEW-STALL SP-DX SP-DX-STALL SP-REFERENCE SP-TIER; do
+		SP-SLOT SP-ACQUIRE-SUMMARY SP-BYPATH SP-LISTING-STALL SP-RELOAD SP-RELOAD-STALL SP-PREVIEW-STALL SP-DX SP-DX-STALL SP-REFERENCE SP-TIER; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1
@@ -183,4 +193,4 @@ fi
 
 echo "PASS — the prefix channel drew all $CASES song(s) as the file read does, agreed on every outcome, held across a card swap, and parsed the DX7 bank"
 grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY \|^SP-PREVIEW-STALL ' "$OUT_ROOT/prefix.txt"
-grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-DX|^SP-TIER' "$OUT_ROOT/prefix.txt" | sed 's/^/ run     /'
+grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-DX|^SP-TIER|^SP-RELOAD' "$OUT_ROOT/prefix.txt" | sed 's/^/ run     /'

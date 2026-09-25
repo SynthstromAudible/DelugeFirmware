@@ -167,6 +167,15 @@ public:
 	/// @brief The error the most recent of those failures reported. For gates only.
 	[[nodiscard]] static Error lastListingFailure();
 
+	/// @brief How many reloads -- the scroll past a culled window's edge -- have started. For gates only.
+	///
+	/// The liveness half. Kept apart from @ref reloadsOnOwner so that a reload leaving the owner cannot
+	/// also silently stop proving that a reload happened at all.
+	[[nodiscard]] static int32_t reloadsRun();
+
+	/// @brief How many of those started on the storage owner. For gates only; the conversion's target is 0.
+	[[nodiscard]] static int32_t reloadsOnOwner();
+
 	ActionResult exitUI() override {
 		exitAction();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;

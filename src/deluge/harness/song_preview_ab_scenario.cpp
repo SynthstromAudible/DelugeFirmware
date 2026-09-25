@@ -58,6 +58,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <span>
 #include <string>
@@ -2731,6 +2732,16 @@ constexpr uint32_t kStallHoldMs = 30000;
 /// Ticks a stall case waits for the browser to give up: well above the bound, well below the hold.
 constexpr int32_t kMaxStallTicks = 2000;
 
+/// Turns the forward reload may take to reach the window's edge: LISTTEST holds 25 songs against a 20-entry window, so
+/// no position in the window is more than 20 turns from its last entry.
+constexpr int32_t kMaxReloadTurns = 25;
+/// The folder's first song, where a turn UP wraps round and has to reload from the other end.
+constexpr const char* kReloadFirst = "LISTTEST/SONG000.XML";
+constexpr const char* kReloadFirstName = "SONG000";
+/// The folder's last song, which that wrap must land on.
+constexpr const char* kReloadLastName = "SONG024";
+static_assert(kListingEntries == 25, "kReloadLastName names LISTTEST's last song");
+
 enum class ByPathStep : uint8_t {
 	Open,
 	OpenWait,
@@ -2738,6 +2749,16 @@ enum class ByPathStep : uint8_t {
 	PresentWait,
 	Absent,
 	AbsentWait,
+	ReloadForward,
+	ReloadForwardWait,
+	ReloadWrapSeek,
+	ReloadWrapSeekWait,
+	ReloadWrap,
+	ReloadWrapWait,
+	ReloadStall,
+	ReloadStallWait,
+	ReloadWrapDown,
+	ReloadWrapDownWait,
 	StallInside,
 	StallInsideWait,
 	StallEntry,
@@ -2749,6 +2770,13 @@ int32_t g_byPathTicks = 0;
 int32_t g_listingFailuresBefore = 0;
 /// What the load browser showed before a listing that is expected to fail, to check that it is put back.
 ListingSnapshot g_byPathBefore;
+/// The reload legs' state: turns taken toward the edge, what the browser showed before the turn that began the reload,
+/// whether it still showed that while the reload was pending, and the reload counters as they were before it.
+int32_t g_reloadTurns = 0;
+ListingSnapshot g_reloadBefore;
+bool g_reloadKeptWhilePending = false;
+int32_t g_reloadsRunBefore = 0;
+int32_t g_reloadsOnOwnerBefore = 0;
 
 /// Whether two snapshots show the same listing: directory, entered text, selection and names.
 bool sameListing(const ListingSnapshot& a, const ListingSnapshot& b) {
@@ -2776,6 +2804,52 @@ bool byPathListingSettled(const char* label) {
 		finishByPathStage();
 	}
 	return false;
+}
+
+/// The number in a fixture song's entered name -- "SONG005" is 5 -- or -1 for anything else.
+int32_t songNumber(const std::string& entered) {
+	if (entered.size() != 7 || entered.rfind("SONG", 0) != 0) {
+		return -1;
+	}
+	return std::atoi(entered.c_str() + 4);
+}
+
+/// Turn the load browser's select encoder by @p offset, as a user does. @return Whether the turn began a listing, which
+/// for a turn is always a reload.
+bool beginReloadTurn(int8_t offset) {
+	g_reloadBefore = takeListingSnapshot();
+	markCounters();
+	g_reloadsRunBefore = Browser::reloadsRun();
+	g_reloadsOnOwnerBefore = Browser::reloadsOnOwner();
+	loadSongUI.selectEncoderAction(offset);
+	const bool began = BrowserListingAbProbe::inProgress();
+	printf("SP-PROBE reload turn=%d offset=%d from=%s entered=%s mode=%d began=%d\n", g_reloadTurns,
+	       static_cast<int>(offset), g_reloadBefore.entered.c_str(), Browser::enteredText.c_str(),
+	       static_cast<int>(currentUIMode), began ? 1 : 0);
+	if (began) {
+		// Nothing a pending reload does may reach the screen: the window it is replacing stays until it lands.
+		g_reloadKeptWhilePending = sameListing(takeListingSnapshot(), g_reloadBefore);
+	}
+	return began;
+}
+
+/// Report a reload that has landed, against the song it must have landed on.
+void reportReload(const char* kase, const std::string& want) {
+	const int32_t run = Browser::reloadsRun() - g_reloadsRunBefore;
+	const int32_t onOwner = Browser::reloadsOnOwner() - g_reloadsOnOwnerBefore;
+	const bool open = getCurrentUI() == &loadSongUI;
+	printf("SP-RELOAD case=%s from=%s entered=%s want=%s run=%d onOwner=%d kept=%d opens=%d requests=%d open=%d "
+	       "turns=%d\n",
+	       kase, g_reloadBefore.entered.c_str(), Browser::enteredText.c_str(), want.c_str(), run, onOwner,
+	       g_reloadKeptWhilePending ? 1 : 0, runOpens(), runRequests(), open ? 1 : 0, g_reloadTurns);
+	checkResumed(kase);
+	if (Browser::enteredText != want || run != 1 || onOwner != 0 || !g_reloadKeptWhilePending || !open) {
+		printf("SP-RELOAD FAIL case=%s entered=%s want=%s run=%d onOwner=%d kept=%d open=%d: a reload must run once, "
+		       "off the storage owner, keep the window it replaces on screen until it lands, and land on %s\n",
+		       kase, Browser::enteredText.c_str(), want.c_str(), run, onOwner, g_reloadKeptWhilePending ? 1 : 0,
+		       open ? 1 : 0, want.c_str());
+		g_failures++;
+	}
 }
 
 void runByPathTick() {
@@ -2873,9 +2947,170 @@ void runByPathTick() {
 			finishByPathStage();
 			return;
 		}
-		g_byPathStep = ByPathStep::StallInside;
+		g_byPathStep = ByPathStep::ReloadForward;
 		return;
 	}
+
+	case ByPathStep::ReloadForward:
+		// SP-RELOAD fwd. One turn per tick, each settled before the next, until a turn begins a listing: that turn went
+		// past the window's last entry, and the listing it began is the reload.
+		if (!byPathListingSettled("a turn toward the window's edge") || g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		if (++g_reloadTurns > kMaxReloadTurns) {
+			printf("SP-RELOAD FAIL case=fwd %d turns and none began a reload\n", kMaxReloadTurns);
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathTicks = 0;
+		if (!beginReloadTurn(+1)) {
+			return; // still inside the window: turn again next tick
+		}
+		// A second turn while the reload is out. Refused, so the reload still lands one past the file it left.
+		loadSongUI.selectEncoderAction(+1);
+		g_byPathStep = ByPathStep::ReloadForwardWait;
+		return;
+
+	case ByPathStep::ReloadForwardWait: {
+		if (!byPathListingSettled("the forward reload") || g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		char want[16];
+		snprintf(want, sizeof(want), "SONG%03d", static_cast<int>(songNumber(g_reloadBefore.entered) + 1));
+		reportReload("fwd", want);
+		if (getCurrentUI() != &loadSongUI) {
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::ReloadWrapSeek;
+		return;
+	}
+
+	case ByPathStep::ReloadWrapSeek:
+		g_byPathTicks = 0;
+		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kReloadFirst);
+		g_byPathStep = ByPathStep::ReloadWrapSeekWait;
+		return;
+
+	case ByPathStep::ReloadWrapSeekWait:
+		if (!byPathListingSettled("the seek to the folder's first song") || g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		if (Browser::enteredText != kReloadFirstName || Browser::listing.numDeletedAtEnd() == 0) {
+			// Not a reload failure: without songs culled from the END, turning up from the first wraps within the
+			// window and no reload happens, so the leg would prove nothing.
+			printf("SP-RELOAD FAIL case=wrap the seek left entered=%s culledAtEnd=%d, wanted %s with songs culled "
+			       "from the end\n",
+			       Browser::enteredText.c_str(), static_cast<int>(Browser::listing.numDeletedAtEnd()),
+			       kReloadFirstName);
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::ReloadWrap;
+		return;
+
+	case ByPathStep::ReloadWrap:
+		// SP-RELOAD wrap. Up from the folder's first song, with songs culled from the end: the browser must reload
+		// from the far end and land on the last song.
+		g_reloadTurns = 1;
+		g_byPathTicks = 0;
+		if (!beginReloadTurn(-1)) {
+			printf("SP-RELOAD FAIL case=wrap turning up from %s began no reload\n", kReloadFirstName);
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::ReloadWrapWait;
+		return;
+
+	case ByPathStep::ReloadWrapWait:
+		if (!byPathListingSettled("the wrap reload") || g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		reportReload("wrap", kReloadLastName);
+		if (getCurrentUI() != &loadSongUI) {
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::ReloadStall;
+		return;
+
+	case ByPathStep::ReloadStall:
+		// SP-RELOAD-STALL. Down from the folder's last song wraps back to the start, which is a reload. With every open
+		// held past the browser's bound it must give up with the card error and put the window it replaced back.
+		deluge_file_directory_set_latency_ms(kStallHoldMs);
+		g_reloadTurns = 1;
+		g_byPathTicks = 0;
+		g_listingFailuresBefore = Browser::listingFailures();
+		if (!beginReloadTurn(+1)) {
+			printf("SP-RELOAD-STALL FAIL turning down from %s began no reload\n", kReloadLastName);
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::ReloadStallWait;
+		return;
+
+	case ByPathStep::ReloadStallWait: {
+		if (BrowserListingAbProbe::inProgress()) {
+			BrowserListingAbProbe::tick();
+			if (BrowserListingAbProbe::inProgress()) {
+				if (++g_byPathTicks > kMaxStallTicks) {
+					printf("SP-RELOAD-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_byPathTicks);
+					g_failures++;
+					finishByPathStage();
+				}
+				return;
+			}
+		}
+		deluge_file_directory_set_latency_ms(kDirectoryHoldMs);
+		const int32_t failed = Browser::listingFailures() - g_listingFailuresBefore;
+		const Error error = Browser::lastListingFailure();
+		const bool open = getCurrentUI() == &loadSongUI;
+		const bool restored = sameListing(takeListingSnapshot(), g_reloadBefore);
+		printf("SP-RELOAD-STALL failed=%d error=%d open=%d restored=%d entered=%s ticks=%d\n", failed,
+		       static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0, Browser::enteredText.c_str(), g_byPathTicks);
+		if (failed != 1 || error != Error::SD_CARD || !open || !restored) {
+			printf("SP-RELOAD-STALL FAIL failed=%d error=%d open=%d restored=%d, wanted one SD_CARD with the browser "
+			       "still open on the window it had\n",
+			       failed, static_cast<int>(error), open ? 1 : 0, restored ? 1 : 0);
+			g_failures++;
+		}
+		if (!open) {
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::ReloadWrapDown;
+		return;
+	}
+
+	case ByPathStep::ReloadWrapDown:
+		// SP-RELOAD wrapdown. The same turn with the hold lifted: it must now succeed, onto the folder's first song.
+		g_reloadTurns = 1;
+		g_byPathTicks = 0;
+		if (!beginReloadTurn(+1)) {
+			printf("SP-RELOAD FAIL case=wrapdown turning down from %s began no reload\n",
+			       g_reloadBefore.entered.c_str());
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::ReloadWrapDownWait;
+		return;
+
+	case ByPathStep::ReloadWrapDownWait:
+		if (!byPathListingSettled("the wrap-down reload") || g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		reportReload("wrapdown", kReloadFirstName);
+		if (getCurrentUI() != &loadSongUI) {
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::StallInside;
+		return;
 
 	case ByPathStep::StallInside:
 		// SP-LISTING-STALL, inside. A favourite opened from inside the browser, with every directory open held far past
@@ -3320,6 +3555,11 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_byPathTicks = 0;
 	g_listingFailuresBefore = 0;
 	g_byPathBefore = {};
+	g_reloadTurns = 0;
+	g_reloadBefore = {};
+	g_reloadKeptWhilePending = false;
+	g_reloadsRunBefore = 0;
+	g_reloadsOnOwnerBefore = 0;
 	g_dxStep = DxStep::Fixture;
 	g_dxTicks = 0;
 	g_dxGiveUpsBefore = 0;
