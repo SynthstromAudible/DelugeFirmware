@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/midi/midi_routing.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "util/containers.h"
 #include "util/d_stringbuf.h"
@@ -100,12 +101,18 @@ public:
 	}
 	inline bool sendsToInternal() { return (getChannel() >= IS_A_DEST); }
 	bool matchesPreset(OutputType otherType, int32_t otherChannel, int32_t otherSuffix, char const* otherName,
-	                   char const* otherPath) override {
-		bool match{false};
-		if (type == otherType) {
-			match = (getChannel() == otherChannel && (channelSuffix == otherSuffix));
+	                   char const* otherPath,
+	                   uint8_t otherOutputDevice = deluge::io::midi::kMIDIOutputDeviceMatchUnspecified) override {
+		if (type != otherType) {
+			return false;
 		}
-		return match;
+		if (getChannel() != otherChannel || channelSuffix != otherSuffix) {
+			return false;
+		}
+		if (otherOutputDevice == deluge::io::midi::kMIDIOutputDeviceMatchUnspecified) {
+			return true;
+		}
+		return outputDevice == otherOutputDevice;
 	}
 	int32_t channelSuffix{-1};
 	int32_t lastNoteCode{32767};
@@ -118,6 +125,10 @@ public:
 
 	// Numbers 0 to 15 can all be an MPE member depending on configuration
 	MPEOutputMemberChannel mpeOutputMemberChannels[16];
+
+	// 0 = ALL, 1 = DIN, 2/3 = USB device-mode cables, 4+ = USB host devices
+	uint8_t outputDevice{0};
+	String outputDeviceName;
 
 	char const* getXMLTag() override { return "midi"; }
 	char const* getSlotXMLTag() override {

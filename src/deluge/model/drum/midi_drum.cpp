@@ -19,6 +19,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
+#include "io/midi/midi_device_helper.h"
 #include "io/midi/midi_engine.h"
 #include "model/drum/non_audio_drum.h"
 #include "storage/storage_manager.h"
@@ -70,12 +71,13 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	lastVelocity = arpNote->velocity;
-	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE, outputDevice);
 }
 
 void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	NonAudioDrum::noteOffPostArp(noteCodePostArp);
-	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE,
+	                    outputDevice);
 }
 
 void MIDIDrum::killAllVoices() {
@@ -90,6 +92,7 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 	writeDrumTagsToFile(writer);
 	writer.writeAttribute("channel", channel, false);
 	writer.writeAttribute("note", note, false);
+	deluge::io::midi::writeDeviceToFile(writer, outputDevice, outputDeviceName);
 	writer.writeOpeningTagEnd();
 
 	NonAudioDrum::writeArpeggiatorToFile(writer);
@@ -108,10 +111,22 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 			note = reader.readTagOrAttributeValueInt();
 			reader.exitTag("note");
 		}
+		else if (!strcmp(tagName, "outputDeviceName")) {
+			reader.readTagOrAttributeValueString(&outputDeviceName);
+			reader.exitTag("outputDeviceName");
+		}
+		else if (!strcmp(tagName, "outputDevice")) {
+			outputDevice = static_cast<uint8_t>(reader.readTagOrAttributeValueInt());
+			reader.exitTag("outputDevice");
+		}
 		else if (NonAudioDrum::readDrumTagFromFile(reader, tagName)) {}
 		else {
 			reader.exitTag(tagName);
 		}
+	}
+
+	if (!outputDeviceName.isEmpty()) {
+		outputDevice = deluge::io::midi::findDeviceIndexByName(outputDeviceName.get(), outputDevice);
 	}
 
 	return Error::NONE;
@@ -183,7 +198,7 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 		// Note: use the note code currently on post-arp, because this drum supports "Chord Simulator" and "Octaves" and
 		// the note code could be different
 		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.active_note.noteCodeOnPostArp[0],
-		                                    kMIDIOutputFilterNoMPE);
+		                                    kMIDIOutputFilterNoMPE, outputDevice);
 	}
 }
 
